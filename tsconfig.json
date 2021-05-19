@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "alwaysStrict": true,
+    "moduleResolution": "node",
+    "removeComments": true,
+    "pretty": true,
+    "module": "CommonJS",
+    "target": "ES2020",
+    "lib": ["ESNext"],
+    "sourceMap": true,
+    "declarationMap": true,
+    "incremental": true,
+    "skipLibCheck": true,
+    "noEmitHelpers": true,
+    "importHelpers": true,
+    "declaration": true,
+    "esModuleInterop": true,
+    "noUncheckedIndexedAccess": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true
+  }
+}

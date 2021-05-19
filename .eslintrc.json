@@ -1,0 +1,10 @@
+{
+  "extends": "marine/node",
+  "rules": {
+    "@typescript-eslint/indent": [
+      "error",
+      2
+    ],
+    "no-useless-constructor": "off"
+  }
+}

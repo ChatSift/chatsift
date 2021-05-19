@@ -1,0 +1,11 @@
+/**/dist
+/**/types
+!/**/src/types
+coverage
+
+node_modules
+
+.vscode
+*.log
+doc
+docs

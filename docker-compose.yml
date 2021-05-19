@@ -1,0 +1,8 @@
+version: "3.7"
+
+services:
+  my-microservice:
+    build:
+      context: ./
+      dockerfile: ./docker/my-microservice/Dockerfile
+    restart: unless-stopped
