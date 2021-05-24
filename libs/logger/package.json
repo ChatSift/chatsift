@@ -1,7 +1,7 @@
 {
   "$schema": "http://json.schemastore.org/package",
-  "name": "@project/example",
-  "description": "Some cool package",
+  "name": "@automoderator/logger",
+  "description": "AutoModerator backend logging",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "version": "0.1.0",
@@ -11,15 +11,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/didinele/typescript-docker-monorepo.git"
+    "url": "git+https://github.com/didinele/AutoModerator.git"
   },
   "author": "didinele",
   "bugs": {
-    "url": "https://github.com/didinele/typescript-docker-monorepo/issues"
+    "url": "https://github.com/didinele/AutoModerator/issues"
   },
-  "homepage": "https://github.com/didinele/typescript-docker-monorepo#readme",
+  "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
-    "@types/node": "^14.14.41",
+    "@types/node": "^14.17.0",
     "typescript": "^4.2.4"
   },
   "dependencies": {

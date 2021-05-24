@@ -1,35 +1,35 @@
 {
   "$schema": "http://json.schemastore.org/package",
-  "name": "project",
+  "name": "automoderator",
   "version": "0.1.0",
   "description": "Something cool",
   "scripts": {
-    "build": "pnpm recursive run build --filter @project/*",
-    "lint": "pnpm recursive run lint --filter @project/*",
-    "lint:ci": "pnpm lint --parallel --filter @project/*",
+    "build": "pnpm recursive run build --filter @automoderator/*",
+    "lint": "pnpm recursive run lint --filter @automoderator/*",
+    "lint:ci": "pnpm lint --parallel --filter @automoderator/*",
     "test": "jest",
     "test:ci": "jest --ci --no-stack-trace --verbose"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/didinele/typescript-docker-monorepo.git"
+    "url": "git+https://github.com/didinele/AutoModerator.git"
   },
   "author": "didinele",
   "bugs": {
-    "url": "https://github.com/didinele/typescript-docker-monorepo/issues"
+    "url": "https://github.com/didinele/AutoModerator/issues"
   },
-  "homepage": "https://github.com/didinele/typescript-docker-monorepo#readme",
+  "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
-    "@babel/core": "^7.13.16",
-    "@babel/generator": "^7.13.16",
-    "@babel/preset-env": "^7.13.15",
+    "@babel/core": "^7.14.3",
+    "@babel/generator": "^7.14.3",
+    "@babel/preset-env": "^7.14.2",
     "@babel/preset-typescript": "^7.13.0",
-    "@types/jest": "^26.0.22",
-    "@typescript-eslint/eslint-plugin": "^4.22.0",
-    "@typescript-eslint/parser": "^4.22.0",
+    "@types/jest": "^26.0.23",
+    "@typescript-eslint/eslint-plugin": "^4.24.0",
+    "@typescript-eslint/parser": "^4.24.0",
     "babel-jest": "^26.6.3",
     "babel-plugin-const-enum": "^1.0.1",
-    "eslint": "^7.24.0",
+    "eslint": "^7.27.0",
     "eslint-config-marine": "^7.2.0",
     "husky": "^4.3.8",
     "jest": "^26.6.3",
