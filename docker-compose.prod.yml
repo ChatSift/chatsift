@@ -1,0 +1,32 @@
+version: "3.7"
+
+services:
+  auth:
+    command: [
+      "node",
+      "--enable-source-maps",
+      "services/auth/dist/index.js",
+      "|",
+      "./services/auth/node_modules/.bin/pino-elasticsearch",
+      "-c", "-l"
+    ]
+
+  elasticsearch:
+    image: elasticsearch:7.12.1
+    volumes:
+      - elis-data:/usr/share/elasticsearch/data
+    environment:
+      "discovery.type": "single-node"
+      "bootstrap.memory_lock": "true"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+  kibana:
+    image: kibana:7.12.1
+    restart: unless-stopped
+    environment:
+      ELASTICSEARCH_HOSTS: "http://elasticsearch:9200"

@@ -5,6 +5,7 @@
       "error",
       2
     ],
+    "@typescript-eslint/naming-convention": "off",
     "no-useless-constructor": "off"
   }
 }

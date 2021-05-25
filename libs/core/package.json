@@ -1,7 +1,7 @@
 {
   "$schema": "http://json.schemastore.org/package",
-  "name": "@automoderator/api",
-  "description": "RESTful API backend for AutoModerator",
+  "name": "@automoderator/core",
+  "description": "Web-compatible utilities and types for the infrastructure",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "version": "0.1.0",

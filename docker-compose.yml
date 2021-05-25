@@ -1,37 +1,11 @@
 version: "3.7"
 
 services:
-  api:
+  auth:
     build:
       context: ./
-      dockerfile: ./docker/api/Dockerfile
+      dockerfile: ./docker/auth/Dockerfile
     restart: unless-stopped
-
-  elastisearch:
-    image: elasticsearch:7.12.1
-    volumes:
-      - elis-data:/usr/share/elasticsearch/data
-    environment:
-      "discovery.type": "single-node"
-      "bootstrap.memory_lock": "true"
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
-    restart: unless-stopped
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-
-  logstash:
-    image: logstash:7.12.1
-    restart: unless-stopped
-
-  kibana:
-    image: kibana:7.12.1
-    ports: # TODO
-      - "5601:5601"
-    restart: unless-stopped
-    environment:
-      ELASTICSEARCH_HOSTS: "http://elasticsearch:9200"
 
 volumes:
   elis-data:

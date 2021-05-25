@@ -1,0 +1,12 @@
+version: "3.7"
+
+services:
+  auth:
+    command: [
+      "node",
+      "--enable-source-maps",
+      "services/auth/dist/index.js",
+      "|",
+      "./services/auth/node_modules/.bin/pino-pretty",
+      "-c", "-l"
+    ]

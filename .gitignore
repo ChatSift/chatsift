@@ -9,3 +9,5 @@ node_modules
 *.log
 doc
 docs
+
+docker-compose.config.yml

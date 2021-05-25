@@ -1,7 +1,7 @@
 {
   "$schema": "http://json.schemastore.org/package",
-  "name": "@automoderator/logger",
-  "description": "Magic server-side logging",
+  "name": "@automoderator/auth",
+  "description": "Centralized RESTful API backend for authenticating to the AutoModerator infrastructure",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "version": "0.1.0",
@@ -21,11 +21,20 @@
   "devDependencies": {
     "@types/node": "^14.17.0",
     "@types/pino": "^6.3.8",
+    "polka": "^1.0.0-next.15",
     "typescript": "^4.2.4"
   },
   "dependencies": {
+    "@automoderator/core": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
-    "pino": "^6.11.3",
+    "@automoderator/logger": "workspace:^0.1.0",
+    "@automoderator/rest": "workspace:^0.1.0",
+    "@gaius-bot/readdir": "^1.0.0",
+    "@hapi/boom": "^9.1.2",
+    "pino-elasticsearch": "^5.4.0",
+    "pino-pretty": "^4.8.0",
+    "postgres": "^2.0.0-beta.5",
+    "reflect-metadata": "^0.1.13",
     "tslib": "^2.2.0",
     "tsyringe": "^4.5.0"
   }
