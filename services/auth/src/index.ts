@@ -23,7 +23,7 @@ void (async () => {
 
   const app = createApp();
 
-  const routes = joinPath();
+  const routes = joinPath(__dirname, 'routes');
   const files = readdirRecurse(routes, { fileExtension: 'js' });
 
   for await (const file of files) {

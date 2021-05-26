@@ -11,10 +11,18 @@ RUN curl -L https://unpkg.com/@pnpm/self-installer | node
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 
+COPY libs/core/package.json ./libs/core/package.json
+COPY libs/injection/package.json ./libs/injection/package.json
+COPY libs/logger/package.json ./libs/logger/package.json
+COPY libs/rest/package.json ./libs/rest/package.json
 COPY services/auth/package.json ./services/auth/package.json
 
 RUN pnpm i --frozen-lockfile && apk del .build-deps
 
+COPY libs/core ./libs/core
+COPY libs/injection ./libs/injection
+COPY libs/logger ./libs/logger
+COPY libs/rest ./libs/rest
 COPY services/auth ./services/auth
 
 RUN pnpm run build && pnpm prune --prod
@@ -26,5 +34,7 @@ LABEL version "0.1.0"
 WORKDIR /usr/auth
 
 COPY --from=0 /opt/build ./
+
+EXPOSE 3000
 
 CMD ["node", "--enable-source-maps", "services/auth/dist/index.js"]

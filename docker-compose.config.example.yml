@@ -1,0 +1,9 @@
+version: "3.7"
+
+services:
+  auth:
+    environment:
+      DISCORD_CLIENT_ID: "123"
+      DISCORD_CLIENT_SECRET: "abc"
+      DISCORD_TOKEN: "def"
+      ENCRYPTION_KEY: "32 random bytes of base64 here"

@@ -2,14 +2,12 @@ version: "3.7"
 
 services:
   auth:
-    command: [
-      "node",
-      "--enable-source-maps",
-      "services/auth/dist/index.js",
-      "|",
-      "./services/auth/node_modules/.bin/pino-elasticsearch",
-      "-c", "-l"
-    ]
+    environment:
+      ROOT_DOMAIN: "https://automoderator.me"
+      AUTH_DOMAIN: "https://auth.automoderator.me"
+      API_DOMAIN: "https://api.automoderator.me"
+      NODE_ENV: "prod"
+    command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-elasticsearch\""
 
   elasticsearch:
     image: elasticsearch:7.12.1

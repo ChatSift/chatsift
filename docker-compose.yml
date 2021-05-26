@@ -1,12 +1,33 @@
 version: "3.7"
 
 services:
+  postgres:
+    build:
+      context: ./docker/postgresql
+      dockerfile: ./Dockerfile
+    environment:
+      POSTGRES_USER: "automoderator"
+      POSTGRES_PASSWORD: "admin"
+      POSTGRES_DB: "automoderator"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U automoderator"]
+      interval: 10s
+      timeout: 5s
+
   auth:
     build:
       context: ./
       dockerfile: ./docker/auth/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator?sslmode=disable"
+      DISCORD_SCOPES: "identify,email"
     restart: unless-stopped
 
 volumes:
   elis-data:
     name: "automoderator-elis-data"
+  postgres-data:
+    name: "automoderator-postgres-data"

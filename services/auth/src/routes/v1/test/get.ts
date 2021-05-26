@@ -5,9 +5,9 @@ import type { Request, Response } from 'polka';
 @injectable()
 export default class GetV1Route extends Route {
   public handle(_: Request, res: Response) {
-    res.statusCode = 204;
+    res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify({}));
+    return res.end(JSON.stringify({ hello: 'world' }));
   }
 }
