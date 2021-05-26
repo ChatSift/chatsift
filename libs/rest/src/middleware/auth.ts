@@ -10,7 +10,7 @@ declare module 'polka' {
   }
 }
 
-export const auth = (fallthrough = false) => async (req: Request, _: Response, next: NextHandler) => {
+export const userAuth = (fallthrough = false) => async (req: Request, _: Response, next: NextHandler) => {
   const cookies = cookie.parse(req.headers.cookie ?? '');
   const token = cookies.access_token ?? req.headers.authorization;
 

@@ -7,6 +7,6 @@ services:
       AUTH_DOMAIN: "http://localhost:3000"
       API_DOMAIN: "http://localhost:3001"
       NODE_ENV: "dev"
-    command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-pretty -c -l\""
+    command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-pretty -c -l -t\""
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"

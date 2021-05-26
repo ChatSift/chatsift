@@ -152,7 +152,11 @@ importers:
       '@gaius-bot/readdir': ^1.0.0
       '@hapi/boom': ^9.1.2
       '@types/node': ^14.17.0
+      '@types/node-fetch': ^2.5.10
       '@types/pino': ^6.3.8
+      cookie: ^0.4.1
+      joi: ^17.4.0
+      node-fetch: ^2.6.1
       pino-elasticsearch: ^5.4.0
       pino-pretty: ^4.8.0
       polka: ^1.0.0-next.15
@@ -168,6 +172,9 @@ importers:
       '@automoderator/rest': link:../../libs/rest
       '@gaius-bot/readdir': 1.0.0
       '@hapi/boom': 9.1.2
+      cookie: 0.4.1
+      joi: 17.4.0
+      node-fetch: 2.6.1
       pino-elasticsearch: 5.4.0
       pino-pretty: 4.8.0
       postgres: 2.0.0-beta.5
@@ -176,6 +183,7 @@ importers:
       tsyringe: 4.5.0
     devDependencies:
       '@types/node': 14.17.1
+      '@types/node-fetch': 2.5.10
       '@types/pino': 6.3.8
       polka: 1.0.0-next.15
       typescript: 4.2.4
@@ -1667,7 +1675,7 @@ packages:
   /@types/node-fetch/2.5.10:
     resolution: {integrity: sha512-IpkX0AasN44hgEad0gEF/V6EgR5n69VEqPEgnmoM8GsIGro3PowbWs4tR6IhxUTyPLpOn+fiGG6nrQhcmoCuIQ==}
     dependencies:
-      '@types/node': 15.6.0
+      '@types/node': 14.17.1
       form-data: 3.0.1
     dev: true
 

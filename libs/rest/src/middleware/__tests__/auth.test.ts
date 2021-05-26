@@ -1,5 +1,5 @@
 import { Http2ServerResponse } from 'http2';
-import { auth } from '../auth';
+import { userAuth } from '../auth';
 import { Boom } from '@hapi/boom';
 import fetch from 'node-fetch';
 import type { Request, Response } from 'polka';
@@ -27,7 +27,7 @@ const mockedNext = jest.fn();
 afterEach(() => jest.clearAllMocks());
 
 test('missing token', async () => {
-  const authenticator = auth(false);
+  const authenticator = userAuth(false);
 
   await authenticator(makeMockedRequest({ headers: {} }), new MockedResponse(), mockedNext);
   expect(mockedFetch).not.toHaveBeenCalled();
@@ -36,7 +36,7 @@ test('missing token', async () => {
 });
 
 test('bad token', async () => {
-  const authenticator = auth();
+  const authenticator = userAuth();
 
   await authenticator(makeMockedRequest({ headers: { authorization: 'bad' } }), new MockedResponse(), mockedNext);
   expect(mockedFetch).toHaveBeenCalled();
@@ -45,7 +45,7 @@ test('bad token', async () => {
 });
 
 test('good token', async () => {
-  const authenticator = auth();
+  const authenticator = userAuth();
 
   const req = makeMockedRequest({ headers: { authorization: 'good' } });
 
@@ -56,7 +56,7 @@ test('good token', async () => {
 });
 
 test('fallthrough', async () => {
-  const authenticator = auth(true);
+  const authenticator = userAuth(true);
 
   await authenticator(makeMockedRequest({ headers: {} }), new MockedResponse(), mockedNext);
   expect(mockedFetch).not.toHaveBeenCalled();
