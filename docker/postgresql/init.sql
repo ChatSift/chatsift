@@ -14,7 +14,16 @@ CREATE TABLE malicious_files (
   file_id serial PRIMARY KEY,
   file_hash text UNIQUE NOT NULL,
   admin_id bigint NOT NULL,
-  reason text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT NOW(),
-  last_modified_at timestamptz NOT NULL DEFAULT NOW()
+  last_modified_at timestamptz NOT NULL DEFAULT NOW(),
+  category int NOT NULL,
+);
+
+CREATE TABLE malicious_domains (
+  domain_id serial PRIMARY KEY,
+  domain text UNIQUE NOT NULl,
+  admin_id bigint NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  last_modified_at timestamptz NOT NULL DEFAULT NOW(),
+  category int NOT NULL
 );

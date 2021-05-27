@@ -3,20 +3,20 @@ import { inject, injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { kSql } from '@automoderator/injection';
 import type { Request, Response } from 'polka';
-import type { ApiPostFilesFilterBody, MaliciousFile } from '@automoderator/core';
+import type { ApiPostFilesFilterBody, MaliciousDomain } from '@automoderator/core';
 import type { Sql } from 'postgres';
 
 @injectable()
-export default class PostFilesFilterRoute extends Route {
+export default class PostDomainsFilterRoute extends Route {
   public readonly middleware = [
     thirdPartyAuth(),
-    permissions('useFileFilters'),
+    permissions('useDomainFilters'),
     jsonParser(),
     validate(
       Joi
         .object()
         .keys({
-          hashes: Joi
+          domains: Joi
             .array()
             .items(Joi.string().required())
             .required()
@@ -35,10 +35,10 @@ export default class PostFilesFilterRoute extends Route {
   public async handle(req: Request, res: Response) {
     const { hashes } = req.body as ApiPostFilesFilterBody;
 
-    const files = await this.sql<Pick<MaliciousFile, 'file_hash' | 'category'>[]>`
-      SELECT file_hash, category
-      FROM malicious_files
-      WHERE file_hash = ANY(${this.sql.array(hashes)})
+    const files = await this.sql<Pick<MaliciousDomain, 'domain' | 'category'>[]>`
+      SELECT domain, category
+      FROM malicious_domains
+      WHERE domain = ANY(${this.sql.array(hashes)})
     `;
 
     res.statusCode = 200;

@@ -1,7 +1,8 @@
 import { BitField, BitFieldResolvable } from '@cordis/bitfield';
 
 const PERMISSIONS = BitField.makeFlags([
-  'useFileFilters'
+  'useFileFilters',
+  'useDomainFilters'
 ]);
 
 export type PermissionsResolvable = BitFieldResolvable<keyof typeof PERMISSIONS>;
