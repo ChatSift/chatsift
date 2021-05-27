@@ -9,7 +9,8 @@ jest.mock('crypto');
 jest.mock('bcrypt');
 
 const sqlMock = jest.fn();
-container.register(kSql, { useValue: sqlMock });
+const sqlBeginMock = jest.fn();
+container.register(kSql, { useValue: Object.assign(sqlMock, { begin: sqlBeginMock }) });
 
 const bytes = Buffer.from('Nw8JLJM+fOIhESzPBHSMzdheBtcAeaELEKtg142yaqg=', 'base64');
 
@@ -23,7 +24,10 @@ let token: string;
 
 beforeAll(async () => {
   token = await generateToken(1);
-  sqlMock.mockReturnValue([{ sig: token.split('.')[1] }]);
+  const sigs = [{ sig: token.split('.')[1] }];
+
+  sqlMock.mockReturnValue(sigs);
+  sqlBeginMock.mockReturnValue({ sigs });
 });
 
 test('token generation', () => {

@@ -56,6 +56,7 @@ export const validateToken = async (token: string): Promise<TokenValidationResul
     return { status: TokenValidationStatus.malformedAppId };
   }
 
+  /* istanbul ignore next */
   const { app, sigs = [] } = await sql.begin<{ app?: App; sigs?: Sig[] }>(async sql => {
     const [app] = await sql<[App?]>`SELECT * FROM apps WHERE app_id = ${id}`;
 
