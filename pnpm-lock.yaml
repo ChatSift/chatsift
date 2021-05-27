@@ -146,13 +146,47 @@ importers:
 
   services/api:
     specifiers:
+      '@automoderator/core': workspace:^0.1.0
+      '@automoderator/injection': workspace:^0.1.0
+      '@automoderator/logger': workspace:^0.1.0
+      '@automoderator/rest': workspace:^0.1.0
+      '@gaius-bot/readdir': ^1.0.0
+      '@hapi/boom': ^9.1.2
       '@types/node': ^14.17.0
+      '@types/node-fetch': ^2.5.10
+      '@types/pino': ^6.3.8
+      cookie: ^0.4.1
+      joi: ^17.4.0
+      node-fetch: ^2.6.1
+      pino-elasticsearch: ^5.4.0
+      pino-pretty: ^4.8.0
+      polka: ^1.0.0-next.15
+      postgres: ^2.0.0-beta.5
+      reflect-metadata: ^0.1.13
       tslib: ^2.2.0
+      tsyringe: ^4.5.0
       typescript: ^4.2.4
     dependencies:
+      '@automoderator/core': link:../../libs/core
+      '@automoderator/injection': link:../../libs/injection
+      '@automoderator/logger': link:../../libs/logger
+      '@automoderator/rest': link:../../libs/rest
+      '@gaius-bot/readdir': 1.0.0
+      '@hapi/boom': 9.1.2
+      cookie: 0.4.1
+      joi: 17.4.0
+      node-fetch: 2.6.1
+      pino-elasticsearch: 5.4.0
+      pino-pretty: 4.8.0
+      postgres: 2.0.0-beta.5
+      reflect-metadata: 0.1.13
       tslib: 2.2.0
+      tsyringe: 4.5.0
     devDependencies:
       '@types/node': 14.17.0
+      '@types/node-fetch': 2.5.10
+      '@types/pino': 6.3.8
+      polka: 1.0.0-next.15
       typescript: 4.2.4
 
   services/auth:
@@ -1722,7 +1756,7 @@ packages:
   /@types/node-fetch/2.5.10:
     resolution: {integrity: sha512-IpkX0AasN44hgEad0gEF/V6EgR5n69VEqPEgnmoM8GsIGro3PowbWs4tR6IhxUTyPLpOn+fiGG6nrQhcmoCuIQ==}
     dependencies:
-      '@types/node': 14.17.1
+      '@types/node': 15.6.0
       form-data: 3.0.1
     dev: true
 
@@ -1755,13 +1789,13 @@ packages:
   /@types/pino-std-serializers/2.4.1:
     resolution: {integrity: sha512-17XcksO47M24IVTVKPeAByWUd3Oez7EbIjXpSbzMPhXVzgjGtrOa49gKBwxH9hb8dKv58OelsWQ+A1G1l9S3wQ==}
     dependencies:
-      '@types/node': 14.17.1
+      '@types/node': 15.6.0
     dev: true
 
   /@types/pino/6.3.8:
     resolution: {integrity: sha512-E47CmRy1FNMaCN8r0d8ECQOjXen9O0p6GGsUjLfmawlxRKosZ82WP1oWVKj+ikTkMDHxWzN5BuKmplo44ynrIg==}
     dependencies:
-      '@types/node': 14.17.1
+      '@types/node': 15.6.0
       '@types/pino-pretty': 4.7.0
       '@types/pino-std-serializers': 2.4.1
       '@types/sonic-boom': 0.7.0
@@ -1774,7 +1808,7 @@ packages:
   /@types/sonic-boom/0.7.0:
     resolution: {integrity: sha512-AfqR0fZMoUXUNwusgXKxcE9DPlHNDHQp6nKYUd4PSRpLobF5CCevSpyTEBcVZreqaWKCnGBr9KI1fHMTttoB7A==}
     dependencies:
-      '@types/node': 14.17.1
+      '@types/node': 15.6.0
     dev: true
 
   /@types/stack-utils/2.0.0:

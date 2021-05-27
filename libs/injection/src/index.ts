@@ -30,7 +30,7 @@ export const initConfig = () => {
     discordClientId: process.env.DISCORD_CLIENT_ID as `${bigint}`,
     discordClientSecret: process.env.DISCORD_CLIENT_SECRET!,
     discordToken: process.env.DISCORD_TOKEN!,
-    discordScopes: process.env.DISCORD_SCOPES!.split(',').join(' '),
+    discordScopes: process.env.DISCORD_SCOPES?.split(',').join(' ') ?? '',
     dbUrl: process.env.DB_URL!,
     nodeEnv: process.env.NODE_ENV ?? 'dev',
     encryptionKey: process.env.ENCRYPTION_KEY!,

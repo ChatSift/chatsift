@@ -1,6 +1,13 @@
 version: "3.7"
 
 services:
+  api:
+    environment:
+      NODE_ENV: "dev"
+    command: "sh -c \"node services/api/dist/index.js | ./services/api/node_modules/.bin/pino-pretty -c -l -t\""
+    ports:
+      - "127.0.0.1:3001:3001"
+
   auth:
     environment:
       ROOT_DOMAIN: "http://localhost"

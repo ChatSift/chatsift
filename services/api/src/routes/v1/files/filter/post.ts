@@ -7,7 +7,7 @@ import type { ApiPostFilesFilterBody, MaliciousFile } from '@automoderator/core'
 import type { Sql } from 'postgres';
 
 @injectable()
-export class PostFilesFilterRoute extends Route {
+export default class PostFilesFilterRoute extends Route {
   public readonly middleware = [
     thirdPartyAuth(),
     permissions('useFileFilters'),

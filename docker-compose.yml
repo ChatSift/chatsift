@@ -17,6 +17,14 @@ services:
       interval: 10s
       timeout: 5s
 
+  api:
+    build:
+      context: ./
+      dockerfile: ./docker/api/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator?sslmode=disable"
+    restart: unless-stopped
+
   auth:
     build:
       context: ./

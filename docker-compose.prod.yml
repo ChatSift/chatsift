@@ -1,6 +1,11 @@
 version: "3.7"
 
 services:
+  api:
+    environment:
+      NODE_ENV: "prod"
+    command: "sh -c \"node services/api/dist/index.js | ./services/api/node_modules/.bin/pino-elasticsearch\""
+
   auth:
     environment:
       ROOT_DOMAIN: "https://automoderator.me"
