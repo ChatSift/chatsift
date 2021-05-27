@@ -32,20 +32,22 @@ test('token generation', () => {
 
 describe('token validation', () => {
   test('malformed token', async () => {
-    expect(await validateToken('a.b.c')).toBe(TokenValidationStatus.malformedToken);
+    expect((await validateToken('a.b.c')).status).toBe(TokenValidationStatus.malformedToken);
   });
 
   test('malformed app id', async () => {
     // Non-int parsable user id
-    expect(await validateToken(`${Buffer.from('awooga', 'utf8').toString('base64')}.bcdefg`)).toBe(TokenValidationStatus.malformedAppId);
+    expect((await validateToken(`${Buffer.from('awooga', 'utf8').toString('base64')}.bcdefg`)).status).toBe(
+      TokenValidationStatus.malformedAppId
+    );
   });
 
   test('no sig match', async () => {
     // Adding characters to the signature (end of the token) to prevent a match
-    expect(await validateToken(`${token}abcdefg`)).toBe(TokenValidationStatus.noMatch);
+    expect((await validateToken(`${token}abcdefg`)).status).toBe(TokenValidationStatus.noMatch);
   });
 
   test('valid token', async () => {
-    expect(await validateToken(token)).toBe(TokenValidationStatus.success);
+    expect((await validateToken(token)).status).toBe(TokenValidationStatus.success);
   });
 });
