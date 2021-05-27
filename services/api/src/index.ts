@@ -10,7 +10,7 @@ import { readdirRecurse } from '@gaius-bot/readdir';
 
 void (async () => {
   const config = initConfig();
-  const logger = createLogger('AUTH');
+  const logger = createLogger('API');
 
   container.register(kLogger, { useValue: logger });
   container.register(
@@ -25,5 +25,5 @@ void (async () => {
 
   await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtension: 'js' }));
 
-  app.listen(3000, () => logger.info({ topic: 'INIT' }, 'Listening to requests on port 3000'));
+  app.listen(3001, () => logger.info({ topic: 'INIT' }, 'Listening to requests on port 3001'));
 })();

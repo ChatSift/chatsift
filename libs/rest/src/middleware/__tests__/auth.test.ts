@@ -1,5 +1,5 @@
 import { Http2ServerResponse } from 'http2';
-import { userAuth } from '../auth';
+import { userAuth } from '../userAuth';
 import { Boom } from '@hapi/boom';
 import fetch from 'node-fetch';
 import type { Request, Response } from 'polka';

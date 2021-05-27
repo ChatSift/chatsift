@@ -1,5 +1,10 @@
+import 'reflect-metadata';
 import { join as joinPath } from 'path';
 import { Route, RouteMethod } from '../route';
+import { container } from 'tsyringe';
+import { kLogger } from '@automoderator/injection';
+
+container.register(kLogger, { useValue: { trace: jest.fn() } });
 
 describe('path to route info', () => {
   test('faulty parameters', () => {
