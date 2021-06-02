@@ -1,8 +1,13 @@
+import 'reflect-metadata';
 import { Http2ServerResponse } from 'http2';
 import { userAuth } from '../userAuth';
 import { Boom } from '@hapi/boom';
 import fetch from 'node-fetch';
+import { container } from 'tsyringe';
+import { kSql } from '@automoderator/injection';
 import type { Request, Response } from 'polka';
+
+container.register(kSql, { useValue: jest.fn(() => [{ perms: 0 }]) });
 
 jest.mock('http2');
 
@@ -51,7 +56,7 @@ test('good token', async () => {
 
   await authenticator(req, new MockedResponse(), mockedNext);
   expect(mockedFetch).toHaveBeenCalled();
-  expect(req.user).toStrictEqual({ id: '123' });
+  expect(req.user).toStrictEqual({ id: '123', perms: 0 });
   expect(mockedNext).toHaveBeenCalledWith(undefined);
 });
 
