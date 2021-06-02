@@ -22,31 +22,31 @@
     "@gaius-bot/readdir": "^1.0.0",
     "@types/bcrypt": "^5.0.0",
     "@types/cookie": "^0.4.0",
-    "@types/cors": "^2.8.9",
-    "@types/node": "^14.14.41",
-    "@types/node-fetch": "^2.5.7",
+    "@types/cors": "^2.8.10",
+    "@types/node": "^14.17.2",
+    "@types/node-fetch": "^2.5.10",
     "@types/pino": "^6.3.8",
-    "@types/supertest": "^2.0.10",
+    "@types/supertest": "^2.0.11",
     "discord-api-types": "^0.12.1",
-    "postgres": "^2.0.0-beta.4",
+    "postgres": "^2.0.0-beta.5",
     "reflect-metadata": "^0.1.13",
-    "supertest": "^6.0.1",
-    "typescript": "^4.2.4"
+    "supertest": "^6.1.3",
+    "typescript": "^4.3.2"
   },
   "dependencies": {
     "@automoderator/core": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
     "@cordis/bitfield": "^0.3.0",
-    "@hapi/boom": "^9.1.1",
+    "@hapi/boom": "^9.1.2",
     "bcrypt": "^5.0.1",
     "cookie": "^0.4.1",
     "cors": "^2.8.5",
-    "helmet": "^4.3.1",
-    "joi": "^17.3.0",
+    "helmet": "^4.6.0",
+    "joi": "^17.4.0",
     "node-fetch": "^2.6.1",
-    "polka": "^1.0.0-next.13",
+    "polka": "^1.0.0-next.15",
     "tslib": "^2.2.0",
-    "tsyringe": "^4.4.0"
+    "tsyringe": "^4.5.0"
   }
 }

@@ -8,7 +8,7 @@ import type { Request, Response } from 'polka';
 
 @injectable()
 export default class GetDiscordRoute extends Route {
-  public readonly middleware = [
+  public override readonly middleware = [
     validate(
       Joi
         .object()

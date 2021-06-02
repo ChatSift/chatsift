@@ -10,7 +10,7 @@ import type { Request, Response, NextHandler } from 'polka';
 
 @injectable()
 export default class DiscordRefreshRoute extends Route {
-  public readonly middleware = [
+  public override readonly middleware = [
     jsonParser(),
     validate(
       Joi

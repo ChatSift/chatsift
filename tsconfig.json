@@ -18,6 +18,7 @@
     "esModuleInterop": true,
     "noUncheckedIndexedAccess": true,
     "emitDecoratorMetadata": true,
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "noImplicitOverride": true
   }
 }

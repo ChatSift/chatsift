@@ -3,12 +3,12 @@ import { inject, injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { kSql } from '@automoderator/injection';
 import type { Request, Response } from 'polka';
-import type { ApiPostFilesFilterBody, MaliciousFile } from '@automoderator/core';
+import type { ApiPostFiltersFilesBody, MaliciousFile } from '@automoderator/core';
 import type { Sql } from 'postgres';
 
 @injectable()
-export default class PostFilesFilterRoute extends Route {
-  public readonly middleware = [
+export default class PostFiltersFilesRoute extends Route {
+  public override readonly middleware = [
     thirdPartyAuth(),
     permissions('useFileFilters'),
     jsonParser(),
@@ -33,9 +33,9 @@ export default class PostFilesFilterRoute extends Route {
   }
 
   public async handle(req: Request, res: Response) {
-    const { hashes } = req.body as ApiPostFilesFilterBody;
+    const { hashes } = req.body as ApiPostFiltersFilesBody;
 
-    const files = await this.sql<Pick<MaliciousFile, 'file_hash' | 'category'>[]>`
+    const hits = await this.sql<Pick<MaliciousFile, 'file_hash' | 'category'>[]>`
       SELECT file_hash, category
       FROM malicious_files
       WHERE file_hash = ANY(${this.sql.array(hashes)})
@@ -44,6 +44,6 @@ export default class PostFilesFilterRoute extends Route {
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(files));
+    return res.end(JSON.stringify(hits));
   }
 }

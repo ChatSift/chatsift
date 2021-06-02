@@ -22,11 +22,11 @@
   "devDependencies": {
     "@babel/core": "^7.14.3",
     "@babel/generator": "^7.14.3",
-    "@babel/preset-env": "^7.14.2",
+    "@babel/preset-env": "^7.14.4",
     "@babel/preset-typescript": "^7.13.0",
     "@types/jest": "^26.0.23",
-    "@typescript-eslint/eslint-plugin": "^4.24.0",
-    "@typescript-eslint/parser": "^4.24.0",
+    "@typescript-eslint/eslint-plugin": "^4.26.0",
+    "@typescript-eslint/parser": "^4.26.0",
     "babel-jest": "^26.6.3",
     "babel-plugin-const-enum": "^1.0.1",
     "eslint": "^7.27.0",
@@ -35,7 +35,7 @@
     "jest": "^26.6.3",
     "lint-staged": "^10.5.4",
     "rimraf": "^3.0.2",
-    "typescript": "^4.2.4"
+    "typescript": "^4.3.2"
   },
   "husky": {
     "hooks": {

@@ -1,3 +1,8 @@
+CREATE TABLE users (
+  user_id bigint PRIMARY KEY,
+  perms bigint NOT NULL DEFAULT 0
+);
+
 CREATE TABLE apps (
   app_id serial PRIMARY KEY,
   name varchar(32) NOT NULL,
@@ -13,7 +18,7 @@ CREATE TABLE sigs (
 CREATE TABLE malicious_files (
   file_id serial PRIMARY KEY,
   file_hash text UNIQUE NOT NULL,
-  admin_id bigint NOT NULL,
+  admin_id bigint NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
   created_at timestamptz NOT NULL DEFAULT NOW(),
   last_modified_at timestamptz NOT NULL DEFAULT NOW(),
   category int NOT NULL,
@@ -21,9 +26,10 @@ CREATE TABLE malicious_files (
 
 CREATE TABLE malicious_domains (
   domain_id serial PRIMARY KEY,
-  domain text UNIQUE NOT NULl,
-  admin_id bigint NOT NULL,
+  domain text UNIQUE NOT NULL,
+  guild_id bigint,
+  admin_id bigint REFERENCES users(user_id) ON DELETE CASCADE,
   created_at timestamptz NOT NULL DEFAULT NOW(),
   last_modified_at timestamptz NOT NULL DEFAULT NOW(),
-  category int NOT NULL
+  category int
 );

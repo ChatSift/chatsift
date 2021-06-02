@@ -1,14 +1,13 @@
 import { jsonParser, Route, thirdPartyAuth, permissions, validate } from '@automoderator/rest';
-import { inject, injectable } from 'tsyringe';
+import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { kSql } from '@automoderator/injection';
 import type { Request, Response } from 'polka';
-import type { ApiPostFilesFilterBody, MaliciousDomain } from '@automoderator/core';
-import type { Sql } from 'postgres';
+import type { ApiPostFiltersDomainsBody } from '@automoderator/core';
+import type { DomainsController } from '#util';
 
 @injectable()
-export default class PostDomainsFilterRoute extends Route {
-  public readonly middleware = [
+export default class PostFiltersDomainsRoute extends Route {
+  public override readonly middleware = [
     thirdPartyAuth(),
     permissions('useDomainFilters'),
     jsonParser(),
@@ -27,23 +26,17 @@ export default class PostDomainsFilterRoute extends Route {
   ];
 
   public constructor(
-    @inject(kSql) public readonly sql: Sql<{}>
+    public readonly controller: DomainsController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response) {
-    const { hashes } = req.body as ApiPostFilesFilterBody;
-
-    const files = await this.sql<Pick<MaliciousDomain, 'domain' | 'category'>[]>`
-      SELECT domain, category
-      FROM malicious_domains
-      WHERE domain = ANY(${this.sql.array(hashes)})
-    `;
+    const { domains } = req.body as ApiPostFiltersDomainsBody;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(files));
+    return res.end(JSON.stringify(await this.controller.getHitsFrom(domains)));
   }
 }

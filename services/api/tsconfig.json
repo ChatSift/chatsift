@@ -5,7 +5,7 @@
     "declaration": false,
     "declarationMap": false,
     "paths": {
-
+      "#util": ["./src/util/index.ts"]
     }
   },
   "include": ["./src/**/*.ts"]

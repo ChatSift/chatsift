@@ -10,13 +10,17 @@ declare module 'polka' {
 }
 
 export const thirdPartyAuth = (fallthrough = false) => async (req: Request, _: Response, next: NextHandler) => {
-  const token = req.headers.authorization;
+  const { authorization } = req.headers;
 
-  if (!token) {
-    return next(fallthrough ? undefined : unauthorized('missing authorization header', 'Bearer'));
+  if (!authorization) {
+    return next(fallthrough ? undefined : unauthorized('missing authorization header'));
   }
 
-  const { status, app } = await validateToken(token);
+  if (!authorization.startsWith('App ')) {
+    return next(unauthorized('invalid authorization header. please provide an application token'));
+  }
+
+  const { status, app } = await validateToken(authorization.replace('App ', ''));
   switch (status) {
     case TokenValidationStatus.malformedToken: return next(badRequest('malformed authorization token'));
     case TokenValidationStatus.malformedAppId: return next(badRequest('malformed app id'));

@@ -79,7 +79,7 @@ export const validateToken = async (token: string): Promise<TokenValidationResul
     return { status: TokenValidationStatus.noMatch };
   }
 
-  await sql`UPDATE sigs SET last_used_at = now() WHERE sig = ${match}`;
+  await sql`UPDATE sigs SET last_used_at = NOW() WHERE sig = ${match}`;
 
   return { status: TokenValidationStatus.success, app };
 };
