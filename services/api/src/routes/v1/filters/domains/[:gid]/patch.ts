@@ -1,16 +1,16 @@
-import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
+import { jsonParser, Route, userAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { notFound } from '@hapi/boom';
+import { getUserGuilds } from '#util';
 import { ApiPatchFiltersDomainsBody, MaliciousDomainCategory } from '@automoderator/core';
 import type { DomainsController } from '#controllers';
 import type { Request, Response, NextHandler } from 'polka';
 
 @injectable()
-export default class PatchFiltersDomainsRoute extends Route {
+export default class PatchFiltersDomainsGuildRoute extends Route {
   public override readonly middleware = [
     userAuth(),
-    globalPermissions('manageDomainFilters'),
     jsonParser(),
     validate(
       Joi
@@ -38,7 +38,17 @@ export default class PatchFiltersDomainsRoute extends Route {
   }
 
   public async handle(req: Request, res: Response, next: NextHandler) {
+    const { gid } = req.params;
     const domains = req.body as ApiPatchFiltersDomainsBody;
+
+    const guilds = await getUserGuilds(req, next, true);
+    if (!guilds?.length) return;
+
+    const guild = guilds.find(g => g.id === gid);
+
+    if (!guild) {
+      return next(notFound('guild not found'));
+    }
 
     const result = await this.controller.updateBulk(domains);
 

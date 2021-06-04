@@ -1,15 +1,15 @@
-import { jsonParser, Route, thirdPartyAuth, permissions, validate } from '@automoderator/rest';
+import { jsonParser, Route, thirdPartyAuth, globalPermissions, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import type { Request, Response } from 'polka';
 import type { ApiPostFiltersDomainsBody } from '@automoderator/core';
-import type { DomainsController } from '#util';
+import type { DomainsController } from '#controllers';
 
 @injectable()
 export default class PostFiltersDomainsRoute extends Route {
   public override readonly middleware = [
     thirdPartyAuth(),
-    permissions('useDomainFilters'),
+    globalPermissions('useDomainFilters'),
     jsonParser(),
     validate(
       Joi

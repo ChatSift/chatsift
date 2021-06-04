@@ -5,6 +5,7 @@
     "declaration": false,
     "declarationMap": false,
     "paths": {
+      "#controllers": ["./src/controllers/index.ts"],
       "#util": ["./src/util/index.ts"]
     }
   },

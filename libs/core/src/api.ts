@@ -17,12 +17,18 @@ export interface ApiPostFiltersDomainsBody {
   domains: string[];
 }
 
+export interface ApiPostFiltersGuildDomainBody extends ApiPostFiltersDomainsBody {
+  guild_only?: boolean;
+}
+
 export type ApiPostFiltersDomainsResult = Pick<MaliciousDomain, 'domain' | 'category'>[];
 
 export interface ApiPutFiltersDomainsBody {
   domain: string;
   category: MaliciousDomainCategory;
 }
+
+export type ApiPutFiltersDomainsGuildBody = Exclude<ApiPutFiltersDomainsBody, 'category'>;
 
 export type ApiPutFiltersDomainsResult = GlobalMaliciousDomain;
 

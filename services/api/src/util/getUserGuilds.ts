@@ -29,7 +29,8 @@ export const getUserGuilds = async (req: Request, next: NextHandler, filtered: b
       'Recieved bad discord data while getting all user guilds'
     );
 
-    return next(internal(`Discord Error: ${result.statusText}`));
+    await next(internal(`Discord Error: ${result.statusText}`));
+    return null;
   }
 
   return filtered ? data.filter(guild => new DiscordPermissions(BigInt(guild.permissions)).has('manageGuild')) : data;

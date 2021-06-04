@@ -1,4 +1,4 @@
-import { jsonParser, Route, thirdPartyAuth, permissions, validate } from '@automoderator/rest';
+import { jsonParser, Route, thirdPartyAuth, globalPermissions, validate } from '@automoderator/rest';
 import { inject, injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { kSql } from '@automoderator/injection';
@@ -10,7 +10,7 @@ import type { Sql } from 'postgres';
 export default class PostFiltersFilesRoute extends Route {
   public override readonly middleware = [
     thirdPartyAuth(),
-    permissions('useFileFilters'),
+    globalPermissions('useFileFilters'),
     jsonParser(),
     validate(
       Joi
