@@ -34,6 +34,21 @@ services:
       DISCORD_SCOPES: "identify,email"
     restart: unless-stopped
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 60s
+      timeout: 5s
+
+  gateway:
+    image: cordislib/gateway:latest
+    environment:
+      CORDIS_AMQP_HOST: "amqp://rabbitmq:5672"
+      CORDIS_WS_INTENTS: "guildMessages"
+    restart: unless-stopped
+
 volumes:
   elis-data:
     name: "automoderator-elis-data"

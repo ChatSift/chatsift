@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json.schemastore.org/package",
+  "name": "@automoderator/auth",
+  "description": "Centralized RESTful API backend for authenticating to the AutoModerator infrastructure",
+  "main": "./dist/index.js",
+  "types": "./types/index.d.ts",
+  "version": "0.1.0",
+  "scripts": {
+    "lint": "eslint src --ext .ts",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/didinele/AutoModerator.git"
+  },
+  "author": "didinele",
+  "bugs": {
+    "url": "https://github.com/didinele/AutoModerator/issues"
+  },
+  "imports": {
+    "#util": "./dist/util/index.js"
+  },
+  "homepage": "https://github.com/didinele/AutoModerator#readme",
+  "devDependencies": {
+    "@cordis/common": "^0.2.3",
+    "@types/amqplib": "^0.8.0",
+    "@types/common-tags": "^1.8.0",
+    "@types/node": "^14.17.2",
+    "@types/node-fetch": "^2.5.10",
+    "typescript": "^4.3.2",
+    "winston": "^3.3.3"
+  },
+  "dependencies": {
+    "@automoderator/core": "workspace:^0.1.0",
+    "@automoderator/injection": "workspace:^0.1.0",
+    "@automoderator/logger": "workspace:^0.1.0",
+    "@cordis/bitfield": "^0.3.0",
+    "@cordis/brokers": "^0.3.0",
+    "@cordis/rest": "^0.3.0",
+    "@cordis/store": "^0.3.0",
+    "@cordis/util": "^0.3.0",
+    "@gaius-bot/readdir": "^1.0.0",
+    "common-tags": "^1.8.0",
+    "discord-api-types": "^0.12.1",
+    "node-fetch": "^2.6.1",
+    "postgres": "2.0.0-beta.4",
+    "reflect-metadata": "^0.1.13",
+    "tslib": "^2.2.0",
+    "tsyringe": "^4.5.0"
+  }
+}

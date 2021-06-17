@@ -2,15 +2,15 @@ import { jsonParser, Route, userAuth, globalPermissions, validate } from '@autom
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { notFound } from '@hapi/boom';
-import { ApiPatchFiltersDomainsBody, MaliciousDomainCategory } from '@automoderator/core';
-import type { DomainsController } from '#controllers';
+import { ApiPatchFiltersUrlsBody, MaliciousUrlCategory } from '@automoderator/core';
+import type { UrlsController } from '#controllers';
 import type { Request, Response, NextHandler } from 'polka';
 
 @injectable()
-export default class PatchFiltersDomainsRoute extends Route {
+export default class PatchFiltersUrlsRoute extends Route {
   public override readonly middleware = [
     userAuth(),
-    globalPermissions('manageDomainFilters'),
+    globalPermissions('manageUrlFilters'),
     jsonParser(),
     validate(
       Joi
@@ -18,10 +18,10 @@ export default class PatchFiltersDomainsRoute extends Route {
         .items(
           Joi.object()
             .keys({
-              domain: Joi.string().required(),
+              url_id: Joi.number().required(),
               category: Joi.number()
-                .min(MaliciousDomainCategory.malicious)
-                .max(MaliciousDomainCategory.urlShortner)
+                .min(MaliciousUrlCategory.malicious)
+                .max(MaliciousUrlCategory.urlShortner)
                 .required()
             })
             .required()
@@ -32,13 +32,13 @@ export default class PatchFiltersDomainsRoute extends Route {
   ];
 
   public constructor(
-    public readonly controller: DomainsController
+    public readonly controller: UrlsController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response, next: NextHandler) {
-    const domains = req.body as ApiPatchFiltersDomainsBody;
+    const domains = req.body as ApiPatchFiltersUrlsBody;
 
     const result = await this.controller.updateBulk(domains);
 

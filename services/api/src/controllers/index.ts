@@ -1,1 +1,1 @@
-export * from './domainsController';
+export * from './urlsController';

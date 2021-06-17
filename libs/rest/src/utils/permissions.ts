@@ -3,8 +3,8 @@ import { BitField, BitFieldResolvable } from '@cordis/bitfield';
 const PERMISSIONS = BitField.makeFlags([
   'useFileFilters',
   'manageFileFilters',
-  'useDomainFilters',
-  'manageDomainFilters',
+  'useUrlFilters',
+  'manageUrlFilters',
   'administrator'
 ]);
 

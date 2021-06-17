@@ -2,20 +2,20 @@ import { jsonParser, Route, thirdPartyAuth, globalPermissions, validate } from '
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import type { Request, Response } from 'polka';
-import type { ApiPostFiltersDomainsBody } from '@automoderator/core';
-import type { DomainsController } from '#controllers';
+import type { ApiPostFiltersUrlsBody } from '@automoderator/core';
+import type { UrlsController } from '#controllers';
 
 @injectable()
-export default class PostFiltersDomainsRoute extends Route {
+export default class PostFiltersUrlRoute extends Route {
   public override readonly middleware = [
     thirdPartyAuth(),
-    globalPermissions('useDomainFilters'),
+    globalPermissions('useUrlFilters'),
     jsonParser(),
     validate(
       Joi
         .object()
         .keys({
-          domains: Joi
+          urls: Joi
             .array()
             .items(Joi.string().required())
             .required()
@@ -26,17 +26,17 @@ export default class PostFiltersDomainsRoute extends Route {
   ];
 
   public constructor(
-    public readonly controller: DomainsController
+    public readonly controller: UrlsController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response) {
-    const { domains } = req.body as ApiPostFiltersDomainsBody;
+    const { urls } = req.body as ApiPostFiltersUrlsBody;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(await this.controller.getHitsFrom(domains)));
+    return res.end(JSON.stringify(await this.controller.getHitsFrom(urls)));
   }
 }

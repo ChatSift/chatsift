@@ -37,7 +37,7 @@ export default class PutFilesFilesRoute extends Route {
     const { hash, category } = req.body as ApiPutFiltersFilesBody;
 
     const [data] = await this.sql<[MaliciousFile]>`
-      INSERT INTO malicious_domains (file_hash, admin_id, category)
+      INSERT INTO malicious_urls (file_hash, admin_id, category)
       VALUES (${hash}, ${req.user!.id}, ${category})
       ON CONFLICT (domain)
       DO

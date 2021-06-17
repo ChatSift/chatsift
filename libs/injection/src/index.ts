@@ -6,7 +6,10 @@ export const kSql = Symbol('postgres instance');
 
 export const kLogger = Symbol('logger instance');
 
+export const kRest = Symbol('rest instance');
+
 export interface Config {
+  amqpUrl: string;
   rootDomain: string;
   authDomain: string;
   apiDomain: string;
@@ -23,6 +26,7 @@ export interface Config {
 
 export const initConfig = () => {
   const config: Config = {
+    amqpUrl: process.env.AMQP_URL!,
     rootDomain: process.env.ROOT_DOMAIN!,
     authDomain: process.env.AUTH_DOMAIN!,
     apiDomain: process.env.API_DOMAIN!,

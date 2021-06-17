@@ -1,42 +1,42 @@
-import type { MaliciousFile, MaliciousDomain, MaliciousDomainCategory, MaliciousFileCategory, GlobalMaliciousDomain } from './models';
+import type { MaliciousFile, MaliciousUrl, MaliciousUrlCategory, MaliciousFileCategory, GlobalMaliciousUrl } from './models';
 
-export interface ApiGetFiltersDomainsQuery {
+export interface ApiGetFiltersUrlsQuery {
   page: number;
 }
 
-export type ApiGetFiltersDomainsResult = GlobalMaliciousDomain[];
+export type ApiGetFiltersUrlsResult = GlobalMaliciousUrl[];
 
-export type ApiPatchFiltersDomainsBody = {
-  domain_id: number;
-  category: MaliciousDomainCategory;
+export type ApiPatchFiltersUrlsBody = {
+  url_id: number;
+  category: MaliciousUrlCategory;
 }[];
 
-export type ApiPatchFiltersDomainsResult = GlobalMaliciousDomain[];
+export type ApiPatchFiltersUrlsResult = GlobalMaliciousUrl[];
 
-export interface ApiPostFiltersDomainsBody {
-  domains: string[];
+export interface ApiPostFiltersUrlsBody {
+  urls: string[];
 }
 
-export interface ApiPostFiltersGuildDomainBody extends ApiPostFiltersDomainsBody {
+export interface ApiPostFiltersGuildUrlBody extends ApiPostFiltersUrlsBody {
   guild_only?: boolean;
 }
 
-export type ApiPostFiltersDomainsResult = Pick<MaliciousDomain, 'domain' | 'category'>[];
+export type ApiPostFiltersUrlsResult = Pick<MaliciousUrl, 'url' | 'category'>[];
 
-export interface ApiPutFiltersDomainsBody {
-  domain: string;
-  category: MaliciousDomainCategory;
+export interface ApiPutFiltersUrlsBody {
+  url: string;
+  category: MaliciousUrlCategory;
 }
 
-export type ApiPutFiltersDomainsGuildBody = Exclude<ApiPutFiltersDomainsBody, 'category'>;
+export type ApiPutFiltersUrlsGuildBody = Exclude<ApiPutFiltersUrlsBody, 'category'>;
 
-export type ApiPutFiltersDomainsResult = GlobalMaliciousDomain;
+export type ApiPutFiltersUrlsResult = GlobalMaliciousUrl;
 
-export interface ApiGetFilesDomainQuery {
+export interface ApiGetFiltersFilesQuery {
   page: number;
 }
 
-export type ApiGetFilesDomainResult = MaliciousFile[];
+export type ApiGetFFiltersFilesResult = MaliciousFile[];
 
 
 export type ApiPatchFiltersFilesBody = {

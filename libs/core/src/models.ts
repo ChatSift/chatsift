@@ -1,5 +1,10 @@
 import type { Snowflake } from 'discord-api-types/v8';
 
+export interface GuildSettings {
+  guild_id: Snowflake;
+  use_global_url_filters: boolean;
+}
+
 export interface User {
   user_id: Snowflake;
   perms: bigint;
@@ -33,7 +38,7 @@ export interface MaliciousFile {
   category: MaliciousFileCategory;
 }
 
-export enum MaliciousDomainCategory {
+export enum MaliciousUrlCategory {
   malicious,
   phishing,
   scam,
@@ -43,24 +48,24 @@ export enum MaliciousDomainCategory {
   urlShortner
 }
 
-export interface MaliciousDomain {
-  domain_id: number;
-  domain: string;
+export interface MaliciousUrl {
+  url_id: number;
+  url: string;
   guild_id?: Snowflake;
   admin_id?: Snowflake;
   created_at: Date;
   last_modified_at: Date;
-  category?: MaliciousDomainCategory;
+  category?: MaliciousUrlCategory;
 }
 
-export interface LocalMaliciousDomain extends MaliciousDomain {
+export interface LocalMaliciousUrl extends MaliciousUrl {
   guild_id: Snowflake;
   admin_id: never;
   category: never;
 }
 
-export interface GlobalMaliciousDomain extends MaliciousDomain {
+export interface GlobalMaliciousUrl extends MaliciousUrl {
   guild_id: never;
   admin_id: Snowflake;
-  category: MaliciousDomainCategory;
+  category: MaliciousUrlCategory;
 }

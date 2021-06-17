@@ -1,43 +1,37 @@
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
+import { jsonParser, Route, userAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { notFound } from '@hapi/boom';
 import { getUserGuilds } from '#util';
+import { notFound } from '@hapi/boom';
+import type { UrlsController } from '#controllers';
 import type { Request, Response, NextHandler } from 'polka';
-import type { ApiPostFiltersGuildDomainBody } from '@automoderator/core';
-import type { DomainsController } from '#controllers';
+import type { ApiGetFiltersUrlsQuery } from '@automoderator/core';
 
 @injectable()
-export default class PostFiltersDomainsGuildRoute extends Route {
+export default class GetFiltersUrlsGuildRoute extends Route {
   public override readonly middleware = [
-    thirdPartyAuth(),
+    userAuth(),
     jsonParser(),
     validate(
       Joi
         .object()
         .keys({
-          domains: Joi
-            .array()
-            .items(Joi.string().required())
-            .required(),
-          guild_only: Joi
-            .boolean()
-            .default(false)
+          page: Joi.number().required()
         })
         .required(),
-      'body'
+      'query'
     )
   ];
 
   public constructor(
-    public readonly controller: DomainsController
+    public readonly controller: UrlsController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response, next: NextHandler) {
     const { gid } = req.params;
-    const { domains, guild_only } = req.body as Required<ApiPostFiltersGuildDomainBody>;
+    const { page } = req.query as unknown as ApiGetFiltersUrlsQuery;
 
     const guilds = await getUserGuilds(req, next, true);
     if (!guilds?.length) return;
@@ -51,6 +45,6 @@ export default class PostFiltersDomainsGuildRoute extends Route {
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(await this.controller.getHitsFrom(domains, guild.id, guild_only)));
+    return res.end(JSON.stringify(await this.controller.get(page, gid)));
   }
 }

@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { initConfig } from '../';
 
 const data = {
+  AMQP_URL: 'amqp://example',
   ROOT_DOMAIN: 'example.com',
   API_DOMAIN: 'api.example.com',
   AUTH_DOMAIN: 'auth.example.com',
@@ -22,6 +23,7 @@ test('test', () => {
   const config = initConfig();
 
   expect(config).toStrictEqual({
+    amqpUrl: data.AMQP_URL,
     rootDomain: data.ROOT_DOMAIN,
     apiDomain: data.API_DOMAIN,
     authDomain: data.AUTH_DOMAIN,

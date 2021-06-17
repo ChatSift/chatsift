@@ -3,7 +3,7 @@ import { inject, injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { kSql } from '@automoderator/injection';
 import type { Request, Response } from 'polka';
-import type { ApiGetFiltersDomainsQuery, MaliciousFile } from '@automoderator/core';
+import type { ApiGetFiltersFilesQuery, MaliciousFile } from '@automoderator/core';
 import type { Sql } from 'postgres';
 
 @injectable()
@@ -30,7 +30,7 @@ export default class GetFiltersFilesRoute extends Route {
   }
 
   public async handle(req: Request, res: Response) {
-    const { page } = req.query as unknown as ApiGetFiltersDomainsQuery;
+    const { page } = req.query as unknown as ApiGetFiltersFilesQuery;
 
     const files = await this.sql<MaliciousFile[]>`
       SELECT * FROM malicious_files

@@ -1,15 +1,15 @@
 import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import type { DomainsController } from '#controllers';
+import type { UrlsController } from '#controllers';
 import type { Request, Response } from 'polka';
-import type { ApiGetFiltersDomainsQuery } from '@automoderator/core';
+import type { ApiGetFiltersUrlsQuery } from '@automoderator/core';
 
 @injectable()
-export default class GetFiltersDomainsRoute extends Route {
+export default class GetFiltersUrlsRoute extends Route {
   public override readonly middleware = [
     userAuth(),
-    globalPermissions('manageDomainFilters'),
+    globalPermissions('manageUrlFilters'),
     jsonParser(),
     validate(
       Joi
@@ -23,13 +23,13 @@ export default class GetFiltersDomainsRoute extends Route {
   ];
 
   public constructor(
-    public readonly controller: DomainsController
+    public readonly controller: UrlsController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response) {
-    const { page } = req.query as unknown as ApiGetFiltersDomainsQuery;
+    const { page } = req.query as unknown as ApiGetFiltersUrlsQuery;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

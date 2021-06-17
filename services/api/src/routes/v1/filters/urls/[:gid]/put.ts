@@ -1,26 +1,26 @@
 import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { ApiPutFiltersDomainsGuildBody, MaliciousDomainCategory } from '@automoderator/core';
+import { ApiPutFiltersUrlsGuildBody, MaliciousUrlCategory } from '@automoderator/core';
 import { notFound } from '@hapi/boom';
 import { getUserGuilds } from '#util';
 import type { Request, Response, NextHandler } from 'polka';
-import type { DomainsController } from '#controllers';
+import type { UrlsController } from '#controllers';
 
 @injectable()
-export default class PutFiltersDomainsGuildRoute extends Route {
+export default class PutFiltersUrlsGuildRoute extends Route {
   public override readonly middleware = [
     userAuth(),
-    globalPermissions('manageDomainFilters'),
+    globalPermissions('manageUrlFilters'),
     jsonParser(),
     validate(
       Joi
         .object()
         .keys({
-          domain: Joi.string().required(),
+          url: Joi.string().required(),
           category: Joi.number()
-            .min(MaliciousDomainCategory.malicious)
-            .max(MaliciousDomainCategory.urlShortner)
+            .min(MaliciousUrlCategory.malicious)
+            .max(MaliciousUrlCategory.urlShortner)
             .required()
         })
         .required(),
@@ -29,14 +29,14 @@ export default class PutFiltersDomainsGuildRoute extends Route {
   ];
 
   public constructor(
-    public readonly controller: DomainsController
+    public readonly controller: UrlsController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response, next: NextHandler) {
     const { gid } = req.params;
-    const { domain } = req.body as ApiPutFiltersDomainsGuildBody;
+    const { url } = req.body as ApiPutFiltersUrlsGuildBody;
 
     const guilds = await getUserGuilds(req, next, true);
     if (!guilds?.length) return;
@@ -50,6 +50,6 @@ export default class PutFiltersDomainsGuildRoute extends Route {
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(await this.controller.add(domain, { guild: guild.id })));
+    return res.end(JSON.stringify(await this.controller.add(url, { guild: guild.id })));
   }
 }
