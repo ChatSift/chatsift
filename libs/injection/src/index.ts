@@ -14,6 +14,7 @@ export interface Config {
   authDomain: string;
   apiDomain: string;
   dashDomain: string;
+  internalApiToken: string;
   discordClientId: `${bigint}`;
   discordClientSecret: string;
   discordToken: string;
@@ -31,6 +32,7 @@ export const initConfig = () => {
     authDomain: process.env.AUTH_DOMAIN!,
     apiDomain: process.env.API_DOMAIN!,
     dashDomain: process.env.DASH_DOMAIN!,
+    internalApiToken: process.env.INTERNAL_API_TOKEN!,
     discordClientId: process.env.DISCORD_CLIENT_ID as `${bigint}`,
     discordClientSecret: process.env.DISCORD_CLIENT_SECRET!,
     discordToken: process.env.DISCORD_TOKEN!,

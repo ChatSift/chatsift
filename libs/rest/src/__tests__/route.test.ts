@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { join as joinPath } from 'path';
 import { Route, RouteMethod } from '../route';
 import { container } from 'tsyringe';

@@ -14,5 +14,6 @@ module.exports = {
     }
   },
   roots: ['<rootDir>libs/', '<rootDir>services/'],
-  coveragePathIgnorePatterns: ['<rootDir>dist/']
+  coveragePathIgnorePatterns: ['<rootDir>dist/'],
+  setupFiles: ['./jest-setup.ts']
 };

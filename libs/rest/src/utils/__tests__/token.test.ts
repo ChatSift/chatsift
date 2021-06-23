@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { TokenValidationStatus, generateToken, validateToken } from '../token';
 import { randomBytes } from 'crypto';
 import { container } from 'tsyringe';

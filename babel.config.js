@@ -12,5 +12,12 @@ module.exports = {
     ],
     '@babel/preset-typescript'
   ],
-  plugins: ['babel-plugin-const-enum']
+  plugins: [
+    'babel-plugin-const-enum',
+    'babel-plugin-transform-typescript-metadata',
+    [
+      '@babel/plugin-proposal-decorators',
+      { legacy: true }
+    ]
+  ]
 };

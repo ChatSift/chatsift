@@ -25,13 +25,14 @@
     "@cordis/common": "^0.2.3",
     "@types/amqplib": "^0.8.0",
     "@types/common-tags": "^1.8.0",
-    "@types/node": "^14.17.2",
+    "@types/node": "^14.17.3",
     "@types/node-fetch": "^2.5.10",
-    "typescript": "^4.3.2",
+    "typescript": "^4.3.4",
     "winston": "^3.3.3"
   },
   "dependencies": {
     "@automoderator/core": "workspace:^0.1.0",
+    "@automoderator/http-client": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
     "@cordis/bitfield": "^0.3.0",
@@ -45,7 +46,7 @@
     "node-fetch": "^2.6.1",
     "postgres": "2.0.0-beta.4",
     "reflect-metadata": "^0.1.13",
-    "tslib": "^2.2.0",
+    "tslib": "^2.3.0",
     "tsyringe": "^4.5.0"
   }
 }

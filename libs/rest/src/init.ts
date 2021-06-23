@@ -1,5 +1,3 @@
-import 'reflect-metadata';
-
 import { Route } from './route';
 import { kLogger } from '@automoderator/injection';
 import { container } from 'tsyringe';

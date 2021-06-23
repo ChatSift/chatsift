@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { kConfig } from '@automoderator/injection';
 import { container } from 'tsyringe';
 import { randomBytes } from 'crypto';

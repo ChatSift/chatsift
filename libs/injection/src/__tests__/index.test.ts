@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { initConfig } from '../';
 
 const data = {
@@ -7,6 +6,7 @@ const data = {
   API_DOMAIN: 'api.example.com',
   AUTH_DOMAIN: 'auth.example.com',
   DASH_DOMAIN: 'dash.example.com',
+  INTERNAL_API_TOKEN: 'test',
   DISCORD_CLIENT_ID: '123',
   DISCORD_CLIENT_SECRET: '456',
   DISCORD_TOKEN: 'abc',
@@ -28,6 +28,7 @@ test('test', () => {
     apiDomain: data.API_DOMAIN,
     authDomain: data.AUTH_DOMAIN,
     dashDomain: data.DASH_DOMAIN,
+    internalApiToken: data.INTERNAL_API_TOKEN,
     discordClientId: data.DISCORD_CLIENT_ID,
     discordClientSecret: data.DISCORD_CLIENT_SECRET,
     discordToken: data.DISCORD_TOKEN,

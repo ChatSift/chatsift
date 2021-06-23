@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { Http2ServerResponse } from 'http2';
 import { userAuth } from '../userAuth';
 import { Boom } from '@hapi/boom';
