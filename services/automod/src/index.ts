@@ -1,26 +1,19 @@
 import 'reflect-metadata';
 
 import { container } from 'tsyringe';
-import { Rest } from '@cordis/rest';
+import { Rest, buildRestRouter, IRouter } from '@cordis/rest';
 import postgres, { Sql } from 'postgres';
 import { kLogger, kSql, kRest, initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
-import { readdirRecurse } from '@gaius-bot/readdir';
-import { join as joinPath } from 'path';
-import {
-  GatewayDispatchEvents,
-  RESTGetAPIApplicationCommandsResult,
-  RESTPostAPIApplicationCommandsJSONBody,
-  RESTPostAPIApplicationCommandsResult,
-  Routes
-} from 'discord-api-types/v8';
-import type { Logger } from 'pino';
 import { Gateway } from './gateway';
+import type { Logger } from 'pino';
 
 const main = async () => {
   const config = initConfig();
 
   const rest = new Rest(config.discordToken);
+  const router = buildRestRouter(rest);
+
   const logger = createLogger('AUTOMOD');
 
   const sql = postgres(config.dbUrl, {
@@ -50,7 +43,7 @@ const main = async () => {
     rest.on('request', req => logger.trace({ topic: 'REQUEST START' }, `Making request ${req.method!} ${req.path!}`));
   }
 
-  container.register<Rest>(kRest, { useValue: rest });
+  container.register<IRouter>(kRest, { useValue: router });
   container.register<Sql<{}>>(kSql, { useValue: sql });
   container.register<Logger>(kLogger, { useValue: logger });
 

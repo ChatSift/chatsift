@@ -1,6 +1,6 @@
 CREATE TABLE guild_settings (
   guild_id bigint PRIMARY KEY,
-  use_global_url_filters boolean NOT NULL DEFAULT false
+  use_global_url_filters int NOT NULL DEFAULT 0
 );
 
 CREATE TABLE users (
