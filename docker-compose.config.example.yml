@@ -1,6 +1,11 @@
 version: "3.7"
 
 services:
+  automod:
+    environment:
+      DISCORD_TOKEN: "awooga"
+      INTERNAL_API_KEY: "asdf"
+
   auth:
     environment:
       DISCORD_CLIENT_ID: "123"

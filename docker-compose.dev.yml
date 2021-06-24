@@ -1,6 +1,12 @@
 version: "3.7"
 
 services:
+  automod:
+    environment:
+      NODE_ENV: "dev"
+      API_DOMAIN: "http://localhost:3001"
+    command: "sh -c \"node services/automod/dist/index.js | ./services/automod/node_modules/.bin/pino-pretty -c -l -t\""
+
   api:
     environment:
       NODE_ENV: "dev"

@@ -22,7 +22,7 @@ services:
       context: ./
       dockerfile: ./docker/api/Dockerfile
     environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator?sslmode=disable"
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
     restart: unless-stopped
 
   auth:
@@ -30,8 +30,18 @@ services:
       context: ./
       dockerfile: ./docker/auth/Dockerfile
     environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator?sslmode=disable"
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
       DISCORD_SCOPES: "identify,email"
+    restart: unless-stopped
+
+  automod:
+    build:
+      context: ./
+      dockerfile: ./docker/automod/Dockerfile
+    environment:
+      DISCORD_TOKEN: ""
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      AMQP_URL: "amqp://rabbitmq:5672"
     restart: unless-stopped
 
   rabbitmq:

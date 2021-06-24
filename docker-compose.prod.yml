@@ -1,6 +1,12 @@
 version: "3.7"
 
 services:
+  automod:
+    environment:
+      NODE_ENV: "prod"
+      API_DOMAIN: "https://api.automoderator.me"
+    command: "sh -c \"node services/automod/dist/index.js | ./services/automod/node_modules/.bin/pino-elasticsearch\""
+
   api:
     environment:
       NODE_ENV: "prod"
