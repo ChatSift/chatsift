@@ -1,6 +1,6 @@
 import type { Snowflake } from 'discord-api-types/v8';
 
-export enum UseGlobalUrlFiltersMode {
+export enum UseFilterMode {
   none,
   guildOnly,
   all
@@ -8,7 +8,8 @@ export enum UseGlobalUrlFiltersMode {
 
 export interface GuildSettings {
   guild_id: Snowflake;
-  use_global_url_filters: UseGlobalUrlFiltersMode;
+  use_url_filters: UseFilterMode;
+  use_file_filters: UseFilterMode;
 }
 
 export interface User {

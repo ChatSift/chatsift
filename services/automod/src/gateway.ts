@@ -2,14 +2,15 @@ import { inject, singleton } from 'tsyringe';
 import { Config, kConfig, kLogger, kRest, kSql } from '@automoderator/injection';
 import { createAmqp, RoutingClient } from '@cordis/brokers';
 import { GatewayDispatchEvents, GatewayMessageUpdateDispatchData } from 'discord-api-types/v8';
-import { ApiPostFiltersUrlsResult, GuildSettings, UseGlobalUrlFiltersMode } from '@automoderator/core';
+import { ApiPostFiltersFilesResult, ApiPostFiltersUrlsResult, GuildSettings, UseFilterMode } from '@automoderator/core';
 import type { DiscordEvents } from '@cordis/common';
 import type { Sql } from 'postgres';
 import type { Logger } from 'pino';
-import type { UrlsRunner } from './runners';
+import type { FilesRunner, UrlsRunner } from './runners';
 import type { IRouter as DiscordIRouter } from '@cordis/rest';
 
 enum Runners {
+  files,
   urls
 }
 
@@ -28,6 +29,11 @@ interface OkRunnerResult<R extends Runners, T> extends Runner {
   actioned: boolean;
 }
 
+interface FilesRunnerData {
+  message: GatewayMessageUpdateDispatchData;
+  urls: string[];
+}
+
 interface UrlsRunnerData {
   message: GatewayMessageUpdateDispatchData;
   urls: string[];
@@ -35,9 +41,10 @@ interface UrlsRunnerData {
   guildOnly: boolean;
 }
 
+type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostFiltersFilesResult>;
 type UrlsRunnerResult = OkRunnerResult<Runners.urls, ApiPostFiltersUrlsResult>;
 
-type RunnerResult = NotOkRunnerResult | UrlsRunnerResult;
+type RunnerResult = NotOkRunnerResult | FilesRunnerResult | UrlsRunnerResult;
 
 @singleton()
 export class Gateway {
@@ -46,7 +53,8 @@ export class Gateway {
     @inject(kSql) public readonly sql: Sql<{}>,
     @inject(kLogger) public readonly logger: Logger,
     @inject(kRest) public readonly discord: DiscordIRouter,
-    public readonly urls: UrlsRunner
+    public readonly urls: UrlsRunner,
+    public readonly files: FilesRunner
   ) {}
 
   private async runUrls({ message, urls, guildId, guildOnly }: UrlsRunnerData): Promise<NotOkRunnerResult | UrlsRunnerResult> {
@@ -63,18 +71,33 @@ export class Gateway {
     }
   }
 
+  private async runFiles({ message, urls }: FilesRunnerData): Promise<NotOkRunnerResult | FilesRunnerResult> {
+    try {
+      const hits = await this.files.run(urls);
+      if (hits.length) {
+        await this.discord.channels![message.channel_id]!.messages![message.id]!.delete({ reason: 'Url filter detection' });
+      }
+
+      return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.files };
+    } catch (e) {
+      this.logger.error({ topic: 'FILES RUNNER', e }, 'Failed to execute runner urls');
+      return { ok: false, runner: Runners.files };
+    }
+  }
+
   private async onMessage(message: GatewayMessageUpdateDispatchData) {
     if (!message.guild_id || !message.content?.length) return;
 
     const [
       settings = {
-        use_global_url_filters: UseGlobalUrlFiltersMode.none
+        use_url_filters: UseFilterMode.none,
+        use_file_filters: UseFilterMode.none
       }
     ] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${message.guild_id}`;
 
     const promises: Promise<RunnerResult>[] = [];
 
-    if (settings.use_global_url_filters !== UseGlobalUrlFiltersMode.none) {
+    if (settings.use_url_filters !== UseFilterMode.none) {
       const urls = this.urls.precheck(message.content);
       if (urls.length) {
         promises.push(
@@ -82,9 +105,16 @@ export class Gateway {
             message,
             urls,
             guildId: message.guild_id,
-            guildOnly: settings.use_global_url_filters === UseGlobalUrlFiltersMode.guildOnly
+            guildOnly: settings.use_url_filters === UseFilterMode.guildOnly
           })
         );
+      }
+    }
+
+    if (settings.use_file_filters !== UseFilterMode.none) {
+      const urls = message.attachments?.map(attachment => attachment.url);
+      if (urls?.length) {
+        promises.push(this.runFiles({ message, urls }));
       }
     }
 
