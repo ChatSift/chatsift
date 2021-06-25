@@ -14,33 +14,34 @@ declare module 'polka' {
   }
 }
 
-export const userAuth = (fallthrough = false) => async (req: Request, _: Response, next: NextHandler) => {
+export const userAuth = (fallthrough = false) => {
   const sql = container.resolve<Sql<{}>>(kSql);
+  return async (req: Request, _: Response, next: NextHandler) => {
+    const cookies = cookie.parse(req.headers.cookie ?? '');
+    const token = cookies.access_token ?? req.headers.authorization;
 
-  const cookies = cookie.parse(req.headers.cookie ?? '');
-  const token = cookies.access_token ?? req.headers.authorization;
-
-  if (!token) {
-    return next(fallthrough ? undefined : unauthorized('missing authorization header', 'Bearer'));
-  }
-
-  if (token.startsWith('App ')) {
-    return next(unauthorized('invalid authorization header. please provide a user token'));
-  }
-
-  const result = await fetch(
-    'https://discord.com/api/v8/users/@me', {
-      headers: {
-        authorization: `Bearer ${token}`
-      }
+    if (!token) {
+      return next(fallthrough ? undefined : unauthorized('missing authorization header', 'Bearer'));
     }
-  );
 
-  if (result.ok) {
-    req.user = await result.json();
-    const [{ perms }] = await sql<[Pick<User, 'perms'>]>`SELECT perms FROM users WHERE user_id = ${req.user!.id}`;
-    req.user!.perms = perms;
-  }
+    if (token.startsWith('App ')) {
+      return next(unauthorized('invalid authorization header. please provide a user token'));
+    }
 
-  return next(req.user || fallthrough ? undefined : unauthorized('invalid discord access token'));
+    const result = await fetch(
+      'https://discord.com/api/v8/users/@me', {
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    if (result.ok) {
+      req.user = await result.json();
+      const [{ perms }] = await sql<[Pick<User, 'perms'>]>`SELECT perms FROM users WHERE user_id = ${req.user!.id}`;
+      req.user!.perms = perms;
+    }
+
+    return next(req.user || fallthrough ? undefined : unauthorized('invalid discord access token'));
+  };
 };

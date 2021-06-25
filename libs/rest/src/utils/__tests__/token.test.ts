@@ -1,4 +1,4 @@
-import { TokenValidationStatus, generateToken, validateToken } from '../token';
+import { TokenValidationStatus, TokenManager } from '../token';
 import { randomBytes } from 'crypto';
 import { container } from 'tsyringe';
 import { kSql } from '@automoderator/injection';
@@ -11,6 +11,8 @@ const sqlMock = jest.fn();
 const sqlBeginMock = jest.fn();
 container.register(kSql, { useValue: Object.assign(sqlMock, { begin: sqlBeginMock }) });
 
+const tokens = container.resolve(TokenManager);
+
 const bytes = Buffer.from('Nw8JLJM+fOIhESzPBHSMzdheBtcAeaELEKtg142yaqg=', 'base64');
 
 const randomBytesMock = randomBytes as unknown as jest.Mock<Buffer, [number]>;
@@ -22,7 +24,7 @@ compareMock.mockImplementation((a, b) => Promise.resolve(a === b));
 let token: string;
 
 beforeAll(async () => {
-  token = await generateToken(1);
+  token = await tokens.generate(1);
   const sigs = [{ sig: token.split('.')[1] }];
 
   sqlMock.mockReturnValue(sigs);
@@ -35,22 +37,22 @@ test('token generation', () => {
 
 describe('token validation', () => {
   test('malformed token', async () => {
-    expect((await validateToken('a.b.c')).status).toBe(TokenValidationStatus.malformedToken);
+    expect((await tokens.validate('a.b.c')).status).toBe(TokenValidationStatus.malformedToken);
   });
 
   test('malformed app id', async () => {
     // Non-int parsable user id
-    expect((await validateToken(`${Buffer.from('awooga', 'utf8').toString('base64')}.bcdefg`)).status).toBe(
+    expect((await tokens.validate(`${Buffer.from('awooga', 'utf8').toString('base64')}.bcdefg`)).status).toBe(
       TokenValidationStatus.malformedAppId
     );
   });
 
   test('no sig match', async () => {
     // Adding characters to the signature (end of the token) to prevent a match
-    expect((await validateToken(`${token}abcdefg`)).status).toBe(TokenValidationStatus.noMatch);
+    expect((await tokens.validate(`${token}abcdefg`)).status).toBe(TokenValidationStatus.noMatch);
   });
 
   test('valid token', async () => {
-    expect((await validateToken(token)).status).toBe(TokenValidationStatus.success);
+    expect((await tokens.validate(token)).status).toBe(TokenValidationStatus.success);
   });
 });

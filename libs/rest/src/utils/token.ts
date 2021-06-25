@@ -1,5 +1,3 @@
-// TODO: Refactor to class
-
 // A token is structured as {app_id}.{sig}
 // Where both of these things are base64 encoded and
 // The sig is in plain text.
@@ -13,7 +11,7 @@
 
 import { compare, hash } from 'bcrypt';
 import { randomBytes } from 'crypto';
-import { container } from 'tsyringe';
+import { singleton, inject } from 'tsyringe';
 import { kSql } from '@automoderator/injection';
 import type { Sql } from 'postgres';
 import type { App, Sig } from '@automoderator/core';
@@ -30,58 +28,61 @@ export interface TokenValidationResult {
   app?: App;
 }
 
-export const generateToken = async (id: number): Promise<string> => {
-  const sql = container.resolve<Sql<{}>>(kSql);
+@singleton()
+export class TokenManager {
+  public constructor(
+    @inject(kSql) public readonly sql: Sql<{}>
+  ) {}
 
-  const idChunk = Buffer
-    .from(id.toString())
-    .toString('base64');
+  public async generate(id: number): Promise<string> {
+    const idChunk = Buffer
+      .from(id.toString())
+      .toString('base64');
 
-  const token = randomBytes(32).toString('base64');
+    const token = randomBytes(32).toString('base64');
 
-  await sql`INSERT INTO sigs (app_id, sig) VALUES (${id}, ${await hash(token, 10)})`;
-  return `${idChunk}.${token}`;
-};
-
-export const validateToken = async (token: string): Promise<TokenValidationResult> => {
-  const sql = container.resolve<Sql<{}>>(kSql);
-
-  const meta = token.split('.');
-  if (meta.length !== 2) {
-    return { status: TokenValidationStatus.malformedToken };
+    await this.sql`INSERT INTO sigs (app_id, sig) VALUES (${id}, ${await hash(token, 10)})`;
+    return `${idChunk}.${token}`;
   }
 
-  const [idRaw, sigRaw] = meta as [string, string];
-  const id = parseInt(Buffer.from(idRaw, 'base64').toString('utf8'), 10);
-
-  if (isNaN(id)) {
-    return { status: TokenValidationStatus.malformedAppId };
-  }
-
-  /* istanbul ignore next */
-  const { app, sigs = [] } = await sql.begin<{ app?: App; sigs?: Sig[] }>(async sql => {
-    const [app] = await sql<[App?]>`SELECT * FROM apps WHERE app_id = ${id}`;
-
-    if (app) {
-      return { app, sigs: await sql<Sig[]>`SELECT * FROM sigs WHERE app_id = ${id} ORDER BY last_used_at DESC` };
+  public async validate(token: string): Promise<TokenValidationResult> {
+    const meta = token.split('.');
+    if (meta.length !== 2) {
+      return { status: TokenValidationStatus.malformedToken };
     }
 
-    return {};
-  });
+    const [idRaw, sigRaw] = meta as [string, string];
+    const id = parseInt(Buffer.from(idRaw, 'base64').toString('utf8'), 10);
 
-  let match: string | null = null;
-  for (const { sig } of sigs) {
-    if (await compare(sigRaw, sig)) {
-      match = sig;
-      break;
+    if (isNaN(id)) {
+      return { status: TokenValidationStatus.malformedAppId };
     }
+
+    /* istanbul ignore next */
+    const { app, sigs = [] } = await this.sql.begin<{ app?: App; sigs?: Sig[] }>(async sql => {
+      const [app] = await sql<[App?]>`SELECT * FROM apps WHERE app_id = ${id}`;
+
+      if (app) {
+        return { app, sigs: await sql<Sig[]>`SELECT * FROM sigs WHERE app_id = ${id} ORDER BY last_used_at DESC` };
+      }
+
+      return {};
+    });
+
+    let match: string | null = null;
+    for (const { sig } of sigs) {
+      if (await compare(sigRaw, sig)) {
+        match = sig;
+        break;
+      }
+    }
+
+    if (!match) {
+      return { status: TokenValidationStatus.noMatch };
+    }
+
+    await this.sql`UPDATE sigs SET last_used_at = NOW() WHERE sig = ${match}`;
+
+    return { status: TokenValidationStatus.success, app };
   }
-
-  if (!match) {
-    return { status: TokenValidationStatus.noMatch };
-  }
-
-  await sql`UPDATE sigs SET last_used_at = NOW() WHERE sig = ${match}`;
-
-  return { status: TokenValidationStatus.success, app };
-};
+}

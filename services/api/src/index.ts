@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { createApp, initApp } from '@automoderator/rest';
+import { createApp, initApp, TokenManager } from '@automoderator/rest';
 import { initConfig, kLogger, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { container } from 'tsyringe';
@@ -27,6 +27,8 @@ void (async () => {
   for (const controller of Object.values(controllers)) {
     container.register(controller, { useClass: controller });
   }
+
+  container.register(TokenManager, { useClass: TokenManager });
 
   await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtension: 'js' }));
 

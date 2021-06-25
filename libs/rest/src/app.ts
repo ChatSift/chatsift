@@ -3,7 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { container } from 'tsyringe';
 import { Config, kConfig } from '@automoderator/injection';
-import { logRequests, attachHttpUtils, getPolkaOptions } from './utils';
+import { getPolkaOptions } from './utils';
+import { attachHttpUtils, logRequests } from './middleware';
 
 export const createApp = () => {
   const config = container.resolve<Config>(kConfig);
