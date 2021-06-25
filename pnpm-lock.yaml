@@ -274,7 +274,6 @@ importers:
       '@types/node': ^14.17.3
       '@types/node-fetch': ^2.5.10
       '@types/pino': ^6.3.8
-      common-tags: ^1.8.0
       discord-api-types: ^0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e
       node-fetch: ^2.6.1
       pino-elasticsearch: ^6.0.0
@@ -293,7 +292,6 @@ importers:
       '@cordis/rest': 0.3.0
       '@cordis/util': 0.3.0
       '@gaius-bot/readdir': 1.0.0
-      common-tags: 1.8.0
       discord-api-types: 0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e
       node-fetch: 2.6.1
       pino-elasticsearch: 6.0.0
@@ -2957,11 +2955,6 @@ packages:
     resolution: {integrity: sha512-U7VdrJFnJgo4xjrHpTzu0yrHPGImdsmD95ZlgYSEajAn2JKzDhDTPG9kBTefmObL2w/ngeZnilk+OV9CG3d7UA==}
     engines: {node: '>= 6'}
     dev: true
-
-  /common-tags/1.8.0:
-    resolution: {integrity: sha512-6P6g0uetGpW/sdyUy/iQQCbFF0kWVMSIVSyYz7Zgjcgh8mgw8PQzDNZeyZ5DQ2gM7LBoZPHmnjz8rUthkBG5tw==}
-    engines: {node: '>=4.0.0'}
-    dev: false
 
   /compare-versions/3.6.0:
     resolution: {integrity: sha512-W6Af2Iw1z4CB7q4uU4hv646dW9GQuBM+YpC0UvUCWSD8w90SJjp+ujJuXaEMtAXBtSqGfMPuFOVn4/+FlaqfBA==}
