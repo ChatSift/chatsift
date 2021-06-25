@@ -23,17 +23,30 @@ export class UrlsController {
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
-  public get(page: number, guildId?: string) {
-    return this.sql<MaliciousUrl[]>`
+  public get(page: number, guildId?: string): Promise<MaliciousUrl[]> {
+    if (!guildId) {
+      return this.sql`
+        SELECT * FROM malicious_urls
+        WHERE guild_id IS NULL
+        LIMIT 100
+        OFFSET ${page * 100}
+      `;
+    }
+
+    return this.sql`
       SELECT * FROM malicious_urls
-      WHERE guild_id = ${guildId ?? null}
+      WHERE guild_id = ${guildId}
       LIMIT 100
       OFFSET ${page * 100}
     `;
   }
 
-  public getAll(guildId?: string) {
-    return this.sql<MaliciousUrl[]>`SELECT * FROM malicious_urls WHERE guild_id = ${guildId ?? null}`;
+  public getAll(guildId?: string): Promise<MaliciousUrl[]> {
+    if (!guildId) {
+      return this.sql`SELECT * FROM malicious_urls WHERE guild_id IS NULL`;
+    }
+
+    return this.sql`SELECT * FROM malicious_urls WHERE guild_id = ${guildId}`;
   }
 
   public getHitsFrom(urls: string[], guildId: string, guildOnly: true): Promise<Pick<MaliciousUrl, 'url' | 'category'>[]>;
@@ -50,22 +63,35 @@ export class UrlsController {
     return this.sql<Pick<MaliciousUrl, 'url' | 'category'>[]>`
       SELECT url, category
       FROM malicious_urls
-      WHERE url = ANY(${this.sql.array(urls)}) AND (guild_id = ${guildId!} OR guild_id = null)
+      WHERE url = ANY(${this.sql.array(urls)}) AND (guild_id = ${guildId!} OR guild_id IS NULL)
     `;
   }
 
-  public async updateBulk(urls: { url_id: number; category: MaliciousUrlCategory }[]): Promise<Result<MaliciousUrl[]>> {
+  public async updateBulk(urls: { url_id: number; category: MaliciousUrlCategory }[], guildId?: string): Promise<Result<MaliciousUrl[]>> {
     const data = await this.sql
       .begin(async sql => {
         const updated: MaliciousUrl[] = [];
 
         for (const url of urls) {
-          const [data] = await sql<[MaliciousUrl?]>`
-            UPDATE malicious_urls
-            SET category = ${url.category}, last_modified_at = NOW()
-            WHERE url_id = ${url.url_id}
-            RETURNING *
-          `;
+          let data: MaliciousUrl | undefined;
+
+          if (guildId) {
+            [data] = await sql<[MaliciousUrl?]>`
+              UPDATE malicious_urls
+              SET category = ${url.category}, last_modified_at = NOW()
+              WHERE url_id = ${url.url_id}
+                AND guild_id = ${guildId}
+              RETURNING *
+            `;
+          } else {
+            [data] = await sql<[MaliciousUrl?]>`
+              UPDATE malicious_urls
+              SET category = ${url.category}, last_modified_at = NOW()
+              WHERE url_id = ${url.url_id}
+                AND guild_id IS NULL
+              RETURNING *
+            `;
+          }
 
           if (!data) {
             return Promise.reject(`nothing to update for url ${url.url_id}`);

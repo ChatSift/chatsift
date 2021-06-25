@@ -95,8 +95,6 @@ export class Gateway {
       }
     ] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${message.guild_id}`;
 
-    this.logger.trace({ settings }, 'On message triggered');
-
     const promises: Promise<RunnerResult>[] = [];
 
     if (settings.use_url_filters !== UseFilterMode.none) {

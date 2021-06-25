@@ -1,3 +1,5 @@
+// TODO: Refactor to class
+
 // A token is structured as {app_id}.{sig}
 // Where both of these things are base64 encoded and
 // The sig is in plain text.
@@ -35,10 +37,10 @@ export const generateToken = async (id: number): Promise<string> => {
     .from(id.toString())
     .toString('base64');
 
-  const tokenBytes = randomBytes(32);
+  const token = randomBytes(32).toString('base64');
 
-  await sql`INSERT INTO sigs (app_id, sig) VALUES (${id}, ${await hash(tokenBytes, 10)})`;
-  return `${idChunk}.${tokenBytes.toString('base64')}`;
+  await sql`INSERT INTO sigs (app_id, sig) VALUES (${id}, ${await hash(token, 10)})`;
+  return `${idChunk}.${token}`;
 };
 
 export const validateToken = async (token: string): Promise<TokenValidationResult> => {

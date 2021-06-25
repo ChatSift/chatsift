@@ -3,6 +3,7 @@ import { kLogger } from '@automoderator/injection';
 import cookie from 'cookie';
 import { DiscordPermissions } from '@automoderator/rest';
 import { internal } from '@hapi/boom';
+import fetch from 'node-fetch';
 import type { Logger } from 'pino';
 import type { Request, NextHandler } from 'polka';
 import type { RESTGetAPICurrentUserGuildsResult } from 'discord-api-types/v8';

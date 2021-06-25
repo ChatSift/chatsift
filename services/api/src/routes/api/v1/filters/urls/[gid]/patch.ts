@@ -2,7 +2,6 @@ import { jsonParser, Route, userAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { notFound } from '@hapi/boom';
-import { getUserGuilds } from '#util';
 import { ApiPatchFiltersUrlsBody, MaliciousUrlCategory } from '@automoderator/core';
 import { UrlsController } from '#controllers';
 import type { Request, Response, NextHandler } from 'polka';
@@ -41,16 +40,7 @@ export default class PatchFiltersUrlsGuildRoute extends Route {
     const { gid } = req.params;
     const domains = req.body as ApiPatchFiltersUrlsBody;
 
-    const guilds = await getUserGuilds(req, next, true);
-    if (!guilds?.length) return;
-
-    const guild = guilds.find(g => g.id === gid);
-
-    if (!guild) {
-      return next(notFound('guild not found'));
-    }
-
-    const result = await this.controller.updateBulk(domains);
+    const result = await this.controller.updateBulk(domains, gid);
 
     if (!result.success) {
       return next(notFound(result.error));

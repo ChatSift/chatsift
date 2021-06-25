@@ -2,10 +2,8 @@ import { jsonParser, Route, userAuth, globalPermissions, validate } from '@autom
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { ApiPutFiltersUrlsGuildBody, MaliciousUrlCategory } from '@automoderator/core';
-import { notFound } from '@hapi/boom';
-import { getUserGuilds } from '#util';
-import type { Request, Response, NextHandler } from 'polka';
 import { UrlsController } from '#controllers';
+import type { Request, Response } from 'polka';
 
 @injectable()
 export default class PutFiltersUrlsGuildRoute extends Route {
@@ -34,22 +32,13 @@ export default class PutFiltersUrlsGuildRoute extends Route {
     super();
   }
 
-  public async handle(req: Request, res: Response, next: NextHandler) {
+  public async handle(req: Request, res: Response) {
     const { gid } = req.params;
     const { url } = req.body as ApiPutFiltersUrlsGuildBody;
-
-    const guilds = await getUserGuilds(req, next, true);
-    if (!guilds?.length) return;
-
-    const guild = guilds.find(g => g.id === gid);
-
-    if (!guild) {
-      return next(notFound('guild not found'));
-    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(await this.controller.add(url, { guild: guild.id })));
+    return res.end(JSON.stringify(await this.controller.add(url, { guild: gid! })));
   }
 }

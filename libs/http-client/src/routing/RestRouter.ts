@@ -9,7 +9,7 @@ export const kRestRouter = Symbol('rest router');
 export const buildRestRouter = () => {
   const rest = container.resolve<Rest>(kRest);
 
-  const method: string[] = [''];
+  let method: string[] = [''];
   const handler: ProxyHandler<IRouter> = {
     get(_, property) {
       if (
@@ -19,7 +19,10 @@ export const buildRestRouter = () => {
         property === 'put' ||
         property === 'post'
       ) {
-        return (data: any) => rest.make(method.join('/'), property, data);
+        const final = method.join('/');
+        method = [''];
+
+        return (data: any) => rest.make(final, property, data);
       }
 
       if (typeof property === 'string') {

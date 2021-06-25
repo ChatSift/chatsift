@@ -31,8 +31,6 @@ export class UrlsRunner {
 
   public precheck(content: string): string[] {
     return [...content.matchAll(this.urlRegex)].reduce<string[]>((acc, match) => {
-      this.logger.trace({ match: match[0]!, tld: match.groups!.tld! }, 'Match found');
-
       if (this.tlds.has(match.groups!.tld!.toLowerCase())) {
         acc.push(match[0]!);
       }
