@@ -45,14 +45,14 @@ importers:
   libs/core:
     specifiers:
       '@types/node': ^14.17.3
-      discord-api-types: ^0.18.1
+      discord-api-types: ^0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e
       tslib: ^2.3.0
       typescript: ^4.3.4
     dependencies:
       tslib: 2.3.0
     devDependencies:
       '@types/node': 14.17.3
-      discord-api-types: 0.18.1
+      discord-api-types: 0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e
       typescript: 4.3.4
 
   libs/http-client:
@@ -124,7 +124,7 @@ importers:
       bcrypt: ^5.0.1
       cookie: ^0.4.1
       cors: ^2.8.5
-      discord-api-types: ^0.12.1
+      discord-api-types: ^0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e
       helmet: ^4.6.0
       joi: ^17.4.0
       node-fetch: ^2.6.1
@@ -158,7 +158,7 @@ importers:
       '@types/node-fetch': 2.5.10
       '@types/pino': 6.3.8
       '@types/supertest': 2.0.11
-      discord-api-types: 0.12.1
+      discord-api-types: 0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e
       postgres: 2.0.0-beta.5
       supertest: 6.1.3
       typescript: 4.3.4
@@ -175,7 +175,7 @@ importers:
       '@types/node-fetch': ^2.5.10
       '@types/pino': ^6.3.8
       cookie: ^0.4.1
-      discord-api-types: ^0.18.1
+      discord-api-types: ^0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e
       joi: ^17.4.0
       node-fetch: ^2.6.1
       pino-elasticsearch: ^5.4.0
@@ -206,7 +206,7 @@ importers:
       '@types/node': 14.17.3
       '@types/node-fetch': 2.5.10
       '@types/pino': 6.3.8
-      discord-api-types: 0.18.1
+      discord-api-types: 0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e
       polka: 1.0.0-next.15
       typescript: 4.3.4
 
@@ -274,7 +274,7 @@ importers:
       '@types/node-fetch': ^2.5.10
       '@types/pino': ^6.3.8
       common-tags: ^1.8.0
-      discord-api-types: ^0.12.1
+      discord-api-types: ^0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e
       node-fetch: ^2.6.1
       pino-elasticsearch: ^6.0.0
       pino-pretty: ^5.1.0
@@ -296,7 +296,7 @@ importers:
       '@cordis/util': 0.3.0
       '@gaius-bot/readdir': 1.0.0
       common-tags: 1.8.0
-      discord-api-types: 0.12.1
+      discord-api-types: 0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e
       node-fetch: 2.6.1
       pino-elasticsearch: 6.0.0
       pino-pretty: 5.1.0
@@ -3096,10 +3096,9 @@ packages:
     resolution: {integrity: sha512-x8dhQqPZUtIEKjDHMdA6D3aAsZUMoeo58fAgFA5WOAdSh+uVyRsvny4+25b+RIRasG2Zf2UpDUsx8NKO5zk/6g==}
     engines: {node: '>=12'}
 
-  /discord-api-types/0.18.1:
-    resolution: {integrity: sha512-hNC38R9ZF4uaujaZQtQfm5CdQO58uhdkoHQAVvMfIL0LgOSZeW575W8H6upngQOuoxWd8tiRII3LLJm9zuQKYg==}
+  /discord-api-types/0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e:
+    resolution: {integrity: sha512-ttRA/8e/WKHDbGFfED5WlS7gID+kalmNr6iMiWBCvkphQ7kFHiTOVbnj/zX9ksaRaYXp/I38SCQ+qZvLu8DJZg==}
     engines: {node: '>=12'}
-    dev: true
 
   /doctrine/3.0.0:
     resolution: {integrity: sha512-yS+Q5i3hBf7GBkd4KG8a7eBNNWNGLTaEwwYWUijIYM7zrlYDM0BFXHjjPWlWZ1Rg7UaddZeIDmi9jF3HmqiQ2w==}
