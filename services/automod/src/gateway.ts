@@ -1,8 +1,8 @@
 import { inject, singleton } from 'tsyringe';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, RoutingClient } from '@cordis/brokers';
-import { GatewayDispatchEvents, GatewayMessageUpdateDispatchData, Routes } from 'discord-api-types/v8';
-import { ApiPostFiltersFilesResult, ApiPostFiltersUrlsResult, GuildSettings, UseFilterMode, DiscordEvents } from '@automoderator/core';
+import { GatewayDispatchEvents, GatewayMessageUpdateDispatchData, Routes, GatewayDispatchPayload } from 'discord-api-types/v8';
+import { ApiPostFiltersFilesResult, ApiPostFiltersUrlsResult, GuildSettings, UseFilterMode } from '@automoderator/core';
 import { FilesRunner, UrlsRunner } from './runners';
 import { Rest } from '@cordis/rest';
 import type { Sql } from 'postgres';
@@ -44,6 +44,16 @@ type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostFiltersFilesResult
 type UrlsRunnerResult = OkRunnerResult<Runners.urls, ApiPostFiltersUrlsResult>;
 
 type RunnerResult = NotOkRunnerResult | FilesRunnerResult | UrlsRunnerResult;
+
+type SanitizedEvents = {
+  [K in GatewayDispatchEvents]: GatewayDispatchPayload & {
+    t: K;
+  };
+};
+
+type DiscordEvents = {
+  [K in keyof SanitizedEvents]: SanitizedEvents[K]['d'];
+};
 
 @singleton()
 export class Gateway {
