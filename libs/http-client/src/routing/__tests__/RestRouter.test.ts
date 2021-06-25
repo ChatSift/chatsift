@@ -1,10 +1,9 @@
 import { container } from 'tsyringe';
-import { Rest } from '../../rest';
-import { buildRestRouter } from '../RestRouter';
+import { buildRestRouter, kRest } from '../RestRouter';
 
 const mockedMake = jest.fn();
 
-container.register<unknown>(Rest, {
+container.register<unknown>(kRest, {
   useValue: { make: mockedMake }
 });
 
