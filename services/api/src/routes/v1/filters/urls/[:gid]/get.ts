@@ -3,7 +3,7 @@ import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { getUserGuilds } from '#util';
 import { notFound } from '@hapi/boom';
-import type { UrlsController } from '#controllers';
+import { UrlsController } from '#controllers';
 import type { Request, Response, NextHandler } from 'polka';
 import type { ApiGetFiltersUrlsQuery } from '@automoderator/core';
 

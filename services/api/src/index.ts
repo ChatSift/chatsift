@@ -7,6 +7,7 @@ import { container } from 'tsyringe';
 import postgres from 'postgres';
 import { join as joinPath } from 'path';
 import { readdirRecurse } from '@gaius-bot/readdir';
+import * as controllers from './controllers';
 
 void (async () => {
   const config = initConfig();
@@ -22,6 +23,10 @@ void (async () => {
   );
 
   const app = createApp();
+
+  for (const controller of Object.values(controllers)) {
+    container.register(controller, { useClass: controller });
+  }
 
   await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtension: 'js' }));
 

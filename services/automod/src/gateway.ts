@@ -1,12 +1,12 @@
 import { inject, singleton } from 'tsyringe';
-import { Config, kConfig, kLogger, kRest, kSql } from '@automoderator/injection';
+import { Config, kConfig, kLogger, kDiscordRest, kSql } from '@automoderator/injection';
 import { createAmqp, RoutingClient } from '@cordis/brokers';
 import { GatewayDispatchEvents, GatewayMessageUpdateDispatchData } from 'discord-api-types/v8';
 import { ApiPostFiltersFilesResult, ApiPostFiltersUrlsResult, GuildSettings, UseFilterMode } from '@automoderator/core';
+import { FilesRunner, UrlsRunner } from './runners';
 import type { DiscordEvents } from '@cordis/common';
 import type { Sql } from 'postgres';
 import type { Logger } from 'pino';
-import type { FilesRunner, UrlsRunner } from './runners';
 import type { IRouter as DiscordIRouter } from '@cordis/rest';
 
 enum Runners {
@@ -52,7 +52,7 @@ export class Gateway {
     @inject(kConfig) public readonly config: Config,
     @inject(kSql) public readonly sql: Sql<{}>,
     @inject(kLogger) public readonly logger: Logger,
-    @inject(kRest) public readonly discord: DiscordIRouter,
+    @inject(kDiscordRest) public readonly discord: DiscordIRouter,
     public readonly urls: UrlsRunner,
     public readonly files: FilesRunner
   ) {}

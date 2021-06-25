@@ -1,11 +1,13 @@
 import { container } from 'tsyringe';
-import { Rest } from '../rest';
+import type { Rest } from '../rest';
 import type { IRouter } from './IRouter';
+
+export const kRest = Symbol('rest instance');
 
 export const kRestRouter = Symbol('rest router');
 
 export const buildRestRouter = () => {
-  const rest = container.resolve(Rest);
+  const rest = container.resolve<Rest>(kRest);
 
   const method: string[] = [''];
   const handler: ProxyHandler<IRouter> = {

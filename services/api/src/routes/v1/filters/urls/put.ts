@@ -3,7 +3,7 @@ import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { ApiPutFiltersUrlsBody, MaliciousUrlCategory } from '@automoderator/core';
 import type { Request, Response } from 'polka';
-import type { UrlsController } from '#controllers';
+import { UrlsController } from '#controllers';
 
 @injectable()
 export default class PutFiltersUrlsRoute extends Route {

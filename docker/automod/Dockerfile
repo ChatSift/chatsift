@@ -18,7 +18,7 @@ COPY libs/logger/package.json ./libs/logger/package.json
 COPY libs/rest/package.json ./libs/rest/package.json
 COPY services/automod/package.json ./services/automod/package.json
 
-RUN pnpm i --frozen-lockfile && apk del .build-deps
+RUN pnpm i --frozen-lockfile
 
 COPY libs/core ./libs/core
 COPY libs/http-client ./libs/http-client
@@ -29,7 +29,7 @@ COPY services/automod ./services/automod
 
 RUN curl -o ./services/automod/tlds.txt https://data.iana.org/TLD/tlds-alpha-by-domain.txt
 
-RUN pnpm run build && pnpm prune --prod
+RUN pnpm run build && pnpm prune --prod && apk del .build-deps
 
 FROM node:16-alpine
 LABEL name "automoderator automod"

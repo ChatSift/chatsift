@@ -1,7 +1,7 @@
 import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import type { UrlsController } from '#controllers';
+import { UrlsController } from '#controllers';
 import type { Request, Response } from 'polka';
 import type { ApiGetFiltersUrlsQuery } from '@automoderator/core';
 

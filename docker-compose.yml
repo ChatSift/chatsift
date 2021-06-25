@@ -1,6 +1,16 @@
 version: "3.7"
 
 services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    expose:
+      - '5672'
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 60s
+      timeout: 5s
+
   postgres:
     build:
       context: ./docker/postgresql
@@ -24,6 +34,8 @@ services:
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
     restart: unless-stopped
+    depends_on:
+      - postgres
 
   auth:
     build:
@@ -33,24 +45,20 @@ services:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
       DISCORD_SCOPES: "identify,email"
     restart: unless-stopped
+    depends_on:
+      - postgres
 
   automod:
     build:
       context: ./
       dockerfile: ./docker/automod/Dockerfile
     environment:
-      DISCORD_TOKEN: ""
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
       AMQP_URL: "amqp://rabbitmq:5672"
     restart: unless-stopped
-
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    restart: unless-stopped
-    healthcheck:
-      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
-      interval: 60s
-      timeout: 5s
+    depends_on:
+      - postgres
+      - rabbitmq
 
   gateway:
     image: cordislib/gateway:latest
@@ -58,6 +66,8 @@ services:
       CORDIS_AMQP_HOST: "amqp://rabbitmq:5672"
       CORDIS_WS_INTENTS: "guildMessages"
     restart: unless-stopped
+    depends_on:
+      - rabbitmq
 
 volumes:
   elis-data:

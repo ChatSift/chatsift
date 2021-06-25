@@ -3,7 +3,7 @@ import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { notFound } from '@hapi/boom';
 import { ApiPatchFiltersUrlsBody, MaliciousUrlCategory } from '@automoderator/core';
-import type { UrlsController } from '#controllers';
+import { UrlsController } from '#controllers';
 import type { Request, Response, NextHandler } from 'polka';
 
 @injectable()

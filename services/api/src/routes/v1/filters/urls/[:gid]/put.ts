@@ -5,7 +5,7 @@ import { ApiPutFiltersUrlsGuildBody, MaliciousUrlCategory } from '@automoderator
 import { notFound } from '@hapi/boom';
 import { getUserGuilds } from '#util';
 import type { Request, Response, NextHandler } from 'polka';
-import type { UrlsController } from '#controllers';
+import { UrlsController } from '#controllers';
 
 @injectable()
 export default class PutFiltersUrlsGuildRoute extends Route {

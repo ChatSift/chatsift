@@ -6,7 +6,7 @@ export const kSql = Symbol('postgres instance');
 
 export const kLogger = Symbol('logger instance');
 
-export const kRest = Symbol('rest instance');
+export const kDiscordRest = Symbol('discord rest instance');
 
 export interface Config {
   amqpUrl: string;
