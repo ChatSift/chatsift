@@ -95,10 +95,13 @@ export class Gateway {
       }
     ] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${message.guild_id}`;
 
+    this.logger.trace({ settings }, 'On message triggered');
+
     const promises: Promise<RunnerResult>[] = [];
 
     if (settings.use_url_filters !== UseFilterMode.none) {
       const urls = this.urls.precheck(message.content);
+      this.logger.trace({ guildId: message.guild_id, urls }, 'Url filters');
       if (urls.length) {
         promises.push(
           this.runUrls({
@@ -113,6 +116,7 @@ export class Gateway {
 
     if (settings.use_file_filters !== UseFilterMode.none) {
       const urls = message.attachments?.map(attachment => attachment.url);
+      this.logger.trace({ guildId: message.guild_id, urls }, 'Attachment filters');
       if (urls?.length) {
         promises.push(this.runFiles({ message, urls }));
       }
