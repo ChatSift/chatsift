@@ -18,6 +18,7 @@ export interface Config {
   discordClientId: `${bigint}`;
   discordClientSecret: string;
   discordToken: string;
+  discordPubKey: string;
   discordScopes: string;
   dbUrl: string;
   nodeEnv: string;
@@ -36,6 +37,7 @@ export const initConfig = () => {
     discordClientId: process.env.DISCORD_CLIENT_ID as `${bigint}`,
     discordClientSecret: process.env.DISCORD_CLIENT_SECRET!,
     discordToken: process.env.DISCORD_TOKEN!,
+    discordPubKey: process.env.DISCORD_PUB_KEY!,
     discordScopes: process.env.DISCORD_SCOPES?.split(',').join(' ') ?? '',
     dbUrl: process.env.DB_URL!,
     nodeEnv: process.env.NODE_ENV ?? 'dev',

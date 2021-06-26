@@ -10,6 +10,7 @@ const data = {
   DISCORD_CLIENT_ID: '123',
   DISCORD_CLIENT_SECRET: '456',
   DISCORD_TOKEN: 'abc',
+  DISCORD_PUB_KEY: 'h',
   DISCORD_SCOPES: 'a,b',
   DB_URL: 'postgres://something',
   ENCRYPTION_KEY: 'awooga'
@@ -32,6 +33,7 @@ test('test', () => {
     discordClientId: data.DISCORD_CLIENT_ID,
     discordClientSecret: data.DISCORD_CLIENT_SECRET,
     discordToken: data.DISCORD_TOKEN,
+    discordPubKey: data.DISCORD_PUB_KEY,
     discordScopes: 'a b',
     dbUrl: data.DB_URL,
     nodeEnv: 'test',

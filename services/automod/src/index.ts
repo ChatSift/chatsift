@@ -10,7 +10,7 @@ import * as runners from './runners';
 import { Rest, kRest, buildRestRouter } from '@automoderator/http-client';
 import type { Logger } from 'pino';
 
-const main = async () => {
+void (async () => {
   const config = initConfig();
 
   container.register(kRest, { useValue: container.resolve(Rest) });
@@ -57,6 +57,4 @@ const main = async () => {
 
   await container.resolve(Gateway).init();
   logger.info({ topic: 'AUTOMOD INIT' }, 'Ready to listen to message packets');
-};
-
-void main();
+})();

@@ -1,6 +1,14 @@
 version: "3.7"
 
 services:
+  api:
+    environment:
+      DISCORD_PUB_KEY: "owo"
+
+  gateway:
+    environment:
+      CORDIS_AUTH: "discord token"
+
   automod:
     environment:
       DISCORD_TOKEN: "awooga"
