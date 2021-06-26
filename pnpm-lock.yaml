@@ -314,6 +314,7 @@ importers:
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@cordis/bitfield': ^0.3.0
+      '@cordis/brokers': ^0.3.0
       '@cordis/common': ^0.2.3
       '@cordis/rest': ^0.3.0
       '@cordis/util': ^0.3.0
@@ -336,6 +337,7 @@ importers:
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@cordis/bitfield': 0.3.0
+      '@cordis/brokers': 0.3.0
       '@cordis/rest': 0.3.0
       '@cordis/util': 0.3.0
       '@gaius-bot/readdir': 1.0.0

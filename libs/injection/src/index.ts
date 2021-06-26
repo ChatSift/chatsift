@@ -6,8 +6,6 @@ export const kSql = Symbol('postgres instance');
 
 export const kLogger = Symbol('logger instance');
 
-export const kDiscordRest = Symbol('discord rest instance');
-
 export interface Config {
   amqpUrl: string;
   rootDomain: string;
@@ -16,6 +14,7 @@ export interface Config {
   dashDomain: string;
   internalApiToken: string;
   discordClientId: `${bigint}`;
+  interactionsTestGuildId: `${bigint}`;
   discordClientSecret: string;
   discordToken: string;
   discordPubKey: string;
@@ -35,6 +34,7 @@ export const initConfig = () => {
     dashDomain: process.env.DASH_DOMAIN!,
     internalApiToken: process.env.INTERNAL_API_TOKEN!,
     discordClientId: process.env.DISCORD_CLIENT_ID as `${bigint}`,
+    interactionsTestGuildId: process.env.INTERACTIONS_TEST_GUILD_ID as `${bigint}`,
     discordClientSecret: process.env.DISCORD_CLIENT_SECRET!,
     discordToken: process.env.DISCORD_TOKEN!,
     discordPubKey: process.env.DISCORD_PUB_KEY!,

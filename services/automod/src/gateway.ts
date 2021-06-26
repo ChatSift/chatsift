@@ -1,12 +1,12 @@
 import { inject, singleton } from 'tsyringe';
-import { Config, kConfig, kLogger, kDiscordRest, kSql } from '@automoderator/injection';
+import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, RoutingClient } from '@cordis/brokers';
-import { GatewayDispatchEvents, GatewayMessageUpdateDispatchData } from 'discord-api-types/v8';
+import { GatewayDispatchEvents, GatewayMessageUpdateDispatchData, Routes } from 'discord-api-types/v8';
 import { ApiPostFiltersFilesResult, ApiPostFiltersUrlsResult, GuildSettings, UseFilterMode, DiscordEvents } from '@automoderator/core';
 import { FilesRunner, UrlsRunner } from './runners';
+import { Rest } from '@cordis/rest';
 import type { Sql } from 'postgres';
 import type { Logger } from 'pino';
-import type { IRouter as DiscordIRouter } from '@cordis/rest';
 
 enum Runners {
   files,
@@ -51,7 +51,7 @@ export class Gateway {
     @inject(kConfig) public readonly config: Config,
     @inject(kSql) public readonly sql: Sql<{}>,
     @inject(kLogger) public readonly logger: Logger,
-    @inject(kDiscordRest) public readonly discord: DiscordIRouter,
+    public readonly discord: Rest,
     public readonly urls: UrlsRunner,
     public readonly files: FilesRunner
   ) {}
@@ -60,7 +60,7 @@ export class Gateway {
     try {
       const hits = await this.urls.run(urls, guildId, guildOnly);
       if (hits.length) {
-        await this.discord.channels![message.channel_id]!.messages![message.id]!.delete({ reason: 'Url filter detection' });
+        await this.discord.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Url filter detection' });
       }
 
       return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.urls };
@@ -74,7 +74,7 @@ export class Gateway {
     try {
       const hits = await this.files.run(urls);
       if (hits.length) {
-        await this.discord.channels![message.channel_id]!.messages![message.id]!.delete({ reason: 'Url filter detection' });
+        await this.discord.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'File filter detection' });
       }
 
       return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.files };

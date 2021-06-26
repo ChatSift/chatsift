@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 
 import { container } from 'tsyringe';
-import { Rest as DiscordRest, buildRestRouter as buildDiscordRestRouter, IRouter } from '@cordis/rest';
+import { Rest as DiscordRest } from '@cordis/rest';
 import postgres, { Sql } from 'postgres';
-import { kLogger, kSql, kDiscordRest, initConfig } from '@automoderator/injection';
+import { kLogger, kSql, initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { Gateway } from './gateway';
 import * as runners from './runners';
@@ -47,7 +47,7 @@ void (async () => {
     discordRest.on('request', req => logger.trace({ topic: 'REQUEST START' }, `Making request ${req.method!} ${req.path!}`));
   }
 
-  container.register<IRouter>(kDiscordRest, { useValue: buildDiscordRestRouter(discordRest) });
+  container.register(DiscordRest, { useValue: discordRest });
   container.register<Sql<{}>>(kSql, { useValue: sql });
   container.register<Logger>(kLogger, { useValue: logger });
   for (const runner of Object.values(runners)) {
