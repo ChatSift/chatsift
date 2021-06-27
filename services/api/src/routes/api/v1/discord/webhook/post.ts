@@ -58,6 +58,7 @@ export default class PostDiscordWebhookRoute extends Route {
 
     res.end(JSON.stringify({ type: InteractionResponseType.DeferredChannelMessageWithSource }));
 
+    // TODO: Check on discord-api-types
     switch (interaction.type) {
       case InteractionType.ApplicationCommand: {
         return this.interactions.publish('command', interaction as APIApplicationCommandInteraction);
