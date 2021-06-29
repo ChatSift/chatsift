@@ -8,9 +8,38 @@ export enum UseFilterMode {
 
 export interface GuildSettings {
   guild_id: Snowflake;
+  mod_role: Snowflake | null;
   use_url_filters: UseFilterMode;
   use_file_filters: UseFilterMode;
   mod_action_log_channel: Snowflake | null;
+}
+
+export enum CaseAction {
+  warn,
+  strike,
+  mute,
+  unmute,
+  kick,
+  softban,
+  ban,
+  unban
+}
+
+export interface Case {
+  id: number;
+  guild_id: Snowflake;
+  log_message_id: Snowflake | null;
+  case_id: number;
+  ref_id: number | null;
+  target_id: Snowflake;
+  target_tag: string;
+  mod_id: Snowflake | null;
+  mod_tag: string | null;
+  action_type: CaseAction;
+  reason: string | null;
+  expires_at: Date | null;
+  processed: boolean;
+  created_at: Date;
 }
 
 export interface User {

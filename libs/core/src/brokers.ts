@@ -2,9 +2,9 @@ import type {
   GatewayDispatchEvents,
   GatewayDispatchPayload,
   APIApplicationCommandInteraction,
-  APIMessageComponentInteraction,
-  Snowflake
+  APIMessageComponentInteraction
 } from 'discord-api-types/v8';
+import type { Case } from './models';
 
 type SanitizedDiscordEvents = {
   [K in GatewayDispatchEvents]: GatewayDispatchPayload & {
@@ -30,24 +30,6 @@ export interface LogBase<T extends LogTypes, D extends Record<string, any>> {
   data: D;
 }
 
-export enum ModAction {
-  warn,
-  strike,
-  mute,
-  unmute,
-  kick,
-  softban,
-  ban,
-  unban
-}
-
-export type ModActionLog = LogBase<LogTypes.modAction, {
-  mod_id: Snowflake;
-  target_id: Snowflake;
-  type: ModAction;
-  createdAt: Date;
-  expiresAt?: Date;
-  reason?: string;
-}>;
+export type ModActionLog = LogBase<LogTypes.modAction, Case>;
 
 export type Log = ModActionLog;

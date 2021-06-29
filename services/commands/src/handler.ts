@@ -1,10 +1,10 @@
-import { singleton, inject } from 'tsyringe';
+import { singleton, inject, container } from 'tsyringe';
 import { createAmqp, RoutingClient } from '@cordis/brokers';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
 import { join as joinPath } from 'path';
-import Command from './command';
+import { checkPerm, Command, commandInfo, UserPerms } from './command';
 import { ControlFlowError, send, transformInteraction } from '#util';
 import {
   Routes,
@@ -36,6 +36,12 @@ export class Handler {
     }
 
     try {
+      if (command.userPermissions && !await checkPerm(interaction, command.userPermissions)) {
+        throw new ControlFlowError(
+          `Missing permission to run this command! You must be at least \`${UserPerms[command.userPermissions]!}\``
+        );
+      }
+
       await command.exec(interaction, transformInteraction(data!.options ?? [], data!.resolved));
     } catch (e) {
       const internal = !(e instanceof ControlFlowError);
@@ -71,8 +77,22 @@ export class Handler {
     await this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(commandsRoute, { data: interactions });
   }
 
+  public async loadCommands(): Promise<void> {
+    for await (const file of readdirRecurse(joinPath(__dirname, 'commands'), { fileExtension: 'js' })) {
+      const info = commandInfo(file);
+
+      if (!info) {
+        continue;
+      }
+
+      const command: Command = container.resolve((await import(file)).default);
+      this.commands.set(command.name ?? info.name, command);
+    }
+  }
+
   public async init() {
     await this.registerInteractions();
+    await this.loadCommands();
 
     const { channel } = await createAmqp(this.config.amqpUrl);
     const interactions = new RoutingClient<keyof DiscordInteractions, DiscordInteractions>(channel);

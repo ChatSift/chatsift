@@ -1,8 +1,26 @@
 CREATE TABLE IF NOT EXISTS guild_settings (
   guild_id bigint PRIMARY KEY,
+  mod_role bigint,
   use_url_filters int NOT NULL DEFAULT 0,
   use_file_filters int NOT NULL DEFAULT 0,
   mod_action_log_channel bigint
+);
+
+CREATE TABLE IF NOT EXISTS cases (
+  id serial PRIMARY KEY,
+  guild_id bigint NOT NULL,
+  log_message_id bigint,
+  case_id int NOT NULL,
+  ref_id int,
+  target_id bigint NOT NULL,
+  target_tag text NOT NULl,
+  mod_id bigint,
+  mod_tag text,
+  action_type int NOT NULL,
+  reason text,
+  expires_at timestamptz,
+  processed boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS users (

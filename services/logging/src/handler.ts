@@ -2,20 +2,20 @@ import { singleton, inject } from 'tsyringe';
 import { createAmqp, PubSubClient } from '@cordis/brokers';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { Log, LogTypes, ModAction, ModActionLog } from '@automoderator/core';
+import { Log, LogTypes, CaseAction, ModActionLog } from '@automoderator/core';
 import type { Logger } from 'pino';
 
 @singleton()
 export class Handler {
   public readonly LOG_COLORS = {
-    [ModAction.warn]: 15309853,
-    [ModAction.strike]: 15309853,
-    [ModAction.mute]: 2895667,
-    [ModAction.unmute]: 5793266,
-    [ModAction.kick]: 15418782,
-    [ModAction.softban]: 15418782,
-    [ModAction.ban]: 15548997,
-    [ModAction.unban]: 5793266
+    [CaseAction.warn]: 15309853,
+    [CaseAction.strike]: 15309853,
+    [CaseAction.mute]: 2895667,
+    [CaseAction.unmute]: 5793266,
+    [CaseAction.kick]: 15418782,
+    [CaseAction.softban]: 15418782,
+    [CaseAction.ban]: 15548997,
+    [CaseAction.unban]: 5793266
   } as const;
 
   public constructor(
@@ -25,15 +25,15 @@ export class Handler {
   ) {}
 
   private _handleModLog(log: ModActionLog) {
-    switch (log.data.type) {
-      case ModAction.warn:
-      case ModAction.strike:
-      case ModAction.mute:
-      case ModAction.unmute:
-      case ModAction.kick:
-      case ModAction.softban:
-      case ModAction.ban:
-      case ModAction.unban: {
+    switch (log.data.action_type) {
+      case CaseAction.warn:
+      case CaseAction.strike:
+      case CaseAction.mute:
+      case CaseAction.unmute:
+      case CaseAction.kick:
+      case CaseAction.softban:
+      case CaseAction.ban:
+      case CaseAction.unban: {
         break;
       }
 
