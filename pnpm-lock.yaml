@@ -323,6 +323,7 @@ importers:
     specifiers:
       '@automoderator/core': workspace:^0.1.0
       '@automoderator/discord-permissions': workspace:^0.1.0
+      '@automoderator/http-client': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@cordis/bitfield': ^0.3.0
@@ -347,6 +348,7 @@ importers:
     dependencies:
       '@automoderator/core': link:../../libs/core
       '@automoderator/discord-permissions': link:../../libs/discord-permissions
+      '@automoderator/http-client': link:../../libs/http-client
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@cordis/bitfield': 0.3.0
