@@ -1,3 +1,15 @@
+CREATE FUNCTION next_case(bigint) RETURNS int
+LANGUAGE plpgsql
+stable
+AS $$
+DECLARE next_id int;
+BEGIN
+  SELECT max(case_id) INTO next_id FROM cases WHERE guild_id = $1;
+  if next_id is null THEN return 1; end if;
+  return next_id + 1;
+END;
+$$;
+
 CREATE TABLE IF NOT EXISTS guild_settings (
   guild_id bigint PRIMARY KEY,
   mod_role bigint,
@@ -32,6 +44,11 @@ CREATE TABLE IF NOT EXISTS apps (
   app_id serial PRIMARY KEY,
   name varchar(32) NOT NULL,
   perms bigint NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS app_guilds (
+  app_id int NOT NULL REFERENCES apps ON DELETE CASCADE,
+  guild_id bigint NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS sigs (

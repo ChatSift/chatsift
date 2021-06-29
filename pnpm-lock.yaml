@@ -179,6 +179,7 @@ importers:
   services/api:
     specifiers:
       '@automoderator/core': workspace:^0.1.0
+      '@automoderator/discord-permissions': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/rest': workspace:^0.1.0
@@ -201,6 +202,7 @@ importers:
       typescript: ^4.3.4
     dependencies:
       '@automoderator/core': link:../../libs/core
+      '@automoderator/discord-permissions': link:../../libs/discord-permissions
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@automoderator/rest': link:../../libs/rest

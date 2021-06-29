@@ -53,6 +53,11 @@ export interface App {
   perms: bigint;
 }
 
+export interface AppGuild {
+  app_id: number;
+  guild_id: Snowflake;
+}
+
 export interface Sig {
   app_id: number;
   sig: string;

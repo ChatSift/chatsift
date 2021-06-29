@@ -1,8 +1,10 @@
 import { unauthorized, badRequest } from '@hapi/boom';
-import { TokenManager, TokenValidationStatus } from '../utils';
+import { Permissions, TokenManager, TokenValidationStatus } from '../utils';
 import { container } from 'tsyringe';
+import { kSql } from '@automoderator/injection';
 import type { Request, Response, NextHandler } from 'polka';
-import type { App } from '@automoderator/core';
+import type { App, AppGuild } from '@automoderator/core';
+import type { Sql } from 'postgres';
 
 declare module 'polka' {
   export interface Request {
@@ -10,8 +12,9 @@ declare module 'polka' {
   }
 }
 
-export const thirdPartyAuth = (fallthrough = false) => {
+export const thirdPartyAuth = (fallthrough = false, guild = true) => {
   const tokens = container.resolve(TokenManager);
+  const sql = container.resolve<Sql<{}>>(kSql);
 
   return async (req: Request, _: Response, next: NextHandler) => {
     const { authorization } = req.headers;
@@ -32,6 +35,13 @@ export const thirdPartyAuth = (fallthrough = false) => {
       case TokenValidationStatus.success: {
         req.app = app;
         break;
+      }
+    }
+
+    if (guild && req.params.gid! && !new Permissions(req.app!.perms).has('administrator')) {
+      const [guild] = await sql<[AppGuild?]>`SELECT * FROM app_guilds WHERE app_id = ${app!.app_id} AND guild_id = ${req.params.gid}`;
+      if (!guild) {
+        return next(unauthorized('cannot perform actions on this guild'));
       }
     }
 

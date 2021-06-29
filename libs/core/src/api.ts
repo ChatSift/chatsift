@@ -1,4 +1,13 @@
-import type { MaliciousFile, MaliciousUrl, MaliciousUrlCategory, MaliciousFileCategory, GlobalMaliciousUrl } from './models';
+import type {
+  MaliciousFile,
+  MaliciousUrl,
+  MaliciousUrlCategory,
+  MaliciousFileCategory,
+  GlobalMaliciousUrl,
+  Case,
+  CaseAction
+} from './models';
+import type { Snowflake } from 'discord-api-types/v8';
 
 export interface ApiGetFiltersUrlsQuery {
   page: number;
@@ -58,3 +67,51 @@ export interface ApiPutFiltersFilesBody {
 }
 
 export type ApiPutFiltersFilesResult = MaliciousFile;
+
+export type ApiGetGuildsCaseResult = Case;
+
+export type ApiDeleteGuildsCaseResult = Case;
+
+interface BaseCaseData {
+  action: CaseAction;
+  reason?: string;
+  mod_id: Snowflake;
+  mod_tag: string;
+  target_id: Snowflake;
+  target_tag: string;
+  reference_id?: number;
+}
+
+interface CaseDataOther extends BaseCaseData {
+  action: Exclude<CaseAction, CaseAction.mute | CaseAction.softban | CaseAction.ban>;
+}
+
+interface CaseDataWithExpiry extends BaseCaseData {
+  action: CaseAction.mute | CaseAction.ban;
+  expires_at?: Date;
+}
+
+interface CaseDataWithDeletes extends BaseCaseData {
+  action: CaseAction.softban | CaseAction.ban;
+  delete_message_days?: number;
+}
+
+export type CaseData = CaseDataOther | CaseDataWithExpiry | CaseDataWithDeletes;
+
+export type ApiPostGuildsCasesBody = CaseData[];
+
+export type ApiPostGuildsCasesResult = Case[];
+
+interface UpdateCaseBaseData {
+  case_id: number;
+  expires_at?: Date;
+  reason?: string;
+  ref_id?: number;
+}
+
+export type CaseUpdateData = (
+  | UpdateCaseBaseData
+  | (UpdateCaseBaseData & { mod_id: string; mod_tag: string })
+);
+
+export type ApiPatchGuildsCasesBody = CaseUpdateData[];
