@@ -1,10 +1,6 @@
 version: "3.7"
 
 services:
-  api:
-    environment:
-      DISCORD_PUB_KEY: "owo"
-
   gateway:
     environment:
       CORDIS_AUTH: "discord token"
@@ -21,3 +17,7 @@ services:
       DISCORD_CLIENT_SECRET: "abc"
       DISCORD_TOKEN: "def"
       ENCRYPTION_KEY: "32 random bytes of base64 here"
+
+  interactions:
+    environment:
+      DISCORD_PUB_KEY: "owo"
