@@ -1,5 +1,5 @@
 FROM node:16-alpine
-LABEL name "automoderator automod builder"
+LABEL name "automoderator logging builder"
 
 WORKDIR /opt/build
 
@@ -15,7 +15,7 @@ COPY libs/core/package.json ./libs/core/package.json
 COPY libs/http-client/package.json ./libs/http-client/package.json
 COPY libs/injection/package.json ./libs/injection/package.json
 COPY libs/logger/package.json ./libs/logger/package.json
-COPY services/automod/package.json ./services/automod/package.json
+COPY services/logging/package.json ./services/logging/package.json
 
 RUN pnpm i --frozen-lockfile
 
@@ -23,18 +23,16 @@ COPY libs/core ./libs/core
 COPY libs/http-client ./libs/http-client
 COPY libs/injection ./libs/injection
 COPY libs/logger ./libs/logger
-COPY services/automod ./services/automod
-
-RUN curl -o ./services/automod/tlds.txt https://data.iana.org/TLD/tlds-alpha-by-domain.txt
+COPY services/logging ./services/logging
 
 RUN pnpm run build && pnpm prune --prod && apk del .build-deps
 
 FROM node:16-alpine
-LABEL name "automoderator automod"
+LABEL name "automoderator logging"
 LABEL version "0.1.0"
 
-WORKDIR /usr/automod
+WORKDIR /usr/logging
 
 COPY --from=0 /opt/build ./
 
-CMD ["node", "--enable-source-maps", "services/automod/dist/index.js"]
+CMD ["node", "--enable-source-maps", "services/logging/dist/index.js"]

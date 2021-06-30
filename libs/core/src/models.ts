@@ -44,13 +44,13 @@ export interface Case {
 
 export interface User {
   user_id: Snowflake;
-  perms: bigint;
+  perms: string;
 }
 
 export interface App {
   app_id: number;
   name: string;
-  perms: bigint;
+  perms: string;
 }
 
 export interface AppGuild {

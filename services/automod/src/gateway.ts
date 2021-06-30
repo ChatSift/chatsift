@@ -98,7 +98,6 @@ export class Gateway {
 
     if (settings.use_url_filters !== UseFilterMode.none) {
       const urls = this.urls.precheck(message.content);
-      this.logger.trace({ guildId: message.guild_id, urls }, 'Url filters');
       if (urls.length) {
         promises.push(
           this.runUrls({
@@ -112,8 +111,8 @@ export class Gateway {
     }
 
     if (settings.use_file_filters !== UseFilterMode.none) {
+      // TODO have a look at how I resolve those
       const urls = message.attachments?.map(attachment => attachment.url);
-      this.logger.trace({ guildId: message.guild_id, urls }, 'Attachment filters');
       if (urls?.length) {
         promises.push(this.runFiles({ message, urls }));
       }

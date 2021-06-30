@@ -33,6 +33,7 @@ services:
       dockerfile: ./docker/api/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      AMQP_URL: "amqp://rabbitmq:5672"
     restart: unless-stopped
     depends_on:
       - postgres
@@ -52,6 +53,18 @@ services:
     build:
       context: ./
       dockerfile: ./docker/automod/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  commands:
+    build:
+      context: ./
+      dockerfile: ./docker/commands/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
       AMQP_URL: "amqp://rabbitmq:5672"

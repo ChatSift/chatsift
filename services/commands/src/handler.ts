@@ -66,7 +66,7 @@ export class Handler {
     const interactions = [];
 
     for await (const file of readdirRecurse(joinPath(__dirname, 'interactions'), { fileExtension: 'js' })) {
-      const data: RESTPostAPIApplicationCommandsJSONBody = (await import(file)).default;
+      const data = Object.values((await import(file)))[0] as RESTPostAPIApplicationCommandsJSONBody;
       interactions.push(data);
     }
 

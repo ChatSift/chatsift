@@ -5,10 +5,9 @@ services:
     environment:
       CORDIS_AUTH: "discord token"
 
-  automod:
+  api:
     environment:
-      DISCORD_TOKEN: "awooga"
-      INTERNAL_API_KEY: "asdf"
+      DISCORD_PUB_KEY: "owo"
 
   auth:
     environment:
@@ -17,6 +16,18 @@ services:
       DISCORD_CLIENT_SECRET: "abc"
       DISCORD_TOKEN: "def"
       ENCRYPTION_KEY: "32 random bytes of base64 here"
+
+  automod:
+    environment:
+      DISCORD_TOKEN: "awooga"
+      INTERNAL_API_TOKEN: "asdf"
+
+  commands:
+    environment:
+      DISCORD_TOKEN: "awooga"
+      DISCORD_CLIENT_ID: "123"
+      INTERACTIONS_TEST_GUILD_ID: "456"
+      INTERNAL_API_TOKEN: "asdf"
 
   interactions:
     environment:

@@ -20,6 +20,12 @@ services:
       NODE_ENV: "prod"
     command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-elasticsearch\""
 
+  commands:
+    environment:
+      NODE_ENV: "prod"
+      API_DOMAIN: "https://api.automoderator.me"
+    command: "sh -c \"node services/commands/dist/index.js | ./services/commands/node_modules/.bin/pino-elasticsearch\""
+
   elasticsearch:
     image: elasticsearch:7.12.1
     volumes:

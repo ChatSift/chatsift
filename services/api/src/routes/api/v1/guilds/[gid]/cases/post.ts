@@ -29,10 +29,10 @@ export default class PostGuildsCasesRoute extends Route {
                 otherwise: Joi.forbidden()
               }),
               reason: Joi.string(),
-              moderator_id: Joi.string()
+              mod_id: Joi.string()
                 .pattern(/\d{17,20}/)
                 .required(),
-              moderator_tag: Joi.string().required(),
+              mod_tag: Joi.string().required(),
               target_id: Joi.string()
                 .pattern(/\d{17,20}/)
                 .required(),
@@ -72,8 +72,7 @@ export default class PostGuildsCasesRoute extends Route {
         action_type,
         reason,
         expires_at,
-        processed,
-        created_at
+        processed
       ) VALUES (
         ${cs.guild_id},
         ${cs.log_message_id},
@@ -86,8 +85,7 @@ export default class PostGuildsCasesRoute extends Route {
         ${cs.action_type},
         ${cs.reason},
         ${cs.expires_at},
-        ${cs.processed},
-        ${cs.expires_at}
+        ${cs.processed}
       ) RETURNING *
     `
       .then(rows => rows[0]);
