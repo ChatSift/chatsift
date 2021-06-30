@@ -5,10 +5,6 @@ services:
     environment:
       CORDIS_AUTH: "discord token"
 
-  api:
-    environment:
-      DISCORD_PUB_KEY: "owo"
-
   auth:
     environment:
       DISCORD_CLIENT_ID: "123"
