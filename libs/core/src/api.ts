@@ -83,7 +83,7 @@ interface BaseCaseData {
 }
 
 interface CaseDataOther extends BaseCaseData {
-  action: Exclude<CaseAction, CaseAction.mute | CaseAction.softban | CaseAction.ban>;
+  action: Exclude<CaseAction, CaseAction.mute | CaseAction.ban>;
 }
 
 interface CaseDataWithExpiry extends BaseCaseData {
@@ -91,12 +91,7 @@ interface CaseDataWithExpiry extends BaseCaseData {
   expires_at?: Date;
 }
 
-interface CaseDataWithDeletes extends BaseCaseData {
-  action: CaseAction.softban | CaseAction.ban;
-  delete_message_days?: number;
-}
-
-export type CaseData = CaseDataOther | CaseDataWithExpiry | CaseDataWithDeletes;
+export type CaseData = CaseDataOther | CaseDataWithExpiry;
 
 export type ApiPostGuildsCasesBody = CaseData[];
 

@@ -1,5 +1,5 @@
 import { singleton, inject, container } from 'tsyringe';
-import { createAmqp, RoutingClient } from '@cordis/brokers';
+import { createAmqp, RoutingClient, PubSubServer } from '@cordis/brokers';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
@@ -54,7 +54,7 @@ export class Handler {
         interaction, {
           content: internal
             // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-            ? `Something went wrong internally! You should never see an error message like this, please contact a developer.\n${e.message}`
+            ? `Something went wrong! It's possible the bot is missing permissions or that this is a bug.\n\`${e.message}\``
             : e.message,
           flags: 64
         }
@@ -92,14 +92,19 @@ export class Handler {
 
   public async init() {
     await this.registerInteractions();
-    await this.loadCommands();
 
     const { channel } = await createAmqp(this.config.amqpUrl);
+
+    const logs = new PubSubServer(channel);
     const interactions = new RoutingClient<keyof DiscordInteractions, DiscordInteractions>(channel);
 
     interactions.on('command', interaction => void this._handleInteraction(interaction as APIGuildInteraction));
 
     await interactions.init({ name: 'interactions', topicBased: false, keys: ['command'] });
+    await logs.init({ name: 'guild_logs', fanout: false });
+
+    container.register(PubSubServer, { useValue: logs });
+    await this.loadCommands();
 
     return interactions;
   }

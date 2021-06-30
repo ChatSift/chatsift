@@ -85,4 +85,3 @@ type ArgumentsOfRaw<O> = O extends readonly any[] ? UnionToIntersection<OptionTo
 export type ArgumentsOf<C extends Command> = C extends { options: readonly Option[] }
   ? Simplify<UnionToIntersection<OptionToObject<C['options'][number]>>>
   : unknown;
-

@@ -31,6 +31,11 @@ services:
       NODE_ENV: "prod"
     command: "sh -c \"node services/interactions/dist/index.js | ./services/interactions/node_modules/.bin/pino-elasticsearch\""
 
+  logging:
+    environment:
+      NODE_ENV: "prod"
+    command: "sh -c \"node services/logging/dist/index.js | ./services/logging/node_modules/.bin/pino-elasticsearch\""
+
   elasticsearch:
     image: elasticsearch:7.12.1
     volumes:

@@ -28,3 +28,7 @@ services:
   interactions:
     environment:
       DISCORD_PUB_KEY: "owo"
+
+  logging:
+    environment:
+      DISCORD_TOKEN: "awooga"

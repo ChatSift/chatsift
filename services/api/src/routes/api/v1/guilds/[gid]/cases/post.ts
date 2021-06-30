@@ -37,13 +37,6 @@ export default class PostGuildsCasesRoute extends Route {
                 .pattern(/\d{17,20}/)
                 .required(),
               target_tag: Joi.string().required(),
-              delete_message_days: Joi.when('action', {
-                is: Joi.valid(CaseAction.softban, CaseAction.ban).required(),
-                then: Joi.number().positive().allow(0)
-                  .max(7)
-                  .default(0),
-                otherwise: Joi.forbidden()
-              }),
               reference_id: Joi.number()
             })
         )
