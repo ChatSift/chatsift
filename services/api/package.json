@@ -34,7 +34,6 @@
     "@automoderator/injection": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
     "@automoderator/rest": "workspace:^0.1.0",
-    "@cordis/brokers": "^0.3.0",
     "@gaius-bot/readdir": "^1.0.0",
     "@hapi/boom": "^9.1.2",
     "cookie": "^0.4.1",
@@ -46,7 +45,6 @@
     "postgres": "^2.0.0-beta.5",
     "reflect-metadata": "^0.1.13",
     "tslib": "^2.3.0",
-    "tsyringe": "^4.5.0",
-    "tweetnacl": "^1.0.3"
+    "tsyringe": "^4.5.0"
   }
 }
