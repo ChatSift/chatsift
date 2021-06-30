@@ -55,7 +55,7 @@ test('good token', async () => {
 
   await authenticator(req, new MockedResponse(), mockedNext);
   expect(mockedFetch).toHaveBeenCalled();
-  expect(req.user).toStrictEqual({ id: '123', perms: 0 });
+  expect(req.user).toStrictEqual({ id: '123', perms: 0n });
   expect(mockedNext).toHaveBeenCalledWith(undefined);
 });
 
