@@ -9,6 +9,7 @@ export enum UseFilterMode {
 export interface GuildSettings {
   guild_id: Snowflake;
   mod_role: Snowflake | null;
+  mute_role: Snowflake | null;
   use_url_filters: UseFilterMode;
   use_file_filters: UseFilterMode;
   mod_action_log_channel: Snowflake | null;
@@ -40,6 +41,11 @@ export interface Case {
   expires_at: Date | null;
   processed: boolean;
   created_at: Date;
+}
+
+export interface UnmuteRole {
+  case_id: number;
+  role_id: Snowflake;
 }
 
 export interface User {

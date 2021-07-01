@@ -1,7 +1,7 @@
 {
   "$schema": "http://json.schemastore.org/package",
-  "name": "@automoderator/commands",
-  "description": "Interaction handler for slash commands",
+  "name": "@automoderator/cron-runner",
+  "description": "Micro-service for running recurring scheduled tasks",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "version": "0.1.0",
@@ -17,26 +17,20 @@
   "bugs": {
     "url": "https://github.com/didinele/AutoModerator/issues"
   },
-  "imports": {
-    "#util": "./dist/util/index.js"
-  },
   "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
     "@types/amqplib": "^0.8.0",
     "@types/node": "^14.17.3",
+    "@types/node-fetch": "^2.5.10",
     "@types/pino": "^6.3.8",
     "typescript": "^4.3.4"
   },
   "dependencies": {
     "@automoderator/core": "workspace:^0.1.0",
-    "@automoderator/discord-permissions": "workspace:^0.1.0",
     "@automoderator/http-client": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
-    "@cordis/brokers": "^0.3.0",
     "@cordis/rest": "^0.3.0",
-    "@cordis/util": "^0.3.0",
-    "@gaius-bot/readdir": "^1.0.0",
     "discord-api-types": "^0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e",
     "pino-elasticsearch": "^6.0.0",
     "pino-pretty": "^5.1.0",

@@ -57,7 +57,6 @@ export class Handler {
       messageId ? this.rest.get<APIMessage>(Routes.channelMessage(channelId, messageId)).catch(() => null) : Promise.resolve(null)
     ]);
 
-    // TODO keep in mind mod info for log updates
     let embed: APIEmbed = message?.embeds[0]
       ? message.embeds[0]
       : {
@@ -67,18 +66,19 @@ export class Handler {
           icon_url: target.avatar
             ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${target.id}/${target.avatar}`)
             : `${RouteBases.cdn}/embed/avatars/${parseInt(target.discriminator, 10) % 5}`
-        },
-        footer: {
-          text: `Case ${log.data.case_id}${log.data.mod_tag ? ` | By ${log.data.mod_tag} (${log.data.mod_id!})` : ''}`,
-          icon_url: mod
-            ? (
-              mod.avatar
-                ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${mod.id}/${mod.avatar}`)
-                : `${RouteBases.cdn}/embed/avatars/${parseInt(mod.discriminator, 10) % 5}`
-            )
-            : undefined
         }
       };
+
+    embed.footer = {
+      text: `Case ${log.data.case_id}${log.data.mod_tag ? ` | By ${log.data.mod_tag} (${log.data.mod_id!})` : ''}`,
+      icon_url: mod
+        ? (
+          mod.avatar
+            ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${mod.id}/${mod.avatar}`)
+            : `${RouteBases.cdn}/embed/avatars/${parseInt(mod.discriminator, 10) % 5}`
+        )
+        : undefined
+    };
 
     if (log.data.ref_id && !embed.fields?.length) {
       const [ref] = await this.sql<[Case]>`SELECT * FROM cases WHERE case_id = ${log.data.ref_id} AND guild_id = ${log.data.guild_id}`;

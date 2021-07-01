@@ -25,6 +25,10 @@ services:
       INTERACTIONS_TEST_GUILD_ID: "456"
       INTERNAL_API_TOKEN: "asdf"
 
+  cron-runner:
+    environment:
+      DISCORD_TOKEN: "awooga"
+
   interactions:
     environment:
       DISCORD_PUB_KEY: "owo"

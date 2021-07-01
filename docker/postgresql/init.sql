@@ -13,6 +13,7 @@ $$;
 CREATE TABLE IF NOT EXISTS guild_settings (
   guild_id bigint PRIMARY KEY,
   mod_role bigint,
+  mute_role bigint,
   use_url_filters int NOT NULL DEFAULT 0,
   use_file_filters int NOT NULL DEFAULT 0,
   mod_action_log_channel bigint
@@ -33,6 +34,11 @@ CREATE TABLE IF NOT EXISTS cases (
   expires_at timestamptz,
   processed boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS unmute_roles (
+  case_id int REFERENCES cases(id) ON DELETE CASCADE,
+  role_id bigint NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS users (
