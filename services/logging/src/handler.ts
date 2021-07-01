@@ -2,7 +2,7 @@ import { singleton, inject } from 'tsyringe';
 import { createAmqp, PubSubClient } from '@cordis/brokers';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { Log, LogTypes, CaseAction, ModActionLog, GuildSettings, Case, addFields } from '@automoderator/core';
+import { Log, LogTypes, CaseAction, ModActionLog, GuildSettings, Case, addFields, ms } from '@automoderator/core';
 import { makeDiscordCdnUrl } from '@cordis/util';
 import {
   APIEmbed,
@@ -93,6 +93,16 @@ export class Handler {
       );
     }
 
+    if (log.data.expires_at) {
+      embed = addFields(
+        embed,
+        {
+          name: 'Expiration',
+          value: ms(log.data.expires_at.getTime(), true)
+        }
+      );
+    }
+
     switch (log.data.action_type) {
       case CaseAction.warn: {
         embed.title = `Was warned${log.data.reason ? ` | ${log.data.reason}` : ''}`;
@@ -112,6 +122,7 @@ export class Handler {
         break;
       }
       case CaseAction.ban: {
+        embed.title = `Was banned${log.data.reason ? ` | ${log.data.reason}` : ''}`;
         break;
       }
       case CaseAction.unban: {
