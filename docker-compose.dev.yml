@@ -30,6 +30,11 @@ services:
       API_DOMAIN: "http://api:3001"
     command: "sh -c \"node services/commands/dist/index.js | ./services/commands/node_modules/.bin/pino-pretty -c -l -t\""
 
+  cron-runner:
+    environment:
+      NODE_ENV: "dev"
+    command: "sh -c \"node services/cron-runner/dist/index.js | ./services/cron-runner/node_modules/.bin/pino-pretty -c -l -t\""
+
   interactions:
     environment:
       NODE_ENV: "dev"

@@ -361,7 +361,6 @@ importers:
   services/cron-runner:
     specifiers:
       '@automoderator/core': workspace:^0.1.0
-      '@automoderator/http-client': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@cordis/rest': ^0.3.0
@@ -379,7 +378,6 @@ importers:
       typescript: ^4.3.4
     dependencies:
       '@automoderator/core': link:../../libs/core
-      '@automoderator/http-client': link:../../libs/http-client
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@cordis/rest': 0.3.0
@@ -474,45 +472,6 @@ importers:
     devDependencies:
       '@types/amqplib': 0.8.0
       '@types/node': 14.17.4
-      '@types/pino': 6.3.8
-      typescript: 4.3.4
-
-  services/scheduler:
-    specifiers:
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/injection': workspace:^0.1.0
-      '@automoderator/logger': workspace:^0.1.0
-      '@cordis/brokers': ^0.3.0
-      '@cordis/rest': ^0.3.0
-      '@cordis/util': ^0.3.0
-      '@types/amqplib': ^0.8.0
-      '@types/node': ^14.17.3
-      '@types/node-fetch': ^2.5.10
-      '@types/pino': ^6.3.8
-      pino-elasticsearch: ^6.0.0
-      pino-pretty: ^5.1.0
-      postgres: 2.0.0-beta.4
-      reflect-metadata: ^0.1.13
-      tslib: ^2.3.0
-      tsyringe: ^4.5.0
-      typescript: ^4.3.4
-    dependencies:
-      '@automoderator/core': link:../../libs/core
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/logger': link:../../libs/logger
-      '@cordis/brokers': 0.3.0
-      '@cordis/rest': 0.3.0
-      '@cordis/util': 0.3.0
-      pino-elasticsearch: 6.0.0
-      pino-pretty: 5.1.0
-      postgres: 2.0.0-beta.4
-      reflect-metadata: 0.1.13
-      tslib: 2.3.0
-      tsyringe: 4.5.0
-    devDependencies:
-      '@types/amqplib': 0.8.0
-      '@types/node': 14.17.4
-      '@types/node-fetch': 2.5.10
       '@types/pino': 6.3.8
       typescript: 4.3.4
 

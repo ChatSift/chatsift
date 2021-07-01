@@ -73,6 +73,16 @@ services:
       - postgres
       - rabbitmq
 
+  cron-runner:
+    build:
+      context: ./
+      dockerfile: ./docker/cron-runner/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
   interactions:
     build:
       context: ./

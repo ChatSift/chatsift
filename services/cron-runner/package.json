@@ -27,7 +27,6 @@
   },
   "dependencies": {
     "@automoderator/core": "workspace:^0.1.0",
-    "@automoderator/http-client": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
     "@cordis/rest": "^0.3.0",
