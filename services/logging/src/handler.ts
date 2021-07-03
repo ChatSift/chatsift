@@ -2,8 +2,19 @@ import { singleton, inject } from 'tsyringe';
 import { createAmqp, PubSubClient } from '@cordis/brokers';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { Log, LogTypes, CaseAction, ModActionLog, GuildSettings, Case, addFields, ms } from '@automoderator/core';
 import { makeDiscordCdnUrl } from '@cordis/util';
+import {
+  Log,
+  LogTypes,
+  CaseAction,
+  ModActionLog,
+  GuildSettings,
+  Case,
+  addFields,
+  ms,
+  StrikeCase,
+  StrikePunishmentAction
+} from '@automoderator/core';
 import {
   APIEmbed,
   APIMessage,
@@ -35,6 +46,54 @@ export class Handler {
     @inject(kSql) public readonly sql: Sql<{}>,
     public readonly rest: Rest
   ) {}
+
+  private _populateEmbedWithStrikeTrigger(embed: APIEmbed, cs: StrikeCase): APIEmbed {
+    if (!cs.extra) {
+      return embed;
+    }
+
+    let value: string | undefined;
+
+    switch (cs.extra.triggered) {
+      case StrikePunishmentAction.kick: {
+        value = 'Kick';
+        break;
+      }
+
+      case StrikePunishmentAction.mute:
+      case StrikePunishmentAction.ban: {
+        const action = cs.extra.triggered === StrikePunishmentAction.mute ? 'Mute' : 'Ban';
+
+        if (!cs.extra.duration) {
+          value = `Permanent ${action.toLowerCase()}`;
+        } else if (cs.extra.extendedBy) {
+          value = `${action} extended by ${ms(cs.extra.extendedBy, true)} - ` +
+            `meaning it will now expire in ${ms(cs.extra.extendedBy + cs.extra.duration, true)}`;
+        } else {
+          value = `${action} that will last for ${ms(cs.extra.duration, true)}`;
+        }
+
+        break;
+      }
+
+      default: {
+        this.logger.warn({ cs }, 'Recieved unrecognized strike case trigger');
+        return embed;
+      }
+    }
+
+    if (value) {
+      embed = addFields(
+        embed,
+        {
+          name: 'Punishment trigger',
+          value
+        }
+      );
+    }
+
+    return embed;
+  }
 
   private async _handleModLog(log: ModActionLog) {
     const [
@@ -108,9 +167,16 @@ export class Handler {
         embed.title = `Was warned${log.data.reason ? ` | ${log.data.reason}` : ''}`;
         break;
       }
-      case CaseAction.strike:
-      case CaseAction.mute:
+      case CaseAction.strike: {
+        embed = this._populateEmbedWithStrikeTrigger(embed, log.data);
+        break;
+      }
+      case CaseAction.mute: {
+        embed.title = `Was muted${log.data.reason ? `| ${log.data.reason}` : ''}`;
+        break;
+      }
       case CaseAction.unmute: {
+        embed.title = `Was unmuted${log.data.reason ? `| ${log.data.reason}` : ''}`;
         break;
       }
       case CaseAction.kick: {

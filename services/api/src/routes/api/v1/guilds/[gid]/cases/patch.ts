@@ -22,9 +22,10 @@ export default class PostGuildsCasesRoute extends Route {
               case_id: Joi.number().required(),
               mod_id: Joi.string().pattern(/\d{17,20}/),
               mod_tag: Joi.string(),
-              expires_at: Joi.date(),
+              expires_at: Joi.date().allow(null),
               reason: Joi.string(),
-              ref_id: Joi.number()
+              ref_id: Joi.number(),
+              processed: Joi.boolean()
             })
             .and('mod_id', 'mod_tag')
         )
@@ -56,8 +57,9 @@ export default class PostGuildsCasesRoute extends Route {
           return Promise.reject();
         }
 
-        if (data.expires_at && ![CaseAction.mute, CaseAction.ban].includes(cs.action_type)) {
-          await next(badRequest('expires_at is unavailable for mutes and bans'));
+        // eslint-disable-next-line no-eq-null
+        if ((data.expires_at || data.processed != null) && ![CaseAction.mute, CaseAction.ban].includes(cs.action_type)) {
+          await next(badRequest('expires_at and processed cannot only be mutated for mutes and bans'));
           return Promise.reject();
         }
 

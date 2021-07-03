@@ -4,7 +4,7 @@ import type {
   APIApplicationCommandInteraction,
   APIMessageComponentInteraction
 } from 'discord-api-types/v8';
-import type { Case } from './models';
+import type { Case, CaseAction, StrikePunishmentAction } from './models';
 
 type SanitizedDiscordEvents = {
   [K in GatewayDispatchEvents]: GatewayDispatchPayload & {
@@ -30,6 +30,24 @@ export interface LogBase<T extends LogTypes, D extends Record<string, any>> {
   data: D;
 }
 
-export type ModActionLog = LogBase<LogTypes.modAction, Case>;
+interface StrikeCaseExtrasNoDuration {
+  triggered: StrikePunishmentAction.kick;
+}
+
+interface StrikeCaseExtrasWithDuration {
+  triggered: StrikePunishmentAction.mute | StrikePunishmentAction.ban;
+  duration?: number;
+  extendedBy?: number;
+}
+
+export type StrikeCaseExtras = StrikeCaseExtrasNoDuration | StrikeCaseExtrasWithDuration;
+
+export type NonStrikeCase = Omit<Case, 'action_type'> & { action_type: Exclude<CaseAction, CaseAction.strike> };
+export type StrikeCase = Omit<Case, 'action_type'> & {
+  action_type: CaseAction.strike;
+  extra?: StrikeCaseExtras;
+};
+
+export type ModActionLog = LogBase<LogTypes.modAction, NonStrikeCase | StrikeCase>;
 
 export type Log = ModActionLog;

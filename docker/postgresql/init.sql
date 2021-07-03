@@ -19,6 +19,18 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   mod_action_log_channel bigint
 );
 
+CREATE TABLE IF NOT EXISTS strike_punishments (
+  guild_id bigint NOT NULL REFERENCES guild_settings ON DELETE CASCADE,
+  strikes int NOT NULL,
+  action_type int NOT NULL,
+  duration int
+);
+
+CREATE TABLE IF NOT EXISTS strikes (
+  guild_id bigint NOT NULL REFERENCES guild_settings ON DELETE CASCADE,
+  user_id bigint NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS cases (
   id serial PRIMARY KEY,
   guild_id bigint NOT NULL,

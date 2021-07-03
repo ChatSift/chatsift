@@ -1,12 +1,22 @@
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { Command, UserPerms } from '../../command';
 import { ArgumentsOf, ControlFlowError, send } from '../../util';
-import { KickCommand } from '../../interactions/mod/kick';
+import { UnbanCommand } from '../../interactions/mod/unban';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, Routes } from 'discord-api-types/v8';
-import { ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, CaseAction, Log, LogTypes } from '@automoderator/core';
 import { PubSubServer } from '@cordis/brokers';
+import {
+  ApiPatchGuildsCasesBody,
+  ApiPostGuildsCasesBody,
+  ApiPostGuildsCasesResult,
+  Case,
+  CaseAction,
+  Log,
+  LogTypes
+} from '@automoderator/core';
+import { kSql } from '@automoderator/injection';
+import type { Sql } from 'postgres';
 
 @injectable()
 export default class implements Command {
@@ -15,10 +25,11 @@ export default class implements Command {
   public constructor(
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
-    public readonly guildLogs: PubSubServer<Log>
+    public readonly guildLogs: PubSubServer<Log>,
+    @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
-  public parse(args: ArgumentsOf<typeof KickCommand>) {
+  public parse(args: ArgumentsOf<typeof UnbanCommand>) {
     return {
       member: args.user,
       reason: args.reason,
@@ -26,7 +37,7 @@ export default class implements Command {
     };
   }
 
-  public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof KickCommand>) {
+  public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof UnbanCommand>) {
     const { member, reason, refId } = this.parse(args);
     if (reason && reason.length >= 1900) {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
@@ -34,6 +45,14 @@ export default class implements Command {
 
     const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
     const targetTag = `${member.user.username}#${member.user.discriminator}`;
+
+    const [banCase] = await this.sql<[Case?]>`
+      SELECT * FROM cases
+      WHERE user_id = ${member.user.id}
+        AND action_type = ${CaseAction.ban}
+        AND guild_id = ${interaction.guild_id}
+        AND processed = false
+    `;
 
     await this.discordRest.delete(Routes.guildBan(interaction.guild_id, member.user.id), { reason: `Unban | By ${modTag}` });
     const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
@@ -48,7 +67,18 @@ export default class implements Command {
       }
     ]);
 
-    await send(interaction, { content: `Successfully kicked ${targetTag}` });
+    if (banCase) {
+      await this.rest.patch<unknown, ApiPatchGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+        {
+          case_id: banCase.case_id,
+          mod_id: member.user.id,
+          mod_tag: modTag,
+          processed: true
+        }
+      ]);
+    }
+
+    await send(interaction, { content: `Successfully unbanned ${targetTag}` });
     this.guildLogs.publish({
       type: LogTypes.modAction,
       data: cs!

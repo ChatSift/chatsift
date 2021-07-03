@@ -88,7 +88,7 @@ interface CaseDataOther extends BaseCaseData {
 
 interface CaseDataWithExpiry extends BaseCaseData {
   action: CaseAction.mute | CaseAction.ban;
-  expires_at?: Date;
+  expires_at?: Date | null;
 }
 
 export type CaseData = CaseDataOther | CaseDataWithExpiry;
@@ -99,9 +99,10 @@ export type ApiPostGuildsCasesResult = Case[];
 
 interface UpdateCaseBaseData {
   case_id: number;
-  expires_at?: Date;
+  expires_at?: Date | null;
   reason?: string;
   ref_id?: number;
+  processed?: boolean;
 }
 
 export type CaseUpdateData = (

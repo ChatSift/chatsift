@@ -22,7 +22,7 @@ export default class implements Command {
     return {
       member: args.user,
       reason: args.reason,
-      days: args.days ?? 1,
+      days: Math.min(Math.max(args.days ?? 1, 1), 7),
       refId: args.reference
     };
   }

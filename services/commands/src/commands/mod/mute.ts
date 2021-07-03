@@ -1,21 +1,23 @@
-import { injectable, inject } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import { Command, UserPerms } from '../../command';
 import { ArgumentsOf, ControlFlowError, send } from '../../util';
-import { BanCommand } from '../../interactions/mod/ban';
+import { MuteCommand } from '../../interactions/mod/mute';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { APIGuildInteraction, RESTPutAPIGuildBanJSONBody, Routes } from 'discord-api-types/v8';
+import { APIGuildInteraction, RESTPatchAPIGuildMemberJSONBody, Routes } from 'discord-api-types/v8';
 import { PubSubServer } from '@cordis/brokers';
+import { kSql } from '@automoderator/injection';
 import {
   ApiPostGuildsCasesBody,
   ApiPostGuildsCasesResult,
   Case,
   CaseAction,
+  GuildSettings,
   Log,
   LogTypes,
-  ms
+  ms,
+  UnmuteRole
 } from '@automoderator/core';
-import { kSql } from '@automoderator/injection';
 import type { Sql } from 'postgres';
 
 @injectable()
@@ -29,20 +31,28 @@ export default class implements Command {
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
-  public parse(args: ArgumentsOf<typeof BanCommand>) {
+  public parse(args: ArgumentsOf<typeof MuteCommand>) {
     return {
       member: args.user,
       reason: args.reason,
-      days: Math.min(Math.max(args.days ?? 1, 1), 7),
       refId: args.reference,
       duration: args.duration
     };
   }
 
-  public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof BanCommand>) {
-    const { member, reason, days, refId, duration: durationString } = this.parse(args);
+  public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof MuteCommand>) {
+    const { member, reason, refId, duration: durationString } = this.parse(args);
     if (reason && reason.length >= 1900) {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
+    }
+
+    const [settings] = await this.sql<[Pick<GuildSettings, 'mute_role'>?]>`
+      SELECT mute_role FROM settings
+      WHERE guild_id = ${interaction.guild_id}
+    `;
+
+    if (!settings?.mute_role) {
+      throw new ControlFlowError('This server does not have a configured mute role');
     }
 
     let expiresAt: Date | undefined;
@@ -58,28 +68,26 @@ export default class implements Command {
     const [existingMuteCase] = await this.sql<[Case?]>`
       SELECT * FROM cases
       WHERE user_id = ${member.user.id}
-        AND action_type = ${CaseAction.ban}
+        AND action_type = ${CaseAction.mute}
         AND guild_id = ${interaction.guild_id}
         AND processed = false
     `;
 
     if (existingMuteCase) {
-      throw new ControlFlowError(
-        'This user has already been temp banned. If you wish to update the duration please use the `/duration` command'
-      );
+      throw new ControlFlowError('This user has already been muted. If you wish to update the duration please use the `/duration` command');
     }
 
     const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
     const targetTag = `${member.user.username}#${member.user.discriminator}`;
 
-    await this.discordRest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(interaction.guild_id, member.user.id), {
-      reason: `Ban | By ${modTag}`,
-      data: { delete_message_days: days }
+    await this.discordRest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(interaction.guild_id, member.user.id), {
+      data: { roles: [] },
+      reason: `Mute | By ${modTag}`
     });
 
     const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
       {
-        action: CaseAction.ban,
+        action: CaseAction.mute,
         mod_id: interaction.member.user.id,
         mod_tag: modTag,
         target_id: member.user.id,
@@ -90,7 +98,12 @@ export default class implements Command {
       }
     ]);
 
-    await send(interaction, { content: `Successfully banned ${targetTag}` });
+    type SqlNoop<T> = { [K in keyof T]: T[K] };
+    const roles = member.roles.map<SqlNoop<UnmuteRole>>(role => ({ case_id: cs!.id, role_id: role }));
+
+    await this.sql`INSERT INTO unmute_roles ${this.sql(roles)}`;
+
+    await send(interaction, { content: `Successfully muted ${targetTag}` });
     this.guildLogs.publish({
       type: LogTypes.modAction,
       data: cs!

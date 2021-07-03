@@ -15,6 +15,33 @@ export interface GuildSettings {
   mod_action_log_channel: Snowflake | null;
 }
 
+export enum StrikePunishmentAction {
+  mute,
+  kick,
+  ban
+}
+
+interface BaseStrikePunishment {
+  guild_id: Snowflake;
+  strikes: number;
+}
+
+interface StrikePunishmentWithNoDuration extends BaseStrikePunishment {
+  action_type: StrikePunishmentAction.kick;
+}
+
+interface StrikePunishmentWithDuration extends BaseStrikePunishment {
+  action_type: Exclude<StrikePunishmentAction, StrikePunishmentAction.kick>;
+  duration?: number;
+}
+
+export type StrikePunishment = StrikePunishmentWithNoDuration | StrikePunishmentWithDuration;
+
+export interface Strike {
+  guild_id: Snowflake;
+  user_id: Snowflake;
+}
+
 export enum CaseAction {
   warn,
   strike,
