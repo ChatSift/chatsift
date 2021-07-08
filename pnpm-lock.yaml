@@ -364,6 +364,51 @@ importers:
       '@types/pino': 6.3.9
       typescript: 4.3.5
 
+  services/components:
+    specifiers:
+      '@automoderator/core': workspace:^0.1.0
+      '@automoderator/discord-permissions': workspace:^0.1.0
+      '@automoderator/http-client': workspace:^0.1.0
+      '@automoderator/injection': workspace:^0.1.0
+      '@automoderator/logger': workspace:^0.1.0
+      '@cordis/brokers': ^0.3.0
+      '@cordis/rest': ^0.3.0
+      '@cordis/util': ^0.3.0
+      '@gaius-bot/readdir': ^1.0.0
+      '@types/amqplib': ^0.8.1
+      '@types/node': ^14.17.5
+      '@types/pino': ^6.3.9
+      discord-api-types: ^0.19.0-next.4a83629.1625747680
+      pino-elasticsearch: ^6.1.0
+      pino-pretty: ^5.1.1
+      postgres: 2.0.0-beta.4
+      reflect-metadata: ^0.1.13
+      tslib: ^2.3.0
+      tsyringe: ^4.6.0
+      typescript: ^4.3.5
+    dependencies:
+      '@automoderator/core': link:../../libs/core
+      '@automoderator/discord-permissions': link:../../libs/discord-permissions
+      '@automoderator/http-client': link:../../libs/http-client
+      '@automoderator/injection': link:../../libs/injection
+      '@automoderator/logger': link:../../libs/logger
+      '@cordis/brokers': 0.3.0
+      '@cordis/rest': 0.3.0
+      '@cordis/util': 0.3.0
+      '@gaius-bot/readdir': 1.0.0
+      discord-api-types: 0.19.0-next.4a83629.1625747680
+      pino-elasticsearch: 6.1.0
+      pino-pretty: 5.1.1
+      postgres: 2.0.0-beta.4
+      reflect-metadata: 0.1.13
+      tslib: 2.3.0
+      tsyringe: 4.6.0
+    devDependencies:
+      '@types/amqplib': 0.8.1
+      '@types/node': 14.17.5
+      '@types/pino': 6.3.9
+      typescript: 4.3.5
+
   services/cron-runner:
     specifiers:
       '@automoderator/core': workspace:^0.1.0
@@ -2086,7 +2131,7 @@ packages:
     resolution: {integrity: sha512-8dCjF+dHZ8Y6JOoHD1BMnxP0quAncvZq4wA/lS072NjX9vIzVRSMcmfKy2Os8ZQ8VWWp74MD09GMbVbKS6/Fxw==}
     dependencies:
       '@types/bluebird': 3.5.36
-      '@types/node': 14.17.5
+      '@types/node': 16.0.1
     dev: true
 
   /@types/babel__core/7.1.15:
@@ -2205,13 +2250,13 @@ packages:
   /@types/pino-std-serializers/2.4.1:
     resolution: {integrity: sha512-17XcksO47M24IVTVKPeAByWUd3Oez7EbIjXpSbzMPhXVzgjGtrOa49gKBwxH9hb8dKv58OelsWQ+A1G1l9S3wQ==}
     dependencies:
-      '@types/node': 14.17.5
+      '@types/node': 16.0.1
     dev: true
 
   /@types/pino/6.3.9:
     resolution: {integrity: sha512-2/XV6adNNCLWnT2lJqcSn/OXrCxRFOY6yXYoofrLy5Ts5e8RHTJP1M4XEcCarQQMa6H6JISaa4GkrlGZwIP5aQ==}
     dependencies:
-      '@types/node': 14.17.5
+      '@types/node': 16.0.1
       '@types/pino-pretty': 4.7.1
       '@types/pino-std-serializers': 2.4.1
       '@types/sonic-boom': 0.7.0
@@ -2224,7 +2269,7 @@ packages:
   /@types/sonic-boom/0.7.0:
     resolution: {integrity: sha512-AfqR0fZMoUXUNwusgXKxcE9DPlHNDHQp6nKYUd4PSRpLobF5CCevSpyTEBcVZreqaWKCnGBr9KI1fHMTttoB7A==}
     dependencies:
-      '@types/node': 14.17.5
+      '@types/node': 16.0.1
     dev: true
 
   /@types/stack-utils/2.0.1:
