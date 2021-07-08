@@ -15,7 +15,6 @@ COPY libs/core/package.json ./libs/core/package.json
 COPY libs/http-client/package.json ./libs/http-client/package.json
 COPY libs/injection/package.json ./libs/injection/package.json
 COPY libs/logger/package.json ./libs/logger/package.json
-COPY libs/rest/package.json ./libs/rest/package.json
 COPY services/automod/package.json ./services/automod/package.json
 
 RUN pnpm i --frozen-lockfile
@@ -24,7 +23,6 @@ COPY libs/core ./libs/core
 COPY libs/http-client ./libs/http-client
 COPY libs/injection ./libs/injection
 COPY libs/logger ./libs/logger
-COPY libs/rest ./libs/rest
 COPY services/automod ./services/automod
 
 RUN curl -o ./services/automod/tlds.txt https://data.iana.org/TLD/tlds-alpha-by-domain.txt

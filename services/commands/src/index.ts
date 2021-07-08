@@ -6,6 +6,7 @@ import createLogger from '@automoderator/logger';
 import { container } from 'tsyringe';
 import postgres from 'postgres';
 import { Handler } from './handler';
+import { Rest } from '@automoderator/http-client';
 
 void (async () => {
   const config = initConfig();
@@ -36,6 +37,7 @@ void (async () => {
     discordRest.on('request', req => logger.trace({ topic: 'REQUEST START' }, `Making request ${req.method!} ${req.path!}`));
   }
 
+  container.register(Rest, { useClass: Rest });
   container.register(DiscordRest, { useValue: discordRest });
   container.register(kLogger, { useValue: logger });
   container.register(

@@ -12,7 +12,7 @@ export const MESSAGE_CONTENT_LIMIT = 2000;
 export const addFields = (embed: APIEmbed, ...data: APIEmbedField[]): APIEmbed =>
   ({
     ...embed,
-    fields: [...(embed.fields ?? []), ...data]
+    fields: (embed.fields ?? []).concat(data)
   });
 
 export const ellipsis = (text: string, total: number): string => {

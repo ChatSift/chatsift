@@ -1,12 +1,6 @@
 version: "3.7"
 
 services:
-  automod:
-    environment:
-      NODE_ENV: "dev"
-      API_DOMAIN: "http://api:3001"
-    command: "sh -c \"node services/automod/dist/index.js | ./services/automod/node_modules/.bin/pino-pretty -c -l -t\""
-
   api:
     environment:
       NODE_ENV: "dev"
@@ -23,3 +17,33 @@ services:
     command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-pretty -c -l -t\""
     ports:
       - "127.0.0.1:3000:3000"
+
+  automod:
+    environment:
+      NODE_ENV: "dev"
+      API_DOMAIN: "http://api:3001"
+    command: "sh -c \"node services/automod/dist/index.js | ./services/automod/node_modules/.bin/pino-pretty -c -l -t\""
+
+  commands:
+    environment:
+      NODE_ENV: "dev"
+      API_DOMAIN: "http://api:3001"
+    command: "sh -c \"node services/commands/dist/index.js | ./services/commands/node_modules/.bin/pino-pretty -c -l -t\""
+
+  cron-runner:
+    environment:
+      NODE_ENV: "dev"
+    command: "sh -c \"node services/cron-runner/dist/index.js | ./services/cron-runner/node_modules/.bin/pino-pretty -c -l -t\""
+
+  interactions:
+    environment:
+      NODE_ENV: "dev"
+    command: "sh -c \"node services/interactions/dist/index.js | ./services/interactions/node_modules/.bin/pino-pretty -c -l -t\""
+    ports:
+      # Expose to the world so Discord can hit the webhook
+      - "80:3002"
+
+  logging:
+    environment:
+      NODE_ENV: "dev"
+    command: "sh -c \"node services/logging/dist/index.js | ./services/logging/node_modules/.bin/pino-pretty -c -l -t\""

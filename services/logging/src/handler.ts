@@ -1,52 +1,140 @@
 import { singleton, inject } from 'tsyringe';
 import { createAmqp, PubSubClient } from '@cordis/brokers';
-import { Config, kConfig, kLogger } from '@automoderator/injection';
+import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { Log, LogTypes, ModAction, ModActionLog } from '@automoderator/core';
+import {
+  Log,
+  LogTypes,
+  CaseAction,
+  ModActionLog,
+  GuildSettings,
+  Case,
+  addFields,
+  ms,
+  StrikeCase,
+  StrikePunishmentAction,
+  makeCaseEmbed
+} from '@automoderator/core';
+import {
+  APIEmbed,
+  APIMessage,
+  APIUser,
+  RESTPostAPIChannelMessageJSONBody,
+  RESTPatchAPIChannelMessageJSONBody,
+  Routes
+} from 'discord-api-types/v8';
 import type { Logger } from 'pino';
+import type { Sql } from 'postgres';
 
 @singleton()
 export class Handler {
-  public readonly LOG_COLORS = {
-    [ModAction.warn]: 15309853,
-    [ModAction.strike]: 15309853,
-    [ModAction.mute]: 2895667,
-    [ModAction.unmute]: 5793266,
-    [ModAction.kick]: 15418782,
-    [ModAction.softban]: 15418782,
-    [ModAction.ban]: 15548997,
-    [ModAction.unban]: 5793266
-  } as const;
-
   public constructor(
     @inject(kConfig) public readonly config: Config,
     @inject(kLogger) public readonly logger: Logger,
+    @inject(kSql) public readonly sql: Sql<{}>,
     public readonly rest: Rest
   ) {}
 
-  private _handleModLog(log: ModActionLog) {
-    switch (log.data.type) {
-      case ModAction.warn:
-      case ModAction.strike:
-      case ModAction.mute:
-      case ModAction.unmute:
-      case ModAction.kick:
-      case ModAction.softban:
-      case ModAction.ban:
-      case ModAction.unban: {
+  private _populateEmbedWithStrikeTrigger(embed: APIEmbed, cs: StrikeCase): APIEmbed {
+    if (!cs.extra) {
+      return embed;
+    }
+
+    let value: string | undefined;
+
+    switch (cs.extra.triggered) {
+      case StrikePunishmentAction.kick: {
+        value = 'Kick';
+        break;
+      }
+
+      case StrikePunishmentAction.mute:
+      case StrikePunishmentAction.ban: {
+        const action = cs.extra.triggered === StrikePunishmentAction.mute ? 'Mute' : 'Ban';
+
+        if (!cs.extra.duration) {
+          value = `Permanent ${action.toLowerCase()}`;
+        } else if (cs.extra.extendedBy) {
+          value = `${action} extended by ${ms(cs.extra.extendedBy, true)} - ` +
+            `meaning it will now expire in ${ms(cs.extra.extendedBy + cs.extra.duration, true)}`;
+        } else {
+          value = `${action} that will last for ${ms(cs.extra.duration, true)}`;
+        }
+
         break;
       }
 
       default: {
-        return this.logger.warn({ log }, 'Recieved unrecognized mod log type');
+        this.logger.warn({ cs }, 'Recieved unrecognized strike case trigger');
+        return embed;
       }
     }
+
+    if (value) {
+      embed = addFields(
+        embed,
+        {
+          name: 'Punishment trigger',
+          value
+        }
+      );
+    }
+
+    return embed;
   }
 
-  private _handleLog(log: Log) {
+  private async _handleModLog(log: ModActionLog) {
+    const [
+      { mod_action_log_channel: channelId = null } = {}
+    ] = await this.sql<[Pick<GuildSettings, 'mod_action_log_channel'>?]>`
+      SELECT mod_action_log_channel FROM guild_settings WHERE guild_id = ${log.data.guild_id}
+    `;
+
+    const [
+      { log_message_id: messageId }
+    ] = await this.sql<[Pick<Case, 'log_message_id'>]>`SELECT log_message_id FROM cases WHERE id = ${log.data.id}`;
+
+    if (!channelId) {
+      return;
+    }
+
+    const [target, mod, message] = await Promise.all([
+      this.rest.get<APIUser>(Routes.user(log.data.target_id)),
+      log.data.mod_id ? this.rest.get<APIUser>(Routes.user(log.data.mod_id)) : Promise.resolve(null),
+      messageId ? this.rest.get<APIMessage>(Routes.channelMessage(channelId, messageId)).catch(() => null) : Promise.resolve(null)
+    ]);
+
+    let refCs: Case | undefined;
+    if (log.data.ref_id) {
+      refCs = await this
+        .sql<[Case]>`SELECT * FROM cases WHERE case_id = ${log.data.ref_id} AND guild_id = ${log.data.guild_id}`
+        .then(rows => rows[0]);
+    }
+
+    let embed = makeCaseEmbed({ logChannelId: channelId, cs: log.data, target, mod, message, refCs });
+    if (log.data.action_type === CaseAction.strike) {
+      embed = this._populateEmbedWithStrikeTrigger(embed, log.data);
+    }
+
+    if (message) {
+      return this.rest.patch<APIMessage, RESTPatchAPIChannelMessageJSONBody>(
+        Routes.channelMessage(channelId, message.id),
+        { data: { embed } }
+      );
+    }
+
+    const newMessage = await this.rest.post<APIMessage, RESTPostAPIChannelMessageJSONBody>(
+      Routes.channelMessages(channelId),
+      { data: { embed } }
+    );
+
+    return this.sql`UPDATE cases SET log_message_id = ${newMessage.id} WHERE id = ${log.data.id}`;
+  }
+
+  private async _handleLog(log: Log) {
     switch (log.type) {
       case LogTypes.modAction: {
-        this._handleModLog(log);
+        await this._handleModLog(log);
         break;
       }
 

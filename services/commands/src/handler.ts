@@ -1,10 +1,10 @@
-import { singleton, inject } from 'tsyringe';
-import { createAmqp, RoutingClient } from '@cordis/brokers';
+import { singleton, inject, container } from 'tsyringe';
+import { createAmqp, RoutingClient, PubSubServer } from '@cordis/brokers';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
 import { join as joinPath } from 'path';
-import Command from './command';
+import { checkPerm, Command, commandInfo, UserPerms } from './command';
 import { ControlFlowError, send, transformInteraction } from '#util';
 import {
   Routes,
@@ -36,6 +36,12 @@ export class Handler {
     }
 
     try {
+      if (command.userPermissions && !await checkPerm(interaction, command.userPermissions)) {
+        throw new ControlFlowError(
+          `Missing permission to run this command! You must be at least \`${UserPerms[command.userPermissions]!}\``
+        );
+      }
+
       await command.exec(interaction, transformInteraction(data!.options ?? [], data!.resolved));
     } catch (e) {
       const internal = !(e instanceof ControlFlowError);
@@ -48,7 +54,7 @@ export class Handler {
         interaction, {
           content: internal
             // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-            ? `Something went wrong internally! You should never see an error message like this, please contact a developer.\n${e.message}`
+            ? `Something went wrong! It's possible the bot is missing permissions or that this is a bug.\n\`${e.message}\``
             : e.message,
           flags: 64
         }
@@ -60,7 +66,7 @@ export class Handler {
     const interactions = [];
 
     for await (const file of readdirRecurse(joinPath(__dirname, 'interactions'), { fileExtension: 'js' })) {
-      const data: RESTPostAPIApplicationCommandsJSONBody = (await import(file)).default;
+      const data = Object.values((await import(file)))[0] as RESTPostAPIApplicationCommandsJSONBody;
       interactions.push(data);
     }
 
@@ -71,15 +77,38 @@ export class Handler {
     await this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(commandsRoute, { data: interactions });
   }
 
+  public async loadCommands(): Promise<void> {
+    for await (const file of readdirRecurse(joinPath(__dirname, 'commands'), { fileExtension: 'js' })) {
+      if (file.includes('/sub/')) {
+        continue;
+      }
+
+      const info = commandInfo(file);
+
+      if (!info) {
+        continue;
+      }
+
+      const command: Command = container.resolve((await import(file)).default);
+      this.commands.set(command.name ?? info.name, command);
+    }
+  }
+
   public async init() {
     await this.registerInteractions();
 
     const { channel } = await createAmqp(this.config.amqpUrl);
+
+    const logs = new PubSubServer(channel);
     const interactions = new RoutingClient<keyof DiscordInteractions, DiscordInteractions>(channel);
 
     interactions.on('command', interaction => void this._handleInteraction(interaction as APIGuildInteraction));
 
     await interactions.init({ name: 'interactions', topicBased: false, keys: ['command'] });
+    await logs.init({ name: 'guild_logs', fanout: false });
+
+    container.register(PubSubServer, { useValue: logs });
+    await this.loadCommands();
 
     return interactions;
   }

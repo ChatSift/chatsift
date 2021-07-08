@@ -1,4 +1,4 @@
-import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
+import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { ApiPutFiltersUrlsGuildBody, MaliciousUrlCategory } from '@automoderator/core';
@@ -8,8 +8,7 @@ import type { Request, Response } from 'polka';
 @injectable()
 export default class PutFiltersUrlsGuildRoute extends Route {
   public override readonly middleware = [
-    userAuth(),
-    globalPermissions('manageUrlFilters'),
+    thirdPartyAuth(),
     jsonParser(),
     validate(
       Joi

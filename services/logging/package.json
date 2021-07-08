@@ -19,28 +19,24 @@
   },
   "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
-    "@cordis/common": "^0.2.3",
-    "@types/amqplib": "^0.8.0",
-    "@types/node": "^14.17.3",
-    "@types/node-fetch": "^2.5.10",
-    "@types/pino": "^6.3.8",
-    "typescript": "^4.3.4"
+    "@types/amqplib": "^0.8.1",
+    "@types/node": "^14.17.5",
+    "@types/pino": "^6.3.9",
+    "typescript": "^4.3.5"
   },
   "dependencies": {
     "@automoderator/core": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
-    "@cordis/bitfield": "^0.3.0",
     "@cordis/brokers": "^0.3.0",
     "@cordis/rest": "^0.3.0",
     "@cordis/util": "^0.3.0",
-    "discord-api-types": "^0.19.0-next.f393ba520d7d6d2aacaca7b3ca5d355fab614f6e",
-    "node-fetch": "^2.6.1",
-    "pino-elasticsearch": "^6.0.0",
-    "pino-pretty": "^5.1.0",
+    "discord-api-types": "^0.19.0-next.4a83629.1625747680",
+    "pino-elasticsearch": "^6.1.0",
+    "pino-pretty": "^5.1.1",
     "postgres": "2.0.0-beta.4",
     "reflect-metadata": "^0.1.13",
     "tslib": "^2.3.0",
-    "tsyringe": "^4.5.0"
+    "tsyringe": "^4.6.0"
   }
 }

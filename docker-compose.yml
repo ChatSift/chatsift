@@ -33,6 +33,7 @@ services:
       dockerfile: ./docker/api/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      AMQP_URL: "amqp://rabbitmq:5672"
     restart: unless-stopped
     depends_on:
       - postgres
@@ -60,11 +61,44 @@ services:
       - postgres
       - rabbitmq
 
+  commands:
+    build:
+      context: ./
+      dockerfile: ./docker/commands/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  cron-runner:
+    build:
+      context: ./
+      dockerfile: ./docker/cron-runner/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
   interactions:
     build:
       context: ./
       dockerfile: ./docker/interactions/Dockerfile
     environment:
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+
+  logging:
+    build:
+      context: ./
+      dockerfile: ./docker/logging/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
       AMQP_URL: "amqp://rabbitmq:5672"
     restart: unless-stopped
     depends_on:

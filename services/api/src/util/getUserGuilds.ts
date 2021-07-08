@@ -1,7 +1,7 @@
 import { container } from 'tsyringe';
 import { kLogger } from '@automoderator/injection';
 import cookie from 'cookie';
-import { DiscordPermissions } from '@automoderator/rest';
+import { DiscordPermissions } from '@automoderator/discord-permissions';
 import { internal } from '@hapi/boom';
 import fetch from 'node-fetch';
 import type { Logger } from 'pino';

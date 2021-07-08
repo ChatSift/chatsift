@@ -40,7 +40,7 @@ export class UrlsRunner {
   }
 
   public run(urls: string[], guildId: string, guildOnly: boolean) {
-    return this.router.api!.v1!.filters!.urls![guildId]!.post<ApiPostFiltersUrlsResult, ApiPostFiltersGuildUrlBody>({
+    return this.router.api!.v1!.guilds![guildId]!.filters!.urls!.post<ApiPostFiltersUrlsResult, ApiPostFiltersGuildUrlBody>({
       urls,
       guild_only: guildOnly
     });

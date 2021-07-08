@@ -8,20 +8,87 @@ export enum UseFilterMode {
 
 export interface GuildSettings {
   guild_id: Snowflake;
+  mod_role: Snowflake | null;
+  mute_role: Snowflake | null;
   use_url_filters: UseFilterMode;
   use_file_filters: UseFilterMode;
   mod_action_log_channel: Snowflake | null;
 }
 
+export enum StrikePunishmentAction {
+  mute,
+  kick,
+  ban
+}
+
+interface BaseStrikePunishment {
+  guild_id: Snowflake;
+  strikes: number;
+}
+
+interface StrikePunishmentWithNoDuration extends BaseStrikePunishment {
+  action_type: StrikePunishmentAction.kick;
+}
+
+interface StrikePunishmentWithDuration extends BaseStrikePunishment {
+  action_type: Exclude<StrikePunishmentAction, StrikePunishmentAction.kick>;
+  duration?: number;
+}
+
+export type StrikePunishment = StrikePunishmentWithNoDuration | StrikePunishmentWithDuration;
+
+export interface Strike {
+  guild_id: Snowflake;
+  user_id: Snowflake;
+}
+
+export enum CaseAction {
+  warn,
+  strike,
+  mute,
+  unmute,
+  kick,
+  softban,
+  ban,
+  unban
+}
+
+export interface Case {
+  id: number;
+  guild_id: Snowflake;
+  log_message_id: Snowflake | null;
+  case_id: number;
+  ref_id: number | null;
+  target_id: Snowflake;
+  target_tag: string;
+  mod_id: Snowflake | null;
+  mod_tag: string | null;
+  action_type: CaseAction;
+  reason: string | null;
+  expires_at: Date | null;
+  processed: boolean;
+  created_at: Date;
+}
+
+export interface UnmuteRole {
+  case_id: number;
+  role_id: Snowflake;
+}
+
 export interface User {
   user_id: Snowflake;
-  perms: bigint;
+  perms: string;
 }
 
 export interface App {
   app_id: number;
   name: string;
-  perms: bigint;
+  perms: string;
+}
+
+export interface AppGuild {
+  app_id: number;
+  guild_id: Snowflake;
 }
 
 export interface Sig {

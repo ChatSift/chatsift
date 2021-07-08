@@ -39,7 +39,7 @@ export const userAuth = (fallthrough = false) => {
     if (result.ok) {
       req.user = await result.json();
       const [{ perms }] = await sql<[Pick<User, 'perms'>]>`SELECT perms FROM users WHERE user_id = ${req.user!.id}`;
-      req.user!.perms = perms;
+      req.user!.perms = BigInt(perms);
     }
 
     return next(req.user || fallthrough ? undefined : unauthorized('invalid discord access token'));

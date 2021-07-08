@@ -1,4 +1,4 @@
-import { jsonParser, Route, userAuth, validate } from '@automoderator/rest';
+import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { UrlsController } from '#controllers';
@@ -8,7 +8,7 @@ import type { ApiGetFiltersUrlsQuery } from '@automoderator/core';
 @injectable()
 export default class GetFiltersUrlsGuildRoute extends Route {
   public override readonly middleware = [
-    userAuth(),
+    thirdPartyAuth(),
     jsonParser(),
     validate(
       Joi
