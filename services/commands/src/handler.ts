@@ -5,7 +5,8 @@ import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
 import { join as joinPath } from 'path';
 import { checkPerm, Command, commandInfo, UserPerms } from './command';
-import { ControlFlowError, send, transformInteraction } from '#util';
+import { transformInteraction } from '#util';
+import { ControlFlowError, send } from '@automoderator/interaction-util';
 import {
   Routes,
   RESTPutAPIApplicationCommandsJSONBody,

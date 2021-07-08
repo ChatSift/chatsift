@@ -1,7 +1,8 @@
 import { injectable, inject } from 'tsyringe';
 import { Command, UserPerms } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '../../util';
-import { CaseCommand } from '../../interactions/mod/case';
+import { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '@automoderator/interaction-util';
+import { CaseCommand } from '#interactions';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { Case, GuildSettings, makeCaseEmbed } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';

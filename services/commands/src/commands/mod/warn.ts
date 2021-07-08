@@ -1,7 +1,8 @@
 import { injectable } from 'tsyringe';
 import { Command, UserPerms } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '../../util';
-import { WarnCommand } from '../../interactions/mod/warn';
+import { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '@automoderator/interaction-util';
+import { WarnCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { APIGuildInteraction } from 'discord-api-types/v8';
 import { ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, CaseAction, Log, LogTypes } from '@automoderator/core';

@@ -56,7 +56,7 @@ export default class PostDiscordWebhookRoute extends Route {
       return res.end(JSON.stringify({ type: InteractionResponseType.Pong }));
     }
 
-    res.end(JSON.stringify({ type: InteractionResponseType.DeferredChannelMessageWithSource }));
+    res.end(JSON.stringify({ type: InteractionResponseType.DeferredChannelMessageWithSource, data: { flags: 64 } }));
 
     // TODO: Check on discord-api-types
     switch (interaction.type) {
