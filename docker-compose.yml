@@ -60,6 +60,16 @@ services:
       - postgres
       - rabbitmq
 
+  interactions:
+    build:
+      context: ./
+      dockerfile: ./docker/interactions/Dockerfile
+    environment:
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+
   gateway:
     image: cordislib/gateway:latest
     environment:
