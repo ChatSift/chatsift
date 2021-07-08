@@ -13,6 +13,7 @@ import {
   ApiPostGuildsCasesResult,
   Case,
   CaseAction,
+  HttpCase,
   Log,
   LogTypes,
   Strike,
@@ -57,7 +58,8 @@ export default class implements Command {
         target_id: member.user.id,
         target_tag: targetTag,
         reason,
-        reference_id: refId
+        reference_id: refId,
+        created_at: new Date()
       }
     ]);
 
@@ -65,110 +67,120 @@ export default class implements Command {
       .sql<Strike[]>`SELECT * FROM strikes WHERE guild_id = ${interaction.guild_id} AND user_id = ${member.user.id}`
       .then(rows => rows.length + 1);
 
-    if (strikes > 0) {
-      const [punishment] = await this.sql<[StrikePunishment?]>`
+    let updatedCs: HttpCase | undefined;
+
+    const [punishment] = await this.sql<[StrikePunishment?]>`
         SELECT * FROM strike_punishments
         WHERE guild_id = ${interaction.guild_id}
           AND strikes = ${strikes}
       `;
 
-      if (punishment) {
-        interface ResolvedCases {
-          [CaseAction.mute]?: Case;
-          [CaseAction.ban]?: Case;
-        }
+    if (punishment) {
+      interface ResolvedCases {
+        [CaseAction.mute]?: Case;
+        [CaseAction.ban]?: Case;
+      }
 
-        const cases = await this.sql<[Case?, Case?]>`
+      const cases = await this.sql<[Case?, Case?]>`
           SELECT * FROM cases
           WHERE target_id = ${member.user.id}
             AND processed = false
             AND guild_id = ${interaction.guild_id}
         `
-          .then(
-            rows => rows.reduce<ResolvedCases>(
-              (acc, cs) => {
-                if (cs) {
-                  acc[cs.action_type as CaseAction.mute | CaseAction.ban] = cs;
-                }
+        .then(
+          rows => rows.reduce<ResolvedCases>(
+            (acc, cs) => {
+              if (cs) {
+                acc[cs.action_type as CaseAction.mute | CaseAction.ban] = cs;
+              }
 
-                return acc;
-              }, {}
+              return acc;
+            }, {}
+          )
+        );
+
+      switch (punishment.action_type) {
+        case StrikePunishmentAction.mute: {
+          const cs = cases[CaseAction.mute];
+
+          const expiresAt = punishment.duration
+            ? new Date(
+              (punishment.duration * 6e4) + (cs?.expires_at?.getTime() ?? 0)
             )
-          );
+            : null;
 
-        switch (punishment.action_type) {
-          case StrikePunishmentAction.mute: {
-            const cs = cases[CaseAction.mute];
-
-            const expiresAt = punishment.duration
-              ? new Date(
-                (punishment.duration * 6e4) + (cs?.expires_at?.getTime() ?? 0)
-              )
-              : null;
-
-            if (cs) {
-              await this.rest.patch<unknown, ApiPatchGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+          if (cs) {
+            [updatedCs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(
+              `/api/v1/guilds/${interaction.guild_id}/cases`, [
                 {
                   case_id: cs.id,
-                  expires_at: expiresAt
-                }
-              ]);
-            } else {
-              await this.rest.post<unknown, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
-                {
-                  action: CaseAction.mute,
+                  expires_at: expiresAt,
                   mod_id: interaction.member.user.id,
-                  mod_tag: modTag,
-                  target_id: member.user.id,
-                  target_tag: targetTag,
-                  reason,
-                  reference_id: cs!.case_id,
-                  expires_at: expiresAt
+                  mod_tag: modTag
                 }
-              ]);
-            }
-
-            break;
+              ]
+            );
+          } else {
+            await this.rest.post<unknown, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+              {
+                action: CaseAction.mute,
+                mod_id: interaction.member.user.id,
+                mod_tag: modTag,
+                target_id: member.user.id,
+                target_tag: targetTag,
+                reason,
+                reference_id: cs!.case_id,
+                expires_at: expiresAt,
+                created_at: new Date()
+              }
+            ]);
           }
 
-          case StrikePunishmentAction.ban: {
-            const cs = cases[CaseAction.ban];
+          break;
+        }
 
-            const expiresAt = punishment.duration
-              ? new Date(
-                (punishment.duration * 6e4) + (cs?.expires_at?.getTime() ?? 0)
-              )
-              : null;
+        case StrikePunishmentAction.ban: {
+          const cs = cases[CaseAction.ban];
 
-            if (cs) {
-              await this.rest.patch<unknown, ApiPatchGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+          const expiresAt = punishment.duration
+            ? new Date(
+              (punishment.duration * 6e4) + (cs?.expires_at?.getTime() ?? 0)
+            )
+            : null;
+
+          if (cs) {
+            [updatedCs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(
+              `/api/v1/guilds/${interaction.guild_id}/cases`, [
                 {
                   case_id: cs.id,
-                  expires_at: expiresAt
-                }
-              ]);
-            } else {
-              await this.rest.post<unknown, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
-                {
-                  action: CaseAction.ban,
+                  expires_at: expiresAt,
                   mod_id: interaction.member.user.id,
-                  mod_tag: modTag,
-                  target_id: member.user.id,
-                  target_tag: targetTag,
-                  reason,
-                  reference_id: cs!.case_id,
-                  expires_at: expiresAt
+                  mod_tag: modTag
                 }
-              ]);
-            }
-
-            break;
+              ]
+            );
+          } else {
+            await this.rest.post<unknown, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+              {
+                action: CaseAction.ban,
+                mod_id: interaction.member.user.id,
+                mod_tag: modTag,
+                target_id: member.user.id,
+                target_tag: targetTag,
+                reason,
+                reference_id: cs!.case_id,
+                expires_at: expiresAt,
+                created_at: new Date()
+              }
+            ]);
           }
 
-          case StrikePunishmentAction.kick: {
-            await this.discordRest.delete(Routes.guildMember(interaction.guild_id, member.user.id), { reason: `Kick | By ${modTag}` });
-            break;
-          }
+          break;
+        }
+
+        case StrikePunishmentAction.kick: {
+          await this.discordRest.delete(Routes.guildMember(interaction.guild_id, member.user.id), { reason: `Kick | By ${modTag}` });
+          break;
         }
       }
     }
@@ -178,5 +190,9 @@ export default class implements Command {
       type: LogTypes.modAction,
       data: cs!
     });
+
+    if (updatedCs) {
+      this.guildLogs.publish({ type: LogTypes.modAction, data: updatedCs });
+    }
   }
 }

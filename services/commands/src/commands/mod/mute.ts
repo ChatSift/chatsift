@@ -4,7 +4,7 @@ import { ArgumentsOf, ControlFlowError, send } from '../../util';
 import { MuteCommand } from '../../interactions/mod/mute';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { APIGuildInteraction, RESTPatchAPIGuildMemberJSONBody, Routes } from 'discord-api-types/v8';
+import { APIGuildInteraction, APIRole, RESTPatchAPIGuildMemberJSONBody, Routes } from 'discord-api-types/v8';
 import { PubSubServer } from '@cordis/brokers';
 import { kSql } from '@automoderator/injection';
 import {
@@ -47,7 +47,7 @@ export default class implements Command {
     }
 
     const [settings] = await this.sql<[Pick<GuildSettings, 'mute_role'>?]>`
-      SELECT mute_role FROM settings
+      SELECT mute_role FROM guild_settings
       WHERE guild_id = ${interaction.guild_id}
     `;
 
@@ -67,7 +67,7 @@ export default class implements Command {
 
     const [existingMuteCase] = await this.sql<[Case?]>`
       SELECT * FROM cases
-      WHERE user_id = ${member.user.id}
+      WHERE target_id = ${member.user.id}
         AND action_type = ${CaseAction.mute}
         AND guild_id = ${interaction.guild_id}
         AND processed = false
@@ -80,8 +80,20 @@ export default class implements Command {
     const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
     const targetTag = `${member.user.username}#${member.user.discriminator}`;
 
+    const guildRoles = new Map(
+      await this.discordRest.get<APIRole[]>(`/guilds/${interaction.guild_id}/roles`)
+        .catch(() => [] as APIRole[])
+        .then(
+          roles => roles.map(
+            role => [role.id, role]
+          )
+        )
+    );
+
+    const roles = member.roles.filter(r => guildRoles.get(r)!.managed).concat([settings.mute_role]);
+
     await this.discordRest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(interaction.guild_id, member.user.id), {
-      data: { roles: [] },
+      data: { roles },
       reason: `Mute | By ${modTag}`
     });
 
@@ -94,14 +106,15 @@ export default class implements Command {
         target_tag: targetTag,
         reason,
         reference_id: refId,
-        expires_at: expiresAt
+        expires_at: expiresAt,
+        created_at: new Date()
       }
     ]);
 
     type SqlNoop<T> = { [K in keyof T]: T[K] };
-    const roles = member.roles.map<SqlNoop<UnmuteRole>>(role => ({ case_id: cs!.id, role_id: role }));
+    const unmuteRoles = member.roles.map<SqlNoop<UnmuteRole>>(role => ({ case_id: cs!.id, role_id: role }));
 
-    await this.sql`INSERT INTO unmute_roles ${this.sql(roles)}`;
+    await this.sql`INSERT INTO unmute_roles ${this.sql(unmuteRoles)}`;
 
     await send(interaction, { content: `Successfully muted ${targetTag}` });
     this.guildLogs.publish({

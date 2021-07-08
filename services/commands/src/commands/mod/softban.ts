@@ -51,7 +51,8 @@ export default class implements Command {
         target_id: member.user.id,
         target_tag: targetTag,
         reason,
-        reference_id: refId
+        reference_id: refId,
+        created_at: new Date()
       }
     ]);
 

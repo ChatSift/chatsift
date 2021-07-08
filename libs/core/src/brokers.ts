@@ -4,7 +4,8 @@ import type {
   APIApplicationCommandInteraction,
   APIMessageComponentInteraction
 } from 'discord-api-types/v8';
-import type { Case, CaseAction, StrikePunishmentAction } from './models';
+import { HttpCase } from './api';
+import type { CaseAction, StrikePunishmentAction } from './models';
 
 type SanitizedDiscordEvents = {
   [K in GatewayDispatchEvents]: GatewayDispatchPayload & {
@@ -42,8 +43,8 @@ interface StrikeCaseExtrasWithDuration {
 
 export type StrikeCaseExtras = StrikeCaseExtrasNoDuration | StrikeCaseExtrasWithDuration;
 
-export type NonStrikeCase = Omit<Case, 'action_type'> & { action_type: Exclude<CaseAction, CaseAction.strike> };
-export type StrikeCase = Omit<Case, 'action_type'> & {
+export type NonStrikeCase = Omit<HttpCase, 'action_type'> & { action_type: Exclude<CaseAction, CaseAction.strike> };
+export type StrikeCase = Omit<HttpCase, 'action_type'> & {
   action_type: CaseAction.strike;
   extra?: StrikeCaseExtras;
 };

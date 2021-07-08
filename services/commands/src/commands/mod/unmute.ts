@@ -41,7 +41,7 @@ export default class implements Command {
     const [muteCase, roles] = await this.sql.begin<[cs: Case | null, roles: Snowflake[]]>(async sql => {
       const [cs] = await sql<[Case?]>`
         SELECT * FROM cases
-        WHERE user_id = ${member.user.id}
+        WHERE target_id = ${member.user.id}
           AND action_type = ${CaseAction.mute}
           AND guild_id = ${interaction.guild_id}
           AND processed = false
@@ -79,7 +79,8 @@ export default class implements Command {
         target_id: member.user.id,
         target_tag: targetTag,
         reason,
-        reference_id: refId
+        reference_id: refId,
+        created_at: new Date()
       }
     ]);
 
@@ -91,6 +92,8 @@ export default class implements Command {
         processed: true
       }
     ]);
+
+    await this.sql`DELETE FROM unmute_roles WHERE case_id = ${muteCase.case_id}`;
 
     await send(interaction, { content: `Successfully unmuted ${targetTag}` });
     this.guildLogs.publish({

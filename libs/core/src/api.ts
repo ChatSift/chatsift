@@ -80,6 +80,7 @@ interface BaseCaseData {
   target_id: Snowflake;
   target_tag: string;
   reference_id?: number;
+  created_at?: Date;
 }
 
 interface CaseDataOther extends BaseCaseData {
@@ -95,7 +96,9 @@ export type CaseData = CaseDataOther | CaseDataWithExpiry;
 
 export type ApiPostGuildsCasesBody = CaseData[];
 
-export type ApiPostGuildsCasesResult = Case[];
+export type HttpCase = Omit<Case, 'expires_at'> & { expires_at: string };
+
+export type ApiPostGuildsCasesResult = HttpCase[];
 
 interface UpdateCaseBaseData {
   case_id: number;

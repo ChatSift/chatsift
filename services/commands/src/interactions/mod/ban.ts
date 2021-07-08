@@ -31,14 +31,14 @@ export const BanCommand = {
       ]
     },
     {
-      name: 'reference',
-      description: 'The reference case',
-      type: ApplicationCommandOptionType.Integer
-    },
-    {
       name: 'duration',
       description: 'Optional duration',
       type: ApplicationCommandOptionType.String
+    },
+    {
+      name: 'reference',
+      description: 'The reference case',
+      type: ApplicationCommandOptionType.Integer
     }
   ]
 } as const;

@@ -2,7 +2,6 @@ import { singleton, inject } from 'tsyringe';
 import { createAmqp, PubSubClient } from '@cordis/brokers';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { makeDiscordCdnUrl } from '@cordis/util';
 import {
   Log,
   LogTypes,
@@ -13,13 +12,13 @@ import {
   addFields,
   ms,
   StrikeCase,
-  StrikePunishmentAction
+  StrikePunishmentAction,
+  makeCaseEmbed
 } from '@automoderator/core';
 import {
   APIEmbed,
   APIMessage,
   APIUser,
-  RouteBases,
   RESTPostAPIChannelMessageJSONBody,
   RESTPatchAPIChannelMessageJSONBody,
   Routes
@@ -29,17 +28,6 @@ import type { Sql } from 'postgres';
 
 @singleton()
 export class Handler {
-  public readonly LOG_COLORS = {
-    [CaseAction.warn]: 15309853,
-    [CaseAction.strike]: 15309853,
-    [CaseAction.mute]: 2895667,
-    [CaseAction.unmute]: 5793266,
-    [CaseAction.kick]: 15418782,
-    [CaseAction.softban]: 15418782,
-    [CaseAction.ban]: 15548997,
-    [CaseAction.unban]: 5793266
-  } as const;
-
   public constructor(
     @inject(kConfig) public readonly config: Config,
     @inject(kLogger) public readonly logger: Logger,
@@ -116,89 +104,16 @@ export class Handler {
       messageId ? this.rest.get<APIMessage>(Routes.channelMessage(channelId, messageId)).catch(() => null) : Promise.resolve(null)
     ]);
 
-    let embed: APIEmbed = message?.embeds[0]
-      ? message.embeds[0]
-      : {
-        color: this.LOG_COLORS[log.data.action_type],
-        author: {
-          name: `${log.data.target_tag} (${log.data.target_id})`,
-          icon_url: target.avatar
-            ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${target.id}/${target.avatar}`)
-            : `${RouteBases.cdn}/embed/avatars/${parseInt(target.discriminator, 10) % 5}`
-        }
-      };
-
-    embed.footer = {
-      text: `Case ${log.data.case_id}${log.data.mod_tag ? ` | By ${log.data.mod_tag} (${log.data.mod_id!})` : ''}`,
-      icon_url: mod
-        ? (
-          mod.avatar
-            ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${mod.id}/${mod.avatar}`)
-            : `${RouteBases.cdn}/embed/avatars/${parseInt(mod.discriminator, 10) % 5}`
-        )
-        : undefined
-    };
-
-    if (log.data.ref_id && !embed.fields?.length) {
-      const [ref] = await this.sql<[Case]>`SELECT * FROM cases WHERE case_id = ${log.data.ref_id} AND guild_id = ${log.data.guild_id}`;
-      embed = addFields(
-        embed,
-        {
-          name: 'Reference',
-          value: ref.log_message_id
-            ? `[#${ref.case_id}](https://discord.com/channels/${log.data.guild_id}/${channelId}/${ref.log_message_id})`
-            : `#${ref.case_id}`
-        }
-      );
+    let refCs: Case | undefined;
+    if (log.data.ref_id) {
+      refCs = await this
+        .sql<[Case]>`SELECT * FROM cases WHERE case_id = ${log.data.ref_id} AND guild_id = ${log.data.guild_id}`
+        .then(rows => rows[0]);
     }
 
-    if (log.data.expires_at) {
-      embed = addFields(
-        embed,
-        {
-          name: 'Expiration',
-          value: ms(log.data.expires_at.getTime(), true)
-        }
-      );
-    }
-
-    switch (log.data.action_type) {
-      case CaseAction.warn: {
-        embed.title = `Was warned${log.data.reason ? ` | ${log.data.reason}` : ''}`;
-        break;
-      }
-      case CaseAction.strike: {
-        embed = this._populateEmbedWithStrikeTrigger(embed, log.data);
-        break;
-      }
-      case CaseAction.mute: {
-        embed.title = `Was muted${log.data.reason ? `| ${log.data.reason}` : ''}`;
-        break;
-      }
-      case CaseAction.unmute: {
-        embed.title = `Was unmuted${log.data.reason ? `| ${log.data.reason}` : ''}`;
-        break;
-      }
-      case CaseAction.kick: {
-        embed.title = `Was kicked${log.data.reason ? ` | ${log.data.reason}` : ''}`;
-        break;
-      }
-      case CaseAction.softban: {
-        embed.title = `Was softbanned${log.data.reason ? ` | ${log.data.reason}` : ''}`;
-        break;
-      }
-      case CaseAction.ban: {
-        embed.title = `Was banned${log.data.reason ? ` | ${log.data.reason}` : ''}`;
-        break;
-      }
-      case CaseAction.unban: {
-        embed.title = `Was unbanned${log.data.reason ? ` | ${log.data.reason}` : ''}`;
-        break;
-      }
-
-      default: {
-        return this.logger.warn({ log }, 'Recieved unrecognized mod log type');
-      }
+    let embed = makeCaseEmbed({ logChannelId: channelId, cs: log.data, target, mod, message, refCs });
+    if (log.data.action_type === CaseAction.strike) {
+      embed = this._populateEmbedWithStrikeTrigger(embed, log.data);
     }
 
     if (message) {

@@ -79,6 +79,10 @@ export class Handler {
 
   public async loadCommands(): Promise<void> {
     for await (const file of readdirRecurse(joinPath(__dirname, 'commands'), { fileExtension: 'js' })) {
+      if (file.includes('/sub/')) {
+        continue;
+      }
+
       const info = commandInfo(file);
 
       if (!info) {

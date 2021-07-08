@@ -42,6 +42,8 @@ const handleCase = async (cs: Case, settings: GuildSettings) => {
         reason: 'Automatic unmute'
       });
 
+      await sql`DELETE FROM unmute_roles WHERE case_id = ${cs.id}`;
+
       break;
     }
 
@@ -60,13 +62,13 @@ const handleCase = async (cs: Case, settings: GuildSettings) => {
 };
 
 const handleCases = async () => {
-  const cases = await sql<Case[]>`SELECT * FROM cases WHERE processed = false AND expires_at >= NOW()`;
+  const cases = await sql<Case[]>`SELECT * FROM cases WHERE processed = false AND NOW() >= expires_at`;
 
   if (!cases.length) {
     return;
   }
 
-  const [settings] = await sql<[GuildSettings?]>`SELECT * FROM settings WHERE guild_id = ${cases[0]!.guild_id}`;
+  const [settings] = await sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${cases[0]!.guild_id}`;
   if (!settings) {
     return;
   }
@@ -84,5 +86,5 @@ setInterval(
   () => void handleCases()
     .then(() => logger.info('Successfully cleaned up cases'))
     .catch(error => logger.error({ error }, 'Failed to clean up cases')),
-  36e2
+  6e4
 );

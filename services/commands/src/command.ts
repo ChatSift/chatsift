@@ -19,7 +19,7 @@ const checkMod = async (interaction: APIGuildInteraction): Promise<boolean> => {
   const sql = container.resolve<Sql<{}>>(kSql);
   const [
     { mod_role } = { mod_role: null }
-  ] = await sql<[Pick<GuildSettings, 'mod_role'>?]>`SELECT mod_role FROM settings WHERE guild_id = ${interaction.guild_id}`;
+  ] = await sql<[Pick<GuildSettings, 'mod_role'>?]>`SELECT mod_role FROM guild_settings WHERE guild_id = ${interaction.guild_id}`;
 
   if (!mod_role) {
     return false;

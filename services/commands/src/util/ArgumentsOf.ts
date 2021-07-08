@@ -3,7 +3,8 @@ import type {
   APIPartialChannel,
   APIRole,
   APIUser,
-  Permissions
+  Permissions,
+  ApplicationCommandOptionType
 } from 'discord-api-types/v8';
 
 type Command = Readonly<{
@@ -14,19 +15,23 @@ type Command = Readonly<{
 
 type Option = Readonly<Pick<Command, 'name' | 'description'> & (
   | {
-    type: 1 | 2;
+    type: ApplicationCommandOptionType.SubCommand | ApplicationCommandOptionType.SubCommandGroup;
     options?: readonly Option[];
   }
   | {
-    type: 3;
+    type: ApplicationCommandOptionType.String;
     choices?: readonly Readonly<{ name: string; value: string }>[];
   }
   | {
-    type: 4;
+    type: ApplicationCommandOptionType.Integer;
     choices?: readonly Readonly<{ name: string; value: number }>[];
   }
   | {
-    type: 5 | 6 | 7 | 8;
+    type:
+    | ApplicationCommandOptionType.Boolean
+    | ApplicationCommandOptionType.User
+    | ApplicationCommandOptionType.Channel
+    | ApplicationCommandOptionType.Role;
   }
 )>;
 
@@ -34,32 +39,32 @@ type Simplify<T> = T extends unknown ? { [K in keyof T]: Simplify<T[K]> } : T;
 
 type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
 
-type TypeIdToType<T, O, C> = T extends 1
+type TypeIdToType<T, O, C> = T extends ApplicationCommandOptionType.SubCommand
   ? ArgumentsOfRaw<O>
 
-  : T extends 2
+  : T extends ApplicationCommandOptionType.SubCommandGroup
     ? ArgumentsOfRaw<O>
 
-    : T extends 3
+    : T extends ApplicationCommandOptionType.String
       ? C extends readonly { value: string }[]
         ? C[number]['value']
         : string
 
-      : T extends 4
+      : T extends ApplicationCommandOptionType.Integer
         ? C extends readonly { value: number }[]
           ? C[number]['value']
           : number
 
-        : T extends 5
+        : T extends ApplicationCommandOptionType.Boolean
           ? boolean
 
-          : T extends 6
+          : T extends ApplicationCommandOptionType.User
             ? APIGuildMember & { user: APIUser; permissions: Permissions }
 
-            : T extends 7
+            : T extends ApplicationCommandOptionType.Channel
               ? APIPartialChannel & { permissions: Permissions }
 
-              : T extends 8
+              : T extends ApplicationCommandOptionType.Role
                 ? APIRole
                 : never;
 
@@ -74,7 +79,10 @@ type OptionToObject<O> = O extends {
   ? K extends string
     ? R extends true
       ? { [k in K]: TypeIdToType<T, O, C> }
-      : T extends 1 | 2 | 5
+      : T extends
+      | ApplicationCommandOptionType.SubCommand
+      | ApplicationCommandOptionType.SubCommandGroup
+      | ApplicationCommandOptionType.Boolean
         ? { [k in K]: TypeIdToType<T, O, C> }
         : { [k in K]?: TypeIdToType<T, O, C> }
     : never

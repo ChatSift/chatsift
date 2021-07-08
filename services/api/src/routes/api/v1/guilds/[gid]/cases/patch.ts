@@ -49,7 +49,7 @@ export default class PostGuildsCasesRoute extends Route {
 
       for (const data of casesData) {
         const [cs] = await sql<[Pick<Case, 'action_type'>?]>`
-          SELECT action_type FROM cases WHERE guild_id = ${gid!} case_id = ${data.case_id}
+          SELECT action_type FROM cases WHERE guild_id = ${gid!} AND case_id = ${data.case_id}
         `;
 
         if (!cs) {
@@ -63,8 +63,16 @@ export default class PostGuildsCasesRoute extends Route {
           return Promise.reject();
         }
 
+        if (data.ref_id) {
+          const [refCs] = await sql<[Case?]>`SELECT * FROM cases WHERE guild_id = ${gid!} AND case_id = ${data.ref_id}`;
+          if (!refCs) {
+            await next(badRequest(`could not find reference case with id ${data.ref_id}`));
+            return Promise.reject();
+          }
+        }
+
         promises.push(
-          sql<[Case]>`UPDATE cases SET ${sql(data)} WHERE guild_id = ${gid!} AND case_id = ${data.case_id}`.then(rows => rows[0])
+          sql<[Case]>`UPDATE cases SET ${sql(data)} WHERE guild_id = ${gid!} AND case_id = ${data.case_id} RETURNING *`.then(rows => rows[0])
         );
       }
 

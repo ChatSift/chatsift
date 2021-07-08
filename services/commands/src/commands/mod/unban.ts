@@ -48,7 +48,7 @@ export default class implements Command {
 
     const [banCase] = await this.sql<[Case?]>`
       SELECT * FROM cases
-      WHERE user_id = ${member.user.id}
+      WHERE target_id = ${member.user.id}
         AND action_type = ${CaseAction.ban}
         AND guild_id = ${interaction.guild_id}
         AND processed = false
@@ -63,7 +63,8 @@ export default class implements Command {
         target_id: member.user.id,
         target_tag: targetTag,
         reason,
-        reference_id: refId
+        reference_id: refId,
+        created_at: new Date()
       }
     ]);
 

@@ -55,15 +55,15 @@ export default class implements Command {
       expiresAt = new Date(Date.now() + duration);
     }
 
-    const [existingMuteCase] = await this.sql<[Case?]>`
+    const [existingBanCase] = await this.sql<[Case?]>`
       SELECT * FROM cases
-      WHERE user_id = ${member.user.id}
+      WHERE target_id = ${member.user.id}
         AND action_type = ${CaseAction.ban}
         AND guild_id = ${interaction.guild_id}
         AND processed = false
     `;
 
-    if (existingMuteCase) {
+    if (existingBanCase) {
       throw new ControlFlowError(
         'This user has already been temp banned. If you wish to update the duration please use the `/duration` command'
       );
@@ -86,7 +86,8 @@ export default class implements Command {
         target_tag: targetTag,
         reason,
         reference_id: refId,
-        expires_at: expiresAt
+        expires_at: expiresAt,
+        created_at: new Date()
       }
     ]);
 

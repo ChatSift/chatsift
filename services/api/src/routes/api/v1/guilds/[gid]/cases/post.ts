@@ -3,7 +3,8 @@ import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest
 import * as Joi from 'joi';
 import { CaseAction, ApiPostGuildsCasesBody, Case } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
-import type { Request, Response } from 'polka';
+import { badRequest } from '@hapi/boom';
+import type { Request, Response, NextHandler } from 'polka';
 import type { Sql } from 'postgres';
 import type { Snowflake } from 'discord-api-types/v8';
 
@@ -37,7 +38,8 @@ export default class PostGuildsCasesRoute extends Route {
                 .pattern(/\d{17,20}/)
                 .required(),
               target_tag: Joi.string().required(),
-              reference_id: Joi.number()
+              reference_id: Joi.number(),
+              created_at: Joi.date()
             })
         )
         .min(1),
@@ -51,8 +53,16 @@ export default class PostGuildsCasesRoute extends Route {
     super();
   }
 
-  private createCase(cs: Omit<Case, 'id' | 'case_id'>) {
-    return this.sql<[Case]>`
+  private async createCase(sql: Sql<{}>, cs: Omit<Case, 'id' | 'case_id'>) {
+    if (cs.ref_id) {
+      const [refCs] = await sql<[Case?]>`SELECT * FROM cases WHERE guild_id = ${cs.guild_id} AND case_id = ${cs.ref_id}`;
+
+      if (!refCs) {
+        return Promise.reject(`could not find reference case with id ${cs.ref_id}`);
+      }
+    }
+
+    return sql<[Case]>`
       INSERT INTO cases (
         guild_id,
         log_message_id,
@@ -65,7 +75,8 @@ export default class PostGuildsCasesRoute extends Route {
         action_type,
         reason,
         expires_at,
-        processed
+        processed,
+        created_at
       ) VALUES (
         ${cs.guild_id},
         ${cs.log_message_id},
@@ -78,42 +89,55 @@ export default class PostGuildsCasesRoute extends Route {
         ${cs.action_type},
         ${cs.reason},
         ${cs.expires_at},
-        ${cs.processed}
+        ${cs.processed},
+        ${cs.created_at}
       ) RETURNING *
     `
       .then(rows => rows[0]);
   }
 
-  public async handle(req: Request, res: Response) {
+  public async handle(req: Request, res: Response, next: NextHandler) {
     const { gid } = req.params;
     const casesData = req.body as ApiPostGuildsCasesBody;
 
-    const promises: Promise<Case>[] = [];
-    for (const data of casesData) {
-      const cs: Omit<Case, 'id' | 'case_id'> = {
-        guild_id: gid as Snowflake,
-        // Eventual consistency™ - this is set in the logger micro-service when the log is generated
-        log_message_id: null,
-        ref_id: data.reference_id ?? null,
-        target_id: data.target_id,
-        target_tag: data.target_tag,
-        mod_id: data.mod_id,
-        mod_tag: data.mod_tag,
-        action_type: data.action,
-        reason: data.reason ?? null,
-        expires_at: 'expires_at' in data ? (data.expires_at ?? null) : null,
-        processed: !('expires_at' in data),
-        created_at: new Date()
-      };
+    try {
+      const cases = await this.sql.begin(async sql => {
+        const promises: Promise<Case>[] = [];
 
-      promises.push(this.createCase(cs));
+        for (const data of casesData) {
+          const cs: Omit<Case, 'id' | 'case_id'> = {
+            guild_id: gid as Snowflake,
+            // Eventual consistency™ - this is set in the logger micro-service when the log is generated
+            log_message_id: null,
+            ref_id: data.reference_id ?? null,
+            target_id: data.target_id,
+            target_tag: data.target_tag,
+            mod_id: data.mod_id,
+            mod_tag: data.mod_tag,
+            action_type: data.action,
+            reason: data.reason ?? null,
+            expires_at: 'expires_at' in data ? (data.expires_at ?? null) : null,
+            processed: !('expires_at' in data),
+            created_at: data.created_at ?? new Date()
+          };
+
+          promises.push(this.createCase(sql, cs));
+        }
+
+        return Promise.all(promises);
+      });
+
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json');
+
+      return res.end(JSON.stringify(cases));
+    } catch (error) {
+      if (typeof error === 'string') {
+        return next(badRequest(error));
+      }
+
+      // Internal error - handle on a higher layer
+      throw error;
     }
-
-    const cases = await Promise.all(promises);
-
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
-
-    return res.end(JSON.stringify(cases));
   }
 }
