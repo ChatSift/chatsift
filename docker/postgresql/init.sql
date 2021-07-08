@@ -1,7 +1,8 @@
 CREATE TABLE IF NOT EXISTS guild_settings (
   guild_id bigint PRIMARY KEY,
   use_url_filters int NOT NULL DEFAULT 0,
-  use_file_filters int NOT NULL DEFAULT 0
+  use_file_filters int NOT NULL DEFAULT 0,
+  mod_action_log_channel bigint
 );
 
 CREATE TABLE IF NOT EXISTS users (

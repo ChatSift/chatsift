@@ -10,6 +10,7 @@ export interface GuildSettings {
   guild_id: Snowflake;
   use_url_filters: UseFilterMode;
   use_file_filters: UseFilterMode;
+  mod_action_log_channel: Snowflake | null;
 }
 
 export interface User {
