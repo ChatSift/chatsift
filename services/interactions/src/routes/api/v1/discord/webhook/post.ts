@@ -8,8 +8,7 @@ import {
   APIInteraction,
   InteractionType,
   InteractionResponseType,
-  APIApplicationCommandInteraction,
-  APIMessageComponentInteraction
+  APIGuildInteraction
 } from 'discord-api-types/v8';
 import type { DiscordInteractions } from '@automoderator/core';
 import type { Request, Response, NextHandler } from 'polka';
@@ -61,11 +60,11 @@ export default class PostDiscordWebhookRoute extends Route {
     // TODO: Check on discord-api-types
     switch (interaction.type) {
       case InteractionType.ApplicationCommand: {
-        return this.interactions.publish('command', interaction as APIApplicationCommandInteraction);
+        return this.interactions.publish('command', interaction as APIGuildInteraction);
       }
 
       case InteractionType.MessageComponent: {
-        return this.interactions.publish('component', interaction as APIMessageComponentInteraction);
+        return this.interactions.publish('component', interaction as APIGuildInteraction);
       }
 
       default: {

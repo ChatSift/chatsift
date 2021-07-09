@@ -1,4 +1,4 @@
-import { ControlFlowError } from '../ControlFlowError';
+import { ControlFlowError } from '../';
 
 test('isControlFlowError', () => {
   const error = new ControlFlowError('boop');

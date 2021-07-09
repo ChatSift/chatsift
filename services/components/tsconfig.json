@@ -4,9 +4,7 @@
     "outDir": "./dist",
     "declaration": false,
     "declarationMap": false,
-    "paths": {
-      "#util": ["./src/util/index.ts"]
-    }
+    "paths": {}
   },
   "include": ["./src/**/*.ts"]
 }

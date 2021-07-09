@@ -19,10 +19,13 @@
   },
   "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
+    "@automoderator/core": "workspace:^0.1.0",
     "@types/node": "^14.17.5",
+    "postgres": "^2.0.0-beta.6",
     "typescript": "^4.3.5"
   },
   "dependencies": {
+    "@automoderator/discord-permissions": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
     "@cordis/rest": "^0.3.0",
     "@cordis/util": "^0.3.0",

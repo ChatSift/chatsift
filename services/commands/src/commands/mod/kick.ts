@@ -1,5 +1,6 @@
 import { injectable } from 'tsyringe';
-import { Command, UserPerms } from '../../command';
+import { Command } from '../../command';
+import { UserPerms } from '@automoderator/interaction-util';
 import { ArgumentsOf } from '#util';
 import { ControlFlowError, send } from '@automoderator/interaction-util';
 import { KickCommand } from '#interactions';

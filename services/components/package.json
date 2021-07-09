@@ -17,9 +17,7 @@
   "bugs": {
     "url": "https://github.com/didinele/AutoModerator/issues"
   },
-  "imports": {
-    "#util": "./dist/util/index.js"
-  },
+  "imports": {},
   "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
     "@types/amqplib": "^0.8.1",
@@ -32,6 +30,7 @@
     "@automoderator/discord-permissions": "workspace:^0.1.0",
     "@automoderator/http-client": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
+    "@automoderator/interaction-util": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
     "@cordis/brokers": "^0.3.0",
     "@cordis/rest": "^0.3.0",

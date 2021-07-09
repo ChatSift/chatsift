@@ -1,17 +1,17 @@
 import { basename, extname } from 'path';
-import type { APIGuildInteraction } from 'discord-api-types/v8';
 import type { UserPerms } from '@automoderator/interaction-util';
-export interface Command {
+
+export interface Component {
   name?: string;
   userPermissions?: UserPerms;
-  exec(message: APIGuildInteraction, args: unknown): unknown;
+  exec(message: any, args: unknown): unknown | Promise<unknown>;
 }
 
-export interface CommandInfo {
+export interface ComponentInfo {
   name: string;
 }
 
-export const commandInfo = (path: string): CommandInfo | null => {
+export function componentInfo(path: string): ComponentInfo | null {
   if (extname(path) !== '.js') {
     return null;
   }
@@ -19,4 +19,4 @@ export const commandInfo = (path: string): CommandInfo | null => {
   return {
     name: basename(path, '.js')
   };
-};
+}
