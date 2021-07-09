@@ -31,7 +31,7 @@
     "@cordis/brokers": "^0.3.0",
     "@cordis/rest": "^0.3.0",
     "@cordis/util": "^0.3.0",
-    "discord-api-types": "^0.19.0-next.4a83629.1625747680",
+    "discord-api-types": "^0.19.0-next.4a83629.1625792364",
     "pino-elasticsearch": "^6.1.0",
     "pino-pretty": "^5.1.1",
     "postgres": "2.0.0-beta.4",
