@@ -16,6 +16,11 @@ export interface GuildSettings {
   assignable_roles_prompt: string | null;
 }
 
+export interface SelfAssignableRole {
+  role_id: Snowflake;
+  guild_id: Snowflake;
+}
+
 export enum StrikePunishmentAction {
   mute,
   kick,

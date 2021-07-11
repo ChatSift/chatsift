@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   assignable_roles_prompt text
 );
 
+CREATE TABLE IF NOT EXISTS self_assignable_roles (
+  role_id bigint PRIMARY KEY,
+  guild_id bigint NOT NULL REFERENCES guild_settings ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS strike_punishments (
   guild_id bigint NOT NULL REFERENCES guild_settings ON DELETE CASCADE,
   strikes int NOT NULL,
