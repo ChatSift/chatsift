@@ -19,7 +19,7 @@ export default class DeleteGuildsCaseRoute extends Route {
   public async handle(req: Request, res: Response, next: NextHandler) {
     const { gid, cid } = req.params;
 
-    const [cs] = await this.sql<[Case?]>`DELETE FROM cases WHERE guild_id = ${gid!} AND case_id = ${cid!}`;
+    const [cs] = await this.sql<[Case?]>`DELETE FROM cases WHERE guild_id = ${gid!} AND case_id = ${cid!} RETURNING *`;
     if (!cs) {
       return next(notFound('case not found'));
     }

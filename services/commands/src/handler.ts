@@ -10,10 +10,10 @@ import { ControlFlowError, send, PermissionsChecker, UserPerms } from '@automode
 import {
   Routes,
   RESTPutAPIApplicationCommandsJSONBody,
-  RESTPostAPIApplicationCommandsJSONBody,
   APIGuildInteraction,
   APIApplicationCommandInteractionData
 } from 'discord-api-types/v8';
+import * as interactions from '#interactions';
 import type { DiscordInteractions } from '@automoderator/core';
 import type { Logger } from 'pino';
 
@@ -65,18 +65,11 @@ export class Handler {
   }
 
   public async registerInteractions(): Promise<void> {
-    const interactions = [];
-
-    for await (const file of readdirRecurse(joinPath(__dirname, 'interactions'), { fileExtension: 'js' })) {
-      const data = Object.values((await import(file)))[0] as RESTPostAPIApplicationCommandsJSONBody;
-      interactions.push(data);
-    }
-
     const commandsRoute = this.config.nodeEnv === 'prod'
       ? Routes.applicationCommands(this.config.discordClientId)
       : Routes.applicationGuildCommands(this.config.discordClientId, this.config.interactionsTestGuildId);
 
-    await this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(commandsRoute, { data: interactions });
+    await this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(commandsRoute, { data: Object.values(interactions as any) });
   }
 
   public async loadCommands(): Promise<void> {

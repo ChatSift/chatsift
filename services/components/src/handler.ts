@@ -23,7 +23,8 @@ export class Handler {
 
   private async _handleInteraction(interaction: APIGuildInteraction) {
     const data = interaction.data as APIMessageButtonInteractionData | undefined;
-    const component = this.components.get(data?.custom_id!.split('|')[0] ?? '');
+    const [componentId, key, ...extra] = (data?.custom_id!.split('|') ?? []) as [string, string, ...string[]];
+    const component = this.components.get(componentId ?? ''); // eslint-disable-line @typescript-eslint/no-unnecessary-condition
     if (component && data) {
       try {
         if (component.userPermissions && !await this.checker.check(interaction, component.userPermissions)) {
@@ -32,7 +33,7 @@ export class Handler {
           );
         }
 
-        await component.exec(interaction, []);
+        await component.exec(interaction, extra, key);
       } catch (error) {
         const internal = !(error instanceof ControlFlowError);
 

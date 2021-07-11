@@ -4,7 +4,7 @@ import type { UserPerms } from '@automoderator/interaction-util';
 export interface Component {
   name?: string;
   userPermissions?: UserPerms;
-  exec(message: any, args: unknown): unknown | Promise<unknown>;
+  exec(message: any, args: unknown[], key: string): unknown | Promise<unknown>;
 }
 
 export interface ComponentInfo {
