@@ -283,9 +283,11 @@ importers:
       '@cordis/util': ^0.3.0
       '@gaius-bot/readdir': ^1.0.0
       '@types/amqplib': ^0.8.1
+      '@types/common-tags': ^1.8.1
       '@types/node': ^14.17.5
       '@types/node-fetch': ^2.5.11
       '@types/pino': ^6.3.9
+      common-tags: ^1.8.0
       discord-api-types: ^0.19.0-next.4a83629.1625792364
       node-fetch: ^2.6.1
       pino-elasticsearch: ^6.1.0
@@ -304,6 +306,7 @@ importers:
       '@cordis/rest': 0.3.0
       '@cordis/util': 0.3.0
       '@gaius-bot/readdir': 1.0.0
+      common-tags: 1.8.0
       discord-api-types: 0.19.0-next.4a83629.1625792364
       node-fetch: 2.6.1
       pino-elasticsearch: 6.1.0
@@ -314,6 +317,7 @@ importers:
       tsyringe: 4.6.0
     devDependencies:
       '@types/amqplib': 0.8.1
+      '@types/common-tags': 1.8.1
       '@types/node': 14.17.5
       '@types/node-fetch': 2.5.11
       '@types/pino': 6.3.9
@@ -2093,6 +2097,10 @@ packages:
     resolution: {integrity: sha512-HBNx4lhkxN7bx6P0++W8E289foSu8kO8GCk2unhuVggO+cE7rh9DhZUyPhUxNRG9m+5B5BTKxZQ5ZP92x/mx9Q==}
     dev: true
 
+  /@types/common-tags/1.8.1:
+    resolution: {integrity: sha512-20R/mDpKSPWdJs5TOpz3e7zqbeCNuMCPhV7Yndk9KU2Rbij2r5W4RzwDPkzC+2lzUqXYu9rFzTktCBnDjHuNQg==}
+    dev: true
+
   /@types/cookie/0.4.1:
     resolution: {integrity: sha512-XW/Aa8APYr6jSVVA1y/DEIZX0/GMKLEVekNG727R8cs56ahETkRAy/3DR7+fJyh7oUgGwNQaRfXCun0+KbWY7Q==}
     dev: true
@@ -2950,6 +2958,11 @@ packages:
     resolution: {integrity: sha512-QrWXB+ZQSVPmIWIhtEO9H+gwHaMGYiF5ChvoJ+K9ZGHG/sVsa6yiesAD1GC/x46sET00Xlwo1u49RVVVzvcSkw==}
     engines: {node: '>= 10'}
     dev: true
+
+  /common-tags/1.8.0:
+    resolution: {integrity: sha512-6P6g0uetGpW/sdyUy/iQQCbFF0kWVMSIVSyYz7Zgjcgh8mgw8PQzDNZeyZ5DQ2gM7LBoZPHmnjz8rUthkBG5tw==}
+    engines: {node: '>=4.0.0'}
+    dev: false
 
   /compare-versions/3.6.0:
     resolution: {integrity: sha512-W6Af2Iw1z4CB7q4uU4hv646dW9GQuBM+YpC0UvUCWSD8w90SJjp+ujJuXaEMtAXBtSqGfMPuFOVn4/+FlaqfBA==}
