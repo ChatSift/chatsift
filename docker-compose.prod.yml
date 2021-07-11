@@ -26,6 +26,12 @@ services:
       API_DOMAIN: "https://api.automoderator.me"
     command: "sh -c \"node services/commands/dist/index.js | ./services/commands/node_modules/.bin/pino-elasticsearch\""
 
+  components:
+    environment:
+      NODE_ENV: "prod"
+      API_DOMAIN: "https://api.automoderator.me"
+    command: "sh -c \"node services/components/dist/index.js | ./services/components/node_modules/.bin/pino-elasticsearch\""
+
   cron-runner:
     environment:
       NODE_ENV: "prod"

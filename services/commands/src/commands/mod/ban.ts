@@ -1,7 +1,8 @@
 import { injectable, inject } from 'tsyringe';
-import { Command, UserPerms } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '../../util';
-import { BanCommand } from '../../interactions/mod/ban';
+import { Command } from '../../command';
+import { ArgumentsOf } from '#util';
+import { UserPerms, ControlFlowError, send } from '@automoderator/interaction-util';
+import { BanCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, RESTPutAPIGuildBanJSONBody, Routes } from 'discord-api-types/v8';

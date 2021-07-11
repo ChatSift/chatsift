@@ -1,5 +1,5 @@
 FROM node:16-alpine
-LABEL name "automoderator commands builder"
+LABEL name "automoderator components builder"
 
 WORKDIR /opt/build
 
@@ -17,7 +17,7 @@ COPY libs/http-client/package.json ./libs/http-client/package.json
 COPY libs/injection/package.json ./libs/injection/package.json
 COPY libs/interaction-util/package.json ./libs/interaction-util/package.json
 COPY libs/logger/package.json ./libs/logger/package.json
-COPY services/commands/package.json ./services/commands/package.json
+COPY services/components/package.json ./services/components/package.json
 
 RUN pnpm i --frozen-lockfile
 
@@ -27,16 +27,16 @@ COPY libs/http-client ./libs/http-client
 COPY libs/injection ./libs/injection
 COPY libs/interaction-util ./libs/interaction-util
 COPY libs/logger ./libs/logger
-COPY services/commands ./services/commands
+COPY services/components ./services/components
 
 RUN pnpm run build && pnpm prune --prod && apk del .build-deps
 
 FROM node:16-alpine
-LABEL name "automoderator commands"
+LABEL name "automoderator components"
 LABEL version "0.1.0"
 
-WORKDIR /usr/commands
+WORKDIR /usr/components
 
 COPY --from=0 /opt/build ./
 
-CMD ["node", "--enable-source-maps", "services/commands/dist/index.js"]
+CMD ["node", "--enable-source-maps", "services/components/dist/index.js"]

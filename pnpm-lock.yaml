@@ -19,7 +19,7 @@ importers:
       eslint-config-marine: ^7.2.0
       husky: ^4.3.8
       jest: ^26.6.3
-      lint-staged: ^10.5.4
+      lint-staged: ^11.0.0
       rimraf: ^3.0.2
       typescript: ^4.3.5
     devDependencies:
@@ -38,7 +38,7 @@ importers:
       eslint-config-marine: 7.2.0
       husky: 4.3.8
       jest: 26.6.3
-      lint-staged: 10.5.4
+      lint-staged: 11.0.0
       rimraf: 3.0.2
       typescript: 4.3.5
 
@@ -46,12 +46,12 @@ importers:
     specifiers:
       '@cordis/util': ^0.3.0
       '@types/node': ^14.17.5
-      discord-api-types: ^0.19.0-next.4a83629.1625747680
+      discord-api-types: ^0.19.0-next.4a83629.1625792364
       tslib: ^2.3.0
       typescript: ^4.3.5
     dependencies:
       '@cordis/util': 0.3.0
-      discord-api-types: 0.19.0-next.4a83629.1625747680
+      discord-api-types: 0.19.0-next.4a83629.1625792364
       tslib: 2.3.0
     devDependencies:
       '@types/node': 14.17.5
@@ -102,6 +102,33 @@ importers:
       '@types/node': 14.17.5
       typescript: 4.3.5
 
+  libs/interaction-util:
+    specifiers:
+      '@automoderator/core': workspace:^0.1.0
+      '@automoderator/discord-permissions': workspace:^0.1.0
+      '@automoderator/injection': workspace:^0.1.0
+      '@cordis/rest': ^0.3.0
+      '@cordis/util': ^0.3.0
+      '@types/node': ^14.17.5
+      discord-api-types: ^0.19.0-next.4a83629.1625792364
+      postgres: ^2.0.0-beta.6
+      tslib: ^2.3.0
+      tsyringe: ^4.6.0
+      typescript: ^4.3.5
+    dependencies:
+      '@automoderator/discord-permissions': link:../discord-permissions
+      '@automoderator/injection': link:../injection
+      '@cordis/rest': 0.3.0
+      '@cordis/util': 0.3.0
+      discord-api-types: 0.19.0-next.4a83629.1625792364
+      tslib: 2.3.0
+      tsyringe: 4.6.0
+    devDependencies:
+      '@automoderator/core': link:../core
+      '@types/node': 14.17.5
+      postgres: 2.0.0-beta.6
+      typescript: 4.3.5
+
   libs/logger:
     specifiers:
       '@automoderator/injection': workspace:^0.1.0
@@ -131,7 +158,7 @@ importers:
       '@hapi/boom': ^9.1.3
       '@types/bcrypt': ^5.0.0
       '@types/cookie': ^0.4.1
-      '@types/cors': ^2.8.11
+      '@types/cors': ^2.8.12
       '@types/node': ^14.17.5
       '@types/node-fetch': ^2.5.11
       '@types/pino': ^6.3.9
@@ -139,7 +166,7 @@ importers:
       bcrypt: ^5.0.1
       cookie: ^0.4.1
       cors: ^2.8.5
-      discord-api-types: ^0.19.0-next.4a83629.1625747680
+      discord-api-types: ^0.19.0-next.4a83629.1625792364
       helmet: ^4.6.0
       joi: ^17.4.0
       node-fetch: ^2.6.1
@@ -168,12 +195,12 @@ importers:
       '@gaius-bot/readdir': 1.0.0
       '@types/bcrypt': 5.0.0
       '@types/cookie': 0.4.1
-      '@types/cors': 2.8.11
+      '@types/cors': 2.8.12
       '@types/node': 14.17.5
       '@types/node-fetch': 2.5.11
       '@types/pino': 6.3.9
       '@types/supertest': 2.0.11
-      discord-api-types: 0.19.0-next.4a83629.1625747680
+      discord-api-types: 0.19.0-next.4a83629.1625792364
       postgres: 2.0.0-beta.6
       supertest: 6.1.3
       typescript: 4.3.5
@@ -191,7 +218,7 @@ importers:
       '@types/node-fetch': ^2.5.11
       '@types/pino': ^6.3.9
       cookie: ^0.4.1
-      discord-api-types: ^0.19.0-next.4a83629.1625747680
+      discord-api-types: ^0.19.0-next.4a83629.1625792364
       joi: ^17.4.0
       node-fetch: ^2.6.1
       pino-elasticsearch: ^5.4.0
@@ -211,7 +238,7 @@ importers:
       '@gaius-bot/readdir': 1.0.0
       '@hapi/boom': 9.1.3
       cookie: 0.4.1
-      discord-api-types: 0.19.0-next.4a83629.1625747680
+      discord-api-types: 0.19.0-next.4a83629.1625792364
       joi: 17.4.0
       node-fetch: 2.6.1
       pino-elasticsearch: 5.4.0
@@ -286,7 +313,7 @@ importers:
       '@types/node': ^14.17.5
       '@types/node-fetch': ^2.5.11
       '@types/pino': ^6.3.9
-      discord-api-types: ^0.19.0-next.4a83629.1625747680
+      discord-api-types: ^0.19.0-next.4a83629.1625792364
       node-fetch: ^2.6.1
       pino-elasticsearch: ^6.1.0
       pino-pretty: ^5.1.1
@@ -304,7 +331,7 @@ importers:
       '@cordis/rest': 0.3.0
       '@cordis/util': 0.3.0
       '@gaius-bot/readdir': 1.0.0
-      discord-api-types: 0.19.0-next.4a83629.1625747680
+      discord-api-types: 0.19.0-next.4a83629.1625792364
       node-fetch: 2.6.1
       pino-elasticsearch: 6.1.0
       pino-pretty: 5.1.1
@@ -325,6 +352,7 @@ importers:
       '@automoderator/discord-permissions': workspace:^0.1.0
       '@automoderator/http-client': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
+      '@automoderator/interaction-util': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@cordis/brokers': ^0.3.0
       '@cordis/rest': ^0.3.0
@@ -333,7 +361,8 @@ importers:
       '@types/amqplib': ^0.8.1
       '@types/node': ^14.17.5
       '@types/pino': ^6.3.9
-      discord-api-types: ^0.19.0-next.4a83629.1625747680
+      discord-api-types: ^0.19.0-next.4a83629.1625792364
+      nanoid: ^3.1.23
       pino-elasticsearch: ^6.1.0
       pino-pretty: ^5.1.1
       postgres: 2.0.0-beta.4
@@ -346,12 +375,61 @@ importers:
       '@automoderator/discord-permissions': link:../../libs/discord-permissions
       '@automoderator/http-client': link:../../libs/http-client
       '@automoderator/injection': link:../../libs/injection
+      '@automoderator/interaction-util': link:../../libs/interaction-util
       '@automoderator/logger': link:../../libs/logger
       '@cordis/brokers': 0.3.0
       '@cordis/rest': 0.3.0
       '@cordis/util': 0.3.0
       '@gaius-bot/readdir': 1.0.0
-      discord-api-types: 0.19.0-next.4a83629.1625747680
+      discord-api-types: 0.19.0-next.4a83629.1625792364
+      nanoid: 3.1.23
+      pino-elasticsearch: 6.1.0
+      pino-pretty: 5.1.1
+      postgres: 2.0.0-beta.4
+      reflect-metadata: 0.1.13
+      tslib: 2.3.0
+      tsyringe: 4.6.0
+    devDependencies:
+      '@types/amqplib': 0.8.1
+      '@types/node': 14.17.5
+      '@types/pino': 6.3.9
+      typescript: 4.3.5
+
+  services/components:
+    specifiers:
+      '@automoderator/core': workspace:^0.1.0
+      '@automoderator/http-client': workspace:^0.1.0
+      '@automoderator/injection': workspace:^0.1.0
+      '@automoderator/interaction-util': workspace:^0.1.0
+      '@automoderator/logger': workspace:^0.1.0
+      '@cordis/brokers': ^0.3.0
+      '@cordis/rest': ^0.3.0
+      '@cordis/util': ^0.3.0
+      '@gaius-bot/readdir': ^1.0.0
+      '@types/amqplib': ^0.8.1
+      '@types/node': ^14.17.5
+      '@types/pino': ^6.3.9
+      discord-api-types: ^0.19.0-next.4a83629.1625792364
+      nanoid: ^3.1.23
+      pino-elasticsearch: ^6.1.0
+      pino-pretty: ^5.1.1
+      postgres: 2.0.0-beta.4
+      reflect-metadata: ^0.1.13
+      tslib: ^2.3.0
+      tsyringe: ^4.6.0
+      typescript: ^4.3.5
+    dependencies:
+      '@automoderator/core': link:../../libs/core
+      '@automoderator/http-client': link:../../libs/http-client
+      '@automoderator/injection': link:../../libs/injection
+      '@automoderator/interaction-util': link:../../libs/interaction-util
+      '@automoderator/logger': link:../../libs/logger
+      '@cordis/brokers': 0.3.0
+      '@cordis/rest': 0.3.0
+      '@cordis/util': 0.3.0
+      '@gaius-bot/readdir': 1.0.0
+      discord-api-types: 0.19.0-next.4a83629.1625792364
+      nanoid: 3.1.23
       pino-elasticsearch: 6.1.0
       pino-pretty: 5.1.1
       postgres: 2.0.0-beta.4
@@ -374,7 +452,7 @@ importers:
       '@types/node': ^14.17.5
       '@types/node-fetch': ^2.5.11
       '@types/pino': ^6.3.9
-      discord-api-types: ^0.19.0-next.4a83629.1625747680
+      discord-api-types: ^0.19.0-next.4a83629.1625792364
       pino-elasticsearch: ^6.1.0
       pino-pretty: ^5.1.1
       postgres: 2.0.0-beta.4
@@ -387,7 +465,7 @@ importers:
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@cordis/rest': 0.3.0
-      discord-api-types: 0.19.0-next.4a83629.1625747680
+      discord-api-types: 0.19.0-next.4a83629.1625792364
       pino-elasticsearch: 6.1.0
       pino-pretty: 5.1.1
       postgres: 2.0.0-beta.4
@@ -412,7 +490,7 @@ importers:
       '@hapi/boom': ^9.1.3
       '@types/node': ^14.17.5
       '@types/pino': ^6.3.9
-      discord-api-types: ^0.19.0-next.4a83629.1625747680
+      discord-api-types: ^0.19.0-next.4a83629.1625792364
       pino-elasticsearch: ^5.4.0
       pino-pretty: ^4.8.0
       polka: ^1.0.0-next.15
@@ -429,7 +507,7 @@ importers:
       '@cordis/brokers': 0.3.0
       '@gaius-bot/readdir': 1.0.0
       '@hapi/boom': 9.1.3
-      discord-api-types: 0.19.0-next.4a83629.1625747680
+      discord-api-types: 0.19.0-next.4a83629.1625792364
       pino-elasticsearch: 5.4.0
       pino-pretty: 4.8.0
       reflect-metadata: 0.1.13
@@ -453,7 +531,7 @@ importers:
       '@types/amqplib': ^0.8.1
       '@types/node': ^14.17.5
       '@types/pino': ^6.3.9
-      discord-api-types: ^0.19.0-next.4a83629.1625747680
+      discord-api-types: ^0.19.0-next.4a83629.1625792364
       pino-elasticsearch: ^6.1.0
       pino-pretty: ^5.1.1
       postgres: 2.0.0-beta.4
@@ -468,7 +546,7 @@ importers:
       '@cordis/brokers': 0.3.0
       '@cordis/rest': 0.3.0
       '@cordis/util': 0.3.0
-      discord-api-types: 0.19.0-next.4a83629.1625747680
+      discord-api-types: 0.19.0-next.4a83629.1625792364
       pino-elasticsearch: 6.1.0
       pino-pretty: 5.1.1
       postgres: 2.0.0-beta.4
@@ -1823,7 +1901,7 @@ packages:
     engines: {node: '>= 10.14.2'}
     dependencies:
       '@jest/types': 26.6.2
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       chalk: 4.1.1
       jest-message-util: 26.6.2
       jest-util: 26.6.2
@@ -1839,7 +1917,7 @@ packages:
       '@jest/test-result': 26.6.2
       '@jest/transform': 26.6.2
       '@jest/types': 26.6.2
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       ansi-escapes: 4.3.2
       chalk: 4.1.1
       exit: 0.1.2
@@ -1876,7 +1954,7 @@ packages:
     dependencies:
       '@jest/fake-timers': 26.6.2
       '@jest/types': 26.6.2
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       jest-mock: 26.6.2
     dev: true
 
@@ -1886,7 +1964,7 @@ packages:
     dependencies:
       '@jest/types': 26.6.2
       '@sinonjs/fake-timers': 6.0.1
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       jest-message-util: 26.6.2
       jest-mock: 26.6.2
       jest-util: 26.6.2
@@ -2000,7 +2078,7 @@ packages:
     dependencies:
       '@types/istanbul-lib-coverage': 2.0.3
       '@types/istanbul-reports': 3.0.1
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       '@types/yargs': 15.0.14
       chalk: 4.1.1
     dev: true
@@ -2040,8 +2118,8 @@ packages:
     engines: {node: '>= 8'}
     dev: true
 
-  /@nodelib/fs.walk/1.2.7:
-    resolution: {integrity: sha512-BTIhocbPBSrRmHxOAJFtR18oLhxTtAFDAvL8hY1S3iU8k+E60W/YFs4jrixGzQjMpF4qPXxIQHcjVD9dz1C2QA==}
+  /@nodelib/fs.walk/1.2.8:
+    resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
@@ -2136,14 +2214,14 @@ packages:
     resolution: {integrity: sha512-t73xJJrvdTjXrn4jLS9VSGRbz0nUY3cl2DMGDU48lKl+HR9dbbjW2A9r3g40VA++mQpy6uuHg33gy7du2BKpog==}
     dev: true
 
-  /@types/cors/2.8.11:
-    resolution: {integrity: sha512-64aQQZXPSo1fdLEE/utClOFVUqDUjyh5j3JorcCTlYQm4r5wsfggx6yhSY6hNudJLkbmIt+pO6xWyCnM0EQgPw==}
+  /@types/cors/2.8.12:
+    resolution: {integrity: sha512-vt+kDhq/M2ayberEtJcIN/hxXy1Pk+59g2FV/ZQceeaTyCtCucjL2Q7FXlFjtWn4n15KCr1NE2lNNFhp0lEThw==}
     dev: true
 
   /@types/graceful-fs/4.1.5:
     resolution: {integrity: sha512-anKkLmZZ+xm4p8JWBf4hElkM4XR+EZeA2M9BAkkTldmcyDY4mbdIJnRghDJH3Ov5ooY7/UAoENtmdMSkaAd7Cw==}
     dependencies:
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
     dev: true
 
   /@types/istanbul-lib-coverage/2.0.3:
@@ -2184,8 +2262,8 @@ packages:
     resolution: {integrity: sha512-bjqH2cX/O33jXT/UmReo2pM7DIJREPMnarixbQ57DOOzzFaI6D2+IcwaJQaJpv0M1E9TIhPCYVxrkcityLjlqA==}
     dev: true
 
-  /@types/node/16.0.1:
-    resolution: {integrity: sha512-hBOx4SUlEPKwRi6PrXuTGw1z6lz0fjsibcWCM378YxsSu/6+C30L6CR49zIBKHiwNWCYIcOLjg4OHKZaFeLAug==}
+  /@types/node/16.3.0:
+    resolution: {integrity: sha512-OydMCocGMGqw/1BnWbhtK+AtwyWTOigtrQlRe57OQmTNcI3HKlVI5FGlh+c4mSqInMPLynFrTlYjfajPu9O/eQ==}
     dev: true
 
   /@types/normalize-package-data/2.4.1:
@@ -2381,8 +2459,8 @@ packages:
       acorn-walk: 7.2.0
     dev: true
 
-  /acorn-jsx/5.3.1_acorn@7.4.1:
-    resolution: {integrity: sha512-K0Ptm/47OKfQRpNQ2J/oIN/3QYiK6FwW+eJbILhsdxh2WTLdl+30o8aGdTbm5JbffpFFAg/g+zi1E+jvJha5ng==}
+  /acorn-jsx/5.3.2_acorn@7.4.1:
+    resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
     peerDependencies:
       acorn: ^6.0.0 || ^7.0.0 || ^8.0.0
     dependencies:
@@ -2789,7 +2867,7 @@ packages:
     dependencies:
       caniuse-lite: 1.0.30001243
       colorette: 1.2.2
-      electron-to-chromium: 1.3.770
+      electron-to-chromium: 1.3.771
       escalade: 3.1.1
       node-releases: 1.1.73
     dev: true
@@ -2981,9 +3059,9 @@ packages:
     dependencies:
       delayed-stream: 1.0.0
 
-  /commander/6.2.1:
-    resolution: {integrity: sha512-U7VdrJFnJgo4xjrHpTzu0yrHPGImdsmD95ZlgYSEajAn2JKzDhDTPG9kBTefmObL2w/ngeZnilk+OV9CG3d7UA==}
-    engines: {node: '>= 6'}
+  /commander/7.2.0:
+    resolution: {integrity: sha512-QrWXB+ZQSVPmIWIhtEO9H+gwHaMGYiF5ChvoJ+K9ZGHG/sVsa6yiesAD1GC/x46sET00Xlwo1u49RVVVzvcSkw==}
+    engines: {node: '>= 10'}
     dev: true
 
   /compare-versions/3.6.0:
@@ -3207,8 +3285,8 @@ packages:
     engines: {node: '>=12'}
     dev: false
 
-  /discord-api-types/0.19.0-next.4a83629.1625747680:
-    resolution: {integrity: sha512-jyvX8K5cT5yJy160oY1nDE4HxJG6Z5c+9lVbYuW/RIJxl3mYXEJHYnyY1SxTA24LAIIaW/pLj/VwGnBMrTFQMA==}
+  /discord-api-types/0.19.0-next.4a83629.1625792364:
+    resolution: {integrity: sha512-liIj7Xf5dPJcPSt78Qh+blYsO3Pkoh6MImD5MJx3gTUE3z612Ljxi4lb0o2M9PxCgKMTDLFYlyhBRjX04uYoKw==}
     engines: {node: '>=12'}
 
   /doctrine/3.0.0:
@@ -3225,8 +3303,8 @@ packages:
       webidl-conversions: 5.0.0
     dev: true
 
-  /electron-to-chromium/1.3.770:
-    resolution: {integrity: sha512-Kyh8DGK1KfEZuYKIHvuOmrKotsKZQ+qBkDIWHciE3QoFkxXB1KzPP+tfLilSHAfxTON0yYMnFCWkQtUOR7g6KQ==}
+  /electron-to-chromium/1.3.771:
+    resolution: {integrity: sha512-zHMomTqkpnAD9W5rhXE1aiU3ogGFrqWzdvM4C6222SREiqsWQb2w0S7P2Ii44qCaGimmAP1z+OydllM438uJyA==}
     dev: true
 
   /emittery/0.7.2:
@@ -3388,7 +3466,7 @@ packages:
     engines: {node: ^10.12.0 || >=12.0.0}
     dependencies:
       acorn: 7.4.1
-      acorn-jsx: 5.3.1_acorn@7.4.1
+      acorn-jsx: 5.3.2_acorn@7.4.1
       eslint-visitor-keys: 1.3.0
     dev: true
 
@@ -3464,6 +3542,21 @@ packages:
       strip-final-newline: 2.0.0
     dev: true
 
+  /execa/5.1.1:
+    resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}
+    engines: {node: '>=10'}
+    dependencies:
+      cross-spawn: 7.0.3
+      get-stream: 6.0.1
+      human-signals: 2.1.0
+      is-stream: 2.0.0
+      merge-stream: 2.0.0
+      npm-run-path: 4.0.1
+      onetime: 5.1.2
+      signal-exit: 3.0.3
+      strip-final-newline: 2.0.0
+    dev: true
+
   /exit/0.1.2:
     resolution: {integrity: sha1-BjJjj42HfMghB9MKD/8aF8uhzQw=}
     engines: {node: '>= 0.8.0'}
@@ -3527,12 +3620,12 @@ packages:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
     dev: true
 
-  /fast-glob/3.2.6:
-    resolution: {integrity: sha512-GnLuqj/pvQ7pX8/L4J84nijv6sAnlwvSDpMkJi9i7nPmPxGtRPkBSStfvDW5l6nMdX9VWe+pkKWFTgD+vF2QSQ==}
+  /fast-glob/3.2.7:
+    resolution: {integrity: sha512-rYGMRwip6lUMvYD3BTScMwT1HtAs2d71SMv66Vrxs0IekGZEjhM0pcMfjQPnknBt2zeCwQMEupiN02ZP4DiT1Q==}
     engines: {node: '>=8'}
     dependencies:
       '@nodelib/fs.stat': 2.0.5
-      '@nodelib/fs.walk': 1.2.7
+      '@nodelib/fs.walk': 1.2.8
       glob-parent: 5.1.2
       merge2: 1.4.1
       micromatch: 4.0.4
@@ -3732,6 +3825,11 @@ packages:
       pump: 3.0.0
     dev: true
 
+  /get-stream/6.0.1:
+    resolution: {integrity: sha512-ts6Wi+2j3jQjqi70w5AlN8DFnkSwC+MqmxEzdEALB2qXZYV3X/b1CTfgPLGJNMeAWxdPfU8FO1ms3NUfaHCPYg==}
+    engines: {node: '>=10'}
+    dev: true
+
   /get-value/2.0.6:
     resolution: {integrity: sha1-3BXKHGcjh8p2vTesCjlbogQqLCg=}
     engines: {node: '>=0.10.0'}
@@ -3772,7 +3870,7 @@ packages:
     dependencies:
       array-union: 2.1.0
       dir-glob: 3.0.1
-      fast-glob: 3.2.6
+      fast-glob: 3.2.7
       ignore: 5.1.8
       merge2: 1.4.1
       slash: 3.0.0
@@ -3889,6 +3987,11 @@ packages:
   /human-signals/1.1.1:
     resolution: {integrity: sha512-SEQu7vl8KjNL2eoGBLF3+wAjpsNfA9XMlXAYj/3EdaNfAlxKthD1xjEQfGOUhllCGGJVNY34bRr6lPINhNjyZw==}
     engines: {node: '>=8.12.0'}
+    dev: true
+
+  /human-signals/2.1.0:
+    resolution: {integrity: sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==}
+    engines: {node: '>=10.17.0'}
     dev: true
 
   /husky/4.3.8:
@@ -4314,7 +4417,7 @@ packages:
       '@jest/environment': 26.6.2
       '@jest/fake-timers': 26.6.2
       '@jest/types': 26.6.2
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       jest-mock: 26.6.2
       jest-util: 26.6.2
       jsdom: 16.6.0
@@ -4332,7 +4435,7 @@ packages:
       '@jest/environment': 26.6.2
       '@jest/fake-timers': 26.6.2
       '@jest/types': 26.6.2
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       jest-mock: 26.6.2
       jest-util: 26.6.2
     dev: true
@@ -4348,7 +4451,7 @@ packages:
     dependencies:
       '@jest/types': 26.6.2
       '@types/graceful-fs': 4.1.5
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       anymatch: 3.1.2
       fb-watchman: 2.0.1
       graceful-fs: 4.2.6
@@ -4372,7 +4475,7 @@ packages:
       '@jest/source-map': 26.6.2
       '@jest/test-result': 26.6.2
       '@jest/types': 26.6.2
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       chalk: 4.1.1
       co: 4.6.0
       expect: 26.6.2
@@ -4431,7 +4534,7 @@ packages:
     engines: {node: '>= 10.14.2'}
     dependencies:
       '@jest/types': 26.6.2
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
     dev: true
 
   /jest-pnp-resolver/1.2.2_jest-resolve@26.6.2:
@@ -4482,7 +4585,7 @@ packages:
       '@jest/environment': 26.6.2
       '@jest/test-result': 26.6.2
       '@jest/types': 26.6.2
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       chalk: 4.1.1
       emittery: 0.7.2
       exit: 0.1.2
@@ -4550,7 +4653,7 @@ packages:
     resolution: {integrity: sha512-S5wqyz0DXnNJPd/xfIzZ5Xnp1HrJWBczg8mMfMpN78OJ5eDxXyf+Ygld9wX1DnUWbIbhM1YDY95NjR4CBXkb2g==}
     engines: {node: '>= 10.14.2'}
     dependencies:
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       graceful-fs: 4.2.6
     dev: true
 
@@ -4581,7 +4684,7 @@ packages:
     engines: {node: '>= 10.14.2'}
     dependencies:
       '@jest/types': 26.6.2
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       chalk: 4.1.1
       graceful-fs: 4.2.6
       is-ci: 2.0.0
@@ -4606,7 +4709,7 @@ packages:
     dependencies:
       '@jest/test-result': 26.6.2
       '@jest/types': 26.6.2
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       ansi-escapes: 4.3.2
       chalk: 4.1.1
       jest-util: 26.6.2
@@ -4617,7 +4720,7 @@ packages:
     resolution: {integrity: sha512-KWYVV1c4i+jbMpaBC+U++4Va0cp8OisU185o73T1vo99hqi7w8tSJfUXYswwqqrjzwxa6KpRK54WhPvwf5w6PQ==}
     engines: {node: '>= 10.13.0'}
     dependencies:
-      '@types/node': 16.0.1
+      '@types/node': 16.3.0
       merge-stream: 2.0.0
       supports-color: 7.2.0
     dev: true
@@ -4811,18 +4914,18 @@ packages:
     resolution: {integrity: sha1-HADHQ7QzzQpOgHWPe2SldEDZ/wA=}
     dev: true
 
-  /lint-staged/10.5.4:
-    resolution: {integrity: sha512-EechC3DdFic/TdOPgj/RB3FicqE6932LTHCUm0Y2fsD9KGlLB+RwJl2q1IYBIvEsKzDOgn0D4gll+YxG5RsrKg==}
+  /lint-staged/11.0.0:
+    resolution: {integrity: sha512-3rsRIoyaE8IphSUtO1RVTFl1e0SLBtxxUOPBtHxQgBHS5/i6nqvjcUfNioMa4BU9yGnPzbO+xkfLtXtxBpCzjw==}
     hasBin: true
     dependencies:
       chalk: 4.1.1
       cli-truncate: 2.1.0
-      commander: 6.2.1
+      commander: 7.2.0
       cosmiconfig: 7.0.0
       debug: 4.3.2
       dedent: 0.7.0
       enquirer: 2.3.6
-      execa: 4.1.0
+      execa: 5.1.1
       listr2: 3.10.0_enquirer@2.3.6
       log-symbols: 4.1.0
       micromatch: 4.0.4
@@ -5044,6 +5147,12 @@ packages:
 
   /ms/2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
+    dev: false
+
+  /nanoid/3.1.23:
+    resolution: {integrity: sha512-FiB0kzdP0FFVGDKlRLEQ1BgDzU87dy5NnzjeW9YZNt+/c3+q82EQDUwniSAUxp/F0gFNI1ZhKU1FqYsMuqZVnw==}
+    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+    hasBin: true
     dev: false
 
   /nanomatch/1.2.13:

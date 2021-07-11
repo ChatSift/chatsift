@@ -1,11 +1,13 @@
 import { injectable, inject } from 'tsyringe';
-import { Command, UserPerms } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '../../util';
-import { CaseCommand } from '../../interactions/mod/case';
+import { Command } from '../../command';
+import { ArgumentsOf } from '#util';
+import { UserPerms, ControlFlowError, send } from '@automoderator/interaction-util';
+import { CaseCommand } from '#interactions';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { Case, GuildSettings, makeCaseEmbed } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
-import { APIGuildInteraction, APIUser, Routes } from 'discord-api-types/v8';
+import { APIGuildInteraction, APIUser, ButtonStyle, ComponentType, Routes } from 'discord-api-types/v8';
+import { nanoid } from 'nanoid';
 import type { Sql } from 'postgres';
 
 @injectable()
@@ -51,6 +53,32 @@ export default class implements Command {
       return send(interaction, { embed });
     }
 
-    return send(interaction, { embed });
+    const id = nanoid();
+
+    return send(interaction, {
+      content: 'Are you sure you want to delete this case?',
+      embed,
+      // @ts-expect-error
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              label: 'Confirm',
+              style: ButtonStyle.Success,
+              custom_id: `confirm-case-delete|${id}|${cs.id}|y`
+            },
+            {
+              type: ComponentType.Button,
+              label: 'Cancel',
+              style: ButtonStyle.Secondary,
+              custom_id: `confirm-case-delete|${id}|${cs.id}|n`
+            }
+          ]
+        }
+      ],
+      flags: 64
+    });
   }
 }

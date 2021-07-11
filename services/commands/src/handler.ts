@@ -4,15 +4,16 @@ import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
 import { join as joinPath } from 'path';
-import { checkPerm, Command, commandInfo, UserPerms } from './command';
-import { ControlFlowError, send, transformInteraction } from '#util';
+import { Command, commandInfo } from './command';
+import { transformInteraction } from '#util';
+import { ControlFlowError, send, PermissionsChecker, UserPerms } from '@automoderator/interaction-util';
 import {
   Routes,
   RESTPutAPIApplicationCommandsJSONBody,
-  RESTPostAPIApplicationCommandsJSONBody,
   APIGuildInteraction,
   APIApplicationCommandInteractionData
 } from 'discord-api-types/v8';
+import * as interactions from '#interactions';
 import type { DiscordInteractions } from '@automoderator/core';
 import type { Logger } from 'pino';
 
@@ -23,6 +24,7 @@ export class Handler {
   public constructor(
     @inject(kConfig) public readonly config: Config,
     @inject(kLogger) public readonly logger: Logger,
+    public readonly checker: PermissionsChecker,
     public readonly rest: Rest
   ) {}
 
@@ -36,7 +38,7 @@ export class Handler {
     }
 
     try {
-      if (command.userPermissions && !await checkPerm(interaction, command.userPermissions)) {
+      if (command.userPermissions && !await this.checker.check(interaction, command.userPermissions)) {
         throw new ControlFlowError(
           `Missing permission to run this command! You must be at least \`${UserPerms[command.userPermissions]!}\``
         );
@@ -63,18 +65,11 @@ export class Handler {
   }
 
   public async registerInteractions(): Promise<void> {
-    const interactions = [];
-
-    for await (const file of readdirRecurse(joinPath(__dirname, 'interactions'), { fileExtension: 'js' })) {
-      const data = Object.values((await import(file)))[0] as RESTPostAPIApplicationCommandsJSONBody;
-      interactions.push(data);
-    }
-
     const commandsRoute = this.config.nodeEnv === 'prod'
       ? Routes.applicationCommands(this.config.discordClientId)
       : Routes.applicationGuildCommands(this.config.discordClientId, this.config.interactionsTestGuildId);
 
-    await this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(commandsRoute, { data: interactions });
+    await this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(commandsRoute, { data: Object.values(interactions as any) });
   }
 
   public async loadCommands(): Promise<void> {
@@ -102,7 +97,7 @@ export class Handler {
     const logs = new PubSubServer(channel);
     const interactions = new RoutingClient<keyof DiscordInteractions, DiscordInteractions>(channel);
 
-    interactions.on('command', interaction => void this._handleInteraction(interaction as APIGuildInteraction));
+    interactions.on('command', interaction => void this._handleInteraction(interaction));
 
     await interactions.init({ name: 'interactions', topicBased: false, keys: ['command'] });
     await logs.init({ name: 'guild_logs', fanout: false });

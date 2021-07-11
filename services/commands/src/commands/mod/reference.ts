@@ -1,7 +1,8 @@
 import { injectable } from 'tsyringe';
-import { Command, UserPerms } from '../../command';
-import { ArgumentsOf, send } from '../../util';
-import { ReferenceCommand } from '../../interactions/mod/reference';
+import { Command } from '../../command';
+import { ArgumentsOf } from '#util';
+import { UserPerms, send } from '@automoderator/interaction-util';
+import { ReferenceCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { PubSubServer } from '@cordis/brokers';

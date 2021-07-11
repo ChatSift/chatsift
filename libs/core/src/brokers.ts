@@ -1,8 +1,7 @@
 import type {
   GatewayDispatchEvents,
   GatewayDispatchPayload,
-  APIApplicationCommandInteraction,
-  APIMessageComponentInteraction
+  APIGuildInteraction
 } from 'discord-api-types/v8';
 import { HttpCase } from './api';
 import type { CaseAction, StrikePunishmentAction } from './models';
@@ -18,8 +17,8 @@ export type DiscordEvents = {
 };
 
 export interface DiscordInteractions {
-  command: APIApplicationCommandInteraction;
-  component: APIMessageComponentInteraction;
+  command: APIGuildInteraction;
+  component: APIGuildInteraction;
 }
 
 export enum LogTypes {

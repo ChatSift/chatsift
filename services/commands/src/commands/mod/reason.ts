@@ -1,7 +1,8 @@
 import { injectable } from 'tsyringe';
-import { Command, UserPerms } from '../../command';
-import { ArgumentsOf, send } from '../../util';
-import { ReasonCommand } from '../../interactions/mod/reason';
+import { Command } from '../../command';
+import { ArgumentsOf } from '#util';
+import { UserPerms, send } from '@automoderator/interaction-util';
+import { ReasonCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesResult, Log, LogTypes } from '@automoderator/core';
