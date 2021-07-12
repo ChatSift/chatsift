@@ -25,7 +25,7 @@ export default class implements Command {
       content: stripIndents`
         **Here are your current settings:**
         • mod role: ${atRole(settings?.mod_role)}
-        • mute queue: ${atRole(settings?.mute_role)}
+        • mute role: ${atRole(settings?.mute_role)}
       `,
       allowed_mentions: { parse: [] }
     });

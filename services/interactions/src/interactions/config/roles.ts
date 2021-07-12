@@ -55,6 +55,12 @@ export const RolesCommand = {
           required: true
         }
       ]
+    },
+    {
+      name: 'list',
+      description: 'Lists all of the currently self assignable roles',
+      type: ApplicationCommandOptionType.SubCommand,
+      options: []
     }
   ]
 } as const;
