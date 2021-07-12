@@ -102,33 +102,6 @@ importers:
       '@types/node': 14.17.5
       typescript: 4.3.5
 
-  libs/interaction-util:
-    specifiers:
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/discord-permissions': workspace:^0.1.0
-      '@automoderator/injection': workspace:^0.1.0
-      '@cordis/rest': ^0.3.0
-      '@cordis/util': ^0.3.0
-      '@types/node': ^14.17.5
-      discord-api-types: ^0.19.0-next.4a83629.1625792364
-      postgres: ^2.0.0-beta.6
-      tslib: ^2.3.0
-      tsyringe: ^4.6.0
-      typescript: ^4.3.5
-    dependencies:
-      '@automoderator/discord-permissions': link:../discord-permissions
-      '@automoderator/injection': link:../injection
-      '@cordis/rest': 0.3.0
-      '@cordis/util': 0.3.0
-      discord-api-types: 0.19.0-next.4a83629.1625792364
-      tslib: 2.3.0
-      tsyringe: 4.6.0
-    devDependencies:
-      '@automoderator/core': link:../core
-      '@types/node': 14.17.5
-      postgres: 2.0.0-beta.6
-      typescript: 4.3.5
-
   libs/logger:
     specifiers:
       '@automoderator/injection': workspace:^0.1.0
@@ -346,102 +319,6 @@ importers:
       '@types/pino': 6.3.9
       typescript: 4.3.5
 
-  services/commands:
-    specifiers:
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/discord-permissions': workspace:^0.1.0
-      '@automoderator/http-client': workspace:^0.1.0
-      '@automoderator/injection': workspace:^0.1.0
-      '@automoderator/interaction-util': workspace:^0.1.0
-      '@automoderator/logger': workspace:^0.1.0
-      '@cordis/brokers': ^0.3.0
-      '@cordis/rest': ^0.3.0
-      '@cordis/util': ^0.3.0
-      '@gaius-bot/readdir': ^1.0.0
-      '@types/amqplib': ^0.8.1
-      '@types/node': ^14.17.5
-      '@types/pino': ^6.3.9
-      discord-api-types: ^0.19.0-next.4a83629.1625792364
-      nanoid: ^3.1.23
-      pino-elasticsearch: ^6.1.0
-      pino-pretty: ^5.1.1
-      postgres: 2.0.0-beta.4
-      reflect-metadata: ^0.1.13
-      tslib: ^2.3.0
-      tsyringe: ^4.6.0
-      typescript: ^4.3.5
-    dependencies:
-      '@automoderator/core': link:../../libs/core
-      '@automoderator/discord-permissions': link:../../libs/discord-permissions
-      '@automoderator/http-client': link:../../libs/http-client
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/interaction-util': link:../../libs/interaction-util
-      '@automoderator/logger': link:../../libs/logger
-      '@cordis/brokers': 0.3.0
-      '@cordis/rest': 0.3.0
-      '@cordis/util': 0.3.0
-      '@gaius-bot/readdir': 1.0.0
-      discord-api-types: 0.19.0-next.4a83629.1625792364
-      nanoid: 3.1.23
-      pino-elasticsearch: 6.1.0
-      pino-pretty: 5.1.1
-      postgres: 2.0.0-beta.4
-      reflect-metadata: 0.1.13
-      tslib: 2.3.0
-      tsyringe: 4.6.0
-    devDependencies:
-      '@types/amqplib': 0.8.1
-      '@types/node': 14.17.5
-      '@types/pino': 6.3.9
-      typescript: 4.3.5
-
-  services/components:
-    specifiers:
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/http-client': workspace:^0.1.0
-      '@automoderator/injection': workspace:^0.1.0
-      '@automoderator/interaction-util': workspace:^0.1.0
-      '@automoderator/logger': workspace:^0.1.0
-      '@cordis/brokers': ^0.3.0
-      '@cordis/rest': ^0.3.0
-      '@cordis/util': ^0.3.0
-      '@gaius-bot/readdir': ^1.0.0
-      '@types/amqplib': ^0.8.1
-      '@types/node': ^14.17.5
-      '@types/pino': ^6.3.9
-      discord-api-types: ^0.19.0-next.4a83629.1625792364
-      nanoid: ^3.1.23
-      pino-elasticsearch: ^6.1.0
-      pino-pretty: ^5.1.1
-      postgres: 2.0.0-beta.4
-      reflect-metadata: ^0.1.13
-      tslib: ^2.3.0
-      tsyringe: ^4.6.0
-      typescript: ^4.3.5
-    dependencies:
-      '@automoderator/core': link:../../libs/core
-      '@automoderator/http-client': link:../../libs/http-client
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/interaction-util': link:../../libs/interaction-util
-      '@automoderator/logger': link:../../libs/logger
-      '@cordis/brokers': 0.3.0
-      '@cordis/rest': 0.3.0
-      '@cordis/util': 0.3.0
-      '@gaius-bot/readdir': 1.0.0
-      discord-api-types: 0.19.0-next.4a83629.1625792364
-      nanoid: 3.1.23
-      pino-elasticsearch: 6.1.0
-      pino-pretty: 5.1.1
-      postgres: 2.0.0-beta.4
-      reflect-metadata: 0.1.13
-      tslib: 2.3.0
-      tsyringe: 4.6.0
-    devDependencies:
-      '@types/amqplib': 0.8.1
-      '@types/node': 14.17.5
-      '@types/pino': 6.3.9
-      typescript: 4.3.5
-
   services/cron-runner:
     specifiers:
       '@automoderator/core': workspace:^0.1.0
@@ -482,18 +359,23 @@ importers:
   services/interactions:
     specifiers:
       '@automoderator/core': workspace:^0.1.0
+      '@automoderator/discord-permissions': workspace:^0.1.0
+      '@automoderator/http-client': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/rest': workspace:^0.1.0
       '@cordis/brokers': ^0.3.0
+      '@cordis/rest': ^0.3.0
       '@gaius-bot/readdir': ^1.0.0
       '@hapi/boom': ^9.1.3
       '@types/node': ^14.17.5
       '@types/pino': ^6.3.9
       discord-api-types: ^0.19.0-next.4a83629.1625792364
+      nanoid: ^3.1.23
       pino-elasticsearch: ^5.4.0
       pino-pretty: ^4.8.0
       polka: ^1.0.0-next.15
+      postgres: ^2.0.0-beta.6
       reflect-metadata: ^0.1.13
       tslib: ^2.3.0
       tsyringe: ^4.6.0
@@ -501,15 +383,20 @@ importers:
       typescript: ^4.3.5
     dependencies:
       '@automoderator/core': link:../../libs/core
+      '@automoderator/discord-permissions': link:../../libs/discord-permissions
+      '@automoderator/http-client': link:../../libs/http-client
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@automoderator/rest': link:../../libs/rest
       '@cordis/brokers': 0.3.0
+      '@cordis/rest': 0.3.0
       '@gaius-bot/readdir': 1.0.0
       '@hapi/boom': 9.1.3
       discord-api-types: 0.19.0-next.4a83629.1625792364
+      nanoid: 3.1.23
       pino-elasticsearch: 5.4.0
       pino-pretty: 4.8.0
+      postgres: 2.0.0-beta.6
       reflect-metadata: 0.1.13
       tslib: 2.3.0
       tsyringe: 4.6.0
