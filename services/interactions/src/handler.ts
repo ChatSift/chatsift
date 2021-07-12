@@ -4,7 +4,7 @@ import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
 import { join as joinPath } from 'path';
 import { Command, commandInfo } from './command';
-import { transformInteraction, ControlFlowError, send, PermissionsChecker, UserPerms } from '#util';
+import { transformInteraction, ControlFlowError, send, PermissionsChecker, UserPerms, Interaction } from '#util';
 import {
   Routes,
   RESTPutAPIApplicationCommandsJSONBody,
@@ -14,7 +14,6 @@ import {
 import * as interactions from '#interactions';
 import { Component, componentInfo } from './component';
 import type { Logger } from 'pino';
-import { Interaction } from './util/Interaction';
 
 @singleton()
 export class Handler {
