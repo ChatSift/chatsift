@@ -3,7 +3,11 @@
   "compilerOptions": {
     "outDir": "./dist",
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "paths": {
+      "#interactions": ["./src/interactions/index.ts"],
+      "#util": ["./src/util/index.ts"]
+    }
   },
   "include": ["./src/**/*.ts"]
 }

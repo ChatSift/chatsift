@@ -3,14 +3,13 @@ import { Route, jsonParser } from '@automoderator/rest';
 import { unauthorized } from '@hapi/boom';
 import * as nacl from 'tweetnacl';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { RoutingServer } from '@cordis/brokers';
 import {
-  APIInteraction,
   InteractionType,
   InteractionResponseType,
   APIGuildInteraction
 } from 'discord-api-types/v8';
-import type { DiscordInteractions } from '@automoderator/core';
+import { Handler } from '../../../../../handler';
+import { Interaction } from '#util';
 import type { Request, Response, NextHandler } from 'polka';
 import type { Logger } from 'pino';
 
@@ -23,7 +22,7 @@ export default class PostDiscordWebhookRoute extends Route {
   public constructor(
     @inject(kConfig) public readonly config: Config,
     @inject(kLogger) public readonly logger: Logger,
-    public readonly interactions: RoutingServer<keyof DiscordInteractions, DiscordInteractions>
+    public readonly handler: Handler
   ) {
     super();
   }
@@ -46,7 +45,7 @@ export default class PostDiscordWebhookRoute extends Route {
       return next(unauthorized('failed to validate request'));
     }
 
-    const interaction = req.body as APIInteraction;
+    const interaction: Interaction = { res, ...req.body as APIGuildInteraction };
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
@@ -55,20 +54,18 @@ export default class PostDiscordWebhookRoute extends Route {
       return res.end(JSON.stringify({ type: InteractionResponseType.Pong }));
     }
 
-    res.end(JSON.stringify({ type: InteractionResponseType.DeferredChannelMessageWithSource }));
-
     // TODO: Check on discord-api-types
     switch (interaction.type) {
       case InteractionType.ApplicationCommand: {
-        return this.interactions.publish('command', interaction as APIGuildInteraction);
+        return this.handler.handleCommand(interaction);
       }
 
       case InteractionType.MessageComponent: {
-        return this.interactions.publish('component', interaction as APIGuildInteraction);
+        return this.handler.handleComponent(interaction);
       }
 
       default: {
-        return this.logger.warn({ topic: 'INTERACTIONS WEBHOOK', interaction }, 'Recieved unrecognized interaction type');
+        return this.logger.warn({ interaction }, 'Recieved unrecognized interaction type');
       }
     }
   }

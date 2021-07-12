@@ -24,18 +24,6 @@ services:
       API_DOMAIN: "http://api:3001"
     command: "sh -c \"node services/automod/dist/index.js | ./services/automod/node_modules/.bin/pino-pretty -c -l -t\""
 
-  commands:
-    environment:
-      NODE_ENV: "dev"
-      API_DOMAIN: "http://api:3001"
-    command: "sh -c \"node services/commands/dist/index.js | ./services/commands/node_modules/.bin/pino-pretty -c -l -t\""
-
-  components:
-    environment:
-      NODE_ENV: "dev"
-      API_DOMAIN: "http://api:3001"
-    command: "sh -c \"node services/components/dist/index.js | ./services/components/node_modules/.bin/pino-pretty -c -l -t\""
-
   cron-runner:
     environment:
       NODE_ENV: "dev"
