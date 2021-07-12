@@ -13,6 +13,12 @@ export interface GuildSettings {
   use_url_filters: UseFilterMode;
   use_file_filters: UseFilterMode;
   mod_action_log_channel: Snowflake | null;
+  assignable_roles_prompt: string | null;
+}
+
+export interface SelfAssignableRole {
+  role_id: Snowflake;
+  guild_id: Snowflake;
 }
 
 export enum StrikePunishmentAction {

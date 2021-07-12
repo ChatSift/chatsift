@@ -16,7 +16,13 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   mute_role bigint,
   use_url_filters int NOT NULL DEFAULT 0,
   use_file_filters int NOT NULL DEFAULT 0,
-  mod_action_log_channel bigint
+  mod_action_log_channel bigint,
+  assignable_roles_prompt text
+);
+
+CREATE TABLE IF NOT EXISTS self_assignable_roles (
+  role_id bigint PRIMARY KEY,
+  guild_id bigint NOT NULL REFERENCES guild_settings ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS strike_punishments (
