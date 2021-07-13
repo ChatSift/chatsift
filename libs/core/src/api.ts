@@ -106,11 +106,12 @@ interface UpdateCaseBaseData {
   reason?: string;
   ref_id?: number;
   processed?: boolean;
+  pardoned_by?: Snowflake;
 }
 
 export type CaseUpdateData = (
   | UpdateCaseBaseData
-  | (UpdateCaseBaseData & { mod_id: string; mod_tag: string })
+  | (UpdateCaseBaseData & { mod_id: Snowflake; mod_tag: string })
 );
 
 export type ApiPatchGuildsCasesBody = CaseUpdateData[];

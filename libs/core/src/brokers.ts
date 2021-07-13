@@ -4,7 +4,7 @@ import type {
   APIGuildInteraction
 } from 'discord-api-types/v8';
 import { HttpCase } from './api';
-import type { CaseAction, StrikePunishmentAction } from './models';
+import type { CaseAction, WarnPunishmentAction } from './models';
 
 type SanitizedDiscordEvents = {
   [K in GatewayDispatchEvents]: GatewayDispatchPayload & {
@@ -30,24 +30,24 @@ export interface LogBase<T extends LogTypes, D extends Record<string, any>> {
   data: D;
 }
 
-interface StrikeCaseExtrasNoDuration {
-  triggered: StrikePunishmentAction.kick;
+interface WarnCaseExtrasNoDuration {
+  triggered: WarnPunishmentAction.kick;
 }
 
-interface StrikeCaseExtrasWithDuration {
-  triggered: StrikePunishmentAction.mute | StrikePunishmentAction.ban;
+interface WarnCaseExtrasWithDuration {
+  triggered: WarnPunishmentAction.mute | WarnPunishmentAction.ban;
   duration?: number;
   extendedBy?: number;
 }
 
-export type StrikeCaseExtras = StrikeCaseExtrasNoDuration | StrikeCaseExtrasWithDuration;
+export type WawrnCaseExtras = WarnCaseExtrasNoDuration | WarnCaseExtrasWithDuration;
 
-export type NonStrikeCase = Omit<HttpCase, 'action_type'> & { action_type: Exclude<CaseAction, CaseAction.strike> };
-export type StrikeCase = Omit<HttpCase, 'action_type'> & {
-  action_type: CaseAction.strike;
-  extra?: StrikeCaseExtras;
+export type NonWarnCase = Omit<HttpCase, 'action_type'> & { action_type: Exclude<CaseAction, CaseAction.warn> };
+export type WarnCase = Omit<HttpCase, 'action_type'> & {
+  action_type: CaseAction.warn;
+  extra?: WawrnCaseExtras;
 };
 
-export type ModActionLog = LogBase<LogTypes.modAction, NonStrikeCase | StrikeCase>;
+export type ModActionLog = LogBase<LogTypes.modAction, NonWarnCase | WarnCase>;
 
 export type Log = ModActionLog;

@@ -15,6 +15,12 @@ export const ConfigCommand = {
       description: 'Role used to silence people when they are muted',
       type: ApplicationCommandOptionType.Role,
       required: false
+    },
+    {
+      name: 'pardonwarnsafter',
+      description: 'How many days to take before automatically pardoning warnings',
+      type: ApplicationCommandOptionType.Integer,
+      required: false
     }
   ]
 } as const;
