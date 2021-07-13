@@ -34,11 +34,12 @@ interface BaseWarnPunishment {
 
 interface WarnPunishmentWithNoDuration extends BaseWarnPunishment {
   action_type: WarnPunishmentAction.kick;
+  duration: null;
 }
 
 interface WarnPunishmentWithDuration extends BaseWarnPunishment {
   action_type: Exclude<WarnPunishmentAction, WarnPunishmentAction.kick>;
-  duration?: number;
+  duration: number | null;
 }
 
 export type WarnPunishment = WarnPunishmentWithNoDuration | WarnPunishmentWithDuration;
