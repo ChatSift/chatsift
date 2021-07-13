@@ -118,6 +118,7 @@ export default class PostGuildsCasesRoute extends Route {
             reason: data.reason ?? null,
             expires_at: 'expires_at' in data ? (data.expires_at ?? null) : null,
             processed: !('expires_at' in data),
+            pardoned_by: null,
             created_at: data.created_at ?? new Date()
           };
 

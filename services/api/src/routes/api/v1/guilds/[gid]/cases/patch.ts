@@ -25,7 +25,8 @@ export default class PostGuildsCasesRoute extends Route {
               expires_at: Joi.date().allow(null),
               reason: Joi.string(),
               ref_id: Joi.number(),
-              processed: Joi.boolean()
+              processed: Joi.boolean(),
+              pardoned_by: Joi.string().pattern(/\d{17,20}/)
             })
             .and('mod_id', 'mod_tag')
         )
@@ -60,6 +61,11 @@ export default class PostGuildsCasesRoute extends Route {
         // eslint-disable-next-line no-eq-null
         if ((data.expires_at || data.processed != null) && ![CaseAction.mute, CaseAction.ban].includes(cs.action_type)) {
           await next(badRequest('expires_at and processed cannot only be mutated for mutes and bans'));
+          return Promise.reject();
+        }
+
+        if (data.pardoned_by && cs.action_type !== CaseAction.warn) {
+          await next(badRequest('trying to update pardoned_by on non-warn case'));
           return Promise.reject();
         }
 

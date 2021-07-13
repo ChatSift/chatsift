@@ -3,6 +3,7 @@ export * from './case';
 export * from './duration';
 export * from './kick';
 export * from './mute';
+export * from './pardon';
 export * from './reason';
 export * from './reference';
 export * from './softban';
