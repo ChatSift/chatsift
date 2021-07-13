@@ -10,6 +10,7 @@ export interface GuildSettings {
   guild_id: Snowflake;
   mod_role: Snowflake | null;
   mute_role: Snowflake | null;
+  auto_pardon_mutes_after: number | null;
   use_url_filters: UseFilterMode;
   use_file_filters: UseFilterMode;
   mod_action_log_channel: Snowflake | null;

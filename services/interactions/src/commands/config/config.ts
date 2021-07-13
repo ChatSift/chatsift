@@ -26,6 +26,7 @@ export default class implements Command {
         **Here are your current settings:**
         • mod role: ${atRole(settings?.mod_role)}
         • mute role: ${atRole(settings?.mute_role)}
+        • automatically pardon warnings after: ${settings?.auto_pardon_mutes_after ? `${settings.auto_pardon_mutes_after} days` : 'never'}
       `,
       allowed_mentions: { parse: [] }
     });
@@ -34,17 +35,19 @@ export default class implements Command {
   public parse(args: ArgumentsOf<typeof ConfigCommand>) {
     return {
       modrole: args.modrole,
-      muterole: args.muterole
+      muterole: args.muterole,
+      pardon: args.pardonwarnsafter
     };
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigCommand>) {
-    const { modrole, muterole } = this.parse(args);
+    const { modrole, muterole, pardon } = this.parse(args);
 
     let settings: Partial<GuildSettings> = { guild_id: interaction.guild_id };
 
     if (modrole) settings.mod_role = modrole.id;
     if (muterole) settings.mute_role = muterole.id;
+    if (pardon) settings.auto_pardon_mutes_after = pardon;
 
     if (!Object.values(settings).length) {
       const [currentSettings] = await this.sql<[GuildSettings?]>`SELECT * FROM settings WHERE guild_id = ${interaction.guild_id}`;

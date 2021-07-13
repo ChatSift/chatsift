@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   guild_id bigint PRIMARY KEY,
   mod_role bigint,
   mute_role bigint,
+  auto_pardon_mutes_after int,
   use_url_filters int NOT NULL DEFAULT 0,
   use_file_filters int NOT NULL DEFAULT 0,
   mod_action_log_channel bigint,
@@ -29,7 +30,8 @@ CREATE TABLE IF NOT EXISTS warn_punishments (
   guild_id bigint NOT NULL REFERENCES guild_settings ON DELETE CASCADE,
   warns int NOT NULL,
   action_type int NOT NULL,
-  duration int
+  duration int,
+  PRIMARY KEY (guild_id, warns)
 );
 
 CREATE TABLE IF NOT EXISTS cases (

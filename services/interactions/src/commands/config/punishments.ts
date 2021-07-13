@@ -35,20 +35,14 @@ export default class implements Command {
           data.duration = args.add.duration;
         }
 
-        await this.sql.begin(async sql => {
-          const [existing] = await this.sql<[WarnPunishment?]>`
-            SELECT * FROM warn_punishments
-            WHERE guild_id = ${data.guild_id}
-              AND warns = ${data.warns}
-          `;
+        await this.sql`
+          INSERT INTO warn_punishments ${this.sql(data)}
+          ON CONFLICT (guild_id, warns)
+          DO UPDATE SET ${this.sql(data)}
+        `;
 
-          if (existing) {
-            await sql`UPDATE warn_punishments ${sql(data)}`;
-            return send(interaction, { content: `Successfully updated the punishment triggered at ${data.warns} warns` });
-          }
-
-          await sql`INSERT INTO warn_punishments ${sql(data)}`;
-          return send(interaction, { content: `Successfully created a new punishment triggered at ${data.warns} warns` });
+        return send(interaction, {
+          content: `A punishment will now trigger at ${data.warns}, triggering a ${WarnPunishmentAction[data.action_type]}`
         });
       }
 

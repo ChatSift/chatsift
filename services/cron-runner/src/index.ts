@@ -88,3 +88,36 @@ setInterval(
     .catch(error => logger.error({ error }, 'Failed to clean up cases')),
   6e4
 );
+
+const autoPardonWarns = async () => {
+  const settings = await sql<Pick<GuildSettings, 'guild_id' | 'auto_pardon_mutes_after'>[]>`
+    SELECT guild_id, auto_pardon_mutes_after FROM guild_settings
+  `;
+
+  const promises = settings.map(({ guild_id, auto_pardon_mutes_after }) => {
+    if (!auto_pardon_mutes_after) {
+      return Promise.resolve();
+    }
+
+    return sql`
+      UPDATE cases SET pardoned_by = ${config.discordClientId}
+      WHERE guild_id = ${guild_id}
+        AND pardoned_by IS NULL
+        AND EXTRACT (days FROM NOW() - created_at) >= ${auto_pardon_mutes_after}
+    `;
+  });
+
+  for (const promise of await Promise.allSettled(promises)) {
+    if (promise.status === 'rejected') {
+      logger.error({ error: promise.reason }, 'Failed to clean up warnings for a particular guild');
+    }
+  }
+};
+
+// Every 1 hour, check for warn auto pardons
+setInterval(
+  () => void autoPardonWarns()
+    .then(() => logger.info('Successfully pardoned warns'))
+    .catch(error => logger.error({ error }, 'Failed to pardon warnings')),
+  36e5
+);

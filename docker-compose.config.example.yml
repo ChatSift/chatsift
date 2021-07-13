@@ -20,6 +20,7 @@ services:
 
   cron-runner:
     environment:
+      DISCORD_CLIENT_ID: "123"
       DISCORD_TOKEN: "awooga"
 
   interactions:
