@@ -11,8 +11,8 @@ import {
   Case,
   addFields,
   ms,
-  StrikeCase,
-  StrikePunishmentAction,
+  WarnCase,
+  WarnPunishmentAction,
   makeCaseEmbed
 } from '@automoderator/core';
 import {
@@ -35,7 +35,7 @@ export class Handler {
     public readonly rest: Rest
   ) {}
 
-  private _populateEmbedWithStrikeTrigger(embed: APIEmbed, cs: StrikeCase): APIEmbed {
+  private _populateEmbedWithWarnPunishment(embed: APIEmbed, cs: WarnCase): APIEmbed {
     if (!cs.extra) {
       return embed;
     }
@@ -43,14 +43,14 @@ export class Handler {
     let value: string | undefined;
 
     switch (cs.extra.triggered) {
-      case StrikePunishmentAction.kick: {
+      case WarnPunishmentAction.kick: {
         value = 'Kick';
         break;
       }
 
-      case StrikePunishmentAction.mute:
-      case StrikePunishmentAction.ban: {
-        const action = cs.extra.triggered === StrikePunishmentAction.mute ? 'Mute' : 'Ban';
+      case WarnPunishmentAction.mute:
+      case WarnPunishmentAction.ban: {
+        const action = cs.extra.triggered === WarnPunishmentAction.mute ? 'Mute' : 'Ban';
 
         if (!cs.extra.duration) {
           value = `Permanent ${action.toLowerCase()}`;
@@ -65,7 +65,7 @@ export class Handler {
       }
 
       default: {
-        this.logger.warn({ cs }, 'Recieved unrecognized strike case trigger');
+        this.logger.warn({ cs }, 'Recieved unrecognized warn case trigger');
         return embed;
       }
     }
@@ -104,6 +104,13 @@ export class Handler {
       messageId ? this.rest.get<APIMessage>(Routes.channelMessage(channelId, messageId)).catch(() => null) : Promise.resolve(null)
     ]);
 
+    let pardonedBy: APIUser | undefined;
+    if (log.data.pardoned_by) {
+      pardonedBy = log.data.pardoned_by === mod?.id
+        ? mod
+        : await this.rest.get(Routes.user(log.data.target_id));
+    }
+
     let refCs: Case | undefined;
     if (log.data.ref_id) {
       refCs = await this
@@ -111,9 +118,9 @@ export class Handler {
         .then(rows => rows[0]);
     }
 
-    let embed = makeCaseEmbed({ logChannelId: channelId, cs: log.data, target, mod, message, refCs });
-    if (log.data.action_type === CaseAction.strike) {
-      embed = this._populateEmbedWithStrikeTrigger(embed, log.data);
+    let embed = makeCaseEmbed({ logChannelId: channelId, cs: log.data, target, mod, pardonedBy, message, refCs });
+    if (log.data.action_type === CaseAction.warn) {
+      embed = this._populateEmbedWithWarnPunishment(embed, log.data);
     }
 
     if (message) {

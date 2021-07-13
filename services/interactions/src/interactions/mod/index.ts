@@ -6,7 +6,6 @@ export * from './mute';
 export * from './reason';
 export * from './reference';
 export * from './softban';
-export * from './strike';
 export * from './unban';
 export * from './unmute';
 export * from './warn';

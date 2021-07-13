@@ -1,4 +1,4 @@
-import { NonStrikeCase, StrikeCase } from './brokers';
+import { NonWarnCase, WarnCase } from './brokers';
 import { RouteBases, APIEmbed, APIUser, APIMessage, Snowflake } from 'discord-api-types/v8';
 import { makeDiscordCdnUrl } from '@cordis/util';
 import { Case, CaseAction } from './models';
@@ -7,7 +7,6 @@ import ms from './ms';
 
 export const LOG_COLORS = Object.freeze({
   [CaseAction.warn]: 15309853,
-  [CaseAction.strike]: 15309853,
   [CaseAction.mute]: 2895667,
   [CaseAction.unmute]: 5793266,
   [CaseAction.kick]: 15418782,
@@ -18,7 +17,6 @@ export const LOG_COLORS = Object.freeze({
 
 export const ACTIONS = Object.freeze({
   [CaseAction.warn]: 'warned',
-  [CaseAction.strike]: 'striked',
   [CaseAction.mute]: 'muted',
   [CaseAction.unmute]: 'unmuted',
   [CaseAction.kick]: 'kicked',
@@ -29,14 +27,15 @@ export const ACTIONS = Object.freeze({
 
 export interface CaseEmbedOptions {
   logChannelId?: Snowflake | null;
-  cs: NonStrikeCase | StrikeCase | Case;
+  cs: NonWarnCase | WarnCase | Case;
   target: APIUser;
   mod?: APIUser | null;
+  pardonedBy?: APIUser | null;
   message?: APIMessage | null;
   refCs?: Case | null;
 }
 
-export const makeCaseEmbed = ({ logChannelId, cs, target, mod, message, refCs: ref }: CaseEmbedOptions): APIEmbed => {
+export const makeCaseEmbed = ({ logChannelId, cs, target, mod, pardonedBy, message, refCs: ref }: CaseEmbedOptions): APIEmbed => {
   let embed: APIEmbed = message?.embeds[0]
     ? message.embeds[0]
     : {
@@ -70,6 +69,16 @@ export const makeCaseEmbed = ({ logChannelId, cs, target, mod, message, refCs: r
         value: ref.log_message_id && logChannelId
           ? `[#${ref.case_id}](https://discord.com/channels/${cs.guild_id}/${logChannelId}/${ref.log_message_id})`
           : `#${ref.case_id}`
+      }
+    );
+  }
+
+  if (pardonedBy) {
+    embed = addFields(
+      embed,
+      {
+        name: 'Pardoned by',
+        value: `${pardonedBy.username}#${pardonedBy.discriminator}`
       }
     );
   }

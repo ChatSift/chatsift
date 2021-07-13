@@ -21,36 +21,30 @@ export interface SelfAssignableRole {
   guild_id: Snowflake;
 }
 
-export enum StrikePunishmentAction {
+export enum WarnPunishmentAction {
   mute,
   kick,
   ban
 }
 
-interface BaseStrikePunishment {
+interface BaseWarnPunishment {
   guild_id: Snowflake;
-  strikes: number;
+  warns: number;
 }
 
-interface StrikePunishmentWithNoDuration extends BaseStrikePunishment {
-  action_type: StrikePunishmentAction.kick;
+interface WarnPunishmentWithNoDuration extends BaseWarnPunishment {
+  action_type: WarnPunishmentAction.kick;
 }
 
-interface StrikePunishmentWithDuration extends BaseStrikePunishment {
-  action_type: Exclude<StrikePunishmentAction, StrikePunishmentAction.kick>;
+interface WarnPunishmentWithDuration extends BaseWarnPunishment {
+  action_type: Exclude<WarnPunishmentAction, WarnPunishmentAction.kick>;
   duration?: number;
 }
 
-export type StrikePunishment = StrikePunishmentWithNoDuration | StrikePunishmentWithDuration;
-
-export interface Strike {
-  guild_id: Snowflake;
-  user_id: Snowflake;
-}
+export type WarnPunishment = WarnPunishmentWithNoDuration | WarnPunishmentWithDuration;
 
 export enum CaseAction {
   warn,
-  strike,
   mute,
   unmute,
   kick,
@@ -73,6 +67,7 @@ export interface Case {
   reason: string | null;
   expires_at: Date | null;
   processed: boolean;
+  pardoned_by: Snowflake | null;
   created_at: Date;
 }
 
