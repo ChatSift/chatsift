@@ -7,7 +7,7 @@ import { APIGuildInteraction, Routes } from 'discord-api-types/v8';
 import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, Case, CaseAction, HttpCase, Log, LogTypes, WarnPunishment, WarnPunishmentAction } from '@automoderator/core';
 import { PubSubServer } from '@cordis/brokers';
 import { kSql } from '@automoderator/injection';
-import type { Rest as DiscordRest } from '@cordis/rest';
+import { Rest as DiscordRest } from '@cordis/rest';
 import type { Sql } from 'postgres';
 
 @injectable()
@@ -55,7 +55,7 @@ export default class implements Command {
       .sql`
         SELECT * FROM cases
         WHERE guild_id = ${interaction.guild_id}
-          AND user_id = ${member.user.id}
+          AND target_id = ${member.user.id}
           AND action_type = ${CaseAction.warn}
           AND pardoned_by IS NULL
       `

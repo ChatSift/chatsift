@@ -95,3 +95,83 @@ export const makeCaseEmbed = ({ logChannelId, cs, target, mod, pardonedBy, messa
 
   return embed;
 };
+
+export interface HistoryEmbedOptions {
+  user: APIUser;
+  cases: Case[];
+  showDetails: boolean;
+}
+
+// The severity color system - bans = 3pt; kicks/softbans = 0.5pts; mutes = 0.5pts; warnings = 0.25pts;
+//  >=3 points -> red
+//  >=2 points -> orange
+//  >0 points -> yellow
+//  =0 points -> green
+
+// TODO filter trigger counts
+export const makeHistoryEmbed = ({ user, cases, showDetails }: HistoryEmbedOptions): APIEmbed => {
+  let points = 0;
+  const counts = {
+    [CaseAction.ban]: 0,
+    [CaseAction.kick]: 0,
+    [CaseAction.mute]: 0,
+    [CaseAction.warn]: 0
+  };
+
+  const colors = [8450847, 13091073, 14917123, 15548997] as const;
+  const details: string[] = [];
+
+  for (const cs of cases) {
+    if (cs.action_type === CaseAction.ban) {
+      counts[CaseAction.ban]++;
+      points += 3;
+    } else if ([CaseAction.kick, CaseAction.softban].includes(cs.action_type)) {
+      counts[CaseAction.kick]++;
+      points += 2;
+    } else if (cs.action_type === CaseAction.mute) {
+      counts[CaseAction.mute]++;
+      points += 0.5;
+    } else if (cs.action_type === CaseAction.warn) {
+      counts[CaseAction.warn]++;
+      points += 0.25;
+    } else {
+      continue;
+    }
+
+    if (showDetails) {
+      const timestamp = Math.round(cs.created_at.getTime() / 1000);
+      details.push(`• <t:${timestamp}> \`${CaseAction[cs.action_type]!.toUpperCase()} #${cs.case_id}\` ${cs.reason}`);
+    }
+  }
+
+  const embed: APIEmbed = {
+    author: {
+      name: `${user.username}#${user.discriminator} (${user.id})`,
+      icon_url: user.avatar
+        ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${user.id}/${user.avatar}`)
+        : `${RouteBases.cdn}/embed/avatars/${parseInt(user.discriminator, 10) % 5}`
+    },
+    color: colors[Math.min(Math.floor(points), 4)]
+  };
+
+  const footer = Object
+    .entries(counts)
+    .reduce<string[]>((arr, [type, count]) => {
+    if (count > 0) {
+      arr.push(`${count} ${CaseAction[parseInt(type, 10)]}${count === 1 ? '' : 's'}`);
+    }
+
+    return arr;
+  }, [])
+    .join(' | ');
+
+  if (footer.length) {
+    embed.footer = { text: footer };
+  }
+
+  if (showDetails) {
+    embed.description = details.join('\n');
+  }
+
+  return embed;
+};

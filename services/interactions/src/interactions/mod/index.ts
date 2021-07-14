@@ -1,6 +1,7 @@
 export * from './ban';
 export * from './case';
 export * from './duration';
+export * from './history';
 export * from './kick';
 export * from './mute';
 export * from './pardon';
