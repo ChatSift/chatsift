@@ -28,6 +28,7 @@ services:
   interactions:
     environment:
       NODE_ENV: "prod"
+      API_DOMAIN: "https://api.automoderator.me"
     command: "sh -c \"node services/interactions/dist/index.js | ./services/interactions/node_modules/.bin/pino-elasticsearch\""
 
   logging:

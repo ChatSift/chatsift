@@ -32,6 +32,7 @@ services:
   interactions:
     environment:
       NODE_ENV: "dev"
+      API_DOMAIN: "http://api:3001"
     command: "sh -c \"node services/interactions/dist/index.js | ./services/interactions/node_modules/.bin/pino-pretty -c -l -t\""
     ports:
       # Expose to the world so Discord can hit the webhook
