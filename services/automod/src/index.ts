@@ -7,14 +7,12 @@ import { kLogger, kSql, initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { Gateway } from './gateway';
 import * as runners from './runners';
-import { Rest, kRest, buildRestRouter } from '@automoderator/http-client';
+import { Rest } from '@automoderator/http-client';
 import type { Logger } from 'pino';
 
 void (async () => {
   const config = initConfig();
-
-  container.register(kRest, { useValue: container.resolve(Rest) });
-  buildRestRouter();
+  container.register(Rest, { useClass: Rest });
 
   const discordRest = new DiscordRest(config.discordToken);
 
