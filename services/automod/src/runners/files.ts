@@ -1,5 +1,5 @@
 import { singleton, inject } from 'tsyringe';
-import { IRouter, kRestRouter } from '@automoderator/http-client';
+import { Rest } from '@automoderator/http-client';
 import fetch from 'node-fetch';
 import { kLogger } from '@automoderator/injection';
 import { createHash } from 'crypto';
@@ -9,7 +9,7 @@ import type { Logger } from 'pino';
 @singleton()
 export class FilesRunner {
   public constructor(
-    @inject(kRestRouter) public readonly router: IRouter,
+    public readonly rest: Rest,
     @inject(kLogger) public readonly logger: Logger
   ) {}
 
@@ -39,6 +39,6 @@ export class FilesRunner {
       hashes.push(hash);
     }
 
-    return this.router.files!.post<ApiPostFiltersFilesResult, ApiPostFiltersFilesBody>({ hashes });
+    return this.rest.post<ApiPostFiltersFilesResult, ApiPostFiltersFilesBody>('/api/v1/filters/files', { hashes });
   }
 }

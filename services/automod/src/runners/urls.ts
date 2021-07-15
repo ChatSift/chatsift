@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { singleton, inject } from 'tsyringe';
 import { join as joinPath } from 'path';
-import { IRouter, kRestRouter } from '@automoderator/http-client';
+import { Rest } from '@automoderator/http-client';
 import { kLogger } from '@automoderator/injection';
 import type { ApiPostFiltersUrlsResult, ApiPostFiltersGuildUrlBody } from '@automoderator/core';
 import type { Logger } from 'pino';
@@ -12,7 +12,7 @@ export class UrlsRunner {
   public readonly tlds: Set<string>;
 
   public constructor(
-    @inject(kRestRouter) public readonly router: IRouter,
+    public readonly rest: Rest,
     @inject(kLogger) public readonly logger: Logger
   ) {
     const contents = readFileSync(joinPath(__dirname, '..', '..', 'tlds.txt'), 'utf8');
@@ -40,7 +40,7 @@ export class UrlsRunner {
   }
 
   public run(urls: string[], guildId: string, guildOnly: boolean) {
-    return this.router.api!.v1!.guilds![guildId]!.filters!.urls!.post<ApiPostFiltersUrlsResult, ApiPostFiltersGuildUrlBody>({
+    return this.rest.post<ApiPostFiltersUrlsResult, ApiPostFiltersGuildUrlBody>(`/api/v1/guilds/${guildId}/filters/urls`, {
       urls,
       guild_only: guildOnly
     });
