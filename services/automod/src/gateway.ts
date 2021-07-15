@@ -65,7 +65,7 @@ export class Gateway {
 
       return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.urls };
     } catch (e) {
-      this.logger.error({ topic: 'URL RUNNER', e }, 'Failed to execute runner urls');
+      this.logger.error({ e }, 'Failed to execute runner urls');
       return { ok: false, runner: Runners.urls };
     }
   }
@@ -79,7 +79,7 @@ export class Gateway {
 
       return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.files };
     } catch (e) {
-      this.logger.error({ topic: 'FILES RUNNER', e }, 'Failed to execute runner urls');
+      this.logger.error({ e }, 'Failed to execute runner urls');
       return { ok: false, runner: Runners.files };
     }
   }
@@ -111,15 +111,27 @@ export class Gateway {
     }
 
     if (settings.use_file_filters !== UseFilterMode.none) {
-      // TODO have a look at how I resolve those
-      const urls = message.attachments?.map(attachment => attachment.url);
-      if (urls?.length) {
+      const urls = this.files.precheck([
+        ...new Set([
+          ...this.urls.precheck(message.content).map(url => url.startsWith('http') ? url : `https://${url}`),
+          ...message.embeds?.reduce<string[]>((acc, embed) => {
+            if (embed.url) {
+              acc.push(embed.url);
+            }
+
+            return acc;
+          }, []) ?? [],
+          ...message.attachments?.map(attachment => attachment.url) ?? []
+        ])
+      ]);
+
+      if (urls.length) {
         promises.push(this.runFiles({ message, urls }));
       }
     }
 
     const data = await Promise.allSettled(promises);
-    this.logger.trace({ topic: 'RUNNERS DONE', data }, 'Done running runners');
+    this.logger.trace({ data }, 'Done running runners');
   }
 
   public async init() {
