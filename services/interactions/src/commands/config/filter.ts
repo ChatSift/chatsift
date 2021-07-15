@@ -1,12 +1,12 @@
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
 import { ArgumentsOf, send, UserPerms } from '#util';
-import { ConfigCommand } from '#interactions';
+import { FilterCommand } from '#interactions';
 import { Rest } from '@cordis/rest';
 import { APIGuildInteraction } from 'discord-api-types/v8';
 import { kSql } from '@automoderator/injection';
 import { stripIndents } from 'common-tags';
-import type { GuildSettings } from '@automoderator/core';
+import { GuildSettings, UseFilterMode } from '@automoderator/core';
 import type { Sql } from 'postgres';
 
 @injectable()
@@ -19,35 +19,34 @@ export default class implements Command {
   ) {}
 
   private _sendCurrentSettings(message: APIGuildInteraction, settings?: Partial<GuildSettings>) {
-    const atRole = (role?: string | null) => role ? `<@&${role}>` : 'none';
+    const urlFilter = (settings?.use_url_filters ?? UseFilterMode.none) === UseFilterMode.none
+      ? 'off'
+      : settings!.use_url_filters === UseFilterMode.guildOnly ? 'on (local only)' : 'on (with global list)';
 
     return send(message, {
       content: stripIndents`
-        **Here are your current settings:**
-        • mod role: ${atRole(settings?.mod_role)}
-        • mute role: ${atRole(settings?.mute_role)}
-        • automatically pardon warnings after: ${settings?.auto_pardon_mutes_after ? `${settings.auto_pardon_mutes_after} days` : 'never'}
+        **Here are your current filter settings:**
+        • url filter: ${urlFilter}
+        • file filter: ${settings?.use_url_filters === UseFilterMode.all ? 'on' : 'off'}
       `,
       allowed_mentions: { parse: [] }
     });
   }
 
-  public parse(args: ArgumentsOf<typeof ConfigCommand>) {
+  public parse(args: ArgumentsOf<typeof FilterCommand>) {
     return {
-      modrole: args.modrole,
-      muterole: args.muterole,
-      pardon: args.pardonwarnsafter
+      urls: args.urls,
+      files: args.files
     };
   }
 
-  public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigCommand>) {
-    const { modrole, muterole, pardon } = this.parse(args);
+  public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof FilterCommand>) {
+    const { urls, files } = this.parse(args);
 
     let settings: Partial<GuildSettings> = { guild_id: interaction.guild_id };
 
-    if (modrole) settings.mod_role = modrole.id;
-    if (muterole) settings.mute_role = muterole.id;
-    if (pardon) settings.auto_pardon_mutes_after = pardon;
+    if (urls) settings.use_url_filters = urls;
+    if (files) settings.use_file_filters = files;
 
     if (Object.values(settings).length === 1) {
       const [currentSettings] = await this.sql<[GuildSettings?]>`SELECT * FROM settings WHERE guild_id = ${interaction.guild_id}`;
