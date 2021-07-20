@@ -17,7 +17,7 @@
 
   <p>
       <img src="https://github.com/didinele/AutoModerator/actions/workflows/quality.yml/badge.svg" alt="Quality Check">
-      <a href="https://github.com/didinele/AutoModerator/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-yellow.svg" alt="License: APACHE 2.0"></a>
+      <a href="https://github.com/didinele/AutoModerator/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-GNU%20AGPLv3-yellow.svg" alt="License: APACHE 2.0"></a>
       <a href="https://github.com/didinele/AutoModerator/issues"><img src="https://img.shields.io/github/issues-raw/didinele/AutoModerator.svg?maxAge=25000" alt="Issues"></a>
       <a href="https://github.com/didinele/AutoModerator/pulls"><img src="https://img.shields.io/github/issues-pr/didinele/AutoModerator.svg?style=flat" alt="GitHub pull requests"></a><br>
   </p>
@@ -25,4 +25,4 @@
 
 # LICENSING
 
-This repository is licensed under the Apache-2.0 license.
+This repository is licensed under the GNU AGPLv3 license.
