@@ -98,3 +98,10 @@ CREATE TABLE IF NOT EXISTS malicious_urls (
   last_modified_at timestamptz NOT NULL DEFAULT NOW(),
   category int
 );
+
+CREATE TABLE IF NOT EXISTS filter_triggers (
+  guild_id bigint NOT NULL,
+  user_id bigint NOT NULL,
+  count int NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
+);
