@@ -1,6 +1,10 @@
 version: "3.7"
 
 services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
   api:
     environment:
       NODE_ENV: "dev"
