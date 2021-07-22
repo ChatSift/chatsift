@@ -20,7 +20,7 @@
   "homepage": "https://github.com/didinele/didinele.me#readme",
   "devDependencies": {
     "@types/node": "^14.17.5",
-    "typescript": "^4.3.5"
+    "typescript": "^4.4.0-beta"
   },
   "dependencies": {
     "tslib": "^2.3.0",

@@ -5,7 +5,7 @@ import { GuildFilesController } from '#controllers';
 import { notFound } from '@hapi/boom';
 import type { ApiDeleteGuildsFiltersFilesBody } from '@automoderator/core';
 import type { Request, Response, NextHandler } from 'polka';
-import type { Snowflake } from 'discord-api-types/v8';
+import type { Snowflake } from 'discord-api-types/v9';
 
 @injectable()
 export default class DeleteGuildsFiltersFilesRoute extends Route {

@@ -1,5 +1,5 @@
 import { NonWarnCase, WarnCase } from './brokers';
-import { RouteBases, APIEmbed, APIUser, APIMessage, Snowflake } from 'discord-api-types/v8';
+import { RouteBases, APIEmbed, APIUser, APIMessage, Snowflake } from 'discord-api-types/v9';
 import { makeDiscordCdnUrl } from '@cordis/util';
 import { Case, CaseAction } from './models';
 import { addFields } from './embed';

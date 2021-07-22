@@ -6,8 +6,9 @@ import { Config, kConfig, kLogger } from '@automoderator/injection';
 import {
   InteractionType,
   InteractionResponseType,
-  APIGuildInteraction
-} from 'discord-api-types/v8';
+  APIGuildInteraction,
+  APIInteraction
+} from 'discord-api-types/v9';
 import { Handler } from '../../../../../handler';
 import { Interaction } from '#util';
 import type { Request, Response, NextHandler } from 'polka';
@@ -45,16 +46,15 @@ export default class PostDiscordWebhookRoute extends Route {
       return next(unauthorized('failed to validate request'));
     }
 
-    const interaction: Interaction = { res, ...req.body as APIGuildInteraction };
-
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    if (interaction.type === InteractionType.Ping) {
+    if ((req.body as APIInteraction).type === InteractionType.Ping) {
       return res.end(JSON.stringify({ type: InteractionResponseType.Pong }));
     }
 
-    // TODO: Check on discord-api-types
+    const interaction: Interaction = { res, ...req.body as APIGuildInteraction };
+
     switch (interaction.type) {
       case InteractionType.ApplicationCommand: {
         return this.handler.handleCommand(interaction);

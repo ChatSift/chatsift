@@ -2,7 +2,7 @@ import { basename, dirname } from 'path';
 import { container } from 'tsyringe';
 import { kLogger } from '@automoderator/injection';
 import type { Logger } from 'pino';
-import type { Request, Middleware, Response, NextHandler, Polka } from 'polka';
+import type { Request, Middleware, Response, NextHandler, Polka, IError } from 'polka';
 
 export const enum RouteMethod {
   get = 'get',
@@ -45,7 +45,7 @@ export abstract class Route {
       try {
         await this.handle(req, res, next);
       } catch (e) {
-        void next(e);
+        void next(e as IError);
       }
     });
   }

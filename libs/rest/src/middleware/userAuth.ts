@@ -6,7 +6,7 @@ import { Sql } from 'postgres';
 import { kSql } from '@automoderator/injection';
 import type { User } from '@automoderator/core';
 import type { Request, Response, NextHandler } from 'polka';
-import type { APIUser } from 'discord-api-types/v8';
+import type { APIUser } from 'discord-api-types/v9';
 
 declare module 'polka' {
   export interface Request {

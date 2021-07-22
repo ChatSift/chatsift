@@ -6,7 +6,7 @@ import { kSql } from '@automoderator/injection';
 import { badRequest } from '@hapi/boom';
 import type { Request, Response, NextHandler } from 'polka';
 import type { Sql } from 'postgres';
-import type { Snowflake } from 'discord-api-types/v8';
+import type { Snowflake } from 'discord-api-types/v9';
 
 @injectable()
 export default class PostGuildsCasesRoute extends Route {

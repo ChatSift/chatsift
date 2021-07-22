@@ -4,7 +4,7 @@ import { ArgumentsOf, UserPerms, ControlFlowError, send } from '#util';
 import { SoftbanCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { APIGuildInteraction, RESTPutAPIGuildBanJSONBody, Routes } from 'discord-api-types/v8';
+import { APIGuildInteraction, RESTPutAPIGuildBanJSONBody, Routes } from 'discord-api-types/v9';
 import { ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, CaseAction, Log, LogTypes } from '@automoderator/core';
 import { PubSubServer } from '@cordis/brokers';
 

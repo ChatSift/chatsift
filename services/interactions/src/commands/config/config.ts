@@ -3,7 +3,7 @@ import { Command } from '../../command';
 import { ArgumentsOf, send, UserPerms } from '#util';
 import { ConfigCommand } from '#interactions';
 import { Rest } from '@cordis/rest';
-import { APIGuildInteraction } from 'discord-api-types/v8';
+import { APIGuildInteraction } from 'discord-api-types/v9';
 import { kSql } from '@automoderator/injection';
 import { stripIndents } from 'common-tags';
 import type { GuildSettings } from '@automoderator/core';

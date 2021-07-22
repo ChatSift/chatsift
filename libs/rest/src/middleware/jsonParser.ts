@@ -21,7 +21,7 @@ export const jsonParser = (wantRaw = false) => async (req: Request, _: Response,
     req.body = JSON.parse(data);
 
     await next();
-  } catch (e) {
-    return next(badData(e?.toString()));
+  } catch (e: any) {
+    return next(badData(e.message ?? e.toString()));
   }
 };

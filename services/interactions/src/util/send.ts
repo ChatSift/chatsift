@@ -1,11 +1,11 @@
 import { container } from 'tsyringe';
 import { Rest } from '@cordis/rest';
 import {
-  APIInteractionApplicationCommandCallbackData,
+  APIInteractionResponseCallbackData,
   RESTPostAPIChannelMessageJSONBody,
   InteractionResponseType,
   Routes
-} from 'discord-api-types/v8';
+} from 'discord-api-types/v9';
 import { kConfig, Config } from '@automoderator/injection';
 
 export interface SendOptions {
@@ -21,7 +21,7 @@ export interface SendOptions {
  */
 export const send = (
   message: any,
-  payload: RESTPostAPIChannelMessageJSONBody | APIInteractionApplicationCommandCallbackData,
+  payload: RESTPostAPIChannelMessageJSONBody | APIInteractionResponseCallbackData,
   options?: SendOptions
 ) => {
   const rest = container.resolve(Rest);

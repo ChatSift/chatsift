@@ -3,7 +3,7 @@ import { Command } from '../../command';
 import { ArgumentsOf, UserPerms, ControlFlowError, send } from '#util';
 import { WarnCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
-import { APIGuildInteraction, Routes } from 'discord-api-types/v8';
+import { APIGuildInteraction, Routes } from 'discord-api-types/v9';
 import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, Case, CaseAction, HttpCase, Log, LogTypes, WarnPunishment, WarnPunishmentAction } from '@automoderator/core';
 import { PubSubServer } from '@cordis/brokers';
 import { kSql } from '@automoderator/injection';

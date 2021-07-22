@@ -4,7 +4,7 @@ import { ArgumentsOf, UserPerms, ControlFlowError, send } from '#util';
 import { MuteCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { APIGuildInteraction, APIRole, RESTPatchAPIGuildMemberJSONBody, Routes } from 'discord-api-types/v8';
+import { APIGuildInteraction, APIRole, RESTPatchAPIGuildMemberJSONBody, Routes } from 'discord-api-types/v9';
 import { PubSubServer } from '@cordis/brokers';
 import { kSql } from '@automoderator/injection';
 import {

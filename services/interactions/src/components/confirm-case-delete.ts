@@ -3,7 +3,7 @@ import { Component } from '../component';
 import { HTTPError, Rest } from '@automoderator/http-client';
 import { kSql } from '@automoderator/injection';
 import { send, UserPerms } from '#util';
-import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v8';
+import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
 
 @injectable()
@@ -19,7 +19,6 @@ export default class implements Component {
     if (action === 'n') {
       return send(interaction, {
         content: 'Okay, I won\'t delete the case',
-        // @ts-expect-error
         components: []
       }, { type: InteractionResponseType.UpdateMessage });
     }
@@ -28,7 +27,6 @@ export default class implements Component {
       await this.rest.delete(`/api/v1/guilds/${interaction.guild_id}/cases/${csId}`);
       return send(interaction, {
         content: 'Successfully deleted the case',
-        // @ts-expect-error
         components: []
       }, { type: InteractionResponseType.UpdateMessage });
     } catch (e) {
@@ -40,7 +38,6 @@ export default class implements Component {
         case 404: {
           return send(interaction, {
             content: 'Looks like that case has already been deleted',
-            // @ts-expect-error
             components: []
           }, { type: InteractionResponseType.UpdateMessage });
         }

@@ -3,7 +3,7 @@ import { Command } from '../../command';
 import { ArgumentsOf, ControlFlowError, send, UserPerms } from '#util';
 import { PunishmentsCommand } from '#interactions';
 import { Rest } from '@cordis/rest';
-import { APIGuildInteraction } from 'discord-api-types/v8';
+import { APIGuildInteraction } from 'discord-api-types/v9';
 import { kSql } from '@automoderator/injection';
 import { WarnPunishment, WarnPunishmentAction } from '@automoderator/core';
 import type { Sql } from 'postgres';

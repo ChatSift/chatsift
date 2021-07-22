@@ -1,4 +1,4 @@
-import type { APIEmbed, APIEmbedField } from 'discord-api-types/v8';
+import type { APIEmbed, APIEmbedField } from 'discord-api-types/v9';
 
 export const EMBED_TITLE_LIMIT = 256;
 export const EMBED_DESCRIPTION_LIMIT = 2048;

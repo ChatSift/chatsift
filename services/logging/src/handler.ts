@@ -22,7 +22,7 @@ import {
   RESTPostAPIChannelMessageJSONBody,
   RESTPatchAPIChannelMessageJSONBody,
   Routes
-} from 'discord-api-types/v8';
+} from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 

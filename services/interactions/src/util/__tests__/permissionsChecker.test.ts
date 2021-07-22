@@ -2,7 +2,7 @@ import { container } from 'tsyringe';
 import { PermissionsChecker, UserPerms } from '../';
 import { kLogger, kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { APIGuildInteraction } from 'discord-api-types/v8';
+import { APIGuildInteraction } from 'discord-api-types/v9';
 
 const sqlMock = jest.fn();
 const restGetMock = jest.fn();

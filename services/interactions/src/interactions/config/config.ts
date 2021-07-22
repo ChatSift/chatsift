@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v8';
+import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 
 export const ConfigCommand = {
   name: 'config',
