@@ -9,7 +9,7 @@ export default (service: string) => {
 
   const options: LoggerOptions = {
     name: service,
-    level: nodeEnv === 'prod' ? 'info' : 'trace'
+    level: nodeEnv === 'prod' ? 'debug' : 'trace'
   };
 
   if (nodeEnv === 'prod') {
