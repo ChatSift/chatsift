@@ -8,6 +8,7 @@
     "@typescript-eslint/naming-convention": "off",
     "@typescript-eslint/ban-types": "off",
     "@typescript-eslint/restrict-template-expressions": "off",
-    "no-useless-constructor": "off"
+    "no-useless-constructor": "off",
+    "no-eq-null": "off"
   }
 }

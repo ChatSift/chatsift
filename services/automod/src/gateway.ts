@@ -2,9 +2,15 @@ import { inject, singleton } from 'tsyringe';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, RoutingClient } from '@cordis/brokers';
 import { GatewayDispatchEvents, GatewayMessageUpdateDispatchData, Routes } from 'discord-api-types/v8';
-import { ApiPostFiltersFilesResult, ApiPostFiltersUrlsResult, GuildSettings, UseFilterMode, DiscordEvents } from '@automoderator/core';
 import { FilesRunner, UrlsRunner } from './runners';
 import { Rest } from '@cordis/rest';
+import {
+  ApiPostGuildsFiltersUrlsResult,
+  ApiPostGuildsFiltersFilesResult,
+  GuildSettings,
+  UseFilterMode,
+  DiscordEvents
+} from '@automoderator/core';
 import type { Sql } from 'postgres';
 import type { Logger } from 'pino';
 
@@ -40,8 +46,8 @@ interface UrlsRunnerData {
   guildOnly: boolean;
 }
 
-type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostFiltersFilesResult>;
-type UrlsRunnerResult = OkRunnerResult<Runners.urls, ApiPostFiltersUrlsResult>;
+type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostGuildsFiltersFilesResult>;
+type UrlsRunnerResult = OkRunnerResult<Runners.urls, ApiPostGuildsFiltersUrlsResult>;
 
 type RunnerResult = NotOkRunnerResult | FilesRunnerResult | UrlsRunnerResult;
 

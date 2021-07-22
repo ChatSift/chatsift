@@ -4,5 +4,5 @@ export interface IRest {
   post<T, D>(path: string, data: D): Promise<T>;
   patch<T, D>(path: string, data: D): Promise<T>;
   put<T, D>(path: string, data: D): Promise<T>;
-  delete<T>(path: string): Promise<T>;
+  delete<T, D>(path: string, data?: D): Promise<T>;
 }

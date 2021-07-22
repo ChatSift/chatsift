@@ -1,13 +1,13 @@
 import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { GuildUrlsController } from '#controllers';
+import { GuildFilesController } from '#controllers';
 import type { Request, Response } from 'polka';
-import type { ApiGetGuildsFiltersUrlsQuery } from '@automoderator/core';
+import type { ApiPostGuildsFiltersFilesBody } from '@automoderator/core';
 import type { Snowflake } from 'discord-api-types/v8';
 
 @injectable()
-export default class GetFiltersUrlsGuildRoute extends Route {
+export default class PostGuildsFiltersFilesRoute extends Route {
   public override readonly middleware = [
     thirdPartyAuth(),
     jsonParser(),
@@ -15,26 +15,32 @@ export default class GetFiltersUrlsGuildRoute extends Route {
       Joi
         .object()
         .keys({
-          page: Joi.number()
+          hashes: Joi
+            .array()
+            .items(Joi.string().required())
+            .required(),
+          guild_only: Joi
+            .boolean()
+            .default(false)
         })
         .required(),
-      'query'
+      'body'
     )
   ];
 
   public constructor(
-    public readonly controller: GuildUrlsController
+    public readonly controller: GuildFilesController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response) {
     const { gid } = req.params as { gid: Snowflake };
-    const { page } = req.query as unknown as ApiGetGuildsFiltersUrlsQuery;
+    const { hashes, guild_only } = req.body as Required<ApiPostGuildsFiltersFilesBody>;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(page == null ? await this.controller.getAll(gid) : await this.controller.get(page, gid)));
+    return res.end(JSON.stringify(await this.controller.getHitsFrom(hashes, gid, guild_only)));
   }
 }

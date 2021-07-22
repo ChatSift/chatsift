@@ -1,13 +1,12 @@
 import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
-import { inject, injectable } from 'tsyringe';
+import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { kSql } from '@automoderator/injection';
-import { ApiPutFiltersFilesBody, MaliciousFile, MaliciousFileCategory } from '@automoderator/core';
+import { ApiPutFiltersFilesBody, MaliciousFileCategory } from '@automoderator/core';
+import { FilesController } from '#controllers';
 import type { Request, Response } from 'polka';
-import type { Sql } from 'postgres';
 
 @injectable()
-export default class PutFilesFilesRoute extends Route {
+export default class PutFiltersFilesRoute extends Route {
   public override readonly middleware = [
     userAuth(),
     globalPermissions('manageFileFilters'),
@@ -16,7 +15,7 @@ export default class PutFilesFilesRoute extends Route {
       Joi
         .object()
         .keys({
-          hash: Joi.string().required(),
+          url: Joi.string().required(),
           category: Joi.number()
             .min(MaliciousFileCategory.nsfw)
             .max(MaliciousFileCategory.crasher)
@@ -28,26 +27,17 @@ export default class PutFilesFilesRoute extends Route {
   ];
 
   public constructor(
-    @inject(kSql) public readonly sql: Sql<{}>
+    public readonly controller: FilesController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response) {
-    const { hash, category } = req.body as ApiPutFiltersFilesBody;
-
-    const [data] = await this.sql<[MaliciousFile]>`
-      INSERT INTO malicious_urls (file_hash, admin_id, category)
-      VALUES (${hash}, ${req.user!.id}, ${category})
-      ON CONFLICT (domain)
-      DO
-        UPDATE SET category = ${category}, last_modified_at = NOW()
-        RETURNING *
-    `;
+    const files = (req.body as ApiPutFiltersFilesBody).map(file => ({ ...file, admin: req.user!.id }));
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(data));
+    return res.end(JSON.stringify(await this.controller.add(files)));
   }
 }

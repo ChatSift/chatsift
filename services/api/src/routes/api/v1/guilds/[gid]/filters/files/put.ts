@@ -1,13 +1,13 @@
 import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { GuildUrlsController } from '#controllers';
+import { GuildFilesController } from '#controllers';
 import type { Request, Response } from 'polka';
-import type { ApiPutGuildsFiltersUrlsBody } from '@automoderator/core';
+import type { ApiPutGuildsFiltersFilesBody } from '@automoderator/core';
 import type { Snowflake } from 'discord-api-types/v8';
 
 @injectable()
-export default class PutFiltersUrlsGuildRoute extends Route {
+export default class PutGuildsFiltersFilesRoute extends Route {
   public override readonly middleware = [
     thirdPartyAuth(),
     jsonParser(),
@@ -21,18 +21,18 @@ export default class PutFiltersUrlsGuildRoute extends Route {
   ];
 
   public constructor(
-    public readonly controller: GuildUrlsController
+    public readonly controller: GuildFilesController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response) {
     const { gid } = req.params as { gid: Snowflake };
-    const urls = req.body as ApiPutGuildsFiltersUrlsBody;
+    const hashes = req.body as ApiPutGuildsFiltersFilesBody;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(await this.controller.add(urls, gid)));
+    return res.end(JSON.stringify(await this.controller.add(hashes, gid)));
   }
 }

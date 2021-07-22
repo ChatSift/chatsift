@@ -3,7 +3,7 @@ import { Rest } from '@automoderator/http-client';
 import fetch from 'node-fetch';
 import { kLogger } from '@automoderator/injection';
 import { createHash } from 'crypto';
-import type { ApiPostFiltersFilesBody, ApiPostFiltersFilesResult } from '@automoderator/core';
+import type { ApiPostGuildsFiltersFilesBody, ApiPostGuildsFiltersFilesResult } from '@automoderator/core';
 import type { Logger } from 'pino';
 
 @singleton()
@@ -39,7 +39,7 @@ export class FilesRunner {
     return urls.filter(url => this.extensions.has(url.split('.').pop() ?? ''));
   }
 
-  public async run(urls: string[]): Promise<ApiPostFiltersFilesResult> {
+  public async run(urls: string[]): Promise<ApiPostGuildsFiltersFilesResult> {
     const hashes: string[] = [];
     const promises: Promise<string>[] = urls.map(url => this.cdnUrlToHash(url));
 
@@ -60,6 +60,6 @@ export class FilesRunner {
       return [];
     }
 
-    return this.rest.post<ApiPostFiltersFilesResult, ApiPostFiltersFilesBody>('/api/v1/filters/files', { hashes });
+    return this.rest.post<ApiPostGuildsFiltersFilesResult, ApiPostGuildsFiltersFilesBody>('/api/v1/filters/files', { hashes });
   }
 }

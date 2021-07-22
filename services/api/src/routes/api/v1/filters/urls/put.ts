@@ -2,8 +2,8 @@ import { jsonParser, Route, userAuth, globalPermissions, validate } from '@autom
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { ApiPutFiltersUrlsBody, MaliciousUrlCategory } from '@automoderator/core';
-import type { Request, Response } from 'polka';
 import { UrlsController } from '#controllers';
+import type { Request, Response } from 'polka';
 
 @injectable()
 export default class PutFiltersUrlsRoute extends Route {
@@ -33,11 +33,11 @@ export default class PutFiltersUrlsRoute extends Route {
   }
 
   public async handle(req: Request, res: Response) {
-    const { url, category } = req.body as ApiPutFiltersUrlsBody;
+    const domains = (req.body as ApiPutFiltersUrlsBody).map(domain => ({ ...domain, admin: req.user!.id }));
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(await this.controller.add(url, { admin: req.user!.id, category })));
+    return res.end(JSON.stringify(await this.controller.add(domains)));
   }
 }

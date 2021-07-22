@@ -49,7 +49,7 @@ export default class implements Command {
     if (muterole) settings.mute_role = muterole.id;
     if (pardon) settings.auto_pardon_mutes_after = pardon;
 
-    if (!Object.values(settings).length) {
+    if (Object.values(settings).length === 1) {
       const [currentSettings] = await this.sql<[GuildSettings?]>`SELECT * FROM settings WHERE guild_id = ${interaction.guild_id}`;
       return this._sendCurrentSettings(interaction, currentSettings);
     }

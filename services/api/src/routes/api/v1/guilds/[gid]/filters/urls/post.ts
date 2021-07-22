@@ -1,10 +1,11 @@
 import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { UrlsController } from '#controllers';
+import { GuildUrlsController } from '#controllers';
 import { resolveUrls } from '#util';
 import type { Request, Response } from 'polka';
-import type { ApiPostFiltersGuildUrlBody } from '@automoderator/core';
+import type { ApiPostGuildsFiltersUrlsBody } from '@automoderator/core';
+import type { Snowflake } from 'discord-api-types/v8';
 
 @injectable()
 export default class PostFiltersUrlsGuildRoute extends Route {
@@ -29,14 +30,14 @@ export default class PostFiltersUrlsGuildRoute extends Route {
   ];
 
   public constructor(
-    public readonly controller: UrlsController
+    public readonly controller: GuildUrlsController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response) {
-    const { gid } = req.params;
-    const { urls, guild_only } = req.body as Required<ApiPostFiltersGuildUrlBody>;
+    const { gid } = req.params as { gid: Snowflake };
+    const { urls, guild_only } = req.body as Required<ApiPostGuildsFiltersUrlsBody>;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

@@ -3,7 +3,7 @@ import { singleton, inject } from 'tsyringe';
 import { join as joinPath } from 'path';
 import { Rest } from '@automoderator/http-client';
 import { kLogger } from '@automoderator/injection';
-import type { ApiPostFiltersUrlsResult, ApiPostFiltersGuildUrlBody } from '@automoderator/core';
+import type { ApiPostGuildsFiltersUrlsBody, ApiPostGuildsFiltersUrlsResult } from '@automoderator/core';
 import type { Logger } from 'pino';
 
 @singleton()
@@ -40,7 +40,7 @@ export class UrlsRunner {
   }
 
   public run(urls: string[], guildId: string, guildOnly: boolean) {
-    return this.rest.post<ApiPostFiltersUrlsResult, ApiPostFiltersGuildUrlBody>(`/api/v1/guilds/${guildId}/filters/urls`, {
+    return this.rest.post<ApiPostGuildsFiltersUrlsResult, ApiPostGuildsFiltersUrlsBody>(`/api/v1/guilds/${guildId}/filters/urls`, {
       urls,
       guild_only: guildOnly
     });

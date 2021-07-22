@@ -1,10 +1,9 @@
 import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
-import { inject, injectable } from 'tsyringe';
+import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { kSql } from '@automoderator/injection';
+import { FilesController } from '#controllers';
 import type { Request, Response } from 'polka';
-import type { ApiGetFiltersFilesQuery, MaliciousFile } from '@automoderator/core';
-import type { Sql } from 'postgres';
+import type { ApiGetFiltersFilesBody } from '@automoderator/core';
 
 @injectable()
 export default class GetFiltersFilesRoute extends Route {
@@ -16,7 +15,7 @@ export default class GetFiltersFilesRoute extends Route {
       Joi
         .object()
         .keys({
-          page: Joi.number().required()
+          page: Joi.number()
         })
         .required(),
       'query'
@@ -24,23 +23,17 @@ export default class GetFiltersFilesRoute extends Route {
   ];
 
   public constructor(
-    @inject(kSql) public readonly sql: Sql<{}>
+    public readonly controller: FilesController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response) {
-    const { page } = req.query as unknown as ApiGetFiltersFilesQuery;
-
-    const files = await this.sql<MaliciousFile[]>`
-      SELECT * FROM malicious_files
-      LIMIT 100
-      OFFSET ${page * 100}
-    `;
+    const { page } = req.query as unknown as ApiGetFiltersFilesBody;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(files));
+    return res.end(JSON.stringify(page == null ? await this.controller.getAll() : await this.controller.get(page)));
   }
 }
