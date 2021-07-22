@@ -1,40 +1,38 @@
 import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { GuildUrlsController } from '#controllers';
+import { GuildFilesController } from '#controllers';
+import type { ApiDeleteGuildsFiltersFilesBody } from '@automoderator/core';
 import type { Request, Response } from 'polka';
-import type { ApiGetGuildsFiltersUrlsQuery } from '@automoderator/core';
 import type { Snowflake } from 'discord-api-types/v8';
 
 @injectable()
-export default class GetFiltersUrlsGuildRoute extends Route {
+export default class DeleteGuildsFiltersFilesRoute extends Route {
   public override readonly middleware = [
     thirdPartyAuth(),
     jsonParser(),
     validate(
       Joi
-        .object()
-        .keys({
-          page: Joi.number().required()
-        })
+        .array()
+        .items(Joi.string().required())
         .required(),
-      'query'
+      'body'
     )
   ];
 
   public constructor(
-    public readonly controller: GuildUrlsController
+    public readonly controller: GuildFilesController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response) {
     const { gid } = req.params as { gid: Snowflake };
-    const { page } = req.query as unknown as ApiGetGuildsFiltersUrlsQuery;
+    const hashes = req.body as ApiDeleteGuildsFiltersFilesBody;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(await this.controller.get(page, gid)));
+    return res.end(JSON.stringify(await this.controller.delete(hashes, gid)));
   }
 }

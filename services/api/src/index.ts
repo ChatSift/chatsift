@@ -24,7 +24,7 @@ void (async () => {
 
   const app = createApp();
 
-  for (const controller of Object.values(controllers)) {
+  for (const controller of Object.values(controllers) as any[]) {
     container.register(controller, { useClass: controller });
   }
 

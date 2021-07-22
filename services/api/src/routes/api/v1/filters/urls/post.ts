@@ -7,7 +7,7 @@ import type { Request, Response } from 'polka';
 import type { ApiPostFiltersUrlsBody } from '@automoderator/core';
 
 @injectable()
-export default class PostFiltersUrlRoute extends Route {
+export default class PostFiltersUrlsRoute extends Route {
   public override readonly middleware = [
     thirdPartyAuth(),
     globalPermissions('useUrlFilters'),

@@ -3,11 +3,11 @@ import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { GuildUrlsController } from '#controllers';
 import type { Request, Response } from 'polka';
-import type { ApiGetGuildsFiltersUrlsQuery } from '@automoderator/core';
+import type { ApiGetGuildsFiltersFilesQuery } from '@automoderator/core';
 import type { Snowflake } from 'discord-api-types/v8';
 
 @injectable()
-export default class GetFiltersUrlsGuildRoute extends Route {
+export default class GetGuildsFiltersFilesRoute extends Route {
   public override readonly middleware = [
     thirdPartyAuth(),
     jsonParser(),
@@ -30,7 +30,7 @@ export default class GetFiltersUrlsGuildRoute extends Route {
 
   public async handle(req: Request, res: Response) {
     const { gid } = req.params as { gid: Snowflake };
-    const { page } = req.query as unknown as ApiGetGuildsFiltersUrlsQuery;
+    const { page } = req.query as unknown as ApiGetGuildsFiltersFilesQuery;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

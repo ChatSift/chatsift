@@ -1,39 +1,37 @@
 import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { FilesController } from '#controllers';
+import { ApiDeleteFiltersUrlsBody } from '@automoderator/core';
 import type { Request, Response } from 'polka';
-import type { ApiGetFiltersFilesBody } from '@automoderator/core';
+import { UrlsController } from '#controllers';
 
 @injectable()
-export default class GetFiltersFilesRoute extends Route {
+export default class DeleteFiltersUrlsRoute extends Route {
   public override readonly middleware = [
     userAuth(),
-    globalPermissions('manageFileFilters'),
+    globalPermissions('manageUrlFilters'),
     jsonParser(),
     validate(
       Joi
-        .object()
-        .keys({
-          page: Joi.number().required()
-        })
+        .array()
+        .items(Joi.number().required())
         .required(),
-      'query'
+      'body'
     )
   ];
 
   public constructor(
-    public readonly controller: FilesController
+    public readonly controller: UrlsController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response) {
-    const { page } = req.query as unknown as ApiGetFiltersFilesBody;
+    const domains = req.body as ApiDeleteFiltersUrlsBody;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(await this.controller.get(page)));
+    return res.end(JSON.stringify(await this.controller.delete(domains)));
   }
 }
