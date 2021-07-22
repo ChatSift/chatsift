@@ -15,7 +15,7 @@ export default class GetGuildsFiltersFilesRoute extends Route {
       Joi
         .object()
         .keys({
-          page: Joi.number().required()
+          page: Joi.number()
         })
         .required(),
       'query'
@@ -35,6 +35,6 @@ export default class GetGuildsFiltersFilesRoute extends Route {
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(await this.controller.get(page, gid)));
+    return res.end(JSON.stringify(page == null ? await this.controller.getAll(gid) : await this.controller.get(page, gid)));
   }
 }

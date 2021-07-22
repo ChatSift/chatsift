@@ -17,7 +17,7 @@ export type ApiDeleteFiltersFilesBody = number[];
 export type ApiDeleteFiltersFilesResult = GlobalMaliciousFile[];
 
 export interface ApiGetFiltersFilesBody {
-  page: number;
+  page?: number;
 }
 
 export type ApiGetFiltersFilesResult = GlobalMaliciousFile[];
@@ -47,7 +47,7 @@ export type ApiDeleteFiltersUrlsBody = number[];
 export type ApiDeleteFiltersUrlsResult = GlobalMaliciousUrl[];
 
 export interface ApiGetFiltersUrlsQuery {
-  page: number;
+  page?: number;
 }
 
 export type ApiGetFiltersUrlsResult = GlobalMaliciousUrl[];
@@ -125,7 +125,7 @@ export type ApiDeleteGuildsFiltersFilesBody = string[];
 export type ApiDeleteGuildsFiltersFilesResult = LocalMaliciousFile[];
 
 export interface ApiGetGuildsFiltersFilesQuery {
-  page: number;
+  page?: number;
 }
 
 export type ApiGetGuildsFiltersFilesResult = LocalMaliciousFile[];
@@ -146,7 +146,7 @@ export type ApiDeleteGuildsFiltersUrlsBody = string[];
 export type ApiDeleteGuildsFiltersUrlsResult = LocalMaliciousUrl[];
 
 export interface ApiGetGuildsFiltersUrlsQuery {
-  page: number;
+  page?: number;
 }
 
 export type ApiGetGuildsFiltersUrlsResult = LocalMaliciousUrl[];

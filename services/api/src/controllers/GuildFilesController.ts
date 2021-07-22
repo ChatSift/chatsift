@@ -19,7 +19,7 @@ export class GuildFilesController {
     `;
   }
 
-  public getAll(guildId: Snowflake): Promise<MaliciousFile[]> {
+  public getAll(guildId: Snowflake): Promise<LocalMaliciousFile[]> {
     return this.sql`SELECT * FROM malicious_files WHERE guild_id = ${guildId}`;
   }
 

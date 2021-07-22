@@ -2,8 +2,9 @@ import { jsonParser, Route, userAuth, globalPermissions, validate } from '@autom
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { FilesController } from '#controllers';
+import { notFound } from '@hapi/boom';
 import type { ApiDeleteFiltersFilesBody } from '@automoderator/core';
-import type { Request, Response } from 'polka';
+import type { Request, Response, NextHandler } from 'polka';
 
 @injectable()
 export default class DeleteFiltersFilesRoute extends Route {
@@ -26,12 +27,18 @@ export default class DeleteFiltersFilesRoute extends Route {
     super();
   }
 
-  public async handle(req: Request, res: Response) {
+  public async handle(req: Request, res: Response, next: NextHandler) {
     const files = req.body as ApiDeleteFiltersFilesBody;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(await this.controller.delete(files)));
+    const deletes = await this.controller.delete(files);
+
+    if (!deletes.length) {
+      return next(notFound('None of the given hashes could be found'));
+    }
+
+    return res.end(JSON.stringify(deletes));
   }
 }

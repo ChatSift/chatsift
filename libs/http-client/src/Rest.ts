@@ -50,7 +50,7 @@ export class Rest implements IRest {
     return this.make<T, D>(path, 'PUT', data);
   }
 
-  public delete<T, D>(path: string): Promise<T> {
-    return this.make<T, D>(path, 'DELETE');
+  public delete<T, D>(path: string, data?: D): Promise<T> {
+    return this.make<T, D>(path, 'DELETE', data);
   }
 }

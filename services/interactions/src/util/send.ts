@@ -14,11 +14,6 @@ export interface SendOptions {
 }
 
 /**
- * Responds to any given interaction *processed by @automoderator/interactions*
- * Which means that, by default `teractionResponseType.ChannelMessageWithSource` will actually be handled as an interaction response update
- * Anything else is treated as a regular interaction response - sent via /callback
- * Should also be noted, if there's no `token` in the passed `message` object the payload is instead sent as a regular message
- *
  * @param message Interaction to respond to
  * @param payload Payload response data
  * @param type The type of response to provide
