@@ -6,7 +6,7 @@ import { internal } from '@hapi/boom';
 import fetch from 'node-fetch';
 import type { Logger } from 'pino';
 import type { Request, NextHandler } from 'polka';
-import type { RESTGetAPICurrentUserGuildsResult } from 'discord-api-types/v8';
+import type { RESTGetAPICurrentUserGuildsResult } from 'discord-api-types/v9';
 
 export const getUserGuilds = async (req: Request, next: NextHandler, filtered: boolean) => {
   const logger = container.resolve<Logger>(kLogger);

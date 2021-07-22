@@ -10,7 +10,7 @@ import type {
   LocalMaliciousFile,
   MaliciousFile
 } from './models';
-import type { Snowflake } from 'discord-api-types/v8';
+import type { Snowflake } from 'discord-api-types/v9';
 
 export type ApiDeleteFiltersFilesBody = number[];
 

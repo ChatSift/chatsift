@@ -4,7 +4,7 @@ import createLogger from '@automoderator/logger';
 import { initConfig } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { Case, CaseAction, GuildSettings, UnmuteRole } from '@automoderator/core';
-import { RESTPatchAPIGuildMemberJSONBody, Routes } from 'discord-api-types/v8';
+import { RESTPatchAPIGuildMemberJSONBody, Routes } from 'discord-api-types/v9';
 
 const config = initConfig();
 const logger = createLogger('CRON-RUNNER');

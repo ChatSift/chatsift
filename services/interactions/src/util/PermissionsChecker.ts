@@ -2,7 +2,7 @@ import { singleton, inject } from 'tsyringe';
 import { kLogger, kSql } from '@automoderator/injection';
 import { DiscordPermissions } from '@automoderator/discord-permissions';
 import { Rest } from '@cordis/rest';
-import { APIGuildInteraction, RESTGetAPIGuildResult, Routes } from 'discord-api-types/v8';
+import { APIGuildInteraction, RESTGetAPIGuildResult, Routes } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
 import type { GuildSettings } from '@automoderator/core';
 import type { Logger } from 'pino';

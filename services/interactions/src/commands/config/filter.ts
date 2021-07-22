@@ -2,7 +2,7 @@ import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
 import { ArgumentsOf, send, UserPerms } from '#util';
 import { FilterCommand } from '#interactions';
-import { APIGuildInteraction } from 'discord-api-types/v8';
+import { APIGuildInteraction } from 'discord-api-types/v9';
 import { kSql } from '@automoderator/injection';
 import { stripIndents } from 'common-tags';
 import { HTTPError, Rest } from '@automoderator/http-client';

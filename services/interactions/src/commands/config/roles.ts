@@ -3,7 +3,7 @@ import { Command } from '../../command';
 import { ArgumentsOf, ControlFlowError, send, UserPerms } from '#util';
 import { RolesCommand } from '#interactions';
 import { Rest } from '@cordis/rest';
-import { APIGuildInteraction, ButtonStyle, ComponentType } from 'discord-api-types/v8';
+import { APIGuildInteraction, ButtonStyle, ComponentType } from 'discord-api-types/v9';
 import { kSql } from '@automoderator/injection';
 import { GuildSettings, SelfAssignableRole } from '@automoderator/core';
 import { nanoid } from 'nanoid';
@@ -34,7 +34,6 @@ export default class implements Command {
             color: 5793266,
             description: prompt ?? 'Use the button below to create a dropdown that allows you to manage your roles!'
           },
-          // @ts-expect-error
           components: [
             {
               type: ComponentType.ActionRow,

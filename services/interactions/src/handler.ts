@@ -10,7 +10,7 @@ import {
   RESTPutAPIApplicationCommandsJSONBody,
   APIApplicationCommandInteractionData,
   APIMessageButtonInteractionData
-} from 'discord-api-types/v8';
+} from 'discord-api-types/v9';
 import * as interactions from '#interactions';
 import { Component, componentInfo } from './component';
 import type { Logger } from 'pino';
@@ -44,19 +44,20 @@ export class Handler {
       }
 
       await command.exec(interaction, transformInteraction(data!.options ?? [], data!.resolved));
-    } catch (e) {
+    } catch (e: any) {
       const internal = !(e instanceof ControlFlowError);
 
       if (internal) {
         this.logger.error({ error: e }, `Failed to execute command "${data!.name}"`);
       }
 
+      const message = e.message ?? e.toString();
+
       void send(
         interaction, {
           content: internal
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-            ? `Something went wrong! It's possible the bot is missing permissions or that this is a bug.\n\`${e.message}\``
-            : e.message,
+            ? `Something went wrong! It's possible the bot is missing permissions or that this is a bug.\n\`${message}\``
+            : message,
           flags: 64
         }
       );
@@ -76,18 +77,19 @@ export class Handler {
         }
 
         await component.exec(interaction, extra, key);
-      } catch (error) {
-        const internal = !(error instanceof ControlFlowError);
+      } catch (e: any) {
+        const internal = !(e instanceof ControlFlowError);
 
         if (internal) {
-          this.logger.error({ error }, `Failed to execute component "${data.custom_id}"`);
+          this.logger.error({ error: e }, `Failed to execute component "${data.custom_id}"`);
         }
+
+        const message = e.message ?? e.toString();
 
         void send(interaction, {
           content: internal
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-            ? `Something went wrong! It's possible that the bot is missing permissions or that this is a bug.\n\`${error.message}\``
-            : error.message,
+            ? `Something went wrong! It's possible that the bot is missing permissions or that this is a bug.\n\`${message}\``
+            : message,
           flags: 64
         });
       }

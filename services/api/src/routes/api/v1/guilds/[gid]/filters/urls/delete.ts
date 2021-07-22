@@ -5,7 +5,7 @@ import { ApiDeleteGuildsFiltersUrlsBody } from '@automoderator/core';
 import { GuildUrlsController } from '#controllers';
 import { notFound } from '@hapi/boom';
 import type { Request, Response, NextHandler } from 'polka';
-import type { Snowflake } from 'discord-api-types/v8';
+import type { Snowflake } from 'discord-api-types/v9';
 
 @injectable()
 export default class DeleteGuildsFiltersUrlsRoute extends Route {

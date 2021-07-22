@@ -1,7 +1,7 @@
 import { inject, singleton } from 'tsyringe';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, RoutingClient } from '@cordis/brokers';
-import { GatewayDispatchEvents, GatewayMessageUpdateDispatchData, Routes } from 'discord-api-types/v8';
+import { GatewayDispatchEvents, GatewayMessageUpdateDispatchData, Routes } from 'discord-api-types/v9';
 import { FilesRunner, UrlsRunner } from './runners';
 import { Rest } from '@cordis/rest';
 import {

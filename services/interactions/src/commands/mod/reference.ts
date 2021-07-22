@@ -6,7 +6,7 @@ import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { PubSubServer } from '@cordis/brokers';
 import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesResult, Log, LogTypes } from '@automoderator/core';
-import type { APIGuildInteraction } from 'discord-api-types/v8';
+import type { APIGuildInteraction } from 'discord-api-types/v9';
 
 @injectable()
 export default class implements Command {

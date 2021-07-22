@@ -2,7 +2,7 @@ import type {
   GatewayDispatchEvents,
   GatewayDispatchPayload,
   APIGuildInteraction
-} from 'discord-api-types/v8';
+} from 'discord-api-types/v9';
 import { HttpCase } from './api';
 import type { CaseAction, WarnPunishmentAction } from './models';
 

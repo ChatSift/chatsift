@@ -11,7 +11,7 @@ import {
   RESTPatchAPIGuildMemberJSONBody,
   Routes,
   Snowflake
-} from 'discord-api-types/v8';
+} from 'discord-api-types/v9';
 import type { SelfAssignableRole } from '@automoderator/core';
 import type { Sql } from 'postgres';
 
@@ -70,7 +70,6 @@ export default class implements Component {
           ${added.length ? `• added: ${added.join(', ')}\n` : ''}${removed.length ? `• removed: ${removed.join(', ')}` : ''}
         `
         : 'There was nothing to update!',
-      // @ts-expect-error
       components: []
     }, { update: true });
   }

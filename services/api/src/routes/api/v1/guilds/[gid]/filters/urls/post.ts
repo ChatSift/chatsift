@@ -5,7 +5,7 @@ import { GuildUrlsController } from '#controllers';
 import { resolveUrls } from '#util';
 import type { Request, Response } from 'polka';
 import type { ApiPostGuildsFiltersUrlsBody } from '@automoderator/core';
-import type { Snowflake } from 'discord-api-types/v8';
+import type { Snowflake } from 'discord-api-types/v9';
 
 @injectable()
 export default class PostFiltersUrlsGuildRoute extends Route {

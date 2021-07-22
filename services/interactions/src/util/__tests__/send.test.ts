@@ -1,7 +1,7 @@
 import { Rest } from '@cordis/rest';
 import { container } from 'tsyringe';
 import { send } from '../';
-import { InteractionResponseType, Routes } from 'discord-api-types/v8';
+import { InteractionResponseType, Routes } from 'discord-api-types/v9';
 import { kConfig } from '@automoderator/injection';
 import type { Response } from 'polka';
 

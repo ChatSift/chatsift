@@ -6,7 +6,7 @@ import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { Case, makeHistoryEmbed } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
-import type { APIGuildInteraction } from 'discord-api-types/v8';
+import type { APIGuildInteraction } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
 
 @injectable()

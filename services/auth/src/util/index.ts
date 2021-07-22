@@ -5,7 +5,7 @@ import fetch from 'node-fetch';
 import type { AuthGetDiscordCallbackQuery, AuthGetDiscordRefreshBody } from '@automoderator/core';
 import type { Request, Response, NextHandler } from 'polka';
 import type { Logger } from 'pino';
-import type { RESTPostOAuth2AccessTokenResult } from 'discord-api-types/v8';
+import type { RESTPostOAuth2AccessTokenResult } from 'discord-api-types/v9';
 
 export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler) => {
   const config = container.resolve<Config>(kConfig);

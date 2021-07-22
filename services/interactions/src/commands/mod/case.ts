@@ -5,7 +5,7 @@ import { CaseCommand } from '#interactions';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { Case, GuildSettings, makeCaseEmbed } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
-import { APIGuildInteraction, APIUser, ButtonStyle, ComponentType, Routes } from 'discord-api-types/v8';
+import { APIGuildInteraction, APIUser, ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import type { Sql } from 'postgres';
 
@@ -57,7 +57,6 @@ export default class implements Command {
     return send(interaction, {
       content: 'Are you sure you want to delete this case?',
       embed,
-      // @ts-expect-error
       components: [
         {
           type: ComponentType.ActionRow,

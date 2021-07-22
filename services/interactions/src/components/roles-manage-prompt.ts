@@ -2,7 +2,7 @@ import { inject, injectable } from 'tsyringe';
 import { Component } from '../component';
 import { kSql } from '@automoderator/injection';
 import { send, UserPerms } from '#util';
-import { APIGuildInteraction, ComponentType, InteractionResponseType, RESTGetAPIGuildRolesResult, Routes } from 'discord-api-types/v8';
+import { APIGuildInteraction, ComponentType, InteractionResponseType, RESTGetAPIGuildRolesResult, Routes } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { Rest } from '@cordis/rest';
 import type { Sql } from 'postgres';
@@ -57,7 +57,6 @@ export default class implements Component {
 
     return send(interaction, {
       content: 'Use the drop-down below to manage your roles!',
-      // @ts-expect-error
       components: [
         {
           type: ComponentType.ActionRow,

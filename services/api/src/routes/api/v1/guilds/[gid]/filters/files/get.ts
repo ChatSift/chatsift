@@ -4,7 +4,7 @@ import * as Joi from 'joi';
 import { GuildUrlsController } from '#controllers';
 import type { Request, Response } from 'polka';
 import type { ApiGetGuildsFiltersFilesQuery } from '@automoderator/core';
-import type { Snowflake } from 'discord-api-types/v8';
+import type { Snowflake } from 'discord-api-types/v9';
 
 @injectable()
 export default class GetGuildsFiltersFilesRoute extends Route {

@@ -3,7 +3,7 @@ import {
   APIApplicationCommandInteractionData,
   APIApplicationCommandInteractionDataOption,
   ApplicationCommandOptionType
-} from 'discord-api-types/v8';
+} from 'discord-api-types/v9';
 
 type ResolvedApplicationCommandInteractionData = APIApplicationCommandInteractionData['resolved'];
 
