@@ -4,7 +4,7 @@ services:
   api:
     environment:
       NODE_ENV: "prod"
-    command: "sh -c \"node services/api/dist/index.js | ./services/api/node_modules/.bin/pino-elasticsearch\""
+    command: "sh -c \"node services/api/dist/index.js | ./services/api/node_modules/.bin/pino-elasticsearch --index api-v1 --node http://elasticsearch:9200\""
 
   auth:
     environment:
@@ -12,29 +12,29 @@ services:
       AUTH_DOMAIN: "https://auth.automoderator.me"
       API_DOMAIN: "https://api.automoderator.me"
       NODE_ENV: "prod"
-    command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-elasticsearch\""
+    command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-elasticsearch --index auth-v1 --node http://elasticsearch:9200\""
 
   automod:
     environment:
       NODE_ENV: "prod"
       API_DOMAIN: "https://api.automoderator.me"
-    command: "sh -c \"node services/automod/dist/index.js | ./services/automod/node_modules/.bin/pino-elasticsearch\""
+    command: "sh -c \"node services/automod/dist/index.js | ./services/automod/node_modules/.bin/pino-elasticsearch --index automod-v1 --node http://elasticsearch:9200\""
 
   cron-runner:
     environment:
       NODE_ENV: "prod"
-    command: "sh -c \"node services/cron-runner/dist/index.js | ./services/cron-runner/node_modules/.bin/pino-elasticsearch\""
+    command: "sh -c \"node services/cron-runner/dist/index.js | ./services/cron-runner/node_modules/.bin/pino-elasticsearch --index cron-runner-v1 --node http://elasticsearch:9200\""
 
   interactions:
     environment:
       NODE_ENV: "prod"
       API_DOMAIN: "https://api.automoderator.me"
-    command: "sh -c \"node services/interactions/dist/index.js | ./services/interactions/node_modules/.bin/pino-elasticsearch\""
+    command: "sh -c \"node services/interactions/dist/index.js | ./services/interactions/node_modules/.bin/pino-elasticsearch --index interactions-v1 --node http://elasticsearch:9200\""
 
   logging:
     environment:
       NODE_ENV: "prod"
-    command: "sh -c \"node services/logging/dist/index.js | ./services/logging/node_modules/.bin/pino-elasticsearch\""
+    command: "sh -c \"node services/logging/dist/index.js | ./services/logging/node_modules/.bin/pino-elasticsearch --index logging-v1 --node http://elasticsearch:9200\""
 
   elasticsearch:
     image: elasticsearch:7.12.1
