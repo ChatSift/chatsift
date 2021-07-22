@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@automoderator/injection": "workspace:^0.1.0",
+    "@elastic/ecs-pino-format": "^1.2.0",
     "pino": "^6.11.3",
     "tslib": "^2.3.0",
     "tsyringe": "^4.6.0"
