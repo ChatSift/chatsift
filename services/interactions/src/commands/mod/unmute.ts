@@ -53,7 +53,7 @@ export default class implements Command {
         WHERE target_id = ${member.user.id}
           AND action_type = ${CaseAction.mute}
           AND guild_id = ${interaction.guild_id}
-          AND processed = false
+          AND (processed = false OR expires_at IS NULL)
       `;
 
       if (!cs) {

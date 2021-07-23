@@ -51,7 +51,7 @@ export default class implements Command {
       WHERE target_id = ${member.user.id}
         AND action_type = ${CaseAction.ban}
         AND guild_id = ${interaction.guild_id}
-        AND processed = false
+        AND (processed = false OR expires_at IS NULL)
     `;
 
     await this.discordRest.delete(Routes.guildBan(interaction.guild_id, member.user.id), { reason: `Unban | By ${modTag}` });

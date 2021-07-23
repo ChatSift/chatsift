@@ -2,7 +2,7 @@ import { injectable } from 'tsyringe';
 import { Command } from '../../command';
 import { ArgumentsOf, UserPerms, ControlFlowError, send } from '#util';
 import { DurationCommand } from '#interactions';
-import { Rest } from '@automoderator/http-client';
+import { HTTPError, Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesResult, Log, LogTypes, ms } from '@automoderator/core';
 import { PubSubServer } from '@cordis/brokers';
@@ -35,20 +35,36 @@ export default class implements Command {
 
     const expiresAt = new Date(Date.now() + duration);
 
-    const [cs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
-      {
-        case_id: csId,
-        expires_at: expiresAt,
-        mod_id: interaction.member.user.id,
-        mod_tag: `${interaction.member.user.username}${interaction.member.user.discriminator}`
+    try {
+      const [cs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+        {
+          case_id: csId,
+          expires_at: expiresAt,
+          mod_id: interaction.member.user.id,
+          mod_tag: `${interaction.member.user.username}${interaction.member.user.discriminator}`
+        }
+      ]);
+
+      await send(interaction, { content: 'Successfully updated the duration' });
+
+      this.guildLogs.publish({
+        type: LogTypes.modAction,
+        data: cs!
+      });
+    } catch (error) {
+      if (error instanceof HTTPError) {
+        switch (error.statusCode) {
+          case 400: {
+            return send(interaction, { content: 'Case duration can only be updated on mute or ban cases', flags: 64 });
+          }
+
+          default: {
+            throw error;
+          }
+        }
       }
-    ]);
 
-    await send(interaction, { content: 'Successfully updated the duration' });
-
-    this.guildLogs.publish({
-      type: LogTypes.modAction,
-      data: cs!
-    });
+      throw error;
+    }
   }
 }
