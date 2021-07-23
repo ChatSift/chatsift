@@ -97,11 +97,42 @@ export class Handler {
   }
 
   public async registerInteractions(): Promise<void> {
-    const commandsRoute = this.config.nodeEnv === 'prod'
-      ? Routes.applicationCommands(this.config.discordClientId)
-      : Routes.applicationGuildCommands(this.config.discordClientId, this.config.interactionsTestGuildId);
+    const promises = [];
 
-    await this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(commandsRoute, { data: Object.values(interactions as any) });
+    if (this.config.nodeEnv === 'prod') {
+      await this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(Routes.applicationCommands(this.config.discordClientId), {
+        data: Object.values(interactions as any)
+      });
+
+      for (const guild of this.config.interactionsTestGuilds) {
+        const promise = this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(
+          Routes.applicationGuildCommands(this.config.discordClientId, guild), {
+            data: []
+          }
+        );
+
+        promises.push(promise);
+      }
+
+      await Promise.allSettled(promises);
+      return;
+    }
+
+    await this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(Routes.applicationCommands(this.config.discordClientId), {
+      data: []
+    });
+
+    for (const guild of this.config.interactionsTestGuilds) {
+      const promise = this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(
+        Routes.applicationGuildCommands(this.config.discordClientId, guild), {
+          data: Object.values(interactions as any)
+        }
+      );
+
+      promises.push(promise);
+    }
+
+    await Promise.allSettled(promises);
   }
 
   public async loadCommands(): Promise<void> {

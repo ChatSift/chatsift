@@ -97,8 +97,8 @@ services:
   gateway:
     image: cordislib/gateway:latest
     environment:
-      CORDIS_AMQP_HOST: "amqp://rabbitmq:5672"
-      CORDIS_WS_INTENTS: "guildMessages"
+      AMQP_HOST: "amqp://rabbitmq:5672"
+      WS_INTENTS: "guildMessages"
     restart: unless-stopped
     depends_on:
       - rabbitmq
