@@ -82,7 +82,7 @@ export default class implements Command {
       }
 
       case 'remove': {
-        await this.sql`DELETE FROM self_assignable_roles WHERE role_id = ${args.add.role.id}`;
+        await this.sql`DELETE FROM self_assignable_roles WHERE role_id = ${args.remove.role.id}`;
         return send(interaction, { content: 'Successfully removed the given role from the list of self assignable roles' });
       }
 
@@ -92,7 +92,10 @@ export default class implements Command {
           return send(interaction, { content: 'There are no currently self assignable roles' });
         }
 
-        return send(interaction, { content: `List of currently self assignable roles: ${roles.join(', ')}` });
+        return send(interaction, {
+          content: `List of currently self assignable roles: ${roles.map(r => `<@&${r.role_id}>`).join(', ')}`,
+          allowed_mentions: { parse: [] }
+        });
       }
     }
   }
