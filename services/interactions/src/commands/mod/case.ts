@@ -65,13 +65,13 @@ export default class implements Command {
               type: ComponentType.Button,
               label: 'Confirm',
               style: ButtonStyle.Success,
-              custom_id: `confirm-case-delete|${id}|${cs.id}|y`
+              custom_id: `confirm-case-delete|${id}|${cs.case_id}|y`
             },
             {
               type: ComponentType.Button,
               label: 'Cancel',
               style: ButtonStyle.Secondary,
-              custom_id: `confirm-case-delete|${id}|${cs.id}|n`
+              custom_id: `confirm-case-delete|${id}|${cs.case_id}|n`
             }
           ]
         }

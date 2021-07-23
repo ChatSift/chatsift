@@ -28,7 +28,7 @@ export default class implements Command {
     const { csId } = this.parse(args);
 
     try {
-      const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+      const [cs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
         {
           case_id: csId,
           pardoned_by: interaction.member.user.id
@@ -46,7 +46,8 @@ export default class implements Command {
       }
 
       switch (e.statusCode) {
-        case 400: {
+        case 400:
+        case 404: {
           return send(interaction, { content: 'Please provide a valid warn case', flags: 64 });
         }
 

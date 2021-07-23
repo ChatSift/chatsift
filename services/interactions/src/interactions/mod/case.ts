@@ -24,7 +24,7 @@ export const CaseCommand = {
       options: [
         {
           name: 'case',
-          description: 'The channel to delete',
+          description: 'The case to delete',
           type: ApplicationCommandOptionType.Integer,
           required: true
         }

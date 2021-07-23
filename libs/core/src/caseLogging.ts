@@ -102,7 +102,7 @@ export interface HistoryEmbedOptions {
   showDetails: boolean;
 }
 
-// The severity color system - bans = 3pt; kicks/softbans = 0.5pts; mutes = 0.5pts; warnings = 0.25pts;
+// The severity color system - bans = 3pt; kicks/softbans = 2pts; mutes = 0.5pts; warnings = 0.25pts;
 //  >=3 points -> red
 //  >=2 points -> orange
 //  >0 points -> yellow
@@ -140,7 +140,9 @@ export const makeHistoryEmbed = ({ user, cases, showDetails }: HistoryEmbedOptio
 
     if (showDetails) {
       const timestamp = Math.round(cs.created_at.getTime() / 1000);
-      details.push(`• <t:${timestamp}> \`${CaseAction[cs.action_type]!.toUpperCase()} #${cs.case_id}\` ${cs.reason}`);
+      details.push(
+        `• <t:${timestamp}> \`${CaseAction[cs.action_type]!.toUpperCase()} #${cs.case_id}\` - ${cs.reason ?? 'No reason provided'}`
+      );
     }
   }
 
@@ -151,7 +153,7 @@ export const makeHistoryEmbed = ({ user, cases, showDetails }: HistoryEmbedOptio
         ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${user.id}/${user.avatar}`)
         : `${RouteBases.cdn}/embed/avatars/${parseInt(user.discriminator, 10) % 5}`
     },
-    color: colors[Math.min(Math.floor(points), 4)]
+    color: colors[Math.min(Math.floor(points), 3)]
   };
 
   const footer = Object
