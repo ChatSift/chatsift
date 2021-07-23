@@ -55,6 +55,10 @@ export default class implements Component {
       return arr;
     }, []);
 
+    if (!menuOptions.length) {
+      return send(interaction, { content: 'There are no self assignable roles configured for this server', flags: 64 }, { update: true });
+    }
+
     return send(interaction, {
       content: 'Use the drop-down below to manage your roles!',
       components: [
