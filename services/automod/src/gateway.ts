@@ -138,6 +138,19 @@ export class Gateway {
 
     const data = await Promise.allSettled(promises);
     this.logger.trace({ data }, 'Done running runners');
+
+    if (data.length) {
+      if (!message.author) {
+        return this.logger.warn({ message }, 'Message had no author');
+      }
+
+      await this.sql`
+        INSERT INTO filter_triggers (guild_id, user_id, count)
+        VALUES (${message.guild_id}, ${message.author.id}, next_punishment(${message.guild_id}, ${message.author.id}))
+        ON CONFLICT
+        DO UPDATE SET count = next_punishment(${message.guild_id}, ${message.author.id})
+      `;
+    }
   }
 
   public async init() {
