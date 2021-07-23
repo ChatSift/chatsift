@@ -1,8 +1,11 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { UserPerms } from '../../util';
 
 export const BanCommand = {
   name: 'ban',
   description: 'Bans a member',
+  default_permission: false,
+  perms: UserPerms.mod,
   options: [
     {
       name: 'user',

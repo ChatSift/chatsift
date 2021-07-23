@@ -1,8 +1,11 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { UserPerms } from '../../util';
 
 export const CaseCommand = {
   name: 'case',
   description: 'Run actions on a given case',
+  default_permission: false,
+  perms: UserPerms.mod,
   options: [
     {
       name: 'show',

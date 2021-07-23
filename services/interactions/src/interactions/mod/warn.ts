@@ -1,8 +1,11 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { UserPerms } from '../../util';
 
 export const WarnCommand = {
   name: 'warn',
   description: 'Warns a member',
+  default_permission: false,
+  perms: UserPerms.mod,
   options: [
     {
       name: 'user',

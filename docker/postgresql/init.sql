@@ -25,6 +25,7 @@ $$;
 CREATE TABLE IF NOT EXISTS guild_settings (
   guild_id bigint PRIMARY KEY,
   mod_role bigint,
+  admin_role bigint,
   mute_role bigint,
   auto_pardon_mutes_after int,
   use_url_filters int NOT NULL DEFAULT 0,

@@ -95,7 +95,7 @@ services:
       - rabbitmq
 
   gateway:
-    image: cordislib/gateway:latest
+    image: cordislib/gateway:1.0.1
     environment:
       AMQP_HOST: "amqp://rabbitmq:5672"
       WS_INTENTS: "guildMessages"

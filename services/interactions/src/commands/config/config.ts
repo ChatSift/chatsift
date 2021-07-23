@@ -2,10 +2,19 @@ import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
 import { ArgumentsOf, send, UserPerms } from '#util';
 import { ConfigCommand } from '#interactions';
+import * as interactions from '#interactions';
 import { Rest } from '@cordis/rest';
-import { APIGuildInteraction } from 'discord-api-types/v9';
-import { kSql } from '@automoderator/injection';
+import { Config, kConfig, kSql } from '@automoderator/injection';
 import { stripIndents } from 'common-tags';
+import { Handler } from '../../handler';
+import {
+  APIGuildInteraction,
+  RESTPutAPIGuildApplicationCommandsPermissionsJSONBody,
+  APIApplicationCommandPermission,
+  ApplicationCommandPermissionType,
+  Routes,
+  APIGuild
+} from 'discord-api-types/v9';
 import type { GuildSettings } from '@automoderator/core';
 import type { Sql } from 'postgres';
 
@@ -15,7 +24,9 @@ export default class implements Command {
 
   public constructor(
     public readonly rest: Rest,
-    @inject(kSql) public readonly sql: Sql<{}>
+    public readonly handler: Handler,
+    @inject(kSql) public readonly sql: Sql<{}>,
+    @inject(kConfig) public readonly config: Config
   ) {}
 
   private _sendCurrentSettings(message: APIGuildInteraction, settings?: Partial<GuildSettings>) {
@@ -25,6 +36,7 @@ export default class implements Command {
       content: stripIndents`
         **Here are your current settings:**
         • mod role: ${atRole(settings?.mod_role)}
+        • admin role: ${atRole(settings?.admin_role)}
         • mute role: ${atRole(settings?.mute_role)}
         • automatically pardon warnings after: ${settings?.auto_pardon_mutes_after ? `${settings.auto_pardon_mutes_after} days` : 'never'}
       `,
@@ -35,17 +47,19 @@ export default class implements Command {
   public parse(args: ArgumentsOf<typeof ConfigCommand>) {
     return {
       modrole: args.modrole,
+      adminrole: args.adminrole,
       muterole: args.muterole,
       pardon: args.pardonwarnsafter
     };
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigCommand>) {
-    const { modrole, muterole, pardon } = this.parse(args);
+    const { modrole, adminrole, muterole, pardon } = this.parse(args);
 
     let settings: Partial<GuildSettings> = { guild_id: interaction.guild_id };
 
     if (modrole) settings.mod_role = modrole.id;
+    if (adminrole) settings.admin_role = adminrole.id;
     if (muterole) settings.mute_role = muterole.id;
     if (pardon) settings.auto_pardon_mutes_after = pardon;
 
@@ -61,6 +75,49 @@ export default class implements Command {
         UPDATE SET ${this.sql(settings)}
         RETURNING *
     `;
+
+    if (modrole || adminrole) {
+      const guild = await this.rest.get<APIGuild>(Routes.guild(interaction.guild_id));
+      const permissions: APIApplicationCommandPermission[] = [
+        {
+          id: guild.owner_id,
+          type: ApplicationCommandPermissionType.User,
+          permission: true
+        }
+      ];
+
+      if (modrole) {
+        permissions.push({
+          id: modrole.id,
+          type: ApplicationCommandPermissionType.Role,
+          permission: true
+        });
+      }
+
+      if (adminrole) {
+        permissions.push({
+          id: adminrole.id,
+          type: ApplicationCommandPermissionType.Role,
+          permission: true
+        });
+      }
+
+      await this.rest.put<unknown, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
+        Routes.guildApplicationCommandsPermissions(this.config.discordClientId, interaction.guild_id), {
+          data: Object.values(interactions).reduce<RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>((acc, entry) => {
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+            if ('default_permission' in entry && !entry.default_permission && this.handler.commandIds.has(entry.name)) {
+              acc.push({
+                id: this.handler.commandIds.get(entry.name)!,
+                permissions
+              });
+            }
+
+            return acc;
+          }, [])
+        }
+      );
+    }
 
     return this._sendCurrentSettings(interaction, settings);
   }

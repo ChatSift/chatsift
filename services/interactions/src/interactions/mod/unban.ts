@@ -1,8 +1,11 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { UserPerms } from '../../util';
 
 export const UnbanCommand = {
   name: 'unban',
   description: 'Unbans a member',
+  default_permission: false,
+  perms: UserPerms.mod,
   options: [
     {
       name: 'user',

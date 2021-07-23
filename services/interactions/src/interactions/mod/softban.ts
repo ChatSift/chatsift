@@ -1,8 +1,11 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { UserPerms } from '../../util';
 
 export const SoftbanCommand = {
   name: 'softban',
   description: 'Bans a member and unbans them - clearing their messages',
+  default_permission: false,
+  perms: UserPerms.mod,
   options: [
     {
       name: 'user',

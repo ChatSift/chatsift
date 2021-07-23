@@ -1,8 +1,11 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { UserPerms } from '../../util';
 
 export const MuteCommand = {
   name: 'mute',
   description: 'Mutes a member',
+  default_permission: false,
+  perms: UserPerms.mod,
   options: [
     {
       name: 'user',
