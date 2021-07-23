@@ -6,7 +6,7 @@ import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, Routes } from 'discord-api-types/v9';
 import { ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, CaseAction, Log, LogTypes } from '@automoderator/core';
-import { PubSubServer } from '@cordis/brokers';
+import { PubSubPublisher } from '@cordis/brokers';
 
 @injectable()
 export default class implements Command {
@@ -15,7 +15,7 @@ export default class implements Command {
   public constructor(
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
-    public readonly guildLogs: PubSubServer<Log>
+    public readonly guildLogs: PubSubPublisher<Log>
   ) {}
 
   public parse(args: ArgumentsOf<typeof KickCommand>) {

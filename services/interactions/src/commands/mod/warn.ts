@@ -5,7 +5,7 @@ import { WarnCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { APIGuildInteraction, Routes } from 'discord-api-types/v9';
 import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, Case, CaseAction, HttpCase, Log, LogTypes, WarnPunishment, WarnPunishmentAction } from '@automoderator/core';
-import { PubSubServer } from '@cordis/brokers';
+import { PubSubPublisher } from '@cordis/brokers';
 import { kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import type { Sql } from 'postgres';
@@ -17,7 +17,7 @@ export default class implements Command {
   public constructor(
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
-    public readonly guildLogs: PubSubServer<Log>,
+    public readonly guildLogs: PubSubPublisher<Log>,
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 

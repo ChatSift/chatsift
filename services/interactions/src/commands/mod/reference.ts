@@ -4,7 +4,7 @@ import { ArgumentsOf, UserPerms, send } from '#util';
 import { ReferenceCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { PubSubServer } from '@cordis/brokers';
+import { PubSubPublisher } from '@cordis/brokers';
 import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesResult, Log, LogTypes } from '@automoderator/core';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 
@@ -15,7 +15,7 @@ export default class implements Command {
   public constructor(
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
-    public readonly guildLogs: PubSubServer<Log>
+    public readonly guildLogs: PubSubPublisher<Log>
   ) {}
 
   public parse(args: ArgumentsOf<typeof ReferenceCommand>) {
