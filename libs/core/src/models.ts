@@ -160,3 +160,9 @@ export interface GlobalMaliciousUrl extends MaliciousUrl {
   admin_id: Snowflake;
   category: MaliciousUrlCategory;
 }
+
+export interface FilterTrigger {
+  guild_id: Snowflake;
+  user_id: Snowflake;
+  count: number;
+}

@@ -1,3 +1,15 @@
+CREATE FUNCTION next_punishment(bigint, bigint) RETURNS int
+LANGUAGE plpgsql
+stable
+AS $$
+DECLARE next_punishment int;
+BEGIN
+  SELECT count INTO next_punishment FROM filter_triggers WHERE guild_id = $1 AND user_id = $2;
+  if next_punishment IS NULL THEN return 1; end if;
+  return next_punishment + 1;
+END;
+$$;
+
 CREATE FUNCTION next_case(bigint) RETURNS int
 LANGUAGE plpgsql
 stable
@@ -5,7 +17,7 @@ AS $$
 DECLARE next_id int;
 BEGIN
   SELECT max(case_id) INTO next_id FROM cases WHERE guild_id = $1;
-  if next_id is null THEN return 1; end if;
+  if next_id IS NULL THEN return 1; end if;
   return next_id + 1;
 END;
 $$;
@@ -97,4 +109,11 @@ CREATE TABLE IF NOT EXISTS malicious_urls (
   created_at timestamptz NOT NULL DEFAULT NOW(),
   last_modified_at timestamptz NOT NULL DEFAULT NOW(),
   category int
+);
+
+CREATE TABLE IF NOT EXISTS filter_triggers (
+  guild_id bigint NOT NULL,
+  user_id bigint NOT NULL,
+  count int NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
 );
