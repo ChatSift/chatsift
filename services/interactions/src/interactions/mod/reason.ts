@@ -3,6 +3,7 @@ import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 export const ReasonCommand = {
   name: 'reason',
   description: 'Change the reason of a given mod action',
+  default_permission: false,
   options: [
     {
       name: 'case',

@@ -4,6 +4,7 @@ import { WarnPunishmentAction } from '@automoderator/core';
 export const PunishmentsCommand = {
   name: 'punishments',
   description: 'Manage things related to warn punishments',
+  default_permission: false,
   options: [
     {
       name: 'add',

@@ -3,6 +3,7 @@ import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 export const WarnCommand = {
   name: 'warn',
   description: 'Warns a member',
+  default_permission: false,
   options: [
     {
       name: 'user',

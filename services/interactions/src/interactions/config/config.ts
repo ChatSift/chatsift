@@ -11,6 +11,12 @@ export const ConfigCommand = {
       required: false
     },
     {
+      name: 'adminrole',
+      description: 'Role used to identify people as admins',
+      type: ApplicationCommandOptionType.Role,
+      required: false
+    },
+    {
       name: 'muterole',
       description: 'Role used to silence people when they are muted',
       type: ApplicationCommandOptionType.Role,

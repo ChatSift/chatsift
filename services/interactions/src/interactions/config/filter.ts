@@ -15,6 +15,7 @@ const typeOption = {
 export const FilterCommand = {
   name: 'filter',
   description: 'Allows you to interact with the config, add, remove or even list entries in any given filter',
+  default_permission: false,
   options: [
     {
       name: 'config',

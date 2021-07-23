@@ -3,6 +3,7 @@ import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 export const RolesCommand = {
   name: 'roles',
   description: 'Manages self assignable roles',
+  default_permission: false,
   options: [
     {
       name: 'prompt',
