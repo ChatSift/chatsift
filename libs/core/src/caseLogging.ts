@@ -100,6 +100,7 @@ export interface HistoryEmbedOptions {
   user: APIUser;
   cases: Case[];
   showDetails: boolean;
+  filterTriggers?: number;
 }
 
 // The severity color system - bans = 3pt; kicks/softbans = 2pts; mutes = 0.5pts; warnings = 0.25pts;
@@ -109,7 +110,7 @@ export interface HistoryEmbedOptions {
 //  =0 points -> green
 
 // TODO filter trigger counts
-export const makeHistoryEmbed = ({ user, cases, showDetails }: HistoryEmbedOptions): APIEmbed => {
+export const makeHistoryEmbed = ({ user, cases, showDetails, filterTriggers }: HistoryEmbedOptions): APIEmbed => {
   let points = 0;
   const counts = {
     [CaseAction.ban]: 0,
@@ -164,7 +165,7 @@ export const makeHistoryEmbed = ({ user, cases, showDetails }: HistoryEmbedOptio
     }
 
     return arr;
-  }, [])
+  }, filterTriggers ? [`${filterTriggers} Filter triggers`] : [])
     .join(' | ');
 
   if (footer.length) {
