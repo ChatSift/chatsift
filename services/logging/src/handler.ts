@@ -1,5 +1,5 @@
 import { singleton, inject } from 'tsyringe';
-import { createAmqp, PubSubClient } from '@cordis/brokers';
+import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import {
@@ -153,7 +153,7 @@ export class Handler {
 
   public async init() {
     const { channel } = await createAmqp(this.config.amqpUrl);
-    const interactions = new PubSubClient<Log>(channel);
+    const interactions = new PubSubSubscriber<Log>(channel);
 
     await interactions.init({
       name: 'guild_logs',

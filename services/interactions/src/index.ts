@@ -9,7 +9,7 @@ import { container } from 'tsyringe';
 import { join as joinPath } from 'path';
 import { readdirRecurse } from '@gaius-bot/readdir';
 import postgres from 'postgres';
-import { createAmqp, PubSubServer } from '@cordis/brokers';
+import { createAmqp, PubSubPublisher } from '@cordis/brokers';
 import { Handler } from './handler';
 
 void (async () => {
@@ -42,11 +42,11 @@ void (async () => {
   }
 
   const { channel } = await createAmqp(config.amqpUrl);
-  const logs = new PubSubServer(channel);
+  const logs = new PubSubPublisher(channel);
 
   await logs.init({ name: 'guild_logs', fanout: false });
 
-  container.register(PubSubServer, { useValue: logs });
+  container.register(PubSubPublisher, { useValue: logs });
   container.register(Rest, { useClass: Rest });
   container.register(DiscordRest, { useValue: discordRest });
   container.register(kLogger, { useValue: logger });

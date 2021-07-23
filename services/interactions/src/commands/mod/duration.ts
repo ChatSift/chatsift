@@ -5,7 +5,7 @@ import { DurationCommand } from '#interactions';
 import { HTTPError, Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesResult, Log, LogTypes, ms } from '@automoderator/core';
-import { PubSubServer } from '@cordis/brokers';
+import { PubSubPublisher } from '@cordis/brokers';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 
 @injectable()
@@ -15,7 +15,7 @@ export default class implements Command {
   public constructor(
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
-    public readonly guildLogs: PubSubServer<Log>
+    public readonly guildLogs: PubSubPublisher<Log>
   ) {}
 
   public parse(args: ArgumentsOf<typeof DurationCommand>) {

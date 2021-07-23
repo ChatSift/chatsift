@@ -5,7 +5,7 @@ import { BanCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, RESTPutAPIGuildBanJSONBody, Routes } from 'discord-api-types/v9';
-import { PubSubServer } from '@cordis/brokers';
+import { PubSubPublisher } from '@cordis/brokers';
 import {
   ApiPostGuildsCasesBody,
   ApiPostGuildsCasesResult,
@@ -25,7 +25,7 @@ export default class implements Command {
   public constructor(
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
-    public readonly guildLogs: PubSubServer<Log>,
+    public readonly guildLogs: PubSubPublisher<Log>,
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 

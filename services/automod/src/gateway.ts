@@ -1,6 +1,6 @@
 import { inject, singleton } from 'tsyringe';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
-import { createAmqp, RoutingClient } from '@cordis/brokers';
+import { createAmqp, RoutingSubscriber } from '@cordis/brokers';
 import { GatewayDispatchEvents, GatewayMessageUpdateDispatchData, Routes } from 'discord-api-types/v9';
 import { FilesRunner, UrlsRunner } from './runners';
 import { Rest } from '@cordis/rest';
@@ -155,7 +155,7 @@ export class Gateway {
 
   public async init() {
     const { channel } = await createAmqp(this.config.amqpUrl);
-    const gateway = new RoutingClient<keyof DiscordEvents, DiscordEvents>(channel);
+    const gateway = new RoutingSubscriber<keyof DiscordEvents, DiscordEvents>(channel);
 
     gateway
       .on(GatewayDispatchEvents.MessageCreate, message => void this.onMessage(message))
