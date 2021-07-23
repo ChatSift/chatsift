@@ -114,7 +114,9 @@ export default class implements Command {
     type SqlNoop<T> = { [K in keyof T]: T[K] };
     const unmuteRoles = member.roles.map<SqlNoop<UnmuteRole>>(role => ({ case_id: cs!.id, role_id: role }));
 
-    await this.sql`INSERT INTO unmute_roles ${this.sql(unmuteRoles)}`;
+    if (unmuteRoles.length) {
+      await this.sql`INSERT INTO unmute_roles ${this.sql(unmuteRoles)}`;
+    }
 
     await send(interaction, { content: `Successfully muted ${targetTag}` });
     this.guildLogs.publish({
