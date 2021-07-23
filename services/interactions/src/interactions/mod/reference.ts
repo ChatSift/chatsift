@@ -1,9 +1,11 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { UserPerms } from '../../util';
 
 export const ReferenceCommand = {
   name: 'reference',
   description: 'Change the reference of a given mod action',
   default_permission: false,
+  perms: UserPerms.mod,
   options: [
     {
       name: 'case',

@@ -1,9 +1,11 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { UserPerms } from '../../util';
 
 export const UnmuteCommand = {
   name: 'unmute',
   description: 'Unmutes a member',
   default_permission: false,
+  perms: UserPerms.mod,
   options: [
     {
       name: 'user',

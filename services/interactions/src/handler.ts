@@ -7,9 +7,13 @@ import { Command, commandInfo } from './command';
 import { transformInteraction, ControlFlowError, send, PermissionsChecker, UserPerms, Interaction } from '#util';
 import {
   Routes,
+  RESTPutAPIApplicationCommandsResult,
   RESTPutAPIApplicationCommandsJSONBody,
+  RESTPutAPIApplicationGuildCommandsResult,
+  RESTPutAPIApplicationGuildCommandsJSONBody,
   APIApplicationCommandInteractionData,
-  APIMessageButtonInteractionData
+  APIMessageButtonInteractionData,
+  Snowflake
 } from 'discord-api-types/v9';
 import * as interactions from '#interactions';
 import { Component, componentInfo } from './component';
@@ -19,6 +23,8 @@ import type { Logger } from 'pino';
 export class Handler {
   public readonly commands = new Map<string, Command>();
   public readonly components = new Map<string, Component>();
+
+  public readonly commandIds = new Map<string, Snowflake>();
 
   public constructor(
     @inject(kConfig) public readonly config: Config,
@@ -100,9 +106,15 @@ export class Handler {
     const promises = [];
 
     if (this.config.nodeEnv === 'prod') {
-      await this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(Routes.applicationCommands(this.config.discordClientId), {
-        data: Object.values(interactions as any)
-      });
+      const res = await this.rest.put<RESTPutAPIApplicationCommandsResult, RESTPutAPIApplicationCommandsJSONBody>(
+        Routes.applicationCommands(this.config.discordClientId), {
+          data: Object.values(interactions as any)
+        }
+      );
+
+      for (const command of res) {
+        this.commandIds.set(command.name, command.id);
+      }
 
       for (const guild of this.config.interactionsTestGuilds) {
         const promise = this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(
@@ -123,7 +135,7 @@ export class Handler {
     });
 
     for (const guild of this.config.interactionsTestGuilds) {
-      const promise = this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(
+      const promise = this.rest.put<RESTPutAPIApplicationGuildCommandsResult, RESTPutAPIApplicationGuildCommandsJSONBody>(
         Routes.applicationGuildCommands(this.config.discordClientId, guild), {
           data: Object.values(interactions as any)
         }
@@ -132,7 +144,15 @@ export class Handler {
       promises.push(promise);
     }
 
-    await Promise.allSettled(promises);
+    for (const promise of await Promise.allSettled(promises)) {
+      if (promise.status === 'fulfilled') {
+        for (const command of promise.value) {
+          this.commandIds.set(command.name, command.id);
+        }
+
+        break;
+      }
+    }
   }
 
   public async loadCommands(): Promise<void> {

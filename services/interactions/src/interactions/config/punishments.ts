@@ -1,10 +1,12 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 import { WarnPunishmentAction } from '@automoderator/core';
+import { UserPerms } from '../../util';
 
 export const PunishmentsCommand = {
   name: 'punishments',
   description: 'Manage things related to warn punishments',
   default_permission: false,
+  perms: UserPerms.admin,
   options: [
     {
       name: 'add',

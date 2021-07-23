@@ -1,9 +1,11 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { UserPerms } from '../../util';
 
 export const RolesCommand = {
   name: 'roles',
   description: 'Manages self assignable roles',
   default_permission: false,
+  perms: UserPerms.admin,
   options: [
     {
       name: 'prompt',

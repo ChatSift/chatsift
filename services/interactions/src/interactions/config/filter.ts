@@ -1,5 +1,6 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 import { UseFilterMode } from '@automoderator/core';
+import { UserPerms } from '../../util';
 
 const typeOption = {
   name: 'filter',
@@ -16,6 +17,7 @@ export const FilterCommand = {
   name: 'filter',
   description: 'Allows you to interact with the config, add, remove or even list entries in any given filter',
   default_permission: false,
+  perms: UserPerms.admin,
   options: [
     {
       name: 'config',

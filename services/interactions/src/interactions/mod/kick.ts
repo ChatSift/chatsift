@@ -1,9 +1,11 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { UserPerms } from '../../util';
 
 export const KickCommand = {
   name: 'kick',
   description: 'Kicks a member',
   default_permission: false,
+  perms: UserPerms.mod,
   options: [
     {
       name: 'user',
