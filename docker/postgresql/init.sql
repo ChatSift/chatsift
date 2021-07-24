@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   auto_pardon_mutes_after int,
   use_url_filters int NOT NULL DEFAULT 0,
   use_file_filters int NOT NULL DEFAULT 0,
+  use_invite_filters boolean NOT NULL DEFAULT false,
   mod_action_log_channel bigint,
   assignable_roles_prompt text
 );

@@ -14,6 +14,7 @@ export interface GuildSettings {
   auto_pardon_mutes_after: number | null;
   use_url_filters: UseFilterMode;
   use_file_filters: UseFilterMode;
+  use_invite_filters: UseFilterMode;
   mod_action_log_channel: Snowflake | null;
   assignable_roles_prompt: string | null;
 }
