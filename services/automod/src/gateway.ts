@@ -136,7 +136,14 @@ export class Gateway {
       }
     }
 
-    const data = await Promise.allSettled(promises);
+    const data = (await Promise.allSettled(promises)).reduce<RunnerResult[]>((acc, promise) => {
+      if (promise.status === 'fulfilled') {
+        acc.push(promise.value);
+      }
+
+      return acc;
+    }, []);
+
     this.logger.trace({ data }, 'Done running runners');
 
     if (data.length) {
@@ -147,7 +154,7 @@ export class Gateway {
       await this.sql`
         INSERT INTO filter_triggers (guild_id, user_id, count)
         VALUES (${message.guild_id}, ${message.author.id}, next_punishment(${message.guild_id}, ${message.author.id}))
-        ON CONFLICT
+        ON CONFLICT (guild_id, user_id)
         DO UPDATE SET count = next_punishment(${message.guild_id}, ${message.author.id})
       `;
     }
