@@ -24,7 +24,8 @@ export class Handler {
   public readonly commands = new Map<string, Command>();
   public readonly components = new Map<string, Component>();
 
-  public readonly commandIds = new Map<string, Snowflake>();
+  public readonly globalCommandIds = new Map<string, Snowflake>();
+  public readonly testGuildCommandIds = new Map<`${Snowflake}-${string}`, Snowflake>();
 
   public constructor(
     @inject(kConfig) public readonly config: Config,
@@ -113,7 +114,7 @@ export class Handler {
       );
 
       for (const command of res) {
-        this.commandIds.set(command.name, command.id);
+        this.globalCommandIds.set(command.name, command.id);
       }
 
       for (const guild of this.config.interactionsTestGuilds) {
@@ -147,10 +148,8 @@ export class Handler {
     for (const promise of await Promise.allSettled(promises)) {
       if (promise.status === 'fulfilled') {
         for (const command of promise.value) {
-          this.commandIds.set(command.name, command.id);
+          this.testGuildCommandIds.set(`${command.guild_id!}-${command.name}`, command.id);
         }
-
-        break;
       }
     }
   }

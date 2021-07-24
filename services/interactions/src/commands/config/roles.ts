@@ -77,12 +77,31 @@ export default class implements Command {
           throw new ControlFlowError('You already have 15 self assignable roles!');
         }
 
-        await this.sql`INSERT INTO self_assignable_roles (role_id, guild_id) VALUES (${args.add.role.id}, ${interaction.guild_id})`;
+        const [role] = await this.sql<[SelfAssignableRole?]>`
+          INSERT INTO self_assignable_roles (role_id, guild_id)
+          VALUES (${args.add.role.id}, ${interaction.guild_id})
+          ON CONFLICT DO NOTHING
+          RETURNING *
+        `;
+
+        if (!role) {
+          return send(interaction, { content: 'That role is already self assignable', flags: 64 });
+        }
+
         return send(interaction, { content: 'Successfully registered the given role as a self assignable role' });
       }
 
       case 'remove': {
-        await this.sql`DELETE FROM self_assignable_roles WHERE role_id = ${args.remove.role.id}`;
+        const [role] = await this.sql<[SelfAssignableRole?]>`
+          DELETE FROM self_assignable_roles
+          WHERE role_id = ${args.remove.role.id}
+          RETURNING *
+        `;
+
+        if (!role) {
+          return send(interaction, { content: 'That role is not currently self assignable', flags: 64 });
+        }
+
         return send(interaction, { content: 'Successfully removed the given role from the list of self assignable roles' });
       }
 

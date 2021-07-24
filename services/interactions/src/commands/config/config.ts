@@ -105,12 +105,13 @@ export default class implements Command {
       await this.rest.put<unknown, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
         Routes.guildApplicationCommandsPermissions(this.config.discordClientId, interaction.guild_id), {
           data: Object.values(interactions).reduce<RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>((acc, entry) => {
+            const id = this.config.nodeEnv === 'prod'
+              ? this.handler.globalCommandIds.get(entry.name)
+              : this.handler.testGuildCommandIds.get(`${interaction.guild_id}-${entry.name}`);
+
             // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            if ('default_permission' in entry && !entry.default_permission && this.handler.commandIds.has(entry.name)) {
-              acc.push({
-                id: this.handler.commandIds.get(entry.name)!,
-                permissions
-              });
+            if ('default_permission' in entry && !entry.default_permission && id) {
+              acc.push({ id, permissions });
             }
 
             return acc;
