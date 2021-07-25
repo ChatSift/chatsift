@@ -1,6 +1,12 @@
 version: "3.7"
 
 services:
+  base:
+    image: automoderator:base
+    build:
+      context: ./
+      dockerfile: ./docker/base/Dockerfile
+
   rabbitmq:
     image: rabbitmq:3-management-alpine
     restart: unless-stopped
