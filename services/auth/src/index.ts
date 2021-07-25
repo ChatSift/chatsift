@@ -16,7 +16,7 @@ void (async () => {
   container.register(
     kSql, {
       useValue: postgres(config.dbUrl, {
-        onnotice: notice => logger.debug({ topic: 'DB NOTICE', notice })
+        onnotice: notice => logger.debug({ notice }, 'Database notice')
       })
     }
   );
@@ -25,5 +25,5 @@ void (async () => {
 
   await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtension: 'js' }));
 
-  app.listen(3000, () => logger.info({ topic: 'INIT' }, 'Listening to requests on port 3000'));
+  app.listen(3000, () => logger.info('Listening to requests on port 3000'));
 })();

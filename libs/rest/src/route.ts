@@ -40,7 +40,7 @@ export abstract class Route {
   public register(info: RouteInfo, server: Polka) {
     const logger = container.resolve<Logger>(kLogger);
 
-    logger.trace({ topic: 'ROUTE REGISTER' }, `Registering route "${info.method.toUpperCase()} ${info.path}"`);
+    logger.debug(`Registering route "${info.method.toUpperCase()} ${info.path}"`);
     server[info.method](`${info.path.startsWith('/') ? '' : '/'}${info.path}`, ...this.middleware, async (req, res, next) => {
       try {
         await this.handle(req, res, next);

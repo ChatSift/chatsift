@@ -25,10 +25,12 @@ export const getUserGuilds = async (req: Request, next: NextHandler, filtered: b
   const data: RESTGetAPICurrentUserGuildsResult = await result.json();
 
   if (!result.ok) {
-    logger.warn(
-      { topic: 'GET USER GUILDS', route: req.originalUrl, userId: req.user!.id, data },
-      'Recieved bad discord data while getting all user guilds'
-    );
+    logger.warn({
+      route: req.originalUrl,
+      userId: req.user!.id,
+      data
+    },
+    'Recieved bad discord data while getting all user guilds');
 
     await next(internal(`Discord Error: ${result.statusText}`));
     return null;

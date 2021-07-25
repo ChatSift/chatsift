@@ -19,11 +19,11 @@ import { singleton, inject } from 'tsyringe';
 import { kSql } from '@automoderator/injection';
 import type { Sql } from 'postgres';
 import type { Snowflake } from 'discord-api-types/v9';
-import { AllowedInvite } from '@automoderator/core';
+import type { AllowedInvite } from '@automoderator/core';
 
 @singleton()
 export class InvitesRunner {
-  public readonly inviteRegex = /(?:https?:\/\/)?discord(?:app)?\.(?:com\/invite|gg)\/(?<code>[^\W_]+)\/?/gi;
+  public readonly inviteRegex = /^(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)?(?<code>[\w\d-]{2,})$/gi;
 
   public constructor(
     @inject(kSql) public readonly sql: Sql<{}>

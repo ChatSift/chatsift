@@ -42,7 +42,6 @@ export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler
 
   if (!result.ok) {
     logger.warn({
-      topic: `${code ? 'CALLBACK' : 'REFRESH'} OAUTH BAD DATA`,
       data: oauthResponse,
       userId: req.user!.id
     }, 'Recieved weird discord data');

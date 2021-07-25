@@ -19,14 +19,13 @@ void (async () => {
   const logger = createLogger('AUTOMOD');
 
   const sql = postgres(config.dbUrl, {
-    onnotice: notice => logger.debug({ topic: 'DB NOTICE', notice })
+    onnotice: notice => logger.debug({ notice }, 'Database notice')
   });
 
   discordRest
     .on('response', async (req, res, rl) => {
       if (!res.ok) {
         logger.warn({
-          topic: 'REQUEST FAILURE',
           res: await res.json(),
           rl
         }, `Failed request ${req.method!} ${req.path!}`);
@@ -34,7 +33,6 @@ void (async () => {
     })
     .on('ratelimit', (bucket, endpoint, prevented, waitingFor) => {
       logger.warn({
-        topic: 'RATELIMIT',
         bucket,
         prevented,
         waitingFor
@@ -42,7 +40,7 @@ void (async () => {
     });
 
   if (config.nodeEnv === 'dev') {
-    discordRest.on('request', req => logger.trace({ topic: 'REQUEST START' }, `Making request ${req.method!} ${req.path!}`));
+    discordRest.on('request', req => logger.trace(`Making request ${req.method!} ${req.path!}`));
   }
 
   container.register(DiscordRest, { useValue: discordRest });
@@ -54,5 +52,5 @@ void (async () => {
   }
 
   await container.resolve(Gateway).init();
-  logger.info({ topic: 'AUTOMOD INIT' }, 'Ready to listen to message packets');
+  logger.info('Ready to listen to message packets');
 })();

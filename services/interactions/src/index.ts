@@ -22,7 +22,6 @@ void (async () => {
     .on('response', async (req, res, rl) => {
       if (!res.ok) {
         logger.warn({
-          topic: 'REQUEST FAILURE',
           res: await res.json(),
           rl
         }, `Failed request ${req.method!} ${req.path!}`);
@@ -30,7 +29,6 @@ void (async () => {
     })
     .on('ratelimit', (bucket, endpoint, prevented, waitingFor) => {
       logger.warn({
-        topic: 'RATELIMIT',
         bucket,
         prevented,
         waitingFor
@@ -38,7 +36,7 @@ void (async () => {
     });
 
   if (config.nodeEnv === 'dev') {
-    discordRest.on('request', req => logger.trace({ topic: 'REQUEST START' }, `Making request ${req.method!} ${req.path!}`));
+    discordRest.on('request', req => logger.trace(`Making request ${req.method!} ${req.path!}`));
   }
 
   const { channel } = await createAmqp(config.amqpUrl);
@@ -53,7 +51,7 @@ void (async () => {
   container.register(
     kSql, {
       useValue: postgres(config.dbUrl, {
-        onnotice: notice => logger.debug({ topic: 'DB NOTICE', notice })
+        onnotice: notice => logger.debug({ notice }, 'Database notice')
       })
     }
   );
