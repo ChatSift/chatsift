@@ -258,7 +258,7 @@ export class Gateway {
       return acc;
     }, []);
 
-    this.logger.trace({ data }, 'Done running runners');
+    this.logger.debug({ data, guild: message.guild_id }, 'Done running automod');
 
     if (data.length) {
       if (!message.author) {

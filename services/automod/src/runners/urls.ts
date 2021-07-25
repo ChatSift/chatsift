@@ -26,7 +26,7 @@ export class UrlsRunner {
         return acc;
       }, new Set<string>());
 
-    logger.trace({ tlds: [...this.tlds] }, 'Successfully computed valid tlds');
+    logger.debug({ tlds: [...this.tlds] }, 'Successfully computed valid tlds');
   }
 
   public precheck(content: string): string[] {

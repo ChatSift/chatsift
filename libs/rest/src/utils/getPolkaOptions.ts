@@ -15,7 +15,10 @@ export const getPolkaOptions = (): polka.IOptions => {
       res.setHeader('content-type', 'application/json');
       const boom = isBoom(e) ? e : new Boom(e);
 
-      logger.error({ topic: 'REQUEST INTERNAL ERRROR' }, boom.message);
+      if (boom.output.statusCode === 500) {
+        logger.error({ error: boom }, boom.message);
+      }
+
       return sendBoom(boom, res);
     },
     onNoMatch(_: polka.Request, res: polka.Response) {

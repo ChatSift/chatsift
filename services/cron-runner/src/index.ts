@@ -12,7 +12,7 @@ const logger = createLogger('CRON-RUNNER');
 const discordRest = new DiscordRest(config.discordToken);
 
 const sql = postgres(config.dbUrl, {
-  onnotice: notice => logger.debug({ topic: 'DB NOTICE', notice })
+  onnotice: notice => logger.debug({ notice }, 'Database notice')
 });
 
 // Every 1 hour, clear sigs that have been un-used for a week

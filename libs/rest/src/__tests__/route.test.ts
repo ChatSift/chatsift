@@ -3,7 +3,7 @@ import { Route, RouteMethod } from '../route';
 import { container } from 'tsyringe';
 import { kLogger } from '@automoderator/injection';
 
-container.register(kLogger, { useValue: { trace: jest.fn() } });
+container.register(kLogger, { useValue: { debug: jest.fn() } });
 
 describe('path to route info', () => {
   test('faulty parameters', () => {

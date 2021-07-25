@@ -11,7 +11,7 @@ export const initApp = async (app: Polka, files: RecursiveDirReadStream) => {
   for await (const file of files) {
     const info = Route.pathToRouteInfo(file.split('/routes').pop()!);
     if (!info) {
-      logger.trace({ topic: 'INIT' }, `Hit path with no info: "${file}"`);
+      logger.debug(`Hit path with no info: "${file}"`);
       continue;
     }
 

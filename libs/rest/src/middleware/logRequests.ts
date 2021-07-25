@@ -11,7 +11,6 @@ export const logRequests = () => {
     const start = Date.now();
 
     req.once('close', () => logger.info({
-      topic: 'REQUEST COMPLETION',
       time: Date.now() - start,
       route: `${req.method.toUpperCase()} ${req.originalUrl}`,
       status: res.statusCode,
