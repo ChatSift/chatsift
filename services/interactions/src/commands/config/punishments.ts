@@ -1,6 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send, UserPerms } from '#util';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { UserPerms } from '@automoderator/discord-permissions';
 import { PunishmentsCommand } from '#interactions';
 import { Rest } from '@cordis/rest';
 import { APIGuildInteraction } from 'discord-api-types/v9';
@@ -38,7 +39,7 @@ export default class implements Command {
         await this.sql`
           INSERT INTO warn_punishments ${this.sql(data)}
           ON CONFLICT (guild_id, warns)
-          DO UPDATE SET ${this.sql(data)}
+          DO UPDATE SET duration = ${data.duration}
         `;
 
         return send(interaction, {

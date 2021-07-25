@@ -30,13 +30,15 @@ export class UrlsRunner {
   }
 
   public precheck(content: string): string[] {
-    return [...content.matchAll(this.urlRegex)].reduce<string[]>((acc, match) => {
+    const urls = [...content.matchAll(this.urlRegex)].reduce<Set<string>>((acc, match) => {
       if (this.tlds.has(match.groups!.tld!.toLowerCase())) {
-        acc.push(match[0]!);
+        acc.add(match[0]!);
       }
 
       return acc;
-    }, []);
+    }, new Set());
+
+    return [...urls];
   }
 
   public run(urls: string[], guildId: string, guildOnly: boolean) {

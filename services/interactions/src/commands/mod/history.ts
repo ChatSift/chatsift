@@ -1,6 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, UserPerms, send } from '#util';
+import { ArgumentsOf, send } from '#util';
+import { UserPerms } from '@automoderator/discord-permissions';
 import { HistoryCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -22,7 +23,7 @@ export default class implements Command {
   public parse(args: ArgumentsOf<typeof HistoryCommand>) {
     return {
       member: args.user,
-      detailed: args.detailed
+      detailed: args.detailed ?? false
     };
   }
 

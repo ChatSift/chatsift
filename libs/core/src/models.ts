@@ -14,6 +14,7 @@ export interface GuildSettings {
   auto_pardon_mutes_after: number | null;
   use_url_filters: UseFilterMode;
   use_file_filters: UseFilterMode;
+  use_invite_filters: boolean;
   mod_action_log_channel: Snowflake | null;
   assignable_roles_prompt: string | null;
 }
@@ -166,4 +167,15 @@ export interface FilterTrigger {
   guild_id: Snowflake;
   user_id: Snowflake;
   count: number;
+}
+
+export interface FilterIgnore {
+  channel_id: Snowflake;
+  guild_id: Snowflake;
+  value: `${bigint}`;
+}
+
+export interface AllowedInvite {
+  guild_id: Snowflake;
+  invite_code: string;
 }

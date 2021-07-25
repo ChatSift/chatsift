@@ -2,7 +2,8 @@ import { inject, injectable } from 'tsyringe';
 import { Component } from '../component';
 import { HTTPError, Rest } from '@automoderator/http-client';
 import { kSql } from '@automoderator/injection';
-import { send, UserPerms } from '#util';
+import { send } from '#util';
+import { UserPerms } from '@automoderator/discord-permissions';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
 

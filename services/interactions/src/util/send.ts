@@ -1,5 +1,5 @@
 import { container } from 'tsyringe';
-import { Rest } from '@cordis/rest';
+import { File, Rest } from '@cordis/rest';
 import {
   APIInteractionResponseCallbackData,
   RESTPostAPIChannelMessageJSONBody,
@@ -21,29 +21,38 @@ export interface SendOptions {
  */
 export const send = (
   message: any,
-  payload: RESTPostAPIChannelMessageJSONBody | APIInteractionResponseCallbackData,
+  payload: (RESTPostAPIChannelMessageJSONBody | APIInteractionResponseCallbackData) & { files?: File[] },
   options?: SendOptions
-) => {
+): unknown => {
   const rest = container.resolve(Rest);
   const { discordClientId } = container.resolve<Config>(kConfig);
 
   if ('token' in message) {
-    const { embed, ...r } = payload as RESTPostAPIChannelMessageJSONBody;
+    const { embed, files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: File[] };
     const response = { ...r, embeds: embed ? [embed] : undefined };
 
     if (options?.update) {
-      return rest.patch(Routes.webhookMessage(discordClientId, message.token, '@original'), { data: response });
+      // TODO cordis support for files in PATCH
+      //  return rest.patch(Routes.webhookMessage(discordClientId, message.token, '@original'), { data: response, files });
+      return rest.make({
+        method: 'PATCH',
+        path: Routes.webhookMessage(discordClientId, message.token, '@original'),
+        data: response,
+        files
+      });
     }
 
     if (message.res) {
-      return message.res.end(
-        JSON.stringify({
-          type: options?.type ?? InteractionResponseType.ChannelMessageWithSource,
-          data: response
-        })
-      );
+      message.res.end(JSON.stringify({
+        type: options?.type ?? InteractionResponseType.ChannelMessageWithSource,
+        data: response
+      }));
+
+      return send(message, { files }, { update: true });
     }
   }
 
-  return rest.post<unknown, RESTPostAPIChannelMessageJSONBody>(Routes.channelMessages(message.channel_id), { data: payload });
+  const { files, ...r } = payload;
+
+  return rest.post<unknown, RESTPostAPIChannelMessageJSONBody>(Routes.channelMessages(message.channel_id), { data: r, files });
 };

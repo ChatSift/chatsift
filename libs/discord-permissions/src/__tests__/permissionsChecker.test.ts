@@ -1,10 +1,9 @@
 import { container } from 'tsyringe';
-import { PermissionsChecker, UserPerms } from '../';
-import { kLogger, kSql } from '@automoderator/injection';
+import { PermissionsChecker, UserPerms, PermissionsCheckerData } from '../PermissionsChecker';
+import { kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { APIGuildInteraction } from 'discord-api-types/v9';
 
-const sqlMock = jest.fn();
+const sqlMock = jest.fn().mockImplementation(() => Promise.resolve([]));
 const restGetMock = jest.fn();
 const loggerWarnMock = jest.fn();
 
@@ -12,13 +11,26 @@ const restMock: jest.Mocked<Rest> = { get: restGetMock } as any;
 
 container.register(kSql, { useValue: sqlMock });
 container.register(kLogger, { useValue: { warn: loggerWarnMock } });
+container.register(kConfig, { useValue: { devIds: ['223703707118731264'] } });
 container.register(Rest, { useValue: restMock });
 
 const checker = container.resolve(PermissionsChecker);
 
-const makeMockedInteraction = (data: any): APIGuildInteraction => data;
+const makeMockedInteraction = (data: any): PermissionsCheckerData => data;
 
 afterEach(() => jest.clearAllMocks());
+
+test('dev bypass', async () => {
+  const data = makeMockedInteraction({
+    member: {
+      user: {
+        id: '223703707118731264'
+      }
+    }
+  });
+
+  expect(await checker.check(data, UserPerms.owner)).toBe(true);
+});
 
 describe('owner needed', () => {
   const data = makeMockedInteraction({
@@ -83,10 +95,6 @@ describe('mod needed', () => {
     expect(await checker.check(getInteraction('8'), UserPerms.mod)).toBe(true);
   });
 
-  test('mod check errors', async () => {
-    sqlMock.mockImplementation(() => Promise.reject());
-    expect(await checker.check(getInteraction('0'), UserPerms.mod)).toBe(false);
-  });
 
   test('pass by mod check', async () => {
     sqlMock.mockImplementation(() => Promise.resolve([{ mod_role: '123' }]));
@@ -102,5 +110,13 @@ describe('mod needed', () => {
 });
 
 test('no perms needed', async () => {
-  expect(await checker.check(makeMockedInteraction({}), UserPerms.none)).toBe(true);
+  const data = makeMockedInteraction({
+    member: {
+      user: {
+        id: '123'
+      }
+    }
+  });
+
+  expect(await checker.check(data, UserPerms.none)).toBe(true);
 });

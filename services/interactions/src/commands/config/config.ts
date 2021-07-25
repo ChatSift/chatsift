@@ -1,6 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, send, UserPerms } from '#util';
+import { ArgumentsOf, send } from '#util';
+import { UserPerms } from '@automoderator/discord-permissions';
 import { ConfigCommand } from '#interactions';
 import * as interactions from '#interactions';
 import { Rest } from '@cordis/rest';
@@ -61,7 +62,7 @@ export default class implements Command {
     if (modrole) settings.mod_role = modrole.id;
     if (adminrole) settings.admin_role = adminrole.id;
     if (muterole) settings.mute_role = muterole.id;
-    if (pardon) settings.auto_pardon_mutes_after = pardon;
+    if (pardon != null) settings.auto_pardon_mutes_after = pardon;
 
     if (Object.values(settings).length === 1) {
       const [currentSettings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${interaction.guild_id}`;
@@ -85,6 +86,8 @@ export default class implements Command {
           permission: true
         }
       ];
+
+      permissions.push(...this.config.devIds.map(id => ({ id, type: ApplicationCommandPermissionType.User, permission: true })));
 
       if (modrole) {
         permissions.push({

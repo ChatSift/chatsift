@@ -1,6 +1,7 @@
 import { injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, UserPerms, send } from '#util';
+import { ArgumentsOf, send } from '#util';
+import { UserPerms } from '@automoderator/discord-permissions';
 import { PardonCommand } from '#interactions';
 import { HTTPError, Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';

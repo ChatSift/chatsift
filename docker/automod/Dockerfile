@@ -12,6 +12,8 @@ RUN curl -L https://unpkg.com/@pnpm/self-installer | node
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 
 COPY libs/core/package.json ./libs/core/package.json
+COPY libs/discord-permissions/package.json ./libs/discord-permissions/package.json
+COPY libs/filter-ignores/package.json ./libs/filter-ignores/package.json
 COPY libs/http-client/package.json ./libs/http-client/package.json
 COPY libs/injection/package.json ./libs/injection/package.json
 COPY libs/logger/package.json ./libs/logger/package.json
@@ -20,6 +22,8 @@ COPY services/automod/package.json ./services/automod/package.json
 RUN pnpm i --frozen-lockfile
 
 COPY libs/core ./libs/core
+COPY libs/discord-permissions ./libs/discord-permissions
+COPY libs/filter-ignores ./libs/filter-ignores
 COPY libs/http-client ./libs/http-client
 COPY libs/injection ./libs/injection
 COPY libs/logger ./libs/logger

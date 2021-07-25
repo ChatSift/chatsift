@@ -1,6 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { Component } from '../component';
-import { send, UserPerms } from '#util';
+import { send } from '#util';
+import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@cordis/rest';
 import { kSql } from '@automoderator/injection';
 import { stripIndents } from 'common-tags';

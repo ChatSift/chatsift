@@ -1,5 +1,6 @@
 import { basename, extname } from 'path';
-import type { Interaction, UserPerms } from '#util';
+import type { Interaction } from '#util';
+import { UserPerms } from '@automoderator/discord-permissions';
 
 export interface Component {
   name?: string;

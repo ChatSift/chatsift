@@ -4,7 +4,8 @@ import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
 import { join as joinPath } from 'path';
 import { Command, commandInfo } from './command';
-import { transformInteraction, ControlFlowError, send, PermissionsChecker, UserPerms, Interaction } from '#util';
+import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
+import { transformInteraction, ControlFlowError, send, Interaction } from '#util';
 import {
   Routes,
   RESTPutAPIApplicationCommandsResult,

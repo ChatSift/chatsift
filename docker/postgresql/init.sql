@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   auto_pardon_mutes_after int,
   use_url_filters int NOT NULL DEFAULT 0,
   use_file_filters int NOT NULL DEFAULT 0,
+  use_invite_filters boolean NOT NULL DEFAULT false,
   mod_action_log_channel bigint,
   assignable_roles_prompt text
 );
@@ -117,4 +118,16 @@ CREATE TABLE IF NOT EXISTS filter_triggers (
   user_id bigint NOT NULL,
   count int NOT NULL,
   PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS filter_ignores (
+  channel_id bigint NOT NULL PRIMARY KEY,
+  guild_id bigint NOT NULL,
+  value bigint NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS allowed_invites (
+  guild_id bigint NOT NULL,
+  invite_code text NOT NULL,
+  PRIMARY KEY (guild_id, invite_code)
 );
