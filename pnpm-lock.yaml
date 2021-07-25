@@ -61,15 +61,29 @@ importers:
 
   libs/discord-permissions:
     specifiers:
+      '@automoderator/core': workspace:^0.1.0
+      '@automoderator/injection': workspace:^0.1.0
       '@cordis/bitfield': ^1.0.1
+      '@cordis/rest': ^1.0.1
       '@types/node': ^14.17.5
+      '@types/pino': ^6.3.9
+      discord-api-types: ^0.20.2
+      postgres: ^2.0.0-beta.6
       tslib: ^2.3.0
+      tsyringe: ^4.6.0
       typescript: ^4.4.0-beta
     dependencies:
+      '@automoderator/injection': link:../injection
+      '@cordis/rest': 1.0.1
+      discord-api-types: 0.20.2
       tslib: 2.3.0
+      tsyringe: 4.6.0
     devDependencies:
+      '@automoderator/core': link:../core
       '@cordis/bitfield': 1.0.1
       '@types/node': 14.17.5
+      '@types/pino': 6.3.9
+      postgres: 2.0.0-beta.6
       typescript: 4.4.0-beta
 
   libs/filter-ignores:
@@ -2195,6 +2209,10 @@ packages:
     resolution: {integrity: sha512-bjqH2cX/O33jXT/UmReo2pM7DIJREPMnarixbQ57DOOzzFaI6D2+IcwaJQaJpv0M1E9TIhPCYVxrkcityLjlqA==}
     dev: true
 
+  /@types/node/14.17.6:
+    resolution: {integrity: sha512-iBxsxU7eswQDGhlr3AiamBxOssaYxbM+NKXVil8jg9yFXvrfEFbDumLD/2dMTB+zYyg7w+Xjt8yuxfdbUHAtcQ==}
+    dev: true
+
   /@types/node/16.3.0:
     resolution: {integrity: sha512-OydMCocGMGqw/1BnWbhtK+AtwyWTOigtrQlRe57OQmTNcI3HKlVI5FGlh+c4mSqInMPLynFrTlYjfajPu9O/eQ==}
     dev: true
@@ -2216,13 +2234,13 @@ packages:
   /@types/pino-std-serializers/2.4.1:
     resolution: {integrity: sha512-17XcksO47M24IVTVKPeAByWUd3Oez7EbIjXpSbzMPhXVzgjGtrOa49gKBwxH9hb8dKv58OelsWQ+A1G1l9S3wQ==}
     dependencies:
-      '@types/node': 14.17.5
+      '@types/node': 14.17.6
     dev: true
 
   /@types/pino/6.3.9:
     resolution: {integrity: sha512-2/XV6adNNCLWnT2lJqcSn/OXrCxRFOY6yXYoofrLy5Ts5e8RHTJP1M4XEcCarQQMa6H6JISaa4GkrlGZwIP5aQ==}
     dependencies:
-      '@types/node': 14.17.5
+      '@types/node': 14.17.6
       '@types/pino-pretty': 4.7.1
       '@types/pino-std-serializers': 2.4.1
       '@types/sonic-boom': 0.7.0
@@ -2235,7 +2253,7 @@ packages:
   /@types/sonic-boom/0.7.0:
     resolution: {integrity: sha512-AfqR0fZMoUXUNwusgXKxcE9DPlHNDHQp6nKYUd4PSRpLobF5CCevSpyTEBcVZreqaWKCnGBr9KI1fHMTttoB7A==}
     dependencies:
-      '@types/node': 14.17.5
+      '@types/node': 14.17.6
     dev: true
 
   /@types/stack-utils/2.0.1:

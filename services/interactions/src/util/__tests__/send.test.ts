@@ -9,7 +9,11 @@ const mockedPost = jest.fn();
 const mockedPatch = jest.fn();
 const mockedResEnd = jest.fn();
 
-const mockedRest: jest.Mocked<Rest> = { post: mockedPost, patch: mockedPatch } as any;
+const mockedRest: jest.Mocked<Rest> = {
+  post: mockedPost,
+  patch: mockedPatch,
+  make: (req: any) => mockedPatch(req.path, { data: req.data })
+} as any;
 const mockedRes: jest.Mocked<Response> = { end: mockedResEnd } as any;
 
 container.register(Rest, { useValue: mockedRest });

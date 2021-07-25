@@ -1,10 +1,9 @@
 import { container } from 'tsyringe';
-import { PermissionsChecker, UserPerms } from '../';
+import { PermissionsChecker, UserPerms, PermissionsCheckerData } from '../PermissionsChecker';
 import { kLogger, kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { APIGuildInteraction } from 'discord-api-types/v9';
 
-const sqlMock = jest.fn();
+const sqlMock = jest.fn().mockImplementation(() => Promise.resolve([]));
 const restGetMock = jest.fn();
 const loggerWarnMock = jest.fn();
 
@@ -16,7 +15,7 @@ container.register(Rest, { useValue: restMock });
 
 const checker = container.resolve(PermissionsChecker);
 
-const makeMockedInteraction = (data: any): APIGuildInteraction => data;
+const makeMockedInteraction = (data: any): PermissionsCheckerData => data;
 
 afterEach(() => jest.clearAllMocks());
 
@@ -83,10 +82,6 @@ describe('mod needed', () => {
     expect(await checker.check(getInteraction('8'), UserPerms.mod)).toBe(true);
   });
 
-  test('mod check errors', async () => {
-    sqlMock.mockImplementation(() => Promise.reject());
-    expect(await checker.check(getInteraction('0'), UserPerms.mod)).toBe(false);
-  });
 
   test('pass by mod check', async () => {
     sqlMock.mockImplementation(() => Promise.resolve([{ mod_role: '123' }]));
