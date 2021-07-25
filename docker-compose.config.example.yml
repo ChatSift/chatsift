@@ -16,6 +16,7 @@ services:
   automod:
     environment:
       DISCORD_TOKEN: "awooga"
+      DEV_IDS: "123,456"
       INTERNAL_API_TOKEN: "asdf"
 
   cron-runner:
@@ -28,6 +29,7 @@ services:
       DISCORD_PUB_KEY: "owo"
       DISCORD_TOKEN: "awooga"
       DISCORD_CLIENT_ID: "123"
+      DEV_IDS: "123,456"
       INTERACTIONS_TEST_GUILDS: "456,789"
       INTERNAL_API_TOKEN: "asdf"
 

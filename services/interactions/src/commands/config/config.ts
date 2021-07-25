@@ -87,6 +87,8 @@ export default class implements Command {
         }
       ];
 
+      permissions.push(...this.config.devIds.map(id => ({ id, type: ApplicationCommandPermissionType.User, permission: true })));
+
       if (modrole) {
         permissions.push({
           id: modrole.id,

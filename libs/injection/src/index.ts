@@ -14,6 +14,7 @@ export interface Config {
   dashDomain: string;
   internalApiToken: string;
   discordClientId: `${bigint}`;
+  devIds: `${bigint}`[];
   interactionsTestGuilds: `${bigint}`[];
   discordClientSecret: string;
   discordToken: string;
@@ -34,6 +35,7 @@ export const initConfig = () => {
     dashDomain: process.env.DASH_DOMAIN!,
     internalApiToken: process.env.INTERNAL_API_TOKEN!,
     discordClientId: process.env.DISCORD_CLIENT_ID as `${bigint}`,
+    devIds: (process.env.DEV_IDS?.split(',') ?? []) as `${bigint}`[],
     interactionsTestGuilds: (process.env.INTERACTIONS_TEST_GUILDS?.split(',') ?? []) as `${bigint}`[],
     discordClientSecret: process.env.DISCORD_CLIENT_SECRET!,
     discordToken: process.env.DISCORD_TOKEN!,
