@@ -1,6 +1,6 @@
 import { container } from 'tsyringe';
 import { PermissionsChecker, UserPerms, PermissionsCheckerData } from '../PermissionsChecker';
-import { kLogger, kSql } from '@automoderator/injection';
+import { kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 
 const sqlMock = jest.fn().mockImplementation(() => Promise.resolve([]));
@@ -11,6 +11,7 @@ const restMock: jest.Mocked<Rest> = { get: restGetMock } as any;
 
 container.register(kSql, { useValue: sqlMock });
 container.register(kLogger, { useValue: { warn: loggerWarnMock } });
+container.register(kConfig, { useValue: { devIds: ['223703707118731264'] } });
 container.register(Rest, { useValue: restMock });
 
 const checker = container.resolve(PermissionsChecker);
@@ -18,6 +19,18 @@ const checker = container.resolve(PermissionsChecker);
 const makeMockedInteraction = (data: any): PermissionsCheckerData => data;
 
 afterEach(() => jest.clearAllMocks());
+
+test('dev bypass', async () => {
+  const data = makeMockedInteraction({
+    member: {
+      user: {
+        id: '223703707118731264'
+      }
+    }
+  });
+
+  expect(await checker.check(data, UserPerms.owner)).toBe(true);
+});
 
 describe('owner needed', () => {
   const data = makeMockedInteraction({
@@ -97,5 +110,13 @@ describe('mod needed', () => {
 });
 
 test('no perms needed', async () => {
-  expect(await checker.check(makeMockedInteraction({}), UserPerms.none)).toBe(true);
+  const data = makeMockedInteraction({
+    member: {
+      user: {
+        id: '123'
+      }
+    }
+  });
+
+  expect(await checker.check(data, UserPerms.none)).toBe(true);
 });
