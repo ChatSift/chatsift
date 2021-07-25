@@ -1,6 +1,7 @@
 import { injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, UserPerms } from '#util';
+import { ArgumentsOf } from '#util';
+import { UserPerms } from '@automoderator/discord-permissions';
 import { FilterCommand } from '#interactions';
 import { FilterConfig, FilesConfig, UrlsConfig, InvitesConfig } from './sub/filter';
 import type { APIGuildInteraction } from 'discord-api-types/v9';

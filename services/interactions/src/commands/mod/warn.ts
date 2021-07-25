@@ -1,6 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, UserPerms, ControlFlowError, send } from '#util';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { UserPerms } from '@automoderator/discord-permissions';
 import { WarnCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { APIGuildInteraction, Routes } from 'discord-api-types/v9';

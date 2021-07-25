@@ -1,6 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send, UserPerms } from '#util';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { UserPerms } from '@automoderator/discord-permissions';
 import { RolesCommand } from '#interactions';
 import { Rest } from '@cordis/rest';
 import { APIGuildInteraction, ButtonStyle, ComponentType } from 'discord-api-types/v9';
