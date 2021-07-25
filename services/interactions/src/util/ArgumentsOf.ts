@@ -82,7 +82,6 @@ type OptionToObject<O> = O extends {
       : T extends
       | ApplicationCommandOptionType.SubCommand
       | ApplicationCommandOptionType.SubCommandGroup
-      | ApplicationCommandOptionType.Boolean
         ? { [k in K]: TypeIdToType<T, O, C> }
         : { [k in K]?: TypeIdToType<T, O, C> }
     : never

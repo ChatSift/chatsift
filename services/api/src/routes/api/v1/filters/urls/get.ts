@@ -1,4 +1,4 @@
-import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
+import { Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { UrlsController } from '#controllers';
@@ -10,7 +10,6 @@ export default class GetFiltersUrlsRoute extends Route {
   public override readonly middleware = [
     userAuth(),
     globalPermissions('manageUrlFilters'),
-    jsonParser(),
     validate(
       Joi
         .object()

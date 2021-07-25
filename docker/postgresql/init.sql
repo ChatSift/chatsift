@@ -119,3 +119,15 @@ CREATE TABLE IF NOT EXISTS filter_triggers (
   count int NOT NULL,
   PRIMARY KEY (guild_id, user_id)
 );
+
+CREATE TABLE IF NOT EXISTS filter_ignores (
+  channel_id bigint NOT NULL PRIMARY KEY,
+  guild_id bigint NOT NULL,
+  value bigint NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS allowed_invites (
+  guild_id bigint NOT NULL,
+  invite_code text NOT NULL,
+  PRIMARY KEY (guild_id, invite_code)
+);

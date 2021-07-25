@@ -38,7 +38,7 @@ export default class implements Command {
         await this.sql`
           INSERT INTO warn_punishments ${this.sql(data)}
           ON CONFLICT (guild_id, warns)
-          DO UPDATE SET ${this.sql(data)}
+          DO UPDATE SET duration = ${data.duration}
         `;
 
         return send(interaction, {

@@ -22,7 +22,7 @@ export default class implements Command {
   public parse(args: ArgumentsOf<typeof HistoryCommand>) {
     return {
       member: args.user,
-      detailed: args.detailed
+      detailed: args.detailed ?? false
     };
   }
 

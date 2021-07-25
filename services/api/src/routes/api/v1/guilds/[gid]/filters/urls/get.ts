@@ -1,4 +1,4 @@
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
+import { Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { GuildUrlsController } from '#controllers';
@@ -10,7 +10,6 @@ import type { Snowflake } from 'discord-api-types/v9';
 export default class GetFiltersUrlsGuildRoute extends Route {
   public override readonly middleware = [
     thirdPartyAuth(),
-    jsonParser(),
     validate(
       Joi
         .object()

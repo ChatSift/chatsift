@@ -1,4 +1,4 @@
-import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
+import { Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
 import { FilesController } from '#controllers';
@@ -10,7 +10,6 @@ export default class GetFiltersFilesRoute extends Route {
   public override readonly middleware = [
     userAuth(),
     globalPermissions('manageFileFilters'),
-    jsonParser(),
     validate(
       Joi
         .object()
