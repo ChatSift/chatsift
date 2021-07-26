@@ -5,7 +5,7 @@ import { UserPerms } from '@automoderator/discord-permissions';
 import { WarnCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { APIGuildInteraction, Routes } from 'discord-api-types/v9';
-import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, Case, CaseAction, HttpCase, Log, LogTypes, WarnPunishment, WarnPunishmentAction } from '@automoderator/core';
+import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, Case, CaseAction, HttpCase, Log, LogTypes, WarnCase, WarnPunishment, WarnPunishmentAction } from '@automoderator/core';
 import { PubSubPublisher } from '@cordis/brokers';
 import { kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -62,7 +62,10 @@ export default class implements Command {
       `
       .then(rows => rows.length);
 
+    let triggeredCs: HttpCase | undefined;
     let updatedCs: HttpCase | undefined;
+    let duration: number | undefined;
+    let extendedBy: number | undefined;
 
     const [punishment] = await this.sql<[WarnPunishment?]>`
         SELECT * FROM warn_punishments
@@ -98,11 +101,12 @@ export default class implements Command {
         case WarnPunishmentAction.mute: {
           const muteCase = cases[CaseAction.mute];
 
-          const expiresAt = punishment.duration
-            ? new Date(
-              (punishment.duration * 6e4) + (muteCase?.expires_at?.getTime() ?? 0)
-            )
-            : null;
+          let expiresAt: Date | null = null;
+          if (punishment.duration) {
+            extendedBy = muteCase?.expires_at?.getTime();
+            duration = (punishment.duration * 6e4) + (extendedBy ?? 0);
+            expiresAt = new Date(duration);
+          }
 
           if (muteCase) {
             [updatedCs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(
@@ -116,19 +120,21 @@ export default class implements Command {
               ]
             );
           } else {
-            await this.rest.post<unknown, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
-              {
-                action: CaseAction.mute,
-                mod_id: interaction.member.user.id,
-                mod_tag: modTag,
-                target_id: member.user.id,
-                target_tag: targetTag,
-                reason,
-                reference_id: cs!.case_id,
-                expires_at: expiresAt,
-                created_at: new Date()
-              }
-            ]);
+            [triggeredCs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
+              `/api/v1/guilds/${interaction.guild_id}/cases`, [
+                {
+                  action: CaseAction.mute,
+                  mod_id: interaction.member.user.id,
+                  mod_tag: modTag,
+                  target_id: member.user.id,
+                  target_tag: targetTag,
+                  reason,
+                  reference_id: cs!.case_id,
+                  expires_at: expiresAt,
+                  created_at: new Date()
+                }
+              ]
+            );
           }
 
           break;
@@ -137,11 +143,12 @@ export default class implements Command {
         case WarnPunishmentAction.ban: {
           const banCase = cases[CaseAction.ban];
 
-          const expiresAt = punishment.duration
-            ? new Date(
-              (punishment.duration * 6e4) + (banCase?.expires_at?.getTime() ?? 0)
-            )
-            : null;
+          let expiresAt: Date | null = null;
+          if (punishment.duration) {
+            extendedBy = banCase?.expires_at?.getTime();
+            duration = (punishment.duration * 6e4) + (extendedBy ?? 0);
+            expiresAt = new Date(duration);
+          }
 
           if (banCase) {
             [updatedCs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(
@@ -155,19 +162,21 @@ export default class implements Command {
               ]
             );
           } else {
-            await this.rest.post<unknown, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
-              {
-                action: CaseAction.ban,
-                mod_id: interaction.member.user.id,
-                mod_tag: modTag,
-                target_id: member.user.id,
-                target_tag: targetTag,
-                reason,
-                reference_id: cs!.case_id,
-                expires_at: expiresAt,
-                created_at: new Date()
-              }
-            ]);
+            [triggeredCs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
+              `/api/v1/guilds/${interaction.guild_id}/cases`, [
+                {
+                  action: CaseAction.ban,
+                  mod_id: interaction.member.user.id,
+                  mod_tag: modTag,
+                  target_id: member.user.id,
+                  target_tag: targetTag,
+                  reason,
+                  reference_id: cs!.case_id,
+                  expires_at: expiresAt,
+                  created_at: new Date()
+                }
+              ]
+            );
           }
 
           break;
@@ -180,11 +189,22 @@ export default class implements Command {
       }
     }
 
+    const data: WarnCase = { ...(cs as Omit<HttpCase, 'action_type'> & { action_type: CaseAction.warn }) };
+
+    if (triggeredCs || updatedCs) {
+      const triggered = ({
+        [CaseAction.kick]: WarnPunishmentAction.kick,
+        [CaseAction.mute]: WarnPunishmentAction.mute,
+        [CaseAction.ban]: WarnPunishmentAction.ban
+      } as const)[(triggeredCs ?? updatedCs)!.action_type as CaseAction.kick | CaseAction.mute | CaseAction.ban];
+
+      data.extra = triggered === WarnPunishmentAction.kick
+        ? { triggered }
+        : { triggered, duration, extendedBy };
+    }
+
     await send(interaction, { content: `Successfully warned ${targetTag}` });
-    this.guildLogs.publish({
-      type: LogTypes.modAction,
-      data: cs!
-    });
+    this.guildLogs.publish({ type: LogTypes.modAction, data });
 
     if (updatedCs) {
       this.guildLogs.publish({ type: LogTypes.modAction, data: updatedCs });

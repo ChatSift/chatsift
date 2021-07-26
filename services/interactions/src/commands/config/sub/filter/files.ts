@@ -34,7 +34,7 @@ export class FilesConfig implements Command {
       case 'add': {
         await this.rest.put<unknown, ApiPutGuildsFiltersFilesBody>(
           `/api/v1/guilds/${interaction.guild_id}/filters/files`,
-          args.add.hashes.split(',')
+          args.add.hashes.replace(/ +/g, '').split(',')
         );
 
         return send(interaction, { content: 'Successfully added the given file hashes to the filter list' });
@@ -44,7 +44,7 @@ export class FilesConfig implements Command {
         try {
           await this.rest.delete<unknown, ApiDeleteGuildsFiltersFilesBody>(
             `/api/v1/guilds/${interaction.guild_id}/filters/files`,
-            args.remove.hashes.split(',')
+            args.remove.hashes.replace(/ +/g, '').split(',')
           );
 
           return send(interaction, { content: 'Successfully removed the given file hashes from the filter list' });

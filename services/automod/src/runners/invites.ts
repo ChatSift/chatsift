@@ -23,7 +23,7 @@ import type { AllowedInvite } from '@automoderator/core';
 
 @singleton()
 export class InvitesRunner {
-  public readonly inviteRegex = /^(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)?(?<code>[\w\d-]{2,})$/gi;
+  public readonly inviteRegex = /^(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})$/gi;
 
   public constructor(
     @inject(kSql) public readonly sql: Sql<{}>

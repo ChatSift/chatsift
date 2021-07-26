@@ -4,6 +4,7 @@ import { createAmqp, RoutingSubscriber } from '@cordis/brokers';
 import { FilesRunner, InvitesRunner, UrlsRunner } from './runners';
 import { Rest } from '@cordis/rest';
 import { RolesPermsCache } from './RolesPermsCache';
+import { FilterIgnores } from '@automoderator/filter-ignores';
 import {
   GatewayDispatchEvents,
   GatewayMessageUpdateDispatchData,
@@ -18,7 +19,8 @@ import {
   ApiPostGuildsFiltersFilesResult,
   GuildSettings,
   UseFilterMode,
-  DiscordEvents
+  DiscordEvents,
+  FilterIgnore
 } from '@automoderator/core';
 import {
   DiscordPermissions,
@@ -207,9 +209,16 @@ export class Gateway {
       }
     }
 
+    const [ignoreData] = await this.sql<[FilterIgnore?]>`
+      SELECT * FROM filter_ignores
+      WHERE channel_id = ${message.channel_id}
+    `;
+
+    const ignores = new FilterIgnores(BigInt(ignoreData?.value ?? '0'));
+
     const promises: Promise<RunnerResult>[] = [];
 
-    if (settings.use_url_filters !== UseFilterMode.none) {
+    if (settings.use_url_filters !== UseFilterMode.none && !ignores.has('urls')) {
       const urls = this.urls.precheck(message.content);
       if (urls.length) {
         promises.push(
@@ -223,7 +232,7 @@ export class Gateway {
       }
     }
 
-    if (settings.use_file_filters !== UseFilterMode.none) {
+    if (settings.use_file_filters !== UseFilterMode.none && !ignores.has('files')) {
       const urls = this.files.precheck([
         ...new Set([
           ...this.urls.precheck(message.content).map(url => url.startsWith('http') ? url : `https://${url}`),
@@ -243,7 +252,7 @@ export class Gateway {
       }
     }
 
-    if (settings.use_invite_filters) {
+    if (settings.use_invite_filters && !ignores.has('invites')) {
       const invites = this.invites.precheck(message.content);
       if (invites.length) {
         promises.push(this.runInvites({ message, invites }));

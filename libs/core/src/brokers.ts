@@ -22,7 +22,8 @@ export interface DiscordInteractions {
 }
 
 export enum LogTypes {
-  modAction
+  modAction,
+  filterTrigger
 }
 
 export interface LogBase<T extends LogTypes, D extends Record<string, any>> {
@@ -40,14 +41,20 @@ interface WarnCaseExtrasWithDuration {
   extendedBy?: number;
 }
 
-export type WawrnCaseExtras = WarnCaseExtrasNoDuration | WarnCaseExtrasWithDuration;
+export type WarnCaseExtras = WarnCaseExtrasNoDuration | WarnCaseExtrasWithDuration;
 
 export type NonWarnCase = Omit<HttpCase, 'action_type'> & { action_type: Exclude<CaseAction, CaseAction.warn> };
 export type WarnCase = Omit<HttpCase, 'action_type'> & {
   action_type: CaseAction.warn;
-  extra?: WawrnCaseExtras;
+  extra?: WarnCaseExtras;
 };
 
 export type ModActionLog = LogBase<LogTypes.modAction, NonWarnCase | WarnCase>;
 
-export type Log = ModActionLog;
+export interface FilterTriggerData {
+
+}
+
+export type FilterTriggerLog = LogBase<LogTypes.filterTrigger, FilterTriggerData>;
+
+export type Log = ModActionLog | FilterTriggerLog;

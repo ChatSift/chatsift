@@ -29,6 +29,12 @@ export class UrlsConfig implements Command {
     }
   }
 
+  private cleanUrl(url: string) {
+    return url
+      .replace(/(https?:\/\/)?/g, '')
+      .replace(/ +/g, '');
+  }
+
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof FilterCommand>['urls']) {
     switch (Object.keys(args)[0] as keyof typeof args) {
       case 'add': {
@@ -36,7 +42,7 @@ export class UrlsConfig implements Command {
           `/api/v1/guilds/${interaction.guild_id}/filters/urls`,
           args.add.entries
             .split(',')
-            .map(entry => entry.replace(/(https?:\/\/)?/g, ''))
+            .map(entry => this.cleanUrl(entry))
         );
 
         return send(interaction, { content: 'Successfully added the given urls to the filter list' });
@@ -46,7 +52,9 @@ export class UrlsConfig implements Command {
         try {
           await this.rest.delete<unknown, ApiDeleteGuildsFiltersUrlsBody>(
             `/api/v1/guilds/${interaction.guild_id}/filters/urls`,
-            args.remove.entries.split(',')
+            args.remove.entries
+              .split(',')
+              .map(entry => this.cleanUrl(entry))
           );
 
           return send(interaction, { content: 'Successfully removed the given urls from the filter list' });

@@ -26,7 +26,7 @@ export default class PostGuildsCasesRoute extends Route {
                 .required(),
               expires_at: Joi.when('action', {
                 is: Joi.valid(CaseAction.mute, CaseAction.ban).required(),
-                then: Joi.date(),
+                then: Joi.date().allow(null),
                 otherwise: Joi.forbidden()
               }),
               reason: Joi.string(),

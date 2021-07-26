@@ -1,7 +1,7 @@
 import { Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { GuildUrlsController } from '#controllers';
+import { GuildFilesController } from '#controllers';
 import type { Request, Response } from 'polka';
 import type { ApiGetGuildsFiltersFilesQuery } from '@automoderator/core';
 import type { Snowflake } from 'discord-api-types/v9';
@@ -22,7 +22,7 @@ export default class GetGuildsFiltersFilesRoute extends Route {
   ];
 
   public constructor(
-    public readonly controller: GuildUrlsController
+    public readonly controller: GuildFilesController
   ) {
     super();
   }

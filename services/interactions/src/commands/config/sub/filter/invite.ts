@@ -17,12 +17,18 @@ export class InvitesConfig implements Command {
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
+  private cleanInvite(invite: string) {
+    return invite
+      .replace(/(https?:\/\/)?(discord\.gg\/?)?/g, '')
+      .replace(/ +/g, '');
+  }
+
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof FilterCommand>['invites']) {
     switch (Object.keys(args)[0] as keyof typeof args) {
       case 'allow': {
         const data: AllowedInvite[] = args.allow.entries
           .split(',')
-          .map(entry => ({ guild_id: interaction.guild_id, invite_code: entry.replace(/(https?:\/\/)?(discord\.gg\/?)?/g, '') }));
+          .map(entry => ({ guild_id: interaction.guild_id, invite_code: this.cleanInvite(entry) }));
 
         const added = await this.sql`INSERT INTO allowed_invites ${this.sql(data)} ON CONFLICT DO NOTHING RETURNING *`;
 
@@ -34,7 +40,7 @@ export class InvitesConfig implements Command {
       }
 
       case 'unallow': {
-        const entries = args.unallow.entries.split(',').map(entry => entry.replace(/(https?:\/\/)?(discord\.gg\/?)?/g, ''));
+        const entries = args.unallow.entries.split(',').map(entry => this.cleanInvite(entry));
         const deleted = await this.sql`DELETE FROM allowed_invites WHERE invite_code = ANY(${this.sql.array(entries)}) RETURNING *`;
 
         if (!deleted.length) {
