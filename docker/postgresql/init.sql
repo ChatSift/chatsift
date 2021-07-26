@@ -32,7 +32,14 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   use_file_filters int NOT NULL DEFAULT 0,
   use_invite_filters boolean NOT NULL DEFAULT false,
   mod_action_log_channel bigint,
+  filter_trigger_log_channel bigint,
   assignable_roles_prompt text
+);
+
+CREATE TABLE IF NOT EXISTS webhook_tokens (
+  channel_id bigint PRIMARY KEY,
+  webhook_id bigint NOT NULL,
+  webhook_token text NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS self_assignable_roles (

@@ -1,9 +1,10 @@
 import type {
   GatewayDispatchEvents,
+  APIMessage,
   GatewayDispatchPayload,
   APIGuildInteraction
 } from 'discord-api-types/v9';
-import { HttpCase } from './api';
+import type { ApiPostGuildsFiltersFilesResult, ApiPostGuildsFiltersUrlsResult, HttpCase } from './api';
 import type { CaseAction, WarnPunishmentAction } from './models';
 
 type SanitizedDiscordEvents = {
@@ -51,8 +52,36 @@ export type WarnCase = Omit<HttpCase, 'action_type'> & {
 
 export type ModActionLog = LogBase<LogTypes.modAction, NonWarnCase | WarnCase>;
 
-export interface FilterTriggerData {
+export enum Runners {
+  files,
+  urls,
+  invites
+}
 
+export interface BaseRunnerResult {
+  runner: Runners;
+}
+
+export interface NotOkRunnerResult extends BaseRunnerResult {
+  ok: false;
+}
+
+export interface OkRunnerResult<R extends Runners, T> extends BaseRunnerResult {
+  ok: true;
+  runner: R;
+  data: T;
+  actioned: boolean;
+}
+
+export type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostGuildsFiltersFilesResult>;
+export type UrlsRunnerResult = OkRunnerResult<Runners.urls, ApiPostGuildsFiltersUrlsResult>;
+export type InvitesRunnerResult = OkRunnerResult<Runners.invites, string[]>;
+
+export type RunnerResult = NotOkRunnerResult | FilesRunnerResult | InvitesRunnerResult | UrlsRunnerResult;
+
+export interface FilterTriggerData {
+  message: APIMessage;
+  triggers: Exclude<RunnerResult, NotOkRunnerResult>[];
 }
 
 export type FilterTriggerLog = LogBase<LogTypes.filterTrigger, FilterTriggerData>;

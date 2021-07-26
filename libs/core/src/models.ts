@@ -16,7 +16,14 @@ export interface GuildSettings {
   use_file_filters: UseFilterMode;
   use_invite_filters: boolean;
   mod_action_log_channel: Snowflake | null;
+  filter_trigger_log_channel: Snowflake | null;
   assignable_roles_prompt: string | null;
+}
+
+export interface WebhookToken {
+  channel_id: Snowflake;
+  webhook_id: Snowflake;
+  webhook_token: string;
 }
 
 export interface SelfAssignableRole {

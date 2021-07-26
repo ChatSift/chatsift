@@ -39,7 +39,7 @@ export class FilesRunner {
     return urls.filter(url => this.extensions.has(url.split('.').pop() ?? ''));
   }
 
-  public async run(urls: string[]): Promise<ApiPostGuildsFiltersFilesResult> {
+  public async run(urls: string[], guildId: string, guildOnly: boolean): Promise<ApiPostGuildsFiltersFilesResult> {
     const hashes: string[] = [];
     const promises: Promise<string>[] = urls.map(url => this.cdnUrlToHash(url));
 
@@ -60,6 +60,9 @@ export class FilesRunner {
       return [];
     }
 
-    return this.rest.post<ApiPostGuildsFiltersFilesResult, ApiPostGuildsFiltersFilesBody>('/api/v1/filters/files', { hashes });
+    return this.rest.post<ApiPostGuildsFiltersFilesResult, ApiPostGuildsFiltersFilesBody>(`/api/v1/guilds/${guildId}/filters/files`, {
+      hashes,
+      guild_only: guildOnly
+    });
   }
 }

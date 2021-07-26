@@ -1,6 +1,6 @@
 import { inject, singleton } from 'tsyringe';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
-import { createAmqp, RoutingSubscriber } from '@cordis/brokers';
+import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { FilesRunner, InvitesRunner, UrlsRunner } from './runners';
 import { Rest } from '@cordis/rest';
 import { RolesPermsCache } from './RolesPermsCache';
@@ -8,6 +8,7 @@ import { FilterIgnores } from '@automoderator/filter-ignores';
 import {
   GatewayDispatchEvents,
   GatewayMessageUpdateDispatchData,
+  APIMessage,
   APIRole,
   APIGuild,
   RESTGetAPIGuildRolesResult,
@@ -15,12 +16,19 @@ import {
   Routes
 } from 'discord-api-types/v9';
 import {
-  ApiPostGuildsFiltersUrlsResult,
-  ApiPostGuildsFiltersFilesResult,
   GuildSettings,
   UseFilterMode,
   DiscordEvents,
-  FilterIgnore
+  FilterIgnore,
+  NotOkRunnerResult,
+  UrlsRunnerResult,
+  Runners,
+  FilesRunnerResult,
+  InvitesRunnerResult,
+  RunnerResult,
+  Log,
+  LogTypes,
+  OkRunnerResult
 } from '@automoderator/core';
 import {
   DiscordPermissions,
@@ -31,30 +39,11 @@ import {
 import type { Sql } from 'postgres';
 import type { Logger } from 'pino';
 
-enum Runners {
-  files,
-  urls,
-  invites
-}
-
-interface Runner {
-  runner: Runners;
-}
-
-interface NotOkRunnerResult extends Runner {
-  ok: false;
-}
-
-interface OkRunnerResult<R extends Runners, T> extends Runner {
-  ok: true;
-  runner: R;
-  data: T;
-  actioned: boolean;
-}
-
 interface FilesRunnerData {
   message: GatewayMessageUpdateDispatchData;
   urls: string[];
+  guildId: string;
+  guildOnly: boolean;
 }
 
 interface UrlsRunnerData {
@@ -69,12 +58,6 @@ interface InviteRunnerData {
   invites: string[];
 }
 
-type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostGuildsFiltersFilesResult>;
-type UrlsRunnerResult = OkRunnerResult<Runners.urls, ApiPostGuildsFiltersUrlsResult>;
-type InvitesRunnerResult = OkRunnerResult<Runners.invites, string[]>;
-
-type RunnerResult = NotOkRunnerResult | FilesRunnerResult | InvitesRunnerResult | UrlsRunnerResult;
-
 @singleton()
 export class Gateway {
   public readonly ownersCache = new Map<Snowflake, Snowflake>();
@@ -84,6 +67,7 @@ export class Gateway {
     @inject(kConfig) public readonly config: Config,
     @inject(kSql) public readonly sql: Sql<{}>,
     @inject(kLogger) public readonly logger: Logger,
+    public readonly guildLogs: PubSubPublisher<Log>,
     public readonly checker: PermissionsChecker,
     public readonly discord: Rest,
     public readonly urls: UrlsRunner,
@@ -109,9 +93,9 @@ export class Gateway {
     }
   }
 
-  private async runFiles({ message, urls }: FilesRunnerData): Promise<NotOkRunnerResult | FilesRunnerResult> {
+  private async runFiles({ message, urls, guildId, guildOnly }: FilesRunnerData): Promise<NotOkRunnerResult | FilesRunnerResult> {
     try {
-      const hits = await this.files.run(urls);
+      const hits = await this.files.run(urls, guildId, guildOnly);
       if (hits.length) {
         await this.discord
           .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'File filter detection' })
@@ -141,8 +125,8 @@ export class Gateway {
     }
   }
 
-  private async onMessage(message: GatewayMessageUpdateDispatchData) {
-    if (!message.guild_id || !message.content?.length) {
+  private async onMessage(message: APIMessage) {
+    if (!message.guild_id || !message.content.length || message.author.bot || !message.member) {
       return;
     }
 
@@ -154,22 +138,22 @@ export class Gateway {
       }
     ] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${message.guild_id}`;
 
-    if (message.member) {
+    if (this.config.nodeEnv === 'prod') {
       const { member, author } = message;
 
-      if (this.config.devIds.includes(author!.id)) {
+      if (this.config.devIds.includes(author.id)) {
         return;
       }
 
       if (this.ownersCache.has(message.guild_id)) {
-        if (this.ownersCache.get(message.guild_id)! === author!.id) {
+        if (this.ownersCache.get(message.guild_id)! === author.id) {
           return;
         }
       } else {
         const guild = await this.discord.get<APIGuild>(Routes.guild(message.guild_id));
         this.ownersCache.set(guild.id, guild.owner_id);
 
-        if (guild.owner_id === author!.id) {
+        if (guild.owner_id === author.id) {
           return;
         }
       }
@@ -198,7 +182,7 @@ export class Gateway {
       const checkerData: PermissionsCheckerData = {
         member: {
           ...member,
-          user: author!,
+          user: author,
           permissions
         },
         guild_id: message.guild_id
@@ -236,24 +220,32 @@ export class Gateway {
       const urls = this.files.precheck([
         ...new Set([
           ...this.urls.precheck(message.content).map(url => url.startsWith('http') ? url : `https://${url}`),
-          ...message.embeds?.reduce<string[]>((acc, embed) => {
+          ...message.embeds.reduce<string[]>((acc, embed) => {
             if (embed.url) {
               acc.push(embed.url);
             }
 
             return acc;
-          }, []) ?? [],
-          ...message.attachments?.map(attachment => attachment.url) ?? []
+          }, []),
+          ...message.attachments.map(attachment => attachment.url)
         ])
       ]);
 
       if (urls.length) {
-        promises.push(this.runFiles({ message, urls }));
+        promises.push(
+          this.runFiles({
+            message,
+            urls,
+            guildId: message.guild_id,
+            guildOnly: settings.use_url_filters === UseFilterMode.guildOnly
+          })
+        );
       }
     }
 
     if (settings.use_invite_filters && !ignores.has('invites')) {
       const invites = this.invites.precheck(message.content);
+      this.logger.trace({ invites }, 'Computed invites');
       if (invites.length) {
         promises.push(this.runInvites({ message, invites }));
       }
@@ -261,7 +253,9 @@ export class Gateway {
 
     const data = (await Promise.allSettled(promises)).reduce<RunnerResult[]>((acc, promise) => {
       if (promise.status === 'fulfilled') {
-        acc.push(promise.value);
+        if (promise.value.ok && promise.value.actioned) {
+          acc.push(promise.value);
+        }
       }
 
       return acc;
@@ -270,16 +264,20 @@ export class Gateway {
     this.logger.debug({ data, guild: message.guild_id }, 'Done running automod');
 
     if (data.length) {
-      if (!message.author) {
-        return this.logger.warn({ message }, 'Message had no author');
-      }
-
       await this.sql`
         INSERT INTO filter_triggers (guild_id, user_id, count)
         VALUES (${message.guild_id}, ${message.author.id}, next_punishment(${message.guild_id}, ${message.author.id}))
         ON CONFLICT (guild_id, user_id)
         DO UPDATE SET count = next_punishment(${message.guild_id}, ${message.author.id})
       `;
+
+      this.guildLogs.publish({
+        data: {
+          message,
+          triggers: data as OkRunnerResult<any, any>[]
+        },
+        type: LogTypes.filterTrigger
+      });
     }
   }
 
@@ -289,7 +287,12 @@ export class Gateway {
 
     gateway
       .on(GatewayDispatchEvents.MessageCreate, message => void this.onMessage(message))
-      .on(GatewayDispatchEvents.MessageUpdate, message => void this.onMessage(message));
+      .on(GatewayDispatchEvents.MessageUpdate, async message => {
+        const fullMessage = await this.discord.get<APIMessage>(Routes.channelMessage(message.channel_id, message.id)).catch(() => null);
+        if (fullMessage) {
+          return this.onMessage(fullMessage);
+        }
+      });
 
     await gateway.init({
       name: 'gateway',
