@@ -170,6 +170,13 @@ export interface GlobalMaliciousUrl extends MaliciousUrl {
   category: MaliciousUrlCategory;
 }
 
+export interface BannedWord {
+  guild_id: Snowflake;
+  word: string;
+  flags: `${bigint}`;
+  duration: number | null;
+}
+
 export interface FilterTrigger {
   guild_id: Snowflake;
   user_id: Snowflake;

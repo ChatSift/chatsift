@@ -120,6 +120,14 @@ CREATE TABLE IF NOT EXISTS malicious_urls (
   category int
 );
 
+CREATE TABLE banned_words (
+  guild_id bigint NOT NULL,
+  word text NOT NULL,
+  flags bigint NOT NULL,
+  duration int,
+  PRIMARY KEY (guild_id, word)
+);
+
 CREATE TABLE IF NOT EXISTS filter_triggers (
   guild_id bigint NOT NULL,
   user_id bigint NOT NULL,
