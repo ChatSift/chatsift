@@ -1,3 +1,4 @@
+/* istanbul ignore file */
 import { Rest } from '@cordis/rest';
 import { container } from 'tsyringe';
 import {
