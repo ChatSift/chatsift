@@ -30,10 +30,8 @@ export default class PostGuildsCasesRoute extends Route {
                 otherwise: Joi.forbidden()
               }),
               reason: Joi.string(),
-              mod_id: Joi.string()
-                .pattern(/\d{17,20}/)
-                .required(),
-              mod_tag: Joi.string().required(),
+              mod_id: Joi.string().pattern(/\d{17,20}/),
+              mod_tag: Joi.string(),
               target_id: Joi.string()
                 .pattern(/\d{17,20}/)
                 .required(),
@@ -41,6 +39,7 @@ export default class PostGuildsCasesRoute extends Route {
               reference_id: Joi.number(),
               created_at: Joi.date()
             })
+            .and('mod_id', 'mod_tag')
         )
         .min(1),
       'body'
@@ -112,8 +111,8 @@ export default class PostGuildsCasesRoute extends Route {
             ref_id: data.reference_id ?? null,
             target_id: data.target_id,
             target_tag: data.target_tag,
-            mod_id: data.mod_id,
-            mod_tag: data.mod_tag,
+            mod_id: data.mod_id ?? null,
+            mod_tag: data.mod_tag ?? null,
             action_type: data.action,
             reason: data.reason ?? null,
             expires_at: 'expires_at' in data ? (data.expires_at ?? null) : null,

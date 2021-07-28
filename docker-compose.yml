@@ -104,7 +104,7 @@ services:
     image: cordislib/gateway:1.0.1
     environment:
       AMQP_HOST: "amqp://rabbitmq:5672"
-      WS_INTENTS: "guildMessages"
+      WS_INTENTS: "guildMessages,guildMembers,guildBans"
     restart: unless-stopped
     depends_on:
       - rabbitmq
