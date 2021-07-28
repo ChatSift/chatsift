@@ -4,6 +4,7 @@ import type {
   GatewayDispatchPayload,
   APIGuildInteraction
 } from 'discord-api-types/v9';
+import { BannedWord } from '.';
 import type { ApiPostGuildsFiltersFilesResult, ApiPostGuildsFiltersUrlsResult, HttpCase } from './api';
 import type { CaseAction, WarnPunishmentAction } from './models';
 
@@ -55,7 +56,8 @@ export type ModActionLog = LogBase<LogTypes.modAction, NonWarnCase | WarnCase>;
 export enum Runners {
   files,
   urls,
-  invites
+  invites,
+  words
 }
 
 export interface BaseRunnerResult {
@@ -76,8 +78,9 @@ export interface OkRunnerResult<R extends Runners, T> extends BaseRunnerResult {
 export type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostGuildsFiltersFilesResult>;
 export type UrlsRunnerResult = OkRunnerResult<Runners.urls, ApiPostGuildsFiltersUrlsResult>;
 export type InvitesRunnerResult = OkRunnerResult<Runners.invites, string[]>;
+export type WordsRunnerResult = OkRunnerResult<Runners.words, BannedWord | null>;
 
-export type RunnerResult = NotOkRunnerResult | FilesRunnerResult | InvitesRunnerResult | UrlsRunnerResult;
+export type RunnerResult = NotOkRunnerResult | FilesRunnerResult | InvitesRunnerResult | UrlsRunnerResult | WordsRunnerResult;
 
 export interface FilterTriggerData {
   message: APIMessage;

@@ -36,9 +36,9 @@ import {
   RouteBases,
   Routes
 } from 'discord-api-types/v9';
+import { makeDiscordCdnUrl } from '@cordis/util';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
-import { makeDiscordCdnUrl } from '@cordis/util';
 
 @singleton()
 export class Handler {
@@ -206,6 +206,7 @@ export class Handler {
   private _embedFromTrigger(message: APIMessage, trigger: Exclude<RunnerResult, NotOkRunnerResult>): APIEmbed {
     const codeblock = (str: string) => `\`\`\`${str}\`\`\``;
     const embed: APIEmbed = {
+      color: 16426011,
       author: {
         name: `${message.author.username}#${message.author.discriminator} (${message.author.id})`,
         icon_url: message.author.avatar
@@ -220,7 +221,7 @@ export class Handler {
           .map(file => `${file.file_hash} - ${file.category ? MaliciousFileCategory[file.category] : 'Locally forbidden file'}`)
           .join('\n');
 
-        embed.title = '⚠ Posted malicious files';
+        embed.title = 'Posted malicious files';
         embed.description = `In <#${message.channel_id}>\n${codeblock(hashes)}`;
 
         break;
@@ -231,8 +232,11 @@ export class Handler {
           .map(url => `${url.url} - ${url.category ? MaliciousUrlCategory[url.category] : 'Locally forbidden url'}`)
           .join('\n');
 
-        embed.title = '⚠ Posted malicious urls';
-        embed.description = `In <#${message.channel_id}>\n${codeblock(urls)}`;
+        embed.title = 'Posted malicious urls';
+        embed.description = `In <#${message.channel_id}>\n${codeblock(message.content)}`;
+        embed.footer = {
+          text: `Blocked URLs:\n${urls}`
+        };
 
         break;
       }
@@ -242,8 +246,23 @@ export class Handler {
           .map(invite => `https://discord.gg/${invite}`)
           .join('\n');
 
-        embed.title = '⚠ Posted unallowed invites';
-        embed.description = `In <#${message.channel_id}>\n${codeblock(invites)}`;
+        embed.title = 'Posted unallowed invites';
+        embed.description = `In <#${message.channel_id}>\n${codeblock(message.content)}`;
+        embed.footer = {
+          text: `Blocked invites:\n${invites}`
+        };
+
+        break;
+      }
+
+      case Runners.words: {
+        embed.title = 'Posted prohibited content';
+        embed.description = `In <#${message.channel_id}>\n${codeblock(message.content)}`;
+        embed.footer = {
+          text: `Blocked text: ${trigger.data!.word}`
+        };
+
+        break;
       }
     }
 

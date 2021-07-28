@@ -1,17 +1,18 @@
 import { inject, singleton } from 'tsyringe';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
-import { FilesRunner, InvitesRunner, UrlsRunner } from './runners';
-import { Rest } from '@cordis/rest';
+import { FilesRunner, InvitesRunner, UrlsRunner, WordsRunner } from './runners';
+import { Rest } from '@automoderator/http-client';
+import { Rest as CordisRest } from '@cordis/rest';
 import { RolesPermsCache } from './RolesPermsCache';
 import { FilterIgnores } from '@automoderator/filter-ignores';
 import {
   GatewayDispatchEvents,
-  GatewayMessageUpdateDispatchData,
   APIMessage,
   APIRole,
   APIGuild,
   RESTGetAPIGuildRolesResult,
+  RESTPatchAPIGuildMemberJSONBody,
   Snowflake,
   Routes
 } from 'discord-api-types/v9';
@@ -25,10 +26,15 @@ import {
   Runners,
   FilesRunnerResult,
   InvitesRunnerResult,
+  WordsRunnerResult,
   RunnerResult,
   Log,
   LogTypes,
-  OkRunnerResult
+  OkRunnerResult,
+  ApiPostGuildsCasesBody,
+  CaseAction,
+  ApiPostGuildsCasesResult,
+  UnmuteRole
 } from '@automoderator/core';
 import {
   DiscordPermissions,
@@ -40,22 +46,27 @@ import type { Sql } from 'postgres';
 import type { Logger } from 'pino';
 
 interface FilesRunnerData {
-  message: GatewayMessageUpdateDispatchData;
+  message: APIMessage;
   urls: string[];
   guildId: string;
   guildOnly: boolean;
 }
 
 interface UrlsRunnerData {
-  message: GatewayMessageUpdateDispatchData;
+  message: APIMessage;
   urls: string[];
   guildId: string;
   guildOnly: boolean;
 }
 
 interface InviteRunnerData {
-  message: GatewayMessageUpdateDispatchData;
+  message: APIMessage;
   invites: string[];
+}
+
+export interface WordsRunnerData {
+  message: APIMessage;
+  settings: Partial<GuildSettings>;
 }
 
 @singleton()
@@ -67,12 +78,14 @@ export class Gateway {
     @inject(kConfig) public readonly config: Config,
     @inject(kSql) public readonly sql: Sql<{}>,
     @inject(kLogger) public readonly logger: Logger,
+    public readonly rest: Rest,
+    public readonly discord: CordisRest,
     public readonly guildLogs: PubSubPublisher<Log>,
     public readonly checker: PermissionsChecker,
-    public readonly discord: Rest,
     public readonly urls: UrlsRunner,
     public readonly files: FilesRunner,
-    public readonly invites: InvitesRunner
+    public readonly invites: InvitesRunner,
+    public readonly words: WordsRunner
   ) {
     setInterval(() => this.ownersCache.clear(), 36e5).unref();
   }
@@ -122,6 +135,95 @@ export class Gateway {
     } catch (error) {
       this.logger.error({ error }, 'Failed to execute runner invites');
       return { ok: false, runner: Runners.files };
+    }
+  }
+
+  private async runWords({ message, settings }: WordsRunnerData): Promise<NotOkRunnerResult | WordsRunnerResult> {
+    try {
+      const hit = await this.words.run(message);
+      if (hit) {
+        await this.discord
+          .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Words filter detection' })
+          .catch(() => null);
+
+        const data: ApiPostGuildsCasesBody = [];
+        const unmuteRoles: Snowflake[] = [];
+
+        const caseBase = {
+          mod_id: this.config.discordClientId,
+          mod_tag: 'AutoModerator#0000',
+          reason: `Automated punishment triggered by saying \`${hit.word}\``,
+          target_id: message.author.id,
+          target_tag: `${message.author.username}#${message.author.discriminator}`,
+          created_at: new Date()
+        };
+
+        if (hit.flags.has('warn')) {
+          data.push({ action: CaseAction.warn, ...caseBase });
+        }
+
+        if (hit.flags.has('mute') && settings.mute_role) {
+          unmuteRoles.concat([...message.member!.roles]);
+          let expiresAt: Date | undefined;
+
+          const guildRoles = new Map(
+            await this.discord.get<APIRole[]>(`/guilds/${message.guild_id}/roles`)
+              .catch(() => [] as APIRole[])
+              .then(
+                roles => roles.map(
+                  role => [role.id, role]
+                )
+              )
+          );
+
+          const roles = message.member!.roles.filter(r => guildRoles.get(r)!.managed).concat([settings.mute_role]);
+
+          await this.discord.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(message.guild_id!, message.author.id), {
+            data: { roles },
+            reason: `Automatic punishment triggered by saying \`${hit.word}\``
+          });
+
+          if (hit.duration) {
+            expiresAt = new Date(Date.now() + (hit.duration * 6e4));
+          }
+
+          data.push({ action: CaseAction.mute, expires_at: expiresAt, ...caseBase });
+        }
+
+        if (hit.flags.has('ban')) {
+          await this.discord.put(Routes.guildBan(message.guild_id!, message.author.id), {
+            reason: `Automatic punishment triggered by saying \`${hit.word}\``
+          });
+
+          data.push({ action: CaseAction.ban, ...caseBase });
+        }
+
+        if (data.length) {
+          const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
+            `/api/v1/guilds/${message.guild_id!}/cases`,
+            data
+          );
+
+          const muteCase = cases.find(cs => cs.action_type === CaseAction.mute);
+
+          if (muteCase && unmuteRoles.length) {
+            const unmuteData = unmuteRoles.map<UnmuteRole>(r => ({ case_id: muteCase.id, role_id: r }));
+            await this.sql`INSERT INTO unmute_roles ${this.sql(unmuteData)}`;
+          }
+        }
+      }
+
+      return {
+        ok: true,
+        actioned: Boolean(hit),
+        data: hit
+          ? { ...hit, flags: hit.flags.toJSON() as `${bigint}` }
+          : null,
+        runner: Runners.words
+      };
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to execute runner words');
+      return { ok: false, runner: Runners.words };
     }
   }
 
@@ -245,10 +347,13 @@ export class Gateway {
 
     if (settings.use_invite_filters && !ignores.has('invites')) {
       const invites = this.invites.precheck(message.content);
-      this.logger.trace({ invites }, 'Computed invites');
       if (invites.length) {
         promises.push(this.runInvites({ message, invites }));
       }
+    }
+
+    if (!ignores.has('words')) {
+      promises.push(this.runWords({ message, settings }));
     }
 
     const data = (await Promise.allSettled(promises)).reduce<RunnerResult[]>((acc, promise) => {

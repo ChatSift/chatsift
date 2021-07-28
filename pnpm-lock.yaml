@@ -318,6 +318,7 @@ importers:
 
   services/automod:
     specifiers:
+      '@automoderator/banword-flags': workspace:^0.1.0
       '@automoderator/core': workspace:^0.1.0
       '@automoderator/discord-permissions': workspace:^0.1.0
       '@automoderator/filter-ignores': workspace:^0.1.0
@@ -344,6 +345,7 @@ importers:
       tsyringe: ^4.6.0
       typescript: ^4.4.0-beta
     dependencies:
+      '@automoderator/banword-flags': link:../../libs/banword-flags
       '@automoderator/core': link:../../libs/core
       '@automoderator/discord-permissions': link:../../libs/discord-permissions
       '@automoderator/filter-ignores': link:../../libs/filter-ignores

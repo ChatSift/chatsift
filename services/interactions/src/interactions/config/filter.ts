@@ -79,7 +79,13 @@ export const FilterCommand = {
             },
             {
               name: 'invites',
-              description: 'If the URL invites should be disabled in the given channel',
+              description: 'If the invites filter should be disabled in the given channel',
+              type: ApplicationCommandOptionType.Boolean,
+              required: false
+            },
+            {
+              name: 'words',
+              description: 'If the words (/banword) filter should be disabled in the given channel',
               type: ApplicationCommandOptionType.Boolean,
               required: false
             }

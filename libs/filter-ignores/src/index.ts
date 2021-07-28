@@ -3,7 +3,8 @@ import { BitField, BitFieldResolvable } from '@cordis/bitfield';
 const FILTERS = BitField.makeFlags([
   'urls',
   'files',
-  'invites'
+  'invites',
+  'words'
 ]);
 
 export type FilterIgnoresResolvable = BitFieldResolvable<keyof typeof FILTERS>;

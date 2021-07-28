@@ -6,12 +6,12 @@ import { addFields } from './embed';
 import ms from './ms';
 
 export const LOG_COLORS = Object.freeze({
-  [CaseAction.warn]: 15309853,
-  [CaseAction.mute]: 2895667,
+  [CaseAction.warn]: 16022395,
+  [CaseAction.mute]: 16022395,
   [CaseAction.unmute]: 5793266,
-  [CaseAction.kick]: 15418782,
-  [CaseAction.softban]: 15418782,
-  [CaseAction.ban]: 15548997,
+  [CaseAction.kick]: 16022395,
+  [CaseAction.softban]: 16022395,
+  [CaseAction.ban]: 15747144,
   [CaseAction.unban]: 5793266
 } as const);
 
@@ -120,7 +120,7 @@ export const makeHistoryEmbed = ({ user, cases, showDetails, logChannelId, filte
     [CaseAction.warn]: 0
   };
 
-  const colors = [8450847, 13091073, 14917123, 15548997] as const;
+  const colors = [8450847, 13091073, 16022395, 15747144] as const;
   const details: string[] = [];
 
   for (const cs of cases) {
