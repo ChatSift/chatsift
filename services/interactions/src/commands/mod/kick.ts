@@ -1,7 +1,7 @@
 import { injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
-import { UserPerms } from '@automoderator/discord-permissions';
+import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
+import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { KickCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -16,7 +16,8 @@ export default class implements Command {
   public constructor(
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
-    public readonly guildLogs: PubSubPublisher<Log>
+    public readonly guildLogs: PubSubPublisher<Log>,
+    public readonly checker: PermissionsChecker
   ) {}
 
   public parse(args: ArgumentsOf<typeof KickCommand>) {
@@ -33,8 +34,19 @@ export default class implements Command {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
     }
 
+    if (member.user.id === interaction.member.user.id) {
+      throw new ControlFlowError('You cannot ban yourself');
+    }
+
+    if (await this.checker.check({ guild_id: interaction.guild_id, member }, UserPerms.mod)) {
+      throw new ControlFlowError('You cannot action a member of the staff team');
+    }
+
     const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
     const targetTag = `${member.user.username}#${member.user.discriminator}`;
+
+    const guildName = await getGuildName(interaction.guild_id);
+    await dmUser(member.user.id, `Hello! You have been kicked from ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
 
     await this.discordRest.delete(Routes.guildMember(interaction.guild_id, member.user.id), { reason: `Kick | By ${modTag}` });
     const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [

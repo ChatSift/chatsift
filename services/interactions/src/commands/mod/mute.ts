@@ -1,7 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
-import { UserPerms } from '@automoderator/discord-permissions';
+import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
+import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { MuteCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -29,6 +29,7 @@ export default class implements Command {
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
     public readonly guildLogs: PubSubPublisher<Log>,
+    public readonly checker: PermissionsChecker,
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
@@ -45,6 +46,14 @@ export default class implements Command {
     const { member, reason, refId, duration: durationString } = this.parse(args);
     if (reason && reason.length >= 1900) {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
+    }
+
+    if (member.user.id === interaction.member.user.id) {
+      throw new ControlFlowError('You cannot ban yourself');
+    }
+
+    if (await this.checker.check({ guild_id: interaction.guild_id, member }, UserPerms.mod)) {
+      throw new ControlFlowError('You cannot action a member of the staff team');
     }
 
     const [settings] = await this.sql<[Pick<GuildSettings, 'mute_role'>?]>`
@@ -97,6 +106,11 @@ export default class implements Command {
       data: { roles },
       reason: `Mute | By ${modTag}`
     });
+
+    const guildName = await getGuildName(interaction.guild_id);
+
+    const duration = expiresAt ? `. This mute will expire in ${ms(expiresAt.getTime() - Date.now(), true)}` : '';
+    await dmUser(member.user.id, `Hello! You have been muted in ${guildName}${duration}.\n\nReason: ${reason ?? 'No reason provided.'}`);
 
     const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
       {

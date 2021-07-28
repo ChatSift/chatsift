@@ -1,7 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
-import { UserPerms } from '@automoderator/discord-permissions';
+import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
+import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { BanCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -27,6 +27,7 @@ export default class implements Command {
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
     public readonly guildLogs: PubSubPublisher<Log>,
+    public readonly checker: PermissionsChecker,
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
@@ -44,6 +45,14 @@ export default class implements Command {
     const { member, reason, days, refId, duration: durationString } = this.parse(args);
     if (reason && reason.length >= 1900) {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
+    }
+
+    if (member.user.id === interaction.member.user.id) {
+      throw new ControlFlowError('You cannot ban yourself');
+    }
+
+    if (await this.checker.check({ guild_id: interaction.guild_id, member }, UserPerms.mod)) {
+      throw new ControlFlowError('You cannot action a member of the staff team');
     }
 
     let expiresAt: Date | undefined;
@@ -72,6 +81,9 @@ export default class implements Command {
 
     const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
     const targetTag = `${member.user.username}#${member.user.discriminator}`;
+
+    const guildName = await getGuildName(interaction.guild_id);
+    await dmUser(member.user.id, `Hello! You have been banned from ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
 
     await this.discordRest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(interaction.guild_id, member.user.id), {
       reason: `Ban | By ${modTag}`,
