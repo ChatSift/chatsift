@@ -1,4 +1,5 @@
 export * from './banword';
+export * from './banurl';
 export * from './config';
 export * from './filter';
 export * from './log';
