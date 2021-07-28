@@ -36,3 +36,7 @@ services:
   logging:
     environment:
       DISCORD_TOKEN: "awooga"
+
+  mod-observer:
+    environment:
+      DISCORD_TOKEN: "awooga"

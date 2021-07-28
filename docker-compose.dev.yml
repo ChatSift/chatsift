@@ -46,3 +46,8 @@ services:
     environment:
       NODE_ENV: "dev"
     command: "sh -c \"node services/logging/dist/index.js | ./services/logging/node_modules/.bin/pino-pretty -c -l -t\""
+
+  mod-observer:
+    environment:
+      NODE_ENV: "dev"
+    command: "sh -c \"node services/mod-observer/dist/index.js | ./services/mod-observer/node_modules/.bin/pino-pretty -c -l -t\""

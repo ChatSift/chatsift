@@ -98,6 +98,19 @@ services:
       AMQP_URL: "amqp://rabbitmq:5672"
     restart: unless-stopped
     depends_on:
+      - postgres
+      - rabbitmq
+
+  mod-observer:
+    build:
+      context: ./
+      dockerfile: ./docker/mod-observer/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - postgres
       - rabbitmq
 
   gateway:
