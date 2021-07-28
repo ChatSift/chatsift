@@ -1,6 +1,6 @@
 import { injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { KickCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
@@ -44,6 +44,9 @@ export default class implements Command {
 
     const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
     const targetTag = `${member.user.username}#${member.user.discriminator}`;
+
+    const guildName = await getGuildName(interaction.guild_id);
+    await dmUser(member.user.id, `Hello! You have been kicked from ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
 
     await this.discordRest.delete(Routes.guildMember(interaction.guild_id, member.user.id), { reason: `Kick | By ${modTag}` });
     const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [

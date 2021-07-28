@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { BanCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
@@ -81,6 +81,9 @@ export default class implements Command {
 
     const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
     const targetTag = `${member.user.username}#${member.user.discriminator}`;
+
+    const guildName = await getGuildName(interaction.guild_id);
+    await dmUser(member.user.id, `Hello! You have been banned from ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
 
     await this.discordRest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(interaction.guild_id, member.user.id), {
       reason: `Ban | By ${modTag}`,

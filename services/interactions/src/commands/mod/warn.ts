@@ -1,6 +1,6 @@
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { WarnCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
@@ -60,6 +60,9 @@ export default class implements Command {
         created_at: new Date()
       }
     ]);
+
+    const guildName = await getGuildName(interaction.guild_id);
+    await dmUser(member.user.id, `Hello! You have been warned in ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
 
     const warns = await this
       .sql`

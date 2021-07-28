@@ -1,6 +1,6 @@
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { MuteCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
@@ -106,6 +106,11 @@ export default class implements Command {
       data: { roles },
       reason: `Mute | By ${modTag}`
     });
+
+    const guildName = await getGuildName(interaction.guild_id);
+
+    const duration = expiresAt ? `. This mute will expire in ${ms(expiresAt.getTime() - Date.now(), true)}` : '';
+    await dmUser(member.user.id, `Hello! You have been muted in ${guildName}${duration}.\n\nReason: ${reason ?? 'No reason provided.'}`);
 
     const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
       {
