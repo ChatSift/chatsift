@@ -38,12 +38,7 @@ export const FilterCommand = {
             {
               name: 'files',
               description: 'How the files filter should be used',
-              type: ApplicationCommandOptionType.Integer,
-              choices: [
-                { name: 'Disable', value: UseFilterMode.none },
-                { name: 'Only local filters', value: UseFilterMode.guildOnly },
-                { name: 'Local and global filters', value: UseFilterMode.all }
-              ],
+              type: ApplicationCommandOptionType.Boolean,
               required: false
             },
             {
@@ -133,45 +128,6 @@ export const FilterCommand = {
         {
           name: 'list',
           description: 'Lists all the entries in your url filters',
-          type: ApplicationCommandOptionType.SubCommand,
-          options: []
-        }
-      ]
-    },
-    {
-      name: 'files',
-      description: 'Allows you to manage file filters',
-      type: ApplicationCommandOptionType.SubCommandGroup,
-      options: [
-        {
-          name: 'add',
-          description: 'Adds an entry to the local file filters',
-          type: ApplicationCommandOptionType.SubCommand,
-          options: [
-            {
-              name: 'hashes',
-              description: 'Hashes of the files you wish to ban',
-              type: ApplicationCommandOptionType.String,
-              required: true
-            }
-          ]
-        },
-        {
-          name: 'remove',
-          description: 'Removes an entry from the local url filters',
-          type: ApplicationCommandOptionType.SubCommand,
-          options: [
-            {
-              name: 'hashes',
-              description: 'The hashes to remove',
-              type: ApplicationCommandOptionType.String,
-              required: true
-            }
-          ]
-        },
-        {
-          name: 'list',
-          description: 'Lists all the entries in your file filters',
           type: ApplicationCommandOptionType.SubCommand,
           options: []
         }

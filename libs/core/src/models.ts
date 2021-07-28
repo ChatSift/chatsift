@@ -13,7 +13,7 @@ export interface GuildSettings {
   mute_role: Snowflake | null;
   auto_pardon_mutes_after: number | null;
   use_url_filters: UseFilterMode;
-  use_file_filters: UseFilterMode;
+  use_file_filters: boolean;
   use_invite_filters: boolean;
   mod_action_log_channel: Snowflake | null;
   filter_trigger_log_channel: Snowflake | null;

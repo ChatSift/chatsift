@@ -218,7 +218,7 @@ export class Handler {
     switch (trigger.runner) {
       case Runners.files: {
         const hashes = trigger.data
-          .map(file => `${file.file_hash} - ${file.category ? MaliciousFileCategory[file.category] : 'Locally forbidden file'}`)
+          .map(file => `${file.file_hash} - ${MaliciousFileCategory[file.category]}`)
           .join('\n');
 
         embed.title = 'Posted malicious files';
@@ -229,7 +229,7 @@ export class Handler {
 
       case Runners.urls: {
         const urls = trigger.data
-          .map(url => `${url.url} - ${url.category ? MaliciousUrlCategory[url.category] : 'Locally forbidden url'}`)
+          .map(url => `${url.url} - ${url.category === null ? 'Locally forbidden url' : MaliciousUrlCategory[url.category]}`)
           .join('\n');
 
         embed.title = 'Posted malicious urls';

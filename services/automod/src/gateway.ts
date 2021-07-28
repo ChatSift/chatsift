@@ -106,9 +106,9 @@ export class Gateway {
     }
   }
 
-  private async runFiles({ message, urls, guildId, guildOnly }: FilesRunnerData): Promise<NotOkRunnerResult | FilesRunnerResult> {
+  private async runFiles({ message, urls }: FilesRunnerData): Promise<NotOkRunnerResult | FilesRunnerResult> {
     try {
-      const hits = await this.files.run(urls, guildId, guildOnly);
+      const hits = await this.files.run(urls);
       if (hits.length) {
         await this.discord
           .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'File filter detection' })
@@ -235,7 +235,7 @@ export class Gateway {
     const [
       settings = {
         use_url_filters: UseFilterMode.none,
-        use_file_filters: UseFilterMode.none,
+        use_file_filters: false,
         use_invite_filters: false
       }
     ] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${message.guild_id}`;
@@ -318,7 +318,7 @@ export class Gateway {
       }
     }
 
-    if (settings.use_file_filters !== UseFilterMode.none && !ignores.has('files')) {
+    if (settings.use_file_filters && !ignores.has('files')) {
       const urls = this.files.precheck([
         ...new Set([
           ...this.urls.precheck(message.content).map(url => url.startsWith('http') ? url : `https://${url}`),

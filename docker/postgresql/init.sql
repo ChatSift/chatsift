@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   mute_role bigint,
   auto_pardon_mutes_after int,
   use_url_filters int NOT NULL DEFAULT 0,
-  use_file_filters int NOT NULL DEFAULT 0,
+  use_file_filters boolean NOT NULL DEFAULT false,
   use_invite_filters boolean NOT NULL DEFAULT false,
   mod_action_log_channel bigint,
   filter_trigger_log_channel bigint,
