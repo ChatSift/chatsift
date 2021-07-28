@@ -1,7 +1,7 @@
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
-import { UserPerms } from '@automoderator/discord-permissions';
+import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { WarnCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { APIGuildInteraction, Routes } from 'discord-api-types/v9';
@@ -19,6 +19,7 @@ export default class implements Command {
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
     public readonly guildLogs: PubSubPublisher<Log>,
+    public readonly checker: PermissionsChecker,
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
@@ -34,6 +35,14 @@ export default class implements Command {
     const { member, reason, refId } = this.parse(args);
     if (reason && reason.length >= 1900) {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
+    }
+
+    if (member.user.id === interaction.member.user.id) {
+      throw new ControlFlowError('You cannot ban yourself');
+    }
+
+    if (await this.checker.check({ guild_id: interaction.guild_id, member }, UserPerms.mod)) {
+      throw new ControlFlowError('You cannot action a member of the staff team');
     }
 
     const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
