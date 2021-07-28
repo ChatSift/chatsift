@@ -7,7 +7,7 @@ import {
   RESTPostAPICurrentUserCreateDMChannelResult,
   Routes,
   Snowflake
-} from 'discord-api-types';
+} from 'discord-api-types/v9';
 
 const DM_CHANNEL_CACHE = new Map<Snowflake, Snowflake>();
 setInterval(() => DM_CHANNEL_CACHE.clear(), 9e4).unref();

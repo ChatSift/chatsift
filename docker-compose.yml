@@ -117,10 +117,11 @@ services:
     image: cordislib/gateway:1.0.1
     environment:
       AMQP_HOST: "amqp://rabbitmq:5672"
-      WS_INTENTS: "guildMessages,guildMembers,guildBans"
     restart: unless-stopped
     depends_on:
       - rabbitmq
+    # TODO fix how intents are handled in cordis
+    command: "node --enable-source-maps services/gateway/dist/index.js --ws-intents guildMessages --ws-intents guildMembers --ws-intents guildBans"
 
 volumes:
   elis-data:
