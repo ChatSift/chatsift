@@ -79,8 +79,8 @@ export type ApiDeleteGuildsCaseResult = Case;
 interface BaseCaseData {
   action: CaseAction;
   reason?: string;
-  mod_id: Snowflake;
-  mod_tag: string;
+  mod_id?: Snowflake;
+  mod_tag?: string;
   target_id: Snowflake;
   target_tag: string;
   reference_id?: number;

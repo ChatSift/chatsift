@@ -71,6 +71,8 @@ export interface WordsRunnerData {
 
 @singleton()
 export class Gateway {
+  public guildLogs!: PubSubPublisher<Log>;
+
   public readonly ownersCache = new Map<Snowflake, Snowflake>();
   public readonly permsCache = new RolesPermsCache();
 
@@ -80,7 +82,6 @@ export class Gateway {
     @inject(kLogger) public readonly logger: Logger,
     public readonly rest: Rest,
     public readonly discord: CordisRest,
-    public readonly guildLogs: PubSubPublisher<Log>,
     public readonly checker: PermissionsChecker,
     public readonly urls: UrlsRunner,
     public readonly files: FilesRunner,
@@ -389,6 +390,11 @@ export class Gateway {
   public async init() {
     const { channel } = await createAmqp(this.config.amqpUrl);
     const gateway = new RoutingSubscriber<keyof DiscordEvents, DiscordEvents>(channel);
+    const logs = new PubSubPublisher(channel);
+
+    await logs.init({ name: 'guild_logs', fanout: false });
+
+    this.guildLogs = logs;
 
     gateway
       .on(GatewayDispatchEvents.MessageCreate, message => void this.onMessage(message))

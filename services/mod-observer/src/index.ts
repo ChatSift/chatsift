@@ -6,7 +6,6 @@ import postgres, { Sql } from 'postgres';
 import { kLogger, kSql, initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { Gateway } from './gateway';
-import * as runners from './runners';
 import { Rest } from '@automoderator/http-client';
 import type { Logger } from 'pino';
 
@@ -16,7 +15,7 @@ void (async () => {
 
   const discordRest = new DiscordRest(config.discordToken);
 
-  const logger = createLogger('AUTOMOD');
+  const logger = createLogger('MOD-OBSERVER');
 
   const sql = postgres(config.dbUrl, {
     onnotice: notice => logger.debug({ notice }, 'Database notice')
@@ -46,11 +45,7 @@ void (async () => {
   container.register(DiscordRest, { useValue: discordRest });
   container.register<Sql<{}>>(kSql, { useValue: sql });
   container.register<Logger>(kLogger, { useValue: logger });
-  for (const runner of Object.values(runners)) {
-    // @ts-expect-error - tsyringe typings are screwed
-    container.register(runner, { useClass: runner });
-  }
 
   await container.resolve(Gateway).init();
-  logger.info('Ready to listen to message packets');
+  logger.info('Ready to listen to manual mod actions');
 })();

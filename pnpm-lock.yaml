@@ -328,7 +328,6 @@ importers:
       '@cordis/brokers': ^1.0.1
       '@cordis/rest': ^1.0.1
       '@cordis/util': ^1.0.1
-      '@gaius-bot/readdir': ^1.0.0
       '@types/amqplib': ^0.8.1
       '@types/common-tags': ^1.8.1
       '@types/node': ^14.17.5
@@ -355,7 +354,6 @@ importers:
       '@cordis/brokers': 1.0.1
       '@cordis/rest': 1.0.1
       '@cordis/util': 1.0.1
-      '@gaius-bot/readdir': 1.0.0
       common-tags: 1.8.0
       discord-api-types: 0.20.2
       node-fetch: 2.6.1
@@ -513,6 +511,49 @@ importers:
     devDependencies:
       '@types/amqplib': 0.8.1
       '@types/node': 14.17.5
+      '@types/pino': 6.3.9
+      typescript: 4.4.0-beta
+
+  services/mod-observer:
+    specifiers:
+      '@automoderator/core': workspace:^0.1.0
+      '@automoderator/discord-permissions': workspace:^0.1.0
+      '@automoderator/http-client': workspace:^0.1.0
+      '@automoderator/injection': workspace:^0.1.0
+      '@automoderator/logger': workspace:^0.1.0
+      '@cordis/brokers': ^1.0.1
+      '@cordis/rest': ^1.0.1
+      '@cordis/util': ^1.0.1
+      '@types/amqplib': ^0.8.1
+      '@types/node': ^14.17.5
+      '@types/pino': ^6.3.9
+      discord-api-types: ^0.20.2
+      pino-elasticsearch: ^6.1.0
+      pino-pretty: ^5.1.1
+      postgres: ^2.0.0-beta.6
+      reflect-metadata: ^0.1.13
+      tslib: ^2.3.0
+      tsyringe: ^4.6.0
+      typescript: ^4.4.0-beta
+    dependencies:
+      '@automoderator/core': link:../../libs/core
+      '@automoderator/discord-permissions': link:../../libs/discord-permissions
+      '@automoderator/http-client': link:../../libs/http-client
+      '@automoderator/injection': link:../../libs/injection
+      '@automoderator/logger': link:../../libs/logger
+      '@cordis/brokers': 1.0.1
+      '@cordis/rest': 1.0.1
+      '@cordis/util': 1.0.1
+      discord-api-types: 0.20.2
+      pino-elasticsearch: 6.1.0
+      pino-pretty: 5.1.1
+      postgres: 2.0.0-beta.6
+      reflect-metadata: 0.1.13
+      tslib: 2.3.0
+      tsyringe: 4.6.0
+    devDependencies:
+      '@types/amqplib': 0.8.1
+      '@types/node': 14.17.6
       '@types/pino': 6.3.9
       typescript: 4.4.0-beta
 
@@ -2136,7 +2177,7 @@ packages:
     resolution: {integrity: sha512-8dCjF+dHZ8Y6JOoHD1BMnxP0quAncvZq4wA/lS072NjX9vIzVRSMcmfKy2Os8ZQ8VWWp74MD09GMbVbKS6/Fxw==}
     dependencies:
       '@types/bluebird': 3.5.36
-      '@types/node': 14.17.5
+      '@types/node': 16.3.0
     dev: true
 
   /@types/babel__core/7.1.15:

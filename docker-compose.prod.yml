@@ -36,6 +36,11 @@ services:
       NODE_ENV: "prod"
     command: "sh -c \"node services/logging/dist/index.js | ./services/logging/node_modules/.bin/pino-elasticsearch --index logging-v1 --node http://elasticsearch:9200\""
 
+  mod-observer:
+    environment:
+      NODE_ENV: "prod"
+    command: "sh -c \"node services/mod-observer/dist/index.js | ./services/mod-observer/node_modules/.bin/pino-elasticsearch --index mod-observer-v1 --node http://elasticsearch:9200\""
+
   elasticsearch:
     image: elasticsearch:7.12.1
     volumes:

@@ -20,7 +20,8 @@ import {
   NotOkRunnerResult,
   Runners,
   MaliciousFileCategory,
-  MaliciousUrlCategory
+  MaliciousUrlCategory,
+  ellipsis
 } from '@automoderator/core';
 import {
   APIEmbed,
@@ -233,7 +234,7 @@ export class Handler {
           .join('\n');
 
         embed.title = 'Posted malicious urls';
-        embed.description = `In <#${message.channel_id}>\n${codeblock(message.content)}`;
+        embed.description = `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`;
         embed.footer = {
           text: `Blocked URLs:\n${urls}`
         };
@@ -247,7 +248,7 @@ export class Handler {
           .join('\n');
 
         embed.title = 'Posted unallowed invites';
-        embed.description = `In <#${message.channel_id}>\n${codeblock(message.content)}`;
+        embed.description = `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`;
         embed.footer = {
           text: `Blocked invites:\n${invites}`
         };
@@ -257,7 +258,7 @@ export class Handler {
 
       case Runners.words: {
         embed.title = 'Posted prohibited content';
-        embed.description = `In <#${message.channel_id}>\n${codeblock(message.content)}`;
+        embed.description = `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`;
         embed.footer = {
           text: `Blocked text: ${trigger.data!.word}`
         };
