@@ -33,7 +33,7 @@ export interface ApiPostFiltersFilesBody {
   hashes: string[];
 }
 
-export type ApiPostFiltersFilesResult = GlobalMaliciousUrl[];
+export type ApiPostFiltersFilesResult = GlobalMaliciousFile[];
 
 export type ApiPutFiltersFilesBody = {
   hash: string;

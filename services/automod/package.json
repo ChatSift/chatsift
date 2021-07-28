@@ -27,8 +27,10 @@
     "typescript": "^4.4.0-beta"
   },
   "dependencies": {
+    "@automoderator/banword-flags": "workspace:^0.1.0",
     "@automoderator/core": "workspace:^0.1.0",
     "@automoderator/discord-permissions": "workspace:^0.1.0",
+    "@automoderator/filter-ignores": "workspace:^0.1.0",
     "@automoderator/http-client": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
@@ -41,7 +43,7 @@
     "node-fetch": "^2.6.1",
     "pino-elasticsearch": "^6.1.0",
     "pino-pretty": "^5.1.1",
-    "postgres": "2.0.0-beta.4",
+    "postgres": "^2.0.0-beta.6",
     "reflect-metadata": "^0.1.13",
     "tslib": "^2.3.0",
     "tsyringe": "^4.6.0"

@@ -1,10 +1,11 @@
 import type {
   GatewayDispatchEvents,
+  APIMessage,
   GatewayDispatchPayload,
   APIGuildInteraction
 } from 'discord-api-types/v9';
-import { HttpCase } from './api';
-import type { CaseAction, WarnPunishmentAction } from './models';
+import type { ApiPostFiltersFilesResult, ApiPostGuildsFiltersUrlsResult, HttpCase } from './api';
+import type { CaseAction, WarnPunishmentAction, BannedWord } from './models';
 
 type SanitizedDiscordEvents = {
   [K in GatewayDispatchEvents]: GatewayDispatchPayload & {
@@ -22,7 +23,8 @@ export interface DiscordInteractions {
 }
 
 export enum LogTypes {
-  modAction
+  modAction,
+  filterTrigger
 }
 
 export interface LogBase<T extends LogTypes, D extends Record<string, any>> {
@@ -40,14 +42,50 @@ interface WarnCaseExtrasWithDuration {
   extendedBy?: number;
 }
 
-export type WawrnCaseExtras = WarnCaseExtrasNoDuration | WarnCaseExtrasWithDuration;
+export type WarnCaseExtras = WarnCaseExtrasNoDuration | WarnCaseExtrasWithDuration;
 
 export type NonWarnCase = Omit<HttpCase, 'action_type'> & { action_type: Exclude<CaseAction, CaseAction.warn> };
 export type WarnCase = Omit<HttpCase, 'action_type'> & {
   action_type: CaseAction.warn;
-  extra?: WawrnCaseExtras;
+  extra?: WarnCaseExtras;
 };
 
 export type ModActionLog = LogBase<LogTypes.modAction, NonWarnCase | WarnCase>;
 
-export type Log = ModActionLog;
+export enum Runners {
+  files,
+  urls,
+  invites,
+  words
+}
+
+export interface BaseRunnerResult {
+  runner: Runners;
+}
+
+export interface NotOkRunnerResult extends BaseRunnerResult {
+  ok: false;
+}
+
+export interface OkRunnerResult<R extends Runners, T> extends BaseRunnerResult {
+  ok: true;
+  runner: R;
+  data: T;
+  actioned: boolean;
+}
+
+export type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostFiltersFilesResult>;
+export type UrlsRunnerResult = OkRunnerResult<Runners.urls, ApiPostGuildsFiltersUrlsResult>;
+export type InvitesRunnerResult = OkRunnerResult<Runners.invites, string[]>;
+export type WordsRunnerResult = OkRunnerResult<Runners.words, BannedWord | null>;
+
+export type RunnerResult = NotOkRunnerResult | FilesRunnerResult | InvitesRunnerResult | UrlsRunnerResult | WordsRunnerResult;
+
+export interface FilterTriggerData {
+  message: APIMessage;
+  triggers: Exclude<RunnerResult, NotOkRunnerResult>[];
+}
+
+export type FilterTriggerLog = LogBase<LogTypes.filterTrigger, FilterTriggerData>;
+
+export type Log = ModActionLog | FilterTriggerLog;

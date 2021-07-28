@@ -6,12 +6,12 @@ import { addFields } from './embed';
 import ms from './ms';
 
 export const LOG_COLORS = Object.freeze({
-  [CaseAction.warn]: 15309853,
-  [CaseAction.mute]: 2895667,
+  [CaseAction.warn]: 16022395,
+  [CaseAction.mute]: 16022395,
   [CaseAction.unmute]: 5793266,
-  [CaseAction.kick]: 15418782,
-  [CaseAction.softban]: 15418782,
-  [CaseAction.ban]: 15548997,
+  [CaseAction.kick]: 16022395,
+  [CaseAction.softban]: 16022395,
+  [CaseAction.ban]: 15747144,
   [CaseAction.unban]: 5793266
 } as const);
 
@@ -39,7 +39,7 @@ export const makeCaseEmbed = ({ logChannelId, cs, target, mod, pardonedBy, messa
   let embed: APIEmbed = message?.embeds[0]
     ? message.embeds[0]
     : {
-      title: `Was ${ACTIONS[cs.action_type]}${cs.reason ? ` for ${cs.reason}` : ''}`,
+      title: `Was ${ACTIONS[cs.action_type]} for \`${cs.reason ?? 'Set a reason using /reason'}\``,
       color: LOG_COLORS[cs.action_type],
       author: {
         name: `${cs.target_tag} (${cs.target_id})`,
@@ -100,6 +100,7 @@ export interface HistoryEmbedOptions {
   user: APIUser;
   cases: Case[];
   showDetails: boolean;
+  logChannelId?: Snowflake;
   filterTriggers?: number;
 }
 
@@ -110,7 +111,7 @@ export interface HistoryEmbedOptions {
 //  =0 points -> green
 
 // TODO filter trigger counts
-export const makeHistoryEmbed = ({ user, cases, showDetails, filterTriggers }: HistoryEmbedOptions): APIEmbed => {
+export const makeHistoryEmbed = ({ user, cases, showDetails, logChannelId, filterTriggers }: HistoryEmbedOptions): APIEmbed => {
   let points = 0;
   const counts = {
     [CaseAction.ban]: 0,
@@ -119,7 +120,7 @@ export const makeHistoryEmbed = ({ user, cases, showDetails, filterTriggers }: H
     [CaseAction.warn]: 0
   };
 
-  const colors = [8450847, 13091073, 14917123, 15548997] as const;
+  const colors = [8450847, 13091073, 16022395, 15747144] as const;
   const details: string[] = [];
 
   for (const cs of cases) {
@@ -141,9 +142,12 @@ export const makeHistoryEmbed = ({ user, cases, showDetails, filterTriggers }: H
 
     if (showDetails) {
       const timestamp = Math.round(cs.created_at.getTime() / 1000);
-      details.push(
-        `• <t:${timestamp}> \`${CaseAction[cs.action_type]!.toUpperCase()} #${cs.case_id}\` - ${cs.reason ?? 'No reason provided'}`
-      );
+      const action = CaseAction[cs.action_type]!.toUpperCase();
+      const caseId = cs.log_message_id && logChannelId
+        ? `[#${cs.case_id}](https://discord.com/channels/${cs.guild_id}/${logChannelId}/${cs.log_message_id})`
+        : `#${cs.case_id}`;
+
+      details.push(`• <t:${timestamp}> \`${action}\` ${caseId} - \`${cs.reason ?? 'Set a reason using /reason'}\``);
     }
   }
 

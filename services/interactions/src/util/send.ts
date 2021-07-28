@@ -19,11 +19,11 @@ export interface SendOptions {
  * @param type The type of response to provide
  * @param type Additional options
  */
-export const send = (
+export const send = async (
   message: any,
   payload: (RESTPostAPIChannelMessageJSONBody | APIInteractionResponseCallbackData) & { files?: File[] },
   options?: SendOptions
-): unknown => {
+): Promise<unknown> => {
   const rest = container.resolve(Rest);
   const { discordClientId } = container.resolve<Config>(kConfig);
 
@@ -33,7 +33,7 @@ export const send = (
 
     if (options?.update) {
       // TODO cordis support for files in PATCH
-      //  return rest.patch(Routes.webhookMessage(discordClientId, message.token, '@original'), { data: response, files });
+      // return rest.patch(Routes.webhookMessage(discordClientId, message.token, '@original'), { data: response, files });
       return rest.make({
         method: 'PATCH',
         path: Routes.webhookMessage(discordClientId, message.token, '@original'),
@@ -48,7 +48,11 @@ export const send = (
         data: response
       }));
 
-      return send(message, { files }, { update: true });
+      if (files) {
+        await send(message, { files }, { update: true });
+      }
+
+      return;
     }
   }
 

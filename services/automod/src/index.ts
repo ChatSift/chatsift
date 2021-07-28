@@ -8,6 +8,7 @@ import createLogger from '@automoderator/logger';
 import { Gateway } from './gateway';
 import * as runners from './runners';
 import { Rest } from '@automoderator/http-client';
+import { createAmqp, PubSubPublisher } from '@cordis/brokers';
 import type { Logger } from 'pino';
 
 void (async () => {
@@ -43,6 +44,12 @@ void (async () => {
     discordRest.on('request', req => logger.trace(`Making request ${req.method!} ${req.path!}`));
   }
 
+  const { channel } = await createAmqp(config.amqpUrl);
+  const logs = new PubSubPublisher(channel);
+
+  await logs.init({ name: 'guild_logs', fanout: false });
+
+  container.register(PubSubPublisher, { useValue: logs });
   container.register(DiscordRest, { useValue: discordRest });
   container.register<Sql<{}>>(kSql, { useValue: sql });
   container.register<Logger>(kLogger, { useValue: logger });

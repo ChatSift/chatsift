@@ -78,8 +78,8 @@ export class FilterConfig implements Command {
       case 'ignore': {
         const { channel, ...filters } = args.ignore;
 
-        if (channel.type !== ChannelType.GuildText && channel.type !== ChannelType.GuildCategory) {
-          throw new ControlFlowError('Please provide a text channel or a category channel');
+        if (channel.type !== ChannelType.GuildText) {
+          throw new ControlFlowError('Please provide a text channel');
         }
 
         return this.sql.begin(async sql => {

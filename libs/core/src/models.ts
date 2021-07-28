@@ -13,10 +13,17 @@ export interface GuildSettings {
   mute_role: Snowflake | null;
   auto_pardon_mutes_after: number | null;
   use_url_filters: UseFilterMode;
-  use_file_filters: UseFilterMode;
+  use_file_filters: boolean;
   use_invite_filters: boolean;
   mod_action_log_channel: Snowflake | null;
+  filter_trigger_log_channel: Snowflake | null;
   assignable_roles_prompt: string | null;
+}
+
+export interface WebhookToken {
+  channel_id: Snowflake;
+  webhook_id: Snowflake;
+  webhook_token: string;
 }
 
 export interface SelfAssignableRole {
@@ -161,6 +168,13 @@ export interface GlobalMaliciousUrl extends MaliciousUrl {
   guild_id: null;
   admin_id: Snowflake;
   category: MaliciousUrlCategory;
+}
+
+export interface BannedWord {
+  guild_id: Snowflake;
+  word: string;
+  flags: `${bigint}`;
+  duration: number | null;
 }
 
 export interface FilterTrigger {

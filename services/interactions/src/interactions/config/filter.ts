@@ -38,12 +38,7 @@ export const FilterCommand = {
             {
               name: 'files',
               description: 'How the files filter should be used',
-              type: ApplicationCommandOptionType.Integer,
-              choices: [
-                { name: 'Disable', value: UseFilterMode.none },
-                { name: 'Only local filters', value: UseFilterMode.guildOnly },
-                { name: 'Local and global filters', value: UseFilterMode.all }
-              ],
+              type: ApplicationCommandOptionType.Boolean,
               required: false
             },
             {
@@ -79,7 +74,13 @@ export const FilterCommand = {
             },
             {
               name: 'invites',
-              description: 'If the URL invites should be disabled in the given channel',
+              description: 'If the invites filter should be disabled in the given channel',
+              type: ApplicationCommandOptionType.Boolean,
+              required: false
+            },
+            {
+              name: 'words',
+              description: 'If the words (/banword) filter should be disabled in the given channel',
               type: ApplicationCommandOptionType.Boolean,
               required: false
             }
@@ -88,84 +89,6 @@ export const FilterCommand = {
         {
           name: 'ignorelist',
           description: 'Shows all the currently ignored channels',
-          type: ApplicationCommandOptionType.SubCommand,
-          options: []
-        }
-      ]
-    },
-    {
-      name: 'urls',
-      description: 'Allows you to manage url filters',
-      type: ApplicationCommandOptionType.SubCommandGroup,
-      options: [
-        {
-          name: 'add',
-          description: 'Adds an entry to the local url filters',
-          type: ApplicationCommandOptionType.SubCommand,
-          options: [
-            {
-              name: 'entries',
-              description: 'The URLs to ban (please don\'t include the protocol at the start) - may use specific paths or domains',
-              type: ApplicationCommandOptionType.String,
-              required: true
-            }
-          ]
-        },
-        {
-          name: 'remove',
-          description: 'Removes an entry from the local url filters',
-          type: ApplicationCommandOptionType.SubCommand,
-          options: [
-            {
-              name: 'entries',
-              description: 'The URLs to remove from the list',
-              type: ApplicationCommandOptionType.String,
-              required: true
-            }
-          ]
-        },
-        {
-          name: 'list',
-          description: 'Lists all the entries in your url filters',
-          type: ApplicationCommandOptionType.SubCommand,
-          options: []
-        }
-      ]
-    },
-    {
-      name: 'files',
-      description: 'Allows you to manage file filters',
-      type: ApplicationCommandOptionType.SubCommandGroup,
-      options: [
-        {
-          name: 'add',
-          description: 'Adds an entry to the local file filters',
-          type: ApplicationCommandOptionType.SubCommand,
-          options: [
-            {
-              name: 'hashes',
-              description: 'Hashes of the files you wish to ban',
-              type: ApplicationCommandOptionType.String,
-              required: true
-            }
-          ]
-        },
-        {
-          name: 'remove',
-          description: 'Removes an entry from the local url filters',
-          type: ApplicationCommandOptionType.SubCommand,
-          options: [
-            {
-              name: 'hashes',
-              description: 'The hashes to remove',
-              type: ApplicationCommandOptionType.String,
-              required: true
-            }
-          ]
-        },
-        {
-          name: 'list',
-          description: 'Lists all the entries in your file filters',
           type: ApplicationCommandOptionType.SubCommand,
           options: []
         }

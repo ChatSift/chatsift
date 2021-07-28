@@ -1,7 +1,7 @@
 {
   "$schema": "http://json.schemastore.org/package",
-  "name": "@automoderator/cron-runner",
-  "description": "Micro-service for running recurring scheduled tasks",
+  "name": "@automoderator/banword-flags",
+  "description": "Bitfield for banword option flags",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "version": "0.1.0",
@@ -19,23 +19,11 @@
   },
   "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
-    "@types/amqplib": "^0.8.1",
+    "@cordis/bitfield": "^1.0.1",
     "@types/node": "^14.17.5",
-    "@types/node-fetch": "^2.5.11",
-    "@types/pino": "^6.3.9",
     "typescript": "^4.4.0-beta"
   },
   "dependencies": {
-    "@automoderator/core": "workspace:^0.1.0",
-    "@automoderator/injection": "workspace:^0.1.0",
-    "@automoderator/logger": "workspace:^0.1.0",
-    "@cordis/rest": "^1.0.1",
-    "discord-api-types": "^0.20.2",
-    "pino-elasticsearch": "^6.1.0",
-    "pino-pretty": "^5.1.1",
-    "postgres": "^2.0.0-beta.6",
-    "reflect-metadata": "^0.1.13",
-    "tslib": "^2.3.0",
-    "tsyringe": "^4.6.0"
+    "tslib": "^2.3.0"
   }
 }
