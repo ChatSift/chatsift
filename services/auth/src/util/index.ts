@@ -29,7 +29,7 @@ export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler
   }
 
   const result = await fetch(
-    'https://discord.com/api/v8/oauth2/token', {
+    'https://discord.com/api/v9/oauth2/token', {
       method: 'POST',
       body: form.toString(),
       headers: {

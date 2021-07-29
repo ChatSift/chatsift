@@ -29,7 +29,7 @@ export const userAuth = (fallthrough = false) => {
     }
 
     const result = await fetch(
-      'https://discord.com/api/v8/users/@me', {
+      'https://discord.com/api/v9/users/@me', {
         headers: {
           authorization: `Bearer ${token}`
         }

@@ -15,7 +15,7 @@ export const getUserGuilds = async (req: Request, next: NextHandler, filtered: b
   const token = cookies.access_token ?? req.headers.authorization;
 
   const result = await fetch(
-    'https://discord.com/api/v8/users/@me/guilds', {
+    'https://discord.com/api/v9/users/@me/guilds', {
       headers: {
         authorization: `Bearer ${token!}`
       }

@@ -1,7 +1,7 @@
 import { kSql } from '@automoderator/injection';
 import { inject, singleton } from 'tsyringe';
 import type { Sql } from 'postgres';
-import type { GlobalMaliciousUrl, MaliciousUrlCategory } from '@automoderator/core';
+import type { MaliciousUrl, MaliciousUrlCategory } from '@automoderator/core';
 import type { Snowflake } from 'discord-api-types/v9';
 
 interface Ok<T> {
@@ -22,38 +22,36 @@ export class UrlsController {
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
-  public get(page: number): Promise<GlobalMaliciousUrl[]> {
+  public get(page: number): Promise<MaliciousUrl[]> {
     return this.sql`
       SELECT * FROM malicious_urls
-      WHERE guild_id IS NULL
       LIMIT 100
       OFFSET ${page * 100}
     `;
   }
 
-  public getAll(): Promise<GlobalMaliciousUrl[]> {
-    return this.sql`SELECT * FROM malicious_urls WHERE guild_id IS NULL`;
+  public getAll(): Promise<MaliciousUrl[]> {
+    return this.sql`SELECT * FROM malicious_urls`;
   }
 
-  public getHitsFrom(urls: string[]): Promise<GlobalMaliciousUrl[]> {
-    return this.sql<GlobalMaliciousUrl[]>`
+  public getHitsFrom(urls: string[]): Promise<MaliciousUrl[]> {
+    return this.sql<MaliciousUrl[]>`
       SELECT *
       FROM malicious_urls
-      WHERE url = ANY(${this.sql.array(urls)}) AND guild_id IS NULL
+      WHERE url = ANY(${this.sql.array(urls)})
     `;
   }
 
-  public async updateBulk(urls: { url_id: number; category: MaliciousUrlCategory }[]): Promise<Result<GlobalMaliciousUrl[]>> {
+  public async updateBulk(urls: { url_id: number; category: MaliciousUrlCategory }[]): Promise<Result<MaliciousUrl[]>> {
     const data = await this.sql
       .begin(async sql => {
-        const updated: GlobalMaliciousUrl[] = [];
+        const updated: MaliciousUrl[] = [];
 
         for (const url of urls) {
-          const [data] = await sql<[GlobalMaliciousUrl?]>`
+          const [data] = await sql<[MaliciousUrl?]>`
             UPDATE malicious_urls
             SET category = ${url.category}, last_modified_at = NOW()
             WHERE url_id = ${url.url_id}
-              AND guild_id IS NULL
             RETURNING *
           `;
 
@@ -75,10 +73,10 @@ export class UrlsController {
 
   public add(urls: { url: string; admin: Snowflake; category: MaliciousUrlCategory }[]) {
     return this.sql.begin(sql => {
-      const promises: Promise<GlobalMaliciousUrl>[] = [];
+      const promises: Promise<MaliciousUrl>[] = [];
 
       for (const data of urls) {
-        const promise = sql<[GlobalMaliciousUrl]>`
+        const promise = sql<[MaliciousUrl]>`
           INSERT INTO malicious_urls (url, admin_id, category)
           VALUES (${data.url}, ${data.admin}, ${data.category})
           ON CONFLICT (url)
@@ -95,7 +93,7 @@ export class UrlsController {
   }
 
   public delete(ids: number[]) {
-    return this.sql<GlobalMaliciousUrl[]>`
+    return this.sql<MaliciousUrl[]>`
       DELETE FROM malicious_urls
       WHERE url_id = ANY(${this.sql.array(ids)})
       RETURNING *
