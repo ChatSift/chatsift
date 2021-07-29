@@ -2,9 +2,11 @@ import { injectable } from 'tsyringe';
 import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { FilterIgnoresController } from '#controllers';
 import * as Joi from 'joi';
-import type { Request, Response } from 'polka';
+import { FilterIgnores } from '@automoderator/filter-ignores';
+import { badRequest } from '@hapi/boom';
+import type { Request, Response, NextHandler } from 'polka';
 import type { Snowflake } from 'discord-api-types/v9';
-import type { ApiPatchSettingsIgnoresChannelBody } from '@automoderator/core';
+import type { ApiPatchFiltersIgnoresChannelBody } from '@automoderator/core';
 
 @injectable()
 export default class PatchGuildsFiltersIgnoresChannelRoute extends Route {
@@ -15,9 +17,7 @@ export default class PatchGuildsFiltersIgnoresChannelRoute extends Route {
       Joi
         .object()
         .keys({
-          value: Joi.number()
-            .min(0)
-            .required()
+          value: Joi.string().required()
         })
         .required()
     )
@@ -29,9 +29,15 @@ export default class PatchGuildsFiltersIgnoresChannelRoute extends Route {
     super();
   }
 
-  public async handle(req: Request, res: Response) {
+  public async handle(req: Request, res: Response, next: NextHandler) {
     const { gid, cid } = req.params as { gid: Snowflake; cid: Snowflake };
-    const { value } = req.body as ApiPatchSettingsIgnoresChannelBody;
+    const { value } = req.body as ApiPatchFiltersIgnoresChannelBody;
+
+    try {
+      new FilterIgnores(BigInt(value));
+    } catch {
+      return next(badRequest('Invalid bitfield value'));
+    }
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

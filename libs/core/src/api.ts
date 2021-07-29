@@ -8,7 +8,8 @@ import type {
   GuildSettings,
   FilterIgnore,
   AllowedInvite,
-  SelfAssignableRole
+  SelfAssignableRole,
+  BannedWord
 } from './models';
 import type { Snowflake } from 'discord-api-types/v9';
 
@@ -149,6 +150,26 @@ export type ApiPutFiltersInvitesAllowlistCodeResult = AllowedInvite;
 export type ApiDeleteFiltersInvitesAllowlistResult = AllowedInvite[];
 
 export type ApiGetFiltersInvitesAllowlistResult = AllowedInvite[];
+
+export interface ApiDeleteGuildsFiltersLocalBody {
+  words?: string[];
+}
+
+export type ApiDeleteGuildsFiltersLocalResult = BannedWord[];
+
+export interface ApiGetGuildsFiltersLocalQuery {
+  page?: number;
+}
+
+export type ApiGetGuildsFiltersLocalResult = BannedWord[];
+
+export interface ApiPatchGuildsFiltersLocalBody {
+  word: string;
+  flags: `${bigint}`;
+  duration?: number | null;
+}
+
+export type ApiPatchGuildsFiltersLocalResult = BannedWord;
 
 export type ApiGetGuildsSettingsResult = GuildSettings;
 

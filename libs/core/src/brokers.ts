@@ -4,7 +4,7 @@ import type {
   GatewayDispatchPayload,
   APIGuildInteraction
 } from 'discord-api-types/v9';
-import type { ApiPostFiltersFilesResult, ApiPostFiltersUrlsBody, HttpCase } from './api';
+import type { ApiPostFiltersFilesResult, ApiPostFiltersUrlsResult, HttpCase } from './api';
 import type { CaseAction, WarnPunishmentAction, BannedWord } from './models';
 
 type SanitizedDiscordEvents = {
@@ -74,10 +74,12 @@ export interface OkRunnerResult<R extends Runners, T> extends BaseRunnerResult {
   actioned: boolean;
 }
 
+export type WordsRunnerResultData = BannedWord & { isUrl: boolean };
+
 export type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostFiltersFilesResult>;
-export type UrlsRunnerResult = OkRunnerResult<Runners.urls, ApiPostFiltersUrlsBody>;
+export type UrlsRunnerResult = OkRunnerResult<Runners.urls, ApiPostFiltersUrlsResult>;
 export type InvitesRunnerResult = OkRunnerResult<Runners.invites, string[]>;
-export type WordsRunnerResult = OkRunnerResult<Runners.words, BannedWord | null>;
+export type WordsRunnerResult = OkRunnerResult<Runners.words, WordsRunnerResultData[]>;
 
 export type RunnerResult = NotOkRunnerResult | FilesRunnerResult | InvitesRunnerResult | UrlsRunnerResult | WordsRunnerResult;
 

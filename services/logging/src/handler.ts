@@ -204,40 +204,44 @@ export class Handler {
     return this.sql`UPDATE cases SET log_message_id = ${newMessage.id} WHERE id = ${log.data.id}`;
   }
 
-  private _embedFromTrigger(message: APIMessage, trigger: Exclude<RunnerResult, NotOkRunnerResult>): APIEmbed {
+  private _embedFromTrigger(message: APIMessage, trigger: Exclude<RunnerResult, NotOkRunnerResult>): APIEmbed[] {
     const codeblock = (str: string) => `\`\`\`${str}\`\`\``;
-    const embed: APIEmbed = {
+
+    const embeds: APIEmbed[] = [];
+    const push = (embed: APIEmbed) => embeds.push({
       color: 16426011,
       author: {
         name: `${message.author.username}#${message.author.discriminator} (${message.author.id})`,
         icon_url: message.author.avatar
           ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${message.author.id}/${message.author.avatar}`)
           : `${RouteBases.cdn}/embed/avatars/${parseInt(message.author.discriminator, 10) % 5}`
-      }
-    };
+      },
+      ...embed
+    });
 
     switch (trigger.runner) {
       case Runners.files: {
         const hashes = trigger.data
-          .map(file => `${file.file_hash} - ${MaliciousFileCategory[file.category]}`)
+          .map(file => `${file.file_hash} (${MaliciousFileCategory[file.category]})`)
           .join('\n');
 
-        embed.title = 'Posted malicious files';
-        embed.description = `In <#${message.channel_id}>\n${codeblock(hashes)}`;
+        push({
+          title: 'Posted malicious files',
+          description: `In <#${message.channel_id}>\n${codeblock(hashes)}`
+        });
 
         break;
       }
 
       case Runners.urls: {
         const urls = trigger.data
-          .map(url => `${url.url} - ${url.category === null ? 'Locally forbidden url' : MaliciousUrlCategory[url.category]}`)
+          .map(url => `${url.url} (${MaliciousUrlCategory[url.category]})`)
           .join('\n');
 
-        embed.title = 'Posted malicious urls';
-        embed.description = `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`;
-        embed.footer = {
-          text: `Blocked URLs:\n${urls}`
-        };
+        push({
+          title: 'Posted malicious urls',
+          description: `Blocked URLs:\n${urls}`
+        });
 
         break;
       }
@@ -247,27 +251,53 @@ export class Handler {
           .map(invite => `https://discord.gg/${invite}`)
           .join('\n');
 
-        embed.title = 'Posted unallowed invites';
-        embed.description = `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`;
-        embed.footer = {
-          text: `Blocked invites:\n${invites}`
-        };
+        push({
+          title: 'Posted unallowed invites',
+          description: `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`,
+          footer: {
+            text: `Blocked invites:\n${invites}`
+          }
+        });
 
         break;
       }
 
       case Runners.words: {
-        embed.title = 'Posted prohibited content';
-        embed.description = `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`;
-        embed.footer = {
-          text: `Blocked text: ${trigger.data!.word}`
-        };
+        const { words, urls } = trigger.data.reduce<{ words: string[]; urls: string[] }>((acc, entry) => {
+          if (entry.isUrl) {
+            acc.urls.push(entry.word);
+          } else {
+            acc.words.push(entry.word);
+          }
+
+          return acc;
+        }, { words: [], urls: [] });
+
+        if (words.length) {
+          push({
+            title: 'Posted prohibited content',
+            description: `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`,
+            footer: {
+              text: `Blocked words:\n${words.join('\n')}`
+            }
+          });
+        }
+
+        if (urls.length) {
+          push({
+            title: 'Posted prohibited content',
+            description: `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`,
+            footer: {
+              text: `Blocked urls:\n${urls.join('\n')}`
+            }
+          });
+        }
 
         break;
       }
     }
 
-    return embed;
+    return embeds;
   }
 
   private async _handleFilterTriggerLog(log: FilterTriggerLog) {
@@ -286,7 +316,7 @@ export class Handler {
       return;
     }
 
-    const embeds = log.data.triggers.map(trigger => this._embedFromTrigger(log.data.message, trigger));
+    const embeds = log.data.triggers.flatMap(trigger => this._embedFromTrigger(log.data.message, trigger));
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
       Routes.webhook(webhook.id, webhook.token), {
         data: {
