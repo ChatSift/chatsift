@@ -1,18 +1,12 @@
 import type { Snowflake } from 'discord-api-types/v9';
 
-export enum UseFilterMode {
-  none,
-  guildOnly,
-  all
-}
-
 export interface GuildSettings {
   guild_id: Snowflake;
   mod_role: Snowflake | null;
   admin_role: Snowflake | null;
   mute_role: Snowflake | null;
   auto_pardon_mutes_after: number | null;
-  use_url_filters: UseFilterMode;
+  use_url_filters: boolean;
   use_file_filters: boolean;
   use_invite_filters: boolean;
   mod_action_log_channel: Snowflake | null;

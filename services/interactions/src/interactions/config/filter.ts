@@ -1,5 +1,4 @@
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
-import { UseFilterMode } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 
 export const FilterCommand = {
@@ -26,24 +25,19 @@ export const FilterCommand = {
           options: [
             {
               name: 'urls',
-              description: 'How the url filter should be used',
-              type: ApplicationCommandOptionType.Integer,
-              choices: [
-                { name: 'Disable', value: UseFilterMode.none },
-                { name: 'Only local filters', value: UseFilterMode.guildOnly },
-                { name: 'Local and global filters', value: UseFilterMode.all }
-              ],
+              description: 'If the url filter should be used',
+              type: ApplicationCommandOptionType.Boolean,
               required: false
             },
             {
               name: 'files',
-              description: 'How the files filter should be used',
+              description: 'If the files filter should be used',
               type: ApplicationCommandOptionType.Boolean,
               required: false
             },
             {
               name: 'invites',
-              description: 'How the invites filter should be used',
+              description: 'If the invites filter should be used',
               type: ApplicationCommandOptionType.Boolean,
               required: false
             }
