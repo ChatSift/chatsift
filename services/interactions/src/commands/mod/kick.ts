@@ -49,7 +49,7 @@ export default class implements Command {
     await dmUser(member.user.id, `Hello! You have been kicked from ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
 
     await this.discordRest.delete(Routes.guildMember(interaction.guild_id, member.user.id), { reason: `Kick | By ${modTag}` });
-    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
       {
         action: CaseAction.kick,
         mod_id: interaction.member.user.id,

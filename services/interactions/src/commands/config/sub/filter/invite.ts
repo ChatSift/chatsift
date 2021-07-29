@@ -1,20 +1,21 @@
-import { inject, singleton } from 'tsyringe';
+import { singleton } from 'tsyringe';
 import { Command } from '../../../../command';
 import { ArgumentsOf, send } from '#util';
 import { FilterCommand } from '#interactions';
-import { kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { Rest } from '@automoderator/http-client';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
-import type { Sql } from 'postgres';
-import type { AllowedInvite } from '@automoderator/core';
+import type {
+  ApiDeleteFiltersInvitesAllowlistCodeResult,
+  ApiGetFiltersInvitesAllowlistResult,
+  ApiPutFiltersInvitesAllowlistCodeResult
+} from '@automoderator/core';
 
 @singleton()
 export class InvitesConfig implements Command {
   public constructor(
     public readonly rest: Rest,
-    public readonly discordRest: DiscordRest,
-    @inject(kSql) public readonly sql: Sql<{}>
+    public readonly discordRest: DiscordRest
   ) {}
 
   private cleanInvite(invite: string) {
@@ -26,11 +27,17 @@ export class InvitesConfig implements Command {
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof FilterCommand>['invites']) {
     switch (Object.keys(args)[0] as keyof typeof args) {
       case 'allow': {
-        const data: AllowedInvite[] = args.allow.entries
-          .split(',')
-          .map(entry => ({ guild_id: interaction.guild_id, invite_code: this.cleanInvite(entry) }));
+        const promises = [];
 
-        const added = await this.sql`INSERT INTO allowed_invites ${this.sql(data)} ON CONFLICT DO NOTHING RETURNING *`;
+        for (const entry of args.allow.entries.split(',')) {
+          const res = this.rest.put<ApiPutFiltersInvitesAllowlistCodeResult>(
+            `/guilds/${interaction.guild_id}/filters/invites/allowlist/${this.cleanInvite(entry)}`
+          );
+
+          promises.push(res);
+        }
+
+        const added = (await Promise.allSettled(promises)).filter(promise => promise.status === 'fulfilled');
 
         if (!added.length) {
           return send(interaction, { content: 'There was nothing to add!', flags: 64 });
@@ -40,8 +47,17 @@ export class InvitesConfig implements Command {
       }
 
       case 'unallow': {
-        const entries = args.unallow.entries.split(',').map(entry => this.cleanInvite(entry));
-        const deleted = await this.sql`DELETE FROM allowed_invites WHERE invite_code = ANY(${this.sql.array(entries)}) RETURNING *`;
+        const promises = [];
+
+        for (const entry of args.unallow.entries.split(',')) {
+          const res = this.rest.delete<ApiDeleteFiltersInvitesAllowlistCodeResult>(
+            `/guilds/${interaction.guild_id}/filters/invites/allowlist/${this.cleanInvite(entry)}`
+          );
+
+          promises.push(res);
+        }
+
+        const deleted = (await Promise.allSettled(promises)).filter(promise => promise.status === 'fulfilled');
 
         if (!deleted.length) {
           return send(interaction, { content: 'There was nothing to delete!', flags: 64 });
@@ -51,7 +67,9 @@ export class InvitesConfig implements Command {
       }
 
       case 'list': {
-        const allows = await this.sql<AllowedInvite[]>`SELECT * FROM allowed_invites WHERE guild_id = ${interaction.guild_id}`;
+        const allows = await this.rest.get<ApiGetFiltersInvitesAllowlistResult>(
+          `/guilds/${interaction.guild_id}/filters/invites/allowlist`
+        );
 
         if (!allows.length) {
           return send(interaction, { content: 'There is currently nothing on your allowlist' });

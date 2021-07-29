@@ -60,6 +60,6 @@ export class FilesRunner {
       return [];
     }
 
-    return this.rest.post<ApiPostFiltersFilesResult, ApiPostFiltersFilesBody>('/api/v1/filters/files', { hashes });
+    return this.rest.post<ApiPostFiltersFilesResult, ApiPostFiltersFilesBody>('/filters/files', { hashes });
   }
 }

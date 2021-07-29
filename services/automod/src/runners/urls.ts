@@ -42,7 +42,7 @@ export class UrlsRunner {
   }
 
   public run(urls: string[], guildId: string, guildOnly: boolean) {
-    return this.rest.post<ApiPostGuildsFiltersUrlsResult, ApiPostGuildsFiltersUrlsBody>(`/api/v1/guilds/${guildId}/filters/urls`, {
+    return this.rest.post<ApiPostGuildsFiltersUrlsResult, ApiPostGuildsFiltersUrlsBody>(`/guilds/${guildId}/filters/urls`, {
       urls,
       guild_only: guildOnly
     });

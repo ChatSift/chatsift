@@ -29,7 +29,7 @@ export default class implements Command {
     const { csId } = this.parse(args);
 
     try {
-      const [cs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+      const [cs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
         {
           case_id: csId,
           pardoned_by: interaction.member.user.id

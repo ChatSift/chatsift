@@ -25,7 +25,7 @@ export default class implements Component {
     }
 
     try {
-      await this.rest.delete(`/api/v1/guilds/${interaction.guild_id}/cases/${csId}`);
+      await this.rest.delete(`/guilds/${interaction.guild_id}/cases/${csId}`);
       return send(interaction, {
         content: 'Successfully deleted the case',
         components: []

@@ -1,36 +1,40 @@
-import { inject, singleton } from 'tsyringe';
+import { singleton } from 'tsyringe';
 import { Command } from '../../../../command';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { FilterCommand } from '#interactions';
-import { GuildSettings, UseFilterMode, FilterIgnore } from '@automoderator/core';
 import { stripIndents } from 'common-tags';
-import { kSql } from '@automoderator/injection';
 import { APIGuildInteraction, ChannelType, Routes, RESTGetAPIGuildChannelsResult } from 'discord-api-types/v9';
 import { FilterIgnores } from '@automoderator/filter-ignores';
-import { Rest } from '@cordis/rest';
-import type { Sql } from 'postgres';
+import { Rest } from '@automoderator/http-client';
+import { Rest as DiscordRest } from '@cordis/rest';
+import {
+  GuildSettings,
+  ApiGetGuildsSettingsResult,
+  ApiPatchGuildSettingsResult,
+  ApiPatchGuildSettingsBody,
+  ApiGetFiltersIgnoresChannelResult,
+  ApiPatchFiltersIgnoresChannelResult,
+  ApiPatchFiltersIgnoresChannelBody,
+  ApiGetFiltersIgnoresResult
+} from '@automoderator/core';
 
 @singleton()
 export class FilterConfig implements Command {
   public constructor(
     public readonly rest: Rest,
-    @inject(kSql) public readonly sql: Sql<{}>
+    public readonly discordRest: DiscordRest
   ) {}
 
-  private sendCurrentSettings(interaction: APIGuildInteraction, settings?: Partial<GuildSettings>) {
-    const urlFilter = (settings?.use_url_filters ?? UseFilterMode.none) === UseFilterMode.none
-      ? 'off'
-      : settings!.use_url_filters === UseFilterMode.guildOnly ? 'on (local only)' : 'on (with global list)';
-
-    const fileFilter = (settings?.use_file_filters ?? UseFilterMode.none) === UseFilterMode.none
-      ? 'off'
-      : settings!.use_url_filters === UseFilterMode.guildOnly ? 'on (local only)' : 'on (with global list)';
+  private async sendCurrentSettings(interaction: APIGuildInteraction) {
+    const settings = await this.rest
+      .get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`)
+      .catch(() => null);
 
     return send(interaction, {
       content: stripIndents`
         **Here are your current filter settings:**
-        • url filter: ${urlFilter}
-        • file filter: ${fileFilter}
+        • url filter: ${settings?.use_url_filters ? 'on' : 'off'}
+        • file filter: ${settings?.use_file_filters ? 'on' : 'off'}
         • invite filter: ${settings?.use_invite_filters ? 'on' : 'off'}
       `,
       allowed_mentions: { parse: [] }
@@ -40,8 +44,7 @@ export class FilterConfig implements Command {
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof FilterCommand>['config']) {
     switch (Object.keys(args)[0] as keyof typeof args) {
       case 'show': {
-        const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${interaction.guild_id}`;
-        return this.sendCurrentSettings(interaction, settings);
+        return this.sendCurrentSettings(interaction);
       }
 
       case 'edit': {
@@ -60,19 +63,15 @@ export class FilterConfig implements Command {
         }
 
         if (Object.values(settings).length === 1) {
-          const [currentSettings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${interaction.guild_id}`;
-          return this.sendCurrentSettings(interaction, currentSettings);
+          return this.sendCurrentSettings(interaction);
         }
 
-        [settings] = await this.sql`
-          INSERT INTO guild_settings ${this.sql(settings)}
-          ON CONFLICT (guild_id)
-          DO
-            UPDATE SET ${this.sql(settings)}
-            RETURNING *
-        `;
+        settings = await this.rest.patch<ApiPatchGuildSettingsResult, ApiPatchGuildSettingsBody>(
+          `/guilds/${interaction.guild_id}/settings`,
+          settings
+        );
 
-        return this.sendCurrentSettings(interaction, settings);
+        return this.sendCurrentSettings(interaction);
       }
 
       case 'ignore': {
@@ -82,38 +81,37 @@ export class FilterConfig implements Command {
           throw new ControlFlowError('Please provide a text channel');
         }
 
-        return this.sql.begin(async sql => {
-          const [existing] = await sql<[FilterIgnore?]>`SELECT * FROM filter_ignores WHERE channel_id = ${channel.id}`;
-          const bitfield = new FilterIgnores(BigInt(existing?.value ?? '0'));
+        const existing = await this.rest
+          .get<ApiGetFiltersIgnoresChannelResult>(`/guilds/${interaction.guild_id}/filters/ignores/${channel.id}`)
+          .catch(() => null);
 
-          for (const [filter, on] of Object.entries(filters) as [keyof typeof filters, boolean][]) {
-            if (on) {
-              bitfield.add(filter);
-            } else {
-              bitfield.remove(filter);
-            }
+        const bitfield = new FilterIgnores(BigInt(existing?.value ?? '0'));
+
+        for (const [filter, on] of Object.entries(filters) as [keyof typeof filters, boolean][]) {
+          if (on) {
+            bitfield.add(filter);
+          } else {
+            bitfield.remove(filter);
           }
+        }
 
-          await sql`
-            INSERT INTO filter_ignores (channel_id, guild_id, value)
-            VALUES (${channel.id}, ${interaction.guild_id}, ${bitfield.toJSON()})
-            ON CONFLICT (channel_id)
-            DO UPDATE SET value = ${bitfield.toJSON()}
-          `;
+        await this.rest.patch<ApiPatchFiltersIgnoresChannelResult, ApiPatchFiltersIgnoresChannelBody>(
+          `/guilds/${interaction.guild_id}/filters/ignores/${channel.id}`, {
+            value: bitfield.toJSON() as `${bigint}`
+          }
+        );
 
-          const enabled = bitfield.toArray();
-
-          return send(interaction, {
-            content: enabled.length
-              ? `The following filters are now being ignored in the given channel: ${enabled.join(', ')}`
-              : 'No filters are being ignored in the given channel anymore.'
-          });
+        const enabled = bitfield.toArray();
+        return send(interaction, {
+          content: enabled.length
+            ? `The following filters are now being ignored in the given channel: ${enabled.join(', ')}`
+            : 'No filters are being ignored in the given channel anymore.'
         });
       }
 
       case 'ignorelist': {
         const channels = new Map(
-          await this.rest.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id))
+          await this.discordRest.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id))
             .then(
               channels => channels.map(
                 channel => [channel.id, channel]
@@ -121,7 +119,7 @@ export class FilterConfig implements Command {
             )
         );
 
-        const entries = await this.sql<FilterIgnore[]>`SELECT * FROM filter_ignores WHERE guild_id = ${interaction.guild_id} AND value != 0`;
+        const entries = await this.rest.get<ApiGetFiltersIgnoresResult>(`/guilds/${interaction.guild_id}/filters/ignores`);
         const ignores = entries.reduce<string[]>((acc, entry) => {
           const channel = channels.get(entry.channel_id);
           if (channel) {

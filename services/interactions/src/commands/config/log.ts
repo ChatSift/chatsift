@@ -3,8 +3,9 @@ import { Command } from '../../command';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { LogCommand } from '#interactions';
-import { HTTPError as CordisHTTPError, Rest } from '@cordis/rest';
+import { Rest } from '@automoderator/http-client';
 import { kSql } from '@automoderator/injection';
+import { Rest as DiscordRest, HTTPError as DiscordHTTPError } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
 import {
   InteractionResponseType,
@@ -15,7 +16,13 @@ import {
   RESTPostAPIChannelWebhookJSONBody,
   Routes
 } from 'discord-api-types/v9';
-import type { GuildSettings, WebhookToken } from '@automoderator/core';
+import type {
+  ApiGetGuildsSettingsResult,
+  ApiPatchGuildSettingsBody,
+  ApiPatchGuildSettingsResult,
+  GuildSettings,
+  WebhookToken
+} from '@automoderator/core';
 import type { Sql } from 'postgres';
 
 @injectable()
@@ -24,17 +31,19 @@ export default class implements Command {
 
   public constructor(
     public readonly rest: Rest,
+    public readonly discordRest: DiscordRest,
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
-  private _sendCurrentSettings(message: APIGuildInteraction, settings?: Partial<GuildSettings>) {
+  private async _sendCurrentSettings(interaction: APIGuildInteraction) {
+    const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`);
     const atChannel = (channel?: string | null) => channel ? `<#${channel}>` : 'none';
 
-    return send(message, {
+    return send(interaction, {
       content: stripIndents`
         **Here are your current settings:**
-        • mod logs: ${atChannel(settings?.mod_action_log_channel)}
-        • filter logs: ${atChannel(settings?.filter_trigger_log_channel)}
+        • mod logs: ${atChannel(settings.mod_action_log_channel)}
+        • filter logs: ${atChannel(settings.filter_trigger_log_channel)}
       `,
       allowed_mentions: { parse: [] }
     }, { update: true });
@@ -70,20 +79,16 @@ export default class implements Command {
     }
 
     if (Object.values(settings).length === 1) {
-      const [currentSettings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${interaction.guild_id}`;
-      return this._sendCurrentSettings(interaction, currentSettings);
+      return this._sendCurrentSettings(interaction);
     }
 
-    [settings] = await this.sql<[GuildSettings]>`
-      INSERT INTO guild_settings ${this.sql(settings)}
-      ON CONFLICT (guild_id)
-      DO
-        UPDATE SET ${this.sql(settings)}
-        RETURNING *
-    `;
+    settings = await this.rest.patch<ApiPatchGuildSettingsResult, ApiPatchGuildSettingsBody>(
+      `/guilds/${interaction.guild_id}/settings`,
+      settings
+    );
 
     const makeWebhook = async (channel: Snowflake, name: string) => {
-      const webhook = await this.rest.post<RESTPostAPIChannelWebhookResult, RESTPostAPIChannelWebhookJSONBody>(
+      const webhook = await this.discordRest.post<RESTPostAPIChannelWebhookResult, RESTPostAPIChannelWebhookJSONBody>(
         Routes.channelWebhooks(channel), {
           data: {
             name
@@ -110,9 +115,9 @@ export default class implements Command {
       const [data] = await this.sql<[WebhookToken?]>`SELECT * FROM webhook_tokens WHERE channel_id = ${settings.mod_action_log_channel}`;
       if (data) {
         try {
-          await this.rest.get(Routes.webhook(data.webhook_id, data.webhook_token));
+          await this.discordRest.get(Routes.webhook(data.webhook_id, data.webhook_token));
         } catch (error) {
-          if (!(error instanceof CordisHTTPError) || error.response.status !== 404) {
+          if (!(error instanceof DiscordHTTPError) || error.response.status !== 404) {
             throw error;
           }
 
@@ -128,9 +133,9 @@ export default class implements Command {
 
       if (data) {
         try {
-          await this.rest.get(Routes.webhook(data.webhook_id, data.webhook_token));
+          await this.discordRest.get(Routes.webhook(data.webhook_id, data.webhook_token));
         } catch (error) {
-          if (!(error instanceof CordisHTTPError) || error.response.status !== 404) {
+          if (!(error instanceof DiscordHTTPError) || error.response.status !== 404) {
             throw error;
           }
 
@@ -141,6 +146,6 @@ export default class implements Command {
       }
     }
 
-    return this._sendCurrentSettings(interaction, settings);
+    return this._sendCurrentSettings(interaction);
   }
 }

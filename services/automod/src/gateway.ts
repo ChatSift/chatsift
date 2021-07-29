@@ -201,7 +201,7 @@ export class Gateway {
 
         if (data.length) {
           const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-            `/api/v1/guilds/${message.guild_id!}/cases`,
+            `/guilds/${message.guild_id!}/cases`,
             data
           );
 

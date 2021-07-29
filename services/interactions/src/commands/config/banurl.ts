@@ -39,7 +39,7 @@ export default class implements Command {
     switch (Object.keys(args)[0] as keyof typeof args) {
       case 'add': {
         await this.rest.put<unknown, ApiPutGuildsFiltersUrlsBody>(
-          `/api/v1/guilds/${interaction.guild_id}/filters/urls`,
+          `/guilds/${interaction.guild_id}/filters/urls`,
           args.add.entries
             .split(',')
             .map(entry => this.cleanUrl(entry))
@@ -51,7 +51,7 @@ export default class implements Command {
       case 'remove': {
         try {
           await this.rest.delete<unknown, ApiDeleteGuildsFiltersUrlsBody>(
-            `/api/v1/guilds/${interaction.guild_id}/filters/urls`,
+            `/guilds/${interaction.guild_id}/filters/urls`,
             args.remove.entries
               .split(',')
               .map(entry => this.cleanUrl(entry))
@@ -68,7 +68,7 @@ export default class implements Command {
       }
 
       case 'list': {
-        const urls = await this.rest.get<ApiGetGuildsFiltersUrlsResult>(`/api/v1/guilds/${interaction.guild_id}/filters/urls`);
+        const urls = await this.rest.get<ApiGetGuildsFiltersUrlsResult>(`/guilds/${interaction.guild_id}/filters/urls`);
 
         if (!urls.length) {
           return send(interaction, { content: 'There is currently nothing on your filter list' });

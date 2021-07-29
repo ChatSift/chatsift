@@ -4,7 +4,11 @@ import type {
   CaseAction,
   MaliciousFileCategory,
   MaliciousFile,
-  MaliciousUrl
+  MaliciousUrl,
+  GuildSettings,
+  FilterIgnore,
+  AllowedInvite,
+  SelfAssignableRole
 } from './models';
 import type { Snowflake } from 'discord-api-types/v9';
 
@@ -68,6 +72,14 @@ export type ApiPutFiltersUrlsBody = {
 
 export type ApiPutFiltersUrlsResult = MaliciousUrl[];
 
+export type ApiDeleteGuildsAssignablesRoleResult = SelfAssignableRole;
+
+export type ApiPutGuildsAssignablesRoleResult = SelfAssignableRole;
+
+export type ApiDeleteGuildsAssignablesResult = SelfAssignableRole[];
+
+export type ApiGetGuildsAssignablesResult = SelfAssignableRole[];
+
 export type ApiGetGuildsCaseResult = Case;
 
 export type ApiDeleteGuildsCaseResult = Case;
@@ -115,3 +127,33 @@ export type CaseUpdateData = (
 );
 
 export type ApiPatchGuildsCasesBody = CaseUpdateData[];
+
+export type ApiDeleteFiltersIgnoresChannelResult = FilterIgnore;
+
+export type ApiGetFiltersIgnoresChannelResult = FilterIgnore;
+
+export interface ApiPatchFiltersIgnoresChannelBody {
+  value: `${Snowflake}`;
+}
+
+export type ApiPatchFiltersIgnoresChannelResult = FilterIgnore;
+
+export type ApiDeleteFiltersIgnoresResult = FilterIgnore[];
+
+export type ApiGetFiltersIgnoresResult = FilterIgnore[];
+
+export type ApiDeleteFiltersInvitesAllowlistCodeResult = AllowedInvite;
+
+export type ApiPutFiltersInvitesAllowlistCodeResult = AllowedInvite;
+
+export type ApiDeleteFiltersInvitesAllowlistResult = AllowedInvite[];
+
+export type ApiGetFiltersInvitesAllowlistResult = AllowedInvite[];
+
+export type ApiGetGuildsSettingsResult = GuildSettings;
+
+export type ApiPatchGuildSettingsBody = Partial<Omit<GuildSettings, 'guild_id'>>;
+
+export type ApiPatchGuildSettingsResult = GuildSettings;
+
+export type ApiDeleteGuildSettingsResult = GuildSettings;

@@ -1,9 +1,9 @@
-import { inject, injectable } from 'tsyringe';
+import { injectable } from 'tsyringe';
 import { Component } from '../component';
 import { send } from '#util';
 import { UserPerms } from '@automoderator/discord-permissions';
-import { Rest } from '@cordis/rest';
-import { kSql } from '@automoderator/injection';
+import { Rest } from '@automoderator/http-client';
+import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
 import {
   APIGuildInteraction,
@@ -13,8 +13,7 @@ import {
   Routes,
   Snowflake
 } from 'discord-api-types/v9';
-import type { SelfAssignableRole } from '@automoderator/core';
-import type { Sql } from 'postgres';
+import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
 
 @injectable()
 export default class implements Component {
@@ -22,15 +21,15 @@ export default class implements Component {
 
   public constructor(
     public readonly rest: Rest,
-    @inject(kSql) public readonly sql: Sql<{}>
+    public readonly discordRest: DiscordRest
   ) {}
 
   public async exec(interaction: APIGuildInteraction) {
     await send(interaction, {}, { type: InteractionResponseType.DeferredMessageUpdate });
 
     const selfAssignables = new Set<Snowflake>(
-      await this
-        .sql<Pick<SelfAssignableRole, 'role_id'>[]>`SELECT role_id FROM self_assignable_roles WHERE guild_id = ${interaction.guild_id}`
+      await this.rest
+        .get<ApiGetGuildsAssignablesResult>(`/guilds/${interaction.guild_id}/assignables`)
         .then(
           rows => rows.map(
             row => row.role_id
@@ -59,10 +58,12 @@ export default class implements Component {
       }
     }
 
-    await this.rest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(interaction.guild_id, interaction.member.user.id), {
-      data: { roles: [...roles] },
-      reason: 'Self-assignable roles update'
-    });
+    await this.discordRest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(
+      Routes.guildMember(interaction.guild_id, interaction.member.user.id), {
+        data: { roles: [...roles] },
+        reason: 'Self-assignable roles update'
+      }
+    );
 
     return send(interaction, {
       content: added.length || removed.length
