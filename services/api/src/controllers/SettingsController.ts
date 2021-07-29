@@ -17,11 +17,13 @@ export class SettingsController {
   }
 
   public update(guildId: Snowflake, data: Partial<Omit<GuildSettings, 'guild_id'>>): Promise<GuildSettings> {
+    const sql = { guild_id: guildId, ...data };
     return this
       .sql<[GuildSettings]>`
-        INSERT INTO guild_settings ${this.sql(data)}
+        INSERT INTO guild_settings ${this.sql(sql)}
         ON CONFLICT (guild_id)
-        DO UPDATE SET ${this.sql(data)}
+        DO UPDATE SET ${this.sql(sql)}
+        RETURNING *
       `
       .then(rows => rows[0]);
   }

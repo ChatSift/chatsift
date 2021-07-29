@@ -60,7 +60,7 @@ export default class implements Command {
     await send(interaction, {}, { type: InteractionResponseType.DeferredChannelMessageWithSource });
     const { mod, filters } = this.parse(args);
 
-    let settings: Partial<GuildSettings> = { guild_id: interaction.guild_id };
+    let settings: Partial<GuildSettings> = {};
 
     if (mod) {
       if (mod.type !== ChannelType.GuildText) {
@@ -78,7 +78,7 @@ export default class implements Command {
       settings.filter_trigger_log_channel = filters.id;
     }
 
-    if (Object.values(settings).length === 1) {
+    if (!Object.values(settings).length) {
       return this._sendCurrentSettings(interaction);
     }
 

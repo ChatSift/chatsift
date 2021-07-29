@@ -64,14 +64,14 @@ export default class implements Command {
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigCommand>) {
     const { modrole, adminrole, muterole, pardon } = this.parse(args);
 
-    let settings: Partial<GuildSettings> = { guild_id: interaction.guild_id };
+    let settings: Partial<GuildSettings> = {};
 
     if (modrole) settings.mod_role = modrole.id;
     if (adminrole) settings.admin_role = adminrole.id;
     if (muterole) settings.mute_role = muterole.id;
     if (pardon != null) settings.auto_pardon_mutes_after = pardon;
 
-    if (Object.values(settings).length === 1) {
+    if (!Object.values(settings).length) {
       return this._sendCurrentSettings(interaction);
     }
 

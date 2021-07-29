@@ -48,7 +48,7 @@ export class FilterConfig implements Command {
       }
 
       case 'edit': {
-        let settings: Partial<GuildSettings> = { guild_id: interaction.guild_id };
+        let settings: Partial<GuildSettings> = {};
 
         if (args.edit.urls != null) {
           settings.use_url_filters = args.edit.urls;
@@ -62,7 +62,7 @@ export class FilterConfig implements Command {
           settings.use_invite_filters = args.edit.invites;
         }
 
-        if (Object.values(settings).length === 1) {
+        if (!Object.values(settings).length) {
           return this.sendCurrentSettings(interaction);
         }
 

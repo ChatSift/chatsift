@@ -25,6 +25,7 @@ export class FilterIgnoresController {
       INSERT INTO filter_ignores ${this.sql(ignore)}
       ON CONFLICT (channel_id)
       DO UPDATE SET ${this.sql(ignore)}
+      RETURNING *
     `;
   }
 
