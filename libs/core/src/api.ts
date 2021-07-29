@@ -1,76 +1,85 @@
 import type {
   MaliciousUrlCategory,
-  GlobalMaliciousUrl,
   Case,
   CaseAction,
-  LocalMaliciousUrl,
-  MaliciousUrl,
-  GlobalMaliciousFile,
   MaliciousFileCategory,
-  LocalMaliciousFile,
-  MaliciousFile
+  MaliciousFile,
+  MaliciousUrl,
+  GuildSettings,
+  FilterIgnore,
+  AllowedInvite,
+  SelfAssignableRole,
+  BannedWord
 } from './models';
 import type { Snowflake } from 'discord-api-types/v9';
 
 export type ApiDeleteFiltersFilesBody = number[];
 
-export type ApiDeleteFiltersFilesResult = GlobalMaliciousFile[];
+export type ApiDeleteFiltersFilesResult = MaliciousFile[];
 
 export interface ApiGetFiltersFilesBody {
   page?: number;
 }
 
-export type ApiGetFiltersFilesResult = GlobalMaliciousFile[];
+export type ApiGetFiltersFilesResult = MaliciousFile[];
 
 export type ApiPatchFiltersFilesBody = {
   file_id: number;
   category: MaliciousFileCategory;
 }[];
 
-export type ApiPatchFiltersFilesResult = GlobalMaliciousUrl[];
+export type ApiPatchFiltersFilesResult = MaliciousUrl[];
 
 export interface ApiPostFiltersFilesBody {
   hashes: string[];
 }
 
-export type ApiPostFiltersFilesResult = GlobalMaliciousFile[];
+export type ApiPostFiltersFilesResult = MaliciousFile[];
 
 export type ApiPutFiltersFilesBody = {
   hash: string;
   category: MaliciousFileCategory;
 }[];
 
-export type ApiPutFiltersFilesResult = GlobalMaliciousFile[];
+export type ApiPutFiltersFilesResult = MaliciousFile[];
 
 export type ApiDeleteFiltersUrlsBody = number[];
 
-export type ApiDeleteFiltersUrlsResult = GlobalMaliciousUrl[];
+export type ApiDeleteFiltersUrlsResult = MaliciousUrl[];
 
 export interface ApiGetFiltersUrlsQuery {
   page?: number;
 }
 
-export type ApiGetFiltersUrlsResult = GlobalMaliciousUrl[];
+export type ApiGetFiltersUrlsResult = MaliciousUrl[];
 
 export type ApiPatchFiltersUrlsBody = {
   url_id: number;
   category: MaliciousUrlCategory;
 }[];
 
-export type ApiPatchFiltersUrlsResult = GlobalMaliciousUrl[];
+export type ApiPatchFiltersUrlsResult = MaliciousUrl[];
 
 export interface ApiPostFiltersUrlsBody {
   urls: string[];
 }
 
-export type ApiPostFiltersUrlsResult = GlobalMaliciousUrl[];
+export type ApiPostFiltersUrlsResult = MaliciousUrl[];
 
 export type ApiPutFiltersUrlsBody = {
   url: string;
   category: MaliciousUrlCategory;
 }[];
 
-export type ApiPutFiltersUrlsResult = GlobalMaliciousUrl[];
+export type ApiPutFiltersUrlsResult = MaliciousUrl[];
+
+export type ApiDeleteGuildsAssignablesRoleResult = SelfAssignableRole;
+
+export type ApiPutGuildsAssignablesRoleResult = SelfAssignableRole;
+
+export type ApiDeleteGuildsAssignablesResult = SelfAssignableRole[];
+
+export type ApiGetGuildsAssignablesResult = SelfAssignableRole[];
 
 export type ApiGetGuildsCaseResult = Case;
 
@@ -120,44 +129,52 @@ export type CaseUpdateData = (
 
 export type ApiPatchGuildsCasesBody = CaseUpdateData[];
 
-export type ApiDeleteGuildsFiltersFilesBody = string[];
+export type ApiDeleteFiltersIgnoresChannelResult = FilterIgnore;
 
-export type ApiDeleteGuildsFiltersFilesResult = LocalMaliciousFile[];
+export type ApiGetFiltersIgnoresChannelResult = FilterIgnore;
 
-export interface ApiGetGuildsFiltersFilesQuery {
+export interface ApiPatchFiltersIgnoresChannelBody {
+  value: `${Snowflake}`;
+}
+
+export type ApiPatchFiltersIgnoresChannelResult = FilterIgnore;
+
+export type ApiDeleteFiltersIgnoresResult = FilterIgnore[];
+
+export type ApiGetFiltersIgnoresResult = FilterIgnore[];
+
+export type ApiDeleteFiltersInvitesAllowlistCodeResult = AllowedInvite;
+
+export type ApiPutFiltersInvitesAllowlistCodeResult = AllowedInvite;
+
+export type ApiDeleteFiltersInvitesAllowlistResult = AllowedInvite[];
+
+export type ApiGetFiltersInvitesAllowlistResult = AllowedInvite[];
+
+export interface ApiDeleteGuildsFiltersLocalBody {
+  words?: string[];
+}
+
+export type ApiDeleteGuildsFiltersLocalResult = BannedWord[];
+
+export interface ApiGetGuildsFiltersLocalQuery {
   page?: number;
 }
 
-export type ApiGetGuildsFiltersFilesResult = LocalMaliciousFile[];
+export type ApiGetGuildsFiltersLocalResult = BannedWord[];
 
-export interface ApiPostGuildsFiltersFilesBody {
-  hashes: string[];
-  guild_only?: boolean;
+export interface ApiPatchGuildsFiltersLocalBody {
+  word: string;
+  flags: `${bigint}`;
+  duration?: number | null;
 }
 
-export type ApiPostGuildsFiltersFilesResult = MaliciousFile[];
+export type ApiPatchGuildsFiltersLocalResult = BannedWord;
 
-export type ApiPutGuildsFiltersFilesBody = string[];
+export type ApiGetGuildsSettingsResult = GuildSettings;
 
-export type ApiPutGuildsFiltersFilesResult = LocalMaliciousFile[];
+export type ApiPatchGuildSettingsBody = Partial<Omit<GuildSettings, 'guild_id'>>;
 
-export type ApiDeleteGuildsFiltersUrlsBody = string[];
+export type ApiPatchGuildSettingsResult = GuildSettings;
 
-export type ApiDeleteGuildsFiltersUrlsResult = LocalMaliciousUrl[];
-
-export interface ApiGetGuildsFiltersUrlsQuery {
-  page?: number;
-}
-
-export type ApiGetGuildsFiltersUrlsResult = LocalMaliciousUrl[];
-
-export interface ApiPostGuildsFiltersUrlsBody {
-  urls: string[];
-  guild_only?: boolean;
-}
-
-export type ApiPostGuildsFiltersUrlsResult = MaliciousUrl[];
-
-export type ApiPutGuildsFiltersUrlsBody = string[];
-
-export type ApiPutGuildsFiltersUrlsResult = LocalMaliciousUrl[];
+export type ApiDeleteGuildSettingsResult = GuildSettings;

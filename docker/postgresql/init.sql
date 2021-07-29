@@ -103,21 +103,19 @@ CREATE TABLE IF NOT EXISTS sigs (
 CREATE TABLE IF NOT EXISTS malicious_files (
   file_id serial PRIMARY KEY,
   file_hash text UNIQUE NOT NULL,
-  guild_id bigint,
-  admin_id bigint REFERENCES users(user_id),
+  admin_id bigint NOT NULL REFERENCES users(user_id),
   created_at timestamptz NOT NULL DEFAULT NOW(),
   last_modified_at timestamptz NOT NULL DEFAULT NOW(),
-  category int
+  category int NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS malicious_urls (
   url_id serial PRIMARY KEY,
   url text UNIQUE NOT NULL,
-  guild_id bigint,
-  admin_id bigint REFERENCES users(user_id),
+  admin_id bigint NOT NULL REFERENCES users(user_id),
   created_at timestamptz NOT NULL DEFAULT NOW(),
   last_modified_at timestamptz NOT NULL DEFAULT NOW(),
-  category int
+  category int NOT NULL
 );
 
 CREATE TABLE banned_words (

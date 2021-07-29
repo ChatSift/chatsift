@@ -1,18 +1,12 @@
 import type { Snowflake } from 'discord-api-types/v9';
 
-export enum UseFilterMode {
-  none,
-  guildOnly,
-  all
-}
-
 export interface GuildSettings {
   guild_id: Snowflake;
   mod_role: Snowflake | null;
   admin_role: Snowflake | null;
   mute_role: Snowflake | null;
   auto_pardon_mutes_after: number | null;
-  use_url_filters: UseFilterMode;
+  use_url_filters: boolean;
   use_file_filters: boolean;
   use_invite_filters: boolean;
   mod_action_log_channel: Snowflake | null;
@@ -119,22 +113,9 @@ export enum MaliciousFileCategory {
 export interface MaliciousFile {
   file_id: number;
   file_hash: string;
-  guild_id: Snowflake | null;
-  admin_id: Snowflake | null;
+  admin_id: Snowflake;
   created_at: Date;
   last_modified_at: Date;
-  category: MaliciousFileCategory | null;
-}
-
-export interface LocalMaliciousFile extends MaliciousFile {
-  guild_id: Snowflake;
-  admin_id: null;
-  category: null;
-}
-
-export interface GlobalMaliciousFile extends MaliciousFile {
-  guild_id: null;
-  admin_id: Snowflake;
   category: MaliciousFileCategory;
 }
 
@@ -151,22 +132,9 @@ export enum MaliciousUrlCategory {
 export interface MaliciousUrl {
   url_id: number;
   url: string;
-  guild_id: Snowflake | null;
-  admin_id: Snowflake | null;
+  admin_id: Snowflake;
   created_at: Date;
   last_modified_at: Date;
-  category: MaliciousUrlCategory | null;
-}
-
-export interface LocalMaliciousUrl extends MaliciousUrl {
-  guild_id: Snowflake;
-  admin_id: null;
-  category: null;
-}
-
-export interface GlobalMaliciousUrl extends MaliciousUrl {
-  guild_id: null;
-  admin_id: Snowflake;
   category: MaliciousUrlCategory;
 }
 

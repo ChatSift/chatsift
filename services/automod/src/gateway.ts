@@ -18,7 +18,6 @@ import {
 } from 'discord-api-types/v9';
 import {
   GuildSettings,
-  UseFilterMode,
   DiscordEvents,
   FilterIgnore,
   NotOkRunnerResult,
@@ -48,15 +47,11 @@ import type { Logger } from 'pino';
 interface FilesRunnerData {
   message: APIMessage;
   urls: string[];
-  guildId: string;
-  guildOnly: boolean;
 }
 
 interface UrlsRunnerData {
   message: APIMessage;
   urls: string[];
-  guildId: string;
-  guildOnly: boolean;
 }
 
 interface InviteRunnerData {
@@ -91,9 +86,9 @@ export class Gateway {
     setInterval(() => this.ownersCache.clear(), 36e5).unref();
   }
 
-  private async runUrls({ message, urls, guildId, guildOnly }: UrlsRunnerData): Promise<NotOkRunnerResult | UrlsRunnerResult> {
+  private async runUrls({ message, urls }: UrlsRunnerData): Promise<NotOkRunnerResult | UrlsRunnerResult> {
     try {
-      const hits = await this.urls.run(urls, guildId, guildOnly);
+      const hits = await this.urls.run(urls);
       if (hits.length) {
         await this.discord
           .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Url filter detection' })
@@ -141,85 +136,87 @@ export class Gateway {
 
   private async runWords({ message, settings }: WordsRunnerData): Promise<NotOkRunnerResult | WordsRunnerResult> {
     try {
-      const hit = await this.words.run(message);
-      if (hit) {
+      const hits = await this.words.run(message);
+      if (hits.length) {
         await this.discord
           .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Words filter detection' })
           .catch(() => null);
 
-        const data: ApiPostGuildsCasesBody = [];
-        const unmuteRoles: Snowflake[] = [];
+        let warned = false;
+        let muted = false;
+        let banned = false;
 
-        const caseBase = {
-          mod_id: this.config.discordClientId,
-          mod_tag: 'AutoModerator#0000',
-          reason: `Automated punishment triggered by saying \`${hit.word}\``,
-          target_id: message.author.id,
-          target_tag: `${message.author.username}#${message.author.discriminator}`,
-          created_at: new Date()
-        };
+        for (const hit of hits) {
+          const data: ApiPostGuildsCasesBody = [];
+          const unmuteRoles: Snowflake[] = [];
 
-        if (hit.flags.has('warn')) {
-          data.push({ action: CaseAction.warn, ...caseBase });
-        }
+          const reason = `Automated punishment triggered by saying \`${hit.word}\``;
 
-        if (hit.flags.has('mute') && settings.mute_role) {
-          unmuteRoles.concat([...message.member!.roles]);
-          let expiresAt: Date | undefined;
+          const caseBase = {
+            mod_id: this.config.discordClientId,
+            mod_tag: 'AutoModerator#0000',
+            reason: reason,
+            target_id: message.author.id,
+            target_tag: `${message.author.username}#${message.author.discriminator}`,
+            created_at: new Date()
+          };
 
-          const guildRoles = new Map(
-            await this.discord.get<APIRole[]>(`/guilds/${message.guild_id}/roles`)
-              .catch(() => [] as APIRole[])
-              .then(
-                roles => roles.map(
-                  role => [role.id, role]
-                )
-              )
-          );
-
-          const roles = message.member!.roles.filter(r => guildRoles.get(r)!.managed).concat([settings.mute_role]);
-
-          await this.discord.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(message.guild_id!, message.author.id), {
-            data: { roles },
-            reason: `Automatic punishment triggered by saying \`${hit.word}\``
-          });
-
-          if (hit.duration) {
-            expiresAt = new Date(Date.now() + (hit.duration * 6e4));
+          if (hit.flags.has('warn') && !warned && !banned) {
+            warned = true;
+            data.push({ action: CaseAction.warn, ...caseBase });
           }
 
-          data.push({ action: CaseAction.mute, expires_at: expiresAt, ...caseBase });
-        }
+          if (hit.flags.has('mute') && settings.mute_role && !muted && !banned) {
+            muted = true;
+            unmuteRoles.concat([...message.member!.roles]);
+            let expiresAt: Date | undefined;
 
-        if (hit.flags.has('ban')) {
-          await this.discord.put(Routes.guildBan(message.guild_id!, message.author.id), {
-            reason: `Automatic punishment triggered by saying \`${hit.word}\``
-          });
+            const guildRoles = new Map(
+              await this.discord.get<APIRole[]>(`/guilds/${message.guild_id}/roles`)
+                .catch(() => [] as APIRole[])
+                .then(
+                  roles => roles.map(
+                    role => [role.id, role]
+                  )
+                )
+            );
 
-          data.push({ action: CaseAction.ban, ...caseBase });
-        }
+            const roles = message.member!.roles.filter(r => guildRoles.get(r)!.managed).concat([settings.mute_role]);
 
-        if (data.length) {
-          const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-            `/api/v1/guilds/${message.guild_id!}/cases`,
-            data
-          );
+            await this.discord.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(message.guild_id!, message.author.id), {
+              data: { roles },
+              reason
+            });
 
-          const muteCase = cases.find(cs => cs.action_type === CaseAction.mute);
+            if (hit.duration) {
+              expiresAt = new Date(Date.now() + (hit.duration * 6e4));
+            }
 
-          if (muteCase && unmuteRoles.length) {
-            const unmuteData = unmuteRoles.map<UnmuteRole>(r => ({ case_id: muteCase.id, role_id: r }));
-            await this.sql`INSERT INTO unmute_roles ${this.sql(unmuteData)}`;
+            data.push({ action: CaseAction.mute, expires_at: expiresAt, ...caseBase });
+          }
+
+          if (hit.flags.has('ban') && !banned) {
+            banned = true;
+            await this.discord.put(Routes.guildBan(message.guild_id!, message.author.id), { reason });
+            data.push({ action: CaseAction.ban, ...caseBase });
+          }
+
+          if (data.length) {
+            const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${message.guild_id!}/cases`, data);
+            const muteCase = cases.find(cs => cs.action_type === CaseAction.mute);
+
+            if (muteCase && unmuteRoles.length) {
+              const unmuteData = unmuteRoles.map<UnmuteRole>(r => ({ case_id: muteCase.id, role_id: r }));
+              await this.sql`INSERT INTO unmute_roles ${this.sql(unmuteData)}`;
+            }
           }
         }
       }
 
       return {
         ok: true,
-        actioned: Boolean(hit),
-        data: hit
-          ? { ...hit, flags: hit.flags.toJSON() as `${bigint}` }
-          : null,
+        actioned: hits.length > 0,
+        data: hits.map(hit => ({ ...hit, flags: hit.flags.toJSON() as `${bigint}` })),
         runner: Runners.words
       };
     } catch (error) {
@@ -235,7 +232,7 @@ export class Gateway {
 
     const [
       settings = {
-        use_url_filters: UseFilterMode.none,
+        use_url_filters: false,
         use_file_filters: false,
         use_invite_filters: false
       }
@@ -305,17 +302,10 @@ export class Gateway {
 
     const promises: Promise<RunnerResult>[] = [];
 
-    if (settings.use_url_filters !== UseFilterMode.none && !ignores.has('urls')) {
+    if (settings.use_url_filters && !ignores.has('urls')) {
       const urls = this.urls.precheck(message.content);
       if (urls.length) {
-        promises.push(
-          this.runUrls({
-            message,
-            urls,
-            guildId: message.guild_id,
-            guildOnly: settings.use_url_filters === UseFilterMode.guildOnly
-          })
-        );
+        promises.push(this.runUrls({ message, urls }));
       }
     }
 
@@ -335,14 +325,7 @@ export class Gateway {
       ]);
 
       if (urls.length) {
-        promises.push(
-          this.runFiles({
-            message,
-            urls,
-            guildId: message.guild_id,
-            guildOnly: settings.use_url_filters === UseFilterMode.guildOnly
-          })
-        );
+        promises.push(this.runFiles({ message, urls }));
       }
     }
 

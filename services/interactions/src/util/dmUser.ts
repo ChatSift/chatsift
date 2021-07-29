@@ -35,6 +35,6 @@ export const dmUser = async (userId: Snowflake, content: string) => {
       data: {
         content
       }
-    });
+    }).catch(() => null);
   }
 };

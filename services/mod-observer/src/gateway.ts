@@ -88,7 +88,7 @@ export class Gateway {
       return null;
     }
 
-    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${data.guild_id}/cases`, [{
+    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${data.guild_id}/cases`, [{
       action: CaseAction.ban,
       target_id: data.user.id,
       target_tag: `${data.user.username}#${data.user.discriminator}`,
@@ -108,7 +108,7 @@ export class Gateway {
       return null;
     }
 
-    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${data.guild_id}/cases`, [{
+    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${data.guild_id}/cases`, [{
       action: CaseAction.unban,
       target_id: data.user.id,
       target_tag: `${data.user.username}#${data.user.discriminator}`,
@@ -144,7 +144,7 @@ export class Gateway {
       return null;
     }
 
-    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${data.guild_id}/cases`, [{
+    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${data.guild_id}/cases`, [{
       action: CaseAction.kick,
       target_id: data.user.id,
       target_tag: `${data.user.username}#${data.user.discriminator}`,

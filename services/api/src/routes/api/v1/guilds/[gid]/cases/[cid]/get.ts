@@ -21,7 +21,7 @@ export default class GetGuildsCaseRoute extends Route {
 
     const [cs] = await this.sql<[Case?]>`SELECT * FROM cases WHERE guild_id = ${gid!} AND case_id = ${cid!}`;
     if (!cs) {
-      return next(notFound('case not found'));
+      return next(notFound('Case not found'));
     }
 
     res.statusCode = 200;

@@ -90,7 +90,7 @@ export default class implements Command {
       data: { delete_message_days: days }
     });
 
-    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
       {
         action: CaseAction.ban,
         mod_id: interaction.member.user.id,

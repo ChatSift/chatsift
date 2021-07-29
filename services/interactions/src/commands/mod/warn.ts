@@ -48,7 +48,7 @@ export default class implements Command {
     const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
     const targetTag = `${member.user.username}#${member.user.discriminator}`;
 
-    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
       {
         action: CaseAction.warn,
         mod_id: interaction.member.user.id,
@@ -122,7 +122,7 @@ export default class implements Command {
 
           if (muteCase) {
             [updatedCs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(
-              `/api/v1/guilds/${interaction.guild_id}/cases`, [
+              `/guilds/${interaction.guild_id}/cases`, [
                 {
                   case_id: muteCase.id,
                   expires_at: expiresAt,
@@ -133,7 +133,7 @@ export default class implements Command {
             );
           } else {
             [triggeredCs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-              `/api/v1/guilds/${interaction.guild_id}/cases`, [
+              `/guilds/${interaction.guild_id}/cases`, [
                 {
                   action: CaseAction.mute,
                   mod_id: interaction.member.user.id,
@@ -164,7 +164,7 @@ export default class implements Command {
 
           if (banCase) {
             [updatedCs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(
-              `/api/v1/guilds/${interaction.guild_id}/cases`, [
+              `/guilds/${interaction.guild_id}/cases`, [
                 {
                   case_id: banCase.id,
                   expires_at: expiresAt,
@@ -175,7 +175,7 @@ export default class implements Command {
             );
           } else {
             [triggeredCs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-              `/api/v1/guilds/${interaction.guild_id}/cases`, [
+              `/guilds/${interaction.guild_id}/cases`, [
                 {
                   action: CaseAction.ban,
                   mod_id: interaction.member.user.id,

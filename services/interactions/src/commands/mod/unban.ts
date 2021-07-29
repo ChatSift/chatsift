@@ -56,7 +56,7 @@ export default class implements Command {
     `;
 
     await this.discordRest.delete(Routes.guildBan(interaction.guild_id, member.user.id), { reason: `Unban | By ${modTag}` });
-    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
       {
         action: CaseAction.unban,
         mod_id: interaction.member.user.id,
@@ -70,7 +70,7 @@ export default class implements Command {
     ]);
 
     if (banCase) {
-      await this.rest.patch<unknown, ApiPatchGuildsCasesBody>(`/api/v1/guilds/${interaction.guild_id}/cases`, [
+      await this.rest.patch<unknown, ApiPatchGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
         {
           case_id: banCase.case_id,
           mod_id: member.user.id,

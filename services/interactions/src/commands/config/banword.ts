@@ -66,9 +66,11 @@ export default class implements Command {
           flags.push('ban');
         }
 
+        const url = args.add.entry.match(/([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm)?.[0];
+
         const bannedWord: BannedWord = {
           guild_id: interaction.guild_id,
-          word: args.add.entry,
+          word: url ?? args.add.entry,
           // TODO look into making BitField#toJSON return `${bigint}` for whenever I release cordis 1.0.2
           flags: new BanwordFlags(flags).toJSON() as `${bigint}`,
           duration: null

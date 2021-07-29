@@ -1,13 +1,13 @@
 import { Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { injectable } from 'tsyringe';
 import * as Joi from 'joi';
-import { GuildFilesController } from '#controllers';
-import type { Request, Response } from 'polka';
-import type { ApiGetGuildsFiltersFilesQuery } from '@automoderator/core';
+import { LocalFiltersController } from '#controllers';
 import type { Snowflake } from 'discord-api-types/v9';
+import type { Request, Response } from 'polka';
+import type { ApiGetGuildsFiltersLocalQuery } from '@automoderator/core';
 
 @injectable()
-export default class GetGuildsFiltersFilesRoute extends Route {
+export default class GetGuildsFiltersLocalRoute extends Route {
   public override readonly middleware = [
     thirdPartyAuth(),
     validate(
@@ -22,18 +22,18 @@ export default class GetGuildsFiltersFilesRoute extends Route {
   ];
 
   public constructor(
-    public readonly controller: GuildFilesController
+    public readonly controller: LocalFiltersController
   ) {
     super();
   }
 
   public async handle(req: Request, res: Response) {
     const { gid } = req.params as { gid: Snowflake };
-    const { page } = req.query as unknown as ApiGetGuildsFiltersFilesQuery;
+    const { page } = req.query as unknown as ApiGetGuildsFiltersLocalQuery;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(page == null ? await this.controller.getAll(gid) : await this.controller.get(page, gid)));
+    return res.end(JSON.stringify(page == null ? await this.controller.getAll(gid) : await this.controller.get(gid, page)));
   }
 }

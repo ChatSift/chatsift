@@ -1,38 +1,33 @@
-import { inject, injectable } from 'tsyringe';
+import { injectable } from 'tsyringe';
 import { Component } from '../component';
-import { kSql } from '@automoderator/injection';
 import { send } from '#util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { APIGuildInteraction, ComponentType, InteractionResponseType, RESTGetAPIGuildRolesResult, Routes } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
-import { Rest } from '@cordis/rest';
-import type { Sql } from 'postgres';
-import type { SelfAssignableRole } from '@automoderator/core';
+import { Rest } from '@automoderator/http-client';
+import { Rest as DiscordRest } from '@cordis/rest';
+import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
 
 @injectable()
 export default class implements Component {
   public readonly userPermissions = UserPerms.mod;
 
   public constructor(
-    @inject(kSql) public readonly sql: Sql<{}>,
-    public readonly rest: Rest
+    public readonly rest: Rest,
+    public readonly discordRest: DiscordRest
   ) {}
 
   public async exec(interaction: APIGuildInteraction) {
     await send(interaction, { flags: 64 }, { type: InteractionResponseType.DeferredChannelMessageWithSource });
 
-    const selfAssignables = await this
-      .sql<Pick<SelfAssignableRole, 'role_id'>[]>`SELECT role_id FROM self_assignable_roles WHERE guild_id = ${interaction.guild_id}`
-      .then(
-        rows => rows.map(
-          row => row.role_id
-        )
-      );
+    const selfAssignables = await this.rest
+      .get<ApiGetGuildsAssignablesResult>(`/guilds/${interaction.guild_id}/assignables`)
+      .then(roles => roles.map(role => role.role_id));
 
     const userRoles = new Set(interaction.member.roles);
 
     const roles = new Map(
-      await this.rest
+      await this.discordRest
         .get<RESTGetAPIGuildRolesResult>(Routes.guildRoles(interaction.guild_id))
         .then(
           roles => roles.map(
@@ -50,7 +45,7 @@ export default class implements Component {
           'default': userRoles.has(roleId)
         });
       } else {
-        void this.sql`DELETE FROM self_assignable_roles WHERE role_id = ${roleId}`;
+        void this.rest.delete(`/guilds/${interaction.guild_id}/assignables/${roleId}`).catch(() => null);
       }
 
       return arr;

@@ -1,7 +1,7 @@
 import { kSql } from '@automoderator/injection';
 import { inject, singleton } from 'tsyringe';
 import type { Sql } from 'postgres';
-import type { GlobalMaliciousFile, MaliciousFileCategory } from '@automoderator/core';
+import type { MaliciousFile, MaliciousFileCategory } from '@automoderator/core';
 import type { Snowflake } from 'discord-api-types/v9';
 
 interface Ok<T> {
@@ -22,38 +22,36 @@ export class FilesController {
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
-  public get(page: number): Promise<GlobalMaliciousFile[]> {
+  public get(page: number): Promise<MaliciousFile[]> {
     return this.sql`
       SELECT * FROM malicious_files
-      WHERE guild_id IS NULL
       LIMIT 100
       OFFSET ${page * 100}
     `;
   }
 
-  public getAll(): Promise<GlobalMaliciousFile[]> {
-    return this.sql`SELECT * FROM malicious_files WHERE guild_id IS NULL`;
+  public getAll(): Promise<MaliciousFile[]> {
+    return this.sql`SELECT * FROM malicious_files`;
   }
 
-  public getHitsFrom(hashes: string[]): Promise<GlobalMaliciousFile[]> {
-    return this.sql<GlobalMaliciousFile[]>`
+  public getHitsFrom(hashes: string[]): Promise<MaliciousFile[]> {
+    return this.sql<MaliciousFile[]>`
       SELECT *
       FROM malicious_files
-      WHERE file_hash = ANY(${this.sql.array(hashes)}) AND guild_id IS NULL
+      WHERE file_hash = ANY(${this.sql.array(hashes)})
     `;
   }
 
-  public async updateBulk(files: { file_id: number; category: MaliciousFileCategory }[]): Promise<Result<GlobalMaliciousFile[]>> {
+  public async updateBulk(files: { file_id: number; category: MaliciousFileCategory }[]): Promise<Result<MaliciousFile[]>> {
     const data = await this.sql
       .begin(async sql => {
-        const updated: GlobalMaliciousFile[] = [];
+        const updated: MaliciousFile[] = [];
 
         for (const file of files) {
-          const [data] = await sql<[GlobalMaliciousFile?]>`
+          const [data] = await sql<[MaliciousFile?]>`
             UPDATE malicious_files
             SET category = ${file.category}, last_modified_at = NOW()
             WHERE file_id = ${file.file_id}
-              AND guild_id IS NULL
             RETURNING *
           `;
 
@@ -75,10 +73,10 @@ export class FilesController {
 
   public add(files: { hash: string; admin: Snowflake; category: MaliciousFileCategory }[]) {
     return this.sql.begin(sql => {
-      const promises: Promise<GlobalMaliciousFile>[] = [];
+      const promises: Promise<MaliciousFile>[] = [];
 
       for (const data of files) {
-        const promise = sql<[GlobalMaliciousFile]>`
+        const promise = sql<[MaliciousFile]>`
           INSERT INTO malicious_files (file_hash, admin_id, category)
           VALUES (${data.hash}, ${data.admin}, ${data.category})
           ON CONFLICT (file_hash)
@@ -95,7 +93,7 @@ export class FilesController {
   }
 
   public delete(ids: number[]) {
-    return this.sql<GlobalMaliciousFile[]>`
+    return this.sql<MaliciousFile[]>`
       DELETE FROM malicious_files
       WHERE file_id = ANY(${this.sql.array(ids)})
       RETURNING *

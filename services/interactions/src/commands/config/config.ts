@@ -4,8 +4,9 @@ import { ArgumentsOf, send } from '#util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { ConfigCommand } from '#interactions';
 import * as interactions from '#interactions';
-import { Rest } from '@cordis/rest';
-import { Config, kConfig, kSql } from '@automoderator/injection';
+import { Rest } from '@automoderator/http-client';
+import { Rest as DiscordRest } from '@cordis/rest';
+import { Config, kConfig } from '@automoderator/injection';
 import { stripIndents } from 'common-tags';
 import { Handler } from '../../handler';
 import {
@@ -16,8 +17,12 @@ import {
   Routes,
   APIGuild
 } from 'discord-api-types/v9';
-import type { GuildSettings } from '@automoderator/core';
-import type { Sql } from 'postgres';
+import type {
+  ApiGetGuildsSettingsResult,
+  ApiPatchGuildSettingsBody,
+  ApiPatchGuildSettingsResult,
+  GuildSettings
+} from '@automoderator/core';
 
 @injectable()
 export default class implements Command {
@@ -25,21 +30,23 @@ export default class implements Command {
 
   public constructor(
     public readonly rest: Rest,
+    public readonly discordRest: DiscordRest,
     public readonly handler: Handler,
-    @inject(kSql) public readonly sql: Sql<{}>,
     @inject(kConfig) public readonly config: Config
   ) {}
 
-  private _sendCurrentSettings(message: APIGuildInteraction, settings?: Partial<GuildSettings>) {
+  private async _sendCurrentSettings(interaction: APIGuildInteraction) {
+    const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`);
+
     const atRole = (role?: string | null) => role ? `<@&${role}>` : 'none';
 
-    return send(message, {
+    return send(interaction, {
       content: stripIndents`
         **Here are your current settings:**
-        • mod role: ${atRole(settings?.mod_role)}
-        • admin role: ${atRole(settings?.admin_role)}
-        • mute role: ${atRole(settings?.mute_role)}
-        • automatically pardon warnings after: ${settings?.auto_pardon_mutes_after ? `${settings.auto_pardon_mutes_after} days` : 'never'}
+        • mod role: ${atRole(settings.mod_role)}
+        • admin role: ${atRole(settings.admin_role)}
+        • mute role: ${atRole(settings.mute_role)}
+        • automatically pardon warnings after: ${settings.auto_pardon_mutes_after ? `${settings.auto_pardon_mutes_after} days` : 'never'}
       `,
       allowed_mentions: { parse: [] }
     });
@@ -57,28 +64,24 @@ export default class implements Command {
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigCommand>) {
     const { modrole, adminrole, muterole, pardon } = this.parse(args);
 
-    let settings: Partial<GuildSettings> = { guild_id: interaction.guild_id };
+    let settings: Partial<GuildSettings> = {};
 
     if (modrole) settings.mod_role = modrole.id;
     if (adminrole) settings.admin_role = adminrole.id;
     if (muterole) settings.mute_role = muterole.id;
     if (pardon != null) settings.auto_pardon_mutes_after = pardon;
 
-    if (Object.values(settings).length === 1) {
-      const [currentSettings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${interaction.guild_id}`;
-      return this._sendCurrentSettings(interaction, currentSettings);
+    if (!Object.values(settings).length) {
+      return this._sendCurrentSettings(interaction);
     }
 
-    [settings] = await this.sql`
-      INSERT INTO guild_settings ${this.sql(settings)}
-      ON CONFLICT (guild_id)
-      DO
-        UPDATE SET ${this.sql(settings)}
-        RETURNING *
-    `;
+    settings = await this.rest.patch<ApiPatchGuildSettingsResult, ApiPatchGuildSettingsBody>(
+      `/guilds/${interaction.guild_id}/settings`,
+      settings
+    );
 
     if (modrole || adminrole) {
-      const guild = await this.rest.get<APIGuild>(Routes.guild(interaction.guild_id));
+      const guild = await this.discordRest.get<APIGuild>(Routes.guild(interaction.guild_id));
       const permissions: APIApplicationCommandPermission[] = [
         {
           id: guild.owner_id,
@@ -105,7 +108,7 @@ export default class implements Command {
         });
       }
 
-      await this.rest.put<unknown, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
+      await this.discordRest.put<unknown, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
         Routes.guildApplicationCommandsPermissions(this.config.discordClientId, interaction.guild_id), {
           data: Object.values(interactions).reduce<RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>((acc, entry) => {
             const id = this.config.nodeEnv === 'prod'
@@ -123,6 +126,6 @@ export default class implements Command {
       );
     }
 
-    return this._sendCurrentSettings(interaction, settings);
+    return this._sendCurrentSettings(interaction);
   }
 }

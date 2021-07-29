@@ -14,7 +14,7 @@ export class Rest implements IRest {
   ) {}
 
   public async make<T, D = never>(path: string, method: string, data?: D): Promise<T> {
-    const res = await fetch(`${this.config.apiDomain}${path}`, {
+    const res = await fetch(`${this.config.apiDomain}/api/v1${path}`, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `App ${this.config.internalApiToken}`
@@ -46,11 +46,11 @@ export class Rest implements IRest {
     return this.make<T, D>(path, 'PATCH', data);
   }
 
-  public put<T, D>(path: string, data: D): Promise<T> {
+  public put<T, D = never>(path: string, data?: D): Promise<T> {
     return this.make<T, D>(path, 'PUT', data);
   }
 
-  public delete<T, D>(path: string, data?: D): Promise<T> {
+  public delete<T, D = never>(path: string, data?: D): Promise<T> {
     return this.make<T, D>(path, 'DELETE', data);
   }
 }
