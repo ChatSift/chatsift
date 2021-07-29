@@ -119,22 +119,9 @@ export enum MaliciousFileCategory {
 export interface MaliciousFile {
   file_id: number;
   file_hash: string;
-  guild_id: Snowflake | null;
-  admin_id: Snowflake | null;
+  admin_id: Snowflake;
   created_at: Date;
   last_modified_at: Date;
-  category: MaliciousFileCategory | null;
-}
-
-export interface LocalMaliciousFile extends MaliciousFile {
-  guild_id: Snowflake;
-  admin_id: null;
-  category: null;
-}
-
-export interface GlobalMaliciousFile extends MaliciousFile {
-  guild_id: null;
-  admin_id: Snowflake;
   category: MaliciousFileCategory;
 }
 
@@ -151,22 +138,9 @@ export enum MaliciousUrlCategory {
 export interface MaliciousUrl {
   url_id: number;
   url: string;
-  guild_id: Snowflake | null;
-  admin_id: Snowflake | null;
+  admin_id: Snowflake;
   created_at: Date;
   last_modified_at: Date;
-  category: MaliciousUrlCategory | null;
-}
-
-export interface LocalMaliciousUrl extends MaliciousUrl {
-  guild_id: Snowflake;
-  admin_id: null;
-  category: null;
-}
-
-export interface GlobalMaliciousUrl extends MaliciousUrl {
-  guild_id: null;
-  admin_id: Snowflake;
   category: MaliciousUrlCategory;
 }
 
