@@ -12,6 +12,7 @@ import type {
   BannedWord
 } from './models';
 import type { Snowflake } from 'discord-api-types/v9';
+import { WarnCaseExtras } from '.';
 
 export type ApiDeleteFiltersFilesBody = number[];
 
@@ -111,7 +112,8 @@ export type CaseData = CaseDataOther | CaseDataWithExpiry;
 
 export type ApiPostGuildsCasesBody = CaseData[];
 
-export type HttpCase = Omit<Case, 'expires_at'> & { expires_at: string };
+
+export type HttpCase = Omit<Case, 'expires_at'> & { expires_at: string | null; extra?: WarnCaseExtras };
 
 export type ApiPostGuildsCasesResult = HttpCase[];
 

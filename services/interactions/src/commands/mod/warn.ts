@@ -3,9 +3,9 @@ import { Command } from '../../command';
 import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { WarnCommand } from '#interactions';
-import { Rest } from '@automoderator/http-client';
-import { APIGuildInteraction, Routes } from 'discord-api-types/v9';
-import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, Case, CaseAction, HttpCase, Log, LogTypes, WarnCase, WarnPunishment, WarnPunishmentAction } from '@automoderator/core';
+import { HTTPError, Rest } from '@automoderator/http-client';
+import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
+import { ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, CaseAction, Log, LogTypes } from '@automoderator/core';
 import { PubSubPublisher } from '@cordis/brokers';
 import { kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -32,6 +32,7 @@ export default class implements Command {
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof WarnCommand>) {
+    await send(interaction, { flags: 64 }, { type: InteractionResponseType.DeferredChannelMessageWithSource });
     const { member, reason, refId } = this.parse(args);
     if (reason && reason.length >= 1900) {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
@@ -48,178 +49,32 @@ export default class implements Command {
     const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
     const targetTag = `${member.user.username}#${member.user.discriminator}`;
 
-    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
-      {
-        action: CaseAction.warn,
-        mod_id: interaction.member.user.id,
-        mod_tag: modTag,
-        target_id: member.user.id,
-        target_tag: targetTag,
-        reason,
-        reference_id: refId,
-        created_at: new Date()
-      }
-    ]);
+    try {
+      const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
+        {
+          action: CaseAction.warn,
+          mod_id: interaction.member.user.id,
+          mod_tag: modTag,
+          target_id: member.user.id,
+          target_tag: targetTag,
+          reason,
+          reference_id: refId,
+          created_at: new Date(),
+          execute: true
+        }
+      ]);
 
-    const guildName = await getGuildName(interaction.guild_id);
-    await dmUser(member.user.id, `Hello! You have been warned in ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
+      const guildName = await getGuildName(interaction.guild_id);
+      await dmUser(member.user.id, `Hello! You have been warned in ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
 
-    const warns = await this
-      .sql`
-        SELECT * FROM cases
-        WHERE guild_id = ${interaction.guild_id}
-          AND target_id = ${member.user.id}
-          AND action_type = ${CaseAction.warn}
-          AND pardoned_by IS NULL
-      `
-      .then(rows => rows.length);
-
-    let triggeredCs: HttpCase | undefined;
-    let updatedCs: HttpCase | undefined;
-    let duration: number | undefined;
-    let extendedBy: number | undefined;
-
-    const [punishment] = await this.sql<[WarnPunishment?]>`
-        SELECT * FROM warn_punishments
-        WHERE guild_id = ${interaction.guild_id}
-          AND warns = ${warns}
-      `;
-
-    if (punishment) {
-      interface ResolvedCases {
-        [CaseAction.mute]?: Case;
-        [CaseAction.ban]?: Case;
+      await send(interaction, { content: `Successfully warned ${targetTag}` }, { update: true });
+      this.guildLogs.publish({ type: LogTypes.modAction, data: cs! });
+    } catch (error) {
+      if (error instanceof HTTPError && error.statusCode === 400) {
+        return send(interaction, { content: error.message }, { update: true });
       }
 
-      const cases = await this.sql<[Case?, Case?]>`
-          SELECT * FROM cases
-          WHERE target_id = ${member.user.id}
-            AND processed = false
-            AND guild_id = ${interaction.guild_id}
-        `
-        .then(
-          rows => rows.reduce<ResolvedCases>(
-            (acc, cs) => {
-              if (cs) {
-                acc[cs.action_type as CaseAction.mute | CaseAction.ban] = cs;
-              }
-
-              return acc;
-            }, {}
-          )
-        );
-
-      switch (punishment.action_type) {
-        case WarnPunishmentAction.mute: {
-          const muteCase = cases[CaseAction.mute];
-
-          let expiresAt: Date | null = null;
-          if (punishment.duration) {
-            extendedBy = muteCase?.expires_at?.getTime();
-            duration = (punishment.duration * 6e4) + (extendedBy ?? 0);
-            expiresAt = new Date(duration);
-          }
-
-          if (muteCase) {
-            [updatedCs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(
-              `/guilds/${interaction.guild_id}/cases`, [
-                {
-                  case_id: muteCase.id,
-                  expires_at: expiresAt,
-                  mod_id: interaction.member.user.id,
-                  mod_tag: modTag
-                }
-              ]
-            );
-          } else {
-            [triggeredCs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-              `/guilds/${interaction.guild_id}/cases`, [
-                {
-                  action: CaseAction.mute,
-                  mod_id: interaction.member.user.id,
-                  mod_tag: modTag,
-                  target_id: member.user.id,
-                  target_tag: targetTag,
-                  reason,
-                  reference_id: cs!.case_id,
-                  expires_at: expiresAt,
-                  created_at: new Date()
-                }
-              ]
-            );
-          }
-
-          break;
-        }
-
-        case WarnPunishmentAction.ban: {
-          const banCase = cases[CaseAction.ban];
-
-          let expiresAt: Date | null = null;
-          if (punishment.duration) {
-            extendedBy = banCase?.expires_at?.getTime();
-            duration = (punishment.duration * 6e4) + (extendedBy ?? 0);
-            expiresAt = new Date(duration);
-          }
-
-          if (banCase) {
-            [updatedCs] = await this.rest.patch<ApiPostGuildsCasesResult, ApiPatchGuildsCasesBody>(
-              `/guilds/${interaction.guild_id}/cases`, [
-                {
-                  case_id: banCase.id,
-                  expires_at: expiresAt,
-                  mod_id: interaction.member.user.id,
-                  mod_tag: modTag
-                }
-              ]
-            );
-          } else {
-            [triggeredCs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-              `/guilds/${interaction.guild_id}/cases`, [
-                {
-                  action: CaseAction.ban,
-                  mod_id: interaction.member.user.id,
-                  mod_tag: modTag,
-                  target_id: member.user.id,
-                  target_tag: targetTag,
-                  reason,
-                  reference_id: cs!.case_id,
-                  expires_at: expiresAt,
-                  created_at: new Date()
-                }
-              ]
-            );
-          }
-
-          break;
-        }
-
-        case WarnPunishmentAction.kick: {
-          await this.discordRest.delete(Routes.guildMember(interaction.guild_id, member.user.id), { reason: `Kick | By ${modTag}` });
-          break;
-        }
-      }
-    }
-
-    const data: WarnCase = { ...(cs as Omit<HttpCase, 'action_type'> & { action_type: CaseAction.warn }) };
-
-    if (triggeredCs || updatedCs) {
-      const triggered = ({
-        [CaseAction.kick]: WarnPunishmentAction.kick,
-        [CaseAction.mute]: WarnPunishmentAction.mute,
-        [CaseAction.ban]: WarnPunishmentAction.ban
-      } as const)[(triggeredCs ?? updatedCs)!.action_type as CaseAction.kick | CaseAction.mute | CaseAction.ban];
-
-      data.extra = triggered === WarnPunishmentAction.kick
-        ? { triggered }
-        : { triggered, duration, extendedBy };
-    }
-
-    await send(interaction, { content: `Successfully warned ${targetTag}` });
-    this.guildLogs.publish({ type: LogTypes.modAction, data });
-
-    if (updatedCs) {
-      this.guildLogs.publish({ type: LogTypes.modAction, data: updatedCs });
+      throw error;
     }
   }
 }

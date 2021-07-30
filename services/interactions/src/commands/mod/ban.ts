@@ -3,7 +3,7 @@ import { Command } from '../../command';
 import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { BanCommand } from '#interactions';
-import { Rest } from '@automoderator/http-client';
+import { HTTPError, Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { PubSubPublisher } from '@cordis/brokers';
 import {
@@ -42,7 +42,7 @@ export default class implements Command {
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof BanCommand>) {
-    await send(interaction, {}, { type: InteractionResponseType.DeferredChannelMessageWithSource });
+    await send(interaction, { flags: 64 }, { type: InteractionResponseType.DeferredChannelMessageWithSource });
     const { member, reason, days, refId, duration: durationString } = this.parse(args);
     if (reason && reason.length >= 1900) {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
@@ -86,26 +86,34 @@ export default class implements Command {
     const guildName = await getGuildName(interaction.guild_id);
     await dmUser(member.user.id, `Hello! You have been banned from ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
 
-    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
-      {
-        action: CaseAction.ban,
-        mod_id: interaction.member.user.id,
-        mod_tag: modTag,
-        target_id: member.user.id,
-        target_tag: targetTag,
-        reason,
-        reference_id: refId,
-        expires_at: expiresAt,
-        created_at: new Date(),
-        delete_message_days: days,
-        execute: true
-      }
-    ]);
+    try {
+      const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
+        {
+          action: CaseAction.ban,
+          mod_id: interaction.member.user.id,
+          mod_tag: modTag,
+          target_id: member.user.id,
+          target_tag: targetTag,
+          reason,
+          reference_id: refId,
+          expires_at: expiresAt,
+          created_at: new Date(),
+          delete_message_days: days,
+          execute: true
+        }
+      ]);
 
-    await send(interaction, { content: `Successfully banned ${targetTag}` }, { update: true });
-    this.guildLogs.publish({
-      type: LogTypes.modAction,
-      data: cs!
-    });
+      await send(interaction, { content: `Successfully banned ${targetTag}` }, { update: true });
+      this.guildLogs.publish({
+        type: LogTypes.modAction,
+        data: cs!
+      });
+    } catch (error) {
+      if (error instanceof HTTPError && error.statusCode === 400) {
+        return send(interaction, { content: error.message }, { update: true });
+      }
+
+      throw error;
+    }
   }
 }
