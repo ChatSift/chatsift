@@ -150,7 +150,7 @@ export class Gateway {
           const data: ApiPostGuildsCasesBody = [];
           const unmuteRoles: Snowflake[] = [];
 
-          const reason = `Automated punishment triggered by saying \`${hit.word}\``;
+          const reason = `Automated punishment triggered by saying ${hit.word}`;
 
           const caseBase = {
             mod_id: this.config.discordClientId,
@@ -169,7 +169,6 @@ export class Gateway {
           if (hit.flags.has('mute') && settings.mute_role && !muted && !banned) {
             muted = true;
             unmuteRoles.concat([...message.member!.roles]);
-            let expiresAt: Date | undefined;
 
             const guildRoles = new Map(
               await this.discord.get<APIRole[]>(`/guilds/${message.guild_id}/roles`)
@@ -183,22 +182,27 @@ export class Gateway {
 
             const roles = message.member!.roles.filter(r => guildRoles.get(r)!.managed).concat([settings.mute_role]);
 
-            await this.discord.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(message.guild_id!, message.author.id), {
-              data: { roles },
-              reason
-            });
+            try {
+              await this.discord.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(message.guild_id!, message.author.id), {
+                data: { roles },
+                reason
+              });
 
-            if (hit.duration) {
-              expiresAt = new Date(Date.now() + (hit.duration * 6e4));
-            }
+              let expiresAt: Date | undefined;
+              if (hit.duration) {
+                expiresAt = new Date(Date.now() + (hit.duration * 6e4));
+              }
 
-            data.push({ action: CaseAction.mute, expires_at: expiresAt, ...caseBase });
+              data.push({ action: CaseAction.mute, expires_at: expiresAt, ...caseBase });
+            } catch {}
           }
 
           if (hit.flags.has('ban') && !banned) {
             banned = true;
-            await this.discord.put(Routes.guildBan(message.guild_id!, message.author.id), { reason });
-            data.push({ action: CaseAction.ban, ...caseBase });
+            try {
+              await this.discord.put(Routes.guildBan(message.guild_id!, message.author.id), { reason });
+              data.push({ action: CaseAction.ban, ...caseBase });
+            } catch {}
           }
 
           if (data.length) {

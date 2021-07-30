@@ -26,7 +26,7 @@ export class InvitesAllowlistController {
     }
 
     return this
-      .sql<[AllowedInvite]>`INSERT INTO allowed_invites (guild_id, invite_code) VALUES (${guildId}, ${code})`
+      .sql<[AllowedInvite]>`INSERT INTO allowed_invites (guild_id, invite_code) VALUES (${guildId}, ${code}) RETURNING *`
       .then(rows => rows[0]);
   }
 

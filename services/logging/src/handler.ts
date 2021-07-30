@@ -194,7 +194,7 @@ export class Handler {
     }
 
     const newMessage = await this.rest.post<RESTPostAPIWebhookWithTokenWaitResult, RESTPostAPIWebhookWithTokenJSONBody>(
-      `${Routes.webhook(webhook.id, webhook.token)}/?wait=true`, {
+      `${Routes.webhook(webhook.id, webhook.token)}?wait=true`, {
         data: {
           embeds: [embed]
         }

@@ -93,7 +93,7 @@ export default class implements Command {
 
       case 'remove': {
         try {
-          await this.rest.delete(`/guilds/${interaction.guild_id}/assignables/${args.add.role.id}`);
+          await this.rest.delete(`/guilds/${interaction.guild_id}/assignables/${args.remove.role.id}`);
           return send(interaction, { content: 'Successfully removed the given role from the list of self assignable roles' });
         } catch (error) {
           if (error instanceof HTTPError) {

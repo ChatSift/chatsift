@@ -29,6 +29,7 @@ export class LocalFiltersController {
         INSERT INTO banned_words ${this.sql(data)}
         ON CONFLICT (guild_id, word)
         DO UPDATE SET ${this.sql(data)}
+        RETURNING *
       `
       .then(rows => rows[0]);
   }
