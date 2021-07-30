@@ -94,6 +94,8 @@ interface BaseCaseData {
   target_tag: string;
   reference_id?: number;
   created_at?: Date;
+  delete_message_days?: number;
+  execute?: boolean;
 }
 
 interface CaseDataOther extends BaseCaseData {

@@ -5,7 +5,6 @@ import { PermissionsChecker, UserPerms } from '@automoderator/discord-permission
 import { BanCommand } from '#interactions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { APIGuildInteraction, RESTPutAPIGuildBanJSONBody, Routes } from 'discord-api-types/v9';
 import { PubSubPublisher } from '@cordis/brokers';
 import {
   ApiPostGuildsCasesBody,
@@ -17,6 +16,7 @@ import {
   ms
 } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
+import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
 
 @injectable()
@@ -42,6 +42,7 @@ export default class implements Command {
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof BanCommand>) {
+    await send(interaction, {}, { type: InteractionResponseType.DeferredChannelMessageWithSource });
     const { member, reason, days, refId, duration: durationString } = this.parse(args);
     if (reason && reason.length >= 1900) {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
@@ -75,7 +76,7 @@ export default class implements Command {
 
     if (existingBanCase) {
       throw new ControlFlowError(
-        'This user has already been temp banned. If you wish to update the duration please use the `/duration` command'
+        'This user has already been temp banned. If you wish to update the duration please use the `/case duration` command'
       );
     }
 
@@ -84,11 +85,6 @@ export default class implements Command {
 
     const guildName = await getGuildName(interaction.guild_id);
     await dmUser(member.user.id, `Hello! You have been banned from ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
-
-    await this.discordRest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(interaction.guild_id, member.user.id), {
-      reason: `Ban | By ${modTag}`,
-      data: { delete_message_days: days }
-    });
 
     const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
       {
@@ -100,11 +96,13 @@ export default class implements Command {
         reason,
         reference_id: refId,
         expires_at: expiresAt,
-        created_at: new Date()
+        created_at: new Date(),
+        delete_message_days: days,
+        execute: true
       }
     ]);
 
-    await send(interaction, { content: `Successfully banned ${targetTag}` });
+    await send(interaction, { content: `Successfully banned ${targetTag}` }, { update: true });
     this.guildLogs.publish({
       type: LogTypes.modAction,
       data: cs!

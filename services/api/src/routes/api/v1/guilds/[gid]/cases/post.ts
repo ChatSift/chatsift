@@ -1,12 +1,13 @@
 import { inject, injectable } from 'tsyringe';
 import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import * as Joi from 'joi';
-import { CaseAction, ApiPostGuildsCasesBody, Case } from '@automoderator/core';
+import { CaseAction, ApiPostGuildsCasesBody, Case, CaseData } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
 import { badRequest } from '@hapi/boom';
+import { HTTPError, Rest } from '@cordis/rest';
+import { RESTPutAPIGuildBanJSONBody, Snowflake, Routes } from 'discord-api-types/v9';
 import type { Request, Response, NextHandler } from 'polka';
 import type { Sql } from 'postgres';
-import type { Snowflake } from 'discord-api-types/v9';
 
 @injectable()
 export default class PostGuildsCasesRoute extends Route {
@@ -29,7 +30,14 @@ export default class PostGuildsCasesRoute extends Route {
                 then: Joi.date().allow(null),
                 otherwise: Joi.forbidden()
               }),
-              reason: Joi.string(),
+              delete_message_days: Joi.when('action', {
+                is: Joi.valid(CaseAction.ban, CaseAction.softban).required(),
+                then: Joi.number().positive()
+                  .allow(0)
+                  .max(7)
+                  .default(0)
+              }),
+              reason: Joi.string().max(1990),
               mod_id: Joi.string().pattern(/\d{17,20}/),
               mod_tag: Joi.string(),
               target_id: Joi.string()
@@ -37,7 +45,8 @@ export default class PostGuildsCasesRoute extends Route {
                 .required(),
               target_tag: Joi.string().required(),
               reference_id: Joi.number(),
-              created_at: Joi.date()
+              created_at: Joi.date(),
+              execute: Joi.boolean().default(true)
             })
             .and('mod_id', 'mod_tag')
         )
@@ -47,17 +56,60 @@ export default class PostGuildsCasesRoute extends Route {
   ];
 
   public constructor(
+    public readonly rest: Rest,
     @inject(kSql) public readonly sql: Sql<{}>
   ) {
     super();
   }
 
-  private async createCase(sql: Sql<{}>, cs: Omit<Case, 'id' | 'case_id'>) {
+  private async createCase(sql: Sql<{}>, data: CaseData & { guild_id: Snowflake }) {
+    if (data.execute) {
+      try {
+        switch (data.action) {
+          case CaseAction.ban: {
+            await this.rest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(data.guild_id, data.target_id), {
+              reason: `Ban | By ${data.mod_tag}`,
+              data: { delete_message_days: data.delete_message_days }
+            });
+
+            break;
+          }
+
+          case CaseAction.kick: {
+
+          }
+        }
+      } catch (error) {
+        if (error instanceof HTTPError && error.response.status === 403) {
+          return Promise.reject('Missing permission to execute this case');
+        }
+
+        return Promise.reject(error);
+      }
+    }
+
+    const cs: Omit<Case, 'id' | 'case_id'> = {
+      guild_id: data.guild_id,
+      // Eventual consistency™ - this is set in the logger micro-service when the log is generated
+      log_message_id: null,
+      ref_id: data.reference_id ?? null,
+      target_id: data.target_id,
+      target_tag: data.target_tag,
+      mod_id: data.mod_id ?? null,
+      mod_tag: data.mod_tag ?? null,
+      action_type: data.action,
+      reason: data.reason ?? null,
+      expires_at: 'expires_at' in data ? (data.expires_at ?? null) : null,
+      processed: !('expires_at' in data),
+      pardoned_by: null,
+      created_at: data.created_at ?? new Date()
+    };
+
     if (cs.ref_id) {
       const [refCs] = await sql<[Case?]>`SELECT * FROM cases WHERE guild_id = ${cs.guild_id} AND case_id = ${cs.ref_id}`;
 
       if (!refCs) {
-        return Promise.reject(`could not find reference case with id ${cs.ref_id}`);
+        return Promise.reject(`Could not find reference case with id ${cs.ref_id}`);
       }
     }
 
@@ -96,7 +148,7 @@ export default class PostGuildsCasesRoute extends Route {
   }
 
   public async handle(req: Request, res: Response, next: NextHandler) {
-    const { gid } = req.params;
+    const { gid } = req.params as { gid: Snowflake };
     const casesData = req.body as ApiPostGuildsCasesBody;
 
     try {
@@ -104,24 +156,7 @@ export default class PostGuildsCasesRoute extends Route {
         const promises: Promise<Case>[] = [];
 
         for (const data of casesData) {
-          const cs: Omit<Case, 'id' | 'case_id'> = {
-            guild_id: gid as Snowflake,
-            // Eventual consistency™ - this is set in the logger micro-service when the log is generated
-            log_message_id: null,
-            ref_id: data.reference_id ?? null,
-            target_id: data.target_id,
-            target_tag: data.target_tag,
-            mod_id: data.mod_id ?? null,
-            mod_tag: data.mod_tag ?? null,
-            action_type: data.action,
-            reason: data.reason ?? null,
-            expires_at: 'expires_at' in data ? (data.expires_at ?? null) : null,
-            processed: !('expires_at' in data),
-            pardoned_by: null,
-            created_at: data.created_at ?? new Date()
-          };
-
-          promises.push(this.createCase(sql, cs));
+          promises.push(this.createCase(sql, { guild_id: gid, ...data }));
         }
 
         return Promise.all(promises);
