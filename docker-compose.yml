@@ -43,6 +43,7 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
+      - base
 
   auth:
     build:
@@ -54,6 +55,7 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
+      - base
 
   automod:
     build:
@@ -66,6 +68,7 @@ services:
     depends_on:
       - postgres
       - rabbitmq
+      - base
 
   cron-runner:
     build:
@@ -76,6 +79,7 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
+      - base
 
   interactions:
     build:
@@ -88,6 +92,7 @@ services:
     depends_on:
       - postgres
       - rabbitmq
+      - base
 
   logging:
     build:
@@ -100,6 +105,7 @@ services:
     depends_on:
       - postgres
       - rabbitmq
+      - base
 
   mod-observer:
     build:
@@ -112,6 +118,7 @@ services:
     depends_on:
       - postgres
       - rabbitmq
+      - base
 
   gateway:
     image: cordislib/gateway:1.0.1
@@ -120,6 +127,7 @@ services:
     restart: unless-stopped
     depends_on:
       - rabbitmq
+      - base
     # TODO fix how intents are handled in cordis
     command: "node --enable-source-maps services/gateway/dist/index.js --ws-intents guildMessages --ws-intents guildMembers --ws-intents guildBans"
 
