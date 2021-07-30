@@ -39,7 +39,6 @@ export const makeCaseEmbed = ({ logChannelId, cs, target, mod, pardonedBy, messa
   let embed: APIEmbed = message?.embeds[0]
     ? message.embeds[0]
     : {
-      title: `Was ${ACTIONS[cs.action_type]} for \`${cs.reason ?? 'Set a reason using /reason'}\``,
       color: LOG_COLORS[cs.action_type],
       author: {
         name: `${cs.target_tag} (${cs.target_id})`,
@@ -49,9 +48,10 @@ export const makeCaseEmbed = ({ logChannelId, cs, target, mod, pardonedBy, messa
       }
     };
 
-  // Set seperately so text field is processed even on case updates in case mod data was missed for whatever reason
+  // Set seperately so they are processed even on case updates in case mod data was missed for whatever reason
+  embed.title = `Was ${ACTIONS[cs.action_type]} for \`${cs.reason ?? 'Set a reason using /case reason'}\``;
   embed.footer = {
-    text: `Case ${cs.case_id}${cs.mod_tag ? ` | By ${cs.mod_tag} (${cs.mod_id!})` : ''}`,
+    text: `Case ${cs.case_id}${cs.mod_tag ? ` | By ${cs.mod_tag} (${cs.mod_id})` : ''}`,
     icon_url: mod
       ? (
         mod.avatar
@@ -158,7 +158,7 @@ export const makeHistoryEmbed = ({ user, cases, showDetails, logChannelId, filte
         ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${user.id}/${user.avatar}`)
         : `${RouteBases.cdn}/embed/avatars/${parseInt(user.discriminator, 10) % 5}`
     },
-    color: colors[Math.min(Math.floor(points), 3)]
+    color: colors[points > 0 && points < 1 ? 1 : Math.min(Math.floor(points), 3)]
   };
 
   const footer = Object

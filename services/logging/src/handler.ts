@@ -29,7 +29,7 @@ import {
   APIUser,
   APIWebhook,
   Snowflake,
-  RESTPatchAPIChannelMessageJSONBody,
+  RESTPatchAPIWebhookWithTokenMessageJSONBody,
   RESTPostAPIChannelWebhookJSONBody,
   RESTPostAPIChannelWebhookResult,
   RESTPostAPIWebhookWithTokenJSONBody,
@@ -187,9 +187,9 @@ export class Handler {
     }
 
     if (message) {
-      return this.rest.patch<APIMessage, RESTPatchAPIChannelMessageJSONBody>(
-        Routes.channelMessage(channelId, message.id),
-        { data: { embed } }
+      return this.rest.patch<unknown, RESTPatchAPIWebhookWithTokenMessageJSONBody>(
+        Routes.webhookMessage(webhook.id, webhook.token!, message.id),
+        { data: { embeds: [embed] } }
       );
     }
 

@@ -18,7 +18,7 @@ export default class implements Component {
   ) {}
 
   public async exec(interaction: APIGuildInteraction) {
-    await send(interaction, { flags: 64 }, { type: InteractionResponseType.DeferredChannelMessageWithSource });
+    await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
 
     const selfAssignables = await this.rest
       .get<ApiGetGuildsAssignablesResult>(`/guilds/${interaction.guild_id}/assignables`)
@@ -52,7 +52,7 @@ export default class implements Component {
     }, []);
 
     if (!menuOptions.length) {
-      return send(interaction, { content: 'There are no self assignable roles configured for this server', flags: 64 }, { update: true });
+      return send(interaction, { content: 'There are no self assignable roles configured for this server', flags: 64 });
     }
 
     return send(interaction, {
@@ -72,6 +72,6 @@ export default class implements Component {
         }
       ],
       flags: 64
-    }, { update: true });
+    });
   }
 }

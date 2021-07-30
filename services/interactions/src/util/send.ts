@@ -13,6 +13,8 @@ export interface SendOptions {
   update?: boolean;
 }
 
+const REPLIED = new Set<string>();
+
 /**
  * @param message Interaction to respond to
  * @param payload Payload response data
@@ -22,7 +24,7 @@ export interface SendOptions {
 export const send = async (
   message: any,
   payload: (RESTPostAPIChannelMessageJSONBody | APIInteractionResponseCallbackData) & { files?: File[] },
-  options?: SendOptions
+  type?: InteractionResponseType
 ): Promise<unknown> => {
   const rest = container.resolve(Rest);
   const { discordClientId } = container.resolve<Config>(kConfig);
@@ -31,7 +33,7 @@ export const send = async (
     const { embed, files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: File[] };
     const response = { ...r, embeds: embed ? [embed] : undefined };
 
-    if (options?.update) {
+    if (REPLIED.has(message.token)) {
       // TODO cordis support for files in PATCH
       // return rest.patch(Routes.webhookMessage(discordClientId, message.token, '@original'), { data: response, files });
       return rest.make({
@@ -44,12 +46,15 @@ export const send = async (
 
     if (message.res) {
       message.res.end(JSON.stringify({
-        type: options?.type ?? InteractionResponseType.ChannelMessageWithSource,
+        type: type ?? InteractionResponseType.ChannelMessageWithSource,
         data: response
       }));
 
+      REPLIED.add(message.token);
+      setTimeout(() => REPLIED.delete(message.token), 6e4);
+
       if (files) {
-        await send(message, { files }, { update: true });
+        await send(message, { files });
       }
 
       return;

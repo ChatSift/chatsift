@@ -29,7 +29,7 @@ export default class implements Command {
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof KickCommand>) {
-    await send(interaction, { flags: 64 }, { type: InteractionResponseType.DeferredChannelMessageWithSource });
+    await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
     const { member, reason, refId } = this.parse(args);
     if (reason && reason.length >= 1900) {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
@@ -64,14 +64,14 @@ export default class implements Command {
         }
       ]);
 
-      await send(interaction, { content: `Successfully kicked ${targetTag}` }, { update: true });
+      await send(interaction, { content: `Successfully kicked ${targetTag}` });
       this.guildLogs.publish({
         type: LogTypes.modAction,
         data: cs!
       });
     } catch (error) {
       if (error instanceof HTTPError && error.statusCode === 400) {
-        return send(interaction, { content: error.message }, { update: true });
+        return send(interaction, { content: error.message });
       }
 
       throw error;

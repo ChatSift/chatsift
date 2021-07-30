@@ -103,10 +103,10 @@ export default class PostGuildsCasesRoute extends Route {
     let extendedBy: number | undefined;
 
     const [punishment] = await this.sql<[WarnPunishment?]>`
-        SELECT * FROM warn_punishments
-        WHERE guild_id = ${data.guild_id}
-          AND warns = ${warns}
-      `;
+      SELECT * FROM warn_punishments
+      WHERE guild_id = ${data.guild_id}
+        AND warns = ${warns}
+    `;
 
     if (punishment) {
       interface ResolvedCases {
@@ -115,11 +115,11 @@ export default class PostGuildsCasesRoute extends Route {
       }
 
       const cases = await this.sql<[Case?, Case?]>`
-          SELECT * FROM cases
-          WHERE target_id = ${data.target_id}
-            AND processed = false
-            AND guild_id = ${data.guild_id}
-        `
+        SELECT * FROM cases
+        WHERE target_id = ${data.target_id}
+          AND processed = false
+          AND guild_id = ${data.guild_id}
+      `
         .then(
           rows => rows.reduce<ResolvedCases>(
             (acc, cs) => {
@@ -214,15 +214,17 @@ export default class PostGuildsCasesRoute extends Route {
 
     const warnCaseData = { ...(cs as Omit<Case, 'action_type'> & { action_type: CaseAction.warn; extra?: WarnCaseExtras }) };
 
-    const triggered = ({
-      [CaseAction.kick]: WarnPunishmentAction.kick,
-      [CaseAction.mute]: WarnPunishmentAction.mute,
-      [CaseAction.ban]: WarnPunishmentAction.ban
-    } as const)[(triggeredCs ?? updatedCs)!.action_type as CaseAction.kick | CaseAction.mute | CaseAction.ban];
+    if (triggeredCs || updatedCs) {
+      const triggered = ({
+        [CaseAction.kick]: WarnPunishmentAction.kick,
+        [CaseAction.mute]: WarnPunishmentAction.mute,
+        [CaseAction.ban]: WarnPunishmentAction.ban
+      } as const)[(triggeredCs ?? updatedCs)!.action_type as CaseAction.kick | CaseAction.mute | CaseAction.ban];
 
-    warnCaseData.extra = triggered === WarnPunishmentAction.kick
-      ? { triggered }
-      : { triggered, duration, extendedBy };
+      warnCaseData.extra = triggered === WarnPunishmentAction.kick
+        ? { triggered }
+        : { triggered, duration, extendedBy };
+    }
 
     return warnCaseData;
   }
@@ -321,33 +323,24 @@ export default class PostGuildsCasesRoute extends Route {
           }
 
           case CaseAction.unmute: {
-            const [muteCase, roles] = await sql.begin<[cs: Case | null, roles: Snowflake[]]>(async sql => {
-              const [cs] = await sql<[Case?]>`
-                SELECT * FROM cases
-                WHERE target_id = ${data.target_id}
-                  AND action_type = ${CaseAction.mute}
-                  AND guild_id = ${data.guild_id}
-                  AND (processed = false OR expires_at IS NULL)
-              `;
-
-              if (!cs) {
-                return [null, []];
-              }
-
-              return [
-                cs,
-                await sql<UnmuteRole[]>`SELECT role_id FROM unmute_roles WHERE case_id = ${cs.id}`
-                  .then(
-                    rows => rows.map(
-                      role => role.role_id
-                    )
-                  )
-              ];
-            });
+            const [muteCase] = await sql<[Case?]>`
+              SELECT * FROM cases
+              WHERE target_id = ${data.target_id}
+                AND action_type = ${CaseAction.mute}
+                AND guild_id = ${data.guild_id}
+                AND (processed = false OR expires_at IS NULL)
+            `;
 
             if (!muteCase) {
               return Promise.reject('The user in question is not currently muted');
             }
+
+            const roles = await sql<UnmuteRole[]>`SELECT role_id FROM unmute_roles WHERE case_id = ${muteCase.id}`
+              .then(
+                rows => rows.map(
+                  role => role.role_id
+                )
+              );
 
             await this.rest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(
               Routes.guildMember(muteCase.guild_id, muteCase.target_id), {
@@ -362,7 +355,7 @@ export default class PostGuildsCasesRoute extends Route {
               WHERE id = ${muteCase.id}
             `;
 
-            await sql`DELETE FROM unmute_roles WHERE id = ${muteCase.id}`;
+            await sql`DELETE FROM unmute_roles WHERE case_id = ${muteCase.id}`;
 
             break;
           }
@@ -436,7 +429,7 @@ export default class PostGuildsCasesRoute extends Route {
   public async handle(req: Request, res: Response, next: NextHandler) {
     const { gid } = req.params as { gid: Snowflake };
     const casesData = req.body as ApiPostGuildsCasesBody;
-    const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM settings WHERE guild_id = ${gid}`;
+    const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${gid}`;
 
     try {
       const cases = await this.sql.begin(async sql => {

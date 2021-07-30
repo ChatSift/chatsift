@@ -12,7 +12,6 @@ import {
   APIRole,
   APIGuild,
   RESTGetAPIGuildRolesResult,
-  RESTPatchAPIGuildMemberJSONBody,
   Snowflake,
   Routes
 } from 'discord-api-types/v9';
@@ -31,9 +30,7 @@ import {
   LogTypes,
   OkRunnerResult,
   ApiPostGuildsCasesBody,
-  CaseAction,
-  ApiPostGuildsCasesResult,
-  UnmuteRole
+  CaseAction
 } from '@automoderator/core';
 import {
   DiscordPermissions,
@@ -158,7 +155,8 @@ export class Gateway {
             reason: reason,
             target_id: message.author.id,
             target_tag: `${message.author.username}#${message.author.discriminator}`,
-            created_at: new Date()
+            created_at: new Date(),
+            execute: true
           };
 
           if (hit.flags.has('warn') && !warned && !banned) {
@@ -170,49 +168,21 @@ export class Gateway {
             muted = true;
             unmuteRoles.concat([...message.member!.roles]);
 
-            const guildRoles = new Map(
-              await this.discord.get<APIRole[]>(`/guilds/${message.guild_id}/roles`)
-                .catch(() => [] as APIRole[])
-                .then(
-                  roles => roles.map(
-                    role => [role.id, role]
-                  )
-                )
-            );
+            let expiresAt: Date | undefined;
+            if (hit.duration) {
+              expiresAt = new Date(Date.now() + (hit.duration * 6e4));
+            }
 
-            const roles = message.member!.roles.filter(r => guildRoles.get(r)!.managed).concat([settings.mute_role]);
-
-            try {
-              await this.discord.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(message.guild_id!, message.author.id), {
-                data: { roles },
-                reason
-              });
-
-              let expiresAt: Date | undefined;
-              if (hit.duration) {
-                expiresAt = new Date(Date.now() + (hit.duration * 6e4));
-              }
-
-              data.push({ action: CaseAction.mute, expires_at: expiresAt, ...caseBase });
-            } catch {}
+            data.push({ action: CaseAction.mute, expires_at: expiresAt, ...caseBase });
           }
 
           if (hit.flags.has('ban') && !banned) {
             banned = true;
-            try {
-              await this.discord.put(Routes.guildBan(message.guild_id!, message.author.id), { reason });
-              data.push({ action: CaseAction.ban, ...caseBase });
-            } catch {}
+            data.push({ action: CaseAction.ban, ...caseBase });
           }
 
           if (data.length) {
-            const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${message.guild_id!}/cases`, data);
-            const muteCase = cases.find(cs => cs.action_type === CaseAction.mute);
-
-            if (muteCase && unmuteRoles.length) {
-              const unmuteData = unmuteRoles.map<UnmuteRole>(r => ({ case_id: muteCase.id, role_id: r }));
-              await this.sql`INSERT INTO unmute_roles ${this.sql(unmuteData)}`;
-            }
+            await this.rest.post<unknown, ApiPostGuildsCasesBody>(`/guilds/${message.guild_id!}/cases`, data);
           }
         }
       }

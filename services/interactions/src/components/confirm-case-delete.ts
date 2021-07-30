@@ -21,7 +21,7 @@ export default class implements Component {
       return send(interaction, {
         content: 'Okay, I won\'t delete the case',
         components: []
-      }, { type: InteractionResponseType.UpdateMessage });
+      }, InteractionResponseType.UpdateMessage);
     }
 
     try {
@@ -29,7 +29,7 @@ export default class implements Component {
       return send(interaction, {
         content: 'Successfully deleted the case',
         components: []
-      }, { type: InteractionResponseType.UpdateMessage });
+      }, InteractionResponseType.UpdateMessage);
     } catch (e) {
       if (!(e instanceof HTTPError)) {
         throw e;
@@ -40,7 +40,7 @@ export default class implements Component {
           return send(interaction, {
             content: 'Looks like that case has already been deleted',
             components: []
-          }, { type: InteractionResponseType.UpdateMessage });
+          }, InteractionResponseType.UpdateMessage);
         }
 
         default: {

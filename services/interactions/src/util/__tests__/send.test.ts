@@ -23,7 +23,7 @@ afterEach(() => jest.clearAllMocks());
 
 describe('send interaction with no update', () => {
   test('with embed', async () => {
-    await send({ id: '1234', token: 'test', res: mockedRes }, { content: 'test', embed: {} }, { update: false });
+    await send({ id: '1234', token: 'test', res: mockedRes }, { content: 'test', embed: {} });
 
     expect(mockedResEnd).toHaveBeenCalledTimes(1);
     expect(mockedResEnd).toHaveBeenCalledWith(
@@ -40,7 +40,7 @@ describe('send interaction with no update', () => {
   });
 
   test('without embed with update', async () => {
-    await send({ id: '1234', token: 'test' } as any, { content: 'test' }, { update: true });
+    await send({ id: '1234', token: 'test' } as any, { content: 'test' });
 
     expect(mockedRest.patch).toHaveBeenCalledTimes(1);
     expect(mockedRest.patch).toHaveBeenCalledWith(

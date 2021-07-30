@@ -3,7 +3,11 @@ version: "3.7"
 services:
   gateway:
     environment:
-      CORDIS_AUTH: "discord token"
+      AUTH: "discord token"
+
+  api:
+    environment:
+      DISCORD_TOKEN: "def"
 
   auth:
     environment:

@@ -25,7 +25,7 @@ export default class implements Component {
   ) {}
 
   public async exec(interaction: APIGuildInteraction) {
-    await send(interaction, {}, { type: InteractionResponseType.DeferredMessageUpdate });
+    await send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
 
     const selfAssignables = new Set<Snowflake>(
       await this.rest
@@ -73,6 +73,6 @@ export default class implements Component {
         `
         : 'There was nothing to update!',
       components: []
-    }, { update: true });
+    });
   }
 }

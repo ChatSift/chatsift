@@ -46,7 +46,7 @@ export default class implements Command {
         • filter logs: ${atChannel(settings.filter_trigger_log_channel)}
       `,
       allowed_mentions: { parse: [] }
-    }, { update: true });
+    });
   }
 
   public parse(args: ArgumentsOf<typeof LogCommand>) {
@@ -57,7 +57,7 @@ export default class implements Command {
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof LogCommand>) {
-    await send(interaction, {}, { type: InteractionResponseType.DeferredChannelMessageWithSource });
+    await send(interaction, {}, InteractionResponseType.DeferredChannelMessageWithSource);
     const { mod, filters } = this.parse(args);
 
     let settings: Partial<GuildSettings> = {};
