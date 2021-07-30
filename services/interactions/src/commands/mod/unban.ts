@@ -3,15 +3,13 @@ import { Command } from '../../command';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { UnbanCommand } from '#interactions';
-import { Rest } from '@automoderator/http-client';
+import { HTTPError, Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { APIGuildInteraction, Routes } from 'discord-api-types/v9';
+import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import { PubSubPublisher } from '@cordis/brokers';
 import {
-  ApiPatchGuildsCasesBody,
   ApiPostGuildsCasesBody,
   ApiPostGuildsCasesResult,
-  Case,
   CaseAction,
   Log,
   LogTypes
@@ -39,6 +37,7 @@ export default class implements Command {
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof UnbanCommand>) {
+    await send(interaction, { flags: 64 }, { type: InteractionResponseType.DeferredChannelMessageWithSource });
     const { member, reason, refId } = this.parse(args);
     if (reason && reason.length >= 1900) {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
@@ -47,43 +46,32 @@ export default class implements Command {
     const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
     const targetTag = `${member.user.username}#${member.user.discriminator}`;
 
-    const [banCase] = await this.sql<[Case?]>`
-      SELECT * FROM cases
-      WHERE target_id = ${member.user.id}
-        AND action_type = ${CaseAction.ban}
-        AND guild_id = ${interaction.guild_id}
-        AND (processed = false OR expires_at IS NULL)
-    `;
-
-    await this.discordRest.delete(Routes.guildBan(interaction.guild_id, member.user.id), { reason: `Unban | By ${modTag}` });
-    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
-      {
-        action: CaseAction.unban,
-        mod_id: interaction.member.user.id,
-        mod_tag: modTag,
-        target_id: member.user.id,
-        target_tag: targetTag,
-        reason,
-        reference_id: refId,
-        created_at: new Date()
-      }
-    ]);
-
-    if (banCase) {
-      await this.rest.patch<unknown, ApiPatchGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
+    try {
+      const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
         {
-          case_id: banCase.case_id,
-          mod_id: member.user.id,
+          action: CaseAction.unban,
+          mod_id: interaction.member.user.id,
           mod_tag: modTag,
-          processed: true
+          target_id: member.user.id,
+          target_tag: targetTag,
+          reason,
+          reference_id: refId,
+          created_at: new Date(),
+          execute: true
         }
       ]);
-    }
 
-    await send(interaction, { content: `Successfully unbanned ${targetTag}` });
-    this.guildLogs.publish({
-      type: LogTypes.modAction,
-      data: cs!
-    });
+      await send(interaction, { content: `Successfully unbanned ${targetTag}` }, { update: true });
+      this.guildLogs.publish({
+        type: LogTypes.modAction,
+        data: cs!
+      });
+    } catch (error) {
+      if (error instanceof HTTPError && error.statusCode === 400) {
+        return send(interaction, { content: error.message }, { update: true });
+      }
+
+      throw error;
+    }
   }
 }

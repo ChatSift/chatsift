@@ -3,9 +3,9 @@ import { Command } from '../../command';
 import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { SoftbanCommand } from '#interactions';
-import { Rest } from '@automoderator/http-client';
+import { HTTPError, Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { APIGuildInteraction, RESTPutAPIGuildBanJSONBody, Routes } from 'discord-api-types/v9';
+import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import { ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, CaseAction, Log, LogTypes } from '@automoderator/core';
 import { PubSubPublisher } from '@cordis/brokers';
 
@@ -30,6 +30,7 @@ export default class implements Command {
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof SoftbanCommand>) {
+    await send(interaction, { flags: 64 }, { type: InteractionResponseType.DeferredChannelMessageWithSource });
     const { member, reason, days, refId } = this.parse(args);
     if (reason && reason.length >= 1900) {
       throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
@@ -49,30 +50,33 @@ export default class implements Command {
     const guildName = await getGuildName(interaction.guild_id);
     await dmUser(member.user.id, `Hello! You have been softbanned in ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
 
-    await this.discordRest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(interaction.guild_id, member.user.id), {
-      reason: `Softban | By ${modTag}`,
-      data: { delete_message_days: days }
-    });
+    try {
+      const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
+        {
+          action: CaseAction.softban,
+          mod_id: interaction.member.user.id,
+          mod_tag: modTag,
+          target_id: member.user.id,
+          target_tag: targetTag,
+          reason,
+          reference_id: refId,
+          created_at: new Date(),
+          delete_message_days: days,
+          execute: true
+        }
+      ]);
 
-    await this.discordRest.delete(Routes.guildBan(interaction.guild_id, member.user.id), { reason: `Softban | By ${modTag}` });
-
-    const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
-      {
-        action: CaseAction.softban,
-        mod_id: interaction.member.user.id,
-        mod_tag: modTag,
-        target_id: member.user.id,
-        target_tag: targetTag,
-        reason,
-        reference_id: refId,
-        created_at: new Date()
+      await send(interaction, { content: `Successfully softbanned ${targetTag}` }, { update: true });
+      this.guildLogs.publish({
+        type: LogTypes.modAction,
+        data: cs!
+      });
+    } catch (error) {
+      if (error instanceof HTTPError && error.statusCode === 400) {
+        return send(interaction, { content: error.message }, { update: true });
       }
-    ]);
 
-    await send(interaction, { content: `Successfully softbanned ${targetTag}` });
-    this.guildLogs.publish({
-      type: LogTypes.modAction,
-      data: cs!
-    });
+      throw error;
+    }
   }
 }
