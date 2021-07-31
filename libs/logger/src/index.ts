@@ -17,7 +17,8 @@ export default (service: string) => {
     customLevels: {
       metric: 70
     },
-    level: nodeEnv === 'prod' ? 'debug' : 'trace'
+    level: nodeEnv === 'prod' ? 'debug' : 'trace',
+    prettyPrint: nodeEnv !== 'prod'
   };
 
   const streams: Streams = [];
@@ -37,13 +38,7 @@ export default (service: string) => {
 
     streams.push(getElasticStream(`${service}-logs`), getElasticStream('metrics'));
   } else {
-    const extra: LoggerOptions = {
-      prettifier: pinoPretty,
-      prettyPrint: true
-    };
-
-    Object.assign(options, extra);
-
+    Object.assign(options, { prettifier: pinoPretty });
     streams.push({ level: 'trace', stream: process.stdout });
   }
 

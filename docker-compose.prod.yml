@@ -4,36 +4,41 @@ services:
   api:
     environment:
       NODE_ENV: "prod"
+      ELASTIC_URL: "http://elasticsearch:9200"
 
   auth:
     environment:
       ROOT_DOMAIN: "https://automoderator.app"
       AUTH_DOMAIN: "https://api.automoderator.app"
       NODE_ENV: "prod"
+      ELASTIC_URL: "http://elasticsearch:9200"
 
   automod:
     environment:
       NODE_ENV: "prod"
       API_DOMAIN: "http://api:3001"
-    command: "sh -c \"node services/automod/dist/index.js | ./services/automod/node_modules/.bin/pino-elasticsearch --index automod-v1 --node http://elasticsearch:9200\""
+      ELASTIC_URL: "http://elasticsearch:9200"
 
   cron-runner:
     environment:
       NODE_ENV: "prod"
+      ELASTIC_URL: "http://elasticsearch:9200"
 
   interactions:
     environment:
       NODE_ENV: "prod"
       API_DOMAIN: "http://api:3001"
-    command: "sh -c \"node services/interactions/dist/index.js | ./services/interactions/node_modules/.bin/pino-elasticsearch --index interactions-v1 --node http://elasticsearch:9200\""
+      ELASTIC_URL: "http://elasticsearch:9200"
 
   logging:
     environment:
       NODE_ENV: "prod"
+      ELASTIC_URL: "http://elasticsearch:9200"
 
   mod-observer:
     environment:
       NODE_ENV: "prod"
+      ELASTIC_URL: "http://elasticsearch:9200"
 
   nginx:
     build:
