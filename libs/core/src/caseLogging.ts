@@ -147,7 +147,7 @@ export const makeHistoryEmbed = ({ user, cases, showDetails, logChannelId, filte
         ? `[#${cs.case_id}](https://discord.com/channels/${cs.guild_id}/${logChannelId}/${cs.log_message_id})`
         : `#${cs.case_id}`;
 
-      details.push(`• <t:${timestamp}> \`${action}\` ${caseId} - \`${cs.reason ?? 'Set a reason using /reason'}\``);
+      details.push(`• <t:${timestamp}:D> \`${action}\` ${caseId} - \`${cs.reason ?? 'Set a reason using /reason'}\``);
     }
   }
 
