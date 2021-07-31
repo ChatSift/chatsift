@@ -24,6 +24,7 @@ export interface Config {
   nodeEnv: string;
   encryptionKey: string;
   cors: string | string[];
+  elasticUrl: string;
 }
 
 export const initConfig = () => {
@@ -44,7 +45,8 @@ export const initConfig = () => {
     dbUrl: process.env.DB_URL!,
     nodeEnv: process.env.NODE_ENV ?? 'dev',
     encryptionKey: process.env.ENCRYPTION_KEY!,
-    cors: process.env.CORS?.split(',') ?? '*'
+    cors: process.env.CORS?.split(',') ?? '*',
+    elasticUrl: process.env.ELASTIC_URL!
   };
 
   container.register<Config>(kConfig, { useValue: config });

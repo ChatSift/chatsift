@@ -2,19 +2,50 @@ import createLogger, { LoggerOptions } from 'pino';
 import { container } from 'tsyringe';
 import { Config, kConfig } from '@automoderator/injection';
 import ecsFormat from '@elastic/ecs-pino-format';
+import { multistream, Streams } from 'pino-multi-stream';
+import pinoPretty from 'pino-pretty';
+// @ts-expect-error
+import pinoElastic from 'pino-elasticsearch';
+
+type Stream = Streams extends (infer T)[] ? T : never;
 
 export default (service: string) => {
-  service = service.toUpperCase();
-  const { nodeEnv } = container.resolve<Config>(kConfig);
+  const { nodeEnv, elasticUrl } = container.resolve<Config>(kConfig);
 
   const options: LoggerOptions = {
-    name: service,
+    name: service.toUpperCase(),
+    customLevels: {
+      metric: 70
+    },
     level: nodeEnv === 'prod' ? 'debug' : 'trace'
   };
 
+  const streams: Streams = [];
+
   if (nodeEnv === 'prod') {
     Object.assign(options, ecsFormat());
+
+    const getElasticStream = (index: string): Stream => ({
+      level: 'debug',
+      stream: pinoElastic({
+        'index': index,
+        'consistency': 'one',
+        'node': elasticUrl,
+        'es-version': 7
+      })
+    });
+
+    streams.push(getElasticStream(`${service}-logs`), getElasticStream('metrics'));
+  } else {
+    const extra: LoggerOptions = {
+      prettifier: pinoPretty,
+      prettyPrint: true
+    };
+
+    Object.assign(options, extra);
+
+    streams.push({ level: 'trace', stream: process.stdout });
   }
 
-  return createLogger(options);
+  return createLogger(options, multistream(streams));
 };

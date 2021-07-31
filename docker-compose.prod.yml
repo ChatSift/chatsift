@@ -4,14 +4,12 @@ services:
   api:
     environment:
       NODE_ENV: "prod"
-    command: "sh -c \"node services/api/dist/index.js | ./services/api/node_modules/.bin/pino-elasticsearch --index logs-api --node http://elasticsearch:9200\""
 
   auth:
     environment:
       ROOT_DOMAIN: "https://automoderator.app"
       AUTH_DOMAIN: "https://api.automoderator.app"
       NODE_ENV: "prod"
-    command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-elasticsearch --index logs-auth --node http://elasticsearch:9200\""
 
   automod:
     environment:
@@ -22,7 +20,6 @@ services:
   cron-runner:
     environment:
       NODE_ENV: "prod"
-    command: "sh -c \"node services/cron-runner/dist/index.js | ./services/cron-runner/node_modules/.bin/pino-elasticsearch --index logs-cron-runner --node http://elasticsearch:9200\""
 
   interactions:
     environment:
@@ -33,12 +30,10 @@ services:
   logging:
     environment:
       NODE_ENV: "prod"
-    command: "sh -c \"node services/logging/dist/index.js | ./services/logging/node_modules/.bin/pino-elasticsearch --index logs-logging --node http://elasticsearch:9200\""
 
   mod-observer:
     environment:
       NODE_ENV: "prod"
-    command: "sh -c \"node services/mod-observer/dist/index.js | ./services/mod-observer/node_modules/.bin/pino-elasticsearch --index logs-mod-observer --node http://elasticsearch:9200\""
 
   nginx:
     build:

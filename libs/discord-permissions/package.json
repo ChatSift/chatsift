@@ -21,10 +21,10 @@
   "devDependencies": {
     "@automoderator/core": "workspace:^0.1.0",
     "@cordis/bitfield": "^1.0.1",
-    "@types/node": "^14.17.5",
-    "@types/pino": "^6.3.9",
+    "@types/node": "^14.17.6",
+    "@types/pino": "^6.3.11",
     "postgres": "^2.0.0-beta.6",
-    "typescript": "^4.4.0-beta"
+    "typescript": "^4.4.0-dev.20210731"
   },
   "dependencies": {
     "@automoderator/injection": "workspace:^0.1.0",

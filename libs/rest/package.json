@@ -23,14 +23,14 @@
     "@types/bcrypt": "^5.0.0",
     "@types/cookie": "^0.4.1",
     "@types/cors": "^2.8.12",
-    "@types/node": "^14.17.5",
-    "@types/node-fetch": "^2.5.11",
-    "@types/pino": "^6.3.9",
+    "@types/node": "^14.17.6",
+    "@types/node-fetch": "^2.5.12",
+    "@types/pino": "^6.3.11",
     "@types/supertest": "^2.0.11",
     "discord-api-types": "^0.20.2",
     "postgres": "^2.0.0-beta.6",
-    "supertest": "^6.1.3",
-    "typescript": "^4.4.0-beta"
+    "supertest": "^6.1.4",
+    "typescript": "^4.4.0-dev.20210731"
   },
   "dependencies": {
     "@automoderator/core": "workspace:^0.1.0",
@@ -42,7 +42,7 @@
     "cookie": "^0.4.1",
     "cors": "^2.8.5",
     "helmet": "^4.6.0",
-    "joi": "^17.4.0",
+    "joi": "^17.4.1",
     "node-fetch": "^2.6.1",
     "polka": "^1.0.0-next.15",
     "tslib": "^2.3.0",
