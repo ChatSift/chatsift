@@ -63,6 +63,7 @@ services:
     environment:
       "discovery.type": "single-node"
       "bootstrap.memory_lock": "true"
+      "xpack.security.enabled": "true"
       ES_JAVA_OPTS: "-Xms512m -Xmx512m"
     restart: unless-stopped
     ulimits:
@@ -75,3 +76,4 @@ services:
     restart: unless-stopped
     environment:
       ELASTICSEARCH_HOSTS: "http://elasticsearch:9200"
+      ELASTICSEARCH_USERNAME: "kibana_system"
