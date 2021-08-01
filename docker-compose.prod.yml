@@ -9,7 +9,7 @@ services:
   auth:
     environment:
       ROOT_DOMAIN: "https://automoderator.app"
-      AUTH_DOMAIN: "https://auth.automoderator.app"
+      AUTH_DOMAIN: "https://api.automoderator.app"
       NODE_ENV: "prod"
     command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-elasticsearch --index auth-v1 --node http://elasticsearch:9200\""
 

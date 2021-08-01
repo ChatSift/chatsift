@@ -45,3 +45,7 @@ services:
   mod-observer:
     environment:
       DISCORD_TOKEN: "awooga"
+
+  elasticsearch:
+    environment:
+      ELASTIC_PASSWORD: "wehawt"
