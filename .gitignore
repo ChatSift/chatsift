@@ -11,3 +11,5 @@ doc
 docs
 
 docker-compose.config.yml
+docker-compose.config.dev.yml
+docker-compose.config.prod.yml

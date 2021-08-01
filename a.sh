@@ -1,3 +1,9 @@
 #!/bin/bash
 
-docker-compose -f docker-compose.yml -f docker-compose.$1.yml -f docker-compose.config.yml ${@%$1}
+docker-compose \
+  -p automoderator \
+  -f compose/docker-compose.yml \
+  -f compose/docker-compose.$1.yml \
+  -f compose/docker-compose.config.yml \
+  -f compose/docker-compose.config.$1.yml \
+  ${@%$1}

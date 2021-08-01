@@ -49,7 +49,7 @@ services:
 
   nginx:
     build:
-      context: ./
+      context: ../
       dockerfile: ./docker/nginx/Dockerfile
     depends_on:
       - api
