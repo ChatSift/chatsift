@@ -42,17 +42,33 @@ export default (service: string) => {
     const logsStream = getElasticStream(`logs-${service}`);
 
     streams.push(
+      { level: 'metric' as any, stream: getElasticStream(`metrics-${service}`) },
       { level: 'debug', stream: logsStream },
       { level: 'info', stream: logsStream },
       { level: 'warn', stream: logsStream },
       { level: 'error', stream: logsStream },
-      { level: 'fatal', stream: logsStream },
-      { level: 'metric' as any, stream: getElasticStream('metrics') }
+      { level: 'fatal', stream: logsStream }
     );
   } else {
     Object.assign(options, { prettifier: pinoPretty });
     streams.push({ level: 'trace', stream: process.stdout });
   }
 
-  return createLogger(options, multistream(streams, { dedupe: true }));
+  return createLogger(
+    options,
+    multistream(streams, {
+      dedupe: true,
+      // @ts-expect-error
+      levels: {
+        silent: Infinity,
+        fatal: 60,
+        error: 50,
+        warn: 50,
+        info: 30,
+        debug: 20,
+        metric: 19,
+        trace: 10
+      }
+    })
+  );
 };
