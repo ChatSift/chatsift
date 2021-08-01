@@ -13,9 +13,9 @@ export default (service: string) => {
   const options: LoggerOptions = {
     name: service.toUpperCase(),
     customLevels: {
-      metric: 70
+      metric: 19
     },
-    level: nodeEnv === 'prod' ? 'debug' : 'trace',
+    level: nodeEnv === 'prod' ? 'metric' : 'trace',
     prettyPrint: nodeEnv !== 'prod'
   };
 
@@ -41,8 +41,14 @@ export default (service: string) => {
           console.error(`[${index}] Elasticsearch server error:`, error);
         });
 
+    const logsStream = getElasticStream(`logs-${service}`);
+
     streams.push(
-      { level: 'debug', stream: getElasticStream(`logs-${service}`) },
+      { level: 'debug', stream: logsStream },
+      { level: 'info', stream: logsStream },
+      { level: 'warn', stream: logsStream },
+      { level: 'error', stream: logsStream },
+      { level: 'fatal', stream: logsStream },
       { level: 'metric' as any, stream: getElasticStream('metrics') }
     );
   } else {
