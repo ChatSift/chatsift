@@ -11,9 +11,9 @@ export const logRequests = () => {
   return (req: Request, res: Response, next: NextHandler) => {
     const stopwatch = new Stopwatch();
 
-    res.once('close', () => logger.metric!({
+    req.once('close', () => logger.metric!({
       type: 'api_request',
-      time: stopwatch.stop().digits,
+      duration: stopwatch.stop().duration,
       method: req.method,
       route: req.originalUrl,
       status: res.statusCode,
