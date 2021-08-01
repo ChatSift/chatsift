@@ -15,8 +15,7 @@ services:
   auth:
     environment:
       ROOT_DOMAIN: "http://localhost"
-      AUTH_DOMAIN: "http://auth:3000"
-      API_DOMAIN: "http://api:3001"
+      AUTH_DOMAIN: "http://localhost:3000"
       NODE_ENV: "dev"
     command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-pretty -c -l -t\""
     ports:

@@ -37,7 +37,7 @@ export default class GetDiscordRoute extends Route {
 
     const params = new URLSearchParams({
       client_id: this.config.discordClientId,
-      redirect_uri: `${this.config.authDomain}/discord/callback`,
+      redirect_uri: `${this.config.authDomain}/api/v1/discord/callback`,
       response_type: 'code',
       scope: this.config.discordScopes,
       state
