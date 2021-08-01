@@ -329,12 +329,12 @@ export class Handler {
   private _handleLog(log: Log) {
     switch (log.type) {
       case LogTypes.modAction: {
-        this.logger.metric!({ type: 'logged_mod_action' });
+        this.logger.metric!({ type: 'logged_mod_action' }, 'Mod action log went through');
         return this._handleModLog(log);
       }
 
       case LogTypes.filterTrigger: {
-        this.logger.metric!({ type: 'logged_filter_trigger' });
+        this.logger.metric!({ type: 'logged_filter_trigger' }, 'Filter trigger went through');
         return this._handleFilterTriggerLog(log);
       }
 
