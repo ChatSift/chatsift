@@ -21,7 +21,7 @@ export const logRequests = () => {
       body: req.body,
       params: req.params,
       query: req.query
-    }, 'API request came through'));
+    }));
 
     return next();
   };
