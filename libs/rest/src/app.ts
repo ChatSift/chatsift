@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import { container } from 'tsyringe';
 import { Config, kConfig } from '@automoderator/injection';
 import { getPolkaOptions } from './utils';
-import { attachHttpUtils, logRequests } from './middleware';
+import { attachHttpUtils } from './middleware';
 
 export const createApp = () => {
   const config = container.resolve<Config>(kConfig);
@@ -15,7 +15,6 @@ export const createApp = () => {
       credentials: true
     }),
     helmet({ contentSecurityPolicy: config.nodeEnv === 'prod' ? undefined : false }) as any,
-    attachHttpUtils(),
-    logRequests()
+    attachHttpUtils()
   );
 };

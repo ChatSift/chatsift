@@ -31,15 +31,9 @@ export default (service: string) => {
         'node': elasticUrl,
         'es-version': 7
       }) as NodeJS.WriteStream)
-        .on('unknown', (line, error) => {
-          console.error(`[${index}] Elasticsearch client json error in line:\n${line}\nError:`, error);
-        })
-        .on('error', error => {
-          console.error(`[${index}] Elasticsearch client error:`, error);
-        })
-        .on('insertError', error => {
-          console.error(`[${index}] Elasticsearch server error:`, error);
-        });
+        .on('unknown', (line, error) => console.error(`[${index}] Elasticsearch client json error in line:\n${line}\nError:`, error))
+        .on('error', error => console.error(`[${index}] Elasticsearch client error:`, error))
+        .on('insertError', error => console.error(`[${index}] Elasticsearch server error:`, error));
 
     const logsStream = getElasticStream(`logs-${service}`);
 
