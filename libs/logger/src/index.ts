@@ -42,7 +42,7 @@ export default (service: string) => {
         });
 
     streams.push(
-      { level: 'debug', stream: getElasticStream(`${service}-logs`) },
+      { level: 'debug', stream: getElasticStream(`logs-${service}`) },
       { level: 'metric' as any, stream: getElasticStream('metrics') }
     );
   } else {
