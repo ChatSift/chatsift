@@ -7,7 +7,7 @@ import { Case, CaseAction, GuildSettings, UnmuteRole } from '@automoderator/core
 import { RESTPatchAPIGuildMemberJSONBody, Routes } from 'discord-api-types/v9';
 
 const config = initConfig();
-const logger = createLogger('CRON-RUNNER');
+const logger = createLogger('cron-runner');
 
 const discordRest = new DiscordRest(config.discordToken);
 

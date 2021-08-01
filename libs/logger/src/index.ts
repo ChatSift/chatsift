@@ -7,8 +7,6 @@ import pinoPretty from 'pino-pretty';
 // @ts-expect-error
 import pinoElastic from 'pino-elasticsearch';
 
-type Stream = Streams extends (infer T)[] ? T : never;
-
 export default (service: string) => {
   const { nodeEnv, elasticUrl } = container.resolve<Config>(kConfig);
 
@@ -26,21 +24,31 @@ export default (service: string) => {
   if (nodeEnv === 'prod') {
     Object.assign(options, ecsFormat());
 
-    const getElasticStream = (index: string): Stream => ({
-      level: 'debug',
-      stream: pinoElastic({
+    const getElasticStream = (index: string) =>
+      (pinoElastic({
         'index': index,
         'consistency': 'one',
         'node': elasticUrl,
         'es-version': 7
-      })
-    });
+      }) as NodeJS.WriteStream)
+        .on('unknown', (line, error) => {
+          console.error(`[${index}] Elasticsearch client json error in line:\n${line}\nError:`, error);
+        })
+        .on('error', error => {
+          console.error(`[${index}] Elasticsearch client error:`, error);
+        })
+        .on('insertError', error => {
+          console.error(`[${index}] Elasticsearch server error:`, error);
+        });
 
-    streams.push(getElasticStream(`${service}-logs`), getElasticStream('metrics'));
+    streams.push(
+      { level: 'debug', stream: getElasticStream(`${service}-logs`) },
+      { level: 'metric' as any, stream: getElasticStream('metrics') }
+    );
   } else {
     Object.assign(options, { prettifier: pinoPretty });
     streams.push({ level: 'trace', stream: process.stdout });
   }
 
-  return createLogger(options, multistream(streams));
+  return createLogger(options, multistream(streams, { dedupe: true }));
 };

@@ -12,7 +12,7 @@ import * as controllers from './controllers';
 
 void (async () => {
   const config = initConfig();
-  const logger = createLogger('API');
+  const logger = createLogger('api');
 
   container.register(kLogger, { useValue: logger });
   container.register(
