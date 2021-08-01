@@ -45,3 +45,13 @@ services:
   mod-observer:
     environment:
       DISCORD_TOKEN: "awooga"
+
+  kibana:
+    environment:
+      # https://www.elastic.co/guide/en/elasticsearch/reference/current/security-minimal-setup.html#add-built-in-users
+      # sh into the container and use `./bin/elasticsearch-setup-passwords auto`
+      ELASTICSEARCH_PASSWORD: "owo"
+      # ./bin/kibana-encryption-keys
+      "xpack.encryptedSavedObjects.encryptionKey": "a"
+      "xpack.reporting.encryptionKey": "b"
+      "xpack.security.encryptionKey": "c"

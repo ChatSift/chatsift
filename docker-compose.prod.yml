@@ -8,16 +8,15 @@ services:
 
   auth:
     environment:
-      ROOT_DOMAIN: "https://automoderator.me"
-      AUTH_DOMAIN: "https://auth.automoderator.me"
-      API_DOMAIN: "https://api.automoderator.me"
+      ROOT_DOMAIN: "https://automoderator.app"
+      AUTH_DOMAIN: "https://api.automoderator.app"
       NODE_ENV: "prod"
     command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-elasticsearch --index auth-v1 --node http://elasticsearch:9200\""
 
   automod:
     environment:
       NODE_ENV: "prod"
-      API_DOMAIN: "https://api.automoderator.me"
+      API_DOMAIN: "http://api:3001"
     command: "sh -c \"node services/automod/dist/index.js | ./services/automod/node_modules/.bin/pino-elasticsearch --index automod-v1 --node http://elasticsearch:9200\""
 
   cron-runner:
@@ -28,7 +27,7 @@ services:
   interactions:
     environment:
       NODE_ENV: "prod"
-      API_DOMAIN: "https://api.automoderator.me"
+      API_DOMAIN: "http://api:3001"
     command: "sh -c \"node services/interactions/dist/index.js | ./services/interactions/node_modules/.bin/pino-elasticsearch --index interactions-v1 --node http://elasticsearch:9200\""
 
   logging:
@@ -41,6 +40,22 @@ services:
       NODE_ENV: "prod"
     command: "sh -c \"node services/mod-observer/dist/index.js | ./services/mod-observer/node_modules/.bin/pino-elasticsearch --index mod-observer-v1 --node http://elasticsearch:9200\""
 
+  nginx:
+    build:
+      context: ./
+      dockerfile: ./docker/nginx/Dockerfile
+    depends_on:
+      - api
+      - auth
+      - interactions
+      - elasticsearch
+      - kibana
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+    ports:
+      - "80:80"
+      - "443:443"
+
   elasticsearch:
     image: elasticsearch:7.12.1
     volumes:
@@ -48,6 +63,7 @@ services:
     environment:
       "discovery.type": "single-node"
       "bootstrap.memory_lock": "true"
+      "xpack.security.enabled": "true"
       ES_JAVA_OPTS: "-Xms512m -Xmx512m"
     restart: unless-stopped
     ulimits:
@@ -60,3 +76,4 @@ services:
     restart: unless-stopped
     environment:
       ELASTICSEARCH_HOSTS: "http://elasticsearch:9200"
+      ELASTICSEARCH_USERNAME: "kibana_system"
