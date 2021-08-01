@@ -16,7 +16,9 @@ const data = {
   DISCORD_SCOPES: 'a,b',
   DB_URL: 'postgres://something',
   ENCRYPTION_KEY: 'awooga',
-  ELASTIC_URL: 'http://elasticsearch:9200'
+  ELASTIC_URL: 'http://elasticsearch:9200',
+  ELASTIC_USERNAME: 'admin',
+  ELASTIC_PASSWORD: 'admin'
 } as const;
 
 for (const key of Object.keys(data) as (keyof typeof data)[]) {
@@ -44,6 +46,8 @@ test('test', () => {
     nodeEnv: 'test',
     encryptionKey: data.ENCRYPTION_KEY,
     cors: '*',
-    elasticUrl: 'http://elasticsearch:9200'
+    elasticUrl: 'http://elasticsearch:9200',
+    elasticUsername: data.ELASTIC_USERNAME,
+    elasticPassword: data.ELASTIC_PASSWORD
   });
 });

@@ -8,6 +8,7 @@ services:
   api:
     environment:
       DISCORD_TOKEN: "def"
+      ELASTIC_PASSWORD: "owo"
 
   auth:
     environment:
@@ -16,6 +17,7 @@ services:
       DISCORD_CLIENT_SECRET: "abc"
       DISCORD_TOKEN: "def"
       ENCRYPTION_KEY: "32 random bytes of base64 here"
+      ELASTIC_PASSWORD: "owo"
 
   automod:
     environment:
@@ -23,11 +25,13 @@ services:
       DISCORD_TOKEN: "awooga"
       DEV_IDS: "123,456"
       INTERNAL_API_TOKEN: "asdf"
+      ELASTIC_PASSWORD: "owo"
 
   cron-runner:
     environment:
       DISCORD_CLIENT_ID: "123"
       DISCORD_TOKEN: "awooga"
+      ELASTIC_PASSWORD: "owo"
 
   interactions:
     environment:
@@ -37,14 +41,17 @@ services:
       DEV_IDS: "123,456"
       INTERACTIONS_TEST_GUILDS: "456,789"
       INTERNAL_API_TOKEN: "asdf"
+      ELASTIC_PASSWORD: "owo"
 
   logging:
     environment:
       DISCORD_TOKEN: "awooga"
+      ELASTIC_PASSWORD: "owo"
 
   mod-observer:
     environment:
       DISCORD_TOKEN: "awooga"
+      ELASTIC_PASSWORD: "owo"
 
   kibana:
     environment:

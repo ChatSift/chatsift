@@ -8,7 +8,7 @@ import pinoPretty from 'pino-pretty';
 import pinoElastic from 'pino-elasticsearch';
 
 export default (service: string) => {
-  const { nodeEnv, elasticUrl } = container.resolve<Config>(kConfig);
+  const { nodeEnv, elasticUrl, elasticUsername, elasticPassword } = container.resolve<Config>(kConfig);
 
   const options: LoggerOptions = {
     name: service.toUpperCase(),
@@ -29,6 +29,10 @@ export default (service: string) => {
         'index': index,
         'consistency': 'one',
         'node': elasticUrl,
+        'auth': {
+          username: elasticUsername,
+          password: elasticPassword
+        },
         'es-version': 7
       }) as NodeJS.WriteStream)
         .on('unknown', (line, error) => console.error(`[${index}] Elasticsearch client json error in line:\n${line}\nError:`, error))

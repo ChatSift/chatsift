@@ -5,6 +5,7 @@ services:
     environment:
       NODE_ENV: "prod"
       ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   auth:
     environment:
@@ -12,33 +13,39 @@ services:
       AUTH_DOMAIN: "https://api.automoderator.app"
       NODE_ENV: "prod"
       ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   automod:
     environment:
       NODE_ENV: "prod"
       API_DOMAIN: "http://api:3001"
       ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   cron-runner:
     environment:
       NODE_ENV: "prod"
       ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   interactions:
     environment:
       NODE_ENV: "prod"
       API_DOMAIN: "http://api:3001"
       ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   logging:
     environment:
       NODE_ENV: "prod"
       ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   mod-observer:
     environment:
       NODE_ENV: "prod"
       ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   nginx:
     build:
