@@ -316,7 +316,10 @@ export class Handler {
       return;
     }
 
-    const embeds = log.data.triggers.flatMap(trigger => this._embedFromTrigger(log.data.message, trigger));
+    const embeds = log.data.triggers.flatMap(trigger => {
+      this.logger.metric!({ type: 'filter_trigger', triggerType: Runners[trigger.runner], data: trigger.data });
+      return this._embedFromTrigger(log.data.message, trigger);
+    });
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
       Routes.webhook(webhook.id, webhook.token), {
         data: {
@@ -329,6 +332,7 @@ export class Handler {
   private _handleLog(log: Log) {
     switch (log.type) {
       case LogTypes.modAction: {
+        this.logger.metric!({ type: 'mod_action' });
         return this._handleModLog(log);
       }
 

@@ -1,0 +1,38 @@
+version: "3.7"
+
+services:
+  api:
+    environment:
+      NODE_ENV: "dev"
+    ports:
+      - "127.0.0.1:3001:3001"
+
+  auth:
+    environment:
+      ROOT_DOMAIN: "http://localhost"
+      AUTH_DOMAIN: "http://localhost:3000"
+      NODE_ENV: "dev"
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  automod:
+    environment:
+      NODE_ENV: "dev"
+      API_DOMAIN: "http://api:3001"
+
+  cron-runner:
+    environment:
+      NODE_ENV: "dev"
+
+  interactions:
+    environment:
+      NODE_ENV: "dev"
+      API_DOMAIN: "http://api:3001"
+
+  logging:
+    environment:
+      NODE_ENV: "dev"
+
+  mod-observer:
+    environment:
+      NODE_ENV: "dev"

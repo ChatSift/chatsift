@@ -1,0 +1,40 @@
+version: "3.7"
+
+services:
+  api:
+    environment:
+      ELASTIC_PASSWORD: "owo"
+
+  auth:
+    environment:
+      ELASTIC_PASSWORD: "owo"
+
+  automod:
+    environment:
+      ELASTIC_PASSWORD: "owo"
+
+  cron-runner:
+    environment:
+      ELASTIC_PASSWORD: "owo"
+
+  interactions:
+    environment:
+      ELASTIC_PASSWORD: "owo"
+
+  logging:
+    environment:
+      ELASTIC_PASSWORD: "owo"
+
+  mod-observer:
+    environment:
+      ELASTIC_PASSWORD: "owo"
+
+  kibana:
+    environment:
+      # https://www.elastic.co/guide/en/elasticsearch/reference/current/security-minimal-setup.html#add-built-in-users
+      # sh into the container and use `./bin/elasticsearch-setup-passwords auto`
+      ELASTICSEARCH_PASSWORD: "owo"
+      # ./bin/kibana-encryption-keys
+      "xpack.encryptedSavedObjects.encryptionKey": "a"
+      "xpack.reporting.encryptionKey": "b"
+      "xpack.security.encryptionKey": "c"

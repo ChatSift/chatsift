@@ -4,7 +4,7 @@ services:
   base:
     image: automoderator:base
     build:
-      context: ./
+      context: ../
       dockerfile: ./docker/base/Dockerfile
 
   rabbitmq:
@@ -19,7 +19,7 @@ services:
 
   postgres:
     build:
-      context: ./docker/postgresql
+      context: ../docker/postgresql
       dockerfile: ./Dockerfile
     environment:
       POSTGRES_USER: "automoderator"
@@ -35,7 +35,7 @@ services:
 
   api:
     build:
-      context: ./
+      context: ../
       dockerfile: ./docker/api/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
@@ -47,7 +47,7 @@ services:
 
   auth:
     build:
-      context: ./
+      context: ../
       dockerfile: ./docker/auth/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
@@ -59,7 +59,7 @@ services:
 
   automod:
     build:
-      context: ./
+      context: ../
       dockerfile: ./docker/automod/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
@@ -72,7 +72,7 @@ services:
 
   cron-runner:
     build:
-      context: ./
+      context: ../
       dockerfile: ./docker/cron-runner/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
@@ -83,7 +83,7 @@ services:
 
   interactions:
     build:
-      context: ./
+      context: ../
       dockerfile: ./docker/interactions/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
@@ -96,7 +96,7 @@ services:
 
   logging:
     build:
-      context: ./
+      context: ../
       dockerfile: ./docker/logging/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
@@ -109,7 +109,7 @@ services:
 
   mod-observer:
     build:
-      context: ./
+      context: ../
       dockerfile: ./docker/mod-observer/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"

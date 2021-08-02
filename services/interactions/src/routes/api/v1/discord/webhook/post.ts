@@ -57,6 +57,7 @@ export default class PostDiscordWebhookRoute extends Route {
 
     switch (interaction.type) {
       case InteractionType.ApplicationCommand: {
+        this.logger.metric!({ type: 'command' });
         return this.handler.handleCommand(interaction);
       }
 

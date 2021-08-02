@@ -2,17 +2,20 @@
 
 import { container } from 'tsyringe';
 import { kLogger } from '@automoderator/injection';
+import { Stopwatch } from '@sapphire/stopwatch';
 import type { Logger } from 'pino';
 import type { Request, Response, NextHandler } from 'polka';
 
 export const logRequests = () => {
   const logger = container.resolve<Logger>(kLogger);
   return (req: Request, res: Response, next: NextHandler) => {
-    const start = Date.now();
+    const stopwatch = new Stopwatch();
 
-    req.once('close', () => logger.info({
-      time: Date.now() - start,
-      route: `${req.method.toUpperCase()} ${req.originalUrl}`,
+    req.once('close', () => logger.metric!({
+      type: 'api_request',
+      duration: stopwatch.stop().duration,
+      method: req.method,
+      route: req.originalUrl,
       status: res.statusCode,
       statusText: res.statusMessage,
       body: req.body,

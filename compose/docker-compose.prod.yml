@@ -4,45 +4,52 @@ services:
   api:
     environment:
       NODE_ENV: "prod"
-    command: "sh -c \"node services/api/dist/index.js | ./services/api/node_modules/.bin/pino-elasticsearch --index api-v1 --node http://elasticsearch:9200\""
+      ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   auth:
     environment:
       ROOT_DOMAIN: "https://automoderator.app"
       AUTH_DOMAIN: "https://api.automoderator.app"
       NODE_ENV: "prod"
-    command: "sh -c \"node services/auth/dist/index.js | ./services/auth/node_modules/.bin/pino-elasticsearch --index auth-v1 --node http://elasticsearch:9200\""
+      ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   automod:
     environment:
       NODE_ENV: "prod"
       API_DOMAIN: "http://api:3001"
-    command: "sh -c \"node services/automod/dist/index.js | ./services/automod/node_modules/.bin/pino-elasticsearch --index automod-v1 --node http://elasticsearch:9200\""
+      ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   cron-runner:
     environment:
       NODE_ENV: "prod"
-    command: "sh -c \"node services/cron-runner/dist/index.js | ./services/cron-runner/node_modules/.bin/pino-elasticsearch --index cron-runner-v1 --node http://elasticsearch:9200\""
+      ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   interactions:
     environment:
       NODE_ENV: "prod"
       API_DOMAIN: "http://api:3001"
-    command: "sh -c \"node services/interactions/dist/index.js | ./services/interactions/node_modules/.bin/pino-elasticsearch --index interactions-v1 --node http://elasticsearch:9200\""
+      ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   logging:
     environment:
       NODE_ENV: "prod"
-    command: "sh -c \"node services/logging/dist/index.js | ./services/logging/node_modules/.bin/pino-elasticsearch --index logging-v1 --node http://elasticsearch:9200\""
+      ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   mod-observer:
     environment:
       NODE_ENV: "prod"
-    command: "sh -c \"node services/mod-observer/dist/index.js | ./services/mod-observer/node_modules/.bin/pino-elasticsearch --index mod-observer-v1 --node http://elasticsearch:9200\""
+      ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
 
   nginx:
     build:
-      context: ./
+      context: ../
       dockerfile: ./docker/nginx/Dockerfile
     depends_on:
       - api

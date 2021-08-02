@@ -14,7 +14,7 @@ import { Handler } from './handler';
 
 void (async () => {
   const config = initConfig();
-  const logger = createLogger('API');
+  const logger = createLogger('interactions');
 
   const discordRest = new DiscordRest(config.discordToken);
 

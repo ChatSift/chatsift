@@ -9,7 +9,7 @@ import { Handler } from './handler';
 
 void (async () => {
   const config = initConfig();
-  const logger = createLogger('LOGGING');
+  const logger = createLogger('logging');
 
   const rest = new Rest(config.discordToken);
 

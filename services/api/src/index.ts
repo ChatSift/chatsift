@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { createApp, initApp, TokenManager } from '@automoderator/rest';
+import { createApp, initApp, logRequests, TokenManager } from '@automoderator/rest';
 import { initConfig, kLogger, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { container } from 'tsyringe';
@@ -12,7 +12,7 @@ import * as controllers from './controllers';
 
 void (async () => {
   const config = initConfig();
-  const logger = createLogger('API');
+  const logger = createLogger('api');
 
   container.register(kLogger, { useValue: logger });
   container.register(
@@ -48,6 +48,7 @@ void (async () => {
   }
 
   const app = createApp();
+  app.use(logRequests());
 
   for (const controller of Object.values(controllers) as any[]) {
     container.register(controller, { useClass: controller });

@@ -16,7 +16,7 @@ void (async () => {
 
   const discordRest = new DiscordRest(config.discordToken);
 
-  const logger = createLogger('AUTOMOD');
+  const logger = createLogger('automod');
 
   const sql = postgres(config.dbUrl, {
     onnotice: notice => logger.debug({ notice }, 'Database notice')

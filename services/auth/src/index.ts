@@ -10,7 +10,7 @@ import { readdirRecurse } from '@gaius-bot/readdir';
 
 void (async () => {
   const config = initConfig();
-  const logger = createLogger('AUTH');
+  const logger = createLogger('auth');
 
   container.register(kLogger, { useValue: logger });
   container.register(
