@@ -49,7 +49,7 @@ export const makeCaseEmbed = ({ logChannelId, cs, target, mod, pardonedBy, messa
     };
 
   // Set seperately so they are processed even on case updates in case mod data was missed for whatever reason
-  embed.title = `Was ${ACTIONS[cs.action_type]} for ${cs.reason ?? 'Set a reason using /case reason'}`;
+  embed.title = `Was ${ACTIONS[cs.action_type]}${cs.reason ? ` for ${cs.reason}` : ''}`;
   embed.footer = {
     text: `Case ${cs.case_id}${cs.mod_tag ? ` | By ${cs.mod_tag} (${cs.mod_id})` : ''}`,
     icon_url: mod
@@ -147,7 +147,7 @@ export const makeHistoryEmbed = ({ user, cases, showDetails, logChannelId, filte
         ? `[#${cs.case_id}](https://discord.com/channels/${cs.guild_id}/${logChannelId}/${cs.log_message_id})`
         : `#${cs.case_id}`;
 
-      details.push(`• <t:${timestamp}:D> \`${action}\` ${caseId} - ${cs.reason ?? 'Set a reason using /reason'}`);
+      details.push(`• <t:${timestamp}:D> \`${action}\` ${caseId}${cs.reason ? ` - ${cs.reason}` : ''}`);
     }
   }
 
