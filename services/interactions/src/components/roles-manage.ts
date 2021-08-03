@@ -1,7 +1,6 @@
 import { injectable } from 'tsyringe';
 import { Component } from '../component';
 import { send } from '#util';
-import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
@@ -17,8 +16,6 @@ import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
 
 @injectable()
 export default class implements Component {
-  public readonly userPermissions = UserPerms.mod;
-
   public constructor(
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest
