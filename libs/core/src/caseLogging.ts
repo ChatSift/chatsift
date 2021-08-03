@@ -179,7 +179,7 @@ export const makeHistoryEmbed = ({ user, cases, showDetails, logChannelId, filte
       embed.description = details.join('\n');
     }
   } else {
-    embed.description = 'User has not been punished before';
+    embed.description = 'User has not been punished before.';
   }
 
   return embed;
