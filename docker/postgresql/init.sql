@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS malicious_urls (
   category int NOT NULL
 );
 
-CREATE TABLE banned_words (
+CREATE TABLE IF NOT EXISTS banned_words (
   guild_id bigint NOT NULL,
   word text NOT NULL,
   flags bigint NOT NULL,

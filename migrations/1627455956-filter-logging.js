@@ -1,7 +1,7 @@
 export async function up(sql) {
   const settings = await sql.unsafe('SELECT * FROM guild_settings');
-  await sql.unsafe('ALTER TABLE guild_settings DROP COLUMN use_file_filters');
-  await sql.unsafe('ALTER TABLE guild_settings ADD COLUMN use_file_filters boolean NOT NULL DEFAULT false');
+  await sql.unsafe('ALTER TABLE guild_settings DROP COLUMN IF EXISTS use_file_filters');
+  await sql.unsafe('ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS use_file_filters boolean NOT NULL DEFAULT false');
 
   for (const setting of settings) {
     await sql.unsafe(`
@@ -14,8 +14,8 @@ export async function up(sql) {
 
 export async function down(sql) {
   const settings = await sql.unsafe('SELECT * FROM guild_settings');
-  await sql.unsafe('ALTER TABLE guild_settings DROP COLUMN use_file_filters');
-  await sql.unsafe('ALTER TABLE guild_settings ADD COLUMN use_file_filters int NOT NULL DEFAULT 1');
+  await sql.unsafe('ALTER TABLE guild_settings DROP COLUMN IF EXISTS use_file_filters');
+  await sql.unsafe('ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS use_file_filters int NOT NULL DEFAULT 1');
 
   for (const setting of settings) {
     await sql.unsafe(`

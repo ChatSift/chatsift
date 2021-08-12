@@ -1,6 +1,6 @@
 export async function up(sql) {
   await sql.unsafe(`
-    CREATE TABLE banned_words (
+    CREATE TABLE IF NOT EXISTS banned_words (
       guild_id bigint NOT NULL,
       word text NOT NULL,
       flags bigint NOT NULL,

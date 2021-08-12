@@ -1,14 +1,13 @@
+import 'reflect-metadata';
 import { Rest } from '@automoderator/http-client';
 import { initConfig, kLogger, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { Rest as DiscordRest } from '@cordis/rest';
 import type { Logger } from 'pino';
 import postgres, { Sql } from 'postgres';
-import 'reflect-metadata';
 import { container } from 'tsyringe';
 import { Gateway } from './gateway';
 import * as runners from './runners';
-
 
 void (async () => {
   const config = initConfig();

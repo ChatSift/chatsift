@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { Rest } from '@automoderator/http-client';
 import { initConfig, kLogger, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
@@ -7,10 +8,8 @@ import { Rest as DiscordRest } from '@cordis/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
 import { join as joinPath } from 'path';
 import postgres from 'postgres';
-import 'reflect-metadata';
 import { container } from 'tsyringe';
 import { Handler } from './handler';
-
 
 void (async () => {
   const config = initConfig();

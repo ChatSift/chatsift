@@ -9,7 +9,7 @@ export async function up(sql) {
   `);
 
   await sql.unsafe(`
-    CREATE FUNCTION next_punishment(bigint, bigint) RETURNS int
+    CREATE OR REPLACE FUNCTION next_punishment(bigint, bigint) RETURNS int
     LANGUAGE plpgsql
     stable
     AS $$

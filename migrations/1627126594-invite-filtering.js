@@ -1,5 +1,5 @@
 export async function up(sql) {
-  await sql.unsafe('ALTER TABLE guild_settings ADD COLUMN use_invite_filters boolean NOT NULL DEFAULT false');
+  await sql.unsafe('ALTER TABLE guild_settings ADD COLUMN IF NOT EXISTS use_invite_filters boolean NOT NULL DEFAULT false');
 
   await sql.unsafe(`
     CREATE TABLE IF NOT EXISTS filter_ignores (
@@ -11,6 +11,6 @@ export async function up(sql) {
 }
 
 export async function down(sql) {
-  await sql.unsafe('ALTER TABLE guild_settings DROP COLUMN use_invite_filters');
+  await sql.unsafe('ALTER TABLE guild_settings DROP COLUMN IF EXISTS use_invite_filters');
   await sql.unsafe('DROP TABLE filter_ignores');
 }
