@@ -22,13 +22,12 @@ export default class implements Command {
 
   public parse(args: ArgumentsOf<typeof HistoryCommand>) {
     return {
-      member: args.user,
-      detailed: args.detailed ?? false
+      member: args.user
     };
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof HistoryCommand>) {
-    const { member, detailed: showDetails } = this.parse(args);
+    const { member } = this.parse(args);
 
     const [settings, cases, filterTriggers] = await this.sql.begin(async sql => {
       const [settings] = await sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${interaction.guild_id}`;
@@ -49,7 +48,6 @@ export default class implements Command {
       user: member.user,
       cases,
       logChannelId: settings?.mod_action_log_channel ?? undefined,
-      showDetails,
       filterTriggers
     });
 

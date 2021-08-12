@@ -12,11 +12,6 @@ export const HistoryCommand = {
       description: 'The user to look up',
       type: ApplicationCommandOptionType.User,
       required: true
-    },
-    {
-      name: 'detailed',
-      description: 'Lists all of the cases for the user',
-      type: ApplicationCommandOptionType.Boolean
     }
   ]
 } as const;
