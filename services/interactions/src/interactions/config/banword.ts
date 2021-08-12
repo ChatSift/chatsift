@@ -8,7 +8,7 @@ export const BanwordCommand = {
     {
       name: 'add',
       description: 'Adds the given word/phrase to the list of banned words',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
           name: 'entry',
@@ -51,7 +51,7 @@ export const BanwordCommand = {
     {
       name: 'remove',
       description: 'Removes the given word/phrase from the list of banned words',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
           name: 'entry',
@@ -64,13 +64,13 @@ export const BanwordCommand = {
     {
       name: 'list',
       description: 'Provides the current ban word list',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: []
     },
     {
       name: 'bulk',
       description: 'Overwrites your entire list with the entries from the link provided',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
           name: 'list',

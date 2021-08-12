@@ -1,45 +1,44 @@
-import { singleton, inject } from 'tsyringe';
-import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
-import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
-import { Rest, HTTPError as CordisHTTPError } from '@cordis/rest';
 import {
+  addFields,
+  Case,
+  CaseAction,
+  ellipsis,
+  FilterTriggerLog,
+  GuildSettings,
   Log,
   LogTypes,
-  CaseAction,
-  ModActionLog,
-  GuildSettings,
-  Case,
-  addFields,
-  ms,
-  WarnCase,
-  WarnPunishmentAction,
   makeCaseEmbed,
-  FilterTriggerLog,
-  WebhookToken,
-  RunnerResult,
-  NotOkRunnerResult,
-  Runners,
   MaliciousFileCategory,
   MaliciousUrlCategory,
-  ellipsis
+  ModActionLog,
+  ms,
+  NotOkRunnerResult,
+  RunnerResult,
+  Runners,
+  WarnCase,
+  WarnPunishmentAction,
+  WebhookToken
 } from '@automoderator/core';
+import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
+import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
+import { HTTPError as CordisHTTPError, Rest } from '@cordis/rest';
+import { makeDiscordCdnUrl } from '@cordis/util';
 import {
   APIEmbed,
   APIMessage,
   APIUser,
   APIWebhook,
-  Snowflake,
   RESTPatchAPIWebhookWithTokenMessageJSONBody,
   RESTPostAPIChannelWebhookJSONBody,
   RESTPostAPIChannelWebhookResult,
   RESTPostAPIWebhookWithTokenJSONBody,
   RESTPostAPIWebhookWithTokenWaitResult,
   RouteBases,
-  Routes
+  Routes, Snowflake
 } from 'discord-api-types/v9';
-import { makeDiscordCdnUrl } from '@cordis/util';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
+import { inject, singleton } from 'tsyringe';
 
 @singleton()
 export class Handler {

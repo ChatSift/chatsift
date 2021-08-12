@@ -1,16 +1,16 @@
-import 'reflect-metadata';
-
-import { createApp, initApp } from '@automoderator/rest';
 import { Rest } from '@automoderator/http-client';
-import { Rest as DiscordRest } from '@cordis/rest';
 import { initConfig, kLogger, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
-import { container } from 'tsyringe';
-import { join as joinPath } from 'path';
-import { readdirRecurse } from '@gaius-bot/readdir';
-import postgres from 'postgres';
+import { createApp, initApp } from '@automoderator/rest';
 import { createAmqp, PubSubPublisher } from '@cordis/brokers';
+import { Rest as DiscordRest } from '@cordis/rest';
+import { readdirRecurse } from '@gaius-bot/readdir';
+import { join as joinPath } from 'path';
+import postgres from 'postgres';
+import 'reflect-metadata';
+import { container } from 'tsyringe';
 import { Handler } from './handler';
+
 
 void (async () => {
   const config = initConfig();

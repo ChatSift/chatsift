@@ -1,13 +1,13 @@
-import { injectable } from 'tsyringe';
-import { Command } from '../../command';
-import { ArgumentsOf, send } from '#util';
-import { UserPerms } from '@automoderator/discord-permissions';
 import { RolesCommand } from '#interactions';
+import { ArgumentsOf, send } from '#util';
+import { ApiGetGuildsAssignablesResult, ApiGetGuildsSettingsResult, ApiPatchGuildSettingsBody } from '@automoderator/core';
+import { UserPerms } from '@automoderator/discord-permissions';
 import { HTTPError, Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, ButtonStyle, ComponentType } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
-import { ApiGetGuildsAssignablesResult, ApiGetGuildsSettingsResult, ApiPatchGuildSettingsBody } from '@automoderator/core';
+import { injectable } from 'tsyringe';
+import { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

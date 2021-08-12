@@ -1,10 +1,10 @@
-import { inject, injectable } from 'tsyringe';
-import { Route, thirdPartyAuth } from '@automoderator/rest';
-import { kSql } from '@automoderator/injection';
 import { Case } from '@automoderator/core';
+import { kSql } from '@automoderator/injection';
+import { Route, thirdPartyAuth } from '@automoderator/rest';
 import { notFound } from '@hapi/boom';
+import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
-import type { Request, Response, NextHandler } from 'polka';
+import { inject, injectable } from 'tsyringe';
 
 @injectable()
 export default class GetGuildsCaseRoute extends Route {

@@ -1,8 +1,8 @@
-import { singleton, inject } from 'tsyringe';
-import { kSql } from '@automoderator/injection';
-import type { Sql } from 'postgres';
-import type { Snowflake } from 'discord-api-types/v9';
 import type { AllowedInvite } from '@automoderator/core';
+import { kSql } from '@automoderator/injection';
+import type { Snowflake } from 'discord-api-types/v9';
+import type { Sql } from 'postgres';
+import { inject, singleton } from 'tsyringe';
 
 @singleton()
 export class InvitesRunner {

@@ -1,8 +1,8 @@
-import { kSql } from '@automoderator/injection';
-import { inject, singleton } from 'tsyringe';
-import type { Sql } from 'postgres';
 import type { FilterIgnore } from '@automoderator/core';
+import { kSql } from '@automoderator/injection';
 import type { Snowflake } from 'discord-api-types/v9';
+import type { Sql } from 'postgres';
+import { inject, singleton } from 'tsyringe';
 
 @singleton()
 export class FilterIgnoresController {

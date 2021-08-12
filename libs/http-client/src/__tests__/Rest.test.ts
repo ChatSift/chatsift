@@ -1,7 +1,7 @@
-import { container } from 'tsyringe';
 import { kConfig } from '@automoderator/injection';
-import { Rest, HTTPError } from '../';
 import fetch, { ResponseInit } from 'node-fetch';
+import { container } from 'tsyringe';
+import { HTTPError, Rest } from '../';
 
 jest.mock('node-fetch');
 const mockedFetch = fetch as unknown as jest.Mock<any, [url: string, init?: ResponseInit]>;

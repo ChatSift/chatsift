@@ -1,12 +1,12 @@
-import fetch from 'node-fetch';
+import type { User } from '@automoderator/core';
+import { kSql } from '@automoderator/injection';
 import { unauthorized } from '@hapi/boom';
 import cookie from 'cookie';
-import { container } from 'tsyringe';
-import { Sql } from 'postgres';
-import { kSql } from '@automoderator/injection';
-import type { User } from '@automoderator/core';
-import type { Request, Response, NextHandler } from 'polka';
 import type { APIUser } from 'discord-api-types/v9';
+import fetch from 'node-fetch';
+import type { NextHandler, Request, Response } from 'polka';
+import { Sql } from 'postgres';
+import { container } from 'tsyringe';
 
 declare module 'polka' {
   export interface Request {

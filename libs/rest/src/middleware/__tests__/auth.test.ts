@@ -1,10 +1,10 @@
-import { Http2ServerResponse } from 'http2';
-import { userAuth } from '../userAuth';
-import { Boom } from '@hapi/boom';
-import fetch from 'node-fetch';
-import { container } from 'tsyringe';
 import { kSql } from '@automoderator/injection';
+import { Boom } from '@hapi/boom';
+import { Http2ServerResponse } from 'http2';
+import fetch from 'node-fetch';
 import type { Request, Response } from 'polka';
+import { container } from 'tsyringe';
+import { userAuth } from '../userAuth';
 
 container.register(kSql, { useValue: jest.fn(() => [{ perms: 0 }]) });
 

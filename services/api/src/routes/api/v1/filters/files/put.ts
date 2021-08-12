@@ -1,9 +1,9 @@
-import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
-import { injectable } from 'tsyringe';
-import * as Joi from 'joi';
-import { ApiPutFiltersFilesBody, MaliciousFileCategory } from '@automoderator/core';
 import { FilesController } from '#controllers';
+import { ApiPutFiltersFilesBody, MaliciousFileCategory } from '@automoderator/core';
+import { globalPermissions, jsonParser, Route, userAuth, validate } from '@automoderator/rest';
+import * as Joi from 'joi';
 import type { Request, Response } from 'polka';
+import { injectable } from 'tsyringe';
 
 @injectable()
 export default class PutFiltersFilesRoute extends Route {

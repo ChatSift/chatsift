@@ -1,7 +1,7 @@
-import { join as joinPath } from 'path';
-import { Route, RouteMethod } from '../route';
-import { container } from 'tsyringe';
 import { kLogger } from '@automoderator/injection';
+import { join as joinPath } from 'path';
+import { container } from 'tsyringe';
+import { Route, RouteMethod } from '../route';
 
 container.register(kLogger, { useValue: { debug: jest.fn() } });
 

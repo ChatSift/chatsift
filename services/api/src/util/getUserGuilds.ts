@@ -1,12 +1,12 @@
-import { container } from 'tsyringe';
-import { kLogger } from '@automoderator/injection';
-import cookie from 'cookie';
 import { DiscordPermissions } from '@automoderator/discord-permissions';
+import { kLogger } from '@automoderator/injection';
 import { internal } from '@hapi/boom';
+import cookie from 'cookie';
+import type { RESTGetAPICurrentUserGuildsResult } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
 import type { Logger } from 'pino';
-import type { Request, NextHandler } from 'polka';
-import type { RESTGetAPICurrentUserGuildsResult } from 'discord-api-types/v9';
+import type { NextHandler, Request } from 'polka';
+import { container } from 'tsyringe';
 
 export const getUserGuilds = async (req: Request, next: NextHandler, filtered: boolean) => {
   const logger = container.resolve<Logger>(kLogger);

@@ -1,10 +1,10 @@
-import { singleton, inject } from 'tsyringe';
-import { kSql } from '@automoderator/injection';
 import { BanwordFlags } from '@automoderator/banword-flags';
-import { UrlsRunner } from './urls';
+import type { BannedWord } from '@automoderator/core';
+import { kSql } from '@automoderator/injection';
 import type { APIMessage } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
-import type { BannedWord } from '@automoderator/core';
+import { inject, singleton } from 'tsyringe';
+import { UrlsRunner } from './urls';
 
 type BannedWordWithFlags = Omit<BannedWord, 'flags'> & { flags: BanwordFlags; isUrl: boolean };
 

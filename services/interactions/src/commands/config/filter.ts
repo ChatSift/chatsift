@@ -1,10 +1,10 @@
-import { injectable } from 'tsyringe';
-import { Command } from '../../command';
+import { FilterCommand } from '#interactions';
 import { ArgumentsOf } from '#util';
 import { UserPerms } from '@automoderator/discord-permissions';
-import { FilterCommand } from '#interactions';
-import { FilterConfig, InvitesConfig } from './sub/filter';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
+import { injectable } from 'tsyringe';
+import { Command } from '../../command';
+import { FilterConfig, InvitesConfig } from './sub/filter';
 
 @injectable()
 export default class implements Command {

@@ -1,22 +1,22 @@
-import { singleton } from 'tsyringe';
-import { Command } from '../../../../command';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { FilterCommand } from '#interactions';
-import { stripIndents } from 'common-tags';
-import { APIGuildInteraction, ChannelType, Routes, RESTGetAPIGuildChannelsResult } from 'discord-api-types/v9';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
+import {
+  ApiGetFiltersIgnoresChannelResult,
+  ApiGetFiltersIgnoresResult,
+  ApiGetGuildsSettingsResult,
+  ApiPatchFiltersIgnoresChannelBody,
+  ApiPatchFiltersIgnoresChannelResult,
+  ApiPatchGuildSettingsBody,
+  ApiPatchGuildSettingsResult,
+  GuildSettings
+} from '@automoderator/core';
 import { FilterIgnores } from '@automoderator/filter-ignores';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import {
-  GuildSettings,
-  ApiGetGuildsSettingsResult,
-  ApiPatchGuildSettingsResult,
-  ApiPatchGuildSettingsBody,
-  ApiGetFiltersIgnoresChannelResult,
-  ApiPatchFiltersIgnoresChannelResult,
-  ApiPatchFiltersIgnoresChannelBody,
-  ApiGetFiltersIgnoresResult
-} from '@automoderator/core';
+import { stripIndents } from 'common-tags';
+import { APIGuildInteraction, ChannelType, RESTGetAPIGuildChannelsResult, Routes } from 'discord-api-types/v9';
+import { singleton } from 'tsyringe';
+import { Command } from '../../../../command';
 
 @singleton()
 export class FilterConfig implements Command {

@@ -1,7 +1,7 @@
 import { kConfig } from '@automoderator/injection';
-import { container } from 'tsyringe';
 import { randomBytes } from 'crypto';
-import { encrypt, decrypt } from '../crypt';
+import { container } from 'tsyringe';
+import { decrypt, encrypt } from '../crypt';
 
 jest.mock('crypto', () => {
   const original: typeof import('crypto') = jest.requireActual('crypto');

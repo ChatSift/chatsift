@@ -141,7 +141,7 @@ export interface MaliciousUrl {
 export interface BannedWord {
   guild_id: Snowflake;
   word: string;
-  flags: `${bigint}`;
+  flags: string;
   duration: number | null;
 }
 
@@ -154,7 +154,7 @@ export interface FilterTrigger {
 export interface FilterIgnore {
   channel_id: Snowflake;
   guild_id: Snowflake;
-  value: `${bigint}`;
+  value: string;
 }
 
 export interface AllowedInvite {

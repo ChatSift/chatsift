@@ -1,6 +1,6 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 import { WarnPunishmentAction } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
+import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 
 export const PunishmentsCommand = {
   name: 'punishments',
@@ -11,7 +11,7 @@ export const PunishmentsCommand = {
     {
       name: 'add',
       description: 'Creates a new warn punishment',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
           name: 'count',
@@ -40,7 +40,7 @@ export const PunishmentsCommand = {
     {
       name: 'delete',
       description: 'Deletes a warn punishment',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
           name: 'count',
@@ -53,7 +53,7 @@ export const PunishmentsCommand = {
     {
       name: 'list',
       description: 'Lists all the existing warn punishments',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: []
     }
   ]

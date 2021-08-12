@@ -1,18 +1,18 @@
+import type { Snowflake } from 'discord-api-types/v9';
+import type { WarnCaseExtras } from './brokers';
 import type {
-  MaliciousUrlCategory,
+  AllowedInvite,
+  BannedWord,
   Case,
   CaseAction,
-  MaliciousFileCategory,
-  MaliciousFile,
-  MaliciousUrl,
-  GuildSettings,
   FilterIgnore,
-  AllowedInvite,
-  SelfAssignableRole,
-  BannedWord
+  GuildSettings,
+  MaliciousFile,
+  MaliciousFileCategory,
+  MaliciousUrl,
+  MaliciousUrlCategory,
+  SelfAssignableRole
 } from './models';
-import type { Snowflake } from 'discord-api-types/v9';
-import { WarnCaseExtras } from '.';
 
 export type ApiDeleteFiltersFilesBody = number[];
 

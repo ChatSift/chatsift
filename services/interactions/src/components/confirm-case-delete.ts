@@ -1,11 +1,11 @@
-import { inject, injectable } from 'tsyringe';
-import { Component } from '../component';
-import { HTTPError, Rest } from '@automoderator/http-client';
-import { kSql } from '@automoderator/injection';
 import { send } from '#util';
 import { UserPerms } from '@automoderator/discord-permissions';
+import { HTTPError, Rest } from '@automoderator/http-client';
+import { kSql } from '@automoderator/injection';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
+import { inject, injectable } from 'tsyringe';
+import { Component } from '../component';
 
 @injectable()
 export default class implements Component {

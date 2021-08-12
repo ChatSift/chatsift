@@ -1,5 +1,5 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 import { UserPerms } from '@automoderator/discord-permissions';
+import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 
 const csOption = {
   name: 'case',
@@ -17,19 +17,19 @@ export const CaseCommand = {
     {
       name: 'show',
       description: 'Brings up a case',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [csOption]
     },
     {
       name: 'delete',
       description: 'Deletes a case',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [csOption]
     },
     {
       name: 'reason',
       description: 'Change the reason of a given mod action',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [
         csOption,
         {
@@ -43,7 +43,7 @@ export const CaseCommand = {
     {
       name: 'duration',
       description: 'Change the duration of a given mod action',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [
         csOption,
         {
@@ -57,7 +57,7 @@ export const CaseCommand = {
     {
       name: 'reference',
       description: 'Change the reference of a given mod action',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [
         csOption,
         {

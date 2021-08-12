@@ -1,10 +1,10 @@
-import { jsonParser, Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
-import { injectable } from 'tsyringe';
-import * as Joi from 'joi';
 import { UrlsController } from '#controllers';
-import { notFound } from '@hapi/boom';
 import type { ApiDeleteFiltersUrlsBody } from '@automoderator/core';
-import type { Request, Response, NextHandler } from 'polka';
+import { globalPermissions, jsonParser, Route, userAuth, validate } from '@automoderator/rest';
+import { notFound } from '@hapi/boom';
+import * as Joi from 'joi';
+import type { NextHandler, Request, Response } from 'polka';
+import { injectable } from 'tsyringe';
 
 @injectable()
 export default class DeleteFiltersUrlsRoute extends Route {

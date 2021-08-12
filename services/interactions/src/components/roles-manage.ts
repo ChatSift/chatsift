@@ -1,6 +1,5 @@
-import { injectable } from 'tsyringe';
-import { Component } from '../component';
 import { send } from '#util';
+import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
@@ -12,7 +11,8 @@ import {
   Routes,
   Snowflake
 } from 'discord-api-types/v9';
-import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
+import { injectable } from 'tsyringe';
+import { Component } from '../component';
 
 @injectable()
 export default class implements Component {
@@ -39,7 +39,7 @@ export default class implements Component {
     const added: string[] = [];
     const removed: string[] = [];
 
-    const selected = new Set((interaction.data as APIMessageSelectMenuInteractionData).values as Snowflake[]);
+    const selected = new Set((interaction.data as APIMessageSelectMenuInteractionData).values);
 
     for (const role of roles) {
       if (selfAssignables.has(role) && !selected.has(role)) {

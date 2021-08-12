@@ -1,7 +1,7 @@
 import { boomify } from '@hapi/boom';
 import Joi from 'joi';
-import { validate } from '../validate';
 import type { Request, Response } from 'polka';
+import { validate } from '../validate';
 
 const next = jest.fn();
 

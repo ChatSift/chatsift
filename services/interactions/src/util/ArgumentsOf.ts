@@ -2,9 +2,7 @@ import type {
   APIGuildMember,
   APIPartialChannel,
   APIRole,
-  APIUser,
-  Permissions,
-  ApplicationCommandOptionType
+  APIUser, ApplicationCommandOptionType, Permissions
 } from 'discord-api-types/v9';
 
 type Command = Readonly<{
@@ -15,7 +13,7 @@ type Command = Readonly<{
 
 type Option = Readonly<Pick<Command, 'name' | 'description'> & (
   | {
-    type: ApplicationCommandOptionType.SubCommand | ApplicationCommandOptionType.SubCommandGroup;
+    type: ApplicationCommandOptionType.Subcommand | ApplicationCommandOptionType.SubcommandGroup;
     options?: readonly Option[];
   }
   | {
@@ -39,10 +37,10 @@ type Simplify<T> = T extends unknown ? { [K in keyof T]: Simplify<T[K]> } : T;
 
 type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
 
-type TypeIdToType<T, O, C> = T extends ApplicationCommandOptionType.SubCommand
+type TypeIdToType<T, O, C> = T extends ApplicationCommandOptionType.Subcommand
   ? ArgumentsOfRaw<O>
 
-  : T extends ApplicationCommandOptionType.SubCommandGroup
+  : T extends ApplicationCommandOptionType.SubcommandGroup
     ? ArgumentsOfRaw<O>
 
     : T extends ApplicationCommandOptionType.String
@@ -80,8 +78,8 @@ type OptionToObject<O> = O extends {
     ? R extends true
       ? { [k in K]: TypeIdToType<T, O, C> }
       : T extends
-      | ApplicationCommandOptionType.SubCommand
-      | ApplicationCommandOptionType.SubCommandGroup
+      | ApplicationCommandOptionType.Subcommand
+      | ApplicationCommandOptionType.SubcommandGroup
         ? { [k in K]: TypeIdToType<T, O, C> }
         : { [k in K]?: TypeIdToType<T, O, C> }
     : never

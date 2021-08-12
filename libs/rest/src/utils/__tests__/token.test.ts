@@ -1,8 +1,8 @@
-import { TokenValidationStatus, TokenManager } from '../token';
-import { randomBytes } from 'crypto';
-import { container } from 'tsyringe';
 import { kSql } from '@automoderator/injection';
 import { compare } from 'bcrypt';
+import { randomBytes } from 'crypto';
+import { container } from 'tsyringe';
+import { TokenManager, TokenValidationStatus } from '../token';
 
 jest.mock('crypto');
 jest.mock('bcrypt');

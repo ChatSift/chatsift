@@ -1,12 +1,12 @@
-import cookie from 'cookie';
-import { inject, injectable } from 'tsyringe';
-import { Route, validate, jsonParser } from '@automoderator/rest';
-import Joi from 'joi';
-import { Config, kConfig } from '@automoderator/injection';
-import { unauthorized } from '@hapi/boom';
 import { discordOAuth2 } from '#util';
 import type { AuthGetDiscordRefreshBody } from '@automoderator/core';
-import type { Request, Response, NextHandler } from 'polka';
+import { Config, kConfig } from '@automoderator/injection';
+import { jsonParser, Route, validate } from '@automoderator/rest';
+import { unauthorized } from '@hapi/boom';
+import cookie from 'cookie';
+import Joi from 'joi';
+import type { NextHandler, Request, Response } from 'polka';
+import { inject, injectable } from 'tsyringe';
 
 @injectable()
 export default class DiscordRefreshRoute extends Route {

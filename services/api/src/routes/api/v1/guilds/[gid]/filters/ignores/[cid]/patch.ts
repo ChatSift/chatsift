@@ -1,12 +1,12 @@
-import { injectable } from 'tsyringe';
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { FilterIgnoresController } from '#controllers';
-import * as Joi from 'joi';
-import { FilterIgnores } from '@automoderator/filter-ignores';
-import { badRequest } from '@hapi/boom';
-import type { Request, Response, NextHandler } from 'polka';
-import type { Snowflake } from 'discord-api-types/v9';
 import type { ApiPatchFiltersIgnoresChannelBody } from '@automoderator/core';
+import { FilterIgnores } from '@automoderator/filter-ignores';
+import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
+import { badRequest } from '@hapi/boom';
+import type { Snowflake } from 'discord-api-types/v9';
+import * as Joi from 'joi';
+import type { NextHandler, Request, Response } from 'polka';
+import { injectable } from 'tsyringe';
 
 @injectable()
 export default class PatchGuildsFiltersIgnoresChannelRoute extends Route {

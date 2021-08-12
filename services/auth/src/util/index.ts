@@ -1,11 +1,11 @@
-import { kConfig, kLogger, Config } from '@automoderator/injection';
-import { container } from 'tsyringe';
-import { forbidden, internal } from '@hapi/boom';
-import fetch from 'node-fetch';
 import type { AuthGetDiscordCallbackQuery, AuthGetDiscordRefreshBody } from '@automoderator/core';
-import type { Request, Response, NextHandler } from 'polka';
-import type { Logger } from 'pino';
+import { Config, kConfig, kLogger } from '@automoderator/injection';
+import { forbidden, internal } from '@hapi/boom';
 import type { RESTPostOAuth2AccessTokenResult } from 'discord-api-types/v9';
+import fetch from 'node-fetch';
+import type { Logger } from 'pino';
+import type { NextHandler, Request, Response } from 'polka';
+import { container } from 'tsyringe';
 
 export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler) => {
   const config = container.resolve<Config>(kConfig);

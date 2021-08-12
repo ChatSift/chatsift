@@ -1,13 +1,13 @@
-import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
-import { UserPerms } from '@automoderator/discord-permissions';
 import { PunishmentsCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { WarnPunishment, WarnPunishmentAction } from '@automoderator/core';
+import { UserPerms } from '@automoderator/discord-permissions';
+import { kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { APIGuildInteraction } from 'discord-api-types/v9';
-import { kSql } from '@automoderator/injection';
-import { WarnPunishment, WarnPunishmentAction } from '@automoderator/core';
 import type { Sql } from 'postgres';
+import { inject, injectable } from 'tsyringe';
+import { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

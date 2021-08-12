@@ -1,8 +1,8 @@
-import { basename, dirname } from 'path';
-import { container } from 'tsyringe';
 import { kLogger } from '@automoderator/injection';
+import { basename, dirname } from 'path';
 import type { Logger } from 'pino';
-import type { Request, Middleware, Response, NextHandler, Polka, IError } from 'polka';
+import type { IError, Middleware, NextHandler, Polka, Request, Response } from 'polka';
+import { container } from 'tsyringe';
 
 export const enum RouteMethod {
   get = 'get',

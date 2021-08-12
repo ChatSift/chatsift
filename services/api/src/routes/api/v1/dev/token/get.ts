@@ -1,10 +1,10 @@
-import { injectable, inject } from 'tsyringe';
-import { TokenManager, Permissions, Route } from '@automoderator/rest';
-import { Config, kConfig, kSql } from '@automoderator/injection';
-import { badRequest } from '@hapi/boom';
 import type { App } from '@automoderator/core';
-import type { Request, Response, NextHandler } from 'polka';
+import { Config, kConfig, kSql } from '@automoderator/injection';
+import { Permissions, Route, TokenManager } from '@automoderator/rest';
+import { badRequest } from '@hapi/boom';
+import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
+import { inject, injectable } from 'tsyringe';
 
 @injectable()
 export default class GetDevTokenRoute extends Route {

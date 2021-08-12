@@ -1,6 +1,5 @@
 /* istanbul ignore file */
 import { Rest } from '@cordis/rest';
-import { container } from 'tsyringe';
 import {
   RESTPostAPIChannelMessageJSONBody,
   RESTPostAPICurrentUserCreateDMChannelJSONBody,
@@ -8,6 +7,7 @@ import {
   Routes,
   Snowflake
 } from 'discord-api-types/v9';
+import { container } from 'tsyringe';
 
 const DM_CHANNEL_CACHE = new Map<Snowflake, Snowflake>();
 setInterval(() => DM_CHANNEL_CACHE.clear(), 9e4).unref();

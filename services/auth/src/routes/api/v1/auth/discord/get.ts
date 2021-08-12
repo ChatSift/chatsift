@@ -1,10 +1,10 @@
-import { injectable, inject } from 'tsyringe';
-import { URLSearchParams } from 'url';
+import type { AuthGetDiscordQuery } from '@automoderator/core';
 import { Config, kConfig } from '@automoderator/injection';
 import { Route, State, userAuth, validate } from '@automoderator/rest';
 import * as Joi from 'joi';
-import type { AuthGetDiscordQuery } from '@automoderator/core';
 import type { Request, Response } from 'polka';
+import { inject, injectable } from 'tsyringe';
+import { URLSearchParams } from 'url';
 
 @injectable()
 export default class GetDiscordRoute extends Route {

@@ -22,8 +22,8 @@ export const transformInteraction = (
   }
 
   switch (top.type) {
-    case ApplicationCommandOptionType.SubCommand:
-    case ApplicationCommandOptionType.SubCommandGroup: {
+    case ApplicationCommandOptionType.Subcommand:
+    case ApplicationCommandOptionType.SubcommandGroup: {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       opts[top.name] = transformInteraction(top.options ?? [], resolved);
       break;

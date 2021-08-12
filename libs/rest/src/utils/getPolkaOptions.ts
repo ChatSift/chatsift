@@ -1,12 +1,12 @@
 /* istanbul ignore file */
 
-import { Boom, isBoom, notFound } from '@hapi/boom';
-import { sendBoom } from './sendBoom';
-import { createServer } from 'http';
-import { container } from 'tsyringe';
 import { kLogger } from '@automoderator/injection';
-import type * as polka from 'polka';
+import { Boom, isBoom, notFound } from '@hapi/boom';
+import { createServer } from 'http';
 import type { Logger } from 'pino';
+import type * as polka from 'polka';
+import { container } from 'tsyringe';
+import { sendBoom } from './sendBoom';
 
 export const getPolkaOptions = (): polka.IOptions => {
   const logger = container.resolve<Logger>(kLogger);

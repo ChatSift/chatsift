@@ -1,9 +1,9 @@
-import { Route, userAuth, globalPermissions, validate } from '@automoderator/rest';
-import { injectable } from 'tsyringe';
-import * as Joi from 'joi';
 import { FilesController } from '#controllers';
-import type { Request, Response } from 'polka';
 import type { ApiGetFiltersFilesBody } from '@automoderator/core';
+import { globalPermissions, Route, userAuth, validate } from '@automoderator/rest';
+import * as Joi from 'joi';
+import type { Request, Response } from 'polka';
+import { injectable } from 'tsyringe';
 
 @injectable()
 export default class GetFiltersFilesRoute extends Route {

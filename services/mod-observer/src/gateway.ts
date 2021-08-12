@@ -1,23 +1,3 @@
-import { inject, singleton } from 'tsyringe';
-import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
-import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
-import { Rest } from '@automoderator/http-client';
-import { Rest as CordisRest } from '@cordis/rest';
-import { DiscordPermissions } from '@automoderator/discord-permissions';
-import {
-  GatewayDispatchEvents,
-  GatewayGuildBanModifyDispatchData,
-  GatewayGuildMemberRemoveDispatchData,
-  GatewayGuildMemberAddDispatchData,
-  APIGuildMember,
-  APIRole,
-  RESTGetAPIAuditLogResult,
-  RESTGetAPIAuditLogQuery,
-  RESTPatchAPIGuildMemberJSONBody,
-  AuditLogEvent,
-  Snowflake,
-  Routes
-} from 'discord-api-types/v9';
 import {
   ApiPostGuildsCasesBody,
   ApiPostGuildsCasesResult,
@@ -28,9 +8,29 @@ import {
   Log,
   LogTypes
 } from '@automoderator/core';
+import { DiscordPermissions } from '@automoderator/discord-permissions';
+import { Rest } from '@automoderator/http-client';
+import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
+import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
+import { Rest as CordisRest } from '@cordis/rest';
 import { Snowflake as CordisSnowflake } from '@cordis/util';
-import type { Sql } from 'postgres';
+import {
+  APIGuildMember,
+  APIRole,
+  AuditLogEvent,
+  GatewayDispatchEvents,
+  GatewayGuildBanModifyDispatchData,
+  GatewayGuildMemberAddDispatchData,
+  GatewayGuildMemberRemoveDispatchData,
+  RESTGetAPIAuditLogQuery,
+  RESTGetAPIAuditLogResult,
+  RESTPatchAPIGuildMemberJSONBody,
+  Routes,
+  Snowflake
+} from 'discord-api-types/v9';
 import type { Logger } from 'pino';
+import type { Sql } from 'postgres';
+import { inject, singleton } from 'tsyringe';
 
 @singleton()
 export class Gateway {

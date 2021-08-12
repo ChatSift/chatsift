@@ -1,15 +1,15 @@
-import { singleton } from 'tsyringe';
-import { Command } from '../../../../command';
-import { ArgumentsOf, send } from '#util';
 import { FilterCommand } from '#interactions';
-import { Rest as DiscordRest } from '@cordis/rest';
-import { Rest } from '@automoderator/http-client';
-import type { APIGuildInteraction } from 'discord-api-types/v9';
+import { ArgumentsOf, send } from '#util';
 import type {
   ApiDeleteFiltersInvitesAllowlistCodeResult,
   ApiGetFiltersInvitesAllowlistResult,
   ApiPutFiltersInvitesAllowlistCodeResult
 } from '@automoderator/core';
+import { Rest } from '@automoderator/http-client';
+import { Rest as DiscordRest } from '@cordis/rest';
+import type { APIGuildInteraction } from 'discord-api-types/v9';
+import { singleton } from 'tsyringe';
+import { Command } from '../../../../command';
 
 @singleton()
 export class InvitesConfig implements Command {

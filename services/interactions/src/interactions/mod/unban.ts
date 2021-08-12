@@ -1,5 +1,5 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 import { UserPerms } from '@automoderator/discord-permissions';
+import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 
 export const UnbanCommand = {
   name: 'unban',

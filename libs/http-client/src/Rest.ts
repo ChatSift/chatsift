@@ -1,6 +1,6 @@
-import { injectable, inject } from 'tsyringe';
 import { Config, kConfig } from '@automoderator/injection';
 import fetch from 'node-fetch';
+import { inject, injectable } from 'tsyringe';
 import { HTTPError } from './HTTPError';
 import type { IRest } from './IRest';
 

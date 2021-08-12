@@ -1,11 +1,5 @@
-import { injectable, inject } from 'tsyringe';
-import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
-import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { BanCommand } from '#interactions';
-import { HTTPError, Rest } from '@automoderator/http-client';
-import { Rest as DiscordRest } from '@cordis/rest';
-import { PubSubPublisher } from '@cordis/brokers';
+import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
 import {
   ApiPostGuildsCasesBody,
   ApiPostGuildsCasesResult,
@@ -15,9 +9,15 @@ import {
   LogTypes,
   ms
 } from '@automoderator/core';
+import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
+import { HTTPError, Rest } from '@automoderator/http-client';
 import { kSql } from '@automoderator/injection';
+import { PubSubPublisher } from '@cordis/brokers';
+import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
+import { inject, injectable } from 'tsyringe';
+import { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

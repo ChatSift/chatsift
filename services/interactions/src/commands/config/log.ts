@@ -1,21 +1,5 @@
-import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
-import { UserPerms } from '@automoderator/discord-permissions';
 import { LogCommand } from '#interactions';
-import { Rest } from '@automoderator/http-client';
-import { kSql } from '@automoderator/injection';
-import { Rest as DiscordRest, HTTPError as DiscordHTTPError } from '@cordis/rest';
-import { stripIndents } from 'common-tags';
-import {
-  InteractionResponseType,
-  Snowflake,
-  APIGuildInteraction,
-  ChannelType,
-  RESTPostAPIChannelWebhookResult,
-  RESTPostAPIChannelWebhookJSONBody,
-  Routes
-} from 'discord-api-types/v9';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 import type {
   ApiGetGuildsSettingsResult,
   ApiPatchGuildSettingsBody,
@@ -23,7 +7,22 @@ import type {
   GuildSettings,
   WebhookToken
 } from '@automoderator/core';
+import { UserPerms } from '@automoderator/discord-permissions';
+import { Rest } from '@automoderator/http-client';
+import { kSql } from '@automoderator/injection';
+import { HTTPError as DiscordHTTPError, Rest as DiscordRest } from '@cordis/rest';
+import { stripIndents } from 'common-tags';
+import {
+  APIGuildInteraction,
+  ChannelType, InteractionResponseType,
+  RESTPostAPIChannelWebhookJSONBody,
+  RESTPostAPIChannelWebhookResult,
+  Routes,
+  Snowflake
+} from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
+import { inject, injectable } from 'tsyringe';
+import { Command } from '../../command';
 
 @injectable()
 export default class implements Command {
