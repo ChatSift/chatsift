@@ -1,10 +1,10 @@
-import { Route, validate, thirdPartyAuth, jsonParser } from '@automoderator/rest';
-import { injectable } from 'tsyringe';
-import * as Joi from 'joi';
 import { LocalFiltersController } from '#controllers';
-import type { Snowflake } from 'discord-api-types/v9';
-import type { Request, Response } from 'polka';
 import type { ApiPatchGuildsFiltersLocalBody } from '@automoderator/core';
+import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
+import type { Snowflake } from 'discord-api-types/v9';
+import * as Joi from 'joi';
+import type { Request, Response } from 'polka';
+import { injectable } from 'tsyringe';
 
 @injectable()
 export default class PatchGuildsFiltersLocalRoute extends Route {

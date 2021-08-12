@@ -1,18 +1,18 @@
-import { injectable } from 'tsyringe';
-import { Component } from '../component';
 import { send } from '#util';
+import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
 import {
-  APIGuildInteraction,
-  APIMessageSelectMenuInteractionData,
-  InteractionResponseType,
-  RESTPatchAPIGuildMemberJSONBody,
-  Routes,
-  Snowflake
+    APIGuildInteraction,
+    APIMessageSelectMenuInteractionData,
+    InteractionResponseType,
+    RESTPatchAPIGuildMemberJSONBody,
+    Routes,
+    Snowflake
 } from 'discord-api-types/v9';
-import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
+import { injectable } from 'tsyringe';
+import { Component } from '../component';
 
 @injectable()
 export default class implements Component {

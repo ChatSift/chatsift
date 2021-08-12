@@ -1,12 +1,9 @@
-import { container } from 'tsyringe';
+import { Config, kConfig } from '@automoderator/injection';
 import { File, Rest } from '@cordis/rest';
 import {
-  APIInteractionResponseCallbackData,
-  RESTPostAPIChannelMessageJSONBody,
-  InteractionResponseType,
-  Routes
+    APIInteractionResponseCallbackData, InteractionResponseType, RESTPostAPIChannelMessageJSONBody, Routes
 } from 'discord-api-types/v9';
-import { kConfig, Config } from '@automoderator/injection';
+import { container } from 'tsyringe';
 
 export interface SendOptions {
   type?: InteractionResponseType;

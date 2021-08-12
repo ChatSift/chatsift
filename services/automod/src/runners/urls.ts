@@ -1,10 +1,10 @@
-import { readFileSync } from 'fs';
-import { singleton, inject } from 'tsyringe';
-import { join as joinPath } from 'path';
+import type { ApiPostFiltersUrlsBody, ApiPostFiltersUrlsResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { kLogger } from '@automoderator/injection';
-import type { ApiPostFiltersUrlsBody, ApiPostFiltersUrlsResult } from '@automoderator/core';
+import { readFileSync } from 'fs';
+import { join as joinPath } from 'path';
 import type { Logger } from 'pino';
+import { inject, singleton } from 'tsyringe';
 
 @singleton()
 export class UrlsRunner {

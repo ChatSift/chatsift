@@ -1,11 +1,11 @@
-import 'reflect-metadata';
-
 import { initConfig, kLogger, kSql } from '@automoderator/injection';
-import { Rest } from '@cordis/rest';
 import createLogger from '@automoderator/logger';
-import { container } from 'tsyringe';
+import { Rest } from '@cordis/rest';
 import postgres from 'postgres';
+import 'reflect-metadata';
+import { container } from 'tsyringe';
 import { Handler } from './handler';
+
 
 void (async () => {
   const config = initConfig();

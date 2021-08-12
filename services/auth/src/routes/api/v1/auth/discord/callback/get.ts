@@ -1,12 +1,12 @@
-import { injectable, inject } from 'tsyringe';
-import { Config, kConfig } from '@automoderator/injection';
-import { Route, State, userAuth, validate } from '@automoderator/rest';
-import * as Joi from 'joi';
-import cookie from 'cookie';
-import { badRequest } from '@hapi/boom';
 import { discordOAuth2 } from '#util';
 import type { AuthGetDiscordCallbackQuery } from '@automoderator/core';
-import type { Request, Response, NextHandler } from 'polka';
+import { Config, kConfig } from '@automoderator/injection';
+import { Route, State, userAuth, validate } from '@automoderator/rest';
+import { badRequest } from '@hapi/boom';
+import cookie from 'cookie';
+import * as Joi from 'joi';
+import type { NextHandler, Request, Response } from 'polka';
+import { inject, injectable } from 'tsyringe';
 
 @injectable()
 export default class GetDiscordCallbackRoute extends Route {

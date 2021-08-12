@@ -1,7 +1,7 @@
-import { Http2ServerResponse } from 'http2';
-import { jsonParser } from '../jsonParser';
 import { Boom } from '@hapi/boom';
+import { Http2ServerResponse } from 'http2';
 import type { Request, Response } from 'polka';
+import { jsonParser } from '../jsonParser';
 
 jest.mock('http2');
 

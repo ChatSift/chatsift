@@ -1,11 +1,11 @@
-import { singleton, inject } from 'tsyringe';
+import type { GuildSettings } from '@automoderator/core';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
-import { DiscordPermissions } from './DiscordPermissions';
 import { Rest } from '@cordis/rest';
 import { APIInteractionGuildMember, RESTGetAPIGuildResult, Routes, Snowflake } from 'discord-api-types/v9';
-import type { Sql } from 'postgres';
-import type { GuildSettings } from '@automoderator/core';
 import type { Logger } from 'pino';
+import type { Sql } from 'postgres';
+import { inject, singleton } from 'tsyringe';
+import { DiscordPermissions } from './DiscordPermissions';
 
 export enum UserPerms {
   none,

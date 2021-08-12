@@ -1,7 +1,7 @@
-import { container } from 'tsyringe';
-import { PermissionsChecker, UserPerms, PermissionsCheckerData } from '../PermissionsChecker';
 import { kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
+import { container } from 'tsyringe';
+import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '../PermissionsChecker';
 
 const sqlMock = jest.fn().mockImplementation(() => Promise.resolve([]));
 const restGetMock = jest.fn();

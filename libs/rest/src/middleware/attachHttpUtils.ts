@@ -1,6 +1,6 @@
 /* istanbul ignore file */
 import cookie from 'cookie';
-import type { Request, Response, NextHandler } from 'polka';
+import type { NextHandler, Request, Response } from 'polka';
 
 declare module 'http' {
   export interface ServerResponse {

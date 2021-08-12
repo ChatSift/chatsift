@@ -1,14 +1,14 @@
-import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
-import { ArgumentsOf, send } from '#util';
-import { UserPerms } from '@automoderator/discord-permissions';
 import { HistoryCommand } from '#interactions';
-import { Rest } from '@automoderator/http-client';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { ArgumentsOf, send } from '#util';
 import { Case, FilterTrigger, GuildSettings, makeHistoryEmbed } from '@automoderator/core';
+import { UserPerms } from '@automoderator/discord-permissions';
+import { Rest } from '@automoderator/http-client';
 import { kSql } from '@automoderator/injection';
+import { Rest as DiscordRest } from '@cordis/rest';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
+import { inject, injectable } from 'tsyringe';
+import { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

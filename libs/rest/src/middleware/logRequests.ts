@@ -1,10 +1,10 @@
 /* istanbul ignore file */
 
-import { container } from 'tsyringe';
 import { kLogger } from '@automoderator/injection';
 import { Stopwatch } from '@sapphire/stopwatch';
 import type { Logger } from 'pino';
-import type { Request, Response, NextHandler } from 'polka';
+import type { NextHandler, Request, Response } from 'polka';
+import { container } from 'tsyringe';
 
 export const logRequests = () => {
   const logger = container.resolve<Logger>(kLogger);

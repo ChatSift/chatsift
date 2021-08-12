@@ -1,10 +1,10 @@
-import polka from 'polka';
+import { Config, kConfig } from '@automoderator/injection';
 import cors from 'cors';
 import helmet from 'helmet';
+import polka from 'polka';
 import { container } from 'tsyringe';
-import { Config, kConfig } from '@automoderator/injection';
-import { getPolkaOptions } from './utils';
 import { attachHttpUtils } from './middleware';
+import { getPolkaOptions } from './utils';
 
 export const createApp = () => {
   const config = container.resolve<Config>(kConfig);

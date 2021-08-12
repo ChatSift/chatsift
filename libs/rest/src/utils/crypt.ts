@@ -1,5 +1,5 @@
 import { Config, kConfig } from '@automoderator/injection';
-import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import { container } from 'tsyringe';
 
 export const encrypt = (data: string) => {

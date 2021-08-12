@@ -1,7 +1,7 @@
 /* istanbul ignore file */
 import { Rest } from '@cordis/rest';
-import { container } from 'tsyringe';
 import { APIGuild, Routes, Snowflake } from 'discord-api-types/v9';
+import { container } from 'tsyringe';
 
 const GUILD_NAME_CACHE = new Map<Snowflake, string>();
 setInterval(() => GUILD_NAME_CACHE.clear(), 9e4).unref();

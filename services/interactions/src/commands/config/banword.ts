@@ -1,17 +1,17 @@
+import { BanwordCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { BanwordFlags, BanwordFlagsResolvable } from '@automoderator/banword-flags';
+import type { BannedWord } from '@automoderator/core';
+import { UserPerms } from '@automoderator/discord-permissions';
+import { kLogger, kSql } from '@automoderator/injection';
+import { File, Rest } from '@cordis/rest';
+import type { APIGuildInteraction } from 'discord-api-types/v9';
+import yaml from 'js-yaml';
+import fetch from 'node-fetch';
+import type { Logger } from 'pino';
+import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
-import { UserPerms } from '@automoderator/discord-permissions';
-import { BanwordCommand } from '#interactions';
-import { File, Rest } from '@cordis/rest';
-import { kLogger, kSql } from '@automoderator/injection';
-import { BanwordFlags, BanwordFlagsResolvable } from '@automoderator/banword-flags';
-import fetch from 'node-fetch';
-import yaml from 'js-yaml';
-import type { APIGuildInteraction } from 'discord-api-types/v9';
-import type { BannedWord } from '@automoderator/core';
-import type { Sql } from 'postgres';
-import type { Logger } from 'pino';
 
 interface ParsedEntry {
   muteduration?: number;

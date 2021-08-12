@@ -1,11 +1,11 @@
-import { injectable } from 'tsyringe';
-import { Component } from '../component';
 import { send } from '#util';
-import { APIGuildInteraction, ComponentType, InteractionResponseType, RESTGetAPIGuildRolesResult, Routes } from 'discord-api-types/v9';
-import { nanoid } from 'nanoid';
+import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
+import { APIGuildInteraction, ComponentType, InteractionResponseType, RESTGetAPIGuildRolesResult, Routes } from 'discord-api-types/v9';
+import { nanoid } from 'nanoid';
+import { injectable } from 'tsyringe';
+import { Component } from '../component';
 
 @injectable()
 export default class implements Component {

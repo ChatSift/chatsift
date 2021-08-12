@@ -1,10 +1,10 @@
-import 'reflect-metadata';
-import postgres from 'postgres';
-import createLogger from '@automoderator/logger';
-import { initConfig } from '@automoderator/injection';
-import { Rest as DiscordRest } from '@cordis/rest';
 import { Case, CaseAction, GuildSettings, UnmuteRole } from '@automoderator/core';
+import { initConfig } from '@automoderator/injection';
+import createLogger from '@automoderator/logger';
+import { Rest as DiscordRest } from '@cordis/rest';
 import { RESTPatchAPIGuildMemberJSONBody, Routes } from 'discord-api-types/v9';
+import postgres from 'postgres';
+import 'reflect-metadata';
 
 const config = initConfig();
 const logger = createLogger('cron-runner');

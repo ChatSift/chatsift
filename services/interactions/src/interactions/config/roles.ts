@@ -1,5 +1,5 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 import { UserPerms } from '@automoderator/discord-permissions';
+import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 
 export const RolesCommand = {
   name: 'roles',
@@ -10,18 +10,18 @@ export const RolesCommand = {
     {
       name: 'prompt',
       description: 'Create a role selection prompt',
-      type: ApplicationCommandOptionType.SubCommandGroup,
+      type: ApplicationCommandOptionType.SubcommandGroup,
       options: [
         {
           name: 'display',
           description: 'Displays the current prompt for self assignable roles',
-          type: ApplicationCommandOptionType.SubCommand,
+          type: ApplicationCommandOptionType.Subcommand,
           options: []
         },
         {
           name: 'set',
           description: 'Updates the prompt for self assignable roles',
-          type: ApplicationCommandOptionType.SubCommand,
+          type: ApplicationCommandOptionType.Subcommand,
           options: [
             {
               name: 'prompt',
@@ -36,7 +36,7 @@ export const RolesCommand = {
     {
       name: 'add',
       description: 'Adds a role to the list of self assignable roles',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
           name: 'role',
@@ -49,7 +49,7 @@ export const RolesCommand = {
     {
       name: 'remove',
       description: 'Removes a role from the list of self assignable roles',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
           name: 'role',
@@ -62,7 +62,7 @@ export const RolesCommand = {
     {
       name: 'list',
       description: 'Lists all of the currently self assignable roles',
-      type: ApplicationCommandOptionType.SubCommand,
+      type: ApplicationCommandOptionType.Subcommand,
       options: []
     }
   ]

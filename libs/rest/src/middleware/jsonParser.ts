@@ -1,5 +1,5 @@
-import { badRequest, badData } from '@hapi/boom';
-import type { Request, Response, NextHandler } from 'polka';
+import { badData, badRequest } from '@hapi/boom';
+import type { NextHandler, Request, Response } from 'polka';
 
 declare module 'polka' {
   interface Request {

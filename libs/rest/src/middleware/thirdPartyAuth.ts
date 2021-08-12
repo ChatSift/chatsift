@@ -1,10 +1,10 @@
-import { unauthorized, badRequest } from '@hapi/boom';
-import { Permissions, TokenManager, TokenValidationStatus } from '../utils';
-import { container } from 'tsyringe';
-import { kSql } from '@automoderator/injection';
-import type { Request, Response, NextHandler } from 'polka';
 import type { App, AppGuild } from '@automoderator/core';
+import { kSql } from '@automoderator/injection';
+import { badRequest, unauthorized } from '@hapi/boom';
+import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
+import { container } from 'tsyringe';
+import { Permissions, TokenManager, TokenValidationStatus } from '../utils';
 
 declare module 'polka' {
   export interface Request {

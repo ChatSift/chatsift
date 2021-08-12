@@ -1,10 +1,10 @@
-import { injectable } from 'tsyringe';
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { SettingsController } from '#controllers';
+import type { ApiPatchGuildSettingsBody } from '@automoderator/core';
+import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
+import type { Snowflake } from 'discord-api-types/v9';
 import * as Joi from 'joi';
 import type { Request, Response } from 'polka';
-import type { Snowflake } from 'discord-api-types/v9';
-import type { ApiPatchGuildSettingsBody } from '@automoderator/core';
+import { injectable } from 'tsyringe';
 
 @injectable()
 export default class PatchGuildsSettingsRoute extends Route {

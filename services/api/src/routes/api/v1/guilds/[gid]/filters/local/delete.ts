@@ -1,11 +1,11 @@
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
-import { injectable } from 'tsyringe';
 import { LocalFiltersController } from '#controllers';
-import { notFound } from '@hapi/boom';
 import { ApiDeleteGuildsFiltersLocalBody, BannedWord } from '@automoderator/core';
-import * as Joi from 'joi';
+import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
+import { notFound } from '@hapi/boom';
 import type { Snowflake } from 'discord-api-types/v9';
-import type { Request, Response, NextHandler } from 'polka';
+import * as Joi from 'joi';
+import type { NextHandler, Request, Response } from 'polka';
+import { injectable } from 'tsyringe';
 
 @injectable()
 export default class DeleteGuildsFiltersLocalRoute extends Route {

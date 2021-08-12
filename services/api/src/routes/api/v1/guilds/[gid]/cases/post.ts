@@ -1,30 +1,21 @@
-import { inject, injectable } from 'tsyringe';
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
-import * as Joi from 'joi';
-import { kSql } from '@automoderator/injection';
-import { badRequest } from '@hapi/boom';
-import { HTTPError, Rest } from '@cordis/rest';
 import {
-  CaseAction,
-  ApiPostGuildsCasesBody,
-  Case,
-  CaseData,
-  GuildSettings,
-  UnmuteRole,
-  WarnPunishment,
-  WarnPunishmentAction,
-  WarnCaseExtras
+    ApiPostGuildsCasesBody,
+    Case, CaseAction, CaseData,
+    GuildSettings,
+    UnmuteRole, WarnCaseExtras, WarnPunishment,
+    WarnPunishmentAction
 } from '@automoderator/core';
+import { kSql } from '@automoderator/injection';
+import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
+import { HTTPError, Rest } from '@cordis/rest';
+import { badRequest } from '@hapi/boom';
 import {
-  RESTPutAPIGuildBanJSONBody,
-  RESTPatchAPIGuildMemberJSONBody,
-  APIRole,
-  Snowflake,
-  Routes,
-  APIGuildMember
+    APIGuildMember, APIRole, RESTPatchAPIGuildMemberJSONBody, RESTPutAPIGuildBanJSONBody, Routes, Snowflake
 } from 'discord-api-types/v9';
-import type { Request, Response, NextHandler } from 'polka';
+import * as Joi from 'joi';
+import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
+import { inject, injectable } from 'tsyringe';
 
 @injectable()
 export default class PostGuildsCasesRoute extends Route {

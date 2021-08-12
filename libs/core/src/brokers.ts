@@ -1,11 +1,8 @@
 import type {
-  GatewayDispatchEvents,
-  APIMessage,
-  GatewayDispatchPayload,
-  APIGuildInteraction
+  APIGuildInteraction, APIMessage, GatewayDispatchEvents, GatewayDispatchPayload
 } from 'discord-api-types/v9';
 import type { ApiPostFiltersFilesResult, ApiPostFiltersUrlsResult, HttpCase } from './api';
-import type { CaseAction, WarnPunishmentAction, BannedWord } from './models';
+import type { BannedWord, CaseAction, WarnPunishmentAction } from './models';
 
 type SanitizedDiscordEvents = {
   [K in GatewayDispatchEvents]: GatewayDispatchPayload & {

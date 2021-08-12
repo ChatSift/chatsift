@@ -1,18 +1,16 @@
-import { injectable, inject } from 'tsyringe';
-import { Route, jsonParser } from '@automoderator/rest';
-import { unauthorized } from '@hapi/boom';
-import * as nacl from 'tweetnacl';
-import { Config, kConfig, kLogger } from '@automoderator/injection';
-import {
-  InteractionType,
-  InteractionResponseType,
-  APIGuildInteraction,
-  APIInteraction
-} from 'discord-api-types/v9';
-import { Handler } from '../../../../../handler';
 import { Interaction } from '#util';
-import type { Request, Response, NextHandler } from 'polka';
+import { Config, kConfig, kLogger } from '@automoderator/injection';
+import { jsonParser, Route } from '@automoderator/rest';
+import { unauthorized } from '@hapi/boom';
+import {
+    APIGuildInteraction,
+    APIInteraction, InteractionResponseType, InteractionType
+} from 'discord-api-types/v9';
 import type { Logger } from 'pino';
+import type { NextHandler, Request, Response } from 'polka';
+import { inject, injectable } from 'tsyringe';
+import * as nacl from 'tweetnacl';
+import { Handler } from '../../../../../handler';
 
 @injectable()
 export default class PostDiscordWebhookRoute extends Route {

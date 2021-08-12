@@ -1,13 +1,13 @@
-import { injectable } from 'tsyringe';
-import { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
-import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { KickCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
+import { ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, CaseAction, Log, LogTypes } from '@automoderator/core';
+import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { HTTPError, Rest } from '@automoderator/http-client';
+import { PubSubPublisher } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
-import { ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, CaseAction, Log, LogTypes } from '@automoderator/core';
-import { PubSubPublisher } from '@cordis/brokers';
+import { injectable } from 'tsyringe';
+import { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

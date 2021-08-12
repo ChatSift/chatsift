@@ -1,5 +1,5 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 import { UserPerms } from '@automoderator/discord-permissions';
+import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 
 export const FilterCommand = {
   name: 'filter',
@@ -10,18 +10,18 @@ export const FilterCommand = {
     {
       name: 'config',
       description: 'Allows you to interact with the server\'s filter config',
-      type: ApplicationCommandOptionType.SubCommandGroup,
+      type: ApplicationCommandOptionType.SubcommandGroup,
       options: [
         {
           name: 'show',
           description: 'Shows the current config',
-          type: ApplicationCommandOptionType.SubCommand,
+          type: ApplicationCommandOptionType.Subcommand,
           options: []
         },
         {
           name: 'edit',
           description: 'Edits the current config',
-          type: ApplicationCommandOptionType.SubCommand,
+          type: ApplicationCommandOptionType.Subcommand,
           options: [
             {
               name: 'urls',
@@ -46,7 +46,7 @@ export const FilterCommand = {
         {
           name: 'ignore',
           description: 'Allows you to configure the ignores for a given channel',
-          type: ApplicationCommandOptionType.SubCommand,
+          type: ApplicationCommandOptionType.Subcommand,
           options: [
             {
               name: 'channel',
@@ -83,7 +83,7 @@ export const FilterCommand = {
         {
           name: 'ignorelist',
           description: 'Shows all the currently ignored channels',
-          type: ApplicationCommandOptionType.SubCommand,
+          type: ApplicationCommandOptionType.Subcommand,
           options: []
         }
       ]
@@ -91,12 +91,12 @@ export const FilterCommand = {
     {
       name: 'invites',
       description: 'Allows you to manage your local invite filters',
-      type: ApplicationCommandOptionType.SubCommandGroup,
+      type: ApplicationCommandOptionType.SubcommandGroup,
       options: [
         {
           name: 'allow',
           description: 'Adds the given invites to the allow list',
-          type: ApplicationCommandOptionType.SubCommand,
+          type: ApplicationCommandOptionType.Subcommand,
           options: [
             {
               name: 'entries',
@@ -109,7 +109,7 @@ export const FilterCommand = {
         {
           name: 'unallow',
           description: 'Removes the given invites from the allow list',
-          type: ApplicationCommandOptionType.SubCommand,
+          type: ApplicationCommandOptionType.Subcommand,
           options: [
             {
               name: 'entries',
@@ -122,7 +122,7 @@ export const FilterCommand = {
         {
           name: 'list',
           description: 'Lists all the allowed invites',
-          type: ApplicationCommandOptionType.SubCommand,
+          type: ApplicationCommandOptionType.Subcommand,
           options: []
         }
       ]

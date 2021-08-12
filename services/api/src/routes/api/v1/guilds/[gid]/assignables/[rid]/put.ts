@@ -1,9 +1,9 @@
-import { injectable } from 'tsyringe';
-import { Route, thirdPartyAuth } from '@automoderator/rest';
 import { AssignablesController } from '#controllers';
+import { Route, thirdPartyAuth } from '@automoderator/rest';
 import { conflict } from '@hapi/boom';
-import type { Request, Response, NextHandler } from 'polka';
 import type { Snowflake } from 'discord-api-types/v9';
+import type { NextHandler, Request, Response } from 'polka';
+import { injectable } from 'tsyringe';
 
 @injectable()
 export default class PutGuildsAssignablesRoleRoute extends Route {

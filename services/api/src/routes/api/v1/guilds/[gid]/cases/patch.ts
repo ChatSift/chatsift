@@ -1,11 +1,11 @@
-import { inject, injectable } from 'tsyringe';
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
-import * as Joi from 'joi';
-import { CaseAction, ApiPatchGuildsCasesBody, Case } from '@automoderator/core';
+import { ApiPatchGuildsCasesBody, Case, CaseAction } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
-import { notFound, badRequest } from '@hapi/boom';
-import type { Request, Response, NextHandler } from 'polka';
+import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
+import { badRequest, notFound } from '@hapi/boom';
+import * as Joi from 'joi';
+import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
+import { inject, injectable } from 'tsyringe';
 
 @injectable()
 export default class PostGuildsCasesRoute extends Route {

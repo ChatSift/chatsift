@@ -1,6 +1,6 @@
 import { badData } from '@hapi/boom';
 import type { AnySchema } from 'joi';
-import type { Request, Response, NextHandler } from 'polka';
+import type { NextHandler, Request, Response } from 'polka';
 
 type ValidateMiddlewareProp = 'body' | 'query' | 'params' | 'headers' | 'body';
 

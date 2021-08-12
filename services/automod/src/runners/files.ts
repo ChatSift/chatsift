@@ -1,10 +1,10 @@
-import { singleton, inject } from 'tsyringe';
+import type { ApiPostFiltersFilesBody, ApiPostFiltersFilesResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
-import fetch from 'node-fetch';
 import { kLogger } from '@automoderator/injection';
 import { createHash } from 'crypto';
-import type { ApiPostFiltersFilesBody, ApiPostFiltersFilesResult } from '@automoderator/core';
+import fetch from 'node-fetch';
 import type { Logger } from 'pino';
+import { inject, singleton } from 'tsyringe';
 
 @singleton()
 export class FilesRunner {

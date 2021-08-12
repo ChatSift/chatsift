@@ -1,9 +1,9 @@
+import { kConfig } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
+import { InteractionResponseType, Routes } from 'discord-api-types/v9';
+import type { Response } from 'polka';
 import { container } from 'tsyringe';
 import { send } from '../';
-import { InteractionResponseType, Routes } from 'discord-api-types/v9';
-import { kConfig } from '@automoderator/injection';
-import type { Response } from 'polka';
 
 const mockedPost = jest.fn();
 const mockedPatch = jest.fn();

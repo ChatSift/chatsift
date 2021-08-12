@@ -1,4 +1,4 @@
-import type { Snowflake, Permissions } from 'discord-api-types/v9';
+import type { Permissions, Snowflake } from 'discord-api-types/v9';
 
 export class RolesPermsCache {
   private readonly _cache = new Map<Snowflake, Permissions>();

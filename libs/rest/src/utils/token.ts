@@ -9,12 +9,12 @@
 
 // Unused sigs are automatically expired after a week.
 
+import type { App, Sig } from '@automoderator/core';
+import { kSql } from '@automoderator/injection';
 import { compare, hash } from 'bcrypt';
 import { randomBytes } from 'crypto';
-import { singleton, inject } from 'tsyringe';
-import { kSql } from '@automoderator/injection';
 import type { Sql } from 'postgres';
-import type { App, Sig } from '@automoderator/core';
+import { inject, singleton } from 'tsyringe';
 
 export const enum TokenValidationStatus {
   malformedToken,

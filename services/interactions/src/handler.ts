@@ -1,24 +1,18 @@
-import { singleton, inject, container } from 'tsyringe';
+import * as interactions from '#interactions';
+import { ControlFlowError, Interaction, send, transformInteraction } from '#util';
+import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
-import { join as joinPath } from 'path';
-import { Command, commandInfo } from './command';
-import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
-import { transformInteraction, ControlFlowError, send, Interaction } from '#util';
 import {
-  Routes,
-  RESTPutAPIApplicationCommandsResult,
-  RESTPutAPIApplicationCommandsJSONBody,
-  RESTPutAPIApplicationGuildCommandsResult,
-  RESTPutAPIApplicationGuildCommandsJSONBody,
-  APIApplicationCommandInteractionData,
-  APIMessageButtonInteractionData,
-  Snowflake
+    APIApplicationCommandInteractionData,
+    APIMessageButtonInteractionData, RESTPutAPIApplicationCommandsJSONBody, RESTPutAPIApplicationCommandsResult, RESTPutAPIApplicationGuildCommandsJSONBody, RESTPutAPIApplicationGuildCommandsResult, Routes, Snowflake
 } from 'discord-api-types/v9';
-import * as interactions from '#interactions';
-import { Component, componentInfo } from './component';
+import { join as joinPath } from 'path';
 import type { Logger } from 'pino';
+import { container, inject, singleton } from 'tsyringe';
+import { Command, commandInfo } from './command';
+import { Component, componentInfo } from './component';
 
 @singleton()
 export class Handler {

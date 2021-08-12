@@ -1,45 +1,28 @@
-import { inject, singleton } from 'tsyringe';
-import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
-import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
-import { FilesRunner, InvitesRunner, UrlsRunner, WordsRunner } from './runners';
-import { Rest } from '@automoderator/http-client';
-import { Rest as CordisRest } from '@cordis/rest';
-import { RolesPermsCache } from './RolesPermsCache';
-import { FilterIgnores } from '@automoderator/filter-ignores';
 import {
-  GatewayDispatchEvents,
-  APIMessage,
-  APIRole,
-  APIGuild,
-  RESTGetAPIGuildRolesResult,
-  Snowflake,
-  Routes
-} from 'discord-api-types/v9';
-import {
-  GuildSettings,
-  DiscordEvents,
-  FilterIgnore,
-  NotOkRunnerResult,
-  UrlsRunnerResult,
-  Runners,
-  FilesRunnerResult,
-  InvitesRunnerResult,
-  WordsRunnerResult,
-  RunnerResult,
-  Log,
-  LogTypes,
-  OkRunnerResult,
-  ApiPostGuildsCasesBody,
-  CaseAction
+    ApiPostGuildsCasesBody,
+    CaseAction, DiscordEvents, FilesRunnerResult, FilterIgnore, GuildSettings, InvitesRunnerResult, Log,
+    LogTypes, NotOkRunnerResult, OkRunnerResult, RunnerResult, Runners, UrlsRunnerResult, WordsRunnerResult
 } from '@automoderator/core';
 import {
-  DiscordPermissions,
-  PermissionsChecker,
-  PermissionsCheckerData,
-  UserPerms
+    DiscordPermissions,
+    PermissionsChecker,
+    PermissionsCheckerData,
+    UserPerms
 } from '@automoderator/discord-permissions';
-import type { Sql } from 'postgres';
+import { FilterIgnores } from '@automoderator/filter-ignores';
+import { Rest } from '@automoderator/http-client';
+import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
+import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
+import { Rest as CordisRest } from '@cordis/rest';
+import {
+    APIGuild, APIMessage,
+    APIRole, GatewayDispatchEvents, RESTGetAPIGuildRolesResult, Routes, Snowflake
+} from 'discord-api-types/v9';
 import type { Logger } from 'pino';
+import type { Sql } from 'postgres';
+import { inject, singleton } from 'tsyringe';
+import { RolesPermsCache } from './RolesPermsCache';
+import { FilesRunner, InvitesRunner, UrlsRunner, WordsRunner } from './runners';
 
 interface FilesRunnerData {
   message: APIMessage;

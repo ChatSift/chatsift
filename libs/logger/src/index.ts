@@ -1,11 +1,11 @@
-import createLogger, { LoggerOptions } from 'pino';
-import { container } from 'tsyringe';
 import { Config, kConfig } from '@automoderator/injection';
 import ecsFormat from '@elastic/ecs-pino-format';
-import { multistream, Streams } from 'pino-multi-stream';
-import pinoPretty from 'pino-pretty';
+import createLogger, { LoggerOptions } from 'pino';
 // @ts-expect-error
 import pinoElastic from 'pino-elasticsearch';
+import { multistream, Streams } from 'pino-multi-stream';
+import pinoPretty from 'pino-pretty';
+import { container } from 'tsyringe';
 
 export default (service: string) => {
   const { nodeEnv, elasticUrl, elasticUsername, elasticPassword } = container.resolve<Config>(kConfig);
