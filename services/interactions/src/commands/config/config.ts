@@ -2,10 +2,10 @@ import * as interactions from '#interactions';
 import { ConfigCommand } from '#interactions';
 import { ArgumentsOf, send } from '#util';
 import type {
-    ApiGetGuildsSettingsResult,
-    ApiPatchGuildSettingsBody,
-    ApiPatchGuildSettingsResult,
-    GuildSettings
+  ApiGetGuildsSettingsResult,
+  ApiPatchGuildSettingsBody,
+  ApiPatchGuildSettingsResult,
+  GuildSettings
 } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
@@ -13,7 +13,12 @@ import { Config, kConfig } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
 import {
-    APIApplicationCommandPermission, APIGuild, APIGuildInteraction, ApplicationCommandPermissionType, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody, Routes
+  APIApplicationCommandPermission,
+  APIGuild,
+  APIGuildInteraction,
+  ApplicationCommandPermissionType,
+  RESTPutAPIGuildApplicationCommandsPermissionsJSONBody,
+  Routes
 } from 'discord-api-types/v9';
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';

@@ -1,7 +1,10 @@
 import { Config, kConfig } from '@automoderator/injection';
 import { File, Rest } from '@cordis/rest';
 import {
-    APIInteractionResponseCallbackData, InteractionResponseType, RESTPostAPIChannelMessageJSONBody, Routes
+  APIInteractionResponseCallbackData,
+  InteractionResponseType,
+  RESTPostAPIChannelMessageJSONBody,
+  Routes
 } from 'discord-api-types/v9';
 import { container } from 'tsyringe';
 

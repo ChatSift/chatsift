@@ -1,15 +1,15 @@
 import { CaseCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import {
-    ApiGetGuildsCaseResult,
-    ApiGetGuildsSettingsResult,
-    ApiPatchGuildsCasesBody,
-    ApiPostGuildsCasesResult,
-    Case,
-    Log,
-    LogTypes,
-    makeCaseEmbed,
-    ms
+  ApiGetGuildsCaseResult,
+  ApiGetGuildsSettingsResult,
+  ApiPatchGuildsCasesBody,
+  ApiPostGuildsCasesResult,
+  Case,
+  Log,
+  LogTypes,
+  makeCaseEmbed,
+  ms
 } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { HTTPError, Rest } from '@automoderator/http-client';

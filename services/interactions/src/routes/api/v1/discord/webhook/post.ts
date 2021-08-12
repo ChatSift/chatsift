@@ -3,8 +3,10 @@ import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { jsonParser, Route } from '@automoderator/rest';
 import { unauthorized } from '@hapi/boom';
 import {
-    APIGuildInteraction,
-    APIInteraction, InteractionResponseType, InteractionType
+  APIGuildInteraction,
+  APIInteraction,
+  InteractionResponseType,
+  InteractionType
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import type { NextHandler, Request, Response } from 'polka';

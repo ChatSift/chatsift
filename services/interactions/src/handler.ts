@@ -5,8 +5,14 @@ import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
 import {
-    APIApplicationCommandInteractionData,
-    APIMessageButtonInteractionData, RESTPutAPIApplicationCommandsJSONBody, RESTPutAPIApplicationCommandsResult, RESTPutAPIApplicationGuildCommandsJSONBody, RESTPutAPIApplicationGuildCommandsResult, Routes, Snowflake
+  APIApplicationCommandInteractionData,
+  APIMessageButtonInteractionData,
+  RESTPutAPIApplicationCommandsJSONBody,
+  RESTPutAPIApplicationCommandsResult,
+  RESTPutAPIApplicationGuildCommandsJSONBody,
+  RESTPutAPIApplicationGuildCommandsResult,
+  Routes,
+  Snowflake
 } from 'discord-api-types/v9';
 import { join as joinPath } from 'path';
 import type { Logger } from 'pino';

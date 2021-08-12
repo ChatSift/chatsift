@@ -1,11 +1,11 @@
 /* istanbul ignore file */
 import { Rest } from '@cordis/rest';
 import {
-    RESTPostAPIChannelMessageJSONBody,
-    RESTPostAPICurrentUserCreateDMChannelJSONBody,
-    RESTPostAPICurrentUserCreateDMChannelResult,
-    Routes,
-    Snowflake
+  RESTPostAPIChannelMessageJSONBody,
+  RESTPostAPICurrentUserCreateDMChannelJSONBody,
+  RESTPostAPICurrentUserCreateDMChannelResult,
+  Routes,
+  Snowflake
 } from 'discord-api-types/v9';
 import { container } from 'tsyringe';
 

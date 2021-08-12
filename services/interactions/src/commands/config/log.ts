@@ -1,11 +1,11 @@
 import { LogCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import type {
-    ApiGetGuildsSettingsResult,
-    ApiPatchGuildSettingsBody,
-    ApiPatchGuildSettingsResult,
-    GuildSettings,
-    WebhookToken
+  ApiGetGuildsSettingsResult,
+  ApiPatchGuildSettingsBody,
+  ApiPatchGuildSettingsResult,
+  GuildSettings,
+  WebhookToken
 } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
@@ -13,8 +13,12 @@ import { kSql } from '@automoderator/injection';
 import { HTTPError as DiscordHTTPError, Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
 import {
-    APIGuildInteraction,
-    ChannelType, InteractionResponseType, RESTPostAPIChannelWebhookJSONBody, RESTPostAPIChannelWebhookResult, Routes, Snowflake
+  APIGuildInteraction,
+  ChannelType, InteractionResponseType,
+  RESTPostAPIChannelWebhookJSONBody,
+  RESTPostAPIChannelWebhookResult,
+  Routes,
+  Snowflake
 } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';

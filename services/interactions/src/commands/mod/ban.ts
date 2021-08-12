@@ -1,13 +1,13 @@
 import { BanCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
 import {
-    ApiPostGuildsCasesBody,
-    ApiPostGuildsCasesResult,
-    Case,
-    CaseAction,
-    Log,
-    LogTypes,
-    ms
+  ApiPostGuildsCasesBody,
+  ApiPostGuildsCasesResult,
+  Case,
+  CaseAction,
+  Log,
+  LogTypes,
+  ms
 } from '@automoderator/core';
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { HTTPError, Rest } from '@automoderator/http-client';

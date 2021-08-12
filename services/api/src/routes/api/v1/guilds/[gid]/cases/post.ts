@@ -1,16 +1,25 @@
 import {
-    ApiPostGuildsCasesBody,
-    Case, CaseAction, CaseData,
-    GuildSettings,
-    UnmuteRole, WarnCaseExtras, WarnPunishment,
-    WarnPunishmentAction
+  ApiPostGuildsCasesBody,
+  Case,
+  CaseAction,
+  CaseData,
+  GuildSettings,
+  UnmuteRole,
+  WarnCaseExtras,
+  WarnPunishment,
+  WarnPunishmentAction
 } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
 import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { HTTPError, Rest } from '@cordis/rest';
 import { badRequest } from '@hapi/boom';
 import {
-    APIGuildMember, APIRole, RESTPatchAPIGuildMemberJSONBody, RESTPutAPIGuildBanJSONBody, Routes, Snowflake
+  APIGuildMember,
+  APIRole,
+  RESTPatchAPIGuildMemberJSONBody,
+  RESTPutAPIGuildBanJSONBody,
+  Routes,
+  Snowflake
 } from 'discord-api-types/v9';
 import * as Joi from 'joi';
 import type { NextHandler, Request, Response } from 'polka';

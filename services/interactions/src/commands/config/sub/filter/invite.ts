@@ -1,9 +1,9 @@
 import { FilterCommand } from '#interactions';
 import { ArgumentsOf, send } from '#util';
 import type {
-    ApiDeleteFiltersInvitesAllowlistCodeResult,
-    ApiGetFiltersInvitesAllowlistResult,
-    ApiPutFiltersInvitesAllowlistCodeResult
+  ApiDeleteFiltersInvitesAllowlistCodeResult,
+  ApiGetFiltersInvitesAllowlistResult,
+  ApiPutFiltersInvitesAllowlistCodeResult
 } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';

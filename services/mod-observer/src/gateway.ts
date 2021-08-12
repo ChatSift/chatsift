@@ -1,12 +1,12 @@
 import {
-    ApiPostGuildsCasesBody,
-    ApiPostGuildsCasesResult,
-    Case,
-    CaseAction,
-    DiscordEvents,
-    GuildSettings,
-    Log,
-    LogTypes
+  ApiPostGuildsCasesBody,
+  ApiPostGuildsCasesResult,
+  Case,
+  CaseAction,
+  DiscordEvents,
+  GuildSettings,
+  Log,
+  LogTypes
 } from '@automoderator/core';
 import { DiscordPermissions } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
@@ -15,9 +15,18 @@ import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers'
 import { Rest as CordisRest } from '@cordis/rest';
 import { Snowflake as CordisSnowflake } from '@cordis/util';
 import {
-    APIGuildMember,
-    APIRole, AuditLogEvent, GatewayDispatchEvents,
-    GatewayGuildBanModifyDispatchData, GatewayGuildMemberAddDispatchData, GatewayGuildMemberRemoveDispatchData, RESTGetAPIAuditLogQuery, RESTGetAPIAuditLogResult, RESTPatchAPIGuildMemberJSONBody, Routes, Snowflake
+  APIGuildMember,
+  APIRole,
+  AuditLogEvent,
+  GatewayDispatchEvents,
+  GatewayGuildBanModifyDispatchData,
+  GatewayGuildMemberAddDispatchData,
+  GatewayGuildMemberRemoveDispatchData,
+  RESTGetAPIAuditLogQuery,
+  RESTGetAPIAuditLogResult,
+  RESTPatchAPIGuildMemberJSONBody,
+  Routes,
+  Snowflake
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';

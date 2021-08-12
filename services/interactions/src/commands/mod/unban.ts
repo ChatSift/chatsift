@@ -1,11 +1,11 @@
 import { UnbanCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import {
-    ApiPostGuildsCasesBody,
-    ApiPostGuildsCasesResult,
-    CaseAction,
-    Log,
-    LogTypes
+  ApiPostGuildsCasesBody,
+  ApiPostGuildsCasesResult,
+  CaseAction,
+  Log,
+  LogTypes
 } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { HTTPError, Rest } from '@automoderator/http-client';
