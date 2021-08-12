@@ -89,7 +89,7 @@ export const makeCaseEmbed = ({ logChannelId, cs, target, mod, pardonedBy, messa
       embed,
       {
         name: 'Duration',
-        value: `${ms(expiresAt - new Date(cs.created_at).getTime(), true)}; Expires: <t:${Math.round(expiresAt / 1000)}:D>`
+        value: `${ms(expiresAt - new Date(cs.created_at).getTime(), true)}; Expires: <t:${Math.round(expiresAt / 1000)}:R>`
       }
     );
   }
