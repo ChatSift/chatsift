@@ -84,11 +84,12 @@ export const makeCaseEmbed = ({ logChannelId, cs, target, mod, pardonedBy, messa
   }
 
   if (cs.expires_at) {
+    const expiresAt = new Date(cs.expires_at).getTime();
     embed = addFields(
       embed,
       {
         name: 'Duration',
-        value: ms(new Date(cs.expires_at).getTime() - new Date(cs.created_at).getTime(), true)
+        value: `${ms(expiresAt - new Date(cs.created_at).getTime(), true)}; Expires: <t:${Math.round(expiresAt / 1000)}:R>`
       }
     );
   }
@@ -99,7 +100,6 @@ export const makeCaseEmbed = ({ logChannelId, cs, target, mod, pardonedBy, messa
 export interface HistoryEmbedOptions {
   user: APIUser;
   cases: Case[];
-  showDetails: boolean;
   logChannelId?: Snowflake;
   filterTriggers?: number;
 }
@@ -111,7 +111,7 @@ export interface HistoryEmbedOptions {
 //  =0 points -> green
 
 // TODO filter trigger counts
-export const makeHistoryEmbed = ({ user, cases, showDetails, logChannelId, filterTriggers }: HistoryEmbedOptions): APIEmbed => {
+export const makeHistoryEmbed = ({ user, cases, logChannelId, filterTriggers }: HistoryEmbedOptions): APIEmbed => {
   let points = 0;
   const counts = {
     [CaseAction.ban]: 0,
@@ -140,15 +140,14 @@ export const makeHistoryEmbed = ({ user, cases, showDetails, logChannelId, filte
       continue;
     }
 
-    if (showDetails) {
-      const timestamp = Math.round(cs.created_at.getTime() / 1000);
-      const action = CaseAction[cs.action_type]!.toUpperCase();
-      const caseId = cs.log_message_id && logChannelId
-        ? `[#${cs.case_id}](https://discord.com/channels/${cs.guild_id}/${logChannelId}/${cs.log_message_id})`
-        : `#${cs.case_id}`;
+    const timestamp = Math.round(cs.created_at.getTime() / 1000);
+    const action = CaseAction[cs.action_type]!.toUpperCase();
+    const caseId = cs.log_message_id && logChannelId
+      ? `[#${cs.case_id}](https://discord.com/channels/${cs.guild_id}/${logChannelId}/${cs.log_message_id})`
+      : `#${cs.case_id}`;
+    const reason = cs.reason ? ` - ${cs.reason}` : '';
 
-      details.push(`• <t:${timestamp}:D> \`${action}\` ${caseId}${cs.reason ? ` - ${cs.reason}` : ''}`);
-    }
+    details.push(`• <t:${timestamp}:D> \`${action}\` ${caseId}${reason}`);
   }
 
   const embed: APIEmbed = {
@@ -169,15 +168,12 @@ export const makeHistoryEmbed = ({ user, cases, showDetails, logChannelId, filte
     }
 
     return arr;
-  }, filterTriggers ? [`${filterTriggers} Filter triggers`] : [])
+  }, filterTriggers ? [`${filterTriggers} Filter trigger${filterTriggers === 1 ? '' : 's'}`] : [])
     .join(' | ');
 
   if (footer.length) {
     embed.footer = { text: footer };
-
-    if (showDetails) {
-      embed.description = details.join('\n');
-    }
+    embed.description = details.join('\n');
   } else {
     embed.description = 'User has not been punished before.';
   }

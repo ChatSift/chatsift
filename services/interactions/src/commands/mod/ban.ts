@@ -58,12 +58,18 @@ export default class implements Command {
 
     let expiresAt: Date | undefined;
     if (durationString) {
-      const duration = ms(durationString);
-      if (!duration) {
-        throw new ControlFlowError('Failed to parse the provided duration');
-      }
+      const durationMinutes = parseInt(durationString, 10);
 
-      expiresAt = new Date(Date.now() + duration);
+      if (isNaN(durationMinutes)) {
+        const duration = ms(durationString);
+        if (!duration) {
+          throw new ControlFlowError('Failed to parse the provided duration');
+        }
+
+        expiresAt = new Date(Date.now() + duration);
+      } else {
+        expiresAt = new Date(Date.now() + (durationMinutes * 6e4));
+      }
     }
 
     const [existingBanCase] = await this.sql<[Case?]>`
