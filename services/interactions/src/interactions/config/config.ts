@@ -27,6 +27,18 @@ export const ConfigCommand = {
       description: 'How many days to take before automatically pardoning warnings',
       type: ApplicationCommandOptionType.Integer,
       required: false
+    },
+    {
+      name: 'modlogchannel',
+      description: 'Moderation action logging',
+      type: ApplicationCommandOptionType.Channel,
+      required: false
+    },
+    {
+      name: 'filterslogchannel',
+      description: 'Filter trigger logging',
+      type: ApplicationCommandOptionType.Channel,
+      required: false
     }
   ]
 } as const;
