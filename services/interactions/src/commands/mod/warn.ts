@@ -39,7 +39,7 @@ export default class implements Command {
     }
 
     if (member.user.id === interaction.member.user.id) {
-      throw new ControlFlowError('You cannot ban yourself');
+      throw new ControlFlowError('You cannot warn yourself');
     }
 
     if (await this.checker.check({ guild_id: interaction.guild_id, member }, UserPerms.mod)) {
