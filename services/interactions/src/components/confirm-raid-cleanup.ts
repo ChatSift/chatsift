@@ -49,8 +49,8 @@ export default class implements Component {
             execute: true
           }
         ])
-          .then(() => void sweeped.push())
-          .catch(() => void missed.push())
+          .then(() => void sweeped.push(targetId))
+          .catch(() => void missed.push(targetId))
       );
     }
 
