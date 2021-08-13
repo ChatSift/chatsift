@@ -408,6 +408,31 @@ importers:
       '@types/pino': 6.3.11
       typescript: 4.4.0-dev.20210731
 
+  services/gateway:
+    specifiers:
+      '@automoderator/core': workspace:^0.1.0
+      '@automoderator/injection': workspace:^0.1.0
+      '@automoderator/logger': workspace:^0.1.0
+      '@cordis/brokers': ^1.0.1
+      '@cordis/common': ^1.0.1
+      '@cordis/gateway': ^1.0.1
+      '@types/node': ^14.17.6
+      reflect-metadata: ^0.1.13
+      tslib: ^2.3.0
+      typescript: ^4.4.0-dev.20210731
+    dependencies:
+      '@automoderator/core': link:../../libs/core
+      '@automoderator/injection': link:../../libs/injection
+      '@automoderator/logger': link:../../libs/logger
+      '@cordis/brokers': 1.0.1
+      '@cordis/gateway': 1.0.1
+      reflect-metadata: 0.1.13
+      tslib: 2.3.0
+    devDependencies:
+      '@cordis/common': 1.0.1
+      '@types/node': 14.17.6
+      typescript: 4.4.0-dev.20210731
+
   services/interactions:
     specifiers:
       '@automoderator/banword-flags': workspace:^0.1.0
@@ -1770,12 +1795,34 @@ packages:
       '@cordis/error': 1.0.1
       discord-api-types: 0.20.2
       tslib: 2.3.0
-    dev: false
 
   /@cordis/error/1.0.1:
     resolution: {integrity: sha512-F+4I5qjmzTWOD3mL7s0dp29prRt7zAkFBL5yATF2VmSoaNIXzABoAvvSAAQ/89aU2jckutsoFfc0WG6j9BHPsg==}
     dependencies:
       tslib: 2.3.0
+
+  /@cordis/gateway/1.0.1:
+    resolution: {integrity: sha512-eJKhvx8r3ZBU3B0xuYrWCXSr1SPYJToZy5Dcd/D7bcOsSPZyzW1Iv/gbS11QPhtjOwwcbXz0ayQ6mTG2yEMulA==}
+    dependencies:
+      '@cordis/bitfield': 1.0.1
+      '@cordis/common': 1.0.1
+      '@cordis/error': 1.0.1
+      '@cordis/queue': 1.0.1
+      '@cordis/rest': 1.0.1
+      common-tags: 1.8.0
+      discord-api-types: 0.20.2
+      tslib: 2.3.0
+      ws: 7.5.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+    dev: false
+
+  /@cordis/queue/1.0.1:
+    resolution: {integrity: sha512-wLaUeSEssHK+R10gaOjqwnq4GqvQoKdkWgaA1sEGnXXuznkL9qqHoEwpyliJCs1+LnQIoxyO+/+MI0gIB+FHcg==}
+    dependencies:
+      tslib: 2.3.0
+    dev: false
 
   /@cordis/rest/1.0.1:
     resolution: {integrity: sha512-Pm3UP+i3s4F3coeSUKiWC4QvjqHL2qPuH+V/aXhGAQaW3N6PsSkXKy+UAKxe1jBmKMnjli6NnaaDOi+Z34E4Jg==}
@@ -3305,7 +3352,6 @@ packages:
   /discord-api-types/0.20.2:
     resolution: {integrity: sha512-DxjFGuiJ4q5oozYcw/KqAC9dUdGu5f8JIYee073/RMkXSKTYtx2Y7n7ha9FQO7alDfVUxElzdTuWt5ByzB+QKQ==}
     engines: {node: '>=12'}
-    dev: false
 
   /discord-api-types/0.22.0:
     resolution: {integrity: sha512-l8yD/2zRbZItUQpy7ZxBJwaLX/Bs2TGaCthRppk8Sw24LOIWg12t9JEreezPoYD0SQcC2htNNo27kYEpYW/Srg==}
@@ -6782,7 +6828,6 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
-    dev: true
 
   /xml-name-validator/3.0.0:
     resolution: {integrity: sha512-A5CUptxDsvxKJEU3yO6DuWBSJz/qizqzJKOMIfUJHETbBw/sFaDxgd6fxm1ewUaM0jZ444Fc5vC5ROYurg/4Pw==}

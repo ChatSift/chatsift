@@ -28,6 +28,12 @@ services:
       ELASTIC_URL: "http://elasticsearch:9200"
       ELASTIC_USERNAME: "elastic"
 
+  gateway:
+    environment:
+      NODE_ENV: "prod"
+      ELASTIC_URL: "http://elasticsearch:9200"
+      ELASTIC_USERNAME: "elastic"
+
   interactions:
     environment:
       NODE_ENV: "prod"
