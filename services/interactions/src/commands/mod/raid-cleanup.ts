@@ -1,10 +1,24 @@
 import { RaidCleanupCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { ArgumentsOf, ControlFlowError, kGatewayBroadcasts, send } from '#util';
+import { DiscordEvents, ms } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
-import { HTTPError, Rest } from '@automoderator/http-client';
+import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
-import type { APIGuildInteraction } from 'discord-api-types/v9';
-import { injectable } from 'tsyringe';
+import { getCreationData } from '@cordis/util';
+import {
+  APIGuildInteraction,
+  APIGuildMember,
+  GatewaySendPayload,
+  GatewayGuildMembersChunkDispatchData,
+  GatewayDispatchEvents,
+  GatewayOpcodes,
+  InteractionResponseType,
+  Snowflake,
+  ComponentType,
+  ButtonStyle
+} from 'discord-api-types/v9';
+import { nanoid } from 'nanoid';
+import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
 
 @injectable()
@@ -12,9 +26,42 @@ export default class implements Command {
   public readonly userPermissions = UserPerms.mod;
 
   public constructor(
-    public readonly rest: Rest,
-    public readonly discordRest: DiscordRest
+    public readonly discordRest: DiscordRest,
+    public readonly gateway: RoutingSubscriber<keyof DiscordEvents, DiscordEvents>,
+    @inject(kGatewayBroadcasts) public readonly gatewayBroadcaster: PubSubPublisher<GatewaySendPayload>
   ) {}
+
+  private _fetchGuildMembers(guildId: Snowflake): Promise<APIGuildMember[]> {
+    return new Promise(resolve => {
+      const members: APIGuildMember[] = [];
+      let index = 0;
+
+      const handler = (chunk: GatewayGuildMembersChunkDispatchData) => {
+        index++;
+
+        for (const member of chunk.members) {
+          if (member.user) {
+            members.push(member);
+          }
+        }
+
+        if (index++ === chunk.chunk_count) {
+          this.gateway.off(GatewayDispatchEvents.GuildMembersChunk, handler);
+          return resolve(members);
+        }
+      };
+
+      this.gateway.on(GatewayDispatchEvents.GuildMembersChunk, handler);
+      this.gatewayBroadcaster.publish({
+        op: GatewayOpcodes.RequestGuildMembers,
+        d: {
+          guild_id: guildId,
+          query: '',
+          limit: 0
+        }
+      });
+    });
+  }
 
   public parse(args: ArgumentsOf<typeof RaidCleanupCommand>) {
     return {
@@ -24,10 +71,98 @@ export default class implements Command {
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof RaidCleanupCommand>) {
+    await send(interaction, {}, InteractionResponseType.DeferredChannelMessageWithSource);
+
     const { join, age } = this.parse(args);
 
     if (join == null && age == null) {
       throw new ControlFlowError('You must pass at least one of the given arguments');
     }
+
+    let joinCutOff: number | undefined;
+    if (join) {
+      const joinMinutesAgo = parseInt(join, 10);
+
+      if (isNaN(joinMinutesAgo)) {
+        const joinAgo = ms(join);
+        if (!joinAgo) {
+          throw new ControlFlowError('Failed to parse the provided join time');
+        }
+
+        joinCutOff = Date.now() - joinAgo;
+      } else {
+        joinCutOff = Date.now() - (joinMinutesAgo * 6e4);
+      }
+    }
+
+    let ageCutOff: number | undefined;
+    if (age) {
+      const ageMinutesAgo = parseInt(age, 10);
+
+      if (isNaN(ageMinutesAgo)) {
+        const ageAgo = ms(age);
+        if (!ageAgo) {
+          throw new ControlFlowError('Failed to parse the provided age time');
+        }
+
+        ageCutOff = Date.now() - ageAgo;
+      } else {
+        ageCutOff = Date.now() - (ageMinutesAgo * 6e4);
+      }
+    }
+
+    await send(interaction, { content: 'Collecting all of your server members...' });
+    const allMembers = await this._fetchGuildMembers(interaction.guild_id);
+
+    await send(interaction, { content: 'Selecting members that match your criteria...' });
+    const members = allMembers.filter(member => {
+      if (joinCutOff) {
+        return new Date(member.joined_at).getTime() > joinCutOff;
+      }
+
+      if (ageCutOff) {
+        const { createdTimestamp } = getCreationData(member.user!.id);
+        return createdTimestamp > ageCutOff;
+      }
+
+      return true;
+    });
+
+    if (!members.length) {
+      const joinInfo = joinCutOff ? `\nAccounts that joined ${ms(joinCutOff, true)} ago` : '';
+      const ageInfo = ageCutOff ? `\nAccounts that were created ${ms(ageCutOff, true)} ago` : '';
+
+      return send(interaction, {
+        content: `There were no members that matched the given criteria. Searched for:${joinInfo}${ageInfo}`
+      });
+    }
+
+    const id = nanoid();
+    return send(interaction, {
+      content: `Are you absolutely sure you want to nuke these ${members.length} users?`,
+      files: [{
+        name: 'targets.txt',
+        content: Buffer.from(members.map(m => m.user!.id).join('\n'))
+      }],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              label: 'Cancel',
+              style: ButtonStyle.Secondary,
+              custom_id: `confirm-raid-cleanup|${id}|n`
+            },
+            {
+              type: ComponentType.Button,
+              label: 'Confirm',
+              style: ButtonStyle.Success,
+              custom_id: `confirm-raid-cleanup|${id}|y`
+            }
+          ]
+        }
+      ]
+    });
   }
 }
