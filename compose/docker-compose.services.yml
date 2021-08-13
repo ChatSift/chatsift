@@ -1,0 +1,103 @@
+version: "3.7"
+
+services:
+  api:
+    image: chatsift/automoderator_api
+    build:
+      context: ../
+      dockerfile: ./docker/api/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - base
+
+  auth:
+    image: chatsift/automoderator_auth
+    build:
+      context: ../
+      dockerfile: ./docker/auth/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      DISCORD_SCOPES: "identify,email"
+    restart: unless-stopped
+    depends_on:
+      - base
+
+  automod:
+    image: chatsift/automoderator_automod
+    build:
+      context: ../
+      dockerfile: ./docker/automod/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - base
+
+  base:
+    image: chatsift/automoderator_base
+    build:
+      context: ../
+      dockerfile: ./docker/base/Dockerfile
+
+  cron-runner:
+    image: chatsift/automoderator_cron-runner
+    build:
+      context: ../
+      dockerfile: ./docker/cron-runner/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+    restart: unless-stopped
+    depends_on:
+      - base
+
+  gateway:
+    image: chatsift/automoderator_gateway
+    build:
+      context: ../
+      dockerfile: ./docker/gateway/Dockerfile
+    environment:
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - base
+
+  interactions:
+    image: chatsift/automoderator_interactions
+    build:
+      context: ../
+      dockerfile: ./docker/interactions/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      REDIS_URL: "redis://redis:6379/0"
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - base
+
+  logging:
+    image: chatsift/automoderator_logging
+    build:
+      context: ../
+      dockerfile: ./docker/logging/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - base
+
+  mod-observer:
+    image: chatsift/automoderator_mod-observer
+    build:
+      context: ../
+      dockerfile: ./docker/mod-observer/Dockerfile
+    environment:
+      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - base

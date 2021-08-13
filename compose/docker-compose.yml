@@ -1,12 +1,6 @@
 version: "3.7"
 
 services:
-  base:
-    image: automoderator:base
-    build:
-      context: ../
-      dockerfile: ./docker/base/Dockerfile
-
   rabbitmq:
     image: rabbitmq:3-management-alpine
     restart: unless-stopped
@@ -44,105 +38,6 @@ services:
       test: ["CMD-SHELL", "redis-cli ping"]
       interval: 10s
       timeout: 5s
-
-  api:
-    build:
-      context: ../
-      dockerfile: ./docker/api/Dockerfile
-    environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      AMQP_URL: "amqp://rabbitmq:5672"
-    restart: unless-stopped
-    depends_on:
-      - postgres
-      - base
-
-  auth:
-    build:
-      context: ../
-      dockerfile: ./docker/auth/Dockerfile
-    environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      DISCORD_SCOPES: "identify,email"
-    restart: unless-stopped
-    depends_on:
-      - postgres
-      - base
-
-  automod:
-    build:
-      context: ../
-      dockerfile: ./docker/automod/Dockerfile
-    environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      AMQP_URL: "amqp://rabbitmq:5672"
-    restart: unless-stopped
-    depends_on:
-      - postgres
-      - rabbitmq
-      - base
-
-  cron-runner:
-    build:
-      context: ../
-      dockerfile: ./docker/cron-runner/Dockerfile
-    environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-    restart: unless-stopped
-    depends_on:
-      - postgres
-      - base
-
-  gateway:
-    build:
-      context: ../
-      dockerfile: ./docker/gateway/Dockerfile
-    environment:
-      AMQP_URL: "amqp://rabbitmq:5672"
-    restart: unless-stopped
-    depends_on:
-      - rabbitmq
-      - base
-
-  interactions:
-    build:
-      context: ../
-      dockerfile: ./docker/interactions/Dockerfile
-    environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      REDIS_URL: "redis://redis:6379/0"
-      AMQP_URL: "amqp://rabbitmq:5672"
-    restart: unless-stopped
-    depends_on:
-      - postgres
-      - rabbitmq
-      - base
-
-  logging:
-    build:
-      context: ../
-      dockerfile: ./docker/logging/Dockerfile
-    environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      AMQP_URL: "amqp://rabbitmq:5672"
-    restart: unless-stopped
-    depends_on:
-      - postgres
-      - rabbitmq
-      - base
-
-  mod-observer:
-    build:
-      context: ../
-      dockerfile: ./docker/mod-observer/Dockerfile
-    environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      AMQP_URL: "amqp://rabbitmq:5672"
-    restart: unless-stopped
-    depends_on:
-      - postgres
-      - rabbitmq
-      - base
 
 volumes:
   elis-data:

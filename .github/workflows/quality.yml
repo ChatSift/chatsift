@@ -1,14 +1,16 @@
 name: Quality Check
+
 on: [push, pull_request]
+
 jobs:
-  lint:
+  checks:
     name: Quality Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Install Node v15
+      - name: Install Node v16
         uses: actions/setup-node@v1
         with:
           node-version: 16

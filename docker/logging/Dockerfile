@@ -1,4 +1,4 @@
-FROM automoderator:base
+FROM chatsift/automoderator_base
 LABEL name "automoderator logging builder"
 
 COPY services/logging/package.json ./services/logging/package.json
