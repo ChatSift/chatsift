@@ -51,7 +51,6 @@ export default class implements Command {
 
         if (index++ === chunk.chunk_count) {
           this.gateway.off(GatewayDispatchEvents.GuildMembersChunk, handler);
-          this.logger.debug({ members: members.length }, 'Collected guild members in raid-cleanup');
           return resolve(members);
         }
       };
@@ -115,8 +114,6 @@ export default class implements Command {
         ageCutOff = Date.now() - (ageMinutesAgo * 6e4);
       }
     }
-
-    this.logger.debug({ joinCutOff, ageCutOff }, 'Running raid-cleanup');
 
     await send(interaction, { content: 'Collecting all of your server members...' });
     const allMembers = await this._fetchGuildMembers(interaction.guild_id);

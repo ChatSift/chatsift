@@ -22,6 +22,7 @@ export default class implements Component {
     void send(interaction, { components: [] }, InteractionResponseType.UpdateMessage);
 
     const members = (await this.raidCleanupMembers.get(id))!;
+    console.log(members);
     void this.raidCleanupMembers.delete(id);
 
     if (action === 'n') {
@@ -56,10 +57,10 @@ export default class implements Component {
     await Promise.allSettled(promises);
 
     const format = (xs: Snowflake[]) => xs.length
-      ? xs
+      ? `\n${xs
         .map(x => `• <@${x}>`)
-        .join('\n')
-      : 'none';
+        .join('\n')}`
+      : ' none';
 
     return send(interaction, {
       content: `Done cleaning up! Here's a summary:\n\n**Members sweeped**:${format(sweeped)}\n\n**Members missed**:${format(missed)}`,
