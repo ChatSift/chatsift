@@ -1,7 +1,8 @@
 import { RaidCleanupCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, kGatewayBroadcasts, send } from '#util';
+import { ArgumentsOf, ControlFlowError, kGatewayBroadcasts, RaidCleanupMembersStore, send } from '#util';
 import { DiscordEvents, ms } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
+import { kLogger } from '@automoderator/injection';
 import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
@@ -18,6 +19,7 @@ import {
   ButtonStyle
 } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
+import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
 
@@ -26,9 +28,11 @@ export default class implements Command {
   public readonly userPermissions = UserPerms.mod;
 
   public constructor(
+    public readonly raidCleanupMembers: RaidCleanupMembersStore,
     public readonly discordRest: DiscordRest,
     public readonly gateway: RoutingSubscriber<keyof DiscordEvents, DiscordEvents>,
-    @inject(kGatewayBroadcasts) public readonly gatewayBroadcaster: PubSubPublisher<GatewaySendPayload>
+    @inject(kGatewayBroadcasts) public readonly gatewayBroadcaster: PubSubPublisher<GatewaySendPayload>,
+    @inject(kLogger) public readonly logger: Logger
   ) {}
 
   private _fetchGuildMembers(guildId: Snowflake): Promise<APIGuildMember[]> {
@@ -47,6 +51,7 @@ export default class implements Command {
 
         if (index++ === chunk.chunk_count) {
           this.gateway.off(GatewayDispatchEvents.GuildMembersChunk, handler);
+          this.logger.debug({ members: members.length }, 'Collected guild members in raid-cleanup');
           return resolve(members);
         }
       };
@@ -81,7 +86,7 @@ export default class implements Command {
 
     let joinCutOff: number | undefined;
     if (join) {
-      const joinMinutesAgo = parseInt(join, 10);
+      const joinMinutesAgo = Number(join);
 
       if (isNaN(joinMinutesAgo)) {
         const joinAgo = ms(join);
@@ -97,7 +102,7 @@ export default class implements Command {
 
     let ageCutOff: number | undefined;
     if (age) {
-      const ageMinutesAgo = parseInt(age, 10);
+      const ageMinutesAgo = Number(age);
 
       if (isNaN(ageMinutesAgo)) {
         const ageAgo = ms(age);
@@ -111,22 +116,32 @@ export default class implements Command {
       }
     }
 
+    this.logger.debug({ joinCutOff, ageCutOff }, 'Running raid-cleanup');
+
     await send(interaction, { content: 'Collecting all of your server members...' });
     const allMembers = await this._fetchGuildMembers(interaction.guild_id);
 
     await send(interaction, { content: 'Selecting members that match your criteria...' });
-    const members = allMembers.filter(member => {
+
+    const members = allMembers.reduce<Snowflake[]>((acc, member) => {
+      let meetsJoinCriteria = true;
+      let meetsAgeCriteria = true;
+
       if (joinCutOff) {
-        return new Date(member.joined_at).getTime() > joinCutOff;
+        meetsJoinCriteria = new Date(member.joined_at).getTime() > joinCutOff;
       }
 
       if (ageCutOff) {
         const { createdTimestamp } = getCreationData(member.user!.id);
-        return createdTimestamp > ageCutOff;
+        meetsAgeCriteria = createdTimestamp > ageCutOff;
       }
 
-      return true;
-    });
+      if (meetsJoinCriteria && meetsAgeCriteria) {
+        acc.push(member.user!.id);
+      }
+
+      return acc;
+    }, []);
 
     if (!members.length) {
       const joinInfo = joinCutOff ? `\nAccounts that joined ${ms(joinCutOff, true)} ago` : '';
@@ -138,11 +153,19 @@ export default class implements Command {
     }
 
     const id = nanoid();
+
+    await this.raidCleanupMembers.set(id, members);
+    setTimeout(() => {
+      void this.raidCleanupMembers.delete(id);
+      void send(interaction, { components: [] });
+      void send(interaction, { content: 'Timed out.' }, InteractionResponseType.ChannelMessageWithSource, true);
+    }, 1e4);
+
     return send(interaction, {
       content: `Are you absolutely sure you want to nuke these ${members.length} users?`,
       files: [{
         name: 'targets.txt',
-        content: Buffer.from(members.map(m => m.user!.id).join('\n'))
+        content: Buffer.from(members.join('\n'))
       }],
       components: [
         {

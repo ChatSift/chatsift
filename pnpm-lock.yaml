@@ -446,6 +446,7 @@ importers:
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/rest': workspace:^0.1.0
       '@cordis/brokers': ^1.0.1
+      '@cordis/redis-store': ^1.0.1
       '@cordis/rest': ^1.0.1
       '@cordis/util': ^1.0.1
       '@gaius-bot/readdir': ^1.0.0
@@ -479,6 +480,7 @@ importers:
       '@automoderator/logger': link:../../libs/logger
       '@automoderator/rest': link:../../libs/rest
       '@cordis/brokers': 1.0.1
+      '@cordis/redis-store': 1.0.1
       '@cordis/rest': 1.0.1
       '@cordis/util': 1.0.1
       '@gaius-bot/readdir': 1.0.0
@@ -1832,6 +1834,14 @@ packages:
       tslib: 2.3.0
     dev: false
 
+  /@cordis/redis-store/1.0.1:
+    resolution: {integrity: sha512-f87j2uWOWuXtj3FA6LaWbNcYTDRyHI3wtXWKO8AY3x/cDTdaDyxfqJGu/sE159uLvsTX7I+Qss64wdLpc1kjKQ==}
+    dependencies:
+      '@cordis/error': 1.0.1
+      '@cordis/store': 1.0.1
+      tslib: 2.3.0
+    dev: false
+
   /@cordis/rest/1.0.1:
     resolution: {integrity: sha512-Pm3UP+i3s4F3coeSUKiWC4QvjqHL2qPuH+V/aXhGAQaW3N6PsSkXKy+UAKxe1jBmKMnjli6NnaaDOi+Z34E4Jg==}
     dependencies:
@@ -1841,6 +1851,13 @@ packages:
       discord-api-types: 0.20.2
       form-data: 3.0.1
       node-fetch: 2.6.1
+      tslib: 2.3.0
+    dev: false
+
+  /@cordis/store/1.0.1:
+    resolution: {integrity: sha512-eXzDDHcHsaRRFvDhNup1oC5leAivjPprV+HXw7kwOhC+qJibnlNGYg/nPvfsA04Aod4KuiI3+qqhMoWts99olw==}
+    dependencies:
+      '@cordis/error': 1.0.1
       tslib: 2.3.0
     dev: false
 

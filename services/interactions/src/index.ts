@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { Rest } from '@automoderator/http-client';
-import { initConfig, kLogger, kSql } from '@automoderator/injection';
+import { initConfig, kLogger, kRedis, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createApp, initApp } from '@automoderator/rest';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
@@ -61,7 +61,7 @@ void (async () => {
   container.register(Rest, { useClass: Rest });
   container.register(DiscordRest, { useValue: discordRest });
   container.register(kLogger, { useValue: logger });
-  container.register(Redis, { useValue: Redis(config.redisUrl) });
+  container.register(kRedis, { useValue: Redis(config.redisUrl) });
   container.register(
     kSql, {
       useValue: postgres(config.dbUrl, {

@@ -49,7 +49,7 @@ export default class implements Command {
 
     let expiresAt: Date | undefined;
     if (durationString) {
-      const durationMinutes = parseInt(durationString, 10);
+      const durationMinutes = Number(durationString);
 
       if (isNaN(durationMinutes)) {
         const duration = ms(durationString);
