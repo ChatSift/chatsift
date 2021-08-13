@@ -1,9 +1,10 @@
 import 'reflect-metadata';
-import { createAmqp, RoutingPublisher } from '@cordis/brokers';
+import { createAmqp, RoutingPublisher, PubSubSubscriber } from '@cordis/brokers';
 import { initConfig } from '@automoderator/injection';
 import type { DiscordEvents } from '@automoderator/core';
 import { Cluster } from '@cordis/gateway';
 import createLogger from '@automoderator/logger';
+import type { GatewaySendPayload } from 'discord-api-types/v9';
 
 void (async () => {
   const config = initConfig();
@@ -12,6 +13,8 @@ void (async () => {
   const { channel } = await createAmqp(config.amqpUrl);
 
   const router = new RoutingPublisher<keyof DiscordEvents, DiscordEvents>(channel);
+  const broadcaster = new PubSubSubscriber<GatewaySendPayload>(channel);
+
   const gateway = new Cluster(config.discordToken, {
     compress: false,
     encoding: 'json',
@@ -34,4 +37,11 @@ void (async () => {
 
   await router.init({ name: 'gateway', topicBased: false });
   await gateway.connect();
+
+  await broadcaster.init({
+    name: 'gateway_broadcasts',
+    // @ts-expect-error - Common discord-api-types version missmatch
+    cb: packet => gateway.broadcast(packet),
+    fanout: true
+  });
 })();
