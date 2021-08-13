@@ -2,8 +2,9 @@ import { RaidCleanupMembersStore, send } from '#util';
 import { ApiPostGuildsCasesBody, CaseAction } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
-import { kSql } from '@automoderator/injection';
+import { kLogger, kSql } from '@automoderator/injection';
 import { APIGuildInteraction, InteractionResponseType, Snowflake } from 'discord-api-types/v9';
+import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
 import { Component } from '../component';
@@ -15,6 +16,7 @@ export default class implements Component {
   public constructor(
     public readonly raidCleanupMembers: RaidCleanupMembersStore,
     public readonly rest: Rest,
+    @inject(kLogger) public readonly logger: Logger,
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
@@ -50,7 +52,10 @@ export default class implements Component {
           }
         ])
           .then(() => void sweeped.push(targetId))
-          .catch(() => void missed.push(targetId))
+          .catch(error => {
+            this.logger.debug({ error, targetId, targetTag, guild: interaction.guild_id }, 'Failed to sweep a member');
+            void missed.push(targetId);
+          })
       );
     }
 
