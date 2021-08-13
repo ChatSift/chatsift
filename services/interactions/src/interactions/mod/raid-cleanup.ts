@@ -18,6 +18,12 @@ export const RaidCleanupCommand = {
       description: 'How old should a member\'s account be for the cleanup to ignore them',
       type: ApplicationCommandOptionType.String,
       required: false
+    },
+    {
+      name: 'ban',
+      description: 'Makes the bot ban the raid bots instead of kicking them',
+      type: ApplicationCommandOptionType.Boolean,
+      required: false
     }
   ]
 } as const;

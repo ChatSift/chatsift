@@ -4,13 +4,18 @@ import { inject, singleton } from 'tsyringe';
 import type { Redis } from 'ioredis';
 import type { Snowflake } from 'discord-api-types/v9';
 
+export interface RaidCleanupData {
+  ban: boolean;
+  members: RaidCleanupMember[];
+}
+
 export interface RaidCleanupMember {
   id: Snowflake;
   tag: string;
 }
 
 @singleton()
-export class RaidCleanupMembersStore extends RedisStore<RaidCleanupMember[]> {
+export class RaidCleanupMembersStore extends RedisStore<RaidCleanupData> {
   public constructor(@inject(kRedis) redis: Redis) {
     super({
       redis,

@@ -70,14 +70,15 @@ export default class implements Command {
   public parse(args: ArgumentsOf<typeof RaidCleanupCommand>) {
     return {
       join: args.join,
-      age: args.age
+      age: args.age,
+      ban: args.ban ?? false
     };
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof RaidCleanupCommand>) {
     await send(interaction, {}, InteractionResponseType.DeferredChannelMessageWithSource);
 
-    const { join, age } = this.parse(args);
+    const { join, age, ban } = this.parse(args);
 
     if (join == null && age == null) {
       throw new ControlFlowError('You must pass at least one of the given arguments');
@@ -151,7 +152,7 @@ export default class implements Command {
 
     const id = nanoid();
 
-    void this.raidCleanupMembers.set(id, members);
+    void this.raidCleanupMembers.set(id, { members, ban });
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     setTimeout(async () => {
       if (await this.raidCleanupMembers.delete(id)) {

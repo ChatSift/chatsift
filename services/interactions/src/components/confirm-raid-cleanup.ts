@@ -1,5 +1,5 @@
 import { RaidCleanupMembersStore, send } from '#util';
-import { ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, CaseAction, Log, LogTypes } from '@automoderator/core';
+import { ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, CaseAction, HttpCase, Log, LogTypes } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
 import { kLogger, kSql } from '@automoderator/injection';
@@ -25,7 +25,7 @@ export default class implements Component {
   public async exec(interaction: APIGuildInteraction, [action]: [string], id: string) {
     void send(interaction, { components: [] }, InteractionResponseType.UpdateMessage);
 
-    const members = (await this.raidCleanupMembers.get(id))!;
+    const { members, ban } = (await this.raidCleanupMembers.get(id))!;
     console.log(members);
     void this.raidCleanupMembers.delete(id);
 
@@ -33,22 +33,39 @@ export default class implements Component {
       return send(interaction, { content: 'Canceled raid cleanup' }, InteractionResponseType.ChannelMessageWithSource, true);
     }
 
+    const promises: Promise<void>[] = [];
+    const cases: HttpCase[] = [];
     const sweeped: Snowflake[] = [];
     const missed: Snowflake[] = [];
 
-    const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-      `/guilds/${interaction.guild_id}/cases`,
-      members.map(({ id: targetId, tag: targetTag }, index) => ({
-        action: CaseAction.ban,
-        mod_id: interaction.member.user.id,
-        mod_tag: `${interaction.member.user.username}#${interaction.member.user.discriminator}`,
-        target_id: targetId,
-        target_tag: targetTag,
-        reason: `Raid cleanup (${index + 1}/${members.length})`,
-        created_at: new Date(),
-        execute: true
-      }))
-    );
+    let index = 0;
+
+    for (const { id: targetId, tag: targetTag } of members) {
+      promises.push(
+        this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
+          {
+            action: ban ? CaseAction.ban : CaseAction.kick,
+            mod_id: interaction.member.user.id,
+            mod_tag: `${interaction.member.user.username}#${interaction.member.user.discriminator}`,
+            target_id: targetId,
+            target_tag: targetTag,
+            reason: `Raid cleanup (${++index}/${members.length})`,
+            created_at: new Date(),
+            execute: true
+          }
+        ])
+          .then(([cs]) => {
+            cases.push(cs!);
+            sweeped.push(targetId);
+          })
+          .catch(error => {
+            this.logger.debug({ error, targetId, targetTag, guild: interaction.guild_id }, 'Failed to sweep a member');
+            missed.push(targetId);
+          })
+      );
+    }
+
+    await Promise.allSettled(promises);
 
     this.guildLogs.publish({
       type: LogTypes.modAction,
