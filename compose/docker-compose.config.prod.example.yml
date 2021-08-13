@@ -17,6 +17,10 @@ services:
     environment:
       ELASTIC_PASSWORD: "owo"
 
+  gateway:
+    environment:
+      ELASTIC_PASSWORD: "owo"
+
   interactions:
     environment:
       ELASTIC_PASSWORD: "owo"
