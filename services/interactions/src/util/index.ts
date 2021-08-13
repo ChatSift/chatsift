@@ -4,4 +4,5 @@ export * from './dmUser';
 export * from './getGuildName';
 export * from './Interaction';
 export * from './send';
+export * from './symbols';
 export * from './transformInteraction';

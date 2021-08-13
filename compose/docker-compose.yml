@@ -83,6 +83,17 @@ services:
       - postgres
       - base
 
+  gateway:
+    build:
+      context: ../
+      dockerfile: ./docker/gateway/Dockerfile
+    environment:
+      AMQP_URL: "amqp://rabbitmq:5672"
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+      - base
+
   interactions:
     build:
       context: ../
@@ -121,17 +132,6 @@ services:
       - postgres
       - rabbitmq
       - base
-
-  gateway:
-    image: cordislib/gateway:1.0.1
-    environment:
-      AMQP_HOST: "amqp://rabbitmq:5672"
-    restart: unless-stopped
-    depends_on:
-      - rabbitmq
-      - base
-    # TODO fix how intents are handled in cordis
-    command: "node --enable-source-maps services/gateway/dist/index.js --ws-intents guildMessages --ws-intents guildMembers --ws-intents guildBans"
 
 volumes:
   elis-data:
