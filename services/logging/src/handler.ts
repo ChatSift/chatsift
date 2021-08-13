@@ -141,10 +141,16 @@ export class Handler {
   }
 
   private async _handleModLog(log: ModActionLog) {
+    log.data = Array.isArray(log.data) ? log.data : [log.data];
+
+    if (!log.data.length) {
+      return;
+    }
+
     const [
       { mod_action_log_channel: channelId = null } = {}
     ] = await this.sql<[Pick<GuildSettings, 'mod_action_log_channel'>?]>`
-      SELECT mod_action_log_channel FROM guild_settings WHERE guild_id = ${log.data.guild_id}
+      SELECT mod_action_log_channel FROM guild_settings WHERE guild_id = ${log.data[0]!.guild_id}
     `;
 
     if (!channelId) {
@@ -156,51 +162,60 @@ export class Handler {
       return;
     }
 
-    const [
-      { log_message_id: messageId }
-    ] = await this.sql<[Pick<Case, 'log_message_id'>]>`SELECT log_message_id FROM cases WHERE id = ${log.data.id}`;
+    const embeds: APIEmbed[] = [];
 
-    const [target, mod, message] = await Promise.all([
-      this.rest.get<APIUser>(Routes.user(log.data.target_id)),
-      log.data.mod_id ? this.rest.get<APIUser>(Routes.user(log.data.mod_id)) : Promise.resolve(null),
-      messageId ? this.rest.get<APIMessage>(Routes.channelMessage(channelId, messageId)).catch(() => null) : Promise.resolve(null)
-    ]);
+    for (const entry of log.data) {
+      this.logger.metric!({ type: 'mod_action', actionType: CaseAction[entry.action_type], guild: entry.guild_id });
 
-    let pardonedBy: APIUser | undefined;
-    if (log.data.pardoned_by) {
-      pardonedBy = log.data.pardoned_by === mod?.id
-        ? mod
-        : await this.rest.get(Routes.user(log.data.target_id));
-    }
+      const [
+        { log_message_id: messageId }
+      ] = await this.sql<[Pick<Case, 'log_message_id'>]>`SELECT log_message_id FROM cases WHERE id = ${entry.id}`;
 
-    let refCs: Case | undefined;
-    if (log.data.ref_id) {
-      refCs = await this
-        .sql<[Case]>`SELECT * FROM cases WHERE case_id = ${log.data.ref_id} AND guild_id = ${log.data.guild_id}`
-        .then(rows => rows[0]);
-    }
+      const [target, mod, message] = await Promise.all([
+        this.rest.get<APIUser>(Routes.user(entry.target_id)),
+        entry.mod_id ? this.rest.get<APIUser>(Routes.user(entry.mod_id)) : Promise.resolve(null),
+        messageId ? this.rest.get<APIMessage>(Routes.channelMessage(channelId, messageId)).catch(() => null) : Promise.resolve(null)
+      ]);
 
-    let embed = makeCaseEmbed({ logChannelId: channelId, cs: log.data, target, mod, pardonedBy, message, refCs });
-    if (log.data.action_type === CaseAction.warn) {
-      embed = this._populateEmbedWithWarnPunishment(embed, log.data);
-    }
-
-    if (message) {
-      return this.rest.patch<unknown, RESTPatchAPIWebhookWithTokenMessageJSONBody>(
-        Routes.webhookMessage(webhook.id, webhook.token!, message.id),
-        { data: { embeds: [embed] } }
-      );
-    }
-
-    const newMessage = await this.rest.post<RESTPostAPIWebhookWithTokenWaitResult, RESTPostAPIWebhookWithTokenJSONBody>(
-      `${Routes.webhook(webhook.id, webhook.token)}?wait=true`, {
-        data: {
-          embeds: [embed]
-        }
+      let pardonedBy: APIUser | undefined;
+      if (entry.pardoned_by) {
+        pardonedBy = entry.pardoned_by === mod?.id
+          ? mod
+          : await this.rest.get(Routes.user(entry.target_id));
       }
-    );
 
-    return this.sql`UPDATE cases SET log_message_id = ${newMessage.id} WHERE id = ${log.data.id}`;
+      let refCs: Case | undefined;
+      if (entry.ref_id) {
+        refCs = await this
+          .sql<[Case]>`SELECT * FROM cases WHERE case_id = ${entry.ref_id} AND guild_id = ${entry.guild_id}`
+          .then(rows => rows[0]);
+      }
+
+      let embed = makeCaseEmbed({ logChannelId: channelId, cs: entry, target, mod, pardonedBy, message, refCs });
+      if (entry.action_type === CaseAction.warn) {
+        embed = this._populateEmbedWithWarnPunishment(embed, entry);
+      }
+
+      if (message) {
+        return this.rest.patch<unknown, RESTPatchAPIWebhookWithTokenMessageJSONBody>(
+          Routes.webhookMessage(webhook.id, webhook.token!, message.id),
+          { data: { embeds: [embed] } }
+        );
+      }
+
+      embeds.push(embed);
+    }
+
+    for (let i = 0; i < Math.ceil(embeds.length / 10); i++) {
+      void this.rest.post<RESTPostAPIWebhookWithTokenWaitResult, RESTPostAPIWebhookWithTokenJSONBody>(
+        `${Routes.webhook(webhook.id, webhook.token)}?wait=true`, {
+          data: {
+            embeds: embeds.slice(0 + (i * 10), 10 + (i * 10))
+          }
+        }
+      )
+        .then(newMessage => this.sql`UPDATE cases SET log_message_id = ${newMessage.id} WHERE id = ${(log.data as Case[])[i]!.id}`);
+    }
   }
 
   private _embedFromTrigger(message: APIMessage, trigger: Exclude<RunnerResult, NotOkRunnerResult>): APIEmbed[] {
@@ -338,7 +353,6 @@ export class Handler {
   private _handleLog(log: Log) {
     switch (log.type) {
       case LogTypes.modAction: {
-        this.logger.metric!({ type: 'mod_action', actionType: CaseAction[log.data.action_type], guild: log.data.guild_id });
         return this._handleModLog(log);
       }
 

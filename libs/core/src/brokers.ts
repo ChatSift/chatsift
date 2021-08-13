@@ -47,7 +47,8 @@ export type WarnCase = Omit<HttpCase, 'action_type'> & {
   extra?: WarnCaseExtras;
 };
 
-export type ModActionLog = LogBase<LogTypes.modAction, NonWarnCase | WarnCase>;
+type OrArray<T> = T | T[];
+export type ModActionLog = LogBase<LogTypes.modAction, OrArray<NonWarnCase | WarnCase>>;
 
 export enum Runners {
   files,
