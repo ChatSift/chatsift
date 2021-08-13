@@ -4,6 +4,8 @@ export const kConfig = Symbol('config');
 
 export const kSql = Symbol('postgres instance');
 
+export const kRedis = Symbol('IORedis instance');
+
 export const kLogger = Symbol('logger instance');
 
 export interface Config {

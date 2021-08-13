@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import { Rest } from '@automoderator/http-client';
-import { initConfig, kLogger, kSql } from '@automoderator/injection';
+import { initConfig, kLogger, kRedis, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createApp, initApp } from '@automoderator/rest';
-import { createAmqp, PubSubPublisher } from '@cordis/brokers';
+import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
 import { join as joinPath } from 'path';
@@ -11,6 +11,8 @@ import postgres from 'postgres';
 import { container } from 'tsyringe';
 import { Handler } from './handler';
 import { kGatewayBroadcasts } from './util';
+import { DiscordEvents } from '@automoderator/core';
+import { GatewayDispatchEvents } from 'discord-api-types';
 import Redis from 'ioredis';
 
 void (async () => {
@@ -42,17 +44,24 @@ void (async () => {
 
   const { channel } = await createAmqp(config.amqpUrl);
   const logs = new PubSubPublisher(channel);
+  const gateway = new RoutingSubscriber<keyof DiscordEvents, DiscordEvents>(channel);
   const gatewayBroadcasts = new PubSubPublisher(channel);
 
   await logs.init({ name: 'guild_logs', fanout: false });
+  // No queue specified means these packets are fanned out
+  await gateway.init({
+    name: 'gateway',
+    keys: [GatewayDispatchEvents.GuildMembersChunk]
+  });
   await gatewayBroadcasts.init({ name: 'gateway_broadcasts', fanout: true });
 
   container.register(PubSubPublisher, { useValue: logs });
+  container.register(RoutingSubscriber, { useValue: gateway });
   container.register(kGatewayBroadcasts, { useValue: gatewayBroadcasts });
   container.register(Rest, { useClass: Rest });
   container.register(DiscordRest, { useValue: discordRest });
   container.register(kLogger, { useValue: logger });
-  container.register(Redis, { useValue: Redis(config.redisUrl) });
+  container.register(kRedis, { useValue: Redis(config.redisUrl) });
   container.register(
     kSql, {
       useValue: postgres(config.dbUrl, {

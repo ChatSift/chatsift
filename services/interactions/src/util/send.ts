@@ -19,12 +19,13 @@ const REPLIED = new Set<string>();
  * @param message Interaction to respond to
  * @param payload Payload response data
  * @param type The type of response to provide
- * @param type Additional options
+ * @param followup If this is a followup to the original interaction response
  */
 export const send = async (
   message: any,
   payload: (RESTPostAPIChannelMessageJSONBody | APIInteractionResponseCallbackData) & { files?: File[] },
-  type?: InteractionResponseType
+  type?: InteractionResponseType,
+  followup = false
 ): Promise<unknown> => {
   const rest = container.resolve(Rest);
   const { discordClientId } = container.resolve<Config>(kConfig);
@@ -32,6 +33,11 @@ export const send = async (
   if ('token' in message) {
     const { embed, files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: File[] };
     const response = { ...r, embeds: embed ? [embed] : undefined };
+
+    if (followup) {
+      const { files, ...r } = payload;
+      return rest.post(Routes.webhook(discordClientId, message.token), { data: r, files });
+    }
 
     if (REPLIED.has(message.token)) {
       // TODO cordis support for files in PATCH
