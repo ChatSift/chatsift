@@ -417,6 +417,7 @@ importers:
       '@cordis/common': ^1.0.1
       '@cordis/gateway': ^1.0.1
       '@types/node': ^14.17.6
+      discord-api-types: ^0.22.0
       reflect-metadata: ^0.1.13
       tslib: ^2.3.0
       typescript: ^4.4.0-dev.20210731
@@ -431,6 +432,7 @@ importers:
     devDependencies:
       '@cordis/common': 1.0.1
       '@types/node': 14.17.6
+      discord-api-types: 0.22.0
       typescript: 4.4.0-dev.20210731
 
   services/interactions:

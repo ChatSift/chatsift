@@ -10,6 +10,7 @@ import { join as joinPath } from 'path';
 import postgres from 'postgres';
 import { container } from 'tsyringe';
 import { Handler } from './handler';
+import { kGatewayBroadcasts } from './util';
 
 void (async () => {
   const config = initConfig();
@@ -40,10 +41,13 @@ void (async () => {
 
   const { channel } = await createAmqp(config.amqpUrl);
   const logs = new PubSubPublisher(channel);
+  const gatewayBroadcasts = new PubSubPublisher(channel);
 
   await logs.init({ name: 'guild_logs', fanout: false });
+  await gatewayBroadcasts.init({ name: 'gateway_broadcasts', fanout: true });
 
   container.register(PubSubPublisher, { useValue: logs });
+  container.register(kGatewayBroadcasts, { useValue: gatewayBroadcasts });
   container.register(Rest, { useClass: Rest });
   container.register(DiscordRest, { useValue: discordRest });
   container.register(kLogger, { useValue: logger });
