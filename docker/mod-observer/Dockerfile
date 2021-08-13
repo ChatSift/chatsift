@@ -1,4 +1,4 @@
-FROM automoderator:base
+FROM chatsift:automoderator_base
 LABEL name "automoderator mod-observer builder"
 
 COPY services/mod-observer/package.json ./services/mod-observer/package.json

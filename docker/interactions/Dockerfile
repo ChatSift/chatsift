@@ -1,4 +1,4 @@
-FROM automoderator:base
+FROM chatsift:automoderator_base
 LABEL name "automoderator interactions builder"
 
 COPY services/interactions/package.json ./services/interactions/package.json

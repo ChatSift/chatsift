@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   base:
-    image: automoderator:base
+    image: chatsift:automoderator_base
     build:
       context: ../
       dockerfile: ./docker/base/Dockerfile
@@ -46,6 +46,7 @@ services:
       timeout: 5s
 
   api:
+    image: chatsift:automoderator_api
     build:
       context: ../
       dockerfile: ./docker/api/Dockerfile
@@ -58,6 +59,7 @@ services:
       - base
 
   auth:
+    image: chatsift:automoderator_auth
     build:
       context: ../
       dockerfile: ./docker/auth/Dockerfile
@@ -70,6 +72,7 @@ services:
       - base
 
   automod:
+    image: chatsift:automoderator_automod
     build:
       context: ../
       dockerfile: ./docker/automod/Dockerfile
@@ -83,6 +86,7 @@ services:
       - base
 
   cron-runner:
+    image: chatsift:automoderator_cron-runner
     build:
       context: ../
       dockerfile: ./docker/cron-runner/Dockerfile
@@ -94,6 +98,7 @@ services:
       - base
 
   gateway:
+    image: chatsift:automoderator_gateway
     build:
       context: ../
       dockerfile: ./docker/gateway/Dockerfile
@@ -105,6 +110,7 @@ services:
       - base
 
   interactions:
+    image: chatsift:automoderator_interactions
     build:
       context: ../
       dockerfile: ./docker/interactions/Dockerfile
@@ -119,6 +125,7 @@ services:
       - base
 
   logging:
+    image: chatsift:automoderator_logging
     build:
       context: ../
       dockerfile: ./docker/logging/Dockerfile
@@ -132,6 +139,7 @@ services:
       - base
 
   mod-observer:
+    image: chatsift:automoderator_mod-observer
     build:
       context: ../
       dockerfile: ./docker/mod-observer/Dockerfile

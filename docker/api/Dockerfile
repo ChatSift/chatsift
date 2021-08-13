@@ -1,4 +1,4 @@
-FROM automoderator:base
+FROM chatsift:automoderator_base
 LABEL name "automoderator api builder"
 
 WORKDIR /opt/build
