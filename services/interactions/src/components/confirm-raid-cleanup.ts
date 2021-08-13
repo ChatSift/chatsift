@@ -55,9 +55,11 @@ export default class implements Component {
 
     await Promise.allSettled(promises);
 
-    const format = (xs: Snowflake[]) => xs
-      .map(x => `• <@${x}>`)
-      .join('\n');
+    const format = (xs: Snowflake[]) => xs.length
+      ? xs
+        .map(x => `• <@${x}>`)
+        .join('\n')
+      : 'none';
 
     return send(interaction, {
       content: `Done cleaning up! Here's a summary:\n\n**Members sweeped**:${format(sweeped)}\n\n**Members missed**:${format(missed)}`,

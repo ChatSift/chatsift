@@ -144,8 +144,8 @@ export default class implements Command {
     }, []);
 
     if (!members.length) {
-      const joinInfo = joinCutOff ? `\nAccounts that joined ${ms(joinCutOff, true)} ago` : '';
-      const ageInfo = ageCutOff ? `\nAccounts that were created ${ms(ageCutOff, true)} ago` : '';
+      const joinInfo = joinCutOff ? `\nAccounts that joined ${ms(Date.now() - joinCutOff, true)} ago` : '';
+      const ageInfo = ageCutOff ? `\nAccounts that were created ${ms(Date.now() - ageCutOff, true)} ago` : '';
 
       return send(interaction, {
         content: `There were no members that matched the given criteria. Searched for:${joinInfo}${ageInfo}`
@@ -155,10 +155,12 @@ export default class implements Command {
     const id = nanoid();
 
     void this.raidCleanupMembers.set(id, members);
-    setTimeout(() => {
-      void this.raidCleanupMembers.delete(id);
-      void send(interaction, { components: [] });
-      void send(interaction, { content: 'Timed out.' }, InteractionResponseType.ChannelMessageWithSource, true);
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    setTimeout(async () => {
+      if (await this.raidCleanupMembers.delete(id)) {
+        void send(interaction, { components: [] });
+        void send(interaction, { content: 'Timed out.' }, InteractionResponseType.ChannelMessageWithSource, true);
+      }
     }, 2e4);
 
     return send(interaction, {
