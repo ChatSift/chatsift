@@ -1,5 +1,5 @@
 import { RaidCleanupCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, kGatewayBroadcasts, RaidCleanupMembersStore, send } from '#util';
+import { ArgumentsOf, ControlFlowError, kGatewayBroadcasts, RaidCleanupMember, RaidCleanupMembersStore, send } from '#util';
 import { DiscordEvents, ms } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { kLogger } from '@automoderator/injection';
@@ -123,7 +123,7 @@ export default class implements Command {
 
     await send(interaction, { content: 'Selecting members that match your criteria...' });
 
-    const members = allMembers.reduce<Snowflake[]>((acc, member) => {
+    const members = allMembers.reduce<RaidCleanupMember[]>((acc, member) => {
       let meetsJoinCriteria = true;
       let meetsAgeCriteria = true;
 
@@ -137,7 +137,7 @@ export default class implements Command {
       }
 
       if (meetsJoinCriteria && meetsAgeCriteria) {
-        acc.push(member.user!.id);
+        acc.push({ id: member.user!.id, tag: `${member.user!.username}#${member.user!.discriminator}` });
       }
 
       return acc;
@@ -154,12 +154,12 @@ export default class implements Command {
 
     const id = nanoid();
 
-    await this.raidCleanupMembers.set(id, members);
+    void this.raidCleanupMembers.set(id, members);
     setTimeout(() => {
       void this.raidCleanupMembers.delete(id);
       void send(interaction, { components: [] });
       void send(interaction, { content: 'Timed out.' }, InteractionResponseType.ChannelMessageWithSource, true);
-    }, 1e4);
+    }, 2e4);
 
     return send(interaction, {
       content: `Are you absolutely sure you want to nuke these ${members.length} users?`,
