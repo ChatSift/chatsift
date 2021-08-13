@@ -21,6 +21,7 @@ export interface Config {
   discordPubKey: string;
   discordScopes: string;
   dbUrl: string;
+  redisUrl: string;
   nodeEnv: string;
   encryptionKey: string;
   cors: string | string[];
@@ -45,6 +46,7 @@ export const initConfig = () => {
     discordPubKey: process.env.DISCORD_PUB_KEY!,
     discordScopes: process.env.DISCORD_SCOPES?.split(',').join(' ') ?? '',
     dbUrl: process.env.DB_URL!,
+    redisUrl: process.env.REDIS_URL!,
     nodeEnv: process.env.NODE_ENV ?? 'dev',
     encryptionKey: process.env.ENCRYPTION_KEY!,
     cors: process.env.CORS?.split(',') ?? '*',
