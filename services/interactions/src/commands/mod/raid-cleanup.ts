@@ -165,7 +165,7 @@ export default class implements Command {
       content: `Are you absolutely sure you want to nuke these ${members.length} users?`,
       files: [{
         name: 'targets.txt',
-        content: Buffer.from(members.join('\n'))
+        content: Buffer.from(members.map(m => m.id).join('\n'))
       }],
       components: [
         {

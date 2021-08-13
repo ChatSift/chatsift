@@ -19,18 +19,13 @@ export default class implements Component {
   ) {}
 
   public async exec(interaction: APIGuildInteraction, [action]: [string], id: string) {
+    void send(interaction, { components: [] }, InteractionResponseType.UpdateMessage);
+
     const members = (await this.raidCleanupMembers.get(id))!;
     void this.raidCleanupMembers.delete(id);
-    void send(interaction, { components: [] });
 
     if (action === 'n') {
-      return send(
-        interaction, {
-          content: 'Canceled raid cleanup'
-        },
-        InteractionResponseType.ChannelMessageWithSource,
-        true
-      );
+      return send(interaction, { content: 'Canceled raid cleanup' }, InteractionResponseType.ChannelMessageWithSource, true);
     }
 
     const promises: Promise<void>[] = [];
@@ -64,13 +59,11 @@ export default class implements Component {
       .map(x => `• <@${x}>`)
       .join('\n');
 
-    return send(
-      interaction, {
-        content: `Done cleaning up! Here's a summary:\n\n**Members sweeped**:${format(sweeped)}\n\n**Members missed**:${format(missed)}`,
-        allowed_mentions: { parse: [] }
-      },
-      InteractionResponseType.ChannelMessageWithSource,
-      true
-    );
+    return send(interaction, {
+      content: `Done cleaning up! Here's a summary:\n\n**Members sweeped**:${format(sweeped)}\n\n**Members missed**:${format(missed)}`,
+      allowed_mentions: { parse: [] }
+    },
+    InteractionResponseType.ChannelMessageWithSource,
+    true);
   }
 }
