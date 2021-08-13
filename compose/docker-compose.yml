@@ -35,6 +35,16 @@ services:
       interval: 10s
       timeout: 5s
 
+  redis:
+    image: redis:5-alpine
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 10s
+      timeout: 5s
+
   api:
     build:
       context: ../
@@ -100,6 +110,7 @@ services:
       dockerfile: ./docker/interactions/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      REDIS_URL: "redis://redis:6379/0"
       AMQP_URL: "amqp://rabbitmq:5672"
     restart: unless-stopped
     depends_on:
@@ -136,5 +147,7 @@ services:
 volumes:
   elis-data:
     name: "automoderator-elis-data"
+  redis-data:
+    name: "redis-data"
   postgres-data:
     name: "automoderator-postgres-data"

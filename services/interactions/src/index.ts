@@ -11,6 +11,7 @@ import postgres from 'postgres';
 import { container } from 'tsyringe';
 import { Handler } from './handler';
 import { kGatewayBroadcasts } from './util';
+import Redis from 'ioredis';
 
 void (async () => {
   const config = initConfig();
@@ -51,6 +52,7 @@ void (async () => {
   container.register(Rest, { useClass: Rest });
   container.register(DiscordRest, { useValue: discordRest });
   container.register(kLogger, { useValue: logger });
+  container.register(Redis, { useValue: Redis(config.redisUrl) });
   container.register(
     kSql, {
       useValue: postgres(config.dbUrl, {
