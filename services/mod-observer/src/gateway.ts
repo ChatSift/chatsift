@@ -194,6 +194,22 @@ export class Gateway {
     }).catch(() => null);
   }
 
+  private async handleBlankAvatar(data: GatewayGuildMemberAddDispatchData) {
+    const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
+
+    if (!settings?.no_blank_avatar || data.user!.bot) {
+      return null;
+    }
+
+    if (data.user!.avatar) {
+      return null;
+    }
+
+    await this.discord.delete(Routes.guildMember(data.guild_id, data.user!.id), {
+      reason: 'Blank avatar violation'
+    }).catch(() => null);
+  }
+
   public async init() {
     const { channel } = await createAmqp(this.config.amqpUrl);
     const gateway = new RoutingSubscriber<keyof DiscordEvents, DiscordEvents>(channel);
@@ -207,7 +223,11 @@ export class Gateway {
       .on(GatewayDispatchEvents.GuildBanAdd, data => void this.handleGuildBanAdd(data))
       .on(GatewayDispatchEvents.GuildBanRemove, data => void this.handleGuildBanRemove(data))
       .on(GatewayDispatchEvents.GuildMemberRemove, data => void this.handleGuildMemberRemove(data))
-      .on(GatewayDispatchEvents.GuildMemberAdd, data => void this.handleExistingMute(data));
+      .on(GatewayDispatchEvents.GuildMemberAdd, data => {
+        void this.handleExistingMute(data);
+        void this.handleJoinAge(data);
+        void this.handleBlankAvatar(data);
+      });
 
     await gateway.init({
       name: 'gateway',
