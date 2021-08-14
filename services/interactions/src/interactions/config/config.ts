@@ -45,6 +45,12 @@ export const ConfigCommand = {
       description: 'Account age required for a user to be allowed into the server',
       type: ApplicationCommandOptionType.String,
       required: false
+    },
+    {
+      name: 'blankavatar',
+      description: 'Disallows members with a blank avatar from joining your server',
+      type: ApplicationCommandOptionType.Boolean,
+      required: false
     }
   ]
 } as const;

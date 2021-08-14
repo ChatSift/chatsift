@@ -59,6 +59,7 @@ export default class implements Command {
         • filter logs: ${atChannel(settings.filter_trigger_log_channel)}
         • automatically pardon warnings after: ${settings.auto_pardon_mutes_after ? `${settings.auto_pardon_mutes_after} days` : 'never'}
         • automatically kick users with accounts younger than: ${settings.min_join_age ? ms(settings.min_join_age, true) : 'disabled'}
+        • no blank avatar: ${settings.no_blank_avatar ? 'on' : 'off'}
       `,
       allowed_mentions: { parse: [] }
     });
@@ -72,12 +73,13 @@ export default class implements Command {
       pardon: args.pardonwarnsafter,
       mod: args.modlogchannel,
       filters: args.filterslogchannel,
-      joinage: args.joinage
+      joinage: args.joinage,
+      blankavatar: args.blankavatar
     };
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigCommand>) {
-    const { modrole, adminrole, muterole, pardon, mod, filters, joinage } = this.parse(args);
+    const { modrole, adminrole, muterole, pardon, mod, filters, joinage, blankavatar } = this.parse(args);
 
     let settings: Partial<GuildSettings> = {};
 
@@ -126,6 +128,10 @@ export default class implements Command {
       } else {
         settings.min_join_age = joinageMinutes * 6e4;
       }
+    }
+
+    if (blankavatar != null) {
+      settings.no_blank_avatar = blankavatar;
     }
 
     if (!Object.values(settings).length) {

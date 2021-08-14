@@ -13,6 +13,7 @@ export interface GuildSettings {
   filter_trigger_log_channel: Snowflake | null;
   assignable_roles_prompt: string | null;
   min_join_age: number | null;
+  no_blank_avatar: boolean;
 }
 
 export interface WebhookToken {
