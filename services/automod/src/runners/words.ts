@@ -17,7 +17,8 @@ export class WordsRunner {
 
   public async run(message: APIMessage): Promise<BannedWordWithFlags[]> {
     const entries = await this.sql<BannedWord[]>`SELECT * FROM banned_words WHERE guild_id = ${message.guild_id!}`;
-    const wordsArray = message.content.split(/ +/g);
+    const content = message.content.toLowerCase();
+    const wordsArray = content.split(/ +/g);
 
     const out: BannedWordWithFlags[] = [];
 
@@ -33,7 +34,7 @@ export class WordsRunner {
         if (wordsArray.includes(entry.word)) {
           out.push(computed);
         }
-      } else if (message.content.includes(entry.word)) {
+      } else if (content.includes(entry.word)) {
         out.push(computed);
       }
     }
