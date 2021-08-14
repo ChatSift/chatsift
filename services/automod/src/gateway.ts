@@ -25,6 +25,8 @@ import { FilterIgnores } from '@automoderator/filter-ignores';
 import { Rest } from '@automoderator/http-client';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
+import { Store } from '@cordis/store';
+import { RedisStore } from '@cordis/redis-store';
 import { Rest as CordisRest } from '@cordis/rest';
 import {
   APIGuild,
@@ -38,7 +40,7 @@ import {
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
-import { RolesPermsCache } from './RolesPermsCache';
+import Redis from 'ioredis';
 import { FilesRunner, InvitesRunner, UrlsRunner, WordsRunner } from './runners';
 
 interface FilesRunnerData {
@@ -65,8 +67,16 @@ export interface WordsRunnerData {
 export class Gateway {
   public guildLogs!: PubSubPublisher<Log>;
 
-  public readonly ownersCache = new Map<Snowflake, Snowflake>();
-  public readonly permsCache = new RolesPermsCache();
+  public readonly ownersCache = new Store<Snowflake>({ emptyEvery: 36e5 });
+  public readonly permsCache = new Store<Snowflake>({ emptyEvery: 15e3 });
+
+  public readonly messagesCache = new RedisStore<APIMessage>({
+    hash: 'messages_cache',
+    redis: new Redis(this.config.redisUrl),
+    maxSize: 500,
+    encode: msg => JSON.stringify(msg),
+    decode: msg => JSON.parse(msg)
+  });
 
   public constructor(
     @inject(kConfig) public readonly config: Config,
@@ -79,9 +89,7 @@ export class Gateway {
     public readonly files: FilesRunner,
     public readonly invites: InvitesRunner,
     public readonly words: WordsRunner
-  ) {
-    setInterval(() => this.ownersCache.clear(), 36e5).unref();
-  }
+  ) {}
 
   private async runUrls({ message, urls }: UrlsRunnerData): Promise<NotOkRunnerResult | UrlsRunnerResult> {
     try {
@@ -247,7 +255,10 @@ export class Gateway {
       for (const role of member.roles) {
         if (!addPerm(role)) {
           guildRoles ??= await this.discord.get<RESTGetAPIGuildRolesResult>(Routes.guildRoles(message.guild_id)).catch(() => []);
-          this.permsCache.add(...guildRoles.map(role => [role.id, role.permissions] as [`${bigint}`, `${bigint}`]));
+          for (const role of guildRoles) {
+            this.permsCache.set(role.id, role.permissions);
+          }
+
           addPerm(role);
         }
       }
@@ -354,9 +365,19 @@ export class Gateway {
     this.guildLogs = logs;
 
     gateway
-      .on(GatewayDispatchEvents.MessageCreate, message => void this.onMessage(message))
+      .on(GatewayDispatchEvents.MessageCreate, message => {
+        void this.messagesCache.set(message.id, message);
+        void this.onMessage(message);
+      })
       .on(GatewayDispatchEvents.MessageUpdate, async message => {
-        const fullMessage = await this.discord.get<APIMessage>(Routes.channelMessage(message.channel_id, message.id)).catch(() => null);
+        const fullMessage = await this.messagesCache.get(message.id) ??
+          await this.discord.get<APIMessage>(Routes.channelMessage(message.channel_id, message.id))
+            .then(message => {
+              void this.messagesCache.set(message.id, message);
+              return message;
+            })
+            .catch(() => null);
+
         if (fullMessage) {
           return this.onMessage(fullMessage);
         }

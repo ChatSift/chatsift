@@ -12,16 +12,20 @@ import { DiscordPermissions } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
+import { Store } from '@cordis/store';
+import { RedisStore } from '@cordis/redis-store';
 import { Rest as CordisRest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
 import {
   APIGuildMember,
   APIRole,
+  APIUser,
   AuditLogEvent,
   GatewayDispatchEvents,
   GatewayGuildBanModifyDispatchData,
   GatewayGuildMemberAddDispatchData,
   GatewayGuildMemberRemoveDispatchData,
+  GatewayGuildMemberUpdateDispatchData,
   RESTGetAPIAuditLogQuery,
   RESTGetAPIAuditLogResult,
   RESTPatchAPIGuildMemberJSONBody,
@@ -30,13 +34,22 @@ import {
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
+import Redis from 'ioredis';
 import { inject, singleton } from 'tsyringe';
 
 @singleton()
 export class Gateway {
-  public guildLogs!: PubSubPublisher<Log>;
+  private readonly _redis = new Redis(this.config.redisUrl);
 
-  public readonly _perms = new Map<Snowflake, DiscordPermissions>();
+  private readonly _guildPermsCache = new Store<DiscordPermissions>({ emptyEvery: 15e3 });
+  private readonly _guildMembersCache = new RedisStore<APIGuildMember & { user: APIUser }>({
+    hash: 'guild_members_cache',
+    redis: this._redis,
+    encode: member => JSON.stringify(member),
+    decode: member => JSON.parse(member)
+  });
+
+  public guildLogs!: PubSubPublisher<Log>;
 
   public constructor(
     @inject(kConfig) public readonly config: Config,
@@ -47,8 +60,8 @@ export class Gateway {
   ) {}
 
   private async getPerms(guildId: Snowflake): Promise<DiscordPermissions> {
-    if (this._perms.has(guildId)) {
-      return this._perms.get(guildId)!;
+    if (this._guildPermsCache.has(guildId)) {
+      return this._guildPermsCache.get(guildId)!;
     }
 
     const guildMe = await this.discord.get<APIGuildMember>(Routes.guildMember(guildId, this.config.discordClientId)).catch(() => null);
@@ -70,8 +83,7 @@ export class Gateway {
       new DiscordPermissions(0n)
     );
 
-    this._perms.set(guildId, perms);
-    setTimeout(() => this._perms.delete(guildId), 15e3).unref();
+    this._guildPermsCache.set(guildId, perms);
 
     return perms;
   }
@@ -210,6 +222,10 @@ export class Gateway {
     }).catch(() => null);
   }
 
+  private async handleGuildMemberUpdate(o: APIGuildMember & { user: APIUser }, n: GatewayGuildMemberUpdateDispatchData) {
+
+  }
+
   public async init() {
     const { channel } = await createAmqp(this.config.amqpUrl);
     const gateway = new RoutingSubscriber<keyof DiscordEvents, DiscordEvents>(channel);
@@ -227,6 +243,13 @@ export class Gateway {
         void this.handleExistingMute(data);
         void this.handleJoinAge(data);
         void this.handleBlankAvatar(data);
+      })
+      .on(GatewayDispatchEvents.GuildMemberUpdate, async data => {
+        const cachedOld = await this._guildMembersCache.get(data.user.id);
+
+        if (cachedOld) {
+          return this.handleGuildMemberUpdate(cachedOld, data);
+        }
       });
 
     await gateway.init({
@@ -235,7 +258,8 @@ export class Gateway {
         GatewayDispatchEvents.GuildBanAdd,
         GatewayDispatchEvents.GuildBanRemove,
         GatewayDispatchEvents.GuildMemberRemove,
-        GatewayDispatchEvents.GuildMemberAdd
+        GatewayDispatchEvents.GuildMemberAdd,
+        GatewayDispatchEvents.GuildMemberUpdate
       ],
       queue: 'mod_observer'
     });
