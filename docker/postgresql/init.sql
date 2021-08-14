@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   use_invite_filters boolean NOT NULL DEFAULT false,
   mod_action_log_channel bigint,
   filter_trigger_log_channel bigint,
-  assignable_roles_prompt text
+  assignable_roles_prompt text,
+  min_join_age int
 );
 
 CREATE TABLE IF NOT EXISTS webhook_tokens (

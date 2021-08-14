@@ -200,7 +200,7 @@ export class Gateway {
   }
 
   private async onMessage(message: APIMessage) {
-    if (!message.guild_id || !message.content.length || message.author.bot || !message.member) {
+    if (!message.guild_id || !message.content.length || message.author.bot || !message.member || message.webhook_id) {
       return;
     }
 
