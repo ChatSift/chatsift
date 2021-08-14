@@ -39,6 +39,12 @@ export const ConfigCommand = {
       description: 'Filter trigger logging',
       type: ApplicationCommandOptionType.Channel,
       required: false
+    },
+    {
+      name: 'joinage',
+      description: 'Account age required for a user to be allowed into the server',
+      type: ApplicationCommandOptionType.String,
+      required: false
     }
   ]
 } as const;

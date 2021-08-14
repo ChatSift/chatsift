@@ -13,7 +13,7 @@ import { Rest } from '@automoderator/http-client';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Rest as CordisRest } from '@cordis/rest';
-import { Snowflake as CordisSnowflake } from '@cordis/util';
+import { getCreationData } from '@cordis/util';
 import {
   APIGuildMember,
   APIRole,
@@ -139,7 +139,7 @@ export class Gateway {
     if (
       !entry ||
       entry.target_id !== data.user.id ||
-      (Date.now() - new CordisSnowflake(entry.id).date.getTime()) >= 3e4
+      (Date.now() - getCreationData(entry.id).createdAt.getTime()) >= 3e4
     ) {
       return null;
     }
@@ -157,7 +157,7 @@ export class Gateway {
     });
   }
 
-  private async handleGuildMemberAdd(data: GatewayGuildMemberAddDispatchData) {
+  private async handleExistingMute(data: GatewayGuildMemberAddDispatchData) {
     const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
 
     const [existingMuteCase] = await this.sql<[Case?]>`
@@ -175,7 +175,23 @@ export class Gateway {
     await this.discord.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(data.guild_id, data.user!.id), {
       data: { roles: [settings.mute_role] },
       reason: 'User is muted but rejoined the server'
-    });
+    }).catch(() => null);
+  }
+
+  private async handleJoinAge(data: GatewayGuildMemberAddDispatchData) {
+    const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
+
+    if (settings?.min_join_age == null || data.user!.bot) {
+      return null;
+    }
+
+    if (Date.now() - getCreationData(data.user!.id).createdAt.getTime() >= settings.min_join_age) {
+      return null;
+    }
+
+    await this.discord.delete(Routes.guildMember(data.guild_id, data.user!.id), {
+      reason: 'Join age violation'
+    }).catch(() => null);
   }
 
   public async init() {
@@ -191,7 +207,7 @@ export class Gateway {
       .on(GatewayDispatchEvents.GuildBanAdd, data => void this.handleGuildBanAdd(data))
       .on(GatewayDispatchEvents.GuildBanRemove, data => void this.handleGuildBanRemove(data))
       .on(GatewayDispatchEvents.GuildMemberRemove, data => void this.handleGuildMemberRemove(data))
-      .on(GatewayDispatchEvents.GuildMemberAdd, data => void this.handleGuildMemberAdd(data));
+      .on(GatewayDispatchEvents.GuildMemberAdd, data => void this.handleExistingMute(data));
 
     await gateway.init({
       name: 'gateway',

@@ -1,11 +1,12 @@
 import * as interactions from '#interactions';
 import { ConfigCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
-import type {
+import {
   ApiGetGuildsSettingsResult,
   ApiPatchGuildSettingsBody,
   ApiPatchGuildSettingsResult,
   GuildSettings,
+  ms,
   WebhookToken
 } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
@@ -57,6 +58,7 @@ export default class implements Command {
         • mod logs: ${atChannel(settings.mod_action_log_channel)}
         • filter logs: ${atChannel(settings.filter_trigger_log_channel)}
         • automatically pardon warnings after: ${settings.auto_pardon_mutes_after ? `${settings.auto_pardon_mutes_after} days` : 'never'}
+        • automatically kick users with accounts younger than: ${settings.min_join_age ? ms(settings.min_join_age, true) : 'disabled'}
       `,
       allowed_mentions: { parse: [] }
     });
@@ -69,12 +71,13 @@ export default class implements Command {
       muterole: args.muterole,
       pardon: args.pardonwarnsafter,
       mod: args.modlogchannel,
-      filters: args.filterslogchannel
+      filters: args.filterslogchannel,
+      joinage: args.joinage
     };
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigCommand>) {
-    const { modrole, adminrole, muterole, pardon, mod, filters } = this.parse(args);
+    const { modrole, adminrole, muterole, pardon, mod, filters, joinage } = this.parse(args);
 
     let settings: Partial<GuildSettings> = {};
 
@@ -108,6 +111,21 @@ export default class implements Command {
       }
 
       settings.filter_trigger_log_channel = filters.id;
+    }
+
+    if (joinage) {
+      const joinageMinutes = Number(joinage);
+
+      if (isNaN(joinageMinutes)) {
+        const joinageMs = ms(joinage);
+        if (!joinageMs) {
+          throw new ControlFlowError('Failed to parse the provided duration');
+        }
+
+        settings.min_join_age = joinageMs;
+      } else {
+        settings.min_join_age = joinageMinutes * 6e4;
+      }
     }
 
     if (!Object.values(settings).length) {

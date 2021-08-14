@@ -37,7 +37,8 @@ export default class PatchGuildsSettingsRoute extends Route {
           filter_trigger_log_channel: Joi.string()
             .pattern(/\d{17,20}/)
             .allow(null),
-          assignable_roles_prompt: Joi.string().allow(null)
+          assignable_roles_prompt: Joi.string().allow(null),
+          min_join_age: Joi.number().allow(null)
         })
         .required(),
       'body'
