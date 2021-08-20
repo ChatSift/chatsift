@@ -1,3 +1,4 @@
+import { MessageCache } from '@automoderator/cache';
 import {
   ApiPostGuildsCasesBody,
   CaseAction,
@@ -26,7 +27,6 @@ import { Rest } from '@automoderator/http-client';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Store } from '@cordis/store';
-import { RedisStore } from '@cordis/redis-store';
 import { Rest as CordisRest } from '@cordis/rest';
 import {
   APIGuild,
@@ -40,7 +40,6 @@ import {
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
-import Redis from 'ioredis';
 import { FilesRunner, InvitesRunner, UrlsRunner, WordsRunner } from './runners';
 
 interface FilesRunnerData {
@@ -70,18 +69,11 @@ export class Gateway {
   public readonly ownersCache = new Store<Snowflake>({ emptyEvery: 36e5 });
   public readonly permsCache = new Store<Snowflake>({ emptyEvery: 15e3 });
 
-  public readonly messagesCache = new RedisStore<APIMessage>({
-    hash: 'messages_cache',
-    redis: new Redis(this.config.redisUrl),
-    maxSize: 500,
-    encode: msg => JSON.stringify(msg),
-    decode: msg => JSON.parse(msg)
-  });
-
   public constructor(
     @inject(kConfig) public readonly config: Config,
     @inject(kSql) public readonly sql: Sql<{}>,
     @inject(kLogger) public readonly logger: Logger,
+    public readonly messagesCache: MessageCache,
     public readonly rest: Rest,
     public readonly discord: CordisRest,
     public readonly checker: PermissionsChecker,
@@ -365,15 +357,12 @@ export class Gateway {
     this.guildLogs = logs;
 
     gateway
-      .on(GatewayDispatchEvents.MessageCreate, message => {
-        void this.messagesCache.set(message.id, message);
-        void this.onMessage(message);
-      })
+      .on(GatewayDispatchEvents.MessageCreate, message => void this.onMessage(message))
       .on(GatewayDispatchEvents.MessageUpdate, async message => {
         const fullMessage = await this.messagesCache.get(message.id) ??
           await this.discord.get<APIMessage>(Routes.channelMessage(message.channel_id, message.id))
             .then(message => {
-              void this.messagesCache.set(message.id, message);
+              void this.messagesCache.add(message);
               return message;
             })
             .catch(() => null);

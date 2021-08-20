@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@automoderator/banword-flags": "workspace:^0.1.0",
+    "@automoderator/cache": "workspace:^0.1.0",
     "@automoderator/core": "workspace:^0.1.0",
     "@automoderator/discord-permissions": "workspace:^0.1.0",
     "@automoderator/filter-ignores": "workspace:^0.1.0",
