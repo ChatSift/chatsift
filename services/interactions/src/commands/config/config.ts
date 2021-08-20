@@ -57,6 +57,8 @@ export default class implements Command {
         • mute role: ${atRole(settings.mute_role)}
         • mod logs: ${atChannel(settings.mod_action_log_channel)}
         • filter logs: ${atChannel(settings.filter_trigger_log_channel)}
+        • user logs: ${atChannel(settings.user_update_log_channel)}
+        • message logs: ${atChannel(settings.message_update_log_channel)}
         • automatically pardon warnings after: ${settings.auto_pardon_mutes_after ? `${settings.auto_pardon_mutes_after} days` : 'never'}
         • automatically kick users with accounts younger than: ${settings.min_join_age ? ms(settings.min_join_age, true) : 'disabled'}
         • no blank avatar: ${settings.no_blank_avatar ? 'on' : 'off'}
@@ -73,13 +75,15 @@ export default class implements Command {
       pardon: args.pardonwarnsafter,
       mod: args.modlogchannel,
       filters: args.filterslogchannel,
+      users: args.userupdatelogchannel,
+      messages: args.messageslogchannel,
       joinage: args.joinage,
       blankavatar: args.blankavatar
     };
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigCommand>) {
-    const { modrole, adminrole, muterole, pardon, mod, filters, joinage, blankavatar } = this.parse(args);
+    const { modrole, adminrole, muterole, pardon, mod, filters, users, messages, joinage, blankavatar } = this.parse(args);
 
     let settings: Partial<GuildSettings> = {};
 
@@ -113,6 +117,22 @@ export default class implements Command {
       }
 
       settings.filter_trigger_log_channel = filters.id;
+    }
+
+    if (users) {
+      if (users.type !== ChannelType.GuildText) {
+        throw new ControlFlowError('Please provide a valid text channel');
+      }
+
+      settings.user_update_log_channel = users.id;
+    }
+
+    if (messages) {
+      if (messages.type !== ChannelType.GuildText) {
+        throw new ControlFlowError('Please provide a valid text channel');
+      }
+
+      settings.message_update_log_channel = messages.id;
     }
 
     if (joinage) {

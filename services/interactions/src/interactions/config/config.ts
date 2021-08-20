@@ -41,6 +41,18 @@ export const ConfigCommand = {
       required: false
     },
     {
+      name: 'userupdatelogchannel',
+      description: 'Where to log username/nickname updates',
+      type: ApplicationCommandOptionType.Channel,
+      required: false
+    },
+    {
+      name: 'messageslogchannel',
+      description: 'Where to log message update/deletes',
+      type: ApplicationCommandOptionType.Channel,
+      required: false
+    },
+    {
       name: 'joinage',
       description: 'Account age required for a user to be allowed into the server',
       type: ApplicationCommandOptionType.String,
