@@ -258,7 +258,7 @@ export class Gateway {
   }
 
   private async handleMessageDelete(message: APIMessage) {
-    if (!message.guild_id) {
+    if (!message.guild_id || message.author.bot || message.webhook_id) {
       return;
     }
 
@@ -299,7 +299,7 @@ export class Gateway {
   }
 
   private handleMessageUpdate(o: APIMessage, n: APIMessage) {
-    if (!n.guild_id) {
+    if (!n.guild_id || n.author.bot || n.webhook_id) {
       return;
     }
 
@@ -344,7 +344,14 @@ export class Gateway {
         const cachedOld = await this.guildMembersCache.get(data.guild_id, data.user.id);
 
         if (cachedOld) {
-          return this.handleGuildMemberUpdate(cachedOld, data);
+          const n = { ...cachedOld, ...data };
+
+          void this.guildMembersCache
+            // @ts-expect-error - Common discord-api-types missmatch
+            .add(n)
+            .catch(error => this.logger.warn({ error, guild: data.guild_id }, 'Failed to update message cache'));
+
+          return this.handleGuildMemberUpdate(cachedOld, n);
         }
       })
       .on(GatewayDispatchEvents.MessageDelete, async data => {

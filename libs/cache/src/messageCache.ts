@@ -11,8 +11,8 @@ export class MessageCache {
   private readonly _store = new RedisStore<APIMessage>({
     hash: 'messages_cache',
     redis: this.redis,
-    encode: member => JSON.stringify(member),
-    decode: member => JSON.parse(member)
+    encode: message => JSON.stringify(message),
+    decode: message => JSON.parse(message)
   });
 
   public constructor(@inject(kRedis) public readonly redis: Redis) {}

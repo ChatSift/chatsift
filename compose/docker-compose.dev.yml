@@ -28,6 +28,8 @@ services:
     environment:
       NODE_ENV: "dev"
       API_DOMAIN: "http://api:3001"
+    ports:
+      - "127.0.0.1:3002:3002"
 
   logging:
     environment:

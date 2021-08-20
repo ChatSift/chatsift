@@ -380,11 +380,11 @@ export class Handler {
         fields: [
           {
             name: 'New nickname',
-            value: `> ${entry.n ?? 'none'}`
+            value: `>>> ${entry.n ?? 'none'}`
           },
           {
             name: 'Previous nickname',
-            value: `> ${entry.o ?? 'none'}`
+            value: `>>> ${entry.o ?? 'none'}`
           }
         ]
       });
@@ -396,11 +396,11 @@ export class Handler {
         fields: [
           {
             name: 'New username',
-            value: `> ${entry.n}`
+            value: `>>> ${entry.n}`
           },
           {
             name: 'Previous username',
-            value: `> ${entry.o}`
+            value: `>>> ${entry.o}`
           }
         ]
       });
@@ -480,11 +480,11 @@ export class Handler {
               fields: [
                 {
                   name: 'New content',
-                  value: `> ${ellipsis(entry.n, 1020)}`
+                  value: `>>> ${ellipsis(entry.n, 1020)}`
                 },
                 {
                   name: 'Previous content',
-                  value: `> ${ellipsis(entry.o, 1020)}`
+                  value: `>>> ${ellipsis(entry.o, 1020)}`
                 }
               ]
             }

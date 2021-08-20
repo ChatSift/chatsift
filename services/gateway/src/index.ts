@@ -44,7 +44,7 @@ void (async () => {
       switch (data.t) {
         case 'MESSAGE_CREATE': {
           // @ts-expect-error - Common discord-api-types version missmatch
-          void messageCache.add(data.d);
+          void messageCache.add(data.d).catch(error => logger.warn({ error, guild: data.d.guild_id }, 'Failed to cache a message'));
 
           void guildMembersCache.add({
             guild_id: data.d.guild_id!,
