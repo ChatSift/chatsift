@@ -205,8 +205,8 @@ export default class implements Command {
                 }
 
                 case UserPerms.admin: {
-                  pushMod();
                   pushAdmin();
+                  pushOwner();
                   break;
                 }
 
