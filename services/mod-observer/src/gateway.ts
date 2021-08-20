@@ -1,3 +1,4 @@
+import { MessageCache, GuildMemberCache } from '@automoderator/cache';
 import {
   ApiPostGuildsCasesBody,
   ApiPostGuildsCasesResult,
@@ -6,17 +7,19 @@ import {
   DiscordEvents,
   GuildSettings,
   Log,
-  LogTypes
+  LogTypes,
+  ServerLogs,
+  ServerLogType
 } from '@automoderator/core';
 import { DiscordPermissions } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Store } from '@cordis/store';
-import { RedisStore } from '@cordis/redis-store';
 import { Rest as CordisRest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
 import {
+  APIMessage,
   APIGuildMember,
   APIRole,
   APIUser,
@@ -34,20 +37,11 @@ import {
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
-import Redis from 'ioredis';
 import { inject, singleton } from 'tsyringe';
 
 @singleton()
 export class Gateway {
-  private readonly _redis = new Redis(this.config.redisUrl);
-
-  private readonly _guildPermsCache = new Store<DiscordPermissions>({ emptyEvery: 15e3 });
-  private readonly _guildMembersCache = new RedisStore<APIGuildMember & { user: APIUser }>({
-    hash: 'guild_members_cache',
-    redis: this._redis,
-    encode: member => JSON.stringify(member),
-    decode: member => JSON.parse(member)
-  });
+  public readonly guildPermsCache = new Store<DiscordPermissions>({ emptyEvery: 15e3 });
 
   public guildLogs!: PubSubPublisher<Log>;
 
@@ -55,13 +49,15 @@ export class Gateway {
     @inject(kConfig) public readonly config: Config,
     @inject(kSql) public readonly sql: Sql<{}>,
     @inject(kLogger) public readonly logger: Logger,
+    public readonly guildMembersCache: GuildMemberCache,
+    public readonly messageCache: MessageCache,
     public readonly rest: Rest,
     public readonly discord: CordisRest
   ) {}
 
   private async getPerms(guildId: Snowflake): Promise<DiscordPermissions> {
-    if (this._guildPermsCache.has(guildId)) {
-      return this._guildPermsCache.get(guildId)!;
+    if (this.guildPermsCache.has(guildId)) {
+      return this.guildPermsCache.get(guildId)!;
     }
 
     const guildMe = await this.discord.get<APIGuildMember>(Routes.guildMember(guildId, this.config.discordClientId)).catch(() => null);
@@ -83,7 +79,7 @@ export class Gateway {
       new DiscordPermissions(0n)
     );
 
-    this._guildPermsCache.set(guildId, perms);
+    this.guildPermsCache.set(guildId, perms);
 
     return perms;
   }
@@ -222,8 +218,108 @@ export class Gateway {
     }).catch(() => null);
   }
 
-  private async handleGuildMemberUpdate(o: APIGuildMember & { user: APIUser }, n: GatewayGuildMemberUpdateDispatchData) {
+  private handleGuildMemberUpdate(o: APIGuildMember & { user: APIUser }, n: GatewayGuildMemberUpdateDispatchData) {
+    if (n.user.bot) {
+      return;
+    }
 
+    const logs: ServerLogs[] = [];
+
+    if (o.nick !== n.nick) {
+      logs.push({
+        type: ServerLogType.nickUpdate,
+        data: {
+          o: o.nick ?? null,
+          n: n.nick ?? null
+        }
+      });
+    }
+
+    if (o.user.username !== n.user.username) {
+      logs.push({
+        type: ServerLogType.usernameUpdate,
+        data: {
+          o: o.user.username,
+          n: n.user.username
+        }
+      });
+    }
+
+    if (logs.length) {
+      this.guildLogs.publish({
+        type: LogTypes.server,
+        data: {
+          guild: n.guild_id,
+          user: n.user,
+          logs
+        }
+      });
+    }
+  }
+
+  private async handleMessageDelete(message: APIMessage) {
+    if (!message.guild_id) {
+      return;
+    }
+
+    let mod: APIUser | undefined;
+    if (await this.hasAuditLog(message.guild_id)) {
+      const fetchedLog = await this.discord.get<RESTGetAPIAuditLogResult, RESTGetAPIAuditLogQuery>(Routes.guildAuditLog(message.guild_id), {
+        query: {
+          action_type: AuditLogEvent.MessageDelete,
+          limit: 1
+        }
+      });
+
+      const [entry] = fetchedLog.audit_log_entries;
+      if (
+        entry?.user_id &&
+        entry.target_id === message.id &&
+        (Date.now() - getCreationData(entry.id).createdAt.getTime()) < 3e4
+      ) {
+        mod = await this.discord.get<APIUser>(Routes.user(entry.user_id)).catch(() => undefined);
+      }
+    }
+
+    this.guildLogs.publish({
+      type: LogTypes.server,
+      data: {
+        guild: message.guild_id,
+        user: message.author,
+        logs: [{
+          type: ServerLogType.messageDelete,
+          data: {
+            message,
+            mod,
+            hadAttachments: Boolean(message.attachments.length || message.embeds.length)
+          }
+        }]
+      }
+    });
+  }
+
+  private handleMessageUpdate(o: APIMessage, n: APIMessage) {
+    if (!n.guild_id) {
+      return;
+    }
+
+    if (o.content !== n.content) {
+      this.guildLogs.publish({
+        type: LogTypes.server,
+        data: {
+          guild: n.guild_id,
+          user: n.author,
+          logs: [{
+            type: ServerLogType.messageEdit,
+            data: {
+              message: n,
+              o: o.content || '`none`',
+              n: n.content || '`none`'
+            }
+          }]
+        }
+      });
+    }
   }
 
   public async init() {
@@ -245,10 +341,31 @@ export class Gateway {
         void this.handleBlankAvatar(data);
       })
       .on(GatewayDispatchEvents.GuildMemberUpdate, async data => {
-        const cachedOld = await this._guildMembersCache.get(data.user.id);
+        const cachedOld = await this.guildMembersCache.get(data.guild_id, data.user.id);
 
         if (cachedOld) {
           return this.handleGuildMemberUpdate(cachedOld, data);
+        }
+      })
+      .on(GatewayDispatchEvents.MessageDelete, async data => {
+        const cachedOld = await this.messageCache.get(data.id);
+
+        if (cachedOld) {
+          void this.messageCache.delete(data.id);
+          return this.handleMessageDelete(cachedOld);
+        }
+      })
+      .on(GatewayDispatchEvents.MessageUpdate, async data => {
+        const cachedOld = await this.messageCache.get(data.id);
+
+        if (cachedOld) {
+          const n = { ...cachedOld, ...data };
+
+          void this.messageCache
+            .add(n)
+            .catch(error => this.logger.warn({ error, guild: data.guild_id }, 'Failed to update message cache'));
+
+          return this.handleMessageUpdate(cachedOld, n);
         }
       });
 
@@ -259,7 +376,9 @@ export class Gateway {
         GatewayDispatchEvents.GuildBanRemove,
         GatewayDispatchEvents.GuildMemberRemove,
         GatewayDispatchEvents.GuildMemberAdd,
-        GatewayDispatchEvents.GuildMemberUpdate
+        GatewayDispatchEvents.GuildMemberUpdate,
+        GatewayDispatchEvents.MessageDelete,
+        GatewayDispatchEvents.MessageUpdate
       ],
       queue: 'mod_observer'
     });

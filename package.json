@@ -40,7 +40,7 @@
     "ley": "^0.7.1",
     "lint-staged": "^11.1.1",
     "rimraf": "^3.0.2",
-    "typescript": "^4.4.0-dev.20210731"
+    "typescript": "^4.4.0-insiders.20210805"
   },
   "husky": {
     "hooks": {

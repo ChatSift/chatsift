@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   use_invite_filters boolean NOT NULL DEFAULT false,
   mod_action_log_channel bigint,
   filter_trigger_log_channel bigint,
+  user_update_log_channel bigint,
+  message_update_log_channel bigint,
   assignable_roles_prompt text,
   min_join_age int,
   no_blank_avatar boolean NOT NULL DEFAULT false

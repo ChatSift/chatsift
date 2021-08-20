@@ -44,7 +44,7 @@ export const makeCaseEmbed = ({ logChannelId, cs, target, mod, pardonedBy, messa
         name: `${cs.target_tag} (${cs.target_id})`,
         icon_url: target.avatar
           ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${target.id}/${target.avatar}`)
-          : `${RouteBases.cdn}/embed/avatars/${parseInt(target.discriminator, 10) % 5}`
+          : `${RouteBases.cdn}/embed/avatars/${parseInt(target.discriminator, 10) % 5}.png`
       }
     };
 
@@ -56,7 +56,7 @@ export const makeCaseEmbed = ({ logChannelId, cs, target, mod, pardonedBy, messa
       ? (
         mod.avatar
           ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${mod.id}/${mod.avatar}`)
-          : `${RouteBases.cdn}/embed/avatars/${parseInt(mod.discriminator, 10) % 5}`
+          : `${RouteBases.cdn}/embed/avatars/${parseInt(mod.discriminator, 10) % 5}.png`
       )
       : undefined
   };
@@ -155,7 +155,7 @@ export const makeHistoryEmbed = ({ user, cases, logChannelId, filterTriggers }: 
       name: `${user.username}#${user.discriminator} (${user.id})`,
       icon_url: user.avatar
         ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${user.id}/${user.avatar}`)
-        : `${RouteBases.cdn}/embed/avatars/${parseInt(user.discriminator, 10) % 5}`
+        : `${RouteBases.cdn}/embed/avatars/${parseInt(user.discriminator, 10) % 5}.png`
     },
     color: colors[points > 0 && points < 1 ? 1 : Math.min(Math.floor(points), 3)]
   };
