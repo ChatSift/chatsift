@@ -29,7 +29,7 @@
   "dependencies": {
     "@automoderator/injection": "workspace:^0.1.0",
     "@cordis/rest": "^1.0.1",
-    "discord-api-types": "^0.22.0",
+    "discord-api-types": "^0.23.0-next.fdc1c1a.1629507362",
     "tslib": "^2.3.0",
     "tsyringe": "^4.6.0"
   }

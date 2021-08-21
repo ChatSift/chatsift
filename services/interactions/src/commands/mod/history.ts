@@ -5,7 +5,7 @@ import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
 import { kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
-import type { APIGuildInteraction } from 'discord-api-types/v9';
+import { APIGuildInteraction, ApplicationCommandType, APIApplicationCommandInteractionData } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
@@ -51,6 +51,11 @@ export default class implements Command {
       filterTriggers
     });
 
-    return send(interaction, { embed });
+    return send(interaction, {
+      embed,
+      flags: (interaction.data as APIApplicationCommandInteractionData).type === ApplicationCommandType.User
+        ? 64
+        : 0
+    });
   }
 }

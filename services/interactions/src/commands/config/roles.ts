@@ -31,7 +31,7 @@ export default class implements Command {
     }
   }
 
-  private async handlePrompt(interaction: APIGuildInteraction, args: ArgumentsOf<typeof RolesCommand['options'][0]>) {
+  private async handlePrompt(interaction: APIGuildInteraction, args: ArgumentsOf<typeof RolesCommand>['prompt']) {
     switch (Object.keys(args)[0] as 'display' | 'set') {
       case 'display': {
         const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`);

@@ -2,12 +2,17 @@ import type {
   APIGuildMember,
   APIPartialChannel,
   APIRole,
-  APIUser, ApplicationCommandOptionType, Permissions
+  APIUser,
+  APIMessage,
+  ApplicationCommandOptionType,
+  ApplicationCommandType,
+  Permissions
 } from 'discord-api-types/v9';
 
 type Command = Readonly<{
   name: string;
-  description: string;
+  description?: string;
+  type?: ApplicationCommandType;
   options?: readonly Option[];
 }>;
 
@@ -87,6 +92,14 @@ type OptionToObject<O> = O extends {
 
 type ArgumentsOfRaw<O> = O extends readonly any[] ? UnionToIntersection<OptionToObject<O[number]>> : never;
 
-export type ArgumentsOf<C extends Command> = C extends { options: readonly Option[] }
+type ArgumentsOfChatCommand<C extends Command> = C extends { options: readonly Option[] }
   ? Simplify<UnionToIntersection<OptionToObject<C['options'][number]>>>
   : unknown;
+
+export type ArgumentsOf<C extends Command> = C extends { type: ApplicationCommandType.ChatInput } | Omit<C, 'type'>
+  ? ArgumentsOfChatCommand<C>
+  : C extends { type: ApplicationCommandType.ChatInput }
+    ? { user: APIUser }
+    : C extends { type: ApplicationCommandType.Message }
+      ? { message: APIMessage }
+      : never;

@@ -36,12 +36,15 @@ export class Handler {
   ) {}
 
   public async handleCommand(interaction: Interaction) {
-    // TODO: Check on discord-api-types
-    const data = interaction.data as APIApplicationCommandInteractionData | undefined;
-    const command = this.commands.get(data?.name ?? '');
+    const data = interaction.data as APIApplicationCommandInteractionData;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const command = this.commands.get(data?.name?.toLowerCase() ?? '');
 
     if (!command) {
-      return null;
+      return send(interaction, {
+        content: 'Please alert a developer! The command that you tried using was not registered internally.',
+        flags: 64
+      });
     }
 
     try {
@@ -51,12 +54,12 @@ export class Handler {
         );
       }
 
-      await command.exec(interaction, transformInteraction(data!.options ?? [], data!.resolved));
+      await command.exec(interaction, transformInteraction(data));
     } catch (e: any) {
       const internal = !(e instanceof ControlFlowError);
 
       if (internal) {
-        this.logger.error({ error: e }, `Failed to execute command "${data!.name}"`);
+        this.logger.error({ error: e }, `Failed to execute command "${data.name}"`);
       }
 
       const message = e.message ?? e.toString();
