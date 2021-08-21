@@ -31,6 +31,10 @@ export default class implements Command {
       throw new ControlFlowError('This server does not have a reports channel set up.');
     }
 
+    if (message.author.id === interaction.member.user.id) {
+      throw new ControlFlowError('You cannot report your own message.');
+    }
+
     const id = nanoid();
 
     await this.discordRest.post<RESTPostAPIChannelMessageResult, RESTPostAPIChannelMessageJSONBody>(
