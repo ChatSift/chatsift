@@ -11,7 +11,7 @@ import {
 } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest, HTTPError as DiscordHTTPError } from '@automoderator/http-client';
-import { Config, kConfig, kSql } from '@automoderator/injection';
+import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
 import {
@@ -26,6 +26,7 @@ import {
   ChannelType,
   Snowflake
 } from 'discord-api-types/v9';
+import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
@@ -39,6 +40,7 @@ export default class implements Command {
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
     public readonly handler: Handler,
+    @inject(kLogger) public readonly logger: Logger,
     @inject(kConfig) public readonly config: Config,
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
@@ -154,15 +156,6 @@ export default class implements Command {
       settings.no_blank_avatar = blankavatar;
     }
 
-    if (!Object.values(settings).length) {
-      return this._sendCurrentSettings(interaction);
-    }
-
-    settings = await this.rest.patch<ApiPatchGuildSettingsResult, ApiPatchGuildSettingsBody>(
-      `/guilds/${interaction.guild_id}/settings`,
-      settings
-    );
-
     const guild = await this.discordRest.get<APIGuild>(Routes.guild(interaction.guild_id));
 
     await this.discordRest.put<unknown, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
@@ -172,12 +165,10 @@ export default class implements Command {
             ? this.handler.globalCommandIds.get(entry.name)
             : this.handler.testGuildCommandIds.get(`${interaction.guild_id}-${entry.name}`);
 
-          const command = this.handler.commands.get(entry.name);
-
           // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          if ('default_permission' in entry && !entry.default_permission && id && command) {
+          if ('default_permission' in entry && !entry.default_permission && id) {
             const permissions: APIApplicationCommandPermission[] = [];
-            if (command.userPermissions) {
+            if ('perms' in entry) {
               const pushOwner = () => void permissions.push({
                 id: guild.owner_id,
                 type: ApplicationCommandPermissionType.User,
@@ -196,7 +187,11 @@ export default class implements Command {
                 permission: true
               });
 
-              switch (command.userPermissions) {
+              switch (entry.perms as UserPerms) {
+                case UserPerms.none: {
+                  break;
+                }
+
                 case UserPerms.mod: {
                   pushMod();
                   pushAdmin();
@@ -229,6 +224,15 @@ export default class implements Command {
           return acc;
         }, [])
       }
+    );
+
+    if (!Object.values(settings).length) {
+      return this._sendCurrentSettings(interaction);
+    }
+
+    settings = await this.rest.patch<ApiPatchGuildSettingsResult, ApiPatchGuildSettingsBody>(
+      `/guilds/${interaction.guild_id}/settings`,
+      settings
     );
 
     const makeWebhook = async (channel: Snowflake, name: string) => {
