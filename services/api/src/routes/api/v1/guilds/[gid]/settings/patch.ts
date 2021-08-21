@@ -45,7 +45,10 @@ export default class PatchGuildsSettingsRoute extends Route {
             .allow(null),
           assignable_roles_prompt: Joi.string().allow(null),
           min_join_age: Joi.number().allow(null),
-          no_blank_avatar: Joi.boolean()
+          no_blank_avatar: Joi.boolean(),
+          reports_channel: Joi.string()
+            .pattern(/\d{17,20}/)
+            .allow(null)
         })
         .required(),
       'body'
