@@ -11,6 +11,8 @@ export interface GuildSettings {
   use_invite_filters: boolean;
   mod_action_log_channel: Snowflake | null;
   filter_trigger_log_channel: Snowflake | null;
+  user_update_log_channel: Snowflake | null;
+  message_update_log_channel: Snowflake | null;
   assignable_roles_prompt: string | null;
   min_join_age: number | null;
   no_blank_avatar: boolean;

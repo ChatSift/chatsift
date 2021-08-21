@@ -61,7 +61,7 @@ void (async () => {
   container.register(Rest, { useClass: Rest });
   container.register(DiscordRest, { useValue: discordRest });
   container.register(kLogger, { useValue: logger });
-  container.register(kRedis, { useValue: Redis(config.redisUrl) });
+  container.register(kRedis, { useValue: new Redis(config.redisUrl) });
   container.register(
     kSql, {
       useValue: postgres(config.dbUrl, {

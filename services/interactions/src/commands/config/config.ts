@@ -57,6 +57,8 @@ export default class implements Command {
         • mute role: ${atRole(settings.mute_role)}
         • mod logs: ${atChannel(settings.mod_action_log_channel)}
         • filter logs: ${atChannel(settings.filter_trigger_log_channel)}
+        • user logs: ${atChannel(settings.user_update_log_channel)}
+        • message logs: ${atChannel(settings.message_update_log_channel)}
         • automatically pardon warnings after: ${settings.auto_pardon_mutes_after ? `${settings.auto_pardon_mutes_after} days` : 'never'}
         • automatically kick users with accounts younger than: ${settings.min_join_age ? ms(settings.min_join_age, true) : 'disabled'}
         • no blank avatar: ${settings.no_blank_avatar ? 'on' : 'off'}
@@ -73,13 +75,15 @@ export default class implements Command {
       pardon: args.pardonwarnsafter,
       mod: args.modlogchannel,
       filters: args.filterslogchannel,
+      users: args.userupdatelogchannel,
+      messages: args.messageslogchannel,
       joinage: args.joinage,
       blankavatar: args.blankavatar
     };
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigCommand>) {
-    const { modrole, adminrole, muterole, pardon, mod, filters, joinage, blankavatar } = this.parse(args);
+    const { modrole, adminrole, muterole, pardon, mod, filters, users, messages, joinage, blankavatar } = this.parse(args);
 
     let settings: Partial<GuildSettings> = {};
 
@@ -115,6 +119,22 @@ export default class implements Command {
       settings.filter_trigger_log_channel = filters.id;
     }
 
+    if (users) {
+      if (users.type !== ChannelType.GuildText) {
+        throw new ControlFlowError('Please provide a valid text channel');
+      }
+
+      settings.user_update_log_channel = users.id;
+    }
+
+    if (messages) {
+      if (messages.type !== ChannelType.GuildText) {
+        throw new ControlFlowError('Please provide a valid text channel');
+      }
+
+      settings.message_update_log_channel = messages.id;
+    }
+
     if (joinage) {
       const joinageMinutes = Number(joinage);
 
@@ -143,74 +163,73 @@ export default class implements Command {
       settings
     );
 
-    if (modrole || adminrole) {
-      const guild = await this.discordRest.get<APIGuild>(Routes.guild(interaction.guild_id));
+    const guild = await this.discordRest.get<APIGuild>(Routes.guild(interaction.guild_id));
 
-      await this.discordRest.put<unknown, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
-        Routes.guildApplicationCommandsPermissions(this.config.discordClientId, interaction.guild_id), {
-          data: Object.values(interactions).reduce<RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>((acc, entry) => {
-            const id = this.config.nodeEnv === 'prod'
-              ? this.handler.globalCommandIds.get(entry.name)
-              : this.handler.testGuildCommandIds.get(`${interaction.guild_id}-${entry.name}`);
+    await this.discordRest.put<unknown, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
+      Routes.guildApplicationCommandsPermissions(this.config.discordClientId, interaction.guild_id), {
+        data: Object.values(interactions).reduce<RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>((acc, entry) => {
+          const id = this.config.nodeEnv === 'prod'
+            ? this.handler.globalCommandIds.get(entry.name)
+            : this.handler.testGuildCommandIds.get(`${interaction.guild_id}-${entry.name}`);
 
-            const command = this.handler.commands.get(entry.name);
+          const command = this.handler.commands.get(entry.name);
 
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            if ('default_permission' in entry && !entry.default_permission && id && command) {
-              const permissions: APIApplicationCommandPermission[] = [];
-              if (command.userPermissions) {
-                const pushOwner = () => void permissions.push({
-                  id: guild.owner_id,
-                  type: ApplicationCommandPermissionType.User,
-                  permission: true
-                });
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          if ('default_permission' in entry && !entry.default_permission && id && command) {
+            const permissions: APIApplicationCommandPermission[] = [];
+            if (command.userPermissions) {
+              const pushOwner = () => void permissions.push({
+                id: guild.owner_id,
+                type: ApplicationCommandPermissionType.User,
+                permission: true
+              });
 
-                const pushAdmin = () => adminrole && void permissions.push({
-                  id: adminrole.id,
-                  type: ApplicationCommandPermissionType.Role,
-                  permission: true
-                });
+              const pushAdmin = () => settings.admin_role && void permissions.push({
+                id: settings.admin_role,
+                type: ApplicationCommandPermissionType.Role,
+                permission: true
+              });
 
-                const pushMod = () => modrole && void permissions.push({
-                  id: modrole.id,
-                  type: ApplicationCommandPermissionType.Role,
-                  permission: true
-                });
+              const pushMod = () => settings.mod_role && void permissions.push({
+                id: settings.mod_role,
+                type: ApplicationCommandPermissionType.Role,
+                permission: true
+              });
 
-                switch (command.userPermissions) {
-                  case UserPerms.mod: {
-                    pushMod();
-                    break;
-                  }
+              switch (command.userPermissions) {
+                case UserPerms.mod: {
+                  pushMod();
+                  pushAdmin();
+                  pushOwner();
+                  break;
+                }
 
-                  case UserPerms.admin: {
-                    pushMod();
-                    pushAdmin();
-                    break;
-                  }
+                case UserPerms.admin: {
+                  pushAdmin();
+                  pushOwner();
+                  break;
+                }
 
-                  case UserPerms.owner: {
-                    pushMod();
-                    pushAdmin();
-                    pushOwner();
-                  }
+                case UserPerms.owner: {
+                  pushOwner();
+                  break;
                 }
               }
-
-              acc.push({
-                id,
-                permissions: [
-                  ...permissions,
-                  ...this.config.devIds.map(id => ({ id, type: ApplicationCommandPermissionType.User, permission: true }))
-                ]
-              });
             }
 
-            return acc;
-          }, [])
-        }
-      );
-    }
+            acc.push({
+              id,
+              permissions: [
+                ...permissions,
+                ...this.config.devIds.map(id => ({ id, type: ApplicationCommandPermissionType.User, permission: true }))
+              ]
+            });
+          }
+
+          return acc;
+        }, [])
+      }
+    );
 
     const makeWebhook = async (channel: Snowflake, name: string) => {
       const webhook = await this.discordRest.post<RESTPostAPIChannelWebhookResult, RESTPostAPIChannelWebhookJSONBody>(

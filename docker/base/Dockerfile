@@ -14,6 +14,7 @@ COPY package.json pnpm-workspace.yaml tsconfig.json pnpm-lock.yaml ./
 RUN pnpm i --frozen-lockfile
 
 COPY libs/banword-flags/package.json ./libs/banword-flags/package.json
+COPY libs/cache/package.json ./libs/cache/package.json
 COPY libs/core/package.json ./libs/core/package.json
 COPY libs/discord-permissions/package.json ./libs/discord-permissions/package.json
 COPY libs/filter-ignores/package.json ./libs/filter-ignores/package.json
@@ -25,6 +26,7 @@ COPY libs/rest/package.json ./libs/rest/package.json
 RUN pnpm i --frozen-lockfile && apk del .build-deps
 
 COPY libs/banword-flags ./libs/banword-flags
+COPY libs/cache ./libs/cache
 COPY libs/core ./libs/core
 COPY libs/discord-permissions ./libs/discord-permissions
 COPY libs/filter-ignores ./libs/filter-ignores

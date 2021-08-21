@@ -32,6 +32,7 @@ services:
       dockerfile: ./docker/automod/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      REDIS_URL: "redis://redis:6379/0"
       AMQP_URL: "amqp://rabbitmq:5672"
     restart: unless-stopped
     depends_on:
@@ -61,6 +62,7 @@ services:
       dockerfile: ./docker/gateway/Dockerfile
     environment:
       AMQP_URL: "amqp://rabbitmq:5672"
+      REDIS_URL: "redis://redis:6379/0"
     restart: unless-stopped
     depends_on:
       - base
@@ -97,6 +99,7 @@ services:
       dockerfile: ./docker/mod-observer/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      REDIS_URL: "redis://redis:6379/0"
       AMQP_URL: "amqp://rabbitmq:5672"
     restart: unless-stopped
     depends_on:

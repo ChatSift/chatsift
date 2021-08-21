@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { Rest } from '@automoderator/http-client';
-import { initConfig, kLogger, kSql } from '@automoderator/injection';
+import { initConfig, kLogger, kRedis, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { Rest as DiscordRest } from '@cordis/rest';
 import type { Logger } from 'pino';
@@ -8,6 +8,7 @@ import postgres, { Sql } from 'postgres';
 import { container } from 'tsyringe';
 import { Gateway } from './gateway';
 import * as runners from './runners';
+import Redis, { Redis as IORedis } from 'ioredis';
 
 void (async () => {
   const config = initConfig();
@@ -43,6 +44,7 @@ void (async () => {
   }
 
   container.register(DiscordRest, { useValue: discordRest });
+  container.register<IORedis>(kRedis, { useValue: new Redis(config.redisUrl) });
   container.register<Sql<{}>>(kSql, { useValue: sql });
   container.register<Logger>(kLogger, { useValue: logger });
   for (const runner of Object.values(runners)) {

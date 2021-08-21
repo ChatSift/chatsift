@@ -1,5 +1,9 @@
 import type {
-  APIGuildInteraction, APIMessage, GatewayDispatchEvents, GatewayDispatchPayload
+  APIMessage,
+  APIUser,
+  GatewayDispatchEvents,
+  GatewayDispatchPayload,
+  Snowflake
 } from 'discord-api-types/v9';
 import type { ApiPostFiltersFilesResult, ApiPostFiltersUrlsResult, HttpCase } from './api';
 import type { BannedWord, CaseAction, WarnPunishmentAction } from './models';
@@ -14,14 +18,10 @@ export type DiscordEvents = {
   [K in keyof SanitizedDiscordEvents]: SanitizedDiscordEvents[K]['d'];
 };
 
-export interface DiscordInteractions {
-  command: APIGuildInteraction;
-  component: APIGuildInteraction;
-}
-
 export enum LogTypes {
   modAction,
-  filterTrigger
+  filterTrigger,
+  server
 }
 
 export interface LogBase<T extends LogTypes, D extends Record<string, any>> {
@@ -88,4 +88,39 @@ export interface FilterTriggerData {
 
 export type FilterTriggerLog = LogBase<LogTypes.filterTrigger, FilterTriggerData>;
 
-export type Log = ModActionLog | FilterTriggerLog;
+export enum ServerLogType {
+  nickUpdate,
+  usernameUpdate,
+  messageEdit,
+  messageDelete
+}
+
+export interface ServerLogBase<T extends ServerLogType, D> {
+  type: T;
+  data: D;
+}
+
+export type ServerNickUpdateLog = ServerLogBase<ServerLogType.nickUpdate, { o: string | null; n: string | null }>;
+export type ServerUsernameUpdateLog = ServerLogBase<ServerLogType.usernameUpdate, { o: string; n: string }>;
+export type ServerMessageEditLog = ServerLogBase<ServerLogType.messageEdit, { message: APIMessage; o: string; n: string }>;
+export type ServerMessageDeleteLog = ServerLogBase<ServerLogType.messageDelete, { message: APIMessage; hadAttachments: boolean; mod?: APIUser }>;
+
+export type ServerLogs = ServerNickUpdateLog | ServerUsernameUpdateLog | ServerMessageEditLog | ServerMessageDeleteLog;
+
+type _GroupedServerLogs = {
+  [T in ServerLogType]: (ServerLogs & { type: T })
+};
+
+export type GroupedServerLogs = {
+  [K in ServerLogType]: _GroupedServerLogs[K]['data'][];
+};
+
+export interface ServerLogData {
+  guild: Snowflake;
+  user: APIUser;
+  logs: ServerLogs[];
+}
+
+export type ServerLog = LogBase<LogTypes.server, ServerLogData>;
+
+export type Log = ModActionLog | FilterTriggerLog | ServerLog;

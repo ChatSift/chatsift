@@ -4,6 +4,7 @@ import {
   CaseAction,
   ellipsis,
   FilterTriggerLog,
+  GroupedServerLogs,
   GuildSettings,
   Log,
   LogTypes,
@@ -15,6 +16,8 @@ import {
   NotOkRunnerResult,
   RunnerResult,
   Runners,
+  ServerLog,
+  ServerLogType,
   WarnCase,
   WarnPunishmentAction,
   WebhookToken
@@ -22,7 +25,7 @@ import {
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
 import { HTTPError as CordisHTTPError, Rest } from '@cordis/rest';
-import { makeDiscordCdnUrl } from '@cordis/util';
+import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 import {
   APIEmbed,
   APIMessage,
@@ -228,7 +231,7 @@ export class Handler {
         name: `${message.author.username}#${message.author.discriminator} (${message.author.id})`,
         icon_url: message.author.avatar
           ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${message.author.id}/${message.author.avatar}`)
-          : `${RouteBases.cdn}/embed/avatars/${parseInt(message.author.discriminator, 10) % 5}`
+          : `${RouteBases.cdn}/embed/avatars/${parseInt(message.author.discriminator, 10) % 5}.png`
       },
       ...embed
     });
@@ -237,7 +240,7 @@ export class Handler {
       case Runners.files: {
         const hashes = trigger.data
           .map(file => `${file.file_hash} (${MaliciousFileCategory[file.category]})`)
-          .join('\n');
+          .join(', ');
 
         push({
           title: 'Posted malicious files',
@@ -250,7 +253,7 @@ export class Handler {
       case Runners.urls: {
         const urls = trigger.data
           .map(url => `${url.url} (${MaliciousUrlCategory[url.category]})`)
-          .join('\n');
+          .join(', ');
 
         push({
           title: 'Posted malicious urls',
@@ -263,7 +266,7 @@ export class Handler {
       case Runners.invites: {
         const invites = trigger.data
           .map(invite => `https://discord.gg/${invite}`)
-          .join('\n');
+          .join(', ');
 
         push({
           title: 'Posted unallowed invites',
@@ -292,7 +295,7 @@ export class Handler {
             title: 'Posted prohibited content',
             description: `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`,
             footer: {
-              text: `Blocked words:\n${words.join('\n')}`
+              text: `Blocked words:\n${words.join(', ')}`
             }
           });
         }
@@ -302,7 +305,7 @@ export class Handler {
             title: 'Posted prohibited content',
             description: `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`,
             footer: {
-              text: `Blocked urls:\n${urls.join('\n')}`
+              text: `Blocked urls:\n${urls.join(', ')}`
             }
           });
         }
@@ -350,6 +353,174 @@ export class Handler {
     );
   }
 
+  private async _handleUserUpdateLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
+    if (!logs[ServerLogType.nickUpdate].length && !logs[ServerLogType.usernameUpdate].length) {
+      return;
+    }
+
+    if (!settings.user_update_log_channel) {
+      return;
+    }
+
+    const webhook = await this._assertWebhook(settings.user_update_log_channel, 'User Updates');
+    if (!webhook) {
+      return;
+    }
+
+    const embeds: APIEmbed[] = [];
+    const push = (embed: APIEmbed) => embeds.push({
+      author: {
+        name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
+        icon_url: log.data.user.avatar
+          ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
+          : `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`
+      },
+      ...embed
+    });
+
+    for (const entry of logs[ServerLogType.nickUpdate]) {
+      push({
+        title: 'Changed their nickname',
+        fields: [
+          {
+            name: 'New nickname',
+            value: `>>> ${entry.n ?? 'none'}`
+          },
+          {
+            name: 'Previous nickname',
+            value: `>>> ${entry.o ?? 'none'}`
+          }
+        ]
+      });
+    }
+
+    for (const entry of logs[ServerLogType.usernameUpdate]) {
+      push({
+        title: 'Changed their username',
+        fields: [
+          {
+            name: 'New username',
+            value: `>>> ${entry.n}`
+          },
+          {
+            name: 'Previous username',
+            value: `>>> ${entry.o}`
+          }
+        ]
+      });
+    }
+
+    await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
+      Routes.webhook(webhook.id, webhook.token), {
+        data: {
+          embeds
+        }
+      }
+    );
+  }
+
+  private async _handleMessageDeleteLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
+    if (!settings.message_update_log_channel) {
+      return;
+    }
+
+    const webhook = await this._assertWebhook(settings.message_update_log_channel, 'Message Updates');
+    if (!webhook) {
+      return;
+    }
+
+    const [entry] = logs[ServerLogType.messageDelete];
+    if (!entry) {
+      return;
+    }
+
+    await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
+      Routes.webhook(webhook.id, webhook.token), {
+        data: {
+          embeds: [
+            {
+              author: {
+                name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
+                icon_url: log.data.user.avatar
+                  ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
+                  : `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`
+              },
+              title: `Deleted their mesasge posted <t:${Math.round(getCreationData(entry.message.id).createdTimestamp / 1000)}:R>`,
+              description: `\`\`\`${entry.message.content}\`\`\``
+            }
+          ]
+        }
+      }
+    );
+  }
+
+  private async _handleMessageEditLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
+    if (!settings.message_update_log_channel) {
+      return;
+    }
+
+    const webhook = await this._assertWebhook(settings.message_update_log_channel, 'Message Updates');
+    if (!webhook) {
+      return;
+    }
+
+    const [entry] = logs[ServerLogType.messageEdit];
+    if (!entry) {
+      return;
+    }
+
+    await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
+      Routes.webhook(webhook.id, webhook.token), {
+        data: {
+          embeds: [
+            {
+              author: {
+                name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
+                icon_url: log.data.user.avatar
+                  ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
+                  : `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`
+              },
+              title: `Updated their mesasge posted <t:${Math.round(getCreationData(entry.message.id).createdTimestamp / 1000)}:R>`,
+              fields: [
+                {
+                  name: 'New content',
+                  value: `>>> ${ellipsis(entry.n, 1020)}`
+                },
+                {
+                  name: 'Previous content',
+                  value: `>>> ${ellipsis(entry.o, 1020)}`
+                }
+              ]
+            }
+          ]
+        }
+      }
+    );
+  }
+
+  private async _handleServerLog(log: ServerLog) {
+    const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${log.data.guild}`;
+
+    if (!settings) {
+      return;
+    }
+
+    const logs = log.data.logs.reduce<GroupedServerLogs>((acc, current) => {
+      // @ts-expect-error - Impossible to tell TS the right array is obtained for the given log type
+      acc[current.type].push(current.data);
+      return acc;
+    }, {
+      [ServerLogType.nickUpdate]: [],
+      [ServerLogType.usernameUpdate]: [],
+      [ServerLogType.messageEdit]: [],
+      [ServerLogType.messageDelete]: []
+    });
+
+    void this._handleUserUpdateLogs(settings, log, logs);
+    void this._handleMessageDeleteLogs(settings, log, logs);
+    void this._handleMessageEditLogs(settings, log, logs);
+  }
+
   private _handleLog(log: Log) {
     switch (log.type) {
       case LogTypes.modAction: {
@@ -358,6 +529,10 @@ export class Handler {
 
       case LogTypes.filterTrigger: {
         return this._handleFilterTriggerLog(log);
+      }
+
+      case LogTypes.server: {
+        return this._handleServerLog(log);
       }
 
       default: {
