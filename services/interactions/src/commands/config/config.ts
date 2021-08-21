@@ -6,11 +6,10 @@ import {
   ApiPatchGuildSettingsBody,
   ApiPatchGuildSettingsResult,
   GuildSettings,
-  ms,
-  WebhookToken
+  ms
 } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
-import { Rest, HTTPError as DiscordHTTPError } from '@automoderator/http-client';
+import { Rest } from '@automoderator/http-client';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
@@ -20,11 +19,8 @@ import {
   APIGuildInteraction,
   ApplicationCommandPermissionType,
   RESTPutAPIGuildApplicationCommandsPermissionsJSONBody,
-  RESTPostAPIChannelWebhookJSONBody,
-  RESTPostAPIChannelWebhookResult,
   Routes,
-  ChannelType,
-  Snowflake
+  ChannelType
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
@@ -45,9 +41,7 @@ export default class implements Command {
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
-  private async _sendCurrentSettings(interaction: APIGuildInteraction) {
-    const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`);
-
+  private _sendCurrentSettings(interaction: APIGuildInteraction, settings: Partial<GuildSettings>) {
     const atRole = (role?: string | null) => role ? `<@&${role}>` : 'none';
     const atChannel = (channel?: string | null) => channel ? `<#${channel}>` : 'none';
 
@@ -156,6 +150,14 @@ export default class implements Command {
       settings.no_blank_avatar = blankavatar;
     }
 
+    if (Object.values(settings).length) {
+      settings = await this.rest.patch<ApiPatchGuildSettingsResult, ApiPatchGuildSettingsBody>(`/guilds/${interaction.guild_id}/settings`, settings);
+      void this._sendCurrentSettings(interaction, settings);
+    } else {
+      settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`);
+      void this._sendCurrentSettings(interaction, settings);
+    }
+
     const guild = await this.discordRest.get<APIGuild>(Routes.guild(interaction.guild_id));
 
     await this.discordRest.put<unknown, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
@@ -225,75 +227,5 @@ export default class implements Command {
         }, [])
       }
     );
-
-    if (!Object.values(settings).length) {
-      return this._sendCurrentSettings(interaction);
-    }
-
-    settings = await this.rest.patch<ApiPatchGuildSettingsResult, ApiPatchGuildSettingsBody>(
-      `/guilds/${interaction.guild_id}/settings`,
-      settings
-    );
-
-    const makeWebhook = async (channel: Snowflake, name: string) => {
-      const webhook = await this.discordRest.post<RESTPostAPIChannelWebhookResult, RESTPostAPIChannelWebhookJSONBody>(
-        Routes.channelWebhooks(channel), {
-          data: {
-            name
-          }
-        }
-      ).catch(() => null);
-
-      if (webhook) {
-        const data: WebhookToken = {
-          channel_id: channel,
-          webhook_id: webhook.id,
-          webhook_token: webhook.token!
-        };
-
-        await this.sql`
-          INSERT INTO webhook_tokens ${this.sql(data)}
-          ON CONFLICT (channel_id)
-          DO UPDATE SET ${this.sql(data)}
-        `;
-      }
-    };
-
-    if (settings.mod_action_log_channel) {
-      const [data] = await this.sql<[WebhookToken?]>`SELECT * FROM webhook_tokens WHERE channel_id = ${settings.mod_action_log_channel}`;
-      if (data) {
-        try {
-          await this.discordRest.get(Routes.webhook(data.webhook_id, data.webhook_token));
-        } catch (error) {
-          if (!(error instanceof DiscordHTTPError) || error.response.status !== 404) {
-            throw error;
-          }
-
-          await makeWebhook(settings.mod_action_log_channel, 'Mod Actions');
-        }
-      } else {
-        await makeWebhook(settings.mod_action_log_channel, 'Mod Actions');
-      }
-    }
-
-    if (settings.filter_trigger_log_channel) {
-      const [data] = await this.sql<[WebhookToken?]>`SELECT * FROM webhook_tokens WHERE channel_id = ${settings.filter_trigger_log_channel}`;
-
-      if (data) {
-        try {
-          await this.discordRest.get(Routes.webhook(data.webhook_id, data.webhook_token));
-        } catch (error) {
-          if (!(error instanceof DiscordHTTPError) || error.response.status !== 404) {
-            throw error;
-          }
-
-          await makeWebhook(settings.filter_trigger_log_channel, 'Filter triggers');
-        }
-      } else {
-        await makeWebhook(settings.filter_trigger_log_channel, 'Filter triggers');
-      }
-    }
-
-    return this._sendCurrentSettings(interaction);
   }
 }
