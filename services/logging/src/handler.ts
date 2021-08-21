@@ -240,7 +240,7 @@ export class Handler {
       case Runners.files: {
         const hashes = trigger.data
           .map(file => `${file.file_hash} (${MaliciousFileCategory[file.category]})`)
-          .join('\n');
+          .join(', ');
 
         push({
           title: 'Posted malicious files',
@@ -253,7 +253,7 @@ export class Handler {
       case Runners.urls: {
         const urls = trigger.data
           .map(url => `${url.url} (${MaliciousUrlCategory[url.category]})`)
-          .join('\n');
+          .join(', ');
 
         push({
           title: 'Posted malicious urls',
@@ -266,7 +266,7 @@ export class Handler {
       case Runners.invites: {
         const invites = trigger.data
           .map(invite => `https://discord.gg/${invite}`)
-          .join('\n');
+          .join(', ');
 
         push({
           title: 'Posted unallowed invites',
@@ -295,7 +295,7 @@ export class Handler {
             title: 'Posted prohibited content',
             description: `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`,
             footer: {
-              text: `Blocked words:\n${words.join('\n')}`
+              text: `Blocked words:\n${words.join(', ')}`
             }
           });
         }
@@ -305,7 +305,7 @@ export class Handler {
             title: 'Posted prohibited content',
             description: `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`,
             footer: {
-              text: `Blocked urls:\n${urls.join('\n')}`
+              text: `Blocked urls:\n${urls.join(', ')}`
             }
           });
         }
@@ -354,6 +354,10 @@ export class Handler {
   }
 
   private async _handleUserUpdateLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
+    if (!logs[ServerLogType.nickUpdate].length && !logs[ServerLogType.usernameUpdate].length) {
+      return;
+    }
+
     if (!settings.user_update_log_channel) {
       return;
     }

@@ -1,4 +1,4 @@
-import { MessageCache, GuildMemberCache } from '@automoderator/cache';
+import { MessageCache, GuildMemberCache, CachedGuildMember } from '@automoderator/cache';
 import {
   ApiPostGuildsCasesBody,
   ApiPostGuildsCasesResult,
@@ -218,7 +218,7 @@ export class Gateway {
     }).catch(() => null);
   }
 
-  private handleGuildMemberUpdate(o: APIGuildMember & { user: APIUser }, n: GatewayGuildMemberUpdateDispatchData) {
+  private handleGuildMemberUpdate(o: CachedGuildMember, n: GatewayGuildMemberUpdateDispatchData) {
     if (n.user.bot) {
       return;
     }

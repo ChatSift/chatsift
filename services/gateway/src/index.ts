@@ -50,7 +50,7 @@ void (async () => {
             guild_id: data.d.guild_id!,
             // @ts-expect-error - Common discord-api-types version missmatch
             user: data.d.author,
-            ...data.d
+            ...data.d.member
           }).catch(error => logger.warn({ error, guild: data.d.guild_id }, 'Failed to cache a guild member'));
 
           break;
@@ -62,7 +62,7 @@ void (async () => {
               guild_id: data.d.guild_id,
               // @ts-expect-error - Common discord-api-types version missmatch
               user: data.d.author,
-              ...data.d
+              ...data.d.member
             }).catch(error => logger.warn({ error, guild: data.d.guild_id }, 'Failed to cache a guild member'));
           }
         }

@@ -26,21 +26,20 @@ export class MessageCache {
   }
 
   public async add(message: APIMessage): Promise<APIMessage> {
-    if (await this.has(message)) {
-      return message;
-    }
-
     const key = `messages_cache_${message.channel_id}_list`;
 
-    const size = await this.redis.llen(key).then(len => len + 1);
-    if (size > this._maxSizePerChannel) {
-      const popped = await this.redis.lpop(key, size - this._maxSizePerChannel);
-      for (const pop of popped) {
-        void this._store.delete(pop);
+    if (!await this.has(message)) {
+      const size = await this.redis.llen(key).then(len => len + 1);
+      if (size > this._maxSizePerChannel) {
+        const popped = await this.redis.lpop(key, size - this._maxSizePerChannel);
+        for (const pop of popped) {
+          void this._store.delete(pop);
+        }
       }
+
+      await this.redis.rpush(key, message.id);
     }
 
-    await this.redis.rpush(key, message.id);
     await this._store.set(message.id, message);
 
     return message;

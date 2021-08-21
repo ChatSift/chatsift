@@ -43,22 +43,22 @@ export class GuildMemberCache {
   }
 
   public async add(member: CachedGuildMember): Promise<CachedGuildMember> {
-    if (await this.has(member)) {
-      return member;
-    }
-
     const store = this._assertStore(member);
-    const key = `guild_members_cache_${member.guild_id}_list`;
 
-    const size = await this.redis.llen(key).then(len => len + 1);
-    if (size > this._maxSizePerGuild) {
-      const popped = await this.redis.lpop(key, size - this._maxSizePerGuild);
-      for (const pop of popped) {
-        void store.delete(pop);
+    if (!await this.has(member)) {
+      const key = `guild_members_cache_${member.guild_id}_list`;
+
+      const size = await this.redis.llen(key).then(len => len + 1);
+      if (size > this._maxSizePerGuild) {
+        const popped = await this.redis.lpop(key, size - this._maxSizePerGuild);
+        for (const pop of popped) {
+          void store.delete(pop);
+        }
       }
+
+      await this.redis.rpush(key, member.user.id);
     }
 
-    await this.redis.rpush(key, member.user.id);
     await store.set(member.user.id, member);
 
     return member;
