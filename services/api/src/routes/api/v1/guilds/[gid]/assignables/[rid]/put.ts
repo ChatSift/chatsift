@@ -29,7 +29,7 @@ export default class PutGuildsAssignablesRoleRoute extends Route {
     const assignable = await this.controller.add(gid, rid);
 
     if (!assignable) {
-      return next(conflict('That self assignable role already existed'));
+      return next(conflict('That role is already on the list'));
     }
 
     return res.end(JSON.stringify(assignable));

@@ -2,7 +2,14 @@ import { send } from '#util';
 import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { APIGuildInteraction, ComponentType, InteractionResponseType, RESTGetAPIGuildRolesResult, Routes } from 'discord-api-types/v9';
+import {
+  APIGuildInteraction,
+  ComponentType,
+  InteractionResponseType,
+  RESTGetAPIGuildRolesResult,
+  APISelectMenuOption,
+  Routes
+} from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
 import { Component } from '../component';
@@ -33,7 +40,7 @@ export default class implements Component {
         )
     );
 
-    const menuOptions = selfAssignables.reduce<any[]>((arr, roleId) => {
+    const menuOptions = selfAssignables.reduce<APISelectMenuOption[]>((arr, roleId) => {
       const role = roles.get(roleId);
       if (role) {
         arr.push({
