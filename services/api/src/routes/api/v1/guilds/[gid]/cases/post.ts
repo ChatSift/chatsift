@@ -102,7 +102,7 @@ export default class PostGuildsCasesRoute extends Route {
     let duration: number | undefined;
     let extendedBy: number | undefined;
 
-    const [punishment] = await this.sql<[WarnPunishment?]>`
+    const [punishment] = await sql<[WarnPunishment?]>`
       SELECT * FROM warn_punishments
       WHERE guild_id = ${data.guild_id}
         AND warns = ${warns}
@@ -114,7 +114,7 @@ export default class PostGuildsCasesRoute extends Route {
         [CaseAction.ban]?: Case;
       }
 
-      const cases = await this.sql<[Case?, Case?]>`
+      const cases = await sql<[Case?, Case?]>`
         SELECT * FROM cases
         WHERE target_id = ${data.target_id}
           AND processed = false
@@ -264,7 +264,7 @@ export default class PostGuildsCasesRoute extends Route {
 
             if (existingMuteCase) {
               return Promise.reject(
-                'This user has already been muted. If you wish to update the duration please use the `/duration` command'
+                'This user has already been muted. If you wish to update the duration please use the `/case duration` command'
               );
             }
 
@@ -317,7 +317,15 @@ export default class PostGuildsCasesRoute extends Route {
               `;
             }
 
-            await this.rest.delete(Routes.guildBan(data.guild_id, data.target_id), { reason: `Unban | By ${data.mod_tag}` });
+            try {
+              await this.rest.delete(Routes.guildBan(data.guild_id, data.target_id), { reason: `Unban | By ${data.mod_tag}` });
+            } catch (error) {
+              if (error instanceof HTTPError && error.response.status === 404) {
+                return Promise.reject('User is not currently banned');
+              }
+
+              throw error;
+            }
 
             break;
           }
@@ -415,7 +423,7 @@ export default class PostGuildsCasesRoute extends Route {
       type SqlNoop<T> = { [K in keyof T]: T[K] };
       const unmuteRoles = member.roles.map<SqlNoop<UnmuteRole>>(role => ({ case_id: cs.id, role_id: role }));
       if (unmuteRoles.length) {
-        await this.sql`INSERT INTO unmute_roles ${this.sql(unmuteRoles)}`;
+        await sql`INSERT INTO unmute_roles ${sql(unmuteRoles)}`;
       }
     }
 
