@@ -36,7 +36,7 @@ export class AssignablesController {
 
   public delete(roleId: Snowflake): Promise<SelfAssignableRole | undefined> {
     return this
-      .sql<[SelfAssignableRole?]>`DELETE FROM self_assignable_roles WHERE role_id = ${roleId}`
+      .sql<[SelfAssignableRole?]>`DELETE FROM self_assignable_roles WHERE role_id = ${roleId} RETURNING *`
       .then(rows => rows[0]);
   }
 

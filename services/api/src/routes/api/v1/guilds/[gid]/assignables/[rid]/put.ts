@@ -19,8 +19,8 @@ export default class PutGuildsAssignablesRoleRoute extends Route {
     const { gid, rid } = req.params as { gid: Snowflake; rid: Snowflake };
 
     const existing = await this.controller.getAll(gid);
-    if (existing.length > 15) {
-      return next(conflict('There are already 15 self assignable roles in your server'));
+    if (existing.length >= 25) {
+      return next(conflict('There are already 25 self assignable roles in your server'));
     }
 
     res.statusCode = 200;

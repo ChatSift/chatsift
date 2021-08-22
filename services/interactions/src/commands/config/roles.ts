@@ -42,7 +42,7 @@ export default class implements Command {
             title: 'Hey there! How about if we get you set up with some roles?',
             color: 5793266,
             description: settings.assignable_roles_prompt ??
-              'Use the button below to create a dropdown that allows you to manage your roles!'
+              'Use the button below to show a dropdown that allows you to manage your roles!'
           },
           components: [
             {
