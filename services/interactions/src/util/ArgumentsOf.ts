@@ -96,10 +96,8 @@ type ArgumentsOfChatCommand<C extends Command> = C extends { options: readonly O
   ? Simplify<UnionToIntersection<OptionToObject<C['options'][number]>>>
   : unknown;
 
-export type ArgumentsOf<C extends Command> = C extends { type: ApplicationCommandType.ChatInput } | Omit<C, 'type'>
-  ? ArgumentsOfChatCommand<C>
-  : C extends { type: ApplicationCommandType.ChatInput }
-    ? { user: APIUser }
-    : C extends { type: ApplicationCommandType.Message }
-      ? { message: APIMessage }
-      : never;
+export type ArgumentsOf<C extends Command> = C extends { readonly type: ApplicationCommandType.User }
+  ? { user: APIUser }
+  : C extends { readonly type: ApplicationCommandType.Message }
+    ? { message: APIMessage }
+    : ArgumentsOfChatCommand<C>;

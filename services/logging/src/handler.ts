@@ -445,7 +445,7 @@ export class Handler {
                   ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
                   : `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`
               },
-              title: `Deleted their mesasge posted <t:${Math.round(getCreationData(entry.message.id).createdTimestamp / 1000)}:R>`,
+              title: `Deleted their message posted <t:${Math.round(getCreationData(entry.message.id).createdTimestamp / 1000)}:R>`,
               description: `\`\`\`${entry.message.content}\`\`\``
             }
           ]
@@ -480,7 +480,7 @@ export class Handler {
                   ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
                   : `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`
               },
-              title: `Updated their mesasge posted <t:${Math.round(getCreationData(entry.message.id).createdTimestamp / 1000)}:R>`,
+              title: `Updated their message posted <t:${Math.round(getCreationData(entry.message.id).createdTimestamp / 1000)}:R>`,
               fields: [
                 {
                   name: 'New content',

@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   message_update_log_channel bigint,
   assignable_roles_prompt text,
   min_join_age int,
-  no_blank_avatar boolean NOT NULL DEFAULT false
+  no_blank_avatar boolean NOT NULL DEFAULT false,
+  reports_channel bigint
 );
 
 CREATE TABLE IF NOT EXISTS webhook_tokens (
@@ -147,4 +148,18 @@ CREATE TABLE IF NOT EXISTS allowed_invites (
   guild_id bigint NOT NULL,
   invite_code text NOT NULL,
   PRIMARY KEY (guild_id, invite_code)
+);
+
+CREATE TABLE IF NOT EXISTS reported_messages (
+  message_id bigint PRIMARY KEY,
+  report_message_id bigint,
+  ack boolean DEFAULT false NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS message_reporters (
+  message_id bigint NOT NULL REFERENCES reported_messages ON DELETE CASCADE,
+  original boolean DEFAULT false NOT NULL,
+  reporter_id bigint NOT NULL,
+  reporter_tag text NOT NULL,
+  PRIMARY KEY (message_id, reporter_id)
 );

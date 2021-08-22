@@ -58,6 +58,7 @@ export default class implements Command {
         • automatically pardon warnings after: ${settings.auto_pardon_mutes_after ? `${settings.auto_pardon_mutes_after} days` : 'never'}
         • automatically kick users with accounts younger than: ${settings.min_join_age ? ms(settings.min_join_age, true) : 'disabled'}
         • no blank avatar: ${settings.no_blank_avatar ? 'on' : 'off'}
+        • reports: ${atChannel(settings.reports_channel)}
       `,
       allowed_mentions: { parse: [] }
     });
@@ -74,12 +75,25 @@ export default class implements Command {
       users: args.userupdatelogchannel,
       messages: args.messageslogchannel,
       joinage: args.joinage,
-      blankavatar: args.blankavatar
+      blankavatar: args.blankavatar,
+      reports: args.reportschannel
     };
   }
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigCommand>) {
-    const { modrole, adminrole, muterole, pardon, mod, filters, users, messages, joinage, blankavatar } = this.parse(args);
+    const {
+      modrole,
+      adminrole,
+      muterole,
+      pardon,
+      mod,
+      filters,
+      users,
+      messages,
+      joinage,
+      blankavatar,
+      reports
+    } = this.parse(args);
 
     let settings: Partial<GuildSettings> = {};
 
@@ -148,6 +162,14 @@ export default class implements Command {
 
     if (blankavatar != null) {
       settings.no_blank_avatar = blankavatar;
+    }
+
+    if (reports) {
+      if (reports.type !== ChannelType.GuildText) {
+        throw new ControlFlowError('Please provide a valid text channel');
+      }
+
+      settings.reports_channel = reports.id;
     }
 
     if (Object.values(settings).length) {

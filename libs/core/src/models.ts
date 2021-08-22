@@ -16,6 +16,7 @@ export interface GuildSettings {
   assignable_roles_prompt: string | null;
   min_join_age: number | null;
   no_blank_avatar: boolean;
+  reports_channel: Snowflake | null;
 }
 
 export interface WebhookToken {
@@ -164,4 +165,17 @@ export interface FilterIgnore {
 export interface AllowedInvite {
   guild_id: Snowflake;
   invite_code: string;
+}
+
+export interface ReportedMessage {
+  message_id: Snowflake;
+  report_message_id: Snowflake;
+  ack: boolean;
+}
+
+export interface MessageReporter {
+  message_id: Snowflake;
+  original: boolean;
+  reporter_id: Snowflake;
+  reporter_tag: string;
 }

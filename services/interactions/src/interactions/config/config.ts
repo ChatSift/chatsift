@@ -63,6 +63,12 @@ export const ConfigCommand = {
       description: 'Disallows members with a blank avatar from joining your server',
       type: ApplicationCommandOptionType.Boolean,
       required: false
+    },
+    {
+      name: 'reportschannel',
+      description: 'Channel for user reports to be sent in',
+      type: ApplicationCommandOptionType.Channel,
+      required: false
     }
   ]
 } as const;
