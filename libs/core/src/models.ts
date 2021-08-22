@@ -166,3 +166,16 @@ export interface AllowedInvite {
   guild_id: Snowflake;
   invite_code: string;
 }
+
+export interface ReportedMessage {
+  message_id: Snowflake;
+  report_message_id: Snowflake;
+  ack: boolean;
+}
+
+export interface MessageReporter {
+  message_id: Snowflake;
+  original: boolean;
+  reporter_id: Snowflake;
+  reporter_tag: string;
+}

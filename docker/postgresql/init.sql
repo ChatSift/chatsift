@@ -149,3 +149,17 @@ CREATE TABLE IF NOT EXISTS allowed_invites (
   invite_code text NOT NULL,
   PRIMARY KEY (guild_id, invite_code)
 );
+
+CREATE TABLE IF NOT EXISTS reported_messages (
+  message_id bigint PRIMARY KEY,
+  report_message_id bigint,
+  ack boolean DEFAULT false NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS message_reporters (
+  message_id bigint NOT NULL REFERENCES reported_messages ON DELETE CASCADE,
+  original boolean DEFAULT false NOT NULL,
+  reporter_id bigint NOT NULL,
+  reporter_tag text NOT NULL,
+  PRIMARY KEY (message_id, reporter_id)
+);
