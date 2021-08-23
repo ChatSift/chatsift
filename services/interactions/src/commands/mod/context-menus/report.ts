@@ -101,7 +101,10 @@ export default class implements Command {
                       : `${RouteBases.cdn}/embed/avatars/${parseInt(message.author.discriminator, 10) % 5}.png`
                   },
                   title: `Had their message posted <t:${Math.round(getCreationData(message.id).createdTimestamp / 1000)}:R> reported`,
-                  description: `\`\`\`${message.content}\`\`\``,
+                  description: message.content.length ? `\`\`\`${message.content}\`\`\`` : 'No text content',
+                  image: {
+                    url: message.attachments[0]?.url
+                  },
                   footer: {
                     text: `Reported by: ${interaction.member.user.username}#${interaction.member.user.discriminator} (${interaction.member.user.id})`,
                     icon_url: interaction.member.user.avatar

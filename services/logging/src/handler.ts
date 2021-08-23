@@ -446,7 +446,17 @@ export class Handler {
                   : `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`
               },
               title: `Deleted their message posted <t:${Math.round(getCreationData(entry.message.id).createdTimestamp / 1000)}:R>`,
-              description: `\`\`\`${entry.message.content}\`\`\``
+              description: entry.message.content.length
+                ? `\`\`\`${entry.message.content}\`\`\``
+                : 'No content - this message probably held an attachment',
+              footer: entry.mod
+                ? {
+                  text: `Deleted by ${entry.mod.username}#${entry.mod.discriminator} (${entry.mod.id})`,
+                  icon_url: entry.mod.avatar
+                    ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${entry.mod.id}/${entry.mod.avatar}`)
+                    : `${RouteBases.cdn}/embed/avatars/${parseInt(entry.mod.discriminator, 10) % 5}.png`
+                }
+                : undefined
             }
           ]
         }
