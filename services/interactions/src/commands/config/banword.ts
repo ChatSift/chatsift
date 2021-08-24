@@ -71,7 +71,6 @@ export default class implements Command {
         const bannedWord: BannedWord = {
           guild_id: interaction.guild_id,
           word: (url ?? args.add.entry).toLowerCase(),
-          // TODO look into making BitField#toJSON return `${bigint}` for whenever I release cordis 1.0.2
           flags: new BanwordFlags(flags).toJSON() as `${bigint}`,
           duration: null
         };

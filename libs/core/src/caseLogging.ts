@@ -110,7 +110,6 @@ export interface HistoryEmbedOptions {
 //  >0 points -> yellow
 //  =0 points -> green
 
-// TODO filter trigger counts
 export const makeHistoryEmbed = ({ user, cases, logChannelId, filterTriggers }: HistoryEmbedOptions): APIEmbed => {
   let points = 0;
   const counts = {

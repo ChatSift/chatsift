@@ -5,6 +5,7 @@ export * from './history';
 export * from './kick';
 export * from './mute';
 export * from './pardon';
+export * from './purge';
 export * from './raid-cleanup';
 export * from './softban';
 export * from './unban';
