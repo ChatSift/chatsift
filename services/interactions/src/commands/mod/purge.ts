@@ -29,6 +29,10 @@ export default class implements Command {
   ) {}
 
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof PurgeCommand>) {
+    if (!Object.keys(args).length) {
+      return send(interaction, { content: 'Please provide at least one argument', flags: 64 });
+    }
+
     await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
 
     let channelId = interaction.channel_id;
