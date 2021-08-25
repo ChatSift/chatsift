@@ -41,6 +41,17 @@ export const PurgeCommand = {
       name: 'includes',
       description: 'Only delete messages that include the given text',
       type: ApplicationCommandOptionType.String
+    },
+    {
+      name: 'media',
+      description: 'Allows you to purge only media types',
+      type: ApplicationCommandOptionType.String,
+      choices: [
+        { name: 'videos', value: 'videos' },
+        { name: 'gifs', value: 'gifs' },
+        { name: 'images', value: 'images' },
+        { name: 'all', value: 'all' }
+      ]
     }
   ]
 } as const;

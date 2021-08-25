@@ -118,6 +118,52 @@ export default class implements Command {
           }
         }
 
+        if (args.media) {
+          const checkForExtension = (ext: string): boolean => {
+            const expr = new RegExp(`https?:\/\/\\S+\.${ext}`, 'i');
+            if (expr.test(message.content)) {
+              return true;
+            }
+
+            if (message.attachments.find(a => a.url.endsWith(`.${ext}`))) {
+              return true;
+            }
+
+            return false;
+          };
+
+          const gifExt = ['gif', 'apng'];
+          const imageExt = ['png', 'jpg', 'webp'];
+          const videoExt = ['mp4', 'webm'];
+
+          let found = false;
+          switch (args.media) {
+            case 'gifs': {
+              found = gifExt.some(e => checkForExtension(e));
+              break;
+            }
+
+            case 'images': {
+              found = imageExt.some(e => checkForExtension(e));
+              break;
+            }
+
+            case 'videos': {
+              found = videoExt.some(e => checkForExtension(e));
+              break;
+            }
+
+            case 'all': {
+              found = [...gifExt, ...imageExt, ...videoExt].some(e => checkForExtension(e));
+              break;
+            }
+          }
+
+          if (found) {
+            return false;
+          }
+        }
+
         return true;
       });
 
