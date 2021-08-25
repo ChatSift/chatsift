@@ -159,7 +159,7 @@ export default class implements Command {
             }
           }
 
-          if (found) {
+          if (!found) {
             return false;
           }
         }
