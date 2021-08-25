@@ -53,7 +53,11 @@ export default class implements Command {
         args.amount = 500;
       }
     } else {
-      args.amount = 500;
+      args.amount = 100;
+    }
+
+    if ((args.start && !args.end) || (!args.start && args.end)) {
+      throw new ControlFlowError('Start must be used with end');
     }
 
     await send(interaction, { content: 'Collecting messages from the given channel..' });
@@ -82,7 +86,8 @@ export default class implements Command {
 
         // Discord won't purge messages older than 2 weeks regardless
         const TWO_WEEKS = 12096e5;
-        if (Date.now() - createdTimestamp > TWO_WEEKS) {
+        const ONE_DAY = 864e5;
+        if (Date.now() - createdTimestamp > (args.bots ? ONE_DAY : TWO_WEEKS)) {
           return false;
         }
 
