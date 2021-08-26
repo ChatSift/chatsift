@@ -21,6 +21,38 @@ export class MessageCache {
     return Boolean(await this._store.get(message.id));
   }
 
+  public async getChannelMessages(id: string): Promise<Map<string, APIMessage> | undefined> {
+    const key = `messages_cache_${id}_list`;
+    const size = await this.redis.llen(key);
+
+    if (!size) {
+      return;
+    }
+
+    const ids = await this.redis.lrange(key, 0, size);
+    const promises: Promise<APIMessage | null>[] = [];
+
+    for (const id of ids) {
+      promises.push(
+        this._store.get(id)
+          .then(m => m ?? null)
+          .catch(() => null)
+      );
+    }
+
+    const map = new Map<string, APIMessage>();
+    const messages = await Promise.all(promises);
+
+    for (let i = 0; i < ids.length; i++) {
+      const message = messages[i];
+      if (message) {
+        map.set(ids[i]!, message);
+      }
+    }
+
+    return map;
+  }
+
   public get(id: string): Promise<APIMessage | undefined> {
     return this._store.get(id);
   }
