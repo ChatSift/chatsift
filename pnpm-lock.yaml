@@ -253,6 +253,27 @@ importers:
       supertest: 6.1.4
       typescript: 4.4.0-insiders.20210805
 
+  libs/scheduler-client:
+    specifiers:
+      '@automoderator/core': workspace:^0.1.0
+      '@automoderator/injection': workspace:^0.1.0
+      '@types/node': ^14.17.6
+      '@types/node-fetch': ^2.5.12
+      node-fetch: ^2.6.1
+      tslib: ^2.3.0
+      tsyringe: ^4.6.0
+      typescript: ^4.4.0-insiders.20210805
+    dependencies:
+      '@automoderator/core': link:../core
+      '@automoderator/injection': link:../injection
+      node-fetch: 2.6.1
+      tslib: 2.3.1
+      tsyringe: 4.6.0
+    devDependencies:
+      '@types/node': 14.17.10
+      '@types/node-fetch': 2.5.12
+      typescript: 4.4.0-insiders.20210805
+
   services/api:
     specifiers:
       '@automoderator/banword-flags': workspace:^0.1.0
@@ -2453,7 +2474,7 @@ packages:
   /@types/node-fetch/2.5.12:
     resolution: {integrity: sha512-MKgC4dlq4kKNa/mYrwpKfzQMB5X3ee5U6fSprkKpToBqBmX4nFZL9cW5jl6sWn+xpRJ7ypWh2yyqqr8UUCstSw==}
     dependencies:
-      '@types/node': 14.17.6
+      '@types/node': 16.4.8
       form-data: 3.0.1
     dev: true
 

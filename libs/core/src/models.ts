@@ -1,4 +1,5 @@
 import type { Snowflake } from 'discord-api-types/v9';
+import type { OneOf } from './util';
 
 export interface GuildSettings {
   guild_id: Snowflake;
@@ -189,3 +190,13 @@ export interface MessageReporter {
   reporter_id: Snowflake;
   reporter_tag: string;
 }
+
+export enum TaskType {}
+
+export type Task = OneOf<{
+  id: string;
+  scheduled_at: Date;
+  type: TaskType;
+  time: number | null;
+  cron: string | null;
+}, 'time', 'cron'>;
