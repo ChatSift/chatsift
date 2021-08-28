@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS webhook_tokens (
 
 CREATE TABLE IF NOT EXISTS self_assignable_roles (
   role_id bigint PRIMARY KEY,
+  message_id bigint NOT NULL,
   guild_id bigint NOT NULL REFERENCES guild_settings ON DELETE CASCADE
 );
 

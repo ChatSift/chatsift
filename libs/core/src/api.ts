@@ -74,6 +74,10 @@ export type ApiPutFiltersUrlsBody = {
 
 export type ApiPutFiltersUrlsResult = MaliciousUrl[];
 
+export type ApiDeleteGuildsAssignablesMessageResult = SelfAssignableRole[];
+
+export type GetDeleteGuildsAssignablesMessageResult = SelfAssignableRole[];
+
 export type ApiDeleteGuildsAssignablesRoleResult = SelfAssignableRole;
 
 export type ApiPutGuildsAssignablesRoleResult = SelfAssignableRole;

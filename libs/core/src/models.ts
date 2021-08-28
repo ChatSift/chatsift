@@ -27,6 +27,7 @@ export interface WebhookToken {
 
 export interface SelfAssignableRole {
   role_id: Snowflake;
+  message_id: Snowflake;
   guild_id: Snowflake;
 }
 
