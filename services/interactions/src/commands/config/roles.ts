@@ -1,12 +1,30 @@
 import { RolesCommand } from '#interactions';
 import { ArgumentsOf, send } from '#util';
-import { ApiGetGuildsAssignablesResult, ApiGetGuildsSettingsResult, ApiPatchGuildSettingsBody } from '@automoderator/core';
+import {
+  ApiGetGuildPromptResult,
+  ApiGetGuildPromptsResult,
+  ApiPatchGuildPromptBody,
+  ApiPutGuildsAssignablesRoleBody,
+  SelfAssignableRolePrompt,
+  ApiPutGuildPromptsBody,
+  ApiPutGuildPromptsResult,
+  SelfAssignableRole
+} from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { HTTPError, Rest } from '@automoderator/http-client';
+import { kLogger } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { APIGuildInteraction, ButtonStyle, ComponentType } from 'discord-api-types/v9';
+import {
+  APIGuildInteraction,
+  RESTPostAPIChannelMessageJSONBody,
+  APIMessage,
+  ButtonStyle,
+  ComponentType,
+  Routes
+} from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
-import { injectable } from 'tsyringe';
+import type { Logger } from 'pino';
+import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
 
 @injectable()
@@ -15,7 +33,8 @@ export default class implements Command {
 
   public constructor(
     public readonly rest: Rest,
-    public readonly discordRest: DiscordRest
+    public readonly discordRest: DiscordRest,
+    @inject(kLogger) public readonly logger: Logger
   ) {}
 
   private handleHttpError(interaction: APIGuildInteraction, error: HTTPError) {
@@ -32,42 +51,96 @@ export default class implements Command {
   }
 
   private async handlePrompt(interaction: APIGuildInteraction, args: ArgumentsOf<typeof RolesCommand>['prompt']) {
-    switch (Object.keys(args)[0] as 'display' | 'set') {
-      case 'display': {
-        const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`);
+    switch (Object.keys(args)[0] as 're-display' | 'delete' | 'create') {
+      case 're-display': {
+        const prompt = await this.rest.get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/${args['re-display'].id}`);
 
-        const { token, ...message } = interaction;
-        await send(message, {
-          embed: {
-            title: 'Hey there! How about if we get you set up with some roles?',
-            color: 5793266,
-            description: settings.assignable_roles_prompt ??
-              'Use the button below to show a dropdown that allows you to manage your roles!'
-          },
-          components: [
-            {
-              type: ComponentType.ActionRow,
+        const promptMessage = await this.discordRest.post<APIMessage, RESTPostAPIChannelMessageJSONBody>(
+          Routes.channelMessages(args['re-display'].channel?.id ?? interaction.channel_id), {
+            data: {
+              embed: {
+                title: prompt.embed_title,
+                color: prompt.embed_color,
+                description: prompt.embed_description
+              },
               components: [
                 {
-                  type: ComponentType.Button,
-                  label: 'Manage your roles',
-                  style: ButtonStyle.Primary,
-                  custom_id: `roles-manage-prompt|${nanoid()}`
+                  type: ComponentType.ActionRow,
+                  components: [
+                    {
+                      type: ComponentType.Button,
+                      label: 'Manage your roles',
+                      style: ButtonStyle.Primary,
+                      custom_id: `roles-manage-prompt|${nanoid()}`
+                    }
+                  ]
                 }
               ]
             }
-          ]
+          }
+        );
+
+        await this.rest.patch<unknown, ApiPatchGuildPromptBody>(`/guilds/${interaction.guild_id}/prompts/${args['re-display'].id}`, {
+          channel_id: promptMessage.channel_id,
+          message_id: promptMessage.id
         });
 
-        return send(interaction, { content: 'Successfully posted the prompt', flags: 64 });
+        return send(interaction, { content: 'Successfully re-posted the prompt', flags: 64 });
       }
 
-      case 'set': {
-        await this.rest.patch<unknown, ApiPatchGuildSettingsBody>(`/guilds/${interaction.guild_id}/settings`, {
-          assignable_roles_prompt: args.set.prompt
-        });
+      case 'delete': {
+        try {
+          await this.rest.delete<unknown>(`/guilds/${interaction.guild_id}/prompts/${args.delete.id}`);
+          return send(interaction, { content: 'Successfully deleted your prompt' });
+        } catch (error) {
+          if (error instanceof HTTPError) {
+            return this.handleHttpError(interaction, error);
+          }
 
-        return send(interaction, { content: 'Successfully updated your prompt' });
+          throw error;
+        }
+      }
+
+      case 'create': {
+        const channelId = args.create.channel?.id ?? interaction.channel_id;
+        const color = args.create.color ? parseInt(args.create.color.replace('#', ''), 16) : 5793266;
+
+        const promptMessage = await this.discordRest.post<APIMessage, RESTPostAPIChannelMessageJSONBody>(
+          Routes.channelMessages(channelId), {
+            data: {
+              embed: {
+                title: args.create.title,
+                color,
+                description: args.create.description
+              },
+              components: [
+                {
+                  type: ComponentType.ActionRow,
+                  components: [
+                    {
+                      type: ComponentType.Button,
+                      label: 'Manage your roles',
+                      style: ButtonStyle.Primary,
+                      custom_id: `roles-manage-prompt|${nanoid()}`
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        );
+
+        const prompt = await this.rest.put<ApiPutGuildPromptsResult, ApiPutGuildPromptsBody>(
+          `/guilds/${interaction.guild_id}/prompts`, {
+            channel_id: channelId,
+            message_id: promptMessage.id,
+            embed_color: color,
+            embed_title: args.create.title,
+            embed_description: args.create.description
+          }
+        );
+
+        return send(interaction, { content: `Successfully created your prompt with an id of ${prompt.prompt_id}`, flags: 64 });
       }
     }
   }
@@ -80,7 +153,12 @@ export default class implements Command {
 
       case 'add': {
         try {
-          await this.rest.put(`/guilds/${interaction.guild_id}/assignables/${args.add.role.id}`);
+          await this.rest.put<unknown, ApiPutGuildsAssignablesRoleBody>(
+            `/guilds/${interaction.guild_id}/assignables/roles/${args.add.role.id}`, {
+              prompt_id: args.add.prompt
+            }
+          );
+
           return send(interaction, { content: 'Successfully registered the given role as a self assignable role' });
         } catch (error) {
           if (error instanceof HTTPError) {
@@ -93,7 +171,7 @@ export default class implements Command {
 
       case 'remove': {
         try {
-          await this.rest.delete(`/guilds/${interaction.guild_id}/assignables/${args.remove.role.id}`);
+          await this.rest.delete(`/guilds/${interaction.guild_id}/assignables/roles/${args.remove.role.id}`);
           return send(interaction, { content: 'Successfully removed the given role from the list of self assignable roles' });
         } catch (error) {
           if (error instanceof HTTPError) {
@@ -105,13 +183,26 @@ export default class implements Command {
       }
 
       case 'list': {
-        const roles = await this.rest.get<ApiGetGuildsAssignablesResult>(`/guilds/${interaction.guild_id}/assignables`);
-        if (!roles.length) {
-          return send(interaction, { content: 'There are no currently self assignable roles' });
+        const prompts = await this.rest.get<ApiGetGuildPromptsResult>(`/guilds/${interaction.guild_id}/prompts`);
+        if (!prompts.length) {
+          return send(interaction, { content: 'There are no registered prompts' });
         }
 
+        const data = prompts
+          .map(prompt => {
+            const formatPrompt = (prompt: SelfAssignableRolePrompt) =>
+              `[Prompt ID ${prompt.prompt_id}](<https://discord.com/channels/${interaction.guild_id}/${prompt.channel_id}/${prompt.message_id}>)`;
+
+            const formatRoles = (roles: SelfAssignableRole[]) => roles.length
+              ? roles.map(r => `<@&${r.role_id}>`).join(', ')
+              : 'no roles - please set some';
+
+            return `• ${formatPrompt(prompt)}: ${formatRoles(prompt.roles)}`;
+          })
+          .join('\n');
+
         return send(interaction, {
-          content: `List of currently self assignable roles: ${roles.map(r => `<@&${r.role_id}>`).join(', ')}`,
+          content: `**List of prompts and their self assignable roles**:\n${data}`,
           allowed_mentions: { parse: [] }
         });
       }

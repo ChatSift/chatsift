@@ -11,7 +11,8 @@ import type {
   MaliciousFileCategory,
   MaliciousUrl,
   MaliciousUrlCategory,
-  SelfAssignableRole
+  SelfAssignableRole,
+  SelfAssignableRolePrompt
 } from './models';
 
 export type ApiDeleteFiltersFilesBody = number[];
@@ -74,11 +75,13 @@ export type ApiPutFiltersUrlsBody = {
 
 export type ApiPutFiltersUrlsResult = MaliciousUrl[];
 
-export type ApiDeleteGuildsAssignablesMessageResult = SelfAssignableRole[];
-
-export type GetDeleteGuildsAssignablesMessageResult = SelfAssignableRole[];
-
 export type ApiDeleteGuildsAssignablesRoleResult = SelfAssignableRole;
+
+export type ApiGetGuildsAssignablesRoleResult = SelfAssignableRole;
+
+export interface ApiPutGuildsAssignablesRoleBody {
+  prompt_id: number;
+}
 
 export type ApiPutGuildsAssignablesRoleResult = SelfAssignableRole;
 
@@ -186,3 +189,28 @@ export type ApiPatchGuildSettingsBody = Partial<Omit<GuildSettings, 'guild_id'>>
 export type ApiPatchGuildSettingsResult = GuildSettings;
 
 export type ApiDeleteGuildSettingsResult = GuildSettings;
+
+export type ApiDeleteGuildPromptResult = SelfAssignableRolePrompt;
+
+export type ApiGetGuildPromptResult = SelfAssignableRolePrompt & { roles: SelfAssignableRole[] };
+
+export interface ApiPatchGuildPromptBody {
+  message_id?: Snowflake;
+  channel_id?: Snowflake;
+}
+
+export type ApiPatchGuildPromptResult = SelfAssignableRolePrompt;
+
+export type ApiDeleteGuildPromptsResult = SelfAssignableRolePrompt[];
+
+export type ApiGetGuildPromptsResult = (SelfAssignableRolePrompt & { roles: SelfAssignableRole[] })[];
+
+export interface ApiPutGuildPromptsBody {
+  message_id: Snowflake;
+  channel_id: Snowflake;
+  embed_color: number;
+  embed_title: string;
+  embed_description: string;
+}
+
+export type ApiPutGuildPromptsResult = SelfAssignableRolePrompt;

@@ -1,5 +1,5 @@
 import { send } from '#util';
-import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
+import type { ApiGetGuildPromptResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
@@ -25,8 +25,8 @@ export default class implements Component {
     await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
 
     const selfAssignables = await this.rest
-      .get<ApiGetGuildsAssignablesResult>(`/guilds/${interaction.guild_id}/assignables`)
-      .then(roles => roles.map(role => role.role_id));
+      .get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/messages/${interaction.message!.id}`)
+      .then(prompt => prompt.roles.map(role => role.role_id));
 
     const userRoles = new Set(interaction.member.roles);
 
@@ -56,7 +56,10 @@ export default class implements Component {
     }, []);
 
     if (!menuOptions.length) {
-      return send(interaction, { content: 'There are no self assignable roles configured for this server', flags: 64 });
+      return send(interaction, {
+        content: 'There are no self assignable roles configured for that prompt, you should inform an admin',
+        flags: 64
+      });
     }
 
     return send(interaction, {
