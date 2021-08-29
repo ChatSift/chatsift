@@ -29,6 +29,7 @@ import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers'
 import { Store } from '@cordis/store';
 import { Rest as CordisRest } from '@cordis/rest';
 import {
+  APIChannel,
   APIGuild,
   APIMessage,
   APIRole,
@@ -68,6 +69,7 @@ export class Gateway {
 
   public readonly ownersCache = new Store<Snowflake>({ emptyEvery: 36e5 });
   public readonly permsCache = new Store<Snowflake>({ emptyEvery: 15e3 });
+  public readonly channelParentCache = new Store<Snowflake | null>({ emptyEvery: 15e3 });
 
   public constructor(
     @inject(kConfig) public readonly config: Config,
@@ -199,6 +201,17 @@ export class Gateway {
     }
   }
 
+  private async getChannelParent(guildId: Snowflake, channelId: Snowflake): Promise<Snowflake | null> {
+    if (!this.channelParentCache.has(channelId)) {
+      const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
+      for (const channel of channels) {
+        this.channelParentCache.set(channel.id, channel.parent_id ?? null);
+      }
+    }
+
+    return this.channelParentCache.get(channelId) ?? null;
+  }
+
   private async onMessage(message: APIMessage) {
     if (!message.guild_id || !message.content.length || message.author.bot || !message.member || message.webhook_id) {
       return;
@@ -276,6 +289,16 @@ export class Gateway {
     `;
 
     const ignores = new FilterIgnores(BigInt(ignoreData?.value ?? '0'));
+
+    const parentId = await this.getChannelParent(message.guild_id, message.channel_id);
+    if (parentId) {
+      const [parentIgnoreData] = await this.sql<[FilterIgnore?]>`
+        SELECT * FROM filter_ignores
+        WHERE channel_id = ${parentId}
+      `;
+
+      ignores.add(BigInt(parentIgnoreData?.value ?? 0));
+    }
 
     const promises: Promise<RunnerResult>[] = [];
 

@@ -45,40 +45,9 @@ export const FilterCommand = {
         },
         {
           name: 'ignore',
-          description: 'Allows you to configure the ignores for a given channel',
+          description: 'Allows you to configure the channel ignores in your server',
           type: ApplicationCommandOptionType.Subcommand,
-          options: [
-            {
-              name: 'channel',
-              description: 'The channel to update',
-              type: ApplicationCommandOptionType.Channel,
-              required: true
-            },
-            {
-              name: 'urls',
-              description: 'If the URL filter should be disabled in the given channel',
-              type: ApplicationCommandOptionType.Boolean,
-              required: false
-            },
-            {
-              name: 'files',
-              description: 'If the files filter should be disabled in the given channel',
-              type: ApplicationCommandOptionType.Boolean,
-              required: false
-            },
-            {
-              name: 'invites',
-              description: 'If the invites filter should be disabled in the given channel',
-              type: ApplicationCommandOptionType.Boolean,
-              required: false
-            },
-            {
-              name: 'words',
-              description: 'If the words (/banword) filter should be disabled in the given channel',
-              type: ApplicationCommandOptionType.Boolean,
-              required: false
-            }
-          ]
+          options: []
         },
         {
           name: 'ignorelist',

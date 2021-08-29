@@ -1,3 +1,4 @@
+/* istanbul ignore file */
 import { kRedis } from '@automoderator/injection';
 import { RedisStore } from '@cordis/redis-store';
 import { inject, singleton } from 'tsyringe';
@@ -20,6 +21,24 @@ export class RaidCleanupMembersStore extends RedisStore<RaidCleanupData> {
     super({
       redis,
       hash: 'raid_cleanup_members',
+      encode: value => JSON.stringify(value),
+      decode: (value: string) => JSON.parse(value)
+    });
+  }
+}
+
+export interface FilterIgnoreState {
+  channel?: Snowflake;
+  page: number;
+  maxPages: number;
+}
+
+@singleton()
+export class FilterIgnoresStateStore extends RedisStore<FilterIgnoreState> {
+  public constructor(@inject(kRedis) redis: Redis) {
+    super({
+      redis,
+      hash: 'filter_ignore_state',
       encode: value => JSON.stringify(value),
       decode: (value: string) => JSON.parse(value)
     });
