@@ -1,3 +1,4 @@
+/* istanbul ignore file */
 import { kRedis } from '@automoderator/injection';
 import { RedisStore } from '@cordis/redis-store';
 import { inject, singleton } from 'tsyringe';
