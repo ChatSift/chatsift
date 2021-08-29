@@ -51,8 +51,11 @@ export default class implements Component {
     // Update the buttons with the current state
     const buttons = (components[2]!.components as APIButtonComponent[]);
     components[2]!.components = buttons.map((component, index) => {
-      component.disabled = false;
-      component.style = isOn[index] ? ButtonStyle.Success : ButtonStyle.Danger;
+      if (index !== buttons.length - 1) {
+        component.disabled = false;
+        component.style = isOn[index] ? ButtonStyle.Success : ButtonStyle.Danger;
+      }
+
       return component;
     });
 

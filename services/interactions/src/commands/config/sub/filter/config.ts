@@ -105,7 +105,6 @@ export class FilterConfig implements Command {
                 {
                   type: ComponentType.SelectMenu,
                   custom_id: `filter-ignores-channel-select|${id}`,
-                  placeholder: 'Please select a channel',
                   options: channels
                     .map((channel): APISelectMenuOption => ({
                       label: ellipsis(channel.name!, 25),
@@ -180,6 +179,12 @@ export class FilterConfig implements Command {
                   custom_id: `filter-ignores-update|${id}|words`,
                   style: ButtonStyle.Danger,
                   disabled: true
+                },
+                {
+                  type: ComponentType.Button,
+                  label: 'Done',
+                  custom_id: `filter-ignores-done|${id}`,
+                  style: ButtonStyle.Secondary
                 }
               ]
             }
