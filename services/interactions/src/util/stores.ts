@@ -25,3 +25,21 @@ export class RaidCleanupMembersStore extends RedisStore<RaidCleanupData> {
     });
   }
 }
+
+export interface FilterIgnoreState {
+  channel?: Snowflake;
+  page: number;
+  maxPages: number;
+}
+
+@singleton()
+export class FilterIgnoresStateStore extends RedisStore<FilterIgnoreState> {
+  public constructor(@inject(kRedis) redis: Redis) {
+    super({
+      redis,
+      hash: 'filter_ignore_state',
+      encode: value => JSON.stringify(value),
+      decode: (value: string) => JSON.parse(value)
+    });
+  }
+}

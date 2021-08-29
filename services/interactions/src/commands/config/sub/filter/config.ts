@@ -1,20 +1,27 @@
 import { FilterCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { ArgumentsOf, FilterIgnoresStateStore, send } from '#util';
 import {
-  ApiGetFiltersIgnoresChannelResult,
   ApiGetFiltersIgnoresResult,
   ApiGetGuildsSettingsResult,
-  ApiPatchFiltersIgnoresChannelBody,
-  ApiPatchFiltersIgnoresChannelResult,
   ApiPatchGuildSettingsBody,
   ApiPatchGuildSettingsResult,
+  ellipsis,
   GuildSettings
 } from '@automoderator/core';
 import { FilterIgnores } from '@automoderator/filter-ignores';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
-import { APIGuildInteraction, ChannelType, RESTGetAPIGuildChannelsResult, Routes } from 'discord-api-types/v9';
+import {
+  APIGuildInteraction,
+  APISelectMenuOption,
+  RESTGetAPIGuildChannelsResult,
+  ChannelType,
+  ComponentType,
+  ButtonStyle,
+  Routes
+} from 'discord-api-types/v9';
+import { nanoid } from 'nanoid';
 import { singleton } from 'tsyringe';
 import { Command } from '../../../../command';
 
@@ -22,7 +29,8 @@ import { Command } from '../../../../command';
 export class FilterConfig implements Command {
   public constructor(
     public readonly rest: Rest,
-    public readonly discordRest: DiscordRest
+    public readonly discordRest: DiscordRest,
+    public readonly filterIgnoreState: FilterIgnoresStateStore
   ) {}
 
   private async sendCurrentSettings(interaction: APIGuildInteraction) {
@@ -75,37 +83,107 @@ export class FilterConfig implements Command {
       }
 
       case 'ignore': {
-        const { channel, ...filters } = args.ignore;
+        const channels = await this.discordRest
+          .get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id))
+          .then(
+            channels => channels.filter(
+              channel => channel.type === ChannelType.GuildCategory || channel.type === ChannelType.GuildText
+            )
+          );
 
-        if (channel.type !== ChannelType.GuildText) {
-          throw new ControlFlowError('Please provide a text channel');
-        }
+        const id = nanoid();
 
-        const existing = await this.rest
-          .get<ApiGetFiltersIgnoresChannelResult>(`/guilds/${interaction.guild_id}/filters/ignores/${channel.id}`)
-          .catch(() => null);
+        const maxPages = Math.ceil(channels.length / 25);
+        void this.filterIgnoreState.set(id, { page: 0, maxPages });
 
-        const bitfield = new FilterIgnores(BigInt(existing?.value ?? '0'));
-
-        for (const [filter, on] of Object.entries(filters) as [keyof typeof filters, boolean][]) {
-          if (on) {
-            bitfield.add(filter);
-          } else {
-            bitfield.remove(filter);
-          }
-        }
-
-        await this.rest.patch<ApiPatchFiltersIgnoresChannelResult, ApiPatchFiltersIgnoresChannelBody>(
-          `/guilds/${interaction.guild_id}/filters/ignores/${channel.id}`, {
-            value: bitfield.toJSON() as `${bigint}`
-          }
-        );
-
-        const enabled = bitfield.toArray();
         return send(interaction, {
-          content: enabled.length
-            ? `The following filters are now being ignored in the given channel: ${enabled.join(', ')}`
-            : 'No filters are being ignored in the given channel anymore.'
+          content: 'Please select a channel...',
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.SelectMenu,
+                  custom_id: `filter-ignores-channel-select|${id}`,
+                  placeholder: 'Please select a channel',
+                  options: channels
+                    .map((channel): APISelectMenuOption => ({
+                      label: ellipsis(channel.name!, 25),
+                      emoji: channel.type === ChannelType.GuildText
+                        ? {
+                          id: '779036156175188001',
+                          name: 'ChannelText',
+                          animated: false
+                        }
+                        : {
+                          id: '816771723264393236',
+                          name: 'ChannelCategory',
+                          animated: false
+                        },
+                      value: channel.id
+                    }))
+                    .slice(0, 25)
+                }
+              ]
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.Button,
+                  label: '<',
+                  custom_id: `filter-ignores-channel-select-page|${id}|back`,
+                  style: ButtonStyle.Primary,
+                  disabled: true
+                },
+                {
+                  type: ComponentType.Button,
+                  label: 'Change channel page',
+                  custom_id: 'noop',
+                  style: ButtonStyle.Secondary,
+                  disabled: true
+                }, {
+                  type: ComponentType.Button,
+                  label: '>',
+                  custom_id: `filter-ignores-channel-select-page|${id}|forward`,
+                  style: ButtonStyle.Primary,
+                  disabled: maxPages === 1
+                }
+              ]
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.Button,
+                  label: 'URLs',
+                  custom_id: `filter-ignores-update|${id}|urls`,
+                  style: ButtonStyle.Danger,
+                  disabled: true
+                },
+                {
+                  type: ComponentType.Button,
+                  label: 'Files',
+                  custom_id: `filter-ignores-update|${id}|files`,
+                  style: ButtonStyle.Danger,
+                  disabled: true
+                }, {
+                  type: ComponentType.Button,
+                  label: 'Invites',
+                  custom_id: `filter-ignores-update|${id}|invites`,
+                  style: ButtonStyle.Danger,
+                  disabled: true
+                },
+                {
+                  type: ComponentType.Button,
+                  label: 'Words',
+                  custom_id: `filter-ignores-update|${id}|words`,
+                  style: ButtonStyle.Danger,
+                  disabled: true
+                }
+              ]
+            }
+          ]
         });
       }
 

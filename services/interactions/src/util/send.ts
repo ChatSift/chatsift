@@ -40,14 +40,7 @@ export const send = async (
     }
 
     if (REPLIED.has(message.token)) {
-      // TODO cordis support for files in PATCH
-      // return rest.patch(Routes.webhookMessage(discordClientId, message.token, '@original'), { data: response, files });
-      return rest.make({
-        method: 'PATCH',
-        path: Routes.webhookMessage(discordClientId, message.token, '@original'),
-        data: response,
-        files
-      });
+      return rest.patch(Routes.webhookMessage(discordClientId, message.token, '@original'), { data: response, files });
     }
 
     if (message.res) {
