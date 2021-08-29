@@ -13,21 +13,65 @@ export const RolesCommand = {
       type: ApplicationCommandOptionType.SubcommandGroup,
       options: [
         {
-          name: 'display',
-          description: 'Displays the current prompt for self assignable roles',
-          type: ApplicationCommandOptionType.Subcommand,
-          options: []
-        },
-        {
-          name: 'set',
-          description: 'Updates the prompt for self assignable roles',
+          name: 're-display',
+          description: 'Re-posts an existing prompt',
           type: ApplicationCommandOptionType.Subcommand,
           options: [
             {
-              name: 'prompt',
-              description: 'The prompt to use',
+              name: 'id',
+              description: 'ID of the prompt you want to re-display',
+              type: ApplicationCommandOptionType.Integer,
+              required: true
+            },
+            {
+              name: 'channel',
+              description: 'Channel to display in - defaults to the current one',
+              type: ApplicationCommandOptionType.Channel,
+              required: false
+            }
+          ]
+        },
+        {
+          name: 'delete',
+          description: 'Deletes an existing prompt',
+          type: ApplicationCommandOptionType.Subcommand,
+          options: [
+            {
+              name: 'id',
+              description: 'ID of the prompt you want to delete',
+              type: ApplicationCommandOptionType.Integer,
+              required: true
+            }
+          ]
+        },
+        {
+          name: 'create',
+          description: 'Creates a new prompt for self assignable roles',
+          type: ApplicationCommandOptionType.Subcommand,
+          options: [
+            {
+              name: 'title',
+              description: 'Embed title to use',
               type: ApplicationCommandOptionType.String,
               required: true
+            },
+            {
+              name: 'description',
+              description: 'Embed description to use',
+              type: ApplicationCommandOptionType.String,
+              required: true
+            },
+            {
+              name: 'color',
+              description: 'Embed color to use',
+              type: ApplicationCommandOptionType.String,
+              required: false
+            },
+            {
+              name: 'channel',
+              description: 'Channel to display in - defaults to the current one',
+              type: ApplicationCommandOptionType.Channel,
+              required: false
             }
           ]
         }
@@ -38,6 +82,12 @@ export const RolesCommand = {
       description: 'Adds a role to the list of self assignable roles',
       type: ApplicationCommandOptionType.Subcommand,
       options: [
+        {
+          name: 'prompt',
+          description: 'ID of the prompt you want to add this role to',
+          type: ApplicationCommandOptionType.Integer,
+          required: true
+        },
         {
           name: 'role',
           description: 'The role to add',
@@ -61,7 +111,7 @@ export const RolesCommand = {
     },
     {
       name: 'list',
-      description: 'Lists all of the currently self assignable roles',
+      description: 'Lists all of the currently self assignable roles and their prompts',
       type: ApplicationCommandOptionType.Subcommand,
       options: []
     }

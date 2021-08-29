@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   filter_trigger_log_channel bigint,
   user_update_log_channel bigint,
   message_update_log_channel bigint,
-  assignable_roles_prompt text,
   min_join_age int,
   no_blank_avatar boolean NOT NULL DEFAULT false,
   reports_channel bigint
@@ -47,13 +46,24 @@ CREATE TABLE IF NOT EXISTS webhook_tokens (
   webhook_token text NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS self_assignable_roles_prompts (
+  prompt_id serial PRIMARY KEY,
+  embed_title text NOT NULL,
+  embed_description text NOT NULL,
+  embed_color int NOT NULL,
+  guild_id bigint NOT NULL,
+  channel_id bigint NOT NULL,
+  message_id bigint NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS self_assignable_roles (
   role_id bigint PRIMARY KEY,
-  guild_id bigint NOT NULL REFERENCES guild_settings ON DELETE CASCADE
+  prompt_id int NOT NULL REFERENCES self_assignable_roles_prompts ON DELETE CASCADE,
+  guild_id bigint NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS warn_punishments (
-  guild_id bigint NOT NULL REFERENCES guild_settings ON DELETE CASCADE,
+  guild_id bigint NOT NULL,
   warns int NOT NULL,
   action_type int NOT NULL,
   duration int,

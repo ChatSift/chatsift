@@ -13,7 +13,6 @@ export interface GuildSettings {
   filter_trigger_log_channel: Snowflake | null;
   user_update_log_channel: Snowflake | null;
   message_update_log_channel: Snowflake | null;
-  assignable_roles_prompt: string | null;
   min_join_age: number | null;
   no_blank_avatar: boolean;
   reports_channel: Snowflake | null;
@@ -25,8 +24,19 @@ export interface WebhookToken {
   webhook_token: string;
 }
 
+export interface SelfAssignableRolePrompt {
+  prompt_id: number;
+  embed_title: string;
+  embed_description: string;
+  embed_color: number;
+  guild_id: Snowflake;
+  channel_id: Snowflake;
+  message_id: Snowflake;
+}
+
 export interface SelfAssignableRole {
   role_id: Snowflake;
+  prompt_id: number;
   guild_id: Snowflake;
 }
 

@@ -1,12 +1,12 @@
 import { AssignablesController } from '#controllers';
 import { Route, thirdPartyAuth } from '@automoderator/rest';
-import { conflict } from '@hapi/boom';
+import { notFound } from '@hapi/boom';
 import type { Snowflake } from 'discord-api-types/v9';
-import type { NextHandler, Request, Response } from 'polka';
+import type { Request, Response, NextHandler } from 'polka';
 import { injectable } from 'tsyringe';
 
 @injectable()
-export default class PutGuildsAssignablesRoleRoute extends Route {
+export default class GetGuildsAssignablesRolesRoute extends Route {
   public override readonly middleware = [thirdPartyAuth()];
 
   public constructor(
@@ -16,20 +16,15 @@ export default class PutGuildsAssignablesRoleRoute extends Route {
   }
 
   public async handle(req: Request, res: Response, next: NextHandler) {
-    const { gid, rid } = req.params as { gid: Snowflake; rid: Snowflake };
-
-    const existing = await this.controller.getAll(gid);
-    if (existing.length >= 25) {
-      return next(conflict('There are already 25 self assignable roles in your server'));
-    }
+    const { rid } = req.params as { rid: Snowflake };
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    const assignable = await this.controller.add(gid, rid);
+    const assignable = await this.controller.get(rid);
 
     if (!assignable) {
-      return next(conflict('That role is already on the list'));
+      return next(notFound('Role not found'));
     }
 
     return res.end(JSON.stringify(assignable));
