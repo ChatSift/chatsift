@@ -55,5 +55,3 @@ export default class PutGuildsAssignablesRoleRoute extends Route {
     return res.end(JSON.stringify(assignable));
   }
 }
-// todo - api.ts
-// todo - command
