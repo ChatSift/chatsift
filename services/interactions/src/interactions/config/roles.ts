@@ -114,6 +114,12 @@ export const RolesCommand = {
       type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
+          name: 'prompt',
+          description: 'ID of the prompt you want to add this role to',
+          type: ApplicationCommandOptionType.Integer,
+          required: true
+        },
+        {
           name: 'role',
           description: 'The role to remove',
           type: ApplicationCommandOptionType.Role,
