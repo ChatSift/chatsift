@@ -49,11 +49,16 @@ export default class PutGuildsAssignablesRoleRoute extends Route {
     const assignable = await this.controller.add(gid, prompt_id, rid);
 
     if (!assignable) {
-      return next(conflict('That role is already on the list'));
+      const assignables = await this.controller.getAllForPrompt(prompt_id);
+      return next(
+        conflict(
+          assignables.find(a => a.role_id === rid)
+            ? 'This role is already assigned to another list'
+            : 'That role is already assigned for this prompt'
+        )
+      );
     }
 
     return res.end(JSON.stringify(assignable));
   }
 }
-// todo - api.ts
-// todo - command
