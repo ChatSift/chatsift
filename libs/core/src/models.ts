@@ -189,3 +189,8 @@ export interface MessageReporter {
   reporter_id: Snowflake;
   reporter_tag: string;
 }
+
+export interface LogIgnore {
+  channel_id: Snowflake;
+  guild_id: Snowflake;
+}

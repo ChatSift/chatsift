@@ -5,6 +5,7 @@ coverage
 
 node_modules
 
+.idea
 .vscode
 *.log
 doc

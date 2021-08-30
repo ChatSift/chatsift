@@ -1,6 +1,5 @@
-import { FilterIgnoresStateStore, ChannelPaginationState, send } from '#util';
-import type { ApiGetFiltersIgnoresChannelResult } from '@automoderator/core';
-import { FilterIgnores } from '@automoderator/filter-ignores';
+import { LogIgnoresStateStore, ChannelPaginationState, send } from '#util';
+import type { ApiGetGuildLogIgnoresResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
@@ -19,7 +18,7 @@ export default class implements Component {
   public constructor(
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
-    public readonly filterIgnoreState: FilterIgnoresStateStore
+    public readonly logIgnoresStore: LogIgnoresStateStore
   ) {}
 
   public async exec(interaction: APIGuildInteraction, []: [], id: string) {
@@ -28,15 +27,11 @@ export default class implements Component {
     const data = interaction.data as APIMessageSelectMenuInteractionData;
     const selection = data.values[0]!;
 
-    const existing = await this.rest
-      .get<ApiGetFiltersIgnoresChannelResult>(`/guilds/${interaction.guild_id}/filters/ignores/${selection}`)
-      .catch(() => null);
-
-    const bitfield = new FilterIgnores(BigInt(existing?.value ?? '0'));
-    const isOn = [bitfield.has('urls'), bitfield.has('files'), bitfield.has('invites'), bitfield.has('words')] as const;
-
-    const state = await this.filterIgnoreState.get(id) as ChannelPaginationState;
+    const state = await this.logIgnoresStore.get(id) as ChannelPaginationState;
     state.channel = selection;
+
+    const ignores = await this.rest.get<ApiGetGuildLogIgnoresResult>(`/guilds/${interaction.guild_id}/settings/log-ignores`);
+    const ignore = ignores.find(ignore => ignore.channel_id === selection);
 
     const components = interaction.message!.components!;
 
@@ -49,17 +44,11 @@ export default class implements Component {
     });
 
     // Update the buttons with the current state
-    const buttons = (components[2]!.components as APIButtonComponent[]);
-    components[2]!.components = buttons.map((component, index) => {
-      if (index !== buttons.length - 1) {
-        component.disabled = false;
-        component.style = isOn[index] ? ButtonStyle.Success : ButtonStyle.Danger;
-      }
+    const button = (components[2]!.components as [APIButtonComponent, APIButtonComponent])[0];
+    button.disabled = false;
+    button.style = ignore ? ButtonStyle.Success : ButtonStyle.Danger;
 
-      return component;
-    });
-
-    void this.filterIgnoreState.set(id, state);
+    void this.logIgnoresStore.set(id, state);
 
     return send(interaction, {
       content: 'Use the buttons to manage your ignore settings!',

@@ -1,5 +1,6 @@
 import { MessageCache, GuildMemberCache, CachedGuildMember } from '@automoderator/cache';
 import {
+  ApiGetGuildLogIgnoresResult,
   ApiPostGuildsCasesBody,
   ApiPostGuildsCasesResult,
   Case,
@@ -19,6 +20,7 @@ import { Store } from '@cordis/store';
 import { Rest as CordisRest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
 import {
+  APIChannel,
   APIMessage,
   APIGuildMember,
   APIRole,
@@ -42,6 +44,7 @@ import { inject, singleton } from 'tsyringe';
 @singleton()
 export class Gateway {
   public readonly guildPermsCache = new Store<DiscordPermissions>({ emptyEvery: 15e3 });
+  public readonly channelParentCache = new Store<Snowflake | null>({ emptyEvery: 15e3 });
 
   public guildLogs!: PubSubPublisher<Log>;
 
@@ -54,6 +57,17 @@ export class Gateway {
     public readonly rest: Rest,
     public readonly discord: CordisRest
   ) {}
+
+  private async getChannelParent(guildId: Snowflake, channelId: Snowflake): Promise<Snowflake | null> {
+    if (!this.channelParentCache.has(channelId)) {
+      const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
+      for (const channel of channels) {
+        this.channelParentCache.set(channel.id, channel.parent_id ?? null);
+      }
+    }
+
+    return this.channelParentCache.get(channelId) ?? null;
+  }
 
   private async getPerms(guildId: Snowflake): Promise<DiscordPermissions> {
     if (this.guildPermsCache.has(guildId)) {
@@ -262,6 +276,12 @@ export class Gateway {
       return;
     }
 
+    const parent = await this.getChannelParent(message.guild_id, message.channel_id);
+    const ignores = await this.rest.get<ApiGetGuildLogIgnoresResult>(`/guilds/${message.guild_id}/settings/log-ignores`);
+    if (ignores.find(ignore => ignore.channel_id === message.channel_id || ignore.channel_id === parent)) {
+      return;
+    }
+
     let mod: APIUser | undefined;
     if (await this.hasAuditLog(message.guild_id)) {
       const fetchedLog = await this.discord.get<RESTGetAPIAuditLogResult, RESTGetAPIAuditLogQuery>(Routes.guildAuditLog(message.guild_id), {
@@ -298,8 +318,14 @@ export class Gateway {
     });
   }
 
-  private handleMessageUpdate(o: APIMessage, n: APIMessage) {
+  private async handleMessageUpdate(o: APIMessage, n: APIMessage) {
     if (!n.guild_id || n.author.bot || n.webhook_id) {
+      return;
+    }
+
+    const parent = await this.getChannelParent(n.guild_id, n.channel_id);
+    const ignores = await this.rest.get<ApiGetGuildLogIgnoresResult>(`/guilds/${n.guild_id}/settings/log-ignores`);
+    if (ignores.find(ignore => ignore.channel_id === n.channel_id || ignore.channel_id === parent)) {
       return;
     }
 

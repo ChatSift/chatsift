@@ -12,7 +12,8 @@ import type {
   MaliciousUrl,
   MaliciousUrlCategory,
   SelfAssignableRole,
-  SelfAssignableRolePrompt
+  SelfAssignableRolePrompt,
+  LogIgnore
 } from './models';
 
 export type ApiDeleteFiltersFilesBody = number[];
@@ -182,14 +183,6 @@ export interface ApiPatchGuildsFiltersLocalBody {
 
 export type ApiPatchGuildsFiltersLocalResult = BannedWord;
 
-export type ApiGetGuildsSettingsResult = GuildSettings;
-
-export type ApiPatchGuildSettingsBody = Partial<Omit<GuildSettings, 'guild_id'>>;
-
-export type ApiPatchGuildSettingsResult = GuildSettings;
-
-export type ApiDeleteGuildSettingsResult = GuildSettings;
-
 export type ApiDeleteGuildPromptResult = SelfAssignableRolePrompt;
 
 export type ApiGetGuildPromptResult = SelfAssignableRolePrompt & { roles: SelfAssignableRole[] };
@@ -214,3 +207,17 @@ export interface ApiPutGuildPromptsBody {
 }
 
 export type ApiPutGuildPromptsResult = SelfAssignableRolePrompt;
+
+export type ApiDeleteGuildLogIgnoreResult = LogIgnore;
+
+export type ApiPutGuildLogIgnoreResult = LogIgnore;
+
+export type ApiGetGuildLogIgnoresResult = LogIgnore[];
+
+export type ApiGetGuildsSettingsResult = GuildSettings;
+
+export type ApiPatchGuildSettingsBody = Partial<Omit<GuildSettings, 'guild_id'>>;
+
+export type ApiPatchGuildSettingsResult = GuildSettings;
+
+export type ApiDeleteGuildSettingsResult = GuildSettings;
