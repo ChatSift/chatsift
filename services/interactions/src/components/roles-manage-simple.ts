@@ -1,5 +1,5 @@
 import { send } from '#util';
-import type { ApiGetGuildsAssignablesResult } from '@automoderator/core';
+import type { ApiGetGuildPromptResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
@@ -24,10 +24,10 @@ export default class implements Component {
 
     const selfAssignables = new Set<Snowflake>(
       await this.rest
-        .get<ApiGetGuildsAssignablesResult>(`/guilds/${interaction.guild_id}/assignables`)
+        .get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/messages/${interaction.message!.id}`)
         .then(
-          rows => rows.map(
-            row => row.role_id
+          prompt => prompt.roles.map(
+            role => role.role_id
           )
         )
     );
