@@ -78,6 +78,12 @@ export const RolesCommand = {
               description: 'Channel to display in - defaults to the current one',
               type: ApplicationCommandOptionType.Channel,
               required: false
+            },
+            {
+              name: 'usebuttons',
+              description: 'As long as you have 3 or less roles, buttons will be used instead of a dropdown - defaults to false',
+              type: ApplicationCommandOptionType.Boolean,
+              required: false
             }
           ]
         }

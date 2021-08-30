@@ -24,7 +24,8 @@ export default class PutGuildsPromptsRoute extends Route {
           embed_color: Joi.number().required(),
           embed_title: Joi.string().required(),
           embed_description: Joi.string().allow(null),
-          embed_image: Joi.string().allow(null)
+          embed_image: Joi.string().allow(null),
+          use_buttons: Joi.boolean().default(false)
         })
         .required()
     )

@@ -15,9 +15,12 @@ import { HTTPError, Rest } from '@automoderator/http-client';
 import { kLogger } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
+  APIActionRowComponent,
   APIGuildInteraction,
-  RESTPostAPIChannelMessageJSONBody,
+  APIButtonComponent,
   APIMessage,
+  APIRole,
+  RESTPostAPIChannelMessageJSONBody,
   ButtonStyle,
   ComponentType,
   Routes
@@ -54,6 +57,11 @@ export default class implements Command {
     switch (Object.keys(args)[0] as 're-display' | 'delete' | 'create') {
       case 're-display': {
         const prompt = await this.rest.get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/${args['re-display'].id}`);
+        const roles = new Map(
+          await this.discordRest
+            .get<APIRole[]>(Routes.guildRoles(interaction.guild_id))
+            .then(roles => roles.map(r => [r.id, r]))
+        );
 
         const promptMessage = await this.discordRest.post<APIMessage, RESTPostAPIChannelMessageJSONBody>(
           Routes.channelMessages(args['re-display'].channel?.id ?? interaction.channel_id), {
@@ -71,14 +79,23 @@ export default class implements Command {
               components: [
                 {
                   type: ComponentType.ActionRow,
-                  components: [
-                    {
-                      type: ComponentType.Button,
-                      label: 'Manage your roles',
-                      style: ButtonStyle.Primary,
-                      custom_id: `roles-manage-prompt|${nanoid()}`
-                    }
-                  ]
+                  components: (prompt.use_buttons && prompt.roles.length <= 3)
+                    ? prompt.roles.map(
+                      (role): APIButtonComponent => ({
+                        type: ComponentType.Button,
+                        label: roles.get(role.role_id)?.name ?? 'Deleted Role',
+                        style: ButtonStyle.Secondary,
+                        custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
+                      })
+                    )
+                    : [
+                      {
+                        type: ComponentType.Button,
+                        label: 'Manage your roles',
+                        style: ButtonStyle.Primary,
+                        custom_id: `roles-manage-prompt|${nanoid()}`
+                      }
+                    ]
                 }
               ]
             }
@@ -110,6 +127,22 @@ export default class implements Command {
         const channelId = args.create.channel?.id ?? interaction.channel_id;
         const color = args.create.color ? parseInt(args.create.color.replace('#', ''), 16) : 5793266;
 
+        const components: APIActionRowComponent[] = (args.create.usebuttons ?? false)
+          ? []
+          : [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.Button,
+                  label: 'Manage your roles',
+                  style: ButtonStyle.Primary,
+                  custom_id: `roles-manage-prompt|${nanoid()}`
+                }
+              ]
+            }
+          ];
+
         const promptMessage = await this.discordRest.post<APIMessage, RESTPostAPIChannelMessageJSONBody>(
           Routes.channelMessages(channelId), {
             data: {
@@ -123,19 +156,7 @@ export default class implements Command {
                   }
                   : undefined
               },
-              components: [
-                {
-                  type: ComponentType.ActionRow,
-                  components: [
-                    {
-                      type: ComponentType.Button,
-                      label: 'Manage your roles',
-                      style: ButtonStyle.Primary,
-                      custom_id: `roles-manage-prompt|${nanoid()}`
-                    }
-                  ]
-                }
-              ]
+              components
             }
           }
         );
@@ -147,7 +168,8 @@ export default class implements Command {
             embed_color: color,
             embed_title: args.create.title,
             embed_description: args.create.description,
-            embed_image: args.create.imageurl
+            embed_image: args.create.imageurl,
+            use_buttons: args.create.usebuttons ?? false
           }
         );
 

@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS self_assignable_roles_prompts (
   embed_image text,
   guild_id bigint NOT NULL,
   channel_id bigint NOT NULL,
-  message_id bigint NOT NULL
+  message_id bigint NOT NULL,
+  use_buttons boolean NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS self_assignable_roles (

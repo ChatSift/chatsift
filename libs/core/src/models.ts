@@ -33,6 +33,7 @@ export interface SelfAssignableRolePrompt {
   guild_id: Snowflake;
   channel_id: Snowflake;
   message_id: Snowflake;
+  use_buttons: boolean;
 }
 
 export interface SelfAssignableRole {

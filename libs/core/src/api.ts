@@ -205,6 +205,7 @@ export interface ApiPutGuildPromptsBody {
   embed_color: number;
   embed_description?: string | null;
   embed_image?: string | null;
+  use_buttons?: boolean;
 }
 
 export type ApiPutGuildPromptsResult = SelfAssignableRolePrompt;
