@@ -42,18 +42,6 @@ export const FilterCommand = {
               required: false
             }
           ]
-        },
-        {
-          name: 'ignore',
-          description: 'Allows you to configure the channel ignores in your server',
-          type: ApplicationCommandOptionType.Subcommand,
-          options: []
-        },
-        {
-          name: 'ignorelist',
-          description: 'Shows all the currently ignored channels',
-          type: ApplicationCommandOptionType.Subcommand,
-          options: []
         }
       ]
     },
