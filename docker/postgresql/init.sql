@@ -49,11 +49,13 @@ CREATE TABLE IF NOT EXISTS webhook_tokens (
 CREATE TABLE IF NOT EXISTS self_assignable_roles_prompts (
   prompt_id serial PRIMARY KEY,
   embed_title text NOT NULL,
-  embed_description text NOT NULL,
+  embed_description text,
   embed_color int NOT NULL,
+  embed_image text,
   guild_id bigint NOT NULL,
   channel_id bigint NOT NULL,
-  message_id bigint NOT NULL
+  message_id bigint NOT NULL,
+  use_buttons boolean NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS self_assignable_roles (

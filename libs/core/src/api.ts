@@ -201,9 +201,11 @@ export type ApiGetGuildPromptsResult = (SelfAssignableRolePrompt & { roles: Self
 export interface ApiPutGuildPromptsBody {
   message_id: Snowflake;
   channel_id: Snowflake;
-  embed_color: number;
   embed_title: string;
-  embed_description: string;
+  embed_color: number;
+  embed_description?: string | null;
+  embed_image?: string | null;
+  use_buttons?: boolean;
 }
 
 export type ApiPutGuildPromptsResult = SelfAssignableRolePrompt;

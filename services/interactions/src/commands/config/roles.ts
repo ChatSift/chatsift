@@ -15,9 +15,13 @@ import { HTTPError, Rest } from '@automoderator/http-client';
 import { kLogger } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
+  APIActionRowComponent,
   APIGuildInteraction,
-  RESTPostAPIChannelMessageJSONBody,
+  APIButtonComponent,
   APIMessage,
+  APIRole,
+  RESTPostAPIChannelMessageJSONBody,
+  RESTPatchAPIChannelMessageJSONBody,
   ButtonStyle,
   ComponentType,
   Routes
@@ -54,6 +58,11 @@ export default class implements Command {
     switch (Object.keys(args)[0] as 're-display' | 'delete' | 'create') {
       case 're-display': {
         const prompt = await this.rest.get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/${args['re-display'].id}`);
+        const roles = new Map(
+          await this.discordRest
+            .get<APIRole[]>(Routes.guildRoles(interaction.guild_id))
+            .then(roles => roles.map(r => [r.id, r]))
+        );
 
         const promptMessage = await this.discordRest.post<APIMessage, RESTPostAPIChannelMessageJSONBody>(
           Routes.channelMessages(args['re-display'].channel?.id ?? interaction.channel_id), {
@@ -61,19 +70,34 @@ export default class implements Command {
               embed: {
                 title: prompt.embed_title,
                 color: prompt.embed_color,
-                description: prompt.embed_description
+                description: prompt.embed_description ?? undefined,
+                image: prompt.embed_image
+                  ? {
+                    url: prompt.embed_image
+                  }
+                  : undefined
               },
               components: [
                 {
                   type: ComponentType.ActionRow,
-                  components: [
-                    {
-                      type: ComponentType.Button,
-                      label: 'Manage your roles',
-                      style: ButtonStyle.Primary,
-                      custom_id: `roles-manage-prompt|${nanoid()}`
-                    }
-                  ]
+                  components: (prompt.use_buttons && prompt.roles.length <= 3)
+                    ? prompt.roles.map(
+                      (role): APIButtonComponent => ({
+                        type: ComponentType.Button,
+                        label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
+                        style: ButtonStyle.Secondary,
+                        disabled: !roles.has(role.role_id),
+                        custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
+                      })
+                    )
+                    : [
+                      {
+                        type: ComponentType.Button,
+                        label: 'Manage your roles',
+                        style: ButtonStyle.Primary,
+                        custom_id: `roles-manage-prompt|${nanoid()}`
+                      }
+                    ]
                 }
               ]
             }
@@ -105,27 +129,36 @@ export default class implements Command {
         const channelId = args.create.channel?.id ?? interaction.channel_id;
         const color = args.create.color ? parseInt(args.create.color.replace('#', ''), 16) : 5793266;
 
+        const components: APIActionRowComponent[] = (args.create.usebuttons ?? false)
+          ? []
+          : [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.Button,
+                  label: 'Manage your roles',
+                  style: ButtonStyle.Primary,
+                  custom_id: `roles-manage-prompt|${nanoid()}`
+                }
+              ]
+            }
+          ];
+
         const promptMessage = await this.discordRest.post<APIMessage, RESTPostAPIChannelMessageJSONBody>(
           Routes.channelMessages(channelId), {
             data: {
               embed: {
                 title: args.create.title,
                 color,
-                description: args.create.description
+                description: args.create.description,
+                image: args.create.imageurl
+                  ? {
+                    url: args.create.imageurl
+                  }
+                  : undefined
               },
-              components: [
-                {
-                  type: ComponentType.ActionRow,
-                  components: [
-                    {
-                      type: ComponentType.Button,
-                      label: 'Manage your roles',
-                      style: ButtonStyle.Primary,
-                      custom_id: `roles-manage-prompt|${nanoid()}`
-                    }
-                  ]
-                }
-              ]
+              components
             }
           }
         );
@@ -136,7 +169,9 @@ export default class implements Command {
             message_id: promptMessage.id,
             embed_color: color,
             embed_title: args.create.title,
-            embed_description: args.create.description
+            embed_description: args.create.description,
+            embed_image: args.create.imageurl,
+            use_buttons: args.create.usebuttons ?? false
           }
         );
 
@@ -159,7 +194,49 @@ export default class implements Command {
             }
           );
 
-          return send(interaction, { content: 'Successfully registered the given role as a self assignable role' });
+          const prompt = await this.rest.get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/${args.add.prompt}`);
+          const roles = new Map(
+            await this.discordRest
+              .get<APIRole[]>(Routes.guildRoles(interaction.guild_id))
+              .then(roles => roles.map(r => [r.id, r]))
+          );
+
+          await this.discordRest.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
+            Routes.channelMessage(prompt.channel_id, prompt.message_id), {
+              data: {
+                components: [
+                  {
+                    type: ComponentType.ActionRow,
+                    components: (prompt.use_buttons && prompt.roles.length <= 3)
+                      ? prompt.roles.map(
+                        (role): APIButtonComponent => ({
+                          type: ComponentType.Button,
+                          label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
+                          style: ButtonStyle.Secondary,
+                          disabled: !roles.has(role.role_id),
+                          custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
+                        })
+                      )
+                      : [
+                        {
+                          type: ComponentType.Button,
+                          label: 'Manage your roles',
+                          style: ButtonStyle.Primary,
+                          custom_id: `roles-manage-prompt|${nanoid()}`
+                        }
+                      ]
+                  }
+                ]
+              }
+            }
+          );
+
+          let content = 'Successfully removed the given role from the list of self assignable roles';
+          if (prompt.roles.length > 3 && prompt.use_buttons) {
+            content += '\n\nWARNING: You\'ve gone above 3 buttons, switching to dropdown';
+          }
+
+          return send(interaction, { content });
         } catch (error) {
           if (error instanceof HTTPError) {
             return this.handleHttpError(interaction, error);
@@ -172,7 +249,50 @@ export default class implements Command {
       case 'remove': {
         try {
           await this.rest.delete(`/guilds/${interaction.guild_id}/assignables/roles/${args.remove.role.id}`);
-          return send(interaction, { content: 'Successfully removed the given role from the list of self assignable roles' });
+
+          const prompt = await this.rest.get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/${args.remove.prompt}`);
+          const roles = new Map(
+            await this.discordRest
+              .get<APIRole[]>(Routes.guildRoles(interaction.guild_id))
+              .then(roles => roles.map(r => [r.id, r]))
+          );
+
+          await this.discordRest.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
+            Routes.channelMessage(prompt.channel_id, prompt.message_id), {
+              data: {
+                components: [
+                  {
+                    type: ComponentType.ActionRow,
+                    components: (prompt.use_buttons && prompt.roles.length <= 3)
+                      ? prompt.roles.map(
+                        (role): APIButtonComponent => ({
+                          type: ComponentType.Button,
+                          label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
+                          style: ButtonStyle.Secondary,
+                          disabled: !roles.has(role.role_id),
+                          custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
+                        })
+                      )
+                      : [
+                        {
+                          type: ComponentType.Button,
+                          label: 'Manage your roles',
+                          style: ButtonStyle.Primary,
+                          custom_id: `roles-manage-prompt|${nanoid()}`
+                        }
+                      ]
+                  }
+                ]
+              }
+            }
+          );
+
+          let content = 'Successfully removed the given role from the list of self assignable roles';
+          if (prompt.roles.length <= 3 && prompt.use_buttons) {
+            content += '\n\nNote: Back to 3 or less roles, switching back to buttons';
+          }
+
+          return send(interaction, { content });
         } catch (error) {
           if (error instanceof HTTPError) {
             return this.handleHttpError(interaction, error);

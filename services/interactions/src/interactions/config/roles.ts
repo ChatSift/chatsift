@@ -59,7 +59,13 @@ export const RolesCommand = {
               name: 'description',
               description: 'Embed description to use',
               type: ApplicationCommandOptionType.String,
-              required: true
+              required: false
+            },
+            {
+              name: 'imageurl',
+              description: 'Embed image to use',
+              type: ApplicationCommandOptionType.String,
+              required: false
             },
             {
               name: 'color',
@@ -71,6 +77,12 @@ export const RolesCommand = {
               name: 'channel',
               description: 'Channel to display in - defaults to the current one',
               type: ApplicationCommandOptionType.Channel,
+              required: false
+            },
+            {
+              name: 'usebuttons',
+              description: 'As long as you have 3 or less roles, buttons will be used instead of a dropdown - defaults to false',
+              type: ApplicationCommandOptionType.Boolean,
               required: false
             }
           ]
@@ -101,6 +113,12 @@ export const RolesCommand = {
       description: 'Removes a role from the list of self assignable roles',
       type: ApplicationCommandOptionType.Subcommand,
       options: [
+        {
+          name: 'prompt',
+          description: 'ID of the prompt you want to add this role to',
+          type: ApplicationCommandOptionType.Integer,
+          required: true
+        },
         {
           name: 'role',
           description: 'The role to remove',

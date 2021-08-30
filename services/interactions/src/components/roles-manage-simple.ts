@@ -2,10 +2,8 @@ import { send } from '#util';
 import type { ApiGetGuildPromptResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { stripIndents } from 'common-tags';
 import {
   APIGuildInteraction,
-  APIMessageSelectMenuInteractionData,
   InteractionResponseType,
   RESTPatchAPIGuildMemberJSONBody,
   Routes,
@@ -21,8 +19,8 @@ export default class implements Component {
     public readonly discordRest: DiscordRest
   ) {}
 
-  public async exec(interaction: APIGuildInteraction) {
-    void send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
+  public async exec(interaction: APIGuildInteraction, [roleId]: [string]) {
+    void send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
 
     const selfAssignables = new Set<Snowflake>(
       await this.rest
@@ -34,25 +32,19 @@ export default class implements Component {
         )
     );
 
-    const roles = new Set(interaction.member.roles);
-
-    const added: string[] = [];
-    const removed: string[] = [];
-
-    const selected = new Set((interaction.data as APIMessageSelectMenuInteractionData).values);
-
-    for (const role of roles) {
-      if (selfAssignables.has(role) && !selected.has(role)) {
-        roles.delete(role);
-        removed.push(`<@&${role}>`);
-      }
+    if (!selfAssignables.has(roleId)) {
+      return send(interaction, {
+        content: 'It seems that role is no longer self assignable. Please ask an admin to update this prompt.'
+      });
     }
 
-    for (const role of selected) {
-      if (!roles.has(role)) {
-        roles.add(role);
-        added.push(`<@&${role}>`);
-      }
+    const roles = new Set(interaction.member.roles);
+    const add = !roles.has(roleId);
+
+    if (add) {
+      roles.add(roleId);
+    } else {
+      roles.delete(roleId);
     }
 
     await this.discordRest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(
@@ -62,14 +54,6 @@ export default class implements Component {
       }
     );
 
-    return send(interaction, {
-      content: added.length || removed.length
-        ? stripIndents`
-          Succesfully updated your roles:
-          ${added.length ? `• added: ${added.join(', ')}\n` : ''}${removed.length ? `• removed: ${removed.join(', ')}` : ''}
-        `
-        : 'There was nothing to update!',
-      components: []
-    });
+    return send(interaction, { content: `Successfully ${add ? 'added' : 'removed'} the given role to you` });
   }
 }

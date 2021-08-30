@@ -23,7 +23,9 @@ export default class PutGuildsPromptsRoute extends Route {
             .required(),
           embed_color: Joi.number().required(),
           embed_title: Joi.string().required(),
-          embed_description: Joi.string().required()
+          embed_description: Joi.string().allow(null),
+          embed_image: Joi.string().allow(null),
+          use_buttons: Joi.boolean().default(false)
         })
         .required()
     )
@@ -37,19 +39,12 @@ export default class PutGuildsPromptsRoute extends Route {
 
   public async handle(req: Request, res: Response) {
     const { gid } = req.params as { gid: Snowflake };
-    const { message_id, channel_id, embed_color, embed_title, embed_description } = req.body as ApiPutGuildPromptsBody;
+    const data = req.body as ApiPutGuildPromptsBody;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    const prompt = await this.controller.add({
-      guild_id: gid,
-      message_id,
-      channel_id: channel_id,
-      embed_color,
-      embed_title,
-      embed_description
-    });
+    const prompt = await this.controller.add({ guild_id: gid, ...data });
 
     return res.end(JSON.stringify(prompt));
   }
