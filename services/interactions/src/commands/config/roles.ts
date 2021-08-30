@@ -231,7 +231,7 @@ export default class implements Command {
             }
           );
 
-          let content = 'Successfully removed the given role from the list of self assignable roles';
+          let content = 'Successfully added the given role to the list of self assignable roles';
           if (prompt.roles.length > 3 && prompt.use_buttons) {
             content += '\n\nWARNING: You\'ve gone above 3 buttons, switching to dropdown';
           }
