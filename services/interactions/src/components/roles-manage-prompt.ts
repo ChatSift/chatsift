@@ -24,10 +24,11 @@ export default class implements Component {
   public async exec(interaction: APIGuildInteraction) {
     await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
 
-    const selfAssignables = await this.rest
-      .get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/messages/${interaction.message!.id}`)
-      .then(prompt => prompt.roles.map(role => role.role_id));
+    const prompt = await this.rest.get<ApiGetGuildPromptResult>(
+      `/guilds/${interaction.guild_id}/prompts/messages/${interaction.message!.id}`
+    );
 
+    const selfAssignables = prompt.roles.map(role => role.role_id);
     const userRoles = new Set(interaction.member.roles);
 
     const roles = new Map(
@@ -70,7 +71,7 @@ export default class implements Component {
           components: [
             {
               type: ComponentType.SelectMenu,
-              custom_id: `roles-manage|${nanoid()}`,
+              custom_id: `roles-manage|${nanoid()}|${prompt.prompt_id}`,
               min_values: 0,
               max_values: menuOptions.length,
               options: menuOptions
