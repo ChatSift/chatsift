@@ -27,8 +27,9 @@ export interface WebhookToken {
 export interface SelfAssignableRolePrompt {
   prompt_id: number;
   embed_title: string;
-  embed_description: string;
+  embed_description: string | null;
   embed_color: number;
+  embed_image: string | null;
   guild_id: Snowflake;
   channel_id: Snowflake;
   message_id: Snowflake;

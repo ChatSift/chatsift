@@ -59,7 +59,13 @@ export const RolesCommand = {
               name: 'description',
               description: 'Embed description to use',
               type: ApplicationCommandOptionType.String,
-              required: true
+              required: false
+            },
+            {
+              name: 'imageurl',
+              description: 'Embed image to use',
+              type: ApplicationCommandOptionType.String,
+              required: false
             },
             {
               name: 'color',

@@ -61,7 +61,12 @@ export default class implements Command {
               embed: {
                 title: prompt.embed_title,
                 color: prompt.embed_color,
-                description: prompt.embed_description
+                description: prompt.embed_description ?? undefined,
+                image: prompt.embed_image
+                  ? {
+                    url: prompt.embed_image
+                  }
+                  : undefined
               },
               components: [
                 {
@@ -111,7 +116,12 @@ export default class implements Command {
               embed: {
                 title: args.create.title,
                 color,
-                description: args.create.description
+                description: args.create.description,
+                image: args.create.imageurl
+                  ? {
+                    url: args.create.imageurl
+                  }
+                  : undefined
               },
               components: [
                 {
@@ -136,7 +146,8 @@ export default class implements Command {
             message_id: promptMessage.id,
             embed_color: color,
             embed_title: args.create.title,
-            embed_description: args.create.description
+            embed_description: args.create.description,
+            embed_image: args.create.imageurl
           }
         );
 

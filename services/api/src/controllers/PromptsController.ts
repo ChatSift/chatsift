@@ -42,7 +42,8 @@ export class PromptsController {
     return prompts.map(prompt => ({ ...prompt, roles: groupedRoles[prompt.prompt_id] ?? [] }));
   }
 
-  public add(data: Omit<SelfAssignableRolePrompt, 'prompt_id'>): Promise<SelfAssignableRolePrompt> {
+  public add(data: Partial<Omit<SelfAssignableRolePrompt, 'prompt_id'>>): Promise<SelfAssignableRolePrompt> {
+    console.log(data);
     return this
       .sql<[SelfAssignableRolePrompt]>`INSERT INTO self_assignable_roles_prompts ${this.sql(data)} RETURNING *`
       .then(rows => rows[0]);
