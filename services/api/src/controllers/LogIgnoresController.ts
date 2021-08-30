@@ -10,10 +10,8 @@ export class LogIgnoresController {
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
-  public get(guildId: Snowflake): Promise<LogIgnore | undefined> {
-    return this
-      .sql<[LogIgnore?]>`SELECT * FROM log_ignores WHERE guild_id = ${guildId}`
-      .then(rows => rows[0]);
+  public get(guildId: Snowflake): Promise<LogIgnore[]> {
+    return this.sql<LogIgnore[]>`SELECT * FROM log_ignores WHERE guild_id = ${guildId}`;
   }
 
   public add(guildId: Snowflake, channelId: Snowflake): Promise<LogIgnore | undefined> {

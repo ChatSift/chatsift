@@ -20,7 +20,7 @@ export default class GetGuildsLogIgnoresRoute extends Route {
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    const ignores = await this.controller.getAll(gid);
+    const ignores = await this.controller.get(gid);
     return res.end(JSON.stringify(ignores));
   }
 }
