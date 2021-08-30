@@ -173,3 +173,8 @@ CREATE TABLE IF NOT EXISTS message_reporters (
   reporter_tag text NOT NULL,
   PRIMARY KEY (message_id, reporter_id)
 );
+
+CREATE TABLE IF NOT EXISTS log_ignores (
+  channel_id bigint PRIMARY KEY,
+  guild_id bigint NOT NULL
+);
