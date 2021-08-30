@@ -1,4 +1,4 @@
-import { FilterIgnoresStateStore, FilterIgnoreState, send } from '#util';
+import { FilterIgnoresStateStore, ChannelPaginationState, send } from '#util';
 import type {
   ApiGetFiltersIgnoresChannelResult,
   ApiPatchFiltersIgnoresChannelBody,
@@ -27,7 +27,7 @@ export default class implements Component {
   public async exec(interaction: APIGuildInteraction, [filterType]: ['urls' | 'files' | 'invites' | 'words'], id: string) {
     void send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
 
-    const state = await this.filterIgnoreState.get(id) as FilterIgnoreState;
+    const state = await this.filterIgnoreState.get(id) as ChannelPaginationState;
 
     const existing = await this.rest
       .get<ApiGetFiltersIgnoresChannelResult>(`/guilds/${interaction.guild_id}/filters/ignores/${state.channel!}`)
@@ -52,7 +52,10 @@ export default class implements Component {
     // Update the buttons with the current state
     const buttons = (components[2]!.components as APIButtonComponent[]);
     components[2]!.components = buttons.map((component, index) => {
-      component.style = isOn[index] ? ButtonStyle.Success : ButtonStyle.Danger;
+      if (index !== buttons.length - 1) {
+        component.style = isOn[index] ? ButtonStyle.Success : ButtonStyle.Danger;
+      }
+
       return component;
     });
 

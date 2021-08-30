@@ -1,4 +1,4 @@
-import { FilterIgnoresStateStore, ChannelPaginationState, send } from '#util';
+import { LogIgnoresStateStore, ChannelPaginationState, send } from '#util';
 import { ellipsis } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -21,13 +21,13 @@ export default class implements Component {
   public constructor(
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
-    public readonly filterIgnoreState: FilterIgnoresStateStore
+    public readonly logIgnoresStore: LogIgnoresStateStore
   ) {}
 
   public async exec(interaction: APIGuildInteraction, [directon]: ['back' | 'forward'], id: string) {
     void send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
 
-    const state = await this.filterIgnoreState.get(id) as ChannelPaginationState;
+    const state = await this.logIgnoresStore.get(id) as ChannelPaginationState;
 
     if (directon === 'back') {
       state.page--;
@@ -72,18 +72,12 @@ export default class implements Component {
       pageRight.disabled;
     }
 
-    // Re-disable buttons
-    const buttons = (components[2]!.components as APIButtonComponent[]);
-    components[2]!.components = buttons.map((component, index) => {
-      if (index !== buttons.length - 1) {
-        component.disabled = true;
-        component.style = ButtonStyle.Danger;
-      }
+    // Re-disable the button
+    const button = (components[2]!.components as [APIButtonComponent, APIButtonComponent])[0];
+    button.disabled = false;
+    button.style = ButtonStyle.Danger;
 
-      return component;
-    });
-
-    void this.filterIgnoreState.set(id, state);
+    void this.logIgnoresStore.set(id, state);
 
     return send(interaction, {
       content: 'Please select a channel...',

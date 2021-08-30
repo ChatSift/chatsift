@@ -2,7 +2,7 @@ import { UserPerms } from '@automoderator/discord-permissions';
 import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 
 export const ConfigLogIgnoresCommand = {
-  name: 'banword',
+  name: 'config-log-ignores',
   description: 'Configure logging exclusions',
   default_permission: false,
   perms: UserPerms.admin,
