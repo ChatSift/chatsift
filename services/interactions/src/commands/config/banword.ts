@@ -15,7 +15,7 @@ import { Command } from '../../command';
 
 interface ParsedEntry {
   muteduration?: number;
-  flags: ('word' | 'warn' | 'mute' | 'ban')[];
+  flags: ('word' | 'warn' | 'mute' | 'ban' | 'report')[];
 }
 
 @injectable()
@@ -64,6 +64,14 @@ export default class implements Command {
 
         if (args.add.ban) {
           flags.push('ban');
+        }
+
+        if (args.add.report) {
+          if (flags.length) {
+            throw new ControlFlowError('Report is only valid if provided alone');
+          }
+
+          flags.push('report');
         }
 
         const url = args.add.entry.match(/([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm)?.[0];
