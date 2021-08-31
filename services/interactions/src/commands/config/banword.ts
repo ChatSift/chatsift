@@ -1,9 +1,10 @@
 import { BanwordCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { BanwordFlags, BanwordFlagsResolvable } from '@automoderator/banword-flags';
-import type { BannedWord } from '@automoderator/core';
+import { BannedWord, Log, LogTypes, ServerLogType } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { kLogger, kSql } from '@automoderator/injection';
+import { PubSubPublisher } from '@cordis/brokers';
 import { File, Rest } from '@cordis/rest';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import yaml from 'js-yaml';
@@ -24,6 +25,7 @@ export default class implements Command {
 
   public constructor(
     public readonly rest: Rest,
+    public readonly guildLogs: PubSubPublisher<Log>,
     @inject(kSql) public readonly sql: Sql<{}>,
     @inject(kLogger) public readonly logger: Logger
   ) {}
@@ -97,6 +99,23 @@ export default class implements Command {
           DO UPDATE SET ${this.sql(bannedWord)}
         `;
 
+        this.guildLogs.publish({
+          type: LogTypes.server,
+          data: {
+            guild: interaction.guild_id,
+            user: interaction.member.user,
+            logs: [
+              {
+                type: ServerLogType.filterUpdate,
+                data: {
+                  added: [bannedWord],
+                  removed: []
+                }
+              }
+            ]
+          }
+        });
+
         return send(interaction, { content: 'Successfully banned the given word/phrase' });
       }
 
@@ -113,6 +132,23 @@ export default class implements Command {
         if (!deleted) {
           throw new ControlFlowError('There was nothing to remove');
         }
+
+        this.guildLogs.publish({
+          type: LogTypes.server,
+          data: {
+            guild: interaction.guild_id,
+            user: interaction.member.user,
+            logs: [
+              {
+                type: ServerLogType.filterUpdate,
+                data: {
+                  added: [],
+                  removed: [deleted]
+                }
+              }
+            ]
+          }
+        });
 
         return send(interaction, { content: 'Successfully removed the given word/phrase from the list' });
       }
@@ -198,6 +234,41 @@ export default class implements Command {
         const newEntries = await this.sql.begin<BannedWord[]>(async sql => {
           await sql`DELETE FROM banned_words WHERE guild_id = ${interaction.guild_id}`;
           return sql`INSERT INTO banned_words ${sql(words)} RETURNING *`;
+        });
+
+        const oldMap = new Map(oldEntries.map(entry => [entry.word, entry]));
+        const newMap = new Map(newEntries.map(entry => [entry.word, entry]));
+
+        const removed: BannedWord[] = [];
+        const added: BannedWord[] = [];
+
+        for (const entry of oldMap.values()) {
+          if (!newMap.has(entry.word)) {
+            removed.push(entry);
+          }
+        }
+
+        for (const entry of newMap.values()) {
+          if (!oldMap.has(entry.word)) {
+            added.push(entry);
+          }
+        }
+
+        this.guildLogs.publish({
+          type: LogTypes.server,
+          data: {
+            guild: interaction.guild_id,
+            user: interaction.member.user,
+            logs: [
+              {
+                type: ServerLogType.filterUpdate,
+                data: {
+                  added,
+                  removed
+                }
+              }
+            ]
+          }
         });
 
         if (!newEntries.length) {
