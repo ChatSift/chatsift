@@ -69,7 +69,7 @@ export default class implements Command {
     const guildName = await getGuildName(interaction.guild_id);
 
     const duration = expiresAt ? `. This mute will expire in ${ms(expiresAt.getTime() - Date.now(), true)}` : '';
-    await dmUser(member.user.id, `Hello! You have been muted in ${guildName}${duration}.\n\nReason: ${reason ?? 'No reason provided.'}`);
+    await dmUser(member.user.id, `Hello! You have been muted in ${guildName}${duration}.${reason ? `\n\nReason: ${reason}` : ''}`);
 
     try {
       const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${interaction.guild_id}/cases`, [
