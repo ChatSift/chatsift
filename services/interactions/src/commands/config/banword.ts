@@ -67,8 +67,8 @@ export default class implements Command {
         }
 
         if (args.add.report) {
-          if (flags.length) {
-            throw new ControlFlowError('Report is only valid if provided alone');
+          if (flags.some(flag => flag !== 'word')) {
+            throw new ControlFlowError('Report is only valid with no flags or with the word flag');
           }
 
           flags.push('report');
