@@ -8,9 +8,9 @@ import {
   Case,
   Log,
   LogTypes,
-  makeCaseEmbed,
   ms
 } from '@automoderator/core';
+import { makeCaseEmbed } from '@automoderator/util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { HTTPError, Rest } from '@automoderator/http-client';
 import { PubSubPublisher } from '@cordis/brokers';

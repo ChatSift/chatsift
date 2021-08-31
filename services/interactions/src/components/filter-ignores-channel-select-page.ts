@@ -1,5 +1,5 @@
 import { FilterIgnoresStateStore, ChannelPaginationState, send } from '#util';
-import { ellipsis } from '@automoderator/core';
+import { ellipsis } from '@automoderator/util';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
