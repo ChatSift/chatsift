@@ -92,7 +92,8 @@ export enum ServerLogType {
   nickUpdate,
   usernameUpdate,
   messageEdit,
-  messageDelete
+  messageDelete,
+  filterUpdate
 }
 
 export interface ServerLogBase<T extends ServerLogType, D> {
@@ -104,8 +105,14 @@ export type ServerNickUpdateLog = ServerLogBase<ServerLogType.nickUpdate, { o: s
 export type ServerUsernameUpdateLog = ServerLogBase<ServerLogType.usernameUpdate, { o: string; n: string }>;
 export type ServerMessageEditLog = ServerLogBase<ServerLogType.messageEdit, { message: APIMessage; o: string; n: string }>;
 export type ServerMessageDeleteLog = ServerLogBase<ServerLogType.messageDelete, { message: APIMessage; hadAttachments: boolean; mod?: APIUser }>;
+export type ServerFilterUpdateLog = ServerLogBase<ServerLogType.filterUpdate, { added: BannedWord[]; removed: BannedWord[] }>;
 
-export type ServerLogs = ServerNickUpdateLog | ServerUsernameUpdateLog | ServerMessageEditLog | ServerMessageDeleteLog;
+export type ServerLogs =
+| ServerNickUpdateLog
+| ServerUsernameUpdateLog
+| ServerMessageEditLog
+| ServerMessageDeleteLog
+| ServerFilterUpdateLog;
 
 type _GroupedServerLogs = {
   [T in ServerLogType]: (ServerLogs & { type: T })

@@ -1,3 +1,4 @@
+import { BanwordFlags } from '@automoderator/banword-flags';
 import {
   Case,
   CaseAction,
@@ -20,7 +21,7 @@ import {
   WebhookToken
 } from '@automoderator/core';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
-import { addFields, ellipsis, makeCaseEmbed } from '@automoderator/util';
+import { addFields, ellipsis, EMBED_DESCRIPTION_LIMIT, makeCaseEmbed } from '@automoderator/util';
 import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
 import { HTTPError as CordisHTTPError, Rest } from '@cordis/rest';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
@@ -506,6 +507,56 @@ export class Handler {
     );
   }
 
+  private async _handleFilterUpdateLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
+    if (!settings.mod_action_log_channel) {
+      return;
+    }
+
+    const webhook = await this._assertWebhook(settings.mod_action_log_channel, 'Message Updates');
+    if (!webhook) {
+      return;
+    }
+
+    const [entry] = logs[ServerLogType.filterUpdate];
+    if (!entry) {
+      return;
+    }
+
+    const added = entry.added.map(word => ({ ...word, added: true }));
+    const removed = entry.removed.map(word => ({ ...word, added: false }));
+
+    const list = [...added, ...removed]
+      .sort((a, b) => a.word.localeCompare(b.word))
+      .map(word => {
+        const flagsArray = new BanwordFlags(BigInt(word.flags)).toArray();
+
+        const flags = flagsArray.length ? `; flags: ${flagsArray.join(', ')}` : '';
+        const duration = word.duration ? `; mute duration: ${word.duration}` : '';
+
+        return `${word.added ? '+' : '-'} "${word.word}"${flags}${duration}`;
+      })
+      .join('\n');
+
+    await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
+      Routes.webhook(webhook.id, webhook.token), {
+        data: {
+          embeds: [
+            {
+              author: {
+                name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
+                icon_url: log.data.user.avatar
+                  ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
+                  : `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`
+              },
+              title: 'Updated the banword list',
+              description: `\`\`\`diff\n${ellipsis(list, EMBED_DESCRIPTION_LIMIT - 3)}\`\`\``
+            }
+          ]
+        }
+      }
+    );
+  }
+
   private async _handleServerLog(log: ServerLog) {
     const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${log.data.guild}`;
 
@@ -521,12 +572,14 @@ export class Handler {
       [ServerLogType.nickUpdate]: [],
       [ServerLogType.usernameUpdate]: [],
       [ServerLogType.messageEdit]: [],
-      [ServerLogType.messageDelete]: []
+      [ServerLogType.messageDelete]: [],
+      [ServerLogType.filterUpdate]: []
     });
 
     void this._handleUserUpdateLogs(settings, log, logs);
     void this._handleMessageDeleteLogs(settings, log, logs);
     void this._handleMessageEditLogs(settings, log, logs);
+    void this._handleFilterUpdateLogs(settings, log, logs);
   }
 
   private _handleLog(log: Log) {
