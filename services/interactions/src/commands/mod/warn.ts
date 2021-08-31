@@ -65,7 +65,7 @@ export default class implements Command {
       ]);
 
       const guildName = await getGuildName(interaction.guild_id);
-      await dmUser(member.user.id, `Hello! You have been warned in ${guildName}.\n\nReason: ${reason ?? 'No reason provided.'}`);
+      await dmUser(member.user.id, `Hello! You have been warned in ${guildName}.${reason ? `\n\nReason: ${reason}` : ''}`);
 
       await send(interaction, { content: `Successfully warned ${targetTag}` });
       this.guildLogs.publish({ type: LogTypes.modAction, data: cs! });
