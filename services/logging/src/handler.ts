@@ -21,7 +21,7 @@ import {
   WebhookToken
 } from '@automoderator/core';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
-import { addFields, ellipsis, EMBED_DESCRIPTION_LIMIT, makeCaseEmbed } from '@automoderator/util';
+import { addFields, ellipsis, EMBED_DESCRIPTION_LIMIT, EMBED_FOOTER_TEXT_LIMIT, makeCaseEmbed } from '@automoderator/util';
 import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
 import { HTTPError as CordisHTTPError, Rest } from '@cordis/rest';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
@@ -433,6 +433,8 @@ export class Handler {
       return;
     }
 
+    const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
+
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
       Routes.webhook(webhook.id, webhook.token), {
         data: {
@@ -444,10 +446,15 @@ export class Handler {
                   ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
                   : `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`
               },
-              title: `Deleted their message posted <t:${Math.round(getCreationData(entry.message.id).createdTimestamp / 1000)}:R>`,
-              description: entry.message.content.length
-                ? `\`\`\`${entry.message.content}\`\`\``
-                : 'No content - this message probably held an attachment',
+              description: `Deleted their message posted <t:${ts}:R> in <#${entry.message.channel_id}>`,
+              fields: [
+                {
+                  name: 'Content',
+                  value: entry.message.content.length
+                    ? `>>> ${ellipsis(entry.message.content, EMBED_FOOTER_TEXT_LIMIT - 4)}`
+                    : 'No content - this message probably held an attachment'
+                }
+              ],
               footer: entry.mod
                 ? {
                   text: `Deleted by ${entry.mod.username}#${entry.mod.discriminator} (${entry.mod.id})`,
@@ -478,6 +485,9 @@ export class Handler {
       return;
     }
 
+    const url = `https://discord.com/channels/${entry.message.guild_id}/${entry.message.channel_id}/${entry.message.id}`;
+    const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
+
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
       Routes.webhook(webhook.id, webhook.token), {
         data: {
@@ -489,7 +499,7 @@ export class Handler {
                   ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
                   : `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`
               },
-              title: `Updated their message posted <t:${Math.round(getCreationData(entry.message.id).createdTimestamp / 1000)}:R>`,
+              description: `Updated their [message](${url}) posted <t:${ts}:R> in <#${entry.message.channel_id}>`,
               fields: [
                 {
                   name: 'New content',
