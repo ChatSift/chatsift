@@ -22,6 +22,7 @@ COPY libs/http-client/package.json ./libs/http-client/package.json
 COPY libs/injection/package.json ./libs/injection/package.json
 COPY libs/logger/package.json ./libs/logger/package.json
 COPY libs/rest/package.json ./libs/rest/package.json
+COPY libs/util/package.json ./libs/util/package.json
 
 RUN pnpm i --frozen-lockfile && apk del .build-deps
 
@@ -34,5 +35,6 @@ COPY libs/http-client ./libs/http-client
 COPY libs/injection ./libs/injection
 COPY libs/logger ./libs/logger
 COPY libs/rest ./libs/rest
+COPY libs/util ./libs/util
 
 RUN pnpm run build

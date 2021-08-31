@@ -4,7 +4,8 @@ const BANWORD_FLAGS = BitField.makeFlags([
   'word',
   'warn',
   'mute',
-  'ban'
+  'ban',
+  'report'
 ]);
 
 export type BanwordFlagsResolvable = BitFieldResolvable<keyof typeof BANWORD_FLAGS>;

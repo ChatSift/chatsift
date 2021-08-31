@@ -1,6 +1,7 @@
 import { HistoryCommand } from '#interactions';
 import { ArgumentsOf, send } from '#util';
-import { Case, FilterTrigger, GuildSettings, makeHistoryEmbed } from '@automoderator/core';
+import { Case, FilterTrigger, GuildSettings } from '@automoderator/core';
+import { makeHistoryEmbed } from '@automoderator/util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
 import { kSql } from '@automoderator/injection';

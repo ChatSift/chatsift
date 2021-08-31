@@ -19,6 +19,12 @@ export const BanwordCommand = {
           required: true
         },
         {
+          name: 'report',
+          description: 'Reports the word/phrase to the staff team and prevents it from being deleted',
+          type: ApplicationCommandOptionType.Boolean,
+          required: false
+        },
+        {
           name: 'word',
           description: 'Whether or not the banned characters need to be isolated',
           type: ApplicationCommandOptionType.Boolean,

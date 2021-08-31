@@ -1,7 +1,7 @@
 {
   "$schema": "http://json.schemastore.org/package",
-  "name": "@automoderator/discord-permissions",
-  "description": "Discord permissions implementation of cordis bitfields",
+  "name": "@automoderator/util",
+  "description": "Server specific utilities",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "version": "0.1.0",
@@ -19,17 +19,17 @@
   },
   "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
-    "@automoderator/core": "workspace:^0.1.0",
-    "@cordis/bitfield": "1.0.2-next.613f2c2.1629835119",
     "@types/node": "^14.17.6",
-    "@types/pino": "^6.3.11",
     "postgres": "^2.0.0-beta.6",
     "typescript": "^4.4.2"
   },
   "dependencies": {
+    "@automoderator/core": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
-    "@cordis/rest": "1.0.2-next.613f2c2.1629835119",
+    "@cordis/rest": "^1.0.2-next.613f2c2.1629835119",
+    "@cordis/util": "1.0.2-next.613f2c2.1629835119",
     "discord-api-types": "^0.23.0-next.64937e2.1630412948",
+    "nanoid": "^3.1.23",
     "tslib": "^2.3.0",
     "tsyringe": "^4.6.0"
   }

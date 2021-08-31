@@ -1,6 +1,7 @@
 import { ConfigLogIgnoresCommand } from '#interactions';
 import { ArgumentsOf, LogIgnoresStateStore, send } from '#util';
-import { ApiGetGuildLogIgnoresResult, ellipsis } from '@automoderator/core';
+import { ApiGetGuildLogIgnoresResult } from '@automoderator/core';
+import { ellipsis } from '@automoderator/util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';

@@ -82,12 +82,10 @@ importers:
     specifiers:
       '@cordis/util': 1.0.2-next.613f2c2.1629835119
       '@types/node': ^14.17.6
-      discord-api-types: ^0.23.0-next.fdc1c1a.1629507362
       tslib: ^2.3.0
       typescript: ^4.4.2
     dependencies:
       '@cordis/util': 1.0.2-next.613f2c2.1629835119
-      discord-api-types: 0.23.0-next.fdc1c1a.1629507362
       tslib: 2.3.0
     devDependencies:
       '@types/node': 14.17.6
@@ -101,7 +99,7 @@ importers:
       '@cordis/rest': 1.0.2-next.613f2c2.1629835119
       '@types/node': ^14.17.6
       '@types/pino': ^6.3.11
-      discord-api-types: ^0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: ^0.23.0-next.64937e2.1630412948
       postgres: ^2.0.0-beta.6
       tslib: ^2.3.0
       tsyringe: ^4.6.0
@@ -109,7 +107,7 @@ importers:
     dependencies:
       '@automoderator/injection': link:../injection
       '@cordis/rest': 1.0.2-next.613f2c2.1629835119
-      discord-api-types: 0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: 0.23.0-next.64937e2.1630412948
       tslib: 2.3.0
       tsyringe: 4.6.0
     devDependencies:
@@ -213,7 +211,7 @@ importers:
       bcrypt: ^5.0.1
       cookie: ^0.4.1
       cors: ^2.8.5
-      discord-api-types: ^0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: ^0.23.0-next.64937e2.1630412948
       helmet: ^4.6.0
       joi: ^17.4.1
       node-fetch: ^2.6.1
@@ -248,9 +246,36 @@ importers:
       '@types/node-fetch': 2.5.12
       '@types/pino': 6.3.11
       '@types/supertest': 2.0.11
-      discord-api-types: 0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: 0.23.0-next.64937e2.1630412948
       postgres: 2.0.0-beta.6
       supertest: 6.1.4
+      typescript: 4.4.2
+
+  libs/util:
+    specifiers:
+      '@automoderator/core': workspace:^0.1.0
+      '@automoderator/injection': workspace:^0.1.0
+      '@cordis/rest': ^1.0.2-next.613f2c2.1629835119
+      '@cordis/util': 1.0.2-next.613f2c2.1629835119
+      '@types/node': ^14.17.6
+      discord-api-types: ^0.23.0-next.64937e2.1630412948
+      nanoid: ^3.1.23
+      postgres: ^2.0.0-beta.6
+      tslib: ^2.3.0
+      tsyringe: ^4.6.0
+      typescript: ^4.4.2
+    dependencies:
+      '@automoderator/core': link:../core
+      '@automoderator/injection': link:../injection
+      '@cordis/rest': 1.0.2-next.613f2c2.1629835119
+      '@cordis/util': 1.0.2-next.613f2c2.1629835119
+      discord-api-types: 0.23.0-next.64937e2.1630412948
+      nanoid: 3.1.23
+      tslib: 2.3.1
+      tsyringe: 4.6.0
+    devDependencies:
+      '@types/node': 14.17.10
+      postgres: 2.0.0-beta.6
       typescript: 4.4.2
 
   services/api:
@@ -269,7 +294,7 @@ importers:
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
       cookie: ^0.4.1
-      discord-api-types: ^0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: ^0.23.0-next.64937e2.1630412948
       joi: ^17.4.1
       node-fetch: ^2.6.1
       polka: ^1.0.0-next.15
@@ -290,7 +315,7 @@ importers:
       '@gaius-bot/readdir': 1.0.0
       '@hapi/boom': 9.1.3
       cookie: 0.4.1
-      discord-api-types: 0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: 0.23.0-next.64937e2.1630412948
       joi: 17.4.1
       node-fetch: 2.6.1
       postgres: 2.0.0-beta.6
@@ -355,6 +380,7 @@ importers:
       '@automoderator/http-client': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
+      '@automoderator/util': workspace:^0.1.0
       '@cordis/brokers': 1.0.2-next.613f2c2.1629835119
       '@cordis/redis-store': ^1.0.1
       '@cordis/rest': 1.0.2-next.613f2c2.1629835119
@@ -367,7 +393,7 @@ importers:
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
       common-tags: ^1.8.0
-      discord-api-types: ^0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: ^0.23.0-next.64937e2.1630412948
       ioredis: ^4.27.7
       node-fetch: ^2.6.1
       postgres: ^2.0.0-beta.6
@@ -384,13 +410,14 @@ importers:
       '@automoderator/http-client': link:../../libs/http-client
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
+      '@automoderator/util': link:../../libs/util
       '@cordis/brokers': 1.0.2-next.613f2c2.1629835119
       '@cordis/redis-store': 1.0.1
       '@cordis/rest': 1.0.2-next.613f2c2.1629835119
       '@cordis/store': 1.0.1
       '@cordis/util': 1.0.1
       common-tags: 1.8.0
-      discord-api-types: 0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: 0.23.0-next.64937e2.1630412948
       ioredis: 4.27.7
       node-fetch: 2.6.1
       postgres: 2.0.0-beta.6
@@ -416,7 +443,7 @@ importers:
       '@types/node': ^14.17.6
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
-      discord-api-types: ^0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: ^0.23.0-next.64937e2.1630412948
       postgres: ^2.0.0-beta.6
       reflect-metadata: ^0.1.13
       tslib: ^2.3.0
@@ -427,7 +454,7 @@ importers:
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@cordis/rest': 1.0.2-next.613f2c2.1629835119
-      discord-api-types: 0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: 0.23.0-next.64937e2.1630412948
       postgres: 2.0.0-beta.6
       reflect-metadata: 0.1.13
       tslib: 2.3.0
@@ -451,7 +478,7 @@ importers:
       '@cordis/redis-store': ^1.0.1
       '@types/ioredis': ^4.26.7
       '@types/node': ^14.17.6
-      discord-api-types: ^0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: ^0.23.0-next.64937e2.1630412948
       ioredis: ^4.27.8
       reflect-metadata: ^0.1.13
       tslib: ^2.3.0
@@ -473,7 +500,7 @@ importers:
       '@cordis/common': 1.0.2-next.613f2c2.1629835119
       '@types/ioredis': 4.26.7
       '@types/node': 14.17.6
-      discord-api-types: 0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: 0.23.0-next.64937e2.1630412948
       typescript: 4.4.2
 
   services/interactions:
@@ -487,6 +514,7 @@ importers:
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/rest': workspace:^0.1.0
+      '@automoderator/util': workspace:^0.1.0
       '@cordis/brokers': 1.0.2-next.613f2c2.1629835119
       '@cordis/redis-store': ^1.0.1
       '@cordis/rest': 1.0.2-next.613f2c2.1629835119
@@ -500,7 +528,7 @@ importers:
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
       common-tags: ^1.8.0
-      discord-api-types: ^0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: ^0.23.0-next.64937e2.1630412948
       ioredis: ^4.27.7
       js-yaml: ^4.1.0
       nanoid: ^3.1.23
@@ -522,6 +550,7 @@ importers:
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@automoderator/rest': link:../../libs/rest
+      '@automoderator/util': link:../../libs/util
       '@cordis/brokers': 1.0.2-next.613f2c2.1629835119
       '@cordis/redis-store': 1.0.1
       '@cordis/rest': 1.0.2-next.613f2c2.1629835119
@@ -529,7 +558,7 @@ importers:
       '@gaius-bot/readdir': 1.0.0
       '@hapi/boom': 9.1.3
       common-tags: 1.8.0
-      discord-api-types: 0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: 0.23.0-next.64937e2.1630412948
       ioredis: 4.27.7
       js-yaml: 4.1.0
       nanoid: 3.1.23
@@ -554,13 +583,14 @@ importers:
       '@automoderator/core': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
+      '@automoderator/util': workspace:^0.1.0
       '@cordis/brokers': 1.0.2-next.613f2c2.1629835119
       '@cordis/rest': ^1.0.1
       '@cordis/util': ^1.0.1
       '@types/amqplib': ^0.8.1
       '@types/node': ^14.17.6
       '@types/pino': ^6.3.11
-      discord-api-types: ^0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: ^0.23.0-next.64937e2.1630412948
       postgres: ^2.0.0-beta.6
       reflect-metadata: ^0.1.13
       tslib: ^2.3.0
@@ -570,10 +600,11 @@ importers:
       '@automoderator/core': link:../../libs/core
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
+      '@automoderator/util': link:../../libs/util
       '@cordis/brokers': 1.0.2-next.613f2c2.1629835119
       '@cordis/rest': 1.0.1
       '@cordis/util': 1.0.1
-      discord-api-types: 0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: 0.23.0-next.64937e2.1630412948
       postgres: 2.0.0-beta.6
       reflect-metadata: 0.1.13
       tslib: 2.3.0
@@ -601,7 +632,7 @@ importers:
       '@types/ioredis': ^4.26.7
       '@types/node': ^14.17.6
       '@types/pino': ^6.3.11
-      discord-api-types: ^0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: ^0.23.0-next.64937e2.1630412948
       ioredis: ^4.27.7
       postgres: ^2.0.0-beta.6
       reflect-metadata: ^0.1.13
@@ -620,7 +651,7 @@ importers:
       '@cordis/rest': 1.0.2-next.613f2c2.1629835119
       '@cordis/store': 1.0.1
       '@cordis/util': 1.0.1
-      discord-api-types: 0.23.0-next.fdc1c1a.1629507362
+      discord-api-types: 0.23.0-next.64937e2.1630412948
       ioredis: 4.27.7
       postgres: 2.0.0-beta.6
       reflect-metadata: 0.1.13
@@ -3518,8 +3549,8 @@ packages:
     resolution: {integrity: sha512-l8yD/2zRbZItUQpy7ZxBJwaLX/Bs2TGaCthRppk8Sw24LOIWg12t9JEreezPoYD0SQcC2htNNo27kYEpYW/Srg==}
     engines: {node: '>=12'}
 
-  /discord-api-types/0.23.0-next.fdc1c1a.1629507362:
-    resolution: {integrity: sha512-yNBb8P/u+S/rj8vLmyZd22jdmVJPcFMup1p8x9esERbEahs5pTavwZuULyMs5oZpLLVtM8Mqb9CDg5Cu+Clgrg==}
+  /discord-api-types/0.23.0-next.64937e2.1630412948:
+    resolution: {integrity: sha512-DU22NXuI2+X4XLzKVvgHsdyw6nxlkixtPZDddLEbeoTNQi8+iiwVKfOyH0wn1Y5sflooilXbha8jMGcZDtopXw==}
     engines: {node: '>=12'}
 
   /doctrine/3.0.0:
