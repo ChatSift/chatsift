@@ -1,5 +1,6 @@
 import { MessageCache } from '@automoderator/cache';
 import {
+  ApiGetGuildsSettingsResult,
   ApiPostGuildsCasesBody,
   CaseAction,
   DiscordEvents,
@@ -24,12 +25,14 @@ import {
 } from '@automoderator/discord-permissions';
 import { FilterIgnores } from '@automoderator/filter-ignores';
 import { Rest } from '@automoderator/http-client';
+import { reportMessage } from '@automoderator/util';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Store } from '@cordis/store';
 import { Rest as CordisRest } from '@cordis/rest';
 import {
   APIChannel,
+  APIUser,
   APIGuild,
   APIMessage,
   APIRole,
@@ -137,13 +140,16 @@ export class Gateway {
     try {
       const hits = await this.words.run(message);
       if (hits.length) {
-        await this.discord
-          .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Words filter detection' })
-          .catch(() => null);
+        if (!hits.every(hit => hit.flags.has('report'))) {
+          await this.discord
+            .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Words filter detection' })
+            .catch(() => null);
+        }
 
         let warned = false;
         let muted = false;
         let banned = false;
+        let reported = false;
 
         for (const hit of hits) {
           const data: ApiPostGuildsCasesBody = [];
@@ -181,6 +187,15 @@ export class Gateway {
           if (hit.flags.has('ban') && !banned) {
             banned = true;
             data.push({ action: CaseAction.ban, ...caseBase });
+          }
+
+          if (hit.flags.has('report') && !reported) {
+            reported = true;
+
+            const me = await this.discord.get<APIUser>(Routes.user(this.config.discordClientId));
+            const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${message.guild_id}/settings`);
+
+            await reportMessage(me, message, settings);
           }
 
           if (data.length) {

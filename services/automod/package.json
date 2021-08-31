@@ -36,6 +36,7 @@
     "@automoderator/http-client": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
+    "@automoderator/util": "workspace:^0.1.0",
     "@cordis/brokers": "1.0.2-next.613f2c2.1629835119",
     "@cordis/redis-store": "^1.0.1",
     "@cordis/rest": "1.0.2-next.613f2c2.1629835119",
