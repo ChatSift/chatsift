@@ -70,7 +70,7 @@ export class PermissionsChecker {
   }
 
   public async check(data: PermissionsCheckerData, perm: UserPerms, settings?: GuildSettings): Promise<boolean> {
-    if (this.config.devIds.includes(data.member.user.id)) {
+    if (this.config.devIds.includes(data.member.user.id) || this.config.discordClientId === data.member.user.id) {
       return true;
     }
 
