@@ -5,8 +5,8 @@ import type {
   GatewayDispatchPayload,
   Snowflake
 } from 'discord-api-types/v9';
-import type { ApiPostFiltersFilesResult, ApiPostFiltersUrlsResult, HttpCase } from './api';
-import type { BannedWord, CaseAction, WarnPunishmentAction } from './models';
+import type { ApiPostFiltersFilesResult, HttpCase } from './api';
+import type { BannedWord, CaseAction, MaliciousUrl, WarnPunishmentAction } from './models';
 
 type SanitizedDiscordEvents = {
   [K in GatewayDispatchEvents]: GatewayDispatchPayload & {
@@ -75,7 +75,7 @@ export interface OkRunnerResult<R extends Runners, T> extends BaseRunnerResult {
 export type WordsRunnerResultData = BannedWord & { isUrl: boolean };
 
 export type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostFiltersFilesResult>;
-export type UrlsRunnerResult = OkRunnerResult<Runners.urls, ApiPostFiltersUrlsResult>;
+export type UrlsRunnerResult = OkRunnerResult<Runners.urls, (MaliciousUrl | { url: string })[]>;
 export type InvitesRunnerResult = OkRunnerResult<Runners.invites, string[]>;
 export type WordsRunnerResult = OkRunnerResult<Runners.words, WordsRunnerResultData[]>;
 

@@ -1,15 +1,20 @@
-import type { ApiPostFiltersUrlsBody, ApiPostFiltersUrlsResult } from '@automoderator/core';
+import type { ApiPostFiltersUrlsBody, ApiPostFiltersUrlsResult, MaliciousUrl } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { kLogger } from '@automoderator/injection';
 import { readFileSync } from 'fs';
 import { join as joinPath } from 'path';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
+import fetch from 'node-fetch';
 
 @singleton()
 export class UrlsRunner {
   public readonly urlRegex = /([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm;
   public readonly tlds: Set<string>;
+
+  public readonly fishUrl = 'http://api.phish.surf:5000/gimme-domains' as const;
+  public readonly fishCache = new Set<string>();
+  public lastRefreshedFish: number | null = null;
 
   public constructor(
     public readonly rest: Rest,
@@ -27,6 +32,33 @@ export class UrlsRunner {
       }, new Set<string>());
 
     logger.debug({ tlds: [...this.tlds] }, 'Successfully computed valid tlds');
+
+    void this.refreshFish();
+  }
+
+  private async refreshFish() {
+    if (this.lastRefreshedFish && Date.now() - this.lastRefreshedFish < 6e4) {
+      return;
+    }
+
+    const res = await fetch(this.fishUrl).catch(() => null);
+    const domains = await res?.json().catch(() => null);
+
+    if (!domains) {
+      this.logger.warn('Something went wrong grabbing fish data');
+    }
+
+    this.lastRefreshedFish = Date.now();
+    this.fishCache.clear();
+
+    for (const domain of domains) {
+      this.fishCache.add(domain);
+    }
+  }
+
+  private async isForbiddenByFish(url: string): Promise<boolean> {
+    await this.refreshFish();
+    return this.fishCache.has(url);
   }
 
   public precheck(content: string): string[] {
@@ -41,7 +73,21 @@ export class UrlsRunner {
     return [...urls];
   }
 
-  public run(urls: string[]) {
-    return this.rest.post<ApiPostFiltersUrlsResult, ApiPostFiltersUrlsBody>(`/filters/urls`, { urls });
+  public async run(urls: string[]) {
+    const hits = new Map<string, MaliciousUrl | { url: string }>();
+
+    const builtIn = await this.rest.post<ApiPostFiltersUrlsResult, ApiPostFiltersUrlsBody>('/filters/urls', { urls });
+    for (const hit of builtIn) {
+      hits.set(hit.url, hit);
+    }
+
+    const isForbiddenByFish = await Promise.all(urls.map(url => this.isForbiddenByFish(url)));
+    for (let i = 0; i < urls.length; i++) {
+      if (isForbiddenByFish[i]) {
+        hits.set(urls[i]!, { url: urls[i]! });
+      }
+    }
+
+    return [...hits.values()];
   }
 }

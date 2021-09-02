@@ -11,3 +11,5 @@ export type OneOf<T extends Record<string, any>, K1 extends keyof T, K2 extends 
       ? null
       : T[Key]
 };
+
+export type ExtractArrayT<Ts> = Ts extends (infer T)[] ? T : never;
