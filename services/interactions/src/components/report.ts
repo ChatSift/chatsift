@@ -32,8 +32,9 @@ export default class implements Component {
       actioned.disabled = true;
     } else if (action === 'acknowledge') {
       acknowledged.disabled = true;
-      await this.sql`UPDATE reported_messages SET ack = true WHERE message_id = ${messageId}`;
     }
+
+    await this.sql`UPDATE reported_messages SET ack = true WHERE message_id = ${messageId}`;
 
     return send(interaction, {
       components: [
