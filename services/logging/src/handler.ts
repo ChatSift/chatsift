@@ -251,7 +251,7 @@ export class Handler {
 
       case Runners.urls: {
         const urls = trigger.data
-          .map(url => `${url.url} (${MaliciousUrlCategory[url.category]})`)
+          .map(url => `${url.url} (${'category' in url ? MaliciousUrlCategory[url.category] : 'Fish'})`)
           .join(', ');
 
         push({
