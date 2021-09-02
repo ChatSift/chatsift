@@ -110,6 +110,18 @@ export class Gateway {
       return null;
     }
 
+    const [existingCs] = await this.sql<[Case?]>`
+      SELECT * FROM cases
+      WHERE guild_id = ${data.guild_id}
+        AND target_id = ${data.user.id}
+        AND action_type = ${CaseAction.ban}
+      ORDER BY created_at DESC
+    `;
+
+    if (existingCs && (Date.now() - existingCs.created_at.getTime()) >= 3e4) {
+      return null;
+    }
+
     const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${data.guild_id}/cases`, [{
       action: CaseAction.ban,
       target_id: data.user.id,
@@ -127,6 +139,18 @@ export class Gateway {
     const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
 
     if (!settings?.mod_action_log_channel) {
+      return null;
+    }
+
+    const [existingCs] = await this.sql<[Case?]>`
+      SELECT * FROM cases
+      WHERE guild_id = ${data.guild_id}
+        AND target_id = ${data.user.id}
+        AND action_type = ${CaseAction.unban}
+      ORDER BY created_at DESC
+    `;
+
+    if (existingCs && (Date.now() - existingCs.created_at.getTime()) >= 3e4) {
       return null;
     }
 
