@@ -13,14 +13,18 @@ export default class PostFiltersUrlsBulkRoute extends Route {
     jsonParser(),
     validate(
       Joi
-        .object()
-        .keys({
-          url: Joi.string().required(),
-          category: Joi.number()
-            .min(MaliciousUrlCategory.malicious)
-            .max(MaliciousUrlCategory.urlShortner)
+        .array()
+        .items(
+          Joi.object()
+            .keys({
+              url: Joi.string().required(),
+              category: Joi.number()
+                .min(MaliciousUrlCategory.malicious)
+                .max(MaliciousUrlCategory.urlShortner)
+                .required()
+            })
             .required()
-        })
+        )
         .required(),
       'body'
     )
