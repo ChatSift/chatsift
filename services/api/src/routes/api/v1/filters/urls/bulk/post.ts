@@ -37,7 +37,7 @@ export default class PostFiltersUrlsBulkRoute extends Route {
   }
 
   public async handle(req: Request, res: Response) {
-    const urls = (req.body as ApiPutFiltersUrlsBody).map(domain => ({ ...domain, admin: req.user!.id }));
+    const urls = req.body as ApiPutFiltersUrlsBody;
 
     const data = await this.sql.begin(async sql => {
       await sql`DELETE FROM malicious_urls`;
@@ -45,8 +45,8 @@ export default class PostFiltersUrlsBulkRoute extends Route {
 
       for (const url of urls) {
         const promise = sql<[MaliciousUrl]>`
-          INSERT INTO malicious_urls (url, admin_id, category)
-          VALUES (${url.url}, ${url.admin}, ${url.category})
+          INSERT INTO malicious_urls (url, category)
+          VALUES (${url.url}, ${url.category})
           RETURNING *
         `.then(rows => rows[0]);
 

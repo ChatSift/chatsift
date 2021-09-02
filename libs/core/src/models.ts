@@ -130,7 +130,6 @@ export enum MaliciousFileCategory {
 export interface MaliciousFile {
   file_id: number;
   file_hash: string;
-  admin_id: Snowflake;
   created_at: Date;
   last_modified_at: Date;
   category: MaliciousFileCategory;
@@ -149,7 +148,6 @@ export enum MaliciousUrlCategory {
 export interface MaliciousUrl {
   url_id: number;
   url: string;
-  admin_id: Snowflake;
   created_at: Date;
   last_modified_at: Date;
   category: MaliciousUrlCategory;

@@ -1,6 +1,5 @@
 import type { MaliciousFile, MaliciousFileCategory } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
-import type { Snowflake } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
 
@@ -71,14 +70,14 @@ export class FilesController {
       : { success: false, error: data };
   }
 
-  public add(files: { hash: string; admin: Snowflake; category: MaliciousFileCategory }[]) {
+  public add(files: { hash: string; category: MaliciousFileCategory }[]) {
     return this.sql.begin(sql => {
       const promises: Promise<MaliciousFile>[] = [];
 
       for (const data of files) {
         const promise = sql<[MaliciousFile]>`
-          INSERT INTO malicious_files (file_hash, admin_id, category)
-          VALUES (${data.hash}, ${data.admin}, ${data.category})
+          INSERT INTO malicious_files (file_hash, category)
+          VALUES (${data.hash}, ${data.category})
           ON CONFLICT (file_hash)
           DO
             UPDATE SET category = ${data.category}, last_modified_at = NOW()

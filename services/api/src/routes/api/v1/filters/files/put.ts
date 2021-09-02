@@ -33,7 +33,7 @@ export default class PutFiltersFilesRoute extends Route {
   }
 
   public async handle(req: Request, res: Response) {
-    const files = (req.body as ApiPutFiltersFilesBody).map(file => ({ ...file, admin: req.user!.id }));
+    const files = req.body as ApiPutFiltersFilesBody;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');

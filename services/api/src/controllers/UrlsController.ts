@@ -1,6 +1,5 @@
 import type { MaliciousUrl, MaliciousUrlCategory } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
-import type { Snowflake } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
 
@@ -71,14 +70,14 @@ export class UrlsController {
       : { success: false, error: data };
   }
 
-  public add(urls: { url: string; admin: Snowflake; category: MaliciousUrlCategory }[]) {
+  public add(urls: { url: string; category: MaliciousUrlCategory }[]) {
     return this.sql.begin(sql => {
       const promises: Promise<MaliciousUrl>[] = [];
 
       for (const data of urls) {
         const promise = sql<[MaliciousUrl]>`
-          INSERT INTO malicious_urls (url, admin_id, category)
-          VALUES (${data.url}, ${data.admin}, ${data.category})
+          INSERT INTO malicious_urls (url, category)
+          VALUES (${data.url}, ${data.category})
           ON CONFLICT (url)
           DO
             UPDATE SET category = ${data.category}, last_modified_at = NOW()

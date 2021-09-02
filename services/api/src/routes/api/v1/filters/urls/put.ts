@@ -37,7 +37,7 @@ export default class PutFiltersUrlsRoute extends Route {
   }
 
   public async handle(req: Request, res: Response) {
-    const domains = (req.body as ApiPutFiltersUrlsBody).map(domain => ({ ...domain, admin: req.user!.id }));
+    const domains = req.body as ApiPutFiltersUrlsBody;
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
