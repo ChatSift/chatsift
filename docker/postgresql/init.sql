@@ -37,7 +37,12 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   message_update_log_channel bigint,
   min_join_age int,
   no_blank_avatar boolean NOT NULL DEFAULT false,
-  reports_channel bigint
+  reports_channel bigint,
+  antispam_amount int,
+  antispam_time int,
+  mention_limit int,
+  mention_amount int,
+  mention_time int
 );
 
 CREATE TABLE IF NOT EXISTS webhook_tokens (

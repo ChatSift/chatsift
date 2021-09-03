@@ -16,6 +16,11 @@ export interface GuildSettings {
   min_join_age: number | null;
   no_blank_avatar: boolean;
   reports_channel: Snowflake | null;
+  antispam_amount: number | null;
+  antispam_time: number | null;
+  mention_limit: number | null;
+  mention_amount: number | null;
+  mention_time: number | null;
 }
 
 export interface WebhookToken {

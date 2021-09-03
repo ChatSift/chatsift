@@ -48,7 +48,12 @@ export default class PatchGuildsSettingsRoute extends Route {
           no_blank_avatar: Joi.boolean(),
           reports_channel: Joi.string()
             .pattern(/\d{17,20}/)
-            .allow(null)
+            .allow(null),
+          antispam_amount: Joi.number().allow(null),
+          antispam_time: Joi.number().allow(null),
+          mention_limit: Joi.number().allow(null),
+          mention_amount: Joi.number().allow(null),
+          mention_time: Joi.number().allow(null)
         })
         .required(),
       'body'
