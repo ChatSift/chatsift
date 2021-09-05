@@ -311,6 +311,10 @@ export class Handler {
 
         break;
       }
+
+      default: {
+        this.logger.warn({ trigger }, 'Unknown runner type');
+      }
     }
 
     return embeds;
@@ -342,6 +346,10 @@ export class Handler {
 
       return this._embedFromTrigger(log.data.message, trigger);
     });
+
+    if (!embeds.length) {
+      return;
+    }
 
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
       Routes.webhook(webhook.id, webhook.token), {

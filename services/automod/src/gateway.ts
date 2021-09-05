@@ -1,5 +1,6 @@
 import { MessageCache } from '@automoderator/cache';
 import {
+  AntispamRunnerResult,
   ApiGetGuildsSettingsResult,
   ApiPostGuildsCasesBody,
   CaseAction,
@@ -38,13 +39,14 @@ import {
   APIRole,
   GatewayDispatchEvents,
   RESTGetAPIGuildRolesResult,
+  RESTPostAPIChannelMessagesBulkDeleteJSONBody,
   Routes,
   Snowflake
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
-import { FilesRunner, InvitesRunner, UrlsRunner, WordsRunner } from './runners';
+import { AntispamRunner, FilesRunner, InvitesRunner, UrlsRunner, WordsRunner } from './runners';
 
 interface FilesRunnerData {
   message: APIMessage;
@@ -61,10 +63,12 @@ interface InviteRunnerData {
   invites: string[];
 }
 
-export interface WordsRunnerData {
+interface WordsRunnerData {
   message: APIMessage;
   settings: Partial<GuildSettings>;
 }
+
+type AntispamRunnerData = WordsRunnerData;
 
 @singleton()
 export class Gateway {
@@ -85,7 +89,8 @@ export class Gateway {
     public readonly urls: UrlsRunner,
     public readonly files: FilesRunner,
     public readonly invites: InvitesRunner,
-    public readonly words: WordsRunner
+    public readonly words: WordsRunner,
+    public readonly antispam: AntispamRunner
   ) {}
 
   private async runUrls({ message, urls }: UrlsRunnerData): Promise<NotOkRunnerResult | UrlsRunnerResult> {
@@ -216,6 +221,45 @@ export class Gateway {
     }
   }
 
+  private async runAntispam({ message, settings }: AntispamRunnerData): Promise<NotOkRunnerResult | AntispamRunnerResult> {
+    try {
+      const hits = await this.antispam.run(message, settings.antispam_amount!, settings.antispam_time!);
+      const messages = await Promise.all(hits.map(hit => this.messagesCache.get(hit)));
+
+      if (messages.length) {
+        const groupedMessages = messages.reduce<Record<string, string[]>>((acc, m) => {
+          if (m) {
+            (acc[m.channel_id] ??= []).push(m.id);
+          }
+
+          return acc;
+        }, {});
+
+        for (const [channel, messages] of Object.entries(groupedMessages)) {
+          if (messages.length === 1) {
+            await this.discord
+              .delete(Routes.channelMessage(channel, messages[0]!), { reason: 'Antispam trigger' })
+              .catch(() => null);
+          } else {
+            await this.discord.post<never, RESTPostAPIChannelMessagesBulkDeleteJSONBody>(
+              Routes.channelBulkDelete(channel), {
+                data: {
+                  messages
+                },
+                reason: 'Antispam trigger'
+              }
+            );
+          }
+        }
+      }
+
+      return { ok: true, actioned: hits.length > 0, data: messages.filter((m): m is APIMessage => Boolean(m)), runner: Runners.antispam };
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to execute runner antispam');
+      return { ok: false, runner: Runners.antispam };
+    }
+  }
+
   private async getChannelParent(guildId: Snowflake, channelId: Snowflake): Promise<Snowflake | null> {
     if (!this.channelParentCache.has(channelId)) {
       const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
@@ -236,7 +280,12 @@ export class Gateway {
       settings = {
         use_url_filters: false,
         use_file_filters: false,
-        use_invite_filters: false
+        use_invite_filters: false,
+        antispam_amount: null,
+        antispam_time: null,
+        mention_limit: null,
+        mention_amount: null,
+        mention_time: null
       }
     ] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${message.guild_id}`;
 
@@ -353,6 +402,10 @@ export class Gateway {
 
     if (!ignores.has('words')) {
       promises.push(this.runWords({ message, settings }));
+    }
+
+    if (settings.antispam_amount && settings.antispam_time) {
+      promises.push(this.runAntispam({ message, settings }));
     }
 
     const data = (await Promise.allSettled(promises)).reduce<RunnerResult[]>((acc, promise) => {
