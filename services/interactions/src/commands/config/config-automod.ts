@@ -1,5 +1,5 @@
 import { ConfigAutoCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 import {
   ApiGetGuildsSettingsResult,
   ApiPatchGuildSettingsBody,
@@ -57,22 +57,73 @@ export default class implements Command {
     let settings: Partial<GuildSettings> = {};
 
     if (antispam?.amount) {
+      if (antispam.amount < 2) {
+        throw new ControlFlowError(
+          'If you set this value to lower than 2, a punishment would trigger immediately, please use a value equal to or greater than 2.'
+        );
+      }
+
+      if (antispam.amount > 20) {
+        throw new ControlFlowError(
+          'Tracking more than 20 messages seems redundant and causes heavy memory usage at scale, please use a lower value.' +
+          '\n\nIf you have a use case for this, we\'d love to hear it in the support server.'
+        );
+      }
+
       settings.antispam_amount = antispam.amount;
     }
 
     if (antispam?.time) {
+      if (antispam.time < 2) {
+        throw new ControlFlowError(
+          'With a time lower than 2, a punishment would be nearly impossible to trigger, please use a value equal to or greater than 2.'
+        );
+      }
+
+      if (antispam.time > 20) {
+        throw new ControlFlowError(
+          'Tracking messages for more than 20 seconds seems unreasonable and causes heavy memory usage at scale, please use a lower value.' +
+          '\n\nIf you have a use case for this, we\'d love to hear it in the support server.'
+        );
+      }
+
       settings.antispam_time = antispam.time;
     }
 
     if (mention?.amount) {
+      if (mention.amount < 3) {
+        throw new ControlFlowError(
+          'With a value this low for mention amounts a punishment will be triggered way too easily on accident.'
+        );
+      }
+
       settings.mention_amount = mention.amount;
     }
 
     if (mention?.limit) {
+      if (mention.limit < 3) {
+        throw new ControlFlowError(
+          'With a value this low for mention amounts a punishment will be triggered way too easily on accident.'
+        );
+      }
+
       settings.mention_limit = mention.limit;
     }
 
     if (mention?.time) {
+      if (mention.time < 2) {
+        throw new ControlFlowError(
+          'With a time lower than 2, a punishment would be nearly impossible to trigger, please use a value equal to or greater than 2.'
+        );
+      }
+
+      if (mention.time > 20) {
+        throw new ControlFlowError(
+          'Tracking messages for more than 20 seconds seems unreasonable and causes heavy memory usage at scale, please use a lower value.' +
+          '\n\nIf you have a use case for this, we\'d love to hear it in the support server.'
+        );
+      }
+
       settings.mention_time = mention.time;
     }
 
