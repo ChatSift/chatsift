@@ -4,11 +4,13 @@ import {
   ApiGetGuildsSettingsResult,
   ApiPatchGuildSettingsBody,
   ApiPatchGuildSettingsResult,
+  AutomodPunishment,
+  AutomodPunishmentAction,
   GuildSettings
 } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
-import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
+import { kLogger, kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
@@ -16,7 +18,6 @@ import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { Handler } from '../../handler';
 
 @injectable()
 export default class implements Command {
@@ -25,9 +26,7 @@ export default class implements Command {
   public constructor(
     public readonly rest: Rest,
     public readonly discordRest: DiscordRest,
-    public readonly handler: Handler,
     @inject(kLogger) public readonly logger: Logger,
-    @inject(kConfig) public readonly config: Config,
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
@@ -35,6 +34,8 @@ export default class implements Command {
     return send(interaction, {
       content: stripIndents`
         **Here are your current settings:**
+        • punishment cooldown: ${settings.automod_cooldown ?? 'not set'}
+
         • text amount: ${settings.antispam_amount ?? 'not set'}
         • text time: ${settings.antispam_time ?? 'not set'}
 
@@ -47,7 +48,7 @@ export default class implements Command {
   }
 
   public async exec(interaction: APIGuildInteraction, args: Partial<ArgumentsOf<typeof ConfigAutoCommand>>) {
-    const { show, antispam, mention } = args;
+    const { show, antispam, mention, punishments } = args;
 
     if (show) {
       const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`);
@@ -55,6 +56,76 @@ export default class implements Command {
     }
 
     let settings: Partial<GuildSettings> = {};
+
+    if (punishments) {
+      const { add, delete: del, list, 'set-cooldown': setCooldown } = punishments;
+
+      if (setCooldown) {
+        if (setCooldown.cooldown < 3) {
+          throw new ControlFlowError('Please provide a value equal or greater than 3');
+        }
+
+        if (setCooldown.cooldown > 180) {
+          throw new ControlFlowError('Please provide a value equal or lower than 180');
+        }
+
+        settings.automod_cooldown = setCooldown.cooldown;
+      } else if (add) {
+        const data: AutomodPunishment = {
+          guild_id: interaction.guild_id,
+          triggers: add.count,
+          action_type: add.punishment,
+          duration: null
+        };
+
+        if (add.duration) {
+          if (data.action_type === AutomodPunishmentAction.kick || data.action_type === AutomodPunishmentAction.warn) {
+            throw new ControlFlowError('Cannot set a duration for kicks or warns');
+          }
+
+          data.duration = add.duration;
+        }
+
+        await this.sql`
+          INSERT INTO automod_punishments ${this.sql(data)}
+          ON CONFLICT (guild_id, triggers)
+          DO UPDATE SET duration = ${data.duration}
+        `;
+
+        return send(interaction, {
+          content: `On trigger number ${data.triggers} a ${AutomodPunishmentAction[data.action_type]} will be issued.`
+        });
+      } else if (del) {
+        const [punishment] = await this.sql<[AutomodPunishment?]>`
+          DELETE FROM automod_punishments
+          WHERE guild_id = ${interaction.guild_id}
+            AND triggers = ${del.count}
+          RETURNING *
+        `;
+
+        if (!punishment) {
+          throw new ControlFlowError('Could not find a punishment to delete');
+        }
+
+        return send(interaction, { content: `Successfully deleted the punishment at ${del.count} triggers` });
+      } else if (list) {
+        const punishments = await this
+          .sql<AutomodPunishment[]>`SELECT * FROM automod_punishments WHERE guild_id = ${interaction.guild_id}`
+          .then(
+            rows => rows.map(
+              p => `• At ${p.triggers} triggers, a ${AutomodPunishmentAction[p.action_type]} the user will be punished with a ${
+                p.duration ? ` which will last ${p.duration} minutes` : ''
+              }`
+            )
+          );
+
+        return send(interaction, {
+          content: punishments.length
+            ? `List of punishments:\n${punishments.join('\n')}`
+            : 'There are currently no punishments'
+        });
+      }
+    }
 
     if (antispam?.amount) {
       if (antispam.amount < 2) {

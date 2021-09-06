@@ -53,7 +53,8 @@ export default class PatchGuildsSettingsRoute extends Route {
           antispam_time: Joi.number().allow(null),
           mention_limit: Joi.number().allow(null),
           mention_amount: Joi.number().allow(null),
-          mention_time: Joi.number().allow(null)
+          mention_time: Joi.number().allow(null),
+          automod_cooldown: Joi.number().allow(null)
         })
         .required(),
       'body'

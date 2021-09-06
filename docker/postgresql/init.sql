@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   antispam_time int,
   mention_limit int,
   mention_amount int,
-  mention_time int
+  mention_time int,
+  automod_cooldown int
 );
 
 CREATE TABLE IF NOT EXISTS webhook_tokens (
@@ -75,6 +76,14 @@ CREATE TABLE IF NOT EXISTS warn_punishments (
   action_type int NOT NULL,
   duration int,
   PRIMARY KEY (guild_id, warns)
+);
+
+CREATE TABLE IF NOT EXISTS automod_punishments (
+  guild_id bigint NOT NULL,
+  triggers int NOT NULL,
+  action_type int NOT NULL,
+  duration int,
+  PRIMARY KEY (guild_id, triggers)
 );
 
 CREATE TABLE IF NOT EXISTS cases (

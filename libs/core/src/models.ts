@@ -21,6 +21,7 @@ export interface GuildSettings {
   mention_limit: number | null;
   mention_amount: number | null;
   mention_time: number | null;
+  automod_cooldown: number | null;
 }
 
 export interface WebhookToken {
@@ -69,6 +70,20 @@ interface WarnPunishmentWithDuration extends BaseWarnPunishment {
 }
 
 export type WarnPunishment = WarnPunishmentWithNoDuration | WarnPunishmentWithDuration;
+
+export enum AutomodPunishmentAction {
+  warn,
+  mute,
+  kick,
+  ban
+}
+
+export interface AutomodPunishment {
+  guild_id: Snowflake;
+  triggers: number;
+  action_type: AutomodPunishmentAction;
+  duration: number | null;
+}
 
 export enum CaseAction {
   warn,
