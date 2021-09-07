@@ -85,6 +85,13 @@ export interface AutomodPunishment {
   duration: number | null;
 }
 
+export interface AutomodTrigger {
+  guild_id: Snowflake;
+  user_id: Snowflake;
+  count: number;
+  created_at: Date;
+}
+
 export enum CaseAction {
   warn,
   mute,

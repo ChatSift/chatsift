@@ -121,3 +121,33 @@ setInterval(
     .catch(error => logger.error({ error }, 'Failed to pardon warnings')),
   36e5
 );
+
+const deescalateAutomodTriggers = async () => {
+  const settings = await sql<GuildSettings[]>`SELECT * from guild_settings`;
+
+  const promises = settings.map(({ guild_id, automod_cooldown }) => {
+    if (!automod_cooldown) {
+      return Promise.resolve();
+    }
+
+    return sql`
+      UPDATE automod_triggers SET count = previous_automod_trigger(${guild_id}, user_id)
+      WHERE guild_id = ${guild_id}
+        AND EXTRACT (minutes FROM NOW() - created_at) >= ${automod_cooldown}
+    `;
+  });
+
+  for (const promise of await Promise.allSettled(promises)) {
+    if (promise.status === 'rejected') {
+      logger.error({ error: promise.reason }, 'Failed to de-escalate for a particular guild');
+    }
+  }
+};
+
+// Every 30 seconds, check for automod de-escalations
+setInterval(
+  () => void deescalateAutomodTriggers()
+    .then(() => logger.info('Successfully de-escalated triggers'))
+    .catch(error => logger.error({ error }, 'Failed to de-escalate automod triggers')),
+  3e4
+);

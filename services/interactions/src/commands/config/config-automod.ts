@@ -113,8 +113,8 @@ export default class implements Command {
           .sql<AutomodPunishment[]>`SELECT * FROM automod_punishments WHERE guild_id = ${interaction.guild_id}`
           .then(
             rows => rows.map(
-              p => `• At ${p.triggers} triggers, a ${AutomodPunishmentAction[p.action_type]} the user will be punished with a ${
-                p.duration ? ` which will last ${p.duration} minutes` : ''
+              p => `• At ${p.triggers} triggers, the user will be punished with a ${AutomodPunishmentAction[p.action_type]} ${
+                p.duration ? `, which will last ${p.duration} minutes` : ''
               }`
             )
           );

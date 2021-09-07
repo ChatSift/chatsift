@@ -3,7 +3,11 @@ import {
   AntispamRunnerResult,
   ApiGetGuildsSettingsResult,
   ApiPostGuildsCasesBody,
+  ApiPostGuildsCasesResult,
+  AutomodPunishment,
+  AutomodTrigger,
   CaseAction,
+  CaseData,
   DiscordEvents,
   FilesRunnerResult,
   FilterIgnore,
@@ -160,12 +164,12 @@ export class Gateway {
           const data: ApiPostGuildsCasesBody = [];
           const unmuteRoles: Snowflake[] = [];
 
-          const reason = `Automated punishment triggered by saying ${hit.word}`;
+          const reason = `automated punishment triggered for saying ${hit.word}`;
 
           const caseBase = {
             mod_id: this.config.discordClientId,
             mod_tag: 'AutoModerator#0000',
-            reason: reason,
+            reason,
             target_id: message.author.id,
             target_tag: `${message.author.username}#${message.author.discriminator}`,
             created_at: new Date(),
@@ -204,7 +208,15 @@ export class Gateway {
           }
 
           if (data.length) {
-            await this.rest.post<unknown, ApiPostGuildsCasesBody>(`/guilds/${message.guild_id!}/cases`, data);
+            const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
+              `/guilds/${message.guild_id!}/cases`,
+              data
+            );
+
+            this.guildLogs.publish({
+              data: cases,
+              type: LogTypes.modAction
+            });
           }
         }
       }
@@ -423,10 +435,64 @@ export class Gateway {
     if (data.length) {
       await this.sql`
         INSERT INTO filter_triggers (guild_id, user_id, count)
-        VALUES (${message.guild_id}, ${message.author.id}, next_punishment(${message.guild_id}, ${message.author.id}))
+        VALUES (${message.guild_id}, ${message.author.id}, next_automod_trigger(${message.guild_id}, ${message.author.id}))
         ON CONFLICT (guild_id, user_id)
-        DO UPDATE SET count = next_punishment(${message.guild_id}, ${message.author.id})
+        DO UPDATE SET count = next_automod_trigger(${message.guild_id}, ${message.author.id})
       `;
+
+      if (data.find(result => result.runner === Runners.antispam)) {
+        const [trigger] = await this.sql<[AutomodTrigger]>`
+          INSERT INTO automod_triggers (guild_id, user_id, count)
+          VALUES (${message.guild_id}, ${message.author.id}, next_automod_trigger(${message.guild_id}, ${message.author.id}))
+          ON CONFLICT (guild_id, user_id)
+            DO UPDATE SET count = next_automod_trigger(${message.guild_id}, ${message.author.id})
+          RETURNING *
+        `;
+
+        const [punishment] = await this.sql<[AutomodPunishment?]>`
+          SELECT * FROM automod_punishments
+          WHERE guild_id = ${message.guild_id}
+            AND triggers = ${trigger.count}
+        `;
+
+        if (punishment) {
+          const ACTIONS = [
+            CaseAction.warn,
+            CaseAction.mute,
+            CaseAction.kick,
+            CaseAction.ban
+          ] as const;
+
+          const caseData: CaseData = {
+            mod_id: this.config.discordClientId,
+            mod_tag: 'AutoModerator#0000',
+            target_id: message.author.id,
+            target_tag: `${message.author.username}#${message.author.discriminator}`,
+            reason: 'automated punishment for triggering anti-spam measures',
+            created_at: new Date(),
+            execute: true,
+            action: ACTIONS[punishment.action_type]
+          };
+
+          if (caseData.action === CaseAction.mute) {
+            caseData.expires_at = punishment.duration ? new Date(punishment.duration * 6e4) : null;
+          } else if (caseData.action === CaseAction.ban) {
+            caseData.expires_at = punishment.duration ? new Date(punishment.duration * 6e4) : null;
+            caseData.delete_message_days = 1;
+          }
+
+          const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
+            `/guilds/${message.guild_id}/cases`, [
+              caseData
+            ]
+          );
+
+          this.guildLogs.publish({
+            data: cs!,
+            type: LogTypes.modAction
+          });
+        }
+      }
 
       this.guildLogs.publish({
         data: {
