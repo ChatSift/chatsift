@@ -51,6 +51,7 @@ import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
 import { AntispamRunner, FilesRunner, InvitesRunner, UrlsRunner, WordsRunner } from './runners';
+import { getCreationData } from '@cordis/util';
 
 interface FilesRunnerData {
   message: APIMessage;
@@ -265,7 +266,18 @@ export class Gateway {
         }
       }
 
-      return { ok: true, actioned: hits.length > 0, data: messages.filter((m): m is APIMessage => Boolean(m)), runner: Runners.antispam };
+      return {
+        ok: true,
+        actioned: hits.length > 0,
+        data: {
+          messages: messages.filter((m): m is APIMessage => Boolean(m)),
+          amount: hits.length,
+          time: hits.length > 0
+            ? getCreationData(hits[hits.length - 1]!).createdTimestamp - getCreationData(hits[0]!).createdTimestamp
+            : 0
+        },
+        runner: Runners.antispam
+      };
     } catch (error) {
       this.logger.error({ error }, 'Failed to execute runner antispam');
       return { ok: false, runner: Runners.antispam };

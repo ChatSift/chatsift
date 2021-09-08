@@ -79,7 +79,7 @@ export type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostFiltersFile
 export type UrlsRunnerResult = OkRunnerResult<Runners.urls, (MaliciousUrl | { url: string })[]>;
 export type InvitesRunnerResult = OkRunnerResult<Runners.invites, string[]>;
 export type WordsRunnerResult = OkRunnerResult<Runners.words, WordsRunnerResultData[]>;
-export type AntispamRunnerResult = OkRunnerResult<Runners.antispam, APIMessage[]>;
+export type AntispamRunnerResult = OkRunnerResult<Runners.antispam, { messages: APIMessage[]; amount: number; time: number }>;
 
 export type RunnerResult =
 | NotOkRunnerResult

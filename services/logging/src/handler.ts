@@ -312,6 +312,18 @@ export class Handler {
         break;
       }
 
+      case Runners.antispam: {
+        const channels = [...new Set(trigger.data.messages.map(m => `<#${m.channel_id}>`))].join(', ');
+
+        push({
+          title: 'Triggered anti-spam measures',
+          description: `Tried to send ${trigger.data.amount} messages within ${ms(trigger.data.time, true)}\nIn: ${channels}\n\n` +
+          `**Deleted spam**:\`\`\`\n${trigger.data.messages.map(m => m.content).join('\n')}\`\`\``
+        });
+
+        break;
+      }
+
       default: {
         this.logger.warn({ trigger }, 'Unknown runner type');
       }

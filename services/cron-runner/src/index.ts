@@ -18,7 +18,7 @@ const sql = postgres(config.dbUrl, {
 // Every 1 hour, clear sigs that have been un-used for a week
 setInterval(
   () => void sql`DELETE FROM sigs WHERE EXTRACT (days FROM NOW() - last_used_at) >= 7`
-    .then(() => logger.info('Successfully cleared unused sigs'))
+    .then(() => logger.trace('Successfully cleared unused sigs'))
     .catch(error => logger.error({ error }, 'Failed to clear sigs')),
   36e5
 );
@@ -84,7 +84,7 @@ const handleCases = async () => {
 // Every 1 minute, check for pending unmutes/unbans
 setInterval(
   () => void handleCases()
-    .then(() => logger.info('Successfully cleaned up cases'))
+    .then(() => logger.trace('Successfully cleaned up cases'))
     .catch(error => logger.error({ error }, 'Failed to clean up cases')),
   6e4
 );
@@ -117,7 +117,7 @@ const autoPardonWarns = async () => {
 // Every 1 hour, check for warn auto pardons
 setInterval(
   () => void autoPardonWarns()
-    .then(() => logger.info('Successfully pardoned warns'))
+    .then(() => logger.trace('Successfully pardoned warns'))
     .catch(error => logger.error({ error }, 'Failed to pardon warnings')),
   36e5
 );
@@ -147,7 +147,7 @@ const deescalateAutomodTriggers = async () => {
 // Every 30 seconds, check for automod de-escalations
 setInterval(
   () => void deescalateAutomodTriggers()
-    .then(() => logger.info('Successfully de-escalated triggers'))
+    .then(() => logger.trace('Successfully de-escalated triggers'))
     .catch(error => logger.error({ error }, 'Failed to de-escalate automod triggers')),
   3e4
 );
