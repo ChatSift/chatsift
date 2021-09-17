@@ -58,7 +58,7 @@ export default class implements Command {
     let settings: Partial<GuildSettings> = {};
 
     if (punishments) {
-      const { add, delete: del, list, 'set-cooldown': setCooldown } = punishments;
+      const { add, delete: del, list, 'set-cooldown': setCooldown } = punishments as Partial<typeof punishments>;
 
       if (setCooldown) {
         if (setCooldown.cooldown < 3) {
