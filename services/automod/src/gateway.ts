@@ -15,6 +15,7 @@ import {
   InvitesRunnerResult,
   Log,
   LogTypes,
+  MentionsRunnerResult,
   NotOkRunnerResult,
   OkRunnerResult,
   RunnerResult,
@@ -42,6 +43,7 @@ import {
   APIMessage,
   APIRole,
   GatewayDispatchEvents,
+  ChannelType,
   RESTGetAPIGuildRolesResult,
   RESTPostAPIChannelMessagesBulkDeleteJSONBody,
   Routes,
@@ -52,6 +54,7 @@ import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
 import { AntispamRunner, FilesRunner, InvitesRunner, UrlsRunner, WordsRunner } from './runners';
 import { getCreationData } from '@cordis/util';
+import { MentionsRunner } from './runners/mentions';
 
 interface FilesRunnerData {
   message: APIMessage;
@@ -95,7 +98,8 @@ export class Gateway {
     public readonly files: FilesRunner,
     public readonly invites: InvitesRunner,
     public readonly words: WordsRunner,
-    public readonly antispam: AntispamRunner
+    public readonly antispam: AntispamRunner,
+    public readonly mentions: MentionsRunner
   ) {}
 
   private async runUrls({ message, urls }: UrlsRunnerData): Promise<NotOkRunnerResult | UrlsRunnerResult> {
@@ -284,10 +288,67 @@ export class Gateway {
     }
   }
 
+  private async runMentions({ message, settings }: AntispamRunnerData): Promise<NotOkRunnerResult | MentionsRunnerResult> {
+    try {
+      const hits = await this.mentions.run(message, settings.mention_amount, settings.mention_time, settings.mention_limit);
+      const messages = await Promise.all(hits.map(hit => this.messagesCache.get(hit)));
+
+      if (messages.length) {
+        const groupedMessages = messages.reduce<Record<string, string[]>>((acc, m) => {
+          if (m) {
+            (acc[m.channel_id] ??= []).push(m.id);
+          }
+
+          return acc;
+        }, {});
+
+        for (const [channel, messages] of Object.entries(groupedMessages)) {
+          if (messages.length === 1) {
+            await this.discord
+              .delete(Routes.channelMessage(channel, messages[0]!), { reason: 'Anti mention spam trigger' })
+              .catch(() => null);
+          } else {
+            await this.discord.post<never, RESTPostAPIChannelMessagesBulkDeleteJSONBody>(
+              Routes.channelBulkDelete(channel), {
+                data: {
+                  messages
+                },
+                reason: 'Anti mention spam trigger'
+              }
+            );
+          }
+        }
+      }
+
+      return {
+        ok: true,
+        actioned: hits.length > 0,
+        data: hits.length > 1
+          ? {
+            messages: messages.filter((m): m is APIMessage => Boolean(m)),
+            amount: hits.length,
+            time: getCreationData(hits[hits.length - 1]!).createdTimestamp - getCreationData(hits[0]!).createdTimestamp
+          }
+          : {
+            message: messages[0]!,
+            amount: this.mentions.mentionsFromMessage(messages[0]!.content).length
+          },
+        runner: Runners.mentions
+      };
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to execute runner antispam');
+      return { ok: false, runner: Runners.mentions };
+    }
+  }
+
   private async getChannelParent(guildId: Snowflake, channelId: Snowflake): Promise<Snowflake | null> {
     if (!this.channelParentCache.has(channelId)) {
       const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
       for (const channel of channels) {
+        if (channel.type === ChannelType.GuildCategory) {
+          continue;
+        }
+
         this.channelParentCache.set(channel.id, channel.parent_id ?? null);
       }
     }
@@ -432,6 +493,13 @@ export class Gateway {
       promises.push(this.runAntispam({ message, settings }));
     }
 
+    if (
+      ((settings.mention_amount && settings.mention_time) || settings.mention_limit) &&
+      this.mentions.precheck(message.content)
+    ) {
+      promises.push(this.runMentions({ message, settings }));
+    }
+
     const data = (await Promise.allSettled(promises)).reduce<RunnerResult[]>((acc, promise) => {
       if (promise.status === 'fulfilled') {
         if (promise.value.ok && promise.value.actioned) {
@@ -442,7 +510,7 @@ export class Gateway {
       return acc;
     }, []);
 
-    this.logger.debug({ data, guild: message.guild_id }, 'Done running automod');
+    this.logger.trace({ data, guild: message.guild_id }, 'Done running automod');
 
     if (data.length) {
       await this.sql`
@@ -480,7 +548,7 @@ export class Gateway {
             mod_tag: 'AutoModerator#0000',
             target_id: message.author.id,
             target_tag: `${message.author.username}#${message.author.discriminator}`,
-            reason: 'automated punishment for triggering anti-spam measures',
+            reason: 'spamming',
             created_at: new Date(),
             execute: true,
             action: ACTIONS[punishment.action_type]

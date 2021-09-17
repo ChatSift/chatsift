@@ -55,7 +55,8 @@ export enum Runners {
   urls,
   invites,
   words,
-  antispam
+  antispam,
+  mentions
 }
 
 export interface BaseRunnerResult {
@@ -80,6 +81,14 @@ export type UrlsRunnerResult = OkRunnerResult<Runners.urls, (MaliciousUrl | { ur
 export type InvitesRunnerResult = OkRunnerResult<Runners.invites, string[]>;
 export type WordsRunnerResult = OkRunnerResult<Runners.words, WordsRunnerResultData[]>;
 export type AntispamRunnerResult = OkRunnerResult<Runners.antispam, { messages: APIMessage[]; amount: number; time: number }>;
+export type MentionsRunnerResult = OkRunnerResult<Runners.mentions, {
+  message: APIMessage;
+  amount: number;
+} | {
+  messages: APIMessage[];
+  amount: number;
+  time: number;
+}>;
 
 export type RunnerResult =
 | NotOkRunnerResult
@@ -87,7 +96,8 @@ export type RunnerResult =
 | InvitesRunnerResult
 | UrlsRunnerResult
 | WordsRunnerResult
-| AntispamRunnerResult;
+| AntispamRunnerResult
+| MentionsRunnerResult;
 
 export interface FilterTriggerData {
   message: APIMessage;

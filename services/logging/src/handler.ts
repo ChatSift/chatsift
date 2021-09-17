@@ -324,6 +324,27 @@ export class Handler {
         break;
       }
 
+      case Runners.mentions: {
+        const channels = 'messages' in trigger.data
+          ? [...new Set(trigger.data.messages.map(m => `<#${m.channel_id}>`))].join(', ')
+          : [`<#${trigger.data.message.channel_id}>`];
+
+        const description = 'messages' in trigger.data
+          ? `Tried to send ${trigger.data.amount} mentions within ${ms(trigger.data.time, true)}\nIn: ${channels}`
+          : `Tried to send ${trigger.data.amount} mentions within a single message`;
+
+        const contents = 'messages' in trigger.data
+          ? trigger.data.messages.map(m => m.content).join('\n')
+          : trigger.data.message.content;
+
+        push({
+          title: 'Triggered anti mention spam measures',
+          description: `${description}\n\n**Deleted spam**: \`\`\`\n${contents}\`\`\``
+        });
+
+        break;
+      }
+
       default: {
         this.logger.warn({ trigger }, 'Unknown runner type');
       }
