@@ -16,6 +16,12 @@ export interface GuildSettings {
   min_join_age: number | null;
   no_blank_avatar: boolean;
   reports_channel: Snowflake | null;
+  antispam_amount: number | null;
+  antispam_time: number | null;
+  mention_limit: number | null;
+  mention_amount: number | null;
+  mention_time: number | null;
+  automod_cooldown: number | null;
 }
 
 export interface WebhookToken {
@@ -64,6 +70,27 @@ interface WarnPunishmentWithDuration extends BaseWarnPunishment {
 }
 
 export type WarnPunishment = WarnPunishmentWithNoDuration | WarnPunishmentWithDuration;
+
+export enum AutomodPunishmentAction {
+  warn,
+  mute,
+  kick,
+  ban
+}
+
+export interface AutomodPunishment {
+  guild_id: Snowflake;
+  triggers: number;
+  action_type: AutomodPunishmentAction;
+  duration: number | null;
+}
+
+export interface AutomodTrigger {
+  guild_id: Snowflake;
+  user_id: Snowflake;
+  count: number;
+  created_at: Date;
+}
 
 export enum CaseAction {
   warn,

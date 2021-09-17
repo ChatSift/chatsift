@@ -51,6 +51,7 @@ export default class implements Component {
             target_tag: targetTag,
             reason: `Raid cleanup (${++index}/${members.length})`,
             created_at: new Date(),
+            delete_message_days: ban ? 1 : undefined,
             execute: true
           }
         ])
@@ -78,11 +79,13 @@ export default class implements Component {
         .join('\n')}`
       : ' none';
 
-    return send(interaction, {
-      content: `Done cleaning up! Here's a summary:\n\n**Members sweeped**:${format(sweeped)}\n\n**Members missed**:${format(missed)}`,
-      allowed_mentions: { parse: [] }
-    },
-    InteractionResponseType.ChannelMessageWithSource,
-    true);
+    return send(
+      interaction, {
+        content: `Done cleaning up! Here's a summary:\n\n**Members sweeped**:${format(sweeped)}\n\n**Members missed**:${format(missed)}`,
+        allowed_mentions: { parse: [] }
+      },
+      InteractionResponseType.ChannelMessageWithSource,
+      true
+    );
   }
 }

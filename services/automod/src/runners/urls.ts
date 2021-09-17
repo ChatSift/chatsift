@@ -46,6 +46,7 @@ export class UrlsRunner {
 
     if (!domains) {
       this.logger.warn('Something went wrong grabbing fish data');
+      return;
     }
 
     this.lastRefreshedFish = Date.now();

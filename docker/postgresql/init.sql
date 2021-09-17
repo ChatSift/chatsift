@@ -10,6 +10,30 @@ BEGIN
 END;
 $$;
 
+CREATE FUNCTION previous_automod_trigger(bigint, bigint) RETURNS int
+LANGUAGE plpgsql
+stable
+AS $$
+DECLARE previous_automod_trigger int;
+BEGIN
+  SELECT count INTO previous_automod_trigger FROM automod_triggers WHERE guild_id = $1 AND user_id = $2;
+  if previous_automod_trigger IS NULL THEN RETURN 0; end if;
+  return previous_automod_trigger - 1;
+end;
+$$;
+
+CREATE FUNCTION next_automod_trigger(bigint, bigint) RETURNS int
+LANGUAGE plpgsql
+stable
+AS $$
+DECLARE next_automod_trigger int;
+BEGIN
+  SELECT count INTO next_automod_trigger FROM automod_triggers WHERE guild_id = $1 AND user_id = $2;
+  if next_automod_trigger IS NULL THEN RETURN 1; end if;
+  return next_automod_trigger + 1;
+end;
+$$;
+
 CREATE FUNCTION next_case(bigint) RETURNS int
 LANGUAGE plpgsql
 stable
@@ -37,7 +61,13 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   message_update_log_channel bigint,
   min_join_age int,
   no_blank_avatar boolean NOT NULL DEFAULT false,
-  reports_channel bigint
+  reports_channel bigint,
+  antispam_amount int,
+  antispam_time int,
+  mention_limit int,
+  mention_amount int,
+  mention_time int,
+  automod_cooldown int
 );
 
 CREATE TABLE IF NOT EXISTS webhook_tokens (
@@ -70,6 +100,22 @@ CREATE TABLE IF NOT EXISTS warn_punishments (
   action_type int NOT NULL,
   duration int,
   PRIMARY KEY (guild_id, warns)
+);
+
+CREATE TABLE IF NOT EXISTS automod_punishments (
+  guild_id bigint NOT NULL,
+  triggers int NOT NULL,
+  action_type int NOT NULL,
+  duration int,
+  PRIMARY KEY (guild_id, triggers)
+);
+
+CREATE TABLE IF NOT EXISTS automod_triggers (
+  guild_id bigint NOT NULL,
+  user_id bigint NOT NULL,
+  count int NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (guild_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS cases (

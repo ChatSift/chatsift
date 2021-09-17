@@ -311,6 +311,43 @@ export class Handler {
 
         break;
       }
+
+      case Runners.antispam: {
+        const channels = [...new Set(trigger.data.messages.map(m => `<#${m.channel_id}>`))].join(', ');
+
+        push({
+          title: 'Triggered anti-spam measures',
+          description: `Tried to send ${trigger.data.amount} messages within ${ms(trigger.data.time, true)}\nIn: ${channels}\n\n` +
+          `**Deleted spam**:\`\`\`\n${trigger.data.messages.map(m => m.content).join('\n')}\`\`\``
+        });
+
+        break;
+      }
+
+      case Runners.mentions: {
+        const channels = 'messages' in trigger.data
+          ? [...new Set(trigger.data.messages.map(m => `<#${m.channel_id}>`))].join(', ')
+          : [`<#${trigger.data.message.channel_id}>`];
+
+        const description = 'messages' in trigger.data
+          ? `Tried to send ${trigger.data.amount} mentions within ${ms(trigger.data.time, true)}\nIn: ${channels}`
+          : `Tried to send ${trigger.data.amount} mentions within a single message`;
+
+        const contents = 'messages' in trigger.data
+          ? trigger.data.messages.map(m => m.content).join('\n')
+          : trigger.data.message.content;
+
+        push({
+          title: 'Triggered anti mention spam measures',
+          description: `${description}\n\n**Deleted spam**: \`\`\`\n${contents}\`\`\``
+        });
+
+        break;
+      }
+
+      default: {
+        this.logger.warn({ trigger }, 'Unknown runner type');
+      }
     }
 
     return embeds;
@@ -342,6 +379,10 @@ export class Handler {
 
       return this._embedFromTrigger(log.data.message, trigger);
     });
+
+    if (!embeds.length) {
+      return;
+    }
 
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
       Routes.webhook(webhook.id, webhook.token), {

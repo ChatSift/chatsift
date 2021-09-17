@@ -65,10 +65,8 @@ export default class implements Command {
     const channelMessagesMap = await this.messagesCache.getChannelMessages(channelId) ?? new Map<string, APIMessage>();
 
     const messages = await this.discordRest.get<RESTGetAPIChannelMessagesResult>(`${Routes.channelMessages(channelId)}?limit=100`);
-    this.logger.debug({ messages });
 
     for (const message of messages) {
-      this.logger.debug(message.id);
       channelMessagesMap.set(message.id, message);
       void this.messagesCache.add(message);
     }
@@ -184,7 +182,6 @@ export default class implements Command {
         void this.messagesCache.delete(message);
       }
 
-      this.logger.debug({ messages });
       amounts.push(messages.length);
 
       const reason = `Purge by ${interaction.member.user.username}#${interaction.member.user.id} | Cycle ${i + 1}/${loops}`;

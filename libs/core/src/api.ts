@@ -107,11 +107,11 @@ interface BaseCaseData {
   execute?: boolean;
 }
 
-interface CaseDataOther extends BaseCaseData {
+export interface CaseDataOther extends BaseCaseData {
   action: Exclude<CaseAction, CaseAction.mute | CaseAction.ban>;
 }
 
-interface CaseDataWithExpiry extends BaseCaseData {
+export interface CaseDataWithExpiry extends BaseCaseData {
   action: CaseAction.mute | CaseAction.ban;
   expires_at?: Date | null;
 }

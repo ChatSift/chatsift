@@ -172,13 +172,11 @@ export default class implements Command {
       settings.reports_channel = reports.id;
     }
 
-    if (Object.values(settings).length) {
-      settings = await this.rest.patch<ApiPatchGuildSettingsResult, ApiPatchGuildSettingsBody>(`/guilds/${interaction.guild_id}/settings`, settings);
-      void this._sendCurrentSettings(interaction, settings);
-    } else {
-      settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`);
-      void this._sendCurrentSettings(interaction, settings);
-    }
+    settings = Object.values(settings).length
+      ? await this.rest.patch<ApiPatchGuildSettingsResult, ApiPatchGuildSettingsBody>(`/guilds/${interaction.guild_id}/settings`, settings)
+      : await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`);
+
+    void this._sendCurrentSettings(interaction, settings);
 
     const guild = await this.discordRest.get<APIGuild>(Routes.guild(interaction.guild_id));
 

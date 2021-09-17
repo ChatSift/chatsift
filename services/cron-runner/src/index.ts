@@ -18,7 +18,7 @@ const sql = postgres(config.dbUrl, {
 // Every 1 hour, clear sigs that have been un-used for a week
 setInterval(
   () => void sql`DELETE FROM sigs WHERE EXTRACT (days FROM NOW() - last_used_at) >= 7`
-    .then(() => logger.info('Successfully cleared unused sigs'))
+    .then(() => logger.trace('Successfully cleared unused sigs'))
     .catch(error => logger.error({ error }, 'Failed to clear sigs')),
   36e5
 );
@@ -84,7 +84,7 @@ const handleCases = async () => {
 // Every 1 minute, check for pending unmutes/unbans
 setInterval(
   () => void handleCases()
-    .then(() => logger.info('Successfully cleaned up cases'))
+    .then(() => logger.trace('Successfully cleaned up cases'))
     .catch(error => logger.error({ error }, 'Failed to clean up cases')),
   6e4
 );
@@ -117,7 +117,37 @@ const autoPardonWarns = async () => {
 // Every 1 hour, check for warn auto pardons
 setInterval(
   () => void autoPardonWarns()
-    .then(() => logger.info('Successfully pardoned warns'))
+    .then(() => logger.trace('Successfully pardoned warns'))
     .catch(error => logger.error({ error }, 'Failed to pardon warnings')),
   36e5
+);
+
+const deescalateAutomodTriggers = async () => {
+  const settings = await sql<GuildSettings[]>`SELECT * from guild_settings`;
+
+  const promises = settings.map(({ guild_id, automod_cooldown }) => {
+    if (!automod_cooldown) {
+      return Promise.resolve();
+    }
+
+    return sql`
+      UPDATE automod_triggers SET count = previous_automod_trigger(${guild_id}, user_id)
+      WHERE guild_id = ${guild_id}
+        AND EXTRACT (minutes FROM NOW() - created_at) >= ${automod_cooldown}
+    `;
+  });
+
+  for (const promise of await Promise.allSettled(promises)) {
+    if (promise.status === 'rejected') {
+      logger.error({ error: promise.reason }, 'Failed to de-escalate for a particular guild');
+    }
+  }
+};
+
+// Every 30 seconds, check for automod de-escalations
+setInterval(
+  () => void deescalateAutomodTriggers()
+    .then(() => logger.trace('Successfully de-escalated triggers'))
+    .catch(error => logger.error({ error }, 'Failed to de-escalate automod triggers')),
+  3e4
 );
