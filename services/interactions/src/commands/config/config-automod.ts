@@ -13,7 +13,7 @@ import { Rest } from '@automoderator/http-client';
 import { kLogger, kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
-import type { APIGuildInteraction } from 'discord-api-types/v9';
+import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
@@ -54,6 +54,8 @@ export default class implements Command {
       const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`);
       return this._sendCurrentSettings(interaction, settings);
     }
+
+    await send(interaction, {}, InteractionResponseType.DeferredChannelMessageWithSource);
 
     let settings: Partial<GuildSettings> = {};
 
