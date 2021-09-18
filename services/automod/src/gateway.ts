@@ -84,7 +84,7 @@ export class Gateway {
 
   public readonly ownersCache = new Store<Snowflake>({ emptyEvery: 36e5 });
   public readonly permsCache = new Store<Snowflake>({ emptyEvery: 15e3 });
-  public readonly channelParentCache = new Store<Snowflake | null>({ emptyEvery: 15e3 });
+  public readonly channelParentCache = new Store<Snowflake | null>({ emptyEvery: 12e4 });
 
   public constructor(
     @inject(kConfig) public readonly config: Config,
@@ -427,19 +427,21 @@ export class Gateway {
         guild_id: message.guild_id
       };
 
-      if (await this.checker.check(checkerData, UserPerms.mod, 'guild_id' in settings ? settings : undefined)) {
+      if (await this.checker.check(checkerData, UserPerms.mod, 'guild_id' in settings ? settings : null)) {
         return;
       }
     }
 
+    const channelId = message.thread?.parent_id ?? message.channel_id;
+
     const [ignoreData] = await this.sql<[FilterIgnore?]>`
       SELECT * FROM filter_ignores
-      WHERE channel_id = ${message.channel_id}
+      WHERE channel_id = ${channelId}
     `;
 
     const ignores = new FilterIgnores(BigInt(ignoreData?.value ?? '0'));
 
-    const parentId = await this.getChannelParent(message.guild_id, message.channel_id);
+    const parentId = await this.getChannelParent(message.guild_id, channelId);
     if (parentId) {
       const [parentIgnoreData] = await this.sql<[FilterIgnore?]>`
         SELECT * FROM filter_ignores

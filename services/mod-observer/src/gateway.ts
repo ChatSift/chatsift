@@ -305,9 +305,11 @@ export class Gateway {
       return;
     }
 
-    const parent = await this.getChannelParent(message.guild_id, message.channel_id);
+    const channelId = message.thread?.parent_id ?? message.channel_id;
+
+    const parent = await this.getChannelParent(message.guild_id, channelId);
     const ignores = await this.rest.get<ApiGetGuildLogIgnoresResult>(`/guilds/${message.guild_id}/settings/log-ignores`);
-    if (ignores.find(ignore => ignore.channel_id === message.channel_id || ignore.channel_id === parent)) {
+    if (ignores.find(ignore => ignore.channel_id === channelId || ignore.channel_id === parent)) {
       return;
     }
 
