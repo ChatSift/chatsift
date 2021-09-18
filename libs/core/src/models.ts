@@ -5,8 +5,9 @@ export interface GuildSettings {
   mod_role: Snowflake | null;
   admin_role: Snowflake | null;
   mute_role: Snowflake | null;
-  auto_pardon_mutes_after: number | null;
+  auto_pardon_warns_after: number | null;
   use_url_filters: boolean;
+  use_global_filters: boolean;
   use_file_filters: boolean;
   use_invite_filters: boolean;
   mod_action_log_channel: Snowflake | null;

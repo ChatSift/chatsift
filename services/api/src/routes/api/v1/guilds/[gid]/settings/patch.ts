@@ -24,11 +24,12 @@ export default class PatchGuildsSettingsRoute extends Route {
           mute_role: Joi.string()
             .pattern(/\d{17,20}/)
             .allow(null),
-          auto_pardon_mutes_after: Joi.number()
+          auto_pardon_warns_after: Joi.number()
             .min(1)
             .max(365)
             .allow(null),
           use_url_filters: Joi.boolean(),
+          use_global_filters: Joi.boolean(),
           use_file_filters: Joi.boolean(),
           use_invite_filters: Joi.boolean(),
           mod_action_log_channel: Joi.string()

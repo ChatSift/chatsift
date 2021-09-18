@@ -30,6 +30,12 @@ export const FilterCommand = {
               required: false
             },
             {
+              name: 'global',
+              description: 'If malicious domains should be filtered',
+              type: ApplicationCommandOptionType.Boolean,
+              required: false
+            },
+            {
               name: 'files',
               description: 'If the files filter should be used',
               type: ApplicationCommandOptionType.Boolean,

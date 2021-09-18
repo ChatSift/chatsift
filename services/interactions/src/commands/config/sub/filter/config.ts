@@ -58,6 +58,10 @@ export class FilterConfig implements Command {
           settings.use_invite_filters = args.edit.invites;
         }
 
+        if (args.edit.global != null) {
+          settings.use_global_filters = args.edit.global;
+        }
+
         if (!Object.values(settings).length) {
           return this.sendCurrentSettings(interaction);
         }
