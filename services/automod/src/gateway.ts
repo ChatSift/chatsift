@@ -86,8 +86,6 @@ export class Gateway {
   public readonly permsCache = new Store<Snowflake>({ emptyEvery: 15e3 });
   public readonly channelParentCache = new Store<Snowflake | null>({ emptyEvery: 15e3 });
 
-  public readonly fetchingChannels = new Map<Snowflake, Promise<void>>();
-
   public constructor(
     @inject(kConfig) public readonly config: Config,
     @inject(kSql) public readonly sql: Sql<{}>,
@@ -345,27 +343,13 @@ export class Gateway {
 
   private async getChannelParent(guildId: Snowflake, channelId: Snowflake): Promise<Snowflake | null> {
     if (!this.channelParentCache.has(channelId)) {
-      if (this.fetchingChannels.has(guildId)) {
-        await this.fetchingChannels.get(guildId);
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        const promise = new Promise<void>(async resolve => {
-          const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId)).catch(() => []);
-          for (const channel of channels) {
-            if (channel.type === ChannelType.GuildCategory) {
-              continue;
-            }
+      const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
+      for (const channel of channels) {
+        if (channel.type === ChannelType.GuildCategory) {
+          continue;
+        }
 
-            this.channelParentCache.set(channel.id, channel.parent_id ?? null);
-          }
-
-          resolve();
-        });
-
-        this.fetchingChannels.set(guildId, promise);
-
-        await promise;
-        this.fetchingChannels.delete(guildId);
+        this.channelParentCache.set(channel.id, channel.parent_id ?? null);
       }
     }
 

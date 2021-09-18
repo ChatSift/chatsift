@@ -34,6 +34,7 @@ import {
   RESTGetAPIAuditLogQuery,
   RESTGetAPIAuditLogResult,
   RESTPatchAPIGuildMemberJSONBody,
+  ChannelType,
   Routes,
   Snowflake
 } from 'discord-api-types/v9';
@@ -44,7 +45,7 @@ import { inject, singleton } from 'tsyringe';
 @singleton()
 export class Gateway {
   public readonly guildPermsCache = new Store<DiscordPermissions>({ emptyEvery: 15e3 });
-  public readonly channelParentCache = new Store<Snowflake | null>({ emptyEvery: 15e3 });
+  public readonly channelParentCache = new Store<Snowflake | null>({ emptyEvery: 12e4 });
 
   public guildLogs!: PubSubPublisher<Log>;
 
@@ -62,6 +63,10 @@ export class Gateway {
     if (!this.channelParentCache.has(channelId)) {
       const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
       for (const channel of channels) {
+        if (channel.type === ChannelType.GuildCategory) {
+          continue;
+        }
+
         this.channelParentCache.set(channel.id, channel.parent_id ?? null);
       }
     }
