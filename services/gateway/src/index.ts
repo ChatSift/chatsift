@@ -38,7 +38,7 @@ void (async () => {
       }
     })
     .on('open', id => logger.debug({ id }, 'WS connection open'))
-    .on('error', (err, id) => logger.debug({ id, err }, 'Encountered a shard errors'))
+    .on('error', (err, id) => logger.debug({ id, err }, 'Encountered a shard error'))
     .on('ready', () => logger.debug('All shards have become fully available'))
     .on('dispatch', data => {
       switch (data.t) {
@@ -65,7 +65,7 @@ void (async () => {
               // @ts-expect-error - Common discord-api-types version missmatch
               user: data.d.author,
               ...data.d.member
-            }).catch(error => logger.warn({ error, guild: data.d.guild_id }, 'Failed to cache a guild member'));
+            }).catch(error => logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member'));
           }
         }
 

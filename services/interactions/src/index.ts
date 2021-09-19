@@ -23,6 +23,8 @@ void (async () => {
 
   discordRest
     .on('response', async (req, res, rl) => {
+      logger.trace({ rl }, `Finished request ${req.method!} ${req.path!}`);
+
       if (!res.ok) {
         logger.warn({
           res: await res.json(),

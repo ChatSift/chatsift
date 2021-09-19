@@ -2,13 +2,7 @@ import { send } from '#util';
 import type { ApiGetGuildPromptResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
-import {
-  APIGuildInteraction,
-  InteractionResponseType,
-  RESTPatchAPIGuildMemberJSONBody,
-  Routes,
-  Snowflake
-} from 'discord-api-types/v9';
+import { APIGuildInteraction, InteractionResponseType, Routes, Snowflake } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import { Component } from '../component';
 
@@ -42,17 +36,14 @@ export default class implements Component {
     const add = !roles.has(roleId);
 
     if (add) {
-      roles.add(roleId);
-    } else {
-      roles.delete(roleId);
-    }
-
-    await this.discordRest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(
-      Routes.guildMember(interaction.guild_id, interaction.member.user.id), {
-        data: { roles: [...roles] },
+      await this.discordRest.put(Routes.guildMemberRole(interaction.guild_id, interaction.member.user.id, roleId), {
         reason: 'Self-assignable roles update'
-      }
-    );
+      });
+    } else {
+      await this.discordRest.delete(Routes.guildMemberRole(interaction.guild_id, interaction.member.user.id, roleId), {
+        reason: 'Self-assignable roles update'
+      });
+    }
 
     return send(interaction, { content: `Successfully ${add ? 'added' : 'removed'} the given role ${add ? 'to' : 'from'} you` });
   }
