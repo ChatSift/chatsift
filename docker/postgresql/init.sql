@@ -1,12 +1,12 @@
-CREATE FUNCTION next_punishment(bigint, bigint) RETURNS int
+CREATE FUNCTION next_filter_trigger(bigint, bigint) RETURNS int
 LANGUAGE plpgsql
 stable
 AS $$
-DECLARE next_punishment int;
+DECLARE next_filter_trigger int;
 BEGIN
-  SELECT count INTO next_punishment FROM filter_triggers WHERE guild_id = $1 AND user_id = $2;
-  if next_punishment IS NULL THEN return 1; end if;
-  return next_punishment + 1;
+  SELECT count INTO next_filter_trigger FROM filter_triggers WHERE guild_id = $1 AND user_id = $2;
+  if next_filter_trigger IS NULL THEN return 1; end if;
+  return next_filter_trigger + 1;
 END;
 $$;
 
@@ -51,8 +51,9 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   mod_role bigint,
   admin_role bigint,
   mute_role bigint,
-  auto_pardon_mutes_after int,
-  use_url_filters int NOT NULL DEFAULT 0,
+  auto_pardon_warns_after int,
+  use_url_filters boolean NOT NULL DEFAULT false,
+  use_global_filters boolean NOT NULL DEFAULT false,
   use_file_filters boolean NOT NULL DEFAULT false,
   use_invite_filters boolean NOT NULL DEFAULT false,
   mod_action_log_channel bigint,
@@ -204,6 +205,12 @@ CREATE TABLE IF NOT EXISTS allowed_invites (
   guild_id bigint NOT NULL,
   invite_code text NOT NULL,
   PRIMARY KEY (guild_id, invite_code)
+);
+
+CREATE TABLE IF NOT EXISTS allowed_urls (
+  guild_id bigint NOT NULL,
+  domain text NOT NULL,
+  PRIMARY KEY (guild_id, domain)
 );
 
 CREATE TABLE IF NOT EXISTS reported_messages (

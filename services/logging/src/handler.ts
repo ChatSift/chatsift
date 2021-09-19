@@ -251,6 +251,22 @@ export class Handler {
 
       case Runners.urls: {
         const urls = trigger.data
+          .map(url => `https://${url}/`)
+          .join(', ');
+
+        push({
+          title: 'Posted unallowed urls',
+          description: `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`,
+          footer: {
+            text: `Blocked urls:\n${urls}`
+          }
+        });
+
+        break;
+      }
+
+      case Runners.globals: {
+        const urls = trigger.data
           .map(url => `${url.url} (${'category' in url ? MaliciousUrlCategory[url.category] : 'Fish'})`)
           .join(', ');
 

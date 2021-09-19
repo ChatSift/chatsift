@@ -90,12 +90,12 @@ setInterval(
 );
 
 const autoPardonWarns = async () => {
-  const settings = await sql<Pick<GuildSettings, 'guild_id' | 'auto_pardon_mutes_after'>[]>`
-    SELECT guild_id, auto_pardon_mutes_after FROM guild_settings
+  const settings = await sql<Pick<GuildSettings, 'guild_id' | 'auto_pardon_warns_after'>[]>`
+    SELECT guild_id, auto_pardon_warns_after FROM guild_settings
   `;
 
-  const promises = settings.map(({ guild_id, auto_pardon_mutes_after }) => {
-    if (!auto_pardon_mutes_after) {
+  const promises = settings.map(({ guild_id, auto_pardon_warns_after }) => {
+    if (!auto_pardon_warns_after) {
       return Promise.resolve();
     }
 
@@ -103,7 +103,7 @@ const autoPardonWarns = async () => {
       UPDATE cases SET pardoned_by = ${config.discordClientId}
       WHERE guild_id = ${guild_id}
         AND pardoned_by IS NULL
-        AND EXTRACT (days FROM NOW() - created_at) >= ${auto_pardon_mutes_after}
+        AND EXTRACT (days FROM NOW() - created_at) >= ${auto_pardon_warns_after}
     `;
   });
 

@@ -54,6 +54,6 @@ export default class implements Component {
       }
     );
 
-    return send(interaction, { content: `Successfully ${add ? 'added' : 'removed'} the given role to you` });
+    return send(interaction, { content: `Successfully ${add ? 'added' : 'removed'} the given role ${add ? 'to' : 'from'} you` });
   }
 }

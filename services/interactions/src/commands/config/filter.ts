@@ -4,7 +4,7 @@ import { UserPerms } from '@automoderator/discord-permissions';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import { Command } from '../../command';
-import { FilterConfig, InvitesConfig } from './sub/filter';
+import { FilterConfig, InvitesConfig, UrlsConfig } from './sub/filter';
 
 @injectable()
 export default class implements Command {
@@ -12,7 +12,8 @@ export default class implements Command {
 
   public constructor(
     public readonly config: FilterConfig,
-    public readonly invites: InvitesConfig
+    public readonly invites: InvitesConfig,
+    public readonly urls: UrlsConfig
   ) {}
 
   public exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof FilterCommand>) {
@@ -23,6 +24,10 @@ export default class implements Command {
 
       case 'invites': {
         return this.invites.exec(interaction, args.invites);
+      }
+
+      case 'urls': {
+        return this.urls.exec(interaction, args.urls);
       }
     }
   }

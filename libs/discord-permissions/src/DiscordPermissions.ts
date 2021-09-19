@@ -1,3 +1,4 @@
+/* istanbul ignore file */
 import { BitField, BitFieldResolvable } from '@cordis/bitfield';
 
 const initialPermissions = BitField.makeFlags([

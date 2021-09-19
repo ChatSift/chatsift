@@ -52,11 +52,12 @@ export type ModActionLog = LogBase<LogTypes.modAction, OrArray<NonWarnCase | War
 
 export enum Runners {
   files,
-  urls,
   invites,
+  urls,
   words,
   antispam,
-  mentions
+  mentions,
+  globals
 }
 
 export interface BaseRunnerResult {
@@ -77,8 +78,9 @@ export interface OkRunnerResult<R extends Runners, T> extends BaseRunnerResult {
 export type WordsRunnerResultData = BannedWord & { isUrl: boolean };
 
 export type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostFiltersFilesResult>;
-export type UrlsRunnerResult = OkRunnerResult<Runners.urls, (MaliciousUrl | { url: string })[]>;
+export type GlobalsRunnerResult = OkRunnerResult<Runners.globals, (MaliciousUrl | { url: string })[]>;
 export type InvitesRunnerResult = OkRunnerResult<Runners.invites, string[]>;
+export type UrlsRunnerResult = OkRunnerResult<Runners.urls, string[]>;
 export type WordsRunnerResult = OkRunnerResult<Runners.words, WordsRunnerResultData[]>;
 export type AntispamRunnerResult = OkRunnerResult<Runners.antispam, { messages: APIMessage[]; amount: number; time: number }>;
 export type MentionsRunnerResult = OkRunnerResult<Runners.mentions, {
@@ -95,6 +97,7 @@ export type RunnerResult =
 | FilesRunnerResult
 | InvitesRunnerResult
 | UrlsRunnerResult
+| GlobalsRunnerResult
 | WordsRunnerResult
 | AntispamRunnerResult
 | MentionsRunnerResult;

@@ -55,7 +55,7 @@ export default class implements Command {
         • filter logs: ${atChannel(settings.filter_trigger_log_channel)}
         • user logs: ${atChannel(settings.user_update_log_channel)}
         • message logs: ${atChannel(settings.message_update_log_channel)}
-        • automatically pardon warnings after: ${settings.auto_pardon_mutes_after ? `${settings.auto_pardon_mutes_after} days` : 'never'}
+        • automatically pardon warnings after: ${settings.auto_pardon_warns_after ? `${settings.auto_pardon_warns_after} days` : 'never'}
         • automatically kick users with accounts younger than: ${settings.min_join_age ? ms(settings.min_join_age, true) : 'disabled'}
         • no blank avatar: ${settings.no_blank_avatar ? 'on' : 'off'}
         • reports: ${atChannel(settings.reports_channel)}
@@ -110,7 +110,7 @@ export default class implements Command {
     }
 
     if (pardon != null) {
-      settings.auto_pardon_mutes_after = pardon;
+      settings.auto_pardon_warns_after = pardon;
     }
 
     if (mod) {

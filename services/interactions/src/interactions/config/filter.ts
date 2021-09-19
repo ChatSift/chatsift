@@ -30,6 +30,12 @@ export const FilterCommand = {
               required: false
             },
             {
+              name: 'global',
+              description: 'If malicious domains should be filtered',
+              type: ApplicationCommandOptionType.Boolean,
+              required: false
+            },
+            {
               name: 'files',
               description: 'If the files filter should be used',
               type: ApplicationCommandOptionType.Boolean,
@@ -79,6 +85,45 @@ export const FilterCommand = {
         {
           name: 'list',
           description: 'Lists all the allowed invites',
+          type: ApplicationCommandOptionType.Subcommand,
+          options: []
+        }
+      ]
+    },
+    {
+      name: 'urls',
+      description: 'Allows you to manage your local url filters',
+      type: ApplicationCommandOptionType.SubcommandGroup,
+      options: [
+        {
+          name: 'allow',
+          description: 'Adds the given domains to the allowlist',
+          type: ApplicationCommandOptionType.Subcommand,
+          options: [
+            {
+              name: 'entries',
+              description: 'The entries to allow',
+              type: ApplicationCommandOptionType.String,
+              required: true
+            }
+          ]
+        },
+        {
+          name: 'unallow',
+          description: 'Removes the given domains from the allowlist',
+          type: ApplicationCommandOptionType.Subcommand,
+          options: [
+            {
+              name: 'entries',
+              description: 'The entries to remove from the allowlist',
+              type: ApplicationCommandOptionType.String,
+              required: true
+            }
+          ]
+        },
+        {
+          name: 'list',
+          description: 'Lists all the allowed domains',
           type: ApplicationCommandOptionType.Subcommand,
           options: []
         }

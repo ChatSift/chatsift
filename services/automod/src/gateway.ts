@@ -13,6 +13,8 @@ import {
   FilterIgnore,
   GuildSettings,
   InvitesRunnerResult,
+  UrlsRunnerResult,
+  GlobalsRunnerResult,
   Log,
   LogTypes,
   MentionsRunnerResult,
@@ -20,7 +22,6 @@ import {
   OkRunnerResult,
   RunnerResult,
   Runners,
-  UrlsRunnerResult,
   WordsRunnerResult
 } from '@automoderator/core';
 import {
@@ -52,11 +53,15 @@ import {
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
-import { AntispamRunner, FilesRunner, InvitesRunner, UrlsRunner, WordsRunner } from './runners';
+import { AntispamRunner, FilesRunner, UrlsRunner, InvitesRunner, GlobalsRunner, WordsRunner, MentionsRunner } from './runners';
 import { getCreationData } from '@cordis/util';
-import { MentionsRunner } from './runners/mentions';
 
 interface FilesRunnerData {
+  message: APIMessage;
+  urls: string[];
+}
+
+interface GlobalsRunnerData {
   message: APIMessage;
   urls: string[];
 }
@@ -94,27 +99,28 @@ export class Gateway {
     public readonly rest: Rest,
     public readonly discord: CordisRest,
     public readonly checker: PermissionsChecker,
-    public readonly urls: UrlsRunner,
+    public readonly globals: GlobalsRunner,
     public readonly files: FilesRunner,
+    public readonly urls: UrlsRunner,
     public readonly invites: InvitesRunner,
     public readonly words: WordsRunner,
     public readonly antispam: AntispamRunner,
     public readonly mentions: MentionsRunner
   ) {}
 
-  private async runUrls({ message, urls }: UrlsRunnerData): Promise<NotOkRunnerResult | UrlsRunnerResult> {
+  private async runGlobals({ message, urls }: GlobalsRunnerData): Promise<NotOkRunnerResult | GlobalsRunnerResult> {
     try {
-      const hits = await this.urls.run(urls);
+      const hits = await this.globals.run(urls);
       if (hits.length) {
         await this.discord
           .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Url filter detection' })
           .catch(() => null);
       }
 
-      return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.urls };
+      return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.globals };
     } catch (error) {
-      this.logger.error({ error }, 'Failed to execute runner urls');
-      return { ok: false, runner: Runners.urls };
+      this.logger.error({ error }, 'Failed to execute runner globals');
+      return { ok: false, runner: Runners.globals };
     }
   }
 
@@ -129,8 +135,24 @@ export class Gateway {
 
       return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.files };
     } catch (error) {
-      this.logger.error({ error }, 'Failed to execute runner urls');
+      this.logger.error({ error }, 'Failed to execute runner files');
       return { ok: false, runner: Runners.files };
+    }
+  }
+
+  private async runUrls({ message, urls }: UrlsRunnerData): Promise<NotOkRunnerResult | UrlsRunnerResult> {
+    try {
+      const hits = await this.urls.run(urls, message.guild_id!);
+      if (hits.length) {
+        await this.discord
+          .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Invite filter detection' })
+          .catch(() => null);
+      }
+
+      return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.urls };
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to execute runner urls');
+      return { ok: false, runner: Runners.urls };
     }
   }
 
@@ -146,7 +168,7 @@ export class Gateway {
       return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.invites };
     } catch (error) {
       this.logger.error({ error }, 'Failed to execute runner invites');
-      return { ok: false, runner: Runners.files };
+      return { ok: false, runner: Runners.invites };
     }
   }
 
@@ -364,6 +386,7 @@ export class Gateway {
     const [
       settings = {
         use_url_filters: false,
+        use_global_filters: false,
         use_file_filters: false,
         use_invite_filters: false,
         antispam_amount: null,
@@ -452,6 +475,13 @@ export class Gateway {
     }
 
     const promises: Promise<RunnerResult>[] = [];
+
+    if (settings.use_global_filters) {
+      const urls = this.urls.precheck(message.content);
+      if (urls.length) {
+        promises.push(this.runGlobals({ message, urls }));
+      }
+    }
 
     if (settings.use_url_filters && !ignores.has('urls')) {
       const urls = this.urls.precheck(message.content);
