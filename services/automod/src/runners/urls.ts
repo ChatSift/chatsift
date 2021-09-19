@@ -60,8 +60,8 @@ export class UrlsRunner {
         // Assume that the URL is formatted correctly. Extract the domain (including the subdomain)
         const fullDomain = url.split('/')[0]!;
         urls.add(fullDomain);
-        // Also add it without a potential subdomain
 
+        // Also add it without a potential subdomain
         this.addRootFromSub(urls, fullDomain);
       } else {
         this.addRootFromSub(urls, url);
@@ -74,10 +74,11 @@ export class UrlsRunner {
   public async run(urls: string[], guildId: Snowflake) {
     const allowlist = await this
       .sql<AllowedUrl[]>`SELECT * FROM allowed_urls WHERE guild_id = ${guildId}`
-      .then(
-        rows => this.resolveUrls(rows.map(row => row.domain))
-      );
+      .then(rows => this.resolveUrls(rows.map(row => row.domain)));
 
-    return urls.filter(url => !allowlist.has(url));
+    return urls.filter(url => {
+      const domains = [...this.resolveUrls([url])];
+      return !allowlist.has((domains[1] ?? domains[0])!);
+    });
   }
 }
