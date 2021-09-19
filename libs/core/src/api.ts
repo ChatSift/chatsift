@@ -2,6 +2,7 @@ import type { Snowflake } from 'discord-api-types/v9';
 import type { WarnCaseExtras } from './brokers';
 import type {
   AllowedInvite,
+  AllowedUrl,
   BannedWord,
   Case,
   CaseAction,
@@ -182,6 +183,14 @@ export interface ApiPatchGuildsFiltersLocalBody {
 }
 
 export type ApiPatchGuildsFiltersLocalResult = BannedWord;
+
+export type ApiDeleteFiltersUrlsAllowlistCodeResult = AllowedUrl;
+
+export type ApiPutFiltersUrlsAllowlistCodeResult = AllowedUrl;
+
+export type ApiDeleteFiltersUrlsAllowlistResult = AllowedUrl[];
+
+export type ApiGetFiltersUrlsAllowlistResult = AllowedUrl[];
 
 export type ApiDeleteGuildPromptResult = SelfAssignableRolePrompt;
 

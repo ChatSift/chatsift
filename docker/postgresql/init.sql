@@ -207,6 +207,12 @@ CREATE TABLE IF NOT EXISTS allowed_invites (
   PRIMARY KEY (guild_id, invite_code)
 );
 
+CREATE TABLE IF NOT EXISTS allowed_urls (
+  guild_id bigint NOT NULL,
+  domain text NOT NULL,
+  PRIMARY KEY (guild_id, domain)
+);
+
 CREATE TABLE IF NOT EXISTS reported_messages (
   message_id bigint PRIMARY KEY,
   report_message_id bigint,

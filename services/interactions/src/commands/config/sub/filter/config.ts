@@ -21,8 +21,8 @@ export class FilterConfig implements Command {
     public readonly filterIgnoreState: FilterIgnoresStateStore
   ) {}
 
-  private async sendCurrentSettings(interaction: APIGuildInteraction) {
-    const settings = await this.rest
+  private async sendCurrentSettings(interaction: APIGuildInteraction, settings?: Partial<GuildSettings> | null) {
+    settings ??= await this.rest
       .get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`)
       .catch(() => null);
 
@@ -30,6 +30,7 @@ export class FilterConfig implements Command {
       content: stripIndents`
         **Here are your current filter settings:**
         • url filter: ${settings?.use_url_filters ? 'on' : 'off'}
+        • global filter: ${settings?.use_global_filters ? 'on' : 'off'}
         • file filter: ${settings?.use_file_filters ? 'on' : 'off'}
         • invite filter: ${settings?.use_invite_filters ? 'on' : 'off'}
       `,
@@ -71,7 +72,7 @@ export class FilterConfig implements Command {
           settings
         );
 
-        return this.sendCurrentSettings(interaction);
+        return this.sendCurrentSettings(interaction, settings);
       }
     }
   }

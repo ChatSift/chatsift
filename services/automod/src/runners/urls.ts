@@ -1,24 +1,22 @@
-import type { ApiPostFiltersUrlsBody, ApiPostFiltersUrlsResult, MaliciousUrl } from '@automoderator/core';
+import { AllowedUrl } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
-import { kLogger } from '@automoderator/injection';
+import { kLogger, kSql } from '@automoderator/injection';
+import { Snowflake } from 'discord-api-types';
 import { readFileSync } from 'fs';
 import { join as joinPath } from 'path';
 import type { Logger } from 'pino';
+import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
-import fetch from 'node-fetch';
 
 @singleton()
 export class UrlsRunner {
   public readonly urlRegex = /([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm;
   public readonly tlds: Set<string>;
 
-  public readonly fishUrl = 'http://api.phish.surf:5000/gimme-domains' as const;
-  public readonly fishCache = new Set<string>();
-  public lastRefreshedFish: number | null = null;
-
   public constructor(
     public readonly rest: Rest,
-    @inject(kLogger) public readonly logger: Logger
+    @inject(kLogger) public readonly logger: Logger,
+    @inject(kSql) public readonly sql: Sql<{}>
   ) {
     const contents = readFileSync(joinPath(__dirname, '..', '..', 'tlds.txt'), 'utf8');
     this.tlds = contents
@@ -32,34 +30,6 @@ export class UrlsRunner {
       }, new Set<string>());
 
     logger.debug({ tlds: [...this.tlds] }, 'Successfully computed valid tlds');
-
-    void this.refreshFish();
-  }
-
-  private async refreshFish() {
-    if (this.lastRefreshedFish && Date.now() - this.lastRefreshedFish < 6e4) {
-      return;
-    }
-
-    const res = await fetch(this.fishUrl).catch(() => null);
-    const domains = await res?.json().catch(() => null);
-
-    if (!domains) {
-      this.logger.warn('Something went wrong grabbing fish data');
-      return;
-    }
-
-    this.lastRefreshedFish = Date.now();
-    this.fishCache.clear();
-
-    for (const domain of domains) {
-      this.fishCache.add(domain);
-    }
-  }
-
-  private async isForbiddenByFish(url: string): Promise<boolean> {
-    await this.refreshFish();
-    return this.fishCache.has(url);
   }
 
   public precheck(content: string): string[] {
@@ -74,21 +44,40 @@ export class UrlsRunner {
     return [...urls];
   }
 
-  public async run(urls: string[]) {
-    const hits = new Map<string, MaliciousUrl | { url: string }>();
-
-    const builtIn = await this.rest.post<ApiPostFiltersUrlsResult, ApiPostFiltersUrlsBody>('/filters/urls', { urls });
-    for (const hit of builtIn) {
-      hits.set(hit.url, hit);
+  private addRootFromSub(urls: Set<string>, url: string): void {
+    const split = url.split('.');
+    // This means that we've got at least 1 subdomain - there could be more nested
+    if (split.length > 2) {
+      // Extract the root domain
+      urls.add(split.slice(split.length - 2, split.length - 1).join('.'));
     }
+  }
 
-    const isForbiddenByFish = await Promise.all(urls.map(url => this.isForbiddenByFish(url)));
-    for (let i = 0; i < urls.length; i++) {
-      if (isForbiddenByFish[i]) {
-        hits.set(urls[i]!, { url: urls[i]! });
+  private resolveUrls(toResolve: string[]): Set<string> {
+    return toResolve.reduce((urls, url) => {
+      // Deal with something that contains the path
+      if (url.includes('/')) {
+        // Assume that the URL is formatted correctly. Extract the domain (including the subdomain)
+        const fullDomain = url.split('/')[0]!;
+        urls.add(fullDomain);
+        // Also add it without a potential subdomain
+
+        this.addRootFromSub(urls, fullDomain);
+      } else {
+        this.addRootFromSub(urls, url);
       }
-    }
 
-    return [...hits.values()];
+      return urls;
+    }, new Set(toResolve));
+  }
+
+  public async run(urls: string[], guildId: Snowflake) {
+    const allowlist = await this
+      .sql<AllowedUrl[]>`SELECT * FROM allowed_urls WHERE guild_id = ${guildId}`
+      .then(
+        rows => this.resolveUrls(rows.map(row => row.domain))
+      );
+
+    return urls.filter(url => !allowlist.has(url));
   }
 }

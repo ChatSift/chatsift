@@ -6,4 +6,5 @@ export * from './LocalFiltersController';
 export * from './LogIgnoresController';
 export * from './PromptsController';
 export * from './SettingsController';
+export * from './UrlsAllowlistController';
 export * from './UrlsController';

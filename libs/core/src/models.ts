@@ -205,6 +205,11 @@ export interface AllowedInvite {
   invite_code: string;
 }
 
+export interface AllowedUrl {
+  guild_id: Snowflake;
+  domain: string;
+}
+
 export interface ReportedMessage {
   message_id: Snowflake;
   report_message_id: Snowflake;
