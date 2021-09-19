@@ -26,8 +26,8 @@
   "dependencies": {
     "@automoderator/core": "workspace:^0.1.0",
     "@automoderator/injection": "workspace:^0.1.0",
-    "@cordis/rest": "^1.0.2-next.613f2c2.1629835119",
-    "@cordis/util": "1.0.2-next.613f2c2.1629835119",
+    "@cordis/rest": "^1.0.2-next.2616696.1632048891",
+    "@cordis/util": "1.0.2-next.2616696.1632048891",
     "discord-api-types": "^0.23.0-next.64937e2.1630412948",
     "nanoid": "^3.1.23",
     "tslib": "^2.3.0",
