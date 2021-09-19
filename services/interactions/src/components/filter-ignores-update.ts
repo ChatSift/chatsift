@@ -24,7 +24,7 @@ export default class implements Component {
     public readonly filterIgnoreState: FilterIgnoresStateStore
   ) {}
 
-  public async exec(interaction: APIGuildInteraction, [filterType]: ['urls' | 'files' | 'invites' | 'words'], id: string) {
+  public async exec(interaction: APIGuildInteraction, [filterType]: ['urls' | 'files' | 'invites' | 'words' | 'global' | 'automod'], id: string) {
     void send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
 
     const state = await this.filterIgnoreState.get(id) as ChannelPaginationState;
@@ -34,9 +34,16 @@ export default class implements Component {
       .catch(() => null);
 
     const bitfield = new FilterIgnores(BigInt(existing?.value ?? '0'));
-    const isOn = [bitfield.has('urls'), bitfield.has('files'), bitfield.has('invites'), bitfield.has('words')] as [boolean, boolean, boolean, boolean];
+    const isOn = [
+      bitfield.has('urls'),
+      bitfield.has('files'),
+      bitfield.has('invites'),
+      bitfield.has('words'),
+      bitfield.has('automod'),
+      bitfield.has('global')
+    ];
 
-    const index = ({ urls: 0, files: 1, invites: 2, words: 3 } as const)[filterType];
+    const index = ({ urls: 0, files: 1, invites: 2, words: 3, automod: 4, global: 5 } as const)[filterType];
 
     const currentlyOn = isOn[index];
     if (currentlyOn) {
@@ -49,15 +56,14 @@ export default class implements Component {
 
     const components = interaction.message!.components!;
 
-    // Update the buttons with the current state
-    const buttons = (components[2]!.components as APIButtonComponent[]);
-    components[2]!.components = buttons.map((component, index) => {
-      if (index !== buttons.length - 1) {
-        component.style = isOn[index] ? ButtonStyle.Success : ButtonStyle.Danger;
-      }
-
+    const update = (offset = 0) => (component: APIButtonComponent, index: number) => {
+      component.style = isOn[index + offset] ? ButtonStyle.Success : ButtonStyle.Danger;
       return component;
-    });
+    };
+
+    // Update the buttons with the current state
+    components[2]!.components = (components[2]!.components as APIButtonComponent[]).map(update(0));
+    components[3]!.components = (components[3]!.components as APIButtonComponent[]).map(update(3));
 
     await this.rest.patch<ApiPatchFiltersIgnoresChannelResult, ApiPatchFiltersIgnoresChannelBody>(
       `/guilds/${interaction.guild_id}/filters/ignores/${state.channel!}`, {

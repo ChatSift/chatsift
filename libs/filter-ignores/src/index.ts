@@ -4,7 +4,9 @@ const FILTERS = BitField.makeFlags([
   'urls',
   'files',
   'invites',
-  'words'
+  'words',
+  'automod',
+  'global'
 ]);
 
 export type FilterIgnoresResolvable = BitFieldResolvable<keyof typeof FILTERS>;

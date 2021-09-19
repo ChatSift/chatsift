@@ -42,6 +42,7 @@ export abstract class Route {
 
     logger.debug(`Registering route "${info.method.toUpperCase()} ${info.path}"`);
     server[info.method](`${info.path.startsWith('/') ? '' : '/'}${info.path}`, ...this.middleware, async (req, res, next) => {
+      /* istanbul ignore next */
       try {
         await this.handle(req, res, next);
       } catch (e) {

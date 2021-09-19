@@ -1,5 +1,5 @@
 import { ConfigLogIgnoresCommand } from '#interactions';
-import { ArgumentsOf, LogIgnoresStateStore, send } from '#util';
+import { ArgumentsOf, LogIgnoresStateStore, send, sortChannels } from '#util';
 import { ApiGetGuildLogIgnoresResult } from '@automoderator/core';
 import { ellipsis } from '@automoderator/util';
 import { UserPerms } from '@automoderator/discord-permissions';
@@ -58,13 +58,10 @@ export default class implements Command {
       }
 
       case 'update': {
-        const channels = await this.discordRest
-          .get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id))
-          .then(
-            channels => channels.filter(
-              channel => channel.type === ChannelType.GuildCategory || channel.type === ChannelType.GuildText
-            )
-          );
+        const unsorted = await this.discordRest.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id));
+        const channels = sortChannels(
+          unsorted.filter(channel => channel.type === ChannelType.GuildCategory || channel.type === ChannelType.GuildText)
+        );
 
         const id = nanoid();
 
