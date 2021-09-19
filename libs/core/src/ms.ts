@@ -43,6 +43,7 @@ function tokenize(str: string) {
 }
 
 function convert(num: number, type: string) {
+  /* istanbul ignore next */
   switch (type) {
     case 'years':
     case 'year':
@@ -112,18 +113,23 @@ function ms(val: string | number, long = false) {
 
   if (typeof val === 'number' && isFinite(val)) {
     abs = Math.abs(val);
+
+    /* istanbul ignore next */
     if (abs >= Duration.day) {
       return pluralize(val, abs, Duration.day, 'day', 'd', long);
     }
 
+    /* istanbul ignore next */
     if (abs >= Duration.hour) {
       return pluralize(val, abs, Duration.hour, 'hour', 'h', long);
     }
 
+    /* istanbul ignore next */
     if (abs >= Duration.minute) {
       return pluralize(val, abs, Duration.minute, 'minute', 'm', long);
     }
 
+    /* istanbul ignore next */
     if (abs >= Duration.second) {
       return pluralize(val, abs, Duration.second, 'second', 's', long);
     }

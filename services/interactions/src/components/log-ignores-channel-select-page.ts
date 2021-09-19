@@ -1,4 +1,4 @@
-import { LogIgnoresStateStore, ChannelPaginationState, send } from '#util';
+import { LogIgnoresStateStore, ChannelPaginationState, send, EMOTES, sortChannels } from '#util';
 import { ellipsis } from '@automoderator/util';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -40,24 +40,16 @@ export default class implements Component {
 
     // There's no longer a selected channel as the page was switched
     const selectMenu = components[0]!.components[0] as APISelectMenuComponent;
-    selectMenu.options = channels
-      .filter(channel => channel.type === ChannelType.GuildCategory || channel.type === ChannelType.GuildText)
-      .map((channel): APISelectMenuOption => ({
-        label: ellipsis(channel.name!, 25),
-        emoji: channel.type === ChannelType.GuildText
-          ? {
-            id: '779036156175188001',
-            name: 'ChannelText',
-            animated: false
-          }
-          : {
-            id: '816771723264393236',
-            name: 'ChannelCategory',
-            animated: false
-          },
-        value: channel.id
-      }))
-      .slice(state.page * 25, (state.page * 25) + 25);
+    selectMenu.options =
+      sortChannels(channels.filter(channel => channel.type === ChannelType.GuildCategory || channel.type === ChannelType.GuildText))
+        .map((channel): APISelectMenuOption => ({
+          label: ellipsis(channel.name!, 25),
+          emoji: channel.type === ChannelType.GuildText
+            ? EMOTES.TEXT_CHANNEL
+            : EMOTES.CATEGORY_CHANNEL,
+          value: channel.id
+        }))
+        .slice(state.page * 25, (state.page * 25) + 25);
 
     // Update the pagination buttons
     const [pageLeft,, pageRight] = components[1]!.components as [APIButtonComponent, APIButtonComponent, APIButtonComponent];
@@ -69,7 +61,7 @@ export default class implements Component {
       pageRight.disabled = true;
     } else {
       pageLeft.disabled = false;
-      pageRight.disabled;
+      pageRight.disabled = false;
     }
 
     // Re-disable the button

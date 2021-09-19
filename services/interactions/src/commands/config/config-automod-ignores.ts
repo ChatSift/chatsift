@@ -1,6 +1,6 @@
 import { ConfigAutomodIgnoresCommand } from '#interactions';
-import { ArgumentsOf, FilterIgnoresStateStore, send } from '#util';
-import { ApiGetFiltersIgnoresResult } from '@automoderator/core';
+import { ArgumentsOf, EMOTES, FilterIgnoresStateStore, send, sortChannels } from '#util';
+import type { ApiGetFiltersIgnoresResult } from '@automoderator/core';
 import { ellipsis } from '@automoderator/util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { FilterIgnores } from '@automoderator/filter-ignores';
@@ -64,13 +64,10 @@ export default class implements Command {
       }
 
       case 'update': {
-        const channels = await this.discordRest
-          .get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id))
-          .then(
-            channels => channels.filter(
-              channel => channel.type === ChannelType.GuildCategory || channel.type === ChannelType.GuildText
-            )
-          );
+        const unsorted = await this.discordRest.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id));
+        const channels = sortChannels(
+          unsorted.filter(channel => channel.type === ChannelType.GuildCategory || channel.type === ChannelType.GuildText)
+        );
 
         const id = nanoid();
 
@@ -90,16 +87,8 @@ export default class implements Command {
                     .map((channel): APISelectMenuOption => ({
                       label: ellipsis(channel.name!, 25),
                       emoji: channel.type === ChannelType.GuildText
-                        ? {
-                          id: '779036156175188001',
-                          name: 'ChannelText',
-                          animated: false
-                        }
-                        : {
-                          id: '816771723264393236',
-                          name: 'ChannelCategory',
-                          animated: false
-                        },
+                        ? EMOTES.TEXT_CHANNEL
+                        : EMOTES.CATEGORY_CHANNEL,
                       value: channel.id
                     }))
                     .slice(0, 25)
@@ -153,7 +142,12 @@ export default class implements Command {
                   custom_id: `filter-ignores-update|${id}|invites`,
                   style: ButtonStyle.Danger,
                   disabled: true
-                },
+                }
+              ]
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
                 {
                   type: ComponentType.Button,
                   label: 'Words',
@@ -161,6 +155,25 @@ export default class implements Command {
                   style: ButtonStyle.Danger,
                   disabled: true
                 },
+                {
+                  type: ComponentType.Button,
+                  label: 'Global',
+                  custom_id: `filter-ignores-update|${id}|global`,
+                  style: ButtonStyle.Danger,
+                  disabled: true
+                },
+                {
+                  type: ComponentType.Button,
+                  label: 'Automod',
+                  custom_id: `filter-ignores-update|${id}|automod`,
+                  style: ButtonStyle.Danger,
+                  disabled: true
+                }
+              ]
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
                 {
                   type: ComponentType.Button,
                   label: 'Done',

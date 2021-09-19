@@ -476,7 +476,7 @@ export class Gateway {
 
     const promises: Promise<RunnerResult>[] = [];
 
-    if (settings.use_global_filters) {
+    if (settings.use_global_filters && !ignores.has('global')) {
       const urls = this.urls.precheck(message.content);
       if (urls.length) {
         promises.push(this.runGlobals({ message, urls }));
@@ -521,13 +521,14 @@ export class Gateway {
       promises.push(this.runWords({ message, settings }));
     }
 
-    if (settings.antispam_amount && settings.antispam_time) {
+    if (settings.antispam_amount && settings.antispam_time && !ignores.has('automod')) {
       promises.push(this.runAntispam({ message, settings }));
     }
 
     if (
       ((settings.mention_amount && settings.mention_time) || settings.mention_limit) &&
-      this.mentions.precheck(message.content)
+      this.mentions.precheck(message.content) &&
+      !ignores.has('automod')
     ) {
       promises.push(this.runMentions({ message, settings }));
     }

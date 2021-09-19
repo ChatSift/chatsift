@@ -33,7 +33,14 @@ export default class implements Component {
       .catch(() => null);
 
     const bitfield = new FilterIgnores(BigInt(existing?.value ?? '0'));
-    const isOn = [bitfield.has('urls'), bitfield.has('files'), bitfield.has('invites'), bitfield.has('words')] as const;
+    const isOn = [
+      bitfield.has('urls'),
+      bitfield.has('files'),
+      bitfield.has('invites'),
+      bitfield.has('words'),
+      bitfield.has('automod'),
+      bitfield.has('global')
+    ];
 
     const state = await this.filterIgnoreState.get(id) as ChannelPaginationState;
     state.channel = selection;
@@ -48,16 +55,16 @@ export default class implements Component {
       return option;
     });
 
-    // Update the buttons with the current state
-    const buttons = (components[2]!.components as APIButtonComponent[]);
-    components[2]!.components = buttons.map((component, index) => {
-      if (index !== buttons.length - 1) {
-        component.disabled = false;
-        component.style = isOn[index] ? ButtonStyle.Success : ButtonStyle.Danger;
-      }
+    const update = (offset = 0) => (component: APIButtonComponent, index: number) => {
+      component.disabled = false;
+      component.style = isOn[index + offset] ? ButtonStyle.Success : ButtonStyle.Danger;
 
       return component;
-    });
+    };
+
+    // Update the buttons with the current state
+    components[2]!.components = (components[2]!.components as APIButtonComponent[]).map(update());
+    components[3]!.components = (components[3]!.components as APIButtonComponent[]).map(update(3));
 
     void this.filterIgnoreState.set(id, state);
 
