@@ -38,8 +38,8 @@ export default class implements Component {
       bitfield.has('files'),
       bitfield.has('invites'),
       bitfield.has('words'),
-      bitfield.has('automod'),
-      bitfield.has('global')
+      bitfield.has('global'),
+      bitfield.has('automod')
     ];
 
     const state = await this.filterIgnoreState.get(id) as ChannelPaginationState;

@@ -46,6 +46,7 @@ import { inject, singleton } from 'tsyringe';
 export class Gateway {
   public readonly guildPermsCache = new Store<DiscordPermissions>({ emptyEvery: 15e3 });
   public readonly channelParentCache = new Store<Snowflake | null>({ emptyEvery: 12e4 });
+  public readonly threadParentCache = new Store<Snowflake>({ emptyEvery: 216e6 });
 
   public guildLogs!: PubSubPublisher<Log>;
 
@@ -68,6 +69,13 @@ export class Gateway {
         }
 
         this.channelParentCache.set(channel.id, channel.parent_id ?? null);
+      }
+
+      // Thread channel
+      if (!this.channelParentCache.has(channelId)) {
+        const thread = await this.discord.get<APIChannel>(Routes.channel(channelId));
+        this.threadParentCache.set(thread.id, thread.parent_id!);
+        this.channelParentCache.set(thread.id, this.channelParentCache.get(thread.parent_id!)!);
       }
     }
 
@@ -305,11 +313,11 @@ export class Gateway {
       return;
     }
 
-    const channelId = message.thread?.parent_id ?? message.channel_id;
+    const parentId = await this.getChannelParent(message.guild_id, message.channel_id);
+    const channelId = this.threadParentCache.get(message.channel_id) ?? message.channel_id;
 
-    const parent = await this.getChannelParent(message.guild_id, channelId);
     const ignores = await this.rest.get<ApiGetGuildLogIgnoresResult>(`/guilds/${message.guild_id}/settings/log-ignores`);
-    if (ignores.find(ignore => ignore.channel_id === channelId || ignore.channel_id === parent)) {
+    if (ignores.find(ignore => ignore.channel_id === channelId || ignore.channel_id === parentId)) {
       return;
     }
 
@@ -354,9 +362,11 @@ export class Gateway {
       return;
     }
 
-    const parent = await this.getChannelParent(n.guild_id, n.channel_id);
+    const parentId = await this.getChannelParent(n.guild_id, n.channel_id);
+    const channelId = this.threadParentCache.get(n.channel_id) ?? n.channel_id;
+
     const ignores = await this.rest.get<ApiGetGuildLogIgnoresResult>(`/guilds/${n.guild_id}/settings/log-ignores`);
-    if (ignores.find(ignore => ignore.channel_id === n.channel_id || ignore.channel_id === parent)) {
+    if (ignores.find(ignore => ignore.channel_id === channelId || ignore.channel_id === parentId)) {
       return;
     }
 

@@ -358,6 +358,15 @@ export class Handler {
   }
 
   private async _handleFilterTriggerLog(log: FilterTriggerLog) {
+    for (const trigger of log.data.triggers) {
+      this.logger.metric!({
+        type: 'filter_trigger',
+        triggerType: Runners[trigger.runner],
+        data: trigger.data,
+        guild: log.data.message.guild_id
+      });
+    }
+
     const [
       { filter_trigger_log_channel: channelId = null } = {}
     ] = await this.sql<[Pick<GuildSettings, 'filter_trigger_log_channel'>?]>`
@@ -373,16 +382,7 @@ export class Handler {
       return;
     }
 
-    const embeds = log.data.triggers.flatMap(trigger => {
-      this.logger.metric!({
-        type: 'filter_trigger',
-        triggerType: Runners[trigger.runner],
-        data: trigger.data,
-        guild: log.data.message.guild_id
-      });
-
-      return this._embedFromTrigger(log.data.message, trigger);
-    });
+    const embeds = log.data.triggers.flatMap(trigger => this._embedFromTrigger(log.data.message, trigger));
 
     if (!embeds.length) {
       return;

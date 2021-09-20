@@ -39,11 +39,11 @@ export default class implements Component {
       bitfield.has('files'),
       bitfield.has('invites'),
       bitfield.has('words'),
-      bitfield.has('automod'),
-      bitfield.has('global')
+      bitfield.has('global'),
+      bitfield.has('automod')
     ];
 
-    const index = ({ urls: 0, files: 1, invites: 2, words: 3, automod: 4, global: 5 } as const)[filterType];
+    const index = ({ urls: 0, files: 1, invites: 2, words: 3, global: 4, automod: 5 } as const)[filterType];
 
     const currentlyOn = isOn[index];
     if (currentlyOn) {
