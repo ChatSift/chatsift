@@ -6,16 +6,19 @@ import type {
   ApiPutFiltersUrlsAllowlistCodeResult
 } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
+import { kLogger } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
-import { singleton } from 'tsyringe';
+import type { Logger } from 'pino';
+import { inject, singleton } from 'tsyringe';
 import { Command } from '../../../../command';
 
 @singleton()
 export class UrlsConfig implements Command {
   public constructor(
     public readonly rest: Rest,
-    public readonly discordRest: DiscordRest
+    public readonly discordRest: DiscordRest,
+    @inject(kLogger) public readonly logger: Logger
   ) {}
 
   private extractRoot(url: string): string {
@@ -23,13 +26,15 @@ export class UrlsConfig implements Command {
     // This means that we've got at least 1 subdomain - there could be more nested
     if (split.length > 2) {
       // Extract the root domain
-      return split.slice(split.length - 2, split.length - 1).join('.');
+      return split.slice(split.length - 2, split.length).join('.');
     }
 
     return url;
   }
 
   private cleanDomain(url: string) {
+    url = url.replace(/https?:\/\//g, '');
+
     if (url.includes('/')) {
       // Assume that the URL is formatted correctly. Extract the domain (including the subdomain)
       const fullDomain = url.split('/')[0]!;

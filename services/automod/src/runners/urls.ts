@@ -44,41 +44,36 @@ export class UrlsRunner {
     return [...urls];
   }
 
-  private addRootFromSub(urls: Set<string>, url: string): void {
+  private extractRoot(url: string): string {
     const split = url.split('.');
     // This means that we've got at least 1 subdomain - there could be more nested
     if (split.length > 2) {
       // Extract the root domain
-      urls.add(split.slice(split.length - 2, split.length - 1).join('.'));
+      return split.slice(split.length - 2, split.length).join('.');
     }
+
+    return url;
   }
 
-  private resolveUrls(toResolve: string[]): Set<string> {
-    return toResolve.reduce((urls, url) => {
-      // Deal with something that contains the path
-      if (url.includes('/')) {
-        // Assume that the URL is formatted correctly. Extract the domain (including the subdomain)
-        const fullDomain = url.split('/')[0]!;
-        urls.add(fullDomain);
+  private cleanDomain(url: string) {
+    url = url.replace(/https?:\/\//g, '');
 
-        // Also add it without a potential subdomain
-        this.addRootFromSub(urls, fullDomain);
-      } else {
-        this.addRootFromSub(urls, url);
-      }
+    if (url.includes('/')) {
+      // Assume that the URL is formatted correctly. Extract the domain (including the subdomain)
+      const fullDomain = url.split('/')[0]!;
+      return this.extractRoot(fullDomain);
+    }
 
-      return urls;
-    }, new Set(toResolve));
+    return this.extractRoot(url);
   }
 
   public async run(urls: string[], guildId: Snowflake) {
-    const allowlist = await this
-      .sql<AllowedUrl[]>`SELECT * FROM allowed_urls WHERE guild_id = ${guildId}`
-      .then(rows => this.resolveUrls(rows.map(row => row.domain)));
+    const allowlist = new Set(
+      await this
+        .sql<AllowedUrl[]>`SELECT * FROM allowed_urls WHERE guild_id = ${guildId}`
+        .then(rows => rows.map(row => this.cleanDomain(row.domain)))
+    );
 
-    return urls.filter(url => {
-      const domains = [...this.resolveUrls([url])];
-      return !allowlist.has((domains[1] ?? domains[0])!);
-    });
+    return urls.filter(url => !allowlist.has(this.cleanDomain(url)));
   }
 }

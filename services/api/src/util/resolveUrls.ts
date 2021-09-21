@@ -3,7 +3,7 @@ const addRootFromSub = (urls: Set<string>, url: string): void => {
   // This means that we've got at least 1 subdomain - there could be more nested
   if (split.length > 2) {
     // Extract the root domain
-    urls.add(split.slice(split.length - 2, split.length - 1).join('.'));
+    urls.add(split.slice(split.length - 2, split.length).join('.'));
   }
 };
 
