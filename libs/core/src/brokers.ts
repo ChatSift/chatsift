@@ -21,7 +21,8 @@ export type DiscordEvents = {
 export enum LogTypes {
   modAction,
   filterTrigger,
-  server
+  server,
+  forbiddenName
 }
 
 export interface LogBase<T extends LogTypes, D extends Record<string, any>> {
@@ -151,4 +152,13 @@ export interface ServerLogData {
 
 export type ServerLog = LogBase<LogTypes.server, ServerLogData>;
 
-export type Log = ModActionLog | FilterTriggerLog | ServerLog;
+export type ForbiddenNameLog = LogBase<LogTypes.forbiddenName, {
+  guildId: string;
+  words: string[];
+  user: APIUser;
+  nick: boolean;
+  before: string;
+  after: string;
+}>;
+
+export type Log = ModActionLog | FilterTriggerLog | ServerLog | ForbiddenNameLog;

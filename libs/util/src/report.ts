@@ -155,3 +155,60 @@ export const reportMessage = async (reporterUser: APIUser, message: APIMessage, 
     }
   });
 };
+
+/**
+ * Internal use only for name filtering
+ */
+export const reportUser = async (reportedUser: APIUser, name: string, nick: boolean, words: string[], settings: GuildSettings) => {
+  const rest = container.resolve(Rest);
+
+  const id = nanoid();
+
+  await rest.post<RESTPostAPIChannelMessageResult, RESTPostAPIChannelMessageJSONBody>(
+    Routes.channelMessages(settings.reports_channel!), {
+      data: {
+        embeds: [
+          {
+            color: 15953004,
+            author: {
+              name: `${reportedUser.username}#${reportedUser.discriminator} (${reportedUser.id})`,
+              icon_url: reportedUser.avatar
+                ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${reportedUser.id}/${reportedUser.avatar}`)
+                : `${RouteBases.cdn}/embed/avatars/${parseInt(reportedUser.discriminator, 10) % 5}.png`
+            },
+            title: `Has been automatically reported for their ${nick ? 'nick' : 'user'}name`,
+            description: `\`\`\`\n${name}\`\`\``,
+            footer: {
+              text: `Filter triggers: ${words.join(', ')}`
+            }
+          }
+        ],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                label: 'Filter the content',
+                style: ButtonStyle.Secondary,
+                custom_id: `report-user|${id}|filter|${reportedUser.id}`
+              },
+              {
+                type: ComponentType.Button,
+                label: 'Actioned',
+                style: ButtonStyle.Secondary,
+                custom_id: `report-user|${id}|action|${reportedUser.id}`
+              },
+              {
+                type: ComponentType.Button,
+                label: 'Acknowledged',
+                style: ButtonStyle.Secondary,
+                custom_id: `report-user|${id}|acknowledge|${reportedUser.id}`
+              }
+            ]
+          }
+        ]
+      }
+    }
+  );
+};

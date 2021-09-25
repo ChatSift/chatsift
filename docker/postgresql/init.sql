@@ -215,7 +215,7 @@ CREATE TABLE IF NOT EXISTS allowed_urls (
 
 CREATE TABLE IF NOT EXISTS reported_messages (
   message_id bigint PRIMARY KEY,
-  report_message_id bigint,
+  report_message_id bigint NOT NULL,
   ack boolean DEFAULT false NOT NULL
 );
 

@@ -16,7 +16,7 @@ import { Command } from '../../command';
 
 interface ParsedEntry {
   muteduration?: number;
-  flags: ('word' | 'warn' | 'mute' | 'ban' | 'report')[];
+  flags: ('word' | 'warn' | 'mute' | 'ban' | 'report' | 'name')[];
 }
 
 @injectable()
@@ -74,6 +74,10 @@ export default class implements Command {
           }
 
           flags.push('report');
+        }
+
+        if (args.add.name) {
+          flags.push('name');
         }
 
         const url = args.add.entry.match(/([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm)?.[0];
