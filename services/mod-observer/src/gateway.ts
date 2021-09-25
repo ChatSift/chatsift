@@ -335,17 +335,19 @@ export class Gateway {
     let banned = false;
     let reported = false;
 
-    this.guildLogs.publish({
-      type: LogTypes.forbiddenName,
-      data: {
-        guildId: data.guild_id,
-        before: name,
-        after: updatedName,
-        words: hits.map(hit => hit.word),
-        user: data.user,
-        nick
-      }
-    });
+    if (hits.every(hit => !hit.flags.has('report'))) {
+      this.guildLogs.publish({
+        type: LogTypes.forbiddenName,
+        data: {
+          guildId: data.guild_id,
+          before: name,
+          after: updatedName,
+          words: hits.map(hit => hit.word),
+          user: data.user,
+          nick
+        }
+      });
+    }
 
     for (const hit of hits) {
       const caseData: ApiPostGuildsCasesBody = [];
@@ -394,12 +396,10 @@ export class Gateway {
       if (caseData.length) {
         const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${data.guild_id}/cases`, caseData);
 
-        if (!hits.some(hit => hit.flags.has('report'))) {
-          this.guildLogs.publish({
-            data: cases,
-            type: LogTypes.modAction
-          });
-        }
+        this.guildLogs.publish({
+          data: cases,
+          type: LogTypes.modAction
+        });
       }
     }
   }
