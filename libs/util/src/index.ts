@@ -1,3 +1,3 @@
 export * from './caseLogging';
 export * from './embed';
-export * from './reportMessage';
+export * from './report';

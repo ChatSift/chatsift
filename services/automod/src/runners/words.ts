@@ -30,6 +30,10 @@ export class WordsRunner {
         isUrl: Boolean(this.urlsRunner.precheck(entry.word).length)
       };
 
+      if (flags.has('name')) {
+        continue;
+      }
+
       if (flags.has('word')) {
         if (wordsArray.includes(entry.word)) {
           out.push(computed);

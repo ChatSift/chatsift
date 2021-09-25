@@ -1,8 +1,10 @@
 import { MessageCache, GuildMemberCache, CachedGuildMember } from '@automoderator/cache';
 import {
   ApiGetGuildLogIgnoresResult,
+  ApiGetGuildsSettingsResult,
   ApiPostGuildsCasesBody,
   ApiPostGuildsCasesResult,
+  BannedWord,
   Case,
   CaseAction,
   DiscordEvents,
@@ -12,7 +14,7 @@ import {
   ServerLogs,
   ServerLogType
 } from '@automoderator/core';
-import { DiscordPermissions } from '@automoderator/discord-permissions';
+import { DiscordPermissions, PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
@@ -41,6 +43,8 @@ import {
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
+import { BanwordFlags } from '@automoderator/banword-flags';
+import { reportUser } from '@automoderator/util';
 
 @singleton()
 export class Gateway {
@@ -54,6 +58,7 @@ export class Gateway {
     @inject(kConfig) public readonly config: Config,
     @inject(kSql) public readonly sql: Sql<{}>,
     @inject(kLogger) public readonly logger: Logger,
+    public readonly checker: PermissionsChecker,
     public readonly guildMembersCache: GuildMemberCache,
     public readonly messageCache: MessageCache,
     public readonly rest: Rest,
@@ -269,6 +274,136 @@ export class Gateway {
     }).catch(() => null);
   }
 
+  private async handleForbiddenName(data: APIGuildMember & { user: APIUser; guild_id: Snowflake }, name: string, nick: boolean) {
+    const words = await this.sql<BannedWord[]>`SELECT * FROM banned_words WHERE guild_id = ${data.guild_id}`;
+    const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${data.guild_id}/settings`);
+
+    if (this.config.nodeEnv === 'prod') {
+      const checkerData: PermissionsCheckerData = {
+        member: {
+          ...data,
+          permissions: '0'
+        },
+        guild_id: data.guild_id
+      };
+
+      if (await this.checker.check(checkerData, UserPerms.mod, settings)) {
+        return;
+      }
+    }
+
+    const entries = words
+      .map(word => ({ ...word, flags: new BanwordFlags(BigInt(word.flags)) }))
+      .filter(word => word.flags.has('name'));
+
+    if (!entries.length) {
+      return;
+    }
+
+    const content = name.toLowerCase();
+    const array = content.split(/ +/g);
+
+    let updatedName = name;
+    let highlightedName = name;
+
+    const hits = entries.reduce<typeof entries>((acc, entry) => {
+      if ((entry.flags.has('word') && array.includes(entry.word)) || content.includes(entry.word)) {
+        acc.push(entry);
+        const replace = (value: string, fn: (str: string) => string) => value.replace(new RegExp(entry.word, 'gi'), fn);
+
+        updatedName = replace(updatedName, () => '').replace(/ +/g, ' ');
+        highlightedName = replace(highlightedName, match => `**${match}**`);
+      }
+
+      return acc;
+    }, []);
+
+    if (!hits.length) {
+      return;
+    }
+
+    if (!hits.some(hit => hit.flags.has('mute') || hit.flags.has('report'))) {
+      await this.discord.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(data.guild_id, data.user.id), {
+        data: {
+          nick: updatedName
+        }
+      }).catch(() => null);
+    }
+
+    let warned = false;
+    let muted = false;
+    let banned = false;
+    let reported = false;
+
+    this.guildLogs.publish({
+      type: LogTypes.forbiddenName,
+      data: {
+        guildId: data.guild_id,
+        before: name,
+        after: updatedName,
+        words: hits.map(hit => hit.word),
+        user: data.user,
+        nick
+      }
+    });
+
+    for (const hit of hits) {
+      const caseData: ApiPostGuildsCasesBody = [];
+      const unmuteRoles: Snowflake[] = [];
+
+      const reason = `automated punishment triggered for having ${hit.word} in their username`;
+
+      const caseBase = {
+        mod_id: this.config.discordClientId,
+        mod_tag: 'AutoModerator#0000',
+        reason,
+        target_id: data.user.id,
+        target_tag: `${data.user.username}#${data.user.discriminator}`,
+        created_at: new Date(),
+        execute: true
+      };
+
+      if (hit.flags.has('warn') && !warned && !banned) {
+        warned = true;
+        caseData.push({ action: CaseAction.warn, ...caseBase });
+      }
+
+      if (hit.flags.has('mute') && settings.mute_role && !muted && !banned) {
+        muted = true;
+        unmuteRoles.concat([...data.roles]);
+
+        let expiresAt: Date | undefined;
+        if (hit.duration) {
+          expiresAt = new Date(Date.now() + (hit.duration * 6e4));
+        }
+
+        caseData.push({ action: CaseAction.mute, expires_at: expiresAt, ...caseBase });
+      }
+
+      if (hit.flags.has('ban') && !banned) {
+        banned = true;
+        caseData.push({ action: CaseAction.ban, ...caseBase });
+      }
+
+      if (hit.flags.has('report') && !reported) {
+        reported = true;
+
+        await reportUser(data.user, name, nick, hits.map(hit => hit.word), settings);
+      }
+
+      if (caseData.length) {
+        const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(`/guilds/${data.guild_id}/cases`, caseData);
+
+        if (!hits.some(hit => hit.flags.has('report'))) {
+          this.guildLogs.publish({
+            data: cases,
+            type: LogTypes.modAction
+          });
+        }
+      }
+    }
+  }
+
   private handleGuildMemberUpdate(o: CachedGuildMember, n: GatewayGuildMemberUpdateDispatchData) {
     if (n.user.bot) {
       return;
@@ -277,6 +412,10 @@ export class Gateway {
     const logs: ServerLogs[] = [];
 
     if (o.nick !== n.nick) {
+      if (n.nick) {
+        void this.handleForbiddenName(n as APIGuildMember & { user: APIUser; guild_id: Snowflake }, n.nick, true);
+      }
+
       logs.push({
         type: ServerLogType.nickUpdate,
         data: {
@@ -287,6 +426,8 @@ export class Gateway {
     }
 
     if (o.user.username !== n.user.username) {
+      void this.handleForbiddenName(n as APIGuildMember & { user: APIUser; guild_id: Snowflake }, n.user.username, false);
+
       logs.push({
         type: ServerLogType.usernameUpdate,
         data: {
@@ -406,6 +547,7 @@ export class Gateway {
         void this.handleExistingMute(data);
         void this.handleJoinAge(data);
         void this.handleBlankAvatar(data);
+        void this.handleForbiddenName(data as APIGuildMember & { user: APIUser; guild_id: Snowflake }, data.user!.username, false);
       })
       .on(GatewayDispatchEvents.GuildMemberUpdate, async data => {
         const cachedOld = await this.guildMembersCache.get(data.guild_id, data.user.id);

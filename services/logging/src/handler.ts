@@ -3,6 +3,7 @@ import {
   Case,
   CaseAction,
   FilterTriggerLog,
+  ForbiddenNameLog,
   GroupedServerLogs,
   GuildSettings,
   Log,
@@ -428,11 +429,13 @@ export class Handler {
         fields: [
           {
             name: 'New nickname',
-            value: `>>> ${entry.n ?? 'none'}`
+            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+            value: `>>> ${entry.n || 'none'}`
           },
           {
             name: 'Previous nickname',
-            value: `>>> ${entry.o ?? 'none'}`
+            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+            value: `>>> ${entry.o || 'none'}`
           }
         ]
       });
@@ -637,6 +640,52 @@ export class Handler {
     void this._handleFilterUpdateLogs(settings, log, logs);
   }
 
+  private async _handleForbiddenNameLog(log: ForbiddenNameLog) {
+    const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${log.data.guildId}`;
+
+    if (!settings?.filter_trigger_log_channel) {
+      return;
+    }
+
+    const webhook = await this._assertWebhook(settings.filter_trigger_log_channel, 'Filter trigger');
+    if (!webhook) {
+      return;
+    }
+
+    await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
+      Routes.webhook(webhook.id, webhook.token), {
+        data: {
+          embeds: [
+            {
+              author: {
+                name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
+                icon_url: log.data.user.avatar
+                  ? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
+                  : `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`
+              },
+              title: `Had their ${log.data.nick ? 'nick' : 'user'}name filtered`,
+              fields: [
+                {
+                  name: 'Before',
+                  value: `>>> ${log.data.before}`,
+                  inline: true
+                },
+                {
+                  name: 'After',
+                  value: `>>> ${log.data.after}`,
+                  inline: true
+                }
+              ],
+              footer: {
+                text: `Content filtered: ${log.data.words.join(', ')}`
+              }
+            }
+          ]
+        }
+      }
+    );
+  }
+
   private _handleLog(log: Log) {
     switch (log.type) {
       case LogTypes.modAction: {
@@ -649,6 +698,10 @@ export class Handler {
 
       case LogTypes.server: {
         return this._handleServerLog(log);
+      }
+
+      case LogTypes.forbiddenName: {
+        return this._handleForbiddenNameLog(log);
       }
 
       default: {
