@@ -38,7 +38,7 @@ export const BanwordCommand = {
         },
         {
           name: 'mute',
-          description: 'Whether or not triggering this entry should cause a mute',
+          description: 'Whether triggering this entry should cause a mute',
           type: ApplicationCommandOptionType.Boolean,
           required: false
         },
@@ -51,6 +51,12 @@ export const BanwordCommand = {
         {
           name: 'ban',
           description: 'Whether or not triggering this entry should cause a ban',
+          type: ApplicationCommandOptionType.Boolean,
+          required: false
+        },
+        {
+          name: 'name',
+          description: 'Whether this is a username/nickname word ban',
           type: ApplicationCommandOptionType.Boolean,
           required: false
         }
