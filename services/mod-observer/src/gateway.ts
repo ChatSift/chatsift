@@ -390,7 +390,7 @@ export class Gateway {
       if (hit.flags.has('report') && !reported) {
         reported = true;
 
-        await reportUser(data.user, name, nick, hits.map(hit => hit.word), settings);
+        await reportUser(data, name, nick, hits.map(hit => hit.word), settings);
       }
 
       if (caseData.length) {

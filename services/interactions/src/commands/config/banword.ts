@@ -69,8 +69,8 @@ export default class implements Command {
         }
 
         if (args.add.report) {
-          if (flags.some(flag => flag !== 'word')) {
-            throw new ControlFlowError('Report is only valid with no flags or with the word flag');
+          if (!args.add.name && flags.some(flag => flag !== 'word')) {
+            throw new ControlFlowError('Report is only valid with no flags or with the word flag (unless this is a name ban)');
           }
 
           flags.push('report');

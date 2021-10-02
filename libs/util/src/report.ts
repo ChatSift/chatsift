@@ -6,6 +6,7 @@ import {
   RESTPostAPIChannelMessageResult,
   RESTPostAPIChannelMessageJSONBody,
   APIUser,
+  APIGuildMember,
   RouteBases,
   APIMessage,
   ButtonStyle,
@@ -159,10 +160,19 @@ export const reportMessage = async (reporterUser: APIUser, message: APIMessage, 
 /**
  * Internal use only for name filtering
  */
-export const reportUser = async (reportedUser: APIUser, name: string, nick: boolean, words: string[], settings: GuildSettings) => {
+export const reportUser = async (
+  { user: reportedUser, joined_at }: APIGuildMember & { user: APIUser },
+  name: string,
+  nick: boolean,
+  words: string[],
+  settings: GuildSettings
+) => {
   const rest = container.resolve(Rest);
 
   const id = nanoid();
+
+  const joined = `<t:${Math.round(new Date(joined_at).getTime() / 1000)}:R>`;
+  const age = `<t:${Math.round(getCreationData(reportedUser.id).createdTimestamp / 1000)}:R>`;
 
   await rest.post<RESTPostAPIChannelMessageResult, RESTPostAPIChannelMessageJSONBody>(
     Routes.channelMessages(settings.reports_channel!), {
@@ -177,7 +187,7 @@ export const reportUser = async (reportedUser: APIUser, name: string, nick: bool
                 : `${RouteBases.cdn}/embed/avatars/${parseInt(reportedUser.discriminator, 10) % 5}.png`
             },
             title: `Has been automatically reported for their ${nick ? 'nick' : 'user'}name`,
-            description: `\`\`\`\n${name}\`\`\``,
+            description: `\`\`\`\n${name}\`\`\`\n<@${reportedUser.id}> joined ${joined}, ${age} old account`,
             footer: {
               text: `Filter triggers: ${words.join(', ')}`
             }
@@ -189,7 +199,7 @@ export const reportUser = async (reportedUser: APIUser, name: string, nick: bool
             components: [
               {
                 type: ComponentType.Button,
-                label: 'Filter the content',
+                label: 'Action this',
                 style: ButtonStyle.Secondary,
                 custom_id: `report-user|${id}|filter|${reportedUser.id}`
               },
