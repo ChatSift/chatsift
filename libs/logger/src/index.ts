@@ -6,6 +6,7 @@ import pinoElastic from 'pino-elasticsearch';
 import { multistream, Streams } from 'pino-multi-stream';
 import pinoPretty from 'pino-pretty';
 import { container } from 'tsyringe';
+import { inspect } from 'util';
 
 export default (service: string) => {
   const { nodeEnv, elasticUrl, elasticUsername, elasticPassword } = container.resolve<Config>(kConfig);
@@ -37,7 +38,7 @@ export default (service: string) => {
       }) as NodeJS.WriteStream)
         .on('unknown', (line, error) => console.error(`[${index}] Elasticsearch client json error in line:\n${line}\nError:`, error))
         .on('error', error => console.error(`[${index}] Elasticsearch client error:`, error))
-        .on('insertError', error => console.error(`[${index}] Elasticsearch server error:`, error));
+        .on('insertError', error => console.error(`[${index}] Elasticsearch server error:`, error, inspect(error.document, true, Infinity)));
 
     const logsStream = getElasticStream(`logs-${service}`);
 

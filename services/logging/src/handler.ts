@@ -363,7 +363,6 @@ export class Handler {
       this.logger.metric!({
         type: 'filter_trigger',
         triggerType: Runners[trigger.runner],
-        data: trigger.data,
         guild: log.data.message.guild_id
       });
     }
