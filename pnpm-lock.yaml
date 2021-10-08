@@ -48,14 +48,14 @@ importers:
 
   libs/banword-flags:
     specifiers:
-      '@cordis/bitfield': 1.0.2-next.2616696.1632048891
+      '@cordis/bitfield': 1.0.2-next.2616696.163369938
       '@types/node': ^14.17.6
       tslib: ^2.3.0
       typescript: ^4.4.2
     dependencies:
       tslib: 2.3.0
     devDependencies:
-      '@cordis/bitfield': 1.0.2-next.2616696.1632048891
+      '@cordis/bitfield': 1.0.2-next.2616696.163369938
       '@types/node': 14.17.6
       typescript: 4.4.2
 
@@ -97,7 +97,7 @@ importers:
     specifiers:
       '@automoderator/core': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
-      '@cordis/bitfield': 1.0.2-next.2616696.1632048891
+      '@cordis/bitfield': 1.0.2-next.2616696.163369938
       '@cordis/rest': 1.0.2-next.2616696.1632048891
       '@types/node': ^14.17.6
       '@types/pino': ^6.3.11
@@ -114,7 +114,7 @@ importers:
       tsyringe: 4.6.0
     devDependencies:
       '@automoderator/core': link:../core
-      '@cordis/bitfield': 1.0.2-next.2616696.1632048891
+      '@cordis/bitfield': 1.0.2-next.2616696.163369938
       '@types/node': 14.17.6
       '@types/pino': 6.3.11
       postgres: 2.0.0-beta.6
@@ -122,14 +122,14 @@ importers:
 
   libs/filter-ignores:
     specifiers:
-      '@cordis/bitfield': 1.0.2-next.2616696.1632048891
+      '@cordis/bitfield': 1.0.2-next.2616696.163369938
       '@types/node': ^14.17.6
       tslib: ^2.3.0
       typescript: ^4.4.2
     dependencies:
       tslib: 2.3.0
     devDependencies:
-      '@cordis/bitfield': 1.0.2-next.2616696.1632048891
+      '@cordis/bitfield': 1.0.2-next.2616696.163369938
       '@types/node': 14.17.6
       typescript: 4.4.2
 
@@ -199,7 +199,7 @@ importers:
       '@automoderator/core': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
-      '@cordis/bitfield': 1.0.2-next.2616696.1632048891
+      '@cordis/bitfield': 1.0.2-next.2616696.163369938
       '@gaius-bot/readdir': ^1.0.0
       '@hapi/boom': ^9.1.3
       '@sapphire/stopwatch': ^1.1.4
@@ -227,7 +227,7 @@ importers:
       '@automoderator/core': link:../core
       '@automoderator/injection': link:../injection
       '@automoderator/logger': link:../logger
-      '@cordis/bitfield': 1.0.2-next.2616696.1632048891
+      '@cordis/bitfield': 1.0.2-next.2616696.163369938
       '@hapi/boom': 9.1.3
       '@sapphire/stopwatch': 1.1.4
       bcrypt: 5.0.1
@@ -386,7 +386,7 @@ importers:
       '@cordis/brokers': 1.0.2-next.2616696.1632048891
       '@cordis/redis-store': ^1.0.2-next.2616696.1632048891
       '@cordis/rest': 1.0.2-next.2616696.1632048891
-      '@cordis/store': ^1.0.2-next.2616696.1632048891
+      '@cordis/store': ^1.0.2-next.2616696.163369938
       '@cordis/util': ^1.0.2-next.2616696.1632048891
       '@types/amqplib': ^0.8.1
       '@types/common-tags': ^1.8.1
@@ -416,7 +416,7 @@ importers:
       '@cordis/brokers': 1.0.2-next.2616696.1632048891
       '@cordis/redis-store': 1.0.2-next.2616696.1632048891
       '@cordis/rest': 1.0.2-next.2616696.1632048891
-      '@cordis/store': 1.0.2-next.2616696.1632048891
+      '@cordis/store': 1.0.2-next.2616696.163369938
       '@cordis/util': 1.0.2-next.2616696.1632048891
       common-tags: 1.8.0
       discord-api-types: 0.23.0-next.64937e2.1630412948
@@ -475,7 +475,7 @@ importers:
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@cordis/brokers': 1.0.2-next.2616696.1632048891
-      '@cordis/common': 1.0.2-next.2616696.1632048891
+      '@cordis/common': 1.0.2-next.2616696.163369938
       '@cordis/gateway': ^1.0.2-next.2616696.1632048891
       '@cordis/redis-store': ^1.0.2-next.2616696.1632048891
       '@types/ioredis': ^4.26.7
@@ -499,7 +499,7 @@ importers:
       tslib: 2.3.0
       tsyringe: 4.6.0
     devDependencies:
-      '@cordis/common': 1.0.2-next.2616696.1632048891
+      '@cordis/common': 1.0.2-next.2616696.163369938
       '@types/ioredis': 4.26.7
       '@types/node': 14.17.6
       discord-api-types: 0.23.0-next.64937e2.1630412948
@@ -632,7 +632,7 @@ importers:
       '@cordis/brokers': 1.0.2-next.2616696.1632048891
       '@cordis/redis-store': ^1.0.2-next.2616696.1632048891
       '@cordis/rest': 1.0.2-next.2616696.1632048891
-      '@cordis/store': ^1.0.2-next.2616696.1632048891
+      '@cordis/store': ^1.0.2-next.2616696.163369938
       '@cordis/util': ^1.0.2-next.2616696.1632048891
       '@types/amqplib': ^0.8.1
       '@types/ioredis': ^4.26.7
@@ -659,7 +659,7 @@ importers:
       '@cordis/brokers': 1.0.2-next.2616696.1632048891
       '@cordis/redis-store': 1.0.2-next.2616696.1632048891
       '@cordis/rest': 1.0.2-next.2616696.1632048891
-      '@cordis/store': 1.0.2-next.2616696.1632048891
+      '@cordis/store': 1.0.2-next.2616696.163369938
       '@cordis/util': 1.0.2-next.2616696.1632048891
       discord-api-types: 0.23.0-next.64937e2.1630412948
       ioredis: 4.27.7
@@ -1884,6 +1884,13 @@ packages:
     dependencies:
       '@cordis/error': 1.0.2-next.2616696.1632048891
       tslib: 2.3.1
+    dev: false
+
+  /@cordis/bitfield/1.0.2-next.2616696.163369938:
+    resolution: {integrity: sha512-jgZbEk3MD54mTIKxtqpxIDMzlKPLTdLq6mYqITltmys0chpOb2sDWMwViLSyDeGf1g8E6X4HjSAz+Js1BkfWuQ==}
+    dependencies:
+      '@cordis/error': 1.0.2
+      tslib: 2.3.1
 
   /@cordis/brokers/1.0.2-next.2616696.1632048891:
     resolution: {integrity: sha512-ni8eL4Az/bsjv0aTDd1HntBnjTnATF3AIHU2OyLvKBHqD8nbKDmpj+y8ppUWAhOesB/Rk69eGIyj5sShiSkdrA==}
@@ -1900,6 +1907,19 @@ packages:
     dependencies:
       '@cordis/error': 1.0.2-next.2616696.1632048891
       discord-api-types: 0.22.0
+      tslib: 2.3.1
+
+  /@cordis/common/1.0.2-next.2616696.163369938:
+    resolution: {integrity: sha512-reVA46Wazcnozk2GtOrhQNtegdHEJWYoXw3jcUUXrBPoM1daSvM/qht/jVKisXZXSl8dvIbP760ivZEmASWi0Q==}
+    dependencies:
+      '@cordis/error': 1.0.2
+      discord-api-types: 0.22.0
+      tslib: 2.3.1
+    dev: true
+
+  /@cordis/error/1.0.2:
+    resolution: {integrity: sha512-XbicRYcA+umn/9h74Lj+wJgmYNDTi7Nd+h0La7HCzNg6GEG9+89aCFUSQjzMayYSZXspEzZ3h5lDD02p2HCBKw==}
+    dependencies:
       tslib: 2.3.1
 
   /@cordis/error/1.0.2-next.2616696.1632048891:
@@ -1956,6 +1976,13 @@ packages:
     dependencies:
       '@cordis/error': 1.0.2-next.2616696.1632048891
       tslib: 2.3.1
+
+  /@cordis/store/1.0.2-next.2616696.163369938:
+    resolution: {integrity: sha512-xrj8GBkY9mgeZJGBWRNixt8dSza8BRhVlHoI3hYb2D68NaXkKLFbsdPRoq38xkkPLf8PjlaE+kk5iBIq9GS4PQ==}
+    dependencies:
+      '@cordis/error': 1.0.2
+      tslib: 2.3.1
+    dev: false
 
   /@cordis/util/1.0.2-next.2616696.1632048891:
     resolution: {integrity: sha512-QWK5HG6aobx6X+vtrTcLk1vWfd3MFtbMe6ENw3pCSOV56felQebo5gkPM776dkEYaMf7o3X9RkDHjdzvc8estg==}
@@ -3972,7 +3999,7 @@ packages:
     dependencies:
       asynckit: 0.4.0
       combined-stream: 1.0.8
-      mime-types: 2.1.32
+      mime-types: 2.1.33
 
   /formidable/1.2.2:
     resolution: {integrity: sha512-V8gLm+41I/8kguQ4/o1D3RIHRmhYFG4pnNyonvua+40rqcEmT4+V71yaZ3B457xbbgCsCfjSPi65u/W6vK1U5Q==}
@@ -5382,15 +5409,15 @@ packages:
       picomatch: 2.3.0
     dev: true
 
-  /mime-db/1.49.0:
-    resolution: {integrity: sha512-CIc8j9URtOVApSFCQIF+VBkX1RwXp/oMMOrqdyXSBXq5RWNEsRfyj1kiRnQgmNXmHxPoFIxOroKA3zcU9P+nAA==}
+  /mime-db/1.50.0:
+    resolution: {integrity: sha512-9tMZCDlYHqeERXEHO9f/hKfNXhre5dK2eE/krIvUjZbS2KPcqGDfNShIWS1uW9XOTKQKqK6qbeOci18rbfW77A==}
     engines: {node: '>= 0.6'}
 
-  /mime-types/2.1.32:
-    resolution: {integrity: sha512-hJGaVS4G4c9TSMYh2n6SQAGrC4RnfU+daP8G7cSCmaqNjiOoUY0VHCMS42pxnQmVF1GWwFhbHWn3RIxCqTmZ9A==}
+  /mime-types/2.1.33:
+    resolution: {integrity: sha512-plLElXp7pRDd0bNZHw+nMd52vRYjLwQjygaNg7ddJ2uJtTlmnTCjWuPKxVu6//AdaRuME84SvLW91sIkBqGT0g==}
     engines: {node: '>= 0.6'}
     dependencies:
-      mime-db: 1.49.0
+      mime-db: 1.50.0
 
   /mime/2.5.2:
     resolution: {integrity: sha512-tqkh47FzKeCPD2PUiPB6pkbMzsCasjxAfC62/Wap5qrUWcb+sFasXUC5I3gYM5iBM8v/Qpn4UK0x+j0iHyFPDg==}

@@ -40,7 +40,7 @@
     "@cordis/brokers": "1.0.2-next.2616696.1632048891",
     "@cordis/redis-store": "^1.0.2-next.2616696.1632048891",
     "@cordis/rest": "1.0.2-next.2616696.1632048891",
-    "@cordis/store": "^1.0.2-next.2616696.1632048891",
+    "@cordis/store": "^1.0.2-next.2616696.163369938",
     "@cordis/util": "^1.0.2-next.2616696.1632048891",
     "common-tags": "^1.8.0",
     "discord-api-types": "^0.23.0-next.64937e2.1630412948",

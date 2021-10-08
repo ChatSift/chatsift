@@ -10,10 +10,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Install Node v16
+      - name: Install Node
         uses: actions/setup-node@v1
         with:
-          node-version: 16
+          node-version: 14
 
       - name: Install pnpm
         run: curl -L https://unpkg.com/@pnpm/self-installer | node
