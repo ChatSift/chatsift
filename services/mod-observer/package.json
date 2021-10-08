@@ -19,12 +19,12 @@
   },
   "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
-    "@types/amqplib": "^0.8.1",
-    "@types/ioredis": "^4.26.7",
-    "@types/node": "^14.17.6",
+    "@types/amqplib": "^0.8.2",
+    "@types/ioredis": "^4.27.6",
+    "@types/node": "^16.10.3",
     "@types/node-fetch": "^2.5.12",
     "@types/pino": "^6.3.11",
-    "typescript": "^4.4.2"
+    "typescript": "^4.4.3"
   },
   "dependencies": {
     "@automoderator/banword-flags": "workspace:^0.1.0",
@@ -35,17 +35,17 @@
     "@automoderator/injection": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
     "@automoderator/util": "workspace:^0.1.0",
-    "@cordis/brokers": "1.0.2-next.2616696.1632048891",
-    "@cordis/redis-store": "^1.0.2-next.2616696.1632048891",
-    "@cordis/rest": "1.0.2-next.2616696.1632048891",
-    "@cordis/store": "^1.0.2-next.2616696.163369938",
-    "@cordis/util": "^1.0.2-next.2616696.1632048891",
-    "discord-api-types": "^0.23.0-next.64937e2.1630412948",
-    "ioredis": "^4.27.7",
-    "node-fetch": "^2.6.1",
-    "postgres": "^2.0.0-beta.6",
+    "@cordis/brokers": "1.0.2-next.2616696.163369938",
+    "@cordis/redis-store": "1.0.2-next.2616696.163369938",
+    "@cordis/rest": "1.0.2-next.2616696.163369938",
+    "@cordis/store": "1.0.2-next.2616696.163369938",
+    "@cordis/util": "1.0.2-next.2616696.163369938",
+    "discord-api-types": "^0.23.1",
+    "ioredis": "^4.27.10",
+    "node-fetch": "^2.6.5",
+    "postgres": "^2.0.0-beta.10",
     "reflect-metadata": "^0.1.13",
-    "tslib": "^2.3.0",
+    "tslib": "^2.3.1",
     "tsyringe": "^4.6.0"
   }
 }

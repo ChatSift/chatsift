@@ -101,9 +101,11 @@ export const reportMessage = async (reporterUser: APIUser, message: APIMessage, 
                 },
                 title: `Had their message posted <t:${Math.round(getCreationData(message.id).createdTimestamp / 1000)}:R> reported`,
                 description: message.content.length ? `\`\`\`${message.content}\`\`\`` : 'No text content',
-                image: {
-                  url: message.attachments[0]?.url
-                },
+                image: message.attachments[0]
+                  ? {
+                    url: message.attachments[0].url
+                  }
+                  : undefined,
                 footer: {
                   text: `Reported by: ${reporter.tag} (${reporter.id})`,
                   icon_url: reporter.avatar

@@ -38,7 +38,7 @@ export const truncateEmbed = (embed: APIEmbed): APIEmbed =>
     author: embed.author
       ? {
         ...embed.author,
-        name: embed.author.name ? ellipsis(embed.author.name, EMBED_AUTHOR_NAME_LIMIT) : undefined
+        name: ellipsis(embed.author.name, EMBED_AUTHOR_NAME_LIMIT)
 			  }
       : undefined,
     footer: embed.footer

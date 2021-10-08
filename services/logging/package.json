@@ -19,10 +19,10 @@
   },
   "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
-    "@types/amqplib": "^0.8.1",
-    "@types/node": "^14.17.6",
+    "@types/amqplib": "^0.8.2",
+    "@types/node": "^16.10.3",
     "@types/pino": "^6.3.11",
-    "typescript": "^4.4.2"
+    "typescript": "^4.4.3"
   },
   "dependencies": {
     "@automoderator/banword-flags": "workspace:^0.1.0",
@@ -30,13 +30,13 @@
     "@automoderator/injection": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
     "@automoderator/util": "workspace:^0.1.0",
-    "@cordis/brokers": "1.0.2-next.2616696.1632048891",
-    "@cordis/rest": "^1.0.2-next.2616696.1632048891",
-    "@cordis/util": "^1.0.2-next.2616696.1632048891",
-    "discord-api-types": "^0.23.0-next.64937e2.1630412948",
-    "postgres": "^2.0.0-beta.6",
+    "@cordis/brokers": "1.0.2-next.2616696.163369938",
+    "@cordis/rest": "1.0.2-next.2616696.163369938",
+    "@cordis/util": "1.0.2-next.2616696.163369938",
+    "discord-api-types": "^0.23.1",
+    "postgres": "^2.0.0-beta.10",
     "reflect-metadata": "^0.1.13",
-    "tslib": "^2.3.0",
+    "tslib": "^2.3.1",
     "tsyringe": "^4.6.0"
   }
 }

@@ -23,11 +23,11 @@
   },
   "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
-    "@types/node": "^14.17.6",
+    "@types/node": "^16.10.3",
     "@types/node-fetch": "^2.5.12",
     "@types/pino": "^6.3.11",
-    "polka": "^1.0.0-next.15",
-    "typescript": "^4.4.2"
+    "polka": "^1.0.0-next.22",
+    "typescript": "^4.4.3"
   },
   "dependencies": {
     "@automoderator/banword-flags": "workspace:^0.1.0",
@@ -37,16 +37,16 @@
     "@automoderator/injection": "workspace:^0.1.0",
     "@automoderator/logger": "workspace:^0.1.0",
     "@automoderator/rest": "workspace:^0.1.0",
-    "@cordis/rest": "1.0.2-next.2616696.1632048891",
+    "@cordis/rest": "1.0.2-next.2616696.163369938",
     "@gaius-bot/readdir": "^1.0.0",
-    "@hapi/boom": "^9.1.3",
+    "@hapi/boom": "^9.1.4",
     "cookie": "^0.4.1",
-    "discord-api-types": "^0.23.0-next.64937e2.1630412948",
-    "joi": "^17.4.1",
-    "node-fetch": "^2.6.1",
-    "postgres": "^2.0.0-beta.6",
+    "discord-api-types": "^0.23.1",
+    "joi": "^17.4.2",
+    "node-fetch": "^2.6.5",
+    "postgres": "^2.0.0-beta.10",
     "reflect-metadata": "^0.1.13",
-    "tslib": "^2.3.0",
+    "tslib": "^2.3.1",
     "tsyringe": "^4.6.0"
   }
 }
