@@ -16,15 +16,15 @@ export default class PutGuildsFiltersInvitesAllowlistRoute extends Route {
   }
 
   public async handle(req: Request, res: Response, next: NextHandler) {
-    const { gid, code } = req.params as { gid: Snowflake; code: string };
+    const { gid, guild } = req.params as { gid: Snowflake; guild: string };
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    const ignore = await this.controller.add(gid, code);
+    const ignore = await this.controller.add(gid, guild);
 
     if (!ignore) {
-      return next(conflict('That invite code is already on the allowlist'));
+      return next(conflict('That guild is already on the allowlist'));
     }
 
     return res.end(JSON.stringify(ignore));

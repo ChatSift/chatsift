@@ -202,7 +202,7 @@ export interface FilterIgnore {
 
 export interface AllowedInvite {
   guild_id: Snowflake;
-  invite_code: string;
+  allowed_guild_id: Snowflake;
 }
 
 export interface AllowedUrl {

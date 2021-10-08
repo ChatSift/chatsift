@@ -3,6 +3,7 @@ export * from './ban';
 export * from './case';
 export * from './history';
 export * from './kick';
+export * from './lookup-invite';
 export * from './mute';
 export * from './pardon';
 export * from './purge';

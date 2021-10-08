@@ -659,3 +659,12 @@ export class Gateway {
     return gateway;
   }
 }
+
+class Test {
+  public toString(): `<#${string}>` {
+    return `<#${123}>`;
+  }
+}
+
+const test = new Test();
+test.toString();
