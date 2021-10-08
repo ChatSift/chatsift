@@ -6,7 +6,7 @@ import type {
   ApiPutFiltersInvitesAllowlistCodeResult
 } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { HTTPError, Rest as DiscordRest } from '@cordis/rest';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { singleton } from 'tsyringe';
 import { Command } from '../../../../command';
@@ -18,52 +18,38 @@ export class InvitesConfig implements Command {
     public readonly discordRest: DiscordRest
   ) {}
 
-  private cleanInvite(invite: string) {
-    return invite
-      .replace(/(https?:\/\/)?(discord\.gg\/?)?/g, '')
-      .replace(/ +/g, '');
-  }
-
   public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof FilterCommand>['invites']) {
     switch (Object.keys(args)[0] as keyof typeof args) {
       case 'allow': {
-        const promises = [];
-
-        for (const entry of args.allow.entries.split(',')) {
-          const res = this.rest.put<ApiPutFiltersInvitesAllowlistCodeResult>(
-            `/guilds/${interaction.guild_id}/filters/invites/allowlist/${this.cleanInvite(entry)}`
+        try {
+          await this.rest.put<ApiPutFiltersInvitesAllowlistCodeResult>(
+            `/guilds/${interaction.guild_id}/filters/invites/allowlist/${args.allow.guild}`
           );
 
-          promises.push(res);
+          return send(interaction, { content: 'Successfully added the given guild to the allowlist' });
+        } catch (error) {
+          if (error instanceof HTTPError && error.response.status === 409) {
+            return send(interaction, { content: 'There was nothing to add!', flags: 64 });
+          }
+
+          throw error;
         }
-
-        const added = (await Promise.allSettled(promises)).filter(promise => promise.status === 'fulfilled');
-
-        if (!added.length) {
-          return send(interaction, { content: 'There was nothing to add!', flags: 64 });
-        }
-
-        return send(interaction, { content: 'Successfully added the given entries to the allowlist' });
       }
 
       case 'unallow': {
-        const promises = [];
-
-        for (const entry of args.unallow.entries.split(',')) {
-          const res = this.rest.delete<ApiDeleteFiltersInvitesAllowlistCodeResult>(
-            `/guilds/${interaction.guild_id}/filters/invites/allowlist/${this.cleanInvite(entry)}`
+        try {
+          await this.rest.delete<ApiDeleteFiltersInvitesAllowlistCodeResult>(
+            `/guilds/${interaction.guild_id}/filters/inviters/allowlist/${args.unallow.guild}`
           );
 
-          promises.push(res);
+          return send(interaction, { content: 'Successfully removed the given entries from the given allowlist' });
+        } catch (error) {
+          if (error instanceof HTTPError && error.response.status === 404) {
+            return send(interaction, { content: 'There was nothing to delete!', flags: 64 });
+          }
+
+          throw error;
         }
-
-        const deleted = (await Promise.allSettled(promises)).filter(promise => promise.status === 'fulfilled');
-
-        if (!deleted.length) {
-          return send(interaction, { content: 'There was nothing to delete!', flags: 64 });
-        }
-
-        return send(interaction, { content: 'Successfully removed the given entries from the given allowlist' });
       }
 
       case 'list': {
@@ -75,7 +61,7 @@ export class InvitesConfig implements Command {
           return send(interaction, { content: 'There is currently nothing on your allowlist' });
         }
 
-        const content = allows.map(entry => `https://discord.gg/${entry.invite_code}`).join('\n');
+        const content = allows.map(entry => entry.allowed_guild_id).join('\n');
 
         return send(interaction, {
           content: 'Here\'s your list',

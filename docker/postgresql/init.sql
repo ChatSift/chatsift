@@ -203,8 +203,8 @@ CREATE TABLE IF NOT EXISTS filter_ignores (
 
 CREATE TABLE IF NOT EXISTS allowed_invites (
   guild_id bigint NOT NULL,
-  invite_code text NOT NULL,
-  PRIMARY KEY (guild_id, invite_code)
+  allowed_guild_id bigint NOT NULL,
+  PRIMARY KEY (guild_id, allowed_guild_id)
 );
 
 CREATE TABLE IF NOT EXISTS allowed_urls (

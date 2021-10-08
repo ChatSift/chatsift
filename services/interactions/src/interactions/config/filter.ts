@@ -58,12 +58,12 @@ export const FilterCommand = {
       options: [
         {
           name: 'allow',
-          description: 'Adds the given invites to the allow list',
+          description: 'Adds the given guild to the allow list',
           type: ApplicationCommandOptionType.Subcommand,
           options: [
             {
-              name: 'entries',
-              description: 'The entries to allow',
+              name: 'guild',
+              description: 'The guild to allow',
               type: ApplicationCommandOptionType.String,
               required: true
             }
@@ -71,12 +71,12 @@ export const FilterCommand = {
         },
         {
           name: 'unallow',
-          description: 'Removes the given invites from the allow list',
+          description: 'Removes the given guild from the allow list',
           type: ApplicationCommandOptionType.Subcommand,
           options: [
             {
-              name: 'entries',
-              description: 'The entries to remove from the allowlist',
+              name: 'guild',
+              description: 'The guild to remove from the allow list',
               type: ApplicationCommandOptionType.String,
               required: true
             }
@@ -84,7 +84,7 @@ export const FilterCommand = {
         },
         {
           name: 'list',
-          description: 'Lists all the allowed invites',
+          description: 'Lists all the allowed guilds',
           type: ApplicationCommandOptionType.Subcommand,
           options: []
         }

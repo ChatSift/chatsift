@@ -1,6 +1,6 @@
 import { InvitesAllowlistController } from '#controllers';
 import { Route, thirdPartyAuth } from '@automoderator/rest';
-import { conflict } from '@hapi/boom';
+import { notFound } from '@hapi/boom';
 import type { Snowflake } from 'discord-api-types/v9';
 import type { NextHandler, Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
@@ -16,15 +16,15 @@ export default class DeleteGuildsFiltersInvitesAllowlistRoute extends Route {
   }
 
   public async handle(req: Request, res: Response, next: NextHandler) {
-    const { gid, code } = req.params as { gid: Snowflake; code: string };
+    const { gid, guild } = req.params as { gid: Snowflake; guild: string };
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    const ignore = await this.controller.delete(gid, code);
+    const ignore = await this.controller.delete(gid, guild);
 
     if (!ignore) {
-      return next(conflict('That invite code was not on the allowlist'));
+      return next(notFound('That guild was not on the allowlist'));
     }
 
     return res.end(JSON.stringify(ignore));

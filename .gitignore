@@ -11,6 +11,8 @@ node_modules
 doc
 docs
 
+ley.config.mjs
+
 docker-compose.config.yml
 docker-compose.config.dev.yml
 docker-compose.config.prod.yml

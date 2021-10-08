@@ -10,9 +10,9 @@ export class InvitesAllowlistController {
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
-  public get(guildId: Snowflake, code: string): Promise<AllowedInvite | undefined> {
+  public get(guildId: Snowflake, allowed: Snowflake): Promise<AllowedInvite | undefined> {
     return this
-      .sql<[AllowedInvite?]>`SELECT * FROM allowed_invites WHERE guild_id = ${guildId} AND invite_code = ${code}`
+      .sql<[AllowedInvite?]>`SELECT * FROM allowed_invites WHERE guild_id = ${guildId} AND allowed_guild_id = ${allowed}`
       .then(rows => rows[0]);
   }
 
@@ -20,21 +20,21 @@ export class InvitesAllowlistController {
     return this.sql<AllowedInvite[]>`SELECT * FROM allowed_invites WHERE guild_id = ${guildId}`;
   }
 
-  public async add(guildId: Snowflake, code: string): Promise<AllowedInvite | undefined> {
-    if (await this.get(guildId, code)) {
+  public async add(guildId: Snowflake, allowed: Snowflake): Promise<AllowedInvite | undefined> {
+    if (await this.get(guildId, allowed)) {
       return;
     }
 
     return this
-      .sql<[AllowedInvite]>`INSERT INTO allowed_invites (guild_id, invite_code) VALUES (${guildId}, ${code}) RETURNING *`
+      .sql<[AllowedInvite]>`INSERT INTO allowed_invites (guild_id, allowed_guild_id) VALUES (${guildId}, ${allowed}) RETURNING *`
       .then(rows => rows[0]);
   }
 
-  public delete(guildId: Snowflake, code: string): Promise<AllowedInvite | undefined> {
+  public delete(guildId: Snowflake, allowed: Snowflake): Promise<AllowedInvite | undefined> {
     return this
       .sql<AllowedInvite[]>`
         DELETE FROM allowed_invites
-        WHERE guild_id = ${guildId} AND invite_code = ${code}
+        WHERE guild_id = ${guildId} AND allowed_guild_id = ${allowed}
         RETURNING *
       `
       .then(rows => rows[0]);
