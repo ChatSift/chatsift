@@ -63,14 +63,14 @@ export default class implements Command {
 
     const preview = await this.discordRest.get<RESTGetAPIGuildPreviewResult>(Routes.guildPreview(invite.guild.id)).catch(() => null);
     const timestamp = Math.round(getCreationData(invite.guild.id).createdTimestamp / 1000);
-    const image: APIEmbedImage | undefined = preview?.discovery_splash
+    const image: APIEmbedImage | undefined = invite.guild.banner
       ? {
-        url: makeDiscordCdnUrl(`${RouteBases.cdn}/discovery-splashes/${invite.guild.id}/${preview.discovery_splash}`, { size: 2048 })
+        url: makeDiscordCdnUrl(`${RouteBases.cdn}/banner/${invite.guild.id}/${invite.guild.banner}`, { size: 2048 })
       }
       : (
-        invite.guild.banner
+        preview?.discovery_splash
           ? {
-            url: makeDiscordCdnUrl(`${RouteBases.cdn}/banners/${invite.guild.id}/${invite.guild.banner}`, { size: 2048 })
+            url: makeDiscordCdnUrl(`${RouteBases.cdn}/discovery-splashes/${invite.guild.id}/${preview.discovery_splash}`, { size: 2048 })
           }
           : undefined
       );
