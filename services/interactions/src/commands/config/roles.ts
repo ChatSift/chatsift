@@ -8,7 +8,8 @@ import {
   SelfAssignableRolePrompt,
   ApiPutGuildPromptsBody,
   ApiPutGuildPromptsResult,
-  SelfAssignableRole
+  SelfAssignableRole,
+  sectionArray
 } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { HTTPError, Rest } from '@automoderator/http-client';
@@ -77,20 +78,22 @@ export default class implements Command {
                   }
                   : undefined
               },
-              components: [
-                {
-                  type: ComponentType.ActionRow,
-                  components: (prompt.use_buttons && prompt.roles.length <= 3)
-                    ? prompt.roles.map(
-                      (role): APIButtonComponent => ({
-                        type: ComponentType.Button,
-                        label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
-                        style: ButtonStyle.Secondary,
-                        disabled: !roles.has(role.role_id),
-                        custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
-                      })
-                    )
-                    : [
+              components: (prompt.use_buttons && prompt.roles.length <= 25)
+                ? sectionArray(
+                  prompt.roles.map(
+                    (role): APIButtonComponent => ({
+                      type: ComponentType.Button,
+                      label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
+                      style: ButtonStyle.Secondary,
+                      disabled: !roles.has(role.role_id),
+                      custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
+                    })
+                  ), 5
+                ).map(components => ({ type: ComponentType.ActionRow, components }))
+                : [
+                  {
+                    type: ComponentType.ActionRow,
+                    components: [
                       {
                         type: ComponentType.Button,
                         label: 'Manage your roles',
@@ -98,8 +101,8 @@ export default class implements Command {
                         custom_id: `roles-manage-prompt|${nanoid()}`
                       }
                     ]
-                }
-              ]
+                  }
+                ]
             }
           }
         );
@@ -204,20 +207,22 @@ export default class implements Command {
           await this.discordRest.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
             Routes.channelMessage(prompt.channel_id, prompt.message_id), {
               data: {
-                components: [
-                  {
-                    type: ComponentType.ActionRow,
-                    components: (prompt.use_buttons && prompt.roles.length <= 3)
-                      ? prompt.roles.map(
-                        (role): APIButtonComponent => ({
-                          type: ComponentType.Button,
-                          label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
-                          style: ButtonStyle.Secondary,
-                          disabled: !roles.has(role.role_id),
-                          custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
-                        })
-                      )
-                      : [
+                components: (prompt.use_buttons && prompt.roles.length <= 25)
+                  ? sectionArray(
+                    prompt.roles.map(
+                      (role): APIButtonComponent => ({
+                        type: ComponentType.Button,
+                        label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
+                        style: ButtonStyle.Secondary,
+                        disabled: !roles.has(role.role_id),
+                        custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
+                      })
+                    ), 5
+                  ).map(components => ({ type: ComponentType.ActionRow, components }))
+                  : [
+                    {
+                      type: ComponentType.ActionRow,
+                      components: [
                         {
                           type: ComponentType.Button,
                           label: 'Manage your roles',
@@ -225,15 +230,15 @@ export default class implements Command {
                           custom_id: `roles-manage-prompt|${nanoid()}`
                         }
                       ]
-                  }
-                ]
+                    }
+                  ]
               }
             }
           );
 
           let content = 'Successfully added the given role to the list of self assignable roles';
-          if (prompt.roles.length > 3 && prompt.use_buttons) {
-            content += '\n\nWARNING: You\'ve gone above 3 buttons, switching to dropdown';
+          if (prompt.roles.length > 25 && prompt.use_buttons) {
+            content += '\n\nWARNING: You\'ve gone above 25 buttons, switching to dropdown';
           }
 
           return send(interaction, { content });
@@ -260,20 +265,22 @@ export default class implements Command {
           await this.discordRest.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
             Routes.channelMessage(prompt.channel_id, prompt.message_id), {
               data: {
-                components: [
-                  {
-                    type: ComponentType.ActionRow,
-                    components: (prompt.use_buttons && prompt.roles.length <= 3)
-                      ? prompt.roles.map(
-                        (role): APIButtonComponent => ({
-                          type: ComponentType.Button,
-                          label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
-                          style: ButtonStyle.Secondary,
-                          disabled: !roles.has(role.role_id),
-                          custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
-                        })
-                      )
-                      : [
+                components: (prompt.use_buttons && prompt.roles.length <= 25)
+                  ? sectionArray(
+                    prompt.roles.map(
+                      (role): APIButtonComponent => ({
+                        type: ComponentType.Button,
+                        label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
+                        style: ButtonStyle.Secondary,
+                        disabled: !roles.has(role.role_id),
+                        custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
+                      })
+                    ), 5
+                  ).map(components => ({ type: ComponentType.ActionRow, components }))
+                  : [
+                    {
+                      type: ComponentType.ActionRow,
+                      components: [
                         {
                           type: ComponentType.Button,
                           label: 'Manage your roles',
@@ -281,15 +288,15 @@ export default class implements Command {
                           custom_id: `roles-manage-prompt|${nanoid()}`
                         }
                       ]
-                  }
-                ]
+                    }
+                  ]
               }
             }
           );
 
           let content = 'Successfully removed the given role from the list of self assignable roles';
           if (prompt.roles.length <= 3 && prompt.use_buttons) {
-            content += '\n\nNote: Back to 3 or less roles, switching back to buttons';
+            content += '\n\nNote: Back to 25 or less roles, switching back to buttons';
           }
 
           return send(interaction, { content });

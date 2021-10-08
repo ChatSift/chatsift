@@ -23,3 +23,19 @@ export const groupBy = <T, R extends string>(array: T[], grouper: (element: T) =
 
   return grouped;
 };
+
+export const sectionArray = <T>(array: T[], amount: number): T[][] => {
+  const out: T[][] = [];
+  let pushed = 0;
+  let i = 0;
+
+  for (const element of array) {
+    (out[i] ??= []).push(element);
+    if (++pushed === amount) {
+      pushed = 0;
+      i++;
+    }
+  }
+
+  return out;
+};
