@@ -23,7 +23,7 @@ import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 @injectable()
 export default class implements Command {
   public readonly userPermissions = UserPerms.mod;
-  public readonly inviteRegex = /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})/gi;
+  public readonly inviteRegex = /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})/i;
 
   public constructor(
     @inject(kLogger) public readonly logger: Logger,
@@ -66,15 +66,11 @@ export default class implements Command {
     const image: APIEmbedImage | undefined = preview?.discovery_splash
       ? {
         url: makeDiscordCdnUrl(`${RouteBases.cdn}/discovery-splashes/${invite.guild.id}/${preview.discovery_splash}`, { size: 2048 })
-        // height: 1920,
-        // width: 1080
       }
       : (
         invite.guild.banner
           ? {
             url: makeDiscordCdnUrl(`${RouteBases.cdn}/banners/${invite.guild.id}/${invite.guild.banner}`, { size: 2048 })
-            // height: 540,
-            // width: 960
           }
           : undefined
       );
@@ -91,11 +87,13 @@ export default class implements Command {
       fields: [
         {
           name: 'Created at',
-          value: `<t:${timestamp}:F> (<t:${timestamp}:R>)`
+          value: `<t:${timestamp}:F> (<t:${timestamp}:R>)`,
+          inline: true
         },
         {
           name: 'Verification level',
-          value: `${invite.guild.verification_level ?? 'none'}`
+          value: `${invite.guild.verification_level ?? 'none'}`,
+          inline: true
         },
         {
           name: 'Channel',
@@ -109,18 +107,15 @@ export default class implements Command {
     };
 
     if (preview) {
-      embed = addFields(
-        embed, {
-          name: 'Member count',
-          value: `${preview.approximate_member_count}`,
-          inline: true
-        },
-        {
-          name: 'Emote count',
-          value: `${preview.emojis.length}`,
-          inline: true
-        }
-      );
+      embed = addFields(embed, {
+        name: 'Member count',
+        value: `${preview.approximate_member_count}`,
+        inline: true
+      }, {
+        name: 'Emote count',
+        value: `${preview.emojis.length}`,
+        inline: true
+      });
     }
 
     return send(interaction, { embed });
