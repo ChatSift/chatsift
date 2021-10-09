@@ -65,6 +65,17 @@ export default class implements Command {
             .then(roles => roles.map(r => [r.id, r]))
         );
 
+        let cleanedUp = 0;
+        prompt.roles = prompt.roles.filter(r => {
+          if (!roles.has(r.role_id)) {
+            void this.rest.delete(`/guilds/${interaction.guild_id}/assignables/roles/$${r.role_id}`).catch(() => null);
+            cleanedUp++;
+            return false;
+          }
+
+          return true;
+        });
+
         const promptMessage = await this.discordRest.post<APIMessage, RESTPostAPIChannelMessageJSONBody>(
           Routes.channelMessages(args['re-display'].channel?.id ?? interaction.channel_id), {
             data: {
@@ -83,9 +94,8 @@ export default class implements Command {
                   prompt.roles.map(
                     (role): APIButtonComponent => ({
                       type: ComponentType.Button,
-                      label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
+                      label: roles.get(role.role_id)!.name,
                       style: ButtonStyle.Secondary,
-                      disabled: !roles.has(role.role_id),
                       custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
                     })
                   ), 5
@@ -112,7 +122,10 @@ export default class implements Command {
           message_id: promptMessage.id
         });
 
-        return send(interaction, { content: 'Successfully re-posted the prompt', flags: 64 });
+        return send(interaction, {
+          content: `Successfully re-posted the prompt${cleanedUp ? ` and cleaned up ${cleanedUp} deleted roles` : ''}`,
+          flags: 64
+        });
       }
 
       case 'delete': {
@@ -204,6 +217,16 @@ export default class implements Command {
               .then(roles => roles.map(r => [r.id, r]))
           );
 
+          let cleanedUp = 0;
+          prompt.roles = prompt.roles.filter(r => {
+            if (!roles.has(r.role_id)) {
+              cleanedUp++;
+              return false;
+            }
+
+            return true;
+          });
+
           await this.discordRest.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
             Routes.channelMessage(prompt.channel_id, prompt.message_id), {
               data: {
@@ -212,9 +235,8 @@ export default class implements Command {
                     prompt.roles.map(
                       (role): APIButtonComponent => ({
                         type: ComponentType.Button,
-                        label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
+                        label: roles.get(role.role_id)!.name,
                         style: ButtonStyle.Secondary,
-                        disabled: !roles.has(role.role_id),
                         custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
                       })
                     ), 5
@@ -237,6 +259,11 @@ export default class implements Command {
           );
 
           let content = 'Successfully added the given role to the list of self assignable roles';
+
+          if (cleanedUp) {
+            content += ` and cleaned up ${cleanedUp} deleted roles`;
+          }
+
           if (prompt.roles.length > 25 && prompt.use_buttons) {
             content += '\n\nWARNING: You\'ve gone above 25 buttons, switching to dropdown';
           }
@@ -262,6 +289,17 @@ export default class implements Command {
               .then(roles => roles.map(r => [r.id, r]))
           );
 
+          let cleanedUp = 0;
+          prompt.roles = prompt.roles.filter(r => {
+            if (!roles.has(r.role_id)) {
+              void this.rest.delete(`/guilds/${interaction.guild_id}/assignables/roles/$${r.role_id}`).catch(() => null);
+              cleanedUp++;
+              return false;
+            }
+
+            return true;
+          });
+
           await this.discordRest.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
             Routes.channelMessage(prompt.channel_id, prompt.message_id), {
               data: {
@@ -270,7 +308,7 @@ export default class implements Command {
                     prompt.roles.map(
                       (role): APIButtonComponent => ({
                         type: ComponentType.Button,
-                        label: roles.get(role.role_id)?.name ?? 'Deleted Role - Please notify a staff member',
+                        label: roles.get(role.role_id)!.name,
                         style: ButtonStyle.Secondary,
                         disabled: !roles.has(role.role_id),
                         custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
@@ -295,6 +333,11 @@ export default class implements Command {
           );
 
           let content = 'Successfully removed the given role from the list of self assignable roles';
+
+          if (cleanedUp) {
+            content += ` and cleaned up ${cleanedUp} deleted roles`;
+          }
+
           if (prompt.roles.length <= 3 && prompt.use_buttons) {
             content += '\n\nNote: Back to 25 or less roles, switching back to buttons';
           }
