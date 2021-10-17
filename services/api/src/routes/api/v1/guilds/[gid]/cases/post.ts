@@ -87,7 +87,7 @@ export default class PostGuildsCasesRoute extends Route {
     super();
   }
 
-  private async createWarnCase(sql: Sql<{}>, data: CaseData & { guild_id: Snowflake }, cs: Case) {
+  private async createWarnCase(sql: Sql<{}>, data: CaseData & { guild_id: Snowflake }, cs: Case, settings?: GuildSettings) {
     const warns = await sql`
         SELECT * FROM cases
         WHERE guild_id = ${data.guild_id}
@@ -166,7 +166,7 @@ export default class PostGuildsCasesRoute extends Route {
               action: CaseAction.mute,
               reference_id: cs.case_id,
               expires_at: expiresAt
-            });
+            }, settings);
           }
 
           break;
@@ -194,7 +194,7 @@ export default class PostGuildsCasesRoute extends Route {
               action: CaseAction.ban,
               reference_id: cs.case_id,
               expires_at: expiresAt
-            });
+            }, settings);
           }
 
           break;
@@ -205,7 +205,7 @@ export default class PostGuildsCasesRoute extends Route {
             ...baseData,
             action: CaseAction.kick,
             reference_id: cs.case_id
-          });
+          }, settings);
 
           break;
         }
@@ -428,7 +428,7 @@ export default class PostGuildsCasesRoute extends Route {
     }
 
     if (data.action === CaseAction.warn) {
-      return this.createWarnCase(sql, data, cs);
+      return this.createWarnCase(sql, data, cs, settings);
     }
 
     return cs;
