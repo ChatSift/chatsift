@@ -124,9 +124,16 @@ export class Gateway {
   private async handleGuildBanAdd(data: GatewayGuildBanModifyDispatchData) {
     const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
 
-    if (!settings?.mod_action_log_channel) {
+    if (!settings?.mod_action_log_channel || !await this.hasAuditLog(data.guild_id)) {
       return null;
     }
+
+    const fetchedLog = await this.discord.get<RESTGetAPIAuditLogResult, RESTGetAPIAuditLogQuery>(Routes.guildAuditLog(data.guild_id), {
+      query: {
+        action_type: AuditLogEvent.MemberBanAdd,
+        limit: 1
+      }
+    });
 
     const [existingCs] = await this.sql<[Case?]>`
       SELECT * FROM cases
@@ -136,7 +143,10 @@ export class Gateway {
       ORDER BY created_at DESC
     `;
 
-    if (existingCs && (Date.now() - existingCs.created_at.getTime()) >= 3e4) {
+    if (
+      (existingCs && (Date.now() - existingCs.created_at.getTime()) >= 3e4) ||
+      fetchedLog.audit_log_entries[0]?.user_id === this.config.discordClientId
+    ) {
       return null;
     }
 
@@ -156,9 +166,16 @@ export class Gateway {
   private async handleGuildBanRemove(data: GatewayGuildBanModifyDispatchData) {
     const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
 
-    if (!settings?.mod_action_log_channel) {
+    if (!settings?.mod_action_log_channel || !await this.hasAuditLog(data.guild_id)) {
       return null;
     }
+
+    const fetchedLog = await this.discord.get<RESTGetAPIAuditLogResult, RESTGetAPIAuditLogQuery>(Routes.guildAuditLog(data.guild_id), {
+      query: {
+        action_type: AuditLogEvent.MemberBanRemove,
+        limit: 1
+      }
+    });
 
     const [existingCs] = await this.sql<[Case?]>`
       SELECT * FROM cases
@@ -168,7 +185,9 @@ export class Gateway {
       ORDER BY created_at DESC
     `;
 
-    if (existingCs && (Date.now() - existingCs.created_at.getTime()) >= 3e4) {
+    if (
+      (existingCs && (Date.now() - existingCs.created_at.getTime()) >= 3e4) ||
+      fetchedLog.audit_log_entries[0]?.user_id === this.config.discordClientId) {
       return null;
     }
 
@@ -203,7 +222,8 @@ export class Gateway {
     if (
       !entry ||
       entry.target_id !== data.user.id ||
-      (Date.now() - getCreationData(entry.id).createdAt.getTime()) >= 3e4
+      (Date.now() - getCreationData(entry.id).createdAt.getTime()) >= 3e4 ||
+      entry.user_id === this.config.discordClientId
     ) {
       return null;
     }
