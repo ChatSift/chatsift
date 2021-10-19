@@ -43,6 +43,8 @@ void (async () => {
     .on('dispatch', data => {
       switch (data.t) {
         case 'MESSAGE_CREATE': {
+          logger.metric!({ type: 'message_seen' });
+
           // @ts-expect-error - Common discord-api-types version missmatch
           void messageCache.add(data.d).catch(
             error => logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a message')
