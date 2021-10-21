@@ -596,9 +596,9 @@ export class Gateway {
           };
 
           if (caseData.action === CaseAction.mute) {
-            caseData.expires_at = punishment.duration ? new Date(punishment.duration * 6e4) : null;
+            caseData.expires_at = punishment.duration ? new Date(Date.now() + (punishment.duration * 6e4)) : null;
           } else if (caseData.action === CaseAction.ban) {
-            caseData.expires_at = punishment.duration ? new Date(punishment.duration * 6e4) : null;
+            caseData.expires_at = punishment.duration ? new Date(Date.now() + (punishment.duration * 6e4)) : null;
             caseData.delete_message_days = 1;
           }
 

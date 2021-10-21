@@ -150,7 +150,7 @@ export default class PostGuildsCasesRoute extends Route {
           let expiresAt: Date | null = null;
           if (punishment.duration) {
             extendedBy = muteCase?.expires_at?.getTime();
-            duration = (punishment.duration * 6e4) + (extendedBy ?? 0);
+            duration = (punishment.duration * 6e4) + (extendedBy ?? Date.now());
             expiresAt = new Date(duration);
           }
 
@@ -178,7 +178,7 @@ export default class PostGuildsCasesRoute extends Route {
           let expiresAt: Date | null = null;
           if (punishment.duration) {
             extendedBy = banCase?.expires_at?.getTime();
-            duration = (punishment.duration * 6e4) + (extendedBy ?? 0);
+            duration = (punishment.duration * 6e4) + (extendedBy ?? Date.now());
             expiresAt = new Date(duration);
           }
 
