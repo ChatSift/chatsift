@@ -232,7 +232,7 @@ export class Gateway {
             const me = await this.discord.get<APIUser>(Routes.user(this.config.discordClientId));
             const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${message.guild_id}/settings`);
 
-            await reportMessage(me, message, settings);
+            await reportMessage(message.guild_id!, me, message, settings);
           }
 
           if (data.length) {

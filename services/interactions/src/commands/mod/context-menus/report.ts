@@ -26,7 +26,7 @@ export default class implements Command {
     }
 
     try {
-      await reportMessage(interaction.member.user, message, settings);
+      await reportMessage(interaction.guild_id, interaction.member.user, message, settings);
       return send(interaction, {
         content: 'Successfully flagged the given message to the staff team',
         flags: 64

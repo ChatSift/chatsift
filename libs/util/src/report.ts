@@ -11,6 +11,7 @@ import {
   APIMessage,
   ButtonStyle,
   ComponentType,
+  Snowflake,
   Routes
 } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
@@ -29,7 +30,7 @@ export class ReportFailure extends Error {
   }
 }
 
-export const reportMessage = async (reporterUser: APIUser, message: APIMessage, settings: GuildSettings) => {
+export const reportMessage = async (guildId: Snowflake, reporterUser: APIUser, message: APIMessage, settings: GuildSettings) => {
   const sql = container.resolve<Sql<{}>>(kSql);
   const rest = container.resolve(Rest);
 
@@ -120,7 +121,7 @@ export const reportMessage = async (reporterUser: APIUser, message: APIMessage, 
                     type: ComponentType.Button,
                     label: 'Review',
                     style: ButtonStyle.Link,
-                    url: `https://discord.com/channels/${message.guild_id}/${message.channel_id}/${message.id}`
+                    url: `https://discord.com/channels/${guildId}/${message.channel_id}/${message.id}`
                   },
                   {
                     type: ComponentType.Button,
