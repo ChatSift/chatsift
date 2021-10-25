@@ -11,10 +11,11 @@ import {
 } from '@automoderator/core';
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { HTTPError, Rest } from '@automoderator/http-client';
-import { kSql } from '@automoderator/injection';
+import { kLogger, kSql } from '@automoderator/injection';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
+import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
 import { Command } from '../../command';
@@ -28,7 +29,8 @@ export default class implements Command {
     public readonly discordRest: DiscordRest,
     public readonly guildLogs: PubSubPublisher<Log>,
     public readonly checker: PermissionsChecker,
-    @inject(kSql) public readonly sql: Sql<{}>
+    @inject(kSql) public readonly sql: Sql<{}>,
+    @inject(kLogger) public readonly logger: Logger
   ) {}
 
   public parse(args: ArgumentsOf<typeof BanCommand>) {
@@ -52,7 +54,7 @@ export default class implements Command {
       throw new ControlFlowError('You cannot ban yourself');
     }
 
-    if (await this.checker.check({ guild_id: interaction.guild_id, member }, UserPerms.mod)) {
+    if ('permissions' in member && await this.checker.check({ guild_id: interaction.guild_id, member }, UserPerms.mod)) {
       throw new ControlFlowError('You cannot action a member of the staff team');
     }
 
