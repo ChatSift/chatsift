@@ -46,6 +46,12 @@ export const FilterCommand = {
               description: 'If the invites filter should be used',
               type: ApplicationCommandOptionType.Boolean,
               required: false
+            },
+            {
+              name: 'nsfw',
+              description: 'If the NSFW media filter should be used',
+              type: ApplicationCommandOptionType.Boolean,
+              required: false
             }
           ]
         }
