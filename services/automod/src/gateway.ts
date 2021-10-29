@@ -359,7 +359,7 @@ export class Gateway {
         runner: Runners.mentions
       };
     } catch (error) {
-      this.logger.error({ error }, 'Failed to execute runner antispam');
+      this.logger.error({ error }, 'Failed to execute runner mentions');
       return { ok: false, runner: Runners.mentions };
     }
   }

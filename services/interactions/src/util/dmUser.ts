@@ -12,8 +12,15 @@ import { container } from 'tsyringe';
 const DM_CHANNEL_CACHE = new Map<Snowflake, Snowflake>();
 setInterval(() => DM_CHANNEL_CACHE.clear(), 9e4).unref();
 
-export const dmUser = async (userId: Snowflake, content: string) => {
+export const dmUser = async (userId: Snowflake, content: string, guildId?: Snowflake) => {
   const rest = container.resolve(Rest);
+
+  if (guildId) {
+    const member = await rest.get(Routes.guildMember(guildId, userId)).catch(() => null);
+    if (!member) {
+      return null;
+    }
+  }
 
   const dmChannel = DM_CHANNEL_CACHE.has(userId)
     ? DM_CHANNEL_CACHE.get(userId)!
