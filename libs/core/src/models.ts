@@ -23,6 +23,9 @@ export interface GuildSettings {
   mention_amount: number | null;
   mention_time: number | null;
   automod_cooldown: number | null;
+  hentai_threshold: number | null;
+  porn_threshold: number | null;
+  sexy_threshold: number | null;
 }
 
 export interface WebhookToken {

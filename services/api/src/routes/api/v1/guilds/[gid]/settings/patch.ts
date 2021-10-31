@@ -55,7 +55,16 @@ export default class PatchGuildsSettingsRoute extends Route {
           mention_limit: Joi.number().allow(null),
           mention_amount: Joi.number().allow(null),
           mention_time: Joi.number().allow(null),
-          automod_cooldown: Joi.number().allow(null)
+          automod_cooldown: Joi.number().allow(null),
+          hentai_threshold: Joi.number().allow(null)
+            .min(0)
+            .max(1),
+          porn_threshold: Joi.number().allow(null)
+            .min(0)
+            .max(1),
+          sexy_threshold: Joi.number().allow(null)
+            .min(0)
+            .max(1)
         })
         .required(),
       'body'

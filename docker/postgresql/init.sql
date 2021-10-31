@@ -68,7 +68,10 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   mention_limit int,
   mention_amount int,
   mention_time int,
-  automod_cooldown int
+  automod_cooldown int,
+  hentai_threshold decimal,
+  porn_threshold decimal,
+  sexy_threshold decimal
 );
 
 CREATE TABLE IF NOT EXISTS webhook_tokens (
