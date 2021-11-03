@@ -9,21 +9,27 @@ export const ConfigNsfwDetectionCommand = {
   options: [
     {
       name: 'hentai',
-      description: 'Configure hentai threshold (number from 0 to 1, use decimal precision)',
-      type: ApplicationCommandOptionType.Number,
-      required: false
+      description: 'Configure hentai confidence threshold (number from 0 to 100)',
+      type: ApplicationCommandOptionType.Integer,
+      required: false,
+      min_value: 0,
+      max_value: 1
     },
     {
       name: 'porn',
-      description: 'Configure porn threshold (number from 0 to 1, use decimal precision)',
-      type: ApplicationCommandOptionType.Number,
-      required: false
+      description: 'Configure porn confidence threshold (number from 0 to 100)',
+      type: ApplicationCommandOptionType.Integer,
+      required: false,
+      min_value: 0,
+      max_value: 1
     },
     {
       name: 'sexy',
-      description: 'Configure sexy threshold (number from 0 to 1, use decimal precision)',
-      type: ApplicationCommandOptionType.Number,
-      required: false
+      description: 'Configure sexy confidence threshold (number from 0 to 100)',
+      type: ApplicationCommandOptionType.Integer,
+      required: false,
+      min_value: 0,
+      max_value: 1
     }
   ]
 } as const;

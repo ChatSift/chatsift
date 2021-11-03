@@ -22,7 +22,8 @@ import {
   OkRunnerResult,
   RunnerResult,
   Runners,
-  WordsRunnerResult
+  WordsRunnerResult,
+  NsfwRunnerResult
 } from '@automoderator/core';
 import {
   DiscordPermissions,
@@ -55,6 +56,7 @@ import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
 import { AntispamRunner, FilesRunner, UrlsRunner, InvitesRunner, GlobalsRunner, WordsRunner, MentionsRunner } from './runners';
 import { getCreationData } from '@cordis/util';
+import { NsfwRunner } from './runners/nsfw';
 
 interface FilesRunnerData {
   message: APIMessage;
@@ -83,6 +85,12 @@ interface WordsRunnerData {
 
 type AntispamRunnerData = WordsRunnerData;
 
+interface NsfwRunnerData {
+  message: APIMessage;
+  settings: Partial<GuildSettings>;
+  urls: string[];
+}
+
 @singleton()
 export class Gateway {
   public guildLogs!: PubSubPublisher<Log>;
@@ -106,7 +114,8 @@ export class Gateway {
     public readonly invites: InvitesRunner,
     public readonly words: WordsRunner,
     public readonly antispam: AntispamRunner,
-    public readonly mentions: MentionsRunner
+    public readonly mentions: MentionsRunner,
+    public readonly nsfw: NsfwRunner
   ) {}
 
   private async runGlobals({ message, urls }: GlobalsRunnerData): Promise<NotOkRunnerResult | GlobalsRunnerResult> {
@@ -364,6 +373,37 @@ export class Gateway {
     }
   }
 
+  public async runNsfw({ message, urls, settings }: NsfwRunnerData): Promise<NotOkRunnerResult | NsfwRunnerResult> {
+    try {
+      const hit = await this.nsfw.run(urls, settings);
+      if (hit) {
+        await this.discord
+          .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'NSFW filter detection' })
+          .catch(() => null);
+      }
+
+      return {
+        ok: true,
+        actioned:
+        Boolean(hit),
+        data: hit
+          ? {
+            ...hit,
+            thresholds: {
+              hentai: settings.hentai_threshold,
+              porn: settings.porn_threshold,
+              sexy: settings.sexy_threshold
+            }
+          }
+          : null,
+        runner: Runners.nsfw
+      };
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to execute runner NSFW');
+      return { ok: false, runner: Runners.files };
+    }
+  }
+
   private async getChannelParent(guildId: Snowflake, channelId: Snowflake): Promise<Snowflake | null> {
     if (!this.channelParentCache.has(channelId)) {
       const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
@@ -401,7 +441,10 @@ export class Gateway {
         antispam_time: null,
         mention_limit: null,
         mention_amount: null,
-        mention_time: null
+        mention_time: null,
+        porn_threshold: null,
+        sexy_threshold: null,
+        hentai_threshold: null
       }
     ] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${message.guild_id}`;
 
@@ -539,6 +582,28 @@ export class Gateway {
       !ignores.has('automod')
     ) {
       promises.push(this.runMentions({ message, settings }));
+    }
+
+    if (
+      settings.porn_threshold || settings.sexy_threshold || settings.hentai_threshold
+    ) {
+      const urls = this.files.precheck([
+        ...new Set([
+          ...this.urls.precheck(message.content).map(url => url.startsWith('http') ? url : `https://${url}`),
+          ...message.embeds.reduce<string[]>((acc, embed) => {
+            if (embed.url) {
+              acc.push(embed.url);
+            }
+
+            return acc;
+          }, []),
+          ...message.attachments.map(attachment => attachment.url)
+        ])
+      ]);
+
+      if (urls.length) {
+        promises.push(this.runNsfw({ message, settings, urls }));
+      }
     }
 
     const data = (await Promise.allSettled(promises)).reduce<RunnerResult[]>((acc, promise) => {

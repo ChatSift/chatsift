@@ -30,6 +30,7 @@ export interface Config {
   elasticUrl: string;
   elasticUsername: string;
   elasticPassword: string;
+  nsfwPredictApiKey: string;
 }
 
 export const initConfig = () => {
@@ -54,7 +55,8 @@ export const initConfig = () => {
     cors: process.env.CORS?.split(',') ?? '*',
     elasticUrl: process.env.ELASTIC_URL!,
     elasticUsername: process.env.ELASTIC_USERNAME!,
-    elasticPassword: process.env.ELASTIC_PASSWORD!
+    elasticPassword: process.env.ELASTIC_PASSWORD!,
+    nsfwPredictApiKey: process.env.NSFW_PREDICT_API_KEY!
   };
 
   container.register<Config>(kConfig, { useValue: config });

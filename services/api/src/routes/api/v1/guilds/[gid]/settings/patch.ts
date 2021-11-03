@@ -58,13 +58,16 @@ export default class PatchGuildsSettingsRoute extends Route {
           automod_cooldown: Joi.number().allow(null),
           hentai_threshold: Joi.number().allow(null)
             .min(0)
-            .max(1),
+            .max(100)
+            .allow(null),
           porn_threshold: Joi.number().allow(null)
             .min(0)
-            .max(1),
+            .max(100)
+            .allow(null),
           sexy_threshold: Joi.number().allow(null)
             .min(0)
-            .max(1)
+            .max(100)
+            .allow(null)
         })
         .required(),
       'body'
