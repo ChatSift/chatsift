@@ -7,7 +7,7 @@ import fetch from 'node-fetch';
 
 @singleton()
 export class GlobalsRunner {
-  public readonly fishUrl = 'http://api.phish.surf/gimme-domains' as const;
+  public readonly fishUrl = 'https://api.hyperphish.com/gimme-domains' as const;
   public readonly fishCache = new Set<string>();
   public lastRefreshedFish: number | null = null;
 
