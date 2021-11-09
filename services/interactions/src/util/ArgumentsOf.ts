@@ -36,6 +36,10 @@ type Option = Readonly<Pick<Command, 'name' | 'description'> & (
     | ApplicationCommandOptionType.Channel
     | ApplicationCommandOptionType.Role;
   }
+  | {
+    type: ApplicationCommandOptionType.Number;
+    choices?: readonly Readonly<{ name: string; value: number }>[];
+  }
 )>;
 
 type Simplify<T> = T extends unknown ? { [K in keyof T]: Simplify<T[K]> } : T;
@@ -58,18 +62,23 @@ type TypeIdToType<T, O, C> = T extends ApplicationCommandOptionType.Subcommand
           ? C[number]['value']
           : number
 
-        : T extends ApplicationCommandOptionType.Boolean
-          ? boolean
+        : T extends ApplicationCommandOptionType.Number
+          ? C extends readonly { value: number }[]
+            ? C[number]['value']
+            : number
 
-          : T extends ApplicationCommandOptionType.User
-            ? APIGuildMember & { user: APIUser; permissions: Permissions }
+          : T extends ApplicationCommandOptionType.Boolean
+            ? boolean
 
-            : T extends ApplicationCommandOptionType.Channel
-              ? APIPartialChannel & { permissions: Permissions }
+            : T extends ApplicationCommandOptionType.User
+              ? APIGuildMember & { user: APIUser; permissions: Permissions }
 
-              : T extends ApplicationCommandOptionType.Role
-                ? APIRole
-                : never;
+              : T extends ApplicationCommandOptionType.Channel
+                ? APIPartialChannel & { permissions: Permissions }
+
+                : T extends ApplicationCommandOptionType.Role
+                  ? APIRole
+                  : never;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type OptionToObject<O> = O extends {

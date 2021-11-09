@@ -58,7 +58,8 @@ export enum Runners {
   words,
   antispam,
   mentions,
-  globals
+  globals,
+  nsfw
 }
 
 export interface BaseRunnerResult {
@@ -93,6 +94,30 @@ export type MentionsRunnerResult = OkRunnerResult<Runners.mentions, {
   time: number;
 }>;
 
+export type PredictionType = 'neutral' | 'drawing' | 'hentai' | 'porn' | 'sexy';
+
+export interface NsfwApiData {
+  url: string;
+  thumbnail_url: string;
+  predictions: {
+    className: 'Neutral' | 'Drawing' | 'Hentai' | 'Porn' | 'Sexy';
+    probability: number;
+  }[];
+}
+
+export type NsfwRunnerResult = OkRunnerResult<Runners.nsfw, {
+  message: APIMessage;
+  predictions: Record<PredictionType, number>;
+  crossed: Exclude<PredictionType, 'neutral' | 'drawing'>[];
+  url: string;
+  thumbnail_url: string;
+  thresholds: {
+    hentai?: number | null;
+    porn?: number | null;
+    sexy?: number | null;
+  };
+} | null>;
+
 export type RunnerResult =
 | NotOkRunnerResult
 | FilesRunnerResult
@@ -101,7 +126,8 @@ export type RunnerResult =
 | GlobalsRunnerResult
 | WordsRunnerResult
 | AntispamRunnerResult
-| MentionsRunnerResult;
+| MentionsRunnerResult
+| NsfwRunnerResult;
 
 export interface FilterTriggerData {
   message: APIMessage;

@@ -41,7 +41,6 @@ export class GlobalsRunner {
 
   private async isForbiddenByFish(url: string): Promise<boolean> {
     await this.refreshFish();
-    this.logger.debug({ url, replaced: url.split('/')[0] });
     return this.fishCache.has(url.split('/')[0]!);
   }
 

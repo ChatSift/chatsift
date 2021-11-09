@@ -350,6 +350,32 @@ export class Handler {
         break;
       }
 
+      case Runners.nsfw: {
+        const audit = '>>> ' +
+          `Porn (${trigger.data!.predictions.porn}%)\n` +
+          `Sexy (${trigger.data!.predictions.sexy}%)\n` +
+          `Hentai (${trigger.data!.predictions.hentai}%)\n` +
+          `Drawing (${trigger.data!.predictions.drawing}%)\n` +
+          `Neutral (${trigger.data!.predictions.neutral}%)`;
+
+        push({
+          title: `Posted an image tagged as ${trigger.data!.crossed.map(type => `\`${type.toUpperCase()}\``).join(', ')}`,
+          description: `In <#${trigger.data!.message.channel_id}>`,
+          image: {
+            url: trigger.data!.thumbnail_url
+          },
+          fields: [
+            {
+              name: 'Audit',
+              value: audit,
+              inline: true
+            }
+          ]
+        });
+
+        break;
+      }
+
       default: {
         this.logger.warn({ trigger }, 'Unknown runner type');
       }
