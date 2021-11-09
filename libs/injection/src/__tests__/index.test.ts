@@ -19,7 +19,8 @@ const data = {
   ENCRYPTION_KEY: 'awooga',
   ELASTIC_URL: 'http://elasticsearch:9200',
   ELASTIC_USERNAME: 'admin',
-  ELASTIC_PASSWORD: 'admin'
+  ELASTIC_PASSWORD: 'admin',
+  NSFW_PREDICT_API_KEY: 'lol'
 } as const;
 
 for (const key of Object.keys(data) as (keyof typeof data)[]) {
@@ -50,6 +51,7 @@ test('test', () => {
     cors: '*',
     elasticUrl: 'http://elasticsearch:9200',
     elasticUsername: data.ELASTIC_USERNAME,
-    elasticPassword: data.ELASTIC_PASSWORD
+    elasticPassword: data.ELASTIC_PASSWORD,
+    nsfwPredictApiKey: data.NSFW_PREDICT_API_KEY
   });
 });

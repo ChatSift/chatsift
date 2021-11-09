@@ -13,7 +13,7 @@ export const ConfigNsfwDetectionCommand = {
       type: ApplicationCommandOptionType.Integer,
       required: false,
       min_value: 0,
-      max_value: 1
+      max_value: 100
     },
     {
       name: 'porn',
@@ -21,7 +21,7 @@ export const ConfigNsfwDetectionCommand = {
       type: ApplicationCommandOptionType.Integer,
       required: false,
       min_value: 0,
-      max_value: 1
+      max_value: 100
     },
     {
       name: 'sexy',
@@ -29,7 +29,7 @@ export const ConfigNsfwDetectionCommand = {
       type: ApplicationCommandOptionType.Integer,
       required: false,
       min_value: 0,
-      max_value: 1
+      max_value: 100
     }
   ]
 } as const;

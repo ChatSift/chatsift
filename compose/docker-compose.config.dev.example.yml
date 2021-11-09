@@ -18,6 +18,7 @@ services:
       DISCORD_TOKEN: "awooga"
       DEV_IDS: "123,456"
       INTERNAL_API_TOKEN: "asdf"
+      NSFW_PREDICT_API_KEY: "something"
 
   cron-runner:
     environment:

@@ -100,12 +100,13 @@ export interface NsfwApiData {
   url: string;
   thumbnail_url: string;
   predictions: {
-    className: PredictionType;
+    className: 'Neutral' | 'Drawing' | 'Hentai' | 'Porn' | 'Sexy';
     probability: number;
   }[];
 }
 
 export type NsfwRunnerResult = OkRunnerResult<Runners.nsfw, {
+  message: APIMessage;
   predictions: Record<PredictionType, number>;
   crossed: Exclude<PredictionType, 'neutral' | 'drawing'>[];
   url: string;

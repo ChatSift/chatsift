@@ -32,9 +32,9 @@ export default class implements Command {
     return send(interaction, {
       content: stripIndents`
         **Here are your current settings:**
-        • hentai threshold: ${settings.hentai_threshold ?? 'not set'}
-        • porn threshold: ${settings.porn_threshold ?? 'not set'}
-        • sexy threshold: ${settings.sexy_threshold ?? 'not set'}
+        • hentai threshold: ${settings.hentai_threshold ? `${settings.hentai_threshold}%` : 'not set'}
+        • porn threshold: ${settings.porn_threshold ? `${settings.porn_threshold}%` : 'not set'}
+        • sexy threshold: ${settings.sexy_threshold ? `${settings.sexy_threshold}%` : 'not set'}
       `,
       allowed_mentions: { parse: [] }
     });

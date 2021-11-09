@@ -17,8 +17,10 @@ export class NsfwRunner {
 
   private async handleUrl(url: string, settings: Partial<GuildSettings>) {
     const res = await fetch(this.API_URL, {
+      method: 'POST',
       headers: {
         'Accept': 'application/json',
+        'Content-Type': 'application/json',
         'User-Agent': 'AutoModerator (https://automoderator.app) via node-fetch',
         'Authorization': this.config.nsfwPredictApiKey
       },
@@ -36,10 +38,10 @@ export class NsfwRunner {
       const data: NsfwApiData = await res.json();
       const predictions = data.predictions.reduce((acc, prediction) => {
         const procent = Math.round(prediction.probability * 100);
-        acc[prediction.className] = procent;
+        acc[prediction.className.toLowerCase() as PredictionType] = procent;
 
         switch (prediction.className) {
-          case 'hentai': {
+          case 'Hentai': {
             if (settings.hentai_threshold && procent > settings.hentai_threshold) {
               crossed.push('hentai');
             }
@@ -47,7 +49,7 @@ export class NsfwRunner {
             break;
           }
 
-          case 'porn': {
+          case 'Porn': {
             if (settings.porn_threshold && procent > settings.porn_threshold) {
               crossed.push('porn');
             }
@@ -55,7 +57,7 @@ export class NsfwRunner {
             break;
           }
 
-          case 'sexy': {
+          case 'Sexy': {
             if (settings.sexy_threshold && procent > settings.sexy_threshold) {
               crossed.push('sexy');
             }
@@ -63,7 +65,9 @@ export class NsfwRunner {
             break;
           }
 
-          default: break;
+          default: {
+            break;
+          }
         }
 
         return acc;
