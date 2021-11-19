@@ -23,7 +23,8 @@ import {
   RunnerResult,
   Runners,
   WordsRunnerResult,
-  NsfwRunnerResult
+  NsfwRunnerResult,
+  ms
 } from '@automoderator/core';
 import {
   DiscordPermissions,
@@ -194,7 +195,6 @@ export class Gateway {
         if (!hits.every(hit => hit.flags.has('report'))) {
           await this.discord
             .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Words filter detection' })
-            .then(() => dmUser(message.author.id, `Your message was deleted due to containing a banned word: \`${hits[0]!.word}\`. Additional punishments may be applied.`))
             .catch(() => null);
         }
 
@@ -251,6 +251,20 @@ export class Gateway {
           }
 
           if (data.length) {
+            let action;
+            if (banned) {
+              action = 'banned';
+            } else if (muted) {
+              action = 'muted';
+            } else if (warned) {
+              action = 'warned';
+            }
+
+            await dmUser(
+              message.author.id,
+              `You have been ${action}${hit.duration ? ` for ${ms(hit.duration * 6e4, true)}` : ''} for using the banned word \`${hits[0]!.word}\``
+            ).catch(() => null);
+
             const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
               `/guilds/${message.guild_id!}/cases`,
               data
@@ -260,6 +274,11 @@ export class Gateway {
               data: cases,
               type: LogTypes.modAction
             });
+          } else {
+            await dmUser(
+              message.author.id,
+              `Your message was deleted due to containing a banned word: \`${hits[0]!.word}\`.`
+            ).catch(() => null);
           }
         }
       }
