@@ -1,5 +1,5 @@
 import { BanCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, dmUser, getGuildName, send } from '#util';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 import {
   ApiPostGuildsCasesBody,
   ApiPostGuildsCasesResult,
@@ -12,6 +12,7 @@ import {
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { HTTPError, Rest } from '@automoderator/http-client';
 import { kLogger, kSql } from '@automoderator/injection';
+import { dmUser, getGuildName } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
