@@ -1,5 +1,5 @@
 import { RolesCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 import {
   ApiGetGuildPromptResult,
   ApiGetGuildPromptsResult,
@@ -96,7 +96,14 @@ export default class implements Command {
                       type: ComponentType.Button,
                       label: roles.get(role.role_id)!.name,
                       style: ButtonStyle.Secondary,
-                      custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
+                      custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`,
+                      emoji: role.emoji_id
+                        ? {
+                          id: role.emoji_id,
+                          name: role.emoji_name,
+                          animated: role.emoji_animated
+                        }
+                        : undefined
                     })
                   ), 5
                 ).map(components => ({ type: ComponentType.ActionRow, components }))
@@ -204,9 +211,24 @@ export default class implements Command {
 
       case 'add': {
         try {
+          let emoji;
+          if (args.add.emoji) {
+            const match = /^(?:<(?<animated>a)?:(?<name>\w{2,32}):)?(?<id>\d{17,21})>?$/.exec(args.add.emoji);
+            if (!match) {
+              throw new ControlFlowError('Invalid emoji.');
+            }
+
+            emoji = {
+              id: match.groups!.id!,
+              name: match.groups!.name!,
+              animated: match.groups!.animated === 'a'
+            };
+          }
+
           await this.rest.put<unknown, ApiPutGuildsAssignablesRoleBody>(
             `/guilds/${interaction.guild_id}/assignables/roles/${args.add.role.id}`, {
-              prompt_id: args.add.prompt
+              prompt_id: args.add.prompt,
+              emoji
             }
           );
 
@@ -237,7 +259,14 @@ export default class implements Command {
                         type: ComponentType.Button,
                         label: roles.get(role.role_id)!.name,
                         style: ButtonStyle.Secondary,
-                        custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
+                        custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`,
+                        emoji: role.emoji_id
+                          ? {
+                            id: role.emoji_id,
+                            name: role.emoji_name,
+                            animated: role.emoji_animated
+                          }
+                          : undefined
                       })
                     ), 5
                   ).map(components => ({ type: ComponentType.ActionRow, components }))
@@ -311,7 +340,14 @@ export default class implements Command {
                         label: roles.get(role.role_id)!.name,
                         style: ButtonStyle.Secondary,
                         disabled: !roles.has(role.role_id),
-                        custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`
+                        custom_id: `roles-manage-simple|${nanoid()}|${role.role_id}`,
+                        emoji: role.emoji_id
+                          ? {
+                            id: role.emoji_id,
+                            name: role.emoji_name,
+                            animated: role.emoji_animated
+                          }
+                          : undefined
                       })
                     ), 5
                   ).map(components => ({ type: ComponentType.ActionRow, components }))

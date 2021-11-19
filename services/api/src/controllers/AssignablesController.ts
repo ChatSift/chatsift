@@ -5,6 +5,12 @@ import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
 import { PromptsController } from './PromptsController';
 
+interface EmojiData {
+  id: Snowflake;
+  name: string;
+  animated: boolean;
+}
+
 @singleton()
 export class AssignablesController {
   public constructor(
@@ -26,9 +32,19 @@ export class AssignablesController {
     return this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE guild_id = ${guildId}`;
   }
 
-  public async add(guildId: Snowflake, prompt: number, roleId: Snowflake): Promise<SelfAssignableRole | undefined> {
+  public async add(guildId: Snowflake, prompt: number, roleId: Snowflake, emoji?: EmojiData): Promise<SelfAssignableRole | undefined> {
     if (await this.get(roleId)) {
       return;
+    }
+
+    if (emoji) {
+      return this
+        .sql<[SelfAssignableRole]>`
+        INSERT INTO self_assignable_roles (role_id, prompt_id, guild_id, emoji_id, emoji_name, emoji_animated)
+        VALUES (${roleId}, ${prompt}, ${guildId}, ${emoji.id}, ${emoji.name}, ${emoji.animated})
+        RETURNING *
+      `
+        .then(rows => rows[0]);
     }
 
     return this

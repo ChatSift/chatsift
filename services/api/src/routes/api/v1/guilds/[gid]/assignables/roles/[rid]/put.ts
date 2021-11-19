@@ -16,7 +16,15 @@ export default class PutGuildsAssignablesRoleRoute extends Route {
       Joi
         .object()
         .keys({
-          prompt_id: Joi.number().required()
+          prompt_id: Joi.number().required(),
+          emoji: Joi
+            .object()
+            .keys({
+              id: Joi.string().pattern(/\d{17,20}/).required(),
+              name: Joi.string().required(),
+              animated: Joi.boolean().default(false)
+            })
+            .optional()
         })
         .required()
     )
@@ -31,7 +39,7 @@ export default class PutGuildsAssignablesRoleRoute extends Route {
 
   public async handle(req: Request, res: Response, next: NextHandler) {
     const { gid, rid } = req.params as { gid: Snowflake; rid: Snowflake };
-    const { prompt_id } = req.body as ApiPutGuildsAssignablesRoleBody;
+    const { prompt_id, emoji } = req.body as ApiPutGuildsAssignablesRoleBody;
 
     const existing = await this.controller.getAllForPrompt(prompt_id);
 
@@ -46,7 +54,9 @@ export default class PutGuildsAssignablesRoleRoute extends Route {
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    const assignable = await this.controller.add(gid, prompt_id, rid);
+    const assignable = emoji
+      ? await this.controller.add(gid, prompt_id, rid, emoji)
+      : await this.controller.add(gid, prompt_id, rid);
 
     if (!assignable) {
       const assignables = await this.controller.getAllForPrompt(prompt_id);

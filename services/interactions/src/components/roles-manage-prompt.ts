@@ -28,7 +28,6 @@ export default class implements Component {
       `/guilds/${interaction.guild_id}/prompts/messages/${interaction.message!.id}`
     );
 
-    const selfAssignables = prompt.roles.map(role => role.role_id);
     const userRoles = new Set(interaction.member.roles);
 
     const roles = new Map(
@@ -41,16 +40,23 @@ export default class implements Component {
         )
     );
 
-    const menuOptions = selfAssignables.reduce<APISelectMenuOption[]>((arr, roleId) => {
-      const role = roles.get(roleId);
+    const menuOptions = prompt.roles.reduce<APISelectMenuOption[]>((arr, roleData) => {
+      const role = roles.get(roleData.role_id);
       if (role) {
         arr.push({
           'label': role.name,
           'value': role.id,
-          'default': userRoles.has(roleId)
+          'default': userRoles.has(roleData.role_id),
+          'emoji': roleData.emoji_id
+            ? {
+              id: roleData.emoji_id,
+              name: roleData.emoji_name,
+              animated: roleData.emoji_animated
+            }
+            : undefined
         });
       } else {
-        void this.rest.delete(`/guilds/${interaction.guild_id}/assignables/${roleId}`).catch(() => null);
+        void this.rest.delete(`/guilds/${interaction.guild_id}/assignables/${roleData.role_id}`).catch(() => null);
       }
 
       return arr;

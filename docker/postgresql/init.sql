@@ -92,10 +92,14 @@ CREATE TABLE IF NOT EXISTS self_assignable_roles_prompts (
   use_buttons boolean NOT NULL DEFAULT false
 );
 
+-- NOTE(DD): emoji columns should be their own table with a one-to-one relationship going
 CREATE TABLE IF NOT EXISTS self_assignable_roles (
   role_id bigint PRIMARY KEY,
   prompt_id int NOT NULL REFERENCES self_assignable_roles_prompts ON DELETE CASCADE,
-  guild_id bigint NOT NULL
+  guild_id bigint NOT NULL,
+  emoji_id bigint,
+  emoji_name text,
+  emoji_animated boolean
 );
 
 CREATE TABLE IF NOT EXISTS warn_punishments (

@@ -83,6 +83,11 @@ export type ApiGetGuildsAssignablesRoleResult = SelfAssignableRole;
 
 export interface ApiPutGuildsAssignablesRoleBody {
   prompt_id: number;
+  emoji?: {
+    id: Snowflake;
+    name: string;
+    animated: boolean;
+  };
 }
 
 export type ApiPutGuildsAssignablesRoleResult = SelfAssignableRole;

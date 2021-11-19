@@ -1,4 +1,5 @@
 import type { Snowflake } from 'discord-api-types/v9';
+import type { OneOf } from './util';
 
 export interface GuildSettings {
   guild_id: Snowflake;
@@ -46,11 +47,14 @@ export interface SelfAssignableRolePrompt {
   use_buttons: boolean;
 }
 
-export interface SelfAssignableRole {
+export type SelfAssignableRole = OneOf<{
   role_id: Snowflake;
   prompt_id: number;
   guild_id: Snowflake;
-}
+  emoji_id: Snowflake;
+  emoji_name: string;
+  emoji_animated: boolean;
+}, 'emoji_id' | 'emoji_name' | 'emoji_animated'>;
 
 export enum WarnPunishmentAction {
   mute,

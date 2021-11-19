@@ -105,6 +105,12 @@ export const RolesCommand = {
           description: 'The role to add',
           type: ApplicationCommandOptionType.Role,
           required: true
+        },
+        {
+          name: 'emoji',
+          description: 'Emoji to use (if any)',
+          type: ApplicationCommandOptionType.String,
+          required: false
         }
       ]
     },
