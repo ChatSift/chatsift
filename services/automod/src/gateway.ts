@@ -33,7 +33,7 @@ import {
 } from '@automoderator/discord-permissions';
 import { FilterIgnores } from '@automoderator/filter-ignores';
 import { Rest } from '@automoderator/http-client';
-import { reportMessage } from '@automoderator/util';
+import { dmUser, reportMessage } from '@automoderator/util';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Store } from '@cordis/store';
@@ -125,6 +125,7 @@ export class Gateway {
       if (hits.length) {
         await this.discord
           .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Url filter detection' })
+          .then(() => dmUser(message.author.id, `Your message was deleted due to containing a malicious url: \`${hits[0]!.url}\``))
           .catch(() => null);
       }
 
@@ -141,6 +142,7 @@ export class Gateway {
       if (hits.length) {
         await this.discord
           .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'File filter detection' })
+          .then(() => dmUser(message.author.id, 'Your message was deleted due to containing a malicious file.'))
           .catch(() => null);
       }
 
@@ -157,6 +159,7 @@ export class Gateway {
       if (hits.length) {
         await this.discord
           .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Invite filter detection' })
+          .then(() => dmUser(message.author.id, 'Your message was deleted due to containing a link.'))
           .catch(() => null);
       }
 
@@ -173,6 +176,7 @@ export class Gateway {
       if (hits.length) {
         await this.discord
           .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Invite filter detection' })
+          .then(() => dmUser(message.author.id, 'Your message was deleted due to containing an invite.'))
           .catch(() => null);
       }
 
@@ -190,6 +194,7 @@ export class Gateway {
         if (!hits.every(hit => hit.flags.has('report'))) {
           await this.discord
             .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Words filter detection' })
+            .then(() => dmUser(message.author.id, `Your message was deleted due to containing a banned word: \`${hits[0]!.word}\`. Additional punishments may be applied.`))
             .catch(() => null);
         }
 
@@ -289,6 +294,7 @@ export class Gateway {
           if (messages.length === 1) {
             await this.discord
               .delete(Routes.channelMessage(channel, messages[0]!), { reason: 'Antispam trigger' })
+              .then(() => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
               .catch(() => null);
           } else {
             await this.discord.post<never, RESTPostAPIChannelMessagesBulkDeleteJSONBody>(
@@ -298,7 +304,9 @@ export class Gateway {
                 },
                 reason: 'Antispam trigger'
               }
-            );
+            )
+              .then(() => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
+              .catch(() => null);
           }
         }
       }
@@ -339,6 +347,7 @@ export class Gateway {
           if (messages.length === 1) {
             await this.discord
               .delete(Routes.channelMessage(channel, messages[0]!), { reason: 'Anti mention spam trigger' })
+              .then(() => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
               .catch(() => null);
           } else {
             await this.discord.post<never, RESTPostAPIChannelMessagesBulkDeleteJSONBody>(
@@ -348,7 +357,9 @@ export class Gateway {
                 },
                 reason: 'Anti mention spam trigger'
               }
-            );
+            )
+              .then(() => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
+              .catch(() => null);
           }
         }
       }
@@ -380,6 +391,7 @@ export class Gateway {
       if (hit) {
         await this.discord
           .delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'NSFW filter detection' })
+          .then(() => dmUser(message.author.id, 'Your message has been deleted for containing potentially NSFW media.'))
           .catch(() => null);
       }
 
@@ -637,7 +649,7 @@ export class Gateway {
         DO UPDATE SET count = next_automod_trigger(${message.guild_id}, ${message.author.id})
       `;
 
-      if (data.find(result => result.runner === Runners.antispam)) {
+      if (data.find(result => result.runner === Runners.antispam || result.runner === Runners.mentions)) {
         const [trigger] = await this.sql<[AutomodTrigger]>`
           INSERT INTO automod_triggers (guild_id, user_id, count)
           VALUES (${message.guild_id}, ${message.author.id}, next_automod_trigger(${message.guild_id}, ${message.author.id}))
