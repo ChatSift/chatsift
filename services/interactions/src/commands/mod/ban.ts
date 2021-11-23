@@ -38,7 +38,7 @@ export default class implements Command {
     return {
       member: args.user,
       reason: args.reason,
-      days: Math.min(Math.max(args.days ?? 1, 1), 7),
+      days: Math.min(Math.max(args.days ?? 1, 0), 7),
       refId: args.reference,
       duration: args.duration
     };
