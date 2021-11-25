@@ -17,7 +17,8 @@ export default class DiscordRefreshRoute extends Route {
         .object()
         .keys({
           refresh_token: Joi.string().required()
-        }),
+        })
+        .optional(),
       'body'
     )
   ];

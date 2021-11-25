@@ -4,6 +4,7 @@
 coverage
 
 node_modules
+.env.*.local
 
 .idea
 .vscode

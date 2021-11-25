@@ -1,0 +1,21 @@
+{
+  "extends": "marine/react",
+  "rules": {
+    "@typescript-eslint/indent": [
+      "error",
+      2
+    ],
+    "@typescript-eslint/naming-convention": "off",
+    "@typescript-eslint/ban-types": "off",
+    "@typescript-eslint/restrict-template-expressions": "off",
+    "react/jsx-indent": [
+      "error",
+      2
+    ],
+    "react/react-in-jsx-scope": "off",
+    "react/jsx-indent-props": "off",
+    "react/jsx-filename-extension": "off",
+    "no-useless-constructor": "off",
+    "no-eq-null": "off"
+  }
+}
