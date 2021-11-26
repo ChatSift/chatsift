@@ -20,7 +20,7 @@ services:
       dockerfile: ./docker/auth/Dockerfile
     environment:
       DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      DISCORD_SCOPES: "identify,email"
+      DISCORD_SCOPES: "identify,email,guilds"
     restart: unless-stopped
     depends_on:
       - base

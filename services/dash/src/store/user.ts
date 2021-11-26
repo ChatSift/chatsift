@@ -7,7 +7,7 @@ export interface UserPayload {
   username: string | null;
   discriminator: string | null;
   avatar: string | null;
-  guilds: { id: Snowflake; manageable: boolean }[] | null;
+  guilds: { id: Snowflake; name: string; icon: string | null }[] | null;
 }
 
 export interface UserState extends State, UserPayload {

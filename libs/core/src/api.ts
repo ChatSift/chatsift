@@ -1,4 +1,4 @@
-import type { Snowflake, APIUser } from 'discord-api-types/v9';
+import type { Snowflake, APIUser, RESTGetAPICurrentUserGuildsResult } from 'discord-api-types/v9';
 import type { WarnCaseExtras } from './brokers';
 import type {
   AllowedInvite,
@@ -238,4 +238,4 @@ export type ApiPatchGuildSettingsResult = GuildSettings;
 
 export type ApiDeleteGuildSettingsResult = GuildSettings;
 
-export type ApiGetUsersMeResult = APIUser;
+export type ApiGetUsersMeResult = APIUser & { guilds: RESTGetAPICurrentUserGuildsResult };

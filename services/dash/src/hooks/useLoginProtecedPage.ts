@@ -9,8 +9,6 @@ const useLoginProtectedRoute = () => {
   const user = useUserStore();
   const router = useRouter();
 
-  console.log(user);
-
   useEffect(() => {
     if (data === null) {
       void router.replace('/').catch(() => null);

@@ -1,7 +1,7 @@
 import { Box, Heading } from '@chakra-ui/react';
 import Layout from '~/components/Layout';
 
-const Home = () => (
+const HomePage = () => (
   <Layout>
     <Box my = {{ base: 12 }}>
       <Heading size = "lg" textAlign = "center">
@@ -11,4 +11,4 @@ const Home = () => (
   </Layout>
 );
 
-export default Home;
+export default HomePage;

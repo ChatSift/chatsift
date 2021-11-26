@@ -18,7 +18,7 @@ export function useQueryMe() {
         discriminator: data.discriminator,
         avatar: data.avatar,
         // TODO(DD)
-        guilds: []
+        guilds: data.guilds.map(guild => ({ id: guild.id, icon: guild.icon, name: guild.name }))
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

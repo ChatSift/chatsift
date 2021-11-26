@@ -34,7 +34,7 @@ const Navbar = () => {
               mr = {{ base: 0, md: 2 }}
               mb = {{ base: 2, md: 0 }}
             >
-              Dashboard
+              Server selection
             </Button>
           </Link>
           {/* TODO(DD): Logout thingy? */}
