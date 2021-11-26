@@ -18,7 +18,7 @@ import NumberInput from '~/components/NumberInput';
 
 const Loading = dynamic(() => import('~/components/Loading'));
 
-const NSFWDetectionSettings = () => {
+const SpamDetectionSettings = () => {
   const router = useRouter();
   const { id } = router.query as { id: string };
 
@@ -46,28 +46,20 @@ const NSFWDetectionSettings = () => {
     ? (
       <form onSubmit = {handleOnSubmit}>
         <NumberInput settings = {settings}
-          name = {'Hentai detection confidence threshold'}
-          settingsKey = {'hentai_threshold'}
+          name = {'Amount of messages needed to trigger'}
+          settingsKey = {'antispam_amount'}
           guild = {guild}
           form = {form}
-          min = {0}
-          max = {100} />
+          min = {2}
+          max = {20} />
 
         <NumberInput settings = {settings}
-          name = {'Porn detection confidence threshold'}
-          settingsKey = {'porn_threshold'}
+          name = {'How quickly the user has to send the given amount of messages (seconds)'}
+          settingsKey = {'antispam_time'}
           guild = {guild}
           form = {form}
-          min = {0}
-          max = {100} />
-
-        <NumberInput settings = {settings}
-          name = {'Sexy detection confidence threshold'}
-          settingsKey = {'sexy_threshold'}
-          guild = {guild}
-          form = {form}
-          min = {0}
-          max = {100} />
+          min = {2}
+          max = {20} />
 
         <ButtonGroup d = "flex"
           justifyContent = "flex-end"
@@ -100,4 +92,4 @@ const NSFWDetectionSettings = () => {
     );
 };
 
-export default NSFWDetectionSettings;
+export default SpamDetectionSettings;

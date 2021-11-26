@@ -18,7 +18,7 @@ import NumberInput from '~/components/NumberInput';
 
 const Loading = dynamic(() => import('~/components/Loading'));
 
-const NSFWDetectionSettings = () => {
+const MentionSpamDetectionSettings = () => {
   const router = useRouter();
   const { id } = router.query as { id: string };
 
@@ -46,28 +46,27 @@ const NSFWDetectionSettings = () => {
     ? (
       <form onSubmit = {handleOnSubmit}>
         <NumberInput settings = {settings}
-          name = {'Hentai detection confidence threshold'}
-          settingsKey = {'hentai_threshold'}
+          name = {'Amount of mentions needed to trigger'}
+          settingsKey = {'mention_amount'}
           guild = {guild}
           form = {form}
-          min = {0}
-          max = {100} />
+          min = {3} />
 
         <NumberInput settings = {settings}
-          name = {'Porn detection confidence threshold'}
-          settingsKey = {'porn_threshold'}
+          name = {'How quickly the user has to reach the given amount of mentions (seconds)'}
+          settingsKey = {'mention_time'}
           guild = {guild}
           form = {form}
-          min = {0}
-          max = {100} />
+          min = {2}
+          max = {20} />
 
         <NumberInput settings = {settings}
-          name = {'Sexy detection confidence threshold'}
-          settingsKey = {'sexy_threshold'}
+          name = {'How many mentions a user is allowed to send within a single message'}
+          settingsKey = {'mention_limit'}
           guild = {guild}
           form = {form}
-          min = {0}
-          max = {100} />
+          min = {2}
+          max = {20} />
 
         <ButtonGroup d = "flex"
           justifyContent = "flex-end"
@@ -100,4 +99,4 @@ const NSFWDetectionSettings = () => {
     );
 };
 
-export default NSFWDetectionSettings;
+export default MentionSpamDetectionSettings;

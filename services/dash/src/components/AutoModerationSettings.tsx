@@ -72,6 +72,15 @@ const AutoModerationSettings = () => {
           form = {form}
         />
 
+        <NumberInput settings = {settings}
+          name = {'Automod cooldown (how long to wait before decreasing a user\'s automod trigger total; in minutes)'}
+          settingsKey = {'automod_cooldown'}
+          guild = {guild}
+          form = {form}
+          min = {3}
+          max = {180}
+        />
+
         <SwitchInput settings = {settings}
           name = {'Automatically kick users with blank avatars'}
           settingsKey = {'no_blank_avatar'}

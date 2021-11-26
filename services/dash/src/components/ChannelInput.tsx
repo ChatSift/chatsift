@@ -34,8 +34,6 @@ const ChannelInput = ({
 }: ChannelInputProps) => {
   const [isClearing, setIsClearing] = useState<boolean>(false);
 
-  console.log(guild.data);
-
   return (
     <HStack mb = {4}>
       <Box pt = {8}>
