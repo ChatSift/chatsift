@@ -15,6 +15,7 @@ import { useQueryMe } from '~/hooks/useQueryMe';
 import type { ApiPatchGuildSettingsBody } from '@automoderator/core';
 import { fetchApi } from '~/utils/fetchApi';
 import RoleInput from '~/components/RoleInput';
+import ChannelInput from '~/components/ChannelInput';
 
 const Loading = dynamic(() => import('~/components/Loading'));
 
@@ -62,6 +63,14 @@ const GuildSettings = () => {
           settingsKey = {'mute_role'}
           guild = {guild}
           form = {form} />
+
+        <ChannelInput settings = {settings}
+          name = {'Reports channel'}
+          settingsKey = {'reports_channel'}
+          guild = {guild}
+          form = {form}
+          textOnly
+        />
 
         <ButtonGroup d = "flex"
           justifyContent = "flex-end"

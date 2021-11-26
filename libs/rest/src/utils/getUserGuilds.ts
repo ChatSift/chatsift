@@ -1,6 +1,12 @@
 import { DiscordPermissions } from '@automoderator/discord-permissions';
 import fetch from 'node-fetch';
-import { Routes, APIGuild, Snowflake, RESTGetAPICurrentUserGuildsResult } from 'discord-api-types/v9';
+import {
+  Routes,
+  APIGuild,
+  Snowflake,
+  RESTGetAPICurrentUserGuildsResult,
+  RESTGetAPIGuildChannelsResult
+} from 'discord-api-types/v9';
 import { container } from 'tsyringe';
 import { Rest } from '@cordis/rest';
 import type { UserGuild } from '@automoderator/core';
@@ -32,6 +38,11 @@ export const getUserGuilds = async (token: string): Promise<UserGuilds> => {
       .filter(guild => guild.owner || new DiscordPermissions(BigInt(guild.permissions)).has('manageGuild'))
       .map(async g => {
         const guild = await rest.get<APIGuild>(Routes.guild(g.id)).catch(() => null);
+
+        if (guild) {
+          guild.channels = await rest.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(g.id)).catch(() => []);
+        }
+
         return [g.id, { ...g, data: guild }] as const;
       })
   ));
