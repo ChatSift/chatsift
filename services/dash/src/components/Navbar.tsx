@@ -28,7 +28,7 @@ const Navbar = () => {
     user.loggedIn
       ? (
         <>
-          <Link href = "/dashboard">
+          <Link href = "/guilds">
             <Button variant = "solid"
               justifyContent = {{ base: 'start', md: 'unset' }}
               mr = {{ base: 0, md: 2 }}
@@ -38,7 +38,7 @@ const Navbar = () => {
             </Button>
           </Link>
           {/* TODO(DD): Logout thingy? */}
-          <Link href = "/dashboard">
+          <Link href = "/guilds">
             <Button variant = "ghost" justifyContent = {{ base: 'start', md: 'unset' }}>
               <Img mr = {2} rounded = "full"
                 boxSize = "25px" src = {avatar}
@@ -51,7 +51,7 @@ const Navbar = () => {
         </>
       )
       : (
-        <Link href = {`${process.env.NEXT_PUBLIC_AUTH_DOMAIN}/api/v1/auth/discord?redirect_uri=${process.env.NEXT_PUBLIC_DASH_DOMAIN}/dashboard`}>
+        <Link href = {`${process.env.NEXT_PUBLIC_AUTH_DOMAIN}/api/v1/auth/discord?redirect_uri=${process.env.NEXT_PUBLIC_DASH_DOMAIN}/guilds`}>
           <Button variant = "ghost" justifyContent = {{ base: 'start', md: 'unset' }}>
             Log In
           </Button>
