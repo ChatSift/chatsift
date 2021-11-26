@@ -1,8 +1,7 @@
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { DarkMode, Box, Heading, Button, Grid, Center } from '@chakra-ui/react';
+import { Box, Heading, Button, Grid, Link, Center } from '@chakra-ui/react';
 import { FiCornerUpLeft } from 'react-icons/fi';
 import { useUserStore } from '~/store/index';
 import { useQueryMe } from '~/hooks/useQueryMe';
@@ -23,7 +22,7 @@ const GuildLayout = ({ children }: { children: React.ReactNode }) => {
     <>
       <Head>
         <title>
-          {guild?.name}
+          {guild?.name ?? 'Unknown guild'}
           {' '}
           | AutoModerator
           Dashboard
@@ -34,31 +33,29 @@ const GuildLayout = ({ children }: { children: React.ReactNode }) => {
         h = "100%"
         w = "100%"
       >
-        <DarkMode>
-          <Box bg = "gray.800">
-            <Box mt = {4} px = {{ base: 50, lg: 6 }}>
-              <Link href = "/guilds">
-                <Button variant = "link" leftIcon = {<FiCornerUpLeft />}>
-                  Go back
-                </Button>
-              </Link>
-            </Box>
-            <GuildDisplay guild = {guild} />
-            {guild ? <GuildNavbar /> : null}
+        <Box>
+          <Box mt = {4} px = {{ base: 50, lg: 6 }}>
+            <Link href = "/guilds">
+              <Button variant = "link" leftIcon = {<FiCornerUpLeft />}>
+                Go back
+              </Button>
+            </Link>
           </Box>
-        </DarkMode>
+          <GuildDisplay guild = {guild} />
+          {guild ? <GuildNavbar /> : null}
+        </Box>
         {guild
           ? (
             children
           )
           : (
             <Center>
-              <Box textAlign = "center">
+              <Box my = {{ base: 12 }} px = {{ base: 50, xl: 150 }}
+                textAlign = "center">
                 <Heading fontSize = "xl" mb = {6}>
                   {'AutoModerator is not in this guild yet, or you cannot manage its settings'}
                 </Heading>
-                {/* TODO(DD): invite link */}
-                <Link href = "">
+                <Link target = "_blank" href = {process.env.NEXT_PUBLIC_INVITE_LINK}>
                   <Button>
                     Invite AutoModerator
                   </Button>

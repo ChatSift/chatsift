@@ -199,9 +199,11 @@ importers:
   libs/rest:
     specifiers:
       '@automoderator/core': workspace:^0.1.0
+      '@automoderator/discord-permissions': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@cordis/bitfield': ^1.2.0
+      '@cordis/rest': ^1.2.0
       '@gaius-bot/readdir': ^1.0.0
       '@hapi/boom': ^9.1.4
       '@sapphire/stopwatch': ^1.2.0
@@ -227,14 +229,17 @@ importers:
       typescript: ^4.4.3
     dependencies:
       '@automoderator/core': link:../core
+      '@automoderator/discord-permissions': link:../discord-permissions
       '@automoderator/injection': link:../injection
       '@automoderator/logger': link:../logger
       '@cordis/bitfield': 1.2.0
+      '@cordis/rest': 1.2.0
       '@hapi/boom': 9.1.4
       '@sapphire/stopwatch': 1.2.0
       bcrypt: 5.0.1
       cookie: 0.4.1
       cors: 2.8.5
+      discord-api-types: 0.23.1
       helmet: 4.6.0
       joi: 17.4.2
       node-fetch: 2.6.5
@@ -250,7 +255,6 @@ importers:
       '@types/node-fetch': 2.5.12
       '@types/pino': 6.3.11
       '@types/supertest': 2.0.11
-      discord-api-types: 0.23.1
       postgres: 2.0.0-beta.10
       supertest: 6.1.6
       typescript: 4.4.3
@@ -485,6 +489,7 @@ importers:
       next: ^12.0.4
       react: ^17.0.2
       react-dom: ^17.0.2
+      react-hook-form: ^7.20.4
       react-icons: ^4.3.1
       react-query: ^3.33.5
       sass: ^1.43.5
@@ -502,6 +507,7 @@ importers:
       next: 12.0.4_bdb45b6be7e115fb997f8b05d5433240
       react: 17.0.2
       react-dom: 17.0.2_react@17.0.2
+      react-hook-form: 7.20.4_react@17.0.2
       react-icons: 4.3.1_react@17.0.2
       react-query: 3.33.5_react-dom@17.0.2+react@17.0.2
       sass: 1.43.5
@@ -8293,6 +8299,15 @@ packages:
       use-sidecar: 1.0.5_react@17.0.2
     transitivePeerDependencies:
       - '@types/react'
+    dev: false
+
+  /react-hook-form/7.20.4_react@17.0.2:
+    resolution: {integrity: sha512-Nvy6TnNMlBoR+qS8FpA8lrqtGJ4uoi/MRYEgMEdBMY0HwHVuC7wB1sk6wTjg7FjOUt7QqMAP2W/vOhTWbKrtkQ==}
+    engines: {node: '>=12.0'}
+    peerDependencies:
+      react: ^16.8.0 || ^17
+    dependencies:
+      react: 17.0.2
     dev: false
 
   /react-icons/4.3.1_react@17.0.2:

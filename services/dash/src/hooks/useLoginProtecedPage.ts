@@ -4,7 +4,7 @@ import { useUserStore } from '~/store/index';
 import { useQueryMe } from '~/hooks/useQueryMe';
 
 const useLoginProtectedRoute = () => {
-  const { data } = useQueryMe();
+  const { user: data } = useQueryMe();
 
   const user = useUserStore();
   const router = useRouter();

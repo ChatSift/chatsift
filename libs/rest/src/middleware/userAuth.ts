@@ -7,6 +7,7 @@ import fetch from 'node-fetch';
 import type { NextHandler, Request, Response } from 'polka';
 import { Sql } from 'postgres';
 import { container } from 'tsyringe';
+import { getUserGuilds } from '../utils';
 
 declare module 'polka' {
   export interface Request {
@@ -40,6 +41,14 @@ export const userAuth = (fallthrough = false) => {
       req.user = await result.json();
       const [{ perms }] = await sql<[Pick<User, 'perms'>]>`SELECT perms FROM users WHERE user_id = ${req.user!.id}`;
       req.user!.perms = BigInt(perms);
+    }
+
+    if (req.params.gid) {
+      const guilds = await getUserGuilds(token);
+
+      if (!guilds.has(req.params.gid)) {
+        return next(unauthorized('cannot perform actions on this guild'));
+      }
     }
 
     return next(req.user || fallthrough ? undefined : unauthorized('invalid discord access token'));

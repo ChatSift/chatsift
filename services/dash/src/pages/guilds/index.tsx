@@ -1,6 +1,6 @@
 import LoginProtectedPage from '~/HOCs/LoginProtectedPage';
 import Layout from '~/components/Layout';
-import { Grid, Box, Text, Img, Heading } from '@chakra-ui/react';
+import { Grid, Box, Img, Heading, Center } from '@chakra-ui/react';
 import { useUserStore } from '~/store/index';
 import dynamic from 'next/dynamic';
 
@@ -44,12 +44,11 @@ const GuildsPage = () => {
       <Box mt = {{ base: 12, lg: 24 }} mb = {{ base: 12 }}
         px = {{ base: 0, md: 200 }}>
         <Box px = {8} pb = {8}>
-          <Heading size = "lg">
-            Manage
-          </Heading>
-          <Text>
-            Severs you can manage
-          </Text>
+          <Center>
+            <Heading size = "lg">
+              Manage your guilds
+            </Heading>
+          </Center>
         </Box>
         <Guilds />
       </Box>

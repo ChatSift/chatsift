@@ -1,15 +1,28 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Box, Button, Flex, IconButton, Heading, useDisclosure, VStack } from '@chakra-ui/react';
+import {
+  Box,
+  Button,
+  Flex,
+  IconButton,
+  Heading,
+  useDisclosure,
+  VStack,
+  useColorModeValue,
+  useColorMode
+} from '@chakra-ui/react';
 import { FiMenu, FiX } from 'react-icons/fi';
+import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 
-// TODO(DD): Introduce theme switcher here as well
 const GuildNavbar = () => {
   const router = useRouter();
   const { isOpen, onToggle } = useDisclosure();
   const { isOpen: isOpenModules, onToggle: onToggleModules } = useDisclosure({
-    defaultIsOpen: router.route === '/guilds/[id]/modules/moderation'
+    defaultIsOpen: router.route === '/guilds/[id]/modules/automoderation'
   });
+
+  const icon = useColorModeValue(<MoonIcon />, <SunIcon />);
+  const { toggleColorMode } = useColorMode();
 
   const { id } = router.query;
 
@@ -39,7 +52,7 @@ const GuildNavbar = () => {
         mb = {{ base: 4, lg: 0 }}
       >
         <VStack px = {2}>
-          <Link href = {`/guilds/${id as string}`}>
+          <Link href = {`/guilds/${id}`}>
             <Button w = "100%"
               variant = {router.route === '/guilds/[id]' ? 'solid' : 'ghost'}
               color = {router.route === '/guilds/[id]' ? 'blue.200' : 'white'}
@@ -52,32 +65,21 @@ const GuildNavbar = () => {
             Modules
           </Button>
           <Box d = {{ base: isOpenModules ? 'block' : 'none' }} w = "100%">
-            <Link href = {`/guilds/${id as string}/modules/moderation`}>
+            <Link href = {`/guilds/${id}/modules/automoderation`}>
               <Button variant = "ghost"
-                color = {router.route === '/guilds/[id]/modules/moderation' ? 'blue.200' : 'white'}
+                color = {router.route === '/guilds/[id]/modules/automoderation' ? 'blue.200' : 'white'}
                 bg = "gray.700"
                 w = "100%"
               >
-                Moderation
+                Auto Moderation
               </Button>
             </Link>
           </Box>
-          <Link href = {`/guilds/${id as string}/cases`}>
-            <Button w = "100%"
-              variant = {router.route === '/guilds/[id]/cases' ? 'solid' : 'ghost'}
-              color = {router.route === '/guilds/[id]/cases' ? 'blue.200' : 'white'}
-            >
-              Cases
-            </Button>
-          </Link>
-          <Link href = {`/guilds/${id as string}/tags`}>
-            <Button w = "100%"
-              variant = {router.route === '/guilds/[id]/tags' ? 'solid' : 'ghost'}
-              color = {router.route === '/guilds/[id]/tags' ? 'blue.200' : 'white'}
-            >
-              Tags
-            </Button>
-          </Link>
+
+          <IconButton onClick = {toggleColorMode}
+            variant = "ghost"
+            icon = {icon}
+            aria-label = "Toggle Theme" />
         </VStack>
       </Box>
     </Flex>

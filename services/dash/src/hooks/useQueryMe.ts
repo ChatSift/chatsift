@@ -17,12 +17,11 @@ export function useQueryMe() {
         username: data.username,
         discriminator: data.discriminator,
         avatar: data.avatar,
-        // TODO(DD)
         guilds: data.guilds.map(guild => ({ id: guild.id, icon: guild.icon, name: guild.name }))
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
-  return { data, isLoading };
+  return { user: data, isLoading };
 }
