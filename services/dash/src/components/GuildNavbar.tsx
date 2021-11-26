@@ -60,10 +60,12 @@ const GuildNavbar = () => {
               Dashboard
             </Button>
           </Link>
+
           <Button w = "100%" variant = "ghost"
             onClick = {onToggleModules}>
             Modules
           </Button>
+
           <Box d = {{ base: isOpenModules ? 'block' : 'none' }} w = "100%">
             <Link href = {`/guilds/${id}/modules/automoderation`}>
               <Button variant = "ghost"
@@ -72,6 +74,18 @@ const GuildNavbar = () => {
                 w = "100%"
               >
                 Auto Moderation
+              </Button>
+            </Link>
+          </Box>
+
+          <Box d = {{ base: isOpenModules ? 'block' : 'none' }} w = "100%">
+            <Link href = {`/guilds/${id}/modules/logging`}>
+              <Button variant = "ghost"
+                color = {router.route === '/guilds/[id]/modules/logging' ? 'blue.200' : 'white'}
+                bg = "gray.700"
+                w = "100%"
+              >
+                Logging
               </Button>
             </Link>
           </Box>
