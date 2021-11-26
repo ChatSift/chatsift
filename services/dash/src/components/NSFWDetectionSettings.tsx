@@ -14,11 +14,11 @@ import { FormEvent } from 'react';
 import { useQueryMe } from '~/hooks/useQueryMe';
 import type { ApiPatchGuildSettingsBody } from '@automoderator/core';
 import { fetchApi } from '~/utils/fetchApi';
-import ChannelInput from '~/components/ChannelInput';
+import NumberInput from '~/components/NumberInput';
 
 const Loading = dynamic(() => import('~/components/Loading'));
 
-const LoggingSettings = () => {
+const NSFWDetectionSettings = () => {
   const router = useRouter();
   const { id } = router.query as { id: string };
 
@@ -45,34 +45,29 @@ const LoggingSettings = () => {
   return guild?.data
     ? (
       <form onSubmit = {handleOnSubmit}>
-        <ChannelInput settings = {settings}
-          name = {'Mod logs channel'}
-          settingsKey = {'mod_action_log_channel'}
+        <NumberInput settings = {settings}
+          name = {'Hentai detection confidence threshold'}
+          settingsKey = {'hentai_threshold'}
           guild = {guild}
           form = {form}
-          textOnly />
+          min = {0}
+          max = {100} />
 
-        <ChannelInput settings = {settings}
-          name = {'Filter logs channel'}
-          settingsKey = {'filter_trigger_log_channel'}
+        <NumberInput settings = {settings}
+          name = {'Porn detection confidence threshold'}
+          settingsKey = {'porn_threshold'}
           guild = {guild}
           form = {form}
-          textOnly />
+          min = {0}
+          max = {100} />
 
-        <ChannelInput settings = {settings}
-          name = {'User logs channel'}
-          settingsKey = {'user_update_log_channel'}
+        <NumberInput settings = {settings}
+          name = {'Sexy detection confidence threshold'}
+          settingsKey = {'sexy_threshold'}
           guild = {guild}
           form = {form}
-          textOnly />
-
-        <ChannelInput settings = {settings}
-          name = {'Message logs'}
-          settingsKey = {'message_update_log_channel'}
-          guild = {guild}
-          form = {form}
-          textOnly
-        />
+          min = {0}
+          max = {100} />
 
         <ButtonGroup d = "flex"
           justifyContent = "flex-end"
@@ -105,4 +100,5 @@ const LoggingSettings = () => {
     );
 };
 
-export default LoggingSettings;
+export default NSFWDetectionSettings;
+

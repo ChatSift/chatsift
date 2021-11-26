@@ -4,6 +4,7 @@ import LoginProtectedPage from '~/HOCs/LoginProtectedPage';
 import GuildLayout from '~/components/GuildLayout';
 
 const AutoModerationSettings = dynamic(() => import('~/components/AutoModerationSettings'));
+const NSFWDetectionSettings = dynamic(() => import('~/components/NSFWDetectionSettings'));
 
 const AutoModerationModulePage = () => (
   <GuildLayout>
@@ -12,6 +13,10 @@ const AutoModerationModulePage = () => (
         Auto Moderation Settings
       </Heading>
       <AutoModerationSettings />
+      <Heading mb = {8} size = "md">
+        NSFW Detection Settings
+      </Heading>
+      <NSFWDetectionSettings />
     </Box>
   </GuildLayout>
 );
