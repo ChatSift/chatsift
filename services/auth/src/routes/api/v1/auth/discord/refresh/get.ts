@@ -28,15 +28,15 @@ export default class DiscordRefreshRoute extends Route {
   }
 
   public async handle(req: Request, res: Response, next: NextHandler): Promise<void> {
-    const response = await discordOAuth2(req, res, next);
-    if (!response) return;
-
     const cookies = cookie.parse(req.headers.cookie ?? '');
     const token = cookies.refresh_token ?? (req.body as AuthGetDiscordRefreshBody | undefined)?.refresh_token;
 
     if (!token) {
       return next(unauthorized('missing refresh token'));
     }
+
+    const response = await discordOAuth2(req, res, next);
+    if (!response) return;
 
     res.cookie('access_token', response.access_token, {
       expires: new Date(Date.now() + (response.expires_in * 1000)),

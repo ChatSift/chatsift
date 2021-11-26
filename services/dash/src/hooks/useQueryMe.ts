@@ -9,14 +9,13 @@ export function useQueryMe() {
 
   const { data, isLoading } = useQuery('user', () => fetchApi<ApiGetUsersMeResult>({ path: '/users/@me' }).catch(() => null));
 
-  console.log({ data });
-
   useEffect(() => {
     if (user.loggedIn === null && data) {
       user.setUser({
         loggedIn: true,
         id: data.id,
         username: data.username,
+        discriminator: data.discriminator,
         avatar: data.avatar,
         // TODO(DD)
         guilds: []

@@ -1,11 +1,13 @@
 import { discordOAuth2 } from '#util';
 import type { AuthGetDiscordCallbackQuery } from '@automoderator/core';
-import { Config, kConfig } from '@automoderator/injection';
+import { Config, kConfig, kSql } from '@automoderator/injection';
 import { Route, State, userAuth, validate } from '@automoderator/rest';
 import { badRequest } from '@hapi/boom';
 import cookie from 'cookie';
 import * as Joi from 'joi';
+import fetch from 'node-fetch';
 import type { NextHandler, Request, Response } from 'polka';
+import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
 
 @injectable()
@@ -25,7 +27,8 @@ export default class GetDiscordCallbackRoute extends Route {
   ];
 
   public constructor(
-    @inject(kConfig) public readonly config: Config
+    @inject(kConfig) public readonly config: Config,
+    @inject(kSql) public readonly sql: Sql<{}>
   ) {
     super();
   }
@@ -64,6 +67,16 @@ export default class GetDiscordCallbackRoute extends Route {
       domain: this.config.rootDomain.replace(/h?t?t?p?s?:?\/?\/?/, ''),
       path: '/'
     });
+
+    const user = await fetch(
+      'https://discord.com/api/v9/users/@me', {
+        headers: {
+          authorization: `Bearer ${response.access_token}`
+        }
+      }
+    ).then(res => res.json());
+
+    await this.sql`INSERT INTO users (user_id, perms) VALUES (${user.id}, 0) ON CONFLICT DO NOTHING`;
 
     res.redirect(state.redirectUri);
     return res.end();

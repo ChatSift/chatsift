@@ -1,11 +1,28 @@
 import Link from 'next/link';
-import { Box, Flex, Button, IconButton, Img, useDisclosure } from '@chakra-ui/react';
+import {
+  Box,
+  Flex,
+  Button,
+  IconButton,
+  Img,
+  useDisclosure,
+  useColorModeValue,
+  useColorMode
+} from '@chakra-ui/react';
 import { FiMenu, FiX } from 'react-icons/fi';
+import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { useUserStore } from '~/store/index';
 
 const Navbar = () => {
   const user = useUserStore();
   const { isOpen, onToggle } = useDisclosure();
+
+  const icon = useColorModeValue(<MoonIcon />, <SunIcon />);
+  const { toggleColorMode } = useColorMode();
+
+  const avatar = user.avatar
+    ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`
+    : `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator!, 10) % 5}.png`;
 
   const LoginButton = () =>
     user.loggedIn
@@ -20,10 +37,11 @@ const Navbar = () => {
               Dashboard
             </Button>
           </Link>
+          {/* TODO(DD): Logout thingy? */}
           <Link href = "/dashboard">
             <Button variant = "ghost" justifyContent = {{ base: 'start', md: 'unset' }}>
               <Img mr = {2} rounded = "full"
-                boxSize = "25px" src = {user.avatar ?? ''}
+                boxSize = "25px" src = {avatar}
                 alt = {user.username!} />
               <Box>
                 {user.username}
@@ -33,7 +51,7 @@ const Navbar = () => {
         </>
       )
       : (
-        <Link href = "http://localhost:3600/api/auth/discord">
+        <Link href = {`${process.env.NEXT_PUBLIC_AUTH_DOMAIN}/api/v1/auth/discord?redirect_uri=${process.env.NEXT_PUBLIC_DASH_DOMAIN}/dashboard`}>
           <Button variant = "ghost" justifyContent = {{ base: 'start', md: 'unset' }}>
             Log In
           </Button>
@@ -67,6 +85,10 @@ const Navbar = () => {
         mt = {{ base: 2, md: 0 }}
       >
         <LoginButton />
+        <IconButton onClick = {toggleColorMode}
+          variant = "ghost"
+          icon = {icon}
+          aria-label = "Toggle Theme" />
       </Box>
     </Flex>
   );

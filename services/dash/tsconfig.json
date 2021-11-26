@@ -16,6 +16,9 @@
       "~/components/*": [
         "src/components/*"
       ],
+      "~/HOCs/*": [
+        "src/HOCs/*"
+      ],
       "~/hooks/*": [
         "src/hooks/*"
       ],

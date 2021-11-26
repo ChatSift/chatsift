@@ -5,6 +5,7 @@ export interface UserPayload {
   loggedIn: boolean | null;
   id: Snowflake | null;
   username: string | null;
+  discriminator: string | null;
   avatar: string | null;
   guilds: { id: Snowflake; manageable: boolean }[] | null;
 }
@@ -19,6 +20,7 @@ export const useUserStore = create<UserState>(set => ({
   loggedIn: null,
   id: null,
   username: null,
+  discriminator: null,
   avatar: null,
   guilds: null,
   login: () => set(() => ({ loggedIn: true })),

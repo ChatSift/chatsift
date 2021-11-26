@@ -4,6 +4,7 @@ services:
   api:
     environment:
       NODE_ENV: "dev"
+      CORS: "http://localhost:4000"
     ports:
       - "127.0.0.1:3001:3001"
 
@@ -12,6 +13,7 @@ services:
       ROOT_DOMAIN: "http://localhost"
       AUTH_DOMAIN: "http://localhost:3000"
       NODE_ENV: "dev"
+      CORS: "http://localhost:4000"
     ports:
       - "127.0.0.1:3000:3000"
 

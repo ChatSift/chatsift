@@ -6,6 +6,7 @@ import fetch from 'node-fetch';
 import type { Logger } from 'pino';
 import type { NextHandler, Request, Response } from 'polka';
 import { container } from 'tsyringe';
+import cookie from 'cookie';
 
 export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler) => {
   const config = container.resolve<Config>(kConfig);
@@ -24,8 +25,10 @@ export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler
     form.append('grant_type', 'authorization_code');
     form.append('code', code);
   } else {
+    const cookies = cookie.parse(req.headers.cookie ?? '');
+
     form.append('grant_type', 'refresh_token');
-    form.append('refresh_token', (req.body as AuthGetDiscordRefreshBody).refresh_token);
+    form.append('refresh_token', (cookies.refresh_token ?? (req.body as AuthGetDiscordRefreshBody | undefined)?.refresh_token)!);
   }
 
   const result = await fetch(

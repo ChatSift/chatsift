@@ -1,6 +1,6 @@
 import dynamic from 'next/dynamic';
 import { Grid, Box } from '@chakra-ui/react';
-import { useQueryMe } from '~/hooks/userQueryMe';
+import { useQueryMe } from '~/hooks/useQueryMe';
 
 const Navbar = dynamic(() => import('~/components/Navbar'));
 

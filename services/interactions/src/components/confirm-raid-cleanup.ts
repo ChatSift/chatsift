@@ -26,7 +26,6 @@ export default class implements Component {
     void send(interaction, { components: [] }, InteractionResponseType.UpdateMessage);
 
     const { members, ban } = (await this.raidCleanupMembers.get(id))!;
-    console.log(members);
     void this.raidCleanupMembers.delete(id);
 
     if (action === 'n') {

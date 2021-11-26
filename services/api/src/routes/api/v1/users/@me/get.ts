@@ -10,6 +10,8 @@ export default class GetDevTokenRoute extends Route {
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(req.user!));
+    const { perms, ...user } = req.user!;
+
+    return res.end(JSON.stringify(user));
   }
 }

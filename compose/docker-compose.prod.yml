@@ -6,6 +6,7 @@ services:
       NODE_ENV: "prod"
       ELASTIC_URL: "http://elasticsearch:9200"
       ELASTIC_USERNAME: "elastic"
+      CORS: "https://dash.automoderator.app"
 
   auth:
     environment:
@@ -14,6 +15,7 @@ services:
       NODE_ENV: "prod"
       ELASTIC_URL: "http://elasticsearch:9200"
       ELASTIC_USERNAME: "elastic"
+      CORS: "https://dash.automoderator.app"
 
   automod:
     environment:
