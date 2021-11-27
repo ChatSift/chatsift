@@ -84,6 +84,8 @@ function convert(num: number, type: string) {
       return num * Duration.second;
     }
   }
+
+  /* istanbul ignore next */
   return num;
 }
 
@@ -134,6 +136,7 @@ function ms(val: string | number, long = false) {
       return pluralize(val, abs, Duration.second, 'second', 's', long);
     }
 
+    /* istanbul ignore next */
     return `${val}${long ? ' ' : ''}ms`;
   }
 

@@ -1,3 +1,5 @@
+/* istanbul ignore file */
+
 import { DiscordPermissions } from '@automoderator/discord-permissions';
 import fetch from 'node-fetch';
 import {

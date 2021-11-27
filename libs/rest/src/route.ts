@@ -25,8 +25,13 @@ export abstract class Route {
     }
 
     path = path.replace(/\[([a-zA-Z]+)\]/g, ':$1').replace(/\\/g, '/');
-    if (!path.startsWith('/')) path = `/${path}`;
 
+    /* istanbul ignore next */
+    if (!path.startsWith('/')) {
+      path = `/${path}`;
+    }
+
+    /* istanbul ignore next */
     return {
       path: dirname(path),
       method
@@ -41,8 +46,8 @@ export abstract class Route {
     const logger = container.resolve<Logger>(kLogger);
 
     logger.debug(`Registering route "${info.method.toUpperCase()} ${info.path}"`);
+    /* istanbul ignore next */
     server[info.method](`${info.path.startsWith('/') ? '' : '/'}${info.path}`, ...this.middleware, async (req, res, next) => {
-      /* istanbul ignore next */
       try {
         await this.handle(req, res, next);
       } catch (e) {

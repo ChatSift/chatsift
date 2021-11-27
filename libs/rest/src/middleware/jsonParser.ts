@@ -27,6 +27,7 @@ export const jsonParser = (wantRaw = false) => async (req: Request, _: Response,
 
     return next();
   } catch (e: any) {
+    /* istanbul ignore next */
     return next(badData(e.message ?? e.toString()));
   }
 };
