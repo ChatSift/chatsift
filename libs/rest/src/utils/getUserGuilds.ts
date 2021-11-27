@@ -16,9 +16,13 @@ import type { UserGuild } from '@automoderator/core';
 type UserGuilds = Map<Snowflake, UserGuild>;
 
 const GUILDS_CACHE = new Map<string, UserGuilds>();
-setInterval(() => GUILDS_CACHE.clear(), 15000);
+
+let interval: NodeJS.Timer;
 
 export const getUserGuilds = async (token: string): Promise<UserGuilds> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interval ??= setInterval(() => GUILDS_CACHE.clear(), 15000).unref();
+
   if (GUILDS_CACHE.has(token)) {
     return GUILDS_CACHE.get(token)!;
   }

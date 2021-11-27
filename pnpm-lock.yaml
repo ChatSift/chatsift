@@ -103,7 +103,7 @@ importers:
       '@cordis/rest': ^1.2.0
       '@types/node': ^16.10.3
       '@types/pino': ^6.3.11
-      discord-api-types: ^0.23.1
+      discord-api-types: ^0.24.0
       postgres: ^2.0.0-beta.10
       tslib: ^2.3.1
       tsyringe: ^4.6.0
@@ -111,7 +111,7 @@ importers:
     dependencies:
       '@automoderator/injection': link:../injection
       '@cordis/rest': 1.2.0
-      discord-api-types: 0.23.1
+      discord-api-types: 0.24.0
       tslib: 2.3.1
       tsyringe: 4.6.0
     devDependencies:
@@ -217,7 +217,7 @@ importers:
       bcrypt: ^5.0.1
       cookie: ^0.4.1
       cors: ^2.8.5
-      discord-api-types: ^0.23.1
+      discord-api-types: ^0.24.0
       helmet: ^4.6.0
       joi: ^17.4.2
       node-fetch: ^2.6.5
@@ -239,7 +239,7 @@ importers:
       bcrypt: 5.0.1
       cookie: 0.4.1
       cors: 2.8.5
-      discord-api-types: 0.23.1
+      discord-api-types: 0.24.0
       helmet: 4.6.0
       joi: 17.4.2
       node-fetch: 2.6.5
@@ -266,7 +266,7 @@ importers:
       '@cordis/rest': ^1.2.0
       '@cordis/util': ^1.2.0
       '@types/node': ^16.10.3
-      discord-api-types: ^0.23.1
+      discord-api-types: ^0.24.0
       nanoid: ^3.1.29
       postgres: ^2.0.0-beta.10
       tslib: ^2.3.1
@@ -277,7 +277,7 @@ importers:
       '@automoderator/injection': link:../injection
       '@cordis/rest': 1.2.0
       '@cordis/util': 1.2.0
-      discord-api-types: 0.23.1
+      discord-api-types: 0.24.0
       nanoid: 3.1.29
       tslib: 2.3.1
       tsyringe: 4.6.0
@@ -302,7 +302,7 @@ importers:
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
       cookie: ^0.4.1
-      discord-api-types: ^0.23.1
+      discord-api-types: ^0.24.0
       joi: ^17.4.2
       node-fetch: ^2.6.5
       polka: ^1.0.0-next.22
@@ -323,7 +323,7 @@ importers:
       '@gaius-bot/readdir': 1.0.0
       '@hapi/boom': 9.1.4
       cookie: 0.4.1
-      discord-api-types: 0.23.1
+      discord-api-types: 0.24.0
       joi: 17.4.2
       node-fetch: 2.6.5
       postgres: 2.0.0-beta.10
@@ -401,7 +401,7 @@ importers:
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
       common-tags: ^1.8.0
-      discord-api-types: ^0.23.1
+      discord-api-types: ^0.24.0
       ioredis: ^4.27.10
       node-fetch: ^2.6.5
       postgres: ^2.0.0-beta.10
@@ -425,7 +425,7 @@ importers:
       '@cordis/store': 1.2.0
       '@cordis/util': 1.2.0
       common-tags: 1.8.0
-      discord-api-types: 0.23.1
+      discord-api-types: 0.24.0
       ioredis: 4.27.10
       node-fetch: 2.6.5
       postgres: 2.0.0-beta.10
@@ -451,7 +451,7 @@ importers:
       '@types/node': ^16.10.3
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
-      discord-api-types: ^0.23.1
+      discord-api-types: ^0.24.0
       postgres: ^2.0.0-beta.10
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
@@ -462,7 +462,7 @@ importers:
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@cordis/rest': 1.2.0
-      discord-api-types: 0.23.1
+      discord-api-types: 0.24.0
       postgres: 2.0.0-beta.10
       reflect-metadata: 0.1.13
       tslib: 2.3.1
@@ -484,7 +484,7 @@ importers:
       '@emotion/styled': ^11.6.0
       '@types/node': ^16.10.3
       '@types/react': ^17.0.37
-      discord-api-types: ^0.23.1
+      discord-api-types: ^0.24.0
       framer-motion: ^5.3.3
       next: ^12.0.4
       react: ^17.0.2
@@ -518,7 +518,7 @@ importers:
       '@babel/core': 7.15.8
       '@types/node': 16.11.10
       '@types/react': 17.0.37
-      discord-api-types: 0.23.1
+      discord-api-types: 0.24.0
       typescript: 4.5.2
 
   services/gateway:
@@ -533,7 +533,7 @@ importers:
       '@cordis/redis-store': ^1.2.0
       '@types/ioredis': ^4.27.6
       '@types/node': ^16.10.3
-      discord-api-types: ^0.23.1
+      discord-api-types: ^0.24.0
       ioredis: ^4.27.10
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
@@ -555,7 +555,7 @@ importers:
       '@cordis/common': 1.2.0
       '@types/ioredis': 4.27.6
       '@types/node': 16.10.3
-      discord-api-types: 0.23.1
+      discord-api-types: 0.24.0
       typescript: 4.4.3
 
   services/interactions:
@@ -583,7 +583,7 @@ importers:
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
       common-tags: ^1.8.0
-      discord-api-types: ^0.23.1
+      discord-api-types: ^0.24.0
       ioredis: ^4.27.10
       js-yaml: ^4.1.0
       nanoid: ^3.1.29
@@ -613,7 +613,7 @@ importers:
       '@gaius-bot/readdir': 1.0.0
       '@hapi/boom': 9.1.4
       common-tags: 1.8.0
-      discord-api-types: 0.23.1
+      discord-api-types: 0.24.0
       ioredis: 4.27.10
       js-yaml: 4.1.0
       nanoid: 3.1.29
@@ -646,7 +646,7 @@ importers:
       '@types/amqplib': ^0.8.2
       '@types/node': ^16.10.3
       '@types/pino': ^6.3.11
-      discord-api-types: ^0.23.1
+      discord-api-types: ^0.24.0
       postgres: ^2.0.0-beta.10
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
@@ -661,7 +661,7 @@ importers:
       '@cordis/brokers': 1.2.0
       '@cordis/rest': 1.2.0
       '@cordis/util': 1.2.0
-      discord-api-types: 0.23.1
+      discord-api-types: 0.24.0
       postgres: 2.0.0-beta.10
       reflect-metadata: 0.1.13
       tslib: 2.3.1
@@ -692,7 +692,7 @@ importers:
       '@types/node': ^16.10.3
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
-      discord-api-types: ^0.23.1
+      discord-api-types: ^0.24.0
       ioredis: ^4.27.10
       node-fetch: ^2.6.5
       postgres: ^2.0.0-beta.10
@@ -714,7 +714,7 @@ importers:
       '@cordis/rest': 1.2.0
       '@cordis/store': 1.2.0
       '@cordis/util': 1.2.0
-      discord-api-types: 0.23.1
+      discord-api-types: 0.24.0
       ioredis: 4.27.10
       node-fetch: 2.6.5
       postgres: 2.0.0-beta.10
@@ -5391,10 +5391,6 @@ packages:
     dependencies:
       path-type: 4.0.0
     dev: true
-
-  /discord-api-types/0.23.1:
-    resolution: {integrity: sha512-igWmn+45mzXRWNEPU25I/pr8MwxHb767wAr51oy3VRLRcTlp5ADBbrBR0lq3SA1Rfw3MtM4TQu1xo3kxscfVdQ==}
-    engines: {node: '>=12'}
 
   /discord-api-types/0.24.0:
     resolution: {integrity: sha512-X0uA2a92cRjowUEXpLZIHWl4jiX1NsUpDhcEOpa1/hpO1vkaokgZ8kkPtPih9hHth5UVQ3mHBu/PpB4qjyfJ4A==}

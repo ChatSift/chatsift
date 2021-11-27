@@ -1,5 +1,7 @@
 import { State } from '../state';
 
+jest.useFakeTimers();
+
 const REDIRECT_URI = 'https://foo.bar' as const;
 
 const NOW = new Date();
