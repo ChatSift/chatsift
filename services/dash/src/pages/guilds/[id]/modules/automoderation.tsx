@@ -11,22 +11,30 @@ const MentionSpamDetectionSettings = dynamic(() => import('~/components/MentionS
 const AutoModerationModulePage = () => (
   <GuildLayout>
     <Box my = {{ base: 12 }} px = {{ base: 50, xl: 150 }}>
-      <Heading mb = {8} size = "md">
+      <Heading mt = {4}
+        mb = {8}
+        size = "md">
         Auto Moderation Settings
       </Heading>
       <AutoModerationSettings />
 
-      <Heading mb = {8} size = "md">
+      <Heading mt = {4}
+        mb = {8}
+        size = "md">
         NSFW Detection Settings
       </Heading>
       <NSFWDetectionSettings />
 
-      <Heading mb = {8} size = "md">
+      <Heading mt = {4}
+        mb = {8}
+        size = "md">
         Spam Detection Settings
       </Heading>
       <SpamDetectionSettings />
 
-      <Heading mb = {8} size = "md">
+      <Heading mt = {4}
+        mb = {8}
+        size = "md">
         Mention Spam Detection Settings
       </Heading>
       <MentionSpamDetectionSettings />

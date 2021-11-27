@@ -1,17 +1,14 @@
-import { useState } from 'react';
 import {
   FormControl,
   FormLabel,
   Input,
   FormErrorMessage,
   FormErrorIcon,
-  Button,
-  HStack,
-  Box
+  HStack
 } from '@chakra-ui/react';
 import { UseFormReturn } from 'react-hook-form';
 import { ApiPatchGuildSettingsBody, GuildSettings, ms, UserGuild } from '@automoderator/core';
-import { fetchApi } from '~/utils/fetchApi';
+import InputClearButton from '~/components/InputClearButton';
 
 // TODO(DD): consider generalizing
 interface DurationInputProps {
@@ -30,58 +27,42 @@ const DurationInput = ({
   required,
   guild,
   form: { register, formState: { errors } }
-}: DurationInputProps) => {
-  const [isClearing, setIsClearing] = useState<boolean>(false);
+}: DurationInputProps) => (
+  <FormControl id = {settingsKey} isInvalid = {Boolean(errors[settingsKey])}>
+    <FormLabel>
+      {name}
+    </FormLabel>
 
-  return (
+    <FormErrorMessage>
+      <FormErrorIcon />
+      {errors[settingsKey]?.message}
+    </FormErrorMessage>
+
     <HStack mb = {4}>
-      <Box pt = {8}>
-        <Button type = "button"
-          colorScheme = "red"
-          isLoading = {isClearing}
-          loadingText = "Clearing"
-          isDisabled = {isClearing}
-          onClick = {async () => {
-            setIsClearing(true);
-            await fetchApi<unknown, ApiPatchGuildSettingsBody>({ path: `/guilds/${guild.id}/settings`, method: 'PATCH', body: { [settingsKey]: null } });
-            setIsClearing(false);
-          }}
-        >
-          Clear
-        </Button>
-      </Box>
+      <InputClearButton settingsKey = {settingsKey} guild = {guild.id} />
 
-      <FormControl id = {settingsKey} isInvalid = {Boolean(errors[settingsKey])}>
-        <FormLabel>
-          {name}
-        </FormLabel>
-        <Input {...register(settingsKey, {
-          required: { value: required ?? false, message: 'Please input a duration' },
-          // @ts-expect-error
-          validate: (value?: string) => {
-            if (value == null) {
-              return;
-            }
-
-            try {
-              const duration = ms(value);
-
-              if (value !== '0' && duration === 0) {
-                return 'Please input a valid duration';
-              }
-            } catch {}
+      <Input {...register(settingsKey, {
+        required: { value: required ?? false, message: 'Please input a duration' },
+        // @ts-expect-error
+        validate: (value?: string) => {
+          if (value == null) {
+            return;
           }
-        })}
-        placeholder = {name}
-        defaultValue = {(settings[settingsKey] == null ? undefined : ms(settings[settingsKey] as any, true))}
-        />
-        <FormErrorMessage>
-          <FormErrorIcon />
-          {errors[settingsKey]?.message}
-        </FormErrorMessage>
-      </FormControl>
+
+          try {
+            const duration = ms(value);
+
+            if (value !== '0' && duration === 0) {
+              return 'Please input a valid duration';
+            }
+          } catch {}
+        }
+      })}
+      placeholder = {name}
+      defaultValue = {(settings[settingsKey] == null ? undefined : ms(settings[settingsKey] as any, true))}
+      />
     </HStack>
-  );
-};
+  </FormControl>
+);
 
 export default DurationInput;

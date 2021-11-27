@@ -29,10 +29,12 @@ const SwitchInput = ({
       <FormLabel>
         {name}
       </FormLabel>
+
       <Switch size = "lg" {...register(settingsKey)}
         placeholder = {name}
         defaultValue = {(settings[settingsKey] ?? false) as any}
       />
+
       <FormErrorMessage>
         <FormErrorIcon />
         {errors[settingsKey]?.message}

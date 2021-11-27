@@ -2,9 +2,17 @@ import Link from 'next/link';
 import {
   Box,
   Flex,
+  ButtonGroup,
   Button,
   IconButton,
   Img,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverCloseButton,
+  PopoverHeader,
+  PopoverBody,
+  PopoverFooter,
   useDisclosure,
   useColorModeValue,
   useColorMode
@@ -12,6 +20,7 @@ import {
 import { FiMenu, FiX } from 'react-icons/fi';
 import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import { useUserStore } from '~/store/index';
+import { useState } from 'react';
 
 const Navbar = () => {
   const user = useUserStore();
@@ -19,6 +28,8 @@ const Navbar = () => {
 
   const icon = useColorModeValue(<MoonIcon />, <SunIcon />);
   const { toggleColorMode } = useColorMode();
+
+  const [popoverIsOpen, setPopoverIsOpen] = useState<boolean>(false);
 
   const avatar = user.avatar
     ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`
@@ -37,17 +48,49 @@ const Navbar = () => {
               Server selection
             </Button>
           </Link>
-          {/* TODO(DD): Logout thingy? */}
-          <Link href = "/guilds">
-            <Button variant = "ghost" justifyContent = {{ base: 'start', md: 'unset' }}>
-              <Img mr = {2} rounded = "full"
-                boxSize = "25px" src = {avatar}
-                alt = {user.username!} />
-              <Box>
-                {user.username}
-              </Box>
-            </Button>
-          </Link>
+
+          <Popover placement = "bottom-end"
+            isOpen = {popoverIsOpen}
+            onClose = {() => setPopoverIsOpen(false)}>
+            <PopoverTrigger>
+              <Button variant = "ghost"
+                justifyContent = {{ base: 'start', md: 'unset' }}
+                onClick = {() => setPopoverIsOpen(true)}>
+                <Img mr = {2} rounded = "full"
+                  boxSize = "25px" src = {avatar}
+                  alt = {user.username!} />
+                <Box>
+                  {user.username}
+                </Box>
+              </Button>
+            </PopoverTrigger>
+
+            <PopoverContent>
+              <PopoverCloseButton />
+
+              <PopoverHeader fontWeight = "semibold">
+                Confirmation
+              </PopoverHeader>
+
+              <PopoverBody>
+                Are you sure you want to log out?
+              </PopoverBody>
+
+              <PopoverFooter d = "flex" justifyContent = "flex-end">
+                <ButtonGroup size = "sm">
+                  <Link href = {`${process.env.NEXT_PUBLIC_AUTH_DOMAIN}/api/v1/auth/discord/logout?redirect_uri=${process.env.NEXT_PUBLIC_DASH_DOMAIN}`}>
+                    <Button colorScheme = "red">
+                      Confirm
+                    </Button>
+                  </Link>
+
+                  <Button variant = "outline" onClick = {() => setPopoverIsOpen(false)}>
+                    Cancel
+                  </Button>
+                </ButtonGroup>
+              </PopoverFooter>
+            </PopoverContent>
+          </Popover>
         </>
       )
       : (

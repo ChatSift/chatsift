@@ -5,6 +5,7 @@ import GuildLayout from '~/components/GuildLayout';
 
 const GuildSettings = dynamic(() => import('~/components/GuildSettings'));
 
+// TODO(DD): (this applies to all other config pages) - figure out toast notifications to indicate success/failure
 const GuildPage = () => (
   <GuildLayout>
     <Box my = {{ base: 12 }} px = {{ base: 50, xl: 150 }}>

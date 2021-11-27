@@ -1,17 +1,14 @@
-import { useState } from 'react';
 import {
   FormControl,
   FormLabel,
   Input,
   FormErrorMessage,
   FormErrorIcon,
-  Button,
-  HStack,
-  Box
+  HStack
 } from '@chakra-ui/react';
 import { UseFormReturn } from 'react-hook-form';
 import type { ApiPatchGuildSettingsBody, GuildSettings, UserGuild } from '@automoderator/core';
-import { fetchApi } from '~/utils/fetchApi';
+import InputClearButton from '~/components/InputClearButton';
 
 // TODO(DD): consider generalizing
 interface NumberInputProps {
@@ -34,52 +31,37 @@ const NumberInput = ({
   form: { register, formState: { errors } },
   min,
   max
-}: NumberInputProps) => {
-  const [isClearing, setIsClearing] = useState<boolean>(false);
+}: NumberInputProps) => (
+  <FormControl id = {settingsKey} isInvalid = {Boolean(errors[settingsKey])}>
+    <FormLabel>
+      {name}
+    </FormLabel>
 
-  return (
+    <FormErrorMessage p = {2} pl = {20}>
+      <FormErrorIcon />
+      {errors[settingsKey]?.message}
+    </FormErrorMessage>
+
     <HStack mb = {4}>
-      <Box pt = {8}>
-        <Button type = "button"
-          colorScheme = "red"
-          isLoading = {isClearing}
-          loadingText = "Clearing"
-          isDisabled = {isClearing}
-          onClick = {async () => {
-            setIsClearing(true);
-            await fetchApi<unknown, ApiPatchGuildSettingsBody>({ path: `/guilds/${guild.id}/settings`, method: 'PATCH', body: { [settingsKey]: null } });
-            setIsClearing(false);
-          }}
-        >
-          Clear
-        </Button>
-      </Box>
+      <InputClearButton settingsKey = {settingsKey} guild = {guild.id} />
 
-      <FormControl id = {settingsKey} isInvalid = {Boolean(errors[settingsKey])}>
-        <FormLabel>
-          {name}
-        </FormLabel>
-        <Input {...register(settingsKey, {
-          required: { value: required ?? false, message: 'Please input a number' },
-          min: { value: min ?? -Infinity, message: `Please input a number greater than or equal to ${min}` },
-          max: { value: max ?? Infinity, message: `Please input a number lower than or equal to ${max}` },
-          // @ts-expect-error
-          validate: (value?: string) => {
-            if (value?.length && isNaN(Number(value))) {
-              return 'Please input a valid number';
-            }
+      <Input {...register(settingsKey, {
+        required: { value: required ?? false, message: 'Please input a number' },
+        min: { value: min ?? -Infinity, message: `Please input a number greater than or equal to ${min}` },
+        max: { value: max ?? Infinity, message: `Please input a number lower than or equal to ${max}` },
+        // @ts-expect-error
+        validate: (value?: string) => {
+          if (value?.length && isNaN(Number(value))) {
+            return 'Please input a valid number';
           }
-        })}
-        placeholder = {name}
-        defaultValue = {(settings[settingsKey] ?? undefined) as string}
-        />
-        <FormErrorMessage>
-          <FormErrorIcon />
-          {errors[settingsKey]?.message}
-        </FormErrorMessage>
-      </FormControl>
+        }
+      })}
+      placeholder = {name}
+      defaultValue = {(settings[settingsKey] ?? undefined) as string}
+      />
+
     </HStack>
-  );
-};
+  </FormControl>
+);
 
 export default NumberInput;

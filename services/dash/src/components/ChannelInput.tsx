@@ -1,17 +1,14 @@
-import { useState } from 'react';
 import {
   FormControl,
   FormLabel,
   Select,
   FormErrorMessage,
   FormErrorIcon,
-  Button,
-  HStack,
-  Box
+  HStack
 } from '@chakra-ui/react';
 import { UseFormReturn } from 'react-hook-form';
 import { ApiPatchGuildSettingsBody, GuildSettings, UserGuild, sortChannels } from '@automoderator/core';
-import { fetchApi } from '~/utils/fetchApi';
+import InputClearButton from '~/components/InputClearButton';
 
 interface ChannelInputProps {
   settings: GuildSettings;
@@ -31,54 +28,38 @@ const ChannelInput = ({
   guild,
   form: { register, formState: { errors } },
   textOnly
-}: ChannelInputProps) => {
-  const [isClearing, setIsClearing] = useState<boolean>(false);
+}: ChannelInputProps) => (
+  <FormControl id = {settingsKey} isInvalid = {Boolean(errors[settingsKey])}>
+    <FormLabel>
+      {name}
+    </FormLabel>
 
-  return (
+    <FormErrorMessage>
+      <FormErrorIcon />
+      {errors[settingsKey]?.message}
+    </FormErrorMessage>
+
     <HStack mb = {4}>
-      <Box pt = {8}>
-        <Button type = "button"
-          colorScheme = "red"
-          isLoading = {isClearing}
-          loadingText = "Clearing"
-          isDisabled = {isClearing}
-          onClick = {async () => {
-            setIsClearing(true);
-            await fetchApi<unknown, ApiPatchGuildSettingsBody>({ path: `/guilds/${guild.id}/settings`, method: 'PATCH', body: { [settingsKey]: null } });
-            setIsClearing(false);
-          }}
-        >
-          Clear
-        </Button>
-      </Box>
+      <InputClearButton settingsKey = {settingsKey} guild = {guild.id} />
 
-      <FormControl id = {settingsKey} isInvalid = {Boolean(errors[settingsKey])}>
-        <FormLabel>
-          {name}
-        </FormLabel>
-        <Select {...register(settingsKey, {
-          required: { value: required ?? false, message: 'Please select a role' }
-        })}
-        placeholder = {name}
-        defaultValue = {(settings[settingsKey] ?? undefined) as string}
-        >
-          {
-            sortChannels(guild.data?.channels ?? [])
-              .filter(channel => !textOnly || channel.type === 0)
-              .map(channel => (
-                <option value = {channel.id} key = {channel.id}>
-                  {channel.name}
-                </option>
-              ))
-          }
-        </Select>
-        <FormErrorMessage>
-          <FormErrorIcon />
-          {errors[settingsKey]?.message}
-        </FormErrorMessage>
-      </FormControl>
+      <Select {...register(settingsKey, {
+        required: { value: required ?? false, message: 'Please select a role' }
+      })}
+      placeholder = {name}
+      defaultValue = {(settings[settingsKey] ?? undefined) as string}
+      >
+        {
+          sortChannels(guild.data?.channels ?? [])
+            .filter(channel => !textOnly || channel.type === 0)
+            .map(channel => (
+              <option value = {channel.id} key = {channel.id}>
+                {`${channel.type === 0 ? '#' : ''}${channel.name}`}
+              </option>
+            ))
+        }
+      </Select>
     </HStack>
-  );
-};
+  </FormControl>
+);
 
 export default ChannelInput;
