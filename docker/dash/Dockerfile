@@ -14,6 +14,12 @@ LABEL version "0.1.0"
 
 WORKDIR /usr/dash
 
+RUN apk add --update \
+&& apk add --no-cache ca-certificates \
+&& apk add --no-cache --virtual .build-deps curl
+
+RUN curl -L https://unpkg.com/@pnpm/self-installer | node
+
 COPY --from=0 /opt/build ./
 
 EXPOSE 4000
