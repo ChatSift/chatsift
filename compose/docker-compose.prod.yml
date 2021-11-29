@@ -54,18 +54,16 @@ services:
       ELASTIC_URL: "http://elasticsearch:9200"
       ELASTIC_USERNAME: "elastic"
 
-  nginx:
+  caddy:
     build:
       context: ../
-      dockerfile: ./docker/nginx/Dockerfile
+      dockerfile: ./docker/caddy/Dockerfile
     depends_on:
       - api
       - auth
       - interactions
       - elasticsearch
       - kibana
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt
     ports:
       - "80:80"
       - "443:443"
