@@ -30,6 +30,15 @@ services:
       ELASTIC_URL: "http://elasticsearch:9200"
       ELASTIC_USERNAME: "elastic"
 
+  dash:
+    image: chatsift/automoderator_dash
+    build:
+      context: ../
+      dockerfile: ./docker/dash/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - base
+
   gateway:
     environment:
       NODE_ENV: "prod"

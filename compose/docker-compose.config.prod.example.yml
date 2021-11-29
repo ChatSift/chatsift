@@ -69,3 +69,4 @@ services:
   caddy:
     environment:
       CF_API_TOKEN: "pls fill"
+      BASIC_AUTH_KEY: "may also need to fill"
