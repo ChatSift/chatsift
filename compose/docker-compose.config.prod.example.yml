@@ -41,7 +41,6 @@ services:
       DISCORD_PUB_KEY: "owo"
       DISCORD_TOKEN: "awooga"
       DEV_IDS: "123,456"
-      INTERACTIONS_TEST_GUILDS: "456,789"
       INTERNAL_API_TOKEN: "asdf"
       ELASTIC_PASSWORD: "owo"
 
@@ -66,3 +65,7 @@ services:
       "xpack.encryptedSavedObjects.encryptionKey": "a"
       "xpack.reporting.encryptionKey": "b"
       "xpack.security.encryptionKey": "c"
+
+  caddy:
+    environment:
+      CF_API_TOKEN: "pls fill"

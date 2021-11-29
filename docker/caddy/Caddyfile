@@ -1,0 +1,13 @@
+{
+  acme_dns cloudflare {env.CF_API_TOKEN}
+}
+
+api.automoderator.app {
+  reverse_proxy /api/*/auth/* http://auth:3000
+  reverse_proxy /api/*/discord/webhook http://interactions:3002
+  reverse_proxy * http://api:3001
+}
+
+kibana.automoderator.app {
+  reverse_proxy * http://kibana:5601
+}
