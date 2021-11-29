@@ -1,7 +1,6 @@
-
 /* eslint-disable react/display-name, react-hooks/rules-of-hooks */
 
-import useLoginProtectedPage from '~/hooks/useLoginProtecedPage';
+import { useLoginProtectedPage } from '~/hooks/useLoginProtecedPage';
 import { Center } from '@chakra-ui/react';
 import Layout from '~/components/Layout';
 import dynamic from 'next/dynamic';

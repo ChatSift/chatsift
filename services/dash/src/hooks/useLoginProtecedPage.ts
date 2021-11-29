@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useUserStore } from '~/store/index';
 import { useQueryMe } from '~/hooks/useQueryMe';
 
-const useLoginProtectedRoute = () => {
+export function useLoginProtectedPage() {
   const { user: data } = useQueryMe();
 
   const user = useUserStore();
@@ -16,6 +16,4 @@ const useLoginProtectedRoute = () => {
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return user.loggedIn;
-};
-
-export default useLoginProtectedRoute;
+}
