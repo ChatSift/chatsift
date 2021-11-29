@@ -3,6 +3,16 @@
 }
 
 api.automoderator.app {
+  log {
+    output file /var/log/access.log {
+      roll_size 1gb
+      roll_keep 5
+      roll_keep_for 720h
+    }
+    level INFO
+    format console
+  }
+
   reverse_proxy /api/*/auth/* http://auth:3000
   reverse_proxy /api/*/discord/webhook http://interactions:3002
   reverse_proxy * http://api:3001
