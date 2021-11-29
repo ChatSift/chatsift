@@ -16,4 +16,6 @@ WORKDIR /usr/dash
 
 COPY --from=0 /opt/build ./
 
+EXPOSE 4000
+
 CMD ["pnpm", "run", "--dir", "services/dash", "start"]
