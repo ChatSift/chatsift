@@ -29,3 +29,7 @@ dash.automoderator.app {
 
   reverse_proxy * http://dash:4000
 }
+
+ghost.automoderator.app {
+  reverse_proxy * http://ghost:5000
+}
