@@ -31,5 +31,5 @@ dash.automoderator.app {
 }
 
 ghost.automoderator.app {
-  reverse_proxy * http://ghost:5000
+  reverse_proxy * http://ghost:2368
 }
