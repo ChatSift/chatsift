@@ -20,7 +20,7 @@
   "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
     "@automoderator/core": "workspace:^0.1.0",
-    "@cordis/bitfield": "1.0.2-next.2616696.163369938",
+    "@cordis/bitfield": "^1.2.0",
     "@types/node": "^16.10.3",
     "@types/pino": "^6.3.11",
     "postgres": "^2.0.0-beta.10",
@@ -28,8 +28,8 @@
   },
   "dependencies": {
     "@automoderator/injection": "workspace:^0.1.0",
-    "@cordis/rest": "1.0.2-next.2616696.163369938",
-    "discord-api-types": "^0.23.1",
+    "@cordis/rest": "^1.2.0",
+    "discord-api-types": "^0.24.0",
     "tslib": "^2.3.1",
     "tsyringe": "^4.6.0"
   }

@@ -5,7 +5,7 @@ const ONE_WEEK = ONE_DAY * 7;
 const EIGHT_DAYS = ONE_WEEK + ONE_DAY;
 
 test('string -> number', () => {
-  expect(ms('1w1d')).toBe(EIGHT_DAYS);
+  expect(ms('1w 1d')).toBe(EIGHT_DAYS);
 });
 
 describe('number -> string', () => {

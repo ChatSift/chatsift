@@ -12,7 +12,7 @@ declare module 'polka' {
   }
 }
 
-export const thirdPartyAuth = (fallthrough = false, guild = true) => {
+export const thirdPartyAuth = (fallthrough = false) => {
   const tokens = container.resolve(TokenManager);
   const sql = container.resolve<Sql<{}>>(kSql);
 
@@ -38,7 +38,7 @@ export const thirdPartyAuth = (fallthrough = false, guild = true) => {
       }
     }
 
-    if (guild && req.params.gid && !new Permissions(BigInt(req.app!.perms)).has('administrator')) {
+    if (req.params.gid && !new Permissions(BigInt(req.app!.perms)).has('administrator')) {
       const [guild] = await sql<[AppGuild?]>`SELECT * FROM app_guilds WHERE app_id = ${app!.app_id} AND guild_id = ${req.params.gid}`;
       if (!guild) {
         return next(unauthorized('cannot perform actions on this guild'));

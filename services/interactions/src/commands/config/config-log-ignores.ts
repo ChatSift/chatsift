@@ -1,6 +1,6 @@
 import { ConfigLogIgnoresCommand } from '#interactions';
-import { ArgumentsOf, LogIgnoresStateStore, send, sortChannels } from '#util';
-import { ApiGetGuildLogIgnoresResult } from '@automoderator/core';
+import { ArgumentsOf, LogIgnoresStateStore, send } from '#util';
+import { ApiGetGuildLogIgnoresResult, sortChannels } from '@automoderator/core';
 import { ellipsis } from '@automoderator/util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';

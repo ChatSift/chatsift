@@ -18,10 +18,16 @@ export const jsonParser = (wantRaw = false) => async (req: Request, _: Response,
     let data = '';
     for await (const chunk of req) data += chunk;
     if (wantRaw) req.rawBody = data;
+
+    if (data === '') {
+      return next();
+    }
+
     req.body = JSON.parse(data);
 
-    await next();
+    return next();
   } catch (e: any) {
+    /* istanbul ignore next */
     return next(badData(e.message ?? e.toString()));
   }
 };

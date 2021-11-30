@@ -24,7 +24,7 @@ jest.mock(
 );
 
 const mockedFetch = fetch as unknown as jest.Mock<typeof fetch>;
-const makeMockedRequest = (data: any): Request => data;
+const makeMockedRequest = (data: any): Request => ({ params: {}, ...data });
 const MockedResponse = Http2ServerResponse as unknown as jest.Mock<Response>;
 const mockedNext = jest.fn();
 

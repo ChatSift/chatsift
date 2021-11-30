@@ -19,7 +19,7 @@
   },
   "homepage": "https://github.com/didinele/AutoModerator#readme",
   "devDependencies": {
-    "@cordis/bitfield": "1.0.2-next.2616696.163369938",
+    "@cordis/bitfield": "^1.2.0",
     "@types/node": "^16.10.3",
     "typescript": "^4.4.3"
   },

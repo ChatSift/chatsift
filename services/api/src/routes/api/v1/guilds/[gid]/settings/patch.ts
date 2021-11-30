@@ -1,6 +1,6 @@
 import { SettingsController } from '#controllers';
 import type { ApiPatchGuildSettingsBody } from '@automoderator/core';
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
+import { jsonParser, Route, userOrThirdPartyAuth, validate } from '@automoderator/rest';
 import type { Snowflake } from 'discord-api-types/v9';
 import * as Joi from 'joi';
 import type { Request, Response } from 'polka';
@@ -9,7 +9,7 @@ import { injectable } from 'tsyringe';
 @injectable()
 export default class PatchGuildsSettingsRoute extends Route {
   public override readonly middleware = [
-    thirdPartyAuth(),
+    userOrThirdPartyAuth(),
     jsonParser(),
     validate(
       Joi

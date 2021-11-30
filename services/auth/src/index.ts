@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { initConfig, kLogger, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
-import { createApp, initApp } from '@automoderator/rest';
+import { createApp, initApp, logRequests } from '@automoderator/rest';
 import { readdirRecurse } from '@gaius-bot/readdir';
 import { join as joinPath } from 'path';
 import postgres from 'postgres';
@@ -21,6 +21,7 @@ void (async () => {
   );
 
   const app = createApp();
+  app.use(logRequests());
 
   await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtension: 'js' }));
 

@@ -36,6 +36,14 @@ test('invalid data', async () => {
   expect(mockedNext.mock.calls[0][0].output.statusCode).toBe(422);
 });
 
+test('empty data', async () => {
+  const parser = jsonParser();
+
+  await parser(makeMockedRequest({ headers: { 'content-type': 'application/json' } }, ''), new MockedResponse(), mockedNext);
+  expect(mockedNext).toHaveBeenCalled();
+  expect(mockedNext.mock.calls[0][0]).not.toBeInstanceOf(Boom);
+});
+
 test('valid data', async () => {
   const parser = jsonParser();
 

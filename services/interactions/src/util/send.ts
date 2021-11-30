@@ -50,7 +50,7 @@ export const send = async (
       }));
 
       REPLIED.add(message.token);
-      setTimeout(() => REPLIED.delete(message.token), 6e4);
+      setTimeout(() => REPLIED.delete(message.token), 6e4).unref();
 
       if (files) {
         await send(message, { files });

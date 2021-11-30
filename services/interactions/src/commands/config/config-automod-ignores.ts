@@ -1,6 +1,6 @@
 import { ConfigAutomodIgnoresCommand } from '#interactions';
-import { ArgumentsOf, EMOTES, FilterIgnoresStateStore, send, sortChannels } from '#util';
-import type { ApiGetFiltersIgnoresResult } from '@automoderator/core';
+import { ArgumentsOf, EMOTES, FilterIgnoresStateStore, send } from '#util';
+import { ApiGetFiltersIgnoresResult, sortChannels } from '@automoderator/core';
 import { ellipsis } from '@automoderator/util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { FilterIgnores } from '@automoderator/filter-ignores';

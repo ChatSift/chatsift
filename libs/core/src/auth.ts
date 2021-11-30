@@ -7,6 +7,10 @@ export interface AuthGetDiscordCallbackQuery {
   state: string;
 }
 
+export interface AuthGetDiscordLogoutQuery {
+  redirect_uri: string;
+}
+
 export interface AuthGetDiscordRefreshBody {
   refresh_token: string;
 }

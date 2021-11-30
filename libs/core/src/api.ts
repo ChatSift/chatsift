@@ -1,4 +1,4 @@
-import type { Snowflake } from 'discord-api-types/v9';
+import type { Snowflake, APIUser, RESTAPIPartialCurrentUserGuild, APIGuild } from 'discord-api-types/v9';
 import type { WarnCaseExtras } from './brokers';
 import type {
   AllowedInvite,
@@ -237,3 +237,6 @@ export type ApiPatchGuildSettingsBody = Partial<Omit<GuildSettings, 'guild_id'>>
 export type ApiPatchGuildSettingsResult = GuildSettings;
 
 export type ApiDeleteGuildSettingsResult = GuildSettings;
+
+export type UserGuild = RESTAPIPartialCurrentUserGuild & { data: APIGuild | null };
+export type ApiGetUsersMeResult = APIUser & { guilds: UserGuild[] };
