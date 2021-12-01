@@ -14,6 +14,7 @@ export interface Config {
   authDomain: string;
   apiDomain: string;
   dashDomain: string;
+  ghostDomain: string;
   internalApiToken: string;
   discordClientId: string;
   devIds: string[];
@@ -31,6 +32,7 @@ export interface Config {
   elasticUsername: string;
   elasticPassword: string;
   nsfwPredictApiKey: string;
+  ghostIntegrationKey: string;
 }
 
 export const initConfig = () => {
@@ -40,6 +42,7 @@ export const initConfig = () => {
     authDomain: process.env.AUTH_DOMAIN!,
     apiDomain: process.env.API_DOMAIN!,
     dashDomain: process.env.DASH_DOMAIN!,
+    ghostDomain: process.env.GHOST_DOMAIN!,
     internalApiToken: process.env.INTERNAL_API_TOKEN!,
     discordClientId: process.env.DISCORD_CLIENT_ID!,
     devIds: process.env.DEV_IDS?.split(',') ?? [],
@@ -56,7 +59,8 @@ export const initConfig = () => {
     elasticUrl: process.env.ELASTIC_URL!,
     elasticUsername: process.env.ELASTIC_USERNAME!,
     elasticPassword: process.env.ELASTIC_PASSWORD!,
-    nsfwPredictApiKey: process.env.NSFW_PREDICT_API_KEY!
+    nsfwPredictApiKey: process.env.NSFW_PREDICT_API_KEY!,
+    ghostIntegrationKey: process.env.GHOST_INTEGRATION_KEY!
   };
 
   container.register<Config>(kConfig, { useValue: config });

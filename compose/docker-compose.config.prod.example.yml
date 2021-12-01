@@ -13,6 +13,7 @@ services:
       DISCORD_TOKEN: "awooga"
       ENCRYPTION_KEY: "32 random bytes of base64 here"
       ELASTIC_PASSWORD: "owo"
+      GHOST_INTEGRATION_KEY: "haha"
 
   automod:
     environment:
