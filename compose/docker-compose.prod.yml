@@ -12,6 +12,7 @@ services:
     environment:
       ROOT_DOMAIN: "https://automoderator.app"
       AUTH_DOMAIN: "https://api.automoderator.app"
+      GHOST_DOMAIN: "https://ghost.automoderator.app"
       NODE_ENV: "prod"
       ELASTIC_URL: "http://elasticsearch:9200"
       ELASTIC_USERNAME: "elastic"
@@ -100,3 +101,17 @@ services:
     environment:
       ELASTICSEARCH_HOSTS: "http://elasticsearch:9200"
       ELASTICSEARCH_USERNAME: "kibana_system"
+
+  ghost:
+    image: ghost:4-alpine
+    restart: unless-stopped
+    expose:
+      - 2368
+    environment:
+      NODE_ENV: "production"
+      url: "https://ghost.automoderator.app"
+      database__client: "sqlite3"
+      mail__transport: "SMTP"
+      mail__options__service: "Mailgun"
+    volumes:
+      - ghost-data:/var/lib/ghost/content

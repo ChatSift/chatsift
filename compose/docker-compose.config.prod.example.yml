@@ -13,6 +13,7 @@ services:
       DISCORD_TOKEN: "awooga"
       ENCRYPTION_KEY: "32 random bytes of base64 here"
       ELASTIC_PASSWORD: "owo"
+      GHOST_INTEGRATION_KEY: "haha"
 
   automod:
     environment:
@@ -70,3 +71,8 @@ services:
     environment:
       CF_API_TOKEN: "pls fill"
       BASIC_AUTH_KEY: "may also need to fill"
+
+  ghost:
+    environment:
+      mail__options__auth__user: "username here"
+      mail__options__auth__pass: "pass here"
