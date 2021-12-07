@@ -6,13 +6,12 @@ import {
   Button,
   IconButton,
   Img,
+  Text,
   Popover,
   PopoverTrigger,
   PopoverContent,
   PopoverCloseButton,
-  PopoverHeader,
   PopoverBody,
-  PopoverFooter,
   useDisclosure,
   useColorModeValue,
   useColorMode
@@ -65,19 +64,21 @@ const Navbar = () => {
               </Button>
             </PopoverTrigger>
 
-            <PopoverContent>
+            <PopoverContent border = "0">
               <PopoverCloseButton />
-
-              <PopoverHeader fontWeight = "semibold">
-                Confirmation
-              </PopoverHeader>
-
               <PopoverBody>
-                Are you sure you want to log out?
-              </PopoverBody>
+                <Text fontWeight = "semibold">
+                  Confirmation
+                </Text>
 
-              <PopoverFooter d = "flex" justifyContent = "flex-end">
-                <ButtonGroup size = "sm">
+                <Text pt = {0.5}>
+                  Are you sure you want to log out?
+                </Text>
+
+                <ButtonGroup d = "flex"
+                  justifyContent = "flex-end"
+                  pt = {2}
+                  size = "sm">
                   <Link href = {`${process.env.NEXT_PUBLIC_AUTH_DOMAIN}/api/v1/auth/discord/logout?redirect_uri=${process.env.NEXT_PUBLIC_DASH_DOMAIN}`}>
                     <Button colorScheme = "red">
                       Confirm
@@ -88,7 +89,7 @@ const Navbar = () => {
                     Cancel
                   </Button>
                 </ButtonGroup>
-              </PopoverFooter>
+              </PopoverBody>
             </PopoverContent>
           </Popover>
         </>
