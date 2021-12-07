@@ -1,14 +1,7 @@
 import { useQuerySettings } from '~/hooks/useQuerySettings';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
-import {
-  Button,
-  ButtonGroup,
-  Heading,
-  Center,
-  Box,
-  Link
-} from '@chakra-ui/react';
+import { Button, ButtonGroup } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import { FormEvent } from 'react';
 import { useQueryMe } from '~/hooks/useQueryMe';
@@ -83,21 +76,7 @@ const NSFWDetectionSettings = () => {
         </ButtonGroup>
       </form>
     )
-    : (
-      <Center>
-        <Box my = {{ base: 12 }} px = {{ base: 50, xl: 150 }}
-          textAlign = "center">
-          <Heading fontSize = "xl" mb = {6}>
-            {'AutoModerator is not in this guild yet'}
-          </Heading>
-          <Link target = "_blank" href = {process.env.NEXT_PUBLIC_INVITE_LINK}>
-            <Button>
-              Invite AutoModerator
-            </Button>
-          </Link>
-        </Box>
-      </Center>
-    );
+    : null;
 };
 
 export default NSFWDetectionSettings;

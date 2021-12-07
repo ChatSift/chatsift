@@ -17,7 +17,8 @@ const GuildDisplay = ({ guild }: { guild?: { id: Snowflake; name: string; icon: 
         mb = {8}
       >
         <GuildIcon guild = {guild} />
-        <Heading fontSize = "2xl">
+        <Heading fontSize = "2xl" maxWidth = "20ch"
+          isTruncated>
           {guild.name}
         </Heading>
       </Grid>
