@@ -16,7 +16,7 @@ export class PromptsController {
     const [prompt] = await this.sql<[SelfAssignableRolePrompt?]>`SELECT * FROM self_assignable_roles_prompts WHERE prompt_id = ${id}`;
 
     if (prompt) {
-      const roles = await this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE prompt_id = ${id}`;
+      const roles = await this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE prompt_id = ${id} ORDER BY id`;
       return { ...prompt, roles };
     }
   }
@@ -25,14 +25,14 @@ export class PromptsController {
     const [prompt] = await this.sql<[SelfAssignableRolePrompt?]>`SELECT * FROM self_assignable_roles_prompts WHERE message_id = ${id}`;
 
     if (prompt) {
-      const roles = await this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE prompt_id = ${prompt.prompt_id}`;
+      const roles = await this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE prompt_id = ${prompt.prompt_id} ORDER BY id`;
       return { ...prompt, roles };
     }
   }
 
   public async getAll(guild: Snowflake): Promise<PromptData[]> {
     const prompts = await this.sql<SelfAssignableRolePrompt[]>`SELECT * FROM self_assignable_roles_prompts WHERE guild_id = ${guild}`;
-    const roles = await this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE guild_id = ${guild}`;
+    const roles = await this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE guild_id = ${guild} ORDER BY id`;
 
     const groupedRoles = roles.reduce<Record<number, SelfAssignableRole[]>>((acc, role) => {
       (acc[role.prompt_id] ??= []).push(role);

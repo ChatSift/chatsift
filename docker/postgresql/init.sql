@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS self_assignable_roles_prompts (
 
 -- NOTE(DD): emoji columns should be their own table with a one-to-one relationship going
 CREATE TABLE IF NOT EXISTS self_assignable_roles (
+  id serial UNIQUE NOT NULL,
   role_id bigint PRIMARY KEY,
   prompt_id int NOT NULL REFERENCES self_assignable_roles_prompts ON DELETE CASCADE,
   guild_id bigint NOT NULL,

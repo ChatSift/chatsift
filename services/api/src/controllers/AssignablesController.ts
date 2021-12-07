@@ -20,16 +20,16 @@ export class AssignablesController {
 
   public get(roleId: Snowflake): Promise<SelfAssignableRole | undefined> {
     return this
-      .sql<[SelfAssignableRole?]>`SELECT * FROM self_assignable_roles WHERE role_id = ${roleId}`
+      .sql<[SelfAssignableRole?]>`SELECT * FROM self_assignable_roles WHERE role_id = ${roleId} ORDER BY id`
       .then(rows => rows[0]);
   }
 
   public getAllForPrompt(prompt: number): Promise<SelfAssignableRole[]> {
-    return this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE prompt_id = ${prompt}`;
+    return this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE prompt_id = ${prompt} ORDER BY id`;
   }
 
   public getAll(guildId: Snowflake): Promise<SelfAssignableRole[]> {
-    return this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE guild_id = ${guildId}`;
+    return this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE guild_id = ${guildId} ORDER BY id`;
   }
 
   public async add(guildId: Snowflake, prompt: number, roleId: Snowflake, emoji?: EmojiData): Promise<SelfAssignableRole | undefined> {
@@ -40,10 +40,10 @@ export class AssignablesController {
     if (emoji) {
       return this
         .sql<[SelfAssignableRole]>`
-        INSERT INTO self_assignable_roles (role_id, prompt_id, guild_id, emoji_id, emoji_name, emoji_animated)
-        VALUES (${roleId}, ${prompt}, ${guildId}, ${emoji.id}, ${emoji.name}, ${emoji.animated})
-        RETURNING *
-      `
+          INSERT INTO self_assignable_roles (role_id, prompt_id, guild_id, emoji_id, emoji_name, emoji_animated)
+          VALUES (${roleId}, ${prompt}, ${guildId}, ${emoji.id}, ${emoji.name}, ${emoji.animated})
+          RETURNING *
+        `
         .then(rows => rows[0]);
     }
 

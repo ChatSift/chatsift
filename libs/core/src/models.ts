@@ -48,6 +48,7 @@ export interface SelfAssignableRolePrompt {
 }
 
 export type SelfAssignableRole = OneOf<{
+  id: number;
   role_id: Snowflake;
   prompt_id: number;
   guild_id: Snowflake;

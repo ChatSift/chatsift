@@ -285,7 +285,7 @@ export default class implements Command {
                   ]
               }
             }
-          );
+          ).catch(() => null);
 
           let content = 'Successfully added the given role to the list of self assignable roles';
 
@@ -366,7 +366,7 @@ export default class implements Command {
                   ]
               }
             }
-          );
+          ).catch(() => null);
 
           let content = 'Successfully removed the given role from the list of self assignable roles';
 
