@@ -15,7 +15,6 @@ const GuildDisplay = ({ guild }: { guild?: { id: Snowflake; name: string; icon: 
         textAlign = "center"
         mt = {4}
         mb = {8}
-        color = "white"
       >
         <GuildIcon guild = {guild} />
         <Heading fontSize = "2xl">

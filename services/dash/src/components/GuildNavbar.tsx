@@ -18,11 +18,14 @@ const GuildNavbar = () => {
   const router = useRouter();
   const { isOpen, onToggle } = useDisclosure();
   const { isOpen: isOpenModules, onToggle: onToggleModules } = useDisclosure({
-    defaultIsOpen: router.route === '/guilds/[id]/modules/automoderation'
+    defaultIsOpen: router.route.startsWith('/guilds/[id]/modules')
   });
 
   const icon = useColorModeValue(<MoonIcon />, <SunIcon />);
-  const { toggleColorMode } = useColorMode();
+  const { toggleColorMode, colorMode } = useColorMode();
+
+  const gray = colorMode === 'dark' ? 'gray.700' : 'gray.200';
+  const blue = colorMode === 'dark' ? 'blue.200' : 'blue.600';
 
   const { id } = router.query;
 
@@ -55,7 +58,8 @@ const GuildNavbar = () => {
           <Link href = {`/guilds/${id}`}>
             <Button w = "100%"
               variant = {router.route === '/guilds/[id]' ? 'solid' : 'ghost'}
-              color = {router.route === '/guilds/[id]' ? 'blue.200' : 'white'}
+              color = {router.route === '/guilds/[id]' ? blue : 'theme'}
+              bg = {gray}
             >
               Dashboard
             </Button>
@@ -69,8 +73,8 @@ const GuildNavbar = () => {
           <Box d = {{ base: isOpenModules ? 'block' : 'none' }} w = "100%">
             <Link href = {`/guilds/${id}/modules/automoderation`}>
               <Button variant = "ghost"
-                color = {router.route === '/guilds/[id]/modules/automoderation' ? 'blue.200' : 'white'}
-                bg = "gray.700"
+                color = {router.route === '/guilds/[id]/modules/automoderation' ? blue : 'theme'}
+                bg = {gray}
                 w = "100%"
               >
                 Auto Moderation
@@ -81,8 +85,8 @@ const GuildNavbar = () => {
           <Box d = {{ base: isOpenModules ? 'block' : 'none' }} w = "100%">
             <Link href = {`/guilds/${id}/modules/logging`}>
               <Button variant = "ghost"
-                color = {router.route === '/guilds/[id]/modules/logging' ? 'blue.200' : 'white'}
-                bg = "gray.700"
+                color = {router.route === '/guilds/[id]/modules/logging' ? blue : 'theme'}
+                bg = {gray}
                 w = "100%"
               >
                 Logging
