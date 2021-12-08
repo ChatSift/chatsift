@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import {
   Box,
+  Text,
   Button,
   Flex,
   IconButton,
@@ -17,9 +18,6 @@ import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 const GuildNavbar = () => {
   const router = useRouter();
   const { isOpen, onToggle } = useDisclosure();
-  const { isOpen: isOpenModules, onToggle: onToggleModules } = useDisclosure({
-    defaultIsOpen: router.route.startsWith('/guilds/[id]/modules')
-  });
 
   const icon = useColorModeValue(<MoonIcon />, <SunIcon />);
   const { toggleColorMode, colorMode } = useColorMode();
@@ -60,36 +58,45 @@ const GuildNavbar = () => {
               variant = {router.route === '/guilds/[id]' ? 'solid' : 'ghost'}
               color = {router.route === '/guilds/[id]' ? blue : 'theme'}
               bg = {gray}
+              textAlign = "left"
             >
-              Dashboard
+              <Text w = "100%">
+                Dashboard
+              </Text>
             </Button>
           </Link>
 
-          <Button w = "100%" variant = "ghost"
-            onClick = {onToggleModules}>
+          <Text fontWeight = "semibold" w = "100%"
+            pt = {4}>
             Modules
-          </Button>
+          </Text>
 
-          <Box d = {{ base: isOpenModules ? 'block' : 'none' }} w = "100%">
+          <Box w = "100%">
             <Link href = {`/guilds/${id}/modules/automoderation`}>
               <Button variant = "ghost"
                 color = {router.route === '/guilds/[id]/modules/automoderation' ? blue : 'theme'}
                 bg = {gray}
+                textAlign = "left"
                 w = "100%"
               >
-                Auto Moderation
+                <Text w = "100%">
+                  Auto Moderation
+                </Text>
               </Button>
             </Link>
           </Box>
 
-          <Box d = {{ base: isOpenModules ? 'block' : 'none' }} w = "100%">
+          <Box w = "100%">
             <Link href = {`/guilds/${id}/modules/logging`}>
               <Button variant = "ghost"
                 color = {router.route === '/guilds/[id]/modules/logging' ? blue : 'theme'}
                 bg = {gray}
+                textAlign = "left"
                 w = "100%"
               >
-                Logging
+                <Text w = "100%">
+                  Logging
+                </Text>
               </Button>
             </Link>
           </Box>
