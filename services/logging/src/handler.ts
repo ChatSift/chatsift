@@ -29,6 +29,7 @@ import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 import {
   APIEmbed,
   APIMessage,
+  APIChannel,
   APIUser,
   APIWebhook,
   RESTPatchAPIWebhookWithTokenMessageJSONBody,
@@ -51,6 +52,9 @@ export class Handler {
     @inject(kSql) public readonly sql: Sql<{}>,
     public readonly rest: Rest
   ) {}
+
+  private readonly channelsCache = new Map<Snowflake, APIChannel>();
+  private readonly threadsCache = new Map<Snowflake, Snowflake>();
 
   private _populateEmbedWithWarnPunishment(embed: APIEmbed, cs: WarnCase): APIEmbed {
     if (!cs.extra) {
@@ -126,10 +130,26 @@ export class Handler {
     return webhook;
   }
 
-  private async _assertWebhook(channel: Snowflake, name: string): Promise<APIWebhook | null> {
-    const [data] = await this.sql<[WebhookToken?]>`SELECT * FROM webhook_tokens WHERE channel_id = ${channel}`;
+  private async _assertWebhook(channel: Snowflake, guild: Snowflake, name: string): Promise<APIWebhook | null> {
+    if (!this.channelsCache.has(channel)) {
+      const channels = await this.rest.get<APIChannel[]>(Routes.guildChannels(guild));
+      for (const channel of channels) {
+        this.channelsCache.set(channel.id, channel);
+      }
+    }
+
+    let parent;
+
+    // Thread channel
+    if (!this.channelsCache.has(channel) && !this.threadsCache.has(channel)) {
+      const thread = await this.rest.get<APIChannel>(Routes.channel(channel));
+      this.threadsCache.set(thread.id, thread.parent_id!);
+      parent = thread.parent_id!;
+    }
+
+    const [data] = await this.sql<[WebhookToken?]>`SELECT * FROM webhook_tokens WHERE channel_id = ${parent ?? channel}`;
     if (!data) {
-      return this._createWebhook(channel, name);
+      return this._createWebhook(parent ?? channel, name);
     }
 
     try {
@@ -139,7 +159,7 @@ export class Handler {
         return null;
       }
 
-      return this._createWebhook(channel, name);
+      return this._createWebhook(parent ?? channel, name);
     }
   }
 
@@ -160,7 +180,7 @@ export class Handler {
       return;
     }
 
-    const webhook = await this._assertWebhook(channelId, 'Mod Actions');
+    const webhook = await this._assertWebhook(channelId, log.data[0]!.guild_id, 'Mod Actions');
     if (!webhook) {
       return;
     }
@@ -209,9 +229,11 @@ export class Handler {
       embeds.push(embed);
     }
 
+    const thread = this.threadsCache.has(channelId) ? `&thread_id=${channelId}` : '';
+
     for (let i = 0; i < Math.ceil(embeds.length / 10); i++) {
       void this.rest.post<RESTPostAPIWebhookWithTokenWaitResult, RESTPostAPIWebhookWithTokenJSONBody>(
-        `${Routes.webhook(webhook.id, webhook.token)}?wait=true`, {
+        `${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`, {
           data: {
             embeds: embeds.slice(0 + (i * 10), 10 + (i * 10))
           }
@@ -403,7 +425,7 @@ export class Handler {
       return;
     }
 
-    const webhook = await this._assertWebhook(channelId, 'Filter trigger');
+    const webhook = await this._assertWebhook(channelId, log.data.message.guild_id!, 'Filter trigger');
     if (!webhook) {
       return;
     }
@@ -414,8 +436,10 @@ export class Handler {
       return;
     }
 
+    const thread = this.threadsCache.has(channelId) ? `&thread_id=${channelId}` : '';
+
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-      Routes.webhook(webhook.id, webhook.token), {
+      `${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`, {
         data: {
           embeds
         }
@@ -432,7 +456,7 @@ export class Handler {
       return;
     }
 
-    const webhook = await this._assertWebhook(settings.user_update_log_channel, 'User Updates');
+    const webhook = await this._assertWebhook(settings.user_update_log_channel, settings.guild_id, 'User Updates');
     if (!webhook) {
       return;
     }
@@ -482,8 +506,9 @@ export class Handler {
       });
     }
 
+    const thread = this.threadsCache.has(settings.user_update_log_channel) ? `&thread_id=${settings.user_update_log_channel}` : '';
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-      Routes.webhook(webhook.id, webhook.token), {
+      `${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`, {
         data: {
           embeds
         }
@@ -496,7 +521,7 @@ export class Handler {
       return;
     }
 
-    const webhook = await this._assertWebhook(settings.message_update_log_channel, 'Message Updates');
+    const webhook = await this._assertWebhook(settings.message_update_log_channel, settings.guild_id, 'Message Updates');
     if (!webhook) {
       return;
     }
@@ -508,8 +533,9 @@ export class Handler {
 
     const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
 
+    const thread = this.threadsCache.has(settings.message_update_log_channel) ? `&thread_id=${settings.message_update_log_channel}` : '';
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-      Routes.webhook(webhook.id, webhook.token), {
+      `${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`, {
         data: {
           embeds: [
             {
@@ -548,7 +574,7 @@ export class Handler {
       return;
     }
 
-    const webhook = await this._assertWebhook(settings.message_update_log_channel, 'Message Updates');
+    const webhook = await this._assertWebhook(settings.message_update_log_channel, settings.guild_id, 'Message Updates');
     if (!webhook) {
       return;
     }
@@ -561,8 +587,9 @@ export class Handler {
     const url = `https://discord.com/channels/${entry.message.guild_id}/${entry.message.channel_id}/${entry.message.id}`;
     const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
 
+    const thread = this.threadsCache.has(settings.message_update_log_channel) ? `&thread_id=${settings.message_update_log_channel}` : '';
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-      Routes.webhook(webhook.id, webhook.token), {
+      `${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`, {
         data: {
           embeds: [
             {
@@ -595,7 +622,7 @@ export class Handler {
       return;
     }
 
-    const webhook = await this._assertWebhook(settings.mod_action_log_channel, 'Message Updates');
+    const webhook = await this._assertWebhook(settings.mod_action_log_channel, settings.guild_id, 'Message Updates');
     if (!webhook) {
       return;
     }
@@ -620,8 +647,9 @@ export class Handler {
       })
       .join('\n');
 
+    const thread = this.threadsCache.has(settings.mod_action_log_channel) ? `&thread_id=${settings.mod_action_log_channel}` : '';
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-      Routes.webhook(webhook.id, webhook.token), {
+      `${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`, {
         data: {
           embeds: [
             {
@@ -672,13 +700,14 @@ export class Handler {
       return;
     }
 
-    const webhook = await this._assertWebhook(settings.filter_trigger_log_channel, 'Filter trigger');
+    const webhook = await this._assertWebhook(settings.filter_trigger_log_channel, log.data.guildId, 'Filter trigger');
     if (!webhook) {
       return;
     }
 
+    const thread = this.threadsCache.has(settings.filter_trigger_log_channel) ? `&thread_id=${settings.filter_trigger_log_channel}` : '';
     await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-      Routes.webhook(webhook.id, webhook.token), {
+      `${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`, {
         data: {
           embeds: [
             {

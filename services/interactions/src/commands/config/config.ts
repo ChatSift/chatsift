@@ -113,8 +113,10 @@ export default class implements Command {
       settings.auto_pardon_warns_after = pardon;
     }
 
+    const textTypes = [ChannelType.GuildText, ChannelType.GuildPublicThread, ChannelType.GuildPrivateThread];
+
     if (mod) {
-      if (mod.type !== ChannelType.GuildText) {
+      if (!textTypes.includes(mod.type)) {
         throw new ControlFlowError('Please provide a valid text channel');
       }
 
@@ -122,7 +124,7 @@ export default class implements Command {
     }
 
     if (filters) {
-      if (filters.type !== ChannelType.GuildText) {
+      if (!textTypes.includes(filters.type)) {
         throw new ControlFlowError('Please provide a valid text channel');
       }
 
@@ -130,7 +132,7 @@ export default class implements Command {
     }
 
     if (users) {
-      if (users.type !== ChannelType.GuildText) {
+      if (!textTypes.includes(users.type)) {
         throw new ControlFlowError('Please provide a valid text channel');
       }
 
@@ -138,7 +140,7 @@ export default class implements Command {
     }
 
     if (messages) {
-      if (messages.type !== ChannelType.GuildText) {
+      if (!textTypes.includes(messages.type)) {
         throw new ControlFlowError('Please provide a valid text channel');
       }
 
@@ -165,7 +167,7 @@ export default class implements Command {
     }
 
     if (reports) {
-      if (reports.type !== ChannelType.GuildText) {
+      if (!textTypes.includes(reports.type)) {
         throw new ControlFlowError('Please provide a valid text channel');
       }
 
