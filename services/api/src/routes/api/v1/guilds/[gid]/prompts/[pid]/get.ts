@@ -1,6 +1,7 @@
 import { PromptsController } from '#controllers';
 import { Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { notFound } from '@hapi/boom';
+import { Snowflake } from 'discord-api-types/v9';
 import * as Joi from 'joi';
 import type { Request, Response, NextHandler } from 'polka';
 import { injectable } from 'tsyringe';
@@ -28,12 +29,12 @@ export default class GetGuildsPromptRoute extends Route {
   }
 
   public async handle(req: Request, res: Response, next: NextHandler) {
-    const { pid } = req.params as unknown as { pid: number };
+    const { gid, pid } = req.params as unknown as { gid: Snowflake; pid: number };
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    const prompt = await this.controller.get(pid);
+    const prompt = await this.controller.get(gid, pid);
 
     if (!prompt) {
       return next(notFound('Prompt not found'));

@@ -43,7 +43,7 @@ export default class PutGuildsAssignablesRoleRoute extends Route {
 
     const existing = await this.controller.getAllForPrompt(prompt_id);
 
-    if (!await this.prompts.get(prompt_id)) {
+    if (!await this.prompts.get(gid, prompt_id)) {
       return next(notFound('Could not find that prompt'));
     }
 

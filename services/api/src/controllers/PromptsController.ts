@@ -12,11 +12,11 @@ export class PromptsController {
     @inject(kSql) public readonly sql: Sql<{}>
   ) {}
 
-  public async get(id: number): Promise<PromptData | undefined> {
-    const [prompt] = await this.sql<[SelfAssignableRolePrompt?]>`SELECT * FROM self_assignable_roles_prompts WHERE prompt_id = ${id}`;
+  public async get(gid: Snowflake, pid: number): Promise<PromptData | undefined> {
+    const [prompt] = await this.sql<[SelfAssignableRolePrompt?]>`SELECT * FROM self_assignable_roles_prompts WHERE guild_id = ${gid} AND prompt_id = ${pid}`;
 
     if (prompt) {
-      const roles = await this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE prompt_id = ${id} ORDER BY id`;
+      const roles = await this.sql<SelfAssignableRole[]>`SELECT * FROM self_assignable_roles WHERE prompt_id = ${pid} ORDER BY id`;
       return { ...prompt, roles };
     }
   }
@@ -48,20 +48,26 @@ export class PromptsController {
       .then(rows => rows[0]);
   }
 
-  public update(data: { prompt_id: number; channel_id?: Snowflake; message_id?: Snowflake }): Promise<SelfAssignableRolePrompt | undefined> {
-    const { prompt_id, ...update } = data;
+  public update(data: {
+    prompt_id: number;
+    guild_id: Snowflake;
+    channel_id?: Snowflake;
+    message_id?: Snowflake;
+  }): Promise<SelfAssignableRolePrompt | undefined> {
+    const { prompt_id, guild_id, ...update } = data;
     return this
       .sql<[SelfAssignableRolePrompt?]>`
         UPDATE self_assignable_roles_prompts SET ${this.sql(update)}
         WHERE prompt_id = ${prompt_id}
+          AND guild_id = ${guild_id}
         RETURNING *
       `
       .then(rows => rows[0]);
   }
 
-  public delete(id: number): Promise<SelfAssignableRolePrompt | undefined> {
+  public delete(gid: Snowflake, pid: number): Promise<SelfAssignableRolePrompt | undefined> {
     return this
-      .sql<[SelfAssignableRolePrompt?]>`DELETE FROM self_assignable_roles_prompts WHERE prompt_id = ${id} RETURNING *`
+      .sql<[SelfAssignableRolePrompt?]>`DELETE FROM self_assignable_roles_prompts WHERE guild_id = ${gid} AND prompt_id = ${pid} RETURNING *`
       .then(rows => rows[0]);
   }
 

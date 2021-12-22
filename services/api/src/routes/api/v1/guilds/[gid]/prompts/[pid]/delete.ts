@@ -4,6 +4,7 @@ import { notFound } from '@hapi/boom';
 import * as Joi from 'joi';
 import type { Request, Response, NextHandler } from 'polka';
 import { injectable } from 'tsyringe';
+import { Snowflake } from 'discord-api-types/v9';
 
 @injectable()
 export default class DeleteGuildsPromptRoute extends Route {
@@ -28,12 +29,12 @@ export default class DeleteGuildsPromptRoute extends Route {
   }
 
   public async handle(req: Request, res: Response, next: NextHandler) {
-    const { pid } = req.params as unknown as { pid: number };
+    const { gid, pid } = req.params as unknown as { gid: Snowflake; pid: number };
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
 
-    const prompt = await this.controller.delete(pid);
+    const prompt = await this.controller.delete(gid, pid);
 
     if (!prompt) {
       return next(notFound('Could not find the given prompt'));

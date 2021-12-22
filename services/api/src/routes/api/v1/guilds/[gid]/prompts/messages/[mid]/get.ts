@@ -1,7 +1,7 @@
 import { PromptsController } from '#controllers';
 import { Route, thirdPartyAuth } from '@automoderator/rest';
 import { notFound } from '@hapi/boom';
-import type { Snowflake } from 'discord-api-types';
+import type { Snowflake } from 'discord-api-types/v9';
 import type { Request, Response, NextHandler } from 'polka';
 import { injectable } from 'tsyringe';
 
