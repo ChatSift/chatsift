@@ -274,7 +274,7 @@ export class Gateway {
               data: cases,
               type: LogTypes.modAction
             });
-          } else {
+          } else if (!hit.flags.has('report')) {
             await dmUser(
               message.author.id,
               `Your message was deleted due to containing a banned word: \`${hits[0]!.word}\`.`
