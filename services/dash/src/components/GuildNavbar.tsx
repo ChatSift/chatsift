@@ -67,7 +67,7 @@ const GuildNavbar = () => {
           </Link>
 
           <Text fontWeight = "semibold" w = "100%"
-            pt = {4}>
+            pt = {2}>
             Modules
           </Text>
 
