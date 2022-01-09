@@ -50,10 +50,10 @@ export default (service: string) => {
       { level: 'error', stream: logsStream },
       { level: 'fatal', stream: logsStream }
     );
-  } else {
-    Object.assign(options, { prettifier: pinoPretty });
-    streams.push({ level: 'trace', stream: process.stdout });
   }
+
+  Object.assign(options, { prettifier: pinoPretty({ colorize: true, translateTime: true, levelFirst: true }) });
+  streams.push({ level: 'trace', stream: process.stdout });
 
   return createLogger(
     options,
