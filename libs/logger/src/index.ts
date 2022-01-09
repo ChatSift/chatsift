@@ -52,7 +52,7 @@ export default (service: string) => {
     );
   }
 
-  Object.assign(options, { prettifier: pinoPretty({ colorize: true, translateTime: true, levelFirst: true }) });
+  Object.assign(options, { prettifier: pinoPretty });
   streams.push({ level: 'trace', stream: process.stdout });
 
   return createLogger(
