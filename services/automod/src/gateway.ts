@@ -439,7 +439,7 @@ export class Gateway {
 
   private async getChannelParent(guildId: Snowflake, channelId: Snowflake): Promise<Snowflake | null> {
     if (!this.channelParentCache.has(channelId)) {
-      const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
+      const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId), { cache: true });
       for (const channel of channels) {
         if (channel.type === ChannelType.GuildCategory) {
           continue;
@@ -496,7 +496,7 @@ export class Gateway {
           return;
         }
       } else {
-        const guild = await this.discord.get<APIGuild>(Routes.guild(message.guild_id));
+        const guild = await this.discord.get<APIGuild>(Routes.guild(message.guild_id), { cache: true, cacheTime: 36e5 });
         this.ownersCache.set(guild.id, guild.owner_id);
 
         if (guild.owner_id === author.id) {
@@ -518,7 +518,7 @@ export class Gateway {
 
       for (const role of member.roles) {
         if (!addPerm(role)) {
-          guildRoles ??= await this.discord.get<RESTGetAPIGuildRolesResult>(Routes.guildRoles(message.guild_id)).catch(() => []);
+          guildRoles ??= await this.discord.get<RESTGetAPIGuildRolesResult>(Routes.guildRoles(message.guild_id), { cache: true, cacheTime: 30000 }).catch(() => []);
           for (const role of guildRoles) {
             this.permsCache.set(role.id, role.permissions);
           }

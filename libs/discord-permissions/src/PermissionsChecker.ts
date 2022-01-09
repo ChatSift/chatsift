@@ -1,7 +1,7 @@
 import type { GuildSettings } from '@automoderator/core';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { APIInteractionGuildMember, Snowflake } from 'discord-api-types/v9';
+import { APIInteractionGuildMember, RESTGetAPIGuildResult, Routes, Snowflake } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
@@ -56,22 +56,21 @@ export class PermissionsChecker {
     return data.member.roles.includes(settings.admin_role);
   }
 
-  // TODO: Think of a safer way to handle getting the ownerId
-  public checkOwner(data: PermissionsCheckerData, ownerId?: Snowflake | null): Promise<boolean> {
-    // if (!ownerId) {
-    //   const guild = await this.rest.get<RESTGetAPIGuildResult>(Routes.guild(data.guild_id)).catch(error => {
-    //     this.logger.warn({ error }, 'Failed a checkOwner guild fetch - returning false');
-    //     return null;
-    //   });
+  public async checkOwner(data: PermissionsCheckerData, ownerId?: Snowflake | null): Promise<boolean> {
+    if (!ownerId) {
+      const guild = await this.rest.get<RESTGetAPIGuildResult>(Routes.guild(data.guild_id), { cache: true, cacheTime: 36e5 }).catch(error => {
+        this.logger.warn({ error }, 'Failed a checkOwner guild fetch - returning false');
+        return null;
+      });
 
-    //   if (!guild) {
-    //     return false;
-    //   }
+      if (!guild) {
+        return false;
+      }
 
-    //   ownerId = guild.owner_id;
-    // }
+      ownerId = guild.owner_id;
+    }
 
-    return Promise.resolve(data.member.user.id === ownerId);
+    return data.member.user.id === ownerId;
   }
 
   public async check(
