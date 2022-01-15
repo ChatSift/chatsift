@@ -13,7 +13,7 @@
         <a href="https://example.com/">Website and docs here</a>
       </strong>
     </h2>
-  </p>  
+  </p>
 
   <p>
       <img src="https://github.com/didinele/AutoModerator/actions/workflows/quality.yml/badge.svg" alt="Quality Check">
