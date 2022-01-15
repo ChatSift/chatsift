@@ -7,26 +7,24 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class DeleteGuildsSettingsRoute extends Route {
-  public override readonly middleware = [thirdPartyAuth()];
+	public override readonly middleware = [thirdPartyAuth()];
 
-  public constructor(
-    public readonly controller: SettingsController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: SettingsController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response, next: NextHandler) {
-    const { gid } = req.params as { gid: Snowflake };
+	public async handle(req: Request, res: Response, next: NextHandler) {
+		const { gid } = req.params as { gid: Snowflake };
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const settings = await this.controller.delete(gid);
+		const settings = await this.controller.delete(gid);
 
-    if (!settings) {
-      return next(notFound('There were no settings for this guild'));
-    }
+		if (!settings) {
+			return next(notFound('There were no settings for this guild'));
+		}
 
-    return res.end(JSON.stringify(settings));
-  }
+		return res.end(JSON.stringify(settings));
+	}
 }

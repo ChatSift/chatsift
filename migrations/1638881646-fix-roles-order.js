@@ -1,13 +1,13 @@
 export async function up(sql) {
-  const roles = await sql.unsafe('SELECT * FROM self_assignable_roles');
+	const roles = await sql.unsafe('SELECT * FROM self_assignable_roles');
 
-  await sql.unsafe('DELETE FROM self_assignable_roles');
-  await sql.unsafe('ALTER TABLE self_assignable_roles ADD COLUMN IF NOT EXISTS id serial NOT NULL');
+	await sql.unsafe('DELETE FROM self_assignable_roles');
+	await sql.unsafe('ALTER TABLE self_assignable_roles ADD COLUMN IF NOT EXISTS id serial NOT NULL');
 
-  let id = 1;
+	let id = 1;
 
-  for (const role of roles) {
-    await sql`
+	for (const role of roles) {
+		await sql`
       INSERT INTO self_assignable_roles (
         id,
         role_id,
@@ -26,9 +26,9 @@ export async function up(sql) {
         ${role.emoji_animated}
       );
     `;
-  }
+	}
 }
 
 export async function down(sql) {
-  await sql.unsafe(`ALTER TABLE self_assignable_roles DROP COLUMN IF EXISTS id`);
+	await sql.unsafe(`ALTER TABLE self_assignable_roles DROP COLUMN IF EXISTS id`);
 }

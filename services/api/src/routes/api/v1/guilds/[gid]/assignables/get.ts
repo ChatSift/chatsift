@@ -6,21 +6,19 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class GetGuildsAssignablesRoute extends Route {
-  public override readonly middleware = [thirdPartyAuth()];
+	public override readonly middleware = [thirdPartyAuth()];
 
-  public constructor(
-    public readonly controller: AssignablesController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: AssignablesController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response) {
-    const { gid } = req.params as { gid: Snowflake };
+	public async handle(req: Request, res: Response) {
+		const { gid } = req.params as { gid: Snowflake };
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const assignables = await this.controller.getAll(gid);
-    return res.end(JSON.stringify(assignables));
-  }
+		const assignables = await this.controller.getAll(gid);
+		return res.end(JSON.stringify(assignables));
+	}
 }

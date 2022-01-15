@@ -8,58 +8,40 @@ import { inject, singleton } from 'tsyringe';
 
 @singleton()
 export class FilesRunner {
-  public readonly extensions = new Set([
-    'exe',
-    'wav',
-    'mp3',
-    'flac',
-    'apng',
-    'gif',
-    'ogg',
-    'mp4',
-    'avi',
-    'webp'
-  ]);
+	public readonly extensions = new Set(['exe', 'wav', 'mp3', 'flac', 'apng', 'gif', 'ogg', 'mp4', 'avi', 'webp']);
 
-  public constructor(
-    public readonly rest: Rest,
-    @inject(kLogger) public readonly logger: Logger
-  ) {}
+	public constructor(public readonly rest: Rest, @inject(kLogger) public readonly logger: Logger) {}
 
-  private async cdnUrlToHash(url: string): Promise<string> {
-    const buffer = await fetch(url, { timeout: 15e3, follow: 5 }).then(res => res.buffer());
-    const hash = createHash('sha256')
-      .update(buffer)
-      .digest('hex');
+	private async cdnUrlToHash(url: string): Promise<string> {
+		const buffer = await fetch(url, { timeout: 15e3, follow: 5 }).then((res) => res.buffer());
+		const hash = createHash('sha256').update(buffer).digest('hex');
 
-    return hash;
-  }
+		return hash;
+	}
 
-  public precheck(urls: string[]): string[] {
-    return urls.filter(url => this.extensions.has(url.split('.').pop() ?? ''));
-  }
+	public precheck(urls: string[]): string[] {
+		return urls.filter((url) => this.extensions.has(url.split('.').pop() ?? ''));
+	}
 
-  public async run(urls: string[]): Promise<ApiPostFiltersFilesResult> {
-    const hashes: string[] = [];
-    const promises: Promise<string>[] = urls.map(url => this.cdnUrlToHash(url));
+	public async run(urls: string[]): Promise<ApiPostFiltersFilesResult> {
+		const hashes: string[] = [];
+		const promises: Promise<string>[] = urls.map((url) => this.cdnUrlToHash(url));
 
-    for (const promise of await Promise.allSettled(promises)) {
-      if (promise.status === 'rejected') {
-        this.logger.error({ e: promise.reason }, 'Failed to fetch the contents of a file');
-        continue;
-      }
+		for (const promise of await Promise.allSettled(promises)) {
+			if (promise.status === 'rejected') {
+				this.logger.error({ e: promise.reason as unknown }, 'Failed to fetch the contents of a file');
+				continue;
+			}
 
-      const hash = createHash('sha256')
-        .update(promise.value)
-        .digest('hex');
+			const hash = createHash('sha256').update(promise.value).digest('hex');
 
-      hashes.push(hash);
-    }
+			hashes.push(hash);
+		}
 
-    if (!hashes.length) {
-      return [];
-    }
+		if (!hashes.length) {
+			return [];
+		}
 
-    return this.rest.post<ApiPostFiltersFilesResult, ApiPostFiltersFilesBody>('/filters/files', { hashes });
-  }
+		return this.rest.post<ApiPostFiltersFilesResult, ApiPostFiltersFilesBody>('/filters/files', { hashes });
+	}
 }

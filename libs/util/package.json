@@ -1,36 +1,36 @@
 {
-  "$schema": "http://json.schemastore.org/package",
-  "name": "@automoderator/util",
-  "description": "Server specific utilities",
-  "main": "./dist/index.js",
-  "types": "./types/index.d.ts",
-  "version": "0.1.0",
-  "scripts": {
-    "lint": "eslint src --ext .ts",
-    "build": "tsc"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/didinele/AutoModerator.git"
-  },
-  "author": "didinele",
-  "bugs": {
-    "url": "https://github.com/didinele/AutoModerator/issues"
-  },
-  "homepage": "https://github.com/didinele/AutoModerator#readme",
-  "devDependencies": {
-    "@types/node": "^16.10.3",
-    "postgres": "^2.0.0-beta.10",
-    "typescript": "^4.4.3"
-  },
-  "dependencies": {
-    "@automoderator/core": "workspace:^0.1.0",
-    "@automoderator/injection": "workspace:^0.1.0",
-    "@cordis/rest": "^1.2.0-next.86d9daa.1641743196",
-    "@cordis/util": "^1.2.0",
-    "discord-api-types": "^0.24.0",
-    "nanoid": "^3.1.29",
-    "tslib": "^2.3.1",
-    "tsyringe": "^4.6.0"
-  }
+	"$schema": "http://json.schemastore.org/package",
+	"name": "@automoderator/util",
+	"description": "Server specific utilities",
+	"main": "./dist/index.js",
+	"types": "./types/index.d.ts",
+	"version": "0.1.0",
+	"scripts": {
+		"lint": "eslint src --ext .ts",
+		"build": "tsc"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/didinele/AutoModerator.git"
+	},
+	"author": "didinele",
+	"bugs": {
+		"url": "https://github.com/didinele/AutoModerator/issues"
+	},
+	"homepage": "https://github.com/didinele/AutoModerator#readme",
+	"devDependencies": {
+		"@types/node": "^16.10.3",
+		"postgres": "^2.0.0-beta.10",
+		"typescript": "^4.4.3"
+	},
+	"dependencies": {
+		"@automoderator/core": "workspace:^0.1.0",
+		"@automoderator/injection": "workspace:^0.1.0",
+		"@cordis/rest": "^1.2.0-next.86d9daa.1641743196",
+		"@cordis/util": "^1.2.0",
+		"discord-api-types": "^0.24.0",
+		"nanoid": "^3.1.29",
+		"tslib": "^2.3.1",
+		"tsyringe": "^4.6.0"
+	}
 }

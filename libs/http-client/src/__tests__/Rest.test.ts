@@ -12,28 +12,22 @@ container.register(kConfig, { useValue: { apiDomain: 'https://example.com', inte
 const rest = container.resolve(Rest);
 
 test('ok requests', async () => {
-  mockedFetch.mockImplementation(
-    () => ({ ok: true, json: () => Promise.resolve({ hello: 'world' }) })
-  );
+	mockedFetch.mockImplementation(() => ({ ok: true, json: () => Promise.resolve({ hello: 'world' }) }));
 
-  expect(await rest.get('/')).toStrictEqual({ hello: 'world' });
-  expect(await rest.post('/', { a: 'b' })).toStrictEqual({ hello: 'world' });
-  expect(await rest.patch('/', { a: 'b' })).toStrictEqual({ hello: 'world' });
-  expect(await rest.put('/', { a: 'b' })).toStrictEqual({ hello: 'world' });
-  expect(await rest.delete('/')).toStrictEqual({ hello: 'world' });
+	expect(await rest.get('/')).toStrictEqual({ hello: 'world' });
+	expect(await rest.post('/', { a: 'b' })).toStrictEqual({ hello: 'world' });
+	expect(await rest.patch('/', { a: 'b' })).toStrictEqual({ hello: 'world' });
+	expect(await rest.put('/', { a: 'b' })).toStrictEqual({ hello: 'world' });
+	expect(await rest.delete('/')).toStrictEqual({ hello: 'world' });
 });
 
 test('bad request', async () => {
-  mockedFetch.mockImplementation(
-    () => ({
-      ok: false,
-      status: 500,
-      statusText: 'Internal Server Error',
-      json: () => Promise.resolve({ message: 'made a fucko wucko' })
-    })
-  );
+	mockedFetch.mockImplementation(() => ({
+		ok: false,
+		status: 500,
+		statusText: 'Internal Server Error',
+		json: () => Promise.resolve({ message: 'made a fucko wucko' }),
+	}));
 
-  await expect(() => rest.make('/', 'get'))
-    .rejects
-    .toThrow(HTTPError);
+	await expect(() => rest.make('/', 'get')).rejects.toThrow(HTTPError);
 });

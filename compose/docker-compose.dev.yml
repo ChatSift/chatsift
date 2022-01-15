@@ -1,50 +1,49 @@
-version: "3.7"
+version: '3.7'
 
 services:
   api:
     environment:
-      NODE_ENV: "dev"
-      CORS: "http://localhost:4000"
+      NODE_ENV: 'dev'
+      CORS: 'http://localhost:4000'
     ports:
-      - "127.0.0.1:3001:3001"
+      - '127.0.0.1:3001:3001'
 
   auth:
     environment:
-      ROOT_DOMAIN: "http://localhost"
-      AUTH_DOMAIN: "http://localhost:3000"
-      NODE_ENV: "dev"
-      CORS: "http://localhost:4000"
+      ROOT_DOMAIN: 'http://localhost'
+      AUTH_DOMAIN: 'http://localhost:3000'
+      NODE_ENV: 'dev'
+      CORS: 'http://localhost:4000'
     ports:
-      - "127.0.0.1:3000:3000"
+      - '127.0.0.1:3000:3000'
 
   automod:
     environment:
-      NODE_ENV: "dev"
-      API_DOMAIN: "http://api:3001"
+      NODE_ENV: 'dev'
+      API_DOMAIN: 'http://api:3001'
 
   cron-runner:
     environment:
-      NODE_ENV: "dev"
+      NODE_ENV: 'dev'
 
   gateway:
     environment:
-      NODE_ENV: "dev"
+      NODE_ENV: 'dev'
 
   interactions:
     environment:
-      NODE_ENV: "dev"
-      API_DOMAIN: "http://api:3001"
+      NODE_ENV: 'dev'
+      API_DOMAIN: 'http://api:3001'
     ports:
-      - "127.0.0.1:3002:3002"
-      - "127.0.0.1:9229:9229"
-    command: ["node", "--enable-source-maps", "--inspect=0.0.0.0:9229", "services/interactions/dist/index.js"]
-
+      - '127.0.0.1:3002:3002'
+      - '127.0.0.1:9229:9229'
+    command: ['node', '--enable-source-maps', '--inspect=0.0.0.0:9229', 'services/interactions/dist/index.js']
 
   logging:
     environment:
-      NODE_ENV: "dev"
+      NODE_ENV: 'dev'
 
   mod-observer:
     environment:
-      NODE_ENV: "dev"
-      API_DOMAIN: "http://api:3001"
+      NODE_ENV: 'dev'
+      API_DOMAIN: 'http://api:3001'

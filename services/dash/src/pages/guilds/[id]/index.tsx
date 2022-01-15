@@ -10,30 +10,28 @@ const InviteAutomoderator = dynamic(() => import('~/components/InviteAutomoderat
 
 // TODO(DD): (this applies to all other config pages) - figure out toast notifications to indicate success/failure
 const GuildPage = () => {
-  const router = useRouter();
-  const { user } = useQueryMe();
+	const router = useRouter();
+	const { user } = useQueryMe();
 
-  const { id } = router.query as { id: string };
-  const guild = user?.guilds.find(g => g.id === id);
+	const { id } = router.query as { id: string };
+	const guild = user?.guilds.find((g) => g.id === id);
 
-  return (
-    <GuildLayout>
-      <Box my = {{ base: 12 }} px = {{ base: 50, xl: 150 }}>
-        {
-          guild?.data
-            ? (
-              <>
-                <Heading mb = {8} size = "md">
-                  Guild Settings
-                </Heading>
-                <GuildSettings />
-              </>
-            )
-            : (<InviteAutomoderator />)
-        }
-      </Box>
-    </GuildLayout>
-  );
+	return (
+		<GuildLayout>
+			<Box my={{ base: 12 }} px={{ base: 50, xl: 150 }}>
+				{guild?.data ? (
+					<>
+						<Heading mb={8} size="md">
+							Guild Settings
+						</Heading>
+						<GuildSettings />
+					</>
+				) : (
+					<InviteAutomoderator />
+				)}
+			</Box>
+		</GuildLayout>
+	);
 };
 
 export default LoginProtectedPage(GuildPage);

@@ -9,66 +9,63 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class PutGuildsAssignablesRoleRoute extends Route {
-  public override readonly middleware = [
-    thirdPartyAuth(),
-    jsonParser(),
-    validate(
-      Joi
-        .object()
-        .keys({
-          prompt_id: Joi.number().required(),
-          emoji: Joi
-            .object()
-            .keys({
-              id: Joi.string().pattern(/\d{17,20}/).required(),
-              name: Joi.string().required(),
-              animated: Joi.boolean().default(false)
-            })
-            .optional()
-        })
-        .required()
-    )
-  ];
+	public override readonly middleware = [
+		thirdPartyAuth(),
+		jsonParser(),
+		validate(
+			Joi.object()
+				.keys({
+					prompt_id: Joi.number().required(),
+					emoji: Joi.object()
+						.keys({
+							id: Joi.string()
+								.pattern(/\d{17,20}/)
+								.required(),
+							name: Joi.string().required(),
+							animated: Joi.boolean().default(false),
+						})
+						.optional(),
+				})
+				.required(),
+		),
+	];
 
-  public constructor(
-    public readonly controller: AssignablesController,
-    public readonly prompts: PromptsController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: AssignablesController, public readonly prompts: PromptsController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response, next: NextHandler) {
-    const { gid, rid } = req.params as { gid: Snowflake; rid: Snowflake };
-    const { prompt_id, emoji } = req.body as ApiPutGuildsAssignablesRoleBody;
+	public async handle(req: Request, res: Response, next: NextHandler) {
+		const { gid, rid } = req.params as { gid: Snowflake; rid: Snowflake };
+		const { prompt_id, emoji } = req.body as ApiPutGuildsAssignablesRoleBody;
 
-    const existing = await this.controller.getAllForPrompt(prompt_id);
+		const existing = await this.controller.getAllForPrompt(prompt_id);
 
-    if (!await this.prompts.get(gid, prompt_id)) {
-      return next(notFound('Could not find that prompt'));
-    }
+		if (!(await this.prompts.get(gid, prompt_id))) {
+			return next(notFound('Could not find that prompt'));
+		}
 
-    if (existing.length >= 25) {
-      return next(conflict('There are already 25 self assignable roles attached to that prompt'));
-    }
+		if (existing.length >= 25) {
+			return next(conflict('There are already 25 self assignable roles attached to that prompt'));
+		}
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const assignable = emoji
-      ? await this.controller.add(gid, prompt_id, rid, emoji)
-      : await this.controller.add(gid, prompt_id, rid);
+		const assignable = emoji
+			? await this.controller.add(gid, prompt_id, rid, emoji)
+			: await this.controller.add(gid, prompt_id, rid);
 
-    if (!assignable) {
-      const assignables = await this.controller.getAllForPrompt(prompt_id);
-      return next(
-        conflict(
-          assignables.find(a => a.role_id === rid)
-            ? 'This role is already assigned to another list'
-            : 'That role is already assigned for this prompt'
-        )
-      );
-    }
+		if (!assignable) {
+			const assignables = await this.controller.getAllForPrompt(prompt_id);
+			return next(
+				conflict(
+					assignables.find((a) => a.role_id === rid)
+						? 'This role is already assigned to another list'
+						: 'That role is already assigned for this prompt',
+				),
+			);
+		}
 
-    return res.end(JSON.stringify(assignable));
-  }
+		return res.end(JSON.stringify(assignable));
+	}
 }

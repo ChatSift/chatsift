@@ -6,21 +6,19 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class GetGuildsPromptsRoute extends Route {
-  public override readonly middleware = [thirdPartyAuth()];
+	public override readonly middleware = [thirdPartyAuth()];
 
-  public constructor(
-    public readonly controller: PromptsController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: PromptsController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response) {
-    const { gid } = req.params as { gid: Snowflake };
+	public async handle(req: Request, res: Response) {
+		const { gid } = req.params as { gid: Snowflake };
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const prompts = await this.controller.getAll(gid);
-    return res.end(JSON.stringify(prompts));
-  }
+		const prompts = await this.controller.getAll(gid);
+		return res.end(JSON.stringify(prompts));
+	}
 }

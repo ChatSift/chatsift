@@ -4,7 +4,7 @@
  * Used to report non-internal errors for a user
  */
 export class ControlFlowError extends Error {
-  public static isControlFlowError(error: any): error is ControlFlowError {
-    return error instanceof ControlFlowError;
-  }
+	public static isControlFlowError(error: any): error is ControlFlowError {
+		return error instanceof ControlFlowError;
+	}
 }

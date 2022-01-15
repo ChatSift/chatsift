@@ -7,26 +7,24 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class PutGuildsLogIgnoresRoute extends Route {
-  public override readonly middleware = [thirdPartyAuth()];
+	public override readonly middleware = [thirdPartyAuth()];
 
-  public constructor(
-    public readonly controller: LogIgnoresController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: LogIgnoresController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response, next: NextHandler) {
-    const { gid, cid } = req.params as { gid: Snowflake; cid: Snowflake };
+	public async handle(req: Request, res: Response, next: NextHandler) {
+		const { gid, cid } = req.params as { gid: Snowflake; cid: Snowflake };
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const ignore = await this.controller.add(gid, cid);
+		const ignore = await this.controller.add(gid, cid);
 
-    if (!ignore) {
-      return next(conflict('An ignore already exists for that channel.'));
-    }
+		if (!ignore) {
+			return next(conflict('An ignore already exists for that channel.'));
+		}
 
-    return res.end(JSON.stringify(ignore));
-  }
+		return res.end(JSON.stringify(ignore));
+	}
 }

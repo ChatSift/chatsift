@@ -8,36 +8,30 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class PostFiltersUrlsRoute extends Route {
-  public override readonly middleware = [
-    thirdPartyAuth(),
-    globalPermissions('useUrlFilters'),
-    jsonParser(),
-    validate(
-      Joi
-        .object()
-        .keys({
-          urls: Joi
-            .array()
-            .items(Joi.string().required())
-            .required()
-        })
-        .required(),
-      'body'
-    )
-  ];
+	public override readonly middleware = [
+		thirdPartyAuth(),
+		globalPermissions('useUrlFilters'),
+		jsonParser(),
+		validate(
+			Joi.object()
+				.keys({
+					urls: Joi.array().items(Joi.string().required()).required(),
+				})
+				.required(),
+			'body',
+		),
+	];
 
-  public constructor(
-    public readonly controller: UrlsController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: UrlsController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response) {
-    const { urls } = req.body as ApiPostFiltersUrlsBody;
+	public async handle(req: Request, res: Response) {
+		const { urls } = req.body as ApiPostFiltersUrlsBody;
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(await this.controller.getHitsFrom([...resolveUrls(urls)])));
-  }
+		return res.end(JSON.stringify(await this.controller.getHitsFrom([...resolveUrls(urls)])));
+	}
 }

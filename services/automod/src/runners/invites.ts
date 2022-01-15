@@ -10,56 +10,62 @@ import type { Logger } from 'pino';
 
 @singleton()
 export class InvitesRunner {
-  public readonly inviteRegex = /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})/gi;
-  public readonly invitesWorkerDomain = 'https://invite-lookup.chatsift.workers.dev' as const;
+	public readonly inviteRegex =
+		/(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})/gi;
 
-  public constructor(
-    @inject(kSql) public readonly sql: Sql<{}>,
-    @inject(kRedis) public readonly redis: Redis,
-    @inject(kLogger) public readonly logger: Logger,
-    public readonly discordRest: Rest
-  ) {}
+	public readonly invitesWorkerDomain = 'https://invite-lookup.chatsift.workers.dev' as const;
 
-  private async fetchInvite(code: string): Promise<APIInvite | null> {
-    const res = await fetch(`${this.invitesWorkerDomain}/invites/${code}`);
+	public constructor(
+		@inject(kSql) public readonly sql: Sql<{}>,
+		@inject(kRedis) public readonly redis: Redis,
+		@inject(kLogger) public readonly logger: Logger,
+		public readonly discordRest: Rest,
+	) {}
 
-    if (!res.ok) {
-      if (res.status !== 404) {
-        this.logger.warn({ code, res, data: await res.clone().json().catch(() => null) }, 'Failed to fetch invite');
-      }
+	private async fetchInvite(code: string): Promise<APIInvite | null> {
+		const res = await fetch(`${this.invitesWorkerDomain}/invites/${code}`);
 
-      return null;
-    }
+		if (!res.ok) {
+			if (res.status !== 404) {
+				this.logger.warn(
+					{
+						code,
+						res,
+						data: (await res
+							.clone()
+							.json()
+							.catch(() => null)) as unknown,
+					},
+					'Failed to fetch invite',
+				);
+			}
 
-    return res.json();
-  }
+			return null;
+		}
 
-  public precheck(content: string): string[] {
-    const invites = new Set([...content.matchAll(this.inviteRegex)].map(match => match.groups!.code!));
-    return [...invites];
-  }
+		return res.json() as Promise<APIInvite>;
+	}
 
-  public async run(codes: string[], guildId: Snowflake): Promise<string[]> {
-    const allowlist = new Set(
-      await this
-        .sql<AllowedInvite[]>`SELECT * FROM allowed_invites WHERE guild_id = ${guildId}`
-        .then(
-          rows => rows.map(row => row.allowed_guild_id)
-        )
-    );
+	public precheck(content: string): string[] {
+		const invites = new Set([...content.matchAll(this.inviteRegex)].map((match) => match.groups!.code!));
+		return [...invites];
+	}
 
-    const invites = await Promise.all(
-      codes.map(
-        code => this.fetchInvite(code)
-      )
-    );
+	public async run(codes: string[], guildId: Snowflake): Promise<string[]> {
+		const allowlist = new Set(
+			await this.sql<AllowedInvite[]>`SELECT * FROM allowed_invites WHERE guild_id = ${guildId}`.then((rows) =>
+				rows.map((row) => row.allowed_guild_id),
+			),
+		);
 
-    return invites.reduce<string[]>((acc, invite) => {
-      if (invite && !allowlist.has(invite.guild!.id)) {
-        acc.push(invite.code);
-      }
+		const invites = await Promise.all(codes.map((code) => this.fetchInvite(code)));
 
-      return acc;
-    }, []);
-  }
+		return invites.reduce<string[]>((acc, invite) => {
+			if (invite && !allowlist.has(invite.guild!.id)) {
+				acc.push(invite.code);
+			}
+
+			return acc;
+		}, []);
+	}
 }

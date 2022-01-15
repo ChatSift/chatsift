@@ -1,14 +1,16 @@
 {
-  "extends": "marine/node",
-  "rules": {
-    "@typescript-eslint/indent": [
-      "error",
-      2
-    ],
-    "@typescript-eslint/naming-convention": "off",
-    "@typescript-eslint/ban-types": "off",
-    "@typescript-eslint/restrict-template-expressions": "off",
-    "no-useless-constructor": "off",
-    "no-eq-null": "off"
-  }
+	"root": true,
+	"extends": ["marine/prettier/node"],
+	"parserOptions": {
+		"project": "./tsconfig.eslint.json"
+	},
+	"env": {
+		"jest": true
+	},
+	"rules": {
+		"@typescript-eslint/ban-types": "off",
+		"curly": ["error", "all"],
+		"no-multi-assign": "off",
+		"no-eq-null": "off"
+	}
 }

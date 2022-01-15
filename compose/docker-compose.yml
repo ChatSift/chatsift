@@ -1,4 +1,4 @@
-version: "3.7"
+version: '3.7'
 
 services:
   rabbitmq:
@@ -16,16 +16,16 @@ services:
       context: ../docker/postgresql
       dockerfile: ./Dockerfile
     environment:
-      POSTGRES_USER: "automoderator"
-      POSTGRES_PASSWORD: "admin"
-      POSTGRES_DB: "automoderator"
+      POSTGRES_USER: 'automoderator'
+      POSTGRES_PASSWORD: 'admin'
+      POSTGRES_DB: 'automoderator'
     ports:
-      - "127.0.0.1:5432:5432"
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U automoderator"]
+      test: ['CMD-SHELL', 'pg_isready -U automoderator']
       interval: 10s
       timeout: 5s
 
@@ -35,16 +35,16 @@ services:
       - redis-data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping"]
+      test: ['CMD-SHELL', 'redis-cli ping']
       interval: 10s
       timeout: 5s
 
 volumes:
   elis-data:
-    name: "automoderator-elis-data"
+    name: 'automoderator-elis-data'
   redis-data:
-    name: "redis-data"
+    name: 'redis-data'
   postgres-data:
-    name: "automoderator-postgres-data"
+    name: 'automoderator-postgres-data'
   ghost-data:
-    name: "automoderator-ghost-data"
+    name: 'automoderator-ghost-data'

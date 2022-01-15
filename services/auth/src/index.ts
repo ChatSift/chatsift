@@ -8,22 +8,20 @@ import postgres from 'postgres';
 import { container } from 'tsyringe';
 
 void (async () => {
-  const config = initConfig();
-  const logger = createLogger('auth');
+	const config = initConfig();
+	const logger = createLogger('auth');
 
-  container.register(kLogger, { useValue: logger });
-  container.register(
-    kSql, {
-      useValue: postgres(config.dbUrl, {
-        onnotice: notice => logger.debug({ notice }, 'Database notice')
-      })
-    }
-  );
+	container.register(kLogger, { useValue: logger });
+	container.register(kSql, {
+		useValue: postgres(config.dbUrl, {
+			onnotice: (notice) => logger.debug({ notice }, 'Database notice'),
+		}),
+	});
 
-  const app = createApp();
-  app.use(logRequests());
+	const app = createApp();
+	app.use(logRequests());
 
-  await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtension: 'js' }));
+	await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtension: 'js' }));
 
-  app.listen(3000, () => logger.info('Listening to requests on port 3000'));
+	app.listen(3000, () => logger.info('Listening to requests on port 3000'));
 })();

@@ -12,53 +12,43 @@ const MentionSpamDetectionSettings = dynamic(() => import('~/components/MentionS
 const InviteAutomoderator = dynamic(() => import('~/components/InviteAutomoderator'));
 
 const AutoModerationModulePage = () => {
-  const router = useRouter();
-  const { user } = useQueryMe();
+	const router = useRouter();
+	const { user } = useQueryMe();
 
-  const { id } = router.query as { id: string };
-  const guild = user?.guilds.find(g => g.id === id);
+	const { id } = router.query as { id: string };
+	const guild = user?.guilds.find((g) => g.id === id);
 
-  return (
-    <GuildLayout>
-      <Box my = {{ base: 12 }} px = {{ base: 50, xl: 150 }}>
-        {
-          guild?.data
-            ? (
-              <>
-                <Heading mt = {4}
-                  mb = {8}
-                  size = "md">
-                  Auto Moderation Settings
-                </Heading>
-                <AutoModerationSettings />
+	return (
+		<GuildLayout>
+			<Box my={{ base: 12 }} px={{ base: 50, xl: 150 }}>
+				{guild?.data ? (
+					<>
+						<Heading mt={4} mb={8} size="md">
+							Auto Moderation Settings
+						</Heading>
+						<AutoModerationSettings />
 
-                <Heading mt = {4}
-                  mb = {8}
-                  size = "md">
-                  NSFW Detection Settings
-                </Heading>
-                <NSFWDetectionSettings />
+						<Heading mt={4} mb={8} size="md">
+							NSFW Detection Settings
+						</Heading>
+						<NSFWDetectionSettings />
 
-                <Heading mt = {4}
-                  mb = {8}
-                  size = "md">
-                  Spam Detection Settings
-                </Heading>
-                <SpamDetectionSettings />
+						<Heading mt={4} mb={8} size="md">
+							Spam Detection Settings
+						</Heading>
+						<SpamDetectionSettings />
 
-                <Heading mt = {4}
-                  mb = {8}
-                  size = "md">
-                  Mention Spam Detection Settings
-                </Heading>
-                <MentionSpamDetectionSettings />
-              </>
-            )
-            : (<InviteAutomoderator />)
-        }
-      </Box>
-    </GuildLayout>
-  );
+						<Heading mt={4} mb={8} size="md">
+							Mention Spam Detection Settings
+						</Heading>
+						<MentionSpamDetectionSettings />
+					</>
+				) : (
+					<InviteAutomoderator />
+				)}
+			</Box>
+		</GuildLayout>
+	);
 };
 
 export default LoginProtectedPage(AutoModerationModulePage);

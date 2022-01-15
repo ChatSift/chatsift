@@ -4,16 +4,16 @@ import { useUserStore } from '~/store/index';
 import { useQueryMe } from '~/hooks/useQueryMe';
 
 export function useLoginProtectedPage() {
-  const { user: data } = useQueryMe();
+	const { user: data } = useQueryMe();
 
-  const user = useUserStore();
-  const router = useRouter();
+	const user = useUserStore();
+	const router = useRouter();
 
-  useEffect(() => {
-    if (data === null) {
-      void router.replace('/').catch(() => null);
-    }
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+	useEffect(() => {
+		if (data === null) {
+			void router.replace('/').catch(() => null);
+		}
+	}, [user]);
 
-  return user.loggedIn;
+	return user.loggedIn;
 }

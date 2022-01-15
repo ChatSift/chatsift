@@ -9,30 +9,28 @@ const LoggingSettings = dynamic(() => import('~/components/LoggingSettings'));
 const InviteAutomoderator = dynamic(() => import('~/components/InviteAutomoderator'));
 
 const LoggingModulePage = () => {
-  const router = useRouter();
-  const { user } = useQueryMe();
+	const router = useRouter();
+	const { user } = useQueryMe();
 
-  const { id } = router.query as { id: string };
-  const guild = user?.guilds.find(g => g.id === id);
+	const { id } = router.query as { id: string };
+	const guild = user?.guilds.find((g) => g.id === id);
 
-  return (
-    <GuildLayout>
-      <Box my = {{ base: 12 }} px = {{ base: 50, xl: 150 }}>
-        {
-          guild?.data
-            ? (
-              <>
-                <Heading mb = {8} size = "md">
-                  Auto Moderation Settings
-                </Heading>
-                <LoggingSettings />
-              </>
-            )
-            : (<InviteAutomoderator />)
-        }
-      </Box>
-    </GuildLayout>
-  );
+	return (
+		<GuildLayout>
+			<Box my={{ base: 12 }} px={{ base: 50, xl: 150 }}>
+				{guild?.data ? (
+					<>
+						<Heading mb={8} size="md">
+							Auto Moderation Settings
+						</Heading>
+						<LoggingSettings />
+					</>
+				) : (
+					<InviteAutomoderator />
+				)}
+			</Box>
+		</GuildLayout>
+	);
 };
 
 export default LoginProtectedPage(LoggingModulePage);

@@ -9,53 +9,57 @@ import { container } from 'tsyringe';
 import cookie from 'cookie';
 
 export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler) => {
-  const config = container.resolve<Config>(kConfig);
-  const logger = container.resolve<Logger>(kLogger);
+	const config = container.resolve<Config>(kConfig);
+	const logger = container.resolve<Logger>(kLogger);
 
-  const form = new URLSearchParams({
-    client_id: config.discordClientId,
-    client_secret: config.discordClientSecret,
-    redirect_uri: `${config.authDomain}/api/v1/auth/discord/callback`,
-    scope: config.discordScopes
-  });
+	const form = new URLSearchParams({
+		client_id: config.discordClientId,
+		client_secret: config.discordClientSecret,
+		redirect_uri: `${config.authDomain}/api/v1/auth/discord/callback`,
+		scope: config.discordScopes,
+	});
 
-  const code = (req.query as Partial<AuthGetDiscordCallbackQuery> | undefined)?.code;
+	const code = (req.query as Partial<AuthGetDiscordCallbackQuery> | undefined)?.code;
 
-  if (code) {
-    form.append('grant_type', 'authorization_code');
-    form.append('code', code);
-  } else {
-    const cookies = cookie.parse(req.headers.cookie ?? '');
+	if (code) {
+		form.append('grant_type', 'authorization_code');
+		form.append('code', code);
+	} else {
+		const cookies = cookie.parse(req.headers.cookie ?? '');
 
-    form.append('grant_type', 'refresh_token');
-    form.append('refresh_token', (cookies.refresh_token ?? (req.body as AuthGetDiscordRefreshBody | undefined)?.refresh_token)!);
-  }
+		form.append('grant_type', 'refresh_token');
+		form.append(
+			'refresh_token',
+			(cookies.refresh_token ?? (req.body as AuthGetDiscordRefreshBody | undefined)?.refresh_token)!,
+		);
+	}
 
-  const result = await fetch(
-    'https://discord.com/api/v9/oauth2/token', {
-      method: 'POST',
-      body: form.toString(),
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    }
-  );
+	const result = await fetch('https://discord.com/api/v9/oauth2/token', {
+		method: 'POST',
+		body: form.toString(),
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded',
+		},
+	});
 
-  const oauthResponse: RESTPostOAuth2AccessTokenResult = await result.json();
+	const oauthResponse = (await result.json()) as RESTPostOAuth2AccessTokenResult;
 
-  if (!result.ok) {
-    logger.warn({
-      data: oauthResponse,
-      userId: req.user!.id
-    }, 'Recieved weird discord data');
+	if (!result.ok) {
+		logger.warn(
+			{
+				data: oauthResponse,
+				userId: req.user!.id,
+			},
+			'Recieved weird discord data',
+		);
 
-    return next(internal());
-  }
+		return next(internal());
+	}
 
-  const { scope: returnedScope } = oauthResponse;
-  if (returnedScope !== config.discordScopes) {
-    return next(forbidden(`Expected scope "${config.discordScopes}" but received scope "${returnedScope}"`));
-  }
+	const { scope: returnedScope } = oauthResponse;
+	if (returnedScope !== config.discordScopes) {
+		return next(forbidden(`Expected scope "${config.discordScopes}" but received scope "${returnedScope}"`));
+	}
 
-  return oauthResponse;
+	return oauthResponse;
 };
