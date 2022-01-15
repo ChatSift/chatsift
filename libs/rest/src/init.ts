@@ -2,7 +2,7 @@ import { kLogger } from '@automoderator/injection';
 import type { RecursiveDirReadStream } from '@gaius-bot/readdir';
 import type { Logger } from 'pino';
 import type { Polka } from 'polka';
-import { container } from 'tsyringe';
+import { container, InjectionToken } from 'tsyringe';
 import { Route } from './route';
 
 export const initApp = async (app: Polka, files: RecursiveDirReadStream) => {
@@ -15,7 +15,7 @@ export const initApp = async (app: Polka, files: RecursiveDirReadStream) => {
 			continue;
 		}
 
-		const route = container.resolve<Route>((await import(file)).default);
+		const route = container.resolve<Route>(((await import(file)) as { default: InjectionToken<Route> }).default);
 		route.register(info, app);
 	}
 };

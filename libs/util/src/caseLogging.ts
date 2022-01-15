@@ -57,7 +57,7 @@ export const makeCaseEmbed = ({
 	// Set seperately so they are processed even on case updates in case mod data was missed for whatever reason
 	embed.title = `Was ${ACTIONS[cs.action_type]}${cs.reason ? ` for ${cs.reason}` : ''}`;
 	embed.footer = {
-		text: `Case ${cs.case_id}${cs.mod_tag ? ` | By ${cs.mod_tag} (${cs.mod_id})` : ''}`,
+		text: `Case ${cs.case_id}${cs.mod_tag ? ` | By ${cs.mod_tag} (${cs.mod_id!})` : ''}`,
 		icon_url: mod
 			? mod.avatar
 				? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${mod.id}/${mod.avatar}`)
@@ -162,7 +162,7 @@ export const makeHistoryEmbed = ({ user, cases, logChannelId, filterTriggers }: 
 		.reduce<string[]>(
 			(arr, [type, count]) => {
 				if (count > 0) {
-					arr.push(`${count} ${CaseAction[parseInt(type, 10)]}${count === 1 ? '' : 's'}`);
+					arr.push(`${count} ${CaseAction[parseInt(type, 10)]!}${count === 1 ? '' : 's'}`);
 				}
 
 				return arr;

@@ -1,5 +1,6 @@
 import { kLogger } from '@automoderator/injection';
 import { join as joinPath } from 'path';
+import type { Polka } from 'polka';
 import { container } from 'tsyringe';
 import { Route, RouteMethod } from '../route';
 
@@ -70,7 +71,7 @@ test('register', () => {
 			method: RouteMethod.get,
 			path: '/api/test',
 		},
-		mockedServer as any,
+		mockedServer as unknown as Polka,
 	);
 
 	expect(mockedServer.get).toHaveBeenCalledWith('/api/test', expect.any(Function));

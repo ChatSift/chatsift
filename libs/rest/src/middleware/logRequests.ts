@@ -19,7 +19,7 @@ export const logRequests = () => {
 				route: req.originalUrl,
 				status: res.statusCode,
 				statusText: res.statusMessage,
-				body: req.body,
+				body: req.body as Record<string, any>,
 				params: req.params,
 				query: req.query,
 			}),

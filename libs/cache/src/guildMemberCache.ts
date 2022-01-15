@@ -25,7 +25,7 @@ export class GuildMemberCache {
 			hash: `guild_members_cache_${guild}`,
 			redis: this.redis,
 			encode: (member) => JSON.stringify(member),
-			decode: (member) => JSON.parse(member),
+			decode: (member: string) => JSON.parse(member) as CachedGuildMember,
 		});
 
 		this._stores.set(guild, store);

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unsafe-member-access */
+
 import { kSql } from '@automoderator/injection';
 import { Boom } from '@hapi/boom';
 import { Http2ServerResponse } from 'http2';
@@ -24,7 +26,7 @@ jest.mock('node-fetch', () =>
 );
 
 const mockedFetch = fetch as unknown as jest.Mock<typeof fetch>;
-const makeMockedRequest = (data: any): Request => ({ params: {}, ...data });
+const makeMockedRequest = (data: any) => ({ params: {}, ...data } as Request);
 const MockedResponse = Http2ServerResponse as unknown as jest.Mock<Response>;
 const mockedNext = jest.fn();
 

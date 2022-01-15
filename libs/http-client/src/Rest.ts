@@ -23,13 +23,13 @@ export class Rest implements IRest {
 		});
 
 		if (!res.ok) {
-			const error = await res.json().catch(() => null);
+			const error = await (res.json() as Promise<{ message?: string }>).catch(() => null);
 			const message = error?.message ?? (await res.text());
 
 			return Promise.reject(new HTTPError(res, res.status, message));
 		}
 
-		return res.json();
+		return res.json() as Promise<T>;
 	}
 
 	public get<T>(path: string): Promise<T> {

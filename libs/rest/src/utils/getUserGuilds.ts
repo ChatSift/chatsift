@@ -27,11 +27,11 @@ export const getUserGuilds = async (token: string): Promise<UserGuilds> => {
 		return GUILDS_CACHE.get(token)!;
 	}
 
-	const guilds: RESTGetAPICurrentUserGuildsResult = await fetch(`https://discord.com/api/v9/users/@me/guilds`, {
+	const guilds = await fetch(`https://discord.com/api/v9/users/@me/guilds`, {
 		headers: {
 			authorization: `Bearer ${token}`,
 		},
-	}).then((res) => res.json());
+	}).then((res) => res.json() as Promise<RESTGetAPICurrentUserGuildsResult>);
 
 	if (!Array.isArray(guilds)) {
 		return new Map();

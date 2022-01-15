@@ -18,18 +18,23 @@ export const jsonParser =
 
 		try {
 			let data = '';
-			for await (const chunk of req) data += chunk;
-			if (wantRaw) req.rawBody = data;
-
-			if (data === '') {
-				return next();
+			for await (const chunk of req) {
+				data += chunk;
 			}
 
-			req.body = JSON.parse(data);
+			if (wantRaw) {
+				req.rawBody = data;
+			}
 
-			return next();
-		} catch (e: any) {
-			/* istanbul ignore next */
-			return next(badData(e.message ?? e.toString()));
+			if (data === '') {
+				return await next();
+			}
+
+			req.body = JSON.parse(data) as unknown;
+
+			return await next();
+		} catch (e) {
+			const error = e as Error;
+			return next(badData(error.message));
 		}
 	};

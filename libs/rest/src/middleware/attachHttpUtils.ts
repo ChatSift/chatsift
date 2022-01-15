@@ -4,7 +4,7 @@ import type { NextHandler, Request, Response } from 'polka';
 
 declare module 'http' {
 	export interface ServerResponse {
-		append: (header: string, value: any) => void;
+		append: (header: string, value: string | number | string[]) => void;
 		redirect: (redirect: string) => void;
 		cookie: (name: string, data: string, options?: cookie.CookieSerializeOptions) => void;
 	}
@@ -13,7 +13,10 @@ declare module 'http' {
 export const attachHttpUtils = () => (_: Request, res: Response, next: NextHandler) => {
 	res.append = (header, value) => {
 		const prev = res.getHeader(header);
-		if (prev) value = Array.isArray(prev) ? prev.concat(value) : [prev].concat(value);
+		if (prev) {
+			value = Array.isArray(prev) ? prev.concat(value as string) : ([prev].concat(value) as string[]);
+		}
+
 		res.setHeader(header, value);
 	};
 

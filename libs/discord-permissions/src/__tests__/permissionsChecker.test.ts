@@ -7,7 +7,7 @@ const sqlMock = jest.fn().mockImplementation(() => Promise.resolve([]));
 const restGetMock = jest.fn();
 const loggerWarnMock = jest.fn();
 
-const restMock: jest.Mocked<Rest> = { get: restGetMock } as any;
+const restMock = { get: restGetMock } as unknown as jest.Mocked<Rest>;
 
 container.register(kSql, { useValue: sqlMock });
 container.register(kLogger, { useValue: { warn: loggerWarnMock } });
@@ -16,7 +16,7 @@ container.register(Rest, { useValue: restMock });
 
 const checker = container.resolve(PermissionsChecker);
 
-const makeMockedInteraction = (data: any): PermissionsCheckerData => data;
+const makeMockedInteraction = (data: any): PermissionsCheckerData => data as PermissionsCheckerData;
 
 afterEach(() => jest.clearAllMocks());
 

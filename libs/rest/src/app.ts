@@ -1,7 +1,7 @@
 import { Config, kConfig } from '@automoderator/injection';
 import cors from 'cors';
 import helmet from 'helmet';
-import polka from 'polka';
+import polka, { Middleware } from 'polka';
 import { container } from 'tsyringe';
 import { attachHttpUtils } from './middleware';
 import { getPolkaOptions } from './utils';
@@ -14,7 +14,7 @@ export const createApp = () => {
 			origin: config.cors,
 			credentials: true,
 		}),
-		helmet({ contentSecurityPolicy: config.nodeEnv === 'prod' ? undefined : false }) as any,
+		helmet({ contentSecurityPolicy: config.nodeEnv === 'prod' ? undefined : false }) as Middleware,
 		attachHttpUtils(),
 	);
 };

@@ -13,6 +13,6 @@ export const validate =
 			return next(badData(result.error.message));
 		}
 
-		req[prop] = result.value;
+		req[prop] = result.value as unknown;
 		return next();
 	};

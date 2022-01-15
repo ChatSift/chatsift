@@ -60,7 +60,7 @@ export class PermissionsChecker {
 		if (!ownerId) {
 			const guild = await this.rest
 				.get<RESTGetAPIGuildResult>(Routes.guild(data.guild_id), { cache: true, cacheTime: 36e5 })
-				.catch((error) => {
+				.catch((error: unknown) => {
 					this.logger.warn({ error }, 'Failed a checkOwner guild fetch - returning false');
 					return null;
 				});

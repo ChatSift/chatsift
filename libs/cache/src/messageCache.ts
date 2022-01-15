@@ -12,7 +12,7 @@ export class MessageCache {
 		hash: 'messages_cache',
 		redis: this.redis,
 		encode: (message) => JSON.stringify(message),
-		decode: (message) => JSON.parse(message),
+		decode: (message: string) => JSON.parse(message) as APIMessage,
 	});
 
 	public constructor(@inject(kRedis) public readonly redis: Redis) {}

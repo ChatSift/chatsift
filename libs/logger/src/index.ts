@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
 import { Config, kConfig } from '@automoderator/injection';
 import ecsFormat from '@elastic/ecs-pino-format';
 import createLogger, { LoggerOptions } from 'pino';
@@ -38,7 +40,7 @@ export default (service: string) => {
 					'es-version': 7,
 				}) as NodeJS.WriteStream
 			)
-				.on('unknown', (line, error) =>
+				.on('unknown', (line: number, error) =>
 					console.error(`[${index}] Elasticsearch client json error in line:\n${line}\nError:`, error),
 				)
 				.on('error', (error) => console.error(`[${index}] Elasticsearch client error:`, error))
@@ -49,7 +51,7 @@ export default (service: string) => {
 		const logsStream = getElasticStream(`logs-${service}`);
 
 		streams.push(
-			{ level: 'metric' as any, stream: getElasticStream(`metrics-${service}`) },
+			{ level: 'metric' as createLogger.LevelWithSilent, stream: getElasticStream(`metrics-${service}`) },
 			{ level: 'debug', stream: logsStream },
 			{ level: 'info', stream: logsStream },
 			{ level: 'warn', stream: logsStream },

@@ -18,7 +18,7 @@ jest.mock('crypto', () => {
 	};
 });
 
-global.Date = jest.fn().mockReturnValue(NOW) as any;
+global.Date = jest.fn().mockReturnValue(NOW) as DateConstructor;
 
 test('constructing a state', () => {
 	const state = new State(REDIRECT_URI);

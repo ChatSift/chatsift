@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unsafe-member-access */
+
 import { Boom } from '@hapi/boom';
 import { Http2ServerResponse } from 'http2';
 import type { Request, Response } from 'polka';
@@ -5,6 +7,7 @@ import { jsonParser } from '../jsonParser';
 
 jest.mock('http2');
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 const makeMockedRequest = (requestInfo: any, data?: any): Request => ({
 	setEncoding: jest.fn(),
 	*[Symbol.asyncIterator]() {
