@@ -72,7 +72,7 @@ export default class implements Command {
 		const duration = expiresAt ? `. This mute will expire in ${ms(expiresAt.getTime() - Date.now(), true)}` : '';
 		await dmUser(
 			member.user.id,
-			`Hello! You have been muted in ${guildName}${duration}.${reason ? `\n\nReason: ${reason}` : ''}`,
+			`Hello! You have been muted in ${guildName!}${duration}.${reason ? `\n\nReason: ${reason}` : ''}`,
 		);
 
 		try {

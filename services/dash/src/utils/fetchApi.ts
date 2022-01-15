@@ -12,7 +12,7 @@ const HEADERS = [['Content-Type', 'application/json']];
 
 // TODO(DD): Error handling
 const refreshToken = async (retries = 0): Promise<null | void> => {
-	const response = await fetch(`${process.env.NEXT_PUBLIC_AUTH_DOMAIN}/api/v1/auth/discord/refresh`, {
+	const response = await fetch(`${process.env.NEXT_PUBLIC_AUTH_DOMAIN!}/api/v1/auth/discord/refresh`, {
 		headers: HEADERS,
 		method: 'GET',
 		credentials: 'include',
@@ -43,7 +43,7 @@ export const fetchApi = async <T, B = any>(options: FetchApiOptions<B>): Promise
 	const { path, method = 'GET', body, toast } = options;
 	let { retries = 0 } = options;
 
-	const response = await fetch(`${process.env.NEXT_PUBLIC_API_DOMAIN}/api/v1${path}`, {
+	const response = await fetch(`${process.env.NEXT_PUBLIC_API_DOMAIN!}/api/v1${path}`, {
 		headers: HEADERS,
 		method,
 		credentials: 'include',
@@ -58,7 +58,9 @@ export const fetchApi = async <T, B = any>(options: FetchApiOptions<B>): Promise
 		return fetchApi(options);
 	} else if (!response.ok) {
 		// TODO(DD): Handle other errors - i.e. toast
-		const errorData = await response.json().catch(() => null);
+		const errorData = await (response.json() as Promise<{ statusCode: number; error: string; message: string }>).catch(
+			() => null,
+		);
 
 		toast?.({
 			title: errorData ? `${errorData.statusCode} - ${errorData.error}` : `${response.status} - Unknown Error`,
@@ -82,6 +84,6 @@ export const fetchApi = async <T, B = any>(options: FetchApiOptions<B>): Promise
 	}
 
 	// TODO(DD): Handle json parsing errors
-	const json = await response.json().catch(() => null);
+	const json = ((await response.json()) as Promise<T>).catch(() => null);
 	return json;
 };

@@ -95,7 +95,7 @@ export default class implements Command {
         `;
 
 				return send(interaction, {
-					content: `On trigger number ${data.triggers} a ${AutomodPunishmentAction[data.action_type]} will be issued.`,
+					content: `On trigger number ${data.triggers} a ${AutomodPunishmentAction[data.action_type]!} will be issued.`,
 				});
 			} else if (del) {
 				const [punishment] = await this.sql<[AutomodPunishment?]>`
@@ -116,9 +116,9 @@ export default class implements Command {
 				>`SELECT * FROM automod_punishments WHERE guild_id = ${interaction.guild_id}`.then((rows) =>
 					rows.map(
 						(p) =>
-							`• At ${p.triggers} triggers, the user will be punished with a ${
-								AutomodPunishmentAction[p.action_type]
-							} ${p.duration ? `, which will last ${p.duration} minutes` : ''}`,
+							`• At ${p.triggers} triggers, the user will be punished with a ${AutomodPunishmentAction[
+								p.action_type
+							]!} ${p.duration ? `, which will last ${p.duration} minutes` : ''}`,
 					),
 				);
 

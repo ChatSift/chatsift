@@ -9,12 +9,13 @@ const mockedPost = jest.fn();
 const mockedPatch = jest.fn();
 const mockedResEnd = jest.fn();
 
-const mockedRest: jest.Mocked<Rest> = {
+const mockedRest = {
 	post: mockedPost,
 	patch: mockedPatch,
-	make: (req: any) => mockedPatch(req.path, { data: req.data }),
-} as any;
-const mockedRes: jest.Mocked<Response> = { end: mockedResEnd } as any;
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+	make: (req: any) => mockedPatch(req.path, { data: req.data }) as unknown,
+} as unknown as jest.Mocked<Rest>;
+const mockedRes = { end: mockedResEnd } as unknown as jest.Mocked<Response>;
 
 container.register(Rest, { useValue: mockedRest });
 container.register(kConfig, { useValue: { discordClientId: '1234' } });

@@ -16,7 +16,7 @@ import {
 } from 'discord-api-types/v9';
 import { join as joinPath } from 'path';
 import type { Logger } from 'pino';
-import { container, inject, singleton } from 'tsyringe';
+import { container, inject, InjectionToken, singleton } from 'tsyringe';
 import { Command, commandInfo } from './command';
 import { Component, componentInfo } from './component';
 
@@ -55,14 +55,15 @@ export class Handler {
 			}
 
 			await command.exec(interaction, transformInteraction(data));
-		} catch (e: any) {
+		} catch (e) {
 			const internal = !(e instanceof ControlFlowError);
 
 			if (internal) {
 				this.logger.error({ error: e }, `Failed to execute command "${data.name}"`);
 			}
 
-			const message = e.message ?? e.toString();
+			const error = e as { message?: string; toString: () => string };
+			const message = error.message ?? error.toString();
 
 			void send(interaction, {
 				content: internal
@@ -88,14 +89,15 @@ export class Handler {
 				}
 
 				await component.exec(interaction, extra, key);
-			} catch (e: any) {
+			} catch (e) {
 				const internal = !(e instanceof ControlFlowError);
 
 				if (internal) {
 					this.logger.error({ error: e }, `Failed to execute component "${data.custom_id}"`);
 				}
 
-				const message = e.message ?? e.toString();
+				const error = e as { message?: string; toString: () => string };
+				const message = error.message ?? error.toString();
 
 				void send(interaction, {
 					content: internal
@@ -114,7 +116,7 @@ export class Handler {
 			const res = await this.rest.put<RESTPutAPIApplicationCommandsResult, RESTPutAPIApplicationCommandsJSONBody>(
 				Routes.applicationCommands(this.config.discordClientId),
 				{
-					data: Object.values(interactions as any),
+					data: Object.values(interactions) as any[],
 				},
 			);
 
@@ -149,7 +151,7 @@ export class Handler {
 				RESTPutAPIApplicationGuildCommandsResult,
 				RESTPutAPIApplicationGuildCommandsJSONBody
 			>(Routes.applicationGuildCommands(this.config.discordClientId, guild), {
-				data: Object.values(interactions as any),
+				data: Object.values(interactions) as any[],
 			});
 
 			promises.push(promise);
@@ -176,7 +178,7 @@ export class Handler {
 				continue;
 			}
 
-			const command: Command = container.resolve((await import(file)).default);
+			const command = container.resolve(((await import(file)) as { default: InjectionToken<Command> }).default);
 			this.commands.set(command.name ?? info.name, command);
 		}
 	}
@@ -189,7 +191,7 @@ export class Handler {
 				continue;
 			}
 
-			const component: Component = container.resolve((await import(file)).default);
+			const component = container.resolve(((await import(file)) as { default: InjectionToken<Component> }).default);
 			this.components.set(component.name ?? info.name, component);
 		}
 	}

@@ -21,7 +21,7 @@ export class GlobalsRunner {
 		}
 
 		const res = await fetch(this.fishUrl).catch(() => null);
-		const domains = await res?.json().catch(() => null);
+		const domains = await (res?.json() as Promise<string[]>).catch(() => null);
 
 		if (!domains) {
 			this.logger.warn('Something went wrong grabbing fish data');

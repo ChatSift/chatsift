@@ -9,6 +9,7 @@ import fetch from 'node-fetch';
 import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
+import type { APIUser } from 'discord-api-types/v9';
 
 @injectable()
 export default class GetDiscordCallbackRoute extends Route {
@@ -46,7 +47,9 @@ export default class GetDiscordCallbackRoute extends Route {
 		}
 
 		const response = await discordOAuth2(req, res, next);
-		if (!response) return;
+		if (!response) {
+			return;
+		}
 
 		res.cookie('access_token', response.access_token, {
 			expires: new Date(Date.now() + response.expires_in * 1000),
@@ -68,7 +71,7 @@ export default class GetDiscordCallbackRoute extends Route {
 			headers: {
 				authorization: `Bearer ${response.access_token}`,
 			},
-		}).then((res) => res.json());
+		}).then((res) => res.json() as Promise<APIUser>);
 
 		await this.sql`INSERT INTO users (user_id, perms) VALUES (${user.id}, 0) ON CONFLICT DO NOTHING`;
 

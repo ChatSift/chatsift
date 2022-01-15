@@ -1,4 +1,4 @@
-import { LogIgnoresStateStore, ChannelPaginationState, send } from '#util';
+import { LogIgnoresStateStore, send } from '#util';
 import type { ApiGetGuildLogIgnoresResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -27,7 +27,7 @@ export default class implements Component {
 		const data = interaction.data as APIMessageSelectMenuInteractionData;
 		const selection = data.values[0]!;
 
-		const state = (await this.logIgnoresStore.get(id)) as ChannelPaginationState;
+		const state = (await this.logIgnoresStore.get(id))!;
 		state.channel = selection;
 
 		const ignores = await this.rest.get<ApiGetGuildLogIgnoresResult>(

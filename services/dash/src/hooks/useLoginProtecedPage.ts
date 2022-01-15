@@ -13,7 +13,7 @@ export function useLoginProtectedPage() {
 		if (data === null) {
 			void router.replace('/').catch(() => null);
 		}
-	}, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [user]);
 
 	return user.loggedIn;
 }

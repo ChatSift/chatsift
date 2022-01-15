@@ -40,7 +40,7 @@ export default class implements Command {
 		void send(interaction, {}, InteractionResponseType.DeferredChannelMessageWithSource);
 
 		const code = this.getCode(args.invite);
-		const res = await fetch(`https://invite-lookup.chatsift.workers.dev/invites/${code}`);
+		const res = await fetch(`https://invite-lookup.chatsift.workers.dev/invites/${code!}`);
 
 		if (!res.ok) {
 			if (res.status !== 404) {
@@ -48,10 +48,10 @@ export default class implements Command {
 					{
 						code,
 						res,
-						data: await res
+						data: (await res
 							.clone()
 							.json()
-							.catch(() => null),
+							.catch(() => null)) as unknown,
 					},
 					'Failed to fetch invite',
 				);
@@ -61,7 +61,7 @@ export default class implements Command {
 			return send(interaction, { content: 'Invalid/expired invite, could not get any information' });
 		}
 
-		const invite: APIInvite = await res.json();
+		const invite = await (res.json() as Promise<APIInvite>);
 
 		if (!invite.guild) {
 			return send(interaction, { content: 'Invalid/expired invite, could not get any information' });

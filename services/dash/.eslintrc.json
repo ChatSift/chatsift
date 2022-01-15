@@ -5,7 +5,9 @@
 		"project": "./tsconfig.eslint.json"
 	},
 	"rules": {
+		"@typescript-eslint/ban-types": "off",
 		"curly": ["error", "all"],
-		"no-multi-assign": "off"
+		"no-multi-assign": "off",
+		"no-eq-null": "off"
 	}
 }

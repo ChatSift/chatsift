@@ -25,7 +25,7 @@ const transformChatInteraction = (
 		case ApplicationCommandOptionType.Subcommand:
 		case ApplicationCommandOptionType.SubcommandGroup: {
 			// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-			opts[top.name] = transformChatInteraction(top.options ?? [], resolved);
+			opts[top.name] = transformChatInteraction(top.options ?? [], resolved) as unknown;
 			break;
 		}
 
@@ -62,6 +62,7 @@ const transformChatInteraction = (
 export const transformInteraction = (data: APIApplicationCommandInteractionData) => {
 	switch (data.type) {
 		case ApplicationCommandType.ChatInput: {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 			return transformChatInteraction(data.options ?? [], data.resolved ?? {});
 		}
 

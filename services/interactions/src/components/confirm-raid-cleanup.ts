@@ -71,7 +71,7 @@ export default class implements Component {
 						cases.push(cs!);
 						sweeped.push(targetId);
 					})
-					.catch((error) => {
+					.catch((error: unknown) => {
 						this.logger.debug({ error, targetId, targetTag, guild: interaction.guild_id }, 'Failed to sweep a member');
 						missed.push(targetId);
 					}),

@@ -53,7 +53,7 @@ void (async () => {
 	const app = createApp();
 	app.use(logRequests());
 
-	for (const controller of Object.values(controllers) as any[]) {
+	for (const controller of Object.values(controllers) as typeof controllers.FilterIgnoresController[]) {
 		container.register(controller, { useClass: controller });
 	}
 

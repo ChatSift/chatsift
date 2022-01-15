@@ -1,4 +1,4 @@
-import { FilterIgnoresStateStore, ChannelPaginationState, send } from '#util';
+import { FilterIgnoresStateStore, send } from '#util';
 import type {
 	ApiGetFiltersIgnoresChannelResult,
 	ApiPatchFiltersIgnoresChannelBody,
@@ -26,7 +26,7 @@ export default class implements Component {
 	) {
 		void send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
 
-		const state = (await this.filterIgnoreState.get(id)) as ChannelPaginationState;
+		const state = (await this.filterIgnoreState.get(id))!;
 
 		const existing = await this.rest
 			.get<ApiGetFiltersIgnoresChannelResult>(`/guilds/${interaction.guild_id}/filters/ignores/${state.channel!}`)

@@ -1,4 +1,4 @@
-import { LogIgnoresStateStore, ChannelPaginationState, send, EMOTES } from '#util';
+import { LogIgnoresStateStore, send, EMOTES } from '#util';
 import { ellipsis } from '@automoderator/util';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -28,7 +28,7 @@ export default class implements Component {
 	public async exec(interaction: APIGuildInteraction, [directon]: ['back' | 'forward'], id: string) {
 		void send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
 
-		const state = (await this.logIgnoresStore.get(id)) as ChannelPaginationState;
+		const state = (await this.logIgnoresStore.get(id))!;
 
 		if (directon === 'back') {
 			state.page--;

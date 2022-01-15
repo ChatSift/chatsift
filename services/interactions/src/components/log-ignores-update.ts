@@ -1,4 +1,4 @@
-import { LogIgnoresStateStore, ChannelPaginationState, send } from '#util';
+import { LogIgnoresStateStore, send } from '#util';
 import type { ApiGetGuildLogIgnoresResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -17,7 +17,7 @@ export default class implements Component {
 	public async exec(interaction: APIGuildInteraction, []: [], id: string) {
 		void send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
 
-		const state = (await this.logIgnoresStore.get(id)) as ChannelPaginationState;
+		const state = (await this.logIgnoresStore.get(id))!;
 
 		const ignores = await this.rest.get<ApiGetGuildLogIgnoresResult>(
 			`/guilds/${interaction.guild_id}/settings/log-ignores`,

@@ -184,10 +184,12 @@ export default class implements Command {
 				let parsed;
 				try {
 					parsed = yaml.load(text, { schema: yaml.JSON_SCHEMA, json: true }) as Record<string, ParsedEntry> | null;
-				} catch (error: any) {
+				} catch (error) {
 					this.logger.error({ error });
 					throw new ControlFlowError(
-						`You have a syntax error in your YML file - are you sure you didn't send something else?\n\`${error.message}\``,
+						`You have a syntax error in your YML file - are you sure you didn't send something else?\n\`${
+							(error as Error).message
+						}\``,
 					);
 				}
 
@@ -201,8 +203,8 @@ export default class implements Command {
 					let bitfield: BanwordFlags;
 					try {
 						bitfield = new BanwordFlags(value.flags);
-					} catch (error: any) {
-						throw new ControlFlowError(`You provided an invalid flag for \`${word}\`\n${error.message}`);
+					} catch (error) {
+						throw new ControlFlowError(`You provided an invalid flag for \`${word}\`\n${(error as Error).message}`);
 					}
 
 					const entry: BannedWord = {

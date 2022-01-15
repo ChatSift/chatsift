@@ -30,10 +30,7 @@ export class NsfwRunner {
 		if (!res.ok) {
 			this.logger.warn(
 				{
-					data: await res
-						.json()
-						.catch(() => res.text())
-						.catch(() => null),
+					data: ((await res.json()) as Promise<unknown>).catch(() => res.text()).catch(() => null),
 					status: res.status,
 				},
 				'Failed requst to NSFW API',
@@ -44,8 +41,8 @@ export class NsfwRunner {
 		const crossed: Exclude<PredictionType, 'neutral' | 'drawing'>[] = [];
 
 		try {
-			const data: NsfwApiData = await res.json();
-			const predictions = data.predictions.reduce((acc, prediction) => {
+			const data = (await res.json()) as NsfwApiData;
+			const predictions = data.predictions.reduce<Record<PredictionType, number>>((acc, prediction) => {
 				const procent = Math.round(prediction.probability * 100);
 				acc[prediction.className.toLowerCase() as PredictionType] = procent;
 
@@ -80,6 +77,7 @@ export class NsfwRunner {
 				}
 
 				return acc;
+				// eslint-disable-next-line @typescript-eslint/prefer-reduce-type-parameter
 			}, {} as Record<PredictionType, number>);
 
 			return {
@@ -97,7 +95,7 @@ export class NsfwRunner {
 		const results = await Promise.allSettled(urls.map((url) => this.handleUrl(url, settings)));
 		for (const result of results) {
 			if (result.status === 'rejected') {
-				this.logger.warn({ error: result.reason }, 'Unexpected thrown error on handleUrl');
+				this.logger.warn({ error: result.reason as unknown }, 'Unexpected thrown error on handleUrl');
 				continue;
 			}
 

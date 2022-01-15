@@ -99,7 +99,7 @@ export default class implements Command {
 		await dmUser(
 			member.user.id,
 			interaction.guild_id,
-			`Hello! You have been banned from ${guildName}.${reason ? `\n\nReason: ${reason}` : ''}`,
+			`Hello! You have been banned from ${guildName!}.${reason ? `\n\nReason: ${reason}` : ''}`,
 		);
 
 		try {

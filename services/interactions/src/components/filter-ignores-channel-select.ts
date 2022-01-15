@@ -1,4 +1,4 @@
-import { FilterIgnoresStateStore, ChannelPaginationState, send } from '#util';
+import { FilterIgnoresStateStore, send } from '#util';
 import type { ApiGetFiltersIgnoresChannelResult } from '@automoderator/core';
 import { FilterIgnores } from '@automoderator/filter-ignores';
 import { Rest } from '@automoderator/http-client';
@@ -42,7 +42,7 @@ export default class implements Component {
 			bitfield.has('automod'),
 		];
 
-		const state = (await this.filterIgnoreState.get(id)) as ChannelPaginationState;
+		const state = (await this.filterIgnoreState.get(id))!;
 		state.channel = selection;
 
 		const components = interaction.message!.components!;

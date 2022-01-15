@@ -20,7 +20,7 @@ setInterval(
 	() =>
 		void sql`DELETE FROM sigs WHERE EXTRACT (days FROM NOW() - last_used_at) >= 7`
 			.then(() => logger.trace('Successfully cleared unused sigs'))
-			.catch((error) => logger.error({ error }, 'Failed to clear sigs')),
+			.catch((error: unknown) => logger.error({ error }, 'Failed to clear sigs')),
 	36e5,
 );
 
@@ -74,7 +74,7 @@ const handleCases = async () => {
 	const promises = cases.map((cs) => handleCase(cs, settings));
 	for (const promise of await Promise.allSettled(promises)) {
 		if (promise.status === 'rejected') {
-			logger.error({ error: promise.reason }, 'Failed to clean up a case');
+			logger.error({ error: promise.reason as unknown }, 'Failed to clean up a case');
 		}
 	}
 };
@@ -84,7 +84,7 @@ setInterval(
 	() =>
 		void handleCases()
 			.then(() => logger.trace('Successfully cleaned up cases'))
-			.catch((error) => logger.error({ error }, 'Failed to clean up cases')),
+			.catch((error: unknown) => logger.error({ error }, 'Failed to clean up cases')),
 	6e4,
 );
 
@@ -108,7 +108,7 @@ const autoPardonWarns = async () => {
 
 	for (const promise of await Promise.allSettled(promises)) {
 		if (promise.status === 'rejected') {
-			logger.error({ error: promise.reason }, 'Failed to clean up warnings for a particular guild');
+			logger.error({ error: promise.reason as unknown }, 'Failed to clean up warnings for a particular guild');
 		}
 	}
 };
@@ -118,7 +118,7 @@ setInterval(
 	() =>
 		void autoPardonWarns()
 			.then(() => logger.trace('Successfully pardoned warns'))
-			.catch((error) => logger.error({ error }, 'Failed to pardon warnings')),
+			.catch((error: unknown) => logger.error({ error }, 'Failed to pardon warnings')),
 	36e5,
 );
 
@@ -139,7 +139,7 @@ const deescalateAutomodTriggers = async () => {
 
 	for (const promise of await Promise.allSettled(promises)) {
 		if (promise.status === 'rejected') {
-			logger.error({ error: promise.reason }, 'Failed to de-escalate for a particular guild');
+			logger.error({ error: promise.reason as unknown }, 'Failed to de-escalate for a particular guild');
 		}
 	}
 };
@@ -149,6 +149,6 @@ setInterval(
 	() =>
 		void deescalateAutomodTriggers()
 			.then(() => logger.trace('Successfully de-escalated triggers'))
-			.catch((error) => logger.error({ error }, 'Failed to de-escalate automod triggers')),
+			.catch((error: unknown) => logger.error({ error }, 'Failed to de-escalate automod triggers')),
 	3e4,
 );

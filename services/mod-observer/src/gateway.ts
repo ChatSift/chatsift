@@ -645,7 +645,9 @@ export class Gateway {
 					void this.guildMembersCache
 						// @ts-expect-error - Common discord-api-types missmatch
 						.add(n)
-						.catch((error) => this.logger.warn({ error, guild: data.guild_id }, 'Failed to update message cache'));
+						.catch((error: unknown) =>
+							this.logger.warn({ error, guild: data.guild_id }, 'Failed to update message cache'),
+						);
 
 					return this.handleGuildMemberUpdate(cachedOld, n);
 				}
@@ -666,7 +668,9 @@ export class Gateway {
 
 					void this.messageCache
 						.add(n)
-						.catch((error) => this.logger.warn({ error, guild: data.guild_id }, 'Failed to update message cache'));
+						.catch((error: unknown) =>
+							this.logger.warn({ error, guild: data.guild_id }, 'Failed to update message cache'),
+						);
 
 					return this.handleMessageUpdate(cachedOld, n);
 				}

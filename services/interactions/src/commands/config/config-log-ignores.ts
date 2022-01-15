@@ -43,7 +43,7 @@ export default class implements Command {
 				const ignores = entries.reduce<string[]>((acc, entry) => {
 					const channel = channels.get(entry.channel_id);
 					if (channel) {
-						acc.push(`• ${channel.type === ChannelType.GuildText ? `<#${channel.id}>` : channel.name}`);
+						acc.push(`• ${channel.type === ChannelType.GuildText ? `<#${channel.id}>` : channel.name!}`);
 					}
 
 					return acc;

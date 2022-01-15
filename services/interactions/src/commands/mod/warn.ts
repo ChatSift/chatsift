@@ -71,7 +71,7 @@ export default class implements Command {
 			const guildName = await getGuildName(interaction.guild_id);
 			await dmUser(
 				member.user.id,
-				`Hello! You have been warned in ${guildName}.${reason ? `\n\nReason: ${reason}` : ''}`,
+				`Hello! You have been warned in ${guildName!}.${reason ? `\n\nReason: ${reason}` : ''}`,
 			);
 
 			await send(interaction, { content: `Successfully warned ${targetTag}` });

@@ -22,7 +22,7 @@ export class RaidCleanupMembersStore extends RedisStore<RaidCleanupData> {
 			redis,
 			hash: 'raid_cleanup_members',
 			encode: (value) => JSON.stringify(value),
-			decode: (value: string) => JSON.parse(value),
+			decode: (value: string) => JSON.parse(value) as RaidCleanupData,
 		});
 	}
 }
@@ -40,7 +40,7 @@ export class FilterIgnoresStateStore extends RedisStore<ChannelPaginationState> 
 			redis,
 			hash: 'filter_ignore_state',
 			encode: (value) => JSON.stringify(value),
-			decode: (value: string) => JSON.parse(value),
+			decode: (value: string) => JSON.parse(value) as ChannelPaginationState,
 		});
 	}
 }
@@ -52,7 +52,7 @@ export class LogIgnoresStateStore extends RedisStore<ChannelPaginationState> {
 			redis,
 			hash: 'log_ignores_state',
 			encode: (value) => JSON.stringify(value),
-			decode: (value: string) => JSON.parse(value),
+			decode: (value: string) => JSON.parse(value) as ChannelPaginationState,
 		});
 	}
 }

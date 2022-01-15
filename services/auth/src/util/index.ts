@@ -42,7 +42,7 @@ export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler
 		},
 	});
 
-	const oauthResponse: RESTPostOAuth2AccessTokenResult = await result.json();
+	const oauthResponse = (await result.json()) as RESTPostOAuth2AccessTokenResult;
 
 	if (!result.ok) {
 		logger.warn(

@@ -146,7 +146,7 @@ export default class implements Command {
 			case 'delete': {
 				try {
 					await this.rest.delete<unknown>(`/guilds/${interaction.guild_id}/prompts/${args.delete.id}`);
-					return send(interaction, { content: 'Successfully deleted your prompt' });
+					return await send(interaction, { content: 'Successfully deleted your prompt' });
 				} catch (error) {
 					if (error instanceof HTTPError) {
 						return this.handleHttpError(interaction, error);
@@ -319,7 +319,7 @@ export default class implements Command {
 						content += "\n\nWARNING: You've gone above 25 buttons, switching to dropdown";
 					}
 
-					return send(interaction, { content });
+					return await send(interaction, { content });
 				} catch (error) {
 					if (error instanceof HTTPError) {
 						return this.handleHttpError(interaction, error);
@@ -409,7 +409,7 @@ export default class implements Command {
 						content += '\n\nNote: Back to 25 or less roles, switching back to buttons';
 					}
 
-					return send(interaction, { content });
+					return await send(interaction, { content });
 				} catch (error) {
 					if (error instanceof HTTPError) {
 						return this.handleHttpError(interaction, error);

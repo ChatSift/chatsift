@@ -246,7 +246,7 @@ export default class PostGuildsCasesRoute extends Route {
 				switch (data.action) {
 					case CaseAction.ban: {
 						await this.rest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(data.guild_id, data.target_id), {
-							reason: `Ban | By ${data.mod_tag}`,
+							reason: `Ban | By ${data.mod_tag!}`,
 							data: { delete_message_days: data.delete_message_days },
 						});
 
@@ -255,14 +255,14 @@ export default class PostGuildsCasesRoute extends Route {
 
 					case CaseAction.kick: {
 						await this.rest.delete(Routes.guildMember(data.guild_id, data.target_id), {
-							reason: `Kick | By ${data.mod_tag}`,
+							reason: `Kick | By ${data.mod_tag!}`,
 						});
 						break;
 					}
 
 					case CaseAction.mute: {
 						if (!settings?.mute_role) {
-							return Promise.reject('This server does not have a configured mute role');
+							return await Promise.reject('This server does not have a configured mute role');
 						}
 
 						const [existingMuteCase] = await sql<[Case?]>`
@@ -274,7 +274,7 @@ export default class PostGuildsCasesRoute extends Route {
             `;
 
 						if (existingMuteCase) {
-							return Promise.reject(
+							return await Promise.reject(
 								'This user has already been muted. If you wish to update the duration please use the `/case duration` command',
 							);
 						}
@@ -293,7 +293,7 @@ export default class PostGuildsCasesRoute extends Route {
 							Routes.guildMember(data.guild_id, data.target_id),
 							{
 								data: { roles },
-								reason: `Mute | By ${data.mod_tag}`,
+								reason: `Mute | By ${data.mod_tag!}`,
 							},
 						);
 
@@ -302,12 +302,12 @@ export default class PostGuildsCasesRoute extends Route {
 
 					case CaseAction.softban: {
 						await this.rest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(data.guild_id, data.target_id), {
-							reason: `Softban | By ${data.mod_tag}`,
+							reason: `Softban | By ${data.mod_tag!}`,
 							data: { delete_message_days: data.delete_message_days },
 						});
 
 						await this.rest.delete(Routes.guildBan(data.guild_id, data.target_id), {
-							reason: `Softban | By ${data.mod_tag}`,
+							reason: `Softban | By ${data.mod_tag!}`,
 						});
 
 						break;
@@ -332,7 +332,7 @@ export default class PostGuildsCasesRoute extends Route {
 
 						try {
 							await this.rest.delete(Routes.guildBan(data.guild_id, data.target_id), {
-								reason: `Unban | By ${data.mod_tag}`,
+								reason: `Unban | By ${data.mod_tag!}`,
 							});
 						} catch (error) {
 							if (error instanceof HTTPError && error.response.status === 404) {
@@ -355,7 +355,7 @@ export default class PostGuildsCasesRoute extends Route {
             `;
 
 						if (!muteCase) {
-							return Promise.reject('The user in question is not currently muted');
+							return await Promise.reject('The user in question is not currently muted');
 						}
 
 						const roles = await sql<UnmuteRole[]>`SELECT role_id FROM unmute_roles WHERE case_id = ${muteCase.id}`.then(
@@ -366,7 +366,7 @@ export default class PostGuildsCasesRoute extends Route {
 							Routes.guildMember(muteCase.guild_id, muteCase.target_id),
 							{
 								data: { roles },
-								reason: `Unmute | By ${data.mod_tag}`,
+								reason: `Unmute | By ${data.mod_tag!}`,
 							},
 						);
 

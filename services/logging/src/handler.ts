@@ -278,7 +278,7 @@ export class Handler {
 		switch (trigger.runner) {
 			case Runners.files: {
 				const hashes = trigger.data
-					.map((file) => `${file.file_hash} (${MaliciousFileCategory[file.category]})`)
+					.map((file) => `${file.file_hash} (${MaliciousFileCategory[file.category]!})`)
 					.join(', ');
 
 				push({
@@ -295,7 +295,7 @@ export class Handler {
 
 			case Runners.globals: {
 				const urls = trigger.data
-					.map((url) => `${url.url} (${'category' in url ? MaliciousUrlCategory[url.category] : 'Fish'})`)
+					.map((url) => `${url.url} (${'category' in url ? MaliciousUrlCategory[url.category]! : 'Fish'})`)
 					.join(', ');
 
 				push({
@@ -374,7 +374,7 @@ export class Handler {
 				const channels =
 					'messages' in trigger.data
 						? [...new Set(trigger.data.messages.map((m) => `<#${m.channel_id}>`))].join(', ')
-						: [`<#${trigger.data.message.channel_id}>`];
+						: [`<#${trigger.data.message.channel_id}>`].join(', ');
 
 				const description =
 					'messages' in trigger.data
@@ -625,7 +625,10 @@ export class Handler {
 			return;
 		}
 
-		const url = `https://discord.com/channels/${entry.message.guild_id}/${entry.message.channel_id}/${entry.message.id}`;
+		const url = `https://discord.com/channels/${entry.message.guild_id!}/${entry.message.channel_id}/${
+			entry.message.id
+		}`;
+
 		const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
 
 		const thread = this.threadsCache.has(settings.message_update_log_channel)

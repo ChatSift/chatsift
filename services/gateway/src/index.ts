@@ -38,7 +38,7 @@ void (async () => {
 			}
 		})
 		.on('open', (id) => logger.debug({ id }, 'WS connection open'))
-		.on('error', (err, id) => logger.debug({ id, err }, 'Encountered a shard error'))
+		.on('error', (err: unknown, id) => logger.debug({ id, err }, 'Encountered a shard error'))
 		.on('ready', () => logger.debug('All shards have become fully available'))
 		.on('dispatch', (data) => {
 			switch (data.t) {
@@ -47,7 +47,7 @@ void (async () => {
 
 					void messageCache
 						.add(data.d)
-						.catch((error) =>
+						.catch((error: unknown) =>
 							logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a message'),
 						);
 
@@ -59,7 +59,7 @@ void (async () => {
 								user: data.d.author,
 								...data.d.member,
 							})
-							.catch((error) =>
+							.catch((error: unknown) =>
 								logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member'),
 							);
 					}
@@ -75,7 +75,7 @@ void (async () => {
 								user: data.d.author,
 								...data.d.member,
 							})
-							.catch((error) =>
+							.catch((error: unknown) =>
 								logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member'),
 							);
 					}
@@ -87,7 +87,7 @@ void (async () => {
 
 			router.publish(data.t, data.d);
 		})
-		.on('debug', (info, id) => logger.debug({ id }, info));
+		.on('debug', (info, id) => logger.debug({ id }, info as string));
 
 	await router.init({ name: 'gateway', topicBased: false });
 	await gateway.connect();

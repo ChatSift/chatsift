@@ -12,6 +12,7 @@ import type { Logger } from 'pino';
 export class InvitesRunner {
 	public readonly inviteRegex =
 		/(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})/gi;
+
 	public readonly invitesWorkerDomain = 'https://invite-lookup.chatsift.workers.dev' as const;
 
 	public constructor(
@@ -30,10 +31,10 @@ export class InvitesRunner {
 					{
 						code,
 						res,
-						data: await res
+						data: (await res
 							.clone()
 							.json()
-							.catch(() => null),
+							.catch(() => null)) as unknown,
 					},
 					'Failed to fetch invite',
 				);
@@ -42,7 +43,7 @@ export class InvitesRunner {
 			return null;
 		}
 
-		return res.json();
+		return res.json() as Promise<APIInvite>;
 	}
 
 	public precheck(content: string): string[] {

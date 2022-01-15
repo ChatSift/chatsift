@@ -40,9 +40,9 @@ export default class implements Command {
         `;
 
 				return send(interaction, {
-					content: `A punishment will now trigger at ${data.warns}, causing a ${
-						WarnPunishmentAction[data.action_type]
-					}`,
+					content: `A punishment will now trigger at ${data.warns}, causing a ${WarnPunishmentAction[
+						data.action_type
+					]!}`,
 				});
 			}
 
@@ -69,7 +69,7 @@ export default class implements Command {
 				>`SELECT * FROM warn_punishments WHERE guild_id = ${interaction.guild_id}`.then((rows) =>
 					rows.map(
 						(p) =>
-							`• At ${p.warns} warns, a ${WarnPunishmentAction[p.action_type]} will be triggered${
+							`• At ${p.warns} warns, a ${WarnPunishmentAction[p.action_type]!} will be triggered${
 								p.duration ? ` which will last ${p.duration} minutes` : ''
 							}`,
 					),

@@ -50,7 +50,7 @@ export default class implements Command {
 		const guildName = await getGuildName(interaction.guild_id);
 		await dmUser(
 			member.user.id,
-			`Hello! You have been kicked from ${guildName}.${reason ? `\n\nReason: ${reason}` : ''}`,
+			`Hello! You have been kicked from ${guildName!}.${reason ? `\n\nReason: ${reason}` : ''}`,
 		);
 
 		try {

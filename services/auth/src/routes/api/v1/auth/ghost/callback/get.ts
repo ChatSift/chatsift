@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
+
 import { Config, kConfig, kSql } from '@automoderator/injection';
 import { Route, userAuth } from '@automoderator/rest';
 import type { NextHandler, Request, Response } from 'polka';
@@ -16,6 +18,7 @@ export default class GetGhostCallbackRoute extends Route {
 		super();
 	}
 
+	// TODO(DD): Proper types
 	public async handle(req: Request, res: Response, next: NextHandler) {
 		const [GHOST_ID, GHOST_SECRET] = this.config.ghostIntegrationKey.split(':') as [string, string];
 		const iat = Math.floor(Date.now() / 1000);
@@ -78,7 +81,7 @@ export default class GetGhostCallbackRoute extends Route {
 		});
 
 		if (user) {
-			const updateRes = await fetch(`${this.config.ghostDomain}/ghost/api/canary/admin/members/${user.id}`, {
+			const updateRes = await fetch(`${this.config.ghostDomain}/ghost/api/canary/admin/members/${user.id as string}`, {
 				method: 'PUT',
 				headers: {
 					Authorization: `Ghost ${token}`,
@@ -116,7 +119,7 @@ export default class GetGhostCallbackRoute extends Route {
 		}
 
 		const signinResponse = await fetch(
-			`${this.config.ghostDomain}/ghost/api/canary/admin/members/${user.id}/signin_urls`,
+			`${this.config.ghostDomain}/ghost/api/canary/admin/members/${user.id as string}/signin_urls`,
 			{
 				headers: {
 					Authorization: `Ghost ${token}`,

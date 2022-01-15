@@ -258,13 +258,13 @@ export class Gateway {
 						reported = true;
 
 						const me = await this.discord.get<APIUser>(Routes.user(this.config.discordClientId));
-						const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${message.guild_id}/settings`);
+						const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${message.guild_id!}/settings`);
 
 						await reportMessage(message.guild_id!, me, message, settings);
 					}
 
 					if (data.length) {
-						let action;
+						let action: string | undefined;
 						if (banned) {
 							action = 'banned';
 						} else if (muted) {
@@ -275,7 +275,7 @@ export class Gateway {
 
 						await dmUser(
 							message.author.id,
-							`You have been ${action}${
+							`You have been ${action!}${
 								hit.duration ? ` for ${ms(hit.duration * 6e4, true)}` : ''
 							} for using the banned word \`${hits[0]!.word}\``,
 						).catch(() => null);
@@ -518,7 +518,7 @@ export class Gateway {
 			}
 
 			if (this.ownersCache.has(message.guild_id)) {
-				if (this.ownersCache.get(message.guild_id)! === author.id) {
+				if (author.id === this.ownersCache.get(message.guild_id)!) {
 					return;
 				}
 			} else {

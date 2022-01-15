@@ -48,7 +48,7 @@ export default class implements Command {
 						const enabled = new FilterIgnores(BigInt(entry.value)).toArray();
 
 						if (enabled.length) {
-							acc.push(`• ${channelMention}: ${enabled.join(', ')}`);
+							acc.push(`• ${channelMention!}: ${enabled.join(', ')}`);
 						}
 					}
 

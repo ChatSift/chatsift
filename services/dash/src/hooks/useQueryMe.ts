@@ -22,7 +22,6 @@ export function useQueryMe() {
 				guilds: data.guilds.map((guild) => ({ id: guild.id, icon: guild.icon, name: guild.name })),
 			});
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [data]);
 
 	return { user: data, isLoading };
