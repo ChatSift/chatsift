@@ -1,4 +1,4 @@
-import { BanCommand } from '#interactions';
+import type { BanCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import {
 	ApiPostGuildsCasesBody,
@@ -19,7 +19,7 @@ import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

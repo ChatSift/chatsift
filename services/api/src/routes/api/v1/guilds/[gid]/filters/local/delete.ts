@@ -1,5 +1,5 @@
 import { LocalFiltersController } from '#controllers';
-import { ApiDeleteGuildsFiltersLocalBody, BannedWord } from '@automoderator/core';
+import type { ApiDeleteGuildsFiltersLocalBody, BannedWord } from '@automoderator/core';
 import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { notFound } from '@hapi/boom';
 import type { Snowflake } from 'discord-api-types/v9';

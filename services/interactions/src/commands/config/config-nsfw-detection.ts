@@ -1,6 +1,6 @@
-import { ConfigNsfwDetectionCommand } from '#interactions';
+import type { ConfigNsfwDetectionCommand } from '#interactions';
 import { ArgumentsOf, send } from '#util';
-import {
+import type {
 	ApiGetGuildsSettingsResult,
 	ApiPatchGuildSettingsBody,
 	ApiPatchGuildSettingsResult,
@@ -15,7 +15,7 @@ import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

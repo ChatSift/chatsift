@@ -1,4 +1,4 @@
-import { PurgeCommand } from '#interactions';
+import type { PurgeCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { MessageCache } from '@automoderator/cache';
 import { UserPerms } from '@automoderator/discord-permissions';
@@ -16,7 +16,7 @@ import {
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

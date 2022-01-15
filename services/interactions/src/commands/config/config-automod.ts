@@ -1,4 +1,4 @@
-import { ConfigAutoCommand } from '#interactions';
+import type { ConfigAutoCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import {
 	ApiGetGuildsSettingsResult,
@@ -17,7 +17,7 @@ import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

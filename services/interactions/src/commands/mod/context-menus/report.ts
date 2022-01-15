@@ -1,10 +1,10 @@
-import { ReportContextMenu } from '#interactions';
+import type { ReportContextMenu } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import type { ApiGetGuildsSettingsResult } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
-import { Command } from '../../../command';
+import type { Command } from '../../../command';
 import { ReportFailure, reportMessage } from '@automoderator/util';
 
 @injectable()
@@ -25,7 +25,7 @@ export default class implements Command {
 
 		try {
 			await reportMessage(interaction.guild_id, interaction.member.user, message, settings);
-			return send(interaction, {
+			return await send(interaction, {
 				content: 'Successfully flagged the given message to the staff team',
 				flags: 64,
 			});

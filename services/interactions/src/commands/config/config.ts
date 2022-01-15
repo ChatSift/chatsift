@@ -1,5 +1,5 @@
 import * as interactions from '#interactions';
-import { ConfigCommand } from '#interactions';
+import type { ConfigCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import {
 	ApiGetGuildsSettingsResult,
@@ -25,7 +25,7 @@ import {
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 import { Handler } from '../../handler';
 
 @injectable()

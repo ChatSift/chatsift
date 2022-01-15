@@ -1,6 +1,6 @@
 import { kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { GuildSettings, MessageReporter, ReportedMessage } from '@automoderator/core';
+import type { GuildSettings, MessageReporter, ReportedMessage } from '@automoderator/core';
 import {
 	RESTPatchAPIChannelMessageJSONBody,
 	RESTPostAPIChannelMessageResult,

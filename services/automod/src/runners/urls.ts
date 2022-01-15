@@ -1,7 +1,7 @@
-import { AllowedUrl } from '@automoderator/core';
+import type { AllowedUrl } from '@automoderator/core';
 import { Rest } from '@automoderator/http-client';
 import { kLogger, kSql } from '@automoderator/injection';
-import { Snowflake } from 'discord-api-types/v9';
+import type { Snowflake } from 'discord-api-types/v9';
 import { readFileSync } from 'fs';
 import { join as joinPath } from 'path';
 import type { Logger } from 'pino';

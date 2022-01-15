@@ -1,4 +1,4 @@
-import { CaseCommand } from '#interactions';
+import type { CaseCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import {
 	ApiGetGuildsCaseResult,
@@ -18,7 +18,7 @@ import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, APIUser, ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

@@ -4,7 +4,7 @@ import { notFound } from '@hapi/boom';
 import * as Joi from 'joi';
 import type { Request, Response, NextHandler } from 'polka';
 import { injectable } from 'tsyringe';
-import { Snowflake } from 'discord-api-types/v9';
+import type { Snowflake } from 'discord-api-types/v9';
 
 @injectable()
 export default class DeleteGuildsPromptRoute extends Route {

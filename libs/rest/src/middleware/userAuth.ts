@@ -5,7 +5,7 @@ import cookie from 'cookie';
 import type { APIUser } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
 import type { NextHandler, Request, Response } from 'polka';
-import { Sql } from 'postgres';
+import type { Sql } from 'postgres';
 import { container } from 'tsyringe';
 import { getUserGuilds } from '../utils';
 

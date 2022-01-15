@@ -15,7 +15,7 @@ import { APIGuildInteraction, InteractionResponseType, Snowflake } from 'discord
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
-import { Component } from '../component';
+import type { Component } from '../component';
 
 @injectable()
 export default class implements Component {

@@ -1,7 +1,7 @@
 import { PromptsController } from '#controllers';
 import type { ApiPatchGuildPromptBody } from '@automoderator/core';
 import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
-import { Snowflake } from 'discord-api-types/v9';
+import type { Snowflake } from 'discord-api-types/v9';
 import * as Joi from 'joi';
 import type { Request, Response } from 'polka';
 import { injectable } from 'tsyringe';

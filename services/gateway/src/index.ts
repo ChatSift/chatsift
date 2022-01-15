@@ -52,8 +52,8 @@ void (async () => {
 						);
 
 					if (data.d.guild_id && !data.d.webhook_id) {
-						// @ts-expect-error - Common discord-api-types version missmatch
 						void guildMembersCache
+							// @ts-expect-error - Common discord-api-types version missmatch
 							.add({
 								guild_id: data.d.guild_id,
 								user: data.d.author,

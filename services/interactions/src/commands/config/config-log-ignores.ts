@@ -1,4 +1,4 @@
-import { ConfigLogIgnoresCommand } from '#interactions';
+import type { ConfigLogIgnoresCommand } from '#interactions';
 import { ArgumentsOf, LogIgnoresStateStore, send } from '#util';
 import { ApiGetGuildLogIgnoresResult, sortChannels } from '@automoderator/core';
 import { ellipsis } from '@automoderator/util';
@@ -16,7 +16,7 @@ import {
 } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

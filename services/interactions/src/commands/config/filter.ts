@@ -1,9 +1,9 @@
-import { FilterCommand } from '#interactions';
-import { ArgumentsOf } from '#util';
+import type { FilterCommand } from '#interactions';
+import type { ArgumentsOf } from '#util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 import { FilterConfig, InvitesConfig, UrlsConfig } from './sub/filter';
 
 @injectable()

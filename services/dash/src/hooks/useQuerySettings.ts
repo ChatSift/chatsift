@@ -1,4 +1,4 @@
-import { ApiGetGuildsSettingsResult } from '@automoderator/core';
+import type { ApiGetGuildsSettingsResult } from '@automoderator/core';
 import type { Snowflake } from 'discord-api-types/v9';
 import { useQuery } from 'react-query';
 import { fetchApi } from '~/utils/fetchApi';

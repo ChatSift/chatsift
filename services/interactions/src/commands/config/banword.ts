@@ -1,4 +1,4 @@
-import { BanwordCommand } from '#interactions';
+import type { BanwordCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { BanwordFlags, BanwordFlagsResolvable } from '@automoderator/banword-flags';
 import { BannedWord, Log, LogTypes, ServerLogType } from '@automoderator/core';
@@ -12,7 +12,7 @@ import fetch from 'node-fetch';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 
 interface ParsedEntry {
 	muteduration?: number;

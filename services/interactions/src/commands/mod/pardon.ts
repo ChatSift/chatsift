@@ -1,4 +1,4 @@
-import { PardonCommand } from '#interactions';
+import type { PardonCommand } from '#interactions';
 import { ArgumentsOf, send } from '#util';
 import { ApiPatchGuildsCasesBody, ApiPostGuildsCasesResult, Log, LogTypes } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
@@ -7,7 +7,7 @@ import { PubSubPublisher } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

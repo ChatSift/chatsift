@@ -1,4 +1,4 @@
-import { ApiGetUsersMeResult } from '@automoderator/core';
+import type { ApiGetUsersMeResult } from '@automoderator/core';
 import { useEffect } from 'react';
 import { useQuery } from 'react-query';
 import { useUserStore } from '~/store/index';

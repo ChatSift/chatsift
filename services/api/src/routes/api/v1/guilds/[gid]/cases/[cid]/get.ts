@@ -1,4 +1,4 @@
-import { Case } from '@automoderator/core';
+import type { Case } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
 import { Route, thirdPartyAuth } from '@automoderator/rest';
 import { notFound } from '@hapi/boom';

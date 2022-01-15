@@ -1,6 +1,6 @@
 import { FormControl, FormLabel, Switch, FormErrorMessage, FormErrorIcon, HStack } from '@chakra-ui/react';
-import { UseFormReturn } from 'react-hook-form';
-import { ApiPatchGuildSettingsBody, GuildSettings, UserGuild } from '@automoderator/core';
+import type { UseFormReturn } from 'react-hook-form';
+import type { ApiPatchGuildSettingsBody, GuildSettings, UserGuild } from '@automoderator/core';
 
 // TODO(DD): consider generalizing
 interface SwitchInputProps {

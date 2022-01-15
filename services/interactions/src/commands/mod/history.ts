@@ -1,6 +1,6 @@
-import { HistoryCommand } from '#interactions';
+import type { HistoryCommand } from '#interactions';
 import { ArgumentsOf, send } from '#util';
-import { Case, FilterTrigger, GuildSettings } from '@automoderator/core';
+import type { Case, FilterTrigger, GuildSettings } from '@automoderator/core';
 import { makeHistoryEmbed } from '@automoderator/util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { Rest } from '@automoderator/http-client';
@@ -13,7 +13,7 @@ import {
 } from 'discord-api-types/v9';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

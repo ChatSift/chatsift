@@ -1,4 +1,4 @@
-import { Interaction } from '#util';
+import type { Interaction } from '#util';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { jsonParser, Route } from '@automoderator/rest';
 import { unauthorized } from '@hapi/boom';

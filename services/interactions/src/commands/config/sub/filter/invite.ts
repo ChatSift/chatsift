@@ -1,4 +1,4 @@
-import { FilterCommand } from '#interactions';
+import type { FilterCommand } from '#interactions';
 import { ArgumentsOf, send } from '#util';
 import type {
 	ApiDeleteFiltersInvitesAllowlistCodeResult,
@@ -9,7 +9,7 @@ import { Rest } from '@automoderator/http-client';
 import { HTTPError, Rest as DiscordRest } from '@cordis/rest';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { singleton } from 'tsyringe';
-import { Command } from '../../../../command';
+import type { Command } from '../../../../command';
 
 @singleton()
 export class InvitesConfig implements Command {
@@ -23,7 +23,7 @@ export class InvitesConfig implements Command {
 						`/guilds/${interaction.guild_id}/filters/invites/allowlist/${args.allow.guild}`,
 					);
 
-					return send(interaction, { content: 'Successfully added the given guild to the allowlist' });
+					return await send(interaction, { content: 'Successfully added the given guild to the allowlist' });
 				} catch (error) {
 					if (error instanceof HTTPError && error.response.status === 409) {
 						return send(interaction, { content: 'There was nothing to add!', flags: 64 });
@@ -39,7 +39,9 @@ export class InvitesConfig implements Command {
 						`/guilds/${interaction.guild_id}/filters/inviters/allowlist/${args.unallow.guild}`,
 					);
 
-					return send(interaction, { content: 'Successfully removed the given entries from the given allowlist' });
+					return await send(interaction, {
+						content: 'Successfully removed the given entries from the given allowlist',
+					});
 				} catch (error) {
 					if (error instanceof HTTPError && error.response.status === 404) {
 						return send(interaction, { content: 'There was nothing to delete!', flags: 64 });

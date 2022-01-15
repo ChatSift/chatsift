@@ -1,5 +1,5 @@
 import { FormControl, FormLabel, Input, FormErrorMessage, FormErrorIcon, HStack } from '@chakra-ui/react';
-import { UseFormReturn } from 'react-hook-form';
+import type { UseFormReturn } from 'react-hook-form';
 import type { ApiPatchGuildSettingsBody, GuildSettings, UserGuild } from '@automoderator/core';
 import InputClearButton from '~/components/InputClearButton';
 

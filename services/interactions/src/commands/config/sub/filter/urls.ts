@@ -1,4 +1,4 @@
-import { FilterCommand } from '#interactions';
+import type { FilterCommand } from '#interactions';
 import { ArgumentsOf, send } from '#util';
 import type {
 	ApiDeleteFiltersUrlsAllowlistCodeResult,
@@ -11,7 +11,7 @@ import { Rest as DiscordRest } from '@cordis/rest';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
-import { Command } from '../../../../command';
+import type { Command } from '../../../../command';
 
 @singleton()
 export class UrlsConfig implements Command {

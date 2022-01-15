@@ -1,4 +1,4 @@
-import { RolesCommand } from '#interactions';
+import type { RolesCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import {
 	ApiGetGuildPromptResult,
@@ -30,7 +30,7 @@ import {
 import { nanoid } from 'nanoid';
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 
 @injectable()
 export default class implements Command {

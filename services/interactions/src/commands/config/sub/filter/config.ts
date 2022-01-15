@@ -1,4 +1,4 @@
-import { FilterCommand } from '#interactions';
+import type { FilterCommand } from '#interactions';
 import { ArgumentsOf, FilterIgnoresStateStore, send } from '#util';
 import type {
 	ApiGetGuildsSettingsResult,
@@ -11,7 +11,7 @@ import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { singleton } from 'tsyringe';
-import { Command } from '../../../../command';
+import type { Command } from '../../../../command';
 
 @singleton()
 export class FilterConfig implements Command {

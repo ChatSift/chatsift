@@ -12,7 +12,7 @@ import {
 } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
-import { Component } from '../component';
+import type { Component } from '../component';
 
 @injectable()
 export default class implements Component {

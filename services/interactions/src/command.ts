@@ -1,10 +1,10 @@
-import { UserPerms } from '@automoderator/discord-permissions';
+import type { UserPerms } from '@automoderator/discord-permissions';
 import { basename, extname } from 'path';
 
 export interface Command {
 	name?: string;
 	userPermissions?: UserPerms;
-	exec(message: unknown, args: unknown): unknown;
+	exec: (message: any, args: any) => any;
 }
 
 export interface CommandInfo {

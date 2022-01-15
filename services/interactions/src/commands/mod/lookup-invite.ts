@@ -1,4 +1,4 @@
-import { LookupInviteCommand } from '#interactions';
+import type { LookupInviteCommand } from '#interactions';
 import { ArgumentsOf, send } from '#util';
 import fetch from 'node-fetch';
 import { UserPerms } from '@automoderator/discord-permissions';
@@ -13,7 +13,7 @@ import {
 	RouteBases,
 } from 'discord-api-types/v9';
 import { inject, injectable } from 'tsyringe';
-import { Command } from '../../command';
+import type { Command } from '../../command';
 import type { Logger } from 'pino';
 import { kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';

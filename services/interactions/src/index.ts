@@ -11,7 +11,7 @@ import postgres from 'postgres';
 import { container } from 'tsyringe';
 import { Handler } from './handler';
 import { kGatewayBroadcasts } from './util';
-import { DiscordEvents } from '@automoderator/core';
+import type { DiscordEvents } from '@automoderator/core';
 import { GatewayDispatchEvents } from 'discord-api-types/v9';
 import Redis from 'ioredis';
 

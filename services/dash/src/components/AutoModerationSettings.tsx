@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
 import { Button, ButtonGroup } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
-import { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { useQueryMe } from '~/hooks/useQueryMe';
 import { ApiPatchGuildSettingsBody, ms } from '@automoderator/core';
 import { fetchApi } from '~/utils/fetchApi';
