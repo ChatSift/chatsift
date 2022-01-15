@@ -1,4 +1,4 @@
-version: "3.7"
+version: '3.7'
 
 services:
   api:
@@ -7,8 +7,8 @@ services:
       context: ../
       dockerfile: ./docker/api/Dockerfile
     environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      AMQP_URL: "amqp://rabbitmq:5672"
+      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+      AMQP_URL: 'amqp://rabbitmq:5672'
     restart: unless-stopped
     depends_on:
       - base
@@ -19,8 +19,8 @@ services:
       context: ../
       dockerfile: ./docker/auth/Dockerfile
     environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      DISCORD_SCOPES: "identify,email,guilds"
+      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+      DISCORD_SCOPES: 'identify,email,guilds'
     restart: unless-stopped
     depends_on:
       - base
@@ -31,9 +31,9 @@ services:
       context: ../
       dockerfile: ./docker/automod/Dockerfile
     environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      REDIS_URL: "redis://redis:6379/0"
-      AMQP_URL: "amqp://rabbitmq:5672"
+      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+      REDIS_URL: 'redis://redis:6379/0'
+      AMQP_URL: 'amqp://rabbitmq:5672'
     restart: unless-stopped
     depends_on:
       - base
@@ -50,7 +50,7 @@ services:
       context: ../
       dockerfile: ./docker/cron-runner/Dockerfile
     environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
+      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
     restart: unless-stopped
     depends_on:
       - base
@@ -61,8 +61,8 @@ services:
       context: ../
       dockerfile: ./docker/gateway/Dockerfile
     environment:
-      AMQP_URL: "amqp://rabbitmq:5672"
-      REDIS_URL: "redis://redis:6379/0"
+      AMQP_URL: 'amqp://rabbitmq:5672'
+      REDIS_URL: 'redis://redis:6379/0'
     restart: unless-stopped
     depends_on:
       - base
@@ -73,9 +73,9 @@ services:
       context: ../
       dockerfile: ./docker/interactions/Dockerfile
     environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      REDIS_URL: "redis://redis:6379/0"
-      AMQP_URL: "amqp://rabbitmq:5672"
+      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+      REDIS_URL: 'redis://redis:6379/0'
+      AMQP_URL: 'amqp://rabbitmq:5672'
     restart: unless-stopped
     depends_on:
       - base
@@ -86,8 +86,8 @@ services:
       context: ../
       dockerfile: ./docker/logging/Dockerfile
     environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      AMQP_URL: "amqp://rabbitmq:5672"
+      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+      AMQP_URL: 'amqp://rabbitmq:5672'
     restart: unless-stopped
     depends_on:
       - base
@@ -98,9 +98,9 @@ services:
       context: ../
       dockerfile: ./docker/mod-observer/Dockerfile
     environment:
-      DB_URL: "postgres://automoderator:admin@postgres:5432/automoderator"
-      REDIS_URL: "redis://redis:6379/0"
-      AMQP_URL: "amqp://rabbitmq:5672"
+      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+      REDIS_URL: 'redis://redis:6379/0'
+      AMQP_URL: 'amqp://rabbitmq:5672'
     restart: unless-stopped
     depends_on:
       - base

@@ -15,87 +15,86 @@ import SwitchInput from '~/components/SwitchInput';
 const Loading = dynamic(() => import('~/components/Loading'));
 
 const AutoModerationSettings = () => {
-  const router = useRouter();
-  const { id } = router.query as { id: string };
+	const router = useRouter();
+	const { id } = router.query as { id: string };
 
-  const { user } = useQueryMe();
-  const { settings } = useQuerySettings(id);
+	const { user } = useQueryMe();
+	const { settings } = useQuerySettings(id);
 
-  const guild = user?.guilds.find(g => g.id === id);
+	const guild = user?.guilds.find((g) => g.id === id);
 
-  const form = useForm<ApiPatchGuildSettingsBody>();
+	const form = useForm<ApiPatchGuildSettingsBody>();
 
-  if (!settings) {
-    return (
-      <Loading />
-    );
-  }
+	if (!settings) {
+		return <Loading />;
+	}
 
-  const handleOnSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    await form.handleSubmit(async (values: ApiPatchGuildSettingsBody) => {
-      const body = filterEmptyFields(values);
+	const handleOnSubmit = async (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		await form.handleSubmit(async (values: ApiPatchGuildSettingsBody) => {
+			const body = filterEmptyFields(values);
 
-      if (body.min_join_age != null) {
-        body.min_join_age = ms(body.min_join_age) as any;
-      }
+			if (body.min_join_age != null) {
+				body.min_join_age = ms(body.min_join_age) as any;
+			}
 
-      await fetchApi<unknown, ApiPatchGuildSettingsBody>({
-        path: `/guilds/${id}/settings`,
-        method: 'PATCH',
-        body
-      });
-    })(event);
-  };
+			await fetchApi<unknown, ApiPatchGuildSettingsBody>({
+				path: `/guilds/${id}/settings`,
+				method: 'PATCH',
+				body,
+			});
+		})(event);
+	};
 
-  return guild?.data
-    ? (
-      <form onSubmit = {handleOnSubmit}>
-        <NumberInput settings = {settings}
-          name = {'Automatically pardon warns after (days)'}
-          settingsKey = {'auto_pardon_warns_after'}
-          guild = {guild}
-          form = {form}
-        />
+	return guild?.data ? (
+		<form onSubmit={handleOnSubmit}>
+			<NumberInput
+				settings={settings}
+				name={'Automatically pardon warns after (days)'}
+				settingsKey={'auto_pardon_warns_after'}
+				guild={guild}
+				form={form}
+			/>
 
-        <DurationInput settings = {settings}
-          name = {'Automatically kick users with accounts younger than'}
-          settingsKey = {'min_join_age'}
-          guild = {guild}
-          form = {form}
-        />
+			<DurationInput
+				settings={settings}
+				name={'Automatically kick users with accounts younger than'}
+				settingsKey={'min_join_age'}
+				guild={guild}
+				form={form}
+			/>
 
-        <NumberInput settings = {settings}
-          name = {'Automod cooldown (how long to wait before decreasing a user\'s automod trigger total; in minutes)'}
-          settingsKey = {'automod_cooldown'}
-          guild = {guild}
-          form = {form}
-          min = {3}
-          max = {180}
-        />
+			<NumberInput
+				settings={settings}
+				name={"Automod cooldown (how long to wait before decreasing a user's automod trigger total; in minutes)"}
+				settingsKey={'automod_cooldown'}
+				guild={guild}
+				form={form}
+				min={3}
+				max={180}
+			/>
 
-        <SwitchInput settings = {settings}
-          name = {'Automatically kick users with blank avatars'}
-          settingsKey = {'no_blank_avatar'}
-          guild = {guild}
-          form = {form}
-        />
+			<SwitchInput
+				settings={settings}
+				name={'Automatically kick users with blank avatars'}
+				settingsKey={'no_blank_avatar'}
+				guild={guild}
+				form={form}
+			/>
 
-        <ButtonGroup d = "flex"
-          justifyContent = "flex-end"
-          pt = {2}>
-          <Button type = "submit"
-            colorScheme = "green"
-            isLoading = {form.formState.isSubmitting}
-            loadingText = "Submitting"
-            isDisabled = {form.formState.isSubmitting}
-          >
-            Save
-          </Button>
-        </ButtonGroup>
-      </form>
-    )
-    : null;
+			<ButtonGroup d="flex" justifyContent="flex-end" pt={2}>
+				<Button
+					type="submit"
+					colorScheme="green"
+					isLoading={form.formState.isSubmitting}
+					loadingText="Submitting"
+					isDisabled={form.formState.isSubmitting}
+				>
+					Save
+				</Button>
+			</ButtonGroup>
+		</form>
+	) : null;
 };
 
 export default AutoModerationSettings;

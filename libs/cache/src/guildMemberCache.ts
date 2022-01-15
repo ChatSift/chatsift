@@ -8,64 +8,64 @@ export type CachedGuildMember = APIGuildMember & { user: APIUser; guild_id: stri
 
 @singleton()
 export class GuildMemberCache {
-  private readonly _maxSizePerGuild = 3e4;
+	private readonly _maxSizePerGuild = 3e4;
 
-  private readonly _stores = new Map<string, RedisStore<CachedGuildMember>>();
+	private readonly _stores = new Map<string, RedisStore<CachedGuildMember>>();
 
-  public constructor(@inject(kRedis) public readonly redis: Redis) {}
+	public constructor(@inject(kRedis) public readonly redis: Redis) {}
 
-  private _assertStore(guild: CachedGuildMember | string): RedisStore<CachedGuildMember> {
-    guild = typeof guild === 'string' ? guild : guild.guild_id;
+	private _assertStore(guild: CachedGuildMember | string): RedisStore<CachedGuildMember> {
+		guild = typeof guild === 'string' ? guild : guild.guild_id;
 
-    if (this._stores.has(guild)) {
-      return this._stores.get(guild)!;
-    }
+		if (this._stores.has(guild)) {
+			return this._stores.get(guild)!;
+		}
 
-    const store = new RedisStore<CachedGuildMember>({
-      hash: `guild_members_cache_${guild}`,
-      redis: this.redis,
-      encode: member => JSON.stringify(member),
-      decode: member => JSON.parse(member)
-    });
+		const store = new RedisStore<CachedGuildMember>({
+			hash: `guild_members_cache_${guild}`,
+			redis: this.redis,
+			encode: (member) => JSON.stringify(member),
+			decode: (member) => JSON.parse(member),
+		});
 
-    this._stores.set(guild, store);
-    return store;
-  }
+		this._stores.set(guild, store);
+		return store;
+	}
 
-  public async has(member: CachedGuildMember): Promise<boolean> {
-    const store = this._assertStore(member);
-    return Boolean(await store.get(member.user.id));
-  }
+	public async has(member: CachedGuildMember): Promise<boolean> {
+		const store = this._assertStore(member);
+		return Boolean(await store.get(member.user.id));
+	}
 
-  public get(guildId: string, memberId: string): Promise<CachedGuildMember | undefined> {
-    const store = this._assertStore(guildId);
-    return store.get(memberId);
-  }
+	public get(guildId: string, memberId: string): Promise<CachedGuildMember | undefined> {
+		const store = this._assertStore(guildId);
+		return store.get(memberId);
+	}
 
-  public async add(member: CachedGuildMember): Promise<CachedGuildMember> {
-    const store = this._assertStore(member);
+	public async add(member: CachedGuildMember): Promise<CachedGuildMember> {
+		const store = this._assertStore(member);
 
-    if (!await this.has(member)) {
-      const key = `guild_members_cache_${member.guild_id}_list`;
+		if (!(await this.has(member))) {
+			const key = `guild_members_cache_${member.guild_id}_list`;
 
-      const size = await this.redis.llen(key).then(len => len + 1);
-      if (size > this._maxSizePerGuild) {
-        const popped = await this.redis.lpop(key, size - this._maxSizePerGuild);
-        for (const pop of popped) {
-          void store.delete(pop);
-        }
-      }
+			const size = await this.redis.llen(key).then((len) => len + 1);
+			if (size > this._maxSizePerGuild) {
+				const popped = await this.redis.lpop(key, size - this._maxSizePerGuild);
+				for (const pop of popped) {
+					void store.delete(pop);
+				}
+			}
 
-      await this.redis.rpush(key, member.user.id);
-    }
+			await this.redis.rpush(key, member.user.id);
+		}
 
-    await store.set(member.user.id, member);
+		await store.set(member.user.id, member);
 
-    return member;
-  }
+		return member;
+	}
 
-  public async delete(guildId: string, memberId: string): Promise<boolean> {
-    const store = this._assertStore(guildId);
-    return store.delete(memberId);
-  }
+	public async delete(guildId: string, memberId: string): Promise<boolean> {
+		const store = this._assertStore(guildId);
+		return store.delete(memberId);
+	}
 }

@@ -7,26 +7,24 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class PutGuildsFiltersInvitesAllowlistRoute extends Route {
-  public override readonly middleware = [thirdPartyAuth()];
+	public override readonly middleware = [thirdPartyAuth()];
 
-  public constructor(
-    public readonly controller: InvitesAllowlistController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: InvitesAllowlistController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response, next: NextHandler) {
-    const { gid, guild } = req.params as { gid: Snowflake; guild: string };
+	public async handle(req: Request, res: Response, next: NextHandler) {
+		const { gid, guild } = req.params as { gid: Snowflake; guild: string };
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const ignore = await this.controller.add(gid, guild);
+		const ignore = await this.controller.add(gid, guild);
 
-    if (!ignore) {
-      return next(conflict('That guild is already on the allowlist'));
-    }
+		if (!ignore) {
+			return next(conflict('That guild is already on the allowlist'));
+		}
 
-    return res.end(JSON.stringify(ignore));
-  }
+		return res.end(JSON.stringify(ignore));
+	}
 }

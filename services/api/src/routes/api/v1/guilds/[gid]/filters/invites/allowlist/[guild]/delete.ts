@@ -7,26 +7,24 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class DeleteGuildsFiltersInvitesAllowlistRoute extends Route {
-  public override readonly middleware = [thirdPartyAuth()];
+	public override readonly middleware = [thirdPartyAuth()];
 
-  public constructor(
-    public readonly controller: InvitesAllowlistController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: InvitesAllowlistController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response, next: NextHandler) {
-    const { gid, guild } = req.params as { gid: Snowflake; guild: string };
+	public async handle(req: Request, res: Response, next: NextHandler) {
+		const { gid, guild } = req.params as { gid: Snowflake; guild: string };
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const ignore = await this.controller.delete(gid, guild);
+		const ignore = await this.controller.delete(gid, guild);
 
-    if (!ignore) {
-      return next(notFound('That guild was not on the allowlist'));
-    }
+		if (!ignore) {
+			return next(notFound('That guild was not on the allowlist'));
+		}
 
-    return res.end(JSON.stringify(ignore));
-  }
+		return res.end(JSON.stringify(ignore));
+	}
 }

@@ -6,21 +6,19 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class GetGuildsFiltersIgnoresChannelRoute extends Route {
-  public override readonly middleware = [thirdPartyAuth()];
+	public override readonly middleware = [thirdPartyAuth()];
 
-  public constructor(
-    public readonly controller: FilterIgnoresController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: FilterIgnoresController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response) {
-    const { gid, cid } = req.params as { gid: Snowflake; cid: Snowflake };
+	public async handle(req: Request, res: Response) {
+		const { gid, cid } = req.params as { gid: Snowflake; cid: Snowflake };
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const ignore = await this.controller.get(cid) ?? { guild_id: gid, channel_id: cid, value: '0' };
-    return res.end(JSON.stringify(ignore));
-  }
+		const ignore = (await this.controller.get(cid)) ?? { guild_id: gid, channel_id: cid, value: '0' };
+		return res.end(JSON.stringify(ignore));
+	}
 }

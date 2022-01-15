@@ -1,78 +1,78 @@
-version: "3.7"
+version: '3.7'
 
 services:
   api:
     environment:
-      DISCORD_TOKEN: "awooga"
-      ELASTIC_PASSWORD: "owo"
+      DISCORD_TOKEN: 'awooga'
+      ELASTIC_PASSWORD: 'owo'
 
   auth:
     environment:
-      DISCORD_CLIENT_ID: "123"
-      DISCORD_CLIENT_SECRET: "abc"
-      DISCORD_TOKEN: "awooga"
-      ENCRYPTION_KEY: "32 random bytes of base64 here"
-      ELASTIC_PASSWORD: "owo"
-      GHOST_INTEGRATION_KEY: "haha"
+      DISCORD_CLIENT_ID: '123'
+      DISCORD_CLIENT_SECRET: 'abc'
+      DISCORD_TOKEN: 'awooga'
+      ENCRYPTION_KEY: '32 random bytes of base64 here'
+      ELASTIC_PASSWORD: 'owo'
+      GHOST_INTEGRATION_KEY: 'haha'
 
   automod:
     environment:
-      DISCORD_CLIENT_ID: "123"
-      DISCORD_TOKEN: "awooga"
-      DEV_IDS: "123,456"
-      INTERNAL_API_TOKEN: "asdf"
-      NSFW_PREDICT_API_KEY: "something"
-      ELASTIC_PASSWORD: "owo"
+      DISCORD_CLIENT_ID: '123'
+      DISCORD_TOKEN: 'awooga'
+      DEV_IDS: '123,456'
+      INTERNAL_API_TOKEN: 'asdf'
+      NSFW_PREDICT_API_KEY: 'something'
+      ELASTIC_PASSWORD: 'owo'
 
   cron-runner:
     environment:
-      DISCORD_CLIENT_ID: "123"
-      DISCORD_TOKEN: "awooga"
-      ELASTIC_PASSWORD: "owo"
+      DISCORD_CLIENT_ID: '123'
+      DISCORD_TOKEN: 'awooga'
+      ELASTIC_PASSWORD: 'owo'
 
   gateway:
     environment:
-      DISCORD_TOKEN: "awooga"
-      ELASTIC_PASSWORD: "owo"
+      DISCORD_TOKEN: 'awooga'
+      ELASTIC_PASSWORD: 'owo'
 
   interactions:
     environment:
-      DISCORD_CLIENT_ID: "123"
-      INTERACTIONS_TEST_GUILDS: "456,789"
-      DISCORD_PUB_KEY: "owo"
-      DISCORD_TOKEN: "awooga"
-      DEV_IDS: "123,456"
-      INTERNAL_API_TOKEN: "asdf"
-      ELASTIC_PASSWORD: "owo"
+      DISCORD_CLIENT_ID: '123'
+      INTERACTIONS_TEST_GUILDS: '456,789'
+      DISCORD_PUB_KEY: 'owo'
+      DISCORD_TOKEN: 'awooga'
+      DEV_IDS: '123,456'
+      INTERNAL_API_TOKEN: 'asdf'
+      ELASTIC_PASSWORD: 'owo'
 
   logging:
     environment:
-      DISCORD_TOKEN: "awooga"
-      ELASTIC_PASSWORD: "owo"
+      DISCORD_TOKEN: 'awooga'
+      ELASTIC_PASSWORD: 'owo'
 
   mod-observer:
     environment:
-      DISCORD_CLIENT_ID: "123"
-      DISCORD_TOKEN: "awooga"
-      INTERNAL_API_TOKEN: "asdf"
-      ELASTIC_PASSWORD: "owo"
+      DISCORD_CLIENT_ID: '123'
+      DISCORD_TOKEN: 'awooga'
+      INTERNAL_API_TOKEN: 'asdf'
+      ELASTIC_PASSWORD: 'owo'
 
   kibana:
     environment:
       # https://www.elastic.co/guide/en/elasticsearch/reference/current/security-minimal-setup.html#add-built-in-users
       # sh into the container and use `./bin/elasticsearch-setup-passwords auto`
-      ELASTICSEARCH_PASSWORD: "owo"
+      ELASTICSEARCH_PASSWORD: 'owo'
       # ./bin/kibana-encryption-keys
-      "xpack.encryptedSavedObjects.encryptionKey": "a"
-      "xpack.reporting.encryptionKey": "b"
-      "xpack.security.encryptionKey": "c"
+      'xpack.encryptedSavedObjects.encryptionKey': 'a'
+      'xpack.reporting.encryptionKey': 'b'
+      'xpack.security.encryptionKey': 'c'
 
   caddy:
     environment:
-      CF_API_TOKEN: "pls fill"
-      BASIC_AUTH_KEY: "may also need to fill"
+      CF_API_TOKEN: 'pls fill'
+      BASIC_AUTH_KEY: 'may also need to fill'
 
   ghost:
     environment:
-      mail__options__auth__user: "username here"
-      mail__options__auth__pass: "pass here"
+      mail__options__auth__user: 'username here'
+      mail__options__auth__pass: 'pass here'

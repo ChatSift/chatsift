@@ -1,16 +1,16 @@
 export interface AuthGetDiscordQuery {
-  redirect_uri: string;
+	redirect_uri: string;
 }
 
 export interface AuthGetDiscordCallbackQuery {
-  code: string;
-  state: string;
+	code: string;
+	state: string;
 }
 
 export interface AuthGetDiscordLogoutQuery {
-  redirect_uri: string;
+	redirect_uri: string;
 }
 
 export interface AuthGetDiscordRefreshBody {
-  refresh_token: string;
+	refresh_token: string;
 }

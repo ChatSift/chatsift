@@ -1,49 +1,25 @@
 {
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "target": "es5",
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ESNext"
-    ],
-    "allowJs": true,
-    "noEmit": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "baseUrl": ".",
-    "paths": {
-      "~/components/*": [
-        "src/components/*"
-      ],
-      "~/HOCs/*": [
-        "src/HOCs/*"
-      ],
-      "~/hooks/*": [
-        "src/hooks/*"
-      ],
-      "~/interfaces/*": [
-        "src/interfaces/*"
-      ],
-      "~/store/*": [
-        "src/store/*"
-      ],
-      "~/styles/*": [
-        "src/styles/*"
-      ],
-      "~/utils/*": [
-        "src/utils/*"
-      ]
-    },
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
-  },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"target": "es5",
+		"lib": ["DOM", "DOM.Iterable", "ESNext"],
+		"allowJs": true,
+		"noEmit": true,
+		"isolatedModules": true,
+		"jsx": "preserve",
+		"baseUrl": ".",
+		"paths": {
+			"~/components/*": ["src/components/*"],
+			"~/HOCs/*": ["src/HOCs/*"],
+			"~/hooks/*": ["src/hooks/*"],
+			"~/interfaces/*": ["src/interfaces/*"],
+			"~/store/*": ["src/store/*"],
+			"~/styles/*": ["src/styles/*"],
+			"~/utils/*": ["src/utils/*"]
+		},
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true
+	},
+	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+	"exclude": ["node_modules"]
 }

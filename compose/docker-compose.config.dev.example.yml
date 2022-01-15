@@ -1,49 +1,49 @@
-version: "3.7"
+version: '3.7'
 
 services:
   api:
     environment:
-      DISCORD_TOKEN: "awooga"
+      DISCORD_TOKEN: 'awooga'
 
   auth:
     environment:
-      DISCORD_CLIENT_ID: "123"
-      DISCORD_CLIENT_SECRET: "abc"
-      DISCORD_TOKEN: "awooga"
-      ENCRYPTION_KEY: "32 random bytes of base64 here"
+      DISCORD_CLIENT_ID: '123'
+      DISCORD_CLIENT_SECRET: 'abc'
+      DISCORD_TOKEN: 'awooga'
+      ENCRYPTION_KEY: '32 random bytes of base64 here'
 
   automod:
     environment:
-      DISCORD_CLIENT_ID: "123"
-      DISCORD_TOKEN: "awooga"
-      DEV_IDS: "123,456"
-      INTERNAL_API_TOKEN: "asdf"
-      NSFW_PREDICT_API_KEY: "something"
+      DISCORD_CLIENT_ID: '123'
+      DISCORD_TOKEN: 'awooga'
+      DEV_IDS: '123,456'
+      INTERNAL_API_TOKEN: 'asdf'
+      NSFW_PREDICT_API_KEY: 'something'
 
   cron-runner:
     environment:
-      DISCORD_CLIENT_ID: "123"
-      DISCORD_TOKEN: "awooga"
+      DISCORD_CLIENT_ID: '123'
+      DISCORD_TOKEN: 'awooga'
 
   gateway:
     environment:
-      DISCORD_TOKEN: "awooga"
+      DISCORD_TOKEN: 'awooga'
 
   interactions:
     environment:
-      DISCORD_CLIENT_ID: "123"
-      INTERACTIONS_TEST_GUILDS: "456,789"
-      DISCORD_PUB_KEY: "owo"
-      DISCORD_TOKEN: "awooga"
-      DEV_IDS: "123,456"
-      INTERNAL_API_TOKEN: "asdf"
+      DISCORD_CLIENT_ID: '123'
+      INTERACTIONS_TEST_GUILDS: '456,789'
+      DISCORD_PUB_KEY: 'owo'
+      DISCORD_TOKEN: 'awooga'
+      DEV_IDS: '123,456'
+      INTERNAL_API_TOKEN: 'asdf'
 
   logging:
     environment:
-      DISCORD_TOKEN: "awooga"
+      DISCORD_TOKEN: 'awooga'
 
   mod-observer:
     environment:
-      DISCORD_CLIENT_ID: "123"
-      DISCORD_TOKEN: "awooga"
-      INTERNAL_API_TOKEN: "asdf"
+      DISCORD_CLIENT_ID: '123'
+      DISCORD_TOKEN: 'awooga'
+      INTERNAL_API_TOKEN: 'asdf'

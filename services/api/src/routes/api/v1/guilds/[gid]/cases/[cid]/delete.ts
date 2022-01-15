@@ -8,25 +8,23 @@ import { inject, injectable } from 'tsyringe';
 
 @injectable()
 export default class DeleteGuildsCaseRoute extends Route {
-  public override readonly middleware = [thirdPartyAuth()];
+	public override readonly middleware = [thirdPartyAuth()];
 
-  public constructor(
-    @inject(kSql) public readonly sql: Sql<{}>
-  ) {
-    super();
-  }
+	public constructor(@inject(kSql) public readonly sql: Sql<{}>) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response, next: NextHandler) {
-    const { gid, cid } = req.params;
+	public async handle(req: Request, res: Response, next: NextHandler) {
+		const { gid, cid } = req.params;
 
-    const [cs] = await this.sql<[Case?]>`DELETE FROM cases WHERE guild_id = ${gid!} AND case_id = ${cid!} RETURNING *`;
-    if (!cs) {
-      return next(notFound('case not found'));
-    }
+		const [cs] = await this.sql<[Case?]>`DELETE FROM cases WHERE guild_id = ${gid!} AND case_id = ${cid!} RETURNING *`;
+		if (!cs) {
+			return next(notFound('case not found'));
+		}
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(cs));
-  }
+		return res.end(JSON.stringify(cs));
+	}
 }

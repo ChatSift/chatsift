@@ -5,6 +5,8 @@ import { fetchApi } from '~/utils/fetchApi';
 
 // TODO(DD): Consider store usage
 export function useQuerySettings(id: Snowflake) {
-  const { data, error } = useQuery(`settings_${id}`, () => fetchApi<ApiGetGuildsSettingsResult>({ path: `/guilds/${id}/settings` }).catch(() => null));
-  return { settings: data, error };
+	const { data, error } = useQuery(`settings_${id}`, () =>
+		fetchApi<ApiGetGuildsSettingsResult>({ path: `/guilds/${id}/settings` }).catch(() => null),
+	);
+	return { settings: data, error };
 }

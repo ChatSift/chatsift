@@ -21,102 +21,103 @@ const makeMockedInteraction = (data: any): PermissionsCheckerData => data;
 afterEach(() => jest.clearAllMocks());
 
 test('dev bypass', async () => {
-  const data = makeMockedInteraction({
-    member: {
-      user: {
-        id: '223703707118731264'
-      }
-    }
-  });
+	const data = makeMockedInteraction({
+		member: {
+			user: {
+				id: '223703707118731264',
+			},
+		},
+	});
 
-  expect(await checker.check(data, UserPerms.owner)).toBe(true);
+	expect(await checker.check(data, UserPerms.owner)).toBe(true);
 });
 
 describe('owner needed', () => {
-  const data = makeMockedInteraction({
-    guild_id: '123',
-    member: {
-      user: {
-        id: '123'
-      }
-    }
-  });
+	const data = makeMockedInteraction({
+		guild_id: '123',
+		member: {
+			user: {
+				id: '123',
+			},
+		},
+	});
 
-  test('when GET throws', async () => {
-    restGetMock.mockImplementation(() => Promise.reject());
+	test('when GET throws', async () => {
+		restGetMock.mockImplementation(() => Promise.reject());
 
-    expect(await checker.check(data, UserPerms.owner)).toBe(false);
-    expect(loggerWarnMock).toHaveBeenCalled();
-  });
+		expect(await checker.check(data, UserPerms.owner)).toBe(false);
+		expect(loggerWarnMock).toHaveBeenCalled();
+	});
 
-  test('ID check', async () => {
-    restGetMock.mockImplementation(() => Promise.resolve({ owner_id: '123' }));
+	test('ID check', async () => {
+		restGetMock.mockImplementation(() => Promise.resolve({ owner_id: '123' }));
 
-    expect(await checker.check(data, UserPerms.owner)).toBe(true);
-    expect(loggerWarnMock).not.toHaveBeenCalled();
-  });
+		expect(await checker.check(data, UserPerms.owner)).toBe(true);
+		expect(loggerWarnMock).not.toHaveBeenCalled();
+	});
 });
 
 describe('admin neeaded', () => {
-  const getInteraction = (permissions: string) => makeMockedInteraction({
-    guild_id: '123',
-    member: {
-      user: {
-        id: '123'
-      },
-      permissions
-    }
-  });
+	const getInteraction = (permissions: string) =>
+		makeMockedInteraction({
+			guild_id: '123',
+			member: {
+				user: {
+					id: '123',
+				},
+				permissions,
+			},
+		});
 
-  test('simple perm check passes', async () => {
-    expect(await checker.check(getInteraction('8'), UserPerms.admin)).toBe(true);
-  });
+	test('simple perm check passes', async () => {
+		expect(await checker.check(getInteraction('8'), UserPerms.admin)).toBe(true);
+	});
 
-  test('owner fallback', async () => {
-    restGetMock.mockImplementation(() => Promise.resolve({ owner_id: '1234' }));
+	test('owner fallback', async () => {
+		restGetMock.mockImplementation(() => Promise.resolve({ owner_id: '1234' }));
 
-    expect(await checker.check(getInteraction('0'), UserPerms.admin)).toBe(false);
-  });
+		expect(await checker.check(getInteraction('0'), UserPerms.admin)).toBe(false);
+	});
 });
 
 describe('mod needed', () => {
-  const getInteraction = (permissions: string) => makeMockedInteraction({
-    guild_id: '123',
-    member: {
-      user: {
-        id: '123'
-      },
-      roles: ['123'],
-      permissions
-    }
-  });
+	const getInteraction = (permissions: string) =>
+		makeMockedInteraction({
+			guild_id: '123',
+			member: {
+				user: {
+					id: '123',
+				},
+				roles: ['123'],
+				permissions,
+			},
+		});
 
-  test('pass by admin test', async () => {
-    expect(await checker.check(getInteraction('8'), UserPerms.mod)).toBe(true);
-  });
+	test('pass by admin test', async () => {
+		expect(await checker.check(getInteraction('8'), UserPerms.mod)).toBe(true);
+	});
 
+	test('pass by mod check', async () => {
+		sqlMock.mockImplementation(() => Promise.resolve([{ mod_role: '123' }]));
+		expect(await checker.check(getInteraction('0'), UserPerms.mod)).toBe(true);
+	});
 
-  test('pass by mod check', async () => {
-    sqlMock.mockImplementation(() => Promise.resolve([{ mod_role: '123' }]));
-    expect(await checker.check(getInteraction('0'), UserPerms.mod)).toBe(true);
-  });
+	test('pass by owner check', async () => {
+		sqlMock.mockImplementation(() => Promise.resolve([{ mod_role: '1234' }]));
+		restGetMock.mockImplementation(() => Promise.resolve({ owner_id: '123' }));
 
-  test('pass by owner check', async () => {
-    sqlMock.mockImplementation(() => Promise.resolve([{ mod_role: '1234' }]));
-    restGetMock.mockImplementation(() => Promise.resolve({ owner_id: '123' }));
-
-    expect(await checker.check(getInteraction('0'), UserPerms.mod)).toBe(true);
-  });
+		expect(await checker.check(getInteraction('0'), UserPerms.mod)).toBe(true);
+	});
 });
 
 test('no perms needed', async () => {
-  const data = makeMockedInteraction({
-    member: {
-      user: {
-        id: '123'
-      }
-    }
-  });
+	const data = makeMockedInteraction({
+		member: {
+			user: {
+				id: '123',
+			},
+		},
+	});
 
-  expect(await checker.check(data, UserPerms.none)).toBe(true);
+	expect(await checker.check(data, UserPerms.none)).toBe(true);
 });

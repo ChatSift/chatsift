@@ -6,21 +6,19 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class GetGuildsSettingsRoute extends Route {
-  public override readonly middleware = [userOrThirdPartyAuth()];
+	public override readonly middleware = [userOrThirdPartyAuth()];
 
-  public constructor(
-    public readonly controller: SettingsController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: SettingsController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response) {
-    const { gid } = req.params as { gid: Snowflake };
+	public async handle(req: Request, res: Response) {
+		const { gid } = req.params as { gid: Snowflake };
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const settings = await this.controller.get(gid) ?? { guild_id: gid };
-    return res.end(JSON.stringify(settings));
-  }
+		const settings = (await this.controller.get(gid)) ?? { guild_id: gid };
+		return res.end(JSON.stringify(settings));
+	}
 }

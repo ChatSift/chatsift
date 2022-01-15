@@ -1,16 +1,16 @@
 import { Config, kConfig } from '@automoderator/injection';
 import { File, Rest } from '@cordis/rest';
 import {
-  APIInteractionResponseCallbackData,
-  InteractionResponseType,
-  RESTPostAPIChannelMessageJSONBody,
-  Routes
+	APIInteractionResponseCallbackData,
+	InteractionResponseType,
+	RESTPostAPIChannelMessageJSONBody,
+	Routes,
 } from 'discord-api-types/v9';
 import { container } from 'tsyringe';
 
 export interface SendOptions {
-  type?: InteractionResponseType;
-  update?: boolean;
+	type?: InteractionResponseType;
+	update?: boolean;
 }
 
 const REPLIED = new Set<string>();
@@ -22,45 +22,50 @@ const REPLIED = new Set<string>();
  * @param followup If this is a followup to the original interaction response
  */
 export const send = async (
-  message: any,
-  payload: (RESTPostAPIChannelMessageJSONBody | APIInteractionResponseCallbackData) & { files?: File[] },
-  type?: InteractionResponseType,
-  followup = false
+	message: any,
+	payload: (RESTPostAPIChannelMessageJSONBody | APIInteractionResponseCallbackData) & { files?: File[] },
+	type?: InteractionResponseType,
+	followup = false,
 ): Promise<unknown> => {
-  const rest = container.resolve(Rest);
-  const { discordClientId } = container.resolve<Config>(kConfig);
+	const rest = container.resolve(Rest);
+	const { discordClientId } = container.resolve<Config>(kConfig);
 
-  if ('token' in message) {
-    const { embed, files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: File[] };
-    const response = { ...r, embeds: embed ? [embed] : undefined };
+	if ('token' in message) {
+		const { embed, files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: File[] };
+		const response = { ...r, embeds: embed ? [embed] : undefined };
 
-    if (followup) {
-      const { files, ...r } = payload;
-      return rest.post(Routes.webhook(discordClientId, message.token), { data: r, files });
-    }
+		if (followup) {
+			const { files, ...r } = payload;
+			return rest.post(Routes.webhook(discordClientId, message.token), { data: r, files });
+		}
 
-    if (REPLIED.has(message.token)) {
-      return rest.patch(Routes.webhookMessage(discordClientId, message.token, '@original'), { data: response, files });
-    }
+		if (REPLIED.has(message.token)) {
+			return rest.patch(Routes.webhookMessage(discordClientId, message.token, '@original'), { data: response, files });
+		}
 
-    if (message.res) {
-      message.res.end(JSON.stringify({
-        type: type ?? InteractionResponseType.ChannelMessageWithSource,
-        data: response
-      }));
+		if (message.res) {
+			message.res.end(
+				JSON.stringify({
+					type: type ?? InteractionResponseType.ChannelMessageWithSource,
+					data: response,
+				}),
+			);
 
-      REPLIED.add(message.token);
-      setTimeout(() => REPLIED.delete(message.token), 6e4).unref();
+			REPLIED.add(message.token);
+			setTimeout(() => REPLIED.delete(message.token), 6e4).unref();
 
-      if (files) {
-        await send(message, { files });
-      }
+			if (files) {
+				await send(message, { files });
+			}
 
-      return;
-    }
-  }
+			return;
+		}
+	}
 
-  const { files, ...r } = payload;
+	const { files, ...r } = payload;
 
-  return rest.post<unknown, RESTPostAPIChannelMessageJSONBody>(Routes.channelMessages(message.channel_id), { data: r, files });
+	return rest.post<unknown, RESTPostAPIChannelMessageJSONBody>(Routes.channelMessages(message.channel_id), {
+		data: r,
+		files,
+	});
 };

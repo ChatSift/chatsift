@@ -8,44 +8,41 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class PutGuildsPromptsRoute extends Route {
-  public override readonly middleware = [
-    thirdPartyAuth(),
-    jsonParser(),
-    validate(
-      Joi
-        .object()
-        .keys({
-          message_id: Joi.string()
-            .pattern(/\d{17,20}/)
-            .required(),
-          channel_id: Joi.string()
-            .pattern(/\d{17,20}/)
-            .required(),
-          embed_color: Joi.number().required(),
-          embed_title: Joi.string().required(),
-          embed_description: Joi.string().allow(null),
-          embed_image: Joi.string().allow(null),
-          use_buttons: Joi.boolean().default(false)
-        })
-        .required()
-    )
-  ];
+	public override readonly middleware = [
+		thirdPartyAuth(),
+		jsonParser(),
+		validate(
+			Joi.object()
+				.keys({
+					message_id: Joi.string()
+						.pattern(/\d{17,20}/)
+						.required(),
+					channel_id: Joi.string()
+						.pattern(/\d{17,20}/)
+						.required(),
+					embed_color: Joi.number().required(),
+					embed_title: Joi.string().required(),
+					embed_description: Joi.string().allow(null),
+					embed_image: Joi.string().allow(null),
+					use_buttons: Joi.boolean().default(false),
+				})
+				.required(),
+		),
+	];
 
-  public constructor(
-    public readonly controller: PromptsController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: PromptsController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response) {
-    const { gid } = req.params as { gid: Snowflake };
-    const data = req.body as ApiPutGuildPromptsBody;
+	public async handle(req: Request, res: Response) {
+		const { gid } = req.params as { gid: Snowflake };
+		const data = req.body as ApiPutGuildPromptsBody;
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const prompt = await this.controller.add({ guild_id: gid, ...data });
+		const prompt = await this.controller.add({ guild_id: gid, ...data });
 
-    return res.end(JSON.stringify(prompt));
-  }
+		return res.end(JSON.stringify(prompt));
+	}
 }

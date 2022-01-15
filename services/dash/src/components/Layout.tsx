@@ -5,17 +5,15 @@ import { useQueryMe } from '~/hooks/useQueryMe';
 const Navbar = dynamic(() => import('~/components/Navbar'));
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
-  useQueryMe();
+	useQueryMe();
 
-  return (
-    <Grid templateRows = "auto 1fr auto" h = "100%">
-      <Navbar />
-      <Box>
-        {children}
-      </Box>
-      <Box></Box>
-    </Grid>
-  );
+	return (
+		<Grid templateRows="auto 1fr auto" h="100%">
+			<Navbar />
+			<Box>{children}</Box>
+			<Box></Box>
+		</Grid>
+	);
 };
 
 export default Layout;

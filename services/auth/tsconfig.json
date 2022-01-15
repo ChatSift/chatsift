@@ -1,12 +1,12 @@
 {
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "declaration": false,
-    "declarationMap": false,
-    "paths": {
-      "#util": ["./src/util/index.ts"]
-    }
-  },
-  "include": ["./src/**/*.ts"]
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"outDir": "./dist",
+		"declaration": false,
+		"declarationMap": false,
+		"paths": {
+			"#util": ["./src/util/index.ts"]
+		}
+	},
+	"include": ["./src/**/*.ts"]
 }

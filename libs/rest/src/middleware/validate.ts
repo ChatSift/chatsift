@@ -4,13 +4,15 @@ import type { NextHandler, Request, Response } from 'polka';
 
 type ValidateMiddlewareProp = 'body' | 'query' | 'params' | 'headers' | 'body';
 
-export const validate = (schema: AnySchema, prop: ValidateMiddlewareProp = 'body') => (req: Request, _: Response, next: NextHandler) => {
-  const result = schema.validate(req[prop]);
+export const validate =
+	(schema: AnySchema, prop: ValidateMiddlewareProp = 'body') =>
+	(req: Request, _: Response, next: NextHandler) => {
+		const result = schema.validate(req[prop]);
 
-  if (result.error) {
-    return next(badData(result.error.message));
-  }
+		if (result.error) {
+			return next(badData(result.error.message));
+		}
 
-  req[prop] = result.value;
-  return next();
-};
+		req[prop] = result.value;
+		return next();
+	};

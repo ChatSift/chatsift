@@ -6,21 +6,19 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class GetGuildsFiltersInvitesAllowlistRoute extends Route {
-  public override readonly middleware = [thirdPartyAuth()];
+	public override readonly middleware = [thirdPartyAuth()];
 
-  public constructor(
-    public readonly controller: InvitesAllowlistController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: InvitesAllowlistController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response) {
-    const { gid } = req.params as { gid: Snowflake };
+	public async handle(req: Request, res: Response) {
+		const { gid } = req.params as { gid: Snowflake };
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const ignores = await this.controller.getAll(gid);
-    return res.end(JSON.stringify(ignores));
-  }
+		const ignores = await this.controller.getAll(gid);
+		return res.end(JSON.stringify(ignores));
+	}
 }

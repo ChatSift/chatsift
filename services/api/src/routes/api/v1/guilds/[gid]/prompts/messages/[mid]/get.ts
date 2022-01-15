@@ -7,26 +7,24 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class GetGuildPromptByMessageRoute extends Route {
-  public override readonly middleware = [thirdPartyAuth()];
+	public override readonly middleware = [thirdPartyAuth()];
 
-  public constructor(
-    public readonly controller: PromptsController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: PromptsController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response, next: NextHandler) {
-    const { mid } = req.params as { mid: Snowflake };
+	public async handle(req: Request, res: Response, next: NextHandler) {
+		const { mid } = req.params as { mid: Snowflake };
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const prompt = await this.controller.getByMessage(mid);
+		const prompt = await this.controller.getByMessage(mid);
 
-    if (!prompt) {
-      return next(notFound('No prompt belonging to that message found'));
-    }
+		if (!prompt) {
+			return next(notFound('No prompt belonging to that message found'));
+		}
 
-    return res.end(JSON.stringify(prompt));
-  }
+		return res.end(JSON.stringify(prompt));
+	}
 }

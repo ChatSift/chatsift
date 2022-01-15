@@ -1,35 +1,35 @@
-version: "3.7"
+version: '3.7'
 
 services:
   api:
     environment:
-      NODE_ENV: "prod"
-      ELASTIC_URL: "http://elasticsearch:9200"
-      ELASTIC_USERNAME: "elastic"
-      CORS: "https://dash.automoderator.app"
+      NODE_ENV: 'prod'
+      ELASTIC_URL: 'http://elasticsearch:9200'
+      ELASTIC_USERNAME: 'elastic'
+      CORS: 'https://dash.automoderator.app'
 
   auth:
     environment:
-      ROOT_DOMAIN: "https://automoderator.app"
-      AUTH_DOMAIN: "https://api.automoderator.app"
-      GHOST_DOMAIN: "https://ghost.automoderator.app"
-      NODE_ENV: "prod"
-      ELASTIC_URL: "http://elasticsearch:9200"
-      ELASTIC_USERNAME: "elastic"
-      CORS: "https://dash.automoderator.app"
+      ROOT_DOMAIN: 'https://automoderator.app'
+      AUTH_DOMAIN: 'https://api.automoderator.app'
+      GHOST_DOMAIN: 'https://ghost.automoderator.app'
+      NODE_ENV: 'prod'
+      ELASTIC_URL: 'http://elasticsearch:9200'
+      ELASTIC_USERNAME: 'elastic'
+      CORS: 'https://dash.automoderator.app'
 
   automod:
     environment:
-      NODE_ENV: "prod"
-      API_DOMAIN: "http://api:3001"
-      ELASTIC_URL: "http://elasticsearch:9200"
-      ELASTIC_USERNAME: "elastic"
+      NODE_ENV: 'prod'
+      API_DOMAIN: 'http://api:3001'
+      ELASTIC_URL: 'http://elasticsearch:9200'
+      ELASTIC_USERNAME: 'elastic'
 
   cron-runner:
     environment:
-      NODE_ENV: "prod"
-      ELASTIC_URL: "http://elasticsearch:9200"
-      ELASTIC_USERNAME: "elastic"
+      NODE_ENV: 'prod'
+      ELASTIC_URL: 'http://elasticsearch:9200'
+      ELASTIC_USERNAME: 'elastic'
 
   dash:
     image: chatsift/automoderator_dash
@@ -42,29 +42,29 @@ services:
 
   gateway:
     environment:
-      NODE_ENV: "prod"
-      ELASTIC_URL: "http://elasticsearch:9200"
-      ELASTIC_USERNAME: "elastic"
+      NODE_ENV: 'prod'
+      ELASTIC_URL: 'http://elasticsearch:9200'
+      ELASTIC_USERNAME: 'elastic'
 
   interactions:
     environment:
-      NODE_ENV: "prod"
-      API_DOMAIN: "http://api:3001"
-      ELASTIC_URL: "http://elasticsearch:9200"
-      ELASTIC_USERNAME: "elastic"
+      NODE_ENV: 'prod'
+      API_DOMAIN: 'http://api:3001'
+      ELASTIC_URL: 'http://elasticsearch:9200'
+      ELASTIC_USERNAME: 'elastic'
 
   logging:
     environment:
-      NODE_ENV: "prod"
-      ELASTIC_URL: "http://elasticsearch:9200"
-      ELASTIC_USERNAME: "elastic"
+      NODE_ENV: 'prod'
+      ELASTIC_URL: 'http://elasticsearch:9200'
+      ELASTIC_USERNAME: 'elastic'
 
   mod-observer:
     environment:
-      NODE_ENV: "prod"
-      API_DOMAIN: "http://api:3001"
-      ELASTIC_URL: "http://elasticsearch:9200"
-      ELASTIC_USERNAME: "elastic"
+      NODE_ENV: 'prod'
+      API_DOMAIN: 'http://api:3001'
+      ELASTIC_URL: 'http://elasticsearch:9200'
+      ELASTIC_USERNAME: 'elastic'
 
   caddy:
     build:
@@ -77,18 +77,18 @@ services:
       - elasticsearch
       - kibana
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
 
   elasticsearch:
     image: elasticsearch:7.12.1
     volumes:
       - elis-data:/usr/share/elasticsearch/data
     environment:
-      "discovery.type": "single-node"
-      "bootstrap.memory_lock": "true"
-      "xpack.security.enabled": "true"
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      'discovery.type': 'single-node'
+      'bootstrap.memory_lock': 'true'
+      'xpack.security.enabled': 'true'
+      ES_JAVA_OPTS: '-Xms512m -Xmx512m'
     restart: unless-stopped
     ulimits:
       memlock:
@@ -99,8 +99,8 @@ services:
     image: kibana:7.12.1
     restart: unless-stopped
     environment:
-      ELASTICSEARCH_HOSTS: "http://elasticsearch:9200"
-      ELASTICSEARCH_USERNAME: "kibana_system"
+      ELASTICSEARCH_HOSTS: 'http://elasticsearch:9200'
+      ELASTICSEARCH_USERNAME: 'kibana_system'
 
   ghost:
     image: ghost:4-alpine
@@ -108,10 +108,10 @@ services:
     expose:
       - 2368
     environment:
-      NODE_ENV: "production"
-      url: "https://ghost.automoderator.app"
-      database__client: "sqlite3"
-      mail__transport: "SMTP"
-      mail__options__service: "Mailgun"
+      NODE_ENV: 'production'
+      url: 'https://ghost.automoderator.app'
+      database__client: 'sqlite3'
+      mail__transport: 'SMTP'
+      mail__options__service: 'Mailgun'
     volumes:
       - ghost-data:/var/lib/ghost/content

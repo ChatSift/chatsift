@@ -7,14 +7,14 @@ import { attachHttpUtils } from './middleware';
 import { getPolkaOptions } from './utils';
 
 export const createApp = () => {
-  const config = container.resolve<Config>(kConfig);
+	const config = container.resolve<Config>(kConfig);
 
-  return polka(getPolkaOptions()).use(
-    cors({
-      origin: config.cors,
-      credentials: true
-    }),
-    helmet({ contentSecurityPolicy: config.nodeEnv === 'prod' ? undefined : false }) as any,
-    attachHttpUtils()
-  );
+	return polka(getPolkaOptions()).use(
+		cors({
+			origin: config.cors,
+			credentials: true,
+		}),
+		helmet({ contentSecurityPolicy: config.nodeEnv === 'prod' ? undefined : false }) as any,
+		attachHttpUtils(),
+	);
 };

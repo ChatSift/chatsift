@@ -7,26 +7,24 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class DeleteGuildsAssignablesRoleRoute extends Route {
-  public override readonly middleware = [thirdPartyAuth()];
+	public override readonly middleware = [thirdPartyAuth()];
 
-  public constructor(
-    public readonly controller: AssignablesController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: AssignablesController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response, next: NextHandler) {
-    const { rid } = req.params as { rid: Snowflake };
+	public async handle(req: Request, res: Response, next: NextHandler) {
+		const { rid } = req.params as { rid: Snowflake };
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    const assignable = await this.controller.delete(rid);
+		const assignable = await this.controller.delete(rid);
 
-    if (!assignable) {
-      return next(notFound('There was no self assignable role to delete'));
-    }
+		if (!assignable) {
+			return next(notFound('There was no self assignable role to delete'));
+		}
 
-    return res.end(JSON.stringify(assignable));
-  }
+		return res.end(JSON.stringify(assignable));
+	}
 }

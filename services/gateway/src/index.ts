@@ -10,80 +10,91 @@ import Redis from 'ioredis';
 import { container } from 'tsyringe';
 
 void (async () => {
-  const config = initConfig();
-  const logger = createLogger('gateway');
+	const config = initConfig();
+	const logger = createLogger('gateway');
 
-  const { channel } = await createAmqp(config.amqpUrl);
+	const { channel } = await createAmqp(config.amqpUrl);
 
-  const router = new RoutingPublisher<keyof DiscordEvents, DiscordEvents>(channel);
-  const broadcaster = new PubSubSubscriber<GatewaySendPayload>(channel);
+	const router = new RoutingPublisher<keyof DiscordEvents, DiscordEvents>(channel);
+	const broadcaster = new PubSubSubscriber<GatewaySendPayload>(channel);
 
-  const redis = new Redis(config.redisUrl);
-  container.register(kRedis, { useValue: redis });
+	const redis = new Redis(config.redisUrl);
+	container.register(kRedis, { useValue: redis });
 
-  const guildMembersCache = container.resolve(GuildMemberCache);
-  const messageCache = container.resolve(MessageCache);
+	const guildMembersCache = container.resolve(GuildMemberCache);
+	const messageCache = container.resolve(MessageCache);
 
-  const gateway = new Cluster(config.discordToken, {
-    compress: false,
-    encoding: 'json',
-    intents: ['guildMessages', 'guildMembers', 'guildBans']
-  });
+	const gateway = new Cluster(config.discordToken, {
+		compress: false,
+		encoding: 'json',
+		intents: ['guildMessages', 'guildMembers', 'guildBans'],
+	});
 
-  gateway
-    .on('destroy', (reconnecting, fatal, id) => {
-      logger.debug({ id, fatal, reconnecting }, 'Shard death');
-      if (!reconnecting) {
-        process.exit(1);
-      }
-    })
-    .on('open', id => logger.debug({ id }, 'WS connection open'))
-    .on('error', (err, id) => logger.debug({ id, err }, 'Encountered a shard error'))
-    .on('ready', () => logger.debug('All shards have become fully available'))
-    .on('dispatch', data => {
-      switch (data.t) {
-        case 'MESSAGE_CREATE': {
-          logger.metric!({ type: 'message_seen' });
+	gateway
+		.on('destroy', (reconnecting, fatal, id) => {
+			logger.debug({ id, fatal, reconnecting }, 'Shard death');
+			if (!reconnecting) {
+				process.exit(1);
+			}
+		})
+		.on('open', (id) => logger.debug({ id }, 'WS connection open'))
+		.on('error', (err, id) => logger.debug({ id, err }, 'Encountered a shard error'))
+		.on('ready', () => logger.debug('All shards have become fully available'))
+		.on('dispatch', (data) => {
+			switch (data.t) {
+				case 'MESSAGE_CREATE': {
+					logger.metric!({ type: 'message_seen' });
 
-          void messageCache.add(data.d).catch(
-            error => logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a message')
-          );
+					void messageCache
+						.add(data.d)
+						.catch((error) =>
+							logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a message'),
+						);
 
-          if (data.d.guild_id && !data.d.webhook_id) {
-            // @ts-expect-error - Common discord-api-types version missmatch
-            void guildMembersCache.add({
-              guild_id: data.d.guild_id,
-              user: data.d.author,
-              ...data.d.member
-            }).catch(error => logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member'));
-          }
+					if (data.d.guild_id && !data.d.webhook_id) {
+						// @ts-expect-error - Common discord-api-types version missmatch
+						void guildMembersCache
+							.add({
+								guild_id: data.d.guild_id,
+								user: data.d.author,
+								...data.d.member,
+							})
+							.catch((error) =>
+								logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member'),
+							);
+					}
 
-          break;
-        }
+					break;
+				}
 
-        case 'MESSAGE_UPDATE': {
-          if (data.d.guild_id && !data.d.webhook_id && data.d.author && data.d.member) {
-            void guildMembersCache.add({
-              guild_id: data.d.guild_id,
-              user: data.d.author,
-              ...data.d.member
-            }).catch(error => logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member'));
-          }
-        }
+				case 'MESSAGE_UPDATE': {
+					if (data.d.guild_id && !data.d.webhook_id && data.d.author && data.d.member) {
+						void guildMembersCache
+							.add({
+								guild_id: data.d.guild_id,
+								user: data.d.author,
+								...data.d.member,
+							})
+							.catch((error) =>
+								logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member'),
+							);
+					}
+				}
 
-        default: break;
-      }
+				default:
+					break;
+			}
 
-      router.publish(data.t, data.d);
-    })
-    .on('debug', (info, id) => logger.debug({ id }, info));
+			router.publish(data.t, data.d);
+		})
+		.on('debug', (info, id) => logger.debug({ id }, info));
 
-  await router.init({ name: 'gateway', topicBased: false });
-  await gateway.connect();
+	await router.init({ name: 'gateway', topicBased: false });
+	await gateway.connect();
 
-  await broadcaster.init({
-    name: 'gateway_broadcasts',
-    cb: packet => gateway.broadcast(packet),
-    fanout: true
-  });
+	await broadcaster.init({
+		name: 'gateway_broadcasts',
+		cb: (packet) => gateway.broadcast(packet),
+		fanout: true,
+	});
 })();

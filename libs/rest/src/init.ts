@@ -6,16 +6,16 @@ import { container } from 'tsyringe';
 import { Route } from './route';
 
 export const initApp = async (app: Polka, files: RecursiveDirReadStream) => {
-  const logger = container.resolve<Logger>(kLogger);
+	const logger = container.resolve<Logger>(kLogger);
 
-  for await (const file of files) {
-    const info = Route.pathToRouteInfo(file.split('/routes').pop()!);
-    if (!info) {
-      logger.debug(`Hit path with no info: "${file}"`);
-      continue;
-    }
+	for await (const file of files) {
+		const info = Route.pathToRouteInfo(file.split('/routes').pop()!);
+		if (!info) {
+			logger.debug(`Hit path with no info: "${file}"`);
+			continue;
+		}
 
-    const route = container.resolve<Route>((await import(file)).default);
-    route.register(info, app);
-  }
+		const route = container.resolve<Route>((await import(file)).default);
+		route.register(info, app);
+	}
 };

@@ -8,32 +8,31 @@ import { injectable } from 'tsyringe';
 
 @injectable()
 export default class GetGuildsFiltersLocalRoute extends Route {
-  public override readonly middleware = [
-    thirdPartyAuth(),
-    validate(
-      Joi
-        .object()
-        .keys({
-          page: Joi.number()
-        })
-        .required(),
-      'query'
-    )
-  ];
+	public override readonly middleware = [
+		thirdPartyAuth(),
+		validate(
+			Joi.object()
+				.keys({
+					page: Joi.number(),
+				})
+				.required(),
+			'query',
+		),
+	];
 
-  public constructor(
-    public readonly controller: LocalFiltersController
-  ) {
-    super();
-  }
+	public constructor(public readonly controller: LocalFiltersController) {
+		super();
+	}
 
-  public async handle(req: Request, res: Response) {
-    const { gid } = req.params as { gid: Snowflake };
-    const { page } = req.query as unknown as ApiGetGuildsFiltersLocalQuery;
+	public async handle(req: Request, res: Response) {
+		const { gid } = req.params as { gid: Snowflake };
+		const { page } = req.query as unknown as ApiGetGuildsFiltersLocalQuery;
 
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/json');
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
 
-    return res.end(JSON.stringify(page == null ? await this.controller.getAll(gid) : await this.controller.get(gid, page)));
-  }
+		return res.end(
+			JSON.stringify(page == null ? await this.controller.getAll(gid) : await this.controller.get(gid, page)),
+		);
+	}
 }
