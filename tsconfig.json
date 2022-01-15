@@ -19,6 +19,8 @@
     "noUncheckedIndexedAccess": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "noImplicitOverride": true
-  }
+    "noImplicitOverride": true,
+    "importsNotUsedAsValues": "error"
+  },
+  "exclude": ["./**/__tests__"]
 }
