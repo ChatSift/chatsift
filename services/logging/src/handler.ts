@@ -141,10 +141,14 @@ export class Handler {
     let parent;
 
     // Thread channel
-    if (!this.channelsCache.has(channel) && !this.threadsCache.has(channel)) {
-      const thread = await this.rest.get<APIChannel>(Routes.channel(channel));
-      this.threadsCache.set(thread.id, thread.parent_id!);
-      parent = thread.parent_id!;
+    if (!this.channelsCache.has(channel)) {
+      parent = this.threadsCache.get(channel);
+
+      if (!parent) {
+        const thread = await this.rest.get<APIChannel>(Routes.channel(channel));
+        this.threadsCache.set(thread.id, thread.parent_id!);
+        parent = thread.parent_id!;
+      }
     }
 
     const [data] = await this.sql<[WebhookToken?]>`SELECT * FROM webhook_tokens WHERE channel_id = ${parent ?? channel}`;

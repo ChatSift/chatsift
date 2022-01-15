@@ -5,7 +5,7 @@ import { HTTPError } from './HTTPError';
 import type { IRest } from './IRest';
 
 /**
- * HTTP client for making requests toe the Automoderator API (backend only)
+ * HTTP client for making requests to the Automoderator API (backend only)
  */
 @injectable()
 export class Rest implements IRest {
