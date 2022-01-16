@@ -19,7 +19,6 @@
 	},
 	"homepage": "https://github.com/didinele/didinele.me#readme",
 	"devDependencies": {
-		"@gaius-bot/readdir": "^1.0.0",
 		"@types/bcrypt": "^5.0.0",
 		"@types/cookie": "^0.4.1",
 		"@types/cors": "^2.8.12",
@@ -36,6 +35,7 @@
 		"@automoderator/discord-permissions": "workspace:^0.1.0",
 		"@automoderator/injection": "workspace:^0.1.0",
 		"@automoderator/logger": "workspace:^0.1.0",
+		"@chatsift/readdir": "^0.1.0",
 		"@cordis/bitfield": "^1.2.0",
 		"@cordis/rest": "^1.2.0-next.86d9daa.1641743196",
 		"@hapi/boom": "^9.1.4",

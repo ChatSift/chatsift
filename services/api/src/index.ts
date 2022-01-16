@@ -3,7 +3,7 @@ import { initConfig, kLogger, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createApp, initApp, logRequests, TokenManager } from '@automoderator/rest';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { readdirRecurse } from '@gaius-bot/readdir';
+import { readdirRecurse } from '@chatsift/readdir';
 import { join as joinPath } from 'path';
 import postgres from 'postgres';
 import { container } from 'tsyringe';
@@ -59,7 +59,7 @@ void (async () => {
 
 	container.register(TokenManager, { useClass: TokenManager });
 
-	await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtension: 'js' }));
+	await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtensions: ['js'] }));
 
 	app.listen(3001, () => logger.info('Listening to requests on port 3001'));
 })();

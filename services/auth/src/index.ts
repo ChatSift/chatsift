@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { initConfig, kLogger, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createApp, initApp, logRequests } from '@automoderator/rest';
-import { readdirRecurse } from '@gaius-bot/readdir';
+import { readdirRecurse } from '@chatsift/readdir';
 import { join as joinPath } from 'path';
 import postgres from 'postgres';
 import { container } from 'tsyringe';
@@ -21,7 +21,7 @@ void (async () => {
 	const app = createApp();
 	app.use(logRequests());
 
-	await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtension: 'js' }));
+	await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtensions: ['js'] }));
 
 	app.listen(3000, () => logger.info('Listening to requests on port 3000'));
 })();

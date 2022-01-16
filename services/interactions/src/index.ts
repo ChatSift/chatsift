@@ -5,7 +5,7 @@ import createLogger from '@automoderator/logger';
 import { createApp, initApp } from '@automoderator/rest';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { readdirRecurse } from '@gaius-bot/readdir';
+import { readdirRecurse } from '@chatsift/readdir';
 import { join as joinPath } from 'path';
 import postgres from 'postgres';
 import { container } from 'tsyringe';
@@ -79,7 +79,7 @@ void (async () => {
 	await container.resolve(Handler).init();
 
 	const app = createApp();
-	await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtension: 'js' }));
+	await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtensions: ['js'] }));
 
 	app.listen(3002, () => logger.info('Listening for interactions on port 3002'));
 })();
