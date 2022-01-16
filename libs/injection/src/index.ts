@@ -11,7 +11,6 @@ export const kLogger = Symbol('logger instance');
 export interface Config {
 	amqpUrl: string;
 	rootDomain: string;
-	authDomain: string;
 	apiDomain: string;
 	dashDomain: string;
 	ghostDomain: string;
@@ -39,7 +38,6 @@ export const initConfig = () => {
 	const config: Config = {
 		amqpUrl: process.env.AMQP_URL!,
 		rootDomain: process.env.ROOT_DOMAIN!,
-		authDomain: process.env.AUTH_DOMAIN!,
 		apiDomain: process.env.API_DOMAIN!,
 		dashDomain: process.env.DASH_DOMAIN!,
 		ghostDomain: process.env.GHOST_DOMAIN!,

@@ -4,19 +4,12 @@ services:
   api:
     environment:
       NODE_ENV: 'prod'
-      ELASTIC_URL: 'http://elasticsearch:9200'
-      ELASTIC_USERNAME: 'elastic'
-      CORS: 'https://dash.automoderator.app'
-
-  auth:
-    environment:
       ROOT_DOMAIN: 'https://automoderator.app'
       AUTH_DOMAIN: 'https://api.automoderator.app'
       GHOST_DOMAIN: 'https://ghost.automoderator.app'
-      NODE_ENV: 'prod'
+      CORS: 'https://dash.automoderator.app'
       ELASTIC_URL: 'http://elasticsearch:9200'
       ELASTIC_USERNAME: 'elastic'
-      CORS: 'https://dash.automoderator.app'
 
   automod:
     environment:

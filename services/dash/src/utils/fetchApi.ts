@@ -12,7 +12,7 @@ const HEADERS = [['Content-Type', 'application/json']];
 
 // TODO(DD): Error handling
 const refreshToken = async (retries = 0): Promise<null | void> => {
-	const response = await fetch(`${process.env.NEXT_PUBLIC_AUTH_DOMAIN!}/api/v1/auth/discord/refresh`, {
+	const response = await fetch(`${process.env.NEXT_PUBLIC_API_DOMAIN!}/api/v1/auth/discord/refresh`, {
 		headers: HEADERS,
 		method: 'GET',
 		credentials: 'include',

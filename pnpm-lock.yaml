@@ -93,9 +93,11 @@ importers:
   libs/core:
     specifiers:
       '@types/node': ^16.10.3
+      discord-api-types: ^0.24.0
       tslib: ^2.3.1
       typescript: ^4.4.3
     dependencies:
+      discord-api-types: 0.24.0
       tslib: 2.3.1
     devDependencies:
       '@types/node': 16.10.3
@@ -304,12 +306,14 @@ importers:
       '@chatsift/readdir': ^0.1.0
       '@cordis/rest': ^1.2.0-next.86d9daa.1641743196
       '@hapi/boom': ^9.1.4
+      '@types/jsonwebtoken': ^8.5.7
       '@types/node': ^16.10.3
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
       cookie: ^0.4.1
       discord-api-types: ^0.24.0
       joi: ^17.4.2
+      jsonwebtoken: ^8.5.1
       node-fetch: ^2.6.5
       polka: ^1.0.0-next.22
       postgres: ^2.0.0-beta.10
@@ -331,49 +335,6 @@ importers:
       cookie: 0.4.1
       discord-api-types: 0.24.0
       joi: 17.4.2
-      node-fetch: 2.6.5
-      postgres: 2.0.0-beta.10
-      reflect-metadata: 0.1.13
-      tslib: 2.3.1
-      tsyringe: 4.6.0
-    devDependencies:
-      '@types/node': 16.10.3
-      '@types/node-fetch': 2.5.12
-      '@types/pino': 6.3.11
-      polka: 1.0.0-next.22
-      typescript: 4.4.3
-
-  services/auth:
-    specifiers:
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/injection': workspace:^0.1.0
-      '@automoderator/logger': workspace:^0.1.0
-      '@automoderator/rest': workspace:^0.1.0
-      '@chatsift/readdir': ^0.1.0
-      '@hapi/boom': ^9.1.4
-      '@types/jsonwebtoken': ^8.5.6
-      '@types/node': ^16.10.3
-      '@types/node-fetch': ^2.5.12
-      '@types/pino': ^6.3.11
-      cookie: ^0.4.1
-      joi: ^17.4.2
-      jsonwebtoken: ^8.5.1
-      node-fetch: ^2.6.5
-      polka: ^1.0.0-next.22
-      postgres: ^2.0.0-beta.10
-      reflect-metadata: ^0.1.13
-      tslib: ^2.3.1
-      tsyringe: ^4.6.0
-      typescript: ^4.4.3
-    dependencies:
-      '@automoderator/core': link:../../libs/core
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/logger': link:../../libs/logger
-      '@automoderator/rest': link:../../libs/rest
-      '@chatsift/readdir': 0.1.0
-      '@hapi/boom': 9.1.4
-      cookie: 0.4.1
-      joi: 17.4.2
       jsonwebtoken: 8.5.1
       node-fetch: 2.6.5
       postgres: 2.0.0-beta.10
@@ -381,7 +342,7 @@ importers:
       tslib: 2.3.1
       tsyringe: 4.6.0
     devDependencies:
-      '@types/jsonwebtoken': 8.5.6
+      '@types/jsonwebtoken': 8.5.7
       '@types/node': 16.10.3
       '@types/node-fetch': 2.5.12
       '@types/pino': 6.3.11
@@ -3971,8 +3932,8 @@ packages:
     resolution: {integrity: sha512-qcUXuemtEu+E5wZSJHNxUXeCZhAfXKQ41D+duX+VYPde7xyEVZci+/oXKJL13tnRs9lR2pr4fod59GT6/X1/yQ==}
     dev: true
 
-  /@types/jsonwebtoken/8.5.6:
-    resolution: {integrity: sha512-+P3O/xC7nzVizIi5VbF34YtqSonFsdnbXBnWUCYRiKOi1f9gA4sEFvXkrGr/QVV23IbMYvcoerI7nnhDUiWXRQ==}
+  /@types/jsonwebtoken/8.5.7:
+    resolution: {integrity: sha512-CBHN+1unePowgS94ayLE7aVp7AfyhgG/3l2O+AjkhOMY4kAAfVI1OnbbLnOeDMAdTNLP5ZjJ3kdZanRtRQaK3Q==}
     dependencies:
       '@types/node': 16.11.10
     dev: true

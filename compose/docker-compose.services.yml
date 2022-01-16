@@ -9,17 +9,6 @@ services:
     environment:
       DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
       AMQP_URL: 'amqp://rabbitmq:5672'
-    restart: unless-stopped
-    depends_on:
-      - base
-
-  auth:
-    image: chatsift/automoderator_auth
-    build:
-      context: ../
-      dockerfile: ./docker/auth/Dockerfile
-    environment:
-      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
       DISCORD_SCOPES: 'identify,email,guilds'
     restart: unless-stopped
     depends_on:
