@@ -44,6 +44,15 @@ services:
     depends_on:
       - base
 
+  discord-proxy:
+    image: chatsift/automoderator_discord-proxy
+    build:
+      context: ../
+      dockerfile: ./docker/discord-proxy/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - base
+
   gateway:
     image: chatsift/automoderator_gateway
     build:

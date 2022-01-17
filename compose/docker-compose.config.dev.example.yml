@@ -21,6 +21,10 @@ services:
       DISCORD_CLIENT_ID: '123'
       DISCORD_TOKEN: 'awooga'
 
+  discord-proxy:
+    environment:
+      DISCORD_TOKEN: 'awooga'
+
   gateway:
     environment:
       DISCORD_TOKEN: 'awooga'

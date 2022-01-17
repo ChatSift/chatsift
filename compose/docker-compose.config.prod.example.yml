@@ -25,6 +25,11 @@ services:
       DISCORD_TOKEN: 'awooga'
       ELASTIC_PASSWORD: 'owo'
 
+  discord-proxy:
+    environment:
+      DISCORD_TOKEN: 'awooga'
+      ELASTIC_PASSWORD: 'owo'
+
   gateway:
     environment:
       DISCORD_TOKEN: 'awooga'
