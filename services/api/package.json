@@ -24,6 +24,7 @@
 	},
 	"homepage": "https://github.com/didinele/AutoModerator#readme",
 	"devDependencies": {
+		"@types/bcrypt": "^5.0.0",
 		"@types/cors": "^2.8.12",
 		"@types/jsonwebtoken": "^8.5.7",
 		"@types/node": "^16.10.3",
@@ -44,6 +45,7 @@
 		"@cordis/rest": "^1.2.0-next.86d9daa.1641743196",
 		"@hapi/boom": "^9.1.4",
 		"@sapphire/stopwatch": "^1.2.0",
+		"bcrypt": "^5.0.1",
 		"cookie": "^0.4.1",
 		"cors": "^2.8.5",
 		"discord-api-types": "^0.24.0",

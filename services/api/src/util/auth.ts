@@ -7,6 +7,7 @@ import type { Logger } from 'pino';
 import type { NextHandler, Request, Response } from 'polka';
 import { container } from 'tsyringe';
 import cookie from 'cookie';
+import { URLSearchParams } from 'url';
 
 export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler) => {
 	const config = container.resolve<Config>(kConfig);
