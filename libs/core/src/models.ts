@@ -1,5 +1,5 @@
 import type { Snowflake } from 'discord-api-types/v9';
-import type { OneOf } from './util';
+import type { NullableProperties } from '@chatsift/utils';
 
 export interface GuildSettings {
 	guild_id: Snowflake;
@@ -47,7 +47,7 @@ export interface SelfAssignableRolePrompt {
 	use_buttons: boolean;
 }
 
-export type SelfAssignableRole = OneOf<
+export type SelfAssignableRole = NullableProperties<
 	{
 		id: number;
 		role_id: Snowflake;

@@ -1,6 +1,6 @@
 import { makeDiscordCdnUrl } from '@cordis/util';
 import { APIEmbed, APIMessage, APIUser, RouteBases, Snowflake } from 'discord-api-types/v9';
-import { addFields } from './embed';
+import { addFields } from '@chatsift/discord-utils';
 import { NonWarnCase, WarnCase, Case, CaseAction, ms } from '@automoderator/core';
 
 export const LOG_COLORS = Object.freeze({
@@ -42,7 +42,7 @@ export const makeCaseEmbed = ({
 	message,
 	refCs: ref,
 }: CaseEmbedOptions): APIEmbed => {
-	let embed: APIEmbed = message?.embeds[0]
+	const embed: APIEmbed = message?.embeds[0]
 		? message.embeds[0]
 		: {
 				color: LOG_COLORS[cs.action_type],
@@ -66,7 +66,7 @@ export const makeCaseEmbed = ({
 	};
 
 	if (cs.ref_id && ref && !embed.fields?.length) {
-		embed = addFields(embed, {
+		addFields(embed, {
 			name: 'Reference',
 			value:
 				ref.log_message_id && logChannelId
@@ -76,7 +76,7 @@ export const makeCaseEmbed = ({
 	}
 
 	if (pardonedBy) {
-		embed = addFields(embed, {
+		addFields(embed, {
 			name: 'Pardoned by',
 			value: `${pardonedBy.username}#${pardonedBy.discriminator}`,
 		});
@@ -84,7 +84,7 @@ export const makeCaseEmbed = ({
 
 	if (cs.expires_at) {
 		const expiresAt = new Date(cs.expires_at).getTime();
-		embed = addFields(embed, {
+		addFields(embed, {
 			name: 'Duration',
 			value: `${ms(expiresAt - new Date(cs.created_at).getTime(), true)}; Expires: <t:${Math.round(
 				expiresAt / 1000,

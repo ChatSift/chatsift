@@ -49,7 +49,7 @@
 		"bcrypt": "^5.0.1",
 		"cookie": "^0.4.1",
 		"cors": "^2.8.5",
-		"discord-api-types": "^0.24.0",
+		"discord-api-types": "^0.26.1",
 		"helmet": "^4.6.0",
 		"jsonwebtoken": "^8.5.1",
 		"node-fetch": "^2.6.5",

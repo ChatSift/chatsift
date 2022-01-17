@@ -43,7 +43,7 @@
 		"@cordis/store": "^1.2.0",
 		"@cordis/util": "^1.2.0",
 		"common-tags": "^1.8.0",
-		"discord-api-types": "^0.24.0",
+		"discord-api-types": "^0.26.1",
 		"ioredis": "^4.27.10",
 		"node-fetch": "^2.6.5",
 		"postgres": "^2.0.0-beta.10",

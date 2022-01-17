@@ -22,13 +22,8 @@ import {
 	WebhookToken,
 } from '@automoderator/core';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
-import {
-	addFields,
-	ellipsis,
-	EMBED_DESCRIPTION_LIMIT,
-	EMBED_FOOTER_TEXT_LIMIT,
-	makeCaseEmbed,
-} from '@automoderator/util';
+import { addFields, ellipsis, MESSAGE_LIMITS } from '@chatsift/discord-utils';
+import { makeCaseEmbed } from '@automoderator/util';
 import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
 import { HTTPError as CordisHTTPError, Rest } from '@cordis/rest';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
@@ -100,7 +95,7 @@ export class Handler {
 		}
 
 		if (value) {
-			embed = addFields(embed, {
+			addFields(embed, {
 				name: 'Punishment trigger',
 				value,
 			});
@@ -587,7 +582,7 @@ export class Handler {
 								{
 									name: 'Content',
 									value: entry.message.content.length
-										? `>>> ${ellipsis(entry.message.content, EMBED_FOOTER_TEXT_LIMIT - 4)}`
+										? `>>> ${ellipsis(entry.message.content, MESSAGE_LIMITS.EMBEDS.FOOTER - 4)}`
 										: 'No content - this message probably held an attachment',
 								},
 							],
@@ -710,7 +705,7 @@ export class Handler {
 									: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
 							},
 							title: 'Updated the banword list',
-							description: `\`\`\`diff\n${ellipsis(list, EMBED_DESCRIPTION_LIMIT - 3)}\`\`\``,
+							description: `\`\`\`diff\n${ellipsis(list, MESSAGE_LIMITS.EMBEDS.DESCRIPTION - 3)}\`\`\``,
 						},
 					],
 				},
