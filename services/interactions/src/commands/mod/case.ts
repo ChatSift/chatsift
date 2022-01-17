@@ -12,7 +12,7 @@ import {
 } from '@automoderator/core';
 import { makeCaseEmbed } from '@automoderator/util';
 import { UserPerms } from '@automoderator/discord-permissions';
-import { HTTPError, Rest } from '@automoderator/http-client';
+import { HTTPError, Rest } from '@chatsift/api-wrapper';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, APIUser, ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';

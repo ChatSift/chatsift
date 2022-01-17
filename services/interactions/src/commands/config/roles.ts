@@ -1,6 +1,6 @@
 import type { RolesCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
-import {
+import type {
 	ApiGetGuildPromptResult,
 	ApiGetGuildPromptsResult,
 	ApiPatchGuildPromptBody,
@@ -9,10 +9,10 @@ import {
 	ApiPutGuildPromptsBody,
 	ApiPutGuildPromptsResult,
 	SelfAssignableRole,
-	sectionArray,
 } from '@automoderator/core';
+import { chunkArray } from '@chatsift/utils';
 import { UserPerms } from '@automoderator/discord-permissions';
-import { HTTPError, Rest } from '@automoderator/http-client';
+import { HTTPError, Rest } from '@chatsift/api-wrapper';
 import { kLogger } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
@@ -94,7 +94,7 @@ export default class implements Command {
 							},
 							components:
 								prompt.use_buttons && prompt.roles.length <= 25
-									? sectionArray(
+									? chunkArray(
 											prompt.roles.map(
 												(role): APIButtonComponent => ({
 													type: ComponentType.Button,
@@ -273,7 +273,7 @@ export default class implements Command {
 								data: {
 									components:
 										prompt.use_buttons && prompt.roles.length <= 25
-											? sectionArray(
+											? chunkArray(
 													prompt.roles.map(
 														(role): APIButtonComponent => ({
 															type: ComponentType.Button,
@@ -362,7 +362,7 @@ export default class implements Command {
 								data: {
 									components:
 										prompt.use_buttons && prompt.roles.length <= 25
-											? sectionArray(
+											? chunkArray(
 													prompt.roles.map(
 														(role): APIButtonComponent => ({
 															type: ComponentType.Button,

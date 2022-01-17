@@ -2,7 +2,7 @@ import type { UnbanCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { ApiPostGuildsCasesBody, ApiPostGuildsCasesResult, CaseAction, Log, LogTypes } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
-import { HTTPError, Rest } from '@automoderator/http-client';
+import { HTTPError, Rest } from '@chatsift/api-wrapper';
 import { kSql } from '@automoderator/injection';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';

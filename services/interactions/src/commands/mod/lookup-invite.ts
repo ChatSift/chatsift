@@ -17,7 +17,7 @@ import type { Command } from '../../command';
 import type { Logger } from 'pino';
 import { kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { addFields } from '@automoderator/util';
+import { addFields } from '@chatsift/discord-utils';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 
 @injectable()
@@ -84,7 +84,7 @@ export default class implements Command {
 			  }
 			: undefined;
 
-		let embed: APIEmbed = {
+		const embed: APIEmbed = {
 			color: 5793266,
 			author: {
 				name: `${invite.guild.name} (${invite.guild.id})`,
@@ -106,7 +106,7 @@ export default class implements Command {
 				},
 				{
 					name: 'Channel',
-					value: `<#${invite.channel.id}> (#${invite.channel.name})`,
+					value: `<#${invite.channel!.id}> (#${invite.channel!.name})`,
 				},
 				{
 					name: 'Features',
@@ -116,7 +116,7 @@ export default class implements Command {
 		};
 
 		if (preview) {
-			embed = addFields(
+			addFields(
 				embed,
 				{
 					name: 'Member count',

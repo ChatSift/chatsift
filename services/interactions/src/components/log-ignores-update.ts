@@ -1,6 +1,6 @@
 import { LogIgnoresStateStore, send } from '#util';
 import type { ApiGetGuildLogIgnoresResult } from '@automoderator/core';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, APIButtonComponent, InteractionResponseType, ButtonStyle } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';

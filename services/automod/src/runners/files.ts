@@ -1,5 +1,5 @@
 import type { ApiPostFiltersFilesBody, ApiPostFiltersFilesResult } from '@automoderator/core';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { kLogger } from '@automoderator/injection';
 import { createHash } from 'crypto';
 import fetch from 'node-fetch';

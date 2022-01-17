@@ -3,7 +3,7 @@ import { ArgumentsOf, send } from '#util';
 import type { Case, FilterTrigger, GuildSettings } from '@automoderator/core';
 import { makeHistoryEmbed } from '@automoderator/util';
 import { UserPerms } from '@automoderator/discord-permissions';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {

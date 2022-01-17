@@ -1,9 +1,9 @@
 import type { ConfigLogIgnoresCommand } from '#interactions';
 import { ArgumentsOf, LogIgnoresStateStore, send } from '#util';
-import { ApiGetGuildLogIgnoresResult, sortChannels } from '@automoderator/core';
-import { ellipsis } from '@automoderator/util';
+import type { ApiGetGuildLogIgnoresResult } from '@automoderator/core';
+import { ellipsis, sortChannels } from '@chatsift/discord-utils';
 import { UserPerms } from '@automoderator/discord-permissions';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
 	APIGuildInteraction,

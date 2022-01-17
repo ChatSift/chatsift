@@ -4,16 +4,11 @@ services:
   api:
     environment:
       DISCORD_TOKEN: 'awooga'
-      ELASTIC_PASSWORD: 'owo'
-
-  auth:
-    environment:
       DISCORD_CLIENT_ID: '123'
       DISCORD_CLIENT_SECRET: 'abc'
-      DISCORD_TOKEN: 'awooga'
       ENCRYPTION_KEY: '32 random bytes of base64 here'
-      ELASTIC_PASSWORD: 'owo'
       GHOST_INTEGRATION_KEY: 'haha'
+      ELASTIC_PASSWORD: 'owo'
 
   automod:
     environment:

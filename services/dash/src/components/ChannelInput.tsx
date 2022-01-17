@@ -1,6 +1,7 @@
 import { FormControl, FormLabel, Select, FormErrorMessage, FormErrorIcon, HStack } from '@chakra-ui/react';
 import type { UseFormReturn } from 'react-hook-form';
-import { ApiPatchGuildSettingsBody, GuildSettings, UserGuild, sortChannels } from '@automoderator/core';
+import type { ApiPatchGuildSettingsBody, GuildSettings, UserGuild } from '@automoderator/core';
+import { sortChannels } from '@chatsift/discord-utils';
 import InputClearButton from '~/components/InputClearButton';
 
 interface ChannelInputProps {
@@ -47,7 +48,7 @@ const ChannelInput = ({
 					.filter((channel) => !textOnly || channel.type === 0)
 					.map((channel) => (
 						<option value={channel.id} key={channel.id}>
-							{`${channel.type === 0 ? '#' : ''}${channel.name}`}
+							{`${channel.type === 0 ? '#' : ''}${channel.name!}`}
 						</option>
 					))}
 			</Select>

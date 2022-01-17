@@ -1,7 +1,7 @@
 import type { ReportContextMenu } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import type { ApiGetGuildsSettingsResult } from '@automoderator/core';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../../command';

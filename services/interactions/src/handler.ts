@@ -3,7 +3,7 @@ import { ControlFlowError, Interaction, send, transformInteraction } from '#util
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { readdirRecurse } from '@gaius-bot/readdir';
+import { readdirRecurse } from '@chatsift/readdir';
 import {
 	APIApplicationCommandInteractionData,
 	APIMessageButtonInteractionData,
@@ -167,7 +167,7 @@ export class Handler {
 	}
 
 	public async loadCommands(): Promise<void> {
-		for await (const file of readdirRecurse(joinPath(__dirname, 'commands'), { fileExtension: 'js' })) {
+		for await (const file of readdirRecurse(joinPath(__dirname, 'commands'), { fileExtensions: ['js'] })) {
 			if (file.includes('/sub/')) {
 				continue;
 			}
@@ -184,7 +184,7 @@ export class Handler {
 	}
 
 	public async loadComponents(): Promise<void> {
-		for await (const file of readdirRecurse(joinPath(__dirname, 'components'), { fileExtension: 'js' })) {
+		for await (const file of readdirRecurse(joinPath(__dirname, 'components'), { fileExtensions: ['js'] })) {
 			const info = componentInfo(file);
 
 			if (!info) {

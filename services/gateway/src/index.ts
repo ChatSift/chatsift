@@ -46,6 +46,7 @@ void (async () => {
 					logger.metric!({ type: 'message_seen' });
 
 					void messageCache
+						// @ts-expect-error - Common discord-api-types version missmatch
 						.add(data.d)
 						.catch((error: unknown) =>
 							logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a message'),
@@ -53,9 +54,9 @@ void (async () => {
 
 					if (data.d.guild_id && !data.d.webhook_id) {
 						void guildMembersCache
-							// @ts-expect-error - Common discord-api-types version missmatch
 							.add({
 								guild_id: data.d.guild_id,
+								// @ts-expect-error - Common discord-api-types version missmatch
 								user: data.d.author,
 								...data.d.member,
 							})
@@ -72,6 +73,7 @@ void (async () => {
 						void guildMembersCache
 							.add({
 								guild_id: data.d.guild_id,
+								// @ts-expect-error - Common discord-api-types version missmatch
 								user: data.d.author,
 								...data.d.member,
 							})
@@ -85,6 +87,7 @@ void (async () => {
 					break;
 			}
 
+			// @ts-expect-error - Common discord-api-types version missmatch
 			router.publish(data.t, data.d);
 		})
 		.on('debug', (info, id) => logger.debug({ id }, info as string));
@@ -94,6 +97,7 @@ void (async () => {
 
 	await broadcaster.init({
 		name: 'gateway_broadcasts',
+		// @ts-expect-error - Common discord-api-types version missmatch
 		cb: (packet) => gateway.broadcast(packet),
 		fanout: true,
 	});

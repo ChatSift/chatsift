@@ -4,12 +4,8 @@ services:
   api:
     environment:
       DISCORD_TOKEN: 'awooga'
-
-  auth:
-    environment:
       DISCORD_CLIENT_ID: '123'
       DISCORD_CLIENT_SECRET: 'abc'
-      DISCORD_TOKEN: 'awooga'
       ENCRYPTION_KEY: '32 random bytes of base64 here'
 
   automod:

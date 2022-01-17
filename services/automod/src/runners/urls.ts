@@ -1,5 +1,5 @@
 import type { AllowedUrl } from '@automoderator/core';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { kLogger, kSql } from '@automoderator/injection';
 import type { Snowflake } from 'discord-api-types/v9';
 import { readFileSync } from 'fs';

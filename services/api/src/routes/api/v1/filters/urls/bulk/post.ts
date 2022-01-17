@@ -1,10 +1,11 @@
 import { ApiPutFiltersUrlsBody, MaliciousUrl, MaliciousUrlCategory } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
+import { jsonParser, Route, validate } from '@chatsift/rest-utils';
+import { thirdPartyAuth } from '../../../../../../middleware';
 
 @injectable()
 export default class PostFiltersUrlsBulkRoute extends Route {
@@ -12,19 +13,12 @@ export default class PostFiltersUrlsBulkRoute extends Route {
 		thirdPartyAuth(),
 		jsonParser(),
 		validate(
-			Joi.array()
-				.items(
-					Joi.object()
-						.keys({
-							url: Joi.string().required(),
-							category: Joi.number()
-								.min(MaliciousUrlCategory.malicious)
-								.max(MaliciousUrlCategory.urlShortner)
-								.required(),
-						})
-						.required(),
-				)
-				.required(),
+			zod
+				.object({
+					url: zod.string(),
+					category: zod.number().min(MaliciousUrlCategory.malicious).max(MaliciousUrlCategory.urlShortner),
+				})
+				.array(),
 			'body',
 		),
 	];

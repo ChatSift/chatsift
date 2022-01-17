@@ -10,7 +10,6 @@ import {
 	WarnPunishmentAction,
 } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { HTTPError, Rest } from '@cordis/rest';
 import { badRequest } from '@hapi/boom';
 import {
@@ -21,56 +20,46 @@ import {
 	Routes,
 	Snowflake,
 } from 'discord-api-types/v9';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
+import { jsonParser, Route, validate } from '@chatsift/rest-utils';
+import { thirdPartyAuth } from '#middleware';
 
+// expires_at: zod.when('action', {
+// 	is: zod.valid(CaseAction.mute, CaseAction.ban),
+// 	then: zod.date().allow(null),
+// 	otherwise: zod.forbidden(),
+// }),
+// delete_message_days: zod.when('action', {
+// 	is: zod.valid(CaseAction.ban, CaseAction.softban),
+// 	then: zod.number().positive().allow(0).max(7).default(0),
+// }),
 @injectable()
-export default class PostGuildsCasesRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		thirdPartyAuth(),
 		jsonParser(),
 		validate(
-			Joi.array()
-				.items(
-					Joi.object()
-						.keys({
-							action: Joi.number().min(CaseAction.warn).max(CaseAction.unban).required(),
-							expires_at: Joi.when('action', {
-								is: Joi.valid(CaseAction.mute, CaseAction.ban).required(),
-								then: Joi.date().allow(null),
-								otherwise: Joi.forbidden(),
-							}),
-							delete_message_days: Joi.when('action', {
-								is: Joi.valid(CaseAction.ban, CaseAction.softban).required(),
-								then: Joi.number().positive().allow(0).max(7).default(0),
-							}),
-							reason: Joi.string().max(1990),
-							mod_id: Joi.when('execute', {
-								is: true,
-								then: Joi.string()
-									.pattern(/\d{17,20}/)
-									.required(),
-								otherwise: Joi.string()
-									.pattern(/\d{17,20}/)
-									.optional(),
-							}),
-							mod_tag: Joi.when('execute', {
-								is: true,
-								then: Joi.string().required(),
-								otherwise: Joi.string().optional(),
-							}),
-							target_id: Joi.string()
-								.pattern(/\d{17,20}/)
-								.required(),
-							target_tag: Joi.string().required(),
-							reference_id: Joi.number(),
-							created_at: Joi.date(),
-							execute: Joi.boolean().default(false),
-						})
-						.and('mod_id', 'mod_tag'),
-				)
+			zod
+				.object({
+					action: zod.number().min(CaseAction.warn).max(CaseAction.unban),
+					expires_at: zod.date().nullable(),
+					delete_message_days: zod.number().min(0).max(7).default(0),
+					reason: zod.string().max(1990),
+					mod_id: zod
+						.string()
+						.regex(/\d{17,20}/)
+						.optional(),
+					mod_tag: zod.string().optional(),
+					target_id: zod.string().regex(/\d{17,20}/),
+					target_tag: zod.string(),
+					reference_id: zod.number(),
+					created_at: zod.date(),
+					execute: zod.boolean().default(false),
+				})
+				.array()
 				.min(1),
 			'body',
 		),

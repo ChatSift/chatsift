@@ -1,21 +1,20 @@
 import { FilesController } from '#controllers';
 import type { ApiGetFiltersFilesBody } from '@automoderator/core';
-import { globalPermissions, Route, userAuth, validate } from '@automoderator/rest';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
+import { Route, validate } from '@chatsift/rest-utils';
+import { globalPermissions, userAuth } from '#middleware';
 
 @injectable()
-export default class GetFiltersFilesRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		userAuth(),
 		globalPermissions('manageFileFilters'),
 		validate(
-			Joi.object()
-				.keys({
-					page: Joi.number(),
-				})
-				.required(),
+			zod.object({
+				page: zod.number(),
+			}),
 			'query',
 		),
 	];

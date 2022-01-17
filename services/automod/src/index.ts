@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { initConfig, kLogger, kRedis, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { Rest as DiscordRest } from '@cordis/rest';
@@ -12,7 +12,7 @@ import Redis, { Redis as IORedis } from 'ioredis';
 
 void (async () => {
 	const config = initConfig();
-	container.register(Rest, { useClass: Rest });
+	container.register(Rest, { useValue: new Rest(config.apiDomain, config.internalApiToken) });
 
 	const discordRest = new DiscordRest(config.discordToken);
 

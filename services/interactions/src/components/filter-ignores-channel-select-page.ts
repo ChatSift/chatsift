@@ -1,6 +1,6 @@
 import { FilterIgnoresStateStore, send, EMOTES } from '#util';
-import { ellipsis } from '@automoderator/util';
-import { Rest } from '@automoderator/http-client';
+import { ellipsis, sortChannels } from '@chatsift/discord-utils';
+import { Rest } from '@chatsift/api-wrapper';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
 	RESTGetAPIGuildChannelsResult,
@@ -15,7 +15,6 @@ import {
 } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Component } from '../component';
-import { sortChannels } from '@automoderator/core';
 
 @injectable()
 export default class implements Component {

@@ -1,21 +1,20 @@
 import { UrlsController } from '#controllers';
 import type { ApiGetFiltersUrlsQuery } from '@automoderator/core';
-import { globalPermissions, Route, userAuth, validate } from '@automoderator/rest';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
+import { globalPermissions, userAuth } from '#middleware';
+import { Route, validate } from '@chatsift/rest-utils';
 
 @injectable()
-export default class GetFiltersUrlsRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		userAuth(),
 		globalPermissions('manageUrlFilters'),
 		validate(
-			Joi.object()
-				.keys({
-					page: Joi.number(),
-				})
-				.required(),
+			zod.object({
+				page: zod.number(),
+			}),
 			'query',
 		),
 	];
