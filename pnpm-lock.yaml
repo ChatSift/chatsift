@@ -536,6 +536,7 @@ importers:
       js-yaml: 4.1.0
       nanoid: 3.1.29
       node-fetch: 2.6.5
+      polka: 1.0.0-next.22
       postgres: 2.0.0-beta.10
       reflect-metadata: 0.1.13
       tslib: 2.3.1
@@ -548,7 +549,6 @@ importers:
       '@types/node': 16.10.3
       '@types/node-fetch': 2.5.12
       '@types/pino': 6.3.11
-      polka: 1.0.0-next.22
       typescript: 4.4.3
 
   services/logging:
@@ -3670,6 +3670,7 @@ packages:
 
   /@polka/url/1.0.0-next.21:
     resolution: {integrity: sha512-a5Sab1C4/icpTZVzZc5Ghpz88yQtGOyNqYXcZgOssB2uuAr+wF/MvN6bgtW32q7HHrvBki+BsZ0OuNv6EV3K9g==}
+    dev: false
 
   /@popperjs/core/2.10.2:
     resolution: {integrity: sha512-IXf3XA7+XyN7CP9gGh/XB0UxVMlvARGEgGXLubFICsUMGz6Q+DU+i4gGlpOxTjKvXjkJDJC8YdqdKkDj9qZHEQ==}
@@ -8469,6 +8470,7 @@ packages:
     dependencies:
       '@polka/url': 1.0.0-next.21
       trouter: 3.2.0
+    dev: false
 
   /popmotion/11.0.0:
     resolution: {integrity: sha512-kJDyaG00TtcANP5JZ51od+DCqopxBm2a/Txh3Usu23L9qntjY5wumvcVf578N8qXEHR1a+jx9XCv8zOntdYalQ==}
@@ -8906,6 +8908,7 @@ packages:
   /regexparam/1.3.0:
     resolution: {integrity: sha512-6IQpFBv6e5vz1QAqI+V4k8P2e/3gRrqfCJ9FI+O1FLQTO+Uz6RXZEZOPmTJ6hlGj7gkERzY5BRCv09whKP96/g==}
     engines: {node: '>=6'}
+    dev: false
 
   /regexpp/3.2.0:
     resolution: {integrity: sha512-pq2bWo9mVD43nbts2wGv17XLiNLya+GklZ8kaDLV2Z08gDCsGpnKn9BFMepvWuHCbyVvY7J5o5+BVvoQbmlJLg==}
@@ -9760,6 +9763,7 @@ packages:
     engines: {node: '>=6'}
     dependencies:
       regexparam: 1.3.0
+    dev: false
 
   /tslib/1.14.1:
     resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
