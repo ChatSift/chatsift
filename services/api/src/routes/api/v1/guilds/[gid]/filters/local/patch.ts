@@ -1,24 +1,23 @@
 import { LocalFiltersController } from '#controllers';
 import type { ApiPatchGuildsFiltersLocalBody } from '@automoderator/core';
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import type { Snowflake } from 'discord-api-types/v9';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
+import { jsonParser, Route, validate } from '@chatsift/rest-utils';
+import { thirdPartyAuth } from '#middleware';
 
 @injectable()
-export default class PatchGuildsFiltersLocalRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		thirdPartyAuth(),
 		jsonParser(),
 		validate(
-			Joi.object()
-				.keys({
-					word: Joi.string().required(),
-					flags: Joi.string().default('0'),
-					duration: Joi.number().allow(null).default(null),
-				})
-				.required(),
+			zod.object({
+				word: zod.string(),
+				flags: zod.string().default('0'),
+				duration: zod.number().nullable().default(null),
+			}),
 			'body',
 		),
 	];

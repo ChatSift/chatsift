@@ -1,10 +1,12 @@
-import { Route, userAuth, getUserGuilds } from '@automoderator/rest';
 import type { Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
 import cookie from 'cookie';
+import { Route } from '@chatsift/rest-utils';
+import { userAuth } from '#middleware';
+import { getUserGuilds } from '#util';
 
 @injectable()
-export default class GetUsersMeRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [userAuth()];
 
 	public async handle(req: Request, res: Response) {

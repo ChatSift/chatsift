@@ -1,6 +1,6 @@
 import type { Interaction } from '#util';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { jsonParser, Route } from '@automoderator/rest';
+import { jsonParser, Route } from '@chatsift/rest-utils';
 import { unauthorized } from '@hapi/boom';
 import { APIGuildInteraction, APIInteraction, InteractionResponseType, InteractionType } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
@@ -10,7 +10,7 @@ import * as nacl from 'tweetnacl';
 import { Handler } from '../../../../../handler';
 
 @injectable()
-export default class PostDiscordWebhookRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [jsonParser(true)];
 
 	public constructor(

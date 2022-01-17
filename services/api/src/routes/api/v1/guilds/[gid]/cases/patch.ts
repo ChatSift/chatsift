@@ -1,11 +1,12 @@
 import { ApiPatchGuildsCasesBody, Case, CaseAction } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { badRequest, notFound } from '@hapi/boom';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
+import { jsonParser, Route, validate } from '@chatsift/rest-utils';
+import { thirdPartyAuth } from '#middleware';
 
 @injectable()
 export default class PostGuildsCasesRoute extends Route {
@@ -13,21 +14,29 @@ export default class PostGuildsCasesRoute extends Route {
 		thirdPartyAuth(),
 		jsonParser(),
 		validate(
-			Joi.array()
-				.items(
-					Joi.object()
-						.keys({
-							case_id: Joi.number().required(),
-							mod_id: Joi.string().pattern(/\d{17,20}/),
-							mod_tag: Joi.string(),
-							expires_at: Joi.date().allow(null),
-							reason: Joi.string(),
-							ref_id: Joi.number(),
-							processed: Joi.boolean(),
-							pardoned_by: Joi.string().pattern(/\d{17,20}/),
+			zod
+				.object({
+					case_id: zod.number(),
+					expires_at: zod.date().nullable(),
+					reason: zod.string(),
+					ref_id: zod.number(),
+					processed: zod.boolean(),
+					pardoned_by: zod.string().regex(/\d{17,20}/),
+				})
+				.and(
+					zod
+						.object({
+							mod_id: zod.string().regex(/\d{17,20}/),
+							mod_tag: zod.string(),
 						})
-						.and('mod_id', 'mod_tag'),
+						.or(
+							zod.object({
+								mod_id: zod.never(),
+								mod_tag: zod.never(),
+							}),
+						),
 				)
+				.array()
 				.min(1),
 			'body',
 		),

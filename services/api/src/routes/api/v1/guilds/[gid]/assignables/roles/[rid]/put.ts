@@ -1,11 +1,12 @@
 import { AssignablesController, PromptsController } from '#controllers';
 import type { ApiPutGuildsAssignablesRoleBody } from '@automoderator/core';
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { conflict, notFound } from '@hapi/boom';
 import type { Snowflake } from 'discord-api-types/v9';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { NextHandler, Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
+import { jsonParser, Route, validate } from '@chatsift/rest-utils';
+import { thirdPartyAuth } from '#middleware';
 
 @injectable()
 export default class PutGuildsAssignablesRoleRoute extends Route {
@@ -13,20 +14,16 @@ export default class PutGuildsAssignablesRoleRoute extends Route {
 		thirdPartyAuth(),
 		jsonParser(),
 		validate(
-			Joi.object()
-				.keys({
-					prompt_id: Joi.number().required(),
-					emoji: Joi.object()
-						.keys({
-							id: Joi.string()
-								.pattern(/\d{17,20}/)
-								.required(),
-							name: Joi.string().required(),
-							animated: Joi.boolean().default(false),
-						})
-						.optional(),
-				})
-				.required(),
+			zod.object({
+				prompt_id: zod.number(),
+				emoji: zod
+					.object({
+						id: zod.string().regex(/\d{17,20}/),
+						name: zod.string(),
+						animated: zod.boolean().default(false),
+					})
+					.optional(),
+			}),
 		),
 	];
 

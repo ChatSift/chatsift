@@ -2,18 +2,19 @@ import 'reflect-metadata';
 import { Rest } from '@automoderator/http-client';
 import { initConfig, kLogger, kRedis, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
-import { createApp, initApp } from '@automoderator/rest';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { readdirRecurse } from '@chatsift/readdir';
 import { join as joinPath } from 'path';
 import postgres from 'postgres';
-import { container } from 'tsyringe';
+import { container, InjectionToken } from 'tsyringe';
 import { Handler } from './handler';
 import { kGatewayBroadcasts } from './util';
 import type { DiscordEvents } from '@automoderator/core';
 import { GatewayDispatchEvents } from 'discord-api-types/v9';
 import Redis from 'ioredis';
+import { Route } from '@chatsift/rest-utils';
+import polka from 'polka';
 
 void (async () => {
 	const config = initConfig();
@@ -78,8 +79,19 @@ void (async () => {
 
 	await container.resolve(Handler).init();
 
-	const app = createApp();
-	await initApp(app, readdirRecurse(joinPath(__dirname, 'routes'), { fileExtensions: ['js'] }));
+	const app = polka();
+	const files = readdirRecurse(joinPath(__dirname, 'routes'), { fileExtensions: ['js'] });
+
+	for await (const file of files) {
+		const info = Route.pathToRouteInfo(file.split('/routes').pop()!);
+		if (!info) {
+			logger.debug(`Hit path with no info: "${file}"`);
+			continue;
+		}
+
+		const route = container.resolve<Route>(((await import(file)) as { default: InjectionToken<Route> }).default);
+		route.register(info, app);
+	}
 
 	app.listen(3002, () => logger.info('Listening for interactions on port 3002'));
 })();

@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
 
 import { Config, kConfig, kSql } from '@automoderator/injection';
-import { Route, userAuth } from '@automoderator/rest';
 import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
@@ -9,9 +8,11 @@ import jwt from 'jsonwebtoken';
 import fetch from 'node-fetch';
 import { URLSearchParams } from 'url';
 import { internal } from '@hapi/boom';
+import { Route } from '@chatsift/rest-utils';
+import { userAuth } from '#middleware';
 
 @injectable()
-export default class GetGhostCallbackRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [userAuth()];
 
 	public constructor(@inject(kConfig) public readonly config: Config, @inject(kSql) public readonly sql: Sql<{}>) {

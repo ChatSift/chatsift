@@ -1,62 +1,69 @@
 import { SettingsController } from '#controllers';
 import type { ApiPatchGuildSettingsBody } from '@automoderator/core';
-import { jsonParser, Route, userOrThirdPartyAuth, validate } from '@automoderator/rest';
 import type { Snowflake } from 'discord-api-types/v9';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
+import { jsonParser, Route, validate } from '@chatsift/rest-utils';
+import { userOrThirdPartyAuth } from '../../../../../../middleware';
 
 @injectable()
-export default class PatchGuildsSettingsRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		userOrThirdPartyAuth(),
 		jsonParser(),
 		validate(
-			Joi.object()
-				.keys({
-					mod_role: Joi.string()
-						.pattern(/\d{17,20}/)
-						.allow(null),
-					admin_role: Joi.string()
-						.pattern(/\d{17,20}/)
-						.allow(null),
-					mute_role: Joi.string()
-						.pattern(/\d{17,20}/)
-						.allow(null),
-					auto_pardon_warns_after: Joi.number().min(1).max(365).allow(null),
-					use_url_filters: Joi.boolean(),
-					use_global_filters: Joi.boolean(),
-					use_file_filters: Joi.boolean(),
-					use_invite_filters: Joi.boolean(),
-					mod_action_log_channel: Joi.string()
-						.pattern(/\d{17,20}/)
-						.allow(null),
-					filter_trigger_log_channel: Joi.string()
-						.pattern(/\d{17,20}/)
-						.allow(null),
-					user_update_log_channel: Joi.string()
-						.pattern(/\d{17,20}/)
-						.allow(null),
-					message_update_log_channel: Joi.string()
-						.pattern(/\d{17,20}/)
-						.allow(null),
-					assignable_roles_prompt: Joi.string().allow(null),
-					min_join_age: Joi.number().allow(null),
-					no_blank_avatar: Joi.boolean(),
-					reports_channel: Joi.string()
-						.pattern(/\d{17,20}/)
-						.allow(null),
-					antispam_amount: Joi.number().allow(null),
-					antispam_time: Joi.number().allow(null),
-					mention_limit: Joi.number().allow(null),
-					mention_amount: Joi.number().allow(null),
-					mention_time: Joi.number().allow(null),
-					automod_cooldown: Joi.number().allow(null),
-					hentai_threshold: Joi.number().allow(null).min(0).max(100).allow(null),
-					porn_threshold: Joi.number().allow(null).min(0).max(100).allow(null),
-					sexy_threshold: Joi.number().allow(null).min(0).max(100).allow(null),
-				})
-				.required(),
+			zod.object({
+				mod_role: zod
+					.string()
+					.regex(/\d{17,20}/)
+					.nullable(),
+				admin_role: zod
+					.string()
+					.regex(/\d{17,20}/)
+					.nullable(),
+				mute_role: zod
+					.string()
+					.regex(/\d{17,20}/)
+					.nullable(),
+				auto_pardon_warns_after: zod.number().min(1).max(365).nullable(),
+				use_url_filters: zod.boolean(),
+				use_global_filters: zod.boolean(),
+				use_file_filters: zod.boolean(),
+				use_invite_filters: zod.boolean(),
+				mod_action_log_channel: zod
+					.string()
+					.regex(/\d{17,20}/)
+					.nullable(),
+				filter_trigger_log_channel: zod
+					.string()
+					.regex(/\d{17,20}/)
+					.nullable(),
+				user_update_log_channel: zod
+					.string()
+					.regex(/\d{17,20}/)
+					.nullable(),
+				message_update_log_channel: zod
+					.string()
+					.regex(/\d{17,20}/)
+					.nullable(),
+				assignable_roles_prompt: zod.string().nullable(),
+				min_join_age: zod.number().nullable(),
+				no_blank_avatar: zod.boolean(),
+				reports_channel: zod
+					.string()
+					.regex(/\d{17,20}/)
+					.nullable(),
+				antispam_amount: zod.number().nullable(),
+				antispam_time: zod.number().nullable(),
+				mention_limit: zod.number().nullable(),
+				mention_amount: zod.number().nullable(),
+				mention_time: zod.number().nullable(),
+				automod_cooldown: zod.number().nullable(),
+				hentai_threshold: zod.number().min(0).max(100).nullable(),
+				porn_threshold: zod.number().min(0).max(100).nullable(),
+				sexy_threshold: zod.number().min(0).max(100).nullable(),
+			}),
 			'body',
 		),
 	];

@@ -1,20 +1,20 @@
 import type { AuthGetDiscordQuery } from '@automoderator/core';
 import { Config, kConfig } from '@automoderator/injection';
-import { Route, State, userAuth, validate } from '@automoderator/rest';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { Request, Response } from 'polka';
 import { inject, injectable } from 'tsyringe';
 import { URLSearchParams } from 'url';
+import { Route, validate } from '@chatsift/rest-utils';
+import { userAuth } from '#middleware';
+import { State } from '#util';
 
 @injectable()
-export default class GetDiscordRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		validate(
-			Joi.object()
-				.keys({
-					redirect_uri: Joi.string().required(),
-				})
-				.required(),
+			zod.object({
+				redirect_uri: zod.string(),
+			}),
 			'query',
 		),
 		userAuth(true),

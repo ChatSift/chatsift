@@ -1,20 +1,19 @@
 import type { AuthGetDiscordLogoutQuery } from '@automoderator/core';
 import { Config, kConfig, kSql } from '@automoderator/injection';
-import { Route, userAuth, validate } from '@automoderator/rest';
+import { Route, validate } from '@chatsift/rest-utils';
 import type { Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
-import * as Joi from 'joi';
+import * as zod from 'zod';
+import { userAuth } from '#middleware';
 
 @injectable()
-export default class GetDiscordLogoutRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		validate(
-			Joi.object()
-				.keys({
-					redirect_uri: Joi.string().required(),
-				})
-				.required(),
+			zod.object({
+				redirect_uri: zod.string(),
+			}),
 			'query',
 		),
 		userAuth(),

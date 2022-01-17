@@ -1,13 +1,14 @@
 import type { Case } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
-import { Route, thirdPartyAuth } from '@automoderator/rest';
+import { Route } from '@chatsift/rest-utils';
 import { notFound } from '@hapi/boom';
 import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
+import { thirdPartyAuth } from '#middleware';
 
 @injectable()
-export default class DeleteGuildsCaseRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [thirdPartyAuth()];
 
 	public constructor(@inject(kSql) public readonly sql: Sql<{}>) {

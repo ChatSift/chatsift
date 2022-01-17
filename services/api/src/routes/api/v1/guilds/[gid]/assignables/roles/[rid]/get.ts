@@ -1,12 +1,13 @@
 import { AssignablesController } from '#controllers';
-import { Route, thirdPartyAuth } from '@automoderator/rest';
+import { Route } from '@chatsift/rest-utils';
 import { notFound } from '@hapi/boom';
 import type { Snowflake } from 'discord-api-types/v9';
 import type { Request, Response, NextHandler } from 'polka';
 import { injectable } from 'tsyringe';
+import { thirdPartyAuth } from '#middleware';
 
 @injectable()
-export default class GetGuildsAssignablesRolesRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [thirdPartyAuth()];
 
 	public constructor(public readonly controller: AssignablesController) {

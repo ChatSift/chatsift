@@ -1,12 +1,13 @@
 import { InvitesAllowlistController } from '#controllers';
-import { Route, thirdPartyAuth } from '@automoderator/rest';
+import { Route } from '@chatsift/rest-utils';
 import { conflict } from '@hapi/boom';
 import type { Snowflake } from 'discord-api-types/v9';
 import type { NextHandler, Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
+import { thirdPartyAuth } from '#middleware';
 
 @injectable()
-export default class PutGuildsFiltersInvitesAllowlistRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [thirdPartyAuth()];
 
 	public constructor(public readonly controller: InvitesAllowlistController) {

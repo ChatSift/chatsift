@@ -7,7 +7,7 @@ import fetch from 'node-fetch';
 import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { container } from 'tsyringe';
-import { getUserGuilds } from '../utils';
+import { getUserGuilds } from '#util';
 
 declare module 'polka' {
 	export interface Request {

@@ -1,13 +1,14 @@
 import type { App } from '@automoderator/core';
 import { Config, kConfig, kSql } from '@automoderator/injection';
-import { Permissions, Route, TokenManager } from '@automoderator/rest';
+import { Route } from '@chatsift/rest-utils';
 import { badRequest } from '@hapi/boom';
 import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
+import { TokenManager, Permissions } from '#util';
 
 @injectable()
-export default class GetDevTokenRoute extends Route {
+export default class extends Route {
 	public constructor(
 		@inject(kSql) public readonly sql: Sql<{}>,
 		@inject(kConfig) public readonly config: Config,

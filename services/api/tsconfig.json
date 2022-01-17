@@ -6,6 +6,7 @@
 		"declarationMap": false,
 		"paths": {
 			"#controllers": ["./src/controllers/index.ts"],
+			"#middleware": ["./src/middleware/index.ts"],
 			"#util": ["./src/util/index.ts"]
 		}
 	},

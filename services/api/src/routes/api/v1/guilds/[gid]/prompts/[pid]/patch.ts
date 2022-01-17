@@ -1,36 +1,29 @@
 import { PromptsController } from '#controllers';
 import type { ApiPatchGuildPromptBody } from '@automoderator/core';
-import { jsonParser, Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import type { Snowflake } from 'discord-api-types/v9';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
+import { jsonParser, Route, validate } from '@chatsift/rest-utils';
+import { thirdPartyAuth } from '../../../../../../../middleware';
 
 @injectable()
-export default class PatchGuildsPromptsRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		thirdPartyAuth(),
 		validate(
-			Joi.object()
-				.keys({
-					gid: Joi.string().required(),
-					pid: Joi.number().required(),
-				})
-				.required(),
+			zod.object({
+				gid: zod.string(),
+				pid: zod.number(),
+			}),
 			'params',
 		),
 		jsonParser(),
 		validate(
-			Joi.object()
-				.keys({
-					message_id: Joi.string()
-						.pattern(/\d{17,20}/)
-						.required(),
-					channel_id: Joi.string()
-						.pattern(/\d{17,20}/)
-						.required(),
-				})
-				.required(),
+			zod.object({
+				message_id: zod.string().regex(/\d{17,20}/),
+				channel_id: zod.string().regex(/\d{17,20}/),
+			}),
 		),
 	];
 

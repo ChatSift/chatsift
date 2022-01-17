@@ -1,22 +1,21 @@
 import { PromptsController } from '#controllers';
-import { Route, thirdPartyAuth, validate } from '@automoderator/rest';
 import { notFound } from '@hapi/boom';
 import type { Snowflake } from 'discord-api-types/v9';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { Request, Response, NextHandler } from 'polka';
 import { injectable } from 'tsyringe';
+import { Route, validate } from '@chatsift/rest-utils';
+import { thirdPartyAuth } from '../../../../../../../middleware';
 
 @injectable()
-export default class GetGuildsPromptRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		thirdPartyAuth(),
 		validate(
-			Joi.object()
-				.keys({
-					gid: Joi.string().required(),
-					pid: Joi.number().required(),
-				})
-				.required(),
+			zod.object({
+				gid: zod.string(),
+				pid: zod.number(),
+			}),
 			'params',
 		),
 	];

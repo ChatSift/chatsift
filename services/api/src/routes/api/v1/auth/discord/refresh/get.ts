@@ -1,21 +1,21 @@
 import { discordOAuth2 } from '#util';
 import type { AuthGetDiscordRefreshBody } from '@automoderator/core';
 import { Config, kConfig } from '@automoderator/injection';
-import { jsonParser, Route, validate } from '@automoderator/rest';
 import { unauthorized } from '@hapi/boom';
 import cookie from 'cookie';
-import Joi from 'joi';
+import * as zod from 'zod';
 import type { NextHandler, Request, Response } from 'polka';
 import { inject, injectable } from 'tsyringe';
+import { jsonParser, Route, validate } from '@chatsift/rest-utils';
 
 @injectable()
-export default class DiscordRefreshRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		jsonParser(),
 		validate(
-			Joi.object()
-				.keys({
-					refresh_token: Joi.string().required(),
+			zod
+				.object({
+					refresh_token: zod.string(),
 				})
 				.optional(),
 			'body',
@@ -35,7 +35,9 @@ export default class DiscordRefreshRoute extends Route {
 		}
 
 		const response = await discordOAuth2(req, res, next);
-		if (!response) {return;}
+		if (!response) {
+			return;
+		}
 
 		res.cookie('access_token', response.access_token, {
 			expires: new Date(Date.now() + response.expires_in * 1000),

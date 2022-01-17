@@ -4,7 +4,7 @@ import { badRequest, unauthorized } from '@hapi/boom';
 import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { container } from 'tsyringe';
-import { Permissions, TokenManager, TokenValidationStatus } from '../utils';
+import { Permissions, TokenManager, TokenValidationStatus } from '#util';
 
 declare module 'polka' {
 	export interface Request {

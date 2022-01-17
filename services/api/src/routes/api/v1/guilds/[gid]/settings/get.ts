@@ -1,11 +1,12 @@
 import { SettingsController } from '#controllers';
-import { Route, userOrThirdPartyAuth } from '@automoderator/rest';
+import { Route } from '@chatsift/rest-utils';
 import type { Snowflake } from 'discord-api-types/v9';
 import type { Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
+import { userOrThirdPartyAuth } from '#middleware';
 
 @injectable()
-export default class GetGuildsSettingsRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [userOrThirdPartyAuth()];
 
 	public constructor(public readonly controller: SettingsController) {

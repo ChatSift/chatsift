@@ -1,18 +1,19 @@
 import { UrlsController } from '#controllers';
 import type { ApiDeleteFiltersUrlsBody } from '@automoderator/core';
-import { globalPermissions, jsonParser, Route, userAuth, validate } from '@automoderator/rest';
 import { notFound } from '@hapi/boom';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import type { NextHandler, Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
+import { jsonParser, Route, validate } from '@chatsift/rest-utils';
+import { globalPermissions, userAuth } from '#middleware';
 
 @injectable()
-export default class DeleteFiltersUrlsRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		userAuth(),
 		globalPermissions('manageUrlFilters'),
 		jsonParser(),
-		validate(Joi.array().items(Joi.number().required()).required(), 'body'),
+		validate(zod.number().array(), 'body'),
 	];
 
 	public constructor(public readonly controller: UrlsController) {

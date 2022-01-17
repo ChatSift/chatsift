@@ -1,26 +1,25 @@
-import { discordOAuth2 } from '#util';
+import { discordOAuth2, State } from '#util';
 import type { AuthGetDiscordCallbackQuery } from '@automoderator/core';
 import { Config, kConfig, kSql } from '@automoderator/injection';
-import { Route, State, userAuth, validate } from '@automoderator/rest';
 import { badRequest } from '@hapi/boom';
 import cookie from 'cookie';
-import * as Joi from 'joi';
+import * as zod from 'zod';
 import fetch from 'node-fetch';
 import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
 import type { APIUser } from 'discord-api-types/v9';
+import { Route, validate } from '@chatsift/rest-utils';
+import { userAuth } from '#middleware';
 
 @injectable()
-export default class GetDiscordCallbackRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		validate(
-			Joi.object()
-				.keys({
-					code: Joi.string().required(),
-					state: Joi.string().required(),
-				})
-				.required(),
+			zod.object({
+				code: zod.string(),
+				state: zod.string(),
+			}),
 			'query',
 		),
 		userAuth(true),

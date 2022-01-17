@@ -1,6 +1,6 @@
 import { forbidden, unauthorized } from '@hapi/boom';
 import type { NextHandler, Request, Response } from 'polka';
-import { Permissions, PermissionsResolvable } from '../utils';
+import { Permissions, PermissionsResolvable } from '#util';
 
 export const globalPermissions =
 	(required: PermissionsResolvable) => (req: Request, _: Response, next: NextHandler) => {
