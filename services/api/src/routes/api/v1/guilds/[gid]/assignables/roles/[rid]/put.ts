@@ -9,7 +9,7 @@ import { jsonParser, Route, validate } from '@chatsift/rest-utils';
 import { thirdPartyAuth } from '#middleware';
 
 @injectable()
-export default class PutGuildsAssignablesRoleRoute extends Route {
+export default class extends Route {
 	public override readonly middleware = [
 		thirdPartyAuth(),
 		jsonParser(),
@@ -20,7 +20,7 @@ export default class PutGuildsAssignablesRoleRoute extends Route {
 					.object({
 						id: zod.string().regex(/\d{17,20}/),
 						name: zod.string(),
-						animated: zod.boolean().default(false),
+						animated: zod.boolean().default(false).optional(),
 					})
 					.optional(),
 			}),

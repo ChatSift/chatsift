@@ -16,11 +16,11 @@ export default class extends Route {
 			zod.object({
 				message_id: zod.string().regex(/\d{17,20}/),
 				channel_id: zod.string().regex(/\d{17,20}/),
-				embed_color: zod.number(),
+				embed_color: zod.number().optional(),
 				embed_title: zod.string(),
-				embed_description: zod.string().nullable(),
-				embed_image: zod.string().nullable(),
-				use_buttons: zod.boolean().default(false),
+				embed_description: zod.string().nullable().optional(),
+				embed_image: zod.string().nullable().optional(),
+				use_buttons: zod.boolean().default(false).optional(),
 			}),
 		),
 	];

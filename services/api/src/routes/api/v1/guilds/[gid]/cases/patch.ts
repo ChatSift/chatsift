@@ -17,11 +17,14 @@ export default class PostGuildsCasesRoute extends Route {
 			zod
 				.object({
 					case_id: zod.number(),
-					expires_at: zod.date().nullable(),
-					reason: zod.string(),
-					ref_id: zod.number(),
-					processed: zod.boolean(),
-					pardoned_by: zod.string().regex(/\d{17,20}/),
+					expires_at: zod.date().nullable().optional(),
+					reason: zod.string().optional(),
+					ref_id: zod.number().optional(),
+					processed: zod.boolean().optional(),
+					pardoned_by: zod
+						.string()
+						.regex(/\d{17,20}/)
+						.optional(),
 				})
 				.and(
 					zod

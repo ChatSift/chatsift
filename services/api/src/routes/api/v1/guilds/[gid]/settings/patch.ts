@@ -17,52 +17,60 @@ export default class extends Route {
 				mod_role: zod
 					.string()
 					.regex(/\d{17,20}/)
+					.optional()
 					.nullable(),
 				admin_role: zod
 					.string()
 					.regex(/\d{17,20}/)
+					.optional()
 					.nullable(),
 				mute_role: zod
 					.string()
 					.regex(/\d{17,20}/)
+					.optional()
 					.nullable(),
-				auto_pardon_warns_after: zod.number().min(1).max(365).nullable(),
-				use_url_filters: zod.boolean(),
-				use_global_filters: zod.boolean(),
-				use_file_filters: zod.boolean(),
-				use_invite_filters: zod.boolean(),
+				auto_pardon_warns_after: zod.number().min(1).max(365).optional().nullable(),
+				use_url_filters: zod.boolean().optional(),
+				use_global_filters: zod.boolean().optional(),
+				use_file_filters: zod.boolean().optional(),
+				use_invite_filters: zod.boolean().optional(),
 				mod_action_log_channel: zod
 					.string()
 					.regex(/\d{17,20}/)
+					.optional()
 					.nullable(),
 				filter_trigger_log_channel: zod
 					.string()
 					.regex(/\d{17,20}/)
+					.optional()
 					.nullable(),
 				user_update_log_channel: zod
 					.string()
 					.regex(/\d{17,20}/)
+					.optional()
 					.nullable(),
 				message_update_log_channel: zod
 					.string()
 					.regex(/\d{17,20}/)
+					.optional()
 					.nullable(),
-				assignable_roles_prompt: zod.string().nullable(),
-				min_join_age: zod.number().nullable(),
-				no_blank_avatar: zod.boolean(),
+				assignable_roles_prompt: zod.string().optional().nullable(),
+				min_join_age: zod.number().optional().nullable(),
+				no_blank_avatar: zod.boolean().optional(),
 				reports_channel: zod
 					.string()
 					.regex(/\d{17,20}/)
+					.optional()
 					.nullable(),
-				antispam_amount: zod.number().nullable(),
-				antispam_time: zod.number().nullable(),
-				mention_limit: zod.number().nullable(),
-				mention_amount: zod.number().nullable(),
-				mention_time: zod.number().nullable(),
-				automod_cooldown: zod.number().nullable(),
-				hentai_threshold: zod.number().min(0).max(100).nullable(),
-				porn_threshold: zod.number().min(0).max(100).nullable(),
-				sexy_threshold: zod.number().min(0).max(100).nullable(),
+				antispam_amount: zod.number().optional().nullable(),
+				antispam_time: zod.number().optional().nullable(),
+				mention_limit: zod.number().optional().nullable(),
+				mention_amount: zod.number().optional().nullable(),
+				mention_time: zod.number().optional().nullable(),
+				automod_cooldown: zod.number().optional().nullable(),
+				hentai_threshold: zod.number().min(0).max(100).optional().nullable(),
+				porn_threshold: zod.number().min(0).max(100).optional().nullable(),
+				sexy_threshold: zod.number().min(0).max(100).optional().nullable(),
 			}),
 			'body',
 		),

@@ -13,7 +13,10 @@ export default class extends Route {
 		globalPermissions('manageUrlFilters'),
 		validate(
 			zod.object({
-				page: zod.number(),
+				page: zod
+					.string()
+					.refine((value) => !isNaN(Number(value)))
+					.transform((value) => Number(value)),
 			}),
 			'query',
 		),

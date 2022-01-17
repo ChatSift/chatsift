@@ -27,15 +27,6 @@ import { inject, injectable } from 'tsyringe';
 import { jsonParser, Route, validate } from '@chatsift/rest-utils';
 import { thirdPartyAuth } from '#middleware';
 
-// expires_at: zod.when('action', {
-// 	is: zod.valid(CaseAction.mute, CaseAction.ban),
-// 	then: zod.date().allow(null),
-// 	otherwise: zod.forbidden(),
-// }),
-// delete_message_days: zod.when('action', {
-// 	is: zod.valid(CaseAction.ban, CaseAction.softban),
-// 	then: zod.number().positive().allow(0).max(7).default(0),
-// }),
 @injectable()
 export default class extends Route {
 	public override readonly middleware = [
@@ -45,9 +36,14 @@ export default class extends Route {
 			zod
 				.object({
 					action: zod.number().min(CaseAction.warn).max(CaseAction.unban),
-					expires_at: zod.date().nullable(),
-					delete_message_days: zod.number().min(0).max(7).default(0),
-					reason: zod.string().max(1990),
+					expires_at: zod
+						.string()
+						.nullable()
+						.optional()
+						.refine((v) => !v || !isNaN(new Date(v).getTime()))
+						.transform((v) => (v ? new Date(v) : v)),
+					delete_message_days: zod.number().min(0).max(7).default(0).optional(),
+					reason: zod.string().max(1990).optional(),
 					mod_id: zod
 						.string()
 						.regex(/\d{17,20}/)
@@ -55,9 +51,12 @@ export default class extends Route {
 					mod_tag: zod.string().optional(),
 					target_id: zod.string().regex(/\d{17,20}/),
 					target_tag: zod.string(),
-					reference_id: zod.number(),
-					created_at: zod.date(),
-					execute: zod.boolean().default(false),
+					reference_id: zod.number().optional(),
+					created_at: zod
+						.string()
+						.refine((v) => !isNaN(new Date(v).getTime()))
+						.transform((v) => new Date(v)),
+					execute: zod.boolean().default(false).optional(),
 				})
 				.array()
 				.min(1),
