@@ -49,8 +49,8 @@ export default class implements Component {
 
 		// Set the channel as the "default" in the select menu
 		const selectMenu = components[0]!.components[0] as APISelectMenuComponent;
-		const selectionIndex = selectMenu.options!.findIndex((option) => option.value === selection);
-		selectMenu.options = selectMenu.options!.map((option, index) => {
+		const selectionIndex = selectMenu.options.findIndex((option) => option.value === selection);
+		selectMenu.options = selectMenu.options.map((option, index) => {
 			option.default = index === selectionIndex;
 			return option;
 		});
