@@ -14,7 +14,10 @@ export default class extends Route {
 		validate(
 			zod.object({
 				gid: zod.string(),
-				pid: zod.number(),
+				pid: zod
+					.string()
+					.refine((value) => !isNaN(Number(value)))
+					.transform((value) => Number(value)),
 			}),
 			'params',
 		),
