@@ -1,3 +1,5 @@
+/* istanbul ignore file */
+
 import type { User } from '@automoderator/core';
 import { kSql } from '@automoderator/injection';
 import { unauthorized } from '@hapi/boom';
@@ -7,7 +9,7 @@ import fetch from 'node-fetch';
 import type { NextHandler, Request, Response } from 'polka';
 import type { Sql } from 'postgres';
 import { container } from 'tsyringe';
-import { getUserGuilds } from '#util';
+import { getUserGuilds } from '../util';
 
 declare module 'polka' {
 	export interface Request {

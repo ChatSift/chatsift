@@ -1,6 +1,6 @@
 import { LogIgnoresStateStore, send, EMOTES } from '#util';
 import { ellipsis } from '@automoderator/util';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
 	RESTGetAPIGuildChannelsResult,

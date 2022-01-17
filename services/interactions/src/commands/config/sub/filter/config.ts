@@ -6,7 +6,7 @@ import type {
 	ApiPatchGuildSettingsResult,
 	GuildSettings,
 } from '@automoderator/core';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
 import type { APIGuildInteraction } from 'discord-api-types/v9';

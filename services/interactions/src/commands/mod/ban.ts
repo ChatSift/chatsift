@@ -10,7 +10,7 @@ import {
 	ms,
 } from '@automoderator/core';
 import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
-import { HTTPError, Rest } from '@automoderator/http-client';
+import { HTTPError, Rest } from '@chatsift/api-wrapper';
 import { kLogger, kSql } from '@automoderator/injection';
 import { dmUser, getGuildName } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';

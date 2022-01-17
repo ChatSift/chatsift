@@ -9,7 +9,7 @@ import {
 	ms,
 } from '@automoderator/core';
 import { UserPerms } from '@automoderator/discord-permissions';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';

@@ -20,7 +20,7 @@ import {
 	PermissionsCheckerData,
 	UserPerms,
 } from '@automoderator/discord-permissions';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Store } from '@cordis/store';

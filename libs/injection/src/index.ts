@@ -62,6 +62,5 @@ export const initConfig = () => {
 	};
 
 	container.register<Config>(kConfig, { useValue: config });
-	/* istanbul ignore next */
 	return config;
 };

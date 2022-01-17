@@ -1,3 +1,4 @@
+/* istanbul ignore file */
 import type { AuthGetDiscordCallbackQuery, AuthGetDiscordRefreshBody } from '@automoderator/core';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { forbidden, internal } from '@hapi/boom';

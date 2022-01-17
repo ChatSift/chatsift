@@ -5,7 +5,7 @@ import type {
 	ApiGetFiltersInvitesAllowlistResult,
 	ApiPutFiltersInvitesAllowlistCodeResult,
 } from '@automoderator/core';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { HTTPError, Rest as DiscordRest } from '@cordis/rest';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { singleton } from 'tsyringe';

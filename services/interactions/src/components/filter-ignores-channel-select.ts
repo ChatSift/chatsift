@@ -1,7 +1,7 @@
 import { FilterIgnoresStateStore, send } from '#util';
 import type { ApiGetFiltersIgnoresChannelResult } from '@automoderator/core';
 import { FilterIgnores } from '@automoderator/filter-ignores';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
 	APIGuildInteraction,

@@ -4,7 +4,7 @@ import { ApiGetFiltersIgnoresResult, sortChannels } from '@automoderator/core';
 import { ellipsis } from '@automoderator/util';
 import { UserPerms } from '@automoderator/discord-permissions';
 import { FilterIgnores } from '@automoderator/filter-ignores';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
 	APISelectMenuOption,

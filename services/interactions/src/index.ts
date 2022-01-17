@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { initConfig, kLogger, kRedis, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
@@ -67,7 +67,7 @@ void (async () => {
 	container.register(PubSubPublisher, { useValue: logs });
 	container.register(RoutingSubscriber, { useValue: gateway });
 	container.register(kGatewayBroadcasts, { useValue: gatewayBroadcasts });
-	container.register(Rest, { useClass: Rest });
+	container.register(Rest, { useValue: new Rest(config.apiDomain, config.internalApiToken) });
 	container.register(DiscordRest, { useValue: discordRest });
 	container.register(kLogger, { useValue: logger });
 	container.register(kRedis, { useValue: new Redis(config.redisUrl) });

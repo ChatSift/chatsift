@@ -19,12 +19,13 @@
 	},
 	"imports": {
 		"#controllers": "./dist/controllers/index.js",
-		"#middleware": "./dist/util/index.js",
+		"#middleware": "./dist/middleware/index.js",
 		"#util": "./dist/util/index.js"
 	},
 	"homepage": "https://github.com/didinele/AutoModerator#readme",
 	"devDependencies": {
 		"@types/bcrypt": "^5.0.0",
+		"@types/cookie": "^0.4.1",
 		"@types/cors": "^2.8.12",
 		"@types/jsonwebtoken": "^8.5.7",
 		"@types/node": "^16.10.3",

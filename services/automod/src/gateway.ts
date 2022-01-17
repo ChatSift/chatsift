@@ -33,7 +33,7 @@ import {
 	UserPerms,
 } from '@automoderator/discord-permissions';
 import { FilterIgnores } from '@automoderator/filter-ignores';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { dmUser, reportMessage } from '@automoderator/util';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
@@ -791,12 +791,3 @@ export class Gateway {
 		return gateway;
 	}
 }
-
-class Test {
-	public toString(): `<#${string}>` {
-		return `<#${123}>`;
-	}
-}
-
-const test = new Test();
-test.toString();

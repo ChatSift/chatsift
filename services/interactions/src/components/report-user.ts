@@ -9,7 +9,7 @@ import {
 	Log,
 	LogTypes,
 } from '@automoderator/core';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { Config, kConfig, kSql } from '@automoderator/injection';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';

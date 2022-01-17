@@ -143,25 +143,6 @@ importers:
       '@types/node': 16.10.3
       typescript: 4.4.3
 
-  libs/http-client:
-    specifiers:
-      '@automoderator/injection': workspace:^0.1.0
-      '@types/node': ^16.10.3
-      '@types/node-fetch': ^2.5.12
-      node-fetch: ^2.6.5
-      tslib: ^2.3.1
-      tsyringe: ^4.6.0
-      typescript: ^4.4.3
-    dependencies:
-      '@automoderator/injection': link:../injection
-      node-fetch: 2.6.5
-      tslib: 2.3.1
-      tsyringe: 4.6.0
-    devDependencies:
-      '@types/node': 16.10.3
-      '@types/node-fetch': 2.5.12
-      typescript: 4.4.3
-
   libs/injection:
     specifiers:
       '@types/node': ^16.10.3
@@ -246,6 +227,7 @@ importers:
       '@hapi/boom': ^9.1.4
       '@sapphire/stopwatch': ^1.2.0
       '@types/bcrypt': ^5.0.0
+      '@types/cookie': ^0.4.1
       '@types/cors': ^2.8.12
       '@types/jsonwebtoken': ^8.5.7
       '@types/node': ^16.10.3
@@ -293,6 +275,7 @@ importers:
       zod: 3.11.6
     devDependencies:
       '@types/bcrypt': 5.0.0
+      '@types/cookie': 0.4.1
       '@types/cors': 2.8.12
       '@types/jsonwebtoken': 8.5.7
       '@types/node': 16.10.3
@@ -307,10 +290,10 @@ importers:
       '@automoderator/core': workspace:^0.1.0
       '@automoderator/discord-permissions': workspace:^0.1.0
       '@automoderator/filter-ignores': workspace:^0.1.0
-      '@automoderator/http-client': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
+      '@chatsift/api-wrapper': ^0.1.0
       '@cordis/brokers': ^1.2.0
       '@cordis/redis-store': ^1.2.0
       '@cordis/rest': ^1.2.0-next.86d9daa.1641743196
@@ -337,10 +320,10 @@ importers:
       '@automoderator/core': link:../../libs/core
       '@automoderator/discord-permissions': link:../../libs/discord-permissions
       '@automoderator/filter-ignores': link:../../libs/filter-ignores
-      '@automoderator/http-client': link:../../libs/http-client
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@automoderator/util': link:../../libs/util
+      '@chatsift/api-wrapper': 0.1.0
       '@cordis/brokers': 1.2.0
       '@cordis/redis-store': 1.2.0
       '@cordis/rest': 1.2.0-next.86d9daa.1641743196
@@ -487,10 +470,10 @@ importers:
       '@automoderator/core': workspace:^0.1.0
       '@automoderator/discord-permissions': workspace:^0.1.0
       '@automoderator/filter-ignores': workspace:^0.1.0
-      '@automoderator/http-client': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
+      '@chatsift/api-wrapper': ^0.1.0
       '@chatsift/readdir': ^0.1.0
       '@chatsift/rest-utils': ^0.1.0
       '@cordis/brokers': ^1.2.0
@@ -523,10 +506,10 @@ importers:
       '@automoderator/core': link:../../libs/core
       '@automoderator/discord-permissions': link:../../libs/discord-permissions
       '@automoderator/filter-ignores': link:../../libs/filter-ignores
-      '@automoderator/http-client': link:../../libs/http-client
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@automoderator/util': link:../../libs/util
+      '@chatsift/api-wrapper': 0.1.0
       '@chatsift/readdir': 0.1.0
       '@chatsift/rest-utils': 0.1.0
       '@cordis/brokers': 1.2.0
@@ -600,10 +583,10 @@ importers:
       '@automoderator/cache': workspace:^0.1.0
       '@automoderator/core': workspace:^0.1.0
       '@automoderator/discord-permissions': workspace:^0.1.0
-      '@automoderator/http-client': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
+      '@chatsift/api-wrapper': ^0.1.0
       '@cordis/brokers': ^1.2.0
       '@cordis/redis-store': ^1.2.0
       '@cordis/rest': ^1.2.0-next.86d9daa.1641743196
@@ -627,10 +610,10 @@ importers:
       '@automoderator/cache': link:../../libs/cache
       '@automoderator/core': link:../../libs/core
       '@automoderator/discord-permissions': link:../../libs/discord-permissions
-      '@automoderator/http-client': link:../../libs/http-client
       '@automoderator/injection': link:../../libs/injection
       '@automoderator/logger': link:../../libs/logger
       '@automoderator/util': link:../../libs/util
+      '@chatsift/api-wrapper': 0.1.0
       '@cordis/brokers': 1.2.0
       '@cordis/redis-store': 1.2.0
       '@cordis/rest': 1.2.0-next.86d9daa.1641743196
@@ -2923,6 +2906,16 @@ packages:
       react: 17.0.2
     dev: false
 
+  /@chatsift/api-wrapper/0.1.0:
+    resolution: {integrity: sha512-91cY4kK6Dwb1sjKyMj6nNEakevC1O0MdxldENjf3Fnj388ZjMBgtArJZyN28wpWUVnAVgqO6QR3TP4uKCu4Dgg==}
+    dependencies:
+      node-fetch: 2.6.7
+      tslib: 2.3.1
+      zod: 3.11.6
+    transitivePeerDependencies:
+      - encoding
+    dev: false
+
   /@chatsift/readdir/0.1.0:
     resolution: {integrity: sha512-5cDLVf3RvhTPxyfI1KlQgR32+AT5jQMZZw5rbB2Zt4MRDv3uCYqDccvyOHANj3GHcs2kQL6V19kykuJaOFnnSg==}
     dependencies:
@@ -3813,6 +3806,10 @@ packages:
   /@types/cookie/0.3.3:
     resolution: {integrity: sha512-LKVP3cgXBT9RYj+t+9FDKwS5tdI+rPBXaNSkma7hvqy35lc7mAokC2zsqWJH0LaqIt3B962nuYI77hsJoT1gow==}
     dev: false
+
+  /@types/cookie/0.4.1:
+    resolution: {integrity: sha512-XW/Aa8APYr6jSVVA1y/DEIZX0/GMKLEVekNG727R8cs56ahETkRAy/3DR7+fJyh7oUgGwNQaRfXCun0+KbWY7Q==}
+    dev: true
 
   /@types/cors/2.8.12:
     resolution: {integrity: sha512-vt+kDhq/M2ayberEtJcIN/hxXy1Pk+59g2FV/ZQceeaTyCtCucjL2Q7FXlFjtWn4n15KCr1NE2lNNFhp0lEThw==}
@@ -8142,6 +8139,18 @@ packages:
   /node-fetch/2.6.5:
     resolution: {integrity: sha512-mmlIVHJEu5rnIxgEgez6b9GgWXbkZj5YZ7fx+2r94a2E+Uirsp6HsPTPlomfdHtpt/B0cdKviwkoaM6pyvUOpQ==}
     engines: {node: 4.x || >=6.0.0}
+    dependencies:
+      whatwg-url: 5.0.0
+    dev: false
+
+  /node-fetch/2.6.7:
+    resolution: {integrity: sha512-ZjMPFEfVx5j+y2yF35Kzx5sF7kDzxuDj6ziH4FFbOp87zKDZNx8yExJIb05OGF4Nlt9IHFIMBkRl41VdvcNdbQ==}
+    engines: {node: 4.x || >=6.0.0}
+    peerDependencies:
+      encoding: ^0.1.0
+    peerDependenciesMeta:
+      encoding:
+        optional: true
     dependencies:
       whatwg-url: 5.0.0
     dev: false

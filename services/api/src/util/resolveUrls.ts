@@ -1,3 +1,5 @@
+/* istanbul ignore file */
+
 const addRootFromSub = (urls: Set<string>, url: string): void => {
 	const split = url.split('.');
 	// This means that we've got at least 1 subdomain - there could be more nested

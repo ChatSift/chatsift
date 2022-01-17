@@ -1,5 +1,5 @@
 import type { GuildSettings, PredictionType, NsfwApiData } from '@automoderator/core';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import fetch from 'node-fetch';
 import type { Logger } from 'pino';

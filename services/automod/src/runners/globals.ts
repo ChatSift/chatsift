@@ -1,5 +1,5 @@
 import type { ApiPostFiltersUrlsBody, ApiPostFiltersUrlsResult, MaliciousUrl } from '@automoderator/core';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { kLogger } from '@automoderator/injection';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';

@@ -1,5 +1,5 @@
 import { send } from '#util';
-import { Rest } from '@automoderator/http-client';
+import { Rest } from '@chatsift/api-wrapper';
 import { kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { APIGuildInteraction, InteractionResponseType, APIButtonComponent, ComponentType } from 'discord-api-types/v9';
