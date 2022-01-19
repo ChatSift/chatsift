@@ -5,15 +5,18 @@ import { Rest as DiscordRest } from '@cordis/rest';
 import polka from 'polka';
 import { jsonParser, sendBoom } from '@chatsift/rest-utils';
 import { createServer } from 'http';
-import { isBoom, Boom } from '@hapi/boom';
+import { isBoom, Boom, badRequest } from '@hapi/boom';
+import { pipeline } from 'stream/promises';
+
+const VALID_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
 void (() => {
 	const config = initConfig();
 	const logger = createLogger('discord-proxy');
 
-	const discordRest = new DiscordRest(config.discordToken);
+	const rest = new DiscordRest(config.discordToken);
 
-	discordRest
+	rest
 		.on('response', async (req, res, rl) => {
 			logger.trace({ rl }, `Finished request ${req.method!} ${req.path!}`);
 
@@ -52,8 +55,12 @@ void (() => {
 		server: createServer(),
 	});
 
-	app.use(jsonParser(), (req, res) => {
+	app.use(jsonParser(), async (req, res, next) => {
 		logger.trace(`Received request ${req.method} ${req.path}`);
+
+		if (!(VALID_METHODS as Readonly<string[]>).includes(req.method)) {
+			return next(badRequest(`Invalid method ${req.method}`));
+		}
 
 		return res.end();
 	});
