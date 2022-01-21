@@ -72,7 +72,7 @@ export class Gateway {
 
 	private async getChannelParent(guildId: Snowflake, channelId: Snowflake): Promise<Snowflake | null> {
 		if (!this.channelParentCache.has(channelId)) {
-			const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId), { cache: true });
+			const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
 			for (const channel of channels) {
 				if (channel.type === ChannelType.GuildCategory) {
 					continue;
@@ -98,10 +98,10 @@ export class Gateway {
 		}
 
 		const guildMe = await this.discord
-			.get<APIGuildMember>(Routes.guildMember(guildId, this.config.discordClientId), { cache: true })
+			.get<APIGuildMember>(Routes.guildMember(guildId, this.config.discordClientId))
 			.catch(() => null);
 		const roles = await this.discord
-			.get<APIRole[]>(Routes.guildRoles(guildId), { cache: true, cacheTime: 30000 })
+			.get<APIRole[]>(Routes.guildRoles(guildId))
 			.then((roles) => new Map(roles.map((role) => [role.id, role])))
 			.catch(() => null);
 

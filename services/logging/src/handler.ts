@@ -132,7 +132,7 @@ export class Handler {
 
 	private async _assertWebhook(channel: Snowflake, guild: Snowflake, name: string): Promise<APIWebhook | null> {
 		if (!this.channelsCache.has(channel)) {
-			const channels = await this.rest.get<APIChannel[]>(Routes.guildChannels(guild), { cache: true });
+			const channels = await this.rest.get<APIChannel[]>(Routes.guildChannels(guild));
 			for (const channel of channels) {
 				this.channelsCache.set(channel.id, channel);
 			}

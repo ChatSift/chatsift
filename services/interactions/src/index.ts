@@ -3,7 +3,7 @@ import { Rest } from '@chatsift/api-wrapper';
 import { initConfig, kLogger, kRedis, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
 import { readdirRecurse } from '@chatsift/readdir';
 import { join as joinPath } from 'path';
 import postgres from 'postgres';
@@ -20,36 +20,12 @@ void (async () => {
 	const config = initConfig();
 	const logger = createLogger('interactions');
 
-	const discordRest = new DiscordRest(config.discordToken);
-
-	discordRest
-		.on('response', async (req, res, rl) => {
-			logger.trace({ rl }, `Finished request ${req.method!} ${req.path!}`);
-
-			if (!res.ok) {
-				logger.warn(
-					{
-						res: await res.json(),
-						rl,
-					},
-					`Failed request ${req.method!} ${req.path!}`,
-				);
-			}
-		})
-		.on('ratelimit', (bucket, endpoint, prevented, waitingFor) => {
-			logger.warn(
-				{
-					bucket,
-					prevented,
-					waitingFor,
-				},
-				`Hit a ratelimit on ${endpoint}`,
-			);
-		});
-
-	if (config.nodeEnv === 'dev') {
-		discordRest.on('request', (req) => logger.trace(`Making request ${req.method!} ${req.path!}`));
-	}
+	const discordRest = new DiscordRest(config.discordToken, {
+		bucket: ProxyBucket,
+		// TODO(DD): env var
+		domain: 'http://host.docker.internal:3003',
+		retries: 1,
+	});
 
 	const { channel } = await createAmqp(config.amqpUrl);
 	const logs = new PubSubPublisher(channel);

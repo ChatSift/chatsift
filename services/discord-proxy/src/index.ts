@@ -1,12 +1,13 @@
 import 'reflect-metadata';
 import { initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { HTTPError, Rest as DiscordRest } from '@cordis/rest';
 import polka from 'polka';
-import { jsonParser, sendBoom } from '@chatsift/rest-utils';
+import { sendBoom } from '@chatsift/rest-utils';
 import { createServer } from 'http';
 import { isBoom, Boom, badRequest } from '@hapi/boom';
-import { pipeline } from 'stream/promises';
+import { Headers, Response } from 'node-fetch';
+import { resolveCacheData } from './cache';
 
 const VALID_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -55,14 +56,40 @@ void (() => {
 		server: createServer(),
 	});
 
-	app.use(jsonParser(), async (req, res, next) => {
-		logger.trace(`Received request ${req.method} ${req.path}`);
-
+	app.use(async (req, res, next) => {
 		if (!(VALID_METHODS as Readonly<string[]>).includes(req.method)) {
 			return next(badRequest(`Invalid method ${req.method}`));
 		}
 
-		return res.end();
+		const method = req.method.toLowerCase() as Lowercase<typeof VALID_METHODS[number]>;
+
+		const cacheData = resolveCacheData(req.path, method);
+
+		if (cacheData.cache) {
+			logger.trace({ cacheData }, `Caching on ${req.path}`);
+		}
+
+		let data: Response;
+		try {
+			data = await rest.make({
+				path: req.path,
+				method,
+				data: method === 'get' ? undefined : req,
+				headers: new Headers({ 'Content-Type': req.headers['content-type']! }),
+				...cacheData,
+			});
+		} catch (e) {
+			if (e instanceof HTTPError) {
+				data = e.response;
+			}
+
+			throw e;
+		}
+
+		res.setHeader('content-type', data.headers.get('content-type') ?? 'application/json');
+		res.statusCode = data.status;
+
+		return res.end(JSON.stringify(await data.json()));
 	});
 
 	app.listen(3003, () => logger.info('Listening for requests on port 3003'));

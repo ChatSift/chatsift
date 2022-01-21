@@ -58,12 +58,10 @@ export class PermissionsChecker {
 
 	public async checkOwner(data: PermissionsCheckerData, ownerId?: Snowflake | null): Promise<boolean> {
 		if (!ownerId) {
-			const guild = await this.rest
-				.get<RESTGetAPIGuildResult>(Routes.guild(data.guild_id), { cache: true, cacheTime: 36e5 })
-				.catch((error: unknown) => {
-					this.logger.warn({ error }, 'Failed a checkOwner guild fetch - returning false');
-					return null;
-				});
+			const guild = await this.rest.get<RESTGetAPIGuildResult>(Routes.guild(data.guild_id)).catch((error: unknown) => {
+				this.logger.warn({ error }, 'Failed a checkOwner guild fetch - returning false');
+				return null;
+			});
 
 			if (!guild) {
 				return false;
