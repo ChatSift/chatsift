@@ -35,7 +35,7 @@ services:
 
   discord-proxy:
     environment:
-      NODE_ENV: 'dev'
+      NODE_ENV: 'prod'
       ELASTIC_URL: 'http://elasticsearch:9200'
       ELASTIC_USERNAME: 'elastic'
 
