@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { initConfig, kLogger, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { sendBoom, attachHttpUtils, Route } from '@chatsift/rest-utils';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
 import { readdirRecurse } from '@chatsift/readdir';
 import { join as joinPath } from 'path';
 import postgres from 'postgres';
@@ -27,35 +27,13 @@ void (async () => {
 		}),
 	});
 
-	const discordRest = new DiscordRest(config.discordToken);
+	const discordRest = new DiscordRest(config.discordToken, {
+		bucket: ProxyBucket,
+		domain: config.discordProxyUrl,
+		retries: 1,
+	});
+
 	container.register(DiscordRest, { useValue: discordRest });
-
-	discordRest
-		.on('response', async (req, res, rl) => {
-			if (!res.ok) {
-				logger.warn(
-					{
-						res: await res.json(),
-						rl,
-					},
-					`Failed request ${req.method!} ${req.path!}`,
-				);
-			}
-		})
-		.on('ratelimit', (bucket, endpoint, prevented, waitingFor) => {
-			logger.warn(
-				{
-					bucket,
-					prevented,
-					waitingFor,
-				},
-				`Hit a ratelimit on ${endpoint}`,
-			);
-		});
-
-	if (config.nodeEnv === 'dev') {
-		discordRest.on('request', (req) => logger.trace(`Making request ${req.method!} ${req.path!}`));
-	}
 
 	const app = polka({
 		onError(e, _, res) {

@@ -47,9 +47,7 @@ export const getUserGuilds = async (token: string): Promise<UserGuilds> => {
 					const guild = await rest.get<APIGuild>(Routes.guild(g.id)).catch(() => null);
 
 					if (guild) {
-						guild.channels = await rest
-							.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(g.id), { cache: true })
-							.catch(() => []);
+						guild.channels = await rest.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(g.id)).catch(() => []);
 					}
 
 					return [g.id, { ...g, data: guild }] as const;

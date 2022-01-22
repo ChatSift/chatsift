@@ -2,14 +2,18 @@ import 'reflect-metadata';
 import { Case, CaseAction, GuildSettings, UnmuteRole } from '@automoderator/core';
 import { initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
 import { RESTPatchAPIGuildMemberJSONBody, Routes } from 'discord-api-types/v9';
 import postgres from 'postgres';
 
 const config = initConfig();
 const logger = createLogger('cron-runner');
 
-const discordRest = new DiscordRest(config.discordToken);
+const discordRest = new DiscordRest(config.discordToken, {
+	bucket: ProxyBucket,
+	domain: config.discordProxyUrl,
+	retries: 1,
+});
 
 const sql = postgres(config.dbUrl, {
 	onnotice: (notice) => logger.debug({ notice }, 'Database notice'),

@@ -29,7 +29,7 @@ export default class implements Component {
 
 		const roles = new Map(
 			await this.discordRest
-				.get<RESTGetAPIGuildRolesResult>(Routes.guildRoles(interaction.guild_id), { cache: true, cacheTime: 30000 })
+				.get<RESTGetAPIGuildRolesResult>(Routes.guildRoles(interaction.guild_id))
 				.then((roles) => roles.map((role) => [role.id, role])),
 		);
 

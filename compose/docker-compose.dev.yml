@@ -19,6 +19,10 @@ services:
     environment:
       NODE_ENV: 'dev'
 
+  discord-proxy:
+    environment:
+      NODE_ENV: 'dev'
+
   gateway:
     environment:
       NODE_ENV: 'dev'

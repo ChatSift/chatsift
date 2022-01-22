@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { Rest } from '@chatsift/api-wrapper';
 import { initConfig, kLogger, kRedis, kSql } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
 import type { Logger } from 'pino';
 import postgres, { Sql } from 'postgres';
 import { container } from 'tsyringe';
@@ -14,40 +14,17 @@ void (async () => {
 	const config = initConfig();
 	container.register(Rest, { useValue: new Rest(config.apiDomain, config.internalApiToken) });
 
-	const discordRest = new DiscordRest(config.discordToken);
+	const discordRest = new DiscordRest(config.discordToken, {
+		bucket: ProxyBucket,
+		domain: config.discordProxyUrl,
+		retries: 1,
+	});
 
 	const logger = createLogger('automod');
 
 	const sql = postgres(config.dbUrl, {
 		onnotice: (notice) => logger.debug({ notice }, 'Database notice'),
 	});
-
-	discordRest
-		.on('response', async (req, res, rl) => {
-			if (!res.ok) {
-				logger.warn(
-					{
-						res: await res.json(),
-						rl,
-					},
-					`Failed request ${req.method!} ${req.path!}`,
-				);
-			}
-		})
-		.on('ratelimit', (bucket, endpoint, prevented, waitingFor) => {
-			logger.warn(
-				{
-					bucket,
-					prevented,
-					waitingFor,
-				},
-				`Hit a ratelimit on ${endpoint}`,
-			);
-		});
-
-	if (config.nodeEnv === 'dev') {
-		discordRest.on('request', (req) => logger.trace(`Making request ${req.method!} ${req.path!}`));
-	}
 
 	container.register(DiscordRest, { useValue: discordRest });
 	container.register<IORedis>(kRedis, { useValue: new Redis(config.redisUrl) });
