@@ -23,7 +23,7 @@ interface CacheData {
 	cacheTime?: number;
 }
 
-export function resolveCacheData(path: string, method: string): CacheData {
+export function resolveCacheOptions(path: string, method: string): CacheData {
 	if (method !== 'get') {
 		return {};
 	}

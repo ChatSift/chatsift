@@ -22,6 +22,7 @@ const data = {
 	ELASTIC_PASSWORD: 'admin',
 	NSFW_PREDICT_API_KEY: 'lol',
 	GHOST_INTEGRATION_KEY: 'lol',
+	DISCORD_PROXY_URL: 'https://proxy.example.com',
 } as const;
 
 for (const key of Object.keys(data) as (keyof typeof data)[]) {
@@ -55,5 +56,6 @@ test('test', () => {
 		elasticPassword: data.ELASTIC_PASSWORD,
 		nsfwPredictApiKey: data.NSFW_PREDICT_API_KEY,
 		ghostIntegrationKey: data.GHOST_INTEGRATION_KEY,
+		discordProxyUrl: data.DISCORD_PROXY_URL,
 	});
 });

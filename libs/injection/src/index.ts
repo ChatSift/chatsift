@@ -32,6 +32,7 @@ export interface Config {
 	elasticPassword: string;
 	nsfwPredictApiKey: string;
 	ghostIntegrationKey: string;
+	discordProxyUrl: string;
 }
 
 export const initConfig = () => {
@@ -59,6 +60,7 @@ export const initConfig = () => {
 		elasticPassword: process.env.ELASTIC_PASSWORD!,
 		nsfwPredictApiKey: process.env.NSFW_PREDICT_API_KEY!,
 		ghostIntegrationKey: process.env.GHOST_INTEGRATION_KEY!,
+		discordProxyUrl: process.env.DISCORD_PROXY_URL!,
 	};
 
 	container.register<Config>(kConfig, { useValue: config });

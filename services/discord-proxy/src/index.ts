@@ -6,15 +6,14 @@ import polka from 'polka';
 import { sendBoom } from '@chatsift/rest-utils';
 import { createServer } from 'http';
 import { isBoom, Boom, badRequest } from '@hapi/boom';
-import { Headers, Response } from 'node-fetch';
-import { resolveCacheData } from './cache';
+import { Headers } from 'node-fetch';
+import { resolveCacheOptions } from './cache';
 
 const VALID_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
 void (() => {
 	const config = initConfig();
 	const logger = createLogger('discord-proxy');
-
 	const rest = new DiscordRest(config.discordToken);
 
 	rest
@@ -63,20 +62,16 @@ void (() => {
 
 		const method = req.method.toLowerCase() as Lowercase<typeof VALID_METHODS[number]>;
 
-		const cacheData = resolveCacheData(req.path, method);
+		const cacheOptions = resolveCacheOptions(req.path, method);
 
-		if (cacheData.cache) {
-			logger.trace({ cacheData }, `Caching on ${req.path}`);
-		}
-
-		let data: Response;
+		let data;
 		try {
 			data = await rest.make({
 				path: req.path,
 				method,
 				data: method === 'get' ? undefined : req,
 				headers: new Headers({ 'Content-Type': req.headers['content-type']! }),
-				...cacheData,
+				...cacheOptions,
 			});
 		} catch (e) {
 			if (e instanceof HTTPError) {
@@ -84,6 +79,10 @@ void (() => {
 			}
 
 			throw e;
+		}
+
+		if (data.cached) {
+			logger.metric!({ type: 'discord_proxy_cache', path: req.path });
 		}
 
 		res.setHeader('content-type', data.headers.get('content-type') ?? 'application/json');

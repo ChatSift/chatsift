@@ -22,8 +22,7 @@ void (async () => {
 
 	const discordRest = new DiscordRest(config.discordToken, {
 		bucket: ProxyBucket,
-		// TODO(DD): env var
-		domain: 'http://host.docker.internal:3003',
+		domain: config.discordProxyUrl,
 		retries: 1,
 	});
 
