@@ -27,7 +27,7 @@
 		"@automoderator/core": "workspace:^0.1.0",
 		"@automoderator/injection": "workspace:^0.1.0",
 		"@chatsift/discord-utils": "^0.1.0",
-		"@cordis/rest": "^2.0.0-next.c972fcf.1642875008",
+		"@cordis/rest": "^2.0.0-next.c972fcf.1642877601",
 		"@cordis/util": "^1.2.0",
 		"discord-api-types": "^0.26.1",
 		"nanoid": "^3.1.29",
