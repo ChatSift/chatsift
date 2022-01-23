@@ -5,8 +5,8 @@ services:
     environment:
       NODE_ENV: 'prod'
       ROOT_DOMAIN: 'https://automoderator.app'
-      AUTH_DOMAIN: 'https://api.automoderator.app'
-      GHOST_DOMAIN: 'https://ghost.automoderator.app'
+      API_DOMAIN: 'https://api.automoderator.app'
+      GHOST_DOMAIN: 'https://blog.automoderator.app'
       CORS: 'https://dash.automoderator.app'
       ELASTIC_URL: 'http://elasticsearch:9200'
       ELASTIC_USERNAME: 'elastic'
@@ -108,7 +108,7 @@ services:
       - 2368
     environment:
       NODE_ENV: 'production'
-      url: 'https://ghost.automoderator.app'
+      url: 'https://blog.automoderator.app'
       database__client: 'sqlite3'
       mail__transport: 'SMTP'
       mail__options__service: 'Mailgun'

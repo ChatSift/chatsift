@@ -82,7 +82,7 @@ void (() => {
 			throw e;
 		}
 
-		logger.metric!({ type: 'discord_proxy_cache', path: req.path, cached: data.cached ?? false });
+		logger.metric!({ type: 'discord_proxy_cache', method, path: req.path, cached: data.cached ?? false });
 
 		res.setHeader('content-type', data.headers.get('content-type') ?? 'application/json');
 		res.statusCode = data.status;
