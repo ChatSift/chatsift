@@ -43,7 +43,7 @@
 		"@chatsift/readdir": "^0.1.0",
 		"@chatsift/rest-utils": "^0.1.0",
 		"@cordis/bitfield": "^1.2.0",
-		"@cordis/rest": "^2.0.0-next.c972fcf.1642877601",
+		"@cordis/rest": "^2.0.0-next.fcc728d.1642936722",
 		"@hapi/boom": "^9.1.4",
 		"@sapphire/stopwatch": "^1.2.0",
 		"bcrypt": "^5.0.1",

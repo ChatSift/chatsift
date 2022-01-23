@@ -71,6 +71,7 @@ void (() => {
 				method,
 				data: method === 'get' ? undefined : req,
 				headers: new Headers({ 'Content-Type': req.headers['content-type']! }),
+				query: req.query,
 				...cacheOptions,
 			});
 		} catch (e) {
@@ -86,7 +87,8 @@ void (() => {
 		res.setHeader('content-type', data.headers.get('content-type') ?? 'application/json');
 		res.statusCode = data.status;
 
-		return res.end(JSON.stringify(await data.json()));
+		const body = data.headers.get('content-type')?.startsWith('application/json') ? await data.json() : {};
+		return res.end(JSON.stringify(body));
 	});
 
 	app.listen(3003, () => logger.info('Listening for requests on port 3003'));

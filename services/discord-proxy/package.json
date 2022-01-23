@@ -28,7 +28,7 @@
 		"@automoderator/logger": "workspace:^0.1.0",
 		"@chatsift/rest-utils": "^0.1.0",
 		"@chatsift/utils": "^0.1.0",
-		"@cordis/rest": "^2.0.0-next.c972fcf.1642877601",
+		"@cordis/rest": "^2.0.0-next.fcc728d.1642936722",
 		"@hapi/boom": "^9.1.4",
 		"node-fetch": "3.0.0-beta.9",
 		"polka": "^1.0.0-next.22",
