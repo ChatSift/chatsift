@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { Case, CaseAction, GuildSettings, UnmuteRole } from '@automoderator/core';
 import { initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
-import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
+import { HTTPError, ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
 import { RESTPatchAPIGuildMemberJSONBody, Routes } from 'discord-api-types/v9';
 import postgres from 'postgres';
 
@@ -39,10 +39,19 @@ const handleCase = async (cs: Case, settings: GuildSettings) => {
 				Pick<UnmuteRole, 'role_id'>[]
 			>`SELECT role_id FROM unmute_roles WHERE case_id = ${cs.id}`.then((rows) => rows.map((row) => row.role_id));
 
-			await discordRest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(cs.guild_id, cs.target_id), {
-				data: { roles },
-				reason: 'Automatic unmute',
-			});
+			try {
+				await discordRest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(
+					Routes.guildMember(cs.guild_id, cs.target_id),
+					{
+						data: { roles },
+						reason: 'Automatic unmute',
+					},
+				);
+			} catch (error) {
+				if (error instanceof HTTPError && error.response.status !== 404) {
+					throw error;
+				}
+			}
 
 			await sql`DELETE FROM unmute_roles WHERE case_id = ${cs.id}`;
 
@@ -50,7 +59,14 @@ const handleCase = async (cs: Case, settings: GuildSettings) => {
 		}
 
 		case CaseAction.ban: {
-			await discordRest.delete(Routes.guildBan(cs.guild_id, cs.target_id), { reason: 'Automatic unban' });
+			try {
+				await discordRest.delete(Routes.guildBan(cs.guild_id, cs.target_id), { reason: 'Automatic unban' });
+			} catch (error) {
+				if (error instanceof HTTPError && error.response.status !== 404) {
+					throw error;
+				}
+			}
+
 			break;
 		}
 
