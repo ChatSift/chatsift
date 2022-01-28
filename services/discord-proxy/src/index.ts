@@ -8,6 +8,7 @@ import { createServer } from 'http';
 import { isBoom, Boom, badRequest } from '@hapi/boom';
 import { Headers } from 'node-fetch';
 import { resolveCacheOptions } from './cache';
+import type { Response } from 'node-fetch';
 
 const VALID_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -64,7 +65,7 @@ void (() => {
 
 		const cacheOptions = resolveCacheOptions(req.path, method);
 
-		let data;
+		let data: Response & { cached?: boolean };
 		try {
 			data = await rest.make({
 				path: req.path,
@@ -77,9 +78,9 @@ void (() => {
 		} catch (e) {
 			if (e instanceof HTTPError) {
 				data = e.response;
+			} else {
+				throw e;
 			}
-
-			throw e;
 		}
 
 		logger.metric!({

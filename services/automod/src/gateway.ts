@@ -692,9 +692,9 @@ export class Gateway {
 		if (data.length) {
 			await this.sql`
         INSERT INTO filter_triggers (guild_id, user_id, count)
-        VALUES (${message.guild_id}, ${message.author.id}, next_automod_trigger(${message.guild_id}, ${message.author.id}))
+        VALUES (${message.guild_id}, ${message.author.id}, next_filter_trigger(${message.guild_id}, ${message.author.id}))
         ON CONFLICT (guild_id, user_id)
-        DO UPDATE SET count = next_automod_trigger(${message.guild_id}, ${message.author.id})
+        DO UPDATE SET count = next_filter_trigger(${message.guild_id}, ${message.author.id})
       `;
 
 			if (data.find((result) => result.runner === Runners.antispam || result.runner === Runners.mentions)) {
