@@ -13,6 +13,7 @@ const discordRest = new DiscordRest(config.discordToken, {
 	bucket: ProxyBucket,
 	domain: config.discordProxyUrl,
 	retries: 1,
+	abortAfter: 20e3,
 });
 
 const sql = postgres(config.dbUrl, {

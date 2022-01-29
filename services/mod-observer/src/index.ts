@@ -17,6 +17,7 @@ void (async () => {
 		bucket: ProxyBucket,
 		domain: config.discordProxyUrl,
 		retries: 1,
+		abortAfter: 20e3,
 	});
 
 	const logger = createLogger('mod-observer');

@@ -31,6 +31,7 @@ void (async () => {
 		bucket: ProxyBucket,
 		domain: config.discordProxyUrl,
 		retries: 1,
+		abortAfter: 20e3,
 	});
 
 	container.register(DiscordRest, { useValue: discordRest });
