@@ -30,7 +30,7 @@ export class NsfwRunner {
 		if (!res.ok) {
 			this.logger.warn(
 				{
-					data: ((await res.json()) as Promise<unknown>).catch(() => res.text()).catch(() => null),
+					data: await (res.json() as Promise<unknown>).catch(() => res.text()).catch(() => null),
 					status: res.status,
 				},
 				'Failed requst to NSFW API',
