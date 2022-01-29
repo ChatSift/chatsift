@@ -5,12 +5,12 @@ interface RecursiveRecord<T> {
 const CACHE_TIMES: RecursiveRecord<number> = {
 	guilds: {
 		id: {
-			// 30 seconds - we don't currently actively need fresh guild data - we mostly fetch guilds for permissions
-			default: 30000,
+			// We don't currently actively need fresh guild data - we mostly fetch guilds for permissions
+			default: 60000,
 			// Bit of a compromise - we do somewhat need active channel data to properly handle ignored channels
 			channels: 15000,
 			// Also a comprmise - this is used for self assignables besides for permissions
-			roles: 15000,
+			roles: 20000,
 			members: {
 				id: 15000,
 			},
