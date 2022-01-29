@@ -29,7 +29,7 @@
 		"@automoderator/core": "workspace:^0.1.0",
 		"@automoderator/injection": "workspace:^0.1.0",
 		"@automoderator/logger": "workspace:^0.1.0",
-		"@cordis/rest": "^2.0.0-next.f84cd8a.1643462997",
+		"@cordis/rest": "^2.0.0-next.2405c88.1643469558",
 		"discord-api-types": "^0.26.1",
 		"postgres": "^2.0.0-beta.10",
 		"reflect-metadata": "^0.1.13",

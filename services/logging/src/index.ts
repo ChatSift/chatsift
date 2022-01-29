@@ -14,7 +14,7 @@ void (async () => {
 		bucket: ProxyBucket,
 		domain: config.discordProxyUrl,
 		retries: 1,
-		abortAfter: 60e3,
+		abortAfter: 20e3,
 	}).on('abort', (req) => {
 		logger.warn({ req }, `Aborted request ${req.method!} ${req.path!}`);
 	});

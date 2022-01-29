@@ -39,7 +39,7 @@
 		"@chatsift/api-wrapper": "^0.1.0",
 		"@cordis/brokers": "^1.2.0",
 		"@cordis/redis-store": "^1.2.0",
-		"@cordis/rest": "^2.0.0-next.f84cd8a.1643462997",
+		"@cordis/rest": "^2.0.0-next.2405c88.1643469558",
 		"@cordis/store": "^1.2.0",
 		"@cordis/util": "^1.2.0",
 		"common-tags": "^1.8.0",

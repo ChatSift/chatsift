@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
-import { HTTPError, Rest as DiscordRest } from '@cordis/rest';
+import { CordisResponse, HTTPError, Rest as DiscordRest } from '@cordis/rest';
 import polka from 'polka';
 import { sendBoom } from '@chatsift/rest-utils';
 import { createServer } from 'http';
@@ -68,7 +68,7 @@ void (() => {
 
 		const cacheOptions = resolveCacheOptions(req.path, method);
 
-		let data: Response & { cached?: boolean };
+		let data: CordisResponse | Response;
 		try {
 			data = await rest.make({
 				path: req.path,
@@ -90,7 +90,7 @@ void (() => {
 			type: 'discord_proxy_cache',
 			method,
 			path: req.path.replaceAll(/\d{17,19}/g, ':id'),
-			cached: data.cached ?? false,
+			cached: 'cached' in data ? data.cached : false,
 		});
 
 		res.setHeader('content-type', data.headers.get('content-type') ?? 'application/json');
