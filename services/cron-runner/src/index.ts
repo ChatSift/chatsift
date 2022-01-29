@@ -14,6 +14,8 @@ const discordRest = new DiscordRest(config.discordToken, {
 	domain: config.discordProxyUrl,
 	retries: 1,
 	abortAfter: 20e3,
+}).on('abort', (req) => {
+	logger.warn({ req }, `Aborted request ${req.method!} ${req.path!}`);
 });
 
 const sql = postgres(config.dbUrl, {

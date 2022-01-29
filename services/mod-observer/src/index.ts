@@ -13,14 +13,16 @@ void (async () => {
 	const config = initConfig();
 	container.register(Rest, { useValue: new Rest(config.apiDomain, config.internalApiToken) });
 
+	const logger = createLogger('mod-observer');
+
 	const discordRest = new DiscordRest(config.discordToken, {
 		bucket: ProxyBucket,
 		domain: config.discordProxyUrl,
 		retries: 1,
 		abortAfter: 20e3,
+	}).on('abort', (req) => {
+		logger.warn({ req }, `Aborted request ${req.method!} ${req.path!}`);
 	});
-
-	const logger = createLogger('mod-observer');
 
 	const sql = postgres(config.dbUrl, {
 		onnotice: (notice) => logger.debug({ notice }, 'Database notice'),
