@@ -40,6 +40,9 @@ void (() => {
 				},
 				`Hit a ratelimit on ${endpoint}`,
 			);
+		})
+		.on('abort', (req) => {
+			logger.warn({ req }, `Aborted request ${req.method!} ${req.path!}`);
 		});
 
 	const app = polka({

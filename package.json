@@ -27,7 +27,7 @@
 		"@babel/plugin-proposal-decorators": "^7.15.8",
 		"@babel/preset-env": "^7.16.4",
 		"@babel/preset-typescript": "^7.16.0",
-		"@cordis/rest": "^2.0.0-next.fcc728d.1642936722",
+		"@cordis/rest": "^2.0.0-next.f84cd8a.1643462997",
 		"@types/jest": "^26.0.24",
 		"@typescript-eslint/eslint-plugin": "^5.9.0",
 		"@typescript-eslint/parser": "^5.9.0",
