@@ -7,6 +7,7 @@ COPY services/api/package.json ./services/api/package.json
 RUN pnpm i --frozen-lockfile
 COPY services/api ./services/api
 RUN pnpm run build --filter ./services && pnpm prune --prod
+RUN cd ./services/api && pnpx prisma generate --schema ../../prisma/schema.prisma
 
 FROM node:16-alpine
 LABEL name "automoderator api"

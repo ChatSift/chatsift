@@ -10,7 +10,6 @@
 		"lint:ci": "pnpm lint --parallel --filter @automoderator/* --filter @chatsift/*",
 		"test": "jest",
 		"test:ci": "jest --ci --no-stack-trace --verbose",
-		"migrate": "ley",
 		"docs": "typedoc"
 	},
 	"repository": {
@@ -30,6 +29,7 @@
 		"@babel/preset-typescript": "^7.16.0",
 		"@cordis/rest": "^2.0.0-next.2405c88.1643469558",
 		"@strictsoftware/typedoc-plugin-monorepo": "^0.4.2",
+		"@prisma/client": "^3.8.1",
 		"@types/jest": "^26.0.24",
 		"@typescript-eslint/eslint-plugin": "^5.9.0",
 		"@typescript-eslint/parser": "^5.9.0",
@@ -43,10 +43,10 @@
 		"eslint-plugin-react-hooks": "^4.3.0",
 		"husky": "^4.3.8",
 		"jest": "^26.6.3",
-		"ley": "^0.7.1",
 		"lint-staged": "^11.2.0",
 		"prettier": "^2.5.1",
 		"prettier-eslint": "^13.0.0",
+		"prisma": "^3.8.1",
 		"rimraf": "^3.0.2",
 		"typedoc": "0.19.2",
 		"typescript": "^4.5.5"

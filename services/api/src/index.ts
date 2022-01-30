@@ -15,6 +15,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { logRequests } from './middleware';
 import { TokenManager } from './util';
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
 void (async () => {
 	const config = initConfig();
