@@ -7,35 +7,19 @@ datasource db {
   url      = env("DB_URL")
 }
 
-model allowed_invites {
-  guild_id         BigInt
-  allowed_guild_id BigInt
-
-  @@id([guild_id, allowed_guild_id])
-}
-
-model allowed_urls {
-  guild_id BigInt
-  domain   String
-
-  @@id([guild_id, domain])
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
 model app_guilds {
   app_id   Int
   guild_id BigInt
   apps     apps   @relation(fields: [app_id], references: [app_id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@ignore
+  @@id([app_id, guild_id])
 }
 
 model apps {
   app_id     Int          @id @default(autoincrement())
   name       String       @db.VarChar(32)
   perms      BigInt       @default(0)
-  app_guilds app_guilds[] @ignore
-  sigs       sigs[]       @ignore
+  app_guilds app_guilds[]
 }
 
 model automod_punishments {
@@ -56,15 +40,6 @@ model automod_triggers {
   @@id([guild_id, user_id])
 }
 
-model banned_words {
-  guild_id BigInt
-  word     String
-  flags    BigInt
-  duration Int?
-
-  @@id([guild_id, word])
-}
-
 model cases {
   id             Int            @id @default(autoincrement())
   guild_id       BigInt
@@ -81,21 +56,7 @@ model cases {
   processed      Boolean        @default(true)
   pardoned_by    BigInt?
   created_at     DateTime       @default(now()) @db.Timestamptz(6)
-  unmute_roles   unmute_roles[] @ignore
-}
-
-model filter_ignores {
-  channel_id BigInt @id
-  guild_id   BigInt
-  value      BigInt
-}
-
-model filter_triggers {
-  guild_id BigInt
-  user_id  BigInt
-  count    Int
-
-  @@id([guild_id, user_id])
+  unmute_roles   unmute_roles[]
 }
 
 model guild_settings {
@@ -126,58 +87,14 @@ model guild_settings {
   sexy_threshold             Int?
 }
 
-model log_ignores {
-  channel_id BigInt @id
-  guild_id   BigInt
-}
-
-model malicious_files {
-  file_id          Int      @id @default(autoincrement())
-  file_hash        String   @unique
-  created_at       DateTime @default(now()) @db.Timestamptz(6)
-  last_modified_at DateTime @default(now()) @db.Timestamptz(6)
-  category         Int
-}
-
-model malicious_urls {
-  url_id           Int      @id @default(autoincrement())
-  url              String   @unique
-  created_at       DateTime @default(now()) @db.Timestamptz(6)
-  last_modified_at DateTime @default(now()) @db.Timestamptz(6)
-  category         Int
-}
-
-model message_reporters {
-  message_id        BigInt
-  original          Boolean           @default(false)
-  reporter_id       BigInt
-  reporter_tag      String
-  reported_messages reported_messages @relation(fields: [message_id], references: [message_id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@id([message_id, reporter_id])
-}
-
-model migrations {
-  id         Int      @id @default(autoincrement())
-  name       String   @db.VarChar(255)
-  created_at DateTime @db.Timestamp(6)
-}
-
-model reported_messages {
-  message_id        BigInt              @id
-  report_message_id BigInt
-  ack               Boolean             @default(false)
-  message_reporters message_reporters[]
-}
-
 model self_assignable_roles {
+  id                            Int                           @unique @default(autoincrement())
   role_id                       BigInt                        @id
   prompt_id                     Int
   guild_id                      BigInt
   emoji_id                      BigInt?
   emoji_name                    String?
   emoji_animated                Boolean?
-  id                            Int                           @default(autoincrement())
   self_assignable_roles_prompts self_assignable_roles_prompts @relation(fields: [prompt_id], references: [prompt_id], onDelete: Cascade, onUpdate: NoAction)
 }
 
@@ -194,23 +111,12 @@ model self_assignable_roles_prompts {
   self_assignable_roles self_assignable_roles[]
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
-model sigs {
-  app_id       Int
-  sig          String
-  last_used_at DateTime @default(now()) @db.Timestamptz(6)
-  apps         apps     @relation(fields: [app_id], references: [app_id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
 model unmute_roles {
-  case_id Int?
+  case_id Int
   role_id BigInt
-  cases   cases? @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  cases   cases  @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@ignore
+  @@id([case_id, role_id])
 }
 
 model users {
