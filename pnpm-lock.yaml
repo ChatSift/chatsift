@@ -10,6 +10,7 @@ importers:
       '@babel/preset-env': ^7.16.4
       '@babel/preset-typescript': ^7.16.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
+      '@strictsoftware/typedoc-plugin-monorepo': ^0.4.2
       '@types/jest': ^26.0.24
       '@typescript-eslint/eslint-plugin': ^5.9.0
       '@typescript-eslint/parser': ^5.9.0
@@ -28,7 +29,8 @@ importers:
       prettier: ^2.5.1
       prettier-eslint: ^13.0.0
       rimraf: ^3.0.2
-      typescript: ^4.4.3
+      typedoc: 0.19.2
+      typescript: ^4.5.5
     devDependencies:
       '@babel/core': 7.16.0
       '@babel/generator': 7.16.0
@@ -36,9 +38,10 @@ importers:
       '@babel/preset-env': 7.16.4_@babel+core@7.16.0
       '@babel/preset-typescript': 7.16.0_@babel+core@7.16.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
+      '@strictsoftware/typedoc-plugin-monorepo': 0.4.2_typedoc@0.19.2
       '@types/jest': 26.0.24
-      '@typescript-eslint/eslint-plugin': 5.9.1_bc7b3effd32c5cd8004ba22c71044964
-      '@typescript-eslint/parser': 5.9.1_eslint@8.6.0+typescript@4.4.3
+      '@typescript-eslint/eslint-plugin': 5.9.1_46ff1e3eeda39b5395c18b563a83af7a
+      '@typescript-eslint/parser': 5.9.1_eslint@8.6.0+typescript@4.5.5
       babel-jest: 26.6.3_@babel+core@7.16.0
       babel-plugin-const-enum: 1.1.0_@babel+core@7.16.0
       babel-plugin-transform-typescript-metadata: 0.3.2
@@ -54,22 +57,23 @@ importers:
       prettier: 2.5.1
       prettier-eslint: 13.0.0
       rimraf: 3.0.2
-      typescript: 4.4.3
+      typedoc: 0.19.2_typescript@4.5.5
+      typescript: 4.5.5
 
-  libs/banword-flags:
+  packages/automoderator/banword-flags:
     specifiers:
       '@cordis/bitfield': ^1.2.0
       '@types/node': ^16.10.3
       tslib: ^2.3.1
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
       tslib: 2.3.1
     devDependencies:
       '@cordis/bitfield': 1.2.0
-      '@types/node': 16.10.3
-      typescript: 4.4.3
+      '@types/node': 16.11.10
+      typescript: 4.5.5
 
-  libs/cache:
+  packages/automoderator/cache:
     specifiers:
       '@automoderator/core': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
@@ -78,7 +82,7 @@ importers:
       '@types/node': ^16.10.3
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
       '@automoderator/injection': link:../injection
       tslib: 2.3.1
@@ -87,25 +91,25 @@ importers:
       '@automoderator/core': link:../core
       '@cordis/redis-store': 1.2.0
       '@types/ioredis': 4.27.6
-      '@types/node': 16.10.3
-      typescript: 4.4.3
+      '@types/node': 16.11.10
+      typescript: 4.5.5
 
-  libs/core:
+  packages/automoderator/core:
     specifiers:
-      '@chatsift/utils': ^0.1.0
+      '@chatsift/utils': workspace:^0.1.0
       '@types/node': ^16.10.3
       discord-api-types: ^0.26.1
       tslib: ^2.3.1
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
-      '@chatsift/utils': 0.1.0
+      '@chatsift/utils': link:../../chatsift/utils
       discord-api-types: 0.26.1
       tslib: 2.3.1
     devDependencies:
-      '@types/node': 16.10.3
-      typescript: 4.4.3
+      '@types/node': 16.11.10
+      typescript: 4.5.5
 
-  libs/discord-permissions:
+  packages/automoderator/discord-permissions:
     specifiers:
       '@automoderator/core': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
@@ -117,7 +121,7 @@ importers:
       postgres: ^2.0.0-beta.10
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
       '@automoderator/injection': link:../injection
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
@@ -127,38 +131,38 @@ importers:
     devDependencies:
       '@automoderator/core': link:../core
       '@cordis/bitfield': 1.2.0
-      '@types/node': 16.10.3
+      '@types/node': 16.11.10
       '@types/pino': 6.3.11
       postgres: 2.0.0-beta.10
-      typescript: 4.4.3
+      typescript: 4.5.5
 
-  libs/filter-ignores:
+  packages/automoderator/filter-ignores:
     specifiers:
       '@cordis/bitfield': ^1.2.0
       '@types/node': ^16.10.3
       tslib: ^2.3.1
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
       tslib: 2.3.1
     devDependencies:
       '@cordis/bitfield': 1.2.0
-      '@types/node': 16.10.3
-      typescript: 4.4.3
+      '@types/node': 16.11.10
+      typescript: 4.5.5
 
-  libs/injection:
+  packages/automoderator/injection:
     specifiers:
       '@types/node': ^16.10.3
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
       tslib: 2.3.1
       tsyringe: 4.6.0
     devDependencies:
-      '@types/node': 16.10.3
-      typescript: 4.4.3
+      '@types/node': 16.11.10
+      typescript: 4.5.5
 
-  libs/logger:
+  packages/automoderator/logger:
     specifiers:
       '@automoderator/injection': workspace:^0.1.0
       '@elastic/ecs-pino-format': ^1.3.0
@@ -171,7 +175,7 @@ importers:
       pino-pretty: ^5.1.3
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
       '@automoderator/injection': link:../injection
       '@elastic/ecs-pino-format': 1.3.0
@@ -182,16 +186,16 @@ importers:
       tslib: 2.3.1
       tsyringe: 4.6.0
     devDependencies:
-      '@types/node': 16.10.3
+      '@types/node': 16.11.10
       '@types/pino': 6.3.11
       '@types/pino-multi-stream': 5.1.2
-      typescript: 4.4.3
+      typescript: 4.5.5
 
-  libs/util:
+  packages/automoderator/util:
     specifiers:
       '@automoderator/core': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
-      '@chatsift/discord-utils': ^0.1.0
+      '@chatsift/discord-utils': workspace:^0.1.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@cordis/util': ^1.2.0
       '@types/node': ^16.10.3
@@ -200,11 +204,11 @@ importers:
       postgres: ^2.0.0-beta.10
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
       '@automoderator/core': link:../core
       '@automoderator/injection': link:../injection
-      '@chatsift/discord-utils': 0.1.0
+      '@chatsift/discord-utils': link:../../chatsift/discord-utils
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@cordis/util': 1.2.0
       discord-api-types: 0.26.1
@@ -212,9 +216,88 @@ importers:
       tslib: 2.3.1
       tsyringe: 4.6.0
     devDependencies:
-      '@types/node': 16.10.3
+      '@types/node': 16.11.10
       postgres: 2.0.0-beta.10
-      typescript: 4.4.3
+      typescript: 4.5.5
+
+  packages/chatsift/api-wrapper:
+    specifiers:
+      '@cordis/bitfield': ^1.2.0
+      '@types/node': ^16.11.19
+      '@types/node-fetch': ^2.5.12
+      node-fetch: ^2.6.6
+      tslib: ^2.3.1
+      typescript: ^4.5.5
+      zod: ^3.11.6
+    dependencies:
+      '@cordis/bitfield': 1.2.0
+      node-fetch: 2.6.7
+      tslib: 2.3.1
+      zod: 3.11.6
+    devDependencies:
+      '@types/node': 16.11.21
+      '@types/node-fetch': 2.5.12
+      typescript: 4.5.5
+
+  packages/chatsift/discord-utils:
+    specifiers:
+      '@chatsift/utils': workspace:^0.1.0
+      '@types/node': ^16.11.19
+      discord-api-types: ^0.26.1
+      tslib: ^2.3.1
+      typescript: ^4.5.5
+    dependencies:
+      '@chatsift/utils': link:../utils
+      discord-api-types: 0.26.1
+      tslib: 2.3.1
+    devDependencies:
+      '@types/node': 16.11.21
+      typescript: 4.5.5
+
+  packages/chatsift/readdir:
+    specifiers:
+      '@types/node': ^16.11.19
+      tiny-typed-emitter: ^2.1.0
+      tslib: ^2.3.1
+      typescript: ^4.5.5
+    dependencies:
+      tiny-typed-emitter: 2.1.0
+      tslib: 2.3.1
+    devDependencies:
+      '@types/node': 16.11.21
+      typescript: 4.5.5
+
+  packages/chatsift/rest-utils:
+    specifiers:
+      '@hapi/boom': ^9.1.4
+      '@types/cookie': ^0.4.1
+      '@types/node': ^16.11.19
+      cookie: ^0.4.1
+      polka: ^1.0.0-next.22
+      tslib: ^2.3.1
+      typescript: ^4.5.5
+      zod: ^3.11.6
+    dependencies:
+      '@hapi/boom': 9.1.4
+      cookie: 0.4.1
+      tslib: 2.3.1
+      zod: 3.11.6
+    devDependencies:
+      '@types/cookie': 0.4.1
+      '@types/node': 16.11.21
+      polka: 1.0.0-next.22
+      typescript: 4.5.5
+
+  packages/chatsift/utils:
+    specifiers:
+      '@types/node': ^16.11.19
+      tslib: ^2.3.1
+      typescript: ^4.5.5
+    dependencies:
+      tslib: 2.3.1
+    devDependencies:
+      '@types/node': 16.11.21
+      typescript: 4.5.5
 
   services/api:
     specifiers:
@@ -224,8 +307,8 @@ importers:
       '@automoderator/filter-ignores': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
-      '@chatsift/readdir': ^0.1.0
-      '@chatsift/rest-utils': ^0.1.0
+      '@chatsift/readdir': workspace:^0.1.0
+      '@chatsift/rest-utils': workspace:^0.1.0
       '@cordis/bitfield': ^1.2.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@hapi/boom': ^9.1.4
@@ -249,17 +332,17 @@ importers:
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
       zod: ^3.11.6
     dependencies:
-      '@automoderator/banword-flags': link:../../libs/banword-flags
-      '@automoderator/core': link:../../libs/core
-      '@automoderator/discord-permissions': link:../../libs/discord-permissions
-      '@automoderator/filter-ignores': link:../../libs/filter-ignores
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/logger': link:../../libs/logger
-      '@chatsift/readdir': 0.1.0
-      '@chatsift/rest-utils': 0.1.0
+      '@automoderator/banword-flags': link:../../packages/automoderator/banword-flags
+      '@automoderator/core': link:../../packages/automoderator/core
+      '@automoderator/discord-permissions': link:../../packages/automoderator/discord-permissions
+      '@automoderator/filter-ignores': link:../../packages/automoderator/filter-ignores
+      '@automoderator/injection': link:../../packages/automoderator/injection
+      '@automoderator/logger': link:../../packages/automoderator/logger
+      '@chatsift/readdir': link:../../packages/chatsift/readdir
+      '@chatsift/rest-utils': link:../../packages/chatsift/rest-utils
       '@cordis/bitfield': 1.2.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@hapi/boom': 9.1.4
@@ -285,7 +368,7 @@ importers:
       '@types/node': 16.10.3
       '@types/node-fetch': 2.5.12
       '@types/pino': 6.3.11
-      typescript: 4.4.3
+      typescript: 4.5.5
 
   services/automod:
     specifiers:
@@ -297,7 +380,7 @@ importers:
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
-      '@chatsift/api-wrapper': ^0.1.0
+      '@chatsift/api-wrapper': workspace:^0.1.0
       '@cordis/brokers': ^1.2.0
       '@cordis/redis-store': ^1.2.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
@@ -317,17 +400,17 @@ importers:
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
-      '@automoderator/banword-flags': link:../../libs/banword-flags
-      '@automoderator/cache': link:../../libs/cache
-      '@automoderator/core': link:../../libs/core
-      '@automoderator/discord-permissions': link:../../libs/discord-permissions
-      '@automoderator/filter-ignores': link:../../libs/filter-ignores
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/logger': link:../../libs/logger
-      '@automoderator/util': link:../../libs/util
-      '@chatsift/api-wrapper': 0.1.0
+      '@automoderator/banword-flags': link:../../packages/automoderator/banword-flags
+      '@automoderator/cache': link:../../packages/automoderator/cache
+      '@automoderator/core': link:../../packages/automoderator/core
+      '@automoderator/discord-permissions': link:../../packages/automoderator/discord-permissions
+      '@automoderator/filter-ignores': link:../../packages/automoderator/filter-ignores
+      '@automoderator/injection': link:../../packages/automoderator/injection
+      '@automoderator/logger': link:../../packages/automoderator/logger
+      '@automoderator/util': link:../../packages/automoderator/util
+      '@chatsift/api-wrapper': link:../../packages/chatsift/api-wrapper
       '@cordis/brokers': 1.2.0
       '@cordis/redis-store': 1.2.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
@@ -348,7 +431,7 @@ importers:
       '@types/node': 16.10.3
       '@types/node-fetch': 2.5.12
       '@types/pino': 6.3.11
-      typescript: 4.4.3
+      typescript: 4.5.5
 
   services/cron-runner:
     specifiers:
@@ -365,11 +448,11 @@ importers:
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
-      '@automoderator/core': link:../../libs/core
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/logger': link:../../libs/logger
+      '@automoderator/core': link:../../packages/automoderator/core
+      '@automoderator/injection': link:../../packages/automoderator/injection
+      '@automoderator/logger': link:../../packages/automoderator/logger
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       discord-api-types: 0.26.1
       postgres: 2.0.0-beta.10
@@ -381,7 +464,7 @@ importers:
       '@types/node': 16.10.3
       '@types/node-fetch': 2.5.12
       '@types/pino': 6.3.11
-      typescript: 4.4.3
+      typescript: 4.5.5
 
   services/dash:
     specifiers:
@@ -389,7 +472,7 @@ importers:
       '@babel/core': ^7.15.8
       '@chakra-ui/icons': ^1.1.1
       '@chakra-ui/react': ^1.7.2
-      '@chatsift/discord-utils': ^0.1.0
+      '@chatsift/discord-utils': workspace:^0.1.0
       '@emotion/react': ^11.6.0
       '@emotion/styled': ^11.6.0
       '@types/node': ^16.10.3
@@ -404,14 +487,14 @@ importers:
       react-query: ^3.33.5
       sass: ^1.43.5
       tslib: ^2.3.1
-      typescript: ^4.4.3
+      typescript: ^4.5.5
       universal-cookie: ^4.0.4
       zustand: ^3.6.5
     dependencies:
-      '@automoderator/core': link:../../libs/core
+      '@automoderator/core': link:../../packages/automoderator/core
       '@chakra-ui/icons': 1.1.1_react@17.0.2
       '@chakra-ui/react': 1.7.2_e38fa20e9b5a75faf77d8a697effde4d
-      '@chatsift/discord-utils': 0.1.0
+      '@chatsift/discord-utils': link:../../packages/chatsift/discord-utils
       '@emotion/react': 11.6.0_72bd8486b1b542a110c0caa558311887
       '@emotion/styled': 11.6.0_ebccef8129fad3283a98d7d0b1effb10
       framer-motion: 5.3.3_react-dom@17.0.2+react@17.0.2
@@ -430,14 +513,14 @@ importers:
       '@types/node': 16.11.10
       '@types/react': 17.0.37
       discord-api-types: 0.26.1
-      typescript: 4.5.2
+      typescript: 4.5.5
 
   services/discord-proxy:
     specifiers:
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
-      '@chatsift/rest-utils': ^0.1.0
-      '@chatsift/utils': ^0.1.0
+      '@chatsift/rest-utils': workspace:^0.1.0
+      '@chatsift/utils': workspace:^0.1.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@hapi/boom': ^9.1.4
       '@types/node': ^16.10.3
@@ -447,12 +530,12 @@ importers:
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/logger': link:../../libs/logger
-      '@chatsift/rest-utils': 0.1.0
-      '@chatsift/utils': 0.1.0
+      '@automoderator/injection': link:../../packages/automoderator/injection
+      '@automoderator/logger': link:../../packages/automoderator/logger
+      '@chatsift/rest-utils': link:../../packages/chatsift/rest-utils
+      '@chatsift/utils': link:../../packages/chatsift/utils
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@hapi/boom': 9.1.4
       node-fetch: 3.0.0-beta.9
@@ -463,7 +546,7 @@ importers:
     devDependencies:
       '@types/node': 16.11.10
       discord-api-types: 0.26.1
-      typescript: 4.5.2
+      typescript: 4.5.5
 
   services/gateway:
     specifiers:
@@ -482,12 +565,12 @@ importers:
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
-      '@automoderator/cache': link:../../libs/cache
-      '@automoderator/core': link:../../libs/core
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/logger': link:../../libs/logger
+      '@automoderator/cache': link:../../packages/automoderator/cache
+      '@automoderator/core': link:../../packages/automoderator/core
+      '@automoderator/injection': link:../../packages/automoderator/injection
+      '@automoderator/logger': link:../../packages/automoderator/logger
       '@cordis/brokers': 1.2.0
       '@cordis/gateway': 1.2.0
       '@cordis/redis-store': 1.2.0
@@ -500,7 +583,7 @@ importers:
       '@types/ioredis': 4.27.6
       '@types/node': 16.10.3
       discord-api-types: 0.26.1
-      typescript: 4.4.3
+      typescript: 4.5.5
 
   services/interactions:
     specifiers:
@@ -512,11 +595,11 @@ importers:
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
-      '@chatsift/api-wrapper': ^0.1.0
-      '@chatsift/discord-utils': ^0.1.0
-      '@chatsift/readdir': ^0.1.0
-      '@chatsift/rest-utils': ^0.1.0
-      '@chatsift/utils': ^0.1.0
+      '@chatsift/api-wrapper': workspace:^0.1.0
+      '@chatsift/discord-utils': workspace:^0.1.0
+      '@chatsift/readdir': workspace:^0.1.0
+      '@chatsift/rest-utils': workspace:^0.1.0
+      '@chatsift/utils': workspace:^0.1.0
       '@cordis/brokers': ^1.2.0
       '@cordis/redis-store': ^1.2.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
@@ -540,21 +623,21 @@ importers:
       tslib: ^2.3.1
       tsyringe: ^4.6.0
       tweetnacl: ^1.0.3
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
-      '@automoderator/banword-flags': link:../../libs/banword-flags
-      '@automoderator/cache': link:../../libs/cache
-      '@automoderator/core': link:../../libs/core
-      '@automoderator/discord-permissions': link:../../libs/discord-permissions
-      '@automoderator/filter-ignores': link:../../libs/filter-ignores
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/logger': link:../../libs/logger
-      '@automoderator/util': link:../../libs/util
-      '@chatsift/api-wrapper': 0.1.0
-      '@chatsift/discord-utils': 0.1.0
-      '@chatsift/readdir': 0.1.0
-      '@chatsift/rest-utils': 0.1.0
-      '@chatsift/utils': 0.1.0
+      '@automoderator/banword-flags': link:../../packages/automoderator/banword-flags
+      '@automoderator/cache': link:../../packages/automoderator/cache
+      '@automoderator/core': link:../../packages/automoderator/core
+      '@automoderator/discord-permissions': link:../../packages/automoderator/discord-permissions
+      '@automoderator/filter-ignores': link:../../packages/automoderator/filter-ignores
+      '@automoderator/injection': link:../../packages/automoderator/injection
+      '@automoderator/logger': link:../../packages/automoderator/logger
+      '@automoderator/util': link:../../packages/automoderator/util
+      '@chatsift/api-wrapper': link:../../packages/chatsift/api-wrapper
+      '@chatsift/discord-utils': link:../../packages/chatsift/discord-utils
+      '@chatsift/readdir': link:../../packages/chatsift/readdir
+      '@chatsift/rest-utils': link:../../packages/chatsift/rest-utils
+      '@chatsift/utils': link:../../packages/chatsift/utils
       '@cordis/brokers': 1.2.0
       '@cordis/redis-store': 1.2.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
@@ -579,7 +662,7 @@ importers:
       '@types/node': 16.10.3
       '@types/node-fetch': 2.5.12
       '@types/pino': 6.3.11
-      typescript: 4.4.3
+      typescript: 4.5.5
 
   services/logging:
     specifiers:
@@ -588,7 +671,7 @@ importers:
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
-      '@chatsift/discord-utils': ^0.1.0
+      '@chatsift/discord-utils': workspace:^0.1.0
       '@cordis/brokers': ^1.2.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@cordis/util': ^1.2.0
@@ -600,14 +683,14 @@ importers:
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
-      '@automoderator/banword-flags': link:../../libs/banword-flags
-      '@automoderator/core': link:../../libs/core
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/logger': link:../../libs/logger
-      '@automoderator/util': link:../../libs/util
-      '@chatsift/discord-utils': 0.1.0
+      '@automoderator/banword-flags': link:../../packages/automoderator/banword-flags
+      '@automoderator/core': link:../../packages/automoderator/core
+      '@automoderator/injection': link:../../packages/automoderator/injection
+      '@automoderator/logger': link:../../packages/automoderator/logger
+      '@automoderator/util': link:../../packages/automoderator/util
+      '@chatsift/discord-utils': link:../../packages/chatsift/discord-utils
       '@cordis/brokers': 1.2.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@cordis/util': 1.2.0
@@ -620,7 +703,7 @@ importers:
       '@types/amqplib': 0.8.2
       '@types/node': 16.10.3
       '@types/pino': 6.3.11
-      typescript: 4.4.3
+      typescript: 4.5.5
 
   services/mod-observer:
     specifiers:
@@ -631,7 +714,7 @@ importers:
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
-      '@chatsift/api-wrapper': ^0.1.0
+      '@chatsift/api-wrapper': workspace:^0.1.0
       '@cordis/brokers': ^1.2.0
       '@cordis/redis-store': ^1.2.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
@@ -649,16 +732,16 @@ importers:
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      typescript: ^4.4.3
+      typescript: ^4.5.5
     dependencies:
-      '@automoderator/banword-flags': link:../../libs/banword-flags
-      '@automoderator/cache': link:../../libs/cache
-      '@automoderator/core': link:../../libs/core
-      '@automoderator/discord-permissions': link:../../libs/discord-permissions
-      '@automoderator/injection': link:../../libs/injection
-      '@automoderator/logger': link:../../libs/logger
-      '@automoderator/util': link:../../libs/util
-      '@chatsift/api-wrapper': 0.1.0
+      '@automoderator/banword-flags': link:../../packages/automoderator/banword-flags
+      '@automoderator/cache': link:../../packages/automoderator/cache
+      '@automoderator/core': link:../../packages/automoderator/core
+      '@automoderator/discord-permissions': link:../../packages/automoderator/discord-permissions
+      '@automoderator/injection': link:../../packages/automoderator/injection
+      '@automoderator/logger': link:../../packages/automoderator/logger
+      '@automoderator/util': link:../../packages/automoderator/util
+      '@chatsift/api-wrapper': link:../../packages/chatsift/api-wrapper
       '@cordis/brokers': 1.2.0
       '@cordis/redis-store': 1.2.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
@@ -677,7 +760,7 @@ importers:
       '@types/node': 16.10.3
       '@types/node-fetch': 2.5.12
       '@types/pino': 6.3.11
-      typescript: 4.4.3
+      typescript: 4.5.5
 
 packages:
 
@@ -2951,46 +3034,6 @@ packages:
       react: 17.0.2
     dev: false
 
-  /@chatsift/api-wrapper/0.1.0:
-    resolution: {integrity: sha512-91cY4kK6Dwb1sjKyMj6nNEakevC1O0MdxldENjf3Fnj388ZjMBgtArJZyN28wpWUVnAVgqO6QR3TP4uKCu4Dgg==}
-    dependencies:
-      node-fetch: 2.6.7
-      tslib: 2.3.1
-      zod: 3.11.6
-    transitivePeerDependencies:
-      - encoding
-    dev: false
-
-  /@chatsift/discord-utils/0.1.0:
-    resolution: {integrity: sha512-wUgSuu4D0ByqNHShWXxR7Oxmf98ToZkYJ53czL+BmsMWoy1uV9hhvKayl3JluAua+ygxiFGHH8Fy9G+XdMFSNQ==}
-    dependencies:
-      '@chatsift/utils': 0.1.0
-      discord-api-types: 0.26.1
-      tslib: 2.3.1
-    dev: false
-
-  /@chatsift/readdir/0.1.0:
-    resolution: {integrity: sha512-5cDLVf3RvhTPxyfI1KlQgR32+AT5jQMZZw5rbB2Zt4MRDv3uCYqDccvyOHANj3GHcs2kQL6V19kykuJaOFnnSg==}
-    dependencies:
-      tiny-typed-emitter: 2.1.0
-      tslib: 2.3.1
-    dev: false
-
-  /@chatsift/rest-utils/0.1.0:
-    resolution: {integrity: sha512-j8Vh34e75F37pmKB/hbNUD5vOZ7fgjOBur8Dg+C6zGZOXKHPTjHNdfL93tlS4U4fgoPcn4+FaHuQxUQjyOQc9A==}
-    dependencies:
-      '@hapi/boom': 9.1.4
-      cookie: 0.4.1
-      tslib: 2.3.1
-      zod: 3.11.6
-    dev: false
-
-  /@chatsift/utils/0.1.0:
-    resolution: {integrity: sha512-hV2rwEd0CE9GkrNgWRdcun3PqT2XTfAzrERZXs55TqW1mjNFLRfXcwTF28XFzAjG8YKw70kOXh5e0ttqwjweoA==}
-    dependencies:
-      tslib: 2.3.1
-    dev: false
-
   /@cnakazawa/watch/1.0.4:
     resolution: {integrity: sha512-v9kIhKwjeZThiWrLmj0y17CWoyddASLj9O2yvbZkbvw/N3rWOYy9zkV66ursAoVr0mV15bL8g0c4QZUE6cdDoQ==}
     engines: {node: '>=0.1.95'}
@@ -3743,7 +3786,6 @@ packages:
 
   /@polka/url/1.0.0-next.21:
     resolution: {integrity: sha512-a5Sab1C4/icpTZVzZc5Ghpz88yQtGOyNqYXcZgOssB2uuAr+wF/MvN6bgtW32q7HHrvBki+BsZ0OuNv6EV3K9g==}
-    dev: false
 
   /@popperjs/core/2.10.2:
     resolution: {integrity: sha512-IXf3XA7+XyN7CP9gGh/XB0UxVMlvARGEgGXLubFICsUMGz6Q+DU+i4gGlpOxTjKvXjkJDJC8YdqdKkDj9qZHEQ==}
@@ -3805,6 +3847,15 @@ packages:
     resolution: {integrity: sha512-MZPUxrmFubI36XS1DI3qmI0YdN1gks62JtFZvxR67ljjSNCeK6U08Zx4msEWOXuofgqUt6zPHSi1H9fbjR/NRA==}
     dependencies:
       '@sinonjs/commons': 1.8.3
+    dev: true
+
+  /@strictsoftware/typedoc-plugin-monorepo/0.4.2_typedoc@0.19.2:
+    resolution: {integrity: sha512-J2YFhz6wrLHKhHjkrzg7906mXQ3TfwbZGtsuyaM+6X4YkvX8kfyj6T3xa5ZoGNW6eBlGBwfwHB3IDg8B29A3dQ==}
+    peerDependencies:
+      typedoc: '>=0.20 <1.0'
+    dependencies:
+      find-up: 5.0.0
+      typedoc: 0.19.2_typescript@4.5.5
     dev: true
 
   /@tootallnate/once/1.1.2:
@@ -3887,7 +3938,7 @@ packages:
   /@types/ioredis/4.27.6:
     resolution: {integrity: sha512-3FeeDlVQ2sdbvU436XnZzOiDMMgFbKfIsiUF2BnJnH7xxqCbJ1teJwfcu9fLwnfmV0qH2W1Vg3jFrtOehNIkMA==}
     dependencies:
-      '@types/node': 14.17.21
+      '@types/node': 16.11.10
     dev: true
 
   /@types/istanbul-lib-coverage/2.0.3:
@@ -3940,7 +3991,7 @@ packages:
   /@types/node-fetch/2.5.12:
     resolution: {integrity: sha512-MKgC4dlq4kKNa/mYrwpKfzQMB5X3ee5U6fSprkKpToBqBmX4nFZL9cW5jl6sWn+xpRJ7ypWh2yyqqr8UUCstSw==}
     dependencies:
-      '@types/node': 16.11.10
+      '@types/node': 16.11.21
       form-data: 3.0.1
     dev: true
 
@@ -3954,6 +4005,10 @@ packages:
 
   /@types/node/16.11.10:
     resolution: {integrity: sha512-3aRnHa1KlOEEhJ6+CvyHKK5vE9BcLGjtUpwvqYLRvYNQKMfabu3BwfJaA/SLW8dxe28LsNDjtHwePTuzn3gmOA==}
+
+  /@types/node/16.11.21:
+    resolution: {integrity: sha512-Pf8M1XD9i1ksZEcCP8vuSNwooJ/bZapNmIzpmsMaL+jMI+8mEYU3PKvs+xDNuQcJWF/x24WzY4qxLtB0zNow9A==}
+    dev: true
 
   /@types/normalize-package-data/2.4.1:
     resolution: {integrity: sha512-Gj7cI7z+98M282Tqmp2K5EIsoouUEzbBJhQQzDE3jSIRk6r9gsz0oUokqIUR4u1R3dMHo0pDHM7sNOHyhulypw==}
@@ -4024,7 +4079,7 @@ packages:
       '@types/yargs-parser': 20.2.1
     dev: true
 
-  /@typescript-eslint/eslint-plugin/5.9.1_bc7b3effd32c5cd8004ba22c71044964:
+  /@typescript-eslint/eslint-plugin/5.9.1_46ff1e3eeda39b5395c18b563a83af7a:
     resolution: {integrity: sha512-Xv9tkFlyD4MQGpJgTo6wqDqGvHIRmRgah/2Sjz1PUnJTawjHWIwBivUE9x0QtU2WVii9baYgavo/bHjrZJkqTw==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
@@ -4035,18 +4090,18 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@typescript-eslint/experimental-utils': 5.9.1_eslint@8.6.0+typescript@4.4.3
-      '@typescript-eslint/parser': 5.9.1_eslint@8.6.0+typescript@4.4.3
+      '@typescript-eslint/experimental-utils': 5.9.1_eslint@8.6.0+typescript@4.5.5
+      '@typescript-eslint/parser': 5.9.1_eslint@8.6.0+typescript@4.5.5
       '@typescript-eslint/scope-manager': 5.9.1
-      '@typescript-eslint/type-utils': 5.9.1_eslint@8.6.0+typescript@4.4.3
+      '@typescript-eslint/type-utils': 5.9.1_eslint@8.6.0+typescript@4.5.5
       debug: 4.3.2
       eslint: 8.6.0
       functional-red-black-tree: 1.0.1
       ignore: 5.1.8
       regexpp: 3.2.0
       semver: 7.3.5
-      tsutils: 3.21.0_typescript@4.4.3
-      typescript: 4.4.3
+      tsutils: 3.21.0_typescript@4.5.5
+      typescript: 4.5.5
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -4068,7 +4123,7 @@ packages:
       - typescript
     dev: true
 
-  /@typescript-eslint/experimental-utils/5.9.1_eslint@8.6.0+typescript@4.4.3:
+  /@typescript-eslint/experimental-utils/5.9.1_eslint@8.6.0+typescript@4.5.5:
     resolution: {integrity: sha512-cb1Njyss0mLL9kLXgS/eEY53SZQ9sT519wpX3i+U457l2UXRDuo87hgKfgRazmu9/tQb0x2sr3Y0yrU+Zz0y+w==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
@@ -4077,7 +4132,7 @@ packages:
       '@types/json-schema': 7.0.9
       '@typescript-eslint/scope-manager': 5.9.1
       '@typescript-eslint/types': 5.9.1
-      '@typescript-eslint/typescript-estree': 5.9.1_typescript@4.4.3
+      '@typescript-eslint/typescript-estree': 5.9.1_typescript@4.5.5
       eslint: 8.6.0
       eslint-scope: 5.1.1
       eslint-utils: 3.0.0_eslint@8.6.0
@@ -4107,7 +4162,7 @@ packages:
       - supports-color
     dev: true
 
-  /@typescript-eslint/parser/5.9.1_eslint@8.6.0+typescript@4.4.3:
+  /@typescript-eslint/parser/5.9.1_eslint@8.6.0+typescript@4.5.5:
     resolution: {integrity: sha512-PLYO0AmwD6s6n0ZQB5kqPgfvh73p0+VqopQQLuNfi7Lm0EpfKyDalchpVwkE+81k5HeiRrTV/9w1aNHzjD7C4g==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
@@ -4119,10 +4174,10 @@ packages:
     dependencies:
       '@typescript-eslint/scope-manager': 5.9.1
       '@typescript-eslint/types': 5.9.1
-      '@typescript-eslint/typescript-estree': 5.9.1_typescript@4.4.3
+      '@typescript-eslint/typescript-estree': 5.9.1_typescript@4.5.5
       debug: 4.3.2
       eslint: 8.6.0
-      typescript: 4.4.3
+      typescript: 4.5.5
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -4135,7 +4190,7 @@ packages:
       '@typescript-eslint/visitor-keys': 5.9.1
     dev: true
 
-  /@typescript-eslint/type-utils/5.9.1_eslint@8.6.0+typescript@4.4.3:
+  /@typescript-eslint/type-utils/5.9.1_eslint@8.6.0+typescript@4.5.5:
     resolution: {integrity: sha512-tRSpdBnPRssjlUh35rE9ug5HrUvaB9ntREy7gPXXKwmIx61TNN7+l5YKgi1hMKxo5NvqZCfYhA5FvyuJG6X6vg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
@@ -4145,11 +4200,11 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@typescript-eslint/experimental-utils': 5.9.1_eslint@8.6.0+typescript@4.4.3
+      '@typescript-eslint/experimental-utils': 5.9.1_eslint@8.6.0+typescript@4.5.5
       debug: 4.3.2
       eslint: 8.6.0
-      tsutils: 3.21.0_typescript@4.4.3
-      typescript: 4.4.3
+      tsutils: 3.21.0_typescript@4.5.5
+      typescript: 4.5.5
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -4186,7 +4241,7 @@ packages:
       - supports-color
     dev: true
 
-  /@typescript-eslint/typescript-estree/5.9.1_typescript@4.4.3:
+  /@typescript-eslint/typescript-estree/5.9.1_typescript@4.5.5:
     resolution: {integrity: sha512-gL1sP6A/KG0HwrahVXI9fZyeVTxEYV//6PmcOn1tD0rw8VhUWYeZeuWHwwhnewnvEMcHjhnJLOBhA9rK4vmb8A==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
@@ -4201,8 +4256,8 @@ packages:
       globby: 11.0.4
       is-glob: 4.0.3
       semver: 7.3.5
-      tsutils: 3.21.0_typescript@4.4.3
-      typescript: 4.4.3
+      tsutils: 3.21.0_typescript@4.5.5
+      typescript: 4.5.5
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -4501,6 +4556,11 @@ packages:
 
   /asynckit/0.4.0:
     resolution: {integrity: sha1-x57Zf380y48robyXkLzDZkdLS3k=}
+
+  /at-least-node/1.0.0:
+    resolution: {integrity: sha512-+q/t7Ekv1EDY2l6Gda6LLiX14rU9TV20Wa3ofeQmwPFZbOMo9DXrLbOjFaaclkXKWidIaopwAObQDqwWtGUjqg==}
+    engines: {node: '>= 4.0.0'}
+    dev: true
 
   /atob/2.1.2:
     resolution: {integrity: sha512-Wm6ukoaOGJi/73p/cl2GvLjTI5JM1k/O14isD73YML8StrH/7/lRFgmg8nICZgD3bZZvjwCGxtMOD3wWNAu8cg==}
@@ -6271,6 +6331,16 @@ packages:
       tslib: 2.3.1
     dev: false
 
+  /fs-extra/9.1.0:
+    resolution: {integrity: sha512-hcg3ZmepS30/7BSFqRvoo3DOMQu7IjqxO5nCDt+zM9XWjb33Wg7ziNT+Qvqbuc3+gWpzO02JubVyk2G4Zvo1OQ==}
+    engines: {node: '>=10'}
+    dependencies:
+      at-least-node: 1.0.0
+      graceful-fs: 4.2.8
+      jsonfile: 6.1.0
+      universalify: 2.0.0
+    dev: true
+
   /fs-minipass/2.1.0:
     resolution: {integrity: sha512-V/JgOLFCS+R6Vcq0slCuaeWEdNC3ouDlJMNIsacH2VtALiu9mV4LPrHc5cDl8k5aw6J8jwgWWpiTo5RYhmIzvg==}
     engines: {node: '>= 8'}
@@ -6437,6 +6507,19 @@ packages:
     dev: true
     optional: true
 
+  /handlebars/4.7.7:
+    resolution: {integrity: sha512-aAcXm5OAfE/8IXkcZvCepKU3VzW1/39Fb5ZuqMtgI/hT8X2YgoMvBY5dLhq/cpOvw7Lk1nK/UF71aLG/ZnVYRA==}
+    engines: {node: '>=0.4.7'}
+    hasBin: true
+    dependencies:
+      minimist: 1.2.5
+      neo-async: 2.6.2
+      source-map: 0.6.1
+      wordwrap: 1.0.0
+    optionalDependencies:
+      uglify-js: 3.15.0
+    dev: true
+
   /has-ansi/2.0.0:
     resolution: {integrity: sha1-NPUEnOHs3ysGSa8+8k5F7TVBbZE=}
     engines: {node: '>=0.10.0'}
@@ -6535,6 +6618,10 @@ packages:
   /hey-listen/1.0.8:
     resolution: {integrity: sha512-COpmrF2NOg4TBWUJ5UVyaCU2A88wEMkUPK4hNqyCkqHbxT92BbvfjoSozkAIIm6XhicGlJHhFdullInrdhwU8Q==}
     dev: false
+
+  /highlight.js/10.7.3:
+    resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
+    dev: true
 
   /hmac-drbg/1.0.1:
     resolution: {integrity: sha1-0nRXAQJabHdabFRXk+1QL8DGSaE=}
@@ -6709,6 +6796,11 @@ packages:
       get-intrinsic: 1.1.1
       has: 1.0.3
       side-channel: 1.0.4
+
+  /interpret/1.4.0:
+    resolution: {integrity: sha512-agE4QfB2Lkp9uICn7BAqoscw4SZP9kTE2hxiFI3jBPmXJfdqiahTbUuKGsMoN2GtqL9AxhYioAcVvgsb1HvRbA==}
+    engines: {node: '>= 0.10'}
+    dev: true
 
   /invariant/2.2.4:
     resolution: {integrity: sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA==}
@@ -7622,6 +7714,14 @@ packages:
       minimist: 1.2.5
     dev: true
 
+  /jsonfile/6.1.0:
+    resolution: {integrity: sha512-5dgndWOriYSm5cnYaJNhalLNDKOqFwyDB/rr1E9ZsGciGvKPs8R2xYGCacuf3z6K1YKDz182fd+fY3cn3pMqXQ==}
+    dependencies:
+      universalify: 2.0.0
+    optionalDependencies:
+      graceful-fs: 4.2.8
+    dev: true
+
   /jsonwebtoken/8.5.1:
     resolution: {integrity: sha512-XjwVfRS6jTMsqYs0EsuJ4LGxXV14zQybNd4L2r0UvbVnSF9Af8x7p5MzbJ90Ioz/9TI41/hTCvznF/loiSzn8w==}
     engines: {node: '>=4', npm: '>=1.4.28'}
@@ -7895,6 +7995,10 @@ packages:
     dependencies:
       yallist: 4.0.0
 
+  /lunr/2.3.9:
+    resolution: {integrity: sha512-zTU3DaZaF3Rt9rhN3uBMGQD3dD2/vFQqnvZCDv4dl5iOzq2IZQqTxu90r4E5J+nP70J3ilqVCrbho2eWaeW8Ow==}
+    dev: true
+
   /make-dir/3.1.0:
     resolution: {integrity: sha512-g3FeP20LNwhALb/6Cz6Dd4F2ngze0jz7tbzrD2wAV+o9FeNHe4rL+yK2md0J/fiSf1sa1ADhXqi5+oVwOM/eGw==}
     engines: {node: '>=8'}
@@ -7917,6 +8021,12 @@ packages:
     engines: {node: '>=0.10.0'}
     dependencies:
       object-visit: 1.0.1
+    dev: true
+
+  /marked/1.2.9:
+    resolution: {integrity: sha512-H8lIX2SvyitGX+TRdtS06m1jHMijKN/XjfH6Ooii9fvxMlh8QdqBfBDkGUpMWH2kQNrtixjzYUa3SH8ROTgRRw==}
+    engines: {node: '>= 8.16.2'}
+    hasBin: true
     dev: true
 
   /match-sorter/6.3.1:
@@ -8097,6 +8207,10 @@ packages:
 
   /natural-compare/1.4.0:
     resolution: {integrity: sha1-Sr6/7tdUHywnrPspvbvRXI1bpPc=}
+    dev: true
+
+  /neo-async/2.6.2:
+    resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
     dev: true
 
   /next/12.0.4_bdb45b6be7e115fb997f8b05d5433240:
@@ -8683,7 +8797,6 @@ packages:
     dependencies:
       '@polka/url': 1.0.0-next.21
       trouter: 3.2.0
-    dev: false
 
   /popmotion/11.0.0:
     resolution: {integrity: sha512-kJDyaG00TtcANP5JZ51od+DCqopxBm2a/Txh3Usu23L9qntjY5wumvcVf578N8qXEHR1a+jx9XCv8zOntdYalQ==}
@@ -9058,6 +9171,13 @@ packages:
       picomatch: 2.3.0
     dev: false
 
+  /rechoir/0.6.2:
+    resolution: {integrity: sha1-hSBLVNuoLVdC4oyWdW70OvUOM4Q=}
+    engines: {node: '>= 0.10'}
+    dependencies:
+      resolve: 1.20.0
+    dev: true
+
   /redis-commands/1.7.0:
     resolution: {integrity: sha512-nJWqw3bTFy21hX/CPKHth6sfhZbdiHP6bTawSgQBlKOVRG7EZkfHbbHwQJnrE4vsQf0CMNE+3gJ4Fmm16vdVlQ==}
     dev: false
@@ -9121,7 +9241,6 @@ packages:
   /regexparam/1.3.0:
     resolution: {integrity: sha512-6IQpFBv6e5vz1QAqI+V4k8P2e/3gRrqfCJ9FI+O1FLQTO+Uz6RXZEZOPmTJ6hlGj7gkERzY5BRCv09whKP96/g==}
     engines: {node: '>=6'}
-    dev: false
 
   /regexpp/3.2.0:
     resolution: {integrity: sha512-pq2bWo9mVD43nbts2wGv17XLiNLya+GklZ8kaDLV2Z08gDCsGpnKn9BFMepvWuHCbyVvY7J5o5+BVvoQbmlJLg==}
@@ -9429,6 +9548,16 @@ packages:
   /shell-quote/1.7.3:
     resolution: {integrity: sha512-Vpfqwm4EnqGdlsBFNmHhxhElJYrdfcxPThu+ryKS5J8L/fhAwLazFZtq+S+TWZ9ANj2piSQLGj6NQg+lKPmxrw==}
     dev: false
+
+  /shelljs/0.8.5:
+    resolution: {integrity: sha512-TiwcRcrkhHvbrZbnRcFYMLl30Dfov3HKqzp5tO5b4pt6G/SezKcYhmDg15zXVBswHmctSAQKznqNW2LO5tTDow==}
+    engines: {node: '>=4'}
+    hasBin: true
+    dependencies:
+      glob: 7.2.0
+      interpret: 1.4.0
+      rechoir: 0.6.2
+    dev: true
 
   /shellwords/0.1.1:
     resolution: {integrity: sha512-vFwSUfQvqybiICwZY5+DAWIPLKsWO31Q91JSKl3UYv+K5c2QRPzn0qzec6QPu1Qc9eHYItiP3NdJqNVqetYAww==}
@@ -9984,7 +10113,6 @@ packages:
     engines: {node: '>=6'}
     dependencies:
       regexparam: 1.3.0
-    dev: false
 
   /tslib/1.14.1:
     resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
@@ -10002,14 +10130,14 @@ packages:
       typescript: 3.9.10
     dev: true
 
-  /tsutils/3.21.0_typescript@4.4.3:
+  /tsutils/3.21.0_typescript@4.5.5:
     resolution: {integrity: sha512-mHKK3iUXL+3UF6xL5k0PEhKRUBKPBCv/+RkEOpjRWxxx27KKRBmmA60A9pgOUvMi8GKhRMPEmjBRPzs2W7O1OA==}
     engines: {node: '>= 6'}
     peerDependencies:
       typescript: '>=2.8.0 || >= 3.2.0-dev || >= 3.3.0-dev || >= 3.4.0-dev || >= 3.5.0-dev || >= 3.6.0-dev || >= 3.6.0-beta || >= 3.7.0-dev || >= 3.7.0-beta'
     dependencies:
       tslib: 1.14.1
-      typescript: 4.4.3
+      typescript: 4.5.5
     dev: true
 
   /tsyringe/4.6.0:
@@ -10077,23 +10205,51 @@ packages:
       is-typedarray: 1.0.0
     dev: true
 
+  /typedoc-default-themes/0.11.4:
+    resolution: {integrity: sha512-Y4Lf+qIb9NTydrexlazAM46SSLrmrQRqWiD52593g53SsmUFioAsMWt8m834J6qsp+7wHRjxCXSZeiiW5cMUdw==}
+    engines: {node: '>= 8'}
+    dev: true
+
+  /typedoc/0.19.2_typescript@4.5.5:
+    resolution: {integrity: sha512-oDEg1BLEzi1qvgdQXc658EYgJ5qJLVSeZ0hQ57Eq4JXy6Vj2VX4RVo18qYxRWz75ifAaYuYNBUCnbhjd37TfOg==}
+    engines: {node: '>= 10.0.0'}
+    hasBin: true
+    peerDependencies:
+      typescript: 3.9.x || 4.0.x
+    dependencies:
+      fs-extra: 9.1.0
+      handlebars: 4.7.7
+      highlight.js: 10.7.3
+      lodash: 4.17.21
+      lunr: 2.3.9
+      marked: 1.2.9
+      minimatch: 3.0.4
+      progress: 2.0.3
+      semver: 7.3.5
+      shelljs: 0.8.5
+      typedoc-default-themes: 0.11.4
+      typescript: 4.5.5
+    dev: true
+
   /typescript/3.9.10:
     resolution: {integrity: sha512-w6fIxVE/H1PkLKcCPsFqKE7Kv7QUwhU8qQY2MueZXWx5cPZdwFupLgKK3vntcK98BtNHZtAF4LA/yl2a7k8R6Q==}
     engines: {node: '>=4.2.0'}
     hasBin: true
     dev: true
 
-  /typescript/4.4.3:
-    resolution: {integrity: sha512-4xfscpisVgqqDfPaJo5vkd+Qd/ItkoagnHpufr+i2QCHBsNYp+G7UAoyFl8aPtx879u38wPV65rZ8qbGZijalA==}
+  /typescript/4.5.5:
+    resolution: {integrity: sha512-TCTIul70LyWe6IJWT8QSYeA54WQe8EjQFU4wY52Fasj5UKx88LNYKCgBEHcOMOrFF1rKGbD8v/xcNWVUq9SymA==}
     engines: {node: '>=4.2.0'}
     hasBin: true
     dev: true
 
-  /typescript/4.5.2:
-    resolution: {integrity: sha512-5BlMof9H1yGt0P8/WF+wPNw6GfctgGjXp5hkblpyT+8rkASSmkUKMXrxR0Xg8ThVCi/JnHQiKXeBaEwCeQwMFw==}
-    engines: {node: '>=4.2.0'}
+  /uglify-js/3.15.0:
+    resolution: {integrity: sha512-x+xdeDWq7FiORDvyIJ0q/waWd4PhjBNOm5dQUOq2AKC0IEjxOS66Ha9tctiVDGcRQuh69K7fgU5oRuTK4cysSg==}
+    engines: {node: '>=0.8.0'}
     hasBin: true
+    requiresBuild: true
     dev: true
+    optional: true
 
   /unbox-primitive/1.0.1:
     resolution: {integrity: sha512-tZU/3NqK3dA5gpE1KtyiJUrEB0lxnGkMFHptJ7q6ewdZ8s12QrODwNbhIJStmJkd1QDXa1NRA8aF2A1zk/Ypyw==}
@@ -10146,6 +10302,11 @@ packages:
   /universalify/0.1.2:
     resolution: {integrity: sha512-rBJeI5CXAlmy1pV+617WB9J63U6XcazHHF2f2dbJix4XzpUF0RS3Zbj0FGIOCAva5P/d/GBOYaACQ1w+0azUkg==}
     engines: {node: '>= 4.0.0'}
+    dev: true
+
+  /universalify/2.0.0:
+    resolution: {integrity: sha512-hAZsKq7Yy11Zu1DE0OzWjw7nnLZmJZYTDZZyEFHZdUhV8FkH5MCfoU1XMaxXovpyW5nq5scPqq0ZDP9Zyl04oQ==}
+    engines: {node: '>= 10.0.0'}
     dev: true
 
   /unload/2.2.0:
@@ -10429,6 +10590,10 @@ packages:
   /word-wrap/1.2.3:
     resolution: {integrity: sha512-Hz/mrNwitNRh/HUAtM/VT/5VH+ygD6DV7mYKZAtHOrbs8U7lvPS6xf7EJKMF0uW1KJCl0H701g3ZGus+muE5vQ==}
     engines: {node: '>=0.10.0'}
+    dev: true
+
+  /wordwrap/1.0.0:
+    resolution: {integrity: sha1-J1hIEIkUVqQXHI0CJkQa3pDLyus=}
     dev: true
 
   /wrap-ansi/6.2.0:
