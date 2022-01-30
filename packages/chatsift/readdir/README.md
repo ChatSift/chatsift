@@ -1,18 +1,20 @@
-# `@chatsift/readdir`  
+# `@chatsift/readdir`
 
-[![GitHub](https://img.shields.io/badge/License-GNU%20AGPLv3-yellow.svg)](https://github.com/ChatSift/packages/blob/main/LICENSE)
+[![GitHub](https://img.shields.io/badge/License-GNU%20AGPLv3-yellow.svg)](https://github.com/ChatSift/automoderator/blob/main/LICENSE)
 [![npm](https://img.shields.io/npm/v/@chatsift/readdir?color=crimson&logo=npm)](https://www.npmjs.com/package/@chatsift/readdir)
-[![TypeScript](https://github.com/ChatSift/packages/actions/workflows/quality.yml/badge.svg)](https://github.com/ChatSift/packages/actions/workflows/quality.yml)
+[![TypeScript](https://github.com/ChatSift/automoderator/actions/workflows/quality.yml/badge.svg)](https://github.com/ChatSift/automoderator/actions/workflows/quality.yml)
 
 Fast, stream based recursive version of fs.readdir
 
 ## Installation
-- `npm install @chatsift/readdir` 
-- `pnpm install @chatsift/readdir` 
+
+- `npm install @chatsift/readdir`
+- `pnpm install @chatsift/readdir`
 - `yarn add @chatsift/readdir`
 
 ## Contributing
-Please see the main [README.md](https://github.com/ChatSift/packages) for info on how to contribute to this package or the other `@chatsift` packages.
+
+Please see the main [README.md](https://github.com/ChatSift/automoderator) for info on how to contribute to this package or the other `@chatsift` packages.
 
 ## LICENSE
 
