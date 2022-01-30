@@ -1,0 +1,37 @@
+{
+	"$schema": "http://json.schemastore.org/package",
+	"name": "@automoderator/logger",
+	"description": "Magic server-side logging",
+	"main": "./dist/index.js",
+	"types": "./types/index.d.ts",
+	"version": "0.1.0",
+	"scripts": {
+		"lint": "eslint src --ext .ts",
+		"build": "tsc"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/didinele/AutoModerator.git"
+	},
+	"author": "didinele",
+	"bugs": {
+		"url": "https://github.com/didinele/AutoModerator/issues"
+	},
+	"homepage": "https://github.com/didinele/AutoModerator#readme",
+	"devDependencies": {
+		"@types/node": "^16.10.3",
+		"@types/pino": "^6.3.11",
+		"@types/pino-multi-stream": "^5.1.2",
+		"typescript": "^4.5.5"
+	},
+	"dependencies": {
+		"@automoderator/injection": "workspace:^0.1.0",
+		"@elastic/ecs-pino-format": "^1.3.0",
+		"pino": "^6.13.3",
+		"pino-elasticsearch": "^6.2.0",
+		"pino-multi-stream": "^5.3.0",
+		"pino-pretty": "^5.1.3",
+		"tslib": "^2.3.1",
+		"tsyringe": "^4.6.0"
+	}
+}

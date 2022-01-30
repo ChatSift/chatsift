@@ -5,12 +5,13 @@
 	"description": "Something cool",
 	"type": "module",
 	"scripts": {
-		"build": "pnpm recursive run build --filter @automoderator/*",
-		"lint": "pnpm recursive run lint --filter @automoderator/*",
-		"lint:ci": "pnpm lint --parallel --filter @automoderator/*",
+		"build": "pnpm recursive run build --filter @automoderator/* --filter @chatsift/*",
+		"lint": "pnpm recursive run lint --filter @automoderator/* --filter @chatsift/*",
+		"lint:ci": "pnpm lint --parallel --filter @automoderator/* --filter @chatsift/*",
 		"test": "jest",
 		"test:ci": "jest --ci --no-stack-trace --verbose",
-		"migrate": "ley"
+		"migrate": "ley",
+		"docs": "typedoc"
 	},
 	"repository": {
 		"type": "git",
@@ -28,6 +29,7 @@
 		"@babel/preset-env": "^7.16.4",
 		"@babel/preset-typescript": "^7.16.0",
 		"@cordis/rest": "^2.0.0-next.2405c88.1643469558",
+		"@strictsoftware/typedoc-plugin-monorepo": "^0.4.2",
 		"@types/jest": "^26.0.24",
 		"@typescript-eslint/eslint-plugin": "^5.9.0",
 		"@typescript-eslint/parser": "^5.9.0",
@@ -46,7 +48,8 @@
 		"prettier": "^2.5.1",
 		"prettier-eslint": "^13.0.0",
 		"rimraf": "^3.0.2",
-		"typescript": "^4.4.3"
+		"typedoc": "0.19.2",
+		"typescript": "^4.5.5"
 	},
 	"husky": {
 		"hooks": {

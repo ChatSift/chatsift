@@ -22,7 +22,7 @@
 		"@types/amqplib": "^0.8.2",
 		"@types/node": "^16.10.3",
 		"@types/pino": "^6.3.11",
-		"typescript": "^4.4.3"
+		"typescript": "^4.5.5"
 	},
 	"dependencies": {
 		"@automoderator/banword-flags": "workspace:^0.1.0",
@@ -30,7 +30,7 @@
 		"@automoderator/injection": "workspace:^0.1.0",
 		"@automoderator/logger": "workspace:^0.1.0",
 		"@automoderator/util": "workspace:^0.1.0",
-		"@chatsift/discord-utils": "^0.1.0",
+		"@chatsift/discord-utils": "workspace:^0.1.0",
 		"@cordis/brokers": "^1.2.0",
 		"@cordis/rest": "^2.0.0-next.2405c88.1643469558",
 		"@cordis/util": "^1.2.0",
