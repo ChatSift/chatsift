@@ -15,11 +15,13 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { logRequests } from './middleware';
 import { TokenManager } from './util';
+import { PrismaClient } from '@prisma/client';
 
 void (async () => {
 	const config = initConfig();
 	const logger = createLogger('api');
 
+	container.register(PrismaClient, { useValue: new PrismaClient() });
 	container.register(kLogger, { useValue: logger });
 	container.register(kSql, {
 		useValue: postgres(config.dbUrl, {

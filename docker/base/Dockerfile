@@ -10,27 +10,40 @@ RUN apk add --update \
 RUN curl -L https://unpkg.com/@pnpm/self-installer | node
 
 COPY package.json pnpm-workspace.yaml tsconfig.json pnpm-lock.yaml ./
+COPY prisma ./prisma
 
 RUN pnpm i --frozen-lockfile
 
-COPY libs/banword-flags/package.json ./libs/banword-flags/package.json
-COPY libs/cache/package.json ./libs/cache/package.json
-COPY libs/core/package.json ./libs/core/package.json
-COPY libs/discord-permissions/package.json ./libs/discord-permissions/package.json
-COPY libs/filter-ignores/package.json ./libs/filter-ignores/package.json
-COPY libs/injection/package.json ./libs/injection/package.json
-COPY libs/logger/package.json ./libs/logger/package.json
-COPY libs/util/package.json ./libs/util/package.json
+COPY packages/automoderator/banword-flags/package.json ./packages/automoderator/banword-flags/package.json
+COPY packages/automoderator/cache/package.json ./packages/automoderator/cache/package.json
+COPY packages/automoderator/core/package.json ./packages/automoderator/core/package.json
+COPY packages/automoderator/discord-permissions/package.json ./packages/automoderator/discord-permissions/package.json
+COPY packages/automoderator/filter-ignores/package.json ./packages/automoderator/filter-ignores/package.json
+COPY packages/automoderator/injection/package.json ./packages/automoderator/injection/package.json
+COPY packages/automoderator/logger/package.json ./packages/automoderator/logger/package.json
+COPY packages/automoderator/util/package.json ./packages/automoderator/util/package.json
+
+COPY packages/chatsift/api-wrapper/package.json ./packages/chatsift/api-wrapper/package.json
+COPY packages/chatsift/discord-utils/package.json ./packages/chatsift/discord-utils/package.json
+COPY packages/chatsift/readdir/package.json ./packages/chatsift/readdir/package.json
+COPY packages/chatsift/rest-utils/package.json ./packages/chatsift/rest-utils/package.json
+COPY packages/chatsift/utils/package.json ./packages/chatsift/utils/package.json
 
 RUN pnpm i --frozen-lockfile && apk del .build-deps
 
-COPY libs/banword-flags ./libs/banword-flags
-COPY libs/cache ./libs/cache
-COPY libs/core ./libs/core
-COPY libs/discord-permissions ./libs/discord-permissions
-COPY libs/filter-ignores ./libs/filter-ignores
-COPY libs/injection ./libs/injection
-COPY libs/logger ./libs/logger
-COPY libs/util ./libs/util
+COPY packages/automoderator/banword-flags ./packages/automoderator/banword-flags
+COPY packages/automoderator/cache ./packages/automoderator/cache
+COPY packages/automoderator/core ./packages/automoderator/core
+COPY packages/automoderator/discord-permissions ./packages/automoderator/discord-permissions
+COPY packages/automoderator/filter-ignores ./packages/automoderator/filter-ignores
+COPY packages/automoderator/injection ./packages/automoderator/injection
+COPY packages/automoderator/logger ./packages/automoderator/logger
+COPY packages/automoderator/util ./packages/automoderator/util
+
+COPY packages/chatsift/api-wrapper ./packages/chatsift/api-wrapper
+COPY packages/chatsift/discord-utils ./packages/chatsift/discord-utils
+COPY packages/chatsift/readdir ./packages/chatsift/readdir
+COPY packages/chatsift/rest-utils ./packages/chatsift/rest-utils
+COPY packages/chatsift/utils ./packages/chatsift/utils
 
 RUN pnpm run build

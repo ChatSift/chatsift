@@ -11,13 +11,13 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/ChatSift/packages.git"
+		"url": "git+https://github.com/ChatSift/automoderator.git"
 	},
 	"author": "didinele",
 	"bugs": {
-		"url": "https://github.com/ChatSift/packages/issues"
+		"url": "https://github.com/ChatSift/automoderator/issues"
 	},
-	"homepage": "https://github.com/ChatSift/packages#readme",
+	"homepage": "https://github.com/ChatSift/automoderator#readme",
 	"devDependencies": {
 		"@types/cookie": "^0.4.1",
 		"@types/node": "^16.11.19",

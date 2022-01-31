@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DB_URL")
+}
+
+model app_guilds {
+  app_id   Int
+  guild_id BigInt
+  apps     apps   @relation(fields: [app_id], references: [app_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([app_id, guild_id])
+}
+
+model apps {
+  app_id     Int          @id @default(autoincrement())
+  name       String       @db.VarChar(32)
+  perms      BigInt       @default(0)
+  app_guilds app_guilds[]
+}
+
+model automod_punishments {
+  guild_id    BigInt
+  triggers    Int
+  action_type Int
+  duration    Int?
+
+  @@id([guild_id, triggers])
+}
+
+model automod_triggers {
+  guild_id   BigInt
+  user_id    BigInt
+  count      Int
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([guild_id, user_id])
+}
+
+model cases {
+  id             Int            @id @default(autoincrement())
+  guild_id       BigInt
+  log_message_id BigInt?
+  case_id        Int
+  ref_id         Int?
+  target_id      BigInt
+  target_tag     String
+  mod_id         BigInt?
+  mod_tag        String?
+  action_type    Int
+  reason         String?
+  expires_at     DateTime?      @db.Timestamptz(6)
+  processed      Boolean        @default(true)
+  pardoned_by    BigInt?
+  created_at     DateTime       @default(now()) @db.Timestamptz(6)
+  unmute_roles   unmute_roles[]
+}
+
+model guild_settings {
+  guild_id                   BigInt  @id
+  mod_role                   BigInt?
+  admin_role                 BigInt?
+  mute_role                  BigInt?
+  auto_pardon_warns_after    Int?
+  use_url_filters            Boolean @default(false)
+  use_global_filters         Boolean @default(false)
+  use_file_filters           Boolean @default(false)
+  use_invite_filters         Boolean @default(false)
+  mod_action_log_channel     BigInt?
+  filter_trigger_log_channel BigInt?
+  user_update_log_channel    BigInt?
+  message_update_log_channel BigInt?
+  min_join_age               Int?
+  no_blank_avatar            Boolean @default(false)
+  reports_channel            BigInt?
+  antispam_amount            Int?
+  antispam_time              Int?
+  mention_limit              Int?
+  mention_amount             Int?
+  mention_time               Int?
+  automod_cooldown           Int?
+  hentai_threshold           Int?
+  porn_threshold             Int?
+  sexy_threshold             Int?
+}
+
+model self_assignable_roles {
+  id                            Int                           @unique @default(autoincrement())
+  role_id                       BigInt                        @id
+  prompt_id                     Int
+  guild_id                      BigInt
+  emoji_id                      BigInt?
+  emoji_name                    String?
+  emoji_animated                Boolean?
+  self_assignable_roles_prompts self_assignable_roles_prompts @relation(fields: [prompt_id], references: [prompt_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model self_assignable_roles_prompts {
+  prompt_id             Int                     @id @default(autoincrement())
+  embed_title           String
+  embed_description     String?
+  embed_color           Int
+  embed_image           String?
+  guild_id              BigInt
+  channel_id            BigInt
+  message_id            BigInt
+  use_buttons           Boolean                 @default(false)
+  self_assignable_roles self_assignable_roles[]
+}
+
+model unmute_roles {
+  case_id Int
+  role_id BigInt
+  cases   cases  @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([case_id, role_id])
+}
+
+model users {
+  user_id BigInt @id
+  perms   BigInt @default(0)
+}
+
+model warn_punishments {
+  guild_id    BigInt
+  warns       Int
+  action_type Int
+  duration    Int?
+
+  @@id([guild_id, warns])
+}
+
+model webhook_tokens {
+  channel_id    BigInt @id
+  webhook_id    BigInt
+  webhook_token String
+}

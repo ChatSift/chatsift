@@ -147,7 +147,8 @@ CREATE TABLE IF NOT EXISTS cases (
 
 CREATE TABLE IF NOT EXISTS unmute_roles (
   case_id int REFERENCES cases(id) ON DELETE CASCADE,
-  role_id bigint NOT NULL
+  role_id bigint NOT NULL,
+  PRIMARY KEY (case_id, role_id)
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -163,12 +164,13 @@ CREATE TABLE IF NOT EXISTS apps (
 
 CREATE TABLE IF NOT EXISTS app_guilds (
   app_id int NOT NULL REFERENCES apps ON DELETE CASCADE,
-  guild_id bigint NOT NULL
+  guild_id bigint NOT NULL,
+  PRIMARY KEY (app_id, guild_id)
 );
 
 CREATE TABLE IF NOT EXISTS sigs (
+  sig PRIMARY KEY NOT NULL,
   app_id int NOT NULL REFERENCES apps ON DELETE CASCADE,
-  sig text NOT NULL,
   last_used_at timestamptz NOT NULL DEFAULT NOW()
 );
 

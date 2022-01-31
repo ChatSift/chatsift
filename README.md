@@ -1,16 +1,14 @@
 <div align="center">
   <h3>
-    Solid <a href="https://discord.com/">Discord</a> moderation bot
-  </h3>
-  <h3>
-    Insert logo above, maybe
+    Full stack for the main ChatSift projects
   </h3>
 
   <p align="center">
-    <br />
     <h3>
       <strong>
-        <a href="https://example.com/">Website and docs here</a>
+        <a href="https://automoderator.app/">Website</a>
+        <a>-</a>
+        <a href="https://blog.automoderator.app/">Blog</a>
       </strong>
     </h2>
   </p>
@@ -22,6 +20,12 @@
       <a href="https://github.com/didinele/AutoModerator/pulls"><img src="https://img.shields.io/github/issues-pr/didinele/AutoModerator.svg?style=flat" alt="GitHub pull requests"></a><br>
   </p>
 </div>
+
+# About the repo
+
+This repository is pending a re-name to `stack` and more documentation as some internal changes are made.
+
+Until then, as a brief explanation, this is a monorepo for almost _everything_ ChatSift. This includes all of our public libraries, available on NPM, which you can locate in `packages/chatsift`, AutoModerator specific libraries, available in `packages/automoderator`, and all of the microservices that build up our API and products.
 
 # LICENSING
 
