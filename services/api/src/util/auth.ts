@@ -17,7 +17,7 @@ export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler
 	const form = new URLSearchParams({
 		client_id: config.discordClientId,
 		client_secret: config.discordClientSecret,
-		redirect_uri: `${config.apiDomain}/api/v1/auth/discord/callback`,
+		redirect_uri: `${config.apiDomain}/api/v2/auth/discord/callback`,
 		scope: config.discordScopes,
 	});
 
