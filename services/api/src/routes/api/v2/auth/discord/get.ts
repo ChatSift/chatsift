@@ -9,7 +9,7 @@ import { GetAuthDiscordQuerySchema, GetAuthDiscordQuery } from '@chatsift/api-wr
 
 @injectable()
 export default class extends Route {
-	public override readonly middleware = [validate(GetAuthDiscordQuerySchema), userAuth(true)];
+	public override readonly middleware = [validate(GetAuthDiscordQuerySchema, 'query'), userAuth(true)];
 
 	public constructor(@inject(kConfig) public readonly config: Config) {
 		super();

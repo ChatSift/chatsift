@@ -6,7 +6,7 @@ services:
       NODE_ENV: 'dev'
       CORS: 'http://localhost:4000'
       ROOT_DOMAIN: 'http://localhost'
-      API_DOMAIN: 'http://localhost:3000'
+      API_DOMAIN: 'http://localhost:3001'
     ports:
       - '127.0.0.1:3001:3001'
 
