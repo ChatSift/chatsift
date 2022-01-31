@@ -10,7 +10,9 @@ export default class extends Route {
 		super();
 	}
 
-	public handle(_: Request, res: Response) {
+	public async handle(_: Request, res: Response) {
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+
 		res.redirect(`${this.config.apiDomain}/api/v2/auth/ghost/callback`);
 		return res.end();
 	}
