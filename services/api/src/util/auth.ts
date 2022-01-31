@@ -10,14 +10,15 @@ import { container } from 'tsyringe';
 import cookie from 'cookie';
 import { URLSearchParams } from 'url';
 
-export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler) => {
+export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler, redirectUri: string) => {
 	const config = container.resolve<Config>(kConfig);
 	const logger = container.resolve<Logger>(kLogger);
 
 	const form = new URLSearchParams({
 		client_id: config.discordClientId,
 		client_secret: config.discordClientSecret,
-		redirect_uri: `${config.apiDomain}/api/v2/auth/discord/callback`,
+		redirect_uri: redirectUri,
+		// redirect_uri: `${config.apiDomain}/api/v2/auth/discord/callback`,
 		scope: config.discordScopes,
 	});
 
@@ -50,7 +51,6 @@ export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler
 		logger.warn(
 			{
 				data: oauthResponse,
-				userId: req.user!.id,
 			},
 			'Recieved weird discord data',
 		);

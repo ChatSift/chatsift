@@ -35,7 +35,7 @@ export default class extends Route {
 			return res.end();
 		}
 
-		const response = await discordOAuth2(req, res, next);
+		const response = await discordOAuth2(req, res, next, `${this.config.apiDomain}/api/v2/auth/discord/callback`);
 		if (!response) {
 			return;
 		}

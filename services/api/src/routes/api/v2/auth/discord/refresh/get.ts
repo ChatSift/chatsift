@@ -17,13 +17,13 @@ export default class extends Route {
 
 	public async handle(req: Request, res: Response, next: NextHandler): Promise<void> {
 		const cookies = cookie.parse(req.headers.cookie ?? '');
-		const token = cookies.refresh_token ?? (req.body as GetAuthDiscordRefreshBody | undefined)?.refresh_token;
+		const token = cookies.refresh_token ?? (req.body as GetAuthDiscordRefreshBody)?.refresh_token;
 
 		if (!token) {
 			return next(unauthorized('missing refresh token'));
 		}
 
-		const response = await discordOAuth2(req, res, next);
+		const response = await discordOAuth2(req, res, next, `${this.config.apiDomain}/api/v2/auth/discord/callback`);
 		if (!response) {
 			return;
 		}
