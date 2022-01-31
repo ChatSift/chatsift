@@ -18,7 +18,6 @@
 		"url": "https://github.com/didinele/AutoModerator/issues"
 	},
 	"imports": {
-		"#controllers": "./dist/controllers/index.js",
 		"#middleware": "./dist/middleware/index.js",
 		"#util": "./dist/util/index.js"
 	},
