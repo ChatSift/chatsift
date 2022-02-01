@@ -1,31 +1,32 @@
 import { makeDiscordCdnUrl } from '@cordis/util';
 import { APIEmbed, APIMessage, APIUser, RouteBases, Snowflake } from 'discord-api-types/v9';
 import { addFields } from '@chatsift/discord-utils';
-import { NonWarnCase, WarnCase, Case, CaseAction, ms } from '@automoderator/core';
+import type { Case } from '@prisma/client';
+import ms from '@naval-base/ms';
 
 export const LOG_COLORS = Object.freeze({
-	[CaseAction.warn]: 16022395,
-	[CaseAction.mute]: 16022395,
-	[CaseAction.unmute]: 5793266,
-	[CaseAction.kick]: 16022395,
-	[CaseAction.softban]: 16022395,
-	[CaseAction.ban]: 15747144,
-	[CaseAction.unban]: 5793266,
+	warn: 16022395,
+	mute: 16022395,
+	unmute: 5793266,
+	kick: 16022395,
+	softban: 16022395,
+	ban: 15747144,
+	unban: 5793266,
 } as const);
 
 export const ACTIONS = Object.freeze({
-	[CaseAction.warn]: 'warned',
-	[CaseAction.mute]: 'muted',
-	[CaseAction.unmute]: 'unmuted',
-	[CaseAction.kick]: 'kicked',
-	[CaseAction.softban]: 'softbanned',
-	[CaseAction.ban]: 'banned',
-	[CaseAction.unban]: 'unbanned',
+	warn: 'warned',
+	mute: 'muted',
+	unmute: 'unmuted',
+	kick: 'kicked',
+	softban: 'softbanned',
+	ban: 'banned',
+	unban: 'unbanned',
 } as const);
 
 export interface CaseEmbedOptions {
 	logChannelId?: Snowflake | null;
-	cs: NonWarnCase | WarnCase | Case;
+	cs: Case;
 	target: APIUser;
 	mod?: APIUser | null;
 	pardonedBy?: APIUser | null;
@@ -45,9 +46,9 @@ export const makeCaseEmbed = ({
 	const embed: APIEmbed = message?.embeds[0]
 		? message.embeds[0]
 		: {
-				color: LOG_COLORS[cs.action_type],
+				color: LOG_COLORS[cs.actionType],
 				author: {
-					name: `${cs.target_tag} (${cs.target_id})`,
+					name: `${cs.targetTag} (${cs.targetId})`,
 					icon_url: target.avatar
 						? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${target.id}/${target.avatar}`)
 						: `${RouteBases.cdn}/embed/avatars/${parseInt(target.discriminator, 10) % 5}.png`,
@@ -55,9 +56,9 @@ export const makeCaseEmbed = ({
 		  };
 
 	// Set seperately so they are processed even on case updates in case mod data was missed for whatever reason
-	embed.title = `Was ${ACTIONS[cs.action_type]}${cs.reason ? ` for ${cs.reason}` : ''}`;
+	embed.title = `Was ${ACTIONS[cs.actionType]}${cs.reason ? ` for ${cs.reason}` : ''}`;
 	embed.footer = {
-		text: `Case ${cs.case_id}${cs.mod_tag ? ` | By ${cs.mod_tag} (${cs.mod_id!})` : ''}`,
+		text: `Case ${cs.caseId}${cs.modTag ? ` | By ${cs.modTag} (${cs.modId!})` : ''}`,
 		icon_url: mod
 			? mod.avatar
 				? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${mod.id}/${mod.avatar}`)
@@ -65,13 +66,13 @@ export const makeCaseEmbed = ({
 			: undefined,
 	};
 
-	if (cs.ref_id && ref && !embed.fields?.length) {
+	if (cs.refId && ref && !embed.fields?.length) {
 		addFields(embed, {
 			name: 'Reference',
 			value:
-				ref.log_message_id && logChannelId
-					? `[#${ref.case_id}](https://discord.com/channels/${cs.guild_id}/${logChannelId}/${ref.log_message_id})`
-					: `#${ref.case_id}`,
+				ref.logMessageId && logChannelId
+					? `[#${ref.caseId}](https://discord.com/channels/${cs.guildId}/${logChannelId}/${ref.logMessageId})`
+					: `#${ref.caseId}`,
 		});
 	}
 
@@ -82,11 +83,11 @@ export const makeCaseEmbed = ({
 		});
 	}
 
-	if (cs.expires_at) {
-		const expiresAt = new Date(cs.expires_at).getTime();
+	if (cs.expiresAt) {
+		const expiresAt = new Date(cs.expiresAt).getTime();
 		addFields(embed, {
 			name: 'Duration',
-			value: `${ms(expiresAt - new Date(cs.created_at).getTime(), true)}; Expires: <t:${Math.round(
+			value: `${ms(expiresAt - new Date(cs.createdAt).getTime(), true)}; Expires: <t:${Math.round(
 				expiresAt / 1000,
 			)}:R>`,
 		});
@@ -111,38 +112,38 @@ export interface HistoryEmbedOptions {
 export const makeHistoryEmbed = ({ user, cases, logChannelId, filterTriggers }: HistoryEmbedOptions): APIEmbed => {
 	let points = 0;
 	const counts = {
-		[CaseAction.ban]: 0,
-		[CaseAction.kick]: 0,
-		[CaseAction.mute]: 0,
-		[CaseAction.warn]: 0,
+		ban: 0,
+		kick: 0,
+		mute: 0,
+		warn: 0,
 	};
 
 	const colors = [8450847, 13091073, 16022395, 15747144] as const;
 	const details: string[] = [];
 
 	for (const cs of cases) {
-		if (cs.action_type === CaseAction.ban) {
-			counts[CaseAction.ban]++;
+		if (cs.actionType === 'ban') {
+			counts.ban++;
 			points += 3;
-		} else if ([CaseAction.kick, CaseAction.softban].includes(cs.action_type)) {
-			counts[CaseAction.kick]++;
+		} else if (['kick', 'softban'].includes(cs.actionType)) {
+			counts.kick++;
 			points += 2;
-		} else if (cs.action_type === CaseAction.mute) {
-			counts[CaseAction.mute]++;
+		} else if (cs.actionType === 'mute') {
+			counts.mute++;
 			points += 0.5;
-		} else if (cs.action_type === CaseAction.warn) {
-			counts[CaseAction.warn]++;
+		} else if (cs.actionType === 'warn') {
+			counts.warn++;
 			points += 0.25;
 		} else {
 			continue;
 		}
 
-		const timestamp = Math.round(cs.created_at.getTime() / 1000);
-		const action = CaseAction[cs.action_type]!.toUpperCase();
+		const timestamp = Math.round(cs.createdAt.getTime() / 1000);
+		const action = cs.actionType.toUpperCase();
 		const caseId =
-			cs.log_message_id && logChannelId
-				? `[#${cs.case_id}](https://discord.com/channels/${cs.guild_id}/${logChannelId}/${cs.log_message_id})`
-				: `#${cs.case_id}`;
+			cs.logMessageId && logChannelId
+				? `[#${cs.caseId}](https://discord.com/channels/${cs.guildId}/${logChannelId}/${cs.logMessageId})`
+				: `#${cs.caseId}`;
 		const reason = cs.reason ? ` - ${cs.reason}` : '';
 
 		details.push(`• <t:${timestamp}:D> \`${action}\` ${caseId}${reason}`);
@@ -162,7 +163,7 @@ export const makeHistoryEmbed = ({ user, cases, logChannelId, filterTriggers }: 
 		.reduce<string[]>(
 			(arr, [type, count]) => {
 				if (count > 0) {
-					arr.push(`${count} ${CaseAction[parseInt(type, 10)]!}${count === 1 ? '' : 's'}`);
+					arr.push(`${count} ${type}${count === 1 ? '' : 's'}`);
 				}
 
 				return arr;

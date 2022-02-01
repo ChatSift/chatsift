@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS app_guilds (
 );
 
 CREATE TABLE IF NOT EXISTS sigs (
-  sig PRIMARY KEY NOT NULL,
+  sig text PRIMARY KEY NOT NULL,
   app_id int NOT NULL REFERENCES apps ON DELETE CASCADE,
   last_used_at timestamptz NOT NULL DEFAULT NOW()
 );

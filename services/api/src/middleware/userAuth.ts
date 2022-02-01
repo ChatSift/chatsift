@@ -1,13 +1,11 @@
 /* istanbul ignore file */
 
-import type { User } from '@automoderator/core';
-import { kSql } from '@automoderator/injection';
+import { PrismaClient } from '@prisma/client';
 import { unauthorized } from '@hapi/boom';
 import cookie from 'cookie';
 import type { APIUser } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
 import type { NextHandler, Request, Response } from 'polka';
-import type { Sql } from 'postgres';
 import { container } from 'tsyringe';
 import { getUserGuilds } from '../util';
 
@@ -18,7 +16,8 @@ declare module 'polka' {
 }
 
 export const userAuth = (fallthrough = false) => {
-	const sql = container.resolve<Sql<{}>>(kSql);
+	const prisma = container.resolve(PrismaClient);
+
 	return async (req: Request, _: Response, next: NextHandler) => {
 		const cookies = cookie.parse(req.headers.cookie ?? '');
 		const token = cookies.access_token ?? req.headers.authorization;
@@ -38,9 +37,12 @@ export const userAuth = (fallthrough = false) => {
 		});
 
 		if (result.ok) {
-			req.user = (await result.json()) as APIUser & { perms: bigint };
-			const [{ perms }] = await sql<[Pick<User, 'perms'>]>`SELECT perms FROM users WHERE user_id = ${req.user.id}`;
-			req.user.perms = BigInt(perms);
+			const data = (await result.json()) as APIUser;
+
+			req.user = {
+				...data,
+				perms: (await prisma.user.findFirst({ where: { userId: data.id }, select: { perms: true } }))!.perms,
+			};
 		}
 
 		if (req.params.gid) {

@@ -1,5 +1,5 @@
 /* istanbul ignore file */
-import type { AuthGetDiscordCallbackQuery, AuthGetDiscordRefreshBody } from '@automoderator/core';
+import type { GetAuthDiscordCallbackQuery, GetAuthDiscordRefreshBody } from '@chatsift/api-wrapper';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { forbidden, internal } from '@hapi/boom';
 import type { RESTPostOAuth2AccessTokenResult } from 'discord-api-types/v9';
@@ -18,11 +18,10 @@ export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler
 		client_id: config.discordClientId,
 		client_secret: config.discordClientSecret,
 		redirect_uri: redirectUri,
-		// redirect_uri: `${config.apiDomain}/api/v2/auth/discord/callback`,
 		scope: config.discordScopes,
 	});
 
-	const code = (req.query as Partial<AuthGetDiscordCallbackQuery> | undefined)?.code;
+	const code = (req.query as Partial<GetAuthDiscordCallbackQuery> | undefined)?.code;
 
 	if (code) {
 		form.append('grant_type', 'authorization_code');
@@ -31,10 +30,7 @@ export const discordOAuth2 = async (req: Request, _: Response, next: NextHandler
 		const cookies = cookie.parse(req.headers.cookie ?? '');
 
 		form.append('grant_type', 'refresh_token');
-		form.append(
-			'refresh_token',
-			(cookies.refresh_token ?? (req.body as AuthGetDiscordRefreshBody | undefined)?.refresh_token)!,
-		);
+		form.append('refresh_token', (cookies.refresh_token ?? (req.body as GetAuthDiscordRefreshBody)?.refresh_token)!);
 	}
 
 	const result = await fetch('https://discord.com/api/v9/oauth2/token', {

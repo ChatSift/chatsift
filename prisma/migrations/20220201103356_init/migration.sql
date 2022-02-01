@@ -150,8 +150,116 @@ CREATE TABLE "webhook_tokens" (
     CONSTRAINT "webhook_tokens_pkey" PRIMARY KEY ("channel_id")
 );
 
+-- CreateTable
+CREATE TABLE "sigs" (
+    "sig" TEXT NOT NULL,
+    "app_id" INTEGER NOT NULL,
+    "last_used_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "sigs_pkey" PRIMARY KEY ("sig")
+);
+
+-- CreateTable
+CREATE TABLE "MaliciousFile" (
+    "file_id" SERIAL NOT NULL,
+    "file_hash" TEXT NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "last_modified_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "category" INTEGER NOT NULL,
+
+    CONSTRAINT "MaliciousFile_pkey" PRIMARY KEY ("file_id")
+);
+
+-- CreateTable
+CREATE TABLE "MaliciousUrl" (
+    "url_id" SERIAL NOT NULL,
+    "url" TEXT NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "last_modified_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "category" INTEGER NOT NULL,
+
+    CONSTRAINT "MaliciousUrl_pkey" PRIMARY KEY ("url_id")
+);
+
+-- CreateTable
+CREATE TABLE "BannedWord" (
+    "guild_id" BIGINT NOT NULL,
+    "word" TEXT NOT NULL,
+    "flags" BIGINT NOT NULL,
+    "duration" INTEGER,
+
+    CONSTRAINT "BannedWord_pkey" PRIMARY KEY ("guild_id","word")
+);
+
+-- CreateTable
+CREATE TABLE "FilterTrigger" (
+    "guild_id" BIGINT NOT NULL,
+    "user_id" BIGINT NOT NULL,
+    "count" INTEGER NOT NULL,
+
+    CONSTRAINT "FilterTrigger_pkey" PRIMARY KEY ("guild_id","user_id")
+);
+
+-- CreateTable
+CREATE TABLE "FilterIgnore" (
+    "channel_id" BIGINT NOT NULL,
+    "guild_id" BIGINT NOT NULL,
+    "value" BIGINT NOT NULL,
+
+    CONSTRAINT "FilterIgnore_pkey" PRIMARY KEY ("channel_id")
+);
+
+-- CreateTable
+CREATE TABLE "AllowedInvite" (
+    "guild_id" BIGINT NOT NULL,
+    "allowed_guild_id" BIGINT NOT NULL,
+
+    CONSTRAINT "AllowedInvite_pkey" PRIMARY KEY ("guild_id","allowed_guild_id")
+);
+
+-- CreateTable
+CREATE TABLE "AllowedUrl" (
+    "guild_id" BIGINT NOT NULL,
+    "domain" TEXT NOT NULL,
+
+    CONSTRAINT "AllowedUrl_pkey" PRIMARY KEY ("guild_id","domain")
+);
+
+-- CreateTable
+CREATE TABLE "ReportedMessage" (
+    "message_id" BIGINT NOT NULL,
+    "report_message_id" BIGINT NOT NULL,
+    "ack" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "ReportedMessage_pkey" PRIMARY KEY ("message_id")
+);
+
+-- CreateTable
+CREATE TABLE "MessageReporter" (
+    "message_id" BIGINT NOT NULL,
+    "original" BOOLEAN NOT NULL DEFAULT false,
+    "reporter_id" BIGINT NOT NULL,
+    "reporter_tag" TEXT NOT NULL,
+
+    CONSTRAINT "MessageReporter_pkey" PRIMARY KEY ("message_id","reporter_id")
+);
+
+-- CreateTable
+CREATE TABLE "LogIgnore" (
+    "channel_id" BIGINT NOT NULL,
+    "guild_id" BIGINT NOT NULL,
+
+    CONSTRAINT "LogIgnore_pkey" PRIMARY KEY ("channel_id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "self_assignable_roles_id_key" ON "self_assignable_roles"("id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MaliciousFile_file_hash_key" ON "MaliciousFile"("file_hash");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MaliciousUrl_url_key" ON "MaliciousUrl"("url");
 
 -- AddForeignKey
 ALTER TABLE "app_guilds" ADD CONSTRAINT "app_guilds_app_id_fkey" FOREIGN KEY ("app_id") REFERENCES "apps"("app_id") ON DELETE CASCADE ON UPDATE NO ACTION;
@@ -161,3 +269,9 @@ ALTER TABLE "self_assignable_roles" ADD CONSTRAINT "self_assignable_roles_prompt
 
 -- AddForeignKey
 ALTER TABLE "unmute_roles" ADD CONSTRAINT "unmute_roles_case_id_fkey" FOREIGN KEY ("case_id") REFERENCES "cases"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "sigs" ADD CONSTRAINT "sigs_app_id_fkey" FOREIGN KEY ("app_id") REFERENCES "apps"("app_id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "MessageReporter" ADD CONSTRAINT "MessageReporter_message_id_fkey" FOREIGN KEY ("message_id") REFERENCES "ReportedMessage"("message_id") ON DELETE CASCADE ON UPDATE NO ACTION;

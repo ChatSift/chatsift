@@ -1,13 +1,11 @@
 import 'reflect-metadata';
-import { initConfig, kLogger, kSql } from '@automoderator/injection';
+import { initConfig, kLogger } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { sendBoom, attachHttpUtils, Route } from '@chatsift/rest-utils';
 import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
 import { readdirRecurse } from '@chatsift/readdir';
 import { join as joinPath } from 'path';
-import postgres from 'postgres';
 import { container, InjectionToken } from 'tsyringe';
-import * as controllers from './controllers';
 import polka, { Middleware } from 'polka';
 import { Boom, isBoom, notFound } from '@hapi/boom';
 import { createServer } from 'http';
@@ -23,11 +21,6 @@ void (async () => {
 
 	container.register(PrismaClient, { useValue: new PrismaClient() });
 	container.register(kLogger, { useValue: logger });
-	container.register(kSql, {
-		useValue: postgres(config.dbUrl, {
-			onnotice: (notice) => logger.debug({ notice }, 'Database notice'),
-		}),
-	});
 
 	const discordRest = new DiscordRest(config.discordToken, {
 		bucket: ProxyBucket,
@@ -65,10 +58,6 @@ void (async () => {
 		attachHttpUtils(),
 		logRequests(),
 	);
-
-	for (const controller of Object.values(controllers) as typeof controllers.FilterIgnoresController[]) {
-		container.register(controller, { useClass: controller });
-	}
 
 	container.register(TokenManager, { useClass: TokenManager });
 

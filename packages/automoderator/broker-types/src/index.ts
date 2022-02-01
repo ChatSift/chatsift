@@ -5,8 +5,7 @@ import type {
 	GatewayDispatchPayload,
 	Snowflake,
 } from 'discord-api-types/v9';
-import type { ApiPostFiltersFilesResult, HttpCase } from './api';
-import type { BannedWord, CaseAction, MaliciousUrl, WarnPunishmentAction } from './models';
+import type { BannedWord, MaliciousUrl } from '@prisma/client';
 
 type SanitizedDiscordEvents = {
 	[K in GatewayDispatchEvents]: GatewayDispatchPayload & {
@@ -31,25 +30,16 @@ export interface LogBase<T extends LogTypes, D extends Record<string, any>> {
 }
 
 interface WarnCaseExtrasNoDuration {
-	triggered: WarnPunishmentAction.kick;
+	triggered: 'kick';
 }
 
 interface WarnCaseExtrasWithDuration {
-	triggered: WarnPunishmentAction.mute | WarnPunishmentAction.ban;
+	triggered: 'mute' | 'ban';
 	duration?: number;
 	extendedBy?: number;
 }
 
 export type WarnCaseExtras = WarnCaseExtrasNoDuration | WarnCaseExtrasWithDuration;
-
-export type NonWarnCase = Omit<HttpCase, 'action_type'> & { action_type: Exclude<CaseAction, CaseAction.warn> };
-export type WarnCase = Omit<HttpCase, 'action_type'> & {
-	action_type: CaseAction.warn;
-	extra?: WarnCaseExtras;
-};
-
-type OrArray<T> = T | T[];
-export type ModActionLog = LogBase<LogTypes.modAction, OrArray<NonWarnCase | WarnCase>>;
 
 export enum Runners {
 	files,
@@ -79,7 +69,6 @@ export interface OkRunnerResult<R extends Runners, T> extends BaseRunnerResult {
 
 export type WordsRunnerResultData = BannedWord & { isUrl: boolean };
 
-export type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostFiltersFilesResult>;
 export type GlobalsRunnerResult = OkRunnerResult<Runners.globals, (MaliciousUrl | { url: string })[]>;
 export type InvitesRunnerResult = OkRunnerResult<Runners.invites, string[]>;
 export type UrlsRunnerResult = OkRunnerResult<Runners.urls, string[]>;
@@ -130,7 +119,6 @@ export type NsfwRunnerResult = OkRunnerResult<
 
 export type RunnerResult =
 	| NotOkRunnerResult
-	| FilesRunnerResult
 	| InvitesRunnerResult
 	| UrlsRunnerResult
 	| GlobalsRunnerResult
@@ -209,4 +197,4 @@ export type ForbiddenNameLog = LogBase<
 	}
 >;
 
-export type Log = ModActionLog | FilterTriggerLog | ServerLog | ForbiddenNameLog;
+export type Log = FilterTriggerLog | ServerLog | ForbiddenNameLog;
