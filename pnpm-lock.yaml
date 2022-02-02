@@ -321,16 +321,20 @@ importers:
 
   services/automod:
     specifiers:
+      '@automoderator/broker-types': workspace:^0.1.0
       '@automoderator/cache': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
       '@chatsift/api-wrapper': workspace:^0.1.0
+      '@chatsift/utils': workspace:^0.1.0
       '@cordis/brokers': ^1.2.0
       '@cordis/redis-store': ^1.2.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@cordis/store': ^1.2.0
       '@cordis/util': ^1.2.0
+      '@naval-base/ms': ^3.1.0
+      '@prisma/client': ^3.8.1
       '@types/amqplib': ^0.8.2
       '@types/common-tags': ^1.8.1
       '@types/ioredis': ^4.27.6
@@ -346,16 +350,20 @@ importers:
       tsyringe: ^4.6.0
       typescript: ^4.5.5
     dependencies:
+      '@automoderator/broker-types': link:../../packages/automoderator/broker-types
       '@automoderator/cache': link:../../packages/automoderator/cache
       '@automoderator/injection': link:../../packages/automoderator/injection
       '@automoderator/logger': link:../../packages/automoderator/logger
       '@automoderator/util': link:../../packages/automoderator/util
       '@chatsift/api-wrapper': link:../../packages/chatsift/api-wrapper
+      '@chatsift/utils': link:../../packages/chatsift/utils
       '@cordis/brokers': 1.2.0
       '@cordis/redis-store': 1.2.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@cordis/store': 1.2.0
       '@cordis/util': 1.2.0
+      '@naval-base/ms': 3.1.0
+      '@prisma/client': 3.8.1_prisma@3.8.1
       common-tags: 1.8.0
       discord-api-types: 0.26.1
       ioredis: 4.27.10

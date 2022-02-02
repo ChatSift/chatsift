@@ -1,17 +1,15 @@
 import { MessageCache } from '@automoderator/cache';
 import {
 	AntispamRunnerResult,
-	ApiGetGuildsSettingsResult,
-	ApiPostGuildsCasesBody,
-	ApiPostGuildsCasesResult,
-	AutomodPunishment,
-	AutomodTrigger,
-	CaseAction,
-	CaseData,
+	// ApiGetGuildsSettingsResult,
+	// ApiPostGuildsCasesBody,
+	// ApiPostGuildsCasesResult,
+	// AutomodPunishment,
+	// AutomodTrigger,
+	// CaseAction,
+	// CaseData,
 	DiscordEvents,
-	FilesRunnerResult,
-	FilterIgnore,
-	GuildSettings,
+	// FilesRunnerResult,
 	InvitesRunnerResult,
 	UrlsRunnerResult,
 	GlobalsRunnerResult,
@@ -24,20 +22,12 @@ import {
 	Runners,
 	WordsRunnerResult,
 	NsfwRunnerResult,
-	ms,
-} from '@automoderator/core';
-import {
-	DiscordPermissions,
-	PermissionsChecker,
-	PermissionsCheckerData,
-	UserPerms,
-} from '@automoderator/discord-permissions';
-import { FilterIgnores } from '@automoderator/filter-ignores';
-import { Rest } from '@chatsift/api-wrapper';
-import { dmUser, reportMessage } from '@automoderator/util';
-import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
-import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
-import { Store } from '@cordis/store';
+} from '@automoderator/broker-types';
+import type { GuildSettings, FilterIgnore } from '@prisma/client';
+import { Rest, FilterIgnores, DiscordPermissions } from '@chatsift/api-wrapper';
+import { dmUser, reportMessage, PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
+import { Config, kConfig, kLogger } from '@automoderator/injection';
+import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Rest as CordisRest } from '@cordis/rest';
 import {
 	APIChannel,
@@ -53,7 +43,6 @@ import {
 	Snowflake,
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
-import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
 import {
 	AntispamRunner,
@@ -61,11 +50,12 @@ import {
 	UrlsRunner,
 	InvitesRunner,
 	GlobalsRunner,
+	NsfwRunner,
 	WordsRunner,
 	MentionsRunner,
 } from './runners';
 import { getCreationData } from '@cordis/util';
-import { NsfwRunner } from './runners/nsfw';
+import ms from '@naval-base/ms';
 
 interface FilesRunnerData {
 	message: APIMessage;
@@ -102,18 +92,11 @@ interface NsfwRunnerData {
 
 @singleton()
 export class Gateway {
-	public guildLogs!: PubSubPublisher<Log>;
-
-	public readonly ownersCache = new Store<Snowflake>({ emptyEvery: 36e5 });
-	public readonly permsCache = new Store<Snowflake>({ emptyEvery: 15e3 });
-	public readonly channelParentCache = new Store<Snowflake | null>({ emptyEvery: 12e4 });
-	public readonly threadParentCache = new Store<Snowflake>({ emptyEvery: 216e6 });
-	public readonly nsfwCache = new Store<boolean>({ emptyEvery: 12e4 });
-
 	public constructor(
 		@inject(kConfig) public readonly config: Config,
-		@inject(kSql) public readonly sql: Sql<{}>,
 		@inject(kLogger) public readonly logger: Logger,
+		public readonly gateway: RoutingSubscriber<keyof DiscordEvents, DiscordEvents>,
+		public readonly logs: PubSubPublisher<Log>,
 		public readonly messagesCache: MessageCache,
 		public readonly rest: Rest,
 		public readonly discord: CordisRest,
@@ -143,7 +126,7 @@ export class Gateway {
 					.catch(() => null);
 			}
 
-			return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.globals };
+			return { ok: true, actioned: hits.length > 0, BaseRunnerResult: hits, runner: Runners.globals };
 		} catch (error) {
 			this.logger.error({ error }, 'Failed to execute runner globals');
 			return { ok: false, runner: Runners.globals };
@@ -177,7 +160,7 @@ export class Gateway {
 					.catch(() => null);
 			}
 
-			return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.urls };
+			return { ok: true, actioned: hits.length > 0, BaseRunnerResult: hits, runner: Runners.urls };
 		} catch (error) {
 			this.logger.error({ error }, 'Failed to execute runner urls');
 			return { ok: false, runner: Runners.urls };
@@ -194,7 +177,7 @@ export class Gateway {
 					.catch(() => null);
 			}
 
-			return { ok: true, actioned: hits.length > 0, data: hits, runner: Runners.invites };
+			return { ok: true, actioned: hits.length > 0, BaseRunnerResult: hits, runner: Runners.invites };
 		} catch (error) {
 			this.logger.error({ error }, 'Failed to execute runner invites');
 			return { ok: false, runner: Runners.invites };
@@ -301,7 +284,7 @@ export class Gateway {
 			return {
 				ok: true,
 				actioned: hits.length > 0,
-				data: hits.map((hit) => ({ ...hit, flags: hit.flags.toJSON() as `${bigint}` })),
+				BaseRunnerResult: hits.map((hit) => ({ ...hit, flags: hit.flags.toJSON() as `${bigint}` })),
 				runner: Runners.words,
 			};
 		} catch (error) {
@@ -350,7 +333,7 @@ export class Gateway {
 			return {
 				ok: true,
 				actioned: hits.length > 0,
-				data: {
+				BaseRunnerResult: {
 					messages: messages.filter((m): m is APIMessage => Boolean(m)),
 					amount: hits.length,
 					time:
@@ -411,7 +394,7 @@ export class Gateway {
 			return {
 				ok: true,
 				actioned: hits.length > 0,
-				data:
+				BaseRunnerResult:
 					hits.length > 1
 						? {
 								messages: messages.filter((m): m is APIMessage => Boolean(m)),
@@ -444,7 +427,7 @@ export class Gateway {
 			return {
 				ok: true,
 				actioned: Boolean(hit),
-				data: hit
+				BaseRunnerResult: hit
 					? {
 							...hit,
 							thresholds: {
@@ -739,7 +722,7 @@ export class Gateway {
 					);
 
 					this.guildLogs.publish({
-						data: cs!,
+						data: cs,
 						type: LogTypes.modAction,
 					});
 				}
@@ -755,16 +738,8 @@ export class Gateway {
 		}
 	}
 
-	public async init() {
-		const { channel } = await createAmqp(this.config.amqpUrl);
-		const gateway = new RoutingSubscriber<keyof DiscordEvents, DiscordEvents>(channel);
-		const logs = new PubSubPublisher(channel);
-
-		await logs.init({ name: 'guild_logs', fanout: false });
-
-		this.guildLogs = logs;
-
-		gateway
+	public async init(): Promsie<void> {
+		this.gateway
 			.on(GatewayDispatchEvents.MessageCreate, (message) => void this.onMessage(message))
 			.on(GatewayDispatchEvents.MessageUpdate, async (message) => {
 				const fullMessage =
@@ -782,12 +757,10 @@ export class Gateway {
 				}
 			});
 
-		await gateway.init({
+		await this.gateway.init({
 			name: 'gateway',
 			keys: [GatewayDispatchEvents.MessageCreate, GatewayDispatchEvents.MessageUpdate],
 			queue: 'automod',
 		});
-
-		return gateway;
 	}
 }

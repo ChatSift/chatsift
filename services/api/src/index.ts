@@ -12,15 +12,11 @@ import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import { logRequests } from './middleware';
-import { TokenManager } from './util';
 import { PrismaClient } from '@prisma/client';
 
 void (async () => {
 	const config = initConfig();
 	const logger = createLogger('api');
-
-	container.register(PrismaClient, { useValue: new PrismaClient() });
-	container.register(kLogger, { useValue: logger });
 
 	const discordRest = new DiscordRest(config.discordToken, {
 		bucket: ProxyBucket,
@@ -31,6 +27,8 @@ void (async () => {
 		logger.warn({ req }, `Aborted request ${req.method!} ${req.path!}`);
 	});
 
+	container.register(PrismaClient, { useValue: new PrismaClient() });
+	container.register(kLogger, { useValue: logger });
 	container.register(DiscordRest, { useValue: discordRest });
 
 	const app = polka({
@@ -58,8 +56,6 @@ void (async () => {
 		attachHttpUtils(),
 		logRequests(),
 	);
-
-	container.register(TokenManager, { useClass: TokenManager });
 
 	const files = readdirRecurse(joinPath(__dirname, 'routes'), { fileExtensions: ['js'] });
 
