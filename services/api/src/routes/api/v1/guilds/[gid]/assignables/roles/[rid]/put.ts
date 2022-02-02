@@ -41,8 +41,8 @@ export default class extends Route {
 			return next(notFound('Could not find that prompt'));
 		}
 
-		if (existing.length >= 25) {
-			return next(conflict('There are already 25 self assignable roles attached to that prompt'));
+		if (existing.length >= 125) {
+			return next(conflict('There are already 125 self assignable roles attached to that prompt'));
 		}
 
 		res.statusCode = 200;

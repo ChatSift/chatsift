@@ -18,7 +18,7 @@ import type { Component } from '../component';
 export default class implements Component {
 	public constructor(public readonly rest: Rest, public readonly discordRest: DiscordRest) {}
 
-	public async exec(interaction: APIGuildInteraction, [promptId]: [string]) {
+	public async exec(interaction: APIGuildInteraction, [promptId, index]: [string, string]) {
 		void send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
 
 		const selfAssignables = new Set<Snowflake>(
@@ -56,6 +56,8 @@ export default class implements Component {
 			},
 		);
 
+		interaction.message!.components!.splice(parseInt(index, 10), 1);
+
 		return send(interaction, {
 			content:
 				added.length || removed.length
@@ -66,7 +68,7 @@ export default class implements Component {
 					  }
         `
 					: 'There was nothing to update!',
-			components: [],
+			components: interaction.message!.components!,
 		});
 	}
 }
