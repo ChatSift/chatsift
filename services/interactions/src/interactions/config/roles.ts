@@ -53,7 +53,7 @@ export const RolesCommand = {
 							name: 'title',
 							description: 'Embed title to use',
 							type: ApplicationCommandOptionType.String,
-							required: true,
+							required: false,
 						},
 						{
 							name: 'description',

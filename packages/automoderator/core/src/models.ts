@@ -37,7 +37,7 @@ export interface WebhookToken {
 
 export interface SelfAssignableRolePrompt {
 	prompt_id: number;
-	embed_title: string;
+	embed_title: string | null;
 	embed_description: string | null;
 	embed_color: number;
 	embed_image: string | null;

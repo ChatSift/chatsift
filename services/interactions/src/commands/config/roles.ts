@@ -83,7 +83,7 @@ export default class implements Command {
 					{
 						data: {
 							embed: {
-								title: prompt.embed_title,
+								title: prompt.embed_title ?? undefined,
 								color: prompt.embed_color,
 								description: prompt.embed_description ?? undefined,
 								image: prompt.embed_image
@@ -157,6 +157,10 @@ export default class implements Command {
 			}
 
 			case 'create': {
+				if (!Object.keys(args.create).length) {
+					throw new ControlFlowError('Please provide at least one of the options');
+				}
+
 				const channelId = args.create.channel?.id ?? interaction.channel_id;
 				const color = args.create.color ? parseInt(args.create.color.replace('#', ''), 16) : 5793266;
 

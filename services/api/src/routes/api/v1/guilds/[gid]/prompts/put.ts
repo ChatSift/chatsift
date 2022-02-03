@@ -17,7 +17,7 @@ export default class extends Route {
 				message_id: zod.string().regex(/\d{17,20}/),
 				channel_id: zod.string().regex(/\d{17,20}/),
 				embed_color: zod.number().optional(),
-				embed_title: zod.string(),
+				embed_title: zod.string().optional(),
 				embed_description: zod.string().nullable().optional(),
 				embed_image: zod.string().nullable().optional(),
 				use_buttons: zod.boolean().default(false).optional(),
