@@ -35,7 +35,8 @@ export class AssignablesController {
 		roleId: Snowflake,
 		emoji?: EmojiData,
 	): Promise<SelfAssignableRole | undefined> {
-		if (await this.get(roleId)) {
+		const existing = await this.get(roleId);
+		if (existing && existing.prompt_id === prompt) {
 			return;
 		}
 

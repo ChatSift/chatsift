@@ -53,14 +53,7 @@ export default class extends Route {
 			: await this.controller.add(gid, prompt_id, rid);
 
 		if (!assignable) {
-			const assignables = await this.controller.getAllForPrompt(prompt_id);
-			return next(
-				conflict(
-					assignables.find((a) => a.role_id === rid)
-						? 'This role is already assigned to another list'
-						: 'That role is already assigned for this prompt',
-				),
-			);
+			return next(conflict('That role is already assigned to this prompt'));
 		}
 
 		return res.end(JSON.stringify(assignable));
