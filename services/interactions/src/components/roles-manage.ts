@@ -1,6 +1,7 @@
 import { send } from '#util';
 import type { ApiGetGuildPromptResult } from '@automoderator/core';
 import { Rest } from '@chatsift/api-wrapper';
+import { chunkArray } from '@chatsift/utils';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
 import {
@@ -22,9 +23,12 @@ export default class implements Component {
 		void send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
 
 		const selfAssignables = new Set<Snowflake>(
-			await this.rest
-				.get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/${promptId}`)
-				.then((prompt) => prompt.roles.map((role) => role.role_id)),
+			chunkArray(
+				await this.rest
+					.get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/${promptId}`)
+					.then((prompt) => prompt.roles.map((role) => role.role_id)),
+				25,
+			)[parseInt(index, 10)],
 		);
 
 		const roles = new Set(interaction.member.roles);
@@ -56,19 +60,25 @@ export default class implements Component {
 			},
 		);
 
-		interaction.message!.components!.splice(parseInt(index, 10), 1);
+		interaction.message!.components![parseInt(index, 10)]!.components[0]!.disabled = true;
 
-		return send(interaction, {
-			content:
-				added.length || removed.length
-					? stripIndents`
+		if (interaction.message!.components!.every((component) => component.components[0]!.disabled)) {
+			interaction.message!.components = [];
+		}
+
+		{
+			return send(interaction, {
+				content:
+					added.length || removed.length
+						? stripIndents`
           Succesfully updated your roles:
           ${added.length ? `• added: ${added.join(', ')}\n` : ''}${
-							removed.length ? `• removed: ${removed.join(', ')}` : ''
-					  }
+								removed.length ? `• removed: ${removed.join(', ')}` : ''
+						  }
         `
-					: 'There was nothing to update!',
-			components: interaction.message!.components!,
-		});
+						: 'There was nothing to update!',
+				components: interaction.message!.components!,
+			});
+		}
 	}
 }
