@@ -10,7 +10,7 @@ import type { FilesRunnerResult, Log } from '@automoderator/broker-types';
 import type { Redis } from 'ioredis';
 import { MessageCache } from '@automoderator/cache';
 import { PubSubPublisher } from '@cordis/brokers';
-import type { UrlsRunner } from '.';
+import { UrlsRunner } from './urls';
 import type { Logger } from 'pino';
 import { dmUser } from '@automoderator/util';
 
@@ -39,8 +39,8 @@ export class FilesRunner implements IRunner<FilesTransform, MaliciousFile[], Fil
 		return hash;
 	}
 
-	public async transform(message: APIMessage): Promise<FilesTransform> {
-		const { urls: messageUrls } = await this.urlsRunner.transform(message);
+	public transform(message: APIMessage): FilesTransform {
+		const { urls: messageUrls } = this.urlsRunner.transform(message);
 		const embedUrls = message.embeds.reduce<string[]>((acc, embed) => {
 			if (embed.url) {
 				acc.push(embed.url);

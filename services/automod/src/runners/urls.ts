@@ -63,7 +63,7 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 		return this.extractRoot(url);
 	}
 
-	public async transform(message: APIMessage): Promise<UrlsTransform> {
+	public transform(message: APIMessage): UrlsTransform {
 		const urls = [...message.content.matchAll(this.urlRegex)].reduce<Set<string>>((acc, match) => {
 			if (this.tlds.has(match.groups!.tld!.toLowerCase())) {
 				acc.add(this.cleanDomain(match[0]!));
@@ -72,11 +72,8 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 			return acc;
 		}, new Set());
 
-		const allowedUrls = await this.prisma.allowedUrl.findMany({ where: { guildId: message.guild_id } });
-		const allowed = new Set(allowedUrls.map((url) => this.cleanDomain(url.domain)));
-
 		return {
-			urls: [...urls.values()].filter((url) => !allowed.has(url)),
+			urls: [...urls.values()],
 		};
 	}
 
@@ -84,8 +81,17 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 		return urls.length > 0;
 	}
 
-	public run(transform: UrlsTransform): UrlsTransform {
-		return transform;
+	public async run({ urls }: UrlsTransform, message: APIMessage): Promise<UrlsTransform | null> {
+		const allowedUrls = await this.prisma.allowedUrl.findMany({ where: { guildId: message.guild_id } });
+		const allowed = new Set(allowedUrls.map((url) => this.cleanDomain(url.domain)));
+
+		const forbidden = [...urls.values()].filter((url) => !allowed.has(url));
+
+		if (!forbidden.length) {
+			return null;
+		}
+
+		return { urls: forbidden };
 	}
 
 	public async cleanup(_: UrlsTransform, message: APIMessage): Promise<void> {
