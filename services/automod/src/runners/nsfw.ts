@@ -1,21 +1,37 @@
-import type { GuildSettings, PredictionType, NsfwApiData } from '@automoderator/core';
+import type { PredictionType, NsfwApiData, Log, NsfwRunnerResult } from '@automoderator/broker-types';
 import { Rest } from '@chatsift/api-wrapper';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import fetch from 'node-fetch';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
+import { GuildSettings, PrismaClient } from '@prisma/client';
+import { MessageCache } from '@automoderator/cache';
+import { PubSubPublisher } from '@cordis/brokers';
+import { FilesRunner } from './files';
+import type { IRunner } from './IRunner';
+import { Routes, APIMessage } from 'discord-api-types/v9';
+import { dmUser } from '@automoderator/util';
+
+interface NsfwTransform {
+	urls: string[];
+	settings: GuildSettings | null;
+}
 
 @singleton()
-export class NsfwRunner {
+export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data'], NsfwRunnerResult> {
 	public readonly API_URL = 'https://gateway.cycloptux.com/api/v1/services/nsfwjs/predict';
 
 	public constructor(
-		public readonly rest: Rest,
 		@inject(kLogger) public readonly logger: Logger,
 		@inject(kConfig) public readonly config: Config,
+		public readonly prisma: PrismaClient,
+		public readonly messages: MessageCache,
+		public readonly discord: Rest,
+		public readonly logs: PubSubPublisher<Log>,
+		public readonly filesRunner: FilesRunner,
 	) {}
 
-	private async handleUrl(url: string, settings: Partial<GuildSettings>) {
+	private async handleUrl(url: string, settings: Partial<GuildSettings>): Promise<NsfwRunnerResult['data']> {
 		const res = await fetch(this.API_URL, {
 			method: 'POST',
 			headers: {
@@ -48,7 +64,7 @@ export class NsfwRunner {
 
 				switch (prediction.className) {
 					case 'Hentai': {
-						if (settings.hentai_threshold && procent > settings.hentai_threshold) {
+						if (settings.hentaiThreshold && procent > settings.hentaiThreshold) {
 							crossed.push('hentai');
 						}
 
@@ -56,7 +72,7 @@ export class NsfwRunner {
 					}
 
 					case 'Porn': {
-						if (settings.porn_threshold && procent > settings.porn_threshold) {
+						if (settings.pornThreshold && procent > settings.pornThreshold) {
 							crossed.push('porn');
 						}
 
@@ -64,7 +80,7 @@ export class NsfwRunner {
 					}
 
 					case 'Sexy': {
-						if (settings.sexy_threshold && procent > settings.sexy_threshold) {
+						if (settings.sexyThreshold && procent > settings.sexyThreshold) {
 							crossed.push('sexy');
 						}
 
@@ -84,6 +100,11 @@ export class NsfwRunner {
 				...data,
 				predictions,
 				crossed,
+				thresholds: {
+					hentai: settings.hentaiThreshold,
+					porn: settings.pornThreshold,
+					sexy: settings.sexyThreshold,
+				},
 			};
 		} catch (error) {
 			this.logger.warn({ error }, 'something went wrong handling the data from the NSFW detection API');
@@ -91,8 +112,24 @@ export class NsfwRunner {
 		}
 	}
 
-	public async run(urls: string[], settings: Partial<GuildSettings>) {
-		const results = await Promise.allSettled(urls.map((url) => this.handleUrl(url, settings)));
+	public async transform(message: APIMessage): Promise<NsfwTransform> {
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
+
+		return {
+			urls: this.filesRunner.transform(message).urls,
+			settings,
+		};
+	}
+
+	public check({ urls, settings }: NsfwTransform): boolean {
+		return (
+			urls.length > 0 &&
+			((settings?.hentaiThreshold ?? 0) > 0 || (settings?.pornThreshold ?? 0) > 0 || (settings?.sexyThreshold ?? 0) > 0)
+		);
+	}
+
+	public async run({ urls, settings }: NsfwTransform): Promise<NsfwRunnerResult['data'] | null> {
+		const results = await Promise.allSettled(urls.map((url) => this.handleUrl(url, settings!)));
 		for (const result of results) {
 			if (result.status === 'rejected') {
 				this.logger.warn({ error: result.reason as unknown }, 'Unexpected thrown error on handleUrl');
@@ -110,5 +147,16 @@ export class NsfwRunner {
 		}
 
 		return null;
+	}
+
+	public async cleanup(_: NsfwRunnerResult['data'], message: APIMessage): Promise<void> {
+		await this.discord
+			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'NSFW filter trigger' })
+			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing a NSFW content.'))
+			.catch(() => null);
+	}
+
+	public log(trigger: NsfwRunnerResult['data']): NsfwRunnerResult['data'] {
+		return trigger;
 	}
 }
