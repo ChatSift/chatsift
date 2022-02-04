@@ -12,7 +12,6 @@ import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 
 interface MentionsTransform {
-	message: APIMessage;
 	mentions: Snowflake[];
 	amount?: number | null;
 	time?: number | null;
@@ -35,7 +34,6 @@ export class MentionsRunner implements IRunner<MentionsTransform, APIMessage | A
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
 
 		return {
-			message,
 			mentions: [...message.content.matchAll(this.mentionsRegex)].map((match) => match.groups!.id!),
 			amount: settings?.mentionAmount,
 			time: settings?.mentionTime,
@@ -47,13 +45,10 @@ export class MentionsRunner implements IRunner<MentionsTransform, APIMessage | A
 		return ((amount != null && time != null) || limit != null) && mentions.length > 0;
 	}
 
-	public async run({
-		message,
-		mentions,
-		amount,
-		limit,
-		time,
-	}: MentionsTransform): Promise<APIMessage | APIMessage[] | null> {
+	public async run(
+		{ mentions, amount, limit, time }: MentionsTransform,
+		message: APIMessage,
+	): Promise<APIMessage | APIMessage[] | null> {
 		if (limit && mentions.length > limit) {
 			return message;
 		}

@@ -12,7 +12,6 @@ import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 
 interface AntispamTransform {
-	message: APIMessage;
 	amount?: number | null;
 	time?: number | null;
 }
@@ -31,7 +30,6 @@ export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], 
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
 
 		return {
-			message,
 			amount: settings?.antispamAmount,
 			time: settings?.antispamTime,
 		};
@@ -41,7 +39,7 @@ export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], 
 		return amount != null && time != null;
 	}
 
-	public async run({ message, amount, time }: AntispamTransform): Promise<APIMessage[] | null> {
+	public async run({ amount, time }: AntispamTransform, message: APIMessage): Promise<APIMessage[] | null> {
 		const key = `antispam_${message.guild_id!}_${message.author.id}`;
 
 		await this.redis.zadd(key, Date.now(), message.id);

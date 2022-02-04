@@ -13,7 +13,6 @@ import type { IRunner } from './IRunner';
 import { dmUser } from '@automoderator/util';
 
 interface UrlsTransform {
-	message: APIMessage;
 	urls: string[];
 }
 
@@ -77,7 +76,6 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 		const allowed = new Set(allowedUrls.map((url) => this.cleanDomain(url.domain)));
 
 		return {
-			message,
 			urls: [...urls.values()].filter((url) => !allowed.has(url)),
 		};
 	}
@@ -90,7 +88,7 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 		return transform;
 	}
 
-	public async cleanup({ message }: UrlsTransform): Promise<void> {
+	public async cleanup(_: UrlsTransform, message: APIMessage): Promise<void> {
 		await this.discord
 			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'URL filter trigger' })
 			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing a link.'))

@@ -3,14 +3,10 @@ import type { APIMessage } from 'discord-api-types/v9';
 
 type MaybePromise<T> = T | Promise<T>;
 
-export interface IRunner<
-	Transform extends { message: APIMessage } = { message: APIMessage },
-	Result = Transform,
-	Log extends RunnerResult = RunnerResult,
-> {
+export interface IRunner<Transform, Result = Transform, Log extends RunnerResult = RunnerResult> {
 	transform?: (message: APIMessage) => MaybePromise<Transform>;
-	check?: (data: { message: APIMessage } & Transform) => MaybePromise<boolean>;
-	run: (data: Transform) => MaybePromise<Result | null>;
-	cleanup?: (result: Result) => MaybePromise<void>;
-	log: (result: Result) => MaybePromise<Log['data']>;
+	check?: (data: { message: APIMessage } & Transform, message: APIMessage) => MaybePromise<boolean>;
+	run: (data: Transform, message: APIMessage) => MaybePromise<Result | null>;
+	cleanup?: (result: Result, message: APIMessage) => MaybePromise<void>;
+	log: (result: Result, message: APIMessage) => MaybePromise<Log['data']>;
 }
