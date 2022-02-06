@@ -5,8 +5,8 @@ import type {
 	GatewayDispatchPayload,
 	Snowflake,
 } from 'discord-api-types/v9';
-import type { ApiPostFiltersFilesResult, HttpCase } from './api';
-import type { BannedWord, CaseAction, MaliciousUrl, WarnPunishmentAction } from './models';
+// import type { ApiPostFiltersFilesResult, HttpCase } from './api';
+import type { BannedWord, MaliciousFile, MaliciousUrl } from '@prisma/client';
 
 type SanitizedDiscordEvents = {
 	[K in GatewayDispatchEvents]: GatewayDispatchPayload & {
@@ -31,25 +31,25 @@ export interface LogBase<T extends LogTypes, D extends Record<string, any>> {
 }
 
 interface WarnCaseExtrasNoDuration {
-	triggered: WarnPunishmentAction.kick;
+	triggered: 'kick';
 }
 
 interface WarnCaseExtrasWithDuration {
-	triggered: WarnPunishmentAction.mute | WarnPunishmentAction.ban;
+	triggered: 'mute' | 'ban';
 	duration?: number;
 	extendedBy?: number;
 }
 
 export type WarnCaseExtras = WarnCaseExtrasNoDuration | WarnCaseExtrasWithDuration;
 
-export type NonWarnCase = Omit<HttpCase, 'action_type'> & { action_type: Exclude<CaseAction, CaseAction.warn> };
-export type WarnCase = Omit<HttpCase, 'action_type'> & {
-	action_type: CaseAction.warn;
-	extra?: WarnCaseExtras;
-};
+// export type NonWarnCase = Omit<HttpCase, 'action_type'> & { action_type: Exclude<CaseAction, 'warn'> };
+// export type WarnCase = Omit<HttpCase, 'action_type'> & {
+// action_type: 'warn';
+// extra?: WarnCaseExtras;
+// };
 
-type OrArray<T> = T | T[];
-export type ModActionLog = LogBase<LogTypes.modAction, OrArray<NonWarnCase | WarnCase>>;
+// type OrArray<T> = T | T[];
+// export type ModActionLog = LogBase<LogTypes.modAction, OrArray<NonWarnCase | WarnCase>>;
 
 export enum Runners {
 	files,
@@ -62,37 +62,26 @@ export enum Runners {
 	nsfw,
 }
 
-export interface BaseRunnerResult {
-	runner: Runners;
-}
-
-export interface NotOkRunnerResult extends BaseRunnerResult {
-	ok: false;
-}
-
-export interface OkRunnerResult<R extends Runners, T> extends BaseRunnerResult {
-	ok: true;
+export interface BaseRunnerResult<R extends Runners, T> {
 	runner: R;
 	data: T;
-	actioned: boolean;
 }
 
 export type WordsRunnerResultData = BannedWord & { isUrl: boolean };
 
-export type FilesRunnerResult = OkRunnerResult<Runners.files, ApiPostFiltersFilesResult>;
-export type GlobalsRunnerResult = OkRunnerResult<Runners.globals, (MaliciousUrl | { url: string })[]>;
-export type InvitesRunnerResult = OkRunnerResult<Runners.invites, string[]>;
-export type UrlsRunnerResult = OkRunnerResult<Runners.urls, string[]>;
-export type WordsRunnerResult = OkRunnerResult<Runners.words, WordsRunnerResultData[]>;
-export type AntispamRunnerResult = OkRunnerResult<
+export type FilesRunnerResult = BaseRunnerResult<Runners.files, MaliciousFile[]>;
+export type GlobalsRunnerResult = BaseRunnerResult<Runners.globals, (MaliciousUrl | { url: string })[]>;
+export type InvitesRunnerResult = BaseRunnerResult<Runners.invites, string[]>;
+export type UrlsRunnerResult = BaseRunnerResult<Runners.urls, string[]>;
+export type WordsRunnerResult = BaseRunnerResult<Runners.words, WordsRunnerResultData[]>;
+export type AntispamRunnerResult = BaseRunnerResult<
 	Runners.antispam,
 	{ messages: APIMessage[]; amount: number; time: number }
 >;
-export type MentionsRunnerResult = OkRunnerResult<
+export type MentionsRunnerResult = BaseRunnerResult<
 	Runners.mentions,
 	| {
-			message: APIMessage;
-			amount: number;
+			limit: number;
 	  }
 	| {
 			messages: APIMessage[];
@@ -112,10 +101,9 @@ export interface NsfwApiData {
 	}[];
 }
 
-export type NsfwRunnerResult = OkRunnerResult<
+export type NsfwRunnerResult = BaseRunnerResult<
 	Runners.nsfw,
 	{
-		message: APIMessage;
 		predictions: Record<PredictionType, number>;
 		crossed: Exclude<PredictionType, 'neutral' | 'drawing'>[];
 		url: string;
@@ -129,7 +117,6 @@ export type NsfwRunnerResult = OkRunnerResult<
 >;
 
 export type RunnerResult =
-	| NotOkRunnerResult
 	| FilesRunnerResult
 	| InvitesRunnerResult
 	| UrlsRunnerResult
@@ -141,7 +128,7 @@ export type RunnerResult =
 
 export interface FilterTriggerData {
 	message: APIMessage;
-	triggers: Exclude<RunnerResult, NotOkRunnerResult>[];
+	triggers: RunnerResult[];
 }
 
 export type FilterTriggerLog = LogBase<LogTypes.filterTrigger, FilterTriggerData>;
@@ -209,4 +196,4 @@ export type ForbiddenNameLog = LogBase<
 	}
 >;
 
-export type Log = ModActionLog | FilterTriggerLog | ServerLog | ForbiddenNameLog;
+export type Log = /* ModActionLog | */ FilterTriggerLog | ServerLog | ForbiddenNameLog;

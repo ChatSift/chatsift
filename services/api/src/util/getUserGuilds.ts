@@ -1,6 +1,6 @@
 /* istanbul ignore file */
 
-import { DiscordPermissions } from '@automoderator/discord-permissions';
+import { DiscordPermissions, UserGuild } from '@chatsift/api-wrapper';
 import fetch from 'node-fetch';
 import {
 	Routes,
@@ -11,7 +11,6 @@ import {
 } from 'discord-api-types/v9';
 import { container } from 'tsyringe';
 import { Rest } from '@cordis/rest';
-import type { UserGuild } from '@automoderator/core';
 
 type UserGuilds = Map<Snowflake, UserGuild>;
 

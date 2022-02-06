@@ -1,6 +1,5 @@
-import { kSql } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import type { GuildSettings, MessageReporter, ReportedMessage } from '@automoderator/core';
+import { PrismaClient, GuildSettings } from '@prisma/client';
 import {
 	RESTPatchAPIChannelMessageJSONBody,
 	RESTPostAPIChannelMessageResult,
@@ -14,7 +13,6 @@ import {
 	Snowflake,
 	Routes,
 } from 'discord-api-types/v9';
-import type { Sql } from 'postgres';
 import { container } from 'tsyringe';
 import { nanoid } from 'nanoid';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
@@ -36,7 +34,7 @@ export const reportMessage = async (
 	message: APIMessage,
 	settings: GuildSettings,
 ) => {
-	const sql = container.resolve<Sql<{}>>(kSql);
+	const prisma = container.resolve(PrismaClient);
 	const rest = container.resolve(Rest);
 
 	const reporter = {
@@ -47,36 +45,37 @@ export const reportMessage = async (
 			: `${RouteBases.cdn}/embed/avatars/${parseInt(reporterUser.discriminator, 10) % 5}.png`,
 	};
 
-	return sql.begin<void>(async (sql) => {
-		const [existingReport] = await sql<
-			[ReportedMessage?]
-		>`SELECT * FROM reported_messages WHERE message_id = ${message.id}`;
+	return prisma.$transaction(async (prisma) => {
+		const existingReport = await prisma.reportedMessage.findFirst({
+			where: { messageId: message.id },
+			include: { reporters: true },
+		});
 
 		if (existingReport) {
 			if (existingReport.ack) {
 				return Promise.reject(new ReportFailure(ReportFailureReason.previouslyAck));
 			}
 
-			const reporters = await sql<MessageReporter[]>`SELECT * FROM message_reporters WHERE message_id = ${message.id}`;
-			if (reporters.find((r) => r.reporter_id === reporter.id)) {
+			if (existingReport.reporters.find((r) => r.reporterId === reporter.id)) {
 				return Promise.reject(new ReportFailure(ReportFailureReason.alreadyReported));
 			}
 
-			const originalReport = reporters.find((reporter) => reporter.original)!;
+			const originalReport = existingReport.reporters.find((r) => r.original)!;
 			const originalMessage = await rest.get<APIMessage>(
-				Routes.channelMessage(settings.reports_channel!, existingReport.report_message_id),
+				Routes.channelMessage(settings.reportsChannel!, existingReport.reportMessageId),
 			);
+
 			const embed = originalMessage.embeds[0]!;
 
 			await rest.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
-				Routes.channelMessage(settings.reports_channel!, existingReport.report_message_id),
+				Routes.channelMessage(settings.reportsChannel!, existingReport.reportMessageId),
 				{
 					data: {
 						embeds: [
 							{
 								...embed,
 								footer: {
-									text: `Reported by: ${originalReport.reporter_tag} (${originalReport.reporter_id}) and ${reporters.length} others`,
+									text: `Reported by: ${originalReport.reporterTag} (${originalReport.reporterId}) and ${existingReport.reporters.length} others`,
 									icon_url: embed.footer!.icon_url,
 								},
 							},
@@ -84,20 +83,11 @@ export const reportMessage = async (
 					},
 				},
 			);
-
-			await sql`
-        INSERT INTO message_reporters (message_id, reporter_id, reporter_tag)
-        VALUES (
-          ${message.id},
-          ${reporter.id},
-          ${reporter.tag}
-        )
-      `;
 		} else {
 			const id = nanoid();
 
 			const reportMessage = await rest.post<RESTPostAPIChannelMessageResult, RESTPostAPIChannelMessageJSONBody>(
-				Routes.channelMessages(settings.reports_channel!),
+				Routes.channelMessages(settings.reportsChannel!),
 				{
 					data: {
 						embeds: [
@@ -153,20 +143,21 @@ export const reportMessage = async (
 				},
 			);
 
-			await sql`
-        INSERT INTO reported_messages (message_id, report_message_id)
-        VALUES (${message.id}, ${reportMessage.id})
-      `;
-
-			await sql`
-        INSERT INTO message_reporters (message_id, original, reporter_id, reporter_tag)
-        VALUES (
-          ${message.id},
-          true,
-          ${reporter.id},
-          ${reporter.tag}
-        )
-      `;
+			await prisma.reportedMessage.create({
+				data: {
+					messageId: message.id,
+					reportMessageId: reportMessage.id,
+					reporters: {
+						create: [
+							{
+								original: true,
+								reporterId: reporter.id,
+								reporterTag: reporter.tag,
+							},
+						],
+					},
+				},
+			});
 		}
 	});
 };
@@ -189,7 +180,7 @@ export const reportUser = async (
 	const age = `<t:${Math.round(getCreationData(reportedUser.id).createdTimestamp / 1000)}:R>`;
 
 	await rest.post<RESTPostAPIChannelMessageResult, RESTPostAPIChannelMessageJSONBody>(
-		Routes.channelMessages(settings.reports_channel!),
+		Routes.channelMessages(settings.reportsChannel!),
 		{
 			data: {
 				embeds: [

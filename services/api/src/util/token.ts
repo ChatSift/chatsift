@@ -9,12 +9,10 @@
 
 // Unused sigs are automatically expired after a week.
 
-import type { App, Sig } from '@automoderator/core';
-import { kSql } from '@automoderator/injection';
+import type { App, PrismaClient } from '@prisma/client';
 import { compare, hash } from 'bcrypt';
 import { randomBytes } from 'crypto';
-import type { Sql } from 'postgres';
-import { inject, singleton } from 'tsyringe';
+import { singleton } from 'tsyringe';
 
 export const enum TokenValidationStatus {
 	malformedToken,
@@ -30,14 +28,19 @@ export interface TokenValidationResult {
 
 @singleton()
 export class TokenManager {
-	public constructor(@inject(kSql) public readonly sql: Sql<{}>) {}
+	public constructor(public readonly prisma: PrismaClient) {}
 
 	public async generate(id: number): Promise<string> {
 		const idChunk = Buffer.from(id.toString()).toString('base64');
-
 		const token = randomBytes(32).toString('base64');
 
-		await this.sql`INSERT INTO sigs (app_id, sig) VALUES (${id}, ${await hash(token, 10)})`;
+		await this.prisma.sig.create({
+			data: {
+				appId: id,
+				sig: await hash(token, 10),
+			},
+		});
+
 		return `${idChunk}.${token}`;
 	}
 
@@ -54,19 +57,21 @@ export class TokenManager {
 			return { status: TokenValidationStatus.malformedAppId };
 		}
 
-		/* istanbul ignore next */
-		const { app, sigs = [] } = await this.sql.begin<{ app?: App; sigs?: Sig[] }>(async (sql) => {
-			const [app] = await sql<[App?]>`SELECT * FROM apps WHERE app_id = ${id}`;
-
-			if (app) {
-				return { app, sigs: await sql<Sig[]>`SELECT * FROM sigs WHERE app_id = ${id} ORDER BY last_used_at DESC` };
-			}
-
-			return {};
+		const app = await this.prisma.app.findFirst({
+			where: {
+				appId: id,
+			},
+			include: {
+				sigs: true,
+			},
 		});
 
+		if (!app) {
+			return { status: TokenValidationStatus.noMatch };
+		}
+
 		let match: string | null = null;
-		for (const { sig } of sigs) {
+		for (const { sig } of app.sigs) {
 			if (await compare(sigRaw, sig)) {
 				match = sig;
 				break;
@@ -77,7 +82,14 @@ export class TokenManager {
 			return { status: TokenValidationStatus.noMatch };
 		}
 
-		await this.sql`UPDATE sigs SET last_used_at = NOW() WHERE sig = ${match}`;
+		await this.prisma.sig.update({
+			data: {
+				lastUsedAt: new Date(),
+			},
+			where: {
+				sig: match,
+			},
+		});
 
 		return { status: TokenValidationStatus.success, app };
 	}

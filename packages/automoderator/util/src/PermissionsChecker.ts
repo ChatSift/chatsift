@@ -1,11 +1,10 @@
-import type { GuildSettings } from '@automoderator/core';
-import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
+import { GuildSettings, PrismaClient } from '@prisma/client';
+import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { APIInteractionGuildMember, RESTGetAPIGuildResult, Routes, Snowflake } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
-import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
-import { DiscordPermissions } from './DiscordPermissions';
+import { DiscordPermissions } from '@chatsift/api-wrapper';
 
 export enum UserPerms {
 	none,
@@ -22,38 +21,38 @@ export interface PermissionsCheckerData {
 @singleton()
 export class PermissionsChecker {
 	public constructor(
-		@inject(kSql) public readonly sql: Sql<{}>,
+		public readonly prisma: PrismaClient,
 		@inject(kLogger) public readonly logger: Logger,
 		@inject(kConfig) public readonly config: Config,
 		public readonly rest: Rest,
 	) {}
 
-	public async checkMod(data: PermissionsCheckerData, settings?: GuildSettings): Promise<boolean> {
+	public async checkMod(data: PermissionsCheckerData, settings?: GuildSettings | null): Promise<boolean> {
 		if (!settings) {
-			[settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
+			settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
 		}
 
-		if (!settings?.mod_role) {
+		if (!settings?.modRole) {
 			return false;
 		}
 
-		return data.member.roles.includes(settings.mod_role);
+		return data.member.roles.includes(settings.modRole);
 	}
 
-	public async checkAdmin(data: PermissionsCheckerData, settings?: GuildSettings): Promise<boolean> {
+	public async checkAdmin(data: PermissionsCheckerData, settings?: GuildSettings | null): Promise<boolean> {
 		if (new DiscordPermissions(BigInt(data.member.permissions)).has('manageGuild', true)) {
 			return true;
 		}
 
 		if (!settings) {
-			[settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
+			settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
 		}
 
-		if (!settings?.admin_role) {
+		if (!settings?.adminRole) {
 			return false;
 		}
 
-		return data.member.roles.includes(settings.admin_role);
+		return data.member.roles.includes(settings.adminRole);
 	}
 
 	public async checkOwner(data: PermissionsCheckerData, ownerId?: Snowflake | null): Promise<boolean> {
@@ -84,7 +83,7 @@ export class PermissionsChecker {
 		}
 
 		if (!settings) {
-			[settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
+			settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
 		}
 
 		switch (perm) {

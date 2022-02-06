@@ -1,7 +1,6 @@
-import { Config, kConfig, kSql } from '@automoderator/injection';
+import { Config, kConfig } from '@automoderator/injection';
 import { Route, validate } from '@chatsift/rest-utils';
 import type { Request, Response } from 'polka';
-import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
 import { userAuth } from '#middleware';
 import { GetAuthDiscordLogoutQuerySchema, GetAuthDiscordLogoutQuery } from '@chatsift/api-wrapper/v2';
@@ -10,7 +9,7 @@ import { GetAuthDiscordLogoutQuerySchema, GetAuthDiscordLogoutQuery } from '@cha
 export default class extends Route {
 	public override readonly middleware = [validate(GetAuthDiscordLogoutQuerySchema, 'query'), userAuth()];
 
-	public constructor(@inject(kConfig) public readonly config: Config, @inject(kSql) public readonly sql: Sql<{}>) {
+	public constructor(@inject(kConfig) public readonly config: Config) {
 		super();
 	}
 

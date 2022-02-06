@@ -1,10 +1,9 @@
-import type { App, AppGuild } from '@automoderator/core';
-import { kSql } from '@automoderator/injection';
+import { App, PrismaClient } from '@prisma/client';
 import { badRequest, unauthorized } from '@hapi/boom';
 import type { NextHandler, Request, Response } from 'polka';
-import type { Sql } from 'postgres';
 import { container } from 'tsyringe';
-import { Permissions, TokenManager, TokenValidationStatus } from '#util';
+import { TokenManager, TokenValidationStatus } from '#util';
+import { Permissions } from '@chatsift/api-wrapper';
 
 declare module 'polka' {
 	export interface Request {
@@ -14,7 +13,7 @@ declare module 'polka' {
 
 export const thirdPartyAuth = (fallthrough = false) => {
 	const tokens = container.resolve(TokenManager);
-	const sql = container.resolve<Sql<{}>>(kSql);
+	const prisma = container.resolve(PrismaClient);
 
 	return async (req: Request, _: Response, next: NextHandler) => {
 		const { authorization } = req.headers;
@@ -42,9 +41,8 @@ export const thirdPartyAuth = (fallthrough = false) => {
 		}
 
 		if (req.params.gid && !new Permissions(BigInt(req.app!.perms)).has('administrator')) {
-			const [guild] = await sql<[AppGuild?]>`SELECT * FROM app_guilds WHERE app_id = ${app!.app_id} AND guild_id = ${
-				req.params.gid
-			}`;
+			const guild = await prisma.appGuild.findFirst({ where: { appId: app!.appId, guildId: req.params.gid } });
+
 			if (!guild) {
 				return next(unauthorized('cannot perform actions on this guild'));
 			}
