@@ -1,4 +1,4 @@
-import { Rest } from '@chatsift/api-wrapper';
+import { Rest } from '@cordis/rest';
 import { kLogger, kRedis } from '@automoderator/injection';
 import { createHash } from 'crypto';
 import fetch from 'node-fetch';
@@ -6,7 +6,7 @@ import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 import { Routes, APIMessage } from 'discord-api-types/v9';
 import { MaliciousFile, PrismaClient } from '@prisma/client';
-import type { FilesRunnerResult, Log } from '@automoderator/broker-types';
+import { FilesRunnerResult, Log, Runners } from '@automoderator/broker-types';
 import type { Redis } from 'ioredis';
 import { MessageCache } from '@automoderator/cache';
 import { PubSubPublisher } from '@cordis/brokers';
@@ -20,6 +20,8 @@ interface FilesTransform {
 
 @singleton()
 export class FilesRunner implements IRunner<FilesTransform, MaliciousFile[], FilesRunnerResult> {
+	public readonly ignore = 'files';
+
 	public readonly extensions = new Set(['exe', 'wav', 'mp3', 'flac', 'apng', 'gif', 'ogg', 'mp4', 'avi', 'webp']);
 
 	public constructor(
@@ -87,7 +89,7 @@ export class FilesRunner implements IRunner<FilesTransform, MaliciousFile[], Fil
 			.catch(() => null);
 	}
 
-	public log(files: MaliciousFile[]): FilesRunnerResult['data'] {
-		return files;
+	public log(files: MaliciousFile[]): FilesRunnerResult {
+		return { runner: Runners.files, data: files };
 	}
 }

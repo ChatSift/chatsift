@@ -1,10 +1,10 @@
-import type { AntispamRunnerResult, Log } from '@automoderator/broker-types';
+import { AntispamRunnerResult, Log, Runners } from '@automoderator/broker-types';
 import type { MessageCache } from '@automoderator/cache';
 import { kRedis } from '@automoderator/injection';
 import { dmUser } from '@automoderator/util';
 import { groupBy } from '@chatsift/utils';
 import { PubSubPublisher } from '@cordis/brokers';
-import type { Rest } from '@cordis/rest';
+import { Rest } from '@cordis/rest';
 import { PrismaClient } from '@prisma/client';
 import { Routes, APIMessage, RESTPostAPIChannelMessagesBulkDeleteJSONBody } from 'discord-api-types/v9';
 import type { Redis } from 'ioredis';
@@ -18,6 +18,8 @@ interface AntispamTransform {
 
 @singleton()
 export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], AntispamRunnerResult> {
+	public readonly ignore = 'automod';
+
 	public constructor(
 		@inject(kRedis) public readonly redis: Redis,
 		public readonly prisma: PrismaClient,
@@ -86,13 +88,16 @@ export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], 
 		await Promise.all(promises);
 	}
 
-	public async log(messages: APIMessage[]): Promise<AntispamRunnerResult['data']> {
+	public async log(messages: APIMessage[]): Promise<AntispamRunnerResult> {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: messages[0]!.guild_id } });
 
 		return {
-			messages,
-			amount: settings!.antispamAmount!,
-			time: settings!.antispamTime!,
+			runner: Runners.antispam,
+			data: {
+				messages,
+				amount: settings!.antispamAmount!,
+				time: settings!.antispamTime!,
+			},
 		};
 	}
 }

@@ -1,12 +1,12 @@
 import { PrismaClient } from '@prisma/client';
-import { Rest } from '@chatsift/api-wrapper';
+import { Rest } from '@cordis/rest';
 import { Routes, APIMessage } from 'discord-api-types/v9';
 import { readFileSync } from 'fs';
 import { join as joinPath } from 'path';
 import { inject, singleton } from 'tsyringe';
 import { MessageCache } from '@automoderator/cache';
 import { PubSubPublisher } from '@cordis/brokers';
-import type { Log, UrlsRunnerResult } from '@automoderator/broker-types';
+import { Log, Runners, UrlsRunnerResult } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
 import type { Logger } from 'pino';
 import type { IRunner } from './IRunner';
@@ -18,6 +18,8 @@ interface UrlsTransform {
 
 @singleton()
 export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRunnerResult> {
+	public readonly ignore = 'urls';
+
 	public readonly urlRegex = /([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm;
 	public readonly tlds: Set<string>;
 
@@ -101,7 +103,7 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 			.catch(() => null);
 	}
 
-	public log({ urls }: UrlsTransform): UrlsRunnerResult['data'] {
-		return urls;
+	public log({ urls }: UrlsTransform): UrlsRunnerResult {
+		return { runner: Runners.urls, data: urls };
 	}
 }

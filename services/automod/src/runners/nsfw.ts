@@ -1,5 +1,5 @@
-import type { PredictionType, NsfwApiData, Log, NsfwRunnerResult } from '@automoderator/broker-types';
-import { Rest } from '@chatsift/api-wrapper';
+import { PredictionType, NsfwApiData, Log, NsfwRunnerResult, Runners } from '@automoderator/broker-types';
+import { Rest } from '@cordis/rest';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import fetch from 'node-fetch';
 import type { Logger } from 'pino';
@@ -9,16 +9,19 @@ import { MessageCache } from '@automoderator/cache';
 import { PubSubPublisher } from '@cordis/brokers';
 import { FilesRunner } from './files';
 import type { IRunner } from './IRunner';
-import { Routes, APIMessage } from 'discord-api-types/v9';
+import { Routes, APIMessage, APIChannel, ChannelType } from 'discord-api-types/v9';
 import { dmUser } from '@automoderator/util';
 
 interface NsfwTransform {
 	urls: string[];
 	settings: GuildSettings | null;
+	nsfw: boolean;
 }
 
 @singleton()
 export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data'], NsfwRunnerResult> {
+	public readonly ignore = null;
+
 	public readonly API_URL = 'https://gateway.cycloptux.com/api/v1/services/nsfwjs/predict';
 
 	public constructor(
@@ -114,15 +117,22 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 
 	public async transform(message: APIMessage): Promise<NsfwTransform> {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
+		let channel = await this.discord.get<APIChannel>(Routes.channel(message.channel_id));
+
+		if (channel.type !== ChannelType.GuildText) {
+			channel = await this.discord.get<APIChannel>(Routes.channel(channel.parent_id!));
+		}
 
 		return {
 			urls: this.filesRunner.transform(message).urls,
 			settings,
+			nsfw: channel.nsfw ?? false,
 		};
 	}
 
-	public check({ urls, settings }: NsfwTransform): boolean {
+	public check({ urls, settings, nsfw }: NsfwTransform): boolean {
 		return (
+			!nsfw &&
 			urls.length > 0 &&
 			((settings?.hentaiThreshold ?? 0) > 0 || (settings?.pornThreshold ?? 0) > 0 || (settings?.sexyThreshold ?? 0) > 0)
 		);
@@ -156,7 +166,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 			.catch(() => null);
 	}
 
-	public log(trigger: NsfwRunnerResult['data']): NsfwRunnerResult['data'] {
-		return trigger;
+	public log(trigger: NsfwRunnerResult['data']): NsfwRunnerResult {
+		return { runner: Runners.nsfw, data: trigger };
 	}
 }

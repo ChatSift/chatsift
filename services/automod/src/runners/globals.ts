@@ -1,11 +1,11 @@
 import { MaliciousUrl, PrismaClient } from '@prisma/client';
-import { Rest } from '@chatsift/api-wrapper';
+import { Rest } from '@cordis/rest';
 import { kLogger, kRedis } from '@automoderator/injection';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import fetch from 'node-fetch';
 import type { IRunner } from './IRunner';
-import type { GlobalsRunnerResult, Log } from '@automoderator/broker-types';
+import { GlobalsRunnerResult, Log, Runners } from '@automoderator/broker-types';
 import type { Redis } from 'ioredis';
 import { MessageCache } from '@automoderator/cache';
 import { PubSubPublisher } from '@cordis/brokers';
@@ -21,6 +21,8 @@ interface GlobalsTransform {
 export class GlobalsRunner
 	implements IRunner<GlobalsTransform, (MaliciousUrl | { url: string })[], GlobalsRunnerResult>
 {
+	public readonly ignore = 'global';
+
 	public readonly fishUrl = 'https://api.hyperphish.com/gimme-domains' as const;
 	public readonly fishCache = new Set<string>();
 	public lastRefreshedFish: number | null = null;
@@ -102,7 +104,7 @@ export class GlobalsRunner
 			.catch(() => null);
 	}
 
-	public log(urls: (MaliciousUrl | { url: string })[]): GlobalsRunnerResult['data'] {
-		return urls;
+	public log(urls: (MaliciousUrl | { url: string })[]): GlobalsRunnerResult {
+		return { runner: Runners.globals, data: urls };
 	}
 }

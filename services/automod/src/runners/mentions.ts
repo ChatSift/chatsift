@@ -1,4 +1,4 @@
-import type { Log, MentionsRunnerResult } from '@automoderator/broker-types';
+import { Log, MentionsRunnerResult, Runners } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { kRedis } from '@automoderator/injection';
 import { dmUser } from '@automoderator/util';
@@ -20,6 +20,8 @@ interface MentionsTransform {
 
 @singleton()
 export class MentionsRunner implements IRunner<MentionsTransform, APIMessage | APIMessage[], MentionsRunnerResult> {
+	public readonly ignore = 'automod';
+
 	public readonly mentionsRegex = /<@!?&?(?<id>\d{17,19})>/g;
 
 	public constructor(
@@ -117,19 +119,25 @@ export class MentionsRunner implements IRunner<MentionsTransform, APIMessage | A
 		await Promise.all(promises);
 	}
 
-	public async log(messages: APIMessage | APIMessage[]): Promise<MentionsRunnerResult['data']> {
+	public async log(messages: APIMessage | APIMessage[]): Promise<MentionsRunnerResult> {
 		if (!Array.isArray(messages)) {
 			const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: messages.guild_id } });
 			return {
-				limit: settings!.mentionLimit!,
+				runner: Runners.mentions,
+				data: {
+					limit: settings!.mentionLimit!,
+				},
 			};
 		}
 
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: messages[0]!.guild_id } });
 		return {
-			messages,
-			amount: settings!.mentionAmount!,
-			time: settings!.mentionTime!,
+			runner: Runners.mentions,
+			data: {
+				messages,
+				amount: settings!.mentionAmount!,
+				time: settings!.mentionTime!,
+			},
 		};
 	}
 }

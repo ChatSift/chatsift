@@ -7,7 +7,7 @@ import fetch from 'node-fetch';
 import type { Logger } from 'pino';
 import { MessageCache } from '@automoderator/cache';
 import { PubSubPublisher } from '@cordis/brokers';
-import type { InvitesRunnerResult, Log } from '@automoderator/broker-types';
+import { InvitesRunnerResult, Log, Runners } from '@automoderator/broker-types';
 import type { IRunner } from './IRunner';
 import { dmUser } from '@automoderator/util';
 
@@ -17,6 +17,8 @@ interface InvitesTransform {
 
 @singleton()
 export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform, InvitesRunnerResult> {
+	public readonly ignore = 'invites';
+
 	public readonly inviteRegex =
 		/(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})/gi;
 
@@ -85,7 +87,7 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 			.catch(() => null);
 	}
 
-	public log({ codes }: InvitesTransform): InvitesRunnerResult['data'] {
-		return codes;
+	public log({ codes }: InvitesTransform): InvitesRunnerResult {
+		return { runner: Runners.invites, data: codes };
 	}
 }
