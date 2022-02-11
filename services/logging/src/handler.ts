@@ -79,10 +79,10 @@ export class Handler {
 					value = `Permanent ${action.toLowerCase()}`;
 				} else if (cs.extra.extendedBy) {
 					value =
-						`${action} extended by ${ms(cs.extra.extendedBy, true)} - ` +
-						`meaning it will now expire in ${ms(cs.extra.extendedBy + cs.extra.duration, true)}`;
+						`${action} extended by ${ms(cs.extra.extendedBy - Date.now(), true)} - ` +
+						`meaning it will now expire in ${ms(cs.extra.extendedBy + cs.extra.duration - Date.now(), true)}`;
 				} else {
-					value = `${action} that will last for ${ms(cs.extra.duration, true)}`;
+					value = `${action} that will last for ${ms(cs.extra.duration - Date.now(), true)}`;
 				}
 
 				break;
