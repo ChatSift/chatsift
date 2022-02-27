@@ -175,11 +175,21 @@ model WarnPunishment {
   @@map("warn_punishments")
 }
 
-model WebhookToken {
-  channelId    String @id @map("channel_id")
-  webhookId    String @map("webhook_id")
-  webhookToken String @map("webhook_token")
+enum LogChannelType {
+  mod
+  filter
+  user
+  message
+}
 
+model LogChannelWebhook {
+  guildId      String         @map("guild_id")
+  logType      LogChannelType @map("log_type")
+  webhookId    String         @map("webhook_id")
+  webhookToken String         @map("webhook_token")
+  threadId     String?        @map("thread_id")
+
+  @@id([guildId, logType])
   @@map("webhook_tokens")
 }
 

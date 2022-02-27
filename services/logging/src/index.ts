@@ -1,9 +1,9 @@
 import 'reflect-metadata';
-import { initConfig, kLogger, kSql } from '@automoderator/injection';
+import { initConfig, kLogger } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { ProxyBucket, Rest } from '@cordis/rest';
-import postgres from 'postgres';
 import { container } from 'tsyringe';
+import { PrismaClient } from '@prisma/client';
 import { Handler } from './handler';
 
 void (async () => {
@@ -21,11 +21,7 @@ void (async () => {
 
 	container.register(Rest, { useValue: rest });
 	container.register(kLogger, { useValue: logger });
-	container.register(kSql, {
-		useValue: postgres(config.dbUrl, {
-			onnotice: (notice) => logger.debug({ notice }, 'Database notice'),
-		}),
-	});
+	container.register(PrismaClient, { useValue: new PrismaClient() });
 
 	await container.resolve(Handler).init();
 	logger.info('Ready to handle logs');

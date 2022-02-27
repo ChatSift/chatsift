@@ -5,8 +5,7 @@ import type {
 	GatewayDispatchPayload,
 	Snowflake,
 } from 'discord-api-types/v9';
-// import type { ApiPostFiltersFilesResult, HttpCase } from './api';
-import type { BannedWord, MaliciousFile, MaliciousUrl } from '@prisma/client';
+import type { BannedWord, Case, CaseAction, MaliciousFile, MaliciousUrl } from '@prisma/client';
 
 type SanitizedDiscordEvents = {
 	[K in GatewayDispatchEvents]: GatewayDispatchPayload & {
@@ -42,14 +41,14 @@ interface WarnCaseExtrasWithDuration {
 
 export type WarnCaseExtras = WarnCaseExtrasNoDuration | WarnCaseExtrasWithDuration;
 
-// export type NonWarnCase = Omit<HttpCase, 'action_type'> & { action_type: Exclude<CaseAction, 'warn'> };
-// export type WarnCase = Omit<HttpCase, 'action_type'> & {
-// action_type: 'warn';
-// extra?: WarnCaseExtras;
-// };
+export type NonWarnCase = Omit<Case, 'actionType'> & { actionType: Exclude<CaseAction, 'warn'> };
+export type WarnCase = Omit<Case, 'actionType'> & {
+	actionType: 'warn';
+	extra?: WarnCaseExtras;
+};
 
-// type OrArray<T> = T | T[];
-// export type ModActionLog = LogBase<LogTypes.modAction, OrArray<NonWarnCase | WarnCase>>;
+type OrArray<T> = T | T[];
+export type ModActionLog = LogBase<LogTypes.modAction, OrArray<NonWarnCase | WarnCase>>;
 
 export enum Runners {
 	files,
@@ -196,4 +195,4 @@ export type ForbiddenNameLog = LogBase<
 	}
 >;
 
-export type Log = /* ModActionLog | */ FilterTriggerLog | ServerLog | ForbiddenNameLog;
+export type Log = ModActionLog | FilterTriggerLog | ServerLog | ForbiddenNameLog;
