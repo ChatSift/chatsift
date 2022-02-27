@@ -27,6 +27,7 @@
 		"typescript": "^4.5.5"
 	},
 	"dependencies": {
+		"@automoderator/broker-types": "workspace:^0.1.0",
 		"@automoderator/cache": "workspace:^0.1.0",
 		"@automoderator/injection": "workspace:^0.1.0",
 		"@automoderator/logger": "workspace:^0.1.0",
