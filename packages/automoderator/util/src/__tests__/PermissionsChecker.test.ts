@@ -1,15 +1,16 @@
-import { kConfig, kLogger, kSql } from '@automoderator/injection';
+import { kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
+import { PrismaClient } from '@prisma/client';
 import { container } from 'tsyringe';
 import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '../PermissionsChecker';
 
-const sqlMock = jest.fn().mockImplementation(() => Promise.resolve([]));
+const findFirstMock = jest.fn().mockImplementation(() => Promise.resolve([]));
 const restGetMock = jest.fn();
 const loggerWarnMock = jest.fn();
 
 const restMock = { get: restGetMock } as unknown as jest.Mocked<Rest>;
 
-container.register(kSql, { useValue: sqlMock });
+container.register<any>(PrismaClient, { useValue: { guildSettings: { findFirst: findFirstMock } } });
 container.register(kLogger, { useValue: { warn: loggerWarnMock } });
 container.register(kConfig, { useValue: { devIds: ['223703707118731264'] } });
 container.register(Rest, { useValue: restMock });
@@ -98,12 +99,12 @@ describe('mod needed', () => {
 	});
 
 	test('pass by mod check', async () => {
-		sqlMock.mockImplementation(() => Promise.resolve([{ mod_role: '123' }]));
+		findFirstMock.mockImplementation(() => Promise.resolve({ modRole: '123' }));
 		expect(await checker.check(getInteraction('0'), UserPerms.mod)).toBe(true);
 	});
 
 	test('pass by owner check', async () => {
-		sqlMock.mockImplementation(() => Promise.resolve([{ mod_role: '1234' }]));
+		findFirstMock.mockImplementation(() => Promise.resolve({ modRole: '1234' }));
 		restGetMock.mockImplementation(() => Promise.resolve({ owner_id: '123' }));
 
 		expect(await checker.check(getInteraction('0'), UserPerms.mod)).toBe(true);

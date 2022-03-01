@@ -9,7 +9,7 @@ import { MessageCache } from '@automoderator/cache';
 import { PubSubPublisher } from '@cordis/brokers';
 import { FilesRunner } from './files';
 import type { IRunner } from './IRunner';
-import { Routes, APIMessage, APIChannel, ChannelType } from 'discord-api-types/v9';
+import { Routes, APIMessage, ChannelType, APITextChannel } from 'discord-api-types/v9';
 import { dmUser } from '@automoderator/util';
 
 interface NsfwTransform {
@@ -117,10 +117,11 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 
 	public async transform(message: APIMessage): Promise<NsfwTransform> {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
-		let channel = await this.discord.get<APIChannel>(Routes.channel(message.channel_id));
+		let channel = await this.discord.get<APITextChannel>(Routes.channel(message.channel_id));
 
+		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 		if (channel.type !== ChannelType.GuildText) {
-			channel = await this.discord.get<APIChannel>(Routes.channel(channel.parent_id!));
+			channel = await this.discord.get<APITextChannel>(Routes.channel(channel.parent_id!));
 		}
 
 		return {

@@ -31,22 +31,16 @@ COPY packages/chatsift/utils ./packages/chatsift/utils
 
 RUN pnpm run build --filter ./packages/chatsift
 
-COPY packages/automoderator/banword-flags/package.json ./packages/automoderator/banword-flags/package.json
 COPY packages/automoderator/cache/package.json ./packages/automoderator/cache/package.json
-COPY packages/automoderator/core/package.json ./packages/automoderator/core/package.json
-COPY packages/automoderator/discord-permissions/package.json ./packages/automoderator/discord-permissions/package.json
-COPY packages/automoderator/filter-ignores/package.json ./packages/automoderator/filter-ignores/package.json
+COPY packages/automoderator/broker-types/package.json ./packages/automoderator/broker-types/package.json
 COPY packages/automoderator/injection/package.json ./packages/automoderator/injection/package.json
 COPY packages/automoderator/logger/package.json ./packages/automoderator/logger/package.json
 COPY packages/automoderator/util/package.json ./packages/automoderator/util/package.json
 
-RUN pnpm i --frozen-lockfile && apk del .build-deps
+RUN pnpm i --frozen-lockfile
 
-COPY packages/automoderator/banword-flags ./packages/automoderator/banword-flags
 COPY packages/automoderator/cache ./packages/automoderator/cache
-COPY packages/automoderator/core ./packages/automoderator/core
-COPY packages/automoderator/discord-permissions ./packages/automoderator/discord-permissions
-COPY packages/automoderator/filter-ignores ./packages/automoderator/filter-ignores
+COPY packages/automoderator/broker-types ./packages/automoderator/broker-types
 COPY packages/automoderator/injection ./packages/automoderator/injection
 COPY packages/automoderator/logger ./packages/automoderator/logger
 COPY packages/automoderator/util ./packages/automoderator/util

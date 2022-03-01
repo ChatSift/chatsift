@@ -1,6 +1,7 @@
 import { send } from '#util';
 import type { ApiGetGuildPromptResult } from '@automoderator/core';
 import { Rest } from '@chatsift/api-wrapper';
+import { chunkArray } from '@chatsift/utils';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
 import {
@@ -18,13 +19,16 @@ import type { Component } from '../component';
 export default class implements Component {
 	public constructor(public readonly rest: Rest, public readonly discordRest: DiscordRest) {}
 
-	public async exec(interaction: APIGuildInteraction, [promptId]: [string]) {
+	public async exec(interaction: APIGuildInteraction, [promptId, index]: [string, string]) {
 		void send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
 
 		const selfAssignables = new Set<Snowflake>(
-			await this.rest
-				.get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/${promptId}`)
-				.then((prompt) => prompt.roles.map((role) => role.role_id)),
+			chunkArray(
+				await this.rest
+					.get<ApiGetGuildPromptResult>(`/guilds/${interaction.guild_id}/prompts/${promptId}`)
+					.then((prompt) => prompt.roles.map((role) => role.role_id)),
+				25,
+			)[parseInt(index, 10)],
 		);
 
 		const roles = new Set(interaction.member.roles);

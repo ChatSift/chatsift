@@ -9,7 +9,7 @@
 
 // Unused sigs are automatically expired after a week.
 
-import type { App, PrismaClient } from '@prisma/client';
+import { App, PrismaClient } from '@prisma/client';
 import { compare, hash } from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { singleton } from 'tsyringe';

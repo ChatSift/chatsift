@@ -5,7 +5,7 @@ import { Button, ButtonGroup } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import type { FormEvent } from 'react';
 import { useQueryMe } from '~/hooks/useQueryMe';
-import type { ApiPatchGuildSettingsBody } from '@automoderator/core';
+import type { PatchGuildsSettingsBody } from '@chatsift/api-wrapper/v2';
 import { fetchApi } from '~/utils/fetchApi';
 import RoleInput from '~/components/RoleInput';
 import ChannelInput from '~/components/ChannelInput';
@@ -21,7 +21,7 @@ const GuildSettings = () => {
 
 	const guild = user?.guilds.find((g) => g.id === id);
 
-	const form = useForm<ApiPatchGuildSettingsBody>();
+	const form = useForm<PatchGuildsSettingsBody>();
 
 	if (!settings) {
 		return <Loading />;
@@ -29,8 +29,8 @@ const GuildSettings = () => {
 
 	const handleOnSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		await form.handleSubmit(async (values: ApiPatchGuildSettingsBody) => {
-			await fetchApi<unknown, ApiPatchGuildSettingsBody>({
+		await form.handleSubmit(async (values: PatchGuildsSettingsBody) => {
+			await fetchApi<unknown, PatchGuildsSettingsBody>({
 				path: `/guilds/${id}/settings`,
 				method: 'PATCH',
 				body: values,
@@ -40,16 +40,16 @@ const GuildSettings = () => {
 
 	return guild?.data ? (
 		<form onSubmit={handleOnSubmit}>
-			<RoleInput settings={settings} name={'Mod role'} settingsKey={'mod_role'} guild={guild} form={form} />
+			<RoleInput settings={settings} name={'Mod role'} settingsKey={'modRole'} guild={guild} form={form} />
 
-			<RoleInput settings={settings} name={'Admin role'} settingsKey={'admin_role'} guild={guild} form={form} />
+			<RoleInput settings={settings} name={'Admin role'} settingsKey={'adminRole'} guild={guild} form={form} />
 
-			<RoleInput settings={settings} name={'Mute role'} settingsKey={'mute_role'} guild={guild} form={form} />
+			<RoleInput settings={settings} name={'Mute role'} settingsKey={'muteRole'} guild={guild} form={form} />
 
 			<ChannelInput
 				settings={settings}
 				name={'Reports channel'}
-				settingsKey={'reports_channel'}
+				settingsKey={'reportsChannel'}
 				guild={guild}
 				form={form}
 				textOnly

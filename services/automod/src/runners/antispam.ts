@@ -1,5 +1,5 @@
 import { AntispamRunnerResult, Log, Runners } from '@automoderator/broker-types';
-import type { MessageCache } from '@automoderator/cache';
+import { MessageCache } from '@automoderator/cache';
 import { kRedis } from '@automoderator/injection';
 import { dmUser } from '@automoderator/util';
 import { groupBy } from '@chatsift/utils';

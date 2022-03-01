@@ -5,7 +5,7 @@ import { Button, ButtonGroup } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import type { FormEvent } from 'react';
 import { useQueryMe } from '~/hooks/useQueryMe';
-import type { ApiPatchGuildSettingsBody } from '@automoderator/core';
+import type { PatchGuildsSettingsBody } from '@chatsift/api-wrapper/v2';
 import { fetchApi } from '~/utils/fetchApi';
 import NumberInput from '~/components/NumberInput';
 
@@ -20,7 +20,7 @@ const MentionSpamDetectionSettings = () => {
 
 	const guild = user?.guilds.find((g) => g.id === id);
 
-	const form = useForm<ApiPatchGuildSettingsBody>();
+	const form = useForm<PatchGuildsSettingsBody>();
 
 	if (!settings) {
 		return <Loading />;
@@ -28,8 +28,8 @@ const MentionSpamDetectionSettings = () => {
 
 	const handleOnSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		await form.handleSubmit(async (values: ApiPatchGuildSettingsBody) => {
-			await fetchApi<unknown, ApiPatchGuildSettingsBody>({
+		await form.handleSubmit(async (values: PatchGuildsSettingsBody) => {
+			await fetchApi<unknown, PatchGuildsSettingsBody>({
 				path: `/guilds/${id}/settings`,
 				method: 'PATCH',
 				body: values,
@@ -42,7 +42,7 @@ const MentionSpamDetectionSettings = () => {
 			<NumberInput
 				settings={settings}
 				name={'Amount of mentions needed to trigger'}
-				settingsKey={'mention_amount'}
+				settingsKey={'mentionAmount'}
 				guild={guild}
 				form={form}
 				min={3}
@@ -51,7 +51,7 @@ const MentionSpamDetectionSettings = () => {
 			<NumberInput
 				settings={settings}
 				name={'How quickly the user has to reach the given amount of mentions (seconds)'}
-				settingsKey={'mention_time'}
+				settingsKey={'mentionTime'}
 				guild={guild}
 				form={form}
 				min={2}
@@ -61,7 +61,7 @@ const MentionSpamDetectionSettings = () => {
 			<NumberInput
 				settings={settings}
 				name={'How many mentions a user is allowed to send within a single message'}
-				settingsKey={'mention_limit'}
+				settingsKey={'mentionLimit'}
 				guild={guild}
 				form={form}
 				min={2}

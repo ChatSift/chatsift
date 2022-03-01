@@ -5,12 +5,13 @@ import { Button, ButtonGroup } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import type { FormEvent } from 'react';
 import { useQueryMe } from '~/hooks/useQueryMe';
-import { ApiPatchGuildSettingsBody, ms } from '@automoderator/core';
+import type { PatchGuildsSettingsBody } from '@chatsift/api-wrapper/v2';
 import { fetchApi } from '~/utils/fetchApi';
 import { filterEmptyFields } from '~/utils/filterEmptyFields';
 import NumberInput from '~/components/NumberInput';
 import DurationInput from '~/components/DurationInput';
 import SwitchInput from '~/components/SwitchInput';
+import ms from '@naval-base/ms';
 
 const Loading = dynamic(() => import('~/components/Loading'));
 
@@ -23,7 +24,7 @@ const AutoModerationSettings = () => {
 
 	const guild = user?.guilds.find((g) => g.id === id);
 
-	const form = useForm<ApiPatchGuildSettingsBody>();
+	const form = useForm<PatchGuildsSettingsBody>();
 
 	if (!settings) {
 		return <Loading />;
@@ -31,14 +32,16 @@ const AutoModerationSettings = () => {
 
 	const handleOnSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		await form.handleSubmit(async (values: ApiPatchGuildSettingsBody) => {
+		await form.handleSubmit(async (values: PatchGuildsSettingsBody) => {
 			const body = filterEmptyFields(values);
 
-			if (body.min_join_age != null) {
-				body.min_join_age = ms(body.min_join_age) as any;
+			if (body.minJoinAge != null) {
+				// TODO(DD): Figure out a better way to approach this rather than an any cast
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+				body.minJoinAge = ms(body.minJoinAge) as any;
 			}
 
-			await fetchApi<unknown, ApiPatchGuildSettingsBody>({
+			await fetchApi<unknown, PatchGuildsSettingsBody>({
 				path: `/guilds/${id}/settings`,
 				method: 'PATCH',
 				body,
@@ -51,7 +54,7 @@ const AutoModerationSettings = () => {
 			<NumberInput
 				settings={settings}
 				name={'Automatically pardon warns after (days)'}
-				settingsKey={'auto_pardon_warns_after'}
+				settingsKey={'autoPardonWarnsAfter'}
 				guild={guild}
 				form={form}
 			/>
@@ -59,7 +62,7 @@ const AutoModerationSettings = () => {
 			<DurationInput
 				settings={settings}
 				name={'Automatically kick users with accounts younger than'}
-				settingsKey={'min_join_age'}
+				settingsKey={'minJoinAge'}
 				guild={guild}
 				form={form}
 			/>
@@ -67,7 +70,7 @@ const AutoModerationSettings = () => {
 			<NumberInput
 				settings={settings}
 				name={"Automod cooldown (how long to wait before decreasing a user's automod trigger total; in minutes)"}
-				settingsKey={'automod_cooldown'}
+				settingsKey={'automodCooldown'}
 				guild={guild}
 				form={form}
 				min={3}
@@ -77,7 +80,7 @@ const AutoModerationSettings = () => {
 			<SwitchInput
 				settings={settings}
 				name={'Automatically kick users with blank avatars'}
-				settingsKey={'no_blank_avatar'}
+				settingsKey={'noBlankAvatar'}
 				guild={guild}
 				form={form}
 			/>

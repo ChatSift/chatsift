@@ -1,14 +1,20 @@
 /* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unsafe-member-access */
 
-import { kSql } from '@automoderator/injection';
 import { Boom } from '@hapi/boom';
+import { PrismaClient } from '@prisma/client';
 import { Http2ServerResponse } from 'http2';
 import fetch from 'node-fetch';
 import type { Request, Response } from 'polka';
 import { container } from 'tsyringe';
 import { userAuth } from '../userAuth';
 
-container.register(kSql, { useValue: jest.fn(() => [{ perms: 0 }]) });
+container.register<any>(PrismaClient, {
+	useValue: {
+		user: {
+			findFirst: jest.fn(() => ({ perms: 0n })),
+		},
+	},
+});
 
 jest.mock('http2');
 

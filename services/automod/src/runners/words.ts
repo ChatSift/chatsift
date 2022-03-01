@@ -1,8 +1,8 @@
 import { Log, Runners, WordsRunnerResult } from '@automoderator/broker-types';
-import type { MessageCache } from '@automoderator/cache';
+import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
 import { BanwordFlags } from '@chatsift/api-wrapper';
-import type { PubSubPublisher } from '@cordis/brokers';
+import { PubSubPublisher } from '@cordis/brokers';
 import { Rest } from '@cordis/rest';
 import { PrismaClient, BannedWord } from '@prisma/client';
 import { Routes, APIMessage } from 'discord-api-types/v9';

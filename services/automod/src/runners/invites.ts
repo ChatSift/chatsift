@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import { Routes, APIMessage, APIInvite } from 'discord-api-types';
+import { Routes, APIMessage, APIInvite } from 'discord-api-types/v9';
 import { inject, singleton } from 'tsyringe';
 import fetch from 'node-fetch';
 import type { Logger } from 'pino';

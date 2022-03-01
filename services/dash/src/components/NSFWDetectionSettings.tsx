@@ -5,7 +5,7 @@ import { Button, ButtonGroup } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import type { FormEvent } from 'react';
 import { useQueryMe } from '~/hooks/useQueryMe';
-import type { ApiPatchGuildSettingsBody } from '@automoderator/core';
+import type { PatchGuildsSettingsBody } from '@chatsift/api-wrapper/v2';
 import { fetchApi } from '~/utils/fetchApi';
 import NumberInput from '~/components/NumberInput';
 
@@ -20,7 +20,7 @@ const NSFWDetectionSettings = () => {
 
 	const guild = user?.guilds.find((g) => g.id === id);
 
-	const form = useForm<ApiPatchGuildSettingsBody>();
+	const form = useForm<PatchGuildsSettingsBody>();
 
 	if (!settings) {
 		return <Loading />;
@@ -28,8 +28,8 @@ const NSFWDetectionSettings = () => {
 
 	const handleOnSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		await form.handleSubmit(async (values: ApiPatchGuildSettingsBody) => {
-			await fetchApi<unknown, ApiPatchGuildSettingsBody>({
+		await form.handleSubmit(async (values: PatchGuildsSettingsBody) => {
+			await fetchApi<unknown, PatchGuildsSettingsBody>({
 				path: `/guilds/${id}/settings`,
 				method: 'PATCH',
 				body: values,
@@ -42,7 +42,7 @@ const NSFWDetectionSettings = () => {
 			<NumberInput
 				settings={settings}
 				name={'Hentai detection confidence threshold'}
-				settingsKey={'hentai_threshold'}
+				settingsKey={'hentaiThreshold'}
 				guild={guild}
 				form={form}
 				min={0}
@@ -52,7 +52,7 @@ const NSFWDetectionSettings = () => {
 			<NumberInput
 				settings={settings}
 				name={'Porn detection confidence threshold'}
-				settingsKey={'porn_threshold'}
+				settingsKey={'pornThreshold'}
 				guild={guild}
 				form={form}
 				min={0}
@@ -62,7 +62,7 @@ const NSFWDetectionSettings = () => {
 			<NumberInput
 				settings={settings}
 				name={'Sexy detection confidence threshold'}
-				settingsKey={'sexy_threshold'}
+				settingsKey={'sexyThreshold'}
 				guild={guild}
 				form={form}
 				min={0}

@@ -25,7 +25,7 @@ const GuildNavbar = () => {
 	const gray = colorMode === 'dark' ? 'gray.700' : 'gray.200';
 	const blue = colorMode === 'dark' ? 'blue.200' : 'blue.600';
 
-	const { id } = router.query;
+	const { id } = router.query as { id: string };
 
 	return (
 		<Flex as="nav" align="center" justifyContent="space-between" wrap="wrap" px={{ base: 50, lg: 4 }}>

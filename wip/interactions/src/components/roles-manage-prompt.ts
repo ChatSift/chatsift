@@ -1,6 +1,7 @@
 import { send } from '#util';
 import type { ApiGetGuildPromptResult } from '@automoderator/core';
 import { Rest } from '@chatsift/api-wrapper';
+import { chunkArray } from '@chatsift/utils';
 import { Rest as DiscordRest } from '@cordis/rest';
 import {
 	APIGuildInteraction,
@@ -33,27 +34,30 @@ export default class implements Component {
 				.then((roles) => roles.map((role) => [role.id, role])),
 		);
 
-		const menuOptions = prompt.roles.reduce<APISelectMenuOption[]>((arr, roleData) => {
-			const role = roles.get(roleData.role_id);
-			if (role) {
-				arr.push({
-					label: role.name,
-					value: role.id,
-					default: userRoles.has(roleData.role_id),
-					emoji: roleData.emoji_id
-						? {
-								id: roleData.emoji_id,
-								name: roleData.emoji_name,
-								animated: roleData.emoji_animated,
-						  }
-						: undefined,
-				});
-			} else {
-				void this.rest.delete(`/guilds/${interaction.guild_id}/assignables/${roleData.role_id}`).catch(() => null);
-			}
+		const menuOptions = chunkArray(
+			prompt.roles.reduce<APISelectMenuOption[]>((arr, roleData) => {
+				const role = roles.get(roleData.role_id);
+				if (role) {
+					arr.push({
+						label: role.name,
+						value: role.id,
+						default: userRoles.has(roleData.role_id),
+						emoji: roleData.emoji_id
+							? {
+									id: roleData.emoji_id,
+									name: roleData.emoji_name,
+									animated: roleData.emoji_animated,
+							  }
+							: undefined,
+					});
+				} else {
+					void this.rest.delete(`/guilds/${interaction.guild_id}/assignables/${roleData.role_id}`).catch(() => null);
+				}
 
-			return arr;
-		}, []);
+				return arr;
+			}, []),
+			25,
+		);
 
 		if (!menuOptions.length) {
 			return send(interaction, {

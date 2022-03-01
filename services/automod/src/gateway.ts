@@ -1,6 +1,5 @@
 import { MessageCache } from '@automoderator/cache';
 import {
-	// ApiGetGuildsSettingsResult,
 	// ApiPostGuildsCasesBody,
 	// ApiPostGuildsCasesResult,
 	// AutomodPunishment,
@@ -26,6 +25,7 @@ import {
 	RESTGetAPIGuildRolesResult,
 	ChannelType,
 	Routes,
+	APITextChannel,
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { container, inject, singleton } from 'tsyringe';
@@ -113,9 +113,10 @@ export class Gateway {
 		const rawChannels = await this.discord.get<APIChannel[]>(Routes.guildChannels(message.guild_id));
 		const channels = new Map(rawChannels.map((channel) => [channel.id, channel]));
 
-		const channel =
-			channels.get(message.channel_id) ??
-			(await this.discord.get<APIChannel>(Routes.channel(message.channel_id)).catch(() => null));
+		const channel = (channels.get(message.channel_id) ??
+			(await this.discord
+				.get<APIChannel>(Routes.channel(message.channel_id))
+				.catch(() => null))) as APITextChannel | null;
 
 		if (!channel) {
 			this.logger.warn("Couldn't resolve channel");

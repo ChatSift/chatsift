@@ -1,4 +1,4 @@
-import { kSql } from '@automoderator/injection';
+import { PrismaClient } from '@prisma/client';
 import { compare } from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { container } from 'tsyringe';
@@ -7,9 +7,18 @@ import { TokenManager, TokenValidationStatus } from '../token';
 jest.mock('crypto');
 jest.mock('bcrypt');
 
-const sqlMock = jest.fn();
-const sqlBeginMock = jest.fn();
-container.register(kSql, { useValue: Object.assign(sqlMock, { begin: sqlBeginMock }) });
+const findFirstMock = jest.fn();
+container.register<any>(PrismaClient, {
+	useValue: {
+		app: {
+			findFirst: findFirstMock,
+		},
+		sig: {
+			update: jest.fn(),
+			create: jest.fn(),
+		},
+	},
+});
 
 const tokens = container.resolve(TokenManager);
 
@@ -27,8 +36,7 @@ beforeAll(async () => {
 	token = await tokens.generate(1);
 	const sigs = [{ sig: token.split('.')[1] }];
 
-	sqlMock.mockReturnValue(sigs);
-	sqlBeginMock.mockReturnValue({ sigs });
+	findFirstMock.mockReturnValue({ sigs });
 });
 
 test('token generation', () => {

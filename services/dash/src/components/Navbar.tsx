@@ -31,7 +31,7 @@ const Navbar = () => {
 	const [popoverIsOpen, setPopoverIsOpen] = useState<boolean>(false);
 
 	const avatar = user.avatar
-		? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`
+		? `https://cdn.discordapp.com/avatars/${user.id!}/${user.avatar}`
 		: `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator!, 10) % 5}.png`;
 
 	const LoginButton = () =>
@@ -69,7 +69,8 @@ const Navbar = () => {
 
 							<ButtonGroup d="flex" justifyContent="flex-end" pt={2} size="sm">
 								<Link
-									href={`${process.env.NEXT_PUBLIC_API_DOMAIN}/api/v2/auth/discord/logout?redirect_uri=${process.env.NEXT_PUBLIC_DASH_DOMAIN}`}
+									href={`${process.env.NEXT_PUBLIC_API_DOMAIN!}/api/v2/auth/discord/logout?redirect_uri=${process.env
+										.NEXT_PUBLIC_DASH_DOMAIN!}`}
 								>
 									<Button colorScheme="red">Confirm</Button>
 								</Link>
@@ -84,7 +85,8 @@ const Navbar = () => {
 			</>
 		) : (
 			<Link
-				href={`${process.env.NEXT_PUBLIC_API_DOMAIN}/api/v2/auth/discord?redirect_uri=${process.env.NEXT_PUBLIC_DASH_DOMAIN}/guilds`}
+				href={`${process.env.NEXT_PUBLIC_API_DOMAIN!}/api/v2/auth/discord?redirect_uri=${process.env
+					.NEXT_PUBLIC_DASH_DOMAIN!}/guilds`}
 			>
 				<Button variant="ghost" justifyContent={{ base: 'start', md: 'unset' }}>
 					Log In

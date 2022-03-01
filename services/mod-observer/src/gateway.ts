@@ -23,6 +23,8 @@ import {
 	RESTPatchAPIGuildMemberJSONBody,
 	Routes,
 	Snowflake,
+	APIThreadChannel,
+	APITextChannel,
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
@@ -48,12 +50,12 @@ export class Gateway {
 		channelId: Snowflake,
 	): Promise<[channelId: Snowflake, parentId: Snowflake | null]> {
 		const channelList = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
-		let channel = channelList.find((c) => c.id === channelId);
+		let channel = channelList.find((c) => c.id === channelId) as APITextChannel | APIThreadChannel | undefined;
 
 		// Thread channel
 		if (!channel) {
-			const thread = await this.discord.get<APIChannel>(Routes.channel(channelId));
-			channel = channelList.find((c) => c.id === thread.parent_id)!;
+			const thread = await this.discord.get<APIThreadChannel>(Routes.channel(channelId));
+			channel = channelList.find((c) => c.id === thread.parent_id) as APIThreadChannel;
 		}
 
 		return [channel.id, channel.parent_id ?? null];

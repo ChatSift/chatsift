@@ -35,18 +35,6 @@ services:
       context: ../
       dockerfile: ./docker/base/Dockerfile
 
-  cron-runner:
-    image: chatsift/automoderator_cron-runner
-    build:
-      context: ../
-      dockerfile: ./docker/cron-runner/Dockerfile
-    environment:
-      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
-      DISCORD_PROXY_URL: 'http://discord-proxy:3003'
-    restart: unless-stopped
-    depends_on:
-      - base
-
   discord-proxy:
     image: chatsift/automoderator_discord-proxy
     build:
@@ -68,19 +56,20 @@ services:
     depends_on:
       - base
 
-  interactions:
-    image: chatsift/automoderator_interactions
-    build:
-      context: ../
-      dockerfile: ./docker/interactions/Dockerfile
-    environment:
-      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
-      REDIS_URL: 'redis://redis:6379/0'
-      AMQP_URL: 'amqp://rabbitmq:5672'
-      DISCORD_PROXY_URL: 'http://discord-proxy:3003'
-    restart: unless-stopped
-    depends_on:
-      - base
+  # TODO(DD): Uncomment once done
+  # interactions:
+  #   image: chatsift/automoderator_interactions
+  #   build:
+  #     context: ../
+  #     dockerfile: ./docker/interactions/Dockerfile
+  #   environment:
+  #     DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+  #     REDIS_URL: 'redis://redis:6379/0'
+  #     AMQP_URL: 'amqp://rabbitmq:5672'
+  #     DISCORD_PROXY_URL: 'http://discord-proxy:3003'
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - base
 
   logging:
     image: chatsift/automoderator_logging
