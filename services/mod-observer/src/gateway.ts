@@ -1,29 +1,9 @@
 import { MessageCache, GuildMemberCache, CachedGuildMember } from '@automoderator/cache';
-import {
-	ApiGetGuildLogIgnoresResult,
-	ApiGetGuildsSettingsResult,
-	ApiPostGuildsCasesBody,
-	ApiPostGuildsCasesResult,
-	BannedWord,
-	Case,
-	CaseAction,
-	DiscordEvents,
-	GuildSettings,
-	Log,
-	LogTypes,
-	ServerLogs,
-	ServerLogType,
-} from '@automoderator/core';
-import {
-	DiscordPermissions,
-	PermissionsChecker,
-	PermissionsCheckerData,
-	UserPerms,
-} from '@automoderator/discord-permissions';
-import { Rest } from '@chatsift/api-wrapper';
-import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
+import { DiscordEvents, Log, LogTypes, ServerLogs, ServerLogType } from '@automoderator/broker-types';
+import { Rest, DiscordPermissions, BanwordFlags } from '@chatsift/api-wrapper';
+import { Config, kConfig, kLogger } from '@automoderator/injection';
+import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
-import { Store } from '@cordis/store';
 import { Rest as CordisRest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
 import {
@@ -41,28 +21,23 @@ import {
 	RESTGetAPIAuditLogQuery,
 	RESTGetAPIAuditLogResult,
 	RESTPatchAPIGuildMemberJSONBody,
-	ChannelType,
 	Routes,
 	Snowflake,
+	APIThreadChannel,
+	APITextChannel,
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
-import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
-import { BanwordFlags } from '@automoderator/banword-flags';
-import { reportUser } from '@automoderator/util';
+import { CaseAction, PrismaClient } from '@prisma/client';
 
 @singleton()
 export class Gateway {
-	public readonly guildPermsCache = new Store<DiscordPermissions>({ emptyEvery: 15e3 });
-	public readonly channelParentCache = new Store<Snowflake | null>({ emptyEvery: 12e4 });
-	public readonly threadParentCache = new Store<Snowflake>({ emptyEvery: 216e6 });
-
 	public guildLogs!: PubSubPublisher<Log>;
 
 	public constructor(
 		@inject(kConfig) public readonly config: Config,
-		@inject(kSql) public readonly sql: Sql<{}>,
 		@inject(kLogger) public readonly logger: Logger,
+		public readonly prisma: PrismaClient,
 		public readonly checker: PermissionsChecker,
 		public readonly guildMembersCache: GuildMemberCache,
 		public readonly messageCache: MessageCache,
@@ -70,33 +45,23 @@ export class Gateway {
 		public readonly discord: CordisRest,
 	) {}
 
-	private async getChannelParent(guildId: Snowflake, channelId: Snowflake): Promise<Snowflake | null> {
-		if (!this.channelParentCache.has(channelId)) {
-			const channels = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
-			for (const channel of channels) {
-				if (channel.type === ChannelType.GuildCategory) {
-					continue;
-				}
+	private async getChannelIds(
+		guildId: Snowflake,
+		channelId: Snowflake,
+	): Promise<[channelId: Snowflake, parentId: Snowflake | null]> {
+		const channelList = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
+		let channel = channelList.find((c) => c.id === channelId) as APITextChannel | APIThreadChannel | undefined;
 
-				this.channelParentCache.set(channel.id, channel.parent_id ?? null);
-			}
-
-			// Thread channel
-			if (!this.channelParentCache.has(channelId)) {
-				const thread = await this.discord.get<APIChannel>(Routes.channel(channelId));
-				this.threadParentCache.set(thread.id, thread.parent_id!);
-				this.channelParentCache.set(thread.id, this.channelParentCache.get(thread.parent_id!)!);
-			}
+		// Thread channel
+		if (!channel) {
+			const thread = await this.discord.get<APIThreadChannel>(Routes.channel(channelId));
+			channel = channelList.find((c) => c.id === thread.parent_id) as APIThreadChannel;
 		}
 
-		return this.channelParentCache.get(channelId) ?? null;
+		return [channel.id, channel.parent_id ?? null];
 	}
 
 	private async getPerms(guildId: Snowflake): Promise<DiscordPermissions> {
-		if (this.guildPermsCache.has(guildId)) {
-			return this.guildPermsCache.get(guildId)!;
-		}
-
 		const guildMe = await this.discord
 			.get<APIGuildMember>(Routes.guildMember(guildId, this.config.discordClientId))
 			.catch(() => null);
@@ -115,8 +80,6 @@ export class Gateway {
 			new DiscordPermissions(0n),
 		);
 
-		this.guildPermsCache.set(guildId, perms);
-
 		return perms;
 	}
 
@@ -126,9 +89,9 @@ export class Gateway {
 	}
 
 	private async handleGuildBanAdd(data: GatewayGuildBanModifyDispatchData) {
-		const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
 
-		if (!settings?.mod_action_log_channel || !(await this.hasAuditLog(data.guild_id))) {
+		if (!settings?.modActionLogChannel || !(await this.hasAuditLog(data.guild_id))) {
 			return null;
 		}
 
@@ -142,43 +105,47 @@ export class Gateway {
 			},
 		);
 
-		const [existingCs] = await this.sql<[Case?]>`
-      SELECT * FROM cases
-      WHERE guild_id = ${data.guild_id}
-        AND target_id = ${data.user.id}
-        AND action_type = ${CaseAction.ban}
-      ORDER BY created_at DESC
-    `;
+		const existingCs = await this.prisma.case.findFirst({
+			where: {
+				guildId: data.guild_id,
+				targetId: data.user.id,
+				actionType: CaseAction.ban,
+			},
+			orderBy: {
+				createdAt: 'desc',
+			},
+		});
 
 		if (
-			(existingCs && Date.now() - existingCs.created_at.getTime() >= 3e4) ||
+			(existingCs && Date.now() - existingCs.createdAt.getTime() >= 3e4) ||
 			fetchedLog.audit_log_entries[0]?.user_id === this.config.discordClientId
 		) {
 			return null;
 		}
 
-		const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-			`/guilds/${data.guild_id}/cases`,
-			[
-				{
-					action: CaseAction.ban,
-					target_id: data.user.id,
-					target_tag: `${data.user.username}#${data.user.discriminator}`,
-					created_at: new Date(),
-				},
-			],
-		);
+		// TODO(DD): Logging for those once API is done
+		// const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
+		// 	`/guilds/${data.guild_id}/cases`,
+		// 	[
+		// 		{
+		// 			action: CaseAction.ban,
+		// 			target_id: data.user.id,
+		// 			target_tag: `${data.user.username}#${data.user.discriminator}`,
+		// 			created_at: new Date(),
+		// 		},
+		// 	],
+		// );
 
-		this.guildLogs.publish({
-			type: LogTypes.modAction,
-			data: cs!,
-		});
+		// this.guildLogs.publish({
+		// 	type: LogTypes.modAction,
+		// 	data: cs,
+		// });
 	}
 
 	private async handleGuildBanRemove(data: GatewayGuildBanModifyDispatchData) {
-		const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
 
-		if (!settings?.mod_action_log_channel || !(await this.hasAuditLog(data.guild_id))) {
+		if (!settings?.modActionLogChannel || !(await this.hasAuditLog(data.guild_id))) {
 			return null;
 		}
 
@@ -192,43 +159,47 @@ export class Gateway {
 			},
 		);
 
-		const [existingCs] = await this.sql<[Case?]>`
-      SELECT * FROM cases
-      WHERE guild_id = ${data.guild_id}
-        AND target_id = ${data.user.id}
-        AND action_type = ${CaseAction.unban}
-      ORDER BY created_at DESC
-    `;
+		const existingCs = await this.prisma.case.findFirst({
+			where: {
+				guildId: data.guild_id,
+				targetId: data.user.id,
+				actionType: CaseAction.ban,
+			},
+			orderBy: {
+				createdAt: 'desc',
+			},
+		});
 
 		if (
-			(existingCs && Date.now() - existingCs.created_at.getTime() >= 3e4) ||
+			(existingCs && Date.now() - existingCs.createdAt.getTime() >= 3e4) ||
 			fetchedLog.audit_log_entries[0]?.user_id === this.config.discordClientId
 		) {
 			return null;
 		}
 
-		const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-			`/guilds/${data.guild_id}/cases`,
-			[
-				{
-					action: CaseAction.unban,
-					target_id: data.user.id,
-					target_tag: `${data.user.username}#${data.user.discriminator}`,
-					created_at: new Date(),
-				},
-			],
-		);
+		// TODO(DD): Logging for those once API is done
+		// const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
+		// 	`/guilds/${data.guild_id}/cases`,
+		// 	[
+		// 		{
+		// 			action: CaseAction.unban,
+		// 			target_id: data.user.id,
+		// 			target_tag: `${data.user.username}#${data.user.discriminator}`,
+		// 			created_at: new Date(),
+		// 		},
+		// 	],
+		// );
 
-		this.guildLogs.publish({
-			type: LogTypes.modAction,
-			data: cs!,
-		});
+		// this.guildLogs.publish({
+		// 	type: LogTypes.modAction,
+		// 	data: cs,
+		// });
 	}
 
 	private async handleGuildMemberRemove(data: GatewayGuildMemberRemoveDispatchData) {
-		const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
 
-		if (!settings?.mod_action_log_channel || !(await this.hasAuditLog(data.guild_id))) {
+		if (!settings?.modActionLogChannel || !(await this.hasAuditLog(data.guild_id))) {
 			return null;
 		}
 
@@ -252,55 +223,57 @@ export class Gateway {
 			return null;
 		}
 
-		const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-			`/guilds/${data.guild_id}/cases`,
-			[
-				{
-					action: CaseAction.kick,
-					target_id: data.user.id,
-					target_tag: `${data.user.username}#${data.user.discriminator}`,
-					created_at: new Date(),
-				},
-			],
-		);
+		// TODO(DD): Logging for those once API is done
+		// const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
+		// 	`/guilds/${data.guild_id}/cases`,
+		// 	[
+		// 		{
+		// 			action: CaseAction.kick,
+		// 			target_id: data.user.id,
+		// 			target_tag: `${data.user.username}#${data.user.discriminator}`,
+		// 			created_at: new Date(),
+		// 		},
+		// 	],
+		// );
 
-		this.guildLogs.publish({
-			type: LogTypes.modAction,
-			data: cs!,
-		});
+		// this.guildLogs.publish({
+		// 	type: LogTypes.modAction,
+		// 	data: cs,
+		// });
 	}
 
 	private async handleExistingMute(data: GatewayGuildMemberAddDispatchData) {
-		const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
 
-		const [existingMuteCase] = await this.sql<[Case?]>`
-      SELECT * FROM cases
-      WHERE target_id = ${data.user!.id}
-        AND action_type = ${CaseAction.mute}
-        AND guild_id = ${data.guild_id}
-        AND processed = false
-    `;
+		const existingMuteCase = await this.prisma.case.findFirst({
+			where: {
+				targetId: data.user!.id,
+				actionType: CaseAction.mute,
+				guildId: data.guild_id,
+				processed: false,
+			},
+		});
 
-		if (!settings?.mute_role || !existingMuteCase) {
+		if (!settings?.muteRole || !existingMuteCase) {
 			return null;
 		}
 
 		await this.discord
 			.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(data.guild_id, data.user!.id), {
-				data: { roles: [settings.mute_role] },
+				data: { roles: [settings.muteRole] },
 				reason: 'User is muted but rejoined the server',
 			})
 			.catch(() => null);
 	}
 
 	private async handleJoinAge(data: GatewayGuildMemberAddDispatchData) {
-		const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
 
-		if (settings?.min_join_age == null || data.user!.bot) {
+		if (settings?.minJoinAge == null || data.user!.bot) {
 			return null;
 		}
 
-		if (Date.now() - getCreationData(data.user!.id).createdAt.getTime() >= settings.min_join_age) {
+		if (Date.now() - getCreationData(data.user!.id).createdAt.getTime() >= settings.minJoinAge) {
 			return null;
 		}
 
@@ -312,9 +285,9 @@ export class Gateway {
 	}
 
 	private async handleBlankAvatar(data: GatewayGuildMemberAddDispatchData) {
-		const [settings] = await this.sql<[GuildSettings?]>`SELECT * FROM guild_settings WHERE guild_id = ${data.guild_id}`;
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
 
-		if (!settings?.no_blank_avatar || data.user!.bot) {
+		if (!settings?.noBlankAvatar || data.user!.bot) {
 			return null;
 		}
 
@@ -329,13 +302,14 @@ export class Gateway {
 			.catch(() => null);
 	}
 
+	// TODO(DD): Logging for those once API is done
 	private async handleForbiddenName(
 		data: APIGuildMember & { user: APIUser; guild_id: Snowflake },
 		name: string,
 		nick: boolean,
 	) {
-		const words = await this.sql<BannedWord[]>`SELECT * FROM banned_words WHERE guild_id = ${data.guild_id}`;
-		const settings = await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${data.guild_id}/settings`);
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
+		const words = await this.prisma.bannedWord.findMany({ where: { guildId: data.guild_id } });
 
 		if (this.config.nodeEnv === 'prod') {
 			const checkerData: PermissionsCheckerData = {
@@ -391,10 +365,10 @@ export class Gateway {
 				.catch(() => null);
 		}
 
-		let warned = false;
-		let muted = false;
-		let banned = false;
-		let reported = false;
+		// let warned = false;
+		// let muted = false;
+		// let banned = false;
+		// let reported = false;
 
 		if (hits.every((hit) => !hit.flags.has('report'))) {
 			this.guildLogs.publish({
@@ -410,68 +384,68 @@ export class Gateway {
 			});
 		}
 
-		for (const hit of hits) {
-			const caseData: ApiPostGuildsCasesBody = [];
-			const unmuteRoles: Snowflake[] = [];
+		// for (const hit of hits) {
+		// 	const caseData: ApiPostGuildsCasesBody = [];
+		// 	const unmuteRoles: Snowflake[] = [];
 
-			const reason = `automated punishment triggered for having ${hit.word} in their username`;
+		// 	const reason = `automated punishment triggered for having ${hit.word} in their username`;
 
-			const caseBase = {
-				mod_id: this.config.discordClientId,
-				mod_tag: 'AutoModerator#0000',
-				reason,
-				target_id: data.user.id,
-				target_tag: `${data.user.username}#${data.user.discriminator}`,
-				created_at: new Date(),
-				execute: true,
-			};
+		// 	const caseBase = {
+		// 		mod_id: this.config.discordClientId,
+		// 		mod_tag: 'AutoModerator#0000',
+		// 		reason,
+		// 		target_id: data.user.id,
+		// 		target_tag: `${data.user.username}#${data.user.discriminator}`,
+		// 		created_at: new Date(),
+		// 		execute: true,
+		// 	};
 
-			if (hit.flags.has('warn') && !warned && !banned) {
-				warned = true;
-				caseData.push({ action: CaseAction.warn, ...caseBase });
-			}
+		// 	if (hit.flags.has('warn') && !warned && !banned) {
+		// 		warned = true;
+		// 		caseData.push({ action: CaseAction.warn, ...caseBase });
+		// 	}
 
-			if (hit.flags.has('mute') && settings.mute_role && !muted && !banned) {
-				muted = true;
-				unmuteRoles.concat([...data.roles]);
+		// 	if (hit.flags.has('mute') && settings.mute_role && !muted && !banned) {
+		// 		muted = true;
+		// 		unmuteRoles.concat([...data.roles]);
 
-				let expiresAt: Date | undefined;
-				if (hit.duration) {
-					expiresAt = new Date(Date.now() + hit.duration * 6e4);
-				}
+		// 		let expiresAt: Date | undefined;
+		// 		if (hit.duration) {
+		// 			expiresAt = new Date(Date.now() + hit.duration * 6e4);
+		// 		}
 
-				caseData.push({ action: CaseAction.mute, expires_at: expiresAt, ...caseBase });
-			}
+		// 		caseData.push({ action: CaseAction.mute, expires_at: expiresAt, ...caseBase });
+		// 	}
 
-			if (hit.flags.has('ban') && !banned) {
-				banned = true;
-				caseData.push({ action: CaseAction.ban, ...caseBase });
-			}
+		// 	if (hit.flags.has('ban') && !banned) {
+		// 		banned = true;
+		// 		caseData.push({ action: CaseAction.ban, ...caseBase });
+		// 	}
 
-			if (hit.flags.has('report') && !reported) {
-				reported = true;
+		// 	if (hit.flags.has('report') && !reported) {
+		// 		reported = true;
 
-				await reportUser(
-					data,
-					name,
-					nick,
-					hits.map((hit) => hit.word),
-					settings,
-				);
-			}
+		// 		await reportUser(
+		// 			data,
+		// 			name,
+		// 			nick,
+		// 			hits.map((hit) => hit.word),
+		// 			settings,
+		// 		);
+		// 	}
 
-			if (caseData.length) {
-				const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-					`/guilds/${data.guild_id}/cases`,
-					caseData,
-				);
+		// 	if (caseData.length) {
+		// 		const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
+		// 			`/guilds/${data.guild_id}/cases`,
+		// 			caseData,
+		// 		);
 
-				this.guildLogs.publish({
-					data: cases,
-					type: LogTypes.modAction,
-				});
-			}
-		}
+		// 		this.guildLogs.publish({
+		// 			data: cases,
+		// 			type: LogTypes.modAction,
+		// 		});
+		// 	}
+		// }
 	}
 
 	private handleGuildMemberUpdate(o: CachedGuildMember, n: GatewayGuildMemberUpdateDispatchData) {
@@ -528,13 +502,12 @@ export class Gateway {
 			return;
 		}
 
-		const parentId = await this.getChannelParent(message.guild_id, message.channel_id);
-		const channelId = this.threadParentCache.get(message.channel_id) ?? message.channel_id;
-
-		const ignores = await this.rest.get<ApiGetGuildLogIgnoresResult>(
-			`/guilds/${message.guild_id}/settings/log-ignores`,
-		);
-		if (ignores.find((ignore) => ignore.channel_id === channelId || ignore.channel_id === parentId)) {
+		const [channelId, parentId] = await this.getChannelIds(message.guild_id, message.channel_id);
+		if (
+			await this.prisma.logIgnore.findFirst({
+				where: { guildId: message.guild_id, channelId: { in: [channelId, parentId ?? ''] } },
+			})
+		) {
 			return;
 		}
 
@@ -584,11 +557,12 @@ export class Gateway {
 			return;
 		}
 
-		const parentId = await this.getChannelParent(n.guild_id, n.channel_id);
-		const channelId = this.threadParentCache.get(n.channel_id) ?? n.channel_id;
-
-		const ignores = await this.rest.get<ApiGetGuildLogIgnoresResult>(`/guilds/${n.guild_id}/settings/log-ignores`);
-		if (ignores.find((ignore) => ignore.channel_id === channelId || ignore.channel_id === parentId)) {
+		const [channelId, parentId] = await this.getChannelIds(n.guild_id, n.channel_id);
+		if (
+			await this.prisma.logIgnore.findFirst({
+				where: { guildId: n.guild_id, channelId: { in: [channelId, parentId ?? ''] } },
+			})
+		) {
 			return;
 		}
 

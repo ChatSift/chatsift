@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
 
-import { Config, kConfig, kSql } from '@automoderator/injection';
+import { Config, kConfig } from '@automoderator/injection';
 import type { NextHandler, Request, Response } from 'polka';
 import { inject, injectable } from 'tsyringe';
 import jwt from 'jsonwebtoken';
@@ -13,14 +13,13 @@ import { State, discordOAuth2 } from '#util';
 import { GetAuthGhostQuerySchema, GetAuthGhostQuery } from '@chatsift/api-wrapper/v2';
 import cookie from 'cookie';
 import type { APIUser } from 'discord-api-types/v9';
-import type { Sql } from 'postgres';
-import type { User } from '@automoderator/core';
+import { PrismaClient, User } from '@prisma/client';
 
 @injectable()
 export default class extends Route {
 	public override readonly middleware = [validate(GetAuthGhostQuerySchema, 'query'), userAuth(true)];
 
-	public constructor(@inject(kConfig) public readonly config: Config, @inject(kSql) public readonly sql: Sql<{}>) {
+	public constructor(@inject(kConfig) public readonly config: Config, public readonly prisma: PrismaClient) {
 		super();
 	}
 
@@ -64,11 +63,23 @@ export default class extends Route {
 				},
 			}).then((res) => res.json() as Promise<APIUser & { perms: bigint }>);
 
-			await this.sql`INSERT INTO users (user_id, perms) VALUES (${user.id}, 0) ON CONFLICT DO NOTHING`;
+			const userData: User = {
+				userId: user.id,
+				perms: 0n,
+			};
 
-			req.user = user;
-			const [{ perms }] = await this.sql<[Pick<User, 'perms'>]>`SELECT perms FROM users WHERE user_id = ${req.user.id}`;
-			req.user.perms = BigInt(perms);
+			await this.prisma.user.upsert({
+				create: userData,
+				update: userData,
+				where: {
+					userId: user.id,
+				},
+			});
+
+			req.user = {
+				...user,
+				perms: (await this.prisma.user.findFirst({ where: { userId: user.id }, select: { perms: true } }))!.perms,
+			};
 		} else if (!req.user) {
 			const redirectUri = `${this.config.apiDomain}/api/v2/auth/ghost`;
 			const state = new State(redirectUri).toString();

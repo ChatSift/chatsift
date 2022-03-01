@@ -1,22 +1,34 @@
-import type { AllowedUrl } from '@automoderator/core';
-import { Rest } from '@chatsift/api-wrapper';
-import { kLogger, kSql } from '@automoderator/injection';
-import type { Snowflake } from 'discord-api-types/v9';
+import { PrismaClient } from '@prisma/client';
+import { Rest } from '@cordis/rest';
+import { Routes, APIMessage } from 'discord-api-types/v9';
 import { readFileSync } from 'fs';
 import { join as joinPath } from 'path';
-import type { Logger } from 'pino';
-import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
+import { MessageCache } from '@automoderator/cache';
+import { PubSubPublisher } from '@cordis/brokers';
+import { Log, Runners, UrlsRunnerResult } from '@automoderator/broker-types';
+import { kLogger } from '@automoderator/injection';
+import type { Logger } from 'pino';
+import type { IRunner } from './IRunner';
+import { dmUser } from '@automoderator/util';
+
+interface UrlsTransform {
+	urls: string[];
+}
 
 @singleton()
-export class UrlsRunner {
+export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRunnerResult> {
+	public readonly ignore = 'urls';
+
 	public readonly urlRegex = /([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm;
 	public readonly tlds: Set<string>;
 
 	public constructor(
-		public readonly rest: Rest,
 		@inject(kLogger) public readonly logger: Logger,
-		@inject(kSql) public readonly sql: Sql<{}>,
+		public readonly prisma: PrismaClient,
+		public readonly messages: MessageCache,
+		public readonly discord: Rest,
+		public readonly logs: PubSubPublisher<Log>,
 	) {
 		const contents = readFileSync(joinPath(__dirname, '..', '..', 'tlds.txt'), 'utf8');
 		this.tlds = contents.split('\n').reduce((acc, line) => {
@@ -27,19 +39,7 @@ export class UrlsRunner {
 			return acc;
 		}, new Set<string>());
 
-		logger.debug({ tlds: [...this.tlds] }, 'Successfully computed valid tlds');
-	}
-
-	public precheck(content: string): string[] {
-		const urls = [...content.matchAll(this.urlRegex)].reduce<Set<string>>((acc, match) => {
-			if (this.tlds.has(match.groups!.tld!.toLowerCase())) {
-				acc.add(match[0]!);
-			}
-
-			return acc;
-		}, new Set());
-
-		return [...urls];
+		logger.trace({ tlds: [...this.tlds] }, 'Successfully computed valid tlds');
 	}
 
 	private extractRoot(url: string): string {
@@ -65,13 +65,45 @@ export class UrlsRunner {
 		return this.extractRoot(url);
 	}
 
-	public async run(urls: string[], guildId: Snowflake) {
-		const allowlist = new Set(
-			await this.sql<AllowedUrl[]>`SELECT * FROM allowed_urls WHERE guild_id = ${guildId}`.then((rows) =>
-				rows.map((row) => this.cleanDomain(row.domain)),
-			),
-		);
+	public transform(message: APIMessage): UrlsTransform {
+		const urls = [...message.content.matchAll(this.urlRegex)].reduce<Set<string>>((acc, match) => {
+			if (this.tlds.has(match.groups!.tld!.toLowerCase())) {
+				acc.add(this.cleanDomain(match[0]!));
+			}
 
-		return urls.filter((url) => !allowlist.has(this.cleanDomain(url)));
+			return acc;
+		}, new Set());
+
+		return {
+			urls: [...urls.values()],
+		};
+	}
+
+	public check({ urls }: UrlsTransform): boolean {
+		return urls.length > 0;
+	}
+
+	public async run({ urls }: UrlsTransform, message: APIMessage): Promise<UrlsTransform | null> {
+		const allowedUrls = await this.prisma.allowedUrl.findMany({ where: { guildId: message.guild_id } });
+		const allowed = new Set(allowedUrls.map((url) => this.cleanDomain(url.domain)));
+
+		const forbidden = [...urls.values()].filter((url) => !allowed.has(url));
+
+		if (!forbidden.length) {
+			return null;
+		}
+
+		return { urls: forbidden };
+	}
+
+	public async cleanup(_: UrlsTransform, message: APIMessage): Promise<void> {
+		await this.discord
+			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'URL filter trigger' })
+			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing a link.'))
+			.catch(() => null);
+	}
+
+	public log({ urls }: UrlsTransform): UrlsRunnerResult {
+		return { runner: Runners.urls, data: urls };
 	}
 }

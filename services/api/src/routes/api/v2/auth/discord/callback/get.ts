@@ -1,21 +1,21 @@
 import { discordOAuth2, State } from '#util';
-import { Config, kConfig, kSql } from '@automoderator/injection';
+import { Config, kConfig } from '@automoderator/injection';
 import { badRequest } from '@hapi/boom';
 import cookie from 'cookie';
 import fetch from 'node-fetch';
 import type { NextHandler, Request, Response } from 'polka';
-import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
 import type { APIUser } from 'discord-api-types/v9';
 import { Route, validate } from '@chatsift/rest-utils';
 import { userAuth } from '#middleware';
 import { GetAuthDiscordCallbackQuerySchema, GetAuthDiscordCallbackQuery } from '@chatsift/api-wrapper/v2';
+import { PrismaClient } from '@prisma/client';
 
 @injectable()
 export default class extends Route {
 	public override readonly middleware = [validate(GetAuthDiscordCallbackQuerySchema, 'query'), userAuth(true)];
 
-	public constructor(@inject(kConfig) public readonly config: Config, @inject(kSql) public readonly sql: Sql<{}>) {
+	public constructor(@inject(kConfig) public readonly config: Config, public readonly prisma: PrismaClient) {
 		super();
 	}
 
@@ -62,7 +62,16 @@ export default class extends Route {
 			},
 		}).then((res) => res.json() as Promise<APIUser>);
 
-		await this.sql`INSERT INTO users (user_id, perms) VALUES (${user.id}, 0) ON CONFLICT DO NOTHING`;
+		await this.prisma.user.upsert({
+			create: {
+				userId: user.id,
+				perms: 0n,
+			},
+			update: {},
+			where: {
+				userId: user.id,
+			},
+		});
 
 		res.redirect(state.redirectUri);
 		return res.end();

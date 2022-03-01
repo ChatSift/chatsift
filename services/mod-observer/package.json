@@ -27,10 +27,8 @@
 		"typescript": "^4.5.5"
 	},
 	"dependencies": {
-		"@automoderator/banword-flags": "workspace:^0.1.0",
+		"@automoderator/broker-types": "workspace:^0.1.0",
 		"@automoderator/cache": "workspace:^0.1.0",
-		"@automoderator/core": "workspace:^0.1.0",
-		"@automoderator/discord-permissions": "workspace:^0.1.0",
 		"@automoderator/injection": "workspace:^0.1.0",
 		"@automoderator/logger": "workspace:^0.1.0",
 		"@automoderator/util": "workspace:^0.1.0",
@@ -40,10 +38,10 @@
 		"@cordis/rest": "^2.0.0-next.2405c88.1643469558",
 		"@cordis/store": "^1.2.0",
 		"@cordis/util": "^1.2.0",
-		"discord-api-types": "^0.26.1",
+		"@prisma/client": "^3.10.0",
+		"discord-api-types": "^0.27.3",
 		"ioredis": "^4.27.10",
 		"node-fetch": "^2.6.5",
-		"postgres": "^2.0.0-beta.10",
 		"reflect-metadata": "^0.1.13",
 		"tslib": "^2.3.1",
 		"tsyringe": "^4.6.0"

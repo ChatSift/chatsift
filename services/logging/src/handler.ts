@@ -1,27 +1,29 @@
-import { BanwordFlags } from '@automoderator/banword-flags';
 import {
-	Case,
-	CaseAction,
 	FilterTriggerLog,
 	ForbiddenNameLog,
 	GroupedServerLogs,
-	GuildSettings,
 	Log,
 	LogTypes,
-	MaliciousFileCategory,
-	MaliciousUrlCategory,
 	ModActionLog,
-	ms,
-	NotOkRunnerResult,
 	RunnerResult,
 	Runners,
 	ServerLog,
 	ServerLogType,
 	WarnCase,
+} from '@automoderator/broker-types';
+import {
+	PrismaClient,
+	Case,
+	CaseAction,
+	GuildSettings,
+	MaliciousFileCategory,
+	MaliciousUrlCategory,
 	WarnPunishmentAction,
-	WebhookToken,
-} from '@automoderator/core';
-import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
+	LogChannelType,
+} from '@prisma/client';
+import { BanwordFlags } from '@chatsift/api-wrapper';
+import { ms } from '@naval-base/ms';
+import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { addFields, ellipsis, MESSAGE_LIMITS } from '@chatsift/discord-utils';
 import { makeCaseEmbed } from '@automoderator/util';
 import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
@@ -30,20 +32,15 @@ import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 import {
 	APIEmbed,
 	APIMessage,
-	APIChannel,
 	APIUser,
 	APIWebhook,
 	RESTPatchAPIWebhookWithTokenMessageJSONBody,
-	RESTPostAPIChannelWebhookJSONBody,
-	RESTPostAPIChannelWebhookResult,
 	RESTPostAPIWebhookWithTokenJSONBody,
 	RESTPostAPIWebhookWithTokenWaitResult,
 	RouteBases,
 	Routes,
-	Snowflake,
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
-import type { Sql } from 'postgres';
 import { inject, singleton } from 'tsyringe';
 
 @singleton()
@@ -51,12 +48,9 @@ export class Handler {
 	public constructor(
 		@inject(kConfig) public readonly config: Config,
 		@inject(kLogger) public readonly logger: Logger,
-		@inject(kSql) public readonly sql: Sql<{}>,
+		public readonly prisma: PrismaClient,
 		public readonly rest: Rest,
 	) {}
-
-	private readonly channelsCache = new Map<Snowflake, APIChannel>();
-	private readonly threadsCache = new Map<Snowflake, Snowflake>();
 
 	private _populateEmbedWithWarnPunishment(embed: APIEmbed, cs: WarnCase): APIEmbed {
 		if (!cs.extra) {
@@ -104,68 +98,27 @@ export class Handler {
 		return embed;
 	}
 
-	private async _createWebhook(channel: Snowflake, name: string): Promise<APIWebhook | null> {
-		const webhook = await this.rest
-			.post<RESTPostAPIChannelWebhookResult, RESTPostAPIChannelWebhookJSONBody>(Routes.channelWebhooks(channel), {
-				data: {
-					name,
-				},
-			})
-			.catch(() => null);
-
-		if (webhook) {
-			const data: WebhookToken = {
-				channel_id: channel,
-				webhook_id: webhook.id,
-				webhook_token: webhook.token!,
-			};
-
-			await this.sql`
-        INSERT INTO webhook_tokens ${this.sql(data)}
-        ON CONFLICT (channel_id)
-        DO UPDATE SET ${this.sql(data)}
-      `;
-		}
-
-		return webhook;
-	}
-
-	private async _assertWebhook(channel: Snowflake, guild: Snowflake, name: string): Promise<APIWebhook | null> {
-		if (!this.channelsCache.has(channel)) {
-			const channels = await this.rest.get<APIChannel[]>(Routes.guildChannels(guild));
-			for (const channel of channels) {
-				this.channelsCache.set(channel.id, channel);
-			}
-		}
-
-		let parent;
-
-		// Thread channel
-		if (!this.channelsCache.has(channel)) {
-			parent = this.threadsCache.get(channel);
-
-			if (!parent) {
-				const thread = await this.rest.get<APIChannel>(Routes.channel(channel));
-				this.threadsCache.set(thread.id, thread.parent_id!);
-				parent = thread.parent_id!;
-			}
-		}
-
-		const [data] = await this.sql<[WebhookToken?]>`SELECT * FROM webhook_tokens WHERE channel_id = ${
-			parent ?? channel
-		}`;
-		if (!data) {
-			return this._createWebhook(parent ?? channel, name);
+	private async _assertWebhook(
+		guild: string,
+		type: LogChannelType,
+	): Promise<(APIWebhook & { threadId: string | null }) | null> {
+		const webhookData = await this.prisma.logChannelWebhook.findFirst({ where: { guildId: guild, logType: type } });
+		if (!webhookData) {
+			return null;
 		}
 
 		try {
-			return await this.rest.get<APIWebhook>(Routes.webhook(data.webhook_id, data.webhook_token));
+			const webhook = await this.rest.get<APIWebhook>(Routes.webhook(webhookData.webhookId, webhookData.webhookToken));
+			return {
+				...webhook,
+				threadId: webhookData.threadId,
+			};
 		} catch (error) {
-			if (!(error instanceof CordisHTTPError) || error.response.status !== 404) {
-				return null;
+			if (error instanceof CordisHTTPError && error.response.status === 404) {
+				await this.prisma.logChannelWebhook.delete({ where: { guildId_logType: { guildId: guild, logType: type } } });
 			}
 
-			return this._createWebhook(parent ?? channel, name);
+			return null;
 		}
 	}
 
@@ -176,17 +129,7 @@ export class Handler {
 			return;
 		}
 
-		const [{ mod_action_log_channel: channelId = null } = {}] = await this.sql<
-			[Pick<GuildSettings, 'mod_action_log_channel'>?]
-		>`
-      SELECT mod_action_log_channel FROM guild_settings WHERE guild_id = ${log.data[0]!.guild_id}
-    `;
-
-		if (!channelId) {
-			return;
-		}
-
-		const webhook = await this._assertWebhook(channelId, log.data[0]!.guild_id, 'Mod Actions');
+		const webhook = await this._assertWebhook(log.data[0]!.guildId, LogChannelType.mod);
 		if (!webhook) {
 			return;
 		}
@@ -194,34 +137,39 @@ export class Handler {
 		const embeds: APIEmbed[] = [];
 
 		for (const entry of log.data) {
-			this.logger.metric!({ type: 'mod_action', actionType: CaseAction[entry.action_type], guild: entry.guild_id });
+			this.logger.metric!({ type: 'mod_action', actionType: entry.actionType, guild: entry.guildId });
 
-			const [{ log_message_id: messageId }] = await this.sql<
-				[Pick<Case, 'log_message_id'>]
-			>`SELECT log_message_id FROM cases WHERE id = ${entry.id}`;
+			const { logMessageId } = (await this.prisma.case.findFirst({ where: { id: entry.id } }))!;
 
 			const [target, mod, message] = await Promise.all([
-				this.rest.get<APIUser>(Routes.user(entry.target_id)),
-				entry.mod_id ? this.rest.get<APIUser>(Routes.user(entry.mod_id)) : Promise.resolve(null),
-				messageId
-					? this.rest.get<APIMessage>(Routes.channelMessage(channelId, messageId)).catch(() => null)
+				this.rest.get<APIUser>(Routes.user(entry.targetId)),
+				entry.modId ? this.rest.get<APIUser>(Routes.user(entry.modId)) : Promise.resolve(null),
+				logMessageId
+					? this.rest.get<APIMessage>(Routes.channelMessage(webhook.channel_id, logMessageId)).catch(() => null)
 					: Promise.resolve(null),
 			]);
 
 			let pardonedBy: APIUser | undefined;
-			if (entry.pardoned_by) {
-				pardonedBy = entry.pardoned_by === mod?.id ? mod : await this.rest.get(Routes.user(entry.target_id));
+			if (entry.pardonedBy) {
+				pardonedBy = entry.pardonedBy === mod?.id ? mod : await this.rest.get(Routes.user(entry.targetId));
 			}
 
 			let refCs: Case | undefined;
-			if (entry.ref_id) {
-				refCs = await this.sql<
-					[Case]
-				>`SELECT * FROM cases WHERE case_id = ${entry.ref_id} AND guild_id = ${entry.guild_id}`.then((rows) => rows[0]);
+			if (entry.refId) {
+				refCs = (await this.prisma.case.findFirst({ where: { id: entry.refId } }))!;
 			}
 
-			let embed = makeCaseEmbed({ logChannelId: channelId, cs: entry, target, mod, pardonedBy, message, refCs });
-			if (entry.action_type === CaseAction.warn) {
+			let embed = makeCaseEmbed({
+				logChannelId: webhook.channel_id,
+				cs: entry,
+				target,
+				mod,
+				pardonedBy,
+				message,
+				refCs,
+			});
+
+			if (entry.actionType === CaseAction.warn) {
 				embed = this._populateEmbedWithWarnPunishment(embed, entry);
 			}
 
@@ -235,26 +183,28 @@ export class Handler {
 			embeds.push(embed);
 		}
 
-		const thread = this.threadsCache.has(channelId) ? `&thread_id=${channelId}` : '';
-
 		for (let i = 0; i < Math.ceil(embeds.length / 10); i++) {
 			void this.rest
 				.post<RESTPostAPIWebhookWithTokenWaitResult, RESTPostAPIWebhookWithTokenJSONBody>(
-					`${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`,
+					`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
+						webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
+					}`,
 					{
 						data: {
 							embeds: embeds.slice(0 + i * 10, 10 + i * 10),
 						},
 					},
 				)
-				.then(
-					(newMessage) =>
-						this.sql`UPDATE cases SET log_message_id = ${newMessage.id} WHERE id = ${(log.data as Case[])[i]!.id}`,
+				.then((newMessage) =>
+					this.prisma.case.update({
+						data: { logMessageId: newMessage.id },
+						where: { id: (log.data as Case[])[i]!.id },
+					}),
 				);
 		}
 	}
 
-	private _embedFromTrigger(message: APIMessage, trigger: Exclude<RunnerResult, NotOkRunnerResult>): APIEmbed[] {
+	private _embedFromTrigger(message: APIMessage, trigger: RunnerResult): APIEmbed[] {
 		const codeblock = (str: string) => `\`\`\`${str}\`\`\``;
 
 		const embeds: APIEmbed[] = [];
@@ -273,7 +223,7 @@ export class Handler {
 		switch (trigger.runner) {
 			case Runners.files: {
 				const hashes = trigger.data
-					.map((file) => `${file.file_hash} (${MaliciousFileCategory[file.category]!})`)
+					.map((file) => `${file.fileHash} (${MaliciousFileCategory[file.category]!})`)
 					.join(', ');
 
 				push({
@@ -369,17 +319,15 @@ export class Handler {
 				const channels =
 					'messages' in trigger.data
 						? [...new Set(trigger.data.messages.map((m) => `<#${m.channel_id}>`))].join(', ')
-						: [`<#${trigger.data.message.channel_id}>`].join(', ');
+						: [`<#${message.channel_id}>`].join(', ');
 
 				const description =
 					'messages' in trigger.data
 						? `Tried to send ${trigger.data.amount} mentions within ${ms(trigger.data.time, true)}\nIn: ${channels}`
-						: `Tried to send ${trigger.data.amount} mentions within a single message`;
+						: `Tried to send ${trigger.data.limit} mentions within a single message`;
 
 				const contents =
-					'messages' in trigger.data
-						? trigger.data.messages.map((m) => m.content).join('\n')
-						: trigger.data.message.content;
+					'messages' in trigger.data ? trigger.data.messages.map((m) => m.content).join('\n') : message.content;
 
 				push({
 					title: 'Triggered anti mention spam measures',
@@ -402,7 +350,7 @@ export class Handler {
 					title: `Posted an image tagged as ${trigger
 						.data!.crossed.map((type) => `\`${type.toUpperCase()}\``)
 						.join(', ')}`,
-					description: `In <#${trigger.data!.message.channel_id}>`,
+					description: `In <#${message.channel_id}>`,
 					image: {
 						url: trigger.data!.thumbnail_url,
 					},
@@ -435,17 +383,7 @@ export class Handler {
 			});
 		}
 
-		const [{ filter_trigger_log_channel: channelId = null } = {}] = await this.sql<
-			[Pick<GuildSettings, 'filter_trigger_log_channel'>?]
-		>`
-      SELECT filter_trigger_log_channel FROM guild_settings WHERE guild_id = ${log.data.message.guild_id!}
-    `;
-
-		if (!channelId) {
-			return;
-		}
-
-		const webhook = await this._assertWebhook(channelId, log.data.message.guild_id!, 'Filter trigger');
+		const webhook = await this._assertWebhook(log.data.message.guild_id!, LogChannelType.filter);
 		if (!webhook) {
 			return;
 		}
@@ -456,10 +394,10 @@ export class Handler {
 			return;
 		}
 
-		const thread = this.threadsCache.has(channelId) ? `&thread_id=${channelId}` : '';
-
 		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`,
+			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
+				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
+			}`,
 			{
 				data: {
 					embeds,
@@ -473,11 +411,7 @@ export class Handler {
 			return;
 		}
 
-		if (!settings.user_update_log_channel) {
-			return;
-		}
-
-		const webhook = await this._assertWebhook(settings.user_update_log_channel, settings.guild_id, 'User Updates');
+		const webhook = await this._assertWebhook(settings.guildId, LogChannelType.user);
 		if (!webhook) {
 			return;
 		}
@@ -528,11 +462,10 @@ export class Handler {
 			});
 		}
 
-		const thread = this.threadsCache.has(settings.user_update_log_channel)
-			? `&thread_id=${settings.user_update_log_channel}`
-			: '';
 		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`,
+			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
+				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
+			}`,
 			{
 				data: {
 					embeds,
@@ -542,15 +475,7 @@ export class Handler {
 	}
 
 	private async _handleMessageDeleteLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
-		if (!settings.message_update_log_channel) {
-			return;
-		}
-
-		const webhook = await this._assertWebhook(
-			settings.message_update_log_channel,
-			settings.guild_id,
-			'Message Updates',
-		);
+		const webhook = await this._assertWebhook(settings.guildId, LogChannelType.message);
 		if (!webhook) {
 			return;
 		}
@@ -562,11 +487,10 @@ export class Handler {
 
 		const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
 
-		const thread = this.threadsCache.has(settings.message_update_log_channel)
-			? `&thread_id=${settings.message_update_log_channel}`
-			: '';
 		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`,
+			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
+				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
+			}`,
 			{
 				data: {
 					embeds: [
@@ -602,15 +526,7 @@ export class Handler {
 	}
 
 	private async _handleMessageEditLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
-		if (!settings.message_update_log_channel) {
-			return;
-		}
-
-		const webhook = await this._assertWebhook(
-			settings.message_update_log_channel,
-			settings.guild_id,
-			'Message Updates',
-		);
+		const webhook = await this._assertWebhook(settings.guildId, LogChannelType.message);
 		if (!webhook) {
 			return;
 		}
@@ -626,11 +542,10 @@ export class Handler {
 
 		const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
 
-		const thread = this.threadsCache.has(settings.message_update_log_channel)
-			? `&thread_id=${settings.message_update_log_channel}`
-			: '';
 		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`,
+			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
+				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
+			}`,
 			{
 				data: {
 					embeds: [
@@ -660,11 +575,7 @@ export class Handler {
 	}
 
 	private async _handleFilterUpdateLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
-		if (!settings.mod_action_log_channel) {
-			return;
-		}
-
-		const webhook = await this._assertWebhook(settings.mod_action_log_channel, settings.guild_id, 'Message Updates');
+		const webhook = await this._assertWebhook(settings.guildId, LogChannelType.message);
 		if (!webhook) {
 			return;
 		}
@@ -689,11 +600,10 @@ export class Handler {
 			})
 			.join('\n');
 
-		const thread = this.threadsCache.has(settings.mod_action_log_channel)
-			? `&thread_id=${settings.mod_action_log_channel}`
-			: '';
 		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`,
+			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
+				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
+			}`,
 			{
 				data: {
 					embeds: [
@@ -714,9 +624,7 @@ export class Handler {
 	}
 
 	private async _handleServerLog(log: ServerLog) {
-		const [settings] = await this.sql<
-			[GuildSettings?]
-		>`SELECT * FROM guild_settings WHERE guild_id = ${log.data.guild}`;
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: log.data.guild } });
 
 		if (!settings) {
 			return;
@@ -744,24 +652,21 @@ export class Handler {
 	}
 
 	private async _handleForbiddenNameLog(log: ForbiddenNameLog) {
-		const [settings] = await this.sql<
-			[GuildSettings?]
-		>`SELECT * FROM guild_settings WHERE guild_id = ${log.data.guildId}`;
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: log.data.guildId } });
 
-		if (!settings?.filter_trigger_log_channel) {
+		if (!settings?.filterTriggerLogChannel) {
 			return;
 		}
 
-		const webhook = await this._assertWebhook(settings.filter_trigger_log_channel, log.data.guildId, 'Filter trigger');
+		const webhook = await this._assertWebhook(log.data.guildId, LogChannelType.filter);
 		if (!webhook) {
 			return;
 		}
 
-		const thread = this.threadsCache.has(settings.filter_trigger_log_channel)
-			? `&thread_id=${settings.filter_trigger_log_channel}`
-			: '';
 		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${thread}`,
+			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
+				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
+			}`,
 			{
 				data: {
 					embeds: [

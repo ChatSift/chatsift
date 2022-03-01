@@ -1,16 +1,17 @@
 import { FormControl, FormLabel, Input, FormErrorMessage, FormErrorIcon, HStack } from '@chakra-ui/react';
 import type { UseFormReturn } from 'react-hook-form';
-import type { ApiPatchGuildSettingsBody, GuildSettings, UserGuild } from '@automoderator/core';
+import type { PatchGuildsSettingsBody, UserGuild } from '@chatsift/api-wrapper/v2';
 import InputClearButton from '~/components/InputClearButton';
+import type { GuildSettings } from '@prisma/client';
 
 // TODO(DD): consider generalizing
 interface NumberInputProps {
 	settings: GuildSettings;
 	name: string;
-	settingsKey: Exclude<keyof GuildSettings, 'guild_id'>;
+	settingsKey: Exclude<keyof GuildSettings, 'guildId'>;
 	required?: boolean;
 	guild: UserGuild;
-	form: UseFormReturn<ApiPatchGuildSettingsBody>;
+	form: UseFormReturn<PatchGuildsSettingsBody>;
 	min?: number;
 	max?: number;
 }
@@ -42,8 +43,8 @@ const NumberInput = ({
 			<Input
 				{...register(settingsKey, {
 					required: { value: required ?? false, message: 'Please input a number' },
-					min: { value: min ?? -Infinity, message: `Please input a number greater than or equal to ${min}` },
-					max: { value: max ?? Infinity, message: `Please input a number lower than or equal to ${max}` },
+					min: { value: min ?? -Infinity, message: `Please input a number greater than or equal to ${min!}` },
+					max: { value: max ?? Infinity, message: `Please input a number lower than or equal to ${max!}` },
 					// @ts-expect-error
 					validate: (value?: string) => {
 						if (value?.length && isNaN(Number(value))) {

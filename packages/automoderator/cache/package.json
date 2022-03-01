@@ -19,7 +19,6 @@
 	},
 	"homepage": "https://github.com/didinele/AutoModerator#readme",
 	"devDependencies": {
-		"@automoderator/core": "workspace:^0.1.0",
 		"@cordis/redis-store": "^1.2.0",
 		"@types/ioredis": "^4.27.6",
 		"@types/node": "^16.10.3",

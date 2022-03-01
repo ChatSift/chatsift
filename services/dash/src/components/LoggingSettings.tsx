@@ -5,7 +5,7 @@ import { Button, ButtonGroup } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import type { FormEvent } from 'react';
 import { useQueryMe } from '~/hooks/useQueryMe';
-import type { ApiPatchGuildSettingsBody } from '@automoderator/core';
+import type { PatchGuildsSettingsBody } from '@chatsift/api-wrapper/v2';
 import { fetchApi } from '~/utils/fetchApi';
 import ChannelInput from '~/components/ChannelInput';
 
@@ -20,7 +20,7 @@ const LoggingSettings = () => {
 
 	const guild = user?.guilds.find((g) => g.id === id);
 
-	const form = useForm<ApiPatchGuildSettingsBody>();
+	const form = useForm<PatchGuildsSettingsBody>();
 
 	if (!settings) {
 		return <Loading />;
@@ -28,8 +28,8 @@ const LoggingSettings = () => {
 
 	const handleOnSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		await form.handleSubmit(async (values: ApiPatchGuildSettingsBody) => {
-			await fetchApi<unknown, ApiPatchGuildSettingsBody>({
+		await form.handleSubmit(async (values: PatchGuildsSettingsBody) => {
+			await fetchApi<unknown, PatchGuildsSettingsBody>({
 				path: `/guilds/${id}/settings`,
 				method: 'PATCH',
 				body: values,
@@ -42,7 +42,7 @@ const LoggingSettings = () => {
 			<ChannelInput
 				settings={settings}
 				name={'Mod logs channel'}
-				settingsKey={'mod_action_log_channel'}
+				settingsKey={'modActionLogChannel'}
 				guild={guild}
 				form={form}
 				textOnly
@@ -51,7 +51,7 @@ const LoggingSettings = () => {
 			<ChannelInput
 				settings={settings}
 				name={'Filter logs channel'}
-				settingsKey={'filter_trigger_log_channel'}
+				settingsKey={'filterTriggerLogChannel'}
 				guild={guild}
 				form={form}
 				textOnly
@@ -60,7 +60,7 @@ const LoggingSettings = () => {
 			<ChannelInput
 				settings={settings}
 				name={'User logs channel'}
-				settingsKey={'user_update_log_channel'}
+				settingsKey={'userUpdateLogChannel'}
 				guild={guild}
 				form={form}
 				textOnly
@@ -69,7 +69,7 @@ const LoggingSettings = () => {
 			<ChannelInput
 				settings={settings}
 				name={'Message logs'}
-				settingsKey={'message_update_log_channel'}
+				settingsKey={'messageUpdateLogChannel'}
 				guild={guild}
 				form={form}
 				textOnly

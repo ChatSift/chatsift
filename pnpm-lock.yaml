@@ -10,7 +10,7 @@ importers:
       '@babel/preset-env': ^7.16.4
       '@babel/preset-typescript': ^7.16.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
-      '@prisma/client': ^3.8.1
+      '@prisma/client': ^3.10.0
       '@strictsoftware/typedoc-plugin-monorepo': ^0.4.2
       '@types/jest': ^26.0.24
       '@typescript-eslint/eslint-plugin': ^5.9.0
@@ -28,7 +28,7 @@ importers:
       lint-staged: ^11.2.0
       prettier: ^2.5.1
       prettier-eslint: ^13.0.0
-      prisma: ^3.8.1
+      prisma: ^3.10.0
       rimraf: ^3.0.2
       typedoc: 0.19.2
       typescript: ^4.5.5
@@ -39,7 +39,7 @@ importers:
       '@babel/preset-env': 7.16.4_@babel+core@7.16.0
       '@babel/preset-typescript': 7.16.0_@babel+core@7.16.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
-      '@prisma/client': 3.8.1_prisma@3.8.1
+      '@prisma/client': 3.10.0_prisma@3.10.0
       '@strictsoftware/typedoc-plugin-monorepo': 0.4.2_typedoc@0.19.2
       '@types/jest': 26.0.24
       '@typescript-eslint/eslint-plugin': 5.9.1_46ff1e3eeda39b5395c18b563a83af7a
@@ -57,27 +57,32 @@ importers:
       lint-staged: 11.2.0
       prettier: 2.5.1
       prettier-eslint: 13.0.0
-      prisma: 3.8.1
+      prisma: 3.10.0
       rimraf: 3.0.2
       typedoc: 0.19.2_typescript@4.5.5
       typescript: 4.5.5
 
-  packages/automoderator/banword-flags:
+  packages/automoderator/broker-types:
     specifiers:
-      '@cordis/bitfield': ^1.2.0
+      '@chatsift/api-wrapper': workspace:^0.1.0
+      '@chatsift/utils': workspace:^0.1.0
+      '@prisma/client': ^3.10.0
       '@types/node': ^16.10.3
+      discord-api-types: ^0.27.3
       tslib: ^2.3.1
       typescript: ^4.5.5
     dependencies:
+      '@chatsift/api-wrapper': link:../../chatsift/api-wrapper
+      '@chatsift/utils': link:../../chatsift/utils
+      '@prisma/client': 3.10.0_prisma@3.10.0
+      discord-api-types: 0.27.3
       tslib: 2.3.1
     devDependencies:
-      '@cordis/bitfield': 1.2.0
-      '@types/node': 16.11.10
+      '@types/node': 16.11.21
       typescript: 4.5.5
 
   packages/automoderator/cache:
     specifiers:
-      '@automoderator/core': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@cordis/redis-store': ^1.2.0
       '@types/ioredis': ^4.27.6
@@ -90,64 +95,8 @@ importers:
       tslib: 2.3.1
       tsyringe: 4.6.0
     devDependencies:
-      '@automoderator/core': link:../core
       '@cordis/redis-store': 1.2.0
       '@types/ioredis': 4.27.6
-      '@types/node': 16.11.10
-      typescript: 4.5.5
-
-  packages/automoderator/core:
-    specifiers:
-      '@chatsift/utils': workspace:^0.1.0
-      '@types/node': ^16.10.3
-      discord-api-types: ^0.26.1
-      tslib: ^2.3.1
-      typescript: ^4.5.5
-    dependencies:
-      '@chatsift/utils': link:../../chatsift/utils
-      discord-api-types: 0.26.1
-      tslib: 2.3.1
-    devDependencies:
-      '@types/node': 16.11.10
-      typescript: 4.5.5
-
-  packages/automoderator/discord-permissions:
-    specifiers:
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/injection': workspace:^0.1.0
-      '@cordis/bitfield': ^1.2.0
-      '@cordis/rest': ^2.0.0-next.2405c88.1643469558
-      '@types/node': ^16.10.3
-      '@types/pino': ^6.3.11
-      discord-api-types: ^0.26.1
-      postgres: ^2.0.0-beta.10
-      tslib: ^2.3.1
-      tsyringe: ^4.6.0
-      typescript: ^4.5.5
-    dependencies:
-      '@automoderator/injection': link:../injection
-      '@cordis/rest': 2.0.0-next.2405c88.1643469558
-      discord-api-types: 0.26.1
-      tslib: 2.3.1
-      tsyringe: 4.6.0
-    devDependencies:
-      '@automoderator/core': link:../core
-      '@cordis/bitfield': 1.2.0
-      '@types/node': 16.11.10
-      '@types/pino': 6.3.11
-      postgres: 2.0.0-beta.10
-      typescript: 4.5.5
-
-  packages/automoderator/filter-ignores:
-    specifiers:
-      '@cordis/bitfield': ^1.2.0
-      '@types/node': ^16.10.3
-      tslib: ^2.3.1
-      typescript: ^4.5.5
-    dependencies:
-      tslib: 2.3.1
-    devDependencies:
-      '@cordis/bitfield': 1.2.0
       '@types/node': 16.11.10
       typescript: 4.5.5
 
@@ -195,38 +144,42 @@ importers:
 
   packages/automoderator/util:
     specifiers:
-      '@automoderator/core': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
+      '@chatsift/api-wrapper': workspace:^0.1.0
       '@chatsift/discord-utils': workspace:^0.1.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@cordis/util': ^1.2.0
+      '@naval-base/ms': ^3.1.0
+      '@prisma/client': ^3.10.0
       '@types/node': ^16.10.3
-      discord-api-types: ^0.26.1
+      discord-api-types: ^0.27.3
       nanoid: ^3.1.29
-      postgres: ^2.0.0-beta.10
       tslib: ^2.3.1
       tsyringe: ^4.6.0
       typescript: ^4.5.5
     dependencies:
-      '@automoderator/core': link:../core
       '@automoderator/injection': link:../injection
+      '@chatsift/api-wrapper': link:../../chatsift/api-wrapper
       '@chatsift/discord-utils': link:../../chatsift/discord-utils
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@cordis/util': 1.2.0
-      discord-api-types: 0.26.1
+      '@naval-base/ms': 3.1.0
+      '@prisma/client': 3.10.0_prisma@3.10.0
+      discord-api-types: 0.27.3
       nanoid: 3.1.29
       tslib: 2.3.1
       tsyringe: 4.6.0
     devDependencies:
       '@types/node': 16.11.10
-      postgres: 2.0.0-beta.10
       typescript: 4.5.5
 
   packages/chatsift/api-wrapper:
     specifiers:
       '@cordis/bitfield': ^1.2.0
+      '@prisma/client': ^3.10.0
       '@types/node': ^16.11.19
       '@types/node-fetch': ^2.5.12
+      discord-api-types: ^0.27.3
       node-fetch: ^2.6.6
       tslib: ^2.3.1
       typescript: ^4.5.5
@@ -237,20 +190,22 @@ importers:
       tslib: 2.3.1
       zod: 3.11.6
     devDependencies:
+      '@prisma/client': 3.10.0_prisma@3.10.0
       '@types/node': 16.11.21
       '@types/node-fetch': 2.5.12
+      discord-api-types: 0.27.3
       typescript: 4.5.5
 
   packages/chatsift/discord-utils:
     specifiers:
       '@chatsift/utils': workspace:^0.1.0
       '@types/node': ^16.11.19
-      discord-api-types: ^0.26.1
+      discord-api-types: ^0.27.3
       tslib: ^2.3.1
       typescript: ^4.5.5
     dependencies:
       '@chatsift/utils': link:../utils
-      discord-api-types: 0.26.1
+      discord-api-types: 0.27.3
       tslib: 2.3.1
     devDependencies:
       '@types/node': 16.11.21
@@ -303,10 +258,6 @@ importers:
 
   services/api:
     specifiers:
-      '@automoderator/banword-flags': workspace:^0.1.0
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/discord-permissions': workspace:^0.1.0
-      '@automoderator/filter-ignores': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@chatsift/api-wrapper': workspace:^0.1.0
@@ -315,7 +266,7 @@ importers:
       '@cordis/bitfield': ^1.2.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@hapi/boom': ^9.1.4
-      '@prisma/client': ^3.8.1
+      '@prisma/client': ^3.10.0
       '@sapphire/stopwatch': ^1.2.0
       '@types/bcrypt': ^5.0.0
       '@types/cookie': ^0.4.1
@@ -327,23 +278,17 @@ importers:
       bcrypt: ^5.0.1
       cookie: ^0.4.1
       cors: ^2.8.5
-      discord-api-types: ^0.26.1
+      discord-api-types: ^0.27.3
       helmet: ^4.6.0
       jsonwebtoken: ^8.5.1
       node-fetch: ^2.6.5
       polka: ^1.0.0-next.22
-      postgres: ^2.0.0-beta.10
-      prisma: ^3.8.1
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
       typescript: ^4.5.5
       zod: ^3.11.6
     dependencies:
-      '@automoderator/banword-flags': link:../../packages/automoderator/banword-flags
-      '@automoderator/core': link:../../packages/automoderator/core
-      '@automoderator/discord-permissions': link:../../packages/automoderator/discord-permissions
-      '@automoderator/filter-ignores': link:../../packages/automoderator/filter-ignores
       '@automoderator/injection': link:../../packages/automoderator/injection
       '@automoderator/logger': link:../../packages/automoderator/logger
       '@chatsift/api-wrapper': link:../../packages/chatsift/api-wrapper
@@ -352,17 +297,16 @@ importers:
       '@cordis/bitfield': 1.2.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@hapi/boom': 9.1.4
-      '@prisma/client': 3.8.1_prisma@3.8.1
+      '@prisma/client': 3.10.0_prisma@3.10.0
       '@sapphire/stopwatch': 1.2.0
       bcrypt: 5.0.1
       cookie: 0.4.1
       cors: 2.8.5
-      discord-api-types: 0.26.1
+      discord-api-types: 0.27.3
       helmet: 4.6.0
       jsonwebtoken: 8.5.1
       node-fetch: 2.6.5
       polka: 1.0.0-next.22
-      postgres: 2.0.0-beta.10
       reflect-metadata: 0.1.13
       tslib: 2.3.1
       tsyringe: 4.6.0
@@ -375,25 +319,24 @@ importers:
       '@types/node': 16.10.3
       '@types/node-fetch': 2.5.12
       '@types/pino': 6.3.11
-      prisma: 3.8.1
       typescript: 4.5.5
 
   services/automod:
     specifiers:
-      '@automoderator/banword-flags': workspace:^0.1.0
+      '@automoderator/broker-types': workspace:^0.1.0
       '@automoderator/cache': workspace:^0.1.0
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/discord-permissions': workspace:^0.1.0
-      '@automoderator/filter-ignores': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
       '@chatsift/api-wrapper': workspace:^0.1.0
+      '@chatsift/utils': workspace:^0.1.0
       '@cordis/brokers': ^1.2.0
       '@cordis/redis-store': ^1.2.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@cordis/store': ^1.2.0
       '@cordis/util': ^1.2.0
+      '@naval-base/ms': ^3.1.0
+      '@prisma/client': ^3.10.0
       '@types/amqplib': ^0.8.2
       '@types/common-tags': ^1.8.1
       '@types/ioredis': ^4.27.6
@@ -401,34 +344,32 @@ importers:
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
       common-tags: ^1.8.0
-      discord-api-types: ^0.26.1
+      discord-api-types: ^0.27.3
       ioredis: ^4.27.10
       node-fetch: ^2.6.5
-      postgres: ^2.0.0-beta.10
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
       typescript: ^4.5.5
     dependencies:
-      '@automoderator/banword-flags': link:../../packages/automoderator/banword-flags
+      '@automoderator/broker-types': link:../../packages/automoderator/broker-types
       '@automoderator/cache': link:../../packages/automoderator/cache
-      '@automoderator/core': link:../../packages/automoderator/core
-      '@automoderator/discord-permissions': link:../../packages/automoderator/discord-permissions
-      '@automoderator/filter-ignores': link:../../packages/automoderator/filter-ignores
       '@automoderator/injection': link:../../packages/automoderator/injection
       '@automoderator/logger': link:../../packages/automoderator/logger
       '@automoderator/util': link:../../packages/automoderator/util
       '@chatsift/api-wrapper': link:../../packages/chatsift/api-wrapper
+      '@chatsift/utils': link:../../packages/chatsift/utils
       '@cordis/brokers': 1.2.0
       '@cordis/redis-store': 1.2.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@cordis/store': 1.2.0
       '@cordis/util': 1.2.0
+      '@naval-base/ms': 3.1.0
+      '@prisma/client': 3.10.0_prisma@3.10.0
       common-tags: 1.8.0
-      discord-api-types: 0.26.1
+      discord-api-types: 0.27.3
       ioredis: 4.27.10
       node-fetch: 2.6.5
-      postgres: 2.0.0-beta.10
       reflect-metadata: 0.1.13
       tslib: 2.3.1
       tsyringe: 4.6.0
@@ -441,51 +382,20 @@ importers:
       '@types/pino': 6.3.11
       typescript: 4.5.5
 
-  services/cron-runner:
-    specifiers:
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/injection': workspace:^0.1.0
-      '@automoderator/logger': workspace:^0.1.0
-      '@cordis/rest': ^2.0.0-next.2405c88.1643469558
-      '@types/amqplib': ^0.8.2
-      '@types/node': ^16.10.3
-      '@types/node-fetch': ^2.5.12
-      '@types/pino': ^6.3.11
-      discord-api-types: ^0.26.1
-      postgres: ^2.0.0-beta.10
-      reflect-metadata: ^0.1.13
-      tslib: ^2.3.1
-      tsyringe: ^4.6.0
-      typescript: ^4.5.5
-    dependencies:
-      '@automoderator/core': link:../../packages/automoderator/core
-      '@automoderator/injection': link:../../packages/automoderator/injection
-      '@automoderator/logger': link:../../packages/automoderator/logger
-      '@cordis/rest': 2.0.0-next.2405c88.1643469558
-      discord-api-types: 0.26.1
-      postgres: 2.0.0-beta.10
-      reflect-metadata: 0.1.13
-      tslib: 2.3.1
-      tsyringe: 4.6.0
-    devDependencies:
-      '@types/amqplib': 0.8.2
-      '@types/node': 16.10.3
-      '@types/node-fetch': 2.5.12
-      '@types/pino': 6.3.11
-      typescript: 4.5.5
-
   services/dash:
     specifiers:
-      '@automoderator/core': workspace:^0.1.0
       '@babel/core': ^7.15.8
       '@chakra-ui/icons': ^1.1.1
       '@chakra-ui/react': ^1.7.2
+      '@chatsift/api-wrapper': workspace:^0.1.0
       '@chatsift/discord-utils': workspace:^0.1.0
       '@emotion/react': ^11.6.0
       '@emotion/styled': ^11.6.0
+      '@naval-base/ms': ^3.1.0
+      '@prisma/client': ^3.10.0
       '@types/node': ^16.10.3
       '@types/react': ^17.0.37
-      discord-api-types: ^0.26.1
+      discord-api-types: ^0.27.3
       framer-motion: ^5.3.3
       next: ^12.0.4
       react: ^17.0.2
@@ -499,12 +409,13 @@ importers:
       universal-cookie: ^4.0.4
       zustand: ^3.6.5
     dependencies:
-      '@automoderator/core': link:../../packages/automoderator/core
       '@chakra-ui/icons': 1.1.1_react@17.0.2
       '@chakra-ui/react': 1.7.2_e38fa20e9b5a75faf77d8a697effde4d
+      '@chatsift/api-wrapper': link:../../packages/chatsift/api-wrapper
       '@chatsift/discord-utils': link:../../packages/chatsift/discord-utils
       '@emotion/react': 11.6.0_72bd8486b1b542a110c0caa558311887
       '@emotion/styled': 11.6.0_ebccef8129fad3283a98d7d0b1effb10
+      '@naval-base/ms': 3.1.0
       framer-motion: 5.3.3_react-dom@17.0.2+react@17.0.2
       next: 12.0.4_bdb45b6be7e115fb997f8b05d5433240
       react: 17.0.2
@@ -518,9 +429,10 @@ importers:
       zustand: 3.6.5_react@17.0.2
     devDependencies:
       '@babel/core': 7.15.8
+      '@prisma/client': 3.10.0_prisma@3.10.0
       '@types/node': 16.11.10
       '@types/react': 17.0.37
-      discord-api-types: 0.26.1
+      discord-api-types: 0.27.3
       typescript: 4.5.5
 
   services/discord-proxy:
@@ -532,7 +444,7 @@ importers:
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@hapi/boom': ^9.1.4
       '@types/node': ^16.10.3
-      discord-api-types: ^0.26.1
+      discord-api-types: ^0.27.3
       node-fetch: 3.0.0-beta.9
       polka: ^1.0.0-next.22
       reflect-metadata: ^0.1.13
@@ -553,13 +465,13 @@ importers:
       tsyringe: 4.6.0
     devDependencies:
       '@types/node': 16.11.10
-      discord-api-types: 0.26.1
+      discord-api-types: 0.27.3
       typescript: 4.5.5
 
   services/gateway:
     specifiers:
+      '@automoderator/broker-types': workspace:^0.1.0
       '@automoderator/cache': workspace:^0.1.0
-      '@automoderator/core': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@cordis/brokers': ^1.2.0
@@ -568,15 +480,15 @@ importers:
       '@cordis/redis-store': ^1.2.0
       '@types/ioredis': ^4.27.6
       '@types/node': ^16.10.3
-      discord-api-types: ^0.26.1
+      discord-api-types: ^0.27.3
       ioredis: ^4.27.10
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
       typescript: ^4.5.5
     dependencies:
+      '@automoderator/broker-types': link:../../packages/automoderator/broker-types
       '@automoderator/cache': link:../../packages/automoderator/cache
-      '@automoderator/core': link:../../packages/automoderator/core
       '@automoderator/injection': link:../../packages/automoderator/injection
       '@automoderator/logger': link:../../packages/automoderator/logger
       '@cordis/brokers': 1.2.0
@@ -590,120 +502,43 @@ importers:
       '@cordis/common': 1.2.0
       '@types/ioredis': 4.27.6
       '@types/node': 16.10.3
-      discord-api-types: 0.26.1
+      discord-api-types: 0.27.3
       typescript: 4.5.5
 
-  services/interactions:
+  services/logging:
     specifiers:
-      '@automoderator/banword-flags': workspace:^0.1.0
-      '@automoderator/cache': workspace:^0.1.0
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/discord-permissions': workspace:^0.1.0
-      '@automoderator/filter-ignores': workspace:^0.1.0
+      '@automoderator/broker-types': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
       '@chatsift/api-wrapper': workspace:^0.1.0
       '@chatsift/discord-utils': workspace:^0.1.0
-      '@chatsift/readdir': workspace:^0.1.0
-      '@chatsift/rest-utils': workspace:^0.1.0
-      '@chatsift/utils': workspace:^0.1.0
       '@cordis/brokers': ^1.2.0
-      '@cordis/redis-store': ^1.2.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@cordis/util': ^1.2.0
-      '@hapi/boom': ^9.1.4
-      '@types/common-tags': ^1.8.1
-      '@types/ioredis': ^4.27.6
-      '@types/js-yaml': ^4.0.3
+      '@naval-base/ms': ^3.1.0
+      '@prisma/client': ^3.10.0
+      '@types/amqplib': ^0.8.2
       '@types/node': ^16.10.3
-      '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
-      common-tags: ^1.8.0
-      discord-api-types: ^0.26.1
-      ioredis: ^4.27.10
-      js-yaml: ^4.1.0
-      nanoid: ^3.1.29
-      node-fetch: ^2.6.5
-      polka: ^1.0.0-next.22
-      postgres: ^2.0.0-beta.10
+      discord-api-types: ^0.27.3
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
-      tweetnacl: ^1.0.3
       typescript: ^4.5.5
     dependencies:
-      '@automoderator/banword-flags': link:../../packages/automoderator/banword-flags
-      '@automoderator/cache': link:../../packages/automoderator/cache
-      '@automoderator/core': link:../../packages/automoderator/core
-      '@automoderator/discord-permissions': link:../../packages/automoderator/discord-permissions
-      '@automoderator/filter-ignores': link:../../packages/automoderator/filter-ignores
+      '@automoderator/broker-types': link:../../packages/automoderator/broker-types
       '@automoderator/injection': link:../../packages/automoderator/injection
       '@automoderator/logger': link:../../packages/automoderator/logger
       '@automoderator/util': link:../../packages/automoderator/util
       '@chatsift/api-wrapper': link:../../packages/chatsift/api-wrapper
       '@chatsift/discord-utils': link:../../packages/chatsift/discord-utils
-      '@chatsift/readdir': link:../../packages/chatsift/readdir
-      '@chatsift/rest-utils': link:../../packages/chatsift/rest-utils
-      '@chatsift/utils': link:../../packages/chatsift/utils
-      '@cordis/brokers': 1.2.0
-      '@cordis/redis-store': 1.2.0
-      '@cordis/rest': 2.0.0-next.2405c88.1643469558
-      '@cordis/util': 1.2.0
-      '@hapi/boom': 9.1.4
-      common-tags: 1.8.0
-      discord-api-types: 0.26.1
-      ioredis: 4.27.10
-      js-yaml: 4.1.0
-      nanoid: 3.1.29
-      node-fetch: 2.6.5
-      polka: 1.0.0-next.22
-      postgres: 2.0.0-beta.10
-      reflect-metadata: 0.1.13
-      tslib: 2.3.1
-      tsyringe: 4.6.0
-      tweetnacl: 1.0.3
-    devDependencies:
-      '@types/common-tags': 1.8.1
-      '@types/ioredis': 4.27.6
-      '@types/js-yaml': 4.0.3
-      '@types/node': 16.10.3
-      '@types/node-fetch': 2.5.12
-      '@types/pino': 6.3.11
-      typescript: 4.5.5
-
-  services/logging:
-    specifiers:
-      '@automoderator/banword-flags': workspace:^0.1.0
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/injection': workspace:^0.1.0
-      '@automoderator/logger': workspace:^0.1.0
-      '@automoderator/util': workspace:^0.1.0
-      '@chatsift/discord-utils': workspace:^0.1.0
-      '@cordis/brokers': ^1.2.0
-      '@cordis/rest': ^2.0.0-next.2405c88.1643469558
-      '@cordis/util': ^1.2.0
-      '@types/amqplib': ^0.8.2
-      '@types/node': ^16.10.3
-      '@types/pino': ^6.3.11
-      discord-api-types: ^0.26.1
-      postgres: ^2.0.0-beta.10
-      reflect-metadata: ^0.1.13
-      tslib: ^2.3.1
-      tsyringe: ^4.6.0
-      typescript: ^4.5.5
-    dependencies:
-      '@automoderator/banword-flags': link:../../packages/automoderator/banword-flags
-      '@automoderator/core': link:../../packages/automoderator/core
-      '@automoderator/injection': link:../../packages/automoderator/injection
-      '@automoderator/logger': link:../../packages/automoderator/logger
-      '@automoderator/util': link:../../packages/automoderator/util
-      '@chatsift/discord-utils': link:../../packages/chatsift/discord-utils
       '@cordis/brokers': 1.2.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@cordis/util': 1.2.0
-      discord-api-types: 0.26.1
-      postgres: 2.0.0-beta.10
+      '@naval-base/ms': 3.1.0
+      '@prisma/client': 3.10.0_prisma@3.10.0
+      discord-api-types: 0.27.3
       reflect-metadata: 0.1.13
       tslib: 2.3.1
       tsyringe: 4.6.0
@@ -715,10 +550,8 @@ importers:
 
   services/mod-observer:
     specifiers:
-      '@automoderator/banword-flags': workspace:^0.1.0
+      '@automoderator/broker-types': workspace:^0.1.0
       '@automoderator/cache': workspace:^0.1.0
-      '@automoderator/core': workspace:^0.1.0
-      '@automoderator/discord-permissions': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
@@ -728,24 +561,22 @@ importers:
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@cordis/store': ^1.2.0
       '@cordis/util': ^1.2.0
+      '@prisma/client': ^3.10.0
       '@types/amqplib': ^0.8.2
       '@types/ioredis': ^4.27.6
       '@types/node': ^16.10.3
       '@types/node-fetch': ^2.5.12
       '@types/pino': ^6.3.11
-      discord-api-types: ^0.26.1
+      discord-api-types: ^0.27.3
       ioredis: ^4.27.10
       node-fetch: ^2.6.5
-      postgres: ^2.0.0-beta.10
       reflect-metadata: ^0.1.13
       tslib: ^2.3.1
       tsyringe: ^4.6.0
       typescript: ^4.5.5
     dependencies:
-      '@automoderator/banword-flags': link:../../packages/automoderator/banword-flags
+      '@automoderator/broker-types': link:../../packages/automoderator/broker-types
       '@automoderator/cache': link:../../packages/automoderator/cache
-      '@automoderator/core': link:../../packages/automoderator/core
-      '@automoderator/discord-permissions': link:../../packages/automoderator/discord-permissions
       '@automoderator/injection': link:../../packages/automoderator/injection
       '@automoderator/logger': link:../../packages/automoderator/logger
       '@automoderator/util': link:../../packages/automoderator/util
@@ -755,10 +586,10 @@ importers:
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@cordis/store': 1.2.0
       '@cordis/util': 1.2.0
-      discord-api-types: 0.26.1
+      '@prisma/client': 3.10.0_prisma@3.10.0
+      discord-api-types: 0.27.3
       ioredis: 4.27.10
       node-fetch: 2.6.5
-      postgres: 2.0.0-beta.10
       reflect-metadata: 0.1.13
       tslib: 2.3.1
       tsyringe: 4.6.0
@@ -3056,6 +2887,7 @@ packages:
     dependencies:
       '@cordis/error': 1.2.0
       tslib: 2.3.1
+    dev: false
 
   /@cordis/brokers/1.2.0:
     resolution: {integrity: sha512-fNO9KLr7P5694hPMLvu1hyJfycyVGVPwK18mU/d4DzvepVjzSwzVfu/lpb/74RmN2DWQv00S4y/Izy28xCaSSw==}
@@ -3627,6 +3459,10 @@ packages:
     resolution: {integrity: sha512-jDJTpta+P4p1NZTFVLHJ/TLFVYVcOqv6l8xwOeBKNPMgY/zDYH/YH7SJbvrr/h1RcS9GzbPcLKGzpuK9cV56UA==}
     dev: false
 
+  /@naval-base/ms/3.1.0:
+    resolution: {integrity: sha512-3xSG3J2f9xSEgni7liDFBNnlhOf6/sLedCMaEtWv3iaJkeaWvyfdWBYhd2bTko3BLMcQfY4MgICoUGRla1bXiQ==}
+    dev: false
+
   /@next/env/12.0.4:
     resolution: {integrity: sha512-QtZ6X5c6Zqa7oWs5csEmZ7xy+gLdtRKKg02SOT5l0Ziea4P5IU8mSOCyNC4fZmXewcRVjpbY+yGqAAP7hJUfOA==}
     dev: false
@@ -3799,8 +3635,8 @@ packages:
     resolution: {integrity: sha512-IXf3XA7+XyN7CP9gGh/XB0UxVMlvARGEgGXLubFICsUMGz6Q+DU+i4gGlpOxTjKvXjkJDJC8YdqdKkDj9qZHEQ==}
     dev: false
 
-  /@prisma/client/3.8.1_prisma@3.8.1:
-    resolution: {integrity: sha512-NxD1Xbkx1eT1mxSwo1RwZe665mqBETs0VxohuwNfFIxMqcp0g6d4TgugPxwZ4Jb4e5wCu8mQ9quMedhNWIWcZQ==}
+  /@prisma/client/3.10.0_prisma@3.10.0:
+    resolution: {integrity: sha512-6P4sV7WFuODSfSoSEzCH1qfmWMrCUBk1LIIuTbQf6m1LI/IOpLN4lnqGDmgiBGprEzuWobnGLfe9YsXLn0inrg==}
     engines: {node: '>=12.6'}
     requiresBuild: true
     peerDependencies:
@@ -3809,14 +3645,14 @@ packages:
       prisma:
         optional: true
     dependencies:
-      '@prisma/engines-version': 3.8.0-43.34df67547cf5598f5a6cd3eb45f14ee70c3fb86f
-      prisma: 3.8.1
+      '@prisma/engines-version': 3.10.0-50.73e60b76d394f8d37d8ebd1f8918c79029f0db86
+      prisma: 3.10.0
 
-  /@prisma/engines-version/3.8.0-43.34df67547cf5598f5a6cd3eb45f14ee70c3fb86f:
-    resolution: {integrity: sha512-G2JH6yWt6ixGKmsRmVgaQYahfwMopim0u/XLIZUo2o/mZ5jdu7+BL+2V5lZr7XiG1axhyrpvlyqE/c0OgYSl3g==}
+  /@prisma/engines-version/3.10.0-50.73e60b76d394f8d37d8ebd1f8918c79029f0db86:
+    resolution: {integrity: sha512-cVYs5gyQH/qyut24hUvDznCfPrWiNMKNfPb9WmEoiU6ihlkscIbCfkmuKTtspVLWRdl0LqjYEC7vfnPv17HWhw==}
 
-  /@prisma/engines/3.8.0-43.34df67547cf5598f5a6cd3eb45f14ee70c3fb86f:
-    resolution: {integrity: sha512-bHYubuItSN/DGYo36aDu7xJiJmK52JOSHs4MK+KbceAtwS20BCWadRgtpQ3iZ2EXfN/B1T0iCXlNraaNwnpU2w==}
+  /@prisma/engines/3.10.0-50.73e60b76d394f8d37d8ebd1f8918c79029f0db86:
+    resolution: {integrity: sha512-LjRssaWu9w2SrXitofnutRIyURI7l0veQYIALz7uY4shygM9nMcK3omXcObRm7TAcw3Z+9ytfK1B+ySOsOesxQ==}
     requiresBuild: true
     dev: true
 
@@ -3991,10 +3827,6 @@ packages:
     dependencies:
       jest-diff: 26.6.2
       pretty-format: 26.6.2
-    dev: true
-
-  /@types/js-yaml/4.0.3:
-    resolution: {integrity: sha512-5t9BhoORasuF5uCPr+d5/hdB++zRFUTMIZOzbNkr+jZh3yQht4HYbRDyj9fY8n2TZT30iW9huzav73x4NikqWg==}
     dev: true
 
   /@types/json-schema/7.0.9:
@@ -4492,6 +4324,7 @@ packages:
 
   /argparse/2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
+    dev: true
 
   /args/5.0.1:
     resolution: {integrity: sha512-1kqmFCFsPffavQFGt8OxJdIcETti99kySRUPMpOhaGjL6mRJn8HFU1OxKY5bMqfZKUwTQc1mZkAjmGYaVOHFtQ==}
@@ -5613,10 +5446,10 @@ packages:
   /discord-api-types/0.24.0:
     resolution: {integrity: sha512-X0uA2a92cRjowUEXpLZIHWl4jiX1NsUpDhcEOpa1/hpO1vkaokgZ8kkPtPih9hHth5UVQ3mHBu/PpB4qjyfJ4A==}
     engines: {node: '>=12'}
+    deprecated: No longer supported. Install the latest release!
 
-  /discord-api-types/0.26.1:
-    resolution: {integrity: sha512-T5PdMQ+Y1MEECYMV5wmyi9VEYPagEDEi4S0amgsszpWY0VB9JJ/hEvM6BgLhbdnKky4gfmZEXtEEtojN8ZKJQQ==}
-    engines: {node: '>=12'}
+  /discord-api-types/0.27.3:
+    resolution: {integrity: sha512-HOG64DTpZ7CB5EU9eKbjHD50H5qG1pxKG8pmFfHUMKjKvEWeLBHfw0c9xF1cruiYLnBb3+n7m3jBWxZ3H1hcgQ==}
 
   /dlv/1.1.3:
     resolution: {integrity: sha512-+HlytyjlPKnIG8XuRG8WvmBP8xs8P71y+SKKS6ZXWoEgLuePxtDoUEiH7WkdePWrQ5JBpE6aoVqfZfJUQkjXwA==}
@@ -6546,7 +6379,7 @@ packages:
       source-map: 0.6.1
       wordwrap: 1.0.0
     optionalDependencies:
-      uglify-js: 3.15.0
+      uglify-js: 3.15.2
     dev: true
 
   /has-ansi/2.0.0:
@@ -7660,6 +7493,7 @@ packages:
     hasBin: true
     dependencies:
       argparse: 2.0.1
+    dev: true
 
   /jsdom/16.7.0:
     resolution: {integrity: sha512-u9Smc2G1USStM+s/x1ru5Sxrl6mPYCbByG1U/hUmqaVsm4tbNyS7CicOSRyuGQYZhTu0h84qkZZQ/I+dzizSVw==}
@@ -8824,9 +8658,6 @@ packages:
       source-map: 0.6.1
     dev: false
 
-  /postgres/2.0.0-beta.10:
-    resolution: {integrity: sha512-d8R0goa6k0NAna9QZ4vVV6ziAHqtCyI9/nSPI1OQXiB7wH+xQ8SftHsBHvDYYPqTICAAgr72oo3siU50E6Xybw==}
-
   /prelude-ls/1.1.2:
     resolution: {integrity: sha1-IZMqVJ9eUv/ZqCf1cOBL5iqX2lQ=}
     engines: {node: '>= 0.8.0'}
@@ -8880,13 +8711,13 @@ packages:
       react-is: 17.0.2
     dev: true
 
-  /prisma/3.8.1:
-    resolution: {integrity: sha512-Q8zHwS9m70TaD7qI8u+8hTAmiTpK+IpvRYF3Rgb/OeWGQJOMgZCFFvNCiSfoLEQ95wilK7ctW3KOpc9AuYnRUA==}
+  /prisma/3.10.0:
+    resolution: {integrity: sha512-dAld12vtwdz9Rz01nOjmnXe+vHana5PSog8t0XGgLemKsUVsaupYpr74AHaS3s78SaTS5s2HOghnJF+jn91ZrA==}
     engines: {node: '>=12.6'}
     hasBin: true
     requiresBuild: true
     dependencies:
-      '@prisma/engines': 3.8.0-43.34df67547cf5598f5a6cd3eb45f14ee70c3fb86f
+      '@prisma/engines': 3.10.0-50.73e60b76d394f8d37d8ebd1f8918c79029f0db86
     dev: true
 
   /process/0.11.10:
@@ -10151,10 +9982,6 @@ packages:
     resolution: {integrity: sha512-C3TaO7K81YvjCgQH9Q1S3R3P3BtN3RIM8n+OvX4il1K1zgE8ZhI0op7kClgkxtutIE8hQrcrHBXvIheqKUUCxw==}
     dev: false
 
-  /tweetnacl/1.0.3:
-    resolution: {integrity: sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw==}
-    dev: false
-
   /type-check/0.3.2:
     resolution: {integrity: sha1-WITKtRLPHTVeP7eE8wgEsrUg23I=}
     engines: {node: '>= 0.8.0'}
@@ -10243,8 +10070,8 @@ packages:
     hasBin: true
     dev: true
 
-  /uglify-js/3.15.0:
-    resolution: {integrity: sha512-x+xdeDWq7FiORDvyIJ0q/waWd4PhjBNOm5dQUOq2AKC0IEjxOS66Ha9tctiVDGcRQuh69K7fgU5oRuTK4cysSg==}
+  /uglify-js/3.15.2:
+    resolution: {integrity: sha512-peeoTk3hSwYdoc9nrdiEJk+gx1ALCtTjdYuKSXMTDqq7n1W7dHPqWDdSi+BPL0ni2YMeHD7hKUSdbj3TZauY2A==}
     engines: {node: '>=0.8.0'}
     hasBin: true
     requiresBuild: true

@@ -1,12 +1,12 @@
 import 'reflect-metadata';
 import { Rest } from '@chatsift/api-wrapper';
-import { initConfig, kLogger, kRedis, kSql } from '@automoderator/injection';
+import { initConfig, kLogger, kRedis } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
 import type { Logger } from 'pino';
-import postgres, { Sql } from 'postgres';
 import { container } from 'tsyringe';
 import { Gateway } from './gateway';
+import { PrismaClient } from '@prisma/client';
 import Redis, { Redis as IORedis } from 'ioredis';
 
 void (async () => {
@@ -24,14 +24,10 @@ void (async () => {
 		logger.warn({ req }, `Aborted request ${req.method!} ${req.path!}`);
 	});
 
-	const sql = postgres(config.dbUrl, {
-		onnotice: (notice) => logger.debug({ notice }, 'Database notice'),
-	});
-
 	container.register(DiscordRest, { useValue: discordRest });
 	container.register<IORedis>(kRedis, { useValue: new Redis(config.redisUrl) });
-	container.register<Sql<{}>>(kSql, { useValue: sql });
 	container.register<Logger>(kLogger, { useValue: logger });
+	container.register(PrismaClient, { useValue: new PrismaClient() });
 
 	await container.resolve(Gateway).init();
 	logger.info('Ready to listen to manual mod actions');

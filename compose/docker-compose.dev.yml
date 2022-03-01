@@ -15,10 +15,6 @@ services:
       NODE_ENV: 'dev'
       API_DOMAIN: 'http://api:3001'
 
-  cron-runner:
-    environment:
-      NODE_ENV: 'dev'
-
   discord-proxy:
     environment:
       NODE_ENV: 'dev'
@@ -27,14 +23,15 @@ services:
     environment:
       NODE_ENV: 'dev'
 
-  interactions:
-    environment:
-      NODE_ENV: 'dev'
-      API_DOMAIN: 'http://api:3001'
-    ports:
-      - '127.0.0.1:3002:3002'
-      - '127.0.0.1:9229:9229'
-    command: ['node', '--enable-source-maps', '--inspect=0.0.0.0:9229', 'services/interactions/dist/index.js']
+  # TODO(DD): Uncomment once done
+  # interactions:
+  #   environment:
+  #     NODE_ENV: 'dev'
+  #     API_DOMAIN: 'http://api:3001'
+  #   ports:
+  #     - '127.0.0.1:3002:3002'
+  #     - '127.0.0.1:9229:9229'
+  #   command: ['node', '--enable-source-maps', '--inspect=0.0.0.0:9229', 'services/interactions/dist/index.js']
 
   logging:
     environment:

@@ -1,4 +1,4 @@
-import type { ApiGetUsersMeResult } from '@automoderator/core';
+import type { GetUsersMeResult } from '@chatsift/api-wrapper/v2';
 import { useEffect } from 'react';
 import { useQuery } from 'react-query';
 import { useUserStore } from '~/store/index';
@@ -8,7 +8,7 @@ export function useQueryMe() {
 	const user = useUserStore();
 
 	const { data, isLoading } = useQuery('user', () =>
-		fetchApi<ApiGetUsersMeResult>({ path: '/users/@me' }).catch(() => null),
+		fetchApi<GetUsersMeResult>({ path: '/users/@me' }).catch(() => null),
 	);
 
 	useEffect(() => {

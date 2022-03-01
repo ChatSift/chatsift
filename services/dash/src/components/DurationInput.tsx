@@ -1,16 +1,18 @@
 import { FormControl, FormLabel, Input, FormErrorMessage, FormErrorIcon, HStack } from '@chakra-ui/react';
 import type { UseFormReturn } from 'react-hook-form';
-import { ApiPatchGuildSettingsBody, GuildSettings, ms, UserGuild } from '@automoderator/core';
+import type { PatchGuildsSettingsBody, UserGuild } from '@chatsift/api-wrapper/v2';
 import InputClearButton from '~/components/InputClearButton';
+import type { GuildSettings } from '@prisma/client';
+import ms from '@naval-base/ms';
 
 // TODO(DD): consider generalizing
 interface DurationInputProps {
 	settings: GuildSettings;
 	name: string;
-	settingsKey: Exclude<keyof GuildSettings, 'guild_id'>;
+	settingsKey: Exclude<keyof GuildSettings, 'guildId'>;
 	required?: boolean;
 	guild: UserGuild;
-	form: UseFormReturn<ApiPatchGuildSettingsBody>;
+	form: UseFormReturn<PatchGuildsSettingsBody>;
 }
 
 const DurationInput = ({
@@ -54,6 +56,7 @@ const DurationInput = ({
 					},
 				})}
 				placeholder={name}
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 				defaultValue={settings[settingsKey] == null ? undefined : ms(settings[settingsKey] as any, true)}
 			/>
 		</HStack>

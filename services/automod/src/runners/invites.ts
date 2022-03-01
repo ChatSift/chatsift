@@ -1,25 +1,35 @@
-import type { AllowedInvite } from '@automoderator/core';
-import { kLogger, kRedis, kSql } from '@automoderator/injection';
+import { PrismaClient } from '@prisma/client';
+import { kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
-import type { Snowflake, APIInvite } from 'discord-api-types/v9';
-import type { Redis } from 'ioredis';
-import type { Sql } from 'postgres';
+import { Routes, APIMessage, APIInvite } from 'discord-api-types/v9';
 import { inject, singleton } from 'tsyringe';
 import fetch from 'node-fetch';
 import type { Logger } from 'pino';
+import { MessageCache } from '@automoderator/cache';
+import { PubSubPublisher } from '@cordis/brokers';
+import { InvitesRunnerResult, Log, Runners } from '@automoderator/broker-types';
+import type { IRunner } from './IRunner';
+import { dmUser } from '@automoderator/util';
+
+interface InvitesTransform {
+	codes: string[];
+}
 
 @singleton()
-export class InvitesRunner {
+export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform, InvitesRunnerResult> {
+	public readonly ignore = 'invites';
+
 	public readonly inviteRegex =
 		/(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})/gi;
 
 	public readonly invitesWorkerDomain = 'https://invite-lookup.chatsift.workers.dev' as const;
 
 	public constructor(
-		@inject(kSql) public readonly sql: Sql<{}>,
-		@inject(kRedis) public readonly redis: Redis,
 		@inject(kLogger) public readonly logger: Logger,
-		public readonly discordRest: Rest,
+		public readonly prisma: PrismaClient,
+		public readonly messages: MessageCache,
+		public readonly discord: Rest,
+		public readonly logs: PubSubPublisher<Log>,
 	) {}
 
 	private async fetchInvite(code: string): Promise<APIInvite | null> {
@@ -31,10 +41,7 @@ export class InvitesRunner {
 					{
 						code,
 						res,
-						data: (await res
-							.clone()
-							.json()
-							.catch(() => null)) as unknown,
+						data: (await res.json().catch(() => null)) as unknown,
 					},
 					'Failed to fetch invite',
 				);
@@ -46,26 +53,41 @@ export class InvitesRunner {
 		return res.json() as Promise<APIInvite>;
 	}
 
-	public precheck(content: string): string[] {
-		const invites = new Set([...content.matchAll(this.inviteRegex)].map((match) => match.groups!.code!));
-		return [...invites];
+	public transform(message: APIMessage): InvitesTransform {
+		const codes = new Set([...message.content.matchAll(this.inviteRegex)].map((match) => match.groups!.code!));
+		return {
+			codes: [...codes],
+		};
 	}
 
-	public async run(codes: string[], guildId: Snowflake): Promise<string[]> {
-		const allowlist = new Set(
-			await this.sql<AllowedInvite[]>`SELECT * FROM allowed_invites WHERE guild_id = ${guildId}`.then((rows) =>
-				rows.map((row) => row.allowed_guild_id),
-			),
-		);
+	public check({ codes }: InvitesTransform): boolean {
+		return codes.length > 0;
+	}
 
+	public async run({ codes }: InvitesTransform, message: APIMessage): Promise<InvitesTransform> {
+		const allowedInvites = await this.prisma.allowedInvite.findMany({ where: { guildId: message.guild_id } });
+		const allowlist = new Set(allowedInvites.map((invite) => invite.allowedGuildId));
 		const invites = await Promise.all(codes.map((code) => this.fetchInvite(code)));
 
-		return invites.reduce<string[]>((acc, invite) => {
-			if (invite && !allowlist.has(invite.guild!.id)) {
-				acc.push(invite.code);
-			}
+		return {
+			codes: invites.reduce<string[]>((acc, invite) => {
+				if (invite && !allowlist.has(invite.guild!.id)) {
+					acc.push(invite.code);
+				}
 
-			return acc;
-		}, []);
+				return acc;
+			}, []),
+		};
+	}
+
+	public async cleanup(_: InvitesTransform, message: APIMessage): Promise<void> {
+		await this.discord
+			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Invite filter trigger' })
+			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing an unallowed invite.'))
+			.catch(() => null);
+	}
+
+	public log({ codes }: InvitesTransform): InvitesRunnerResult {
+		return { runner: Runners.invites, data: codes };
 	}
 }
