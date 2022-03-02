@@ -7,7 +7,7 @@ services:
       context: ../
       dockerfile: ./docker/api/Dockerfile
     environment:
-      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+      DB_URL: '${DB_URL}'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_SCOPES: 'identify,email,guilds'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
@@ -21,7 +21,7 @@ services:
       context: ../
       dockerfile: ./docker/automod/Dockerfile
     environment:
-      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+      DB_URL: '${DB_URL}'
       REDIS_URL: 'redis://redis:6379/0'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
@@ -63,7 +63,7 @@ services:
   #     context: ../
   #     dockerfile: ./docker/interactions/Dockerfile
   #   environment:
-  #     DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+  #     DB_URL: '${DB_URL}'
   #     REDIS_URL: 'redis://redis:6379/0'
   #     AMQP_URL: 'amqp://rabbitmq:5672'
   #     DISCORD_PROXY_URL: 'http://discord-proxy:3003'
@@ -77,7 +77,7 @@ services:
       context: ../
       dockerfile: ./docker/logging/Dockerfile
     environment:
-      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+      DB_URL: '${DB_URL}'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
     restart: unless-stopped
@@ -90,7 +90,7 @@ services:
       context: ../
       dockerfile: ./docker/mod-observer/Dockerfile
     environment:
-      DB_URL: 'postgres://automoderator:admin@postgres:5432/automoderator'
+      DB_URL: '${DB_URL}'
       REDIS_URL: 'redis://redis:6379/0'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'

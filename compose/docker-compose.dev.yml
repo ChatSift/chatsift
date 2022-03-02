@@ -41,3 +41,7 @@ services:
     environment:
       NODE_ENV: 'dev'
       API_DOMAIN: 'http://api:3001'
+
+  postgres:
+    ports:
+      - '127.0.0.1:5433:5432'
