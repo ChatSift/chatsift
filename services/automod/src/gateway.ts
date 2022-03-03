@@ -57,20 +57,10 @@ export class Gateway {
 			return;
 		}
 
-		const settings = (await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } })) ?? {
-			use_url_filters: false,
-			use_global_filters: false,
-			use_file_filters: false,
-			use_invite_filters: false,
-			antispam_amount: null,
-			antispam_time: null,
-			mention_limit: null,
-			mention_amount: null,
-			mention_time: null,
-			porn_threshold: null,
-			sexy_threshold: null,
-			hentai_threshold: null,
-		};
+		const settings = await this.prisma.guildSettings.findFirst({
+			where: { guildId: message.guild_id },
+			include: { adminRoles: true, modRoles: true },
+		});
 
 		if (this.config.nodeEnv === 'prod') {
 			const { member, author } = message;
@@ -104,7 +94,13 @@ export class Gateway {
 			};
 
 			if (
-				await this.checker.check(checkerData, UserPerms.mod, 'guild_id' in settings ? settings : null, guild.owner_id)
+				await this.checker.check(
+					checkerData,
+					UserPerms.mod,
+					new Set(settings?.modRoles.map((r) => r.roleId) ?? []),
+					new Set(settings?.adminRoles.map((r) => r.roleId) ?? []),
+					guild.owner_id,
+				)
 			) {
 				return;
 			}

@@ -1,4 +1,4 @@
-import { GuildSettings, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { APIInteractionGuildMember, RESTGetAPIGuildResult, Routes, Snowflake } from 'discord-api-types/v9';
@@ -27,32 +27,24 @@ export class PermissionsChecker {
 		public readonly rest: Rest,
 	) {}
 
-	public async checkMod(data: PermissionsCheckerData, settings?: GuildSettings | null): Promise<boolean> {
-		if (!settings) {
-			settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
-		}
+	public async checkMod(data: PermissionsCheckerData, modRoles?: Set<Snowflake> | null): Promise<boolean> {
+		modRoles ??= new Set(
+			(await this.prisma.modRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+		);
 
-		if (!settings?.modRole) {
-			return false;
-		}
-
-		return data.member.roles.includes(settings.modRole);
+		return data.member.roles.some((r) => modRoles?.has(r));
 	}
 
-	public async checkAdmin(data: PermissionsCheckerData, settings?: GuildSettings | null): Promise<boolean> {
+	public async checkAdmin(data: PermissionsCheckerData, adminRoles?: Set<Snowflake> | null): Promise<boolean> {
 		if (new DiscordPermissions(BigInt(data.member.permissions)).has('manageGuild', true)) {
 			return true;
 		}
 
-		if (!settings) {
-			settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
-		}
+		adminRoles ??= new Set(
+			(await this.prisma.adminRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+		);
 
-		if (!settings?.adminRole) {
-			return false;
-		}
-
-		return data.member.roles.includes(settings.adminRole);
+		return data.member.roles.some((r) => adminRoles?.has(r));
 	}
 
 	public async checkOwner(data: PermissionsCheckerData, ownerId?: Snowflake | null): Promise<boolean> {
@@ -75,16 +67,21 @@ export class PermissionsChecker {
 	public async check(
 		data: PermissionsCheckerData,
 		perm: UserPerms,
-		settings?: GuildSettings | null,
+		modRoles?: Set<Snowflake> | null,
+		adminRoles?: Set<Snowflake> | null,
 		ownerId?: Snowflake | null,
 	): Promise<boolean> {
 		if (this.config.devIds.includes(data.member.user.id) || this.config.discordClientId === data.member.user.id) {
 			return true;
 		}
 
-		if (!settings) {
-			settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
-		}
+		modRoles ??= new Set(
+			(await this.prisma.modRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+		);
+
+		adminRoles ??= new Set(
+			(await this.prisma.adminRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+		);
 
 		switch (perm) {
 			case UserPerms.none: {
@@ -94,14 +91,14 @@ export class PermissionsChecker {
 			// Checks are in order of speed (simple bitfield math OR query -> db query + array includes -> HTTP call and string comparison)
 			case UserPerms.mod: {
 				return (
-					(await this.checkAdmin(data, settings)) ||
-					(await this.checkMod(data, settings)) ||
+					(await this.checkAdmin(data, adminRoles)) ||
+					(await this.checkMod(data, modRoles)) ||
 					this.checkOwner(data, ownerId)
 				);
 			}
 
 			case UserPerms.admin: {
-				return (await this.checkAdmin(data, settings)) || this.checkOwner(data, ownerId);
+				return (await this.checkAdmin(data, adminRoles)) || this.checkOwner(data, ownerId);
 			}
 
 			case UserPerms.owner: {

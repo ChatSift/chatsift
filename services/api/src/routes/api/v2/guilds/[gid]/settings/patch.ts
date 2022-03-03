@@ -16,7 +16,7 @@ export default class extends Route {
 
 	public async handle(req: Request, res: Response) {
 		const { gid } = req.params as { gid: Snowflake };
-		const data = req.body as PatchGuildsSettingsBody;
+		const { modRoles, adminRoles, ...data } = req.body as PatchGuildsSettingsBody;
 
 		res.statusCode = 200;
 		res.setHeader('content-type', 'application/json');
@@ -26,6 +26,24 @@ export default class extends Route {
 			update: data,
 			where: { guildId: gid },
 		});
+
+		if (modRoles !== undefined) {
+			await this.prisma.$transaction(async (prisma) => {
+				await prisma.modRole.deleteMany({ where: { guildId: gid } });
+				await prisma.modRole.createMany({
+					data: modRoles?.map((role) => ({ guildId: gid, roleId: role })) ?? [],
+				});
+			});
+		}
+
+		if (adminRoles !== undefined) {
+			await this.prisma.$transaction(async (prisma) => {
+				await prisma.modRole.deleteMany({ where: { guildId: gid } });
+				await prisma.modRole.createMany({
+					data: adminRoles?.map((role) => ({ guildId: gid, roleId: role })) ?? [],
+				});
+			});
+		}
 
 		return res.end(JSON.stringify(settings));
 	}

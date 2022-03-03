@@ -10,8 +10,8 @@ export type GetGuildsSettingsResult = GuildSettings;
 // PATCH /
 export const PatchGuildsSettingsBodySchema = zod
 	.object({
-		modRole: DiscordSnowflakeSchema.nullable(),
-		adminRole: DiscordSnowflakeSchema.nullable(),
+		modRoles: DiscordSnowflakeSchema.array().nullable(),
+		adminRoles: DiscordSnowflakeSchema.array().nullable(),
 		muteRole: DiscordSnowflakeSchema.nullable(),
 		autoPardonWarnsAfter: zod.number().min(1).max(365).nullable(),
 		useUrlFilters: zod.boolean(),

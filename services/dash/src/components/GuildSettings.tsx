@@ -40,7 +40,7 @@ const GuildSettings = () => {
 
 	return guild?.data ? (
 		<form onSubmit={handleOnSubmit}>
-			<RoleInput settings={settings} name={'Mod role'} settingsKey={'modRole'} guild={guild} form={form} />
+			<RoleInput settings={settings} name={'Mod role'} settingsKey={'modRoles'} guild={guild} form={form} />
 
 			<RoleInput settings={settings} name={'Admin role'} settingsKey={'adminRole'} guild={guild} form={form} />
 
