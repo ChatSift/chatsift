@@ -1,7 +1,7 @@
 #!/bin/bash
 
 docker-compose \
-  -p automoderator \
+  -p automoderator-v2 \
   --env-file ./.env \
   -f compose/docker-compose.yml \
   -f compose/docker-compose.services.yml \
