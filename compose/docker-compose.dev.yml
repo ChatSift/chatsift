@@ -23,15 +23,13 @@ services:
     environment:
       NODE_ENV: 'dev'
 
-  # TODO(DD): Uncomment once done
-  # interactions:
-  #   environment:
-  #     NODE_ENV: 'dev'
-  #     API_DOMAIN: 'http://api:3001'
-  #   ports:
-  #     - '127.0.0.1:3002:3002'
-  #     - '127.0.0.1:9229:9229'
-  #   command: ['node', '--enable-source-maps', '--inspect=0.0.0.0:9229', 'services/interactions/dist/index.js']
+  interactions:
+    environment:
+      NODE_ENV: 'dev'
+      API_DOMAIN: 'http://api:3001'
+    ports:
+      - '127.0.0.1:3002:3002'
+    command: ['node', '--enable-source-maps', 'services/interactions/dist/index.js']
 
   logging:
     environment:

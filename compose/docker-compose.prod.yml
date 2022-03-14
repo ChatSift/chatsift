@@ -39,13 +39,12 @@ services:
       ELASTIC_URL: 'http://elasticsearch:9200'
       ELASTIC_USERNAME: 'elastic'
 
-  # TODO(DD): Uncomment once done
-  # interactions:
-  #   environment:
-  #     NODE_ENV: 'prod'
-  #     API_DOMAIN: 'http://api:3001'
-  #     ELASTIC_URL: 'http://elasticsearch:9200'
-  #     ELASTIC_USERNAME: 'elastic'
+  interactions:
+    environment:
+      NODE_ENV: 'prod'
+      API_DOMAIN: 'http://api:3001'
+      ELASTIC_URL: 'http://elasticsearch:9200'
+      ELASTIC_USERNAME: 'elastic'
 
   logging:
     environment:
