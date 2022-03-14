@@ -38,7 +38,6 @@ void (async () => {
 	// No queue specified means these packets are fanned out
 	await gateway.init({
 		name: 'gateway',
-		// @ts-expect-error - Common discord-api-types missmatch
 		keys: [GatewayDispatchEvents.GuildMembersChunk],
 	});
 	await gatewayBroadcasts.init({ name: 'gateway_broadcasts', fanout: true });
