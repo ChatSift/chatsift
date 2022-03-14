@@ -1,6 +1,6 @@
 import * as interactions from '#interactions';
 import { ControlFlowError, Interaction, send, transformInteraction } from '#util';
-import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
+import { PermissionsChecker, UserPerms } from '@automoderator/util';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@chatsift/readdir';
@@ -116,7 +116,9 @@ export class Handler {
 			const res = await this.rest.put<RESTPutAPIApplicationCommandsResult, RESTPutAPIApplicationCommandsJSONBody>(
 				Routes.applicationCommands(this.config.discordClientId),
 				{
-					data: Object.values(interactions) as any[],
+					// @ts-expect-error
+					// TODO(DD): Find a fix for immutable and mutable clash
+					data: Object.values(interactions),
 				},
 			);
 
@@ -151,7 +153,9 @@ export class Handler {
 				RESTPutAPIApplicationGuildCommandsResult,
 				RESTPutAPIApplicationGuildCommandsJSONBody
 			>(Routes.applicationGuildCommands(this.config.discordClientId, guild), {
-				data: Object.values(interactions) as any[],
+				// @ts-expect-error
+				// TODO(DD): Find a fix for immutable and mutable clash
+				data: Object.values(interactions),
 			});
 
 			promises.push(promise);

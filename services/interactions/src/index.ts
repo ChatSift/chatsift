@@ -1,20 +1,20 @@
 import 'reflect-metadata';
 import { Rest } from '@chatsift/api-wrapper';
-import { initConfig, kLogger, kRedis, kSql } from '@automoderator/injection';
+import { initConfig, kLogger, kRedis } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
 import { readdirRecurse } from '@chatsift/readdir';
 import { join as joinPath } from 'path';
-import postgres from 'postgres';
 import { container, InjectionToken } from 'tsyringe';
 import { Handler } from './handler';
 import { kGatewayBroadcasts } from './util';
-import type { DiscordEvents } from '@automoderator/core';
+import type { DiscordEvents } from '@automoderator/broker-types';
 import { GatewayDispatchEvents } from 'discord-api-types/v9';
 import Redis from 'ioredis';
 import { Route } from '@chatsift/rest-utils';
 import polka from 'polka';
+import { PrismaClient } from '@prisma/client';
 
 void (async () => {
 	const config = initConfig();
@@ -38,6 +38,7 @@ void (async () => {
 	// No queue specified means these packets are fanned out
 	await gateway.init({
 		name: 'gateway',
+		// @ts-expect-error - Common discord-api-types missmatch
 		keys: [GatewayDispatchEvents.GuildMembersChunk],
 	});
 	await gatewayBroadcasts.init({ name: 'gateway_broadcasts', fanout: true });
@@ -49,11 +50,7 @@ void (async () => {
 	container.register(DiscordRest, { useValue: discordRest });
 	container.register(kLogger, { useValue: logger });
 	container.register(kRedis, { useValue: new Redis(config.redisUrl) });
-	container.register(kSql, {
-		useValue: postgres(config.dbUrl, {
-			onnotice: (notice) => logger.debug({ notice }, 'Database notice'),
-		}),
-	});
+	container.register(PrismaClient, { useValue: new PrismaClient() });
 
 	await container.resolve(Handler).init();
 

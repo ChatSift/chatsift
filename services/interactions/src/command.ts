@@ -1,4 +1,4 @@
-import type { UserPerms } from '@automoderator/discord-permissions';
+import type { UserPerms } from '@automoderator/util';
 import { basename, extname } from 'path';
 
 export interface Command {
