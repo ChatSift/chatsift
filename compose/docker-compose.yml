@@ -39,10 +39,10 @@ services:
 
 volumes:
   elis-data:
-    name: 'automoderator-elis-data'
+    name: 'automoderator-v2-elis-data'
   redis-data:
     name: 'redis-data'
   postgres-data:
-    name: 'automoderator-postgres-data'
+    name: 'automoderator-v2-postgres-data'
   ghost-data:
-    name: 'automoderator-ghost-data'
+    name: 'automoderator-v2-ghost-data'
