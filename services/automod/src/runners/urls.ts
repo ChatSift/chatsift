@@ -14,6 +14,7 @@ import { dmUser } from '@automoderator/util';
 
 interface UrlsTransform {
 	urls: string[];
+	use: boolean;
 }
 
 @singleton()
@@ -65,7 +66,9 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 		return this.extractRoot(url);
 	}
 
-	public transform(message: APIMessage): UrlsTransform {
+	public async transform(message: APIMessage): Promise<UrlsTransform> {
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
+
 		const urls = [...message.content.matchAll(this.urlRegex)].reduce<Set<string>>((acc, match) => {
 			if (this.tlds.has(match.groups!.tld!.toLowerCase())) {
 				acc.add(this.cleanDomain(match[0]!));
@@ -76,14 +79,15 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 
 		return {
 			urls: [...urls.values()],
+			use: settings?.useUrlFilters ?? false,
 		};
 	}
 
-	public check({ urls }: UrlsTransform): boolean {
-		return urls.length > 0;
+	public check({ use, urls }: UrlsTransform): boolean {
+		return use && urls.length > 0;
 	}
 
-	public async run({ urls }: UrlsTransform, message: APIMessage): Promise<UrlsTransform | null> {
+	public async run({ use, urls }: UrlsTransform, message: APIMessage): Promise<UrlsTransform | null> {
 		const allowedUrls = await this.prisma.allowedUrl.findMany({ where: { guildId: message.guild_id } });
 		const allowed = new Set(allowedUrls.map((url) => this.cleanDomain(url.domain)));
 
@@ -93,7 +97,7 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 			return null;
 		}
 
-		return { urls: forbidden };
+		return { use, urls: forbidden };
 	}
 
 	public async cleanup(_: UrlsTransform, message: APIMessage): Promise<void> {

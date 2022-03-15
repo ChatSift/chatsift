@@ -16,6 +16,7 @@ import { dmUser } from '@automoderator/util';
 
 interface FilesTransform {
 	urls: string[];
+	use: boolean;
 }
 
 @singleton()
@@ -41,8 +42,10 @@ export class FilesRunner implements IRunner<FilesTransform, MaliciousFile[], Fil
 		return hash;
 	}
 
-	public transform(message: APIMessage): FilesTransform {
-		const { urls: messageUrls } = this.urlsRunner.transform(message);
+	public async transform(message: APIMessage): Promise<FilesTransform> {
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
+
+		const { urls: messageUrls } = await this.urlsRunner.transform(message);
 		const embedUrls = message.embeds.reduce<string[]>((acc, embed) => {
 			if (embed.url) {
 				acc.push(embed.url);
@@ -54,11 +57,12 @@ export class FilesRunner implements IRunner<FilesTransform, MaliciousFile[], Fil
 
 		return {
 			urls: [...new Set(messageUrls.concat(...embedUrls, ...attachmentUrls))],
+			use: settings?.useFileFilters ?? false,
 		};
 	}
 
-	public check({ urls }: FilesTransform): boolean {
-		return urls.length > 0;
+	public check({ use, urls }: FilesTransform): boolean {
+		return use && urls.length > 0;
 	}
 
 	public async run({ urls }: FilesTransform): Promise<MaliciousFile[] | null> {
@@ -79,7 +83,13 @@ export class FilesRunner implements IRunner<FilesTransform, MaliciousFile[], Fil
 			return null;
 		}
 
-		return this.prisma.maliciousFile.findMany({ where: { fileHash: { in: hashes } } });
+		const hits = await this.prisma.maliciousFile.findMany({ where: { fileHash: { in: hashes } } });
+
+		if (!hits.length) {
+			return null;
+		}
+
+		return hits;
 	}
 
 	public async cleanup(_: MaliciousFile[], message: APIMessage): Promise<void> {

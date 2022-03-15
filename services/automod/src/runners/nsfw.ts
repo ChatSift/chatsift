@@ -125,7 +125,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 		}
 
 		return {
-			urls: this.filesRunner.transform(message).urls,
+			urls: (await this.filesRunner.transform(message)).urls,
 			settings,
 			nsfw: channel.nsfw ?? false,
 		};

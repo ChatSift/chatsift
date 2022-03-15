@@ -15,6 +15,7 @@ import { dmUser } from '@automoderator/util';
 
 interface GlobalsTransform {
 	urls: string[];
+	use: boolean;
 }
 
 @singleton()
@@ -65,14 +66,17 @@ export class GlobalsRunner
 		return this.fishCache.has(url.split('/')[0]!);
 	}
 
-	public transform(message: APIMessage): GlobalsTransform {
+	public async transform(message: APIMessage): Promise<GlobalsTransform> {
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
+
 		return {
 			urls: this.urlsRunner.transform(message).urls,
+			use: settings?.useGlobalFilters ?? false,
 		};
 	}
 
-	public check({ urls }: GlobalsTransform): boolean {
-		return urls.length > 0;
+	public check({ use, urls }: GlobalsTransform): boolean {
+		return use && urls.length > 0;
 	}
 
 	public async run({ urls }: GlobalsTransform): Promise<(MaliciousUrl | { url: string })[] | null> {

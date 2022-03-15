@@ -13,6 +13,7 @@ import { dmUser } from '@automoderator/util';
 
 interface InvitesTransform {
 	codes: string[];
+	use: boolean;
 }
 
 @singleton()
@@ -53,23 +54,27 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 		return res.json() as Promise<APIInvite>;
 	}
 
-	public transform(message: APIMessage): InvitesTransform {
+	public async transform(message: APIMessage): Promise<InvitesTransform> {
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
+
 		const codes = new Set([...message.content.matchAll(this.inviteRegex)].map((match) => match.groups!.code!));
 		return {
 			codes: [...codes],
+			use: settings?.useInviteFilters ?? false,
 		};
 	}
 
-	public check({ codes }: InvitesTransform): boolean {
-		return codes.length > 0;
+	public check({ use, codes }: InvitesTransform): boolean {
+		return use && codes.length > 0;
 	}
 
-	public async run({ codes }: InvitesTransform, message: APIMessage): Promise<InvitesTransform> {
+	public async run({ use, codes }: InvitesTransform, message: APIMessage): Promise<InvitesTransform> {
 		const allowedInvites = await this.prisma.allowedInvite.findMany({ where: { guildId: message.guild_id } });
 		const allowlist = new Set(allowedInvites.map((invite) => invite.allowedGuildId));
 		const invites = await Promise.all(codes.map((code) => this.fetchInvite(code)));
 
 		return {
+			use,
 			codes: invites.reduce<string[]>((acc, invite) => {
 				if (invite && !allowlist.has(invite.guild!.id)) {
 					acc.push(invite.code);
