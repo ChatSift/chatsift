@@ -104,6 +104,7 @@ model GuildSettings {
   modRoles                ModRole[]
   adminRoles              AdminRole[]
   muteRole                String?     @map("mute_role")
+  // This is stored in days
   autoPardonWarnsAfter    Int?        @map("auto_pardon_warns_after")
   useUrlFilters           Boolean     @default(false) @map("use_url_filters")
   useGlobalFilters        Boolean     @default(false) @map("use_global_filters")
@@ -113,6 +114,7 @@ model GuildSettings {
   filterTriggerLogChannel String?     @map("filter_trigger_log_channel")
   userUpdateLogChannel    String?     @map("user_update_log_channel")
   messageUpdateLogChannel String?     @map("message_update_log_channel")
+  // This is stored in miliseconds
   minJoinAge              Int?        @map("min_join_age")
   noBlankAvatar           Boolean     @default(false) @map("no_blank_avatar")
   reportsChannel          String?     @map("reports_channel")

@@ -16,6 +16,7 @@ export const ConfigCommand = {
 			description: 'How many days to take before automatically pardoning warnings',
 			type: ApplicationCommandOptionType.Integer,
 			required: false,
+			min_value: 0,
 		},
 		{
 			name: 'joinage',

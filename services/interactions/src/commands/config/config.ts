@@ -62,6 +62,8 @@ export default class implements Command {
 		const textTypes = [ChannelType.GuildText, ChannelType.GuildPublicThread, ChannelType.GuildPrivateThread];
 
 		if (joinage) {
+			let parsed: number;
+
 			const joinageMinutes = Number(joinage);
 
 			if (isNaN(joinageMinutes)) {
@@ -70,10 +72,16 @@ export default class implements Command {
 					throw new ControlFlowError('Failed to parse the provided duration');
 				}
 
-				settings.minJoinAge = joinageMs;
+				parsed = joinageMs;
 			} else {
-				settings.minJoinAge = joinageMinutes * 6e4;
+				parsed = joinageMinutes * 6e4;
 			}
+
+			if (parsed < 3 * 6e4) {
+				throw new ControlFlowError('Please provide at least 3 minutes');
+			}
+
+			settings.minJoinAge = parsed;
 		}
 
 		if (blankavatar != null) {
