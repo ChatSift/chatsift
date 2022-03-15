@@ -70,7 +70,7 @@ export class GlobalsRunner
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
 
 		return {
-			urls: this.urlsRunner.transform(message).urls,
+			urls: (await this.urlsRunner.transform(message)).urls,
 			use: settings?.useGlobalFilters ?? false,
 		};
 	}
