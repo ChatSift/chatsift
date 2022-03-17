@@ -36,5 +36,29 @@ export const ConfigCommand = {
 			type: ApplicationCommandOptionType.Channel,
 			required: false,
 		},
+		{
+			name: 'modlogschannel',
+			description: 'Channel to log mod cases to',
+			type: ApplicationCommandOptionType.Channel,
+			required: false,
+		},
+		{
+			name: 'filterlogschannel',
+			description: 'Channel to log filter triggers to',
+			type: ApplicationCommandOptionType.Channel,
+			required: false,
+		},
+		{
+			name: 'userlogschannel',
+			description: 'Channel to log user updates (name, nickname, etc) to',
+			type: ApplicationCommandOptionType.Channel,
+			required: false,
+		},
+		{
+			name: 'messagelogschannel',
+			description: 'Channel to log message update/deletes to',
+			type: ApplicationCommandOptionType.Channel,
+			required: false,
+		},
 	],
 } as const;

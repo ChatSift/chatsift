@@ -201,6 +201,7 @@ enum LogChannelType {
 model LogChannelWebhook {
   guildId      String         @map("guild_id")
   logType      LogChannelType @map("log_type")
+  channelId    String         @map("channel_id")
   webhookId    String         @map("webhook_id")
   webhookToken String         @map("webhook_token")
   threadId     String?        @map("thread_id")

@@ -5,12 +5,21 @@ import { Rest } from '@chatsift/api-wrapper';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
-import { APIGuildInteraction, ChannelType } from 'discord-api-types/v9';
+import {
+	APIThreadChannel,
+	APIGuildInteraction,
+	APIPartialChannel,
+	APIWebhook,
+	ChannelType,
+	InteractionResponseType,
+	RESTPostAPIChannelWebhookJSONBody,
+	Routes,
+} from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '../../handler';
-import { GuildSettings, PrismaClient } from '@prisma/client';
+import { GuildSettings, LogChannelType, LogChannelWebhook, PrismaClient } from '@prisma/client';
 import ms from '@naval-base/ms';
 
 @injectable()
@@ -26,8 +35,17 @@ export default class implements Command {
 		@inject(kConfig) public readonly config: Config,
 	) {}
 
-	private _sendCurrentSettings(interaction: APIGuildInteraction, settings: Partial<GuildSettings>) {
+	private _sendCurrentSettings(
+		interaction: APIGuildInteraction,
+		settings: Partial<GuildSettings>,
+		logChannels: LogChannelWebhook[],
+	) {
 		const atRole = (role?: string | null) => (role ? `<@&${role}>` : 'none');
+		const atChannel = (channel?: string | null) => (channel ? `<#${channel}>` : 'none');
+
+		const channels = logChannels.map(
+			(channel) => `• ${channel.logType} log channel: ${atChannel(channel.threadId ?? channel.channelId)}`,
+		);
 
 		return send(interaction, {
 			content: stripIndents`
@@ -40,14 +58,26 @@ export default class implements Command {
 					settings.minJoinAge ? ms(settings.minJoinAge, true) : 'disabled'
 				}
         • no blank avatar: ${settings.noBlankAvatar ? 'on' : 'off'}
-				• reports channel: ${settings.reportsChannel ? `<#${settings.reportsChannel}>` : 'none'}
+				• reports channel: ${atChannel(settings.reportsChannel)}${channels.length ? `\n${channels.join('\n')}` : ''}
       `,
 			allowed_mentions: { parse: [] },
 		});
 	}
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigCommand>) {
-		const { muterole, pardonwarnsafter, joinage, blankavatar, reportschannel } = args;
+		void send(interaction, {}, InteractionResponseType.DeferredChannelMessageWithSource);
+
+		const {
+			muterole,
+			pardonwarnsafter,
+			joinage,
+			blankavatar,
+			reportschannel,
+			filterlogschannel,
+			messagelogschannel,
+			modlogschannel,
+			userlogschannel,
+		} = args;
 
 		let settings: Partial<GuildSettings> = {};
 
@@ -102,6 +132,75 @@ export default class implements Command {
 			where: { guildId: interaction.guild_id },
 		});
 
-		void this._sendCurrentSettings(interaction, settings);
+		const logChannels = await this.prisma.$transaction(async (prisma) => {
+			const logChannels: Promise<LogChannelWebhook>[] = [];
+
+			const handleLogChannel = async (channel: APIPartialChannel, logType: LogChannelType) => {
+				if (!textTypes.includes(channel.type)) {
+					throw new ControlFlowError('A log channel must be a text channel');
+				}
+
+				const parentId =
+					channel.type === ChannelType.GuildText
+						? channel.id
+						: (await this.discordRest.get<APIThreadChannel>(Routes.channel(channel.id)))!.parent_id!;
+
+				const webhook = await this.discordRest.post<APIWebhook, RESTPostAPIChannelWebhookJSONBody>(
+					Routes.channelWebhooks(parentId),
+					{
+						data: {
+							name: `${logType[0]!.toUpperCase()}${logType.slice(1)} Logs`,
+							// TODO(DD): Avatars need to be served somewhere
+						},
+					},
+				);
+
+				const data = {
+					guildId: interaction.guild_id,
+					logType,
+					channelId: parentId,
+					webhookId: webhook.id,
+					webhookToken: webhook.token!,
+					threadId: channel.type === ChannelType.GuildText ? null : channel.id,
+				};
+
+				logChannels.push(
+					prisma.logChannelWebhook.upsert({
+						create: data,
+						update: data,
+						where: {
+							guildId_logType: {
+								guildId: interaction.guild_id,
+								logType,
+							},
+						},
+					}),
+				);
+			};
+
+			if (filterlogschannel) {
+				await handleLogChannel(filterlogschannel, LogChannelType.filter);
+			}
+
+			if (messagelogschannel) {
+				await handleLogChannel(messagelogschannel, LogChannelType.message);
+			}
+
+			if (modlogschannel) {
+				await handleLogChannel(modlogschannel, LogChannelType.mod);
+			}
+
+			if (userlogschannel) {
+				await handleLogChannel(userlogschannel, LogChannelType.user);
+			}
+
+			if (logChannels.length) {
+				return Promise.all(logChannels);
+			}
+
+			return prisma.logChannelWebhook.findMany({ where: { guildId: interaction.guild_id } });
+		});
+
+		return this._sendCurrentSettings(interaction, settings, logChannels);
 	}
 }
