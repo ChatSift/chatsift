@@ -24,7 +24,7 @@ import {
 import { BanwordFlags } from '@chatsift/api-wrapper';
 import { ms } from '@naval-base/ms';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { addFields, ellipsis, MESSAGE_LIMITS } from '@chatsift/discord-utils';
+import { addFields, truncateEmbed } from '@chatsift/discord-utils';
 import { makeCaseEmbed } from '@automoderator/util';
 import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
 import { HTTPError as CordisHTTPError, Rest } from '@cordis/rest';
@@ -209,16 +209,18 @@ export class Handler {
 
 		const embeds: APIEmbed[] = [];
 		const push = (embed: APIEmbed) =>
-			embeds.push({
-				color: 16426011,
-				author: {
-					name: `${message.author.username}#${message.author.discriminator} (${message.author.id})`,
-					icon_url: message.author.avatar
-						? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${message.author.id}/${message.author.avatar}`)
-						: `${RouteBases.cdn}/embed/avatars/${parseInt(message.author.discriminator, 10) % 5}.png`,
-				},
-				...embed,
-			});
+			embeds.push(
+				truncateEmbed({
+					color: 16426011,
+					author: {
+						name: `${message.author.username}#${message.author.discriminator} (${message.author.id})`,
+						icon_url: message.author.avatar
+							? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${message.author.id}/${message.author.avatar}`)
+							: `${RouteBases.cdn}/embed/avatars/${parseInt(message.author.discriminator, 10) % 5}.png`,
+					},
+					...embed,
+				}),
+			);
 
 		switch (trigger.runner) {
 			case Runners.files: {
@@ -256,7 +258,7 @@ export class Handler {
 
 				push({
 					title: 'Posted unallowed invites',
-					description: `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`,
+					description: `In <#${message.channel_id}>\n${codeblock(message.content)}`,
 					footer: {
 						text: `Blocked invites:\n${invites}`,
 					},
@@ -282,7 +284,7 @@ export class Handler {
 				if (words.length) {
 					push({
 						title: 'Posted prohibited content',
-						description: `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`,
+						description: `In <#${message.channel_id}>\n${codeblock(message.content)}`,
 						footer: {
 							text: `Blocked words:\n${words.join(', ')}`,
 						},
@@ -292,7 +294,7 @@ export class Handler {
 				if (urls.length) {
 					push({
 						title: 'Posted prohibited content',
-						description: `In <#${message.channel_id}>\n${codeblock(ellipsis(message.content, 350))}`,
+						description: `In <#${message.channel_id}>\n${codeblock(message.content)}`,
 						footer: {
 							text: `Blocked urls:\n${urls.join(', ')}`,
 						},
@@ -506,7 +508,7 @@ export class Handler {
 								{
 									name: 'Content',
 									value: entry.message.content.length
-										? `>>> ${ellipsis(entry.message.content, MESSAGE_LIMITS.EMBEDS.FOOTER - 4)}`
+										? `>>> ${entry.message.content}`
 										: 'No content - this message probably held an attachment',
 								},
 							],
@@ -560,11 +562,11 @@ export class Handler {
 							fields: [
 								{
 									name: 'New content',
-									value: `>>> ${ellipsis(entry.n, 1020)}`,
+									value: `>>> ${entry.n}`,
 								},
 								{
 									name: 'Previous content',
-									value: `>>> ${ellipsis(entry.o, 1020)}`,
+									value: `>>> ${entry.o}`,
 								},
 							],
 						},
@@ -615,7 +617,7 @@ export class Handler {
 									: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
 							},
 							title: 'Updated the banword list',
-							description: `\`\`\`diff\n${ellipsis(list, MESSAGE_LIMITS.EMBEDS.DESCRIPTION - 3)}\`\`\``,
+							description: `\`\`\`diff\n${list}\`\`\``,
 						},
 					],
 				},

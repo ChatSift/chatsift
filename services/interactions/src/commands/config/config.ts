@@ -38,14 +38,12 @@ export default class implements Command {
 	private _sendCurrentSettings(
 		interaction: APIGuildInteraction,
 		settings: Partial<GuildSettings>,
-		logChannels: LogChannelWebhook[],
+		logChannels: Map<LogChannelType, LogChannelWebhook>,
 	) {
 		const atRole = (role?: string | null) => (role ? `<@&${role}>` : 'none');
 		const atChannel = (channel?: string | null) => (channel ? `<#${channel}>` : 'none');
-
-		const channels = logChannels.map(
-			(channel) => `• ${channel.logType} log channel: ${atChannel(channel.threadId ?? channel.channelId)}`,
-		);
+		const atLogChannel = (type: LogChannelType) =>
+			logChannels.has(type) ? atChannel(logChannels.get(type)!.channelId) : 'none';
 
 		return send(interaction, {
 			content: stripIndents`
@@ -58,7 +56,11 @@ export default class implements Command {
 					settings.minJoinAge ? ms(settings.minJoinAge, true) : 'disabled'
 				}
         • no blank avatar: ${settings.noBlankAvatar ? 'on' : 'off'}
-				• reports channel: ${atChannel(settings.reportsChannel)}${channels.length ? `\n${channels.join('\n')}` : ''}
+				• reports channel: ${atChannel(settings.reportsChannel)}
+				• mod log channel: ${atLogChannel(LogChannelType.mod)}
+				• filter log channel: ${atLogChannel(LogChannelType.filter)}
+				• user log channel: ${atLogChannel(LogChannelType.user)}
+				• message log channel: ${atLogChannel(LogChannelType.message)}
       `,
 			allowed_mentions: { parse: [] },
 		});
@@ -133,6 +135,10 @@ export default class implements Command {
 		});
 
 		const logChannels = await this.prisma.$transaction(async (prisma) => {
+			const existingLogChannels = await prisma.logChannelWebhook
+				.findMany({ where: { guildId: interaction.guild_id } })
+				.then((channels) => new Map(channels.map((channel) => [channel.logType, channel])));
+
 			const logChannels: Promise<LogChannelWebhook>[] = [];
 
 			const handleLogChannel = async (channel: APIPartialChannel, logType: LogChannelType) => {
@@ -176,6 +182,8 @@ export default class implements Command {
 						},
 					}),
 				);
+
+				existingLogChannels.delete(logType);
 			};
 
 			if (filterlogschannel) {
@@ -194,11 +202,11 @@ export default class implements Command {
 				await handleLogChannel(userlogschannel, LogChannelType.user);
 			}
 
-			if (logChannels.length) {
-				return Promise.all(logChannels);
+			for (const channel of await Promise.all(logChannels)) {
+				existingLogChannels.set(channel.logType, channel);
 			}
 
-			return prisma.logChannelWebhook.findMany({ where: { guildId: interaction.guild_id } });
+			return existingLogChannels;
 		});
 
 		return this._sendCurrentSettings(interaction, settings, logChannels);
