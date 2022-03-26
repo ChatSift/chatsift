@@ -110,7 +110,7 @@ export default class implements Command {
 			}
 
 			if (parsed < 3 * 6e4) {
-				throw new ControlFlowError('Please provide at least 3 minutes');
+				throw new ControlFlowError('Please provide at least 3 minutes for the min join age');
 			}
 
 			settings.minJoinAge = parsed;
