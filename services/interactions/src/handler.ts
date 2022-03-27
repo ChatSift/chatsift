@@ -19,7 +19,11 @@ import type { Logger } from 'pino';
 import { container, inject, InjectionToken, singleton } from 'tsyringe';
 import { Command, commandInfo } from './command';
 import { Component, componentInfo } from './component';
+import { CollectableInteraction, CollectorManager } from './collector';
 
+export * from './collector';
+
+// TODO(DD): Figure out better type chain for interactions
 @singleton()
 export class Handler {
 	public readonly commands = new Map<string, Command>();
@@ -27,6 +31,8 @@ export class Handler {
 
 	public readonly globalCommandIds = new Map<string, Snowflake>();
 	public readonly testGuildCommandIds = new Map<`${Snowflake}-${string}`, Snowflake>();
+
+	public readonly collectorManager = new CollectorManager();
 
 	public constructor(
 		@inject(kConfig) public readonly config: Config,
@@ -76,8 +82,12 @@ export class Handler {
 
 	public async handleComponent(interaction: Interaction) {
 		const data = interaction.data as APIMessageButtonInteractionData | undefined;
-		const [componentId, key, ...extra] = (data?.custom_id!.split('|') ?? []) as [string, string, ...string[]];
+		const [componentId, ...extra] = (data?.custom_id!.split('|') ?? []) as [string, ...string[]];
+
+		this.collectorManager.push(interaction as CollectableInteraction);
+
 		const component = this.components.get(componentId ?? ''); // eslint-disable-line @typescript-eslint/no-unnecessary-condition
+
 		if (component && data) {
 			try {
 				if (component.userPermissions && !(await this.checker.check(interaction, component.userPermissions))) {
@@ -88,7 +98,7 @@ export class Handler {
 					);
 				}
 
-				await component.exec(interaction, extra, key);
+				await component.exec(interaction, extra);
 			} catch (e) {
 				const internal = !(e instanceof ControlFlowError);
 
@@ -107,6 +117,10 @@ export class Handler {
 				});
 			}
 		}
+	}
+
+	public handleModal(interaction: Interaction) {
+		this.collectorManager.push(interaction as CollectableInteraction);
 	}
 
 	public async registerInteractions(): Promise<void> {

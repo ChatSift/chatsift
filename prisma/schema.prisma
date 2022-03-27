@@ -289,21 +289,30 @@ model AllowedUrl {
   @@id([guildId, domain])
 }
 
-model ReportedMessage {
-  messageId       String            @id @map("message_id")
-  reportMessageId String            @map("report_message_id")
-  ack             Boolean           @default(false)
-  reporters       MessageReporter[]
+model PresetReportReason {
+  reportReasonId Int    @id @default(autoincrement())
+  guildId        String
+  reason         String
 }
 
-model MessageReporter {
-  messageId   String          @map("message_id")
-  message     ReportedMessage @relation(fields: [messageId], references: [messageId], onDelete: Cascade, onUpdate: NoAction)
-  original    Boolean         @default(false)
-  reporterId  String          @map("reporter_id")
-  reporterTag String          @map("reporter_tag")
+model Reporter {
+  reportId    Int
+  report      Report  @relation(fields: [reportId], references: [reportId], onDelete: Cascade)
+  reason      String
+  reporterId  String
+  reporterTag String
 
-  @@id([messageId, reporterId])
+  @@id([reportId, reporterId])
+}
+
+model Report {
+  reportId        Int        @id @default(autoincrement())
+  userId          String
+  messageId       String?    @unique()
+  reportMessageId String
+  reporters       Reporter[]
+  createdAt       DateTime   @default(now()) @db.Timestamptz(6)
+  acknowledgedAt  DateTime?  @db.Timestamptz(6)
 }
 
 model LogIgnore {

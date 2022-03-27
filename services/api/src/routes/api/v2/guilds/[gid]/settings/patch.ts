@@ -4,7 +4,7 @@ import type { Request, Response } from 'polka';
 import { injectable } from 'tsyringe';
 import { userOrThirdPartyAuth } from '#middleware';
 import { PrismaClient } from '@prisma/client';
-import { PatchGuildsSettingsBody, PatchGuildsSettingsBodySchema } from '@chatsift/api-wrapper';
+import { PatchGuildsSettingsBody, PatchGuildsSettingsBodySchema } from '@chatsift/api-wrapper/v2';
 
 @injectable()
 export default class extends Route {

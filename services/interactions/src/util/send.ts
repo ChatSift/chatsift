@@ -4,6 +4,7 @@ import { Config, kConfig } from '@automoderator/injection';
 import { File, Rest } from '@cordis/rest';
 import {
 	APIInteractionResponseCallbackData,
+	APIModalInteractionResponseCallbackData,
 	InteractionResponseType,
 	RESTPostAPIChannelMessageJSONBody,
 	Routes,
@@ -17,6 +18,7 @@ export interface SendOptions {
 
 const REPLIED = new Set<string>();
 
+// TODO(DD): Figure out better approach
 /**
  * @param message Interaction to respond to
  * @param payload Payload response data
@@ -25,7 +27,11 @@ const REPLIED = new Set<string>();
  */
 export const send = async (
 	message: any,
-	payload: (RESTPostAPIChannelMessageJSONBody | APIInteractionResponseCallbackData) & { files?: File[] },
+	payload: (
+		| RESTPostAPIChannelMessageJSONBody
+		| APIInteractionResponseCallbackData
+		| APIModalInteractionResponseCallbackData
+	) & { files?: File[] },
 	type?: InteractionResponseType,
 	followup = false,
 ): Promise<unknown> => {
@@ -67,6 +73,7 @@ export const send = async (
 	const { files, ...r } = payload;
 
 	return rest.post<unknown, RESTPostAPIChannelMessageJSONBody>(Routes.channelMessages(message.channel_id), {
+		// @ts-expect-error
 		data: r,
 		files,
 	});

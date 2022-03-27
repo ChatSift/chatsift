@@ -1,7 +1,7 @@
 import type { ConfigCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { UserPerms } from '@automoderator/util';
-import { Rest } from '@chatsift/api-wrapper';
+import { Rest } from '@chatsift/api-wrapper/v2';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
@@ -18,7 +18,7 @@ import {
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
-import { Handler } from '../../handler';
+import { Handler } from '#handler';
 import { GuildSettings, LogChannelType, LogChannelWebhook, PrismaClient } from '@prisma/client';
 import ms from '@naval-base/ms';
 

@@ -20,7 +20,8 @@
 	"homepage": "https://github.com/didinele/AutoModerator#readme",
 	"imports": {
 		"#interactions": "./dist/interactions/index.js",
-		"#util": "./dist/util/index.js"
+		"#util": "./dist/util/index.js",
+		"#handler": "./dist/handler.js"
 	},
 	"devDependencies": {
 		"@types/common-tags": "^1.8.1",

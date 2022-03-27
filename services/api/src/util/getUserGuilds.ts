@@ -1,6 +1,6 @@
 /* istanbul ignore file */
 
-import { DiscordPermissions, UserGuild } from '@chatsift/api-wrapper';
+import { DiscordPermissions, UserGuild } from '@chatsift/api-wrapper/v2';
 import fetch from 'node-fetch';
 import {
 	Routes,

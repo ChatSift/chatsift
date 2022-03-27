@@ -1,6 +1,6 @@
 import { MessageCache, GuildMemberCache, CachedGuildMember } from '@automoderator/cache';
 import { DiscordEvents, Log, LogTypes, ServerLogs, ServerLogType } from '@automoderator/broker-types';
-import { Rest, DiscordPermissions, BanwordFlags } from '@chatsift/api-wrapper';
+import { Rest, DiscordPermissions, BanwordFlags } from '@chatsift/api-wrapper/v2';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';

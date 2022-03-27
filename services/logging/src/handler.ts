@@ -21,7 +21,7 @@ import {
 	WarnPunishmentAction,
 	LogChannelType,
 } from '@prisma/client';
-import { BanwordFlags } from '@chatsift/api-wrapper';
+import { BanwordFlags } from '@chatsift/api-wrapper/v2';
 import { ms } from '@naval-base/ms';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { addFields, truncateEmbed } from '@chatsift/discord-utils';

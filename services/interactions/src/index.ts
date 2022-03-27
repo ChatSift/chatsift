@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Rest } from '@chatsift/api-wrapper';
+import { Rest } from '@chatsift/api-wrapper/v2';
 import { initConfig, kLogger, kRedis } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
@@ -7,7 +7,7 @@ import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
 import { readdirRecurse } from '@chatsift/readdir';
 import { join as joinPath } from 'path';
 import { container, InjectionToken } from 'tsyringe';
-import { Handler } from './handler';
+import { Handler } from '#handler';
 import { kGatewayBroadcasts } from './util';
 import type { DiscordEvents } from '@automoderator/broker-types';
 import { GatewayDispatchEvents } from 'discord-api-types/v9';

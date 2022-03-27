@@ -7,7 +7,7 @@ import type { Logger } from 'pino';
 import type { NextHandler, Request, Response } from 'polka';
 import { inject, injectable } from 'tsyringe';
 import * as nacl from 'tweetnacl';
-import { Handler } from '../../../../../handler';
+import { Handler } from '#handler';
 
 @injectable()
 export default class extends Route {
@@ -56,6 +56,10 @@ export default class extends Route {
 
 			case InteractionType.MessageComponent: {
 				return this.handler.handleComponent(interaction);
+			}
+
+			case InteractionType.ModalSubmit: {
+				return this.handler.handleModal(interaction);
 			}
 
 			default: {

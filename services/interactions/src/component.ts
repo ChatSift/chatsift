@@ -5,7 +5,7 @@ import { basename, extname } from 'path';
 export interface Component {
 	name?: string;
 	userPermissions?: UserPerms;
-	exec: (message: Interaction, args: any, key: string) => unknown | Promise<unknown>;
+	exec: (message: Interaction, args: any) => unknown | Promise<unknown>;
 }
 
 export interface ComponentInfo {

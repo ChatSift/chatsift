@@ -6,7 +6,8 @@
 		"declarationMap": false,
 		"paths": {
 			"#interactions": ["./src/interactions/index.ts"],
-			"#util": ["./src/util/index.ts"]
+			"#util": ["./src/util/index.ts"],
+			"#handler": ["./src/handler.ts"]
 		}
 	},
 	"include": ["./src/**/*.ts"]
