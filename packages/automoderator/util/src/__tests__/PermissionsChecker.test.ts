@@ -4,13 +4,17 @@ import { PrismaClient } from '@prisma/client';
 import { container } from 'tsyringe';
 import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '../PermissionsChecker';
 
-const findFirstMock = jest.fn().mockImplementation(() => Promise.resolve([]));
+const modRoleMock = jest.fn().mockImplementation(() => Promise.resolve([]));
+const adminRoleMock = jest.fn().mockImplementation(() => Promise.resolve([]));
 const restGetMock = jest.fn();
 const loggerWarnMock = jest.fn();
 
 const restMock = { get: restGetMock } as unknown as jest.Mocked<Rest>;
 
-container.register<any>(PrismaClient, { useValue: { guildSettings: { findFirst: findFirstMock } } });
+// TODO(DD): Look into proper prisma mocking: https://www.prisma.io/docs/guides/testing/unit-testing
+container.register<any>(PrismaClient, {
+	useValue: { modRole: { findMany: modRoleMock }, adminRole: { findMany: adminRoleMock } },
+});
 container.register(kLogger, { useValue: { warn: loggerWarnMock } });
 container.register(kConfig, { useValue: { devIds: ['223703707118731264'] } });
 container.register(Rest, { useValue: restMock });
@@ -66,6 +70,7 @@ describe('admin neeaded', () => {
 				user: {
 					id: '123',
 				},
+				roles: [],
 				permissions,
 			},
 		});
@@ -99,12 +104,12 @@ describe('mod needed', () => {
 	});
 
 	test('pass by mod check', async () => {
-		findFirstMock.mockImplementation(() => Promise.resolve({ modRole: '123' }));
+		modRoleMock.mockImplementation(() => Promise.resolve([{ roleId: '123' }]));
 		expect(await checker.check(getInteraction('0'), UserPerms.mod)).toBe(true);
 	});
 
 	test('pass by owner check', async () => {
-		findFirstMock.mockImplementation(() => Promise.resolve({ modRole: '1234' }));
+		modRoleMock.mockImplementation(() => Promise.resolve([{ roleId: '1234' }]));
 		restGetMock.mockImplementation(() => Promise.resolve({ owner_id: '123' }));
 
 		expect(await checker.check(getInteraction('0'), UserPerms.mod)).toBe(true);
