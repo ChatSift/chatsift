@@ -1,6 +1,6 @@
 import { makeDiscordCdnUrl } from '@cordis/util';
 import { APIEmbed, APIMessage, APIUser, RouteBases, Snowflake } from 'discord-api-types/v9';
-import { addFields } from '@chatsift/discord-utils';
+import { addFields, truncateEmbed } from '@chatsift/discord-utils';
 import type { Case } from '@prisma/client';
 import ms from '@naval-base/ms';
 
@@ -93,7 +93,7 @@ export const makeCaseEmbed = ({
 		});
 	}
 
-	return embed;
+	return truncateEmbed(embed);
 };
 
 export interface HistoryEmbedOptions {

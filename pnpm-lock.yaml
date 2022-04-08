@@ -144,9 +144,11 @@ importers:
 
   packages/automoderator/util:
     specifiers:
+      '@automoderator/broker-types': workspace:^0.1.0
       '@automoderator/injection': workspace:^0.1.0
       '@chatsift/api-wrapper': workspace:^0.1.0
       '@chatsift/discord-utils': workspace:^0.1.0
+      '@cordis/brokers': ^1.2.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@cordis/util': ^1.2.0
       '@naval-base/ms': ^3.1.0
@@ -162,6 +164,7 @@ importers:
       '@automoderator/injection': link:../injection
       '@chatsift/api-wrapper': link:../../chatsift/api-wrapper
       '@chatsift/discord-utils': link:../../chatsift/discord-utils
+      '@cordis/brokers': 1.2.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@cordis/util': 1.2.0
       '@naval-base/ms': 3.1.0
@@ -171,6 +174,7 @@ importers:
       tslib: 2.3.1
       tsyringe: 4.6.0
     devDependencies:
+      '@automoderator/broker-types': link:../broker-types
       '@types/node': 16.11.10
       '@types/pino': 6.3.11
       typescript: 4.5.5
@@ -675,6 +679,39 @@ importers:
       '@types/ioredis': 4.27.6
       '@types/node': 16.10.3
       '@types/node-fetch': 2.5.12
+      '@types/pino': 6.3.11
+      typescript: 4.5.5
+
+  services/scheduler:
+    specifiers:
+      '@automoderator/injection': workspace:^0.1.0
+      '@automoderator/logger': workspace:^0.1.0
+      '@automoderator/util': workspace:^0.1.0
+      '@chatsift/api-wrapper': workspace:^0.1.0
+      '@cordis/rest': ^2.0.0-next.2405c88.1643469558
+      '@prisma/client': ^3.10.0
+      '@types/amqplib': ^0.8.2
+      '@types/node': ^16.10.3
+      '@types/pino': ^6.3.11
+      discord-api-types: ^0.27.3
+      reflect-metadata: ^0.1.13
+      tslib: ^2.3.1
+      tsyringe: ^4.6.0
+      typescript: ^4.5.5
+    dependencies:
+      '@automoderator/injection': link:../../packages/automoderator/injection
+      '@automoderator/logger': link:../../packages/automoderator/logger
+      '@automoderator/util': link:../../packages/automoderator/util
+      '@chatsift/api-wrapper': link:../../packages/chatsift/api-wrapper
+      '@cordis/rest': 2.0.0-next.2405c88.1643469558
+      '@prisma/client': 3.10.0_prisma@3.10.0
+      discord-api-types: 0.27.3
+      reflect-metadata: 0.1.13
+      tslib: 2.3.1
+      tsyringe: 4.6.0
+    devDependencies:
+      '@types/amqplib': 0.8.2
+      '@types/node': 16.11.21
       '@types/pino': 6.3.11
       typescript: 4.5.5
 
@@ -5527,6 +5564,10 @@ packages:
     resolution: {integrity: sha512-X0uA2a92cRjowUEXpLZIHWl4jiX1NsUpDhcEOpa1/hpO1vkaokgZ8kkPtPih9hHth5UVQ3mHBu/PpB4qjyfJ4A==}
     engines: {node: '>=12'}
     deprecated: No longer supported. Install the latest release!
+
+  /discord-api-types/0.27.3:
+    resolution: {integrity: sha512-HOG64DTpZ7CB5EU9eKbjHD50H5qG1pxKG8pmFfHUMKjKvEWeLBHfw0c9xF1cruiYLnBb3+n7m3jBWxZ3H1hcgQ==}
+    dev: false
 
   /discord-api-types/0.29.0:
     resolution: {integrity: sha512-Ekq1ICNpOTVajXKZguNFrsDeTmam+ZeA38txsNLZnANdXUjU6QBPIZLUQTC6MzigFGb0Tt8vk4xLnXmzv0shNg==}

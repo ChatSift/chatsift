@@ -9,22 +9,19 @@ import {
 	Runners,
 	ServerLog,
 	ServerLogType,
-	WarnCase,
 } from '@automoderator/broker-types';
 import {
 	PrismaClient,
 	Case,
-	CaseAction,
 	GuildSettings,
 	MaliciousFileCategory,
 	MaliciousUrlCategory,
-	WarnPunishmentAction,
 	LogChannelType,
 } from '@prisma/client';
 import { BanwordFlags } from '@chatsift/api-wrapper/v2';
 import { ms } from '@naval-base/ms';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { addFields, truncateEmbed } from '@chatsift/discord-utils';
+import { truncateEmbed } from '@chatsift/discord-utils';
 import { makeCaseEmbed } from '@automoderator/util';
 import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
 import { HTTPError as CordisHTTPError, Rest } from '@cordis/rest';
@@ -52,53 +49,7 @@ export class Handler {
 		public readonly rest: Rest,
 	) {}
 
-	private _populateEmbedWithWarnPunishment(embed: APIEmbed, cs: WarnCase): APIEmbed {
-		if (!cs.extra) {
-			return embed;
-		}
-
-		let value: string | undefined;
-
-		switch (cs.extra.triggered) {
-			case WarnPunishmentAction.kick: {
-				value = 'Kick';
-				break;
-			}
-
-			case WarnPunishmentAction.mute:
-			case WarnPunishmentAction.ban: {
-				const action = cs.extra.triggered === WarnPunishmentAction.mute ? 'Mute' : 'Ban';
-
-				if (!cs.extra.duration) {
-					value = `Permanent ${action.toLowerCase()}`;
-				} else if (cs.extra.extendedBy) {
-					value =
-						`${action} extended by ${ms(cs.extra.extendedBy - Date.now(), true)} - ` +
-						`meaning it will now expire in ${ms(cs.extra.extendedBy + cs.extra.duration - Date.now(), true)}`;
-				} else {
-					value = `${action} that will last for ${ms(cs.extra.duration - Date.now(), true)}`;
-				}
-
-				break;
-			}
-
-			default: {
-				this.logger.warn({ cs }, 'Recieved unrecognized warn case trigger');
-				return embed;
-			}
-		}
-
-		if (value) {
-			addFields(embed, {
-				name: 'Punishment trigger',
-				value,
-			});
-		}
-
-		return embed;
-	}
-
-	private async _assertWebhook(
+	private async assertWebhook(
 		guild: string,
 		type: LogChannelType,
 	): Promise<(APIWebhook & { threadId: string | null }) | null> {
@@ -122,14 +73,14 @@ export class Handler {
 		}
 	}
 
-	private async _handleModLog(log: ModActionLog) {
+	private async handleModLog(log: ModActionLog) {
 		log.data = Array.isArray(log.data) ? log.data : [log.data];
 
 		if (!log.data.length) {
 			return;
 		}
 
-		const webhook = await this._assertWebhook(log.data[0]!.guildId, LogChannelType.mod);
+		const webhook = await this.assertWebhook(log.data[0]!.guildId, LogChannelType.mod);
 		if (!webhook) {
 			return;
 		}
@@ -139,7 +90,7 @@ export class Handler {
 		for (const entry of log.data) {
 			this.logger.metric!({ type: 'mod_action', actionType: entry.actionType, guild: entry.guildId });
 
-			const { logMessageId } = (await this.prisma.case.findFirst({ where: { id: entry.id } }))!;
+			const { logMessageId } = await this.prisma.case.findFirst({ where: { id: entry.id }, rejectOnNotFound: true });
 
 			const [target, mod, message] = await Promise.all([
 				this.rest.get<APIUser>(Routes.user(entry.targetId)),
@@ -159,7 +110,7 @@ export class Handler {
 				refCs = (await this.prisma.case.findFirst({ where: { id: entry.refId } }))!;
 			}
 
-			let embed = makeCaseEmbed({
+			const embed = makeCaseEmbed({
 				logChannelId: webhook.channel_id,
 				cs: entry,
 				target,
@@ -168,10 +119,6 @@ export class Handler {
 				message,
 				refCs,
 			});
-
-			if (entry.actionType === CaseAction.warn) {
-				embed = this._populateEmbedWithWarnPunishment(embed, entry);
-			}
 
 			if (message) {
 				return this.rest.patch<unknown, RESTPatchAPIWebhookWithTokenMessageJSONBody>(
@@ -204,7 +151,7 @@ export class Handler {
 		}
 	}
 
-	private _embedFromTrigger(message: APIMessage, trigger: RunnerResult): APIEmbed[] {
+	private embedFromTrigger(message: APIMessage, trigger: RunnerResult): APIEmbed[] {
 		const codeblock = (str: string) => `\`\`\`${str}\`\`\``;
 
 		const embeds: APIEmbed[] = [];
@@ -376,7 +323,7 @@ export class Handler {
 		return embeds;
 	}
 
-	private async _handleFilterTriggerLog(log: FilterTriggerLog) {
+	private async handleFilterTriggerLog(log: FilterTriggerLog) {
 		for (const trigger of log.data.triggers) {
 			this.logger.metric!({
 				type: 'filter_trigger',
@@ -385,12 +332,12 @@ export class Handler {
 			});
 		}
 
-		const webhook = await this._assertWebhook(log.data.message.guild_id!, LogChannelType.filter);
+		const webhook = await this.assertWebhook(log.data.message.guild_id!, LogChannelType.filter);
 		if (!webhook) {
 			return;
 		}
 
-		const embeds = log.data.triggers.flatMap((trigger) => this._embedFromTrigger(log.data.message, trigger));
+		const embeds = log.data.triggers.flatMap((trigger) => this.embedFromTrigger(log.data.message, trigger));
 
 		if (!embeds.length) {
 			return;
@@ -408,12 +355,12 @@ export class Handler {
 		);
 	}
 
-	private async _handleUserUpdateLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
+	private async handleUserUpdateLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
 		if (!logs[ServerLogType.nickUpdate].length && !logs[ServerLogType.usernameUpdate].length) {
 			return;
 		}
 
-		const webhook = await this._assertWebhook(settings.guildId, LogChannelType.user);
+		const webhook = await this.assertWebhook(settings.guildId, LogChannelType.user);
 		if (!webhook) {
 			return;
 		}
@@ -476,8 +423,8 @@ export class Handler {
 		);
 	}
 
-	private async _handleMessageDeleteLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
-		const webhook = await this._assertWebhook(settings.guildId, LogChannelType.message);
+	private async handleMessageDeleteLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
+		const webhook = await this.assertWebhook(settings.guildId, LogChannelType.message);
 		if (!webhook) {
 			return;
 		}
@@ -527,8 +474,8 @@ export class Handler {
 		);
 	}
 
-	private async _handleMessageEditLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
-		const webhook = await this._assertWebhook(settings.guildId, LogChannelType.message);
+	private async handleMessageEditLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
+		const webhook = await this.assertWebhook(settings.guildId, LogChannelType.message);
 		if (!webhook) {
 			return;
 		}
@@ -576,8 +523,8 @@ export class Handler {
 		);
 	}
 
-	private async _handleFilterUpdateLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
-		const webhook = await this._assertWebhook(settings.guildId, LogChannelType.message);
+	private async handleFilterUpdateLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
+		const webhook = await this.assertWebhook(settings.guildId, LogChannelType.message);
 		if (!webhook) {
 			return;
 		}
@@ -625,7 +572,7 @@ export class Handler {
 		);
 	}
 
-	private async _handleServerLog(log: ServerLog) {
+	private async handleServerLog(log: ServerLog) {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: log.data.guild } });
 
 		if (!settings) {
@@ -647,20 +594,20 @@ export class Handler {
 			},
 		);
 
-		void this._handleUserUpdateLogs(settings, log, logs);
-		void this._handleMessageDeleteLogs(settings, log, logs);
-		void this._handleMessageEditLogs(settings, log, logs);
-		void this._handleFilterUpdateLogs(settings, log, logs);
+		void this.handleUserUpdateLogs(settings, log, logs);
+		void this.handleMessageDeleteLogs(settings, log, logs);
+		void this.handleMessageEditLogs(settings, log, logs);
+		void this.handleFilterUpdateLogs(settings, log, logs);
 	}
 
-	private async _handleForbiddenNameLog(log: ForbiddenNameLog) {
+	private async handleForbiddenNameLog(log: ForbiddenNameLog) {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: log.data.guildId } });
 
 		if (!settings?.filterTriggerLogChannel) {
 			return;
 		}
 
-		const webhook = await this._assertWebhook(log.data.guildId, LogChannelType.filter);
+		const webhook = await this.assertWebhook(log.data.guildId, LogChannelType.filter);
 		if (!webhook) {
 			return;
 		}
@@ -702,22 +649,22 @@ export class Handler {
 		);
 	}
 
-	private _handleLog(log: Log) {
+	private handleLog(log: Log) {
 		switch (log.type) {
 			case LogTypes.modAction: {
-				return this._handleModLog(log);
+				return this.handleModLog(log);
 			}
 
 			case LogTypes.filterTrigger: {
-				return this._handleFilterTriggerLog(log);
+				return this.handleFilterTriggerLog(log);
 			}
 
 			case LogTypes.server: {
-				return this._handleServerLog(log);
+				return this.handleServerLog(log);
 			}
 
 			case LogTypes.forbiddenName: {
-				return this._handleForbiddenNameLog(log);
+				return this.handleForbiddenNameLog(log);
 			}
 
 			default: {
@@ -733,7 +680,7 @@ export class Handler {
 		await interactions.init({
 			name: 'guild_logs',
 			fanout: false,
-			cb: (log) => void this._handleLog(log),
+			cb: (log) => void this.handleLog(log),
 		});
 
 		return interactions;
