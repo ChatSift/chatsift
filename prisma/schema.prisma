@@ -38,7 +38,7 @@ model AutomodPunishment {
   guildId    String                  @map("guild_id")
   triggers   Int
   actionType AutomodPunishmentAction @map("action_type")
-  duration   Int?
+  duration   BigInt?
 
   @@id([guildId, triggers])
   @@map("automod_punishments")
@@ -65,22 +65,22 @@ enum CaseAction {
 }
 
 model Case {
-  id           Int          @id @default(autoincrement())
-  guildId      String       @map("guild_id")
-  logMessageId String?      @map("log_message_id")
-  caseId       Int          @map("case_id")
-  refId        Int?         @map("ref_id")
-  targetId     String       @map("target_id")
-  targetTag    String       @map("target_tag")
-  modId        String?      @map("mod_id")
-  modTag       String?      @map("mod_tag")
-  actionType   CaseAction   @map("action_type")
-  reason       String?
-  expiresAt    DateTime?    @map("expires_at") @db.Timestamptz(6)
-  processed    Boolean      @default(true)
-  pardonedBy   String?      @map("pardoned_by")
-  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  unmuteRoles  UnmuteRole[]
+  id                Int          @id @default(autoincrement())
+  guildId           String       @map("guild_id")
+  logMessageId      String?      @map("log_message_id")
+  caseId            Int          @map("case_id")
+  refId             Int?         @map("ref_id")
+  targetId          String       @map("target_id")
+  targetTag         String       @map("target_tag")
+  modId             String?      @map("mod_id")
+  modTag            String?      @map("mod_tag")
+  actionType        CaseAction   @map("action_type")
+  reason            String?
+  expiresAt         DateTime?    @map("expires_at") @db.Timestamptz(6)
+  pardonedBy        String?      @map("pardoned_by")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  useTimeouts       Boolean      @default(true)
+  unmuteRoles       UnmuteRole[]
 
   @@map("cases")
 }
@@ -185,7 +185,7 @@ model WarnPunishment {
   guildId    String               @map("guild_id")
   warns      Int
   actionType WarnPunishmentAction @map("action_type")
-  duration   Int?
+  duration   BigInt?
 
   @@id([guildId, warns])
   @@map("warn_punishments")
@@ -253,10 +253,10 @@ model MaliciousUrl {
 }
 
 model BannedWord {
-  guildId  String @map("guild_id")
+  guildId  String  @map("guild_id")
   word     String
   flags    BigInt
-  duration Int?
+  duration BigInt?
 
   @@id([guildId, word])
 }
@@ -297,7 +297,7 @@ model PresetReportReason {
 
 model Reporter {
   reportId    Int
-  report      Report  @relation(fields: [reportId], references: [reportId], onDelete: Cascade)
+  report      Report @relation(fields: [reportId], references: [reportId], onDelete: Cascade)
   reason      String
   reporterId  String
   reporterTag String

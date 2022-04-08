@@ -152,6 +152,7 @@ importers:
       '@naval-base/ms': ^3.1.0
       '@prisma/client': ^3.10.0
       '@types/node': ^16.10.3
+      '@types/pino': ^6.3.11
       discord-api-types: ^0.29.0
       nanoid: ^3.1.29
       tslib: ^2.3.1
@@ -171,6 +172,7 @@ importers:
       tsyringe: 4.6.0
     devDependencies:
       '@types/node': 16.11.10
+      '@types/pino': 6.3.11
       typescript: 4.5.5
 
   packages/chatsift/api-wrapper:
@@ -3972,13 +3974,13 @@ packages:
   /@types/pino-std-serializers/2.4.1:
     resolution: {integrity: sha512-17XcksO47M24IVTVKPeAByWUd3Oez7EbIjXpSbzMPhXVzgjGtrOa49gKBwxH9hb8dKv58OelsWQ+A1G1l9S3wQ==}
     dependencies:
-      '@types/node': 16.11.10
+      '@types/node': 16.11.21
     dev: true
 
   /@types/pino/6.3.11:
     resolution: {integrity: sha512-S7+fLONqSpHeW9d7TApUqO6VN47KYgOXhCNKwGBVLHObq8HhaAYlVqUNdfnvoXjCMiwE5xcPm/5R2ZUh8bgaXQ==}
     dependencies:
-      '@types/node': 14.17.21
+      '@types/node': 16.11.21
       '@types/pino-pretty': 4.7.1
       '@types/pino-std-serializers': 2.4.1
       sonic-boom: 2.3.0
