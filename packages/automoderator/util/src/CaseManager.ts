@@ -1,7 +1,9 @@
 import { kLogger } from '@automoderator/injection';
+import type { PubSubPublisher } from '@cordis/brokers';
 import { Rest } from '@cordis/rest';
 import { Case, CaseAction, PrismaClient, WarnPunishmentAction } from '@prisma/client';
 import {
+	APIGuild,
 	APIGuildMember,
 	APIRole,
 	RESTPatchAPIGuildMemberJSONBody,
@@ -10,6 +12,8 @@ import {
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
+import { dmUser } from './dmUser';
+import { Log, LogTypes } from '@automoderator/broker-types';
 
 type TransactionPrisma = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'>;
 
@@ -55,11 +59,13 @@ export interface MuteCaseData extends DurationCaseData<'mute'> {
 
 export type CaseData = OtherCaseData | BanCaseData | SoftbanCaseData | MuteCaseData;
 
+// TODO(DD): Auto-backoff for the same punishment being applied multiple times in short succession
 @singleton()
 export class CaseManager {
 	public constructor(
 		public readonly prisma: PrismaClient,
 		public readonly rest: Rest,
+		public readonly guildLogs: PubSubPublisher<Log>,
 		@inject(kLogger) public readonly logger: Logger,
 	) {}
 
@@ -165,7 +171,6 @@ export class CaseManager {
 		});
 	}
 
-	// TODO(DD): Scheduler and user DMs
 	private async handlePunishment(cs: Case, data: CaseData, prisma: TransactionPrisma = this.prisma): Promise<unknown> {
 		switch (data.actionType) {
 			case CaseAction.warn: {
@@ -268,23 +273,90 @@ export class CaseManager {
 		}
 	}
 
-	public create(data: CaseData): Promise<Case[]> {
-		return this.prisma.$transaction<Case[]>(async (prisma) => {
+	private getReversalAction(actionType: CaseAction): CaseAction {
+		switch (actionType) {
+			case CaseAction.ban: {
+				return CaseAction.unban;
+			}
+
+			case CaseAction.mute: {
+				return CaseAction.unmute;
+			}
+
+			default: {
+				throw new Error('Invalid action type for reversal');
+			}
+		}
+	}
+
+	private formatActionName(actionType: CaseAction): string {
+		return (
+			{
+				[CaseAction.warn]: 'warned',
+				[CaseAction.mute]: 'muted',
+				[CaseAction.unmute]: 'unmuted',
+				[CaseAction.kick]: 'kicked',
+				[CaseAction.softban]: 'softbanned',
+				[CaseAction.ban]: 'banned',
+				[CaseAction.unban]: 'unbanned',
+			} as const
+		)[actionType];
+	}
+
+	private async notifyUser(cs: Case) {
+		const guild = await this.rest.get<APIGuild>(Routes.guild(cs.guildId));
+		await dmUser(
+			cs.targetId,
+			`You have been ${this.formatActionName(cs.actionType)} in ${guild.name}.${
+				cs.reason ? `\n\nReason: ${cs.reason}` : ''
+			}`,
+			cs.guildId,
+		);
+	}
+
+	public create(data: CaseData): Promise<[cs: Case, warnTrigger?: Case]> {
+		return this.prisma.$transaction<[Case, Case?]>(async (prisma) => {
 			const cs = await this.internalCreate(data, prisma);
+			await this.notifyUser(cs);
 			await this.handlePunishment(cs, data, prisma);
 
-			const cases: Case[] = [];
-			cases.push(cs);
+			const cases: [Case, Case?] = [cs];
 
 			if (data.actionType === CaseAction.warn) {
 				const triggeredCase = await this.makeWarnTriggerCase(cs, prisma);
 				if (triggeredCase) {
+					await this.notifyUser(cs);
 					await this.handlePunishment(cs, await this.dataFromCase(cs), prisma);
 					cases.push(triggeredCase);
 				}
 			}
 
+			this.guildLogs.publish({
+				type: LogTypes.modAction,
+				data: cases as Case[],
+			});
+
 			return cases;
 		});
+	}
+
+	public async undoTimedAction(cs: Case): Promise<Case> {
+		const [undone] = await this.create({
+			actionType: this.getReversalAction(cs.actionType),
+			guildId: cs.guildId,
+			targetId: cs.targetId,
+			targetTag: cs.targetTag,
+			mod:
+				cs.modId && cs.modTag
+					? {
+							id: cs.modId,
+							tag: cs.modTag,
+					  }
+					: undefined,
+			reason: 'Automated timed action expiry',
+			refId: cs.caseId,
+		});
+
+		return undone;
 	}
 }

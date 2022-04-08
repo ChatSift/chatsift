@@ -27,6 +27,7 @@
 	"dependencies": {
 		"@automoderator/injection": "workspace:^0.1.0",
 		"@automoderator/logger": "workspace:^0.1.0",
+		"@automoderator/util": "workspace:^0.1.0",
 		"@chatsift/api-wrapper": "workspace:^0.1.0",
 		"@cordis/rest": "^2.0.0-next.2405c88.1643469558",
 		"@prisma/client": "^3.10.0",

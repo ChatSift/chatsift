@@ -250,7 +250,7 @@ export class Gateway {
 				targetId: data.user!.id,
 				actionType: CaseAction.mute,
 				guildId: data.guild_id,
-				processed: false,
+				task: { is: {} },
 			},
 		});
 

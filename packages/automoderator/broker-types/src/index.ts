@@ -5,7 +5,7 @@ import type {
 	GatewayDispatchPayload,
 	Snowflake,
 } from 'discord-api-types/v9';
-import type { BannedWord, Case, CaseAction, MaliciousFile, MaliciousUrl } from '@prisma/client';
+import type { BannedWord, Case, MaliciousFile, MaliciousUrl } from '@prisma/client';
 
 type SanitizedDiscordEvents = {
 	[K in GatewayDispatchEvents]: GatewayDispatchPayload & {
@@ -29,26 +29,7 @@ export interface LogBase<T extends LogTypes, D extends Record<string, any>> {
 	data: D;
 }
 
-interface WarnCaseExtrasNoDuration {
-	triggered: 'kick';
-}
-
-interface WarnCaseExtrasWithDuration {
-	triggered: 'mute' | 'ban';
-	duration?: number;
-	extendedBy?: number;
-}
-
-export type WarnCaseExtras = WarnCaseExtrasNoDuration | WarnCaseExtrasWithDuration;
-
-export type NonWarnCase = Omit<Case, 'actionType'> & { actionType: Exclude<CaseAction, 'warn'> };
-export type WarnCase = Omit<Case, 'actionType'> & {
-	actionType: 'warn';
-	extra?: WarnCaseExtras;
-};
-
-type OrArray<T> = T | T[];
-export type ModActionLog = LogBase<LogTypes.modAction, OrArray<NonWarnCase | WarnCase>>;
+export type ModActionLog = LogBase<LogTypes.modAction, Case | Case[]>;
 
 export enum Runners {
 	files,
