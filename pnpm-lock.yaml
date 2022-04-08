@@ -153,6 +153,7 @@ importers:
       '@cordis/util': ^1.2.0
       '@naval-base/ms': ^3.1.0
       '@prisma/client': ^3.10.0
+      '@types/ioredis': ^4.27.6
       '@types/node': ^16.10.3
       '@types/pino': ^6.3.11
       discord-api-types: ^0.29.0
@@ -175,6 +176,7 @@ importers:
       tslib: 2.3.1
       tsyringe: 4.6.0
     devDependencies:
+      '@types/ioredis': 4.27.6
       '@types/node': 16.11.10
       '@types/pino': 6.3.11
       typescript: 4.5.5
@@ -3917,7 +3919,7 @@ packages:
   /@types/ioredis/4.27.6:
     resolution: {integrity: sha512-3FeeDlVQ2sdbvU436XnZzOiDMMgFbKfIsiUF2BnJnH7xxqCbJ1teJwfcu9fLwnfmV0qH2W1Vg3jFrtOehNIkMA==}
     dependencies:
-      '@types/node': 16.11.10
+      '@types/node': 16.11.21
     dev: true
 
   /@types/istanbul-lib-coverage/2.0.3:

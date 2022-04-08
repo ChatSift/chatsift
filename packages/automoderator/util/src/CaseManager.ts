@@ -1,4 +1,4 @@
-import { kLogger } from '@automoderator/injection';
+import { kLogger, kRedis } from '@automoderator/injection';
 import type { PubSubPublisher } from '@cordis/brokers';
 import { Rest } from '@cordis/rest';
 import { Case, CaseAction, PrismaClient, WarnPunishmentAction } from '@prisma/client';
@@ -14,6 +14,7 @@ import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import { dmUser } from './dmUser';
 import { Log, LogTypes } from '@automoderator/broker-types';
+import type { Redis } from 'ioredis';
 
 type TransactionPrisma = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'>;
 
@@ -59,7 +60,6 @@ export interface MuteCaseData extends DurationCaseData<'mute'> {
 
 export type CaseData = OtherCaseData | BanCaseData | SoftbanCaseData | MuteCaseData;
 
-// TODO(DD): Auto-backoff for the same punishment being applied multiple times in short succession
 @singleton()
 export class CaseManager {
 	public constructor(
@@ -67,6 +67,7 @@ export class CaseManager {
 		public readonly rest: Rest,
 		public readonly guildLogs: PubSubPublisher<Log>,
 		@inject(kLogger) public readonly logger: Logger,
+		@inject(kRedis) public readonly redis: Redis,
 	) {}
 
 	// TODO(DD): Figure out a better way to handle this schema-wise;
@@ -314,6 +315,26 @@ export class CaseManager {
 		);
 	}
 
+	private async lock(cs: Case): Promise<void> {
+		const key = `case_locks:${cs.actionType}:${cs.targetId}`;
+		const fiveMinutes = 300000;
+		await this.redis.set(key, cs.id, 'PX', fiveMinutes);
+	}
+
+	public async isLocked(cs: CaseData): Promise<Case | null> {
+		if (!cs.mod) {
+			return null;
+		}
+
+		const key = `case_locks:${cs.actionType}:${cs.targetId}`;
+		const lockedCaseId = await this.redis.get(key);
+		if (lockedCaseId) {
+			return this.prisma.case.findFirst({ where: { id: parseInt(lockedCaseId, 10) }, rejectOnNotFound: true });
+		}
+
+		return null;
+	}
+
 	public create(data: CaseData): Promise<[cs: Case, warnTrigger?: Case]> {
 		return this.prisma.$transaction<[Case, Case?]>(async (prisma) => {
 			const cs = await this.internalCreate(data, prisma);
@@ -329,6 +350,10 @@ export class CaseManager {
 					await this.handlePunishment(cs, await this.dataFromCase(cs), prisma);
 					cases.push(triggeredCase);
 				}
+			}
+
+			for (const cs of cases) {
+				await this.lock(cs!);
 			}
 
 			this.guildLogs.publish({
