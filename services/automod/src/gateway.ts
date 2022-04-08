@@ -12,7 +12,7 @@ import {
 	RunnerResult,
 } from '@automoderator/broker-types';
 import { PrismaClient } from '@prisma/client';
-import { Rest, FilterIgnores, DiscordPermissions } from '@chatsift/api-wrapper';
+import { Rest, FilterIgnores, DiscordPermissions } from '@chatsift/api-wrapper/v2';
 import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';

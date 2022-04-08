@@ -4,7 +4,7 @@ import { Rest } from '@cordis/rest';
 import { APIInteractionGuildMember, RESTGetAPIGuildResult, Routes, Snowflake } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
-import { DiscordPermissions } from '@chatsift/api-wrapper';
+import { DiscordPermissions } from '@chatsift/api-wrapper/v2';
 
 export enum UserPerms {
 	none,

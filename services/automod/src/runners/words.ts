@@ -1,7 +1,7 @@
 import { Log, Runners, WordsRunnerResult } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
-import { BanwordFlags } from '@chatsift/api-wrapper';
+import { BanwordFlags } from '@chatsift/api-wrapper/v2';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest } from '@cordis/rest';
 import { PrismaClient, BannedWord } from '@prisma/client';

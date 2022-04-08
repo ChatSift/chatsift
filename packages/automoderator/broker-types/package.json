@@ -26,7 +26,7 @@
 		"@chatsift/api-wrapper": "workspace:^0.1.0",
 		"@chatsift/utils": "workspace:^0.1.0",
 		"@prisma/client": "^3.10.0",
-		"discord-api-types": "^0.27.3",
+		"discord-api-types": "^0.29.0",
 		"tslib": "^2.3.1"
 	}
 }

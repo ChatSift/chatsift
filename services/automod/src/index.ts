@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Rest } from '@chatsift/api-wrapper';
+import { Rest } from '@chatsift/api-wrapper/v2';
 import { initConfig, kLogger, kRedis } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';

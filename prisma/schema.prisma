@@ -38,7 +38,7 @@ model AutomodPunishment {
   guildId    String                  @map("guild_id")
   triggers   Int
   actionType AutomodPunishmentAction @map("action_type")
-  duration   Int?
+  duration   BigInt?
 
   @@id([guildId, triggers])
   @@map("automod_punishments")
@@ -65,22 +65,22 @@ enum CaseAction {
 }
 
 model Case {
-  id           Int          @id @default(autoincrement())
-  guildId      String       @map("guild_id")
-  logMessageId String?      @map("log_message_id")
-  caseId       Int          @map("case_id")
-  refId        Int?         @map("ref_id")
-  targetId     String       @map("target_id")
-  targetTag    String       @map("target_tag")
-  modId        String?      @map("mod_id")
-  modTag       String?      @map("mod_tag")
-  actionType   CaseAction   @map("action_type")
-  reason       String?
-  expiresAt    DateTime?    @map("expires_at") @db.Timestamptz(6)
-  processed    Boolean      @default(true)
-  pardonedBy   String?      @map("pardoned_by")
-  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  unmuteRoles  UnmuteRole[]
+  id                Int          @id @default(autoincrement())
+  guildId           String       @map("guild_id")
+  logMessageId      String?      @map("log_message_id")
+  caseId            Int          @map("case_id")
+  refId             Int?         @map("ref_id")
+  targetId          String       @map("target_id")
+  targetTag         String       @map("target_tag")
+  modId             String?      @map("mod_id")
+  modTag            String?      @map("mod_tag")
+  actionType        CaseAction   @map("action_type")
+  reason            String?
+  expiresAt         DateTime?    @map("expires_at") @db.Timestamptz(6)
+  pardonedBy        String?      @map("pardoned_by")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  useTimeouts       Boolean      @default(true)
+  unmuteRoles       UnmuteRole[]
 
   @@map("cases")
 }
@@ -104,6 +104,7 @@ model GuildSettings {
   modRoles                ModRole[]
   adminRoles              AdminRole[]
   muteRole                String?     @map("mute_role")
+  // This is stored in days
   autoPardonWarnsAfter    Int?        @map("auto_pardon_warns_after")
   useUrlFilters           Boolean     @default(false) @map("use_url_filters")
   useGlobalFilters        Boolean     @default(false) @map("use_global_filters")
@@ -113,6 +114,7 @@ model GuildSettings {
   filterTriggerLogChannel String?     @map("filter_trigger_log_channel")
   userUpdateLogChannel    String?     @map("user_update_log_channel")
   messageUpdateLogChannel String?     @map("message_update_log_channel")
+  // This is stored in miliseconds
   minJoinAge              Int?        @map("min_join_age")
   noBlankAvatar           Boolean     @default(false) @map("no_blank_avatar")
   reportsChannel          String?     @map("reports_channel")
@@ -183,7 +185,7 @@ model WarnPunishment {
   guildId    String               @map("guild_id")
   warns      Int
   actionType WarnPunishmentAction @map("action_type")
-  duration   Int?
+  duration   BigInt?
 
   @@id([guildId, warns])
   @@map("warn_punishments")
@@ -199,6 +201,7 @@ enum LogChannelType {
 model LogChannelWebhook {
   guildId      String         @map("guild_id")
   logType      LogChannelType @map("log_type")
+  channelId    String         @map("channel_id")
   webhookId    String         @map("webhook_id")
   webhookToken String         @map("webhook_token")
   threadId     String?        @map("thread_id")
@@ -250,10 +253,10 @@ model MaliciousUrl {
 }
 
 model BannedWord {
-  guildId  String @map("guild_id")
+  guildId  String  @map("guild_id")
   word     String
   flags    BigInt
-  duration Int?
+  duration BigInt?
 
   @@id([guildId, word])
 }
@@ -286,21 +289,30 @@ model AllowedUrl {
   @@id([guildId, domain])
 }
 
-model ReportedMessage {
-  messageId       String            @id @map("message_id")
-  reportMessageId String            @map("report_message_id")
-  ack             Boolean           @default(false)
-  reporters       MessageReporter[]
+model PresetReportReason {
+  reportReasonId Int    @id @default(autoincrement())
+  guildId        String
+  reason         String
 }
 
-model MessageReporter {
-  messageId   String          @map("message_id")
-  message     ReportedMessage @relation(fields: [messageId], references: [messageId], onDelete: Cascade, onUpdate: NoAction)
-  original    Boolean         @default(false)
-  reporterId  String          @map("reporter_id")
-  reporterTag String          @map("reporter_tag")
+model Reporter {
+  reportId    Int
+  report      Report @relation(fields: [reportId], references: [reportId], onDelete: Cascade)
+  reason      String
+  reporterId  String
+  reporterTag String
 
-  @@id([messageId, reporterId])
+  @@id([reportId, reporterId])
+}
+
+model Report {
+  reportId        Int        @id @default(autoincrement())
+  userId          String
+  messageId       String?    @unique()
+  reportMessageId String
+  reporters       Reporter[]
+  createdAt       DateTime   @default(now()) @db.Timestamptz(6)
+  acknowledgedAt  DateTime?  @db.Timestamptz(6)
 }
 
 model LogIgnore {

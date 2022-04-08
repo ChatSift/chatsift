@@ -1,5 +1,5 @@
 /* istanbul ignore file */
-import type { GetAuthDiscordCallbackQuery, GetAuthDiscordRefreshBody } from '@chatsift/api-wrapper';
+import type { GetAuthDiscordCallbackQuery, GetAuthDiscordRefreshBody } from '@chatsift/api-wrapper/v2';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { forbidden, internal } from '@hapi/boom';
 import type { RESTPostOAuth2AccessTokenResult } from 'discord-api-types/v9';

@@ -3,7 +3,7 @@ import { badRequest, unauthorized } from '@hapi/boom';
 import type { NextHandler, Request, Response } from 'polka';
 import { container } from 'tsyringe';
 import { TokenManager, TokenValidationStatus } from '#util';
-import { Permissions } from '@chatsift/api-wrapper';
+import { Permissions } from '@chatsift/api-wrapper/v2';
 
 declare module 'polka' {
 	export interface Request {
