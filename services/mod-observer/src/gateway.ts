@@ -336,7 +336,7 @@ export class Gateway {
 		}
 
 		const entries = words
-			.map((word) => ({ ...word, flags: new BanwordFlags(BigInt(word.flags)) }))
+			.map((word) => ({ ...word, flags: new BanwordFlags(word.flags) }))
 			.filter((word) => word.flags.has('name'));
 
 		if (!entries.length) {

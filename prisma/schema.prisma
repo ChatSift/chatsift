@@ -129,6 +129,7 @@ model GuildSettings {
   hentaiThreshold         Int?        @map("hentai_threshold")
   pornThreshold           Int?        @map("porn_threshold")
   sexyThreshold           Int?        @map("sexy_threshold")
+  useTimeoutsByDefault    Boolean     @default(true)
 
   @@map("guild_settings")
 }

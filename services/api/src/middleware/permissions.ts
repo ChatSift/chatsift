@@ -8,7 +8,7 @@ export const globalPermissions =
 			return next(unauthorized('missing authorization header', 'Bearer'));
 		}
 
-		const perms = new Permissions(BigInt((req.user?.perms ?? req.app?.perms)!));
+		const perms = new Permissions((req.user?.perms ?? req.app?.perms)!);
 
 		if (!perms.has(required)) {
 			return next(forbidden('missing permission'));

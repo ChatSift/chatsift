@@ -1,16 +1,18 @@
 import { Log, Runners, WordsRunnerResult } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
-import { kLogger } from '@automoderator/injection';
+import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { BanwordFlags } from '@chatsift/api-wrapper/v2';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest } from '@cordis/rest';
-import { PrismaClient, BannedWord } from '@prisma/client';
-import { Routes, APIMessage } from 'discord-api-types/v9';
+import { PrismaClient, BannedWord, CaseAction } from '@prisma/client';
+import { Routes, APIMessage, APIUser } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import { UrlsRunner } from './urls';
 import type { IRunner } from './IRunner';
-import { dmUser } from '@automoderator/util';
+import { CaseManager, dmUser, ReportHandler } from '@automoderator/util';
+import { isSuccess } from '@chatsift/utils';
+import ms from '@naval-base/ms';
 
 type BannedWordWithFlags = Omit<BannedWord, 'flags'> & { flags: BanwordFlags; isUrl: boolean };
 
@@ -29,6 +31,9 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		public readonly discord: Rest,
 		public readonly logs: PubSubPublisher<Log>,
 		public readonly urlsRunner: UrlsRunner,
+		public readonly caseManager: CaseManager,
+		@inject(kConfig) public readonly config: Config,
+		public readonly reports: ReportHandler,
 	) {}
 
 	public async transform(message: APIMessage): Promise<WordsTransform> {
@@ -47,7 +52,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		const out: BannedWordWithFlags[] = [];
 
 		for (const entry of words) {
-			const flags = new BanwordFlags(BigInt(entry.flags));
+			const flags = new BanwordFlags(entry.flags);
 			const computed: BannedWordWithFlags = {
 				...entry,
 				flags,
@@ -64,6 +69,8 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 				}
 			} else if (content.includes(entry.word)) {
 				out.push(computed);
+			} else {
+				continue;
 			}
 		}
 
@@ -71,11 +78,85 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 	}
 
 	public async cleanup(words: BannedWordWithFlags[], message: APIMessage): Promise<void> {
-		await this.discord
-			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Words filter trigger' })
-			.then(() => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
-			.catch(() => null);
-		// TODO(DD): Handle cases and user dms after API is done
+		const punishments: Partial<Record<'report' | 'warn' | 'mute' | 'kick' | 'ban', BannedWordWithFlags>> = {};
+
+		for (const entry of words) {
+			for (const punishment of entry.flags.getPunishments()) {
+				punishments[punishment!] ??= entry;
+			}
+		}
+
+		const createCase = (actionType: CaseAction, entry: BannedWordWithFlags, expiresAt?: Date) =>
+			isSuccess(
+				this.caseManager.create({
+					actionType,
+					guildId: message.guild_id!,
+					targetId: message.author.id,
+					targetTag: `${message.author.username}#${message.author.discriminator}`,
+					mod: {
+						id: this.config.discordClientId,
+						tag: 'AutoModerator',
+					},
+					reason: `Automated punishment for using the word/phrase ${entry.word}`,
+					notifyUser: false,
+					expiresAt,
+				}),
+			);
+
+		if (punishments.report) {
+			const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id! } });
+			if (settings?.reportsChannel) {
+				await this.reports.reportMessage(
+					message,
+					await this.discord.get<APIUser>(Routes.user(this.config.discordClientId)),
+					settings.reportsChannel,
+					`Automated report triggered due to the usage of the following word/phrase: ${punishments.report.word}`,
+				);
+			}
+
+			return;
+		}
+
+		const found: string[] = [];
+		const applied: string[] = [];
+
+		if (
+			punishments.ban &&
+			(await createCase(CaseAction.ban, punishments.ban, new Date(Date.now() + Number(punishments.ban.duration))))
+		) {
+			found.push(punishments.ban.word);
+			applied.push(`banned for ${ms(Number(punishments.ban.duration))}`);
+		} else {
+			if (punishments.warn && (await createCase(CaseAction.warn, punishments.warn))) {
+				found.push(punishments.warn.word);
+				applied.push('warned');
+			}
+
+			if (
+				punishments.mute &&
+				(await createCase(CaseAction.mute, punishments.mute, new Date(Date.now() + Number(punishments.mute.duration))))
+			) {
+				found.push(punishments.mute.word);
+				applied.push(`muted for ${ms(Number(punishments.mute.duration))}`);
+			}
+
+			if (punishments.kick && (await createCase(CaseAction.kick, punishments.kick))) {
+				found.push(punishments.kick.word);
+				applied.push('kicked');
+			}
+		}
+
+		try {
+			await this.discord.delete(Routes.channelMessage(message.channel_id, message.id), {
+				reason: 'Words filter trigger',
+			});
+			await dmUser(
+				message.author.id,
+				`Your message was deleted for containing the following words/phrases: ${found.join(
+					', ',
+				)}, causing the following punishments: ${applied.join(', ')}`,
+			);
+		} catch {}
 	}
 
 	public log(words: BannedWordWithFlags[]): WordsRunnerResult {

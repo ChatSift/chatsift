@@ -1,5 +1,5 @@
 import { kLogger, kRedis } from '@automoderator/injection';
-import type { PubSubPublisher } from '@cordis/brokers';
+import { PubSubPublisher } from '@cordis/brokers';
 import { Rest } from '@cordis/rest';
 import { Case, CaseAction, PrismaClient, WarnPunishmentAction } from '@prisma/client';
 import {
@@ -29,6 +29,7 @@ export interface BaseCaseCreateData<Action extends CaseAction = CaseAction> {
 	};
 	actionType: Action;
 	reason?: string;
+	notifyUser?: boolean;
 }
 
 export type DurationCaseType = 'ban' | 'mute';
@@ -65,7 +66,7 @@ export class CaseManager {
 	public constructor(
 		public readonly prisma: PrismaClient,
 		public readonly rest: Rest,
-		public readonly guildLogs: PubSubPublisher<Log>,
+		public readonly logs: PubSubPublisher<Log>,
 		@inject(kLogger) public readonly logger: Logger,
 		@inject(kRedis) public readonly redis: Redis,
 	) {}
@@ -336,9 +337,13 @@ export class CaseManager {
 	}
 
 	public create(data: CaseData): Promise<[cs: Case, warnTrigger?: Case]> {
+		data.notifyUser ??= true;
+
 		return this.prisma.$transaction<[Case, Case?]>(async (prisma) => {
 			const cs = await this.internalCreate(data, prisma);
-			await this.notifyUser(cs);
+			if (data.notifyUser) {
+				await this.notifyUser(cs);
+			}
 			await this.handlePunishment(cs, data, prisma);
 
 			const cases: [Case, Case?] = [cs];
@@ -346,7 +351,9 @@ export class CaseManager {
 			if (data.actionType === CaseAction.warn) {
 				const triggeredCase = await this.makeWarnTriggerCase(cs, prisma);
 				if (triggeredCase) {
-					await this.notifyUser(cs);
+					if (data.notifyUser) {
+						await this.notifyUser(cs);
+					}
 					await this.handlePunishment(cs, await this.dataFromCase(cs), prisma);
 					cases.push(triggeredCase);
 				}
@@ -356,7 +363,7 @@ export class CaseManager {
 				await this.lock(cs!);
 			}
 
-			this.guildLogs.publish({
+			this.logs.publish({
 				type: LogTypes.modAction,
 				data: cases as Case[],
 			});

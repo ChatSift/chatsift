@@ -125,7 +125,7 @@ export class Gateway {
 			maybeThreadParent?.type === ChannelType.GuildCategory ? maybeThreadParent : channels.get(channel.parent_id!);
 
 		const ignoreData = await this.prisma.filterIgnore.findFirst({ where: { channelId: channel.id } });
-		const ignores = new FilterIgnores(BigInt(ignoreData?.value ?? '0'));
+		const ignores = new FilterIgnores(ignoreData?.value ?? 0n);
 
 		if (parent) {
 			const parentIgnoreData = await this.prisma.filterIgnore.findFirst({ where: { channelId: parent.id } });
@@ -185,55 +185,6 @@ export class Gateway {
 				type: LogTypes.filterTrigger,
 			});
 		}
-
-		// TODO(DD): Automod punishments after API is done
-		// if (data.find((result) => result.runner === Runners.antispam || result.runner === Runners.mentions)) {
-		// 	const [trigger] = await this.sql<[AutomodTrigger]>`
-		//     INSERT INTO automod_triggers (guild_id, user_id, count)
-		//     VALUES (${message.guild_id}, ${message.author.id}, next_automod_trigger(${message.guild_id}, ${message.author.id}))
-		//     ON CONFLICT (guild_id, user_id)
-		//       DO UPDATE SET count = next_automod_trigger(${message.guild_id}, ${message.author.id})
-		//     RETURNING *
-		//   `;
-
-		// 	const [punishment] = await this.sql<[AutomodPunishment?]>`
-		//     SELECT * FROM automod_punishments
-		//     WHERE guild_id = ${message.guild_id}
-		//       AND triggers = ${trigger.count}
-		//   `;
-
-		// 	if (punishment) {
-		// 		const ACTIONS = [CaseAction.warn, CaseAction.mute, CaseAction.kick, CaseAction.ban] as const;
-
-		// 		const caseData: CaseData = {
-		// 			mod_id: this.config.discordClientId,
-		// 			mod_tag: 'AutoModerator#0000',
-		// 			target_id: message.author.id,
-		// 			target_tag: `${message.author.username}#${message.author.discriminator}`,
-		// 			reason: 'spamming',
-		// 			created_at: new Date(),
-		// 			execute: true,
-		// 			action: ACTIONS[punishment.action_type],
-		// 		};
-
-		// 		if (caseData.action === CaseAction.mute) {
-		// 			caseData.expires_at = punishment.duration ? new Date(Date.now() + punishment.duration * 6e4) : null;
-		// 		} else if (caseData.action === CaseAction.ban) {
-		// 			caseData.expires_at = punishment.duration ? new Date(Date.now() + punishment.duration * 6e4) : null;
-		// 			caseData.delete_message_days = 1;
-		// 		}
-
-		// 		const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-		// 			`/guilds/${message.guild_id}/cases`,
-		// 			[caseData],
-		// 		);
-
-		// 		this.guildLogs.publish({
-		// 			data: cs,
-		// 			type: LogTypes.modAction,
-		// 		});
-		// 	}
-		// }
 	}
 
 	public async init(): Promise<void> {

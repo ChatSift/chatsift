@@ -14,13 +14,16 @@ import {
 	TextInputStyle,
 	APIModalSubmitInteraction,
 	APISelectMenuComponent,
+	APIUser,
 } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { Handler } from '#handler';
-import { injectable } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 import type { Component } from '../component';
 import type { StopFunction } from '../collector';
 import ms from '@naval-base/ms';
+import { CaseManager } from '@automoderator/util';
+import { Config, kConfig } from '@automoderator/injection';
 
 @injectable()
 export default class implements Component {
@@ -28,9 +31,10 @@ export default class implements Component {
 		public readonly rest: DiscordRest,
 		public readonly prisma: PrismaClient,
 		public readonly handler: Handler,
+		public readonly cases: CaseManager,
+		@inject(kConfig) public readonly config: Config,
 	) {}
 
-	// TODO(DD): Consider getting rid of message id
 	public async exec(interaction: APIGuildInteraction, [messageId, action]: [string, string]) {
 		const [review, acknowledged, viewReporters, actionButton] = interaction.message!.components![0]!.components as [
 			APIButtonComponent,
@@ -40,6 +44,7 @@ export default class implements Component {
 		];
 
 		const [embed] = interaction.message!.embeds;
+		const report = await this.prisma.report.findFirst({ where: { messageId }, rejectOnNotFound: true });
 
 		switch (action) {
 			case 'acknowledge': {
@@ -291,12 +296,28 @@ export default class implements Component {
 
 							stop();
 						} else if (state.action) {
-							// TODO: Create case
-							actionButton.disabled = true;
+							const user = await this.rest.get<APIUser>(Routes.user(report.userId));
+							const me = await this.rest.get<APIUser>(Routes.user(this.config.discordClientId));
+							const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: interaction.guild_id } });
 
+							actionButton.disabled = true;
 							if (state.duration && state.action !== CaseAction.ban && state.action !== CaseAction.mute) {
 								return send(interaction, { content: '⚠️ Duration is only available for bans and mutes.', flags: 64 });
 							}
+
+							await this.cases.create({
+								actionType: state.action,
+								guildId: interaction.guild_id,
+								targetId: report.userId,
+								targetTag: `${user.username}#${user.discriminator}`,
+								mod: {
+									id: me.id,
+									tag: `${me.username}#${me.discriminator}`,
+								},
+								expiresAt: state.duration ? new Date(Date.now() + state.duration) : undefined,
+								unmuteRoles: state.action === CaseAction.mute && settings?.useTimeoutsByDefault ? null : undefined,
+								reason: state.reason,
+							});
 
 							await send(interaction, {
 								content: 'Successfully created case',

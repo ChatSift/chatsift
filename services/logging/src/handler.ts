@@ -540,7 +540,7 @@ export class Handler {
 		const list = [...added, ...removed]
 			.sort((a, b) => a.word.localeCompare(b.word))
 			.map((word) => {
-				const flagsArray = new BanwordFlags(BigInt(word.flags)).toArray();
+				const flagsArray = new BanwordFlags(word.flags).toArray();
 
 				const flags = flagsArray.length ? `; flags: ${flagsArray.join(', ')}` : '';
 				const duration = word.duration ? `; mute duration: ${word.duration}` : '';

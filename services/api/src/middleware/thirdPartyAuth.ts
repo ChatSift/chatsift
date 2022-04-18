@@ -40,7 +40,7 @@ export const thirdPartyAuth = (fallthrough = false) => {
 			}
 		}
 
-		if (req.params.gid && !new Permissions(BigInt(req.app!.perms)).has('administrator')) {
+		if (req.params.gid && !new Permissions(req.app!.perms).has('administrator')) {
 			const guild = await prisma.appGuild.findFirst({ where: { appId: app!.appId, guildId: req.params.gid } });
 
 			if (!guild) {

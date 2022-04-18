@@ -67,3 +67,22 @@ export function chunkArray<T>(array: T[], size: number): T[][] {
 
 	return out;
 }
+
+/**
+ * Maps a promise into true/false depending on if it resolves or rejects
+ * useful for messy conditional logic that would otherwise require multiple try/catch blocks
+ * @example
+ * ```ts
+ * const warnedUser = await isSuccess(warnUser(userId));
+ * const bannedUser = await isSuccess(banUser(userId));
+ *
+ * if (warnedUser || bannedUser) {
+ *  // do something
+ * }
+ * ```
+ * @param promise
+ * @returns
+ */
+export function isSuccess(promise: Promise<any>): Promise<boolean> {
+	return promise.then(() => true).catch(() => false);
+}
