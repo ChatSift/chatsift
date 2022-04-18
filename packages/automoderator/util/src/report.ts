@@ -76,10 +76,11 @@ export class ReportHandler {
 											? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${message.author.id}/${message.author.avatar}`)
 											: `${RouteBases.cdn}/embed/avatars/${parseInt(message.author.discriminator, 10) % 5}.png`,
 									},
-									title: `Had their message posted <t:${Math.round(
+									description: `Had their message posted <t:${Math.round(
 										getCreationData(message.id).createdTimestamp / 1000,
-									)}:R> in <#${message.channel_id}> reported`,
-									description: message.content.length ? `\`\`\`${message.content}\`\`\`` : 'No text content',
+									)}:R> in <#${message.channel_id}> reported. \n\n${
+										message.content.length ? `\`\`\`${message.content}\`\`\`` : '*Message had no text content*'
+									}`,
 									image: message.attachments[0]
 										? {
 												url: message.attachments[0].url,

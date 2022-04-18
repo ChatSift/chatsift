@@ -1,4 +1,5 @@
 /* istanbul ignore file */
+import { kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import {
 	RESTPostAPIChannelMessageJSONBody,
@@ -7,10 +8,12 @@ import {
 	Routes,
 	Snowflake,
 } from 'discord-api-types/v9';
+import type { Logger } from 'pino';
 import { container } from 'tsyringe';
 
 export const dmUser = async (userId: Snowflake, content: string, guildId?: Snowflake) => {
 	const rest = container.resolve(Rest);
+	const logger = container.resolve<Logger>(kLogger);
 
 	if (guildId) {
 		const member = await rest.get(Routes.guildMember(guildId, userId)).catch(() => null);
@@ -28,7 +31,10 @@ export const dmUser = async (userId: Snowflake, content: string, guildId?: Snowf
 				},
 			},
 		)
-		.catch(() => null);
+		.catch(() => {
+			logger.warn(`Failed to create DM channel with user ${userId}`);
+			return null;
+		});
 
 	if (dmChannel) {
 		await rest

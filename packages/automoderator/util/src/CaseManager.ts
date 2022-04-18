@@ -15,6 +15,7 @@ import { inject, singleton } from 'tsyringe';
 import { dmUser } from './dmUser';
 import { Log, LogTypes } from '@automoderator/broker-types';
 import type { Redis } from 'ioredis';
+import ms from '@naval-base/ms';
 
 type TransactionPrisma = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'>;
 
@@ -82,7 +83,7 @@ export class CaseManager {
 						guildId,
 					},
 					orderBy: {
-						caseId: 'desc',
+						caseId: 'asc',
 					},
 				})
 			)?.caseId ?? 0
@@ -309,9 +310,9 @@ export class CaseManager {
 		const guild = await this.rest.get<APIGuild>(Routes.guild(cs.guildId));
 		await dmUser(
 			cs.targetId,
-			`You have been ${this.formatActionName(cs.actionType)} in ${guild.name}.${
-				cs.reason ? `\n\nReason: ${cs.reason}` : ''
-			}`,
+			`You have been ${this.formatActionName(cs.actionType)} in ${guild.name}${
+				cs.expiresAt ? ` for ${ms(cs.expiresAt.getTime() - Date.now(), true)}` : ''
+			}.${cs.reason ? `\n\nReason: ${cs.reason}` : ''}`,
 			cs.guildId,
 		);
 	}

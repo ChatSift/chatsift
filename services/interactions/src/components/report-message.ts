@@ -297,7 +297,6 @@ export default class implements Component {
 							stop();
 						} else if (state.action) {
 							const user = await this.rest.get<APIUser>(Routes.user(report.userId));
-							const me = await this.rest.get<APIUser>(Routes.user(this.config.discordClientId));
 							const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: interaction.guild_id } });
 
 							actionButton.disabled = true;
@@ -311,8 +310,8 @@ export default class implements Component {
 								targetId: report.userId,
 								targetTag: `${user.username}#${user.discriminator}`,
 								mod: {
-									id: me.id,
-									tag: `${me.username}#${me.discriminator}`,
+									id: interaction.member.user.id,
+									tag: `${interaction.member.user.username}#${interaction.member.user.discriminator}`,
 								},
 								expiresAt: state.duration ? new Date(Date.now() + state.duration) : undefined,
 								unmuteRoles: state.action === CaseAction.mute && settings?.useTimeoutsByDefault ? null : undefined,
