@@ -96,3 +96,17 @@ services:
     restart: unless-stopped
     depends_on:
       - base
+
+  scheduler:
+    image: chatsift/scheduler
+    build:
+      context: ../
+      dockerfile: ./docker/scheduler/Dockerfile
+    environment:
+      DB_URL: '${DB_URL}'
+      REDIS_URL: 'redis://redis:6379/0'
+      AMQP_URL: 'amqp://rabbitmq:5672'
+      DISCORD_PROXY_URL: 'http://discord-proxy:3003'
+    restart: unless-stopped
+    depends_on:
+      - base

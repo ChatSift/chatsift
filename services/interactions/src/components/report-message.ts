@@ -180,7 +180,7 @@ export default class implements Component {
 							await send(
 								interaction,
 								{
-									content: `Executing a ${action} - feel free to configure further`,
+									content: `Executing a ${state.action} - feel free to configure further`,
 									components,
 									flags: 64,
 								},
@@ -191,7 +191,7 @@ export default class implements Component {
 						.makeCollector<APIMessageComponentInteraction>(configureId)
 						.hookAndDestroy(async (interaction) => {
 							// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-							if (!action) {
+							if (!state.action) {
 								return send(
 									interaction,
 									{
@@ -230,7 +230,8 @@ export default class implements Component {
 													type: ComponentType.TextInput,
 													style: TextInputStyle.Short,
 													required: false,
-													value: state.duration ? ms(state.duration, true) : undefined,
+													value: state.duration ? ms(state.duration) : undefined,
+													placeholder: 'e.g. 1h30m',
 												},
 											],
 										},
@@ -243,11 +244,12 @@ export default class implements Component {
 								.makeCollector<APIModalSubmitInteraction>(modalId)
 								.waitForOneAndDestroy();
 
+							await send(modal, {}, InteractionResponseType.ChannelMessageWithSource);
 							const [parsedReason, parsedDuration] = [0, 1].map((i) => modal.data.components![i]!.components[0]!.value);
 
 							if (parsedDuration) {
 								if (state.action !== CaseAction.ban && state.action !== CaseAction.mute) {
-									await send(
+									return send(
 										interaction,
 										{
 											content: '⚠️ You can only update the duration for bans and mutes',
@@ -255,28 +257,26 @@ export default class implements Component {
 										},
 										InteractionResponseType.UpdateMessage,
 									);
-									return send(modal, {}, InteractionResponseType.ChannelMessageWithSource);
 								}
 
-								try {
-									state.duration = ms(parsedDuration);
-								} catch {
-									return send(modal, {
-										content: 'Failed to parse the provided duration - please try again',
+								const parsed = ms(parsedDuration);
+								if (parsed <= 0) {
+									return send(interaction, {
+										content: '⚠️ Failed to parse the provided duration - please try again',
 										flags: 64,
 									});
 								}
+
+								state.duration = parsed;
 							}
 
 							state.reason = parsedReason!;
-							await send(interaction, {
-								content: `Executing a ${action}${
+							return send(interaction, {
+								content: `Executing a ${state.action}${
 									state.duration ? `, which will last for ${ms(state.duration, true)}` : ''
 								}${state.reason ? ` with reason ${state.reason}` : ''}`,
 								flags: 64,
 							});
-
-							await send(modal, {}, InteractionResponseType.ChannelMessageWithSource);
 						}),
 				];
 

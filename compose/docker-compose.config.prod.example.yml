@@ -51,6 +51,12 @@ services:
       INTERNAL_API_TOKEN: 'asdf'
       ELASTIC_PASSWORD: 'owo'
 
+  scheduler:
+    environment:
+      DISCORD_TOKEN: 'awooga'
+      INTERNAL_API_TOKEN: 'asdf'
+      ELASTIC_PASSWORD: 'owo'
+
   kibana:
     environment:
       # https://www.elastic.co/guide/en/elasticsearch/reference/current/security-minimal-setup.html#add-built-in-users

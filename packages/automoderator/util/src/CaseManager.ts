@@ -77,7 +77,7 @@ export class CaseManager {
 	// TODO(DD): this is more than sub-optimal, esp. without caching, but won't be an issue short-term.
 	public async getNextCaseId(guildId: string, prisma: TransactionPrisma = this.prisma): Promise<number> {
 		return (
-			(
+			((
 				await prisma.case.findFirst({
 					where: {
 						guildId,
@@ -86,7 +86,7 @@ export class CaseManager {
 						caseId: 'asc',
 					},
 				})
-			)?.caseId ?? 0
+			)?.caseId ?? 0) + 1
 		);
 	}
 
@@ -167,6 +167,19 @@ export class CaseManager {
 						? {
 								createMany: {
 									data: data.unmuteRoles.map((roleId) => ({ roleId })),
+								},
+						  }
+						: undefined,
+				task:
+					(data.actionType === CaseAction.ban || data.actionType === CaseAction.mute) && data.expiresAt
+						? {
+								create: {
+									task: {
+										create: {
+											guildId: data.guildId,
+											runAt: data.expiresAt,
+										},
+									},
 								},
 						  }
 						: undefined,
