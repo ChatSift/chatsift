@@ -130,21 +130,22 @@ export default class implements Command {
 							.makeCollector<APIModalSubmitInteraction>(modalId)
 							.waitForOneAndDestroy();
 
-						await send(interaction, {
-							content: 'Successfully flagged the given message to the staff team',
-							components: [],
-						});
-
 						const { value: reason } = modal.data.components![0]!.components[0]!;
 
-						await send(modal, {});
-						stop();
-						return await this.reports.reportMessage(
+						await this.reports.reportMessage(
 							{ ...message, guild_id: interaction.guild_id },
 							interaction.member.user,
 							settings.reportsChannel!,
 							reason,
 						);
+
+						await send(interaction, {
+							content: 'Successfully flagged the given message to the staff team',
+							components: [],
+						});
+
+						stop();
+						return await send(modal, {});
 					}
 
 					stop();
