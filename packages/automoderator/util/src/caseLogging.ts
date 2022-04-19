@@ -99,7 +99,7 @@ export const makeCaseEmbed = ({
 export interface HistoryEmbedOptions {
 	user: APIUser;
 	cases: Case[];
-	logChannelId?: Snowflake;
+	logChannelId?: Snowflake | null;
 	filterTriggers?: number;
 }
 

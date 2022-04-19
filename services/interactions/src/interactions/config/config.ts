@@ -3,7 +3,6 @@ import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 export const ConfigCommand = {
 	name: 'config',
 	description: "Update your server's config",
-	default_permission: true,
 	options: [
 		{
 			name: 'muterole',

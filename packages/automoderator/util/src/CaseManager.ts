@@ -83,7 +83,7 @@ export class CaseManager {
 						guildId,
 					},
 					orderBy: {
-						caseId: 'asc',
+						caseId: 'desc',
 					},
 				})
 			)?.caseId ?? 0) + 1
@@ -305,7 +305,7 @@ export class CaseManager {
 		}
 	}
 
-	private formatActionName(actionType: CaseAction): string {
+	public formatActionName(actionType: CaseAction): string {
 		return (
 			{
 				[CaseAction.warn]: 'warned',
@@ -336,12 +336,8 @@ export class CaseManager {
 		await this.redis.set(key, cs.id, 'PX', fiveMinutes);
 	}
 
-	public async isLocked(cs: CaseData): Promise<Case | null> {
-		if (!cs.mod) {
-			return null;
-		}
-
-		const key = `case_locks:${cs.actionType}:${cs.targetId}`;
+	public async isLocked(actionType: CaseAction, targetId: string): Promise<Case | null> {
+		const key = `case_locks:${actionType}:${targetId}`;
 		const lockedCaseId = await this.redis.get(key);
 		if (lockedCaseId) {
 			return this.prisma.case.findFirst({ where: { id: parseInt(lockedCaseId, 10) }, rejectOnNotFound: true });

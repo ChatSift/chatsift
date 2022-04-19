@@ -39,8 +39,8 @@ export const send = async (
 	const { discordClientId } = container.resolve<Config>(kConfig);
 
 	if ('token' in message) {
-		const { embed, files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: File[] };
-		const response = { ...r, embeds: embed ? [embed] : undefined };
+		const { embeds, embed, files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: File[] };
+		const response = { ...r, embeds: embeds ?? (embed ? [embed] : undefined) };
 
 		if (followup) {
 			const { files, ...r } = payload;
