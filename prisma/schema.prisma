@@ -112,10 +112,6 @@ model GuildSettings {
   useGlobalFilters        Boolean     @default(false) @map("use_global_filters")
   useFileFilters          Boolean     @default(false) @map("use_file_filters")
   useInviteFilters        Boolean     @default(false) @map("use_invite_filters")
-  modActionLogChannel     String?     @map("mod_action_log_channel")
-  filterTriggerLogChannel String?     @map("filter_trigger_log_channel")
-  userUpdateLogChannel    String?     @map("user_update_log_channel")
-  messageUpdateLogChannel String?     @map("message_update_log_channel")
   // This is stored in miliseconds
   minJoinAge              Int?        @map("min_join_age")
   noBlankAvatar           Boolean     @default(false) @map("no_blank_avatar")

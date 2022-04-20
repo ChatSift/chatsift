@@ -2,7 +2,7 @@ import { MessageCache, GuildMemberCache, CachedGuildMember } from '@automoderato
 import { DiscordEvents, Log, LogTypes, ServerLogs, ServerLogType } from '@automoderator/broker-types';
 import { Rest, DiscordPermissions, BanwordFlags } from '@chatsift/api-wrapper/v2';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
+import { CaseManager, PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Rest as CordisRest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
@@ -43,6 +43,7 @@ export class Gateway {
 		public readonly messageCache: MessageCache,
 		public readonly rest: Rest,
 		public readonly discord: CordisRest,
+		public readonly cases: CaseManager,
 	) {}
 
 	private async getChannelIds(
@@ -89,9 +90,7 @@ export class Gateway {
 	}
 
 	private async handleGuildBanAdd(data: GatewayGuildBanModifyDispatchData) {
-		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
-
-		if (!settings?.modActionLogChannel || !(await this.hasAuditLog(data.guild_id))) {
+		if (!(await this.hasAuditLog(data.guild_id))) {
 			return null;
 		}
 
@@ -123,29 +122,18 @@ export class Gateway {
 			return null;
 		}
 
-		// TODO(DD): Logging for those once API is done
-		// const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-		// 	`/guilds/${data.guild_id}/cases`,
-		// 	[
-		// 		{
-		// 			action: CaseAction.ban,
-		// 			target_id: data.user.id,
-		// 			target_tag: `${data.user.username}#${data.user.discriminator}`,
-		// 			created_at: new Date(),
-		// 		},
-		// 	],
-		// );
-
-		// this.guildLogs.publish({
-		// 	type: LogTypes.modAction,
-		// 	data: cs,
-		// });
+		await this.cases.create({
+			actionType: CaseAction.ban,
+			guildId: data.guild_id,
+			targetId: data.user.id,
+			targetTag: `${data.user.username}#${data.user.discriminator}`,
+			notifyUser: false,
+			applyAction: false,
+		});
 	}
 
 	private async handleGuildBanRemove(data: GatewayGuildBanModifyDispatchData) {
-		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
-
-		if (!settings?.modActionLogChannel || !(await this.hasAuditLog(data.guild_id))) {
+		if (!(await this.hasAuditLog(data.guild_id))) {
 			return null;
 		}
 
@@ -177,29 +165,18 @@ export class Gateway {
 			return null;
 		}
 
-		// TODO(DD): Logging for those once API is done
-		// const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-		// 	`/guilds/${data.guild_id}/cases`,
-		// 	[
-		// 		{
-		// 			action: CaseAction.unban,
-		// 			target_id: data.user.id,
-		// 			target_tag: `${data.user.username}#${data.user.discriminator}`,
-		// 			created_at: new Date(),
-		// 		},
-		// 	],
-		// );
-
-		// this.guildLogs.publish({
-		// 	type: LogTypes.modAction,
-		// 	data: cs,
-		// });
+		await this.cases.create({
+			actionType: CaseAction.ban,
+			guildId: data.guild_id,
+			targetId: data.user.id,
+			targetTag: `${data.user.username}#${data.user.discriminator}`,
+			notifyUser: false,
+			applyAction: false,
+		});
 	}
 
 	private async handleGuildMemberRemove(data: GatewayGuildMemberRemoveDispatchData) {
-		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
-
-		if (!settings?.modActionLogChannel || !(await this.hasAuditLog(data.guild_id))) {
+		if (!(await this.hasAuditLog(data.guild_id))) {
 			return null;
 		}
 
@@ -223,23 +200,14 @@ export class Gateway {
 			return null;
 		}
 
-		// TODO(DD): Logging for those once API is done
-		// const [cs] = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-		// 	`/guilds/${data.guild_id}/cases`,
-		// 	[
-		// 		{
-		// 			action: CaseAction.kick,
-		// 			target_id: data.user.id,
-		// 			target_tag: `${data.user.username}#${data.user.discriminator}`,
-		// 			created_at: new Date(),
-		// 		},
-		// 	],
-		// );
-
-		// this.guildLogs.publish({
-		// 	type: LogTypes.modAction,
-		// 	data: cs,
-		// });
+		await this.cases.create({
+			actionType: CaseAction.ban,
+			guildId: data.guild_id,
+			targetId: data.user.id,
+			targetTag: `${data.user.username}#${data.user.discriminator}`,
+			notifyUser: false,
+			applyAction: false,
+		});
 	}
 
 	private async handleExistingMute(data: GatewayGuildMemberAddDispatchData) {
@@ -254,7 +222,7 @@ export class Gateway {
 			},
 		});
 
-		if (!settings?.muteRole || !existingMuteCase) {
+		if (!existingMuteCase || existingMuteCase.useTimeouts || !settings?.muteRole) {
 			return null;
 		}
 

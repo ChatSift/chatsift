@@ -1,5 +1,5 @@
 import { CaseManager, makeHistoryEmbed } from '@automoderator/util';
-import { Case, PrismaClient } from '@prisma/client';
+import { Case, LogChannelType, PrismaClient } from '@prisma/client';
 import {
 	APIGuildInteraction,
 	APIGuildMember,
@@ -56,13 +56,15 @@ export const handleLockConfirmation = async (
 		],
 	});
 
-	const settings = await prisma.guildSettings.findFirst({ where: { guildId: interaction.guild_id } });
 	const history = await prisma.case.findMany({ where: { guildId: interaction.guild_id, targetId: member.user.id } });
 	const filterTriggers = await prisma.filterTrigger.findFirst({
 		where: { guildId: interaction.guild_id, userId: member.user.id },
 	});
+	const logWebhook = await prisma.logChannelWebhook.findFirst({
+		where: { guildId: interaction.guild_id, logType: LogChannelType.mod },
+	});
 
-	const stop = await handler.collectorManager
+	const stop = handler.collectorManager
 		.makeCollector<APIMessageComponentInteraction>(historyId)
 		.hookAndDestroy((button) =>
 			send(button, {
@@ -71,7 +73,7 @@ export const handleLockConfirmation = async (
 						user: member.user,
 						cases: history,
 						filterTriggers: filterTriggers?.count,
-						logChannelId: settings?.modActionLogChannel,
+						logChannelId: logWebhook?.channelId,
 					}),
 				],
 				flags: 64,

@@ -601,12 +601,6 @@ export class Handler {
 	}
 
 	private async handleForbiddenNameLog(log: ForbiddenNameLog) {
-		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: log.data.guildId } });
-
-		if (!settings?.filterTriggerLogChannel) {
-			return;
-		}
-
 		const webhook = await this.assertWebhook(log.data.guildId, LogChannelType.filter);
 		if (!webhook) {
 			return;

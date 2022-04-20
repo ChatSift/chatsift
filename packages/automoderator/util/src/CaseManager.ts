@@ -31,6 +31,7 @@ export interface BaseCaseCreateData<Action extends CaseAction = CaseAction> {
 	actionType: Action;
 	reason?: string;
 	notifyUser?: boolean;
+	applyAction?: boolean;
 }
 
 export type DurationCaseType = 'ban' | 'mute';
@@ -348,13 +349,16 @@ export class CaseManager {
 
 	public create(data: CaseData): Promise<[cs: Case, warnTrigger?: Case]> {
 		data.notifyUser ??= true;
+		data.applyAction ??= true;
 
 		return this.prisma.$transaction<[Case, Case?]>(async (prisma) => {
 			const cs = await this.internalCreate(data, prisma);
 			if (data.notifyUser) {
 				await this.notifyUser(cs);
 			}
-			await this.handlePunishment(cs, data, prisma);
+			if (data.applyAction) {
+				await this.handlePunishment(cs, data, prisma);
+			}
 
 			const cases: [Case, Case?] = [cs];
 
@@ -364,7 +368,9 @@ export class CaseManager {
 					if (data.notifyUser) {
 						await this.notifyUser(cs);
 					}
-					await this.handlePunishment(cs, await this.dataFromCase(cs), prisma);
+					if (data.applyAction) {
+						await this.handlePunishment(cs, await this.dataFromCase(cs), prisma);
+					}
 					cases.push(triggeredCase);
 				}
 			}
