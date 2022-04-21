@@ -71,7 +71,7 @@ export class FilesRunner implements IRunner<FilesTransform, MaliciousFile[], Fil
 
 		for (const promise of await Promise.allSettled(promises)) {
 			if (promise.status === 'rejected') {
-				this.logger.error({ e: promise.reason as unknown }, 'Failed to fetch the contents of a file');
+				this.logger.error(promise.reason, 'Failed to fetch the contents of a file');
 				continue;
 			}
 

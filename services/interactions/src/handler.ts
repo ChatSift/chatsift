@@ -65,7 +65,7 @@ export class Handler {
 			const internal = !(e instanceof ControlFlowError);
 
 			if (internal) {
-				this.logger.error({ error: e }, `Failed to execute command "${data.name}"`);
+				this.logger.error(e as any, `Failed to execute command "${data.name}"`);
 			}
 
 			const error = e as { message?: string; toString: () => string };
@@ -103,7 +103,7 @@ export class Handler {
 				const internal = !(e instanceof ControlFlowError);
 
 				if (internal) {
-					this.logger.error({ error: e }, `Failed to execute component "${data.custom_id}"`);
+					this.logger.error(e as any, `Failed to execute component "${data.custom_id}"`);
 				}
 
 				const error = e as { message?: string; toString: () => string };

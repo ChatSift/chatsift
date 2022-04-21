@@ -37,7 +37,7 @@ void (async () => {
 			const boom = isBoom(e) ? e : new Boom(e);
 
 			if (boom.output.statusCode === 500) {
-				logger.error({ error: boom }, boom.message);
+				logger.error(boom, boom.message);
 			}
 
 			return sendBoom(boom, res);
