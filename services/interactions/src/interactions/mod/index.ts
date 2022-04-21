@@ -4,4 +4,6 @@ export * from './ban';
 export * from './kick';
 export * from './mute';
 export * from './softban';
+export * from './unban';
+export * from './unmute';
 export * from './warn';

@@ -9,7 +9,7 @@ import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { Log } from '@automoderator/broker-types';
 import ms from '@naval-base/ms';
-import { CaseAction } from '@prisma/client';
+import { CaseAction, PrismaClient } from '@prisma/client';
 import { handleLockConfirmation } from './sub/handleLockConfirmation';
 
 @injectable()
@@ -20,6 +20,7 @@ export default class implements Command {
 		public readonly guildLogs: PubSubPublisher<Log>,
 		public readonly checker: PermissionsChecker,
 		public readonly cases: CaseManager,
+		public readonly prisma: PrismaClient,
 	) {}
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof MuteCommand>) {
@@ -61,6 +62,8 @@ export default class implements Command {
 			return;
 		}
 
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: interaction.guild_id } });
+
 		await this.cases.create({
 			actionType: CaseAction.mute,
 			guildId: interaction.guild_id,
@@ -73,6 +76,7 @@ export default class implements Command {
 			reason,
 			refId,
 			expiresAt,
+			unmuteRoles: settings?.useTimeoutsByDefault ? null : undefined,
 		});
 
 		await send(interaction, { content: `Successfully muted ${targetTag}`, components: [], embeds: [] });
