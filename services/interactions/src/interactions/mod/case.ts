@@ -10,7 +10,6 @@ const csOption = {
 export const CaseCommand = {
 	name: 'case',
 	description: 'Run actions on a given case',
-	default_permission: false,
 	options: [
 		{
 			name: 'show',

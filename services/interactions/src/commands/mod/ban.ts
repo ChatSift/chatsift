@@ -72,6 +72,6 @@ export default class implements Command {
 			expiresAt,
 		});
 
-		await send(interaction, { content: `Successfully softbanned ${targetTag}`, components: [], embeds: [] });
+		await send(interaction, { content: `Successfully banned ${targetTag}`, components: [], embeds: [] });
 	}
 }
