@@ -55,9 +55,11 @@ export class Handler {
 		}
 	}
 
-	private async handleTimedCase(id: number) {
+	private async handleTimedCase(id: number): Promise<unknown> {
 		const cs = await this.prisma.case.findFirst({ where: { id }, rejectOnNotFound: true });
-		return this.caseManager.undoTimedAction(cs);
+		if (!cs.useTimeouts) {
+			return this.caseManager.undoTimedAction(cs);
+		}
 	}
 
 	public init(): void {

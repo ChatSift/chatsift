@@ -238,7 +238,7 @@ export class CaseManager {
 				});
 			}
 
-			case 'unmute': {
+			case CaseAction.unmute: {
 				if (cs.useTimeouts) {
 					return this.rest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(
 						Routes.guildMember(cs.guildId, cs.targetId),
@@ -263,11 +263,11 @@ export class CaseManager {
 				});
 			}
 
-			case 'kick': {
+			case CaseAction.kick: {
 				return this.rest.delete(Routes.guildMember(cs.guildId, cs.targetId));
 			}
 
-			case 'softban': {
+			case CaseAction.softban: {
 				await this.rest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(cs.guildId, cs.targetId), {
 					data: {
 						delete_message_days: data.deleteDays ?? 1,
@@ -276,7 +276,7 @@ export class CaseManager {
 				return this.rest.delete(Routes.guildBan(cs.guildId, cs.targetId));
 			}
 
-			case 'ban': {
+			case CaseAction.ban: {
 				return this.rest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(cs.guildId, cs.targetId), {
 					data: {
 						delete_message_days: data.deleteDays,
@@ -284,7 +284,7 @@ export class CaseManager {
 				});
 			}
 
-			case 'unban': {
+			case CaseAction.unban: {
 				return this.rest.delete(Routes.guildBan(cs.guildId, cs.targetId));
 			}
 		}
@@ -403,6 +403,7 @@ export class CaseManager {
 					: undefined,
 			reason: 'Automated timed action expiry',
 			refId: cs.caseId,
+			unmuteRoles: cs.useTimeouts ? null : undefined,
 		});
 
 		return undone;
