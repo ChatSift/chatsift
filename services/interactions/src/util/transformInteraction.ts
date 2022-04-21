@@ -29,6 +29,7 @@ const transformChatInteraction = (
 			break;
 		}
 
+		// TODO(DD): Handle members not in guild correctly. That would be accomplished by having member be a field of user
 		case ApplicationCommandOptionType.User: {
 			const user = resolved.users?.[top.value];
 			const member = {

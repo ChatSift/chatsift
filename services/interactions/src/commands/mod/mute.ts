@@ -34,7 +34,7 @@ export default class implements Command {
 			throw new ControlFlowError('You cannot mute yourself');
 		}
 
-		if (await this.checker.check({ guild_id: interaction.guild_id, member }, UserPerms.mod)) {
+		if (member.permissions && (await this.checker.check({ guild_id: interaction.guild_id, member }, UserPerms.mod))) {
 			throw new ControlFlowError('You cannot action a member of the staff team');
 		}
 
@@ -46,6 +46,10 @@ export default class implements Command {
 				const duration = ms(durationString);
 				if (!duration) {
 					throw new ControlFlowError('Failed to parse the provided duration');
+				}
+
+				if (duration > ms('28d')) {
+					throw new ControlFlowError('Mute duration cannot be longer than 28 days');
 				}
 
 				expiresAt = new Date(Date.now() + duration);

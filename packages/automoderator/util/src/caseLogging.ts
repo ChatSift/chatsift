@@ -87,7 +87,7 @@ export const makeCaseEmbed = ({
 		const expiresAt = new Date(cs.expiresAt).getTime();
 		addFields(embed, {
 			name: 'Duration',
-			value: `${ms(expiresAt - new Date(cs.createdAt).getTime(), true)}; Expires: <t:${Math.round(
+			value: `${ms(new Date(cs.createdAt).getTime() - expiresAt, true)}; Expires: <t:${Math.round(
 				expiresAt / 1000,
 			)}:R>`,
 		});
@@ -121,7 +121,7 @@ export const makeHistoryEmbed = ({ user, cases, logChannelId, filterTriggers }: 
 	const colors = [8450847, 13091073, 16022395, 15747144] as const;
 	const details: string[] = [];
 
-	for (const cs of cases) {
+	for (const cs of cases.sort((a, b) => a.id - b.id)) {
 		if (cs.actionType === 'ban') {
 			counts.ban++;
 			points += 3;

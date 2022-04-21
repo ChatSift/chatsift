@@ -8,6 +8,7 @@ import { container } from 'tsyringe';
 import { Gateway } from './gateway';
 import { PrismaClient } from '@prisma/client';
 import Redis, { Redis as IORedis } from 'ioredis';
+import { createAmqp, PubSubPublisher } from '@cordis/brokers';
 
 void (async () => {
 	const config = initConfig();
@@ -24,6 +25,12 @@ void (async () => {
 		logger.warn({ req }, `Aborted request ${req.method!} ${req.path!}`);
 	});
 
+	const { channel } = await createAmqp(config.amqpUrl);
+	const logs = new PubSubPublisher(channel);
+
+	await logs.init({ name: 'guild_logs', fanout: false });
+
+	container.register(PubSubPublisher, { useValue: logs });
 	container.register(DiscordRest, { useValue: discordRest });
 	container.register<IORedis>(kRedis, { useValue: new Redis(config.redisUrl) });
 	container.register<Logger>(kLogger, { useValue: logger });

@@ -107,7 +107,7 @@ export class Handler {
 
 			let refCs: Case | undefined;
 			if (entry.refId) {
-				refCs = (await this.prisma.case.findFirst({ where: { id: entry.refId } }))!;
+				refCs = (await this.prisma.case.findFirst({ where: { guildId: entry.guildId, caseId: entry.refId } }))!;
 			}
 
 			const embed = makeCaseEmbed({

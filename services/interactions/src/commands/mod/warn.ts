@@ -28,7 +28,7 @@ export default class implements Command {
 			throw new ControlFlowError('You cannot warn yourself');
 		}
 
-		if (await this.checker.check({ guild_id: interaction.guild_id, member }, UserPerms.mod)) {
+		if (member.permissions && (await this.checker.check({ guild_id: interaction.guild_id, member }, UserPerms.mod))) {
 			throw new ControlFlowError('You cannot action a member of the staff team');
 		}
 
