@@ -3,7 +3,6 @@ import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 export const KickCommand = {
 	name: 'kick',
 	description: 'Kicks a member',
-	default_permission: false,
 	options: [
 		{
 			name: 'user',
