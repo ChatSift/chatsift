@@ -172,7 +172,8 @@ export class CaseManager {
 						  }
 						: undefined,
 				task:
-					(data.actionType === CaseAction.ban || data.actionType === CaseAction.mute) && data.expiresAt
+					(data.actionType === CaseAction.ban || (data.actionType === CaseAction.mute && data.unmuteRoles !== null)) &&
+					data.expiresAt
 						? {
 								create: {
 									task: {
@@ -406,6 +407,7 @@ export class CaseManager {
 			unmuteRoles: cs.useTimeouts ? null : undefined,
 		});
 
+		await this.prisma.timedCaseTask.delete({ where: { caseId: cs.id }, include: { task: true } });
 		return undone;
 	}
 }

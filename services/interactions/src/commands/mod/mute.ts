@@ -63,7 +63,6 @@ export default class implements Command {
 		}
 
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: interaction.guild_id } });
-
 		await this.cases.create({
 			actionType: CaseAction.mute,
 			guildId: interaction.guild_id,

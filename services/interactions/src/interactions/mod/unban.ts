@@ -15,10 +15,5 @@ export const UnbanCommand = {
 			description: 'The reason of this action',
 			type: ApplicationCommandOptionType.String,
 		},
-		{
-			name: 'reference',
-			description: 'The reference case',
-			type: ApplicationCommandOptionType.Integer,
-		},
 	],
 } as const;

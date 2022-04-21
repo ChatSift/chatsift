@@ -18,7 +18,7 @@ export default class implements Command {
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof UnbanCommand>) {
 		await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
-		const { user: member, reason, reference: refId } = args;
+		const { user: member, reason } = args;
 		if (reason && reason.length >= 1900) {
 			throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
 		}
@@ -26,18 +26,30 @@ export default class implements Command {
 		const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
 		const targetTag = `${member.user.username}#${member.user.discriminator}`;
 
-		await this.cases.create({
-			actionType: CaseAction.unban,
-			guildId: interaction.guild_id,
-			mod: {
-				id: interaction.member.user.id,
-				tag: modTag,
+		const cs = await this.prisma.case.findFirst({
+			where: {
+				guildId: interaction.guild_id,
+				targetId: member.user.id,
+				actionType: CaseAction.ban,
+				task: { isNot: null },
 			},
-			targetId: member.user.id,
-			targetTag,
-			reason,
-			refId,
 		});
+
+		if (cs) {
+			await this.cases.undoTimedAction(cs);
+		} else {
+			await this.cases.create({
+				actionType: CaseAction.unban,
+				guildId: interaction.guild_id,
+				mod: {
+					id: interaction.member.user.id,
+					tag: modTag,
+				},
+				targetId: member.user.id,
+				targetTag,
+				reason,
+			});
+		}
 
 		await send(interaction, { content: `Successfully unbanned ${targetTag}` });
 	}
