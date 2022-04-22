@@ -87,7 +87,7 @@ export const makeCaseEmbed = ({
 		const expiresAt = new Date(cs.expiresAt).getTime();
 		addFields(embed, {
 			name: 'Duration',
-			value: `${ms(new Date(cs.createdAt).getTime() - expiresAt, true)}; Expires: <t:${Math.round(
+			value: `${ms(expiresAt - new Date(cs.createdAt).getTime(), true)}; Expires: <t:${Math.round(
 				expiresAt / 1000,
 			)}:R>`,
 		});

@@ -11,13 +11,14 @@ export const MuteCommand = {
 			required: true,
 		},
 		{
-			name: 'reason',
-			description: 'The reason of this action',
-			type: ApplicationCommandOptionType.String,
-		},
-		{
 			name: 'duration',
 			description: 'Optional duration',
+			type: ApplicationCommandOptionType.String,
+			required: true,
+		},
+		{
+			name: 'reason',
+			description: 'The reason of this action',
 			type: ApplicationCommandOptionType.String,
 		},
 		{

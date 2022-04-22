@@ -39,23 +39,21 @@ export default class implements Command {
 		}
 
 		let expiresAt: Date | undefined;
-		if (durationString) {
-			const durationMinutes = Number(durationString);
+		const durationMinutes = Number(durationString);
 
-			if (isNaN(durationMinutes)) {
-				const duration = ms(durationString);
-				if (!duration) {
-					throw new ControlFlowError('Failed to parse the provided duration');
-				}
-
-				if (duration > ms('28d')) {
-					throw new ControlFlowError('Mute duration cannot be longer than 28 days');
-				}
-
-				expiresAt = new Date(Date.now() + duration);
-			} else {
-				expiresAt = new Date(Date.now() + durationMinutes * 6e4);
+		if (isNaN(durationMinutes)) {
+			const duration = ms(durationString);
+			if (!duration) {
+				throw new ControlFlowError('Failed to parse the provided duration');
 			}
+
+			if (duration > ms('28d')) {
+				throw new ControlFlowError('Mute duration cannot be longer than 28 days');
+			}
+
+			expiresAt = new Date(Date.now() + duration);
+		} else {
+			expiresAt = new Date(Date.now() + durationMinutes * 6e4);
 		}
 
 		const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;

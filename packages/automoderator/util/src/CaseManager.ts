@@ -162,7 +162,7 @@ export class CaseManager {
 				reason: data.reason,
 				expiresAt:
 					data.actionType === CaseAction.ban || data.actionType === CaseAction.mute ? data.expiresAt : undefined,
-				useTimeouts: data.actionType === CaseAction.mute ? data.unmuteRoles === null : false,
+				useTimeouts: 'unmuteRoles' in data ? data.unmuteRoles === null : false,
 				unmuteRoles:
 					data.actionType === CaseAction.mute && data.unmuteRoles
 						? {
@@ -172,8 +172,7 @@ export class CaseManager {
 						  }
 						: undefined,
 				task:
-					(data.actionType === CaseAction.ban || (data.actionType === CaseAction.mute && data.unmuteRoles !== null)) &&
-					data.expiresAt
+					(data.actionType === CaseAction.ban || data.actionType === CaseAction.mute) && data.expiresAt
 						? {
 								create: {
 									task: {
@@ -407,7 +406,10 @@ export class CaseManager {
 			unmuteRoles: cs.useTimeouts ? null : undefined,
 		});
 
-		await this.prisma.timedCaseTask.delete({ where: { caseId: cs.id }, include: { task: true } });
+		try {
+			await this.prisma.timedCaseTask.delete({ where: { caseId: cs.id }, include: { task: true } });
+		} catch {}
+
 		return undone;
 	}
 }
