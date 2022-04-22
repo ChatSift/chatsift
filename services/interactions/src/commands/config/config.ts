@@ -21,6 +21,7 @@ import type { Command } from '../../command';
 import { Handler } from '#handler';
 import { GuildSettings, LogChannelType, LogChannelWebhook, PrismaClient } from '@prisma/client';
 import ms from '@naval-base/ms';
+import fetch from 'node-fetch';
 
 @injectable()
 export default class implements Command {
@@ -151,12 +152,22 @@ export default class implements Command {
 						? channel.id
 						: (await this.discordRest.get<APIThreadChannel>(Routes.channel(channel.id)))!.parent_id!;
 
+				const names = {
+					[LogChannelType.mod]: 'CASE-ICO',
+					[LogChannelType.filter]: 'FILTER-ICO',
+					[LogChannelType.user]: 'USER-ICO',
+					[LogChannelType.message]: 'MSG-ICO',
+				} as const;
+
+				const iconRes = await fetch(`https://automoderator.app/wp-content/uploads/2022/03/${names[logType]}.png`);
+				const buffer = await iconRes.buffer();
+
 				const webhook = await this.discordRest.post<APIWebhook, RESTPostAPIChannelWebhookJSONBody>(
 					Routes.channelWebhooks(parentId),
 					{
 						data: {
 							name: `${logType[0]!.toUpperCase()}${logType.slice(1)} Logs`,
-							// TODO(DD): Avatars need to be served somewhere
+							avatar: `data:image/png;base64,${buffer.toString('base64')}`,
 						},
 					},
 				);
