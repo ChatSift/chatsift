@@ -97,7 +97,7 @@ export default class implements Command {
 					}
 
 					await this.prisma.case.delete({ where: { id: cs.id } });
-					return await send(interaction, { content: 'Successfully deleted case deleted' });
+					return await send(interaction, { content: 'Successfully deleted case', embeds: [] });
 				} catch {
 					await send(interaction, { content: 'Timed out.' });
 				}
@@ -164,7 +164,7 @@ export default class implements Command {
 				const expiresAt = new Date(Date.now() + duration);
 
 				const cs = await this.prisma.case.findFirst({
-					where: { guildId: interaction.guild_id, caseId: args.reason.case },
+					where: { guildId: interaction.guild_id, caseId: args.duration.case },
 				});
 
 				if (!cs) {
@@ -203,7 +203,7 @@ export default class implements Command {
 
 			case 'reference': {
 				const cs = await this.prisma.case.findFirst({
-					where: { guildId: interaction.guild_id, caseId: args.reason.case },
+					where: { guildId: interaction.guild_id, caseId: args.reference.case },
 				});
 
 				if (!cs) {
@@ -213,7 +213,6 @@ export default class implements Command {
 				await this.prisma.case.update({
 					data: {
 						refId: args.reference.reference,
-						reason: args.reason.reason,
 						modId: cs.modId ? cs.modId : interaction.member.user.id,
 						modTag: cs.modTag
 							? cs.modTag

@@ -53,6 +53,7 @@ services:
 
   scheduler:
     environment:
+      DISCORD_CLIENT_ID: '123'
       DISCORD_TOKEN: 'awooga'
       INTERNAL_API_TOKEN: 'asdf'
       ELASTIC_PASSWORD: 'owo'

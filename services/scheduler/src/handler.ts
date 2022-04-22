@@ -1,8 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { CaseAction, PrismaClient } from '@prisma/client';
 import { inject, singleton } from 'tsyringe';
 import { CaseManager } from '@automoderator/util';
-import { kLogger } from '@automoderator/injection';
+import { Config, kConfig, kLogger } from '@automoderator/injection';
 import type { Logger } from 'pino';
+import ms from '@naval-base/ms';
 
 @singleton()
 export class Handler {
@@ -10,9 +11,10 @@ export class Handler {
 		public readonly prisma: PrismaClient,
 		public readonly caseManager: CaseManager,
 		@inject(kLogger) public readonly logger: Logger,
+		@inject(kConfig) public readonly config: Config,
 	) {}
 
-	private async handle(): Promise<void> {
+	private async handleTasks(): Promise<void> {
 		const tasks = await this.prisma.task.findMany({
 			where: {
 				runAt: {
@@ -55,6 +57,35 @@ export class Handler {
 		}
 	}
 
+	private async handleAutoPardons(): Promise<void> {
+		const cases = await this.prisma.case.findMany({ where: { pardonedBy: null, actionType: CaseAction.warn } });
+		const pardonAfterCache = new Map<string, number | null>();
+
+		for (const cs of cases) {
+			let pardonAfter = pardonAfterCache.get(cs.guildId);
+
+			if (pardonAfter === null) {
+				continue;
+			} else if (!pardonAfter) {
+				const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: cs.guildId } });
+				pardonAfter = settings?.autoPardonWarnsAfter ?? null;
+				pardonAfterCache.set(cs.guildId, pardonAfter);
+				if (!pardonAfter) {
+					continue;
+				}
+			}
+
+			if (cs.createdAt.getTime() + ms(`${pardonAfter}d`) <= Date.now()) {
+				await this.prisma.case.update({
+					data: {
+						pardonedBy: this.config.discordClientId,
+					},
+					where: { id: cs.id },
+				});
+			}
+		}
+	}
+
 	private async handleTimedCase(id: number): Promise<unknown> {
 		const cs = await this.prisma.case.findFirst({ where: { id }, rejectOnNotFound: true });
 		if (!cs.useTimeouts) {
@@ -63,6 +94,9 @@ export class Handler {
 	}
 
 	public init(): void {
-		setTimeout(() => void this.handle(), 1e4).unref();
+		setTimeout(() => {
+			void this.handleTasks();
+			void this.handleAutoPardons();
+		}, 1e4).unref();
 	}
 }

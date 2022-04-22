@@ -389,7 +389,7 @@ export class CaseManager {
 		});
 	}
 
-	public async undoTimedAction(cs: Case): Promise<Case> {
+	public async undoTimedAction(cs: Case, reason?: string): Promise<Case> {
 		const [undone] = await this.create({
 			actionType: this.getReversalAction(cs.actionType),
 			guildId: cs.guildId,
@@ -402,7 +402,7 @@ export class CaseManager {
 							tag: cs.modTag,
 					  }
 					: undefined,
-			reason: 'Automated timed action expiry',
+			reason: reason ?? 'automated timed action expiry',
 			refId: cs.caseId,
 			unmuteRoles: cs.useTimeouts ? null : undefined,
 		});

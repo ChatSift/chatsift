@@ -97,7 +97,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 						id: this.config.discordClientId,
 						tag: 'AutoModerator',
 					},
-					reason: `Automated punishment for using the word/phrase ${entry.word}`,
+					reason: `automated punishment for using the word/phrase ${entry.word}`,
 					notifyUser: false,
 					expiresAt,
 				}),
