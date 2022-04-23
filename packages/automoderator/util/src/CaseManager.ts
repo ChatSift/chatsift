@@ -74,8 +74,8 @@ export class CaseManager {
 	) {}
 
 	// TODO(DD): Figure out a better way to handle this schema-wise;
-	// TODO(DD): used to be an sql function used on insert but prisma doesn't play with those at all.
-	// TODO(DD): this is more than sub-optimal, esp. without caching, but won't be an issue short-term.
+	// used to be an sql function used on insert but prisma doesn't play with those at all.
+	// this is more than sub-optimal, esp. without caching, but won't be an issue short-term.
 	public async getNextCaseId(guildId: string, prisma: TransactionPrisma = this.prisma): Promise<number> {
 		return (
 			((

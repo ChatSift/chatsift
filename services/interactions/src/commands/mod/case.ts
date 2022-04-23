@@ -52,7 +52,12 @@ export default class implements Command {
 					where: { guildId: interaction.guild_id, logType: LogChannelType.mod },
 				});
 
-				const embed = makeCaseEmbed({ logChannelId: logWebhook?.channelId, cs, target, mod, refCs });
+				let pardonedBy: APIUser | undefined;
+				if (cs.pardonedBy) {
+					pardonedBy = cs.pardonedBy === mod?.id ? mod : await this.discord.get<APIUser>(Routes.user(cs.targetId));
+				}
+
+				const embed = makeCaseEmbed({ logChannelId: logWebhook?.channelId, cs, target, mod, refCs, pardonedBy });
 
 				if (isShow) {
 					return send(interaction, { embed });
