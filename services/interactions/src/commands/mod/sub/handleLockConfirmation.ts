@@ -73,7 +73,7 @@ export const handleLockConfirmation = async (
 						user: member.user,
 						cases: history,
 						filterTriggers: filterTriggers?.count,
-						logChannelId: logWebhook?.channelId,
+						logChannelId: logWebhook?.threadId ?? logWebhook?.channelId,
 					}),
 				],
 				flags: 64,
