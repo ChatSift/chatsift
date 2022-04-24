@@ -20,7 +20,7 @@
 	"homepage": "https://github.com/didinele/AutoModerator#readme",
 	"devDependencies": {
 		"@types/node": "^16.10.3",
-		"discord-api-types": "^0.29.0",
+		"discord-api-types": "^0.31.2",
 		"typescript": "^4.5.5"
 	},
 	"dependencies": {

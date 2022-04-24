@@ -24,7 +24,7 @@
 	},
 	"dependencies": {
 		"@chatsift/utils": "workspace:^0.1.0",
-		"discord-api-types": "^0.29.0",
+		"discord-api-types": "^0.31.2",
 		"tslib": "^2.3.1"
 	}
 }

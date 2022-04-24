@@ -22,10 +22,10 @@
 	},
 	"homepage": "https://github.com/ChatSift/automoderator#readme",
 	"devDependencies": {
-		"@prisma/client": "^3.10.0",
+		"@prisma/client": "^3.12.0",
 		"@types/node": "^16.11.19",
 		"@types/node-fetch": "^2.5.12",
-		"discord-api-types": "^0.29.0",
+		"discord-api-types": "^0.31.2",
 		"typescript": "^4.5.5"
 	},
 	"dependencies": {
