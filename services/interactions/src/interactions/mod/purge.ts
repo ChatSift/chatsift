@@ -3,7 +3,6 @@ import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 export const PurgeCommand = {
 	name: 'purge',
 	description: 'Purges messages based off of your given arguments',
-	default_permission: false,
 	options: [
 		{
 			name: 'amount',

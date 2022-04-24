@@ -3,7 +3,6 @@ import { ApplicationCommandOptionType } from 'discord-api-types/v9';
 export const LookupInviteCommand = {
 	name: 'lookup-invite',
 	description: 'Looks up server information from a given invite',
-	default_permission: false,
 	options: [
 		{
 			name: 'invite',
