@@ -71,7 +71,6 @@ export default class implements Command {
 		void send(interaction, {}, InteractionResponseType.DeferredChannelMessageWithSource);
 
 		const {
-			muterole,
 			pardonwarnsafter,
 			joinage,
 			blankavatar,
@@ -83,10 +82,6 @@ export default class implements Command {
 		} = args;
 
 		let settings: Partial<GuildSettings> = {};
-
-		if (muterole) {
-			settings.muteRole = muterole.id;
-		}
 
 		if (pardonwarnsafter != null) {
 			settings.autoPardonWarnsAfter = pardonwarnsafter;

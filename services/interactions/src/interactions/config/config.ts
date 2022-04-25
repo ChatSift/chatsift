@@ -5,12 +5,6 @@ export const ConfigCommand = {
 	description: "Update your server's config",
 	options: [
 		{
-			name: 'muterole',
-			description: 'Role used to silence people when they are muted',
-			type: ApplicationCommandOptionType.Role,
-			required: false,
-		},
-		{
 			name: 'pardonwarnsafter',
 			description: 'How many days to take before automatically pardoning warnings',
 			type: ApplicationCommandOptionType.Integer,

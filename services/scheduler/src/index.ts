@@ -7,9 +7,10 @@ import type { Logger } from 'pino';
 import { container } from 'tsyringe';
 import { Handler } from './handler';
 import { PrismaClient } from '@prisma/client';
-import Redis, { Redis as IORedis } from 'ioredis';
+import { createAmqp, PubSubPublisher } from '@cordis/brokers';
+import Redis from 'ioredis';
 
-void (() => {
+void (async () => {
 	const config = initConfig();
 	container.register(Rest, { useValue: new Rest(config.apiDomain, config.internalApiToken) });
 
@@ -24,8 +25,16 @@ void (() => {
 		logger.warn({ req }, `Aborted request ${req.method!} ${req.path!}`);
 	});
 
+	const { channel } = await createAmqp(config.amqpUrl);
+	const logs = new PubSubPublisher(channel);
+
+	await logs.init({ name: 'guild_logs', fanout: false });
+
+	const redis = new Redis(config.redisUrl);
+
+	container.register(kRedis, { useValue: redis });
+	container.register(PubSubPublisher, { useValue: logs });
 	container.register(DiscordRest, { useValue: discordRest });
-	container.register<IORedis>(kRedis, { useValue: new Redis(config.redisUrl) });
 	container.register<Logger>(kLogger, { useValue: logger });
 	container.register(PrismaClient, { useValue: new PrismaClient() });
 

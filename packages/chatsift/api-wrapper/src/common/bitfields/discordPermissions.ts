@@ -33,6 +33,16 @@ const initialPermissions = BitField.makeFlags([
 	'manageRoles',
 	'manageWebhooks',
 	'manageEmojis',
+	'useApplicationCommands',
+	'requestToSpeak',
+	'manageEvents',
+	'manageThreads',
+	'createPublicThreads',
+	'createPrivateThreads',
+	'useExternalStickers',
+	'sendMessagesInThreads',
+	'useEmbeddedActivities',
+	'moderateMembers',
 ]);
 
 const PERMISSIONS: typeof initialPermissions & { all: bigint } = {
