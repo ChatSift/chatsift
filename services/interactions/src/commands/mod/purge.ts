@@ -41,7 +41,9 @@ export default class implements Command {
 			channelId = args.channel.id;
 		}
 
-		if (args.amount) {
+		if (args.amount == null) {
+			args.amount = 100;
+		} else {
 			if (args.amount < 1) {
 				throw new ControlFlowError('Please provide an amount equal or greater than 1');
 			}
@@ -49,8 +51,6 @@ export default class implements Command {
 			if (args.amount > 500) {
 				args.amount = 500;
 			}
-		} else {
-			args.amount = 100;
 		}
 
 		if ((args.start && !args.end) || (!args.start && args.end)) {
