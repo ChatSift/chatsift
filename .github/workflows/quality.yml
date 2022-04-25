@@ -27,6 +27,9 @@ jobs:
       - name: Install deps
         run: pnpm i
 
+      - name: Make sure prisma schema is up to date
+        run: pnpx prisma generate
+
       - name: Build the code
         run: pnpm run build
 
