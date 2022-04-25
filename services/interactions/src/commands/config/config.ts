@@ -54,7 +54,7 @@ export default class implements Command {
 					settings.autoPardonWarnsAfter ? `${settings.autoPardonWarnsAfter} days` : 'never'
 				}
         • automatically kick users with accounts younger than: ${
-					settings.minJoinAge ? ms(settings.minJoinAge, true) : 'disabled'
+					settings.minJoinAge ? ms(Number(settings.minJoinAge), true) : 'disabled'
 				}
         • no blank avatar: ${settings.noBlankAvatar ? 'on' : 'off'}
 				• reports channel: ${atChannel(settings.reportsChannel)}
@@ -114,7 +114,7 @@ export default class implements Command {
 				throw new ControlFlowError('Please provide at least 3 minutes for the min join age');
 			}
 
-			settings.minJoinAge = parsed;
+			settings.minJoinAge = BigInt(parsed);
 		}
 
 		if (blankavatar != null) {

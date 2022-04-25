@@ -113,8 +113,7 @@ model GuildSettings {
   useGlobalFilters        Boolean     @default(false) @map("use_global_filters")
   useFileFilters          Boolean     @default(false) @map("use_file_filters")
   useInviteFilters        Boolean     @default(false) @map("use_invite_filters")
-  // This is stored in miliseconds
-  minJoinAge              Int?        @map("min_join_age")
+  minJoinAge              BigInt?        @map("min_join_age")
   noBlankAvatar           Boolean     @default(false) @map("no_blank_avatar")
   reportsChannel          String?     @map("reports_channel")
   antispamAmount          Int?        @map("antispam_amount")
