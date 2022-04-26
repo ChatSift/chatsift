@@ -93,7 +93,7 @@ export class CaseManager {
 
 	public async makeWarnTriggerCase(cs: Case, prisma: TransactionPrisma = this.prisma): Promise<Case | null> {
 		const userWarns = await prisma.case.findMany({
-			where: { targetId: cs.targetId, guildId: cs.guildId, actionType: CaseAction.warn },
+			where: { targetId: cs.targetId, guildId: cs.guildId, actionType: CaseAction.warn, pardonedBy: { not: null } },
 		});
 		const warnPunishment = await prisma.warnPunishment.findFirst({
 			where: { guildId: cs.guildId, warns: userWarns.length },

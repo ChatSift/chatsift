@@ -11,6 +11,12 @@ export interface PendingItem<T> {
 	timeout?: NodeJS.Timeout;
 }
 
+export class CollectorTimeoutError extends Error {
+	public constructor(public readonly timeout: number) {
+		super(`Collector timed out after ${timeout}ms`);
+	}
+}
+
 export class Collector<T extends CollectableInteraction> {
 	private readonly buffer: T[] = [];
 	private readonly pending: PendingItem<T>[] = [];
@@ -47,7 +53,7 @@ export class Collector<T extends CollectableInteraction> {
 			const item: PendingItem<T> = {
 				resolve,
 				reject,
-				timeout: timeout ? setTimeout(() => reject(new Error('Timed out.')), timeout).unref() : undefined,
+				timeout: timeout ? setTimeout(() => reject(new CollectorTimeoutError(timeout)), timeout).unref() : undefined,
 			};
 
 			this.pending.push(item);

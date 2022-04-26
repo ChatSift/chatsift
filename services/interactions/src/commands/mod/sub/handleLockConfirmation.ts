@@ -10,7 +10,7 @@ import {
 } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { container } from 'tsyringe';
-import { Handler } from '../../../handler';
+import { Handler, CollectorTimeoutError } from '../../../handler';
 import { send } from '../../../util';
 
 export const handleLockConfirmation = async (
@@ -91,9 +91,13 @@ export const handleLockConfirmation = async (
 			await send(interaction, { content: 'Cancelled.', components: [], embeds: [] });
 			return false;
 		}
-	} catch {
-		await send(interaction, { content: 'Timed out.', components: [], embeds: [] });
-		return false;
+	} catch (error) {
+		if (error instanceof CollectorTimeoutError) {
+			await send(interaction, { content: 'Timed out.', components: [], embeds: [] });
+			return false;
+		}
+
+		throw error;
 	}
 
 	return true;

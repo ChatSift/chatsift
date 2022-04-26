@@ -12,8 +12,6 @@ import {
 	OverwriteType,
 	RESTPutAPIChannelPermissionJSONBody,
 	Routes,
-} from 'discord-api-types/v10';
-import {
 	APIChannel,
 	APIGuildInteraction,
 	APISelectMenuComponent,

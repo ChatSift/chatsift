@@ -15,7 +15,7 @@ import {
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
-import { Handler } from '../../handler';
+import { Handler, CollectorTimeoutError } from '../../handler';
 
 @injectable()
 export default class implements Command {
@@ -110,11 +110,13 @@ export default class implements Command {
 
 					await this.prisma.case.delete({ where: { id: cs.id } });
 					return await send(interaction, { content: 'Successfully deleted case', embeds: [] });
-				} catch {
-					await send(interaction, { content: 'Timed out.' });
-				}
+				} catch (error) {
+					if (error instanceof CollectorTimeoutError) {
+						return send(interaction, { content: 'Timed out.' });
+					}
 
-				break;
+					throw error;
+				}
 			}
 
 			case 'pardon': {

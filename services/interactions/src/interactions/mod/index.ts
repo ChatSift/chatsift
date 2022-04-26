@@ -8,6 +8,7 @@ export * from './kick';
 export * from './lookup-invite';
 export * from './mute';
 export * from './purge';
+export * from './raid-cleanup';
 export * from './softban';
 export * from './unban';
 export * from './unmute';
