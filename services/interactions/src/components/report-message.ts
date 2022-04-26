@@ -314,7 +314,8 @@ export default class implements Component {
 									tag: `${interaction.member.user.username}#${interaction.member.user.discriminator}`,
 								},
 								expiresAt: state.duration ? new Date(Date.now() + state.duration) : undefined,
-								unmuteRoles: state.action === CaseAction.mute && settings?.useTimeoutsByDefault ? null : undefined,
+								unmuteRoles:
+									state.action === CaseAction.mute && (settings?.useTimeoutsByDefault ?? true) ? null : undefined,
 								reason: state.reason,
 							});
 

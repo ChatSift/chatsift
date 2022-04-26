@@ -77,7 +77,7 @@ export default class implements Command {
 			reason,
 			refId,
 			expiresAt,
-			unmuteRoles: settings?.useTimeoutsByDefault ? null : undefined,
+			unmuteRoles: settings?.useTimeoutsByDefault ?? true ? null : undefined,
 		});
 
 		await send(interaction, { content: `Successfully muted ${targetTag}`, components: [], embeds: [] });

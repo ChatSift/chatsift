@@ -21,7 +21,7 @@ export default class implements Command {
 					}
 
 					duration = ms(args.add.duration);
-					if (!duration) {
+					if (duration <= 0) {
 						throw new ControlFlowError('Failed to parse duration');
 					}
 				}
@@ -62,7 +62,7 @@ export default class implements Command {
 				const punishments = punishmentsData.map(
 					(p) =>
 						`• At ${p.warns} warns, a ${p.actionType} will be triggered${
-							p.duration ? ` which will last ${p.duration} minutes` : ''
+							p.duration ? ` which will last ${ms(Number(p.duration), true)}` : ''
 						}`,
 				);
 

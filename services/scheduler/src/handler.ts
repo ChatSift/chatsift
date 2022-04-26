@@ -94,7 +94,7 @@ export class Handler {
 	}
 
 	public init(): void {
-		setTimeout(() => {
+		setInterval(() => {
 			void this.handleTasks();
 			void this.handleAutoPardons();
 		}, 1e4).unref();

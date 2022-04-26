@@ -92,10 +92,13 @@ export class CaseManager {
 	}
 
 	public async makeWarnTriggerCase(cs: Case, prisma: TransactionPrisma = this.prisma): Promise<Case | null> {
-		const userWarns = await prisma.case.findMany({ where: { targetId: cs.targetId, guildId: cs.guildId } });
+		const userWarns = await prisma.case.findMany({
+			where: { targetId: cs.targetId, guildId: cs.guildId, actionType: CaseAction.warn },
+		});
 		const warnPunishment = await prisma.warnPunishment.findFirst({
 			where: { guildId: cs.guildId, warns: userWarns.length },
 		});
+		const settings = await prisma.guildSettings.findFirst({ where: { guildId: cs.guildId } });
 
 		if (!warnPunishment) {
 			return null;
@@ -120,7 +123,8 @@ export class CaseManager {
 					warnPunishment.actionType === WarnPunishmentAction.mute
 						? new Date(Date.now() + Number(warnPunishment.duration))
 						: undefined,
-				reason: `Automatic punishment triggered for reaching ${userWarns.length} warnings`,
+				reason: `automated punishment triggered for reaching ${userWarns.length} warnings`,
+				unmuteRoles: settings?.useTimeoutsByDefault ?? true ? null : undefined,
 			},
 			prisma,
 		);
@@ -347,11 +351,11 @@ export class CaseManager {
 		return null;
 	}
 
-	public create(data: CaseData): Promise<[cs: Case, warnTrigger?: Case]> {
+	public async create(data: CaseData): Promise<[cs: Case, warnTrigger?: Case]> {
 		data.notifyUser ??= true;
 		data.applyAction ??= true;
 
-		return this.prisma.$transaction<[Case, Case?]>(async (prisma) => {
+		const cases = await this.prisma.$transaction<[Case, Case?]>(async (prisma) => {
 			const cs = await this.internalCreate(data, prisma);
 			if (data.notifyUser) {
 				await this.notifyUser(cs);
@@ -369,7 +373,7 @@ export class CaseManager {
 						await this.notifyUser(cs);
 					}
 					if (data.applyAction) {
-						await this.handlePunishment(cs, await this.dataFromCase(cs), prisma);
+						await this.handlePunishment(triggeredCase, await this.dataFromCase(triggeredCase), prisma);
 					}
 					cases.push(triggeredCase);
 				}
@@ -379,13 +383,15 @@ export class CaseManager {
 				await this.lock(cs!);
 			}
 
-			this.logs.publish({
-				type: LogTypes.modAction,
-				data: cases as Case[],
-			});
-
 			return cases;
 		});
+
+		this.logs.publish({
+			type: LogTypes.modAction,
+			data: cases as Case[],
+		});
+
+		return cases;
 	}
 
 	public async undoTimedAction(cs: Case, reason?: string): Promise<Case> {

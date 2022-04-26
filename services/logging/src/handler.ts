@@ -111,7 +111,7 @@ export class Handler {
 			}
 
 			const embed = makeCaseEmbed({
-				logChannelId: webhook.channel_id,
+				logChannelId: webhook.threadId ?? webhook.channel_id,
 				cs: entry,
 				target,
 				mod,
