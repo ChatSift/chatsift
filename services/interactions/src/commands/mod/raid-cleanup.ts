@@ -76,8 +76,8 @@ export default class implements Command {
 
 		const { join, age, name, 'avatar-hash': hash, ban = false } = args;
 
-		if (join == null && age == null) {
-			throw new ControlFlowError('You must pass at least one of the given arguments');
+		if (join == null && age == null && name == null && hash == null) {
+			throw new ControlFlowError('You must pass at least one of the given arguments (other than ban)');
 		}
 
 		let joinCutOff: number | undefined;
