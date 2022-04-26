@@ -1,5 +1,5 @@
 import type { ConfigMutesCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
+import { ArgumentsOf, send, EMOTES } from '#util';
 import { DiscordPermissions } from '@chatsift/api-wrapper';
 import { ellipsis, sortChannels } from '@chatsift/discord-utils';
 import { Rest } from '@cordis/rest';
@@ -99,18 +99,7 @@ export default class implements Command {
 					(channel): APISelectMenuOption => ({
 						label: ellipsis(channel.name!, 25),
 						value: channel.id,
-						emoji:
-							channel.type === ChannelType.GuildText
-								? {
-										id: '779036156175188001',
-										name: 'ChannelText',
-										animated: false,
-								  }
-								: {
-										id: '816771723264393236',
-										name: 'ChannelCategory',
-										animated: false,
-								  },
+						emoji: channel.type === ChannelType.GuildText ? EMOTES.TEXT_CHANNEL : EMOTES.CATEGORY_CHANNEL,
 					}),
 				);
 

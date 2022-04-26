@@ -1,7 +1,7 @@
 /* istanbul ignore file */
 import { BitField, BitFieldResolvable } from '@cordis/bitfield';
 
-const FILTERS = BitField.makeFlags(['urls', 'files', 'invites', 'words', 'automod', 'global']);
+export const FILTERS = BitField.makeFlags(['urls', 'files', 'invites', 'words', 'automod', 'global']);
 
 export type FilterIgnoresResolvable = BitFieldResolvable<keyof typeof FILTERS>;
 
