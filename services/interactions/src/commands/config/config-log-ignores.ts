@@ -9,8 +9,6 @@ import {
 	APIMessageSelectMenuInteractionData,
 	APISelectMenuComponent,
 	InteractionResponseType,
-} from 'discord-api-types/v10';
-import {
 	APISelectMenuOption,
 	APIGuildInteraction,
 	RESTGetAPIGuildChannelsResult,

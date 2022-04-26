@@ -150,7 +150,7 @@ export default class implements Command {
 								{
 									type: ComponentType.SelectMenu,
 									custom_id: permsId,
-									min_values: 1,
+									min_values: 0,
 									max_values: permOptions.length,
 									options: permOptions,
 									placeholder: 'Permissions you want to deny',
@@ -163,7 +163,7 @@ export default class implements Command {
 								{
 									type: ComponentType.SelectMenu,
 									custom_id: ignoreId,
-									min_values: 1,
+									min_values: 0,
 									max_values: getChannelOptions(0).length,
 									options: getChannelOptions(0),
 									placeholder: 'Channels you want to exclude from the above permissions',

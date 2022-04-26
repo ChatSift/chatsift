@@ -4,11 +4,13 @@ import type { DiscordEvents } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
 import { CaseManager } from '@automoderator/util';
 import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
+import { Rest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
 import ms from '@naval-base/ms';
 import { CaseAction } from '@prisma/client';
-import type { APIMessageComponentInteraction } from 'discord-api-types/v9';
+import type { APIMessageComponentInteraction, RESTGetAPIGuildQuery } from 'discord-api-types/v9';
 import {
+	APIGuild,
 	APIGuildInteraction,
 	APIGuildMember,
 	GatewaySendPayload,
@@ -19,6 +21,7 @@ import {
 	Snowflake,
 	ComponentType,
 	ButtonStyle,
+	Routes,
 } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import type { Logger } from 'pino';
@@ -39,12 +42,32 @@ export default class implements Command {
 		@inject(kLogger) public readonly logger: Logger,
 		public readonly handler: Handler,
 		public readonly cases: CaseManager,
+		public readonly rest: Rest,
 	) {}
 
-	private _fetchGuildMembers(guildId: Snowflake): Promise<APIGuildMember[]> {
+	private async _fetchGuildMembers(interaction: APIGuildInteraction): Promise<APIGuildMember[]> {
+		const guild = await this.rest.get<APIGuild, RESTGetAPIGuildQuery>(Routes.guild(interaction.guild_id), {
+			query: { with_counts: true },
+		});
+
 		return new Promise((resolve) => {
 			const members: APIGuildMember[] = [];
 			let index = 0;
+
+			const interval = setInterval(() => {
+				void send(interaction, {
+					content: `Collecting all of your server members... This operation could take up to 2 minutes. ${
+						members.length
+					}/${guild.approximate_member_count!} members collected`,
+				}).catch(() => null);
+			}, ms('10s'));
+
+			const timeout = setTimeout(() => {
+				resolve(members);
+				// eslint-disable-next-line @typescript-eslint/no-use-before-define
+				this.gateway.off(GatewayDispatchEvents.GuildMembersChunk, handler);
+				clearInterval(interval);
+			}, ms('2m'));
 
 			const handler = (chunk: GatewayGuildMembersChunkDispatchData) => {
 				for (const member of chunk.members) {
@@ -53,8 +76,10 @@ export default class implements Command {
 					}
 				}
 
-				if (index++ === chunk.chunk_count) {
+				if (index++ === chunk.chunk_count || members.length === guild.approximate_member_count!) {
 					this.gateway.off(GatewayDispatchEvents.GuildMembersChunk, handler);
+					clearTimeout(timeout);
+					clearInterval(interval);
 					return resolve(members);
 				}
 			};
@@ -63,7 +88,7 @@ export default class implements Command {
 			this.gatewayBroadcaster.publish({
 				op: GatewayOpcodes.RequestGuildMembers,
 				d: {
-					guild_id: guildId,
+					guild_id: interaction.guild_id,
 					query: '',
 					limit: 0,
 				},
@@ -112,8 +137,12 @@ export default class implements Command {
 			}
 		}
 
-		await send(interaction, { content: 'Collecting all of your server members...' });
-		const allMembers = await this._fetchGuildMembers(interaction.guild_id);
+		await send(interaction, {
+			content:
+				'Collecting all of your server members... This operation could take up to 2 minutes. 0/? members collected',
+		});
+
+		const allMembers = await this._fetchGuildMembers(interaction);
 
 		await send(interaction, { content: 'Selecting members that match your criteria...' });
 

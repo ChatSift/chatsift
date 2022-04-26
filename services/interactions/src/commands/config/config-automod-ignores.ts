@@ -5,14 +5,6 @@ import { ellipsis, sortChannels } from '@chatsift/discord-utils';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { PrismaClient } from '@prisma/client';
 import {
-	APIButtonComponent,
-	APIChannel,
-	APIMessageComponentInteraction,
-	APIMessageSelectMenuInteractionData,
-	APISelectMenuComponent,
-	InteractionResponseType,
-} from 'discord-api-types/v10';
-import {
 	APISelectMenuOption,
 	APIGuildInteraction,
 	RESTGetAPIGuildChannelsResult,
@@ -20,6 +12,12 @@ import {
 	ComponentType,
 	ButtonStyle,
 	Routes,
+	APIButtonComponent,
+	APIChannel,
+	APIMessageComponentInteraction,
+	APIMessageSelectMenuInteractionData,
+	APISelectMenuComponent,
+	InteractionResponseType,
 } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
@@ -174,7 +172,7 @@ export default class implements Command {
 									custom_id: ignoresId,
 									disabled: true,
 									options: ignoreOptions,
-									min_values: 1,
+									min_values: 0,
 									max_values: ignoreOptions.length,
 									placeholder: 'Ignores',
 								},
