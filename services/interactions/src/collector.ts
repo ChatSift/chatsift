@@ -22,7 +22,7 @@ export class Collector<T extends CollectableInteraction> {
 	private readonly pending: PendingItem<T>[] = [];
 	private readonly hooks: CollectionHook<T>[] = [];
 
-	public constructor(private readonly id: string, private readonly manager: CollectorManager) {}
+	public constructor(private readonly ids: string[], private readonly manager: CollectorManager) {}
 
 	public push(interaction: T): void {
 		const currentlyPending = this.pending.shift();
@@ -122,7 +122,9 @@ export class Collector<T extends CollectableInteraction> {
 	}
 
 	public destroy() {
-		this.manager.collectors.delete(this.id);
+		for (const id of this.ids) {
+			this.manager.collectors.delete(id);
+		}
 	}
 }
 
@@ -136,9 +138,12 @@ export class CollectorManager {
 		}
 	}
 
-	public makeCollector<T extends CollectableInteraction>(id: string): Collector<T> {
-		const collector = new Collector<T>(id, this);
-		this.collectors.set(id, collector);
+	public makeCollector<T extends CollectableInteraction>(ids: string | string[]): Collector<T> {
+		ids = Array.isArray(ids) ? ids : [ids];
+		const collector = new Collector<T>(ids, this);
+		for (const id of ids) {
+			this.collectors.set(id, collector);
+		}
 		return collector;
 	}
 }

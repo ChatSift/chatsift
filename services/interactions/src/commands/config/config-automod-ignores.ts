@@ -67,9 +67,9 @@ export default class implements Command {
 
 			case 'update': {
 				const channelsId = nanoid();
-				const doneId = nanoid();
-				const updateId = nanoid();
 				const ignoresId = nanoid();
+				const updateId = nanoid();
+				const doneId = nanoid();
 
 				const state = {
 					page: 0,

@@ -39,7 +39,8 @@ export default class implements Command {
 			throw new ControlFlowError('You cannot report your own message.');
 		}
 
-		const reasonId = nanoid();
+		const reasonIdSelect = nanoid();
+		const reasonIdOther = nanoid();
 
 		const presetReportReasons = await this.prisma.presetReportReason.findMany({
 			where: { guildId: message.guild_id },
@@ -53,22 +54,13 @@ export default class implements Command {
 				components: [
 					{
 						type: ComponentType.SelectMenu,
-						custom_id: reasonId,
+						custom_id: reasonIdSelect,
 						min_values: 1,
 						max_values: 1,
-						options: [
-							{
-								label: 'Custom response',
-								value: 'other',
-								emoji: {
-									name: '❓',
-								},
-							},
-							...presetReportReasons.map((preset, idx) => ({
-								label: preset.reason,
-								value: String(idx),
-							})),
-						],
+						options: presetReportReasons.map((preset, idx) => ({
+							label: preset.reason,
+							value: String(idx),
+						})),
 					},
 				],
 			});
@@ -79,7 +71,7 @@ export default class implements Command {
 			components: [
 				{
 					type: ComponentType.Button,
-					custom_id: reasonId,
+					custom_id: reasonIdOther,
 					label: 'Custom response',
 					style: ButtonStyle.Secondary,
 					emoji: {
@@ -89,6 +81,7 @@ export default class implements Command {
 			],
 		});
 
+		console.log(components[0]?.components[0]);
 		await send(interaction, {
 			content: 'Please select a reason',
 			flags: 64,
@@ -96,7 +89,7 @@ export default class implements Command {
 		});
 
 		await this.handler.collectorManager
-			.makeCollector<APIMessageComponentInteraction>(reasonId)
+			.makeCollector<APIMessageComponentInteraction>([reasonIdSelect, reasonIdOther])
 			.awaitableHookAndDestroy(async (selected, stop) => {
 				try {
 					if (selected.data.component_type === ComponentType.Button) {

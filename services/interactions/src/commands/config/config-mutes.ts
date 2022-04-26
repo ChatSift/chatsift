@@ -207,13 +207,15 @@ export default class implements Command {
 						let goBack = false;
 						let goForward = false;
 
-						if (rawValues[0] === 'prev') {
-							rawValues.shift();
+						if (rawValues.includes('prev')) {
+							const idx = rawValues.findIndex((v) => v === 'prev')!;
+							rawValues.splice(idx);
 							goBack = true;
 						}
 
-						if (rawValues[rawValues.length - 1] === 'next') {
-							rawValues.pop();
+						if (rawValues.includes('next')) {
+							const idx = rawValues.findIndex((v) => v === 'next')!;
+							rawValues.splice(idx);
 							goForward = true;
 						}
 

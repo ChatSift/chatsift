@@ -40,7 +40,9 @@ export default class implements Command {
 			case 'list': {
 				const presets = await this.prisma.presetReportReason.findMany({ where: { guildId: interaction.guild_id } });
 				return send(interaction, {
-					content: `Here are the current presets: ${presets.map((preset) => preset.reason).join(', ')}`,
+					content: `Here are the current presets:\n${presets
+						.map((preset) => `• Preset ID ${preset.reportReasonId}: ${preset.reason}`)
+						.join('\n')}`,
 				});
 			}
 		}
