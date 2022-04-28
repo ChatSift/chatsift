@@ -1,9 +1,7 @@
-import type { UserPerms } from '@automoderator/util';
 import { basename, extname } from 'path';
 
 export interface Command {
 	name?: string;
-	userPermissions?: UserPerms;
 	exec: (message: any, args: any) => any;
 }
 

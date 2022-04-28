@@ -1,9 +1,10 @@
 import { WarnPunishmentAction } from '@prisma/client';
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const ConfigWarnPunishmentsCommand = {
 	name: 'config-warn-punishments',
 	description: 'Manage warn punishments',
+	default_member_permissions: String(PermissionFlagsBits.ManageGuild),
 	options: [
 		{
 			name: 'add',

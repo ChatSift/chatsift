@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 const csOption = {
 	name: 'case',
@@ -10,6 +10,7 @@ const csOption = {
 export const CaseCommand = {
 	name: 'case',
 	description: 'Run actions on a given case',
+	default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
 	options: [
 		{
 			name: 'show',

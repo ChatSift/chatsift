@@ -1,8 +1,9 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const MuteCommand = {
 	name: 'mute',
 	description: 'Mutes a member',
+	default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
 	options: [
 		{
 			name: 'user',

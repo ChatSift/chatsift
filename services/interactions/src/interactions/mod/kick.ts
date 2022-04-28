@@ -1,8 +1,9 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const KickCommand = {
 	name: 'kick',
 	description: 'Kicks a member',
+	default_member_permissions: String(PermissionFlagsBits.KickMembers),
 	options: [
 		{
 			name: 'user',

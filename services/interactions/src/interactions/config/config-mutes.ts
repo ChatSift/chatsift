@@ -1,8 +1,9 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const ConfigMutesCommand = {
 	name: 'config-mutes',
 	description: 'Manage mute settings',
+	default_member_permissions: String(PermissionFlagsBits.ManageGuild),
 	options: [
 		{
 			name: 'use',

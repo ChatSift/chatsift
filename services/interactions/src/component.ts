@@ -1,10 +1,8 @@
 import type { Interaction } from '#util';
-import type { UserPerms } from '@automoderator/util';
 import { basename, extname } from 'path';
 
 export interface Component {
 	name?: string;
-	userPermissions?: UserPerms;
 	exec: (message: Interaction, args: any) => unknown | Promise<unknown>;
 }
 

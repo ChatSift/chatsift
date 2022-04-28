@@ -1,8 +1,9 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const PurgeCommand = {
 	name: 'purge',
 	description: 'Purges messages based off of your given arguments',
+	default_member_permissions: String(PermissionFlagsBits.ManageMessages),
 	options: [
 		{
 			name: 'amount',

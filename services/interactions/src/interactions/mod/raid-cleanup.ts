@@ -1,8 +1,9 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const RaidCleanupCommand = {
 	name: 'raid-cleanup',
 	description: 'Cleans up a recent raid by selecting and mass removing members that meet the given criteria',
+	default_member_permissions: String(PermissionFlagsBits.ManageMessages),
 	options: [
 		{
 			name: 'join',

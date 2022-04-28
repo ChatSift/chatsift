@@ -1,6 +1,6 @@
 import * as interactions from '#interactions';
 import { ControlFlowError, Interaction, send, transformInteraction } from '#util';
-import { PermissionsChecker, UserPerms } from '@automoderator/util';
+import { PermissionsChecker } from '@automoderator/util';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@chatsift/readdir';
@@ -54,12 +54,6 @@ export class Handler {
 		}
 
 		try {
-			if (command.userPermissions && !(await this.checker.check(interaction, command.userPermissions))) {
-				throw new ControlFlowError(
-					`Missing permission to run this command! You must be at least \`${UserPerms[command.userPermissions]!}\``,
-				);
-			}
-
 			await command.exec(interaction, transformInteraction(data));
 		} catch (e) {
 			const internal = !(e instanceof ControlFlowError);
@@ -90,14 +84,6 @@ export class Handler {
 
 		if (component && data) {
 			try {
-				if (component.userPermissions && !(await this.checker.check(interaction, component.userPermissions))) {
-					throw new ControlFlowError(
-						`Missing permission to run this component! You must be at least \`${UserPerms[
-							component.userPermissions
-						]!}\``,
-					);
-				}
-
 				await component.exec(interaction, extra);
 			} catch (e) {
 				const internal = !(e instanceof ControlFlowError);
@@ -132,7 +118,7 @@ export class Handler {
 				{
 					// @ts-expect-error
 					// TODO(DD): Find a fix for immutable and mutable clash
-					data: Object.values(interactions),
+					data: Object.values(interactions).map((i) => ({ ...i, dm_permission: false })),
 				},
 			);
 

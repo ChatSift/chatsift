@@ -1,8 +1,9 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const SoftbanCommand = {
 	name: 'softban',
 	description: 'Bans a member and unbans them - clearing their messages',
+	default_member_permissions: String(PermissionFlagsBits.KickMembers),
 	options: [
 		{
 			name: 'user',
