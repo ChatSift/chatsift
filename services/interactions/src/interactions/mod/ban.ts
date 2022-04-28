@@ -1,10 +1,10 @@
 import { UserPerms } from '@automoderator/discord-permissions';
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const BanCommand = {
 	name: 'ban',
 	description: 'Bans a member',
-	default_permission: false,
+	default_member_permissions: String(PermissionFlagsBits.BanMembers),
 	perms: UserPerms.mod,
 	options: [
 		{

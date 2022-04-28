@@ -1,11 +1,9 @@
-import { UserPerms } from '@automoderator/discord-permissions';
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const ConfigNsfwDetectionCommand = {
 	name: 'config-nsfw-detection',
 	description: 'Configure NSFW detection thresholds',
-	default_permission: false,
-	perms: UserPerms.admin,
+	default_member_permissions: String(PermissionFlagsBits.ManageGuild),
 	options: [
 		{
 			name: 'hentai',

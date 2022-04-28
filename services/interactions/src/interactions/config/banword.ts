@@ -1,11 +1,9 @@
-import { UserPerms } from '@automoderator/discord-permissions';
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const BanwordCommand = {
 	name: 'banword',
 	description: "Allows you to mange your server's banned words and pharses",
-	default_permission: false,
-	perms: UserPerms.admin,
+	default_member_permissions: String(PermissionFlagsBits.ManageGuild),
 	options: [
 		{
 			name: 'add',

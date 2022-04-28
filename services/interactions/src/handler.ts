@@ -1,6 +1,6 @@
 import * as interactions from '#interactions';
 import { ControlFlowError, Interaction, send, transformInteraction } from '#util';
-import { PermissionsChecker, UserPerms } from '@automoderator/discord-permissions';
+import { PermissionsChecker } from '@automoderator/discord-permissions';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { Rest } from '@cordis/rest';
 import { readdirRecurse } from '@chatsift/readdir';
@@ -48,12 +48,6 @@ export class Handler {
 		}
 
 		try {
-			if (command.userPermissions && !(await this.checker.check(interaction, command.userPermissions))) {
-				throw new ControlFlowError(
-					`Missing permission to run this command! You must be at least \`${UserPerms[command.userPermissions]!}\``,
-				);
-			}
-
 			await command.exec(interaction, transformInteraction(data));
 		} catch (e) {
 			const internal = !(e instanceof ControlFlowError);
@@ -80,14 +74,6 @@ export class Handler {
 		const component = this.components.get(componentId ?? ''); // eslint-disable-line @typescript-eslint/no-unnecessary-condition
 		if (component && data) {
 			try {
-				if (component.userPermissions && !(await this.checker.check(interaction, component.userPermissions))) {
-					throw new ControlFlowError(
-						`Missing permission to run this component! You must be at least \`${UserPerms[
-							component.userPermissions
-						]!}\``,
-					);
-				}
-
 				await component.exec(interaction, extra, key);
 			} catch (e) {
 				const internal = !(e instanceof ControlFlowError);
@@ -116,7 +102,7 @@ export class Handler {
 			const res = await this.rest.put<RESTPutAPIApplicationCommandsResult, RESTPutAPIApplicationCommandsJSONBody>(
 				Routes.applicationCommands(this.config.discordClientId),
 				{
-					data: Object.values(interactions) as any[],
+					data: Object.values(interactions).map((i) => ({ ...i, dm_permission: false })) as any[],
 				},
 			);
 
@@ -162,6 +148,8 @@ export class Handler {
 				for (const command of promise.value) {
 					this.testGuildCommandIds.set(`${command.guild_id!}-${command.name}`, command.id);
 				}
+			} else {
+				this.logger.error(promise.reason);
 			}
 		}
 	}

@@ -1,4 +1,3 @@
-import * as interactions from '#interactions';
 import type { ConfigCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
 import {
@@ -13,15 +12,7 @@ import { Rest } from '@chatsift/api-wrapper';
 import { Config, kConfig, kLogger, kSql } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { stripIndents } from 'common-tags';
-import {
-	APIApplicationCommandPermission,
-	APIGuild,
-	APIGuildInteraction,
-	ApplicationCommandPermissionType,
-	RESTPutAPIGuildApplicationCommandsPermissionsJSONBody,
-	Routes,
-	ChannelType,
-} from 'discord-api-types/v9';
+import { APIGuildInteraction, ChannelType } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import type { Sql } from 'postgres';
 import { inject, injectable } from 'tsyringe';
@@ -175,89 +166,5 @@ export default class implements Command {
 			: await this.rest.get<ApiGetGuildsSettingsResult>(`/guilds/${interaction.guild_id}/settings`);
 
 		void this._sendCurrentSettings(interaction, settings);
-
-		const guild = await this.discordRest.get<APIGuild>(Routes.guild(interaction.guild_id));
-
-		await this.discordRest.put<unknown, RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
-			Routes.guildApplicationCommandsPermissions(this.config.discordClientId, interaction.guild_id),
-			{
-				data: Object.values(interactions).reduce<RESTPutAPIGuildApplicationCommandsPermissionsJSONBody>(
-					(acc, entry) => {
-						const id =
-							this.config.nodeEnv === 'prod'
-								? this.handler.globalCommandIds.get(entry.name)
-								: this.handler.testGuildCommandIds.get(`${interaction.guild_id}-${entry.name}`);
-
-						// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-						if ('default_permission' in entry && !entry.default_permission && id) {
-							const permissions: APIApplicationCommandPermission[] = [];
-							if ('perms' in entry) {
-								const pushOwner = () =>
-									void permissions.push({
-										id: guild.owner_id,
-										type: ApplicationCommandPermissionType.User,
-										permission: true,
-									});
-
-								const pushAdmin = () =>
-									settings.admin_role &&
-									void permissions.push({
-										id: settings.admin_role,
-										type: ApplicationCommandPermissionType.Role,
-										permission: true,
-									});
-
-								const pushMod = () =>
-									settings.mod_role &&
-									void permissions.push({
-										id: settings.mod_role,
-										type: ApplicationCommandPermissionType.Role,
-										permission: true,
-									});
-
-								switch (entry.perms as UserPerms) {
-									case UserPerms.none: {
-										break;
-									}
-
-									case UserPerms.mod: {
-										pushMod();
-										pushAdmin();
-										pushOwner();
-										break;
-									}
-
-									case UserPerms.admin: {
-										pushAdmin();
-										pushOwner();
-										break;
-									}
-
-									case UserPerms.owner: {
-										pushOwner();
-										break;
-									}
-								}
-							}
-
-							acc.push({
-								id,
-								permissions: [
-									...permissions,
-									...this.config.devIds.map((id) => ({
-										id,
-										type: ApplicationCommandPermissionType.User,
-										permission: true,
-									})),
-								],
-							});
-						}
-
-						return acc;
-					},
-					[],
-				),
-			},
-		);
 	}
 }

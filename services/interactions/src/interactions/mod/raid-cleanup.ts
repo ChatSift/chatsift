@@ -1,11 +1,9 @@
-import { UserPerms } from '@automoderator/discord-permissions';
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const RaidCleanupCommand = {
 	name: 'raid-cleanup',
 	description: 'Cleans up a recent raid by using an account age-join age relationship',
-	default_permission: false,
-	perms: UserPerms.mod,
+	default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
 	options: [
 		{
 			name: 'join',

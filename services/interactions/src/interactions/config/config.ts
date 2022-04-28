@@ -1,8 +1,9 @@
-import { ApplicationCommandOptionType } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord-api-types/v9';
 
 export const ConfigCommand = {
 	name: 'config',
 	description: "Update your server's config",
+	default_member_permissions: String(PermissionFlagsBits.ManageGuild),
 	options: [
 		{
 			name: 'modrole',
