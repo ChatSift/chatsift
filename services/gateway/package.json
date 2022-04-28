@@ -30,7 +30,7 @@
 		"@automoderator/cache": "workspace:^0.1.0",
 		"@automoderator/injection": "workspace:^0.1.0",
 		"@automoderator/logger": "workspace:^0.1.0",
-		"@cordis/brokers": "^1.2.0",
+		"@cordis/brokers": "^1.2.0-next.8fe30a1.1651163851",
 		"@cordis/gateway": "^1.2.0",
 		"@cordis/redis-store": "^1.2.0",
 		"ioredis": "^4.27.10",

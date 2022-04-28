@@ -1,3 +1,4 @@
+export * from './banword';
 export * from './config-automod-ignores';
 export * from './config-log-ignores';
 export * from './config-mutes';

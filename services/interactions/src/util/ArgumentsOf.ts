@@ -7,6 +7,7 @@ import type {
 	ApplicationCommandOptionType,
 	ApplicationCommandType,
 	Permissions,
+	APIAttachment,
 } from 'discord-api-types/v9';
 
 type Command = Readonly<{
@@ -36,7 +37,8 @@ type Option = Readonly<
 						| ApplicationCommandOptionType.Boolean
 						| ApplicationCommandOptionType.User
 						| ApplicationCommandOptionType.Channel
-						| ApplicationCommandOptionType.Role;
+						| ApplicationCommandOptionType.Role
+						| ApplicationCommandOptionType.Attachment;
 			  }
 			| {
 					type: ApplicationCommandOptionType.Number;
@@ -73,6 +75,8 @@ type TypeIdToType<T, O, C> = T extends ApplicationCommandOptionType.Subcommand
 	? APIPartialChannel & { permissions: Permissions }
 	: T extends ApplicationCommandOptionType.Role
 	? APIRole
+	: T extends ApplicationCommandOptionType.Attachment
+	? APIAttachment
 	: never;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

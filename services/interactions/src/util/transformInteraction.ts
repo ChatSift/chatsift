@@ -51,6 +51,11 @@ const transformChatInteraction = (
 			break;
 		}
 
+		case ApplicationCommandOptionType.Attachment: {
+			opts[top.name] = resolved.attachments?.[top.value];
+			break;
+		}
+
 		default: {
 			opts[top.name] = top.value;
 			break;
