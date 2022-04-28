@@ -143,6 +143,11 @@ export class Gateway {
 				}
 
 				const result = await runner.run(data, message);
+
+				if (result === null) {
+					return null;
+				}
+
 				await runner.cleanup?.(result, message);
 				return runner.log(result, message);
 			});

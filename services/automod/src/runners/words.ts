@@ -45,7 +45,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		return words.length > 0;
 	}
 
-	public run({ words }: WordsTransform, message: APIMessage): BannedWordWithFlags[] {
+	public run({ words }: WordsTransform, message: APIMessage): BannedWordWithFlags[] | null {
 		const content = message.content.toLowerCase();
 		const wordsArray = content.split(/ +/g);
 
@@ -72,6 +72,10 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 			} else {
 				continue;
 			}
+		}
+
+		if (!out.length) {
+			return null;
 		}
 
 		return out;
