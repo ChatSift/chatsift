@@ -201,7 +201,7 @@ export class Gateway {
 		}
 
 		await this.cases.create({
-			actionType: CaseAction.ban,
+			actionType: CaseAction.kick,
 			guildId: data.guild_id,
 			targetId: data.user.id,
 			targetTag: `${data.user.username}#${data.user.discriminator}`,

@@ -338,6 +338,15 @@ export default class implements Component {
 					stop();
 				}
 
+				await this.prisma.report.update({
+					data: {
+						acknowledgedAt: new Date(),
+					},
+					where: {
+						messageId,
+					},
+				});
+
 				if (embed) {
 					embed.color = 2895667;
 				}

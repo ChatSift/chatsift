@@ -1,6 +1,8 @@
 import type { CaseCommand } from '#interactions';
 import { ArgumentsOf, ControlFlowError, send } from '#util';
+import { Log, LogTypes } from '@automoderator/broker-types';
 import { makeCaseEmbed } from '@automoderator/util';
+import { PubSubPublisher } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
 import ms from '@naval-base/ms';
 import { Case, CaseAction, LogChannelType, PrismaClient } from '@prisma/client';
@@ -23,6 +25,7 @@ export default class implements Command {
 		public readonly discord: DiscordRest,
 		public readonly prisma: PrismaClient,
 		public readonly handler: Handler,
+		public readonly guildLogs: PubSubPublisher<Log>,
 	) {}
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof CaseCommand>) {
@@ -132,7 +135,7 @@ export default class implements Command {
 					throw new ControlFlowError('Case is not a warning');
 				}
 
-				await this.prisma.case.update({
+				const updated = await this.prisma.case.update({
 					data: {
 						pardonedBy: interaction.member.user.id,
 					},
@@ -140,6 +143,12 @@ export default class implements Command {
 				});
 
 				await send(interaction, { content: 'Successfully pardoned warning' });
+
+				this.guildLogs.publish({
+					type: LogTypes.modAction,
+					data: [updated],
+				});
+
 				break;
 			}
 
@@ -152,7 +161,7 @@ export default class implements Command {
 					throw new ControlFlowError('Case could not be found');
 				}
 
-				await this.prisma.case.update({
+				const updated = await this.prisma.case.update({
 					data: {
 						reason: args.reason.reason,
 						modId: cs.modId ? cs.modId : interaction.member.user.id,
@@ -166,6 +175,12 @@ export default class implements Command {
 				});
 
 				await send(interaction, { content: 'Successfully updated the reason' });
+
+				this.guildLogs.publish({
+					type: LogTypes.modAction,
+					data: [updated],
+				});
+
 				break;
 			}
 
@@ -189,7 +204,7 @@ export default class implements Command {
 					throw new ControlFlowError('Duration can only be updated for bans and mutes');
 				}
 
-				await this.prisma.case.update({
+				const updated = await this.prisma.case.update({
 					data: {
 						expiresAt,
 						modId: cs.modId ? cs.modId : interaction.member.user.id,
@@ -212,6 +227,12 @@ export default class implements Command {
 				});
 
 				await send(interaction, { content: 'Successfully updated the duration' });
+
+				this.guildLogs.publish({
+					type: LogTypes.modAction,
+					data: [updated],
+				});
+
 				break;
 			}
 
@@ -224,7 +245,7 @@ export default class implements Command {
 					throw new ControlFlowError('Case could not be found');
 				}
 
-				await this.prisma.case.update({
+				const updated = await this.prisma.case.update({
 					data: {
 						refId: args.reference.reference,
 						modId: cs.modId ? cs.modId : interaction.member.user.id,
@@ -238,6 +259,12 @@ export default class implements Command {
 				});
 
 				await send(interaction, { content: 'Successfully updated the reference' });
+
+				this.guildLogs.publish({
+					type: LogTypes.modAction,
+					data: [updated],
+				});
+
 				break;
 			}
 		}
