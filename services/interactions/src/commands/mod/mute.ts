@@ -56,6 +56,19 @@ export default class implements Command {
 			expiresAt = new Date(Date.now() + durationMinutes * 6e4);
 		}
 
+		const cs = await this.prisma.case.findFirst({
+			where: {
+				guildId: interaction.guild_id,
+				targetId: member.user.id,
+				actionType: CaseAction.mute,
+				task: { isNot: null },
+			},
+		});
+
+		if (cs) {
+			throw new ControlFlowError('User is already muted');
+		}
+
 		const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
 		const targetTag = `${member.user.username}#${member.user.discriminator}`;
 

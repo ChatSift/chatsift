@@ -171,7 +171,29 @@ export default class implements Component {
 					this.handler.collectorManager
 						.makeCollector<APIMessageComponentInteraction>(actionId)
 						.hookAndDestroy(async (interaction) => {
-							state.action = (interaction.data as APIMessageSelectMenuInteractionData).values[0] as CaseAction;
+							const action = (interaction.data as APIMessageSelectMenuInteractionData).values[0] as CaseAction;
+							if (action === CaseAction.mute) {
+								const existingCs = await this.prisma.case.findFirst({
+									where: {
+										guildId: interaction.guild_id,
+										targetId: report.userId,
+										actionType: CaseAction.mute,
+										task: { isNot: null },
+									},
+								});
+
+								if (existingCs) {
+									return send(
+										interaction,
+										{
+											content: '⚠️ This user is currently muted',
+										},
+										InteractionResponseType.UpdateMessage,
+									);
+								}
+							}
+
+							state.action = action;
 							const { components } = interaction.message;
 							const component = interaction.message.components![0]!.components[0]! as APISelectMenuComponent;
 							const optionIdx = component.options.findIndex((option) => option.value === state.action);
@@ -180,7 +202,7 @@ export default class implements Component {
 							await send(
 								interaction,
 								{
-									content: `Executing a ${state.action} - feel free to configure further`,
+									content: `Executing a ${action} - feel free to configure further`,
 									components,
 									flags: 64,
 								},
