@@ -5,9 +5,9 @@
 	"description": "Something cool",
 	"type": "module",
 	"scripts": {
-		"build": "pnpm recursive run build --filter @automoderator/* --filter @chatsift/*",
-		"lint": "pnpm recursive run lint --filter @automoderator/* --filter @chatsift/*",
-		"lint:ci": "pnpm lint --parallel --filter @automoderator/* --filter @chatsift/*",
+		"build": "pnpm recursive run build",
+		"lint": "pnpm recursive run lint",
+		"lint:ci": "pnpm lint --parallel",
 		"test": "jest",
 		"test:ci": "jest --ci --no-stack-trace --verbose",
 		"docs": "typedoc"
@@ -46,7 +46,7 @@
 		"lint-staged": "^11.2.0",
 		"prettier": "^2.5.1",
 		"prettier-eslint": "^13.0.0",
-		"prisma": "^3.10.0",
+		"prisma": "^3.13.0",
 		"rimraf": "^3.0.2",
 		"typedoc": "0.19.2",
 		"typescript": "^4.5.5"
