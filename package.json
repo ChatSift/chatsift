@@ -7,7 +7,7 @@
 	"scripts": {
 		"build": "pnpm recursive run build",
 		"lint": "pnpm recursive run lint",
-		"lint:ci": "pnpm lint --parallel",
+		"lint:ci": "pnpm run --parallel lint",
 		"test": "jest",
 		"test:ci": "jest --ci --no-stack-trace --verbose",
 		"docs": "typedoc"
