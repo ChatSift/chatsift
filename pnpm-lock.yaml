@@ -445,6 +445,7 @@ importers:
       '@cordis/common': ^1.2.0
       '@cordis/gateway': ^1.2.0
       '@cordis/redis-store': ^1.2.0
+      '@types/amqplib': ^0.8.2
       '@types/ioredis': ^4.27.6
       '@types/node': ^16.10.3
       discord-api-types: ^0.31.2
@@ -467,6 +468,7 @@ importers:
       tsyringe: 4.6.0
     devDependencies:
       '@cordis/common': 1.2.0
+      '@types/amqplib': 0.8.2
       '@types/ioredis': 4.27.6
       '@types/node': 16.10.3
       discord-api-types: 0.31.2
@@ -2523,7 +2525,7 @@ packages:
     resolution: {integrity: sha512-p+TFLzo52f8UanB+Nq6gyUi65yecAcRY3nYowU6MPGFtaJvEDxcnFWrxssSTkF+ts1W3zyQDvgVICLQem5WxRA==}
     dependencies:
       '@types/bluebird': 3.5.36
-      '@types/node': 14.17.21
+      '@types/node': 16.11.21
     dev: true
 
   /@types/babel__core/7.1.16:
@@ -2635,10 +2637,6 @@ packages:
     dependencies:
       '@types/node': 16.11.21
       form-data: 3.0.1
-    dev: true
-
-  /@types/node/14.17.21:
-    resolution: {integrity: sha512-zv8ukKci1mrILYiQOwGSV4FpkZhyxQtuFWGya2GujWg+zVAeRQ4qbaMmWp9vb9889CFA8JECH7lkwCL6Ygg8kA==}
     dev: true
 
   /@types/node/16.10.3:
