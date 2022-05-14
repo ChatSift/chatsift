@@ -19,11 +19,11 @@ export const getPolkaOptions = (): polka.IOptions => {
 				logger.error(boom, boom.message);
 			}
 
-			return sendBoom(boom, res);
+			sendBoom(boom, res);
 		},
 		onNoMatch(_: polka.Request, res: polka.Response) {
 			res.setHeader('content-type', 'application/json');
-			return sendBoom(notFound(), res);
+			sendBoom(notFound(), res);
 		},
 		server: createServer(),
 	};

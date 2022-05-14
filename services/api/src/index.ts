@@ -40,11 +40,11 @@ void (async () => {
 				logger.error(boom, boom.message);
 			}
 
-			return sendBoom(boom, res);
+			sendBoom(boom, res);
 		},
 		onNoMatch(_, res) {
 			res.setHeader('content-type', 'application/json');
-			return sendBoom(notFound(), res);
+			sendBoom(notFound(), res);
 		},
 		server: createServer(),
 	}).use(

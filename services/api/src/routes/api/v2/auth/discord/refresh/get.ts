@@ -15,7 +15,7 @@ export default class extends Route {
 		super();
 	}
 
-	public async handle(req: Request, res: Response, next: NextHandler): Promise<void> {
+	public async handle(req: Request, res: Response, next: NextHandler) {
 		const cookies = cookie.parse(req.headers.cookie ?? '');
 		const token = cookies.refresh_token ?? (req.body as GetAuthDiscordRefreshBody)?.refresh_token;
 

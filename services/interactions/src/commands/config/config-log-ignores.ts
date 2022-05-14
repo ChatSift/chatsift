@@ -33,18 +33,17 @@ export default class implements Command {
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigLogIgnoresCommand>) {
 		switch (Object.keys(args)[0] as keyof typeof args) {
 			case 'show': {
-				const channels = new Map(
-					await this.rest
-						.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id))
-						.then((channels) => channels.map((channel) => [channel.id, channel])),
-				);
+				const channelList = await this.rest
+					.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id))
+					.then((channels) => channels.map((channel): [string, APIChannel] => [channel.id, channel]));
+				const channels = new Map(channelList);
 
 				const entries = await this.prisma.logIgnore.findMany({ where: { guildId: interaction.guild_id } });
 				const ignores = entries.reduce<string[]>((acc, entry) => {
 					const channel = channels.get(entry.channelId);
 					if (channel) {
-						const channelMention = channel.type === ChannelType.GuildText ? `<#${channel.id}>` : channel.name;
-						acc.push(`• ${channelMention!}`);
+						const channelMention = channel.type === ChannelType.GuildText ? `<#${channel.id}>` : channel.name!;
+						acc.push(`• ${channelMention}`);
 					}
 
 					return acc;

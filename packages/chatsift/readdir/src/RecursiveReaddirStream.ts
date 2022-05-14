@@ -118,7 +118,7 @@ export class RecursiveReaddirStream extends Readable implements IRecursiveReaddi
 			return void this.emit('warn', error);
 		}
 
-		return this.destroy(error);
+		this.destroy(error);
 	}
 
 	/**

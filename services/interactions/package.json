@@ -27,11 +27,11 @@
 		"@types/common-tags": "^1.8.1",
 		"@types/ioredis": "^4.27.6",
 		"@types/js-yaml": "^4.0.3",
-		"@types/node": "^16.10.3",
+		"@types/node": "^16.11.7",
 		"@types/node-fetch": "^2.5.12",
 		"@types/pino": "^6.3.11",
 		"prisma": "^3.13.0",
-		"typescript": "^4.5.5"
+		"typescript": "^4.6.4"
 	},
 	"dependencies": {
 		"@automoderator/broker-types": "workspace:^0.1.0",
@@ -59,7 +59,7 @@
 		"node-fetch": "^2.6.5",
 		"polka": "^1.0.0-next.22",
 		"reflect-metadata": "^0.1.13",
-		"tslib": "^2.3.1",
+		"tslib": "^2.4.0",
 		"tsyringe": "^4.6.0",
 		"tweetnacl": "^1.0.3"
 	}

@@ -35,21 +35,20 @@ export default class implements Command {
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigAutomodIgnoresCommand>) {
 		switch (Object.keys(args)[0] as keyof typeof args) {
 			case 'show': {
-				const channels = new Map(
-					await this.rest
-						.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id))
-						.then((channels) => channels.map((channel) => [channel.id, channel])),
-				);
+				const channelsList = await this.rest
+					.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id))
+					.then((channels) => channels.map((channel): [string, APIChannel] => [channel.id, channel]));
+				const channels = new Map(channelsList);
 
 				const entries = await this.prisma.filterIgnore.findMany({ where: { guildId: interaction.guild_id } });
 				const ignores = entries.reduce<string[]>((acc, entry) => {
 					const channel = channels.get(entry.channelId);
 					if (channel) {
-						const channelMention = channel.type === ChannelType.GuildText ? `<#${channel.id}>` : channel.name;
+						const channelMention = channel.type === ChannelType.GuildText ? `<#${channel.id}>` : channel.name!;
 						const enabled = new FilterIgnores(entry.value).toArray();
 
 						if (enabled.length) {
-							acc.push(`• ${channelMention!}: ${enabled.join(', ')}`);
+							acc.push(`• ${channelMention}: ${enabled.join(', ')}`);
 						}
 					}
 

@@ -54,7 +54,7 @@ void (() => {
 				logger.error(boom, boom.message);
 			}
 
-			return sendBoom(boom, res);
+			sendBoom(boom, res);
 		},
 		server: createServer(),
 	});
@@ -97,7 +97,7 @@ void (() => {
 		res.statusCode = data.status;
 
 		const body = data.headers.get('content-type')?.startsWith('application/json') ? await data.json() : {};
-		return res.end(JSON.stringify(body));
+		res.end(JSON.stringify(body));
 	});
 
 	app.listen(3003, () => logger.info('Listening for requests on port 3003'));
