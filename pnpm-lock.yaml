@@ -602,11 +602,13 @@ importers:
       '@automoderator/logger': workspace:^0.1.0
       '@automoderator/util': workspace:^0.1.0
       '@chatsift/api-wrapper': workspace:^0.1.0
+      '@chatsift/utils': workspace:^0.1.0
       '@cordis/brokers': ^1.2.0-next.8fe30a1.1651163851
       '@cordis/redis-store': ^1.2.0
       '@cordis/rest': ^2.0.0-next.2405c88.1643469558
       '@cordis/store': ^1.2.0
       '@cordis/util': ^1.2.0
+      '@naval-base/ms': ^3.1.0
       '@prisma/client': ^3.13.0
       '@types/amqplib': ^0.8.2
       '@types/ioredis': ^4.27.6
@@ -628,11 +630,13 @@ importers:
       '@automoderator/logger': link:../../packages/automoderator/logger
       '@automoderator/util': link:../../packages/automoderator/util
       '@chatsift/api-wrapper': link:../../packages/chatsift/api-wrapper
+      '@chatsift/utils': link:../../packages/chatsift/utils
       '@cordis/brokers': 1.2.0-next.8fe30a1.1651163851
       '@cordis/redis-store': 1.2.0
       '@cordis/rest': 2.0.0-next.2405c88.1643469558
       '@cordis/store': 1.2.0
       '@cordis/util': 1.2.0
+      '@naval-base/ms': 3.1.0
       '@prisma/client': 3.13.0_prisma@3.13.0
       discord-api-types: 0.31.2
       ioredis: 4.27.10

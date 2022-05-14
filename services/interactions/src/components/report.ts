@@ -35,7 +35,8 @@ export default class implements Component {
 		@inject(kConfig) public readonly config: Config,
 	) {}
 
-	public async exec(interaction: APIGuildInteraction, [messageId, action]: [string, string]) {
+	public async exec(interaction: APIGuildInteraction, [reportIdRaw, action]: [string, string]) {
+		const reportId = parseInt(reportIdRaw, 10);
 		const [review, acknowledged, viewReporters, actionButton] = interaction.message!.components![0]!.components as [
 			APIButtonComponent,
 			APIButtonComponent,
@@ -44,7 +45,7 @@ export default class implements Component {
 		];
 
 		const [embed] = interaction.message!.embeds;
-		const report = await this.prisma.report.findFirst({ where: { messageId }, rejectOnNotFound: true });
+		const report = await this.prisma.report.findFirst({ where: { reportId }, rejectOnNotFound: true });
 
 		switch (action) {
 			case 'acknowledge': {
@@ -55,7 +56,7 @@ export default class implements Component {
 						acknowledgedAt: isDismiss ? new Date() : null,
 					},
 					where: {
-						messageId,
+						reportId,
 					},
 				});
 
@@ -73,7 +74,7 @@ export default class implements Component {
 
 			case 'view-reporters': {
 				const { reporters } = await this.prisma.report.findFirst({
-					where: { messageId },
+					where: { reportId },
 					include: { reporters: true },
 					rejectOnNotFound: true,
 				});
@@ -365,7 +366,7 @@ export default class implements Component {
 						acknowledgedAt: new Date(),
 					},
 					where: {
-						messageId,
+						reportId,
 					},
 				});
 

@@ -158,8 +158,6 @@ export default class implements Command {
 							default: state.channels.has(option.value),
 						});
 
-						console.log(rawValues);
-
 						if (rawValues.includes('prev')) {
 							const idx = rawValues.findIndex((v) => v === 'prev')!;
 							rawValues.splice(idx);

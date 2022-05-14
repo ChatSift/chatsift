@@ -21,7 +21,7 @@ interface UrlsTransform {
 export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRunnerResult> {
 	public readonly ignore = 'urls';
 
-	public readonly urlRegex = /([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm;
+	public readonly urlRegex = /https?:\/\/(?<url>([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<path>\/[^\s]*)?)/gm;
 	public readonly tlds: Set<string>;
 
 	public constructor(
@@ -39,8 +39,6 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 
 			return acc;
 		}, new Set<string>());
-
-		logger.trace({ tlds: [...this.tlds] }, 'Successfully computed valid tlds');
 	}
 
 	private extractRoot(url: string): string {
@@ -71,7 +69,7 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 
 		const urls = [...message.content.matchAll(this.urlRegex)].reduce<Set<string>>((acc, match) => {
 			if (this.tlds.has(match.groups!.tld!.toLowerCase())) {
-				acc.add(this.cleanDomain(match[0]!));
+				acc.add(this.cleanDomain(match.groups!.url!));
 			}
 
 			return acc;

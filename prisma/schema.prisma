@@ -308,7 +308,7 @@ model Report {
   reportId        Int        @id @default(autoincrement())
   userId          String
   messageId       String?    @unique()
-  reportMessageId String
+  reportMessageId String?
   reporters       Reporter[]
   createdAt       DateTime   @default(now()) @db.Timestamptz(6)
   acknowledgedAt  DateTime?  @db.Timestamptz(6)

@@ -81,7 +81,6 @@ export default class implements Command {
 			],
 		});
 
-		console.log(components[0]?.components[0]);
 		await send(interaction, {
 			content: 'Please select a reason',
 			flags: 64,

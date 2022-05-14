@@ -24,7 +24,6 @@ export default class implements Command {
         **Here are your current filter settings:**
         • url filter: ${settings?.useUrlFilters ? 'on' : 'off'}
         • global filter: ${settings?.useGlobalFilters ? 'on' : 'off'}
-        • file filter: ${settings?.useFileFilters ? 'on' : 'off'}
         • invite filter: ${settings?.useInviteFilters ? 'on' : 'off'}
       `,
 			allowed_mentions: { parse: [] },
@@ -149,8 +148,8 @@ export default class implements Command {
 						},
 					});
 
-					return await send(interaction, { content: 'There was nothing to add!', flags: 64 });
-				} catch {
+					return await send(interaction, { content: 'Successfully added the given url to the allowlist', flags: 64 });
+				} catch (error) {
 					return send(interaction, { content: 'There was nothing to add!', flags: 64 });
 				}
 			}

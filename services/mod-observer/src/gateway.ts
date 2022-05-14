@@ -2,7 +2,7 @@ import { MessageCache, GuildMemberCache, CachedGuildMember } from '@automoderato
 import { DiscordEvents, Log, LogTypes, ServerLogs, ServerLogType } from '@automoderator/broker-types';
 import { Rest, DiscordPermissions, BanwordFlags } from '@chatsift/api-wrapper/v2';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { CaseManager, PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
+import { CaseManager, PermissionsChecker, PermissionsCheckerData, ReportHandler, UserPerms } from '@automoderator/util';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Rest as CordisRest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
@@ -28,7 +28,9 @@ import {
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
-import { CaseAction, PrismaClient } from '@prisma/client';
+import { BannedWord, CaseAction, PrismaClient } from '@prisma/client';
+import { isSuccess } from '@chatsift/utils';
+import ms from '@naval-base/ms';
 
 @singleton()
 export class Gateway {
@@ -43,7 +45,8 @@ export class Gateway {
 		public readonly messageCache: MessageCache,
 		public readonly rest: Rest,
 		public readonly discord: CordisRest,
-		public readonly cases: CaseManager,
+		public readonly caseManager: CaseManager,
+		public readonly reports: ReportHandler,
 	) {}
 
 	private async getChannelIds(
@@ -122,7 +125,7 @@ export class Gateway {
 			return null;
 		}
 
-		await this.cases.create({
+		await this.caseManager.create({
 			actionType: CaseAction.ban,
 			guildId: data.guild_id,
 			targetId: data.user.id,
@@ -165,7 +168,7 @@ export class Gateway {
 			return null;
 		}
 
-		await this.cases.create({
+		await this.caseManager.create({
 			actionType: CaseAction.ban,
 			guildId: data.guild_id,
 			targetId: data.user.id,
@@ -200,7 +203,7 @@ export class Gateway {
 			return null;
 		}
 
-		await this.cases.create({
+		await this.caseManager.create({
 			actionType: CaseAction.kick,
 			guildId: data.guild_id,
 			targetId: data.user.id,
@@ -270,7 +273,6 @@ export class Gateway {
 			.catch(() => null);
 	}
 
-	// TODO(DD): Logging for those once API is done
 	private async handleForbiddenName(
 		data: APIGuildMember & { user: APIUser; guild_id: Snowflake },
 		name: string,
@@ -333,20 +335,13 @@ export class Gateway {
 			return;
 		}
 
-		if (!hits.some((hit) => hit.flags.has('mute') || hit.flags.has('report'))) {
-			await this.discord
-				.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(data.guild_id, data.user.id), {
-					data: {
-						nick: updatedName,
-					},
-				})
-				.catch(() => null);
-		}
-
-		// let warned = false;
-		// let muted = false;
-		// let banned = false;
-		// let reported = false;
+		await this.discord
+			.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(data.guild_id, data.user.id), {
+				data: {
+					nick: updatedName,
+				},
+			})
+			.catch(() => null);
 
 		if (hits.every((hit) => !hit.flags.has('report'))) {
 			this.guildLogs.publish({
@@ -362,68 +357,79 @@ export class Gateway {
 			});
 		}
 
-		// for (const hit of hits) {
-		// 	const caseData: ApiPostGuildsCasesBody = [];
-		// 	const unmuteRoles: Snowflake[] = [];
+		const punishments: Partial<
+			Record<'report' | 'warn' | 'mute' | 'kick' | 'ban', Omit<BannedWord, 'flags'> & { flags: BanwordFlags }>
+		> = {};
 
-		// 	const reason = `automated punishment triggered for having ${hit.word} in their username`;
+		for (const entry of entries) {
+			for (const punishment of entry.flags.getPunishments()) {
+				punishments[punishment!] ??= entry;
+			}
+		}
 
-		// 	const caseBase = {
-		// 		mod_id: this.config.discordClientId,
-		// 		mod_tag: 'AutoModerator#0000',
-		// 		reason,
-		// 		target_id: data.user.id,
-		// 		target_tag: `${data.user.username}#${data.user.discriminator}`,
-		// 		created_at: new Date(),
-		// 		execute: true,
-		// 	};
+		const createCase = (
+			actionType: CaseAction,
+			entry: Omit<BannedWord, 'flags'> & { flags: BanwordFlags },
+			expiresAt?: Date,
+		) =>
+			isSuccess(
+				this.caseManager.create({
+					actionType,
+					guildId: data.guild_id,
+					targetId: data.user.id,
+					targetTag: `${data.user.username}#${data.user.discriminator}`,
+					mod: {
+						id: this.config.discordClientId,
+						tag: 'AutoModerator',
+					},
+					reason: `automated punishment having the word/phrase ${entry.word} in their username/nickname`,
+					notifyUser: false,
+					expiresAt,
+				}),
+			);
 
-		// 	if (hit.flags.has('warn') && !warned && !banned) {
-		// 		warned = true;
-		// 		caseData.push({ action: CaseAction.warn, ...caseBase });
-		// 	}
+		if (punishments.report) {
+			const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
+			if (settings?.reportsChannel) {
+				await this.reports.reportUser(
+					data.user,
+					await this.discord.get<APIUser>(Routes.user(this.config.discordClientId)),
+					settings.reportsChannel,
+					`Automated report triggered due to the usage of the following word/phrase: ${punishments.report.word} in their username/nickname`,
+				);
+			}
 
-		// 	if (hit.flags.has('mute') && settings.mute_role && !muted && !banned) {
-		// 		muted = true;
-		// 		unmuteRoles.concat([...data.roles]);
+			return;
+		}
 
-		// 		let expiresAt: Date | undefined;
-		// 		if (hit.duration) {
-		// 			expiresAt = new Date(Date.now() + hit.duration * 6e4);
-		// 		}
+		const found: string[] = [];
+		const applied: string[] = [];
 
-		// 		caseData.push({ action: CaseAction.mute, expires_at: expiresAt, ...caseBase });
-		// 	}
+		if (
+			punishments.ban &&
+			(await createCase(CaseAction.ban, punishments.ban, new Date(Date.now() + Number(punishments.ban.duration))))
+		) {
+			found.push(punishments.ban.word);
+			applied.push(`banned for ${ms(Number(punishments.ban.duration))}`);
+		} else {
+			if (punishments.warn && (await createCase(CaseAction.warn, punishments.warn))) {
+				found.push(punishments.warn.word);
+				applied.push('warned');
+			}
 
-		// 	if (hit.flags.has('ban') && !banned) {
-		// 		banned = true;
-		// 		caseData.push({ action: CaseAction.ban, ...caseBase });
-		// 	}
+			if (
+				punishments.mute &&
+				(await createCase(CaseAction.mute, punishments.mute, new Date(Date.now() + Number(punishments.mute.duration))))
+			) {
+				found.push(punishments.mute.word);
+				applied.push(`muted for ${ms(Number(punishments.mute.duration))}`);
+			}
 
-		// 	if (hit.flags.has('report') && !reported) {
-		// 		reported = true;
-
-		// 		await reportUser(
-		// 			data,
-		// 			name,
-		// 			nick,
-		// 			hits.map((hit) => hit.word),
-		// 			settings,
-		// 		);
-		// 	}
-
-		// 	if (caseData.length) {
-		// 		const cases = await this.rest.post<ApiPostGuildsCasesResult, ApiPostGuildsCasesBody>(
-		// 			`/guilds/${data.guild_id}/cases`,
-		// 			caseData,
-		// 		);
-
-		// 		this.guildLogs.publish({
-		// 			data: cases,
-		// 			type: LogTypes.modAction,
-		// 		});
-		// 	}
-		// }
+			if (punishments.kick && (await createCase(CaseAction.kick, punishments.kick))) {
+				found.push(punishments.kick.word);
+				applied.push('kicked');
+			}
+		}
 	}
 
 	private handleGuildMemberUpdate(o: CachedGuildMember, n: GatewayGuildMemberUpdateDispatchData) {
@@ -617,13 +623,7 @@ export class Gateway {
 
 				if (cachedOld) {
 					const n = { ...cachedOld, ...data };
-
-					void this.messageCache
-						.add(n)
-						.catch((error: unknown) =>
-							this.logger.warn({ error, guild: data.guild_id }, 'Failed to update message cache'),
-						);
-
+					void this.messageCache.add(n).catch((error) => this.logger.warn(error, 'Failed to update message cache'));
 					return this.handleMessageUpdate(cachedOld, n);
 				}
 			});

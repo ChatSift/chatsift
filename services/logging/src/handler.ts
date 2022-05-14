@@ -184,6 +184,16 @@ export class Handler {
 			}
 
 			case Runners.urls: {
+				const urls = trigger.data.join(', ');
+
+				push({
+					title: 'Posted unallowed urls',
+					description: `In <#${message.channel_id}>\n${codeblock(message.content)}`,
+					footer: {
+						text: `Blocked urls:\n${urls}`,
+					},
+				});
+
 				break;
 			}
 

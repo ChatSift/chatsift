@@ -68,20 +68,25 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 		return use && codes.length > 0;
 	}
 
-	public async run({ use, codes }: InvitesTransform, message: APIMessage): Promise<InvitesTransform> {
+	public async run({ use, codes }: InvitesTransform, message: APIMessage): Promise<InvitesTransform | null> {
 		const allowedInvites = await this.prisma.allowedInvite.findMany({ where: { guildId: message.guild_id } });
 		const allowlist = new Set(allowedInvites.map((invite) => invite.allowedGuildId));
 		const invites = await Promise.all(codes.map((code) => this.fetchInvite(code)));
+		const triggered = invites.reduce<string[]>((acc, invite) => {
+			if (invite && !allowlist.has(invite.guild!.id)) {
+				acc.push(invite.code);
+			}
+
+			return acc;
+		}, []);
+
+		if (!triggered.length) {
+			return null;
+		}
 
 		return {
 			use,
-			codes: invites.reduce<string[]>((acc, invite) => {
-				if (invite && !allowlist.has(invite.guild!.id)) {
-					acc.push(invite.code);
-				}
-
-				return acc;
-			}, []),
+			codes: triggered,
 		};
 	}
 

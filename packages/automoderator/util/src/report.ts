@@ -1,18 +1,16 @@
 import { Rest } from '@cordis/rest';
-import { PrismaClient, GuildSettings } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import {
 	RESTPostAPIChannelMessageResult,
 	RESTPostAPIChannelMessageJSONBody,
 	APIUser,
-	APIGuildMember,
 	RouteBases,
 	APIMessage,
 	ButtonStyle,
 	ComponentType,
 	Routes,
 } from 'discord-api-types/v9';
-import { container, singleton } from 'tsyringe';
-import { nanoid } from 'nanoid';
+import { singleton } from 'tsyringe';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 
 export const enum ReportFailureReason {
@@ -63,6 +61,22 @@ export class ReportHandler {
 					},
 				});
 			} else {
+				const report = await prisma.report.create({
+					data: {
+						userId: message.author.id,
+						messageId: message.id,
+						reporters: {
+							create: [
+								{
+									reporterId: reporter.id,
+									reporterTag: reporterData.tag,
+									reason,
+								},
+							],
+						},
+					},
+				});
+
 				const reportMessage = await this.rest.post<RESTPostAPIChannelMessageResult, RESTPostAPIChannelMessageJSONBody>(
 					Routes.channelMessages(reportsChannel),
 					{
@@ -102,19 +116,19 @@ export class ReportHandler {
 											type: ComponentType.Button,
 											label: 'Dismiss',
 											style: ButtonStyle.Success,
-											custom_id: `report-message|${message.id}|acknowledge`,
+											custom_id: `report|${report.reportId}|acknowledge`,
 										},
 										{
 											type: ComponentType.Button,
 											label: 'View reporters',
 											style: ButtonStyle.Primary,
-											custom_id: `report-message|${message.id}|view-reporters`,
+											custom_id: `report|${report.reportId}|view-reporters`,
 										},
 										{
 											type: ComponentType.Button,
 											label: 'Action',
 											style: ButtonStyle.Danger,
-											custom_id: `report-message|${message.id}|action`,
+											custom_id: `report|${report.reportId}|action`,
 										},
 									],
 								},
@@ -123,11 +137,54 @@ export class ReportHandler {
 					},
 				);
 
-				await prisma.report.create({
+				await prisma.report.update({
 					data: {
-						userId: message.author.id,
-						messageId: message.id,
 						reportMessageId: reportMessage.id,
+					},
+					where: {
+						reportId: report.reportId,
+					},
+				});
+			}
+		});
+	}
+
+	public async reportUser(target: APIUser, reporter: APIUser, reportsChannel: string, reason: string) {
+		const reporterData = {
+			tag: `${reporter.username}#${reporter.discriminator}`,
+			id: reporter.id,
+			avatar: reporter.avatar
+				? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${reporter.id}/${reporter.avatar}`)
+				: `${RouteBases.cdn}/embed/avatars/${parseInt(reporter.discriminator, 10) % 5}.png`,
+		};
+
+		return this.prisma.$transaction(async (prisma) => {
+			const existingReport = await prisma.report.findFirst({
+				where: { userId: target.id, messageId: null },
+				include: { reporters: true },
+			});
+
+			if (existingReport) {
+				if (existingReport.acknowledgedAt) {
+					return Promise.reject(new ReportFailure(ReportFailureReason.previouslyAck));
+				}
+
+				if (existingReport.reporters.find((r) => r.reporterId === reporter.id)) {
+					return Promise.reject(new ReportFailure(ReportFailureReason.alreadyReported));
+				}
+
+				await prisma.reporter.create({
+					data: {
+						reportId: existingReport.reportId,
+						reporterId: reporter.id,
+						reporterTag: reporterData.tag,
+						reason,
+					},
+				});
+			} else {
+				const report = await prisma.report.create({
+					data: {
+						userId: target.id,
 						reporters: {
 							create: [
 								{
@@ -139,74 +196,68 @@ export class ReportHandler {
 						},
 					},
 				});
+
+				const reportMessage = await this.rest.post<RESTPostAPIChannelMessageResult, RESTPostAPIChannelMessageJSONBody>(
+					Routes.channelMessages(reportsChannel),
+					{
+						data: {
+							embeds: [
+								{
+									color: 15953004,
+									author: {
+										name: `${target.username}#${target.discriminator} (${target.id})`,
+										icon_url: target.avatar
+											? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${target.id}/${target.avatar}`)
+											: `${RouteBases.cdn}/embed/avatars/${parseInt(target.discriminator, 10) % 5}.png`,
+									},
+									description: 'Was reported',
+								},
+							],
+							components: [
+								{
+									type: ComponentType.ActionRow,
+									components: [
+										{
+											type: ComponentType.Button,
+											label: 'Review',
+											style: ButtonStyle.Secondary,
+											custom_id: 'NOOP',
+											disabled: true,
+										},
+										{
+											type: ComponentType.Button,
+											label: 'Dismiss',
+											style: ButtonStyle.Success,
+											custom_id: `report|${report.reportId}|acknowledge`,
+										},
+										{
+											type: ComponentType.Button,
+											label: 'View reporters',
+											style: ButtonStyle.Primary,
+											custom_id: `report|${report.reportId}|view-reporters`,
+										},
+										{
+											type: ComponentType.Button,
+											label: 'Action',
+											style: ButtonStyle.Danger,
+											custom_id: `report|${report.reportId}|action`,
+										},
+									],
+								},
+							],
+						},
+					},
+				);
+
+				await prisma.report.update({
+					data: {
+						reportMessageId: reportMessage.id,
+					},
+					where: {
+						reportId: report.reportId,
+					},
+				});
 			}
 		});
 	}
 }
-
-/**
- * Internal use only for name filtering
- */
-export const reportUser = async (
-	{ user: reportedUser, joined_at }: APIGuildMember & { user: APIUser },
-	name: string,
-	nick: boolean,
-	words: string[],
-	settings: GuildSettings,
-) => {
-	const rest = container.resolve(Rest);
-
-	const id = nanoid();
-
-	const joined = `<t:${Math.round(new Date(joined_at).getTime() / 1000)}:R>`;
-	const age = `<t:${Math.round(getCreationData(reportedUser.id).createdTimestamp / 1000)}:R>`;
-
-	await rest.post<RESTPostAPIChannelMessageResult, RESTPostAPIChannelMessageJSONBody>(
-		Routes.channelMessages(settings.reportsChannel!),
-		{
-			data: {
-				embeds: [
-					{
-						color: 15953004,
-						author: {
-							name: `${reportedUser.username}#${reportedUser.discriminator} (${reportedUser.id})`,
-							icon_url: reportedUser.avatar
-								? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${reportedUser.id}/${reportedUser.avatar}`)
-								: `${RouteBases.cdn}/embed/avatars/${parseInt(reportedUser.discriminator, 10) % 5}.png`,
-						},
-						title: `Has been automatically reported for their ${nick ? 'nick' : 'user'}name`,
-						description: `\`\`\`\n${name}\`\`\`\n<@${reportedUser.id}> joined ${joined}, ${age} old account`,
-						footer: {
-							text: `Filter triggers: ${words.join(', ')}`,
-						},
-					},
-				],
-				components: [
-					{
-						type: ComponentType.ActionRow,
-						components: [
-							{
-								type: ComponentType.Button,
-								label: 'Action this',
-								style: ButtonStyle.Secondary,
-								custom_id: `report-user|${id}|filter|${reportedUser.id}`,
-							},
-							{
-								type: ComponentType.Button,
-								label: 'Actioned',
-								style: ButtonStyle.Secondary,
-								custom_id: `report-user|${id}|action|${reportedUser.id}`,
-							},
-							{
-								type: ComponentType.Button,
-								label: 'Acknowledged',
-								style: ButtonStyle.Secondary,
-								custom_id: `report-user|${id}|acknowledge|${reportedUser.id}`,
-							},
-						],
-					},
-				],
-			},
-		},
-	);
-};

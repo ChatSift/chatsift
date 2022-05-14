@@ -196,15 +196,18 @@ export class Gateway {
 		this.gateway
 			.on(GatewayDispatchEvents.MessageCreate, (message) => void this.onMessage(message))
 			.on(GatewayDispatchEvents.MessageUpdate, async (message) => {
-				const fullMessage =
-					(await this.messagesCache.get(message.id)) ??
-					(await this.discord
-						.get<APIMessage>(Routes.channelMessage(message.channel_id, message.id))
-						.then((message) => {
-							void this.messagesCache.add(message);
-							return message;
-						})
-						.catch(() => null));
+				const existing = await this.messagesCache.get(message.id);
+				if (existing) {
+					return this.onMessage({ ...existing, ...message });
+				}
+
+				const fullMessage = await this.discord
+					.get<APIMessage>(Routes.channelMessage(message.channel_id, message.id))
+					.then((message) => {
+						void this.messagesCache.add(message);
+						return message;
+					})
+					.catch(() => null);
 
 				if (fullMessage) {
 					return this.onMessage(fullMessage);
