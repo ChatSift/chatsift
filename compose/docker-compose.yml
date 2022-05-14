@@ -41,7 +41,7 @@ volumes:
   elis-data:
     name: 'automoderator-v2-elis-data'
   redis-data:
-    name: 'redis-data'
+    name: 'automoderator-v2-redis-data'
   postgres-data:
     name: 'automoderator-v2-postgres-data'
   ghost-data:
