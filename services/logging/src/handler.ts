@@ -534,7 +534,7 @@ export class Handler {
 	}
 
 	private async handleFilterUpdateLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
-		const webhook = await this.assertWebhook(settings.guildId, LogChannelType.message);
+		const webhook = await this.assertWebhook(settings.guildId, LogChannelType.mod);
 		if (!webhook) {
 			return;
 		}

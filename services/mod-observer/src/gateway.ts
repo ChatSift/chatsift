@@ -335,6 +335,8 @@ export class Gateway {
 			return;
 		}
 
+		updatedName = updatedName.length ? updatedName : 'Filtered';
+
 		await this.discord
 			.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(data.guild_id, data.user.id), {
 				data: {
@@ -348,7 +350,7 @@ export class Gateway {
 				type: LogTypes.forbiddenName,
 				data: {
 					guildId: data.guild_id,
-					before: name,
+					before: highlightedName,
 					after: updatedName,
 					words: hits.map((hit) => hit.word),
 					user: data.user,
