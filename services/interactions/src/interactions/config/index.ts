@@ -7,3 +7,4 @@ export * from './config-report-presets';
 export * from './config-warn-punishments';
 export * from './config';
 export * from './filter';
+export * from './roles';
