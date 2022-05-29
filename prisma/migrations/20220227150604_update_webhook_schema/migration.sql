@@ -10,10 +10,13 @@
 -- CreateEnum
 CREATE TYPE "LogChannelType" AS ENUM ('mod', 'filter', 'user', 'message');
 
--- AlterTable
-ALTER TABLE "webhook_tokens" DROP CONSTRAINT "webhook_tokens_pkey",
-DROP COLUMN "channel_id",
-ADD COLUMN     "guild_id" TEXT NOT NULL,
-ADD COLUMN     "log_type" "LogChannelType" NOT NULL,
-ADD COLUMN     "thread_id" TEXT,
-ADD CONSTRAINT "webhook_tokens_pkey" PRIMARY KEY ("guild_id", "log_type");
+DROP TABLE "webhook_tokens";
+CREATE TABLE "webhook_tokens" (
+  "guild_id" TEXT NOT NULL,
+  "log_type" "LogChannelType" NOT NULL,
+  "webhook_id" TEXT NOT NULL,
+  "webhook_token" TEXT NOT NULL,
+  "thread_id" TEXT
+);
+
+ALTER TABLE "webhook_tokens" ADD CONSTRAINT "webhook_tokens_pkey" PRIMARY KEY ("guild_id", "log_type");

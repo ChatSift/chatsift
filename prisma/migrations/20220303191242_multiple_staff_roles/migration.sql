@@ -17,7 +17,7 @@ CREATE TABLE "AdminRole" (
 ALTER TABLE "ModRole" ADD CONSTRAINT "ModRole_guild_id_fkey" FOREIGN KEY ("guild_id") REFERENCES "guild_settings"("guild_id") ON DELETE CASCADE ON UPDATE NO ACTION;
 ALTER TABLE "AdminRole" ADD CONSTRAINT "AdminRole_guild_id_fkey" FOREIGN KEY ("guild_id") REFERENCES "guild_settings"("guild_id") ON DELETE CASCADE ON UPDATE NO ACTION;
 
-INSERT INTO "ModRole" ("guild_id", "role_id") SELECT "guild_id", "mod_role" FROM "guild_settings";
-INSERT INTO "AdminRole" ("guild_id", "role_id") SELECT "guild_id", "admin_role" FROM "guild_settings";
+INSERT INTO "ModRole" ("guild_id", "role_id") SELECT "guild_id", "mod_role" FROM "guild_settings" WHERE mod_role IS NOT NULL;
+INSERT INTO "AdminRole" ("guild_id", "role_id") SELECT "guild_id", "admin_role" FROM "guild_settings" WHERE admin_role IS NOT NULL;
 
 ALTER TABLE "guild_settings" DROP COLUMN "admin_role", DROP COLUMN "mod_role";

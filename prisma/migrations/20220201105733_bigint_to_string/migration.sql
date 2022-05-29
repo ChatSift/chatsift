@@ -110,7 +110,7 @@ ALTER TABLE "self_assignable_roles" DROP CONSTRAINT "self_assignable_roles_pkey"
 ALTER COLUMN "role_id" SET DATA TYPE TEXT,
 ALTER COLUMN "guild_id" SET DATA TYPE TEXT,
 ALTER COLUMN "emoji_id" SET DATA TYPE TEXT,
-ADD CONSTRAINT "self_assignable_roles_pkey" PRIMARY KEY ("role_id");
+ADD CONSTRAINT "self_assignable_roles_pkey" PRIMARY KEY ("role_id", "prompt_id");
 
 -- AlterTable
 ALTER TABLE "self_assignable_roles_prompts" ALTER COLUMN "guild_id" SET DATA TYPE TEXT,
