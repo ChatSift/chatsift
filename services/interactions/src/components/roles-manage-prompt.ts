@@ -55,7 +55,9 @@ export default class implements Component {
 							: undefined,
 					});
 				} else {
-					void this.prisma.selfAssignableRole.delete({ where: { roleId: roleData.roleId } }).catch(() => null);
+					void this.prisma.selfAssignableRole
+						.delete({ where: { roleId_promptId: { promptId: prompt!.promptId, roleId: roleData.roleId } } })
+						.catch(() => null);
 				}
 
 				return arr;

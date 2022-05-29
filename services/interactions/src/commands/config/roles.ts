@@ -51,7 +51,9 @@ export default class implements Command {
 				let cleanedUp = 0;
 				prompt.selfAssignableRoles = prompt.selfAssignableRoles.filter((r) => {
 					if (!roles.has(r.roleId)) {
-						void this.prisma.selfAssignableRole.delete({ where: { roleId: r.roleId } }).catch(() => null);
+						void this.prisma.selfAssignableRole
+							.delete({ where: { roleId_promptId: { promptId: prompt.promptId, roleId: r.roleId } } })
+							.catch(() => null);
 						cleanedUp++;
 						return false;
 					}
@@ -247,7 +249,7 @@ export default class implements Command {
 					await this.prisma.selfAssignableRole.upsert({
 						create: data,
 						update: data,
-						where: { roleId: data.roleId },
+						where: { roleId_promptId: { promptId: prompt.promptId, roleId: data.roleId } },
 					});
 
 					prompt = (await this.prisma.selfAssignableRolePrompt.findFirst({
@@ -340,7 +342,9 @@ export default class implements Command {
 						throw new Error();
 					}
 
-					await this.prisma.selfAssignableRole.delete({ where: { roleId: args.remove.role.id } });
+					await this.prisma.selfAssignableRole.delete({
+						where: { roleId_promptId: { promptId: prompt.promptId, roleId: args.remove.role.id } },
+					});
 
 					prompt = (await this.prisma.selfAssignableRolePrompt.findFirst({
 						where: { guildId: interaction.guild_id, promptId: args.remove.prompt },
@@ -355,7 +359,9 @@ export default class implements Command {
 					let cleanedUp = 0;
 					prompt.selfAssignableRoles = prompt.selfAssignableRoles.filter((r) => {
 						if (!roles.has(r.roleId)) {
-							void this.prisma.selfAssignableRole.delete({ where: { roleId: r.roleId } }).catch(() => null);
+							void this.prisma.selfAssignableRole
+								.delete({ where: { roleId_promptId: { promptId: prompt!.promptId, roleId: r.roleId } } })
+								.catch(() => null);
 							cleanedUp++;
 							return false;
 						}
