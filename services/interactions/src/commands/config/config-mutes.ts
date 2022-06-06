@@ -252,7 +252,11 @@ export default class implements Command {
 					.makeCollector<APIMessageComponentInteraction>(confirmId)
 					.waitForOneAndDestroy();
 
-				await send(done, { flags: 64 }, InteractionResponseType.DeferredMessageUpdate);
+				await send(
+					done,
+					{ content: 'Going through your channels..', flags: 64, components: [] },
+					InteractionResponseType.DeferredMessageUpdate,
+				);
 
 				stopCollectingPerms();
 				stopCollectingIgnores();
