@@ -90,6 +90,8 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 			}
 		}
 
+		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
+
 		const createCase = (actionType: CaseAction, entry: BannedWordWithFlags, expiresAt?: Date) =>
 			isSuccess(
 				this.caseManager.create({
@@ -104,6 +106,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 					reason: `automated punishment for using the word/phrase ${entry.word}`,
 					notifyUser: false,
 					expiresAt,
+					unmuteRoles: settings?.useTimeoutsByDefault ?? true ? null : undefined,
 				}),
 			);
 

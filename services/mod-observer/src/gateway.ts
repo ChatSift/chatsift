@@ -387,6 +387,7 @@ export class Gateway {
 					reason: `automated punishment having the word/phrase ${entry.word} in their username/nickname`,
 					notifyUser: false,
 					expiresAt,
+					unmuteRoles: settings?.useTimeoutsByDefault ?? true ? null : undefined,
 				}),
 			);
 

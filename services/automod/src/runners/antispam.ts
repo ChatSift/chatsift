@@ -1,11 +1,11 @@
 import { AntispamRunnerResult, Log, Runners } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
-import { kRedis } from '@automoderator/injection';
-import { dmUser } from '@automoderator/util';
+import { Config, kConfig, kRedis } from '@automoderator/injection';
+import { CaseData, CaseManager, dmUser } from '@automoderator/util';
 import { groupBy } from '@chatsift/utils';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest } from '@cordis/rest';
-import { PrismaClient } from '@prisma/client';
+import { AutomodPunishmentAction, CaseAction, PrismaClient } from '@prisma/client';
 import { Routes, APIMessage, RESTPostAPIChannelMessagesBulkDeleteJSONBody } from 'discord-api-types/v9';
 import type { Redis } from 'ioredis';
 import { inject, singleton } from 'tsyringe';
@@ -26,6 +26,8 @@ export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], 
 		public readonly messages: MessageCache,
 		public readonly discord: Rest,
 		public readonly logs: PubSubPublisher<Log>,
+		public readonly caseManager: CaseManager,
+		@inject(kConfig) public readonly config: Config,
 	) {}
 
 	public async transform(message: APIMessage): Promise<AntispamTransform> {
@@ -86,6 +88,55 @@ export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], 
 		}
 
 		await Promise.all(promises);
+
+		const baseData = { guildId: messages[0]!.guild_id!, userId: messages[0]!.author.id };
+		const { count } = await this.prisma.filterTrigger.upsert({
+			create: {
+				...baseData,
+				count: 1,
+			},
+			update: {
+				count: { increment: 1 },
+			},
+			where: { guildId_userId: baseData },
+		});
+
+		const punishment = await this.prisma.automodPunishment.findFirst({
+			where: { guildId: messages[0]!.guild_id!, triggers: count },
+		});
+
+		if (punishment) {
+			const ACTIONS = {
+				[AutomodPunishmentAction.warn]: CaseAction.warn,
+				[AutomodPunishmentAction.mute]: CaseAction.mute,
+				[AutomodPunishmentAction.kick]: CaseAction.kick,
+				[AutomodPunishmentAction.ban]: CaseAction.ban,
+			};
+
+			const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: messages[0]!.guild_id! } });
+
+			const caseData: CaseData = {
+				mod: {
+					id: this.config.discordClientId,
+					tag: 'AutoModerator#0000',
+				},
+				targetId: messages[0]!.author.id,
+				targetTag: `${messages[0]!.author.username}#${messages[0]!.author.discriminator}`,
+				reason: 'spamming',
+				guildId: messages[0]!.guild_id!,
+				unmuteRoles: settings?.useTimeoutsByDefault ?? true ? null : undefined,
+				actionType: ACTIONS[punishment.actionType],
+			};
+
+			if (caseData.actionType === CaseAction.mute) {
+				caseData.expiresAt = punishment.duration ? new Date(Date.now() + Number(punishment.duration) * 6e4) : undefined;
+			} else if (caseData.actionType === CaseAction.ban) {
+				caseData.expiresAt = punishment.duration ? new Date(Date.now() + Number(punishment.duration) * 6e4) : undefined;
+				caseData.deleteDays = 1;
+			}
+
+			await this.caseManager.create(caseData);
+		}
 	}
 
 	public async log(messages: APIMessage[]): Promise<AntispamRunnerResult> {
