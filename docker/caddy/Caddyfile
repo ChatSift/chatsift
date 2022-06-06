@@ -2,6 +2,10 @@
   acme_dns cloudflare {env.CF_API_TOKEN}
 }
 
+interactions.automoderator.app {
+  reverse_proxy * http://interactions:3002
+}
+
 api.automoderator.app {
   log {
     output file /var/log/access.log {
@@ -13,7 +17,6 @@ api.automoderator.app {
     format console
   }
 
-  reverse_proxy /api/v2/discord/webhook http://interactions:3002
   reverse_proxy * http://api:3001
 }
 
