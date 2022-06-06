@@ -252,6 +252,8 @@ export default class implements Command {
 					.makeCollector<APIMessageComponentInteraction>(confirmId)
 					.waitForOneAndDestroy();
 
+				await send(done, { flags: 64 }, InteractionResponseType.DeferredMessageUpdate);
+
 				stopCollectingPerms();
 				stopCollectingIgnores();
 
