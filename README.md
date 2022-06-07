@@ -23,9 +23,7 @@
 
 # About the repo
 
-This repository is pending a re-name to `stack` and more documentation as some internal changes are made.
-
-Until then, as a brief explanation, this is a monorepo for almost _everything_ ChatSift. This includes all of our public libraries, available on NPM, which you can locate in `packages/chatsift`, AutoModerator specific libraries, available in `packages/automoderator`, and all of the microservices that build up our API and products.
+This branch is the old AutoModerator codebase. Please return to [main](https://github.com/ChatSift/AutoModerator)
 
 # LICENSING
 
