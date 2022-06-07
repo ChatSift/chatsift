@@ -256,10 +256,9 @@ export class CaseManager {
 					);
 				}
 
+				const settings = await prisma.guildSettings.findFirst({ where: { guildId: cs.guildId } });
 				const member = await this.rest.get<APIGuildMember>(Routes.guildMember(cs.guildId, cs.targetId));
-				const rawRoles = await this.rest.get<APIRole[]>(Routes.guildRoles(cs.guildId));
-				const roles = new Map(rawRoles.map((r) => [r.id, r]));
-				const baseRoles = member.roles.filter((r) => roles.has(r) && !roles.get(r)!.managed);
+				const baseRoles = member.roles.filter((r) => r !== settings?.muteRole);
 
 				const unmuteRoles = await prisma.unmuteRole.findMany({ where: { caseId: cs.id } });
 				return this.rest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(cs.guildId, cs.targetId), {
