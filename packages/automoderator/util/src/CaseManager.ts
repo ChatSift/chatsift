@@ -223,7 +223,9 @@ export class CaseManager {
 
 				for (const role of member.roles) {
 					if (roles.has(role)) {
-						if (!roles.get(role)!.managed) {
+						if (roles.get(role)!.managed) {
+							muteRoles.push(role);
+						} else {
 							unmuteRoles.push(role);
 						}
 					} else {
