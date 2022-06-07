@@ -29,7 +29,7 @@ COPY packages/chatsift/readdir ./packages/chatsift/readdir
 COPY packages/chatsift/rest-utils ./packages/chatsift/rest-utils
 COPY packages/chatsift/utils ./packages/chatsift/utils
 
-RUN pnpm run build --filter ./packages/chatsift
+RUN pnpm --filter "./packages/chatsift/**" build
 
 COPY packages/automoderator/cache/package.json ./packages/automoderator/cache/package.json
 COPY packages/automoderator/broker-types/package.json ./packages/automoderator/broker-types/package.json
@@ -45,4 +45,4 @@ COPY packages/automoderator/injection ./packages/automoderator/injection
 COPY packages/automoderator/logger ./packages/automoderator/logger
 COPY packages/automoderator/util ./packages/automoderator/util
 
-RUN pnpm run build --filter ./packages/automoderator
+RUN pnpm --filter "./packages/automoderator/**" build

@@ -4,7 +4,7 @@ LABEL name "automoderator interactions builder"
 COPY services/interactions/package.json ./services/interactions/package.json
 RUN pnpm i --frozen-lockfile
 COPY services/interactions ./services/interactions
-RUN pnpm run build --filter ./services && pnpm prune --prod
+RUN pnpm --filter "./services/**" build && pnpm prune --prod
 
 FROM node:16-alpine
 LABEL name "automoderator interactions"

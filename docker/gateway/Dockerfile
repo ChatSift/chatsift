@@ -6,7 +6,7 @@ WORKDIR /opt/build
 COPY services/gateway/package.json ./services/gateway/package.json
 RUN pnpm i --frozen-lockfile
 COPY services/gateway ./services/gateway
-RUN pnpm run build --filter ./services && pnpm prune --prod
+RUN pnpm --filter "./services/**" build && pnpm prune --prod
 
 FROM node:16-alpine
 LABEL name "automoderator gateway"

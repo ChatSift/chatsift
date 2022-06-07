@@ -4,7 +4,7 @@ LABEL name "automoderator mod-observer builder"
 COPY services/mod-observer/package.json ./services/mod-observer/package.json
 RUN pnpm i --frozen-lockfile
 COPY services/mod-observer ./services/mod-observer
-RUN pnpm run build --filter ./services && pnpm prune --prod
+RUN pnpm --filter "./services/**" build && pnpm prune --prod
 
 FROM node:16-alpine
 LABEL name "automoderator mod-observer"

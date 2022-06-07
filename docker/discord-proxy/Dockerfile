@@ -6,7 +6,7 @@ WORKDIR /opt/build
 COPY services/discord-proxy/package.json ./services/discord-proxy/package.json
 RUN pnpm i --frozen-lockfile
 COPY services/discord-proxy ./services/discord-proxy
-RUN pnpm run build --filter ./services && pnpm prune --prod
+RUN pnpm --filter "./services/**" build && pnpm prune --prod
 
 FROM node:16-alpine
 LABEL name "automoderator discord-proxy"

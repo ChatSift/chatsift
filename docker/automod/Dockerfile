@@ -9,7 +9,7 @@ RUN wget -O ./services/automod/tlds.txt https://data.iana.org/TLD/tlds-alpha-by-
 RUN pnpm i --frozen-lockfile
 
 COPY services/automod ./services/automod
-RUN pnpm run build --filter ./services && pnpm prune --prod
+RUN pnpm --filter "./services/**" build && pnpm prune --prod
 
 FROM node:16-alpine
 LABEL name "automoderator automod"

@@ -4,7 +4,7 @@ LABEL name "automoderator scheduler builder"
 COPY services/scheduler/package.json ./services/scheduler/package.json
 RUN pnpm i --frozen-lockfile
 COPY services/scheduler ./services/scheduler
-RUN pnpm run build --filter ./services && pnpm prune --prod
+RUN pnpm --filter "./services/**" build && pnpm prune --prod
 
 FROM node:16-alpine
 LABEL name "automoderator scheduler"

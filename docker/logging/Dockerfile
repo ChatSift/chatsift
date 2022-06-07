@@ -4,7 +4,7 @@ LABEL name "automoderator logging builder"
 COPY services/logging/package.json ./services/logging/package.json
 RUN pnpm i --frozen-lockfile
 COPY services/logging ./services/logging
-RUN pnpm run build --filter ./services && pnpm prune --prod
+RUN pnpm --filter "./services/**" build && pnpm prune --prod
 
 FROM node:16-alpine
 LABEL name "automoderator logging"
