@@ -75,12 +75,13 @@ export class Gateway {
 			}
 
 			const bitfield = new DiscordPermissions(0n);
-			const guildRoles = await this.discord
+			const guildRolesList = await this.discord
 				.get<RESTGetAPIGuildRolesResult>(Routes.guildRoles(message.guild_id))
 				.catch(() => []);
+			const guildRoles = new Map(guildRolesList.map((role) => [role.id, role]));
 
-			for (const role of guildRoles) {
-				bitfield.add(BigInt(role.permissions));
+			for (const role of member.roles) {
+				bitfield.add(BigInt(guildRoles.get(role)?.permissions ?? 0));
 			}
 
 			const permissions = bitfield.toJSON() as `${bigint}`;
@@ -165,23 +166,6 @@ export class Gateway {
 		}, []);
 
 		if (logs.length) {
-			const queryData = { guildId: message.guild_id, userId: message.author.id };
-
-			await this.prisma.filterTrigger.upsert({
-				create: {
-					...queryData,
-					count: 1,
-				},
-				update: {
-					count: {
-						increment: 1,
-					},
-				},
-				where: {
-					guildId_userId: queryData,
-				},
-			});
-
 			this.logs.publish({
 				data: {
 					message,
