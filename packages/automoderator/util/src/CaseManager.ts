@@ -34,7 +34,7 @@ export interface BaseCaseCreateData<Action extends CaseAction = CaseAction> {
 	applyAction?: boolean;
 }
 
-export type DurationCaseType = 'ban' | 'mute';
+export type DurationCaseType = 'ban' | 'mute' | 'unmute';
 export type DeleteDaysCaseType = 'ban' | 'softban';
 
 export type OtherCaseType = Exclude<CaseAction, DurationCaseType | DeleteDaysCaseType>;
@@ -54,7 +54,7 @@ export interface BanCaseData extends DurationCaseData<'ban'>, DeleteDaysCaseData
 
 export interface SoftbanCaseData extends DeleteDaysCaseData<'softban'> {}
 
-export interface MuteCaseData extends DurationCaseData<'mute'> {
+export interface MuteCaseData extends DurationCaseData<'mute' | 'unmute'> {
 	/**
 	 * Null implies the usage of timeouts
 	 */
@@ -168,7 +168,7 @@ export class CaseManager {
 					data.actionType === CaseAction.ban || data.actionType === CaseAction.mute ? data.expiresAt : undefined,
 				useTimeouts: 'unmuteRoles' in data ? data.unmuteRoles === null : false,
 				unmuteRoles:
-					data.actionType === CaseAction.mute && data.unmuteRoles
+					(data.actionType === CaseAction.mute || data.actionType === CaseAction.unmute) && data.unmuteRoles
 						? {
 								createMany: {
 									data: data.unmuteRoles.map((roleId) => ({ roleId })),
@@ -397,6 +397,8 @@ export class CaseManager {
 	}
 
 	public async undoTimedAction(cs: Case, reason?: string): Promise<Case> {
+		const unmuteRoles = await this.prisma.unmuteRole.findMany({ where: { caseId: cs.id } });
+
 		const [undone] = await this.create({
 			actionType: this.getReversalAction(cs.actionType),
 			guildId: cs.guildId,
@@ -411,7 +413,7 @@ export class CaseManager {
 					: undefined,
 			reason: reason ?? 'automated timed action expiry',
 			refId: cs.caseId,
-			unmuteRoles: cs.useTimeouts ? null : undefined,
+			unmuteRoles: cs.useTimeouts ? null : unmuteRoles.map((r) => r.roleId),
 		});
 
 		try {
