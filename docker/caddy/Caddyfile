@@ -24,13 +24,13 @@ kibana.automoderator.app {
   reverse_proxy * http://kibana:5601
 }
 
-dash.automoderator.app {
-  basicauth * {
-    testers {env.BASIC_AUTH_KEY}
-  }
+# dash.automoderator.app {
+#   basicauth * {
+#     testers {env.BASIC_AUTH_KEY}
+#   }
 
-  reverse_proxy * http://dash:4000
-}
+#   reverse_proxy * http://dash:4000
+# }
 
 blog.automoderator.app {
   reverse_proxy * http://ghost:2368
