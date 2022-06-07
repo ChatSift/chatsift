@@ -63,10 +63,10 @@ export default class implements Command {
 			}, ms('10s'));
 
 			const timeout = setTimeout(() => {
-				resolve(members);
 				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				this.gateway.off(GatewayDispatchEvents.GuildMembersChunk, handler);
 				clearInterval(interval);
+				resolve(members);
 			}, ms('2m'));
 
 			const handler = (chunk: GatewayGuildMembersChunkDispatchData) => {
@@ -76,7 +76,7 @@ export default class implements Command {
 					}
 				}
 
-				if (index++ === chunk.chunk_count || members.length === guild.approximate_member_count!) {
+				if (++index === chunk.chunk_count || members.length >= guild.approximate_member_count!) {
 					this.gateway.off(GatewayDispatchEvents.GuildMembersChunk, handler);
 					clearTimeout(timeout);
 					clearInterval(interval);
