@@ -85,7 +85,7 @@ export default class implements Command {
 				);
 			}
 
-			settings.antispamAmount = mention.amount;
+			settings.mentionAmount = mention.amount;
 		}
 
 		if (mention?.limit) {
