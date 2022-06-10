@@ -12,6 +12,19 @@ export const ConfigAutoCommand = {
 			options: [],
 		},
 		{
+			name: 'set-cooldown',
+			description: 'Sets the automod cooldown',
+			type: ApplicationCommandOptionType.Subcommand,
+			options: [
+				{
+					name: 'cooldown',
+					description: 'The new automod cooldown to use',
+					type: ApplicationCommandOptionType.Number,
+					required: true,
+				},
+			],
+		},
+		{
 			name: 'antispam',
 			description: 'Configure antispam options',
 			type: ApplicationCommandOptionType.Subcommand,

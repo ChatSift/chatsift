@@ -86,6 +86,44 @@ export class Handler {
 		}
 	}
 
+	private async deescalateAutomodPunishments(): Promise<void> {
+		const automodCooldownCache = new Map<string, number | null>();
+		const triggers = await this.prisma.automodTrigger.findMany();
+
+		for (const trigger of triggers) {
+			let automodCooldown = automodCooldownCache.get(trigger.guildId);
+
+			if (automodCooldown === null) {
+				void this.prisma.automodTrigger
+					.delete({ where: { guildId_userId: { guildId: trigger.guildId, userId: trigger.userId } } })
+					.catch(() => null);
+				continue;
+			} else {
+				const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: trigger.guildId } });
+				automodCooldown = settings?.automodCooldown ?? null;
+				automodCooldownCache.set(trigger.guildId, automodCooldown);
+				if (!automodCooldown) {
+					continue;
+				}
+			}
+
+			if (new Date().getMinutes() - trigger.updatedAt.getMinutes() >= automodCooldown) {
+				const updated = await this.prisma.automodTrigger.update({
+					data: {
+						count: { decrement: 1 },
+					},
+					where: { guildId_userId: { guildId: trigger.guildId, userId: trigger.userId } },
+				});
+
+				if (updated.count <= 0) {
+					void this.prisma.automodTrigger.delete({
+						where: { guildId_userId: { guildId: trigger.guildId, userId: trigger.userId } },
+					});
+				}
+			}
+		}
+	}
+
 	private async handleTimedCase(id: number): Promise<unknown> {
 		const cs = await this.prisma.case.findFirst({ where: { id }, rejectOnNotFound: true });
 		if (!cs.useTimeouts) {
@@ -97,6 +135,7 @@ export class Handler {
 		setInterval(() => {
 			void this.handleTasks();
 			void this.handleAutoPardons();
+			void this.deescalateAutomodPunishments();
 		}, 1e4).unref();
 	}
 }

@@ -33,7 +33,7 @@ export default class implements Command {
 	}
 
 	public async exec(interaction: APIGuildInteraction, args: Partial<ArgumentsOf<typeof ConfigAutoCommand>>) {
-		const { show, antispam, mention } = args;
+		const { show, 'set-cooldown': setCooldown, antispam, mention } = args;
 
 		if (show) {
 			const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: interaction.guild_id } });
@@ -43,6 +43,14 @@ export default class implements Command {
 		await send(interaction, {}, InteractionResponseType.DeferredChannelMessageWithSource);
 
 		let settings: Partial<GuildSettings> = {};
+
+		if (setCooldown) {
+			if (setCooldown.cooldown < 1) {
+				throw new ControlFlowError('The cooldown must be at least 1 minute');
+			}
+
+			settings.automodCooldown = setCooldown.cooldown;
+		}
 
 		if (antispam?.amount) {
 			if (antispam.amount < 2) {
