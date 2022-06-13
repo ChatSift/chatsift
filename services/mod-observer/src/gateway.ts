@@ -363,7 +363,7 @@ export class Gateway {
 			Record<'report' | 'warn' | 'mute' | 'kick' | 'ban', Omit<BannedWord, 'flags'> & { flags: BanwordFlags }>
 		> = {};
 
-		for (const entry of entries) {
+		for (const entry of hits) {
 			for (const punishment of entry.flags.getPunishments()) {
 				punishments[punishment!] ??= entry;
 			}

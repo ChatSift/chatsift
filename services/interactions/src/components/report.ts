@@ -378,19 +378,21 @@ export default class implements Component {
 			}
 		}
 
-		return this.rest.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
-			Routes.channelMessage(interaction.channel_id!, interaction.message!.id),
-			{
-				data: {
-					components: [
-						{
-							type: ComponentType.ActionRow,
-							components: [review, acknowledged, viewReporters, actionButton],
-						},
-					],
-					embed,
+		return this.rest
+			.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
+				Routes.channelMessage(interaction.channel_id!, interaction.message!.id),
+				{
+					data: {
+						components: [
+							{
+								type: ComponentType.ActionRow,
+								components: [review, acknowledged, viewReporters, actionButton],
+							},
+						],
+						embeds: embed ? [embed] : undefined,
+					},
 				},
-			},
-		);
+			)
+			.catch(() => null);
 	}
 }
