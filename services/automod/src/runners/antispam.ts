@@ -129,9 +129,9 @@ export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], 
 			};
 
 			if (caseData.actionType === CaseAction.mute) {
-				caseData.expiresAt = punishment.duration ? new Date(Date.now() + Number(punishment.duration) * 6e4) : undefined;
+				caseData.expiresAt = punishment.duration ? new Date(Date.now() + Number(punishment.duration)) : undefined;
 			} else if (caseData.actionType === CaseAction.ban) {
-				caseData.expiresAt = punishment.duration ? new Date(Date.now() + Number(punishment.duration) * 6e4) : undefined;
+				caseData.expiresAt = punishment.duration ? new Date(Date.now() + Number(punishment.duration)) : undefined;
 				caseData.deleteDays = 1;
 			}
 

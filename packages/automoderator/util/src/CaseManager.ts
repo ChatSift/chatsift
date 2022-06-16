@@ -338,7 +338,7 @@ export class CaseManager {
 
 	private async lock(cs: Case): Promise<void> {
 		const key = `case_locks:${cs.actionType}:${cs.targetId}`;
-		const fiveMinutes = 300000;
+		const fiveMinutes = 300_000;
 		await this.redis.set(key, cs.id, 'PX', fiveMinutes);
 	}
 
@@ -346,7 +346,9 @@ export class CaseManager {
 		const key = `case_locks:${actionType}:${targetId}`;
 		const lockedCaseId = await this.redis.get(key);
 		if (lockedCaseId) {
-			return this.prisma.case.findFirst({ where: { id: parseInt(lockedCaseId, 10) }, rejectOnNotFound: true });
+			return this.prisma.case
+				.findFirst({ where: { id: parseInt(lockedCaseId, 10) }, rejectOnNotFound: true })
+				.catch(() => null);
 		}
 
 		return null;

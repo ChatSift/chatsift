@@ -160,9 +160,9 @@ export class MentionsRunner implements IRunner<MentionsTransform, APIMessage | A
 			};
 
 			if (caseData.actionType === CaseAction.mute) {
-				caseData.expiresAt = punishment.duration ? new Date(Date.now() + Number(punishment.duration) * 6e4) : undefined;
+				caseData.expiresAt = punishment.duration ? new Date(Date.now() + Number(punishment.duration)) : undefined;
 			} else if (caseData.actionType === CaseAction.ban) {
-				caseData.expiresAt = punishment.duration ? new Date(Date.now() + Number(punishment.duration) * 6e4) : undefined;
+				caseData.expiresAt = punishment.duration ? new Date(Date.now() + Number(punishment.duration)) : undefined;
 				caseData.deleteDays = 1;
 			}
 
