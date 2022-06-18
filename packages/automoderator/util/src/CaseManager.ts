@@ -120,7 +120,7 @@ export class CaseManager {
 				actionType: warnPunishment.actionType,
 				expiresAt:
 					warnPunishment.actionType === WarnPunishmentAction.ban ||
-					warnPunishment.actionType === WarnPunishmentAction.mute
+					(warnPunishment.actionType === WarnPunishmentAction.mute && warnPunishment.duration)
 						? new Date(Date.now() + Number(warnPunishment.duration))
 						: undefined,
 				reason: `automated punishment triggered for reaching ${userWarns.length} warnings`,
@@ -337,13 +337,13 @@ export class CaseManager {
 	}
 
 	private async lock(cs: Case): Promise<void> {
-		const key = `case_locks:${cs.actionType}:${cs.targetId}`;
+		const key = `case_locks:${cs.actionType}:${cs.targetId}:${cs.guildId}`;
 		const fiveMinutes = 300_000;
 		await this.redis.set(key, cs.id, 'PX', fiveMinutes);
 	}
 
-	public async isLocked(actionType: CaseAction, targetId: string): Promise<Case | null> {
-		const key = `case_locks:${actionType}:${targetId}`;
+	public async isLocked(actionType: CaseAction, targetId: string, guildId: string): Promise<Case | null> {
+		const key = `case_locks:${actionType}:${targetId}:${guildId}`;
 		const lockedCaseId = await this.redis.get(key);
 		if (lockedCaseId) {
 			return this.prisma.case

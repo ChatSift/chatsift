@@ -35,7 +35,7 @@ export default class implements Command {
 		const modTag = `${interaction.member.user.username}#${interaction.member.user.discriminator}`;
 		const targetTag = `${member.user.username}#${member.user.discriminator}`;
 
-		const locked = await this.cases.isLocked(CaseAction.softban, member.user.id);
+		const locked = await this.cases.isLocked(CaseAction.softban, member.user.id, interaction.guild_id);
 		if (locked && !(await handleLockConfirmation(interaction, member, locked))) {
 			return;
 		}
