@@ -27,6 +27,10 @@ export default class implements Command {
 
 			case 'delete': {
 				try {
+					await this.prisma.presetReportReason.findFirst({
+						where: { reportReasonId: args.delete.id, guildId: interaction.guild_id },
+						rejectOnNotFound: true,
+					});
 					await this.prisma.presetReportReason.delete({ where: { reportReasonId: args.delete.id } });
 
 					return await send(interaction, {
@@ -40,9 +44,11 @@ export default class implements Command {
 			case 'list': {
 				const presets = await this.prisma.presetReportReason.findMany({ where: { guildId: interaction.guild_id } });
 				return send(interaction, {
-					content: `Here are the current presets:\n${presets
-						.map((preset) => `• Preset ID ${preset.reportReasonId}: ${preset.reason}`)
-						.join('\n')}`,
+					content: presets.length
+						? `Here are the current presets:\n${presets
+								.map((preset) => `• Preset ID ${preset.reportReasonId}: ${preset.reason}`)
+								.join('\n')}`
+						: 'You have no available presets.',
 				});
 			}
 		}

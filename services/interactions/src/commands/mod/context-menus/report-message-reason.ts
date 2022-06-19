@@ -43,7 +43,7 @@ export default class implements Command {
 		const reasonIdOther = nanoid();
 
 		const presetReportReasons = await this.prisma.presetReportReason.findMany({
-			where: { guildId: message.guild_id },
+			where: { guildId: interaction.guild_id },
 		});
 
 		const components: APIActionRowComponent<APIMessageActionRowComponent>[] = [];
