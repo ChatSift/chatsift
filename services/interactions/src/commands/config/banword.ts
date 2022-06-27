@@ -80,6 +80,10 @@ export default class implements Command {
 					flags.push('name');
 				}
 
+				if (args.add.kick) {
+					flags.push('kick');
+				}
+
 				const url = args.add.entry.match(/([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm)?.[0];
 
 				const bannedWord: BannedWord = {
