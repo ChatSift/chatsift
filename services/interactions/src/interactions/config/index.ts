@@ -4,6 +4,7 @@ export * from './config-automod-punishments';
 export * from './config-automod';
 export * from './config-log-ignores';
 export * from './config-mutes';
+export * from './config-nsfw-detection';
 export * from './config-report-presets';
 export * from './config-warn-punishments';
 export * from './config';
