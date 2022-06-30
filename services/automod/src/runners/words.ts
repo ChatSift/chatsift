@@ -167,6 +167,11 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 	}
 
 	public log(words: BannedWordWithFlags[]): WordsRunnerResult {
-		return { runner: Runners.words, data: words.map(({ flags, ...word }) => ({ flags: flags.valueOf(), ...word })) };
+		return {
+			runner: Runners.words,
+			data: words
+				.filter(({ flags }) => !(flags.has('report') && flags.toArray().length === 1))
+				.map(({ flags, ...word }) => ({ flags: flags.valueOf(), ...word })),
+		};
 	}
 }
