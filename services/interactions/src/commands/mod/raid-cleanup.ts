@@ -268,15 +268,27 @@ export default class implements Command {
 			}
 
 			await Promise.allSettled(promises);
-			const format = (xs: Snowflake[]) => (xs.length ? `\n${xs.map((x) => `• <@${x}>`).join('\n')}` : ' none');
+
+			const files: { name: string; content: Buffer }[] = [];
+			if (sweeped.length) {
+				files.push({
+					name: 'sweeped.txt',
+					content: Buffer.from(sweeped.map((x) => `${x}`).join('\n')),
+				});
+			}
+
+			if (missed.length) {
+				files.push({
+					name: 'missed.txt',
+					content: Buffer.from(missed.map((x) => `${x}`).join('\n')),
+				});
+			}
 
 			return await send(
 				interaction,
 				{
-					content: `Done cleaning up! Here's a summary:\n\n**Members sweeped**:${format(
-						sweeped,
-					)}\n\n**Members missed**:${format(missed)}`,
-					allowed_mentions: { parse: [] },
+					content: "Done cleaning up! Here's a summary",
+					files,
 				},
 				InteractionResponseType.ChannelMessageWithSource,
 				true,
