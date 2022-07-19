@@ -119,8 +119,9 @@ export class CaseManager {
 						: undefined,
 				actionType: warnPunishment.actionType,
 				expiresAt:
-					warnPunishment.actionType === WarnPunishmentAction.ban ||
-					(warnPunishment.actionType === WarnPunishmentAction.mute && warnPunishment.duration)
+					(warnPunishment.actionType === WarnPunishmentAction.ban ||
+						warnPunishment.actionType === WarnPunishmentAction.mute) &&
+					warnPunishment.duration
 						? new Date(Date.now() + Number(warnPunishment.duration))
 						: undefined,
 				reason: `automated punishment triggered for reaching ${userWarns.length} warnings`,
