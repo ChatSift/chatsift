@@ -15,7 +15,7 @@ import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 
 interface ParsedEntry {
-	muteduration?: number;
+	muteduration?: string;
 	flags: ('word' | 'warn' | 'mute' | 'ban' | 'report' | 'kick' | 'name')[];
 }
 
@@ -35,7 +35,7 @@ export default class implements Command {
 			};
 
 			if (entry.duration !== null) {
-				value.muteduration = Number(entry.duration);
+				value.muteduration = ms(Number(entry.duration), true);
 			}
 
 			acc[entry.word] = value;
@@ -228,7 +228,7 @@ export default class implements Command {
 							throw new ControlFlowError(`Failed to parse mute duration for word/phrase "${word}"`);
 						}
 
-						entry.duration = value.muteduration;
+						entry.duration = BigInt(parsed);
 					}
 
 					words.push(entry);
