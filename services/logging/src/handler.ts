@@ -88,8 +88,6 @@ export class Handler {
 		const embeds: APIEmbed[] = [];
 
 		for (const entry of log.data) {
-			this.logger.metric!({ type: 'mod_action', actionType: entry.actionType, guild: entry.guildId });
-
 			const { logMessageId } = await this.prisma.case.findFirst({ where: { id: entry.id }, rejectOnNotFound: true });
 
 			const [target, mod, message] = await Promise.all([
@@ -334,14 +332,6 @@ export class Handler {
 	}
 
 	private async handleFilterTriggerLog(log: FilterTriggerLog) {
-		for (const trigger of log.data.triggers) {
-			this.logger.metric!({
-				type: 'filter_trigger',
-				triggerType: Runners[trigger.runner],
-				guild: log.data.message.guild_id,
-			});
-		}
-
 		const webhook = await this.assertWebhook(log.data.message.guild_id!, LogChannelType.filter);
 		if (!webhook) {
 			return;

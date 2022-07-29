@@ -43,8 +43,6 @@ void (async () => {
 		.on('dispatch', (data) => {
 			switch (data.t) {
 				case 'MESSAGE_CREATE': {
-					logger.metric!({ type: 'message_seen' });
-
 					void messageCache
 						// @ts-expect-error - Common discord-api-types version missmatch
 						.add(data.d)

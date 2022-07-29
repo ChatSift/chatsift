@@ -86,13 +86,6 @@ void (() => {
 			}
 		}
 
-		logger.metric!({
-			type: 'discord_proxy_cache',
-			method,
-			path: req.path.replaceAll(/\d{17,19}/g, ':id'),
-			cached: 'cached' in data ? data.cached : false,
-		});
-
 		res.setHeader('content-type', data.headers.get('content-type') ?? 'application/json');
 		res.statusCode = data.status;
 

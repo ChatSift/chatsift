@@ -8,63 +8,38 @@ services:
       API_DOMAIN: 'https://api.automoderator.app'
       GHOST_DOMAIN: 'https://blog.automoderator.app'
       CORS: 'https://dash.automoderator.app'
-      ELASTIC_URL: 'http://elasticsearch:9200'
-      ELASTIC_USERNAME: 'elastic'
 
   automod:
     environment:
       NODE_ENV: 'prod'
       API_DOMAIN: 'http://api:3001'
-      ELASTIC_URL: 'http://elasticsearch:9200'
-      ELASTIC_USERNAME: 'elastic'
-
-  # dash:
-  #   image: chatsift/automoderator_dash
-  #   build:
-  #     context: ../
-  #     dockerfile: ./docker/dash/Dockerfile
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - base
 
   discord-proxy:
     environment:
       NODE_ENV: 'prod'
-      ELASTIC_URL: 'http://elasticsearch:9200'
-      ELASTIC_USERNAME: 'elastic'
 
   gateway:
     environment:
       NODE_ENV: 'prod'
-      ELASTIC_URL: 'http://elasticsearch:9200'
-      ELASTIC_USERNAME: 'elastic'
 
   interactions:
     environment:
       NODE_ENV: 'prod'
       API_DOMAIN: 'http://api:3001'
-      ELASTIC_URL: 'http://elasticsearch:9200'
-      ELASTIC_USERNAME: 'elastic'
 
   logging:
     environment:
       NODE_ENV: 'prod'
-      ELASTIC_URL: 'http://elasticsearch:9200'
-      ELASTIC_USERNAME: 'elastic'
 
   mod-observer:
     environment:
       NODE_ENV: 'prod'
       API_DOMAIN: 'http://api:3001'
-      ELASTIC_URL: 'http://elasticsearch:9200'
-      ELASTIC_USERNAME: 'elastic'
 
   scheduler:
     environment:
       NODE_ENV: 'prod'
       API_DOMAIN: 'http://api:3001'
-      ELASTIC_URL: 'http://elasticsearch:9200'
-      ELASTIC_USERNAME: 'elastic'
 
   caddy:
     build:
@@ -73,33 +48,9 @@ services:
     depends_on:
       - api
       - interactions
-      - elasticsearch
-      - kibana
     ports:
       - '80:80'
       - '443:443'
-
-  elasticsearch:
-    image: elasticsearch:7.12.1
-    volumes:
-      - elis-data:/usr/share/elasticsearch/data
-    environment:
-      'discovery.type': 'single-node'
-      'bootstrap.memory_lock': 'true'
-      'xpack.security.enabled': 'true'
-      ES_JAVA_OPTS: '-Xms512m -Xmx512m'
-    restart: unless-stopped
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-
-  kibana:
-    image: kibana:7.12.1
-    restart: unless-stopped
-    environment:
-      ELASTICSEARCH_HOSTS: 'http://elasticsearch:9200'
-      ELASTICSEARCH_USERNAME: 'kibana_system'
 
   ghost:
     image: ghost:4-alpine

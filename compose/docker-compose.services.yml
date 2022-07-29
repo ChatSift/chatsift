@@ -12,6 +12,8 @@ services:
       DISCORD_SCOPES: 'identify,email,guilds'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
     restart: unless-stopped
+    volumes:
+      - ../logs:/usr/api/logs
     depends_on:
       - base
 
@@ -26,6 +28,8 @@ services:
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
     restart: unless-stopped
+    volumes:
+      - ../logs:/usr/automod/logs
     depends_on:
       - base
 
@@ -40,6 +44,8 @@ services:
     build:
       context: ../
       dockerfile: ./docker/discord-proxy/Dockerfile
+    volumes:
+      - ../logs:/usr/discord-proxy/logs
     restart: unless-stopped
     depends_on:
       - base
@@ -52,6 +58,8 @@ services:
     environment:
       AMQP_URL: 'amqp://rabbitmq:5672'
       REDIS_URL: 'redis://redis:6379/0'
+    volumes:
+      - ../logs:/usr/gateway/logs
     restart: unless-stopped
     depends_on:
       - base
@@ -66,6 +74,8 @@ services:
       REDIS_URL: 'redis://redis:6379/0'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
+    volumes:
+      - ../logs:/usr/interactions/logs
     restart: unless-stopped
     depends_on:
       - base
@@ -79,6 +89,8 @@ services:
       DB_URL: '${DB_URL}'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
+    volumes:
+      - ../logs:/usr/logging/logs
     restart: unless-stopped
     depends_on:
       - base
@@ -93,6 +105,8 @@ services:
       REDIS_URL: 'redis://redis:6379/0'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
+    volumes:
+      - ../logs:/usr/mod-observer/logs
     restart: unless-stopped
     depends_on:
       - base
@@ -107,6 +121,8 @@ services:
       REDIS_URL: 'redis://redis:6379/0'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
+    volumes:
+      - ../logs:/usr/scheduler/logs
     restart: unless-stopped
     depends_on:
       - base

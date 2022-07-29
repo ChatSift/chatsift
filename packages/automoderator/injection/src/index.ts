@@ -25,9 +25,6 @@ export interface Config {
 	nodeEnv: string;
 	encryptionKey: string;
 	cors: string | string[];
-	elasticUrl: string;
-	elasticUsername: string;
-	elasticPassword: string;
 	nsfwPredictApiKey: string;
 	ghostIntegrationKey: string;
 	discordProxyUrl: string;
@@ -53,9 +50,6 @@ export const initConfig = () => {
 		nodeEnv: process.env.NODE_ENV ?? 'dev',
 		encryptionKey: process.env.ENCRYPTION_KEY!,
 		cors: process.env.CORS?.split(',') ?? '*',
-		elasticUrl: process.env.ELASTIC_URL!,
-		elasticUsername: process.env.ELASTIC_USERNAME!,
-		elasticPassword: process.env.ELASTIC_PASSWORD!,
 		nsfwPredictApiKey: process.env.NSFW_PREDICT_API_KEY!,
 		ghostIntegrationKey: process.env.GHOST_INTEGRATION_KEY!,
 		discordProxyUrl: process.env.DISCORD_PROXY_URL!,

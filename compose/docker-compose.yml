@@ -38,8 +38,6 @@ services:
       timeout: 5s
 
 volumes:
-  elis-data:
-    name: 'automoderator-elis-data'
   redis-data:
     name: 'automoderator-v2-redis-data'
   postgres-data:

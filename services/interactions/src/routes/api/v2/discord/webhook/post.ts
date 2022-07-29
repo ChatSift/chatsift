@@ -50,7 +50,6 @@ export default class extends Route {
 
 		switch (interaction.type) {
 			case InteractionType.ApplicationCommand: {
-				this.logger.metric!({ type: 'command', guild: interaction.guild_id });
 				return this.handler.handleCommand(interaction);
 			}
 

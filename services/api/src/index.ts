@@ -11,7 +11,6 @@ import { Boom, isBoom, notFound } from '@hapi/boom';
 import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
-import { logRequests } from './middleware';
 import { PrismaClient } from '@prisma/client';
 
 void (async () => {
@@ -54,7 +53,6 @@ void (async () => {
 		}),
 		helmet({ contentSecurityPolicy: config.nodeEnv === 'prod' ? undefined : false }) as Middleware,
 		attachHttpUtils(),
-		logRequests(),
 	);
 
 	const files = readdirRecurse(joinPath(__dirname, 'routes'), { fileExtensions: ['js'] });

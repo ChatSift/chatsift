@@ -21,7 +21,7 @@
 	"devDependencies": {
 		"@types/amqplib": "^0.8.2",
 		"@types/node": "^16.11.7",
-		"@types/pino": "^6.3.11",
+		"pino": "^8.1.0",
 		"prisma": "^3.13.0",
 		"typescript": "^4.6.4"
 	},
