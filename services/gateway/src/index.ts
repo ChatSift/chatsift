@@ -4,7 +4,9 @@ import { GuildMemberCache, MessageCache } from '@automoderator/cache';
 import { initConfig, kRedis } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createAmqp, RoutingPublisher, PubSubSubscriber } from '@cordis/brokers';
-import { Cluster } from '@cordis/gateway';
+import { REST } from '@discordjs/rest';
+import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
+import { GatewayIntentBits } from 'discord-api-types/v10';
 import type { GatewaySendPayload } from 'discord-api-types/v9';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
@@ -24,27 +26,21 @@ void (async () => {
 	const guildMembersCache = container.resolve(GuildMemberCache);
 	const messageCache = container.resolve(MessageCache);
 
-	const gateway = new Cluster(config.discordToken, {
-		compress: false,
-		encoding: 'json',
-		intents: ['guildMessages', 'guildMembers', 'guildBans'],
+	const gateway = new WebSocketManager({
+		token: config.discordToken,
+		rest: new REST().setToken(config.discordToken),
+		intents: GatewayIntentBits.GuildMessages | GatewayIntentBits.GuildMembers | GatewayIntentBits.GuildBans,
 	});
 
 	gateway
-		.on('destroy', (reconnecting, fatal, id) => {
-			logger.debug({ id, fatal, reconnecting }, 'Shard death');
-			if (!reconnecting) {
-				process.exit(1);
-			}
-		})
-		.on('open', (id) => logger.debug({ id }, 'WS connection open'))
-		.on('error', (err: unknown, id) => logger.debug({ id, err }, 'Encountered a shard error'))
-		.on('ready', () => logger.debug('All shards have become fully available'))
-		.on('dispatch', (data) => {
+		.on(WebSocketShardEvents.Debug, ({ message, shardId }) => logger.debug({ shardId }, message))
+		.on(WebSocketShardEvents.Hello, ({ shardId }) => logger.debug({ shardId }, 'Shard HELLO'))
+		.on(WebSocketShardEvents.Ready, ({ shardId }) => logger.debug({ shardId }, 'Shard READY'))
+		.on(WebSocketShardEvents.Resumed, ({ shardId }) => logger.debug({ shardId }, 'Shard RESUMED'))
+		.on(WebSocketShardEvents.Dispatch, ({ data }) => {
 			switch (data.t) {
 				case 'MESSAGE_CREATE': {
 					void messageCache
-						// @ts-expect-error - Common discord-api-types version missmatch
 						.add(data.d)
 						.catch((error: unknown) =>
 							logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a message'),
@@ -52,9 +48,9 @@ void (async () => {
 
 					if (data.d.guild_id && !data.d.webhook_id) {
 						void guildMembersCache
+							// @ts-expect-error - Common discord-api-types version missmatch
 							.add({
 								guild_id: data.d.guild_id,
-								// @ts-expect-error - Common discord-api-types version missmatch
 								user: data.d.author,
 								...data.d.member,
 							})
@@ -71,7 +67,6 @@ void (async () => {
 						void guildMembersCache
 							.add({
 								guild_id: data.d.guild_id,
-								// @ts-expect-error - Common discord-api-types version missmatch
 								user: data.d.author,
 								...data.d.member,
 							})
@@ -85,18 +80,19 @@ void (async () => {
 					break;
 			}
 
-			// @ts-expect-error - Common discord-api-types version missmatch
 			router.publish(data.t, data.d);
-		})
-		.on('debug', (info, id) => logger.debug({ id }, info as string));
+		});
 
 	await router.init({ name: 'gateway', topicBased: false });
 	await gateway.connect();
 
 	await broadcaster.init({
 		name: 'gateway_broadcasts',
-		// @ts-expect-error - Common discord-api-types version missmatch
-		cb: (packet) => gateway.broadcast(packet),
+		cb: async (packet) => {
+			for (const shardId of await gateway.getShardIds()) {
+				void gateway.send(shardId, packet);
+			}
+		},
 		fanout: true,
 	});
 })();
