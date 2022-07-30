@@ -113,7 +113,7 @@ __metadata:
     "@cordis/common": ^1.2.0
     "@cordis/redis-store": ^1.2.0
     "@discordjs/rest": ^1.0.1
-    "@discordjs/ws": ^0.1.0
+    "@discordjs/ws": ^0.2.0
     "@types/amqplib": ^0.8.2
     "@types/ioredis": ^4.28.10
     "@types/node": ^16.11.46
@@ -2058,9 +2058,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@discordjs/ws@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@discordjs/ws@npm:0.1.0"
+"@discordjs/ws@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@discordjs/ws@npm:0.2.0"
   dependencies:
     "@discordjs/collection": ^1.0.1
     "@discordjs/rest": ^1.0.1
@@ -2070,7 +2070,7 @@ __metadata:
     discord-api-types: ^0.36.3
     tslib: ^2.4.0
     ws: ^8.8.1
-  checksum: 46afdf0fa69ec92d07cd4f60e1557d4d271b40c4ab4172f6ee5f6826206fa3c09543e3928b4751d92a8f4a3641ff0efa6f463585eb17f850f4f7b0b465572104
+  checksum: e25895cf3480b8575d947559009e4e467b9b6d58285a9e55d7ba9d0c45eae59b5dff63fa0f5b41a2337dd1421b4dd2390cf8801e74682533a78b775cfe2e70a4
   languageName: node
   linkType: hard
 
