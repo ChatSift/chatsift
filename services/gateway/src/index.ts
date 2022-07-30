@@ -35,12 +35,21 @@ void (async () => {
 			GatewayIntentBits.MessageContent,
 	});
 
+	const panicTimeout = setTimeout(() => {
+		logger.debug('Panic');
+		process.exit(1);
+	}, 60_000).unref();
+
 	gateway
-		.on(WebSocketShardEvents.Debug, ({ message, shardId }) => logger.debug({ shardId }, message))
+		.on(WebSocketShardEvents.Debug, ({ message, shardId }) => {
+			logger.debug({ shardId }, message);
+			panicTimeout.refresh();
+		})
 		.on(WebSocketShardEvents.Hello, ({ shardId }) => logger.debug({ shardId }, 'Shard HELLO'))
 		.on(WebSocketShardEvents.Ready, ({ shardId }) => logger.debug({ shardId }, 'Shard READY'))
 		.on(WebSocketShardEvents.Resumed, ({ shardId }) => logger.debug({ shardId }, 'Shard RESUMED'))
 		.on(WebSocketShardEvents.Dispatch, ({ data }) => {
+			panicTimeout.refresh();
 			switch (data.t) {
 				case 'MESSAGE_CREATE': {
 					void messageCache
