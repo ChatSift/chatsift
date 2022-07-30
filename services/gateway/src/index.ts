@@ -6,8 +6,7 @@ import createLogger from '@automoderator/logger';
 import { createAmqp, RoutingPublisher, PubSubSubscriber } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
-import { GatewayIntentBits } from 'discord-api-types/v10';
-import type { GatewaySendPayload } from 'discord-api-types/v9';
+import { GatewayIntentBits, GatewaySendPayload } from 'discord-api-types/v10';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
 
@@ -29,7 +28,11 @@ void (async () => {
 	const gateway = new WebSocketManager({
 		token: config.discordToken,
 		rest: new REST().setToken(config.discordToken),
-		intents: GatewayIntentBits.GuildMessages | GatewayIntentBits.GuildMembers | GatewayIntentBits.GuildBans,
+		intents:
+			GatewayIntentBits.GuildMessages |
+			GatewayIntentBits.GuildMembers |
+			GatewayIntentBits.GuildBans |
+			GatewayIntentBits.MessageContent,
 	});
 
 	gateway
