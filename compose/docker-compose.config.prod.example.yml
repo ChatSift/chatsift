@@ -6,7 +6,6 @@ services:
       DISCORD_CLIENT_ID: '123'
       DISCORD_TOKEN: 'awooga'
       DEV_IDS: '123,456'
-      INTERNAL_API_TOKEN: 'asdf'
       NSFW_PREDICT_API_KEY: 'something'
 
   discord-proxy:
@@ -24,7 +23,6 @@ services:
       DISCORD_PUB_KEY: 'owo'
       DISCORD_TOKEN: 'awooga'
       DEV_IDS: '123,456'
-      INTERNAL_API_TOKEN: 'asdf'
 
   logging:
     environment:
@@ -34,13 +32,11 @@ services:
     environment:
       DISCORD_CLIENT_ID: '123'
       DISCORD_TOKEN: 'awooga'
-      INTERNAL_API_TOKEN: 'asdf'
 
   scheduler:
     environment:
       DISCORD_CLIENT_ID: '123'
       DISCORD_TOKEN: 'awooga'
-      INTERNAL_API_TOKEN: 'asdf'
 
   caddy:
     environment:
