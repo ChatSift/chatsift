@@ -34,7 +34,6 @@ services:
       context: ../
       dockerfile: ./docker/caddy/Dockerfile
     depends_on:
-      - api
       - interactions
     ports:
       - '80:80'
