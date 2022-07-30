@@ -12,7 +12,7 @@ import type { Interaction } from '#util';
 @singleton()
 export class WebhookRoute extends Route<unknown, unknown> {
 	public readonly info = {
-		path: '/api/v2/discord/webhook/post',
+		path: '/api/v2/discord/webhook',
 		method: RouteMethod.post,
 	} as const;
 
