@@ -1,16 +1,22 @@
 import { PredictionType, NsfwApiData, Log, NsfwRunnerResult, Runners } from '@automoderator/broker-types';
-import { Rest } from '@cordis/rest';
+import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
+import { dmUser } from '@automoderator/util';
+import { PubSubPublisher } from '@cordis/brokers';
+import { Rest } from '@cordis/rest';
+import { GuildSettings, PrismaClient } from '@prisma/client';
+import {
+	Routes,
+	APIMessage,
+	ChannelType,
+	APITextChannel,
+	GatewayMessageCreateDispatchData,
+} from 'discord-api-types/v9';
 import fetch from 'node-fetch';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
-import { GuildSettings, PrismaClient } from '@prisma/client';
-import { MessageCache } from '@automoderator/cache';
-import { PubSubPublisher } from '@cordis/brokers';
-import { FilesRunner } from './files';
 import type { IRunner } from './IRunner';
-import { Routes, APIMessage, ChannelType, APITextChannel } from 'discord-api-types/v9';
-import { dmUser } from '@automoderator/util';
+import { UrlsRunner } from './urls';
 
 interface NsfwTransform {
 	urls: string[];
@@ -31,7 +37,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 		public readonly messages: MessageCache,
 		public readonly discord: Rest,
 		public readonly logs: PubSubPublisher<Log>,
-		public readonly filesRunner: FilesRunner,
+		public readonly urlsRunner: UrlsRunner,
 	) {}
 
 	private async handleUrl(url: string, settings: Partial<GuildSettings>): Promise<NsfwRunnerResult['data']> {
@@ -49,7 +55,10 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 		if (!res.ok) {
 			this.logger.warn(
 				{
-					data: await (res.json() as Promise<unknown>).catch(() => res.text()).catch(() => null),
+					data: await res
+						.json()
+						.catch(() => res.text())
+						.catch(() => null),
 					status: res.status,
 				},
 				'Failed requst to NSFW API',
@@ -115,7 +124,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 		}
 	}
 
-	public async transform(message: APIMessage): Promise<NsfwTransform> {
+	public async transform(message: GatewayMessageCreateDispatchData): Promise<NsfwTransform> {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
 		let channel = await this.discord.get<APITextChannel>(Routes.channel(message.channel_id));
 
@@ -124,8 +133,19 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 			channel = await this.discord.get<APITextChannel>(Routes.channel(channel.parent_id!));
 		}
 
+		const { urls: messageUrls } = await this.urlsRunner.transform(message);
+		const embedUrls = message.embeds.reduce<string[]>((acc, embed) => {
+			if (embed.url) {
+				acc.push(embed.url);
+			}
+
+			return acc;
+		}, []);
+		const attachmentUrls = message.attachments.map((attachment) => attachment.url);
+		const urls = [...new Set(messageUrls.concat(...embedUrls, ...attachmentUrls))];
+
 		return {
-			urls: (await this.filesRunner.transform(message)).urls,
+			urls,
 			settings,
 			nsfw: channel.nsfw ?? false,
 		};

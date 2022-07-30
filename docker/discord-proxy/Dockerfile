@@ -4,9 +4,10 @@ LABEL name "automoderator discord-proxy builder"
 WORKDIR /opt/build
 
 COPY services/discord-proxy/package.json ./services/discord-proxy/package.json
-RUN pnpm i --frozen-lockfile
 COPY services/discord-proxy ./services/discord-proxy
-RUN pnpm --filter "./services/**" build && pnpm prune --prod
+
+RUN yarn turbo run build --filter=./services/discord-proxy
+RUN yarn workspaces focus --all --production
 
 FROM node:16-alpine
 LABEL name "automoderator discord-proxy"

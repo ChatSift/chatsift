@@ -1,9 +1,8 @@
-import * as interactions from '#interactions';
-import { ControlFlowError, Interaction, send, transformInteraction } from '#util';
-import { PermissionsChecker } from '@automoderator/util';
+import { join as joinPath } from 'path';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { Rest } from '@cordis/rest';
+import { PermissionsChecker } from '@automoderator/util';
 import { readdirRecurse } from '@chatsift/readdir';
+import { Rest } from '@cordis/rest';
 import {
 	APIApplicationCommandInteractionData,
 	APIMessageButtonInteractionData,
@@ -14,12 +13,13 @@ import {
 	Routes,
 	Snowflake,
 } from 'discord-api-types/v9';
-import { join as joinPath } from 'path';
 import type { Logger } from 'pino';
 import { container, inject, InjectionToken, singleton } from 'tsyringe';
+import { CollectableInteraction, CollectorManager } from './collector';
 import { Command, commandInfo } from './command';
 import { Component, componentInfo } from './component';
-import { CollectableInteraction, CollectorManager } from './collector';
+import * as interactions from '#interactions';
+import { ControlFlowError, Interaction, send, transformInteraction } from '#util';
 
 export * from './collector';
 

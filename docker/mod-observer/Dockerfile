@@ -2,9 +2,10 @@ FROM chatsift/automoderator_base
 LABEL name "automoderator mod-observer builder"
 
 COPY services/mod-observer/package.json ./services/mod-observer/package.json
-RUN pnpm i --frozen-lockfile
 COPY services/mod-observer ./services/mod-observer
-RUN pnpm --filter "./services/**" build && pnpm prune --prod
+
+RUN yarn turbo run build --filter=./services/mod-observer
+RUN yarn workspaces focus --all --production
 
 FROM node:16-alpine
 LABEL name "automoderator mod-observer"

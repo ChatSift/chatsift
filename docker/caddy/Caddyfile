@@ -6,28 +6,6 @@ interactions.automoderator.app {
   reverse_proxy * http://interactions:3002
 }
 
-api.automoderator.app {
-  log {
-    output file /var/log/access.log {
-      roll_size 1gb
-      roll_keep 5
-      roll_keep_for 720h
-    }
-    level INFO
-    format console
-  }
-
-  reverse_proxy * http://api:3001
-}
-
-# dash.automoderator.app {
-#   basicauth * {
-#     testers {env.BASIC_AUTH_KEY}
-#   }
-
-#   reverse_proxy * http://dash:4000
-# }
-
 blog.automoderator.app {
   reverse_proxy * http://ghost:2368
 }

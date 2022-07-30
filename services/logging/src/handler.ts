@@ -9,7 +9,15 @@ import {
 	Runners,
 	ServerLog,
 	ServerLogType,
+	BanwordFlags,
 } from '@automoderator/broker-types';
+import { Config, kConfig, kLogger } from '@automoderator/injection';
+import { makeCaseEmbed } from '@automoderator/util';
+import { truncateEmbed } from '@chatsift/discord-utils';
+import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
+import { HTTPError as CordisHTTPError, Rest } from '@cordis/rest';
+import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
+import { ms } from '@naval-base/ms';
 import {
 	PrismaClient,
 	Case,
@@ -18,14 +26,6 @@ import {
 	MaliciousUrlCategory,
 	LogChannelType,
 } from '@prisma/client';
-import { BanwordFlags } from '@chatsift/api-wrapper/v2';
-import { ms } from '@naval-base/ms';
-import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { truncateEmbed } from '@chatsift/discord-utils';
-import { makeCaseEmbed } from '@automoderator/util';
-import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
-import { HTTPError as CordisHTTPError, Rest } from '@cordis/rest';
-import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 import {
 	APIEmbed,
 	APIMessage,
@@ -485,9 +485,7 @@ export class Handler {
 			return;
 		}
 
-		const url = `https://discord.com/channels/${entry.message.guild_id!}/${entry.message.channel_id}/${
-			entry.message.id
-		}`;
+		const url = `https://discord.com/channels/${entry.message.guild_id}/${entry.message.channel_id}/${entry.message.id}`;
 
 		const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
 

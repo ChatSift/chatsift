@@ -1,5 +1,3 @@
-import type { FilterCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { GuildSettings, PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
@@ -7,6 +5,8 @@ import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '../../handler';
+import type { FilterCommand } from '#interactions';
+import { ArgumentsOf, send } from '#util';
 
 @injectable()
 export default class implements Command {

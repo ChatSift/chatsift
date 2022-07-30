@@ -1,11 +1,11 @@
-import type { ConfigNsfwDetectionCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
 import { Rest } from '@cordis/rest';
 import { GuildSettings, PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
+import type { ConfigNsfwDetectionCommand } from '#interactions';
+import { ArgumentsOf, send } from '#util';
 
 @injectable()
 export default class implements Command {

@@ -1,17 +1,17 @@
-import { MaliciousUrl, PrismaClient } from '@prisma/client';
-import { Rest } from '@cordis/rest';
+import { GlobalsRunnerResult, Log, Runners } from '@automoderator/broker-types';
+import { MessageCache } from '@automoderator/cache';
 import { kLogger, kRedis } from '@automoderator/injection';
+import { dmUser } from '@automoderator/util';
+import { PubSubPublisher } from '@cordis/brokers';
+import { Rest } from '@cordis/rest';
+import { MaliciousUrl, PrismaClient } from '@prisma/client';
+import { Routes, APIMessage, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import type { Redis } from 'ioredis';
+import fetch from 'node-fetch';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
-import fetch from 'node-fetch';
 import type { IRunner } from './IRunner';
-import { GlobalsRunnerResult, Log, Runners } from '@automoderator/broker-types';
-import type { Redis } from 'ioredis';
-import { MessageCache } from '@automoderator/cache';
-import { PubSubPublisher } from '@cordis/brokers';
-import { Routes, APIMessage } from 'discord-api-types/v9';
 import { UrlsRunner } from './urls';
-import { dmUser } from '@automoderator/util';
 
 interface GlobalsTransform {
 	urls: string[];
@@ -66,7 +66,7 @@ export class GlobalsRunner
 		return this.fishCache.has(url.split('/')[0]!);
 	}
 
-	public async transform(message: APIMessage): Promise<GlobalsTransform> {
+	public async transform(message: GatewayMessageCreateDispatchData): Promise<GlobalsTransform> {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
 
 		return {

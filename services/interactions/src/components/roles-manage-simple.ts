@@ -1,9 +1,9 @@
-import { send } from '#util';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { PrismaClient } from '@prisma/client';
 import { APIGuildInteraction, InteractionResponseType, Routes, Snowflake } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Component } from '../component';
+import { send } from '#util';
 
 @injectable()
 export default class implements Component {

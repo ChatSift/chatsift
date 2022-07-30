@@ -1,11 +1,11 @@
-import type { UnmuteCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { CaseManager } from '@automoderator/util';
 import { Rest } from '@cordis/rest';
+import { CaseAction, PrismaClient } from '@prisma/client';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
-import { CaseAction, PrismaClient } from '@prisma/client';
+import type { UnmuteCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {

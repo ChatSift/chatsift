@@ -6,7 +6,12 @@ import { groupBy } from '@chatsift/utils';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest } from '@cordis/rest';
 import { AutomodPunishmentAction, CaseAction, PrismaClient } from '@prisma/client';
-import { Routes, APIMessage, RESTPostAPIChannelMessagesBulkDeleteJSONBody } from 'discord-api-types/v9';
+import {
+	Routes,
+	APIMessage,
+	RESTPostAPIChannelMessagesBulkDeleteJSONBody,
+	GatewayMessageCreateDispatchData,
+} from 'discord-api-types/v9';
 import type { Redis } from 'ioredis';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
@@ -17,7 +22,9 @@ interface AntispamTransform {
 }
 
 @singleton()
-export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], AntispamRunnerResult> {
+export class AntispamRunner
+	implements IRunner<AntispamTransform, GatewayMessageCreateDispatchData[], AntispamRunnerResult>
+{
 	public readonly ignore = 'automod';
 
 	public constructor(
@@ -30,7 +37,7 @@ export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], 
 		@inject(kConfig) public readonly config: Config,
 	) {}
 
-	public async transform(message: APIMessage): Promise<AntispamTransform> {
+	public async transform(message: GatewayMessageCreateDispatchData): Promise<AntispamTransform> {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
 
 		return {
@@ -43,7 +50,10 @@ export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], 
 		return amount != null && time != null;
 	}
 
-	public async run({ amount, time }: AntispamTransform, message: APIMessage): Promise<APIMessage[] | null> {
+	public async run(
+		{ amount, time }: AntispamTransform,
+		message: GatewayMessageCreateDispatchData,
+	): Promise<APIMessage[] | null> {
 		const key = `antispam_${message.guild_id!}_${message.author.id}`;
 
 		await this.redis.zadd(key, Date.now(), message.id);
@@ -62,7 +72,7 @@ export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], 
 		return null;
 	}
 
-	public async cleanup(messages: APIMessage[]): Promise<void> {
+	public async cleanup(messages: GatewayMessageCreateDispatchData[]): Promise<void> {
 		const grouped = groupBy(messages, (message) => message.channel_id);
 		const promises = [];
 
@@ -139,7 +149,7 @@ export class AntispamRunner implements IRunner<AntispamTransform, APIMessage[], 
 		}
 	}
 
-	public async log(messages: APIMessage[]): Promise<AntispamRunnerResult> {
+	public async log(messages: GatewayMessageCreateDispatchData[]): Promise<AntispamRunnerResult> {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: messages[0]!.guild_id } });
 
 		return {

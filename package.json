@@ -1,16 +1,22 @@
 {
 	"$schema": "http://json.schemastore.org/package",
-	"name": "automoderator",
-	"version": "0.1.0",
-	"description": "Something cool",
-	"type": "module",
+	"name": "@chatsift/automoderator",
+	"packageManager": "yarn@3.2.1",
+	"private": true,
+	"version": "0.0.0",
+	"workspaces": [
+		"packages/*",
+		"services/*"
+	],
 	"scripts": {
-		"build": "pnpm recursive run build",
-		"lint": "pnpm recursive run lint",
-		"lint:ci": "pnpm run --parallel lint",
+		"lint": "turbo run lint && prettier --check --plugin-search-dir=. .",
+		"build": "turbo run build",
+		"format": "prettier --write --plugin-search-dir=. .",
 		"test": "jest",
 		"test:ci": "jest --ci --no-stack-trace --verbose",
-		"docs": "typedoc"
+		"prisma": "dotenv -e .env prisma",
+		"prepare": "is-ci || husky install",
+		"update": "yarn upgrade-interactive"
 	},
 	"repository": {
 		"type": "git",
@@ -22,46 +28,34 @@
 	},
 	"homepage": "https://github.com/didinele/AutoModerator#readme",
 	"devDependencies": {
-		"@babel/core": "^7.16.0",
-		"@babel/generator": "^7.16.0",
-		"@babel/plugin-proposal-decorators": "^7.15.8",
-		"@babel/preset-env": "^7.16.4",
-		"@babel/preset-typescript": "^7.16.0",
-		"@cordis/rest": "^2.0.0-next.2405c88.1643469558",
-		"@prisma/client": "^3.13.0",
-		"@strictsoftware/typedoc-plugin-monorepo": "^0.4.2",
+		"@babel/core": "^7.18.9",
+		"@babel/generator": "^7.18.9",
+		"@babel/plugin-proposal-decorators": "^7.18.9",
+		"@babel/preset-env": "^7.18.9",
+		"@babel/preset-typescript": "^7.18.6",
+		"@commitlint/cli": "^17.0.3",
+		"@commitlint/config-angular": "^17.0.3",
+		"@cordis/rest": "2.0.0-next.2405c88.1643469558",
+		"@prisma/client": "^3.15.2",
 		"@types/jest": "^26.0.24",
-		"@typescript-eslint/eslint-plugin": "^5.9.0",
-		"@typescript-eslint/parser": "^5.9.0",
+		"@typescript-eslint/eslint-plugin": "^5.31.0",
+		"@typescript-eslint/parser": "^5.31.0",
 		"babel-jest": "^26.6.3",
-		"babel-plugin-const-enum": "^1.1.0",
+		"babel-plugin-const-enum": "^1.2.0",
 		"babel-plugin-transform-typescript-metadata": "^0.3.2",
-		"eslint": "^8.6.0",
-		"eslint-config-marine": "^9.3.2",
-		"eslint-config-prettier": "^8.3.0",
-		"eslint-plugin-react": "^7.27.1",
-		"eslint-plugin-react-hooks": "^4.3.0",
-		"husky": "^4.3.8",
+		"dotenv-cli": "^5.1.0",
+		"eslint": "^8.20.0",
+		"eslint-config-marine": "^9.4.1",
+		"eslint-config-prettier": "^8.5.0",
+		"eslint-plugin-import": "^2.26.0",
+		"husky": "^8.0.1",
+		"is-ci": "^3.0.1",
 		"jest": "^26.6.3",
-		"lint-staged": "^11.2.0",
-		"prettier": "^2.5.1",
+		"prettier": "^2.7.1",
 		"prettier-eslint": "^13.0.0",
-		"prisma": "^3.13.0",
+		"prisma": "^3.15.2",
 		"rimraf": "^3.0.2",
-		"typedoc": "0.19.2",
-		"typescript": "^4.6.4"
-	},
-	"husky": {
-		"hooks": {
-			"pre-commit": "lint-staged"
-		}
-	},
-	"lint-staged": {
-		"*.ts": [
-			"eslint --fix"
-		],
-		"*.tsx": [
-			"eslint --fix"
-		]
+		"turbo": "^1.4.0",
+		"typescript": "^4.7.4"
 	}
 }

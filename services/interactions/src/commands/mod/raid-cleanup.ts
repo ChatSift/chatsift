@@ -1,5 +1,3 @@
-import type { RaidCleanupCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, kGatewayBroadcasts, send } from '#util';
 import type { DiscordEvents } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
 import { CaseManager } from '@automoderator/util';
@@ -28,6 +26,8 @@ import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler, CollectorTimeoutError } from '../../handler';
+import type { RaidCleanupCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, kGatewayBroadcasts, send } from '#util';
 
 interface RaidCleanupMember {
 	id: Snowflake;

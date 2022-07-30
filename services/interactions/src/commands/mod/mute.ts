@@ -1,21 +1,19 @@
-import type { MuteCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
-import { Rest } from '@chatsift/api-wrapper';
+import type { Log } from '@automoderator/broker-types';
 import { CaseManager, PermissionsChecker, UserPerms } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
-import { injectable } from 'tsyringe';
-import type { Command } from '../../command';
-import type { Log } from '@automoderator/broker-types';
 import ms from '@naval-base/ms';
 import { CaseAction, PrismaClient } from '@prisma/client';
+import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
+import { injectable } from 'tsyringe';
 import { handleLockConfirmation } from './sub/handleLockConfirmation';
+import type { Command } from '../../command';
+import type { MuteCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
 	public constructor(
-		public readonly rest: Rest,
 		public readonly discord: DiscordRest,
 		public readonly guildLogs: PubSubPublisher<Log>,
 		public readonly checker: PermissionsChecker,

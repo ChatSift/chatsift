@@ -1,6 +1,7 @@
-import type { LookupInviteCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
-import fetch from 'node-fetch';
+import { kLogger } from '@automoderator/injection';
+import { addFields } from '@chatsift/discord-utils';
+import { Rest } from '@cordis/rest';
+import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 import {
 	APIGuildInteraction,
 	APIEmbed,
@@ -11,13 +12,12 @@ import {
 	Routes,
 	RouteBases,
 } from 'discord-api-types/v9';
+import fetch from 'node-fetch';
+import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
-import type { Logger } from 'pino';
-import { kLogger } from '@automoderator/injection';
-import { Rest } from '@cordis/rest';
-import { addFields } from '@chatsift/discord-utils';
-import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
+import type { LookupInviteCommand } from '#interactions';
+import { ArgumentsOf, send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -47,10 +47,10 @@ export default class implements Command {
 					{
 						code,
 						res,
-						data: (await res
+						data: await res
 							.clone()
 							.json()
-							.catch(() => null)) as unknown,
+							.catch(() => null),
 					},
 					'Failed to fetch invite',
 				);

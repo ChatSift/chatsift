@@ -1,18 +1,16 @@
-import { Log, Runners, WordsRunnerResult } from '@automoderator/broker-types';
+import { Log, Runners, WordsRunnerResult, BanwordFlags } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { BanwordFlags } from '@chatsift/api-wrapper/v2';
+import { CaseManager, dmUser, ReportHandler } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest } from '@cordis/rest';
+import ms from '@naval-base/ms';
 import { PrismaClient, BannedWord, CaseAction } from '@prisma/client';
-import { Routes, APIMessage, APIUser } from 'discord-api-types/v9';
+import { Routes, APIUser, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
-import { UrlsRunner } from './urls';
 import type { IRunner } from './IRunner';
-import { CaseManager, dmUser, ReportHandler } from '@automoderator/util';
-import { isSuccess } from '@chatsift/utils';
-import ms from '@naval-base/ms';
+import { UrlsRunner } from './urls';
 
 type BannedWordWithFlags = Omit<BannedWord, 'flags'> & { flags: BanwordFlags; isUrl: boolean };
 
@@ -36,7 +34,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		public readonly reports: ReportHandler,
 	) {}
 
-	public async transform(message: APIMessage): Promise<WordsTransform> {
+	public async transform(message: GatewayMessageCreateDispatchData): Promise<WordsTransform> {
 		const words = await this.prisma.bannedWord.findMany({ where: { guildId: message.guild_id } });
 		return { words };
 	}
@@ -45,7 +43,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		return words.length > 0;
 	}
 
-	public run({ words }: WordsTransform, message: APIMessage): BannedWordWithFlags[] | null {
+	public run({ words }: WordsTransform, message: GatewayMessageCreateDispatchData): BannedWordWithFlags[] | null {
 		const content = message.content.toLowerCase();
 		const wordsArray = content.split(/ +/g);
 
@@ -81,7 +79,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		return out;
 	}
 
-	public async cleanup(words: BannedWordWithFlags[], message: APIMessage): Promise<void> {
+	public async cleanup(words: BannedWordWithFlags[], message: GatewayMessageCreateDispatchData): Promise<void> {
 		const punishments: Partial<Record<'report' | 'warn' | 'mute' | 'kick' | 'ban', BannedWordWithFlags>> = {};
 
 		for (const entry of words) {
@@ -92,9 +90,9 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
 
-		const createCase = (actionType: CaseAction, entry: BannedWordWithFlags, expiresAt?: Date) =>
-			isSuccess(
-				this.caseManager.create({
+		const createCase = async (actionType: CaseAction, entry: BannedWordWithFlags, expiresAt?: Date) => {
+			try {
+				await this.caseManager.create({
 					actionType,
 					guildId: message.guild_id!,
 					targetId: message.author.id,
@@ -107,8 +105,12 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 					notifyUser: false,
 					expiresAt,
 					unmuteRoles: settings?.useTimeoutsByDefault ?? true ? null : undefined,
-				}),
-			);
+				});
+				return true;
+			} catch {
+				return false;
+			}
+		};
 
 		if (punishments.report) {
 			const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id! } });

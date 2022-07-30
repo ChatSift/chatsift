@@ -1,17 +1,15 @@
 import { CaseManager, PermissionsChecker, UserPerms } from '@automoderator/util';
-import { Rest } from '@chatsift/api-wrapper';
 import { CaseAction, PrismaClient } from '@prisma/client';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
-import type { Command } from '../../command';
-import type { KickCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '../../util';
 import { handleLockConfirmation } from './sub/handleLockConfirmation';
+import type { Command } from '../../command';
+import { ArgumentsOf, ControlFlowError, send } from '../../util';
+import type { KickCommand } from '#interactions';
 
 @injectable()
 export default class implements Command {
 	public constructor(
-		public readonly rest: Rest,
 		public readonly checker: PermissionsChecker,
 		public readonly cases: CaseManager,
 		public readonly prisma: PrismaClient,

@@ -6,10 +6,10 @@ WORKDIR /opt/build
 COPY services/automod/package.json ./services/automod/package.json
 
 RUN wget -O ./services/automod/tlds.txt https://data.iana.org/TLD/tlds-alpha-by-domain.txt
-RUN pnpm i --frozen-lockfile
-
 COPY services/automod ./services/automod
-RUN pnpm --filter "./services/**" build && pnpm prune --prod
+
+RUN yarn turbo run build --filter=./services/automod
+RUN yarn workspaces focus --all --production
 
 FROM node:16-alpine
 LABEL name "automoderator automod"

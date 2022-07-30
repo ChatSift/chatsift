@@ -1,22 +1,6 @@
 version: '3.7'
 
 services:
-  api:
-    image: chatsift/automoderator_api
-    build:
-      context: ../
-      dockerfile: ./docker/api/Dockerfile
-    environment:
-      DB_URL: '${DB_URL}'
-      AMQP_URL: 'amqp://rabbitmq:5672'
-      DISCORD_SCOPES: 'identify,email,guilds'
-      DISCORD_PROXY_URL: 'http://discord-proxy:3003'
-    restart: unless-stopped
-    volumes:
-      - ../logs:/usr/api/logs
-    depends_on:
-      - base
-
   automod:
     image: chatsift/automoderator_automod
     build:

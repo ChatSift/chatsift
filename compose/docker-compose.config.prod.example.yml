@@ -1,14 +1,6 @@
 version: '3.7'
 
 services:
-  api:
-    environment:
-      DISCORD_TOKEN: 'awooga'
-      DISCORD_CLIENT_ID: '123'
-      DISCORD_CLIENT_SECRET: 'abc'
-      ENCRYPTION_KEY: '32 random bytes of base64 here'
-      GHOST_INTEGRATION_KEY: 'haha'
-
   automod:
     environment:
       DISCORD_CLIENT_ID: '123'

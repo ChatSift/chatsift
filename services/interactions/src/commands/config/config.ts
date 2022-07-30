@@ -1,9 +1,9 @@
-import type { ConfigCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
-import { UserPerms } from '@automoderator/util';
-import { Rest } from '@chatsift/api-wrapper/v2';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
+import { UserPerms } from '@automoderator/util';
+
 import { Rest as DiscordRest } from '@cordis/rest';
+import ms from '@naval-base/ms';
+import { GuildSettings, LogChannelType, LogChannelWebhook, PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
 import {
 	APIThreadChannel,
@@ -15,20 +15,19 @@ import {
 	RESTPostAPIChannelWebhookJSONBody,
 	Routes,
 } from 'discord-api-types/v9';
+import fetch from 'node-fetch';
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '#handler';
-import { GuildSettings, LogChannelType, LogChannelWebhook, PrismaClient } from '@prisma/client';
-import ms from '@naval-base/ms';
-import fetch from 'node-fetch';
+import type { ConfigCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
 	public readonly userPermissions = UserPerms.admin;
 
 	public constructor(
-		public readonly rest: Rest,
 		public readonly discordRest: DiscordRest,
 		public readonly handler: Handler,
 		public readonly prisma: PrismaClient,

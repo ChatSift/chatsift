@@ -15,26 +15,17 @@ jobs:
         with:
           node-version: 16
 
-      - name: Install pnpm
-        run: curl -L https://unpkg.com/@pnpm/self-installer | node
-
-      - name: Use node_modules cache
-        uses: actions/cache@v2
-        with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
-
       - name: Install deps
-        run: pnpm i
+        run: yarn --immutable
 
       - name: Make sure prisma schema is up to date
-        run: pnpm prisma generate
+        run: yarn prisma generate
 
       - name: Build the code
-        run: pnpm run build
+        run: yarn run build
 
       - name: Run ESLint
-        run: pnpm run lint:ci
+        run: yarn run lint
 
       - name: Run Jest Tests
-        run: pnpm run test:ci
+        run: yarn run test:ci

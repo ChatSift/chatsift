@@ -1,22 +1,17 @@
-import { MessageCache } from '@automoderator/cache';
 import {
-	// ApiPostGuildsCasesBody,
-	// ApiPostGuildsCasesResult,
-	// AutomodPunishment,
-	// AutomodTrigger,
-	// CaseAction,
-	// CaseData,
 	DiscordEvents,
 	Log,
 	LogTypes,
 	RunnerResult,
+	FilterIgnores,
+	DiscordPermissions,
 } from '@automoderator/broker-types';
-import { PrismaClient } from '@prisma/client';
-import { Rest, FilterIgnores, DiscordPermissions } from '@chatsift/api-wrapper/v2';
-import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
+import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
+import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
 import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Rest as CordisRest } from '@cordis/rest';
+import { PrismaClient } from '@prisma/client';
 import {
 	APIGuild,
 	APIMessage,
@@ -26,6 +21,7 @@ import {
 	ChannelType,
 	Routes,
 	APITextChannel,
+	GatewayMessageCreateDispatchData,
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { container, inject, singleton } from 'tsyringe';
@@ -46,12 +42,11 @@ export class Gateway {
 		public readonly gateway: RoutingSubscriber<keyof DiscordEvents, DiscordEvents>,
 		public readonly logs: PubSubPublisher<Log>,
 		public readonly messagesCache: MessageCache,
-		public readonly rest: Rest,
 		public readonly discord: CordisRest,
 		public readonly checker: PermissionsChecker,
 	) {}
 
-	private async onMessage(message: APIMessage) {
+	private async onMessage(message: GatewayMessageCreateDispatchData) {
 		message.content ??= '';
 		if (!message.guild_id || message.author.bot || !message.member || message.webhook_id) {
 			return;

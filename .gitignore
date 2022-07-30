@@ -18,3 +18,13 @@ ley.config.mjs
 docker-compose.config.yml
 docker-compose.config.dev.yml
 docker-compose.config.prod.yml
+
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
+.turbo

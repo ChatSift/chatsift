@@ -1,11 +1,20 @@
+import {
+	DiscordEvents,
+	Log,
+	LogTypes,
+	ServerLogs,
+	ServerLogType,
+	DiscordPermissions,
+	BanwordFlags,
+} from '@automoderator/broker-types';
 import { MessageCache, GuildMemberCache, CachedGuildMember } from '@automoderator/cache';
-import { DiscordEvents, Log, LogTypes, ServerLogs, ServerLogType } from '@automoderator/broker-types';
-import { Rest, DiscordPermissions, BanwordFlags } from '@chatsift/api-wrapper/v2';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { CaseManager, PermissionsChecker, PermissionsCheckerData, ReportHandler, UserPerms } from '@automoderator/util';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { Rest as CordisRest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
+import ms from '@naval-base/ms';
+import { BannedWord, CaseAction, PrismaClient } from '@prisma/client';
 import {
 	APIChannel,
 	APIMessage,
@@ -28,9 +37,6 @@ import {
 } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
-import { BannedWord, CaseAction, PrismaClient } from '@prisma/client';
-import { isSuccess } from '@chatsift/utils';
-import ms from '@naval-base/ms';
 
 @singleton()
 export class Gateway {
@@ -43,7 +49,6 @@ export class Gateway {
 		public readonly checker: PermissionsChecker,
 		public readonly guildMembersCache: GuildMemberCache,
 		public readonly messageCache: MessageCache,
-		public readonly rest: Rest,
 		public readonly discord: CordisRest,
 		public readonly caseManager: CaseManager,
 		public readonly reports: ReportHandler,
@@ -169,7 +174,7 @@ export class Gateway {
 		}
 
 		await this.caseManager.create({
-			actionType: CaseAction.ban,
+			actionType: CaseAction.unban,
 			guildId: data.guild_id,
 			targetId: data.user.id,
 			targetTag: `${data.user.username}#${data.user.discriminator}`,
@@ -369,13 +374,13 @@ export class Gateway {
 			}
 		}
 
-		const createCase = (
+		const createCase = async (
 			actionType: CaseAction,
 			entry: Omit<BannedWord, 'flags'> & { flags: BanwordFlags },
 			expiresAt?: Date,
-		) =>
-			isSuccess(
-				this.caseManager.create({
+		) => {
+			try {
+				await this.caseManager.create({
 					actionType,
 					guildId: data.guild_id,
 					targetId: data.user.id,
@@ -388,8 +393,12 @@ export class Gateway {
 					notifyUser: false,
 					expiresAt,
 					unmuteRoles: settings?.useTimeoutsByDefault ?? true ? null : undefined,
-				}),
-			);
+				});
+				return true;
+			} catch {
+				return false;
+			}
+		};
 
 		if (punishments.report) {
 			const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
@@ -484,7 +493,7 @@ export class Gateway {
 		}
 	}
 
-	private async handleMessageDelete(message: APIMessage) {
+	private async handleMessageDelete(message: APIMessage & { guild_id?: string }) {
 		if (!message.guild_id || message.author.bot || message.webhook_id) {
 			return;
 		}
@@ -539,7 +548,7 @@ export class Gateway {
 		});
 	}
 
-	private async handleMessageUpdate(o: APIMessage, n: APIMessage) {
+	private async handleMessageUpdate(o: APIMessage, n: APIMessage & { guild_id?: string }) {
 		if (!n.guild_id || n.author.bot || n.webhook_id) {
 			return;
 		}
@@ -563,7 +572,7 @@ export class Gateway {
 						{
 							type: ServerLogType.messageEdit,
 							data: {
-								message: n,
+								message: n as APIMessage & { guild_id: string },
 								o: o.content || '`none`',
 								n: n.content || '`none`',
 							},

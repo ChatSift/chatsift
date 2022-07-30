@@ -1,14 +1,14 @@
 import 'reflect-metadata';
+import { createServer } from 'http';
 import { initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
-import { CordisResponse, HTTPError, Rest as DiscordRest } from '@cordis/rest';
-import polka from 'polka';
 import { sendBoom } from '@chatsift/rest-utils';
-import { createServer } from 'http';
+import { CordisResponse, HTTPError, Rest as DiscordRest } from '@cordis/rest';
 import { isBoom, Boom, badRequest } from '@hapi/boom';
 import { Headers } from 'node-fetch';
-import { resolveCacheOptions } from './cache';
 import type { Response } from 'node-fetch';
+import polka from 'polka';
+import { resolveCacheOptions } from './cache';
 
 const VALID_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 

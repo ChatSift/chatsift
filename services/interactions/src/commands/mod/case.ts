@@ -1,5 +1,3 @@
-import type { CaseCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { Log, LogTypes } from '@automoderator/broker-types';
 import { makeCaseEmbed } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
@@ -18,6 +16,8 @@ import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler, CollectorTimeoutError } from '../../handler';
+import type { CaseCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {

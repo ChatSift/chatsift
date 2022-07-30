@@ -1,19 +1,9 @@
 version: '3.7'
 
 services:
-  api:
-    environment:
-      NODE_ENV: 'dev'
-      CORS: 'http://localhost:4000'
-      ROOT_DOMAIN: 'http://localhost'
-      API_DOMAIN: 'http://localhost:3001'
-    ports:
-      - '127.0.0.1:3001:3001'
-
   automod:
     environment:
       NODE_ENV: 'dev'
-      API_DOMAIN: 'http://api:3001'
 
   discord-proxy:
     environment:
@@ -26,7 +16,6 @@ services:
   interactions:
     environment:
       NODE_ENV: 'dev'
-      API_DOMAIN: 'http://api:3001'
     ports:
       - '127.0.0.1:3002:3002'
     command: ['node', '--enable-source-maps', 'services/interactions/dist/index.js']
@@ -38,12 +27,10 @@ services:
   mod-observer:
     environment:
       NODE_ENV: 'dev'
-      API_DOMAIN: 'http://api:3001'
 
   scheduler:
     environment:
       NODE_ENV: 'dev'
-      API_DOMAIN: 'http://api:3001'
 
   postgres:
     ports:

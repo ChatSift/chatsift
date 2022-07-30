@@ -1,5 +1,3 @@
-import type { PurgeCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
 import { HTTPError, Rest } from '@cordis/rest';
@@ -16,6 +14,8 @@ import {
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
+import type { PurgeCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {

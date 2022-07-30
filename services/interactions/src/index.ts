@@ -1,20 +1,17 @@
 import 'reflect-metadata';
-import { Rest } from '@chatsift/api-wrapper/v2';
+import type { DiscordEvents } from '@automoderator/broker-types';
 import { initConfig, kLogger, kRedis } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
-import { readdirRecurse } from '@chatsift/readdir';
-import { join as joinPath } from 'path';
-import { container, InjectionToken } from 'tsyringe';
-import { Handler } from '#handler';
-import { kGatewayBroadcasts } from './util';
-import type { DiscordEvents } from '@automoderator/broker-types';
+import { PrismaClient } from '@prisma/client';
 import { GatewayDispatchEvents } from 'discord-api-types/v9';
 import Redis from 'ioredis';
-import { Route } from '@chatsift/rest-utils';
 import polka from 'polka';
-import { PrismaClient } from '@prisma/client';
+import { container } from 'tsyringe';
+import { WebhookRoute } from './routes/discordWebhook';
+import { kGatewayBroadcasts } from './util';
+import { Handler } from '#handler';
 
 void (async () => {
 	const config = initConfig();
@@ -45,7 +42,6 @@ void (async () => {
 	container.register(PubSubPublisher, { useValue: logs });
 	container.register(RoutingSubscriber, { useValue: gateway });
 	container.register(kGatewayBroadcasts, { useValue: gatewayBroadcasts });
-	container.register(Rest, { useValue: new Rest(config.apiDomain, config.internalApiToken) });
 	container.register(DiscordRest, { useValue: discordRest });
 	container.register(kLogger, { useValue: logger });
 	container.register(kRedis, { useValue: new Redis(config.redisUrl) });
@@ -54,18 +50,9 @@ void (async () => {
 	await container.resolve(Handler).init();
 
 	const app = polka();
-	const files = readdirRecurse(joinPath(__dirname, 'routes'), { fileExtensions: ['js'] });
 
-	for await (const file of files) {
-		const info = Route.pathToRouteInfo(file.split('/routes').pop()!);
-		if (!info) {
-			logger.debug(`Hit path with no info: "${file}"`);
-			continue;
-		}
-
-		const route = container.resolve<Route>(((await import(file)) as { default: InjectionToken<Route> }).default);
-		route.register(info, app);
-	}
+	const webhookRoute = container.resolve(WebhookRoute);
+	webhookRoute.register(app);
 
 	app.listen(3002, () => logger.info('Listening for interactions on port 3002'));
 })();

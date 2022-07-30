@@ -4,9 +4,10 @@ LABEL name "automoderator gateway builder"
 WORKDIR /opt/build
 
 COPY services/gateway/package.json ./services/gateway/package.json
-RUN pnpm i --frozen-lockfile
 COPY services/gateway ./services/gateway
-RUN pnpm --filter "./services/**" build && pnpm prune --prod
+
+RUN yarn turbo run build --filter=./services/gateway
+RUN yarn workspaces focus --all --production
 
 FROM node:16-alpine
 LABEL name "automoderator gateway"

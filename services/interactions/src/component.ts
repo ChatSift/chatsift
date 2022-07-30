@@ -1,5 +1,5 @@
-import type { Interaction } from '#util';
 import { basename, extname } from 'path';
+import type { Interaction } from '#util';
 
 export interface Component {
 	name?: string;

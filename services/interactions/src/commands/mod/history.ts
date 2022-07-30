@@ -1,5 +1,3 @@
-import type { HistoryCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
 import { makeHistoryEmbed } from '@automoderator/util';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { LogChannelType, PrismaClient } from '@prisma/client';
@@ -10,6 +8,8 @@ import {
 } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
+import type { HistoryCommand } from '#interactions';
+import { ArgumentsOf, send } from '#util';
 
 @injectable()
 export default class implements Command {

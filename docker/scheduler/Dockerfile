@@ -2,9 +2,10 @@ FROM chatsift/automoderator_base
 LABEL name "automoderator scheduler builder"
 
 COPY services/scheduler/package.json ./services/scheduler/package.json
-RUN pnpm i --frozen-lockfile
 COPY services/scheduler ./services/scheduler
-RUN pnpm --filter "./services/**" build && pnpm prune --prod
+
+RUN yarn turbo run build --filter=./services/scheduler
+RUN yarn workspaces focus --all --production
 
 FROM node:16-alpine
 LABEL name "automoderator scheduler"

@@ -1,11 +1,11 @@
-import type { ConfigAutomodPunishmentsCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { Rest } from '@cordis/rest';
 import ms from '@naval-base/ms';
 import { PrismaClient, AutomodPunishmentAction } from '@prisma/client';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
+import type { ConfigAutomodPunishmentsCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {

@@ -7,42 +7,33 @@ RUN apk add --update \
 && apk add --no-cache ca-certificates \
 && apk add --no-cache --virtual .build-deps curl git python3 alpine-sdk
 
-RUN curl -L https://unpkg.com/@pnpm/self-installer | node
-
-COPY package.json pnpm-workspace.yaml tsconfig.json pnpm-lock.yaml ./
-RUN pnpm i --frozen-lockfile
+COPY turbo.json package.json tsconfig.json yarn.lock .yarnrc.yml ./
+COPY .yarn ./.yarn
+RUN yarn workspaces focus
 
 COPY prisma ./prisma
-RUN pnpx prisma generate
+RUN yarn prisma generate
 
-COPY packages/chatsift/api-wrapper/package.json ./packages/chatsift/api-wrapper/package.json
-COPY packages/chatsift/discord-utils/package.json ./packages/chatsift/discord-utils/package.json
-COPY packages/chatsift/readdir/package.json ./packages/chatsift/readdir/package.json
-COPY packages/chatsift/rest-utils/package.json ./packages/chatsift/rest-utils/package.json
-COPY packages/chatsift/utils/package.json ./packages/chatsift/utils/package.json
+COPY packages/cache/package.json ./packages/cache/package.json
+COPY packages/broker-types/package.json ./packages/broker-types/package.json
+COPY packages/injection/package.json ./packages/injection/package.json
+COPY packages/logger/package.json ./packages/logger/package.json
+COPY packages/util/package.json ./packages/util/package.json
 
-RUN pnpm i --frozen-lockfile
+COPY services/automod/package.json ./services/automod/package.json
+COPY services/discord-proxy/package.json ./services/discord-proxy/package.json
+COPY services/gateway/package.json ./services/gateway/package.json
+COPY services/interactions/package.json ./services/interactions/package.json
+COPY services/logging/package.json ./services/logging/package.json
+COPY services/mod-observer/package.json ./services/mod-observer/package.json
+COPY services/scheduler/package.json ./services/scheduler/package.json
 
-COPY packages/chatsift/api-wrapper ./packages/chatsift/api-wrapper
-COPY packages/chatsift/discord-utils ./packages/chatsift/discord-utils
-COPY packages/chatsift/readdir ./packages/chatsift/readdir
-COPY packages/chatsift/rest-utils ./packages/chatsift/rest-utils
-COPY packages/chatsift/utils ./packages/chatsift/utils
+RUN yarn --immutable
 
-RUN pnpm --filter "./packages/chatsift/**" build
+COPY packages/cache ./packages/cache
+COPY packages/broker-types ./packages/broker-types
+COPY packages/injection ./packages/injection
+COPY packages/logger ./packages/logger
+COPY packages/util ./packages/util
 
-COPY packages/automoderator/cache/package.json ./packages/automoderator/cache/package.json
-COPY packages/automoderator/broker-types/package.json ./packages/automoderator/broker-types/package.json
-COPY packages/automoderator/injection/package.json ./packages/automoderator/injection/package.json
-COPY packages/automoderator/logger/package.json ./packages/automoderator/logger/package.json
-COPY packages/automoderator/util/package.json ./packages/automoderator/util/package.json
-
-RUN pnpm i --frozen-lockfile
-
-COPY packages/automoderator/cache ./packages/automoderator/cache
-COPY packages/automoderator/broker-types ./packages/automoderator/broker-types
-COPY packages/automoderator/injection ./packages/automoderator/injection
-COPY packages/automoderator/logger ./packages/automoderator/logger
-COPY packages/automoderator/util ./packages/automoderator/util
-
-RUN pnpm --filter "./packages/automoderator/**" build
+RUN yarn turbo run build --filter=./packages/*

@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import { GuildMemberCache, MessageCache } from '@automoderator/cache';
 import type { DiscordEvents } from '@automoderator/broker-types';
+import { GuildMemberCache, MessageCache } from '@automoderator/cache';
 import { initConfig, kRedis } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createAmqp, RoutingPublisher, PubSubSubscriber } from '@cordis/brokers';

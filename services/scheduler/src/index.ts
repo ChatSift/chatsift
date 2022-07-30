@@ -1,18 +1,16 @@
 import 'reflect-metadata';
-import { Rest } from '@chatsift/api-wrapper';
 import { initConfig, kLogger, kRedis } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
+import { createAmqp, PubSubPublisher } from '@cordis/brokers';
 import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
+import { PrismaClient } from '@prisma/client';
+import Redis from 'ioredis';
 import type { Logger } from 'pino';
 import { container } from 'tsyringe';
 import { Handler } from './handler';
-import { PrismaClient } from '@prisma/client';
-import { createAmqp, PubSubPublisher } from '@cordis/brokers';
-import Redis from 'ioredis';
 
 void (async () => {
 	const config = initConfig();
-	container.register(Rest, { useValue: new Rest(config.apiDomain, config.internalApiToken) });
 
 	const logger = createLogger('scheduler');
 

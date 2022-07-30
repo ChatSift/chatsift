@@ -1,8 +1,8 @@
-import type { RolesCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
-import { chunkArray } from '@chatsift/utils';
 import { kLogger } from '@automoderator/injection';
+import { ellipsis, MESSAGE_LIMITS } from '@chatsift/discord-utils';
+import { chunkArray } from '@chatsift/utils';
 import { Rest as DiscordRest } from '@cordis/rest';
+import { PrismaClient, SelfAssignableRole, SelfAssignableRolePrompt } from '@prisma/client';
 import {
 	APIActionRowComponent,
 	APIGuildInteraction,
@@ -19,8 +19,8 @@ import {
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
-import { PrismaClient, SelfAssignableRole, SelfAssignableRolePrompt } from '@prisma/client';
-import { ellipsis, MESSAGE_LIMITS } from '@chatsift/discord-utils';
+import type { RolesCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {

@@ -6,7 +6,13 @@ import { groupBy } from '@chatsift/utils';
 import { PubSubPublisher } from '@cordis/brokers';
 import { Rest } from '@cordis/rest';
 import { AutomodPunishmentAction, CaseAction, PrismaClient } from '@prisma/client';
-import { Routes, APIMessage, Snowflake, RESTPostAPIChannelMessagesBulkDeleteJSONBody } from 'discord-api-types/v9';
+import {
+	Routes,
+	APIMessage,
+	Snowflake,
+	RESTPostAPIChannelMessagesBulkDeleteJSONBody,
+	GatewayMessageCreateDispatchData,
+} from 'discord-api-types/v9';
 import type { Redis } from 'ioredis';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
@@ -19,7 +25,14 @@ interface MentionsTransform {
 }
 
 @singleton()
-export class MentionsRunner implements IRunner<MentionsTransform, APIMessage | APIMessage[], MentionsRunnerResult> {
+export class MentionsRunner
+	implements
+		IRunner<
+			MentionsTransform,
+			GatewayMessageCreateDispatchData | GatewayMessageCreateDispatchData[],
+			MentionsRunnerResult
+		>
+{
 	public readonly ignore = 'automod';
 
 	public readonly mentionsRegex = /<@!?&?(?<id>\d{17,19})>/g;
@@ -34,7 +47,7 @@ export class MentionsRunner implements IRunner<MentionsTransform, APIMessage | A
 		public readonly caseManager: CaseManager,
 	) {}
 
-	public async transform(message: APIMessage): Promise<MentionsTransform> {
+	public async transform(message: GatewayMessageCreateDispatchData): Promise<MentionsTransform> {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
 
 		return {
@@ -51,8 +64,8 @@ export class MentionsRunner implements IRunner<MentionsTransform, APIMessage | A
 
 	public async run(
 		{ mentions, amount, limit, time }: MentionsTransform,
-		message: APIMessage,
-	): Promise<APIMessage | APIMessage[] | null> {
+		message: GatewayMessageCreateDispatchData,
+	): Promise<GatewayMessageCreateDispatchData | GatewayMessageCreateDispatchData[] | null> {
 		if (limit && mentions.length > limit) {
 			return message;
 		}
@@ -91,7 +104,7 @@ export class MentionsRunner implements IRunner<MentionsTransform, APIMessage | A
 		return null;
 	}
 
-	public async cleanup(messages: APIMessage | APIMessage[]): Promise<void> {
+	public async cleanup(messages: GatewayMessageCreateDispatchData | GatewayMessageCreateDispatchData[]): Promise<void> {
 		messages = Array.isArray(messages) ? messages : [messages];
 
 		const grouped = groupBy(messages, (message) => message.channel_id);
@@ -170,7 +183,9 @@ export class MentionsRunner implements IRunner<MentionsTransform, APIMessage | A
 		}
 	}
 
-	public async log(messages: APIMessage | APIMessage[]): Promise<MentionsRunnerResult> {
+	public async log(
+		messages: GatewayMessageCreateDispatchData | GatewayMessageCreateDispatchData[],
+	): Promise<MentionsRunnerResult> {
 		if (!Array.isArray(messages)) {
 			const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: messages.guild_id } });
 			return {

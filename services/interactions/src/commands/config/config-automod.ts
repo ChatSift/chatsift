@@ -1,13 +1,13 @@
-import type { ConfigAutoCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
 import { kLogger } from '@automoderator/injection';
 import { Rest as DiscordRest } from '@cordis/rest';
+import { GuildSettings, PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
-import { GuildSettings, PrismaClient } from '@prisma/client';
+import type { ConfigAutoCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {

@@ -1,8 +1,5 @@
-import type { BanwordCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
-import { Log, LogTypes, ServerLogType } from '@automoderator/broker-types';
+import { Log, LogTypes, ServerLogType, BanwordFlags, BanwordFlagsResolvable } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
-import { BanwordFlags, BanwordFlagsResolvable } from '@chatsift/api-wrapper';
 import { PubSubPublisher } from '@cordis/brokers';
 import { File, Rest } from '@cordis/rest';
 import ms from '@naval-base/ms';
@@ -13,6 +10,8 @@ import fetch from 'node-fetch';
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
+import type { BanwordCommand } from '#interactions';
+import { ArgumentsOf, ControlFlowError, send } from '#util';
 
 interface ParsedEntry {
 	muteduration?: string;

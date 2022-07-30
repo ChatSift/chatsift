@@ -1,9 +1,9 @@
-import { CaseAction, PrismaClient } from '@prisma/client';
-import { inject, singleton } from 'tsyringe';
-import { CaseManager } from '@automoderator/util';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import type { Logger } from 'pino';
+import { CaseManager } from '@automoderator/util';
 import ms from '@naval-base/ms';
+import { CaseAction, PrismaClient } from '@prisma/client';
+import type { Logger } from 'pino';
+import { inject, singleton } from 'tsyringe';
 
 @singleton()
 export class Handler {

@@ -1,6 +1,4 @@
-import type { ConfigMutesCommand } from '#interactions';
-import { ArgumentsOf, send, EMOTES } from '#util';
-import { DiscordPermissions } from '@chatsift/api-wrapper';
+import { DiscordPermissions } from '@automoderator/broker-types';
 import { ellipsis, sortChannels } from '@chatsift/discord-utils';
 import { Rest } from '@cordis/rest';
 import { PrismaClient } from '@prisma/client';
@@ -24,6 +22,8 @@ import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '../../handler';
+import type { ConfigMutesCommand } from '#interactions';
+import { ArgumentsOf, send, EMOTES } from '#util';
 
 @injectable()
 export default class implements Command {

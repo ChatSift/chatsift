@@ -1,0 +1,33 @@
+{
+	"$schema": "http://json.schemastore.org/package",
+	"name": "@automoderator/cache",
+	"description": "Cache structs for the AutoModerator stack",
+	"main": "./dist/index.js",
+	"types": "./types/index.d.ts",
+	"version": "0.1.0",
+	"scripts": {
+		"lint": "eslint src --ext .ts",
+		"build": "tsc"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/didinele/AutoModerator.git"
+	},
+	"author": "didinele",
+	"bugs": {
+		"url": "https://github.com/didinele/AutoModerator/issues"
+	},
+	"homepage": "https://github.com/didinele/AutoModerator#readme",
+	"devDependencies": {
+		"@cordis/redis-store": "^1.2.0",
+		"@types/ioredis": "^4.28.10",
+		"@types/node": "^16.11.46",
+		"discord-api-types": "^0.36.1",
+		"typescript": "^4.7.4"
+	},
+	"dependencies": {
+		"@automoderator/injection": "workspace:^",
+		"tslib": "^2.4.0",
+		"tsyringe": "^4.7.0"
+	}
+}

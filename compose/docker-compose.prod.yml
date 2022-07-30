@@ -1,18 +1,9 @@
 version: '3.7'
 
 services:
-  api:
-    environment:
-      NODE_ENV: 'prod'
-      ROOT_DOMAIN: 'https://automoderator.app'
-      API_DOMAIN: 'https://api.automoderator.app'
-      GHOST_DOMAIN: 'https://blog.automoderator.app'
-      CORS: 'https://dash.automoderator.app'
-
   automod:
     environment:
       NODE_ENV: 'prod'
-      API_DOMAIN: 'http://api:3001'
 
   discord-proxy:
     environment:
@@ -25,7 +16,6 @@ services:
   interactions:
     environment:
       NODE_ENV: 'prod'
-      API_DOMAIN: 'http://api:3001'
 
   logging:
     environment:
@@ -34,12 +24,10 @@ services:
   mod-observer:
     environment:
       NODE_ENV: 'prod'
-      API_DOMAIN: 'http://api:3001'
 
   scheduler:
     environment:
       NODE_ENV: 'prod'
-      API_DOMAIN: 'http://api:3001'
 
   caddy:
     build:

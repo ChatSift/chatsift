@@ -1,15 +1,15 @@
-import { PrismaClient } from '@prisma/client';
+import { InvitesRunnerResult, Log, Runners } from '@automoderator/broker-types';
+import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
+import { dmUser } from '@automoderator/util';
+import { PubSubPublisher } from '@cordis/brokers';
 import { Rest } from '@cordis/rest';
-import { Routes, APIMessage, APIInvite } from 'discord-api-types/v9';
-import { inject, singleton } from 'tsyringe';
+import { PrismaClient } from '@prisma/client';
+import { Routes, APIMessage, APIInvite, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
 import type { Logger } from 'pino';
-import { MessageCache } from '@automoderator/cache';
-import { PubSubPublisher } from '@cordis/brokers';
-import { InvitesRunnerResult, Log, Runners } from '@automoderator/broker-types';
+import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
-import { dmUser } from '@automoderator/util';
 
 interface InvitesTransform {
 	codes: string[];
@@ -42,7 +42,7 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 					{
 						code,
 						res,
-						data: (await res.json().catch(() => null)) as unknown,
+						data: await res.json().catch(() => null),
 					},
 					'Failed to fetch invite',
 				);
@@ -54,7 +54,7 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 		return res.json() as Promise<APIInvite>;
 	}
 
-	public async transform(message: APIMessage): Promise<InvitesTransform> {
+	public async transform(message: GatewayMessageCreateDispatchData): Promise<InvitesTransform> {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
 
 		const codes = new Set([...message.content.matchAll(this.inviteRegex)].map((match) => match.groups!.code!));
@@ -68,7 +68,10 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 		return use && codes.length > 0;
 	}
 
-	public async run({ use, codes }: InvitesTransform, message: APIMessage): Promise<InvitesTransform | null> {
+	public async run(
+		{ use, codes }: InvitesTransform,
+		message: GatewayMessageCreateDispatchData,
+	): Promise<InvitesTransform | null> {
 		const allowedInvites = await this.prisma.allowedInvite.findMany({ where: { guildId: message.guild_id } });
 		const allowlist = new Set(allowedInvites.map((invite) => invite.allowedGuildId));
 		const invites = await Promise.all(codes.map((code) => this.fetchInvite(code)));

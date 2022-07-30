@@ -2,8 +2,8 @@ import 'reflect-metadata';
 import { initConfig, kLogger } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { ProxyBucket, Rest } from '@cordis/rest';
-import { container } from 'tsyringe';
 import { PrismaClient } from '@prisma/client';
+import { container } from 'tsyringe';
 import { Handler } from './handler';
 
 void (async () => {

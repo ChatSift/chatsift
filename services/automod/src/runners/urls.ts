@@ -1,16 +1,16 @@
-import { PrismaClient } from '@prisma/client';
-import { Rest } from '@cordis/rest';
-import { Routes, APIMessage } from 'discord-api-types/v9';
 import { readFileSync } from 'fs';
 import { join as joinPath } from 'path';
-import { inject, singleton } from 'tsyringe';
-import { MessageCache } from '@automoderator/cache';
-import { PubSubPublisher } from '@cordis/brokers';
 import { Log, Runners, UrlsRunnerResult } from '@automoderator/broker-types';
+import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
-import type { Logger } from 'pino';
-import type { IRunner } from './IRunner';
 import { dmUser } from '@automoderator/util';
+import { PubSubPublisher } from '@cordis/brokers';
+import { Rest } from '@cordis/rest';
+import { PrismaClient } from '@prisma/client';
+import { Routes, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import type { Logger } from 'pino';
+import { inject, singleton } from 'tsyringe';
+import type { IRunner } from './IRunner';
 
 interface UrlsTransform {
 	urls: string[];
@@ -64,7 +64,7 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 		return this.extractRoot(url);
 	}
 
-	public async transform(message: APIMessage): Promise<UrlsTransform> {
+	public async transform(message: GatewayMessageCreateDispatchData): Promise<UrlsTransform> {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
 
 		const urls = [...message.content.matchAll(this.urlRegex)].reduce<Set<string>>((acc, match) => {
@@ -85,7 +85,10 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 		return use && urls.length > 0;
 	}
 
-	public async run({ use, urls }: UrlsTransform, message: APIMessage): Promise<UrlsTransform | null> {
+	public async run(
+		{ use, urls }: UrlsTransform,
+		message: GatewayMessageCreateDispatchData,
+	): Promise<UrlsTransform | null> {
 		const allowedUrls = await this.prisma.allowedUrl.findMany({ where: { guildId: message.guild_id } });
 		const allowed = new Set(allowedUrls.map((url) => this.cleanDomain(url.domain)));
 
@@ -98,7 +101,7 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 		return { use, urls: forbidden };
 	}
 
-	public async cleanup(_: UrlsTransform, message: APIMessage): Promise<void> {
+	public async cleanup(_: UrlsTransform, message: GatewayMessageCreateDispatchData): Promise<void> {
 		await this.discord
 			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'URL filter trigger' })
 			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing a link.'))

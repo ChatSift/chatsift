@@ -1,5 +1,7 @@
-import { send } from '#util';
+import { Config, kConfig } from '@automoderator/injection';
+import { CaseManager } from '@automoderator/util';
 import { Rest as DiscordRest } from '@cordis/rest';
+import ms from '@naval-base/ms';
 import { CaseAction, PrismaClient } from '@prisma/client';
 import {
 	APIGuildInteraction,
@@ -17,13 +19,11 @@ import {
 	APIUser,
 } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
-import { Handler } from '#handler';
 import { inject, injectable } from 'tsyringe';
-import type { Component } from '../component';
 import type { StopFunction } from '../collector';
-import ms from '@naval-base/ms';
-import { CaseManager } from '@automoderator/util';
-import { Config, kConfig } from '@automoderator/injection';
+import type { Component } from '../component';
+import { Handler } from '#handler';
+import { send } from '#util';
 
 @injectable()
 export default class implements Component {

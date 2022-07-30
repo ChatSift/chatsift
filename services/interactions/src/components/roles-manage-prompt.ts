@@ -1,4 +1,3 @@
-import { send } from '#util';
 import { chunkArray } from '@chatsift/utils';
 import { Rest as DiscordRest } from '@cordis/rest';
 import { PrismaClient } from '@prisma/client';
@@ -13,6 +12,7 @@ import {
 } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Component } from '../component';
+import { send } from '#util';
 
 @injectable()
 export default class implements Component {
