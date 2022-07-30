@@ -54,5 +54,7 @@ void (async () => {
 	const webhookRoute = container.resolve(WebhookRoute);
 	webhookRoute.register(app);
 
+	logger.debug(webhookRoute.info, 'Registering Discord webhook');
+
 	app.listen(3002, () => logger.info('Listening for interactions on port 3002'));
 })();
