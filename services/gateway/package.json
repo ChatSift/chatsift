@@ -31,7 +31,7 @@
 		"@automoderator/cache": "workspace:^",
 		"@automoderator/injection": "workspace:^",
 		"@automoderator/logger": "workspace:^",
-		"@cordis/brokers": "^1.2.0-next.8fe30a1.1651163851",
+		"@cordis/brokers": "1.2.0-next.8fe30a1.1651163851",
 		"@cordis/redis-store": "^1.2.0",
 		"@discordjs/rest": "^1.0.1",
 		"@discordjs/ws": "^0.2.0",

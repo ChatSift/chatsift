@@ -34,7 +34,7 @@
 		"@automoderator/logger": "workspace:^",
 		"@automoderator/util": "workspace:^",
 		"@chatsift/utils": "^0.2.0",
-		"@cordis/brokers": "^1.2.0-next.8fe30a1.1651163851",
+		"@cordis/brokers": "1.2.0-next.8fe30a1.1651163851",
 		"@cordis/redis-store": "^1.2.0",
 		"@cordis/rest": "2.0.0-next.2405c88.1643469558",
 		"@cordis/store": "^1.2.0",

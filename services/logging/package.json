@@ -31,7 +31,7 @@
 		"@automoderator/logger": "workspace:^",
 		"@automoderator/util": "workspace:^",
 		"@chatsift/discord-utils": "^0.2.2",
-		"@cordis/brokers": "^1.2.0-next.8fe30a1.1651163851",
+		"@cordis/brokers": "1.2.0-next.8fe30a1.1651163851",
 		"@cordis/rest": "2.0.0-next.2405c88.1643469558",
 		"@cordis/util": "^1.2.0",
 		"@naval-base/ms": "^3.1.0",
