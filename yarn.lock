@@ -184,6 +184,7 @@ __metadata:
   resolution: "@automoderator/logger@workspace:packages/logger"
   dependencies:
     "@automoderator/injection": "workspace:^"
+    "@chatsift/pino-rotate-file": ^0.1.1
     "@types/node": ^16.11.46
     "@types/pino-multi-stream": ^5.1.3
     pino: ^8.3.1
@@ -1677,6 +1678,17 @@ __metadata:
     discord-api-types: ^0.36.1
     tslib: ^2.4.0
   checksum: 64e2e933c3459f7e27f20c86241bfd5aaa68053f76d218e1214916c60454b80a8f5ffd0d3ffc975bc76566ca91c5d832ff74ffde020fc036ad2cc4bccf98390c
+  languageName: node
+  linkType: hard
+
+"@chatsift/pino-rotate-file@npm:^0.1.1":
+  version: 0.1.1
+  resolution: "@chatsift/pino-rotate-file@npm:0.1.1"
+  dependencies:
+    pino: ^8.4.0
+    pino-abstract-transport: ^1.0.0
+    tslib: ^2.4.0
+  checksum: d823a57409e7c4622c3b97a3a48933bd1321928199e477067e9c6e87a5ed4c660a084ef709c4da0a9dd9b037d20ed07af659a326e073373ebb4a6f495e6a437a
   languageName: node
   linkType: hard
 
@@ -8169,6 +8181,27 @@ __metadata:
   bin:
     pino: bin.js
   checksum: 4871cf02fdc62ce27042a98797d343e381375486bd9e88a2a4ee72259e12227f040c76a6050707dfe76f3cacfcec0c049c28b53eb9a82074ddf2913cce9473ee
+  languageName: node
+  linkType: hard
+
+"pino@npm:^8.4.0":
+  version: 8.4.0
+  resolution: "pino@npm:8.4.0"
+  dependencies:
+    atomic-sleep: ^1.0.0
+    fast-redact: ^3.1.1
+    on-exit-leak-free: ^2.1.0
+    pino-abstract-transport: v1.0.0
+    pino-std-serializers: ^6.0.0
+    process-warning: ^2.0.0
+    quick-format-unescaped: ^4.0.3
+    real-require: ^0.2.0
+    safe-stable-stringify: ^2.3.1
+    sonic-boom: ^3.1.0
+    thread-stream: ^2.0.0
+  bin:
+    pino: bin.js
+  checksum: ccb5d3d83ae9b9fc17b6a8f44a0204cbb57036322cc7ed6cfaba2d1cebacbeaadebf7c9c047bc0b8136654698ca7f2b6671243f5151998a8f5e0bb431e7a2476
   languageName: node
   linkType: hard
 
