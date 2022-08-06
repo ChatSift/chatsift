@@ -1,7 +1,7 @@
 FROM node:16-alpine
-LABEL name "automoderator base"
+LABEL name "automoderator service"
 
-WORKDIR /opt/build
+WORKDIR /usr/service
 
 RUN apk add --update \
 && apk add --no-cache ca-certificates \
@@ -37,3 +37,15 @@ COPY packages/logger ./packages/logger
 COPY packages/util ./packages/util
 
 RUN yarn turbo run build --filter=./packages/*
+
+COPY services/automod ./services/automod
+COPY services/discord-proxy ./services/discord-proxy
+COPY services/gateway ./services/gateway
+COPY services/interactions ./services/interactions
+COPY services/logging ./services/logging
+COPY services/mod-observer ./services/mod-observer
+COPY services/scheduler ./services/scheduler
+
+RUN yarn turbo run build --filter=./services/*
+
+RUN yarn workspaces focus --all --production

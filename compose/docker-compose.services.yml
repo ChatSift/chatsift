@@ -1,11 +1,14 @@
 version: '3.7'
 
 services:
-  automod:
-    image: chatsift/automoderator_automod
+  service:
+    image: chatsift/automoderator_service
     build:
       context: ../
-      dockerfile: ./docker/automod/Dockerfile
+      dockerfile: ./docker/service/Dockerfile
+
+  automod:
+    image: chatsift/automoderator_service
     environment:
       DB_URL: '${DB_URL}'
       REDIS_URL: 'redis://redis:6379/0'
@@ -13,100 +16,73 @@ services:
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
     restart: unless-stopped
     volumes:
-      - ../logs:/usr/automod/logs
-    depends_on:
-      - base
-
-  base:
-    image: chatsift/automoderator_base
-    build:
-      context: ../
-      dockerfile: ./docker/base/Dockerfile
+      - ../logs:/usr/service/logs
+    command: ['node', '--enable-source-maps', 'services/automod/dist/index.js']
 
   discord-proxy:
-    image: chatsift/automoderator_discord-proxy
-    build:
-      context: ../
-      dockerfile: ./docker/discord-proxy/Dockerfile
+    image: chatsift/automoderator_service
     volumes:
-      - ../logs:/usr/discord-proxy/logs
+      - ../logs:/usr/service/logs
     restart: unless-stopped
-    depends_on:
-      - base
+    expose:
+      - 3003
+    command: ['node', '--enable-source-maps', 'services/discord-proxy/dist/index.js']
 
   gateway:
-    image: chatsift/automoderator_gateway
-    build:
-      context: ../
-      dockerfile: ./docker/gateway/Dockerfile
+    image: chatsift/automoderator_service
     environment:
       AMQP_URL: 'amqp://rabbitmq:5672'
       REDIS_URL: 'redis://redis:6379/0'
-    volumes:
-      - ../logs:/usr/gateway/logs
     restart: unless-stopped
-    depends_on:
-      - base
+    volumes:
+      - ../logs:/usr/service/logs
+    command: ['node', '--enable-source-maps', 'services/gateway/dist/index.js']
 
   interactions:
-    image: chatsift/automoderator_interactions
-    build:
-      context: ../
-      dockerfile: ./docker/interactions/Dockerfile
+    image: chatsift/automoderator_service
     environment:
       DB_URL: '${DB_URL}'
       REDIS_URL: 'redis://redis:6379/0'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
-    volumes:
-      - ../logs:/usr/interactions/logs
     restart: unless-stopped
-    depends_on:
-      - base
+    expose:
+      - 3002
+    volumes:
+      - ../logs:/usr/service/logs
+    command: ['node', '--enable-source-maps', 'services/interactions/dist/index.js']
 
   logging:
-    image: chatsift/automoderator_logging
-    build:
-      context: ../
-      dockerfile: ./docker/logging/Dockerfile
+    image: chatsift/automoderator_service
     environment:
       DB_URL: '${DB_URL}'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
-    volumes:
-      - ../logs:/usr/logging/logs
     restart: unless-stopped
-    depends_on:
-      - base
+    volumes:
+      - ../logs:/usr/service/logs
+    command: ['node', '--enable-source-maps', 'services/logging/dist/index.js']
 
   mod-observer:
-    image: chatsift/automoderator_mod-observer
-    build:
-      context: ../
-      dockerfile: ./docker/mod-observer/Dockerfile
+    image: chatsift/automoderator_service
     environment:
       DB_URL: '${DB_URL}'
       REDIS_URL: 'redis://redis:6379/0'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
-    volumes:
-      - ../logs:/usr/mod-observer/logs
     restart: unless-stopped
-    depends_on:
-      - base
+    volumes:
+      - ../logs:/usr/service/logs
+    command: ['node', '--enable-source-maps', 'services/mod-observer/dist/index.js']
 
   scheduler:
-    image: chatsift/scheduler
-    build:
-      context: ../
-      dockerfile: ./docker/scheduler/Dockerfile
+    image: chatsift/automoderator_service
     environment:
       DB_URL: '${DB_URL}'
       REDIS_URL: 'redis://redis:6379/0'
       AMQP_URL: 'amqp://rabbitmq:5672'
       DISCORD_PROXY_URL: 'http://discord-proxy:3003'
-    volumes:
-      - ../logs:/usr/scheduler/logs
     restart: unless-stopped
-    depends_on:
-      - base
+    volumes:
+      - ../logs:/usr/service/logs
+    command: ['node', '--enable-source-maps', 'services/scheduler/dist/index.js']
