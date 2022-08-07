@@ -30,6 +30,8 @@ COPY services/scheduler/package.json ./services/scheduler/package.json
 
 RUN yarn --immutable
 
+RUN wget -O ./services/automod/tlds.txt https://data.iana.org/TLD/tlds-alpha-by-domain.txt
+
 COPY packages/cache ./packages/cache
 COPY packages/broker-types ./packages/broker-types
 COPY packages/injection ./packages/injection
