@@ -2,7 +2,7 @@ import { kLogger } from '@automoderator/injection';
 import { ellipsis, MESSAGE_LIMITS } from '@chatsift/discord-utils';
 import { chunkArray } from '@chatsift/utils';
 import { Rest as DiscordRest } from '@cordis/rest';
-import { PrismaClient, SelfAssignableRole, SelfAssignableRolePrompt } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import {
 	APIActionRowComponent,
 	APIGuildInteraction,
@@ -441,15 +441,10 @@ export default class implements Command {
 				}
 
 				const data = prompts
-					.map((prompt) => {
-						const formatPrompt = (prompt: SelfAssignableRolePrompt) =>
-							`[Prompt ID ${prompt.promptId}](<https://discord.com/channels/${interaction.guild_id}/${prompt.channelId}/${prompt.messageId}>)`;
-
-						const formatRoles = (roles: SelfAssignableRole[]) =>
-							roles.length ? roles.map((r) => `<@&${r.roleId}>`).join(', ') : 'no roles - please set some';
-
-						return `• ${formatPrompt(prompt)}: ${formatRoles(prompt.selfAssignableRoles)}`;
-					})
+					.map(
+						(prompt) =>
+							`• [Prompt ID ${prompt.promptId}](<https://discord.com/channels/${interaction.guild_id}/${prompt.channelId}/${prompt.messageId}>)`,
+					)
 					.join('\n');
 
 				return send(interaction, {
