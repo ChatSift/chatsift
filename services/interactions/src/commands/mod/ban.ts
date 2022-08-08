@@ -18,7 +18,7 @@ export default class implements Command {
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof BanCommand>) {
 		await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
-		const { user: member, reason, reference: refId, days = 1, duration: durationString } = args;
+		const { user: member, reason, reference: refId, days, duration: durationString } = args;
 		if (reason && reason.length >= 1900) {
 			throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
 		}
