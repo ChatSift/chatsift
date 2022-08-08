@@ -159,6 +159,11 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 			await this.discord.delete(Routes.channelMessage(message.channel_id, message.id), {
 				reason: 'Words filter trigger',
 			});
+			if (!applied.length) {
+				await dmUser(message.author.id, `You message was deleted for containing the following word: ${words[0]!.word}`);
+				return;
+			}
+
 			await dmUser(
 				message.author.id,
 				`Your message was deleted for containing the following words/phrases: ${found.join(
