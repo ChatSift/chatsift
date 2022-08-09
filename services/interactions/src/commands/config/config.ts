@@ -129,90 +129,93 @@ export default class implements Command {
 			where: { guildId: interaction.guild_id },
 		});
 
-		const logChannels = await this.prisma.$transaction(async (prisma) => {
-			const existingLogChannels = await prisma.logChannelWebhook
-				.findMany({ where: { guildId: interaction.guild_id } })
-				.then((channels) => new Map(channels.map((channel) => [channel.logType, channel])));
+		const logChannels = await this.prisma.$transaction(
+			async (prisma) => {
+				const existingLogChannels = await prisma.logChannelWebhook
+					.findMany({ where: { guildId: interaction.guild_id } })
+					.then((channels) => new Map(channels.map((channel) => [channel.logType, channel])));
 
-			const logChannels: Promise<LogChannelWebhook>[] = [];
+				const logChannels: Promise<LogChannelWebhook>[] = [];
 
-			const handleLogChannel = async (channel: APIPartialChannel, logType: LogChannelType) => {
-				if (!textTypes.includes(channel.type)) {
-					throw new ControlFlowError('A log channel must be a text channel');
-				}
+				const handleLogChannel = async (channel: APIPartialChannel, logType: LogChannelType) => {
+					if (!textTypes.includes(channel.type)) {
+						throw new ControlFlowError('A log channel must be a text channel');
+					}
 
-				const parentId =
-					channel.type === ChannelType.GuildText
-						? channel.id
-						: (await this.discordRest.get<APIThreadChannel>(Routes.channel(channel.id)))!.parent_id!;
+					const parentId =
+						channel.type === ChannelType.GuildText
+							? channel.id
+							: (await this.discordRest.get<APIThreadChannel>(Routes.channel(channel.id)))!.parent_id!;
 
-				const names = {
-					[LogChannelType.mod]: 'CASE-ICO',
-					[LogChannelType.filter]: 'FILTER-ICO',
-					[LogChannelType.user]: 'USER-ICO',
-					[LogChannelType.message]: 'MSG-ICO',
-				} as const;
+					const names = {
+						[LogChannelType.mod]: 'CASE-ICO',
+						[LogChannelType.filter]: 'FILTER-ICO',
+						[LogChannelType.user]: 'USER-ICO',
+						[LogChannelType.message]: 'MSG-ICO',
+					} as const;
 
-				const iconRes = await fetch(`https://automoderator.app/wp-content/uploads/2022/03/${names[logType]}.png`);
-				const buffer = await iconRes.buffer();
+					const iconRes = await fetch(`https://automoderator.app/wp-content/uploads/2022/03/${names[logType]}.png`);
+					const buffer = await iconRes.buffer();
 
-				const webhook = await this.discordRest.post<APIWebhook, RESTPostAPIChannelWebhookJSONBody>(
-					Routes.channelWebhooks(parentId),
-					{
-						data: {
-							name: `${logType[0]!.toUpperCase()}${logType.slice(1)} Logs`,
-							avatar: `data:image/png;base64,${buffer.toString('base64')}`,
-						},
-					},
-				);
-
-				const data = {
-					guildId: interaction.guild_id,
-					logType,
-					channelId: parentId,
-					webhookId: webhook.id,
-					webhookToken: webhook.token!,
-					threadId: channel.type === ChannelType.GuildText ? null : channel.id,
-				};
-
-				logChannels.push(
-					prisma.logChannelWebhook.upsert({
-						create: data,
-						update: data,
-						where: {
-							guildId_logType: {
-								guildId: interaction.guild_id,
-								logType,
+					const webhook = await this.discordRest.post<APIWebhook, RESTPostAPIChannelWebhookJSONBody>(
+						Routes.channelWebhooks(parentId),
+						{
+							data: {
+								name: `${logType[0]!.toUpperCase()}${logType.slice(1)} Logs`,
+								avatar: `data:image/png;base64,${buffer.toString('base64')}`,
 							},
 						},
-					}),
-				);
+					);
 
-				existingLogChannels.delete(logType);
-			};
+					const data = {
+						guildId: interaction.guild_id,
+						logType,
+						channelId: parentId,
+						webhookId: webhook.id,
+						webhookToken: webhook.token!,
+						threadId: channel.type === ChannelType.GuildText ? null : channel.id,
+					};
 
-			if (filterlogschannel) {
-				await handleLogChannel(filterlogschannel, LogChannelType.filter);
-			}
+					logChannels.push(
+						prisma.logChannelWebhook.upsert({
+							create: data,
+							update: data,
+							where: {
+								guildId_logType: {
+									guildId: interaction.guild_id,
+									logType,
+								},
+							},
+						}),
+					);
 
-			if (messagelogschannel) {
-				await handleLogChannel(messagelogschannel, LogChannelType.message);
-			}
+					existingLogChannels.delete(logType);
+				};
 
-			if (modlogschannel) {
-				await handleLogChannel(modlogschannel, LogChannelType.mod);
-			}
+				if (filterlogschannel) {
+					await handleLogChannel(filterlogschannel, LogChannelType.filter);
+				}
 
-			if (userlogschannel) {
-				await handleLogChannel(userlogschannel, LogChannelType.user);
-			}
+				if (messagelogschannel) {
+					await handleLogChannel(messagelogschannel, LogChannelType.message);
+				}
 
-			for (const channel of await Promise.all(logChannels)) {
-				existingLogChannels.set(channel.logType, channel);
-			}
+				if (modlogschannel) {
+					await handleLogChannel(modlogschannel, LogChannelType.mod);
+				}
 
-			return existingLogChannels;
-		});
+				if (userlogschannel) {
+					await handleLogChannel(userlogschannel, LogChannelType.user);
+				}
+
+				for (const channel of await Promise.all(logChannels)) {
+					existingLogChannels.set(channel.logType, channel);
+				}
+
+				return existingLogChannels;
+			},
+			{ timeout: 30_000 },
+		);
 
 		return this._sendCurrentSettings(interaction, settings, logChannels);
 	}
