@@ -94,7 +94,7 @@ export default class implements Component {
 				const configureId = nanoid();
 				const doneId = nanoid();
 
-				const state: { action?: CaseAction; reason?: string; duration?: number } = {};
+				const state: { action?: CaseAction | 'noop'; reason?: string; duration?: number } = {};
 
 				await send(interaction, {
 					content: 'Please select the action you want to take, and optionally, the duration and reason',
@@ -109,6 +109,10 @@ export default class implements Component {
 									max_values: 1,
 									placeholder: 'Select an action',
 									options: [
+										{
+											value: 'noop',
+											label: 'No action',
+										},
 										{
 											value: CaseAction.warn,
 											label: 'Warn',
@@ -172,7 +176,7 @@ export default class implements Component {
 					this.handler.collectorManager
 						.makeCollector<APIMessageComponentInteraction>(actionId)
 						.hookAndDestroy(async (interaction) => {
-							const action = (interaction.data as APIMessageSelectMenuInteractionData).values[0] as CaseAction;
+							const action = (interaction.data as APIMessageSelectMenuInteractionData).values[0] as CaseAction | 'noop';
 							if (action === CaseAction.mute) {
 								const existingCs = await this.prisma.case.findFirst({
 									where: {
@@ -327,23 +331,25 @@ export default class implements Component {
 								return send(interaction, { content: '⚠️ Duration is only available for bans and mutes.', flags: 64 });
 							}
 
-							await this.cases.create({
-								actionType: state.action,
-								guildId: interaction.guild_id,
-								targetId: report.userId,
-								targetTag: `${user.username}#${user.discriminator}`,
-								mod: {
-									id: interaction.member.user.id,
-									tag: `${interaction.member.user.username}#${interaction.member.user.discriminator}`,
-								},
-								expiresAt: state.duration ? new Date(Date.now() + state.duration) : undefined,
-								unmuteRoles:
-									state.action === CaseAction.mute && (settings?.useTimeoutsByDefault ?? true) ? null : undefined,
-								reason: state.reason,
-							});
+							if (state.action !== 'noop') {
+								await this.cases.create({
+									actionType: state.action,
+									guildId: interaction.guild_id,
+									targetId: report.userId,
+									targetTag: `${user.username}#${user.discriminator}`,
+									mod: {
+										id: interaction.member.user.id,
+										tag: `${interaction.member.user.username}#${interaction.member.user.discriminator}`,
+									},
+									expiresAt: state.duration ? new Date(Date.now() + state.duration) : undefined,
+									unmuteRoles:
+										state.action === CaseAction.mute && (settings?.useTimeoutsByDefault ?? true) ? null : undefined,
+									reason: state.reason,
+								});
+							}
 
 							await send(interaction, {
-								content: 'Successfully created case',
+								content: 'Successfully actioned	the report',
 								components: [],
 								flags: 64,
 							});
