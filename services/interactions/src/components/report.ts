@@ -207,7 +207,9 @@ export default class implements Component {
 							await send(
 								interaction,
 								{
-									content: `Executing a ${action} - feel free to configure further`,
+									content: `Executing ${
+										action === 'noop' ? 'no action' : `a ${action}`
+									} - feel free to configure further`,
 									components,
 									flags: 64,
 								},
@@ -349,7 +351,7 @@ export default class implements Component {
 							}
 
 							await send(interaction, {
-								content: 'Successfully actioned	the report',
+								content: 'Successfully actioned the report',
 								components: [],
 								flags: 64,
 							});

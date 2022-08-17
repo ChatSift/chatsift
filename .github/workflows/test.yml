@@ -1,0 +1,31 @@
+name: Quality Check
+on: [push, pull_request]
+jobs:
+  quality:
+    name: Quality Check
+    runs-on: ubuntu-latest
+    env:
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install Node.js v16
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+          cache: 'yarn'
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn --immutable
+
+      - name: Ensure prisma schema is up to date
+        run: yarn prisma generate
+
+      - name: Build
+        run: yarn build
+
+      - name: ESLint
+        run: yarn lint

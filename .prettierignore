@@ -4,3 +4,4 @@ coverage/*
 **/types/*
 docs
 .yarn/*
+.turbo
