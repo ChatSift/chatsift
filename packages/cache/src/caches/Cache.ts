@@ -3,8 +3,8 @@ import type { ITransformer } from '../transformers/ITransformer';
 
 export abstract class Cache<T> {
 	protected abstract readonly redis: Redis;
-	protected abstract transformer: ITransformer<T>;
-	protected abstract TTL: number;
+	protected abstract readonly transformer: ITransformer<T>;
+	protected abstract readonly TTL: number;
 
 	protected abstract makeKey(id: string): string;
 

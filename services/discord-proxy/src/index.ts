@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { createServer } from 'node:http';
 import { URL } from 'node:url';
-import { Env } from '@automoderator/common';
+import { createLogger, Env, SYMBOLS } from '@automoderator/common';
 import {
 	populateAbortErrorResponse,
 	populateGeneralErrorResponse,
@@ -16,10 +16,14 @@ import {
 	REST,
 	RouteLike,
 } from '@discordjs/rest';
+import Redis from 'ioredis';
 import { container } from 'tsyringe';
 import { cache, fetchCache } from './cache';
 
+const logger = createLogger('discord-proxy');
+
 const env = container.resolve(Env);
+container.register(SYMBOLS.redis, { useValue: new Redis(env.redisUrl) });
 
 const rest = new REST({ rejectOnRateLimit: () => true, retries: 0 }).setToken(env.discordToken);
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -30,6 +34,7 @@ const server = createServer(async (req, res) => {
 	if (method === RequestMethod.Get) {
 		const cached = await fetchCache(fullRoute);
 		if (cached) {
+			logger.trace({ fullRoute }, 'Cache hit');
 			res.statusCode = 200;
 			res.setHeader('Content-Type', 'application/json');
 			return res.end(JSON.stringify(cached));
@@ -60,6 +65,7 @@ const server = createServer(async (req, res) => {
 
 		await cache(fullRoute, data);
 	} catch (error) {
+		logger.error({ err: error, fullRoute, method }, 'Something went wrong');
 		if (error instanceof DiscordAPIError || error instanceof HTTPError) {
 			populateGeneralErrorResponse(res, error);
 		} else if (error instanceof RateLimitError) {
@@ -74,4 +80,4 @@ const server = createServer(async (req, res) => {
 	}
 });
 
-server.listen(3000);
+server.listen(8080, () => logger.info('Listening on port 8080 for requests'));

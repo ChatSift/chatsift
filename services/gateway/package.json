@@ -1,9 +1,8 @@
 {
-	"name": "@automoderator/common",
+	"name": "@chatsift/automoderator-gateway",
 	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
 	"private": true,
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"type": "module",
 	"scripts": {
 		"lint": "eslint src --ext .ts",
@@ -17,9 +16,12 @@
 		"typescript": "^4.7.4"
 	},
 	"dependencies": {
-		"@chatsift/pino-rotate-file": "^0.1.2",
-		"pino": "^8.4.2",
-		"pino-pretty": "^9.0.1",
+		"@automoderator/cache": "workspace:^",
+		"@automoderator/common": "workspace:^",
+		"@discordjs/proxy": "^1.0.1",
+		"@discordjs/rest": "^1.0.1",
+		"discord-api-types": "^0.37.3",
+		"reflect-metadata": "^0.1.13",
 		"tslib": "^2.4.0",
 		"tsyringe": "^4.7.0"
 	}
