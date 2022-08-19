@@ -26,16 +26,16 @@ export class Writer {
 		this.data = Buffer.alloc(size);
 	}
 
-	public get raw() {
+	public dump() {
 		return this.data;
 	}
 
-	public get trimmed() {
+	public dumpTrimmed() {
 		return this.data.subarray(0, this.offset);
 	}
 
-	public bool(value: boolean | null) {
-		if (value === null) {
+	public bool(value?: boolean | null) {
+		if (value == null) {
 			return this.writeNull();
 		}
 
@@ -46,8 +46,8 @@ export class Writer {
 		return this;
 	}
 
-	public i8(value: number | null) {
-		if (value === null) {
+	public i8(value?: number | null) {
+		if (value == null) {
 			return this.writeNull();
 		}
 
@@ -58,8 +58,8 @@ export class Writer {
 		return this;
 	}
 
-	public u8(value: number | null) {
-		if (value === null) {
+	public u8(value?: number | null) {
+		if (value == null) {
 			return this.writeNull();
 		}
 
@@ -70,8 +70,8 @@ export class Writer {
 		return this;
 	}
 
-	public u16(value: number | null) {
-		if (value === null) {
+	public u16(value?: number | null) {
+		if (value == null) {
 			return this.writeNull();
 		}
 
@@ -82,8 +82,8 @@ export class Writer {
 		return this;
 	}
 
-	public i32(value: number | null) {
-		if (value === null) {
+	public i32(value?: number | null) {
+		if (value == null) {
 			return this.writeNull();
 		}
 
@@ -94,8 +94,8 @@ export class Writer {
 		return this;
 	}
 
-	public u32(value: number | null) {
-		if (value === null) {
+	public u32(value?: number | null) {
+		if (value == null) {
 			return this.writeNull();
 		}
 
@@ -106,8 +106,8 @@ export class Writer {
 		return this;
 	}
 
-	public u64(value: string | number | bigint | null) {
-		if (value === null) {
+	public u64(value?: string | number | bigint | null) {
+		if (value == null) {
 			return this.writeNull();
 		}
 
@@ -118,7 +118,7 @@ export class Writer {
 		return this;
 	}
 
-	public string(value: string | null) {
+	public string(value?: string | null) {
 		if (!value?.length) {
 			return this.writeNull();
 		}
@@ -134,7 +134,7 @@ export class Writer {
 		return this;
 	}
 
-	public date(value: string | number | null) {
+	public date(value?: string | number | null) {
 		if (typeof value === 'string') {
 			value = Date.parse(value);
 		}
@@ -156,7 +156,7 @@ export class Writer {
 	}
 
 	public object<T extends Record<string, unknown>>(value: T | null, cb: (buffer: this, value: T) => void) {
-		if (value === null) {
+		if (value == null) {
 			return this.writeNull();
 		}
 
