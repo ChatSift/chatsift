@@ -1,32 +1,17 @@
-<div align="center">
-  <h3>
-    Full stack for the main ChatSift projects
-  </h3>
+# automoderator
 
-  <p align="center">
-    <h3>
-      <strong>
-        <a href="https://automoderator.app/">Website</a>
-        <a>-</a>
-        <a href="https://blog.automoderator.app/">Blog</a>
-      </strong>
-    </h3>
-  </p>
+## About
 
-  <p>
-      <img src="https://github.com/didinele/AutoModerator/actions/workflows/quality.yml/badge.svg" alt="Quality Check">
-      <a href="https://github.com/didinele/AutoModerator/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-GNU%20AGPLv3-yellow.svg" alt="License: APACHE 2.0"></a>
-      <a href="https://github.com/didinele/AutoModerator/issues"><img src="https://img.shields.io/github/issues-raw/didinele/AutoModerator.svg?maxAge=25000" alt="Issues"></a>
-      <a href="https://github.com/didinele/AutoModerator/pulls"><img src="https://img.shields.io/github/issues-pr/didinele/AutoModerator.svg?style=flat" alt="GitHub pull requests"></a><br>
-  </p>
-</div>
+You can read all about the bot soon.
 
-# About the repo
+## Self hosting
 
-Home of the main AutoModerator codebase ✨
+Compared to our other products, selfhosting AutoModerator is fairly complicated and not recommended.
+It's built for scalability and performance, making it extremely overkill for private instances.
+As such, it's also not generally built for ease-of-use.
 
-More to come.
+---
 
-# LICENSING
+## Licensing
 
-This repository is licensed under the GNU AGPLv3 license.
+This project is lincensed under the GNU AGPLv3 license. View the full file [here](./LICENSE).

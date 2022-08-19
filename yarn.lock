@@ -5,6 +5,18 @@ __metadata:
   version: 6
   cacheKey: 8
 
+"@automoderator/cache@workspace:packages/cache":
+  version: 0.0.0-use.local
+  resolution: "@automoderator/cache@workspace:packages/cache"
+  dependencies:
+    "@types/node": ^16.11.48
+    discord-api-types: ^0.37.3
+    tslib: ^2.4.0
+    tsyringe: ^4.7.0
+    typescript: ^4.7.4
+  languageName: unknown
+  linkType: soft
+
 "@babel/code-frame@npm:^7.0.0":
   version: 7.18.6
   resolution: "@babel/code-frame@npm:7.18.6"
@@ -453,6 +465,13 @@ __metadata:
   version: 18.6.2
   resolution: "@types/node@npm:18.6.2"
   checksum: 644c460baedb1fbbd55369ab621167cb39ddaa727fd4fcf4bc7080183cf936d7ff8c2c886ba93ff42768d6f7a579a540e6d1e63d3adba4e5758fb13671ae68ce
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^16.11.48":
+  version: 16.11.49
+  resolution: "@types/node@npm:16.11.49"
+  checksum: 05545ee49da3b783ab77cddca45db6f4d47861c2bb148a17b774688e1082f20f27177591d140923724bcd8643b32291203f6f1eadba397e394232d4a1e28e07a
   languageName: node
   linkType: hard
 
@@ -1085,6 +1104,13 @@ __metadata:
   dependencies:
     path-type: ^4.0.0
   checksum: fa05e18324510d7283f55862f3161c6759a3f2f8dbce491a2fc14c8324c498286c54282c1f0e933cb930da8419b30679389499b919122952a4f8592362ef4615
+  languageName: node
+  linkType: hard
+
+"discord-api-types@npm:^0.37.3":
+  version: 0.37.3
+  resolution: "discord-api-types@npm:0.37.3"
+  checksum: 35451bfcac67c3c32fdc78eec79649a4a4c07132e14b661f797c61f30cedaf5202066aaf7f39d1ae1143262be07a93257b3c302699814884d2beed1572d1beff
   languageName: node
   linkType: hard
 
@@ -3244,10 +3270,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^1.8.1":
+"tslib@npm:^1.8.1, tslib@npm:^1.9.3":
   version: 1.14.1
   resolution: "tslib@npm:1.14.1"
   checksum: dbe628ef87f66691d5d2959b3e41b9ca0045c3ee3c7c7b906cc1e328b39f199bb1ad9e671c39025bd56122ac57dfbf7385a94843b1cc07c60a4db74795829acd
+  languageName: node
+  linkType: hard
+
+"tslib@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "tslib@npm:2.4.0"
+  checksum: 8c4aa6a3c5a754bf76aefc38026134180c053b7bd2f81338cb5e5ebf96fefa0f417bff221592bf801077f5bf990562f6264fecbc42cd3309b33872cb6fc3b113
   languageName: node
   linkType: hard
 
@@ -3259,6 +3292,15 @@ __metadata:
   peerDependencies:
     typescript: ">=2.8.0 || >= 3.2.0-dev || >= 3.3.0-dev || >= 3.4.0-dev || >= 3.5.0-dev || >= 3.6.0-dev || >= 3.6.0-beta || >= 3.7.0-dev || >= 3.7.0-beta"
   checksum: 1843f4c1b2e0f975e08c4c21caa4af4f7f65a12ac1b81b3b8489366826259323feb3fc7a243123453d2d1a02314205a7634e048d4a8009921da19f99755cdc48
+  languageName: node
+  linkType: hard
+
+"tsyringe@npm:^4.7.0":
+  version: 4.7.0
+  resolution: "tsyringe@npm:4.7.0"
+  dependencies:
+    tslib: ^1.9.3
+  checksum: 6d84e0767538fabf60eafb926bd285d08d25847875b635f8a3ab8b3093c8814aca4f47072fbb51837bd431259dc2464572e5c28a838b833c9ef097d5b1a895b3
   languageName: node
   linkType: hard
 

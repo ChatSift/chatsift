@@ -1,7 +1,5 @@
 node_modules/*
 coverage/*
 **/dist/*
-**/types/*
-docs
 .yarn/*
 .turbo

@@ -1,23 +1,11 @@
-/**/dist
-/**/types
-!/**/src/types
-coverage
+.vscode/*
+!.vscode/settings.json
 
 node_modules
-/.env
-.env.*.local
+.env
 
-.idea
-.vscode
-*.log
-doc
-docs
-
-ley.config.mjs
-
-docker-compose.config.yml
-docker-compose.config.dev.yml
-docker-compose.config.prod.yml
+coverage/*
+**/dist/*
 
 .yarn/*
 !.yarn/patches
@@ -26,5 +14,6 @@ docker-compose.config.prod.yml
 !.yarn/sdks
 !.yarn/versions
 .pnp.*
+logs
 
 .turbo

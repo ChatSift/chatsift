@@ -5,22 +5,19 @@
 		"moduleResolution": "node",
 		"removeComments": true,
 		"pretty": true,
-		"module": "CommonJS",
+		"module": "ESNext",
 		"target": "ES2020",
 		"lib": ["ESNext"],
 		"sourceMap": true,
-		"declarationMap": true,
 		"incremental": true,
 		"skipLibCheck": true,
 		"noEmitHelpers": true,
 		"importHelpers": true,
-		"declaration": true,
 		"esModuleInterop": true,
 		"noUncheckedIndexedAccess": true,
 		"emitDecoratorMetadata": true,
 		"experimentalDecorators": true,
 		"noImplicitOverride": true,
 		"importsNotUsedAsValues": "error"
-	},
-	"exclude": ["./**/__tests__"]
+	}
 }
