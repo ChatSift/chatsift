@@ -34,10 +34,12 @@ gateway
 	.on(WebSocketShardEvents.Dispatch, ({ data }) => void broker.publish(data.t, data.d));
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
-broker.on('gateway_send', async (payload: GatewaySendPayload) => {
+broker.on('gateway_send', async (payload: GatewaySendPayload, { ack }: { ack: () => Promise<void> }) => {
 	for (const shardId of await gateway.getShardIds()) {
 		await gateway.send(shardId, payload);
 	}
+
+	await ack();
 });
 
 await broker.subscribe(['gateway_send']);
