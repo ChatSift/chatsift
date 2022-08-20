@@ -35,7 +35,9 @@ import {
 	APIThreadChannel,
 	APITextChannel,
 } from 'discord-api-types/v9';
+import latinize from 'latinize';
 import type { Logger } from 'pino';
+import removeAccents from 'remove-accents';
 import { inject, singleton } from 'tsyringe';
 
 @singleton()
@@ -318,7 +320,7 @@ export class Gateway {
 			return;
 		}
 
-		const content = name.toLowerCase();
+		const content = latinize(removeAccents(name.toLowerCase()));
 		const array = content.split(/ +/g);
 
 		let updatedName = name;

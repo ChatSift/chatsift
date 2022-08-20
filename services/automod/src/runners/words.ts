@@ -7,7 +7,9 @@ import { Rest } from '@cordis/rest';
 import ms from '@naval-base/ms';
 import { PrismaClient, BannedWord, CaseAction } from '@prisma/client';
 import { Routes, APIUser, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import latinize from 'latinize';
 import type { Logger } from 'pino';
+import removeAccents from 'remove-accents';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 import { UrlsRunner } from './urls';
@@ -44,7 +46,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 	}
 
 	public run({ words }: WordsTransform, message: GatewayMessageCreateDispatchData): BannedWordWithFlags[] | null {
-		const content = message.content.toLowerCase();
+		const content = latinize(removeAccents(message.content.toLowerCase()));
 		const wordsArray = content.split(/ +/g);
 
 		const out: BannedWordWithFlags[] = [];

@@ -22,6 +22,7 @@
 		"@types/amqplib": "^0.8.2",
 		"@types/common-tags": "^1.8.1",
 		"@types/ioredis": "^4.28.10",
+		"@types/latinize": "^0.2.15",
 		"@types/node": "^16.11.46",
 		"@types/node-fetch": "^2.6.2",
 		"pino": "^8.3.1",
@@ -45,8 +46,10 @@
 		"common-tags": "^1.8.2",
 		"discord-api-types": "^0.36.1",
 		"ioredis": "^4.28.5",
+		"latinize": "^0.5.0",
 		"node-fetch": "^2.6.7",
 		"reflect-metadata": "^0.1.13",
+		"remove-accents": "^0.4.2",
 		"tslib": "^2.4.0",
 		"tsyringe": "^4.7.0"
 	}

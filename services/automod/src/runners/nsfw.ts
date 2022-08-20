@@ -60,6 +60,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 						.catch(() => res.text())
 						.catch(() => null),
 					status: res.status,
+					url,
 				},
 				'Failed requst to NSFW API',
 			);

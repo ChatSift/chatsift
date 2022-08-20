@@ -35,15 +35,18 @@ __metadata:
     "@types/amqplib": ^0.8.2
     "@types/common-tags": ^1.8.1
     "@types/ioredis": ^4.28.10
+    "@types/latinize": ^0.2.15
     "@types/node": ^16.11.46
     "@types/node-fetch": ^2.6.2
     common-tags: ^1.8.2
     discord-api-types: ^0.36.1
     ioredis: ^4.28.5
+    latinize: ^0.5.0
     node-fetch: ^2.6.7
     pino: ^8.3.1
     prisma: ^3.15.2
     reflect-metadata: ^0.1.13
+    remove-accents: ^0.4.2
     tslib: ^2.4.0
     tsyringe: ^4.7.0
     typescript: ^4.7.4
@@ -2795,6 +2798,13 @@ __metadata:
   version: 0.0.29
   resolution: "@types/json5@npm:0.0.29"
   checksum: e60b153664572116dfea673c5bda7778dbff150498f44f998e34b5886d8afc47f16799280e4b6e241c0472aef1bc36add771c569c68fc5125fc2ae519a3eb9ac
+  languageName: node
+  linkType: hard
+
+"@types/latinize@npm:^0.2.15":
+  version: 0.2.15
+  resolution: "@types/latinize@npm:0.2.15"
+  checksum: 816a34cc63094c1559ca08c1a56bb010d65cd59c28b73b8e9da10fe18d603e7f724e57930144b4acb16dadf186246e20a52ae9c4a77f2b5343cd9f492159ea15
   languageName: node
   linkType: hard
 
@@ -7114,6 +7124,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"latinize@npm:^0.5.0":
+  version: 0.5.0
+  resolution: "latinize@npm:0.5.0"
+  checksum: 865ad9be466f81b3a90676ea930465498bdbfd643e193539d34955172f005b21e3d46129c70329aa5760b523c200cf7153d6975d1491ca17fcd07fd28783927d
+  languageName: node
+  linkType: hard
+
 "leven@npm:^3.1.0":
   version: 3.1.0
   resolution: "leven@npm:3.1.0"
@@ -8636,6 +8653,13 @@ __metadata:
   bin:
     regjsparser: bin/parser
   checksum: d069b932491761cda127ce11f6bd2729c3b1b394a35200ec33f1199e937423db28ceb86cf33f0a97c76ecd7c0f8db996476579eaf0d80a1f74c1934f4ca8b27a
+  languageName: node
+  linkType: hard
+
+"remove-accents@npm:^0.4.2":
+  version: 0.4.2
+  resolution: "remove-accents@npm:0.4.2"
+  checksum: 84a6988555dea24115e2d1954db99509588d43fe55a1590f0b5894802776f7b488b3151c37ceb9e4f4b646f26b80b7325dcea2fae58bc3865df146e1fa606711
   languageName: node
   linkType: hard
 
