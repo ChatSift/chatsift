@@ -323,8 +323,8 @@ export class Gateway {
 		const content = latinize(removeAccents(name.toLowerCase()));
 		const array = content.split(/ +/g);
 
-		let updatedName = name;
-		let highlightedName = name;
+		let updatedName = content;
+		let highlightedName = content;
 
 		const hits = entries.reduce<typeof entries>((acc, entry) => {
 			if ((entry.flags.has('word') && array.includes(entry.word)) || content.includes(entry.word)) {
