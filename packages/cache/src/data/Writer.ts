@@ -70,6 +70,18 @@ export class Writer {
 		return this;
 	}
 
+	public i16(value?: number | null) {
+		if (value == null) {
+			return this.writeNull();
+		}
+
+		this.ensure(5);
+		this.offset += this.data.writeUint8(1, this.offset);
+		this.offset += this.data.writeInt16LE(value, this.offset);
+
+		return this;
+	}
+
 	public u16(value?: number | null) {
 		if (value == null) {
 			return this.writeNull();

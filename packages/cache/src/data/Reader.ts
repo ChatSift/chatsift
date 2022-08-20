@@ -47,6 +47,15 @@ export class Reader {
 		return this.data.readUInt8(this.offset++);
 	}
 
+	public i16(): number | null {
+		if (this.readNull()) {
+			return null;
+		}
+		const value = this.data.readInt16LE(this.offset);
+		this.offset += 2;
+		return value;
+	}
+
 	public u16(): number | null {
 		if (this.readNull()) {
 			return null;
