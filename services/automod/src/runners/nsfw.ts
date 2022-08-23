@@ -134,7 +134,10 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 			channel = await this.discord.get<APITextChannel>(Routes.channel(channel.parent_id!));
 		}
 
-		const { urls: messageUrls } = await this.urlsRunner.transform(message);
+		const messageUrls = [...message.content.matchAll(this.urlsRunner.urlRegex)].reduce<string[]>((acc, match) => {
+			acc.push(match[0]!);
+			return acc;
+		}, []);
 		const embedUrls = message.embeds.reduce<string[]>((acc, embed) => {
 			if (embed.url) {
 				acc.push(embed.url);
