@@ -1,12 +1,13 @@
 import 'reflect-metadata';
 import { randomBytes } from 'crypto';
-import { createLogger, Env } from '@automoderator/common';
+import { PubSubRedisBroker } from '@automoderator/brokers';
+import { createLogger, Env, DiscordEventsMap, encode, decode } from '@automoderator/common';
 import { REST } from '@discordjs/rest';
 import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
-import { Redis as Broker } from '@spectacles/brokers';
-import { GatewayIntentBits, GatewaySendPayload } from 'discord-api-types/v10';
+import { GatewayIntentBits } from 'discord-api-types/v10';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
+import { ProxyAgent } from 'undici';
 
 const logger = createLogger('gateway');
 
@@ -14,11 +15,11 @@ const env = container.resolve(Env);
 const redis = new Redis(env.redisUrl);
 
 // Want a random group name so we fan out gateway_send payloads
-const broker = new Broker(randomBytes(16).toString('hex'), redis);
+const broker = new PubSubRedisBroker<DiscordEventsMap>({ redisClient: redis, encode, decode });
 
 const gateway = new WebSocketManager({
 	token: env.discordToken,
-	rest: new REST().setToken(env.discordToken),
+	rest: new REST().setToken(env.discordToken).setAgent(new ProxyAgent(env.discordProxyURL)),
 	intents:
 		GatewayIntentBits.GuildMessages |
 		GatewayIntentBits.GuildMembers |
@@ -34,14 +35,13 @@ gateway
 	.on(WebSocketShardEvents.Dispatch, ({ data }) => void broker.publish(data.t, data.d));
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
-broker.on('gateway_send', async (payload: GatewaySendPayload, { ack }: { ack: () => Promise<void> }) => {
+broker.on('send', async ({ data, ack }) => {
 	for (const shardId of await gateway.getShardIds()) {
-		await gateway.send(shardId, payload);
+		await gateway.send(shardId, data);
 	}
 
 	await ack();
 });
 
-await broker.subscribe(['gateway_send']);
-
+await broker.subscribe(randomBytes(16).toString('hex'), ['send']);
 await gateway.connect();

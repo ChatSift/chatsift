@@ -5,26 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DB_URL")
-}
-
-model AppGuild {
-  appId   Int    @map("app_id")
-  guildId String @map("guild_id")
-  app     App    @relation(fields: [appId], references: [appId], onDelete: Cascade, onUpdate: NoAction)
-
-  @@id([appId, guildId])
-  @@map("app_guilds")
-}
-
-model App {
-  appId     Int        @id @default(autoincrement()) @map("app_id")
-  name      String     @db.VarChar(32)
-  perms     BigInt     @default(0)
-  appGuilds AppGuild[]
-  sigs      Sig[]
-
-  @@map("apps")
+  url      = env("DATABASE_URL")
 }
 
 enum AutomodPunishmentAction {
@@ -68,6 +49,7 @@ enum CaseAction {
 model Case {
   id           Int          @id @default(autoincrement())
   guildId      String       @map("guild_id")
+  logChannelId String?      @map("log_channel_id") // added with v3. if not present check the guild's current log webhook
   logMessageId String?      @map("log_message_id")
   caseId       Int          @map("case_id")
   refId        Int?         @map("ref_id")
@@ -77,6 +59,7 @@ model Case {
   modTag       String?      @map("mod_tag")
   actionType   CaseAction   @map("action_type")
   reason       String?
+  duration     BigInt?      // optional for backwards compatability with v2
   expiresAt    DateTime?    @map("expires_at") @db.Timestamptz(6)
   pardonedBy   String?      @map("pardoned_by")
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -167,13 +150,6 @@ model UnmuteRole {
   @@map("unmute_roles")
 }
 
-model User {
-  userId String @id @map("user_id")
-  perms  BigInt @default(0)
-
-  @@map("users")
-}
-
 enum WarnPunishmentAction {
   mute
   kick
@@ -207,15 +183,6 @@ model LogChannelWebhook {
 
   @@id([guildId, logType])
   @@map("webhook_tokens")
-}
-
-model Sig {
-  sig        String   @id
-  appId      Int      @map("app_id")
-  app        App      @relation(fields: [appId], references: [appId], onDelete: Cascade, onUpdate: NoAction)
-  lastUsedAt DateTime @default(now()) @map("last_used_at") @db.Timestamptz(6)
-
-  @@map("sigs")
 }
 
 enum MaliciousFileCategory {

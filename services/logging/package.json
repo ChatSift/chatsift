@@ -1,5 +1,5 @@
 {
-	"name": "@chatsift/automoderator-discord-proxy",
+	"name": "@chatsift/automoderator-logging",
 	"main": "./dist/index.js",
 	"private": true,
 	"version": "1.0.0",
@@ -16,10 +16,11 @@
 		"typescript": "^4.7.4"
 	},
 	"dependencies": {
+		"@automoderator/brokers": "workspace:^",
 		"@automoderator/cache": "workspace:^",
 		"@automoderator/common": "workspace:^",
-		"@discordjs/proxy": "^1.0.1",
 		"@discordjs/rest": "^1.0.1",
+		"@discordjs/ws": "^0.3.0-dev.1660954164-8028813.0",
 		"discord-api-types": "^0.37.3",
 		"ioredis": "^5.2.3",
 		"reflect-metadata": "^0.1.13",

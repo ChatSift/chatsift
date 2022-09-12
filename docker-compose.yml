@@ -1,0 +1,22 @@
+version: '3.7'
+
+services:
+  postgres:
+    image: postgres:12-alpine
+    environment:
+      POSTGRES_USER: 'automoderator'
+      POSTGRES_PASSWORD: 'admin'
+      POSTGRES_DB: 'automoderator'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:${DATABASE_PORT}:5432
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U automoderator']
+      interval: 10s
+      timeout: 5s
+
+volumes:
+  postgres-data:
+    name: 'automoderator-v3-postgres-data'
