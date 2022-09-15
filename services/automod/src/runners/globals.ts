@@ -1,22 +1,27 @@
-import { GlobalsRunnerResult, Log, Runners } from '@automoderator/broker-types';
+import type { GlobalsRunnerResult, Log } from '@automoderator/broker-types';
+import { Runners } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { kLogger, kRedis } from '@automoderator/injection';
 import { dmUser } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
-import { MaliciousUrl, PrismaClient } from '@prisma/client';
-import { Routes, APIMessage, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import type { MaliciousUrl } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import type { APIMessage, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import { Routes } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Redis } from 'ioredis';
 import fetch from 'node-fetch';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 import { UrlsRunner } from './urls';
 
-interface GlobalsTransform {
+type GlobalsTransform = {
 	urls: string[];
 	use: boolean;
-}
+};
 
 @singleton()
 export class GlobalsRunner
@@ -25,7 +30,9 @@ export class GlobalsRunner
 	public readonly ignore = 'global';
 
 	public readonly fishUrl = 'https://api.hyperphish.com/gimme-domains' as const;
+
 	public readonly fishCache = new Set<string>();
+
 	public lastRefreshedFish: number | null = null;
 
 	public constructor(
@@ -87,7 +94,7 @@ export class GlobalsRunner
 			hits.set(hit.url, hit);
 		}
 
-		const isForbiddenByFish = await Promise.all(urls.map((url) => this.isForbiddenByFish(url)));
+		const isForbiddenByFish = await Promise.all(urls.map(async (url) => this.isForbiddenByFish(url)));
 		for (let i = 0; i < urls.length; i++) {
 			if (isForbiddenByFish[i]) {
 				hits.set(urls[i]!, { url: urls[i]! });
@@ -104,7 +111,7 @@ export class GlobalsRunner
 	public async cleanup(_: (MaliciousUrl | { url: string })[], message: APIMessage): Promise<void> {
 		await this.rest
 			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Global filter trigger' })
-			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing a malicious url.'))
+			.then(async () => dmUser(message.author.id, 'Your message was deleted due to containing a malicious url.'))
 			.catch(() => null);
 	}
 

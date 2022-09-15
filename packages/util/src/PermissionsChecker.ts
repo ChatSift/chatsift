@@ -2,8 +2,11 @@ import { DiscordPermissions } from '@automoderator/broker-types';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import { APIInteractionGuildMember, RESTGetAPIGuildResult, Routes, Snowflake } from 'discord-api-types/v9';
-import type { Logger } from 'pino';
+import type { APIInteractionGuildMember, RESTGetAPIGuildResult, Snowflake } from 'discord-api-types/v9';
+import { Routes } from 'discord-api-types/v9';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 
 export enum UserPerms {
@@ -13,10 +16,10 @@ export enum UserPerms {
 	owner,
 }
 
-export interface PermissionsCheckerData {
-	member: APIInteractionGuildMember;
+export type PermissionsCheckerData = {
 	guild_id: Snowflake;
-}
+	member: APIInteractionGuildMember;
+};
 
 @singleton()
 export class PermissionsChecker {

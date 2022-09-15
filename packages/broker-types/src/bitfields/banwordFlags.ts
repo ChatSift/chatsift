@@ -1,5 +1,5 @@
-/* istanbul ignore file */
-import { BitField, BitFieldResolvable } from '@cordis/bitfield';
+import type { BitFieldResolvable } from '@cordis/bitfield';
+import { BitField } from '@cordis/bitfield';
 
 const BANWORD_FLAGS = BitField.makeFlags(['word', 'warn', 'mute', 'ban', 'report', 'name', 'kick']);
 

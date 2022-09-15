@@ -2,20 +2,20 @@ import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
 import { getCreationData } from '@cordis/util';
 import { DiscordAPIError, REST } from '@discordjs/rest';
-import {
+import type {
 	RESTGetAPIChannelMessagesResult,
 	RESTPostAPIChannelMessagesBulkDeleteJSONBody,
 	APIGuildInteraction,
 	APIMessage,
-	ChannelType,
-	InteractionResponseType,
-	Routes,
 } from 'discord-api-types/v9';
+import { ChannelType, InteractionResponseType, Routes } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { PurgeCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -125,11 +125,7 @@ export default class implements Command {
 							return true;
 						}
 
-						if (message.attachments.find((a) => a.url.endsWith(`.${ext}`))) {
-							return true;
-						}
-
-						return false;
+						return !!message.attachments.find((a) => a.url.endsWith(`.${ext}`));
 					};
 
 					const gifExt = ['gif', 'apng'];

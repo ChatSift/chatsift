@@ -1,22 +1,29 @@
-import { Log, LogTypes, ServerLogType, BanwordFlags, BanwordFlagsResolvable } from '@automoderator/broker-types';
+import type { Log, BanwordFlagsResolvable } from '@automoderator/broker-types';
+import { LogTypes, ServerLogType, BanwordFlags } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
 import { PubSubPublisher } from '@cordis/brokers';
-import { RawFile, REST } from '@discordjs/rest';
+import type { RawFile } from '@discordjs/rest';
+import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { BannedWord, PrismaClient } from '@prisma/client';
+import type { BannedWord } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import yaml from 'js-yaml';
 import fetch from 'node-fetch';
-import type { Logger } from 'pino';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { BanwordCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
+import { Buffer } from 'node:buffer';
 
-interface ParsedEntry {
+type ParsedEntry = {
+	flags: ('ban' | 'kick' | 'mute' | 'name' | 'report' | 'warn' | 'word')[];
 	muteduration?: string;
-	flags: ('word' | 'warn' | 'mute' | 'ban' | 'report' | 'kick' | 'name')[];
-}
+};
 
 @injectable()
 export default class implements Command {
@@ -178,7 +185,7 @@ export default class implements Command {
 			}
 
 			case 'bulk': {
-				const text = await fetch(args.bulk.list.url).then((res) => res.text());
+				const text = await fetch(args.bulk.list.url).then(async (res) => res.text());
 
 				let parsed;
 				try {

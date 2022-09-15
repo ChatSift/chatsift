@@ -1,29 +1,24 @@
-import {
-	DiscordEvents,
-	Log,
-	LogTypes,
-	RunnerResult,
-	FilterIgnores,
-	DiscordPermissions,
-} from '@automoderator/broker-types';
+import type { DiscordEvents, Log, RunnerResult } from '@automoderator/broker-types';
+import { LogTypes, FilterIgnores, DiscordPermissions } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
+import type { PermissionsCheckerData } from '@automoderator/util';
+import { PermissionsChecker, UserPerms } from '@automoderator/util';
 import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import {
+import type {
 	APIGuild,
 	APIMessage,
 	APIChannel,
-	GatewayDispatchEvents,
 	RESTGetAPIGuildRolesResult,
-	ChannelType,
-	Routes,
 	APITextChannel,
 	GatewayMessageCreateDispatchData,
 } from 'discord-api-types/v9';
-import type { Logger } from 'pino';
+import { GatewayDispatchEvents, ChannelType, Routes } from 'discord-api-types/v9';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Logger } from 'pino';
 import { container, inject, singleton } from 'tsyringe';
 import * as rawRunners from './runners';
 import type { IRunner } from './runners';

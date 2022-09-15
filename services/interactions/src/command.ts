@@ -1,13 +1,13 @@
-import { basename, extname } from 'path';
+import { basename, extname } from 'node:path';
 
-export interface Command {
+export type Command = {
+	exec(message: any, args: any): any;
 	name?: string;
-	exec: (message: any, args: any) => any;
-}
+};
 
-export interface CommandInfo {
+export type CommandInfo = {
 	name: string;
-}
+};
 
 export const commandInfo = (path: string): CommandInfo | null => {
 	if (extname(path) !== '.js') {

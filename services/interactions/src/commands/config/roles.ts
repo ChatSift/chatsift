@@ -3,7 +3,7 @@ import { ellipsis, MESSAGE_LIMITS } from '@chatsift/discord-utils';
 import { chunkArray } from '@chatsift/utils';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import {
+import type {
 	APIActionRowComponent,
 	APIGuildInteraction,
 	APIButtonComponent,
@@ -12,15 +12,14 @@ import {
 	RESTPostAPIChannelMessageJSONBody,
 	RESTPatchAPIChannelMessageJSONBody,
 	APIMessageActionRowComponent,
-	ButtonStyle,
-	ComponentType,
-	Routes,
 } from 'discord-api-types/v9';
-import type { Logger } from 'pino';
+import { ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';
+import { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { RolesCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -31,7 +30,7 @@ export default class implements Command {
 	) {}
 
 	private async handlePrompt(interaction: APIGuildInteraction, args: ArgumentsOf<typeof RolesCommand>['prompt']) {
-		switch (Object.keys(args)[0] as 're-display' | 'delete' | 'create') {
+		switch (Object.keys(args)[0] as 'create' | 'delete' | 're-display') {
 			case 're-display': {
 				const prompt = await this.prisma.selfAssignableRolePrompt.findFirst({
 					where: { guildId: interaction.guild_id, promptId: args['re-display'].id },
@@ -211,7 +210,7 @@ export default class implements Command {
 	}
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof RolesCommand>) {
-		switch (Object.keys(args)[0] as 'prompt' | 'add' | 'remove' | 'list') {
+		switch (Object.keys(args)[0] as 'add' | 'list' | 'prompt' | 'remove') {
 			case 'prompt': {
 				return this.handlePrompt(interaction, args.prompt);
 			}

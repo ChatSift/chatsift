@@ -2,7 +2,8 @@ import { addFields, truncateEmbed } from '@chatsift/discord-utils';
 import { makeDiscordCdnUrl } from '@cordis/util';
 import ms from '@naval-base/ms';
 import type { Case } from '@prisma/client';
-import { APIEmbed, APIMessage, APIUser, RouteBases, Snowflake } from 'discord-api-types/v9';
+import type { APIEmbed, APIMessage, APIUser, Snowflake } from 'discord-api-types/v9';
+import { RouteBases } from 'discord-api-types/v9';
 
 export const LOG_COLORS = Object.freeze({
 	warn: 16022395,
@@ -24,15 +25,15 @@ export const ACTIONS = Object.freeze({
 	unban: 'unbanned',
 } as const);
 
-export interface CaseEmbedOptions {
-	logChannelId?: Snowflake | null;
+export type CaseEmbedOptions = {
 	cs: Case;
-	target: APIUser;
+	logChannelId?: Snowflake | null;
+	message?: APIMessage | null;
 	mod?: APIUser | null;
 	pardonedBy?: APIUser | null;
-	message?: APIMessage | null;
 	refCs?: Case | null;
-}
+	target: APIUser;
+};
 
 export const makeCaseEmbed = ({
 	logChannelId,
@@ -96,12 +97,12 @@ export const makeCaseEmbed = ({
 	return truncateEmbed(embed);
 };
 
-export interface HistoryEmbedOptions {
-	user: APIUser;
+export type HistoryEmbedOptions = {
 	cases: Case[];
-	logChannelId?: Snowflake | null;
 	filterTriggers?: number;
-}
+	logChannelId?: Snowflake | null;
+	user: APIUser;
+};
 
 // The severity color system - bans = 3pt; kicks/softbans = 2pts; mutes = 0.5pts; warnings = 0.25pts;
 //  >=3 points -> red

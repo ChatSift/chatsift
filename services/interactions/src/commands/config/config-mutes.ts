@@ -2,17 +2,19 @@ import { DiscordPermissions } from '@automoderator/broker-types';
 import { ellipsis, sortChannels } from '@chatsift/discord-utils';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import {
+import type {
 	APIMessageComponentInteraction,
 	APIMessageSelectMenuInteractionData,
 	APISelectMenuOption,
-	ChannelType,
-	OverwriteType,
 	RESTPutAPIChannelPermissionJSONBody,
-	Routes,
 	APIChannel,
 	APIGuildInteraction,
 	APISelectMenuComponent,
+} from 'discord-api-types/v9';
+import {
+	ChannelType,
+	OverwriteType,
+	Routes,
 	ButtonStyle,
 	ComponentType,
 	InteractionResponseType,
@@ -23,7 +25,8 @@ import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '../../handler';
 import type { ConfigMutesCommand } from '#interactions';
-import { ArgumentsOf, send, EMOTES } from '#util';
+import type { ArgumentsOf } from '#util';
+import { send, EMOTES } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -34,7 +37,7 @@ export default class implements Command {
 	) {}
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigMutesCommand>) {
-		switch (Object.keys(args)[0] as 'use' | 'update-role') {
+		switch (Object.keys(args)[0] as 'update-role' | 'use') {
 			case 'use': {
 				await this.prisma.guildSettings.upsert({
 					create: {

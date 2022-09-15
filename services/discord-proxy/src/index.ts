@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { createServer } from 'http';
+import { createServer } from 'node:http';
 import { initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import {
@@ -7,16 +7,10 @@ import {
 	populateRatelimitErrorResponse,
 	populateAbortErrorResponse,
 } from '@discordjs/proxy';
-import {
-	DiscordAPIError,
-	HTTPError,
-	parseResponse,
-	RateLimitError,
-	RequestMethod,
-	REST,
-	RouteLike,
-} from '@discordjs/rest';
+import type { RouteLike } from '@discordjs/rest';
+import { DiscordAPIError, HTTPError, parseResponse, RateLimitError, RequestMethod, REST } from '@discordjs/rest';
 import { cache, fetchCache } from './cache';
+import { URL } from 'node:url';
 
 const config = initConfig();
 const rest = new REST({ rejectOnRateLimit: () => true, retries: 0 }).setToken(config.discordToken);

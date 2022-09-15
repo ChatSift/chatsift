@@ -2,25 +2,25 @@ import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { UserPerms } from '@automoderator/util';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { GuildSettings, LogChannelType, LogChannelWebhook, PrismaClient } from '@prisma/client';
+import type { GuildSettings, LogChannelWebhook } from '@prisma/client';
+import { LogChannelType, PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
-import {
+import type {
 	APIThreadChannel,
 	APIGuildInteraction,
 	APIPartialChannel,
 	APIWebhook,
-	ChannelType,
-	InteractionResponseType,
 	RESTPostAPIChannelWebhookJSONBody,
-	Routes,
 } from 'discord-api-types/v9';
+import { ChannelType, InteractionResponseType, Routes } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
-import type { Logger } from 'pino';
+import { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '#handler';
 import type { ConfigCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -34,7 +34,7 @@ export default class implements Command {
 		@inject(kConfig) public readonly config: Config,
 	) {}
 
-	private _sendCurrentSettings(
+	private async _sendCurrentSettings(
 		interaction: APIGuildInteraction,
 		settings: Partial<GuildSettings>,
 		logChannels: Map<LogChannelType, LogChannelWebhook>,

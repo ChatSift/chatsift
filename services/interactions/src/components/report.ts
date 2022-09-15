@@ -3,21 +3,17 @@ import { CaseManager } from '@automoderator/util';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { CaseAction, PrismaClient } from '@prisma/client';
-import {
+import type {
 	APIGuildInteraction,
 	APIButtonComponent,
-	ComponentType,
 	RESTPatchAPIChannelMessageJSONBody,
-	Routes,
-	ButtonStyle,
 	APIMessageComponentInteraction,
 	APIMessageSelectMenuInteractionData,
-	InteractionResponseType,
-	TextInputStyle,
 	APIModalSubmitInteraction,
 	APISelectMenuComponent,
 	APIUser,
 } from 'discord-api-types/v9';
+import { ComponentType, Routes, ButtonStyle, InteractionResponseType, TextInputStyle } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { inject, injectable } from 'tsyringe';
 import type { StopFunction } from '../collector';
@@ -94,7 +90,7 @@ export default class implements Component {
 				const configureId = nanoid();
 				const doneId = nanoid();
 
-				const state: { action?: CaseAction | 'noop'; reason?: string; duration?: number } = {};
+				const state: { action?: CaseAction | 'noop'; duration?: number; reason?: string } = {};
 
 				await send(interaction, {
 					content: 'Please select the action you want to take, and optionally, the duration and reason',

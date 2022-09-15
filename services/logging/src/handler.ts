@@ -1,16 +1,13 @@
-import {
+import type {
 	FilterTriggerLog,
 	ForbiddenNameLog,
 	GroupedServerLogs,
 	Log,
-	LogTypes,
 	ModActionLog,
 	RunnerResult,
-	Runners,
 	ServerLog,
-	ServerLogType,
-	BanwordFlags,
 } from '@automoderator/broker-types';
+import { LogTypes, Runners, ServerLogType, BanwordFlags } from '@automoderator/broker-types';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { makeCaseEmbed } from '@automoderator/util';
 import { truncateEmbed } from '@chatsift/discord-utils';
@@ -18,26 +15,22 @@ import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 import { DiscordAPIError, REST } from '@discordjs/rest';
 import { ms } from '@naval-base/ms';
-import {
-	PrismaClient,
-	Case,
-	GuildSettings,
-	MaliciousFileCategory,
-	MaliciousUrlCategory,
-	LogChannelType,
-} from '@prisma/client';
-import {
+import type { Case, GuildSettings } from '@prisma/client';
+import { PrismaClient, MaliciousFileCategory, MaliciousUrlCategory, LogChannelType } from '@prisma/client';
+import { RouteBases, Routes } from 'discord-api-types/v9';
+import type {
 	APIEmbed,
 	APIMessage,
 	APIUser,
 	APIWebhook,
 	RESTPatchAPIWebhookWithTokenMessageJSONBody,
 	RESTPostAPIWebhookWithTokenJSONBody,
-	RouteBases,
-	Routes,
+	RESTPostAPIWebhookWithTokenWaitResult,
 } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
+import { URLSearchParams } from 'node:url';
 
 @singleton()
 export class Handler {
@@ -140,6 +133,7 @@ export class Handler {
 			if (webhook.threadId) {
 				query.append('thread_id', webhook.threadId);
 			}
+
 			void (
 				this.rest.post(Routes.webhook(webhook.id, webhook.token), {
 					body,
@@ -228,7 +222,7 @@ export class Handler {
 			}
 
 			case Runners.words: {
-				const { words, urls } = trigger.data.reduce<{ words: string[]; urls: string[] }>(
+				const { words, urls } = trigger.data.reduce<{ urls: string[]; words: string[] }>(
 					(acc, entry) => {
 						if (entry.isUrl) {
 							acc.urls.push(entry.word);
@@ -355,6 +349,7 @@ export class Handler {
 		if (webhook.threadId) {
 			query.append('thread_id', webhook.threadId);
 		}
+
 		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
 			body,
 			query,
@@ -424,6 +419,7 @@ export class Handler {
 		if (webhook.threadId) {
 			query.append('thread_id', webhook.threadId);
 		}
+
 		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
 			body,
 			query,
@@ -476,6 +472,7 @@ export class Handler {
 		if (webhook.threadId) {
 			query.append('thread_id', webhook.threadId);
 		}
+
 		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
 			body,
 			query,
@@ -524,6 +521,7 @@ export class Handler {
 		if (webhook.threadId) {
 			query.append('thread_id', webhook.threadId);
 		}
+
 		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
 			body,
 			query,
@@ -574,6 +572,7 @@ export class Handler {
 		if (webhook.threadId) {
 			query.append('thread_id', webhook.threadId);
 		}
+
 		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
 			body,
 			query,
@@ -646,6 +645,7 @@ export class Handler {
 		if (webhook.threadId) {
 			query.append('thread_id', webhook.threadId);
 		}
+
 		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
 			body,
 			query,
@@ -671,7 +671,8 @@ export class Handler {
 			}
 
 			default: {
-				return this.logger.warn({ log }, 'Recieved unrecognized base log type');
+				this.logger.warn({ log }, 'Recieved unrecognized base log type');
+				return;
 			}
 		}
 	}

@@ -2,14 +2,13 @@ import { chunkArray } from '@chatsift/utils';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
-import {
+import type {
 	APIGuildInteraction,
 	APIMessageSelectMenuInteractionData,
-	InteractionResponseType,
 	RESTPatchAPIGuildMemberJSONBody,
-	Routes,
 	Snowflake,
 } from 'discord-api-types/v9';
+import { InteractionResponseType, Routes } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Component } from '../component';
 import { send } from '#util';

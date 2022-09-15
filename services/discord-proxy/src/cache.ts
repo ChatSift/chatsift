@@ -1,8 +1,9 @@
+import { setTimeout } from 'node:timers';
 import type { RouteLike } from '@discordjs/rest';
 
-interface RecursiveRecord<T> {
+type RecursiveRecord<T> = {
 	[key: string]: RecursiveRecord<T> | T;
-}
+};
 
 const CACHE_TIMES: RecursiveRecord<number> = {
 	guilds: {

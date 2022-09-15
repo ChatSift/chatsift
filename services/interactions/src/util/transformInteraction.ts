@@ -1,11 +1,9 @@
-/* istanbul ignore file */
-import {
+import type {
 	APIApplicationCommandInteractionData,
 	APIApplicationCommandInteractionDataOption,
 	APIChatInputApplicationCommandInteractionDataResolved,
-	ApplicationCommandOptionType,
-	ApplicationCommandType,
 } from 'discord-api-types/v9';
+import { ApplicationCommandOptionType, ApplicationCommandType } from 'discord-api-types/v9';
 
 const transformChatInteraction = (
 	options: APIApplicationCommandInteractionDataOption[],

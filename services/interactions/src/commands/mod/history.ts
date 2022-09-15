@@ -1,15 +1,13 @@
 import { makeHistoryEmbed } from '@automoderator/util';
 import { REST } from '@discordjs/rest';
 import { LogChannelType, PrismaClient } from '@prisma/client';
-import {
-	APIGuildInteraction,
-	ApplicationCommandType,
-	APIApplicationCommandInteractionData,
-} from 'discord-api-types/v9';
+import type { APIGuildInteraction, APIApplicationCommandInteractionData } from 'discord-api-types/v9';
+import { ApplicationCommandType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { HistoryCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { send } from '#util';
 
 @injectable()
 export default class implements Command {

@@ -1,41 +1,38 @@
-import {
-	DiscordEvents,
-	Log,
-	LogTypes,
-	ServerLogs,
-	ServerLogType,
-	DiscordPermissions,
-	BanwordFlags,
-} from '@automoderator/broker-types';
-import { MessageCache, GuildMemberCache, CachedGuildMember } from '@automoderator/cache';
+/* eslint-disable n/no-extraneous-import */
+import type { DiscordEvents, Log, ServerLogs } from '@automoderator/broker-types';
+import { LogTypes, ServerLogType, DiscordPermissions, BanwordFlags } from '@automoderator/broker-types';
+import type { CachedGuildMember } from '@automoderator/cache';
+import { MessageCache, GuildMemberCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { CaseManager, PermissionsChecker, PermissionsCheckerData, ReportHandler, UserPerms } from '@automoderator/util';
+import type { PermissionsCheckerData } from '@automoderator/util';
+import { CaseManager, PermissionsChecker, ReportHandler, UserPerms } from '@automoderator/util';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { getCreationData } from '@cordis/util';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { BannedWord, CaseAction, PrismaClient } from '@prisma/client';
-import {
+import type { BannedWord } from '@prisma/client';
+import { CaseAction, PrismaClient } from '@prisma/client';
+import type {
 	APIChannel,
 	APIMessage,
 	APIGuildMember,
 	APIRole,
 	APIUser,
-	AuditLogEvent,
-	GatewayDispatchEvents,
 	GatewayGuildBanModifyDispatchData,
 	GatewayGuildMemberAddDispatchData,
 	GatewayGuildMemberRemoveDispatchData,
 	GatewayGuildMemberUpdateDispatchData,
 	RESTGetAPIAuditLogResult,
 	RESTPatchAPIGuildMemberJSONBody,
-	Routes,
 	Snowflake,
 	APIThreadChannel,
 	APITextChannel,
 } from 'discord-api-types/v9';
+import { AuditLogEvent, GatewayDispatchEvents, Routes } from 'discord-api-types/v9';
 import latinize from 'latinize';
-import type { Logger } from 'pino';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Logger } from 'pino';
 import removeAccents from 'remove-accents';
 import { inject, singleton } from 'tsyringe';
 
@@ -84,12 +81,10 @@ export class Gateway {
 			return new DiscordPermissions(0n);
 		}
 
-		const perms = guildMe.roles.reduce<DiscordPermissions>(
+		return guildMe.roles.reduce<DiscordPermissions>(
 			(acc, role) => acc.add(BigInt(roles.get(role)!.permissions)),
 			new DiscordPermissions(0n),
 		);
-
-		return perms;
 	}
 
 	private async hasAuditLog(guildId: Snowflake): Promise<boolean> {
@@ -276,7 +271,7 @@ export class Gateway {
 	}
 
 	private async handleForbiddenName(
-		data: APIGuildMember & { user: APIUser; guild_id: Snowflake },
+		data: APIGuildMember & { guild_id: Snowflake; user: APIUser },
 		name: string,
 		nick: boolean,
 	) {
@@ -363,7 +358,7 @@ export class Gateway {
 		}
 
 		const punishments: Partial<
-			Record<'report' | 'warn' | 'mute' | 'kick' | 'ban', Omit<BannedWord, 'flags'> & { flags: BanwordFlags }>
+			Record<'ban' | 'kick' | 'mute' | 'report' | 'warn', Omit<BannedWord, 'flags'> & { flags: BanwordFlags }>
 		> = {};
 
 		for (const entry of hits) {
@@ -412,7 +407,9 @@ export class Gateway {
 			return;
 		}
 
+		// eslint-disable-next-line sonarjs/no-unused-collection
 		const found: string[] = [];
+		// eslint-disable-next-line sonarjs/no-unused-collection
 		const applied: string[] = [];
 
 		if (
@@ -451,7 +448,7 @@ export class Gateway {
 
 		if (o.nick !== n.nick) {
 			if (n.nick) {
-				void this.handleForbiddenName(n as APIGuildMember & { user: APIUser; guild_id: Snowflake }, n.nick, true);
+				void this.handleForbiddenName(n as APIGuildMember & { guild_id: Snowflake; user: APIUser }, n.nick, true);
 			}
 
 			logs.push({
@@ -465,7 +462,7 @@ export class Gateway {
 
 		if (o.user.username !== n.user.username) {
 			void this.handleForbiddenName(
-				n as APIGuildMember & { user: APIUser; guild_id: Snowflake },
+				n as APIGuildMember & { guild_id: Snowflake; user: APIUser },
 				n.user.username,
 				false,
 			);
@@ -597,7 +594,7 @@ export class Gateway {
 				void this.handleJoinAge(data);
 				void this.handleBlankAvatar(data);
 				void this.handleForbiddenName(
-					data as APIGuildMember & { user: APIUser; guild_id: Snowflake },
+					data as APIGuildMember & { guild_id: Snowflake; user: APIUser },
 					data.user!.username,
 					false,
 				);
@@ -615,7 +612,7 @@ export class Gateway {
 							this.logger.warn({ error, guild: data.guild_id }, 'Failed to update message cache'),
 						);
 
-					return this.handleGuildMemberUpdate(cachedOld, n);
+					this.handleGuildMemberUpdate(cachedOld, n);
 				}
 			})
 			.on(GatewayDispatchEvents.MessageDelete, async (data) => {

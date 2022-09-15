@@ -1,12 +1,15 @@
 import { REST } from '@discordjs/rest';
-import { GuildSettings, PrismaClient } from '@prisma/client';
+import type { GuildSettings } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '../../handler';
 import type { FilterCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { send } from '#util';
+import { Buffer } from 'node:buffer';
 
 @injectable()
 export default class implements Command {

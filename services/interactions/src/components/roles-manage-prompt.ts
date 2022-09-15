@@ -1,15 +1,13 @@
 import { chunkArray } from '@chatsift/utils';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import {
+import type {
 	APIGuildInteraction,
-	ComponentType,
-	InteractionResponseType,
 	RESTGetAPIGuildRolesResult,
 	APISelectMenuOption,
-	Routes,
 	APIRole,
 } from 'discord-api-types/v9';
+import { ComponentType, InteractionResponseType, Routes } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Component } from '../component';
 import { send } from '#util';

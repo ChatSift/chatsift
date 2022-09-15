@@ -1,13 +1,17 @@
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { jsonParser, Route, RouteMethod } from '@chatsift/rest-utils';
 import { unauthorized } from '@hapi/boom';
-import { APIGuildInteraction, APIInteraction, InteractionResponseType, InteractionType } from 'discord-api-types/v9';
-import type { Logger } from 'pino';
+import type { APIGuildInteraction, APIInteraction } from 'discord-api-types/v9';
+import { InteractionResponseType, InteractionType } from 'discord-api-types/v9';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Logger } from 'pino';
 import type { NextHandler, Request, Response } from 'polka';
 import { inject, singleton } from 'tsyringe';
-import * as nacl from 'tweetnacl';
+import nacl from 'tweetnacl';
 import { Handler } from '#handler';
 import type { Interaction } from '#util';
+import { Buffer } from 'node:buffer';
 
 @singleton()
 export class WebhookRoute extends Route<unknown, unknown> {
@@ -63,11 +67,13 @@ export class WebhookRoute extends Route<unknown, unknown> {
 			}
 
 			case InteractionType.ModalSubmit: {
-				return this.handler.handleModal(interaction);
+				this.handler.handleModal(interaction);
+				return;
 			}
 
 			default: {
-				return this.logger.warn({ interaction }, 'Recieved unrecognized interaction type');
+				this.logger.warn({ interaction }, 'Recieved unrecognized interaction type');
+				return;
 			}
 		}
 	}

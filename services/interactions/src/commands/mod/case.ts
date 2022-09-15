@@ -1,23 +1,20 @@
-import { Log, LogTypes } from '@automoderator/broker-types';
+import type { Log } from '@automoderator/broker-types';
+import { LogTypes } from '@automoderator/broker-types';
 import { makeCaseEmbed } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { Case, CaseAction, LogChannelType, PrismaClient } from '@prisma/client';
-import {
-	APIGuildInteraction,
-	APIMessageComponentInteraction,
-	APIUser,
-	ButtonStyle,
-	ComponentType,
-	Routes,
-} from 'discord-api-types/v9';
+import type { Case } from '@prisma/client';
+import { CaseAction, LogChannelType, PrismaClient } from '@prisma/client';
+import type { APIGuildInteraction, APIMessageComponentInteraction, APIUser } from 'discord-api-types/v9';
+import { ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler, CollectorTimeoutError } from '../../handler';
 import type { CaseCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {

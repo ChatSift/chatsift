@@ -2,8 +2,11 @@ import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { CaseManager } from '@automoderator/util';
 import ms from '@naval-base/ms';
 import { CaseAction, PrismaClient } from '@prisma/client';
-import type { Logger } from 'pino';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
+import { setInterval } from 'node:timers';
 
 @singleton()
 export class Handler {

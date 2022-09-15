@@ -1,21 +1,18 @@
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import {
+import type {
 	RESTPostAPIChannelMessageResult,
 	RESTPostAPIChannelMessageJSONBody,
 	APIUser,
-	RouteBases,
-	ButtonStyle,
-	ComponentType,
-	Routes,
 	GatewayMessageCreateDispatchData,
 } from 'discord-api-types/v9';
+import { RouteBases, ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';
 import { singleton } from 'tsyringe';
 
 export const enum ReportFailureReason {
-	previouslyAck = 'This message has been reported previously and has since been acknowledged by the staff team.',
 	alreadyReported = 'You have already reported this message.',
+	previouslyAck = 'This message has been reported previously and has since been acknowledged by the staff team.',
 }
 
 export class ReportFailure extends Error {

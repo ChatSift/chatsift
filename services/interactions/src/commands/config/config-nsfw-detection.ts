@@ -1,17 +1,20 @@
 import { REST } from '@discordjs/rest';
-import { GuildSettings, PrismaClient } from '@prisma/client';
+import type { GuildSettings } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
-import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
+import type { APIGuildInteraction } from 'discord-api-types/v9';
+import { InteractionResponseType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { ConfigNsfwDetectionCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { send } from '#util';
 
 @injectable()
 export default class implements Command {
 	public constructor(public readonly rest: REST, public readonly prisma: PrismaClient) {}
 
-	private _sendCurrentSettings(interaction: APIGuildInteraction, settings?: Partial<GuildSettings> | null) {
+	private async _sendCurrentSettings(interaction: APIGuildInteraction, settings?: Partial<GuildSettings> | null) {
 		return send(interaction, {
 			content: stripIndents`
         **Here are your current settings:**

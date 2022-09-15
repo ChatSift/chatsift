@@ -1,28 +1,32 @@
-import { Log, MentionsRunnerResult, Runners } from '@automoderator/broker-types';
+import type { Log, MentionsRunnerResult } from '@automoderator/broker-types';
+import { Runners } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kRedis } from '@automoderator/injection';
-import { CaseData, CaseManager, dmUser } from '@automoderator/util';
+import type { CaseData } from '@automoderator/util';
+import { CaseManager, dmUser } from '@automoderator/util';
 import { groupBy } from '@chatsift/utils';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import { AutomodPunishmentAction, CaseAction, PrismaClient } from '@prisma/client';
-import {
-	Routes,
+import type {
 	APIMessage,
 	Snowflake,
 	RESTPostAPIChannelMessagesBulkDeleteJSONBody,
 	GatewayMessageCreateDispatchData,
 } from 'discord-api-types/v9';
-import type { Redis } from 'ioredis';
+import { Routes } from 'discord-api-types/v9';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Redis } from 'ioredis';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 
-interface MentionsTransform {
-	mentions: Snowflake[];
+type MentionsTransform = {
 	amount?: number | null;
-	time?: number | null;
 	limit?: number | null;
-}
+	mentions: Snowflake[];
+	time?: number | null;
+};
 
 @singleton()
 export class MentionsRunner
@@ -82,7 +86,7 @@ export class MentionsRunner
 			await this.redis.expire(key, time);
 
 			const data = await this.redis.zrangebyscore(key, Date.now() - time * 1000, Date.now());
-			const { messages, mentions: postedMentions } = data.reduce<{ messages: string[]; mentions: string[] }>(
+			const { messages, mentions: postedMentions } = data.reduce<{ mentions: string[]; messages: string[] }>(
 				(acc, entry) => {
 					const [message, mention] = entry.split('|') as [string, string];
 					acc.messages.push(message);
@@ -95,7 +99,7 @@ export class MentionsRunner
 
 			if (postedMentions.length >= amount) {
 				await this.redis.del(key);
-				return (await Promise.all([...new Set(messages)].map((id) => this.messages.get(id)))).filter(
+				return (await Promise.all([...new Set(messages)].map(async (id) => this.messages.get(id)))).filter(
 					(message): message is APIMessage => Boolean(message),
 				);
 			}
@@ -120,14 +124,14 @@ export class MentionsRunner
 				messages.length === 1
 					? this.rest
 							.delete(Routes.channelMessage(channel, message.id), { reason: 'Anti mention spam trigger' })
-							.then(() => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
+							.then(async () => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
 							.catch(() => null)
 					: this.rest
 							.post(Routes.channelBulkDelete(channel), {
 								body,
 								reason: 'Anti mention spam trigger',
 							})
-							.then(() => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
+							.then(async () => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
 							.catch(() => null),
 			);
 		}

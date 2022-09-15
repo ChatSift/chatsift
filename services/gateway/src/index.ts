@@ -6,9 +6,12 @@ import createLogger from '@automoderator/logger';
 import { createAmqp, RoutingPublisher, PubSubSubscriber } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
-import { GatewayIntentBits, GatewaySendPayload } from 'discord-api-types/v10';
+import type { GatewaySendPayload } from 'discord-api-types/v10';
+import { GatewayIntentBits } from 'discord-api-types/v10';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
+import { setTimeout } from 'node:timers';
+import process from 'node:process';
 
 void (async () => {
 	const config = initConfig();

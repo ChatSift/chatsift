@@ -1,25 +1,32 @@
-import { join as joinPath } from 'path';
+/* eslint-disable unicorn/prefer-module */
+import { join as joinPath } from 'node:path';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { PermissionsChecker } from '@automoderator/util';
 import { readdirRecurse } from '@chatsift/readdir';
 import { REST } from '@discordjs/rest';
-import {
+import type {
 	APIApplicationCommandInteractionData,
 	APIMessageButtonInteractionData,
 	RESTPutAPIApplicationCommandsJSONBody,
 	RESTPutAPIApplicationCommandsResult,
 	RESTPutAPIApplicationGuildCommandsJSONBody,
 	RESTPutAPIApplicationGuildCommandsResult,
-	Routes,
 	Snowflake,
 } from 'discord-api-types/v9';
+import { Routes } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
-import { container, inject, InjectionToken, singleton } from 'tsyringe';
-import { CollectableInteraction, CollectorManager } from './collector';
-import { Command, commandInfo } from './command';
-import { Component, componentInfo } from './component';
+import type { InjectionToken } from 'tsyringe';
+import { container, inject, singleton } from 'tsyringe';
+import type { CollectableInteraction } from './collector';
+import { CollectorManager } from './collector';
+import type { Command } from './command';
+import { commandInfo } from './command';
+import type { Component } from './component';
+import { componentInfo } from './component';
 import * as interactions from '#interactions';
-import { ControlFlowError, Interaction, send, transformInteraction } from '#util';
+import type { Interaction } from '#util';
+import { ControlFlowError, send, transformInteraction } from '#util';
 
 export * from './collector';
 
@@ -27,9 +34,11 @@ export * from './collector';
 @singleton()
 export class Handler {
 	public readonly commands = new Map<string, Command>();
+
 	public readonly components = new Map<string, Component>();
 
 	public readonly globalCommandIds = new Map<string, Snowflake>();
+
 	public readonly testGuildCommandIds = new Map<`${Snowflake}-${string}`, Snowflake>();
 
 	public readonly collectorManager = new CollectorManager();
@@ -62,7 +71,7 @@ export class Handler {
 				this.logger.error(e as any, `Failed to execute command "${data.name}"`);
 			}
 
-			const error = e as { message?: string; toString: () => string };
+			const error = e as { message?: string; toString(): string };
 			const message = error.message ?? error.toString();
 
 			void send(interaction, {
@@ -92,7 +101,7 @@ export class Handler {
 					this.logger.error(e as any, `Failed to execute component "${data.custom_id}"`);
 				}
 
-				const error = e as { message?: string; toString: () => string };
+				const error = e as { message?: string; toString(): string };
 				const message = error.message ?? error.toString();
 
 				void send(interaction, {

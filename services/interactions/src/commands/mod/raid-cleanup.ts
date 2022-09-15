@@ -3,36 +3,45 @@ import { kLogger } from '@automoderator/injection';
 import { CaseManager } from '@automoderator/util';
 import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { getCreationData } from '@cordis/util';
-import { RawFile, REST } from '@discordjs/rest';
+import type { RawFile } from '@discordjs/rest';
+import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { CaseAction } from '@prisma/client';
 import type { APIMessageComponentInteraction } from 'discord-api-types/v9';
-import {
+import type {
 	APIGuild,
 	APIGuildInteraction,
 	APIGuildMember,
 	GatewaySendPayload,
 	GatewayGuildMembersChunkDispatchData,
+	Snowflake,
+} from 'discord-api-types/v9';
+import {
 	GatewayDispatchEvents,
 	GatewayOpcodes,
 	InteractionResponseType,
-	Snowflake,
 	ComponentType,
 	ButtonStyle,
 	Routes,
 } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
-import type { Logger } from 'pino';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler, CollectorTimeoutError } from '../../handler';
 import type { RaidCleanupCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, kGatewayBroadcasts, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, kGatewayBroadcasts, send } from '#util';
+import { Buffer } from 'node:buffer';
+import { setTimeout, clearTimeout, setInterval, clearInterval } from 'node:timers';
+import { URLSearchParams } from 'node:url';
 
-interface RaidCleanupMember {
+type RaidCleanupMember = {
 	id: Snowflake;
 	tag: string;
-}
+};
 
 @injectable()
 export default class implements Command {
@@ -80,7 +89,7 @@ export default class implements Command {
 					this.gateway.off(GatewayDispatchEvents.GuildMembersChunk, handler);
 					clearTimeout(timeout);
 					clearInterval(interval);
-					return resolve(members);
+					resolve(members);
 				}
 			};
 

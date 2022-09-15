@@ -1,14 +1,19 @@
-import { Log, Runners, WordsRunnerResult, BanwordFlags } from '@automoderator/broker-types';
+import type { Log, WordsRunnerResult } from '@automoderator/broker-types';
+import { Runners, BanwordFlags } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { CaseManager, dmUser, ReportHandler } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { PrismaClient, BannedWord, CaseAction } from '@prisma/client';
-import { Routes, APIUser, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import type { BannedWord } from '@prisma/client';
+import { PrismaClient, CaseAction } from '@prisma/client';
+import type { APIUser, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import { Routes } from 'discord-api-types/v9';
 import latinize from 'latinize';
-import type { Logger } from 'pino';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Logger } from 'pino';
 import removeAccents from 'remove-accents';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
@@ -16,9 +21,9 @@ import { UrlsRunner } from './urls';
 
 type BannedWordWithFlags = Omit<BannedWord, 'flags'> & { flags: BanwordFlags; isUrl: boolean };
 
-interface WordsTransform {
+type WordsTransform = {
 	words: BannedWord[];
-}
+};
 
 @singleton()
 export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[], WordsRunnerResult> {
@@ -82,7 +87,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 	}
 
 	public async cleanup(words: BannedWordWithFlags[], message: GatewayMessageCreateDispatchData): Promise<void> {
-		const punishments: Partial<Record<'report' | 'warn' | 'mute' | 'kick' | 'ban', BannedWordWithFlags>> = {};
+		const punishments: Partial<Record<'ban' | 'kick' | 'mute' | 'report' | 'warn', BannedWordWithFlags>> = {};
 
 		for (const entry of words) {
 			for (const punishment of entry.flags.getPunishments()) {

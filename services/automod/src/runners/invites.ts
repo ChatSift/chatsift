@@ -1,20 +1,24 @@
-import { InvitesRunnerResult, Log, Runners } from '@automoderator/broker-types';
+import type { InvitesRunnerResult, Log } from '@automoderator/broker-types';
+import { Runners } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
 import { dmUser } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import { Routes, APIMessage, APIInvite, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import type { APIMessage, APIInvite, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import { Routes } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
-import type { Logger } from 'pino';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 
-interface InvitesTransform {
+type InvitesTransform = {
 	codes: string[];
 	use: boolean;
-}
+};
 
 @singleton()
 export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform, InvitesRunnerResult> {
@@ -75,7 +79,7 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 	): Promise<InvitesTransform | null> {
 		const allowedInvites = await this.prisma.allowedInvite.findMany({ where: { guildId: message.guild_id } });
 		const allowlist = new Set(allowedInvites.map((invite) => invite.allowedGuildId));
-		const invites = await Promise.all(codes.map((code) => this.fetchInvite(code)));
+		const invites = await Promise.all(codes.map(async (code) => this.fetchInvite(code)));
 		const triggered = invites.reduce<string[]>((acc, invite) => {
 			if (invite && !allowlist.has(invite.guild!.id)) {
 				acc.push(invite.code);
@@ -97,7 +101,7 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 	public async cleanup(_: InvitesTransform, message: APIMessage): Promise<void> {
 		await this.rest
 			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Invite filter trigger' })
-			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing an unallowed invite.'))
+			.then(async () => dmUser(message.author.id, 'Your message was deleted due to containing an unallowed invite.'))
 			.catch(() => null);
 	}
 

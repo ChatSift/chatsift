@@ -1,26 +1,23 @@
 import { ellipsis, sortChannels } from '@chatsift/discord-utils';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import {
+import type {
 	APIChannel,
 	APIMessageComponentInteraction,
 	APIMessageSelectMenuInteractionData,
 	APISelectMenuComponent,
-	InteractionResponseType,
 	APISelectMenuOption,
 	APIGuildInteraction,
 	RESTGetAPIGuildChannelsResult,
-	ChannelType,
-	ComponentType,
-	ButtonStyle,
-	Routes,
 } from 'discord-api-types/v9';
+import { InteractionResponseType, ChannelType, ComponentType, ButtonStyle, Routes } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '../../handler';
 import type { ConfigLogIgnoresCommand } from '#interactions';
-import { ArgumentsOf, EMOTES, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { EMOTES, send } from '#util';
 
 @injectable()
 export default class implements Command {

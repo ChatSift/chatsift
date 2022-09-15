@@ -2,22 +2,22 @@ import { kLogger } from '@automoderator/injection';
 import { addFields } from '@chatsift/discord-utils';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 import { REST } from '@discordjs/rest';
-import {
+import type {
 	APIGuildInteraction,
 	APIEmbed,
 	APIInvite,
 	APIEmbedImage,
-	InteractionResponseType,
 	RESTGetAPIGuildPreviewResult,
-	Routes,
-	RouteBases,
 } from 'discord-api-types/v9';
+import { InteractionResponseType, Routes, RouteBases } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { LookupInviteCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -131,6 +131,6 @@ export default class implements Command {
 			);
 		}
 
-		return send(interaction, { embed });
+		return send(interaction, { embeds: [embed] });
 	}
 }

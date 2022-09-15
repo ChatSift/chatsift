@@ -1,13 +1,13 @@
 import { CaseManager, makeHistoryEmbed } from '@automoderator/util';
-import { Case, LogChannelType, PrismaClient } from '@prisma/client';
-import {
+import type { Case } from '@prisma/client';
+import { LogChannelType, PrismaClient } from '@prisma/client';
+import type {
 	APIGuildInteraction,
 	APIGuildMember,
 	APIMessageComponentInteraction,
 	APIUser,
-	ButtonStyle,
-	ComponentType,
 } from 'discord-api-types/v9';
+import { ButtonStyle, ComponentType } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { container } from 'tsyringe';
 import { Handler, CollectorTimeoutError } from '../../../handler';
@@ -66,7 +66,7 @@ export const handleLockConfirmation = async (
 
 	const stop = handler.collectorManager
 		.makeCollector<APIMessageComponentInteraction>(historyId)
-		.hookAndDestroy((button) =>
+		.hookAndDestroy(async (button) =>
 			send(button, {
 				embeds: [
 					makeHistoryEmbed({

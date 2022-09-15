@@ -1,10 +1,12 @@
 import { kRedis } from '@automoderator/injection';
 import { RedisStore } from '@cordis/redis-store';
 import type { APIUser, APIGuildMember } from 'discord-api-types/v9';
-import type { Redis } from 'ioredis';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Redis } from 'ioredis';
 import { singleton, inject } from 'tsyringe';
 
-export type CachedGuildMember = APIGuildMember & { user: APIUser; guild_id: string };
+export type CachedGuildMember = APIGuildMember & { guild_id: string; user: APIUser };
 
 @singleton()
 export class GuildMemberCache {
@@ -37,6 +39,7 @@ export class GuildMemberCache {
 		return Boolean(await store.get(member.user.id));
 	}
 
+	// eslint-disable-next-line @typescript-eslint/promise-function-async
 	public get(guildId: string, memberId: string): Promise<CachedGuildMember | undefined> {
 		const store = this._assertStore(guildId);
 		return store.get(memberId);

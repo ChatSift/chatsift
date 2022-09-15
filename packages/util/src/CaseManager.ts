@@ -1,67 +1,70 @@
-import { Log, LogTypes } from '@automoderator/broker-types';
+import type { Log } from '@automoderator/broker-types';
+import { LogTypes } from '@automoderator/broker-types';
 import { kLogger, kRedis } from '@automoderator/injection';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { Case, CaseAction, PrismaClient, WarnPunishmentAction } from '@prisma/client';
-import {
+import type { Case } from '@prisma/client';
+import { CaseAction, PrismaClient, WarnPunishmentAction } from '@prisma/client';
+import type {
 	APIGuild,
 	APIGuildMember,
 	APIRole,
 	RESTPatchAPIGuildMemberJSONBody,
 	RESTPutAPIGuildBanJSONBody,
-	Routes,
 } from 'discord-api-types/v9';
-import type { Redis } from 'ioredis';
-import type { Logger } from 'pino';
+import { Routes } from 'discord-api-types/v9';
+// @ts-expect-error needed for injection
+// eslint-disable-next-line n/no-extraneous-import
+import { Redis } from 'ioredis';
+// @ts-expect-error needed for injection
+import { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import { dmUser } from './dmUser';
 
 type TransactionPrisma = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'>;
 
-export interface BaseCaseCreateData<Action extends CaseAction = CaseAction> {
+export type BaseCaseCreateData<Action extends CaseAction = CaseAction> = {
+	actionType: Action;
+	applyAction?: boolean;
 	guildId: string;
-	refId?: number;
-	targetId: string;
-	targetTag: string;
 	mod?: {
 		id: string;
 		tag: string;
 	};
-	actionType: Action;
-	reason?: string;
 	notifyUser?: boolean;
-	applyAction?: boolean;
-}
+	reason?: string;
+	refId?: number;
+	targetId: string;
+	targetTag: string;
+};
 
 export type DurationCaseType = 'ban' | 'mute' | 'unmute';
 export type DeleteDaysCaseType = 'ban' | 'softban';
 
-export type OtherCaseType = Exclude<CaseAction, DurationCaseType | DeleteDaysCaseType>;
+export type OtherCaseType = Exclude<CaseAction, DeleteDaysCaseType | DurationCaseType>;
 export type OtherCaseData = BaseCaseCreateData<OtherCaseType>;
 
-export interface DurationCaseData<Action extends DurationCaseType = DurationCaseType>
-	extends BaseCaseCreateData<Action> {
+export type DurationCaseData<Action extends DurationCaseType = DurationCaseType> = BaseCaseCreateData<Action> & {
 	expiresAt?: Date;
-}
+};
 
-export interface DeleteDaysCaseData<Action extends DeleteDaysCaseType = DeleteDaysCaseType>
-	extends BaseCaseCreateData<Action> {
+export type DeleteDaysCaseData<Action extends DeleteDaysCaseType = DeleteDaysCaseType> = BaseCaseCreateData<Action> & {
 	deleteDays?: number;
-}
+};
 
-export interface BanCaseData extends DurationCaseData<'ban'>, DeleteDaysCaseData<'ban'> {}
+export type BanCaseData = DeleteDaysCaseData<'ban'> & DurationCaseData<'ban'> & {};
 
-export interface SoftbanCaseData extends DeleteDaysCaseData<'softban'> {}
+export type SoftbanCaseData = DeleteDaysCaseData<'softban'> & {};
 
-export interface MuteCaseData extends DurationCaseData<'mute' | 'unmute'> {
+export type MuteCaseData = DurationCaseData<'mute' | 'unmute'> & {
 	/**
 	 * Null implies the usage of timeouts
 	 */
 	unmuteRoles?: string[] | null;
-}
+};
 
-export type CaseData = OtherCaseData | BanCaseData | SoftbanCaseData | MuteCaseData;
+export type CaseData = BanCaseData | MuteCaseData | OtherCaseData | SoftbanCaseData;
 
 @singleton()
 export class CaseManager {
@@ -367,6 +370,7 @@ export class CaseManager {
 			if (data.notifyUser) {
 				await this.notifyUser(cs);
 			}
+
 			if (data.applyAction) {
 				await this.handlePunishment(cs, data, prisma);
 			}
@@ -379,9 +383,11 @@ export class CaseManager {
 					if (data.notifyUser) {
 						await this.notifyUser(cs);
 					}
+
 					if (data.applyAction) {
 						await this.handlePunishment(triggeredCase, await this.dataFromCase(triggeredCase), prisma);
 					}
+
 					cases.push(triggeredCase);
 				}
 			}

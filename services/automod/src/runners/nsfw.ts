@@ -1,28 +1,26 @@
-import { PredictionType, NsfwApiData, Log, NsfwRunnerResult, Runners } from '@automoderator/broker-types';
+import type { PredictionType, NsfwApiData, Log, NsfwRunnerResult } from '@automoderator/broker-types';
+import { Runners } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { dmUser } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
-import { GuildSettings, PrismaClient } from '@prisma/client';
-import {
-	Routes,
-	APIMessage,
-	ChannelType,
-	APITextChannel,
-	GatewayMessageCreateDispatchData,
-} from 'discord-api-types/v9';
+import type { GuildSettings } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import type { APIMessage, APITextChannel, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import { Routes, ChannelType } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 import { UrlsRunner } from './urls';
 
-interface NsfwTransform {
-	urls: string[];
-	settings: GuildSettings | null;
+type NsfwTransform = {
 	nsfw: boolean;
-}
+	settings: GuildSettings | null;
+	urls: string[];
+};
 
 @singleton()
 export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data'], NsfwRunnerResult> {
@@ -58,7 +56,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					data: await res
 						.json()
-						.catch(() => res.text())
+						.catch(async () => res.text())
 						.catch(() => null),
 					status: res.status,
 					url,
@@ -68,7 +66,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 			return null;
 		}
 
-		const crossed: Exclude<PredictionType, 'neutral' | 'drawing'>[] = [];
+		const crossed: Exclude<PredictionType, 'drawing' | 'neutral'>[] = [];
 
 		try {
 			const data = (await res.json()) as NsfwApiData;
@@ -165,7 +163,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 	}
 
 	public async run({ urls, settings }: NsfwTransform): Promise<NsfwRunnerResult['data'] | null> {
-		const results = await Promise.allSettled(urls.map((url) => this.handleUrl(url, settings!)));
+		const results = await Promise.allSettled(urls.map(async (url) => this.handleUrl(url, settings!)));
 		for (const result of results) {
 			if (result.status === 'rejected') {
 				this.logger.warn({ error: result.reason as unknown }, 'Unexpected thrown error on handleUrl');
@@ -188,7 +186,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 	public async cleanup(_: NsfwRunnerResult['data'], message: APIMessage): Promise<void> {
 		await this.rest
 			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'NSFW filter trigger' })
-			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing a NSFW content.'))
+			.then(async () => dmUser(message.author.id, 'Your message was deleted due to containing a NSFW content.'))
 			.catch(() => null);
 	}
 

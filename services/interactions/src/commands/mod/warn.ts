@@ -1,12 +1,14 @@
 import { CaseManager, PermissionsChecker, UserPerms } from '@automoderator/util';
 import { REST } from '@discordjs/rest';
 import { CaseAction, PrismaClient } from '@prisma/client';
-import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
+import type { APIGuildInteraction } from 'discord-api-types/v9';
+import { InteractionResponseType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import { handleLockConfirmation } from './sub/handleLockConfirmation';
 import type { Command } from '../../command';
 import type { WarnCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
