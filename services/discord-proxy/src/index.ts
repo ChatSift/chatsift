@@ -43,6 +43,9 @@ const server = createServer(async (req, res) => {
 			fullRoute,
 			method,
 			passThroughBody: true,
+			headers: {
+				'Content-Type': req.headers['content-type']!,
+			},
 		});
 
 		res.statusCode = discordResponse.statusCode;
