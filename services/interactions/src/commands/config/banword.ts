@@ -1,7 +1,7 @@
 import { Log, LogTypes, ServerLogType, BanwordFlags, BanwordFlagsResolvable } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
 import { PubSubPublisher } from '@cordis/brokers';
-import type { RawFile, REST } from '@discordjs/rest';
+import { RawFile, REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { BannedWord, PrismaClient } from '@prisma/client';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
