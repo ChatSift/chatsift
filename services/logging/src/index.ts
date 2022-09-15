@@ -4,7 +4,6 @@ import createLogger from '@automoderator/logger';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import { container } from 'tsyringe';
-import { ProxyAgent } from 'undici';
 import { Handler } from './handler';
 
 void (async () => {
@@ -12,7 +11,9 @@ void (async () => {
 
 	const logger = createLogger('logging');
 
-	const rest = new REST().setToken(config.discordToken).setAgent(new ProxyAgent(config.discordProxyUrl));
+	const rest = new REST({
+		api: `${config.discordProxyUrl}/api`,
+	}).setToken(config.discordToken);
 
 	container.register(REST, { useValue: rest });
 	container.register(kLogger, { useValue: logger });
