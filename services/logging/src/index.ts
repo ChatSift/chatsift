@@ -4,11 +4,13 @@ import createLogger from '@automoderator/logger';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import { container } from 'tsyringe';
-import { ProxyAgent } from 'undici';
+import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import { Handler } from './handler';
 
 void (async () => {
 	const config = initConfig();
+	setGlobalDispatcher(new ProxyAgent(config.discordProxyUrl));
+
 	const logger = createLogger('logging');
 
 	const rest = new REST().setToken(config.discordToken).setAgent(new ProxyAgent(config.discordProxyUrl));

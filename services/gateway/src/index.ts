@@ -9,12 +9,13 @@ import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
 import { GatewayIntentBits, GatewaySendPayload } from 'discord-api-types/v10';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
-import { ProxyAgent } from 'undici';
+import { ProxyAgent, setGlobalDispatcher } from 'undici';
 
 void (async () => {
 	const config = initConfig();
-	const logger = createLogger('gateway');
+	setGlobalDispatcher(new ProxyAgent(config.discordProxyUrl));
 
+	const logger = createLogger('gateway');
 	const { channel } = await createAmqp(config.amqpUrl);
 
 	const router = new RoutingPublisher<keyof DiscordEvents, DiscordEvents>(channel);
@@ -28,7 +29,7 @@ void (async () => {
 
 	const gateway = new WebSocketManager({
 		token: config.discordToken,
-		rest: new REST().setToken(config.discordToken).setAgent(new ProxyAgent(config.discordProxyUrl)),
+		rest: new REST().setToken(config.discordToken),
 		intents:
 			GatewayIntentBits.GuildMessages |
 			GatewayIntentBits.GuildMembers |
