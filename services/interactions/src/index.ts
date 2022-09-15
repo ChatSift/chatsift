@@ -9,18 +9,17 @@ import { GatewayDispatchEvents } from 'discord-api-types/v9';
 import Redis from 'ioredis';
 import polka from 'polka';
 import { container } from 'tsyringe';
-import { ProxyAgent, setGlobalDispatcher } from 'undici';
+import { ProxyAgent } from 'undici';
 import { WebhookRoute } from './routes/discordWebhook';
 import { kGatewayBroadcasts } from './util';
 import { Handler } from '#handler';
 
 void (async () => {
 	const config = initConfig();
-	setGlobalDispatcher(new ProxyAgent(config.discordProxyUrl));
 
 	const logger = createLogger('interactions');
 
-	const rest = new REST().setToken(config.discordToken);
+	const rest = new REST().setToken(config.discordToken).setAgent(new ProxyAgent(config.discordProxyUrl));
 
 	const { channel } = await createAmqp(config.amqpUrl);
 	const logs = new PubSubPublisher(channel);

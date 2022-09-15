@@ -7,16 +7,15 @@ import { PrismaClient } from '@prisma/client';
 import Redis, { Redis as IORedis } from 'ioredis';
 import type { Logger } from 'pino';
 import { container } from 'tsyringe';
-import { ProxyAgent, setGlobalDispatcher } from 'undici';
+import { ProxyAgent } from 'undici';
 import { Gateway } from './gateway';
 
 void (async () => {
 	const config = initConfig();
-	setGlobalDispatcher(new ProxyAgent(config.discordProxyUrl));
 
 	const logger = createLogger('automod');
 
-	const rest = new REST().setToken(config.discordToken);
+	const rest = new REST().setToken(config.discordToken).setAgent(new ProxyAgent(config.discordProxyUrl));
 
 	const { channel } = await createAmqp(config.amqpUrl);
 	const logs = new PubSubPublisher(channel);
