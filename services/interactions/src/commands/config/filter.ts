@@ -1,4 +1,4 @@
-import { Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { GuildSettings, PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
@@ -11,7 +11,7 @@ import { ArgumentsOf, send } from '#util';
 @injectable()
 export default class implements Command {
 	public constructor(
-		public readonly rest: DiscordRest,
+		public readonly rest: REST,
 		public readonly prisma: PrismaClient,
 		public readonly handler: Handler,
 	) {}
@@ -108,7 +108,7 @@ export default class implements Command {
 
 				return send(interaction, {
 					content: "Here's your list",
-					files: [{ name: 'allowlist.txt', content: Buffer.from(content) }],
+					files: [{ name: 'allowlist.txt', data: Buffer.from(content) }],
 				});
 			}
 		}
@@ -179,7 +179,7 @@ export default class implements Command {
 
 				return send(interaction, {
 					content: "Here's your list",
-					files: [{ name: 'allowlist.txt', content: Buffer.from(content) }],
+					files: [{ name: 'allowlist.txt', data: Buffer.from(content) }],
 				});
 			}
 		}

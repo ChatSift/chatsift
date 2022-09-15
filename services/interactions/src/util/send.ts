@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call */
 
 import { Config, kConfig } from '@automoderator/injection';
-import { File, Rest } from '@cordis/rest';
+import { REST, RawFile } from '@discordjs/rest';
 import {
 	APIInteractionResponseCallbackData,
 	APIModalInteractionResponseCallbackData,
@@ -31,24 +31,24 @@ export const send = async (
 		| RESTPostAPIChannelMessageJSONBody
 		| APIInteractionResponseCallbackData
 		| APIModalInteractionResponseCallbackData
-	) & { files?: File[] },
+	) & { files?: RawFile[] },
 	type?: InteractionResponseType,
 	followup = false,
 ): Promise<unknown> => {
-	const rest = container.resolve(Rest);
+	const rest = container.resolve(REST);
 	const { discordClientId } = container.resolve<Config>(kConfig);
 
 	if ('token' in message) {
-		const { embeds, embed, files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: File[] };
+		const { embeds, embed, files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: RawFile[] };
 		const response = { ...r, embeds: embeds ?? (embed ? [embed] : undefined) };
 
 		if (followup) {
 			const { files, ...r } = payload;
-			return rest.post(Routes.webhook(discordClientId, message.token), { data: r, files });
+			return rest.post(Routes.webhook(discordClientId, message.token), { body: r, files });
 		}
 
 		if (REPLIED.has(message.token)) {
-			return rest.patch(Routes.webhookMessage(discordClientId, message.token, '@original'), { data: response, files });
+			return rest.patch(Routes.webhookMessage(discordClientId, message.token, '@original'), { body: response, files });
 		}
 
 		if (message.res) {
@@ -72,9 +72,8 @@ export const send = async (
 
 	const { files, ...r } = payload;
 
-	return rest.post<unknown, RESTPostAPIChannelMessageJSONBody>(Routes.channelMessages(message.channel_id), {
-		// @ts-expect-error
-		data: r,
+	return rest.post(Routes.channelMessages(message.channel_id), {
+		body: r,
 		files,
 	});
 };

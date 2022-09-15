@@ -1,5 +1,5 @@
-import { Rest } from '@cordis/rest';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import {
 	RESTPostAPIChannelMessageResult,
@@ -26,7 +26,7 @@ export class ReportFailure extends Error {
 
 @singleton()
 export class ReportHandler {
-	public constructor(public readonly prisma: PrismaClient, public readonly rest: Rest) {}
+	public constructor(public readonly prisma: PrismaClient, public readonly rest: REST) {}
 
 	public async reportMessage(
 		message: GatewayMessageCreateDispatchData,
@@ -82,65 +82,64 @@ export class ReportHandler {
 					},
 				});
 
-				const reportMessage = await this.rest.post<RESTPostAPIChannelMessageResult, RESTPostAPIChannelMessageJSONBody>(
-					Routes.channelMessages(reportsChannel),
-					{
-						data: {
-							embeds: [
-								{
-									color: 15953004,
-									author: {
-										name: `${message.author.username}#${message.author.discriminator} (${message.author.id})`,
-										icon_url: message.author.avatar
-											? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${message.author.id}/${message.author.avatar}`)
-											: `${RouteBases.cdn}/embed/avatars/${parseInt(message.author.discriminator, 10) % 5}.png`,
-									},
-									description: `Had their message posted <t:${Math.round(
-										getCreationData(message.id).createdTimestamp / 1000,
-									)}:R> in <#${message.channel_id}> reported. \n\n${
-										message.content.length ? `\`\`\`${message.content}\`\`\`` : '*Message had no text content*'
-									}`,
-									image: message.attachments[0]
-										? {
-												url: message.attachments[0].url,
-										  }
-										: undefined,
-								},
-							],
+				const body: RESTPostAPIChannelMessageJSONBody = {
+					embeds: [
+						{
+							color: 15953004,
+							author: {
+								name: `${message.author.username}#${message.author.discriminator} (${message.author.id})`,
+								icon_url: message.author.avatar
+									? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${message.author.id}/${message.author.avatar}`)
+									: `${RouteBases.cdn}/embed/avatars/${parseInt(message.author.discriminator, 10) % 5}.png`,
+							},
+							description: `Had their message posted <t:${Math.round(
+								getCreationData(message.id).createdTimestamp / 1000,
+							)}:R> in <#${message.channel_id}> reported. \n\n${
+								message.content.length ? `\`\`\`${message.content}\`\`\`` : '*Message had no text content*'
+							}`,
+							image: message.attachments[0]
+								? {
+										url: message.attachments[0].url,
+								  }
+								: undefined,
+						},
+					],
+					components: [
+						{
+							type: ComponentType.ActionRow,
 							components: [
 								{
-									type: ComponentType.ActionRow,
-									components: [
-										{
-											type: ComponentType.Button,
-											label: 'Review',
-											style: ButtonStyle.Link,
-											url: `https://discord.com/channels/${message.guild_id!}/${message.channel_id}/${message.id}`,
-										},
-										{
-											type: ComponentType.Button,
-											label: 'Dismiss',
-											style: ButtonStyle.Success,
-											custom_id: `report|${report.reportId}|acknowledge`,
-										},
-										{
-											type: ComponentType.Button,
-											label: 'View reporters',
-											style: ButtonStyle.Primary,
-											custom_id: `report|${report.reportId}|view-reporters`,
-										},
-										{
-											type: ComponentType.Button,
-											label: 'Action',
-											style: ButtonStyle.Danger,
-											custom_id: `report|${report.reportId}|action`,
-										},
-									],
+									type: ComponentType.Button,
+									label: 'Review',
+									style: ButtonStyle.Link,
+									url: `https://discord.com/channels/${message.guild_id!}/${message.channel_id}/${message.id}`,
+								},
+								{
+									type: ComponentType.Button,
+									label: 'Dismiss',
+									style: ButtonStyle.Success,
+									custom_id: `report|${report.reportId}|acknowledge`,
+								},
+								{
+									type: ComponentType.Button,
+									label: 'View reporters',
+									style: ButtonStyle.Primary,
+									custom_id: `report|${report.reportId}|view-reporters`,
+								},
+								{
+									type: ComponentType.Button,
+									label: 'Action',
+									style: ButtonStyle.Danger,
+									custom_id: `report|${report.reportId}|action`,
 								},
 							],
 						},
-					},
-				);
+					],
+				};
+
+				const reportMessage = (await this.rest.post(Routes.channelMessages(reportsChannel), {
+					body,
+				})) as RESTPostAPIChannelMessageResult;
 
 				await prisma.report.update({
 					data: {
@@ -202,57 +201,55 @@ export class ReportHandler {
 					},
 				});
 
-				const reportMessage = await this.rest.post<RESTPostAPIChannelMessageResult, RESTPostAPIChannelMessageJSONBody>(
-					Routes.channelMessages(reportsChannel),
-					{
-						data: {
-							embeds: [
-								{
-									color: 15953004,
-									author: {
-										name: `${target.username}#${target.discriminator} (${target.id})`,
-										icon_url: target.avatar
-											? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${target.id}/${target.avatar}`)
-											: `${RouteBases.cdn}/embed/avatars/${parseInt(target.discriminator, 10) % 5}.png`,
-									},
-									description: 'Was reported',
-								},
-							],
+				const body: RESTPostAPIChannelMessageJSONBody = {
+					embeds: [
+						{
+							color: 15953004,
+							author: {
+								name: `${target.username}#${target.discriminator} (${target.id})`,
+								icon_url: target.avatar
+									? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${target.id}/${target.avatar}`)
+									: `${RouteBases.cdn}/embed/avatars/${parseInt(target.discriminator, 10) % 5}.png`,
+							},
+							description: 'Was reported',
+						},
+					],
+					components: [
+						{
+							type: ComponentType.ActionRow,
 							components: [
 								{
-									type: ComponentType.ActionRow,
-									components: [
-										{
-											type: ComponentType.Button,
-											label: 'Review',
-											style: ButtonStyle.Secondary,
-											custom_id: 'NOOP',
-											disabled: true,
-										},
-										{
-											type: ComponentType.Button,
-											label: 'Dismiss',
-											style: ButtonStyle.Success,
-											custom_id: `report|${report.reportId}|acknowledge`,
-										},
-										{
-											type: ComponentType.Button,
-											label: 'View reporters',
-											style: ButtonStyle.Primary,
-											custom_id: `report|${report.reportId}|view-reporters`,
-										},
-										{
-											type: ComponentType.Button,
-											label: 'Action',
-											style: ButtonStyle.Danger,
-											custom_id: `report|${report.reportId}|action`,
-										},
-									],
+									type: ComponentType.Button,
+									label: 'Review',
+									style: ButtonStyle.Secondary,
+									custom_id: 'NOOP',
+									disabled: true,
+								},
+								{
+									type: ComponentType.Button,
+									label: 'Dismiss',
+									style: ButtonStyle.Success,
+									custom_id: `report|${report.reportId}|acknowledge`,
+								},
+								{
+									type: ComponentType.Button,
+									label: 'View reporters',
+									style: ButtonStyle.Primary,
+									custom_id: `report|${report.reportId}|view-reporters`,
+								},
+								{
+									type: ComponentType.Button,
+									label: 'Action',
+									style: ButtonStyle.Danger,
+									custom_id: `report|${report.reportId}|action`,
 								},
 							],
 						},
-					},
-				);
+					],
+				};
+				const reportMessage = (await this.rest.post(Routes.channelMessages(reportsChannel), {
+					body,
+				})) as RESTPostAPIChannelMessageResult;
 
 				await prisma.report.update({
 					data: {

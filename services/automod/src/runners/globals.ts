@@ -3,7 +3,7 @@ import { MessageCache } from '@automoderator/cache';
 import { kLogger, kRedis } from '@automoderator/injection';
 import { dmUser } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { MaliciousUrl, PrismaClient } from '@prisma/client';
 import { Routes, APIMessage, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
 import type { Redis } from 'ioredis';
@@ -33,7 +33,7 @@ export class GlobalsRunner
 		@inject(kRedis) public readonly redis: Redis,
 		public readonly prisma: PrismaClient,
 		public readonly messages: MessageCache,
-		public readonly discord: Rest,
+		public readonly rest: REST,
 		public readonly logs: PubSubPublisher<Log>,
 		public readonly urlsRunner: UrlsRunner,
 	) {
@@ -102,7 +102,7 @@ export class GlobalsRunner
 	}
 
 	public async cleanup(_: (MaliciousUrl | { url: string })[], message: APIMessage): Promise<void> {
-		await this.discord
+		await this.rest
 			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Global filter trigger' })
 			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing a malicious url.'))
 			.catch(() => null);

@@ -1,5 +1,5 @@
 import { chunkArray } from '@chatsift/utils';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import {
 	APIGuildInteraction,
@@ -16,7 +16,7 @@ import { send } from '#util';
 
 @injectable()
 export default class implements Component {
-	public constructor(public readonly prisma: PrismaClient, public readonly discordRest: DiscordRest) {}
+	public constructor(public readonly prisma: PrismaClient, public readonly rest: REST) {}
 
 	public async exec(interaction: APIGuildInteraction) {
 		await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
@@ -33,9 +33,9 @@ export default class implements Component {
 
 		const userRoles = new Set(interaction.member.roles);
 
-		const rolesList = await this.discordRest
-			.get<RESTGetAPIGuildRolesResult>(Routes.guildRoles(interaction.guild_id))
-			.then((roles) => roles.map((role): [string, APIRole] => [role.id, role]));
+		const rolesList = await (
+			this.rest.get(Routes.guildRoles(interaction.guild_id)) as Promise<RESTGetAPIGuildRolesResult>
+		).then((roles) => roles.map((role): [string, APIRole] => [role.id, role]));
 		const roles = new Map(rolesList);
 
 		const menuOptions = chunkArray(

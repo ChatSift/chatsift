@@ -2,96 +2,78 @@ import 'reflect-metadata';
 import { createServer } from 'http';
 import { initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
-import { sendBoom } from '@chatsift/rest-utils';
-import { CordisResponse, HTTPError, Rest as DiscordRest } from '@cordis/rest';
-import { isBoom, Boom, badRequest } from '@hapi/boom';
-import { Headers } from 'node-fetch';
-import type { Response } from 'node-fetch';
-import polka from 'polka';
-import { resolveCacheOptions } from './cache';
+import {
+	populateGeneralErrorResponse,
+	populateRatelimitErrorResponse,
+	populateAbortErrorResponse,
+} from '@discordjs/proxy';
+import {
+	DiscordAPIError,
+	HTTPError,
+	parseResponse,
+	RateLimitError,
+	RequestMethod,
+	REST,
+	RouteLike,
+} from '@discordjs/rest';
+import { cache, fetchCache } from './cache';
 
-const VALID_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
+const config = initConfig();
+const rest = new REST({ rejectOnRateLimit: () => true, retries: 0 }).setToken(config.discordToken);
+const logger = createLogger('discord-proxy');
 
-void (() => {
-	const config = initConfig();
-	const logger = createLogger('discord-proxy');
-	const rest = new DiscordRest(config.discordToken);
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
+const server = createServer(async (req, res) => {
+	const { method, url } = req as { method: RequestMethod; url: string };
+	const fullRoute = new URL(url, 'http://noop').pathname.replace(/^\/api(\/v\d+)?/, '') as RouteLike;
 
-	rest
-		.on('response', async (req, res, rl) => {
-			logger.trace({ rl }, `Finished request ${req.method!} ${req.path!}`);
+	if (method === RequestMethod.Get) {
+		const cached = fetchCache(fullRoute);
+		if (cached) {
+			logger.trace({ fullRoute }, 'Cache hit');
+			res.statusCode = 200;
+			res.setHeader('Content-Type', 'application/json');
+			return res.end(JSON.stringify(cached));
+		}
+	}
 
-			if (!res.ok) {
-				logger.warn(
-					{
-						res: await res.json(),
-						rl,
-					},
-					`Failed request ${req.method!} ${req.path!}`,
-				);
-			}
-		})
-		.on('ratelimit', (bucket, endpoint, prevented, waitingFor) => {
-			logger.warn(
-				{
-					bucket,
-					prevented,
-					waitingFor,
-				},
-				`Hit a ratelimit on ${endpoint}`,
-			);
-		})
-		.on('abort', (req) => {
-			logger.warn({ req }, `Aborted request ${req.method!} ${req.path!}`);
+	try {
+		const discordResponse = await rest.raw({
+			body: req,
+			fullRoute,
+			method,
+			passThroughBody: true,
 		});
 
-	const app = polka({
-		onError(e, _, res) {
-			res.setHeader('content-type', 'application/json');
-			const boom = isBoom(e) ? e : new Boom(e);
+		res.statusCode = discordResponse.statusCode;
 
-			if (boom.output.statusCode === 500) {
-				logger.error(boom, boom.message);
+		for (const header of Object.keys(discordResponse.headers)) {
+			// Strip ratelimit headers
+			if (header.startsWith('x-ratelimit')) {
+				continue;
 			}
 
-			sendBoom(boom, res);
-		},
-		server: createServer(),
-	});
-
-	app.use(async (req, res, next) => {
-		if (!(VALID_METHODS as Readonly<string[]>).includes(req.method)) {
-			return next(badRequest(`Invalid method ${req.method}`));
+			res.setHeader(header, discordResponse.headers[header]!);
 		}
 
-		const method = req.method.toLowerCase() as Lowercase<typeof VALID_METHODS[number]>;
+		const data = await parseResponse(discordResponse);
+		res.write(JSON.stringify(data));
 
-		const cacheOptions = resolveCacheOptions(req.path, method);
-
-		let data: CordisResponse | Response;
-		try {
-			data = await rest.make({
-				path: req.path,
-				method,
-				data: method === 'get' ? undefined : req,
-				headers: new Headers({ 'Content-Type': req.headers['content-type']! }),
-				query: req.query,
-				...cacheOptions,
-			});
-		} catch (e) {
-			if (e instanceof HTTPError) {
-				data = e.response;
-			} else {
-				throw e;
-			}
+		cache(fullRoute, data);
+	} catch (error) {
+		logger.error({ err: error, fullRoute, method }, 'Something went wrong');
+		if (error instanceof DiscordAPIError || error instanceof HTTPError) {
+			populateGeneralErrorResponse(res, error);
+		} else if (error instanceof RateLimitError) {
+			populateRatelimitErrorResponse(res, error);
+		} else if (error instanceof Error && error.name === 'AbortError') {
+			populateAbortErrorResponse(res);
+		} else {
+			throw error;
 		}
+	} finally {
+		res.end();
+	}
+});
 
-		res.setHeader('content-type', data.headers.get('content-type') ?? 'application/json');
-		res.statusCode = data.status;
-
-		const body = data.headers.get('content-type')?.startsWith('application/json') ? await data.json() : {};
-		res.end(JSON.stringify(body));
-	});
-
-	app.listen(3003, () => logger.info('Listening for requests on port 3003'));
-})();
+server.listen(3003, () => logger.info('Listening for requests on port 3003'));

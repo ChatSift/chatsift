@@ -11,8 +11,8 @@ import { MessageCache, GuildMemberCache, CachedGuildMember } from '@automoderato
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { CaseManager, PermissionsChecker, PermissionsCheckerData, ReportHandler, UserPerms } from '@automoderator/util';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
-import { Rest as CordisRest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
+import type { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { BannedWord, CaseAction, PrismaClient } from '@prisma/client';
 import {
@@ -27,7 +27,6 @@ import {
 	GatewayGuildMemberAddDispatchData,
 	GatewayGuildMemberRemoveDispatchData,
 	GatewayGuildMemberUpdateDispatchData,
-	RESTGetAPIAuditLogQuery,
 	RESTGetAPIAuditLogResult,
 	RESTPatchAPIGuildMemberJSONBody,
 	Routes,
@@ -51,7 +50,7 @@ export class Gateway {
 		public readonly checker: PermissionsChecker,
 		public readonly guildMembersCache: GuildMemberCache,
 		public readonly messageCache: MessageCache,
-		public readonly discord: CordisRest,
+		public readonly rest: REST,
 		public readonly caseManager: CaseManager,
 		public readonly reports: ReportHandler,
 	) {}
@@ -60,12 +59,12 @@ export class Gateway {
 		guildId: Snowflake,
 		channelId: Snowflake,
 	): Promise<[channelId: Snowflake, parentId: Snowflake | null]> {
-		const channelList = await this.discord.get<APIChannel[]>(Routes.guildChannels(guildId));
+		const channelList = (await this.rest.get(Routes.guildChannels(guildId))) as APIChannel[];
 		let channel = channelList.find((c) => c.id === channelId) as APITextChannel | APIThreadChannel | undefined;
 
 		// Thread channel
 		if (!channel) {
-			const thread = await this.discord.get<APIThreadChannel>(Routes.channel(channelId));
+			const thread = (await this.rest.get(Routes.channel(channelId))) as APIThreadChannel;
 			channel = channelList.find((c) => c.id === thread.parent_id) as APIThreadChannel;
 		}
 
@@ -73,11 +72,10 @@ export class Gateway {
 	}
 
 	private async getPerms(guildId: Snowflake): Promise<DiscordPermissions> {
-		const guildMe = await this.discord
-			.get<APIGuildMember>(Routes.guildMember(guildId, this.config.discordClientId))
-			.catch(() => null);
-		const roles = await this.discord
-			.get<APIRole[]>(Routes.guildRoles(guildId))
+		const guildMe = (await this.rest
+			.get(Routes.guildMember(guildId, this.config.discordClientId))
+			.catch(() => null)) as APIGuildMember | null;
+		const roles = await (this.rest.get(Routes.guildRoles(guildId)) as Promise<APIRole[]>)
 			.then((roles) => new Map(roles.map((role) => [role.id, role])))
 			.catch(() => null);
 
@@ -104,15 +102,13 @@ export class Gateway {
 			return null;
 		}
 
-		const fetchedLog = await this.discord.get<RESTGetAPIAuditLogResult, RESTGetAPIAuditLogQuery>(
-			Routes.guildAuditLog(data.guild_id),
-			{
-				query: {
-					action_type: AuditLogEvent.MemberBanAdd,
-					limit: 1,
-				},
-			},
-		);
+		const query = {
+			action_type: String(AuditLogEvent.MemberBanAdd),
+			limit: '1',
+		};
+		const fetchedLog = (await this.rest.get(Routes.guildAuditLog(data.guild_id), {
+			query: new URLSearchParams(query),
+		})) as RESTGetAPIAuditLogResult;
 
 		const existingCs = await this.prisma.case.findFirst({
 			where: {
@@ -147,15 +143,13 @@ export class Gateway {
 			return null;
 		}
 
-		const fetchedLog = await this.discord.get<RESTGetAPIAuditLogResult, RESTGetAPIAuditLogQuery>(
-			Routes.guildAuditLog(data.guild_id),
-			{
-				query: {
-					action_type: AuditLogEvent.MemberBanRemove,
-					limit: 1,
-				},
-			},
-		);
+		const query = {
+			action_type: String(AuditLogEvent.MemberBanRemove),
+			limit: '1',
+		};
+		const fetchedLog = (await this.rest.get(Routes.guildAuditLog(data.guild_id), {
+			query: new URLSearchParams(query),
+		})) as RESTGetAPIAuditLogResult;
 
 		const existingCs = await this.prisma.case.findFirst({
 			where: {
@@ -190,15 +184,13 @@ export class Gateway {
 			return null;
 		}
 
-		const fetchedLog = await this.discord.get<RESTGetAPIAuditLogResult, RESTGetAPIAuditLogQuery>(
-			Routes.guildAuditLog(data.guild_id),
-			{
-				query: {
-					action_type: AuditLogEvent.MemberKick,
-					limit: 1,
-				},
-			},
-		);
+		const query = {
+			action_type: String(AuditLogEvent.MemberKick),
+			limit: '1',
+		};
+		const fetchedLog = (await this.rest.get(Routes.guildAuditLog(data.guild_id), {
+			query: new URLSearchParams(query),
+		})) as RESTGetAPIAuditLogResult;
 
 		const [entry] = fetchedLog.audit_log_entries;
 		if (
@@ -236,9 +228,12 @@ export class Gateway {
 			return null;
 		}
 
-		await this.discord
-			.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(data.guild_id, data.user!.id), {
-				data: { roles: [settings.muteRole] },
+		const body: RESTPatchAPIGuildMemberJSONBody = {
+			roles: [settings.muteRole],
+		};
+		await this.rest
+			.patch(Routes.guildMember(data.guild_id, data.user!.id), {
+				body,
 				reason: 'User is muted but rejoined the server',
 			})
 			.catch(() => null);
@@ -255,7 +250,7 @@ export class Gateway {
 			return null;
 		}
 
-		await this.discord
+		await this.rest
 			.delete(Routes.guildMember(data.guild_id, data.user!.id), {
 				reason: 'Join age violation',
 			})
@@ -273,7 +268,7 @@ export class Gateway {
 			return null;
 		}
 
-		await this.discord
+		await this.rest
 			.delete(Routes.guildMember(data.guild_id, data.user!.id), {
 				reason: 'Blank avatar violation',
 			})
@@ -344,11 +339,12 @@ export class Gateway {
 
 		updatedName = updatedName.length ? updatedName : 'Filtered';
 
-		await this.discord
-			.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(data.guild_id, data.user.id), {
-				data: {
-					nick: updatedName,
-				},
+		const body: RESTPatchAPIGuildMemberJSONBody = {
+			nick: updatedName,
+		};
+		await this.rest
+			.patch(Routes.guildMember(data.guild_id, data.user.id), {
+				body,
 			})
 			.catch(() => null);
 
@@ -407,7 +403,7 @@ export class Gateway {
 			if (settings?.reportsChannel) {
 				await this.reports.reportUser(
 					data.user,
-					await this.discord.get<APIUser>(Routes.user(this.config.discordClientId)),
+					(await this.rest.get(Routes.user(this.config.discordClientId))) as APIUser,
 					settings.reportsChannel,
 					`Automated report triggered due to the usage of the following word/phrase: ${punishments.report.word} in their username/nickname`,
 				);
@@ -511,15 +507,13 @@ export class Gateway {
 
 		let mod: APIUser | undefined;
 		if (await this.hasAuditLog(message.guild_id)) {
-			const fetchedLog = await this.discord.get<RESTGetAPIAuditLogResult, RESTGetAPIAuditLogQuery>(
-				Routes.guildAuditLog(message.guild_id),
-				{
-					query: {
-						action_type: AuditLogEvent.MessageDelete,
-						limit: 1,
-					},
-				},
-			);
+			const query = {
+				action_type: String(AuditLogEvent.MessageDelete),
+				limit: '1',
+			};
+			const fetchedLog = (await this.rest.get(Routes.guildAuditLog(message.guild_id), {
+				query: new URLSearchParams(query),
+			})) as RESTGetAPIAuditLogResult;
 
 			const [entry] = fetchedLog.audit_log_entries;
 			if (
@@ -527,7 +521,7 @@ export class Gateway {
 				entry.target_id === message.id &&
 				Date.now() - getCreationData(entry.id).createdAt.getTime() < 3e4
 			) {
-				mod = await this.discord.get<APIUser>(Routes.user(entry.user_id)).catch(() => undefined);
+				mod = (await this.rest.get(Routes.user(entry.user_id)).catch(() => undefined)) as APIUser;
 			}
 		}
 

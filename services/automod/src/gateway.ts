@@ -10,7 +10,7 @@ import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
 import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
-import { Rest as CordisRest } from '@cordis/rest';
+import type { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import {
 	APIGuild,
@@ -42,7 +42,7 @@ export class Gateway {
 		public readonly gateway: RoutingSubscriber<keyof DiscordEvents, DiscordEvents>,
 		public readonly logs: PubSubPublisher<Log>,
 		public readonly messagesCache: MessageCache,
-		public readonly discord: CordisRest,
+		public readonly rest: REST,
 		public readonly checker: PermissionsChecker,
 	) {}
 
@@ -64,15 +64,15 @@ export class Gateway {
 				return;
 			}
 
-			const guild = await this.discord.get<APIGuild>(Routes.guild(message.guild_id));
+			const guild = (await this.rest.get(Routes.guild(message.guild_id))) as APIGuild;
 			if (guild.owner_id === author.id) {
 				return;
 			}
 
 			const bitfield = new DiscordPermissions(0n);
-			const guildRolesList = await this.discord
-				.get<RESTGetAPIGuildRolesResult>(Routes.guildRoles(message.guild_id))
-				.catch(() => []);
+			const guildRolesList = (await this.rest
+				.get(Routes.guildRoles(message.guild_id))
+				.catch(() => [])) as RESTGetAPIGuildRolesResult;
 			const guildRoles = new Map(guildRolesList.map((role) => [role.id, role]));
 
 			for (const role of member.roles) {
@@ -102,13 +102,11 @@ export class Gateway {
 			}
 		}
 
-		const rawChannels = await this.discord.get<APIChannel[]>(Routes.guildChannels(message.guild_id));
+		const rawChannels = (await this.rest.get(Routes.guildChannels(message.guild_id))) as APIChannel[];
 		const channels = new Map(rawChannels.map((channel) => [channel.id, channel]));
 
 		const channel = (channels.get(message.channel_id) ??
-			(await this.discord
-				.get<APIChannel>(Routes.channel(message.channel_id))
-				.catch(() => null))) as APITextChannel | null;
+			(await this.rest.get(Routes.channel(message.channel_id)).catch(() => null))) as APITextChannel | null;
 
 		if (!channel) {
 			this.logger.warn("Couldn't resolve channel");
@@ -180,8 +178,9 @@ export class Gateway {
 					return this.onMessage({ ...existing, ...message });
 				}
 
-				const fullMessage = await this.discord
-					.get<APIMessage>(Routes.channelMessage(message.channel_id, message.id))
+				const fullMessage = await (
+					this.rest.get(Routes.channelMessage(message.channel_id, message.id)) as Promise<APIMessage>
+				)
 					.then((message) => {
 						void this.messagesCache.add(message);
 						return message;

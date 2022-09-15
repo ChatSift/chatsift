@@ -1,6 +1,6 @@
 /* istanbul ignore file */
 import { kLogger } from '@automoderator/injection';
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import {
 	RESTPostAPIChannelMessageJSONBody,
 	RESTPostAPICurrentUserCreateDMChannelJSONBody,
@@ -12,7 +12,7 @@ import type { Logger } from 'pino';
 import { container } from 'tsyringe';
 
 export const dmUser = async (userId: Snowflake, content: string, guildId?: Snowflake) => {
-	const rest = container.resolve(Rest);
+	const rest = container.resolve(REST);
 	const logger = container.resolve<Logger>(kLogger);
 
 	if (guildId) {
@@ -22,26 +22,25 @@ export const dmUser = async (userId: Snowflake, content: string, guildId?: Snowf
 		}
 	}
 
-	const dmChannel = await rest
-		.post<RESTPostAPICurrentUserCreateDMChannelResult, RESTPostAPICurrentUserCreateDMChannelJSONBody>(
-			Routes.userChannels(),
-			{
-				data: {
-					recipient_id: userId,
-				},
-			},
-		)
+	const body: RESTPostAPICurrentUserCreateDMChannelJSONBody = {
+		recipient_id: userId,
+	};
+	const dmChannel = (await rest
+		.post(Routes.userChannels(), {
+			body,
+		})
 		.catch(() => {
 			logger.warn(`Failed to create DM channel with user ${userId}`);
 			return null;
-		});
+		})) as RESTPostAPICurrentUserCreateDMChannelResult | null;
 
 	if (dmChannel) {
+		const body: RESTPostAPIChannelMessageJSONBody = {
+			content,
+		};
 		await rest
-			.post<unknown, RESTPostAPIChannelMessageJSONBody>(Routes.channelMessages(dmChannel.id), {
-				data: {
-					content,
-				},
+			.post(Routes.channelMessages(dmChannel.id), {
+				body,
 			})
 			.catch(() => null);
 	}

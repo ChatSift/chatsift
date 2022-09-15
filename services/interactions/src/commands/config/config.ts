@@ -1,7 +1,6 @@
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { UserPerms } from '@automoderator/util';
-
-import { Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { GuildSettings, LogChannelType, LogChannelWebhook, PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
@@ -28,7 +27,7 @@ export default class implements Command {
 	public readonly userPermissions = UserPerms.admin;
 
 	public constructor(
-		public readonly discordRest: DiscordRest,
+		public readonly rest: REST,
 		public readonly handler: Handler,
 		public readonly prisma: PrismaClient,
 		@inject(kLogger) public readonly logger: Logger,
@@ -145,7 +144,7 @@ export default class implements Command {
 					const parentId =
 						channel.type === ChannelType.GuildText
 							? channel.id
-							: (await this.discordRest.get<APIThreadChannel>(Routes.channel(channel.id)))!.parent_id!;
+							: ((await this.rest.get(Routes.channel(channel.id))) as APIThreadChannel).parent_id!;
 
 					const names = {
 						[LogChannelType.mod]: 'CASE-ICO',
@@ -157,15 +156,13 @@ export default class implements Command {
 					const iconRes = await fetch(`https://automoderator.app/wp-content/uploads/2022/03/${names[logType]}.png`);
 					const buffer = await iconRes.buffer();
 
-					const webhook = await this.discordRest.post<APIWebhook, RESTPostAPIChannelWebhookJSONBody>(
-						Routes.channelWebhooks(parentId),
-						{
-							data: {
-								name: `${logType[0]!.toUpperCase()}${logType.slice(1)} Logs`,
-								avatar: `data:image/png;base64,${buffer.toString('base64')}`,
-							},
-						},
-					);
+					const body: RESTPostAPIChannelWebhookJSONBody = {
+						name: `${logType[0]!.toUpperCase()}${logType.slice(1)} Logs`,
+						avatar: `data:image/png;base64,${buffer.toString('base64')}`,
+					};
+					const webhook = (await this.rest.post(Routes.channelWebhooks(parentId), {
+						body,
+					})) as APIWebhook;
 
 					const data = {
 						guildId: interaction.guild_id,

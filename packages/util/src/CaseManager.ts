@@ -1,7 +1,7 @@
 import { Log, LogTypes } from '@automoderator/broker-types';
 import { kLogger, kRedis } from '@automoderator/injection';
 import { PubSubPublisher } from '@cordis/brokers';
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { Case, CaseAction, PrismaClient, WarnPunishmentAction } from '@prisma/client';
 import {
@@ -67,7 +67,7 @@ export type CaseData = OtherCaseData | BanCaseData | SoftbanCaseData | MuteCaseD
 export class CaseManager {
 	public constructor(
 		public readonly prisma: PrismaClient,
-		public readonly rest: Rest,
+		public readonly rest: REST,
 		public readonly logs: PubSubPublisher<Log>,
 		@inject(kLogger) public readonly logger: Logger,
 		@inject(kRedis) public readonly redis: Redis,
@@ -201,22 +201,21 @@ export class CaseManager {
 
 			case CaseAction.mute: {
 				if (cs.useTimeouts) {
-					return this.rest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(
-						Routes.guildMember(cs.guildId, cs.targetId),
-						{
-							data: {
-								communication_disabled_until: cs.expiresAt?.toISOString(),
-							},
-						},
-					);
+					const body: RESTPatchAPIGuildMemberJSONBody = {
+						communication_disabled_until: cs.expiresAt?.toISOString(),
+					};
+
+					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
+						body,
+					});
 				}
 
 				const settings = await prisma.guildSettings.findFirst({
 					where: { guildId: cs.guildId },
 					rejectOnNotFound: true,
 				});
-				const member = await this.rest.get<APIGuildMember>(Routes.guildMember(cs.guildId, cs.targetId));
-				const rawRoles = await this.rest.get<APIRole[]>(Routes.guildRoles(cs.guildId));
+				const member = (await this.rest.get(Routes.guildMember(cs.guildId, cs.targetId))) as APIGuildMember;
+				const rawRoles = (await this.rest.get(Routes.guildRoles(cs.guildId))) as APIRole[];
 				const roles = new Map(rawRoles.map((r) => [r.id, r]));
 
 				const muteRoles = [settings.muteRole!];
@@ -238,34 +237,36 @@ export class CaseManager {
 				await prisma.unmuteRole.createMany({
 					data: unmuteRoles.map((r) => ({ caseId: cs.id, roleId: r })),
 				});
-				return this.rest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(cs.guildId, cs.targetId), {
-					data: {
-						roles: muteRoles,
-					},
+				const body: RESTPatchAPIGuildMemberJSONBody = {
+					roles: muteRoles,
+				};
+
+				return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
+					body,
 				});
 			}
 
 			case CaseAction.unmute: {
 				if (cs.useTimeouts) {
-					return this.rest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(
-						Routes.guildMember(cs.guildId, cs.targetId),
-						{
-							data: {
-								communication_disabled_until: null,
-							},
-						},
-					);
+					const body: RESTPatchAPIGuildMemberJSONBody = {
+						communication_disabled_until: null,
+					};
+
+					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
+						body,
+					});
 				}
 
 				const settings = await prisma.guildSettings.findFirst({ where: { guildId: cs.guildId } });
-				const member = await this.rest.get<APIGuildMember>(Routes.guildMember(cs.guildId, cs.targetId));
+				const member = (await this.rest.get(Routes.guildMember(cs.guildId, cs.targetId))) as APIGuildMember;
 				const baseRoles = member.roles.filter((r) => r !== settings?.muteRole);
 
 				const unmuteRoles = await prisma.unmuteRole.findMany({ where: { caseId: cs.id } });
-				return this.rest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(Routes.guildMember(cs.guildId, cs.targetId), {
-					data: {
-						roles: baseRoles.concat(unmuteRoles.map((r) => r.roleId)),
-					},
+				const body: RESTPatchAPIGuildMemberJSONBody = {
+					roles: baseRoles.concat(unmuteRoles.map((r) => r.roleId)),
+				};
+				return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
+					body,
 				});
 			}
 
@@ -274,19 +275,21 @@ export class CaseManager {
 			}
 
 			case CaseAction.softban: {
-				await this.rest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(cs.guildId, cs.targetId), {
-					data: {
-						delete_message_days: data.deleteDays ?? 1,
-					},
+				const body: RESTPutAPIGuildBanJSONBody = {
+					delete_message_days: data.deleteDays ?? 1,
+				};
+				await this.rest.put(Routes.guildBan(cs.guildId, cs.targetId), {
+					body,
 				});
 				return this.rest.delete(Routes.guildBan(cs.guildId, cs.targetId));
 			}
 
 			case CaseAction.ban: {
-				return this.rest.put<unknown, RESTPutAPIGuildBanJSONBody>(Routes.guildBan(cs.guildId, cs.targetId), {
-					data: {
-						delete_message_days: data.deleteDays,
-					},
+				const body: RESTPutAPIGuildBanJSONBody = {
+					delete_message_days: data.deleteDays,
+				};
+				return this.rest.put(Routes.guildBan(cs.guildId, cs.targetId), {
+					body,
 				});
 			}
 
@@ -327,7 +330,7 @@ export class CaseManager {
 	}
 
 	private async notifyUser(cs: Case) {
-		const guild = await this.rest.get<APIGuild>(Routes.guild(cs.guildId));
+		const guild = (await this.rest.get(Routes.guild(cs.guildId))) as APIGuild;
 		await dmUser(
 			cs.targetId,
 			`You have been ${this.formatActionName(cs.actionType)} in ${guild.name}${

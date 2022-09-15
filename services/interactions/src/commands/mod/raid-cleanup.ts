@@ -2,11 +2,11 @@ import type { DiscordEvents } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
 import { CaseManager } from '@automoderator/util';
 import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
-import { Rest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
+import { RawFile, REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { CaseAction } from '@prisma/client';
-import type { APIMessageComponentInteraction, RESTGetAPIGuildQuery } from 'discord-api-types/v9';
+import type { APIMessageComponentInteraction } from 'discord-api-types/v9';
 import {
 	APIGuild,
 	APIGuildInteraction,
@@ -42,13 +42,13 @@ export default class implements Command {
 		@inject(kLogger) public readonly logger: Logger,
 		public readonly handler: Handler,
 		public readonly cases: CaseManager,
-		public readonly rest: Rest,
+		public readonly rest: REST,
 	) {}
 
 	private async _fetchGuildMembers(interaction: APIGuildInteraction): Promise<APIGuildMember[]> {
-		const guild = await this.rest.get<APIGuild, RESTGetAPIGuildQuery>(Routes.guild(interaction.guild_id), {
-			query: { with_counts: true },
-		});
+		const guild = (await this.rest.get(Routes.guild(interaction.guild_id), {
+			query: new URLSearchParams({ with_counts: 'true' }),
+		})) as APIGuild;
 
 		return new Promise((resolve) => {
 			const members: APIGuildMember[] = [];
@@ -193,11 +193,11 @@ export default class implements Command {
 			files: [
 				{
 					name: 'target_complete.txt',
-					content: Buffer.from(members.map((m) => `${m.tag} (${m.id})`).join('\n')),
+					data: Buffer.from(members.map((m) => `${m.tag} (${m.id})`).join('\n')),
 				},
 				{
 					name: 'target_ids.txt',
-					content: Buffer.from(members.map((m) => m.id).join('\n')),
+					data: Buffer.from(members.map((m) => m.id).join('\n')),
 				},
 			],
 			components: [
@@ -269,18 +269,18 @@ export default class implements Command {
 
 			await Promise.allSettled(promises);
 
-			const files: { name: string; content: Buffer }[] = [];
+			const files: RawFile[] = [];
 			if (sweeped.length) {
 				files.push({
 					name: 'sweeped.txt',
-					content: Buffer.from(sweeped.map((x) => `${x}`).join('\n')),
+					data: Buffer.from(sweeped.map((x) => `${x}`).join('\n')),
 				});
 			}
 
 			if (missed.length) {
 				files.push({
 					name: 'missed.txt',
-					content: Buffer.from(missed.map((x) => `${x}`).join('\n')),
+					data: Buffer.from(missed.map((x) => `${x}`).join('\n')),
 				});
 			}
 

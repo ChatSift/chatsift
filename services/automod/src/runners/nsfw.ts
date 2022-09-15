@@ -3,7 +3,7 @@ import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { dmUser } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { GuildSettings, PrismaClient } from '@prisma/client';
 import {
 	Routes,
@@ -35,7 +35,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 		@inject(kConfig) public readonly config: Config,
 		public readonly prisma: PrismaClient,
 		public readonly messages: MessageCache,
-		public readonly discord: Rest,
+		public readonly rest: REST,
 		public readonly logs: PubSubPublisher<Log>,
 		public readonly urlsRunner: UrlsRunner,
 	) {}
@@ -55,6 +55,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 		if (!res.ok) {
 			this.logger.warn(
 				{
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					data: await res
 						.json()
 						.catch(() => res.text())
@@ -127,11 +128,11 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 
 	public async transform(message: GatewayMessageCreateDispatchData): Promise<NsfwTransform> {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id } });
-		let channel = await this.discord.get<APITextChannel>(Routes.channel(message.channel_id));
+		let channel = (await this.rest.get(Routes.channel(message.channel_id))) as APITextChannel;
 
 		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 		if (channel.type !== ChannelType.GuildText) {
-			channel = await this.discord.get<APITextChannel>(Routes.channel(channel.parent_id!));
+			channel = (await this.rest.get(Routes.channel(channel.parent_id!))) as APITextChannel;
 		}
 
 		const messageUrls = [...message.content.matchAll(this.urlsRunner.urlRegex)].reduce<string[]>((acc, match) => {
@@ -185,7 +186,7 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 	}
 
 	public async cleanup(_: NsfwRunnerResult['data'], message: APIMessage): Promise<void> {
-		await this.discord
+		await this.rest
 			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'NSFW filter trigger' })
 			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing a NSFW content.'))
 			.catch(() => null);

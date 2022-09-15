@@ -1,7 +1,7 @@
 import { Log, LogTypes, ServerLogType, BanwordFlags, BanwordFlagsResolvable } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
 import { PubSubPublisher } from '@cordis/brokers';
-import { File, Rest } from '@cordis/rest';
+import type { RawFile, REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { BannedWord, PrismaClient } from '@prisma/client';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
@@ -21,7 +21,7 @@ interface ParsedEntry {
 @injectable()
 export default class implements Command {
 	public constructor(
-		public readonly rest: Rest,
+		public readonly rest: REST,
 		public readonly guildLogs: PubSubPublisher<Log>,
 		public readonly prisma: PrismaClient,
 		@inject(kLogger) public readonly logger: Logger,
@@ -173,7 +173,7 @@ export default class implements Command {
 
 				return send(interaction, {
 					content: "Here's your list",
-					files: [{ name: 'bannedwords.yml', content: Buffer.from(this._entriesToYaml(list)) }],
+					files: [{ name: 'bannedwords.yml', data: Buffer.from(this._entriesToYaml(list)) }],
 				});
 			}
 
@@ -233,12 +233,12 @@ export default class implements Command {
 					words.push(entry);
 				}
 
-				const files: File[] = [];
+				const files: RawFile[] = [];
 				const oldEntries = await this.prisma.bannedWord.findMany({ where: { guildId: interaction.guild_id } });
 				if (oldEntries.length) {
 					files.push({
 						name: 'oldlist.yml',
-						content: Buffer.from(this._entriesToYaml(oldEntries)),
+						data: Buffer.from(this._entriesToYaml(oldEntries)),
 					});
 				}
 
@@ -292,7 +292,7 @@ export default class implements Command {
 
 				files.push({
 					name: 'newlist.yml',
-					content: Buffer.from(this._entriesToYaml(newEntries)),
+					data: Buffer.from(this._entriesToYaml(newEntries)),
 				});
 
 				return send(interaction, { content: 'Successfully updated your list in bulk', files });

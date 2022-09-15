@@ -1,6 +1,6 @@
 import { DiscordPermissions } from '@automoderator/broker-types';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import { APIInteractionGuildMember, RESTGetAPIGuildResult, Routes, Snowflake } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
@@ -24,7 +24,7 @@ export class PermissionsChecker {
 		public readonly prisma: PrismaClient,
 		@inject(kLogger) public readonly logger: Logger,
 		@inject(kConfig) public readonly config: Config,
-		public readonly rest: Rest,
+		public readonly rest: REST,
 	) {}
 
 	public async checkMod(data: PermissionsCheckerData, modRoles?: Set<Snowflake> | null): Promise<boolean> {
@@ -49,10 +49,10 @@ export class PermissionsChecker {
 
 	public async checkOwner(data: PermissionsCheckerData, ownerId?: Snowflake | null): Promise<boolean> {
 		if (!ownerId) {
-			const guild = await this.rest.get<RESTGetAPIGuildResult>(Routes.guild(data.guild_id)).catch((error: unknown) => {
+			const guild = (await this.rest.get(Routes.guild(data.guild_id)).catch((error: unknown) => {
 				this.logger.warn({ error }, 'Failed a checkOwner guild fetch - returning false');
 				return null;
-			});
+			})) as RESTGetAPIGuildResult | null;
 
 			if (!guild) {
 				return false;

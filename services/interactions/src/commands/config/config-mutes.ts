@@ -1,6 +1,6 @@
 import { DiscordPermissions } from '@automoderator/broker-types';
 import { ellipsis, sortChannels } from '@chatsift/discord-utils';
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import {
 	APIMessageComponentInteraction,
@@ -28,7 +28,7 @@ import { ArgumentsOf, send, EMOTES } from '#util';
 @injectable()
 export default class implements Command {
 	public constructor(
-		public readonly rest: Rest,
+		public readonly rest: REST,
 		public readonly prisma: PrismaClient,
 		public readonly handler: Handler,
 	) {}
@@ -94,7 +94,9 @@ export default class implements Command {
 					},
 				];
 
-				const channelList = sortChannels(await this.rest.get<APIChannel[]>(Routes.guildChannels(interaction.guild_id)));
+				const channelList = sortChannels(
+					(await this.rest.get(Routes.guildChannels(interaction.guild_id))) as APIChannel[],
+				);
 				const channelOptions = channelList.map(
 					(channel): APISelectMenuOption => ({
 						label: ellipsis(channel.name!, 25),
@@ -264,15 +266,13 @@ export default class implements Command {
 				for (const channel of channelList.filter(
 					(c) => !state.ignores.has(c.id) && (!c.parent_id || !state.ignores.has(c.parent_id)),
 				)) {
-					await this.rest.put<unknown, RESTPutAPIChannelPermissionJSONBody>(
-						Routes.channelPermission(channel.id, args['update-role'].role.id),
-						{
-							data: {
-								type: OverwriteType.Role,
-								deny: state.perms.toJSON(),
-							},
-						},
-					);
+					const body: RESTPutAPIChannelPermissionJSONBody = {
+						type: OverwriteType.Role,
+						deny: state.perms.toJSON(),
+					};
+					await this.rest.put(Routes.channelPermission(channel.id, args['update-role'].role.id), {
+						body,
+					});
 				}
 
 				await this.prisma.guildSettings.upsert({

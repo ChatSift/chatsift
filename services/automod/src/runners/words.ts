@@ -3,7 +3,7 @@ import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { CaseManager, dmUser, ReportHandler } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { PrismaClient, BannedWord, CaseAction } from '@prisma/client';
 import { Routes, APIUser, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
@@ -28,7 +28,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		@inject(kLogger) public readonly logger: Logger,
 		public readonly prisma: PrismaClient,
 		public readonly messages: MessageCache,
-		public readonly discord: Rest,
+		public readonly rest: REST,
 		public readonly logs: PubSubPublisher<Log>,
 		public readonly urlsRunner: UrlsRunner,
 		public readonly caseManager: CaseManager,
@@ -119,7 +119,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 			if (settings?.reportsChannel) {
 				await this.reports.reportMessage(
 					message,
-					await this.discord.get<APIUser>(Routes.user(this.config.discordClientId)),
+					(await this.rest.get(Routes.user(this.config.discordClientId))) as APIUser,
 					settings.reportsChannel,
 					`Automated report triggered due to the usage of the following word/phrase: ${punishments.report.word}`,
 				);
@@ -158,7 +158,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		}
 
 		try {
-			await this.discord.delete(Routes.channelMessage(message.channel_id, message.id), {
+			await this.rest.delete(Routes.channelMessage(message.channel_id, message.id), {
 				reason: 'Words filter trigger',
 			});
 			if (!applied.length) {

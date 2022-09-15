@@ -1,3 +1,5 @@
+import type { RouteLike } from '@discordjs/rest';
+
 interface RecursiveRecord<T> {
 	[key: string]: RecursiveRecord<T> | T;
 }
@@ -18,18 +20,9 @@ const CACHE_TIMES: RecursiveRecord<number> = {
 	},
 };
 
-interface CacheData {
-	cache?: boolean;
-	cacheTime?: number;
-}
-
-export function resolveCacheOptions(path: string, method: string): CacheData {
-	if (method !== 'get') {
-		return {};
-	}
-
+export function resolveCacheTime(path: RouteLike): number | null {
 	const routes = path
-		.substr(1)
+		.substring(1)
 		.split('/')
 		.map((route) => (/\d{17,19}/g.test(route) ? 'id' : route));
 
@@ -39,9 +32,7 @@ export function resolveCacheOptions(path: string, method: string): CacheData {
 	for (const route of routes) {
 		const indexed = layer[route];
 		if (!indexed) {
-			return {
-				cache: false,
-			};
+			return null;
 		}
 
 		if (typeof indexed === 'number') {
@@ -56,8 +47,29 @@ export function resolveCacheOptions(path: string, method: string): CacheData {
 		layer = indexed;
 	}
 
-	return {
-		cache: true,
-		cacheTime: cacheTime!,
-	};
+	return cacheTime!;
+}
+
+const CACHE = new Map<RouteLike, unknown>();
+const TIMEOUTS = new Map<RouteLike, NodeJS.Timeout>();
+
+export function fetchCache(path: RouteLike): unknown {
+	const cacheTime = resolveCacheTime(path);
+	if (CACHE.has(path) && cacheTime) {
+		const cached = CACHE.get(path);
+		const timeout = TIMEOUTS.get(path);
+		timeout?.refresh();
+		return cached;
+	}
+}
+
+export function cache(path: RouteLike, data: unknown) {
+	const cacheTime = resolveCacheTime(path);
+	if (cacheTime) {
+		CACHE.set(path, data);
+		TIMEOUTS.set(
+			path,
+			setTimeout(() => CACHE.delete(path), cacheTime),
+		);
+	}
 }

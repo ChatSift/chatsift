@@ -27,9 +27,9 @@ __metadata:
     "@chatsift/utils": ^0.2.0
     "@cordis/brokers": 1.2.0-next.8fe30a1.1651163851
     "@cordis/redis-store": ^1.2.0
-    "@cordis/rest": 2.0.0-next.2405c88.1643469558
     "@cordis/store": ^1.2.0
     "@cordis/util": ^1.2.0
+    "@discordjs/rest": ^1.1.0
     "@naval-base/ms": ^3.1.0
     "@prisma/client": ^3.15.2
     "@types/amqplib": ^0.8.2
@@ -50,6 +50,7 @@ __metadata:
     tslib: ^2.4.0
     tsyringe: ^4.7.0
     typescript: ^4.7.4
+    undici: ^5.10.0
   languageName: unknown
   linkType: soft
 
@@ -91,7 +92,8 @@ __metadata:
     "@automoderator/logger": "workspace:^"
     "@chatsift/rest-utils": ^0.5.0
     "@chatsift/utils": ^0.2.0
-    "@cordis/rest": 2.0.0-next.2405c88.1643469558
+    "@discordjs/proxy": ^1.1.0
+    "@discordjs/rest": ^1.1.0
     "@hapi/boom": ^9.1.4
     "@types/node": ^16.11.46
     discord-api-types: ^0.36.1
@@ -126,6 +128,7 @@ __metadata:
     tslib: ^2.4.0
     tsyringe: ^4.7.0
     typescript: ^4.7.4
+    undici: ^5.10.0
   languageName: unknown
   linkType: soft
 
@@ -155,8 +158,8 @@ __metadata:
     "@chatsift/utils": ^0.2.0
     "@cordis/brokers": 1.2.0-next.8fe30a1.1651163851
     "@cordis/redis-store": ^1.2.0
-    "@cordis/rest": 2.0.0-next.2405c88.1643469558
     "@cordis/util": ^1.2.0
+    "@discordjs/rest": ^1.1.0
     "@hapi/boom": ^9.1.4
     "@naval-base/ms": ^3.1.0
     "@prisma/client": ^3.15.2
@@ -179,6 +182,7 @@ __metadata:
     tsyringe: ^4.7.0
     tweetnacl: ^1.0.3
     typescript: ^4.7.4
+    undici: ^5.10.0
   languageName: unknown
   linkType: soft
 
@@ -208,8 +212,8 @@ __metadata:
     "@automoderator/util": "workspace:^"
     "@chatsift/discord-utils": ^0.2.2
     "@cordis/brokers": 1.2.0-next.8fe30a1.1651163851
-    "@cordis/rest": 2.0.0-next.2405c88.1643469558
     "@cordis/util": ^1.2.0
+    "@discordjs/rest": ^1.1.0
     "@naval-base/ms": ^3.1.0
     "@prisma/client": ^3.15.2
     "@types/amqplib": ^0.8.2
@@ -221,6 +225,7 @@ __metadata:
     tslib: ^2.4.0
     tsyringe: ^4.7.0
     typescript: ^4.7.4
+    undici: ^5.10.0
   languageName: unknown
   linkType: soft
 
@@ -236,9 +241,9 @@ __metadata:
     "@chatsift/utils": ^0.2.0
     "@cordis/brokers": 1.2.0-next.8fe30a1.1651163851
     "@cordis/redis-store": ^1.2.0
-    "@cordis/rest": 2.0.0-next.2405c88.1643469558
     "@cordis/store": ^1.2.0
     "@cordis/util": ^1.2.0
+    "@discordjs/rest": ^1.1.0
     "@naval-base/ms": ^3.1.0
     "@prisma/client": ^3.15.2
     "@types/amqplib": ^0.8.2
@@ -254,6 +259,7 @@ __metadata:
     tslib: ^2.4.0
     tsyringe: ^4.7.0
     typescript: ^4.7.4
+    undici: ^5.10.0
   languageName: unknown
   linkType: soft
 
@@ -265,7 +271,7 @@ __metadata:
     "@automoderator/logger": "workspace:^"
     "@automoderator/util": "workspace:^"
     "@cordis/brokers": 1.2.0-next.8fe30a1.1651163851
-    "@cordis/rest": 2.0.0-next.2405c88.1643469558
+    "@discordjs/rest": ^1.1.0
     "@naval-base/ms": ^3.1.0
     "@prisma/client": ^3.15.2
     "@types/amqplib": ^0.8.2
@@ -279,6 +285,7 @@ __metadata:
     tslib: ^2.4.0
     tsyringe: ^4.7.0
     typescript: ^4.7.4
+    undici: ^5.10.0
   languageName: unknown
   linkType: soft
 
@@ -290,8 +297,8 @@ __metadata:
     "@automoderator/injection": "workspace:^"
     "@chatsift/discord-utils": ^0.2.2
     "@cordis/brokers": 1.2.0-next.8fe30a1.1651163851
-    "@cordis/rest": 2.0.0-next.2405c88.1643469558
     "@cordis/util": ^1.2.0
+    "@discordjs/rest": ^1.1.0
     "@naval-base/ms": ^3.1.0
     "@prisma/client": ^3.15.2
     "@types/ioredis": ^4.28.10
@@ -1648,7 +1655,6 @@ __metadata:
     "@babel/preset-typescript": ^7.18.6
     "@commitlint/cli": ^17.0.3
     "@commitlint/config-angular": ^17.0.3
-    "@cordis/rest": 2.0.0-next.2405c88.1643469558
     "@prisma/client": ^3.15.2
     "@types/jest": ^26.0.24
     "@typescript-eslint/eslint-plugin": ^5.31.0
@@ -1990,21 +1996,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cordis/rest@npm:2.0.0-next.2405c88.1643469558":
-  version: 2.0.0-next.2405c88.1643469558
-  resolution: "@cordis/rest@npm:2.0.0-next.2405c88.1643469558"
-  dependencies:
-    "@cordis/common": ^1.2.0
-    "@cordis/error": ^1.2.0
-    abort-controller: ^3.0.0
-    discord-api-types: ^0.24.0
-    form-data: ^3.0.1
-    node-fetch: 3.0.0-beta.9
-    tslib: ^2.3.1
-  checksum: 69689768a4e775510a06ab5236c3af10af1c09ab845c4f736977ed4b971b521a161f738723ee1cbc7a52e051cf620206e8f2007560be82429c6ef005f1875418
-  languageName: node
-  linkType: hard
-
 "@cordis/rest@npm:^1.2.0":
   version: 1.2.0
   resolution: "@cordis/rest@npm:1.2.0"
@@ -2055,6 +2046,32 @@ __metadata:
   version: 1.0.1
   resolution: "@discordjs/collection@npm:1.0.1"
   checksum: 6477ae9870f3c069b190f673a6b34467930b409a6d763f1b0d4f6169051b8499d03de7b0e7e4c3697222845aea6d94283573ad6a488b50516764df675915ff44
+  languageName: node
+  linkType: hard
+
+"@discordjs/proxy@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@discordjs/proxy@npm:1.1.0"
+  dependencies:
+    "@discordjs/rest": ^1.0.0
+    tslib: ^2.4.0
+    undici: ^5.9.1
+  checksum: 474f8d497e150657832ffc7e05aa8e7be33140539cf27b081b0b5c0e820da63fcd8a2b9c5708170a60e1fcfe6bdbc8ee6ca533c34792d5b96c5ceb826479b9c3
+  languageName: node
+  linkType: hard
+
+"@discordjs/rest@npm:^1.0.0, @discordjs/rest@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@discordjs/rest@npm:1.1.0"
+  dependencies:
+    "@discordjs/collection": ^1.0.1
+    "@sapphire/async-queue": ^1.5.0
+    "@sapphire/snowflake": ^3.2.2
+    discord-api-types: ^0.37.3
+    file-type: ^17.1.6
+    tslib: ^2.4.0
+    undici: ^5.9.1
+  checksum: b216d5b217bf70a713480738851a0e607cbed267a0ad60942268f9761c605aac6552fd9cdda56bcabe332f6e5ccb5b7ce9911645e24d3d9342ed6f18dccc6b94
   languageName: node
   linkType: hard
 
@@ -2568,6 +2585,13 @@ __metadata:
   version: 1.3.2
   resolution: "@sapphire/async-queue@npm:1.3.2"
   checksum: 348f35a278bff68cb6d5e2c2219b03ce66243162522003bb14426e5fdad251300bea8ef3883043eb034c181dddd52296a519e9f377075a5b31074807fe163e76
+  languageName: node
+  linkType: hard
+
+"@sapphire/async-queue@npm:^1.5.0":
+  version: 1.5.0
+  resolution: "@sapphire/async-queue@npm:1.5.0"
+  checksum: 983dbd1fd1b1798496e5edb6a0db7e4d90015160e1028f20475eab0a92625513f1e8d938bc0305811a9cec461c94e01b1e4191615ff03ba49356f568f3255250
   languageName: node
   linkType: hard
 
@@ -4486,6 +4510,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"discord-api-types@npm:^0.37.3":
+  version: 0.37.10
+  resolution: "discord-api-types@npm:0.37.10"
+  checksum: a09460953a02adf3c40a486e3946c6ca0dd6c76d279444a4595abecfe8b5b88ad49d48b5eeb85e2cb95256a0824ee075cb7550d371c13e64e37ec703206c092b
+  languageName: node
+  linkType: hard
+
 "dlv@npm:^1.1.0":
   version: 1.1.3
   resolution: "dlv@npm:1.1.3"
@@ -5268,6 +5299,17 @@ __metadata:
     strtok3: ^7.0.0-alpha.9
     token-types: ^5.0.0-alpha.2
   checksum: 07ae79cda01a38c2dedec85acfa7d5532c8334d4bc8542e0ab97e27d1bc496d325ea245bb546394f43ac19673fad6ef50fc38a9d70462ae2f5a28ab8721d1037
+  languageName: node
+  linkType: hard
+
+"file-type@npm:^17.1.6":
+  version: 17.1.6
+  resolution: "file-type@npm:17.1.6"
+  dependencies:
+    readable-web-to-node-stream: ^3.0.2
+    strtok3: ^7.0.0-alpha.9
+    token-types: ^5.0.0-alpha.2
+  checksum: 797e0d155ecaf4b575d4569a0188bfed85af19d18cf3d93ec8bb66d797172a1fde9f13d56135c6a0b471cacd7ecc1adb0c9a45c6e3a19436f682a275d0be16cc
   languageName: node
   linkType: hard
 
@@ -10025,6 +10067,13 @@ __metadata:
     has-symbols: ^1.0.3
     which-boxed-primitive: ^1.0.2
   checksum: b7a1cf5862b5e4b5deb091672ffa579aa274f648410009c81cca63fed3b62b610c4f3b773f912ce545bb4e31edc3138975b5bc777fc6e4817dca51affb6380e9
+  languageName: node
+  linkType: hard
+
+"undici@npm:^5.10.0, undici@npm:^5.9.1":
+  version: 5.10.0
+  resolution: "undici@npm:5.10.0"
+  checksum: 7ba2b71dccc74cd2bdf645b83e9aaef374ae04855943d0a2f42a3d0b9e5556f37cc9b5156fb5288277a2fa95fd46a56f3ae0d5cf73db3f008d75ec41104b136c
   languageName: node
   linkType: hard
 
