@@ -33,6 +33,7 @@ services:
     environment:
       AMQP_URL: 'amqp://rabbitmq:5672'
       REDIS_URL: 'redis://redis:6379/0'
+      DISCORD_PROXY_URL: 'http://discord-proxy:3003'
     restart: unless-stopped
     volumes:
       - ../logs:/usr/service/logs
