@@ -12,7 +12,7 @@ import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { CaseManager, PermissionsChecker, PermissionsCheckerData, ReportHandler, UserPerms } from '@automoderator/util';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { getCreationData } from '@cordis/util';
-import type { REST } from '@discordjs/rest';
+import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { BannedWord, CaseAction, PrismaClient } from '@prisma/client';
 import {

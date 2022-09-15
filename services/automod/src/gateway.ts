@@ -10,7 +10,7 @@ import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
 import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
-import type { REST } from '@discordjs/rest';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import {
 	APIGuild,
