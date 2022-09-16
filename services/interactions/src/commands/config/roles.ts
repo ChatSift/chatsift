@@ -62,16 +62,18 @@ export default class implements Command {
 				});
 
 				const body: RESTPostAPIChannelMessageJSONBody = {
-					embed: {
-						title: prompt.embedTitle ?? undefined,
-						color: prompt.embedColor,
-						description: prompt.embedDescription ?? undefined,
-						image: prompt.embedImage
-							? {
-									url: prompt.embedImage,
-							  }
-							: undefined,
-					},
+					embeds: [
+						{
+							title: prompt.embedTitle ?? undefined,
+							color: prompt.embedColor,
+							description: prompt.embedDescription ?? undefined,
+							image: prompt.embedImage
+								? {
+										url: prompt.embedImage,
+								  }
+								: undefined,
+						},
+					],
 					components:
 						prompt.useButtons && prompt.selfAssignableRoles.length <= 25
 							? chunkArray(
@@ -169,16 +171,18 @@ export default class implements Command {
 						  ];
 
 				const body: RESTPostAPIChannelMessageJSONBody = {
-					embed: {
-						title: args.create.title,
-						color,
-						description: args.create.description,
-						image: args.create.imageurl
-							? {
-									url: args.create.imageurl,
-							  }
-							: undefined,
-					},
+					embeds: [
+						{
+							title: args.create.title,
+							color,
+							description: args.create.description,
+							image: args.create.imageurl
+								? {
+										url: args.create.imageurl,
+								  }
+								: undefined,
+						},
+					],
 					components,
 				};
 				const promptMessage = (await this.rest.post(Routes.channelMessages(channelId), {
