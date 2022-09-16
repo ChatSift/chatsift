@@ -1,8 +1,7 @@
 import { kRedis } from '@automoderator/injection';
 import { RedisStore } from '@cordis/redis-store';
 import type { APIUser, APIGuildMember } from 'discord-api-types/v9';
-// @ts-expect-error needed for injection
-// eslint-disable-next-line n/no-extraneous-import
+// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
 import { Redis } from 'ioredis';
 import { singleton, inject } from 'tsyringe';
 
@@ -17,6 +16,7 @@ export class GuildMemberCache {
 	public constructor(@inject(kRedis) public readonly redis: Redis) {}
 
 	private _assertStore(guild: CachedGuildMember | string): RedisStore<CachedGuildMember> {
+		// eslint-disable-next-line no-param-reassign
 		guild = typeof guild === 'string' ? guild : guild.guild_id;
 
 		if (this._stores.has(guild)) {

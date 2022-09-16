@@ -1,14 +1,13 @@
 import { kRedis } from '@automoderator/injection';
 import { RedisStore } from '@cordis/redis-store';
 import type { APIMessage } from 'discord-api-types/v9';
-// @ts-expect-error needed for injection
-// eslint-disable-next-line n/no-extraneous-import
+// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
 import { Redis } from 'ioredis';
 import { singleton, inject } from 'tsyringe';
 
 @singleton()
 export class MessageCache {
-	private readonly _maxSizePerChannel = 5000;
+	private readonly _maxSizePerChannel = 5_000;
 
 	private readonly _store = new RedisStore<APIMessage>({
 		hash: 'messages_cache',
@@ -23,12 +22,12 @@ export class MessageCache {
 		return Boolean(await this._store.get(message.id));
 	}
 
-	public async getChannelMessages(id: string): Promise<Map<string, APIMessage> | undefined> {
-		const key = `messages_cache_${id}_list`;
+	public async getChannelMessages(channelId: string): Promise<Map<string, APIMessage> | undefined> {
+		const key = `messages_cache_${channelId}_list`;
 		const size = await this.redis.llen(key);
 
 		if (!size) {
-			return;
+			return undefined;
 		}
 
 		const ids = await this.redis.lrange(key, 0, size);
@@ -38,7 +37,9 @@ export class MessageCache {
 			promises.push(
 				this._store
 					.get(id)
-					.then((m) => m ?? null)
+					// eslint-disable-next-line promise/prefer-await-to-then
+					.then((message) => message ?? null)
+					// eslint-disable-next-line promise/prefer-await-to-then
 					.catch(() => null),
 			);
 		}
@@ -46,10 +47,10 @@ export class MessageCache {
 		const map = new Map<string, APIMessage>();
 		const messages = await Promise.all(promises);
 
-		for (let i = 0; i < ids.length; i++) {
-			const message = messages[i];
+		for (const [index, id_] of ids.entries()) {
+			const message = messages[index];
 			if (message) {
-				map.set(ids[i]!, message);
+				map.set(id_!, message);
 			}
 		}
 

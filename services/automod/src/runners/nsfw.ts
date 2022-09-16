@@ -191,6 +191,9 @@ export class NsfwRunner implements IRunner<NsfwTransform, NsfwRunnerResult['data
 	}
 
 	public log(trigger: NsfwRunnerResult['data']): NsfwRunnerResult {
-		return { runner: Runners.nsfw, data: trigger };
+		return {
+			runner: Runners.nsfw,
+			data: trigger,
+		};
 	}
 }

@@ -64,14 +64,14 @@ export class Handler {
 
 		try {
 			await command.exec(interaction, transformInteraction(data));
-		} catch (e) {
-			const internal = !(e instanceof ControlFlowError);
+		} catch (error_) {
+			const internal = !(error_ instanceof ControlFlowError);
 
 			if (internal) {
-				this.logger.error(e as any, `Failed to execute command "${data.name}"`);
+				this.logger.error(error_ as any, `Failed to execute command "${data.name}"`);
 			}
 
-			const error = e as { message?: string; toString(): string };
+			const error = error_ as { message?: string; toString(): string };
 			const message = error.message ?? error.toString();
 
 			void send(interaction, {
@@ -94,14 +94,14 @@ export class Handler {
 		if (component && data) {
 			try {
 				await component.exec(interaction, extra);
-			} catch (e) {
-				const internal = !(e instanceof ControlFlowError);
+			} catch (error_) {
+				const internal = !(error_ instanceof ControlFlowError);
 
 				if (internal) {
-					this.logger.error(e as any, `Failed to execute component "${data.custom_id}"`);
+					this.logger.error(error_ as any, `Failed to execute component "${data.custom_id}"`);
 				}
 
-				const error = e as { message?: string; toString(): string };
+				const error = error_ as { message?: string; toString(): string };
 				const message = error.message ?? error.toString();
 
 				void send(interaction, {
@@ -146,9 +146,7 @@ export class Handler {
 			return;
 		}
 
-		await this.rest.put(Routes.applicationCommands(this.config.discordClientId), {
-			body: [],
-		});
+		await this.rest.put(Routes.applicationCommands(this.config.discordClientId), { body: [] });
 
 		const body = Object.values(interactions) as RESTPutAPIApplicationGuildCommandsJSONBody;
 
@@ -181,6 +179,7 @@ export class Handler {
 				continue;
 			}
 
+			// eslint-disable-next-line no-extra-parens
 			const command = container.resolve(((await import(file)) as { default: InjectionToken<Command> }).default);
 			this.commands.set(command.name ?? info.name, command);
 		}
@@ -194,6 +193,7 @@ export class Handler {
 				continue;
 			}
 
+			// eslint-disable-next-line no-extra-parens
 			const component = container.resolve(((await import(file)) as { default: InjectionToken<Component> }).default);
 			this.components.set(component.name ?? info.name, component);
 		}

@@ -1,12 +1,11 @@
+import { setInterval } from 'node:timers';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { CaseManager } from '@automoderator/util';
 import ms from '@naval-base/ms';
 import { CaseAction, PrismaClient } from '@prisma/client';
-// @ts-expect-error needed for injection
-// eslint-disable-next-line n/no-extraneous-import
+// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
 import { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
-import { setInterval } from 'node:timers';
 
 @singleton()
 export class Handler {
@@ -19,17 +18,9 @@ export class Handler {
 
 	private async handleTasks(): Promise<void> {
 		const tasks = await this.prisma.task.findMany({
-			where: {
-				runAt: {
-					lte: new Date(),
-				},
-			},
-			orderBy: {
-				runAt: 'asc',
-			},
-			include: {
-				timedCase: true,
-			},
+			where: { runAt: { lte: new Date() } },
+			orderBy: { runAt: 'asc' },
+			include: { timedCase: true },
 		});
 
 		for (const task of tasks) {
@@ -42,12 +33,18 @@ export class Handler {
 				}
 			} catch (error) {
 				if (task.attempts++ >= 3) {
-					this.logger.warn({ error, task }, 'Task failed to run 3 times, deleting anyway');
+					this.logger.warn(
+						{
+							error,
+							task,
+						},
+						'Task failed to run 3 times, deleting anyway',
+					);
 				} else {
 					await this.prisma.task.update({
 						data: {
 							attempts: task.attempts,
-							runAt: new Date(task.runAt.getTime() + 1000 * Math.pow(10, task.attempts)),
+							runAt: new Date(task.runAt.getTime() + 1_000 * 10 ** task.attempts),
 						},
 						where: { id: task.id },
 					});
@@ -61,7 +58,12 @@ export class Handler {
 	}
 
 	private async handleAutoPardons(): Promise<void> {
-		const cases = await this.prisma.case.findMany({ where: { pardonedBy: null, actionType: CaseAction.warn } });
+		const cases = await this.prisma.case.findMany({
+			where: {
+				pardonedBy: null,
+				actionType: CaseAction.warn,
+			},
+		});
 		const pardonAfterCache = new Map<string, number | null>();
 
 		for (const cs of cases) {
@@ -80,9 +82,7 @@ export class Handler {
 
 			if (cs.createdAt.getTime() + ms(`${pardonAfter}d`) <= Date.now()) {
 				await this.prisma.case.update({
-					data: {
-						pardonedBy: this.config.discordClientId,
-					},
+					data: { pardonedBy: this.config.discordClientId },
 					where: { id: cs.id },
 				});
 			}
@@ -98,7 +98,14 @@ export class Handler {
 
 			if (automodCooldown === null) {
 				void this.prisma.automodTrigger
-					.delete({ where: { guildId_userId: { guildId: trigger.guildId, userId: trigger.userId } } })
+					.delete({
+						where: {
+							guildId_userId: {
+								guildId: trigger.guildId,
+								userId: trigger.userId,
+							},
+						},
+					})
 					.catch(() => null);
 				continue;
 			} else {
@@ -112,15 +119,23 @@ export class Handler {
 
 			if (new Date().getMinutes() - trigger.updatedAt.getMinutes() >= automodCooldown) {
 				const updated = await this.prisma.automodTrigger.update({
-					data: {
-						count: { decrement: 1 },
+					data: { count: { decrement: 1 } },
+					where: {
+						guildId_userId: {
+							guildId: trigger.guildId,
+							userId: trigger.userId,
+						},
 					},
-					where: { guildId_userId: { guildId: trigger.guildId, userId: trigger.userId } },
 				});
 
 				if (updated.count <= 0) {
 					void this.prisma.automodTrigger.delete({
-						where: { guildId_userId: { guildId: trigger.guildId, userId: trigger.userId } },
+						where: {
+							guildId_userId: {
+								guildId: trigger.guildId,
+								userId: trigger.userId,
+							},
+						},
 					});
 				}
 			}
@@ -128,7 +143,10 @@ export class Handler {
 	}
 
 	private async handleTimedCase(id: number): Promise<unknown> {
-		const cs = await this.prisma.case.findFirst({ where: { id }, rejectOnNotFound: true });
+		const cs = await this.prisma.case.findFirst({
+			where: { id },
+			rejectOnNotFound: true,
+		});
 		if (!cs.useTimeouts) {
 			return this.caseManager.undoTimedAction(cs);
 		}

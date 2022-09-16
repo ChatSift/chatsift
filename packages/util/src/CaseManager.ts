@@ -14,10 +14,7 @@ import type {
 	RESTPutAPIGuildBanJSONBody,
 } from 'discord-api-types/v9';
 import { Routes } from 'discord-api-types/v9';
-// @ts-expect-error needed for injection
-// eslint-disable-next-line n/no-extraneous-import
 import { Redis } from 'ioredis';
-// @ts-expect-error needed for injection
 import { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import { dmUser } from './dmUser';
@@ -83,12 +80,8 @@ export class CaseManager {
 		return (
 			((
 				await prisma.case.findFirst({
-					where: {
-						guildId,
-					},
-					orderBy: {
-						caseId: 'desc',
-					},
+					where: { guildId },
+					orderBy: { caseId: 'desc' },
 				})
 			)?.caseId ?? 0) + 1
 		);
@@ -96,10 +89,18 @@ export class CaseManager {
 
 	public async makeWarnTriggerCase(cs: Case, prisma: TransactionPrisma = this.prisma): Promise<Case | null> {
 		const userWarns = await prisma.case.findMany({
-			where: { targetId: cs.targetId, guildId: cs.guildId, actionType: CaseAction.warn, pardonedBy: null },
+			where: {
+				targetId: cs.targetId,
+				guildId: cs.guildId,
+				actionType: CaseAction.warn,
+				pardonedBy: null,
+			},
 		});
 		const warnPunishment = await prisma.warnPunishment.findFirst({
-			where: { guildId: cs.guildId, warns: userWarns.length },
+			where: {
+				guildId: cs.guildId,
+				warns: userWarns.length,
+			},
 		});
 		const settings = await prisma.guildSettings.findFirst({ where: { guildId: cs.guildId } });
 
@@ -151,7 +152,7 @@ export class CaseManager {
 			expiresAt: cs.expiresAt ?? undefined,
 			unmuteRoles: cs.useTimeouts
 				? null
-				: (await prisma.unmuteRole.findMany({ where: { caseId: cs.id } })).map((u) => u.roleId),
+				: (await prisma.unmuteRole.findMany({ where: { caseId: cs.id } })).map((role) => role.roleId),
 			actionType: cs.actionType,
 		};
 	}
@@ -173,11 +174,7 @@ export class CaseManager {
 				useTimeouts: 'unmuteRoles' in data ? data.unmuteRoles === null : false,
 				unmuteRoles:
 					(data.actionType === CaseAction.mute || data.actionType === CaseAction.unmute) && data.unmuteRoles
-						? {
-								createMany: {
-									data: data.unmuteRoles.map((roleId) => ({ roleId })),
-								},
-						  }
+						? { createMany: { data: data.unmuteRoles.map((roleId) => ({ roleId })) } }
 						: undefined,
 				task:
 					(data.actionType === CaseAction.ban || data.actionType === CaseAction.mute) && data.expiresAt
@@ -196,7 +193,7 @@ export class CaseManager {
 		});
 	}
 
-	private async handlePunishment(cs: Case, data: CaseData, prisma: TransactionPrisma = this.prisma): Promise<unknown> {
+	private async handlePunishment(cs: Case, data: CaseData, prisma: TransactionPrisma = this.prisma) {
 		switch (data.actionType) {
 			case CaseAction.warn: {
 				return;
@@ -204,13 +201,9 @@ export class CaseManager {
 
 			case CaseAction.mute: {
 				if (cs.useTimeouts) {
-					const body: RESTPatchAPIGuildMemberJSONBody = {
-						communication_disabled_until: cs.expiresAt?.toISOString(),
-					};
+					const body: RESTPatchAPIGuildMemberJSONBody = { communication_disabled_until: cs.expiresAt?.toISOString() };
 
-					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
-						body,
-					});
+					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), { body });
 				}
 
 				const settings = await prisma.guildSettings.findFirst({
@@ -235,29 +228,24 @@ export class CaseManager {
 						this.logger.warn({ role }, 'Role was not found when doing GET /guilds/:id/roles while muting user');
 						muteRoles.push(role);
 					}
+
+					await prisma.unmuteRole.createMany({
+						data: unmuteRoles.map((r) => ({
+							caseId: cs.id,
+							roleId: r,
+						})),
+					});
+					const body: RESTPatchAPIGuildMemberJSONBody = { roles: muteRoles };
+
+					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), { body });
 				}
-
-				await prisma.unmuteRole.createMany({
-					data: unmuteRoles.map((r) => ({ caseId: cs.id, roleId: r })),
-				});
-				const body: RESTPatchAPIGuildMemberJSONBody = {
-					roles: muteRoles,
-				};
-
-				return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
-					body,
-				});
 			}
 
 			case CaseAction.unmute: {
 				if (cs.useTimeouts) {
-					const body: RESTPatchAPIGuildMemberJSONBody = {
-						communication_disabled_until: null,
-					};
+					const body: RESTPatchAPIGuildMemberJSONBody = { communication_disabled_until: null };
 
-					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
-						body,
-					});
+					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), { body });
 				}
 
 				const settings = await prisma.guildSettings.findFirst({ where: { guildId: cs.guildId } });
@@ -265,12 +253,8 @@ export class CaseManager {
 				const baseRoles = member.roles.filter((r) => r !== settings?.muteRole);
 
 				const unmuteRoles = await prisma.unmuteRole.findMany({ where: { caseId: cs.id } });
-				const body: RESTPatchAPIGuildMemberJSONBody = {
-					roles: baseRoles.concat(unmuteRoles.map((r) => r.roleId)),
-				};
-				return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
-					body,
-				});
+				const body: RESTPatchAPIGuildMemberJSONBody = { roles: baseRoles.concat(unmuteRoles.map((r) => r.roleId)) };
+				return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), { body });
 			}
 
 			case CaseAction.kick: {
@@ -278,26 +262,22 @@ export class CaseManager {
 			}
 
 			case CaseAction.softban: {
-				const body: RESTPutAPIGuildBanJSONBody = {
-					delete_message_days: data.deleteDays ?? 1,
-				};
-				await this.rest.put(Routes.guildBan(cs.guildId, cs.targetId), {
-					body,
-				});
+				const body: RESTPutAPIGuildBanJSONBody = { delete_message_days: data.deleteDays ?? 1 };
+				await this.rest.put(Routes.guildBan(cs.guildId, cs.targetId), { body });
 				return this.rest.delete(Routes.guildBan(cs.guildId, cs.targetId));
 			}
 
 			case CaseAction.ban: {
-				const body: RESTPutAPIGuildBanJSONBody = {
-					delete_message_days: data.deleteDays,
-				};
-				return this.rest.put(Routes.guildBan(cs.guildId, cs.targetId), {
-					body,
-				});
+				const body: RESTPutAPIGuildBanJSONBody = { delete_message_days: data.deleteDays };
+				return this.rest.put(Routes.guildBan(cs.guildId, cs.targetId), { body });
 			}
 
 			case CaseAction.unban: {
 				return this.rest.delete(Routes.guildBan(cs.guildId, cs.targetId));
+			}
+
+			default: {
+				throw new Error(`Unknown action type: ${cs.actionType}`);
 			}
 		}
 	}
@@ -319,6 +299,7 @@ export class CaseManager {
 	}
 
 	public formatActionName(actionType: CaseAction): string {
+		// eslint-disable-next-line no-extra-parens
 		return (
 			{
 				[CaseAction.warn]: 'warned',
@@ -353,9 +334,15 @@ export class CaseManager {
 		const key = `case_locks:${actionType}:${targetId}:${guildId}`;
 		const lockedCaseId = await this.redis.get(key);
 		if (lockedCaseId) {
-			return this.prisma.case
-				.findFirst({ where: { id: parseInt(lockedCaseId, 10) }, rejectOnNotFound: true })
-				.catch(() => null);
+			return (
+				this.prisma.case
+					.findFirst({
+						where: { id: Number.parseInt(lockedCaseId, 10) },
+						rejectOnNotFound: true,
+					})
+					// eslint-disable-next-line promise/prefer-await-to-then
+					.catch(() => null)
+			);
 		}
 
 		return null;
@@ -375,7 +362,7 @@ export class CaseManager {
 				await this.handlePunishment(cs, data, prisma);
 			}
 
-			const cases: [Case, Case?] = [cs];
+			const coupleCases: [Case, Case?] = [cs];
 
 			if (data.actionType === CaseAction.warn) {
 				const triggeredCase = await this.makeWarnTriggerCase(cs, prisma);
@@ -388,15 +375,15 @@ export class CaseManager {
 						await this.handlePunishment(triggeredCase, await this.dataFromCase(triggeredCase), prisma);
 					}
 
-					cases.push(triggeredCase);
+					coupleCases.push(triggeredCase);
 				}
 			}
 
-			for (const cs of cases) {
-				await this.lock(cs!);
+			for (const caseItem of coupleCases) {
+				await this.lock(caseItem!);
 			}
 
-			return cases;
+			return coupleCases;
 		});
 
 		this.logs.publish({
@@ -424,11 +411,14 @@ export class CaseManager {
 					: undefined,
 			reason: reason ?? 'automated timed action expiry',
 			refId: cs.caseId,
-			unmuteRoles: cs.useTimeouts ? null : unmuteRoles.map((r) => r.roleId),
+			unmuteRoles: cs.useTimeouts ? null : unmuteRoles.map((role) => role.roleId),
 		});
 
 		try {
-			await this.prisma.timedCaseTask.delete({ where: { caseId: cs.id }, include: { task: true } });
+			await this.prisma.timedCaseTask.delete({
+				where: { caseId: cs.id },
+				include: { task: true },
+			});
 		} catch {}
 
 		return undone;

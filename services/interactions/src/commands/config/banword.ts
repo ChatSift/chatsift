@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import type { Log, BanwordFlagsResolvable } from '@automoderator/broker-types';
 import { LogTypes, ServerLogType, BanwordFlags } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
@@ -10,15 +11,13 @@ import { PrismaClient } from '@prisma/client';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import yaml from 'js-yaml';
 import fetch from 'node-fetch';
-// @ts-expect-error needed for injection
-// eslint-disable-next-line n/no-extraneous-import
+// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
 import { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { BanwordCommand } from '#interactions';
 import type { ArgumentsOf } from '#util';
 import { ControlFlowError, send } from '#util';
-import { Buffer } from 'node:buffer';
 
 type ParsedEntry = {
 	flags: ('ban' | 'kick' | 'mute' | 'name' | 'report' | 'warn' | 'word')[];
@@ -36,9 +35,7 @@ export default class implements Command {
 
 	private _entriesToYaml(list: BannedWord[]): string {
 		const data = list.reduce<Record<string, ParsedEntry>>((acc, entry) => {
-			const value: ParsedEntry = {
-				flags: new BanwordFlags(BigInt(entry.flags)).toArray(),
-			};
+			const value: ParsedEntry = { flags: new BanwordFlags(BigInt(entry.flags)).toArray() };
 
 			if (entry.duration !== null) {
 				value.muteduration = ms(Number(entry.duration), true);
@@ -48,7 +45,10 @@ export default class implements Command {
 			return acc;
 		}, {});
 
-		return yaml.dump(data, { sortKeys: true, schema: yaml.JSON_SCHEMA });
+		return yaml.dump(data, {
+			sortKeys: true,
+			schema: yaml.JSON_SCHEMA,
+		});
 	}
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof BanwordCommand>) {
@@ -90,7 +90,7 @@ export default class implements Command {
 					flags.push('kick');
 				}
 
-				const url = args.add.entry.match(/([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm)?.[0];
+				const url = args.add.entry.match(/([^\s./]+\.)+(?<tld>[^\s./]+)(?<url>\/\S*)?/gm)?.[0];
 
 				const bannedWord: BannedWord = {
 					guildId: interaction.guild_id,
@@ -116,7 +116,10 @@ export default class implements Command {
 					create: bannedWord,
 					update: bannedWord,
 					where: {
-						guildId_word: { guildId: bannedWord.guildId, word: bannedWord.word },
+						guildId_word: {
+							guildId: bannedWord.guildId,
+							word: bannedWord.word,
+						},
 					},
 				});
 
@@ -141,11 +144,16 @@ export default class implements Command {
 			}
 
 			case 'remove': {
-				const url = args.remove.entry.match(/([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm)?.[0];
+				const url = args.remove.entry.match(/([^\s./]+\.)+(?<tld>[^\s./]+)(?<url>\/\S*)?/gm)?.[0];
 
 				try {
 					const deleted = await this.prisma.bannedWord.delete({
-						where: { guildId_word: { guildId: interaction.guild_id, word: (url ?? args.remove.entry).toLowerCase() } },
+						where: {
+							guildId_word: {
+								guildId: interaction.guild_id,
+								word: (url ?? args.remove.entry).toLowerCase(),
+							},
+						},
 					});
 
 					this.guildLogs.publish({
@@ -180,7 +188,12 @@ export default class implements Command {
 
 				return send(interaction, {
 					content: "Here's your list",
-					files: [{ name: 'bannedwords.yml', data: Buffer.from(this._entriesToYaml(list)) }],
+					files: [
+						{
+							name: 'bannedwords.yml',
+							data: Buffer.from(this._entriesToYaml(list)),
+						},
+					],
 				});
 			}
 
@@ -189,12 +202,15 @@ export default class implements Command {
 
 				let parsed;
 				try {
-					parsed = yaml.load(text, { schema: yaml.JSON_SCHEMA, json: true }) as Record<string, ParsedEntry> | null;
+					parsed = yaml.load(text, {
+						schema: yaml.JSON_SCHEMA,
+						json: true,
+					}) as Record<string, ParsedEntry> | null;
 				} catch (error) {
 					this.logger.error({ error });
 					throw new ControlFlowError(
 						`You have a syntax error in your YML file - are you sure you didn't send something else?\n\`${
-							(error as Error).message
+							error as Error.message
 						}\``,
 					);
 				}
@@ -210,7 +226,7 @@ export default class implements Command {
 					try {
 						bitfield = new BanwordFlags(value.flags);
 					} catch (error) {
-						throw new ControlFlowError(`You provided an invalid flag for \`${word}\`\n${(error as Error).message}`);
+						throw new ControlFlowError(`You provided an invalid flag for \`${word}\`\n${error as Error.message}`);
 					}
 
 					const entry: BannedWord = {
@@ -302,7 +318,10 @@ export default class implements Command {
 					data: Buffer.from(this._entriesToYaml(newEntries)),
 				});
 
-				return send(interaction, { content: 'Successfully updated your list in bulk', files });
+				return send(interaction, {
+					content: 'Successfully updated your list in bulk',
+					files,
+				});
 			}
 		}
 	}

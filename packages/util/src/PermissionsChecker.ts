@@ -4,11 +4,11 @@ import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import type { APIInteractionGuildMember, RESTGetAPIGuildResult, Snowflake } from 'discord-api-types/v9';
 import { Routes } from 'discord-api-types/v9';
-// @ts-expect-error needed for injection
-// eslint-disable-next-line n/no-extraneous-import
-import { Logger } from 'pino';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 
+// eslint-disable-next-line no-shadow
 export enum UserPerms {
 	none,
 	mod,
@@ -31,11 +31,13 @@ export class PermissionsChecker {
 	) {}
 
 	public async checkMod(data: PermissionsCheckerData, modRoles?: Set<Snowflake> | null): Promise<boolean> {
-		modRoles ??= new Set(
-			(await this.prisma.modRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+		const roles = (await this.prisma.modRole.findMany({ where: { guildId: data.guild_id } })).map(
+			(role) => role.roleId,
 		);
 
-		return data.member.roles.some((r) => modRoles?.has(r));
+		modRoles ??= new Set(roles);
+
+		return data.member.roles.some((role) => modRoles?.has(role));
 	}
 
 	public async checkAdmin(data: PermissionsCheckerData, adminRoles?: Set<Snowflake> | null): Promise<boolean> {
@@ -43,11 +45,13 @@ export class PermissionsChecker {
 			return true;
 		}
 
-		adminRoles ??= new Set(
-			(await this.prisma.adminRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+		const roles = (await this.prisma.adminRole.findMany({ where: { guildId: data.guild_id } })).map(
+			(role) => role.roleId,
 		);
 
-		return data.member.roles.some((r) => adminRoles?.has(r));
+		adminRoles ??= new Set(roles);
+
+		return data.member.roles.some((role) => adminRoles?.has(role));
 	}
 
 	public async checkOwner(data: PermissionsCheckerData, ownerId?: Snowflake | null): Promise<boolean> {
@@ -79,11 +83,11 @@ export class PermissionsChecker {
 		}
 
 		modRoles ??= new Set(
-			(await this.prisma.modRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+			(await this.prisma.modRole.findMany({ where: { guildId: data.guild_id } })).map((role) => role.roleId),
 		);
 
 		adminRoles ??= new Set(
-			(await this.prisma.adminRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+			(await this.prisma.adminRole.findMany({ where: { guildId: data.guild_id } })).map((role) => role.roleId),
 		);
 
 		switch (perm) {
@@ -107,6 +111,9 @@ export class PermissionsChecker {
 			case UserPerms.owner: {
 				return this.checkOwner(data, ownerId);
 			}
+
+			default:
+				return false;
 		}
 	}
 }

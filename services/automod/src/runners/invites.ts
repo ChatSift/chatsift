@@ -9,9 +9,8 @@ import { PrismaClient } from '@prisma/client';
 import type { APIMessage, APIInvite, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
 import { Routes } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
-// @ts-expect-error needed for injection
-// eslint-disable-next-line n/no-extraneous-import
-import { Logger } from 'pino';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 
@@ -25,7 +24,8 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 	public readonly ignore = 'invites';
 
 	public readonly inviteRegex =
-		/(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})/gi;
+		// eslint-disable-next-line unicorn/no-unsafe-regex
+		/(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w-]{2,})/gi;
 
 	public readonly invitesWorkerDomain = 'https://invite-lookup.chatsift.workers.dev' as const;
 
@@ -106,6 +106,9 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 	}
 
 	public log({ codes }: InvitesTransform): InvitesRunnerResult {
-		return { runner: Runners.invites, data: codes };
+		return {
+			runner: Runners.invites,
+			data: codes,
+		};
 	}
 }

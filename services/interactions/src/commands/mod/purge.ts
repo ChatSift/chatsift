@@ -27,7 +27,10 @@ export default class implements Command {
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof PurgeCommand>) {
 		if (!Object.keys(args).length) {
-			return send(interaction, { content: 'Please provide at least one argument', flags: 64 });
+			return send(interaction, {
+				content: 'Please provide at least one argument',
+				flags: 64,
+			});
 		}
 
 		await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
@@ -63,9 +66,7 @@ export default class implements Command {
 			(await this.messagesCache.getChannelMessages(channelId)) ?? new Map<string, APIMessage>();
 
 		const messages = (await this.rest.get(Routes.channelMessages(channelId), {
-			query: new URLSearchParams({
-				limit: '100',
-			}),
+			query: new URLSearchParams({ limit: '100' }),
 		})) as RESTGetAPIChannelMessagesResult;
 
 		for (const message of messages) {
@@ -85,7 +86,7 @@ export default class implements Command {
 				const { createdTimestamp } = getCreationData(message.id);
 
 				// Discord won't purge messages older than 2 weeks regardless
-				const TWO_WEEKS = 12096e5;
+				const TWO_WEEKS = 12_096e5;
 				const ONE_DAY = 864e5;
 				if (Date.now() - createdTimestamp > (args.bots ? ONE_DAY : TWO_WEEKS)) {
 					return false;
@@ -125,7 +126,7 @@ export default class implements Command {
 							return true;
 						}
 
-						return !!message.attachments.find((a) => a.url.endsWith(`.${ext}`));
+						return Boolean(message.attachments.find((a) => a.url.endsWith(`.${ext}`)));
 					};
 
 					const gifExt = ['gif', 'apng'];
@@ -194,18 +195,12 @@ export default class implements Command {
 			}/${loops}`;
 
 			if (messages.length === 1) {
-				promises.push(
-					this.rest.delete(Routes.channelMessage(channelId, messages[0]!), {
-						reason,
-					}),
-				);
+				promises.push(this.rest.delete(Routes.channelMessage(channelId, messages[0]!), { reason }));
 
 				continue;
 			}
 
-			const body: RESTPostAPIChannelMessagesBulkDeleteJSONBody = {
-				messages,
-			};
+			const body: RESTPostAPIChannelMessagesBulkDeleteJSONBody = { messages };
 			promises.push(
 				this.rest.post(Routes.channelBulkDelete(channelId), {
 					body,

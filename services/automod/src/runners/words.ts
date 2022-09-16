@@ -11,9 +11,8 @@ import { PrismaClient, CaseAction } from '@prisma/client';
 import type { APIUser, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
 import { Routes } from 'discord-api-types/v9';
 import latinize from 'latinize';
-// @ts-expect-error needed for injection
-// eslint-disable-next-line n/no-extraneous-import
-import { Logger } from 'pino';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type { Logger } from 'pino';
 import removeAccents from 'remove-accents';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
@@ -120,8 +119,8 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		};
 
 		if (punishments.report) {
-			const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id! } });
-			if (settings?.reportsChannel) {
+			const settingsForReport = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id! } });
+			if (settingsForReport?.reportsChannel) {
 				await this.reports.reportMessage(
 					message,
 					(await this.rest.get(Routes.user(this.config.discordClientId))) as APIUser,
@@ -163,9 +162,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		}
 
 		try {
-			await this.rest.delete(Routes.channelMessage(message.channel_id, message.id), {
-				reason: 'Words filter trigger',
-			});
+			await this.rest.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Words filter trigger' });
 			if (!applied.length) {
 				await dmUser(message.author.id, `You message was deleted for containing the following word: ${words[0]!.word}`);
 				return;
@@ -185,7 +182,10 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 			runner: Runners.words,
 			data: words
 				.filter(({ flags }) => !(flags.has('report') && flags.toArray().length === 1))
-				.map(({ flags, ...word }) => ({ flags: flags.valueOf(), ...word })),
+				.map(({ flags, ...word }) => ({
+					flags: flags.valueOf(),
+					...word,
+				})),
 		};
 	}
 }

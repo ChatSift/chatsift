@@ -30,8 +30,7 @@ import type {
 } from 'discord-api-types/v9';
 import { AuditLogEvent, GatewayDispatchEvents, Routes } from 'discord-api-types/v9';
 import latinize from 'latinize';
-// @ts-expect-error needed for injection
-// eslint-disable-next-line n/no-extraneous-import
+// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
 import { Logger } from 'pino';
 import removeAccents from 'remove-accents';
 import { inject, singleton } from 'tsyringe';

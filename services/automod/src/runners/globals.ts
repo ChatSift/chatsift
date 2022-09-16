@@ -53,6 +53,7 @@ export class GlobalsRunner
 		}
 
 		const res = await fetch(this.fishUrl).catch(() => null);
+		// eslint-disable-next-line no-extra-parens, promise/prefer-await-to-then
 		const domains = await (res?.json() as Promise<string[]>).catch(() => null);
 
 		if (!domains) {
@@ -95,9 +96,9 @@ export class GlobalsRunner
 		}
 
 		const isForbiddenByFish = await Promise.all(urls.map(async (url) => this.isForbiddenByFish(url)));
-		for (let i = 0; i < urls.length; i++) {
-			if (isForbiddenByFish[i]) {
-				hits.set(urls[i]!, { url: urls[i]! });
+		for (const [index, url] of urls.entries()) {
+			if (isForbiddenByFish[index]) {
+				hits.set(url!, { url: url! });
 			}
 		}
 
@@ -116,6 +117,9 @@ export class GlobalsRunner
 	}
 
 	public log(urls: (MaliciousUrl | { url: string })[]): GlobalsRunnerResult {
-		return { runner: Runners.globals, data: urls };
+		return {
+			runner: Runners.globals,
+			data: urls,
+		};
 	}
 }

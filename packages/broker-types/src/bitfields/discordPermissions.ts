@@ -47,7 +47,7 @@ const initialPermissions = BitField.makeFlags([
 
 const PERMISSIONS: typeof initialPermissions & { all: bigint } = {
 	...initialPermissions,
-	all: Object.values(initialPermissions).reduce((acc, p) => acc | p, 0n),
+	all: Object.values(initialPermissions).reduce((acc, perm) => acc | perm, 0n),
 };
 
 export type DiscordPermissionsResolvable = BitFieldResolvable<keyof typeof PERMISSIONS>;

@@ -1,3 +1,6 @@
+import { Buffer } from 'node:buffer';
+import { setTimeout, clearTimeout, setInterval, clearInterval } from 'node:timers';
+import { URLSearchParams } from 'node:url';
 import type { DiscordEvents } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
 import { CaseManager } from '@automoderator/util';
@@ -7,8 +10,8 @@ import type { RawFile } from '@discordjs/rest';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { CaseAction } from '@prisma/client';
-import type { APIMessageComponentInteraction } from 'discord-api-types/v9';
 import type {
+	APIMessageComponentInteraction,
 	APIGuild,
 	APIGuildInteraction,
 	APIGuildMember,
@@ -25,8 +28,7 @@ import {
 	Routes,
 } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
-// @ts-expect-error needed for injection
-// eslint-disable-next-line n/no-extraneous-import
+// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
 import { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
@@ -34,9 +36,6 @@ import { Handler, CollectorTimeoutError } from '../../handler';
 import type { RaidCleanupCommand } from '#interactions';
 import type { ArgumentsOf } from '#util';
 import { ControlFlowError, kGatewayBroadcasts, send } from '#util';
-import { Buffer } from 'node:buffer';
-import { setTimeout, clearTimeout, setInterval, clearInterval } from 'node:timers';
-import { URLSearchParams } from 'node:url';
 
 type RaidCleanupMember = {
 	id: Snowflake;
@@ -179,7 +178,10 @@ export default class implements Command {
 			}
 
 			if (meetsJoinCriteria && meetsAgeCriteria && meetsNameCriteria && meetsHashCriteria) {
-				acc.push({ id: member.user!.id, tag: `${member.user!.username}#${member.user!.discriminator}` });
+				acc.push({
+					id: member.user!.id,
+					tag: `${member.user!.username}#${member.user!.discriminator}`,
+				});
 			}
 
 			return acc;
@@ -233,7 +235,7 @@ export default class implements Command {
 		try {
 			const done = await this.handler.collectorManager
 				.makeCollector<APIMessageComponentInteraction>(confirmId)
-				.waitForOneAndDestroy(30000);
+				.waitForOneAndDestroy(30_000);
 
 			const [, action] = done.data.custom_id.split('|') as [string, string];
 			if (action === 'n') {

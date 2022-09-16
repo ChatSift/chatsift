@@ -10,8 +10,7 @@ import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import type { GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
 import { Routes } from 'discord-api-types/v9';
-// @ts-expect-error needed for injection
-// eslint-disable-next-line n/no-extraneous-import
+// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
 import { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
@@ -25,7 +24,8 @@ type UrlsTransform = {
 export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRunnerResult> {
 	public readonly ignore = 'urls';
 
-	public readonly urlRegex = /https?:\/\/(?<url>([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<path>\/[^\s]*)?)/gm;
+	// eslint-disable-next-line unicorn/no-unsafe-regex
+	public readonly urlRegex = /https?:\/\/(?<url>(?:[^\s./]+\.)+(?<tld>[^\s./]+)(?<path>\/\S*)?)/gm;
 
 	public readonly tlds: Set<string>;
 
@@ -60,6 +60,7 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 	}
 
 	private cleanDomain(url: string) {
+		// eslint-disable-next-line no-param-reassign
 		url = url.replace(/https?:\/\//g, '');
 
 		if (url.includes('/')) {
@@ -105,7 +106,10 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 			return null;
 		}
 
-		return { use, urls: forbidden };
+		return {
+			use,
+			urls: forbidden,
+		};
 	}
 
 	public async cleanup(_: UrlsTransform, message: GatewayMessageCreateDispatchData): Promise<void> {
@@ -116,6 +120,9 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 	}
 
 	public log({ urls }: UrlsTransform): UrlsRunnerResult {
-		return { runner: Runners.urls, data: urls };
+		return {
+			runner: Runners.urls,
+			data: urls,
+		};
 	}
 }

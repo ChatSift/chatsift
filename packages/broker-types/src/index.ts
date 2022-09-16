@@ -1,4 +1,5 @@
-import type { BannedWord, Case, MaliciousFile, MaliciousUrl } from '@prisma/client';
+/* eslint-disable no-shadow */
+import type { BannedWord, Case, MaliciousFile, MaliciousUrl } from "@prisma/client";
 import type {
 	APIMessage,
 	APIUser,
@@ -6,7 +7,7 @@ import type {
 	GatewayDispatchPayload,
 	GatewayMessageCreateDispatchData,
 	Snowflake,
-} from 'discord-api-types/v9';
+} from "discord-api-types/v9";
 
 type SanitizedDiscordEvents = {
 	[K in GatewayDispatchEvents]: GatewayDispatchPayload & {
@@ -16,7 +17,7 @@ type SanitizedDiscordEvents = {
 
 export type DiscordEvents = {
 	// @ts-expect-error cause it errors when I don't want it to, why else?
-	[K in keyof SanitizedDiscordEvents]: SanitizedDiscordEvents[K]['d'];
+	[K in keyof SanitizedDiscordEvents]: SanitizedDiscordEvents[K]["d"];
 };
 
 export enum LogTypes {
@@ -66,17 +67,17 @@ export type MentionsRunnerResult = BaseRunnerResult<
 			amount: number;
 			messages: APIMessage[];
 			time: number;
-	  }
+	}
 	| {
 			limit: number;
-	  }
+	}
 >;
 
-export type PredictionType = 'drawing' | 'hentai' | 'neutral' | 'porn' | 'sexy';
+export type PredictionType = "drawing" | "hentai" | "neutral" | "porn" | "sexy";
 
 export type NsfwApiData = {
 	predictions: {
-		className: 'Drawing' | 'Hentai' | 'Neutral' | 'Porn' | 'Sexy';
+		className: "Drawing" | "Hentai" | "Neutral" | "Porn" | "Sexy";
 		probability: number;
 	}[];
 	thumbnail_url: string;
@@ -86,7 +87,7 @@ export type NsfwApiData = {
 export type NsfwRunnerResult = BaseRunnerResult<
 	Runners.nsfw,
 	{
-		crossed: Exclude<PredictionType, 'drawing' | 'neutral'>[];
+		crossed: Exclude<PredictionType, "drawing" | "neutral">[];
 		predictions: Record<PredictionType, number>;
 		thresholds: {
 			hentai?: number | null;
@@ -156,7 +157,7 @@ type _GroupedServerLogs = {
 
 export type GroupedServerLogs = {
 	// @ts-expect-error cause it errors when I don't want it to, why else?
-	[K in ServerLogType]: _GroupedServerLogs[K]['data'][];
+	[K in ServerLogType]: _GroupedServerLogs[K]["data"][];
 };
 
 export type ServerLogData = {
@@ -181,4 +182,4 @@ export type ForbiddenNameLog = LogBase<
 
 export type Log = FilterTriggerLog | ForbiddenNameLog | ModActionLog | ServerLog;
 
-export * from './bitfields';
+export * from "./bitfields";
