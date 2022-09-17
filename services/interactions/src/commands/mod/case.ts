@@ -99,7 +99,7 @@ export default class implements Command {
 				try {
 					const confirmation = await this.handler.collectorManager
 						.makeCollector<APIMessageComponentInteraction>(confirmId)
-						.waitForOneAndDestroy(30000);
+						.waitForOneAndDestroy(30_000);
 
 					const [, action] = confirmation.data.custom_id.split('|') as [string, string];
 					if (action === 'cancel') {

@@ -1,4 +1,6 @@
-/* eslint-disable n/no-extraneous-import */
+/* eslint-disable id-length */
+/* eslint-disable eqeqeq */
+import { URLSearchParams } from 'node:url';
 import type { DiscordEvents, Log, ServerLogs } from '@automoderator/broker-types';
 import { LogTypes, ServerLogType, DiscordPermissions, BanwordFlags } from '@automoderator/broker-types';
 import type { CachedGuildMember } from '@automoderator/cache';
@@ -30,8 +32,8 @@ import type {
 } from 'discord-api-types/v9';
 import { AuditLogEvent, GatewayDispatchEvents, Routes } from 'discord-api-types/v9';
 import latinize from 'latinize';
-// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
-import { Logger } from 'pino';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type { Logger } from 'pino';
 import removeAccents from 'remove-accents';
 import { inject, singleton } from 'tsyringe';
 
@@ -56,12 +58,15 @@ export class Gateway {
 		channelId: Snowflake,
 	): Promise<[channelId: Snowflake, parentId: Snowflake | null]> {
 		const channelList = (await this.rest.get(Routes.guildChannels(guildId))) as APIChannel[];
-		let channel = channelList.find((c) => c.id === channelId) as APITextChannel | APIThreadChannel | undefined;
+		let channel = channelList.find((channel) => channel.id === channelId) as
+			| APITextChannel
+			| APIThreadChannel
+			| undefined;
 
 		// Thread channel
 		if (!channel) {
 			const thread = (await this.rest.get(Routes.channel(channelId))) as APIThreadChannel;
-			channel = channelList.find((c) => c.id === thread.parent_id) as APIThreadChannel;
+			channel = channelList.find((channel) => channel.id === thread.parent_id) as APIThreadChannel;
 		}
 
 		return [channel.id, channel.parent_id ?? null];
@@ -607,6 +612,7 @@ export class Gateway {
 					void this.guildMembersCache
 						// @ts-expect-error - Common discord-api-types missmatch
 						.add(n)
+						// eslint-disable-next-line promise/prefer-await-to-then, promise/prefer-await-to-callbacks
 						.catch((error: unknown) =>
 							this.logger.warn({ error, guild: data.guild_id }, 'Failed to update message cache'),
 						);
@@ -627,6 +633,7 @@ export class Gateway {
 
 				if (cachedOld) {
 					const n = { ...cachedOld, ...data };
+					// eslint-disable-next-line promise/prefer-await-to-then, promise/prefer-await-to-callbacks
 					void this.messageCache.add(n).catch((error) => this.logger.warn(error, 'Failed to update message cache'));
 					return this.handleMessageUpdate(cachedOld, n);
 				}

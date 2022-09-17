@@ -1,3 +1,4 @@
+import { URLSearchParams } from 'node:url';
 import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
 import { getCreationData } from '@cordis/util';
@@ -44,14 +45,14 @@ export default class implements Command {
 			channelId = args.channel.id;
 		}
 
-		if (args.amount == null) {
+		if (args.amount === null) {
 			args.amount = 100;
 		} else {
-			if (args.amount < 1) {
+			if (args.amount! < 1) {
 				throw new ControlFlowError('Please provide an amount equal or greater than 1');
 			}
 
-			if (args.amount > 500) {
+			if (args.amount! > 500) {
 				args.amount = 500;
 			}
 		}
@@ -121,12 +122,13 @@ export default class implements Command {
 
 				if (args.media) {
 					const checkForExtension = (ext: string): boolean => {
-						const expr = new RegExp(`https?:\/\/\\S+\.${ext}`, 'i');
+						// eslint-disable-next-line no-useless-escape
+						const expr = new RegExp(`https?://\\S+\.${ext}`, 'i');
 						if (expr.test(message.content)) {
 							return true;
 						}
 
-						return Boolean(message.attachments.find((a) => a.url.endsWith(`.${ext}`)));
+						return Boolean(message.attachments.some((a) => a.url.endsWith(`.${ext}`)));
 					};
 
 					const gifExt = ['gif', 'apng'];
@@ -141,23 +143,24 @@ export default class implements Command {
 						}
 
 						case 'gifs': {
-							found = gifExt.some((e) => checkForExtension(e));
+							found = gifExt.some((ext) => checkForExtension(ext));
 							break;
 						}
 
 						case 'images': {
-							found = imageExt.some((e) => checkForExtension(e));
+							found = imageExt.some((ext) => checkForExtension(ext));
 							break;
 						}
 
 						case 'videos': {
-							found = videoExt.some((e) => checkForExtension(e));
+							found = videoExt.some((ext) => checkForExtension(ext));
 							break;
 						}
 
 						case 'all': {
 							found =
-								[...gifExt, ...imageExt, ...videoExt].some((e) => checkForExtension(e)) || message.embeds.length > 0;
+								[...gifExt, ...imageExt, ...videoExt].some((ext) => checkForExtension(ext)) ||
+								message.embeds.length > 0;
 							break;
 						}
 					}
@@ -177,12 +180,14 @@ export default class implements Command {
 			});
 		}
 
-		const loops = Math.ceil(Math.min(args.amount, toPurge.length) / 100);
+		const loops = Math.ceil(Math.min(args.amount!, toPurge.length) / 100);
 		const promises: Promise<unknown>[] = [];
 		const amounts: number[] = [];
 
-		for (let i = 0; i < loops; i++) {
-			const messages = toPurge.slice(i * 100, args.amount > 100 ? 100 + i * 100 : args.amount).map((m) => m.id);
+		for (let chunk = 0; chunk < loops; chunk++) {
+			const messages = toPurge
+				.slice(chunk * 100, args.amount! > 100 ? 100 + chunk * 100 : args.amount)
+				.map((msg) => msg.id);
 
 			for (const message of messages) {
 				void this.messagesCache.delete(message);
@@ -191,7 +196,7 @@ export default class implements Command {
 			amounts.push(messages.length);
 
 			const reason = `Purge by ${interaction.member.user.username}#${interaction.member.user.id} | Cycle ${
-				i + 1
+				chunk + 1
 			}/${loops}`;
 
 			if (messages.length === 1) {
@@ -209,17 +214,17 @@ export default class implements Command {
 			);
 		}
 
-		let i = 0;
+		let bulkIndex = 0;
 		let purged = 0;
 
 		for (const promise of await Promise.allSettled(promises)) {
 			if (promise.status === 'fulfilled') {
-				purged += amounts[i++]!;
+				purged += amounts[bulkIndex++]!;
 				continue;
 			}
 
 			// Make sure to increment i regardless
-			i++;
+			bulkIndex++;
 
 			if (promise.reason instanceof DiscordAPIError) {
 				if (promise.reason.status === 403) {

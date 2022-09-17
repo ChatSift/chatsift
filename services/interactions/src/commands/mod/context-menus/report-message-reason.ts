@@ -139,7 +139,7 @@ export default class implements Command {
 					}
 
 					stop();
-					const idx = parseInt(selected.data.values[0]!, 10);
+					const idx = Number.parseInt(selected.data.values[0]!, 10);
 					const { reason } = presetReportReasons[idx]!;
 
 					await this.reports.reportMessage(

@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { createServer } from 'node:http';
+import { URL } from 'node:url';
 import { initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import {
@@ -10,7 +11,6 @@ import {
 import type { RouteLike } from '@discordjs/rest';
 import { DiscordAPIError, HTTPError, parseResponse, RateLimitError, RequestMethod, REST } from '@discordjs/rest';
 import { cache, fetchCache } from './cache';
-import { URL } from 'node:url';
 
 const config = initConfig();
 const rest = new REST({ rejectOnRateLimit: () => true, retries: 0 }).setToken(config.discordToken);
@@ -73,4 +73,4 @@ const server = createServer(async (req, res) => {
 	}
 });
 
-server.listen(3003, () => logger.info('Listening for requests on port 3003'));
+server.listen(3_003, () => logger.info('Listening for requests on port 3003'));

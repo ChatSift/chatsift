@@ -10,7 +10,6 @@ import type {
 import { RouteBases, ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';
 import { singleton } from 'tsyringe';
 
-// eslint-disable-next-line no-shadow
 export const enum ReportFailureReason {
 	alreadyReported = 'You have already reported this message.',
 	previouslyAck = 'This message has been reported previously and has since been acknowledged by the staff team.',

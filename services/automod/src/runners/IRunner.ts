@@ -1,5 +1,5 @@
-import type { RunnerResult, FilterIgnoresResolvable } from "@automoderator/broker-types";
-import type { APIMessage } from "discord-api-types/v9";
+import type { RunnerResult, FilterIgnoresResolvable } from '@automoderator/broker-types';
+import type { APIMessage } from 'discord-api-types/v9';
 
 type MaybePromise<T> = Promise<T> | T;
 

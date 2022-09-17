@@ -1,6 +1,6 @@
 {
 	"root": true,
-	"extends": ["neon/node", "neon/typescript", "neon/prettier", "neon/module", "neon/common"],
+	"extends": ["neon/common", "neon/node", "neon/typescript", "neon/prettier", "neon/module"],
 	"parserOptions": {
 		"project": "./tsconfig.eslint.json"
 	},

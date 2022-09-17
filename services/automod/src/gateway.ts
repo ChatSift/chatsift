@@ -1,12 +1,12 @@
-import type { DiscordEvents, Log, RunnerResult } from "@automoderator/broker-types";
-import { LogTypes, FilterIgnores, DiscordPermissions } from "@automoderator/broker-types";
-import { MessageCache } from "@automoderator/cache";
-import { Config, kConfig, kLogger } from "@automoderator/injection";
-import type { PermissionsCheckerData } from "@automoderator/util";
-import { PermissionsChecker, UserPerms } from "@automoderator/util";
-import { PubSubPublisher, RoutingSubscriber } from "@cordis/brokers";
-import { REST } from "@discordjs/rest";
-import { PrismaClient } from "@prisma/client";
+import type { DiscordEvents, Log, RunnerResult } from '@automoderator/broker-types';
+import { LogTypes, FilterIgnores, DiscordPermissions } from '@automoderator/broker-types';
+import { MessageCache } from '@automoderator/cache';
+import { Config, kConfig, kLogger } from '@automoderator/injection';
+import type { PermissionsCheckerData } from '@automoderator/util';
+import { PermissionsChecker, UserPerms } from '@automoderator/util';
+import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
+import { REST } from '@discordjs/rest';
+import { PrismaClient } from '@prisma/client';
 import type {
 	APIGuild,
 	APIMessage,
@@ -14,13 +14,13 @@ import type {
 	RESTGetAPIGuildRolesResult,
 	APITextChannel,
 	GatewayMessageCreateDispatchData,
-} from "discord-api-types/v9";
-import { GatewayDispatchEvents, ChannelType, Routes } from "discord-api-types/v9";
+} from 'discord-api-types/v9';
+import { GatewayDispatchEvents, ChannelType, Routes } from 'discord-api-types/v9';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import type { Logger } from "pino";
-import { container, inject, singleton } from "tsyringe";
-import * as rawRunners from "./runners";
-import type { IRunner } from "./runners";
+import type { Logger } from 'pino';
+import { container, inject, singleton } from 'tsyringe';
+import * as rawRunners from './runners';
+import type { IRunner } from './runners';
 
 @singleton()
 export class Gateway {
@@ -39,7 +39,7 @@ export class Gateway {
 	) {}
 
 	private async onMessage(message: GatewayMessageCreateDispatchData) {
-		message.content ??= "";
+		message.content ??= '';
 		if (!message.guild_id || message.author.bot || !message.member || message.webhook_id) {
 			return;
 		}
@@ -52,7 +52,7 @@ export class Gateway {
 			},
 		});
 
-		if (this.config.nodeEnv === "prod") {
+		if (this.config.nodeEnv === 'prod') {
 			const { member, author } = message;
 
 			if (this.config.devIds.includes(author.id)) {
@@ -101,7 +101,7 @@ export class Gateway {
 		const channels = new Map(rawChannels.map((channel) => [channel.id, channel]));
 
 		const channel = (channels.get(message.channel_id) ??
-			await this.rest.get(Routes.channel(message.channel_id)).catch(() => null)) as APITextChannel | null;
+			(await this.rest.get(Routes.channel(message.channel_id)).catch(() => null))) as APITextChannel | null;
 
 		if (!channel) {
 			this.logger.warn("Couldn't resolve channel");
@@ -124,8 +124,8 @@ export class Gateway {
 		const promises = this.runners
 			.filter((runner) => !runner.ignore || !ignores.has(runner.ignore))
 			.map(async (runner) => {
-				const data = await runner.transform?.(message) ?? message;
-				const check = await runner.check?.(data, message) ?? true;
+				const data = (await runner.transform?.(message)) ?? message;
+				const check = (await runner.check?.(data, message)) ?? true;
 
 				if (!check) {
 					return null;
@@ -142,12 +142,12 @@ export class Gateway {
 			});
 
 		const logs = (await Promise.allSettled(promises)).reduce<RunnerResult[]>((acc, promise) => {
-			if (promise.status === "fulfilled") {
+			if (promise.status === 'fulfilled') {
 				if (promise.value) {
 					acc.push(promise.value);
 				}
 			} else {
-				this.logger.error(promise.reason, "Failed to run a runner");
+				this.logger.error(promise.reason, 'Failed to run a runner');
 			}
 
 			return acc;
@@ -177,9 +177,9 @@ export class Gateway {
 					return;
 				}
 
-				const fullMessage = await 
+				const fullMessage = await (
 					this.rest.get(Routes.channelMessage(message.channel_id, message.id)) as Promise<APIMessage>
-				
+				)
 					.then((message) => {
 						void this.messagesCache.add(message);
 						return message;
@@ -192,9 +192,9 @@ export class Gateway {
 			});
 
 		await this.gateway.init({
-			name: "gateway",
+			name: 'gateway',
 			keys: [GatewayDispatchEvents.MessageCreate, GatewayDispatchEvents.MessageUpdate],
-			queue: "automod",
+			queue: 'automod',
 		});
 	}
 }

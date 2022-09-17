@@ -61,9 +61,9 @@ export default class implements Command {
 			case 'list': {
 				const punishmentsData = await this.prisma.warnPunishment.findMany({ where: { guildId: interaction.guild_id } });
 				const punishments = punishmentsData.map(
-					(p) =>
-						`• At ${p.warns} warns, a ${p.actionType} will be triggered${
-							p.duration ? ` which will last ${ms(Number(p.duration), true)}` : ''
+					(punishment) =>
+						`• At ${punishment.warns} warns, a ${punishment.actionType} will be triggered${
+							punishment.duration ? ` which will last ${ms(Number(punishment.duration), true)}` : ''
 						}`,
 				);
 

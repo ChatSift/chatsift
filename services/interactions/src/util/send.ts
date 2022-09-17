@@ -1,3 +1,4 @@
+import { setTimeout } from 'node:timers';
 import type { Config } from '@automoderator/injection';
 import { kConfig } from '@automoderator/injection';
 import type { RawFile } from '@discordjs/rest';
@@ -9,7 +10,6 @@ import type {
 } from 'discord-api-types/v9';
 import { InteractionResponseType, Routes } from 'discord-api-types/v9';
 import { container } from 'tsyringe';
-import { setTimeout } from 'node:timers';
 
 export type SendOptions = {
 	type?: InteractionResponseType;
@@ -36,12 +36,12 @@ export const send = async (
 
 	if ('token' in message) {
 		// eslint-disable-next-line deprecation/deprecation
-		const { embeds, embed, files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: RawFile[] };
-		const response = { ...r, embeds: embeds ?? (embed ? [embed] : undefined) };
+		const { embeds, embed, files, ...other } = payload as RESTPostAPIChannelMessageJSONBody & { files?: RawFile[] };
+		const response = { ...other, embeds: embeds ?? (embed ? [embed] : undefined) };
 
 		if (followup) {
-			const { files, ...r } = payload;
-			return rest.post(Routes.webhook(discordClientId, message.token), { body: r, files });
+			const { files, ...other } = payload;
+			return rest.post(Routes.webhook(discordClientId, message.token), { body: other, files });
 		}
 
 		if (REPLIED.has(message.token)) {
@@ -67,10 +67,10 @@ export const send = async (
 		}
 	}
 
-	const { files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: RawFile[] };
+	const { files, ...other } = payload as RESTPostAPIChannelMessageJSONBody & { files?: RawFile[] };
 
 	return rest.post(Routes.channelMessages(message.channel_id), {
-		body: r,
+		body: other,
 		files,
 	});
 };

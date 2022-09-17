@@ -8,7 +8,6 @@ import { Routes } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 
-// eslint-disable-next-line no-shadow
 export enum UserPerms {
 	none,
 	mod,

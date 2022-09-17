@@ -1,15 +1,15 @@
-import { join } from "node:path";
-import process from "node:process";
-import type { Config } from "@automoderator/injection";
-import { kConfig } from "@automoderator/injection";
-import type { PinoRotateFileOptions } from "@chatsift/pino-rotate-file";
-import createLogger, { multistream, transport } from "pino";
-import type { PrettyOptions } from "pino-pretty";
-import { container } from "tsyringe";
+import { join } from 'node:path';
+import process from 'node:process';
+import type { Config } from '@automoderator/injection';
+import { kConfig } from '@automoderator/injection';
+import type { PinoRotateFileOptions } from '@chatsift/pino-rotate-file';
+import createLogger, { multistream, transport } from 'pino';
+import type { PrettyOptions } from 'pino-pretty';
+import { container } from 'tsyringe';
 
 export default (service: string) => {
 	const { nodeEnv } = container.resolve<Config>(kConfig);
-	const level = nodeEnv === "prod" ? "debug" : "trace";
+	const level = nodeEnv === 'prod' ? 'debug' : 'trace';
 
 	const pinoPrettyOptions: PrettyOptions = {
 		colorize: true,
@@ -18,7 +18,7 @@ export default (service: string) => {
 	};
 
 	const pinoRotateFileOptions: PinoRotateFileOptions = {
-		dir: join(process.cwd(), "logs", service.toLowerCase()),
+		dir: join(process.cwd(), 'logs', service.toLowerCase()),
 		mkdir: true,
 		maxAgeDays: 14,
 		prettyOptions: {
@@ -36,7 +36,7 @@ export default (service: string) => {
 			{
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 				stream: transport({
-					target: "pino-pretty",
+					target: 'pino-pretty',
 					options: pinoPrettyOptions,
 				}),
 				level,
@@ -44,7 +44,7 @@ export default (service: string) => {
 			{
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 				stream: transport({
-					target: "@chatsift/pino-rotate-file",
+					target: '@chatsift/pino-rotate-file',
 					options: pinoRotateFileOptions,
 				}),
 				level,

@@ -27,7 +27,7 @@ export const handleLockConfirmation = async (
 
 	await send(interaction, {
 		content: `This user was ${cases.formatActionName(locked.actionType)} by <@${locked.modId!}> <t:${Math.round(
-			locked.createdAt.getTime() / 1000,
+			locked.createdAt.getTime() / 1_000,
 		)}:R>, are you sure you still want to ${locked.actionType} them?`,
 		components: [
 			{
@@ -83,7 +83,7 @@ export const handleLockConfirmation = async (
 	try {
 		const confirmation = await handler.collectorManager
 			.makeCollector<APIMessageComponentInteraction>(confirmId)
-			.waitForOneAndDestroy(30000);
+			.waitForOneAndDestroy(30_000);
 
 		stop();
 		const [, action] = confirmation.data.custom_id.split('|') as [string, string];

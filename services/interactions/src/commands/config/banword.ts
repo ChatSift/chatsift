@@ -11,8 +11,8 @@ import { PrismaClient } from '@prisma/client';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import yaml from 'js-yaml';
 import fetch from 'node-fetch';
-// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
-import { Logger } from 'pino';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { BanwordCommand } from '#interactions';
@@ -90,6 +90,7 @@ export default class implements Command {
 					flags.push('kick');
 				}
 
+				// eslint-disable-next-line unicorn/no-unsafe-regex
 				const url = args.add.entry.match(/([^\s./]+\.)+(?<tld>[^\s./]+)(?<url>\/\S*)?/gm)?.[0];
 
 				const bannedWord: BannedWord = {
@@ -99,12 +100,12 @@ export default class implements Command {
 					duration: null,
 				};
 
-				if (args.add['mute-duration'] != null) {
+				if (args.add['mute-duration'] !== null) {
 					if (!args.add.mute) {
 						throw new ControlFlowError('You can only provide a mute duration for triggers that cause a mute');
 					}
 
-					const parsed = ms(args.add['mute-duration']);
+					const parsed = ms(args.add['mute-duration']!);
 					if (parsed <= 0) {
 						throw new ControlFlowError('Failed to parse mute duration');
 					}
@@ -144,6 +145,7 @@ export default class implements Command {
 			}
 
 			case 'remove': {
+				// eslint-disable-next-line unicorn/no-unsafe-regex
 				const url = args.remove.entry.match(/([^\s./]+\.)+(?<tld>[^\s./]+)(?<url>\/\S*)?/gm)?.[0];
 
 				try {
@@ -210,7 +212,7 @@ export default class implements Command {
 					this.logger.error({ error });
 					throw new ControlFlowError(
 						`You have a syntax error in your YML file - are you sure you didn't send something else?\n\`${
-							error as Error.message
+							(error as Error).message
 						}\``,
 					);
 				}
@@ -226,7 +228,7 @@ export default class implements Command {
 					try {
 						bitfield = new BanwordFlags(value.flags);
 					} catch (error) {
-						throw new ControlFlowError(`You provided an invalid flag for \`${word}\`\n${error as Error.message}`);
+						throw new ControlFlowError(`You provided an invalid flag for \`${word}\`\n${(error as Error).message}`);
 					}
 
 					const entry: BannedWord = {
@@ -236,7 +238,7 @@ export default class implements Command {
 						duration: null,
 					};
 
-					if (value.muteduration != null) {
+					if (value.muteduration !== null) {
 						if (!bitfield.has('mute')) {
 							throw new ControlFlowError(`You provided a mute time but no mute flag for word/phrase "${word}"`);
 						}

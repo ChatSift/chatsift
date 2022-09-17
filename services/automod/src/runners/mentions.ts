@@ -120,6 +120,7 @@ export class MentionsRunner
 			const message = groupedMessages[0]!;
 
 			const body: RESTPostAPIChannelMessagesBulkDeleteJSONBody = { messages: messages.map((message) => message.id) };
+			/* eslint-disable promise/prefer-await-to-then */
 			promises.push(
 				messages.length === 1
 					? this.rest
@@ -134,6 +135,7 @@ export class MentionsRunner
 							.then(async () => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
 							.catch(() => null),
 			);
+			/* eslint-enable promise/prefer-await-to-then */
 		}
 
 		await Promise.all(promises);

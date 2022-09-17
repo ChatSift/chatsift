@@ -122,8 +122,8 @@ export class Handler {
 		const promises = [];
 
 		if (this.config.nodeEnv === 'prod') {
-			const body = Object.values(interactions).map((i) => ({
-				...i,
+			const body = Object.values(interactions).map((idx) => ({
+				...idx,
 				dm_permission: false,
 			})) as RESTPutAPIApplicationCommandsJSONBody;
 			const res = (await this.rest.put(Routes.applicationCommands(this.config.discordClientId), {

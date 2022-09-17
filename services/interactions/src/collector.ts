@@ -1,5 +1,5 @@
-import type { APIMessageComponentInteraction, APIModalSubmitInteraction } from 'discord-api-types/v9';
 import { clearTimeout, setTimeout } from 'node:timers';
+import type { APIMessageComponentInteraction, APIModalSubmitInteraction } from 'discord-api-types/v9';
 
 export type CollectableInteraction = APIMessageComponentInteraction | APIModalSubmitInteraction;
 export type CollectionHook<T> = (interaction: T) => unknown;
@@ -106,8 +106,9 @@ export class Collector<T extends CollectableInteraction> {
 			this.hooks.push((interaction) => {
 				const res = fn(interaction, stop);
 				if (res instanceof Promise) {
-					res.catch((e) => {
-						reject(e);
+					// eslint-disable-next-line promise/prefer-await-to-then, promise/prefer-await-to-callbacks
+					res.catch((error) => {
+						reject(error);
 						stop();
 					});
 				}
@@ -144,6 +145,7 @@ export class CollectorManager {
 	}
 
 	public makeCollector<T extends CollectableInteraction>(ids: string[] | string): Collector<T> {
+		// eslint-disable-next-line no-param-reassign
 		ids = Array.isArray(ids) ? ids : [ids];
 		const collector = new Collector<T>(ids, this);
 		for (const id of ids) {

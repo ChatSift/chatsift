@@ -52,5 +52,5 @@ void (async () => {
 
 	logger.debug(webhookRoute.info, 'Registering Discord webhook');
 
-	app.listen(3002, () => logger.info('Listening for interactions on port 3002'));
+	app.listen(3_002, () => logger.info('Listening for interactions on port 3002'));
 })();

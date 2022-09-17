@@ -1,5 +1,6 @@
 import { chunkArray } from '@chatsift/utils';
 import { REST } from '@discordjs/rest';
+import type { SelfAssignableRole } from '@prisma/client';
 import { PrismaClient } from '@prisma/client';
 import type {
 	APIGuildInteraction,
@@ -36,6 +37,7 @@ export default class implements Component {
 		).then((roles) => roles.map((role): [string, APIRole] => [role.id, role]));
 		const roles = new Map(rolesList);
 
+		const selfAssignableRoles: Promise<SelfAssignableRole>[] = [];
 		const menuOptions = chunkArray(
 			prompt!.selfAssignableRoles.reduce<APISelectMenuOption[]>((arr, roleData) => {
 				const role = roles.get(roleData.roleId);
@@ -53,15 +55,18 @@ export default class implements Component {
 							: undefined,
 					});
 				} else {
-					void this.prisma.selfAssignableRole
-						.delete({ where: { roleId_promptId: { promptId: prompt!.promptId, roleId: roleData.roleId } } })
-						.catch(() => null);
+					selfAssignableRoles.push(
+						this.prisma.selfAssignableRole.delete({
+							where: { roleId_promptId: { promptId: prompt!.promptId, roleId: roleData.roleId } },
+						}),
+					);
 				}
 
 				return arr;
 			}, []),
 			25,
 		);
+		await Promise.allSettled(selfAssignableRoles);
 
 		if (!menuOptions.length) {
 			return send(interaction, {
@@ -72,12 +77,12 @@ export default class implements Component {
 
 		return send(interaction, {
 			content: 'Use the drop-down below to manage your roles!',
-			components: menuOptions.map((options, i) => ({
+			components: menuOptions.map((options, index) => ({
 				type: ComponentType.ActionRow,
 				components: [
 					{
 						type: ComponentType.SelectMenu,
-						custom_id: `roles-manage|${prompt!.promptId}|${i}`,
+						custom_id: `roles-manage|${prompt!.promptId}|${index}`,
 						min_values: 0,
 						max_values: options.length,
 						options,

@@ -20,7 +20,7 @@ export default class implements Command {
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof UnmuteCommand>) {
 		await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
 		const { user: member, reason = 'no reason provided' } = args;
-		if (reason && reason.length >= 1900) {
+		if (reason && reason.length >= 1_900) {
 			throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
 		}
 

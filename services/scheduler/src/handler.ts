@@ -3,8 +3,8 @@ import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { CaseManager } from '@automoderator/util';
 import ms from '@naval-base/ms';
 import { CaseAction, PrismaClient } from '@prisma/client';
-// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
-import { Logger } from 'pino';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 
 @singleton()
@@ -48,7 +48,6 @@ export class Handler {
 						},
 						where: { id: task.id },
 					});
-
 					continue;
 				}
 			}

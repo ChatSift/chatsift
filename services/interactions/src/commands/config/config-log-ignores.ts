@@ -151,26 +151,27 @@ export default class implements Command {
 
 						const messageComponent = component.message.components![0]!.components[0] as APISelectMenuComponent;
 
+						// eslint-disable-next-line unicorn/consistent-function-scoping
 						const mapFn = (option: APISelectMenuOption) => ({
 							...option,
 							default: state.channels.has(option.value),
 						});
 
 						if (rawValues.includes('prev')) {
-							const idx = rawValues.findIndex((v) => v === 'prev')!;
+							const idx = rawValues.indexOf('prev')!;
 							rawValues.splice(idx);
 							goBack = true;
 						}
 
 						if (rawValues.includes('next')) {
-							const idx = rawValues.findIndex((v) => v === 'next')!;
+							const idx = rawValues.indexOf('next')!;
 							rawValues.splice(idx);
 							goForward = true;
 						}
 
 						const values = new Set(rawValues);
 
-						for (const value of getChannelOptions(state.page).map((o) => o.value)) {
+						for (const value of getChannelOptions(state.page).map((option) => option.value)) {
 							if (values.has(value)) {
 								state.channels.add(value);
 							} else {

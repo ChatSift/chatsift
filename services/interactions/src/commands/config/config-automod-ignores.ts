@@ -249,7 +249,7 @@ export default class implements Command {
 					.makeCollector<APIMessageComponentInteraction>(ignoresId)
 					.hookAndDestroy(async (component) => {
 						const { values } = component.data as APIMessageSelectMenuInteractionData;
-						state.flags = new FilterIgnores(values.map((v) => BigInt(v)));
+						state.flags = new FilterIgnores(values.map(BigInt));
 
 						const messageComponent = component.message.components![1]!.components[0] as APISelectMenuComponent;
 						messageComponent.options = messageComponent.options.map((option) => ({

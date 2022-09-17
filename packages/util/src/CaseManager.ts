@@ -14,8 +14,10 @@ import type {
 	RESTPutAPIGuildBanJSONBody,
 } from 'discord-api-types/v9';
 import { Routes } from 'discord-api-types/v9';
-import { Redis } from 'ioredis';
-import { Logger } from 'pino';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type { Redis } from 'ioredis';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import { dmUser } from './dmUser';
 
@@ -212,7 +214,7 @@ export class CaseManager {
 				});
 				const member = (await this.rest.get(Routes.guildMember(cs.guildId, cs.targetId))) as APIGuildMember;
 				const rawRoles = (await this.rest.get(Routes.guildRoles(cs.guildId))) as APIRole[];
-				const roles = new Map(rawRoles.map((r) => [r.id, r]));
+				const roles = new Map(rawRoles.map((role) => [role.id, role]));
 
 				const muteRoles = [settings.muteRole!];
 				const unmuteRoles: string[] = [];
@@ -228,17 +230,17 @@ export class CaseManager {
 						this.logger.warn({ role }, 'Role was not found when doing GET /guilds/:id/roles while muting user');
 						muteRoles.push(role);
 					}
-
-					await prisma.unmuteRole.createMany({
-						data: unmuteRoles.map((r) => ({
-							caseId: cs.id,
-							roleId: r,
-						})),
-					});
-					const body: RESTPatchAPIGuildMemberJSONBody = { roles: muteRoles };
-
-					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), { body });
 				}
+
+				await prisma.unmuteRole.createMany({
+					data: unmuteRoles.map((role) => ({
+						caseId: cs.id,
+						roleId: role,
+					})),
+				});
+				const body: RESTPatchAPIGuildMemberJSONBody = { roles: muteRoles };
+
+				return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), { body });
 			}
 
 			case CaseAction.unmute: {
@@ -250,10 +252,12 @@ export class CaseManager {
 
 				const settings = await prisma.guildSettings.findFirst({ where: { guildId: cs.guildId } });
 				const member = (await this.rest.get(Routes.guildMember(cs.guildId, cs.targetId))) as APIGuildMember;
-				const baseRoles = member.roles.filter((r) => r !== settings?.muteRole);
+				const baseRoles = member.roles.filter((role) => role !== settings?.muteRole);
 
 				const unmuteRoles = await prisma.unmuteRole.findMany({ where: { caseId: cs.id } });
-				const body: RESTPatchAPIGuildMemberJSONBody = { roles: baseRoles.concat(unmuteRoles.map((r) => r.roleId)) };
+				const body: RESTPatchAPIGuildMemberJSONBody = {
+					roles: baseRoles.concat(unmuteRoles.map((role) => role.roleId)),
+				};
 				return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), { body });
 			}
 

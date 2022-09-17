@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import process from 'node:process';
+import { setTimeout } from 'node:timers';
 import type { DiscordEvents } from '@automoderator/broker-types';
 import { GuildMemberCache, MessageCache } from '@automoderator/cache';
 import { initConfig, kRedis } from '@automoderator/injection';
@@ -10,8 +12,6 @@ import type { GatewaySendPayload } from 'discord-api-types/v10';
 import { GatewayIntentBits } from 'discord-api-types/v10';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
-import { setTimeout } from 'node:timers';
-import process from 'node:process';
 
 void (async () => {
 	const config = initConfig();
@@ -53,27 +53,28 @@ void (async () => {
 		.on(WebSocketShardEvents.Hello, ({ shardId }) => logger.debug({ shardId }, 'Shard HELLO'))
 		.on(WebSocketShardEvents.Ready, ({ shardId }) => logger.debug({ shardId }, 'Shard READY'))
 		.on(WebSocketShardEvents.Resumed, ({ shardId }) => logger.debug({ shardId }, 'Shard RESUMED'))
-		.on(WebSocketShardEvents.Dispatch, ({ data }) => {
+		.on(WebSocketShardEvents.Dispatch, async ({ data }) => {
 			panicTimeout.refresh();
 			switch (data.t) {
 				case 'MESSAGE_CREATE': {
-					void messageCache
-						.add(data.d)
-						.catch((error: unknown) =>
-							logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a message'),
-						);
+					try {
+						await messageCache.add(data.d);
+					} catch (error) {
+						logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a message')
+					}
 
 					if (data.d.guild_id && !data.d.webhook_id) {
-						void guildMembersCache
+						try {
+						await guildMembersCache
 							// @ts-expect-error - Common discord-api-types version missmatch
 							.add({
 								guild_id: data.d.guild_id,
 								user: data.d.author,
 								...data.d.member,
-							})
-							.catch((error: unknown) =>
-								logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member'),
-							);
+							});
+						} catch (error) {
+							logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member');
+						}
 					}
 
 					break;
@@ -81,20 +82,22 @@ void (async () => {
 
 				case 'MESSAGE_UPDATE': {
 					if (data.d.guild_id && !data.d.webhook_id && data.d.author && data.d.member) {
-						void guildMembersCache
-							.add({
-								guild_id: data.d.guild_id,
-								user: data.d.author,
-								...data.d.member,
-							})
-							.catch((error: unknown) =>
-								logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member'),
-							);
+						try {
+							await guildMembersCache
+								.add({
+									guild_id: data.d.guild_id,
+									user: data.d.author,
+									...data.d.member,
+								});
+						} catch (error) {
+							logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member');
+						}
 					}
+
+					break;
 				}
 
 				default:
-					break;
 			}
 
 			router.publish(data.t, data.d);

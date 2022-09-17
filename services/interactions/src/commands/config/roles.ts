@@ -2,6 +2,7 @@ import { kLogger } from '@automoderator/injection';
 import { ellipsis, MESSAGE_LIMITS } from '@chatsift/discord-utils';
 import { chunkArray } from '@chatsift/utils';
 import { REST } from '@discordjs/rest';
+import type { SelfAssignableRole } from '@prisma/client';
 import { PrismaClient } from '@prisma/client';
 import type {
 	APIActionRowComponent,
@@ -14,7 +15,8 @@ import type {
 	APIMessageActionRowComponent,
 } from 'discord-api-types/v9';
 import { ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';
-import { Logger } from 'pino';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { RolesCommand } from '#interactions';
@@ -42,23 +44,27 @@ export default class implements Command {
 				}
 
 				const rolesList = await (this.rest.get(Routes.guildRoles(interaction.guild_id)) as Promise<APIRole[]>).then(
-					(roles) => roles.map((r): [string, APIRole] => [r.id, r]),
+					(roles) => roles.map((role): [string, APIRole] => [role.id, role]),
 				);
 
 				const roles = new Map(rolesList);
 
 				let cleanedUp = 0;
-				prompt.selfAssignableRoles = prompt.selfAssignableRoles.filter((r) => {
-					if (!roles.has(r.roleId)) {
-						void this.prisma.selfAssignableRole
-							.delete({ where: { roleId_promptId: { promptId: prompt.promptId, roleId: r.roleId } } })
-							.catch(() => null);
+				const deletedSelfAssignableRoles: Promise<SelfAssignableRole>[] = [];
+				prompt.selfAssignableRoles = prompt.selfAssignableRoles.filter((role) => {
+					if (!roles.has(role.roleId)) {
+						deletedSelfAssignableRoles.push(
+							this.prisma.selfAssignableRole.delete({
+								where: { roleId_promptId: { promptId: prompt.promptId, roleId: role.roleId } },
+							}),
+						);
 						cleanedUp++;
 						return false;
 					}
 
 					return true;
 				});
+				await Promise.allSettled(deletedSelfAssignableRoles);
 
 				const body: RESTPostAPIChannelMessageJSONBody = {
 					embeds: [
@@ -134,12 +140,12 @@ export default class implements Command {
 				try {
 					const prompt = await this.prisma.selfAssignableRolePrompt.findFirst({ where: { promptId: args.delete.id } });
 					if (prompt?.guildId !== interaction.guild_id) {
-						throw new Error();
+						throw new Error('Prompt guild id does not match interaction guild id');
 					}
 
 					await this.prisma.selfAssignableRolePrompt.delete({ where: { promptId: args.delete.id } });
 					return await send(interaction, { content: 'Successfully deleted your prompt' });
-				} catch (error) {
+				} catch {
 					throw new ControlFlowError('Could not find prompt to delete');
 				}
 			}
@@ -150,7 +156,7 @@ export default class implements Command {
 				}
 
 				const channelId = args.create.channel?.id ?? interaction.channel_id!;
-				const color = args.create.color ? parseInt(args.create.color.replace('#', ''), 16) : 5793266;
+				const color = args.create.color ? Number.parseInt(args.create.color.replace('#', ''), 16) : 5_793_266;
 
 				const components: APIActionRowComponent<APIMessageActionRowComponent>[] =
 					args.create.usebuttons ?? false
@@ -219,6 +225,7 @@ export default class implements Command {
 				try {
 					let emoji;
 					if (args.add.emoji) {
+						// eslint-disable-next-line unicorn/no-unsafe-regex
 						const match = /^(?:<(?<animated>a)?:(?<name>\w{2,32}):)?(?<id>\d{17,21})>?$/.exec(args.add.emoji);
 						if (!match) {
 							throw new ControlFlowError('Invalid emoji.');
@@ -237,7 +244,7 @@ export default class implements Command {
 					});
 
 					if (!prompt) {
-						throw new Error();
+						throw new Error('prompt not found');
 					}
 
 					const data = {
@@ -260,13 +267,13 @@ export default class implements Command {
 					}))!;
 
 					const rolesList = await (this.rest.get(Routes.guildRoles(interaction.guild_id)) as Promise<APIRole[]>).then(
-						(roles) => roles.map((r): [string, APIRole] => [r.id, r]),
+						(roles) => roles.map((role): [string, APIRole] => [role.id, role]),
 					);
 					const roles = new Map(rolesList);
 
 					let cleanedUp = 0;
-					prompt.selfAssignableRoles = prompt.selfAssignableRoles.filter((r) => {
-						if (!roles.has(r.roleId)) {
+					prompt.selfAssignableRoles = prompt.selfAssignableRoles.filter((role) => {
+						if (!roles.has(role.roleId)) {
 							cleanedUp++;
 							return false;
 						}
@@ -339,35 +346,40 @@ export default class implements Command {
 					});
 
 					if (prompt?.guildId !== interaction.guild_id) {
-						throw new Error();
+						throw new Error('prompt guild id does not match interaction guild id');
 					}
 
 					await this.prisma.selfAssignableRole.delete({
 						where: { roleId_promptId: { promptId: prompt.promptId, roleId: args.remove.role.id } },
 					});
 
+					// eslint-disable-next-line require-atomic-updates
 					prompt = (await this.prisma.selfAssignableRolePrompt.findFirst({
 						where: { guildId: interaction.guild_id, promptId: args.remove.prompt },
 						include: { selfAssignableRoles: true },
 					}))!;
 
 					const rolesList = await (this.rest.get(Routes.guildRoles(interaction.guild_id)) as Promise<APIRole[]>).then(
-						(roles) => roles.map((r): [string, APIRole] => [r.id, r]),
+						(roles) => roles.map((role): [string, APIRole] => [role.id, role]),
 					);
 					const roles = new Map(rolesList);
 
 					let cleanedUp = 0;
-					prompt.selfAssignableRoles = prompt.selfAssignableRoles.filter((r) => {
-						if (!roles.has(r.roleId)) {
-							void this.prisma.selfAssignableRole
-								.delete({ where: { roleId_promptId: { promptId: prompt!.promptId, roleId: r.roleId } } })
-								.catch(() => null);
+					const deletedSelfAssignableRoles: Promise<SelfAssignableRole>[] = [];
+					prompt.selfAssignableRoles = prompt.selfAssignableRoles.filter((role) => {
+						if (!roles.has(role.roleId)) {
+							deletedSelfAssignableRoles.push(
+								this.prisma.selfAssignableRole.delete({
+									where: { roleId_promptId: { promptId: prompt!.promptId, roleId: role.roleId } },
+								}),
+							);
 							cleanedUp++;
 							return false;
 						}
 
 						return true;
 					});
+					await Promise.allSettled(deletedSelfAssignableRoles);
 
 					const body: RESTPatchAPIChannelMessageJSONBody = {
 						components:

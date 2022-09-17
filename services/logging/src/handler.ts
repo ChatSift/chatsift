@@ -1,3 +1,4 @@
+import { URLSearchParams } from 'node:url';
 import type {
 	FilterTriggerLog,
 	ForbiddenNameLog,
@@ -30,7 +31,8 @@ import type {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
-import { URLSearchParams } from 'node:url';
+
+const codeblock = (str: string) => `\`\`\`${str}\`\`\``;
 
 @singleton()
 export class Handler {
@@ -125,9 +127,9 @@ export class Handler {
 			embeds.push(embed);
 		}
 
-		for (let i = 0; i < Math.ceil(embeds.length / 10); i++) {
+		for (let idx = 0; idx < Math.ceil(embeds.length / 10); idx++) {
 			const body: RESTPostAPIWebhookWithTokenJSONBody = {
-				embeds: embeds.slice(0 + i * 10, 10 + i * 10),
+				embeds: embeds.slice(0 + idx * 10, 10 + idx * 10),
 			};
 			const query = new URLSearchParams({ wait: 'true' });
 			if (webhook.threadId) {
@@ -139,28 +141,28 @@ export class Handler {
 					body,
 					query: new URLSearchParams(query),
 				}) as Promise<APIMessage>
-			).then((newMessage) =>
-				this.prisma.case.update({
-					data: { logMessageId: newMessage.id },
-					where: { id: (log.data as Case[])[i]!.id },
-				}),
-			);
+			)
+				// eslint-disable-next-line promise/prefer-await-to-then
+				.then((newMessage) =>
+					this.prisma.case.update({
+						data: { logMessageId: newMessage.id },
+						where: { id: (log.data as Case[])[idx]!.id },
+					}),
+				);
 		}
 	}
 
 	private embedFromTrigger(message: APIMessage, trigger: RunnerResult): APIEmbed[] {
-		const codeblock = (str: string) => `\`\`\`${str}\`\`\``;
-
 		const embeds: APIEmbed[] = [];
 		const push = (embed: APIEmbed) =>
 			embeds.push(
 				truncateEmbed({
-					color: 16426011,
+					color: 16_426_011,
 					author: {
 						name: `${message.author.username}#${message.author.discriminator} (${message.author.id})`,
 						icon_url: message.author.avatar
 							? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${message.author.id}/${message.author.avatar}`)
-							: `${RouteBases.cdn}/embed/avatars/${parseInt(message.author.discriminator, 10) % 5}.png`,
+							: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(message.author.discriminator, 10) % 5}.png`,
 					},
 					...embed,
 				}),
@@ -259,13 +261,13 @@ export class Handler {
 			}
 
 			case Runners.antispam: {
-				const channels = [...new Set(trigger.data.messages.map((m) => `<#${m.channel_id}>`))].join(', ');
+				const channels = [...new Set(trigger.data.messages.map((message) => `<#${message.channel_id}>`))].join(', ');
 
 				push({
 					title: 'Triggered anti-spam measures',
 					description:
 						`Tried to send ${trigger.data.amount} messages within ${ms(trigger.data.time, true)}\nIn: ${channels}\n\n` +
-						`**Deleted spam**:\`\`\`\n${trigger.data.messages.map((m) => m.content).join('\n')}\`\`\``,
+						`**Deleted spam**:\`\`\`\n${trigger.data.messages.map((message) => message.content).join('\n')}\`\`\``,
 				});
 
 				break;
@@ -274,7 +276,7 @@ export class Handler {
 			case Runners.mentions: {
 				const channels =
 					'messages' in trigger.data
-						? [...new Set(trigger.data.messages.map((m) => `<#${m.channel_id}>`))].join(', ')
+						? [...new Set(trigger.data.messages.map((message) => `<#${message.channel_id}>`))].join(', ')
 						: [`<#${message.channel_id}>`].join(', ');
 
 				const description =
@@ -283,7 +285,9 @@ export class Handler {
 						: `Tried to send ${trigger.data.limit} mentions within a single message`;
 
 				const contents =
-					'messages' in trigger.data ? trigger.data.messages.map((m) => m.content).join('\n') : message.content;
+					'messages' in trigger.data
+						? trigger.data.messages.map((message) => message.content).join('\n')
+						: message.content;
 
 				push({
 					title: 'Triggered anti mention spam measures',
@@ -373,7 +377,7 @@ export class Handler {
 					name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
 					icon_url: log.data.user.avatar
 						? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
-						: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
+						: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(log.data.user.discriminator, 10) % 5}.png`,
 				},
 				...embed,
 			});
@@ -437,7 +441,7 @@ export class Handler {
 			return;
 		}
 
-		const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
+		const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1_000);
 
 		const body: RESTPostAPIWebhookWithTokenJSONBody = {
 			embeds: [
@@ -446,7 +450,7 @@ export class Handler {
 						name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
 						icon_url: log.data.user.avatar
 							? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
-							: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
+							: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(log.data.user.discriminator, 10) % 5}.png`,
 					},
 					description: `Deleted their message posted <t:${ts}:R> in <#${entry.message.channel_id}>`,
 					fields: [
@@ -462,7 +466,7 @@ export class Handler {
 								text: `Deleted by ${entry.mod.username}#${entry.mod.discriminator} (${entry.mod.id})`,
 								icon_url: entry.mod.avatar
 									? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${entry.mod.id}/${entry.mod.avatar}`)
-									: `${RouteBases.cdn}/embed/avatars/${parseInt(entry.mod.discriminator, 10) % 5}.png`,
+									: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(entry.mod.discriminator, 10) % 5}.png`,
 						  }
 						: undefined,
 				},
@@ -491,7 +495,7 @@ export class Handler {
 		}
 
 		const url = `https://discord.com/channels/${entry.message.guild_id}/${entry.message.channel_id}/${entry.message.id}`;
-		const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
+		const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1_000);
 
 		const body: RESTPostAPIWebhookWithTokenJSONBody = {
 			embeds: [
@@ -500,7 +504,7 @@ export class Handler {
 						name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
 						icon_url: log.data.user.avatar
 							? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
-							: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
+							: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(log.data.user.discriminator, 10) % 5}.png`,
 					},
 					description: `Updated their [message](${url}) posted <t:${ts}:R> in <#${entry.message.channel_id}>`,
 					fields: [
@@ -561,7 +565,7 @@ export class Handler {
 						name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
 						icon_url: log.data.user.avatar
 							? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
-							: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
+							: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(log.data.user.discriminator, 10) % 5}.png`,
 					},
 					title: 'Updated the banword list',
 					description: `\`\`\`diff\n${list}\`\`\``,
@@ -620,7 +624,7 @@ export class Handler {
 						name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
 						icon_url: log.data.user.avatar
 							? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
-							: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
+							: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(log.data.user.discriminator, 10) % 5}.png`,
 					},
 					title: `Had their ${log.data.nick ? 'nick' : 'user'}name filtered`,
 					fields: [
@@ -672,7 +676,6 @@ export class Handler {
 
 			default: {
 				this.logger.warn({ log }, 'Recieved unrecognized base log type');
-				return;
 			}
 		}
 	}

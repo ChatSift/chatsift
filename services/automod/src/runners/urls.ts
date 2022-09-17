@@ -10,8 +10,8 @@ import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import type { GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
 import { Routes } from 'discord-api-types/v9';
-// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
-import { Logger } from 'pino';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 

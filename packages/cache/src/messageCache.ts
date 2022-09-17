@@ -1,8 +1,8 @@
 import { kRedis } from '@automoderator/injection';
 import { RedisStore } from '@cordis/redis-store';
 import type { APIMessage } from 'discord-api-types/v9';
-// eslint-disable-next-line import/no-extraneous-dependencies, n/no-extraneous-import
-import { Redis } from 'ioredis';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import type { Redis } from 'ioredis';
 import { singleton, inject } from 'tsyringe';
 
 @singleton()

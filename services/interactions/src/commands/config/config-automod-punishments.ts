@@ -66,9 +66,9 @@ export default class implements Command {
 					where: { guildId: interaction.guild_id },
 				});
 				const punishments = punishmentsData.map(
-					(p) =>
-						`• At ${p.triggers} triggers, a ${p.actionType} will be triggered${
-							p.duration ? ` which will last ${ms(Number(p.duration), true)}` : ''
+					(punishment) =>
+						`• At ${punishment.triggers} triggers, a ${punishment.actionType} will be triggered${
+							punishment.duration ? ` which will last ${ms(Number(punishment.duration), true)}` : ''
 						}`,
 				);
 

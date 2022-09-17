@@ -124,7 +124,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 				await this.reports.reportMessage(
 					message,
 					(await this.rest.get(Routes.user(this.config.discordClientId))) as APIUser,
-					settings.reportsChannel,
+					settingsForReport.reportsChannel,
 					`Automated report triggered due to the usage of the following word/phrase: ${punishments.report.word}`,
 				);
 			}
