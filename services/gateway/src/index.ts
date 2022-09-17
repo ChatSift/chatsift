@@ -60,18 +60,18 @@ void (async () => {
 					try {
 						await messageCache.add(data.d);
 					} catch (error) {
-						logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a message')
+						logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a message');
 					}
 
 					if (data.d.guild_id && !data.d.webhook_id) {
 						try {
-						await guildMembersCache
-							// @ts-expect-error - Common discord-api-types version missmatch
-							.add({
-								guild_id: data.d.guild_id,
-								user: data.d.author,
-								...data.d.member,
-							});
+							await guildMembersCache
+								// @ts-expect-error - Common discord-api-types version missmatch
+								.add({
+									guild_id: data.d.guild_id,
+									user: data.d.author,
+									...data.d.member,
+								});
 						} catch (error) {
 							logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member');
 						}
@@ -83,12 +83,11 @@ void (async () => {
 				case 'MESSAGE_UPDATE': {
 					if (data.d.guild_id && !data.d.webhook_id && data.d.author && data.d.member) {
 						try {
-							await guildMembersCache
-								.add({
-									guild_id: data.d.guild_id,
-									user: data.d.author,
-									...data.d.member,
-								});
+							await guildMembersCache.add({
+								guild_id: data.d.guild_id,
+								user: data.d.author,
+								...data.d.member,
+							});
 						} catch (error) {
 							logger.warn({ error, data: data.d, guild: data.d.guild_id }, 'Failed to cache a guild member');
 						}

@@ -105,6 +105,7 @@ export class Handler {
 							},
 						},
 					})
+					// eslint-disable-next-line promise/prefer-await-to-then
 					.catch(() => null);
 				continue;
 			} else {

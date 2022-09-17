@@ -37,7 +37,7 @@ export default class implements Command {
 		if (durationString) {
 			const durationMinutes = Number(durationString);
 
-			if (isNaN(durationMinutes)) {
+			if (Number.isNaN(durationMinutes)) {
 				const duration = ms(durationString);
 				if (!duration) {
 					throw new ControlFlowError('Failed to parse the provided duration');
