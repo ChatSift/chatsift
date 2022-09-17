@@ -1,7 +1,7 @@
 import { kLogger } from '@automoderator/injection';
 import { addFields } from '@chatsift/discord-utils';
-import { Rest } from '@cordis/rest';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
+import { REST } from '@discordjs/rest';
 import {
 	APIGuildInteraction,
 	APIEmbed,
@@ -24,7 +24,7 @@ export default class implements Command {
 	public readonly inviteRegex =
 		/(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})/i;
 
-	public constructor(@inject(kLogger) public readonly logger: Logger, public readonly discordRest: Rest) {}
+	public constructor(@inject(kLogger) public readonly logger: Logger, public readonly rest: REST) {}
 
 	public getCode(invite: string) {
 		if (this.inviteRegex.test(invite)) {
@@ -47,6 +47,7 @@ export default class implements Command {
 					{
 						code,
 						res,
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 						data: await res
 							.clone()
 							.json()
@@ -66,9 +67,9 @@ export default class implements Command {
 			return send(interaction, { content: 'Invalid/expired invite, could not get any information' });
 		}
 
-		const preview = await this.discordRest
-			.get<RESTGetAPIGuildPreviewResult>(Routes.guildPreview(invite.guild.id))
-			.catch(() => null);
+		const preview = (await this.rest
+			.get(Routes.guildPreview(invite.guild.id))
+			.catch(() => null)) as RESTGetAPIGuildPreviewResult | null;
 		const timestamp = Math.round(getCreationData(invite.guild.id).createdTimestamp / 1000);
 		const image: APIEmbedImage | undefined = invite.guild.banner
 			? {

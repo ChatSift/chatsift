@@ -1,4 +1,4 @@
-import { Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import { APIGuildInteraction, InteractionResponseType, Routes, Snowflake } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
@@ -7,7 +7,7 @@ import { send } from '#util';
 
 @injectable()
 export default class implements Component {
-	public constructor(public readonly prisma: PrismaClient, public readonly discordRest: DiscordRest) {}
+	public constructor(public readonly prisma: PrismaClient, public readonly rest: REST) {}
 
 	public async exec(interaction: APIGuildInteraction, [roleId]: [string]) {
 		void send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
@@ -31,11 +31,11 @@ export default class implements Component {
 		const add = !roles.has(roleId);
 
 		if (add) {
-			await this.discordRest.put(Routes.guildMemberRole(interaction.guild_id, interaction.member.user.id, roleId), {
+			await this.rest.put(Routes.guildMemberRole(interaction.guild_id, interaction.member.user.id, roleId), {
 				reason: 'Self-assignable roles update',
 			});
 		} else {
-			await this.discordRest.delete(Routes.guildMemberRole(interaction.guild_id, interaction.member.user.id, roleId), {
+			await this.rest.delete(Routes.guildMemberRole(interaction.guild_id, interaction.member.user.id, roleId), {
 				reason: 'Self-assignable roles update',
 			});
 		}

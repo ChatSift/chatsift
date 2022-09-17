@@ -1,6 +1,6 @@
 import { Config, kConfig } from '@automoderator/injection';
 import { CaseManager } from '@automoderator/util';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { CaseAction, PrismaClient } from '@prisma/client';
 import {
@@ -28,7 +28,7 @@ import { send } from '#util';
 @injectable()
 export default class implements Component {
 	public constructor(
-		public readonly rest: DiscordRest,
+		public readonly rest: REST,
 		public readonly prisma: PrismaClient,
 		public readonly handler: Handler,
 		public readonly cases: CaseManager,
@@ -325,7 +325,7 @@ export default class implements Component {
 
 							stop();
 						} else if (state.action) {
-							const user = await this.rest.get<APIUser>(Routes.user(report.userId));
+							const user = (await this.rest.get(Routes.user(report.userId))) as APIUser;
 							const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: interaction.guild_id } });
 
 							actionButton.disabled = true;
@@ -386,21 +386,20 @@ export default class implements Component {
 			}
 		}
 
-		return this.rest
-			.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
-				Routes.channelMessage(interaction.channel_id!, interaction.message!.id),
+		const body: RESTPatchAPIChannelMessageJSONBody = {
+			components: [
 				{
-					data: {
-						components: [
-							{
-								type: ComponentType.ActionRow,
-								components: [review, acknowledged, viewReporters, actionButton],
-							},
-						],
-						embeds: embed ? [embed] : undefined,
-					},
+					type: ComponentType.ActionRow,
+					components: [review, acknowledged, viewReporters, actionButton],
 				},
-			)
+			],
+			embeds: embed ? [embed] : undefined,
+		};
+
+		return this.rest
+			.patch(Routes.channelMessage(interaction.channel_id!, interaction.message!.id), {
+				body,
+			})
 			.catch(() => null);
 	}
 }

@@ -1,5 +1,5 @@
 import { kLogger } from '@automoderator/injection';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { GuildSettings, PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
@@ -12,7 +12,7 @@ import { ArgumentsOf, ControlFlowError, send } from '#util';
 @injectable()
 export default class implements Command {
 	public constructor(
-		public readonly discordRest: DiscordRest,
+		public readonly rest: REST,
 		public readonly prisma: PrismaClient,
 		@inject(kLogger) public readonly logger: Logger,
 	) {}

@@ -5,7 +5,7 @@ import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
 import { dmUser } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import { Routes, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
 import type { Logger } from 'pino';
@@ -28,7 +28,7 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 		@inject(kLogger) public readonly logger: Logger,
 		public readonly prisma: PrismaClient,
 		public readonly messages: MessageCache,
-		public readonly discord: Rest,
+		public readonly rest: REST,
 		public readonly logs: PubSubPublisher<Log>,
 	) {
 		const contents = readFileSync(joinPath(__dirname, '..', '..', 'tlds.txt'), 'utf8');
@@ -102,7 +102,7 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 	}
 
 	public async cleanup(_: UrlsTransform, message: GatewayMessageCreateDispatchData): Promise<void> {
-		await this.discord
+		await this.rest
 			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'URL filter trigger' })
 			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing a link.'))
 			.catch(() => null);

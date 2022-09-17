@@ -1,4 +1,4 @@
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { GuildSettings, PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
@@ -9,7 +9,7 @@ import { ArgumentsOf, send } from '#util';
 
 @injectable()
 export default class implements Command {
-	public constructor(public readonly rest: Rest, public readonly prisma: PrismaClient) {}
+	public constructor(public readonly rest: REST, public readonly prisma: PrismaClient) {}
 
 	private _sendCurrentSettings(interaction: APIGuildInteraction, settings?: Partial<GuildSettings> | null) {
 		return send(interaction, {

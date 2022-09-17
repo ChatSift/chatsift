@@ -1,5 +1,5 @@
 import { CaseManager, PermissionsChecker } from '@automoderator/util';
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { CaseAction, PrismaClient } from '@prisma/client';
 import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
@@ -10,7 +10,7 @@ import { ArgumentsOf, ControlFlowError, send } from '#util';
 @injectable()
 export default class implements Command {
 	public constructor(
-		public readonly rest: Rest,
+		public readonly rest: REST,
 		public readonly checker: PermissionsChecker,
 		public readonly cases: CaseManager,
 		public readonly prisma: PrismaClient,

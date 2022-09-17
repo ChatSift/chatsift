@@ -1,5 +1,5 @@
 import { chunkArray } from '@chatsift/utils';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
 import {
@@ -16,7 +16,7 @@ import { send } from '#util';
 
 @injectable()
 export default class implements Component {
-	public constructor(public readonly prisma: PrismaClient, public readonly discordRest: DiscordRest) {}
+	public constructor(public readonly prisma: PrismaClient, public readonly rest: REST) {}
 
 	public async exec(interaction: APIGuildInteraction, [promptId, index]: [string, string]) {
 		void send(interaction, {}, InteractionResponseType.DeferredMessageUpdate);
@@ -51,13 +51,13 @@ export default class implements Component {
 			}
 		}
 
-		await this.discordRest.patch<unknown, RESTPatchAPIGuildMemberJSONBody>(
-			Routes.guildMember(interaction.guild_id, interaction.member.user.id),
-			{
-				data: { roles: [...roles] },
-				reason: 'Self-assignable roles update',
-			},
-		);
+		const body: RESTPatchAPIGuildMemberJSONBody = {
+			roles: [...roles],
+		};
+		await this.rest.patch(Routes.guildMember(interaction.guild_id, interaction.member.user.id), {
+			body,
+			reason: 'Self-assignable roles update',
+		});
 
 		interaction.message!.components![parseInt(index, 10)]!.components[0]!.disabled = true;
 

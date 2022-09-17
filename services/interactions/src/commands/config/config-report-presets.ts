@@ -1,4 +1,4 @@
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
@@ -8,7 +8,7 @@ import { ArgumentsOf, ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
-	public constructor(public readonly rest: Rest, public readonly prisma: PrismaClient) {}
+	public constructor(public readonly rest: REST, public readonly prisma: PrismaClient) {}
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigReportPresetsCommand>) {
 		switch (Object.keys(args)[0] as 'add' | 'delete' | 'list') {

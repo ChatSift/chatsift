@@ -15,8 +15,8 @@ import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { makeCaseEmbed } from '@automoderator/util';
 import { truncateEmbed } from '@chatsift/discord-utils';
 import { createAmqp, PubSubSubscriber } from '@cordis/brokers';
-import { HTTPError as CordisHTTPError, Rest } from '@cordis/rest';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
+import { DiscordAPIError, REST } from '@discordjs/rest';
 import { ms } from '@naval-base/ms';
 import {
 	PrismaClient,
@@ -33,7 +33,6 @@ import {
 	APIWebhook,
 	RESTPatchAPIWebhookWithTokenMessageJSONBody,
 	RESTPostAPIWebhookWithTokenJSONBody,
-	RESTPostAPIWebhookWithTokenWaitResult,
 	RouteBases,
 	Routes,
 } from 'discord-api-types/v9';
@@ -46,7 +45,7 @@ export class Handler {
 		@inject(kConfig) public readonly config: Config,
 		@inject(kLogger) public readonly logger: Logger,
 		public readonly prisma: PrismaClient,
-		public readonly rest: Rest,
+		public readonly rest: REST,
 	) {}
 
 	private async assertWebhook(
@@ -59,13 +58,15 @@ export class Handler {
 		}
 
 		try {
-			const webhook = await this.rest.get<APIWebhook>(Routes.webhook(webhookData.webhookId, webhookData.webhookToken));
+			const webhook = (await this.rest.get(
+				Routes.webhook(webhookData.webhookId, webhookData.webhookToken),
+			)) as APIWebhook;
 			return {
 				...webhook,
 				threadId: webhookData.threadId,
 			};
 		} catch (error) {
-			if (error instanceof CordisHTTPError && error.response.status === 404) {
+			if (error instanceof DiscordAPIError && error.status === 404) {
 				await this.prisma.logChannelWebhook.delete({ where: { guildId_logType: { guildId: guild, logType: type } } });
 			}
 
@@ -91,16 +92,19 @@ export class Handler {
 			const { logMessageId } = await this.prisma.case.findFirst({ where: { id: entry.id }, rejectOnNotFound: true });
 
 			const [target, mod, message] = await Promise.all([
-				this.rest.get<APIUser>(Routes.user(entry.targetId)),
-				entry.modId ? this.rest.get<APIUser>(Routes.user(entry.modId)) : Promise.resolve(null),
+				this.rest.get(Routes.user(entry.targetId)) as Promise<APIUser>,
+				(entry.modId ? this.rest.get(Routes.user(entry.modId)) : Promise.resolve(null)) as Promise<APIUser | null>,
 				logMessageId
-					? this.rest.get<APIMessage>(Routes.channelMessage(webhook.channel_id, logMessageId)).catch(() => null)
+					? (this.rest
+							.get(Routes.channelMessage(webhook.channel_id, logMessageId))
+							.catch(() => null) as Promise<APIMessage>)
 					: Promise.resolve(null),
 			]);
 
 			let pardonedBy: APIUser | undefined;
 			if (entry.pardonedBy) {
-				pardonedBy = entry.pardonedBy === mod?.id ? mod : await this.rest.get<APIUser>(Routes.user(entry.targetId));
+				pardonedBy =
+					entry.pardonedBy === mod?.id ? mod : ((await this.rest.get(Routes.user(entry.targetId))) as APIUser);
 			}
 
 			let refCs: Case | undefined;
@@ -119,33 +123,34 @@ export class Handler {
 			});
 
 			if (message) {
-				return this.rest.patch<unknown, RESTPatchAPIWebhookWithTokenMessageJSONBody>(
-					Routes.webhookMessage(webhook.id, webhook.token!, message.id),
-					{ data: { embeds: [embed] } },
-				);
+				const body: RESTPatchAPIWebhookWithTokenMessageJSONBody = {
+					embeds: [embed],
+				};
+				return this.rest.patch(Routes.webhookMessage(webhook.id, webhook.token!, message.id), { body });
 			}
 
 			embeds.push(embed);
 		}
 
 		for (let i = 0; i < Math.ceil(embeds.length / 10); i++) {
-			void this.rest
-				.post<RESTPostAPIWebhookWithTokenWaitResult, RESTPostAPIWebhookWithTokenJSONBody>(
+			const body: RESTPostAPIWebhookWithTokenJSONBody = {
+				embeds: embeds.slice(0 + i * 10, 10 + i * 10),
+			};
+			void (
+				this.rest.post(
 					`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
 						webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
 					}`,
 					{
-						data: {
-							embeds: embeds.slice(0 + i * 10, 10 + i * 10),
-						},
+						body,
 					},
-				)
-				.then((newMessage) =>
-					this.prisma.case.update({
-						data: { logMessageId: newMessage.id },
-						where: { id: (log.data as Case[])[i]!.id },
-					}),
-				);
+				) as Promise<APIMessage>
+			).then((newMessage) =>
+				this.prisma.case.update({
+					data: { logMessageId: newMessage.id },
+					where: { id: (log.data as Case[])[i]!.id },
+				}),
+			);
 		}
 	}
 
@@ -343,14 +348,15 @@ export class Handler {
 			return;
 		}
 
-		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
+		const body: RESTPostAPIWebhookWithTokenJSONBody = {
+			embeds,
+		};
+		await this.rest.post(
 			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
 				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
 			}`,
 			{
-				data: {
-					embeds,
-				},
+				body,
 			},
 		);
 	}
@@ -411,14 +417,15 @@ export class Handler {
 			});
 		}
 
-		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
+		const body: RESTPostAPIWebhookWithTokenJSONBody = {
+			embeds,
+		};
+		await this.rest.post(
 			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
 				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
 			}`,
 			{
-				data: {
-					embeds,
-				},
+				body,
 			},
 		);
 	}
@@ -436,40 +443,41 @@ export class Handler {
 
 		const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
 
-		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
+		const body: RESTPostAPIWebhookWithTokenJSONBody = {
+			embeds: [
+				{
+					author: {
+						name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
+						icon_url: log.data.user.avatar
+							? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
+							: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
+					},
+					description: `Deleted their message posted <t:${ts}:R> in <#${entry.message.channel_id}>`,
+					fields: [
+						{
+							name: 'Content',
+							value: entry.message.content.length
+								? `>>> ${entry.message.content}`
+								: 'No content - this message probably held an attachment',
+						},
+					],
+					footer: entry.mod
+						? {
+								text: `Deleted by ${entry.mod.username}#${entry.mod.discriminator} (${entry.mod.id})`,
+								icon_url: entry.mod.avatar
+									? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${entry.mod.id}/${entry.mod.avatar}`)
+									: `${RouteBases.cdn}/embed/avatars/${parseInt(entry.mod.discriminator, 10) % 5}.png`,
+						  }
+						: undefined,
+				},
+			],
+		};
+		await this.rest.post(
 			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
 				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
 			}`,
 			{
-				data: {
-					embeds: [
-						{
-							author: {
-								name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
-								icon_url: log.data.user.avatar
-									? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
-									: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
-							},
-							description: `Deleted their message posted <t:${ts}:R> in <#${entry.message.channel_id}>`,
-							fields: [
-								{
-									name: 'Content',
-									value: entry.message.content.length
-										? `>>> ${entry.message.content}`
-										: 'No content - this message probably held an attachment',
-								},
-							],
-							footer: entry.mod
-								? {
-										text: `Deleted by ${entry.mod.username}#${entry.mod.discriminator} (${entry.mod.id})`,
-										icon_url: entry.mod.avatar
-											? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${entry.mod.id}/${entry.mod.avatar}`)
-											: `${RouteBases.cdn}/embed/avatars/${parseInt(entry.mod.discriminator, 10) % 5}.png`,
-								  }
-								: undefined,
-						},
-					],
-				},
+				body,
 			},
 		);
 	}
@@ -486,37 +494,38 @@ export class Handler {
 		}
 
 		const url = `https://discord.com/channels/${entry.message.guild_id}/${entry.message.channel_id}/${entry.message.id}`;
-
 		const ts = Math.round(getCreationData(entry.message.id).createdTimestamp / 1000);
 
-		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
+		const body: RESTPostAPIWebhookWithTokenJSONBody = {
+			embeds: [
+				{
+					author: {
+						name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
+						icon_url: log.data.user.avatar
+							? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
+							: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
+					},
+					description: `Updated their [message](${url}) posted <t:${ts}:R> in <#${entry.message.channel_id}>`,
+					fields: [
+						{
+							name: 'New content',
+							value: `>>> ${entry.n}`,
+						},
+						{
+							name: 'Previous content',
+							value: `>>> ${entry.o}`,
+						},
+					],
+				},
+			],
+		};
+
+		await this.rest.post(
 			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
 				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
 			}`,
 			{
-				data: {
-					embeds: [
-						{
-							author: {
-								name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
-								icon_url: log.data.user.avatar
-									? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
-									: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
-							},
-							description: `Updated their [message](${url}) posted <t:${ts}:R> in <#${entry.message.channel_id}>`,
-							fields: [
-								{
-									name: 'New content',
-									value: `>>> ${entry.n}`,
-								},
-								{
-									name: 'Previous content',
-									value: `>>> ${entry.o}`,
-								},
-							],
-						},
-					],
-				},
+				body,
 			},
 		);
 	}
@@ -547,25 +556,26 @@ export class Handler {
 			})
 			.join('\n');
 
-		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
+		const body: RESTPostAPIWebhookWithTokenJSONBody = {
+			embeds: [
+				{
+					author: {
+						name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
+						icon_url: log.data.user.avatar
+							? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
+							: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
+					},
+					title: 'Updated the banword list',
+					description: `\`\`\`diff\n${list}\`\`\``,
+				},
+			],
+		};
+		await this.rest.post(
 			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
 				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
 			}`,
 			{
-				data: {
-					embeds: [
-						{
-							author: {
-								name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
-								icon_url: log.data.user.avatar
-									? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
-									: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
-							},
-							title: 'Updated the banword list',
-							description: `\`\`\`diff\n${list}\`\`\``,
-						},
-					],
-				},
+				body,
 			},
 		);
 	}
@@ -604,39 +614,40 @@ export class Handler {
 			return;
 		}
 
-		await this.rest.post<unknown, RESTPostAPIWebhookWithTokenJSONBody>(
+		const body: RESTPostAPIWebhookWithTokenJSONBody = {
+			embeds: [
+				{
+					author: {
+						name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
+						icon_url: log.data.user.avatar
+							? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
+							: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
+					},
+					title: `Had their ${log.data.nick ? 'nick' : 'user'}name filtered`,
+					fields: [
+						{
+							name: 'Before',
+							value: `>>> ${log.data.before}`,
+							inline: true,
+						},
+						{
+							name: 'After',
+							value: `>>> ${log.data.after}`,
+							inline: true,
+						},
+					],
+					footer: {
+						text: `Content filtered: ${log.data.words.join(', ')}`,
+					},
+				},
+			],
+		};
+		await this.rest.post(
 			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
 				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
 			}`,
 			{
-				data: {
-					embeds: [
-						{
-							author: {
-								name: `${log.data.user.username}#${log.data.user.discriminator} (${log.data.user.id})`,
-								icon_url: log.data.user.avatar
-									? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${log.data.user.id}/${log.data.user.avatar}`)
-									: `${RouteBases.cdn}/embed/avatars/${parseInt(log.data.user.discriminator, 10) % 5}.png`,
-							},
-							title: `Had their ${log.data.nick ? 'nick' : 'user'}name filtered`,
-							fields: [
-								{
-									name: 'Before',
-									value: `>>> ${log.data.before}`,
-									inline: true,
-								},
-								{
-									name: 'After',
-									value: `>>> ${log.data.after}`,
-									inline: true,
-								},
-							],
-							footer: {
-								text: `Content filtered: ${log.data.words.join(', ')}`,
-							},
-						},
-					],
-				},
+				body,
 			},
 		);
 	}

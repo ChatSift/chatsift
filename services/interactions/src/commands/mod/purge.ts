@@ -1,7 +1,7 @@
 import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
-import { HTTPError, Rest } from '@cordis/rest';
 import { getCreationData } from '@cordis/util';
+import { DiscordAPIError, REST } from '@discordjs/rest';
 import {
 	RESTGetAPIChannelMessagesResult,
 	RESTPostAPIChannelMessagesBulkDeleteJSONBody,
@@ -21,7 +21,7 @@ import { ArgumentsOf, ControlFlowError, send } from '#util';
 export default class implements Command {
 	public constructor(
 		public readonly messagesCache: MessageCache,
-		public readonly discordRest: Rest,
+		public readonly rest: REST,
 		@inject(kLogger) public readonly logger: Logger,
 	) {}
 
@@ -62,9 +62,11 @@ export default class implements Command {
 		const channelMessagesMap =
 			(await this.messagesCache.getChannelMessages(channelId)) ?? new Map<string, APIMessage>();
 
-		const messages = await this.discordRest.get<RESTGetAPIChannelMessagesResult>(
-			`${Routes.channelMessages(channelId)}?limit=100`,
-		);
+		const messages = (await this.rest.get(Routes.channelMessages(channelId), {
+			query: new URLSearchParams({
+				limit: '100',
+			}),
+		})) as RESTGetAPIChannelMessagesResult;
 
 		for (const message of messages) {
 			channelMessagesMap.set(message.id, message);
@@ -179,7 +181,7 @@ export default class implements Command {
 		}
 
 		const loops = Math.ceil(Math.min(args.amount, toPurge.length) / 100);
-		const promises: Promise<never>[] = [];
+		const promises: Promise<unknown>[] = [];
 		const amounts: number[] = [];
 
 		for (let i = 0; i < loops; i++) {
@@ -197,7 +199,7 @@ export default class implements Command {
 
 			if (messages.length === 1) {
 				promises.push(
-					this.discordRest.delete<never>(Routes.channelMessage(channelId, messages[0]!), {
+					this.rest.delete(Routes.channelMessage(channelId, messages[0]!), {
 						reason,
 					}),
 				);
@@ -205,16 +207,14 @@ export default class implements Command {
 				continue;
 			}
 
+			const body: RESTPostAPIChannelMessagesBulkDeleteJSONBody = {
+				messages,
+			};
 			promises.push(
-				this.discordRest.post<never, RESTPostAPIChannelMessagesBulkDeleteJSONBody>(
-					Routes.channelBulkDelete(channelId),
-					{
-						data: {
-							messages,
-						},
-						reason,
-					},
-				),
+				this.rest.post(Routes.channelBulkDelete(channelId), {
+					body,
+					reason,
+				}),
 			);
 		}
 
@@ -230,15 +230,15 @@ export default class implements Command {
 			// Make sure to increment i regardless
 			i++;
 
-			if (promise.reason instanceof HTTPError) {
-				if (promise.reason.response.status === 403) {
+			if (promise.reason instanceof DiscordAPIError) {
+				if (promise.reason.status === 403) {
 					return send(interaction, { content: 'Ran into a permission error! Could not purge any message.' });
 				}
 
 				this.logger.warn(
 					{
 						guild: interaction.guild_id,
-						code: promise.reason.response.status,
+						code: promise.reason.status,
 					},
 					'Someone ran into an unfamiliar error code when purging',
 				);

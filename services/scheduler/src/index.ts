@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { initConfig, kLogger, kRedis } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import { createAmqp, PubSubPublisher } from '@cordis/brokers';
-import { ProxyBucket, Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
 import type { Logger } from 'pino';
@@ -14,14 +14,9 @@ void (async () => {
 
 	const logger = createLogger('scheduler');
 
-	const discordRest = new DiscordRest(config.discordToken, {
-		bucket: ProxyBucket,
-		domain: config.discordProxyUrl,
-		retries: 1,
-		abortAfter: 20e3,
-	}).on('abort', (req) => {
-		logger.warn({ req }, `Aborted request ${req.method!} ${req.path!}`);
-	});
+	const rest = new REST({
+		api: `${config.discordProxyUrl}/api`,
+	}).setToken(config.discordToken);
 
 	const { channel } = await createAmqp(config.amqpUrl);
 	const logs = new PubSubPublisher(channel);
@@ -32,7 +27,7 @@ void (async () => {
 
 	container.register(kRedis, { useValue: redis });
 	container.register(PubSubPublisher, { useValue: logs });
-	container.register(DiscordRest, { useValue: discordRest });
+	container.register(REST, { useValue: rest });
 	container.register<Logger>(kLogger, { useValue: logger });
 	container.register(PrismaClient, { useValue: new PrismaClient() });
 

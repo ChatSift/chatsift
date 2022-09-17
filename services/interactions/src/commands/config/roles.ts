@@ -1,7 +1,7 @@
 import { kLogger } from '@automoderator/injection';
 import { ellipsis, MESSAGE_LIMITS } from '@chatsift/discord-utils';
 import { chunkArray } from '@chatsift/utils';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import {
 	APIActionRowComponent,
@@ -25,7 +25,7 @@ import { ArgumentsOf, ControlFlowError, send } from '#util';
 @injectable()
 export default class implements Command {
 	public constructor(
-		public readonly discordRest: DiscordRest,
+		public readonly rest: REST,
 		@inject(kLogger) public readonly logger: Logger,
 		public readonly prisma: PrismaClient,
 	) {}
@@ -42,9 +42,9 @@ export default class implements Command {
 					throw new ControlFlowError('Could not find prompt');
 				}
 
-				const rolesList = await this.discordRest
-					.get<APIRole[]>(Routes.guildRoles(interaction.guild_id))
-					.then((roles) => roles.map((r): [string, APIRole] => [r.id, r]));
+				const rolesList = await (this.rest.get(Routes.guildRoles(interaction.guild_id)) as Promise<APIRole[]>).then(
+					(roles) => roles.map((r): [string, APIRole] => [r.id, r]),
+				);
 
 				const roles = new Map(rolesList);
 
@@ -61,56 +61,59 @@ export default class implements Command {
 					return true;
 				});
 
-				const promptMessage = await this.discordRest.post<APIMessage, RESTPostAPIChannelMessageJSONBody>(
+				const body: RESTPostAPIChannelMessageJSONBody = {
+					embeds: [
+						{
+							title: prompt.embedTitle ?? undefined,
+							color: prompt.embedColor,
+							description: prompt.embedDescription ?? undefined,
+							image: prompt.embedImage
+								? {
+										url: prompt.embedImage,
+								  }
+								: undefined,
+						},
+					],
+					components:
+						prompt.useButtons && prompt.selfAssignableRoles.length <= 25
+							? chunkArray(
+									prompt.selfAssignableRoles.map(
+										(role): APIButtonComponent => ({
+											type: ComponentType.Button,
+											label: roles.get(role.roleId)!.name,
+											style: ButtonStyle.Secondary,
+											custom_id: `roles-manage-simple|${role.roleId}`,
+											emoji: role.emojiId
+												? {
+														id: role.emojiId,
+														name: role.emojiName!,
+														animated: role.emojiAnimated!,
+												  }
+												: undefined,
+										}),
+									),
+									5,
+							  ).map((components) => ({ type: ComponentType.ActionRow, components }))
+							: [
+									{
+										type: ComponentType.ActionRow,
+										components: [
+											{
+												type: ComponentType.Button,
+												label: 'Manage your roles',
+												style: ButtonStyle.Primary,
+												custom_id: 'roles-manage-prompt',
+											},
+										],
+									},
+							  ],
+				};
+				const promptMessage = (await this.rest.post(
 					Routes.channelMessages(args['re-display'].channel?.id ?? interaction.channel_id!),
 					{
-						data: {
-							embed: {
-								title: prompt.embedTitle ?? undefined,
-								color: prompt.embedColor,
-								description: prompt.embedDescription ?? undefined,
-								image: prompt.embedImage
-									? {
-											url: prompt.embedImage,
-									  }
-									: undefined,
-							},
-							components:
-								prompt.useButtons && prompt.selfAssignableRoles.length <= 25
-									? chunkArray(
-											prompt.selfAssignableRoles.map(
-												(role): APIButtonComponent => ({
-													type: ComponentType.Button,
-													label: roles.get(role.roleId)!.name,
-													style: ButtonStyle.Secondary,
-													custom_id: `roles-manage-simple|${role.roleId}`,
-													emoji: role.emojiId
-														? {
-																id: role.emojiId,
-																name: role.emojiName!,
-																animated: role.emojiAnimated!,
-														  }
-														: undefined,
-												}),
-											),
-											5,
-									  ).map((components) => ({ type: ComponentType.ActionRow, components }))
-									: [
-											{
-												type: ComponentType.ActionRow,
-												components: [
-													{
-														type: ComponentType.Button,
-														label: 'Manage your roles',
-														style: ButtonStyle.Primary,
-														custom_id: 'roles-manage-prompt',
-													},
-												],
-											},
-									  ],
-						},
+						body,
 					},
-				);
+				)) as APIMessage;
 
 				await this.prisma.selfAssignableRolePrompt.update({
 					data: {
@@ -167,24 +170,24 @@ export default class implements Command {
 								},
 						  ];
 
-				const promptMessage = await this.discordRest.post<APIMessage, RESTPostAPIChannelMessageJSONBody>(
-					Routes.channelMessages(channelId),
-					{
-						data: {
-							embed: {
-								title: args.create.title,
-								color,
-								description: args.create.description,
-								image: args.create.imageurl
-									? {
-											url: args.create.imageurl,
-									  }
-									: undefined,
-							},
-							components,
+				const body: RESTPostAPIChannelMessageJSONBody = {
+					embeds: [
+						{
+							title: args.create.title,
+							color,
+							description: args.create.description,
+							image: args.create.imageurl
+								? {
+										url: args.create.imageurl,
+								  }
+								: undefined,
 						},
-					},
-				);
+					],
+					components,
+				};
+				const promptMessage = (await this.rest.post(Routes.channelMessages(channelId), {
+					body,
+				})) as APIMessage;
 
 				const prompt = await this.prisma.selfAssignableRolePrompt.create({
 					data: {
@@ -257,9 +260,9 @@ export default class implements Command {
 						include: { selfAssignableRoles: true },
 					}))!;
 
-					const rolesList = await this.discordRest
-						.get<APIRole[]>(Routes.guildRoles(interaction.guild_id))
-						.then((roles) => roles.map((r): [string, APIRole] => [r.id, r]));
+					const rolesList = await (this.rest.get(Routes.guildRoles(interaction.guild_id)) as Promise<APIRole[]>).then(
+						(roles) => roles.map((r): [string, APIRole] => [r.id, r]),
+					);
 					const roles = new Map(rolesList);
 
 					let cleanedUp = 0;
@@ -272,47 +275,45 @@ export default class implements Command {
 						return true;
 					});
 
-					await this.discordRest
-						.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
-							Routes.channelMessage(prompt.channelId, prompt.messageId),
-							{
-								data: {
-									components:
-										prompt.useButtons && prompt.selfAssignableRoles.length <= 25
-											? chunkArray(
-													prompt.selfAssignableRoles.map(
-														(role): APIButtonComponent => ({
-															type: ComponentType.Button,
-															label: roles.get(role.roleId)!.name,
-															style: ButtonStyle.Secondary,
-															custom_id: `roles-manage-simple|${role.roleId}`,
-															emoji: role.emojiId
-																? {
-																		id: role.emojiId,
-																		name: role.emojiName!,
-																		animated: role.emojiAnimated!,
-																  }
-																: undefined,
-														}),
-													),
-													5,
-											  ).map((components) => ({ type: ComponentType.ActionRow, components }))
-											: [
-													{
-														type: ComponentType.ActionRow,
-														components: [
-															{
-																type: ComponentType.Button,
-																label: 'Manage your roles',
-																style: ButtonStyle.Primary,
-																custom_id: 'roles-manage-prompt',
-															},
-														],
-													},
-											  ],
-								},
-							},
-						)
+					const body: RESTPatchAPIChannelMessageJSONBody = {
+						components:
+							prompt.useButtons && prompt.selfAssignableRoles.length <= 25
+								? chunkArray(
+										prompt.selfAssignableRoles.map(
+											(role): APIButtonComponent => ({
+												type: ComponentType.Button,
+												label: roles.get(role.roleId)!.name,
+												style: ButtonStyle.Secondary,
+												custom_id: `roles-manage-simple|${role.roleId}`,
+												emoji: role.emojiId
+													? {
+															id: role.emojiId,
+															name: role.emojiName!,
+															animated: role.emojiAnimated!,
+													  }
+													: undefined,
+											}),
+										),
+										5,
+								  ).map((components) => ({ type: ComponentType.ActionRow, components }))
+								: [
+										{
+											type: ComponentType.ActionRow,
+											components: [
+												{
+													type: ComponentType.Button,
+													label: 'Manage your roles',
+													style: ButtonStyle.Primary,
+													custom_id: 'roles-manage-prompt',
+												},
+											],
+										},
+								  ],
+					};
+					await this.rest
+						.patch(Routes.channelMessage(prompt.channelId, prompt.messageId), {
+							body,
+						})
 						.catch(() => null);
 
 					let content = 'Successfully added the given role to the list of self assignable roles';
@@ -351,9 +352,9 @@ export default class implements Command {
 						include: { selfAssignableRoles: true },
 					}))!;
 
-					const rolesList = await this.discordRest
-						.get<APIRole[]>(Routes.guildRoles(interaction.guild_id))
-						.then((roles) => roles.map((r): [string, APIRole] => [r.id, r]));
+					const rolesList = await (this.rest.get(Routes.guildRoles(interaction.guild_id)) as Promise<APIRole[]>).then(
+						(roles) => roles.map((r): [string, APIRole] => [r.id, r]),
+					);
 					const roles = new Map(rolesList);
 
 					let cleanedUp = 0;
@@ -369,48 +370,46 @@ export default class implements Command {
 						return true;
 					});
 
-					await this.discordRest
-						.patch<unknown, RESTPatchAPIChannelMessageJSONBody>(
-							Routes.channelMessage(prompt.channelId, prompt.messageId),
-							{
-								data: {
-									components:
-										prompt.useButtons && prompt.selfAssignableRoles.length <= 25
-											? chunkArray(
-													prompt.selfAssignableRoles.map(
-														(role): APIButtonComponent => ({
-															type: ComponentType.Button,
-															label: roles.get(role.roleId)!.name,
-															style: ButtonStyle.Secondary,
-															disabled: !roles.has(role.roleId),
-															custom_id: `roles-manage-simple|${role.roleId}`,
-															emoji: role.emojiId
-																? {
-																		id: role.emojiId,
-																		name: role.emojiName!,
-																		animated: role.emojiAnimated!,
-																  }
-																: undefined,
-														}),
-													),
-													5,
-											  ).map((components) => ({ type: ComponentType.ActionRow, components }))
-											: [
-													{
-														type: ComponentType.ActionRow,
-														components: [
-															{
-																type: ComponentType.Button,
-																label: 'Manage your roles',
-																style: ButtonStyle.Primary,
-																custom_id: 'roles-manage-prompt',
-															},
-														],
-													},
-											  ],
-								},
-							},
-						)
+					const body: RESTPatchAPIChannelMessageJSONBody = {
+						components:
+							prompt.useButtons && prompt.selfAssignableRoles.length <= 25
+								? chunkArray(
+										prompt.selfAssignableRoles.map(
+											(role): APIButtonComponent => ({
+												type: ComponentType.Button,
+												label: roles.get(role.roleId)!.name,
+												style: ButtonStyle.Secondary,
+												disabled: !roles.has(role.roleId),
+												custom_id: `roles-manage-simple|${role.roleId}`,
+												emoji: role.emojiId
+													? {
+															id: role.emojiId,
+															name: role.emojiName!,
+															animated: role.emojiAnimated!,
+													  }
+													: undefined,
+											}),
+										),
+										5,
+								  ).map((components) => ({ type: ComponentType.ActionRow, components }))
+								: [
+										{
+											type: ComponentType.ActionRow,
+											components: [
+												{
+													type: ComponentType.Button,
+													label: 'Manage your roles',
+													style: ButtonStyle.Primary,
+													custom_id: 'roles-manage-prompt',
+												},
+											],
+										},
+								  ],
+					};
+					await this.rest
+						.patch(Routes.channelMessage(prompt.channelId, prompt.messageId), {
+							body,
+						})
 						.catch(() => null);
 
 					let content = 'Successfully removed the given role from the list of self assignable roles';

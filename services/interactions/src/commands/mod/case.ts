@@ -1,7 +1,7 @@
 import { Log, LogTypes } from '@automoderator/broker-types';
 import { makeCaseEmbed } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { Case, CaseAction, LogChannelType, PrismaClient } from '@prisma/client';
 import {
@@ -22,7 +22,7 @@ import { ArgumentsOf, ControlFlowError, send } from '#util';
 @injectable()
 export default class implements Command {
 	public constructor(
-		public readonly discord: DiscordRest,
+		public readonly rest: REST,
 		public readonly prisma: PrismaClient,
 		public readonly handler: Handler,
 		public readonly guildLogs: PubSubPublisher<Log>,
@@ -42,8 +42,8 @@ export default class implements Command {
 				}
 
 				const [target, mod] = await Promise.all([
-					this.discord.get<APIUser>(Routes.user(cs.targetId)),
-					cs.modId ? this.discord.get<APIUser>(Routes.user(cs.modId)) : Promise.resolve(null),
+					this.rest.get(Routes.user(cs.targetId)) as Promise<APIUser>,
+					(cs.modId ? this.rest.get(Routes.user(cs.modId)) : Promise.resolve(null)) as Promise<APIUser | null>,
 				]);
 
 				let refCs: Case | null = null;
@@ -57,7 +57,7 @@ export default class implements Command {
 
 				let pardonedBy: APIUser | undefined;
 				if (cs.pardonedBy) {
-					pardonedBy = cs.pardonedBy === mod?.id ? mod : await this.discord.get<APIUser>(Routes.user(cs.targetId));
+					pardonedBy = cs.pardonedBy === mod?.id ? mod : ((await this.rest.get(Routes.user(cs.targetId))) as APIUser);
 				}
 
 				const embed = makeCaseEmbed({

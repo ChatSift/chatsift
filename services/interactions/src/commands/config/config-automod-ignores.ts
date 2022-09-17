@@ -1,6 +1,6 @@
 import { FilterIgnores, FILTERS } from '@automoderator/broker-types';
 import { ellipsis, sortChannels } from '@chatsift/discord-utils';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import {
 	APISelectMenuOption,
@@ -27,7 +27,7 @@ import { ArgumentsOf, EMOTES, send } from '#util';
 @injectable()
 export default class implements Command {
 	public constructor(
-		public readonly rest: DiscordRest,
+		public readonly rest: REST,
 		public readonly prisma: PrismaClient,
 		public readonly handler: Handler,
 	) {}
@@ -35,9 +35,9 @@ export default class implements Command {
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigAutomodIgnoresCommand>) {
 		switch (Object.keys(args)[0] as keyof typeof args) {
 			case 'show': {
-				const channelsList = await this.rest
-					.get<RESTGetAPIGuildChannelsResult>(Routes.guildChannels(interaction.guild_id))
-					.then((channels) => channels.map((channel): [string, APIChannel] => [channel.id, channel]));
+				const channelsList = await (
+					this.rest.get(Routes.guildChannels(interaction.guild_id)) as Promise<RESTGetAPIGuildChannelsResult>
+				).then((channels) => channels.map((channel): [string, APIChannel] => [channel.id, channel]));
 				const channels = new Map(channelsList);
 
 				const entries = await this.prisma.filterIgnore.findMany({ where: { guildId: interaction.guild_id } });
@@ -74,7 +74,9 @@ export default class implements Command {
 					channel: null as string | null,
 				};
 
-				const channelList = sortChannels(await this.rest.get<APIChannel[]>(Routes.guildChannels(interaction.guild_id)));
+				const channelList = sortChannels(
+					(await this.rest.get(Routes.guildChannels(interaction.guild_id))) as APIChannel[],
+				);
 				const channelOptions = channelList.map(
 					(channel): APISelectMenuOption => ({
 						label: ellipsis(channel.name!, 25),

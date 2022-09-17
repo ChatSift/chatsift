@@ -1,5 +1,5 @@
 import { makeHistoryEmbed } from '@automoderator/util';
-import { Rest as DiscordRest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { LogChannelType, PrismaClient } from '@prisma/client';
 import {
 	APIGuildInteraction,
@@ -13,7 +13,7 @@ import { ArgumentsOf, send } from '#util';
 
 @injectable()
 export default class implements Command {
-	public constructor(public readonly discordRest: DiscordRest, public readonly prisma: PrismaClient) {}
+	public constructor(public readonly rest: REST, public readonly prisma: PrismaClient) {}
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof HistoryCommand>) {
 		const { user: member } = args;

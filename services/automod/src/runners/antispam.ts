@@ -4,7 +4,7 @@ import { Config, kConfig, kRedis } from '@automoderator/injection';
 import { CaseData, CaseManager, dmUser } from '@automoderator/util';
 import { groupBy } from '@chatsift/utils';
 import { PubSubPublisher } from '@cordis/brokers';
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import { AutomodPunishmentAction, CaseAction, PrismaClient } from '@prisma/client';
 import {
 	Routes,
@@ -31,7 +31,7 @@ export class AntispamRunner
 		@inject(kRedis) public readonly redis: Redis,
 		public readonly prisma: PrismaClient,
 		public readonly messages: MessageCache,
-		public readonly discord: Rest,
+		public readonly rest: REST,
 		public readonly logs: PubSubPublisher<Log>,
 		public readonly caseManager: CaseManager,
 		@inject(kConfig) public readonly config: Config,
@@ -79,17 +79,19 @@ export class AntispamRunner
 		for (const [channel, messages] of Object.entries(grouped)) {
 			const message = messages[0]!;
 
+			const body: RESTPostAPIChannelMessagesBulkDeleteJSONBody = {
+				messages: messages.map((message) => message.id),
+			};
+
 			promises.push(
 				messages.length === 1
-					? this.discord
+					? this.rest
 							.delete(Routes.channelMessage(channel, message.id), { reason: 'Antispam trigger' })
 							.then(() => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
 							.catch(() => null)
-					: this.discord
-							.post<never, RESTPostAPIChannelMessagesBulkDeleteJSONBody>(Routes.channelBulkDelete(channel), {
-								data: {
-									messages: messages.map((message) => message.id),
-								},
+					: this.rest
+							.post(Routes.channelBulkDelete(channel), {
+								body,
 								reason: 'Antispam trigger',
 							})
 							.then(() => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))

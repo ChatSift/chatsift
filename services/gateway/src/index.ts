@@ -12,8 +12,8 @@ import { container } from 'tsyringe';
 
 void (async () => {
 	const config = initConfig();
-	const logger = createLogger('gateway');
 
+	const logger = createLogger('gateway');
 	const { channel } = await createAmqp(config.amqpUrl);
 
 	const router = new RoutingPublisher<keyof DiscordEvents, DiscordEvents>(channel);
@@ -27,7 +27,9 @@ void (async () => {
 
 	const gateway = new WebSocketManager({
 		token: config.discordToken,
-		rest: new REST().setToken(config.discordToken),
+		rest: new REST({
+			api: `${config.discordProxyUrl}/api`,
+		}).setToken(config.discordToken),
 		intents:
 			GatewayIntentBits.GuildMessages |
 			GatewayIntentBits.GuildMembers |

@@ -2,7 +2,7 @@ import { join as joinPath } from 'path';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { PermissionsChecker } from '@automoderator/util';
 import { readdirRecurse } from '@chatsift/readdir';
-import { Rest } from '@cordis/rest';
+import { REST } from '@discordjs/rest';
 import {
 	APIApplicationCommandInteractionData,
 	APIMessageButtonInteractionData,
@@ -38,7 +38,7 @@ export class Handler {
 		@inject(kConfig) public readonly config: Config,
 		@inject(kLogger) public readonly logger: Logger,
 		public readonly checker: PermissionsChecker,
-		public readonly rest: Rest,
+		public readonly rest: REST,
 	) {}
 
 	public async handleCommand(interaction: Interaction) {
@@ -113,26 +113,22 @@ export class Handler {
 		const promises = [];
 
 		if (this.config.nodeEnv === 'prod') {
-			const res = await this.rest.put<RESTPutAPIApplicationCommandsResult, RESTPutAPIApplicationCommandsJSONBody>(
-				Routes.applicationCommands(this.config.discordClientId),
-				{
-					// @ts-expect-error
-					// TODO(DD): Find a fix for immutable and mutable clash
-					data: Object.values(interactions).map((i) => ({ ...i, dm_permission: false })),
-				},
-			);
+			const body = Object.values(interactions).map((i) => ({
+				...i,
+				dm_permission: false,
+			})) as RESTPutAPIApplicationCommandsJSONBody;
+			const res = (await this.rest.put(Routes.applicationCommands(this.config.discordClientId), {
+				body,
+			})) as RESTPutAPIApplicationCommandsResult;
 
 			for (const command of res) {
 				this.globalCommandIds.set(command.name, command.id);
 			}
 
 			for (const guild of this.config.interactionsTestGuilds) {
-				const promise = this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(
-					Routes.applicationGuildCommands(this.config.discordClientId, guild),
-					{
-						data: [],
-					},
-				);
+				const promise = this.rest.put(Routes.applicationGuildCommands(this.config.discordClientId, guild), {
+					body: [],
+				});
 
 				promises.push(promise);
 			}
@@ -141,22 +137,16 @@ export class Handler {
 			return;
 		}
 
-		await this.rest.put<unknown, RESTPutAPIApplicationCommandsJSONBody>(
-			Routes.applicationCommands(this.config.discordClientId),
-			{
-				data: [],
-			},
-		);
+		await this.rest.put(Routes.applicationCommands(this.config.discordClientId), {
+			body: [],
+		});
+
+		const body = Object.values(interactions) as RESTPutAPIApplicationGuildCommandsJSONBody;
 
 		for (const guild of this.config.interactionsTestGuilds) {
-			const promise = this.rest.put<
-				RESTPutAPIApplicationGuildCommandsResult,
-				RESTPutAPIApplicationGuildCommandsJSONBody
-			>(Routes.applicationGuildCommands(this.config.discordClientId, guild), {
-				// @ts-expect-error
-				// TODO(DD): Find a fix for immutable and mutable clash
-				data: Object.values(interactions),
-			});
+			const promise = this.rest.put(Routes.applicationGuildCommands(this.config.discordClientId, guild), {
+				body,
+			}) as Promise<RESTPutAPIApplicationGuildCommandsResult>;
 
 			promises.push(promise);
 		}
