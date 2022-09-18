@@ -1,28 +1,22 @@
-import {
-	DiscordEvents,
-	Log,
-	LogTypes,
-	RunnerResult,
-	FilterIgnores,
-	DiscordPermissions,
-} from '@automoderator/broker-types';
+import type { DiscordEvents, Log, RunnerResult } from '@automoderator/broker-types';
+import { LogTypes, FilterIgnores, DiscordPermissions } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { PermissionsChecker, PermissionsCheckerData, UserPerms } from '@automoderator/util';
+import type { PermissionsCheckerData } from '@automoderator/util';
+import { PermissionsChecker, UserPerms } from '@automoderator/util';
 import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import {
+import type {
 	APIGuild,
 	APIMessage,
 	APIChannel,
-	GatewayDispatchEvents,
 	RESTGetAPIGuildRolesResult,
-	ChannelType,
-	Routes,
 	APITextChannel,
 	GatewayMessageCreateDispatchData,
 } from 'discord-api-types/v9';
+import { GatewayDispatchEvents, ChannelType, Routes } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { container, inject, singleton } from 'tsyringe';
 import * as rawRunners from './runners';
@@ -30,10 +24,8 @@ import type { IRunner } from './runners';
 
 @singleton()
 export class Gateway {
-	public readonly runners: IRunner[] = Object.values(rawRunners).map((runner: any) =>
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-		container.resolve(runner),
-	);
+	// eslint-disable-next-line unicorn/consistent-function-scoping
+	public readonly runners: IRunner[] = Object.values(rawRunners).map((runner: any) => container.resolve(runner));
 
 	public constructor(
 		@inject(kConfig) public readonly config: Config,
@@ -54,7 +46,10 @@ export class Gateway {
 
 		const settings = await this.prisma.guildSettings.findFirst({
 			where: { guildId: message.guild_id },
-			include: { adminRoles: true, modRoles: true },
+			include: {
+				adminRoles: true,
+				modRoles: true,
+			},
 		});
 
 		if (this.config.nodeEnv === 'prod') {
@@ -93,8 +88,8 @@ export class Gateway {
 				await this.checker.check(
 					checkerData,
 					UserPerms.mod,
-					new Set(settings?.modRoles.map((r) => r.roleId) ?? []),
-					new Set(settings?.adminRoles.map((r) => r.roleId) ?? []),
+					new Set(settings?.modRoles.map((role) => role.roleId) ?? []),
+					new Set(settings?.adminRoles.map((role) => role.roleId) ?? []),
 					guild.owner_id,
 				)
 			) {
@@ -175,7 +170,11 @@ export class Gateway {
 			.on(GatewayDispatchEvents.MessageUpdate, async (message) => {
 				const existing = await this.messagesCache.get(message.id);
 				if (existing) {
-					return this.onMessage({ ...existing, ...message });
+					await this.onMessage({
+						...existing,
+						...message,
+					});
+					return;
 				}
 
 				const fullMessage = await (
@@ -188,7 +187,7 @@ export class Gateway {
 					.catch(() => null);
 
 				if (fullMessage) {
-					return this.onMessage(fullMessage);
+					await this.onMessage(fullMessage);
 				}
 			});
 

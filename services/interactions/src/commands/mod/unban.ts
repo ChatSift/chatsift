@@ -1,11 +1,13 @@
 import { CaseManager, PermissionsChecker } from '@automoderator/util';
 import { REST } from '@discordjs/rest';
 import { CaseAction, PrismaClient } from '@prisma/client';
-import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
+import type { APIGuildInteraction } from 'discord-api-types/v9';
+import { InteractionResponseType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { UnbanCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -19,7 +21,7 @@ export default class implements Command {
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof UnbanCommand>) {
 		await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
 		const { user: member, reason = 'no reason provided' } = args;
-		if (reason && reason.length >= 1900) {
+		if (reason && reason.length >= 1_900) {
 			throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
 		}
 

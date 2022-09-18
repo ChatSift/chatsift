@@ -1,67 +1,69 @@
-import { Log, LogTypes } from '@automoderator/broker-types';
+import type { Log } from '@automoderator/broker-types';
+import { LogTypes } from '@automoderator/broker-types';
 import { kLogger, kRedis } from '@automoderator/injection';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { Case, CaseAction, PrismaClient, WarnPunishmentAction } from '@prisma/client';
-import {
+import type { Case } from '@prisma/client';
+import { CaseAction, PrismaClient, WarnPunishmentAction } from '@prisma/client';
+import type {
 	APIGuild,
 	APIGuildMember,
 	APIRole,
 	RESTPatchAPIGuildMemberJSONBody,
 	RESTPutAPIGuildBanJSONBody,
-	Routes,
 } from 'discord-api-types/v9';
+import { Routes } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Redis } from 'ioredis';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import { dmUser } from './dmUser';
 
 type TransactionPrisma = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'>;
 
-export interface BaseCaseCreateData<Action extends CaseAction = CaseAction> {
+export type BaseCaseCreateData<Action extends CaseAction = CaseAction> = {
+	actionType: Action;
+	applyAction?: boolean;
 	guildId: string;
-	refId?: number;
-	targetId: string;
-	targetTag: string;
 	mod?: {
 		id: string;
 		tag: string;
 	};
-	actionType: Action;
-	reason?: string;
 	notifyUser?: boolean;
-	applyAction?: boolean;
-}
+	reason?: string;
+	refId?: number;
+	targetId: string;
+	targetTag: string;
+};
 
 export type DurationCaseType = 'ban' | 'mute' | 'unmute';
 export type DeleteDaysCaseType = 'ban' | 'softban';
 
-export type OtherCaseType = Exclude<CaseAction, DurationCaseType | DeleteDaysCaseType>;
+export type OtherCaseType = Exclude<CaseAction, DeleteDaysCaseType | DurationCaseType>;
 export type OtherCaseData = BaseCaseCreateData<OtherCaseType>;
 
-export interface DurationCaseData<Action extends DurationCaseType = DurationCaseType>
-	extends BaseCaseCreateData<Action> {
+export type DurationCaseData<Action extends DurationCaseType = DurationCaseType> = BaseCaseCreateData<Action> & {
 	expiresAt?: Date;
-}
+};
 
-export interface DeleteDaysCaseData<Action extends DeleteDaysCaseType = DeleteDaysCaseType>
-	extends BaseCaseCreateData<Action> {
+export type DeleteDaysCaseData<Action extends DeleteDaysCaseType = DeleteDaysCaseType> = BaseCaseCreateData<Action> & {
 	deleteDays?: number;
-}
+};
 
-export interface BanCaseData extends DurationCaseData<'ban'>, DeleteDaysCaseData<'ban'> {}
+export type BanCaseData = DeleteDaysCaseData<'ban'> & DurationCaseData<'ban'> & {};
 
-export interface SoftbanCaseData extends DeleteDaysCaseData<'softban'> {}
+export type SoftbanCaseData = DeleteDaysCaseData<'softban'> & {};
 
-export interface MuteCaseData extends DurationCaseData<'mute' | 'unmute'> {
+export type MuteCaseData = DurationCaseData<'mute' | 'unmute'> & {
 	/**
 	 * Null implies the usage of timeouts
 	 */
 	unmuteRoles?: string[] | null;
-}
+};
 
-export type CaseData = OtherCaseData | BanCaseData | SoftbanCaseData | MuteCaseData;
+export type CaseData = BanCaseData | MuteCaseData | OtherCaseData | SoftbanCaseData;
 
 @singleton()
 export class CaseManager {
@@ -80,12 +82,8 @@ export class CaseManager {
 		return (
 			((
 				await prisma.case.findFirst({
-					where: {
-						guildId,
-					},
-					orderBy: {
-						caseId: 'desc',
-					},
+					where: { guildId },
+					orderBy: { caseId: 'desc' },
 				})
 			)?.caseId ?? 0) + 1
 		);
@@ -93,10 +91,18 @@ export class CaseManager {
 
 	public async makeWarnTriggerCase(cs: Case, prisma: TransactionPrisma = this.prisma): Promise<Case | null> {
 		const userWarns = await prisma.case.findMany({
-			where: { targetId: cs.targetId, guildId: cs.guildId, actionType: CaseAction.warn, pardonedBy: null },
+			where: {
+				targetId: cs.targetId,
+				guildId: cs.guildId,
+				actionType: CaseAction.warn,
+				pardonedBy: null,
+			},
 		});
 		const warnPunishment = await prisma.warnPunishment.findFirst({
-			where: { guildId: cs.guildId, warns: userWarns.length },
+			where: {
+				guildId: cs.guildId,
+				warns: userWarns.length,
+			},
 		});
 		const settings = await prisma.guildSettings.findFirst({ where: { guildId: cs.guildId } });
 
@@ -148,7 +154,7 @@ export class CaseManager {
 			expiresAt: cs.expiresAt ?? undefined,
 			unmuteRoles: cs.useTimeouts
 				? null
-				: (await prisma.unmuteRole.findMany({ where: { caseId: cs.id } })).map((u) => u.roleId),
+				: (await prisma.unmuteRole.findMany({ where: { caseId: cs.id } })).map((role) => role.roleId),
 			actionType: cs.actionType,
 		};
 	}
@@ -170,11 +176,7 @@ export class CaseManager {
 				useTimeouts: 'unmuteRoles' in data ? data.unmuteRoles === null : false,
 				unmuteRoles:
 					(data.actionType === CaseAction.mute || data.actionType === CaseAction.unmute) && data.unmuteRoles
-						? {
-								createMany: {
-									data: data.unmuteRoles.map((roleId) => ({ roleId })),
-								},
-						  }
+						? { createMany: { data: data.unmuteRoles.map((roleId) => ({ roleId })) } }
 						: undefined,
 				task:
 					(data.actionType === CaseAction.ban || data.actionType === CaseAction.mute) && data.expiresAt
@@ -193,7 +195,7 @@ export class CaseManager {
 		});
 	}
 
-	private async handlePunishment(cs: Case, data: CaseData, prisma: TransactionPrisma = this.prisma): Promise<unknown> {
+	private async handlePunishment(cs: Case, data: CaseData, prisma: TransactionPrisma = this.prisma) {
 		switch (data.actionType) {
 			case CaseAction.warn: {
 				return;
@@ -201,13 +203,9 @@ export class CaseManager {
 
 			case CaseAction.mute: {
 				if (cs.useTimeouts) {
-					const body: RESTPatchAPIGuildMemberJSONBody = {
-						communication_disabled_until: cs.expiresAt?.toISOString(),
-					};
+					const body: RESTPatchAPIGuildMemberJSONBody = { communication_disabled_until: cs.expiresAt?.toISOString() };
 
-					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
-						body,
-					});
+					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), { body });
 				}
 
 				const settings = await prisma.guildSettings.findFirst({
@@ -216,7 +214,7 @@ export class CaseManager {
 				});
 				const member = (await this.rest.get(Routes.guildMember(cs.guildId, cs.targetId))) as APIGuildMember;
 				const rawRoles = (await this.rest.get(Routes.guildRoles(cs.guildId))) as APIRole[];
-				const roles = new Map(rawRoles.map((r) => [r.id, r]));
+				const roles = new Map(rawRoles.map((role) => [role.id, role]));
 
 				const muteRoles = [settings.muteRole!];
 				const unmuteRoles: string[] = [];
@@ -235,39 +233,32 @@ export class CaseManager {
 				}
 
 				await prisma.unmuteRole.createMany({
-					data: unmuteRoles.map((r) => ({ caseId: cs.id, roleId: r })),
+					data: unmuteRoles.map((role) => ({
+						caseId: cs.id,
+						roleId: role,
+					})),
 				});
-				const body: RESTPatchAPIGuildMemberJSONBody = {
-					roles: muteRoles,
-				};
+				const body: RESTPatchAPIGuildMemberJSONBody = { roles: muteRoles };
 
-				return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
-					body,
-				});
+				return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), { body });
 			}
 
 			case CaseAction.unmute: {
 				if (cs.useTimeouts) {
-					const body: RESTPatchAPIGuildMemberJSONBody = {
-						communication_disabled_until: null,
-					};
+					const body: RESTPatchAPIGuildMemberJSONBody = { communication_disabled_until: null };
 
-					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
-						body,
-					});
+					return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), { body });
 				}
 
 				const settings = await prisma.guildSettings.findFirst({ where: { guildId: cs.guildId } });
 				const member = (await this.rest.get(Routes.guildMember(cs.guildId, cs.targetId))) as APIGuildMember;
-				const baseRoles = member.roles.filter((r) => r !== settings?.muteRole);
+				const baseRoles = member.roles.filter((role) => role !== settings?.muteRole);
 
 				const unmuteRoles = await prisma.unmuteRole.findMany({ where: { caseId: cs.id } });
 				const body: RESTPatchAPIGuildMemberJSONBody = {
-					roles: baseRoles.concat(unmuteRoles.map((r) => r.roleId)),
+					roles: baseRoles.concat(unmuteRoles.map((role) => role.roleId)),
 				};
-				return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), {
-					body,
-				});
+				return this.rest.patch(Routes.guildMember(cs.guildId, cs.targetId), { body });
 			}
 
 			case CaseAction.kick: {
@@ -275,26 +266,22 @@ export class CaseManager {
 			}
 
 			case CaseAction.softban: {
-				const body: RESTPutAPIGuildBanJSONBody = {
-					delete_message_days: data.deleteDays ?? 1,
-				};
-				await this.rest.put(Routes.guildBan(cs.guildId, cs.targetId), {
-					body,
-				});
+				const body: RESTPutAPIGuildBanJSONBody = { delete_message_days: data.deleteDays ?? 1 };
+				await this.rest.put(Routes.guildBan(cs.guildId, cs.targetId), { body });
 				return this.rest.delete(Routes.guildBan(cs.guildId, cs.targetId));
 			}
 
 			case CaseAction.ban: {
-				const body: RESTPutAPIGuildBanJSONBody = {
-					delete_message_days: data.deleteDays,
-				};
-				return this.rest.put(Routes.guildBan(cs.guildId, cs.targetId), {
-					body,
-				});
+				const body: RESTPutAPIGuildBanJSONBody = { delete_message_days: data.deleteDays };
+				return this.rest.put(Routes.guildBan(cs.guildId, cs.targetId), { body });
 			}
 
 			case CaseAction.unban: {
 				return this.rest.delete(Routes.guildBan(cs.guildId, cs.targetId));
+			}
+
+			default: {
+				throw new Error(`Unknown action type: ${cs.actionType}`);
 			}
 		}
 	}
@@ -316,6 +303,7 @@ export class CaseManager {
 	}
 
 	public formatActionName(actionType: CaseAction): string {
+		// eslint-disable-next-line no-extra-parens
 		return (
 			{
 				[CaseAction.warn]: 'warned',
@@ -350,9 +338,15 @@ export class CaseManager {
 		const key = `case_locks:${actionType}:${targetId}:${guildId}`;
 		const lockedCaseId = await this.redis.get(key);
 		if (lockedCaseId) {
-			return this.prisma.case
-				.findFirst({ where: { id: parseInt(lockedCaseId, 10) }, rejectOnNotFound: true })
-				.catch(() => null);
+			return (
+				this.prisma.case
+					.findFirst({
+						where: { id: Number.parseInt(lockedCaseId, 10) },
+						rejectOnNotFound: true,
+					})
+					// eslint-disable-next-line promise/prefer-await-to-then
+					.catch(() => null)
+			);
 		}
 
 		return null;
@@ -367,11 +361,12 @@ export class CaseManager {
 			if (data.notifyUser) {
 				await this.notifyUser(cs);
 			}
+
 			if (data.applyAction) {
 				await this.handlePunishment(cs, data, prisma);
 			}
 
-			const cases: [Case, Case?] = [cs];
+			const coupleCases: [Case, Case?] = [cs];
 
 			if (data.actionType === CaseAction.warn) {
 				const triggeredCase = await this.makeWarnTriggerCase(cs, prisma);
@@ -379,18 +374,20 @@ export class CaseManager {
 					if (data.notifyUser) {
 						await this.notifyUser(cs);
 					}
+
 					if (data.applyAction) {
 						await this.handlePunishment(triggeredCase, await this.dataFromCase(triggeredCase), prisma);
 					}
-					cases.push(triggeredCase);
+
+					coupleCases.push(triggeredCase);
 				}
 			}
 
-			for (const cs of cases) {
-				await this.lock(cs!);
+			for (const caseItem of coupleCases) {
+				await this.lock(caseItem!);
 			}
 
-			return cases;
+			return coupleCases;
 		});
 
 		this.logs.publish({
@@ -418,11 +415,14 @@ export class CaseManager {
 					: undefined,
 			reason: reason ?? 'automated timed action expiry',
 			refId: cs.caseId,
-			unmuteRoles: cs.useTimeouts ? null : unmuteRoles.map((r) => r.roleId),
+			unmuteRoles: cs.useTimeouts ? null : unmuteRoles.map((role) => role.roleId),
 		});
 
 		try {
-			await this.prisma.timedCaseTask.delete({ where: { caseId: cs.id }, include: { task: true } });
+			await this.prisma.timedCaseTask.delete({
+				where: { caseId: cs.id },
+				include: { task: true },
+			});
 		} catch {}
 
 		return undone;

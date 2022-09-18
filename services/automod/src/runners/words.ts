@@ -1,13 +1,17 @@
-import { Log, Runners, WordsRunnerResult, BanwordFlags } from '@automoderator/broker-types';
+import type { Log, WordsRunnerResult } from '@automoderator/broker-types';
+import { Runners, BanwordFlags } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { CaseManager, dmUser, ReportHandler } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { PrismaClient, BannedWord, CaseAction } from '@prisma/client';
-import { Routes, APIUser, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import type { BannedWord } from '@prisma/client';
+import { PrismaClient, CaseAction } from '@prisma/client';
+import type { APIUser, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import { Routes } from 'discord-api-types/v9';
 import latinize from 'latinize';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import removeAccents from 'remove-accents';
 import { inject, singleton } from 'tsyringe';
@@ -16,9 +20,9 @@ import { UrlsRunner } from './urls';
 
 type BannedWordWithFlags = Omit<BannedWord, 'flags'> & { flags: BanwordFlags; isUrl: boolean };
 
-interface WordsTransform {
+type WordsTransform = {
 	words: BannedWord[];
-}
+};
 
 @singleton()
 export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[], WordsRunnerResult> {
@@ -82,7 +86,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 	}
 
 	public async cleanup(words: BannedWordWithFlags[], message: GatewayMessageCreateDispatchData): Promise<void> {
-		const punishments: Partial<Record<'report' | 'warn' | 'mute' | 'kick' | 'ban', BannedWordWithFlags>> = {};
+		const punishments: Partial<Record<'ban' | 'kick' | 'mute' | 'report' | 'warn', BannedWordWithFlags>> = {};
 
 		for (const entry of words) {
 			for (const punishment of entry.flags.getPunishments()) {
@@ -115,12 +119,12 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		};
 
 		if (punishments.report) {
-			const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id! } });
-			if (settings?.reportsChannel) {
+			const settingsForReport = await this.prisma.guildSettings.findFirst({ where: { guildId: message.guild_id! } });
+			if (settingsForReport?.reportsChannel) {
 				await this.reports.reportMessage(
 					message,
 					(await this.rest.get(Routes.user(this.config.discordClientId))) as APIUser,
-					settings.reportsChannel,
+					settingsForReport.reportsChannel,
 					`Automated report triggered due to the usage of the following word/phrase: ${punishments.report.word}`,
 				);
 			}
@@ -158,9 +162,7 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		}
 
 		try {
-			await this.rest.delete(Routes.channelMessage(message.channel_id, message.id), {
-				reason: 'Words filter trigger',
-			});
+			await this.rest.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Words filter trigger' });
 			if (!applied.length) {
 				await dmUser(message.author.id, `You message was deleted for containing the following word: ${words[0]!.word}`);
 				return;
@@ -180,7 +182,10 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 			runner: Runners.words,
 			data: words
 				.filter(({ flags }) => !(flags.has('report') && flags.toArray().length === 1))
-				.map(({ flags, ...word }) => ({ flags: flags.valueOf(), ...word })),
+				.map(({ flags, ...word }) => ({
+					flags: flags.valueOf(),
+					...word,
+				})),
 		};
 	}
 }

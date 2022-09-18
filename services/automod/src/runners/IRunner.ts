@@ -1,14 +1,14 @@
 import type { RunnerResult, FilterIgnoresResolvable } from '@automoderator/broker-types';
 import type { APIMessage } from 'discord-api-types/v9';
 
-type MaybePromise<T> = T | Promise<T>;
+type MaybePromise<T> = Promise<T> | T;
 
-export interface IRunner<Transform = unknown, Result = Transform, Log extends RunnerResult = RunnerResult> {
+export type IRunner<Transform = unknown, Result = Transform, Log extends RunnerResult = RunnerResult> = {
+	check?(data: Transform, message: APIMessage): MaybePromise<boolean>;
+
+	cleanup?(result: Result, message: APIMessage): MaybePromise<void>;
 	readonly ignore: FilterIgnoresResolvable | null;
-
-	transform?: (message: APIMessage) => MaybePromise<Transform>;
-	check?: (data: Transform, message: APIMessage) => MaybePromise<boolean>;
-	run: (data: Transform, message: APIMessage) => MaybePromise<Result | null>;
-	cleanup?: (result: Result, message: APIMessage) => MaybePromise<void>;
-	log: (result: Result, message: APIMessage) => MaybePromise<Log>;
-}
+	log(result: Result, message: APIMessage): MaybePromise<Log>;
+	run(data: Transform, message: APIMessage): MaybePromise<Result | null>;
+	transform?(message: APIMessage): MaybePromise<Transform>;
+};

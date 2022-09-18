@@ -1,6 +1,7 @@
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import { APIGuildInteraction, InteractionResponseType, Routes, Snowflake } from 'discord-api-types/v9';
+import type { APIGuildInteraction, Snowflake } from 'discord-api-types/v9';
+import { InteractionResponseType, Routes } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Component } from '../component';
 import { send } from '#util';

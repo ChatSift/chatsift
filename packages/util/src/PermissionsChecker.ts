@@ -2,7 +2,9 @@ import { DiscordPermissions } from '@automoderator/broker-types';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import { APIInteractionGuildMember, RESTGetAPIGuildResult, Routes, Snowflake } from 'discord-api-types/v9';
+import type { APIInteractionGuildMember, RESTGetAPIGuildResult, Snowflake } from 'discord-api-types/v9';
+import { Routes } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 
@@ -13,10 +15,10 @@ export enum UserPerms {
 	owner,
 }
 
-export interface PermissionsCheckerData {
-	member: APIInteractionGuildMember;
+export type PermissionsCheckerData = {
 	guild_id: Snowflake;
-}
+	member: APIInteractionGuildMember;
+};
 
 @singleton()
 export class PermissionsChecker {
@@ -28,11 +30,12 @@ export class PermissionsChecker {
 	) {}
 
 	public async checkMod(data: PermissionsCheckerData, modRoles?: Set<Snowflake> | null): Promise<boolean> {
-		modRoles ??= new Set(
-			(await this.prisma.modRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+		const roles = (await this.prisma.modRole.findMany({ where: { guildId: data.guild_id } })).map(
+			(role) => role.roleId,
 		);
 
-		return data.member.roles.some((r) => modRoles?.has(r));
+		const finalModRoles = modRoles ?? new Set(roles);
+		return data.member.roles.some((role) => finalModRoles.has(role));
 	}
 
 	public async checkAdmin(data: PermissionsCheckerData, adminRoles?: Set<Snowflake> | null): Promise<boolean> {
@@ -40,11 +43,12 @@ export class PermissionsChecker {
 			return true;
 		}
 
-		adminRoles ??= new Set(
-			(await this.prisma.adminRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+		const roles = (await this.prisma.adminRole.findMany({ where: { guildId: data.guild_id } })).map(
+			(role) => role.roleId,
 		);
 
-		return data.member.roles.some((r) => adminRoles?.has(r));
+		const finalAdminRoles = adminRoles ?? new Set(roles);
+		return data.member.roles.some((role) => finalAdminRoles.has(role));
 	}
 
 	public async checkOwner(data: PermissionsCheckerData, ownerId?: Snowflake | null): Promise<boolean> {
@@ -58,6 +62,7 @@ export class PermissionsChecker {
 				return false;
 			}
 
+			// eslint-disable-next-line no-param-reassign
 			ownerId = guild.owner_id;
 		}
 
@@ -75,12 +80,14 @@ export class PermissionsChecker {
 			return true;
 		}
 
+		// eslint-disable-next-line no-param-reassign
 		modRoles ??= new Set(
-			(await this.prisma.modRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+			(await this.prisma.modRole.findMany({ where: { guildId: data.guild_id } })).map((role) => role.roleId),
 		);
 
+		// eslint-disable-next-line no-param-reassign
 		adminRoles ??= new Set(
-			(await this.prisma.adminRole.findMany({ where: { guildId: data.guild_id } })).map((r) => r.roleId),
+			(await this.prisma.adminRole.findMany({ where: { guildId: data.guild_id } })).map((role) => role.roleId),
 		);
 
 		switch (perm) {
@@ -104,6 +111,9 @@ export class PermissionsChecker {
 			case UserPerms.owner: {
 				return this.checkOwner(data, ownerId);
 			}
+
+			default:
+				return false;
 		}
 	}
 }

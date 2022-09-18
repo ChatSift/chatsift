@@ -1,38 +1,46 @@
+import { Buffer } from 'node:buffer';
+import { setTimeout, clearTimeout, setInterval, clearInterval } from 'node:timers';
+import { URLSearchParams } from 'node:url';
 import type { DiscordEvents } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
 import { CaseManager } from '@automoderator/util';
 import { PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { getCreationData } from '@cordis/util';
-import { RawFile, REST } from '@discordjs/rest';
+import type { RawFile } from '@discordjs/rest';
+import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { CaseAction } from '@prisma/client';
-import type { APIMessageComponentInteraction } from 'discord-api-types/v9';
-import {
+import type {
+	APIMessageComponentInteraction,
 	APIGuild,
 	APIGuildInteraction,
 	APIGuildMember,
 	GatewaySendPayload,
 	GatewayGuildMembersChunkDispatchData,
+	Snowflake,
+} from 'discord-api-types/v9';
+import {
 	GatewayDispatchEvents,
 	GatewayOpcodes,
 	InteractionResponseType,
-	Snowflake,
 	ComponentType,
 	ButtonStyle,
 	Routes,
 } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler, CollectorTimeoutError } from '../../handler';
 import type { RaidCleanupCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, kGatewayBroadcasts, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, kGatewayBroadcasts, send } from '#util';
 
-interface RaidCleanupMember {
+type RaidCleanupMember = {
 	id: Snowflake;
 	tag: string;
-}
+};
 
 @injectable()
 export default class implements Command {
@@ -54,12 +62,14 @@ export default class implements Command {
 			const members: APIGuildMember[] = [];
 			let index = 0;
 
-			const interval = setInterval(() => {
-				void send(interaction, {
-					content: `Collecting all of your server members... This operation could take up to 2 minutes. ${
-						members.length
-					}/${guild.approximate_member_count!} members collected`,
-				}).catch(() => null);
+			const interval = setInterval(async () => {
+				try {
+					await send(interaction, {
+						content: `Collecting all of your server members... This operation could take up to 2 minutes. ${
+							members.length
+						}/${guild.approximate_member_count!} members collected`,
+					});
+				} catch {}
 			}, ms('10s'));
 
 			const timeout = setTimeout(() => {
@@ -80,13 +90,14 @@ export default class implements Command {
 					this.gateway.off(GatewayDispatchEvents.GuildMembersChunk, handler);
 					clearTimeout(timeout);
 					clearInterval(interval);
-					return resolve(members);
+					resolve(members);
 				}
 			};
 
 			this.gateway.on(GatewayDispatchEvents.GuildMembersChunk, handler);
 			this.gatewayBroadcaster.publish({
 				op: GatewayOpcodes.RequestGuildMembers,
+				// eslint-disable-next-line id-length
 				d: {
 					guild_id: interaction.guild_id,
 					query: '',
@@ -101,7 +112,7 @@ export default class implements Command {
 
 		const { join, age, name, 'avatar-hash': hash, ban = false } = args;
 
-		if (join == null && age == null && name == null && hash == null) {
+		if (join === null && age === null && name === null && hash === null) {
 			throw new ControlFlowError('You must pass at least one of the given arguments (other than ban)');
 		}
 
@@ -109,7 +120,7 @@ export default class implements Command {
 		if (join) {
 			const joinMinutesAgo = Number(join);
 
-			if (isNaN(joinMinutesAgo)) {
+			if (Number.isNaN(joinMinutesAgo)) {
 				const joinAgo = ms(join);
 				if (joinAgo <= 0) {
 					throw new ControlFlowError('Failed to parse the provided join time');
@@ -125,7 +136,7 @@ export default class implements Command {
 		if (age) {
 			const ageMinutesAgo = Number(age);
 
-			if (isNaN(ageMinutesAgo)) {
+			if (Number.isNaN(ageMinutesAgo)) {
 				const ageAgo = ms(age);
 				if (ageAgo <= 0) {
 					throw new ControlFlowError('Failed to parse the provided age time');
@@ -170,7 +181,10 @@ export default class implements Command {
 			}
 
 			if (meetsJoinCriteria && meetsAgeCriteria && meetsNameCriteria && meetsHashCriteria) {
-				acc.push({ id: member.user!.id, tag: `${member.user!.username}#${member.user!.discriminator}` });
+				acc.push({
+					id: member.user!.id,
+					tag: `${member.user!.username}#${member.user!.discriminator}`,
+				});
 			}
 
 			return acc;
@@ -193,11 +207,11 @@ export default class implements Command {
 			files: [
 				{
 					name: 'target_complete.txt',
-					data: Buffer.from(members.map((m) => `${m.tag} (${m.id})`).join('\n')),
+					data: Buffer.from(members.map((member) => `${member.tag} (${member.id})`).join('\n')),
 				},
 				{
 					name: 'target_ids.txt',
-					data: Buffer.from(members.map((m) => m.id).join('\n')),
+					data: Buffer.from(members.map((member) => member.id).join('\n')),
 				},
 			],
 			components: [
@@ -224,7 +238,7 @@ export default class implements Command {
 		try {
 			const done = await this.handler.collectorManager
 				.makeCollector<APIMessageComponentInteraction>(confirmId)
-				.waitForOneAndDestroy(30000);
+				.waitForOneAndDestroy(30_000);
 
 			const [, action] = done.data.custom_id.split('|') as [string, string];
 			if (action === 'n') {
@@ -257,9 +271,11 @@ export default class implements Command {
 							reason: `Raid cleanup (${++index}/${members.length})`,
 							deleteDays: ban ? 1 : undefined,
 						})
+						// eslint-disable-next-line promise/prefer-await-to-then
 						.then(() => {
 							sweeped.push(targetId);
 						})
+						// eslint-disable-next-line promise/prefer-await-to-then, promise/prefer-await-to-callbacks
 						.catch((error) => {
 							this.logger.error(error, 'Failed to sweep member');
 							missed.push(targetId);

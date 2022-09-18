@@ -1,37 +1,33 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call */
-
-import { Config, kConfig } from '@automoderator/injection';
-import { REST, RawFile } from '@discordjs/rest';
-import {
+import { setTimeout } from 'node:timers';
+import type { Config } from '@automoderator/injection';
+import { kConfig } from '@automoderator/injection';
+import type { RawFile } from '@discordjs/rest';
+import { REST } from '@discordjs/rest';
+import type {
 	APIInteractionResponseCallbackData,
 	APIModalInteractionResponseCallbackData,
-	InteractionResponseType,
 	RESTPostAPIChannelMessageJSONBody,
-	Routes,
 } from 'discord-api-types/v9';
+import { InteractionResponseType, Routes } from 'discord-api-types/v9';
 import { container } from 'tsyringe';
 
-export interface SendOptions {
+export type SendOptions = {
 	type?: InteractionResponseType;
 	update?: boolean;
-}
+};
 
 const REPLIED = new Set<string>();
 
 // TODO(DD): Figure out better approach
 /**
- * @param message Interaction to respond to
- * @param payload Payload response data
- * @param type The type of response to provide
- * @param followup If this is a followup to the original interaction response
+ * @param message - Interaction to respond to
+ * @param payload - Payload response data
+ * @param type - The type of response to provide
+ * @param followup - If this is a followup to the original interaction response
  */
 export const send = async (
 	message: any,
-	payload: (
-		| RESTPostAPIChannelMessageJSONBody
-		| APIInteractionResponseCallbackData
-		| APIModalInteractionResponseCallbackData
-	) & { files?: RawFile[] },
+	payload: { files?: RawFile[] } & (APIInteractionResponseCallbackData | APIModalInteractionResponseCallbackData),
 	type?: InteractionResponseType,
 	followup = false,
 ): Promise<unknown> => {
@@ -39,12 +35,13 @@ export const send = async (
 	const { discordClientId } = container.resolve<Config>(kConfig);
 
 	if ('token' in message) {
-		const { embeds, embed, files, ...r } = payload as RESTPostAPIChannelMessageJSONBody & { files?: RawFile[] };
-		const response = { ...r, embeds: embeds ?? (embed ? [embed] : undefined) };
+		// eslint-disable-next-line deprecation/deprecation
+		const { embeds, embed, files, ...other } = payload as RESTPostAPIChannelMessageJSONBody & { files?: RawFile[] };
+		const response = { ...other, embeds: embeds ?? (embed ? [embed] : undefined) };
 
 		if (followup) {
-			const { files, ...r } = payload;
-			return rest.post(Routes.webhook(discordClientId, message.token), { body: r, files });
+			const { files, ...other } = payload;
+			return rest.post(Routes.webhook(discordClientId, message.token), { body: other, files });
 		}
 
 		if (REPLIED.has(message.token)) {
@@ -70,10 +67,10 @@ export const send = async (
 		}
 	}
 
-	const { files, ...r } = payload;
+	const { files, ...other } = payload as RESTPostAPIChannelMessageJSONBody & { files?: RawFile[] };
 
 	return rest.post(Routes.channelMessages(message.channel_id), {
-		body: r,
+		body: other,
 		files,
 	});
 };

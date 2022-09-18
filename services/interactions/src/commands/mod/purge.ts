@@ -1,21 +1,22 @@
+import { URLSearchParams } from 'node:url';
 import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
 import { getCreationData } from '@cordis/util';
 import { DiscordAPIError, REST } from '@discordjs/rest';
-import {
+import type {
 	RESTGetAPIChannelMessagesResult,
 	RESTPostAPIChannelMessagesBulkDeleteJSONBody,
 	APIGuildInteraction,
 	APIMessage,
-	ChannelType,
-	InteractionResponseType,
-	Routes,
 } from 'discord-api-types/v9';
+import { ChannelType, InteractionResponseType, Routes } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { PurgeCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -27,7 +28,10 @@ export default class implements Command {
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof PurgeCommand>) {
 		if (!Object.keys(args).length) {
-			return send(interaction, { content: 'Please provide at least one argument', flags: 64 });
+			return send(interaction, {
+				content: 'Please provide at least one argument',
+				flags: 64,
+			});
 		}
 
 		await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
@@ -41,14 +45,14 @@ export default class implements Command {
 			channelId = args.channel.id;
 		}
 
-		if (args.amount == null) {
+		if (args.amount === null) {
 			args.amount = 100;
 		} else {
-			if (args.amount < 1) {
+			if (args.amount! < 1) {
 				throw new ControlFlowError('Please provide an amount equal or greater than 1');
 			}
 
-			if (args.amount > 500) {
+			if (args.amount! > 500) {
 				args.amount = 500;
 			}
 		}
@@ -63,9 +67,7 @@ export default class implements Command {
 			(await this.messagesCache.getChannelMessages(channelId)) ?? new Map<string, APIMessage>();
 
 		const messages = (await this.rest.get(Routes.channelMessages(channelId), {
-			query: new URLSearchParams({
-				limit: '100',
-			}),
+			query: new URLSearchParams({ limit: '100' }),
 		})) as RESTGetAPIChannelMessagesResult;
 
 		for (const message of messages) {
@@ -85,7 +87,7 @@ export default class implements Command {
 				const { createdTimestamp } = getCreationData(message.id);
 
 				// Discord won't purge messages older than 2 weeks regardless
-				const TWO_WEEKS = 12096e5;
+				const TWO_WEEKS = 12_096e5;
 				const ONE_DAY = 864e5;
 				if (Date.now() - createdTimestamp > (args.bots ? ONE_DAY : TWO_WEEKS)) {
 					return false;
@@ -120,16 +122,13 @@ export default class implements Command {
 
 				if (args.media) {
 					const checkForExtension = (ext: string): boolean => {
-						const expr = new RegExp(`https?:\/\/\\S+\.${ext}`, 'i');
+						// eslint-disable-next-line no-useless-escape
+						const expr = new RegExp(`https?://\\S+\.${ext}`, 'i');
 						if (expr.test(message.content)) {
 							return true;
 						}
 
-						if (message.attachments.find((a) => a.url.endsWith(`.${ext}`))) {
-							return true;
-						}
-
-						return false;
+						return Boolean(message.attachments.some((a) => a.url.endsWith(`.${ext}`)));
 					};
 
 					const gifExt = ['gif', 'apng'];
@@ -144,23 +143,24 @@ export default class implements Command {
 						}
 
 						case 'gifs': {
-							found = gifExt.some((e) => checkForExtension(e));
+							found = gifExt.some((ext) => checkForExtension(ext));
 							break;
 						}
 
 						case 'images': {
-							found = imageExt.some((e) => checkForExtension(e));
+							found = imageExt.some((ext) => checkForExtension(ext));
 							break;
 						}
 
 						case 'videos': {
-							found = videoExt.some((e) => checkForExtension(e));
+							found = videoExt.some((ext) => checkForExtension(ext));
 							break;
 						}
 
 						case 'all': {
 							found =
-								[...gifExt, ...imageExt, ...videoExt].some((e) => checkForExtension(e)) || message.embeds.length > 0;
+								[...gifExt, ...imageExt, ...videoExt].some((ext) => checkForExtension(ext)) ||
+								message.embeds.length > 0;
 							break;
 						}
 					}
@@ -180,12 +180,14 @@ export default class implements Command {
 			});
 		}
 
-		const loops = Math.ceil(Math.min(args.amount, toPurge.length) / 100);
+		const loops = Math.ceil(Math.min(args.amount!, toPurge.length) / 100);
 		const promises: Promise<unknown>[] = [];
 		const amounts: number[] = [];
 
-		for (let i = 0; i < loops; i++) {
-			const messages = toPurge.slice(i * 100, args.amount > 100 ? 100 + i * 100 : args.amount).map((m) => m.id);
+		for (let chunk = 0; chunk < loops; chunk++) {
+			const messages = toPurge
+				.slice(chunk * 100, args.amount! > 100 ? 100 + chunk * 100 : args.amount)
+				.map((msg) => msg.id);
 
 			for (const message of messages) {
 				void this.messagesCache.delete(message);
@@ -194,22 +196,16 @@ export default class implements Command {
 			amounts.push(messages.length);
 
 			const reason = `Purge by ${interaction.member.user.username}#${interaction.member.user.id} | Cycle ${
-				i + 1
+				chunk + 1
 			}/${loops}`;
 
 			if (messages.length === 1) {
-				promises.push(
-					this.rest.delete(Routes.channelMessage(channelId, messages[0]!), {
-						reason,
-					}),
-				);
+				promises.push(this.rest.delete(Routes.channelMessage(channelId, messages[0]!), { reason }));
 
 				continue;
 			}
 
-			const body: RESTPostAPIChannelMessagesBulkDeleteJSONBody = {
-				messages,
-			};
+			const body: RESTPostAPIChannelMessagesBulkDeleteJSONBody = { messages };
 			promises.push(
 				this.rest.post(Routes.channelBulkDelete(channelId), {
 					body,
@@ -218,17 +214,17 @@ export default class implements Command {
 			);
 		}
 
-		let i = 0;
+		let bulkIndex = 0;
 		let purged = 0;
 
 		for (const promise of await Promise.allSettled(promises)) {
 			if (promise.status === 'fulfilled') {
-				purged += amounts[i++]!;
+				purged += amounts[bulkIndex++]!;
 				continue;
 			}
 
 			// Make sure to increment i regardless
-			i++;
+			bulkIndex++;
 
 			if (promise.reason instanceof DiscordAPIError) {
 				if (promise.reason.status === 403) {

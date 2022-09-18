@@ -1,12 +1,15 @@
+import { Buffer } from 'node:buffer';
 import { REST } from '@discordjs/rest';
-import { GuildSettings, PrismaClient } from '@prisma/client';
+import type { GuildSettings } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '../../handler';
 import type { FilterCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -17,6 +20,7 @@ export default class implements Command {
 	) {}
 
 	private async sendCurrentSettings(interaction: APIGuildInteraction, settings?: Partial<GuildSettings> | null) {
+		// eslint-disable-next-line no-param-reassign
 		settings ??= await this.prisma.guildSettings.findFirst({ where: { guildId: interaction.guild_id } });
 
 		return send(interaction, {
@@ -39,15 +43,15 @@ export default class implements Command {
 			case 'edit': {
 				let settings: Partial<GuildSettings> = {};
 
-				if (args.edit.urls != null) {
+				if (args.edit.urls !== null) {
 					settings.useUrlFilters = args.edit.urls;
 				}
 
-				if (args.edit.invites != null) {
+				if (args.edit.invites !== null) {
 					settings.useInviteFilters = args.edit.invites;
 				}
 
-				if (args.edit.global != null) {
+				if (args.edit.global !== null) {
 					settings.useGlobalFilters = args.edit.global;
 				}
 
@@ -126,6 +130,7 @@ export default class implements Command {
 	}
 
 	private cleanDomain(url: string) {
+		// eslint-disable-next-line no-param-reassign
 		url = url.replace(/https?:\/\//g, '');
 
 		if (url.includes('/')) {
@@ -149,7 +154,7 @@ export default class implements Command {
 					});
 
 					return await send(interaction, { content: 'Successfully added the given url to the allowlist', flags: 64 });
-				} catch (error) {
+				} catch {
 					return send(interaction, { content: 'There was nothing to add!', flags: 64 });
 				}
 			}

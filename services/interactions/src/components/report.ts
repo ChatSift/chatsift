@@ -3,21 +3,17 @@ import { CaseManager } from '@automoderator/util';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { CaseAction, PrismaClient } from '@prisma/client';
-import {
+import type {
 	APIGuildInteraction,
 	APIButtonComponent,
-	ComponentType,
 	RESTPatchAPIChannelMessageJSONBody,
-	Routes,
-	ButtonStyle,
 	APIMessageComponentInteraction,
 	APIMessageSelectMenuInteractionData,
-	InteractionResponseType,
-	TextInputStyle,
 	APIModalSubmitInteraction,
 	APISelectMenuComponent,
 	APIUser,
 } from 'discord-api-types/v9';
+import { ComponentType, Routes, ButtonStyle, InteractionResponseType, TextInputStyle } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { inject, injectable } from 'tsyringe';
 import type { StopFunction } from '../collector';
@@ -36,7 +32,7 @@ export default class implements Component {
 	) {}
 
 	public async exec(interaction: APIGuildInteraction, [reportIdRaw, action]: [string, string]) {
-		const reportId = parseInt(reportIdRaw, 10);
+		const reportId = Number.parseInt(reportIdRaw, 10);
 		const [review, acknowledged, viewReporters, actionButton] = interaction.message!.components![0]!.components as [
 			APIButtonComponent,
 			APIButtonComponent,
@@ -64,7 +60,7 @@ export default class implements Component {
 				acknowledged.style = isDismiss ? ButtonStyle.Danger : ButtonStyle.Success;
 
 				if (embed) {
-					embed.color = isDismiss ? 2895667 : 15953004;
+					embed.color = isDismiss ? 2_895_667 : 15_953_004;
 				}
 
 				await send(interaction, {}, InteractionResponseType.UpdateMessage);
@@ -94,7 +90,7 @@ export default class implements Component {
 				const configureId = nanoid();
 				const doneId = nanoid();
 
-				const state: { action?: CaseAction | 'noop'; reason?: string; duration?: number } = {};
+				const state: { action?: CaseAction | 'noop'; duration?: number; reason?: string } = {};
 
 				await send(interaction, {
 					content: 'Please select the action you want to take, and optionally, the duration and reason',
@@ -274,7 +270,9 @@ export default class implements Component {
 								.waitForOneAndDestroy();
 
 							await send(modal, {}, InteractionResponseType.ChannelMessageWithSource);
-							const [parsedReason, parsedDuration] = [0, 1].map((i) => modal.data.components![i]!.components[0]!.value);
+							const [parsedReason, parsedDuration] = [0, 1].map(
+								(num) => modal.data.components![num]!.components[0]!.value,
+							);
 
 							if (parsedDuration) {
 								if (state.action !== CaseAction.ban && state.action !== CaseAction.mute) {
@@ -299,6 +297,7 @@ export default class implements Component {
 								state.duration = parsed;
 							}
 
+							// eslint-disable-next-line require-atomic-updates
 							state.reason = parsedReason!;
 							return send(interaction, {
 								content: `Executing a ${state.action}${
@@ -379,7 +378,7 @@ export default class implements Component {
 				});
 
 				if (embed) {
-					embed.color = 2895667;
+					embed.color = 2_895_667;
 				}
 
 				break;
@@ -396,10 +395,13 @@ export default class implements Component {
 			embeds: embed ? [embed] : undefined,
 		};
 
-		return this.rest
-			.patch(Routes.channelMessage(interaction.channel_id!, interaction.message!.id), {
-				body,
-			})
-			.catch(() => null);
+		return (
+			this.rest
+				.patch(Routes.channelMessage(interaction.channel_id!, interaction.message!.id), {
+					body,
+				})
+				// eslint-disable-next-line promise/prefer-await-to-then
+				.catch(() => null)
+		);
 	}
 }

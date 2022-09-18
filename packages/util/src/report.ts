@@ -1,21 +1,18 @@
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import {
+import type {
 	RESTPostAPIChannelMessageResult,
 	RESTPostAPIChannelMessageJSONBody,
 	APIUser,
-	RouteBases,
-	ButtonStyle,
-	ComponentType,
-	Routes,
 	GatewayMessageCreateDispatchData,
 } from 'discord-api-types/v9';
+import { RouteBases, ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';
 import { singleton } from 'tsyringe';
 
 export const enum ReportFailureReason {
-	previouslyAck = 'This message has been reported previously and has since been acknowledged by the staff team.',
 	alreadyReported = 'You have already reported this message.',
+	previouslyAck = 'This message has been reported previously and has since been acknowledged by the staff team.',
 }
 
 export class ReportFailure extends Error {
@@ -36,10 +33,10 @@ export class ReportHandler {
 	) {
 		const reporterData = {
 			tag: `${reporter.username}#${reporter.discriminator}`,
-			id: reporter.id,
-			avatar: reporter.avatar
-				? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${reporter.id}/${reporter.avatar}`)
-				: `${RouteBases.cdn}/embed/avatars/${parseInt(reporter.discriminator, 10) % 5}.png`,
+			// id: reporter.id,
+			// avatar: reporter.avatar ?
+			// makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${reporter.id}/${reporter.avatar}`) :
+			// `${RouteBases.cdn}/embed/avatars/${Number.parseInt(reporter.discriminator, 10) % 5}.png`,
 		};
 
 		return this.prisma.$transaction(async (prisma) => {
@@ -50,11 +47,11 @@ export class ReportHandler {
 
 			if (existingReport) {
 				if (existingReport.acknowledgedAt) {
-					return Promise.reject(new ReportFailure(ReportFailureReason.previouslyAck));
+					throw new ReportFailure(ReportFailureReason.previouslyAck);
 				}
 
-				if (existingReport.reporters.find((r) => r.reporterId === reporter.id)) {
-					return Promise.reject(new ReportFailure(ReportFailureReason.alreadyReported));
+				if (existingReport.reporters.some((report) => report.reporterId === reporter.id)) {
+					throw new ReportFailure(ReportFailureReason.alreadyReported);
 				}
 
 				await prisma.reporter.create({
@@ -85,23 +82,19 @@ export class ReportHandler {
 				const body: RESTPostAPIChannelMessageJSONBody = {
 					embeds: [
 						{
-							color: 15953004,
+							color: 15_953_004,
 							author: {
 								name: `${message.author.username}#${message.author.discriminator} (${message.author.id})`,
 								icon_url: message.author.avatar
 									? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${message.author.id}/${message.author.avatar}`)
-									: `${RouteBases.cdn}/embed/avatars/${parseInt(message.author.discriminator, 10) % 5}.png`,
+									: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(message.author.discriminator, 10) % 5}.png`,
 							},
 							description: `Had their message posted <t:${Math.round(
-								getCreationData(message.id).createdTimestamp / 1000,
+								getCreationData(message.id).createdTimestamp / 1_000,
 							)}:R> in <#${message.channel_id}> reported. \n\n${
 								message.content.length ? `\`\`\`${message.content}\`\`\`` : '*Message had no text content*'
 							}`,
-							image: message.attachments[0]
-								? {
-										url: message.attachments[0].url,
-								  }
-								: undefined,
+							image: message.attachments[0] ? { url: message.attachments[0].url } : undefined,
 						},
 					],
 					components: [
@@ -142,12 +135,8 @@ export class ReportHandler {
 				})) as RESTPostAPIChannelMessageResult;
 
 				await prisma.report.update({
-					data: {
-						reportMessageId: reportMessage.id,
-					},
-					where: {
-						reportId: report.reportId,
-					},
+					data: { reportMessageId: reportMessage.id },
+					where: { reportId: report.reportId },
 				});
 			}
 		});
@@ -156,25 +145,28 @@ export class ReportHandler {
 	public async reportUser(target: APIUser, reporter: APIUser, reportsChannel: string, reason: string) {
 		const reporterData = {
 			tag: `${reporter.username}#${reporter.discriminator}`,
-			id: reporter.id,
-			avatar: reporter.avatar
-				? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${reporter.id}/${reporter.avatar}`)
-				: `${RouteBases.cdn}/embed/avatars/${parseInt(reporter.discriminator, 10) % 5}.png`,
+			// id: reporter.id,
+			// avatar: reporter.avatar ?
+			// makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${reporter.id}/${reporter.avatar}`) :
+			// `${RouteBases.cdn}/embed/avatars/${Number.parseInt(reporter.discriminator, 10) % 5}.png`,
 		};
 
 		return this.prisma.$transaction(async (prisma) => {
 			const existingReport = await prisma.report.findFirst({
-				where: { userId: target.id, messageId: null },
+				where: {
+					userId: target.id,
+					messageId: null,
+				},
 				include: { reporters: true },
 			});
 
 			if (existingReport) {
 				if (existingReport.acknowledgedAt) {
-					return Promise.reject(new ReportFailure(ReportFailureReason.previouslyAck));
+					throw new ReportFailure(ReportFailureReason.previouslyAck);
 				}
 
-				if (existingReport.reporters.find((r) => r.reporterId === reporter.id)) {
-					return Promise.reject(new ReportFailure(ReportFailureReason.alreadyReported));
+				if (existingReport.reporters.some((report) => report.reporterId === reporter.id)) {
+					throw new ReportFailure(ReportFailureReason.alreadyReported);
 				}
 
 				await prisma.reporter.create({
@@ -204,12 +196,12 @@ export class ReportHandler {
 				const body: RESTPostAPIChannelMessageJSONBody = {
 					embeds: [
 						{
-							color: 15953004,
+							color: 15_953_004,
 							author: {
 								name: `${target.username}#${target.discriminator} (${target.id})`,
 								icon_url: target.avatar
 									? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${target.id}/${target.avatar}`)
-									: `${RouteBases.cdn}/embed/avatars/${parseInt(target.discriminator, 10) % 5}.png`,
+									: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(target.discriminator, 10) % 5}.png`,
 							},
 							description: 'Was reported',
 						},
@@ -252,12 +244,8 @@ export class ReportHandler {
 				})) as RESTPostAPIChannelMessageResult;
 
 				await prisma.report.update({
-					data: {
-						reportMessageId: reportMessage.id,
-					},
-					where: {
-						reportId: report.reportId,
-					},
+					data: { reportMessageId: reportMessage.id },
+					where: { reportId: report.reportId },
 				});
 			}
 		});

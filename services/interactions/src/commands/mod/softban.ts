@@ -1,10 +1,12 @@
 import { CaseManager, PermissionsChecker, UserPerms } from '@automoderator/util';
 import { CaseAction, PrismaClient } from '@prisma/client';
-import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
+import type { APIGuildInteraction } from 'discord-api-types/v9';
+import { InteractionResponseType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
-import { handleLockConfirmation } from './sub/handleLockConfirmation';
 import type { Command } from '../../command';
-import { ArgumentsOf, ControlFlowError, send } from '../../util';
+import type { ArgumentsOf } from '../../util';
+import { ControlFlowError, send } from '../../util';
+import { handleLockConfirmation } from './sub/handleLockConfirmation';
 import type { SoftbanCommand } from '#interactions';
 
 @injectable()
@@ -18,7 +20,7 @@ export default class implements Command {
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof SoftbanCommand>) {
 		await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
 		const { user: member, reason, reference: refId, days = 1 } = args;
-		if (reason && reason.length >= 1900) {
+		if (reason && reason.length >= 1_900) {
 			throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
 		}
 

@@ -1,20 +1,21 @@
+import { setTimeout } from 'node:timers';
 import type { RouteLike } from '@discordjs/rest';
 
-interface RecursiveRecord<T> {
+type RecursiveRecord<T> = {
 	[key: string]: RecursiveRecord<T> | T;
-}
+};
 
 const CACHE_TIMES: RecursiveRecord<number> = {
 	guilds: {
 		id: {
 			// We don't currently actively need fresh guild data - we mostly fetch guilds for permissions
-			default: 60000,
+			default: 60_000,
 			// Bit of a compromise - we do somewhat need active channel data to properly handle ignored channels
-			channels: 15000,
+			channels: 15_000,
 			// Also a comprmise - this is used for self assignables besides for permissions
-			roles: 20000,
+			roles: 20_000,
 			members: {
-				id: 15000,
+				id: 15_000,
 			},
 		},
 	},
@@ -22,7 +23,7 @@ const CACHE_TIMES: RecursiveRecord<number> = {
 
 export function resolveCacheTime(path: RouteLike): number | null {
 	const routes = path
-		.substring(1)
+		.slice(1)
 		.split('/')
 		.map((route) => (/\d{17,19}/g.test(route) ? 'id' : route));
 

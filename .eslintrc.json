@@ -1,16 +1,23 @@
 {
 	"root": true,
-	"extends": ["marine/prettier/node"],
+	"extends": ["neon/common", "neon/node", "neon/typescript", "neon/prettier", "neon/module"],
 	"parserOptions": {
 		"project": "./tsconfig.eslint.json"
 	},
 	"env": {
 		"jest": true
 	},
+	"globals": {
+		"NodeJS": "readonly"
+	},
 	"rules": {
 		"@typescript-eslint/ban-types": "off",
+		"@typescript-eslint/no-extraneous-class": "off",
 		"curly": ["error", "all"],
-		"no-multi-assign": "off",
-		"no-eq-null": "off"
+		"no-eq-null": "off",
+		"no-unused-vars": "off",
+		"import/extensions": "off",
+		"no-useless-constructor": "off",
+		"unicorn/require-post-message-target-origin": "off"
 	}
 }

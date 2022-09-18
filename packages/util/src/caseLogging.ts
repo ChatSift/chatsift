@@ -2,16 +2,17 @@ import { addFields, truncateEmbed } from '@chatsift/discord-utils';
 import { makeDiscordCdnUrl } from '@cordis/util';
 import ms from '@naval-base/ms';
 import type { Case } from '@prisma/client';
-import { APIEmbed, APIMessage, APIUser, RouteBases, Snowflake } from 'discord-api-types/v9';
+import type { APIEmbed, APIMessage, APIUser, Snowflake } from 'discord-api-types/v9';
+import { RouteBases } from 'discord-api-types/v9';
 
 export const LOG_COLORS = Object.freeze({
-	warn: 16022395,
-	mute: 16022395,
-	unmute: 5793266,
-	kick: 16022395,
-	softban: 16022395,
-	ban: 15747144,
-	unban: 5793266,
+	warn: 16_022_395,
+	mute: 16_022_395,
+	unmute: 5_793_266,
+	kick: 16_022_395,
+	softban: 16_022_395,
+	ban: 15_747_144,
+	unban: 5_793_266,
 } as const);
 
 export const ACTIONS = Object.freeze({
@@ -24,15 +25,15 @@ export const ACTIONS = Object.freeze({
 	unban: 'unbanned',
 } as const);
 
-export interface CaseEmbedOptions {
-	logChannelId?: Snowflake | null;
+export type CaseEmbedOptions = {
 	cs: Case;
-	target: APIUser;
+	logChannelId?: Snowflake | null;
+	message?: APIMessage | null;
 	mod?: APIUser | null;
 	pardonedBy?: APIUser | null;
-	message?: APIMessage | null;
 	refCs?: Case | null;
-}
+	target: APIUser;
+};
 
 export const makeCaseEmbed = ({
 	logChannelId,
@@ -51,7 +52,7 @@ export const makeCaseEmbed = ({
 					name: `${cs.targetTag} (${cs.targetId})`,
 					icon_url: target.avatar
 						? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${target.id}/${target.avatar}`)
-						: `${RouteBases.cdn}/embed/avatars/${parseInt(target.discriminator, 10) % 5}.png`,
+						: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(target.discriminator, 10) % 5}.png`,
 				},
 		  };
 
@@ -62,7 +63,7 @@ export const makeCaseEmbed = ({
 		icon_url: mod
 			? mod.avatar
 				? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${mod.id}/${mod.avatar}`)
-				: `${RouteBases.cdn}/embed/avatars/${parseInt(mod.discriminator, 10) % 5}.png`
+				: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(mod.discriminator, 10) % 5}.png`
 			: undefined,
 	};
 
@@ -88,7 +89,7 @@ export const makeCaseEmbed = ({
 		addFields(embed, {
 			name: 'Duration',
 			value: `${ms(expiresAt - new Date(cs.createdAt).getTime(), true)}; Expires: <t:${Math.round(
-				expiresAt / 1000,
+				expiresAt / 1_000,
 			)}:R>`,
 		});
 	}
@@ -96,12 +97,12 @@ export const makeCaseEmbed = ({
 	return truncateEmbed(embed);
 };
 
-export interface HistoryEmbedOptions {
-	user: APIUser;
+export type HistoryEmbedOptions = {
 	cases: Case[];
-	logChannelId?: Snowflake | null;
 	filterTriggers?: number;
-}
+	logChannelId?: Snowflake | null;
+	user: APIUser;
+};
 
 // The severity color system - bans = 3pt; kicks/softbans = 2pts; mutes = 0.5pts; warnings = 0.25pts;
 //  >=3 points -> red
@@ -118,7 +119,7 @@ export const makeHistoryEmbed = ({ user, cases, logChannelId, filterTriggers }: 
 		warn: 0,
 	};
 
-	const colors = [8450847, 13091073, 16022395, 15747144] as const;
+	const colors = [8_450_847, 13_091_073, 16_022_395, 15_747_144] as const;
 	const details: string[] = [];
 
 	for (const cs of cases.sort((a, b) => a.id - b.id)) {
@@ -138,7 +139,7 @@ export const makeHistoryEmbed = ({ user, cases, logChannelId, filterTriggers }: 
 			continue;
 		}
 
-		const timestamp = Math.round(cs.createdAt.getTime() / 1000);
+		const timestamp = Math.round(cs.createdAt.getTime() / 1_000);
 		const action = cs.actionType.toUpperCase();
 		const caseId =
 			cs.logMessageId && logChannelId
@@ -154,7 +155,7 @@ export const makeHistoryEmbed = ({ user, cases, logChannelId, filterTriggers }: 
 			name: `${user.username}#${user.discriminator} (${user.id})`,
 			icon_url: user.avatar
 				? makeDiscordCdnUrl(`${RouteBases.cdn}/avatars/${user.id}/${user.avatar}`)
-				: `${RouteBases.cdn}/embed/avatars/${parseInt(user.discriminator, 10) % 5}.png`,
+				: `${RouteBases.cdn}/embed/avatars/${Number.parseInt(user.discriminator, 10) % 5}.png`,
 		},
 		color: colors[points > 0 && points < 1 ? 1 : Math.min(Math.floor(points), 3)],
 	};

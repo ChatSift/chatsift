@@ -4,12 +4,14 @@ import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
 import { CaseAction, PrismaClient } from '@prisma/client';
-import { APIGuildInteraction, InteractionResponseType } from 'discord-api-types/v9';
+import type { APIGuildInteraction } from 'discord-api-types/v9';
+import { InteractionResponseType } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
-import { handleLockConfirmation } from './sub/handleLockConfirmation';
 import type { Command } from '../../command';
+import { handleLockConfirmation } from './sub/handleLockConfirmation';
 import type { MuteCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -24,7 +26,7 @@ export default class implements Command {
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof MuteCommand>) {
 		await send(interaction, { flags: 64 }, InteractionResponseType.DeferredChannelMessageWithSource);
 		const { user: member, reason, reference: refId, duration: durationString } = args;
-		if (reason && reason.length >= 1900) {
+		if (reason && reason.length >= 1_900) {
 			throw new ControlFlowError(`Your provided reason is too long (${reason.length}/1900)`);
 		}
 
@@ -39,7 +41,7 @@ export default class implements Command {
 		let expiresAt: Date | undefined;
 		const durationMinutes = Number(durationString);
 
-		if (isNaN(durationMinutes)) {
+		if (Number.isNaN(durationMinutes)) {
 			const duration = ms(durationString);
 			if (!duration) {
 				throw new ControlFlowError('Failed to parse the provided duration');

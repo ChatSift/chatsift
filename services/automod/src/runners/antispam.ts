@@ -1,25 +1,28 @@
-import { AntispamRunnerResult, Log, Runners } from '@automoderator/broker-types';
+import type { AntispamRunnerResult, Log } from '@automoderator/broker-types';
+import { Runners } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { Config, kConfig, kRedis } from '@automoderator/injection';
-import { CaseData, CaseManager, dmUser } from '@automoderator/util';
+import type { CaseData } from '@automoderator/util';
+import { CaseManager, dmUser } from '@automoderator/util';
 import { groupBy } from '@chatsift/utils';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import { AutomodPunishmentAction, CaseAction, PrismaClient } from '@prisma/client';
-import {
-	Routes,
+import type {
 	APIMessage,
 	RESTPostAPIChannelMessagesBulkDeleteJSONBody,
 	GatewayMessageCreateDispatchData,
 } from 'discord-api-types/v9';
+import { Routes } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Redis } from 'ioredis';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 
-interface AntispamTransform {
+type AntispamTransform = {
 	amount?: number | null;
 	time?: number | null;
-}
+};
 
 @singleton()
 export class AntispamRunner
@@ -47,7 +50,7 @@ export class AntispamRunner
 	}
 
 	public check({ amount, time }: AntispamTransform): boolean {
-		return amount != null && time != null;
+		return amount !== null && time !== null;
 	}
 
 	public async run(
@@ -59,14 +62,12 @@ export class AntispamRunner
 		await this.redis.zadd(key, Date.now(), message.id);
 		await this.redis.expire(key, time!);
 
-		const messageIds = await this.redis.zrangebyscore(key, Date.now() - time! * 1000, Date.now());
+		const messageIds = await this.redis.zrangebyscore(key, Date.now() - time! * 1_000, Date.now());
 
 		if (messageIds.length >= amount!) {
 			await this.redis.del(key);
 
-			return (await Promise.all(messageIds.map((id) => this.messages.get(id)))).filter(
-				(message): message is APIMessage => Boolean(message),
-			);
+			return (await Promise.all(messageIds.map(async (id) => this.messages.get(id)))).filter(Boolean) as APIMessage[];
 		}
 
 		return null;
@@ -76,45 +77,49 @@ export class AntispamRunner
 		const grouped = groupBy(messages, (message) => message.channel_id);
 		const promises = [];
 
-		for (const [channel, messages] of Object.entries(grouped)) {
+		for (const [channel, groupedMessages] of Object.entries(grouped)) {
 			const message = messages[0]!;
 
-			const body: RESTPostAPIChannelMessagesBulkDeleteJSONBody = {
-				messages: messages.map((message) => message.id),
-			};
+			const body: RESTPostAPIChannelMessagesBulkDeleteJSONBody = { messages: messages.map((message) => message.id) };
 
+			/* eslint-disable promise/prefer-await-to-then */
 			promises.push(
 				messages.length === 1
 					? this.rest
 							.delete(Routes.channelMessage(channel, message.id), { reason: 'Antispam trigger' })
-							.then(() => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
+							.then(async () => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
 							.catch(() => null)
 					: this.rest
 							.post(Routes.channelBulkDelete(channel), {
 								body,
 								reason: 'Antispam trigger',
 							})
-							.then(() => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
+							.then(async () => dmUser(message.author.id, 'Be careful! You have been caught by anti-spam measures.'))
 							.catch(() => null),
 			);
+			/* eslint-enable promise/prefer-await-to-then */
 		}
 
 		await Promise.all(promises);
 
-		const baseData = { guildId: messages[0]!.guild_id!, userId: messages[0]!.author.id };
+		const baseData = {
+			guildId: messages[0]!.guild_id!,
+			userId: messages[0]!.author.id,
+		};
 		const { count } = await this.prisma.filterTrigger.upsert({
 			create: {
 				...baseData,
 				count: 1,
 			},
-			update: {
-				count: { increment: 1 },
-			},
+			update: { count: { increment: 1 } },
 			where: { guildId_userId: baseData },
 		});
 
 		const punishment = await this.prisma.automodPunishment.findFirst({
-			where: { guildId: messages[0]!.guild_id!, triggers: count },
+			where: {
+				guildId: messages[0]!.guild_id!,
+				triggers: count,
+			},
 		});
 
 		if (punishment) {

@@ -1,15 +1,17 @@
 import { kRedis } from '@automoderator/injection';
 import { RedisStore } from '@cordis/redis-store';
 import type { APIMessage } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Redis } from 'ioredis';
 import { singleton, inject } from 'tsyringe';
 
 @singleton()
 export class MessageCache {
-	private readonly _maxSizePerChannel = 5000;
+	private readonly _maxSizePerChannel = 5_000;
 
 	private readonly _store = new RedisStore<APIMessage>({
 		hash: 'messages_cache',
+		// @ts-expect-error - miss match
 		redis: this.redis,
 		encode: (message) => JSON.stringify(message),
 		decode: (message: string) => JSON.parse(message) as APIMessage,
@@ -21,12 +23,12 @@ export class MessageCache {
 		return Boolean(await this._store.get(message.id));
 	}
 
-	public async getChannelMessages(id: string): Promise<Map<string, APIMessage> | undefined> {
-		const key = `messages_cache_${id}_list`;
+	public async getChannelMessages(channelId: string): Promise<Map<string, APIMessage> | undefined> {
+		const key = `messages_cache_${channelId}_list`;
 		const size = await this.redis.llen(key);
 
 		if (!size) {
-			return;
+			return undefined;
 		}
 
 		const ids = await this.redis.lrange(key, 0, size);
@@ -36,7 +38,9 @@ export class MessageCache {
 			promises.push(
 				this._store
 					.get(id)
-					.then((m) => m ?? null)
+					// eslint-disable-next-line promise/prefer-await-to-then
+					.then((message) => message ?? null)
+					// eslint-disable-next-line promise/prefer-await-to-then
 					.catch(() => null),
 			);
 		}
@@ -44,17 +48,17 @@ export class MessageCache {
 		const map = new Map<string, APIMessage>();
 		const messages = await Promise.all(promises);
 
-		for (let i = 0; i < ids.length; i++) {
-			const message = messages[i];
+		for (const [index, id_] of ids.entries()) {
+			const message = messages[index];
 			if (message) {
-				map.set(ids[i]!, message);
+				map.set(id_!, message);
 			}
 		}
 
 		return map;
 	}
 
-	public get(id: string): Promise<APIMessage | undefined> {
+	public async get(id: string): Promise<APIMessage | undefined> {
 		return this._store.get(id);
 	}
 
@@ -65,8 +69,10 @@ export class MessageCache {
 			const size = await this.redis.llen(key).then((len) => len + 1);
 			if (size > this._maxSizePerChannel) {
 				const popped = await this.redis.lpop(key, size - this._maxSizePerChannel);
-				for (const pop of popped) {
-					void this._store.delete(pop);
+				if (popped) {
+					for (const pop of popped) {
+						void this._store.delete(pop);
+					}
 				}
 			}
 
@@ -78,6 +84,7 @@ export class MessageCache {
 		return message;
 	}
 
+	// eslint-disable-next-line @typescript-eslint/promise-function-async
 	public delete(id: string): Promise<boolean> {
 		return this._store.delete(id);
 	}

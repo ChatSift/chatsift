@@ -1,27 +1,32 @@
-import { readFileSync } from 'fs';
-import { join as joinPath } from 'path';
-import { Log, Runners, UrlsRunnerResult } from '@automoderator/broker-types';
+import { readFileSync } from 'node:fs';
+import { join as joinPath } from 'node:path';
+import type { Log, UrlsRunnerResult } from '@automoderator/broker-types';
+import { Runners } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
 import { dmUser } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import { Routes, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import type { GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import { Routes } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 
-interface UrlsTransform {
+type UrlsTransform = {
 	urls: string[];
 	use: boolean;
-}
+};
 
 @singleton()
 export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRunnerResult> {
 	public readonly ignore = 'urls';
 
-	public readonly urlRegex = /https?:\/\/(?<url>([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<path>\/[^\s]*)?)/gm;
+	// eslint-disable-next-line unicorn/no-unsafe-regex
+	public readonly urlRegex = /https?:\/\/(?<url>(?:[^\s./]+\.)+(?<tld>[^\s./]+)(?<path>\/\S*)?)/gm;
+
 	public readonly tlds: Set<string>;
 
 	public constructor(
@@ -31,6 +36,8 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 		public readonly rest: REST,
 		public readonly logs: PubSubPublisher<Log>,
 	) {
+		// I hope the bot is being rewritten to use modules instead of commonjs soon
+		// eslint-disable-next-line unicorn/prefer-module
 		const contents = readFileSync(joinPath(__dirname, '..', '..', 'tlds.txt'), 'utf8');
 		this.tlds = contents.split('\n').reduce((acc, line) => {
 			if (!line.startsWith('#') && line.length) {
@@ -53,6 +60,7 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 	}
 
 	private cleanDomain(url: string) {
+		// eslint-disable-next-line no-param-reassign
 		url = url.replace(/https?:\/\//g, '');
 
 		if (url.includes('/')) {
@@ -98,17 +106,23 @@ export class UrlsRunner implements IRunner<UrlsTransform, UrlsTransform, UrlsRun
 			return null;
 		}
 
-		return { use, urls: forbidden };
+		return {
+			use,
+			urls: forbidden,
+		};
 	}
 
 	public async cleanup(_: UrlsTransform, message: GatewayMessageCreateDispatchData): Promise<void> {
 		await this.rest
 			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'URL filter trigger' })
-			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing a link.'))
+			.then(async () => dmUser(message.author.id, 'Your message was deleted due to containing a link.'))
 			.catch(() => null);
 	}
 
 	public log({ urls }: UrlsTransform): UrlsRunnerResult {
-		return { runner: Runners.urls, data: urls };
+		return {
+			runner: Runners.urls,
+			data: urls,
+		};
 	}
 }

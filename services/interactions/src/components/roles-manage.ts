@@ -2,14 +2,13 @@ import { chunkArray } from '@chatsift/utils';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
-import {
+import type {
 	APIGuildInteraction,
 	APIMessageSelectMenuInteractionData,
-	InteractionResponseType,
 	RESTPatchAPIGuildMemberJSONBody,
-	Routes,
 	Snowflake,
 } from 'discord-api-types/v9';
+import { InteractionResponseType, Routes } from 'discord-api-types/v9';
 import { injectable } from 'tsyringe';
 import type { Component } from '../component';
 import { send } from '#util';
@@ -24,10 +23,10 @@ export default class implements Component {
 		const selfAssignables = new Set<Snowflake>(
 			chunkArray(
 				await this.prisma.selfAssignableRole
-					.findMany({ where: { promptId: parseInt(promptId, 10) } })
+					.findMany({ where: { promptId: Number.parseInt(promptId, 10) } })
 					.then((roles) => roles.map((role) => role.roleId)),
 				25,
-			)[parseInt(index, 10)],
+			)[Number.parseInt(index, 10)],
 		);
 
 		const roles = new Set(interaction.member.roles);
@@ -59,7 +58,7 @@ export default class implements Component {
 			reason: 'Self-assignable roles update',
 		});
 
-		interaction.message!.components![parseInt(index, 10)]!.components[0]!.disabled = true;
+		interaction.message!.components![Number.parseInt(index, 10)]!.components[0]!.disabled = true;
 
 		if (interaction.message!.components!.every((component) => component.components[0]!.disabled)) {
 			interaction.message!.components = [];

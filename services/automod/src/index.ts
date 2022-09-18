@@ -4,7 +4,8 @@ import createLogger from '@automoderator/logger';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import Redis, { Redis as IORedis } from 'ioredis';
+import type { Redis as IORedis } from 'ioredis';
+import Redis from 'ioredis';
 import type { Logger } from 'pino';
 import { container } from 'tsyringe';
 import { Gateway } from './gateway';
@@ -14,14 +15,15 @@ void (async () => {
 
 	const logger = createLogger('automod');
 
-	const rest = new REST({
-		api: `${config.discordProxyUrl}/api`,
-	}).setToken(config.discordToken);
+	const rest = new REST({ api: `${config.discordProxyUrl}/api` }).setToken(config.discordToken);
 
 	const { channel } = await createAmqp(config.amqpUrl);
 	const logs = new PubSubPublisher(channel);
 
-	await logs.init({ name: 'guild_logs', fanout: false });
+	await logs.init({
+		name: 'guild_logs',
+		fanout: false,
+	});
 
 	container.register(RoutingSubscriber, { useValue: new RoutingSubscriber(channel) });
 	container.register(PubSubPublisher, { useValue: logs });

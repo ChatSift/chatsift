@@ -1,22 +1,28 @@
-import { Log, LogTypes, ServerLogType, BanwordFlags, BanwordFlagsResolvable } from '@automoderator/broker-types';
+import { Buffer } from 'node:buffer';
+import type { Log, BanwordFlagsResolvable } from '@automoderator/broker-types';
+import { LogTypes, ServerLogType, BanwordFlags } from '@automoderator/broker-types';
 import { kLogger } from '@automoderator/injection';
 import { PubSubPublisher } from '@cordis/brokers';
-import { RawFile, REST } from '@discordjs/rest';
+import type { RawFile } from '@discordjs/rest';
+import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { BannedWord, PrismaClient } from '@prisma/client';
+import type { BannedWord } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import type { APIGuildInteraction } from 'discord-api-types/v9';
 import yaml from 'js-yaml';
 import fetch from 'node-fetch';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { BanwordCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
-interface ParsedEntry {
+type ParsedEntry = {
+	flags: ('ban' | 'kick' | 'mute' | 'name' | 'report' | 'warn' | 'word')[];
 	muteduration?: string;
-	flags: ('word' | 'warn' | 'mute' | 'ban' | 'report' | 'kick' | 'name')[];
-}
+};
 
 @injectable()
 export default class implements Command {
@@ -29,9 +35,7 @@ export default class implements Command {
 
 	private _entriesToYaml(list: BannedWord[]): string {
 		const data = list.reduce<Record<string, ParsedEntry>>((acc, entry) => {
-			const value: ParsedEntry = {
-				flags: new BanwordFlags(BigInt(entry.flags)).toArray(),
-			};
+			const value: ParsedEntry = { flags: new BanwordFlags(BigInt(entry.flags)).toArray() };
 
 			if (entry.duration !== null) {
 				value.muteduration = ms(Number(entry.duration), true);
@@ -41,7 +45,10 @@ export default class implements Command {
 			return acc;
 		}, {});
 
-		return yaml.dump(data, { sortKeys: true, schema: yaml.JSON_SCHEMA });
+		return yaml.dump(data, {
+			sortKeys: true,
+			schema: yaml.JSON_SCHEMA,
+		});
 	}
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof BanwordCommand>) {
@@ -83,7 +90,8 @@ export default class implements Command {
 					flags.push('kick');
 				}
 
-				const url = args.add.entry.match(/([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm)?.[0];
+				// eslint-disable-next-line unicorn/no-unsafe-regex
+				const url = args.add.entry.match(/([^\s./]+\.)+(?<tld>[^\s./]+)(?<url>\/\S*)?/gm)?.[0];
 
 				const bannedWord: BannedWord = {
 					guildId: interaction.guild_id,
@@ -92,12 +100,12 @@ export default class implements Command {
 					duration: null,
 				};
 
-				if (args.add['mute-duration'] != null) {
+				if (args.add['mute-duration'] !== null) {
 					if (!args.add.mute) {
 						throw new ControlFlowError('You can only provide a mute duration for triggers that cause a mute');
 					}
 
-					const parsed = ms(args.add['mute-duration']);
+					const parsed = ms(args.add['mute-duration']!);
 					if (parsed <= 0) {
 						throw new ControlFlowError('Failed to parse mute duration');
 					}
@@ -109,7 +117,10 @@ export default class implements Command {
 					create: bannedWord,
 					update: bannedWord,
 					where: {
-						guildId_word: { guildId: bannedWord.guildId, word: bannedWord.word },
+						guildId_word: {
+							guildId: bannedWord.guildId,
+							word: bannedWord.word,
+						},
 					},
 				});
 
@@ -134,11 +145,17 @@ export default class implements Command {
 			}
 
 			case 'remove': {
-				const url = args.remove.entry.match(/([^\.\s\/]+\.)+(?<tld>[^\.\s\/]+)(?<url>\/[^\s]*)?/gm)?.[0];
+				// eslint-disable-next-line unicorn/no-unsafe-regex
+				const url = args.remove.entry.match(/([^\s./]+\.)+(?<tld>[^\s./]+)(?<url>\/\S*)?/gm)?.[0];
 
 				try {
 					const deleted = await this.prisma.bannedWord.delete({
-						where: { guildId_word: { guildId: interaction.guild_id, word: (url ?? args.remove.entry).toLowerCase() } },
+						where: {
+							guildId_word: {
+								guildId: interaction.guild_id,
+								word: (url ?? args.remove.entry).toLowerCase(),
+							},
+						},
 					});
 
 					this.guildLogs.publish({
@@ -173,16 +190,24 @@ export default class implements Command {
 
 				return send(interaction, {
 					content: "Here's your list",
-					files: [{ name: 'bannedwords.yml', data: Buffer.from(this._entriesToYaml(list)) }],
+					files: [
+						{
+							name: 'bannedwords.yml',
+							data: Buffer.from(this._entriesToYaml(list)),
+						},
+					],
 				});
 			}
 
 			case 'bulk': {
-				const text = await fetch(args.bulk.list.url).then((res) => res.text());
+				const text = await fetch(args.bulk.list.url).then(async (res) => res.text());
 
 				let parsed;
 				try {
-					parsed = yaml.load(text, { schema: yaml.JSON_SCHEMA, json: true }) as Record<string, ParsedEntry> | null;
+					parsed = yaml.load(text, {
+						schema: yaml.JSON_SCHEMA,
+						json: true,
+					}) as Record<string, ParsedEntry> | null;
 				} catch (error) {
 					this.logger.error({ error });
 					throw new ControlFlowError(
@@ -213,7 +238,7 @@ export default class implements Command {
 						duration: null,
 					};
 
-					if (value.muteduration != null) {
+					if (value.muteduration !== null) {
 						if (!bitfield.has('mute')) {
 							throw new ControlFlowError(`You provided a mute time but no mute flag for word/phrase "${word}"`);
 						}
@@ -295,7 +320,10 @@ export default class implements Command {
 					data: Buffer.from(this._entriesToYaml(newEntries)),
 				});
 
-				return send(interaction, { content: 'Successfully updated your list in bulk', files });
+				return send(interaction, {
+					content: 'Successfully updated your list in bulk',
+					files,
+				});
 			}
 		}
 	}

@@ -2,25 +2,26 @@ import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { UserPerms } from '@automoderator/util';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { GuildSettings, LogChannelType, LogChannelWebhook, PrismaClient } from '@prisma/client';
+import type { GuildSettings, LogChannelWebhook } from '@prisma/client';
+import { LogChannelType, PrismaClient } from '@prisma/client';
 import { stripIndents } from 'common-tags';
-import {
+import type {
 	APIThreadChannel,
 	APIGuildInteraction,
 	APIPartialChannel,
 	APIWebhook,
-	ChannelType,
-	InteractionResponseType,
 	RESTPostAPIChannelWebhookJSONBody,
-	Routes,
 } from 'discord-api-types/v9';
+import { ChannelType, InteractionResponseType, Routes } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '#handler';
 import type { ConfigCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -34,12 +35,14 @@ export default class implements Command {
 		@inject(kConfig) public readonly config: Config,
 	) {}
 
-	private _sendCurrentSettings(
+	private async _sendCurrentSettings(
 		interaction: APIGuildInteraction,
 		settings: Partial<GuildSettings>,
 		logChannels: Map<LogChannelType, LogChannelWebhook>,
 	) {
+		// eslint-disable-next-line unicorn/consistent-function-scoping
 		const atRole = (role?: string | null) => (role ? `<@&${role}>` : 'none');
+		// eslint-disable-next-line unicorn/consistent-function-scoping
 		const atChannel = (channel?: string | null) => (channel ? `<#${channel}>` : 'none');
 		const atLogChannel = (type: LogChannelType) => {
 			const logChannel = logChannels.get(type)!;
@@ -83,7 +86,7 @@ export default class implements Command {
 
 		let settings: Partial<GuildSettings> = {};
 
-		if (pardonwarnsafter != null) {
+		if (pardonwarnsafter !== null) {
 			settings.autoPardonWarnsAfter = pardonwarnsafter;
 		}
 
@@ -94,7 +97,7 @@ export default class implements Command {
 
 			const joinageMinutes = Number(joinage);
 
-			if (isNaN(joinageMinutes)) {
+			if (Number.isNaN(joinageMinutes)) {
 				const joinageMs = ms(joinage);
 				if (!joinageMs) {
 					throw new ControlFlowError('Failed to parse the provided duration');
@@ -112,16 +115,16 @@ export default class implements Command {
 			settings.minJoinAge = BigInt(parsed);
 		}
 
-		if (blankavatar != null) {
+		if (blankavatar !== null) {
 			settings.noBlankAvatar = blankavatar;
 		}
 
-		if (reportschannel != null) {
-			if (!textTypes.includes(reportschannel.type)) {
+		if (reportschannel !== null) {
+			if (!textTypes.includes(reportschannel!.type)) {
 				throw new ControlFlowError('Reports channel must be a text channel');
 			}
 
-			settings.reportsChannel = reportschannel.id;
+			settings.reportsChannel = reportschannel!.id;
 		}
 
 		settings = await this.prisma.guildSettings.upsert({

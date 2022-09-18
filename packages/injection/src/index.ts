@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { container } from 'tsyringe';
 
 export const kConfig = Symbol('config');
@@ -6,27 +7,27 @@ export const kRedis = Symbol('IORedis instance');
 
 export const kLogger = Symbol('logger instance');
 
-export interface Config {
+export type Config = {
 	amqpUrl: string;
-	rootDomain: string;
+	cors: string[] | string;
 	dashDomain: string;
-	ghostDomain: string;
-	discordClientId: string;
+	dbUrl: string;
 	devIds: string[];
-	interactionsTestGuilds: string[];
+	discordClientId: string;
 	discordClientSecret: string;
-	discordToken: string;
+	discordProxyUrl: string;
 	discordPubKey: string;
 	discordScopes: string;
-	dbUrl: string;
-	redisUrl: string;
-	nodeEnv: string;
+	discordToken: string;
 	encryptionKey: string;
-	cors: string | string[];
-	nsfwPredictApiKey: string;
+	ghostDomain: string;
 	ghostIntegrationKey: string;
-	discordProxyUrl: string;
-}
+	interactionsTestGuilds: string[];
+	nodeEnv: string;
+	nsfwPredictApiKey: string;
+	redisUrl: string;
+	rootDomain: string;
+};
 
 export const initConfig = () => {
 	const config: Config = {

@@ -1,11 +1,14 @@
+import { Buffer } from 'node:buffer';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
 import { jsonParser, Route, RouteMethod } from '@chatsift/rest-utils';
 import { unauthorized } from '@hapi/boom';
-import { APIGuildInteraction, APIInteraction, InteractionResponseType, InteractionType } from 'discord-api-types/v9';
+import type { APIGuildInteraction, APIInteraction } from 'discord-api-types/v9';
+import { InteractionResponseType, InteractionType } from 'discord-api-types/v9';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import type { NextHandler, Request, Response } from 'polka';
 import { inject, singleton } from 'tsyringe';
-import * as nacl from 'tweetnacl';
+import nacl from 'tweetnacl';
 import { Handler } from '#handler';
 import type { Interaction } from '#util';
 
@@ -51,7 +54,10 @@ export class WebhookRoute extends Route<unknown, unknown> {
 			return res.end(JSON.stringify({ type: InteractionResponseType.Pong }));
 		}
 
-		const interaction: Interaction = { res, ...(req.body as APIGuildInteraction) };
+		const interaction: Interaction = {
+			res,
+			...(req.body as APIGuildInteraction),
+		};
 
 		switch (interaction.type) {
 			case InteractionType.ApplicationCommand: {
@@ -63,11 +69,12 @@ export class WebhookRoute extends Route<unknown, unknown> {
 			}
 
 			case InteractionType.ModalSubmit: {
-				return this.handler.handleModal(interaction);
+				this.handler.handleModal(interaction);
+				return;
 			}
 
 			default: {
-				return this.logger.warn({ interaction }, 'Recieved unrecognized interaction type');
+				this.logger.warn({ interaction }, 'Recieved unrecognized interaction type');
 			}
 		}
 	}

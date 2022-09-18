@@ -1,40 +1,37 @@
-import {
-	DiscordEvents,
-	Log,
-	LogTypes,
-	ServerLogs,
-	ServerLogType,
-	DiscordPermissions,
-	BanwordFlags,
-} from '@automoderator/broker-types';
-import { MessageCache, GuildMemberCache, CachedGuildMember } from '@automoderator/cache';
+/* eslint-disable id-length, eqeqeq */
+import { URLSearchParams } from 'node:url';
+import type { DiscordEvents, Log, ServerLogs } from '@automoderator/broker-types';
+import { LogTypes, ServerLogType, DiscordPermissions, BanwordFlags } from '@automoderator/broker-types';
+import type { CachedGuildMember } from '@automoderator/cache';
+import { MessageCache, GuildMemberCache } from '@automoderator/cache';
 import { Config, kConfig, kLogger } from '@automoderator/injection';
-import { CaseManager, PermissionsChecker, PermissionsCheckerData, ReportHandler, UserPerms } from '@automoderator/util';
+import type { PermissionsCheckerData } from '@automoderator/util';
+import { CaseManager, PermissionsChecker, ReportHandler, UserPerms } from '@automoderator/util';
 import { createAmqp, PubSubPublisher, RoutingSubscriber } from '@cordis/brokers';
 import { getCreationData } from '@cordis/util';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { BannedWord, CaseAction, PrismaClient } from '@prisma/client';
-import {
+import type { BannedWord } from '@prisma/client';
+import { CaseAction, PrismaClient } from '@prisma/client';
+import type {
 	APIChannel,
 	APIMessage,
 	APIGuildMember,
 	APIRole,
 	APIUser,
-	AuditLogEvent,
-	GatewayDispatchEvents,
 	GatewayGuildBanModifyDispatchData,
 	GatewayGuildMemberAddDispatchData,
 	GatewayGuildMemberRemoveDispatchData,
 	GatewayGuildMemberUpdateDispatchData,
 	RESTGetAPIAuditLogResult,
 	RESTPatchAPIGuildMemberJSONBody,
-	Routes,
 	Snowflake,
 	APIThreadChannel,
 	APITextChannel,
 } from 'discord-api-types/v9';
+import { AuditLogEvent, GatewayDispatchEvents, Routes } from 'discord-api-types/v9';
 import latinize from 'latinize';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import removeAccents from 'remove-accents';
 import { inject, singleton } from 'tsyringe';
@@ -60,12 +57,15 @@ export class Gateway {
 		channelId: Snowflake,
 	): Promise<[channelId: Snowflake, parentId: Snowflake | null]> {
 		const channelList = (await this.rest.get(Routes.guildChannels(guildId))) as APIChannel[];
-		let channel = channelList.find((c) => c.id === channelId) as APITextChannel | APIThreadChannel | undefined;
+		let channel = channelList.find((channel) => channel.id === channelId) as
+			| APITextChannel
+			| APIThreadChannel
+			| undefined;
 
 		// Thread channel
 		if (!channel) {
 			const thread = (await this.rest.get(Routes.channel(channelId))) as APIThreadChannel;
-			channel = channelList.find((c) => c.id === thread.parent_id) as APIThreadChannel;
+			channel = channelList.find((channel) => channel.id === thread.parent_id) as APIThreadChannel;
 		}
 
 		return [channel.id, channel.parent_id ?? null];
@@ -84,12 +84,10 @@ export class Gateway {
 			return new DiscordPermissions(0n);
 		}
 
-		const perms = guildMe.roles.reduce<DiscordPermissions>(
+		return guildMe.roles.reduce<DiscordPermissions>(
 			(acc, role) => acc.add(BigInt(roles.get(role)!.permissions)),
 			new DiscordPermissions(0n),
 		);
-
-		return perms;
 	}
 
 	private async hasAuditLog(guildId: Snowflake): Promise<boolean> {
@@ -242,11 +240,11 @@ export class Gateway {
 	private async handleJoinAge(data: GatewayGuildMemberAddDispatchData) {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
 
-		if (settings?.minJoinAge == null || data.user!.bot) {
+		if (settings?.minJoinAge === null || data.user!.bot) {
 			return null;
 		}
 
-		if (Date.now() - getCreationData(data.user!.id).createdAt.getTime() >= settings.minJoinAge) {
+		if (Date.now() - getCreationData(data.user!.id).createdAt.getTime() >= settings!.minJoinAge) {
 			return null;
 		}
 
@@ -276,7 +274,7 @@ export class Gateway {
 	}
 
 	private async handleForbiddenName(
-		data: APIGuildMember & { user: APIUser; guild_id: Snowflake },
+		data: APIGuildMember & { guild_id: Snowflake; user: APIUser },
 		name: string,
 		nick: boolean,
 	) {
@@ -299,8 +297,8 @@ export class Gateway {
 				await this.checker.check(
 					checkerData,
 					UserPerms.mod,
-					new Set(settings?.modRoles.map((r) => r.roleId) ?? []),
-					new Set(settings?.adminRoles.map((r) => r.roleId) ?? []),
+					new Set(settings?.modRoles.map((role) => role.roleId) ?? []),
+					new Set(settings?.adminRoles.map((role) => role.roleId) ?? []),
 				)
 			) {
 				return;
@@ -363,7 +361,7 @@ export class Gateway {
 		}
 
 		const punishments: Partial<
-			Record<'report' | 'warn' | 'mute' | 'kick' | 'ban', Omit<BannedWord, 'flags'> & { flags: BanwordFlags }>
+			Record<'ban' | 'kick' | 'mute' | 'report' | 'warn', Omit<BannedWord, 'flags'> & { flags: BanwordFlags }>
 		> = {};
 
 		for (const entry of hits) {
@@ -412,7 +410,9 @@ export class Gateway {
 			return;
 		}
 
+		// eslint-disable-next-line sonarjs/no-unused-collection
 		const found: string[] = [];
+		// eslint-disable-next-line sonarjs/no-unused-collection
 		const applied: string[] = [];
 
 		if (
@@ -442,39 +442,50 @@ export class Gateway {
 		}
 	}
 
-	private handleGuildMemberUpdate(o: CachedGuildMember, n: GatewayGuildMemberUpdateDispatchData) {
-		if (n.user.bot) {
+	private handleGuildMemberUpdate(
+		cachedMember: CachedGuildMember,
+		updatedMember: GatewayGuildMemberUpdateDispatchData,
+	) {
+		if (updatedMember.user.bot) {
 			return;
 		}
 
 		const logs: ServerLogs[] = [];
 
-		if (o.nick !== n.nick) {
-			if (n.nick) {
-				void this.handleForbiddenName(n as APIGuildMember & { user: APIUser; guild_id: Snowflake }, n.nick, true);
+		if (cachedMember.nick !== updatedMember.nick) {
+			if (updatedMember.nick) {
+				void this.handleForbiddenName(
+					updatedMember as APIGuildMember & { guild_id: Snowflake; user: APIUser },
+					updatedMember.nick,
+					true,
+				);
 			}
 
 			logs.push({
 				type: ServerLogType.nickUpdate,
 				data: {
-					o: o.nick ?? null,
-					n: n.nick ?? null,
+					// eslint-disable-next-line id-length
+					o: cachedMember.nick ?? null,
+					// eslint-disable-next-line id-length
+					n: updatedMember.nick ?? null,
 				},
 			});
 		}
 
-		if (o.user.username !== n.user.username) {
+		if (cachedMember.user.username !== updatedMember.user.username) {
 			void this.handleForbiddenName(
-				n as APIGuildMember & { user: APIUser; guild_id: Snowflake },
-				n.user.username,
+				updatedMember as APIGuildMember & { guild_id: Snowflake; user: APIUser },
+				updatedMember.user.username,
 				false,
 			);
 
 			logs.push({
 				type: ServerLogType.usernameUpdate,
 				data: {
-					o: o.user.username,
-					n: n.user.username,
+					// eslint-disable-next-line id-length
+					o: cachedMember.user.username,
+					// eslint-disable-next-line id-length
+					n: updatedMember.user.username,
 				},
 			});
 		}
@@ -483,8 +494,8 @@ export class Gateway {
 			this.guildLogs.publish({
 				type: LogTypes.server,
 				data: {
-					guild: n.guild_id,
-					user: n.user,
+					guild: updatedMember.guild_id,
+					user: updatedMember.user,
 					logs,
 				},
 			});
@@ -544,33 +555,35 @@ export class Gateway {
 		});
 	}
 
-	private async handleMessageUpdate(o: APIMessage, n: APIMessage & { guild_id?: string }) {
-		if (!n.guild_id || n.author.bot || n.webhook_id) {
+	private async handleMessageUpdate(oldMessage: APIMessage, newMessage: APIMessage & { guild_id?: string }) {
+		if (!newMessage.guild_id || newMessage.author.bot || newMessage.webhook_id) {
 			return;
 		}
 
-		const [channelId, parentId] = await this.getChannelIds(n.guild_id, n.channel_id);
+		const [channelId, parentId] = await this.getChannelIds(newMessage.guild_id, newMessage.channel_id);
 		if (
 			await this.prisma.logIgnore.findFirst({
-				where: { guildId: n.guild_id, channelId: { in: [channelId, parentId ?? ''] } },
+				where: { guildId: newMessage.guild_id, channelId: { in: [channelId, parentId ?? ''] } },
 			})
 		) {
 			return;
 		}
 
-		if (o.content !== n.content) {
+		if (oldMessage.content !== newMessage.content) {
 			this.guildLogs.publish({
 				type: LogTypes.server,
 				data: {
-					guild: n.guild_id,
-					user: n.author,
+					guild: newMessage.guild_id,
+					user: newMessage.author,
 					logs: [
 						{
 							type: ServerLogType.messageEdit,
 							data: {
-								message: n as APIMessage & { guild_id: string },
-								o: o.content || '`none`',
-								n: n.content || '`none`',
+								message: newMessage as APIMessage & { guild_id: string },
+								// eslint-disable-next-line id-length
+								o: oldMessage.content || '`none`',
+								// eslint-disable-next-line id-length
+								n: newMessage.content || '`none`',
 							},
 						},
 					],
@@ -597,7 +610,7 @@ export class Gateway {
 				void this.handleJoinAge(data);
 				void this.handleBlankAvatar(data);
 				void this.handleForbiddenName(
-					data as APIGuildMember & { user: APIUser; guild_id: Snowflake },
+					data as APIGuildMember & { guild_id: Snowflake; user: APIUser },
 					data.user!.username,
 					false,
 				);
@@ -606,16 +619,17 @@ export class Gateway {
 				const cachedOld = await this.guildMembersCache.get(data.guild_id, data.user.id);
 
 				if (cachedOld) {
-					const n = { ...cachedOld, ...data };
+					const newCache = { ...cachedOld, ...data };
 
 					void this.guildMembersCache
 						// @ts-expect-error - Common discord-api-types missmatch
 						.add(n)
+						// eslint-disable-next-line promise/prefer-await-to-then, promise/prefer-await-to-callbacks
 						.catch((error: unknown) =>
 							this.logger.warn({ error, guild: data.guild_id }, 'Failed to update message cache'),
 						);
 
-					return this.handleGuildMemberUpdate(cachedOld, n);
+					this.handleGuildMemberUpdate(cachedOld, newCache);
 				}
 			})
 			.on(GatewayDispatchEvents.MessageDelete, async (data) => {
@@ -631,6 +645,7 @@ export class Gateway {
 
 				if (cachedOld) {
 					const n = { ...cachedOld, ...data };
+					// eslint-disable-next-line promise/prefer-await-to-then, promise/prefer-await-to-callbacks
 					void this.messageCache.add(n).catch((error) => this.logger.warn(error, 'Failed to update message cache'));
 					return this.handleMessageUpdate(cachedOld, n);
 				}

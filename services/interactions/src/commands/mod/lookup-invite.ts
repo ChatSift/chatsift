@@ -2,27 +2,28 @@ import { kLogger } from '@automoderator/injection';
 import { addFields } from '@chatsift/discord-utils';
 import { getCreationData, makeDiscordCdnUrl } from '@cordis/util';
 import { REST } from '@discordjs/rest';
-import {
+import type {
 	APIGuildInteraction,
 	APIEmbed,
 	APIInvite,
 	APIEmbedImage,
-	InteractionResponseType,
 	RESTGetAPIGuildPreviewResult,
-	Routes,
-	RouteBases,
 } from 'discord-api-types/v9';
+import { InteractionResponseType, Routes, RouteBases } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import type { LookupInviteCommand } from '#interactions';
-import { ArgumentsOf, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { send } from '#util';
 
 @injectable()
 export default class implements Command {
 	public readonly inviteRegex =
-		/(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})/i;
+		// eslint-disable-next-line unicorn/no-unsafe-regex
+		/(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w-]{2,})/i;
 
 	public constructor(@inject(kLogger) public readonly logger: Logger, public readonly rest: REST) {}
 
@@ -70,22 +71,24 @@ export default class implements Command {
 		const preview = (await this.rest
 			.get(Routes.guildPreview(invite.guild.id))
 			.catch(() => null)) as RESTGetAPIGuildPreviewResult | null;
-		const timestamp = Math.round(getCreationData(invite.guild.id).createdTimestamp / 1000);
+		const timestamp = Math.round(getCreationData(invite.guild.id).createdTimestamp / 1_000);
 		const image: APIEmbedImage | undefined = invite.guild.banner
 			? {
-					url: makeDiscordCdnUrl(`${RouteBases.cdn}/banners/${invite.guild.id}/${invite.guild.banner}`, { size: 2048 }),
+					url: makeDiscordCdnUrl(`${RouteBases.cdn}/banners/${invite.guild.id}/${invite.guild.banner}`, {
+						size: 2_048,
+					}),
 			  }
 			: preview?.discovery_splash
 			? {
 					url: makeDiscordCdnUrl(
 						`${RouteBases.cdn}/discovery-splashes/${invite.guild.id}/${preview.discovery_splash}`,
-						{ size: 2048 },
+						{ size: 2_048 },
 					),
 			  }
 			: undefined;
 
 		const embed: APIEmbed = {
-			color: 5793266,
+			color: 5_793_266,
 			author: {
 				name: `${invite.guild.name} (${invite.guild.id})`,
 				icon_url: invite.guild.icon
@@ -131,6 +134,6 @@ export default class implements Command {
 			);
 		}
 
-		return send(interaction, { embed });
+		return send(interaction, { embeds: [embed] });
 	}
 }

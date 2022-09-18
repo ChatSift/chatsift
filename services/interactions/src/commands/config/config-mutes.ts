@@ -2,17 +2,19 @@ import { DiscordPermissions } from '@automoderator/broker-types';
 import { ellipsis, sortChannels } from '@chatsift/discord-utils';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import {
+import type {
 	APIMessageComponentInteraction,
 	APIMessageSelectMenuInteractionData,
 	APISelectMenuOption,
-	ChannelType,
-	OverwriteType,
 	RESTPutAPIChannelPermissionJSONBody,
-	Routes,
 	APIChannel,
 	APIGuildInteraction,
 	APISelectMenuComponent,
+} from 'discord-api-types/v9';
+import {
+	ChannelType,
+	OverwriteType,
+	Routes,
 	ButtonStyle,
 	ComponentType,
 	InteractionResponseType,
@@ -23,7 +25,8 @@ import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '../../handler';
 import type { ConfigMutesCommand } from '#interactions';
-import { ArgumentsOf, send, EMOTES } from '#util';
+import type { ArgumentsOf } from '#util';
+import { send, EMOTES } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -34,7 +37,7 @@ export default class implements Command {
 	) {}
 
 	public async exec(interaction: APIGuildInteraction, args: ArgumentsOf<typeof ConfigMutesCommand>) {
-		switch (Object.keys(args)[0] as 'use' | 'update-role') {
+		switch (Object.keys(args)[0] as 'update-role' | 'use') {
 			case 'use': {
 				await this.prisma.guildSettings.upsert({
 					create: {
@@ -191,7 +194,7 @@ export default class implements Command {
 					.makeCollector<APIMessageComponentInteraction>(permsId)
 					.hookAndDestroy(async (component) => {
 						const { values } = component.data as APIMessageSelectMenuInteractionData;
-						state.perms = new DiscordPermissions(values.map((v) => BigInt(v)));
+						state.perms = new DiscordPermissions(values.map(BigInt));
 
 						const messageComponent = component.message.components![0]!.components[0] as APISelectMenuComponent;
 						messageComponent.options = messageComponent.options.map((option) => ({
@@ -210,20 +213,20 @@ export default class implements Command {
 						let goForward = false;
 
 						if (rawValues.includes('prev')) {
-							const idx = rawValues.findIndex((v) => v === 'prev')!;
+							const idx = rawValues.indexOf('prev')!;
 							rawValues.splice(idx);
 							goBack = true;
 						}
 
 						if (rawValues.includes('next')) {
-							const idx = rawValues.findIndex((v) => v === 'next')!;
+							const idx = rawValues.indexOf('next')!;
 							rawValues.splice(idx);
 							goForward = true;
 						}
 
 						const values = new Set(rawValues);
 
-						for (const value of getChannelOptions(state.page).map((o) => o.value)) {
+						for (const value of getChannelOptions(state.page).map((option) => option.value)) {
 							if (values.has(value)) {
 								state.ignores.add(value);
 							} else {
@@ -233,6 +236,7 @@ export default class implements Command {
 
 						const messageComponent = component.message.components![1]!.components[0] as APISelectMenuComponent;
 
+						// eslint-disable-next-line unicorn/consistent-function-scoping
 						const mapFn = (option: APISelectMenuOption) => ({
 							...option,
 							default: state.ignores.has(option.value),
@@ -264,7 +268,7 @@ export default class implements Command {
 				stopCollectingIgnores();
 
 				for (const channel of channelList.filter(
-					(c) => !state.ignores.has(c.id) && (!c.parent_id || !state.ignores.has(c.parent_id)),
+					(channel) => !state.ignores.has(channel.id) && (!channel.parent_id || !state.ignores.has(channel.parent_id)),
 				)) {
 					const body: RESTPutAPIChannelPermissionJSONBody = {
 						type: OverwriteType.Role,

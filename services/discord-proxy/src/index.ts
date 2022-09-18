@@ -1,5 +1,6 @@
 import 'reflect-metadata';
-import { createServer } from 'http';
+import { createServer } from 'node:http';
+import { URL } from 'node:url';
 import { initConfig } from '@automoderator/injection';
 import createLogger from '@automoderator/logger';
 import {
@@ -7,15 +8,8 @@ import {
 	populateRatelimitErrorResponse,
 	populateAbortErrorResponse,
 } from '@discordjs/proxy';
-import {
-	DiscordAPIError,
-	HTTPError,
-	parseResponse,
-	RateLimitError,
-	RequestMethod,
-	REST,
-	RouteLike,
-} from '@discordjs/rest';
+import type { RouteLike } from '@discordjs/rest';
+import { DiscordAPIError, HTTPError, parseResponse, RateLimitError, RequestMethod, REST } from '@discordjs/rest';
 import { cache, fetchCache } from './cache';
 
 const config = initConfig();
@@ -25,6 +19,7 @@ const logger = createLogger('discord-proxy');
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 const server = createServer(async (req, res) => {
 	const { method, url } = req as { method: RequestMethod; url: string };
+	// eslint-disable-next-line unicorn/no-unsafe-regex, prefer-named-capture-group
 	const fullRoute = new URL(url, 'http://noop').pathname.replace(/^\/api(\/v\d+)?/, '') as RouteLike;
 
 	if (method === RequestMethod.Get) {
@@ -79,4 +74,4 @@ const server = createServer(async (req, res) => {
 	}
 });
 
-server.listen(3003, () => logger.info('Listening for requests on port 3003'));
+server.listen(3_003, () => logger.info('Listening for requests on port 3003'));

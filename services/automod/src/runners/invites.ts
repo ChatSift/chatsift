@@ -1,27 +1,31 @@
-import { InvitesRunnerResult, Log, Runners } from '@automoderator/broker-types';
+import type { InvitesRunnerResult, Log } from '@automoderator/broker-types';
+import { Runners } from '@automoderator/broker-types';
 import { MessageCache } from '@automoderator/cache';
 import { kLogger } from '@automoderator/injection';
 import { dmUser } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import { Routes, APIMessage, APIInvite, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import type { APIMessage, APIInvite, GatewayMessageCreateDispatchData } from 'discord-api-types/v9';
+import { Routes } from 'discord-api-types/v9';
 import fetch from 'node-fetch';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { inject, singleton } from 'tsyringe';
 import type { IRunner } from './IRunner';
 
-interface InvitesTransform {
+type InvitesTransform = {
 	codes: string[];
 	use: boolean;
-}
+};
 
 @singleton()
 export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform, InvitesRunnerResult> {
 	public readonly ignore = 'invites';
 
 	public readonly inviteRegex =
-		/(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w\d-]{2,})/gi;
+		// eslint-disable-next-line unicorn/no-unsafe-regex
+		/(?:https?:\/\/)?(?:www\.)?(?:discord\.gg\/|discord(?:app)?\.com\/invite\/)(?<code>[\w-]{2,})/gi;
 
 	public readonly invitesWorkerDomain = 'https://invite-lookup.chatsift.workers.dev' as const;
 
@@ -75,7 +79,7 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 	): Promise<InvitesTransform | null> {
 		const allowedInvites = await this.prisma.allowedInvite.findMany({ where: { guildId: message.guild_id } });
 		const allowlist = new Set(allowedInvites.map((invite) => invite.allowedGuildId));
-		const invites = await Promise.all(codes.map((code) => this.fetchInvite(code)));
+		const invites = await Promise.all(codes.map(async (code) => this.fetchInvite(code)));
 		const triggered = invites.reduce<string[]>((acc, invite) => {
 			if (invite && !allowlist.has(invite.guild!.id)) {
 				acc.push(invite.code);
@@ -97,11 +101,14 @@ export class InvitesRunner implements IRunner<InvitesTransform, InvitesTransform
 	public async cleanup(_: InvitesTransform, message: APIMessage): Promise<void> {
 		await this.rest
 			.delete(Routes.channelMessage(message.channel_id, message.id), { reason: 'Invite filter trigger' })
-			.then(() => dmUser(message.author.id, 'Your message was deleted due to containing an unallowed invite.'))
+			.then(async () => dmUser(message.author.id, 'Your message was deleted due to containing an unallowed invite.'))
 			.catch(() => null);
 	}
 
 	public log({ codes }: InvitesTransform): InvitesRunnerResult {
-		return { runner: Runners.invites, data: codes };
+		return {
+			runner: Runners.invites,
+			data: codes,
+		};
 	}
 }

@@ -1,22 +1,20 @@
 import { ReportFailure, ReportHandler } from '@automoderator/util';
 import { PrismaClient } from '@prisma/client';
-import {
+import type {
 	APIActionRowComponent,
 	APIGuildInteraction,
 	APIMessageActionRowComponent,
 	APIModalSubmitInteraction,
-	ComponentType,
-	InteractionResponseType,
-	TextInputStyle,
-	ButtonStyle,
 	APIMessageComponentInteraction,
 } from 'discord-api-types/v9';
+import { ComponentType, InteractionResponseType, TextInputStyle, ButtonStyle } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../../command';
 import { Handler } from '#handler';
 import type { ReportMessageReasonContextMenu } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -141,7 +139,7 @@ export default class implements Command {
 					}
 
 					stop();
-					const idx = parseInt(selected.data.values[0]!, 10);
+					const idx = Number.parseInt(selected.data.values[0]!, 10);
 					const { reason } = presetReportReasons[idx]!;
 
 					await this.reports.reportMessage(

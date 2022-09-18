@@ -2,27 +2,24 @@ import { FilterIgnores, FILTERS } from '@automoderator/broker-types';
 import { ellipsis, sortChannels } from '@chatsift/discord-utils';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
-import {
+import type {
 	APISelectMenuOption,
 	APIGuildInteraction,
 	RESTGetAPIGuildChannelsResult,
-	ChannelType,
-	ComponentType,
-	ButtonStyle,
-	Routes,
 	APIButtonComponent,
 	APIChannel,
 	APIMessageComponentInteraction,
 	APIMessageSelectMenuInteractionData,
 	APISelectMenuComponent,
-	InteractionResponseType,
 } from 'discord-api-types/v9';
+import { ChannelType, ComponentType, ButtonStyle, Routes, InteractionResponseType } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler } from '../../handler';
 import type { ConfigAutomodIgnoresCommand } from '#interactions';
-import { ArgumentsOf, EMOTES, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { EMOTES, send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -252,7 +249,7 @@ export default class implements Command {
 					.makeCollector<APIMessageComponentInteraction>(ignoresId)
 					.hookAndDestroy(async (component) => {
 						const { values } = component.data as APIMessageSelectMenuInteractionData;
-						state.flags = new FilterIgnores(values.map((v) => BigInt(v)));
+						state.flags = new FilterIgnores(values.map(BigInt));
 
 						const messageComponent = component.message.components![1]!.components[0] as APISelectMenuComponent;
 						messageComponent.options = messageComponent.options.map((option) => ({

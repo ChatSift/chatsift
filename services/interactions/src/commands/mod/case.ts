@@ -1,23 +1,20 @@
-import { Log, LogTypes } from '@automoderator/broker-types';
+import type { Log } from '@automoderator/broker-types';
+import { LogTypes } from '@automoderator/broker-types';
 import { makeCaseEmbed } from '@automoderator/util';
 import { PubSubPublisher } from '@cordis/brokers';
 import { REST } from '@discordjs/rest';
 import ms from '@naval-base/ms';
-import { Case, CaseAction, LogChannelType, PrismaClient } from '@prisma/client';
-import {
-	APIGuildInteraction,
-	APIMessageComponentInteraction,
-	APIUser,
-	ButtonStyle,
-	ComponentType,
-	Routes,
-} from 'discord-api-types/v9';
+import type { Case } from '@prisma/client';
+import { CaseAction, LogChannelType, PrismaClient } from '@prisma/client';
+import type { APIGuildInteraction, APIMessageComponentInteraction, APIUser } from 'discord-api-types/v9';
+import { ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
 import { Handler, CollectorTimeoutError } from '../../handler';
 import type { CaseCommand } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {
@@ -70,13 +67,13 @@ export default class implements Command {
 				});
 
 				if (isShow) {
-					return send(interaction, { embed });
+					return send(interaction, { embeds: [embed] });
 				}
 
 				const confirmId = nanoid();
 				await send(interaction, {
 					content: 'Are you sure you want to delete this case?',
-					embed,
+					embeds: [embed],
 					components: [
 						{
 							type: ComponentType.ActionRow,
@@ -102,7 +99,7 @@ export default class implements Command {
 				try {
 					const confirmation = await this.handler.collectorManager
 						.makeCollector<APIMessageComponentInteraction>(confirmId)
-						.waitForOneAndDestroy(30000);
+						.waitForOneAndDestroy(30_000);
 
 					const [, action] = confirmation.data.custom_id.split('|') as [string, string];
 					if (action === 'cancel') {

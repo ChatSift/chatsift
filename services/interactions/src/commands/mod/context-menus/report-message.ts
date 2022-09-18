@@ -5,7 +5,8 @@ import { injectable } from 'tsyringe';
 import type { Command } from '../../../command';
 import { Handler } from '#handler';
 import type { ReportMessageContextMenu } from '#interactions';
-import { ArgumentsOf, ControlFlowError, send } from '#util';
+import type { ArgumentsOf } from '#util';
+import { ControlFlowError, send } from '#util';
 
 @injectable()
 export default class implements Command {

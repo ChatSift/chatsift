@@ -11,38 +11,38 @@ import type {
 } from 'discord-api-types/v9';
 
 type Command = Readonly<{
-	name: string;
 	description?: string;
-	type?: ApplicationCommandType;
+	name: string;
 	options?: readonly Option[];
+	type?: ApplicationCommandType;
 }>;
 
 type Option = Readonly<
-	Pick<Command, 'name' | 'description'> &
+	Pick<Command, 'description' | 'name'> &
 		(
 			| {
-					type: ApplicationCommandOptionType.Subcommand | ApplicationCommandOptionType.SubcommandGroup;
-					options?: readonly Option[];
-			  }
-			| {
-					type: ApplicationCommandOptionType.String;
-					choices?: readonly Readonly<{ name: string; value: string }>[];
-			  }
-			| {
-					type: ApplicationCommandOptionType.Integer;
 					choices?: readonly Readonly<{ name: string; value: number }>[];
+					type: ApplicationCommandOptionType.Integer;
+			  }
+			| {
+					choices?: readonly Readonly<{ name: string; value: number }>[];
+					type: ApplicationCommandOptionType.Number;
+			  }
+			| {
+					choices?: readonly Readonly<{ name: string; value: string }>[];
+					type: ApplicationCommandOptionType.String;
+			  }
+			| {
+					options?: readonly Option[];
+					type: ApplicationCommandOptionType.Subcommand | ApplicationCommandOptionType.SubcommandGroup;
 			  }
 			| {
 					type:
+						| ApplicationCommandOptionType.Attachment
 						| ApplicationCommandOptionType.Boolean
-						| ApplicationCommandOptionType.User
 						| ApplicationCommandOptionType.Channel
 						| ApplicationCommandOptionType.Role
-						| ApplicationCommandOptionType.Attachment;
-			  }
-			| {
-					type: ApplicationCommandOptionType.Number;
-					choices?: readonly Readonly<{ name: string; value: number }>[];
+						| ApplicationCommandOptionType.User;
 			  }
 		)
 >;
@@ -70,7 +70,7 @@ type TypeIdToType<T, O, C> = T extends ApplicationCommandOptionType.Subcommand
 	: T extends ApplicationCommandOptionType.Boolean
 	? boolean
 	: T extends ApplicationCommandOptionType.User
-	? APIGuildMember & { user: APIUser; permissions: Permissions }
+	? APIGuildMember & { permissions: Permissions; user: APIUser }
 	: T extends ApplicationCommandOptionType.Channel
 	? APIPartialChannel & { permissions: Permissions }
 	: T extends ApplicationCommandOptionType.Role
@@ -81,11 +81,11 @@ type TypeIdToType<T, O, C> = T extends ApplicationCommandOptionType.Subcommand
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type OptionToObject<O> = O extends {
-	name: infer K;
-	type: infer T;
-	required?: infer R;
-	options?: infer O;
 	choices?: infer C;
+	name: infer K;
+	options?: infer O;
+	required?: infer R;
+	type: infer T;
 }
 	? K extends string
 		? R extends true
