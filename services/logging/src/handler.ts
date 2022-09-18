@@ -136,15 +136,15 @@ export class Handler {
 			const body: RESTPostAPIWebhookWithTokenJSONBody = {
 				embeds: embeds.slice(0 + i * 10, 10 + i * 10),
 			};
+			const query = new URLSearchParams({ wait: 'true' });
+			if (webhook.threadId) {
+				query.append('thread_id', webhook.threadId);
+			}
 			void (
-				this.rest.post(
-					`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
-						webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
-					}`,
-					{
-						body,
-					},
-				) as Promise<APIMessage>
+				this.rest.post(Routes.webhook(webhook.id, webhook.token), {
+					body,
+					query: new URLSearchParams(query),
+				}) as Promise<APIMessage>
 			).then((newMessage) =>
 				this.prisma.case.update({
 					data: { logMessageId: newMessage.id },
@@ -351,14 +351,14 @@ export class Handler {
 		const body: RESTPostAPIWebhookWithTokenJSONBody = {
 			embeds,
 		};
-		await this.rest.post(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
-				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
-			}`,
-			{
-				body,
-			},
-		);
+		const query = new URLSearchParams({ wait: 'true' });
+		if (webhook.threadId) {
+			query.append('thread_id', webhook.threadId);
+		}
+		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
+			body,
+			query,
+		});
 	}
 
 	private async handleUserUpdateLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
@@ -420,14 +420,14 @@ export class Handler {
 		const body: RESTPostAPIWebhookWithTokenJSONBody = {
 			embeds,
 		};
-		await this.rest.post(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
-				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
-			}`,
-			{
-				body,
-			},
-		);
+		const query = new URLSearchParams({ wait: 'true' });
+		if (webhook.threadId) {
+			query.append('thread_id', webhook.threadId);
+		}
+		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
+			body,
+			query,
+		});
 	}
 
 	private async handleMessageDeleteLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
@@ -472,14 +472,14 @@ export class Handler {
 				},
 			],
 		};
-		await this.rest.post(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
-				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
-			}`,
-			{
-				body,
-			},
-		);
+		const query = new URLSearchParams({ wait: 'true' });
+		if (webhook.threadId) {
+			query.append('thread_id', webhook.threadId);
+		}
+		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
+			body,
+			query,
+		});
 	}
 
 	private async handleMessageEditLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
@@ -520,14 +520,14 @@ export class Handler {
 			],
 		};
 
-		await this.rest.post(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
-				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
-			}`,
-			{
-				body,
-			},
-		);
+		const query = new URLSearchParams({ wait: 'true' });
+		if (webhook.threadId) {
+			query.append('thread_id', webhook.threadId);
+		}
+		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
+			body,
+			query,
+		});
 	}
 
 	private async handleFilterUpdateLogs(settings: GuildSettings, log: ServerLog, logs: GroupedServerLogs) {
@@ -570,14 +570,14 @@ export class Handler {
 				},
 			],
 		};
-		await this.rest.post(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
-				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
-			}`,
-			{
-				body,
-			},
-		);
+		const query = new URLSearchParams({ wait: 'true' });
+		if (webhook.threadId) {
+			query.append('thread_id', webhook.threadId);
+		}
+		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
+			body,
+			query,
+		});
 	}
 
 	private async handleServerLog(log: ServerLog) {
@@ -642,14 +642,14 @@ export class Handler {
 				},
 			],
 		};
-		await this.rest.post(
-			`${Routes.webhook(webhook.id, webhook.token)}?wait=true${
-				webhook.threadId ? `&thread_id=${webhook.threadId}` : ''
-			}`,
-			{
-				body,
-			},
-		);
+		const query = new URLSearchParams({ wait: 'true' });
+		if (webhook.threadId) {
+			query.append('thread_id', webhook.threadId);
+		}
+		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
+			body,
+			query,
+		});
 	}
 
 	private handleLog(log: Log) {

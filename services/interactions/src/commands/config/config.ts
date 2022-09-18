@@ -41,8 +41,10 @@ export default class implements Command {
 	) {
 		const atRole = (role?: string | null) => (role ? `<@&${role}>` : 'none');
 		const atChannel = (channel?: string | null) => (channel ? `<#${channel}>` : 'none');
-		const atLogChannel = (type: LogChannelType) =>
-			logChannels.has(type) ? atChannel(logChannels.get(type)!.channelId) : 'none';
+		const atLogChannel = (type: LogChannelType) => {
+			const logChannel = logChannels.get(type)!;
+			return logChannels.has(type) ? atChannel(logChannel.threadId ?? logChannel.channelId) : 'none';
+		};
 
 		return send(interaction, {
 			content: stripIndents`
