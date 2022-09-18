@@ -19,6 +19,7 @@ const logger = createLogger('discord-proxy');
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 const server = createServer(async (req, res) => {
 	const { method, url } = req as { method: RequestMethod; url: string };
+	// eslint-disable-next-line unicorn/no-unsafe-regex, prefer-named-capture-group
 	const fullRoute = new URL(url, 'http://noop').pathname.replace(/^\/api(\/v\d+)?/, '') as RouteLike;
 
 	if (method === RequestMethod.Get) {

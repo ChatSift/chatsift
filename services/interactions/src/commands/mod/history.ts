@@ -34,7 +34,7 @@ export default class implements Command {
 		});
 
 		return send(interaction, {
-			embed,
+			embeds: [embed],
 			flags: (interaction.data as APIApplicationCommandInteractionData).type === ApplicationCommandType.User ? 64 : 0,
 		});
 	}

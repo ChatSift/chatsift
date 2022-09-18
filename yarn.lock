@@ -130,6 +130,7 @@ __metadata:
     "@types/ioredis": ^4.28.10
     "@types/node": ^16.11.46
     discord-api-types: ^0.36.1
+    ioredis: ^5.2.3
     tslib: ^2.4.0
     tsyringe: ^4.7.0
     typescript: ^4.7.4
@@ -304,10 +305,12 @@ __metadata:
     "@types/node-fetch": ^2.6.2
     discord-api-types: ^0.36.1
     ioredis: ^4.28.5
+    latinize: ^0.5.0
     node-fetch: ^2.6.7
     pino: ^8.3.1
     prisma: ^3.15.2
     reflect-metadata: ^0.1.13
+    remove-accents: ^0.4.2
     tslib: ^2.4.0
     tsyringe: ^4.7.0
     typescript: ^4.7.4
@@ -356,6 +359,7 @@ __metadata:
     "@types/ioredis": ^4.28.10
     "@types/node": ^16.11.46
     discord-api-types: ^0.36.1
+    ioredis: ^5.2.3
     nanoid: ^3.3.4
     pino: ^8.3.1
     prisma: ^3.15.2
@@ -1074,6 +1078,13 @@ __metadata:
   version: 1.2.1
   resolution: "@humanwhocodes/object-schema@npm:1.2.1"
   checksum: a824a1ec31591231e4bad5787641f59e9633827d0a2eaae131a288d33c9ef0290bd16fda8da6f7c0fcb014147865d12118df10db57f27f41e20da92369fcb3f1
+  languageName: node
+  linkType: hard
+
+"@ioredis/commands@npm:^1.1.1":
+  version: 1.2.0
+  resolution: "@ioredis/commands@npm:1.2.0"
+  checksum: 9b20225ba36ef3e5caf69b3c0720597c3016cc9b1e157f519ea388f621dd9037177f84cfe7e25c4c32dad7dd90c70ff9123cd411f747e053cf292193c9c461e2
   languageName: node
   linkType: hard
 
@@ -2693,6 +2704,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"denque@npm:^2.0.1":
+  version: 2.1.0
+  resolution: "denque@npm:2.1.0"
+  checksum: 1d4ae1d05e59ac3a3481e7b478293f4b4c813819342273f3d5b826c7ffa9753c520919ba264f377e09108d24ec6cf0ec0ac729a5686cbb8f32d797126c5dae74
+  languageName: node
+  linkType: hard
+
 "diff@npm:^4.0.1":
   version: 4.0.2
   resolution: "diff@npm:4.0.2"
@@ -4219,6 +4237,23 @@ __metadata:
     redis-parser: ^3.0.0
     standard-as-callback: ^2.1.0
   checksum: a8793c3324cd69fa55b4baacbda118ce6724e574260157761276b31411dd3e168c75490f7155c6ce34d79e01488efa98e0cdb162991970fd56da7cbcdafb8fb8
+  languageName: node
+  linkType: hard
+
+"ioredis@npm:^5.2.3":
+  version: 5.2.3
+  resolution: "ioredis@npm:5.2.3"
+  dependencies:
+    "@ioredis/commands": ^1.1.1
+    cluster-key-slot: ^1.1.0
+    debug: ^4.3.4
+    denque: ^2.0.1
+    lodash.defaults: ^4.2.0
+    lodash.isarguments: ^3.1.0
+    redis-errors: ^1.2.0
+    redis-parser: ^3.0.0
+    standard-as-callback: ^2.1.0
+  checksum: 2cb7f0f4217e6774accad3620af1b7114722721c1d1824be2c9f0c2a77ab9629f2e0848d18b1a7208bc37796ae1207cb3e0898fce61900cfe797da0382724ad1
   languageName: node
   linkType: hard
 

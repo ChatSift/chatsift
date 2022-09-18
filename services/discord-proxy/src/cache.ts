@@ -23,7 +23,7 @@ const CACHE_TIMES: RecursiveRecord<number> = {
 
 export function resolveCacheTime(path: RouteLike): number | null {
 	const routes = path
-		.substring(1)
+		.slice(1)
 		.split('/')
 		.map((route) => (/\d{17,19}/g.test(route) ? 'id' : route));
 

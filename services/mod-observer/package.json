@@ -43,8 +43,10 @@
 		"@prisma/client": "^3.15.2",
 		"discord-api-types": "^0.36.1",
 		"ioredis": "^4.28.5",
+		"latinize": "^0.5.0",
 		"node-fetch": "^2.6.7",
 		"reflect-metadata": "^0.1.13",
+		"remove-accents": "^0.4.2",
 		"tslib": "^2.4.0",
 		"tsyringe": "^4.7.0",
 		"undici": "^5.10.0"

@@ -11,6 +11,7 @@ export class MessageCache {
 
 	private readonly _store = new RedisStore<APIMessage>({
 		hash: 'messages_cache',
+		// @ts-expect-error - miss match
 		redis: this.redis,
 		encode: (message) => JSON.stringify(message),
 		decode: (message: string) => JSON.parse(message) as APIMessage,
@@ -68,8 +69,10 @@ export class MessageCache {
 			const size = await this.redis.llen(key).then((len) => len + 1);
 			if (size > this._maxSizePerChannel) {
 				const popped = await this.redis.lpop(key, size - this._maxSizePerChannel);
-				for (const pop of popped) {
-					void this._store.delete(pop);
+				if (popped) {
+					for (const pop of popped) {
+						void this._store.delete(pop);
+					}
 				}
 			}
 

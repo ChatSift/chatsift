@@ -67,13 +67,13 @@ export default class implements Command {
 				});
 
 				if (isShow) {
-					return send(interaction, { embed });
+					return send(interaction, { embeds: [embed] });
 				}
 
 				const confirmId = nanoid();
 				await send(interaction, {
 					content: 'Are you sure you want to delete this case?',
-					embed,
+					embeds: [embed],
 					components: [
 						{
 							type: ComponentType.ActionRow,

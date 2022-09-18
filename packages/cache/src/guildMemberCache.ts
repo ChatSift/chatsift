@@ -25,6 +25,7 @@ export class GuildMemberCache {
 
 		const store = new RedisStore<CachedGuildMember>({
 			hash: `guild_members_cache_${guild}`,
+			// @ts-expect-error - miss match
 			redis: this.redis,
 			encode: (member) => JSON.stringify(member),
 			decode: (member: string) => JSON.parse(member) as CachedGuildMember,
@@ -54,8 +55,10 @@ export class GuildMemberCache {
 			const size = await this.redis.llen(key).then((len) => len + 1);
 			if (size > this._maxSizePerGuild) {
 				const popped = await this.redis.lpop(key, size - this._maxSizePerGuild);
-				for (const pop of popped) {
-					void store.delete(pop);
+				if (popped) {
+					for (const pop of popped) {
+						void store.delete(pop);
+					}
 				}
 			}
 
