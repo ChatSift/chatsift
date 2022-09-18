@@ -623,7 +623,7 @@ export class Gateway {
 
 					void this.guildMembersCache
 						// @ts-expect-error - Common discord-api-types missmatch
-						.add(n)
+						.add(newCache)
 						// eslint-disable-next-line promise/prefer-await-to-then, promise/prefer-await-to-callbacks
 						.catch((error: unknown) =>
 							this.logger.warn({ error, guild: data.guild_id }, 'Failed to update message cache'),

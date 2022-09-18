@@ -139,7 +139,7 @@ export class Handler {
 			void (
 				this.rest.post(Routes.webhook(webhook.id, webhook.token), {
 					body,
-					query: new URLSearchParams(query),
+					query,
 				}) as Promise<APIMessage>
 			)
 				// eslint-disable-next-line promise/prefer-await-to-then
