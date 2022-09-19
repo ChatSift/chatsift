@@ -16,8 +16,8 @@ void (async () => {
 	}).setToken(config.discordToken);
 
 	rest.on('response', (req) => {
-		if (req.method === 'POST' && req.path.includes('/webhooks/1021135799149936753')) {
-			console.log(req);
+		if (req.method === 'POST' && req.path.includes('/webhooks/1021486131658895432')) {
+			logger.debug({ req }, 'janky webhook thread');
 		}
 	});
 
