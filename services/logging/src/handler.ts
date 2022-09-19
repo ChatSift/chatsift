@@ -477,6 +477,8 @@ export class Handler {
 			query.append('thread_id', webhook.threadId);
 		}
 
+		this.logger.debug({ query: query.toString(), webhook });
+
 		await this.rest.post(Routes.webhook(webhook.id, webhook.token), {
 			body,
 			query,
