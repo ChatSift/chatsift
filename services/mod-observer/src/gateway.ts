@@ -1,4 +1,4 @@
-/* eslint-disable id-length, eqeqeq */
+/* eslint-disable id-length */
 import { URLSearchParams } from 'node:url';
 import type { DiscordEvents, Log, ServerLogs } from '@automoderator/broker-types';
 import { LogTypes, ServerLogType, DiscordPermissions, BanwordFlags } from '@automoderator/broker-types';

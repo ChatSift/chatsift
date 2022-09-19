@@ -50,7 +50,7 @@ export class AntispamRunner
 	}
 
 	public check({ amount, time }: AntispamTransform): boolean {
-		return amount !== null && time !== null;
+		return amount != null && time != null;
 	}
 
 	public async run(

@@ -62,7 +62,7 @@ export class MentionsRunner
 	}
 
 	public check({ amount, time, limit, mentions }: MentionsTransform): boolean {
-		return ((amount !== null && time !== null) || limit !== null) && mentions.length > 0;
+		return ((amount != null && time != null) || limit != null) && mentions.length > 0;
 	}
 
 	public async run(

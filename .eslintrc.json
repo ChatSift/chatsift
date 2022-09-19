@@ -14,6 +14,7 @@
 		"@typescript-eslint/ban-types": "off",
 		"@typescript-eslint/no-extraneous-class": "off",
 		"curly": ["error", "all"],
+		"eqeqeq": ["error", "always", { "null": "ignore" }],
 		"no-eq-null": "off",
 		"no-unused-vars": "off",
 		"import/extensions": "off",

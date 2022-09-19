@@ -86,7 +86,7 @@ export default class implements Command {
 
 		let settings: Partial<GuildSettings> = {};
 
-		if (pardonwarnsafter !== null) {
+		if (pardonwarnsafter != null) {
 			settings.autoPardonWarnsAfter = pardonwarnsafter;
 		}
 
@@ -115,11 +115,11 @@ export default class implements Command {
 			settings.minJoinAge = BigInt(parsed);
 		}
 
-		if (blankavatar !== null) {
+		if (blankavatar != null) {
 			settings.noBlankAvatar = blankavatar;
 		}
 
-		if (reportschannel !== null) {
+		if (reportschannel != null) {
 			if (!textTypes.includes(reportschannel!.type)) {
 				throw new ControlFlowError('Reports channel must be a text channel');
 			}

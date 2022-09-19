@@ -43,15 +43,15 @@ export default class implements Command {
 			case 'edit': {
 				let settings: Partial<GuildSettings> = {};
 
-				if (args.edit.urls !== null) {
+				if (args.edit.urls != null) {
 					settings.useUrlFilters = args.edit.urls;
 				}
 
-				if (args.edit.invites !== null) {
+				if (args.edit.invites != null) {
 					settings.useInviteFilters = args.edit.invites;
 				}
 
-				if (args.edit.global !== null) {
+				if (args.edit.global != null) {
 					settings.useGlobalFilters = args.edit.global;
 				}
 

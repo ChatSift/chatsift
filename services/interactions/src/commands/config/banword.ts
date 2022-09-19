@@ -37,7 +37,7 @@ export default class implements Command {
 		const data = list.reduce<Record<string, ParsedEntry>>((acc, entry) => {
 			const value: ParsedEntry = { flags: new BanwordFlags(BigInt(entry.flags)).toArray() };
 
-			if (entry.duration !== null) {
+			if (entry.duration != null) {
 				value.muteduration = ms(Number(entry.duration), true);
 			}
 
@@ -100,7 +100,7 @@ export default class implements Command {
 					duration: null,
 				};
 
-				if (args.add['mute-duration'] !== null) {
+				if (args.add['mute-duration'] != null) {
 					if (!args.add.mute) {
 						throw new ControlFlowError('You can only provide a mute duration for triggers that cause a mute');
 					}
@@ -238,7 +238,7 @@ export default class implements Command {
 						duration: null,
 					};
 
-					if (value.muteduration !== null) {
+					if (value.muteduration != null) {
 						if (!bitfield.has('mute')) {
 							throw new ControlFlowError(`You provided a mute time but no mute flag for word/phrase "${word}"`);
 						}
