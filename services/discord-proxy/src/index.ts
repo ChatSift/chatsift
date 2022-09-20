@@ -19,8 +19,9 @@ const logger = createLogger('discord-proxy');
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 const server = createServer(async (req, res) => {
 	const { method, url } = req as { method: RequestMethod; url: string };
+	const parsedUrl = new URL(url, 'http://noop');
 	// eslint-disable-next-line unicorn/no-unsafe-regex, prefer-named-capture-group
-	const fullRoute = new URL(url, 'http://noop').pathname.replace(/^\/api(\/v\d+)?/, '') as RouteLike;
+	const fullRoute = parsedUrl.pathname.replace(/^\/api(\/v\d+)?/, '') as RouteLike;
 
 	if (method === RequestMethod.Get) {
 		const cached = fetchCache(fullRoute);
@@ -38,6 +39,7 @@ const server = createServer(async (req, res) => {
 			fullRoute,
 			method,
 			passThroughBody: true,
+			query: parsedUrl.searchParams,
 			headers: {
 				'Content-Type': req.headers['content-type']!,
 			},

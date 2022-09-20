@@ -15,12 +15,6 @@ void (async () => {
 		api: `${config.discordProxyUrl}/api`,
 	}).setToken(config.discordToken);
 
-	rest.on('response', (req) => {
-		if (req.method === 'POST' && req.path.includes('/webhooks/1021486131658895432')) {
-			logger.debug({ req }, 'janky webhook thread');
-		}
-	});
-
 	container.register(REST, { useValue: rest });
 	container.register(kLogger, { useValue: logger });
 	container.register(PrismaClient, { useValue: new PrismaClient() });
