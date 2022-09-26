@@ -63,9 +63,19 @@ export default class implements Component {
 					embed.color = isDismiss ? 2_895_667 : 15_953_004;
 				}
 
-				await send(interaction, {}, InteractionResponseType.UpdateMessage);
-
-				break;
+				return send(
+					interaction,
+					{
+						components: [
+							{
+								type: ComponentType.ActionRow,
+								components: [review, acknowledged, viewReporters, actionButton],
+							},
+						],
+						embeds: embed ? [embed] : undefined,
+					},
+					InteractionResponseType.UpdateMessage,
+				);
 			}
 
 			case 'view-reporters': {
