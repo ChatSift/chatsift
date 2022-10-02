@@ -250,40 +250,28 @@ export default class implements Command {
 				);
 			}
 
-			const promises: Promise<void>[] = [];
 			const sweeped: Snowflake[] = [];
 			const missed: Snowflake[] = [];
 
 			let index = 0;
 
 			for (const { id: targetId, tag: targetTag } of members) {
-				promises.push(
-					this.cases
-						.create({
-							actionType: ban ? CaseAction.ban : CaseAction.kick,
-							guildId: interaction.guild_id,
-							mod: {
-								id: interaction.member.user.id,
-								tag: `${interaction.member.user.username}#${interaction.member.user.discriminator}`,
-							},
-							targetId,
-							targetTag,
-							reason: `Raid cleanup (${++index}/${members.length})`,
-							deleteDays: ban ? 1 : undefined,
-						})
-						// eslint-disable-next-line promise/prefer-await-to-then
-						.then(() => {
-							sweeped.push(targetId);
-						})
-						// eslint-disable-next-line promise/prefer-await-to-then, promise/prefer-await-to-callbacks
-						.catch((error) => {
-							this.logger.error(error, 'Failed to sweep member');
-							missed.push(targetId);
-						}),
-				);
+				await this.cases
+					.create({
+						actionType: ban ? CaseAction.ban : CaseAction.kick,
+						guildId: interaction.guild_id,
+						mod: {
+							id: interaction.member.user.id,
+							tag: `${interaction.member.user.username}#${interaction.member.user.discriminator}`,
+						},
+						targetId,
+						targetTag,
+						reason: `Raid cleanup (${++index}/${members.length})`,
+						deleteDays: ban ? 1 : undefined,
+					})
+					.then(() => sweeped.push(targetId))
+					.catch(() => missed.push(targetId));
 			}
-
-			await Promise.allSettled(promises);
 
 			const files: RawFile[] = [];
 			if (sweeped.length) {

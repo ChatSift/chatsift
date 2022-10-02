@@ -356,39 +356,42 @@ export class CaseManager {
 		data.notifyUser ??= true;
 		data.applyAction ??= true;
 
-		const cases = await this.prisma.$transaction<[Case, Case?]>(async (prisma) => {
-			const cs = await this.internalCreate(data, prisma);
-			if (data.notifyUser) {
-				await this.notifyUser(cs);
-			}
-
-			if (data.applyAction) {
-				await this.handlePunishment(cs, data, prisma);
-			}
-
-			const coupleCases: [Case, Case?] = [cs];
-
-			if (data.actionType === CaseAction.warn) {
-				const triggeredCase = await this.makeWarnTriggerCase(cs, prisma);
-				if (triggeredCase) {
-					if (data.notifyUser) {
-						await this.notifyUser(cs);
-					}
-
-					if (data.applyAction) {
-						await this.handlePunishment(triggeredCase, await this.dataFromCase(triggeredCase), prisma);
-					}
-
-					coupleCases.push(triggeredCase);
+		const cases = await this.prisma.$transaction<[Case, Case?]>(
+			async (prisma) => {
+				const cs = await this.internalCreate(data, prisma);
+				if (data.notifyUser) {
+					await this.notifyUser(cs);
 				}
-			}
 
-			for (const caseItem of coupleCases) {
-				await this.lock(caseItem!);
-			}
+				if (data.applyAction) {
+					await this.handlePunishment(cs, data, prisma);
+				}
 
-			return coupleCases;
-		});
+				const coupleCases: [Case, Case?] = [cs];
+
+				if (data.actionType === CaseAction.warn) {
+					const triggeredCase = await this.makeWarnTriggerCase(cs, prisma);
+					if (triggeredCase) {
+						if (data.notifyUser) {
+							await this.notifyUser(cs);
+						}
+
+						if (data.applyAction) {
+							await this.handlePunishment(triggeredCase, await this.dataFromCase(triggeredCase), prisma);
+						}
+
+						coupleCases.push(triggeredCase);
+					}
+				}
+
+				for (const caseItem of coupleCases) {
+					await this.lock(caseItem!);
+				}
+
+				return coupleCases;
+			},
+			{ timeout: 30_000 },
+		);
 
 		this.logs.publish({
 			type: LogTypes.modAction,
