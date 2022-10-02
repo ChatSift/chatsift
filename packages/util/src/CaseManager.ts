@@ -390,7 +390,7 @@ export class CaseManager {
 
 				return coupleCases;
 			},
-			{ timeout: 30_000 },
+			{ timeout: 120_000 },
 		);
 
 		this.logs.publish({
