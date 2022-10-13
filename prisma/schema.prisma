@@ -49,7 +49,7 @@ model AutomodTrigger {
   userId    String   @map("user_id")
   count     Int
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@id([guildId, userId])
   @@map("automod_triggers")
@@ -88,14 +88,7 @@ model Case {
   @@map("cases")
 }
 
-model ModRole {
-  guildId String @map("guild_id")
-  roleId  String @id @map("role_id")
-
-  settings GuildSettings @relation(fields: [guildId], references: [guildId], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model AdminRole {
+model BypassRole {
   guildId String @map("guild_id")
   roleId  String @id @map("role_id")
 
@@ -103,29 +96,28 @@ model AdminRole {
 }
 
 model GuildSettings {
-  guildId              String      @id @map("guild_id")
-  modRoles             ModRole[]
-  adminRoles           AdminRole[]
-  muteRole             String?     @map("mute_role")
+  guildId              String       @id @map("guild_id")
+  bypassRoles          BypassRole[]
+  muteRole             String?      @map("mute_role")
   // This is stored in days
-  autoPardonWarnsAfter Int?        @map("auto_pardon_warns_after")
-  useUrlFilters        Boolean     @default(false) @map("use_url_filters")
-  useGlobalFilters     Boolean     @default(false) @map("use_global_filters")
-  useFileFilters       Boolean     @default(false) @map("use_file_filters")
-  useInviteFilters     Boolean     @default(false) @map("use_invite_filters")
-  minJoinAge           BigInt?     @map("min_join_age")
-  noBlankAvatar        Boolean     @default(false) @map("no_blank_avatar")
-  reportsChannel       String?     @map("reports_channel")
-  antispamAmount       Int?        @map("antispam_amount")
-  antispamTime         Int?        @map("antispam_time")
-  mentionLimit         Int?        @map("mention_limit")
-  mentionAmount        Int?        @map("mention_amount")
-  mentionTime          Int?        @map("mention_time")
-  automodCooldown      Int?        @map("automod_cooldown")
-  hentaiThreshold      Int?        @map("hentai_threshold")
-  pornThreshold        Int?        @map("porn_threshold")
-  sexyThreshold        Int?        @map("sexy_threshold")
-  useTimeoutsByDefault Boolean     @default(true)
+  autoPardonWarnsAfter Int?         @map("auto_pardon_warns_after")
+  useUrlFilters        Boolean      @default(false) @map("use_url_filters")
+  useGlobalFilters     Boolean      @default(false) @map("use_global_filters")
+  useFileFilters       Boolean      @default(false) @map("use_file_filters")
+  useInviteFilters     Boolean      @default(false) @map("use_invite_filters")
+  minJoinAge           BigInt?      @map("min_join_age")
+  noBlankAvatar        Boolean      @default(false) @map("no_blank_avatar")
+  reportsChannel       String?      @map("reports_channel")
+  antispamAmount       Int?         @map("antispam_amount")
+  antispamTime         Int?         @map("antispam_time")
+  mentionLimit         Int?         @map("mention_limit")
+  mentionAmount        Int?         @map("mention_amount")
+  mentionTime          Int?         @map("mention_time")
+  automodCooldown      Int?         @map("automod_cooldown")
+  hentaiThreshold      Int?         @map("hentai_threshold")
+  pornThreshold        Int?         @map("porn_threshold")
+  sexyThreshold        Int?         @map("sexy_threshold")
+  useTimeoutsByDefault Boolean      @default(true)
 
   @@map("guild_settings")
 }

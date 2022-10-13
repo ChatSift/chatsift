@@ -47,8 +47,7 @@ export class Gateway {
 		const settings = await this.prisma.guildSettings.findFirst({
 			where: { guildId: message.guild_id },
 			include: {
-				adminRoles: true,
-				modRoles: true,
+				bypassRoles: true,
 			},
 		});
 
@@ -85,13 +84,8 @@ export class Gateway {
 			};
 
 			if (
-				await this.checker.check(
-					checkerData,
-					UserPerms.mod,
-					new Set(settings?.modRoles.map((role) => role.roleId) ?? []),
-					new Set(settings?.adminRoles.map((role) => role.roleId) ?? []),
-					guild.owner_id,
-				)
+				(await this.checker.check(checkerData, UserPerms.mod, guild.owner_id)) ||
+				settings?.bypassRoles.some((role) => member.roles.includes(role.roleId))
 			) {
 				return;
 			}

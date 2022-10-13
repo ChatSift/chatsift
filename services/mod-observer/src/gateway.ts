@@ -280,7 +280,7 @@ export class Gateway {
 	) {
 		const settings = await this.prisma.guildSettings.findFirst({
 			where: { guildId: data.guild_id },
-			include: { adminRoles: true, modRoles: true },
+			include: { bypassRoles: true },
 		});
 		const words = await this.prisma.bannedWord.findMany({ where: { guildId: data.guild_id } });
 
@@ -294,12 +294,8 @@ export class Gateway {
 			};
 
 			if (
-				await this.checker.check(
-					checkerData,
-					UserPerms.mod,
-					new Set(settings?.modRoles.map((role) => role.roleId) ?? []),
-					new Set(settings?.adminRoles.map((role) => role.roleId) ?? []),
-				)
+				(await this.checker.check(checkerData, UserPerms.mod)) ||
+				settings?.bypassRoles.some((r) => data.roles.includes(r.roleId))
 			) {
 				return;
 			}

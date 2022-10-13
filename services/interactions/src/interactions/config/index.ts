@@ -1,4 +1,5 @@
 export * from './banword';
+export * from './bypass';
 export * from './config-automod-ignores';
 export * from './config-automod-punishments';
 export * from './config-automod';
