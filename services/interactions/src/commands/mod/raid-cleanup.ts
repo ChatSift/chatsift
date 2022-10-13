@@ -237,7 +237,7 @@ export default class implements Command {
 
 		try {
 			const done = await this.handler.collectorManager
-				.makeCollector<APIMessageComponentInteraction>(confirmId)
+				.makeCollector<APIMessageComponentInteraction>(confirmId, [interaction.member.user.id])
 				.waitForOneAndDestroy(30_000);
 
 			const [, action] = done.data.custom_id.split('|') as [string, string];

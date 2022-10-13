@@ -1,5 +1,7 @@
 import { clearTimeout, setTimeout } from 'node:timers';
 import type { APIMessageComponentInteraction, APIModalSubmitInteraction } from 'discord-api-types/v9';
+import { InteractionResponseType } from 'discord-api-types/v9';
+import { send } from './util';
 
 export type CollectableInteraction = APIMessageComponentInteraction | APIModalSubmitInteraction;
 export type CollectionHook<T> = (interaction: T) => unknown;
@@ -25,7 +27,11 @@ export class Collector<T extends CollectableInteraction> {
 
 	private readonly hooks: CollectionHook<T>[] = [];
 
-	public constructor(private readonly ids: string[], private readonly manager: CollectorManager) {}
+	public constructor(
+		private readonly ids: string[],
+		public readonly userIds: string[],
+		private readonly manager: CollectorManager,
+	) {}
 
 	public push(interaction: T): void {
 		const currentlyPending = this.pending.shift();
@@ -140,14 +146,19 @@ export class CollectorManager {
 	public push(interaction: CollectableInteraction) {
 		const [id] = interaction.data.custom_id.split('|') as [string, ...string[]];
 		if (this.collectors.has(id)) {
-			this.collectors.get(id)!.push(interaction);
+			const collector = this.collectors.get(id)!;
+			if (collector.userIds.includes(interaction.member!.user.id)) {
+				collector.push(interaction);
+			} else {
+				void send(interaction, { content: 'You are not allowed to perform this action', flags: 64 });
+			}
 		}
 	}
 
-	public makeCollector<T extends CollectableInteraction>(ids: string[] | string): Collector<T> {
+	public makeCollector<T extends CollectableInteraction>(ids: string[] | string, userIds: string[] = []): Collector<T> {
 		// eslint-disable-next-line no-param-reassign
 		ids = Array.isArray(ids) ? ids : [ids];
-		const collector = new Collector<T>(ids, this);
+		const collector = new Collector<T>(ids, userIds, this);
 		for (const id of ids) {
 			this.collectors.set(id, collector);
 		}
