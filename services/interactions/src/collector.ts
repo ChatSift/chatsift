@@ -29,7 +29,7 @@ export class Collector<T extends CollectableInteraction> {
 
 	public constructor(
 		private readonly ids: string[],
-		public readonly userIds: string[],
+		public readonly userIds: string[] | null,
 		private readonly manager: CollectorManager,
 	) {}
 
@@ -147,7 +147,7 @@ export class CollectorManager {
 		const [id] = interaction.data.custom_id.split('|') as [string, ...string[]];
 		if (this.collectors.has(id)) {
 			const collector = this.collectors.get(id)!;
-			if (collector.userIds.includes(interaction.member!.user.id)) {
+			if (!collector.userIds || collector.userIds.includes(interaction.member!.user.id)) {
 				collector.push(interaction);
 			} else {
 				void send(interaction, { content: 'You are not allowed to perform this action', flags: 64 });
@@ -155,7 +155,10 @@ export class CollectorManager {
 		}
 	}
 
-	public makeCollector<T extends CollectableInteraction>(ids: string[] | string, userIds: string[] = []): Collector<T> {
+	public makeCollector<T extends CollectableInteraction>(
+		ids: string[] | string,
+		userIds: string[] | null = null,
+	): Collector<T> {
 		// eslint-disable-next-line no-param-reassign
 		ids = Array.isArray(ids) ? ids : [ids];
 		const collector = new Collector<T>(ids, userIds, this);
