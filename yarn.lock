@@ -104,6 +104,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@chatsift/automoderator-interactions@workspace:services/interactions":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/automoderator-interactions@workspace:services/interactions"
+  dependencies:
+    "@automoderator/cache": "workspace:^"
+    "@automoderator/common": "workspace:^"
+    "@discordjs/brokers": ^0.2.0-dev.1665706585-bf9aa18.0
+    "@discordjs/rest": ^1.3.0
+    "@discordjs/ws": ^0.4.1
+    "@types/node": ^16.11.68
+    discord-api-types: ^0.37.14
+    ioredis: ^5.2.3
+    reflect-metadata: ^0.1.13
+    tslib: ^2.4.0
+    tsyringe: ^4.7.0
+    typescript: ^4.8.4
+  languageName: unknown
+  linkType: soft
+
 "@chatsift/automoderator-logging@workspace:services/logging":
   version: 0.0.0-use.local
   resolution: "@chatsift/automoderator-logging@workspace:services/logging"

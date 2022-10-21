@@ -14,12 +14,13 @@ const logger = createLogger('gateway');
 const env = container.resolve(Env);
 const redis = new Redis(env.redisUrl);
 
-// Want a random group name so we fan out gateway_send payloads
 const broker = new PubSubRedisBroker<DiscordEventsMap>({ redisClient: redis, encode, decode });
 
 const gateway = new WebSocketManager({
 	token: env.discordToken,
-	rest: new REST().setToken(env.discordToken).setAgent(new ProxyAgent(env.discordProxyURL)),
+	rest: new REST({ api: `${env.discordProxyURL}/api` })
+		.setToken(env.discordToken)
+		.setAgent(new ProxyAgent(env.discordProxyURL)),
 	intents:
 		GatewayIntentBits.GuildMessages |
 		GatewayIntentBits.GuildMembers |
@@ -43,5 +44,6 @@ broker.on('send', async ({ data, ack }) => {
 	await ack();
 });
 
+// Want a random group name so we fan out gateway_send payloads
 await broker.subscribe(randomBytes(16).toString('hex'), ['send']);
 await gateway.connect();

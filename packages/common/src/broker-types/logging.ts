@@ -19,9 +19,9 @@ export interface GuildLogModActionData extends GuildLogBaseData {
 
 export interface GuildLogMap {
 	[GuildLogType.ModAction]: GuildLogModActionData;
-	// [GuildLogType.AutomodTrigger]: GuildLogModActionData;
-	// [GuildLogType.UserJoin]: GuildLogModActionData;
-	// [GuildLogType.UserLeave]: GuildLogModActionData;
-	// [GuildLogType.UserUsernameUpdate]: GuildLogModActionData;
-	// [GuildLogType.UserNicknameUpdate]: GuildLogModActionData;
+	[GuildLogType.AutomodTrigger]: never;
+	[GuildLogType.UserJoin]: never;
+	[GuildLogType.UserLeave]: never;
+	[GuildLogType.UserUsernameUpdate]: never;
+	[GuildLogType.UserNicknameUpdate]: never;
 }

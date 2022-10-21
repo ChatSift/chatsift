@@ -51,6 +51,10 @@ export class GuildLogger {
 		}
 
 		const query = new URLSearchParams({ wait: 'true' });
+		if (webhook.threadId) {
+			query.append('thread_id', webhook.threadId);
+		}
+
 		const body: RESTPostAPIWebhookWithTokenJSONBody = {
 			embeds,
 		};

@@ -1,17 +1,8 @@
 import 'reflect-metadata';
-import {
-	createLogger,
-	Env,
-	GuildLogMap,
-	GuildLogModActionData,
-	GuildLogType,
-	LogEmbedBuilder,
-	encode,
-	decode,
-} from '@automoderator/common';
+import { createLogger, Env, GuildLogMap, GuildLogType, LogEmbedBuilder, encode, decode } from '@automoderator/common';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { REST } from '@discordjs/rest';
-import { CaseAction, LogChannelType, PrismaClient } from '@prisma/client';
+import { LogChannelType, PrismaClient } from '@prisma/client';
 import { APIMessage, APIUser, Routes } from 'discord-api-types/v10';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
@@ -20,7 +11,7 @@ import { GuildLogger } from './GuildLogger';
 const env = container.resolve(Env);
 
 const logger = createLogger('logging');
-const rest = new REST().setToken(env.discordToken);
+const rest = new REST({ api: `${env.discordProxyURL}/api` }).setToken(env.discordToken);
 const prisma = new PrismaClient();
 
 container.register(REST, { useValue: rest });
@@ -58,33 +49,5 @@ broker.on(GuildLogType.ModAction, async ({ data: { cases }, ack }) => {
 	}
 });
 
-// @ts-expect-error
 await broker.subscribe('logging', Object.values(GuildLogType));
 logger.info('Subscribed to logging channels');
-
-const testPayload: GuildLogModActionData = {
-	guildId: '878276317525737502',
-	cases: [
-		{
-			id: 12345678,
-			guildId: '878276317525737502',
-			logChannelId: null,
-			logMessageId: null,
-			caseId: 12345,
-			refId: 12344,
-			targetId: '104425482757357568',
-			targetTag: 'Tommyfoxy2#0001',
-			modId: '223703707118731264',
-			modTag: 'DD#0003',
-			actionType: CaseAction.ban,
-			reason: 'test',
-			duration: 3_600_000n,
-			useTimeouts: false,
-			createdAt: new Date(),
-			expiresAt: new Date(Date.now() + 3_600_000),
-			pardonedBy: null,
-		},
-	],
-};
-
-await broker.publish(GuildLogType.ModAction, testPayload);
