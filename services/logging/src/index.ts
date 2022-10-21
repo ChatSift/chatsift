@@ -1,5 +1,4 @@
 import 'reflect-metadata';
-import { PubSubRedisBroker } from '@automoderator/brokers';
 import {
 	createLogger,
 	Env,
@@ -10,6 +9,7 @@ import {
 	encode,
 	decode,
 } from '@automoderator/common';
+import { PubSubRedisBroker } from '@discordjs/brokers';
 import { REST } from '@discordjs/rest';
 import { CaseAction, LogChannelType, PrismaClient } from '@prisma/client';
 import { APIMessage, APIUser, Routes } from 'discord-api-types/v10';

@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { randomBytes } from 'crypto';
-import { PubSubRedisBroker } from '@automoderator/brokers';
 import { createLogger, Env, DiscordEventsMap, encode, decode } from '@automoderator/common';
+import { PubSubRedisBroker } from '@discordjs/brokers';
 import { REST } from '@discordjs/rest';
 import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
 import { GatewayIntentBits } from 'discord-api-types/v10';

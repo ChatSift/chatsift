@@ -16,9 +16,9 @@
 		"typescript": "^4.7.4"
 	},
 	"dependencies": {
-		"@automoderator/brokers": "workspace:^",
 		"@automoderator/cache": "workspace:^",
 		"@automoderator/common": "workspace:^",
+		"@discordjs/brokers": "^0.2.0-dev.1665706585-bf9aa18.0",
 		"@discordjs/rest": "^1.0.1",
 		"@discordjs/ws": "^0.3.0-dev.1660954164-8028813.0",
 		"discord-api-types": "^0.37.3",

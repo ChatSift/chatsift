@@ -5,18 +5,6 @@ __metadata:
   version: 6
   cacheKey: 8
 
-"@automoderator/brokers@workspace:^, @automoderator/brokers@workspace:packages/brokers":
-  version: 0.0.0-use.local
-  resolution: "@automoderator/brokers@workspace:packages/brokers"
-  dependencies:
-    "@msgpack/msgpack": ^2.7.2
-    "@types/node": ^16.11.49
-    "@vladfrangu/async_event_emitter": ^2.0.1
-    ioredis: ^5.2.3
-    typescript: ^4.7.4
-  languageName: unknown
-  linkType: soft
-
 "@automoderator/cache@workspace:^, @automoderator/cache@workspace:packages/cache":
   version: 0.0.0-use.local
   resolution: "@automoderator/cache@workspace:packages/cache"
@@ -100,9 +88,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@chatsift/automoderator-gateway@workspace:services/gateway"
   dependencies:
-    "@automoderator/brokers": "workspace:^"
     "@automoderator/cache": "workspace:^"
     "@automoderator/common": "workspace:^"
+    "@discordjs/brokers": ^0.2.0-dev.1665706585-bf9aa18.0
     "@discordjs/rest": ^1.0.1
     "@discordjs/ws": ^0.3.0-dev.1660954164-8028813.0
     "@types/node": ^16.11.49
@@ -120,9 +108,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@chatsift/automoderator-logging@workspace:services/logging"
   dependencies:
-    "@automoderator/brokers": "workspace:^"
     "@automoderator/cache": "workspace:^"
     "@automoderator/common": "workspace:^"
+    "@discordjs/brokers": ^0.2.0-dev.1665706585-bf9aa18.0
     "@discordjs/rest": ^1.0.1
     "@discordjs/ws": ^0.3.0-dev.1660954164-8028813.0
     "@types/node": ^16.11.49
@@ -376,6 +364,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@discordjs/brokers@npm:^0.2.0-dev.1665706585-bf9aa18.0":
+  version: 0.2.0-dev.1665706585-bf9aa18.0
+  resolution: "@discordjs/brokers@npm:0.2.0-dev.1665706585-bf9aa18.0"
+  dependencies:
+    "@msgpack/msgpack": ^2.8.0
+    "@vladfrangu/async_event_emitter": ^2.1.2
+    ioredis: ^5.2.3
+  checksum: 10ed2bb6bbb912ca510219d43aa723c87fe479591eefce6c36fbc93644abbb290d42fd1c7d7773f620374b3d77472cadfbf582a1b2fb457ebe84f29fff8d55e4
+  languageName: node
+  linkType: hard
+
 "@discordjs/builders@npm:^1.2.0":
   version: 1.2.0
   resolution: "@discordjs/builders@npm:1.2.0"
@@ -515,6 +514,13 @@ __metadata:
   version: 2.7.2
   resolution: "@msgpack/msgpack@npm:2.7.2"
   checksum: 85258ef7a3fb74c1e1f8be017413c1311938bb614b46cf1643fb33a9469b79a08ce61ab81cc139644b12d537178687f4d107d902337062ff728d55825c492b83
+  languageName: node
+  linkType: hard
+
+"@msgpack/msgpack@npm:^2.8.0":
+  version: 2.8.0
+  resolution: "@msgpack/msgpack@npm:2.8.0"
+  checksum: bead9393f57239007a2fe455df5277cbc03b125f14f310162a652b81471dcf3ab6780eaa24b36e20aa742998910a6840147d08b7267063b8e2de5d40c624360e
   languageName: node
   linkType: hard
 
@@ -849,6 +855,13 @@ __metadata:
   version: 2.0.1
   resolution: "@vladfrangu/async_event_emitter@npm:2.0.1"
   checksum: 96aec2c774676c3af47651167cb8ce1eba386c512aeac44731b09080f3a6faed7286993c37086da6cf600027f3281572d7beb8bc650f2fb257749ac99e6e2f6a
+  languageName: node
+  linkType: hard
+
+"@vladfrangu/async_event_emitter@npm:^2.1.2":
+  version: 2.1.2
+  resolution: "@vladfrangu/async_event_emitter@npm:2.1.2"
+  checksum: 31ffabd6b20c11db7ae9856daccb52371a00fb94d7ea6829286ab0bdb5f54bea8f987cd84c7b651d003a0761593ad56133956c0764be6492c840a1dd618b1ed7
   languageName: node
   linkType: hard
 
