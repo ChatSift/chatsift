@@ -1,27 +1,27 @@
 import type { Case } from '@prisma/client';
 
 export enum GuildLogType {
-	ModAction = 'mod_actions',
 	AutomodTrigger = 'automod_triggers',
+	ModAction = 'mod_actions',
 	UserJoin = 'user_joins',
 	UserLeave = 'user_leaves',
-	UserUsernameUpdate = 'user_username_updates',
 	UserNicknameUpdate = 'user_nickname_updates',
+	UserUsernameUpdate = 'user_username_updates',
 }
 
-interface GuildLogBaseData {
+type GuildLogBaseData = {
 	guildId: string;
-}
+};
 
-export interface GuildLogModActionData extends GuildLogBaseData {
+export type GuildLogModActionData = GuildLogBaseData & {
 	cases: Case[];
-}
+};
 
-export interface GuildLogMap {
+export type GuildLogMap = {
 	[GuildLogType.ModAction]: GuildLogModActionData;
 	[GuildLogType.AutomodTrigger]: never;
 	[GuildLogType.UserJoin]: never;
 	[GuildLogType.UserLeave]: never;
 	[GuildLogType.UserUsernameUpdate]: never;
 	[GuildLogType.UserNicknameUpdate]: never;
-}
+};

@@ -1,5 +1,6 @@
 import 'reflect-metadata';
-import { createLogger, DiscordEventsMap, Env, encode, decode } from '@automoderator/common';
+import type { DiscordEventsMap } from '@automoderator/common';
+import { createLogger, Env, encode, decode } from '@automoderator/common';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';

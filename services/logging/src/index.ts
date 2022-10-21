@@ -1,9 +1,11 @@
 import 'reflect-metadata';
-import { createLogger, Env, GuildLogMap, GuildLogType, LogEmbedBuilder, encode, decode } from '@automoderator/common';
+import type { GuildLogMap } from '@automoderator/common';
+import { createLogger, Env, GuildLogType, LogEmbedBuilder, encode, decode } from '@automoderator/common';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { REST } from '@discordjs/rest';
 import { LogChannelType, PrismaClient } from '@prisma/client';
-import { APIMessage, APIUser, Routes } from 'discord-api-types/v10';
+import type { APIMessage, APIUser } from 'discord-api-types/v10';
+import { Routes } from 'discord-api-types/v10';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
 import { GuildLogger } from './GuildLogger';

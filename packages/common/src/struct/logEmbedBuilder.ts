@@ -5,25 +5,25 @@ import type { APIEmbed, APIUser } from 'discord-api-types/v10';
 import { singleton } from 'tsyringe';
 import { getUserAvatarURL } from '../util/getUserAvatarURL';
 
-export interface BuildModActionLogOptions {
+export type BuildModActionLogOptions = {
 	cs: Case;
-	mod?: APIUser | null;
-	user?: APIUser | null;
 	existingEmbed?: APIEmbed | null;
-	refCs?: Case | null;
+	mod?: APIUser | null;
 	pardonedBy?: APIUser | null;
-}
+	refCs?: Case | null;
+	user?: APIUser | null;
+};
 
 @singleton()
 export class LogEmbedBuilder {
 	public readonly logColors = {
-		warn: 16022395,
-		mute: 16022395,
-		unmute: 5793266,
-		kick: 16022395,
-		softban: 16022395,
-		ban: 15747144,
-		unban: 5793266,
+		warn: 16_022_395,
+		mute: 16_022_395,
+		unmute: 5_793_266,
+		kick: 16_022_395,
+		softban: 16_022_395,
+		ban: 15_747_144,
+		unban: 5_793_266,
 	} as const;
 
 	public buildModActionLog({ cs, mod, user, existingEmbed, refCs, pardonedBy }: BuildModActionLogOptions): APIEmbed {

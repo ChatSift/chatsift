@@ -7,15 +7,8 @@ import {
 	populateGeneralErrorResponse,
 	populateRatelimitErrorResponse,
 } from '@discordjs/proxy';
-import {
-	DiscordAPIError,
-	HTTPError,
-	parseResponse,
-	RateLimitError,
-	RequestMethod,
-	REST,
-	RouteLike,
-} from '@discordjs/rest';
+import type { RouteLike } from '@discordjs/rest';
+import { DiscordAPIError, HTTPError, parseResponse, RateLimitError, RequestMethod, REST } from '@discordjs/rest';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
 import { cache, fetchCache } from './cache';
@@ -29,6 +22,7 @@ const rest = new REST({ rejectOnRateLimit: () => true, retries: 0 }).setToken(en
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 const server = createServer(async (req, res) => {
 	const { method, url } = req as { method: RequestMethod; url: string };
+	// eslint-disable-next-line prefer-named-capture-group, unicorn/no-unsafe-regex
 	const fullRoute = new URL(url, 'http://noop').pathname.replace(/^\/api(\/v\d+)?/, '') as RouteLike;
 
 	if (method === RequestMethod.Get) {
@@ -80,4 +74,4 @@ const server = createServer(async (req, res) => {
 	}
 });
 
-server.listen(8080, () => logger.info('Listening on port 8080 for requests'));
+server.listen(8_080, () => logger.info('Listening on port 8080 for requests'));

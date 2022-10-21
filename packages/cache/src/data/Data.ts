@@ -16,14 +16,14 @@ export enum DataType {
 
 export type SimpleDataTypes =
 	| DataType.Bool
+	| DataType.Date
 	| DataType.I8
-	| DataType.U8
 	| DataType.I16
-	| DataType.U16
 	| DataType.I32
-	| DataType.U32
-	| DataType.U64
 	| DataType.String
-	| DataType.Date;
+	| DataType.U8
+	| DataType.U16
+	| DataType.U32
+	| DataType.U64;
 
 export type ComplexDataTypes = DataType.Array | DataType.Object;

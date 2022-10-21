@@ -1,13 +1,17 @@
+import { clearTimeout, setTimeout } from 'node:timers';
+import { URLSearchParams } from 'node:url';
 import { DiscordAPIError, REST } from '@discordjs/rest';
-import { LogChannelType, LogChannelWebhook, PrismaClient } from '@prisma/client';
-import { APIEmbed, APIWebhook, RESTPostAPIWebhookWithTokenJSONBody, Routes } from 'discord-api-types/v10';
+import type { LogChannelType, LogChannelWebhook } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import type { APIEmbed, APIWebhook, RESTPostAPIWebhookWithTokenJSONBody } from 'discord-api-types/v10';
+import { Routes } from 'discord-api-types/v10';
 import { singleton } from 'tsyringe';
 
-interface LogBuffer {
-	embeds: APIEmbed[];
+type LogBuffer = {
 	acks: (() => Promise<void>)[];
+	embeds: APIEmbed[];
 	timeout: NodeJS.Timeout;
-}
+};
 
 @singleton()
 export class GuildLogger {
@@ -60,7 +64,7 @@ export class GuildLogger {
 		};
 
 		await this.rest.post(Routes.webhook(webhook.id, webhook.token), { query, body });
-		await Promise.all(buffer.acks.map((ack) => ack()));
+		await Promise.all(buffer.acks.map(async (ack) => ack()));
 	}
 
 	private assertBuffer(guildId: string, logType: LogChannelType): LogBuffer {

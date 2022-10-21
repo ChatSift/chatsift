@@ -1,9 +1,9 @@
 import type { APIGuild, GuildFeature } from 'discord-api-types/v10';
-import type { ITransformer } from './ITransformer';
 import { Reader } from '../data/Reader';
 import { Writer } from '../data/Writer';
+import type { ITransformer } from './ITransformer';
 
-export type StrippedGuild = Omit<APIGuild, 'region' | 'roles' | 'emojis' | 'stickers'>;
+export type StrippedGuild = Omit<APIGuild, 'emojis' | 'region' | 'roles' | 'stickers'>;
 
 export const guildTransformer: ITransformer<StrippedGuild> = {
 	toBuffer: (guild) => {

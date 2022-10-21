@@ -14,13 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { Buffer } from 'node:buffer';
 import { TextEncoder } from 'node:util';
-import { DataType, SimpleDataTypes } from './Data';
+import type { SimpleDataTypes } from './Data';
+import { DataType } from './Data';
 
 export class Writer {
 	private readonly encoder = new TextEncoder();
 
 	private data: Buffer;
+
 	private offset = 0;
 
 	public constructor(size: number) {
@@ -119,7 +122,7 @@ export class Writer {
 		return this;
 	}
 
-	public u64(value?: string | number | bigint | null, dataType: DataType = DataType.U64) {
+	public u64(value?: bigint | number | string | null, dataType: DataType = DataType.U64) {
 		if (value == null) {
 			return this.writeNull();
 		}
@@ -148,19 +151,16 @@ export class Writer {
 		return this;
 	}
 
-	public date(value?: string | number | null) {
+	public date(value?: number | string | null) {
 		if (value == null) {
 			return this.writeNull();
 		}
 
-		if (typeof value === 'string') {
-			value = Date.parse(value);
-		}
-
-		return this.u64(value, DataType.Date);
+		const parsed = typeof value === 'string' ? Date.parse(value) : value;
+		return this.u64(parsed, DataType.Date);
 	}
 
-	public array<T>(values: readonly T[] | null, cb: (buffer: this, value: T) => void) {
+	public array<T>(values: readonly T[] | null, mapper: (buffer: this, value: T) => void) {
 		if (!values?.length) {
 			return this.writeNull();
 		}
@@ -169,20 +169,20 @@ export class Writer {
 		this.offset += this.data.writeUInt8(DataType.Array, this.offset);
 		this.offset += this.data.writeUInt32LE(values.length, this.offset);
 		for (const value of values) {
-			cb(this, value);
+			mapper(this, value);
 		}
 
 		return this;
 	}
 
-	public object<T extends Record<string, unknown>>(value: T | null, cb: (buffer: this, value: T) => void) {
+	public object<T extends Record<string, unknown>>(value: T | null, mapper: (buffer: this, value: T) => void) {
 		if (value == null) {
 			return this.writeNull();
 		}
 
 		this.ensure(1);
 		this.offset += this.data.writeUInt8(DataType.Object, this.offset);
-		cb(this, value);
+		mapper(this, value);
 
 		return this;
 	}
@@ -225,7 +225,7 @@ export class Writer {
 			}
 
 			case DataType.U64: {
-				this.u64(value as string | number | bigint);
+				this.u64(value as bigint | number | string);
 				break;
 			}
 
@@ -235,7 +235,7 @@ export class Writer {
 			}
 
 			case DataType.Date: {
-				this.date(value as string | number);
+				this.date(value as number | string);
 				break;
 			}
 		}

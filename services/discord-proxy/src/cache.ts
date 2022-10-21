@@ -1,9 +1,10 @@
-import { GuildCache, StrippedGuild } from '@automoderator/cache';
+import type { StrippedGuild } from '@automoderator/cache';
+import { GuildCache } from '@automoderator/cache';
 import { container } from 'tsyringe';
 
 function normalizeRoute(route: string): [string, string[]] {
 	const normalized = route.replaceAll(/\d{17,19}/g, ':id');
-	const components = normalized.substring(1).split('/');
+	const components = normalized.slice(1).split('/');
 
 	return [normalized, components];
 }

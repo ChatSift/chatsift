@@ -1,6 +1,7 @@
 import 'reflect-metadata';
-import { randomBytes } from 'crypto';
-import { createLogger, Env, DiscordEventsMap, encode, decode } from '@automoderator/common';
+import { randomBytes } from 'node:crypto';
+import type { DiscordEventsMap } from '@automoderator/common';
+import { createLogger, Env, encode, decode } from '@automoderator/common';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { REST } from '@discordjs/rest';
 import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';

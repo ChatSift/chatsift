@@ -14,13 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import type { Buffer } from 'node:buffer';
 import { TextDecoder } from 'node:util';
-import { DataType, SimpleDataTypes } from './Data';
+import type { SimpleDataTypes } from './Data';
+import { DataType } from './Data';
 
 export class Reader {
 	private readonly decoder = new TextDecoder();
 
 	public readonly data: Buffer;
+
 	private offset = 0;
 
 	public constructor(data: Buffer) {
@@ -31,6 +34,7 @@ export class Reader {
 		if (this.readNull(DataType.Bool)) {
 			return null;
 		}
+
 		return this.data.readUInt8(this.offset++) === 1;
 	}
 
@@ -38,6 +42,7 @@ export class Reader {
 		if (this.readNull(DataType.I8)) {
 			return null;
 		}
+
 		return this.data.readInt8(this.offset++);
 	}
 
@@ -45,6 +50,7 @@ export class Reader {
 		if (this.readNull(DataType.U8)) {
 			return null;
 		}
+
 		return this.data.readUInt8(this.offset++);
 	}
 
@@ -52,6 +58,7 @@ export class Reader {
 		if (this.readNull(DataType.I16)) {
 			return null;
 		}
+
 		const value = this.data.readInt16LE(this.offset);
 		this.offset += 2;
 		return value;
@@ -61,6 +68,7 @@ export class Reader {
 		if (this.readNull(DataType.U16)) {
 			return null;
 		}
+
 		const value = this.data.readUInt16LE(this.offset);
 		this.offset += 2;
 		return value;
@@ -70,6 +78,7 @@ export class Reader {
 		if (this.readNull(DataType.I32)) {
 			return null;
 		}
+
 		const value = this.data.readInt32LE(this.offset);
 		this.offset += 4;
 		return value;
@@ -79,6 +88,7 @@ export class Reader {
 		if (this.readNull(DataType.U32)) {
 			return null;
 		}
+
 		const value = this.data.readUInt32LE(this.offset);
 		this.offset += 4;
 		return value;
@@ -88,6 +98,7 @@ export class Reader {
 		if (this.readNull(DataType.U64)) {
 			return null;
 		}
+
 		const value = this.data.readBigUInt64LE(this.offset);
 		this.offset += 8;
 		return value;
@@ -110,12 +121,13 @@ export class Reader {
 		if (this.readNull(DataType.Date)) {
 			return null;
 		}
+
 		const value = this.data.readBigUInt64LE(this.offset);
 		this.offset += 8;
 		return Number(value);
 	}
 
-	public array<T>(cb: (buffer: this) => T): T[] {
+	public array<T>(mapper: (buffer: this) => T): T[] {
 		if (this.readNull(DataType.Array)) {
 			return [];
 		}
@@ -124,19 +136,19 @@ export class Reader {
 		this.offset += 4;
 
 		const values: T[] = [];
-		for (let i = 0; i < length; i++) {
-			values.push(cb(this));
+		for (let index = 0; index < length; index++) {
+			values.push(mapper(this));
 		}
 
 		return values;
 	}
 
-	public object<T extends Record<string, unknown>>(cb: (buffer: this) => T): T | null {
+	public object<T extends Record<string, unknown>>(mapper: (buffer: this) => T): T | null {
 		if (this.readNull(DataType.Object)) {
 			return null;
 		}
 
-		return cb(this);
+		return mapper(this);
 	}
 
 	public typeUnsafeArbitraryRead(dataType: SimpleDataTypes): any {

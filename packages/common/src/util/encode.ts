@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { encode as msgpackEncode, decode as msgpackDecode, ExtensionCodec } from '@msgpack/msgpack';
 
 const codec = new ExtensionCodec();
