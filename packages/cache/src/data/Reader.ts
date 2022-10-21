@@ -15,6 +15,7 @@
 // limitations under the License.
 
 import { TextDecoder } from 'node:util';
+import { DataType, SimpleDataTypes } from './Data';
 
 export class Reader {
 	private readonly decoder = new TextDecoder();
@@ -27,28 +28,28 @@ export class Reader {
 	}
 
 	public bool(): boolean | null {
-		if (this.readNull()) {
+		if (this.readNull(DataType.Bool)) {
 			return null;
 		}
 		return this.data.readUInt8(this.offset++) === 1;
 	}
 
 	public i8(): number | null {
-		if (this.readNull()) {
+		if (this.readNull(DataType.I8)) {
 			return null;
 		}
 		return this.data.readInt8(this.offset++);
 	}
 
 	public u8(): number | null {
-		if (this.readNull()) {
+		if (this.readNull(DataType.U8)) {
 			return null;
 		}
 		return this.data.readUInt8(this.offset++);
 	}
 
 	public i16(): number | null {
-		if (this.readNull()) {
+		if (this.readNull(DataType.I16)) {
 			return null;
 		}
 		const value = this.data.readInt16LE(this.offset);
@@ -57,7 +58,7 @@ export class Reader {
 	}
 
 	public u16(): number | null {
-		if (this.readNull()) {
+		if (this.readNull(DataType.U16)) {
 			return null;
 		}
 		const value = this.data.readUInt16LE(this.offset);
@@ -66,7 +67,7 @@ export class Reader {
 	}
 
 	public i32(): number | null {
-		if (this.readNull()) {
+		if (this.readNull(DataType.I32)) {
 			return null;
 		}
 		const value = this.data.readInt32LE(this.offset);
@@ -75,7 +76,7 @@ export class Reader {
 	}
 
 	public u32(): number | null {
-		if (this.readNull()) {
+		if (this.readNull(DataType.U32)) {
 			return null;
 		}
 		const value = this.data.readUInt32LE(this.offset);
@@ -84,7 +85,7 @@ export class Reader {
 	}
 
 	public u64(): bigint | null {
-		if (this.readNull()) {
+		if (this.readNull(DataType.U64)) {
 			return null;
 		}
 		const value = this.data.readBigUInt64LE(this.offset);
@@ -93,7 +94,7 @@ export class Reader {
 	}
 
 	public string(): string | null {
-		if (this.readNull()) {
+		if (this.readNull(DataType.String)) {
 			return null;
 		}
 
@@ -106,7 +107,7 @@ export class Reader {
 	}
 
 	public date(): number | null {
-		if (this.readNull()) {
+		if (this.readNull(DataType.Date)) {
 			return null;
 		}
 		const value = this.data.readBigUInt64LE(this.offset);
@@ -115,7 +116,7 @@ export class Reader {
 	}
 
 	public array<T>(cb: (buffer: this) => T): T[] {
-		if (this.readNull()) {
+		if (this.readNull(DataType.Array)) {
 			return [];
 		}
 
@@ -131,14 +132,67 @@ export class Reader {
 	}
 
 	public object<T extends Record<string, unknown>>(cb: (buffer: this) => T): T | null {
-		if (this.readNull()) {
+		if (this.readNull(DataType.Object)) {
 			return null;
 		}
 
 		return cb(this);
 	}
 
-	private readNull() {
-		return this.data.readUInt8(this.offset++);
+	public typeUnsafeArbitraryRead(dataType: SimpleDataTypes): any {
+		switch (dataType) {
+			case DataType.Bool: {
+				return this.bool();
+			}
+
+			case DataType.I8: {
+				return this.i8();
+			}
+
+			case DataType.U8: {
+				return this.u8();
+			}
+
+			case DataType.I16: {
+				return this.i16();
+			}
+
+			case DataType.U16: {
+				return this.u16();
+			}
+
+			case DataType.I32: {
+				return this.i32();
+			}
+
+			case DataType.U32: {
+				return this.u32();
+			}
+
+			case DataType.U64: {
+				return this.u64();
+			}
+
+			case DataType.String: {
+				return this.string();
+			}
+
+			case DataType.Date: {
+				return this.date();
+			}
+		}
+	}
+
+	private readNull<Type extends Exclude<DataType, DataType.Null>>(dataType: Type): boolean {
+		const read = this.data.readUInt8(this.offset++) as DataType;
+		if (read === DataType.Null) {
+			return true;
+		}
+
+		if (read !== dataType) {
+			throw new Error(`Expected ${dataType} but got ${read}`);
+		}
+
+		return false;
 	}
 }

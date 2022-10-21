@@ -15,6 +15,7 @@
 // limitations under the License.
 
 import { TextEncoder } from 'node:util';
+import { DataType, SimpleDataTypes } from './Data';
 
 export class Writer {
 	private readonly encoder = new TextEncoder();
@@ -40,7 +41,7 @@ export class Writer {
 		}
 
 		this.ensure(2);
-		this.offset += this.data.writeUInt8(1, this.offset);
+		this.offset += this.data.writeUInt8(DataType.Bool, this.offset);
 		this.offset += this.data.writeUInt8(value ? 1 : 0, this.offset);
 
 		return this;
@@ -52,7 +53,7 @@ export class Writer {
 		}
 
 		this.ensure(2);
-		this.offset += this.data.writeUInt8(1, this.offset);
+		this.offset += this.data.writeUInt8(DataType.I8, this.offset);
 		this.offset += this.data.writeInt8(value, this.offset);
 
 		return this;
@@ -64,7 +65,7 @@ export class Writer {
 		}
 
 		this.ensure(2);
-		this.offset += this.data.writeUInt8(1, this.offset);
+		this.offset += this.data.writeUInt8(DataType.U8, this.offset);
 		this.offset += this.data.writeUInt8(value, this.offset);
 
 		return this;
@@ -76,7 +77,7 @@ export class Writer {
 		}
 
 		this.ensure(5);
-		this.offset += this.data.writeUint8(1, this.offset);
+		this.offset += this.data.writeUint8(DataType.I16, this.offset);
 		this.offset += this.data.writeInt16LE(value, this.offset);
 
 		return this;
@@ -88,7 +89,7 @@ export class Writer {
 		}
 
 		this.ensure(5);
-		this.offset += this.data.writeUInt8(1, this.offset);
+		this.offset += this.data.writeUInt8(DataType.U16, this.offset);
 		this.offset += this.data.writeUInt16LE(value, this.offset);
 
 		return this;
@@ -100,7 +101,7 @@ export class Writer {
 		}
 
 		this.ensure(5);
-		this.offset += this.data.writeUInt8(1, this.offset);
+		this.offset += this.data.writeUInt8(DataType.I32, this.offset);
 		this.offset += this.data.writeInt32LE(value, this.offset);
 
 		return this;
@@ -112,19 +113,19 @@ export class Writer {
 		}
 
 		this.ensure(5);
-		this.offset += this.data.writeUInt8(1, this.offset);
+		this.offset += this.data.writeUInt8(DataType.U32, this.offset);
 		this.offset += this.data.writeUInt32LE(value, this.offset);
 
 		return this;
 	}
 
-	public u64(value?: string | number | bigint | null) {
+	public u64(value?: string | number | bigint | null, dataType: DataType = DataType.U64) {
 		if (value == null) {
 			return this.writeNull();
 		}
 
 		this.ensure(9);
-		this.offset += this.data.writeUInt8(1, this.offset);
+		this.offset += this.data.writeUInt8(dataType, this.offset);
 		this.offset += this.data.writeBigUInt64LE(BigInt(value), this.offset);
 
 		return this;
@@ -137,8 +138,9 @@ export class Writer {
 
 		const data = this.encoder.encode(value);
 
-		// Ensure length + characters
-		this.ensure(4 + data.byteLength);
+		// Type + length + characters
+		this.ensure(5 + data.byteLength);
+		this.offset += this.data.writeUInt8(DataType.String, this.offset);
 		this.offset += this.data.writeUInt32LE(data.byteLength, this.offset);
 		this.data.set(data, this.offset);
 		this.offset += data.byteLength;
@@ -147,10 +149,15 @@ export class Writer {
 	}
 
 	public date(value?: string | number | null) {
+		if (value == null) {
+			return this.writeNull();
+		}
+
 		if (typeof value === 'string') {
 			value = Date.parse(value);
 		}
-		return this.u64(value);
+
+		return this.u64(value, DataType.Date);
 	}
 
 	public array<T>(values: readonly T[] | null, cb: (buffer: this, value: T) => void) {
@@ -158,7 +165,8 @@ export class Writer {
 			return this.writeNull();
 		}
 
-		this.ensure(4);
+		this.ensure(5);
+		this.offset += this.data.writeUInt8(DataType.Array, this.offset);
 		this.offset += this.data.writeUInt32LE(values.length, this.offset);
 		for (const value of values) {
 			cb(this, value);
@@ -173,15 +181,69 @@ export class Writer {
 		}
 
 		this.ensure(1);
-		this.offset += this.data.writeUInt8(1, this.offset);
+		this.offset += this.data.writeUInt8(DataType.Object, this.offset);
 		cb(this, value);
 
 		return this;
 	}
 
+	public typeUnsafeArbitraryWrite(dataType: SimpleDataTypes, value: any) {
+		switch (dataType) {
+			case DataType.Bool: {
+				this.bool(value as boolean);
+				break;
+			}
+
+			case DataType.I8: {
+				this.i8(value as number);
+				break;
+			}
+
+			case DataType.U8: {
+				this.u8(value as number);
+				break;
+			}
+
+			case DataType.I16: {
+				this.i16(value as number);
+				break;
+			}
+
+			case DataType.U16: {
+				this.u16(value as number);
+				break;
+			}
+
+			case DataType.I32: {
+				this.i32(value as number);
+				break;
+			}
+
+			case DataType.U32: {
+				this.u32(value as number);
+				break;
+			}
+
+			case DataType.U64: {
+				this.u64(value as string | number | bigint);
+				break;
+			}
+
+			case DataType.String: {
+				this.string(value as string);
+				break;
+			}
+
+			case DataType.Date: {
+				this.date(value as string | number);
+				break;
+			}
+		}
+	}
+
 	private writeNull() {
 		this.ensure(1);
-		this.offset += this.data.writeUInt8(0, this.offset);
+		this.offset += this.data.writeUInt8(DataType.Null, this.offset);
 
 		return this;
 	}
