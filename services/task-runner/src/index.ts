@@ -7,7 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
 
-const logger = createLogger('scheduler');
+const logger = createLogger('task-runner');
 
 const env = container.resolve(Env);
 const redis = new Redis(env.redisUrl);
@@ -27,6 +27,7 @@ async function handle(task: Task) {
 broker.on(SchedulerEventType.TaskCreate, async ({ data: task, ack }) => {
 	try {
 		await handle(task);
+		await prisma.task.delete({ where: { id: task.id } });
 	} catch (error) {
 		logger.error({ err: error, task }, 'Failed to handle task');
 		const retries = task.attempts + 1;
