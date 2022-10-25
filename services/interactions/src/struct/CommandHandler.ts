@@ -213,7 +213,8 @@ export class CommandHandler {
 	}
 
 	public async init() {
-		return Promise.all([this.registerCommands(), this.registerComponents()]);
+		await Promise.all([this.registerCommands(), this.registerComponents()]);
+		return this;
 	}
 
 	private async tryReportError(interaction: APIGuildInteraction, content: string) {
