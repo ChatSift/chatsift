@@ -1,16 +1,16 @@
 import 'reflect-metadata';
 import type { DiscordEventsMap } from '@automoderator/common';
-import { createLogger, Env, encode, decode } from '@automoderator/common';
+import { Env, encode, decode } from '@automoderator/common';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
 import { GatewayDispatchEvents } from 'discord-api-types/v10';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
+import { logger } from './util/logger';
 
 const env = container.resolve(Env);
 
-const logger = createLogger('interactions');
 const rest = new REST({ api: `${env.discordProxyURL}/api` }).setToken(env.discordToken);
 const prisma = new PrismaClient();
 
