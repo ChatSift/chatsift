@@ -29,11 +29,11 @@
 		"@commitlint/cli": "^17.1.2",
 		"@commitlint/config-angular": "^17.1.0",
 		"@prisma/client": "^4.5.0",
-		"@typescript-eslint/eslint-plugin": "^5.31.0",
-		"@typescript-eslint/parser": "^5.31.0",
+		"@typescript-eslint/eslint-plugin": "^5.41.0",
+		"@typescript-eslint/parser": "^5.41.0",
 		"dotenv-cli": "^6.0.0",
-		"eslint": "^8.20.0",
-		"eslint-config-neon": "^0.1.33",
+		"eslint": "^8.26.0",
+		"eslint-config-neon": "^0.1.39",
 		"eslint-plugin-typescript-sort-keys": "^2.1.0",
 		"husky": "^8.0.1",
 		"is-ci": "^3.0.1",
@@ -41,7 +41,7 @@
 		"prettier-eslint": "^15.0.1",
 		"prisma": "^4.5.0",
 		"rimraf": "^3.0.2",
-		"turbo": "^1.6.0",
+		"turbo": "^1.6.1",
 		"typescript": "^4.8.4"
 	}
 }

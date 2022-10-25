@@ -30,7 +30,7 @@ model AutomodTrigger {
   userId    String   @map("user_id")
   count     Int
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@id([guildId, userId])
   @@map("automod_triggers")
@@ -59,14 +59,12 @@ model Case {
   modTag       String?      @map("mod_tag")
   actionType   CaseAction   @map("action_type")
   reason       String?
-  duration     BigInt?      // optional for backwards compatability with v2
+  duration     BigInt? // optional for backwards compatability with v2
   expiresAt    DateTime?    @map("expires_at") @db.Timestamptz(6)
   pardonedBy   String?      @map("pardoned_by")
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   useTimeouts  Boolean      @default(true)
   unmuteRoles  UnmuteRole[]
-
-  task TimedCaseTask?
 
   @@map("cases")
 }
@@ -303,23 +301,18 @@ model LogIgnore {
   @@map("log_ignores")
 }
 
-model Task {
-  id        Int            @id @default(autoincrement())
-  guildId   String         @map("guild_id")
-  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  runAt     DateTime       @map("run_at") @db.Timestamptz(6)
-  attempts  Int            @default(0)
-  timedCase TimedCaseTask?
-
-  @@map("tasks")
+enum TaskType {
+  timedModAction
 }
 
-model TimedCaseTask {
-  taskId Int  @id @map("task_id")
-  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model Task {
+  id        Int      @id @default(autoincrement())
+  type      TaskType
+  guildId   String   @map("guild_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  runAt     DateTime @map("run_at") @db.Timestamptz(6)
+  attempts  Int      @default(0)
+  data      Json
 
-  caseId Int  @unique @map("case_id")
-  case   Case @relation(fields: [caseId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@map("timed_case_tasks")
+  @@map("tasks")
 }
