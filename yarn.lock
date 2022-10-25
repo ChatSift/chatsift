@@ -360,6 +360,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@chatsift/automoderator-task-runner@workspace:services/task-runner":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/automoderator-task-runner@workspace:services/task-runner"
+  dependencies:
+    "@automoderator/common": "workspace:^"
+    "@discordjs/brokers": ^0.2.0-dev.1665706585-bf9aa18.0
+    "@prisma/client": ^4.5.0
+    "@types/node": ^16.18.0
+    ioredis: ^5.2.3
+    reflect-metadata: ^0.1.13
+    tslib: ^2.4.0
+    tsyringe: ^4.7.0
+    typescript: ^4.8.4
+  languageName: unknown
+  linkType: soft
+
 "@chatsift/automoderator@workspace:.":
   version: 0.0.0-use.local
   resolution: "@chatsift/automoderator@workspace:."
