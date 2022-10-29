@@ -98,8 +98,7 @@ export class Handler {
 
 			let pardonedBy: APIUser | undefined;
 			if (entry.pardonedBy) {
-				pardonedBy =
-					entry.pardonedBy === mod?.id ? mod : ((await this.rest.get(Routes.user(entry.targetId))) as APIUser);
+				pardonedBy = (await this.rest.get(Routes.user(entry.pardonedBy))) as APIUser;
 			}
 
 			let refCs: Case | undefined;
