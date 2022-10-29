@@ -122,7 +122,7 @@ export const makeHistoryEmbed = ({ user, cases, logChannelId, filterTriggers }: 
 	const colors = [8_450_847, 13_091_073, 16_022_395, 15_747_144] as const;
 	const details: string[] = [];
 
-	for (const cs of cases.sort((a, b) => a.id - b.id)) {
+	for (const cs of cases.filter((cs) => !cs.pardonedBy).sort((a, b) => a.id - b.id)) {
 		if (cs.actionType === 'ban') {
 			counts.ban++;
 			points += 3;
