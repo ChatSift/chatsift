@@ -101,7 +101,7 @@ export default class implements Command {
 						.makeCollector<APIMessageComponentInteraction>(confirmId)
 						.waitForOneAndDestroy(30_000);
 
-					await send(confirmation, {}, InteractionResponseType.UpdateMessage);
+					await send(confirmation, { components: [] }, InteractionResponseType.UpdateMessage);
 
 					const [, action] = confirmation.data.custom_id.split('|') as [string, string];
 					if (action === 'cancel') {
