@@ -240,6 +240,8 @@ export default class implements Command {
 				.makeCollector<APIMessageComponentInteraction>(confirmId, [interaction.member.user.id])
 				.waitForOneAndDestroy(30_000);
 
+			await send(done, {}, InteractionResponseType.UpdateMessage);
+
 			const [, action] = done.data.custom_id.split('|') as [string, string];
 			if (action === 'n') {
 				return await send(

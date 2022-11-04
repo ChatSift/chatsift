@@ -7,7 +7,7 @@ import ms from '@naval-base/ms';
 import type { Case } from '@prisma/client';
 import { CaseAction, LogChannelType, PrismaClient } from '@prisma/client';
 import type { APIGuildInteraction, APIMessageComponentInteraction, APIUser } from 'discord-api-types/v9';
-import { ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';
+import { InteractionResponseType, ButtonStyle, ComponentType, Routes } from 'discord-api-types/v9';
 import { nanoid } from 'nanoid';
 import { injectable } from 'tsyringe';
 import type { Command } from '../../command';
@@ -100,6 +100,8 @@ export default class implements Command {
 					const confirmation = await this.handler.collectorManager
 						.makeCollector<APIMessageComponentInteraction>(confirmId)
 						.waitForOneAndDestroy(30_000);
+
+					await send(confirmation, {}, InteractionResponseType.UpdateMessage);
 
 					const [, action] = confirmation.data.custom_id.split('|') as [string, string];
 					if (action === 'cancel') {
