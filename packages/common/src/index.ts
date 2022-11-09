@@ -1,6 +1,7 @@
 export * from './broker-types/gateway';
 export * from './broker-types/logging';
 export * from './broker-types/scheduler';
+export * from './broker-types/automod';
 
 export * from './struct/env';
 export * from './struct/logEmbedBuilder';
