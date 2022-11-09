@@ -5,7 +5,7 @@ import type { Runner } from '../struct/Runner';
 
 @singleton()
 export class NoopRunner implements Runner<null, null, NoopRunnerResult> {
-	public readonly ignore = 'urls';
+	public readonly ignore = null;
 
 	public run() {
 		return null;
