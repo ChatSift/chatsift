@@ -135,12 +135,9 @@ export class WordsRunner implements IRunner<WordsTransform, BannedWordWithFlags[
 		const found: string[] = [];
 		const applied: string[] = [];
 
-		if (
-			punishments.ban &&
-			(await createCase(CaseAction.ban, punishments.ban, new Date(Date.now() + Number(punishments.ban.duration))))
-		) {
+		if (punishments.ban && (await createCase(CaseAction.ban, punishments.ban))) {
 			found.push(punishments.ban.word);
-			applied.push(`banned for ${ms(Number(punishments.ban.duration))}`);
+			applied.push('banned');
 		} else {
 			if (punishments.warn && (await createCase(CaseAction.warn, punishments.warn))) {
 				found.push(punishments.warn.word);
