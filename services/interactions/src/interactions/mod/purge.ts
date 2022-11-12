@@ -22,12 +22,14 @@ export const PurgeCommand = {
 		},
 		{
 			name: 'start',
-			description: 'This is the "starting" point for range based purging - end is required if you use this option',
+			description:
+				'This is the first (non-inclusive) message id for range based purging - end is required if you use this option',
 			type: ApplicationCommandOptionType.String,
 		},
 		{
 			name: 'end',
-			description: 'This is the "ending" point for range based puring - start is required if you use this option',
+			description:
+				'This is the last (non-inclusive) message id for range based puring - start is required if you use this option',
 			type: ApplicationCommandOptionType.String,
 		},
 		{
