@@ -68,7 +68,7 @@ export class Handler {
 		for (const cs of cases) {
 			let pardonAfter = pardonAfterCache.get(cs.guildId);
 
-			if (pardonAfter === null) {
+			if (pardonAfter == null) {
 				continue;
 			} else if (!pardonAfter) {
 				const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: cs.guildId } });
@@ -95,7 +95,7 @@ export class Handler {
 		for (const trigger of triggers) {
 			let automodCooldown = automodCooldownCache.get(trigger.guildId);
 
-			if (automodCooldown === null) {
+			if (automodCooldown == null) {
 				void this.prisma.automodTrigger
 					.delete({
 						where: {

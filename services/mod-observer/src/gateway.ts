@@ -240,7 +240,7 @@ export class Gateway {
 	private async handleJoinAge(data: GatewayGuildMemberAddDispatchData) {
 		const settings = await this.prisma.guildSettings.findFirst({ where: { guildId: data.guild_id } });
 
-		if (settings?.minJoinAge === null || data.user!.bot) {
+		if (settings?.minJoinAge == null || data.user!.bot) {
 			return null;
 		}
 

@@ -45,7 +45,7 @@ export default class implements Command {
 			channelId = args.channel.id;
 		}
 
-		if (args.amount === null) {
+		if (args.amount == null) {
 			args.amount = 100;
 		} else {
 			if (args.amount! < 1) {

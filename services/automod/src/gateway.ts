@@ -127,7 +127,7 @@ export class Gateway {
 
 				const result = await runner.run(data, message);
 
-				if (result === null) {
+				if (result == null) {
 					return null;
 				}
 
