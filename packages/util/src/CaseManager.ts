@@ -173,7 +173,7 @@ export class CaseManager {
 				reason: data.reason,
 				expiresAt:
 					data.actionType === CaseAction.ban || data.actionType === CaseAction.mute ? data.expiresAt : undefined,
-				useTimeouts: 'unmuteRoles' in data ? data.unmuteRoles == null : false,
+				useTimeouts: 'unmuteRoles' in data ? data.unmuteRoles === null : false,
 				unmuteRoles:
 					(data.actionType === CaseAction.mute || data.actionType === CaseAction.unmute) && data.unmuteRoles
 						? { createMany: { data: data.unmuteRoles.map((roleId) => ({ roleId })) } }
