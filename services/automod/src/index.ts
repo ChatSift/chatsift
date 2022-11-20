@@ -19,4 +19,4 @@ broker.on(GatewayDispatchEvents.MessageCreate, async ({ data: message, ack }) =>
 });
 
 await broker.subscribe('automod', [GatewayDispatchEvents.MessageCreate, GatewayDispatchEvents.MessageUpdate]);
-logger.info('Listening to incoming interactions');
+logger.info('Listening to incoming automod events.');
