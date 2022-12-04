@@ -373,7 +373,7 @@ export class CaseManager {
 					const triggeredCase = await this.makeWarnTriggerCase(cs, prisma);
 					if (triggeredCase) {
 						if (data.notifyUser) {
-							await this.notifyUser(cs);
+							await this.notifyUser(triggeredCase);
 						}
 
 						if (data.applyAction) {
