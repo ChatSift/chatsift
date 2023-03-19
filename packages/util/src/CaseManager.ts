@@ -223,7 +223,7 @@ export class CaseManager {
 					if (roles.has(role)) {
 						if (roles.get(role)!.managed) {
 							muteRoles.push(role);
-						} else {
+						} else if (role !== settings.muteRole) {
 							unmuteRoles.push(role);
 						}
 					} else {
