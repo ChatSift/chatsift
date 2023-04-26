@@ -16,8 +16,8 @@
 
 import type { Buffer } from 'node:buffer';
 import { TextDecoder } from 'node:util';
-import type { SimpleDataTypes } from './Data';
-import { DataType } from './Data';
+import type { SimpleDataTypes } from './Data.js';
+import { DataType } from './Data.js';
 
 export class Reader {
 	private readonly decoder = new TextDecoder();

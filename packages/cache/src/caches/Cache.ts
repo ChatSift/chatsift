@@ -1,8 +1,15 @@
+import type { Buffer } from 'node:buffer';
+import { SYMBOLS } from '@automoderator/core';
 import type Redis from 'ioredis';
-import type { ITransformer } from '../transformers/ITransformer';
+import { container } from 'tsyringe';
+
+export interface ITransformer<T> {
+	toBuffer(data: T): Buffer;
+	toJSON(data: Buffer): T;
+}
 
 export abstract class Cache<T> {
-	protected abstract readonly redis: Redis;
+	protected readonly redis = container.resolve<Redis>(SYMBOLS.redis);
 
 	protected abstract readonly transformer: ITransformer<T>;
 

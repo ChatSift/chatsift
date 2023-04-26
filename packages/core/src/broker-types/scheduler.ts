@@ -4,6 +4,6 @@ export enum SchedulerEventType {
 	TaskCreate = 'task_create',
 }
 
-export type SchedulerEventMap = {
+export interface SchedulerEventMap {
 	[SchedulerEventType.TaskCreate]: Task;
-};
+}

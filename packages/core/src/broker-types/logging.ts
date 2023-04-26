@@ -9,19 +9,19 @@ export enum GuildLogType {
 	UserUsernameUpdate = 'user_username_updates',
 }
 
-type GuildLogBaseData = {
+interface GuildLogBaseData {
 	guildId: string;
-};
+}
 
 export type GuildLogModActionData = GuildLogBaseData & {
 	cases: Case[];
 };
 
-export type GuildLogMap = {
+export interface GuildLogMap {
 	[GuildLogType.ModAction]: GuildLogModActionData;
 	[GuildLogType.AutomodTrigger]: never;
 	[GuildLogType.UserJoin]: never;
 	[GuildLogType.UserLeave]: never;
 	[GuildLogType.UserUsernameUpdate]: never;
 	[GuildLogType.UserNicknameUpdate]: never;
-};
+}

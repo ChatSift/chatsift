@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { setInterval } from 'node:timers';
-import type { SchedulerEventMap } from '@automoderator/common';
-import { SchedulerEventType, createLogger, Env, encode, decode } from '@automoderator/common';
+import type { SchedulerEventMap } from '@automoderator/core';
+import { SchedulerEventType, createLogger, Env, encode, decode } from '@automoderator/core';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
@@ -25,7 +25,7 @@ setInterval(async () => {
 	});
 
 	for (const task of tasks) {
-		await broker.publish(SchedulerEventType.TaskCreate, task);
+		void broker.publish(SchedulerEventType.TaskCreate, task);
 	}
 }, 3_000);
 

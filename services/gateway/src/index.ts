@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { randomBytes } from 'node:crypto';
-import type { DiscordEventsMap } from '@automoderator/common';
-import { createLogger, Env, encode, decode } from '@automoderator/common';
+import type { DiscordEventsMap } from '@automoderator/core';
+import { createLogger, Env, encode, decode } from '@automoderator/core';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { REST } from '@discordjs/rest';
 import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
@@ -25,7 +25,7 @@ const gateway = new WebSocketManager({
 	intents:
 		GatewayIntentBits.GuildMessages |
 		GatewayIntentBits.GuildMembers |
-		GatewayIntentBits.GuildBans |
+		GatewayIntentBits.GuildModeration |
 		GatewayIntentBits.MessageContent,
 });
 

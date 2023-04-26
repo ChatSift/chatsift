@@ -7,11 +7,11 @@ import type { APIEmbed, APIWebhook, RESTPostAPIWebhookWithTokenJSONBody } from '
 import { Routes } from 'discord-api-types/v10';
 import { singleton } from 'tsyringe';
 
-type LogBuffer = {
+interface LogBuffer {
 	acks: (() => Promise<void>)[];
 	embeds: APIEmbed[];
 	timeout: NodeJS.Timeout;
-};
+}
 
 @singleton()
 export class GuildLogger {

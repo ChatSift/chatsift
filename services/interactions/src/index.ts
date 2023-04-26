@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import type { DiscordEventsMap } from '@automoderator/common';
-import { Env, encode, decode } from '@automoderator/common';
+import type { DiscordEventsMap } from '@automoderator/core';
+import { Env, encode, decode } from '@automoderator/core';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { REST } from '@discordjs/rest';
 import { PrismaClient } from '@prisma/client';
@@ -12,8 +12,8 @@ import type {
 import { GatewayDispatchEvents, InteractionType } from 'discord-api-types/v10';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
-import { CommandHandler } from './struct/CommandHandler';
-import { logger } from './util/logger';
+import { CommandHandler } from './struct/CommandHandler.js';
+import { logger } from './util/logger.js';
 
 const env = container.resolve(Env);
 

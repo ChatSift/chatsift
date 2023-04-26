@@ -1,8 +1,5 @@
-export * from './data/Reader';
-export * from './data/Writer';
+export * from './data/Reader.js';
+export * from './data/Writer.js';
 
-export * from './caches/Cache';
-export * from './caches/GuildCache';
-
-export * from './transformers/GuildTransformer';
-export * from './transformers/ITransformer';
+export * from './caches/Cache.js';
+export * from './caches/GuildCache.js';

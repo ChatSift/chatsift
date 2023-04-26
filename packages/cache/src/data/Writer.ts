@@ -16,8 +16,8 @@
 
 import { Buffer } from 'node:buffer';
 import { TextEncoder } from 'node:util';
-import type { SimpleDataTypes } from './Data';
-import { DataType } from './Data';
+import type { SimpleDataTypes } from './Data.js';
+import { DataType } from './Data.js';
 
 export class Writer {
 	private readonly encoder = new TextEncoder();

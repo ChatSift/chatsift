@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import type { SchedulerEventMap } from '@automoderator/common';
-import { SchedulerEventType, createLogger, Env, encode, decode } from '@automoderator/common';
+import type { SchedulerEventMap } from '@automoderator/core';
+import { SchedulerEventType, createLogger, Env, encode, decode } from '@automoderator/core';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import type { Task } from '@prisma/client';
 import { PrismaClient } from '@prisma/client';

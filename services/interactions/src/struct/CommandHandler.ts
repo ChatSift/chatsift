@@ -1,12 +1,13 @@
 import { dirname, join, sep as pathSep } from 'node:path';
 import { setTimeout } from 'node:timers';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { PermissionsResolvable } from '@automoderator/common';
-import { Env, PermissionsBitField, CommandInteractionOptionResolver } from '@automoderator/common';
+import type { PermissionsResolvable } from '@automoderator/core';
+import { Env, PermissionsBitField } from '@automoderator/core';
 import { readdirRecurse } from '@chatsift/readdir';
 import { inlineCode } from '@discordjs/builders';
 import type { RawFile } from '@discordjs/rest';
 import { REST } from '@discordjs/rest';
+import { InteractionOptionResolver } from '@sapphire/discord-utilities';
 import type {
 	APIApplicationCommandAutocompleteGuildInteraction,
 	APIApplicationCommandGuildInteraction,
@@ -19,10 +20,10 @@ import type {
 } from 'discord-api-types/v10';
 import { MessageFlags, Routes, InteractionResponseType } from 'discord-api-types/v10';
 import { container, singleton } from 'tsyringe';
-import { logger } from '../util/logger';
+import { logger } from '../util/logger.js';
 import type { Command, CommandConstructor, CommandWithSubcommands, Subcommand } from './Command';
 import type { Component, ComponentConstructor } from './Component';
-import { getComponentInfo } from './Component';
+import { getComponentInfo } from './Component.js';
 
 @singleton()
 export class CommandHandler {
@@ -80,7 +81,7 @@ export class CommandHandler {
 		}
 
 		try {
-			const options = new CommandInteractionOptionResolver(interaction);
+			const options = new InteractionOptionResolver(interaction);
 			const result = await command.handleAutocomplete(interaction, options);
 			await this.reply(interaction, {
 				type: InteractionResponseType.ApplicationCommandAutocompleteResult,
@@ -133,7 +134,7 @@ export class CommandHandler {
 	}
 
 	public async handleCommand(interaction: APIApplicationCommandGuildInteraction) {
-		const options = new CommandInteractionOptionResolver(interaction);
+		const options = new InteractionOptionResolver(interaction);
 		const command = this.commands.get(interaction.data.name) as Command | CommandWithSubcommands | undefined;
 
 		if (!command) {

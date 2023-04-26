@@ -1,4 +1,4 @@
-import type { StrippedGuild } from '@automoderator/cache';
+import type { CachedGuild } from '@automoderator/cache';
 import { GuildCache } from '@automoderator/cache';
 import { container } from 'tsyringe';
 
@@ -30,6 +30,6 @@ export async function cache(route: string, data: any): Promise<void> {
 	if (normalized === '/guilds/:id') {
 		const cache = container.resolve(GuildCache);
 		const [, id] = components as [string, string];
-		await cache.set(id, data as StrippedGuild);
+		await cache.set(id, data as CachedGuild);
 	}
 }

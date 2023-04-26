@@ -14,10 +14,10 @@ export enum DMUserFailableSteps {
 	Message,
 }
 
-export type DMUserError = {
+export interface DMUserError {
 	exception?: unknown;
 	step: DMUserFailableSteps;
-};
+}
 
 export type DMUserResult = Result<void, DMUserError>;
 

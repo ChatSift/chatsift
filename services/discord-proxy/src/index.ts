@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { createServer } from 'node:http';
 import { URL } from 'node:url';
-import { createLogger, Env, SYMBOLS } from '@automoderator/common';
+import { createLogger, Env, SYMBOLS } from '@automoderator/core';
 import {
 	populateAbortErrorResponse,
 	populateGeneralErrorResponse,
@@ -11,7 +11,7 @@ import type { RouteLike } from '@discordjs/rest';
 import { DiscordAPIError, HTTPError, parseResponse, RateLimitError, RequestMethod, REST } from '@discordjs/rest';
 import Redis from 'ioredis';
 import { container } from 'tsyringe';
-import { cache, fetchCache } from './cache';
+import { cache, fetchCache } from './cache.js';
 
 const logger = createLogger('discord-proxy');
 
