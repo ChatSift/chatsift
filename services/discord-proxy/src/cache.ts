@@ -1,35 +1,52 @@
-import type { CachedGuild } from '@automoderator/cache';
-import { GuildCache } from '@automoderator/cache';
-import { container } from 'tsyringe';
+import type { Cache } from '@automoderator/core';
+import { GuildCache, globalContainer } from '@automoderator/core';
+import { injectable } from 'inversify';
 
-function normalizeRoute(route: string): [string, string[]] {
-	const normalized = route.replaceAll(/\d{17,19}/g, ':id');
-	const components = normalized.slice(1).split('/');
+type CacheConstructor = new () => Cache<unknown>;
 
-	return [normalized, components];
-}
+@injectable()
+export class ProxyCache {
+	private readonly cacheConstructorsMap: Record<string, CacheConstructor> = {
+		'/guilds/:id': GuildCache,
+	};
 
-export async function fetchCache<T>(route: string): Promise<T | null> {
-	const [normalized, components] = normalizeRoute(route);
-	switch (normalized) {
-		case '/guilds/:id': {
-			const cache = container.resolve(GuildCache);
-			const [, id] = components as [string, string];
+	private readonly idResolversMap: Record<string, (parameters: string[]) => string> = {
+		'/guilds/:id': (parameters) => parameters[0]!,
+	};
 
-			return cache.get(id) as Promise<T | null>;
+	public async fetch(route: string): Promise<unknown> {
+		const [normalized, parameters] = this.normalizeRoute(route);
+
+		const cacheConstructor = this.cacheConstructorsMap[normalized];
+		const idResolver = this.idResolversMap[normalized];
+
+		if (cacheConstructor && idResolver) {
+			const cache = globalContainer.get<Cache<unknown>>(cacheConstructor);
+			return cache.get(idResolver(parameters));
 		}
 
-		default: {
-			return null;
+		return null;
+	}
+
+	public async cache(route: string, data: unknown): Promise<void> {
+		const [normalized, parameters] = this.normalizeRoute(route);
+
+		const cacheConstructor = this.cacheConstructorsMap[normalized];
+		const idResolver = this.idResolversMap[normalized];
+
+		if (cacheConstructor && idResolver) {
+			const cache = globalContainer.get<Cache<unknown>>(cacheConstructor);
+			await cache.set(idResolver(parameters), data);
 		}
 	}
-}
 
-export async function cache(route: string, data: any): Promise<void> {
-	const [normalized, components] = normalizeRoute(route);
-	if (normalized === '/guilds/:id') {
-		const cache = container.resolve(GuildCache);
-		const [, id] = components as [string, string];
-		await cache.set(id, data as CachedGuild);
+	private normalizeRoute(route: string): [normalized: string, parameters: string[]] {
+		const normalized = route.replaceAll(/\d{17,19}/g, ':id');
+		const parameters = route
+			.slice(1)
+			.split('/')
+			.filter((component) => /\d{17,19}/.test(component));
+
+		return [normalized, parameters];
 	}
 }

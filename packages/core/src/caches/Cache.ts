@@ -1,7 +1,7 @@
 import type { Buffer } from 'node:buffer';
-import { SYMBOLS } from '@automoderator/core';
-import type Redis from 'ioredis';
-import { container } from 'tsyringe';
+import { inject } from 'inversify';
+import Redis from 'ioredis';
+import { INJECTION_TOKENS } from '../struct/DependencyManager.js';
 
 export interface ITransformer<T> {
 	toBuffer(data: T): Buffer;
@@ -9,7 +9,8 @@ export interface ITransformer<T> {
 }
 
 export abstract class Cache<T> {
-	protected readonly redis = container.resolve<Redis>(SYMBOLS.redis);
+	@inject(INJECTION_TOKENS.redis)
+	protected readonly redis!: Redis;
 
 	protected abstract readonly transformer: ITransformer<T>;
 

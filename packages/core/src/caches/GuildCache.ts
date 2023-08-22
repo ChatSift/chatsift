@@ -1,6 +1,6 @@
-import { singleton } from 'tsyringe';
-import { Reader } from '../data/Reader.js';
-import { Writer } from '../data/Writer.js';
+import { injectable } from 'inversify';
+import { Reader } from '../binary-encoding/Reader.js';
+import { Writer } from '../binary-encoding/Writer.js';
 import type { ITransformer } from './Cache.js';
 import { Cache } from './Cache.js';
 
@@ -11,12 +11,11 @@ export interface CachedGuild {
 	owner_id: string;
 }
 
-@singleton()
+@injectable()
 export class GuildCache extends Cache<CachedGuild> {
 	protected readonly transformer: ITransformer<CachedGuild> = {
 		toBuffer: (guild) => {
 			const writer = new Writer(200).u64(guild.id).string(guild.icon).string(guild.name).u64(guild.owner_id);
-
 			return writer.dumpTrimmed();
 		},
 		toJSON: (data) => {

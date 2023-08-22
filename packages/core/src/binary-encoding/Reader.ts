@@ -14,12 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { Buffer } from 'node:buffer';
+import { Buffer } from 'node:buffer';
 import { TextDecoder } from 'node:util';
-import type { SimpleDataTypes } from './Data.js';
+import { injectable } from 'inversify';
+import type { DataReader } from './Data.js';
 import { DataType } from './Data.js';
 
-export class Reader {
+@injectable()
+export class Reader implements DataReader {
 	private readonly decoder = new TextDecoder();
 
 	public readonly data: Buffer;
@@ -149,50 +151,6 @@ export class Reader {
 		}
 
 		return mapper(this);
-	}
-
-	public typeUnsafeArbitraryRead(dataType: SimpleDataTypes): any {
-		switch (dataType) {
-			case DataType.Bool: {
-				return this.bool();
-			}
-
-			case DataType.I8: {
-				return this.i8();
-			}
-
-			case DataType.U8: {
-				return this.u8();
-			}
-
-			case DataType.I16: {
-				return this.i16();
-			}
-
-			case DataType.U16: {
-				return this.u16();
-			}
-
-			case DataType.I32: {
-				return this.i32();
-			}
-
-			case DataType.U32: {
-				return this.u32();
-			}
-
-			case DataType.U64: {
-				return this.u64();
-			}
-
-			case DataType.String: {
-				return this.string();
-			}
-
-			case DataType.Date: {
-				return this.date();
-			}
-		}
 	}
 
 	private readNull<Type extends Exclude<DataType, DataType.Null>>(dataType: Type): boolean {

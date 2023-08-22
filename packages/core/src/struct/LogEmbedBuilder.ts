@@ -2,8 +2,8 @@ import { EmbedBuilder, inlineCode, time, TimestampStyles } from '@discordjs/buil
 import { ms } from '@naval-base/ms';
 import type { Case } from '@prisma/client';
 import type { APIEmbed, APIUser } from 'discord-api-types/v10';
-import { singleton } from 'tsyringe';
-import { getUserAvatarURL } from '../util/getUserAvatarURL.js';
+import { inject, injectable } from 'inversify';
+import { Util } from './Util.js';
 
 export interface BuildModActionLogOptions {
 	cs: Case;
@@ -14,8 +14,11 @@ export interface BuildModActionLogOptions {
 	user?: APIUser | null;
 }
 
-@singleton()
+@injectable()
 export class LogEmbedBuilder {
+	@inject(Util)
+	private readonly util!: Util;
+
 	public readonly caseLogColors = {
 		warn: 16_022_395,
 		mute: 16_022_395,
@@ -31,13 +34,13 @@ export class LogEmbedBuilder {
 			.setColor(this.caseLogColors[cs.actionType])
 			.setAuthor({
 				name: `${cs.targetTag} (${cs.targetId})`,
-				iconURL: getUserAvatarURL(user),
+				iconURL: this.util.getUserAvatarURL(user),
 			})
 			.setFooter(
 				cs.modTag && cs.modId
 					? {
 							text: `Case #${cs.id} | By ${cs.modTag} (${cs.modId})`,
-							iconURL: getUserAvatarURL(mod),
+							iconURL: this.util.getUserAvatarURL(mod),
 					  }
 					: null,
 			);

@@ -16,10 +16,12 @@
 
 import { Buffer } from 'node:buffer';
 import { TextEncoder } from 'node:util';
-import type { SimpleDataTypes } from './Data.js';
+import { injectable } from 'inversify';
+import type { DataWriter } from './Data.js';
 import { DataType } from './Data.js';
 
-export class Writer {
+@injectable()
+export class Writer implements DataWriter {
 	private readonly encoder = new TextEncoder();
 
 	private data: Buffer;
@@ -185,60 +187,6 @@ export class Writer {
 		mapper(this, value);
 
 		return this;
-	}
-
-	public typeUnsafeArbitraryWrite(dataType: SimpleDataTypes, value: any) {
-		switch (dataType) {
-			case DataType.Bool: {
-				this.bool(value as boolean);
-				break;
-			}
-
-			case DataType.I8: {
-				this.i8(value as number);
-				break;
-			}
-
-			case DataType.U8: {
-				this.u8(value as number);
-				break;
-			}
-
-			case DataType.I16: {
-				this.i16(value as number);
-				break;
-			}
-
-			case DataType.U16: {
-				this.u16(value as number);
-				break;
-			}
-
-			case DataType.I32: {
-				this.i32(value as number);
-				break;
-			}
-
-			case DataType.U32: {
-				this.u32(value as number);
-				break;
-			}
-
-			case DataType.U64: {
-				this.u64(value as bigint | number | string);
-				break;
-			}
-
-			case DataType.String: {
-				this.string(value as string);
-				break;
-			}
-
-			case DataType.Date: {
-				this.date(value as number | string);
-				break;
-			}
-		}
 	}
 
 	private writeNull() {

@@ -1,7 +1,7 @@
 import process from 'node:process';
-import { singleton } from 'tsyringe';
+import { injectable } from 'inversify';
 
-@singleton()
+@injectable()
 export class Env {
 	public readonly discordToken = process.env.DISCORD_TOKEN!;
 
