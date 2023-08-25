@@ -1,4 +1,5 @@
-import type { Case } from '@prisma/client';
+import type { Selectable } from 'kysely';
+import type { Case } from '../db';
 
 export enum GuildLogType {
 	AutomodTrigger = 'automod_triggers',
@@ -14,7 +15,7 @@ interface GuildLogBaseData {
 }
 
 export type GuildLogModActionData = GuildLogBaseData & {
-	cases: Case[];
+	cases: Selectable<Case>[];
 };
 
 export interface GuildLogMap {

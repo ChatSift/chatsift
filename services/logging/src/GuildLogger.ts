@@ -1,11 +1,11 @@
 import { clearTimeout, setTimeout } from 'node:timers';
 import { URLSearchParams } from 'node:url';
+import type { DB, LogChannelType, LogChannelWebhook } from '@automoderator/core';
 import { API } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
-import type { LogChannelType, LogChannelWebhook } from '@prisma/client';
-import { PrismaClient } from '@prisma/client';
 import type { APIEmbed } from 'discord-api-types/v10';
 import { inject, injectable } from 'inversify';
+import { Kysely } from 'kysely';
 
 interface LogBuffer {
 	acks: (() => Promise<void>)[];
@@ -25,8 +25,8 @@ export class GuildLogger {
 	@inject(API)
 	private readonly api!: API;
 
-	@inject(PrismaClient)
-	private readonly prisma!: PrismaClient;
+	@inject(Kysely)
+	private readonly database!: Kysely<DB>;
 
 	private readonly buffers: Map<`${string}-${LogChannelType}`, LogBuffer>;
 
@@ -44,9 +44,11 @@ export class GuildLogger {
 			};
 		} catch (error) {
 			if (error instanceof DiscordAPIError && error.status === 404) {
-				await this.prisma.logChannelWebhook.delete({
-					where: { guildId_logType: { guildId: data.guildId, logType: data.logType } },
-				});
+				await this.database
+					.deleteFrom('LogChannelWebhook')
+					.where('guildId', '=', data.guildId)
+					.where('logType', '=', data.logType)
+					.execute();
 			}
 
 			return null;
@@ -57,7 +59,13 @@ export class GuildLogger {
 		clearTimeout(buffer.timeout);
 		this.buffers.delete(`${guildId}-${logType}`);
 
-		const webhookData = await this.prisma.logChannelWebhook.findFirst({ where: { guildId, logType } });
+		const webhookData = await this.database
+			.selectFrom('LogChannelWebhook')
+			.selectAll()
+			.where('guildId', '=', guildId)
+			.where('logType', '=', logType)
+			.executeTakeFirst();
+
 		if (!webhookData) {
 			return null;
 		}

@@ -1,16 +1,17 @@
 import { EmbedBuilder, inlineCode, time, TimestampStyles } from '@discordjs/builders';
 import { ms } from '@naval-base/ms';
-import type { Case } from '@prisma/client';
 import type { APIEmbed, APIUser } from 'discord-api-types/v10';
 import { inject, injectable } from 'inversify';
+import type { Selectable } from 'kysely';
+import type { Case } from '../db.js';
 import { Util } from './Util.js';
 
 export interface BuildModActionLogOptions {
-	cs: Case;
+	cs: Selectable<Case>;
 	existingEmbed?: APIEmbed | null;
 	mod?: APIUser | null;
 	pardonedBy?: APIUser | null;
-	refCs?: Case | null;
+	refCs?: Selectable<Case> | null;
 	user?: APIUser | null;
 }
 
@@ -49,16 +50,6 @@ export class LogEmbedBuilder {
 			`**Action**: ${cs.actionType}`,
 			`**Reason**: ${cs.reason ?? `set a reason using ${inlineCode(`/case reason ${cs.caseId}`)}`}`,
 		];
-
-		if (cs.expiresAt) {
-			description.push(
-				`**Duration**: ${ms(
-					cs.duration ? Number(cs.duration) : cs.expiresAt.getTime() - cs.createdAt.getTime(),
-					true,
-				)}`,
-				`**Expires**: ${time(cs.expiresAt, TimestampStyles.RelativeTime)}`,
-			);
-		}
 
 		if (refCs) {
 			description.push(`**Referenced Case**: ${refCs.id}`);

@@ -2,5 +2,8 @@ import 'reflect-metadata';
 import { globalContainer, DependencyManager } from '@automoderator/core';
 import { TaskRunnerService } from './service.js';
 
-globalContainer.get(DependencyManager).registerRedis().registerPrisma().registerLogger();
+const dependencyManager = globalContainer.get(DependencyManager);
+dependencyManager.registerLogger();
+dependencyManager.registerDatabase();
+
 await globalContainer.get(TaskRunnerService).start();

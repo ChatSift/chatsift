@@ -1,6 +1,7 @@
-generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["interactiveTransactions"]
+generator kysely {
+  provider = "prisma-kysely"
+  output   = "../packages/core/src"
+  fileName = "db.ts"
 }
 
 datasource db {
@@ -8,32 +9,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum AutomodPunishmentAction {
-  warn
-  mute
-  kick
-  ban
+enum LogChannelType {
+  mod
+  filter
+  user
+  message
 }
 
-model AutomodPunishment {
-  guildId    String                  @map("guild_id")
-  triggers   Int
-  actionType AutomodPunishmentAction @map("action_type")
-  duration   BigInt?
+model LogChannelWebhook {
+  guildId      String         
+  logType      LogChannelType 
+  channelId    String         
+  webhookId    String         
+  webhookToken String         
+  threadId     String?        
 
-  @@id([guildId, triggers])
-  @@map("automod_punishments")
-}
-
-model AutomodTrigger {
-  guildId   String   @map("guild_id")
-  userId    String   @map("user_id")
-  count     Int
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @default(now()) @updatedAt
-
-  @@id([guildId, userId])
-  @@map("automod_triggers")
+  @@id([guildId, logType])
 }
 
 enum CaseAction {
@@ -48,258 +39,31 @@ enum CaseAction {
 
 model Case {
   id           Int          @id @default(autoincrement())
-  guildId      String       @map("guild_id")
-  logChannelId String?      @map("log_channel_id") // added with v3. if not present check the guild's current log webhook
-  logMessageId String?      @map("log_message_id")
-  caseId       Int          @map("case_id")
-  refId        Int?         @map("ref_id")
-  targetId     String       @map("target_id")
-  targetTag    String       @map("target_tag")
-  modId        String?      @map("mod_id")
-  modTag       String?      @map("mod_tag")
-  actionType   CaseAction   @map("action_type")
+  guildId      String
+  logChannelId String?
+  logMessageId String?
+  caseId       Int
+  refId        Int?
+  targetId     String
+  targetTag    String
+  modId        String?
+  modTag       String?
+  actionType   CaseAction
   reason       String?
-  duration     BigInt? // optional for backwards compatability with v2
-  expiresAt    DateTime?    @map("expires_at") @db.Timestamptz(6)
-  pardonedBy   String?      @map("pardoned_by")
-  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt    DateTime?    @db.Timestamptz(6)
+  pardonedBy   String?
+  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
   useTimeouts  Boolean      @default(true)
   deleteDays   Int?
   unmuteRoles  UnmuteRole[]
-
-  @@map("cases")
-}
-
-model ModRole {
-  guildId String @map("guild_id")
-  roleId  String @id @map("role_id")
-
-  settings GuildSettings @relation(fields: [guildId], references: [guildId], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model AdminRole {
-  guildId String @map("guild_id")
-  roleId  String @id @map("role_id")
-
-  settings GuildSettings @relation(fields: [guildId], references: [guildId], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model GuildSettings {
-  guildId              String      @id @map("guild_id")
-  modRoles             ModRole[]
-  adminRoles           AdminRole[]
-  muteRole             String?     @map("mute_role")
-  // This is stored in days
-  autoPardonWarnsAfter Int?        @map("auto_pardon_warns_after")
-  useUrlFilters        Boolean     @default(false) @map("use_url_filters")
-  useGlobalFilters     Boolean     @default(false) @map("use_global_filters")
-  useFileFilters       Boolean     @default(false) @map("use_file_filters")
-  useInviteFilters     Boolean     @default(false) @map("use_invite_filters")
-  minJoinAge           BigInt?     @map("min_join_age")
-  noBlankAvatar        Boolean     @default(false) @map("no_blank_avatar")
-  reportsChannel       String?     @map("reports_channel")
-  antispamAmount       Int?        @map("antispam_amount")
-  antispamTime         Int?        @map("antispam_time")
-  mentionLimit         Int?        @map("mention_limit")
-  mentionAmount        Int?        @map("mention_amount")
-  mentionTime          Int?        @map("mention_time")
-  automodCooldown      Int?        @map("automod_cooldown")
-  hentaiThreshold      Int?        @map("hentai_threshold")
-  pornThreshold        Int?        @map("porn_threshold")
-  sexyThreshold        Int?        @map("sexy_threshold")
-  useTimeoutsByDefault Boolean     @default(true)
-
-  @@map("guild_settings")
-}
-
-model SelfAssignableRole {
-  roleId                    String                   @map("role_id")
-  promptId                  Int                      @map("prompt_id")
-  guildId                   String                   @map("guild_id")
-  emojiId                   String?                  @map("emoji_id")
-  emojiName                 String?                  @map("emoji_name")
-  emojiAnimated             Boolean?                 @map("emoji_animated")
-  selfAssignableRolePrompts SelfAssignableRolePrompt @relation(fields: [promptId], references: [promptId], onDelete: Cascade, onUpdate: NoAction)
-
-  @@id([roleId, promptId])
-  @@map("self_assignable_roles")
-}
-
-model SelfAssignableRolePrompt {
-  promptId            Int                  @id @default(autoincrement()) @map("prompt_id")
-  embedTitle          String?              @map("embed_title")
-  embedDescription    String?              @map("embed_description")
-  embedColor          Int                  @map("embed_color")
-  embedImage          String?              @map("embed_image")
-  guildId             String               @map("guild_id")
-  channelId           String               @map("channel_id")
-  messageId           String               @map("message_id")
-  useButtons          Boolean              @default(false) @map("use_buttons")
-  selfAssignableRoles SelfAssignableRole[]
-
-  @@map("self_assignable_roles_prompts")
 }
 
 model UnmuteRole {
-  caseId Int    @map("case_id")
-  roleId String @map("role_id")
+  caseId Int
+  roleId String
   case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([caseId, roleId])
-  @@map("unmute_roles")
-}
-
-enum WarnPunishmentAction {
-  mute
-  kick
-  ban
-}
-
-model WarnPunishment {
-  guildId    String               @map("guild_id")
-  warns      Int
-  actionType WarnPunishmentAction @map("action_type")
-  duration   BigInt?
-
-  @@id([guildId, warns])
-  @@map("warn_punishments")
-}
-
-enum LogChannelType {
-  mod
-  filter
-  user
-  message
-}
-
-model LogChannelWebhook {
-  guildId      String         @map("guild_id")
-  logType      LogChannelType @map("log_type")
-  channelId    String         @map("channel_id")
-  webhookId    String         @map("webhook_id")
-  webhookToken String         @map("webhook_token")
-  threadId     String?        @map("thread_id")
-
-  @@id([guildId, logType])
-  @@map("webhook_tokens")
-}
-
-enum MaliciousFileCategory {
-  nsfw
-  gore
-  shock
-  crasher
-}
-
-model MaliciousFile {
-  fileId         Int                   @id @default(autoincrement()) @map("file_id")
-  fileHash       String                @unique() @map("file_hash")
-  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  lastModifiedAt DateTime              @default(now()) @map("last_modified_at") @db.Timestamptz(6)
-  category       MaliciousFileCategory
-
-  @@map("malicious_files")
-}
-
-enum MaliciousUrlCategory {
-  malicious
-  phishing
-  scam
-  spam
-  shock
-  deceptive
-  urlShortner
-}
-
-model MaliciousUrl {
-  urlId          Int                  @id @default(autoincrement()) @map("url_id")
-  url            String               @unique()
-  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
-  lastModifiedAt DateTime             @default(now()) @map("last_modified_at") @db.Timestamptz(6)
-  category       MaliciousUrlCategory
-
-  @@map("malicious_urls")
-}
-
-model BannedWord {
-  guildId  String  @map("guild_id")
-  word     String
-  flags    BigInt
-  duration BigInt?
-
-  @@id([guildId, word])
-  @@map("banned_words")
-}
-
-model FilterTrigger {
-  guildId String @map("guild_id")
-  userId  String @map("user_id")
-  count   Int
-
-  @@id([guildId, userId])
-  @@map("filter_triggers")
-}
-
-model FilterIgnore {
-  channelId String @id() @map("channel_id")
-  guildId   String @map("guild_id")
-  value     BigInt
-
-  @@map("filter_ignores")
-}
-
-model AllowedInvite {
-  guildId        String @map("guild_id")
-  allowedGuildId String @map("allowed_guild_id")
-
-  @@id([guildId, allowedGuildId])
-  @@map("allowed_invites")
-}
-
-model AllowedUrl {
-  guildId String @map("guild_id")
-  domain  String
-
-  @@id([guildId, domain])
-  @@map("allowed_urls")
-}
-
-model PresetReportReason {
-  reportReasonId Int    @id @default(autoincrement()) @map("report_reason_id")
-  guildId        String @map("guild_id")
-  reason         String
-
-  @@map("preset_report_reasons")
-}
-
-model Reporter {
-  reportId    Int    @map("report_id")
-  report      Report @relation(fields: [reportId], references: [reportId], onDelete: Cascade)
-  reason      String
-  reporterId  String @map("reporter_id")
-  reporterTag String @map("reporter_tag")
-
-  @@id([reportId, reporterId])
-  @@map("reporters")
-}
-
-model Report {
-  reportId        Int        @id @default(autoincrement()) @map("report_id")
-  userId          String     @map("user_id")
-  messageId       String?    @unique() @map("message_id")
-  reportMessageId String?    @map("report_message_id")
-  reporters       Reporter[]
-  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  acknowledgedAt  DateTime?  @map("acknowledged_at") @db.Timestamptz(6)
-
-  @@map("reports")
-}
-
-model LogIgnore {
-  channelId String @id() @map("channel_id")
-  guildId   String @map("guild_id")
-
-  @@map("log_ignores")
 }
 
 enum TaskType {
@@ -309,11 +73,9 @@ enum TaskType {
 model Task {
   id        Int      @id @default(autoincrement())
   type      TaskType
-  guildId   String   @map("guild_id")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  runAt     DateTime @map("run_at") @db.Timestamptz(6)
+  guildId   String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  runAt     DateTime @db.Timestamptz(6)
   attempts  Int      @default(0)
   data      Json
-
-  @@map("tasks")
 }

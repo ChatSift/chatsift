@@ -1,58 +1,54 @@
-import { INJECTION_TOKENS, type SchedulerEventMap, encode, decode, SchedulerEventType } from '@automoderator/core';
-import { PubSubRedisBroker } from '@discordjs/brokers';
-import { PrismaClient, type Task } from '@prisma/client';
+import { setInterval } from 'node:timers';
+import { INJECTION_TOKENS, type DB, type Task, Env } from '@automoderator/core';
 import { inject, injectable } from 'inversify';
-import { Redis } from 'ioredis';
+import { Kysely, sql, type Selectable } from 'kysely';
 import { type Logger } from 'pino';
 
 @injectable()
 export class TaskRunnerService {
-	@inject(INJECTION_TOKENS.redis)
-	private readonly redis!: Redis;
-
-	@inject(PrismaClient)
-	private readonly prisma!: PrismaClient;
+	@inject(Kysely)
+	private readonly database!: Kysely<DB>;
 
 	@inject(INJECTION_TOKENS.logger)
 	private readonly logger!: Logger;
 
-	private readonly broker: PubSubRedisBroker<SchedulerEventMap>;
-
-	public constructor() {
-		this.broker = new PubSubRedisBroker<SchedulerEventMap>({ redisClient: this.redis, encode, decode });
-
-		this.broker.on(SchedulerEventType.TaskCreate, async ({ data: task, ack }) => {
-			try {
-				await this.handle(task);
-				await this.prisma.task.delete({ where: { id: task.id } });
-			} catch (error) {
-				this.logger.error({ err: error, task }, 'Failed to handle task');
-				const attempts = task.attempts + 1;
-				if (attempts >= 3) {
-					this.logger.warn(task, 'That was the 3rd retry for that task; deleting');
-					await this.prisma.task.delete({ where: { id: task.id } });
-				} else {
-					await this.prisma.task.update({
-						data: {
-							attempts: { increment: 1 },
-						},
-						where: {
-							id: task.id,
-						},
-					});
-				}
-			}
-
-			await ack();
-		});
-	}
+	@inject(Env)
+	private readonly env!: Env;
 
 	public async start(): Promise<void> {
-		await this.broker.subscribe('task-runners', [SchedulerEventType.TaskCreate]);
+		setInterval(async () => {
+			if (this.env.taskRunnerId === null) {
+				this.logger.warn('This process does not have a task runner ID, cannot operate.');
+				return;
+			}
+
+			const tasks = await this.database
+				.selectFrom('Task')
+				.selectAll()
+				.where(sql`mod(Task.id, ${this.env.taskRunnerConcurrency}) = ${this.env.taskRunnerId}`)
+				.execute();
+
+			for (const task of tasks) {
+				try {
+					await this.handle(task);
+					await this.database.deleteFrom('Task').where('id', '=', task.id).execute();
+				} catch (error) {
+					this.logger.error({ err: error, task }, 'Failed to handle task');
+					const attempts = task.attempts + 1;
+					if (attempts >= 3) {
+						this.logger.warn(task, 'That was the 3rd attempt for that task; deleting');
+						await this.database.deleteFrom('Task').where('id', '=', task.id).execute();
+					} else {
+						await this.database.updateTable('Task').set({ attempts }).where('id', '=', task.id).execute();
+					}
+				}
+			}
+		});
+
 		this.logger.info('Listening to incoming tasks');
 	}
 
-	private async handle(task: Task): Promise<void> {
+	private async handle(task: Selectable<Task>): Promise<void> {
 		switch (task.type) {
 			default: {
 				this.logger.warn(task, `Unimplemented task type: ${task.type}`);

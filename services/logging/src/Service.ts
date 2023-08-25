@@ -1,9 +1,18 @@
-import { INJECTION_TOKENS, type GuildLogMap, encode, decode, GuildLogType, LogEmbedBuilder } from '@automoderator/core';
+import {
+	INJECTION_TOKENS,
+	type GuildLogMap,
+	encode,
+	decode,
+	GuildLogType,
+	LogEmbedBuilder,
+	type DB,
+	LogChannelType,
+} from '@automoderator/core';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { API } from '@discordjs/core';
-import { LogChannelType, PrismaClient } from '@prisma/client';
 import { inject, injectable } from 'inversify';
 import { Redis } from 'ioredis';
+import { Kysely } from 'kysely';
 import { type Logger } from 'pino';
 import { GuildLogger } from './GuildLogger.js';
 
@@ -18,8 +27,8 @@ export class LoggingService {
 	@inject(API)
 	private readonly api!: API;
 
-	@inject(PrismaClient)
-	private readonly prisma!: PrismaClient;
+	@inject(Kysely)
+	private readonly database!: Kysely<DB>;
 
 	@inject(LogEmbedBuilder)
 	private readonly embedBuilder!: LogEmbedBuilder;
@@ -39,7 +48,12 @@ export class LoggingService {
 					cs.targetId ? this.api.users.get(cs.targetId) : Promise.resolve(null),
 					cs.pardonedBy ? this.api.users.get(cs.pardonedBy) : Promise.resolve(null),
 					cs.refId
-						? this.prisma.case.findFirst({ where: { guildId: cs.guildId, refId: cs.refId } })
+						? this.database
+								.selectFrom('Case')
+								.selectAll()
+								.where('guildId', '=', cs.guildId)
+								.where('id', '=', cs.refId)
+								.executeTakeFirst()
 						: Promise.resolve(null),
 					cs.logChannelId && cs.logMessageId
 						? this.api.channels.getMessage(cs.logChannelId, cs.logMessageId)

@@ -1,14 +1,20 @@
 import { API } from '@discordjs/core';
 import { REST } from '@discordjs/rest';
-import { PrismaClient } from '@prisma/client';
 import { Container, inject, injectable } from 'inversify';
 import { Redis } from 'ioredis';
+import { Kysely, PostgresDialect } from 'kysely';
 import type { Logger } from 'pino';
 import createPinoLogger from 'pino';
 import type { DataReader, DataWriter } from '../binary-encoding/Data.js';
 import { Reader } from '../binary-encoding/Reader.js';
 import { Writer } from '../binary-encoding/Writer.js';
+import type { DB } from '../db.js';
 import { Env } from './Env.js';
+
+// no proper ESM support
+const {
+	default: { Pool },
+} = await import('pg');
 
 export const globalContainer = new Container({
 	autoBindInjectable: true,
@@ -36,34 +42,47 @@ export class DependencyManager {
 		this.registerDefaultRW();
 	}
 
-	public registerRedis(): this {
-		globalContainer.bind<Redis>(INJECTION_TOKENS.redis).toConstantValue(new Redis(this.env.redisUrl));
-		return this;
+	public registerRedis(): Redis {
+		const redis = new Redis(this.env.redisUrl);
+		globalContainer.bind<Redis>(INJECTION_TOKENS.redis).toConstantValue(redis);
+		return redis;
 	}
 
-	public registerApi(): this {
+	public registerApi(): API {
 		const rest = new REST({ api: `${this.env.discordProxyURL}/api`, version: '10' });
 		rest.setToken(this.env.discordToken);
 
 		const api = new API(rest);
 
 		globalContainer.bind<API>(INJECTION_TOKENS.api).toConstantValue(api);
-		return this;
+		return api;
 	}
 
-	public registerDefaultRW(): this {
+	public registerDefaultRW(): void {
 		globalContainer.bind<DataReader>(INJECTION_TOKENS.reader).to(Reader).inTransientScope();
 		globalContainer.bind<DataWriter>(INJECTION_TOKENS.writer).to(Writer).inTransientScope();
-		return this;
 	}
 
-	public registerLogger(): this {
-		globalContainer.bind<Logger>(INJECTION_TOKENS.logger).toConstantValue(createPinoLogger({ level: 'trace' }));
-		return this;
+	public registerLogger(): Logger {
+		const logger = createPinoLogger({ level: 'trace' });
+		globalContainer.bind<Logger>(INJECTION_TOKENS.logger).toConstantValue(logger);
+		return logger;
 	}
 
-	public registerPrisma(): this {
-		globalContainer.bind(PrismaClient).toConstantValue(new PrismaClient());
-		return this;
+	public registerDatabase(): Kysely<DB> {
+		const database = new Kysely<DB>({
+			dialect: new PostgresDialect({
+				pool: new Pool({
+					host: this.env.postgresHost,
+					port: this.env.postgresPort,
+					user: this.env.postgresUser,
+					password: this.env.postgresPassword,
+					database: this.env.postgresDatabase,
+				}),
+			}),
+		});
+
+		globalContainer.bind<Kysely<DB>>(Kysely).toConstantValue(database);
+		return database;
 	}
 }

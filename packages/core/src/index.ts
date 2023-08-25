@@ -4,7 +4,6 @@ export * from './binary-encoding/Writer.js';
 
 export * from './broker-types/gateway.js';
 export * from './broker-types/logging.js';
-export * from './broker-types/scheduler.js';
 
 export * from './caches/Cache.js';
 export * from './caches/GuildCache.js';
@@ -17,3 +16,5 @@ export * from './struct/Util.js';
 
 export * from './util/encode.js';
 export * from './util/promiseAllObject.js';
+
+export * from './db.js';
