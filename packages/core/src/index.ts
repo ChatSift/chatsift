@@ -15,4 +15,5 @@ export * from './struct/LogEmbedBuilder.js';
 export * from './struct/PermissionsBitField.js';
 export * from './struct/Util.js';
 
-export * from './util/logger.js';
+export * from './util/encode.js';
+export * from './util/promiseAllObject.js';

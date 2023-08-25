@@ -291,12 +291,14 @@ __metadata:
   resolution: "@chatsift/automoderator-discord-proxy@workspace:services/discord-proxy"
   dependencies:
     "@automoderator/core": "workspace:^"
+    "@discordjs/core": ^1.0.1
     "@discordjs/proxy": ^2.0.1
     "@discordjs/rest": ^2.0.1
     "@types/node": ^20.5.2
     discord-api-types: ^0.37.54
     inversify: ^6.0.1
     ioredis: ^5.3.2
+    pino: ^8.15.0
     reflect-metadata: ^0.1.13
     tslib: ^2.6.2
     typescript: ^5.1.6
@@ -309,40 +311,18 @@ __metadata:
   dependencies:
     "@automoderator/core": "workspace:^"
     "@discordjs/brokers": ^0.2.2
+    "@discordjs/core": ^1.0.1
     "@discordjs/rest": ^2.0.1
     "@discordjs/ws": ^1.0.1
     "@types/node": ^20.5.2
     discord-api-types: ^0.37.54
     inversify: ^6.0.1
     ioredis: ^5.3.2
+    pino: ^8.15.0
     reflect-metadata: ^0.1.13
     tslib: ^2.6.2
     typescript: ^5.1.6
     undici: ^5.23.0
-  languageName: unknown
-  linkType: soft
-
-"@chatsift/automoderator-interactions@workspace:services/interactions":
-  version: 0.0.0-use.local
-  resolution: "@chatsift/automoderator-interactions@workspace:services/interactions"
-  dependencies:
-    "@automoderator/core": "workspace:^"
-    "@chatsift/readdir": ^0.3.0
-    "@discordjs/brokers": ^0.2.2
-    "@discordjs/builders": ^1.6.5
-    "@discordjs/core": ^1.0.1
-    "@discordjs/rest": ^2.0.1
-    "@discordjs/util": ^1.0.1
-    "@discordjs/ws": ^1.0.1
-    "@prisma/client": ^5.2.0
-    "@sapphire/discord-utilities": ^3.1.0
-    "@types/node": ^20.5.2
-    discord-api-types: ^0.37.54
-    inversify: ^6.0.1
-    ioredis: ^5.3.2
-    reflect-metadata: ^0.1.13
-    tslib: ^2.6.2
-    typescript: ^5.1.6
   languageName: unknown
   linkType: soft
 
@@ -352,6 +332,7 @@ __metadata:
   dependencies:
     "@automoderator/core": "workspace:^"
     "@discordjs/brokers": ^0.2.2
+    "@discordjs/core": ^1.0.1
     "@discordjs/rest": ^2.0.1
     "@discordjs/ws": ^1.0.1
     "@prisma/client": ^5.2.0
@@ -359,6 +340,7 @@ __metadata:
     discord-api-types: ^0.37.54
     inversify: ^6.0.1
     ioredis: ^5.3.2
+    pino: ^8.15.0
     reflect-metadata: ^0.1.13
     tslib: ^2.6.2
     typescript: ^5.1.6
@@ -391,6 +373,7 @@ __metadata:
     "@types/node": ^20.5.2
     inversify: ^6.0.1
     ioredis: ^5.3.2
+    pino: ^8.15.0
     reflect-metadata: ^0.1.13
     tslib: ^2.6.2
     typescript: ^5.1.6
@@ -426,16 +409,6 @@ __metadata:
     pino-abstract-transport: ^1.0.0
     tslib: ^2.5.0
   checksum: 895d25f6b8ef1115dee24268c309bc53345b8f0c5245f8e9cd29aef2afe71c12f118a23a2d15339808d5b2443aa4c6c141812bc8876155dda8866326906cd5f3
-  languageName: node
-  linkType: hard
-
-"@chatsift/readdir@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "@chatsift/readdir@npm:0.3.0"
-  dependencies:
-    tiny-typed-emitter: ^2.1.0
-    tslib: ^2.5.0
-  checksum: 6055f47dbc4e1aebaea3778d082cdd06fd098ed318e9d56584f87f47dda49f66e32c44bd06b6d70485f17f1f0bb6d74d7b02b480c6e48030af971b03f748d4b2
   languageName: node
   linkType: hard
 
@@ -1076,15 +1049,6 @@ __metadata:
   version: 1.2.0
   resolution: "@sapphire/bitfield@npm:1.2.0"
   checksum: c0f6bac13970ff588fa0f16a397c7a33c3ab927bccc0b0589ed1934787b67bf91ba784f26dd125f55978a13a09e38b31ff50074248034456964f9416bfee022a
-  languageName: node
-  linkType: hard
-
-"@sapphire/discord-utilities@npm:^3.1.0":
-  version: 3.1.0
-  resolution: "@sapphire/discord-utilities@npm:3.1.0"
-  dependencies:
-    discord-api-types: ^0.37.51
-  checksum: a101c3c2a405ba81eae249c985aab3bbe90bfc4be8e34e44b806a064641a147289392026d52fed6fd8af2149f0674cc3b1fba94c2bf7754cb9b904883afa93cc
   languageName: node
   linkType: hard
 
@@ -2629,7 +2593,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"discord-api-types@npm:^0.37.51, discord-api-types@npm:^0.37.54":
+"discord-api-types@npm:^0.37.54":
   version: 0.37.54
   resolution: "discord-api-types@npm:0.37.54"
   checksum: f149961be9129673a0e3764285c8f47da22a30ea3e2466db06ffad44d1823094f7011ffe2d3d89b1b5ddd9940651afc72b3a05f84ce443a59f8480e2578dd1e1
@@ -7594,13 +7558,6 @@ __metadata:
     globalyzer: 0.1.0
     globrex: ^0.1.2
   checksum: aea5801eb6663ddf77ebb74900b8f8bd9dfcfc9b6a1cc8018cb7421590c00bf446109ff45e4b64a98e6c95ddb1255a337a5d488fb6311930e2a95334151ec9c6
-  languageName: node
-  linkType: hard
-
-"tiny-typed-emitter@npm:^2.1.0":
-  version: 2.1.0
-  resolution: "tiny-typed-emitter@npm:2.1.0"
-  checksum: 709bca410054e08df4dc29d5ea0916328bb2900d60245c6a743068ea223887d9fd2c945b6070eb20336275a557a36c2808e5c87d2ed4b60633458632be4a3e10
   languageName: node
   linkType: hard
 

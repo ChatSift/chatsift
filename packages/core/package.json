@@ -13,7 +13,6 @@
 		"node": ">=16.9.0"
 	},
 	"devDependencies": {
-		"@prisma/client": "^5.2.0",
 		"@types/node": "^20.5.2",
 		"discord-api-types": "^0.37.54",
 		"typescript": "^5.1.6"
@@ -25,6 +24,7 @@
 		"@discordjs/rest": "^2.0.1",
 		"@msgpack/msgpack": "^3.0.0-beta2",
 		"@naval-base/ms": "^3.1.0",
+		"@prisma/client": "^5.2.0",
 		"@sapphire/bitfield": "^1.2.0",
 		"@sapphire/result": "^2.6.4",
 		"inversify": "^6.0.1",

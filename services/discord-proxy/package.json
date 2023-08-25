@@ -13,10 +13,12 @@
 	},
 	"devDependencies": {
 		"@types/node": "^20.5.2",
+		"pino": "^8.15.0",
 		"typescript": "^5.1.6"
 	},
 	"dependencies": {
 		"@automoderator/core": "workspace:^",
+		"@discordjs/core": "^1.0.1",
 		"@discordjs/proxy": "^2.0.1",
 		"@discordjs/rest": "^2.0.1",
 		"discord-api-types": "^0.37.54",

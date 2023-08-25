@@ -1,6 +1,4 @@
-import { Buffer } from 'node:buffer';
 import { API } from '@discordjs/core';
-import { encode as msgpackEncode, decode as msgpackDecode, ExtensionCodec } from '@msgpack/msgpack';
 import { Result } from '@sapphire/result';
 import type { APIUser } from 'discord-api-types/v10';
 import { inject, injectable } from 'inversify';
@@ -20,25 +18,8 @@ export type DMUserResult = Result<void, DMUserError>;
 
 @injectable()
 export class Util {
-	private readonly codec: ExtensionCodec;
-
 	@inject(API)
 	private readonly api!: API;
-
-	public constructor() {
-		this.codec = new ExtensionCodec();
-		this.codec.register({
-			type: 0,
-			encode: (input: unknown) => {
-				if (typeof input === 'bigint') {
-					return msgpackEncode(input.toString());
-				}
-
-				return null;
-			},
-			decode: (data: Uint8Array) => BigInt(msgpackDecode(data) as string),
-		});
-	}
 
 	public async dmUser(userId: string, content: string, guildId?: string): Promise<DMUserResult> {
 		if (guildId) {
@@ -61,15 +42,6 @@ export class Util {
 		});
 
 		return result.mapErr(this.wrapDmUserException(DMUserFailableSteps.Message));
-	}
-
-	public encodeData(data: unknown): Buffer {
-		const encoded = msgpackEncode(data, { extensionCodec: this.codec });
-		return Buffer.from(encoded.buffer, encoded.byteOffset, encoded.byteLength);
-	}
-
-	public decodeData(data: Buffer): unknown {
-		return msgpackDecode(data, { extensionCodec: this.codec });
 	}
 
 	public getUserAvatarURL(user?: APIUser | null) {

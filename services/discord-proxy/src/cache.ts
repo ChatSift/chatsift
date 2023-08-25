@@ -28,7 +28,7 @@ export class ProxyCache {
 		return null;
 	}
 
-	public async cache(route: string, data: unknown): Promise<void> {
+	public async update(route: string, data: unknown): Promise<void> {
 		const [normalized, parameters] = this.normalizeRoute(route);
 
 		const cacheConstructor = this.cacheConstructorsMap[normalized];

@@ -9,5 +9,8 @@ type _DiscordEventsMap = {
 export type DiscordEventsMap = {
 	[K in keyof _DiscordEventsMap]: _DiscordEventsMap[K]['d'];
 } & {
-	send: GatewaySendPayload;
+	send: {
+		payload: GatewaySendPayload;
+		shardId?: number;
+	};
 };

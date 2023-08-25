@@ -1,11 +1,11 @@
 import { clearTimeout, setTimeout } from 'node:timers';
 import { URLSearchParams } from 'node:url';
-import { DiscordAPIError, REST } from '@discordjs/rest';
+import { API } from '@discordjs/core';
+import { DiscordAPIError } from '@discordjs/rest';
 import type { LogChannelType, LogChannelWebhook } from '@prisma/client';
 import { PrismaClient } from '@prisma/client';
-import type { APIEmbed, APIWebhook, RESTPostAPIWebhookWithTokenJSONBody } from 'discord-api-types/v10';
-import { Routes } from 'discord-api-types/v10';
-import { singleton } from 'tsyringe';
+import type { APIEmbed } from 'discord-api-types/v10';
+import { inject, injectable } from 'inversify';
 
 interface LogBuffer {
 	acks: (() => Promise<void>)[];
@@ -13,15 +13,30 @@ interface LogBuffer {
 	timeout: NodeJS.Timeout;
 }
 
-@singleton()
-export class GuildLogger {
-	private readonly buffers = new Map<`${string}-${LogChannelType}`, LogBuffer>();
+interface LogData {
+	ack(): Promise<void>;
+	embed: APIEmbed;
+	guildId: string;
+	logType: LogChannelType;
+}
 
-	public constructor(private readonly prisma: PrismaClient, private readonly rest: REST) {}
+@injectable()
+export class GuildLogger {
+	@inject(API)
+	private readonly api!: API;
+
+	@inject(PrismaClient)
+	private readonly prisma!: PrismaClient;
+
+	private readonly buffers: Map<`${string}-${LogChannelType}`, LogBuffer>;
+
+	public constructor() {
+		this.buffers = new Map();
+	}
 
 	private async getWebhook(data: LogChannelWebhook) {
 		try {
-			const webhook = (await this.rest.get(Routes.webhook(data.webhookId, data.webhookToken))) as APIWebhook;
+			const webhook = await this.api.webhooks.get(data.webhookId, { token: data.webhookToken });
 
 			return {
 				...webhook,
@@ -42,8 +57,6 @@ export class GuildLogger {
 		clearTimeout(buffer.timeout);
 		this.buffers.delete(`${guildId}-${logType}`);
 
-		const { embeds } = buffer;
-
 		const webhookData = await this.prisma.logChannelWebhook.findFirst({ where: { guildId, logType } });
 		if (!webhookData) {
 			return null;
@@ -59,11 +72,7 @@ export class GuildLogger {
 			query.append('thread_id', webhook.threadId);
 		}
 
-		const body: RESTPostAPIWebhookWithTokenJSONBody = {
-			embeds,
-		};
-
-		await this.rest.post(Routes.webhook(webhook.id, webhook.token), { query, body });
+		await this.api.webhooks.execute(webhook.id, webhook.token!, { wait: true, embeds: buffer.embeds });
 		await Promise.all(buffer.acks.map(async (ack) => ack()));
 	}
 
@@ -84,7 +93,7 @@ export class GuildLogger {
 		return buffer;
 	}
 
-	public async log(guildId: string, logType: LogChannelType, embed: APIEmbed, ack: () => Promise<void>) {
+	public async log({ guildId, logType, embed, ack }: LogData) {
 		const buffer = this.assertBuffer(guildId, logType);
 		buffer.embeds.push(embed);
 		buffer.acks.push(ack);

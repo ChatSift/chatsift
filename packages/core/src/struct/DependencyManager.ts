@@ -1,7 +1,10 @@
 import { API } from '@discordjs/core';
 import { REST } from '@discordjs/rest';
+import { PrismaClient } from '@prisma/client';
 import { Container, inject, injectable } from 'inversify';
 import { Redis } from 'ioredis';
+import type { Logger } from 'pino';
+import createPinoLogger from 'pino';
 import type { DataReader, DataWriter } from '../binary-encoding/Data.js';
 import { Reader } from '../binary-encoding/Reader.js';
 import { Writer } from '../binary-encoding/Writer.js';
@@ -18,6 +21,7 @@ export const INJECTION_TOKENS = {
 	api: Symbol('api instance'),
 	reader: Symbol('binary encoding reader'),
 	writer: Symbol('binary encoding writer'),
+	logger: Symbol('logger instance'),
 } as const;
 
 @injectable()
@@ -26,7 +30,7 @@ export const INJECTION_TOKENS = {
  */
 export class DependencyManager {
 	@inject(Env)
-	public readonly env!: Env;
+	private readonly env!: Env;
 
 	public constructor() {
 		this.registerDefaultRW();
@@ -53,7 +57,13 @@ export class DependencyManager {
 		return this;
 	}
 
-	public registerAll(): this {
-		return this.registerRedis().registerApi();
+	public registerLogger(): this {
+		globalContainer.bind<Logger>(INJECTION_TOKENS.logger).toConstantValue(createPinoLogger({ level: 'trace' }));
+		return this;
+	}
+
+	public registerPrisma(): this {
+		globalContainer.bind(PrismaClient).toConstantValue(new PrismaClient());
+		return this;
 	}
 }
