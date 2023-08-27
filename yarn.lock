@@ -328,6 +328,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@chatsift/automoderator-interactions@workspace:services/interactions":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/automoderator-interactions@workspace:services/interactions"
+  dependencies:
+    "@automoderator/core": "workspace:^"
+    "@discordjs/brokers": ^0.2.2
+    "@discordjs/core": ^1.0.1
+    "@discordjs/rest": ^2.0.1
+    "@discordjs/ws": ^1.0.1
+    "@sapphire/discord-utilities": ^3.1.0
+    "@types/node": ^20.5.2
+    discord-api-types: ^0.37.54
+    inversify: ^6.0.1
+    ioredis: ^5.3.2
+    pino: ^8.15.0
+    reflect-metadata: ^0.1.13
+    tslib: ^2.6.2
+    typescript: ^5.1.6
+    undici: ^5.23.0
+  languageName: unknown
+  linkType: soft
+
 "@chatsift/automoderator-logging@workspace:services/logging":
   version: 0.0.0-use.local
   resolution: "@chatsift/automoderator-logging@workspace:services/logging"
@@ -354,7 +376,6 @@ __metadata:
   resolution: "@chatsift/automoderator-task-runner@workspace:services/task-runner"
   dependencies:
     "@automoderator/core": "workspace:^"
-    "@discordjs/brokers": ^0.2.2
     "@types/node": ^20.5.2
     inversify: ^6.0.1
     ioredis: ^5.3.2
@@ -1270,6 +1291,15 @@ __metadata:
   version: 1.2.0
   resolution: "@sapphire/bitfield@npm:1.2.0"
   checksum: c0f6bac13970ff588fa0f16a397c7a33c3ab927bccc0b0589ed1934787b67bf91ba784f26dd125f55978a13a09e38b31ff50074248034456964f9416bfee022a
+  languageName: node
+  linkType: hard
+
+"@sapphire/discord-utilities@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "@sapphire/discord-utilities@npm:3.1.0"
+  dependencies:
+    discord-api-types: ^0.37.51
+  checksum: a101c3c2a405ba81eae249c985aab3bbe90bfc4be8e34e44b806a064641a147289392026d52fed6fd8af2149f0674cc3b1fba94c2bf7754cb9b904883afa93cc
   languageName: node
   linkType: hard
 
@@ -3122,6 +3152,13 @@ __metadata:
   version: 0.37.50
   resolution: "discord-api-types@npm:0.37.50"
   checksum: 08dc5145dbefda5f52b479cd42d96ac2b8110300861855e1f92cc8a0a6525a4059e32724cd5237490c286f5afd86797a86823238cd5eee016198560bb36f6d43
+  languageName: node
+  linkType: hard
+
+"discord-api-types@npm:^0.37.51":
+  version: 0.37.55
+  resolution: "discord-api-types@npm:0.37.55"
+  checksum: b0ad37ec52331431f1f4bc20c326b0618087ed0160cc35a5ec103d5c3f52d57ca9758aa07156cdb9430dbec7e14361ee88ac43a0aba1810b765fbd2b62e128e7
   languageName: node
   linkType: hard
 
