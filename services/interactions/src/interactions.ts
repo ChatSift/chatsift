@@ -1,4 +1,7 @@
-import { Env, INJECTION_TOKENS, type DiscordEventsMap, encode, decode } from '@automoderator/core';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { Env, INJECTION_TOKENS, type DiscordEventsMap, encode, decode, globalContainer } from '@automoderator/core';
+import { readdirRecurse } from '@chatsift/readdir';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { API } from '@discordjs/core';
 import { InteractionOptionResolver } from '@sapphire/discord-utilities';
@@ -39,18 +42,21 @@ export type AutocompleteHandler = (
 		| APIApplicationCommandInteractionDataStringOption,
 ) => Promise<void>;
 
-export type ModalHandler = (
-	interaction: APIModalSubmitInteraction,
-	options: InteractionOptionResolver,
-) => Promise<void>;
+export type ModalHandler = (interaction: APIModalSubmitInteraction, args: string[]) => Promise<void>;
 
 export interface RegisterOptions {
-	autocomplete: [AutocompleteIdentifier, AutocompleteHandler][];
-	commands: [CommandIdentifier, CommandHandler][];
-	components: [string, ComponentHandler][];
-	interaction: RESTPostAPIApplicationCommandsJSONBody;
-	modals: [string, ModalHandler][];
+	autocomplete?: [AutocompleteIdentifier, AutocompleteHandler][];
+	commands?: [CommandIdentifier, CommandHandler][];
+	components?: [string, ComponentHandler][];
+	interaction?: RESTPostAPIApplicationCommandsJSONBody;
+	modals?: [string, ModalHandler][];
 }
+
+export interface Handler {
+	register(): void;
+}
+
+export type HandlerConstructor = new () => Handler;
 
 @injectable()
 export class InteractionsService {
@@ -133,7 +139,13 @@ export class InteractionsService {
 					this.logger.warn(`No handler found for autocomplete ${identifier}:${focused.name}`);
 				} else if (interaction.type === InteractionType.ModalSubmit) {
 					const [name, ...args] = interaction.data.custom_id.split(':') as [string, ...string[]];
-					const handler = this.handlers.components.get(name);
+					const handler = this.handlers.modals.get(name);
+
+					if (!handler) {
+						this.logger.warn(`No handler found for modal ${name}`);
+					}
+
+					await handler?.(interaction, args);
 				}
 			} catch (error) {
 				// TODO: Figure out ways to respond to the user
@@ -145,6 +157,15 @@ export class InteractionsService {
 	}
 
 	public async start(): Promise<void> {
+		const handlersPath = join(dirname(fileURLToPath(import.meta.url)), 'handlers');
+		for await (const file of readdirRecurse(handlersPath, { fileExtensions: ['js'] })) {
+			const { default: HandlerConstructor }: { default: HandlerConstructor } = await import(
+				pathToFileURL(file).toString()
+			);
+			const handler = globalContainer.get<Handler>(HandlerConstructor);
+			handler.register();
+		}
+
 		await this.broker.subscribe('interactions', [GatewayDispatchEvents.InteractionCreate]);
 		this.logger.info('Subscribed to interactions');
 	}
@@ -154,22 +175,32 @@ export class InteractionsService {
 	}
 
 	public register(options: RegisterOptions): void {
-		this.interactions.push(options.interaction);
-
-		for (const [identifier, handler] of options.commands) {
-			this.handlers.commands.set(identifier, handler);
+		if (options.interaction) {
+			this.interactions.push(options.interaction);
 		}
 
-		for (const [name, handler] of options.components) {
-			this.handlers.components.set(name, handler);
+		if (options.commands?.length) {
+			for (const [identifier, handler] of options.commands) {
+				this.handlers.commands.set(identifier, handler);
+			}
 		}
 
-		for (const [identifier, handler] of options.autocomplete) {
-			this.handlers.autocomplete.set(identifier, handler);
+		if (options.components?.length) {
+			for (const [name, handler] of options.components) {
+				this.handlers.components.set(name, handler);
+			}
 		}
 
-		for (const [name, handler] of options.modals) {
-			this.handlers.modals.set(name, handler);
+		if (options.autocomplete?.length) {
+			for (const [identifier, handler] of options.autocomplete) {
+				this.handlers.autocomplete.set(identifier, handler);
+			}
+		}
+
+		if (options.modals?.length) {
+			for (const [name, handler] of options.modals) {
+				this.handlers.modals.set(name, handler);
+			}
 		}
 	}
 

@@ -333,6 +333,7 @@ __metadata:
   resolution: "@chatsift/automoderator-interactions@workspace:services/interactions"
   dependencies:
     "@automoderator/core": "workspace:^"
+    "@chatsift/readdir": ^0.3.0
     "@discordjs/brokers": ^0.2.2
     "@discordjs/core": ^1.0.1
     "@discordjs/rest": ^2.0.1
@@ -416,6 +417,16 @@ __metadata:
     pino-abstract-transport: ^1.0.0
     tslib: ^2.5.0
   checksum: 895d25f6b8ef1115dee24268c309bc53345b8f0c5245f8e9cd29aef2afe71c12f118a23a2d15339808d5b2443aa4c6c141812bc8876155dda8866326906cd5f3
+  languageName: node
+  linkType: hard
+
+"@chatsift/readdir@npm:^0.3.0":
+  version: 0.3.0
+  resolution: "@chatsift/readdir@npm:0.3.0"
+  dependencies:
+    tiny-typed-emitter: ^2.1.0
+    tslib: ^2.5.0
+  checksum: 6055f47dbc4e1aebaea3778d082cdd06fd098ed318e9d56584f87f47dda49f66e32c44bd06b6d70485f17f1f0bb6d74d7b02b480c6e48030af971b03f748d4b2
   languageName: node
   linkType: hard
 
@@ -8858,6 +8869,13 @@ __metadata:
     globalyzer: 0.1.0
     globrex: ^0.1.2
   checksum: aea5801eb6663ddf77ebb74900b8f8bd9dfcfc9b6a1cc8018cb7421590c00bf446109ff45e4b64a98e6c95ddb1255a337a5d488fb6311930e2a95334151ec9c6
+  languageName: node
+  linkType: hard
+
+"tiny-typed-emitter@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "tiny-typed-emitter@npm:2.1.0"
+  checksum: 709bca410054e08df4dc29d5ea0916328bb2900d60245c6a743068ea223887d9fd2c945b6070eb20336275a557a36c2808e5c87d2ed4b60633458632be4a3e10
   languageName: node
   linkType: hard
 
