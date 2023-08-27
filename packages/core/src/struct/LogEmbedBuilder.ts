@@ -1,5 +1,4 @@
-import { EmbedBuilder, inlineCode, time, TimestampStyles } from '@discordjs/builders';
-import { ms } from '@naval-base/ms';
+import { EmbedBuilder, inlineCode } from '@discordjs/builders';
 import type { APIEmbed, APIUser } from 'discord-api-types/v10';
 import { inject, injectable } from 'inversify';
 import type { Selectable } from 'kysely';
@@ -11,7 +10,8 @@ export interface BuildModActionLogOptions {
 	existingEmbed?: APIEmbed | null;
 	mod?: APIUser | null;
 	pardonedBy?: APIUser | null;
-	refCs?: Selectable<Case> | null;
+	refCases?: Selectable<Case>[] | null;
+	referencedBy?: Selectable<Case>[] | null;
 	user?: APIUser | null;
 }
 
@@ -21,26 +21,29 @@ export class LogEmbedBuilder {
 	private readonly util!: Util;
 
 	public readonly caseLogColors = {
+		role: 16_022_395,
+		unrole: 5_793_266,
 		warn: 16_022_395,
-		mute: 16_022_395,
-		unmute: 5_793_266,
+		timeout: 16_022_395,
+		revokeTimeout: 5_793_266,
 		kick: 16_022_395,
 		softban: 16_022_395,
 		ban: 15_747_144,
 		unban: 5_793_266,
 	} as const;
 
-	public buildModActionLog({ cs, mod, user, existingEmbed, refCs, pardonedBy }: BuildModActionLogOptions): APIEmbed {
+	// TODO: Full support for all fields
+	public buildModActionLog({ cs, mod, user, existingEmbed, pardonedBy }: BuildModActionLogOptions): APIEmbed {
 		const builder = new EmbedBuilder(existingEmbed ?? {})
 			.setColor(this.caseLogColors[cs.actionType])
 			.setAuthor({
-				name: `${cs.targetTag} (${cs.targetId})`,
+				name: `${this.util.getUserTag(user)} (${cs.targetId})`,
 				iconURL: this.util.getUserAvatarURL(user),
 			})
 			.setFooter(
-				cs.modTag && cs.modId
+				cs.modId
 					? {
-							text: `Case #${cs.id} | By ${cs.modTag} (${cs.modId})`,
+							text: `Case #${cs.id} | By ${this.util.getUserTag(mod)} (${cs.modId})`,
 							iconURL: this.util.getUserAvatarURL(mod),
 					  }
 					: null,
@@ -48,12 +51,8 @@ export class LogEmbedBuilder {
 
 		const description = [
 			`**Action**: ${cs.actionType}`,
-			`**Reason**: ${cs.reason ?? `set a reason using ${inlineCode(`/case reason ${cs.caseId}`)}`}`,
+			`**Reason**: ${cs.reason ?? `set a reason using ${inlineCode(`/case reason ${cs.id}`)}`}`,
 		];
-
-		if (refCs) {
-			description.push(`**Referenced Case**: ${refCs.id}`);
-		}
 
 		if (pardonedBy) {
 			description.push(`**Pardoned By**: ${pardonedBy.username}#${pardonedBy.discriminator} (${pardonedBy.id})`);

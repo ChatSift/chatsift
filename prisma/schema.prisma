@@ -17,53 +17,83 @@ enum LogChannelType {
 }
 
 model LogChannelWebhook {
-  guildId      String         
-  logType      LogChannelType 
-  channelId    String         
-  webhookId    String         
-  webhookToken String         
-  threadId     String?        
+  guildId      String
+  logType      LogChannelType
+  channelId    String
+  webhookId    String
+  webhookToken String
+  threadId     String?
 
   @@id([guildId, logType])
 }
 
 enum CaseAction {
+  role
+  unrole
   warn
-  mute
-  unmute
+  timeout
+  revokeTimeout
   kick
   softban
   ban
   unban
 }
 
+model CaseReferences {
+  caseId  Int
+  case    Case @relation("referenced", fields: [caseId], references: [id])
+  refId   Int
+  refCase Case @relation("references", fields: [refId], references: [id])
+
+  @@id([caseId, refId])
+}
+
 model Case {
-  id           Int          @id @default(autoincrement())
+  id           Int              @id @default(autoincrement())
   guildId      String
   logChannelId String?
   logMessageId String?
-  caseId       Int
-  refId        Int?
+  referencedBy CaseReferences[] @relation("referenced")
+  references   CaseReferences[] @relation("references")
   targetId     String
-  targetTag    String
   modId        String?
-  modTag       String?
   actionType   CaseAction
   reason       String?
-  expiresAt    DateTime?    @db.Timestamptz(6)
-  pardonedBy   String?
-  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
-  useTimeouts  Boolean      @default(true)
-  deleteDays   Int?
-  unmuteRoles  UnmuteRole[]
+  createdAt    DateTime         @default(now()) @db.Timestamptz(6)
+
+  roleData    RoleCaseData?
+  warnData    WarnCaseData?
+  banCaseData BanCaseData?
 }
 
-model UnmuteRole {
-  caseId Int
-  roleId String
-  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model UndoRole {
+  caseId   Int
+  caseData RoleCaseData @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  roleId   String
 
   @@id([caseId, roleId])
+}
+
+model RoleCaseData {
+  id        Int        @id
+  case      Case       @relation(fields: [id], references: [id], onDelete: Cascade)
+  roleId    String
+  clean     Boolean    @default(false)
+  undoRoles UndoRole[]
+  duration  Int?
+  expiresAt DateTime?  @db.Timestamptz(6)
+}
+
+model WarnCaseData {
+  id           Int     @id
+  case         Case    @relation(fields: [id], references: [id], onDelete: Cascade)
+  pardonedById String?
+}
+
+model BanCaseData {
+  id                Int  @id
+  case              Case @relation(fields: [id], references: [id], onDelete: Cascade)
+  deleteMessageDays Int?
 }
 
 enum TaskType {

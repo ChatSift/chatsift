@@ -7,12 +7,16 @@ import {
 	LogEmbedBuilder,
 	type DB,
 	LogChannelType,
+	promiseAllObject,
+	type Case,
+	CaseAction,
 } from '@automoderator/core';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { API } from '@discordjs/core';
 import { inject, injectable } from 'inversify';
 import { Redis } from 'ioredis';
 import { Kysely } from 'kysely';
+import { jsonArrayFrom } from 'kysely/helpers/postgres';
 import { type Logger } from 'pino';
 import { GuildLogger } from './GuildLogger.js';
 
@@ -43,30 +47,38 @@ export class LoggingService {
 
 		this.broker.on(GuildLogType.ModAction, async ({ data: { cases }, ack }) => {
 			for (const cs of cases) {
-				const [mod, user, pardonedBy, refCs, existingLogMessage] = await Promise.all([
-					cs.modId ? this.api.users.get(cs.modId) : Promise.resolve(null),
-					cs.targetId ? this.api.users.get(cs.targetId) : Promise.resolve(null),
-					cs.pardonedBy ? this.api.users.get(cs.pardonedBy) : Promise.resolve(null),
-					cs.refId
-						? this.database
-								.selectFrom('Case')
-								.selectAll()
-								.where('guildId', '=', cs.guildId)
-								.where('id', '=', cs.refId)
-								.executeTakeFirst()
-						: Promise.resolve(null),
-					cs.logChannelId && cs.logMessageId
-						? this.api.channels.getMessage(cs.logChannelId, cs.logMessageId)
-						: Promise.resolve(null),
-				]);
+				const warnData =
+					cs.actionType === CaseAction.warn
+						? await this.database.selectFrom('WarnCaseData').select('pardonedById').executeTakeFirst()
+						: null;
+
+				const apiData = await promiseAllObject({
+					mod: cs.modId ? this.api.users.get(cs.modId) : Promise.resolve(null),
+					user: cs.targetId ? this.api.users.get(cs.targetId) : Promise.resolve(null),
+					existingEmbed:
+						cs.logChannelId && cs.logMessageId
+							? this.api.channels.getMessage(cs.logChannelId, cs.logMessageId).then((message) => message.embeds[0])
+							: Promise.resolve(null),
+					pardonedBy: warnData?.pardonedById ? this.api.users.get(warnData?.pardonedById) : Promise.resolve(null),
+				});
+
+				const refCases = await this.database
+					.selectFrom('CaseReferences')
+					.innerJoin('Case', 'Case.id', 'CaseReferences.refId')
+					.selectAll()
+					.execute();
+
+				const referencedBy = await this.database
+					.selectFrom('CaseReferences')
+					.innerJoin('Case', 'Case.id', 'CaseReferences.caseId')
+					.selectAll()
+					.execute();
 
 				const embed = this.embedBuilder.buildModActionLog({
 					cs,
-					mod,
-					user,
-					existingEmbed: existingLogMessage?.embeds[0],
-					refCs,
-					pardonedBy,
+					...apiData,
+					refCases,
+					referencedBy,
 				});
 
 				await this.guildLogger.log({ guildId: cs.guildId, logType: LogChannelType.mod, embed, ack });

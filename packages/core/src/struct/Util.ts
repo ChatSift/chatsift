@@ -44,7 +44,15 @@ export class Util {
 		return result.mapErr(this.wrapDmUserException(DMUserFailableSteps.Message));
 	}
 
-	public getUserAvatarURL(user?: APIUser | null) {
+	public getUserTag(user?: APIUser | null): string {
+		if (!user) {
+			return '[Deleted User]';
+		}
+
+		return `${user.username}#${user.discriminator}`;
+	}
+
+	public getUserAvatarURL(user?: APIUser | null): string | undefined {
 		if (!user) {
 			return;
 		}
