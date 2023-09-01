@@ -54,13 +54,13 @@ export class ProxyServer {
 
 				res.statusCode = discordResponse.status;
 
-				for (const header of Object.keys(discordResponse.headers)) {
+				for (const [header, value] of discordResponse.headers) {
 					// Strip ratelimit headers
-					if (header.startsWith('x-ratelimit')) {
+					if (/^x-ratelimit/i.test(header)) {
 						continue;
 					}
 
-					res.setHeader(header, discordResponse.headers.get(header)!);
+					res.setHeader(header, value);
 				}
 
 				const data = await parseResponse(discordResponse);
