@@ -21,7 +21,6 @@
 		"lint": "turbo run lint && prettier --check .",
 		"build": "turbo run build",
 		"format": "prettier --write .",
-		"prisma": "dotenv -e .env prisma",
 		"prepare": "is-ci || husky install",
 		"update": "yarn upgrade-interactive"
 	},
