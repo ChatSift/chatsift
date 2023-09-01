@@ -14,12 +14,24 @@ COPY .yarn ./.yarn
 
 COPY packages/core/package.json ./packages/core/package.json
 
+COPY services/discord-proxy/package.json ./services/discord-proxy/package.json
+COPY services/gateway/package.json ./services/gateway/package.json
+COPY services/interactions/package.json ./services/interactions/package.json
+COPY services/logging/package.json ./services/logging/package.json
+COPY services/task-runner/package.json ./services/task-runner/package.json
+
 RUN yarn --immutable
 
 COPY prisma ./prisma
 RUN yarn prisma generate
 
 COPY packages/core ./packages/core
+
+COPY services/discord-proxy ./services/discord-proxy
+COPY services/gateway ./services/gateway
+COPY services/interactions ./services/interactions
+COPY services/logging ./services/logging
+COPY services/task-runner ./services/task-runner
 
 ARG TURBO_TEAM
 ENV TURBO_TEAM=$TURBO_TEAM
