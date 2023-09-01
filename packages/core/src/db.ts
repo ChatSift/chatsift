@@ -24,12 +24,14 @@ export const CaseAction = {
 } as const;
 export type CaseAction = (typeof CaseAction)[keyof typeof CaseAction];
 export const TaskType = {
-	timedModAction: 'timedModAction',
+	undoTimedRoleCase: 'undoTimedRoleCase',
 } as const;
 export type TaskType = (typeof TaskType)[keyof typeof TaskType];
 export type BanCaseData = {
 	id: number;
 	deleteMessageDays: number | null;
+	duration: number | null;
+	expiresAt: Timestamp | null;
 };
 export type Case = {
 	id: Generated<number>;
@@ -42,7 +44,7 @@ export type Case = {
 	reason: string | null;
 	createdAt: Generated<Timestamp>;
 };
-export type CaseReferences = {
+export type CaseReference = {
 	caseId: number;
 	refId: number;
 };
@@ -81,7 +83,7 @@ export type WarnCaseData = {
 export type DB = {
 	BanCaseData: BanCaseData;
 	Case: Case;
-	CaseReferences: CaseReferences;
+	CaseReference: CaseReference;
 	LogChannelWebhook: LogChannelWebhook;
 	RoleCaseData: RoleCaseData;
 	Task: Task;

@@ -1,11 +1,27 @@
 import { API } from '@discordjs/core';
-import type { APIUser } from 'discord-api-types/v10';
+import type { APIGuildMember, APIUser } from 'discord-api-types/v10';
 import { inject, injectable } from 'inversify';
 
 @injectable()
 export class Util {
 	@inject(API)
 	private readonly api!: API;
+
+	public async getNonManagedMemberRoles(guildId: string, member: APIGuildMember): Promise<string[]> {
+		const guildRoles = await this.api.guilds.getRoles(guildId);
+
+		const memberRoles = member.roles;
+		const nonManagedRoles: string[] = [];
+
+		for (const roleId of memberRoles) {
+			const role = guildRoles.find((role) => role.id === roleId);
+			if (role && !role.managed) {
+				nonManagedRoles.push(roleId);
+			}
+		}
+
+		return nonManagedRoles;
+	}
 
 	public async tryDmUser(userId: string, content: string, guildId?: string): Promise<boolean> {
 		if (guildId) {

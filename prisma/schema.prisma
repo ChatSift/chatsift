@@ -39,7 +39,7 @@ enum CaseAction {
   unban
 }
 
-model CaseReferences {
+model CaseReference {
   caseId  Int
   case    Case @relation("referenced", fields: [caseId], references: [id])
   refId   Int
@@ -53,8 +53,8 @@ model Case {
   guildId      String
   logChannelId String?
   logMessageId String?
-  referencedBy CaseReferences[] @relation("referenced")
-  references   CaseReferences[] @relation("references")
+  referencedBy CaseReference[] @relation("referenced")
+  references   CaseReference[] @relation("references")
   targetId     String
   modId        String?
   actionType   CaseAction
@@ -94,10 +94,12 @@ model BanCaseData {
   id                Int  @id
   case              Case @relation(fields: [id], references: [id], onDelete: Cascade)
   deleteMessageDays Int?
+  duration  Int?
+  expiresAt DateTime?  @db.Timestamptz(6)
 }
 
 enum TaskType {
-  timedModAction
+  undoTimedRoleCase
 }
 
 model Task {

@@ -63,14 +63,14 @@ export class LoggingService {
 				});
 
 				const refCases = await this.database
-					.selectFrom('CaseReferences')
-					.innerJoin('Case', 'Case.id', 'CaseReferences.refId')
+					.selectFrom('CaseReference')
+					.innerJoin('Case', 'Case.id', 'CaseReference.refId')
 					.selectAll()
 					.execute();
 
 				const referencedBy = await this.database
-					.selectFrom('CaseReferences')
-					.innerJoin('Case', 'Case.id', 'CaseReferences.caseId')
+					.selectFrom('CaseReference')
+					.innerJoin('Case', 'Case.id', 'CaseReference.caseId')
 					.selectAll()
 					.execute();
 
