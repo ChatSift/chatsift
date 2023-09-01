@@ -8,7 +8,6 @@ import {
 	type DB,
 	LogChannelType,
 	promiseAllObject,
-	type Case,
 	CaseAction,
 } from '@automoderator/core';
 import { PubSubRedisBroker } from '@discordjs/brokers';
@@ -16,7 +15,6 @@ import { API } from '@discordjs/core';
 import { inject, injectable } from 'inversify';
 import { Redis } from 'ioredis';
 import { Kysely } from 'kysely';
-import { jsonArrayFrom } from 'kysely/helpers/postgres';
 import { type Logger } from 'pino';
 import { GuildLogger } from './GuildLogger.js';
 
