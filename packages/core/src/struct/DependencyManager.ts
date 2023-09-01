@@ -5,9 +5,6 @@ import { Redis } from 'ioredis';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Logger } from 'pino';
 import createPinoLogger from 'pino';
-import type { DataReader, DataWriter } from '../binary-encoding/Data.js';
-import { Reader } from '../binary-encoding/Reader.js';
-import { Writer } from '../binary-encoding/Writer.js';
 import type { DB } from '../db.js';
 import { Env } from './Env.js';
 
@@ -24,9 +21,6 @@ export const globalContainer = new Container({
 
 export const INJECTION_TOKENS = {
 	redis: Symbol('redis instance'),
-	api: Symbol('api instance'),
-	reader: Symbol('binary encoding reader'),
-	writer: Symbol('binary encoding writer'),
 	logger: Symbol('logger instance'),
 } as const;
 
@@ -35,9 +29,7 @@ export const INJECTION_TOKENS = {
  * Helper class to abstract away boilerplate present at the start of every service.
  */
 export class DependencyManager {
-	public constructor(private readonly env: Env) {
-		this.registerDefaultRW();
-	}
+	public constructor(private readonly env: Env) {}
 
 	public registerRedis(): Redis {
 		const redis = new Redis(this.env.redisUrl);
@@ -51,13 +43,8 @@ export class DependencyManager {
 
 		const api = new API(rest);
 
-		globalContainer.bind<API>(INJECTION_TOKENS.api).toConstantValue(api);
+		globalContainer.bind<API>(API).toConstantValue(api);
 		return api;
-	}
-
-	public registerDefaultRW(): void {
-		globalContainer.bind<DataReader>(INJECTION_TOKENS.reader).to(Reader).inTransientScope();
-		globalContainer.bind<DataWriter>(INJECTION_TOKENS.writer).to(Writer).inTransientScope();
 	}
 
 	public registerLogger(): Logger {
