@@ -22,7 +22,7 @@ export class TaskRunnerService {
 			const tasks = await this.database
 				.selectFrom('Task')
 				.selectAll()
-				.where(sql`mod(Task.id, ${this.env.taskRunnerConcurrency}) = ${this.env.taskRunnerId}`)
+				.where(sql`mod("id", ${this.env.taskRunnerConcurrency}) = ${this.env.taskRunnerId}`)
 				.execute();
 
 			for (const task of tasks) {
