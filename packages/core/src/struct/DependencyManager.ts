@@ -1,6 +1,6 @@
 import { API } from '@discordjs/core';
 import { REST } from '@discordjs/rest';
-import { Container, inject, injectable } from 'inversify';
+import { Container, injectable } from 'inversify';
 import { Redis } from 'ioredis';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Logger } from 'pino';
@@ -18,7 +18,7 @@ const {
 
 export const globalContainer = new Container({
 	autoBindInjectable: true,
-	defaultScope: 'Request',
+	defaultScope: 'Singleton',
 	skipBaseClassChecks: true,
 });
 
@@ -35,10 +35,7 @@ export const INJECTION_TOKENS = {
  * Helper class to abstract away boilerplate present at the start of every service.
  */
 export class DependencyManager {
-	@inject(Env)
-	private readonly env!: Env;
-
-	public constructor() {
+	public constructor(private readonly env: Env) {
 		this.registerDefaultRW();
 	}
 

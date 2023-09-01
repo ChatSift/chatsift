@@ -22,7 +22,6 @@
 		"@discordjs/core": "^1.0.1",
 		"@discordjs/rest": "^2.0.1",
 		"@discordjs/ws": "^1.0.1",
-		"discord-api-types": "^0.37.54",
 		"inversify": "^6.0.1",
 		"ioredis": "^5.3.2",
 		"kysely": "^0.26.1",

@@ -1,15 +1,13 @@
-import { API } from '@discordjs/core';
-import { ApplicationCommandType } from 'discord-api-types/v10';
-import { inject, injectable } from 'inversify';
+import { API, ApplicationCommandType } from '@discordjs/core';
+import { injectable } from 'inversify';
 import { InteractionsService, type CommandHandler, type Handler } from '../interactions.js';
 
 @injectable()
 export default class Deploy implements Handler {
-	@inject(InteractionsService)
-	private readonly interactions!: InteractionsService;
-
-	@inject(API)
-	private readonly api!: API;
+	public constructor(
+		private readonly interactions: InteractionsService,
+		private readonly api: API,
+	) {}
 
 	public register() {
 		this.interactions.register({

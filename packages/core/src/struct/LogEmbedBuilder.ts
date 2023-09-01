@@ -1,6 +1,6 @@
 import { EmbedBuilder, inlineCode } from '@discordjs/builders';
-import type { APIEmbed, APIUser } from 'discord-api-types/v10';
-import { inject, injectable } from 'inversify';
+import type { APIEmbed, APIUser } from '@discordjs/core';
+import { injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import type { Case } from '../db.js';
 import { Util } from './Util.js';
@@ -17,8 +17,7 @@ export interface BuildModActionLogOptions {
 
 @injectable()
 export class LogEmbedBuilder {
-	@inject(Util)
-	private readonly util!: Util;
+	public constructor(private readonly util: Util) {}
 
 	public readonly caseLogColors = {
 		role: 16_022_395,

@@ -2,8 +2,8 @@ import { clearTimeout, setTimeout } from 'node:timers';
 import { URLSearchParams } from 'node:url';
 import type { DB, LogChannelType, LogChannelWebhook } from '@automoderator/core';
 import { API } from '@discordjs/core';
+import type { APIEmbed } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
-import type { APIEmbed } from 'discord-api-types/v10';
 import { inject, injectable } from 'inversify';
 import { Kysely } from 'kysely';
 
@@ -22,15 +22,12 @@ interface LogData {
 
 @injectable()
 export class GuildLogger {
-	@inject(API)
-	private readonly api!: API;
-
-	@inject(Kysely)
-	private readonly database!: Kysely<DB>;
-
 	private readonly buffers: Map<`${string}-${LogChannelType}`, LogBuffer>;
 
-	public constructor() {
+	public constructor(
+		private readonly api: API,
+		@inject(Kysely) private readonly database: Kysely<DB>,
+	) {
 		this.buffers = new Map();
 	}
 

@@ -20,27 +20,16 @@ import { GuildLogger } from './GuildLogger.js';
 
 @injectable()
 export class LoggingService {
-	@inject(INJECTION_TOKENS.redis)
-	private readonly redis!: Redis;
-
-	@inject(GuildLogger)
-	private readonly guildLogger!: GuildLogger;
-
-	@inject(API)
-	private readonly api!: API;
-
-	@inject(Kysely)
-	private readonly database!: Kysely<DB>;
-
-	@inject(LogEmbedBuilder)
-	private readonly embedBuilder!: LogEmbedBuilder;
-
-	@inject(INJECTION_TOKENS.logger)
-	private readonly logger!: Logger;
-
 	private readonly broker: PubSubRedisBroker<GuildLogMap>;
 
-	public constructor() {
+	public constructor(
+		@inject(INJECTION_TOKENS.redis) private readonly redis: Redis,
+		private readonly guildLogger: GuildLogger,
+		private readonly api: API,
+		@inject(Kysely) private readonly database: Kysely<DB>,
+		private readonly embedBuilder: LogEmbedBuilder,
+		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
+	) {
 		this.broker = new PubSubRedisBroker<GuildLogMap>({ redisClient: this.redis, encode, decode });
 
 		this.broker.on(GuildLogType.ModAction, async ({ data: { cases }, ack }) => {

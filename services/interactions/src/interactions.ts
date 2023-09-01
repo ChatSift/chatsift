@@ -3,9 +3,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Env, INJECTION_TOKENS, type DiscordEventsMap, encode, decode, globalContainer } from '@automoderator/core';
 import { readdirRecurse } from '@chatsift/readdir';
 import { PubSubRedisBroker } from '@discordjs/brokers';
-import { API } from '@discordjs/core';
-import { InteractionOptionResolver } from '@sapphire/discord-utilities';
 import {
+	API,
 	GatewayDispatchEvents,
 	InteractionType,
 	type APIApplicationCommandInteraction,
@@ -16,7 +15,8 @@ import {
 	type APIApplicationCommandInteractionDataNumberOption,
 	type APIApplicationCommandInteractionDataStringOption,
 	type APIModalSubmitInteraction,
-} from 'discord-api-types/v10';
+} from '@discordjs/core';
+import { InteractionOptionResolver } from '@sapphire/discord-utilities';
 import { inject, injectable } from 'inversify';
 import { Redis } from 'ioredis';
 import { type Logger } from 'pino';
@@ -60,18 +60,6 @@ export type HandlerConstructor = new () => Handler;
 
 @injectable()
 export class InteractionsService {
-	@inject(Env)
-	private readonly env!: Env;
-
-	@inject(API)
-	private readonly api!: API;
-
-	@inject(INJECTION_TOKENS.logger)
-	private readonly logger!: Logger;
-
-	@inject(INJECTION_TOKENS.redis)
-	private readonly redis!: Redis;
-
 	private readonly broker: PubSubRedisBroker<DiscordEventsMap>;
 
 	private readonly interactions: RESTPostAPIApplicationCommandsJSONBody[] = [];
@@ -83,7 +71,12 @@ export class InteractionsService {
 		modals: new Map<string, ModalHandler>(),
 	} as const;
 
-	public constructor() {
+	public constructor(
+		private readonly env: Env,
+		private readonly api: API,
+		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
+		@inject(INJECTION_TOKENS.redis) private readonly redis: Redis,
+	) {
 		this.broker = new PubSubRedisBroker<DiscordEventsMap>({
 			redisClient: this.redis,
 			encode,

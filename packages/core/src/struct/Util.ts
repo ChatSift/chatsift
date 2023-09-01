@@ -1,11 +1,10 @@
 import { API } from '@discordjs/core';
-import type { APIGuildMember, APIUser } from 'discord-api-types/v10';
-import { inject, injectable } from 'inversify';
+import type { APIGuildMember, APIUser } from '@discordjs/core';
+import { injectable } from 'inversify';
 
 @injectable()
 export class Util {
-	@inject(API)
-	private readonly api!: API;
+	public constructor(private readonly api: API) {}
 
 	public async getNonManagedMemberRoles(guildId: string, member: APIGuildMember): Promise<string[]> {
 		const guildRoles = await this.api.guilds.getRoles(guildId);

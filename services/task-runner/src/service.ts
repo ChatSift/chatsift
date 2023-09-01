@@ -6,14 +6,11 @@ import { type Logger } from 'pino';
 
 @injectable()
 export class TaskRunnerService {
-	@inject(Kysely)
-	private readonly database!: Kysely<DB>;
-
-	@inject(INJECTION_TOKENS.logger)
-	private readonly logger!: Logger;
-
-	@inject(Env)
-	private readonly env!: Env;
+	public constructor(
+		@inject(Kysely) private readonly database: Kysely<DB>,
+		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
+		private readonly env: Env,
+	) {}
 
 	public async start(): Promise<void> {
 		setInterval(async () => {

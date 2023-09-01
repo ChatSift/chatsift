@@ -1,4 +1,4 @@
-import type { GatewayDispatchEvents, GatewayDispatchPayload, GatewaySendPayload } from 'discord-api-types/v10';
+import type { GatewayDispatchEvents, GatewayDispatchPayload, GatewaySendPayload } from '@discordjs/core';
 
 type _DiscordEventsMap = {
 	[K in GatewayDispatchEvents]: GatewayDispatchPayload & {

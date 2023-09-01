@@ -29,14 +29,11 @@ export interface RoleCaseData extends BaseCaseData {
 
 @injectable()
 export class CaseManager {
-	@inject(API)
-	private readonly api!: API;
-
-	@inject(Kysely)
-	private readonly db!: Kysely<DB>;
-
-	@inject(Util)
-	private readonly util!: Util;
+	public constructor(
+		private readonly api: API,
+		@inject(Kysely) private readonly db: Kysely<DB>,
+		private readonly util: Util,
+	) {}
 
 	public async role(data: OptionalCaseDurationData & RoleCaseData): Promise<void> {
 		const member = await this.api.guilds.getMember(data.guildId, data.targetId);

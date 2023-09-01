@@ -9,23 +9,16 @@ import { type Logger } from 'pino';
 
 @injectable()
 export class Gateway {
-	@inject(Env)
-	private readonly env!: Env;
-
-	@inject(API)
-	private readonly api!: API;
-
-	@inject(INJECTION_TOKENS.logger)
-	private readonly logger!: Logger;
-
-	@inject(INJECTION_TOKENS.redis)
-	private readonly redis!: Redis;
-
 	private readonly broker: PubSubRedisBroker<DiscordEventsMap>;
 
 	private readonly gateway: WebSocketManager;
 
-	public constructor() {
+	public constructor(
+		private readonly env: Env,
+		private readonly api: API,
+		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
+		@inject(INJECTION_TOKENS.redis) private readonly redis: Redis,
+	) {
 		this.broker = new PubSubRedisBroker<DiscordEventsMap>({
 			redisClient: this.redis,
 			encode,

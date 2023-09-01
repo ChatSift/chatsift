@@ -21,21 +21,14 @@ import { ProxyCache } from './cache.js';
 
 @injectable()
 export class ProxyServer {
-	@inject(INJECTION_TOKENS.logger)
-	private readonly logger!: Logger;
-
-	@inject(ProxyCache)
-	private readonly cache!: ProxyCache;
-
-	@inject(Env)
-	private readonly env!: Env;
-
-	private readonly rest: REST;
-
 	private readonly server: Server;
 
-	public constructor() {
-		this.rest = new REST({ rejectOnRateLimit: () => true, retries: 0 }).setToken(this.env.discordToken);
+	public constructor(
+		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
+		private readonly cache: ProxyCache,
+		private readonly env: Env,
+	) {
+		const rest = new REST({ rejectOnRateLimit: () => true, retries: 0 }).setToken(this.env.discordToken);
 		this.server = createServer(async (req, res) => {
 			const { method, url } = req as { method: RequestMethod; url: string };
 			// eslint-disable-next-line prefer-named-capture-group
@@ -51,7 +44,7 @@ export class ProxyServer {
 			}
 
 			try {
-				const discordResponse = await this.rest.queueRequest({
+				const discordResponse = await rest.queueRequest({
 					body: req,
 					fullRoute,
 					method,
