@@ -1,9 +1,10 @@
-import { API, ApplicationCommandType } from '@discordjs/core';
+import { API } from '@discordjs/core';
 import { injectable } from 'inversify';
 import { InteractionsService, type CommandHandler, type Handler } from '../interactions.js';
 
+// Special dev commands not handled in this service, as they're scoped to a guild.
 @injectable()
-export default class Deploy implements Handler {
+export default class Dev implements Handler {
 	public constructor(
 		private readonly interactions: InteractionsService,
 		private readonly api: API,
@@ -11,19 +12,11 @@ export default class Deploy implements Handler {
 
 	public register() {
 		this.interactions.register({
-			interaction: {
-				name: 'deploy',
-				description: '(Dev) deploy global slash commands',
-				type: ApplicationCommandType.ChatInput,
-				default_member_permissions: '0',
-				dm_permission: false,
-				options: [],
-			},
-			commands: [['deploy:none:none', this.handle]],
+			commands: [['dev-deploy-commands:none:none', this.handleDeploy]],
 		});
 	}
 
-	private readonly handle: CommandHandler = async (interaction) => {
+	private readonly handleDeploy: CommandHandler = async (interaction) => {
 		await this.interactions.deployCommands();
 		await this.api.interactions.reply(interaction.id, interaction.token, { content: 'Successfully deployed commands' });
 	};
