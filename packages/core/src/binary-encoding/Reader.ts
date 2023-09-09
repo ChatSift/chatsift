@@ -17,11 +17,11 @@
 import { Buffer } from 'node:buffer';
 import { TextDecoder } from 'node:util';
 import { injectable } from 'inversify';
-import type { DataReader } from './Data.js';
+import type { IReader } from './Data.js';
 import { DataType } from './Data.js';
 
 @injectable()
-export class Reader implements DataReader {
+export class Reader implements IReader {
 	private readonly decoder = new TextDecoder();
 
 	public readonly data: Buffer;

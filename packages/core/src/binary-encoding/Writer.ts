@@ -17,11 +17,11 @@
 import { Buffer } from 'node:buffer';
 import { TextEncoder } from 'node:util';
 import { injectable } from 'inversify';
-import type { DataWriter } from './Data.js';
+import type { IWriter } from './Data.js';
 import { DataType } from './Data.js';
 
 @injectable()
-export class Writer implements DataWriter {
+export class Writer implements IWriter {
 	private readonly encoder = new TextEncoder();
 
 	private data: Buffer;

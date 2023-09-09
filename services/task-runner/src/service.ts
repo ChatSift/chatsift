@@ -45,6 +45,7 @@ export class TaskRunnerService {
 		this.logger.info('Listening to incoming tasks');
 	}
 
+	// TODO: Factory pattern
 	private async handle(task: Selectable<Task>): Promise<void> {
 		switch (task.type) {
 			default: {

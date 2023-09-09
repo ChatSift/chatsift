@@ -2,6 +2,9 @@ import process from 'node:process';
 import { injectable } from 'inversify';
 
 @injectable()
+/**
+ * The environment variables for the application, provided as a singleton.
+ */
 export class Env {
 	public readonly discordToken = process.env.DISCORD_TOKEN!;
 
@@ -23,10 +26,16 @@ export class Env {
 
 	public readonly postgresDatabase: string = process.env.POSTGRES_DATABASE!;
 
-	// null means the current process is not a task runner
+	/**
+	 * @remarks
+	 * null means the current process is not a task runner
+	 */
 	public readonly taskRunnerId: number | null = process.env.TASK_RUNNER_ID ? Number(process.env.TASK_RUNNER_ID) : null;
 
-	// Indicates how many task runners the stack is running
+	/**
+	 * @remarks
+	 * Indicates how many task runners the stack is running
+	 */
 	public readonly taskRunnerConcurrency: number = Number(process.env.TASK_RUNNER_CONCURRENCY ?? '1');
 
 	private readonly REQUIRED_KEYS = [

@@ -2,7 +2,10 @@ import { API } from '@discordjs/core';
 import { injectable } from 'inversify';
 import { InteractionsService, type CommandHandler, type Handler } from '../interactions.js';
 
-// Special dev commands not handled in this service, as they're scoped to a guild.
+/**
+ * @remarks
+ * Special dev commands not handled in this service, as they're scoped to a guild.
+ */
 @injectable()
 export default class Dev implements Handler {
 	public constructor(
@@ -12,7 +15,7 @@ export default class Dev implements Handler {
 
 	public register() {
 		this.interactions.register({
-			commands: [['dev-deploy-commands:none:none', this.handleDeploy]],
+			commands: [['deploy:none:none', this.handleDeploy]],
 		});
 	}
 

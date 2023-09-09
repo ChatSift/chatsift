@@ -1,3 +1,5 @@
+import type { Buffer } from 'node:buffer';
+
 export enum DataType {
 	Null,
 	Bool,
@@ -28,7 +30,7 @@ export type SimpleDataTypes =
 
 export type ComplexDataTypes = DataType.Array | DataType.Object;
 
-export interface DataReader {
+export interface IReader {
 	array<T>(mapper: (buffer: this) => T): T[];
 	bool(): boolean | null;
 	date(): number | null;
@@ -43,17 +45,19 @@ export interface DataReader {
 	u8(): number | null;
 }
 
-export interface DataWriter {
+export interface IWriter {
 	array<T>(values: readonly T[] | null, mapper: (buffer: this, value: T) => void): this;
-	bool(): this;
-	date(): this;
-	i16(): this;
-	i32(): this;
-	i8(): this;
+	bool(value?: boolean | null): this;
+	date(value?: number | string | null): this;
+	dump(): Buffer;
+	dumpTrimmed(): Buffer;
+	i16(value?: number | null): this;
+	i32(value?: number | null): this;
+	i8(value?: number | null): this;
 	object<T extends Record<string, unknown>>(value: T | null, mapper: (buffer: this, value: T) => void): this;
-	string(): this;
-	u16(): this;
-	u32(): this;
-	u64(): this;
-	u8(): this;
+	string(value?: string | null): this;
+	u16(value?: number | null): this;
+	u32(value?: number | null): this;
+	u64(value?: bigint | number | string | null): this;
+	u8(value?: number | null): this;
 }

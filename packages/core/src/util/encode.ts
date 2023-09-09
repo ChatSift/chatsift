@@ -1,3 +1,9 @@
+/**
+ * This file implements a `msgpack` extension codec that allows us to send `bigint` values over the wire.
+ *
+ * We make use of `msgpack` encoding for broker messages.
+ */
+
 import { Buffer } from 'node:buffer';
 import { ExtensionCodec, encode as msgpackEncode, decode as msgpackDecode } from '@msgpack/msgpack';
 

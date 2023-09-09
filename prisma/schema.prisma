@@ -9,6 +9,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model ModRole {
+  guildId String
+  roleId  String
+
+  @@id([guildId, roleId])
+}
+
 enum LogChannelType {
   mod
   filter
@@ -49,7 +56,7 @@ model CaseReference {
 }
 
 model Case {
-  id           Int              @id @default(autoincrement())
+  id           Int             @id @default(autoincrement())
   guildId      String
   logChannelId String?
   logMessageId String?
@@ -59,7 +66,7 @@ model Case {
   modId        String?
   actionType   CaseAction
   reason       String?
-  createdAt    DateTime         @default(now()) @db.Timestamptz(6)
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
 
   roleData    RoleCaseData?
   warnData    WarnCaseData?
@@ -91,11 +98,11 @@ model WarnCaseData {
 }
 
 model BanCaseData {
-  id                Int  @id
-  case              Case @relation(fields: [id], references: [id], onDelete: Cascade)
+  id                Int       @id
+  case              Case      @relation(fields: [id], references: [id], onDelete: Cascade)
   deleteMessageDays Int?
-  duration  Int?
-  expiresAt DateTime?  @db.Timestamptz(6)
+  duration          Int?
+  expiresAt         DateTime? @db.Timestamptz(6)
 }
 
 enum TaskType {

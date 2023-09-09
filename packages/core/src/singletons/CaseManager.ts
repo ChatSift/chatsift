@@ -1,11 +1,11 @@
 import { API } from '@discordjs/core';
 import { inject, injectable } from 'inversify';
 import { Kysely, type Selectable } from 'kysely';
-import { CaseAction, TaskType, type DB, type Case, type WarnCaseData } from '../db.js';
+import { CaseAction, TaskType, type DB, type Case } from '../db.js';
 import { sqlJson } from '../util/sqlJson.js';
 import { Util } from './Util.js';
 
-export type OptionalCaseDurationData =
+export type OptionalCaseCreateDurationData =
 	| {
 			duration: null;
 			expiresAt: null;
@@ -15,14 +15,14 @@ export type OptionalCaseDurationData =
 			expiresAt: Date;
 	  };
 
-export interface BaseCaseData {
+export interface BaseCaseCreateData {
 	guildId: string;
 	modId: string;
 	reason?: string;
 	targetId: string;
 }
 
-export interface RoleCaseData extends BaseCaseData {
+export interface RoleCaseCreateData extends BaseCaseCreateData {
 	clean: boolean;
 	roleId: string;
 }
@@ -35,7 +35,7 @@ export class CaseManager {
 		private readonly util: Util,
 	) {}
 
-	public async role(data: OptionalCaseDurationData & RoleCaseData): Promise<void> {
+	public async role(data: OptionalCaseCreateDurationData & RoleCaseCreateData): Promise<void> {
 		const member = await this.api.guilds.getMember(data.guildId, data.targetId);
 		const initialRoles = await this.util.getNonManagedMemberRoles(data.guildId, member);
 
@@ -51,7 +51,7 @@ export class CaseManager {
 					guildId: data.guildId,
 					targetId: data.targetId,
 					modId: data.modId,
-					actionType: CaseAction.warn,
+					actionType: CaseAction.role,
 					reason: data.reason,
 				})
 				.returning('id')
@@ -87,7 +87,7 @@ export class CaseManager {
 		});
 	}
 
-	public async unrole(cs: Selectable<Case>, data: Selectable<RoleCaseData>): Promise<void> {
+	public async unrole(cs: Selectable<Case>, data: Selectable<RoleCaseCreateData>): Promise<void> {
 		const member = await this.api.guilds.getMember(cs.guildId, cs.targetId);
 		const initialRoles = await this.util.getNonManagedMemberRoles(cs.guildId, member);
 
@@ -96,9 +96,47 @@ export class CaseManager {
 
 		await this.api.guilds.editMember(cs.guildId, cs.targetId, { roles: roles.filter((role) => role !== data.roleId) });
 
-		await this.db
-			.deleteFrom('Task')
-			.where('data', '@>', sqlJson({ caseId: cs.id }))
-			.execute();
+		await this.db.transaction().execute(async (transaction) => {
+			await transaction
+				.insertInto('Case')
+				.values({
+					guildId: cs.guildId,
+					targetId: cs.targetId,
+					modId: data.modId,
+					actionType: CaseAction.unrole,
+					reason: data.reason,
+				})
+				.execute();
+
+			await transaction.deleteFrom('UndoRole').where('caseId', '=', cs.id).execute();
+
+			await transaction
+				.deleteFrom('Task')
+				.where('data', '@>', sqlJson({ caseId: cs.id }))
+				.execute();
+		});
+	}
+
+	public async warn(data: BaseCaseCreateData): Promise<void> {
+		await this.db.transaction().execute(async (transaction) => {
+			const cs = await transaction
+				.insertInto('Case')
+				.values({
+					guildId: data.guildId,
+					targetId: data.targetId,
+					modId: data.modId,
+					actionType: CaseAction.warn,
+					reason: data.reason,
+				})
+				.returning('id')
+				.executeTakeFirst();
+
+			await transaction
+				.insertInto('WarnCaseData')
+				.values({
+					id: cs!.id,
+				})
+				.execute();
+		});
 	}
 }

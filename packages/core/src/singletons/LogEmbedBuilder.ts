@@ -15,6 +15,7 @@ export interface BuildModActionLogOptions {
 	user?: APIUser | null;
 }
 
+// TODO: Reconsider pattern
 @injectable()
 export class LogEmbedBuilder {
 	public constructor(private readonly util: Util) {}
@@ -58,7 +59,6 @@ export class LogEmbedBuilder {
 		}
 
 		builder.setDescription(description.join('\n'));
-
 		return builder.toJSON();
 	}
 }

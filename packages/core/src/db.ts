@@ -56,6 +56,10 @@ export type LogChannelWebhook = {
 	webhookToken: string;
 	threadId: string | null;
 };
+export type ModRole = {
+	guildId: string;
+	roleId: string;
+};
 export type RoleCaseData = {
 	id: number;
 	roleId: string;
@@ -85,6 +89,7 @@ export type DB = {
 	Case: Case;
 	CaseReference: CaseReference;
 	LogChannelWebhook: LogChannelWebhook;
+	ModRole: ModRole;
 	RoleCaseData: RoleCaseData;
 	Task: Task;
 	UndoRole: UndoRole;
