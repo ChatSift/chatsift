@@ -2,8 +2,6 @@ import type { ICacheEntity } from '@automoderator/core';
 import { globalContainer, CacheFactory, type Cache, INJECTION_TOKENS } from '@automoderator/core';
 import { injectable } from 'inversify';
 
-type CacheConstructor = new () => Cache<unknown>;
-
 @injectable()
 export class ProxyCache {
 	public constructor(private readonly cacheFactory: CacheFactory) {}

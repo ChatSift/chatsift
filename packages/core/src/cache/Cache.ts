@@ -58,5 +58,3 @@ export class Cache<T> {
 		await this.redis.del(key, `old:${key}`);
 	}
 }
-
-export type CacheConstructor<T> = new (...args: any[]) => Cache<T>;
