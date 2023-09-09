@@ -5,6 +5,10 @@ import { Reader } from './Reader.js';
 import { Writer } from './Writer.js';
 
 @injectable()
+/**
+ * @remarks
+ * Obviously, those are not singletons.
+ */
 export class RWFactory {
 	public buildReader(data: Buffer): IReader {
 		return new Reader(data);

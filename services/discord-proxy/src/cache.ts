@@ -1,13 +1,15 @@
-import type { Cache } from '@automoderator/core';
-import { GuildCache, globalContainer } from '@automoderator/core';
+import type { ICacheEntity } from '@automoderator/core';
+import { globalContainer, CacheFactory, type Cache, INJECTION_TOKENS } from '@automoderator/core';
 import { injectable } from 'inversify';
 
 type CacheConstructor = new () => Cache<unknown>;
 
 @injectable()
 export class ProxyCache {
-	private readonly cacheConstructorsMap: Record<string, CacheConstructor> = {
-		'/guilds/:id': GuildCache,
+	public constructor(private readonly cacheFactory: CacheFactory) {}
+
+	private readonly cacheEntityTokensMap: Record<string, symbol> = {
+		'/guilds/:id': INJECTION_TOKENS.cacheEntities.guild,
 	};
 
 	private readonly idResolversMap: Record<string, (parameters: string[]) => string> = {
@@ -17,11 +19,13 @@ export class ProxyCache {
 	public async fetch(route: string): Promise<unknown> {
 		const [normalized, parameters] = this.normalizeRoute(route);
 
-		const cacheConstructor = this.cacheConstructorsMap[normalized];
+		const cacheEntityToken = this.cacheEntityTokensMap[normalized];
 		const idResolver = this.idResolversMap[normalized];
 
-		if (cacheConstructor && idResolver) {
-			const cache = globalContainer.get<Cache<unknown>>(cacheConstructor);
+		if (cacheEntityToken && idResolver) {
+			const cacheEntity = globalContainer.get<ICacheEntity<unknown>>(cacheEntityToken);
+			const cache = this.cacheFactory.build(cacheEntity);
+
 			return cache.get(idResolver(parameters));
 		}
 
@@ -31,11 +35,13 @@ export class ProxyCache {
 	public async update(route: string, data: unknown): Promise<void> {
 		const [normalized, parameters] = this.normalizeRoute(route);
 
-		const cacheConstructor = this.cacheConstructorsMap[normalized];
+		const cacheEntityToken = this.cacheEntityTokensMap[normalized];
 		const idResolver = this.idResolversMap[normalized];
 
-		if (cacheConstructor && idResolver) {
-			const cache = globalContainer.get<Cache<unknown>>(cacheConstructor);
+		if (cacheEntityToken && idResolver) {
+			const cacheEntity = globalContainer.get<ICacheEntity<unknown>>(cacheEntityToken);
+			const cache = this.cacheFactory.build(cacheEntity);
+
 			await cache.set(idResolver(parameters), data);
 		}
 	}

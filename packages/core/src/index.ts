@@ -29,3 +29,5 @@ export * from './util/factoryFrom.js';
 export * from './util/PermissionsBitField.js';
 export * from './util/promiseAllObject.js';
 export * from './util/sqlJson.js';
+
+export * from './db.js';
