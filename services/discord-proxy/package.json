@@ -12,9 +12,9 @@
 		"node": ">=16.9.0"
 	},
 	"devDependencies": {
-		"@types/node": "^20.5.2",
-		"pino": "^8.15.0",
-		"typescript": "^5.1.6"
+		"@types/node": "^20.6.3",
+		"pino": "^8.15.1",
+		"typescript": "^5.2.2"
 	},
 	"dependencies": {
 		"@automoderator/core": "workspace:^",

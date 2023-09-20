@@ -86,6 +86,7 @@ export class InteractionsService {
 		this.broker.on(GatewayDispatchEvents.InteractionCreate, async ({ data: interaction, ack }) => {
 			try {
 				if (interaction.type === InteractionType.ApplicationCommand) {
+					// @ts-expect-error - version miss match
 					const options = new InteractionOptionResolver(interaction);
 
 					const [identifier, fallbackIdentifier] = this.getCommandIdentifier(interaction, options);
@@ -113,6 +114,7 @@ export class InteractionsService {
 
 					await handler?.(interaction, args);
 				} else if (interaction.type === InteractionType.ApplicationCommandAutocomplete) {
+					// @ts-expect-error - version miss match
 					const options = new InteractionOptionResolver(interaction);
 					const focused = options.getFocusedOption();
 

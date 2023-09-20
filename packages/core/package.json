@@ -13,9 +13,9 @@
 		"node": ">=16.9.0"
 	},
 	"devDependencies": {
-		"@types/node": "^20.5.2",
+		"@types/node": "^20.6.3",
 		"@types/pg": "^8.10.2",
-		"typescript": "^5.1.6"
+		"typescript": "^5.2.2"
 	},
 	"dependencies": {
 		"@chatsift/pino-rotate-file": "^0.2.0",
@@ -27,9 +27,9 @@
 		"@sapphire/bitfield": "^1.2.0",
 		"inversify": "^6.0.1",
 		"ioredis": "^5.3.2",
-		"kysely": "^0.26.1",
+		"kysely": "^0.26.3",
 		"pg": "^8.11.3",
-		"pino": "^8.15.0",
+		"pino": "^8.15.1",
 		"pino-pretty": "^10.2.0",
 		"tslib": "^2.6.2"
 	}
