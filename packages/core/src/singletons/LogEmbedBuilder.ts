@@ -21,8 +21,8 @@ export class LogEmbedBuilder {
 	public constructor(private readonly util: Util) {}
 
 	public readonly caseLogColors = {
-		role: 16_022_395,
-		unrole: 5_793_266,
+		restrict: 16_022_395,
+		unrestrict: 5_793_266,
 		warn: 16_022_395,
 		timeout: 16_022_395,
 		revokeTimeout: 5_793_266,

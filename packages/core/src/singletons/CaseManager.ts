@@ -35,63 +35,15 @@ export class CaseManager {
 		private readonly util: Util,
 	) {}
 
-	public async role(data: OptionalCaseCreateDurationData & RoleCaseCreateData): Promise<void> {
-		const member = await this.api.guilds.getMember(data.guildId, data.targetId);
-		const initialRoles = await this.util.getNonManagedMemberRoles(data.guildId, member);
-
-		const roles = data.clean ? [data.roleId] : [...initialRoles, data.roleId];
-		const undoRoles = data.clean ? initialRoles : [];
-
-		await this.api.guilds.editMember(data.guildId, data.targetId, { roles });
-
-		await this.db.transaction().execute(async (transaction) => {
-			const cs = await transaction
-				.insertInto('Case')
-				.values({
-					guildId: data.guildId,
-					targetId: data.targetId,
-					modId: data.modId,
-					actionType: CaseAction.role,
-					reason: data.reason,
-				})
-				.returning('id')
-				.executeTakeFirst();
-
-			await transaction
-				.insertInto('RoleCaseData')
-				.values({
-					id: cs!.id,
-					roleId: data.roleId,
-					clean: data.clean,
-					duration: data.duration,
-					expiresAt: data.expiresAt,
-				})
-				.execute();
-
-			if (data.duration) {
-				await transaction
-					.insertInto('Task')
-					.values({
-						type: TaskType.undoTimedRoleCase,
-						guildId: data.guildId,
-						runAt: data.expiresAt,
-						data: sqlJson({ caseId: cs!.id }),
-					})
-					.execute();
-			}
-
-			await transaction
-				.insertInto('UndoRole')
-				.values(undoRoles.map((roleId) => ({ caseId: cs!.id, roleId })))
-				.execute();
-		});
-	}
-
 	public async unrole(cs: Selectable<Case>, data: Selectable<RoleCaseCreateData>): Promise<void> {
 		const member = await this.api.guilds.getMember(cs.guildId, cs.targetId);
 		const initialRoles = await this.util.getNonManagedMemberRoles(cs.guildId, member);
 
-		const undoRoles = await this.db.selectFrom('UndoRole').select('roleId').where('caseId', '=', cs.id).execute();
+		const undoRoles = await this.db
+			.selectFrom('UndoRestrictRole')
+			.select('roleId')
+			.where('caseId', '=', cs.id)
+			.execute();
 		const roles = data.clean ? [...initialRoles, ...undoRoles.map((role) => role.roleId)] : initialRoles;
 
 		await this.api.guilds.editMember(cs.guildId, cs.targetId, { roles: roles.filter((role) => role !== data.roleId) });
@@ -103,12 +55,12 @@ export class CaseManager {
 					guildId: cs.guildId,
 					targetId: cs.targetId,
 					modId: data.modId,
-					actionType: CaseAction.unrole,
+					actionType: CaseAction.unrestrict,
 					reason: data.reason,
 				})
 				.execute();
 
-			await transaction.deleteFrom('UndoRole').where('caseId', '=', cs.id).execute();
+			await transaction.deleteFrom('UndoRestrictRole').where('caseId', '=', cs.id).execute();
 
 			await transaction
 				.deleteFrom('Task')

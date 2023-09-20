@@ -56,7 +56,7 @@ export interface Handler {
 	register(): void;
 }
 
-export type HandlerConstructor = new () => Handler;
+export type HandlerConstructor = new (...args: unknown[]) => Handler;
 
 @injectable()
 export class InteractionsService {

@@ -5,6 +5,8 @@ import { Redis } from 'ioredis';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Logger } from 'pino';
 import createPinoLogger from 'pino';
+import type { IRestrictModAction } from '../actions/IModAction.js';
+import { RestrictModAction } from '../actions/RestrictModAction.js';
 import { GuildCacheEntity, type CachedGuild } from '../cache/entities/GuildCacheEntity.js';
 import type { ICacheEntity } from '../cache/entities/ICacheEntity.js';
 import type { DB } from '../db.js';
@@ -25,6 +27,9 @@ export const INJECTION_TOKENS = {
 	logger: Symbol('logger instance'),
 	cacheEntities: {
 		guild: Symbol('guild cache entity'),
+	},
+	actions: {
+		restrict: Symbol('restrict action'),
 	},
 } as const;
 
@@ -84,9 +89,16 @@ export class DependencyManager {
 	}
 
 	private registerStructures(): void {
+		// cache entities
 		globalContainer
 			.bind<ICacheEntity<CachedGuild>>(INJECTION_TOKENS.cacheEntities.guild)
 			.to(GuildCacheEntity)
+			.inSingletonScope();
+
+		// actions
+		globalContainer
+			.bind<IRestrictModAction>(INJECTION_TOKENS.actions.restrict)
+			.to(RestrictModAction)
 			.inSingletonScope();
 	}
 }

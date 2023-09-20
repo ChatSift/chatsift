@@ -1,5 +1,5 @@
 import type { ICacheEntity } from '@automoderator/core';
-import { globalContainer, CacheFactory, type Cache, INJECTION_TOKENS } from '@automoderator/core';
+import { globalContainer, CacheFactory, INJECTION_TOKENS } from '@automoderator/core';
 import { injectable } from 'inversify';
 
 @injectable()

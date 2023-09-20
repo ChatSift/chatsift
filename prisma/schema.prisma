@@ -35,8 +35,8 @@ model LogChannelWebhook {
 }
 
 enum CaseAction {
-  role
-  unrole
+  restrict
+  unrestrict
   warn
   timeout
   revokeTimeout
@@ -68,25 +68,25 @@ model Case {
   reason       String?
   createdAt    DateTime        @default(now()) @db.Timestamptz(6)
 
-  roleData    RoleCaseData?
+  roleData    RestrictCaseData?
   warnData    WarnCaseData?
   banCaseData BanCaseData?
 }
 
-model UndoRole {
+model UndoRestrictRole {
   caseId   Int
-  caseData RoleCaseData @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseData RestrictCaseData? @relation(fields: [caseId], references: [id], onDelete: Cascade)
   roleId   String
 
   @@id([caseId, roleId])
 }
 
-model RoleCaseData {
+model RestrictCaseData {
   id        Int        @id
   case      Case       @relation(fields: [id], references: [id], onDelete: Cascade)
   roleId    String
   clean     Boolean    @default(false)
-  undoRoles UndoRole[]
+  undoRoles UndoRestrictRole[]
   duration  Int?
   expiresAt DateTime?  @db.Timestamptz(6)
 }

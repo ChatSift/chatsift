@@ -1,19 +1,16 @@
 import type { API, APIGuild, APIGuildMember, APIRole, APIUser } from '@discordjs/core';
 import type { Kysely } from 'kysely';
 import type { DB } from '../db';
-import type { IUserActionValidator } from './IUserActionValidator';
+import type {
+	IUserActionValidator,
+	UserActionValidatorContext,
+	UserActionValidatorResult,
+} from './IUserActionValidator';
 
 export type UserActionValidatorTarget = APIGuildMember | APIUser | string;
 
 function targetIsAPIGuildMember(target: UserActionValidatorTarget): target is APIGuildMember {
 	return typeof target !== 'string' && 'roles' in target;
-}
-
-export interface UserActionValidatorContext {
-	guild: APIGuild | string;
-	guildRoles?: APIRole[] | null;
-	moderator: APIGuildMember;
-	target: APIGuildMember | APIUser | string;
 }
 
 /**
@@ -68,7 +65,7 @@ export class UserActionValidator implements IUserActionValidator {
 		this.guildRoles = context.guildRoles ?? null;
 	}
 
-	public async targetIsActionable(): Promise<boolean> {
+	public async targetIsActionable(): Promise<UserActionValidatorResult> {
 		if (!this.guildRoles) {
 			this.guildRoles = await this.api.guilds.getRoles(this.guildId);
 		}
@@ -77,12 +74,12 @@ export class UserActionValidator implements IUserActionValidator {
 		// This operation is redundant as null implies the user no longer exists,
 		// but should probably go through anyway. We also have no extra state to update.
 		if (!target) {
-			return true;
+			return { ok: true };
 		}
 
 		// Target is not in the guild, role hiararchy does not apply.
 		if (!targetIsAPIGuildMember(target)) {
-			return true;
+			return { ok: true };
 		}
 
 		const guild = await this.assertGuild();
@@ -92,28 +89,32 @@ export class UserActionValidator implements IUserActionValidator {
 
 		// If the target is a moderator, they cannot be acted on.
 		if (target.roles.some((role) => modRoleIds.includes(role))) {
-			return false;
+			return { ok: false, reason: 'Target appears to be a moderator.' };
 		}
 
 		// If the moderator is the owner, they bypass all further role hierarchy checks.
 		if (guild.owner_id === this.moderator.user!.id) {
-			return true;
+			return { ok: true };
 		}
 
 		// If the target is the owner, they cannot be lower than the moderator.
 		if (guild.owner_id === target.user!.id) {
-			return false;
+			return { ok: false, reason: 'Target appears to be the owner of this guild.' };
 		}
 
 		// Mod cannot act on themselves
 		if (this.moderator.user!.id === target.user!.id) {
-			return false;
+			return { ok: false, reason: 'You cannot act on yourself.' };
 		}
 
 		const highestModeratorRole = await this.getHighestRoleForUser(this.moderator.roles);
 		const highestTargetRole = await this.getHighestRoleForUser(target.roles);
 
-		return highestModeratorRole.position > highestTargetRole.position;
+		if (highestModeratorRole.position > highestTargetRole.position) {
+			return { ok: true };
+		}
+
+		return { ok: false, reason: 'Target appears to have a higher role than you.' };
 	}
 
 	private async getHighestRoleForUser(roles: string[]): Promise<APIRole> {

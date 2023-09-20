@@ -2,8 +2,8 @@ import { API } from '@discordjs/core';
 import { injectable } from 'inversify';
 import { Kysely } from 'kysely';
 import type { DB } from '../db';
-import type { IUserActionValidator } from './IUserActionValidator';
-import { UserActionValidator, type UserActionValidatorContext } from './UserActionValidator.js';
+import type { IUserActionValidator, UserActionValidatorContext } from './IUserActionValidator';
+import { UserActionValidator } from './UserActionValidator.js';
 
 @injectable()
 export class UserActionValidatorFactory {

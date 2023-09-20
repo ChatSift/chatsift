@@ -1,14 +1,13 @@
 import type Redis from 'ioredis';
+import type { ICache } from './ICache.js';
 import type { ICacheEntity } from './entities/ICacheEntity.js';
 
 /**
- * Responsible for caching data in Redis.
- *
  * @remarks
  * This class is deliberately not an `@injectable()`, refer to the README for more information on the pattern
  * being used.
  */
-export class Cache<T> {
+export class Cache<T> implements ICache<T> {
 	public constructor(
 		private readonly redis: Redis,
 		private readonly entity: ICacheEntity<T>,

@@ -1,5 +1,5 @@
 import type { Selectable } from 'kysely';
-import type { Case, RoleCaseData, WarnCaseData } from '../db';
+import type { Case, RestrictCaseData, WarnCaseData } from '../db';
 
 /**
  * Represents additional data related to the duration of a case.
@@ -23,15 +23,15 @@ export type OptionalCaseCreateDurationData =
 export interface BaseCaseCreateData {
 	guildId: string;
 	modId: string;
-	reason?: string;
+	reason: string | null;
 	targetId: string;
 }
 
 /**
- * Data required for role cases.
+ * Data required for restrict cases.
  */
 // We use a type intersection here since `OptionalCaseCreateDurationData` is a union.
-export type RoleCaseCreateData = BaseCaseCreateData &
+export type RestrictCaseCreateData = BaseCaseCreateData &
 	OptionalCaseCreateDurationData & {
 		clean: boolean;
 		roleId: string;
@@ -50,12 +50,16 @@ export interface IModAction<TIn, TOut> {
 	execute(data: TIn): Promise<TOut>;
 	/**
 	 * Notifies the target of the action.
+	 *
+	 * @returns A boolean indicating whether the notification was successful.
 	 */
-	notify(data: TIn): Promise<void>;
+	notify(data: TIn): Promise<boolean>;
 }
 
-export interface IRoleModAction extends IModAction<RoleCaseCreateData, Selectable<Case> & Selectable<RoleCaseData>> {}
+export interface IRestrictModAction
+	extends IModAction<RestrictCaseCreateData, Selectable<Case> & Selectable<RestrictCaseData>> {}
 
-export interface IUnroleModAction extends IModAction<Selectable<Case> & Selectable<RoleCaseData>, Selectable<Case>> {}
+export interface IUnrestrictModAction
+	extends IModAction<Selectable<Case> & Selectable<RestrictCaseData>, Selectable<Case>> {}
 
 export interface IWarnCaseAction extends IModAction<BaseCaseCreateData, Selectable<Case> & WarnCaseData> {}

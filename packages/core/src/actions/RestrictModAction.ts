@@ -1,21 +1,25 @@
+import { TimestampStyles, time } from '@discordjs/builders';
 import { API } from '@discordjs/core';
-import { injectable } from 'inversify';
+import { inject, injectable } from 'inversify';
 import { Kysely } from 'kysely';
 import type { Selectable } from 'kysely';
-import { CaseAction, type Case, type DB, type RoleCaseData, TaskType } from '../db.js';
+import { type Logger } from 'pino';
+import { CaseAction, type Case, type DB, type RestrictCaseData, TaskType } from '../db.js';
+import { INJECTION_TOKENS } from '../singletons/DependencyManager.js';
 import { Util } from '../singletons/Util.js';
 import { sqlJson } from '../util/sqlJson.js';
-import type { IRoleModAction, RoleCaseCreateData } from './IModAction';
+import type { IRestrictModAction, RestrictCaseCreateData } from './IModAction.js';
 
 @injectable()
-export class RoleModAction implements IRoleModAction {
+export class RestrictModAction implements IRestrictModAction {
 	public constructor(
 		private readonly api: API,
 		private readonly db: Kysely<DB>,
 		private readonly util: Util,
+		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
 	) {}
 
-	public async execute(data: RoleCaseCreateData): Promise<Selectable<Case> & Selectable<RoleCaseData>> {
+	public async execute(data: RestrictCaseCreateData): Promise<Selectable<Case> & Selectable<RestrictCaseData>> {
 		const member = await this.api.guilds.getMember(data.guildId, data.targetId);
 		const initialRoles = await this.util.getNonManagedMemberRoles(data.guildId, member);
 
@@ -31,14 +35,14 @@ export class RoleModAction implements IRoleModAction {
 					guildId: data.guildId,
 					targetId: data.targetId,
 					modId: data.modId,
-					actionType: CaseAction.role,
+					actionType: CaseAction.restrict,
 					reason: data.reason,
 				})
 				.returningAll()
 				.executeTakeFirst();
 
 			const roleData = await transaction
-				.insertInto('RoleCaseData')
+				.insertInto('RestrictCaseData')
 				.values({
 					id: cs!.id,
 					roleId: data.roleId,
@@ -62,7 +66,7 @@ export class RoleModAction implements IRoleModAction {
 			}
 
 			await transaction
-				.insertInto('UndoRole')
+				.insertInto('UndoRestrictRole')
 				.values(undoRoles.map((roleId) => ({ caseId: cs!.id, roleId })))
 				.execute();
 
@@ -70,5 +74,33 @@ export class RoleModAction implements IRoleModAction {
 		});
 	}
 
-	public async notify(data: RoleCaseCreateData): Promise<void> {}
+	public async notify(data: RestrictCaseCreateData): Promise<boolean> {
+		const guild = await this.api.guilds.get(data.guildId).catch((error) => {
+			this.logger.error(error, 'Failed to fetch guild in notify');
+			return null;
+		});
+
+		if (!guild) {
+			return false;
+		}
+
+		const lines: string[] = [
+			`You have been restricted in ${guild.name}, the following role has been added to you: <@&${data.roleId}>`,
+		];
+
+		if (data.reason) {
+			lines.push(`Reason: ${data.reason}`);
+		}
+
+		if (data.expiresAt) {
+			lines.push(
+				`This punishment will expire at: ${time(data.expiresAt, TimestampStyles.LongDateTime)} (${time(
+					data.expiresAt,
+					TimestampStyles.RelativeTime,
+				)})`,
+			);
+		}
+
+		return this.util.tryDmUser(data.targetId, lines.join('\n'), data.guildId);
+	}
 }

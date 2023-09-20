@@ -12,8 +12,8 @@ export const LogChannelType = {
 } as const;
 export type LogChannelType = (typeof LogChannelType)[keyof typeof LogChannelType];
 export const CaseAction = {
-	role: 'role',
-	unrole: 'unrole',
+	restrict: 'restrict',
+	unrestrict: 'unrestrict',
 	warn: 'warn',
 	timeout: 'timeout',
 	revokeTimeout: 'revokeTimeout',
@@ -60,7 +60,7 @@ export type ModRole = {
 	guildId: string;
 	roleId: string;
 };
-export type RoleCaseData = {
+export type RestrictCaseData = {
 	id: number;
 	roleId: string;
 	clean: Generated<boolean>;
@@ -76,7 +76,7 @@ export type Task = {
 	attempts: Generated<number>;
 	data: unknown;
 };
-export type UndoRole = {
+export type UndoRestrictRole = {
 	caseId: number;
 	roleId: string;
 };
@@ -90,8 +90,8 @@ export type DB = {
 	CaseReference: CaseReference;
 	LogChannelWebhook: LogChannelWebhook;
 	ModRole: ModRole;
-	RoleCaseData: RoleCaseData;
+	RestrictCaseData: RestrictCaseData;
 	Task: Task;
-	UndoRole: UndoRole;
+	UndoRestrictRole: UndoRestrictRole;
 	WarnCaseData: WarnCaseData;
 };
