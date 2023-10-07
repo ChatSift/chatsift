@@ -33,4 +33,5 @@ export * from './util/PermissionsBitField.js';
 export * from './util/promiseAllObject.js';
 export * from './util/sqlJson.js';
 
+export * from './container.js';
 export * from './db.js';

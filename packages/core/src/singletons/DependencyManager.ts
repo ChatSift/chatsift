@@ -1,6 +1,6 @@
 import { API } from '@discordjs/core';
 import { REST } from '@discordjs/rest';
-import { Container, injectable } from 'inversify';
+import { injectable } from 'inversify';
 import { Redis } from 'ioredis';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Logger } from 'pino';
@@ -9,6 +9,7 @@ import type { IRestrictModAction } from '../actions/IModAction.js';
 import { RestrictModAction } from '../actions/RestrictModAction.js';
 import { GuildCacheEntity, type CachedGuild } from '../cache/entities/GuildCacheEntity.js';
 import type { ICacheEntity } from '../cache/entities/ICacheEntity.js';
+import { INJECTION_TOKENS, globalContainer } from '../container.js';
 import type { DB } from '../db.js';
 import { Env } from './Env.js';
 
@@ -16,22 +17,6 @@ import { Env } from './Env.js';
 const {
 	default: { Pool },
 } = await import('pg');
-
-export const globalContainer = new Container({
-	autoBindInjectable: true,
-	defaultScope: 'Singleton',
-});
-
-export const INJECTION_TOKENS = {
-	redis: Symbol('redis instance'),
-	logger: Symbol('logger instance'),
-	cacheEntities: {
-		guild: Symbol('guild cache entity'),
-	},
-	actions: {
-		restrict: Symbol('restrict action'),
-	},
-} as const;
 
 @injectable()
 /**

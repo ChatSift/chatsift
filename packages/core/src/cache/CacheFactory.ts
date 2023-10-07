@@ -1,6 +1,6 @@
 import { inject, injectable } from 'inversify';
 import { Redis } from 'ioredis';
-import { INJECTION_TOKENS } from '../singletons/DependencyManager.js';
+import { INJECTION_TOKENS } from '../container.js';
 import { Cache } from './Cache.js';
 import type { ICache } from './ICache.js';
 import type { ICacheEntity } from './entities/ICacheEntity';
