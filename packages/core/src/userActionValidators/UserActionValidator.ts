@@ -1,15 +1,23 @@
-import type { API, APIGuild, APIGuildMember, APIRole, APIUser } from '@discordjs/core';
+import type {
+	API,
+	APIGuild,
+	APIGuildMember,
+	APIInteractionDataResolvedGuildMember,
+	APIRole,
+	APIUser,
+} from '@discordjs/core';
 import type { Kysely } from 'kysely';
 import type { DB } from '../db';
 import type {
 	IUserActionValidator,
 	UserActionValidatorContext,
 	UserActionValidatorResult,
+	UserActionValidatorTarget,
 } from './IUserActionValidator';
 
-export type UserActionValidatorTarget = APIGuildMember | APIUser | string;
-
-function targetIsAPIGuildMember(target: UserActionValidatorTarget): target is APIGuildMember {
+function targetIsAPIGuildMember(
+	target: UserActionValidatorTarget,
+): target is APIGuildMember | (APIInteractionDataResolvedGuildMember & { user: APIUser }) {
 	return typeof target !== 'string' && 'roles' in target;
 }
 
@@ -34,7 +42,7 @@ export class UserActionValidator implements IUserActionValidator {
 	 */
 	private readonly targetId: string;
 
-	private target: APIGuildMember | APIUser | null;
+	private target: Exclude<UserActionValidatorTarget, string> | null;
 
 	private guildRoles: APIRole[] | null;
 
@@ -126,7 +134,9 @@ export class UserActionValidator implements IUserActionValidator {
 		return role!;
 	}
 
-	private async assertTarget(): Promise<APIGuildMember | APIUser | null> {
+	private async assertTarget(): Promise<
+		APIGuildMember | APIUser | (APIInteractionDataResolvedGuildMember & { user: APIUser }) | null
+	> {
 		if (this.target) {
 			return this.target;
 		}

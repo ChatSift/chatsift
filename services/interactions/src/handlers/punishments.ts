@@ -54,7 +54,8 @@ export default class Punishments implements Handler {
 						},
 						{
 							name: 'clean',
-							description: "Whether or not to remove the other user's roles for the duration of this action",
+							description:
+								"Whether or not to remove the other user's roles for the duration of this action - defaults to true",
 							type: ApplicationCommandOptionType.Boolean,
 							required: false,
 						},
@@ -73,7 +74,8 @@ export default class Punishments implements Handler {
 	}
 
 	private readonly handleRestrict: CommandHandler = async (interaction, options) => {
-		const target = options.getUser('target', true);
+		const resolvedMember = options.getMember('target', true);
+		const target = { ...resolvedMember, user: options.getUser('target', true) };
 
 		const actionValidator = this.userActionValidatorFactory.build({
 			guild: interaction.guild_id!,
@@ -107,8 +109,8 @@ export default class Punishments implements Handler {
 			guildId: interaction.guild_id!,
 			modId: interaction.member!.user.id,
 			reason: options.getString('reason'),
-			targetId: target.id,
-			clean: options.getBoolean('clean', true),
+			targetId: target.user.id,
+			clean: options.getBoolean('clean') ?? true,
 			roleId: options.getRole('role', true).id,
 			expiresAt: duration ? new Date(Date.now() + duration) : null,
 		};

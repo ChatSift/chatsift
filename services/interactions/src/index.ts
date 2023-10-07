@@ -1,3 +1,5 @@
+// TODO: Look into exposed ports
+
 import 'reflect-metadata';
 import { globalContainer, DependencyManager } from '@automoderator/core';
 import { InteractionsService } from './interactions.js';

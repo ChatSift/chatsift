@@ -1,10 +1,22 @@
-import type { APIGuild, APIGuildMember, APIRole, APIUser } from '@discordjs/core';
+import type {
+	APIGuild,
+	APIGuildMember,
+	APIInteractionDataResolvedGuildMember,
+	APIRole,
+	APIUser,
+} from '@discordjs/core';
+
+export type UserActionValidatorTarget =
+	| APIGuildMember
+	| APIUser
+	| string
+	| (APIInteractionDataResolvedGuildMember & { user: APIUser });
 
 export interface UserActionValidatorContext {
 	guild: APIGuild | string;
 	guildRoles?: APIRole[] | null;
 	moderator: APIGuildMember;
-	target: APIGuildMember | APIUser | string;
+	target: UserActionValidatorTarget;
 }
 
 export type UserActionValidatorResult =
