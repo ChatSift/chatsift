@@ -1,11 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import { URL } from 'node:url';
 import { Env, INJECTION_TOKENS } from '@automoderator/core';
-import {
-	populateAbortErrorResponse,
-	populateGeneralErrorResponse,
-	populateRatelimitErrorResponse,
-} from '@discordjs/proxy';
+import { populateErrorResponse } from '@discordjs/proxy';
 import {
 	REST,
 	RequestMethod,
@@ -31,8 +27,10 @@ export class ProxyServer {
 		const rest = new REST({ rejectOnRateLimit: () => true, retries: 0 }).setToken(this.env.discordToken);
 		this.server = createServer(async (req, res) => {
 			const { method, url } = req as { method: RequestMethod; url: string };
+
+			const parsedUrl = new URL(url, 'http://noop');
 			// eslint-disable-next-line prefer-named-capture-group
-			const fullRoute = new URL(url, 'http://noop').pathname.replace(/^\/api(\/v\d+)?/, '') as RouteLike;
+			const fullRoute = parsedUrl.pathname.replace(/^\/api(\/v\d+)?/, '') as RouteLike;
 
 			if (method === RequestMethod.Get) {
 				const cached = await this.cache.fetch(fullRoute);
@@ -44,12 +42,23 @@ export class ProxyServer {
 				}
 			}
 
+			const headers: Record<string, string> = {
+				'Content-Type': req.headers['content-type']!,
+			};
+
+			if (req.headers.authorization) {
+				headers.authorization = req.headers.authorization;
+			}
+
 			try {
 				const discordResponse = await rest.queueRequest({
 					body: req,
 					fullRoute,
 					method,
+					auth: false,
 					passThroughBody: true,
+					query: parsedUrl.searchParams,
+					headers,
 				});
 
 				res.statusCode = discordResponse.status;
@@ -70,13 +79,8 @@ export class ProxyServer {
 				await this.cache.update(fullRoute, data);
 			} catch (error) {
 				this.logger.error({ err: error, fullRoute, method }, 'Something went wrong');
-				if (error instanceof DiscordAPIError || error instanceof HTTPError) {
-					populateGeneralErrorResponse(res, error);
-				} else if (error instanceof RateLimitError) {
-					populateRatelimitErrorResponse(res, error);
-				} else if (error instanceof Error && error.name === 'AbortError') {
-					populateAbortErrorResponse(res);
-				} else {
+				const knownError = populateErrorResponse(res, error);
+				if (!knownError) {
 					throw error;
 				}
 			} finally {
