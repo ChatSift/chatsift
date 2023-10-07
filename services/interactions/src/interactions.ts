@@ -31,7 +31,7 @@ export type CommandHandler = (
 
 export type ComponentHandler = (interaction: APIMessageComponentInteraction, args: string[]) => Promise<void>;
 
-// [command]:autocompleteName
+// [command]:argName
 export type AutocompleteIdentifier = `${CommandIdentifier}:${string}`;
 
 export type AutocompleteHandler = (
@@ -48,7 +48,7 @@ export interface RegisterOptions {
 	autocomplete?: [AutocompleteIdentifier, AutocompleteHandler][];
 	commands?: [CommandIdentifier, CommandHandler][];
 	components?: [string, ComponentHandler][];
-	interaction?: RESTPostAPIApplicationCommandsJSONBody;
+	interactions?: RESTPostAPIApplicationCommandsJSONBody[];
 	modals?: [string, ModalHandler][];
 }
 
@@ -170,8 +170,8 @@ export class InteractionsService {
 	}
 
 	public register(options: RegisterOptions): void {
-		if (options.interaction) {
-			this.interactions.push(options.interaction);
+		if (options.interactions) {
+			this.interactions.push(...options.interactions);
 		}
 
 		if (options.commands?.length) {

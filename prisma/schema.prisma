@@ -87,7 +87,6 @@ model RestrictCaseData {
   roleId    String
   clean     Boolean    @default(false)
   undoRoles UndoRestrictRole[]
-  duration  Int?
   expiresAt DateTime?  @db.Timestamptz(6)
 }
 
@@ -101,7 +100,6 @@ model BanCaseData {
   id                Int       @id
   case              Case      @relation(fields: [id], references: [id], onDelete: Cascade)
   deleteMessageDays Int?
-  duration          Int?
   expiresAt         DateTime? @db.Timestamptz(6)
 }
 

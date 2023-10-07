@@ -2,22 +2,6 @@ import type { Selectable } from 'kysely';
 import type { Case, RestrictCaseData, WarnCaseData } from '../db';
 
 /**
- * Represents additional data related to the duration of a case.
- *
- * This is optional, either both properties or neither must be passed in, and is meant to be "mixed-in" to other
- * case data interfaces that support timed actions.
- */
-export type OptionalCaseCreateDurationData =
-	| {
-			duration: null;
-			expiresAt: null;
-	  }
-	| {
-			duration: number;
-			expiresAt: Date;
-	  };
-
-/**
  * Base data required to create a case.
  */
 export interface BaseCaseCreateData {
@@ -31,11 +15,11 @@ export interface BaseCaseCreateData {
  * Data required for restrict cases.
  */
 // We use a type intersection here since `OptionalCaseCreateDurationData` is a union.
-export type RestrictCaseCreateData = BaseCaseCreateData &
-	OptionalCaseCreateDurationData & {
-		clean: boolean;
-		roleId: string;
-	};
+export interface RestrictCaseCreateData extends BaseCaseCreateData {
+	clean: boolean;
+	expiresAt: Date | null;
+	roleId: string;
+}
 
 /**
  * Structure responsible for preparation, execution, and notification of a mod action.

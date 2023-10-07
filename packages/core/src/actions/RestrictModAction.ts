@@ -47,13 +47,12 @@ export class RestrictModAction implements IRestrictModAction {
 					id: cs!.id,
 					roleId: data.roleId,
 					clean: data.clean,
-					duration: data.duration,
 					expiresAt: data.expiresAt,
 				})
 				.returningAll()
 				.executeTakeFirst();
 
-			if (data.duration) {
+			if (data.expiresAt) {
 				await transaction
 					.insertInto('Task')
 					.values({

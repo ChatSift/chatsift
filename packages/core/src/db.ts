@@ -30,7 +30,6 @@ export type TaskType = (typeof TaskType)[keyof typeof TaskType];
 export type BanCaseData = {
 	id: number;
 	deleteMessageDays: number | null;
-	duration: number | null;
 	expiresAt: Timestamp | null;
 };
 export type Case = {
@@ -64,7 +63,6 @@ export type RestrictCaseData = {
 	id: number;
 	roleId: string;
 	clean: Generated<boolean>;
-	duration: number | null;
 	expiresAt: Timestamp | null;
 };
 export type Task = {
