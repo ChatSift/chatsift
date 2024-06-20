@@ -14,12 +14,12 @@ export class CacheFactory {
 
 	public constructor(@inject(INJECTION_TOKENS.redis) private readonly redis: Redis) {}
 
-	public build<T>(entity: ICacheEntity<T>): ICache<T> {
+	public build<ValueType>(entity: ICacheEntity<ValueType>): ICache<ValueType> {
 		if (this.caches.has(entity)) {
-			return this.caches.get(entity)! as ICache<T>;
+			return this.caches.get(entity)! as ICache<ValueType>;
 		}
 
-		const cache = new RedisCache<T>(this.redis, entity);
+		const cache = new RedisCache<ValueType>(this.redis, entity);
 		this.caches.set(entity, cache);
 
 		return cache;

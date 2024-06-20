@@ -1,7 +1,6 @@
 import { setInterval } from 'node:timers';
 import { inject, injectable } from 'inversify';
 import murmurhash from 'murmurhash';
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import type { Logger } from 'pino';
 import { IDataManager, type ExperimentWithOverrides } from '../applicationData/IDataManager.js';
 import { INJECTION_TOKENS } from '../container.js';

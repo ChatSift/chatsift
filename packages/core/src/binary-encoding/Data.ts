@@ -31,13 +31,13 @@ export type SimpleDataTypes =
 export type ComplexDataTypes = DataType.Array | DataType.Object;
 
 export interface IReader {
-	array<T>(mapper: (buffer: this) => T): T[];
+	array<ValueType>(mapper: (buffer: this) => ValueType): ValueType[];
 	bool(): boolean | null;
 	date(): number | null;
 	i16(): number | null;
 	i32(): number | null;
 	i8(): number | null;
-	object<T extends Record<string, unknown>>(mapper: (buffer: this) => T): T | null;
+	object<ValueType extends Record<string, unknown>>(mapper: (buffer: this) => ValueType): ValueType | null;
 	string(): string | null;
 	u16(): number | null;
 	u32(): number | null;
@@ -46,7 +46,7 @@ export interface IReader {
 }
 
 export interface IWriter {
-	array<T>(values: readonly T[] | null, mapper: (buffer: this, value: T) => void): this;
+	array<ValueType>(values: readonly ValueType[] | null, mapper: (buffer: this, value: ValueType) => void): this;
 	bool(value?: boolean | null): this;
 	date(value?: number | string | null): this;
 	dump(): Buffer;
@@ -54,7 +54,10 @@ export interface IWriter {
 	i16(value?: number | null): this;
 	i32(value?: number | null): this;
 	i8(value?: number | null): this;
-	object<T extends Record<string, unknown>>(value: T | null, mapper: (buffer: this, value: T) => void): this;
+	object<ValueType extends Record<string, unknown>>(
+		value: ValueType | null,
+		mapper: (buffer: this, value: ValueType) => void,
+	): this;
 	string(value?: string | null): this;
 	u16(value?: number | null): this;
 	u32(value?: number | null): this;

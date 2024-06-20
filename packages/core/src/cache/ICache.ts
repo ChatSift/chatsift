@@ -1,10 +1,10 @@
 /**
  * Responsible for caching data in Redis.
  */
-export interface ICache<T> {
+export interface ICache<ValueType> {
 	delete(id: string): Promise<void>;
-	get(id: string): Promise<T | null>;
-	getOld(id: string): Promise<T | null>;
+	get(id: string): Promise<ValueType | null>;
+	getOld(id: string): Promise<ValueType | null>;
 	has(id: string): Promise<boolean>;
-	set(id: string, value: T): Promise<void>;
+	set(id: string, value: ValueType): Promise<void>;
 }

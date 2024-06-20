@@ -5,25 +5,25 @@
 	"version": "1.0.0",
 	"type": "module",
 	"scripts": {
-		"lint": "eslint src --ext .ts",
+		"lint": "eslint src",
 		"build": "tsc"
 	},
 	"engines": {
 		"node": ">=16.9.0"
 	},
 	"devDependencies": {
-		"@types/node": "^20.6.3",
-		"pino": "^8.15.1",
-		"typescript": "^5.2.2"
+		"@types/node": "^20.14.6",
+		"pino": "^9.2.0",
+		"typescript": "^5.4.5"
 	},
 	"dependencies": {
 		"@automoderator/core": "workspace:^",
-		"@discordjs/core": "^1.0.1",
-		"@discordjs/proxy": "^2.0.1",
-		"@discordjs/rest": "^2.0.1",
-		"inversify": "^6.0.1",
-		"ioredis": "^5.3.2",
-		"reflect-metadata": "^0.1.13",
-		"tslib": "^2.6.2"
+		"@discordjs/core": "^1.2.0",
+		"@discordjs/proxy": "^2.1.0",
+		"@discordjs/rest": "^2.3.0",
+		"inversify": "^6.0.2",
+		"ioredis": "5.3.2",
+		"reflect-metadata": "^0.2.2",
+		"tslib": "^2.6.3"
 	}
 }

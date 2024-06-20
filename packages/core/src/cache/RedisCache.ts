@@ -7,17 +7,17 @@ import type { ICacheEntity } from './entities/ICacheEntity.js';
  * This class is deliberately not an `@injectable()`, refer to the README for more information on the pattern
  * being used.
  */
-export class RedisCache<T> implements ICache<T> {
+export class RedisCache<ValueType> implements ICache<ValueType> {
 	public constructor(
 		private readonly redis: Redis,
-		private readonly entity: ICacheEntity<T>,
+		private readonly entity: ICacheEntity<ValueType>,
 	) {}
 
 	public async has(id: string): Promise<boolean> {
 		return Boolean(await this.redis.exists(this.entity.makeKey(id)));
 	}
 
-	public async get(id: string): Promise<T | null> {
+	public async get(id: string): Promise<ValueType | null> {
 		const key = this.entity.makeKey(id);
 		const raw = await this.redis.getBuffer(key);
 
@@ -29,7 +29,7 @@ export class RedisCache<T> implements ICache<T> {
 		return this.entity.toJSON(raw);
 	}
 
-	public async getOld(id: string): Promise<T | null> {
+	public async getOld(id: string): Promise<ValueType | null> {
 		const key = `old:${this.entity.makeKey(id)}`;
 		const raw = await this.redis.getBuffer(key);
 
@@ -41,7 +41,7 @@ export class RedisCache<T> implements ICache<T> {
 		return this.entity.toJSON(raw);
 	}
 
-	public async set(id: string, value: T): Promise<void> {
+	public async set(id: string, value: ValueType): Promise<void> {
 		const key = this.entity.makeKey(id);
 		if (await this.redis.exists(key)) {
 			await this.redis.rename(key, `old:${key}`);

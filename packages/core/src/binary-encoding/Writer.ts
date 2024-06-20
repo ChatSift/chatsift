@@ -162,7 +162,7 @@ export class Writer implements IWriter {
 		return this.u64(parsed, DataType.Date);
 	}
 
-	public array<T>(values: readonly T[] | null, mapper: (buffer: this, value: T) => void) {
+	public array<ValueType>(values: readonly ValueType[] | null, mapper: (buffer: this, value: ValueType) => void) {
 		if (!values?.length) {
 			return this.writeNull();
 		}
@@ -177,7 +177,10 @@ export class Writer implements IWriter {
 		return this;
 	}
 
-	public object<T extends Record<string, unknown>>(value: T | null, mapper: (buffer: this, value: T) => void) {
+	public object<ValueType extends Record<string, unknown>>(
+		value: ValueType | null,
+		mapper: (buffer: this, value: ValueType) => void,
+	) {
 		if (value == null) {
 			return this.writeNull();
 		}

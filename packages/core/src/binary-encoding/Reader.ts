@@ -129,7 +129,7 @@ export class Reader implements IReader {
 		return Number(value);
 	}
 
-	public array<T>(mapper: (buffer: this) => T): T[] {
+	public array<ValueType>(mapper: (buffer: this) => ValueType): ValueType[] {
 		if (this.readNull(DataType.Array)) {
 			return [];
 		}
@@ -137,7 +137,7 @@ export class Reader implements IReader {
 		const length = this.data.readUInt32LE(this.offset);
 		this.offset += 4;
 
-		const values: T[] = [];
+		const values: ValueType[] = [];
 		for (let index = 0; index < length; index++) {
 			values.push(mapper(this));
 		}
@@ -145,7 +145,7 @@ export class Reader implements IReader {
 		return values;
 	}
 
-	public object<T extends Record<string, unknown>>(mapper: (buffer: this) => T): T | null {
+	public object<ValueType extends Record<string, unknown>>(mapper: (buffer: this) => ValueType): ValueType | null {
 		if (this.readNull(DataType.Object)) {
 			return null;
 		}
@@ -153,7 +153,7 @@ export class Reader implements IReader {
 		return mapper(this);
 	}
 
-	private readNull<Type extends Exclude<DataType, DataType.Null>>(dataType: Type): boolean {
+	private readNull<ValueType extends Exclude<DataType, DataType.Null>>(dataType: ValueType): boolean {
 		const read = this.data.readUInt8(this.offset++) as DataType;
 		if (read === DataType.Null) {
 			return true;

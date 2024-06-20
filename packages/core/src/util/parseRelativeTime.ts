@@ -2,14 +2,14 @@
  * @remarks
  * This is used for various ops, hence the <T>
  */
-type TimeParserResult<T> =
+type TimeParserResult<ValueType> =
 	| {
 			error: string;
 			ok: false;
 	  }
 	| {
 			ok: true;
-			value: T;
+			value: ValueType;
 	  };
 
 const oneMs = 1;

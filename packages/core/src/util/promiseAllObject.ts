@@ -17,8 +17,8 @@
  *
  * => Promise<{ a: X, b: Y }>
  */
-export async function promiseAllObject<T extends Record<string, Promise<any>>>(
-	obj: T,
-): Promise<{ [K in keyof T]: Awaited<T[K]> }> {
+export async function promiseAllObject<TRecord extends Record<string, Promise<any>>>(
+	obj: TRecord,
+): Promise<{ [K in keyof TRecord]: Awaited<TRecord[K]> }> {
 	return Object.fromEntries(await Promise.all(Object.entries(obj).map(async ([key, value]) => [key, await value])));
 }
