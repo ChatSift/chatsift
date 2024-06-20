@@ -1,6 +1,6 @@
 # cache
 
-This is where we deal with caching. A couple of things to note:
+This is where we deal with Discord data caching. A couple of things to note:
 
 - we use our own encoding format for cache to make encoding/decoding and space usage as efficient as possible.
   Refer to the [`binary-encoding` directory](../binary-encoding)

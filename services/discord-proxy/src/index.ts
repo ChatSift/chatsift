@@ -2,9 +2,7 @@ import 'reflect-metadata';
 import { DependencyManager, globalContainer } from '@automoderator/core';
 import { ProxyServer } from './server.js';
 
-// We don't need the default REST/API instance or prisma
-const dependencyManager = globalContainer.get(DependencyManager);
-dependencyManager.registerRedis();
-dependencyManager.registerLogger();
+const _dependencyManager = globalContainer.get(DependencyManager);
 
-globalContainer.get(ProxyServer).listen();
+const server = globalContainer.get(ProxyServer);
+server.listen(8_000);

@@ -9,110 +9,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model ModRole {
-  guildId String
-  roleId  String
-
-  @@id([guildId, roleId])
+model Experiment {
+  name       String               @id
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime?
+  rangeStart Int
+  rangeEnd   Int
+  active     Boolean              @default(true)
+  overrides  ExperimentOverride[]
 }
 
-enum LogChannelType {
-  mod
-  filter
-  user
-  message
-}
+model ExperimentOverride {
+  id             Int        @id @default(autoincrement())
+  guildId        String
+  experimentName String
+  experiment     Experiment @relation(fields: [experimentName], references: [name])
 
-model LogChannelWebhook {
-  guildId      String
-  logType      LogChannelType
-  channelId    String
-  webhookId    String
-  webhookToken String
-  threadId     String?
-
-  @@id([guildId, logType])
-}
-
-enum CaseAction {
-  restrict
-  unrestrict
-  warn
-  timeout
-  revokeTimeout
-  kick
-  softban
-  ban
-  unban
-}
-
-model CaseReference {
-  caseId  Int
-  case    Case @relation("referenced", fields: [caseId], references: [id])
-  refId   Int
-  refCase Case @relation("references", fields: [refId], references: [id])
-
-  @@id([caseId, refId])
-}
-
-model Case {
-  id           Int             @id @default(autoincrement())
-  guildId      String
-  logChannelId String?
-  logMessageId String?
-  referencedBy CaseReference[] @relation("referenced")
-  references   CaseReference[] @relation("references")
-  targetId     String
-  modId        String?
-  actionType   CaseAction
-  reason       String?
-  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
-
-  roleData    RestrictCaseData?
-  warnData    WarnCaseData?
-  banCaseData BanCaseData?
-}
-
-model UndoRestrictRole {
-  caseId   Int
-  caseData RestrictCaseData? @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  roleId   String
-
-  @@id([caseId, roleId])
-}
-
-model RestrictCaseData {
-  id        Int        @id
-  case      Case       @relation(fields: [id], references: [id], onDelete: Cascade)
-  roleId    String
-  clean     Boolean    @default(false)
-  undoRoles UndoRestrictRole[]
-  expiresAt DateTime?  @db.Timestamptz(6)
-}
-
-model WarnCaseData {
-  id           Int     @id
-  case         Case    @relation(fields: [id], references: [id], onDelete: Cascade)
-  pardonedById String?
-}
-
-model BanCaseData {
-  id                Int       @id
-  case              Case      @relation(fields: [id], references: [id], onDelete: Cascade)
-  deleteMessageDays Int?
-  expiresAt         DateTime? @db.Timestamptz(6)
-}
-
-enum TaskType {
-  undoTimedRoleCase
-}
-
-model Task {
-  id        Int      @id @default(autoincrement())
-  type      TaskType
-  guildId   String
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  runAt     DateTime @db.Timestamptz(6)
-  attempts  Int      @default(0)
-  data      Json
+  @@unique([guildId, experimentName])
 }

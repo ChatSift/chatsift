@@ -105,6 +105,7 @@ __metadata:
     inversify: ^6.0.1
     ioredis: ^5.3.2
     kysely: ^0.26.3
+    murmurhash: ^2.0.1
     pg: ^8.11.3
     pino: ^8.15.1
     pino-pretty: ^10.2.0
@@ -324,64 +325,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/automoderator-interactions@workspace:services/interactions":
-  version: 0.0.0-use.local
-  resolution: "@chatsift/automoderator-interactions@workspace:services/interactions"
-  dependencies:
-    "@automoderator/core": "workspace:^"
-    "@chatsift/readdir": ^0.3.0
-    "@discordjs/brokers": ^0.2.2
-    "@discordjs/core": ^1.0.1
-    "@discordjs/rest": ^2.0.1
-    "@discordjs/ws": ^1.0.1
-    "@sapphire/discord-utilities": ^3.1.1
-    "@types/node": ^20.6.3
-    inversify: ^6.0.1
-    ioredis: ^5.3.2
-    pino: ^8.15.1
-    reflect-metadata: ^0.1.13
-    tslib: ^2.6.2
-    typescript: ^5.2.2
-    undici: ^5.25.0
-  languageName: unknown
-  linkType: soft
-
-"@chatsift/automoderator-logging@workspace:services/logging":
-  version: 0.0.0-use.local
-  resolution: "@chatsift/automoderator-logging@workspace:services/logging"
-  dependencies:
-    "@automoderator/core": "workspace:^"
-    "@discordjs/brokers": ^0.2.2
-    "@discordjs/core": ^1.0.1
-    "@discordjs/rest": ^2.0.1
-    "@discordjs/ws": ^1.0.1
-    "@types/node": ^20.6.3
-    inversify: ^6.0.1
-    ioredis: ^5.3.2
-    kysely: ^0.26.3
-    pino: ^8.15.1
-    reflect-metadata: ^0.1.13
-    tslib: ^2.6.2
-    typescript: ^5.2.2
-  languageName: unknown
-  linkType: soft
-
-"@chatsift/automoderator-task-runner@workspace:services/task-runner":
-  version: 0.0.0-use.local
-  resolution: "@chatsift/automoderator-task-runner@workspace:services/task-runner"
-  dependencies:
-    "@automoderator/core": "workspace:^"
-    "@types/node": ^20.6.3
-    inversify: ^6.0.1
-    ioredis: ^5.3.2
-    kysely: ^0.26.3
-    pino: ^8.15.1
-    reflect-metadata: ^0.1.13
-    tslib: ^2.6.2
-    typescript: ^5.2.2
-  languageName: unknown
-  linkType: soft
-
 "@chatsift/automoderator@workspace:.":
   version: 0.0.0-use.local
   resolution: "@chatsift/automoderator@workspace:."
@@ -411,16 +354,6 @@ __metadata:
     pino-abstract-transport: ^1.0.0
     tslib: ^2.5.0
   checksum: 895d25f6b8ef1115dee24268c309bc53345b8f0c5245f8e9cd29aef2afe71c12f118a23a2d15339808d5b2443aa4c6c141812bc8876155dda8866326906cd5f3
-  languageName: node
-  linkType: hard
-
-"@chatsift/readdir@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "@chatsift/readdir@npm:0.3.0"
-  dependencies:
-    tiny-typed-emitter: ^2.1.0
-    tslib: ^2.5.0
-  checksum: 6055f47dbc4e1aebaea3778d082cdd06fd098ed318e9d56584f87f47dda49f66e32c44bd06b6d70485f17f1f0bb6d74d7b02b480c6e48030af971b03f748d4b2
   languageName: node
   linkType: hard
 
@@ -1296,15 +1229,6 @@ __metadata:
   version: 1.2.0
   resolution: "@sapphire/bitfield@npm:1.2.0"
   checksum: c0f6bac13970ff588fa0f16a397c7a33c3ab927bccc0b0589ed1934787b67bf91ba784f26dd125f55978a13a09e38b31ff50074248034456964f9416bfee022a
-  languageName: node
-  linkType: hard
-
-"@sapphire/discord-utilities@npm:^3.1.1":
-  version: 3.1.1
-  resolution: "@sapphire/discord-utilities@npm:3.1.1"
-  dependencies:
-    discord-api-types: ^0.37.55
-  checksum: 423c9cd541d2dbdbcaa18d7793ae40d557808c348d7fea1c6963b249bb647df3b99ac3fb24024820c8e84ae4300560d927cd7a3cefbf22fa0f0dfd49f5764ee8
   languageName: node
   linkType: hard
 
@@ -3150,13 +3074,6 @@ __metadata:
   version: 0.37.50
   resolution: "discord-api-types@npm:0.37.50"
   checksum: 08dc5145dbefda5f52b479cd42d96ac2b8110300861855e1f92cc8a0a6525a4059e32724cd5237490c286f5afd86797a86823238cd5eee016198560bb36f6d43
-  languageName: node
-  linkType: hard
-
-"discord-api-types@npm:^0.37.55":
-  version: 0.37.56
-  resolution: "discord-api-types@npm:0.37.56"
-  checksum: 797be690af70a846422f955d918a5713a2c8c37bea646e2120996522afbb47fc5893122c1ddcb8f57a285ace6e1fb0237d1e63105444ae52534f0570a2f87f34
   languageName: node
   linkType: hard
 
@@ -6716,6 +6633,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"murmurhash@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "murmurhash@npm:2.0.1"
+  checksum: 8bb90f43b1c41b1d046efe662a02dcc3cdbda4b42fbbadf7488046772d9eecf2b37ffb6cb73d0d96f2ff489d9f4a8252c674bbae588a6179f60854fe0bfe3325
+  languageName: node
+  linkType: hard
+
 "nanoid@npm:^3.3.4":
   version: 3.3.4
   resolution: "nanoid@npm:3.3.4"
@@ -8859,13 +8783,6 @@ __metadata:
     globalyzer: 0.1.0
     globrex: ^0.1.2
   checksum: aea5801eb6663ddf77ebb74900b8f8bd9dfcfc9b6a1cc8018cb7421590c00bf446109ff45e4b64a98e6c95ddb1255a337a5d488fb6311930e2a95334151ec9c6
-  languageName: node
-  linkType: hard
-
-"tiny-typed-emitter@npm:^2.1.0":
-  version: 2.1.0
-  resolution: "tiny-typed-emitter@npm:2.1.0"
-  checksum: 709bca410054e08df4dc29d5ea0916328bb2900d60245c6a743068ea223887d9fd2c945b6070eb20336275a557a36c2808e5c87d2ed4b60633458632be4a3e10
   languageName: node
   linkType: hard
 

@@ -7,7 +7,7 @@ import type { ICacheEntity } from './entities/ICacheEntity.js';
  * This class is deliberately not an `@injectable()`, refer to the README for more information on the pattern
  * being used.
  */
-export class Cache<T> implements ICache<T> {
+export class RedisCache<T> implements ICache<T> {
 	public constructor(
 		private readonly redis: Redis,
 		private readonly entity: ICacheEntity<T>,

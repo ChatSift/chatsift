@@ -1,3 +1,3 @@
 # binary-encoding
 
-Custom encoding we use for storing cache.
+Custom encoding we use for storing Discord data cache.
