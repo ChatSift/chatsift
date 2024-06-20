@@ -4,6 +4,7 @@
 // Note that this file should never be imported/exported. Pino spawns it as a worker thread.
 
 import { URL } from 'node:url';
+import pino from 'pino';
 import buildPinoTransport from 'pino-abstract-transport';
 
 /**
@@ -46,8 +47,20 @@ export default async function transport(options: TransportOptions) {
 	});
 }
 
+function transformLogData(data: any) {
+	if ('level' in data && typeof data.level === 'number') {
+		data.level = pino.levels.labels[data.level];
+	}
+
+	if ('datetime' in data) {
+		delete data.datetime;
+	}
+
+	return data;
+}
+
 async function handleLog(options: LogData) {
-	const body = JSON.stringify(options.data);
+	const body = JSON.stringify(transformLogData(options.data));
 
 	const res = await fetch(new URL('/api/v1/ingest', options.domain), {
 		method: 'POST',
@@ -117,7 +130,7 @@ async function ensureStream(options: TransportOptions): Promise<void> {
 		// Streams must not be empty before setting up retention
 		await handleLog({
 			...options,
-			data: { message: 'Log stream created', level: 'info', datetime: new Date().toISOString() },
+			data: { msg: 'Log stream created', level: pino.levels.values.info, datetime: new Date().toISOString() },
 		});
 
 		const retentionResponse = await fetch(new URL(`/api/v1/logstream/${stream}/retention`, domain), {

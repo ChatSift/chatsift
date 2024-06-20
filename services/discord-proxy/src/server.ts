@@ -35,8 +35,8 @@ export class ProxyServer {
 
 		if (method === RequestMethod.Get) {
 			const cached = await this.cache.fetch(fullRoute);
-			this.logger.debug(cached, 'cache hit');
 			if (cached !== null) {
+				this.logger.debug(cached, 'cache hit');
 				res.statusCode = 200;
 				res.setHeader('Content-Type', 'application/json');
 				return res.end(JSON.stringify(cached));
@@ -74,7 +74,7 @@ export class ProxyServer {
 			}
 
 			const data = await parseResponse(discordResponse);
-			this.logger.debug(data, 'response');
+			this.logger.trace(data, 'response');
 			res.write(JSON.stringify(data));
 
 			await this.cache.update(fullRoute, data);

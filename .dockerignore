@@ -19,8 +19,5 @@ ley.config.mjs
 .gitattributes
 .gitignore
 
-a.ci.sh
-a.sh
-
 LICENSE
 **/README.md

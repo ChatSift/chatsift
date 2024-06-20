@@ -6,11 +6,11 @@ import { injectable } from 'inversify';
  * The environment variables for the application, provided as a singleton.
  */
 export class Env {
-	public readonly discordToken = process.env.DISCORD_TOKEN!;
+	public readonly discordToken: string = process.env.DISCORD_TOKEN!;
 
-	public readonly discordClientId = process.env.DISCORD_CLIENT_ID!;
+	public readonly discordClientId: string = process.env.DISCORD_CLIENT_ID!;
 
-	public readonly redisUrl = process.env.REDIS_URL!;
+	public readonly redisUrl: string = process.env.REDIS_URL!;
 
 	public readonly nodeEnv: 'dev' | 'prod' = (process.env.NODE_ENV ?? 'prod') as 'dev' | 'prod';
 
@@ -18,7 +18,7 @@ export class Env {
 
 	public readonly postgresHost: string = process.env.POSTGRES_HOST!;
 
-	public readonly postgresPort: number = Number(process.env.POSTGRES_PORT ?? '5432');
+	public readonly postgresPort: number = Number(process.env.POSTGRES_PORT!);
 
 	public readonly postgresUser: string = process.env.POSTGRES_USER!;
 
@@ -26,22 +26,32 @@ export class Env {
 
 	public readonly postgresDatabase: string = process.env.POSTGRES_DATABASE!;
 
+	public readonly parseableDomain: string = process.env.PARSEABLE_DOMAIN!;
+
+	public readonly parseableAuth: string = process.env.PARSEABLE_AUTH!;
+
 	private readonly REQUIRED_KEYS = [
 		'DISCORD_TOKEN',
 		'DISCORD_CLIENT_ID',
+
 		'REDIS_URL',
+
 		'DISCORD_PROXY_URL',
+
 		'POSTGRES_HOST',
+		'POSTGRES_PORT',
 		'POSTGRES_USER',
 		'POSTGRES_PASSWORD',
 		'POSTGRES_DATABASE',
+
+		'PARSEABLE_DOMAIN',
+		'PARSEABLE_AUTH',
 	] as const;
 
 	public constructor() {
-		for (const key of this.REQUIRED_KEYS) {
-			if (!(key in process.env)) {
-				throw new Error(`Missing environment variable ${key}`);
-			}
+		const missingKeys = this.REQUIRED_KEYS.filter((key) => !(key in process.env));
+		if (missingKeys.length) {
+			throw new Error(`Missing environment variables: ${missingKeys.join(', ')}`);
 		}
 	}
 }

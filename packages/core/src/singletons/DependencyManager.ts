@@ -9,6 +9,7 @@ import { GuildCacheEntity, type CachedGuild } from '../cache/entities/GuildCache
 import type { ICacheEntity } from '../cache/entities/ICacheEntity.js';
 import { INJECTION_TOKENS, globalContainer } from '../container.js';
 import type { DB } from '../db.js';
+import type { TransportOptions } from '../util/loggingTransport.js';
 import { Env } from './Env.js';
 
 // no proper ESM support
@@ -29,7 +30,6 @@ const {
  */
 export class DependencyManager {
 	public constructor(private readonly env: Env) {
-		this.registerLogger();
 		this.registerStructures();
 	}
 
@@ -66,13 +66,23 @@ export class DependencyManager {
 		return database;
 	}
 
-	private registerLogger(): void {
-		const transport = createPinoLogger.transport({
-			target: '../util/loggingTransport.js',
-		});
+	public registerLogger(stream: string): Logger {
+		const options: TransportOptions = {
+			domain: this.env.parseableDomain,
+			auth: this.env.parseableAuth,
+			stream,
+		};
 
-		const logger = createPinoLogger({ level: 'trace', transport });
+		const logger = createPinoLogger({
+			level: 'trace',
+			transport: {
+				target: '../util/loggingTransport.js',
+				options,
+			},
+		});
 		globalContainer.bind<Logger>(INJECTION_TOKENS.logger).toConstantValue(logger);
+
+		return logger;
 	}
 
 	private registerStructures(): void {

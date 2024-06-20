@@ -2,7 +2,7 @@
 !.vscode/settings.json
 
 node_modules
-.env
+.env.private
 
 coverage/*
 **/dist/*

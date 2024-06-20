@@ -21,6 +21,7 @@ export * from './util/encode.js';
 export * from './util/parseRelativeTime.js';
 export * from './util/PermissionsBitField.js';
 export * from './util/promiseAllObject.js';
+export * from './util/setupCrashLogs.js';
 
 export * from './container.js';
 export * from './db.js';

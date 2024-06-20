@@ -4,19 +4,76 @@ services:
   postgres:
     image: postgres:12-alpine
     environment:
-      POSTGRES_USER: 'automoderator'
+      POSTGRES_USER: 'chatsift'
       POSTGRES_PASSWORD: 'admin'
-      POSTGRES_DB: 'automoderator'
+      POSTGRES_DB: 'chatsift'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
     ports:
-      - 127.0.0.1:${DATABASE_PORT}:5432
+      - 127.0.0.1:5432:5432
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U automoderator']
+      test: ['CMD-SHELL', 'pg_isready -U chatsift']
       interval: 10s
       timeout: 5s
 
+  parseable:
+    image: parseable/parseable:v1.2.0
+    restart: unless-stopped
+    expose:
+      - '8000'
+    ports:
+      - 127.0.0.1:8000:8000
+    environment:
+      P_FS_DIR: '/parseable/data'
+      P_STAGING_DIR: '/parseable/staging'
+      P_USERNAME: 'admin'
+    env_file:
+      - ./.env.private
+    volumes:
+      - parseable-data:/parseable/data
+      - parseable-staging:/parseable/staging
+    command: ['parseable', 'local-store']
+
+  redis:
+    image: redis:6-alpine
+    # TODO: In the future, consider using a volume for persistence once we know we have no leaks
+    # volumes:
+      # - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli ping']
+      interval: 10s
+      timeout: 5s
+
+  discord-proxy:
+    image: chatsift-bots:latest
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    command: ['node', '--enable-source-maps', './services/discord-proxy/dist/index.js']
+
+  gateway:
+    image: chatsift-bots:latest
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    command: ['node', '--enable-source-maps', './services/gateway/dist/index.js']
+
 volumes:
   postgres-data:
-    name: 'automoderator-v3-postgres-data'
+    name: 'chatsift-bots-postgres-data'
+  parseable-data:
+    name: 'chatsift-bots-parseable-data'
+  parseable-staging:
+    name: 'chatsift-bots-parseable-staging'
+  redis-data:
+    name: 'chatsift-bots-redis-data'

@@ -1,4 +1,4 @@
-import { inject } from 'inversify';
+import { inject, injectable } from 'inversify';
 import { Redis } from 'ioredis';
 import { INJECTION_TOKENS } from '../container.js';
 import type { ICache } from './ICache.js';
@@ -9,6 +9,7 @@ import type { ICacheEntity } from './entities/ICacheEntity';
  * @remarks
  * Since this is a singleton factroy, we "cache our caches" in a WeakMap to avoid additional computation on subsequent calls.
  */
+@injectable()
 export class CacheFactory {
 	private readonly caches = new WeakMap<ICacheEntity<unknown>, ICache<unknown>>();
 
