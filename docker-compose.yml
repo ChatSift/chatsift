@@ -39,7 +39,7 @@ services:
     image: redis:6-alpine
     # TODO: In the future, consider using a volume for persistence once we know we have no leaks
     # volumes:
-      # - redis-data:/data
+    # - redis-data:/data
     restart: unless-stopped
     healthcheck:
       test: ['CMD-SHELL', 'redis-cli ping']

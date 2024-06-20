@@ -36,6 +36,11 @@ export class Gateway {
 		});
 
 		this.#gateway
+			.on(WebSocketShardEvents.Closed, ({ shardId, code }) => this.logger.error({ shardId, code }, 'Shard CLOSED'))
+			.on(WebSocketShardEvents.HeartbeatComplete, ({ shardId, ackAt, heartbeatAt, latency }) =>
+				this.logger.debug({ shardId, ackAt, heartbeatAt, latency }, 'Shard HEARTBEAT'),
+			)
+			.on(WebSocketShardEvents.Error, ({ shardId, error }) => this.logger.error({ shardId, error }, 'Shard ERROR'))
 			.on(WebSocketShardEvents.Debug, ({ message, shardId }) => this.logger.debug({ shardId }, message))
 			.on(WebSocketShardEvents.Hello, ({ shardId }) => this.logger.debug({ shardId }, 'Shard HELLO'))
 			.on(WebSocketShardEvents.Ready, ({ shardId }) => this.logger.debug({ shardId }, 'Shard READY'))
