@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { Env, INJECTION_TOKENS, type DiscordEventsMap, encode, decode } from '@automoderator/core';
+import { Env, INJECTION_TOKENS, type DiscordGatewayEventsMap, encode, decode } from '@automoderator/core';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { API, GatewayIntentBits } from '@discordjs/core';
 import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
@@ -9,7 +9,7 @@ import { type Logger } from 'pino';
 
 @injectable()
 export class Gateway {
-	readonly #broker: PubSubRedisBroker<DiscordEventsMap>;
+	readonly #broker: PubSubRedisBroker<DiscordGatewayEventsMap>;
 
 	readonly #gateway: WebSocketManager;
 
@@ -19,7 +19,7 @@ export class Gateway {
 		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
 		@inject(INJECTION_TOKENS.redis) private readonly redis: Redis,
 	) {
-		this.#broker = new PubSubRedisBroker<DiscordEventsMap>({
+		this.#broker = new PubSubRedisBroker<DiscordGatewayEventsMap>({
 			redisClient: this.redis,
 			encode,
 			decode,
@@ -45,7 +45,7 @@ export class Gateway {
 			.on(WebSocketShardEvents.Hello, ({ shardId }) => this.logger.debug({ shardId }, 'Shard HELLO'))
 			.on(WebSocketShardEvents.Ready, ({ shardId }) => this.logger.debug({ shardId }, 'Shard READY'))
 			.on(WebSocketShardEvents.Resumed, ({ shardId }) => this.logger.debug({ shardId }, 'Shard RESUMED'))
-			.on(WebSocketShardEvents.Dispatch, ({ data }) => void this.#broker.publish(data.t, data.d));
+			.on(WebSocketShardEvents.Dispatch, async ({ data }) => this.#broker.publish(data.t, data.d));
 
 		this.#broker.on('send', async ({ data, ack }) => {
 			this.logger.info({ data }, 'Sending payload');

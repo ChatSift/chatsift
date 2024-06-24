@@ -22,7 +22,7 @@
 		"lint": "turbo run lint && prettier --check .",
 		"build": "turbo run build",
 		"format": "prettier --write .",
-		"prepare": "is-ci || husky install",
+		"postinstall": "is-ci || husky install",
 		"update": "yarn upgrade-interactive"
 	},
 	"dependencies": {

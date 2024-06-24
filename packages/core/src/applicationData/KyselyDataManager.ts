@@ -1,6 +1,6 @@
-import type { Kysely } from 'kysely';
+import type { Kysely, Selectable } from 'kysely';
 import { jsonArrayFrom } from 'kysely/helpers/postgres';
-import type { DB } from '../db.js';
+import type { DB, Incident } from '../db.js';
 import { IDataManager, type ExperimentWithOverrides } from './IDataManager.js';
 
 /**
@@ -30,5 +30,16 @@ export class KyselyDataManager extends IDataManager {
 				).as('overrides'),
 			])
 			.execute();
+	}
+
+	public override async createIncident(error: Error, guildId?: string): Promise<Selectable<Incident>> {
+		return this.#database
+			.insertInto('Incident')
+			.values({
+				guildId,
+				stack: error.stack ?? error.message,
+			})
+			.returningAll()
+			.executeTakeFirstOrThrow();
 	}
 }

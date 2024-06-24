@@ -52,7 +52,7 @@ function transformLogData(data: any) {
 		data.level = pino.levels.labels[data.level];
 	}
 
-	if ('datetime' in data) {
+	if ('time' in data) {
 		delete data.datetime;
 	}
 
@@ -130,7 +130,7 @@ async function ensureStream(options: TransportOptions): Promise<void> {
 		// Streams must not be empty before setting up retention
 		await handleLog({
 			...options,
-			data: { msg: 'Log stream created', level: pino.levels.values.info, datetime: new Date().toISOString() },
+			data: { msg: 'Log stream created', level: pino.levels.values.info, time: Date.now() },
 		});
 
 		const retentionResponse = await fetch(new URL(`/api/v1/logstream/${stream}/retention`, domain), {

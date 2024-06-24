@@ -109,6 +109,7 @@ __metadata:
     "@msgpack/msgpack": ^3.0.0-beta2
     "@naval-base/ms": ^3.1.0
     "@sapphire/bitfield": ^1.2.2
+    "@sapphire/discord-utilities": ^3.3.0
     "@types/node": ^20.14.6
     "@types/pg": ^8.11.6
     inversify: ^6.0.2
@@ -1204,6 +1205,15 @@ __metadata:
   version: 1.2.2
   resolution: "@sapphire/bitfield@npm:1.2.2"
   checksum: c09b8bb6dfde80b49b40278e1ece6f995b2ea3fca182dfd6e7cac658b6c82a985ae677a4efb0931f7fd56bbe6bb896d08b67969d347391ddf7984382b6205e11
+  languageName: node
+  linkType: hard
+
+"@sapphire/discord-utilities@npm:^3.3.0":
+  version: 3.3.0
+  resolution: "@sapphire/discord-utilities@npm:3.3.0"
+  dependencies:
+    discord-api-types: ^0.37.84
+  checksum: 38679cb2fa6e1fb487fcd4f87a1e75357252c0e164df7e4dcfbe110dae52bad601e246589d9f1b20f414f72c0072bfa16fa60fd80d276b04be986a66c2ef3a77
   languageName: node
   linkType: hard
 
@@ -3098,6 +3108,13 @@ __metadata:
   version: 0.37.83
   resolution: "discord-api-types@npm:0.37.83"
   checksum: ab2a31188352d9c742f09a114a95322e7f7de90199cb9f5571f7f5ac25765e7abc9b83c15c14d513ffc5e1d63d9e3ea5ff088fa8a1c5d9c1e1f395b27027cef0
+  languageName: node
+  linkType: hard
+
+"discord-api-types@npm:^0.37.84":
+  version: 0.37.90
+  resolution: "discord-api-types@npm:0.37.90"
+  checksum: afc9d3e95b796469a8d3cad18840a1f22e2a7536bd246191c340600b93313d2256b05e409f764d4ad756de7e1e7c3c3a57063920fb3f99fc12a0d2078ccd6e4f
   languageName: node
   linkType: hard
 

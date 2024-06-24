@@ -1,5 +1,5 @@
 import type { Selectable } from 'kysely';
-import type { Experiment, ExperimentOverride } from '../db.js';
+import type { Experiment, ExperimentOverride, Incident } from '../db.js';
 
 export type ExperimentWithOverrides = Selectable<Experiment> & { overrides: Selectable<ExperimentOverride>[] };
 
@@ -8,4 +8,5 @@ export type ExperimentWithOverrides = Selectable<Experiment> & { overrides: Sele
  */
 export abstract class IDataManager {
 	public abstract getExperiments(): Promise<ExperimentWithOverrides[]>;
+	public abstract createIncident(error: Error, guildId?: string): Promise<Selectable<Incident>>;
 }

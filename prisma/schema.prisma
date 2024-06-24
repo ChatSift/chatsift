@@ -15,7 +15,6 @@ model Experiment {
   updatedAt  DateTime?
   rangeStart Int
   rangeEnd   Int
-  active     Boolean              @default(true)
   overrides  ExperimentOverride[]
 }
 
@@ -26,4 +25,12 @@ model ExperimentOverride {
   experiment     Experiment @relation(fields: [experimentName], references: [name])
 
   @@unique([guildId, experimentName])
+}
+
+model Incident {
+  id        Int      @id @default(autoincrement())
+  stack     String
+  guildId   String?
+  createdAt DateTime @default(now())
+  resolved  Boolean  @default(false)
 }
