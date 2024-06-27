@@ -9,8 +9,8 @@ import { GuildCacheEntity, type CachedGuild } from '../cache/entities/GuildCache
 import type { ICacheEntity } from '../cache/entities/ICacheEntity.js';
 import { INJECTION_TOKENS, globalContainer } from '../container.js';
 import type { DB } from '../db.js';
-import type { TransportOptions } from '../util/loggingTransport.js';
 import { Env } from './Env.js';
+import type { TransportOptions } from './loggingTransport.js';
 
 // no proper ESM support
 const {

@@ -3,12 +3,8 @@ import {
 	InteractionType,
 	type APIApplicationCommandAutocompleteInteraction,
 	type APIApplicationCommandInteraction,
-	type APIApplicationCommandInteractionDataIntegerOption,
-	type APIApplicationCommandInteractionDataNumberOption,
-	type APIApplicationCommandInteractionDataStringOption,
 	type APIInteraction,
-	type APIMessageComponentInteraction,
-	type APIModalSubmitInteraction,
+	type RESTPostAPIApplicationCommandsJSONBody,
 } from '@discordjs/core';
 import { InteractionOptionResolver } from '@sapphire/discord-utilities';
 import { inject, injectable } from 'inversify';
@@ -17,56 +13,23 @@ import type { Logger } from 'pino';
 import type { IDataManager } from '../applicationData/IDataManager.js';
 import { INJECTION_TOKENS } from '../container.js';
 import type { Incident } from '../db.js';
-import { ICommandHandler } from './ICommandHandler.js';
-
-/**
- * @internal
- */
-interface ResolvedCommandIdentifier {
-	root: ApplicationCommandIdentifier;
-	subcommand?: ApplicationCommandIdentifier;
-}
-
-/**
- * The identifier of a command.
- * `name:group:subcommand`
- */
-export type ApplicationCommandIdentifier = `${string}:${string}:${string}`;
-
-/**
- * Callback responsible for handling application commands.
- */
-export type ApplicationCommandHandler = (
-	interaction: APIApplicationCommandInteraction,
-	options: InteractionOptionResolver,
-) => Promise<void>;
-
-/**
- * Callback responsible for handling components.
- */
-export type ComponentHandler = (interaction: APIMessageComponentInteraction, args: string[]) => Promise<void>;
-
-// [command]:argName
-export type AutocompleteIdentifier = `${ApplicationCommandIdentifier}:${string}`;
-
-/**
- * Callback responsible for handling autocompletes.
- */
-export type AutocompleteHandler = (
-	interaction: APIApplicationCommandAutocompleteInteraction,
-	option:
-		| APIApplicationCommandInteractionDataIntegerOption
-		| APIApplicationCommandInteractionDataNumberOption
-		| APIApplicationCommandInteractionDataStringOption,
-) => Promise<void>;
-
-/**
- * Callback responsible for handling modals.
- */
-export type ModalHandler = (interaction: APIModalSubmitInteraction, args: string[]) => Promise<void>;
+import type { Env } from '../util/Env.js';
+import {
+	ICommandHandler,
+	type ApplicationCommandHandler,
+	type ApplicationCommandIdentifier,
+	type AutocompleteHandler,
+	type AutocompleteIdentifier,
+	type ComponentHandler,
+	type ModalHandler,
+	type RegisterOptions,
+	type ResolvedCommandIdentifier,
+} from './ICommandHandler.js';
 
 @injectable()
 export class CommandHandler extends ICommandHandler {
+	readonly #interactions: RESTPostAPIApplicationCommandsJSONBody[] = [];
+
 	readonly #handlers = {
 		applicationCommands: new Map<ApplicationCommandIdentifier, ApplicationCommandHandler>(),
 		components: new Map<string, ComponentHandler>(),
@@ -77,9 +40,14 @@ export class CommandHandler extends ICommandHandler {
 	public constructor(
 		private readonly api: API,
 		private readonly database: IDataManager,
+		private readonly env: Env,
 		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
 	) {
 		super();
+	}
+
+	public async deployCommands(): Promise<void> {
+		await this.api.applicationCommands.bulkOverwriteGlobalCommands(this.env.discordClientId, this.#interactions);
 	}
 
 	public async handle(interaction: APIInteraction): Promise<void> {
@@ -177,6 +145,36 @@ export class CommandHandler extends ICommandHandler {
 				await this.reportIncident(interaction, incident);
 
 				break;
+			}
+		}
+	}
+
+	public register(options: RegisterOptions): void {
+		if (options.interactions) {
+			this.#interactions.push(...options.interactions);
+		}
+
+		if (options.applicationCommands?.length) {
+			for (const [identifier, handler] of options.applicationCommands) {
+				this.#handlers.applicationCommands.set(identifier, handler);
+			}
+		}
+
+		if (options.components?.length) {
+			for (const [name, handler] of options.components) {
+				this.#handlers.components.set(name, handler);
+			}
+		}
+
+		if (options.autocomplete?.length) {
+			for (const [identifier, handler] of options.autocomplete) {
+				this.#handlers.autocomplete.set(identifier, handler);
+			}
+		}
+
+		if (options.modals?.length) {
+			for (const [name, handler] of options.modals) {
+				this.#handlers.modals.set(name, handler);
 			}
 		}
 	}

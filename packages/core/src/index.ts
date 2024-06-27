@@ -14,10 +14,15 @@ export * from './cache/entities/ICacheEntity.js';
 export * from './cache/CacheFactory.js';
 export * from './cache/ICache.js';
 
-export * from './singletons/DependencyManager.js';
-export * from './singletons/Env.js';
+// Deliberately don't export impl
+export * from './command-framework/ICommandHandler.js';
 
+// Deliberately don't export impl
+export * from './experiments/IExperimentHandler.js';
+
+export * from './util/DependencyManager.js';
 export * from './util/encode.js';
+export * from './util/Env.js';
 export * from './util/parseRelativeTime.js';
 export * from './util/PermissionsBitField.js';
 export * from './util/promiseAllObject.js';
