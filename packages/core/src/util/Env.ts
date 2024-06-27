@@ -30,6 +30,14 @@ export class Env {
 
 	public readonly parseableAuth: string = process.env.PARSEABLE_AUTH!;
 
+	/**
+	 * The name of the service, used as a prefix for log streams. Do not use any spaces/special chars.
+	 *
+	 * @example
+	 * 'modmailbot'
+	 */
+	public readonly service: string = process.env.SERVICE_NAME!;
+
 	private readonly REQUIRED_KEYS = [
 		'DISCORD_TOKEN',
 		'DISCORD_CLIENT_ID',
@@ -46,8 +54,11 @@ export class Env {
 
 		'PARSEABLE_DOMAIN',
 		'PARSEABLE_AUTH',
+
+		'SERVICE_NAME',
 	] as const;
 
+	// TODO: Consider logging validation with zod?
 	public constructor() {
 		const missingKeys = this.REQUIRED_KEYS.filter((key) => !(key in process.env));
 		if (missingKeys.length) {

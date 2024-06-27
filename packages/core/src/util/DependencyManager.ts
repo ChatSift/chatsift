@@ -70,7 +70,7 @@ export class DependencyManager {
 		const options: TransportOptions = {
 			domain: this.env.parseableDomain,
 			auth: this.env.parseableAuth,
-			stream,
+			stream: `${this.env.service}${stream}`,
 		};
 
 		const logger = createPinoLogger({
