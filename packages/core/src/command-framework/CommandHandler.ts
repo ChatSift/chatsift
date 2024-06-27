@@ -51,19 +51,13 @@ export class CommandHandler extends ICommandHandler {
 	}
 
 	public async handle(interaction: APIInteraction): Promise<void> {
-		if (!interaction.guild_id) {
-			const incident = await this.database.createIncident(new Error('Interaction not in guild'));
-			return this.reportIncident(interaction, incident);
-		}
-
 		switch (interaction.type) {
 			case InteractionType.Ping: {
-				this.logger.warn('Received a ping interaction. We should not receive these, as we run WS.');
+				this.logger.warn('Received a ping interaction. This CommandHandler is designed for Gateway.');
 				break;
 			}
 
 			case InteractionType.ApplicationCommand: {
-				// @ts-expect-error - discord api types version miss match
 				const options = new InteractionOptionResolver(interaction);
 
 				const { root, subcommand } = this.resolveCommandIdentifier(interaction, options);
@@ -106,7 +100,6 @@ export class CommandHandler extends ICommandHandler {
 			}
 
 			case InteractionType.ApplicationCommandAutocomplete: {
-				// @ts-expect-error - discord api types version miss match
 				const options = new InteractionOptionResolver(interaction);
 
 				const { root, subcommand } = this.resolveCommandIdentifier(interaction, options);
@@ -204,6 +197,7 @@ export class CommandHandler extends ICommandHandler {
 		return { root: identifier };
 	}
 
+	// TODO: Generalize
 	private async reportIncident(interaction: APIInteraction, incident: Selectable<Incident>): Promise<void> {
 		await this.api.interactions.reply(interaction.id, interaction.token, {
 			content: `An error occurred while processing your request. Please report this incident to the developers. (Incident ID: ${incident.id})`,

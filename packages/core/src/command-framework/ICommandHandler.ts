@@ -1,3 +1,5 @@
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type {
 	APIApplicationCommandAutocompleteInteraction,
 	APIApplicationCommandInteraction,
@@ -53,6 +55,14 @@ export type AutocompleteHandler = (
  * Callback responsible for handling modals.
  */
 export type ModalHandler = (interaction: APIModalSubmitInteraction, args: string[]) => Promise<void>;
+
+export interface HandlerModule {
+	register(handler: ICommandHandler): void;
+}
+
+export type HandlerModuleConstructor = new (...args: unknown[]) => HandlerModule;
+
+export const BASE_HANDLERS_PATH = join(dirname(fileURLToPath(import.meta.url)), 'handlers');
 
 export interface RegisterOptions {
 	applicationCommands?: [ApplicationCommandIdentifier, ApplicationCommandHandler][];
