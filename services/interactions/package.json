@@ -1,0 +1,33 @@
+{
+	"name": "@chatsift/automoderator-interactions",
+	"main": "./dist/index.js",
+	"private": true,
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"lint": "eslint src",
+		"build": "tsc"
+	},
+	"engines": {
+		"node": ">=16.9.0"
+	},
+	"devDependencies": {
+		"@types/node": "^20.14.10",
+		"pino": "^9.2.0",
+		"typescript": "^5.4.5"
+	},
+	"dependencies": {
+		"@automoderator/core": "workspace:^",
+		"@chatsift/readdir": "^0.5.0",
+		"@discordjs/brokers": "^0.3.0",
+		"@discordjs/core": "^1.2.0",
+		"@discordjs/rest": "^2.3.0",
+		"@discordjs/ws": "^1.1.1",
+		"coral-command": "^0.4.1",
+		"inversify": "^6.0.2",
+		"ioredis": "5.3.2",
+		"reflect-metadata": "^0.2.2",
+		"tslib": "^2.6.3",
+		"undici": "^6.19.2"
+	}
+}
