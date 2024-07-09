@@ -103,6 +103,7 @@ __metadata:
   resolution: "@automoderator/core@workspace:packages/core"
   dependencies:
     "@chatsift/pino-rotate-file": ^0.3.0
+    "@discordjs/brokers": ^1.0.0-dev.1720311088-d8e94d8f1
     "@discordjs/builders": ^1.8.2
     "@discordjs/core": ^1.2.0
     "@discordjs/rest": ^2.3.0
@@ -110,8 +111,9 @@ __metadata:
     "@naval-base/ms": ^3.1.0
     "@sapphire/bitfield": ^1.2.2
     "@sapphire/discord-utilities": ^3.3.0
-    "@types/node": ^20.14.6
+    "@types/node": ^20.14.10
     "@types/pg": ^8.11.6
+    coral-command: ^0.4.1
     inversify: ^6.0.2
     ioredis: 5.3.2
     kysely: ^0.27.3
@@ -298,7 +300,7 @@ __metadata:
     "@discordjs/core": ^1.2.0
     "@discordjs/proxy": ^2.1.0
     "@discordjs/rest": ^2.3.0
-    "@types/node": ^20.14.6
+    "@types/node": ^20.14.10
     inversify: ^6.0.2
     ioredis: 5.3.2
     pino: ^9.2.0
@@ -317,7 +319,7 @@ __metadata:
     "@discordjs/core": ^1.2.0
     "@discordjs/rest": ^2.3.0
     "@discordjs/ws": ^1.1.1
-    "@types/node": ^20.14.6
+    "@types/node": ^20.14.10
     inversify: ^6.0.2
     ioredis: 5.3.2
     pino: ^9.2.0
@@ -603,6 +605,17 @@ __metadata:
     "@vladfrangu/async_event_emitter": ^2.2.4
     ioredis: ^5.3.2
   checksum: 918f42c032c38a5897d4dc366060c8bd055b2b89de4ec0bfee6586e83eb9976f5a0e18410a6239134b4a796c71becd67bfb5a5088fae85b89751d49ccc9fb03a
+  languageName: node
+  linkType: hard
+
+"@discordjs/brokers@npm:^1.0.0-dev.1720311088-d8e94d8f1":
+  version: 1.0.0-dev.1720311088-d8e94d8f1
+  resolution: "@discordjs/brokers@npm:1.0.0-dev.1720311088-d8e94d8f1"
+  dependencies:
+    "@msgpack/msgpack": ^3.0.0-beta2
+    "@vladfrangu/async_event_emitter": ^2.2.4
+    ioredis: ^5.4.1
+  checksum: b814aad30eda15f3d3f68d114ec1255105717a431eb378a6a8c0a9824986e190f624918636b0e53e663c9fc38eb31620f4b161a09bf7ff264b27a088e85ed337
   languageName: node
   linkType: hard
 
@@ -1374,12 +1387,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^20.0.0, @types/node@npm:^20.14.6":
+"@types/node@npm:^20.0.0":
   version: 20.14.6
   resolution: "@types/node@npm:20.14.6"
   dependencies:
     undici-types: ~5.26.4
   checksum: f0ba22b181cfa799e090e5198621d8bf2b35f2c18ce880b8cdf88a69f9db5a4cc56627fe2dfeca44b6a55895c0abf03df04810cabd9509b9c9b752189d37aa1f
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^20.14.10":
+  version: 20.14.10
+  resolution: "@types/node@npm:20.14.10"
+  dependencies:
+    undici-types: ~5.26.4
+  checksum: 2f397d393de8cddb126e0b7999402ea450215ac69d49666ddef4f730a73325054499ce7345f86095e7b935c55b2e02139f3b8b9afc72fb978ed29edf6bb956b0
   languageName: node
   linkType: hard
 
@@ -1768,6 +1790,13 @@ __metadata:
   version: 2.2.4
   resolution: "@vladfrangu/async_event_emitter@npm:2.2.4"
   checksum: ff65ebc4d89639adecd249e24e4f6f97b7696404f2a4461160efdff628d91de543e982727c18de62a4edada3f66381b5a3cd1d4f4f33098075d839c1b4f46979
+  languageName: node
+  linkType: hard
+
+"@vladfrangu/async_event_emitter@npm:^2.4.3":
+  version: 2.4.3
+  resolution: "@vladfrangu/async_event_emitter@npm:2.4.3"
+  checksum: 4e3de716113d216d53544c30fac452f6f4470f9fe48ab03e90bc8004387c574b7c807b090700dba7fbf89f912d55e4aa8ffbb749bd1dbc7e311c2fbdbfcafea8
   languageName: node
   linkType: hard
 
@@ -2761,6 +2790,16 @@ __metadata:
   bin:
     conventional-commits-parser: cli.mjs
   checksum: bb92a0bfe41802330d2d14ddb0f912fd65dd355f1aa294e708f4891aac95c580919a70580b9f26563c24c3335baaed2ce003104394a8fa5ba61eeb3889e45df0
+  languageName: node
+  linkType: hard
+
+"coral-command@npm:^0.4.1":
+  version: 0.4.1
+  resolution: "coral-command@npm:0.4.1"
+  dependencies:
+    "@discordjs/core": ^1.2.0
+    "@vladfrangu/async_event_emitter": ^2.4.3
+  checksum: 0b8ffcb8ea0733701004a96eb57a2b658a06f1963be37ce145d29d5b13e9db2d473e2a3a1cd39592e0e5d9ccc18a632a47a28ce6267acf2ee95240888351ba86
   languageName: node
   linkType: hard
 
@@ -5290,6 +5329,23 @@ __metadata:
     redis-parser: ^3.0.0
     standard-as-callback: ^2.1.0
   checksum: 9a23559133e862a768778301efb68ae8c2af3c33562174b54a4c2d6574b976e85c75a4c34857991af733e35c48faf4c356e7daa8fb0a3543d85ff1768c8754bc
+  languageName: node
+  linkType: hard
+
+"ioredis@npm:^5.4.1":
+  version: 5.4.1
+  resolution: "ioredis@npm:5.4.1"
+  dependencies:
+    "@ioredis/commands": ^1.1.1
+    cluster-key-slot: ^1.1.0
+    debug: ^4.3.4
+    denque: ^2.1.0
+    lodash.defaults: ^4.2.0
+    lodash.isarguments: ^3.1.0
+    redis-errors: ^1.2.0
+    redis-parser: ^3.0.0
+    standard-as-callback: ^2.1.0
+  checksum: 92210294f75800febe7544c27b07e4892480172363b11971aa575be5b68f023bfed4bc858abc9792230c153aa80409047a358f174062c14d17536aa4499fe10b
   languageName: node
   linkType: hard
 

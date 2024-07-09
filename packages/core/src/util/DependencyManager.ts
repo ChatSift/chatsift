@@ -7,6 +7,8 @@ import type { Logger } from 'pino';
 import createPinoLogger from 'pino';
 import { GuildCacheEntity, type CachedGuild } from '../cache/entities/GuildCacheEntity.js';
 import type { ICacheEntity } from '../cache/entities/ICacheEntity.js';
+import { CoralCommandHandler } from '../command-framework/CoralCommandHandler.js';
+import { ICommandHandler } from '../command-framework/ICommandHandler.js';
 import { INJECTION_TOKENS, globalContainer } from '../container.js';
 import type { DB } from '../db.js';
 import { Env } from './Env.js';
@@ -91,5 +93,8 @@ export class DependencyManager {
 			.bind<ICacheEntity<CachedGuild>>(INJECTION_TOKENS.cacheEntities.guild)
 			.to(GuildCacheEntity)
 			.inSingletonScope();
+
+		// command handler
+		globalContainer.bind<ICommandHandler<any>>(ICommandHandler).to(CoralCommandHandler).inSingletonScope();
 	}
 }

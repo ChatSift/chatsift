@@ -7,9 +7,16 @@ import {
 	type RESTPostAPIApplicationCommandsJSONBody,
 } from '@discordjs/core';
 import { InteractionOptionResolver } from '@sapphire/discord-utilities';
+import {
+	type InteractionHandler as CoralInteractionHandler,
+	Actions,
+	Actions as CoralActions,
+	Executor as CoralExecutor,
+	ExecutorEvents,
+} from 'coral-command';
 import { inject, injectable } from 'inversify';
 import type { Selectable } from 'kysely';
-import type { Logger } from 'pino';
+import { type Logger } from 'pino';
 import type { IDataManager } from '../applicationData/IDataManager.js';
 import { INJECTION_TOKENS } from '../container.js';
 import type { Incident } from '../db.js';
@@ -27,15 +34,17 @@ import {
 } from './ICommandHandler.js';
 
 @injectable()
-export class CommandHandler extends ICommandHandler {
+export class CoralCommandHandler extends ICommandHandler<CoralInteractionHandler> {
 	readonly #interactions: RESTPostAPIApplicationCommandsJSONBody[] = [];
 
 	readonly #handlers = {
-		applicationCommands: new Map<ApplicationCommandIdentifier, ApplicationCommandHandler>(),
-		components: new Map<string, ComponentHandler>(),
-		autocomplete: new Map<AutocompleteIdentifier, AutocompleteHandler>(),
-		modals: new Map<string, ModalHandler>(),
+		applicationCommands: new Map<ApplicationCommandIdentifier, ApplicationCommandHandler<CoralInteractionHandler>>(),
+		components: new Map<string, ComponentHandler<CoralInteractionHandler>>(),
+		autocomplete: new Map<AutocompleteIdentifier, AutocompleteHandler<CoralInteractionHandler>>(),
+		modals: new Map<string, ModalHandler<CoralInteractionHandler>>(),
 	} as const;
+
+	readonly #executor: CoralExecutor;
 
 	public constructor(
 		private readonly api: API,
@@ -44,6 +53,22 @@ export class CommandHandler extends ICommandHandler {
 		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
 	) {
 		super();
+
+		this.#executor = new CoralExecutor(api, env.discordClientId)
+			.on(ExecutorEvents.CallbackError, (error) => this.logger.error(error, 'Unhandled error in command executor'))
+			.on(ExecutorEvents.HandlerError, async (error, actions) => {
+				this.logger.error(error, 'Unhandled error in command handler');
+
+				const incident =
+					error instanceof Error
+						? await this.database.createIncident(error, actions.interaction.guild_id)
+						: await this.database.createIncident(
+								new Error("Handler threw non-error. We don't have a stack."),
+								actions.interaction.guild_id,
+							);
+
+				return this.reportIncident(actions, incident);
+			});
 	}
 
 	public async deployCommands(): Promise<void> {
@@ -77,7 +102,7 @@ export class CommandHandler extends ICommandHandler {
 					new Error('Command handler not found'),
 					interaction.guild_id,
 				);
-				await this.reportIncident(interaction, incident);
+				await this.reportIncident(this.interactionToActions(interaction), incident);
 
 				break;
 			}
@@ -94,7 +119,7 @@ export class CommandHandler extends ICommandHandler {
 					new Error('Component handler not found'),
 					interaction.guild_id,
 				);
-				await this.reportIncident(interaction, incident);
+				await this.reportIncident(this.interactionToActions(interaction), incident);
 
 				break;
 			}
@@ -121,7 +146,7 @@ export class CommandHandler extends ICommandHandler {
 					new Error('Autocomplete handler not found'),
 					interaction.guild_id,
 				);
-				await this.reportIncident(interaction, incident);
+				await this.reportIncident(this.interactionToActions(interaction), incident);
 
 				break;
 			}
@@ -135,7 +160,7 @@ export class CommandHandler extends ICommandHandler {
 				}
 
 				const incident = await this.database.createIncident(new Error('Modal handler not found'), interaction.guild_id);
-				await this.reportIncident(interaction, incident);
+				await this.reportIncident(this.interactionToActions(interaction), incident);
 
 				break;
 			}
@@ -197,34 +222,25 @@ export class CommandHandler extends ICommandHandler {
 		return { root: identifier };
 	}
 
-	// TODO: Generalize
-	private async reportIncident(interaction: APIInteraction, incident: Selectable<Incident>): Promise<void> {
-		await this.api.interactions.reply(interaction.id, interaction.token, {
+	// TODO: Handle specific errors maybe
+	private async reportIncident(actions: CoralActions, incident: Selectable<Incident>): Promise<void> {
+		await actions.respond({
 			content: `An error occurred while processing your request. Please report this incident to the developers. (Incident ID: ${incident.id})`,
 		});
 	}
 
+	private interactionToActions(interaction: APIInteraction): Actions {
+		return new Actions(this.api, this.env.discordClientId, interaction);
+	}
+
 	private wrapHandler<HandlerArgs extends [APIInteraction, ...any[]]>(
-		handler: (...args: HandlerArgs) => Promise<void>,
+		handler: (...args: HandlerArgs) => CoralInteractionHandler,
 	): (...args: HandlerArgs) => Promise<void> {
 		return async (...args) => {
 			const [interaction] = args;
 
-			try {
-				await handler(...args);
-			} catch (error) {
-				this.logger.error(error, 'Unhandled error in command handler');
-
-				const incident =
-					error instanceof Error
-						? await this.database.createIncident(error, interaction.guild_id)
-						: await this.database.createIncident(
-								new Error("Handler threw non-error. We don't have a stack."),
-								interaction.guild_id,
-							);
-
-				return this.reportIncident(interaction, incident);
-			}
+			const generator = handler(...args);
+			await this.#executor.handleInteraction(generator, interaction);
 		};
 	}
 }

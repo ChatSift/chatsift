@@ -27,15 +27,18 @@ export type ApplicationCommandIdentifier = `${string}:${string}:${string}`;
 /**
  * Callback responsible for handling application commands.
  */
-export type ApplicationCommandHandler = (
+export type ApplicationCommandHandler<TReturnType = any> = (
 	interaction: APIApplicationCommandInteraction,
 	options: InteractionOptionResolver,
-) => Promise<void>;
+) => TReturnType;
 
 /**
  * Callback responsible for handling components.
  */
-export type ComponentHandler = (interaction: APIMessageComponentInteraction, args: string[]) => Promise<void>;
+export type ComponentHandler<TReturnType = any> = (
+	interaction: APIMessageComponentInteraction,
+	args: string[],
+) => TReturnType;
 
 // [command]:argName
 export type AutocompleteIdentifier = `${ApplicationCommandIdentifier}:${string}`;
@@ -43,37 +46,37 @@ export type AutocompleteIdentifier = `${ApplicationCommandIdentifier}:${string}`
 /**
  * Callback responsible for handling autocompletes.
  */
-export type AutocompleteHandler = (
+export type AutocompleteHandler<TReturnType = any> = (
 	interaction: APIApplicationCommandAutocompleteInteraction,
 	option:
 		| APIApplicationCommandInteractionDataIntegerOption
 		| APIApplicationCommandInteractionDataNumberOption
 		| APIApplicationCommandInteractionDataStringOption,
-) => Promise<void>;
+) => TReturnType;
 
 /**
  * Callback responsible for handling modals.
  */
-export type ModalHandler = (interaction: APIModalSubmitInteraction, args: string[]) => Promise<void>;
+export type ModalHandler<TReturnType = any> = (interaction: APIModalSubmitInteraction, args: string[]) => TReturnType;
 
-export interface HandlerModule {
-	register(handler: ICommandHandler): void;
+export interface HandlerModule<TReturnType> {
+	register(handler: ICommandHandler<TReturnType>): void;
 }
 
-export type HandlerModuleConstructor = new (...args: unknown[]) => HandlerModule;
+export type HandlerModuleConstructor<TReturnType> = new (...args: unknown[]) => HandlerModule<TReturnType>;
 
 export const BASE_HANDLERS_PATH = join(dirname(fileURLToPath(import.meta.url)), 'handlers');
 
-export interface RegisterOptions {
-	applicationCommands?: [ApplicationCommandIdentifier, ApplicationCommandHandler][];
-	autocomplete?: [AutocompleteIdentifier, AutocompleteHandler][];
-	components?: [string, ComponentHandler][];
+export interface RegisterOptions<TReturnType = any> {
+	applicationCommands?: [ApplicationCommandIdentifier, ApplicationCommandHandler<TReturnType>][];
+	autocomplete?: [AutocompleteIdentifier, AutocompleteHandler<TReturnType>][];
+	components?: [string, ComponentHandler<TReturnType>][];
 	interactions?: RESTPostAPIApplicationCommandsJSONBody[];
-	modals?: [string, ModalHandler][];
+	modals?: [string, ModalHandler<TReturnType>][];
 }
 
-export abstract class ICommandHandler {
+export abstract class ICommandHandler<TReturnType> {
 	public abstract handle(interaction: APIInteraction): Promise<void>;
-	public abstract register(options: RegisterOptions): void;
+	public abstract register(options: RegisterOptions<TReturnType>): void;
 	public abstract deployCommands(): Promise<void>;
 }

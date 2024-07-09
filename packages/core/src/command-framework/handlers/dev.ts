@@ -1,13 +1,13 @@
-import { API, InteractionContextType, type APIInteraction } from '@discordjs/core';
+import { InteractionContextType, type APIInteraction } from '@discordjs/core';
+import { ActionKind, type InteractionHandler as CoralInteractionHandler } from 'coral-command';
 import { injectable } from 'inversify';
 import type { Env } from '../../util/Env.js';
-import type { ApplicationCommandHandler, HandlerModule, ICommandHandler } from '../ICommandHandler.js';
+import type { HandlerModule, ICommandHandler } from '../ICommandHandler.js';
 
 @injectable()
-export default class DevHandler implements HandlerModule {
+export default class DevHandler implements HandlerModule<CoralInteractionHandler> {
 	public constructor(
-		private readonly api: API,
-		private readonly handler: ICommandHandler,
+		private readonly handler: ICommandHandler<CoralInteractionHandler>,
 		private readonly env: Env,
 	) {}
 
@@ -21,25 +21,30 @@ export default class DevHandler implements HandlerModule {
 					contexts: [InteractionContextType.BotDM],
 				},
 			],
-			applicationCommands: [['deploy:none:none', this.handleDeploy]],
+			applicationCommands: [['deploy:none:none', this.handleDeploy.bind(this)]],
 		});
 	}
 
-	private readonly handleDeploy: ApplicationCommandHandler = async (interaction: APIInteraction) => {
+	public async *handleDeploy(interaction: APIInteraction): CoralInteractionHandler {
 		if (!interaction.user) {
 			throw new Error('Command /deploy was ran in non-dm.');
 		}
 
 		if (!this.env.admins.has(interaction.user.id)) {
-			await this.api.interactions.reply(interaction.id, interaction.token, {
-				content: 'You are not authorized to use this command',
-			});
-
-			return;
+			return {
+				action: ActionKind.Respond,
+				data: {
+					content: 'You are not authorized to use this command',
+				},
+			};
 		}
 
 		await this.handler.deployCommands();
-
-		await this.api.interactions.reply(interaction.id, interaction.token, { content: 'Successfully deployed commands' });
-	};
+		yield {
+			action: ActionKind.Respond,
+			data: {
+				content: 'Successfully deployed commands',
+			},
+		};
+	}
 }
