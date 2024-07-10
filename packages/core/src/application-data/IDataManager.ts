@@ -11,11 +11,16 @@ import type {
 
 export type ExperimentWithOverrides = Selectable<Experiment> & { overrides: Selectable<ExperimentOverride>[] };
 
-export interface CreateModCaseData {
+export interface CreateModCaseOptions {
 	guildId: string;
 	kind: ModCaseKind;
 	modId: string;
 	reason: string;
+	userId: string;
+}
+
+export interface GetRecentCasesAgainstOptions {
+	guildId: string;
 	userId: string;
 }
 
@@ -26,7 +31,8 @@ export abstract class IDataManager {
 	public abstract getExperiments(): Promise<ExperimentWithOverrides[]>;
 	public abstract createIncident(error: Error, guildId?: string): Promise<Selectable<Incident>>;
 
-	public abstract createModCase(data: CreateModCaseData): Promise<Selectable<ModCase>>;
+	public abstract createModCase(options: CreateModCaseOptions): Promise<Selectable<ModCase>>;
+	public abstract getRecentCasesAgainst(options: GetRecentCasesAgainstOptions): Promise<Selectable<ModCase>[]>;
 
 	public abstract getLogWebhook(guildId: string, kind: LogWebhookKind): Promise<Selectable<LogWebhook>>;
 }
