@@ -11,7 +11,7 @@ import { ActionKind, type InteractionHandler as CoralInteractionHandler } from '
 import { injectable } from 'inversify';
 
 @injectable()
-export default class DevHandler implements HandlerModule<CoralInteractionHandler> {
+export default class ModHandler implements HandlerModule<CoralInteractionHandler> {
 	public constructor(private readonly dataManager: IDataManager) {}
 
 	public register(handler: ICommandHandler<CoralInteractionHandler>) {
