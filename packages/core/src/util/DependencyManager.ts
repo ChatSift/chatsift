@@ -93,8 +93,5 @@ export class DependencyManager {
 			.bind<ICacheEntity<CachedGuild>>(INJECTION_TOKENS.cacheEntities.guild)
 			.to(GuildCacheEntity)
 			.inSingletonScope();
-
-		// command handler
-		globalContainer.bind<ICommandHandler<any>>(ICommandHandler).to(CoralCommandHandler).inSingletonScope();
 	}
 }

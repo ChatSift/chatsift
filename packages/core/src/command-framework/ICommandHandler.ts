@@ -65,7 +65,7 @@ export interface HandlerModule<TReturnType> {
 
 export type HandlerModuleConstructor<TReturnType> = new (...args: unknown[]) => HandlerModule<TReturnType>;
 
-export const BASE_HANDLERS_PATH = join(dirname(fileURLToPath(import.meta.url)), 'handlers');
+export const USEFUL_HANDLERS_PATH = join(dirname(fileURLToPath(import.meta.url)), 'handlers');
 
 export interface RegisterOptions<TReturnType = any> {
 	applicationCommands?: [ApplicationCommandIdentifier, ApplicationCommandHandler<TReturnType>][];

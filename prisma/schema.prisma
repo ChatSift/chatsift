@@ -34,3 +34,22 @@ model Incident {
   createdAt DateTime @default(now())
   resolved  Boolean  @default(false)
 }
+
+enum ModCaseKind {
+  Warn
+  Timeout
+  Kick
+  Ban
+  Unmute
+  Unban
+}
+
+model ModCase {
+  id        Int         @id @default(autoincrement())
+  guildId   String
+  kind      ModCaseKind
+  createdAt DateTime    @default(now())
+  reason    String
+  modId     String
+  userId    String
+}

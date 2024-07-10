@@ -17,7 +17,7 @@ import {
 import { inject, injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import { type Logger } from 'pino';
-import type { IDataManager } from '../applicationData/IDataManager.js';
+import type { IDataManager } from '../application-data/IDataManager.js';
 import { INJECTION_TOKENS } from '../container.js';
 import type { Incident } from '../db.js';
 import type { Env } from '../util/Env.js';
@@ -167,7 +167,7 @@ export class CoralCommandHandler extends ICommandHandler<CoralInteractionHandler
 		}
 	}
 
-	public register(options: RegisterOptions): void {
+	public override register(options: RegisterOptions): void {
 		if (options.interactions) {
 			this.#interactions.push(...options.interactions);
 		}
