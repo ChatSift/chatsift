@@ -40,7 +40,7 @@ enum ModCaseKind {
   Timeout
   Kick
   Ban
-  Unmute
+  Untimeout
   Unban
 }
 
@@ -52,4 +52,17 @@ model ModCase {
   reason    String
   modId     String
   userId    String
+}
+
+enum LogWebhookKind {
+  Mod
+}
+
+model LogWebhook {
+  id           Int            @id @default(autoincrement())
+  guildId      String
+  webhookId    String
+  webhookToken String
+  threadId     String?
+  kind         LogWebhookKind
 }

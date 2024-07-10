@@ -9,10 +9,14 @@ export const ModCaseKind = {
     Timeout: "Timeout",
     Kick: "Kick",
     Ban: "Ban",
-    Unmute: "Unmute",
+    Untimeout: "Untimeout",
     Unban: "Unban"
 } as const;
 export type ModCaseKind = (typeof ModCaseKind)[keyof typeof ModCaseKind];
+export const LogWebhookKind = {
+    Mod: "Mod"
+} as const;
+export type LogWebhookKind = (typeof LogWebhookKind)[keyof typeof LogWebhookKind];
 export type Experiment = {
     name: string;
     createdAt: Generated<Timestamp>;
@@ -32,6 +36,14 @@ export type Incident = {
     createdAt: Generated<Timestamp>;
     resolved: Generated<boolean>;
 };
+export type LogWebhook = {
+    id: Generated<number>;
+    guildId: string;
+    webhookId: string;
+    webhookToken: string;
+    threadId: string | null;
+    kind: LogWebhookKind;
+};
 export type ModCase = {
     id: Generated<number>;
     guildId: string;
@@ -45,5 +57,6 @@ export type DB = {
     Experiment: Experiment;
     ExperimentOverride: ExperimentOverride;
     Incident: Incident;
+    LogWebhook: LogWebhook;
     ModCase: ModCase;
 };

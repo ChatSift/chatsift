@@ -102,6 +102,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@automoderator/core@workspace:packages/core"
   dependencies:
+    "@chatsift/discord-utils": ^0.4.0
     "@chatsift/pino-rotate-file": ^0.3.0
     "@discordjs/brokers": ^0.3.0
     "@discordjs/builders": ^1.8.2
@@ -335,6 +336,7 @@ __metadata:
   resolution: "@chatsift/automoderator-interactions@workspace:services/interactions"
   dependencies:
     "@automoderator/core": "workspace:^"
+    "@chatsift/discord-utils": ^0.4.0
     "@chatsift/readdir": ^0.5.0
     "@discordjs/brokers": ^0.3.0
     "@discordjs/core": ^1.2.0
@@ -376,6 +378,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@chatsift/discord-utils@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "@chatsift/discord-utils@npm:0.4.0"
+  dependencies:
+    "@chatsift/utils": ^0.4.0
+    discord-api-types: ^0.37.67
+    tslib: ^2.6.2
+  checksum: d2e4d97a7f15a169eb3b2b7fb7076f3c925dfac6fe57e82acd417bdc091ea78fed49580ff07094c27be066574fb67ae52f16ce7bcc969fb0071036cfb83a561c
+  languageName: node
+  linkType: hard
+
 "@chatsift/pino-rotate-file@npm:^0.3.0":
   version: 0.3.0
   resolution: "@chatsift/pino-rotate-file@npm:0.3.0"
@@ -394,6 +407,15 @@ __metadata:
     tiny-typed-emitter: ^2.1.0
     tslib: ^2.6.2
   checksum: 80fb172fcd37791a6d9f9a33382456f7649192929eb11d950e3588c4492e6de4c3f7607a0acd20af9596b582aeb7ccf331f9c15909e3272cf3d4590032fa835c
+  languageName: node
+  linkType: hard
+
+"@chatsift/utils@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "@chatsift/utils@npm:0.4.0"
+  dependencies:
+    tslib: ^2.6.2
+  checksum: 547c25b3933918ba987abc271baeeec5c3b5986d63e311d9971b6ce17c05a9ea9e616018a86a82c78ac17c0d31fc4a4435f88a68f29bfc2a6e2655e8f95c2684
   languageName: node
   linkType: hard
 

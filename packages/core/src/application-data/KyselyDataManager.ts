@@ -1,6 +1,6 @@
 import type { Kysely, Selectable } from 'kysely';
 import { jsonArrayFrom } from 'kysely/helpers/postgres';
-import type { DB, Incident, ModCase } from '../db.js';
+import type { DB, Incident, LogWebhook, LogWebhookKind, ModCase } from '../db.js';
 import { IDataManager, type CreateModCaseData, type ExperimentWithOverrides } from './IDataManager.js';
 
 /**
@@ -45,5 +45,14 @@ export class KyselyDataManager extends IDataManager {
 
 	public override async createModCase(data: CreateModCaseData): Promise<Selectable<ModCase>> {
 		return this.#database.insertInto('ModCase').values(data).returningAll().executeTakeFirstOrThrow();
+	}
+
+	public override async getLogWebhook(guildId: string, kind: LogWebhookKind): Promise<Selectable<LogWebhook>> {
+		return this.#database
+			.selectFrom('LogWebhook')
+			.selectAll()
+			.where('guildId', '=', guildId)
+			.where('kind', '=', kind)
+			.executeTakeFirstOrThrow();
 	}
 }

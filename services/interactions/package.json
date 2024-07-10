@@ -18,6 +18,7 @@
 	},
 	"dependencies": {
 		"@automoderator/core": "workspace:^",
+		"@chatsift/discord-utils": "^0.4.0",
 		"@chatsift/readdir": "^0.5.0",
 		"@discordjs/brokers": "^0.3.0",
 		"@discordjs/core": "^1.2.0",

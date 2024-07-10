@@ -1,5 +1,13 @@
 import type { Selectable } from 'kysely';
-import type { Experiment, ExperimentOverride, Incident, ModCase, ModCaseKind } from '../db.js';
+import type {
+	Experiment,
+	ExperimentOverride,
+	Incident,
+	LogWebhook,
+	LogWebhookKind,
+	ModCase,
+	ModCaseKind,
+} from '../db.js';
 
 export type ExperimentWithOverrides = Selectable<Experiment> & { overrides: Selectable<ExperimentOverride>[] };
 
@@ -19,4 +27,6 @@ export abstract class IDataManager {
 	public abstract createIncident(error: Error, guildId?: string): Promise<Selectable<Incident>>;
 
 	public abstract createModCase(data: CreateModCaseData): Promise<Selectable<ModCase>>;
+
+	public abstract getLogWebhook(guildId: string, kind: LogWebhookKind): Promise<Selectable<LogWebhook>>;
 }

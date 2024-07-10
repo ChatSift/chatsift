@@ -18,6 +18,7 @@
 		"typescript": "^5.4.5"
 	},
 	"dependencies": {
+		"@chatsift/discord-utils": "^0.4.0",
 		"@chatsift/pino-rotate-file": "^0.3.0",
 		"@discordjs/brokers": "^0.3.0",
 		"@discordjs/builders": "^1.8.2",
