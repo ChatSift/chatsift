@@ -1,5 +1,5 @@
 // Deliberately don't export impl
-export * from './applicationData/IDataManager.js';
+export * from './application-data/IDataManager.js';
 
 export * from './binary-encoding/Data.js';
 export * from './binary-encoding/Reader.js';
@@ -14,7 +14,9 @@ export * from './cache/entities/ICacheEntity.js';
 export * from './cache/CacheFactory.js';
 export * from './cache/ICache.js';
 
-// Deliberately don't export impl
+// Here we actually do, because unlike other parts of the codebases, we don't rely on the WHOLE stack using the same impl
+// every service can decide what to do.
+export * from './command-framework/CoralCommandHandler.js';
 export * from './command-framework/ICommandHandler.js';
 
 // Deliberately don't export impl
