@@ -1,7 +1,6 @@
 import type { Buffer } from 'node:buffer';
+import { createRecipe, DataType, Reader, Writer } from 'bin-rw';
 import { injectable } from 'inversify';
-import { Reader } from '../../binary-encoding/Reader.js';
-import { Writer } from '../../binary-encoding/Writer.js';
 import type { ICacheEntity } from './ICacheEntity';
 
 export interface CachedGuild {
@@ -15,12 +14,22 @@ export interface CachedGuild {
 export class GuildCacheEntity implements ICacheEntity<CachedGuild> {
 	public readonly TTL = 60_000;
 
+	public readonly recipe = createRecipe(
+		{
+			icon: DataType.String,
+			id: DataType.String,
+			name: DataType.String,
+			owner_id: DataType.String,
+		},
+		200,
+	);
+
 	public makeKey(id: string): string {
 		return `guild:${id}`;
 	}
 
 	public toBuffer(guild: CachedGuild): Buffer {
-		return new Writer(200).u64(guild.id).string(guild.icon).string(guild.name).u64(guild.owner_id).dumpTrimmed();
+		return new Writer(200).u64(guild.id).string(guild.icon).string(guild.name).u64(guild.owner_id).dump();
 	}
 
 	public toJSON(data: Buffer): CachedGuild {

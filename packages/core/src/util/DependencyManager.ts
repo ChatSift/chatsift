@@ -5,10 +5,16 @@ import { Redis } from 'ioredis';
 import { Kysely, PostgresDialect } from 'kysely';
 import type { Logger } from 'pino';
 import createPinoLogger from 'pino';
+import { IDataManager } from '../application-data/IDataManager.js';
+import { KyselyDataManager } from '../application-data/KyselyDataManager.js';
 import { GuildCacheEntity, type CachedGuild } from '../cache/entities/GuildCacheEntity.js';
 import type { ICacheEntity } from '../cache/entities/ICacheEntity.js';
 import { INJECTION_TOKENS, globalContainer } from '../container.js';
 import type { DB } from '../db.js';
+import { ExperimentHandler } from '../experiments/ExperimentHandler.js';
+import { IExperimentHandler } from '../experiments/IExperimentHandler.js';
+import { INotifier } from '../notifications/INotifier.js';
+import { Notifier } from '../notifications/Notifier.js';
 import { Env } from './Env.js';
 import type { TransportOptions } from './loggingTransport.js';
 
@@ -91,5 +97,10 @@ export class DependencyManager {
 			.bind<ICacheEntity<CachedGuild>>(INJECTION_TOKENS.cacheEntities.guild)
 			.to(GuildCacheEntity)
 			.inSingletonScope();
+
+		// Those can always be swapped out for diff. impls
+		globalContainer.bind<IDataManager>(IDataManager).to(KyselyDataManager);
+		globalContainer.bind<IExperimentHandler>(IExperimentHandler).to(ExperimentHandler);
+		globalContainer.bind<INotifier>(INotifier).to(Notifier);
 	}
 }

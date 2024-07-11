@@ -1,10 +1,6 @@
 // Deliberately don't export impl
 export * from './application-data/IDataManager.js';
 
-export * from './binary-encoding/Data.js';
-export * from './binary-encoding/Reader.js';
-export * from './binary-encoding/Writer.js';
-
 export * from './broker-types/gateway.js';
 
 // Deliberately don't export impl
@@ -21,6 +17,9 @@ export * from './command-framework/ICommandHandler.js';
 
 // Deliberately don't export impl
 export * from './experiments/IExperimentHandler.js';
+
+// Deliberately don't export impl
+export * from './notifications/INotifier.js';
 
 export * from './util/DependencyManager.js';
 export * from './util/encode.js';

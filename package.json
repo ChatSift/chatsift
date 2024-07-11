@@ -22,11 +22,12 @@
 		"lint": "turbo run lint && prettier --check .",
 		"build": "turbo run build",
 		"format": "prettier --write .",
-		"postinstall": "is-ci || husky install",
-		"update": "yarn upgrade-interactive"
+		"postinstall": "is-ci || husky install || true",
+		"update": "yarn upgrade-interactive",
+		"prisma": "DATABASE_URL=postgresql://chatsift:admin@localhost:5432/chatsift prisma"
 	},
 	"dependencies": {
-		"prisma": "^5.15.1"
+		"prisma": "^5.16.2"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "^19.3.0",
@@ -40,7 +41,7 @@
 		"lodash.merge": "^4.6.2",
 		"prettier": "^3.3.2",
 		"prisma-kysely": "^1.8.0",
-		"rimraf": "^5.0.7",
+		"rimraf": "^5.0.9",
 		"turbo": "^2.0.4",
 		"typescript": "^5.4.5",
 		"typescript-eslint": "^7.13.1"

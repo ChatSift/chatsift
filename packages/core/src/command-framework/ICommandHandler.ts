@@ -12,6 +12,7 @@ import type {
 	RESTPostAPIApplicationCommandsJSONBody,
 } from '@discordjs/core';
 import type { InteractionOptionResolver } from '@sapphire/discord-utilities';
+import { injectable } from 'inversify';
 
 export interface ResolvedCommandIdentifier {
 	root: ApplicationCommandIdentifier;
@@ -75,7 +76,14 @@ export interface RegisterOptions<TReturnType = any> {
 	modals?: [string, ModalHandler<TReturnType>][];
 }
 
+@injectable()
 export abstract class ICommandHandler<TReturnType> {
+	public constructor() {
+		if (this.constructor === ICommandHandler) {
+			throw new Error('This class cannot be instantiated.');
+		}
+	}
+
 	public abstract handle(interaction: APIInteraction): Promise<void>;
 	public abstract register(options: RegisterOptions<TReturnType>): void;
 	public abstract deployCommands(): Promise<void>;

@@ -51,7 +51,7 @@ model ModCase {
   createdAt DateTime    @default(now())
   reason    String
   modId     String
-  userId    String
+  targetId  String
 }
 
 enum LogWebhookKind {

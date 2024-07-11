@@ -1,3 +1,4 @@
+import { injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import type {
 	Experiment,
@@ -16,18 +17,25 @@ export interface CreateModCaseOptions {
 	kind: ModCaseKind;
 	modId: string;
 	reason: string;
-	userId: string;
+	targetId: string;
 }
 
 export interface GetRecentCasesAgainstOptions {
 	guildId: string;
-	userId: string;
+	targetId: string;
 }
 
 /**
  * Abstraction over all database interactions
  */
+@injectable()
 export abstract class IDataManager {
+	public constructor() {
+		if (this.constructor === IDataManager) {
+			throw new Error('This class cannot be instantiated.');
+		}
+	}
+
 	public abstract getExperiments(): Promise<ExperimentWithOverrides[]>;
 	public abstract createIncident(error: Error, guildId?: string): Promise<Selectable<Incident>>;
 

@@ -26,7 +26,7 @@ export class RedisCache<ValueType> implements ICache<ValueType> {
 		}
 
 		await this.redis.pexpire(key, this.entity.TTL);
-		return this.entity.toJSON(raw);
+		return this.entity.recipe.decode(raw);
 	}
 
 	public async getOld(id: string): Promise<ValueType | null> {
@@ -38,7 +38,7 @@ export class RedisCache<ValueType> implements ICache<ValueType> {
 		}
 
 		await this.redis.pexpire(key, this.entity.TTL);
-		return this.entity.toJSON(raw);
+		return this.entity.recipe.decode(raw);
 	}
 
 	public async set(id: string, value: ValueType): Promise<void> {
@@ -48,7 +48,7 @@ export class RedisCache<ValueType> implements ICache<ValueType> {
 			await this.redis.pexpire(`old:${key}`, this.entity.TTL);
 		}
 
-		const raw = this.entity.toBuffer(value);
+		const raw = this.entity.recipe.encode(value);
 		await this.redis.set(key, raw, 'PX', this.entity.TTL);
 	}
 

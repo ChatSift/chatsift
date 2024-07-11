@@ -14,6 +14,7 @@ COPY packages/core/package.json ./packages/core/package.json
 
 COPY services/discord-proxy/package.json ./services/discord-proxy/package.json
 COPY services/gateway/package.json ./services/gateway/package.json
+COPY services/interactions/package.json ./services/interactions/package.json
 
 RUN yarn --immutable
 
@@ -24,6 +25,7 @@ COPY packages/core ./packages/core
 
 COPY services/discord-proxy ./services/discord-proxy
 COPY services/gateway ./services/gateway
+COPY services/interactions ./services/interactions
 
 ARG TURBO_TEAM
 ENV TURBO_TEAM=$TURBO_TEAM

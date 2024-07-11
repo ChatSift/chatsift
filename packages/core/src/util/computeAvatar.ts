@@ -1,5 +1,5 @@
 import type { APIUser, DefaultUserAvatarAssets, Snowflake } from '@discordjs/core';
-import { CDNRoutes, ImageFormat, type UserAvatarFormat } from '@discordjs/core';
+import { CDNRoutes, ImageFormat, RouteBases, type UserAvatarFormat } from '@discordjs/core';
 
 export function computeAvatarFormat<TFormat extends UserAvatarFormat>(
 	avatarHash: string,
@@ -33,9 +33,9 @@ export function computeDefaultAvatarIndex(user: APIUser | null, userId: Snowflak
 export function computeAvatarUrl(user: APIUser | null, userId: Snowflake): string {
 	// Use the default avatar
 	if (!user?.avatar) {
-		return CDNRoutes.defaultUserAvatar(computeDefaultAvatarIndexNew(userId));
+		return `${RouteBases.cdn}${CDNRoutes.defaultUserAvatar(computeDefaultAvatarIndexNew(userId))}`;
 	}
 
 	const format = computeAvatarFormat(user.avatar, ImageFormat.PNG);
-	return CDNRoutes.userAvatar(userId, user.avatar, format);
+	return `${RouteBases.cdn}${CDNRoutes.userAvatar(userId, user.avatar, format)}`;
 }

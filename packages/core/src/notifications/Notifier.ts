@@ -1,12 +1,12 @@
 import { truncateEmbed } from '@chatsift/discord-utils';
-import type { API, APIEmbed } from '@discordjs/core';
+import { API, type APIEmbed } from '@discordjs/core';
 import { inject, injectable } from 'inversify';
+import type { Selectable } from 'kysely';
 import type { Logger } from 'pino';
-import type { IDataManager } from '../application-data/IDataManager.js';
+import { IDataManager } from '../application-data/IDataManager.js';
 import { INJECTION_TOKENS } from '../container.js';
-import { LogWebhookKind, ModCaseKind } from '../db.js';
+import { LogWebhookKind, ModCaseKind, type ModCase } from '../db.js';
 import { computeAvatarUrl } from '../util/computeAvatar.js';
-import { promiseAllObject } from '../util/promiseAllObject.js';
 import { userToEmbedAuthor } from '../util/userToEmbedData.js';
 import { INotifier, type DMUserOptions, type LogModCaseOptions } from './INotifier.js';
 
@@ -65,21 +65,15 @@ export class Notifier extends INotifier {
 		return false;
 	}
 
-	public override async logModCase({ modCase, existingMessage }: LogModCaseOptions): Promise<void> {
-		const webhook = await this.dataManager.getLogWebhook(modCase.guildId, LogWebhookKind.Mod);
-		if (!webhook) {
-			this.logger.warn({ modCase }, 'No mod log webhook found');
-			return;
-		}
-
-		const { target, mod } = await promiseAllObject({
-			target: this.api.users.get(modCase.userId).catch(() => null),
-			mod: this.api.users.get(modCase.modId).catch(() => null),
-		});
-
+	public override async generateModCaseEmbed({
+		modCase,
+		existingMessage,
+		mod,
+		target,
+	}: LogModCaseOptions): Promise<APIEmbed> {
 		const embed: APIEmbed = existingMessage?.embeds[0] ?? {
 			color: this.COLORS_MAP[modCase.kind],
-			author: userToEmbedAuthor(target, modCase.userId),
+			author: userToEmbedAuthor(target, modCase.targetId),
 		};
 
 		// We want to re-compute those no matter what for good measure
@@ -89,15 +83,42 @@ export class Notifier extends INotifier {
 			icon_url: computeAvatarUrl(mod, modCase.modId),
 		};
 
+		return truncateEmbed(embed);
+	}
+
+	public override async logModCase(options: LogModCaseOptions): Promise<void> {
+		const webhook = await this.dataManager.getLogWebhook(options.modCase.guildId, LogWebhookKind.Mod);
+		if (!webhook) {
+			this.logger.warn({ options }, 'No mod log webhook found');
+			return;
+		}
+
 		const data = {
-			embeds: [truncateEmbed(embed)],
+			embeds: [await this.generateModCaseEmbed(options)],
 			thread_id: webhook.threadId ?? undefined,
 		};
 
-		if (existingMessage) {
-			await this.api.webhooks.editMessage(webhook.webhookId, webhook.webhookToken, existingMessage.id, data);
+		if (options.existingMessage) {
+			await this.api.webhooks.editMessage(webhook.webhookId, webhook.webhookToken, options.existingMessage.id, data);
 		} else {
 			await this.api.webhooks.execute(webhook.webhookId, webhook.webhookToken, data);
+		}
+	}
+
+	// TODO: Take in APIGuild?
+	public override async tryNotifyTargetModCase(modCase: Selectable<ModCase>): Promise<boolean> {
+		try {
+			const guild = await this.api.guilds.get(modCase.guildId);
+			return await this.tryDMUser({
+				userId: modCase.targetId,
+				bindToGuildId: modCase.guildId,
+				data: {
+					content: `You have been ${this.ACTION_VERBS_MAP[modCase.kind]} in ${guild.name}.\n\nReason: ${modCase.reason}`,
+				},
+			});
+		} catch (error) {
+			this.logger.error({ error }, 'Failed to fetch guild when notifying target of mod case');
+			return false;
 		}
 	}
 }

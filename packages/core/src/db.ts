@@ -51,7 +51,7 @@ export type ModCase = {
     createdAt: Generated<Timestamp>;
     reason: string;
     modId: string;
-    userId: string;
+    targetId: string;
 };
 export type DB = {
     Experiment: Experiment;

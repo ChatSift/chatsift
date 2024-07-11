@@ -9,7 +9,6 @@ import {
 import { InteractionOptionResolver } from '@sapphire/discord-utilities';
 import {
 	type InteractionHandler as CoralInteractionHandler,
-	Actions,
 	Actions as CoralActions,
 	Executor as CoralExecutor,
 	ExecutorEvents,
@@ -17,10 +16,10 @@ import {
 import { inject, injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import { type Logger } from 'pino';
-import type { IDataManager } from '../application-data/IDataManager.js';
+import { IDataManager } from '../application-data/IDataManager.js';
 import { INJECTION_TOKENS } from '../container.js';
 import type { Incident } from '../db.js';
-import type { Env } from '../util/Env.js';
+import { Env } from '../util/Env.js';
 import {
 	ICommandHandler,
 	type ApplicationCommandHandler,
@@ -229,8 +228,8 @@ export class CoralCommandHandler extends ICommandHandler<CoralInteractionHandler
 		});
 	}
 
-	private interactionToActions(interaction: APIInteraction): Actions {
-		return new Actions(this.api, this.env.discordClientId, interaction);
+	private interactionToActions(interaction: APIInteraction): CoralActions {
+		return new CoralActions(this.api, this.env.discordClientId, interaction);
 	}
 
 	private wrapHandler<HandlerArgs extends [APIInteraction, ...any[]]>(

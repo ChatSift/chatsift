@@ -1,10 +1,11 @@
-import { ModCaseKind, type HandlerModule, type ICommandHandler, type IDataManager } from '@automoderator/core';
+import { ModCaseKind, type HandlerModule, type ICommandHandler, IDataManager, INotifier } from '@automoderator/core';
 import {
 	ApplicationCommandOptionType,
 	InteractionContextType,
 	MessageFlags,
 	PermissionFlagsBits,
 	type APIInteraction,
+	type APIUser,
 } from '@discordjs/core';
 import type { InteractionOptionResolver } from '@sapphire/discord-utilities';
 import { ActionKind, type InteractionHandler as CoralInteractionHandler } from 'coral-command';
@@ -12,7 +13,10 @@ import { injectable } from 'inversify';
 
 @injectable()
 export default class ModHandler implements HandlerModule<CoralInteractionHandler> {
-	public constructor(private readonly dataManager: IDataManager) {}
+	public constructor(
+		private readonly dataManager: IDataManager,
+		private readonly notifier: INotifier,
+	) {}
 
 	public register(handler: ICommandHandler<CoralInteractionHandler>) {
 		handler.register({
@@ -42,11 +46,22 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		});
 	}
 
-	public async *hanadleWarn(interaction: APIInteraction, options: InteractionOptionResolver): CoralInteractionHandler {
-		if (!interaction.guild_id) {
-			throw new Error('This command can only be used in a guild');
-		}
+	private async *hanadleWarn(interaction: APIInteraction, options: InteractionOptionResolver): CoralInteractionHandler {
+		yield {
+			action: ActionKind.EnsureDefer,
+			data: {
+				flags: MessageFlags.Ephemeral,
+			},
+		};
 
+		yield* this.checkCaseLock(interaction, options, ModCaseKind.Warn);
+	}
+
+	private async *checkCaseLock(
+		interaction: APIInteraction,
+		options: InteractionOptionResolver,
+		kind: ModCaseKind,
+	): CoralInteractionHandler {
 		yield {
 			action: ActionKind.EnsureDefer,
 			data: {
@@ -55,20 +70,63 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		};
 
 		const target = options.getUser('target', true);
-		const reason = options.getString('reason', true);
 
-		const modCase = await this.dataManager.createModCase({
-			guildId: interaction.guild_id,
-			userId: target.id,
-			modId: interaction.member!.user.id,
-			reason,
-			kind: ModCaseKind.Warn,
+		const previousCases = await this.dataManager.getRecentCasesAgainst({
+			guildId: interaction.guild_id!,
+			targetId: target.id,
 		});
+
+		if (!previousCases.length) {
+			yield* this.commitCase(interaction, options, kind);
+			return;
+		}
+
+		const embeds = await Promise.all(
+			previousCases.map(async (modCase) =>
+				this.notifier.generateModCaseEmbed({ modCase, mod: interaction.member!.user, target }),
+			),
+		);
 
 		yield {
 			action: ActionKind.Respond,
 			data: {
-				content: 'Successfully warned the user. DM sent: ',
+				content: 'This user has been actioned in the past hour. Would you still like to proceed?',
+				embeds,
+				// TODO
+				components: [],
+			},
+		};
+	}
+
+	private async *commitCase(
+		interaction: APIInteraction,
+		options: InteractionOptionResolver,
+		kind: ModCaseKind,
+	): CoralInteractionHandler {
+		const target = options.getUser('target', true);
+		const reason = options.getString('reason', true);
+
+		const modCase = await this.dataManager.createModCase({
+			guildId: interaction.guild_id!,
+			targetId: target.id,
+			modId: interaction.member!.user.id,
+			reason,
+			kind,
+		});
+
+		const userNotified = await this.notifier.tryNotifyTargetModCase(modCase);
+
+		yield {
+			action: ActionKind.Respond,
+			data: {
+				content: `Successfully warned the user. DM sent: ${userNotified ? 'yes' : 'no'}`,
+			},
+		};
+
+		yield {
+			action: ActionKind.ExecuteWithoutErrorReport,
+			callback: async () => {
+				await this.notifier.logModCase({ modCase, mod: interaction.member!.user, target });
 			},
 		};
 	}

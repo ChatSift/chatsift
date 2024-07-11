@@ -2,19 +2,19 @@ import 'reflect-metadata';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-	type ICommandHandler,
 	CoralCommandHandler,
 	globalContainer,
 	DependencyManager,
 	setupCrashLogs,
 	encode,
 	decode,
+	ICommandHandler,
 	type DiscordGatewayEventsMap,
 	USEFUL_HANDLERS_PATH,
 	type HandlerModuleConstructor,
 	type HandlerModule,
 } from '@automoderator/core';
-import { readdirRecurseManyAsync } from '@chatsift/readdir';
+import { readdirRecurseManyAsync, ReadMode } from '@chatsift/readdir';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { GatewayDispatchEvents } from '@discordjs/core';
 import type { InteractionHandler as CoralInteractionHandler } from 'coral-command';
@@ -22,16 +22,23 @@ import type { InteractionHandler as CoralInteractionHandler } from 'coral-comman
 const dependencyManager = globalContainer.get(DependencyManager);
 const logger = dependencyManager.registerLogger('interactions');
 const redis = dependencyManager.registerRedis();
+dependencyManager.registerDatabase();
 dependencyManager.registerApi();
 
 setupCrashLogs();
 
-const commandHandler = globalContainer.get<ICommandHandler<CoralInteractionHandler>>(CoralCommandHandler);
+globalContainer.bind<ICommandHandler<CoralInteractionHandler>>(ICommandHandler).to(CoralCommandHandler);
+const commandHandler = globalContainer.get<ICommandHandler<CoralInteractionHandler>>(ICommandHandler);
 
 export const serviceHandlersPath = join(dirname(fileURLToPath(import.meta.url)), 'handlers');
 
-for (const path of await readdirRecurseManyAsync([serviceHandlersPath, USEFUL_HANDLERS_PATH])) {
-	const moduleConstructor: HandlerModuleConstructor<CoralInteractionHandler> = await import(path);
+for (const path of await readdirRecurseManyAsync([serviceHandlersPath, USEFUL_HANDLERS_PATH], {
+	fileExtensions: ['js'],
+	readMode: ReadMode.file,
+})) {
+	const moduleConstructor: HandlerModuleConstructor<CoralInteractionHandler> = await import(path).then(
+		(mod) => mod.default,
+	);
 	const module = globalContainer.get<HandlerModule<CoralInteractionHandler>>(moduleConstructor);
 
 	module.register(commandHandler);

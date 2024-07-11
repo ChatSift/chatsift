@@ -1,4 +1,4 @@
-import type { Buffer } from 'node:buffer';
+import type { Recipe } from 'bin-rw';
 
 /**
  * Responsible for defining the behavior of a given entity when its being cached.
@@ -13,11 +13,7 @@ export interface ICacheEntity<TData> {
 	 */
 	makeKey(id: string): string;
 	/**
-	 * Transforms the data into a buffer that can be stored in redis.
+	 * Recipe for encoding and decoding TData.
 	 */
-	toBuffer(data: TData): Buffer;
-	/**
-	 * Transforms the data from a buffer back into a readable object.
-	 */
-	toJSON(data: Buffer): TData;
+	readonly recipe: Recipe<TData>;
 }
