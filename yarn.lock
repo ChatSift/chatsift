@@ -115,7 +115,7 @@ __metadata:
     "@types/node": ^20.14.10
     "@types/pg": ^8.11.6
     bin-rw: ^0.1.0
-    coral-command: ^0.5.1
+    coral-command: ^0.6.3
     inversify: ^6.0.2
     ioredis: 5.3.2
     kysely: ^0.27.4
@@ -345,9 +345,11 @@ __metadata:
     "@discordjs/ws": ^1.1.1
     "@sapphire/discord-utilities": ^3.3.0
     "@types/node": ^20.14.10
-    coral-command: ^0.5.1
+    bin-rw: ^0.1.0
+    coral-command: ^0.6.3
     inversify: ^6.0.2
     ioredis: 5.3.2
+    nanoid: ^5.0.7
     pino: ^9.2.0
     reflect-metadata: ^0.2.2
     tslib: ^2.6.3
@@ -2972,13 +2974,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"coral-command@npm:^0.5.1":
-  version: 0.5.1
-  resolution: "coral-command@npm:0.5.1"
+"coral-command@npm:^0.6.3":
+  version: 0.6.3
+  resolution: "coral-command@npm:0.6.3"
   dependencies:
     "@discordjs/core": ^1.2.0
     "@vladfrangu/async_event_emitter": ^2.4.3
-  checksum: 1d57713372c1baf0c625c601340cd563f401732f385c167b2816f160c746ab249470ba77d30a7f9a0632445eb8a0931c1e06c0677864ae5ab2f7bed88c63e511
+  checksum: 4651d2c924eb950499d7f73bd67b6e2b02a4f02b784f5d47b9d8fdf10f94b8480e07d8dbc87771b0192820e9e2c7d9fbbc73c4f069b691825de5a15f995c0b63
   languageName: node
   linkType: hard
 
@@ -7259,6 +7261,15 @@ __metadata:
   bin:
     nanoid: bin/nanoid.cjs
   checksum: 2fddd6dee994b7676f008d3ffa4ab16035a754f4bb586c61df5a22cf8c8c94017aadd360368f47d653829e0569a92b129979152ff97af23a558331e47e37cd9c
+  languageName: node
+  linkType: hard
+
+"nanoid@npm:^5.0.7":
+  version: 5.0.7
+  resolution: "nanoid@npm:5.0.7"
+  bin:
+    nanoid: bin/nanoid.js
+  checksum: 25ab0b0cf9082ae6747f0f55cec930e6c1cc5975103aa3a5fda44be5720eff57d9b25a8a9850274bfdde8def964b49bf03def71c6aa7ad1cba32787819b79f60
   languageName: node
   linkType: hard
 

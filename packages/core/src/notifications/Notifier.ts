@@ -3,8 +3,8 @@ import { API, type APIEmbed } from '@discordjs/core';
 import { inject, injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import type { Logger } from 'pino';
-import { IDataManager } from '../application-data/IDataManager.js';
 import { INJECTION_TOKENS } from '../container.js';
+import { IDatabase } from '../database/IDatabase.js';
 import { LogWebhookKind, ModCaseKind, type ModCase } from '../db.js';
 import { computeAvatarUrl } from '../util/computeAvatar.js';
 import { userToEmbedAuthor } from '../util/userToEmbedData.js';
@@ -33,7 +33,7 @@ export class Notifier extends INotifier {
 	public constructor(
 		private readonly api: API,
 		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
-		private readonly dataManager: IDataManager,
+		private readonly dataManager: IDatabase,
 	) {
 		super();
 	}
@@ -65,12 +65,7 @@ export class Notifier extends INotifier {
 		return false;
 	}
 
-	public override async generateModCaseEmbed({
-		modCase,
-		existingMessage,
-		mod,
-		target,
-	}: LogModCaseOptions): Promise<APIEmbed> {
+	public override generateModCaseEmbed({ modCase, existingMessage, mod, target }: LogModCaseOptions): APIEmbed {
 		const embed: APIEmbed = existingMessage?.embeds[0] ?? {
 			color: this.COLORS_MAP[modCase.kind],
 			author: userToEmbedAuthor(target, modCase.targetId),
@@ -94,7 +89,7 @@ export class Notifier extends INotifier {
 		}
 
 		const data = {
-			embeds: [await this.generateModCaseEmbed(options)],
+			embeds: [this.generateModCaseEmbed(options)],
 			thread_id: webhook.threadId ?? undefined,
 		};
 

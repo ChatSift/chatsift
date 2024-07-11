@@ -1,6 +1,3 @@
-// Deliberately don't export impl
-export * from './application-data/IDataManager.js';
-
 export * from './broker-types/gateway.js';
 
 // Deliberately don't export impl
@@ -16,11 +13,15 @@ export * from './command-framework/CoralCommandHandler.js';
 export * from './command-framework/ICommandHandler.js';
 
 // Deliberately don't export impl
+export * from './database/IDatabase.js';
+
+// Deliberately don't export impl
 export * from './experiments/IExperimentHandler.js';
 
 // Deliberately don't export impl
 export * from './notifications/INotifier.js';
 
+export * from './util/computeAvatar.js';
 export * from './util/DependencyManager.js';
 export * from './util/encode.js';
 export * from './util/Env.js';
@@ -28,6 +29,7 @@ export * from './util/parseRelativeTime.js';
 export * from './util/PermissionsBitField.js';
 export * from './util/promiseAllObject.js';
 export * from './util/setupCrashLogs.js';
+export * from './util/userToEmbedData.js';
 
 export * from './container.js';
 export * from './db.js';

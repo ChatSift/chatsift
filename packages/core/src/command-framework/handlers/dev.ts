@@ -1,4 +1,4 @@
-import { InteractionContextType, type APIInteraction } from '@discordjs/core';
+import { InteractionContextType, type APIApplicationCommandInteraction } from '@discordjs/core';
 import { ActionKind, HandlerStep, type InteractionHandler as CoralInteractionHandler } from 'coral-command';
 import { injectable } from 'inversify';
 import { Env } from '../../util/Env.js';
@@ -25,19 +25,19 @@ export default class DevHandler implements HandlerModule<CoralInteractionHandler
 		});
 	}
 
-	public async *handleDeploy(interaction: APIInteraction): CoralInteractionHandler {
+	public async *handleDeploy(interaction: APIApplicationCommandInteraction): CoralInteractionHandler {
 		if (!interaction.user) {
 			throw new Error('Command /deploy was ran in non-dm.');
 		}
 
 		yield HandlerStep.from({
-			action: ActionKind.EnsureDefer,
+			action: ActionKind.EnsureDeferReply,
 			options: {},
 		});
 
 		if (!this.env.admins.has(interaction.user.id)) {
 			return HandlerStep.from({
-				action: ActionKind.Respond,
+				action: ActionKind.Reply,
 				options: {
 					content: 'You are not authorized to use this command',
 				},
@@ -46,7 +46,7 @@ export default class DevHandler implements HandlerModule<CoralInteractionHandler
 
 		await this.handler.deployCommands();
 		yield HandlerStep.from({
-			action: ActionKind.Respond,
+			action: ActionKind.Reply,
 			options: {
 				content: 'Successfully deployed commands',
 			},

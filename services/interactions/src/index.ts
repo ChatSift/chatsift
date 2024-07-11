@@ -18,16 +18,19 @@ import { readdirRecurseManyAsync, ReadMode } from '@chatsift/readdir';
 import { PubSubRedisBroker } from '@discordjs/brokers';
 import { GatewayDispatchEvents } from '@discordjs/core';
 import type { InteractionHandler as CoralInteractionHandler } from 'coral-command';
+import { IComponentStateStore } from './state/IComponentStateStore.js';
+import { RedisComponentStateStore } from './state/RedisComponentDataStore.js';
 
 const dependencyManager = globalContainer.get(DependencyManager);
 const logger = dependencyManager.registerLogger('interactions');
 const redis = dependencyManager.registerRedis();
-dependencyManager.registerDatabase();
 dependencyManager.registerApi();
+
+globalContainer.bind<IComponentStateStore>(IComponentStateStore).to(RedisComponentStateStore);
+globalContainer.bind<ICommandHandler<CoralInteractionHandler>>(ICommandHandler).to(CoralCommandHandler);
 
 setupCrashLogs();
 
-globalContainer.bind<ICommandHandler<CoralInteractionHandler>>(ICommandHandler).to(CoralCommandHandler);
 const commandHandler = globalContainer.get<ICommandHandler<CoralInteractionHandler>>(ICommandHandler);
 
 export const serviceHandlersPath = join(dirname(fileURLToPath(import.meta.url)), 'handlers');

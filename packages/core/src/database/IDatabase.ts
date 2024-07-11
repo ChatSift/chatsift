@@ -29,9 +29,9 @@ export interface GetRecentCasesAgainstOptions {
  * Abstraction over all database interactions
  */
 @injectable()
-export abstract class IDataManager {
+export abstract class IDatabase {
 	public constructor() {
-		if (this.constructor === IDataManager) {
+		if (this.constructor === IDatabase) {
 			throw new Error('This class cannot be instantiated.');
 		}
 	}

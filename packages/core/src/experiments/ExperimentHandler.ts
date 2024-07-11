@@ -2,8 +2,8 @@ import { setInterval } from 'node:timers';
 import { inject, injectable } from 'inversify';
 import murmurhash from 'murmurhash';
 import type { Logger } from 'pino';
-import { IDataManager, type ExperimentWithOverrides } from '../application-data/IDataManager.js';
 import { INJECTION_TOKENS } from '../container.js';
+import { IDatabase, type ExperimentWithOverrides } from '../database/IDatabase.js';
 import { IExperimentHandler } from './IExperimentHandler.js';
 
 @injectable()
@@ -11,7 +11,7 @@ export class ExperimentHandler extends IExperimentHandler {
 	readonly #experimentCache = new Map<string, ExperimentWithOverrides>();
 
 	public constructor(
-		private readonly dataManager: IDataManager,
+		private readonly dataManager: IDatabase,
 		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
 	) {
 		super();

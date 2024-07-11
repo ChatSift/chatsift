@@ -32,7 +32,7 @@ export abstract class INotifier {
 
 	public abstract tryDMUser(options: DMUserOptions): Promise<boolean>;
 
-	public abstract generateModCaseEmbed(options: LogModCaseOptions): Promise<APIEmbed>;
+	public abstract generateModCaseEmbed(options: LogModCaseOptions): APIEmbed;
 	public abstract logModCase(options: LogModCaseOptions): Promise<void>;
 	public abstract tryNotifyTargetModCase(modCase: Selectable<ModCase>): Promise<boolean>;
 }

@@ -1,6 +1,7 @@
 import {
 	API,
 	InteractionType,
+	MessageFlags,
 	type APIApplicationCommandAutocompleteInteraction,
 	type APIApplicationCommandInteraction,
 	type APIInteraction,
@@ -16,8 +17,8 @@ import {
 import { inject, injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import { type Logger } from 'pino';
-import { IDataManager } from '../application-data/IDataManager.js';
 import { INJECTION_TOKENS } from '../container.js';
+import { IDatabase } from '../database/IDatabase.js';
 import type { Incident } from '../db.js';
 import { Env } from '../util/Env.js';
 import {
@@ -47,7 +48,7 @@ export class CoralCommandHandler extends ICommandHandler<CoralInteractionHandler
 
 	public constructor(
 		private readonly api: API,
-		private readonly database: IDataManager,
+		private readonly database: IDatabase,
 		private readonly env: Env,
 		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
 	) {
@@ -107,7 +108,7 @@ export class CoralCommandHandler extends ICommandHandler<CoralInteractionHandler
 			}
 
 			case InteractionType.MessageComponent: {
-				const [identifier, ...args] = interaction.data.custom_id.split(':') as [string, ...string[]];
+				const [identifier, ...args] = interaction.data.custom_id.split('|') as [string, ...string[]];
 
 				const handler = this.#handlers.components.get(identifier);
 				if (handler) {
@@ -223,8 +224,9 @@ export class CoralCommandHandler extends ICommandHandler<CoralInteractionHandler
 
 	// TODO: Handle specific errors maybe
 	private async reportIncident(actions: CoralActions, incident: Selectable<Incident>): Promise<void> {
-		await actions.respond({
+		await actions.reply({
 			content: `An error occurred while processing your request. Please report this incident to the developers. (Incident ID: ${incident.id})`,
+			flags: MessageFlags.Ephemeral,
 		});
 	}
 

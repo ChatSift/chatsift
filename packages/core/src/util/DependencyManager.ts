@@ -2,26 +2,19 @@ import { API } from '@discordjs/core';
 import { REST } from '@discordjs/rest';
 import { injectable } from 'inversify';
 import { Redis } from 'ioredis';
-import { Kysely, PostgresDialect } from 'kysely';
 import type { Logger } from 'pino';
 import createPinoLogger from 'pino';
-import { IDataManager } from '../application-data/IDataManager.js';
-import { KyselyDataManager } from '../application-data/KyselyDataManager.js';
 import { GuildCacheEntity, type CachedGuild } from '../cache/entities/GuildCacheEntity.js';
 import type { ICacheEntity } from '../cache/entities/ICacheEntity.js';
 import { INJECTION_TOKENS, globalContainer } from '../container.js';
-import type { DB } from '../db.js';
+import { IDatabase } from '../database/IDatabase.js';
+import { KyselyPostgresDatabase } from '../database/KyselyPostgresDatabase.js';
 import { ExperimentHandler } from '../experiments/ExperimentHandler.js';
 import { IExperimentHandler } from '../experiments/IExperimentHandler.js';
 import { INotifier } from '../notifications/INotifier.js';
 import { Notifier } from '../notifications/Notifier.js';
 import { Env } from './Env.js';
 import type { TransportOptions } from './loggingTransport.js';
-
-// no proper ESM support
-const {
-	default: { Pool },
-} = await import('pg');
 
 @injectable()
 /**
@@ -55,23 +48,6 @@ export class DependencyManager {
 		return api;
 	}
 
-	public registerDatabase(): Kysely<DB> {
-		const database = new Kysely<DB>({
-			dialect: new PostgresDialect({
-				pool: new Pool({
-					host: this.env.postgresHost,
-					port: this.env.postgresPort,
-					user: this.env.postgresUser,
-					password: this.env.postgresPassword,
-					database: this.env.postgresDatabase,
-				}),
-			}),
-		});
-
-		globalContainer.bind<Kysely<DB>>(Kysely).toConstantValue(database);
-		return database;
-	}
-
 	public registerLogger(stream: string): Logger {
 		const options: TransportOptions = {
 			domain: this.env.parseableDomain,
@@ -99,7 +75,7 @@ export class DependencyManager {
 			.inSingletonScope();
 
 		// Those can always be swapped out for diff. impls
-		globalContainer.bind<IDataManager>(IDataManager).to(KyselyDataManager);
+		globalContainer.bind<IDatabase>(IDatabase).to(KyselyPostgresDatabase);
 		globalContainer.bind<IExperimentHandler>(IExperimentHandler).to(ExperimentHandler);
 		globalContainer.bind<INotifier>(INotifier).to(Notifier);
 	}
