@@ -32,6 +32,7 @@ export type ExperimentOverride = {
 export type Incident = {
     id: Generated<number>;
     stack: string;
+    causeStack: string | null;
     guildId: string | null;
     createdAt: Generated<Timestamp>;
     resolved: Generated<boolean>;

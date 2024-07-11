@@ -5,10 +5,9 @@ import {
 	MessageFlags,
 	PermissionFlagsBits,
 	type APIInteraction,
-	type APIUser,
 } from '@discordjs/core';
 import type { InteractionOptionResolver } from '@sapphire/discord-utilities';
-import { ActionKind, type InteractionHandler as CoralInteractionHandler } from 'coral-command';
+import { ActionKind, HandlerStep, type InteractionHandler as CoralInteractionHandler } from 'coral-command';
 import { injectable } from 'inversify';
 
 @injectable()
@@ -47,12 +46,12 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 	}
 
 	private async *hanadleWarn(interaction: APIInteraction, options: InteractionOptionResolver): CoralInteractionHandler {
-		yield {
+		yield HandlerStep.from({
 			action: ActionKind.EnsureDefer,
-			data: {
+			options: {
 				flags: MessageFlags.Ephemeral,
 			},
-		};
+		});
 
 		yield* this.checkCaseLock(interaction, options, ModCaseKind.Warn);
 	}
@@ -62,12 +61,12 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		options: InteractionOptionResolver,
 		kind: ModCaseKind,
 	): CoralInteractionHandler {
-		yield {
+		yield HandlerStep.from({
 			action: ActionKind.EnsureDefer,
-			data: {
+			options: {
 				flags: MessageFlags.Ephemeral,
 			},
-		};
+		});
 
 		const target = options.getUser('target', true);
 
@@ -87,15 +86,15 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			),
 		);
 
-		yield {
+		yield HandlerStep.from({
 			action: ActionKind.Respond,
-			data: {
+			options: {
 				content: 'This user has been actioned in the past hour. Would you still like to proceed?',
 				embeds,
 				// TODO
 				components: [],
 			},
-		};
+		});
 	}
 
 	private async *commitCase(
@@ -116,18 +115,18 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 
 		const userNotified = await this.notifier.tryNotifyTargetModCase(modCase);
 
-		yield {
+		yield HandlerStep.from({
 			action: ActionKind.Respond,
-			data: {
+			options: {
 				content: `Successfully warned the user. DM sent: ${userNotified ? 'yes' : 'no'}`,
 			},
-		};
+		});
 
-		yield {
+		yield HandlerStep.from({
 			action: ActionKind.ExecuteWithoutErrorReport,
 			callback: async () => {
 				await this.notifier.logModCase({ modCase, mod: interaction.member!.user, target });
 			},
-		};
+		});
 	}
 }

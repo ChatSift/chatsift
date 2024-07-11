@@ -77,7 +77,7 @@ export class Notifier extends INotifier {
 		};
 
 		// We want to re-compute those no matter what for good measure
-		embed.title = `Was ${this.ACTION_VERBS_MAP[modCase.kind]} ${modCase.reason}`;
+		embed.title = `Was ${this.ACTION_VERBS_MAP[modCase.kind]}: ${modCase.reason}`;
 		embed.footer = {
 			text: `Case ${modCase.id} | By ${mod?.username ?? '[Unknown/Deleted user]'} (${modCase.modId})`,
 			icon_url: computeAvatarUrl(mod, modCase.modId),

@@ -14,16 +14,12 @@ import {
  */
 @injectable()
 export class KyselyDataManager extends IDataManager {
-	readonly #database: Kysely<DB>;
-
 	public constructor(private readonly database: Kysely<DB>) {
 		super();
-
-		this.#database = database;
 	}
 
 	public override async getExperiments(): Promise<ExperimentWithOverrides[]> {
-		return this.#database
+		return this.database
 			.selectFrom('Experiment')
 			.selectAll()
 			.select((query) => [
@@ -38,25 +34,28 @@ export class KyselyDataManager extends IDataManager {
 	}
 
 	public override async createIncident(error: Error, guildId?: string): Promise<Selectable<Incident>> {
-		return this.#database
+		const causeStack = error.cause && error.cause instanceof Error ? error.cause.stack ?? error.cause.message : null;
+
+		return this.database
 			.insertInto('Incident')
 			.values({
 				guildId,
 				stack: error.stack ?? error.message,
+				causeStack,
 			})
 			.returningAll()
 			.executeTakeFirstOrThrow();
 	}
 
 	public override async createModCase(data: CreateModCaseOptions): Promise<Selectable<ModCase>> {
-		return this.#database.insertInto('ModCase').values(data).returningAll().executeTakeFirstOrThrow();
+		return this.database.insertInto('ModCase').values(data).returningAll().executeTakeFirstOrThrow();
 	}
 
 	public override async getRecentCasesAgainst({
 		guildId,
 		targetId: userId,
 	}: GetRecentCasesAgainstOptions): Promise<Selectable<ModCase>[]> {
-		return this.#database
+		return this.database
 			.selectFrom('ModCase')
 			.selectAll()
 			.where('guildId', '=', guildId)
@@ -65,12 +64,15 @@ export class KyselyDataManager extends IDataManager {
 			.execute();
 	}
 
-	public override async getLogWebhook(guildId: string, kind: LogWebhookKind): Promise<Selectable<LogWebhook>> {
-		return this.#database
+	public override async getLogWebhook(
+		guildId: string,
+		kind: LogWebhookKind,
+	): Promise<Selectable<LogWebhook> | undefined> {
+		return this.database
 			.selectFrom('LogWebhook')
 			.selectAll()
 			.where('guildId', '=', guildId)
 			.where('kind', '=', kind)
-			.executeTakeFirstOrThrow();
+			.executeTakeFirst();
 	}
 }

@@ -42,5 +42,5 @@ export abstract class IDataManager {
 	public abstract createModCase(options: CreateModCaseOptions): Promise<Selectable<ModCase>>;
 	public abstract getRecentCasesAgainst(options: GetRecentCasesAgainstOptions): Promise<Selectable<ModCase>[]>;
 
-	public abstract getLogWebhook(guildId: string, kind: LogWebhookKind): Promise<Selectable<LogWebhook>>;
+	public abstract getLogWebhook(guildId: string, kind: LogWebhookKind): Promise<Selectable<LogWebhook> | undefined>;
 }

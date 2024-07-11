@@ -28,11 +28,12 @@ model ExperimentOverride {
 }
 
 model Incident {
-  id        Int      @id @default(autoincrement())
-  stack     String
-  guildId   String?
-  createdAt DateTime @default(now())
-  resolved  Boolean  @default(false)
+  id         Int      @id @default(autoincrement())
+  stack      String
+  causeStack String?
+  guildId    String?
+  createdAt  DateTime @default(now())
+  resolved   Boolean  @default(false)
 }
 
 enum ModCaseKind {
