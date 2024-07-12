@@ -30,22 +30,23 @@ export default class DevHandler implements HandlerModule<CoralInteractionHandler
 			throw new Error('Command /deploy was ran in non-dm.');
 		}
 
-		yield HandlerStep.from({
+		yield* HandlerStep.from({
 			action: ActionKind.EnsureDeferReply,
 			options: {},
 		});
 
 		if (!this.env.admins.has(interaction.user.id)) {
-			return HandlerStep.from({
+			yield* HandlerStep.from({
 				action: ActionKind.Reply,
 				options: {
 					content: 'You are not authorized to use this command',
 				},
 			});
+			return;
 		}
 
 		await this.handler.deployCommands();
-		yield HandlerStep.from({
+		yield* HandlerStep.from({
 			action: ActionKind.Reply,
 			options: {
 				content: 'Successfully deployed commands',

@@ -64,7 +64,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		interaction: APIApplicationCommandInteraction,
 		options: InteractionOptionResolver,
 	): CoralInteractionHandler {
-		yield HandlerStep.from({
+		yield* HandlerStep.from({
 			action: ActionKind.EnsureDeferReply,
 			options: {
 				flags: MessageFlags.Ephemeral,
@@ -79,7 +79,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		options: InteractionOptionResolver,
 		kind: ModCaseKind,
 	): CoralInteractionHandler {
-		yield HandlerStep.from({
+		yield* HandlerStep.from({
 			action: ActionKind.EnsureDeferReply,
 			options: {
 				flags: MessageFlags.Ephemeral,
@@ -110,7 +110,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			targetId: target.id,
 		});
 
-		yield HandlerStep.from({
+		yield* HandlerStep.from({
 			action: ActionKind.Reply,
 			options: {
 				content: 'This user has been actioned in the past hour. Would you still like to proceed?',
@@ -150,7 +150,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		const state = await this.stateStore.getPendingModCase(id);
 
 		if (!state) {
-			yield HandlerStep.from({
+			yield* HandlerStep.from({
 				action: ActionKind.UpdateMessage,
 				options: {
 					content: 'This confirmation has expired.',
@@ -166,7 +166,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 	}
 
 	private async *handleCancelModCase(): CoralInteractionHandler {
-		yield HandlerStep.from({
+		yield* HandlerStep.from({
 			action: ActionKind.UpdateMessage,
 			options: {
 				content: 'Cancelled.',
@@ -184,7 +184,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 	): CoralInteractionHandler {
 		const isButton = interaction.type === InteractionType.MessageComponent;
 
-		yield HandlerStep.from(
+		yield* HandlerStep.from(
 			isButton
 				? { action: ActionKind.EnsureDeferUpdateMessage }
 				: {
@@ -205,7 +205,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 
 		const userNotified = await this.notifier.tryNotifyTargetModCase(modCase);
 
-		yield HandlerStep.from({
+		yield* HandlerStep.from({
 			action: ActionKind.Reply,
 			options: {
 				content: `Successfully warned the user. DM sent: ${userNotified ? 'yes' : 'no'}`,
@@ -214,7 +214,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			},
 		});
 
-		yield HandlerStep.from({
+		yield* HandlerStep.from({
 			action: ActionKind.ExecuteWithoutErrorReport,
 			callback: async () => {
 				await this.notifier.logModCase({ modCase, mod: interaction.member!.user, target });
