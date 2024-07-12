@@ -7,6 +7,7 @@ import {
 } from '@discordjs/core';
 import { injectable } from 'inversify';
 import type { Selectable } from 'kysely';
+import type { CaseWithLogMessage } from '../database/IDatabase.js';
 import type { ModCase } from '../db.js';
 
 export interface DMUserOptions {
@@ -19,6 +20,7 @@ export interface LogModCaseOptions {
 	existingMessage?: APIMessage;
 	mod: APIUser | null;
 	modCase: Selectable<ModCase>;
+	references: CaseWithLogMessage[];
 	target: APIUser | null;
 }
 

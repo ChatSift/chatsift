@@ -27,6 +27,8 @@ export interface GetRecentCasesAgainstOptions {
 	targetId: string;
 }
 
+export type CaseWithLogMessage = Selectable<ModCase> & { logMessage: Selectable<ModCaseLogMessage> | null };
+
 /**
  * Abstraction over all database interactions
  */
@@ -41,9 +43,9 @@ export abstract class IDatabase {
 	public abstract getExperiments(): Promise<ExperimentWithOverrides[]>;
 	public abstract createIncident(error: Error, guildId?: string): Promise<Selectable<Incident>>;
 
-	public abstract getModCase(caseId: number): Promise<Selectable<ModCase> | undefined>;
-	public abstract getModCaseBulk(caseIds: number[]): Promise<Selectable<ModCase>[]>;
-	public abstract getRecentCasesAgainst(options: GetRecentCasesAgainstOptions): Promise<Selectable<ModCase>[]>;
+	public abstract getModCase(caseId: number): Promise<Selectable<CaseWithLogMessage> | undefined>;
+	public abstract getModCaseBulk(caseIds: number[]): Promise<CaseWithLogMessage[]>;
+	public abstract getRecentCasesAgainst(options: GetRecentCasesAgainstOptions): Promise<CaseWithLogMessage[]>;
 
 	public abstract createModCase(options: CreateModCaseOptions): Promise<Selectable<ModCase>>;
 

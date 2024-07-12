@@ -1,10 +1,11 @@
 import { injectable } from 'inversify';
-import { sql, Kysely, type Selectable, PostgresDialect } from 'kysely';
-import { jsonArrayFrom } from 'kysely/helpers/postgres';
-import type { CaseReference, DB, Incident, LogWebhook, LogWebhookKind, ModCase, ModCaseLogMessage } from '../db.js';
+import { sql, Kysely, type Selectable, PostgresDialect, type ExpressionBuilder } from 'kysely';
+import { jsonArrayFrom, jsonObjectFrom } from 'kysely/helpers/postgres';
+import type { DB, Incident, LogWebhook, LogWebhookKind, ModCase, ModCaseLogMessage } from '../db.js';
 import { Env } from '../util/Env.js';
 import {
 	IDatabase,
+	type CaseWithLogMessage,
 	type CreateModCaseOptions,
 	type ExperimentWithOverrides,
 	type GetRecentCasesAgainstOptions,
@@ -46,7 +47,7 @@ export class KyselyPostgresDatabase extends IDatabase {
 				jsonArrayFrom(
 					query
 						.selectFrom('ExperimentOverride')
-						.selectAll('ExperimentOverride')
+						.selectAll()
 						.whereRef('Experiment.name', '=', 'ExperimentOverride.experimentName'),
 				).as('overrides'),
 			])
@@ -67,18 +68,28 @@ export class KyselyPostgresDatabase extends IDatabase {
 			.executeTakeFirstOrThrow();
 	}
 
-	public override async getModCase(caseId: number): Promise<Selectable<ModCase> | undefined> {
-		return this.#database.selectFrom('ModCase').selectAll().where('id', '=', caseId).executeTakeFirst();
+	public override async getModCase(caseId: number): Promise<Selectable<CaseWithLogMessage> | undefined> {
+		return this.#database
+			.selectFrom('ModCase')
+			.selectAll()
+			.where('id', '=', caseId)
+			.select(this.withLogMessage)
+			.executeTakeFirst();
 	}
 
-	public override async getModCaseBulk(caseIds: number[]): Promise<Selectable<ModCase>[]> {
-		return this.#database.selectFrom('ModCase').selectAll().where('id', 'in', caseIds).execute();
+	public override async getModCaseBulk(caseIds: number[]): Promise<CaseWithLogMessage[]> {
+		return this.#database
+			.selectFrom('ModCase')
+			.selectAll()
+			.where('id', 'in', caseIds)
+			.select(this.withLogMessage)
+			.execute();
 	}
 
 	public override async getRecentCasesAgainst({
 		guildId,
 		targetId: userId,
-	}: GetRecentCasesAgainstOptions): Promise<Selectable<ModCase>[]> {
+	}: GetRecentCasesAgainstOptions): Promise<CaseWithLogMessage[]> {
 		return this.#database
 			.selectFrom('ModCase')
 			.selectAll()
@@ -86,6 +97,7 @@ export class KyselyPostgresDatabase extends IDatabase {
 			.where('targetId', '=', userId)
 			.where('createdAt', '>', sql<Date>`NOW() - INTERVAL '1 HOUR'`)
 			.orderBy('ModCase.createdAt desc')
+			.select(this.withLogMessage)
 			.execute();
 	}
 
@@ -121,4 +133,13 @@ export class KyselyPostgresDatabase extends IDatabase {
 			.where('kind', '=', kind)
 			.executeTakeFirst();
 	}
+
+	private readonly withLogMessage = (query: ExpressionBuilder<DB, 'ModCase'>) => [
+		jsonObjectFrom(
+			query
+				.selectFrom('ModCaseLogMessage')
+				.selectAll('ModCaseLogMessage')
+				.whereRef('ModCase.id', '=', 'ModCaseLogMessage.caseId'),
+		).as('logMessage'),
+	];
 }

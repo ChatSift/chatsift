@@ -5,6 +5,7 @@ import {
 	IDatabase,
 	INotifier,
 	PermissionsBitField,
+	type CaseWithLogMessage,
 } from '@automoderator/core';
 import {
 	API,
@@ -125,7 +126,9 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		}
 
 		const target = await this.api.users.get(state.targetId);
-		yield* this.commitCase(interaction, target, state.reason, state.kind, state.references);
+
+		const references = await this.database.getModCaseBulk(state.references);
+		yield* this.commitCase(interaction, target, state.reason, state.kind, references);
 	}
 
 	private async *handleCancelModCase(): CoralInteractionHandler {
@@ -221,7 +224,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		interaction: APIApplicationCommandInteraction,
 		options: InteractionOptionResolver,
 		kind: ModCaseKind,
-		references: number[],
+		references: CaseWithLogMessage[],
 	): CoralInteractionHandler {
 		yield* HandlerStep.from({
 			action: ActionKind.EnsureDeferReply,
@@ -244,7 +247,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		}
 
 		const embeds = previousCases.map((modCase) =>
-			this.notifier.generateModCaseEmbed({ modCase, mod: interaction.member!.user, target }),
+			this.notifier.generateModCaseEmbed({ modCase, mod: interaction.member!.user, target, references }),
 		);
 
 		const stateId = nanoid();
@@ -252,7 +255,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			kind,
 			reason,
 			targetId: target.id,
-			references,
+			references: references.map((ref) => ref.id),
 		});
 
 		yield* HandlerStep.from({
@@ -288,7 +291,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		target: APIUser,
 		reason: string,
 		kind: ModCaseKind,
-		references: number[],
+		references: CaseWithLogMessage[],
 	): CoralInteractionHandler {
 		const isButton = interaction.type === InteractionType.MessageComponent;
 
@@ -308,7 +311,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			targetId: target.id,
 			modId: interaction.member!.user.id,
 			reason,
-			references,
+			references: references.map((ref) => ref.id),
 			kind,
 		});
 
@@ -326,12 +329,14 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		yield* HandlerStep.from({
 			action: ActionKind.ExecuteWithoutErrorReport,
 			callback: async () => {
-				await this.notifier.logModCase({ modCase, mod: interaction.member!.user, target });
+				await this.notifier.logModCase({ modCase, mod: interaction.member!.user, target, references });
 			},
 		});
 	}
 
-	private async *verifyValidReferences(options: InteractionOptionResolver): CoralInteractionHandler<number[]> {
+	private async *verifyValidReferences(
+		options: InteractionOptionResolver,
+	): CoralInteractionHandler<CaseWithLogMessage[]> {
 		const references =
 			options
 				.getString('references')
@@ -375,6 +380,6 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			);
 		}
 
-		return numbers;
+		return cases;
 	}
 }

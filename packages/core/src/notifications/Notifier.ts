@@ -1,5 +1,6 @@
-import { truncateEmbed } from '@chatsift/discord-utils';
+import { addFields, truncateEmbed } from '@chatsift/discord-utils';
 import { API, type APIEmbed, type APIMessage } from '@discordjs/core';
+import { messageLink } from '@discordjs/formatters';
 import { inject, injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import type { Logger } from 'pino';
@@ -65,7 +66,13 @@ export class Notifier extends INotifier {
 		return false;
 	}
 
-	public override generateModCaseEmbed({ modCase, existingMessage, mod, target }: LogModCaseOptions): APIEmbed {
+	public override generateModCaseEmbed({
+		modCase,
+		existingMessage,
+		mod,
+		target,
+		references,
+	}: LogModCaseOptions): APIEmbed {
 		const embed: APIEmbed = existingMessage?.embeds[0] ?? {
 			color: this.COLORS_MAP[modCase.kind],
 			author: userToEmbedAuthor(target, modCase.targetId),
@@ -77,6 +84,19 @@ export class Notifier extends INotifier {
 			text: `Case ${modCase.id} | By ${mod?.username ?? '[Unknown/Deleted user]'} (${modCase.modId})`,
 			icon_url: computeAvatarUrl(mod, modCase.modId),
 		};
+
+		if (references?.length) {
+			addFields(embed, {
+				name: 'References',
+				value: references
+					.map((ref) =>
+						ref.logMessage
+							? `[#${ref.id}](${messageLink(ref.logMessage.channelId, ref.logMessage.messageId, modCase.guildId)})`
+							: `#${ref.id}`,
+					)
+					.join(', '),
+			});
+		}
 
 		return truncateEmbed(embed);
 	}
