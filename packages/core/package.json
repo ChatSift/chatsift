@@ -23,6 +23,7 @@
 		"@discordjs/brokers": "^0.3.0",
 		"@discordjs/builders": "^1.8.2",
 		"@discordjs/core": "^1.2.0",
+		"@discordjs/formatters": "^0.4.0",
 		"@discordjs/rest": "^2.3.0",
 		"@msgpack/msgpack": "^3.0.0-beta2",
 		"@naval-base/ms": "^3.1.0",

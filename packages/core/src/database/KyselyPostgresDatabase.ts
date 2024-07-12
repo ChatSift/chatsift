@@ -1,7 +1,7 @@
 import { injectable } from 'inversify';
 import { sql, Kysely, type Selectable, PostgresDialect } from 'kysely';
 import { jsonArrayFrom } from 'kysely/helpers/postgres';
-import type { CaseReference, DB, Incident, LogWebhook, LogWebhookKind, ModCase } from '../db.js';
+import type { CaseReference, DB, Incident, LogWebhook, LogWebhookKind, ModCase, ModCaseLogMessage } from '../db.js';
 import { Env } from '../util/Env.js';
 import {
 	IDatabase,
@@ -102,6 +102,12 @@ export class KyselyPostgresDatabase extends IDatabase {
 
 			return modCase;
 		});
+	}
+
+	public override async createModCaseLogMessage(
+		options: Selectable<ModCaseLogMessage>,
+	): Promise<Selectable<ModCaseLogMessage>> {
+		return this.#database.insertInto('ModCaseLogMessage').values(options).returningAll().executeTakeFirstOrThrow();
 	}
 
 	public override async getLogWebhook(

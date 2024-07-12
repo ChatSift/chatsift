@@ -1,5 +1,5 @@
 import { truncateEmbed } from '@chatsift/discord-utils';
-import { API, type APIEmbed } from '@discordjs/core';
+import { API, type APIEmbed, type APIMessage } from '@discordjs/core';
 import { inject, injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import type { Logger } from 'pino';
@@ -93,11 +93,24 @@ export class Notifier extends INotifier {
 			thread_id: webhook.threadId ?? undefined,
 		};
 
+		let message: APIMessage;
+
 		if (options.existingMessage) {
-			await this.api.webhooks.editMessage(webhook.webhookId, webhook.webhookToken, options.existingMessage.id, data);
+			message = await this.api.webhooks.editMessage(
+				webhook.webhookId,
+				webhook.webhookToken,
+				options.existingMessage.id,
+				data,
+			);
 		} else {
-			await this.api.webhooks.execute(webhook.webhookId, webhook.webhookToken, data);
+			message = await this.api.webhooks.execute(webhook.webhookId, webhook.webhookToken, { ...data, wait: true });
 		}
+
+		await this.database.createModCaseLogMessage({
+			messageId: message.id,
+			caseId: options.modCase.id,
+			channelId: message.channel_id,
+		});
 	}
 
 	// TODO: Take in APIGuild?

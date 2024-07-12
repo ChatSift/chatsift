@@ -58,6 +58,11 @@ export type ModCase = {
     modId: string;
     targetId: string;
 };
+export type ModCaseLogMessage = {
+    caseId: number;
+    messageId: string;
+    channelId: string;
+};
 export type DB = {
     CaseReference: CaseReference;
     Experiment: Experiment;
@@ -65,4 +70,5 @@ export type DB = {
     Incident: Incident;
     LogWebhook: LogWebhook;
     ModCase: ModCase;
+    ModCaseLogMessage: ModCaseLogMessage;
 };
