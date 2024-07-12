@@ -1,4 +1,11 @@
-import { ModCaseKind, type HandlerModule, type ICommandHandler, IDatabase, INotifier } from '@automoderator/core';
+import {
+	ModCaseKind,
+	type HandlerModule,
+	type ICommandHandler,
+	IDatabase,
+	INotifier,
+	PermissionsBitField,
+} from '@automoderator/core';
 import {
 	API,
 	ApplicationCommandOptionType,
@@ -52,7 +59,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 					default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
 				},
 			],
-			applicationCommands: [['warn:none:none', this.hanadleWarn.bind(this)]],
+			applicationCommands: [['warn:none:none', this.hanadleWarnCommand.bind(this)]],
 			components: [
 				['confirm-mod-case', this.handleConfirmModCase.bind(this)],
 				['cancel-mod-case', this.handleCancelModCase.bind(this)],
@@ -60,7 +67,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		});
 	}
 
-	private async *hanadleWarn(
+	private async *hanadleWarnCommand(
 		interaction: APIApplicationCommandInteraction,
 		options: InteractionOptionResolver,
 	): CoralInteractionHandler {
@@ -71,7 +78,121 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			},
 		});
 
+		if (!options.getMember('target')) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: 'User is no longer in the server.',
+					},
+				},
+				true,
+			);
+		}
+
+		yield* this.checkHiararchy(interaction, options);
 		yield* this.checkCaseLock(interaction, options, ModCaseKind.Warn);
+	}
+
+	private async *handleConfirmModCase(
+		interaction: APIMessageComponentInteraction,
+		args: string[],
+	): CoralInteractionHandler {
+		const id = args[0];
+		if (!id) {
+			throw new Error('Malformed custom_id');
+		}
+
+		const state = await this.stateStore.getPendingModCase(id);
+
+		if (!state) {
+			yield* HandlerStep.from({
+				action: ActionKind.UpdateMessage,
+				options: {
+					content: 'This confirmation has expired.',
+					components: [],
+					embeds: [],
+				},
+			});
+			return;
+		}
+
+		const target = await this.api.users.get(state.targetId);
+		yield* this.commitCase(interaction, target, state.reason, state.kind);
+	}
+
+	private async *handleCancelModCase(): CoralInteractionHandler {
+		yield* HandlerStep.from({
+			action: ActionKind.UpdateMessage,
+			options: {
+				content: 'Cancelled.',
+				components: [],
+				embeds: [],
+			},
+		});
+	}
+
+	private async *checkHiararchy(
+		interaction: APIApplicationCommandInteraction,
+		options: InteractionOptionResolver,
+	): CoralInteractionHandler<void> {
+		const targetMember = options.getMember('target', true);
+
+		if (!targetMember) {
+			return;
+		}
+
+		if (options.getUser('target', true).id === interaction.member!.user.id) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: 'You cannot mod yourself.',
+					},
+				},
+				true,
+			);
+		}
+
+		if (
+			PermissionsBitField.any(BigInt(targetMember.permissions), [
+				PermissionFlagsBits.ManageGuild,
+				PermissionFlagsBits.Administrator,
+			])
+		) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: 'You cannot mod a user with Manage Guild or Administrator permissions.',
+					},
+				},
+				true,
+			);
+		}
+
+		const guildRoles = await this.api.guilds.getRoles(interaction.guild_id!);
+		const sorted = guildRoles.sort((a, b) => b.position - a.position);
+
+		const targetRolesSet = new Set(targetMember.roles);
+		const highestTargetRole = sorted.find((role) => targetRolesSet.has(role.id));
+
+		const modRolesSet = new Set(interaction.member!.roles);
+		const highestModRole = sorted.find((role) => modRolesSet.has(role.id));
+
+		if ((highestTargetRole?.position ?? 0) > (highestModRole?.position ?? 0)) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: 'You cannot mod a user with a higher role than you.',
+						components: [],
+						embeds: [],
+					},
+				},
+				true,
+			);
+		}
 	}
 
 	private async *checkCaseLock(
@@ -134,44 +255,6 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 						],
 					},
 				],
-			},
-		});
-	}
-
-	private async *handleConfirmModCase(
-		interaction: APIMessageComponentInteraction,
-		args: string[],
-	): CoralInteractionHandler {
-		const id = args[0];
-		if (!id) {
-			throw new Error('Malformed custom_id');
-		}
-
-		const state = await this.stateStore.getPendingModCase(id);
-
-		if (!state) {
-			yield* HandlerStep.from({
-				action: ActionKind.UpdateMessage,
-				options: {
-					content: 'This confirmation has expired.',
-					components: [],
-					embeds: [],
-				},
-			});
-			return;
-		}
-
-		const target = await this.api.users.get(state.targetId);
-		yield* this.commitCase(interaction, target, state.reason, state.kind);
-	}
-
-	private async *handleCancelModCase(): CoralInteractionHandler {
-		yield* HandlerStep.from({
-			action: ActionKind.UpdateMessage,
-			options: {
-				content: 'Cancelled.',
-				components: [],
-				embeds: [],
 			},
 		});
 	}
