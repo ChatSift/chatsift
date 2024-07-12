@@ -22,7 +22,7 @@ model ExperimentOverride {
   id             Int        @id @default(autoincrement())
   guildId        String
   experimentName String
-  experiment     Experiment @relation(fields: [experimentName], references: [name])
+  experiment     Experiment @relation(fields: [experimentName], references: [name], onDelete: Cascade)
 
   @@unique([guildId, experimentName])
 }
@@ -53,6 +53,18 @@ model ModCase {
   reason    String
   modId     String
   targetId  String
+
+  referencedBy CaseReference[] @relation("caseReferencedBy")
+  references   CaseReference[] @relation("caseReferences")
+}
+
+model CaseReference {
+  referencedById Int
+  referencedBy   ModCase @relation("caseReferencedBy", fields: [referencedById], references: [id])
+  referencesId   Int
+  references     ModCase @relation("caseReferences", fields: [referencesId], references: [id], onDelete: Cascade)
+
+  @@id([referencedById, referencesId])
 }
 
 enum LogWebhookKind {

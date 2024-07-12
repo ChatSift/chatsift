@@ -33,7 +33,7 @@ export class Notifier extends INotifier {
 	public constructor(
 		private readonly api: API,
 		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
-		private readonly dataManager: IDatabase,
+		private readonly database: IDatabase,
 	) {
 		super();
 	}
@@ -82,7 +82,7 @@ export class Notifier extends INotifier {
 	}
 
 	public override async logModCase(options: LogModCaseOptions): Promise<void> {
-		const webhook = await this.dataManager.getLogWebhook(options.modCase.guildId, LogWebhookKind.Mod);
+		const webhook = await this.database.getLogWebhook(options.modCase.guildId, LogWebhookKind.Mod);
 		if (!webhook) {
 			this.logger.warn({ options }, 'No mod log webhook found');
 			return;

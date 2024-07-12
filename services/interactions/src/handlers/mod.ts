@@ -29,7 +29,7 @@ import { IComponentStateStore } from '../state/IComponentStateStore.js';
 @injectable()
 export default class ModHandler implements HandlerModule<CoralInteractionHandler> {
 	public constructor(
-		private readonly dataManager: IDatabase,
+		private readonly database: IDatabase,
 		private readonly notifier: INotifier,
 		private readonly stateStore: IComponentStateStore,
 		private readonly api: API,
@@ -53,6 +53,12 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 							description: 'The reason for the warning',
 							type: ApplicationCommandOptionType.String,
 							required: true,
+						},
+						{
+							name: 'references',
+							description: 'References to other case IDs (comma seperated)',
+							type: ApplicationCommandOptionType.String,
+							required: false,
 						},
 					],
 					contexts: [InteractionContextType.Guild],
@@ -90,8 +96,9 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			);
 		}
 
+		const references = yield* this.verifyValidReferences(options);
 		yield* this.checkHiararchy(interaction, options);
-		yield* this.checkCaseLock(interaction, options, ModCaseKind.Warn);
+		yield* this.checkCaseLock(interaction, options, ModCaseKind.Warn, references);
 	}
 
 	private async *handleConfirmModCase(
@@ -118,7 +125,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		}
 
 		const target = await this.api.users.get(state.targetId);
-		yield* this.commitCase(interaction, target, state.reason, state.kind);
+		yield* this.commitCase(interaction, target, state.reason, state.kind, state.references);
 	}
 
 	private async *handleCancelModCase(): CoralInteractionHandler {
@@ -142,7 +149,9 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			return;
 		}
 
-		if (options.getUser('target', true).id === interaction.member!.user.id) {
+		const targetUser = options.getUser('target', true);
+
+		if (targetUser.id === interaction.member!.user.id) {
 			yield* HandlerStep.from(
 				{
 					action: ActionKind.Reply,
@@ -165,6 +174,19 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 					action: ActionKind.Reply,
 					options: {
 						content: 'You cannot mod a user with Manage Guild or Administrator permissions.',
+					},
+				},
+				true,
+			);
+		}
+
+		const guild = await this.api.guilds.get(interaction.guild_id!);
+		if (guild.owner_id === targetUser.id) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: 'You cannot mod the owner of the server.',
 					},
 				},
 				true,
@@ -199,6 +221,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		interaction: APIApplicationCommandInteraction,
 		options: InteractionOptionResolver,
 		kind: ModCaseKind,
+		references: number[],
 	): CoralInteractionHandler {
 		yield* HandlerStep.from({
 			action: ActionKind.EnsureDeferReply,
@@ -210,13 +233,13 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		const target = options.getUser('target', true);
 		const reason = options.getString('reason', true);
 
-		const previousCases = await this.dataManager.getRecentCasesAgainst({
+		const previousCases = await this.database.getRecentCasesAgainst({
 			guildId: interaction.guild_id!,
 			targetId: target.id,
 		});
 
 		if (!previousCases.length) {
-			yield* this.commitCase(interaction, target, reason, kind);
+			yield* this.commitCase(interaction, target, reason, kind, references);
 			return;
 		}
 
@@ -229,6 +252,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			kind,
 			reason,
 			targetId: target.id,
+			references,
 		});
 
 		yield* HandlerStep.from({
@@ -264,6 +288,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		target: APIUser,
 		reason: string,
 		kind: ModCaseKind,
+		references: number[],
 	): CoralInteractionHandler {
 		const isButton = interaction.type === InteractionType.MessageComponent;
 
@@ -278,11 +303,12 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 					},
 		);
 
-		const modCase = await this.dataManager.createModCase({
+		const modCase = await this.database.createModCase({
 			guildId: interaction.guild_id!,
 			targetId: target.id,
 			modId: interaction.member!.user.id,
 			reason,
+			references,
 			kind,
 		});
 
@@ -303,5 +329,52 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 				await this.notifier.logModCase({ modCase, mod: interaction.member!.user, target });
 			},
 		});
+	}
+
+	private async *verifyValidReferences(options: InteractionOptionResolver): CoralInteractionHandler<number[]> {
+		const references =
+			options
+				.getString('references')
+				?.split(',')
+				.map((ref) => ref.trim()) ?? null;
+
+		if (!references) {
+			return [];
+		}
+
+		const numbers = references.map(Number);
+		const invalidNumIndex = numbers.findIndex((num) => Number.isNaN(num));
+
+		if (invalidNumIndex !== -1) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: `Reference case ID "${references[invalidNumIndex]}" is not a valid number.`,
+					},
+				},
+				true,
+			);
+		}
+
+		const cases = await this.database.getModCaseBulk(numbers);
+
+		if (cases.length !== references.length) {
+			const set = new Set(cases.map((cs) => cs.id));
+
+			const invalid = numbers.filter((num) => !set.has(num));
+
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: `Reference ID(s) ${invalid.join(', ')} do not exist.`,
+					},
+				},
+				true,
+			);
+		}
+
+		return numbers;
 	}
 }

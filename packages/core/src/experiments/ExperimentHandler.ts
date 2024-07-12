@@ -11,7 +11,7 @@ export class ExperimentHandler extends IExperimentHandler {
 	readonly #experimentCache = new Map<string, ExperimentWithOverrides>();
 
 	public constructor(
-		private readonly dataManager: IDatabase,
+		private readonly database: IDatabase,
 		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
 	) {
 		super();
@@ -41,7 +41,7 @@ export class ExperimentHandler extends IExperimentHandler {
 	}
 
 	private async poll(): Promise<void> {
-		const experiments = await this.dataManager.getExperiments();
+		const experiments = await this.database.getExperiments();
 
 		this.#experimentCache.clear();
 		for (const experiment of experiments) {

@@ -1,7 +1,7 @@
 import { injectable } from 'inversify';
 import { sql, Kysely, type Selectable, PostgresDialect } from 'kysely';
 import { jsonArrayFrom } from 'kysely/helpers/postgres';
-import type { DB, Incident, LogWebhook, LogWebhookKind, ModCase } from '../db.js';
+import type { CaseReference, DB, Incident, LogWebhook, LogWebhookKind, ModCase } from '../db.js';
 import { Env } from '../util/Env.js';
 import {
 	IDatabase,
@@ -67,8 +67,12 @@ export class KyselyPostgresDatabase extends IDatabase {
 			.executeTakeFirstOrThrow();
 	}
 
-	public override async createModCase(data: CreateModCaseOptions): Promise<Selectable<ModCase>> {
-		return this.#database.insertInto('ModCase').values(data).returningAll().executeTakeFirstOrThrow();
+	public override async getModCase(caseId: number): Promise<Selectable<ModCase> | undefined> {
+		return this.#database.selectFrom('ModCase').selectAll().where('id', '=', caseId).executeTakeFirst();
+	}
+
+	public override async getModCaseBulk(caseIds: number[]): Promise<Selectable<ModCase>[]> {
+		return this.#database.selectFrom('ModCase').selectAll().where('id', 'in', caseIds).execute();
 	}
 
 	public override async getRecentCasesAgainst({
@@ -83,6 +87,21 @@ export class KyselyPostgresDatabase extends IDatabase {
 			.where('createdAt', '>', sql<Date>`NOW() - INTERVAL '1 HOUR'`)
 			.orderBy('ModCase.createdAt desc')
 			.execute();
+	}
+
+	public override async createModCase({ references, ...data }: CreateModCaseOptions): Promise<Selectable<ModCase>> {
+		return this.#database.transaction().execute(async (trx) => {
+			const modCase = await trx.insertInto('ModCase').values(data).returningAll().executeTakeFirstOrThrow();
+
+			if (references.length) {
+				await trx
+					.insertInto('CaseReference')
+					.values(references.map((referencesId) => ({ referencedById: modCase.id, referencesId })))
+					.execute();
+			}
+
+			return modCase;
+		});
 	}
 
 	public override async getLogWebhook(

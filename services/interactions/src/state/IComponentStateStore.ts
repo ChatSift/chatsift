@@ -4,6 +4,7 @@ import { injectable } from 'inversify';
 export interface ConfirmModCaseState {
 	kind: ModCaseKind;
 	reason: string;
+	references: number[];
 	targetId: string;
 }
 

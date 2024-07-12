@@ -17,6 +17,10 @@ export const LogWebhookKind = {
     Mod: "Mod"
 } as const;
 export type LogWebhookKind = (typeof LogWebhookKind)[keyof typeof LogWebhookKind];
+export type CaseReference = {
+    referencedById: number;
+    referencesId: number;
+};
 export type Experiment = {
     name: string;
     createdAt: Generated<Timestamp>;
@@ -55,6 +59,7 @@ export type ModCase = {
     targetId: string;
 };
 export type DB = {
+    CaseReference: CaseReference;
     Experiment: Experiment;
     ExperimentOverride: ExperimentOverride;
     Incident: Incident;

@@ -9,12 +9,15 @@ import { IComponentStateStore, type ConfirmModCaseState } from './IComponentStat
  * Responsible for mapping nanoids to state for cross-process/cross-instance state around message component interactions
  */
 export class RedisComponentStateStore extends IComponentStateStore {
-	// Need a cast for precise typing on `kind`
-	private readonly pendingModCaseRecipe = createRecipe({
+	// It's incredibly hard to add narrower types to bin-rw in its current state.
+	// Instead, because as casts suck a lot here and they allow us to forget adding a prop to this recipe,
+	// we use the type below, which at least guarantees that all keys are present.
+	private readonly pendingModCaseRecipe: Recipe<Record<keyof ConfirmModCaseState, any>> = createRecipe({
 		kind: DataType.String,
 		reason: DataType.String,
 		targetId: DataType.String,
-	}) as Recipe<ConfirmModCaseState>;
+		references: [DataType.U32],
+	});
 
 	public constructor(@inject(INJECTION_TOKENS.redis) private readonly redis: Redis) {
 		super();
