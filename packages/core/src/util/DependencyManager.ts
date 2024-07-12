@@ -3,7 +3,7 @@ import { REST } from '@discordjs/rest';
 import { injectable } from 'inversify';
 import { Redis } from 'ioredis';
 import type { Logger } from 'pino';
-import createPinoLogger from 'pino';
+import createPinoLogger, { pino } from 'pino';
 import { GuildCacheEntity, type CachedGuild } from '../cache/entities/GuildCacheEntity.js';
 import type { ICacheEntity } from '../cache/entities/ICacheEntity.js';
 import { INJECTION_TOKENS, globalContainer } from '../container.js';
@@ -55,13 +55,32 @@ export class DependencyManager {
 			stream: `${this.env.service}${stream}`,
 		};
 
-		const logger = createPinoLogger({
-			level: 'trace',
-			transport: {
+		const targets = [
+			{
 				target: '../util/loggingTransport.js',
+				level: 'trace',
 				options,
 			},
+		];
+
+		if (this.env.nodeEnv === 'dev') {
+			targets.push({
+				target: 'pino-pretty',
+				level: 'trace',
+				options: {
+					// @ts-expect-error - Pino bug
+					colorize: true,
+					translateTime: true,
+				},
+			});
+		}
+
+		const transport = pino.transport({
+			targets,
+			level: 'trace',
 		});
+
+		const logger = createPinoLogger(transport);
 		globalContainer.bind<Logger>(INJECTION_TOKENS.logger).toConstantValue(logger);
 
 		return logger;
