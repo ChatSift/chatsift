@@ -359,6 +359,27 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@chatsift/automoderator-observer@workspace:services/observer":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/automoderator-observer@workspace:services/observer"
+  dependencies:
+    "@automoderator/core": "workspace:^"
+    "@discordjs/brokers": ^0.3.0
+    "@discordjs/core": ^1.2.0
+    "@discordjs/formatters": ^0.4.0
+    "@discordjs/rest": ^2.3.0
+    "@discordjs/ws": ^1.1.1
+    "@types/node": ^20.14.10
+    inversify: ^6.0.2
+    ioredis: 5.3.2
+    pino: ^9.2.0
+    reflect-metadata: ^0.2.2
+    tslib: ^2.6.3
+    typescript: ^5.5.3
+    undici: ^6.19.2
+  languageName: unknown
+  linkType: soft
+
 "@chatsift/automoderator@workspace:.":
   version: 0.0.0-use.local
   resolution: "@chatsift/automoderator@workspace:."

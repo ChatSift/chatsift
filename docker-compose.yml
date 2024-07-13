@@ -74,6 +74,17 @@ services:
       - ./.env.private
     command: ['node', '--enable-source-maps', './services/interactions/dist/index.js']
 
+  observer:
+    image: chatsift-bots:latest
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    command: ['node', '--enable-source-maps', './services/observer/dist/index.js']
+
 volumes:
   postgres-data:
     name: 'chatsift-bots-postgres-data'
