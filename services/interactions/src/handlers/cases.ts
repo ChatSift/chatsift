@@ -97,7 +97,12 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		const reason = options.getString('reason', false) ?? undefined;
 		const references = yield* verifyValidCaseReferences(options, this.database);
 
-		const updated = await this.database.updateModCase(cs.id, { reason, references: references.map((ref) => ref.id) });
+		// I explicitly type ref here because of some weird TSC bug. It's so specific I have no idea how to min-sample
+		// repro it, so I'm not even gonna try flagging it
+		const updated = await this.database.updateModCase(cs.id, {
+			reason,
+			references: references.map((ref: CaseWithLogMessage) => ref.id),
+		});
 
 		const existingMessage = updated.logMessage
 			? await this.api.channels.getMessage(updated.logMessage.channelId, updated.logMessage.messageId).catch(() => null)
