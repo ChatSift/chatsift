@@ -101,8 +101,9 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 				{
 					name: 'unban',
 					description: 'Unban a user',
-					contexts: [InteractionContextType.Guild],
 					options: baseOptionsWith(),
+					contexts: [InteractionContextType.Guild],
+					default_member_permissions: String(PermissionFlagsBits.BanMembers),
 				},
 				{
 					name: 'untimeout',
@@ -111,6 +112,18 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 					contexts: [InteractionContextType.Guild],
 					default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
 				},
+				{
+					name: 'ban',
+					description: 'Ban a user',
+					options: baseOptionsWith({
+						name: 'cleanup',
+						description: "Delete the user's recent messages",
+						type: ApplicationCommandOptionType.String,
+						required: false,
+					}),
+					contexts: [InteractionContextType.Guild],
+					default_member_permissions: String(PermissionFlagsBits.BanMembers),
+				},
 			],
 			applicationCommands: [
 				['warn:none:none', this.hanadleWarnCommand.bind(this)],
@@ -118,6 +131,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 				['timeout:none:none', this.handleTimeoutCommand.bind(this)],
 				['unban:none:none', this.handleUnbanCommand.bind(this)],
 				['untimeout:none:none', this.handleUntimeoutCommand.bind(this)],
+				['ban:none:none', this.handleBanCommand.bind(this)],
 			],
 			components: [
 				['confirm-mod-case', this.handleConfirmModCase.bind(this)],
@@ -351,6 +365,66 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			interaction,
 			target,
 			{ reason, kind: ModCaseKind.Untimeout, deleteMessageSeconds: null, timeoutDuration: null },
+			references,
+		);
+	}
+
+	private async *handleBanCommand(
+		interaction: APIApplicationCommandInteraction,
+		options: InteractionOptionResolver,
+	): CoralInteractionHandler {
+		yield* HandlerStep.from({
+			action: ActionKind.EnsureDeferReply,
+			options: {
+				flags: MessageFlags.Ephemeral,
+			},
+		});
+
+		const target = options.getUser('target', true);
+		const reason = options.getString('reason', true);
+
+		const durationStr = options.getString('cleanup', false);
+		let deleteMessageSeconds: number | null = null;
+
+		if (durationStr) {
+			const parsed = parseRelativeTimeSafe(durationStr);
+			if (!parsed.ok) {
+				yield* HandlerStep.from(
+					{
+						action: ActionKind.Reply,
+						options: {
+							content: `Invalid duration: ${parsed.message}`,
+						},
+					},
+					true,
+				);
+				// Obviously redundant, but asserts parsed.ok is true for later
+				return;
+			}
+
+			if (parsed.value < parseRelativeTime('1m') || parsed.value > parseRelativeTime('7d')) {
+				yield* HandlerStep.from(
+					{
+						action: ActionKind.Reply,
+						options: {
+							content: 'Timeout duration must be between 1 minute and 7 days.',
+						},
+					},
+					true,
+				);
+			}
+
+			deleteMessageSeconds = parsed.value / 1_000;
+		}
+
+		const references = yield* this.verifyValidReferences(options);
+		yield* this.checkHiararchy(interaction, options);
+		yield* this.checkCaseLock(interaction, options, ModCaseKind.Kick, references);
+
+		yield* this.commitCase(
+			interaction,
+			target,
+			{ kind: ModCaseKind.Kick, reason, deleteMessageSeconds, timeoutDuration: null },
 			references,
 		);
 	}
@@ -715,7 +789,16 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 	private async *handleBan(
 		guildId: Snowflake,
 		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
-	): CoralInteractionHandler {}
+	): CoralInteractionHandler {
+		await this.api.guilds.banUser(
+			guildId,
+			state.targetId,
+			{
+				delete_message_seconds: state.deleteMessageSeconds ?? undefined,
+			},
+			{ reason: state.reason },
+		);
+	}
 
 	private async *handleUnban(
 		guildId: Snowflake,
