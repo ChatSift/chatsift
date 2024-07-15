@@ -1,6 +1,8 @@
-import { injectable } from 'inversify';
+import { inject, injectable } from 'inversify';
 import { sql, Kysely, type Selectable, PostgresDialect, type ExpressionBuilder } from 'kysely';
 import { jsonArrayFrom, jsonObjectFrom } from 'kysely/helpers/postgres';
+import type { Logger } from 'pino';
+import { INJECTION_TOKENS } from '../container.js';
 import type { DB, Incident, LogWebhook, LogWebhookKind, ModCase, ModCaseLogMessage } from '../db.js';
 import { Env } from '../util/Env.js';
 import {
@@ -23,7 +25,10 @@ const {
 export class KyselyPostgresDatabase extends IDatabase {
 	readonly #database: Kysely<DB>;
 
-	public constructor(private readonly env: Env) {
+	public constructor(
+		private readonly env: Env,
+		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
+	) {
 		super();
 
 		this.#database = new Kysely<DB>({
@@ -36,6 +41,11 @@ export class KyselyPostgresDatabase extends IDatabase {
 					database: this.env.postgresDatabase,
 				}),
 			}),
+			log: (event) => {
+				if (event.level === 'error') {
+					this.logger.info({ query: event.query.sql }, 'Query responsible for error');
+				}
+			},
 		});
 	}
 
@@ -78,6 +88,10 @@ export class KyselyPostgresDatabase extends IDatabase {
 	}
 
 	public override async getModCaseBulk(caseIds: number[]): Promise<CaseWithLogMessage[]> {
+		if (!caseIds.length) {
+			return [];
+		}
+
 		return this.#database
 			.selectFrom('ModCase')
 			.selectAll()

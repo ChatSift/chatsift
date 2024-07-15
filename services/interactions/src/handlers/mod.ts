@@ -6,9 +6,8 @@ import {
 	INotifier,
 	PermissionsBitField,
 	type CaseWithLogMessage,
-	parseRelativeTime,
-	parseRelativeTimeUnsafe,
 } from '@automoderator/core';
+import { parseRelativeTime, parseRelativeTimeSafe } from '@chatsift/parse-relative-time';
 import {
 	API,
 	ApplicationCommandOptionType,
@@ -19,11 +18,13 @@ import {
 	MessageFlags,
 	PermissionFlagsBits,
 	type APIApplicationCommandInteraction,
+	type APIApplicationCommandOption,
 	type APIInteraction,
 	type APIMessageComponentInteraction,
 	type APIUser,
 	type Snowflake,
 } from '@discordjs/core';
+import { time } from '@discordjs/formatters';
 import type { InteractionOptionResolver } from '@sapphire/discord-utilities';
 import { ActionKind, HandlerStep, type InteractionHandler as CoralInteractionHandler } from 'coral-command';
 import { injectable } from 'inversify';
@@ -42,7 +43,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 	) {}
 
 	public register(handler: ICommandHandler<CoralInteractionHandler>) {
-		const baseOptions = [
+		const baseOptionsWith = (...additional: APIApplicationCommandOption[]): APIApplicationCommandOption[] => [
 			{
 				name: 'target',
 				description: 'The user to action',
@@ -55,42 +56,51 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 				type: ApplicationCommandOptionType.String,
 				required: true,
 			},
+			...additional,
 			{
 				name: 'references',
 				description: 'References to other case IDs (comma seperated)',
 				type: ApplicationCommandOptionType.String,
 				required: false,
 			},
-		] as const;
+		];
 
 		handler.register({
 			interactions: [
 				{
 					name: 'warn',
 					description: 'Warn a user',
-					options: [...baseOptions],
+					options: baseOptionsWith(),
 					contexts: [InteractionContextType.Guild],
 					default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
 				},
 				{
 					name: 'kick',
 					description: 'Kick a user',
-					options: [
-						...baseOptions,
-						{
-							name: 'cleanup',
-							description: "Delete the user's messages (known as a softban)",
-							type: ApplicationCommandOptionType.Boolean,
-							required: false,
-						},
-					],
+					options: baseOptionsWith({
+						name: 'cleanup',
+						description: "Delete the user's messages (known as a softban)",
+						type: ApplicationCommandOptionType.Boolean,
+						required: false,
+					}),
 					contexts: [InteractionContextType.Guild],
 					default_member_permissions: String(PermissionFlagsBits.KickMembers),
+				},
+				{
+					name: 'timeout',
+					description: 'Timeout a user',
+					options: baseOptionsWith({
+						name: 'duration',
+						description: 'The duration for the timeout. Between 1 minute and 28 days.',
+						type: ApplicationCommandOptionType.String,
+						required: true,
+					}),
 				},
 			],
 			applicationCommands: [
 				['warn:none:none', this.hanadleWarnCommand.bind(this)],
 				['kick:none:none', this.handleKickCommand.bind(this)],
+				['timeout:none:none', this.handleTimeoutCommand.bind(this)],
 			],
 			components: [
 				['confirm-mod-case', this.handleConfirmModCase.bind(this)],
@@ -128,14 +138,11 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		const references = yield* this.verifyValidReferences(options);
 		yield* this.checkHiararchy(interaction, options);
 		yield* this.checkCaseLock(interaction, options, ModCaseKind.Warn, references);
-
 		yield* this.commitCase(
 			interaction,
 			target,
-			reason,
-			ModCaseKind.Warn,
+			{ reason, kind: ModCaseKind.Warn, deleteMessageSeconds: null, timeoutDuration: null },
 			references,
-			this.handleWarn(interaction.guild_id!, { reason, targetId: target.id, deleteMessageSeconds: null }),
 		);
 	}
 
@@ -164,6 +171,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 
 		const target = options.getUser('target', true);
 		const reason = options.getString('reason', true);
+		const deleteMessageSeconds = options.getBoolean('cleanup') ? parseRelativeTime('1d') / 1_000 : null;
 
 		const references = yield* this.verifyValidReferences(options);
 		yield* this.checkHiararchy(interaction, options);
@@ -172,14 +180,74 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		yield* this.commitCase(
 			interaction,
 			target,
-			reason,
-			ModCaseKind.Kick,
+			{ kind: ModCaseKind.Kick, reason, deleteMessageSeconds, timeoutDuration: null },
 			references,
-			this.handleKick(interaction.guild_id!, {
-				targetId: target.id,
-				reason,
-				deleteMessageSeconds: options.getBoolean('cleanup') ? parseRelativeTimeUnsafe('7d') / 1_000 : null,
-			}),
+		);
+	}
+
+	private async *handleTimeoutCommand(
+		interaction: APIApplicationCommandInteraction,
+		options: InteractionOptionResolver,
+	): CoralInteractionHandler {
+		yield* HandlerStep.from({
+			action: ActionKind.EnsureDeferReply,
+			options: {
+				flags: MessageFlags.Ephemeral,
+			},
+		});
+
+		if (!options.getMember('target')) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: 'User is no longer in the server.',
+					},
+				},
+				true,
+			);
+		}
+
+		const target = options.getUser('target', true);
+		const reason = options.getString('reason', true);
+		const durationStr = options.getString('duration', true);
+
+		const parsed = parseRelativeTimeSafe(durationStr);
+		if (!parsed.ok) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: `Invalid duration: ${parsed.message}`,
+					},
+				},
+				true,
+			);
+			// Obviously redundant, but asserts parsed.ok is true for later
+			return;
+		}
+
+		if (parsed.value < parseRelativeTime('1m') || parsed.value > parseRelativeTime('28d')) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: 'Timeout duration must be between 1 minute and 28 days.',
+					},
+				},
+				true,
+			);
+		}
+
+		const references = yield* this.verifyValidReferences(options);
+		yield* this.checkHiararchy(interaction, options);
+		yield* this.checkCaseLock(interaction, options, ModCaseKind.Timeout, references);
+
+		yield* this.commitCase(
+			interaction,
+			target,
+			{ kind: ModCaseKind.Timeout, reason, deleteMessageSeconds: null, timeoutDuration: parsed.value },
+			references,
 		);
 	}
 
@@ -209,18 +277,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		const target = await this.api.users.get(state.targetId);
 		const references = await this.database.getModCaseBulk(state.references);
 
-		// Dirty dity dirty evil. I don't want lots of hardcoding, so we do this and give the handler functions nice little
-		// signatures that are always guildId, state.
-		const handler = this[`handle${state.kind}`];
-
-		yield* this.commitCase(
-			interaction,
-			target,
-			state.reason,
-			state.kind,
-			references,
-			handler(interaction.guild_id!, state),
-		);
+		yield* this.commitCase(interaction, target, state, references);
 	}
 
 	private async *handleCancelModCase(): CoralInteractionHandler {
@@ -347,8 +404,10 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			reason,
 			targetId: target.id,
 			references: references.map((ref) => ref.id),
-			deleteMessageSeconds:
-				options.getBoolean('cleanup', false) ?? false ? parseRelativeTimeUnsafe('7d') / 1_000 : null,
+			deleteMessageSeconds: options.getBoolean('cleanup', false) ?? false ? parseRelativeTime('1d') / 1_000 : null,
+			timeoutDuration: options.getString('duration', false)
+				? parseRelativeTime(options.getString('duration', true))
+				: null,
 		});
 
 		yield* HandlerStep.from(
@@ -385,10 +444,8 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 	private async *commitCase(
 		interaction: APIInteraction,
 		target: APIUser,
-		reason: string,
-		kind: ModCaseKind,
+		state: Omit<ConfirmModCaseState, 'references' | 'targetId'>,
 		references: CaseWithLogMessage[],
-		executor: CoralInteractionHandler,
 	): CoralInteractionHandler {
 		const isButton = interaction.type === InteractionType.MessageComponent;
 
@@ -403,30 +460,34 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 					},
 		);
 
-		const doFirst = this.executeFirstKinds.has(kind);
+		const doFirst = this.executeFirstKinds.has(state.kind);
+		const handler = this[`handle${state.kind}`].bind(this);
+
 		if (doFirst) {
-			yield* executor;
+			yield* handler(interaction.guild_id!, { ...state, targetId: target.id });
 		}
 
 		const modCase = await this.database.createModCase({
 			guildId: interaction.guild_id!,
 			targetId: target.id,
 			modId: interaction.member!.user.id,
-			reason,
+			reason: state.timeoutDuration
+				? `${state.reason} | Until ${time(new Date(Date.now() + state.timeoutDuration))}`
+				: state.reason,
 			references: references.map((ref) => ref.id),
-			kind,
+			kind: state.kind,
 		});
 
 		const userNotified = await this.notifier.tryNotifyTargetModCase(modCase);
 
 		if (!doFirst) {
-			yield* executor;
+			yield* handler(interaction.guild_id!, { ...state, targetId: target.id });
 		}
 
 		yield* HandlerStep.from({
 			action: ActionKind.Reply,
 			options: {
-				content: `Successfully ${this.notifier.ACTION_VERBS_MAP[kind]} the user. DM sent: ${userNotified ? 'yes' : 'no'}`,
+				content: `Successfully ${this.notifier.ACTION_VERBS_MAP[state.kind]} the user. DM sent: ${userNotified ? 'yes' : 'no'}`,
 				components: [],
 				embeds: [],
 			},
@@ -495,11 +556,20 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
 	): CoralInteractionHandler {}
 
-	// no-op.. for now
+	// eslint-disable-next-line require-yield
 	private async *handleTimeout(
 		guildId: Snowflake,
 		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
-	): CoralInteractionHandler {}
+	): CoralInteractionHandler {
+		await this.api.guilds.editMember(
+			guildId,
+			state.targetId,
+			{
+				communication_disabled_until: new Date(Date.now() + state.timeoutDuration!).toISOString(),
+			},
+			{ reason: state.reason },
+		);
+	}
 
 	// no-op.. for now
 	private async *handleUntimeout(

@@ -7,6 +7,7 @@ export interface ConfirmModCaseState {
 	reason: string;
 	references: number[];
 	targetId: string;
+	timeoutDuration: number | null;
 }
 
 @injectable()

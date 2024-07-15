@@ -18,6 +18,7 @@ export class RedisComponentStateStore extends IComponentStateStore {
 		targetId: DataType.String,
 		references: [DataType.U32],
 		deleteMessageSeconds: DataType.U32,
+		timeoutDuration: DataType.U32,
 	});
 
 	public constructor(@inject(INJECTION_TOKENS.redis) private readonly redis: Redis) {

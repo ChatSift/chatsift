@@ -25,7 +25,6 @@ export * from './util/computeAvatar.js';
 export * from './util/DependencyManager.js';
 export * from './util/encode.js';
 export * from './util/Env.js';
-export * from './util/parseRelativeTime.js';
 export * from './util/PermissionsBitField.js';
 export * from './util/promiseAllObject.js';
 export * from './util/setupCrashLogs.js';
