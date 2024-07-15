@@ -62,10 +62,17 @@ export class Notifier extends INotifier {
 
 		// We want to re-compute those no matter what for good measure
 		embed.title = `Was ${this.ACTION_VERBS_MAP[modCase.kind]}: ${modCase.reason}`;
-		embed.footer = {
-			text: `Case ${modCase.id} | By ${mod?.username ?? '[Unknown/Deleted user]'} (${modCase.modId})`,
-			icon_url: computeAvatarUrl(mod, modCase.modId),
-		};
+
+		// If for some reason the mod field is missing
+		if (!embed.footer) {
+			embed.footer = {
+				text: `Case ${modCase.id} | By ${mod?.username ?? '[Unknown/Deleted user]'} (${modCase.modId})`,
+				icon_url: computeAvatarUrl(mod, modCase.modId),
+			};
+		}
+
+		// Make sure we start fresh
+		embed.fields = [];
 
 		if (references?.length) {
 			addFields(embed, {

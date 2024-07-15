@@ -86,6 +86,7 @@ services:
     command: ['node', '--enable-source-maps', './services/observer/dist/index.js']
 
 volumes:
+  # TODO: Rename at some point
   postgres-data:
     name: 'chatsift-bots-postgres-data'
   parseable-data:

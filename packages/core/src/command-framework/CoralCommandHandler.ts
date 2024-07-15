@@ -222,7 +222,6 @@ export class CoralCommandHandler extends ICommandHandler<CoralInteractionHandler
 		return { root: identifier };
 	}
 
-	// TODO: Handle specific errors maybe
 	private async reportIncident(actions: CoralActions, incident: Selectable<Incident>): Promise<void> {
 		await actions.reply({
 			content: `An error occurred while processing your request. Please report this incident to the developers. (Incident ID: ${incident.id})`,

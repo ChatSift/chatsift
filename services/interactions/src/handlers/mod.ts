@@ -29,6 +29,7 @@ import type { InteractionOptionResolver } from '@sapphire/discord-utilities';
 import { ActionKind, HandlerStep, type InteractionHandler as CoralInteractionHandler } from 'coral-command';
 import { injectable } from 'inversify';
 import { nanoid } from 'nanoid';
+import { REFERENCES_OPTION, verifyValidCaseReferences } from '../helpers/verifyValidCaseReferences.js';
 import { IComponentStateStore, type ConfirmModCaseState } from '../state/IComponentStateStore.js';
 
 @injectable()
@@ -57,12 +58,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 				required: true,
 			},
 			...additional,
-			{
-				name: 'references',
-				description: 'References to other case IDs (comma seperated)',
-				type: ApplicationCommandOptionType.String,
-				required: false,
-			},
+			REFERENCES_OPTION,
 		];
 
 		handler.register({
@@ -166,7 +162,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		const target = options.getUser('target', true);
 		const reason = options.getString('reason', true);
 
-		const references = yield* this.verifyValidReferences(options);
+		const references = yield* verifyValidCaseReferences(options, this.database);
 		yield* this.checkHiararchy(interaction, options);
 		yield* this.checkCaseLock(interaction, options, ModCaseKind.Warn, references);
 		yield* this.commitCase(
@@ -204,7 +200,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		const reason = options.getString('reason', true);
 		const deleteMessageSeconds = options.getBoolean('cleanup') ? parseRelativeTime('1d') / 1_000 : null;
 
-		const references = yield* this.verifyValidReferences(options);
+		const references = yield* verifyValidCaseReferences(options, this.database);
 		yield* this.checkHiararchy(interaction, options);
 		yield* this.checkCaseLock(interaction, options, ModCaseKind.Kick, references);
 
@@ -270,7 +266,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			);
 		}
 
-		const references = yield* this.verifyValidReferences(options);
+		const references = yield* verifyValidCaseReferences(options, this.database);
 		yield* this.checkHiararchy(interaction, options);
 		yield* this.checkCaseLock(interaction, options, ModCaseKind.Timeout, references);
 		yield* this.commitCase(
@@ -308,7 +304,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		}
 
 		const reason = options.getString('reason', true);
-		const references = yield* this.verifyValidReferences(options);
+		const references = yield* verifyValidCaseReferences(options, this.database);
 		yield* this.checkHiararchy(interaction, options);
 		yield* this.checkCaseLock(interaction, options, ModCaseKind.Unban, references);
 		yield* this.commitCase(
@@ -358,7 +354,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 
 		const target = options.getUser('target', true);
 		const reason = options.getString('reason', true);
-		const references = yield* this.verifyValidReferences(options);
+		const references = yield* verifyValidCaseReferences(options, this.database);
 		yield* this.checkHiararchy(interaction, options);
 		yield* this.checkCaseLock(interaction, options, ModCaseKind.Untimeout, references);
 		yield* this.commitCase(
@@ -417,7 +413,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			deleteMessageSeconds = parsed.value / 1_000;
 		}
 
-		const references = yield* this.verifyValidReferences(options);
+		const references = yield* verifyValidCaseReferences(options, this.database);
 		yield* this.checkHiararchy(interaction, options);
 		yield* this.checkCaseLock(interaction, options, ModCaseKind.Kick, references);
 
@@ -582,7 +578,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			reason,
 			targetId: target.id,
 			references: references.map((ref) => ref.id),
-			deleteMessageSeconds: options.getBoolean('cleanup', false) ?? false ? parseRelativeTime('1d') / 1_000 : null,
+			deleteMessageSeconds: (options.getBoolean('cleanup', false) ?? false) ? parseRelativeTime('1d') / 1_000 : null,
 			timeoutDuration: options.getString('duration', false)
 				? parseRelativeTime(options.getString('duration', true))
 				: null,
@@ -677,55 +673,6 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 				await this.notifier.logModCase({ modCase, mod: interaction.member!.user, target, references });
 			},
 		});
-	}
-
-	private async *verifyValidReferences(
-		options: InteractionOptionResolver,
-	): CoralInteractionHandler<CaseWithLogMessage[]> {
-		const references =
-			options
-				.getString('references')
-				?.split(',')
-				.map((ref) => ref.trim()) ?? null;
-
-		if (!references) {
-			return [];
-		}
-
-		const numbers = references.map(Number);
-		const invalidNumIndex = numbers.findIndex((num) => Number.isNaN(num));
-
-		if (invalidNumIndex !== -1) {
-			yield* HandlerStep.from(
-				{
-					action: ActionKind.Reply,
-					options: {
-						content: `Reference case ID "${references[invalidNumIndex]}" is not a valid number.`,
-					},
-				},
-				true,
-			);
-		}
-
-		const cases = await this.database.getModCaseBulk(numbers);
-
-		if (cases.length !== references.length) {
-			const set = new Set(cases.map((cs) => cs.id));
-
-			const invalid = numbers.filter((num) => !set.has(num));
-
-			yield* HandlerStep.from(
-				{
-					action: ActionKind.Reply,
-					options: {
-						content: `Reference ID(s) ${invalid.join(', ')} do not exist.`,
-					},
-				},
-				true,
-			);
-		}
-
-		return cases;
 	}
 
 	/* eslint-disable require-yield */

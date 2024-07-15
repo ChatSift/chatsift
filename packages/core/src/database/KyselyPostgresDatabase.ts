@@ -1,5 +1,5 @@
 import { inject, injectable } from 'inversify';
-import { sql, Kysely, type Selectable, PostgresDialect, type ExpressionBuilder } from 'kysely';
+import { sql, Kysely, type Selectable, PostgresDialect, type ExpressionBuilder, Transaction } from 'kysely';
 import { jsonArrayFrom, jsonObjectFrom } from 'kysely/helpers/postgres';
 import type { Logger } from 'pino';
 import { INJECTION_TOKENS } from '../container.js';
@@ -11,6 +11,7 @@ import {
 	type CreateModCaseOptions,
 	type ExperimentWithOverrides,
 	type GetRecentCasesAgainstOptions,
+	type UpdateModCaseOptions,
 } from './IDatabase.js';
 
 // no proper ESM support
@@ -65,7 +66,7 @@ export class KyselyPostgresDatabase extends IDatabase {
 	}
 
 	public override async createIncident(error: Error, guildId?: string): Promise<Selectable<Incident>> {
-		const causeStack = error.cause && error.cause instanceof Error ? error.cause.stack ?? error.cause.message : null;
+		const causeStack = error.cause && error.cause instanceof Error ? (error.cause.stack ?? error.cause.message) : null;
 
 		return this.#database
 			.insertInto('Incident')
@@ -87,12 +88,27 @@ export class KyselyPostgresDatabase extends IDatabase {
 			.executeTakeFirst();
 	}
 
-	public override async getModCaseBulk(caseIds: number[]): Promise<CaseWithLogMessage[]> {
+	public override async getModCaseReferences(caseId: number): Promise<CaseWithLogMessage[]> {
+		return this.#database.transaction().execute(async (trx) => {
+			const references = await trx
+				.selectFrom('CaseReference')
+				.selectAll()
+				.where('referencedById', '=', caseId)
+				.execute();
+
+			return this.getModCaseBulk(
+				references.map((ref) => ref.referencesId),
+				trx,
+			);
+		});
+	}
+
+	public override async getModCaseBulk(caseIds: number[], trx?: Transaction<DB>): Promise<CaseWithLogMessage[]> {
 		if (!caseIds.length) {
 			return [];
 		}
 
-		return this.#database
+		return (trx ?? this.#database)
 			.selectFrom('ModCase')
 			.selectAll()
 			.where('id', 'in', caseIds)
@@ -128,6 +144,35 @@ export class KyselyPostgresDatabase extends IDatabase {
 
 			return modCase;
 		});
+	}
+
+	public override async updateModCase(caseId: number, data: UpdateModCaseOptions): Promise<CaseWithLogMessage> {
+		return this.#database.transaction().execute(async (trx) => {
+			const updated = await this.#database
+				.updateTable('ModCase')
+				.set(data)
+				.where('id', '=', caseId)
+				.returningAll()
+				.executeTakeFirstOrThrow();
+
+			if (data.references) {
+				await trx.deleteFrom('CaseReference').where('referencedById', '=', caseId).execute();
+
+				await trx
+					.insertInto('CaseReference')
+					.values(data.references.map((referencesId) => ({ referencedById: caseId, referencesId })))
+					.execute();
+			}
+
+			const logMessage =
+				(await trx.selectFrom('ModCaseLogMessage').selectAll().where('caseId', '=', caseId).executeTakeFirst()) ?? null;
+
+			return { ...updated, logMessage };
+		});
+	}
+
+	public override async deleteModCase(caseId: number): Promise<void> {
+		await this.#database.deleteFrom('ModCase').where('id', '=', caseId).execute();
 	}
 
 	public override async createModCaseLogMessage(
