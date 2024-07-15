@@ -2,6 +2,7 @@ import type { ModCaseKind } from '@automoderator/core';
 import { injectable } from 'inversify';
 
 export interface ConfirmModCaseState {
+	deleteMessageSeconds: number | null;
 	kind: ModCaseKind;
 	reason: string;
 	references: number[];

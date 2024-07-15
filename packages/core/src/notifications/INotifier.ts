@@ -8,7 +8,7 @@ import {
 import { injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import type { CaseWithLogMessage } from '../database/IDatabase.js';
-import type { ModCase } from '../db.js';
+import { ModCaseKind, type ModCase } from '../db.js';
 
 export interface DMUserOptions {
 	bindToGuildId?: Snowflake;
@@ -26,6 +26,24 @@ export interface LogModCaseOptions {
 
 @injectable()
 export abstract class INotifier {
+	public readonly ACTION_COLORS_MAP = {
+		[ModCaseKind.Warn]: 0xf47b7b,
+		[ModCaseKind.Timeout]: 0xf47b7b,
+		[ModCaseKind.Untimeout]: 0x5865f2,
+		[ModCaseKind.Kick]: 0xf47b7b,
+		[ModCaseKind.Ban]: 0xf04848,
+		[ModCaseKind.Unban]: 0x5865f2,
+	} as const satisfies Record<ModCaseKind, number>;
+
+	public readonly ACTION_VERBS_MAP = {
+		[ModCaseKind.Warn]: 'warned',
+		[ModCaseKind.Timeout]: 'timed out',
+		[ModCaseKind.Untimeout]: 'untimed out',
+		[ModCaseKind.Kick]: 'kicked',
+		[ModCaseKind.Ban]: 'banned',
+		[ModCaseKind.Unban]: 'unbanned',
+	} as const satisfies Record<ModCaseKind, string>;
+
 	public constructor() {
 		if (this.constructor === INotifier) {
 			throw new Error('This class cannot be instantiated.');

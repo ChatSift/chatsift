@@ -208,3 +208,13 @@ export function parseRelativeTime(input: string): TimeParserResult<number> {
 
 	return { ok: true, value: parsed.value };
 }
+
+export function parseRelativeTimeUnsafe(input: string): number {
+	const result = parseRelativeTime(input);
+
+	if (!result.ok) {
+		throw new Error(result.error);
+	}
+
+	return result.value;
+}

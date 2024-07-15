@@ -6,31 +6,13 @@ import type { Selectable } from 'kysely';
 import type { Logger } from 'pino';
 import { INJECTION_TOKENS } from '../container.js';
 import { IDatabase } from '../database/IDatabase.js';
-import { LogWebhookKind, ModCaseKind, type ModCase } from '../db.js';
+import { LogWebhookKind, type ModCase } from '../db.js';
 import { computeAvatarUrl } from '../util/computeAvatar.js';
 import { userToEmbedAuthor } from '../util/userToEmbedData.js';
 import { INotifier, type DMUserOptions, type LogModCaseOptions } from './INotifier.js';
 
 @injectable()
 export class Notifier extends INotifier {
-	private readonly COLORS_MAP = {
-		[ModCaseKind.Warn]: 0xf47b7b,
-		[ModCaseKind.Timeout]: 0xf47b7b,
-		[ModCaseKind.Untimeout]: 0x5865f2,
-		[ModCaseKind.Kick]: 0xf47b7b,
-		[ModCaseKind.Ban]: 0xf04848,
-		[ModCaseKind.Unban]: 0x5865f2,
-	} as const satisfies Record<ModCaseKind, number>;
-
-	private readonly ACTION_VERBS_MAP = {
-		[ModCaseKind.Warn]: 'warned',
-		[ModCaseKind.Timeout]: 'timed out',
-		[ModCaseKind.Untimeout]: 'untimed out',
-		[ModCaseKind.Kick]: 'kicked',
-		[ModCaseKind.Ban]: 'banned',
-		[ModCaseKind.Unban]: 'unbanned',
-	} as const satisfies Record<ModCaseKind, string>;
-
 	public constructor(
 		private readonly api: API,
 		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
@@ -74,7 +56,7 @@ export class Notifier extends INotifier {
 		references,
 	}: LogModCaseOptions): APIEmbed {
 		const embed: APIEmbed = existingMessage?.embeds[0] ?? {
-			color: this.COLORS_MAP[modCase.kind],
+			color: this.ACTION_COLORS_MAP[modCase.kind],
 			author: userToEmbedAuthor(target, modCase.targetId),
 		};
 

@@ -6,6 +6,8 @@ import {
 	INotifier,
 	PermissionsBitField,
 	type CaseWithLogMessage,
+	parseRelativeTime,
+	parseRelativeTimeUnsafe,
 } from '@automoderator/core';
 import {
 	API,
@@ -20,15 +22,18 @@ import {
 	type APIInteraction,
 	type APIMessageComponentInteraction,
 	type APIUser,
+	type Snowflake,
 } from '@discordjs/core';
 import type { InteractionOptionResolver } from '@sapphire/discord-utilities';
 import { ActionKind, HandlerStep, type InteractionHandler as CoralInteractionHandler } from 'coral-command';
 import { injectable } from 'inversify';
 import { nanoid } from 'nanoid';
-import { IComponentStateStore } from '../state/IComponentStateStore.js';
+import { IComponentStateStore, type ConfirmModCaseState } from '../state/IComponentStateStore.js';
 
 @injectable()
 export default class ModHandler implements HandlerModule<CoralInteractionHandler> {
+	private readonly executeFirstKinds = new Set<ModCaseKind>([ModCaseKind.Kick, ModCaseKind.Ban]);
+
 	public constructor(
 		private readonly database: IDatabase,
 		private readonly notifier: INotifier,
@@ -37,36 +42,56 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 	) {}
 
 	public register(handler: ICommandHandler<CoralInteractionHandler>) {
+		const baseOptions = [
+			{
+				name: 'target',
+				description: 'The user to action',
+				type: ApplicationCommandOptionType.User,
+				required: true,
+			},
+			{
+				name: 'reason',
+				description: 'The reason for the action',
+				type: ApplicationCommandOptionType.String,
+				required: true,
+			},
+			{
+				name: 'references',
+				description: 'References to other case IDs (comma seperated)',
+				type: ApplicationCommandOptionType.String,
+				required: false,
+			},
+		] as const;
+
 		handler.register({
 			interactions: [
 				{
 					name: 'warn',
 					description: 'Warn a user',
+					options: [...baseOptions],
+					contexts: [InteractionContextType.Guild],
+					default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
+				},
+				{
+					name: 'kick',
+					description: 'Kick a user',
 					options: [
+						...baseOptions,
 						{
-							name: 'target',
-							description: 'The user to warn',
-							type: ApplicationCommandOptionType.User,
-							required: true,
-						},
-						{
-							name: 'reason',
-							description: 'The reason for the warning',
-							type: ApplicationCommandOptionType.String,
-							required: true,
-						},
-						{
-							name: 'references',
-							description: 'References to other case IDs (comma seperated)',
-							type: ApplicationCommandOptionType.String,
+							name: 'cleanup',
+							description: "Delete the user's messages (known as a softban)",
+							type: ApplicationCommandOptionType.Boolean,
 							required: false,
 						},
 					],
 					contexts: [InteractionContextType.Guild],
-					default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
+					default_member_permissions: String(PermissionFlagsBits.KickMembers),
 				},
 			],
-			applicationCommands: [['warn:none:none', this.hanadleWarnCommand.bind(this)]],
+			applicationCommands: [
+				['warn:none:none', this.hanadleWarnCommand.bind(this)],
+				['kick:none:none', this.handleKickCommand.bind(this)],
+			],
 			components: [
 				['confirm-mod-case', this.handleConfirmModCase.bind(this)],
 				['cancel-mod-case', this.handleCancelModCase.bind(this)],
@@ -97,9 +122,65 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			);
 		}
 
+		const target = options.getUser('target', true);
+		const reason = options.getString('reason', true);
+
 		const references = yield* this.verifyValidReferences(options);
 		yield* this.checkHiararchy(interaction, options);
 		yield* this.checkCaseLock(interaction, options, ModCaseKind.Warn, references);
+
+		yield* this.commitCase(
+			interaction,
+			target,
+			reason,
+			ModCaseKind.Warn,
+			references,
+			this.handleWarn(interaction.guild_id!, { reason, targetId: target.id, deleteMessageSeconds: null }),
+		);
+	}
+
+	private async *handleKickCommand(
+		interaction: APIApplicationCommandInteraction,
+		options: InteractionOptionResolver,
+	): CoralInteractionHandler {
+		yield* HandlerStep.from({
+			action: ActionKind.EnsureDeferReply,
+			options: {
+				flags: MessageFlags.Ephemeral,
+			},
+		});
+
+		if (!options.getMember('target') && !options.getBoolean('cleanup')) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: 'User is no longer in the server.',
+					},
+				},
+				true,
+			);
+		}
+
+		const target = options.getUser('target', true);
+		const reason = options.getString('reason', true);
+
+		const references = yield* this.verifyValidReferences(options);
+		yield* this.checkHiararchy(interaction, options);
+		yield* this.checkCaseLock(interaction, options, ModCaseKind.Kick, references);
+
+		yield* this.commitCase(
+			interaction,
+			target,
+			reason,
+			ModCaseKind.Kick,
+			references,
+			this.handleKick(interaction.guild_id!, {
+				targetId: target.id,
+				reason,
+				deleteMessageSeconds: options.getBoolean('cleanup') ? parseRelativeTimeUnsafe('7d') / 1_000 : null,
+			}),
+		);
 	}
 
 	private async *handleConfirmModCase(
@@ -126,9 +207,20 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		}
 
 		const target = await this.api.users.get(state.targetId);
-
 		const references = await this.database.getModCaseBulk(state.references);
-		yield* this.commitCase(interaction, target, state.reason, state.kind, references);
+
+		// Dirty dity dirty evil. I don't want lots of hardcoding, so we do this and give the handler functions nice little
+		// signatures that are always guildId, state.
+		const handler = this[`handle${state.kind}`];
+
+		yield* this.commitCase(
+			interaction,
+			target,
+			state.reason,
+			state.kind,
+			references,
+			handler(interaction.guild_id!, state),
+		);
 	}
 
 	private async *handleCancelModCase(): CoralInteractionHandler {
@@ -242,7 +334,6 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		});
 
 		if (!previousCases.length) {
-			yield* this.commitCase(interaction, target, reason, kind, references);
 			return;
 		}
 
@@ -256,34 +347,39 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			reason,
 			targetId: target.id,
 			references: references.map((ref) => ref.id),
+			deleteMessageSeconds:
+				options.getBoolean('cleanup', false) ?? false ? parseRelativeTimeUnsafe('7d') / 1_000 : null,
 		});
 
-		yield* HandlerStep.from({
-			action: ActionKind.Reply,
-			options: {
-				content: 'This user has been actioned in the past hour. Would you still like to proceed?',
-				embeds,
-				components: [
-					{
-						type: ComponentType.ActionRow,
-						components: [
-							{
-								label: 'Yes',
-								style: ButtonStyle.Success,
-								type: ComponentType.Button,
-								custom_id: `confirm-mod-case|${stateId}`,
-							},
-							{
-								label: 'No',
-								style: ButtonStyle.Danger,
-								type: ComponentType.Button,
-								custom_id: 'cancel-mod-case',
-							},
-						],
-					},
-				],
+		yield* HandlerStep.from(
+			{
+				action: ActionKind.Reply,
+				options: {
+					content: 'This user has been actioned in the past hour. Would you still like to proceed?',
+					embeds,
+					components: [
+						{
+							type: ComponentType.ActionRow,
+							components: [
+								{
+									label: 'Yes',
+									style: ButtonStyle.Success,
+									type: ComponentType.Button,
+									custom_id: `confirm-mod-case|${stateId}`,
+								},
+								{
+									label: 'No',
+									style: ButtonStyle.Danger,
+									type: ComponentType.Button,
+									custom_id: 'cancel-mod-case',
+								},
+							],
+						},
+					],
+				},
 			},
-		});
+			true,
+		);
 	}
 
 	private async *commitCase(
@@ -292,6 +388,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		reason: string,
 		kind: ModCaseKind,
 		references: CaseWithLogMessage[],
+		executor: CoralInteractionHandler,
 	): CoralInteractionHandler {
 		const isButton = interaction.type === InteractionType.MessageComponent;
 
@@ -306,6 +403,11 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 					},
 		);
 
+		const doFirst = this.executeFirstKinds.has(kind);
+		if (doFirst) {
+			yield* executor;
+		}
+
 		const modCase = await this.database.createModCase({
 			guildId: interaction.guild_id!,
 			targetId: target.id,
@@ -317,10 +419,14 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 
 		const userNotified = await this.notifier.tryNotifyTargetModCase(modCase);
 
+		if (!doFirst) {
+			yield* executor;
+		}
+
 		yield* HandlerStep.from({
 			action: ActionKind.Reply,
 			options: {
-				content: `Successfully warned the user. DM sent: ${userNotified ? 'yes' : 'no'}`,
+				content: `Successfully ${this.notifier.ACTION_VERBS_MAP[kind]} the user. DM sent: ${userNotified ? 'yes' : 'no'}`,
 				components: [],
 				embeds: [],
 			},
@@ -382,4 +488,54 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 
 		return cases;
 	}
+
+	// no-op
+	private async *handleWarn(
+		guildId: Snowflake,
+		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
+	): CoralInteractionHandler {}
+
+	// no-op.. for now
+	private async *handleTimeout(
+		guildId: Snowflake,
+		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
+	): CoralInteractionHandler {}
+
+	// no-op.. for now
+	private async *handleUntimeout(
+		guildId: Snowflake,
+		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
+	): CoralInteractionHandler {}
+
+	// eslint-disable-next-line require-yield
+	private async *handleKick(
+		guildId: Snowflake,
+		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
+	): CoralInteractionHandler {
+		if (state.deleteMessageSeconds) {
+			await this.api.guilds.banUser(
+				guildId,
+				state.targetId,
+				{
+					delete_message_seconds: state.deleteMessageSeconds,
+				},
+				{ reason: `Kick with cleanup (softban) | ${state.reason}` },
+			);
+			await this.api.guilds.unbanUser(guildId, state.targetId, {
+				reason: `Kick with cleanup (softban) | ${state.reason}`,
+			});
+		} else {
+			await this.api.guilds.removeMember(guildId, state.targetId, { reason: state.reason });
+		}
+	}
+
+	private async *handleBan(
+		guildId: Snowflake,
+		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
+	): CoralInteractionHandler {}
+
+	private async *handleUnban(
+		guildId: Snowflake,
+		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
+	): CoralInteractionHandler {}
 }
