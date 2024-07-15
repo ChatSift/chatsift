@@ -95,12 +95,21 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 						type: ApplicationCommandOptionType.String,
 						required: true,
 					}),
+					contexts: [InteractionContextType.Guild],
+					default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
+				},
+				{
+					name: 'unban',
+					description: 'Unban a user',
+					contexts: [InteractionContextType.Guild],
+					options: baseOptionsWith(),
 				},
 			],
 			applicationCommands: [
 				['warn:none:none', this.hanadleWarnCommand.bind(this)],
 				['kick:none:none', this.handleKickCommand.bind(this)],
 				['timeout:none:none', this.handleTimeoutCommand.bind(this)],
+				['unban:none:none', this.handleUnbanCommand.bind(this)],
 			],
 			components: [
 				['confirm-mod-case', this.handleConfirmModCase.bind(this)],
@@ -242,11 +251,48 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		const references = yield* this.verifyValidReferences(options);
 		yield* this.checkHiararchy(interaction, options);
 		yield* this.checkCaseLock(interaction, options, ModCaseKind.Timeout, references);
-
 		yield* this.commitCase(
 			interaction,
 			target,
 			{ kind: ModCaseKind.Timeout, reason, deleteMessageSeconds: null, timeoutDuration: parsed.value },
+			references,
+		);
+	}
+
+	private async *handleUnbanCommand(
+		interaction: APIApplicationCommandInteraction,
+		options: InteractionOptionResolver,
+	): CoralInteractionHandler {
+		yield* HandlerStep.from({
+			action: ActionKind.EnsureDeferReply,
+			options: {
+				flags: MessageFlags.Ephemeral,
+			},
+		});
+
+		const target = options.getUser('target', true);
+
+		const ban = await this.api.guilds.getMemberBan(interaction.guild_id!, target.id).catch(() => null);
+		if (!ban) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: 'User is not banned.',
+					},
+				},
+				true,
+			);
+		}
+
+		const reason = options.getString('reason', true);
+		const references = yield* this.verifyValidReferences(options);
+		yield* this.checkHiararchy(interaction, options);
+		yield* this.checkCaseLock(interaction, options, ModCaseKind.Unban, references);
+		yield* this.commitCase(
+			interaction,
+			target,
+			{ reason, kind: ModCaseKind.Unban, deleteMessageSeconds: null, timeoutDuration: null },
 			references,
 		);
 	}
@@ -550,13 +596,15 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		return cases;
 	}
 
-	// no-op
+	/* eslint-disable require-yield */
+
 	private async *handleWarn(
 		guildId: Snowflake,
 		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
-	): CoralInteractionHandler {}
+	): CoralInteractionHandler {
+		// no-op
+	}
 
-	// eslint-disable-next-line require-yield
 	private async *handleTimeout(
 		guildId: Snowflake,
 		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
@@ -571,13 +619,11 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		);
 	}
 
-	// no-op.. for now
 	private async *handleUntimeout(
 		guildId: Snowflake,
 		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
 	): CoralInteractionHandler {}
 
-	// eslint-disable-next-line require-yield
 	private async *handleKick(
 		guildId: Snowflake,
 		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
@@ -607,5 +653,9 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 	private async *handleUnban(
 		guildId: Snowflake,
 		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
-	): CoralInteractionHandler {}
+	): CoralInteractionHandler {
+		await this.api.guilds.unbanUser(guildId, state.targetId, { reason: state.reason });
+	}
+
+	/* eslint-enable require-yield */
 }
