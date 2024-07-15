@@ -104,12 +104,20 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 					contexts: [InteractionContextType.Guild],
 					options: baseOptionsWith(),
 				},
+				{
+					name: 'untimeout',
+					description: 'Untimeout a user',
+					options: baseOptionsWith(),
+					contexts: [InteractionContextType.Guild],
+					default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
+				},
 			],
 			applicationCommands: [
 				['warn:none:none', this.hanadleWarnCommand.bind(this)],
 				['kick:none:none', this.handleKickCommand.bind(this)],
 				['timeout:none:none', this.handleTimeoutCommand.bind(this)],
 				['unban:none:none', this.handleUnbanCommand.bind(this)],
+				['untimeout:none:none', this.handleUntimeoutCommand.bind(this)],
 			],
 			components: [
 				['confirm-mod-case', this.handleConfirmModCase.bind(this)],
@@ -293,6 +301,56 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			interaction,
 			target,
 			{ reason, kind: ModCaseKind.Unban, deleteMessageSeconds: null, timeoutDuration: null },
+			references,
+		);
+	}
+
+	private async *handleUntimeoutCommand(
+		interaction: APIApplicationCommandInteraction,
+		options: InteractionOptionResolver,
+	): CoralInteractionHandler {
+		yield* HandlerStep.from({
+			action: ActionKind.EnsureDeferReply,
+			options: {
+				flags: MessageFlags.Ephemeral,
+			},
+		});
+
+		const member = options.getMember('target');
+		if (!member) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: 'User is no longer in the server.',
+					},
+				},
+				true,
+			);
+			return;
+		}
+
+		if (!member.communication_disabled_until) {
+			yield* HandlerStep.from(
+				{
+					action: ActionKind.Reply,
+					options: {
+						content: 'User is not timed out.',
+					},
+				},
+				true,
+			);
+		}
+
+		const target = options.getUser('target', true);
+		const reason = options.getString('reason', true);
+		const references = yield* this.verifyValidReferences(options);
+		yield* this.checkHiararchy(interaction, options);
+		yield* this.checkCaseLock(interaction, options, ModCaseKind.Untimeout, references);
+		yield* this.commitCase(
+			interaction,
+			target,
+			{ reason, kind: ModCaseKind.Untimeout, deleteMessageSeconds: null, timeoutDuration: null },
 			references,
 		);
 	}
@@ -622,7 +680,16 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 	private async *handleUntimeout(
 		guildId: Snowflake,
 		state: Omit<ConfirmModCaseState, 'kind' | 'references'>,
-	): CoralInteractionHandler {}
+	): CoralInteractionHandler {
+		await this.api.guilds.editMember(
+			guildId,
+			state.targetId,
+			{
+				communication_disabled_until: null,
+			},
+			{ reason: state.reason },
+		);
+	}
 
 	private async *handleKick(
 		guildId: Snowflake,

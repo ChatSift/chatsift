@@ -55,6 +55,18 @@ async function handlePotentialTimeout(data: GatewayGuildAuditLogEntryCreateDispa
 
 		await notifier.tryNotifyTargetModCase(modCase);
 		await notifier.logModCase({ modCase, mod, target, references: [] });
+	} else if (change?.old_value) {
+		const modCase = await database.createModCase({
+			guildId: data.guild_id,
+			targetId: data.target_id!,
+			modId: data.user_id!,
+			reason: data.reason ?? 'No reason provided.',
+			kind: ModCaseKind.Untimeout,
+			references: [],
+		});
+
+		await notifier.tryNotifyTargetModCase(modCase);
+		await notifier.logModCase({ modCase, mod, target, references: [] });
 	}
 }
 
