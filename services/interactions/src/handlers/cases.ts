@@ -9,6 +9,8 @@ import {
 import {
 	API,
 	ApplicationCommandOptionType,
+	ButtonStyle,
+	ComponentType,
 	InteractionContextType,
 	MessageFlags,
 	PermissionFlagsBits,
@@ -143,6 +145,25 @@ export default class CasesHandler implements HandlerModule<CoralInteractionHandl
 			action: ActionKind.Reply,
 			options: {
 				content: `Are you sure you want to delete case #${cs.id}?`,
+				components: [
+					{
+						type: ComponentType.ActionRow,
+						components: [
+							{
+								type: ComponentType.Button,
+								label: 'Yes',
+								style: ButtonStyle.Success,
+								custom_id: `confirm-mod-case-delete|${cs.id}`,
+							},
+							{
+								type: ComponentType.Button,
+								label: 'No',
+								style: ButtonStyle.Danger,
+								custom_id: 'cancel-mod-case-delete',
+							},
+						],
+					},
+				],
 				embeds: [this.notifier.generateModCaseEmbed({ modCase: cs, mod, target, references })],
 			},
 		});

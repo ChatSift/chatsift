@@ -61,7 +61,7 @@ model ModCase {
 
 model CaseReference {
   referencedById Int
-  referencedBy   ModCase @relation("caseReferencedBy", fields: [referencedById], references: [id])
+  referencedBy   ModCase @relation("caseReferencedBy", fields: [referencedById], references: [id], onDelete: NoAction)
   referencesId   Int
   references     ModCase @relation("caseReferences", fields: [referencesId], references: [id], onDelete: Cascade)
 
