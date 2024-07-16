@@ -15,5 +15,6 @@ coverage/*
 !.yarn/versions
 .pnp.*
 logs-archive
+.DS_STORE
 
 .turbo

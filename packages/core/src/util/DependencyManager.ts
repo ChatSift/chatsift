@@ -3,7 +3,7 @@ import { API } from '@discordjs/core';
 import { REST } from '@discordjs/rest';
 import { injectable } from 'inversify';
 import { Redis } from 'ioredis';
-import type { Logger } from 'pino';
+import type { Logger, TransportTargetOptions } from 'pino';
 import createPinoLogger, { pino } from 'pino';
 import type { PrettyOptions } from 'pino-pretty';
 import { GuildCacheEntity, type CachedGuild } from '../cache/entities/GuildCacheEntity.js';
@@ -50,12 +50,7 @@ export class DependencyManager {
 	}
 
 	public registerLogger(service: string): Logger {
-		const prettyOptions: PrettyOptions = {
-			colorize: true,
-			translateTime: true,
-		};
-
-		const targets: { level: string; options: any; target: string }[] = [
+		const targets: TransportTargetOptions[] = [
 			{
 				target: 'pino/file',
 				level: 'trace',
@@ -70,7 +65,10 @@ export class DependencyManager {
 				dir: this.env.logsDir,
 				mkdir: false,
 				maxAgeDays: 14,
-				prettyOptions: { ...prettyOptions, colorize: false },
+				prettyOptions: {
+					translateTime: 'SYS:standard',
+					levelKey: 'levelNum',
+				},
 			};
 
 			targets.push({
@@ -89,14 +87,15 @@ export class DependencyManager {
 			{
 				level: 'trace',
 				name: service,
+				timestamp: pino.stdTimeFunctions.isoTime,
 				formatters: {
-					level: (label) => ({ label }),
+					level: (levelLabel, level) => ({ level, levelLabel }),
 				},
 			},
 			transport,
 		);
-		globalContainer.bind<Logger>(INJECTION_TOKENS.logger).toConstantValue(logger);
 
+		globalContainer.bind<Logger>(INJECTION_TOKENS.logger).toConstantValue(logger);
 		return logger;
 	}
 
