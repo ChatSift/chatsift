@@ -1,0 +1,16 @@
+#!/bin/bash
+
+
+if [ -f .env.public ]
+then
+  export $(cat .env.public | xargs)
+fi
+
+if [ -f .env.private ]
+then
+  export $(cat .env.private | xargs)
+fi
+
+docker compose \
+  -f docker-compose.yml \
+  ${@%$0}

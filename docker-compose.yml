@@ -1,3 +1,5 @@
+name: chatsift-next
+
 services:
   postgres:
     image: postgres:12-alpine
@@ -8,8 +10,11 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
     ports:
-      - 127.0.0.1:5432:5432
+      - 127.0.0.1:${LOCAL_DATABASE_PORT}:5432
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U chatsift']
       interval: 10s
@@ -87,6 +92,6 @@ services:
 volumes:
   # TODO: Rename at some point
   postgres-data:
-    name: 'chatsift-bots-postgres-data'
+    name: 'chatsift-next-postgres-data'
   redis-data:
-    name: 'chatsift-bots-redis-data'
+    name: 'chatsift-next-redis-data'

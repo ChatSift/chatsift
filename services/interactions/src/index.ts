@@ -13,6 +13,7 @@ import {
 	USEFUL_HANDLERS_PATH,
 	type HandlerModuleConstructor,
 	type HandlerModule,
+	Env,
 } from '@automoderator/core';
 import { readdirRecurseManyAsync, ReadMode } from '@chatsift/readdir';
 import { PubSubRedisBroker } from '@discordjs/brokers';
@@ -24,7 +25,7 @@ import { RedisComponentStateStore } from './state/RedisComponentDataStore.js';
 const dependencyManager = globalContainer.get(DependencyManager);
 const logger = dependencyManager.registerLogger('interactions');
 const redis = dependencyManager.registerRedis();
-dependencyManager.registerApi();
+const api = dependencyManager.registerApi();
 
 globalContainer.bind<IComponentStateStore>(IComponentStateStore).to(RedisComponentStateStore);
 globalContainer.bind<ICommandHandler<CoralInteractionHandler>>(ICommandHandler).to(CoralCommandHandler);
@@ -53,6 +54,18 @@ const broker = new PubSubRedisBroker<DiscordGatewayEventsMap>({
 	encode,
 	decode,
 });
+
+async function ensureFirstDeployment(): Promise<void> {
+	const env = globalContainer.resolve(Env);
+
+	const existing = await api.applicationCommands.getGlobalCommands(env.discordClientId);
+	if (!existing.length) {
+		logger.info('No global commands found, deploying (one-time)...');
+		await commandHandler.deployCommands();
+	}
+}
+
+await ensureFirstDeployment();
 
 broker.on(GatewayDispatchEvents.InteractionCreate, async ({ data: interaction, ack }) => {
 	await commandHandler.handle(interaction);
