@@ -85,7 +85,16 @@ export class DependencyManager {
 			level: 'trace',
 		});
 
-		const logger = createPinoLogger({ level: 'trace', name: service }, transport);
+		const logger = createPinoLogger(
+			{
+				level: 'trace',
+				name: service,
+				formatters: {
+					level: (label) => ({ label }),
+				},
+			},
+			transport,
+		);
 		globalContainer.bind<Logger>(INJECTION_TOKENS.logger).toConstantValue(logger);
 
 		return logger;
