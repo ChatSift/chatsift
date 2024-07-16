@@ -146,28 +146,37 @@ export class KyselyPostgresDatabase extends IDatabase {
 		});
 	}
 
-	public override async updateModCase(caseId: number, data: UpdateModCaseOptions): Promise<CaseWithLogMessage> {
+	public override async updateModCase(
+		caseId: number,
+		{ references, ...data }: UpdateModCaseOptions,
+	): Promise<CaseWithLogMessage> {
 		return this.#database.transaction().execute(async (trx) => {
-			const updated = await this.#database
-				.updateTable('ModCase')
-				.set(data)
-				.where('id', '=', caseId)
-				.returningAll()
-				.executeTakeFirstOrThrow();
+			let cs: Selectable<ModCase>;
 
-			if (data.references) {
+			if (Object.values(data).some((value) => value !== undefined)) {
+				cs = await trx
+					.updateTable('ModCase')
+					.set(data)
+					.where('id', '=', caseId)
+					.returningAll()
+					.executeTakeFirstOrThrow();
+			} else {
+				cs = await trx.selectFrom('ModCase').selectAll().where('id', '=', caseId).executeTakeFirstOrThrow();
+			}
+
+			if (references) {
 				await trx.deleteFrom('CaseReference').where('referencedById', '=', caseId).execute();
 
 				await trx
 					.insertInto('CaseReference')
-					.values(data.references.map((referencesId) => ({ referencedById: caseId, referencesId })))
+					.values(references.map((referencesId) => ({ referencedById: caseId, referencesId })))
 					.execute();
 			}
 
 			const logMessage =
 				(await trx.selectFrom('ModCaseLogMessage').selectAll().where('caseId', '=', caseId).executeTakeFirst()) ?? null;
 
-			return { ...updated, logMessage };
+			return { ...cs, logMessage };
 		});
 	}
 
@@ -175,10 +184,20 @@ export class KyselyPostgresDatabase extends IDatabase {
 		await this.#database.deleteFrom('ModCase').where('id', '=', caseId).execute();
 	}
 
-	public override async createModCaseLogMessage(
+	public override async upsertModCaseLogMessage(
 		options: Selectable<ModCaseLogMessage>,
 	): Promise<Selectable<ModCaseLogMessage>> {
-		return this.#database.insertInto('ModCaseLogMessage').values(options).returningAll().executeTakeFirstOrThrow();
+		return this.#database
+			.insertInto('ModCaseLogMessage')
+			.values(options)
+			.onConflict((eb) =>
+				eb.constraint('ModCaseLogMessage_pkey').doUpdateSet({
+					channelId: options.channelId,
+					messageId: options.messageId,
+				}),
+			)
+			.returningAll()
+			.executeTakeFirstOrThrow();
 	}
 
 	public override async getLogWebhook(

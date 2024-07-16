@@ -23,7 +23,7 @@ import type { Selectable } from 'kysely';
 import { REFERENCES_OPTION, verifyValidCaseReferences } from '../helpers/verifyValidCaseReferences.js';
 
 @injectable()
-export default class ModHandler implements HandlerModule<CoralInteractionHandler> {
+export default class CasesHandler implements HandlerModule<CoralInteractionHandler> {
 	public constructor(
 		private readonly database: IDatabase,
 		private readonly notifier: INotifier,
@@ -101,7 +101,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		// repro it, so I'm not even gonna try flagging it
 		const updated = await this.database.updateModCase(cs.id, {
 			reason,
-			references: references.map((ref: CaseWithLogMessage) => ref.id),
+			references: references.length ? references.map((ref: CaseWithLogMessage) => ref.id) : undefined,
 		});
 
 		const existingMessage = updated.logMessage

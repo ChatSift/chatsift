@@ -115,7 +115,7 @@ export class Notifier extends INotifier {
 			message = await this.api.webhooks.execute(webhook.webhookId, webhook.webhookToken, { ...data, wait: true });
 		}
 
-		await this.database.createModCaseLogMessage({
+		await this.database.upsertModCaseLogMessage({
 			messageId: message.id,
 			caseId: options.modCase.id,
 			channelId: message.channel_id,

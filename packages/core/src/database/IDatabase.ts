@@ -53,7 +53,7 @@ export abstract class IDatabase {
 	public abstract updateModCase(caseId: number, data: UpdateModCaseOptions): Promise<CaseWithLogMessage>;
 	public abstract deleteModCase(caseId: number): Promise<void>;
 
-	public abstract createModCaseLogMessage(
+	public abstract upsertModCaseLogMessage(
 		options: Selectable<ModCaseLogMessage>,
 	): Promise<Selectable<ModCaseLogMessage>>;
 
