@@ -103,7 +103,7 @@ __metadata:
   resolution: "@automoderator/core@workspace:packages/core"
   dependencies:
     "@chatsift/discord-utils": "npm:^0.4.0"
-    "@chatsift/pino-rotate-file": "npm:^0.3.0"
+    "@chatsift/pino-rotate-file": "npm:^0.4.0"
     "@discordjs/brokers": "npm:^0.3.0"
     "@discordjs/builders": "npm:^1.8.2"
     "@discordjs/core": "npm:^1.2.0"
@@ -123,7 +123,6 @@ __metadata:
     murmurhash: "npm:^2.0.1"
     pg: "npm:^8.12.0"
     pino: "npm:^9.3.1"
-    pino-abstract-transport: "npm:^1.2.0"
     pino-pretty: "npm:^11.2.1"
     tslib: "npm:^2.6.3"
     typescript: "npm:^5.5.3"
@@ -426,14 +425,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@chatsift/pino-rotate-file@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "@chatsift/pino-rotate-file@npm:0.3.0"
+"@chatsift/pino-rotate-file@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "@chatsift/pino-rotate-file@npm:0.4.0"
   dependencies:
-    pino: "npm:^8.17.2"
-    pino-abstract-transport: "npm:^1.1.0"
-    tslib: "npm:^2.6.2"
-  checksum: 10/7006dfcf9c761abbd39b5e76f7650a8fd50313d327d9cc1e6755bbce342a02973a74c7f3b4ddfd1a1c1dec00f51f44a2cc6f92b55d060560154a440cb2971525
+    pino: "npm:^9.3.1"
+    pino-abstract-transport: "npm:^1.2.0"
+    tslib: "npm:^2.6.3"
+  checksum: 10/11857f22a7a318a78aba8c5fc29c830211b911dfb2925f6996797b4426a561220afb84d2143386f1e65b47234d4e6c7a74f1f99870e8e75627d1f6e737b4b3b5
   languageName: node
   linkType: hard
 
@@ -8102,7 +8101,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pino-abstract-transport@npm:^1.1.0, pino-abstract-transport@npm:^1.2.0":
+"pino-abstract-transport@npm:^1.2.0":
   version: 1.2.0
   resolution: "pino-abstract-transport@npm:1.2.0"
   dependencies:
@@ -8136,38 +8135,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pino-std-serializers@npm:^6.0.0":
-  version: 6.0.0
-  resolution: "pino-std-serializers@npm:6.0.0"
-  checksum: 10/c47e64f817b0f2674a6310669c63285ac2a11770e048e56e0383248f4451cc814db8098eac457602c1be04dbbb8dde08536a317039483e59db9246681bf85f9c
-  languageName: node
-  linkType: hard
-
 "pino-std-serializers@npm:^7.0.0":
   version: 7.0.0
   resolution: "pino-std-serializers@npm:7.0.0"
   checksum: 10/884e08f65aa5463d820521ead3779d4472c78fc434d8582afb66f9dcb8d8c7119c69524b68106cb8caf92c0487be7794cf50e5b9c0383ae65b24bf2a03480951
-  languageName: node
-  linkType: hard
-
-"pino@npm:^8.17.2":
-  version: 8.21.0
-  resolution: "pino@npm:8.21.0"
-  dependencies:
-    atomic-sleep: "npm:^1.0.0"
-    fast-redact: "npm:^3.1.1"
-    on-exit-leak-free: "npm:^2.1.0"
-    pino-abstract-transport: "npm:^1.2.0"
-    pino-std-serializers: "npm:^6.0.0"
-    process-warning: "npm:^3.0.0"
-    quick-format-unescaped: "npm:^4.0.3"
-    real-require: "npm:^0.2.0"
-    safe-stable-stringify: "npm:^2.3.1"
-    sonic-boom: "npm:^3.7.0"
-    thread-stream: "npm:^2.6.0"
-  bin:
-    pino: bin.js
-  checksum: 10/5a054eab533ab91b20f63497b86070f0a6b40e4688cde9de66d23e03d6046c4e95d69c3f526dea9f30bcbc5874c7fbf0f91660cded4753946fd02261ca8ac340
   languageName: node
   linkType: hard
 
@@ -9118,15 +9089,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sonic-boom@npm:^3.7.0":
-  version: 3.8.1
-  resolution: "sonic-boom@npm:3.8.1"
-  dependencies:
-    atomic-sleep: "npm:^1.0.0"
-  checksum: 10/e03c9611e43fa81132cd2ce0fe4eb7fbcf19db267e9dec20dc6c586f82465c9c906e91a02f72150c740463ad9335536ea2131850307aaa6686d1fb5d4cc4be3e
-  languageName: node
-  linkType: hard
-
 "sonic-boom@npm:^4.0.1":
   version: 4.0.1
   resolution: "sonic-boom@npm:4.0.1"
@@ -9589,15 +9551,6 @@ __metadata:
   version: 0.2.0
   resolution: "text-table@npm:0.2.0"
   checksum: 10/4383b5baaeffa9bb4cda2ac33a4aa2e6d1f8aaf811848bf73513a9b88fd76372dc461f6fd6d2e9cb5100f48b473be32c6f95bd983509b7d92bb4d92c10747452
-  languageName: node
-  linkType: hard
-
-"thread-stream@npm:^2.6.0":
-  version: 2.7.0
-  resolution: "thread-stream@npm:2.7.0"
-  dependencies:
-    real-require: "npm:^0.2.0"
-  checksum: 10/03e743a2ccb2af5fa695d2e4369113336ee9b9f09c4453d50a222cbb4ae3af321bff658e0e5bf8bfbce9d7f5a7bf6262d12a2a365e160f4e76380ec624d32e7b
   languageName: node
   linkType: hard
 

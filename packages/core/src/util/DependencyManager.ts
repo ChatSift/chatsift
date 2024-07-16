@@ -1,9 +1,11 @@
+import type { PinoRotateFileOptions } from '@chatsift/pino-rotate-file';
 import { API } from '@discordjs/core';
 import { REST } from '@discordjs/rest';
 import { injectable } from 'inversify';
 import { Redis } from 'ioredis';
 import type { Logger } from 'pino';
 import createPinoLogger, { pino } from 'pino';
+import type { PrettyOptions } from 'pino-pretty';
 import { GuildCacheEntity, type CachedGuild } from '../cache/entities/GuildCacheEntity.js';
 import type { ICacheEntity } from '../cache/entities/ICacheEntity.js';
 import { INJECTION_TOKENS, globalContainer } from '../container.js';
@@ -14,7 +16,6 @@ import { IExperimentHandler } from '../experiments/IExperimentHandler.js';
 import { INotifier } from '../notifications/INotifier.js';
 import { Notifier } from '../notifications/Notifier.js';
 import { Env } from './Env.js';
-import type { TransportOptions } from './loggingTransport.js';
 
 @injectable()
 /**
@@ -48,30 +49,34 @@ export class DependencyManager {
 		return api;
 	}
 
-	public registerLogger(stream: string): Logger {
-		const options: TransportOptions = {
-			domain: this.env.parseableDomain,
-			auth: this.env.parseableAuth,
-			stream: `${this.env.service}${stream}`,
+	public registerLogger(service: string): Logger {
+		const prettyOptions: PrettyOptions = {
+			colorize: true,
+			translateTime: true,
 		};
 
-		const targets = [
+		const targets: { level: string; options: any; target: string }[] = [
 			{
-				target: '../util/loggingTransport.js',
+				target: 'pino/file',
 				level: 'trace',
-				options,
+				options: {
+					destination: 1, // stdout
+				},
 			},
 		];
 
-		if (this.env.nodeEnv === 'dev') {
+		if (this.env.nodeEnv === 'prod') {
+			const options: PinoRotateFileOptions = {
+				dir: this.env.logsDir,
+				mkdir: false,
+				maxAgeDays: 14,
+				prettyOptions: { ...prettyOptions, colorize: false },
+			};
+
 			targets.push({
-				target: 'pino-pretty',
+				target: '@chatsift/pino-rotate-file',
 				level: 'trace',
-				options: {
-					// @ts-expect-error - Pino bug
-					colorize: true,
-					translateTime: true,
-				},
+				options,
 			});
 		}
 
@@ -80,7 +85,7 @@ export class DependencyManager {
 			level: 'trace',
 		});
 
-		const logger = createPinoLogger({ level: 'trace' }, transport);
+		const logger = createPinoLogger({ level: 'trace', name: service }, transport);
 		globalContainer.bind<Logger>(INJECTION_TOKENS.logger).toConstantValue(logger);
 
 		return logger;

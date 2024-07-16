@@ -19,7 +19,7 @@
 	},
 	"dependencies": {
 		"@chatsift/discord-utils": "^0.4.0",
-		"@chatsift/pino-rotate-file": "^0.3.0",
+		"@chatsift/pino-rotate-file": "^0.4.0",
 		"@discordjs/brokers": "^0.3.0",
 		"@discordjs/builders": "^1.8.2",
 		"@discordjs/core": "^1.2.0",
@@ -37,7 +37,6 @@
 		"murmurhash": "^2.0.1",
 		"pg": "^8.12.0",
 		"pino": "^9.3.1",
-		"pino-abstract-transport": "^1.2.0",
 		"pino-pretty": "^11.2.1",
 		"tslib": "^2.6.3"
 	}

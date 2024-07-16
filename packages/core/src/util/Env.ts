@@ -26,21 +26,10 @@ export class Env {
 
 	public readonly postgresDatabase: string = process.env.POSTGRES_DATABASE!;
 
-	public readonly parseableDomain: string = process.env.PARSEABLE_DOMAIN!;
-
-	public readonly parseableAuth: string = process.env.PARSEABLE_AUTH!;
-
-	// TODO: Consider logging validation with zod?
-	/**
-	 * The name of the service, used as a prefix for log streams. Do not use any spaces/special chars.
-	 *
-	 * @example
-	 * 'modmailbot'
-	 */
-	public readonly service: string = process.env.SERVICE_NAME!;
-
 	// TODO: Consider validation with zod?
 	public readonly admins: Set<string> = new Set(process.env.ADMINS?.split(',') ?? []);
+
+	public readonly logsDir: string = process.env.LOGS_DIR!;
 
 	private readonly REQUIRED_KEYS = [
 		'DISCORD_TOKEN',
@@ -56,10 +45,7 @@ export class Env {
 		'POSTGRES_PASSWORD',
 		'POSTGRES_DATABASE',
 
-		'PARSEABLE_DOMAIN',
-		'PARSEABLE_AUTH',
-
-		'SERVICE_NAME',
+		'LOGS_DIR',
 	] as const;
 
 	public constructor() {

@@ -15,23 +15,14 @@ services:
       interval: 10s
       timeout: 5s
 
-  parseable:
-    image: parseable/parseable:v1.2.0
-    restart: unless-stopped
-    expose:
-      - '8000'
-    ports:
-      - 127.0.0.1:8000:8000
-    environment:
-      P_FS_DIR: '/parseable/data'
-      P_STAGING_DIR: '/parseable/staging'
-      P_USERNAME: 'admin'
-    env_file:
-      - ./.env.private
+  dozzle:
+    image: amir20/dozzle:latest
     volumes:
-      - parseable-data:/parseable/data
-      - parseable-staging:/parseable/staging
-    command: ['parseable', 'local-store']
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DOZZLE_ENABLE_ACTIONS: true
+    ports:
+      - 127.0.0.1:8080:8080
 
   redis:
     image: redis:6-alpine
@@ -51,6 +42,8 @@ services:
       - ./.env.public
       - ./.env.private
     command: ['node', '--enable-source-maps', './services/discord-proxy/dist/index.js']
+    volumes:
+      - ./logs-archive:/var/chatsift-logs
 
   gateway:
     image: chatsift-bots:latest
@@ -62,6 +55,8 @@ services:
       - ./.env.public
       - ./.env.private
     command: ['node', '--enable-source-maps', './services/gateway/dist/index.js']
+    volumes:
+      - ./logs-archive:/var/chatsift-logs
 
   interactions:
     image: chatsift-bots:latest
@@ -73,6 +68,8 @@ services:
       - ./.env.public
       - ./.env.private
     command: ['node', '--enable-source-maps', './services/interactions/dist/index.js']
+    volumes:
+      - ./logs-archive:/var/chatsift-logs
 
   observer:
     image: chatsift-bots:latest
@@ -84,14 +81,12 @@ services:
       - ./.env.public
       - ./.env.private
     command: ['node', '--enable-source-maps', './services/observer/dist/index.js']
+    volumes:
+      - ./logs-archive:/var/chatsift-logs
 
 volumes:
   # TODO: Rename at some point
   postgres-data:
     name: 'chatsift-bots-postgres-data'
-  parseable-data:
-    name: 'chatsift-bots-parseable-data'
-  parseable-staging:
-    name: 'chatsift-bots-parseable-staging'
   redis-data:
     name: 'chatsift-bots-redis-data'
