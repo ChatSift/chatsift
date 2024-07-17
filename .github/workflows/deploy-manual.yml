@@ -30,7 +30,7 @@ jobs:
         uses: ./actions/yarnCache
 
       - name: Build the images
-        run: docker build -t chatsift/chatsift/chatsift-next:latest -f ./Dockerfile .
+        run: docker build -t chatsift/chatsift-next:latest -f ./Dockerfile .
 
       - name: Tag all
         run: yarn turbo run tag-docker
