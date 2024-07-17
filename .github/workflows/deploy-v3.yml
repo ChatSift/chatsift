@@ -1,4 +1,4 @@
-name: Deploy v3
+name: Deploy next
 
 on:
   workflow_run:
@@ -32,6 +32,9 @@ jobs:
 
       - name: Login to DockerHub
         run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install dependencies
+        uses: ./actions/yarnCache
 
       - name: Build the images
         run: docker build -t chatsift/chatsift-next:latest -f ./Dockerfile .
