@@ -24,7 +24,7 @@
 		"format": "prettier --write .",
 		"postinstall": "is-ci || husky install || true",
 		"update": "yarn upgrade-interactive",
-		"prisma": "DATABASE_URL=postgresql://chatsift:admin@localhost:5432/chatsift prisma"
+		"prisma": "dotenv -e .env.private -- prisma"
 	},
 	"dependencies": {
 		"prisma": "^5.16.2"
