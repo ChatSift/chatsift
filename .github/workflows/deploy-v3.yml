@@ -40,7 +40,7 @@ jobs:
         run: docker build -t chatsift/chatsift-next:latest -f ./Dockerfile .
 
       - name: Tag changes
-        run: yarn turbo run tag-docker --filter '...[HEAD~1...HEAD]'
+        run: yarn turbo run tag-docker --filter '...[HEAD~1...HEAD~0]'
 
       - name: Push to DockerHub
         run: docker push --all-tags chatsift/chatsift-next
