@@ -1,4 +1,4 @@
-name: Deploy Manual
+name: Deploy manual
 
 on:
   workflow_dispatch:
@@ -36,4 +36,4 @@ jobs:
         run: yarn turbo run tag-docker
 
       - name: Push to DockerHub
-        run: docker push --all-tags chatsift/chatsift-next
+        run: docker image push --all-tags chatsift/chatsift-next

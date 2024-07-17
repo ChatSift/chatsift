@@ -44,4 +44,4 @@ jobs:
         run: yarn turbo run tag-docker --filter '...[HEAD~1...HEAD~0]'
 
       - name: Push to DockerHub
-        run: docker push --all-tags chatsift/chatsift-next
+        run: docker image push --all-tags chatsift/chatsift-next
