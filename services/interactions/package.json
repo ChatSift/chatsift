@@ -7,7 +7,7 @@
 	"scripts": {
 		"lint": "eslint src",
 		"build": "tsc",
-		"tag-docker": "docker tag chatsift-next chatsift-next:automoderator-interactions"
+		"tag-docker": "docker image tag chatsift-next chatsift-next:automoderator-interactions"
 	},
 	"engines": {
 		"node": ">=16.9.0"
