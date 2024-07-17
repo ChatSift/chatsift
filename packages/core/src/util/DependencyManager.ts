@@ -5,7 +5,6 @@ import { injectable } from 'inversify';
 import { Redis } from 'ioredis';
 import type { Logger, TransportTargetOptions } from 'pino';
 import createPinoLogger, { pino } from 'pino';
-import type { PrettyOptions } from 'pino-pretty';
 import { GuildCacheEntity, type CachedGuild } from '../cache/entities/GuildCacheEntity.js';
 import type { ICacheEntity } from '../cache/entities/ICacheEntity.js';
 import { INJECTION_TOKENS, globalContainer } from '../container.js';
