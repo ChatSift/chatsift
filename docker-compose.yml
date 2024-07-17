@@ -38,7 +38,7 @@ services:
       timeout: 5s
 
   discord-proxy:
-    image: chatsift-next:automoderator-discord-proxy
+    image: chatsift/chatsift-next:automoderator-discord-proxy
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -51,7 +51,7 @@ services:
       - ./logs-archive:/var/chatsift-logs
 
   gateway:
-    image: chatsift-next:automoderator-gateway
+    image: chatsift/chatsift-next:automoderator-gateway
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -64,7 +64,7 @@ services:
       - ./logs-archive:/var/chatsift-logs
 
   interactions:
-    image: chatsift-next:automoderator-interactions
+    image: chatsift/chatsift-next:automoderator-interactions
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -77,7 +77,7 @@ services:
       - ./logs-archive:/var/chatsift-logs
 
   observer:
-    image: chatsift-next:automoderator-observer
+    image: chatsift/chatsift-next:automoderator-observer
     build:
       context: ./
       dockerfile: ./Dockerfile
