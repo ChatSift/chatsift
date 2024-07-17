@@ -6,7 +6,8 @@
 	"type": "module",
 	"scripts": {
 		"lint": "eslint src",
-		"build": "tsc"
+		"build": "tsc",
+		"tag-docker": "docker tag chatsift-next chatsift-next:automoderator-gateway"
 	},
 	"engines": {
 		"node": ">=16.9.0"

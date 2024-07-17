@@ -1,5 +1,5 @@
 FROM node:20-alpine
-LABEL name "chatsift-bots"
+LABEL name "chatsift-next"
 
 WORKDIR /usr/
 

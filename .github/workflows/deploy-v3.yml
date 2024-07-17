@@ -22,7 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Install node.js v18
+      - name: Install node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
@@ -34,7 +34,10 @@ jobs:
         run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build the images
-        run: docker build -t chatsift/automoderator:v3 -f ./Dockerfile .
+        run: docker build -t chatsift/chatsift-next:latest -f ./Dockerfile .
+
+      - name: Tag changes
+        run: yarn turbo run tag-docker --filter '...[HEAD~1...HEAD]'
 
       - name: Push to DockerHub
-        run: docker push --all-tags chatsift/automoderator
+        run: docker push --all-tags chatsift/chatsift-next
