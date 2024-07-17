@@ -1,17 +1,11 @@
-name: Deploy next
+name: Deploy Manual
 
 on:
-  workflow_run:
-    workflows:
-      - 'Quality Check'
-    branches:
-      - v3
-    types:
-      - completed
+  workflow_dispatch:
 
 jobs:
   deploy:
-    name: Deploy
+    name: Manual deploy
     runs-on: ubuntu-latest
     env:
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
@@ -40,8 +34,8 @@ jobs:
       - name: Build the images
         run: docker build -t chatsift/chatsift-next:latest -f ./Dockerfile .
 
-      - name: Tag changes
-        run: yarn turbo run tag-docker --filter '...[HEAD~1...HEAD~0]'
+      - name: Tag all
+        run: yarn turbo run tag-docker'
 
       - name: Push to DockerHub
         run: docker push --all-tags chatsift/chatsift-next

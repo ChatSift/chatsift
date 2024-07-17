@@ -5,13 +5,11 @@ jobs:
     name: Quality Check
     runs-on: ubuntu-latest
     env:
-      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
       - name: Install node.js
         uses: actions/setup-node@v3
