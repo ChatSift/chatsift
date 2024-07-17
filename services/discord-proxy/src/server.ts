@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createServer, type Server } from 'node:http';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { URL } from 'node:url';
 import { Env, INJECTION_TOKENS } from '@automoderator/core';
 import { populateErrorResponse } from '@discordjs/proxy';
@@ -7,10 +9,11 @@ import { REST, RequestMethod, parseResponse, type RouteLike } from '@discordjs/r
 import { inject, injectable } from 'inversify';
 import { type Logger } from 'pino';
 import { ProxyCache } from './cache.js';
+import { ReadableStreamClone } from './clone.js';
 
 @injectable()
 export class ProxyServer {
-	readonly #rest = new REST({ rejectOnRateLimit: () => true, retries: 0 }).setToken(this.env.discordToken);
+	readonly #rest = new REST({ rejectOnRateLimit: () => true, retries: 0 });
 
 	readonly #httpServer: Server;
 
@@ -51,6 +54,10 @@ export class ProxyServer {
 			headers.authorization = req.headers.authorization;
 		}
 
+		if (req.headers['x-audit-log-reason']) {
+			headers['x-audit-log-reason'] = req.headers['x-audit-log-reason'] as string;
+		}
+
 		try {
 			const discordResponse = await this.#rest.queueRequest({
 				body: req,
@@ -73,11 +80,18 @@ export class ProxyServer {
 				res.setHeader(header, value);
 			}
 
-			const data = await parseResponse(discordResponse);
-			this.logger.trace({ data }, 'response');
-			res.write(JSON.stringify(data));
+			if (discordResponse.body) {
+				const readable =
+					discordResponse.body instanceof Readable ? discordResponse.body : Readable.fromWeb(discordResponse.body);
+				const clone = new ReadableStreamClone(readable);
 
-			await this.cache.update(fullRoute, data);
+				await pipeline(clone, res);
+
+				if (discordResponse.headers.get('content-type')?.startsWith('application/json')) {
+					const data = await parseResponse(discordResponse);
+					await this.cache.update(fullRoute, data);
+				}
+			}
 		} catch (error) {
 			this.logger.error({ err: error, fullRoute, method }, 'Something went wrong');
 			const knownError = populateErrorResponse(res, error);
