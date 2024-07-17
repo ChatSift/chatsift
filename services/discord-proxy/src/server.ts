@@ -74,7 +74,7 @@ export class ProxyServer {
 			}
 
 			const data = await parseResponse(discordResponse);
-			this.logger.trace(data, 'response');
+			this.logger.trace({ data }, 'response');
 			res.write(JSON.stringify(data));
 
 			await this.cache.update(fullRoute, data);
