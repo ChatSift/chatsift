@@ -84,11 +84,19 @@ export class ProxyServer {
 				const readable =
 					discordResponse.body instanceof Readable ? discordResponse.body : Readable.fromWeb(discordResponse.body);
 				const clone = new ReadableStreamClone(readable);
+				const otherClone = new ReadableStreamClone(clone);
 
 				await pipeline(clone, res);
 
 				if (discordResponse.headers.get('content-type')?.startsWith('application/json')) {
-					const data = await parseResponse(discordResponse);
+					let jsonStr = '';
+					otherClone.setEncoding('utf8');
+
+					for await (const chunk of otherClone) {
+						jsonStr += chunk.toString();
+					}
+
+					const data = JSON.parse(jsonStr);
 					await this.cache.update(fullRoute, data);
 				}
 			}
