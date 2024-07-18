@@ -346,6 +346,7 @@ __metadata:
     "@discordjs/rest": "npm:^2.3.0"
     "@discordjs/ws": "npm:^1.1.1"
     "@sapphire/discord-utilities": "npm:^3.3.0"
+    "@sapphire/snowflake": "npm:^3.5.3"
     "@types/node": "npm:^20.14.10"
     bin-rw: "npm:^0.1.0"
     coral-command: "npm:^0.9.1"

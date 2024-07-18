@@ -93,5 +93,3 @@ volumes:
   # TODO: Rename at some point
   postgres-data:
     name: 'chatsift-next-postgres-data'
-  redis-data:
-    name: 'chatsift-next-redis-data'

@@ -29,6 +29,7 @@
 		"@discordjs/rest": "^2.3.0",
 		"@discordjs/ws": "^1.1.1",
 		"@sapphire/discord-utilities": "^3.3.0",
+		"@sapphire/snowflake": "^3.5.3",
 		"bin-rw": "^0.1.0",
 		"coral-command": "^0.9.1",
 		"inversify": "^6.0.2",
