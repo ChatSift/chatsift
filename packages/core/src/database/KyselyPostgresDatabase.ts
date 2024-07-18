@@ -10,7 +10,8 @@ import {
 	type CaseWithLogMessage,
 	type CreateModCaseOptions,
 	type ExperimentWithOverrides,
-	type GetRecentCasesAgainstOptions,
+	type GetModCasesAgainstOptions,
+	type GetRecentModCasesAgainstOptions,
 	type UpdateModCaseOptions,
 } from './IDatabase.js';
 
@@ -116,10 +117,27 @@ export class KyselyPostgresDatabase extends IDatabase {
 			.execute();
 	}
 
-	public override async getRecentCasesAgainst({
+	public override async getModCasesAgainst({
 		guildId,
 		targetId: userId,
-	}: GetRecentCasesAgainstOptions): Promise<CaseWithLogMessage[]> {
+		page,
+	}: GetModCasesAgainstOptions): Promise<CaseWithLogMessage[]> {
+		return this.#database
+			.selectFrom('ModCase')
+			.selectAll()
+			.where('guildId', '=', guildId)
+			.where('targetId', '=', userId)
+			.orderBy('ModCase.createdAt asc')
+			.limit(10) // max embeds in a message
+			.offset(page * 10)
+			.select(this.withLogMessage)
+			.execute();
+	}
+
+	public override async getRecentModCasesAgainst({
+		guildId,
+		targetId: userId,
+	}: GetRecentModCasesAgainstOptions): Promise<CaseWithLogMessage[]> {
 		return this.#database
 			.selectFrom('ModCase')
 			.selectAll()
@@ -127,6 +145,7 @@ export class KyselyPostgresDatabase extends IDatabase {
 			.where('targetId', '=', userId)
 			.where('createdAt', '>', sql<Date>`NOW() - INTERVAL '1 HOUR'`)
 			.orderBy('ModCase.createdAt desc')
+			.limit(10)
 			.select(this.withLogMessage)
 			.execute();
 	}

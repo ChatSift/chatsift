@@ -22,9 +22,13 @@ export interface CreateModCaseOptions {
 	targetId: string;
 }
 
-export interface GetRecentCasesAgainstOptions {
+export interface GetRecentModCasesAgainstOptions {
 	guildId: string;
 	targetId: string;
+}
+
+export interface GetModCasesAgainstOptions extends GetRecentModCasesAgainstOptions {
+	page: number;
 }
 
 export type CaseWithLogMessage = Selectable<ModCase> & { logMessage: Selectable<ModCaseLogMessage> | null };
@@ -48,7 +52,8 @@ export abstract class IDatabase {
 	public abstract getModCase(caseId: number): Promise<Selectable<CaseWithLogMessage> | undefined>;
 	public abstract getModCaseReferences(caseId: number): Promise<CaseWithLogMessage[]>;
 	public abstract getModCaseBulk(caseIds: number[]): Promise<CaseWithLogMessage[]>;
-	public abstract getRecentCasesAgainst(options: GetRecentCasesAgainstOptions): Promise<CaseWithLogMessage[]>;
+	public abstract getModCasesAgainst(options: GetModCasesAgainstOptions): Promise<CaseWithLogMessage[]>;
+	public abstract getRecentModCasesAgainst(options: GetRecentModCasesAgainstOptions): Promise<CaseWithLogMessage[]>;
 	public abstract createModCase(options: CreateModCaseOptions): Promise<Selectable<ModCase>>;
 	public abstract updateModCase(caseId: number, data: UpdateModCaseOptions): Promise<CaseWithLogMessage>;
 	public abstract deleteModCase(caseId: number): Promise<void>;

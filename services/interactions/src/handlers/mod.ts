@@ -559,7 +559,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 		const target = options.getUser('target', true);
 		const reason = options.getString('reason', true);
 
-		const previousCases = await this.database.getRecentCasesAgainst({
+		const previousCases = await this.database.getRecentModCasesAgainst({
 			guildId: interaction.guild_id!,
 			targetId: target.id,
 		});

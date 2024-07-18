@@ -5,7 +5,7 @@ import { pipeline } from 'node:stream/promises';
 import { URL } from 'node:url';
 import { Env, INJECTION_TOKENS } from '@automoderator/core';
 import { populateErrorResponse } from '@discordjs/proxy';
-import { REST, RequestMethod, parseResponse, type RouteLike } from '@discordjs/rest';
+import { REST, RequestMethod, type RouteLike } from '@discordjs/rest';
 import { inject, injectable } from 'inversify';
 import { type Logger } from 'pino';
 import { ProxyCache } from './cache.js';
