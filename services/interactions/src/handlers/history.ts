@@ -2,9 +2,13 @@ import { IDatabase, INotifier, type HandlerModule, type ICommandHandler } from '
 import {
 	API,
 	ApplicationCommandOptionType,
+	ApplicationCommandType,
 	InteractionContextType,
+	MessageFlags,
 	PermissionFlagsBits,
 	type APIApplicationCommandInteraction,
+	type APIInteraction,
+	type APIUser,
 } from '@discordjs/core';
 import type { InteractionOptionResolver } from '@sapphire/discord-utilities';
 import { ActionKind, HandlerStep, type InteractionHandler as CoralInteractionHandler } from 'coral-command';
@@ -42,12 +46,21 @@ export default class HistoryHandler implements HandlerModule<CoralInteractionHan
 					contexts: [InteractionContextType.Guild],
 					default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
 				},
+				{
+					name: 'View recent history',
+					type: ApplicationCommandType.User,
+					contexts: [InteractionContextType.Guild],
+					default_member_permissions: String(PermissionFlagsBits.ModerateMembers),
+				},
 			],
-			applicationCommands: [['history:none:none', this.handle.bind(this)]],
+			applicationCommands: [
+				['history:none:none', this.handleCommand.bind(this)],
+				['View recent history:none:none', this.handleContext.bind(this)],
+			],
 		});
 	}
 
-	public async *handle(
+	public async *handleCommand(
 		interaction: APIApplicationCommandInteraction,
 		options: InteractionOptionResolver,
 	): CoralInteractionHandler {
@@ -59,6 +72,25 @@ export default class HistoryHandler implements HandlerModule<CoralInteractionHan
 		const target = options.getUser('target', true);
 		const page = (options.getInteger('page') ?? 1) - 1;
 
+		yield* this.respond(interaction, target, page);
+	}
+
+	public async *handleContext(
+		interaction: APIApplicationCommandInteraction,
+		options: InteractionOptionResolver,
+	): CoralInteractionHandler {
+		yield* HandlerStep.from({
+			action: ActionKind.EnsureDeferReply,
+			options: {
+				flags: MessageFlags.Ephemeral,
+			},
+		});
+
+		const target = options.getTargetUser();
+		yield* this.respond(interaction, target, 0);
+	}
+
+	private async *respond(interaction: APIInteraction, target: APIUser, page: number) {
 		const cases = await this.database.getModCasesAgainst({ targetId: target.id, guildId: interaction.guild_id!, page });
 		if (!cases.length) {
 			yield* HandlerStep.from(
