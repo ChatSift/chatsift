@@ -568,9 +568,10 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 			return;
 		}
 
-		const embeds = previousCases.map((modCase) =>
-			this.notifier.generateModCaseEmbed({ modCase, mod: interaction.member!.user, target, references: [] }),
-		);
+		const historyEmbed = this.notifier.generateHistoryEmbed({
+			cases: previousCases,
+			target,
+		});
 
 		const stateId = nanoid();
 		await this.stateStore.setPendingModCase(stateId, {
@@ -590,7 +591,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 				options: {
 					content:
 						'This user has been actioned in the past hour. Would you still like to proceed? Note that the logs below do not include some information, refer to your log channel for details such as references.',
-					embeds,
+					embeds: [historyEmbed],
 					components: [
 						{
 							type: ComponentType.ActionRow,

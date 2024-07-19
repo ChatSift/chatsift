@@ -24,6 +24,11 @@ export interface LogModCaseOptions {
 	target: APIUser | null;
 }
 
+export interface HistoryEmbedOptions {
+	cases: CaseWithLogMessage[];
+	target: APIUser;
+}
+
 @injectable()
 export abstract class INotifier {
 	public readonly ACTION_COLORS_MAP = {
@@ -55,4 +60,5 @@ export abstract class INotifier {
 	public abstract generateModCaseEmbed(options: LogModCaseOptions): APIEmbed;
 	public abstract logModCase(options: LogModCaseOptions): Promise<void>;
 	public abstract tryNotifyTargetModCase(modCase: Selectable<ModCase>): Promise<boolean>;
+	public abstract generateHistoryEmbed(options: HistoryEmbedOptions): APIEmbed;
 }

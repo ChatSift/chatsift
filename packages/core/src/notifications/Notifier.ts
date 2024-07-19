@@ -1,15 +1,15 @@
 import { addFields, truncateEmbed } from '@chatsift/discord-utils';
 import { API, type APIEmbed, type APIMessage } from '@discordjs/core';
-import { messageLink } from '@discordjs/formatters';
+import { messageLink, time, TimestampStyles } from '@discordjs/formatters';
 import { inject, injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import type { Logger } from 'pino';
 import { INJECTION_TOKENS } from '../container.js';
 import { IDatabase } from '../database/IDatabase.js';
-import { LogWebhookKind, type ModCase } from '../db.js';
+import { LogWebhookKind, ModCaseKind, type ModCase } from '../db.js';
 import { computeAvatarUrl } from '../util/computeAvatar.js';
 import { userToEmbedAuthor } from '../util/userToEmbedData.js';
-import { INotifier, type DMUserOptions, type LogModCaseOptions } from './INotifier.js';
+import { INotifier, type DMUserOptions, type HistoryEmbedOptions, type LogModCaseOptions } from './INotifier.js';
 
 @injectable()
 export class Notifier extends INotifier {
@@ -137,5 +137,69 @@ export class Notifier extends INotifier {
 			this.logger.error({ error }, 'Failed to fetch guild when notifying target of mod case');
 			return false;
 		}
+	}
+
+	public override generateHistoryEmbed(options: HistoryEmbedOptions): APIEmbed {
+		let points = 0;
+		const counts = {
+			ban: 0,
+			kick: 0,
+			timeout: 0,
+			warn: 0,
+		};
+
+		const colors = [0x80f31f, 0xc7c101, 0xf47b7b, 0xf04848] as const;
+		const details: string[] = [];
+
+		for (const cs of options.cases) {
+			if (cs.kind === ModCaseKind.Ban) {
+				counts.ban++;
+				points += 3;
+			} else if (cs.kind === ModCaseKind.Kick) {
+				counts.kick++;
+				points += 2;
+			} else if (cs.kind === ModCaseKind.Timeout) {
+				counts.timeout++;
+				points += 0.5;
+			} else if (cs.kind === ModCaseKind.Warn) {
+				counts.warn++;
+				points += 0.25;
+			} else {
+				continue;
+			}
+
+			const action = cs.kind.toUpperCase();
+			const caseId = cs.logMessage
+				? `[#${cs.id}](${messageLink(cs.logMessage.channelId, cs.logMessage.messageId, cs.guildId)})`
+				: `#${cs.id}`;
+			const reason = cs.reason ? ` - ${cs.reason}` : '';
+
+			details.push(`• ${time(cs.createdAt, TimestampStyles.LongDate)} \`${action}\` ${caseId}${reason}`);
+		}
+
+		const color = colors[points > 0 && points < 1 ? 1 : Math.min(Math.floor(points), 3)];
+
+		const embed: APIEmbed = {
+			author: userToEmbedAuthor(options.target, options.target.id),
+			color,
+		};
+
+		if (points === 0) {
+			embed.description = 'No moderation history';
+			return embed;
+		}
+
+		const footer = Object.entries(counts).reduce<string[]>((arr, [type, count]) => {
+			if (count > 0) {
+				arr.push(`${count} ${type}${count === 1 ? '' : 's'}`);
+			}
+
+			return arr;
+		}, []);
+
+		embed.footer = { text: footer.join(' | ') };
+		embed.description = details.join('\n');
+
+		return embed;
 	}
 }

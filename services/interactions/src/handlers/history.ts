@@ -105,22 +105,16 @@ export default class HistoryHandler implements HandlerModule<CoralInteractionHan
 			);
 		}
 
-		const modIds = new Set<string>(cases.map((cs) => cs.modId));
-		const mods = await Promise.all([...modIds].map(async (id) => this.api.users.get(id)));
-		const modsMap = new Map(mods.map((mod) => [mod.id, mod]));
+		const historyEmbed = this.notifier.generateHistoryEmbed({
+			cases,
+			target,
+		});
 
 		yield* HandlerStep.from({
 			action: ActionKind.Reply,
 			options: {
 				content: `Mod history for ${target.username}; page ${page + 1}`,
-				embeds: cases.map((cs) =>
-					this.notifier.generateModCaseEmbed({
-						mod: modsMap.get(cs.modId) ?? null,
-						modCase: cs,
-						references: [],
-						target,
-					}),
-				),
+				embeds: [historyEmbed],
 			},
 		});
 	}
