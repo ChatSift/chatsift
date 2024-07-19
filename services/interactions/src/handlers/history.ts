@@ -1,5 +1,6 @@
 import { IDatabase, INotifier, type HandlerModule, type ICommandHandler } from '@automoderator/core';
 import {
+	API,
 	ApplicationCommandOptionType,
 	InteractionContextType,
 	PermissionFlagsBits,
@@ -14,6 +15,7 @@ export default class HistoryHandler implements HandlerModule<CoralInteractionHan
 	public constructor(
 		private readonly database: IDatabase,
 		private readonly notifier: INotifier,
+		private readonly api: API,
 	) {}
 
 	public register(handler: ICommandHandler<CoralInteractionHandler>) {
@@ -71,12 +73,21 @@ export default class HistoryHandler implements HandlerModule<CoralInteractionHan
 			);
 		}
 
+		const modIds = new Set<string>(cases.map((cs) => cs.modId));
+		const mods = await Promise.all([...modIds].map(async (id) => this.api.users.get(id)));
+		const modsMap = new Map(mods.map((mod) => [mod.id, mod]));
+
 		yield* HandlerStep.from({
 			action: ActionKind.Reply,
 			options: {
 				content: `Mod history for ${target.username}; page ${page + 1}`,
 				embeds: cases.map((cs) =>
-					this.notifier.generateModCaseEmbed({ mod: null, modCase: cs, references: [], target }),
+					this.notifier.generateModCaseEmbed({
+						mod: modsMap.get(cs.modId) ?? null,
+						modCase: cs,
+						references: [],
+						target,
+					}),
 				),
 			},
 		});
