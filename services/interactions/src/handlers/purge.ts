@@ -177,7 +177,7 @@ export default class PurgeHandler implements HandlerModule<CoralInteractionHandl
 							return true;
 						}
 
-						return Boolean(message.attachments.some((a) => a.url.endsWith(`.${ext}`)));
+						return message.attachments.some((attachment) => new URL(attachment.url).pathname.endsWith(`.${ext}`));
 					};
 
 					const gifExt = ['gif', 'apng'];
@@ -187,7 +187,7 @@ export default class PurgeHandler implements HandlerModule<CoralInteractionHandl
 					switch (media) {
 						case 'all': {
 							const allExt = [...gifExt, ...imageExt, ...videoExt];
-							if (!allExt.some(checkForExtension) || message.embeds.length > 0) {
+							if (!allExt.some(checkForExtension) && !message.embeds.length) {
 								return false;
 							}
 

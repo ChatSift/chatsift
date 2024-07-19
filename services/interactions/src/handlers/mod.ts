@@ -113,7 +113,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 					description: 'Ban a user',
 					options: baseOptionsWith({
 						name: 'cleanup',
-						description: "Delete the user's recent messages",
+						description: "Specify how far back to go deleting the user's messages (e.g. 8h)",
 						type: ApplicationCommandOptionType.String,
 						required: false,
 					}),
