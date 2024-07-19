@@ -187,7 +187,7 @@ export default class PurgeHandler implements HandlerModule<CoralInteractionHandl
 					switch (media) {
 						case 'all': {
 							const allExt = [...gifExt, ...imageExt, ...videoExt];
-							if (allExt.some(checkForExtension) || message.embeds.length > 0) {
+							if (!allExt.some(checkForExtension) || message.embeds.length > 0) {
 								return false;
 							}
 
@@ -195,7 +195,7 @@ export default class PurgeHandler implements HandlerModule<CoralInteractionHandl
 						}
 
 						case 'embeds': {
-							if (message.embeds.length > 0) {
+							if (!message.embeds.length) {
 								return false;
 							}
 
@@ -203,7 +203,7 @@ export default class PurgeHandler implements HandlerModule<CoralInteractionHandl
 						}
 
 						case 'gifs': {
-							if (gifExt.some(checkForExtension)) {
+							if (!gifExt.some(checkForExtension)) {
 								return false;
 							}
 
@@ -211,7 +211,7 @@ export default class PurgeHandler implements HandlerModule<CoralInteractionHandl
 						}
 
 						case 'images': {
-							if (imageExt.some(checkForExtension)) {
+							if (!imageExt.some(checkForExtension)) {
 								return false;
 							}
 
@@ -219,7 +219,7 @@ export default class PurgeHandler implements HandlerModule<CoralInteractionHandl
 						}
 
 						case 'videos': {
-							if (videoExt.some(checkForExtension)) {
+							if (!videoExt.some(checkForExtension)) {
 								return false;
 							}
 
