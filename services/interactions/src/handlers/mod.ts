@@ -403,7 +403,7 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 					{
 						action: ActionKind.Reply,
 						options: {
-							content: 'Timeout duration must be between 1 minute and 7 days.',
+							content: 'Ban duration must be between 1 minute and 7 days.',
 						},
 					},
 					true,
@@ -415,12 +415,12 @@ export default class ModHandler implements HandlerModule<CoralInteractionHandler
 
 		const references = yield* verifyValidCaseReferences(options, this.database);
 		yield* this.checkHiararchy(interaction, options);
-		yield* this.checkCaseLock(interaction, options, ModCaseKind.Kick, references);
+		yield* this.checkCaseLock(interaction, options, ModCaseKind.Ban, references);
 
 		yield* this.commitCase(
 			interaction,
 			target,
-			{ kind: ModCaseKind.Kick, reason, deleteMessageSeconds, timeoutDuration: null },
+			{ kind: ModCaseKind.Ban, reason, deleteMessageSeconds, timeoutDuration: null },
 			references,
 		);
 	}
