@@ -9,6 +9,7 @@ import type {
 	ModCase,
 	ModCaseKind,
 	ModCaseLogMessage,
+	Settings,
 } from '../db.js';
 
 export type ExperimentWithOverrides = Selectable<Experiment> & { overrides: Selectable<ExperimentOverride>[] };
@@ -63,4 +64,6 @@ export abstract class IDatabase {
 	): Promise<Selectable<ModCaseLogMessage>>;
 
 	public abstract getLogWebhook(guildId: string, kind: LogWebhookKind): Promise<Selectable<LogWebhook> | undefined>;
+
+	public abstract getSettings(guildId: string): Promise<Selectable<Settings>>;
 }

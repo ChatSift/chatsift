@@ -3,7 +3,7 @@ import { sql, Kysely, type Selectable, PostgresDialect, type ExpressionBuilder, 
 import { jsonArrayFrom, jsonObjectFrom } from 'kysely/helpers/postgres';
 import type { Logger } from 'pino';
 import { INJECTION_TOKENS } from '../container.js';
-import type { DB, Incident, LogWebhook, LogWebhookKind, ModCase, ModCaseLogMessage } from '../db.js';
+import type { DB, Incident, LogWebhook, LogWebhookKind, ModCase, ModCaseLogMessage, Settings } from '../db.js';
 import { Env } from '../util/Env.js';
 import {
 	IDatabase,
@@ -229,6 +229,20 @@ export class KyselyPostgresDatabase extends IDatabase {
 			.where('guildId', '=', guildId)
 			.where('kind', '=', kind)
 			.executeTakeFirst();
+	}
+
+	public override async getSettings(guildId: string): Promise<Selectable<Settings>> {
+		const settings = await this.#database
+			.selectFrom('Settings')
+			.selectAll()
+			.where('guildId', '=', guildId)
+			.executeTakeFirst();
+
+		if (settings) {
+			return settings;
+		}
+
+		return this.#database.insertInto('Settings').values({ guildId }).returningAll().executeTakeFirstOrThrow();
 	}
 
 	private readonly withLogMessage = (query: ExpressionBuilder<DB, 'ModCase'>) => [

@@ -87,3 +87,27 @@ model LogWebhook {
   threadId     String?
   kind         LogWebhookKind
 }
+
+model Settings {
+  guildId         String  @id
+  reportChannelId String?
+}
+
+model Report {
+  id              Int     @id @default(autoincrement())
+  userId          String
+  messageId       String?
+  reportMessageId String
+  acknowledged    Boolean @default(false)
+
+  reporters Reporter[]
+}
+
+model Reporter {
+  reportId Int
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  userId   String
+  reason   String
+
+  @@id([reportId, userId])
+}

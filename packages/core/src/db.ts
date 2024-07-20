@@ -63,6 +63,22 @@ export type ModCaseLogMessage = {
     messageId: string;
     channelId: string;
 };
+export type Report = {
+    id: Generated<number>;
+    userId: string;
+    messageId: string | null;
+    reportMessageId: string;
+    acknowledged: Generated<boolean>;
+};
+export type Reporter = {
+    reportId: number;
+    userId: string;
+    reason: string;
+};
+export type Settings = {
+    guildId: string;
+    reportChannelId: string | null;
+};
 export type DB = {
     CaseReference: CaseReference;
     Experiment: Experiment;
@@ -71,4 +87,7 @@ export type DB = {
     LogWebhook: LogWebhook;
     ModCase: ModCase;
     ModCaseLogMessage: ModCaseLogMessage;
+    Report: Report;
+    Reporter: Reporter;
+    Settings: Settings;
 };
