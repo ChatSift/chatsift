@@ -11,7 +11,7 @@ export default defineConfig({
 		coverage: {
 			enabled: true,
 			reporter: ['text', 'lcov', 'clover'],
-			exclude: ['**/dist', '**/__tests__', '**/__mocks__'],
+			exclude: ['**/dist', '**/__tests__', '**/__mocks__', '**/tsup.config.ts', '**/vitest.config.ts'],
 		},
 	},
 });
