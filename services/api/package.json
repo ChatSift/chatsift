@@ -19,11 +19,14 @@
 	},
 	"dependencies": {
 		"@automoderator/core": "workspace:^",
+		"@chatsift/readdir": "workspace:^",
 		"@discordjs/core": "^1.2.0",
+		"fastify": "^4.28.1",
 		"inversify": "^6.0.2",
 		"ioredis": "5.3.2",
 		"reflect-metadata": "^0.2.2",
 		"tslib": "^2.6.3",
-		"undici": "^6.19.4"
+		"undici": "^6.19.4",
+		"zod": "^3.23.8"
 	}
 }

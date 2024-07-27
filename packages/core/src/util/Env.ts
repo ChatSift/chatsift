@@ -31,6 +31,8 @@ export class Env {
 
 	public readonly logsDir: string = process.env.LOGS_DIR!;
 
+	public readonly API_URL: string = process.env.API_URL!;
+
 	private readonly REQUIRED_KEYS = [
 		'DISCORD_TOKEN',
 		'DISCORD_CLIENT_ID',
@@ -46,6 +48,8 @@ export class Env {
 		'POSTGRES_DATABASE',
 
 		'LOGS_DIR',
+
+		'API_URL',
 	] as const;
 
 	public constructor() {

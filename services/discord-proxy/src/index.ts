@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { DependencyManager, globalContainer, setupCrashLogs } from '@automoderator/core';
+import { DependencyManager, Env, globalContainer, setupCrashLogs } from '@automoderator/core';
 import { ProxyServer } from './server.js';
 
 const dependencyManager = globalContainer.get(DependencyManager);
@@ -9,5 +9,9 @@ dependencyManager.registerRedis();
 setupCrashLogs();
 
 const server = globalContainer.get(ProxyServer);
-server.listen(9_000);
-logger.info('Listening on port 9000');
+const env = globalContainer.get(Env);
+
+const port = Number(new URL(env.discordProxyURL).port);
+
+server.listen(port);
+logger.info(`Listening on port ${port}`);
