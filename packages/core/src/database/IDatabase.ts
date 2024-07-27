@@ -9,6 +9,7 @@ import type {
 	ModCase,
 	ModCaseKind,
 	ModCaseLogMessage,
+	Report,
 	Settings,
 } from '../db.js';
 
@@ -35,6 +36,17 @@ export interface GetModCasesAgainstOptions extends GetRecentModCasesAgainstOptio
 export type CaseWithLogMessage = Selectable<ModCase> & { logMessage: Selectable<ModCaseLogMessage> | null };
 
 export type UpdateModCaseOptions = Partial<Omit<Selectable<ModCase>, 'id'>> & { references?: number[] };
+
+export interface CreateReporterOptions {
+	reason: string;
+	reportId: number;
+	userId: string;
+}
+
+export interface CreateReportOptions {
+	reportMessageId: string;
+	reporter: Omit<CreateReporterOptions, 'reportId'>;
+}
 
 /**
  * Abstraction over all database interactions
@@ -66,4 +78,6 @@ export abstract class IDatabase {
 	public abstract getLogWebhook(guildId: string, kind: LogWebhookKind): Promise<Selectable<LogWebhook> | undefined>;
 
 	public abstract getSettings(guildId: string): Promise<Selectable<Settings>>;
+
+	public abstract createReport(options: CreateReportOptions): Promise<Selectable<Report>>;
 }

@@ -1,6 +1,7 @@
 import { addFields, truncateEmbed } from '@chatsift/discord-utils';
-import { API, type APIEmbed, type APIMessage } from '@discordjs/core';
+import { API, type APIEmbed, type APIMessage, type Snowflake } from '@discordjs/core';
 import { messageLink, time, TimestampStyles } from '@discordjs/formatters';
+import { DiscordSnowflake } from '@sapphire/snowflake';
 import { inject, injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import type { Logger } from 'pino';
@@ -8,6 +9,7 @@ import { INJECTION_TOKENS } from '../container.js';
 import { IDatabase } from '../database/IDatabase.js';
 import { LogWebhookKind, ModCaseKind, type ModCase } from '../db.js';
 import { computeAvatarUrl } from '../util/computeAvatar.js';
+import { formatMessageToEmbed } from '../util/userMessageToEmbed.js';
 import { userToEmbedAuthor } from '../util/userToEmbedData.js';
 import { INotifier, type DMUserOptions, type HistoryEmbedOptions, type LogModCaseOptions } from './INotifier.js';
 
@@ -201,5 +203,15 @@ export class Notifier extends INotifier {
 		embed.description = details.join('\n');
 
 		return embed;
+	}
+
+	public override async logReport(guildId: Snowflake, message: APIMessage): Promise<void> {
+		const { reportChannelId } = await this.database.getSettings(guildId);
+		if (!reportChannelId) {
+			throw new Error('No report channel has been set up in this community; the caller is expected to assert this');
+		}
+
+		const embed = formatMessageToEmbed(message);
+		embed.color = 0xf04848;
 	}
 }

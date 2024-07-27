@@ -1,4 +1,4 @@
-import type { HandlerModule, ICommandHandler, IDatabase } from '@automoderator/core';
+import type { HandlerModule, ICommandHandler, IDatabase, INotifier } from '@automoderator/core';
 import { computeModalFields } from '@automoderator/core/src/util/computeModalFields.js';
 import {
 	API,
@@ -19,6 +19,7 @@ export default class ReportHandler implements HandlerModule<CoralInteractionHand
 	public constructor(
 		private readonly database: IDatabase,
 		private readonly api: API,
+		private readonly notifier: INotifier,
 	) {}
 
 	public register(handler: ICommandHandler<CoralInteractionHandler>) {

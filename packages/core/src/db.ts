@@ -65,8 +65,6 @@ export type ModCaseLogMessage = {
 };
 export type Report = {
     id: Generated<number>;
-    userId: string;
-    messageId: string | null;
     reportMessageId: string;
     acknowledged: Generated<boolean>;
 };

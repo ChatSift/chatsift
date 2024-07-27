@@ -29,6 +29,7 @@
 		"@naval-base/ms": "^3.1.0",
 		"@sapphire/bitfield": "^1.2.2",
 		"@sapphire/discord-utilities": "^3.3.0",
+		"@sapphire/snowflake": "^3.5.3",
 		"bin-rw": "^0.1.0",
 		"coral-command": "^0.10.0",
 		"inversify": "^6.0.2",

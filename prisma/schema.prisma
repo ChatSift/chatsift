@@ -95,8 +95,6 @@ model Settings {
 
 model Report {
   id              Int     @id @default(autoincrement())
-  userId          String
-  messageId       String?
   reportMessageId String
   acknowledged    Boolean @default(false)
 

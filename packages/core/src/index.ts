@@ -29,6 +29,7 @@ export * from './util/Env.js';
 export * from './util/PermissionsBitField.js';
 export * from './util/promiseAllObject.js';
 export * from './util/setupCrashLogs.js';
+export * from './util/userMessageToEmbed.js';
 export * from './util/userToEmbedData.js';
 
 export * from './container.js';

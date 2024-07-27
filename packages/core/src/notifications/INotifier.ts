@@ -61,4 +61,5 @@ export abstract class INotifier {
 	public abstract logModCase(options: LogModCaseOptions): Promise<void>;
 	public abstract tryNotifyTargetModCase(modCase: Selectable<ModCase>): Promise<boolean>;
 	public abstract generateHistoryEmbed(options: HistoryEmbedOptions): APIEmbed;
+	public abstract logReport(guildId: Snowflake, message: APIMessage): Promise<void>;
 }
