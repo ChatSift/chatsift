@@ -1,6 +1,5 @@
 import { IDatabase, INotifier, type HandlerModule, type ICommandHandler } from '@automoderator/core';
 import {
-	API,
 	ApplicationCommandOptionType,
 	ApplicationCommandType,
 	InteractionContextType,
@@ -19,7 +18,6 @@ export default class HistoryHandler implements HandlerModule<CoralInteractionHan
 	public constructor(
 		private readonly database: IDatabase,
 		private readonly notifier: INotifier,
-		private readonly api: API,
 	) {}
 
 	public register(handler: ICommandHandler<CoralInteractionHandler>) {

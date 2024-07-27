@@ -3,12 +3,13 @@ import { sql, Kysely, type Selectable, PostgresDialect, type ExpressionBuilder, 
 import { jsonArrayFrom, jsonObjectFrom } from 'kysely/helpers/postgres';
 import type { Logger } from 'pino';
 import { INJECTION_TOKENS } from '../container.js';
-import type { DB, Incident, LogWebhook, LogWebhookKind, ModCase, ModCaseLogMessage } from '../db.js';
+import type { DB, Incident, LogWebhook, LogWebhookKind, ModCase, ModCaseLogMessage, Report, Settings } from '../db.js';
 import { Env } from '../util/Env.js';
 import {
 	IDatabase,
 	type CaseWithLogMessage,
 	type CreateModCaseOptions,
+	type CreateReportOptions,
 	type ExperimentWithOverrides,
 	type GetModCasesAgainstOptions,
 	type GetRecentModCasesAgainstOptions,
@@ -229,6 +230,40 @@ export class KyselyPostgresDatabase extends IDatabase {
 			.where('guildId', '=', guildId)
 			.where('kind', '=', kind)
 			.executeTakeFirst();
+	}
+
+	public override async getSettings(guildId: string): Promise<Selectable<Settings>> {
+		const settings = await this.#database
+			.selectFrom('Settings')
+			.selectAll()
+			.where('guildId', '=', guildId)
+			.executeTakeFirst();
+
+		if (settings) {
+			return settings;
+		}
+
+		return this.#database.insertInto('Settings').values({ guildId }).returningAll().executeTakeFirstOrThrow();
+	}
+
+	public override async createReport(options: CreateReportOptions): Promise<Selectable<Report>> {
+		return this.#database.transaction().execute(async (trx) => {
+			const report = await trx
+				.insertInto('Report')
+				.values({
+					reportMessageId: options.reportMessageId,
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
+
+			await trx
+				.insertInto('Reporter')
+				.values({ ...options.reporter, reportId: report.id })
+				.returningAll()
+				.executeTakeFirstOrThrow();
+
+			return report;
+		});
 	}
 
 	private readonly withLogMessage = (query: ExpressionBuilder<DB, 'ModCase'>) => [
