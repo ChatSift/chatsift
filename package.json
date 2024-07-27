@@ -1,6 +1,6 @@
 {
 	"$schema": "http://json.schemastore.org/package",
-	"name": "@chatsift/automoderator",
+	"name": "chatsift",
 	"packageManager": "yarn@4.3.1",
 	"private": true,
 	"version": "0.0.0",

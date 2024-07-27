@@ -23,12 +23,12 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/chatsift/automoderator.git"
+		"url": "https://github.com/chatsift/chatsift.git"
 	},
 	"bugs": {
-		"url": "https://github.com/chatsift/automoderator/issues"
+		"url": "https://github.com/chatsift/chatsift/issues"
 	},
-	"homepage": "https://github.com/chatsift/automoderator",
+	"homepage": "https://github.com/chatsift/chatsift",
 	"devDependencies": {
 		"@types/node": "^20.14.12",
 		"sonic-boom": "^4.0.1",
