@@ -15,13 +15,7 @@ export const createTsupConfig = ({
 	minify = false,
 	entry = ['src/index.ts'],
 	noExternal,
-	esbuildOptions = (options, context) => {
-		if (context.format === 'cjs') {
-			options.banner = {
-				js: '"use strict";',
-			};
-		}
-	},
+	esbuildOptions,
 }: ConfigOptions = {}) =>
 	defineConfig({
 		clean: true,

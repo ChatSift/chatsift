@@ -1,7 +1,7 @@
 {
 	"name": "@chatsift/parse-relative-time",
 	"description": "Relative time parser, similar to vercel/ms",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
