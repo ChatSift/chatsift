@@ -294,6 +294,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@chatsift/api@workspace:services/api":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/api@workspace:services/api"
+  dependencies:
+    "@automoderator/core": "workspace:^"
+    "@discordjs/core": "npm:^1.2.0"
+    "@types/node": "npm:^20.14.10"
+    inversify: "npm:^6.0.2"
+    ioredis: "npm:5.3.2"
+    pino: "npm:^9.3.1"
+    reflect-metadata: "npm:^0.2.2"
+    tslib: "npm:^2.6.3"
+    typescript: "npm:^5.5.3"
+    undici: "npm:^6.19.2"
+  languageName: unknown
+  linkType: soft
+
 "@chatsift/automoderator-discord-proxy@workspace:services/discord-proxy":
   version: 0.0.0-use.local
   resolution: "@chatsift/automoderator-discord-proxy@workspace:services/discord-proxy"

@@ -1,0 +1,29 @@
+{
+	"name": "@chatsift/api",
+	"main": "./dist/index.js",
+	"private": true,
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"lint": "eslint src",
+		"build": "tsc",
+		"tag-docker": "docker image tag chatsift/chatsift-next:latest chatsift/chatsift-next:api"
+	},
+	"engines": {
+		"node": ">=16.9.0"
+	},
+	"devDependencies": {
+		"@types/node": "^20.14.10",
+		"pino": "^9.3.1",
+		"typescript": "^5.5.3"
+	},
+	"dependencies": {
+		"@automoderator/core": "workspace:^",
+		"@discordjs/core": "^1.2.0",
+		"inversify": "^6.0.2",
+		"ioredis": "5.3.2",
+		"reflect-metadata": "^0.2.2",
+		"tslib": "^2.6.3",
+		"undici": "^6.19.2"
+	}
+}

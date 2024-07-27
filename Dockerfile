@@ -12,6 +12,7 @@ COPY .yarn ./.yarn
 
 COPY packages/core/package.json ./packages/core/package.json
 
+COPY services/api/package.json ./services/api/package.json
 COPY services/discord-proxy/package.json ./services/discord-proxy/package.json
 COPY services/gateway/package.json ./services/gateway/package.json
 COPY services/interactions/package.json ./services/interactions/package.json
@@ -24,6 +25,7 @@ RUN yarn prisma generate
 
 COPY packages/core ./packages/core
 
+COPY services/api ./services/api
 COPY services/discord-proxy ./services/discord-proxy
 COPY services/gateway ./services/gateway
 COPY services/interactions ./services/interactions
