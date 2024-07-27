@@ -19,5 +19,6 @@
 		"experimentalDecorators": true,
 		"noImplicitOverride": true,
 		"verbatimModuleSyntax": true
-	}
+	},
+	"exclude": ["./**/__mocks__/**/*.ts", "./**/__tests__/**/*.ts"]
 }

@@ -29,6 +29,7 @@ const notifier = globalContainer.get(INotifier);
 const database = globalContainer.get(IDatabase);
 
 const broker = new PubSubRedisBroker<DiscordGatewayEventsMap>({
+	// @ts-expect-error - Version miss-match
 	redisClient: redis,
 	encode,
 	decode,

@@ -13,16 +13,16 @@
 		"node": ">=16.9.0"
 	},
 	"devDependencies": {
-		"@types/node": "^20.14.10",
+		"@types/node": "^20.14.12",
 		"kysely": "^0.27.4",
-		"pino": "^9.3.1",
-		"typescript": "^5.5.3"
+		"pino": "^9.3.2",
+		"typescript": "^5.5.4"
 	},
 	"dependencies": {
 		"@automoderator/core": "workspace:^",
-		"@chatsift/discord-utils": "^0.4.0",
-		"@chatsift/parse-relative-time": "^0.2.0",
-		"@chatsift/readdir": "^0.5.0",
+		"@chatsift/discord-utils": "workspace:^",
+		"@chatsift/parse-relative-time": "workspace:^",
+		"@chatsift/readdir": "workspace:^",
 		"@discordjs/brokers": "^0.3.0",
 		"@discordjs/core": "^1.2.0",
 		"@discordjs/formatters": "^0.4.0",
@@ -31,12 +31,12 @@
 		"@sapphire/discord-utilities": "^3.3.0",
 		"@sapphire/snowflake": "^3.5.3",
 		"bin-rw": "^0.1.0",
-		"coral-command": "^0.9.1",
+		"coral-command": "^0.10.0",
 		"inversify": "^6.0.2",
 		"ioredis": "5.3.2",
 		"nanoid": "^5.0.7",
 		"reflect-metadata": "^0.2.2",
 		"tslib": "^2.6.3",
-		"undici": "^6.19.2"
+		"undici": "^6.19.4"
 	}
 }

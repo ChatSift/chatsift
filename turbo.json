@@ -11,6 +11,11 @@
 			"outputs": [],
 			"inputs": ["tsconfig.json", "package.json", "src/**/*.ts"]
 		},
+		"test": {
+			"dependsOn": ["^build"],
+			"outputs": [],
+			"inputs": ["tsconfig.json", "package.json", "src/**/*.ts"]
+		},
 		"tag-docker": {
 			"outputs": []
 		}

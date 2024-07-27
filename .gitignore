@@ -1,11 +1,12 @@
 .vscode/*
 !.vscode/settings.json
+.DS_STORE
 
-node_modules
-.env.private
+**/node_modules
 
-coverage/*
-**/dist/*
+**/coverage
+**/dist
+**/.turbo
 
 .yarn/*
 !.yarn/patches
@@ -14,7 +15,6 @@ coverage/*
 !.yarn/sdks
 !.yarn/versions
 .pnp.*
-logs-archive
-.DS_STORE
 
-.turbo
+logs-archive
+.env.private

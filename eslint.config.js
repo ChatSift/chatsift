@@ -12,6 +12,8 @@ const commonRuleset = merge(...common, {
 	rules: {
 		'no-eq-null': ['off'],
 		eqeqeq: ['error', 'always', { null: 'ignore' }],
+		'jsdoc/no-undefined-types': ['off'],
+		'import/no-duplicates': ['off'],
 	},
 });
 

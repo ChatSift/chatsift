@@ -1,0 +1,44 @@
+{
+	"name": "@chatsift/pino-rotate-file",
+	"description": "Simple pino transport for rotating files",
+	"version": "0.5.0",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		"import": "./dist/index.mjs",
+		"require": "./dist/index.js",
+		"types": "./dist/index.d.ts"
+	},
+	"directories": {
+		"lib": "src"
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsup && tsc",
+		"test": "vitest run",
+		"lint": "eslint src",
+		"prepack": "yarn build"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/chatsift/automoderator.git"
+	},
+	"bugs": {
+		"url": "https://github.com/chatsift/automoderator/issues"
+	},
+	"homepage": "https://github.com/chatsift/automoderator",
+	"devDependencies": {
+		"@types/node": "^20.14.12",
+		"sonic-boom": "^4.0.1",
+		"tsup": "^8.2.3",
+		"typescript": "^5.5.4",
+		"vitest": "^2.0.4"
+	},
+	"dependencies": {
+		"pino": "^9.3.2",
+		"pino-abstract-transport": "^1.2.0",
+		"tslib": "^2.6.3"
+	}
+}

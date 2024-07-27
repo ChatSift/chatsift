@@ -20,6 +20,7 @@ export class Gateway {
 		@inject(INJECTION_TOKENS.redis) private readonly redis: Redis,
 	) {
 		this.#broker = new PubSubRedisBroker<DiscordGatewayEventsMap>({
+			// @ts-expect-error - Version miss-match
 			redisClient: this.redis,
 			encode,
 			decode,

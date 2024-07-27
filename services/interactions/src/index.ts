@@ -50,6 +50,7 @@ for (const path of await readdirRecurseManyAsync([serviceHandlersPath, USEFUL_HA
 }
 
 const broker = new PubSubRedisBroker<DiscordGatewayEventsMap>({
+	// @ts-expect-error - Version miss-match
 	redisClient: redis,
 	encode,
 	decode,

@@ -1,4 +1,6 @@
-# automoderator
+# chatsift
+
+Monorepo for all of our bots and their common utilities, along with some NPM packages.
 
 ## Licensing
 
