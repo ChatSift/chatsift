@@ -1,6 +1,8 @@
 name: 'PR Automation'
+
 on:
   pull_request_target:
+
 jobs:
   triage:
     runs-on: ubuntu-latest

@@ -1,5 +1,7 @@
 name: Quality Check
+
 on: [push, pull_request]
+
 jobs:
   quality:
     name: Quality Check
@@ -14,7 +16,7 @@ jobs:
       - name: Install node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
         uses: ./actions/yarnCache
