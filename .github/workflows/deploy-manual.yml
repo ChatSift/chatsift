@@ -33,7 +33,7 @@ jobs:
         run: docker build -t chatsift/chatsift-next:latest -f ./Dockerfile .
 
       - name: Tag all
-        run: yarn turbo run tag-docker
+        run: yarn turbo run tag-docker --force --no-cache
 
       - name: Push to DockerHub
         run: docker image push --all-tags chatsift/chatsift-next
