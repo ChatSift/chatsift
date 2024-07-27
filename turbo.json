@@ -4,7 +4,7 @@
 		"build": {
 			"dependsOn": ["^build"],
 			"outputs": ["dist/**"],
-			"inputs": ["tsconfig.json", "package.json", "src/**/*.ts"]
+			"inputs": ["tsconfig.json", "package.json", "src/**/*.ts", "tsup.config.ts"]
 		},
 		"lint": {
 			"dependsOn": ["^build"],
@@ -14,7 +14,7 @@
 		"test": {
 			"dependsOn": ["^build"],
 			"outputs": [],
-			"inputs": ["tsconfig.json", "package.json", "src/**/*.ts"]
+			"inputs": ["tsconfig.json", "package.json", "src/**/*.ts", "vitest.config.ts"]
 		},
 		"tag-docker": {
 			"outputs": []
