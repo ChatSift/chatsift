@@ -33,7 +33,7 @@ export class DependencyManager {
 	}
 
 	public registerRedis(): Redis {
-		const redis = new Redis(this.env.redisUrl);
+		const redis = new Redis(this.env.redisURL);
 		globalContainer.bind<Redis>(INJECTION_TOKENS.redis).toConstantValue(redis);
 		return redis;
 	}

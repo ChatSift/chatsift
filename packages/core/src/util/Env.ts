@@ -10,7 +10,7 @@ export class Env {
 
 	public readonly discordClientId: string = process.env.DISCORD_CLIENT_ID!;
 
-	public readonly redisUrl: string = process.env.REDIS_URL!;
+	public readonly redisURL: string = process.env.REDIS_URL!;
 
 	public readonly nodeEnv: 'dev' | 'prod' = (process.env.NODE_ENV ?? 'prod') as 'dev' | 'prod';
 
@@ -31,7 +31,13 @@ export class Env {
 
 	public readonly logsDir: string = process.env.LOGS_DIR!;
 
-	public readonly API_URL: string = process.env.API_URL!;
+	public readonly apiURL: string = process.env.API_URL!;
+
+	public readonly allowedApiRedirects: RegExp = new RegExp(process.env.ALLOWED_API_REDIRECTS ?? '$^');
+
+	public readonly secretSigningKey: string = process.env.SECRET_SIGNING_KEY!;
+
+	public readonly publicApiURL: string = process.env.PUBLIC_API_URL!;
 
 	private readonly REQUIRED_KEYS = [
 		'DISCORD_TOKEN',
@@ -50,6 +56,10 @@ export class Env {
 		'LOGS_DIR',
 
 		'API_URL',
+
+		'SECRET_SIGNING_KEY',
+
+		'PUBLIC_API_URL',
 	] as const;
 
 	public constructor() {
