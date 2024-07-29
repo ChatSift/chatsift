@@ -9,9 +9,6 @@
 		"build": "tsc",
 		"tag-docker": "docker image tag chatsift/chatsift-next:latest chatsift/chatsift-next:automoderator-gateway"
 	},
-	"engines": {
-		"node": ">=16.9.0"
-	},
 	"devDependencies": {
 		"@types/node": "^20.14.12",
 		"pino": "^9.3.2",
