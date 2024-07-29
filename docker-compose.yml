@@ -27,7 +27,7 @@ services:
     environment:
       DOZZLE_ENABLE_ACTIONS: true
     ports:
-      - 127.0.0.1:8080:8080
+      - 127.0.0.1:${LOCAL_DOZZLE_PORT}:8080
 
   redis:
     image: redis:6-alpine
@@ -36,6 +36,21 @@ services:
       test: ['CMD-SHELL', 'redis-cli ping']
       interval: 10s
       timeout: 5s
+
+  api:
+    image: chatsift/chatsift-next:automoderator-api
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    command: ['node', '--enable-source-maps', './services/api/dist/index.js']
+    ports:
+      - 127.0.0.1:${LOCAL_API_PORT}:9876
+    volumes:
+      - ./logs-archive:/var/chatsift-logs
 
   discord-proxy:
     image: chatsift/chatsift-next:automoderator-discord-proxy

@@ -1,6 +1,8 @@
+import type { Snowflake } from '@discordjs/core';
 import { injectable } from 'inversify';
 import type { Selectable } from 'kysely';
 import type {
+	DiscordOAuth2User,
 	Experiment,
 	ExperimentOverride,
 	Incident,
@@ -63,4 +65,7 @@ export abstract class IDatabase {
 	): Promise<Selectable<ModCaseLogMessage>>;
 
 	public abstract getLogWebhook(guildId: string, kind: LogWebhookKind): Promise<Selectable<LogWebhook> | undefined>;
+
+	public abstract getDiscordOAuth2User(userId: Snowflake): Promise<Selectable<DiscordOAuth2User> | undefined>;
+	public abstract upsertDiscordOAuth2User(user: Selectable<DiscordOAuth2User>): Promise<Selectable<DiscordOAuth2User>>;
 }

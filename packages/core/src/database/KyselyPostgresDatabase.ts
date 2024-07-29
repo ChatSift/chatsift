@@ -1,9 +1,10 @@
+import type { Snowflake } from '@discordjs/core';
 import { inject, injectable } from 'inversify';
 import { sql, Kysely, type Selectable, PostgresDialect, type ExpressionBuilder, Transaction } from 'kysely';
 import { jsonArrayFrom, jsonObjectFrom } from 'kysely/helpers/postgres';
 import type { Logger } from 'pino';
 import { INJECTION_TOKENS } from '../container.js';
-import type { DB, Incident, LogWebhook, LogWebhookKind, ModCase, ModCaseLogMessage } from '../db.js';
+import type { DB, DiscordOAuth2User, Incident, LogWebhook, LogWebhookKind, ModCase, ModCaseLogMessage } from '../db.js';
 import { Env } from '../util/Env.js';
 import {
 	IDatabase,
@@ -229,6 +230,27 @@ export class KyselyPostgresDatabase extends IDatabase {
 			.where('guildId', '=', guildId)
 			.where('kind', '=', kind)
 			.executeTakeFirst();
+	}
+
+	public override async getDiscordOAuth2User(userId: Snowflake): Promise<Selectable<DiscordOAuth2User> | undefined> {
+		return this.#database.selectFrom('DiscordOAuth2User').selectAll().where('id', '=', userId).executeTakeFirst();
+	}
+
+	public override async upsertDiscordOAuth2User(
+		user: Selectable<DiscordOAuth2User>,
+	): Promise<Selectable<DiscordOAuth2User>> {
+		return this.#database
+			.insertInto('DiscordOAuth2User')
+			.values(user)
+			.onConflict((eb) =>
+				eb.constraint('DiscordOAuth2User_pkey').doUpdateSet({
+					accessToken: user.accessToken,
+					refreshToken: user.refreshToken,
+					expiresAt: user.expiresAt,
+				}),
+			)
+			.returningAll()
+			.executeTakeFirstOrThrow();
 	}
 
 	private readonly withLogMessage = (query: ExpressionBuilder<DB, 'ModCase'>) => [

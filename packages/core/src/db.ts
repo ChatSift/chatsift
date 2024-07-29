@@ -21,6 +21,12 @@ export type CaseReference = {
     referencedById: number;
     referencesId: number;
 };
+export type DiscordOAuth2User = {
+    id: string;
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: Timestamp;
+};
 export type Experiment = {
     name: string;
     createdAt: Generated<Timestamp>;
@@ -65,6 +71,7 @@ export type ModCaseLogMessage = {
 };
 export type DB = {
     CaseReference: CaseReference;
+    DiscordOAuth2User: DiscordOAuth2User;
     Experiment: Experiment;
     ExperimentOverride: ExperimentOverride;
     Incident: Incident;

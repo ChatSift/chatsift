@@ -87,3 +87,10 @@ model LogWebhook {
   threadId     String?
   kind         LogWebhookKind
 }
+
+model DiscordOAuth2User {
+  id String @id
+  accessToken String
+  refreshToken String
+  expiresAt DateTime
+}
