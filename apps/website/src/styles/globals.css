@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+	.bg-primary {
+		@apply bg-zinc-100 dark:bg-zinc-900;
+	}
+
+	.text-primary {
+		@apply text-zinc-700 dark:text-zinc-300;
+	}
+
+	.text-secondary {
+		@apply text-zinc-500 dark:text-zinc-400;
+	}
+}

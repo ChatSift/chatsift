@@ -22,7 +22,7 @@ COPY services/gateway/package.json ./services/gateway/package.json
 COPY services/interactions/package.json ./services/interactions/package.json
 COPY services/observer/package.json ./services/observer/package.json
 
-RUN yarn --immutable
+RUN yarn workspaces focus --all
 
 COPY prisma ./prisma
 RUN yarn prisma generate

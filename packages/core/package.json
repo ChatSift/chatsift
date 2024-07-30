@@ -9,9 +9,6 @@
 		"lint": "eslint src",
 		"build": "tsc"
 	},
-	"engines": {
-		"node": ">=16.9.0"
-	},
 	"devDependencies": {
 		"@types/node": "^20.14.12",
 		"@types/pg": "^8.11.6",
