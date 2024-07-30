@@ -1,6 +1,8 @@
 import common from 'eslint-config-neon/flat/common.js';
+import next from 'eslint-config-neon/flat/next.js';
 import node from 'eslint-config-neon/flat/node.js';
 import prettier from 'eslint-config-neon/flat/prettier.js';
+import react from 'eslint-config-neon/flat/react.js';
 import typescript from 'eslint-config-neon/flat/typescript.js';
 import merge from 'lodash.merge';
 import tseslint from 'typescript-eslint';
@@ -51,6 +53,17 @@ const typeScriptRuleset = merge(...typescript, {
 	},
 });
 
+const reactRuleset = merge(...react, {
+	files: [`apps/**/*${commonFiles}`, `packages/ui/**/*${commonFiles}`],
+	rules: {
+		'@next/next/no-html-link-for-pages': 0,
+		'react/react-in-jsx-scope': 0,
+		'react/jsx-filename-extension': [1, { extensions: ['.tsx'] }],
+	},
+});
+
+const nextRuleset = merge(...next, { files: [`apps/**/*${commonFiles}`] });
+
 const prettierRuleset = merge(...prettier, { files: [`**/*${commonFiles}`] });
 
 export default tseslint.config(
@@ -60,5 +73,13 @@ export default tseslint.config(
 	commonRuleset,
 	nodeRuleset,
 	typeScriptRuleset,
+	reactRuleset,
+	nextRuleset,
+	{
+		files: [`apps/website/**/*${commonFiles}`],
+		rules: {
+			'no-restricted-globals': ['off'],
+		},
+	},
 	prettierRuleset,
 );

@@ -1,3 +1,3 @@
 'use client';
 
-export { Button } from 'react-aria-components';
+export { Button as default } from 'react-aria-components';
