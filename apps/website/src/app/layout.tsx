@@ -5,8 +5,8 @@ import '~/styles/globals.css';
 
 export default async function RootLayout({ children }: PropsWithChildren) {
 	return (
-		<html lang="en" suppressHydrationWarning>
-			<body>
+		<html lang="en">
+			<body className="bg-primary">
 				<Providers>{children}</Providers>
 			</body>
 		</html>
