@@ -7,7 +7,7 @@ export default function Home() {
 
 			<div>
 				<a
-					className="inline-flex gap-2 rounded-md border border-neutral-300 bg-white px-6 py-2 font-medium hover:bg-neutral-200 dark:border-neutral-700 dark:bg-transparent dark:hover:bg-neutral-800"
+					className="inline-flex gap-2 bg-misc-accent rounded-md px-4 py-3 font-medium"
 					href="/support"
 					rel="noopener noreferrer"
 					target="_blank"

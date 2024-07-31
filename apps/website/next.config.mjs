@@ -13,4 +13,18 @@ export default {
 			fullUrl: true,
 		},
 	},
+	async redirects() {
+		return [
+			{
+				source: '/github',
+				destination: 'https://github.com/chatsift',
+				permanent: true,
+			},
+			{
+				source: '/support',
+				destination: 'https://discord.gg/tgZ2pSgXXv',
+				permanent: true,
+			},
+		];
+	},
 };
