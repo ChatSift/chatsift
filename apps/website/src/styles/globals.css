@@ -1,3 +1,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import url('author.css');
+
+body {
+	font-family: Author-Variable, sans-serif;
+	font-feature-settings:
+		'pnum' on,
+		'lnum' on;
+}

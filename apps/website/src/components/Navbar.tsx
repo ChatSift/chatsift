@@ -38,7 +38,7 @@ function Desktop() {
 					<NavigationMenu.List className="flex p-0 mr-6">
 						{headerItems.map((item) => (
 							<NavigationMenu.Item key={item.href} className="flex items-center [&>*]:mr-6">
-								<a className="text-zinc-500 dark:text-zinc-400" href={item.href}>
+								<a className="text-zinc-500 dark:text-zinc-400 text-lg font-medium" href={item.href}>
 									{item.name}
 								</a>
 							</NavigationMenu.Item>
@@ -47,7 +47,7 @@ function Desktop() {
 				</NavigationMenu.Root>
 			</li>
 
-			<li className="flex items-center mr-6 ml-auto gap-6 text-zinc-500 dark:text-zinc-400">
+			<li className="flex items-center mr-6 ml-auto gap-6 text-zinc-500 dark:text-zinc-400 font-medium">
 				<a>Log in</a>
 			</li>
 		</ul>
@@ -103,7 +103,7 @@ export default function Navbar() {
 	return (
 		<header
 			className={
-				'sticky top-0 flex flex-col bg-zinc-100 dark:bg-zinc-900 w-full z-50 lg:h-auto lg:border-b-2 lg:border-solid lg:border-on-secondary-dark lg:py-4 lg:pl-6 lg:pr-8 md:h-16'
+				'sticky top-0 flex flex-col bg-zinc-100 dark:bg-zinc-900 w-full z-50 lg:h-auto lg:border-b-2 lg:border-solid lg:border-on-secondary-dark lg:py-4 lg:pl-6 lg:pr-8 h-16'
 			}
 		>
 			<Desktop />
