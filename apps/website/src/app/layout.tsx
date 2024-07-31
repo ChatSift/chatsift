@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { PropsWithChildren } from 'react';
 import { Providers } from '~/app/providers';
+import Footer from '~/components/Footer';
 import Navbar from '~/components/Navbar';
 
 import '~/styles/globals.css';
@@ -20,8 +21,13 @@ export default async function RootLayout({ children }: PropsWithChildren) {
 		<html lang="en" suppressHydrationWarning>
 			<body className="bg-base dark:bg-base-dark">
 				<Providers>
-					<Navbar />
-					{children}
+					<div className="h-scren flex min-h-screen flex-col">
+						<Navbar />
+						<div className="flex flex-[1_1_auto] flex-grow flex-col">
+							{children}
+							<Footer />
+						</div>
+					</div>
 				</Providers>
 			</body>
 		</html>

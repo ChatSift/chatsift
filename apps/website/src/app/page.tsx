@@ -3,7 +3,7 @@ import { ExternalLink } from 'lucide-react';
 export default function Home() {
 	return (
 		<div className="flex flex-col">
-			<main className="m-auto flex max-w-[80vw] flex-col justify-center gap-6 pt-6 md:min-w-[912px]">
+			<main className="mx-auto flex max-w-[80vw] flex-col justify-center gap-6 pt-6 md:min-w-[912px]">
 				<h1 className="text-3xl font-medium">Modern solutions for your Discord communities</h1>
 
 				<div>

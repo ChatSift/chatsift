@@ -71,11 +71,7 @@ function Mobile() {
 					aria-controls="menu"
 					aria-haspopup="true"
 				>
-					{mobileNavOpen ? (
-						<SvgClose className="fill-secondary dark:fill-secondary-dark" />
-					) : (
-						<SvgHamburger className="fill-secondary dark:fill-secondary-dark" />
-					)}
+					{mobileNavOpen ? <SvgClose /> : <SvgHamburger />}
 				</Button>
 			</div>
 			<NavigationMenu.List
