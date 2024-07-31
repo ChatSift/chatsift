@@ -31,21 +31,26 @@ function Desktop() {
 				<Logo />
 			</li>
 
-			<li className="flex items-center mr-6">
+			<div className="flex items-center mr-6">
 				<NavigationMenu.Root className="flex items-center">
 					<NavigationMenu.List className="flex p-0 mr-6">
 						{headerItems.map((item) => (
 							<NavigationMenu.Item key={item.href} className="flex items-center [&>*]:mr-6">
-								<a className="text-zinc-500 dark:text-zinc-400 text-lg font-medium" href={item.href}>
+								<a
+									className="text-secondary dark:text-secondary-dark hover:text-primary dark:hover:text-primary-dark text-lg font-medium"
+									href={item.href}
+								>
 									{item.name}
 								</a>
 							</NavigationMenu.Item>
 						))}
 					</NavigationMenu.List>
 				</NavigationMenu.Root>
-			</li>
+			</div>
 
-			<User />
+			<li className="flex items-center md:ml-auto text-secondary dark:text-secondary-dark text-lg">
+				<User />
+			</li>
 		</ul>
 	);
 }
@@ -56,8 +61,8 @@ function Mobile() {
 	const listClasses = mobileNavOpen ? clsx() : clsx('hidden', 'max-h-0');
 
 	return (
-		<NavigationMenu.Root className="md:hidden relative bg-zinc-100 dark:bg-zinc-900">
-			<div className="flex items-center justify-between ml-auto p-2 bg-zinc-100 dark:bg-zinc-900">
+		<NavigationMenu.Root className="md:hidden relative">
+			<div className="flex items-center justify-between ml-auto p-2">
 				<Logo />
 				<Button
 					style={{ padding: 12 }}
@@ -74,7 +79,7 @@ function Mobile() {
 				</Button>
 			</div>
 			<NavigationMenu.List
-				className={`overflow-hidden flex flex-col z-10 bg-zinc-100 dark:bg-zinc-900 mx-4 ${listClasses}`}
+				className={`overflow-hidden flex flex-col z-50 mx-4 bg-base dark:bg-base-dark ${listClasses}`}
 			>
 				<div className="border-b-on-secondary dark:border-b-on-secondary-dark border-b-2 border-solid py-4">
 					{headerItems.map((item) => (
@@ -91,9 +96,9 @@ function Mobile() {
 					))}
 				</div>
 
-				<div className="py-4 mx-4">
+				<NavigationMenu.Item key="login" className="py-4">
 					<User />
-				</div>
+				</NavigationMenu.Item>
 			</NavigationMenu.List>
 		</NavigationMenu.Root>
 	);
@@ -103,7 +108,7 @@ export default function Navbar() {
 	return (
 		<header
 			className={
-				'sticky top-0 flex flex-col bg-zinc-100 dark:bg-zinc-900 w-full z-50 lg:h-auto lg:border-b-2 lg:border-solid lg:border-on-secondary-dark lg:py-4 lg:pl-6 lg:pr-8 h-16'
+				'sticky top-0 flex flex-col w-full z-10 lg:h-auto lg:border-b-2 lg:border-solid lg:border-on-secondary-dark lg:py-4 lg:pl-6 lg:pr-8 h-16'
 			}
 		>
 			<Desktop />

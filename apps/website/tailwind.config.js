@@ -8,6 +8,10 @@ export default {
 	theme: {
 		colors: {
 			...colors,
+			base: {
+				DEFAULT: '#F1F2F5',
+				dark: '#151519',
+			},
 			primary: {
 				DEFAULT: '#1d274e',
 				dark: '#F6F6FB',
