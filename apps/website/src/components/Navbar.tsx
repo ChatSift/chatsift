@@ -38,7 +38,7 @@ function Desktop() {
 					<NavigationMenu.List className="flex p-0 mr-6">
 						{headerItems.map((item) => (
 							<NavigationMenu.Item key={item.href} className="flex items-center [&>*]:mr-6">
-								<a className="text-secondary" href={item.href}>
+								<a className="text-zinc-500 dark:text-zinc-400" href={item.href}>
 									{item.name}
 								</a>
 							</NavigationMenu.Item>
@@ -47,7 +47,7 @@ function Desktop() {
 				</NavigationMenu.Root>
 			</li>
 
-			<li className="flex items-center mr-6 ml-auto gap-6 text-secondary">
+			<li className="flex items-center mr-6 ml-auto gap-6 text-zinc-500 dark:text-zinc-400">
 				<a>Log in</a>
 			</li>
 		</ul>
@@ -60,8 +60,8 @@ function Mobile() {
 	const listClasses = mobileNavOpen ? clsx() : clsx('hidden', 'max-h-0');
 
 	return (
-		<NavigationMenu.Root className="md:hidden relative bg-primary">
-			<div className="flex items-center justify-between ml-auto p-2 bg-primary">
+		<NavigationMenu.Root className="md:hidden relative bg-zinc-100 dark:bg-zinc-900">
+			<div className="flex items-center justify-between ml-auto p-2 bg-zinc-100 dark:bg-zinc-900">
 				<Logo />
 				<Button
 					style={{ padding: 12 }}
@@ -70,17 +70,23 @@ function Mobile() {
 					aria-controls="menu"
 					aria-haspopup="true"
 				>
-					{mobileNavOpen ? <SvgClose className="fill-[#F6F6FBB2]" /> : <SvgHamburger className="fill-[#F6F6FBB2]" />}
+					{mobileNavOpen ? (
+						<SvgClose className="fill-secondary dark:fill-secondary-dark" />
+					) : (
+						<SvgHamburger className="fill-secondary dark:fill-secondary-dark" />
+					)}
 				</Button>
 			</div>
-			<NavigationMenu.List className={`overflow-hidden flex flex-col z-10 bg-primary mx-4 ${listClasses}`}>
+			<NavigationMenu.List
+				className={`overflow-hidden flex flex-col z-10 bg-zinc-100 dark:bg-zinc-900 mx-4 ${listClasses}`}
+			>
 				{headerItems.map((item) => (
 					<NavigationMenu.Item key={item.href} className="mb-3">
 						<a
 							data-href={item.href}
 							href={item.href}
 							onClick={() => setMobileNavOpen(false)}
-							className="px-4 py-3 bg-[#F4F4FD0D] rounded-md cursor-pointer block text-[#F6F6FB]"
+							className="px-4 py-3 bg-on-tertiary dark:bg-on-tertiary-dark rounded-md cursor-pointer block text-primary dark:text-primary-dark"
 						>
 							{item.name}
 						</a>
@@ -97,7 +103,7 @@ export default function Navbar() {
 	return (
 		<header
 			className={
-				'sticky top-0 flex flex-col bg-primary w-full z-50 lg:h-auto lg:border-b-2 lg:border-solid lg:border-[#F4F4FD1A] lg:py-4 lg:pl-6 lg:pr-8 md:h-16'
+				'sticky top-0 flex flex-col bg-zinc-100 dark:bg-zinc-900 w-full z-50 lg:h-auto lg:border-b-2 lg:border-solid lg:border-on-secondary-dark lg:py-4 lg:pl-6 lg:pr-8 md:h-16'
 			}
 		>
 			<Desktop />
