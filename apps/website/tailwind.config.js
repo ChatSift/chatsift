@@ -1,5 +1,4 @@
 import typographyPlugin from '@tailwindcss/typography';
-import colors from 'tailwindcss/colors';
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -7,7 +6,6 @@ export default {
 	darkMode: 'class',
 	theme: {
 		colors: {
-			...colors,
 			base: {
 				DEFAULT: '#F1F2F5',
 				dark: '#151519',

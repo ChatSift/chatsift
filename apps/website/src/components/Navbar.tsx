@@ -26,18 +26,18 @@ const headerItems = [
 
 function Desktop() {
 	return (
-		<ul className="hidden lg:flex p-0 m-0 list-none">
+		<ul className="m-0 hidden list-none p-0 lg:flex">
 			<li>
 				<Logo />
 			</li>
 
-			<div className="flex items-center mr-6">
+			<div className="mr-6 flex items-center">
 				<NavigationMenu.Root className="flex items-center">
-					<NavigationMenu.List className="flex p-0 mr-6">
+					<NavigationMenu.List className="mr-6 flex p-0">
 						{headerItems.map((item) => (
 							<NavigationMenu.Item key={item.href} className="flex items-center [&>*]:mr-6">
 								<a
-									className="text-secondary dark:text-secondary-dark hover:text-primary dark:hover:text-primary-dark text-lg font-medium"
+									className="text-lg font-medium text-secondary hover:text-primary dark:text-secondary-dark dark:hover:text-primary-dark"
 									href={item.href}
 								>
 									{item.name}
@@ -48,7 +48,7 @@ function Desktop() {
 				</NavigationMenu.Root>
 			</div>
 
-			<li className="flex items-center md:ml-auto text-secondary dark:text-secondary-dark text-lg">
+			<li className="flex items-center text-lg text-secondary dark:text-secondary-dark md:ml-auto">
 				<User />
 			</li>
 		</ul>
@@ -61,8 +61,8 @@ function Mobile() {
 	const listClasses = mobileNavOpen ? clsx() : clsx('hidden', 'max-h-0');
 
 	return (
-		<NavigationMenu.Root className="md:hidden relative">
-			<div className="flex items-center justify-between ml-auto p-2">
+		<NavigationMenu.Root className="relative md:hidden">
+			<div className="ml-auto flex items-center justify-between p-2">
 				<Logo />
 				<Button
 					style={{ padding: 12 }}
@@ -79,16 +79,16 @@ function Mobile() {
 				</Button>
 			</div>
 			<NavigationMenu.List
-				className={`overflow-hidden flex flex-col z-50 mx-4 bg-base dark:bg-base-dark ${listClasses}`}
+				className={`z-50 mx-4 flex flex-col overflow-hidden bg-base dark:bg-base-dark ${listClasses}`}
 			>
-				<div className="border-b-on-secondary dark:border-b-on-secondary-dark border-b-2 border-solid py-4">
+				<div className="border-b-2 border-solid border-b-on-secondary py-4 dark:border-b-on-secondary-dark">
 					{headerItems.map((item) => (
 						<NavigationMenu.Item key={item.href} className="mb-3">
 							<a
 								data-href={item.href}
 								href={item.href}
 								onClick={() => setMobileNavOpen(false)}
-								className="px-4 py-3 bg-on-tertiary dark:bg-on-tertiary-dark rounded-md cursor-pointer block text-primary dark:text-primary-dark"
+								className="block cursor-pointer rounded-md bg-on-tertiary px-4 py-3 text-primary dark:bg-on-tertiary-dark dark:text-primary-dark"
 							>
 								{item.name}
 							</a>
@@ -108,7 +108,7 @@ export default function Navbar() {
 	return (
 		<header
 			className={
-				'sticky top-0 flex flex-col w-full z-10 lg:h-auto lg:border-b-2 lg:border-solid lg:border-on-secondary-dark lg:py-4 lg:pl-6 lg:pr-8 h-16'
+				'sticky top-0 z-10 flex h-16 w-full flex-col lg:h-auto lg:border-b-2 lg:border-solid lg:border-on-secondary-dark lg:py-4 lg:pl-6 lg:pr-8'
 			}
 		>
 			<Desktop />

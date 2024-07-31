@@ -3,9 +3,9 @@ import SvgChatSift from '~/components/svg/SvgChatSift';
 
 export default function Logo() {
 	return (
-		<a className="flex flex-row items-center mr-6" href="/">
+		<a className="mr-6 flex flex-row items-center" href="/">
 			<SvgChatSift />
-			<h1 className="text-primary dark:text-primary-dark font-medium text-2xl m-0 ml-2" tabIndex={0}>
+			<h1 className="m-0 ml-2 text-2xl font-medium text-primary dark:text-primary-dark" tabIndex={0}>
 				ChatSift
 			</h1>
 		</a>

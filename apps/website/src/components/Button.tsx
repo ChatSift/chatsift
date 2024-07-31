@@ -9,7 +9,7 @@ export default function Button(props: ButtonProps) {
 	return (
 		<AriaButton
 			{...rest}
-			className={`whitespace-nowrap bg-transparent text-lg rounded-md flex items-center gap-2 h-fit py-3 px-4 hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark active:bg-on-secondary dark:active:bg-on-secondary-dark ${props.className}`}
+			className={`bg-transparent flex h-fit items-center gap-2 whitespace-nowrap rounded-md px-4 py-3 text-lg hover:bg-on-tertiary active:bg-on-secondary dark:hover:bg-on-tertiary-dark dark:active:bg-on-secondary-dark ${props.className}`}
 		>
 			{props.children}
 		</AriaButton>
