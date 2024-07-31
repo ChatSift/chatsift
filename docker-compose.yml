@@ -105,6 +105,5 @@ services:
       - ./logs-archive:/var/chatsift-logs
 
 volumes:
-  # TODO: Rename at some point
   postgres-data:
     name: 'chatsift-next-postgres-data'

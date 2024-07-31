@@ -3,28 +3,26 @@
 import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import clsx from 'clsx';
 import { useState } from 'react';
-import Logo from './Logo';
-import SvgClose from './svg/SvgClose';
-import SvgHamburger from './svg/SvgHamburger';
 import Button from '~/components/Button';
+import Logo from '~/components/Logo';
+import User from '~/components/User';
+import SvgClose from '~/components/svg/SvgClose';
+import SvgHamburger from '~/components/svg/SvgHamburger';
 
 const headerItems = [
 	{
 		name: 'Dashboard',
 		href: '/dashboard',
-		external: false,
 	},
 	{
 		name: 'GitHub',
 		href: '/github',
-		external: false,
 	},
 	{
 		name: 'Support',
 		href: '/support',
-		external: false,
 	},
-] as const satisfies { external: boolean; href: `/${string}`; name: string }[];
+] as const satisfies { href: `/${string}`; name: string }[];
 
 function Desktop() {
 	return (
@@ -47,9 +45,7 @@ function Desktop() {
 				</NavigationMenu.Root>
 			</li>
 
-			<li className="flex items-center mr-6 ml-auto gap-6 text-zinc-500 dark:text-zinc-400 font-medium">
-				<a>Log in</a>
-			</li>
+			<User />
 		</ul>
 	);
 }
@@ -80,21 +76,25 @@ function Mobile() {
 			<NavigationMenu.List
 				className={`overflow-hidden flex flex-col z-10 bg-zinc-100 dark:bg-zinc-900 mx-4 ${listClasses}`}
 			>
-				{headerItems.map((item) => (
-					<NavigationMenu.Item key={item.href} className="mb-3">
-						<a
-							data-href={item.href}
-							href={item.href}
-							onClick={() => setMobileNavOpen(false)}
-							className="px-4 py-3 bg-on-tertiary dark:bg-on-tertiary-dark rounded-md cursor-pointer block text-primary dark:text-primary-dark"
-						>
-							{item.name}
-						</a>
-					</NavigationMenu.Item>
-				))}
-			</NavigationMenu.List>
+				<div className="border-b-on-secondary dark:border-b-on-secondary-dark border-b-2 border-solid py-4">
+					{headerItems.map((item) => (
+						<NavigationMenu.Item key={item.href} className="mb-3">
+							<a
+								data-href={item.href}
+								href={item.href}
+								onClick={() => setMobileNavOpen(false)}
+								className="px-4 py-3 bg-on-tertiary dark:bg-on-tertiary-dark rounded-md cursor-pointer block text-primary dark:text-primary-dark"
+							>
+								{item.name}
+							</a>
+						</NavigationMenu.Item>
+					))}
+				</div>
 
-			{/* TODO: Login */}
+				<div className="py-4 mx-4">
+					<User />
+				</div>
+			</NavigationMenu.List>
 		</NavigationMenu.Root>
 	);
 }

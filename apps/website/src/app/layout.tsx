@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { PropsWithChildren } from 'react';
-import { Providers } from './providers';
+import { Providers } from '~/app/providers';
 import Navbar from '~/components/Navbar';
 
 import '~/styles/globals.css';
