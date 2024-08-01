@@ -79,6 +79,7 @@ export default tseslint.config(
 		files: [`apps/website/**/*${commonFiles}`],
 		rules: {
 			'no-restricted-globals': ['off'],
+			'n/prefer-global/url': ['off'],
 		},
 	},
 	prettierRuleset,

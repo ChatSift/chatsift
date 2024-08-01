@@ -1,21 +1,16 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
 import Button from '~/components/Button';
 import SvgDarkTheme from '~/components/svg/SvgDarkTheme';
 import SvgDiscord from '~/components/svg/SvgDiscord';
 import SvgGitHub from '~/components/svg/SvgGitHub';
 import SvgLightTheme from '~/components/svg/SvgLightTheme';
+import { useIsMounted } from '~/hooks/useIsMounted';
 
 export default function Footer() {
 	const { theme, setTheme } = useTheme();
-	const [mounted, setMounted] = useState<boolean>(false);
-
-	// See https://github.com/pacocoursey/next-themes?tab=readme-ov-file#avoid-hydration-mismatch
-	useEffect(() => {
-		setMounted(true);
-	}, []);
+	const isMounted = useIsMounted();
 
 	const ThemeSwitchButton = theme === 'dark' ? <SvgDarkTheme /> : <SvgLightTheme />;
 
@@ -39,7 +34,9 @@ export default function Footer() {
 							setTheme(theme === 'dark' ? 'light' : 'dark');
 						}}
 					>
-						{mounted ? ThemeSwitchButton : <SvgLightTheme />}
+						{/* Light mode SVG looks less ugly if it's on the wrong theme, with no default */}
+						{/* we get resizing of the footer when loading finishes */}
+						{isMounted ? ThemeSwitchButton : <SvgLightTheme />}
 					</Button>
 				</div>
 			</div>
