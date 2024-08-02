@@ -33,7 +33,8 @@ export class Env {
 
 	public readonly apiURL: string = process.env.API_URL!;
 
-	public readonly allowedApiRedirects: RegExp = new RegExp(process.env.ALLOWED_API_REDIRECTS ?? '$^');
+	// Required type to use as a zod enum
+	public readonly allowedAPIOrigins = process.env.ALLOWED_API_ORIGINS!.split(',') as [string, ...string[]];
 
 	public readonly secretSigningKey: string = process.env.SECRET_SIGNING_KEY!;
 
@@ -61,6 +62,7 @@ export class Env {
 
 		'API_URL',
 
+		'ALLOWED_API_ORIGINS',
 		'SECRET_SIGNING_KEY',
 		'PUBLIC_API_URL',
 		'OAUTH_DISCORD_CLIENT_ID',

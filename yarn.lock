@@ -430,6 +430,7 @@ __metadata:
     autoprefixer: "npm:^10.4.19"
     class-variance-authority: "npm:^0.7.0"
     clsx: "npm:^2.1.1"
+    discord-api-types: "npm:^0.37.93"
     jotai: "npm:^2.8.2"
     lucide-react: "npm:^0.424.0"
     next: "npm:^14.2.5"

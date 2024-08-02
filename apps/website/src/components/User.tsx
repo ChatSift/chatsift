@@ -2,19 +2,14 @@
 
 import Link from 'next/link';
 import Button from '~/components/Button';
-import Skeleton from '~/components/Skeleton';
-import { useCurrentURL } from '~/hooks/useCurrentURL';
+import { useUser } from '~/hooks/useUser';
 import { URLS } from '~/util/constants';
 
 function LogInButton() {
-	const currentURL = useCurrentURL();
-
-	return currentURL ? (
+	return (
 		<Button>
-			<Link href={URLS.API.LOGIN(currentURL.origin)}>Log in</Link>
+			<Link href={URLS.API.LOGIN}>Log in</Link>
 		</Button>
-	) : (
-		<Skeleton className="h-8 w-12" />
 	);
 }
 
@@ -23,5 +18,7 @@ function LoggedInUser() {
 }
 
 export default function Login() {
+	// const { data } = useUser();
+
 	return <LogInButton />;
 }

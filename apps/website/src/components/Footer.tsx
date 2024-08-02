@@ -44,7 +44,7 @@ export default function Footer() {
 				<div className="ml-auto flex flex-row items-center gap-2">
 					<p className="text-lg font-medium text-secondary dark:text-secondary-dark">Theme:</p>
 
-					{isMounted ? <ThemeSwitchButton /> : <Skeleton className="h-9 w-9" />}
+					{isMounted ? <ThemeSwitchButton /> : <Skeleton className="h-6 w-9" />}
 				</div>
 			</div>
 		</footer>

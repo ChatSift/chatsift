@@ -63,7 +63,8 @@ export function discordAuth(fallthrough: boolean) {
 				const newTokens = auth.refreshTokens(token, cookies.refresh_token);
 				auth.appendAuthCookies(reply, newTokens);
 
-				const discordUser = await auth.fetchDiscordUser(newTokens.access.token);
+				const user = await auth.verifyToken(token);
+				const discordUser = await auth.fetchDiscordUser(user.accessToken);
 				// eslint-disable-next-line require-atomic-updates
 				request.discordUser = discordUser;
 			} else if (error instanceof jwt.JsonWebTokenError) {

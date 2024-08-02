@@ -2,6 +2,7 @@ import { Env, INJECTION_TOKENS, setEquals } from '@automoderator/core';
 import { API } from '@discordjs/core';
 import { badRequest, forbidden } from '@hapi/boom';
 import { parse as parseCookie } from 'cookie';
+import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { inject, injectable } from 'inversify';
 import type { Logger } from 'pino';
@@ -28,20 +29,29 @@ export default class DiscordAuth implements Registerable {
 				method: 'GET',
 				url: '/auth/discord',
 				schema: {
+					headers: z.object({
+						referer: z
+							.string()
+							.transform((str) => (str.at(-1) === '/' ? str.slice(0, -1) : str))
+							.pipe(z.enum(this.env.allowedAPIOrigins)),
+					}),
 					querystring: z.object({
-						redirect_uri: z.string().regex(this.env.allowedApiRedirects),
+						redirect_path: z.string(),
 					}),
 				},
 				preHandler: [discordAuth(true)],
 				handler: async (request, reply) => {
-					const { redirect_uri } = request.query;
+					const { referer } = request.headers;
+					const { redirect_path } = request.query;
+
+					const redirectURI = this.getRedirectURI(referer, redirect_path);
 
 					if (request.discordUser) {
-						await reply.redirect(redirect_uri);
+						await reply.redirect(redirectURI);
 						return;
 					}
 
-					const state = new StateCookie(redirect_uri).toCookie();
+					const state = new StateCookie(redirectURI).toCookie();
 					const params = new URLSearchParams({
 						client_id: this.env.oauthDiscordClientId,
 						redirect_uri: `${this.env.publicApiURL}/auth/discord/callback`,
@@ -76,7 +86,7 @@ export default class DiscordAuth implements Registerable {
 					appendCookie(reply, 'state', 'noop', { httpOnly: true, path: '/', expires: new Date('1970-01-01') });
 
 					if (request.discordUser) {
-						await reply.redirect(state.redirectUri);
+						await reply.redirect(state.redirectURI);
 						return;
 					}
 
@@ -99,8 +109,13 @@ export default class DiscordAuth implements Registerable {
 					const credentials = this.auth.createTokens(user.id);
 					this.auth.appendAuthCookies(reply, credentials);
 
-					await reply.redirect(state.redirectUri);
+					await reply.redirect(state.redirectURI);
 				},
 			});
+	}
+
+	private getRedirectURI(origin: string, redirectPath: string): string {
+		const url = new URL(redirectPath, origin);
+		return url.toString();
 	}
 }

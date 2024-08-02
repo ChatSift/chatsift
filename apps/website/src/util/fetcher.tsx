@@ -1,6 +1,6 @@
 import type { Payload } from '@hapi/boom';
 import Link from 'next/link';
-import type { NextRouter } from 'next/router';
+import type { useRouter } from 'next/navigation';
 import { ToastAction } from '~/components/Toast';
 import type { ToastFn } from '~/hooks/useToast';
 import { URLS } from '~/util/constants';
@@ -15,62 +15,85 @@ export class APIError extends Error {
 }
 
 export interface FetcherErrorHandlerOptions {
-	error: unknown;
-	hostUrl: string;
-	router: NextRouter;
+	router: ReturnType<typeof useRouter>;
 	toast: ToastFn;
 }
 
-export function fetcherErrorHandler({ router, error, toast, hostUrl }: FetcherErrorHandlerOptions) {
-	console.log('error', error);
+export function fetcherErrorHandler({ router, toast }: FetcherErrorHandlerOptions): (error: Error) => boolean {
+	return (error) => {
+		console.error('error', error);
 
-	if (error instanceof APIError) {
-		switch (error.payload.statusCode) {
-			case 401: {
-				void router.push(URLS.API.LOGIN(hostUrl));
-				return;
+		if (error instanceof APIError) {
+			switch (error.payload.statusCode) {
+				case 401: {
+					router.push(URLS.API.LOGIN);
+					return false;
+				}
+
+				case 403: {
+					toast({
+						title: 'Forbidden',
+						description: "You don't have permission to view or edit this config.",
+						variant: 'destructive',
+						action: (
+							<ToastAction altText="Go back">
+								<Link href="/dashboard">Go back</Link>
+							</ToastAction>
+						),
+					});
+
+					return false;
+				}
 			}
 
-			case 403:
+			if (error.payload.statusCode >= 500 && error.payload.statusCode < 600) {
 				toast({
-					title: 'Forbidden',
-					description: "You don't have permission to view or edit this config.",
+					title: 'Server Error',
+					description: 'A server error occurred while processing your request.',
 					variant: 'destructive',
-					action: (
-						<ToastAction altText="Go back">
-							<Link href="/dashboard">Go back</Link>
-						</ToastAction>
-					),
 				});
+
+				return true;
+			}
 		}
-	}
+
+		toast({
+			title: 'Network Error',
+			description: 'A network error occurred while processing your request.',
+			variant: 'destructive',
+		});
+
+		return true;
+	};
 }
 
 export interface FetcherOptions {
 	body?: unknown;
 	method: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
-	path: string;
+	path: `/${string}`;
 }
 
 const jsonMethods = new Set(['POST', 'PUT', 'PATCH']);
 
-export default async function fetcher({ path, method, body }: FetcherOptions): Promise<unknown> {
+export default function fetcher({ path, method, body }: FetcherOptions): () => Promise<any> {
 	const headers: HeadersInit = {};
 
 	if (body && jsonMethods.has(method)) {
 		headers['Content-Type'] = 'application/json';
 	}
 
-	const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL!}${path}`, {
-		method,
-		body: body ? JSON.stringify(body) : (body as BodyInit),
-		credentials: 'include',
-		headers,
-	});
+	return async () => {
+		const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL!}${path}`, {
+			method,
+			body: body ? JSON.stringify(body) : (body as BodyInit),
+			credentials: 'include',
+			headers,
+		});
 
-	if (response.ok) {
-		return response.json();
-	}
+		if (response.ok) {
+			return response.json();
+		}
 
-	throw new APIError(await response.json(), method);
+		throw new APIError(await response.json(), method);
+	};
 }

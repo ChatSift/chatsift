@@ -37,12 +37,12 @@ function Desktop() {
 					<NavigationMenu.List className="mr-6 flex p-0">
 						{headerItems.map((item) => (
 							<NavigationMenu.Item key={item.href} className="flex items-center [&>*]:mr-6">
-								<Link
+								<a
 									className="text-lg font-medium text-secondary hover:text-primary dark:text-secondary-dark dark:hover:text-primary-dark"
 									href={item.href}
 								>
 									{item.name}
-								</Link>
+								</a>
 							</NavigationMenu.Item>
 						))}
 					</NavigationMenu.List>
@@ -81,14 +81,14 @@ function Mobile() {
 				<div className="border-b-2 border-solid border-b-on-secondary py-4 dark:border-b-on-secondary-dark">
 					{headerItems.map((item) => (
 						<NavigationMenu.Item key={item.href} className="mb-3">
-							<Link
+							<a
 								data-href={item.href}
 								href={item.href}
 								onClick={() => setMobileNavOpen(false)}
 								className="block cursor-pointer rounded-md bg-on-tertiary px-4 py-3 text-primary dark:bg-on-tertiary-dark dark:text-primary-dark"
 							>
 								{item.name}
-							</Link>
+							</a>
 						</NavigationMenu.Item>
 					))}
 				</div>
