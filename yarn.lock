@@ -424,9 +424,10 @@ __metadata:
     "@types/react": "npm:^18.3.3"
     "@types/react-dom": "npm:^18.3.0"
     autoprefixer: "npm:^10.4.19"
+    class-variance-authority: "npm:^0.7.0"
     clsx: "npm:^2.1.1"
     jotai: "npm:^2.8.2"
-    lucide-react: "npm:^0.417.0"
+    lucide-react: "npm:^0.424.0"
     next: "npm:^14.2.5"
     next-themes: "npm:^0.3.0"
     postcss: "npm:^8.4.38"
@@ -434,8 +435,9 @@ __metadata:
     react: "npm:^18.3.1"
     react-aria-components: "npm:^1.3.1"
     react-dom: "npm:^18.3.1"
-    react-loading-skeleton: "npm:^3.4.0"
+    tailwind-merge: "npm:^2.4.0"
     tailwindcss: "npm:^3.4.3"
+    tailwindcss-animate: "npm:^1.0.7"
     typescript: "npm:^5.5.4"
     vercel: "npm:^34.2.4"
   languageName: unknown
@@ -6025,6 +6027,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"class-variance-authority@npm:^0.7.0":
+  version: 0.7.0
+  resolution: "class-variance-authority@npm:0.7.0"
+  dependencies:
+    clsx: "npm:2.0.0"
+  checksum: 10/06646e82953e577fb8834100d763f1e5ecb808b8a1fba6244e94b20603865b134ff2296e30432449793baaeb02282cce617afba6981afe18b6846f1f8e9485ca
+  languageName: node
+  linkType: hard
+
 "clean-regexp@npm:^1.0.0":
   version: 1.0.0
   resolution: "clean-regexp@npm:1.0.0"
@@ -6066,6 +6077,13 @@ __metadata:
     strip-ansi: "npm:^6.0.1"
     wrap-ansi: "npm:^7.0.0"
   checksum: 10/eaa5561aeb3135c2cddf7a3b3f562fc4238ff3b3fc666869ef2adf264be0f372136702f16add9299087fb1907c2e4ec5dbfe83bd24bce815c70a80c6c1a2e950
+  languageName: node
+  linkType: hard
+
+"clsx@npm:2.0.0":
+  version: 2.0.0
+  resolution: "clsx@npm:2.0.0"
+  checksum: 10/943766d1b02fee3538c871e56638d87f973fbc2d6291ce221215ea436fdecb9be97ad323f411839c2d52c45640c449b1a53fbfe7e8b3d529b4e263308b630c9a
   languageName: node
   linkType: hard
 
@@ -10477,12 +10495,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lucide-react@npm:^0.417.0":
-  version: 0.417.0
-  resolution: "lucide-react@npm:0.417.0"
+"lucide-react@npm:^0.424.0":
+  version: 0.424.0
+  resolution: "lucide-react@npm:0.424.0"
   peerDependencies:
-    react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10/0f4c68b894903f0fd6b5102ca35311d0866de3ff68157ff9e0d1fa14744928613c920394742fc3511ca50f656d63508d98bb3f6b280149d7bbe33900e084f5f8
+    react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc
+  checksum: 10/6bb9656323a56babb0f8f7f4f52ebe4cb908ecca6d2f6a864dba7699f6bd28de59bcb89a672ff38b506e3a91901343a1f4d45b9a59e2052bb1eeea11ad01f922
   languageName: node
   linkType: hard
 
@@ -12945,15 +12963,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-loading-skeleton@npm:^3.4.0":
-  version: 3.4.0
-  resolution: "react-loading-skeleton@npm:3.4.0"
-  peerDependencies:
-    react: ">=16.8.0"
-  checksum: 10/f504c55f2b448e05abfe480950d89a4a7301773590e3c9fc42025370bcfd1c177466bb0a9cee6291d975772218c63c83656ac8b158a75de7a2e9ad75d440925b
-  languageName: node
-  linkType: hard
-
 "react-stately@npm:^3.32.1":
   version: 3.32.1
   resolution: "react-stately@npm:3.32.1"
@@ -14250,6 +14259,22 @@ __metadata:
     "@pkgr/core": "npm:^0.1.0"
     tslib: "npm:^2.6.2"
   checksum: 10/bff3903976baf8b699b5483228116d70223781a93b17c70e685c277ee960cdfd1a09cb5a741e6a9ec35e2428f14f4664baec41ccc99a598f267608b2a54f529b
+  languageName: node
+  linkType: hard
+
+"tailwind-merge@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "tailwind-merge@npm:2.4.0"
+  checksum: 10/dda331a95146c9943dd18f152156fe7a5daf450a686d0562fb521ebc027273bd0c8f9503742668b3e90d27e887aa794ea5e79c38faa51216e19e9d0f1ec55925
+  languageName: node
+  linkType: hard
+
+"tailwindcss-animate@npm:^1.0.7":
+  version: 1.0.7
+  resolution: "tailwindcss-animate@npm:1.0.7"
+  peerDependencies:
+    tailwindcss: "*"
+  checksum: 10/ef176fbb0bf9dca84178b35b6a9615cd756358ea80be9c575456d12ecd7f3c431e9e571915c7df72959dc798a730959e9a4739d59eab55d8cc6db390870ff0d2
   languageName: node
   linkType: hard
 

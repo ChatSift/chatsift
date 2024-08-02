@@ -10,13 +10,3 @@ body {
 		'pnum' on,
 		'lnum' on;
 }
-
-/* Evil evil hacks. */
-.react-loading-skeleton {
-	@apply bg-on-tertiary dark:bg-on-tertiary-dark !important;
-}
-
-.react-loading-skeleton::after {
-	@apply bg-[linear-gradient(90deg,theme(colors.on.tertiary.DEFAULT),theme(colors.on.secondary.DEFAULT),theme(colors.on.tertiary.DEFAULT))] !important;
-	@apply dark:bg-[linear-gradient(90deg,theme(colors.on.tertiary.dark),theme(colors.on.secondary.dark),theme(colors.on.tertiary.dark))] !important;
-}

@@ -1,7 +1,7 @@
 'use client';
 
-import Skeleton from 'react-loading-skeleton';
 import Button from '~/components/Button';
+import Skeleton from '~/components/Skeleton';
 import { useCurrentURL } from '~/hooks/useCurrentURL';
 import { URLS } from '~/util/constants';
 
@@ -13,7 +13,7 @@ function LogInButton() {
 			<a href={URLS(currentURL.origin).API.LOGIN}>Log in</a>
 		</Button>
 	) : (
-		<Skeleton width={50} height={26} />
+		<Skeleton className="h-8 w-12" />
 	);
 }
 

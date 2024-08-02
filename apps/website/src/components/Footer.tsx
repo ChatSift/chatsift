@@ -1,8 +1,8 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import Skeleton from 'react-loading-skeleton';
 import Button from '~/components/Button';
+import Skeleton from '~/components/Skeleton';
 import SvgDarkTheme from '~/components/svg/SvgDarkTheme';
 import SvgDiscord from '~/components/svg/SvgDiscord';
 import SvgGitHub from '~/components/svg/SvgGitHub';
@@ -43,7 +43,7 @@ export default function Footer() {
 				<div className="ml-auto flex flex-row items-center gap-2">
 					<p className="text-lg font-medium text-secondary dark:text-secondary-dark">Theme:</p>
 
-					{isMounted ? <ThemeSwitchButton /> : <Skeleton width={36} height={36} containerClassName="flex" />}
+					{isMounted ? <ThemeSwitchButton /> : <Skeleton className="h-9 w-9" />}
 				</div>
 			</div>
 		</footer>
