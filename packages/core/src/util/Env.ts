@@ -44,6 +44,10 @@ export class Env {
 
 	public readonly oauthDiscordClientSecret: string = process.env.OAUTH_DISCORD_CLIENT_SECRET!;
 
+	public readonly cors: RegExp | null = process.env.CORS ? new RegExp(process.env.CORS) : null;
+
+	public readonly automoderatorGatewayURL: string = process.env.AUTOMODERATOR_GATEWAY_URL!;
+
 	private readonly REQUIRED_KEYS = [
 		'DISCORD_TOKEN',
 		'DISCORD_CLIENT_ID',
@@ -67,6 +71,9 @@ export class Env {
 		'PUBLIC_API_URL',
 		'OAUTH_DISCORD_CLIENT_ID',
 		'OAUTH_DISCORD_CLIENT_SECRET',
+		'CORS',
+
+		'AUTOMODERATOR_GATEWAY_URL',
 	] as const;
 
 	public constructor() {

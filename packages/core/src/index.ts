@@ -5,7 +5,6 @@ export * from './cache/entities/ICacheEntity.js';
 
 // Deliberately don't export impl
 export * from './cache/CacheFactory.js';
-export * from './cache/GuildsSet.js';
 export * from './cache/ICache.js';
 
 // Here we actually do, because unlike other parts of the codebases, we don't rely on the WHOLE stack using the same impl

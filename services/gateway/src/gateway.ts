@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { Env, INJECTION_TOKENS, type DiscordGatewayEventsMap, encode, decode } from '@automoderator/core';
 import { PubSubRedisBroker } from '@discordjs/brokers';
-import { API, GatewayIntentBits } from '@discordjs/core';
+import { API, GatewayDispatchEvents, GatewayIntentBits } from '@discordjs/core';
 import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
 import { inject, injectable } from 'inversify';
 import { Redis } from 'ioredis';
@@ -9,6 +9,8 @@ import { type Logger } from 'pino';
 
 @injectable()
 export class Gateway {
+	public readonly guildsIds: Set<string> = new Set();
+
 	readonly #broker: PubSubRedisBroker<DiscordGatewayEventsMap>;
 
 	readonly #gateway: WebSocketManager;
@@ -46,7 +48,15 @@ export class Gateway {
 			.on(WebSocketShardEvents.Hello, ({ shardId }) => this.logger.debug({ shardId }, 'Shard HELLO'))
 			.on(WebSocketShardEvents.Ready, ({ shardId }) => this.logger.debug({ shardId }, 'Shard READY'))
 			.on(WebSocketShardEvents.Resumed, ({ shardId }) => this.logger.debug({ shardId }, 'Shard RESUMED'))
-			.on(WebSocketShardEvents.Dispatch, async ({ data }) => this.#broker.publish(data.t, data.d));
+			.on(WebSocketShardEvents.Dispatch, async ({ data }) => {
+				await this.#broker.publish(data.t, data.d);
+
+				if (data.t === GatewayDispatchEvents.GuildCreate) {
+					this.guildsIds.add(data.d.id);
+				} else if (data.t === GatewayDispatchEvents.GuildDelete && !data.d.unavailable) {
+					this.guildsIds.delete(data.d.id);
+				}
+			});
 
 		this.#broker.on('send', async ({ data, ack }) => {
 			this.logger.info({ data }, 'Sending payload');

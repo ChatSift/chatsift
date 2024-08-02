@@ -1,8 +1,8 @@
 import { Env, INJECTION_TOKENS, setEquals } from '@automoderator/core';
 import { API } from '@discordjs/core';
 import { badRequest, forbidden } from '@hapi/boom';
+import { SnowflakeRegex } from '@sapphire/discord-utilities';
 import { parse as parseCookie } from 'cookie';
-import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { inject, injectable } from 'inversify';
 import type { Logger } from 'pino';
@@ -13,8 +13,12 @@ import { StateCookie } from '../../struct/StateCookie.js';
 import { discordAuth } from '../../util/discordAuth.js';
 import { appendCookie } from '../../util/replyHelpers.js';
 
+type BotId = DiscordAuth['botList'][number];
+
 @injectable()
 export default class DiscordAuth implements Registerable {
+	private readonly botList = ['automoderator'] as const;
+
 	public constructor(
 		private readonly env: Env,
 		private readonly api: API,
@@ -110,6 +114,55 @@ export default class DiscordAuth implements Registerable {
 					this.auth.appendAuthCookies(reply, credentials);
 
 					await reply.redirect(state.redirectURI);
+				},
+			})
+			.route({
+				method: 'GET',
+				url: '/auth/discord/@me',
+				schema: {
+					response: {
+						200: z.object({
+							avatar: z.string().nullable(),
+							username: z.string(),
+							id: z.string().regex(SnowflakeRegex),
+							guilds: z.array(
+								z.object({
+									id: z.string().regex(SnowflakeRegex),
+									icon: z.string().nullable(),
+									name: z.string(),
+									bots: z.array(z.enum(this.botList)),
+								}),
+							),
+						}),
+					},
+				},
+				preHandler: [discordAuth(false)],
+				handler: async (request, reply) => {
+					const user = request.discordUser!;
+
+					const URLs = [this.env.automoderatorGatewayURL];
+					const requests = URLs.map(async (url, index) => {
+						/* eslint-disable promise/prefer-await-to-callbacks, promise/prefer-await-to-then */
+						return fetch(`${url}/guilds`)
+							.then(async (response) => response.json())
+							.then((json) => [new Set(json as string[]), this.botList[index]!] as const)
+							.catch((error) => {
+								this.logger.error({ error }, 'failed to fetch guilds');
+								return [new Set<string>(), this.botList[index]!] as const;
+							});
+						/* eslint-enable promise/prefer-await-to-callbacks, promise/prefer-await-to-then */
+					});
+
+					const responses = await Promise.all(requests);
+
+					const guilds = user.guilds.map((guild) => ({
+						id: guild.id,
+						name: guild.name,
+						icon: guild.icon,
+						bots: responses.filter(([set]) => set.has(guild.id)).map(([_, botId]) => botId),
+					}));
+
+					await reply.send({ avatar: user.avatar, username: user.username, id: user.id, guilds });
 				},
 			});
 	}

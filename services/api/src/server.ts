@@ -1,4 +1,6 @@
 import { Env, INJECTION_TOKENS } from '@automoderator/core';
+import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
 import { badRequest, Boom, isBoom } from '@hapi/boom';
 import Fastify from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
@@ -28,6 +30,12 @@ export class Server {
 	}
 
 	public async listen(): Promise<void> {
+		await this.fastify.register(cors, { credentials: true, origin: this.env.cors ?? '*' });
+		await this.fastify.register(helmet, {
+			contentSecurityPolicy: this.env.nodeEnv === 'prod' ? undefined : false,
+			referrerPolicy: false,
+		});
+
 		this.fastify.decorateRequest('discordUser', null);
 
 		this.fastify.setValidatorCompiler(validatorCompiler);
