@@ -1,4 +1,4 @@
-import { useIsMounted } from './useIsMounted';
+import { useIsMounted } from '~/hooks/useIsMounted';
 
 export function useCurrentURL(): URL | null {
 	const mounted = useIsMounted();

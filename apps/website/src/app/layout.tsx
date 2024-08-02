@@ -3,6 +3,7 @@ import type { PropsWithChildren } from 'react';
 import { Providers } from '~/app/providers';
 import Footer from '~/components/Footer';
 import Navbar from '~/components/Navbar';
+import { Toaster } from '~/components/Toaster';
 
 import '~/styles/globals.css';
 
@@ -26,6 +27,7 @@ export default async function RootLayout({ children }: PropsWithChildren) {
 						<div className="flex flex-[1_1_auto] flex-grow flex-col">
 							{children}
 							<Footer />
+							<Toaster />
 						</div>
 					</div>
 				</Providers>

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import Button from '~/components/Button';
 import Skeleton from '~/components/Skeleton';
 import { useCurrentURL } from '~/hooks/useCurrentURL';
@@ -10,7 +11,7 @@ function LogInButton() {
 
 	return currentURL ? (
 		<Button>
-			<a href={URLS(currentURL.origin).API.LOGIN}>Log in</a>
+			<Link href={URLS.API.LOGIN(currentURL.origin)}>Log in</Link>
 		</Button>
 	) : (
 		<Skeleton className="h-8 w-12" />

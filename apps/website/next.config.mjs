@@ -8,6 +8,7 @@ export default {
 		contentDispositionType: 'attachment',
 		contentSecurityPolicy: "default-src 'self'; frame-src 'none'; sandbox;",
 	},
+	productionBrowserSourceMaps: true,
 	logging: {
 		fetches: {
 			fullUrl: true,

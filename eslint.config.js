@@ -1,3 +1,4 @@
+import queryPlugin from '@tanstack/eslint-plugin-query';
 import common from 'eslint-config-neon/flat/common.js';
 import next from 'eslint-config-neon/flat/next.js';
 import node from 'eslint-config-neon/flat/node.js';
@@ -64,6 +65,8 @@ const reactRuleset = merge(...react, {
 
 const nextRuleset = merge(...next, { files: [`apps/**/*${commonFiles}`] });
 
+const pluginRuleset = merge(...queryPlugin.configs['flat/recommended'], { files: [`apps/**/*${commonFiles}`] });
+
 const prettierRuleset = merge(...prettier, { files: [`**/*${commonFiles}`] });
 
 export default tseslint.config(
@@ -75,6 +78,7 @@ export default tseslint.config(
 	typeScriptRuleset,
 	reactRuleset,
 	nextRuleset,
+	pluginRuleset,
 	{
 		files: [`apps/website/**/*${commonFiles}`],
 		rules: {
