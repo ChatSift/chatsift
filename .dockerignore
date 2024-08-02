@@ -8,7 +8,6 @@
 **/types
 **/.next
 **/dist
-**/.turbo
 
 **/vitest.config.ts
 **/eslint.config.js
@@ -17,10 +16,9 @@
 **/.prettierignore
 **/tsconfig.eslint.json
 
-.eslintrc.json
+.commitlinrrc.json
 .gitattributes
 .gitignore
-turbo.json
 .env.private.example
 logs-archive
 

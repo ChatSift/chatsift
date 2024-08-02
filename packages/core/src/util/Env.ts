@@ -39,6 +39,10 @@ export class Env {
 
 	public readonly publicApiURL: string = process.env.PUBLIC_API_URL!;
 
+	public readonly oauthDiscordClientId: string = process.env.OAUTH_DISCORD_CLIENT_ID!;
+
+	public readonly oauthDiscordClientSecret: string = process.env.OAUTH_DISCORD_CLIENT_SECRET!;
+
 	private readonly REQUIRED_KEYS = [
 		'DISCORD_TOKEN',
 		'DISCORD_CLIENT_ID',
@@ -58,8 +62,9 @@ export class Env {
 		'API_URL',
 
 		'SECRET_SIGNING_KEY',
-
 		'PUBLIC_API_URL',
+		'OAUTH_DISCORD_CLIENT_ID',
+		'OAUTH_DISCORD_CLIENT_SECRET',
 	] as const;
 
 	public constructor() {
