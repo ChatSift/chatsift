@@ -2,7 +2,6 @@
 
 import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import clsx from 'clsx';
-import Link from 'next/link';
 import { useState } from 'react';
 import Button from '~/components/Button';
 import Logo from '~/components/Logo';

@@ -38,7 +38,7 @@ services:
       timeout: 5s
 
   api:
-    image: chatsift/chatsift-next:automoderator-api
+    image: chatsift/chatsift-next:api
     build:
       context: ./
       dockerfile: ./Dockerfile
