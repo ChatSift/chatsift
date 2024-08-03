@@ -1,6 +1,20 @@
 name: chatsift-next
 
 services:
+  # TODO: Publish own image?
+  # TODO: Uncomment once this repo takes over the stack deployment, for now, we're hacking ChatSift/stack to share
+  # its caddy instance
+
+  # caddy:
+  #   build:
+  #     context: ./build/caddy
+  #     dockerfile: ./Dockerfile
+  #   env_file:
+  #     - ./.env.private
+  #   ports:
+  #     - '80:80'
+  #     - '443:443'
+
   postgres:
     image: postgres:12-alpine
     environment:
