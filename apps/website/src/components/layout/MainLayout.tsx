@@ -1,7 +1,7 @@
 import { HydrationBoundary } from '@tanstack/react-query';
 import type { PropsWithChildren } from 'react';
-import Footer from '~/app/footer/Footer';
 import { Toaster } from '~/components/common/Toaster';
+import Footer from '~/components/footer/Footer';
 import Navbar from '~/components/header/Navbar';
 import { prefetchUserMe } from '~/data/userMe/prefetch';
 
