@@ -32,6 +32,7 @@ export class Gateway {
 			token: this.env.discordToken,
 			rest: this.api.rest,
 			intents:
+				GatewayIntentBits.Guilds |
 				GatewayIntentBits.GuildMessages |
 				GatewayIntentBits.GuildMembers |
 				GatewayIntentBits.GuildModeration |

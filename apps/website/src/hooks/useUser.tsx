@@ -1,28 +1,36 @@
 import { useQuery } from '@tanstack/react-query';
-import type { APIUser, RESTGetAPICurrentUserGuildsResult } from 'discord-api-types/v10';
+import type { Snowflake } from 'discord-api-types/v10';
 import { useRouter } from 'next/navigation';
-import { useToast } from '~/hooks/useToast';
 import fetcher, { APIError, fetcherErrorHandler } from '~/util/fetcher';
+import { exponentialBackOff, retryWrapper } from '~/util/util';
 
-export interface APIUserWithGuilds extends APIUser {
-	guilds: RESTGetAPICurrentUserGuildsResult;
+type BotId = 'automoderator';
+
+export interface CurrentUserResult {
+	avatar: string | null;
+	guilds: {
+		bots: BotId[];
+		icon: string | null;
+		id: Snowflake;
+		name: string;
+	}[];
+	id: Snowflake;
+	username: string;
 }
 
 export function useUser() {
-	const router = useRouter();
-	const { toast } = useToast();
-
-	return useQuery<APIUserWithGuilds>({
+	return useQuery<CurrentUserResult>({
 		queryKey: ['currentUser'],
 		queryFn: fetcher({ path: '/auth/discord/@me', method: 'GET' }),
-		throwOnError: fetcherErrorHandler({ router, toast }),
+		throwOnError: fetcherErrorHandler({ throwOverride: false }),
 		refetchOnWindowFocus: false,
-		retry: (retries, error) => {
+		retry: retryWrapper((retries, error) => {
 			if (error instanceof APIError) {
 				return retries < 5 && error.payload.statusCode !== 401;
 			}
 
-			return retries < 2;
-		},
+			return retries < 3;
+		}),
+		retryDelay: exponentialBackOff,
 	});
 }

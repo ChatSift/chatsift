@@ -24,7 +24,7 @@ export class Notifier extends INotifier {
 	public override async tryDMUser({ userId, bindToGuildId, data }: DMUserOptions): Promise<boolean> {
 		if (bindToGuildId) {
 			const member = await this.api.guilds.getMember(bindToGuildId, userId).catch((error) => {
-				this.logger.warn({ error }, 'Failed to fetch member - assuming they are not in the guild.');
+				this.logger.warn({ err: error }, 'Failed to fetch member - assuming they are not in the guild.');
 				return null;
 			});
 
@@ -39,10 +39,10 @@ export class Notifier extends INotifier {
 				await this.api.channels.createMessage(channel.id, data);
 				return true;
 			} catch (sendError) {
-				this.logger.warn({ error: sendError }, 'Failed to send message to DM channel');
+				this.logger.warn({ err: sendError }, 'Failed to send message to DM channel');
 			}
 		} catch (createDMError) {
-			this.logger.warn({ error: createDMError }, 'Failed to create DM channel');
+			this.logger.warn({ err: createDMError }, 'Failed to create DM channel');
 		}
 
 		return false;
@@ -134,7 +134,7 @@ export class Notifier extends INotifier {
 				},
 			});
 		} catch (error) {
-			this.logger.error({ error }, 'Failed to fetch guild when notifying target of mod case');
+			this.logger.error({ err: error }, 'Failed to fetch guild when notifying target of mod case');
 			return false;
 		}
 	}

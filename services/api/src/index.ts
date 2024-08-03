@@ -3,6 +3,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DependencyManager, globalContainer, setupCrashLogs } from '@automoderator/core';
 import { readdirRecurse, ReadMode } from '@chatsift/readdir';
+import ErrorHandler from './core-handlers/error.js';
+import SetupHandler from './core-handlers/setup.js';
 import { Server, type Registerable, type RegisterableConstructor } from './server.js';
 
 const dependencyManager = globalContainer.get(DependencyManager);
@@ -15,6 +17,10 @@ setupCrashLogs();
 const server = globalContainer.get(Server);
 
 export const handlersPath = join(dirname(fileURLToPath(import.meta.url)), 'handlers');
+
+// Those need to be loaded before everything else
+server.register(globalContainer.resolve(SetupHandler));
+server.register(globalContainer.resolve(ErrorHandler));
 
 for await (const path of readdirRecurse(handlersPath, { fileExtensions: ['js'], readMode: ReadMode.file })) {
 	const moduleConstructor: RegisterableConstructor = await import(path).then((mod) => mod.default);

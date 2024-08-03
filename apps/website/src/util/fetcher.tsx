@@ -2,7 +2,6 @@ import type { Payload } from '@hapi/boom';
 import Link from 'next/link';
 import type { useRouter } from 'next/navigation';
 import { ToastAction } from '~/components/Toast';
-import type { ToastFn } from '~/hooks/useToast';
 import { URLS } from '~/util/constants';
 
 export class APIError extends Error {
@@ -15,55 +14,24 @@ export class APIError extends Error {
 }
 
 export interface FetcherErrorHandlerOptions {
-	router: ReturnType<typeof useRouter>;
-	toast: ToastFn;
+	throwOverride?: boolean;
 }
 
-export function fetcherErrorHandler({ router, toast }: FetcherErrorHandlerOptions): (error: Error) => boolean {
+export function fetcherErrorHandler({ throwOverride }: FetcherErrorHandlerOptions): (error: Error) => boolean {
 	return (error) => {
 		console.error('error', error);
 
 		if (error instanceof APIError) {
-			switch (error.payload.statusCode) {
-				case 401: {
-					router.push(URLS.API.LOGIN);
-					return false;
-				}
-
-				case 403: {
-					toast({
-						title: 'Forbidden',
-						description: "You don't have permission to view or edit this config.",
-						variant: 'destructive',
-						action: (
-							<ToastAction altText="Go back">
-								<Link href="/dashboard">Go back</Link>
-							</ToastAction>
-						),
-					});
-
-					return false;
-				}
+			if (error.payload.statusCode === 401 || error.payload.statusCode === 403) {
+				return throwOverride ?? false;
 			}
 
 			if (error.payload.statusCode >= 500 && error.payload.statusCode < 600) {
-				toast({
-					title: 'Server Error',
-					description: 'A server error occurred while processing your request.',
-					variant: 'destructive',
-				});
-
-				return true;
+				return throwOverride ?? true;
 			}
 		}
 
-		toast({
-			title: 'Network Error',
-			description: 'A network error occurred while processing your request.',
-			variant: 'destructive',
-		});
-
-		return true;
+		return throwOverride ?? true;
 	};
 }
 

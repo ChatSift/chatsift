@@ -1,11 +1,10 @@
-import { Env, INJECTION_TOKENS, setEquals } from '@automoderator/core';
+import { Env, setEquals } from '@automoderator/core';
 import { API } from '@discordjs/core';
 import { badRequest, forbidden } from '@hapi/boom';
 import { SnowflakeRegex } from '@sapphire/discord-utilities';
 import { parse as parseCookie } from 'cookie';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { inject, injectable } from 'inversify';
-import type { Logger } from 'pino';
+import { injectable } from 'inversify';
 import { z } from 'zod';
 import type { FastifyServer, Registerable } from '../../server.js';
 import { Auth, SCOPES } from '../../struct/Auth.js';
@@ -13,17 +12,19 @@ import { StateCookie } from '../../struct/StateCookie.js';
 import { discordAuth } from '../../util/discordAuth.js';
 import { appendCookie } from '../../util/replyHelpers.js';
 
-type BotId = DiscordAuth['botList'][number];
-
 @injectable()
-export default class DiscordAuth implements Registerable {
+export default class DiscordAuthHandler implements Registerable {
 	private readonly botList = ['automoderator'] as const;
+
+	private readonly refererSchema = z
+		.string()
+		.transform((str) => (str.at(-1) === '/' ? str.slice(0, -1) : str))
+		.pipe(z.enum(this.env.allowedAPIOrigins));
 
 	public constructor(
 		private readonly env: Env,
 		private readonly api: API,
 		private readonly auth: Auth,
-		@inject(INJECTION_TOKENS.logger) private readonly logger: Logger,
 	) {}
 
 	public register(server: FastifyServer) {
@@ -34,10 +35,7 @@ export default class DiscordAuth implements Registerable {
 				url: '/auth/discord',
 				schema: {
 					headers: z.object({
-						referer: z
-							.string()
-							.transform((str) => (str.at(-1) === '/' ? str.slice(0, -1) : str))
-							.pipe(z.enum(this.env.allowedAPIOrigins)),
+						referer: this.refererSchema,
 					}),
 					querystring: z.object({
 						redirect_path: z.string(),
@@ -103,7 +101,7 @@ export default class DiscordAuth implements Registerable {
 					});
 
 					if (!setEquals(new Set(result.scope.split(' ')), new Set(SCOPES.split(' ')))) {
-						this.logger.warn({ returnedScopes: result.scope, expectedScopes: SCOPES }, 'miss matched scopes');
+						request.log.warn({ returnedScopes: result.scope, expectedScopes: SCOPES }, 'miss matched scopes');
 						throw forbidden(`Expected scope "${SCOPES}" but received scope "${result.scope}"`);
 					}
 
@@ -145,9 +143,9 @@ export default class DiscordAuth implements Registerable {
 						/* eslint-disable promise/prefer-await-to-callbacks, promise/prefer-await-to-then */
 						return fetch(`${url}/guilds`)
 							.then(async (response) => response.json())
-							.then((json) => [new Set(json as string[]), this.botList[index]!] as const)
+							.then((json: any) => [new Set(json.guilds as string[]), this.botList[index]!] as const)
 							.catch((error) => {
-								this.logger.error({ error }, 'failed to fetch guilds');
+								request.log.error({ err: error }, 'failed to fetch guilds');
 								return [new Set<string>(), this.botList[index]!] as const;
 							});
 						/* eslint-enable promise/prefer-await-to-callbacks, promise/prefer-await-to-then */
@@ -163,6 +161,20 @@ export default class DiscordAuth implements Registerable {
 					}));
 
 					await reply.send({ avatar: user.avatar, username: user.username, id: user.id, guilds });
+				},
+			})
+			.route({
+				method: 'GET',
+				url: '/auth/discord/logout',
+				schema: {
+					headers: z.object({
+						referer: this.refererSchema,
+					}),
+				},
+				preHandler: [discordAuth(false)],
+				handler: async (request, reply) => {
+					this.auth.appendInvalidatedAuthCookies(reply);
+					return reply.redirect(request.headers.referer);
 				},
 			});
 	}

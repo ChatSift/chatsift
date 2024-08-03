@@ -5,7 +5,7 @@ import clsx from 'clsx';
 import { useState } from 'react';
 import Button from '~/components/Button';
 import Logo from '~/components/Logo';
-import User from '~/components/User';
+import { UserDesktop, UserMobile } from '~/components/User';
 import SvgClose from '~/components/svg/SvgClose';
 import SvgHamburger from '~/components/svg/SvgHamburger';
 
@@ -48,8 +48,8 @@ function Desktop() {
 				</NavigationMenu.Root>
 			</div>
 
-			<li className="flex items-center text-lg text-secondary dark:text-secondary-dark md:ml-auto">
-				<User />
+			<li className="flex items-center gap-6 text-lg text-secondary dark:text-secondary-dark md:ml-auto">
+				<UserDesktop />
 			</li>
 		</ul>
 	);
@@ -93,7 +93,7 @@ function Mobile() {
 				</div>
 
 				<NavigationMenu.Item key="login" className="py-4">
-					<User />
+					<UserMobile />
 				</NavigationMenu.Item>
 			</NavigationMenu.List>
 		</NavigationMenu.Root>
@@ -108,9 +108,7 @@ export default function Navbar() {
 			}
 		>
 			<Desktop />
-			<div>
-				<Mobile />
-			</div>
+			<Mobile />
 		</header>
 	);
 }
