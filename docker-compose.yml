@@ -121,3 +121,9 @@ services:
 volumes:
   postgres-data:
     name: 'chatsift-next-postgres-data'
+
+# Hack to work with chatsift/stack
+networks:
+  default:
+    name: chatsift
+    external: true
