@@ -441,6 +441,7 @@ __metadata:
     postcss: "npm:^8.4.38"
     prettier-plugin-tailwindcss: "npm:^0.6.5"
     react: "npm:^18.3.1"
+    react-aria: "npm:^3.34.1"
     react-aria-components: "npm:^1.3.1"
     react-dom: "npm:^18.3.1"
     tailwind-merge: "npm:^2.4.0"

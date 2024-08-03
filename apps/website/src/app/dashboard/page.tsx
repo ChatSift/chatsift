@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Heading from '~/components/common/Heading';
 import GuildList from '~/components/dashboard/GuildList';
+import GuildSearchBar from '~/components/dashboard/GuildSearchBar';
 import RefreshGuildsButton from '~/components/dashboard/RefreshGuildsButton';
 import MainLayout from '~/components/layout/MainLayout';
 
@@ -16,6 +17,7 @@ export default async function Dashboard() {
 					<Heading title="Configure bots" subtitle="Select or add a community to manage." />
 					<RefreshGuildsButton />
 				</div>
+				<GuildSearchBar />
 			</div>
 			<GuildList />
 		</MainLayout>
