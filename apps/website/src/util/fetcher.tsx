@@ -1,3 +1,5 @@
+'use client';
+
 import type { Payload } from '@hapi/boom';
 
 export class APIError extends Error {

@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import type { Snowflake } from 'discord-api-types/v10';
-import { useRouter } from 'next/navigation';
 import fetcher, { APIError, fetcherErrorHandler } from '~/util/fetcher';
 import { exponentialBackOff, retryWrapper } from '~/util/util';
 

@@ -2,6 +2,7 @@
 
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { Provider as JotaiProvider } from 'jotai';
 import Link from 'next/link';
 import { ThemeProvider } from 'next-themes';
 import { useRef, type PropsWithChildren } from 'react';
@@ -49,7 +50,9 @@ export function Providers({ children }: PropsWithChildren) {
 
 	return (
 		<QueryClientProvider client={queryClient.current}>
-			<ThemeProvider attribute="class">{children}</ThemeProvider>
+			<JotaiProvider>
+				<ThemeProvider attribute="class">{children}</ThemeProvider>
+			</JotaiProvider>
 			<ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
 		</QueryClientProvider>
 	);
