@@ -1,8 +1,9 @@
 import { ExternalLink } from 'lucide-react';
+import MainLayout from '~/components/layout/MainLayout';
 
-export default function Home() {
+export default async function HomePage() {
 	return (
-		<main className="mx-auto flex max-w-[80vw] flex-col justify-center gap-6 pt-6 md:min-w-[912px]">
+		<MainLayout>
 			<h1 className="text-3xl font-medium">Modern solutions for your Discord communities</h1>
 
 			<div>
@@ -15,6 +16,6 @@ export default function Home() {
 					Join our Discord server <ExternalLink aria-hidden size={20} />
 				</a>
 			</div>
-		</main>
+		</MainLayout>
 	);
 }

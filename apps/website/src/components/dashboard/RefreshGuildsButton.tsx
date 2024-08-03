@@ -1,7 +1,7 @@
 'use client';
 
 import { useAtom } from 'jotai';
-import Button from '~/components/Button';
+import Button from '~/components/common/Button';
 import SvgRefresh from '~/components/svg/SvgRefresh';
 import { useLoggedInUser } from '~/hooks/useLoggedInUser';
 import { guildsLoadingAtom } from '~/util/atoms';

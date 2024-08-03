@@ -1,20 +1,25 @@
 'use client';
 
 import { CDNRoutes, ImageFormat, RouteBases, type DefaultUserAvatarAssets } from 'discord-api-types/v10';
-import { Avatar, AvatarImage } from '~/components/Avatar';
-import Button from '~/components/Button';
-import Skeleton from '~/components/Skeleton';
-import { useUser, type CurrentUserResult } from '~/hooks/useUser';
+import { Avatar, AvatarImage } from '~/components/common/Avatar';
+import Button from '~/components/common/Button';
+import Skeleton from '~/components/common/Skeleton';
+import { useQueryUserMe } from '~/data/userMe/client';
+import type { UserMeResult } from '~/data/userMe/common';
 import { URLS } from '~/util/constants';
 import { APIError } from '~/util/fetcher';
 
+function LoginButton() {
+	return (
+		<Button>
+			<a href={URLS.API.LOGIN}>Log in</a>
+		</Button>
+	);
+}
+
 function ErrorHandler({ error }: { readonly error: Error }) {
 	if (error instanceof APIError && error.payload.statusCode === 401) {
-		return (
-			<Button>
-				<a href={URLS.API.LOGIN}>Log in</a>
-			</Button>
-		);
+		return <LoginButton />;
 	}
 
 	return <>Error</>;
@@ -23,7 +28,7 @@ function ErrorHandler({ error }: { readonly error: Error }) {
 interface UserAvatarProps {
 	readonly className: string;
 	readonly isLoading: boolean;
-	readonly user: CurrentUserResult | undefined;
+	readonly user: UserMeResult | undefined;
 }
 
 function UserAvatar({ isLoading, user, className }: UserAvatarProps) {
@@ -39,30 +44,33 @@ function UserAvatar({ isLoading, user, className }: UserAvatarProps) {
 }
 
 export function UserDesktop() {
-	const { isLoading, data: user, error } = useUser();
+	const { isLoading, data: user, error } = useQueryUserMe();
 
 	if (error) {
 		return <ErrorHandler error={error} />;
 	}
 
-	return (
+	// As always, null implies pre-fetch came back empty with a 401
+	return user ? (
 		<>
 			<Button>
 				<a href={URLS.API.LOGOUT}>Log out</a>
 			</Button>
 			<UserAvatar user={user} isLoading={isLoading} className="h-12 w-12 rounded-full" />
 		</>
+	) : (
+		<LoginButton />
 	);
 }
 
 export function UserMobile() {
-	const { isLoading, data: user, error } = useUser();
+	const { isLoading, data: user, error } = useQueryUserMe();
 
 	if (error) {
 		return <ErrorHandler error={error} />;
 	}
 
-	return (
+	return user ? (
 		<div className="flex flex-row items-center gap-4">
 			<UserAvatar user={user} isLoading={isLoading} className="h-8 w-8 rounded-full" />
 			<p className="text-base font-medium">{user?.username}</p>
@@ -72,5 +80,7 @@ export function UserMobile() {
 				</a>
 			</Button>
 		</div>
+	) : (
+		<LoginButton />
 	);
 }

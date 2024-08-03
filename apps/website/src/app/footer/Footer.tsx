@@ -1,9 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import Button from '~/components/Button';
-import Skeleton from '~/components/Skeleton';
+import Button from '~/components/common/Button';
+import Skeleton from '~/components/common/Skeleton';
 import SvgDarkTheme from '~/components/svg/SvgDarkTheme';
 import SvgDiscord from '~/components/svg/SvgDiscord';
 import SvgGitHub from '~/components/svg/SvgGitHub';

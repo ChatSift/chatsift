@@ -15,10 +15,8 @@ export interface FetcherErrorHandlerOptions {
 	throwOverride?: boolean;
 }
 
-export function fetcherErrorHandler({ throwOverride }: FetcherErrorHandlerOptions): (error: Error) => boolean {
+export function clientSideErrorHandler({ throwOverride }: FetcherErrorHandlerOptions): (error: Error) => boolean {
 	return (error) => {
-		console.error('error', error);
-
 		if (error instanceof APIError) {
 			if (error.payload.statusCode === 401 || error.payload.statusCode === 403) {
 				return throwOverride ?? false;
@@ -41,7 +39,7 @@ export interface FetcherOptions {
 
 const jsonMethods = new Set(['POST', 'PUT', 'PATCH']);
 
-export default function fetcher({ path, method, body }: FetcherOptions): () => Promise<any> {
+export default function clientSideFetcher({ path, method, body }: FetcherOptions): () => Promise<any> {
 	const headers: HeadersInit = {};
 
 	if (body && jsonMethods.has(method)) {

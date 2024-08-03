@@ -3,9 +3,9 @@
 import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import clsx from 'clsx';
 import { useState } from 'react';
-import Button from '~/components/Button';
-import Logo from '~/components/Logo';
-import { UserDesktop, UserMobile } from '~/components/User';
+import Button from '~/components/common/Button';
+import Logo from '~/components/common/Logo';
+import { UserDesktop, UserMobile } from '~/components/header/User';
 import SvgClose from '~/components/svg/SvgClose';
 import SvgHamburger from '~/components/svg/SvgHamburger';
 

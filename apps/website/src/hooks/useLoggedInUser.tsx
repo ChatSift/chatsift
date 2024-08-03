@@ -1,12 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useUser } from '~/hooks/useUser';
+import { useQueryUserMe } from '~/data/userMe/client';
 import { URLS } from '~/util/constants';
 import { APIError } from '~/util/fetcher';
 
 export function useLoggedInUser() {
-	const state = useUser();
+	const state = useQueryUserMe();
 	const router = useRouter();
 
 	if (state.error && state.error instanceof APIError && state.error.payload.statusCode === 401) {
