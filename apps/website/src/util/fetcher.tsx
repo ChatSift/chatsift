@@ -1,8 +1,4 @@
 import type { Payload } from '@hapi/boom';
-import Link from 'next/link';
-import type { useRouter } from 'next/navigation';
-import { ToastAction } from '~/components/Toast';
-import { URLS } from '~/util/constants';
 
 export class APIError extends Error {
 	public constructor(

@@ -1,5 +1,4 @@
 import { ExternalLink } from 'lucide-react';
-import Link from 'next/link';
 
 export default function Home() {
 	return (
@@ -8,14 +7,14 @@ export default function Home() {
 				<h1 className="text-3xl font-medium">Modern solutions for your Discord communities</h1>
 
 				<div>
-					<Link
+					<a
 						className="flex justify-center gap-2 rounded-md bg-misc-accent px-4 py-3 text-lg font-[550] text-primary-dark md:inline-flex"
 						href="/support"
 						rel="noopener noreferrer"
 						target="_blank"
 					>
 						Join our Discord server <ExternalLink aria-hidden size={20} />
-					</Link>
+					</a>
 				</div>
 			</main>
 		</div>
