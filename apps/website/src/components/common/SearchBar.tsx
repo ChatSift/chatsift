@@ -1,7 +1,7 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AriaSearchFieldProps } from 'react-aria';
 import { useSearchField } from 'react-aria';
 import SvgSearch from '~/components/svg/SvgSearch';
@@ -9,12 +9,27 @@ import { cn } from '~/util/util';
 
 export default function SearchBar({ className, ...props }: AriaSearchFieldProps & { readonly className?: string }) {
 	const searchParams = useSearchParams();
+	const pathname = usePathname();
+	const router = useRouter();
+
+	const [value, setValue] = useState(searchParams.get('search') ?? '');
 	const ref = useRef(null);
-
-	const searchQuery = searchParams.get('search') ?? '';
-	const [value, setValue] = useState<string>(searchQuery);
-
 	const { inputProps } = useSearchField(props, { value, setValue }, ref);
+
+	const createQueryString = useCallback(
+		(name: string, value: string) => {
+			const params = new URLSearchParams(searchParams.toString());
+			params.set(name, value);
+
+			return params.toString();
+		},
+		[searchParams],
+	);
+
+	useEffect(() => {
+		router.replace(`${pathname}?${createQueryString('search', value)}`);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [value]);
 
 	return (
 		<div className={cn(className, 'relative flex')}>
