@@ -1,4 +1,5 @@
 import { addFields, truncateEmbed } from '@chatsift/discord-utils';
+import { computeAvatarUrl, userToEmbedAuthor } from '@chatsift/shared';
 import { API, type APIEmbed, type APIMessage } from '@discordjs/core';
 import { messageLink, time, TimestampStyles } from '@discordjs/formatters';
 import { inject, injectable } from 'inversify';
@@ -7,8 +8,6 @@ import type { Logger } from 'pino';
 import { INJECTION_TOKENS } from '../container.js';
 import { IDatabase } from '../database/IDatabase.js';
 import { LogWebhookKind, ModCaseKind, type ModCase } from '../db.js';
-import { computeAvatarUrl } from '../util/computeAvatar.js';
-import { userToEmbedAuthor } from '../util/userToEmbedData.js';
 import { INotifier, type DMUserOptions, type HistoryEmbedOptions, type LogModCaseOptions } from './INotifier.js';
 
 @injectable()

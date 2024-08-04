@@ -1,5 +1,5 @@
 import type { APIUser, DefaultUserAvatarAssets, Snowflake } from '@discordjs/core';
-import { CDNRoutes, ImageFormat, RouteBases, type UserAvatarFormat } from '@discordjs/core';
+import { CDNRoutes, ImageFormat, RouteBases, type UserAvatarFormat } from 'discord-api-types/v10';
 
 export function computeAvatarFormat<TFormat extends UserAvatarFormat>(
 	avatarHash: string,

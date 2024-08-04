@@ -114,6 +114,7 @@ __metadata:
   dependencies:
     "@chatsift/discord-utils": "workspace:^"
     "@chatsift/pino-rotate-file": "workspace:^"
+    "@chatsift/shared": "workspace:^"
     "@discordjs/brokers": "npm:^0.3.0"
     "@discordjs/builders": "npm:^1.8.2"
     "@discordjs/core": "npm:^1.2.0"
@@ -411,6 +412,18 @@ __metadata:
     tsup: "npm:^8.2.3"
     typescript: "npm:^5.5.4"
     vitest: "npm:^2.0.4"
+  languageName: unknown
+  linkType: soft
+
+"@chatsift/shared@workspace:^, @chatsift/shared@workspace:packages/shared":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/shared@workspace:packages/shared"
+  dependencies:
+    "@sapphire/bitfield": "npm:^1.2.2"
+    "@types/node": "npm:^20.14.12"
+    discord-api-types: "npm:^0.37.93"
+    tslib: "npm:^2.6.3"
+    typescript: "npm:^5.5.4"
   languageName: unknown
   linkType: soft
 

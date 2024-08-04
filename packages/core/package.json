@@ -17,6 +17,7 @@
 	"dependencies": {
 		"@chatsift/discord-utils": "workspace:^",
 		"@chatsift/pino-rotate-file": "workspace:^",
+		"@chatsift/shared": "workspace:^",
 		"@discordjs/brokers": "^0.3.0",
 		"@discordjs/builders": "^1.8.2",
 		"@discordjs/core": "^1.2.0",

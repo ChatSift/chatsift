@@ -1,0 +1,21 @@
+{
+	"name": "@chatsift/shared",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"lint": "eslint src",
+		"build": "tsc"
+	},
+	"devDependencies": {
+		"@types/node": "^20.14.12",
+		"typescript": "^5.5.4"
+	},
+	"dependencies": {
+		"@sapphire/bitfield": "^1.2.2",
+		"discord-api-types": "^0.37.93",
+		"tslib": "^2.6.3"
+	}
+}
