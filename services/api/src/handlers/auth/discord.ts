@@ -1,5 +1,6 @@
 import { Env, setEquals, API_URL } from '@chatsift/service-core';
 import { API, Routes, type RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
+import { makeURLSearchParams } from '@discordjs/rest';
 import { badRequest, forbidden } from '@hapi/boom';
 import { SnowflakeRegex } from '@sapphire/discord-utilities';
 import { parse as parseCookie } from 'cookie';
@@ -93,13 +94,16 @@ export default class DiscordAuthHandler implements Registerable {
 
 					const result = (await this.api.rest.post(Routes.oauth2TokenExchange(), {
 						auth: false,
-						body: {
+						headers: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+						},
+						body: makeURLSearchParams({
 							client_id: Env.OAUTH_DISCORD_CLIENT_ID,
 							client_secret: Env.OAUTH_DISCORD_CLIENT_SECRET,
 							code,
 							grant_type: 'authorization_code',
 							redirect_uri: `${API_URL}/auth/discord/callback`,
-						},
+						}),
 					})) as RESTPostOAuth2AccessTokenResult;
 
 					if (!setEquals(new Set(result.scope.split(' ')), new Set(SCOPES.split(' ')))) {
