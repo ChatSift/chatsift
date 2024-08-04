@@ -1,4 +1,4 @@
-import { Env, setEquals } from '@chatsift/service-core';
+import { Env, setEquals, API_URL } from '@chatsift/service-core';
 import { API } from '@discordjs/core';
 import { badRequest, forbidden } from '@hapi/boom';
 import { SnowflakeRegex } from '@sapphire/discord-utilities';
@@ -55,7 +55,7 @@ export default class DiscordAuthHandler implements Registerable {
 					const state = new StateCookie(redirectURI).toCookie();
 					const params = new URLSearchParams({
 						client_id: Env.OAUTH_DISCORD_CLIENT_ID,
-						redirect_uri: `${Env.PUBLIC_API_URL}/auth/discord/callback`,
+						redirect_uri: `${API_URL}/auth/discord/callback`,
 						response_type: 'code',
 						scope: SCOPES,
 						state,
@@ -96,7 +96,7 @@ export default class DiscordAuthHandler implements Registerable {
 						client_secret: Env.OAUTH_DISCORD_CLIENT_SECRET,
 						code,
 						grant_type: 'authorization_code',
-						redirect_uri: `${Env.PUBLIC_API_URL}/auth/discord/callback`,
+						redirect_uri: `${API_URL}/auth/discord/callback`,
 					});
 
 					if (!setEquals(new Set(result.scope.split(' ')), new Set(SCOPES.split(' ')))) {

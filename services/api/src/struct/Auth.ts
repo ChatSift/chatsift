@@ -61,7 +61,7 @@ export class Auth {
 			path: '/',
 			sameSite: Env.NODE_ENV === 'prod' ? 'none' : 'strict',
 			httpOnly: true,
-			domain: Env.NODE_ENV === 'prod' ? '.automoderator.app' : undefined,
+			domain: Env.NODE_ENV === 'prod' ? `.${Env.ROOT_DOMAIN}` : undefined,
 			secure: Env.NODE_ENV === 'prod',
 		};
 

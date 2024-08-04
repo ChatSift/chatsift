@@ -14,6 +14,7 @@ const envSchema = z.object({
 	// General config
 	NODE_ENV: z.enum(['dev', 'prod']).default('prod'),
 	LOGS_DIR: z.string(),
+	ROOT_DOMAIN: z.string(),
 
 	// DB
 	POSTGRES_HOST: z.string(),
@@ -34,14 +35,13 @@ const envSchema = z.object({
 
 	AUTOMODERATOR_DISCORD_TOKEN: z.string(),
 	AUTOMODERATOR_DISCORD_CLIENT_ID: z.string().regex(SnowflakeRegex),
-
 	AUTOMODERATOR_GATEWAY_URL: z.string().url(),
-
 	AUTOMODERATOR_PROXY_URL: z.string().url(),
 
 	// API
 	API_PORT: z.number(),
-	PUBLIC_API_URL: z.string().url(),
+	PUBLIC_API_URL_DEV: z.string().url(),
+	PUBLIC_API_URL_PROD: z.string().url(),
 	SECRET_SIGNING_KEY: z.string().length(44),
 	OAUTH_DISCORD_CLIENT_ID: z.string().regex(SnowflakeRegex),
 	OAUTH_DISCORD_CLIENT_SECRET: z.string(),
@@ -99,3 +99,5 @@ export function credentialsForCurrentBot(): BotCredentials {
 		}
 	}
 }
+
+export const API_URL = Env.NODE_ENV === 'dev' ? Env.PUBLIC_API_URL_DEV : Env.PUBLIC_API_URL_PROD;
