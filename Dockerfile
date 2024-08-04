@@ -33,7 +33,7 @@ COPY packages/core ./packages/core
 COPY packages/npm/discord-utils ./packages/npm/discord-utils
 COPY packages/npm/parse-relative-time ./packages/npm/parse-relative-time
 COPY packages/npm/pino-rotate-file ./packages/npm/pino-rotate-file
-COPY packages/npm/readdir ./packages/readdir
+COPY packages/npm/readdir ./packages/npm/readdir
 
 COPY services/api ./services/api
 COPY services/discord-proxy ./services/discord-proxy
