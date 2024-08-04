@@ -9,7 +9,8 @@
 		"apps/*",
 		"packages/*",
 		"packages/*/*",
-		"services/*"
+		"services/*",
+		"services/*/*"
 	],
 	"repository": {
 		"type": "git",

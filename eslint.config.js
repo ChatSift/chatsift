@@ -28,7 +28,7 @@ const typeScriptRuleset = merge(...typescript, {
 		parserOptions: {
 			warnOnUnsupportedTypeScriptVersion: false,
 			allowAutomaticSingleRunInference: true,
-			project: ['tsconfig.eslint.json', 'services/*/tsconfig.eslint.json', 'packages/**/tsconfig.eslint.json'],
+			project: ['tsconfig.eslint.json', 'services/**/tsconfig.eslint.json', 'packages/**/tsconfig.eslint.json'],
 		},
 	},
 	rules: {
@@ -71,7 +71,7 @@ const prettierRuleset = merge(...prettier, { files: [`**/*${commonFiles}`] });
 
 export default tseslint.config(
 	{
-		ignores: ['**/node_modules/', '.git/', '**/dist/', '**/coverage/', 'packages/core/src/db.ts'],
+		ignores: ['**/node_modules/', '.git/', '**/dist/', '**/coverage/', 'packages/services/core/src/db.ts'],
 	},
 	commonRuleset,
 	nodeRuleset,

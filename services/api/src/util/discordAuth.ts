@@ -1,4 +1,4 @@
-import { globalContainer } from '@automoderator/core';
+import { globalContainer } from '@chatsift/service-core';
 import type { Boom } from '@hapi/boom';
 import { forbidden, unauthorized } from '@hapi/boom';
 import { parse as parseCookie } from 'cookie';

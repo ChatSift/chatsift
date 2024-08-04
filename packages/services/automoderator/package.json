@@ -1,0 +1,27 @@
+{
+	"name": "@automoderator/core",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"lint": "eslint src",
+		"build": "tsc"
+	},
+	"devDependencies": {
+		"@types/node": "^20.14.12",
+		"typescript": "^5.5.4"
+	},
+	"dependencies": {
+		"@chatsift/discord-utils": "workspace:^",
+		"@chatsift/service-core": "workspace:^",
+		"@discordjs/core": "^1.2.0",
+		"@discordjs/formatters": "^0.4.0",
+		"@sapphire/discord-utilities": "^3.3.0",
+		"bin-rw": "^0.1.0",
+		"inversify": "^6.0.2",
+		"tslib": "^2.6.3",
+		"zod": "^3.23.8"
+	}
+}

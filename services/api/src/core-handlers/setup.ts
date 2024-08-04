@@ -1,4 +1,4 @@
-import { Env } from '@automoderator/core';
+import { Env } from '@chatsift/service-core';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
@@ -7,12 +7,10 @@ import type { FastifyServer, Registerable } from '../server.js';
 
 @injectable()
 export default class SetupHandler implements Registerable {
-	public constructor(private readonly env: Env) {}
-
 	public async register(server: FastifyServer) {
-		await server.register(cors, { credentials: true, origin: this.env.cors ?? '*' });
+		await server.register(cors, { credentials: true, origin: Env.CORS ?? '*' });
 		await server.register(helmet, {
-			contentSecurityPolicy: this.env.nodeEnv === 'prod' ? undefined : false,
+			contentSecurityPolicy: Env.NODE_ENV === 'prod' ? undefined : false,
 			referrerPolicy: false,
 		});
 

@@ -108,35 +108,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@automoderator/core@workspace:^, @automoderator/core@workspace:packages/core":
+"@automoderator/core@workspace:^, @automoderator/core@workspace:packages/services/automoderator":
   version: 0.0.0-use.local
-  resolution: "@automoderator/core@workspace:packages/core"
+  resolution: "@automoderator/core@workspace:packages/services/automoderator"
   dependencies:
     "@chatsift/discord-utils": "workspace:^"
-    "@chatsift/pino-rotate-file": "workspace:^"
-    "@chatsift/shared": "workspace:^"
-    "@discordjs/brokers": "npm:^0.3.0"
-    "@discordjs/builders": "npm:^1.8.2"
+    "@chatsift/service-core": "workspace:^"
     "@discordjs/core": "npm:^1.2.0"
     "@discordjs/formatters": "npm:^0.4.0"
-    "@discordjs/rest": "npm:^2.3.0"
-    "@msgpack/msgpack": "npm:^3.0.0-beta2"
-    "@naval-base/ms": "npm:^3.1.0"
-    "@sapphire/bitfield": "npm:^1.2.2"
     "@sapphire/discord-utilities": "npm:^3.3.0"
     "@types/node": "npm:^20.14.12"
-    "@types/pg": "npm:^8.11.6"
     bin-rw: "npm:^0.1.0"
-    coral-command: "npm:^0.10.0"
     inversify: "npm:^6.0.2"
-    ioredis: "npm:5.3.2"
-    kysely: "npm:^0.27.4"
-    murmurhash: "npm:^2.0.1"
-    pg: "npm:^8.12.0"
-    pino: "npm:^9.3.2"
-    pino-pretty: "npm:^11.2.2"
     tslib: "npm:^2.6.3"
     typescript: "npm:^5.5.4"
+    zod: "npm:^3.23.8"
   languageName: unknown
   linkType: soft
 
@@ -245,9 +231,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@chatsift/api@workspace:services/api"
   dependencies:
-    "@automoderator/core": "workspace:^"
     "@chatsift/parse-relative-time": "workspace:^"
     "@chatsift/readdir": "workspace:^"
+    "@chatsift/service-core": "workspace:^"
     "@discordjs/core": "npm:^1.2.0"
     "@discordjs/rest": "npm:^2.3.0"
     "@fastify/cors": "npm:^9.0.1"
@@ -273,9 +259,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/automoderator-discord-proxy@workspace:services/discord-proxy":
+"@chatsift/automoderator-discord-proxy@workspace:services/automoderator/discord-proxy":
   version: 0.0.0-use.local
-  resolution: "@chatsift/automoderator-discord-proxy@workspace:services/discord-proxy"
+  resolution: "@chatsift/automoderator-discord-proxy@workspace:services/automoderator/discord-proxy"
   dependencies:
     "@automoderator/core": "workspace:^"
     "@discordjs/core": "npm:^1.2.0"
@@ -291,9 +277,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/automoderator-gateway@workspace:services/gateway":
+"@chatsift/automoderator-gateway@workspace:services/automoderator/gateway":
   version: 0.0.0-use.local
-  resolution: "@chatsift/automoderator-gateway@workspace:services/gateway"
+  resolution: "@chatsift/automoderator-gateway@workspace:services/automoderator/gateway"
   dependencies:
     "@automoderator/core": "workspace:^"
     "@discordjs/brokers": "npm:^0.3.0"
@@ -311,9 +297,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/automoderator-interactions@workspace:services/interactions":
+"@chatsift/automoderator-interactions@workspace:services/automoderator/interactions":
   version: 0.0.0-use.local
-  resolution: "@chatsift/automoderator-interactions@workspace:services/interactions"
+  resolution: "@chatsift/automoderator-interactions@workspace:services/automoderator/interactions"
   dependencies:
     "@automoderator/core": "workspace:^"
     "@chatsift/discord-utils": "workspace:^"
@@ -341,9 +327,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/automoderator-observer@workspace:services/observer":
+"@chatsift/automoderator-observer@workspace:services/automoderator/observer":
   version: 0.0.0-use.local
-  resolution: "@chatsift/automoderator-observer@workspace:services/observer"
+  resolution: "@chatsift/automoderator-observer@workspace:services/automoderator/observer"
   dependencies:
     "@automoderator/core": "workspace:^"
     "@discordjs/brokers": "npm:^0.3.0"
@@ -412,6 +398,39 @@ __metadata:
     tsup: "npm:^8.2.3"
     typescript: "npm:^5.5.4"
     vitest: "npm:^2.0.4"
+  languageName: unknown
+  linkType: soft
+
+"@chatsift/service-core@workspace:^, @chatsift/service-core@workspace:packages/services/core":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/service-core@workspace:packages/services/core"
+  dependencies:
+    "@chatsift/discord-utils": "workspace:^"
+    "@chatsift/pino-rotate-file": "workspace:^"
+    "@chatsift/shared": "workspace:^"
+    "@discordjs/brokers": "npm:^0.3.0"
+    "@discordjs/builders": "npm:^1.8.2"
+    "@discordjs/core": "npm:^1.2.0"
+    "@discordjs/formatters": "npm:^0.4.0"
+    "@discordjs/rest": "npm:^2.3.0"
+    "@msgpack/msgpack": "npm:^3.0.0-beta2"
+    "@naval-base/ms": "npm:^3.1.0"
+    "@sapphire/bitfield": "npm:^1.2.2"
+    "@sapphire/discord-utilities": "npm:^3.3.0"
+    "@types/node": "npm:^20.14.12"
+    "@types/pg": "npm:^8.11.6"
+    bin-rw: "npm:^0.1.0"
+    coral-command: "npm:^0.10.0"
+    inversify: "npm:^6.0.2"
+    ioredis: "npm:5.3.2"
+    kysely: "npm:^0.27.4"
+    murmurhash: "npm:^2.0.1"
+    pg: "npm:^8.12.0"
+    pino: "npm:^9.3.2"
+    pino-pretty: "npm:^11.2.2"
+    tslib: "npm:^2.6.3"
+    typescript: "npm:^5.5.4"
+    zod: "npm:^3.23.8"
   languageName: unknown
   linkType: soft
 

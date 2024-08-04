@@ -1,14 +1,14 @@
 import { setTimeout } from 'node:timers';
-import { Env, IDatabase, PermissionsBitField, type DiscordOAuth2User } from '@automoderator/core';
 import { parseRelativeTime } from '@chatsift/parse-relative-time';
+import { Env, IDatabase, PermissionsBitField, type DiscordOAuth2User } from '@chatsift/service-core';
 import {
 	PermissionFlagsBits,
 	Routes,
 	API,
 	type APIUser,
 	type RESTGetAPICurrentUserGuildsResult,
-	type RESTPostOAuth2AccessTokenResult,
 	type Snowflake,
+	type RESTPostOAuth2AccessTokenResult,
 } from '@discordjs/core';
 import { makeURLSearchParams } from '@discordjs/rest';
 import type { CookieSerializeOptions } from 'cookie';
@@ -52,7 +52,6 @@ export class Auth {
 
 	public constructor(
 		private readonly database: IDatabase,
-		private readonly env: Env,
 		private readonly api: API,
 	) {}
 
@@ -60,10 +59,10 @@ export class Auth {
 		const options: CookieSerializeOptions = {
 			expires: credentials.refresh.expiration,
 			path: '/',
-			sameSite: this.env.nodeEnv === 'prod' ? 'none' : 'strict',
+			sameSite: Env.NODE_ENV === 'prod' ? 'none' : 'strict',
 			httpOnly: true,
-			domain: this.env.nodeEnv === 'prod' ? '.automoderator.app' : undefined,
-			secure: this.env.nodeEnv === 'prod',
+			domain: Env.NODE_ENV === 'prod' ? '.automoderator.app' : undefined,
+			secure: Env.NODE_ENV === 'prod',
 		};
 
 		appendCookie(reply, 'access_token', credentials.access.token, options);
@@ -74,10 +73,10 @@ export class Auth {
 		const options: CookieSerializeOptions = {
 			expires: new Date(1_970),
 			path: '/',
-			sameSite: this.env.nodeEnv === 'prod' ? 'none' : 'strict',
+			sameSite: Env.NODE_ENV === 'prod' ? 'none' : 'strict',
 			httpOnly: true,
-			domain: this.env.nodeEnv === 'prod' ? '.automoderator.app' : undefined,
-			secure: this.env.nodeEnv === 'prod',
+			domain: Env.NODE_ENV === 'prod' ? '.automoderator.app' : undefined,
+			secure: Env.NODE_ENV === 'prod',
 		};
 
 		appendCookie(reply, 'access_token', 'invalidated', options);
@@ -107,22 +106,22 @@ export class Auth {
 
 		return {
 			access: {
-				token: jwt.sign(accessToken, this.env.secretSigningKey, { expiresIn: Math.floor(accessExpiresIn / 1_000) }),
+				token: jwt.sign(accessToken, Env.SECRET_SIGNING_KEY, { expiresIn: Math.floor(accessExpiresIn / 1_000) }),
 				expiration: new Date(Date.now() + accessExpiresIn),
 			},
 			refresh: {
-				token: jwt.sign(refreshToken, this.env.secretSigningKey, { expiresIn: Math.floor(refreshExpiresIn / 1_000) }),
+				token: jwt.sign(refreshToken, Env.SECRET_SIGNING_KEY, { expiresIn: Math.floor(refreshExpiresIn / 1_000) }),
 				expiration: new Date(Date.now() + refreshExpiresIn),
 			},
 		};
 	}
 
 	public refreshTokens(accessToken: string, refreshToken: string): Credentials {
-		const accessData = jwt.verify(accessToken, this.env.secretSigningKey, {
+		const accessData = jwt.verify(accessToken, Env.SECRET_SIGNING_KEY, {
 			ignoreExpiration: true,
 		}) as AccessTokenData;
 
-		const refreshData = jwt.verify(refreshToken, this.env.secretSigningKey) as RefreshTokenData;
+		const refreshData = jwt.verify(refreshToken, Env.SECRET_SIGNING_KEY) as RefreshTokenData;
 
 		if (accessData.refresh || !refreshData.refresh) {
 			throw new Error('invalid token(s)');
@@ -136,7 +135,7 @@ export class Auth {
 	}
 
 	public async verifyToken(token: string, ignoreExpiration = false): Promise<Selectable<DiscordOAuth2User>> {
-		const data = jwt.verify(token, this.env.secretSigningKey, { ignoreExpiration }) as AccessTokenData;
+		const data = jwt.verify(token, Env.SECRET_SIGNING_KEY, { ignoreExpiration }) as AccessTokenData;
 		const user = await this.database.getDiscordOAuth2User(data.sub);
 
 		if (!user) {

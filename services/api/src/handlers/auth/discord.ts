@@ -1,4 +1,4 @@
-import { Env, setEquals } from '@automoderator/core';
+import { Env, setEquals } from '@chatsift/service-core';
 import { API } from '@discordjs/core';
 import { badRequest, forbidden } from '@hapi/boom';
 import { SnowflakeRegex } from '@sapphire/discord-utilities';
@@ -19,10 +19,9 @@ export default class DiscordAuthHandler implements Registerable {
 	private readonly refererSchema = z
 		.string()
 		.transform((str) => (str.at(-1) === '/' ? str.slice(0, -1) : str))
-		.pipe(z.enum(this.env.allowedAPIOrigins));
+		.pipe(z.enum(Env.ALLOWED_API_ORIGINS as [string, ...string[]]));
 
 	public constructor(
-		private readonly env: Env,
 		private readonly api: API,
 		private readonly auth: Auth,
 	) {}
@@ -55,8 +54,8 @@ export default class DiscordAuthHandler implements Registerable {
 
 					const state = new StateCookie(redirectURI).toCookie();
 					const params = new URLSearchParams({
-						client_id: this.env.oauthDiscordClientId,
-						redirect_uri: `${this.env.publicApiURL}/auth/discord/callback`,
+						client_id: Env.OAUTH_DISCORD_CLIENT_ID,
+						redirect_uri: `${Env.PUBLIC_API_URL}/auth/discord/callback`,
 						response_type: 'code',
 						scope: SCOPES,
 						state,
@@ -93,11 +92,11 @@ export default class DiscordAuthHandler implements Registerable {
 					}
 
 					const result = await this.api.oauth2.tokenExchange({
-						client_id: this.env.oauthDiscordClientId,
-						client_secret: this.env.oauthDiscordClientSecret,
+						client_id: Env.OAUTH_DISCORD_CLIENT_ID,
+						client_secret: Env.OAUTH_DISCORD_CLIENT_SECRET,
 						code,
 						grant_type: 'authorization_code',
-						redirect_uri: `${this.env.publicApiURL}/auth/discord/callback`,
+						redirect_uri: `${Env.PUBLIC_API_URL}/auth/discord/callback`,
 					});
 
 					if (!setEquals(new Set(result.scope.split(' ')), new Set(SCOPES.split(' ')))) {
@@ -138,7 +137,7 @@ export default class DiscordAuthHandler implements Registerable {
 				handler: async (request, reply) => {
 					const user = request.discordUser!;
 
-					const URLs = [this.env.automoderatorGatewayURL];
+					const URLs = [Env.AUTOMODERATOR_GATEWAY_URL];
 					const requests = URLs.map(async (url, index) => {
 						/* eslint-disable promise/prefer-await-to-callbacks, promise/prefer-await-to-then */
 						return fetch(`${url}/guilds`)

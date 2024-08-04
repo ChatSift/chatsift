@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DependencyManager, globalContainer, setupCrashLogs } from '@automoderator/core';
 import { readdirRecurse, ReadMode } from '@chatsift/readdir';
+import { DependencyManager, globalContainer, setupCrashLogs } from '@chatsift/service-core';
 import ErrorHandler from './core-handlers/error.js';
 import SetupHandler from './core-handlers/setup.js';
 import { Server, type Registerable, type RegisterableConstructor } from './server.js';

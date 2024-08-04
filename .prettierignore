@@ -4,4 +4,4 @@ coverage/*
 .yarn/*
 .turbo
 
-packages/core/src/db.ts
+packages/services/core/src/db.ts

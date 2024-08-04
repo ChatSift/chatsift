@@ -18,9 +18,9 @@
 		"typescript": "^5.5.4"
 	},
 	"dependencies": {
-		"@automoderator/core": "workspace:^",
 		"@chatsift/parse-relative-time": "workspace:^",
 		"@chatsift/readdir": "workspace:^",
+		"@chatsift/service-core": "workspace:^",
 		"@discordjs/core": "^1.2.0",
 		"@discordjs/rest": "^2.3.0",
 		"@fastify/cors": "^9.0.1",
