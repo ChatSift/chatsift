@@ -27,15 +27,17 @@ export function discordAuth(fallthrough: boolean) {
 
 	return async (request: FastifyRequest, reply: FastifyReply) => {
 		const cookies = parseCookie(request.headers.cookie ?? '');
-		const token = cookies.access_token ?? request.headers.authorization;
 
-		if (!token) {
+		const accessToken = cookies.access_token;
+		const refreshToken = cookies.refresh_token;
+
+		if (!accessToken) {
 			fail(unauthorized('missing authorization', 'Bearer'));
 			return;
 		}
 
 		try {
-			const user = await auth.verifyToken(token);
+			const user = await auth.verifyToken(accessToken);
 
 			try {
 				const discordUser = await auth.fetchDiscordUser(user.accessToken);
@@ -55,12 +57,12 @@ export function discordAuth(fallthrough: boolean) {
 			}
 		} catch (error) {
 			if (error instanceof jwt.TokenExpiredError) {
-				if (!cookies.refresh_token) {
+				if (!refreshToken) {
 					fail(unauthorized('expired access token and missing refresh token', 'Bearer'));
 					return;
 				}
 
-				const newTokens = auth.refreshTokens(token, cookies.refresh_token);
+				const newTokens = auth.refreshTokens(accessToken, refreshToken);
 				auth.appendAuthCookies(reply, newTokens);
 
 				const user = await auth.verifyToken(newTokens.access.token);

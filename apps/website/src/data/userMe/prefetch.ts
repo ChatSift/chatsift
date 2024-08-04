@@ -1,27 +1,21 @@
 import { dehydrate, QueryClient, type DehydratedState } from '@tanstack/react-query';
-import { cookies } from 'next/headers';
+import { headers } from 'next/headers';
 import { path, queryKey } from '~/data/userMe/common';
 
 export async function prefetchUserMe(): Promise<DehydratedState> {
 	const client = new QueryClient();
 
-	const token = cookies().get('access_token')?.value;
-
 	await client.prefetchQuery({
-		// eslint-disable-next-line @tanstack/query/exhaustive-deps
 		queryKey,
 		queryFn: async () => {
-			if (!token) {
-				return null;
-			}
-
 			const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
+				credentials: 'include',
 				headers: {
-					Authorization: token,
+					cookie: headers().get('cookie') ?? '',
 				},
 			});
 
-			console.log('prefetchUserMe', { hadToken: Boolean(token), resStatus: res.status });
+			console.log('prefetchUserMe', { resStatus: res.status });
 
 			if (res.status === 401) {
 				return null;
