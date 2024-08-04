@@ -62,6 +62,7 @@ export class Auth {
 			path: '/',
 			sameSite: this.env.nodeEnv === 'prod' ? 'none' : 'strict',
 			httpOnly: true,
+			domain: this.env.nodeEnv === 'prod' ? '.automoderator.app' : undefined,
 			secure: this.env.nodeEnv === 'prod',
 		};
 
@@ -75,6 +76,7 @@ export class Auth {
 			path: '/',
 			sameSite: this.env.nodeEnv === 'prod' ? 'none' : 'strict',
 			httpOnly: true,
+			domain: this.env.nodeEnv === 'prod' ? '.automoderator.app' : undefined,
 			secure: this.env.nodeEnv === 'prod',
 		};
 
@@ -160,6 +162,7 @@ export class Auth {
 		const user = (await this.api.rest.get(Routes.user('@me'), options)) as APIUser;
 		const guildList = (await this.api.rest.get(Routes.userGuilds(), {
 			query: makeURLSearchParams({ with_counts: true }),
+			...options,
 		})) as RESTGetAPICurrentUserGuildsResult;
 
 		const guilds = guildList.filter((guild) =>

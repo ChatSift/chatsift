@@ -84,6 +84,7 @@ export default tseslint.config(
 		rules: {
 			'no-restricted-globals': ['off'],
 			'n/prefer-global/url': ['off'],
+			'n/prefer-global/url-search-params': ['off'],
 		},
 	},
 	prettierRuleset,

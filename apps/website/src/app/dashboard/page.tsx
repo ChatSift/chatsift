@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 	title: 'Dashboard',
 };
 
-export default async function Dashboard() {
+export default async function DashboardPage() {
 	return (
 		<MainLayout>
 			<div className="flex flex-col [&:not]:first-of-type:mt-8 [&>*]:first-of-type:mb-6">
