@@ -39,7 +39,7 @@ const envSchema = z.object({
 	AUTOMODERATOR_PROXY_URL: z.string().url(),
 
 	// API
-	API_PORT: z.number(),
+	API_PORT: z.string().pipe(z.coerce.number()),
 	PUBLIC_API_URL_DEV: z.string().url(),
 	PUBLIC_API_URL_PROD: z.string().url(),
 	SECRET_SIGNING_KEY: z.string().length(44),
