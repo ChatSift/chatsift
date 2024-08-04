@@ -97,6 +97,7 @@ export default class DiscordAuthHandler implements Registerable {
 						headers: {
 							'Content-Type': 'application/x-www-form-urlencoded',
 						},
+						passThroughBody: true,
 						body: makeURLSearchParams({
 							client_id: Env.OAUTH_DISCORD_CLIENT_ID,
 							client_secret: Env.OAUTH_DISCORD_CLIENT_SECRET,
