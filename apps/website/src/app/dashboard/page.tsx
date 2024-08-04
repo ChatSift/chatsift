@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import Heading from '~/components/common/Heading';
 import GuildList from '~/components/dashboard/GuildList';
 import GuildSearchBar from '~/components/dashboard/GuildSearchBar';
@@ -17,9 +18,13 @@ export default async function DashboardPage() {
 					<Heading title="Configure bots" subtitle="Select or add a community to manage." />
 					<RefreshGuildsButton />
 				</div>
-				<GuildSearchBar />
+				<Suspense>
+					<GuildSearchBar />
+				</Suspense>
 			</div>
-			<GuildList />
+			<Suspense>
+				<GuildList />
+			</Suspense>
 		</MainLayout>
 	);
 }
