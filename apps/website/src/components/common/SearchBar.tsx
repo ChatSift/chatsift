@@ -7,6 +7,7 @@ import { useSearchField } from 'react-aria';
 import SvgSearch from '~/components/svg/SvgSearch';
 import { cn } from '~/util/util';
 
+// TODO: Debounce
 export default function SearchBar({ className, ...props }: AriaSearchFieldProps & { readonly className?: string }) {
 	const searchParams = useSearchParams();
 	const pathname = usePathname();

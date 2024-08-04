@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
+import GuildCard from '~/components/dashboard/GuildCard';
 import { useLoggedInUser } from '~/hooks/useLoggedInUser';
 
 export default function GuildList() {
@@ -10,23 +11,27 @@ export default function GuildList() {
 
 	const searchQuery = searchParams.get('search') ?? '';
 
-	const filtered = useMemo(() => {
+	const sorted = useMemo(() => {
+		const lower = searchQuery.toLowerCase();
+
 		if (!data) {
 			return [];
 		}
 
-		return data.guilds.filter((guild) => guild.name.includes(searchQuery));
+		console.log(data.guilds);
+		const filtered = data.guilds.filter((guild) => guild.name.toLowerCase().includes(lower));
+		return filtered.sort((a, b) => {
+			return b.bots.length - a.bots.length;
+		});
 	}, [data, searchQuery]);
 
-	const sorted = useMemo(() => {
-		return filtered.sort((a, b) => {
-			if (a.bots.length && b.bots.length) {
-				return b.bots.length - a.bots.length;
-			}
-
-			return 0;
-		});
-	}, [filtered]);
-
-	return <></>;
+	return (
+		<ul className="grid grid-cols-1 gap-4 md:grid-cols-4">
+			{sorted.map((guild) => (
+				<li key={guild.id}>
+					<GuildCard data={guild} />
+				</li>
+			))}
+		</ul>
+	);
 }

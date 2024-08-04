@@ -14,5 +14,7 @@ export interface UserMeResult {
 	username: string;
 }
 
+export type GuildData = UserMeResult['guilds'][number];
+
 export const queryKey = ['userMe'];
 export const path = '/auth/discord/@me';

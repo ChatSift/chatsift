@@ -12,7 +12,7 @@ export default async function MainLayout({ children, className }: PropsWithChild
 		<HydrationBoundary state={await prefetchUserMe()}>
 			<div className="h-scren flex min-h-screen flex-col">
 				<Navbar />
-				<div className="flex flex-[1_1_auto] flex-grow flex-col">
+				<div className="flex flex-[1_1_auto] flex-grow flex-col gap-8">
 					<main
 						className={cn(
 							'mx-auto mb-auto flex max-w-[80vw] flex-col justify-center gap-6 pt-6 md:min-w-[912px]',
@@ -22,9 +22,9 @@ export default async function MainLayout({ children, className }: PropsWithChild
 						{children}
 					</main>
 					<Footer />
-					<Toaster />
 				</div>
 			</div>
+			<Toaster />
 		</HydrationBoundary>
 	);
 }

@@ -13,7 +13,7 @@ export default async function HomePage() {
 					rel="noopener noreferrer"
 					target="_blank"
 				>
-					Join our Discord server <ExternalLink aria-hidden size={20} className="m-auto" />
+					Join our Discord server <ExternalLink aria-hidden size={20} className="my-auto" />
 				</a>
 			</div>
 		</MainLayout>

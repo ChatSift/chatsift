@@ -61,7 +61,7 @@ function Mobile() {
 	const listClasses = mobileNavOpen ? clsx() : clsx('hidden', 'max-h-0');
 
 	return (
-		<NavigationMenu.Root className="relative md:hidden">
+		<NavigationMenu.Root className="relative bg-base dark:bg-base-dark md:hidden">
 			<div className="ml-auto flex items-center justify-between p-2">
 				<Logo />
 				<Button
@@ -74,9 +74,7 @@ function Mobile() {
 					{mobileNavOpen ? <SvgClose /> : <SvgHamburger />}
 				</Button>
 			</div>
-			<NavigationMenu.List
-				className={`z-50 mx-4 flex flex-col overflow-hidden bg-base dark:bg-base-dark ${listClasses}`}
-			>
+			<NavigationMenu.List className={`z-50 mx-4 flex flex-col overflow-hidden ${listClasses}`}>
 				<div className="border-b-2 border-solid border-b-on-secondary py-4 dark:border-b-on-secondary-dark">
 					{headerItems.map((item) => (
 						<NavigationMenu.Item key={item.href} className="mb-3">
