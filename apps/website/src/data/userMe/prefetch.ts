@@ -15,8 +15,6 @@ export async function prefetchUserMe(): Promise<DehydratedState> {
 				},
 			});
 
-			console.log('prefetchUserMe', { resStatus: res.status });
-
 			if (res.status === 401) {
 				return null;
 			}

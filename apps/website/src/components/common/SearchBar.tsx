@@ -7,7 +7,8 @@ import { useSearchField } from 'react-aria';
 import SvgSearch from '~/components/svg/SvgSearch';
 import { cn } from '~/util/util';
 
-// TODO: Debounce
+const DEBOUNCE_TIME = 300;
+
 export default function SearchBar({ className, ...props }: AriaSearchFieldProps & { readonly className?: string }) {
 	const searchParams = useSearchParams();
 	const pathname = usePathname();
@@ -17,20 +18,17 @@ export default function SearchBar({ className, ...props }: AriaSearchFieldProps 
 	const ref = useRef(null);
 	const { inputProps } = useSearchField(props, { value, setValue }, ref);
 
-	const createQueryString = useCallback(
-		(name: string, value: string) => {
-			const params = new URLSearchParams(searchParams.toString());
-			params.set(name, value);
+	const update = useCallback(() => {
+		const params = new URLSearchParams(searchParams.toString());
+		params.set('search', value);
 
-			return params.toString();
-		},
-		[searchParams],
-	);
+		router.replace(`${pathname}?${params.toString()}`);
+	}, [searchParams, value, router, pathname]);
 
 	useEffect(() => {
-		router.replace(`${pathname}?${createQueryString('search', value)}`);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [value]);
+		const timeout = setTimeout(update, DEBOUNCE_TIME);
+		return () => clearTimeout(timeout);
+	}, [update]);
 
 	return (
 		<div className={cn(className, 'relative flex')}>

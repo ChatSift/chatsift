@@ -18,9 +18,8 @@ export default function GuildList() {
 			return [];
 		}
 
-		console.log(data.guilds);
 		const filtered = data.guilds.filter((guild) => guild.name.toLowerCase().includes(lower));
-		return filtered.sort((a, b) => {
+		return filtered.reverse().sort((a, b) => {
 			return b.bots.length - a.bots.length;
 		});
 	}, [data, searchQuery]);
