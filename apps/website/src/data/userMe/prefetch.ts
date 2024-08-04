@@ -6,7 +6,6 @@ export async function prefetchUserMe(): Promise<DehydratedState> {
 	const client = new QueryClient();
 
 	const token = cookies().get('access_token')?.value;
-	console.log(token);
 
 	await client.prefetchQuery({
 		// eslint-disable-next-line @tanstack/query/exhaustive-deps
@@ -21,6 +20,8 @@ export async function prefetchUserMe(): Promise<DehydratedState> {
 					Authorization: token,
 				},
 			});
+
+			console.log('prefetchUserMe', { hadToken: Boolean(token), resStatus: res.status });
 
 			if (res.status === 401) {
 				return null;
