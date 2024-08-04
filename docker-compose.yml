@@ -75,6 +75,8 @@ services:
     env_file:
       - ./.env.public
       - ./.env.private
+    environment:
+      BOT: automoderator
     command: ['node', '--enable-source-maps', './services/discord-proxy/dist/index.js']
     volumes:
       - ./logs-archive:/var/chatsift-logs
@@ -88,6 +90,8 @@ services:
     env_file:
       - ./.env.public
       - ./.env.private
+    environment:
+      BOT: automoderator
     command: ['node', '--enable-source-maps', './services/gateway/dist/index.js']
     volumes:
       - ./logs-archive:/var/chatsift-logs
@@ -101,6 +105,8 @@ services:
     env_file:
       - ./.env.public
       - ./.env.private
+    environment:
+      BOT: automoderator
     command: ['node', '--enable-source-maps', './services/interactions/dist/index.js']
     volumes:
       - ./logs-archive:/var/chatsift-logs
@@ -114,6 +120,8 @@ services:
     env_file:
       - ./.env.public
       - ./.env.private
+    environment:
+      BOT: automoderator
     command: ['node', '--enable-source-maps', './services/observer/dist/index.js']
     volumes:
       - ./logs-archive:/var/chatsift-logs

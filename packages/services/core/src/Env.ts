@@ -61,7 +61,7 @@ const envSchema = z.object({
 		.pipe(z.array(z.string().url()).min(1)),
 
 	// Bot service specific
-	BOT: botSchema,
+	BOT: botSchema.optional(),
 });
 
 export const Env = envSchema.parse(process.env);
@@ -93,7 +93,6 @@ export function credentialsForCurrentBot(): BotCredentials {
 			};
 		}
 
-		// This should never happen
 		default: {
 			throw new Error('process.env.BOT is not set or is invalid');
 		}
