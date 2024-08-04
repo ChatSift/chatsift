@@ -9,7 +9,7 @@ export function useLoggedInUser() {
 	const state = useQueryUserMe();
 	const router = useRouter();
 
-	if (state.error && state.error instanceof APIError && state.error.payload.statusCode === 401) {
+	if ((state.error && state.error instanceof APIError && state.error.payload.statusCode === 401) || state === null) {
 		router.push(URLS.API.LOGIN);
 	}
 

@@ -8,9 +8,9 @@ interface Props {
 	};
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params: { id } }: Props): Promise<Metadata> {
 	const me = await fetchUserMe();
-	const guild = me?.guilds.find((guild) => guild.id === params.id);
+	const guild = me?.guilds.find((guild) => guild.id === id);
 
 	return {
 		title: `${guild?.name ?? 'Unknown'}`,
