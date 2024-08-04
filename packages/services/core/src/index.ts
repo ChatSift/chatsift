@@ -1,3 +1,5 @@
+import './registrations.js';
+
 export * from './broker-types/gateway.js';
 
 // Deliberately don't export impl
