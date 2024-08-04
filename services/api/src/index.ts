@@ -10,7 +10,7 @@ import { Server, type Registerable, type RegisterableConstructor } from './serve
 const dependencyManager = globalContainer.get(DependencyManager);
 const logger = dependencyManager.registerLogger('api');
 dependencyManager.registerRedis();
-dependencyManager.registerApi();
+dependencyManager.registerApi(false);
 
 setupCrashLogs();
 

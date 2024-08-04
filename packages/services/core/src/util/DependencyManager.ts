@@ -1,6 +1,6 @@
 import type { PinoRotateFileOptions } from '@chatsift/pino-rotate-file';
 import { API } from '@discordjs/core';
-import { REST } from '@discordjs/rest';
+import { DefaultRestOptions, REST } from '@discordjs/rest';
 import { injectable } from 'inversify';
 import { Redis } from 'ioredis';
 import type { Logger, TransportTargetOptions } from 'pino';
@@ -26,11 +26,14 @@ export class DependencyManager {
 		return redis;
 	}
 
-	public registerApi(): API {
-		const credentials = credentialsForCurrentBot();
+	public registerApi(withToken = true): API {
+		const credentials = withToken ? credentialsForCurrentBot() : null;
 
-		const rest = new REST({ api: `${credentials.proxyURL}/api`, version: '10' });
-		rest.setToken(credentials.token);
+		const rest = new REST({ api: credentials ? `${credentials.proxyURL}/api` : DefaultRestOptions.api, version: '10' });
+
+		if (credentials) {
+			rest.setToken(credentials.token);
+		}
 
 		const api = new API(rest);
 
