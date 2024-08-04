@@ -3,7 +3,7 @@ import type { PropsWithChildren } from 'react';
 import { Toaster } from '~/components/common/Toaster';
 import Footer from '~/components/footer/Footer';
 import Navbar from '~/components/header/Navbar';
-import { prefetchUserMe } from '~/data/userMe/prefetch';
+import { prefetchUserMe } from '~/data/userMe/server';
 import { cn } from '~/util/util';
 
 export default async function RootTemplate({
