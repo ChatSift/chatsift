@@ -6,8 +6,10 @@ import Navbar from '~/components/header/Navbar';
 import { prefetchUserMe } from '~/data/userMe/prefetch';
 import { cn } from '~/util/util';
 
-// Layout meant for / and /dashboard, which both need user state at the very least for the navbar.
-export default async function MainLayout({ children, className }: PropsWithChildren<{ readonly className?: string }>) {
+export default async function RootTemplate({
+	children,
+	className,
+}: PropsWithChildren<{ readonly className?: string }>) {
 	return (
 		<HydrationBoundary state={await prefetchUserMe()}>
 			<div className="h-scren flex min-h-screen flex-col">
