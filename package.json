@@ -8,17 +8,18 @@
 	"workspaces": [
 		"apps/*",
 		"packages/*",
+		"packages/*/*",
 		"services/*"
 	],
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/didinele/AutoModerator.git"
+		"url": "git+https://github.com/chatsift/chatsift.git"
 	},
 	"author": "didinele",
 	"bugs": {
-		"url": "https://github.com/didinele/AutoModerator/issues"
+		"url": "https://github.com/chatsift/chatsift/issues"
 	},
-	"homepage": "https://github.com/didinele/AutoModerator#readme",
+	"homepage": "https://github.com/chatsift/chatsift#readme",
 	"scripts": {
 		"lint": "turbo run lint && prettier --check .",
 		"build": "turbo run build",

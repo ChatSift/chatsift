@@ -1,8 +1,8 @@
 # `@chatsift/readdir`
 
-[![GitHub](https://img.shields.io/badge/License-GNU%20AGPLv3-yellow.svg)](https://github.com/chatsift/automoderator/blob/main/LICENSE)
+[![GitHub](https://img.shields.io/badge/License-GNU%20AGPLv3-yellow.svg)](https://github.com/chatsift/chatsift/blob/main/LICENSE)
 [![npm](https://img.shields.io/npm/v/@chatsift/readdir?color=crimson&logo=npm)](https://www.npmjs.com/package/@chatsift/readdir)
-[![TypeScript](https://github.com/chatsift/automoderator/actions/workflows/test.yml/badge.svg)](https://github.com/chatsift/automoderator/actions/workflows/test.yml)
+[![TypeScript](https://github.com/chatsift/chatsift/actions/workflows/test.yml/badge.svg)](https://github.com/chatsift/chatsift/actions/workflows/test.yml)
 
 Fast, stream based recursive version of fs.readdir
 
@@ -14,7 +14,7 @@ Fast, stream based recursive version of fs.readdir
 
 ## Contributing
 
-Please see the main [README.md](https://github.com/chatsift/automoderator) for info on how to contribute to this package or the other `@chatsift` packages.
+Please see the main [README.md](https://github.com/chatsift/chatsift) for info on how to contribute to this package or the other `@chatsift` packages.
 
 ## LICENSE
 

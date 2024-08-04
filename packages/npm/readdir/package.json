@@ -1,7 +1,7 @@
 {
-	"name": "@chatsift/pino-rotate-file",
-	"description": "Simple pino transport for rotating files",
-	"version": "0.5.1",
+	"name": "@chatsift/readdir",
+	"description": "Fast, stream based recursive version of fs.readdir",
+	"version": "0.6.1",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
@@ -23,7 +23,8 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/chatsift/chatsift.git"
+		"url": "https://github.com/chatsift/chatsift.git",
+		"directory": "packages/npm/readdir"
 	},
 	"bugs": {
 		"url": "https://github.com/chatsift/chatsift/issues"
@@ -31,14 +32,12 @@
 	"homepage": "https://github.com/chatsift/chatsift",
 	"devDependencies": {
 		"@types/node": "^20.14.12",
-		"sonic-boom": "^4.0.1",
 		"tsup": "^8.2.3",
 		"typescript": "^5.5.4",
 		"vitest": "^2.0.4"
 	},
 	"dependencies": {
-		"pino": "^9.3.2",
-		"pino-abstract-transport": "^1.2.0",
+		"tiny-typed-emitter": "^2.1.0",
 		"tslib": "^2.6.3"
 	}
 }

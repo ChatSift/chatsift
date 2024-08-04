@@ -361,9 +361,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/discord-utils@workspace:^, @chatsift/discord-utils@workspace:packages/discord-utils":
+"@chatsift/discord-utils@workspace:^, @chatsift/discord-utils@workspace:packages/npm/discord-utils":
   version: 0.0.0-use.local
-  resolution: "@chatsift/discord-utils@workspace:packages/discord-utils"
+  resolution: "@chatsift/discord-utils@workspace:packages/npm/discord-utils"
   dependencies:
     "@types/node": "npm:^20.14.12"
     discord-api-types: "npm:^0.37.93"
@@ -374,9 +374,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/parse-relative-time@workspace:^, @chatsift/parse-relative-time@workspace:packages/parse-relative-time":
+"@chatsift/parse-relative-time@workspace:^, @chatsift/parse-relative-time@workspace:packages/npm/parse-relative-time":
   version: 0.0.0-use.local
-  resolution: "@chatsift/parse-relative-time@workspace:packages/parse-relative-time"
+  resolution: "@chatsift/parse-relative-time@workspace:packages/npm/parse-relative-time"
   dependencies:
     "@types/node": "npm:^20.14.12"
     tslib: "npm:^2.6.3"
@@ -386,9 +386,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/pino-rotate-file@workspace:^, @chatsift/pino-rotate-file@workspace:packages/pino-rotate-file":
+"@chatsift/pino-rotate-file@workspace:^, @chatsift/pino-rotate-file@workspace:packages/npm/pino-rotate-file":
   version: 0.0.0-use.local
-  resolution: "@chatsift/pino-rotate-file@workspace:packages/pino-rotate-file"
+  resolution: "@chatsift/pino-rotate-file@workspace:packages/npm/pino-rotate-file"
   dependencies:
     "@types/node": "npm:^20.14.12"
     pino: "npm:^9.3.2"
@@ -401,9 +401,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/readdir@workspace:^, @chatsift/readdir@workspace:packages/readdir":
+"@chatsift/readdir@workspace:^, @chatsift/readdir@workspace:packages/npm/readdir":
   version: 0.0.0-use.local
-  resolution: "@chatsift/readdir@workspace:packages/readdir"
+  resolution: "@chatsift/readdir@workspace:packages/npm/readdir"
   dependencies:
     "@types/node": "npm:^20.14.12"
     tiny-typed-emitter: "npm:^2.1.0"

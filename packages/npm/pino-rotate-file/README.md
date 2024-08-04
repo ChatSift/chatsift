@@ -1,8 +1,8 @@
 # `@chatsift/pino-rotate-file`
 
-[![GitHub](https://img.shields.io/badge/License-GNU%20AGPLv3-yellow.svg)](https://github.com/chatsift/automoderator/blob/main/LICENSE)
+[![GitHub](https://img.shields.io/badge/License-GNU%20AGPLv3-yellow.svg)](https://github.com/chatsift/chatsift/blob/main/LICENSE)
 [![npm](https://img.shields.io/npm/v/@chatsift/pino-rotate-file?color=crimson&logo=npm)](https://www.npmjs.com/package/@chatsift/pino-rotate-file)
-[![TypeScript](https://github.com/chatsift/automoderator/actions/workflows/test.yml/badge.svg)](https://github.com/chatsift/automoderator/actions/workflows/test.yml)
+[![TypeScript](https://github.com/chatsift/chatsift/actions/workflows/test.yml/badge.svg)](https://github.com/chatsift/chatsift/actions/workflows/test.yml)
 
 Simple pino transport for rotating files
 
@@ -14,7 +14,7 @@ Simple pino transport for rotating files
 
 ## Contributing
 
-Please see the main [README.md](https://github.com/chatsift/automoderator) for info on how to contribute to this package or the other `@chatsift` packages.
+Please see the main [README.md](https://github.com/chatsift/chatsift) for info on how to contribute to this package or the other `@chatsift` packages.
 
 ## LICENSE
 

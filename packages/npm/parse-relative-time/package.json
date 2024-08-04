@@ -23,7 +23,8 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/chatsift/chatsift.git"
+		"url": "https://github.com/chatsift/chatsift.git",
+		"directory": "packages/npm/parse-relative-time"
 	},
 	"bugs": {
 		"url": "https://github.com/chatsift/chatsift/issues"
