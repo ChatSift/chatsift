@@ -14,6 +14,7 @@ import {
 	type HandlerModuleConstructor,
 	type HandlerModule,
 	Env,
+	credentialsForCurrentBot,
 } from '@automoderator/core';
 import { readdirRecurseManyAsync, ReadMode } from '@chatsift/readdir';
 import { PubSubRedisBroker } from '@discordjs/brokers';
@@ -57,7 +58,8 @@ const broker = new PubSubRedisBroker<DiscordGatewayEventsMap>({
 });
 
 async function ensureFirstDeployment(): Promise<void> {
-	const existing = await api.applicationCommands.getGlobalCommands(Env.OAUTH_DISCORD_CLIENT_ID);
+	const credentials = credentialsForCurrentBot();
+	const existing = await api.applicationCommands.getGlobalCommands(credentials.clientId);
 	if (!existing.length) {
 		logger.info('No global commands found, deploying (one-time)...');
 		await commandHandler.deployCommands();
