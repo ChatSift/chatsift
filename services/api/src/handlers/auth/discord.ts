@@ -1,5 +1,5 @@
 import { Env, setEquals, API_URL } from '@chatsift/service-core';
-import { API } from '@discordjs/core';
+import { API, Routes, type RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { badRequest, forbidden } from '@hapi/boom';
 import { SnowflakeRegex } from '@sapphire/discord-utilities';
 import { parse as parseCookie } from 'cookie';
@@ -91,13 +91,16 @@ export default class DiscordAuthHandler implements Registerable {
 						return;
 					}
 
-					const result = await this.api.oauth2.tokenExchange({
-						client_id: Env.OAUTH_DISCORD_CLIENT_ID,
-						client_secret: Env.OAUTH_DISCORD_CLIENT_SECRET,
-						code,
-						grant_type: 'authorization_code',
-						redirect_uri: `${API_URL}/auth/discord/callback`,
-					});
+					const result = (await this.api.rest.post(Routes.oauth2TokenExchange(), {
+						auth: false,
+						body: {
+							client_id: Env.OAUTH_DISCORD_CLIENT_ID,
+							client_secret: Env.OAUTH_DISCORD_CLIENT_SECRET,
+							code,
+							grant_type: 'authorization_code',
+							redirect_uri: `${API_URL}/auth/discord/callback`,
+						},
+					})) as RESTPostOAuth2AccessTokenResult;
 
 					if (!setEquals(new Set(result.scope.split(' ')), new Set(SCOPES.split(' ')))) {
 						request.log.warn({ returnedScopes: result.scope, expectedScopes: SCOPES }, 'miss matched scopes');
