@@ -59,7 +59,7 @@ export class Auth {
 		const options: CookieSerializeOptions = {
 			expires: credentials.refresh.expiration,
 			path: '/',
-			sameSite: Env.NODE_ENV === 'prod' ? 'none' : 'strict',
+			sameSite: Env.NODE_ENV === 'prod' ? 'strict' : 'lax',
 			httpOnly: true,
 			domain: Env.NODE_ENV === 'prod' ? `.${Env.ROOT_DOMAIN}` : undefined,
 			secure: Env.NODE_ENV === 'prod',
@@ -73,7 +73,7 @@ export class Auth {
 		const options: CookieSerializeOptions = {
 			expires: new Date(1_970),
 			path: '/',
-			sameSite: Env.NODE_ENV === 'prod' ? 'none' : 'strict',
+			sameSite: Env.NODE_ENV === 'prod' ? 'strict' : 'lax',
 			httpOnly: true,
 			domain: Env.NODE_ENV === 'prod' ? '.automoderator.app' : undefined,
 			secure: Env.NODE_ENV === 'prod',
