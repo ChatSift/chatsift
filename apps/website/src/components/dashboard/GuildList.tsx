@@ -3,10 +3,10 @@
 import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import GuildCard from '~/components/dashboard/GuildCard';
-import { useLoggedInUser } from '~/hooks/useLoggedInUser';
+import { useQueryUserMe } from '~/data/userMe/client';
 
 export default function GuildList() {
-	const { data } = useLoggedInUser();
+	const { data } = useQueryUserMe();
 	const searchParams = useSearchParams();
 
 	const searchQuery = searchParams.get('search') ?? '';
