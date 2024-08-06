@@ -5,7 +5,7 @@ import { Providers } from '~/app/providers';
 import { Toaster } from '~/components/common/Toaster';
 import Footer from '~/components/footer/Footer';
 import Navbar from '~/components/header/Navbar';
-import { prefetchUserMe } from '~/data/userMe/server';
+import { server } from '~/data/server';
 import { cn } from '~/util/util';
 
 import '~/styles/globals.css';
@@ -25,7 +25,7 @@ export default async function RootLayout({ children }: PropsWithChildren) {
 		<html lang="en" suppressHydrationWarning>
 			<body className="bg-base dark:bg-base-dark">
 				<Providers>
-					<HydrationBoundary state={await prefetchUserMe()}>
+					<HydrationBoundary state={await server.me.prefetch()}>
 						<div className="h-scren flex min-h-screen flex-col">
 							<Navbar />
 							<div className="flex flex-[1_1_auto] flex-grow flex-col gap-8">

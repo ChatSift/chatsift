@@ -439,10 +439,12 @@ __metadata:
   resolution: "@chatsift/shared@workspace:packages/shared"
   dependencies:
     "@sapphire/bitfield": "npm:^1.2.2"
+    "@sapphire/discord-utilities": "npm:^3.3.0"
     "@types/node": "npm:^20.14.12"
     discord-api-types: "npm:^0.37.93"
     tslib: "npm:^2.6.3"
     typescript: "npm:^5.5.4"
+    zod: "npm:^3.23.8"
   languageName: unknown
   linkType: soft
 
@@ -450,7 +452,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@chatsift/website@workspace:apps/website"
   dependencies:
-    "@automoderator/core": "workspace:^"
+    "@chatsift/shared": "workspace:^"
     "@hapi/boom": "npm:^10.0.1"
     "@radix-ui/react-avatar": "npm:^1.1.0"
     "@radix-ui/react-navigation-menu": "npm:^1.2.0"

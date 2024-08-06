@@ -3,14 +3,13 @@
 import { useState } from 'react';
 import Button from '~/components/common/Button';
 import SvgRefresh from '~/components/svg/SvgRefresh';
-import { useQueryUserMe } from '~/data/userMe/client';
+import { client } from '~/data/client';
 import { useToast } from '~/hooks/useToast';
 
 export default function RefreshGuildsButton() {
-	const { refetch } = useQueryUserMe();
+	const { refetch, isLoading } = client.useMe();
 	const { toast, dismiss } = useToast();
 	const [lastToastId, setLastToastId] = useState<string | null>(null);
-	const { isLoading } = useQueryUserMe();
 
 	return (
 		<Button

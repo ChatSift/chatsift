@@ -23,7 +23,7 @@
 		"vercel": "^34.2.4"
 	},
 	"dependencies": {
-		"@automoderator/core": "workspace:^",
+		"@chatsift/shared": "workspace:^",
 		"@radix-ui/react-avatar": "^1.1.0",
 		"@radix-ui/react-navigation-menu": "^1.2.0",
 		"@radix-ui/react-toast": "^1.2.1",

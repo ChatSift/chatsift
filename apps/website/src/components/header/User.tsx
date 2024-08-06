@@ -1,11 +1,11 @@
 'use client';
 
+import type { UserMe } from '@chatsift/shared';
 import { CDNRoutes, ImageFormat, RouteBases, type DefaultUserAvatarAssets } from 'discord-api-types/v10';
 import { Avatar, AvatarImage } from '~/components/common/Avatar';
 import Button from '~/components/common/Button';
 import Skeleton from '~/components/common/Skeleton';
-import { useQueryUserMe } from '~/data/userMe/client';
-import type { UserMeResult } from '~/data/userMe/common';
+import { client } from '~/data/client';
 import { URLS } from '~/util/constants';
 import { APIError } from '~/util/fetcher';
 
@@ -28,7 +28,7 @@ function ErrorHandler({ error }: { readonly error: Error }) {
 interface UserAvatarProps {
 	readonly className: string;
 	readonly isLoading: boolean;
-	readonly user: UserMeResult | undefined;
+	readonly user: UserMe | undefined;
 }
 
 function UserAvatar({ isLoading, user, className }: UserAvatarProps) {
@@ -44,7 +44,7 @@ function UserAvatar({ isLoading, user, className }: UserAvatarProps) {
 }
 
 export function UserDesktop() {
-	const { isLoading, data: user, error } = useQueryUserMe();
+	const { isLoading, data: user, error } = client.useMe();
 
 	if (error) {
 		return <ErrorHandler error={error} />;
@@ -64,7 +64,7 @@ export function UserDesktop() {
 }
 
 export function UserMobile() {
-	const { isLoading, data: user, error } = useQueryUserMe();
+	const { isLoading, data: user, error } = client.useMe();
 
 	if (error) {
 		return <ErrorHandler error={error} />;

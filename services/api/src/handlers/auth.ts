@@ -1,22 +1,19 @@
-import { Env, setEquals, API_URL } from '@chatsift/service-core';
+import { Env, setEquals, API_URL, BOTS, UserMeSchema } from '@chatsift/service-core';
 import { API, Routes, type RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { makeURLSearchParams } from '@discordjs/rest';
 import { badRequest, forbidden } from '@hapi/boom';
-import { SnowflakeRegex } from '@sapphire/discord-utilities';
 import { parse as parseCookie } from 'cookie';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { injectable } from 'inversify';
 import { z } from 'zod';
-import type { FastifyServer, Registerable } from '../../server.js';
-import { Auth, SCOPES } from '../../struct/Auth.js';
-import { StateCookie } from '../../struct/StateCookie.js';
-import { discordAuth } from '../../util/discordAuth.js';
-import { appendCookie } from '../../util/replyHelpers.js';
+import type { FastifyServer, Registerable } from '../server.js';
+import { Auth, SCOPES } from '../struct/Auth.js';
+import { StateCookie } from '../struct/StateCookie.js';
+import { discordAuth } from '../util/discordAuth.js';
+import { appendCookie } from '../util/replyHelpers.js';
 
 @injectable()
 export default class DiscordAuthHandler implements Registerable {
-	private readonly botList = ['automoderator'] as const;
-
 	private readonly refererSchema = z
 		.string()
 		.transform((str) => (str.at(-1) === '/' ? str.slice(0, -1) : str))
@@ -37,9 +34,11 @@ export default class DiscordAuthHandler implements Registerable {
 					headers: z.object({
 						referer: this.refererSchema,
 					}),
-					querystring: z.object({
-						redirect_path: z.string(),
-					}),
+					querystring: z
+						.object({
+							redirect_path: z.string(),
+						})
+						.strict(),
 				},
 				preHandler: [discordAuth(true)],
 				handler: async (request, reply) => {
@@ -131,19 +130,7 @@ export default class DiscordAuthHandler implements Registerable {
 				url: '/auth/discord/@me',
 				schema: {
 					response: {
-						200: z.object({
-							avatar: z.string().nullable(),
-							username: z.string(),
-							id: z.string().regex(SnowflakeRegex),
-							guilds: z.array(
-								z.object({
-									id: z.string().regex(SnowflakeRegex),
-									icon: z.string().nullable(),
-									name: z.string(),
-									bots: z.array(z.enum(this.botList)),
-								}),
-							),
-						}),
+						200: UserMeSchema,
 					},
 				},
 				preHandler: [discordAuth(false)],
@@ -155,10 +142,10 @@ export default class DiscordAuthHandler implements Registerable {
 						/* eslint-disable promise/prefer-await-to-callbacks, promise/prefer-await-to-then */
 						return fetch(`${url}/guilds`)
 							.then(async (response) => response.json())
-							.then((json: any) => [new Set(json.guilds as string[]), this.botList[index]!] as const)
+							.then((json: any) => [new Set(json.guilds as string[]), BOTS[index]!] as const)
 							.catch((error) => {
 								request.log.error({ err: error }, 'failed to fetch guilds');
-								return [new Set<string>(), this.botList[index]!] as const;
+								return [new Set<string>(), BOTS[index]!] as const;
 							});
 						/* eslint-enable promise/prefer-await-to-callbacks, promise/prefer-await-to-then */
 					});

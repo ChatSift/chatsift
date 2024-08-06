@@ -1,14 +1,9 @@
 import process from 'node:process';
+import { BotKindSchema } from '@chatsift/shared';
 import { SnowflakeRegex } from '@sapphire/discord-utilities';
 import type { Logger } from 'pino';
 import { z } from 'zod';
 import { globalContainer, INJECTION_TOKENS } from './container.js';
-
-const BOTS = ['automoderator'] as const;
-
-export const botSchema = z.enum(BOTS);
-
-export type BotKind = z.infer<typeof botSchema>;
 
 const envSchema = z.object({
 	// General config
@@ -61,7 +56,7 @@ const envSchema = z.object({
 		.pipe(z.array(z.string().url()).min(1)),
 
 	// Bot service specific
-	BOT: botSchema.optional(),
+	BOT: BotKindSchema.optional(),
 });
 
 export const Env = envSchema.parse(process.env);

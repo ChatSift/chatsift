@@ -1,12 +1,12 @@
 'use client';
 
+import type { UserMeGuild } from '@chatsift/shared';
 import Image from 'next/image';
 import SvgAutoModerator from '~/components/svg/SvgAutoModerator';
-import type { GuildData } from '~/data/userMe/common';
 import { cn } from '~/util/util';
 
 interface GuildCardProps {
-	readonly data: GuildData;
+	readonly data: UserMeGuild;
 }
 
 function getGuildAcronym(guildName: string) {
