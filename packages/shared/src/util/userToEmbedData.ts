@@ -1,4 +1,4 @@
-import type { APIEmbedAuthor, APIEmbedFooter, APIUser, Snowflake } from '@discordjs/core';
+import type { APIEmbedAuthor, APIEmbedFooter, APIUser, Snowflake } from 'discord-api-types/v10';
 import { computeAvatarUrl } from './computeAvatar.js';
 
 export function userToEmbedAuthor(user: APIUser | null, userId: Snowflake): APIEmbedAuthor {
