@@ -2,7 +2,8 @@
 
 import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import clsx from 'clsx';
-import { useState } from 'react';
+import { useEffect, useState, type PropsWithChildren } from 'react';
+import { createPortal } from 'react-dom';
 import Button from '~/components/common/Button';
 import Logo from '~/components/common/Logo';
 import { UserDesktop, UserMobile } from '~/components/header/User';
@@ -98,6 +99,33 @@ function Mobile() {
 	);
 }
 
+export function MobileHeaderOverride({ children }: PropsWithChildren) {
+	const [container, setContainer] = useState<Element | null>(null);
+
+	useEffect(() => {
+		if (!container) {
+			setContainer(document.querySelector('#mobile-override-container'));
+			console.log(container);
+		}
+	}, [container]);
+
+	useEffect(() => {
+		if (!container) {
+			return;
+		}
+
+		container.classList.add('hide-for-mobile-override');
+
+		return () => container.classList.remove('hide-for-mobile-override');
+	}, [container]);
+
+	if (!container) {
+		return null;
+	}
+
+	return createPortal(children, container);
+}
+
 export default function Navbar() {
 	return (
 		<header
@@ -106,7 +134,9 @@ export default function Navbar() {
 			}
 		>
 			<Desktop />
-			<Mobile />
+			<div id="mobile-override-container">
+				<Mobile />
+			</div>
 		</header>
 	);
 }

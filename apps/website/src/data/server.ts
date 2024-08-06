@@ -46,4 +46,12 @@ export const server = {
 	me: make<UserMe>(routesInfo.me),
 	bots: make<readonly BotId[]>(routesInfo.bots),
 	bot: (bot: BotId) => make<BotId>(routesInfo.bots.bot(bot)),
+
+	prefetchMany: async (options: readonly MakeOptions[]): Promise<DehydratedState> => {
+		const client = new QueryClient();
+		const calls = options.map(async (option) => client.prefetchQuery(option));
+
+		await Promise.all(calls);
+		return dehydrate(client);
+	},
 } as const;

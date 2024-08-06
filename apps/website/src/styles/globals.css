@@ -10,3 +10,16 @@ body {
 		'pnum' on,
 		'lnum' on;
 }
+
+.hide-for-mobile-override {
+	& > *:nth-child(1) {
+		display: none;
+	}
+
+	/* tailwind md: */
+	@media (max-width: 768px) {
+		& > * {
+			display: none;
+		}
+	}
+}
