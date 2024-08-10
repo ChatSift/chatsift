@@ -19,3 +19,5 @@
 
 logs-archive
 .env.private
+
+*storybook.log

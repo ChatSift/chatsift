@@ -28,7 +28,12 @@ const typeScriptRuleset = merge(...typescript, {
 		parserOptions: {
 			warnOnUnsupportedTypeScriptVersion: false,
 			allowAutomaticSingleRunInference: true,
-			project: ['tsconfig.eslint.json', 'services/**/tsconfig.eslint.json', 'packages/**/tsconfig.eslint.json'],
+			project: [
+				'tsconfig.eslint.json',
+				'apps/**/tsconfig.eslint.json',
+				'services/**/tsconfig.eslint.json',
+				'packages/**/tsconfig.eslint.json',
+			],
 		},
 	},
 	rules: {
