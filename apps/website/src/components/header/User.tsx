@@ -75,7 +75,7 @@ export function UserMobile() {
 			<UserAvatar user={user} isLoading={isLoading} className="h-8 w-8 rounded-full" />
 			<p className="text-base font-medium">{user?.username}</p>
 			<Button className="ml-auto">
-				<a href={URLS.API.LOGOUT} className="text-secondary dark:text-secondary-dark">
+				<a href={URLS.API.LOGOUT} className="text-secondary">
 					Log out
 				</a>
 			</Button>

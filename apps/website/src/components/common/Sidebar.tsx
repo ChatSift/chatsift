@@ -21,7 +21,7 @@ function Desktop({ children, className }: Props) {
 	return (
 		<nav
 			className={cn(
-				'hidden w-80 flex-shrink-0 border-r border-solid border-r-secondary p-6 dark:border-r-secondary-dark md:flex md:flex-col',
+				'hidden w-80 flex-shrink-0 border-r border-solid border-r-secondary p-6 md:flex md:flex-col',
 				className,
 			)}
 		>
@@ -93,7 +93,7 @@ function Mobile({ children, className }: Props) {
 
 	return (
 		<div className="block md:hidden">
-			<NavigationMenu.Root className="relative bg-base dark:bg-base-dark md:hidden">
+			<NavigationMenu.Root className="relative bg-base md:hidden">
 				<div className="ml-auto flex items-center justify-between p-2">
 					<Logo />{' '}
 					<Button
@@ -117,13 +117,13 @@ function Mobile({ children, className }: Props) {
 			/>
 			<div
 				className={cn(
-					'fixed left-0 top-0 z-50 flex h-screen w-80 max-w-[80vw] touch-none flex-col justify-between border-r border-solid border-secondary bg-base dark:border-secondary-dark dark:bg-base-dark',
+					'fixed left-0 top-0 z-50 flex h-screen w-80 max-w-[80vw] touch-none flex-col justify-between border-r border-solid border-secondary bg-base',
 					className,
 				)}
 				{...bind()}
 			>
 				<div className="flex flex-col gap-4 p-6">{children}</div>
-				<div className="-z-10 flex w-full flex-row content-between items-center gap-4 border-t border-solid border-on-secondary bg-base p-4 dark:border-on-secondary-dark dark:bg-base-dark">
+				<div className="-z-10 flex w-full flex-row content-between items-center gap-4 border-t border-solid border-on-secondary bg-base p-4">
 					<UserMobile />
 				</div>
 			</div>

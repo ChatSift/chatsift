@@ -9,7 +9,7 @@ export default function SvgChatSift() {
 				strokeLinejoin="round"
 			/>
 			<path
-				className="stroke-primary dark:stroke-primary-dark"
+				className="stroke-primary"
 				d="M14 16H34M18.5 21H29.5M22.5 26H25.5"
 				strokeWidth="2.5"
 				strokeLinecap="round"

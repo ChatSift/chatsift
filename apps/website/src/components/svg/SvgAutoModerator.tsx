@@ -9,7 +9,7 @@ export default function SvgAutoModerator({ width, height }: { readonly height?: 
 			/>
 			<path
 				d="M9 9V12.8182L12 15L15 12.8182V9H9Z"
-				className="fill-primary stroke-primary dark:fill-primary-dark dark:stroke-primary-dark"
+				className="fill-primary stroke-primary"
 				strokeWidth="1.875"
 				strokeLinecap="round"
 				strokeLinejoin="round"

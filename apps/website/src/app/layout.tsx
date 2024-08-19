@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: PropsWithChildren) {
 	return (
 		<html lang="en" suppressHydrationWarning>
-			<body className="bg-base dark:bg-base-dark">
+			<body className="bg-base">
 				<Providers>
 					<HydrationBoundary state={await server.me.prefetch()}>
 						<div className="h-scren flex min-h-screen flex-col">

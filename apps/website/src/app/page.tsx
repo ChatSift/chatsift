@@ -7,7 +7,7 @@ export default async function HomePage() {
 
 			<div>
 				<a
-					className="flex justify-center gap-2 rounded-md bg-misc-accent px-4 py-3 text-lg font-[550] text-primary-dark md:inline-flex"
+					className="text-primary-dark flex justify-center gap-2 rounded-md bg-misc-accent px-4 py-3 text-lg font-[550] md:inline-flex"
 					href="/support"
 					rel="noopener noreferrer"
 					target="_blank"

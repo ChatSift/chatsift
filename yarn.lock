@@ -1938,7 +1938,8 @@ __metadata:
     next: "npm:^14.2.5"
     next-themes: "npm:^0.3.0"
     postcss: "npm:^8.4.38"
-    prettier-plugin-tailwindcss: "npm:^0.6.5"
+    prettier: "npm:^3.3.3"
+    prettier-plugin-tailwindcss: "npm:^0.6.6"
     react: "npm:^18.3.1"
     react-aria: "npm:^3.34.1"
     react-aria-components: "npm:^1.3.1"
@@ -1948,6 +1949,7 @@ __metadata:
     tailwind-merge: "npm:^2.4.0"
     tailwindcss: "npm:^3.4.3"
     tailwindcss-animate: "npm:^1.0.7"
+    tailwindcss-themer: "npm:^4.0.0"
     typescript: "npm:^5.5.4"
     usehooks-ts: "npm:^3.1.0"
     vercel: "npm:^34.2.4"
@@ -9867,7 +9869,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"color@npm:^4.2.3":
+"color@npm:^4.1.0, color@npm:^4.2.3":
   version: 4.2.3
   resolution: "color@npm:4.2.3"
   dependencies:
@@ -14937,6 +14939,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"just-unique@npm:^4.2.0":
+  version: 4.2.0
+  resolution: "just-unique@npm:4.2.0"
+  checksum: 10/7a3dac146483ae03d7a7bc85cb0b1c011d79835f410d5159ee89cd927c3fd9af45d3a1cb1bd1a4f8d898e0e7ff898ad7083e72b015da4b2b14228a1ea4a4845c
+  languageName: node
+  linkType: hard
+
 "jwa@npm:^1.4.1":
   version: 1.4.1
   resolution: "jwa@npm:1.4.1"
@@ -18088,9 +18097,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier-plugin-tailwindcss@npm:^0.6.5":
-  version: 0.6.5
-  resolution: "prettier-plugin-tailwindcss@npm:0.6.5"
+"prettier-plugin-tailwindcss@npm:^0.6.6":
+  version: 0.6.6
+  resolution: "prettier-plugin-tailwindcss@npm:0.6.6"
   peerDependencies:
     "@ianvs/prettier-plugin-sort-imports": "*"
     "@prettier/plugin-pug": "*"
@@ -18103,6 +18112,7 @@ __metadata:
     prettier-plugin-import-sort: "*"
     prettier-plugin-jsdoc: "*"
     prettier-plugin-marko: "*"
+    prettier-plugin-multiline-arrays: "*"
     prettier-plugin-organize-attributes: "*"
     prettier-plugin-organize-imports: "*"
     prettier-plugin-sort-imports: "*"
@@ -18129,6 +18139,8 @@ __metadata:
       optional: true
     prettier-plugin-marko:
       optional: true
+    prettier-plugin-multiline-arrays:
+      optional: true
     prettier-plugin-organize-attributes:
       optional: true
     prettier-plugin-organize-imports:
@@ -18139,7 +18151,7 @@ __metadata:
       optional: true
     prettier-plugin-svelte:
       optional: true
-  checksum: 10/49b5a12f8bd74a6558b28c7d7f6f323c1a1fc523701f6768552bac9c18e92a213d375ad0a00ce71c943c80571b40d10c2b6c6299c08d581d4637165aee9dda24
+  checksum: 10/7e536ed7fc60fa0cd5ea515f16cc638f1ed242c9a72a58fda7b795c1f905623a12debe8cff312f15b06cd66a398e7b4f4b07dd549cead5df6e26064fde3c61c7
   languageName: node
   linkType: hard
 
@@ -20506,6 +20518,20 @@ __metadata:
   peerDependencies:
     tailwindcss: "*"
   checksum: 10/ef176fbb0bf9dca84178b35b6a9615cd756358ea80be9c575456d12ecd7f3c431e9e571915c7df72959dc798a730959e9a4739d59eab55d8cc6db390870ff0d2
+  languageName: node
+  linkType: hard
+
+"tailwindcss-themer@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "tailwindcss-themer@npm:4.0.0"
+  dependencies:
+    color: "npm:^4.1.0"
+    just-unique: "npm:^4.2.0"
+    lodash.merge: "npm:^4.6.2"
+    lodash.mergewith: "npm:^4.6.2"
+  peerDependencies:
+    tailwindcss: ^3.1.0
+  checksum: 10/dcb7d2d0c830c3a1b92740a89d058b2308bbd97b59b34c2bb1176bb85e5331ae21d93b5eed8f0f51a26a9de0b4af062b156aa4356c29f7badd18c7bc01c15ed3
   languageName: node
   linkType: hard
 

@@ -13,7 +13,7 @@ export default function RefreshGuildsButton() {
 
 	return (
 		<Button
-			className="border border-solid border-on-primary px-4 py-2 text-secondary dark:border-on-primary-dark dark:text-secondary-dark"
+			className="border border-solid border-on-primary px-4 py-2 text-secondary"
 			isDisabled={isLoading}
 			onPress={async () => {
 				await refetch();
