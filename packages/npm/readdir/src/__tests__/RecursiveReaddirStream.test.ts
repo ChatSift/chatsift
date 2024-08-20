@@ -1,6 +1,11 @@
 import { join as joinPath } from 'node:path';
-import { beforeAll, expect, test, vi } from 'vitest';
+import path from 'node:path';
+import { expect, test, vi } from 'vitest';
 import { readdirRecurse, readdirRecurseAsync, ReadMode } from '../index.js';
+
+function platform(paths: string[]): string[] {
+	return paths.map((name) => name.replaceAll(path.posix.sep, path.sep));
+}
 
 /**
  * Let's create a mock file system structure
@@ -32,7 +37,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 
 	return {
 		...original,
-		readdir: vi.fn<[string], Promise<string[]>>().mockImplementation(async (path) => {
+		readdir: vi.fn().mockImplementation(async (path) => {
 			switch (path) {
 				case joinPath('test'):
 					return ['dir1', 'dir2'];
@@ -50,7 +55,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 					throw new Error(`bad path: ${path}`);
 			}
 		}),
-		stat: vi.fn<[string], Promise<{ isDirectory(): boolean }>>().mockImplementation(async (path) => {
+		stat: vi.fn().mockImplementation(async (path) => {
 			/* eslint-disable sonarjs/no-duplicated-branches */
 			switch (path) {
 				case joinPath('test'):
@@ -107,16 +112,13 @@ test('async iterator stream consumption', async () => {
 		files.push(file);
 	}
 
-	expect(files).toStrictEqual(['test/dir1', 'test/dir2', 'test/dir1/file1.sh', 'test/dir1/file2.js']);
+	expect(files).toStrictEqual(platform(['test/dir1', 'test/dir2', 'test/dir1/file1.sh', 'test/dir1/file2.js']));
 });
 
 test('promise based consumption', async () => {
-	expect(await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.both })).toStrictEqual([
-		'test/dir1',
-		'test/dir2',
-		'test/dir1/file1.sh',
-		'test/dir1/file2.js',
-	]);
+	expect(await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.both })).toStrictEqual(
+		platform(['test/dir1', 'test/dir2', 'test/dir1/file1.sh', 'test/dir1/file2.js']),
+	);
 
 	const catchCb = vi.fn();
 
@@ -126,25 +128,23 @@ test('promise based consumption', async () => {
 });
 
 test('read modes', async () => {
-	expect(await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.file })).toStrictEqual([
-		'test/dir1/file1.sh',
-		'test/dir1/file2.js',
-	]);
+	expect(await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.file })).toStrictEqual(
+		platform(['test/dir1/file1.sh', 'test/dir1/file2.js']),
+	);
 
-	expect(await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.dir })).toStrictEqual([
-		'test/dir1',
-		'test/dir2',
-	]);
+	expect(await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.dir })).toStrictEqual(
+		platform(['test/dir1', 'test/dir2']),
+	);
 });
 
 test('file extension filter', async () => {
 	expect(
 		await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.both, fileExtensions: ['sh'] }),
-	).toStrictEqual(['test/dir1', 'test/dir2', 'test/dir1/file1.sh']);
+	).toStrictEqual(platform(['test/dir1', 'test/dir2', 'test/dir1/file1.sh']));
 
 	expect(
 		await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.file, fileExtensions: ['sh'] }),
-	).toStrictEqual(['test/dir1/file1.sh']);
+	).toStrictEqual(platform(['test/dir1/file1.sh']));
 });
 
 test('warnings', async () => {

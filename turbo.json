@@ -4,7 +4,7 @@
 		"build": {
 			"dependsOn": ["^build"],
 			"outputs": ["dist/**"],
-			"inputs": ["tsconfig.json", "package.json", "src/**/*.ts", "tsup.config.ts", "prisma/schema.prisma"]
+			"inputs": ["tsconfig.json", "package.json", "src/**/*.ts", "tsup.config.ts", "schema.prisma"]
 		},
 		"lint": {
 			"dependsOn": ["^build"],
