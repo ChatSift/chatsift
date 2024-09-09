@@ -3,7 +3,7 @@ import path from 'node:path';
 import { expect, test, vi } from 'vitest';
 import { readdirRecurse, readdirRecurseAsync, ReadMode } from '../index.js';
 
-function platform(paths: string[]): string[] {
+function toPlatformPath(paths: string[]): string[] {
 	return paths.map((name) => name.replaceAll(path.posix.sep, path.sep));
 }
 
@@ -112,12 +112,12 @@ test('async iterator stream consumption', async () => {
 		files.push(file);
 	}
 
-	expect(files).toStrictEqual(platform(['test/dir1', 'test/dir2', 'test/dir1/file1.sh', 'test/dir1/file2.js']));
+	expect(files).toStrictEqual(toPlatformPath(['test/dir1', 'test/dir2', 'test/dir1/file1.sh', 'test/dir1/file2.js']));
 });
 
 test('promise based consumption', async () => {
 	expect(await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.both })).toStrictEqual(
-		platform(['test/dir1', 'test/dir2', 'test/dir1/file1.sh', 'test/dir1/file2.js']),
+		toPlatformPath(['test/dir1', 'test/dir2', 'test/dir1/file1.sh', 'test/dir1/file2.js']),
 	);
 
 	const catchCb = vi.fn();
@@ -129,22 +129,22 @@ test('promise based consumption', async () => {
 
 test('read modes', async () => {
 	expect(await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.file })).toStrictEqual(
-		platform(['test/dir1/file1.sh', 'test/dir1/file2.js']),
+		toPlatformPath(['test/dir1/file1.sh', 'test/dir1/file2.js']),
 	);
 
 	expect(await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.dir })).toStrictEqual(
-		platform(['test/dir1', 'test/dir2']),
+		toPlatformPath(['test/dir1', 'test/dir2']),
 	);
 });
 
 test('file extension filter', async () => {
 	expect(
 		await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.both, fileExtensions: ['sh'] }),
-	).toStrictEqual(platform(['test/dir1', 'test/dir2', 'test/dir1/file1.sh']));
+	).toStrictEqual(toPlatformPath(['test/dir1', 'test/dir2', 'test/dir1/file1.sh']));
 
 	expect(
 		await readdirRecurseAsync(joinPath('test'), { readMode: ReadMode.file, fileExtensions: ['sh'] }),
-	).toStrictEqual(platform(['test/dir1/file1.sh']));
+	).toStrictEqual(toPlatformPath(['test/dir1/file1.sh']));
 });
 
 test('warnings', async () => {
