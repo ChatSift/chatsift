@@ -18,7 +18,7 @@ function ThemeSwitchButton() {
 			onPress={() => {
 				setTheme(theme === 'light' ? 'dark' : 'light');
 			}}
-			className="h-6"
+			className="size-8 p-2 text-secondary hover:text-primary"
 		>
 			{theme === 'light' ? <SvgLightTheme /> : <SvgDarkTheme />}
 		</Button>
@@ -29,21 +29,21 @@ export default function Footer() {
 	const isMounted = useIsMounted();
 
 	return (
-		<footer className="g-4 flex flex-row items-center justify-between gap-4 border-t-2 border-solid border-t-on-secondary px-6 py-3 font-medium">
+		<footer className="flex flex-col items-start justify-between gap-2 px-4 py-4 md:flex-row md:items-center md:gap-4 md:px-6">
 			<span className="whitespace-nowrap text-secondary">© ChatSift, 2022 - Present</span>
 			<div className="flex w-full flex-row content-between items-center gap-4">
 				<div className="flex flex-row items-center gap-4">
-					<a className="flex" href="/github">
-						<SvgGitHub />
+					<a className="flex text-secondary hover:text-primary" href="/github">
+						<SvgGitHub className="size-5" />
 					</a>
-					<a className="flex" href="/support">
-						<SvgDiscord />
+					<a className="flex text-secondary hover:text-primary" href="/support">
+						<SvgDiscord className="size-5" />
 					</a>
 				</div>
 				<div className="ml-auto flex flex-row items-center gap-2">
-					<p className="text-lg font-medium text-secondary">Theme:</p>
+					<p className="text-secondary">Theme:</p>
 
-					{isMounted ? <ThemeSwitchButton /> : <Skeleton className="h-6 w-9" />}
+					{isMounted ? <ThemeSwitchButton /> : <Skeleton className="size-8" />}
 				</div>
 			</div>
 		</footer>

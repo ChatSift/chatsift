@@ -4,11 +4,14 @@
 
 @import url('author.css');
 
-body {
-	font-family: Author-Variable, sans-serif;
-	font-feature-settings:
-		'pnum' on,
-		'lnum' on;
+@layer base {
+	:where(body) {
+		font-family: Author-Variable, sans-serif;
+		font-feature-settings:
+			'pnum' on,
+			'lnum' on;
+		@apply bg-base text-base font-medium text-primary;
+	}
 }
 
 .hide-for-mobile-override {

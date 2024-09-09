@@ -26,14 +26,10 @@ export default async function RootLayout({ children }: PropsWithChildren) {
 			<body className="bg-base">
 				<Providers>
 					<HydrationBoundary state={await server.me.prefetch()}>
-						<div className="h-scren flex min-h-screen flex-col">
+						<div className="flex h-screen min-h-screen flex-col">
 							<Navbar />
-							<div className="flex flex-[1_1_auto] flex-grow flex-col gap-8">
-								<main
-									className={cn(
-										'mx-auto mb-auto flex max-w-[80vw] flex-col justify-center gap-6 pt-6 md:min-w-[912px]',
-									)}
-								>
+							<div className="flex w-full flex-grow flex-col gap-8">
+								<main className={cn('mx-auto mb-auto flex w-full max-w-full flex-col justify-center gap-6 pt-6')}>
 									{children}
 								</main>
 								<Footer />
