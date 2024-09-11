@@ -3,8 +3,6 @@ import { dehydrate, QueryClient, type DehydratedState } from '@tanstack/react-qu
 import { headers } from 'next/headers';
 import { routesInfo, type MakeOptions } from '~/data/common';
 
-// Sometimes we need the clean fetch function to be used on the server. prefetch just callws onto it
-// and runs dehydration.
 function make<Data>({ queryKey, path }: MakeOptions) {
 	async function fetchIt(): Promise<Data | null> {
 		const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
@@ -19,7 +17,7 @@ function make<Data>({ queryKey, path }: MakeOptions) {
 		}
 
 		if (!res.ok) {
-			throw new Error('Failed to fetch me');
+			throw new Error('Failed to fetch');
 		}
 
 		return res.json();
@@ -37,6 +35,8 @@ function make<Data>({ queryKey, path }: MakeOptions) {
 	}
 
 	return {
+		// Sometimes we need the clean fetch function to be used on the server. prefetch just call onto it
+		// and runs dehydration.
 		fetch: fetchIt,
 		prefetch,
 	};

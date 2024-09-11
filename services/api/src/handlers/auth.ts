@@ -61,7 +61,11 @@ export default class DiscordAuthHandler implements Registerable {
 						state,
 					});
 
-					appendCookie(reply, 'state', state, { httpOnly: true, path: '/', domain: `.${Env.ROOT_DOMAIN}` });
+					appendCookie(reply, 'state', state, {
+						httpOnly: true,
+						path: '/',
+						domain: Env.NODE_ENV === 'prod' ? `.${Env.ROOT_DOMAIN}` : undefined,
+					});
 					await reply.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
 				},
 			})
@@ -88,7 +92,7 @@ export default class DiscordAuthHandler implements Registerable {
 						httpOnly: true,
 						path: '/',
 						expires: new Date('1970-01-01'),
-						domain: `.${Env.ROOT_DOMAIN}`,
+						domain: Env.NODE_ENV === 'prod' ? `.${Env.ROOT_DOMAIN}` : undefined,
 					});
 
 					if (request.discordUser) {
