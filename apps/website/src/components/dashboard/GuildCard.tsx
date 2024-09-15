@@ -24,8 +24,8 @@ export default function GuildCard({ data }: GuildCardProps) {
 	return (
 		<div
 			className={cn(
-				'flex h-36 w-[80vw] flex-col gap-3 rounded-lg border-[1px] border-on-secondary p-4 md:w-52',
-				hasBots ? 'bg-[#FFFFFF][#1C1C21]' : 'group',
+				'flex h-36 w-[80vw] flex-col gap-3 rounded-lg border border-static p-4 md:w-52',
+				hasBots ? 'bg-base-200' : 'group',
 			)}
 		>
 			<div className="flex flex-row items-center">
@@ -36,11 +36,11 @@ export default function GuildCard({ data }: GuildCardProps) {
 							alt="Guild icon"
 							width={48}
 							height={48}
-							className="flex h-12 w-12 items-center justify-center rounded-full border-on-secondary bg-on-tertiary"
+							className="bg-on-tertiary flex h-12 w-12 items-center justify-center rounded-full border-static"
 						/>
 					</a>
 				) : (
-					<a className="flex h-12 w-12 items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full border-on-secondary bg-on-tertiary after:max-w-[70%]">
+					<a className="bg-on-tertiary flex h-12 w-12 items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full border-static after:max-w-[70%]">
 						{getGuildAcronym(data.name)}
 					</a>
 				)}

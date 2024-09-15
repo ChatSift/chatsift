@@ -2,18 +2,18 @@ import type { SVGProps } from 'react';
 
 export default function SvgChatSift(props: SVGProps<SVGSVGElement>) {
 	return (
-		<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
 			<path
-				className="stroke-misc-accent"
-				d="M14 24V30H20L24 34L28 30H34V24"
-				strokeWidth="2.5"
+				d="M4.5 12V16.5H9L12 19.5L15 16.5H19.5V12"
+				className="stroke-accent"
+				strokeWidth="1.875"
 				strokeLinecap="round"
 				strokeLinejoin="round"
 			/>
 			<path
+				d="M4.5 6H19.5M7.875 9.75H16.125M10.875 13.5H13.125"
 				className="stroke-primary"
-				d="M14 16H34M18.5 21H29.5M22.5 26H25.5"
-				strokeWidth="2.5"
+				strokeWidth="1.875"
 				strokeLinecap="round"
 				strokeLinejoin="round"
 			/>

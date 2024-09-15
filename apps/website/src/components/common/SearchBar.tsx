@@ -36,8 +36,8 @@ export default function SearchBar({ className, ...props }: AriaSearchFieldProps 
 				{...inputProps}
 				ref={ref}
 				className={cn(
-					'w-full flex-auto rounded-lg bg-on-tertiary pb-3 pl-4 pr-12 pt-3 text-lg font-medium text-primary',
-					'border border-on-secondary',
+					'bg-on-tertiary w-full flex-auto rounded-lg pb-3 pl-4 pr-12 pt-3 text-lg font-medium text-primary',
+					'border border-static',
 					'focus:border-solid focus:border-primary focus:outline-none',
 					'disabled:cursor-not-allowed disabled:opacity-50',
 					'placeholder:text-secondary',

@@ -30,19 +30,41 @@ export default {
 			defaultTheme: {
 				extend: {
 					colors: {
-						base: '#F1F2F5',
-						primary: '#1d274e',
-						secondary: 'rgba(29, 39, 78, 0.75)',
-						accent: '#ffffff',
-						disabled: '#1E284F80',
-						on: {
-							primary: '#1E284F40',
-							secondary: 'rgba(29, 39, 78, 0.15)',
-							tertiary: '#1E284F0D',
+						base: {
+							DEFAULT: '#F7F8F8',
+							100: '#F7F8F8',
+							200: '#F2F4F5',
+							300: '#EEEFF2',
 						},
-						misc: {
-							accent: '#2f8fee',
-							danger: '#ff5052',
+						primary: '#28292F',
+						secondary: 'rgba(26, 30, 51, 0.62)',
+						tertiary: 'rgba(22, 30, 66, 0.31)',
+						static: 'rgba(19, 29, 81, 0.09)',
+						'on-accent': '#EEEFF2',
+						accent: {
+							DEFAULT: '#0978E5',
+							bg: '#74BAFE',
+							fg: '#0978E5',
+						},
+						neutral: {
+							DEFAULT: '#717B88',
+							bg: '#AEB4C1',
+							fg: '#717B88',
+						},
+						danger: {
+							DEFAULT: '#D6453E',
+							bg: '#FF9792',
+							fg: '#D6453E',
+						},
+						warning: {
+							DEFAULT: '#E5AC0D',
+							bg: '#FFE676',
+							fg: '#E5AC0D',
+						},
+						success: {
+							DEFAULT: '#3D8940',
+							bg: '#5FC974',
+							fg: '#3D8940',
 						},
 					},
 				},
@@ -52,19 +74,41 @@ export default {
 					name: 'dark',
 					extend: {
 						colors: {
-							base: '#151519',
-							primary: '#F6F6FB',
-							secondary: '#F6F6FBB2',
-							accent: '#ffffff',
-							disabled: '#F5F5FC66',
-							on: {
-								primary: '#F4F4FD33',
-								secondary: '#F4F4FD1A',
-								tertiary: '#F4F4FD0D',
+							base: {
+								DEFAULT: '#111216',
+								100: '#111216',
+								200: '#1D1E23',
+								300: '#28292F',
 							},
-							misc: {
-								accent: '#2f8fee',
-								danger: '#ff5052',
+							primary: '#EEEFF2',
+							secondary: 'rgba(224, 229, 244, 0.76)',
+							tertiary: 'rgba(211, 219, 246, 0.5)',
+							static: 'rgba(197, 209, 247, 0.21)',
+							'on-accent': '#28292F',
+							accent: {
+								DEFAULT: '#74BAFE',
+								bg: '#74BAFE',
+								fg: '#0978E5',
+							},
+							neutral: {
+								DEFAULT: '#AEB4C1',
+								bg: '#AEB4C1',
+								fg: '#717B88',
+							},
+							danger: {
+								DEFAULT: '#FF9792',
+								bg: '#FF9792',
+								fg: '#D6453E',
+							},
+							warning: {
+								DEFAULT: '#FFE676',
+								bg: '#FFE676',
+								fg: '#E5AC0D',
+							},
+							success: {
+								DEFAULT: '#5FC974',
+								bg: '#5FC974',
+								fg: '#3D8940',
 							},
 						},
 					},

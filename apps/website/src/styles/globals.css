@@ -10,7 +10,7 @@
 		font-feature-settings:
 			'pnum' on,
 			'lnum' on;
-		@apply bg-base text-base font-medium text-primary;
+		@apply bg-base-100 text-base font-medium text-primary;
 	}
 }
 

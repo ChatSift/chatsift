@@ -93,7 +93,7 @@ function Mobile({ children, className }: Props) {
 
 	return (
 		<div className="block md:hidden">
-			<NavigationMenu.Root className="relative bg-base md:hidden">
+			<NavigationMenu.Root className="relative bg-base-100 md:hidden">
 				<div className="ml-auto flex items-center justify-between p-2">
 					<Logo />{' '}
 					<Button
@@ -117,13 +117,13 @@ function Mobile({ children, className }: Props) {
 			/>
 			<div
 				className={cn(
-					'fixed left-0 top-0 z-50 flex h-screen w-80 max-w-[80vw] touch-none flex-col justify-between border-r border-solid border-secondary bg-base',
+					'fixed left-0 top-0 z-50 flex h-screen w-80 max-w-[80vw] touch-none flex-col justify-between border-r border-solid border-secondary bg-base-100',
 					className,
 				)}
 				{...bind()}
 			>
 				<div className="flex flex-col gap-4 p-6">{children}</div>
-				<div className="-z-10 flex w-full flex-row content-between items-center gap-4 border-t border-solid border-on-secondary bg-base p-4">
+				<div className="-z-10 flex w-full flex-row content-between items-center gap-4 border-t border-solid border-static bg-base-100 p-4">
 					<UserMobile />
 				</div>
 			</div>
