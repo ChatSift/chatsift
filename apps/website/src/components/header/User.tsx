@@ -56,7 +56,7 @@ export function UserDesktop() {
 			<Button>
 				<a href={URLS.API.LOGOUT}>Log out</a>
 			</Button>
-			<UserAvatar user={user} isLoading={isLoading} className="h-12 w-12 rounded-full" />
+			<UserAvatar user={user} isLoading={isLoading} className="size-8 rounded-full" />
 		</>
 	) : (
 		<LoginButton />
@@ -72,7 +72,7 @@ export function UserMobile() {
 
 	return user ? (
 		<div className="flex flex-row items-center gap-4">
-			<UserAvatar user={user} isLoading={isLoading} className="h-8 w-8 rounded-full" />
+			<UserAvatar user={user} isLoading={isLoading} className="size-8 rounded-full" />
 			<p className="text-base font-medium">{user?.username}</p>
 			<Button className="ml-auto">
 				<a href={URLS.API.LOGOUT} className="text-secondary">

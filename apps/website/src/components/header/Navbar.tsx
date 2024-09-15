@@ -125,7 +125,7 @@ export function MobileHeaderOverride({ children }: PropsWithChildren) {
 
 export default function Navbar() {
 	return (
-		<header className={'sticky top-0 z-10 flex h-fit w-full flex-col p-2 md:px-4'}>
+		<header className={'sticky top-0 z-10 flex h-fit w-full flex-col bg-base p-2 md:px-4'}>
 			<Desktop />
 			<div id="mobile-override-container">
 				<Mobile />

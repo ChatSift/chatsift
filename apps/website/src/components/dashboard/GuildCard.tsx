@@ -24,7 +24,7 @@ export default function GuildCard({ data }: GuildCardProps) {
 	return (
 		<div
 			className={cn(
-				'flex h-36 w-[80vw] flex-col gap-3 rounded-lg border border-static p-4 md:w-52',
+				'flex h-40 w-full flex-col items-start justify-between gap-2 rounded-lg border border-static p-4',
 				hasBots ? 'bg-base-200' : 'group',
 			)}
 		>
@@ -45,8 +45,8 @@ export default function GuildCard({ data }: GuildCardProps) {
 					</a>
 				)}
 			</div>
-			<div className="flex flex-col gap-1">
-				<p className="w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary group-hover:hidden">
+			<div className="flex max-w-full flex-col gap-1">
+				<p className="w-full truncate text-lg font-medium text-primary group-hover:hidden">
 					<a href={url}>{data.name}</a>
 				</p>
 
@@ -62,7 +62,7 @@ export default function GuildCard({ data }: GuildCardProps) {
 					</ul>
 				) : (
 					<>
-						<p className="text-lg font-normal text-secondary group-hover:hidden">Not invited</p>
+						<p className="text-sm font-normal text-secondary group-hover:hidden">Not invited</p>
 						<div className="hidden flex-col gap-1 group-hover:flex">
 							<p className="text-lg font-medium text-primary">Invite a bot:</p>
 							<ul className="flex flex-row gap-3">

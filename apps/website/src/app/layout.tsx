@@ -29,7 +29,11 @@ export default async function RootLayout({ children }: PropsWithChildren) {
 						<div className="flex h-screen min-h-screen flex-col">
 							<Navbar />
 							<div className="flex w-full flex-grow flex-col gap-8">
-								<main className={cn('mx-auto mb-auto flex w-full max-w-full flex-col justify-center gap-6 pt-6')}>
+								<main
+									className={cn(
+										'mx-auto mb-auto flex w-full max-w-screen-2xl flex-col justify-center gap-4 p-4 md:p-6',
+									)}
+								>
 									{children}
 								</main>
 								<Footer />
