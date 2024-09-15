@@ -23,15 +23,15 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: PropsWithChildren) {
 	return (
 		<html lang="en" suppressHydrationWarning>
-			<body className="bg-base dark:bg-base-dark">
+			<body className="bg-base-100">
 				<Providers>
 					<HydrationBoundary state={await server.me.prefetch()}>
-						<div className="h-scren flex min-h-screen flex-col">
+						<div className="flex h-screen min-h-screen flex-col">
 							<Navbar />
-							<div className="flex flex-[1_1_auto] flex-grow flex-col gap-8">
+							<div className="flex w-full flex-grow flex-col gap-8">
 								<main
 									className={cn(
-										'mx-auto mb-auto flex max-w-[80vw] flex-col justify-center gap-6 pt-6 md:min-w-[912px]',
+										'mx-auto mb-auto flex w-full max-w-screen-2xl flex-col justify-center gap-4 p-4 md:p-6',
 									)}
 								>
 									{children}

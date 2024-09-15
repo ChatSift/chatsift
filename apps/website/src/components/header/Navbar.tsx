@@ -27,20 +27,17 @@ const headerItems = [
 
 function Desktop() {
 	return (
-		<ul className="m-0 hidden list-none p-0 lg:flex">
-			<li>
+		<ul className="m-0 hidden list-none p-0 md:flex md:items-center md:gap-4">
+			<li className="flex items-center">
 				<Logo />
 			</li>
 
-			<div className="mr-6 flex items-center">
+			<div className="flex items-center">
 				<NavigationMenu.Root className="flex items-center">
-					<NavigationMenu.List className="mr-6 flex p-0">
+					<NavigationMenu.List className="flex gap-4 p-0">
 						{headerItems.map((item) => (
-							<NavigationMenu.Item key={item.href} className="flex items-center [&>*]:mr-6">
-								<a
-									className="text-lg font-medium text-secondary hover:text-primary dark:text-secondary-dark dark:hover:text-primary-dark"
-									href={item.href}
-								>
+							<NavigationMenu.Item key={item.href} className="flex items-center">
+								<a className="text-secondary hover:text-primary" href={item.href}>
 									{item.name}
 								</a>
 							</NavigationMenu.Item>
@@ -49,7 +46,7 @@ function Desktop() {
 				</NavigationMenu.Root>
 			</div>
 
-			<li className="flex items-center gap-6 text-lg text-secondary dark:text-secondary-dark md:ml-auto">
+			<li className="flex items-center gap-6 text-secondary md:ml-auto">
 				<UserDesktop />
 			</li>
 		</ul>
@@ -62,8 +59,8 @@ function Mobile() {
 	const listClasses = mobileNavOpen ? clsx() : clsx('hidden', 'max-h-0');
 
 	return (
-		<NavigationMenu.Root className="relative bg-base dark:bg-base-dark md:hidden">
-			<div className="ml-auto flex items-center justify-between p-2">
+		<NavigationMenu.Root className="relative bg-base-100 md:hidden">
+			<div className="ml-auto flex items-center justify-between">
 				<Logo />
 				<Button
 					style={{ padding: 12 }}
@@ -75,15 +72,15 @@ function Mobile() {
 					{mobileNavOpen ? <SvgClose /> : <SvgHamburger />}
 				</Button>
 			</div>
-			<NavigationMenu.List className={`z-50 mx-4 flex flex-col overflow-hidden ${listClasses}`}>
-				<div className="border-b-2 border-solid border-b-on-secondary py-4 dark:border-b-on-secondary-dark">
+			<NavigationMenu.List className={`z-50 flex flex-col overflow-hidden ${listClasses}`}>
+				<div className="border-b-2 border-solid border-static py-4">
 					{headerItems.map((item) => (
-						<NavigationMenu.Item key={item.href} className="mb-3">
+						<NavigationMenu.Item key={item.href}>
 							<a
 								data-href={item.href}
 								href={item.href}
 								onClick={() => setMobileNavOpen(false)}
-								className="block cursor-pointer rounded-md bg-on-tertiary px-4 py-3 text-primary dark:bg-on-tertiary-dark dark:text-primary-dark"
+								className="bg-on-tertiary block cursor-pointer rounded-md px-4 py-2 text-primary"
 							>
 								{item.name}
 							</a>
@@ -128,11 +125,7 @@ export function MobileHeaderOverride({ children }: PropsWithChildren) {
 
 export default function Navbar() {
 	return (
-		<header
-			className={
-				'sticky top-0 z-10 flex h-16 w-full flex-col lg:h-auto lg:border-b-2 lg:border-solid lg:border-on-secondary-dark lg:py-4 lg:pl-6 lg:pr-8'
-			}
-		>
+		<header className={'sticky top-0 z-10 flex h-fit w-full flex-col bg-base p-2 md:px-4'}>
 			<Desktop />
 			<div id="mobile-override-container">
 				<Mobile />

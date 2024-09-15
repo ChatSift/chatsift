@@ -69,7 +69,7 @@ export function Providers({ children }: PropsWithChildren) {
 			<JotaiProvider>
 				<ThemeProvider attribute="class">{children}</ThemeProvider>
 			</JotaiProvider>
-			<ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+			{/* <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" /> */}
 		</QueryClientProvider>
 	);
 }

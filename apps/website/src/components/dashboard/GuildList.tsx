@@ -27,7 +27,7 @@ export default function GuildList() {
 	return (
 		<ul className="grid grid-cols-1 gap-4 md:grid-cols-4">
 			{sorted.map((guild) => (
-				<li key={guild.id}>
+				<li key={guild.id} className="h-full w-full">
 					<GuildCard data={guild} />
 				</li>
 			))}

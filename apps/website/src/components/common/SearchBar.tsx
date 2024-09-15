@@ -36,11 +36,11 @@ export default function SearchBar({ className, ...props }: AriaSearchFieldProps 
 				{...inputProps}
 				ref={ref}
 				className={cn(
-					'w-full flex-auto rounded-lg bg-on-tertiary pb-3 pl-4 pr-12 pt-3 text-lg font-medium text-primary',
-					'border border-on-secondary dark:border-on-secondary-dark dark:bg-on-tertiary-dark dark:text-primary-dark',
-					'focus:border-solid focus:border-primary focus:outline-none dark:focus:border-primary-dark',
+					'bg-on-tertiary w-full flex-auto rounded-lg pb-3 pl-4 pr-12 pt-3 text-lg font-medium text-primary',
+					'border border-static',
+					'focus:border-solid focus:border-primary focus:outline-none',
 					'disabled:cursor-not-allowed disabled:opacity-50',
-					'placeholder:text-secondary dark:placeholder:text-secondary-dark',
+					'placeholder:text-secondary',
 				)}
 			/>
 			<SvgSearch className="absolute right-4 top-1/2 translate-y-[-50%]" />
