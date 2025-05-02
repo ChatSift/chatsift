@@ -1,4 +1,4 @@
-import { serialize, type CookieSerializeOptions } from 'cookie';
+import { serialize, type SerializeOptions } from 'cookie';
 import type { FastifyReply } from 'fastify';
 
 export function appendToHeader(reply: FastifyReply, header: string, value: string[] | number | string): void {
@@ -12,7 +12,7 @@ export function appendToHeader(reply: FastifyReply, header: string, value: strin
 	void reply.header(header, final);
 }
 
-export function appendCookie(reply: FastifyReply, name: string, data: string, options?: CookieSerializeOptions): void {
+export function appendCookie(reply: FastifyReply, name: string, data: string, options?: SerializeOptions): void {
 	const value = serialize(name, data, options);
 	// Fastify already behaves like appendToHeader for Set-Cookie
 	void reply.header('Set-Cookie', value);

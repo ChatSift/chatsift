@@ -50,11 +50,11 @@ for (const path of await readdirRecurseManyAsync([serviceHandlersPath, USEFUL_HA
 	logger.info(`Loaded handler/module ${module.constructor.name}`);
 }
 
-const broker = new PubSubRedisBroker<DiscordGatewayEventsMap>({
-	// @ts-expect-error - Version miss-match
-	redisClient: redis,
+const broker = new PubSubRedisBroker<DiscordGatewayEventsMap>(redis, {
 	encode,
 	decode,
+	// TODO: Make those constants
+	group: 'interactions',
 });
 
 async function ensureFirstDeployment(): Promise<void> {
@@ -73,4 +73,4 @@ broker.on(GatewayDispatchEvents.InteractionCreate, async ({ data: interaction, a
 	await ack();
 });
 
-await broker.subscribe('interactions', [GatewayDispatchEvents.InteractionCreate]);
+await broker.subscribe([GatewayDispatchEvents.InteractionCreate]);

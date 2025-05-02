@@ -10,18 +10,18 @@
 		"build": "tsc"
 	},
 	"devDependencies": {
-		"@types/node": "^20.14.12",
-		"typescript": "^5.5.4"
+		"@types/node": "^22.15.3",
+		"typescript": "^5.8.3"
 	},
 	"dependencies": {
 		"@chatsift/discord-utils": "workspace:^",
 		"@chatsift/service-core": "workspace:^",
-		"@discordjs/core": "^1.2.0",
-		"@discordjs/formatters": "^0.4.0",
-		"@sapphire/discord-utilities": "^3.3.0",
-		"bin-rw": "^0.1.0",
-		"inversify": "^6.0.2",
-		"tslib": "^2.6.3",
-		"zod": "^3.23.8"
+		"@discordjs/core": "^2.1.0",
+		"@discordjs/formatters": "^0.6.1",
+		"@sapphire/discord-utilities": "^3.4.4",
+		"bin-rw": "^0.1.1",
+		"inversify": "^6.2.2",
+		"tslib": "^2.8.1",
+		"zod": "^3.24.3"
 	}
 }

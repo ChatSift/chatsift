@@ -122,8 +122,6 @@ type TypedReadable = TypedEmitter<RecursiveReaddirStreamEvents> & {
 
 const Readable = RawReadable as new (opts?: ReadableOptions) => TypedReadable;
 
-export interface RecursiveReaddirStream extends RecursiveReaddirStreamEvents {}
-
 /**
  * A Node.JS readable implementation that recurses down a given directory.
  *

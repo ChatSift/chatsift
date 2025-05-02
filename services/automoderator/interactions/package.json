@@ -10,30 +10,30 @@
 		"tag-docker": "docker image tag chatsift/chatsift-next:latest chatsift/chatsift-next:automoderator-interactions"
 	},
 	"devDependencies": {
-		"@types/node": "^20.14.12",
-		"kysely": "^0.27.4",
-		"pino": "^9.3.2",
-		"typescript": "^5.5.4"
+		"@types/node": "^22.15.3",
+		"kysely": "^0.27.6",
+		"pino": "^9.6.0",
+		"typescript": "^5.8.3"
 	},
 	"dependencies": {
 		"@automoderator/core": "workspace:^",
 		"@chatsift/discord-utils": "workspace:^",
 		"@chatsift/parse-relative-time": "workspace:^",
 		"@chatsift/readdir": "workspace:^",
-		"@discordjs/brokers": "^0.3.0",
-		"@discordjs/core": "^1.2.0",
-		"@discordjs/formatters": "^0.4.0",
-		"@discordjs/rest": "^2.3.0",
-		"@discordjs/ws": "^1.1.1",
-		"@sapphire/discord-utilities": "^3.3.0",
-		"@sapphire/snowflake": "^3.5.3",
-		"bin-rw": "^0.1.0",
-		"coral-command": "^0.10.0",
-		"inversify": "^6.0.2",
-		"ioredis": "5.3.2",
-		"nanoid": "^5.0.7",
+		"@discordjs/brokers": "^1.0.0",
+		"@discordjs/core": "^2.1.0",
+		"@discordjs/formatters": "^0.6.1",
+		"@discordjs/rest": "^2.5.0",
+		"@discordjs/ws": "^2.0.2",
+		"@sapphire/discord-utilities": "^3.4.4",
+		"@sapphire/snowflake": "^3.5.5",
+		"bin-rw": "^0.1.1",
+		"coral-command": "^0.10.1",
+		"inversify": "^6.2.2",
+		"ioredis": "5.6.1",
+		"nanoid": "^5.1.5",
 		"reflect-metadata": "^0.2.2",
-		"tslib": "^2.6.3",
-		"undici": "^6.19.4"
+		"tslib": "^2.8.1",
+		"undici": "^6.21.2"
 	}
 }

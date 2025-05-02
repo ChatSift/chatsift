@@ -28,9 +28,8 @@ setupCrashLogs();
 const notifier = globalContainer.get(INotifier);
 const database = globalContainer.get(IDatabase);
 
-const broker = new PubSubRedisBroker<DiscordGatewayEventsMap>({
-	// @ts-expect-error - Version miss-match
-	redisClient: redis,
+const broker = new PubSubRedisBroker<DiscordGatewayEventsMap>(redis, {
+	group: 'observer',
 	encode,
 	decode,
 });
@@ -79,7 +78,4 @@ broker.on(GatewayDispatchEvents.GuildAuditLogEntryCreate, async ({ data, ack }) 
 	await ack();
 });
 
-await broker.subscribe('observer', [
-	GatewayDispatchEvents.GuildMemberUpdate,
-	GatewayDispatchEvents.GuildAuditLogEntryCreate,
-]);
+await broker.subscribe([GatewayDispatchEvents.GuildMemberUpdate, GatewayDispatchEvents.GuildAuditLogEntryCreate]);

@@ -11,7 +11,7 @@ import {
 	type RESTPostOAuth2AccessTokenResult,
 } from '@discordjs/core';
 import { makeURLSearchParams } from '@discordjs/rest';
-import type { CookieSerializeOptions } from 'cookie';
+import type { SerializeOptions } from 'cookie';
 import type { FastifyReply } from 'fastify';
 import { injectable } from 'inversify';
 import jwt from 'jsonwebtoken';
@@ -56,7 +56,7 @@ export class Auth {
 	) {}
 
 	public appendAuthCookies(reply: FastifyReply, credentials: Credentials): void {
-		const options: CookieSerializeOptions = {
+		const options: SerializeOptions = {
 			expires: credentials.refresh.expiration,
 			path: '/',
 			sameSite: 'lax',
@@ -70,7 +70,7 @@ export class Auth {
 	}
 
 	public appendInvalidatedAuthCookies(reply: FastifyReply): void {
-		const options: CookieSerializeOptions = {
+		const options: SerializeOptions = {
 			expires: new Date(1_970),
 			path: '/',
 			sameSite: 'lax',

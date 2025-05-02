@@ -10,21 +10,21 @@
 		"tag-docker": "docker image tag chatsift/chatsift-next:latest chatsift/chatsift-next:automoderator-observer"
 	},
 	"devDependencies": {
-		"@types/node": "^20.14.12",
-		"pino": "^9.3.2",
-		"typescript": "^5.5.4"
+		"@types/node": "^22.15.3",
+		"pino": "^9.6.0",
+		"typescript": "^5.8.3"
 	},
 	"dependencies": {
 		"@automoderator/core": "workspace:^",
-		"@discordjs/brokers": "^0.3.0",
-		"@discordjs/core": "^1.2.0",
-		"@discordjs/formatters": "^0.4.0",
-		"@discordjs/rest": "^2.3.0",
-		"@discordjs/ws": "^1.1.1",
-		"inversify": "^6.0.2",
-		"ioredis": "5.3.2",
+		"@discordjs/brokers": "^1.0.0",
+		"@discordjs/core": "^2.1.0",
+		"@discordjs/formatters": "^0.6.1",
+		"@discordjs/rest": "^2.5.0",
+		"@discordjs/ws": "^2.0.2",
+		"inversify": "^6.2.2",
+		"ioredis": "5.6.1",
 		"reflect-metadata": "^0.2.2",
-		"tslib": "^2.6.3",
-		"undici": "^6.19.4"
+		"tslib": "^2.8.1",
+		"undici": "^6.21.2"
 	}
 }

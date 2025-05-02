@@ -28,9 +28,9 @@ export class Gateway {
 	) {
 		const credentials = credentialsForCurrentBot();
 
-		this.#broker = new PubSubRedisBroker<DiscordGatewayEventsMap>({
-			// @ts-expect-error - Version miss-match
-			redisClient: this.redis,
+		this.#broker = new PubSubRedisBroker<DiscordGatewayEventsMap>(this.redis, {
+			// Want a random group name so we fan out gateway_send payloads
+			group: randomBytes(16).toString('hex'),
 			encode,
 			decode,
 		});
@@ -47,16 +47,16 @@ export class Gateway {
 		});
 
 		this.#gateway
-			.on(WebSocketShardEvents.Closed, ({ shardId, code }) => this.logger.info({ shardId, code }, 'Shard CLOSED'))
-			.on(WebSocketShardEvents.HeartbeatComplete, ({ shardId, ackAt, heartbeatAt, latency }) =>
+			.on(WebSocketShardEvents.Closed, (code, shardId) => this.logger.info({ shardId, code }, 'Shard CLOSED'))
+			.on(WebSocketShardEvents.HeartbeatComplete, ({ ackAt, heartbeatAt, latency }, shardId) =>
 				this.logger.debug({ shardId, ackAt, heartbeatAt, latency }, 'Shard HEARTBEAT'),
 			)
-			.on(WebSocketShardEvents.Error, ({ shardId, error }) => this.logger.error({ shardId, error }, 'Shard ERROR'))
-			.on(WebSocketShardEvents.Debug, ({ message, shardId }) => this.logger.debug({ shardId }, message))
-			.on(WebSocketShardEvents.Hello, ({ shardId }) => this.logger.debug({ shardId }, 'Shard HELLO'))
-			.on(WebSocketShardEvents.Ready, ({ shardId }) => this.logger.debug({ shardId }, 'Shard READY'))
-			.on(WebSocketShardEvents.Resumed, ({ shardId }) => this.logger.debug({ shardId }, 'Shard RESUMED'))
-			.on(WebSocketShardEvents.Dispatch, async ({ data }) => {
+			.on(WebSocketShardEvents.Error, (error, shardId) => this.logger.error({ shardId, error }, 'Shard ERROR'))
+			.on(WebSocketShardEvents.Debug, (message, shardId) => this.logger.debug({ shardId }, message))
+			.on(WebSocketShardEvents.Hello, (shardId) => this.logger.debug({ shardId }, 'Shard HELLO'))
+			.on(WebSocketShardEvents.Ready, (shardId) => this.logger.debug({ shardId }, 'Shard READY'))
+			.on(WebSocketShardEvents.Resumed, (shardId) => this.logger.debug({ shardId }, 'Shard RESUMED'))
+			.on(WebSocketShardEvents.Dispatch, async (data) => {
 				await this.#broker.publish(data.t, data.d);
 
 				if (data.t === GatewayDispatchEvents.GuildCreate) {
@@ -82,8 +82,7 @@ export class Gateway {
 	}
 
 	public async connect(): Promise<void> {
-		// Want a random group name so we fan out gateway_send payloads
-		await this.#broker.subscribe(randomBytes(16).toString('hex'), ['send']);
+		await this.#broker.subscribe(['send']);
 		await this.#gateway.connect();
 	}
 }
