@@ -7,54 +7,63 @@
 	"type": "module",
 	"workspaces": [
 		"apps/*",
-		"packages/*",
-		"packages/*/*",
-		"services/*",
-		"services/*/*"
+		"packages/public/*",
+		"packages/private/*",
+		"services/*"
 	],
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/chatsift/chatsift.git"
 	},
-	"author": "didinele",
 	"bugs": {
 		"url": "https://github.com/chatsift/chatsift/issues"
 	},
 	"homepage": "https://github.com/chatsift/chatsift#readme",
 	"scripts": {
-		"lint": "turbo run lint && prettier --check .",
 		"build": "turbo run build",
-		"test": "turbo run test",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:nocov": "vitest run --coverage.enabled=false",
+		"lint": "turbo run lint",
+		"lint:fix": "turbo run lint:fix",
 		"format": "prettier --write .",
-		"postinstall": "is-ci || husky install || true",
-		"update": "yarn upgrade-interactive",
-		"prisma": "dotenv -e .env.private -- prisma"
-	},
-	"dependencies": {
-		"prisma": "^5.22.0"
+		"format:check": "prettier --check .",
+		"clean": "turbo run clean && rimraf **/node_modules",
+		"clean:deps": "rimraf **/node_modules",
+		"prisma": "dotenv -e .env.public -- prisma",
+		"db:generate": "dotenv -e .env.public -- prisma generate --schema=prisma/schema.prisma",
+		"db:migrate": "dotenv -e .env.public -- prisma migrate dev --schema=prisma/schema.prisma",
+		"db:format": "dotenv -e .env.public -- prisma format --schema=prisma/schema.prisma",
+		"db:reset": "dotenv -e .env.public -- prisma migrate reset --schema=prisma/schema.prisma",
+		"db:deploy": "dotenv -e .env.public -- prisma migrate deploy --schema=prisma/schema.prisma",
+		"db:studio": "dotenv -e .env.public -- prisma studio --schema=prisma/schema.prisma",
+		"postinstall": "is-ci || husky || true",
+		"update": "yarn upgrade-interactive"
 	},
 	"devDependencies": {
-		"@commitlint/cli": "^19.8.0",
-		"@commitlint/config-angular": "^19.8.0",
-		"@tanstack/eslint-plugin-query": "^5.74.7",
-		"@vitest/coverage-v8": "^2.1.9",
-		"dotenv-cli": "^7.4.4",
-		"eslint": "^8.57.1",
-		"eslint-config-neon": "^0.1.62",
-		"eslint-formatter-pretty": "^6.0.1",
+		"@commitlint/cli": "^19.8.1",
+		"@commitlint/config-angular": "^19.8.1",
+		"@types/lodash.merge": "^4.6.9",
+		"@types/node": "^24.6.1",
+		"@vitest/coverage-v8": "^3.2.4",
+		"dotenv-cli": "^10.0.0",
+		"eslint": "^9.35.0",
+		"eslint-config-neon": "^0.2.7",
+		"eslint-import-resolver-typescript": "^4.4.4",
+		"eslint-plugin-react-compiler": "19.1.0-rc.2",
 		"husky": "^9.1.7",
-		"is-ci": "^3.0.1",
+		"is-ci": "^4.1.0",
 		"lodash.merge": "^4.6.2",
-		"prettier": "^3.5.3",
+		"prettier": "^3.6.2",
+		"prisma": "^6.16.3",
 		"prisma-kysely": "^1.8.0",
-		"rimraf": "^5.0.10",
-		"tsup": "^8.4.0",
-		"turbo": "^2.5.2",
-		"typescript": "^5.8.3",
-		"typescript-eslint": "^7.18.0",
-		"vitest": "^2.1.9"
+		"rimraf": "^6.0.1",
+		"turbo": "^2.5.8",
+		"typescript": "~5.9.3",
+		"typescript-eslint": "^8.45.0",
+		"vitest": "^3.2.4"
 	},
 	"resolutions": {
-		"discord-api-types": "0.37.84"
+		"eslint-plugin-sonarjs": "3.0.2"
 	}
 }

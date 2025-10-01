@@ -20,7 +20,6 @@
 .gitattributes
 .gitignore
 .env.private.example
-logs-archive
 
 LICENSE
 **/README.md

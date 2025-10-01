@@ -1,0 +1,45 @@
+{
+	"name": "@chatsift/discord-utils",
+	"description": "Niche utilities for working with Discord's raw API",
+	"version": "0.5.1",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		"types": "./dist/index.d.ts",
+		"import": "./dist/index.mjs",
+		"require": "./dist/index.js"
+	},
+	"directories": {
+		"lib": "src"
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsup && tsc",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"lint": "eslint src",
+		"lint:fix": "eslint src --fix",
+		"clean": "rimraf dist"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/chatsift/chatsift.git",
+		"directory": "packages/npm/discord-utils"
+	},
+	"bugs": {
+		"url": "https://github.com/chatsift/chatsift/issues"
+	},
+	"homepage": "https://github.com/chatsift/chatsift",
+	"devDependencies": {
+		"@types/node": "^24.6.1",
+		"tsup": "^8.5.0",
+		"typescript": "~5.9.3",
+		"vitest": "^2.1.9"
+	},
+	"dependencies": {
+		"discord-api-types": "^0.38.26",
+		"tslib": "^2.8.1"
+	}
+}

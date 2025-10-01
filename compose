@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 if [ -f .env.public ]
 then
   export $(cat .env.public | xargs)

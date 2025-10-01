@@ -1,19 +1,12 @@
 {
-	"extends": "./tsconfig.json",
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"display": "ESLint",
+	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"allowJs": true
+		"allowJs": true,
+		"checkJs": false,
+		"noEmit": true
 	},
-	"include": [
-		"**/*.ts",
-		"**/*.tsx",
-		"**/*.js",
-		"**/*.cjs",
-		"**/*.mjs",
-		"**/*.jsx",
-		"**/*.test.ts",
-		"**/*.test.js",
-		"**/*.spec.ts",
-		"**/*.spec.js"
-	],
-	"exclude": []
+	"include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.mjs", "**/*.cjs"],
+	"exclude": ["**/node_modules", "**/dist", "**/.turbo", "**/coverage"]
 }

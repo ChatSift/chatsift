@@ -1,0 +1,44 @@
+{
+	"name": "@chatsift/parse-relative-time",
+	"description": "Relative time parser, similar to vercel/ms",
+	"version": "0.3.1",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		"types": "./dist/index.d.ts",
+		"import": "./dist/index.mjs",
+		"require": "./dist/index.js"
+	},
+	"directories": {
+		"lib": "src"
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsup && tsc",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"lint": "eslint src",
+		"lint:fix": "eslint src --fix",
+		"clean": "rimraf dist"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/chatsift/chatsift.git",
+		"directory": "packages/npm/parse-relative-time"
+	},
+	"bugs": {
+		"url": "https://github.com/chatsift/chatsift/issues"
+	},
+	"homepage": "https://github.com/chatsift/chatsift",
+	"devDependencies": {
+		"@types/node": "^24.6.1",
+		"tsup": "^8.5.0",
+		"typescript": "~5.9.3",
+		"vitest": "^2.1.9"
+	},
+	"dependencies": {
+		"tslib": "^2.8.1"
+	}
+}

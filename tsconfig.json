@@ -1,24 +1,9 @@
 {
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"display": "Root",
+	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"strict": true,
-		"alwaysStrict": true,
-		"moduleResolution": "node",
-		"removeComments": true,
-		"pretty": true,
-		"module": "ESNext",
-		"target": "ES2020",
-		"lib": ["ESNext"],
-		"sourceMap": true,
-		"incremental": true,
-		"skipLibCheck": true,
-		"noEmitHelpers": true,
-		"importHelpers": true,
-		"esModuleInterop": true,
-		"noUncheckedIndexedAccess": true,
-		"emitDecoratorMetadata": true,
-		"experimentalDecorators": true,
-		"noImplicitOverride": true,
-		"verbatimModuleSyntax": true
+		"noEmit": true
 	},
-	"exclude": ["./**/__mocks__/**/*.ts", "./**/__tests__/**/*.ts"]
+	"include": []
 }

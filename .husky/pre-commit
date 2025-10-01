@@ -1,1 +1,1 @@
-yarn build && yarn lint && yarn test
+yarn build && yarn lint && yarn test:nocov

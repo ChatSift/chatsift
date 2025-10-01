@@ -1,10 +1,6 @@
-name: chatsift-next
+name: chatsift
 
 services:
-  # TODO: Publish own image?
-  # TODO: Uncomment once this repo takes over the stack deployment, for now, we're hacking ChatSift/stack to share
-  # its caddy instance
-
   # caddy:
   #   build:
   #     context: ./build/caddy
@@ -16,7 +12,7 @@ services:
   #     - '443:443'
 
   postgres:
-    image: postgres:12-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: 'chatsift'
       POSTGRES_PASSWORD: 'admin'
@@ -44,16 +40,18 @@ services:
     ports:
       - 127.0.0.1:${LOCAL_DOZZLE_PORT}:8080
 
-  redis:
-    image: redis:6-alpine
-    restart: unless-stopped
-    healthcheck:
-      test: ['CMD-SHELL', 'redis-cli ping']
-      interval: 10s
-      timeout: 5s
+  #   redis:
+  #     image: redis:6-alpine
+  #     restart: unless-stopped
+  #     healthcheck:
+  #       test: ['CMD-SHELL', 'redis-cli ping']
+  #       interval: 10s
+  #       timeout: 5s
 
   api:
-    image: chatsift/chatsift-next:api
+    image: chatsift/chatsift:api
+    volumes:
+      - ./user-assets:/usr/chatsift/user-assets
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -61,78 +59,14 @@ services:
     env_file:
       - ./.env.public
       - ./.env.private
-    command: ['node', '--enable-source-maps', './services/api/dist/index.js']
+    command: ['node', '--enable-source-maps', './services/api/dist/bin.js']
     ports:
       - 127.0.0.1:${API_PORT}:${API_PORT}
-    volumes:
-      - ./logs-archive:/var/chatsift-logs
-
-  automoderator-proxy:
-    image: chatsift/chatsift-next:automoderator-discord-proxy
-    build:
-      context: ./
-      dockerfile: ./Dockerfile
-    restart: unless-stopped
-    env_file:
-      - ./.env.public
-      - ./.env.private
-    environment:
-      BOT: automoderator
-    command: ['node', '--enable-source-maps', './services/automoderator/discord-proxy/dist/index.js']
-    volumes:
-      - ./logs-archive:/var/chatsift-logs
-
-  automoderator-gateway:
-    image: chatsift/chatsift-next:automoderator-gateway
-    build:
-      context: ./
-      dockerfile: ./Dockerfile
-    restart: unless-stopped
-    env_file:
-      - ./.env.public
-      - ./.env.private
-    environment:
-      BOT: automoderator
-    command: ['node', '--enable-source-maps', './services/automoderator/gateway/dist/index.js']
-    volumes:
-      - ./logs-archive:/var/chatsift-logs
-
-  automoderator-interactions:
-    image: chatsift/chatsift-next:automoderator-interactions
-    build:
-      context: ./
-      dockerfile: ./Dockerfile
-    restart: unless-stopped
-    env_file:
-      - ./.env.public
-      - ./.env.private
-    environment:
-      BOT: automoderator
-    command: ['node', '--enable-source-maps', './services/automoderator/interactions/dist/index.js']
-    volumes:
-      - ./logs-archive:/var/chatsift-logs
-
-  automoderator-observer:
-    image: chatsift/chatsift-next:automoderator-observer
-    build:
-      context: ./
-      dockerfile: ./Dockerfile
-    restart: unless-stopped
-    env_file:
-      - ./.env.public
-      - ./.env.private
-    environment:
-      BOT: automoderator
-    command: ['node', '--enable-source-maps', './services/automoderator/observer/dist/index.js']
-    volumes:
-      - ./logs-archive:/var/chatsift-logs
 
 volumes:
   postgres-data:
-    name: 'chatsift-next-postgres-data'
+    name: 'chatsift-v3-postgres-data'
 
-# Hack to work with chatsift/stack
 networks:
   default:
     name: chatsift
-    external: true

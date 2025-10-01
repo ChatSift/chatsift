@@ -1,7 +1,7 @@
 generator kysely {
   provider = "prisma-kysely"
-  output   = "../packages/services/core/src"
-  fileName = "db.ts"
+  output   = "../packages/private/core/src/types"
+  fileName = "entities.ts"
 }
 
 datasource db {
@@ -36,61 +36,9 @@ model Incident {
   resolved   Boolean  @default(false)
 }
 
-enum ModCaseKind {
-  Warn
-  Timeout
-  Kick
-  Ban
-  Untimeout
-  Unban
-}
-
-model ModCase {
-  id        Int         @id @default(autoincrement())
-  guildId   String
-  kind      ModCaseKind
-  createdAt DateTime    @default(now())
-  reason    String
-  modId     String
-  targetId  String
-
-  referencedBy      CaseReference[]    @relation("caseReferencedBy")
-  references        CaseReference[]    @relation("caseReferences")
-  ModCaseLogMessage ModCaseLogMessage?
-}
-
-model CaseReference {
-  referencedById Int
-  referencedBy   ModCase @relation("caseReferencedBy", fields: [referencedById], references: [id], onDelete: NoAction)
-  referencesId   Int
-  references     ModCase @relation("caseReferences", fields: [referencesId], references: [id], onDelete: Cascade)
-
-  @@id([referencedById, referencesId])
-}
-
-model ModCaseLogMessage {
-  caseId    Int     @id
-  modCase   ModCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  messageId String
-  channelId String
-}
-
-enum LogWebhookKind {
-  Mod
-}
-
-model LogWebhook {
-  id           Int            @id @default(autoincrement())
-  guildId      String
-  webhookId    String
-  webhookToken String
-  threadId     String?
-  kind         LogWebhookKind
-}
-
 model DiscordOAuth2User {
-  id String @id
-  accessToken String
+  id           String   @id
+  accessToken  String
   refreshToken String
-  expiresAt DateTime
+  expiresAt    DateTime
 }

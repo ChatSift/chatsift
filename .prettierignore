@@ -1,7 +1,10 @@
-node_modules/*
-coverage/*
-**/dist/*
-.yarn/*
-.turbo
+**/.turbo
+**/node_modules
+**/dist
+**/coverage
+**/.next
+**/build
+**/out
+.yarn
 
-packages/services/core/src/db.ts
+packages/private/core/src/types/entities.ts

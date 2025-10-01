@@ -1,7 +1,0 @@
-{
-  acme_dns cloudflare {env.CF_API_TOKEN}
-}
-
-api.automoderator.app {
-  reverse_proxy * http://api:9876
-}
