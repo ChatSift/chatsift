@@ -1,24 +1,30 @@
 {
-	"$schema": "https://turborepo.org/schema.json",
+	"$schema": "https://turbo.build/schema.json",
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": ["dist/**"],
-			"inputs": ["tsconfig.json", "package.json", "src/**/*.ts", "tsup.config.ts", "schema.prisma"]
+			"outputs": ["dist/**", ".next/**", "!.next/cache/**"]
 		},
 		"lint": {
+			"dependsOn": ["^build"]
+		},
+		"lint:fix": {
 			"dependsOn": ["^build"],
-			"outputs": [],
-			"inputs": ["tsconfig.json", "package.json", "src/**/*.ts"]
+			"cache": false
 		},
 		"test": {
-			"dependsOn": ["^build"],
-			"outputs": [],
-			"inputs": ["tsconfig.json", "package.json", "src/**/*.ts", "vitest.config.ts"]
+			"dependsOn": ["^build"]
 		},
-		"tag-docker": {
-			"outputs": [],
-			"inputs": ["src/**/*.ts", "Dockerfile"]
+		"clean": {
+			"cache": false
 		}
-	}
+	},
+	"globalDependencies": [
+		"eslint.config.js",
+		".prettierrc.json",
+		"tsconfig.json",
+		"tsconfig.*.json",
+		"vitest.config.ts",
+		"prisma/schema.prisma"
+	]
 }
