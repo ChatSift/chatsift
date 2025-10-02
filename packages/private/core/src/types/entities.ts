@@ -4,12 +4,6 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   : ColumnType<T, T | undefined, T>;
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
-export type DiscordOAuth2User = {
-    id: string;
-    accessToken: string;
-    refreshToken: string;
-    expiresAt: Timestamp;
-};
 export type Experiment = {
     name: string;
     createdAt: Generated<Timestamp>;
@@ -31,7 +25,6 @@ export type Incident = {
     resolved: Generated<boolean>;
 };
 export type DB = {
-    DiscordOAuth2User: DiscordOAuth2User;
     Experiment: Experiment;
     ExperimentOverride: ExperimentOverride;
     Incident: Incident;

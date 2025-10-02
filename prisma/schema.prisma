@@ -35,10 +35,3 @@ model Incident {
   createdAt  DateTime @default(now())
   resolved   Boolean  @default(false)
 }
-
-model DiscordOAuth2User {
-  id           String   @id
-  accessToken  String
-  refreshToken String
-  expiresAt    DateTime
-}
