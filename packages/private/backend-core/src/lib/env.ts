@@ -7,10 +7,10 @@ const envSchema = z.object({
 	IS_PRODUCTION: z.coerce.boolean().default(false),
 	ADMINS: z
 		.string()
-		.transform((value) => value.split(', '))
-		.pipe(z.array(z.string().regex(SnowflakeRegex)))
-		.transform((value) => new Set(value)),
-
+		.optional()
+		.transform((value) => value?.split(', '))
+		.pipe(z.array(z.string().regex(SnowflakeRegex)).optional())
+		.transform((value) => (value ? new Set(value) : new Set())),
 	// API
 	CORS: z.string().transform((value, ctx) => {
 		try {

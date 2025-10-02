@@ -219,6 +219,11 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 				return next(internal());
 			}
 
+			if (context.env.ADMINS.has(req.user.sub)) {
+				// Admin bypass
+				return next();
+			}
+
 			if (!req.user.grants.guildIds.includes(guildId)) {
 				return next(forbidden('you need to be a manager of this guild to access this resource'));
 			}
