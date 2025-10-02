@@ -14,6 +14,11 @@ vi.mock('http2');
 
 const ADMIN_USER_ID = vi.hoisted(() => '104425482757357568');
 vi.mock('@chatsift/backend-core', async (importActual) => {
+	process.env['ROOT_DOMAIN'] = '';
+	process.env['OAUTH_DISCORD_CLIENT_ID'] = '123456789012345678';
+	process.env['OAUTH_DISCORD_CLIENT_SECRET'] = 'so secret';
+	process.env['API_URL'] = 'http://localhost:9876';
+	process.env['FRONTEND_URL'] = 'http://localhost:6789';
 	process.env['ADMINS'] = ADMIN_USER_ID;
 	process.env['CORS'] = 'http:\\/\\/localhost:3000';
 	process.env['API_PORT'] = '9876';

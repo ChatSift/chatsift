@@ -5,13 +5,21 @@ import z from 'zod';
 const envSchema = z.object({
 	// General
 	IS_PRODUCTION: z.coerce.boolean().default(false),
+	ROOT_DOMAIN: z.string(),
 	ADMINS: z
 		.string()
 		.optional()
 		.transform((value) => value?.split(', '))
 		.pipe(z.array(z.string().regex(SnowflakeRegex)).optional())
 		.transform((value) => (value ? new Set(value) : new Set())),
+
+	// Postgres
+	DATABASE_URL: z.string(),
+
 	// API
+	API_PORT: z.string().pipe(z.coerce.number()),
+	OAUTH_DISCORD_CLIENT_ID: z.string().regex(SnowflakeRegex),
+	OAUTH_DISCORD_CLIENT_SECRET: z.string(),
 	CORS: z.string().transform((value, ctx) => {
 		try {
 			return new RegExp(value);
@@ -23,12 +31,10 @@ const envSchema = z.object({
 			return z.NEVER;
 		}
 	}),
-	API_PORT: z.string().pipe(z.coerce.number()),
 	// Length of a base64-encoded 32-byte key. Used for JWT signing and encryption
 	ENCRYPTION_KEY: z.string().length(44),
-
-	// Postgres
-	DATABASE_URL: z.string(),
+	API_URL: z.url(),
+	FRONTEND_URL: z.url(),
 });
 
 export const ENV = envSchema.parse(process.env);
