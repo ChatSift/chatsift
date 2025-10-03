@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import React from 'react';
-import { SvgChatSift } from '@/components/icons/SvgChatsift';
+import { SvgChatSift } from '@/components/icons/SvgChatSift';
 
 export function Logo() {
 	return (

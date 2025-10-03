@@ -3,11 +3,14 @@ import type { RESTOAuth2AuthorizationQuery } from '@discordjs/core';
 import type { NextHandler, Response } from 'polka';
 import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
+import { cookieWithDomain } from '../../util/constants.js';
 import { StateCookie } from '../../util/stateCookie.js';
 import type { TRequest } from '../route.js';
 import { Route, RouteMethod } from '../route.js';
 
-export default class GetDiscordAuth extends Route<never, never> {
+export const DISCORD_AUTH_SCOPES = new Set(['identify', 'email', 'guilds', 'guilds.members.read'] as const);
+
+export default class GetAuthDiscord extends Route<never, never> {
 	public readonly info = {
 		method: RouteMethod.get,
 		path: '/v3/auth/discord',
@@ -22,16 +25,13 @@ export default class GetDiscordAuth extends Route<never, never> {
 		}
 
 		const state = new StateCookie(`${context.env.FRONTEND_URL}/dashboard`).toCookie();
-		const cookieOptions = context.env.IS_PRODUCTION
-			? { httpOnly: true, domain: context.env.ROOT_DOMAIN }
-			: { httpOnly: true };
-		res.cookie('state', state, cookieOptions);
+		res.cookie('state', state, cookieWithDomain({ httpOnly: true }));
 
 		const params = {
 			client_id: context.env.OAUTH_DISCORD_CLIENT_ID,
 			redirect_uri: `${context.env.API_URL}/v3/auth/discord/callback`,
 			response_type: 'code',
-			scope: 'identify email guilds guilds.members.read',
+			scope: [...DISCORD_AUTH_SCOPES].join(' '),
 			state,
 		} satisfies RESTOAuth2AuthorizationQuery;
 

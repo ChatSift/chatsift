@@ -32,6 +32,7 @@ export interface RouteInfo {
 	path: string;
 }
 
+// TODO: More generics?
 export type TRequest<TBody> = Omit<Request, 'body'> & { body: TBody; trackingId: string };
 
 /**

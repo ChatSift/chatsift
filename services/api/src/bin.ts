@@ -1,1 +1,3 @@
-console.log('hello world');
+import { bin } from './index.js';
+
+await bin();
