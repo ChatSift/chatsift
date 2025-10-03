@@ -7,7 +7,7 @@ RUN apk add --update \
 && apk add --no-cache ca-certificates \
 && apk add --no-cache --virtual .build-deps curl git python3 alpine-sdk
 
-COPY turbo.json package.json tsconfig.base.json tsconfig.json yarn.lock .yarnrc.yml ./
+COPY turbo.json package.json tsconfig.base.json tsconfig.json tsup.config.ts yarn.lock .yarnrc.yml ./
 COPY .yarn ./.yarn
 
 COPY packages/public/discord-utils/package.json ./packages/public/discord-utils/package.json

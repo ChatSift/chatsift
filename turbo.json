@@ -17,6 +17,10 @@
 		},
 		"clean": {
 			"cache": false
+		},
+		"tag-docker": {
+			"outputs": [],
+			"inputs": ["src/**/*.ts", "Dockerfile"]
 		}
 	},
 	"globalDependencies": [

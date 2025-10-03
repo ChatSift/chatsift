@@ -50,8 +50,6 @@ services:
 
   api:
     image: chatsift/chatsift:api
-    volumes:
-      - ./user-assets:/usr/chatsift/user-assets
     build:
       context: ./
       dockerfile: ./Dockerfile
