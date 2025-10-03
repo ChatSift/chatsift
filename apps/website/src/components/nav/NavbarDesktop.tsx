@@ -1,7 +1,7 @@
-// import { UserDesktop } from '@components/user/UserDesktop';
 import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import { navbarItems } from './navbarItems';
 import { Logo } from '@/components/common/Logo';
+import { UserDesktop } from '@/components/user/UserDesktop';
 
 export function NavbarDesktop() {
 	return (
@@ -28,7 +28,7 @@ export function NavbarDesktop() {
 			</div>
 
 			<li className="flex items-center gap-6 text-lg text-secondary dark:text-secondary-dark md:ml-auto">
-				{/* <UserDesktop /> */}
+				<UserDesktop />
 			</li>
 		</ul>
 	);

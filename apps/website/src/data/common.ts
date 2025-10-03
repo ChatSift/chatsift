@@ -1,0 +1,38 @@
+import type { APIRoutes, ParseHTTPParameters } from '@chatsift/api';
+
+type Narrow<Narrowed, Narowee> = Narrowed extends Narowee ? Narrowed : never;
+export type GettableRoutes = Narrow<APIRoutes[keyof APIRoutes], { GET: any }>['GET']['info']['path'];
+
+export type MakeOptions<Path extends keyof APIRoutes = keyof APIRoutes> = Path extends GettableRoutes
+	? {
+			readonly params: { [ParameterName in ParseHTTPParameters<Path>[number]]: string };
+			readonly path: Path;
+			readonly queryKey: readonly [string, ...string[]];
+		}
+	: {
+			readonly path: Path;
+			readonly queryKey: readonly [string, ...string[]];
+		};
+
+interface Info {
+	readonly [Key: string]:
+		| Info
+		| MakeOptions
+		| ((...params: any[]) => Info | MakeOptions | (Info & MakeOptions))
+		| (Info & MakeOptions);
+}
+
+export const routesInfo = {
+	auth: {
+		me: {
+			queryKey: ['auth', 'me'],
+			path: '/v3/auth/me',
+			params: {},
+		},
+
+		logout: {
+			queryKey: ['auth', 'logout'],
+			path: '/v3/auth/logout',
+		},
+	},
+} as const satisfies Info;

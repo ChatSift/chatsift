@@ -4,12 +4,12 @@ import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-// import { UserMobile } from '../user/UserMobile';
 import { navbarItems } from './navbarItems';
 import { Button } from '@/components/common/Button';
 import { Logo } from '@/components/common/Logo';
 import { SvgClose } from '@/components/icons/SvgClose';
 import { SvgHamburger } from '@/components/icons/SvgHamburger';
+import { UserMobile } from '@/components/user/UserMobile';
 import { cn } from '@/utils/util';
 
 export function NavbarMobile() {
@@ -47,7 +47,7 @@ export function NavbarMobile() {
 				</div>
 
 				<NavigationMenu.Item className="py-4" key="login">
-					{/* <UserMobile setMobileNavOpen={setMobileNavOpen} /> */}
+					<UserMobile setMobileNavOpen={setMobileNavOpen} />
 				</NavigationMenu.Item>
 			</NavigationMenu.List>
 		</NavigationMenu.Root>

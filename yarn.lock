@@ -658,6 +658,7 @@ __metadata:
     babel-plugin-react-compiler: "npm:^19.1.0-rc.3"
     clsx: "npm:^2.1.1"
     cookie: "npm:^1.0.2"
+    discord-api-types: "npm:^0.38.26"
     eslint: "npm:^9.35.0"
     eslint-config-next: "npm:^14.2.32"
     jotai: "npm:^2.14.0"

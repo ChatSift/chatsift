@@ -4,6 +4,7 @@ import { PermissionFlagsBits } from '@discordjs/core';
 import jwt from 'jsonwebtoken';
 import type { Response } from 'polka';
 import { context } from '../context.js';
+import { cookieWithDomain } from './constants.js';
 import { discordAPIOAuth } from './discordAPI.js';
 
 export interface TokenGrants {
@@ -102,21 +103,29 @@ export function createRefreshToken(res: Response, oauthData: OAuthData, user: AP
 	};
 
 	const refreshToken = jwt.sign(refreshTokenData, context.env.ENCRYPTION_KEY, { expiresIn: '30d' });
-	res.cookie('refresh_token', refreshToken, {
-		expires: new Date(now + 30 * 24 * 60 * 60 * 1_000),
-		path: '/',
-		sameSite: context.env.IS_PRODUCTION ? 'none' : 'strict',
-		httpOnly: true,
-		secure: context.env.IS_PRODUCTION,
-	});
+	res.cookie(
+		'refresh_token',
+		refreshToken,
+		cookieWithDomain({
+			expires: new Date(now + 30 * 24 * 60 * 60 * 1_000),
+			path: '/',
+			sameSite: 'lax',
+			httpOnly: true,
+			secure: context.env.IS_PRODUCTION,
+		}),
+	);
 }
 
 export function noopRefreshToken(res: Response): void {
-	res.cookie('refresh_token', 'noop', {
-		expires: new Date(1_970),
-		path: '/',
-		sameSite: context.env.IS_PRODUCTION ? 'none' : 'strict',
-		httpOnly: true,
-		secure: context.env.IS_PRODUCTION,
-	});
+	res.cookie(
+		'refresh_token',
+		'noop',
+		cookieWithDomain({
+			expires: new Date(1_970),
+			path: '/',
+			sameSite: 'lax',
+			httpOnly: true,
+			secure: context.env.IS_PRODUCTION,
+		}),
+	);
 }

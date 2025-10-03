@@ -21,6 +21,8 @@ interface RouteMethodMap {
 	[RouteMethod.patch]: 'PATCH';
 }
 
+export type { ParseHTTPParameters } from '../route.js';
+
 export type APIRoutes = {
 	[Path in keyof RoutesByPath]: {
 		[Method in RouteMethodMap[InferRouteMethod<RoutesByPath[Path]>]]: Narrow<

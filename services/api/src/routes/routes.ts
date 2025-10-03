@@ -3,3 +3,4 @@
 export { default as GetAuthDiscord } from './auth/discord.js';
 export { default as GetAuthDiscordCallback } from './auth/discordCallback.js';
 export { default as PostAuthLogout } from './auth/logout.js';
+export { default as GetAuthMe } from './auth/me.js';

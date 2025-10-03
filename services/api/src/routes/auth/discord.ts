@@ -25,7 +25,7 @@ export default class GetAuthDiscord extends Route<never, never> {
 		}
 
 		const state = new StateCookie(`${context.env.FRONTEND_URL}/dashboard`).toCookie();
-		res.cookie('state', state, cookieWithDomain({ httpOnly: true }));
+		res.cookie('state', state, cookieWithDomain({ httpOnly: true, path: '/' }));
 
 		const params = {
 			client_id: context.env.OAUTH_DISCORD_CLIENT_ID,
@@ -35,7 +35,7 @@ export default class GetAuthDiscord extends Route<never, never> {
 			state,
 		} satisfies RESTOAuth2AuthorizationQuery;
 
-		res.redirect(`https://discord.com/api/oauth2/authorize/${new URLSearchParams(params).toString()}`);
+		res.redirect(`https://discord.com/oauth2/authorize?${new URLSearchParams(params).toString()}`);
 		return res.end();
 	}
 }
