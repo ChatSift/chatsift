@@ -11,16 +11,17 @@ export function GuildList() {
 
 	const searchQuery = searchParams.get('search') ?? '';
 
+	const manageable = useMemo(() => me?.guilds.filter((g) => g.meCanManage) ?? [], [me]);
 	const sorted = useMemo(() => {
 		const lower = searchQuery.toLowerCase();
 
-		if (!me) {
+		if (!manageable.length) {
 			return [];
 		}
 
-		const filtered = me.guilds.filter((guild) => guild.name.toLowerCase().includes(lower));
+		const filtered = manageable.filter((guild) => guild.name.toLowerCase().includes(lower));
 		return filtered.reverse().sort((a, b) => b.bots.length - a.bots.length);
-	}, [me, searchQuery]);
+	}, [manageable, searchQuery]);
 
 	return (
 		<ul className="grid grid-cols-1 gap-4 md:grid-cols-4">
