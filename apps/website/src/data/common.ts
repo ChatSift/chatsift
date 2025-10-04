@@ -1,4 +1,4 @@
-import type { APIRoutes, ParseHTTPParameters } from '@chatsift/api';
+import type { APIRoutes, GetAuthMeQuery, InferAPIRouteBodyOrQuery, ParseHTTPParameters } from '@chatsift/api';
 
 type Narrow<Narrowed, Narowee> = Narrowed extends Narowee ? Narrowed : never;
 export type GettableRoutes = Narrow<APIRoutes[keyof APIRoutes], { GET: any }>['GET']['info']['path'];
@@ -7,6 +7,8 @@ export type MakeOptions<Path extends keyof APIRoutes = keyof APIRoutes> = Path e
 	? {
 			readonly params: { [ParameterName in ParseHTTPParameters<Path>[number]]: string };
 			readonly path: Path;
+			// @ts-expect-error - This won't ever compile
+			readonly query: InferAPIRouteBodyOrQuery<Path, 'GET'>;
 			readonly queryKey: readonly [string, ...string[]];
 		}
 	: {
@@ -24,11 +26,12 @@ interface Info {
 
 export const routesInfo = {
 	auth: {
-		me: {
+		me: (query: GetAuthMeQuery) => ({
 			queryKey: ['auth', 'me'],
 			path: '/v3/auth/me',
+			query,
 			params: {},
-		},
+		}),
 
 		logout: {
 			queryKey: ['auth', 'logout'],

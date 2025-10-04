@@ -9,8 +9,10 @@ export async function middleware(request: NextRequest) {
 	const user = await server.auth.me.fetch();
 
 	if (!user.data) {
-		// return NextResponse.redirect(new URL(URLS.API.LOGIN, request.url));
+		return NextResponse.redirect(new URL(URLS.API.LOGIN, request.url));
 	}
+
+	return NextResponse.next();
 }
 
 export const config = {

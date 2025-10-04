@@ -1,21 +1,36 @@
-import type { APIUser } from '@discordjs/core';
 import type { NextHandler, Response } from 'polka';
+import z from 'zod';
 import { isAuthed } from '../../middleware/isAuthed.js';
+import type { Me } from '../../util/me.js';
+import { fetchMe } from '../../util/me.js';
 import type { TRequest } from '../route.js';
 import { Route, RouteMethod } from '../route.js';
 
-export default class GetAuthMe extends Route<APIUser, never> {
+export type { Me, MeGuild } from '../../util/me.js';
+
+const querySchema = z
+	.object({
+		force_fresh: z.string().pipe(z.coerce.boolean()).default(false),
+	})
+	.strict();
+export type GetAuthMeQuery = z.infer<typeof querySchema>;
+
+export default class GetAuthMe extends Route<Me, GetAuthMeQuery> {
 	public readonly info = {
 		method: RouteMethod.get,
 		path: '/v3/auth/me',
 	} as const;
+
+	public override readonly queryValidationSchema = querySchema;
 
 	public override readonly middleware = [
 		...isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false }),
 	];
 
 	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
-		const result: APIUser = req.user!.discordUser;
+		const { force_fresh } = req.query as unknown as GetAuthMeQuery;
+
+		const result: Me = await fetchMe(req.tokens!.access.discordAccessToken, force_fresh);
 
 		res.statusCode = 200;
 		res.setHeader('Content-Type', 'application/json');

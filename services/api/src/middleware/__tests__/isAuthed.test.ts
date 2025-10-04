@@ -79,10 +79,7 @@ const makeAccessJWT = ({ now = Date.now(), expiresIn = 5 * 60, grants, sub = USE
 		iat: Math.floor(now / 1_000),
 		sub,
 		discordAccessToken: GOOD_ACCESS_TOKEN,
-		discordAccessTokenExpiresAt: new Date(now + 1_000 * 60 * 5).toISOString(),
-		discordRefreshToken: GOOD_REFRESH_TOKEN,
-		discordUser: { id: sub } as any,
-		grants: grants ?? { guildIds: [] },
+		grants: { adminGuilds: grants?.guildIds ?? [] },
 	};
 
 	return jwt.sign(data, context.env.ENCRYPTION_KEY, { expiresIn });
@@ -124,7 +121,7 @@ describe('no fallthrough', () => {
 		expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'expired or missing'));
 	});
 
-	test('good access token', async () => {
+	test('good access token but no refresh', async () => {
 		const res = new MockedResponse();
 		const req = makeMockedRequest({
 			headers: {
@@ -134,10 +131,26 @@ describe('no fallthrough', () => {
 		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
 		await middleware(req, res, next);
 
+		expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'missing refresh token'));
+		expect(res.setHeader).toHaveBeenCalledTimes(1);
+		expect(res.setHeader).toHaveBeenNthCalledWith(1, NewAccessTokenHeader, 'noop');
+	});
+
+	test('good access token', async () => {
+		const res = new MockedResponse();
+		const req = makeMockedRequest({
+			headers: {
+				authorization: makeAccessJWT(),
+				cookie: `refresh_token=${makeRefreshJWT()}`,
+			},
+		});
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+		await middleware(req, res, next);
+
 		expect(res.setHeader).toHaveBeenCalledTimes(1);
 		expect(res.setHeader).toHaveBeenNthCalledWith(1, 'Set-Cookie', expect.stringContaining('refresh_token='));
 		expect(next).toHaveBeenCalledWith();
-		expect(req.user?.discordUser.id).toBe(USER_ID);
+		expect(req.tokens?.access.sub).toBe(USER_ID);
 	});
 
 	test('malformed access token', async () => {
@@ -147,6 +160,7 @@ describe('no fallthrough', () => {
 			makeMockedRequest({
 				headers: {
 					authorization: 'malformed.token.here',
+					cookie: `refresh_token=${makeRefreshJWT()}`,
 				},
 			}),
 			res,
@@ -166,6 +180,7 @@ describe('no fallthrough', () => {
 			makeMockedRequest({
 				headers: {
 					authorization: makeRefreshJWT(),
+					cookie: `refresh_token=${makeRefreshJWT()}`,
 				},
 			}),
 			res,
@@ -329,6 +344,7 @@ describe('falls through', () => {
 			makeMockedRequest({
 				headers: {
 					authorization: makeAccessJWT(),
+					cookie: `refresh_token=${makeRefreshJWT()}`,
 				},
 			}),
 			res,
@@ -351,6 +367,7 @@ describe('is global admin', () => {
 			headers: {
 				// The default USER_ID is not an admin
 				authorization: makeAccessJWT(),
+				cookie: `refresh_token=${makeRefreshJWT()}`,
 			},
 		});
 
@@ -374,6 +391,7 @@ describe('is global admin', () => {
 		const req = makeMockedRequest({
 			headers: {
 				authorization: makeAccessJWT(),
+				cookie: `refresh_token=${makeRefreshJWT()}`,
 			},
 		});
 
@@ -401,6 +419,7 @@ describe('guild level checks', () => {
 		const req = makeMockedRequest({
 			headers: {
 				authorization: makeAccessJWT({ sub: ADMIN_USER_ID }),
+				cookie: `refresh_token=${makeRefreshJWT()}`,
 			},
 			params,
 		});
@@ -421,6 +440,7 @@ describe('guild level checks', () => {
 		const req = makeMockedRequest({
 			headers: {
 				authorization: makeAccessJWT(),
+				cookie: `refresh_token=${makeRefreshJWT()}`,
 			},
 			params: {},
 		});
@@ -442,6 +462,7 @@ describe('guild level checks', () => {
 		const req = makeMockedRequest({
 			headers: {
 				authorization: makeAccessJWT({ grants: { guildIds: [params.guildId] } }),
+				cookie: `refresh_token=${makeRefreshJWT()}`,
 			},
 			params,
 		});
@@ -462,6 +483,7 @@ describe('guild level checks', () => {
 		const req = makeMockedRequest({
 			headers: {
 				authorization: makeAccessJWT(),
+				cookie: `refresh_token=${makeRefreshJWT()}`,
 			},
 			params,
 		});

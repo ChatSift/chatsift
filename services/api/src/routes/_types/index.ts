@@ -1,4 +1,4 @@
-import type { InferRouteBody, InferRouteMethod, InferRouteResult, RouteMethod } from '../route.js';
+import type { InferRouteBodyOrQuery, InferRouteMethod, InferRouteResult, RouteMethod } from '../route.js';
 import type * as routes from '../routes.js';
 
 type Narrow<Narrowed, Narowee> = Narrowed extends Narowee ? Narrowed : never;
@@ -34,11 +34,14 @@ export type APIRoutes = {
 
 // TODO: Look into Date -> string
 
-export type InferAPIRouteBody<TPath extends keyof APIRoutes, TMethod extends keyof APIRoutes[TPath]> = InferRouteBody<
-	APIRoutes[TPath][TMethod]
->;
+export type InferAPIRouteBodyOrQuery<
+	TPath extends keyof APIRoutes,
+	TMethod extends keyof APIRoutes[TPath],
+> = InferRouteBodyOrQuery<APIRoutes[TPath][TMethod]>;
 
 export type InferAPIRouteResult<
 	TPath extends keyof APIRoutes,
 	TMethod extends keyof APIRoutes[TPath],
 > = InferRouteResult<APIRoutes[TPath][TMethod]>;
+
+export type * from './routeTypes.js';

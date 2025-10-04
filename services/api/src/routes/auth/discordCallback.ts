@@ -4,9 +4,9 @@ import type { NextHandler, Response } from 'polka';
 import z from 'zod';
 import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
-import { validate } from '../../middleware/validate.js';
 import { cookieWithDomain } from '../../util/constants.js';
 import { discordAPIOAuth } from '../../util/discordAPI.js';
+import { fetchMe } from '../../util/me.js';
 import { setEquals } from '../../util/setEquals.js';
 import { StateCookie } from '../../util/stateCookie.js';
 import { createAccessToken, createRefreshToken } from '../../util/tokens.js';
@@ -22,19 +22,18 @@ const querySchema = z
 	.strict();
 type Query = z.infer<typeof querySchema>;
 
-export default class GetAuthDiscordCallback extends Route<never, never> {
+export default class GetAuthDiscordCallback extends Route<never, Query> {
 	public readonly info = {
 		method: RouteMethod.get,
 		path: '/v3/auth/discord/callback',
 	} as const;
 
-	public override readonly middleware = [
-		...isAuthed({ fallthrough: true, isGlobalAdmin: false }),
-		validate(querySchema, 'query'),
-	];
+	public override readonly queryValidationSchema = querySchema;
+
+	public override readonly middleware = [...isAuthed({ fallthrough: true, isGlobalAdmin: false })];
 
 	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
-		if (req.user) {
+		if (req.tokens) {
 			res.redirect(context.env.FRONTEND_URL);
 			return res.end();
 		}
@@ -63,10 +62,9 @@ export default class GetAuthDiscordCallback extends Route<never, never> {
 			return next(forbidden('received different scopes than expected'));
 		}
 
-		const user = await discordAPIOAuth.users.getCurrent({ auth: { token: result.access_token, prefix: 'Bearer' } });
-
-		await createAccessToken(res, result, user);
-		createRefreshToken(res, result, user);
+		const me = await fetchMe(result.access_token, true);
+		createAccessToken(res, result, me);
+		createRefreshToken(res, result, me.id);
 
 		res.redirect(state.redirectURI);
 		return res.end();

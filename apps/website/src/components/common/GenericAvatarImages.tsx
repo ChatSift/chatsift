@@ -27,7 +27,7 @@ interface GenericAvatarImageProps {
 export function GenericAvatarImage({ className, assetURL }: GenericAvatarImageProps) {
 	return (
 		<>
-			<AvatarImage className={className} crossOrigin="anonymous" src={assetURL} />
+			<AvatarImage className={className} src={assetURL} />
 			<AvatarFallback className={className} />
 		</>
 	);

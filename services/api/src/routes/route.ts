@@ -38,8 +38,8 @@ export type TRequest<TBody> = Omit<Request, 'body'> & { body: TBody; trackingId:
 /**
  * Represents a route on the server
  */
-export abstract class Route<TResult, TBody> {
-	public readonly __internalOnlyHereForTypeInferrenceDoNotUse__!: { body: TBody; result: TResult };
+export abstract class Route<TResult, TBodyOrQuery> {
+	public readonly __internalOnlyHereForTypeInferrenceDoNotUse__!: { bodyOrQuery: TBodyOrQuery; result: TResult };
 
 	/**
 	 * Base route information
@@ -54,12 +54,17 @@ export abstract class Route<TResult, TBody> {
 	/**
 	 * Schema to use for body validation. Implicitly appends a jsonParser to the middleware
 	 */
-	public readonly bodyValidationSchema: ZodType<TBody> | null = null;
+	public readonly bodyValidationSchema: ZodType<TBodyOrQuery> | null = null;
+
+	/**
+	 * Schema to use for query validation.
+	 */
+	public readonly queryValidationSchema: ZodType<TBodyOrQuery> | null = null;
 
 	/**
 	 * Handles a request to this route
 	 */
-	public abstract handle(req: TRequest<TBody>, res: Response, next: NextHandler): unknown;
+	public abstract handle(req: TRequest<TBodyOrQuery>, res: Response, next: NextHandler): unknown;
 
 	/**
 	 * Registers this route
@@ -99,8 +104,16 @@ export abstract class Route<TResult, TBody> {
 			},
 		];
 
+		if (this.bodyValidationSchema && this.queryValidationSchema) {
+			throw new Error('Cannot have both body and query validation schema');
+		}
+
 		if (this.bodyValidationSchema) {
 			middleware.push(jsonParser(), validate(this.bodyValidationSchema, 'body'));
+		}
+
+		if (this.queryValidationSchema) {
+			middleware.push(validate(this.queryValidationSchema, 'query'));
 		}
 
 		middleware.push(...this.middleware);
@@ -111,7 +124,7 @@ export abstract class Route<TResult, TBody> {
 					{ trackingId: req.trackingId, method: req.method, path: req.path },
 					'passing to route handler from middleware',
 				);
-				await this.handle(req as TRequest<TBody>, res, next);
+				await this.handle(req as TRequest<TBodyOrQuery>, res, next);
 				context.logger.info(
 					{ trackingId: req.trackingId, method: req.method, path: req.path },
 					'route handler complete',
@@ -134,5 +147,9 @@ export type ParseHTTPParameters<
 
 export type InferRouteMethod<TRoute extends Route<any, any>> = TRoute['info']['method'];
 export type InferRouteResult<TRoute> = TRoute extends Route<infer TResult, any> ? TResult : never;
-export type InferRouteBody<TRoute extends Route<any, any>> =
-	TRoute['bodyValidationSchema'] extends ZodType<infer T> ? T : never;
+export type InferRouteBodyOrQuery<TRoute extends Route<any, any>> =
+	TRoute['bodyValidationSchema'] extends ZodType<infer Body>
+		? Body
+		: TRoute['queryValidationSchema'] extends ZodType<infer Query>
+			? Query
+			: never;

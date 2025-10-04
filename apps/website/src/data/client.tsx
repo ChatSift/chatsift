@@ -1,5 +1,6 @@
 'use client';
 
+import type { GetAuthMeQuery, InferAPIRouteResult } from '@chatsift/api';
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { GettableRoutes, MakeOptions } from './common';
@@ -7,13 +8,14 @@ import { routesInfo } from './common';
 import { APIError, clientSideErrorHandler, useClientSideFetcher } from '@/utils/fetcher';
 import { exponentialBackOff, retryWrapper } from '@/utils/util';
 
-function make<Options extends MakeOptions & { path: GettableRoutes }>({ path, queryKey, params }: Options) {
-	const finalPath = params
+function make<Options extends MakeOptions & { path: GettableRoutes }>({ path, queryKey, params, query }: Options) {
+	const substitutedParams = params
 		? (Object.entries(params) as [string, string][]).reduce<string>(
 				(acc, [key, value]) => acc.replace(`:${key}`, encodeURIComponent(value)),
 				path,
 			)
 		: path;
+	const finalPath = query ? `${substitutedParams}?${new URLSearchParams(query as any).toString()}` : substitutedParams;
 
 	function useQueryIt() {
 		// TODO: Investigate wether this is a react compiler bug or not
@@ -21,10 +23,9 @@ function make<Options extends MakeOptions & { path: GettableRoutes }>({ path, qu
 		'use no memo';
 
 		const fetcher = useClientSideFetcher({ path: finalPath as `/${string}`, method: 'GET' });
-		// @ts-expect-error - We can't get it to compile on the Method
-		return useQuery<InferAPIRouteResult<Options['path'], 'GET'> | null>({
+		return useQuery({
 			queryKey,
-			queryFn: async () => fetcher(),
+			queryFn: async () => fetcher() as Promise<InferAPIRouteResult<Options['path'], 'GET'> | null>,
 			throwOnError: clientSideErrorHandler({ throwOverride: false }),
 			refetchOnWindowFocus: false,
 			retry: retryWrapper((retries, error) => {
@@ -75,7 +76,7 @@ function makeMutation<Options extends MakeOptions, Method extends 'DELETE' | 'PA
 
 export const client = {
 	auth: {
-		useMe: make(routesInfo.auth.me),
+		useMe: (query?: GetAuthMeQuery) => make(routesInfo.auth.me(query ?? { force_fresh: false }))(),
 		useLogout: makeMutation(routesInfo.auth.logout, 'POST', async (queryClient) => queryClient.invalidateQueries()),
 	},
 } as const;

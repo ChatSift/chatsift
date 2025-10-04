@@ -103,6 +103,6 @@ export const server = {
 	},
 
 	auth: {
-		me: make(routesInfo.auth.me),
+		me: make(routesInfo.auth.me({ force_fresh: false })),
 	},
 } as const;

@@ -20,7 +20,7 @@ export default class PostAuthLogout extends Route<never, never> {
 		await discordAPIOAuth.oauth2.revokeToken(
 			context.env.OAUTH_DISCORD_CLIENT_ID,
 			context.env.OAUTH_DISCORD_CLIENT_SECRET,
-			{ token: req.user!.discordRefreshToken, token_type_hint: 'refresh_token' },
+			{ token: req.tokens!.refresh.discordRefreshToken, token_type_hint: 'refresh_token' },
 		);
 
 		noopAccessToken(res);

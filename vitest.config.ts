@@ -12,7 +12,18 @@ export default defineConfig({
 		coverage: {
 			enabled: true,
 			reporter: ['text', 'lcov', 'clover'],
-			exclude: ['**/dist', '**/__tests__', '**/__mocks__', '**/tsup.config.ts', '**/vitest.config.ts'],
+			exclude: [
+				'**/dist',
+				'**/__tests__',
+				'**/__mocks__',
+				'**/coverage',
+				'**/tsup.config.ts',
+				'**/vitest.config.ts',
+				'**/.next',
+				'eslint.config.js',
+				'.yarn',
+				'apps/website',
+			],
 		},
 	},
 });

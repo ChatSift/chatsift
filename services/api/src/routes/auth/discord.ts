@@ -19,7 +19,7 @@ export default class GetAuthDiscord extends Route<never, never> {
 	public override readonly middleware = [...isAuthed({ fallthrough: true, isGlobalAdmin: false })];
 
 	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
-		if (req.user) {
+		if (req.tokens) {
 			res.redirect(context.env.FRONTEND_URL);
 			return res.end();
 		}
