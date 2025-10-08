@@ -4,6 +4,7 @@ export const BOTS = ['AMA'] as const;
 
 export type BotId = (typeof BOTS)[number];
 
+// TODO: Abstract
 export const GlobalCaches = {
 	/**
 	 * Not to be used in such a way to risk race conditions. There should really be one place that sets this per bot,

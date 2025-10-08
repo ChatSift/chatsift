@@ -1,6 +1,6 @@
 import type { MeGuild } from '@chatsift/api';
 import { GuildIcon } from '@/components/common/GuildIcon';
-import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
+import { SvgAMA } from '@/components/icons/SvgAMA';
 import { cn } from '@/utils/util';
 
 interface GuildCardProps {
@@ -26,9 +26,9 @@ export default function GuildCard({ data }: GuildCardProps) {
 
 				{hasBots ? (
 					<ul className="flex flex-row gap-1">
-						{data.bots.includes('automoderator') && (
+						{data.bots.includes('AMA') && (
 							<li>
-								<SvgAutoModerator />
+								<SvgAMA />
 							</li>
 						)}
 					</ul>
@@ -41,8 +41,8 @@ export default function GuildCard({ data }: GuildCardProps) {
 							<p className="text-lg font-medium text-primary dark:text-primary-dark">Invite a bot:</p>
 							<ul className="flex flex-row gap-3">
 								<li>
-									<a href="/invites/automoderator">
-										<SvgAutoModerator />
+									<a href="/invites/ama">
+										<SvgAMA />
 									</a>
 								</li>
 							</ul>

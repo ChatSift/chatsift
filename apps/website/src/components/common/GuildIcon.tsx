@@ -19,8 +19,8 @@ export function GuildIcon({ data, hasBots }: GuildIconProps) {
 
 	return (
 		<div className="flex flex-row items-center">
-			{icon ? (
-				<a href={url}>
+			<a href={url}>
+				{icon ? (
 					<Image
 						alt="Guild icon"
 						className="flex h-12 w-12 items-center justify-center rounded-full border-on-secondary bg-on-tertiary dark:border-on-secondary-dark dark:bg-on-tertiary-dark"
@@ -28,12 +28,12 @@ export function GuildIcon({ data, hasBots }: GuildIconProps) {
 						src={icon}
 						width={48}
 					/>
-				</a>
-			) : (
-				<p className="flex h-12 w-12 items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full border-on-secondary bg-on-tertiary after:max-w-[70%] dark:border-on-secondary-dark dark:bg-on-tertiary-dark">
-					{getGuildAcronym(data.name)}
-				</p>
-			)}
+				) : (
+					<p className="flex h-12 w-12 items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full border-on-secondary bg-on-tertiary after:max-w-[70%] dark:border-on-secondary-dark dark:bg-on-tertiary-dark">
+						{getGuildAcronym(data.name)}
+					</p>
+				)}
+			</a>
 		</div>
 	);
 }

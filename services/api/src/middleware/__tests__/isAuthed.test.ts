@@ -34,7 +34,9 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 		...actual,
 		// @ts-expect-error - Arg forwarding
 		createContext: (...args: any[]) => ({ ...actual.createContext(...args), UP_SINCE: Date.now() - 1_000 * 60 * 5 }),
-		createRedis: () => null,
+		createRedis: () => ({
+			get: vi.fn(async () => null),
+		}),
 	};
 });
 

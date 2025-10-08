@@ -1,13 +1,13 @@
 import { setTimeout } from 'node:timers';
-import { PermissionsBitField } from '@chatsift/backend-core';
+import type { BotId } from '@chatsift/backend-core';
+import { BOTS, GlobalCaches, PermissionsBitField, promiseAllObject } from '@chatsift/backend-core';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
 import { context } from '../context.js';
 import { discordAPIOAuth } from './discordAPI.js';
 
-// TODO: Proper bots type
 export type MeGuild = Pick<RESTAPIPartialCurrentUserGuild, 'icon' | 'id' | 'name'> & {
-	bots: string[];
+	bots: BotId[];
 	meCanManage: boolean;
 };
 export type Me = APIUser & { guilds: MeGuild[]; isGlobalAdmin: boolean };
@@ -28,6 +28,17 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 	const discordUser = await discordAPIOAuth.users.getCurrent({ auth });
 	const guildsRaw = await discordAPIOAuth.users.getGuilds({}, { auth });
 
+	const guildsByBot = await promiseAllObject(
+		Object.fromEntries(
+			BOTS.map((bot) => [
+				bot,
+				context.redis
+					.get(GlobalCaches.GuildList.key(bot))
+					.then((data) => (data ? GlobalCaches.GuildList.recipe.decode(data).guilds : [])),
+			]),
+		) as Record<BotId, Promise<string[]>>,
+	);
+
 	const guilds = guildsRaw.map<MeGuild>(({ id, name, icon, owner, permissions }) => ({
 		id,
 		name,
@@ -39,7 +50,7 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 				BigInt(permissions),
 				PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
 			) || owner,
-		bots: [],
+		bots: BOTS.filter((bot) => guildsByBot[bot]?.includes(id)),
 	}));
 
 	const me: Me = {
