@@ -1,8 +1,5 @@
+import type { BotId } from '@chatsift/core';
 import { createRecipe, DataType } from 'bin-rw';
-
-export const BOTS = ['AMA'] as const;
-
-export type BotId = (typeof BOTS)[number];
 
 // TODO: Abstract
 export const GlobalCaches = {

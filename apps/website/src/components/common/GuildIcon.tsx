@@ -1,5 +1,7 @@
 import type { MeGuild } from '@chatsift/api';
 import Image from 'next/image';
+import Link from 'next/link';
+import { cn } from '@/utils/util';
 
 function getGuildAcronym(guildName: string) {
 	return guildName
@@ -10,16 +12,17 @@ function getGuildAcronym(guildName: string) {
 
 export interface GuildIconProps {
 	readonly data: MeGuild;
+	readonly disableLink?: boolean;
 	readonly hasBots: boolean;
 }
 
-export function GuildIcon({ data, hasBots }: GuildIconProps) {
+export function GuildIcon({ data, hasBots, disableLink }: GuildIconProps) {
 	const icon = data?.icon ? `https://cdn.discordapp.com/icons/${data.id}/${data.icon}.png` : null;
 	const url = hasBots ? `/dashboard/${data.id}` : undefined;
 
 	return (
 		<div className="flex flex-row items-center">
-			<a href={url}>
+			<Link className={cn((disableLink || !url) && 'pointer-events-none')} href={url ?? '#'}>
 				{icon ? (
 					<Image
 						alt="Guild icon"
@@ -33,7 +36,7 @@ export function GuildIcon({ data, hasBots }: GuildIconProps) {
 						{getGuildAcronym(data.name)}
 					</p>
 				)}
-			</a>
+			</Link>
 		</div>
 	);
 }

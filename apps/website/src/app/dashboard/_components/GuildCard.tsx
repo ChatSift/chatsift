@@ -1,4 +1,5 @@
 import type { MeGuild } from '@chatsift/api';
+import Link from 'next/link';
 import { GuildIcon } from '@/components/common/GuildIcon';
 import { SvgAMA } from '@/components/icons/SvgAMA';
 import { cn } from '@/utils/util';
@@ -15,13 +16,17 @@ export default function GuildCard({ data }: GuildCardProps) {
 		<div
 			className={cn(
 				'flex h-36 w-[80vw] flex-col gap-3 rounded-lg border-[1px] border-on-secondary p-4 dark:border-on-secondary-dark md:w-52',
-				hasBots ? 'bg-[#FFFFFF] dark:bg-[#1C1C21]' : 'group',
+				hasBots ? 'bg-card dark:bg-card-dark' : 'group',
 			)}
 		>
 			<GuildIcon data={data} hasBots={hasBots} />
 			<div className="flex flex-col gap-1">
 				<p className="w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary group-hover:hidden dark:text-primary-dark">
-					<a href={url}>{data.name}</a>
+					{url && (
+						<Link href={url} prefetch>
+							{data.name}
+						</Link>
+					)}
 				</p>
 
 				{hasBots ? (
@@ -41,9 +46,9 @@ export default function GuildCard({ data }: GuildCardProps) {
 							<p className="text-lg font-medium text-primary dark:text-primary-dark">Invite a bot:</p>
 							<ul className="flex flex-row gap-3">
 								<li>
-									<a href="/invites/ama">
+									<Link href="/invites/ama">
 										<SvgAMA />
-									</a>
+									</Link>
 								</li>
 							</ul>
 						</div>

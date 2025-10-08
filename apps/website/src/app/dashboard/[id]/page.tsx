@@ -1,16 +1,18 @@
 'use client';
 
-import { useRouter, useParams } from 'next/navigation';
-import { Button } from '@/components/common/Button';
+import { BOTS } from '@chatsift/core';
+import Link from 'next/link';
+import { notFound, useParams } from 'next/navigation';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { GuildIcon } from '@/components/common/GuildIcon';
 import { Heading } from '@/components/common/Heading';
 import { Skeleton } from '@/components/common/Skeleton';
-import { SvgAMA } from '@/components/icons/SvgAMA';
 import { client } from '@/data/client';
+import { Bots } from '@/utils/bots';
+import { cn } from '@/utils/util';
 
 export default function GuildPage() {
 	const params = useParams<{ id: string }>();
-	const router = useRouter();
 	const { data: me, isLoading } = client.auth.useMe();
 
 	const guild = me?.guilds.find((g) => g.id === params.id);
@@ -20,54 +22,57 @@ export default function GuildPage() {
 	}
 
 	if (!guild) {
-		return (
-			<div className="flex flex-col gap-4">
-				<p className="text-lg text-secondary dark:text-secondary-dark">Guild not found</p>
-			</div>
-		);
+		return notFound();
 	}
 
 	return (
 		<div className="space-y-8">
-			<div className="flex flex-row flex-grow gap-72">
-				<div className="space-y-2 w-64">
-					<Button
-						className="flex items-center gap-2 text-lg text-secondary hover:text-primary dark:text-secondary-dark dark:hover:text-primary-dark"
-						onPress={() => router.replace('/dashboard')}
-					>
-						← Servers
-					</Button>
+			<Breadcrumb
+				segments={[
+					{ label: 'Servers', href: '/dashboard' },
+					{ label: guild.name, highlight: true },
+				]}
+			/>
 
-					<Heading title="Server Settings" />
-				</div>
-			</div>
-
-			<div className="flex h-36 w-full flex-col gap-3 rounded-lg border-[1px] border-on-secondary bg-[#FFFFFF] p-4 dark:border-on-secondary-dark dark:bg-[#1C1C21]">
-				<GuildIcon data={guild} hasBots={guild.bots.length > 0} />
-				<div className="flex flex-col gap-1">
-					<p className="w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
+			{/* TODO: Show member counts maybe */}
+			<div className="flex w-full flex-col gap-3 rounded-lg border-[1px] border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
+				<div className="flex flex-row gap-4">
+					<GuildIcon data={guild} disableLink hasBots={guild.bots.length > 0} />
+					<p className="content-center w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
 						{guild.name}
 					</p>
-					<p className="text-base text-secondary dark:text-secondary-dark">{guild.bots.length} bot(s) active</p>
 				</div>
+
+				<p className="text-base text-secondary dark:text-secondary-dark">{guild.bots.length} bot(s) active</p>
 			</div>
 
-			{/* Bot navigation section */}
 			<div className="space-y-4">
-				<Heading subtitle="Configure your bots" title="Bots" />
+				<Heading subtitle="Configure the bots installed in your server" title="Bots" />
 				<div className="flex flex-col gap-3">
-					{guild.bots.includes('AMA') && (
-						<a
-							className="flex items-center gap-4 rounded-lg border-[1px] border-on-secondary bg-[#FFFFFF] p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-[#1C1C21] dark:hover:bg-on-tertiary-dark"
-							href={`/dashboard/${guild.id}/ama`}
-						>
-							<SvgAMA height={32} width={32} />
-							<div className="flex flex-col">
-								<p className="text-lg font-medium text-primary dark:text-primary-dark">AMA</p>
-								<p className="text-sm text-secondary dark:text-secondary-dark">Configure AMA bot settings</p>
-							</div>
-						</a>
-					)}
+					{BOTS.map((bot, index) => {
+						const { Icon } = Bots[bot];
+						const hasIt = guild.bots.includes(bot);
+
+						return (
+							<Link
+								className={cn(
+									'flex items-center gap-4 rounded-lg border-[1px] border-on-secondary bg-card p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-card-dark dark:hover:bg-on-tertiary-dark',
+									!hasIt && 'opacity-50 hover:opacity-75',
+								)}
+								href={hasIt ? `/dashboard/${guild.id}/ama` : `/invites/${bot.toLowerCase()}`}
+								key={index}
+								prefetch
+							>
+								<Icon height={32} width={32} />
+								<div className="flex flex-col">
+									<p className="text-lg font-medium text-primary dark:text-primary-dark">{bot}</p>
+									<p className="text-sm text-secondary dark:text-secondary-dark">
+										{hasIt ? `Configure ${bot} bot settings` : `Invite ${bot} to your server`}
+									</p>
+								</div>
+							</Link>
+						);
+					})}
 				</div>
 			</div>
 		</div>
