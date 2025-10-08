@@ -8,14 +8,17 @@ import { rest } from './rest.js';
 
 // keep a copy of the guild ids we manage here to easily patch redis
 const guildIds = new Set<Snowflake>();
-setInterval(async () => {
-	void context.redis.set(
-		GlobalCaches.GuildList.key('AMA'),
-		GlobalCaches.GuildList.recipe.encode({
-			guilds: [...guildIds],
-		}),
-	);
-}, 10_000).unref();
+
+export function startGuildSyncing(): void {
+	setInterval(async () => {
+		void context.redis.set(
+			GlobalCaches.GuildList.key('AMA'),
+			GlobalCaches.GuildList.recipe.encode({
+				guilds: [...guildIds],
+			}),
+		);
+	}, 10_000).unref();
+}
 
 export const client = new Client({ rest, gateway });
 

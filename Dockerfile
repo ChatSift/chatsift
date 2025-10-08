@@ -16,6 +16,7 @@ COPY packages/public/pino-rotate-file/package.json ./packages/public/pino-rotate
 COPY packages/private/backend-core/package.json ./packages/private/backend-core/package.json
 COPY packages/private/core/package.json ./packages/private/core/package.json
 
+COPY services/ama-bot/package.json ./services/ama-bot/package.json
 COPY services/api/package.json ./services/api/package.json
 
 RUN yarn workspaces focus --all
@@ -28,6 +29,7 @@ COPY packages/public/pino-rotate-file ./packages/public/pino-rotate-file
 COPY packages/private/backend-core ./packages/private/backend-core
 COPY packages/private/core ./packages/private/core
 
+COPY services/ama-bot ./services/ama-bot
 COPY services/api ./services/api
 
 RUN yarn turbo run build

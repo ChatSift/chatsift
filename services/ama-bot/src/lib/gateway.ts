@@ -19,5 +19,5 @@ gateway
 	.on(WebSocketShardEvents.Error, (shardId, error) => context.logger.error({ shardId, error }, 'Shard ERROR'))
 	.on(WebSocketShardEvents.Debug, (message, shardId) => context.logger.debug({ shardId }, message))
 	.on(WebSocketShardEvents.Hello, (shardId) => context.logger.debug({ shardId }, 'Shard HELLO'))
-	.on(WebSocketShardEvents.Ready, (shardId) => context.logger.debug({ shardId }, 'Shard READY'))
+	.on(WebSocketShardEvents.Ready, (data, shardId) => context.logger.debug({ data, shardId }, 'Shard READY'))
 	.on(WebSocketShardEvents.Resumed, (shardId) => context.logger.debug({ shardId }, 'Shard RESUMED'));
