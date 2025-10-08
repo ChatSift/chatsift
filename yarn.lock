@@ -541,6 +541,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@chatsift/ama-bot@workspace:services/ama-bot":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/ama-bot@workspace:services/ama-bot"
+  dependencies:
+    "@chatsift/backend-core": "workspace:^"
+    "@discordjs/core": "npm:^3.0.0-dev.1759363313-f510b5ffa"
+    "@discordjs/rest": "npm:^3.0.0-dev.1759363313-f510b5ffa"
+    "@discordjs/ws": "npm:^3.0.0-dev.1759363313-f510b5ffa"
+    "@types/node": "npm:^24.6.1"
+    kysely: "npm:^0.28.7"
+    nanoid: "npm:^5.1.6"
+    typescript: "npm:~5.9.3"
+    vitest: "npm:^3.2.4"
+  languageName: unknown
+  linkType: soft
+
 "@chatsift/api@workspace:^, @chatsift/api@workspace:services/api":
   version: 0.0.0-use.local
   resolution: "@chatsift/api@workspace:services/api"
@@ -578,6 +594,7 @@ __metadata:
     "@sapphire/discord-utilities": "npm:^3.5.0"
     "@types/node": "npm:^24.6.1"
     "@types/pg": "npm:^8"
+    bin-rw: "npm:^0.1.1"
     kysely: "npm:^0.28.7"
     pg: "npm:^8.16.3"
     pino: "npm:^9.12.0"
@@ -6549,6 +6566,13 @@ __metadata:
     caseless: "npm:~0.12.0"
     is-stream: "npm:^2.0.0"
   checksum: 10c0/20f77364bcb462a6eb0ea7322442a1125ca6181ea6b94ad498b8348c678a2adf56c231a653bcac016c5d017aee91ff55b2169b69d8263a4b3c710f4121cbe615
+  languageName: node
+  linkType: hard
+
+"bin-rw@npm:^0.1.1":
+  version: 0.1.1
+  resolution: "bin-rw@npm:0.1.1"
+  checksum: 10c0/c859c78cd7839c45fa761a1d2153b33790ed405c8af5740fe0789753e7d54ed3e329069c4342c198afde22179fe21c2e840f666a3a8a11dddba24ebf90e2a2ac
   languageName: node
   linkType: hard
 
