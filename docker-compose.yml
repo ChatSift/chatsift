@@ -40,13 +40,13 @@ services:
     ports:
       - 127.0.0.1:${LOCAL_DOZZLE_PORT}:8080
 
-  #   redis:
-  #     image: redis:6-alpine
-  #     restart: unless-stopped
-  #     healthcheck:
-  #       test: ['CMD-SHELL', 'redis-cli ping']
-  #       interval: 10s
-  #       timeout: 5s
+  redis:
+    image: redis:6-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli ping']
+      interval: 10s
+      timeout: 5s
 
   api:
     image: chatsift/chatsift:api
@@ -60,6 +60,17 @@ services:
     command: ['node', '--enable-source-maps', './services/api/dist/bin.js']
     ports:
       - 127.0.0.1:${API_PORT}:${API_PORT}
+
+  ama-bot:
+    image: chatsift/chatsift:ama-bot
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    command: ['node', '--enable-source-maps', './services/ama-bot/dist/bin.js']
 
 volumes:
   postgres-data:

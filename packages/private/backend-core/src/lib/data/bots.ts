@@ -1,6 +1,6 @@
 import { createRecipe, DataType } from 'bin-rw';
 
-export const BOTS = ['AMA'];
+export const BOTS = ['AMA'] as const;
 
 export type BotId = (typeof BOTS)[number];
 

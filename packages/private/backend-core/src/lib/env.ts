@@ -16,6 +16,9 @@ const envSchema = z.object({
 	// Postgres
 	DATABASE_URL: z.string(),
 
+	// Redis
+	REDIS_URL: z.string(),
+
 	// API
 	API_PORT: z.string().pipe(z.coerce.number()),
 	OAUTH_DISCORD_CLIENT_ID: z.string().regex(SnowflakeRegex),
@@ -35,6 +38,9 @@ const envSchema = z.object({
 	ENCRYPTION_KEY: z.string().length(44),
 	API_URL: z.url(),
 	FRONTEND_URL: z.url(),
+
+	// AMA
+	AMA_BOT_TOKEN: z.string(),
 });
 
 export const ENV = envSchema.parse(process.env);

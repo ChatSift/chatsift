@@ -1,6 +1,6 @@
 import { createContext, createDatabase, createLogger, createRedis } from '@chatsift/backend-core';
 
-const logger = createLogger('api');
+const logger = createLogger('ama-bot');
 const db = createDatabase(logger);
 const redis = await createRedis(logger);
 

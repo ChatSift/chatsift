@@ -14,7 +14,7 @@ import { sendBoom } from './util/sendBoom.js';
 
 export type * from './routes/_types/index.js';
 
-export async function bin() {
+export async function bin(): Promise<void> {
 	const app = polka({
 		onError(err, req, res) {
 			context.logger.error({ err, trackingId: (req as TRequest<unknown>).trackingId }, 'request error');

@@ -24,6 +24,8 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 	process.env['API_PORT'] = '9876';
 	process.env['ENCRYPTION_KEY'] = '7J7xgcVq3ZWu0RENu1riW7wJPYdqZzA1+kBRKMxhG0g=';
 	process.env['DATABASE_URL'] = 'postgres://user:password@localhost:5432/dbname';
+	process.env['REDIS_URL'] = 'redis://localhost:6379';
+	process.env['AMA_BOT_TOKEN'] = 'abcdef';
 
 	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 	const actual = (await importActual()) as typeof import('@chatsift/backend-core');
@@ -32,6 +34,7 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 		...actual,
 		// @ts-expect-error - Arg forwarding
 		createContext: (...args: any[]) => ({ ...actual.createContext(...args), UP_SINCE: Date.now() - 1_000 * 60 * 5 }),
+		createRedis: () => null,
 	};
 });
 
