@@ -17,7 +17,7 @@ export function LogoutButton({ className, additionally }: LogoutButtonProps) {
 	return (
 		<Button
 			className={className ?? ''}
-			onClick={async () => {
+			onPress={async () => {
 				await logoutMutation.mutateAsync(undefined as never);
 				router.replace('/');
 				additionally?.();
