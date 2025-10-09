@@ -21,6 +21,48 @@ interface BreadcrumbProps {
 	readonly segments: BreadcrumbSegment[];
 }
 
+export function getBreadcrumbTextStyles(isLast: boolean, highlight?: boolean) {
+	return cn(
+		isLast ? 'text-primary dark:text-primary-dark font-medium' : 'text-secondary dark:text-secondary-dark',
+		highlight && 'italic',
+	);
+}
+
+interface BreadcrumbLabelProps {
+	readonly highlight?: boolean;
+	readonly href?: string | undefined;
+	readonly icon?: React.ReactNode;
+	readonly isLast: boolean;
+	readonly label: string;
+}
+
+function BreadcrumbLabel({ icon, label, href, isLast, highlight }: BreadcrumbLabelProps) {
+	const content = (
+		<>
+			{icon}
+			{label}
+		</>
+	);
+
+	if (href) {
+		return (
+			<Link
+				className={cn(
+					'flex items-center gap-2 hover:text-primary dark:hover:text-primary-dark',
+					getBreadcrumbTextStyles(isLast, highlight),
+					isLast && 'pointer-events-none',
+				)}
+				href={href}
+				prefetch
+			>
+				{content}
+			</Link>
+		);
+	}
+
+	return <span className={cn('flex items-center gap-2', getBreadcrumbTextStyles(isLast, highlight))}>{content}</span>;
+}
+
 export function Breadcrumb({ segments }: BreadcrumbProps) {
 	return (
 		<nav className="flex items-center gap-2 text-lg">
@@ -31,41 +73,9 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
 				return (
 					<div className="flex items-center gap-2" key={`${segment.label}-${index}`}>
 						{hasOptions ? (
-							<BreadcrumbDropdown
-								highlight={segment.highlight}
-								icon={segment.icon}
-								isLast={isLast}
-								label={segment.label}
-								options={segment.options}
-							/>
-						) : segment.href ? (
-							<Link
-								className={cn(
-									'flex items-center gap-2 hover:text-primary dark:hover:text-primary-dark',
-									isLast
-										? 'text-primary dark:text-primary-dark font-medium'
-										: 'text-secondary dark:text-secondary-dark',
-									isLast && 'pointer-events-none',
-									segment.highlight && 'italic',
-								)}
-								href={segment.href}
-								prefetch
-							>
-								{segment.icon}
-								{segment.label}
-							</Link>
+							<BreadcrumbDropdown {...segment} isLast={isLast} options={segment.options} />
 						) : (
-							<span
-								className={cn(
-									isLast
-										? 'text-primary dark:text-primary-dark font-medium'
-										: 'text-secondary dark:text-secondary-dark',
-									segment.highlight && 'italic',
-								)}
-							>
-								{segment.icon}
-								{segment.label}
-							</span>
+							<BreadcrumbLabel {...segment} isLast={isLast} />
 						)}
 
 						{!isLast && <span className="text-secondary dark:text-secondary-dark">/</span>}

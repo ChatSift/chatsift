@@ -7,12 +7,9 @@ export default async function AMAPage({ params }: PageProps<'/dashboard/[id]/ama
 
 	return (
 		<div className="space-y-8">
-			<div className="space-y-4">
+			<div className="flex flex-col gap-4">
 				<DashboardCrumbs segments={[{ label: 'AMA' }]} />
-				<Heading subtitle="Configure AMA bot for your server" title="AMA Settings" />
-			</div>
-
-			<div className="flex flex-col gap-3">
+				<Heading subtitle="Configure AMA for your server" title="AMA Settings" />
 				<Link
 					className="flex items-center gap-4 rounded-lg border-[1px] border-on-secondary bg-card p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-card-dark dark:hover:bg-on-tertiary-dark"
 					href={`/dashboard/${id}/ama/amas`}

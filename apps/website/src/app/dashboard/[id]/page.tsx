@@ -27,11 +27,8 @@ export default function GuildPage() {
 
 	return (
 		<div className="space-y-8">
-			<DashboardCrumbs segments={[]} />
-
-			<GuildCard data={guild} variant="detailed" />
-
 			<div className="space-y-4">
+				<DashboardCrumbs segments={[]} />
 				<Heading subtitle="Configure the bots installed in your server" title="Bots" />
 				<div className="flex flex-col gap-3">
 					{BOTS.map((bot, index) => {
