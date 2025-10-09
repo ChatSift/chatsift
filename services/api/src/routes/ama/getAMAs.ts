@@ -47,7 +47,7 @@ export default class GetAMAs extends Route<AMASessionWithCount[], GetAMAsQuery> 
 		const sessionIds = sessions.map((s) => s.id);
 		const questionCounts = sessionIds.length
 			? await context.db
-					.selectFrom('AmaQuestion')
+					.selectFrom('AMAQuestion')
 					.select(['amaId'])
 					.select((eb) => eb.fn.count<string>('id').as('count'))
 					.where('amaId', 'in', sessionIds)
