@@ -16,6 +16,7 @@ export type Me = APIUser & { guilds: MeGuild[]; isGlobalAdmin: boolean };
 
 const CACHE = new Map<string, Me>();
 const CACHE_TIMEOUTS = new Map<string, NodeJS.Timeout>();
+const CACHE_TTL = 5 * 60 * 1_000; // 5 minutes
 
 export async function fetchMe(discordAccessToken: string, force = false): Promise<Me> {
 	if (CACHE.has(discordAccessToken) && !force) {
@@ -78,13 +79,10 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 		const timeout = CACHE_TIMEOUTS.get(discordAccessToken)!;
 		timeout.refresh();
 	} else {
-		const timeout = setTimeout(
-			() => {
-				CACHE.delete(discordAccessToken);
-				CACHE_TIMEOUTS.delete(discordAccessToken);
-			},
-			5 * 60 * 1_000,
-		).unref();
+		const timeout = setTimeout(() => {
+			CACHE.delete(discordAccessToken);
+			CACHE_TIMEOUTS.delete(discordAccessToken);
+		}, CACHE_TTL).unref();
 
 		CACHE_TIMEOUTS.set(discordAccessToken, timeout);
 	}

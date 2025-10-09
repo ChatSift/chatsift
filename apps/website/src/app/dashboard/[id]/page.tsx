@@ -34,21 +34,26 @@ export default function GuildPage() {
 				]}
 			/>
 
-			<div className="flex w-full flex-col gap-3 rounded-lg border-[1px] border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
+			<div className="flex w-full flex-row gap-3 rounded-lg border-[1px] border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 				<div className="flex flex-row gap-4">
 					<GuildIcon data={guild} disableLink hasBots={guild.bots.length > 0} />
-					<p className="content-center w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
-						{guild.name}
-					</p>
+					<div>
+						<p className="content-center w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
+							{guild.name}
+						</p>
+						<p className="text-base text-secondary dark:text-secondary-dark">{guild.bots.length} bot(s) active</p>
+					</div>
 				</div>
 
-				<div className="flex flex-col gap-1">
-					<p className="text-base text-secondary dark:text-secondary-dark">{guild.bots.length} bot(s) active</p>
+				<div className="flex flex-col gap-1 ml-auto text-right">
 					{guild.approximate_member_count !== undefined && (
 						<p className="text-base text-secondary dark:text-secondary-dark">
 							{guild.approximate_member_count.toLocaleString()} member(s)
-							{guild.approximate_presence_count !== undefined &&
-								` · ${guild.approximate_presence_count.toLocaleString()} online`}
+						</p>
+					)}
+					{guild.approximate_presence_count !== undefined && (
+						<p className="text-base text-secondary dark:text-secondary-dark">
+							{guild.approximate_presence_count?.toLocaleString() ?? '0'} online
 						</p>
 					)}
 				</div>
