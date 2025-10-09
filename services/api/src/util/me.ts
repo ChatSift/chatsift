@@ -8,9 +8,10 @@ import { nanoid } from 'nanoid';
 import { context } from '../context.js';
 import { discordAPIOAuth } from './discordAPI.js';
 
-export type MeGuild = Pick<RESTAPIPartialCurrentUserGuild, 'icon' | 'id' | 'name'> & {
-	approximate_member_count?: number;
-	approximate_presence_count?: number;
+export type MeGuild = Pick<
+	RESTAPIPartialCurrentUserGuild,
+	'approximate_member_count' | 'approximate_presence_count' | 'icon' | 'id' | 'name'
+> & {
 	bots: BotId[];
 	meCanManage: boolean;
 };

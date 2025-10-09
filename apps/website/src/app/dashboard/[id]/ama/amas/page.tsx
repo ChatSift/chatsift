@@ -3,16 +3,14 @@ import { AMASessionsList } from './_components/AMASessionsList';
 import { Heading } from '@/components/common/Heading';
 import { SearchBar } from '@/components/common/SearchBar';
 
-export default async function AMAPage({ params }: PageProps<'/dashboard/[id]/ama/amas'>) {
+export default async function AMAMangementPage({ params }: PageProps<'/dashboard/[id]/ama/amas'>) {
 	const { id } = await params;
 
 	return (
 		<>
 			<div className="flex flex-col [&:not]:first-of-type:mt-8 [&>*]:first-of-type:mb-4">
 				<DashboardCrumbs segments={[{ label: 'AMA Bot', href: `/dashboard/${id}/ama` }, { label: 'AMA Sessions' }]} />
-				<div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-					<Heading subtitle="Create, edit, and manage AMAs in your community" title="AMA sessions" />
-				</div>
+				<Heading subtitle="Create, edit, and manage AMAs in your community" title="AMA sessions" />
 				<SearchBar placeholder="Search AMA sessions..." />
 			</div>
 
