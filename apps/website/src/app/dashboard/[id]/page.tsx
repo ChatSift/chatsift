@@ -3,7 +3,7 @@
 import { BOTS } from '@chatsift/core';
 import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
-import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { DashboardCrumbs } from '../_components/DashboardCrumbs';
 import { GuildIcon } from '@/components/common/GuildIcon';
 import { Heading } from '@/components/common/Heading';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -27,12 +27,7 @@ export default function GuildPage() {
 
 	return (
 		<div className="space-y-8">
-			<Breadcrumb
-				segments={[
-					{ label: 'Servers', href: '/dashboard' },
-					{ label: guild.name, highlight: true },
-				]}
-			/>
+			<DashboardCrumbs segments={[]} />
 
 			<div className="flex w-full flex-row gap-3 rounded-lg border-[1px] border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 				<div className="flex flex-row gap-4">

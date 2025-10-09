@@ -9,6 +9,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// SECTION general
+
 model Experiment {
   name       String               @id
   createdAt  DateTime             @default(now())
@@ -27,11 +29,30 @@ model ExperimentOverride {
   @@unique([guildId, experimentName])
 }
 
-model Incident {
-  id         Int      @id @default(autoincrement())
-  stack      String
-  causeStack String?
-  guildId    String?
-  createdAt  DateTime @default(now())
-  resolved   Boolean  @default(false)
+// SECTION ama bot
+
+model AMASession {
+  id              Int      @id @default(autoincrement())
+  guildId         String
+  modQueue        String?
+  flaggedQueue    String?
+  guestQueue      String?
+  title           String
+  answersChannel  String
+  promptChannelId String
+  promptMessageId String   @unique
+  ended           Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  questions AmaQuestion[]
+}
+
+model AmaQuestion {
+  id              Int        @id @default(autoincrement())
+  amaId           Int
+  ama             AMASession @relation(fields: [amaId], references: [id], onDelete: Cascade)
+  authorId        String
+  content         String
+  imageUrl        String?
+  answerMessageId String?
 }

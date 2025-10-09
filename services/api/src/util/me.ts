@@ -14,6 +14,7 @@ export type MeGuild = Pick<RESTAPIPartialCurrentUserGuild, 'icon' | 'id' | 'name
 };
 export type Me = APIUser & { guilds: MeGuild[]; isGlobalAdmin: boolean };
 
+// TODO(DD): Should probably move this to redis
 const CACHE = new Map<string, Me>();
 const CACHE_TIMEOUTS = new Map<string, NodeJS.Timeout>();
 const CACHE_TTL = 5 * 60 * 1_000; // 5 minutes

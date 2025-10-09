@@ -3,7 +3,7 @@ import { cn } from '@/utils/util';
 
 export interface BreadcrumbSegment {
 	readonly highlight?: boolean;
-	readonly href?: string;
+	readonly href?: string | undefined;
 	readonly label: string;
 }
 
@@ -26,6 +26,7 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
 									isLast
 										? 'text-primary dark:text-primary-dark font-medium'
 										: 'text-secondary dark:text-secondary-dark',
+									isLast && 'pointer-events-none',
 									segment.highlight && 'italic',
 								)}
 								href={segment.href}

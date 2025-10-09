@@ -22,10 +22,12 @@ export default function GuildCard({ data }: GuildCardProps) {
 			<GuildIcon data={data} hasBots={hasBots} />
 			<div className="flex flex-col gap-1">
 				<p className="w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary group-hover:hidden dark:text-primary-dark">
-					{url && (
+					{url ? (
 						<Link href={url} prefetch>
 							{data.name}
 						</Link>
+					) : (
+						data.name
 					)}
 				</p>
 

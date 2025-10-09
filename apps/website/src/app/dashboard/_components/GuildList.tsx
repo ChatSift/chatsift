@@ -24,7 +24,7 @@ export function GuildList() {
 	}, [manageable, searchQuery]);
 
 	return (
-		<ul className="grid grid-cols-1 gap-4 md:grid-cols-4">
+		<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
 			{sorted.map((guild) => (
 				<li key={guild.id}>
 					<GuildCard data={guild} />
