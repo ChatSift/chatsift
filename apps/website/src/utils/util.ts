@@ -19,3 +19,9 @@ export const sortGuilds = (guilds: MeGuild[]) =>
 		.slice()
 		.reverse()
 		.sort((a, b) => b.bots.length - a.bots.length);
+
+export const getGuildAcronym = (guildName: string) =>
+	guildName
+		.replaceAll("'s ", ' ')
+		.replaceAll(/\w+/g, (substring) => substring[0]!)
+		.replaceAll(/\s/g, '');

@@ -28,6 +28,8 @@ export function DashboardCrumbs({ segments }: DashboardCrumbProps) {
 	const guildOptions = sortGuilds(me?.guilds.filter((g) => g.id !== guild.id && g.bots.length > 0) ?? []).map((g) => ({
 		label: g.name,
 		href: `/dashboard/${g.id}`,
+		icon: g.icon,
+		id: g.id,
 	}));
 
 	return (

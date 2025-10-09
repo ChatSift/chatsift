@@ -1,14 +1,7 @@
 import type { MeGuild } from '@chatsift/api';
 import Image from 'next/image';
 import Link from 'next/link';
-import { cn } from '@/utils/util';
-
-function getGuildAcronym(guildName: string) {
-	return guildName
-		.replaceAll("'s ", ' ')
-		.replaceAll(/\w+/g, (substring) => substring[0]!)
-		.replaceAll(/\s/g, '');
-}
+import { cn, getGuildAcronym } from '@/utils/util';
 
 export interface GuildIconProps {
 	readonly data: MeGuild;

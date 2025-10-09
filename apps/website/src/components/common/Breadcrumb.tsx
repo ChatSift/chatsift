@@ -4,6 +4,8 @@ import { cn } from '@/utils/util';
 
 export interface BreadcrumbOption {
 	readonly href: string;
+	readonly icon?: string | null;
+	readonly id?: string;
 	readonly label: string;
 }
 
