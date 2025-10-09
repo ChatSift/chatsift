@@ -7,6 +7,8 @@ import { context } from '../context.js';
 import { discordAPIOAuth } from './discordAPI.js';
 
 export type MeGuild = Pick<RESTAPIPartialCurrentUserGuild, 'icon' | 'id' | 'name'> & {
+	approximate_member_count?: number;
+	approximate_presence_count?: number;
 	bots: BotId[];
 	meCanManage: boolean;
 };
@@ -26,7 +28,7 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 	};
 
 	const discordUser = await discordAPIOAuth.users.getCurrent({ auth });
-	const guildsRaw = await discordAPIOAuth.users.getGuilds({}, { auth });
+	const guildsRaw = await discordAPIOAuth.users.getGuilds({ with_counts: true }, { auth });
 
 	const guildsByBot = await promiseAllObject(
 		Object.fromEntries(
@@ -39,19 +41,31 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 		) as Record<BotId, Promise<string[]>>,
 	);
 
-	const guilds = guildsRaw.map<MeGuild>(({ id, name, icon, owner, permissions }) => ({
-		id,
-		name,
-		icon,
-		owner,
-		permissions,
-		meCanManage:
-			PermissionsBitField.has(
-				BigInt(permissions),
-				PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
-			) || owner,
-		bots: BOTS.filter((bot) => guildsByBot[bot]?.includes(id)),
-	}));
+	const guilds = guildsRaw.map<MeGuild>(
+		({ id, name, icon, owner, permissions, approximate_member_count, approximate_presence_count }) => {
+			const guild: MeGuild = {
+				id,
+				name,
+				icon,
+				meCanManage:
+					PermissionsBitField.has(
+						BigInt(permissions),
+						PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
+					) || owner,
+				bots: BOTS.filter((bot) => guildsByBot[bot]?.includes(id)),
+			};
+
+			if (approximate_member_count !== undefined) {
+				guild.approximate_member_count = approximate_member_count;
+			}
+
+			if (approximate_presence_count !== undefined) {
+				guild.approximate_presence_count = approximate_presence_count;
+			}
+
+			return guild;
+		},
+	);
 
 	const me: Me = {
 		...discordUser,
