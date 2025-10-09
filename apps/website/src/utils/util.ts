@@ -1,3 +1,4 @@
+import type { MeGuild } from '@chatsift/api';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -12,3 +13,9 @@ export const retryWrapper = (retry: (retries: number, error: Error) => boolean) 
 };
 
 export const exponentialBackOff = (failureCount: number) => 2 ** failureCount * 1_000;
+
+export const sortGuilds = (guilds: MeGuild[]) =>
+	guilds
+		.slice()
+		.reverse()
+		.sort((a, b) => b.bots.length - a.bots.length);

@@ -1,10 +1,17 @@
 import Link from 'next/link';
+import { BreadcrumbDropdown } from './BreadcrumbDropdown';
 import { cn } from '@/utils/util';
+
+export interface BreadcrumbOption {
+	readonly href: string;
+	readonly label: string;
+}
 
 export interface BreadcrumbSegment {
 	readonly highlight?: boolean;
 	readonly href?: string | undefined;
 	readonly label: string;
+	readonly options?: readonly BreadcrumbOption[];
 }
 
 interface BreadcrumbProps {
@@ -16,10 +23,18 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
 		<nav className="flex items-center gap-2 text-lg">
 			{segments.map((segment, index) => {
 				const isLast = index === segments.length - 1;
+				const hasOptions = segment.options && segment.options.length > 0;
 
 				return (
 					<div className="flex items-center gap-2" key={`${segment.label}-${index}`}>
-						{segment.href ? (
+						{hasOptions ? (
+							<BreadcrumbDropdown
+								highlight={segment.highlight}
+								isLast={isLast}
+								label={segment.label}
+								options={segment.options}
+							/>
+						) : segment.href ? (
 							<Link
 								className={cn(
 									'hover:text-primary dark:hover:text-primary-dark',

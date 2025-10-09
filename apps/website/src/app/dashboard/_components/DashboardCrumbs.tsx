@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { client } from '@/data/client';
+import { sortGuilds } from '@/utils/util';
 
 export interface DashboardCrumbSegment {
 	readonly href?: string;
@@ -23,11 +24,22 @@ export function DashboardCrumbs({ segments }: DashboardCrumbProps) {
 		throw new Error('guild not found, should not be rendering this component');
 	}
 
+	// Create dropdown options for other guilds with bots
+	const guildOptions = sortGuilds(me?.guilds.filter((g) => g.id !== guild.id && g.bots.length > 0) ?? []).map((g) => ({
+		label: g.name,
+		href: `/dashboard/${g.id}`,
+	}));
+
 	return (
 		<Breadcrumb
 			segments={[
 				{ label: 'Servers', href: '/dashboard' },
-				{ label: guild.name, href: segments.length === 0 ? undefined : `/dashboard/${guild.id}`, highlight: true },
+				{
+					label: guild.name,
+					href: segments.length === 0 ? undefined : `/dashboard/${guild.id}`,
+					highlight: true,
+					...(guildOptions.length > 0 && { options: guildOptions }),
+				},
 				...segments.map(({ href, ...rest }) => {
 					if (href) {
 						return {

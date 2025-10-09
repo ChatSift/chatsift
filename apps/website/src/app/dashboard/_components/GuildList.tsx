@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import GuildCard from './GuildCard';
 import { client } from '@/data/client';
+import { sortGuilds } from '@/utils/util';
 
 export function GuildList() {
 	const { data: me } = client.auth.useMe();
@@ -20,7 +21,7 @@ export function GuildList() {
 		}
 
 		const filtered = manageable.filter((guild) => guild.name.toLowerCase().includes(lower));
-		return filtered.reverse().sort((a, b) => b.bots.length - a.bots.length);
+		return sortGuilds(filtered);
 	}, [manageable, searchQuery]);
 
 	return (

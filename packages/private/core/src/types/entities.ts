@@ -4,6 +4,27 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   : ColumnType<T, T | undefined, T>;
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
+export type AmaQuestion = {
+    id: Generated<number>;
+    amaId: number;
+    authorId: string;
+    content: string;
+    imageUrl: string | null;
+    answerMessageId: string | null;
+};
+export type AMASession = {
+    id: Generated<number>;
+    guildId: string;
+    modQueue: string | null;
+    flaggedQueue: string | null;
+    guestQueue: string | null;
+    title: string;
+    answersChannel: string;
+    promptChannelId: string;
+    promptMessageId: string;
+    ended: Generated<boolean>;
+    createdAt: Generated<Timestamp>;
+};
 export type Experiment = {
     name: string;
     createdAt: Generated<Timestamp>;
@@ -16,16 +37,9 @@ export type ExperimentOverride = {
     guildId: string;
     experimentName: string;
 };
-export type Incident = {
-    id: Generated<number>;
-    stack: string;
-    causeStack: string | null;
-    guildId: string | null;
-    createdAt: Generated<Timestamp>;
-    resolved: Generated<boolean>;
-};
 export type DB = {
+    AmaQuestion: AmaQuestion;
+    AMASession: AMASession;
     Experiment: Experiment;
     ExperimentOverride: ExperimentOverride;
-    Incident: Incident;
 };
