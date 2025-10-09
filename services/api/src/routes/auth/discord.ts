@@ -25,7 +25,17 @@ export default class GetAuthDiscord extends Route<never, never> {
 		}
 
 		const state = new StateCookie(`${context.env.FRONTEND_URL}/dashboard`).toCookie();
-		res.cookie('state', state, cookieWithDomain({ httpOnly: true, path: '/' }));
+		res.cookie(
+			'state',
+			state,
+			cookieWithDomain({
+				httpOnly: true,
+				path: '/',
+				sameSite: 'lax',
+				secure: context.env.IS_PRODUCTION,
+				maxAge: 10 * 60 * 1_000,
+			}),
+		);
 
 		const params = {
 			client_id: context.env.OAUTH_DISCORD_CLIENT_ID,

@@ -47,7 +47,17 @@ export default class GetAuthDiscordCallback extends Route<never, Query> {
 
 		const state = StateCookie.from(stateQuery);
 		// Clear state
-		res.cookie('state', 'noop', cookieWithDomain({ httpOnly: true, expires: new Date('1970-01-01'), path: '/' }));
+		res.cookie(
+			'state',
+			'noop',
+			cookieWithDomain({ httpOnly: true, expires: new Date('1970-01-01'), path: '/', secure: true, sameSite: 'lax' }),
+		);
+
+		const stateAge = Date.now() - state.createdAt.getTime();
+		const MAX_STATE_AGE = 10 * 60 * 1_000; // 10 minutes
+		if (stateAge > MAX_STATE_AGE) {
+			return next(badRequest('state expired'));
+		}
 
 		const result = await discordAPIOAuth.oauth2.tokenExchange({
 			client_id: context.env.OAUTH_DISCORD_CLIENT_ID,

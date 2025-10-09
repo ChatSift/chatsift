@@ -17,7 +17,7 @@ export class StateCookie {
 	public constructor(
 		public readonly redirectURI: string,
 		private readonly nonce: Buffer = randomBytes(16),
-		private readonly createdAt: Date = new Date(),
+		public readonly createdAt: Date = new Date(),
 	) {}
 
 	public toBytes(): Buffer {
