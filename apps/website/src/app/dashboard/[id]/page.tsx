@@ -4,7 +4,7 @@ import { BOTS } from '@chatsift/core';
 import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
 import { DashboardCrumbs } from '../_components/DashboardCrumbs';
-import { GuildIcon } from '@/components/common/GuildIcon';
+import GuildCard from '../_components/GuildCard';
 import { Heading } from '@/components/common/Heading';
 import { Skeleton } from '@/components/common/Skeleton';
 import { client } from '@/data/client';
@@ -29,30 +29,7 @@ export default function GuildPage() {
 		<div className="space-y-8">
 			<DashboardCrumbs segments={[]} />
 
-			<div className="flex w-full flex-row gap-3 rounded-lg border-[1px] border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
-				<div className="flex flex-row gap-4">
-					<GuildIcon data={guild} disableLink hasBots={guild.bots.length > 0} />
-					<div>
-						<p className="content-center w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
-							{guild.name}
-						</p>
-						<p className="text-base text-secondary dark:text-secondary-dark">{guild.bots.length} bot(s) active</p>
-					</div>
-				</div>
-
-				<div className="flex flex-col gap-1 ml-auto text-right">
-					{guild.approximate_member_count !== undefined && (
-						<p className="text-base text-secondary dark:text-secondary-dark">
-							{guild.approximate_member_count.toLocaleString()} member(s)
-						</p>
-					)}
-					{guild.approximate_presence_count !== undefined && (
-						<p className="text-base text-secondary dark:text-secondary-dark">
-							{guild.approximate_presence_count?.toLocaleString() ?? '0'} online
-						</p>
-					)}
-				</div>
-			</div>
+			<GuildCard data={guild} variant="detailed" />
 
 			<div className="space-y-4">
 				<Heading subtitle="Configure the bots installed in your server" title="Bots" />
