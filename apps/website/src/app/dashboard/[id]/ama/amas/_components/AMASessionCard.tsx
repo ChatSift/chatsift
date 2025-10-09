@@ -3,14 +3,13 @@ import Link from 'next/link';
 
 interface AMASessionCardProps {
 	readonly data: AMASessionWithCount;
-	readonly guildId: string;
 }
 
-export function AMASessionCard({ data, guildId }: AMASessionCardProps) {
+export function AMASessionCard({ data }: AMASessionCardProps) {
 	return (
 		<Link
 			className="flex h-36 w-[80vw] flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 hover:border-misc-accent dark:border-on-secondary-dark dark:bg-card-dark md:w-52"
-			href={`/dashboard/${guildId}/ama/amas/${data.id}`}
+			href={`/dashboard/${data.guildId}/ama/amas/${data.id}`}
 		>
 			<div className="flex flex-col gap-1">
 				<h3 className="overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">

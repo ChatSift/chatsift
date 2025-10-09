@@ -4,7 +4,6 @@ import { BOTS } from '@chatsift/core';
 import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
 import { DashboardCrumbs } from '../_components/DashboardCrumbs';
-import GuildCard from '../_components/GuildCard';
 import { Heading } from '@/components/common/Heading';
 import { Skeleton } from '@/components/common/Skeleton';
 import { client } from '@/data/client';
@@ -28,7 +27,7 @@ export default function GuildPage() {
 	return (
 		<div className="space-y-8">
 			<div className="space-y-4">
-				<DashboardCrumbs segments={[]} />
+				<DashboardCrumbs />
 				<Heading subtitle="Configure the bots installed in your server" title="Bots" />
 				<div className="flex flex-col gap-3">
 					{BOTS.map((bot, index) => {
