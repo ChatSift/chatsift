@@ -1,6 +1,6 @@
 'use client';
 
-import type { GetAuthMeQuery, InferAPIRouteResult } from '@chatsift/api';
+import type { GetAMAsQuery, GetAuthMeQuery, InferAPIRouteResult } from '@chatsift/api';
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { GettableRoutes, MakeOptions } from './common';
@@ -78,5 +78,11 @@ export const client = {
 	auth: {
 		useMe: (query?: GetAuthMeQuery) => make(routesInfo.auth.me(query ?? { force_fresh: false }))(),
 		useLogout: makeMutation(routesInfo.auth.logout, 'POST', async (queryClient) => queryClient.invalidateQueries()),
+	},
+
+	guilds: {
+		ama: {
+			useAMAs: (guildId: string, query: GetAMAsQuery) => make(routesInfo.guilds(guildId).ama.amas(query))(),
+		},
 	},
 } as const;

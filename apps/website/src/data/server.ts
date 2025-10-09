@@ -1,4 +1,4 @@
-import type { InferAPIRouteResult } from '@chatsift/api';
+import type { GetAMAsQuery, InferAPIRouteResult } from '@chatsift/api';
 import { NewAccessTokenHeader } from '@chatsift/core';
 import { dehydrate, QueryClient, type DehydratedState } from '@tanstack/react-query';
 import { parse } from 'cookie';
@@ -105,4 +105,10 @@ export const server = {
 	auth: {
 		me: make(routesInfo.auth.me({ force_fresh: false })),
 	},
+
+	guilds: (guildId: string) => ({
+		ama: {
+			amas: (query: GetAMAsQuery) => make(routesInfo.guilds(guildId).ama.amas(query)),
+		},
+	}),
 } as const;

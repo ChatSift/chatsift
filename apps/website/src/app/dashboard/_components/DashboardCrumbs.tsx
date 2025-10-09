@@ -16,7 +16,11 @@ interface DashboardCrumbProps {
 
 export function DashboardCrumbs({ segments }: DashboardCrumbProps) {
 	const { data: me } = client.auth.useMe();
-	const params = useParams<{ id: string }>();
+	const params = useParams<{ id?: string }>();
+
+	if (!params.id) {
+		throw new Error('id param not found, should not be rendering this component');
+	}
 
 	const guild = me?.guilds.find((g) => g.id === params.id);
 

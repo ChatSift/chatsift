@@ -1,4 +1,10 @@
-import type { APIRoutes, GetAuthMeQuery, InferAPIRouteBodyOrQuery, ParseHTTPParameters } from '@chatsift/api';
+import type {
+	APIRoutes,
+	GetAMAsQuery,
+	GetAuthMeQuery,
+	InferAPIRouteBodyOrQuery,
+	ParseHTTPParameters,
+} from '@chatsift/api';
 
 type Narrow<Narrowed, Narowee> = Narrowed extends Narowee ? Narrowed : never;
 export type GettableRoutes = Narrow<APIRoutes[keyof APIRoutes], { GET: any }>['GET']['info']['path'];
@@ -38,4 +44,15 @@ export const routesInfo = {
 			path: '/v3/auth/logout',
 		},
 	},
+
+	guilds: (id: string) => ({
+		ama: {
+			amas: (query: GetAMAsQuery) => ({
+				queryKey: ['guilds', id, 'ama', 'amas', String(query.include_ended)],
+				path: '/v3/guilds/:id/ama/amas',
+				query,
+				params: { id },
+			}),
+		},
+	}),
 } as const satisfies Info;
