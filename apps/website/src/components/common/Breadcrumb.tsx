@@ -12,6 +12,7 @@ export interface BreadcrumbOption {
 export interface BreadcrumbSegment {
 	readonly highlight?: boolean;
 	readonly href?: string | undefined;
+	readonly icon?: React.ReactNode;
 	readonly label: string;
 	readonly options?: readonly BreadcrumbOption[];
 }
@@ -32,6 +33,7 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
 						{hasOptions ? (
 							<BreadcrumbDropdown
 								highlight={segment.highlight}
+								icon={segment.icon}
 								isLast={isLast}
 								label={segment.label}
 								options={segment.options}
@@ -39,7 +41,7 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
 						) : segment.href ? (
 							<Link
 								className={cn(
-									'hover:text-primary dark:hover:text-primary-dark',
+									'flex items-center gap-2 hover:text-primary dark:hover:text-primary-dark',
 									isLast
 										? 'text-primary dark:text-primary-dark font-medium'
 										: 'text-secondary dark:text-secondary-dark',
@@ -49,6 +51,7 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
 								href={segment.href}
 								prefetch
 							>
+								{segment.icon}
 								{segment.label}
 							</Link>
 						) : (
@@ -60,6 +63,7 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
 									segment.highlight && 'italic',
 								)}
 							>
+								{segment.icon}
 								{segment.label}
 							</span>
 						)}

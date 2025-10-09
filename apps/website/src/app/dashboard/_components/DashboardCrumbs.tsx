@@ -2,11 +2,13 @@
 
 import { useParams } from 'next/navigation';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { GuildIcon } from '@/components/common/GuildIcon';
 import { client } from '@/data/client';
 import { sortGuilds } from '@/utils/util';
 
 export interface DashboardCrumbSegment {
 	readonly href?: string;
+	readonly icon?: React.ReactNode;
 	readonly label: string;
 }
 
@@ -43,8 +45,8 @@ export function DashboardCrumbs({ segments }: DashboardCrumbProps) {
 				{
 					label: guild.name,
 					href: segments.length === 0 ? undefined : `/dashboard/${guild.id}`,
-					highlight: true,
-					...(guildOptions.length > 0 && { options: guildOptions }),
+					icon: <GuildIcon data={guild} disableLink hasBots />,
+					options: guildOptions,
 				},
 				...segments.map(({ href, ...rest }) => {
 					if (href) {

@@ -10,12 +10,13 @@ import { cn, getGuildAcronym } from '@/utils/util';
 
 interface BreadcrumbDropdownProps {
 	readonly highlight?: boolean | undefined;
+	readonly icon?: React.ReactNode;
 	readonly isLast: boolean;
 	readonly label: string;
 	readonly options: readonly BreadcrumbOption[];
 }
 
-export function BreadcrumbDropdown({ label, options, isLast, highlight }: BreadcrumbDropdownProps) {
+export function BreadcrumbDropdown({ label, icon, options, isLast, highlight }: BreadcrumbDropdownProps) {
 	return (
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger asChild>
@@ -26,6 +27,7 @@ export function BreadcrumbDropdown({ label, options, isLast, highlight }: Breadc
 						highlight && 'italic',
 					)}
 				>
+					{icon}
 					{label}
 					<SvgChevronDown />
 				</Button>
