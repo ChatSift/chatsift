@@ -1,8 +1,10 @@
+import { performance } from 'node:perf_hooks';
 import { setTimeout } from 'node:timers';
 import type { BotId } from '@chatsift/backend-core';
 import { BOTS, GlobalCaches, PermissionsBitField, promiseAllObject } from '@chatsift/backend-core';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
+import { nanoid } from 'nanoid';
 import { context } from '../context.js';
 import { discordAPIOAuth } from './discordAPI.js';
 
@@ -23,6 +25,11 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 	if (CACHE.has(discordAccessToken) && !force) {
 		return CACHE.get(discordAccessToken)!;
 	}
+
+	const track = nanoid(10);
+	context.logger.info({ track }, 'cache miss for /me');
+
+	const start = performance.now();
 
 	const auth = {
 		prefix: 'Bearer' as const,
@@ -87,6 +94,9 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 
 		CACHE_TIMEOUTS.set(discordAccessToken, timeout);
 	}
+
+	const end = performance.now();
+	context.logger.info({ track, durationMs: end - start }, 'fetched /me');
 
 	return me;
 }

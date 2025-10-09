@@ -22,7 +22,7 @@ export interface AMASessionWithCount extends Selectable<AMASession> {
 export default class GetAMAs extends Route<AMASessionWithCount[], GetAMAsQuery> {
 	public readonly info = {
 		method: RouteMethod.get,
-		path: '/v3/guilds/:id/ama/amas',
+		path: '/v3/guilds/:guildId/ama/amas',
 	} as const;
 
 	public override readonly queryValidationSchema = querySchema;
@@ -33,7 +33,7 @@ export default class GetAMAs extends Route<AMASessionWithCount[], GetAMAsQuery> 
 
 	public override async handle(req: TRequest<GetAMAsQuery>, res: Response, next: NextHandler) {
 		const { include_ended } = req.query as unknown as GetAMAsQuery;
-		const { id: guildId } = req.params as { id: string };
+		const { guildId } = req.params as { guildId: string };
 
 		let query = context.db.selectFrom('AMASession').selectAll().where('guildId', '=', guildId);
 

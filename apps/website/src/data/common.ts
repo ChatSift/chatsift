@@ -45,13 +45,13 @@ export const routesInfo = {
 		},
 	},
 
-	guilds: (id: string) => ({
+	guilds: (guildId: string) => ({
 		ama: {
 			amas: (query: GetAMAsQuery) => ({
-				queryKey: ['guilds', id, 'ama', 'amas', String(query.include_ended)],
-				path: '/v3/guilds/:id/ama/amas',
+				queryKey: ['guilds', guildId, 'ama', 'amas', String(query.include_ended)],
+				path: '/v3/guilds/:guildId/ama/amas',
 				query,
-				params: { id },
+				params: { guildId },
 			}),
 		},
 	}),
