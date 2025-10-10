@@ -41,7 +41,7 @@ export function NormalPromptFields({
 					type="text"
 					value={plainText}
 				/>
-				{errors.plainText && <p className="mt-1 text-sm text-red-500">{errors.plainText}</p>}
+				{errors.plainText && <p className="mt-1 text-sm text-misc-danger">{errors.plainText}</p>}
 			</div>
 
 			<div>
@@ -57,7 +57,7 @@ export function NormalPromptFields({
 					rows={4}
 					value={description}
 				/>
-				{errors.description && <p className="mt-1 text-sm text-red-500">{errors.description}</p>}
+				{errors.description && <p className="mt-1 text-sm text-misc-danger">{errors.description}</p>}
 			</div>
 
 			<div>
@@ -72,7 +72,7 @@ export function NormalPromptFields({
 					type="url"
 					value={imageURL}
 				/>
-				{errors.imageURL && <p className="mt-1 text-sm text-red-500">{errors.imageURL}</p>}
+				{errors.imageURL && <p className="mt-1 text-sm text-misc-danger">{errors.imageURL}</p>}
 			</div>
 
 			<div>
@@ -90,7 +90,7 @@ export function NormalPromptFields({
 					type="url"
 					value={thumbnailURL}
 				/>
-				{errors.thumbnailURL && <p className="mt-1 text-sm text-red-500">{errors.thumbnailURL}</p>}
+				{errors.thumbnailURL && <p className="mt-1 text-sm text-misc-danger">{errors.thumbnailURL}</p>}
 			</div>
 		</div>
 	);

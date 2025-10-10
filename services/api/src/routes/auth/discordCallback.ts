@@ -14,12 +14,10 @@ import type { TRequest } from '../route.js';
 import { Route, RouteMethod } from '../route.js';
 import { DISCORD_AUTH_SCOPES } from './discord.js';
 
-const querySchema = z
-	.object({
-		code: z.string(),
-		state: z.string(),
-	})
-	.strict();
+const querySchema = z.strictObject({
+	code: z.string(),
+	state: z.string(),
+});
 
 export default class GetAuthDiscordCallback extends Route<never, typeof querySchema> {
 	public readonly info = {

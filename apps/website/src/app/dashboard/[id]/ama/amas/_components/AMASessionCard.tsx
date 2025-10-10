@@ -21,11 +21,7 @@ export function AMASessionCard({ data }: AMASessionCardProps) {
 			</div>
 			<div className="mt-auto flex items-center gap-2">
 				<span
-					className={`rounded px-2 py-1 text-xs font-medium ${
-						data.ended
-							? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200'
-							: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200'
-					}`}
+					className={`rounded px-2 py-1 text-xs font-medium ${data.ended ? 'text-misc-danger' : 'text-misc-accent'}`}
 				>
 					{data.ended ? 'Ended' : 'Active'}
 				</span>

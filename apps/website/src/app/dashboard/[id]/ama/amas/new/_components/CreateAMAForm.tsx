@@ -81,7 +81,7 @@ export function CreateAMAForm() {
 		const newErrors: FormErrors = {};
 
 		if (!formData.title.trim()) {
-			newErrors.title = 'Title is required';
+			newErrors.title = 'This field is required';
 		} else if (formData.title.length > 255) {
 			newErrors.title = 'Title must be at most 255 characters';
 		}
@@ -191,11 +191,11 @@ export function CreateAMAForm() {
 						id="title"
 						maxLength={255}
 						onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-						placeholder="My AMA Session"
+						placeholder="AMA with renowed JP VA John Doe"
 						type="text"
 						value={formData.title}
 					/>
-					{errors.title && <p className="mt-1 text-sm text-red-500">{errors.title}</p>}
+					{errors.title && <p className="mt-1 text-sm text-misc-danger">{errors.title}</p>}
 				</div>
 
 				<SnowflakeInput

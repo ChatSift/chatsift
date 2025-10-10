@@ -30,7 +30,7 @@ export function SnowflakeInput({
 				type="text"
 				value={value}
 			/>
-			{error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+			{error && <p className="mt-1 text-sm text-misc-danger">{error}</p>}
 		</div>
 	);
 }

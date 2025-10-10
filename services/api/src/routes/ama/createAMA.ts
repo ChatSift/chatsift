@@ -15,14 +15,12 @@ import { Route, RouteMethod } from '../route.js';
 
 const promptSchema = z.union([
 	z.strictObject({
-		prompt: z
-			.object({
-				description: z.string().max(4_000).optional(),
-				plainText: z.string().max(100).optional(),
-				imageURL: z.url().optional(),
-				thumbnailURL: z.url().optional(),
-			})
-			.strict(),
+		prompt: z.strictObject({
+			description: z.string().max(4_000).optional(),
+			plainText: z.string().max(100).optional(),
+			imageURL: z.url().optional(),
+			thumbnailURL: z.url().optional(),
+		}),
 	}),
 	z.strictObject({
 		prompt_raw: z.strictObject({

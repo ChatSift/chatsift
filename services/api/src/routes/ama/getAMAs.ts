@@ -7,11 +7,9 @@ import { isAuthed } from '../../middleware/isAuthed.js';
 import type { TRequest } from '../route.js';
 import { Route, RouteMethod } from '../route.js';
 
-const querySchema = z
-	.object({
-		include_ended: z.stringbool().optional().default(false),
-	})
-	.strict();
+const querySchema = z.strictObject({
+	include_ended: z.stringbool().optional().default(false),
+});
 
 export type GetAMAsQuery = z.input<typeof querySchema>;
 

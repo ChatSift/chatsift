@@ -8,11 +8,9 @@ import { Route, RouteMethod } from '../route.js';
 
 export type { Me, MeGuild } from '../../util/me.js';
 
-const querySchema = z
-	.object({
-		force_fresh: z.stringbool().optional().default(false),
-	})
-	.strict();
+const querySchema = z.strictObject({
+	force_fresh: z.stringbool().optional().default(false),
+});
 export type GetAuthMeQuery = z.input<typeof querySchema>;
 
 export default class GetAuthMe extends Route<Me, typeof querySchema> {
