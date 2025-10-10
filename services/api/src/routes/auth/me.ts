@@ -8,14 +8,12 @@ import { Route, RouteMethod } from '../route.js';
 
 export type { Me, MeGuild } from '../../util/me.js';
 
-const querySchema = z
-	.object({
-		force_fresh: z.string().pipe(z.coerce.boolean()).default(false),
-	})
-	.strict();
-export type GetAuthMeQuery = z.infer<typeof querySchema>;
+const querySchema = z.strictObject({
+	force_fresh: z.stringbool().optional().default(false),
+});
+export type GetAuthMeQuery = z.input<typeof querySchema>;
 
-export default class GetAuthMe extends Route<Me, GetAuthMeQuery> {
+export default class GetAuthMe extends Route<Me, typeof querySchema> {
 	public readonly info = {
 		method: RouteMethod.get,
 		path: '/v3/auth/me',
@@ -27,8 +25,8 @@ export default class GetAuthMe extends Route<Me, GetAuthMeQuery> {
 		...isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false }),
 	];
 
-	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
-		const { force_fresh } = req.query as unknown as GetAuthMeQuery;
+	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
+		const { force_fresh } = req.query;
 
 		const result: Me = await fetchMe(req.tokens!.access.discordAccessToken, force_fresh);
 

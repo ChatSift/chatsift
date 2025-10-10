@@ -17,7 +17,7 @@ export type * from './routes/_types/index.js';
 export async function bin(): Promise<void> {
 	const app = polka({
 		onError(err, req, res) {
-			context.logger.error({ err, trackingId: (req as TRequest<unknown>).trackingId }, 'request error');
+			context.logger.error({ err, trackingId: (req as TRequest<any>).trackingId }, 'request error');
 
 			if (res.writableEnded) {
 				return;

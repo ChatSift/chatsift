@@ -565,6 +565,7 @@ __metadata:
     "@discordjs/core": "npm:^3.0.0-dev.1759363313-f510b5ffa"
     "@discordjs/rest": "npm:^3.0.0-dev.1759363313-f510b5ffa"
     "@hapi/boom": "npm:^10.0.1"
+    "@sapphire/discord-utilities": "npm:^3.5.0"
     "@types/bcrypt": "npm:^6.0.0"
     "@types/busboy": "npm:^1.5.4"
     "@types/cors": "npm:^2.8.19"

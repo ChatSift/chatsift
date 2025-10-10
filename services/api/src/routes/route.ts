@@ -2,7 +2,7 @@ import { performance } from 'node:perf_hooks';
 import { setTimeout, clearTimeout } from 'node:timers';
 import { nanoid } from 'nanoid';
 import type { IError, Middleware, NextHandler, Polka, Request, Response } from 'polka';
-import type { ZodType } from 'zod';
+import type { z, ZodType } from 'zod';
 import { context } from '../context.js';
 import { jsonParser } from '../middleware/jsonParser.js';
 import { validate } from '../middleware/validate.js';
@@ -33,13 +33,20 @@ export interface RouteInfo {
 }
 
 // TODO: More generics?
-export type TRequest<TBody> = Omit<Request, 'body'> & { body: TBody; trackingId: string };
+export type TRequest<TBodyOrQueryZodType extends ZodType<any> | never> = Omit<Request, 'body' | 'query'> & {
+	body: TBodyOrQueryZodType extends never ? never : z.infer<TBodyOrQueryZodType>;
+	query: TBodyOrQueryZodType extends never ? never : z.infer<TBodyOrQueryZodType>;
+	trackingId: string;
+};
 
 /**
  * Represents a route on the server
  */
-export abstract class Route<TResult, TBodyOrQuery> {
-	public readonly __internalOnlyHereForTypeInferrenceDoNotUse__!: { bodyOrQuery: TBodyOrQuery; result: TResult };
+export abstract class Route<TResult, TBodyOrQueryZodType extends ZodType<any> | never> {
+	public readonly __internalOnlyHereForTypeInferrenceDoNotUse__!: {
+		bodyOrQuery: z.infer<TBodyOrQueryZodType>;
+		result: TResult;
+	};
 
 	/**
 	 * Base route information
@@ -49,30 +56,30 @@ export abstract class Route<TResult, TBodyOrQuery> {
 	/**
 	 * Middleware to use for this route - needs to be overriden by subclasses
 	 */
-	public readonly middleware: Middleware<TRequest<unknown>>[] = [];
+	public readonly middleware: Middleware<TRequest<any>>[] = [];
 
 	/**
 	 * Schema to use for body validation. Implicitly appends a jsonParser to the middleware
 	 */
-	public readonly bodyValidationSchema: ZodType<TBodyOrQuery> | null = null;
+	public readonly bodyValidationSchema: TBodyOrQueryZodType | null = null;
 
 	/**
 	 * Schema to use for query validation.
 	 */
-	public readonly queryValidationSchema: ZodType<TBodyOrQuery> | null = null;
+	public readonly queryValidationSchema: TBodyOrQueryZodType | null = null;
 
 	/**
 	 * Handles a request to this route
 	 */
-	public abstract handle(req: TRequest<TBodyOrQuery>, res: Response, next: NextHandler): unknown;
+	public abstract handle(req: TRequest<z.infer<TBodyOrQueryZodType>>, res: Response, next: NextHandler): unknown;
 
 	/**
 	 * Registers this route
 	 *
 	 * @param server - The Polka webserver to register this route onto
 	 */
-	public register(server: Polka<TRequest<unknown>>): void {
-		const middleware: Middleware<TRequest<unknown>>[] = [
+	public register(server: Polka<TRequest<any>>): void {
+		const middleware: Middleware<TRequest<any>>[] = [
 			async (req, res, next) => {
 				req.trackingId = nanoid(10);
 
@@ -124,7 +131,7 @@ export abstract class Route<TResult, TBodyOrQuery> {
 					{ trackingId: req.trackingId, method: req.method, path: req.path },
 					'passing to route handler from middleware',
 				);
-				await this.handle(req as TRequest<TBodyOrQuery>, res, next);
+				await this.handle(req as TRequest<z.infer<TBodyOrQueryZodType>>, res, next);
 				context.logger.info(
 					{ trackingId: req.trackingId, method: req.method, path: req.path },
 					'route handler complete',
@@ -148,8 +155,8 @@ export type ParseHTTPParameters<
 export type InferRouteMethod<TRoute extends Route<any, any>> = TRoute['info']['method'];
 export type InferRouteResult<TRoute> = TRoute extends Route<infer TResult, any> ? TResult : never;
 export type InferRouteBodyOrQuery<TRoute extends Route<any, any>> =
-	TRoute['bodyValidationSchema'] extends ZodType<infer Body>
+	TRoute['bodyValidationSchema'] extends ZodType<any, infer Body>
 		? Body
-		: TRoute['queryValidationSchema'] extends ZodType<infer Query>
+		: TRoute['queryValidationSchema'] extends ZodType<any, infer Query>
 			? Query
 			: never;

@@ -57,7 +57,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
 			<Button
 				className="h-10 px-4 py-2 border border-on-secondary dark:border-on-secondary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark transition-colors text-sm"
 				isDisabled={!searchValue.trim()}
-				onClick={handleClear}
+				onPress={handleClear}
 				type="button"
 			>
 				Clear

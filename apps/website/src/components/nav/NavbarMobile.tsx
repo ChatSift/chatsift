@@ -24,8 +24,8 @@ export function NavbarMobile() {
 					aria-controls="menu"
 					aria-expanded={mobileNavOpen}
 					aria-haspopup="true"
+					className="p-3"
 					onPress={() => setMobileNavOpen(!mobileNavOpen)}
-					style={{ padding: 12 }}
 				>
 					{mobileNavOpen ? <SvgClose /> : <SvgHamburger />}
 				</Button>

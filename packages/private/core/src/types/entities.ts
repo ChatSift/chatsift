@@ -4,7 +4,7 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   : ColumnType<T, T | undefined, T>;
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
-export type AmaQuestion = {
+export type AMAQuestion = {
     id: Generated<number>;
     amaId: number;
     authorId: string;
@@ -15,11 +15,11 @@ export type AmaQuestion = {
 export type AMASession = {
     id: Generated<number>;
     guildId: string;
-    modQueue: string | null;
-    flaggedQueue: string | null;
-    guestQueue: string | null;
+    modQueueId: string | null;
+    flaggedQueueId: string | null;
+    guestQueueId: string | null;
     title: string;
-    answersChannel: string;
+    answersChannelId: string;
     promptChannelId: string;
     promptMessageId: string;
     ended: Generated<boolean>;
@@ -38,7 +38,7 @@ export type ExperimentOverride = {
     experimentName: string;
 };
 export type DB = {
-    AmaQuestion: AmaQuestion;
+    AMAQuestion: AMAQuestion;
     AMASession: AMASession;
     Experiment: Experiment;
     ExperimentOverride: ExperimentOverride;

@@ -13,7 +13,7 @@ export default function NotFound() {
 			</p>
 			<Button
 				className="flex justify-center gap-2 rounded-md bg-misc-accent px-4 py-3 text-lg font-[550] text-primary-dark md:inline-flex"
-				onClick={() => router.back()}
+				onPress={() => router.back()}
 			>
 				Go back
 			</Button>

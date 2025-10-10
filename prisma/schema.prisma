@@ -32,22 +32,22 @@ model ExperimentOverride {
 // SECTION ama bot
 
 model AMASession {
-  id              Int      @id @default(autoincrement())
-  guildId         String
-  modQueue        String?
-  flaggedQueue    String?
-  guestQueue      String?
-  title           String
-  answersChannel  String
-  promptChannelId String
-  promptMessageId String   @unique
-  ended           Boolean  @default(false)
-  createdAt       DateTime @default(now())
+  id               Int      @id @default(autoincrement())
+  guildId          String
+  modQueueId       String?
+  flaggedQueueId   String?
+  guestQueueId     String?
+  title            String
+  answersChannelId String
+  promptChannelId  String
+  promptMessageId  String   @unique
+  ended            Boolean  @default(false)
+  createdAt        DateTime @default(now())
 
-  questions AmaQuestion[]
+  questions AMAQuestion[]
 }
 
-model AmaQuestion {
+model AMAQuestion {
   id              Int        @id @default(autoincrement())
   amaId           Int
   ama             AMASession @relation(fields: [amaId], references: [id], onDelete: Cascade)
