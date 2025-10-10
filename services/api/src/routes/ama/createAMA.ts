@@ -44,11 +44,11 @@ const bodySchema = z.intersection(
 	promptSchema,
 );
 
-export type CreateAMABody = z.infer<typeof bodySchema>;
+export type CreateAMABody = z.input<typeof bodySchema>;
 
 export type CreateAMAResult = Selectable<AMASession>;
 
-export default class CreateAMA extends Route<CreateAMAResult, CreateAMABody> {
+export default class CreateAMA extends Route<CreateAMAResult, typeof bodySchema> {
 	public readonly info = {
 		method: RouteMethod.post,
 		path: '/v3/guilds/:guildId/ama/amas',
@@ -60,8 +60,8 @@ export default class CreateAMA extends Route<CreateAMAResult, CreateAMABody> {
 		...isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: true }),
 	];
 
-	public override async handle(req: TRequest<CreateAMABody>, res: Response, next: NextHandler) {
-		const data = req.body as CreateAMABody;
+	public override async handle(req: TRequest<typeof bodySchema>, res: Response, next: NextHandler) {
+		const data = req.body;
 		const { guildId } = req.params as { guildId: string };
 
 		// TODO(DD): Reconsider?

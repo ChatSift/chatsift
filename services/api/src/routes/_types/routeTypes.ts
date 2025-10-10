@@ -1,3 +1,4 @@
+export type * from '../ama/createAMA.js';
 export type * from '../ama/getAMAs.js';
 
 export type * from '../auth/discord.js';

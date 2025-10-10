@@ -1,6 +1,6 @@
 'use client';
 
-import type { GetAMAsQuery, GetAuthMeQuery, InferAPIRouteResult } from '@chatsift/api';
+import type { CreateAMABody, GetAMAsQuery, GetAuthMeQuery, InferAPIRouteResult } from '@chatsift/api';
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { GettableRoutes, MakeOptions } from './common';
@@ -25,6 +25,7 @@ function make<Options extends MakeOptions & { path: GettableRoutes }>({ path, qu
 		const fetcher = useClientSideFetcher({ path: finalPath as `/${string}`, method: 'GET' });
 		return useQuery({
 			queryKey,
+			// @ts-expect-error - This won't ever compile
 			queryFn: async () => fetcher() as Promise<InferAPIRouteResult<Options['path'], 'GET'> | null>,
 			throwOnError: clientSideErrorHandler({ throwOverride: false }),
 			refetchOnWindowFocus: false,
@@ -76,12 +77,21 @@ function makeMutation<Options extends MakeOptions, Method extends 'DELETE' | 'PA
 
 export const client = {
 	auth: {
-		useMe: (query?: GetAuthMeQuery) => make(routesInfo.auth.me(query ?? { force_fresh: false }))(),
+		useMe: (query?: GetAuthMeQuery) => make(routesInfo.auth.me(query ?? { force_fresh: 'false' }))(),
 		useLogout: makeMutation(routesInfo.auth.logout, 'POST', async (queryClient) => queryClient.invalidateQueries()),
 	},
 
 	guilds: {
 		ama: {
+			createAMA: (guildId: string) =>
+				makeMutation(routesInfo.guilds(guildId).ama.amas(), 'POST', async (queryClient) => {
+					await queryClient.invalidateQueries({
+						queryKey: [
+							routesInfo.guilds(guildId).ama.amas({ include_ended: 'false' }).queryKey,
+							routesInfo.guilds(guildId).ama.amas({ include_ended: 'true' }).queryKey,
+						],
+					});
+				})(),
 			useAMAs: (guildId: string, query: GetAMAsQuery) => make(routesInfo.guilds(guildId).ama.amas(query))(),
 		},
 	},

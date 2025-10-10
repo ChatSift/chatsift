@@ -47,10 +47,10 @@ export const routesInfo = {
 
 	guilds: (guildId: string) => ({
 		ama: {
-			amas: (query: GetAMAsQuery) => ({
-				queryKey: ['guilds', guildId, 'ama', 'amas', String(query.include_ended)],
+			amas: (query?: GetAMAsQuery) => ({
+				queryKey: ['guilds', guildId, 'ama', 'amas', String(query?.include_ended ?? false)],
 				path: '/v3/guilds/:guildId/ama/amas',
-				query,
+				query: { include_ended: query?.include_ended ?? 'false' },
 				params: { guildId },
 			}),
 		},

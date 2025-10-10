@@ -1,5 +1,6 @@
 // This file should exclusively re-export the default exports from each route file
 
+export { default as CreateAMA } from './ama/createAMA.js';
 export { default as GetAMAs } from './ama/getAMAs.js';
 
 export { default as GetAuthDiscord } from './auth/discord.js';
