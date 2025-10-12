@@ -1,8 +1,16 @@
 import { setTimeout } from 'node:timers';
-import type { API, APIGuildChannel, GuildChannelType, Snowflake } from '@discordjs/core';
+import type {
+	API,
+	APIGuildChannel,
+	APISortableChannel,
+	APIThreadChannel,
+	GuildChannelType,
+	Snowflake,
+} from '@discordjs/core';
 import type { MeGuild } from './me.js';
 
-export type GuildChannelInfo = Pick<APIGuildChannel<GuildChannelType>, 'id' | 'name' | 'parent_id' | 'type'>;
+export type GuildChannelInfo = APISortableChannel &
+	Pick<APIGuildChannel<GuildChannelType>, 'id' | 'name' | 'parent_id' | 'type'>;
 
 // TODO(DD): Should probably move this to redis
 const CACHE = new Map<Snowflake, GuildChannelInfo[]>();
@@ -15,12 +23,23 @@ export async function fetchGuildChannels(guild: MeGuild, api: API, force = false
 	}
 
 	// TODO(DD): https://github.com/discordjs/discord-api-types/pull/1397
-	const channelsRaw = (await api.guilds.getChannels(guild.id)) as APIGuildChannel<GuildChannelType>[];
-	const channels: GuildChannelInfo[] = channelsRaw.map(({ id, name, parent_id, type }) => ({
+	const channelsRaw = (await api.guilds.getChannels(guild.id)) as (APIGuildChannel<GuildChannelType> &
+		APISortableChannel)[];
+	const channels: GuildChannelInfo[] = channelsRaw.map(({ id, name, parent_id, type, position }) => ({
 		id,
 		name,
 		parent_id: parent_id ?? null,
 		type,
+		position,
+	}));
+
+	const { threads: threadsRaw } = await api.guilds.getActiveThreads(guild.id);
+	const threads: GuildChannelInfo[] = (threadsRaw as APIThreadChannel[]).map(({ id, name, parent_id, type }) => ({
+		id,
+		name,
+		parent_id: parent_id!,
+		type,
+		position: 0, // Threads don't have a position, this should be good enough
 	}));
 
 	CACHE.set(guild.id, channels);
@@ -36,5 +55,5 @@ export async function fetchGuildChannels(guild: MeGuild, api: API, force = false
 		CACHE_TIMEOUTS.set(guild.id, timeout);
 	}
 
-	return channels;
+	return channels.concat(threads);
 }

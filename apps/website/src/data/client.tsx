@@ -1,6 +1,6 @@
 'use client';
 
-import type { CreateAMABody, GetAMAsQuery, GetAuthMeQuery, InferAPIRouteResult } from '@chatsift/api';
+import type { CreateAMABody, GetAMAsQuery, GetAuthMeQuery, GetGuildQuery, InferAPIRouteResult } from '@chatsift/api';
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { GettableRoutes, MakeOptions } from './common';
@@ -82,6 +82,8 @@ export const client = {
 	},
 
 	guilds: {
+		useInfo: (guildId: string, query: GetGuildQuery) => make(routesInfo.guilds(guildId).info(query))(),
+
 		ama: {
 			createAMA: (guildId: string) =>
 				makeMutation(routesInfo.guilds(guildId).ama.amas(), 'POST', async (queryClient) => {

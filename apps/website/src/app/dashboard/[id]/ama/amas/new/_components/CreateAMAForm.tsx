@@ -1,13 +1,15 @@
 'use client';
 
 import type { CreateAMABody } from '@chatsift/api';
+import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { NormalPromptFields } from './NormalPromptFields';
 import { PromptModeToggle } from './PromptModeToggle';
 import { RawPromptField } from './RawPromptField';
-import { SnowflakeInput } from './SnowflakeInput';
 import { Button } from '@/components/common/Button';
+import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
+import { Skeleton } from '@/components/common/Skeleton';
 import { client } from '@/data/client';
 import { APIError } from '@/utils/fetcher';
 
@@ -28,20 +30,6 @@ interface FormData {
 }
 
 type FormErrors = Partial<Record<keyof FormData, string>>;
-
-const SNOWFLAKE_REGEX = /^\d{17,20}$/;
-
-function validateSnowflake(value: string, required: boolean = true): string | undefined {
-	if (!value) {
-		return required ? 'This field is required' : undefined;
-	}
-
-	if (!SNOWFLAKE_REGEX.test(value)) {
-		return 'Must be a valid Discord ID (17-20 digits)';
-	}
-
-	return undefined;
-}
 
 function validateURL(value: string): string | undefined {
 	if (!value) return undefined;
@@ -75,6 +63,7 @@ export function CreateAMAForm() {
 	});
 	const [errors, setErrors] = useState<FormErrors>({});
 
+	const { data: guildInfo } = client.guilds.useInfo(guildId, { for_bot: 'AMA', force_fresh: 'false' });
 	const createAMA = client.guilds.ama.createAMA(guildId);
 
 	const validateForm = (): boolean => {
@@ -86,21 +75,13 @@ export function CreateAMAForm() {
 			newErrors.title = 'Title must be at most 255 characters';
 		}
 
-		const answersChannelError = validateSnowflake(formData.answersChannelId);
-		if (answersChannelError) newErrors.answersChannelId = answersChannelError;
+		if (!formData.answersChannelId) {
+			newErrors.answersChannelId = 'This field is required';
+		}
 
-		const promptChannelError = validateSnowflake(formData.promptChannelId);
-		if (promptChannelError) newErrors.promptChannelId = promptChannelError;
-
-		// Optional snowflake fields
-		const modQueueError = validateSnowflake(formData.modQueueId, false);
-		if (modQueueError) newErrors.modQueueId = modQueueError;
-
-		const flaggedQueueError = validateSnowflake(formData.flaggedQueueId, false);
-		if (flaggedQueueError) newErrors.flaggedQueueId = flaggedQueueError;
-
-		const guestQueueError = validateSnowflake(formData.guestQueueId, false);
-		if (guestQueueError) newErrors.guestQueueId = guestQueueError;
+		if (!formData.promptChannelId) {
+			newErrors.promptChannelId = 'This field is required';
+		}
 
 		// Normal mode validations
 		if (promptMode === 'normal') {
@@ -176,12 +157,31 @@ export function CreateAMAForm() {
 		setTimeout(() => formatJSON(), 50);
 	};
 
+	if (!guildInfo) {
+		return (
+			<div className="mt-8 space-y-6">
+				<div className="space-y-4">
+					<Skeleton className="h-7 w-48" />
+					<Skeleton className="h-10 w-full" />
+					<Skeleton className="h-10 w-full" />
+					<Skeleton className="h-10 w-full" />
+					<Skeleton className="h-10 w-full" />
+					<Skeleton className="h-10 w-full" />
+					<Skeleton className="h-10 w-full" />
+				</div>
+				<div className="space-y-4">
+					<Skeleton className="h-7 w-56" />
+					<Skeleton className="h-32 w-full" />
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<form className="mt-8 space-y-6" onSubmit={handleSubmit}>
 			{/* Base Fields */}
 			<div className="space-y-4">
 				<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Session Details</h2>
-
 				<div>
 					<label className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2" htmlFor="title">
 						Title *
@@ -197,46 +197,56 @@ export function CreateAMAForm() {
 					/>
 					{errors.title && <p className="mt-1 text-sm text-misc-danger">{errors.title}</p>}
 				</div>
-
-				<SnowflakeInput
+				<ChannelSelect
+					allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement, ...threadTypes]}
+					channels={guildInfo.channels}
 					error={errors.answersChannelId}
-					id="answersChannelId"
-					label="Answers Channel ID"
+					label="Answers Channel"
 					onChange={(value) => setFormData({ ...formData, answersChannelId: value })}
+					placeholder="Select the channel where answers will be posted"
 					required
+					selectedId="answersChannelId"
 					value={formData.answersChannelId}
-				/>
-
-				<SnowflakeInput
+				/>{' '}
+				<ChannelSelect
+					allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement]}
+					channels={guildInfo.channels}
 					error={errors.promptChannelId}
-					id="promptChannelId"
-					label="Prompt Channel ID"
+					label="Prompt Channel"
 					onChange={(value) => setFormData({ ...formData, promptChannelId: value })}
+					placeholder="Select the channel where the prompt will be posted"
 					required
+					selectedId="promptChannelId"
 					value={formData.promptChannelId}
-				/>
-
-				<SnowflakeInput
+				/>{' '}
+				<ChannelSelect
+					allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement]}
+					channels={guildInfo.channels}
 					error={errors.modQueueId}
-					id="modQueueId"
-					label="Mod Queue ID (optional)"
+					label="Mod Queue (optional)"
 					onChange={(value) => setFormData({ ...formData, modQueueId: value })}
+					placeholder="Select a channel for mod queue"
+					selectedId="modQueueId"
 					value={formData.modQueueId}
-				/>
-
-				<SnowflakeInput
+				/>{' '}
+				<ChannelSelect
+					allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement]}
+					channels={guildInfo.channels}
 					error={errors.flaggedQueueId}
-					id="flaggedQueueId"
-					label="Flagged Queue ID (optional)"
+					label="Flagged Queue (optional)"
 					onChange={(value) => setFormData({ ...formData, flaggedQueueId: value })}
+					placeholder="Select a channel for flagged questions"
+					selectedId="flaggedQueueId"
 					value={formData.flaggedQueueId}
-				/>
-
-				<SnowflakeInput
+				/>{' '}
+				<ChannelSelect
+					allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement]}
+					channels={guildInfo.channels}
 					error={errors.guestQueueId}
-					id="guestQueueId"
-					label="Guest Queue ID (optional)"
+					label="Guest Queue (optional)"
 					onChange={(value) => setFormData({ ...formData, guestQueueId: value })}
+					placeholder="Select a channel for guest queue"
+					selectedId="guestQueueId"
 					value={formData.guestQueueId}
 				/>
 			</div>

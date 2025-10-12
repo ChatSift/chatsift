@@ -2,6 +2,7 @@ import type {
 	APIRoutes,
 	GetAMAsQuery,
 	GetAuthMeQuery,
+	GetGuildQuery,
 	InferAPIRouteBodyOrQuery,
 	ParseHTTPParameters,
 } from '@chatsift/api';
@@ -46,6 +47,13 @@ export const routesInfo = {
 	},
 
 	guilds: (guildId: string) => ({
+		info: (query: GetGuildQuery) => ({
+			queryKey: ['guilds', guildId],
+			path: '/v3/guilds/:guildId',
+			params: { guildId },
+			query,
+		}),
+
 		ama: {
 			amas: (query?: GetAMAsQuery) => ({
 				queryKey: ['guilds', guildId, 'ama', 'amas', String(query?.include_ended ?? false)],

@@ -23,6 +23,7 @@ function make<Options extends MakeOptions & { path: GettableRoutes }>({ path, qu
 			)
 		: path;
 
+	// @ts-expect-error - This will never compile on the Method
 	async function fetchIt(): Promise<FetchItResult<InferAPIRouteResult<Options['path'], 'GET'>>> {
 		const cookie = (await headers()).get('cookie') ?? '';
 
@@ -60,6 +61,7 @@ function make<Options extends MakeOptions & { path: GettableRoutes }>({ path, qu
 			throw new Error('Failed to fetch');
 		}
 
+		// @ts-expect-error - This will never compile on the Method
 		const data = (await res.json()) as InferAPIRouteResult<Options['path'], 'GET'>;
 		return {
 			...base,
@@ -103,7 +105,7 @@ export const server = {
 	},
 
 	auth: {
-		me: make(routesInfo.auth.me({ force_fresh: false })),
+		me: make(routesInfo.auth.me({ force_fresh: 'false' })),
 	},
 
 	guilds: (guildId: string) => ({

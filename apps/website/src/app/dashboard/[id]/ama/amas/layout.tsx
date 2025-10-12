@@ -5,7 +5,7 @@ export default async function AMAsLayout({ children, params }: LayoutProps<'/das
 	const { id } = await params;
 
 	return (
-		<HydrationBoundary state={await server.guilds(id).ama.amas({ include_ended: false }).prefetch()}>
+		<HydrationBoundary state={await server.guilds(id).ama.amas({ include_ended: 'false' }).prefetch()}>
 			{children}
 		</HydrationBoundary>
 	);
