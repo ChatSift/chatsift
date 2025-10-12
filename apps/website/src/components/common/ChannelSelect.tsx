@@ -6,6 +6,7 @@ import { ChannelType } from 'discord-api-types/v10';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SvgChevronDown } from '../icons/SvgChevronDown';
 import { Button } from './Button';
+import { ScrollArea } from './ScrollArea';
 import { getChannelIcon } from '@/utils/channels';
 import { cn } from '@/utils/util';
 
@@ -14,7 +15,7 @@ interface ChannelSelectProps {
 	readonly channels: GuildChannelInfo[];
 	readonly error?: string | undefined;
 	readonly label: string;
-	onChange(channelId: string): void;
+	onChange(channelId: string | undefined): void;
 	readonly placeholder?: string;
 	readonly required?: boolean;
 	readonly selectedId: string;
@@ -56,9 +57,14 @@ export function ChannelSelect({
 		};
 	}, [isOpen]);
 
-	const handleSelect = (channelId: string, isSelectable: boolean) => {
+	const handleSelect = (channelId: string | undefined, isSelectable: boolean) => {
 		if (!isSelectable) return;
 		onChange(channelId);
+		setIsOpen(false);
+	};
+
+	const handleNoneSelect = () => {
+		onChange(undefined);
 		setIsOpen(false);
 	};
 
@@ -94,56 +100,70 @@ export function ChannelSelect({
 				</Button>
 
 				{isOpen && (
-					<div className="absolute z-50 w-full mt-1 bg-card dark:bg-card-dark border border-on-secondary dark:border-on-secondary-dark rounded-md shadow-lg max-h-80 overflow-y-auto">
-						{sortedChannels.map((channel: GuildChannelInfo) => {
-							const isCategory = channel.type === ChannelType.GuildCategory;
-							const isParentToAllowed = channels.some(
-								(ch) => ch.parent_id === channel.id && allowedTypes.includes(ch.type),
-							);
-							const isThread = threadTypes.includes(channel.type);
-							const hasParent = channel.parent_id !== null && channel.parent_id !== undefined;
-
-							// Determine if this channel matches the allowed types
-							const isAllowedType = allowedTypes.includes(channel.type);
-							const shouldDisplay = isParentToAllowed || isAllowedType;
-
-							// Determine if this channel is selectable
-							const isSelectable = !isCategory && isAllowedType;
-
-							if (!shouldDisplay) {
-								return null;
-							}
-
-							// Categories are always displayed but not selectable
-							if (isCategory) {
-								return (
-									<div
-										className="px-3 py-2 text-xs font-semibold text-secondary dark:text-secondary-dark uppercase tracking-wide bg-on-tertiary dark:bg-on-tertiary-dark"
-										key={channel.id}
-									>
-										<ChannelItem channel={channel} />
-									</div>
-								);
-							}
-
-							return (
+					<div className="absolute z-50 w-full mt-1 bg-card dark:bg-card-dark border border-on-secondary dark:border-on-secondary-dark rounded-md shadow-lg">
+						<ScrollArea className="max-h-80">
+							{!required && (
 								<Button
 									className={cn(
-										'w-full px-3 py-2 text-left transition-colors',
-										isSelectable && 'hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark cursor-pointer',
-										!isSelectable && 'cursor-not-allowed opacity-50',
-										value === channel.id && isSelectable && 'bg-misc-accent/10 text-misc-accent',
-										isThread && 'pl-8',
-										!isThread && hasParent && 'pl-6',
+										'w-full px-3 py-2 text-left transition-colors hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark cursor-pointer',
+										!value && 'bg-misc-accent/10 text-misc-accent',
 									)}
-									isDisabled={!isSelectable}
-									key={channel.id}
-									onClick={() => handleSelect(channel.id, isSelectable)}
+									key="none"
+									onClick={handleNoneSelect}
 								>
-									<ChannelItem channel={channel} />
+									<span className="text-sm text-secondary dark:text-secondary-dark">None</span>
 								</Button>
-							);
-						})}
+							)}
+							{sortedChannels.map((channel: GuildChannelInfo) => {
+								const isCategory = channel.type === ChannelType.GuildCategory;
+								const isParentToAllowed = channels.some(
+									(ch) => ch.parent_id === channel.id && allowedTypes.includes(ch.type),
+								);
+								const isThread = threadTypes.includes(channel.type);
+								const hasParent = channel.parent_id !== null && channel.parent_id !== undefined;
+
+								// Determine if this channel matches the allowed types
+								const isAllowedType = allowedTypes.includes(channel.type);
+								const shouldDisplay = isParentToAllowed || isAllowedType;
+
+								// Determine if this channel is selectable
+								const isSelectable = !isCategory && isAllowedType;
+
+								if (!shouldDisplay) {
+									return null;
+								}
+
+								// Categories are always displayed but not selectable
+								if (isCategory) {
+									return (
+										<div
+											className="px-3 py-2 text-xs font-semibold text-secondary dark:text-secondary-dark uppercase tracking-wide bg-on-tertiary dark:bg-on-tertiary-dark"
+											key={channel.id}
+										>
+											<ChannelItem channel={channel} />
+										</div>
+									);
+								}
+
+								return (
+									<Button
+										className={cn(
+											'w-full px-3 py-2 text-left transition-colors',
+											isSelectable && 'hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark cursor-pointer',
+											!isSelectable && 'cursor-not-allowed opacity-50',
+											value === channel.id && isSelectable && 'bg-misc-accent/10 text-misc-accent',
+											isThread && 'pl-8',
+											!isThread && hasParent && 'pl-6',
+										)}
+										isDisabled={!isSelectable}
+										key={channel.id}
+										onClick={() => handleSelect(channel.id, isSelectable)}
+									>
+										<ChannelItem channel={channel} />
+									</Button>
+								);
+							})}
+						</ScrollArea>
 					</div>
 				)}
 			</div>

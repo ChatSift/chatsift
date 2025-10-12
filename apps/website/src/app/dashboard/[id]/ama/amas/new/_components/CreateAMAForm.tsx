@@ -4,6 +4,7 @@ import type { CreateAMABody } from '@chatsift/api';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useDebounceCallback } from 'usehooks-ts';
 import { NormalPromptFields } from './NormalPromptFields';
 import { PromptModeToggle } from './PromptModeToggle';
 import { RawPromptField } from './RawPromptField';
@@ -12,8 +13,6 @@ import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { Skeleton } from '@/components/common/Skeleton';
 import { client } from '@/data/client';
 import { APIError } from '@/utils/fetcher';
-
-type PromptMode = 'normal' | 'raw';
 
 interface FormData {
 	answersChannelId: string;
@@ -49,7 +48,10 @@ export function CreateAMAForm() {
 	const params = useParams<{ id: string }>();
 	const { id: guildId } = params;
 
-	const [promptMode, setPromptMode] = useState<PromptMode>('normal');
+	const { data: guildInfo, isLoading } = client.guilds.useInfo(guildId, { for_bot: 'AMA', force_fresh: 'false' });
+	const createAMA = client.guilds.ama.useCreateAMA(guildId);
+
+	const [promptMode, setPromptMode] = useState<'normal' | 'raw'>('normal');
 	const [formData, setFormData] = useState<FormData>({
 		title: '',
 		answersChannelId: '',
@@ -65,8 +67,10 @@ export function CreateAMAForm() {
 	});
 	const [errors, setErrors] = useState<FormErrors>({});
 
-	const { data: guildInfo, isLoading } = client.guilds.useInfo(guildId, { for_bot: 'AMA', force_fresh: 'false' });
-	const createAMA = client.guilds.ama.useCreateAMA(guildId);
+	const updateFormData = (field: keyof FormData, value: string | undefined) => {
+		setFormData((prev) => ({ ...prev, [field]: value }));
+		setErrors((prev) => ({ ...prev, [field]: undefined }));
+	};
 
 	const validateForm = (): boolean => {
 		const newErrors: FormErrors = {};
@@ -145,18 +149,23 @@ export function CreateAMAForm() {
 		}
 	};
 
-	const formatJSON = () => {
-		try {
-			const parsed = JSON.parse(formData.promptRaw);
-			setFormData({ ...formData, promptRaw: JSON.stringify(parsed, null, 2) });
-		} catch {
-			// Invalid JSON, ignore
-		}
-	};
-
-	// TODO
 	const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-		setTimeout(() => formatJSON(), 50);
+		// Get the pasted content from clipboard
+		const pastedText = e.clipboardData.getData('text');
+
+		try {
+			// Try to parse and format the JSON
+			const parsed = JSON.parse(pastedText);
+			const formatted = JSON.stringify(parsed, null, 2);
+
+			// Prevent default paste behavior
+			e.preventDefault();
+
+			// Update with formatted JSON
+			updateFormData('promptRaw', formatted);
+		} catch {
+			// Not valid JSON, let default paste happen
+		}
 	};
 
 	if (isLoading) {
@@ -192,7 +201,7 @@ export function CreateAMAForm() {
 						className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
 						id="title"
 						maxLength={255}
-						onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+						onChange={(e) => updateFormData('title', e.target.value)}
 						placeholder="AMA with renowed JP VA John Doe"
 						type="text"
 						value={formData.title}
@@ -204,7 +213,7 @@ export function CreateAMAForm() {
 					channels={guildInfo!.channels}
 					error={errors.answersChannelId}
 					label="Answers Channel"
-					onChange={(value) => setFormData({ ...formData, answersChannelId: value })}
+					onChange={(value) => updateFormData('answersChannelId', value)}
 					placeholder="Select the channel where answers will be posted"
 					required
 					selectedId="answersChannelId"
@@ -215,7 +224,7 @@ export function CreateAMAForm() {
 					channels={guildInfo!.channels}
 					error={errors.promptChannelId}
 					label="Prompt Channel"
-					onChange={(value) => setFormData({ ...formData, promptChannelId: value })}
+					onChange={(value) => updateFormData('promptChannelId', value)}
 					placeholder="Select the channel where the prompt will be posted"
 					required
 					selectedId="promptChannelId"
@@ -226,7 +235,7 @@ export function CreateAMAForm() {
 					channels={guildInfo!.channels}
 					error={errors.modQueueId}
 					label="Mod Queue (optional)"
-					onChange={(value) => setFormData({ ...formData, modQueueId: value })}
+					onChange={(value) => updateFormData('modQueueId', value)}
 					placeholder="Select a channel for mod queue"
 					selectedId="modQueueId"
 					value={formData.modQueueId}
@@ -236,7 +245,7 @@ export function CreateAMAForm() {
 					channels={guildInfo!.channels}
 					error={errors.flaggedQueueId}
 					label="Flagged Queue (optional)"
-					onChange={(value) => setFormData({ ...formData, flaggedQueueId: value })}
+					onChange={(value) => updateFormData('flaggedQueueId', value)}
 					placeholder="Select a channel for flagged questions"
 					selectedId="flaggedQueueId"
 					value={formData.flaggedQueueId}
@@ -246,7 +255,7 @@ export function CreateAMAForm() {
 					channels={guildInfo!.channels}
 					error={errors.guestQueueId}
 					label="Guest Queue (optional)"
-					onChange={(value) => setFormData({ ...formData, guestQueueId: value })}
+					onChange={(value) => updateFormData('guestQueueId', value)}
 					placeholder="Select a channel for guest queue"
 					selectedId="guestQueueId"
 					value={formData.guestQueueId}
@@ -264,10 +273,10 @@ export function CreateAMAForm() {
 						description={formData.description}
 						errors={errors}
 						imageURL={formData.imageURL}
-						onDescriptionChange={(value) => setFormData({ ...formData, description: value })}
-						onImageURLChange={(value) => setFormData({ ...formData, imageURL: value })}
-						onPlainTextChange={(value) => setFormData({ ...formData, plainText: value })}
-						onThumbnailURLChange={(value) => setFormData({ ...formData, thumbnailURL: value })}
+						onDescriptionChange={(value) => updateFormData('description', value)}
+						onImageURLChange={(value) => updateFormData('imageURL', value)}
+						onPlainTextChange={(value) => updateFormData('plainText', value)}
+						onThumbnailURLChange={(value) => updateFormData('thumbnailURL', value)}
 						plainText={formData.plainText}
 						thumbnailURL={formData.thumbnailURL}
 					/>
@@ -275,9 +284,16 @@ export function CreateAMAForm() {
 
 				{promptMode === 'raw' && (
 					<RawPromptField
-						onFormatClick={formatJSON}
+						onFormatClick={() => {
+							try {
+								const parsed = JSON.parse(formData.promptRaw);
+								updateFormData('promptRaw', JSON.stringify(parsed, null, 2));
+							} catch {
+								// Invalid JSON, ignore
+							}
+						}}
 						onPaste={handlePaste}
-						onValueChange={(value) => setFormData({ ...formData, promptRaw: value })}
+						onValueChange={(value) => updateFormData('promptRaw', value)}
 						value={formData.promptRaw}
 					/>
 				)}
