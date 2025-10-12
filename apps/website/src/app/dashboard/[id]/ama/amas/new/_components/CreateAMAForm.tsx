@@ -42,6 +42,8 @@ function validateURL(value: string): string | undefined {
 	}
 }
 
+const allowedChannelTypes = [ChannelType.GuildText, ...threadTypes];
+
 export function CreateAMAForm() {
 	const router = useRouter();
 	const params = useParams<{ id: string }>();
@@ -63,8 +65,8 @@ export function CreateAMAForm() {
 	});
 	const [errors, setErrors] = useState<FormErrors>({});
 
-	const { data: guildInfo } = client.guilds.useInfo(guildId, { for_bot: 'AMA', force_fresh: 'false' });
-	const createAMA = client.guilds.ama.createAMA(guildId);
+	const { data: guildInfo, isLoading } = client.guilds.useInfo(guildId, { for_bot: 'AMA', force_fresh: 'false' });
+	const createAMA = client.guilds.ama.useCreateAMA(guildId);
 
 	const validateForm = (): boolean => {
 		const newErrors: FormErrors = {};
@@ -157,7 +159,7 @@ export function CreateAMAForm() {
 		setTimeout(() => formatJSON(), 50);
 	};
 
-	if (!guildInfo) {
+	if (isLoading) {
 		return (
 			<div className="mt-8 space-y-6">
 				<div className="space-y-4">
@@ -198,8 +200,8 @@ export function CreateAMAForm() {
 					{errors.title && <p className="mt-1 text-sm text-misc-danger">{errors.title}</p>}
 				</div>
 				<ChannelSelect
-					allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement, ...threadTypes]}
-					channels={guildInfo.channels}
+					allowedTypes={allowedChannelTypes}
+					channels={guildInfo!.channels}
 					error={errors.answersChannelId}
 					label="Answers Channel"
 					onChange={(value) => setFormData({ ...formData, answersChannelId: value })}
@@ -209,8 +211,8 @@ export function CreateAMAForm() {
 					value={formData.answersChannelId}
 				/>{' '}
 				<ChannelSelect
-					allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement]}
-					channels={guildInfo.channels}
+					allowedTypes={allowedChannelTypes}
+					channels={guildInfo!.channels}
 					error={errors.promptChannelId}
 					label="Prompt Channel"
 					onChange={(value) => setFormData({ ...formData, promptChannelId: value })}
@@ -220,8 +222,8 @@ export function CreateAMAForm() {
 					value={formData.promptChannelId}
 				/>{' '}
 				<ChannelSelect
-					allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement]}
-					channels={guildInfo.channels}
+					allowedTypes={allowedChannelTypes}
+					channels={guildInfo!.channels}
 					error={errors.modQueueId}
 					label="Mod Queue (optional)"
 					onChange={(value) => setFormData({ ...formData, modQueueId: value })}
@@ -230,8 +232,8 @@ export function CreateAMAForm() {
 					value={formData.modQueueId}
 				/>{' '}
 				<ChannelSelect
-					allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement]}
-					channels={guildInfo.channels}
+					allowedTypes={allowedChannelTypes}
+					channels={guildInfo!.channels}
 					error={errors.flaggedQueueId}
 					label="Flagged Queue (optional)"
 					onChange={(value) => setFormData({ ...formData, flaggedQueueId: value })}
@@ -240,8 +242,8 @@ export function CreateAMAForm() {
 					value={formData.flaggedQueueId}
 				/>{' '}
 				<ChannelSelect
-					allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement]}
-					channels={guildInfo.channels}
+					allowedTypes={allowedChannelTypes}
+					channels={guildInfo!.channels}
 					error={errors.guestQueueId}
 					label="Guest Queue (optional)"
 					onChange={(value) => setFormData({ ...formData, guestQueueId: value })}

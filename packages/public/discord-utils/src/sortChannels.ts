@@ -55,14 +55,14 @@ export function sortChannels(unsorted: APIChannel[]): SortableChannel[] {
 			for (const channel of categoryChannels) {
 				const channelThreads = threads
 					.filter((thread) => thread.parent_id === channel.id)
-					.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+					.sort((a, b) => Number(BigInt(b.id) - BigInt(a.id)));
 				channels.push(...channelThreads);
 			}
 		} else {
 			// Add threads for top-level channels
 			const channelThreads = threads
 				.filter((thread) => thread.parent_id === top.id)
-				.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+				.sort((a, b) => Number(BigInt(b.id) - BigInt(a.id)));
 			channels.push(...channelThreads);
 		}
 	}

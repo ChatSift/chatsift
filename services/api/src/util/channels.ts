@@ -42,7 +42,9 @@ export async function fetchGuildChannels(guild: MeGuild, api: API, force = false
 		position: 0, // Threads don't have a position, this should be good enough
 	}));
 
-	CACHE.set(guild.id, channels);
+	const allChannels = channels.concat(threads);
+
+	CACHE.set(guild.id, allChannels);
 	if (CACHE_TIMEOUTS.has(guild.id)) {
 		const timeout = CACHE_TIMEOUTS.get(guild.id)!;
 		timeout.refresh();
@@ -55,5 +57,5 @@ export async function fetchGuildChannels(guild: MeGuild, api: API, force = false
 		CACHE_TIMEOUTS.set(guild.id, timeout);
 	}
 
-	return channels.concat(threads);
+	return allChannels;
 }

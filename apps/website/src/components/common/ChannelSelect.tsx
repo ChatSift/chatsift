@@ -1,5 +1,3 @@
-// TODO(DD): use Button
-
 'use client';
 
 import type { GuildChannelInfo } from '@chatsift/api';
@@ -7,6 +5,7 @@ import { sortChannels } from '@chatsift/discord-utils';
 import { ChannelType } from 'discord-api-types/v10';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SvgChevronDown } from '../icons/SvgChevronDown';
+import { Button } from './Button';
 import { getChannelIcon } from '@/utils/channels';
 import { cn } from '@/utils/util';
 
@@ -69,9 +68,9 @@ export function ChannelSelect({
 				{label} {required && '*'}
 			</label>
 			<div className="relative" ref={selectRef}>
-				<button
+				<Button
 					className={cn(
-						'w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent text-left flex items-center justify-between',
+						'text-base w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent text-left flex items-center justify-between',
 						error && 'border-misc-danger focus:ring-misc-danger',
 					)}
 					id={selectedId}
@@ -92,7 +91,7 @@ export function ChannelSelect({
 						)}
 						size={16}
 					/>
-				</button>
+				</Button>
 
 				{isOpen && (
 					<div className="absolute z-50 w-full mt-1 bg-card dark:bg-card-dark border border-on-secondary dark:border-on-secondary-dark rounded-md shadow-lg max-h-80 overflow-y-auto">
@@ -128,7 +127,7 @@ export function ChannelSelect({
 							}
 
 							return (
-								<button
+								<Button
 									className={cn(
 										'w-full px-3 py-2 text-left transition-colors',
 										isSelectable && 'hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark cursor-pointer',
@@ -137,13 +136,12 @@ export function ChannelSelect({
 										isThread && 'pl-8',
 										!isThread && hasParent && 'pl-6',
 									)}
-									disabled={!isSelectable}
+									isDisabled={!isSelectable}
 									key={channel.id}
 									onClick={() => handleSelect(channel.id, isSelectable)}
-									type="button"
 								>
 									<ChannelItem channel={channel} />
-								</button>
+								</Button>
 							);
 						})}
 					</div>

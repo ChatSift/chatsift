@@ -8,43 +8,59 @@ import { routesInfo } from './common';
 import { APIError, clientSideErrorHandler, useClientSideFetcher } from '@/utils/fetcher';
 import { exponentialBackOff, retryWrapper } from '@/utils/util';
 
-function make<Options extends MakeOptions & { path: GettableRoutes }>({ path, queryKey, params, query }: Options) {
+function buildPath(path: string, params?: Record<string, string>, query?: Record<string, any>) {
 	const substitutedParams = params
 		? (Object.entries(params) as [string, string][]).reduce<string>(
 				(acc, [key, value]) => acc.replace(`:${key}`, encodeURIComponent(value)),
 				path,
 			)
 		: path;
-	const finalPath = query ? `${substitutedParams}?${new URLSearchParams(query as any).toString()}` : substitutedParams;
 
-	function useQueryIt() {
-		// TODO: Investigate wether this is a react compiler bug or not
-		// eslint-disable-next-line react-compiler/react-compiler
-		'use no memo';
-
-		const fetcher = useClientSideFetcher({ path: finalPath as `/${string}`, method: 'GET' });
-		return useQuery({
-			queryKey,
-			// @ts-expect-error - This won't ever compile
-			queryFn: async () => fetcher() as Promise<InferAPIRouteResult<Options['path'], 'GET'> | null>,
-			throwOnError: clientSideErrorHandler({ throwOverride: false }),
-			refetchOnWindowFocus: false,
-			retry: retryWrapper((retries, error) => {
-				if (error instanceof APIError) {
-					return retries < 5 && error.payload.statusCode !== 401;
-				}
-
-				return retries < 3;
-			}),
-			retryDelay: exponentialBackOff,
-		});
-	}
-
-	return useQueryIt;
+	return (
+		query ? `${substitutedParams}?${new URLSearchParams(query as any).toString()}` : substitutedParams
+	) as `/${string}`;
 }
 
-function makeMutation<Options extends MakeOptions, Method extends 'DELETE' | 'PATCH' | 'POST' | 'PUT'>(
-	{ path }: Options,
+function useQueryIt<Options extends MakeOptions & { path: GettableRoutes }>(
+	{ path: initialPath, queryKey, params, query }: Options,
+	doForceFresh = false,
+) {
+	const path = buildPath(initialPath, params, query);
+	const fetcher = useClientSideFetcher({ path, method: 'GET' });
+	const queryClient = useQueryClient();
+
+	const { data, isLoading, error, refetch } = useQuery({
+		// Dirty method to make sure other queries that wanna pass in force_fresh don't overwrite the others'
+		// queryFn (effectively causing everything to always pass it in HTTP)
+		queryKey: doForceFresh ? [...queryKey, 'force_fresh'] : queryKey,
+		queryFn: async () => {
+			// @ts-expect-error - This won't ever compile
+			const data = (await fetcher()) as Promise<InferAPIRouteResult<Options['path'], 'GET'> | null>;
+			if (doForceFresh) {
+				queryClient.setQueryData(queryKey, data);
+			}
+
+			return data;
+		},
+		throwOnError: clientSideErrorHandler({ throwOverride: false }),
+		refetchOnWindowFocus: false,
+		retry: retryWrapper((retries, error) => {
+			if (error instanceof APIError) {
+				return retries < 5 && error.payload.statusCode !== 401;
+			}
+
+			return retries < 3;
+		}),
+		// Prevents double requests when a refresh button of sorts exists that passes doForceFresh
+		enabled: !doForceFresh,
+		retryDelay: exponentialBackOff,
+	});
+
+	return { data, isLoading, error, refetch };
+}
+
+function useMutateIt<Options extends MakeOptions, Method extends 'DELETE' | 'PATCH' | 'POST' | 'PUT'>(
+	{ path: initialPath, params }: Options,
 	method: Method,
 	onSuccess?: (
 		queryClient: QueryClient,
@@ -52,49 +68,45 @@ function makeMutation<Options extends MakeOptions, Method extends 'DELETE' | 'PA
 		data: InferAPIRouteResult<Options['path'], Method>,
 	) => Promise<unknown>,
 ) {
-	function useMutateIt() {
-		// TODO: Investigate wether this is a react compiler bug or not
-		// eslint-disable-next-line react-compiler/react-compiler
-		'use no memo';
+	const queryClient = useQueryClient();
+	const path = buildPath(initialPath, params);
+	const fetcher = useClientSideFetcher({ path, method });
 
-		const queryClient = useQueryClient();
-		const fetcher = useClientSideFetcher({ path, method });
-
-		return useMutation<
-			// @ts-expect-error - We can't get it to compile on the Method
-			InferAPIRouteResult<Options['path'], Method>,
-			APIError,
-			// @ts-expect-error - We can't get it to compile on the Method
-			Path<Options['path'], Method>
-		>({
-			mutationFn: fetcher,
-			onSuccess: async (data) => onSuccess?.(queryClient, data),
-		});
-	}
-
-	return useMutateIt;
+	return useMutation<
+		// @ts-expect-error - We can't get it to compile on the Method
+		InferAPIRouteResult<Options['path'], Method>,
+		APIError,
+		// @ts-expect-error - We can't get it to compile on the Method
+		Path<Options['path'], Method>
+	>({
+		mutationFn: fetcher,
+		onSuccess: async (data) => onSuccess?.(queryClient, data),
+	});
 }
 
 export const client = {
 	auth: {
-		useMe: (query?: GetAuthMeQuery) => make(routesInfo.auth.me(query ?? { force_fresh: 'false' }))(),
-		useLogout: makeMutation(routesInfo.auth.logout, 'POST', async (queryClient) => queryClient.invalidateQueries()),
+		useMe: (query?: GetAuthMeQuery) =>
+			useQueryIt(routesInfo.auth.me(query ?? { force_fresh: 'false' }), query?.force_fresh === 'true'),
+		useLogout: () =>
+			useMutateIt(routesInfo.auth.logout, 'POST', async (queryClient) => queryClient.invalidateQueries()),
 	},
 
 	guilds: {
-		useInfo: (guildId: string, query: GetGuildQuery) => make(routesInfo.guilds(guildId).info(query))(),
+		useInfo: (guildId: string, query: GetGuildQuery) =>
+			useQueryIt(routesInfo.guilds(guildId).info(query), query?.force_fresh === 'true'),
 
 		ama: {
-			createAMA: (guildId: string) =>
-				makeMutation(routesInfo.guilds(guildId).ama.amas(), 'POST', async (queryClient) => {
+			useCreateAMA: (guildId: string) =>
+				useMutateIt(routesInfo.guilds(guildId).ama.amas(), 'POST', async (queryClient) => {
 					await queryClient.invalidateQueries({
 						queryKey: [
 							routesInfo.guilds(guildId).ama.amas({ include_ended: 'false' }).queryKey,
 							routesInfo.guilds(guildId).ama.amas({ include_ended: 'true' }).queryKey,
 						],
 					});
-				})(),
-			useAMAs: (guildId: string, query: GetAMAsQuery) => make(routesInfo.guilds(guildId).ama.amas(query))(),
+				}),
+			useAMAs: (guildId: string, query: GetAMAsQuery) => useQueryIt(routesInfo.guilds(guildId).ama.amas(query)),
 		},
 	},
 } as const;
