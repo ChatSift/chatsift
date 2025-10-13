@@ -57,30 +57,39 @@ export function BreadcrumbDropdown({ label, icon, href, options, isLast, highlig
 						sideOffset={5}
 					>
 						{options.map((option, optionIndex) => {
+							// Handle guild-specific icons (with id and icon properties)
 							const iconUrl =
 								option.icon && option.id ? `https://cdn.discordapp.com/icons/${option.id}/${option.icon}.png` : null;
+
+							// Check if label has bold markdown (**text**)
+							const isBold = option.label.startsWith('**') && option.label.endsWith('**');
+							const displayLabel = isBold ? option.label.slice(2, -2) : option.label;
 
 							return (
 								<DropdownMenu.Item asChild key={optionIndex}>
 									<Link
-										className="flex items-center gap-2 px-3 py-2 text-base text-secondary dark:text-secondary-dark hover:text-primary dark:hover:text-primary-dark hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark rounded-md outline-none cursor-pointer"
+										className={cn(
+											'flex items-center gap-2 px-3 py-2 text-base text-secondary dark:text-secondary-dark hover:text-primary dark:hover:text-primary-dark hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark rounded-md outline-none cursor-pointer',
+											isBold && 'font-bold',
+										)}
 										href={option.href}
 										prefetch
 									>
-										{iconUrl ? (
+										{iconUrl && (
 											<Image
-												alt={`${option.label} icon`}
+												alt={`${displayLabel} icon`}
 												className="flex h-6 w-6 items-center justify-center rounded-full"
 												height={24}
 												src={iconUrl}
 												width={24}
 											/>
-										) : (
+										)}
+										{!iconUrl && option.id && (
 											<span className="flex h-6 w-6 items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full bg-on-tertiary text-xs dark:bg-on-tertiary-dark">
-												{getGuildAcronym(option.label)}
+												{getGuildAcronym(displayLabel)}
 											</span>
 										)}
-										{option.label}
+										{displayLabel}
 									</Link>
 								</DropdownMenu.Item>
 							);

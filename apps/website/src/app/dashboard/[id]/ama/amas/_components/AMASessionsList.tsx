@@ -8,10 +8,13 @@ import { client } from '@/data/client';
 
 export function AMASessionsList() {
 	const params = useParams<{ id: string }>();
-	const { data: sessions } = client.guilds.ama.useAMAs(params.id, { include_ended: 'false' });
 	const searchParams = useSearchParams();
 
 	const searchQuery = searchParams.get('search') ?? '';
+
+	const { data: sessions } = client.guilds.ama.useAMAs(params.id, {
+		include_ended: searchParams.get('include_ended') ?? 'false',
+	});
 
 	const filtered = useMemo(() => {
 		if (!sessions?.length) {
