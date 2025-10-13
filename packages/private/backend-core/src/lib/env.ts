@@ -36,8 +36,10 @@ const envSchema = z.object({
 	}),
 	// Length of a base64-encoded 32-byte key. Used for JWT signing and encryption
 	ENCRYPTION_KEY: z.string().length(44),
-	API_URL: z.url(),
-	FRONTEND_URL: z.url(),
+	API_URL_DEV: z.url(),
+	API_URL_PROD: z.url(),
+	FRONTEND_URL_DEV: z.url(),
+	FRONTEND_URL_PROD: z.url(),
 
 	// AMA
 	AMA_BOT_TOKEN: z.string(),

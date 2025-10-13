@@ -20,11 +20,11 @@ export default class GetAuthDiscord extends Route<never, never> {
 
 	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
 		if (req.tokens) {
-			res.redirect(context.env.FRONTEND_URL);
+			res.redirect(context.FRONTEND_URL);
 			return res.end();
 		}
 
-		const state = new StateCookie(`${context.env.FRONTEND_URL}/dashboard`).toCookie();
+		const state = new StateCookie(`${context.FRONTEND_URL}/dashboard`).toCookie();
 		res.cookie(
 			'state',
 			state,
@@ -39,7 +39,7 @@ export default class GetAuthDiscord extends Route<never, never> {
 
 		const params = {
 			client_id: context.env.OAUTH_DISCORD_CLIENT_ID,
-			redirect_uri: `${context.env.API_URL}/v3/auth/discord/callback`,
+			redirect_uri: `${context.API_URL}/v3/auth/discord/callback`,
 			response_type: 'code',
 			scope: [...DISCORD_AUTH_SCOPES].join(' '),
 			state,

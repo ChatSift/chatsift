@@ -31,7 +31,7 @@ export default class GetAuthDiscordCallback extends Route<never, typeof querySch
 
 	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
 		if (req.tokens) {
-			res.redirect(context.env.FRONTEND_URL);
+			res.redirect(context.FRONTEND_URL);
 			return res.end();
 		}
 
@@ -61,7 +61,7 @@ export default class GetAuthDiscordCallback extends Route<never, typeof querySch
 			client_secret: context.env.OAUTH_DISCORD_CLIENT_SECRET,
 			grant_type: 'authorization_code',
 			code,
-			redirect_uri: `${context.env.API_URL}/v3/auth/discord/callback`,
+			redirect_uri: `${context.API_URL}/v3/auth/discord/callback`,
 		});
 
 		if (!setEquals(DISCORD_AUTH_SCOPES, new Set(result.scope.split(' ')))) {
