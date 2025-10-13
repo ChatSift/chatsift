@@ -13,12 +13,6 @@ const envSchema = z.object({
 		.pipe(z.array(z.string().regex(SnowflakeRegex)).optional())
 		.transform((value) => (value ? new Set(value) : new Set())),
 
-	// Postgres
-	DATABASE_URL: z.string(),
-
-	// Redis
-	REDIS_URL: z.string(),
-
 	// API
 	API_PORT: z.string().pipe(z.coerce.number()),
 	OAUTH_DISCORD_CLIENT_ID: z.string().regex(SnowflakeRegex),

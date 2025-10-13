@@ -2,11 +2,10 @@ import type { DB } from '@chatsift/core';
 import { Kysely, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 import type { Logger } from 'pino';
-import { ENV } from './env.js';
 
 export function createDatabase(logger: Logger): Kysely<DB> {
 	const pool = new Pool({
-		connectionString: ENV.DATABASE_URL,
+		connectionString: 'postgres://chatsift:admin@postgres:5432/chatsift',
 	});
 
 	const dialect = new PostgresDialect({
