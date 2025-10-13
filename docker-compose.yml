@@ -62,7 +62,7 @@ services:
       - 127.0.0.1:${API_PORT}:${API_PORT}
 
   ama-bot:
-    image: chatsift/chatsift-next:ama-bot
+    image: chatsift/chatsift-next:ama
     build:
       context: ./
       dockerfile: ./Dockerfile
