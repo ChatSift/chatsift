@@ -22,11 +22,11 @@ CREATE TABLE "ExperimentOverride" (
 CREATE TABLE "AMASession" (
     "id" SERIAL NOT NULL,
     "guildId" TEXT NOT NULL,
-    "modQueue" TEXT,
-    "flaggedQueue" TEXT,
-    "guestQueue" TEXT,
+    "modQueueId" TEXT,
+    "flaggedQueueId" TEXT,
+    "guestQueueId" TEXT,
     "title" TEXT NOT NULL,
-    "answersChannel" TEXT NOT NULL,
+    "answersChannelId" TEXT NOT NULL,
     "promptChannelId" TEXT NOT NULL,
     "promptMessageId" TEXT NOT NULL,
     "ended" BOOLEAN NOT NULL DEFAULT false,
@@ -36,7 +36,7 @@ CREATE TABLE "AMASession" (
 );
 
 -- CreateTable
-CREATE TABLE "AmaQuestion" (
+CREATE TABLE "AMAQuestion" (
     "id" SERIAL NOT NULL,
     "amaId" INTEGER NOT NULL,
     "authorId" TEXT NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE "AmaQuestion" (
     "imageUrl" TEXT,
     "answerMessageId" TEXT,
 
-    CONSTRAINT "AmaQuestion_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "AMAQuestion_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -57,4 +57,4 @@ CREATE UNIQUE INDEX "AMASession_promptMessageId_key" ON "AMASession"("promptMess
 ALTER TABLE "ExperimentOverride" ADD CONSTRAINT "ExperimentOverride_experimentName_fkey" FOREIGN KEY ("experimentName") REFERENCES "Experiment"("name") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AmaQuestion" ADD CONSTRAINT "AmaQuestion_amaId_fkey" FOREIGN KEY ("amaId") REFERENCES "AMASession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AMAQuestion" ADD CONSTRAINT "AMAQuestion_amaId_fkey" FOREIGN KEY ("amaId") REFERENCES "AMASession"("id") ON DELETE CASCADE ON UPDATE CASCADE;

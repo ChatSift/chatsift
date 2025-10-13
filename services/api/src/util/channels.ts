@@ -7,7 +7,7 @@ import type {
 	GuildChannelType,
 	Snowflake,
 } from '@discordjs/core';
-import type { MeGuild } from './me.js';
+import { DiscordAPIError } from '@discordjs/rest';
 
 export type GuildChannelInfo = APISortableChannel &
 	Pick<APIGuildChannel<GuildChannelType>, 'id' | 'name' | 'parent_id' | 'type'>;
@@ -17,14 +17,26 @@ const CACHE = new Map<Snowflake, GuildChannelInfo[]>();
 const CACHE_TIMEOUTS = new Map<string, NodeJS.Timeout>();
 const CACHE_TTL = 5 * 60 * 1_000; // 5 minutes
 
-export async function fetchGuildChannels(guild: MeGuild, api: API, force = false): Promise<GuildChannelInfo[]> {
-	if (CACHE.has(guild.id) && !force) {
-		return CACHE.get(guild.id)!;
+export async function fetchGuildChannels(guildId: string, api: API, force = false): Promise<GuildChannelInfo[] | null> {
+	if (CACHE.has(guildId) && !force) {
+		return CACHE.get(guildId)!;
 	}
 
 	// TODO(DD): https://github.com/discordjs/discord-api-types/pull/1397
-	const channelsRaw = (await api.guilds.getChannels(guild.id)) as (APIGuildChannel<GuildChannelType> &
-		APISortableChannel)[];
+	const channelsRaw = await (
+		api.guilds.getChannels(guildId) as Promise<(APIGuildChannel<GuildChannelType> & APISortableChannel)[]>
+	).catch((error) => {
+		if (error instanceof DiscordAPIError && (error.status === 403 || error.status === 404)) {
+			return null;
+		}
+
+		throw error;
+	});
+
+	if (!channelsRaw) {
+		return null;
+	}
+
 	const channels: GuildChannelInfo[] = channelsRaw.map(({ id, name, parent_id, type, position }) => ({
 		id,
 		name,
@@ -33,7 +45,7 @@ export async function fetchGuildChannels(guild: MeGuild, api: API, force = false
 		position,
 	}));
 
-	const { threads: threadsRaw } = await api.guilds.getActiveThreads(guild.id);
+	const { threads: threadsRaw } = await api.guilds.getActiveThreads(guildId);
 	const threads: GuildChannelInfo[] = (threadsRaw as APIThreadChannel[]).map(({ id, name, parent_id, type }) => ({
 		id,
 		name,
@@ -44,17 +56,17 @@ export async function fetchGuildChannels(guild: MeGuild, api: API, force = false
 
 	const allChannels = channels.concat(threads);
 
-	CACHE.set(guild.id, allChannels);
-	if (CACHE_TIMEOUTS.has(guild.id)) {
-		const timeout = CACHE_TIMEOUTS.get(guild.id)!;
+	CACHE.set(guildId, allChannels);
+	if (CACHE_TIMEOUTS.has(guildId)) {
+		const timeout = CACHE_TIMEOUTS.get(guildId)!;
 		timeout.refresh();
 	} else {
 		const timeout = setTimeout(() => {
-			CACHE.delete(guild.id);
-			CACHE_TIMEOUTS.delete(guild.id);
+			CACHE.delete(guildId);
+			CACHE_TIMEOUTS.delete(guildId);
 		}, CACHE_TTL).unref();
 
-		CACHE_TIMEOUTS.set(guild.id, timeout);
+		CACHE_TIMEOUTS.set(guildId, timeout);
 	}
 
 	return allChannels;

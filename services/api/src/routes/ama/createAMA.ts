@@ -2,7 +2,7 @@ import type { AMASession } from '@chatsift/core';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
-import { badRequest } from '@hapi/boom';
+import { badData } from '@hapi/boom';
 import type { Selectable } from 'kysely';
 import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
@@ -13,34 +13,32 @@ import { snowflakeSchema } from '../../util/schemas.js';
 import type { TRequest } from '../route.js';
 import { Route, RouteMethod } from '../route.js';
 
-const promptSchema = z.union([
-	z.strictObject({
-		prompt: z.strictObject({
-			description: z.string().max(4_000).optional(),
-			plainText: z.string().max(100).optional(),
-			imageURL: z.url().optional(),
-			thumbnailURL: z.url().optional(),
-		}),
-	}),
-	z.strictObject({
-		prompt_raw: z.strictObject({
-			content: z.string().optional(),
-			embeds: z.array(z.any()).optional(),
-		}),
-	}),
-]);
+const base = z.strictObject({
+	modQueueId: snowflakeSchema.nullable(),
+	flaggedQueueId: snowflakeSchema.nullable(),
+	guestQueueId: snowflakeSchema.nullable(),
+	title: z.string().min(1).max(255),
+	answersChannelId: snowflakeSchema,
+	promptChannelId: snowflakeSchema,
+});
 
-const bodySchema = z.intersection(
-	z.strictObject({
-		modQueueId: snowflakeSchema.nullable(),
-		flaggedQueueId: snowflakeSchema.nullable(),
-		guestQueueId: snowflakeSchema.nullable(),
-		title: z.string().min(1).max(255),
-		answersChannelId: snowflakeSchema,
-		promptChannelId: snowflakeSchema,
+const withRegularPrompt = base.safeExtend({
+	prompt: z.strictObject({
+		description: z.string().max(4_000).optional(),
+		plainText: z.string().max(100).optional(),
+		imageURL: z.url().optional(),
+		thumbnailURL: z.url().optional(),
 	}),
-	promptSchema,
-);
+});
+
+const withRawPrompt = base.safeExtend({
+	prompt_raw: z.strictObject({
+		content: z.string().optional(),
+		embeds: z.array(z.any()).optional(),
+	}),
+});
+
+const bodySchema = z.union([withRegularPrompt, withRawPrompt]);
 
 export type CreateAMABody = z.input<typeof bodySchema>;
 
@@ -100,28 +98,36 @@ export default class CreateAMA extends Route<CreateAMAResult, typeof bodySchema>
 			});
 		} catch (error) {
 			if (error instanceof DiscordAPIError && error.status === 400 && 'prompt_raw' in data) {
-				return next(badRequest('invalid prompt_raw data'));
+				return next(badData('invalid prompt_raw data'));
 			}
 
 			throw error;
 		}
 
-		const created: CreateAMAResult = await context.db
-			.insertInto('AMASession')
-			.values({
-				guildId,
-				title: data.title,
-				answersChannelId: data.answersChannelId,
-				promptChannelId: data.promptChannelId,
-				promptMessageId: promptMessage.id,
-				modQueueId: data.modQueueId,
-				flaggedQueueId: data.flaggedQueueId,
-				guestQueueId: data.guestQueueId,
-				ended: false,
-				createdAt: new Date(),
-			})
-			.returningAll()
-			.executeTakeFirstOrThrow();
+		let created: CreateAMAResult;
+		try {
+			created = await context.db
+				.insertInto('AMASession')
+				.values({
+					guildId,
+					title: data.title,
+					answersChannelId: data.answersChannelId,
+					promptChannelId: data.promptChannelId,
+					promptMessageId: promptMessage.id,
+					modQueueId: data.modQueueId,
+					flaggedQueueId: data.flaggedQueueId,
+					guestQueueId: data.guestQueueId,
+					ended: false,
+					createdAt: new Date(),
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
+		} catch (error) {
+			// If we created the prompt message but failed to create the AMA session, delete the message to avoid orphaned messages.
+			// eslint-disable-next-line promise/prefer-await-to-then
+			void discordAPIAma.channels.deleteMessage(data.promptChannelId, promptMessage.id).catch(() => null);
+			throw error;
+		}
 
 		res.statusCode = 200;
 		res.setHeader('Content-Type', 'application/json');

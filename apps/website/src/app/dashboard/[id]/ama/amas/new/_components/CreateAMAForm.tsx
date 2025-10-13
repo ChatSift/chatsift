@@ -4,7 +4,6 @@ import type { CreateAMABody } from '@chatsift/api';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useDebounceCallback } from 'usehooks-ts';
 import { NormalPromptFields } from './NormalPromptFields';
 import { PromptModeToggle } from './PromptModeToggle';
 import { RawPromptField } from './RawPromptField';
@@ -66,6 +65,7 @@ export function CreateAMAForm() {
 		promptRaw: '',
 	});
 	const [errors, setErrors] = useState<FormErrors>({});
+	const [generalError, setGeneralError] = useState<string | null>(null);
 
 	const updateFormData = (field: keyof FormData, value: string | undefined) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
@@ -117,6 +117,8 @@ export function CreateAMAForm() {
 			return;
 		}
 
+		setGeneralError(null);
+
 		try {
 			const body = {
 				title: formData.title,
@@ -141,27 +143,32 @@ export function CreateAMAForm() {
 			await createAMA.mutateAsync(body);
 			router.replace(`/dashboard/${guildId}/ama/amas`);
 		} catch (error) {
-			if (error instanceof APIError && error.payload.statusCode === 400) {
-				console.error('Invalid prompt_raw data:', error);
-			} else {
-				console.error('Failed to create AMA:', error);
+			if (error instanceof APIError && error.payload.statusCode === 422) {
+				if (promptMode === 'raw') {
+					setGeneralError('Invalid prompt data. Please check your JSON data and try again.');
+				} else {
+					setGeneralError(
+						'An unknown validation error occured. Please contact support in regards to this error. For the tech savvy, the request response includes more information.',
+					);
+				}
+
+				return;
 			}
+
+			setGeneralError('An unknown error occurred. Please try again later.');
+			console.error('Failed to create AMA:', error);
 		}
 	};
 
 	const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-		// Get the pasted content from clipboard
 		const pastedText = e.clipboardData.getData('text');
 
 		try {
-			// Try to parse and format the JSON
 			const parsed = JSON.parse(pastedText);
 			const formatted = JSON.stringify(parsed, null, 2);
 
-			// Prevent default paste behavior
 			e.preventDefault();
 
-			// Update with formatted JSON
 			updateFormData('promptRaw', formatted);
 		} catch {
 			// Not valid JSON, let default paste happen
@@ -190,6 +197,8 @@ export function CreateAMAForm() {
 
 	return (
 		<form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+			{generalError && <p className="mt-1 text-sm text-misc-danger">{generalError}</p>}
+
 			{/* Base Fields */}
 			<div className="space-y-4">
 				<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Session Details</h2>
@@ -302,10 +311,11 @@ export function CreateAMAForm() {
 			{/* Submit Button */}
 			<div className="flex gap-4">
 				<Button
-					className="px-6 py-3 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity"
+					className="px-6 py-3 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+					isDisabled={createAMA.isPending}
 					type="submit"
 				>
-					Create AMA Session
+					{createAMA.isPending ? 'Creating...' : 'Create AMA Session'}
 				</Button>
 				<Button
 					className="px-6 py-3 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
