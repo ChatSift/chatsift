@@ -565,6 +565,7 @@ __metadata:
     "@discordjs/core": "npm:^3.0.0-dev.1759363313-f510b5ffa"
     "@discordjs/rest": "npm:^3.0.0-dev.1759363313-f510b5ffa"
     "@hapi/boom": "npm:^10.0.1"
+    "@sapphire/discord-utilities": "npm:^3.5.0"
     "@types/bcrypt": "npm:^6.0.0"
     "@types/busboy": "npm:^1.5.4"
     "@types/cors": "npm:^2.8.19"
@@ -615,7 +616,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/discord-utils@workspace:packages/public/discord-utils":
+"@chatsift/discord-utils@workspace:^, @chatsift/discord-utils@workspace:packages/public/discord-utils":
   version: 0.0.0-use.local
   resolution: "@chatsift/discord-utils@workspace:packages/public/discord-utils"
   dependencies:
@@ -662,6 +663,7 @@ __metadata:
   dependencies:
     "@chatsift/api": "workspace:^"
     "@chatsift/core": "workspace:^"
+    "@chatsift/discord-utils": "workspace:^"
     "@radix-ui/react-avatar": "npm:^1.1.10"
     "@radix-ui/react-dropdown-menu": "npm:^2.1.16"
     "@radix-ui/react-navigation-menu": "npm:^1.2.14"

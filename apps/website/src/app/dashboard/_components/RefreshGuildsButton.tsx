@@ -5,7 +5,7 @@ import { SvgRefresh } from '@/components/icons/SvgRefresh';
 import { client } from '@/data/client';
 
 export function RefreshGuildsButton() {
-	const { refetch, isLoading } = client.auth.useMe({ force_fresh: true });
+	const { refetch, isLoading } = client.auth.useMe({ force_fresh: 'true' });
 
 	return (
 		<Button

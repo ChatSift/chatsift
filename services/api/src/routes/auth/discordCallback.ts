@@ -14,15 +14,12 @@ import type { TRequest } from '../route.js';
 import { Route, RouteMethod } from '../route.js';
 import { DISCORD_AUTH_SCOPES } from './discord.js';
 
-const querySchema = z
-	.object({
-		code: z.string(),
-		state: z.string(),
-	})
-	.strict();
-type Query = z.infer<typeof querySchema>;
+const querySchema = z.strictObject({
+	code: z.string(),
+	state: z.string(),
+});
 
-export default class GetAuthDiscordCallback extends Route<never, Query> {
+export default class GetAuthDiscordCallback extends Route<never, typeof querySchema> {
 	public readonly info = {
 		method: RouteMethod.get,
 		path: '/v3/auth/discord/callback',
@@ -32,13 +29,13 @@ export default class GetAuthDiscordCallback extends Route<never, Query> {
 
 	public override readonly middleware = [...isAuthed({ fallthrough: true, isGlobalAdmin: false })];
 
-	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
+	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
 		if (req.tokens) {
 			res.redirect(context.env.FRONTEND_URL);
 			return res.end();
 		}
 
-		const { code, state: stateQuery } = req.query as Query;
+		const { code, state: stateQuery } = req.query;
 
 		const parsedCookies = cookie.parse(req.headers.cookie ?? '');
 		if (stateQuery !== parsedCookies['state']) {

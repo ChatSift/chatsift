@@ -1,12 +1,26 @@
 import type { MeGuild } from '@chatsift/api';
 import Image from 'next/image';
 import Link from 'next/link';
-import { cn, getGuildAcronym } from '@/utils/util';
+import type { PropsWithChildren } from 'react';
+import { getGuildAcronym } from '@/utils/util';
 
 export interface GuildIconProps {
 	readonly data: MeGuild;
 	readonly disableLink?: boolean;
 	readonly hasBots: boolean;
+}
+
+interface ParentProps extends PropsWithChildren {
+	readonly disableLink: boolean | undefined;
+	readonly url: string | undefined;
+}
+
+function Parent({ children, disableLink, url }: ParentProps) {
+	if (disableLink || !url) {
+		return <>{children}</>;
+	}
+
+	return <Link href={url}>{children}</Link>;
 }
 
 export function GuildIcon({ data, hasBots, disableLink }: GuildIconProps) {
@@ -15,7 +29,7 @@ export function GuildIcon({ data, hasBots, disableLink }: GuildIconProps) {
 
 	return (
 		<div className="flex flex-row items-center">
-			<Link className={cn((disableLink || !url) && 'pointer-events-none')} href={url ?? '#'}>
+			<Parent disableLink={disableLink} url={url}>
 				{icon ? (
 					<Image
 						alt="Guild icon"
@@ -29,7 +43,7 @@ export function GuildIcon({ data, hasBots, disableLink }: GuildIconProps) {
 						{getGuildAcronym(data.name)}
 					</p>
 				)}
-			</Link>
+			</Parent>
 		</div>
 	);
 }

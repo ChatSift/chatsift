@@ -5,7 +5,7 @@ export class StateCookie {
 	public static from(data: string): StateCookie {
 		const bytes = Buffer.from(data, 'base64');
 		const nonce = bytes.subarray(0, 16);
-		const createdAt = new Date(bytes.readUInt32LE(16));
+		const createdAt = new Date(bytes.readUInt32LE(16) * 1_000);
 		const redirectURI = bytes.subarray(20).toString();
 
 		return new this(redirectURI, nonce, createdAt);

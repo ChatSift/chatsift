@@ -18,12 +18,12 @@ export function Button(props: ButtonProps) {
 			)}
 			// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
 			isDisabled={props.isDisabled || isLoading}
-			onClick={async (event) => {
-				if (props.onClick) {
+			onPress={async (event) => {
+				if (props.onPress) {
 					try {
 						setIsLoading(true);
 						// eslint-disable-next-line @typescript-eslint/await-thenable, @typescript-eslint/no-confusing-void-expression
-						await props.onClick?.(event);
+						await props.onPress?.(event);
 					} finally {
 						setIsLoading(false);
 					}

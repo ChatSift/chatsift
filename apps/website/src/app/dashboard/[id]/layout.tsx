@@ -1,4 +1,3 @@
-import { HydrationBoundary } from '@tanstack/react-query';
 import type { Metadata } from 'next';
 import { NavGateCheck } from '@/components/common/NavGate';
 import { server } from '@/data/server';
@@ -21,12 +20,6 @@ export async function generateMetadata({ params }: LayoutProps<'/dashboard/[id]'
 	};
 }
 
-export default async function Layout({ children, params }: LayoutProps<'/dashboard/[id]'>) {
-	// const { id } = await params;
-
-	return (
-		<NavGateCheck checkForGuildAccess>
-			<HydrationBoundary state={await server.prefetchMany([])}>{children}</HydrationBoundary>
-		</NavGateCheck>
-	);
+export default async function GuildLayout({ children }: LayoutProps<'/dashboard/[id]'>) {
+	return <NavGateCheck checkForGuildAccess>{children}</NavGateCheck>;
 }

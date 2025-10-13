@@ -15,7 +15,7 @@ export default function GuildCard({ data }: GuildCardProps) {
 	return (
 		<div
 			className={cn(
-				'flex h-36 w-[80vw] flex-col gap-3 rounded-lg border-[1px] border-on-secondary p-4 dark:border-on-secondary-dark md:w-52',
+				'flex rounded-lg border-[1px] border-on-secondary p-4 dark:border-on-secondary-dark h-36 w-[80vw] flex-col gap-3 md:w-52',
 				hasBots ? 'bg-card dark:bg-card-dark' : 'group',
 			)}
 		>

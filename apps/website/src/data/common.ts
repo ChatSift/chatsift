@@ -1,4 +1,11 @@
-import type { APIRoutes, GetAuthMeQuery, InferAPIRouteBodyOrQuery, ParseHTTPParameters } from '@chatsift/api';
+import type {
+	APIRoutes,
+	GetAMAsQuery,
+	GetAuthMeQuery,
+	GetGuildQuery,
+	InferAPIRouteBodyOrQuery,
+	ParseHTTPParameters,
+} from '@chatsift/api';
 
 type Narrow<Narrowed, Narowee> = Narrowed extends Narowee ? Narrowed : never;
 export type GettableRoutes = Narrow<APIRoutes[keyof APIRoutes], { GET: any }>['GET']['info']['path'];
@@ -12,6 +19,7 @@ export type MakeOptions<Path extends keyof APIRoutes = keyof APIRoutes> = Path e
 			readonly queryKey: readonly [string, ...string[]];
 		}
 	: {
+			readonly params: { [ParameterName in ParseHTTPParameters<Path>[number]]: string };
 			readonly path: Path;
 			readonly queryKey: readonly [string, ...string[]];
 		};
@@ -36,6 +44,25 @@ export const routesInfo = {
 		logout: {
 			queryKey: ['auth', 'logout'],
 			path: '/v3/auth/logout',
+			params: {},
 		},
 	},
+
+	guilds: (guildId: string) => ({
+		info: (query: GetGuildQuery) => ({
+			queryKey: ['guilds', guildId],
+			path: '/v3/guilds/:guildId',
+			query,
+			params: { guildId },
+		}),
+
+		ama: {
+			amas: (query?: GetAMAsQuery) => ({
+				queryKey: ['guilds', guildId, 'ama', 'amas', query?.include_ended ?? 'false'],
+				path: '/v3/guilds/:guildId/ama/amas',
+				query: { include_ended: query?.include_ended ?? 'false' },
+				params: { guildId },
+			}),
+		},
+	}),
 } as const satisfies Info;

@@ -31,6 +31,7 @@
 		"@discordjs/core": "^3.0.0-dev.1759363313-f510b5ffa",
 		"@discordjs/rest": "^3.0.0-dev.1759363313-f510b5ffa",
 		"@hapi/boom": "^10.0.1",
+		"@sapphire/discord-utilities": "^3.5.0",
 		"bcrypt": "^6.0.0",
 		"busboy": "^1.6.0",
 		"cookie": "^1.0.2",
