@@ -616,7 +616,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/discord-utils@workspace:packages/public/discord-utils":
+"@chatsift/discord-utils@workspace:^, @chatsift/discord-utils@workspace:packages/public/discord-utils":
   version: 0.0.0-use.local
   resolution: "@chatsift/discord-utils@workspace:packages/public/discord-utils"
   dependencies:
@@ -663,6 +663,7 @@ __metadata:
   dependencies:
     "@chatsift/api": "workspace:^"
     "@chatsift/core": "workspace:^"
+    "@chatsift/discord-utils": "workspace:^"
     "@radix-ui/react-avatar": "npm:^1.1.10"
     "@radix-ui/react-dropdown-menu": "npm:^2.1.16"
     "@radix-ui/react-navigation-menu": "npm:^1.2.14"
