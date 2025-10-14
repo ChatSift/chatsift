@@ -48,13 +48,12 @@ function BreadcrumbLabel({ icon, label, href, isLast, highlight }: BreadcrumbLab
 		</>
 	);
 
-	if (href) {
+	if (href && !isLast) {
 		return (
 			<Link
 				className={cn(
 					'flex items-center gap-2 hover:text-primary dark:hover:text-primary-dark min-w-0',
 					getBreadcrumbTextStyles(isLast, highlight),
-					isLast && 'pointer-events-none',
 				)}
 				href={href}
 				prefetch
