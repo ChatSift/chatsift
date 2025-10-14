@@ -8,10 +8,11 @@ import { Button } from '@/components/common/Button';
 const DEBOUNCE_TIME = 300;
 
 interface SearchBarProps {
+	readonly children?: React.ReactNode;
 	readonly placeholder: string;
 }
 
-export function SearchBar({ placeholder }: SearchBarProps) {
+export function SearchBar({ children, placeholder }: SearchBarProps) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
@@ -62,6 +63,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
 			>
 				Clear
 			</Button>
+			{children}
 		</div>
 	);
 }
