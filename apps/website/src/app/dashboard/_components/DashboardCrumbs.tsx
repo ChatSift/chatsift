@@ -70,17 +70,10 @@ const SEGMENT_OPTIONS: SegmentOptionsEntry[] = [
 				return null;
 			}
 
-			// Build options with "New" first, then existing AMAs
-			const options: BreadcrumbOption[] = [
-				{
-					label: 'New AMA',
-					href: `/dashboard/${context.guildId}/ama/amas/new`,
-				},
-				...data.amaSessions.map((s) => ({
-					label: s.title,
-					href: `/dashboard/${context.guildId}/ama/amas/${s.id}`,
-				})),
-			];
+			const options: BreadcrumbOption[] = data.amaSessions.map((s) => ({
+				label: s.title,
+				href: `/dashboard/${context.guildId}/ama/amas/${s.id}`,
+			}));
 
 			return {
 				options,

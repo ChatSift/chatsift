@@ -312,14 +312,14 @@ export function CreateAMAForm() {
 
 			<div className="flex gap-4">
 				<Button
-					className="px-6 py-3 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+					className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
 					isDisabled={createAMA.isPending}
 					type="submit"
 				>
 					{createAMA.isPending ? 'Creating...' : 'Create AMA Session'}
 				</Button>
 				<Button
-					className="px-6 py-3 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
+					className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
 					onPress={() => router.back()}
 					type="button"
 				>

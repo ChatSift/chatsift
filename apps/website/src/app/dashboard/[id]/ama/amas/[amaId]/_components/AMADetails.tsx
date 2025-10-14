@@ -22,7 +22,6 @@ function ChannelIcon({ channel }: { readonly channel: GuildChannelInfo | Possibl
 export function AMADetails() {
 	const params = useParams<{ amaId: string; id: string }>();
 	const router = useRouter();
-	const [isEndingAMA, setIsEndingAMA] = useState(false);
 	const [showEndConfirm, setShowEndConfirm] = useState(false);
 
 	const { data: ama, isLoading } = client.guilds.ama.useAMA(params.id, params.amaId);
@@ -52,13 +51,11 @@ export function AMADetails() {
 		}
 
 		try {
-			setIsEndingAMA(true);
 			await updateAMA.mutateAsync({ ended: true });
 			router.push(`/dashboard/${params.id}/ama/amas`);
 		} catch (error) {
 			console.error('Failed to end AMA:', error);
 		} finally {
-			setIsEndingAMA(false);
 			setShowEndConfirm(false);
 		}
 	};
@@ -177,7 +174,7 @@ export function AMADetails() {
 					{!ama.promptMessageExists && !ama.ended && (
 						<div className="pt-2">
 							<Button
-								className="px-6 py-3 bg-misc-accent text-white rounded-md hover:bg-misc-accent/90 transition-colors disabled:opacity-50"
+								className="bg-misc-accent text-white rounded-md hover:bg-misc-accent/90 transition-colors disabled:opacity-50"
 								onPress={handleRepostPrompt}
 								type="button"
 							>
@@ -202,15 +199,14 @@ export function AMADetails() {
 							</p>
 							<div className="flex gap-3">
 								<Button
-									className="px-6 py-3 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors disabled:opacity-50"
-									isDisabled={isEndingAMA}
+									className="px-3 py-2.5 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors disabled:opacity-50"
 									onPress={handleEndAMA}
 									type="button"
 								>
-									{isEndingAMA ? 'Ending...' : 'Yes, End AMA'}
+									Yes, End AMA
 								</Button>
 								<Button
-									className="px-6 py-3 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
+									className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
 									onPress={() => setShowEndConfirm(false)}
 									type="button"
 								>
@@ -224,7 +220,7 @@ export function AMADetails() {
 								Ending an AMA will prevent new questions from being submitted. This action cannot be undone.
 							</p>
 							<Button
-								className="px-6 py-3 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors"
+								className="px-3 py-2.5 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors"
 								onPress={handleEndAMA}
 								type="button"
 							>
