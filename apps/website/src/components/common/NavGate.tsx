@@ -5,6 +5,7 @@ import type { PropsWithChildren } from 'react';
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { Skeleton } from './Skeleton';
 import { client } from '@/data/client';
+import { URLS } from '@/utils/urls';
 
 interface NavGateContextValue {
 	readonly isAuthenticated: boolean;
@@ -28,7 +29,7 @@ export function NavGateProvider({ children }: PropsWithChildren) {
 
 	useEffect(() => {
 		if (!isLoading && user === null) {
-			router.replace('/login');
+			router.push(URLS.API.LOGIN);
 		}
 	}, [isLoading, user, router]);
 

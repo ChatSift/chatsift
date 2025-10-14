@@ -4,7 +4,7 @@ import z from 'zod';
 
 const envSchema = z.object({
 	// General
-	IS_PRODUCTION: z.coerce.boolean().default(false),
+	IS_PRODUCTION: z.stringbool().default(false),
 	ROOT_DOMAIN: z.string(),
 	ADMINS: z
 		.string()
