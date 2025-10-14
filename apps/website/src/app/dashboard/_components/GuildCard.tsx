@@ -48,9 +48,9 @@ export default function GuildCard({ data }: GuildCardProps) {
 							<p className="text-lg font-medium text-primary dark:text-primary-dark">Invite a bot:</p>
 							<ul className="flex flex-row gap-3">
 								<li>
-									<Link href="/invites/ama">
+									<a href="/invites/ama">
 										<SvgAMA />
-									</Link>
+									</a>
 								</li>
 							</ul>
 						</div>

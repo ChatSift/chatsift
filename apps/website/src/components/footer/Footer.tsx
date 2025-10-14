@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { ThemeSwitchButton } from './ThemeSwitchButton';
 import SvgDiscord from '@/components/icons/SvgDiscord';
 import { SvgGitHub } from '@/components/icons/SvgGitHub';
@@ -9,12 +8,12 @@ export function Footer() {
 			<span className="whitespace-nowrap text-secondary dark:text-secondary-dark">© ChatSift, 2022 - Present</span>
 			<div className="flex w-full flex-row flex-wrap items-center justify-between gap-3 sm:w-auto sm:gap-4">
 				<div className="flex flex-row items-center gap-4">
-					<Link className="flex" href="/github">
+					<a className="flex" href="/github">
 						<SvgGitHub />
-					</Link>
-					<Link className="flex" href="/support">
+					</a>
+					<a className="flex" href="/support">
 						<SvgDiscord />
-					</Link>
+					</a>
 				</div>
 				<div className="flex flex-row items-center gap-2 sm:ml-auto">
 					<p className="text-lg font-medium text-secondary dark:text-secondary-dark">Theme:</p>

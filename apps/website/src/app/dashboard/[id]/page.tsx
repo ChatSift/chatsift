@@ -33,17 +33,13 @@ export default function GuildPage() {
 					{BOTS.map((bot, index) => {
 						const { Icon } = Bots[bot];
 						const hasIt = guild.bots.includes(bot);
+						const className = cn(
+							'flex items-center gap-4 rounded-lg border-[1px] border-on-secondary bg-card p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-card-dark dark:hover:bg-on-tertiary-dark',
+							!hasIt && 'opacity-50 hover:opacity-75',
+						);
 
-						return (
-							<Link
-								className={cn(
-									'flex items-center gap-4 rounded-lg border-[1px] border-on-secondary bg-card p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-card-dark dark:hover:bg-on-tertiary-dark',
-									!hasIt && 'opacity-50 hover:opacity-75',
-								)}
-								href={hasIt ? `/dashboard/${guild.id}/ama` : `/invites/${bot.toLowerCase()}`}
-								key={index}
-								prefetch
-							>
+						const content = (
+							<>
 								<Icon height={32} width={32} />
 								<div className="flex flex-col">
 									<p className="text-lg font-medium text-primary dark:text-primary-dark">{bot}</p>
@@ -51,7 +47,17 @@ export default function GuildPage() {
 										{hasIt ? `Configure ${bot} bot settings` : `Invite ${bot} to your server`}
 									</p>
 								</div>
+							</>
+						);
+
+						return hasIt ? (
+							<Link className={className} href={`/dashboard/${guild.id}/ama`} key={index} prefetch>
+								{content}
 							</Link>
+						) : (
+							<a className={className} href={`/invites/${bot.toLowerCase()}`} key={index}>
+								{content}
+							</a>
 						);
 					})}
 				</div>
