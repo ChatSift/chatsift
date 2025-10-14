@@ -4,7 +4,22 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import { AMASessionCard } from './AMASessionCard';
 import { CreateAMACard } from './CreateAMACard';
+import { Skeleton } from '@/components/common/Skeleton';
 import { client } from '@/data/client';
+
+function AMASessionSkeleton() {
+	return (
+		<div className="flex h-36 w-[80vw] flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark md:w-52">
+			<div className="flex flex-col gap-1">
+				<Skeleton className="h-7 w-3/4" />
+				<Skeleton className="h-5 w-1/2" />
+			</div>
+			<div className="mt-auto flex items-center gap-2">
+				<Skeleton className="h-6 w-16" />
+			</div>
+		</div>
+	);
+}
 
 export function AMASessionsList() {
 	const params = useParams<{ id: string }>();
@@ -12,7 +27,7 @@ export function AMASessionsList() {
 
 	const searchQuery = searchParams.get('search') ?? '';
 
-	const { data: sessions } = client.guilds.ama.useAMAs(params.id, {
+	const { data: sessions, isLoading } = client.guilds.ama.useAMAs(params.id, {
 		include_ended: searchParams.get('include_ended') ?? 'false',
 	});
 
@@ -24,6 +39,21 @@ export function AMASessionsList() {
 		const lower = searchQuery.toLowerCase();
 		return sessions.filter((session) => session.title.toLowerCase().includes(lower));
 	}, [sessions, searchQuery]);
+
+	if (isLoading) {
+		return (
+			<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
+				<li>
+					<CreateAMACard />
+				</li>
+				{Array.from({ length: 3 }).map((_, index) => (
+					<li key={index}>
+						<AMASessionSkeleton />
+					</li>
+				))}
+			</ul>
+		);
+	}
 
 	return (
 		<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
