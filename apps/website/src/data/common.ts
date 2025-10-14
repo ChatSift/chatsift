@@ -63,6 +63,27 @@ export const routesInfo = {
 				query: { include_ended: query?.include_ended ?? 'false' },
 				params: { guildId },
 			}),
+
+			ama: (amaId: string) => ({
+				queryKey: ['guilds', guildId, 'ama', 'ama', amaId],
+				path: '/v3/guilds/:guildId/ama/amas/:amaId',
+				query: {},
+				params: { guildId, amaId },
+			}),
+
+			updateAMA: (amaId: string) => ({
+				queryKey: ['guilds', guildId, 'ama', 'amas', amaId, 'update'],
+				path: '/v3/guilds/:guildId/ama/amas/:amaId',
+				query: {},
+				params: { guildId, amaId },
+			}),
+
+			repostPrompt: (amaId: string) => ({
+				queryKey: ['guilds', guildId, 'ama', 'amas', amaId, 'prompt'],
+				path: '/v3/guilds/:guildId/ama/amas/:amaId/prompt',
+				query: {},
+				params: { guildId, amaId },
+			}),
 		},
 	}),
 } as const satisfies Info;

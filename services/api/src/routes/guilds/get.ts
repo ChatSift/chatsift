@@ -5,14 +5,14 @@ import z from 'zod';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { fetchGuildChannels, type GuildChannelInfo } from '../../util/channels.js';
 import { APIMapping } from '../../util/discordAPI.js';
+import { queryWithFreshSchema } from '../../util/schemas.js';
 import type { TRequest } from '../route.js';
 import { Route, RouteMethod } from '../route.js';
 
-export type { GuildChannelInfo } from '../../util/channels.js';
+export type { GuildChannelInfo, PossiblyMissingChannelInfo } from '../../util/channels.js';
 
-const querySchema = z.strictObject({
+const querySchema = queryWithFreshSchema.safeExtend({
 	for_bot: z.enum(BOTS),
-	force_fresh: z.stringbool().optional().default(false),
 });
 export type GetGuildQuery = z.input<typeof querySchema>;
 

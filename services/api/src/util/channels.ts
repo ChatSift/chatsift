@@ -9,6 +9,10 @@ import type {
 } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 
+export interface PossiblyMissingChannelInfo {
+	id: string;
+}
+
 export type GuildChannelInfo = APISortableChannel &
 	Pick<APIGuildChannel<GuildChannelType>, 'id' | 'name' | 'parent_id' | 'type'>;
 

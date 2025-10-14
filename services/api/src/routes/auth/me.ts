@@ -1,16 +1,15 @@
 import type { NextHandler, Response } from 'polka';
-import z from 'zod';
+import type z from 'zod';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import type { Me } from '../../util/me.js';
 import { fetchMe } from '../../util/me.js';
+import { queryWithFreshSchema } from '../../util/schemas.js';
 import type { TRequest } from '../route.js';
 import { Route, RouteMethod } from '../route.js';
 
 export type { Me, MeGuild } from '../../util/me.js';
 
-const querySchema = z.strictObject({
-	force_fresh: z.stringbool().optional().default(false),
-});
+const querySchema = queryWithFreshSchema;
 export type GetAuthMeQuery = z.input<typeof querySchema>;
 
 export default class GetAuthMe extends Route<Me, typeof querySchema> {

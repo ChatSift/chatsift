@@ -1,7 +1,7 @@
 import type { AMASession } from '@chatsift/core';
 import type { Selectable } from 'kysely';
 import type { NextHandler, Response } from 'polka';
-import { z, input } from 'zod';
+import { z } from 'zod';
 import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import type { TRequest } from '../route.js';

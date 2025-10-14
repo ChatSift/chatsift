@@ -129,7 +129,7 @@ export default class CreateAMA extends Route<CreateAMAResult, typeof bodySchema>
 						promptMessageId: promptMessage.id,
 						promptJSONData: JSON.stringify(messageBodyBase),
 					})
-					.executeTakeFirstOrThrow();
+					.execute();
 
 				return session;
 			});

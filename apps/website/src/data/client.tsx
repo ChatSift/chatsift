@@ -100,13 +100,23 @@ export const client = {
 			useCreateAMA: (guildId: string) =>
 				useMutateIt(routesInfo.guilds(guildId).ama.amas(), 'POST', async (queryClient) => {
 					await queryClient.invalidateQueries({
-						queryKey: [
-							routesInfo.guilds(guildId).ama.amas({ include_ended: 'false' }).queryKey,
-							routesInfo.guilds(guildId).ama.amas({ include_ended: 'true' }).queryKey,
-						],
+						queryKey: ['guilds', guildId, 'ama', 'amas'],
 					});
 				}),
 			useAMAs: (guildId: string, query: GetAMAsQuery) => useQueryIt(routesInfo.guilds(guildId).ama.amas(query)),
+			useAMA: (guildId: string, amaId: string) => useQueryIt(routesInfo.guilds(guildId).ama.ama(amaId)),
+			useUpdateAMA: (guildId: string, amaId: string) =>
+				useMutateIt(routesInfo.guilds(guildId).ama.updateAMA(amaId), 'PATCH', async (queryClient) => {
+					await queryClient.invalidateQueries({
+						queryKey: ['guilds', guildId, 'ama', 'amas'],
+					});
+				}),
+			useRepostPrompt: (guildId: string, amaId: string) =>
+				useMutateIt(routesInfo.guilds(guildId).ama.repostPrompt(amaId), 'POST', async (queryClient) => {
+					await queryClient.invalidateQueries({
+						queryKey: routesInfo.guilds(guildId).ama.ama(amaId).queryKey,
+					});
+				}),
 		},
 	},
 } as const;
