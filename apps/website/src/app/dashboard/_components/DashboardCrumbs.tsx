@@ -1,10 +1,12 @@
 'use client';
 
+import type { AMASessionDetailed, AMASessionWithCount } from '@chatsift/api';
 import { useParams, usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 import type { BreadcrumbOption } from '@/components/common/Breadcrumb';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { GuildIcon } from '@/components/common/GuildIcon';
+import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAMA } from '@/components/icons/SvgAMA';
 import { client } from '@/data/client';
 import { sortGuilds } from '@/utils/util';
@@ -37,7 +39,8 @@ interface SegmentOptionsContext {
 }
 
 export interface SegmentOptionsData {
-	amaSessions?: ReturnType<typeof client.guilds.ama.useAMAs>['data'];
+	amaSessions?: AMASessionWithCount[] | undefined;
+	currentAMA?: AMASessionDetailed | undefined;
 }
 
 type SegmentOptionsComputer = (
@@ -70,7 +73,7 @@ const SEGMENT_OPTIONS: SegmentOptionsEntry[] = [
 			// Build options with "New" first, then existing AMAs
 			const options: BreadcrumbOption[] = [
 				{
-					label: 'New',
+					label: 'New AMA',
 					href: `/dashboard/${context.guildId}/ama/amas/new`,
 				},
 				...data.amaSessions.map((s) => ({
@@ -93,21 +96,16 @@ const SEGMENT_OPTIONS: SegmentOptionsEntry[] = [
 			return !Number.isNaN(Number(segmentPath[2]));
 		},
 		computer: (context, data) => {
-			// Only show dropdown if we have sessions
-			if (!data.amaSessions?.length) {
-				return null;
-			}
-
 			// Get current AMA ID from the path
 			const currentAmaId = Number(context.segmentPath[2]);
 
 			// Build options with "New" first, then existing AMAs (excluding current)
 			const options: BreadcrumbOption[] = [
 				{
-					label: 'New',
+					label: 'New AMA',
 					href: `/dashboard/${context.guildId}/ama/amas/new`,
 				},
-				...data.amaSessions
+				...(data.amaSessions ?? [])
 					.filter((s) => s.id !== currentAmaId)
 					.map((s) => ({
 						label: s.title,
@@ -174,10 +172,10 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 			});
 
 			// Determine the label
-			let label = SEGMENT_LABELS[part] ?? part;
+			let label: React.ReactNode = SEGMENT_LABELS[part] ?? part;
 			const icon = SEGMENT_ICONS[part];
 
-			// For AMA IDs, use the AMA title if available
+			// For AMA IDs, use the AMA title if available, or show skeleton while loading
 			if (
 				segmentPath.length === 3 &&
 				segmentPath[0] === 'ama' &&
@@ -185,9 +183,18 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 				!Number.isNaN(Number(part))
 			) {
 				const amaId = Number(part);
-				const ama = segmentOptionsData?.amaSessions?.find((s) => s.id === amaId);
-				if (ama) {
-					label = ama.title;
+
+				// If we have currentAMA data and it matches, use it immediately
+				if (segmentOptionsData?.currentAMA && segmentOptionsData.currentAMA.id === amaId) {
+					label = segmentOptionsData.currentAMA.title;
+				} else if (segmentOptionsData?.currentAMA === undefined) {
+					// If currentAMA is still loading, show skeleton
+					label = <Skeleton className="h-5 w-32 inline-flex align-middle" />;
+				} else {
+					// currentAMA is loaded but doesn't match, try to find the AMA in sessions list
+					const ama = segmentOptionsData?.amaSessions?.find((s) => s.id === amaId);
+					// If found, use title; otherwise fall back to the ID
+					label = ama ? ama.title : part;
 				}
 			}
 

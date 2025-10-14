@@ -111,6 +111,7 @@ export const server = {
 	guilds: (guildId: string) => ({
 		ama: {
 			amas: (query: GetAMAsQuery) => make(routesInfo.guilds(guildId).ama.amas(query)),
+			one: (amaId: string) => make(routesInfo.guilds(guildId).ama.ama(amaId)),
 		},
 	}),
 } as const;

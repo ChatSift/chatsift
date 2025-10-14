@@ -72,7 +72,8 @@ export function AMADetails() {
 	};
 
 	return (
-		<div className="space-y-6">
+		<div className="grid gap-6 lg:grid-cols-2">
+			{/* Session Information Card */}
 			<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
 				<h2 className="text-xl font-medium text-primary dark:text-primary-dark mb-4">Session Information</h2>
 				<div className="space-y-4">
@@ -158,7 +159,8 @@ export function AMADetails() {
 				</div>
 			</div>
 
-			<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
+			{/* Prompt Message Status Card */}
+			<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
 				<h2 className="text-xl font-medium text-primary dark:text-primary-dark mb-4">Prompt Message Status</h2>
 				<div className="space-y-4">
 					<div>
@@ -191,7 +193,7 @@ export function AMADetails() {
 
 			{/* Actions Card */}
 			{!ama.ended && (
-				<div className="rounded-lg border border-misc-danger/20 bg-card p-6 dark:border-misc-danger/20 dark:bg-card-dark">
+				<div className="rounded-lg border border-misc-danger/20 bg-card p-6 dark:border-misc-danger/20 dark:bg-card-dark lg:col-span-2">
 					<h2 className="text-xl font-medium text-misc-danger mb-4">Danger Zone</h2>
 					{showEndConfirm ? (
 						<div className="space-y-4">

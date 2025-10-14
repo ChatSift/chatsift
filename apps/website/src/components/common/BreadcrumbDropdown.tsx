@@ -14,7 +14,7 @@ interface BreadcrumbDropdownProps {
 	readonly href?: string | undefined;
 	readonly icon?: React.ReactNode;
 	readonly isLast: boolean;
-	readonly label: string;
+	readonly label: React.ReactNode;
 	readonly options: readonly BreadcrumbOption[];
 }
 
@@ -23,16 +23,16 @@ export function BreadcrumbDropdown({ label, icon, href, options, isLast, highlig
 	const content = (
 		<>
 			{icon}
-			{label}
+			<span className="truncate">{label}</span>
 		</>
 	);
 
 	return (
-		<div className="flex items-center gap-1">
+		<div className="flex items-center gap-1 min-w-0">
 			{href ? (
 				<Link
 					className={cn(
-						'flex items-center gap-2 hover:text-primary dark:hover:text-primary-dark',
+						'flex items-center gap-2 hover:text-primary dark:hover:text-primary-dark min-w-0',
 						textStyles,
 						isLast && 'pointer-events-none',
 					)}
@@ -42,7 +42,7 @@ export function BreadcrumbDropdown({ label, icon, href, options, isLast, highlig
 					{content}
 				</Link>
 			) : (
-				<span className={cn('flex items-center gap-2', textStyles)}>{content}</span>
+				<span className={cn('flex items-center gap-2 min-w-0', textStyles)}>{content}</span>
 			)}
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger asChild>
