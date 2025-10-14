@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { Avatar } from './Avatar';
 import { GenericAvatarImage, GenericAvatarInitials } from './GenericAvatarImages';
 import { Skeleton } from './Skeleton';
@@ -15,7 +14,7 @@ interface GenericAvatarProps {
 
 export function GenericAvatar({ className, href, disableLink, isLoading, assetURL, initials }: GenericAvatarProps) {
 	return (
-		<Link className={cn(disableLink && 'pointer-events-none')} href={href}>
+		<a className={cn(disableLink && 'pointer-events-none')} href={href}>
 			<Avatar className={className}>
 				{isLoading ? (
 					<Skeleton className={className} />
@@ -25,6 +24,6 @@ export function GenericAvatar({ className, href, disableLink, isLoading, assetUR
 					<GenericAvatarInitials className={className} initials={initials} />
 				)}
 			</Avatar>
-		</Link>
+		</a>
 	);
 }
