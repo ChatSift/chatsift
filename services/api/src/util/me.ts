@@ -51,30 +51,42 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 		) as Record<BotId, Promise<string[]>>,
 	);
 
-	const guilds = guildsRaw.map<MeGuild>(
-		({ id, name, icon, owner, permissions, approximate_member_count, approximate_presence_count }) => {
-			const guild: MeGuild = {
-				id,
-				name,
-				icon,
-				meCanManage:
-					PermissionsBitField.has(
-						BigInt(permissions),
-						PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
-					) || owner,
-				bots: BOTS.filter((bot) => guildsByBot[bot]?.includes(id)),
-			};
+	const guilds = await Promise.all(
+		guildsRaw.map<Promise<MeGuild>>(
+			async ({ id, name, icon, owner, permissions, approximate_member_count, approximate_presence_count }) => {
+				const grant = await context.db
+					.selectFrom('DashboardGrant')
+					.where('guildId', '=', id)
+					.where('userId', '=', discordUser.id)
+					.select('id')
+					.executeTakeFirst();
+				const hasGrant = Boolean(grant);
 
-			if (approximate_member_count !== undefined) {
-				guild.approximate_member_count = approximate_member_count;
-			}
+				const guild: MeGuild = {
+					id,
+					name,
+					icon,
+					meCanManage:
+						hasGrant ||
+						PermissionsBitField.has(
+							BigInt(permissions),
+							PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
+						) ||
+						owner,
+					bots: BOTS.filter((bot) => guildsByBot[bot]?.includes(id)),
+				};
 
-			if (approximate_presence_count !== undefined) {
-				guild.approximate_presence_count = approximate_presence_count;
-			}
+				if (approximate_member_count !== undefined) {
+					guild.approximate_member_count = approximate_member_count;
+				}
 
-			return guild;
-		},
+				if (approximate_presence_count !== undefined) {
+					guild.approximate_presence_count = approximate_presence_count;
+				}
+
+				return guild;
+			},
+		),
 	);
 
 	const me: Me = {

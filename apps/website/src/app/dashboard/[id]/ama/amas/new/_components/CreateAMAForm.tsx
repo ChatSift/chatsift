@@ -120,25 +120,27 @@ export function CreateAMAForm() {
 		setGeneralError(null);
 
 		try {
-			const body = {
+			const bodyBase: Omit<CreateAMABody, 'prompt_raw' | 'prompt'> = {
 				title: formData.title,
 				answersChannelId: formData.answersChannelId,
 				promptChannelId: formData.promptChannelId,
 				modQueueId: formData.modQueueId || null,
 				flaggedQueueId: formData.flaggedQueueId || null,
 				guestQueueId: formData.guestQueueId || null,
-			} as CreateAMABody;
+			};
 
-			if (promptMode === 'raw') {
-				(body as any).prompt_raw = JSON.parse(formData.promptRaw);
-			} else {
-				(body as any).prompt = {
-					description: formData.description || undefined,
-					plainText: formData.plainText || undefined,
-					imageURL: formData.imageURL || undefined,
-					thumbnailURL: formData.thumbnailURL || undefined,
-				};
-			}
+			const body: CreateAMABody =
+				promptMode === 'raw'
+					? { ...bodyBase, prompt_raw: JSON.parse(formData.promptRaw) }
+					: {
+							...bodyBase,
+							prompt: {
+								description: formData.description || undefined,
+								plainText: formData.plainText || undefined,
+								imageURL: formData.imageURL || undefined,
+								thumbnailURL: formData.thumbnailURL || undefined,
+							},
+						};
 
 			await createAMA.mutateAsync(body);
 			router.replace(`/dashboard/${guildId}/ama/amas`);
@@ -308,7 +310,6 @@ export function CreateAMAForm() {
 				)}
 			</div>
 
-			{/* Submit Button */}
 			<div className="flex gap-4">
 				<Button
 					className="px-6 py-3 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"

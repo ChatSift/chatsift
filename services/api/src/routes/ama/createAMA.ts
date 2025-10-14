@@ -60,7 +60,6 @@ export default class CreateAMA extends Route<CreateAMAResult, typeof bodySchema>
 		const data = req.body;
 		const { guildId } = req.params as { guildId: string };
 
-		// TODO(DD): Reconsider?
 		const messageBodyBase: RESTPostAPIChannelMessageJSONBody =
 			'prompt_raw' in data
 				? data.prompt_raw
@@ -106,24 +105,36 @@ export default class CreateAMA extends Route<CreateAMAResult, typeof bodySchema>
 
 		let created: CreateAMAResult;
 		try {
-			created = await context.db
-				.insertInto('AMASession')
-				.values({
-					guildId,
-					title: data.title,
-					answersChannelId: data.answersChannelId,
-					promptChannelId: data.promptChannelId,
-					promptMessageId: promptMessage.id,
-					modQueueId: data.modQueueId,
-					flaggedQueueId: data.flaggedQueueId,
-					guestQueueId: data.guestQueueId,
-					ended: false,
-					createdAt: new Date(),
-				})
-				.returningAll()
-				.executeTakeFirstOrThrow();
+			created = await context.db.transaction().execute(async (tran) => {
+				const session = await tran
+					.insertInto('AMASession')
+					.values({
+						guildId,
+						title: data.title,
+						answersChannelId: data.answersChannelId,
+						promptChannelId: data.promptChannelId,
+						modQueueId: data.modQueueId,
+						flaggedQueueId: data.flaggedQueueId,
+						guestQueueId: data.guestQueueId,
+						ended: false,
+						createdAt: new Date(),
+					})
+					.returningAll()
+					.executeTakeFirstOrThrow();
+
+				await tran
+					.insertInto('AMAPromptData')
+					.values({
+						amaId: session.id,
+						promptMessageId: promptMessage.id,
+						promptJSONData: JSON.stringify(messageBodyBase),
+					})
+					.executeTakeFirstOrThrow();
+
+				return session;
+			});
 		} catch (error) {
-			// If we created the prompt message but failed to create the AMA session, delete the message to avoid orphaned messages.
+			// If we created the prompt message but failed to insert data, delete the message to avoid orphaned prompts.
 			// eslint-disable-next-line promise/prefer-await-to-then
 			void discordAPIAma.channels.deleteMessage(data.promptChannelId, promptMessage.id).catch(() => null);
 			throw error;

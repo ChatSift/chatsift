@@ -4,13 +4,16 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   : ColumnType<T, T | undefined, T>;
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
+export type AMAPromptData = {
+    id: Generated<number>;
+    amaId: number;
+    promptMessageId: string;
+    promptJSONData: string;
+};
 export type AMAQuestion = {
     id: Generated<number>;
     amaId: number;
     authorId: string;
-    content: string;
-    imageUrl: string | null;
-    answerMessageId: string | null;
 };
 export type AMASession = {
     id: Generated<number>;
@@ -21,9 +24,14 @@ export type AMASession = {
     title: string;
     answersChannelId: string;
     promptChannelId: string;
-    promptMessageId: string;
     ended: Generated<boolean>;
     createdAt: Generated<Timestamp>;
+};
+export type DashboardGrant = {
+    id: Generated<number>;
+    guildId: string;
+    userId: string;
+    createdById: string;
 };
 export type Experiment = {
     name: string;
@@ -38,8 +46,10 @@ export type ExperimentOverride = {
     experimentName: string;
 };
 export type DB = {
+    AMAPromptData: AMAPromptData;
     AMAQuestion: AMAQuestion;
     AMASession: AMASession;
+    DashboardGrant: DashboardGrant;
     Experiment: Experiment;
     ExperimentOverride: ExperimentOverride;
 };

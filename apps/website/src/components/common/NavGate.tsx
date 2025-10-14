@@ -74,7 +74,7 @@ export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAcces
 			return;
 		}
 
-		if (checkForGlobalAdmin && !user?.isGlobalAdmin) {
+		if (checkForGlobalAdmin && !user!.isGlobalAdmin) {
 			router.replace('/dashboard');
 			return;
 		}
@@ -85,7 +85,7 @@ export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAcces
 			}
 
 			// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-			const hasAccess = user?.isGlobalAdmin || user!.guilds.some((g) => g.id === params.id && g.meCanManage);
+			const hasAccess = user!.isGlobalAdmin || user!.guilds.some((g) => g.id === params.id && g.meCanManage);
 			if (!hasAccess) {
 				router.replace('/dashboard');
 			}

@@ -29,6 +29,15 @@ model ExperimentOverride {
   @@unique([guildId, experimentName])
 }
 
+model DashboardGrant {
+  id          Int    @id @default(autoincrement())
+  guildId     String
+  userId      String
+  createdById String
+
+  @@unique([guildId, userId])
+}
+
 // SECTION ama bot
 
 model AMASession {
@@ -40,19 +49,24 @@ model AMASession {
   title            String
   answersChannelId String
   promptChannelId  String
-  promptMessageId  String   @unique
   ended            Boolean  @default(false)
   createdAt        DateTime @default(now())
 
-  questions AMAQuestion[]
+  questions  AMAQuestion[]
+  promptData AMAPromptData?
+}
+
+model AMAPromptData {
+  id              Int        @id @default(autoincrement())
+  amaId           Int        @unique
+  ama             AMASession @relation(fields: [amaId], references: [id], onDelete: Cascade)
+  promptMessageId String     @unique
+  promptJSONData  String
 }
 
 model AMAQuestion {
-  id              Int        @id @default(autoincrement())
-  amaId           Int
-  ama             AMASession @relation(fields: [amaId], references: [id], onDelete: Cascade)
-  authorId        String
-  content         String
-  imageUrl        String?
-  answerMessageId String?
+  id       Int        @id @default(autoincrement())
+  amaId    Int
+  ama      AMASession @relation(fields: [amaId], references: [id], onDelete: Cascade)
+  authorId String
 }
