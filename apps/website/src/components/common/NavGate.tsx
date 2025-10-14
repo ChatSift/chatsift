@@ -84,7 +84,8 @@ export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAcces
 				throw new Error('Guild ID param is required when checkForGuildAccess is true');
 			}
 
-			const hasAccess = user?.isGlobalAdmin ?? user!.guilds.some((g) => g.id === params.id && g.meCanManage);
+			// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+			const hasAccess = user?.isGlobalAdmin || user!.guilds.some((g) => g.id === params.id && g.meCanManage);
 			if (!hasAccess) {
 				router.replace('/dashboard');
 			}
