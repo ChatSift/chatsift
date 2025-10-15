@@ -15,6 +15,7 @@ export default async function AMAPage({ params }: PageProps<'/dashboard/[id]/ama
 					href={`/dashboard/${id}/ama/amas`}
 					prefetch
 				>
+					{/* TODO */}
 					<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-misc-accent text-2xl font-bold text-primary-dark">
 						Q
 					</div>
