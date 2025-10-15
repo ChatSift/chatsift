@@ -56,6 +56,13 @@ export const routesInfo = {
 			params: { guildId },
 		}),
 
+		grants: {
+			queryKey: ['guilds', guildId, 'grants'],
+			path: '/v3/guilds/:guildId/grants',
+			query: {} as never,
+			params: { guildId },
+		},
+
 		ama: {
 			amas: (query?: GetAMAsQuery) => ({
 				queryKey: ['guilds', guildId, 'ama', 'amas', query?.include_ended ?? 'false'],

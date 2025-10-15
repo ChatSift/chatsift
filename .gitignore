@@ -40,7 +40,6 @@ coverage/
 Thumbs.db
 
 # IDEs and editors
-.vscode/
 .idea/
 *.swp
 *.swo

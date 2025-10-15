@@ -1,5 +1,5 @@
 import { performance } from 'node:perf_hooks';
-import { setTimeout } from 'node:timers';
+import { setTimeout, clearTimeout } from 'node:timers';
 import type { BotId } from '@chatsift/backend-core';
 import { BOTS, GlobalCaches, PermissionsBitField, promiseAllObject } from '@chatsift/backend-core';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
@@ -21,6 +21,15 @@ export type Me = APIUser & { guilds: MeGuild[]; isGlobalAdmin: boolean };
 const CACHE = new Map<string, Me>();
 const CACHE_TIMEOUTS = new Map<string, NodeJS.Timeout>();
 const CACHE_TTL = 5 * 60 * 1_000; // 5 minutes
+
+export function clearCache() {
+	CACHE.clear();
+	for (const timeout of CACHE_TIMEOUTS.values()) {
+		clearTimeout(timeout);
+	}
+
+	CACHE_TIMEOUTS.clear();
+}
 
 export async function fetchMe(discordAccessToken: string, force = false): Promise<Me> {
 	if (CACHE.has(discordAccessToken) && !force) {

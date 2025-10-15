@@ -43,7 +43,7 @@ export interface FetcherOptions {
 	path: `/${string}`;
 }
 
-const jsonMethods = new Set(['POST', 'PUT', 'PATCH']);
+const jsonMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export function useClientSideFetcher({ path, method }: FetcherOptions): (body?: unknown) => Promise<any> {
 	const [accessToken, setAccessToken] = useState<string | null>(null);

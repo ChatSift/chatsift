@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import type { Middleware, Request, Response } from 'polka';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { context } from '../../context.js';
+import { clearCache as clearMeCache } from '../../util/me.js';
 import type { AccessTokenData } from '../../util/tokens.js';
 import { attachHttpUtils } from '../attachHttpUtils.js';
 import { isAuthed } from '../isAuthed.js';
@@ -36,6 +37,18 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 		...actual,
 		// @ts-expect-error - Arg forwarding
 		createContext: (...args: any[]) => ({ ...actual.createContext(...args), UP_SINCE: Date.now() - 1_000 * 60 * 5 }),
+		createDatabase: () => ({
+			selectFrom: () => ({
+				where: () => ({
+					where: () => ({
+						select: () => ({
+							// TODO: Mock and test at some point
+							executeTakeFirst: vi.fn(async () => undefined),
+						}),
+					}),
+				}),
+			}),
+		}),
 		createRedis: () => ({
 			get: vi.fn(async () => null),
 		}),
@@ -116,6 +129,7 @@ const next = vi.fn();
 
 afterEach(() => {
 	vi.resetAllMocks();
+	clearMeCache();
 });
 
 describe('no fallthrough', () => {
@@ -436,6 +450,9 @@ describe('guild level checks', () => {
 		expect(next).toHaveBeenCalledWith();
 		vi.clearAllMocks();
 
+		getCurrentUserMock.mockResolvedValue({ id: ADMIN_USER_ID });
+		getGuildsMock.mockResolvedValue([{ id: '123', permissions: '0' }]);
+
 		await isGuildManager(req, res, next);
 		expect(next).toHaveBeenCalledWith();
 	});
@@ -462,7 +479,7 @@ describe('guild level checks', () => {
 		expect(next).toHaveBeenCalledWith(makeExpectedBoom(500, 'internal'));
 	});
 
-	test('grant based pass', async () => {
+	test('token grant based pass', async () => {
 		const res = new MockedResponse();
 		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
 
@@ -478,6 +495,9 @@ describe('guild level checks', () => {
 
 		expect(next).toHaveBeenCalledWith();
 		vi.clearAllMocks();
+
+		getCurrentUserMock.mockResolvedValue({ id: ADMIN_USER_ID });
+		getGuildsMock.mockResolvedValue([{ id: '123', permissions: '0' }]);
 
 		await isGuildManager(req, res, next);
 		expect(next).toHaveBeenCalledWith();
@@ -499,6 +519,9 @@ describe('guild level checks', () => {
 
 		expect(next).toHaveBeenCalledWith();
 		vi.clearAllMocks();
+
+		getCurrentUserMock.mockResolvedValue({ id: ADMIN_USER_ID });
+		getGuildsMock.mockResolvedValue([{ id: '123', permissions: '0' }]);
 
 		await isGuildManager(req, res, next);
 		expect(next).toHaveBeenCalledWith(makeExpectedBoom(403, 'you need to be a manager'));

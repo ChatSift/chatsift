@@ -118,5 +118,21 @@ export const client = {
 					});
 				}),
 		},
+
+		grants: {
+			useGrants: (guildId: string) => useQueryIt(routesInfo.guilds(guildId).grants),
+			useCreateGrant: (guildId: string) =>
+				useMutateIt(routesInfo.guilds(guildId).grants, 'PUT', async (queryClient) => {
+					await queryClient.invalidateQueries({
+						queryKey: routesInfo.guilds(guildId).grants.queryKey,
+					});
+				}),
+			useDeleteGrant: (guildId: string) =>
+				useMutateIt(routesInfo.guilds(guildId).grants, 'DELETE', async (queryClient) => {
+					await queryClient.invalidateQueries({
+						queryKey: routesInfo.guilds(guildId).grants.queryKey,
+					});
+				}),
+		},
 	},
 } as const;

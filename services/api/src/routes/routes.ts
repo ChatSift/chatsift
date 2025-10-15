@@ -12,3 +12,6 @@ export { default as PostAuthLogout } from './auth/logout.js';
 export { default as GetAuthMe } from './auth/me.js';
 
 export { default as GetGuild } from './guilds/get.js';
+export { default as CreateGrant } from './guilds/createGrant.js';
+export { default as DeleteGrant } from './guilds/deleteGrant.js';
+export { default as GetGrants } from './guilds/getGrants.js';

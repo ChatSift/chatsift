@@ -1,4 +1,4 @@
-import { setTimeout } from 'node:timers';
+import { setTimeout, clearTimeout } from 'node:timers';
 import type {
 	API,
 	APIGuildChannel,
@@ -20,6 +20,15 @@ export type GuildChannelInfo = APISortableChannel &
 const CACHE = new Map<Snowflake, GuildChannelInfo[]>();
 const CACHE_TIMEOUTS = new Map<string, NodeJS.Timeout>();
 const CACHE_TTL = 5 * 60 * 1_000; // 5 minutes
+
+export function clearCache() {
+	CACHE.clear();
+	for (const timeout of CACHE_TIMEOUTS.values()) {
+		clearTimeout(timeout);
+	}
+
+	CACHE_TIMEOUTS.clear();
+}
 
 export async function fetchGuildChannels(guildId: string, api: API, force = false): Promise<GuildChannelInfo[] | null> {
 	if (CACHE.has(guildId) && !force) {

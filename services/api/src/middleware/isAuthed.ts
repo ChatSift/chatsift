@@ -7,12 +7,14 @@ import jwt from 'jsonwebtoken';
 import type { Middleware } from 'polka';
 import { context } from '../context.js';
 import { discordAPIOAuth } from '../util/discordAPI.js';
+import type { MeGuild } from '../util/me.js';
 import { fetchMe } from '../util/me.js';
 import type { RefreshTokenData, AccessTokenData } from '../util/tokens.js';
 import { createAccessToken, createRefreshToken, noopAccessToken, noopRefreshToken } from '../util/tokens.js';
 
 declare module 'polka' {
 	export interface Request {
+		guild?: MeGuild;
 		tokens?: {
 			access: AccessTokenData;
 			refresh: RefreshTokenData;
@@ -224,6 +226,16 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 				context.logger.warn('isGuildManager invoked without a guildId param. this is a bug');
 				return next(internal());
 			}
+
+			const me = await fetchMe(req.tokens.access.discordAccessToken, false);
+			const guild = me.guilds.find((g) => g.id === guildId);
+
+			if (!guild) {
+				return next(forbidden('you need to be a member of this guild to access this resource'));
+			}
+
+			// eslint-disable-next-line require-atomic-updates
+			req.guild = guild;
 
 			if (context.env.ADMINS.has(req.tokens.access.sub)) {
 				// Admin bypass
