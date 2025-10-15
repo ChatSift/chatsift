@@ -1,8 +1,8 @@
+import { getContext } from '@chatsift/backend-core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { badData, notFound } from '@hapi/boom';
 import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
-import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
 import type { TRequest } from '../route.js';
@@ -25,8 +25,8 @@ export default class RepostPrompt extends Route<never, typeof bodySchema> {
 	public override async handle(req: TRequest<typeof bodySchema>, res: Response, next: NextHandler) {
 		const { guildId, amaId } = req.params as { amaId: string; guildId: string };
 
-		const existingAMA = await context.db
-			.selectFrom('AMASession')
+		const existingAMA = await getContext()
+			.db.selectFrom('AMASession')
 			.selectAll()
 			.where('guildId', '=', guildId)
 			.where('id', '=', Number(amaId))
@@ -36,8 +36,8 @@ export default class RepostPrompt extends Route<never, typeof bodySchema> {
 			return next(notFound('ama session not found'));
 		}
 
-		const promptData = await context.db
-			.selectFrom('AMAPromptData')
+		const promptData = await getContext()
+			.db.selectFrom('AMAPromptData')
 			.selectAll()
 			.where('amaId', '=', Number(amaId))
 			.executeTakeFirstOrThrow();
@@ -77,8 +77,8 @@ export default class RepostPrompt extends Route<never, typeof bodySchema> {
 		});
 
 		try {
-			await context.db
-				.updateTable('AMAPromptData')
+			await getContext()
+				.db.updateTable('AMAPromptData')
 				.set({ promptMessageId: newPromptMessage.id })
 				.where('amaId', '=', Number(amaId))
 				.execute();

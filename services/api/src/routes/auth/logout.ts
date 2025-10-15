@@ -1,5 +1,5 @@
+import { getContext } from '@chatsift/backend-core';
 import type { NextHandler, Response } from 'polka';
-import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { discordAPIOAuth } from '../../util/discordAPI.js';
 import { noopAccessToken, noopRefreshToken } from '../../util/tokens.js';
@@ -18,8 +18,8 @@ export default class PostAuthLogout extends Route<never, never> {
 
 	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
 		await discordAPIOAuth.oauth2.revokeToken(
-			context.env.OAUTH_DISCORD_CLIENT_ID,
-			context.env.OAUTH_DISCORD_CLIENT_SECRET,
+			getContext().env.OAUTH_DISCORD_CLIENT_ID,
+			getContext().env.OAUTH_DISCORD_CLIENT_SECRET,
 			{ token: req.tokens!.refresh.discordRefreshToken, token_type_hint: 'refresh_token' },
 		);
 

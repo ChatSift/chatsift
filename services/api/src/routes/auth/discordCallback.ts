@@ -1,8 +1,8 @@
+import { getContext } from '@chatsift/backend-core';
 import { badRequest, forbidden } from '@hapi/boom';
 import cookie from 'cookie';
 import type { NextHandler, Response } from 'polka';
 import z from 'zod';
-import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { cookieWithDomain } from '../../util/constants.js';
 import { discordAPIOAuth } from '../../util/discordAPI.js';
@@ -31,7 +31,7 @@ export default class GetAuthDiscordCallback extends Route<never, typeof querySch
 
 	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
 		if (req.tokens) {
-			res.redirect(context.FRONTEND_URL);
+			res.redirect(getContext().FRONTEND_URL);
 			return res.end();
 		}
 
@@ -57,15 +57,18 @@ export default class GetAuthDiscordCallback extends Route<never, typeof querySch
 		}
 
 		const result = await discordAPIOAuth.oauth2.tokenExchange({
-			client_id: context.env.OAUTH_DISCORD_CLIENT_ID,
-			client_secret: context.env.OAUTH_DISCORD_CLIENT_SECRET,
+			client_id: getContext().env.OAUTH_DISCORD_CLIENT_ID,
+			client_secret: getContext().env.OAUTH_DISCORD_CLIENT_SECRET,
 			grant_type: 'authorization_code',
 			code,
-			redirect_uri: `${context.API_URL}/v3/auth/discord/callback`,
+			redirect_uri: `${getContext().API_URL}/v3/auth/discord/callback`,
 		});
 
 		if (!setEquals(DISCORD_AUTH_SCOPES, new Set(result.scope.split(' ')))) {
-			context.logger.warn({ returnedScopes: result.scope, expectedScopes: DISCORD_AUTH_SCOPES }, 'miss matched scopes');
+			getContext().logger.warn(
+				{ returnedScopes: result.scope, expectedScopes: DISCORD_AUTH_SCOPES },
+				'miss matched scopes',
+			);
 			return next(forbidden('received different scopes than expected'));
 		}
 

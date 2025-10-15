@@ -1,11 +1,17 @@
 /* eslint-disable no-restricted-globals, n/prefer-global/process, @typescript-eslint/unbound-method */
 
 import { Http2ServerResponse } from 'node:http2';
-import { NewAccessTokenHeader } from '@chatsift/backend-core';
+import {
+	createDatabase,
+	createLogger,
+	createRedis,
+	getContext,
+	initContext,
+	NewAccessTokenHeader,
+} from '@chatsift/backend-core';
 import jwt from 'jsonwebtoken';
 import type { Middleware, Request, Response } from 'polka';
-import { afterEach, describe, expect, test, vi } from 'vitest';
-import { context } from '../../context.js';
+import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import { clearCache as clearMeCache } from '../../util/me.js';
 import type { AccessTokenData } from '../../util/tokens.js';
 import { attachHttpUtils } from '../attachHttpUtils.js';
@@ -35,8 +41,7 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 
 	return {
 		...actual,
-		// @ts-expect-error - Arg forwarding
-		createContext: (...args: any[]) => ({ ...actual.createContext(...args), UP_SINCE: Date.now() - 1_000 * 60 * 5 }),
+		getContext: () => ({ ...actual.getContext(), UP_SINCE: Date.now() - 1_000 * 60 * 5 }),
 		createDatabase: () => ({
 			selectFrom: () => ({
 				where: () => ({
@@ -53,6 +58,13 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 			get: vi.fn(async () => null),
 		}),
 	};
+});
+
+beforeAll(async () => {
+	const logger = createLogger('api');
+	const db = createDatabase(logger);
+	const redis = await createRedis(logger);
+	initContext({ db, logger, redis });
 });
 
 const refreshTokenMock = vi.hoisted(() => vi.fn());
@@ -102,7 +114,7 @@ const makeAccessJWT = ({ now = Date.now(), expiresIn = 5 * 60, grants, sub = USE
 		grants: { adminGuilds: grants?.guildIds ?? [] },
 	};
 
-	return jwt.sign(data, context.env.ENCRYPTION_KEY, { expiresIn });
+	return jwt.sign(data, getContext().env.ENCRYPTION_KEY, { expiresIn });
 };
 
 interface MockRefreshJWTData {
@@ -120,7 +132,7 @@ const makeRefreshJWT = ({ now = Date.now(), expiresIn = 60 * 60 * 24 * 30 }: Moc
 		discordRefreshToken: GOOD_REFRESH_TOKEN,
 	};
 
-	return jwt.sign(data, context.env.ENCRYPTION_KEY, { expiresIn });
+	return jwt.sign(data, getContext().env.ENCRYPTION_KEY, { expiresIn });
 };
 
 const makeMockedRequest = (data: any) => data as unknown as Request;

@@ -1,9 +1,11 @@
+// TODO: res.logger
+
 import { performance } from 'node:perf_hooks';
 import { setTimeout, clearTimeout } from 'node:timers';
+import { getContext } from '@chatsift/backend-core';
 import { nanoid } from 'nanoid';
 import type { IError, Middleware, NextHandler, Polka, Request, Response } from 'polka';
 import type { z, ZodType } from 'zod';
-import { context } from '../context.js';
 import { jsonParser } from '../middleware/jsonParser.js';
 import { validate } from '../middleware/validate.js';
 
@@ -84,7 +86,7 @@ export abstract class Route<TResult, TBodyOrQueryZodType extends ZodType<any> | 
 				req.trackingId = nanoid(10);
 
 				const timeout = setTimeout(() => {
-					context.logger.warn(
+					getContext().logger.warn(
 						{ trackingId: req.trackingId, method: req.method, path: req.path },
 						'request is probably hanging',
 					);
@@ -93,7 +95,7 @@ export abstract class Route<TResult, TBodyOrQueryZodType extends ZodType<any> | 
 				const now = performance.now();
 				res.on('close', () => {
 					const durationMs = performance.now() - now;
-					context.logger.info(
+					getContext().logger.info(
 						{
 							trackingId: req.trackingId,
 							method: req.method,
@@ -106,7 +108,10 @@ export abstract class Route<TResult, TBodyOrQueryZodType extends ZodType<any> | 
 					clearTimeout(timeout);
 				});
 
-				context.logger.info({ trackingId: req.trackingId, method: req.method, path: req.path }, 'incoming request');
+				getContext().logger.info(
+					{ trackingId: req.trackingId, method: req.method, path: req.path },
+					'incoming request',
+				);
 				return next();
 			},
 		];
@@ -127,12 +132,12 @@ export abstract class Route<TResult, TBodyOrQueryZodType extends ZodType<any> | 
 
 		server[this.info.method](this.info.path, ...middleware, async (req, res, next) => {
 			try {
-				context.logger.info(
+				getContext().logger.info(
 					{ trackingId: req.trackingId, method: req.method, path: req.path },
 					'passing to route handler from middleware',
 				);
 				await this.handle(req as TRequest<z.infer<TBodyOrQueryZodType>>, res, next);
-				context.logger.info(
+				getContext().logger.info(
 					{ trackingId: req.trackingId, method: req.method, path: req.path },
 					'route handler complete',
 				);

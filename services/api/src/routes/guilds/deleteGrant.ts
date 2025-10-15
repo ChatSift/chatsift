@@ -1,7 +1,7 @@
+import { getContext } from '@chatsift/backend-core';
 import { notFound } from '@hapi/boom';
 import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
-import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { snowflakeSchema } from '../../util/schemas.js';
 import type { TRequest } from '../route.js';
@@ -30,8 +30,8 @@ export default class DeleteGrant extends Route<never, typeof bodySchema> {
 		const { guildId } = req.params as { guildId: string };
 
 		// Check if the grant exists
-		const existingGrant = await context.db
-			.selectFrom('DashboardGrant')
+		const existingGrant = await getContext()
+			.db.selectFrom('DashboardGrant')
 			.select('id')
 			.where('guildId', '=', guildId)
 			.where('userId', '=', userId)
@@ -42,7 +42,11 @@ export default class DeleteGrant extends Route<never, typeof bodySchema> {
 		}
 
 		// Delete the grant
-		await context.db.deleteFrom('DashboardGrant').where('guildId', '=', guildId).where('userId', '=', userId).execute();
+		await getContext()
+			.db.deleteFrom('DashboardGrant')
+			.where('guildId', '=', guildId)
+			.where('userId', '=', userId)
+			.execute();
 
 		res.statusCode = 200;
 		return res.end();

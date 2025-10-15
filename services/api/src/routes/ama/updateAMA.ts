@@ -1,9 +1,9 @@
+import { getContext } from '@chatsift/backend-core';
 import type { AMASession } from '@chatsift/core';
 import { badData, notFound } from '@hapi/boom';
 import type { Selectable } from 'kysely';
 import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
-import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import type { TRequest } from '../route.js';
 import { Route, RouteMethod } from '../route.js';
@@ -32,8 +32,8 @@ export default class UpdateAMA extends Route<UpdateAMAResult, typeof bodySchema>
 		const data = req.body;
 		const { guildId, amaId } = req.params as { amaId: string; guildId: string };
 
-		const existingAMA = await context.db
-			.selectFrom('AMASession')
+		const existingAMA = await getContext()
+			.db.selectFrom('AMASession')
 			.selectAll()
 			.where('guildId', '=', guildId)
 			.where('id', '=', Number(amaId))
@@ -47,8 +47,8 @@ export default class UpdateAMA extends Route<UpdateAMAResult, typeof bodySchema>
 			return next(badData('AMA session is already ended'));
 		}
 
-		const updated: UpdateAMAResult = await context.db
-			.updateTable('AMASession')
+		const updated: UpdateAMAResult = await getContext()
+			.db.updateTable('AMASession')
 			.set({ ended: data.ended })
 			.where('id', '=', Number(amaId))
 			.where('guildId', '=', guildId)

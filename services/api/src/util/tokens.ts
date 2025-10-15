@@ -1,8 +1,7 @@
-import { NewAccessTokenHeader } from '@chatsift/backend-core';
-import type { Snowflake, APIUser, RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
+import { getContext, NewAccessTokenHeader } from '@chatsift/backend-core';
+import type { Snowflake, RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import jwt from 'jsonwebtoken';
 import type { Response } from 'polka';
-import { context } from '../context.js';
 import { cookieWithDomain } from './constants.js';
 import type { Me } from './me.js';
 
@@ -48,7 +47,7 @@ export function createAccessToken(res: Response, oauthData: OAuthData, user: Me)
 		grants: getTokenGrants(user),
 	};
 
-	const accessToken = jwt.sign(accessTokenData, context.env.ENCRYPTION_KEY, { expiresIn: 5 * 60 });
+	const accessToken = jwt.sign(accessTokenData, getContext().env.ENCRYPTION_KEY, { expiresIn: 5 * 60 });
 	res.setHeader(NewAccessTokenHeader, accessToken);
 
 	return accessTokenData;
@@ -75,7 +74,7 @@ export function createRefreshToken(res: Response, oauthData: OAuthData, sub: str
 		discordAccessTokenExpiresAt,
 	};
 
-	const refreshToken = jwt.sign(refreshTokenData, context.env.ENCRYPTION_KEY, { expiresIn: '30d' });
+	const refreshToken = jwt.sign(refreshTokenData, getContext().env.ENCRYPTION_KEY, { expiresIn: '30d' });
 	res.cookie(
 		'refresh_token',
 		refreshToken,
@@ -84,7 +83,7 @@ export function createRefreshToken(res: Response, oauthData: OAuthData, sub: str
 			path: '/',
 			sameSite: 'lax',
 			httpOnly: true,
-			secure: context.env.IS_PRODUCTION,
+			secure: getContext().env.IS_PRODUCTION,
 		}),
 	);
 
@@ -100,7 +99,7 @@ export function noopRefreshToken(res: Response): void {
 			path: '/',
 			sameSite: 'lax',
 			httpOnly: true,
-			secure: context.env.IS_PRODUCTION,
+			secure: getContext().env.IS_PRODUCTION,
 		}),
 	);
 }

@@ -16,8 +16,14 @@ export interface Context {
 	redis: Awaited<ReturnType<typeof createRedis>>;
 }
 
-export function createContext(given: Pick<Context, 'db' | 'logger' | 'redis'>): Context {
-	return {
+let context: Context | null = null;
+
+export function initContext(given: Pick<Context, 'db' | 'logger' | 'redis'>): void {
+	if (context !== null) {
+		throw new Error('Context has already been initialized');
+	}
+
+	context = {
 		API_URL: ENV.IS_PRODUCTION ? ENV.API_URL_PROD : ENV.API_URL_DEV,
 		BCRYPT_SALT_ROUNDS: 14,
 		FRONTEND_URL: ENV.IS_PRODUCTION ? ENV.FRONTEND_URL_PROD : ENV.FRONTEND_URL_DEV,
@@ -26,4 +32,12 @@ export function createContext(given: Pick<Context, 'db' | 'logger' | 'redis'>): 
 		env: ENV,
 		...given,
 	};
+}
+
+export function getContext(): Context {
+	if (!context) {
+		throw new Error('Context has not been initialized yet');
+	}
+
+	return context;
 }

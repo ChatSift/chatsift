@@ -1,3 +1,4 @@
+import { getContext } from '@chatsift/backend-core';
 import type { AMASession } from '@chatsift/core';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
@@ -6,7 +7,6 @@ import { badData } from '@hapi/boom';
 import type { Selectable } from 'kysely';
 import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
-import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
 import { snowflakeSchema } from '../../util/schemas.js';
@@ -105,34 +105,36 @@ export default class CreateAMA extends Route<CreateAMAResult, typeof bodySchema>
 
 		let created: CreateAMAResult;
 		try {
-			created = await context.db.transaction().execute(async (tran) => {
-				const session = await tran
-					.insertInto('AMASession')
-					.values({
-						guildId,
-						title: data.title,
-						answersChannelId: data.answersChannelId,
-						promptChannelId: data.promptChannelId,
-						modQueueId: data.modQueueId,
-						flaggedQueueId: data.flaggedQueueId,
-						guestQueueId: data.guestQueueId,
-						ended: false,
-						createdAt: new Date(),
-					})
-					.returningAll()
-					.executeTakeFirstOrThrow();
+			created = await getContext()
+				.db.transaction()
+				.execute(async (tran) => {
+					const session = await tran
+						.insertInto('AMASession')
+						.values({
+							guildId,
+							title: data.title,
+							answersChannelId: data.answersChannelId,
+							promptChannelId: data.promptChannelId,
+							modQueueId: data.modQueueId,
+							flaggedQueueId: data.flaggedQueueId,
+							guestQueueId: data.guestQueueId,
+							ended: false,
+							createdAt: new Date(),
+						})
+						.returningAll()
+						.executeTakeFirstOrThrow();
 
-				await tran
-					.insertInto('AMAPromptData')
-					.values({
-						amaId: session.id,
-						promptMessageId: promptMessage.id,
-						promptJSONData: JSON.stringify(messageBodyBase),
-					})
-					.execute();
+					await tran
+						.insertInto('AMAPromptData')
+						.values({
+							amaId: session.id,
+							promptMessageId: promptMessage.id,
+							promptJSONData: JSON.stringify(messageBodyBase),
+						})
+						.execute();
 
-				return session;
-			});
+					return session;
+				});
 		} catch (error) {
 			// If we created the prompt message but failed to insert data, delete the message to avoid orphaned prompts.
 			// eslint-disable-next-line promise/prefer-await-to-then

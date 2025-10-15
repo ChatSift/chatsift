@@ -1,7 +1,7 @@
+import { getContext } from '@chatsift/backend-core';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import type { NextHandler, Response } from 'polka';
-import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { roundRobinAPI } from '../../util/discordAPI.js';
 import type { TRequest } from '../route.js';
@@ -24,8 +24,8 @@ export default class GetGrants extends Route<GetGrantsResult, never> {
 	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
 		const { guildId } = req.params as { guildId: string };
 
-		const grants = await context.db
-			.selectFrom('DashboardGrant')
+		const grants = await getContext()
+			.db.selectFrom('DashboardGrant')
 			.select('userId')
 			.where('guildId', '=', guildId)
 			.execute();

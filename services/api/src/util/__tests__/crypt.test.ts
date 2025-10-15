@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { randomBytes } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
 import { encrypt, decrypt } from '../crypt.js';
 
@@ -13,16 +14,13 @@ vi.mock('crypto', async () => {
 	};
 });
 
-vi.mock('../../context.js', async () => {
-	const { randomBytes } = await import('node:crypto');
-	return {
-		context: {
-			env: {
-				ENCRYPTION_KEY: randomBytes(32).toString('base64'),
-			},
+vi.mock('@chatsift/backend-core', () => ({
+	getContext: () => ({
+		env: {
+			ENCRYPTION_KEY: randomBytes(32).toString('base64'),
 		},
-	};
-});
+	}),
+}));
 
 const PLAIN_DATA = 'this is very sensitive';
 const SECRET_DATA = encrypt(PLAIN_DATA);

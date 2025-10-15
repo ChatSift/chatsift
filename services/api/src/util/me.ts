@@ -1,11 +1,10 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout, clearTimeout } from 'node:timers';
 import type { BotId } from '@chatsift/backend-core';
-import { BOTS, GlobalCaches, PermissionsBitField, promiseAllObject } from '@chatsift/backend-core';
+import { BOTS, getContext, GuildList, PermissionsBitField, promiseAllObject } from '@chatsift/backend-core';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
 import { nanoid } from 'nanoid';
-import { context } from '../context.js';
 import { discordAPIOAuth } from './discordAPI.js';
 
 export type MeGuild = Pick<
@@ -37,7 +36,7 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 	}
 
 	const track = nanoid(10);
-	context.logger.info({ track }, 'cache miss for /me');
+	getContext().logger.info({ track }, 'cache miss for /me');
 
 	const start = performance.now();
 
@@ -50,21 +49,17 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 	const guildsRaw = await discordAPIOAuth.users.getGuilds({ with_counts: true }, { auth });
 
 	const guildsByBot = await promiseAllObject(
-		Object.fromEntries(
-			BOTS.map((bot) => [
-				bot,
-				context.redis
-					.get(GlobalCaches.GuildList.key(bot))
-					.then((data) => (data ? GlobalCaches.GuildList.recipe.decode(data).guilds : [])),
-			]),
-		) as Record<BotId, Promise<string[]>>,
+		Object.fromEntries(BOTS.map((bot) => [bot, GuildList.get(bot).then((data) => data?.guilds ?? [])])) as Record<
+			BotId,
+			Promise<string[]>
+		>,
 	);
 
 	const guilds = await Promise.all(
 		guildsRaw.map<Promise<MeGuild>>(
 			async ({ id, name, icon, owner, permissions, approximate_member_count, approximate_presence_count }) => {
-				const grant = await context.db
-					.selectFrom('DashboardGrant')
+				const grant = await getContext()
+					.db.selectFrom('DashboardGrant')
 					.where('guildId', '=', id)
 					.where('userId', '=', discordUser.id)
 					.select('id')
@@ -100,7 +95,7 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 
 	const me: Me = {
 		...discordUser,
-		isGlobalAdmin: context.env.ADMINS.has(discordUser.id),
+		isGlobalAdmin: getContext().env.ADMINS.has(discordUser.id),
 		guilds,
 	};
 
@@ -118,7 +113,7 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 	}
 
 	const end = performance.now();
-	context.logger.info({ track, durationMs: end - start }, 'fetched /me');
+	getContext().logger.info({ track, durationMs: end - start }, 'fetched /me');
 
 	return me;
 }

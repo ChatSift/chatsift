@@ -1,11 +1,11 @@
 /* eslint-disable n/callback-return */
 
+import { getContext } from '@chatsift/backend-core';
 import type { RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
 import cookie from 'cookie';
 import jwt from 'jsonwebtoken';
 import type { Middleware } from 'polka';
-import { context } from '../context.js';
 import { discordAPIOAuth } from '../util/discordAPI.js';
 import type { MeGuild } from '../util/me.js';
 import { fetchMe } from '../util/me.js';
@@ -62,21 +62,21 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 
 				const expiresAt = new Date(refreshToken.discordAccessTokenExpiresAt).getTime();
 				if (expiresAt >= Date.now() + 7 * 60 * 1_000) {
-					context.logger.info('discord access token is still valid for enough time, no need to refresh it');
+					getContext().logger.info('discord access token is still valid for enough time, no need to refresh it');
 					oauthData = {
 						access_token: refreshToken.discordAccessToken,
 						refresh_token: refreshToken.discordRefreshToken,
 						expires_in: (expiresAt - Date.now()) / 1_000,
 					};
 				} else {
-					context.logger.info('refreshing discord access token');
+					getContext().logger.info('refreshing discord access token');
 					try {
 						oauthData = await discordAPIOAuth.oauth2.refreshToken({
 							grant_type: 'refresh_token',
 							refresh_token: refreshToken.discordRefreshToken,
 						});
 					} catch (error) {
-						context.logger.warn({ err: error }, 'error refreshing discord access token, invalidating login');
+						getContext().logger.warn({ err: error }, 'error refreshing discord access token, invalidating login');
 						noopAccessToken(res);
 						noopRefreshToken(res);
 						await next(fallthrough ? undefined : unauthorized('invalidated refresh token'));
@@ -84,7 +84,7 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 					}
 				}
 
-				context.logger.info('request successfully refreshed token');
+				getContext().logger.info('request successfully refreshed token');
 
 				// We're good, rotate things
 				const me = await fetchMe(oauthData.access_token);
@@ -113,9 +113,9 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 			let refreshToken: RefreshTokenData;
 			try {
 				// Verify the JWT refresh token
-				refreshToken = jwt.verify(refreshTokenCookie, context.env.ENCRYPTION_KEY) as RefreshTokenData;
+				refreshToken = jwt.verify(refreshTokenCookie, getContext().env.ENCRYPTION_KEY) as RefreshTokenData;
 				if (!refreshToken.refresh) {
-					context.logger.info('refresh token is actually access, ignoring as request has been tampered with');
+					getContext().logger.info('refresh token is actually access, ignoring as request has been tampered with');
 					noopAccessToken(res);
 					noopRefreshToken(res);
 					await next(fallthrough ? undefined : unauthorized('malformed refresh token'));
@@ -123,13 +123,13 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 				}
 			} catch (error) {
 				if (error instanceof jwt.TokenExpiredError) {
-					context.logger.info('refresh token expired');
+					getContext().logger.info('refresh token expired');
 					noopAccessToken(res);
 					noopRefreshToken(res);
 					await next(fallthrough ? undefined : unauthorized('expired refresh token'));
 					return;
 				} else if (error instanceof jwt.JsonWebTokenError) {
-					context.logger.info('refresh token malformed');
+					getContext().logger.info('refresh token malformed');
 					// Likely tampering.
 					noopAccessToken(res);
 					noopRefreshToken(res);
@@ -143,12 +143,12 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 			// Check the JWT access token, always sent via header and not cookie
 			const accessTokenHeader = req.headers.authorization;
 			if (accessTokenHeader) {
-				context.logger.info('request has access token');
+				getContext().logger.info('request has access token');
 				try {
 					// Verify the JWT access token
-					const accessToken = jwt.verify(accessTokenHeader, context.env.ENCRYPTION_KEY) as AccessTokenData;
+					const accessToken = jwt.verify(accessTokenHeader, getContext().env.ENCRYPTION_KEY) as AccessTokenData;
 					if (accessToken.refresh) {
-						context.logger.info('access token is a refresh token, ignoring as request has been tampered with');
+						getContext().logger.info('access token is a refresh token, ignoring as request has been tampered with');
 						noopAccessToken(res);
 						noopRefreshToken(res);
 						await next(fallthrough ? undefined : unauthorized('malformed access token'));
@@ -161,15 +161,15 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 						refresh: refreshToken,
 					};
 
-					context.logger.info({ userId: req.tokens.access?.sub }, 'request is authed via JWT');
+					getContext().logger.info({ userId: req.tokens.access?.sub }, 'request is authed via JWT');
 				} catch (error) {
 					if (error instanceof jwt.TokenExpiredError) {
-						context.logger.info('access token expired');
+						getContext().logger.info('access token expired');
 						// If it is expired, we can try to use the refresh token
 						await refresh(refreshToken);
 						return;
 					} else if (error instanceof jwt.JsonWebTokenError) {
-						context.logger.info('access token malformed');
+						getContext().logger.info('access token malformed');
 						// Don't bother with refreshes if the token is malformed. Likely tampering.
 						noopAccessToken(res);
 						noopRefreshToken(res);
@@ -203,10 +203,10 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 	if (isGlobalAdmin) {
 		middleware.push(async (req, _, next) => {
 			if (!req.tokens) {
-				context.logger.warn('isGlobalAdmin invoked without a user. this is a bug');
+				getContext().logger.warn('isGlobalAdmin invoked without a user. this is a bug');
 			}
 
-			if (!context.env.ADMINS.has(req.tokens?.access?.sub ?? '')) {
+			if (!getContext().env.ADMINS.has(req.tokens?.access?.sub ?? '')) {
 				return next(forbidden('you need to be a global admin to access this resource'));
 			}
 
@@ -217,13 +217,13 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 	if (!options.fallthrough && !options.isGlobalAdmin && options.isGuildManager) {
 		middleware.push(async (req, _, next) => {
 			if (!req.tokens) {
-				context.logger.warn('isGuildManager invoked without a user. this is a bug');
+				getContext().logger.warn('isGuildManager invoked without a user. this is a bug');
 				return next(internal());
 			}
 
 			const guildId = req.params['guildId'];
 			if (!guildId) {
-				context.logger.warn('isGuildManager invoked without a guildId param. this is a bug');
+				getContext().logger.warn('isGuildManager invoked without a guildId param. this is a bug');
 				return next(internal());
 			}
 
@@ -237,7 +237,7 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 			// eslint-disable-next-line require-atomic-updates
 			req.guild = guild;
 
-			if (context.env.ADMINS.has(req.tokens.access.sub)) {
+			if (getContext().env.ADMINS.has(req.tokens.access.sub)) {
 				// Admin bypass
 				return next();
 			}

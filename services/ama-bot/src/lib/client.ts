@@ -1,8 +1,7 @@
 import { setInterval } from 'node:timers';
-import { GlobalCaches } from '@chatsift/backend-core';
+import { getContext, GuildList } from '@chatsift/backend-core';
 import type { Snowflake } from '@discordjs/core';
 import { Client, GatewayDispatchEvents } from '@discordjs/core';
-import { context } from '../context.js';
 import { gateway } from './gateway.js';
 import { rest } from './rest.js';
 
@@ -11,12 +10,7 @@ const guildIds = new Set<Snowflake>();
 
 export function startGuildSyncing(): void {
 	setInterval(async () => {
-		void context.redis.set(
-			GlobalCaches.GuildList.key('AMA'),
-			GlobalCaches.GuildList.recipe.encode({
-				guilds: [...guildIds],
-			}),
-		);
+		void GuildList.set('AMA', { guilds: [...guildIds] });
 	}, 10_000).unref();
 }
 
@@ -32,5 +26,5 @@ client
 		}
 	})
 	.once(GatewayDispatchEvents.Ready, () => {
-		context.logger.info('Logged in successfully');
+		getContext().logger.info('Logged in successfully');
 	});

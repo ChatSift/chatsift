@@ -1,7 +1,7 @@
+import { getContext } from '@chatsift/backend-core';
 import { internal, notFound } from '@hapi/boom';
 import type { NextHandler, Response } from 'polka';
 import type { z } from 'zod';
-import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import type { PossiblyMissingChannelInfo } from '../../util/channels.js';
 import { fetchGuildChannels } from '../../util/channels.js';
@@ -43,8 +43,8 @@ export default class GetAMA extends Route<AMASessionDetailed, typeof querySchema
 	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
 		const { guildId, amaId } = req.params as { amaId: string; guildId: string };
 
-		const session = await context.db
-			.selectFrom('AMASession')
+		const session = await getContext()
+			.db.selectFrom('AMASession')
 			.selectAll()
 			.where('guildId', '=', guildId)
 			.where('id', '=', Number(amaId))
@@ -54,21 +54,21 @@ export default class GetAMA extends Route<AMASessionDetailed, typeof querySchema
 			return next(notFound('ama session not found'));
 		}
 
-		const questionCount = await context.db
-			.selectFrom('AMAQuestion')
+		const questionCount = await getContext()
+			.db.selectFrom('AMAQuestion')
 			.select((eb) => eb.fn.count<string>('id').as('count'))
 			.where('amaId', '=', session.id)
 			.executeTakeFirstOrThrow();
 
-		const promptData = await context.db
-			.selectFrom('AMAPromptData')
+		const promptData = await getContext()
+			.db.selectFrom('AMAPromptData')
 			.selectAll()
 			.where('amaId', '=', session.id)
 			.executeTakeFirstOrThrow();
 
 		const channels = await fetchGuildChannels(guildId, discordAPIAma);
 		if (!channels) {
-			context.logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
+			getContext().logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
 			return next(internal());
 		}
 
@@ -86,8 +86,11 @@ export default class GetAMA extends Route<AMASessionDetailed, typeof querySchema
 
 		const shouldEndNow = !session.ended && (!answersChannel || !promptChannel);
 		if (shouldEndNow) {
-			context.logger.warn({ guildId, amaId }, `AMA session ${amaId} in guild ${guildId} has missing critical channels`);
-			await context.db.updateTable('AMASession').set({ ended: true }).where('id', '=', Number(amaId)).execute();
+			getContext().logger.warn(
+				{ guildId, amaId },
+				`AMA session ${amaId} in guild ${guildId} has missing critical channels`,
+			);
+			await getContext().db.updateTable('AMASession').set({ ended: true }).where('id', '=', Number(amaId)).execute();
 		}
 
 		let promptMessageExists = false;

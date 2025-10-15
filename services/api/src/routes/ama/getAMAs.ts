@@ -1,8 +1,8 @@
+import { getContext } from '@chatsift/backend-core';
 import type { AMASession } from '@chatsift/core';
 import type { Selectable } from 'kysely';
 import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
-import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import type { TRequest } from '../route.js';
 import { Route, RouteMethod } from '../route.js';
@@ -33,7 +33,7 @@ export default class GetAMAs extends Route<AMASessionWithCount[], typeof querySc
 		const { include_ended } = req.query;
 		const { guildId } = req.params as { guildId: string };
 
-		let query = context.db.selectFrom('AMASession').selectAll().where('guildId', '=', guildId);
+		let query = getContext().db.selectFrom('AMASession').selectAll().where('guildId', '=', guildId);
 
 		if (!include_ended) {
 			query = query.where('ended', '=', false);
@@ -44,8 +44,8 @@ export default class GetAMAs extends Route<AMASessionWithCount[], typeof querySc
 		// Fetch question counts for all sessions
 		const sessionIds = sessions.map((s) => s.id);
 		const questionCounts = sessionIds.length
-			? await context.db
-					.selectFrom('AMAQuestion')
+			? await getContext()
+					.db.selectFrom('AMAQuestion')
 					.select(['amaId'])
 					.select((eb) => eb.fn.count<string>('id').as('count'))
 					.where('amaId', 'in', sessionIds)

@@ -1,8 +1,8 @@
+import { getContext } from '@chatsift/backend-core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { badData, notFound } from '@hapi/boom';
 import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
-import { context } from '../../context.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { roundRobinAPI } from '../../util/discordAPI.js';
 import { snowflakeSchema } from '../../util/schemas.js';
@@ -31,8 +31,8 @@ export default class CreateGrant extends Route<never, typeof bodySchema> {
 		const { userId } = req.body;
 		const { guildId } = req.params as { guildId: string };
 
-		const existingGrant = await context.db
-			.selectFrom('DashboardGrant')
+		const existingGrant = await getContext()
+			.db.selectFrom('DashboardGrant')
 			.select('id')
 			.where('guildId', '=', guildId)
 			.where('userId', '=', userId)
@@ -52,8 +52,8 @@ export default class CreateGrant extends Route<never, typeof bodySchema> {
 			throw error;
 		}
 
-		await context.db
-			.insertInto('DashboardGrant')
+		await getContext()
+			.db.insertInto('DashboardGrant')
 			.values({
 				guildId,
 				userId,
