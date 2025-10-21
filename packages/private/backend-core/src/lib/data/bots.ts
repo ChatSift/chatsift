@@ -12,4 +12,5 @@ export const GuildList = new RedisStore<BotInfo, BotId>({
 		guilds: [DataType.String],
 	}),
 	makeKey: (id: BotId) => `bot:${id}`,
+	storeOld: false,
 });

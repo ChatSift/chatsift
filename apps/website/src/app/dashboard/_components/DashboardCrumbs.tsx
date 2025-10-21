@@ -178,7 +178,7 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 				const amaId = Number(part);
 
 				// If we have currentAMA data and it matches, use it immediately
-				if (segmentOptionsData?.currentAMA && segmentOptionsData.currentAMA.id === amaId) {
+				if (segmentOptionsData?.currentAMA?.id === amaId) {
 					label = segmentOptionsData.currentAMA.title;
 				} else if (segmentOptionsData?.currentAMA === undefined) {
 					// If currentAMA is still loading, show skeleton

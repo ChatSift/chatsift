@@ -1,7 +1,8 @@
 import { setInterval } from 'node:timers';
 import { getContext, GuildList } from '@chatsift/backend-core';
 import type { Snowflake } from '@discordjs/core';
-import { Client, GatewayDispatchEvents } from '@discordjs/core';
+import { InteractionType, Client, GatewayDispatchEvents } from '@discordjs/core';
+import { handleComponentInteraction } from './components.js';
 import { gateway } from './gateway.js';
 import { rest } from './rest.js';
 
@@ -23,6 +24,13 @@ client
 	.on(GatewayDispatchEvents.GuildDelete, ({ data: guild }) => {
 		if (!guild.unavailable) {
 			guildIds.delete(guild.id);
+		}
+	})
+	.on(GatewayDispatchEvents.InteractionCreate, async ({ data: interaction }) => {
+		if (interaction.type === InteractionType.MessageComponent) {
+			await handleComponentInteraction(interaction);
+		} else {
+			getContext().logger.warn({ interactionType: interaction.type }, 'Unhandled interaction type');
 		}
 	})
 	.once(GatewayDispatchEvents.Ready, () => {

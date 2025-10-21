@@ -16,4 +16,8 @@ export interface IEntity<TData> {
 	 * Recipe for encoding and decoding TData.
 	 */
 	readonly recipe: Recipe<TData>;
+	/**
+	 * Whether or not to store the previous version of the entity when setting a new value.
+	 */
+	readonly storeOld: boolean;
 }

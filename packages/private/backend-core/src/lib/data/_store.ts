@@ -24,6 +24,10 @@ export class RedisStore<ValueType, KeyType extends string = string> {
 	}
 
 	public async getOld(id: KeyType): Promise<ValueType | null> {
+		if (!this.entity.storeOld) {
+			throw new Error('Old value storage is not enabled for this entity.');
+		}
+
 		const key = `old:${this.entity.makeKey(id)}`;
 		const raw = await getContext().redis.get(key);
 
@@ -40,7 +44,7 @@ export class RedisStore<ValueType, KeyType extends string = string> {
 
 	public async set(id: KeyType, value: ValueType): Promise<void> {
 		const key = this.entity.makeKey(id);
-		if (await getContext().redis.exists(key)) {
+		if (this.entity.storeOld && (await getContext().redis.exists(key))) {
 			await getContext().redis.rename(key, `old:${key}`);
 			if (this.entity.TTL) {
 				await getContext().redis.pExpire(`old:${key}`, this.entity.TTL);

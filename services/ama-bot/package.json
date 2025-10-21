@@ -13,8 +13,8 @@
 		"tag-docker": "docker image tag chatsift/chatsift-next:latest chatsift/chatsift-next:ama"
 	},
 	"devDependencies": {
-		"@types/node": "^24.6.1",
-		"kysely": "^0.28.7",
+		"@types/node": "^24.9.1",
+		"kysely": "^0.28.8",
 		"typescript": "~5.9.3",
 		"vitest": "^3.2.4"
 	},
@@ -23,6 +23,7 @@
 		"@discordjs/core": "^3.0.0-dev.1759363313-f510b5ffa",
 		"@discordjs/rest": "^3.0.0-dev.1759363313-f510b5ffa",
 		"@discordjs/ws": "^3.0.0-dev.1759363313-f510b5ffa",
+		"bin-rw": "^0.1.1",
 		"nanoid": "^5.1.6"
 	}
 }

@@ -17,11 +17,11 @@
 		"clean": "rimraf dist"
 	},
 	"devDependencies": {
-		"@types/node": "^24.6.1",
+		"@types/node": "^24.9.1",
 		"typescript": "~5.9.3"
 	},
 	"dependencies": {
 		"@sapphire/bitfield": "^1.2.4",
-		"discord-api-types": "^0.38.26"
+		"discord-api-types": "^0.38.30"
 	}
 }
