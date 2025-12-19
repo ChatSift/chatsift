@@ -200,7 +200,7 @@ export class Handler {
 	}
 
 	public async init(): Promise<void> {
-		await this.registerInteractions();
+		// await this.registerInteractions();
 		await this.loadCommands();
 		await this.loadComponents();
 	}
