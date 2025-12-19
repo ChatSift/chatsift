@@ -54,7 +54,7 @@ export class GlobalsRunner
 
 		const res = await fetch(this.fishUrl).catch(() => null);
 		// eslint-disable-next-line no-extra-parens, promise/prefer-await-to-then
-		const domains = await (res?.json() as Promise<string[]>).catch(() => null);
+		const domains = await (res?.json() as Promise<string[]>)?.catch(() => null);
 
 		if (!domains) {
 			this.logger.warn('Something went wrong grabbing fish data');
