@@ -57,6 +57,7 @@ const server = createServer(async (req, res) => {
 		}
 
 		const data = await parseResponse(discordResponse);
+		logger.info('sending response');
 		res.write(JSON.stringify(data));
 
 		cache(fullRoute, data);
@@ -72,6 +73,7 @@ const server = createServer(async (req, res) => {
 			throw error;
 		}
 	} finally {
+		logger.info('req ended');
 		res.end();
 	}
 });
