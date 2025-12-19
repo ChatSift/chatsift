@@ -1,6 +1,6 @@
 #!/bin/bash
 
-docker-compose \
+docker compose \
   -p automoderator-v2 \
   --env-file ./.env \
   -f compose/docker-compose.yml \

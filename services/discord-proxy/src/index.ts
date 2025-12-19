@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { Buffer } from 'node:buffer';
 import { createServer } from 'node:http';
 import { URL } from 'node:url';
 import { initConfig } from '@automoderator/injection';
@@ -56,9 +57,10 @@ const server = createServer(async (req, res) => {
 			res.setHeader(header, discordResponse.headers[header]!);
 		}
 
-		const data = await parseResponse(discordResponse);
-		logger.info('sending response');
-		res.write(JSON.stringify(data));
+		const buffer = Buffer.from(await discordResponse.body.arrayBuffer());
+		const data = JSON.parse(buffer.toString());
+
+		res.write(buffer);
 
 		cache(fullRoute, data);
 	} catch (error) {
@@ -73,7 +75,6 @@ const server = createServer(async (req, res) => {
 			throw error;
 		}
 	} finally {
-		logger.info('req ended');
 		res.end();
 	}
 });
