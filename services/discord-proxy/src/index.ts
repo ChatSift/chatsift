@@ -10,7 +10,7 @@ import {
 	populateAbortErrorResponse,
 } from '@discordjs/proxy';
 import type { RouteLike } from '@discordjs/rest';
-import { DiscordAPIError, HTTPError, parseResponse, RateLimitError, RequestMethod, REST } from '@discordjs/rest';
+import { DiscordAPIError, HTTPError, RateLimitError, RequestMethod, REST } from '@discordjs/rest';
 import { cache, fetchCache } from './cache';
 
 const config = initConfig();
@@ -58,11 +58,17 @@ const server = createServer(async (req, res) => {
 		}
 
 		const buffer = Buffer.from(await discordResponse.body.arrayBuffer());
-		const data = JSON.parse(buffer.toString());
-
 		res.write(buffer);
 
-		cache(fullRoute, data);
+		const contentType = res.getHeaders()['content-type'];
+		if (typeof contentType === 'string' && contentType.startsWith('application/json')) {
+			try {
+				const data = JSON.parse(buffer.toString());
+				cache(fullRoute, data);
+			} catch (error) {
+				logger.error({ err: error, fullRoute, method }, 'Failed to parse JSON response for caching');
+			}
+		}
 	} catch (error) {
 		logger.error({ err: error, fullRoute, method }, 'Something went wrong');
 		if (error instanceof DiscordAPIError || error instanceof HTTPError) {
