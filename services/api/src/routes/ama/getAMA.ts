@@ -1,25 +1,35 @@
 import { getContext } from '@chatsift/backend-core';
+import type { AmaPromptData, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { internal, notFound } from '@hapi/boom';
-import type { NextHandler, Response } from 'polka';
-import type { z } from 'zod';
-import { unwrapMiddlewareHandle } from '../../core/route.js';
+import { z } from 'zod';
+import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import type { PossiblyMissingChannelInfo } from '../../util/channels.js';
 import { fetchGuildChannels } from '../../util/channels.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
-import { queryWithFreshSchema } from '../../util/schemas.js';
+import { queryWithFreshSchema, snowflakeSchema } from '../../util/schemas.js';
 import type { GuildChannelInfo } from '../guilds/get.js';
-import type { TRequest } from '../route.js';
-import { Route, RouteMethod } from '../route.js';
 import type { AMASessionWithCount } from './getAMAs.js';
 
 const querySchema = queryWithFreshSchema;
+const paramsSchema = z.object({
+	guildId: snowflakeSchema,
+	// Cast to the branded `ama_sessions` id type once, here at the validation boundary, so every raw SQL call site
+	// downstream gets a properly-typed id for free instead of needing its own cast against `AmaSessions.id`.
+	amaId: z.coerce
+		.number()
+		.int()
+		.positive()
+		.transform((value) => value as AmaSessionsId),
+});
+
 export type GetAMAQuery = z.input<typeof querySchema>;
 
-export interface AMASessionDetailed extends Omit<
-	AMASessionWithCount,
-	'answersChannelId' | 'flaggedQueueId' | 'guestQueueId' | 'modQueueId' | 'promptChannelId'
-> {
+export interface AMASessionDetailed
+	extends Omit<
+		AMASessionWithCount,
+		'answersChannelId' | 'flaggedQueueId' | 'guestQueueId' | 'modQueueId' | 'promptChannelId'
+	> {
 	answersChannel: GuildChannelInfo | PossiblyMissingChannelInfo;
 	flaggedQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
 	guestQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
@@ -28,53 +38,50 @@ export interface AMASessionDetailed extends Omit<
 	promptMessageExists: boolean;
 }
 
-export default class GetAMA extends Route<AMASessionDetailed, typeof querySchema> {
-	public readonly info = {
-		method: RouteMethod.get,
-		path: '/v3/guilds/:guildId/ama/amas/:amaId',
-	} as const;
-
-	public override readonly queryValidationSchema = querySchema;
-
-	public override readonly middleware = isAuthed({
+export default defineRoute({
+	method: 'get',
+	path: '/v3/guilds/:guildId/ama/amas/:amaId',
+	schema: {
+		query: querySchema,
+		params: paramsSchema,
+	},
+	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-	}).map(unwrapMiddlewareHandle);
+	}),
+	async handler(req): Promise<AMASessionDetailed> {
+		const { guildId, amaId } = req.params;
 
-	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
-		const { guildId, amaId } = req.params as { amaId: string; guildId: string };
-
-		const session = await getContext()
-			.db.selectFrom('AMASession')
-			.selectAll()
-			.where('guildId', '=', guildId)
-			.where('id', '=', Number(amaId))
-			.executeTakeFirst();
+		const [session] = await getContext().rawDb<AmaSessions[]>`
+			SELECT * FROM ama_sessions WHERE guild_id = ${guildId} AND id = ${amaId}
+		`;
 
 		if (!session) {
-			return next(notFound('ama session not found'));
+			throw notFound('ama session not found');
 		}
 
-		const questionCount = await getContext()
-			.db.selectFrom('AMAQuestion')
-			.select((eb) => eb.fn.count<string>('id').as('count'))
-			.where('amaId', '=', session.id)
-			.executeTakeFirstOrThrow();
+		const [questionCount] = await getContext().rawDb<{ count: string }[]>`
+			SELECT COUNT(*) AS count FROM ama_questions WHERE ama_id = ${session.id}
+		`;
 
-		const promptData = await getContext()
-			.db.selectFrom('AMAPromptData')
-			.selectAll()
-			.where('amaId', '=', session.id)
-			.executeTakeFirstOrThrow();
+		const [promptData] = await getContext().rawDb<AmaPromptData[]>`
+			SELECT * FROM ama_prompt_data WHERE ama_id = ${session.id}
+		`;
 
-		const channels = await fetchGuildChannels(guildId, discordAPIAma);
+		if (!promptData) {
+			getContext().logger.warn({ guildId, amaId }, `AMA session ${amaId} in guild ${guildId} is missing prompt data`);
+			throw internal();
+		}
+
+		const channels = await fetchGuildChannels(guildId, discordAPIAma, req.query.force_fresh);
 		if (!channels) {
 			getContext().logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
-			return next(internal());
+			throw internal();
 		}
 
-		const answersChannel = channels.find((c) => c.id === session.answersChannelId) ?? { id: session.answersChannelId };
+		const foundAnswersChannel = channels.find((c) => c.id === session.answersChannelId);
+		const answersChannel = foundAnswersChannel ?? { id: session.answersChannelId };
 		const flaggedQueueChannel = session.flaggedQueueId
 			? (channels.find((c) => c.id === session.flaggedQueueId) ?? { id: session.flaggedQueueId })
 			: null;
@@ -84,28 +91,29 @@ export default class GetAMA extends Route<AMASessionDetailed, typeof querySchema
 		const modQueueChannel = session.modQueueId
 			? (channels.find((c) => c.id === session.modQueueId) ?? { id: session.modQueueId })
 			: null;
-		const promptChannel = channels.find((c) => c.id === session.promptChannelId) ?? { id: session.promptChannelId };
+		const foundPromptChannel = channels.find((c) => c.id === session.promptChannelId);
+		const promptChannel = foundPromptChannel ?? { id: session.promptChannelId };
 
-		const shouldEndNow = !session.ended && (!answersChannel || !promptChannel);
+		// Check the raw `find(...)` results, not `answersChannel`/`promptChannel` — those always fall back to
+		// `{ id }` when not found, so they're never falsy themselves.
+		const shouldEndNow = !session.ended && (!foundAnswersChannel || !foundPromptChannel);
 		if (shouldEndNow) {
 			getContext().logger.warn(
 				{ guildId, amaId },
 				`AMA session ${amaId} in guild ${guildId} has missing critical channels`,
 			);
-			await getContext().db.updateTable('AMASession').set({ ended: true }).where('id', '=', Number(amaId)).execute();
+			await getContext().rawDb`UPDATE ama_sessions SET ended = true WHERE id = ${amaId}`;
 		}
 
 		let promptMessageExists = false;
-		if (promptData) {
-			try {
-				await discordAPIAma.channels.getMessage(session.promptChannelId, promptData.promptMessageId);
-				promptMessageExists = true;
-			} catch {
-				promptMessageExists = false;
-			}
+		try {
+			await discordAPIAma.channels.getMessage(session.promptChannelId, promptData.promptMessageId);
+			promptMessageExists = true;
+		} catch {
+			promptMessageExists = false;
 		}
 
-		const result: AMASessionDetailed = {
+		return {
 			...session,
 			ended: shouldEndNow ? true : session.ended,
 			questionCount: Number(questionCount?.count ?? 0),
@@ -116,9 +124,5 @@ export default class GetAMA extends Route<AMASessionDetailed, typeof querySchema
 			promptChannel,
 			promptMessageExists,
 		};
-
-		res.statusCode = 200;
-		res.setHeader('Content-Type', 'application/json');
-		return res.end(JSON.stringify(result));
-	}
-}
+	},
+});

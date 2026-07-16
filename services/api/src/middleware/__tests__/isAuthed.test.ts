@@ -4,6 +4,7 @@ import { Http2ServerResponse } from 'node:http2';
 import {
 	createDatabase,
 	createLogger,
+	createRawDatabase,
 	createRedis,
 	getContext,
 	initContext,
@@ -63,8 +64,9 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 beforeAll(async () => {
 	const logger = createLogger('api');
 	const db = createDatabase(logger);
+	const rawDb = createRawDatabase();
 	const redis = await createRedis(logger);
-	initContext({ db, logger, redis });
+	initContext({ db, logger, rawDb, redis });
 });
 
 const refreshTokenMock = vi.hoisted(() => vi.fn());

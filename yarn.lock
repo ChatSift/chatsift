@@ -402,6 +402,7 @@ __metadata:
   resolution: "@chatsift/api@workspace:services/api"
   dependencies:
     "@chatsift/backend-core": "workspace:^"
+    "@chatsift/db": "workspace:^"
     "@discordjs/core": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@hapi/boom": "npm:^10.0.1"
@@ -432,6 +433,7 @@ __metadata:
   resolution: "@chatsift/backend-core@workspace:packages/private/backend-core"
   dependencies:
     "@chatsift/core": "workspace:^"
+    "@chatsift/db": "workspace:^"
     "@sapphire/discord-utilities": "npm:^3.5.0"
     "@types/node": "npm:^24.9.1"
     "@types/pg": "npm:^8.15.5"
@@ -456,7 +458,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/db@workspace:packages/db":
+"@chatsift/db@workspace:^, @chatsift/db@workspace:packages/db":
   version: 0.0.0-use.local
   resolution: "@chatsift/db@workspace:packages/db"
   dependencies:

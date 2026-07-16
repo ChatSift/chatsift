@@ -23,6 +23,7 @@
 		"typescript": "~5.9.3"
 	},
 	"dependencies": {
+		"@chatsift/db": "workspace:^",
 		"@sapphire/discord-utilities": "^3.5.0",
 		"bin-rw": "^0.1.1",
 		"kysely": "^0.28.8",

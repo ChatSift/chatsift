@@ -1,18 +1,14 @@
 import { getContext } from '@chatsift/backend-core';
-import type { AMASession } from '@chatsift/core';
+import type { AmaSessions } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { badData } from '@hapi/boom';
-import type { Selectable } from 'kysely';
-import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
-import { unwrapMiddlewareHandle } from '../../core/route.js';
+import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
 import { snowflakeSchema } from '../../util/schemas.js';
-import type { TRequest } from '../route.js';
-import { Route, RouteMethod } from '../route.js';
 
 const base = z.strictObject({
 	modQueueId: snowflakeSchema.nullable(),
@@ -41,28 +37,26 @@ const withRawPrompt = base.safeExtend({
 });
 
 const bodySchema = z.union([withRegularPrompt, withRawPrompt]);
+const paramsSchema = z.object({ guildId: snowflakeSchema });
 
 export type CreateAMABody = z.input<typeof bodySchema>;
+export type CreateAMAResult = AmaSessions;
 
-export type CreateAMAResult = Selectable<AMASession>;
-
-export default class CreateAMA extends Route<CreateAMAResult, typeof bodySchema> {
-	public readonly info = {
-		method: RouteMethod.post,
-		path: '/v3/guilds/:guildId/ama/amas',
-	} as const;
-
-	public override readonly bodyValidationSchema = bodySchema;
-
-	public override readonly middleware = isAuthed({
+export default defineRoute({
+	method: 'post',
+	path: '/v3/guilds/:guildId/ama/amas',
+	schema: {
+		body: bodySchema,
+		params: paramsSchema,
+	},
+	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-	}).map(unwrapMiddlewareHandle);
-
-	public override async handle(req: TRequest<typeof bodySchema>, res: Response, next: NextHandler) {
+	}),
+	async handler(req): Promise<CreateAMAResult> {
 		const data = req.body;
-		const { guildId } = req.params as { guildId: string };
+		const { guildId } = req.params;
 
 		const messageBodyBase: RESTPostAPIChannelMessageJSONBody =
 			'prompt_raw' in data
@@ -71,6 +65,7 @@ export default class CreateAMA extends Route<CreateAMAResult, typeof bodySchema>
 						content: data.prompt.plainText,
 						embeds: [
 							{
+								// TODO: real constant
 								color: 0x7289da, // blurple
 								title: data.title,
 								description: data.prompt.description,
@@ -101,54 +96,38 @@ export default class CreateAMA extends Route<CreateAMAResult, typeof bodySchema>
 			});
 		} catch (error) {
 			if (error instanceof DiscordAPIError && error.status === 400 && 'prompt_raw' in data) {
-				return next(badData('invalid prompt_raw data'));
+				throw badData('invalid prompt_raw data');
 			}
 
 			throw error;
 		}
 
-		let created: CreateAMAResult;
 		try {
-			created = await getContext()
-				.db.transaction()
-				.execute(async (tran) => {
-					const session = await tran
-						.insertInto('AMASession')
-						.values({
-							guildId,
-							title: data.title,
-							answersChannelId: data.answersChannelId,
-							promptChannelId: data.promptChannelId,
-							modQueueId: data.modQueueId,
-							flaggedQueueId: data.flaggedQueueId,
-							guestQueueId: data.guestQueueId,
-							allowedQuestionUploads: data.allowedQuestionUploads,
-							ended: false,
-							createdAt: new Date(),
-						})
-						.returningAll()
-						.executeTakeFirstOrThrow();
+			return await getContext().rawDb.begin(async (sql) => {
+				const [session] = await sql<AmaSessions[]>`
+					INSERT INTO ama_sessions (
+						guild_id, title, answers_channel_id, prompt_channel_id,
+						mod_queue_id, flagged_queue_id, guest_queue_id, allowed_question_uploads, ended
+					)
+					VALUES (
+						${guildId}, ${data.title}, ${data.answersChannelId}, ${data.promptChannelId},
+						${data.modQueueId}, ${data.flaggedQueueId}, ${data.guestQueueId}, ${data.allowedQuestionUploads}, false
+					)
+					RETURNING *
+				`;
 
-					await tran
-						.insertInto('AMAPromptData')
-						.values({
-							amaId: session.id,
-							promptMessageId: promptMessage.id,
-							promptJSONData: JSON.stringify(messageBodyBase),
-						})
-						.execute();
+				await sql`
+					INSERT INTO ama_prompt_data (ama_id, prompt_message_id, prompt_json_data)
+					VALUES (${session!.id}, ${promptMessage.id}, ${JSON.stringify(messageBodyBase)})
+				`;
 
-					return session;
-				});
+				return session!;
+			});
 		} catch (error) {
 			// If we created the prompt message but failed to insert data, delete the message to avoid orphaned prompts.
 			// eslint-disable-next-line promise/prefer-await-to-then
 			void discordAPIAma.channels.deleteMessage(data.promptChannelId, promptMessage.id).catch(() => null);
 			throw error;
 		}
-
-		res.statusCode = 200;
-		res.setHeader('Content-Type', 'application/json');
-		return res.end(JSON.stringify(created));
-	}
-}
+	},
+});
