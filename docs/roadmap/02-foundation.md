@@ -22,7 +22,8 @@ New workspace package, structure (mirroring SimplyChords' `packages/db`, Atlas i
 packages/db/
   src/
     index.ts          # createDb() -> postgres() client factory, exported on getContext()
-    generated/         # kanel output (row types) — committed or CI-regenerated, decide during implementation
+    generated/         # kanel output (row types) — committed (see step 4), matching the precedent
+                       # set by today's committed prisma-kysely output (entities.ts)
   schema/
     schema.sql          # (or .hcl) declarative schema — source of truth for Atlas diffing
   migrations/            # atlas-generated versioned migration files
@@ -35,10 +36,25 @@ Checklist:
 
 1. Stand up `packages/db` package.json (`@chatsift/db`), dependency on `postgres` (porsager).
 2. Author the declarative schema reproducing the current 6 models exactly (see [01-architecture.md](01-architecture.md) §5 for the field-level reference): `Experiment`, `ExperimentOverride`, `DashboardGrant`, `AMASession`, `AMAPromptData`, `AMAQuestion` (+ `AMAQuestionState` enum). Naming convention decision: keep Prisma's camelCase-via-quoted-identifiers, or move to snake_case + `postgres.camel` transform (SimplyChords' choice) — **decide and document in this file once chosen** (update this doc when settled, don't leave it ambiguous).
+
+   **Decided: snake_case + `postgres.camel` transform**, matching SimplyChords (`packages/db/src/index.ts` there passes `transform: postgres.camel` to `postgres()`). Reasons: (a) consistency with the reference architecture this milestone is explicitly modeled on; (b) quoted camelCase identifiers are easy to typo into an unquoted (lowercased) reference in raw SQL, a footgun snake_case avoids entirely; (c) kanel's generated row types and the `postgres.camel` transform compose cleanly — DB stays conventional snake_case, JS-facing code stays camelCase. Implemented in `packages/db/schema/schema.sql`.
 3. `atlas migrate diff` against an empty dev DB to generate the baseline migration; commit it.
+
+   Done: `packages/db/migrations/20260716151040_baseline.sql`, generated via `atlas migrate diff baseline --env local` against a real Postgres 17 dev DB (Atlas needs an actual reachable dev-db for its ephemeral diffing container, not just the schema file). Verified `atlas migrate apply` and `atlas migrate down` both work cleanly end-to-end (against a disposable container — **not** the docker-compose `postgres` volume, which already holds real Prisma-migrated dev data and must stay untouched until #132's cutover).
 4. Wire `kanel` against a locally-migrated DB; generate `src/generated/`; add an npm script (`db:gen`) and a turbo task.
+
+   Done. Two things worth flagging for whoever touches this next:
+   - **`kanel.config.js` had to become `kanel.config.cjs`.** kanel's CLI loads config via a bare `require(configPath)`; under this package's `"type": "module"`, requiring a `.js` file returns the unwrapped `{ default: {...} }` ESM interop shape instead of the config object, so every option (including `connection`) silently vanished and kanel fell back to a bare default `pg` connection. `.cjs` (genuine CommonJS, using `module.exports`) sidesteps the bug entirely — kanel's CLI already checks for `kanel.config.cjs` as a candidate filename.
+   - **`getPropertyMetadata` camelCases row property names** (via `@kristiandupont/recase`, `recase('snake', 'camel')`) to match the `postgris.camel` runtime transform (step 5) — kanel only PascalCases type/interface names by default, not properties, so without this override the generated types would carry snake_case keys while actual query results are camelCase at runtime.
+   - `@electric-sql/pglite` had to be added as a devDependency purely to satisfy an unconditional (peer, unmet) `require` inside `extract-pg-schema`'s nested `knex-pglite` dependency — kanel's CLI crashes on startup without it even though we never use the pglite driver ourselves.
+
+   `src/generated/` is **committed**, matching the precedent set by today's committed `prisma-kysely` output (`packages/private/core/src/types/entities.ts`) — see the Part A structure diagram above.
 5. `createDb()` factory: `postgres(env.DATABASE_URL, { /* transform if snake_case chosen */ })`, attached to `getContext()` as `db` (replacing the current Kysely instance — `getContext()` itself is kept, see [ADR 0002](../adr/0002-db-stack.md)).
+
+   Done: `createDb()` now defaults to `transform: postgres.camel`, overridable via `options`.
 6. Add `db:migrate` / `db:migrate:down` / `db:gen` scripts at the package and root level; wire into `turbo.json`.
+
+   Done, plus `db:diff` (`atlas migrate diff`, per [docs/workflow.md](../workflow.md)'s documented mapping) at both levels. Root `db:migrate` now replaces the old Prisma-flavored script (`prisma migrate dev`) — a deliberate decision, since Prisma stays the live DB layer until the route migrations (#126–131) land, but the name collision meant something had to give and the workflow doc already commits to this exact target name. The other Prisma scripts (`db:generate`, `db:format`, `db:reset`, `db:deploy`, `db:studio`) are untouched for now; #132 removes them along with `prisma/` once nothing references Prisma anymore. All four new scripts assume `DATABASE_URL` is already in the environment at the `packages/db`-level (`atlas`/`kanel` invoked directly); the root-level wrappers are the ones that load it via `dotenv -e .env.private -e .env.public`, same convention as the existing Prisma scripts.
 7. Delete `prisma/` and the `prisma-kysely` generator output in `packages/private/core/src/types/entities.ts` once nothing references them.
 
 ## Part B — API core (`services/api/src/core/`)

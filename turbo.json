@@ -18,6 +18,18 @@
 		"clean": {
 			"cache": false
 		},
+		"db:gen": {
+			"cache": false
+		},
+		"db:migrate": {
+			"cache": false
+		},
+		"db:migrate:down": {
+			"cache": false
+		},
+		"db:diff": {
+			"cache": false
+		},
 		"tag-docker": {
 			"outputs": [],
 			"inputs": ["src/**/*.ts", "Dockerfile"]

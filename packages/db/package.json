@@ -15,9 +15,15 @@
 		"test:watch": "vitest",
 		"lint": "eslint src",
 		"lint:fix": "eslint src --fix",
-		"clean": "rimraf dist"
+		"clean": "rimraf dist",
+		"db:gen": "kanel",
+		"db:migrate": "atlas migrate apply --env local",
+		"db:migrate:down": "atlas migrate down --env local",
+		"db:diff": "atlas migrate diff --env local"
 	},
 	"devDependencies": {
+		"@electric-sql/pglite": "^0.5.4",
+		"@kristiandupont/recase": "^1.2.1",
 		"@types/node": "^24.9.1",
 		"kanel": "^4.0.2",
 		"rimraf": "^6.1.3",
