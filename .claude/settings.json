@@ -9,7 +9,8 @@
       "Bash(yarn lint *)",
       "Bash(gh issue view *)",
       "Bash(gh issue list *)",
-      "Bash(gh pr view *)"
+      "Bash(gh pr view *)",
+      "Bash(git mv *)"
     ]
   }
 }

@@ -5,7 +5,9 @@ variable "database_url" {
 
 env "local" {
   src = "file://schema/schema.sql"
-  url = var.database_url
+  # The local docker-compose postgres doesn't have TLS enabled; sslmode=disable is only safe to
+  # hardcode here because this is the "local" env specifically, not a prod one.
+  url = "${var.database_url}?sslmode=disable"
 
   # Used by `atlas migrate diff` / `atlas migrate lint` to compute a clean diff against an
   # ephemeral database rather than the real dev DB.

@@ -460,6 +460,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@chatsift/db@workspace:packages/db"
   dependencies:
+    "@electric-sql/pglite": "npm:^0.5.4"
+    "@kristiandupont/recase": "npm:^1.2.1"
     "@types/node": "npm:^24.9.1"
     kanel: "npm:^4.0.2"
     postgres: "npm:^3.4.9"
@@ -857,6 +859,13 @@ __metadata:
     tslib: "npm:^2.8.1"
     ws: "npm:^8.20.0"
   checksum: 10c0/ec181e43ea7f0574455e55a1440466e6e9eafa173513838d48d8d850b1d913e05edaa2d2ab0c0ba4529ae6ee49c597a4dc1a13a23a64a159bdfc00db94e1bd13
+  languageName: node
+  linkType: hard
+
+"@electric-sql/pglite@npm:^0.5.4":
+  version: 0.5.4
+  resolution: "@electric-sql/pglite@npm:0.5.4"
+  checksum: 10c0/056118aae82f3446520564b96b50d961bbb54a9df6d00105860c60ad1c1e0048e579fa80c6c9f8e40fb859c0204c9a3c066f3eba4722747f4879c6a7452783ff
   languageName: node
   linkType: hard
 
