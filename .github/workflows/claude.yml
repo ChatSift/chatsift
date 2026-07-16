@@ -48,10 +48,16 @@ jobs:
           # or https://code.claude.com/docs/en/cli-reference for available options
           # claude_args: '--allowed-tools Bash(gh pr *)'
 
-          # ScheduleWakeup assumes a persistent host that re-invokes the session later.
-          # This action runs the SDK once per job and exits when the turn ends, so a
-          # scheduled wakeup (or a backgrounded Task left waiting on one) never fires,
-          # silently truncating the run. Block it so Claude only waits on tasks inline.
+          # Interactive-session tools (ScheduleWakeup/SendMessage/Monitor, background
+          # Agent/Task execution) assume a persistent host that re-invokes the session
+          # later. This action runs the SDK once per job and exits when the turn ends,
+          # so a scheduled wakeup or an orphaned background subagent never gets picked
+          # back up -- the run silently reports success with no comment ever posted.
+          # This is a known upstream bug: anthropics/claude-code-action#1462 and #1499
+          # (fixes in flight: PR #1465, #1500, unmerged as of writing). Workaround per
+          # the maintainers on #1462: block the interactive-only tools and tell Claude
+          # explicitly to run subagents synchronously.
           claude_args: |
-            --disallowedTools "ScheduleWakeup"
+            --disallowedTools "ScheduleWakeup,SendMessage,Monitor"
+            --append-system-prompt "This session runs once inside a GitHub Actions job and cannot be resumed or notified later. Never call Agent or Task without run_in_background: false. Do not end your turn assuming a background subagent or scheduled wakeup will continue the work -- it will not. Wait for every subagent synchronously and only finish once the actual deliverable has been produced."
 
