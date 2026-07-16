@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm view *)",
+      "Bash(yarn install *)",
+      "Bash(yarn workspace *)",
+      "Bash(yarn turbo *)",
+      "Bash(yarn prettier *)"
+    ]
+  }
+}
