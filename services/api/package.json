@@ -24,23 +24,23 @@
 		"@types/node": "^24.9.1",
 		"kysely": "^0.28.8",
 		"typescript": "~5.9.3",
-		"vitest": "^3.2.4"
+		"vitest": "^3.2.7"
 	},
 	"dependencies": {
 		"@chatsift/backend-core": "workspace:^",
-		"@discordjs/core": "^3.0.0-dev.1759363313-f510b5ffa",
-		"@discordjs/rest": "^3.0.0-dev.1759363313-f510b5ffa",
+		"@discordjs/core": "3.0.0-dev.1783513686-6e81ea771",
+		"@discordjs/rest": "3.0.0-dev.1783513686-6e81ea771",
 		"@hapi/boom": "^10.0.1",
 		"@sapphire/discord-utilities": "^3.5.0",
 		"bcrypt": "^6.0.0",
 		"busboy": "^1.6.0",
 		"cookie": "^1.0.2",
-		"cors": "^2.8.5",
-		"helmet": "^8.1.0",
-		"jsonwebtoken": "^9.0.2",
+		"cors": "^2.8.6",
+		"helmet": "^8.3.0",
+		"jsonwebtoken": "^9.0.3",
 		"nanoid": "^5.1.6",
 		"polka": "^1.0.0-next.28",
-		"sharp": "^0.34.4",
-		"zod": "^4.1.12"
+		"sharp": "^0.35.3",
+		"zod": "^4.4.3"
 	}
 }

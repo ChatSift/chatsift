@@ -34,12 +34,12 @@
 	"homepage": "https://github.com/chatsift/chatsift",
 	"devDependencies": {
 		"@types/node": "^24.9.1",
-		"tsup": "^8.5.0",
+		"tsup": "^8.5.1",
 		"typescript": "~5.9.3",
-		"vitest": "^2.1.9"
+		"vitest": "^3.2.7"
 	},
 	"dependencies": {
-		"discord-api-types": "^0.38.30",
+		"discord-api-types": "^0.38.50",
 		"tslib": "^2.8.1"
 	}
 }
