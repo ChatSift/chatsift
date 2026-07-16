@@ -35,6 +35,8 @@ Checklist:
 
 1. Stand up `packages/db` package.json (`@chatsift/db`), dependency on `postgres` (porsager).
 2. Author the declarative schema reproducing the current 6 models exactly (see [01-architecture.md](01-architecture.md) §5 for the field-level reference): `Experiment`, `ExperimentOverride`, `DashboardGrant`, `AMASession`, `AMAPromptData`, `AMAQuestion` (+ `AMAQuestionState` enum). Naming convention decision: keep Prisma's camelCase-via-quoted-identifiers, or move to snake_case + `postgres.camel` transform (SimplyChords' choice) — **decide and document in this file once chosen** (update this doc when settled, don't leave it ambiguous).
+
+   **Decided: snake_case + `postgres.camel` transform**, matching SimplyChords (`packages/db/src/index.ts` there passes `transform: postgres.camel` to `postgres()`). Reasons: (a) consistency with the reference architecture this milestone is explicitly modeled on; (b) quoted camelCase identifiers are easy to typo into an unquoted (lowercased) reference in raw SQL, a footgun snake_case avoids entirely; (c) kanel's generated row types and the `postgres.camel` transform compose cleanly — DB stays conventional snake_case, JS-facing code stays camelCase. Implemented in `packages/db/schema/schema.sql`.
 3. `atlas migrate diff` against an empty dev DB to generate the baseline migration; commit it.
 4. Wire `kanel` against a locally-migrated DB; generate `src/generated/`; add an npm script (`db:gen`) and a turbo task.
 5. `createDb()` factory: `postgres(env.DATABASE_URL, { /* transform if snake_case chosen */ })`, attached to `getContext()` as `db` (replacing the current Kysely instance — `getContext()` itself is kept, see [ADR 0002](../adr/0002-db-stack.md)).
