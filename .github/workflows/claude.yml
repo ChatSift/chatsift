@@ -60,4 +60,3 @@ jobs:
           claude_args: |
             --disallowedTools "ScheduleWakeup,SendMessage,Monitor"
             --append-system-prompt "This session runs once inside a GitHub Actions job and cannot be resumed or notified later. Never call Agent or Task without run_in_background: false. Do not end your turn assuming a background subagent or scheduled wakeup will continue the work -- it will not. Wait for every subagent synchronously and only finish once the actual deliverable has been produced."
-

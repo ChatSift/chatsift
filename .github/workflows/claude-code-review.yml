@@ -55,4 +55,3 @@ jobs:
             --append-system-prompt "This session runs once inside a GitHub Actions job and cannot be resumed or notified later. Never call Agent or Task without run_in_background: false. Do not end your turn assuming a background subagent or scheduled wakeup will continue the work -- it will not. Wait for every subagent synchronously and only finish once the actual deliverable (e.g. the PR comment) has been produced."
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-

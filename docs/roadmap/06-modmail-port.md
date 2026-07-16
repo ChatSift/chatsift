@@ -121,6 +121,7 @@ New `app/dashboard/[id]/modmail/` area mirroring the AMA dashboard's structure (
 ### 4. Bot (`services/modmail-bot`, new service)
 
 Mirrors `services/ama-bot`'s structure ([04-ama-complete.md](04-ama-complete.md)'s Cluster 1/2 patterns apply here too — component loader, command loader, resolvers):
+
 - Gateway bot receiving DMs → opens/reuses a staff-side thread (channel or thread-per-user, matching the old `channelId`-per-`Thread` model).
 - Staff replies in the thread → relayed back to the user's DM, with anonymous-reply support (`anon` flag).
 - Local per-thread message numbering (`localThreadMessageId`) for staff-friendly references.

@@ -46,4 +46,4 @@ Before calling any phase/issue done:
 
 ## Where to look first
 
-New to a piece of this work? Start at [roadmap/00-overview.md](roadmap/00-overview.md), then the specific phase doc for what you're touching (`roadmap/02` through `06`). The two ADRs ([0001](adr/0001-api-contract-pattern.md), [0002](adr/0002-db-stack.md)) explain *why* the two big architectural changes were made, in case a decision looks arguable in the moment — reread the ADR before re-relitigating it.
+New to a piece of this work? Start at [roadmap/00-overview.md](roadmap/00-overview.md), then the specific phase doc for what you're touching (`roadmap/02` through `06`). The two ADRs ([0001](adr/0001-api-contract-pattern.md), [0002](adr/0002-db-stack.md)) explain _why_ the two big architectural changes were made, in case a decision looks arguable in the moment — reread the ADR before re-relitigating it.

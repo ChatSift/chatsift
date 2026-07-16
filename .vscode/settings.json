@@ -3,6 +3,6 @@
 	"workbench.editor.customLabels.patterns": {
 		// Next JS
 		"**/src/app/**/page.tsx": "${dirname} - Page",
-		"**/src/app/**/layout.tsx": "${dirname} - Layout",
+		"**/src/app/**/layout.tsx": "${dirname} - Layout"
 	}
 }

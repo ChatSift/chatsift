@@ -20,9 +20,7 @@ export class ContextMenuInteractionOptionResolver {
 	 * The interaction resolved data
 	 */
 	private readonly resolved:
-		| APIMessageApplicationCommandInteractionDataResolved
-		| APIUserInteractionDataResolved
-		| null = null;
+		APIMessageApplicationCommandInteractionDataResolved | APIUserInteractionDataResolved | null = null;
 
 	public constructor(interaction: APIContextMenuInteraction) {
 		this.interaction = interaction;

@@ -24,16 +24,18 @@ A class-based `Route<TResult, TBodyOrQueryZodType>` abstraction (`services/api/s
 
 ```ts
 export abstract class Route<TResult, TBodyOrQueryZodType extends ZodType<any> | never> {
-  public readonly __internalOnlyHereForTypeInferrenceDoNotUse__!: {
-    bodyOrQuery: z.infer<TBodyOrQueryZodType>;
-    result: TResult;
-  };
-  public abstract info: RouteInfo; // { method, path }
-  public readonly middleware: Middleware<TRequest<any>>[] = [];
-  public readonly bodyValidationSchema: TBodyOrQueryZodType | null = null;
-  public readonly queryValidationSchema: TBodyOrQueryZodType | null = null;
-  public abstract handle(req, res, next): unknown;
-  public register(server: Polka<TRequest<any>>): void { /* wires logging + validation + calls handle */ }
+	public readonly __internalOnlyHereForTypeInferrenceDoNotUse__!: {
+		bodyOrQuery: z.infer<TBodyOrQueryZodType>;
+		result: TResult;
+	};
+	public abstract info: RouteInfo; // { method, path }
+	public readonly middleware: Middleware<TRequest<any>>[] = [];
+	public readonly bodyValidationSchema: TBodyOrQueryZodType | null = null;
+	public readonly queryValidationSchema: TBodyOrQueryZodType | null = null;
+	public abstract handle(req, res, next): unknown;
+	public register(server: Polka<TRequest<any>>): void {
+		/* wires logging + validation + calls handle */
+	}
 }
 ```
 
@@ -58,25 +60,34 @@ A **functional** `defineRoute` factory (`services/api/src/core/route.ts` in the 
 
 ```ts
 export const getAMAsRoute = defineRoute({
-  method: 'get',
-  path: '/v3/guilds/:guildId/ama/amas',
-  schema: { query: getAMAsQuerySchema, response: getAMAsResponseSchema },
-  middleware: [isGuildManager] as const,
-  async handler(req) {
-    const { guildId } = req.params;
-    const { includeEnded } = req.query; // typed from schema.query
-    // ...raw SQL query via container.db...
-    return sessions; // becomes the inferred response type
-  },
+	method: 'get',
+	path: '/v3/guilds/:guildId/ama/amas',
+	schema: { query: getAMAsQuerySchema, response: getAMAsResponseSchema },
+	middleware: [isGuildManager] as const,
+	async handler(req) {
+		const { guildId } = req.params;
+		const { includeEnded } = req.query; // typed from schema.query
+		// ...raw SQL query via container.db...
+		return sessions; // becomes the inferred response type
+	},
 });
 ```
 
 `services/api/src/core/contract.ts` provides the one generic that matters:
 
 ```ts
-export type InferRouteContract<TRoute> = TRoute extends RouteDefinition<
-  infer TMethod, infer TPath, infer TBody, infer TQuery, infer TParams, infer TResponse, infer _M
-> ? { body: TBody; query: TQuery; params: TParams; response: TResponse; method: TMethod; path: TPath } : never;
+export type InferRouteContract<TRoute> =
+	TRoute extends RouteDefinition<
+		infer TMethod,
+		infer TPath,
+		infer TBody,
+		infer TQuery,
+		infer TParams,
+		infer TResponse,
+		infer _M
+	>
+		? { body: TBody; query: TQuery; params: TParams; response: TResponse; method: TMethod; path: TPath }
+		: never;
 ```
 
 `services/api/src/index.ts` becomes **type-only for the frontend** — it re-exports route objects and their zod schemas so the frontend can `import type` them (zero API runtime code ships to the browser) and reuse the exact same zod schema for client-side form validation:
@@ -98,10 +109,10 @@ type GetAMAsContract = InferRouteContract<typeof getAMAsRoute>;
 export type AMASession = GetAMAsContract['response'][number];
 
 export function useAMAs(guildId: string, query: GetAMAsContract['query']) {
-  return useQuery({
-    queryKey: queryKeys.ama.list(guildId, query),
-    queryFn: () => apiFetch<AMASession[]>('get', `/v3/guilds/${guildId}/ama/amas`, { query }),
-  });
+	return useQuery({
+		queryKey: queryKeys.ama.list(guildId, query),
+		queryFn: () => apiFetch<AMASession[]>('get', `/v3/guilds/${guildId}/ama/amas`, { query }),
+	});
 }
 ```
 
@@ -116,8 +127,12 @@ If a handler's return shape changes, `apps/website` fails to typecheck — for r
 - **Types:** the `prisma-kysely` generator outputs Kysely-compatible types to `packages/private/core/src/types/entities.ts`.
 - **Runtime queries:** Kysely query builder, e.g. (`services/api/src/routes/ama/getAMAs.ts`):
   ```ts
-  const sessions = await getContext().db.selectFrom('AMASession').selectAll()
-    .where('guildId', '=', guildId).orderBy('id', 'desc').execute();
+  const sessions = await getContext()
+  	.db.selectFrom('AMASession')
+  	.selectAll()
+  	.where('guildId', '=', guildId)
+  	.orderBy('id', 'desc')
+  	.execute();
   ```
 
 This works, but ties schema authoring to Prisma's DSL, doesn't give first-class rollback, and isn't the raw-SQL style preferred going forward.

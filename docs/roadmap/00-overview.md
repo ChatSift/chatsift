@@ -54,14 +54,14 @@ M0 also included creating GitHub milestones, labels, and seed issues for this ro
 
 ## Milestone map
 
-| Milestone | Doc | Target (from 2026-07-16, ~7 hrs/wk) | Status |
-|---|---|---|---|
-| M0 — Scaffolding & discovery | this doc set + GitHub setup | ~2026-07-23 | Done (2026-07-16) |
-| M1 — Foundation refactor | [02-foundation.md](02-foundation.md) | ~2026-08-20 | Not started |
-| M2 — Dashboard-config solid | [03-dashboard-config.md](03-dashboard-config.md) | ~2026-09-17 | Not started |
-| M3 — AMA fully running | [04-ama-complete.md](04-ama-complete.md) | ~2026-11-05 | Not started |
-| M4 — AMA drain-and-swap (live) | [05-migration-cutover.md](05-migration-cutover.md) | ~2026-11-19 | Not started |
-| M5 — ModMail port + migrate | [06-modmail-port.md](06-modmail-port.md) | ~2027-01-mid | Not started |
+| Milestone                      | Doc                                                | Target (from 2026-07-16, ~7 hrs/wk) | Status            |
+| ------------------------------ | -------------------------------------------------- | ----------------------------------- | ----------------- |
+| M0 — Scaffolding & discovery   | this doc set + GitHub setup                        | ~2026-07-23                         | Done (2026-07-16) |
+| M1 — Foundation refactor       | [02-foundation.md](02-foundation.md)               | ~2026-08-20                         | Not started       |
+| M2 — Dashboard-config solid    | [03-dashboard-config.md](03-dashboard-config.md)   | ~2026-09-17                         | Not started       |
+| M3 — AMA fully running         | [04-ama-complete.md](04-ama-complete.md)           | ~2026-11-05                         | Not started       |
+| M4 — AMA drain-and-swap (live) | [05-migration-cutover.md](05-migration-cutover.md) | ~2026-11-19                         | Not started       |
+| M5 — ModMail port + migrate    | [06-modmail-port.md](06-modmail-port.md)           | ~2027-01-mid                        | Not started       |
 
 Dates are targets, not commitments — capacity is ~5–10 hrs/wk. M2 and M3 can interleave.
 

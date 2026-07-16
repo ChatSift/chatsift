@@ -20,8 +20,7 @@ export function sortChannels(unsorted: APIChannel[]): SortableChannel[] {
 	// Separate threads from other channels
 	const threads = filtered.filter((channel): channel is APIThreadChannel => THREAD_TYPES.includes(channel.type));
 	const nonThreads = filtered.filter((channel) => !THREAD_TYPES.includes(channel.type)) as (
-		| APIGuildCategoryChannel
-		| APITextChannel
+		APIGuildCategoryChannel | APITextChannel
 	)[];
 
 	// Group the non-thread channels by their category - or "top" if they aren't in one

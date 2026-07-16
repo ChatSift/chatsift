@@ -15,11 +15,10 @@ import type { AMASessionWithCount } from './getAMAs.js';
 const querySchema = queryWithFreshSchema;
 export type GetAMAQuery = z.input<typeof querySchema>;
 
-export interface AMASessionDetailed
-	extends Omit<
-		AMASessionWithCount,
-		'answersChannelId' | 'flaggedQueueId' | 'guestQueueId' | 'modQueueId' | 'promptChannelId'
-	> {
+export interface AMASessionDetailed extends Omit<
+	AMASessionWithCount,
+	'answersChannelId' | 'flaggedQueueId' | 'guestQueueId' | 'modQueueId' | 'promptChannelId'
+> {
 	answersChannel: GuildChannelInfo | PossiblyMissingChannelInfo;
 	flaggedQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
 	guestQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;

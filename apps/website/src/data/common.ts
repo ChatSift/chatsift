@@ -26,10 +26,7 @@ export type MakeOptions<Path extends keyof APIRoutes = keyof APIRoutes> = Path e
 
 interface Info {
 	readonly [Key: string]:
-		| Info
-		| MakeOptions
-		| ((...params: any[]) => Info | MakeOptions | (Info & MakeOptions))
-		| (Info & MakeOptions);
+		Info | MakeOptions | ((...params: any[]) => Info | MakeOptions | (Info & MakeOptions)) | (Info & MakeOptions);
 }
 
 export const routesInfo = {
