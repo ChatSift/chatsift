@@ -1,25 +1,26 @@
 import { getContext } from '@chatsift/backend-core';
 import { internal, notFound } from '@hapi/boom';
-import type { NextHandler, Response } from 'polka';
-import type { z } from 'zod';
-import { unwrapMiddlewareHandle } from '../../core/route.js';
+import { z } from 'zod';
+import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
+import type { AMAPromptDataRow, AMASessionRow } from '../../util/amaTypes.js';
 import type { PossiblyMissingChannelInfo } from '../../util/channels.js';
 import { fetchGuildChannels } from '../../util/channels.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
-import { queryWithFreshSchema } from '../../util/schemas.js';
+import { queryWithFreshSchema, snowflakeSchema } from '../../util/schemas.js';
 import type { GuildChannelInfo } from '../guilds/get.js';
-import type { TRequest } from '../route.js';
-import { Route, RouteMethod } from '../route.js';
 import type { AMASessionWithCount } from './getAMAs.js';
 
 const querySchema = queryWithFreshSchema;
+const paramsSchema = z.object({ guildId: snowflakeSchema, amaId: z.coerce.number().int().positive() });
+
 export type GetAMAQuery = z.input<typeof querySchema>;
 
-export interface AMASessionDetailed extends Omit<
-	AMASessionWithCount,
-	'answersChannelId' | 'flaggedQueueId' | 'guestQueueId' | 'modQueueId' | 'promptChannelId'
-> {
+export interface AMASessionDetailed
+	extends Omit<
+		AMASessionWithCount,
+		'answersChannelId' | 'flaggedQueueId' | 'guestQueueId' | 'modQueueId' | 'promptChannelId'
+	> {
 	answersChannel: GuildChannelInfo | PossiblyMissingChannelInfo;
 	flaggedQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
 	guestQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
@@ -28,50 +29,46 @@ export interface AMASessionDetailed extends Omit<
 	promptMessageExists: boolean;
 }
 
-export default class GetAMA extends Route<AMASessionDetailed, typeof querySchema> {
-	public readonly info = {
-		method: RouteMethod.get,
-		path: '/v3/guilds/:guildId/ama/amas/:amaId',
-	} as const;
-
-	public override readonly queryValidationSchema = querySchema;
-
-	public override readonly middleware = isAuthed({
+export default defineRoute({
+	method: 'get',
+	path: '/v3/guilds/:guildId/ama/amas/:amaId',
+	schema: {
+		query: querySchema,
+		params: paramsSchema,
+	},
+	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-	}).map(unwrapMiddlewareHandle);
+	}),
+	async handler(req): Promise<AMASessionDetailed> {
+		const { guildId, amaId } = req.params;
 
-	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
-		const { guildId, amaId } = req.params as { amaId: string; guildId: string };
-
-		const session = await getContext()
-			.db.selectFrom('AMASession')
-			.selectAll()
-			.where('guildId', '=', guildId)
-			.where('id', '=', Number(amaId))
-			.executeTakeFirst();
+		const [session] = await getContext().rawDb<AMASessionRow[]>`
+			SELECT * FROM ama_sessions WHERE guild_id = ${guildId} AND id = ${amaId}
+		`;
 
 		if (!session) {
-			return next(notFound('ama session not found'));
+			throw notFound('ama session not found');
 		}
 
-		const questionCount = await getContext()
-			.db.selectFrom('AMAQuestion')
-			.select((eb) => eb.fn.count<string>('id').as('count'))
-			.where('amaId', '=', session.id)
-			.executeTakeFirstOrThrow();
+		const [questionCount] = await getContext().rawDb<{ count: string }[]>`
+			SELECT COUNT(*) AS count FROM ama_questions WHERE ama_id = ${session.id}
+		`;
 
-		const promptData = await getContext()
-			.db.selectFrom('AMAPromptData')
-			.selectAll()
-			.where('amaId', '=', session.id)
-			.executeTakeFirstOrThrow();
+		const [promptData] = await getContext().rawDb<AMAPromptDataRow[]>`
+			SELECT * FROM ama_prompt_data WHERE ama_id = ${session.id}
+		`;
+
+		if (!promptData) {
+			getContext().logger.warn({ guildId, amaId }, `AMA session ${amaId} in guild ${guildId} is missing prompt data`);
+			throw internal();
+		}
 
 		const channels = await fetchGuildChannels(guildId, discordAPIAma);
 		if (!channels) {
 			getContext().logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
-			return next(internal());
+			throw internal();
 		}
 
 		const answersChannel = channels.find((c) => c.id === session.answersChannelId) ?? { id: session.answersChannelId };
@@ -92,20 +89,18 @@ export default class GetAMA extends Route<AMASessionDetailed, typeof querySchema
 				{ guildId, amaId },
 				`AMA session ${amaId} in guild ${guildId} has missing critical channels`,
 			);
-			await getContext().db.updateTable('AMASession').set({ ended: true }).where('id', '=', Number(amaId)).execute();
+			await getContext().rawDb`UPDATE ama_sessions SET ended = true WHERE id = ${amaId}`;
 		}
 
 		let promptMessageExists = false;
-		if (promptData) {
-			try {
-				await discordAPIAma.channels.getMessage(session.promptChannelId, promptData.promptMessageId);
-				promptMessageExists = true;
-			} catch {
-				promptMessageExists = false;
-			}
+		try {
+			await discordAPIAma.channels.getMessage(session.promptChannelId, promptData.promptMessageId);
+			promptMessageExists = true;
+		} catch {
+			promptMessageExists = false;
 		}
 
-		const result: AMASessionDetailed = {
+		return {
 			...session,
 			ended: shouldEndNow ? true : session.ended,
 			questionCount: Number(questionCount?.count ?? 0),
@@ -116,9 +111,5 @@ export default class GetAMA extends Route<AMASessionDetailed, typeof querySchema
 			promptChannel,
 			promptMessageExists,
 		};
-
-		res.statusCode = 200;
-		res.setHeader('Content-Type', 'application/json');
-		return res.end(JSON.stringify(result));
-	}
-}
+	},
+});

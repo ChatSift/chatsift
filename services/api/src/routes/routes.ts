@@ -1,10 +1,8 @@
 // This file should exclusively re-export the default exports from each route file
-
-export { default as CreateAMA } from './ama/createAMA.js';
-export { default as GetAMA } from './ama/getAMA.js';
-export { default as GetAMAs } from './ama/getAMAs.js';
-export { default as UpdateAMA } from './ama/updateAMA.js';
-export { default as RepostPrompt } from './ama/repostPrompt.js';
+//
+// AMA routes (createAMA/getAMA/getAMAs/updateAMA/repostPrompt) are intentionally absent — they've been migrated to
+// `defineRoute` (docs/roadmap/02-foundation.md Part C, #128) and no longer fit this `Route`-subclass reflection
+// barrel. Their frontend types are unavailable until #131 replaces apps/website/src/data/* with src/api/*.
 
 export { default as GetAuthDiscord } from './auth/discord.js';
 export { default as GetAuthDiscordCallback } from './auth/discordCallback.js';

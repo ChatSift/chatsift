@@ -1,65 +1,54 @@
 import { getContext } from '@chatsift/backend-core';
-import type { AMASession } from '@chatsift/core';
 import { badData, notFound } from '@hapi/boom';
-import type { Selectable } from 'kysely';
-import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
-import { unwrapMiddlewareHandle } from '../../core/route.js';
+import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
-import type { TRequest } from '../route.js';
-import { Route, RouteMethod } from '../route.js';
+import type { AMASessionRow } from '../../util/amaTypes.js';
+import { snowflakeSchema } from '../../util/schemas.js';
 
 const bodySchema = z.strictObject({
 	ended: z.literal(true),
 });
+const paramsSchema = z.object({ guildId: snowflakeSchema, amaId: z.coerce.number().int().positive() });
 
 export type UpdateAMABody = z.input<typeof bodySchema>;
+export type UpdateAMAResult = AMASessionRow;
 
-export type UpdateAMAResult = Selectable<AMASession>;
-
-export default class UpdateAMA extends Route<UpdateAMAResult, typeof bodySchema> {
-	public readonly info = {
-		method: RouteMethod.patch,
-		path: '/v3/guilds/:guildId/ama/amas/:amaId',
-	} as const;
-
-	public override readonly bodyValidationSchema = bodySchema;
-
-	public override readonly middleware = isAuthed({
+export default defineRoute({
+	method: 'patch',
+	path: '/v3/guilds/:guildId/ama/amas/:amaId',
+	schema: {
+		body: bodySchema,
+		params: paramsSchema,
+	},
+	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-	}).map(unwrapMiddlewareHandle);
-
-	public override async handle(req: TRequest<typeof bodySchema>, res: Response, next: NextHandler) {
+	}),
+	async handler(req): Promise<UpdateAMAResult> {
 		const data = req.body;
-		const { guildId, amaId } = req.params as { amaId: string; guildId: string };
+		const { guildId, amaId } = req.params;
 
-		const existingAMA = await getContext()
-			.db.selectFrom('AMASession')
-			.selectAll()
-			.where('guildId', '=', guildId)
-			.where('id', '=', Number(amaId))
-			.executeTakeFirst();
+		const [existingAMA] = await getContext().rawDb<AMASessionRow[]>`
+			SELECT * FROM ama_sessions WHERE guild_id = ${guildId} AND id = ${amaId}
+		`;
 
 		if (!existingAMA) {
-			return next(notFound('AMA session not found'));
+			throw notFound('AMA session not found');
 		}
 
 		if (existingAMA.ended) {
-			return next(badData('AMA session is already ended'));
+			throw badData('AMA session is already ended');
 		}
 
-		const updated: UpdateAMAResult = await getContext()
-			.db.updateTable('AMASession')
-			.set({ ended: data.ended })
-			.where('id', '=', Number(amaId))
-			.where('guildId', '=', guildId)
-			.returningAll()
-			.executeTakeFirstOrThrow();
+		const [updated] = await getContext().rawDb<AMASessionRow[]>`
+			UPDATE ama_sessions
+			SET ended = ${data.ended}
+			WHERE id = ${amaId} AND guild_id = ${guildId}
+			RETURNING *
+		`;
 
-		res.statusCode = 200;
-		res.setHeader('Content-Type', 'application/json');
-		return res.end(JSON.stringify(updated));
-	}
-}
+		return updated!;
+	},
+});

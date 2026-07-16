@@ -35,6 +35,9 @@ const envSchema = z.object({
 	FRONTEND_URL_DEV: z.url(),
 	FRONTEND_URL_PROD: z.url(),
 
+	// DB (packages/db — postgres.js raw SQL client, see docs/adr/0002-db-stack.md)
+	DATABASE_URL: z.url(),
+
 	// AMA
 	AMA_BOT_TOKEN: z.string(),
 });

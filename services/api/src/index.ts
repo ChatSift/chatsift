@@ -7,6 +7,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import type { Middleware } from 'polka';
 import polka from 'polka';
+import type { RouteDefinition } from './core/route.js';
+import { mountRoute } from './core/server.js';
 import { attachHttpUtils } from './middleware/attachHttpUtils.js';
 import type { Route, TRequest } from './routes/route.js';
 import { sendBoom } from './util/sendBoom.js';
@@ -57,11 +59,20 @@ export async function bin(): Promise<void> {
 	getContext().logger.info({ path }, 'Found route files');
 
 	for await (const file of files) {
-		const mod = (await import(file)) as { default?: new () => Route<any, any> };
-		if (mod.default) {
+		const mod = (await import(file)) as {
+			default?: RouteDefinition<any, any, any, any, any, any, any> | (new () => Route<any, any>);
+		};
+
+		if (typeof mod.default === 'function') {
+			// Legacy `Route` subclass — being replaced by `defineRoute` route-by-route, see
+			// docs/roadmap/02-foundation.md Part C.
 			const route = new mod.default();
 			getContext().logger.info(route.info, 'Registering route');
 			route.register(app);
+		} else if (mod.default) {
+			// `defineRoute` route definition.
+			getContext().logger.info({ method: mod.default.method, path: mod.default.path }, 'Registering route');
+			mountRoute(app, mod.default);
 		} else {
 			getContext().logger.warn({ file }, 'No default export found on route file');
 		}

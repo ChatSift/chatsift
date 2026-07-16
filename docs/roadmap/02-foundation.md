@@ -77,11 +77,29 @@ Each route: convert from `Route` subclass → `defineRoute`, and from Kysely →
 
 **AMA (`services/api/src/routes/ama/`) — 5 routes:**
 
-- [ ] `createAMA.ts` — `POST /v3/guilds/:guildId/ama/amas`
-- [ ] `getAMA.ts` — `GET /v3/guilds/:guildId/ama/amas/:amaId`
-- [ ] `getAMAs.ts` — `GET /v3/guilds/:guildId/ama/amas`
-- [ ] `updateAMA.ts` — `PATCH /v3/guilds/:guildId/ama/amas/:amaId`
-- [ ] `repostPrompt.ts` — `POST /v3/guilds/:guildId/ama/amas/:amaId/prompt`
+- [x] `createAMA.ts` — `POST /v3/guilds/:guildId/ama/amas`
+- [x] `getAMA.ts` — `GET /v3/guilds/:guildId/ama/amas/:amaId`
+- [x] `getAMAs.ts` — `GET /v3/guilds/:guildId/ama/amas`
+- [x] `updateAMA.ts` — `PATCH /v3/guilds/:guildId/ama/amas/:amaId`
+- [x] `repostPrompt.ts` — `POST /v3/guilds/:guildId/ama/amas/:amaId/prompt`
+
+  Done (#128). Two coexistence decisions worth flagging for whoever does #129/#130 (auth, guilds — the remaining 8
+  routes still on `Route`/Kysely):
+  - **`getContext()` now carries both `db` (legacy Kysely, untouched) and `rawDb` (new `postgres.js` client from
+    `@chatsift/db`, via `createRawDatabase()` in `@chatsift/backend-core`).** `db` stays as-is until every route
+    (13 here + the 3 Kysely call sites in `services/ama-bot`) is off it; only then does #132 delete it and `rawDb`
+    can take over the `db` name per the ADR's target shape. `services/api/src/index.ts`'s route loader was
+    extended to runtime-detect either shape (`typeof mod.default === 'function'` for the legacy `Route` subclass
+    vs. a plain `defineRoute` object) and dispatch to `.register()` or `mountRoute()` accordingly — this means
+    each resource-group PR only needs to touch its own route files, not the loader again.
+  - **AMA's frontend contract is temporarily gone.** The 5 AMA route files no longer export a `Route` subclass, so
+    they were dropped from `routes.ts`/`_types/routeTypes.ts` (the class-reflection barrel `_types/index.ts`
+    builds `APIRoutes` from). `apps/website`'s AMA data hooks (`data/common.ts`'s `routesInfo.ama`, `data/client`,
+    `data/server`) will fail to typecheck against `@chatsift/api` until #131 replaces them with
+    `apps/website/src/api/routes/ama.ts` using `InferRouteContract` directly against the migrated route objects —
+    deliberately not bridged, since any bridge would be thrown away the moment #131 lands. `turbo run build` on
+    `apps/website` is expected red until #131 merges; `services/api`, `services/ama-bot`, and the rest of the
+    monorepo stay green.
 
 **Auth (`services/api/src/routes/auth/`) — 4 routes:**
 

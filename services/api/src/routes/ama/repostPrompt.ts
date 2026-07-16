@@ -1,49 +1,46 @@
 import { getContext } from '@chatsift/backend-core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
-import { badData, notFound } from '@hapi/boom';
-import type { NextHandler, Response } from 'polka';
+import { badData, notFound, internal } from '@hapi/boom';
 import { z } from 'zod';
-import { unwrapMiddlewareHandle } from '../../core/route.js';
+import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
+import type { AMAPromptDataRow, AMASessionRow } from '../../util/amaTypes.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
-import type { TRequest } from '../route.js';
-import { Route, RouteMethod } from '../route.js';
+import { snowflakeSchema } from '../../util/schemas.js';
 
 const bodySchema = z.strictObject({});
+const paramsSchema = z.object({ guildId: snowflakeSchema, amaId: z.coerce.number().int().positive() });
 
-export default class RepostPrompt extends Route<never, typeof bodySchema> {
-	public readonly info = {
-		method: RouteMethod.post,
-		path: '/v3/guilds/:guildId/ama/amas/:amaId/prompt',
-	} as const;
-
-	public override readonly bodyValidationSchema = bodySchema;
-
-	public override readonly middleware = isAuthed({
+export default defineRoute({
+	method: 'post',
+	path: '/v3/guilds/:guildId/ama/amas/:amaId/prompt',
+	schema: {
+		body: bodySchema,
+		params: paramsSchema,
+	},
+	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-	}).map(unwrapMiddlewareHandle);
+	}),
+	async handler(req): Promise<void> {
+		const { guildId, amaId } = req.params;
 
-	public override async handle(req: TRequest<typeof bodySchema>, res: Response, next: NextHandler) {
-		const { guildId, amaId } = req.params as { amaId: string; guildId: string };
-
-		const existingAMA = await getContext()
-			.db.selectFrom('AMASession')
-			.selectAll()
-			.where('guildId', '=', guildId)
-			.where('id', '=', Number(amaId))
-			.executeTakeFirst();
+		const [existingAMA] = await getContext().rawDb<AMASessionRow[]>`
+			SELECT * FROM ama_sessions WHERE guild_id = ${guildId} AND id = ${amaId}
+		`;
 
 		if (!existingAMA) {
-			return next(notFound('ama session not found'));
+			throw notFound('ama session not found');
 		}
 
-		const promptData = await getContext()
-			.db.selectFrom('AMAPromptData')
-			.selectAll()
-			.where('amaId', '=', Number(amaId))
-			.executeTakeFirstOrThrow();
+		const [promptData] = await getContext().rawDb<AMAPromptDataRow[]>`
+			SELECT * FROM ama_prompt_data WHERE ama_id = ${amaId}
+		`;
+
+		if (!promptData) {
+			throw internal();
+		}
 
 		// Check if message still exists
 		let messageExists = false;
@@ -55,11 +52,11 @@ export default class RepostPrompt extends Route<never, typeof bodySchema> {
 		}
 
 		if (messageExists) {
-			return next(badData('prompt message still exists'));
+			throw badData('prompt message still exists');
 		}
 
 		// Parse the stored prompt data
-		const messageBody = JSON.parse(promptData.promptJSONData);
+		const messageBody = JSON.parse(promptData.promptJsonData);
 
 		// Create new prompt message
 		const newPromptMessage = await discordAPIAma.channels.createMessage(existingAMA.promptChannelId, {
@@ -80,19 +77,14 @@ export default class RepostPrompt extends Route<never, typeof bodySchema> {
 		});
 
 		try {
-			await getContext()
-				.db.updateTable('AMAPromptData')
-				.set({ promptMessageId: newPromptMessage.id })
-				.where('amaId', '=', Number(amaId))
-				.execute();
+			await getContext().rawDb`
+				UPDATE ama_prompt_data SET prompt_message_id = ${newPromptMessage.id} WHERE ama_id = ${amaId}
+			`;
 		} catch (error) {
 			// If we created the prompt message but failed to insert data, delete the message to avoid orphaned prompts.
 			// eslint-disable-next-line promise/prefer-await-to-then
 			void discordAPIAma.channels.deleteMessage(existingAMA.promptChannelId, newPromptMessage.id).catch(() => null);
 			throw error;
 		}
-
-		res.statusCode = 200;
-		return res.end();
-	}
-}
+	},
+});
