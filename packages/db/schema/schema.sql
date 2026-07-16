@@ -1,0 +1,4 @@
+-- Declarative schema (source of truth for `atlas migrate diff`).
+-- Authored in a follow-up (see docs/roadmap/02-foundation.md Part A, checklist item 2):
+-- reproduces the 6 current Prisma models (Experiment, ExperimentOverride, DashboardGrant,
+-- AMASession, AMAPromptData, AMAQuestion + AMAQuestionState enum).
