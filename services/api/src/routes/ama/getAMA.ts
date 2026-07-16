@@ -1,9 +1,9 @@
 import { getContext } from '@chatsift/backend-core';
+import type { AmaPromptData, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { internal, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
-import type { AMAPromptDataRow, AMASessionRow } from '../../util/amaTypes.js';
 import type { PossiblyMissingChannelInfo } from '../../util/channels.js';
 import { fetchGuildChannels } from '../../util/channels.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
@@ -12,7 +12,16 @@ import type { GuildChannelInfo } from '../guilds/get.js';
 import type { AMASessionWithCount } from './getAMAs.js';
 
 const querySchema = queryWithFreshSchema;
-const paramsSchema = z.object({ guildId: snowflakeSchema, amaId: z.coerce.number().int().positive() });
+const paramsSchema = z.object({
+	guildId: snowflakeSchema,
+	// Cast to the branded `ama_sessions` id type once, here at the validation boundary, so every raw SQL call site
+	// downstream gets a properly-typed id for free instead of needing its own cast against `AmaSessions.id`.
+	amaId: z.coerce
+		.number()
+		.int()
+		.positive()
+		.transform((value) => value as AmaSessionsId),
+});
 
 export type GetAMAQuery = z.input<typeof querySchema>;
 
@@ -44,7 +53,7 @@ export default defineRoute({
 	async handler(req): Promise<AMASessionDetailed> {
 		const { guildId, amaId } = req.params;
 
-		const [session] = await getContext().rawDb<AMASessionRow[]>`
+		const [session] = await getContext().rawDb<AmaSessions[]>`
 			SELECT * FROM ama_sessions WHERE guild_id = ${guildId} AND id = ${amaId}
 		`;
 
@@ -56,7 +65,7 @@ export default defineRoute({
 			SELECT COUNT(*) AS count FROM ama_questions WHERE ama_id = ${session.id}
 		`;
 
-		const [promptData] = await getContext().rawDb<AMAPromptDataRow[]>`
+		const [promptData] = await getContext().rawDb<AmaPromptData[]>`
 			SELECT * FROM ama_prompt_data WHERE ama_id = ${session.id}
 		`;
 
@@ -65,13 +74,14 @@ export default defineRoute({
 			throw internal();
 		}
 
-		const channels = await fetchGuildChannels(guildId, discordAPIAma);
+		const channels = await fetchGuildChannels(guildId, discordAPIAma, req.query.force_fresh);
 		if (!channels) {
 			getContext().logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
 			throw internal();
 		}
 
-		const answersChannel = channels.find((c) => c.id === session.answersChannelId) ?? { id: session.answersChannelId };
+		const foundAnswersChannel = channels.find((c) => c.id === session.answersChannelId);
+		const answersChannel = foundAnswersChannel ?? { id: session.answersChannelId };
 		const flaggedQueueChannel = session.flaggedQueueId
 			? (channels.find((c) => c.id === session.flaggedQueueId) ?? { id: session.flaggedQueueId })
 			: null;
@@ -81,9 +91,12 @@ export default defineRoute({
 		const modQueueChannel = session.modQueueId
 			? (channels.find((c) => c.id === session.modQueueId) ?? { id: session.modQueueId })
 			: null;
-		const promptChannel = channels.find((c) => c.id === session.promptChannelId) ?? { id: session.promptChannelId };
+		const foundPromptChannel = channels.find((c) => c.id === session.promptChannelId);
+		const promptChannel = foundPromptChannel ?? { id: session.promptChannelId };
 
-		const shouldEndNow = !session.ended && (!answersChannel || !promptChannel);
+		// Check the raw `find(...)` results, not `answersChannel`/`promptChannel` — those always fall back to
+		// `{ id }` when not found, so they're never falsy themselves.
+		const shouldEndNow = !session.ended && (!foundAnswersChannel || !foundPromptChannel);
 		if (shouldEndNow) {
 			getContext().logger.warn(
 				{ guildId, amaId },

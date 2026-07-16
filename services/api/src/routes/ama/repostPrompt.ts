@@ -1,15 +1,22 @@
 import { getContext } from '@chatsift/backend-core';
+import type { AmaPromptData, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { badData, notFound, internal } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
-import type { AMAPromptDataRow, AMASessionRow } from '../../util/amaTypes.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
 import { snowflakeSchema } from '../../util/schemas.js';
 
 const bodySchema = z.strictObject({});
-const paramsSchema = z.object({ guildId: snowflakeSchema, amaId: z.coerce.number().int().positive() });
+const paramsSchema = z.object({
+	guildId: snowflakeSchema,
+	amaId: z.coerce
+		.number()
+		.int()
+		.positive()
+		.transform((value) => value as AmaSessionsId),
+});
 
 export default defineRoute({
 	method: 'post',
@@ -26,7 +33,7 @@ export default defineRoute({
 	async handler(req): Promise<void> {
 		const { guildId, amaId } = req.params;
 
-		const [existingAMA] = await getContext().rawDb<AMASessionRow[]>`
+		const [existingAMA] = await getContext().rawDb<AmaSessions[]>`
 			SELECT * FROM ama_sessions WHERE guild_id = ${guildId} AND id = ${amaId}
 		`;
 
@@ -34,7 +41,7 @@ export default defineRoute({
 			throw notFound('ama session not found');
 		}
 
-		const [promptData] = await getContext().rawDb<AMAPromptDataRow[]>`
+		const [promptData] = await getContext().rawDb<AmaPromptData[]>`
 			SELECT * FROM ama_prompt_data WHERE ama_id = ${amaId}
 		`;
 
@@ -77,11 +84,20 @@ export default defineRoute({
 		});
 
 		try {
-			await getContext().rawDb`
-				UPDATE ama_prompt_data SET prompt_message_id = ${newPromptMessage.id} WHERE ama_id = ${amaId}
+			// Conditional on the prompt_message_id we actually read above — if a concurrent repost already changed
+			// it, this affects zero rows instead of silently overwriting the other request's message.
+			const updateResult = await getContext().rawDb`
+				UPDATE ama_prompt_data
+				SET prompt_message_id = ${newPromptMessage.id}
+				WHERE ama_id = ${amaId} AND prompt_message_id = ${promptData.promptMessageId}
 			`;
+
+			if (updateResult.count === 0) {
+				throw badData('prompt was already reposted concurrently');
+			}
 		} catch (error) {
-			// If we created the prompt message but failed to insert data, delete the message to avoid orphaned prompts.
+			// If we created the prompt message but failed to persist it — including the concurrent-repost case
+			// above — delete it to avoid leaving it orphaned.
 			// eslint-disable-next-line promise/prefer-await-to-then
 			void discordAPIAma.channels.deleteMessage(existingAMA.promptChannelId, newPromptMessage.id).catch(() => null);
 			throw error;

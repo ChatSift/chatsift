@@ -1,4 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
+import type { AmaSessions } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
@@ -6,7 +7,6 @@ import { badData } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
-import type { AMASessionRow } from '../../util/amaTypes.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
 import { snowflakeSchema } from '../../util/schemas.js';
 
@@ -40,7 +40,7 @@ const bodySchema = z.union([withRegularPrompt, withRawPrompt]);
 const paramsSchema = z.object({ guildId: snowflakeSchema });
 
 export type CreateAMABody = z.input<typeof bodySchema>;
-export type CreateAMAResult = AMASessionRow;
+export type CreateAMAResult = AmaSessions;
 
 export default defineRoute({
 	method: 'post',
@@ -65,6 +65,7 @@ export default defineRoute({
 						content: data.prompt.plainText,
 						embeds: [
 							{
+								// TODO: real constant
 								color: 0x7289da, // blurple
 								title: data.title,
 								description: data.prompt.description,
@@ -103,7 +104,7 @@ export default defineRoute({
 
 		try {
 			return await getContext().rawDb.begin(async (sql) => {
-				const [session] = await sql<AMASessionRow[]>`
+				const [session] = await sql<AmaSessions[]>`
 					INSERT INTO ama_sessions (
 						guild_id, title, answers_channel_id, prompt_channel_id,
 						mod_queue_id, flagged_queue_id, guest_queue_id, allowed_question_uploads, ended

@@ -402,6 +402,7 @@ __metadata:
   resolution: "@chatsift/api@workspace:services/api"
   dependencies:
     "@chatsift/backend-core": "workspace:^"
+    "@chatsift/db": "workspace:^"
     "@discordjs/core": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@hapi/boom": "npm:^10.0.1"

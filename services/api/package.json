@@ -17,6 +17,7 @@
 		"tag-docker": "docker image tag chatsift/chatsift-next:latest chatsift/chatsift-next:api"
 	},
 	"devDependencies": {
+		"@chatsift/db": "workspace:^",
 		"@types/bcrypt": "^6.0.0",
 		"@types/busboy": "^1.5.4",
 		"@types/cors": "^2.8.19",
