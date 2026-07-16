@@ -3,6 +3,7 @@ import type { AMASession } from '@chatsift/core';
 import type { Selectable } from 'kysely';
 import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
+import { unwrapMiddlewareHandle } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import type { TRequest } from '../route.js';
 import { Route, RouteMethod } from '../route.js';
@@ -25,9 +26,11 @@ export default class GetAMAs extends Route<AMASessionWithCount[], typeof querySc
 
 	public override readonly queryValidationSchema = querySchema;
 
-	public override readonly middleware = [
-		...isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: true }),
-	];
+	public override readonly middleware = isAuthed({
+		fallthrough: false,
+		isGlobalAdmin: false,
+		isGuildManager: true,
+	}).map(unwrapMiddlewareHandle);
 
 	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
 		const { include_ended } = req.query;

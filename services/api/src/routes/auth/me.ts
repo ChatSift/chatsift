@@ -1,5 +1,6 @@
 import type { NextHandler, Response } from 'polka';
 import type z from 'zod';
+import { unwrapMiddlewareHandle } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import type { Me } from '../../util/me.js';
 import { fetchMe } from '../../util/me.js';
@@ -20,9 +21,11 @@ export default class GetAuthMe extends Route<Me, typeof querySchema> {
 
 	public override readonly queryValidationSchema = querySchema;
 
-	public override readonly middleware = [
-		...isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false }),
-	];
+	public override readonly middleware = isAuthed({
+		fallthrough: false,
+		isGlobalAdmin: false,
+		isGuildManager: false,
+	}).map(unwrapMiddlewareHandle);
 
 	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
 		const { force_fresh } = req.query;

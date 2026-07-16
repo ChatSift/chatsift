@@ -1,5 +1,6 @@
 import { getContext } from '@chatsift/backend-core';
 import type { NextHandler, Response } from 'polka';
+import { unwrapMiddlewareHandle } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { discordAPIOAuth } from '../../util/discordAPI.js';
 import { noopAccessToken, noopRefreshToken } from '../../util/tokens.js';
@@ -12,9 +13,11 @@ export default class PostAuthLogout extends Route<never, never> {
 		path: '/v3/auth/logout',
 	} as const;
 
-	public override readonly middleware = [
-		...isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false }),
-	];
+	public override readonly middleware = isAuthed({
+		fallthrough: false,
+		isGlobalAdmin: false,
+		isGuildManager: false,
+	}).map(unwrapMiddlewareHandle);
 
 	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
 		await discordAPIOAuth.oauth2.revokeToken(

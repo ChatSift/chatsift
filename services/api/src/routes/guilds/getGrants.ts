@@ -2,6 +2,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import type { NextHandler, Response } from 'polka';
+import { unwrapMiddlewareHandle } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { roundRobinAPI } from '../../util/discordAPI.js';
 import type { TRequest } from '../route.js';
@@ -17,9 +18,11 @@ export default class GetGrants extends Route<GetGrantsResult, never> {
 		path: '/v3/guilds/:guildId/grants',
 	} as const;
 
-	public override readonly middleware = [
-		...isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: true }),
-	];
+	public override readonly middleware = isAuthed({
+		fallthrough: false,
+		isGlobalAdmin: false,
+		isGuildManager: true,
+	}).map(unwrapMiddlewareHandle);
 
 	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
 		const { guildId } = req.params as { guildId: string };

@@ -3,6 +3,7 @@ import { DiscordAPIError } from '@discordjs/rest';
 import { badData, notFound } from '@hapi/boom';
 import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
+import { unwrapMiddlewareHandle } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { roundRobinAPI } from '../../util/discordAPI.js';
 import { snowflakeSchema } from '../../util/schemas.js';
@@ -23,9 +24,11 @@ export default class CreateGrant extends Route<never, typeof bodySchema> {
 
 	public override readonly bodyValidationSchema = bodySchema;
 
-	public override readonly middleware = [
-		...isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: true }),
-	];
+	public override readonly middleware = isAuthed({
+		fallthrough: false,
+		isGlobalAdmin: false,
+		isGuildManager: true,
+	}).map(unwrapMiddlewareHandle);
 
 	public override async handle(req: TRequest<typeof bodySchema>, res: Response, next: NextHandler) {
 		const { userId } = req.body;

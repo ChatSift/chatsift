@@ -10,7 +10,7 @@ import {
 	NewAccessTokenHeader,
 } from '@chatsift/backend-core';
 import jwt from 'jsonwebtoken';
-import type { Middleware, Request, Response } from 'polka';
+import type { Request, Response } from 'polka';
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import { clearCache as clearMeCache } from '../../util/me.js';
 import type { AccessTokenData } from '../../util/tokens.js';
@@ -145,7 +145,7 @@ afterEach(() => {
 });
 
 describe('no fallthrough', () => {
-	const [middleware] = isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false }) as [Middleware];
+	const [{ handle: middleware }] = isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false });
 
 	test('no tokens', async () => {
 		const res = new MockedResponse();
@@ -360,7 +360,7 @@ describe('no fallthrough', () => {
 });
 
 describe('falls through', () => {
-	const [middleware] = isAuthed({ fallthrough: true, isGlobalAdmin: false }) as [Middleware];
+	const [{ handle: middleware }] = isAuthed({ fallthrough: true, isGlobalAdmin: false });
 
 	test('it falls through on a basic case', async () => {
 		const res = new MockedResponse();
@@ -392,7 +392,7 @@ describe('falls through', () => {
 
 describe('is global admin', () => {
 	test('it blocks non-admins', async () => {
-		const [isAuth, isAdmin] = isAuthed({ fallthrough: false, isGlobalAdmin: true }) as [Middleware, Middleware];
+		const [{ handle: isAuth }, { handle: isAdmin }] = isAuthed({ fallthrough: false, isGlobalAdmin: true });
 		const res = new MockedResponse();
 		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
 
@@ -414,10 +414,12 @@ describe('is global admin', () => {
 	});
 
 	test("it does not enforce admin, it doesn't block admins", async () => {
-		const [isAuth, isAdmin] = isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false }) as [
-			Middleware,
-			Middleware?,
-		];
+		const result = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: false,
+		});
+		const [{ handle: isAuth }] = result;
 		const res = new MockedResponse();
 		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
 
@@ -431,16 +433,16 @@ describe('is global admin', () => {
 		await isAuth(req, res, next);
 
 		expect(next).toHaveBeenCalledWith();
-		expect(isAdmin).toBe(undefined);
+		expect(result).toHaveLength(1);
 	});
 });
 
 describe('guild level checks', () => {
-	const [isAuth, isGuildManager] = isAuthed({
+	const [{ handle: isAuth }, { handle: isGuildManager }] = isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-	}) as [Middleware, Middleware];
+	});
 	const params = {
 		guildId: '123',
 	};
