@@ -50,18 +50,18 @@ AutoModerator is explicitly **not** part of this stage.
 
 ## Setting up the GitHub side (milestones/labels/issues)
 
-M0 also includes creating GitHub milestones, labels, and seed issues for this roadmap. That's a set of copy-pasteable `gh` commands, not something automated here — see [github-setup.md](../github-setup.md).
+M0 also included creating GitHub milestones, labels, and seed issues for this roadmap. This wasn't automated — commands were handed to the user to run (see Working conventions in [CLAUDE.md](../../CLAUDE.md)), not tracked in a standalone doc. Done: M0–M5 milestones and the `area:*`/`type:*` labels exist; M0's own seed issues (roadmap docs, ADRs, GitHub setup, prod schema discovery) were backfilled and closed after the fact since the work predated issue tracking.
 
 ## Milestone map
 
-| Milestone | Doc | Target (from 2026-07-16, ~7 hrs/wk) |
-|---|---|---|
-| M0 — Scaffolding & discovery | this doc set + GitHub setup | ~2026-07-23 |
-| M1 — Foundation refactor | [02-foundation.md](02-foundation.md) | ~2026-08-20 |
-| M2 — Dashboard-config solid | [03-dashboard-config.md](03-dashboard-config.md) | ~2026-09-17 |
-| M3 — AMA fully running | [04-ama-complete.md](04-ama-complete.md) | ~2026-11-05 |
-| M4 — AMA drain-and-swap (live) | [05-migration-cutover.md](05-migration-cutover.md) | ~2026-11-19 |
-| M5 — ModMail port + migrate | [06-modmail-port.md](06-modmail-port.md) | ~2027-01-mid |
+| Milestone | Doc | Target (from 2026-07-16, ~7 hrs/wk) | Status |
+|---|---|---|---|
+| M0 — Scaffolding & discovery | this doc set + GitHub setup | ~2026-07-23 | Done (2026-07-16) |
+| M1 — Foundation refactor | [02-foundation.md](02-foundation.md) | ~2026-08-20 | Not started |
+| M2 — Dashboard-config solid | [03-dashboard-config.md](03-dashboard-config.md) | ~2026-09-17 | Not started |
+| M3 — AMA fully running | [04-ama-complete.md](04-ama-complete.md) | ~2026-11-05 | Not started |
+| M4 — AMA drain-and-swap (live) | [05-migration-cutover.md](05-migration-cutover.md) | ~2026-11-19 | Not started |
+| M5 — ModMail port + migrate | [06-modmail-port.md](06-modmail-port.md) | ~2027-01-mid | Not started |
 
 Dates are targets, not commitments — capacity is ~5–10 hrs/wk. M2 and M3 can interleave.
 

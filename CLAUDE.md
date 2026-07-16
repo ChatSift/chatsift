@@ -14,7 +14,6 @@ Full doc set:
 - [docs/adr/0002-db-stack.md](docs/adr/0002-db-stack.md) — why the DB stack is being replaced.
 - [docs/roadmap/02-foundation.md](docs/roadmap/02-foundation.md) through [06-modmail-port.md](docs/roadmap/06-modmail-port.md) — per-milestone specs.
 - [docs/workflow.md](docs/workflow.md) — branching, commits, local dev, verification standard.
-- [docs/github-setup.md](docs/github-setup.md) — copy-pasteable `gh` commands for milestones/labels/seed issues (M0). Present these as instructions for the user to run — do not execute GitHub writes directly (see Working conventions below).
 
 ## Quick facts
 
