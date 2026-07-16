@@ -48,3 +48,10 @@ jobs:
           # or https://code.claude.com/docs/en/cli-reference for available options
           # claude_args: '--allowed-tools Bash(gh pr *)'
 
+          # ScheduleWakeup assumes a persistent host that re-invokes the session later.
+          # This action runs the SDK once per job and exits when the turn ends, so a
+          # scheduled wakeup (or a backgrounded Task left waiting on one) never fires,
+          # silently truncating the run. Block it so Claude only waits on tasks inline.
+          claude_args: |
+            --disallowedTools "ScheduleWakeup"
+
