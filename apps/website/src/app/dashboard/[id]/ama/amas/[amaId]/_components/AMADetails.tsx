@@ -101,6 +101,13 @@ export function AMADetails() {
 						<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Created</p>
 						<p className="text-lg text-primary dark:text-primary-dark">{formatDate(new Date(ama.createdAt))}</p>
 					</div>
+
+					<div>
+						<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Allowed Uploads</p>
+						<p className="text-lg text-primary dark:text-primary-dark">
+							{ama.allowedQuestionUploads} {ama.allowedQuestionUploads === 1 ? 'file' : 'files'} per question
+						</p>
+					</div>
 				</div>
 			</div>
 

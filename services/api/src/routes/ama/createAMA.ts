@@ -20,6 +20,7 @@ const base = z.strictObject({
 	title: z.string().min(1).max(255),
 	answersChannelId: snowflakeSchema,
 	promptChannelId: snowflakeSchema,
+	allowedQuestionUploads: z.number().min(0).max(10).default(0),
 });
 
 const withRegularPrompt = base.safeExtend({
@@ -118,6 +119,7 @@ export default class CreateAMA extends Route<CreateAMAResult, typeof bodySchema>
 							modQueueId: data.modQueueId,
 							flaggedQueueId: data.flaggedQueueId,
 							guestQueueId: data.guestQueueId,
+							allowedQuestionUploads: data.allowedQuestionUploads,
 							ended: false,
 							createdAt: new Date(),
 						})

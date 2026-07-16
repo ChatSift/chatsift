@@ -41,16 +41,17 @@ model DashboardGrant {
 // SECTION ama bot
 
 model AMASession {
-  id               Int      @id @default(autoincrement())
-  guildId          String
-  modQueueId       String?
-  flaggedQueueId   String?
-  guestQueueId     String?
-  title            String
-  answersChannelId String
-  promptChannelId  String
-  ended            Boolean  @default(false)
-  createdAt        DateTime @default(now())
+  id                     Int      @id @default(autoincrement())
+  guildId                String
+  modQueueId             String?
+  flaggedQueueId         String?
+  guestQueueId           String?
+  title                  String
+  answersChannelId       String
+  promptChannelId        String
+  allowedQuestionUploads Int      @default(2)
+  ended                  Boolean  @default(false)
+  createdAt              DateTime @default(now())
 
   questions  AMAQuestion[]
   promptData AMAPromptData?
@@ -64,9 +65,25 @@ model AMAPromptData {
   promptJSONData  String
 }
 
+enum AMAQuestionState {
+  PENDING_MOD_REVIEW
+  PENDING_GUEST_REVIEW
+  FLAGGED
+  APPROVED
+  DENIED
+}
+
 model AMAQuestion {
-  id       Int        @id @default(autoincrement())
-  amaId    Int
-  ama      AMASession @relation(fields: [amaId], references: [id], onDelete: Cascade)
-  authorId String
+  id                    Int               @id @default(autoincrement())
+  amaId                 Int
+  ama                   AMASession        @relation(fields: [amaId], references: [id], onDelete: Cascade)
+  authorId              String
+  state                 AMAQuestionState  @default(PENDING_MOD_REVIEW)
+  content               String
+  modQueueMessageId     String?
+  guestQueueMessageId   String?
+  flaggedQueueMessageId String?
+  answersMessageId      String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @default(now()) @updatedAt
 }

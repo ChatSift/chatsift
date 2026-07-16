@@ -384,6 +384,7 @@ __metadata:
   resolution: "@chatsift/ama-bot@workspace:services/ama-bot"
   dependencies:
     "@chatsift/backend-core": "workspace:^"
+    "@discordjs/builders": "npm:^2.0.0-dev.1761177718-886d4a7fc"
     "@discordjs/core": "npm:^3.0.0-dev.1759363313-f510b5ffa"
     "@discordjs/rest": "npm:^3.0.0-dev.1759363313-f510b5ffa"
     "@discordjs/ws": "npm:^3.0.0-dev.1759363313-f510b5ffa"
@@ -770,6 +771,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@discordjs/builders@npm:^2.0.0-dev.1761177718-886d4a7fc":
+  version: 2.0.0-dev.1761177718-886d4a7fc
+  resolution: "@discordjs/builders@npm:2.0.0-dev.1761177718-886d4a7fc"
+  dependencies:
+    "@discordjs/util": "npm:^2.0.0-dev.1761177718-886d4a7fc"
+    discord-api-types: "npm:^0.38.30"
+    ts-mixer: "npm:^6.0.4"
+    tslib: "npm:^2.8.1"
+    zod: "npm:^4.1.12"
+  checksum: 10c0/5aa95cc9f46c39625eedc06663a93ae1f70c626b2845f512cd3f624fbf661d5e56e8365cb48e13005de16c50dabb4e45ca242240c2ccb06ff22ebad62eb924a5
+  languageName: node
+  linkType: hard
+
 "@discordjs/collection@npm:^3.0.0-dev.1761004909-68835b3ff":
   version: 3.0.0-dev.1761004909-68835b3ff
   resolution: "@discordjs/collection@npm:3.0.0-dev.1761004909-68835b3ff"
@@ -813,6 +827,13 @@ __metadata:
   version: 2.0.0-dev.1761004909-68835b3ff
   resolution: "@discordjs/util@npm:2.0.0-dev.1761004909-68835b3ff"
   checksum: 10c0/afa380324fd1573f2168631374763cff2815e466d033c23381ffe2934b1e24219759662842b0f5bfb201464d3e56151b1a9f290e2b142196aac278d2720c92d9
+  languageName: node
+  linkType: hard
+
+"@discordjs/util@npm:^2.0.0-dev.1761177718-886d4a7fc":
+  version: 2.0.0-dev.1761177718-886d4a7fc
+  resolution: "@discordjs/util@npm:2.0.0-dev.1761177718-886d4a7fc"
+  checksum: 10c0/b119b04e1c4047796fbc300d62bcc866d67bd59bbe13324691571bc8987422545ea7a8a50c6072a38dc679941b6bbdcb3f52465277ef56877c2565cc3b2595dd
   languageName: node
   linkType: hard
 
@@ -14824,6 +14845,13 @@ __metadata:
   version: 0.1.13
   resolution: "ts-interface-checker@npm:0.1.13"
   checksum: 10c0/232509f1b84192d07b81d1e9b9677088e590ac1303436da1e92b296e9be8e31ea042e3e1fd3d29b1742ad2c959e95afe30f63117b8f1bc3a3850070a5142fea7
+  languageName: node
+  linkType: hard
+
+"ts-mixer@npm:^6.0.4":
+  version: 6.0.4
+  resolution: "ts-mixer@npm:6.0.4"
+  checksum: 10c0/4c442fc99cdffd4a3f0ce55c624fb703f4ded5cab6912f97705489565c4a74d3e4213f10c33499ec5150900a628d38537a9a6a9e35b5045b65129a84b4db21ae
   languageName: node
   linkType: hard
 

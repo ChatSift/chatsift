@@ -14,6 +14,7 @@ import { client } from '@/data/client';
 import { APIError } from '@/utils/fetcher';
 
 interface FormData {
+	allowedQuestionUploads: string;
 	answersChannelId: string;
 	description: string;
 	flaggedQueueId: string;
@@ -58,6 +59,7 @@ export function CreateAMAForm() {
 		modQueueId: '',
 		flaggedQueueId: '',
 		guestQueueId: '',
+		allowedQuestionUploads: '0',
 		description: '',
 		plainText: '',
 		imageURL: '',
@@ -87,6 +89,11 @@ export function CreateAMAForm() {
 
 		if (!formData.promptChannelId) {
 			newErrors.promptChannelId = 'This field is required';
+		}
+
+		const allowedUploads = Number.parseInt(formData.allowedQuestionUploads, 10);
+		if (Number.isNaN(allowedUploads) || allowedUploads < 0 || allowedUploads > 10) {
+			newErrors.allowedQuestionUploads = 'Must be a number between 0 and 10';
 		}
 
 		// Normal mode validations
@@ -127,6 +134,7 @@ export function CreateAMAForm() {
 				modQueueId: formData.modQueueId || null,
 				flaggedQueueId: formData.flaggedQueueId || null,
 				guestQueueId: formData.guestQueueId || null,
+				allowedQuestionUploads: Number.parseInt(formData.allowedQuestionUploads, 10),
 			};
 
 			const body: CreateAMABody =
@@ -271,6 +279,30 @@ export function CreateAMAForm() {
 					selectedId="guestQueueId"
 					value={formData.guestQueueId}
 				/>
+				<div>
+					<label
+						className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2"
+						htmlFor="allowedQuestionUploads"
+					>
+						Allowed Question Uploads
+					</label>
+					<input
+						className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
+						id="allowedQuestionUploads"
+						max={10}
+						min={0}
+						onChange={(e) => updateFormData('allowedQuestionUploads', e.target.value)}
+						placeholder="0"
+						type="number"
+						value={formData.allowedQuestionUploads}
+					/>
+					{errors.allowedQuestionUploads && (
+						<p className="mt-1 text-sm text-misc-danger">{errors.allowedQuestionUploads}</p>
+					)}
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						Number of file attachments (0-10) users can include with their questions
+					</p>
+				</div>
 			</div>
 
 			{/* Prompt Mode Selection */}

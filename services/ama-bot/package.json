@@ -20,6 +20,7 @@
 	},
 	"dependencies": {
 		"@chatsift/backend-core": "workspace:^",
+		"@discordjs/builders": "^2.0.0-dev.1761177718-886d4a7fc",
 		"@discordjs/core": "^3.0.0-dev.1759363313-f510b5ffa",
 		"@discordjs/rest": "^3.0.0-dev.1759363313-f510b5ffa",
 		"@discordjs/ws": "^3.0.0-dev.1759363313-f510b5ffa",

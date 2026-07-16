@@ -1,3 +1,6 @@
+-- CreateEnum
+CREATE TYPE "AMAQuestionState" AS ENUM ('PENDING_MOD_REVIEW', 'PENDING_GUEST_REVIEW', 'FLAGGED', 'APPROVED', 'DENIED');
+
 -- CreateTable
 CREATE TABLE "Experiment" (
     "name" TEXT NOT NULL,
@@ -38,6 +41,7 @@ CREATE TABLE "AMASession" (
     "title" TEXT NOT NULL,
     "answersChannelId" TEXT NOT NULL,
     "promptChannelId" TEXT NOT NULL,
+    "allowedQuestionUploads" INTEGER NOT NULL DEFAULT 2,
     "ended" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -59,6 +63,14 @@ CREATE TABLE "AMAQuestion" (
     "id" SERIAL NOT NULL,
     "amaId" INTEGER NOT NULL,
     "authorId" TEXT NOT NULL,
+    "state" "AMAQuestionState" NOT NULL DEFAULT 'PENDING_MOD_REVIEW',
+    "content" TEXT NOT NULL,
+    "modQueueMessageId" TEXT,
+    "guestQueueMessageId" TEXT,
+    "flaggedQueueMessageId" TEXT,
+    "answersMessageId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AMAQuestion_pkey" PRIMARY KEY ("id")
 );
