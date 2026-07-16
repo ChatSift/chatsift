@@ -3,6 +3,7 @@ import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { badData, notFound } from '@hapi/boom';
 import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
+import { unwrapMiddlewareHandle } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
 import type { TRequest } from '../route.js';
@@ -18,9 +19,11 @@ export default class RepostPrompt extends Route<never, typeof bodySchema> {
 
 	public override readonly bodyValidationSchema = bodySchema;
 
-	public override readonly middleware = [
-		...isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: true }),
-	];
+	public override readonly middleware = isAuthed({
+		fallthrough: false,
+		isGlobalAdmin: false,
+		isGuildManager: true,
+	}).map(unwrapMiddlewareHandle);
 
 	public override async handle(req: TRequest<typeof bodySchema>, res: Response, next: NextHandler) {
 		const { guildId, amaId } = req.params as { amaId: string; guildId: string };

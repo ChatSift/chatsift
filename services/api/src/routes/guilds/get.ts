@@ -2,6 +2,7 @@ import { BOTS } from '@chatsift/backend-core';
 import { notFound } from '@hapi/boom';
 import type { NextHandler, Response } from 'polka';
 import z from 'zod';
+import { unwrapMiddlewareHandle } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { fetchGuildChannels, type GuildChannelInfo } from '../../util/channels.js';
 import { APIMapping } from '../../util/discordAPI.js';
@@ -28,9 +29,11 @@ export default class GetGuild extends Route<GetGuildResult, typeof querySchema> 
 
 	public override readonly queryValidationSchema = querySchema;
 
-	public override readonly middleware = [
-		...isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: true }),
-	];
+	public override readonly middleware = isAuthed({
+		fallthrough: false,
+		isGlobalAdmin: false,
+		isGuildManager: true,
+	}).map(unwrapMiddlewareHandle);
 
 	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
 		const { guildId } = req.params as { guildId: string };

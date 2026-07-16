@@ -2,6 +2,7 @@ import { URLSearchParams } from 'node:url';
 import { getContext } from '@chatsift/backend-core';
 import type { RESTOAuth2AuthorizationQuery } from '@discordjs/core';
 import type { NextHandler, Response } from 'polka';
+import { unwrapMiddlewareHandle } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { cookieWithDomain } from '../../util/constants.js';
 import { StateCookie } from '../../util/stateCookie.js';
@@ -16,7 +17,9 @@ export default class GetAuthDiscord extends Route<never, never> {
 		path: '/v3/auth/discord',
 	} as const;
 
-	public override readonly middleware = [...isAuthed({ fallthrough: true, isGlobalAdmin: false })];
+	public override readonly middleware = isAuthed({ fallthrough: true, isGlobalAdmin: false }).map(
+		unwrapMiddlewareHandle,
+	);
 
 	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
 		if (req.tokens) {

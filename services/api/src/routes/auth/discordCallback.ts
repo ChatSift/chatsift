@@ -3,6 +3,7 @@ import { badRequest, forbidden } from '@hapi/boom';
 import cookie from 'cookie';
 import type { NextHandler, Response } from 'polka';
 import z from 'zod';
+import { unwrapMiddlewareHandle } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { cookieWithDomain } from '../../util/constants.js';
 import { discordAPIOAuth } from '../../util/discordAPI.js';
@@ -27,7 +28,9 @@ export default class GetAuthDiscordCallback extends Route<never, typeof querySch
 
 	public override readonly queryValidationSchema = querySchema;
 
-	public override readonly middleware = [...isAuthed({ fallthrough: true, isGlobalAdmin: false })];
+	public override readonly middleware = isAuthed({ fallthrough: true, isGlobalAdmin: false }).map(
+		unwrapMiddlewareHandle,
+	);
 
 	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
 		if (req.tokens) {

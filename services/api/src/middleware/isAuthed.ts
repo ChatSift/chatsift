@@ -5,7 +5,8 @@ import type { RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
 import cookie from 'cookie';
 import jwt from 'jsonwebtoken';
-import type { Middleware } from 'polka';
+import { defineMiddleware } from '../core/route.js';
+import type { TypedMiddleware } from '../core/route.js';
 import { discordAPIOAuth } from '../util/discordAPI.js';
 import type { MeGuild } from '../util/me.js';
 import { fetchMe } from '../util/me.js';
@@ -50,11 +51,27 @@ interface IsAuthedNoGlobalAdmin {
 
 type IsAuthedOptions = IsAuthedFallthrough | IsAuthedGlobalAdmin | IsAuthedNoGlobalAdmin;
 
-export function isAuthed(options: IsAuthedOptions): Middleware[] {
+/**
+ * Tokens attached to `req.tokens` once auth succeeds (or, in the fallthrough case, once attempted).
+ */
+export interface AuthedTokens {
+	access: AccessTokenData;
+	refresh: RefreshTokenData;
+}
+
+export function isAuthed(options: IsAuthedFallthrough): [TypedMiddleware<{ tokens?: AuthedTokens }>];
+export function isAuthed(options: IsAuthedGlobalAdmin): [TypedMiddleware<{ tokens: AuthedTokens }>, TypedMiddleware];
+export function isAuthed(
+	options: IsAuthedNoGlobalAdmin & { isGuildManager: true },
+): [TypedMiddleware<{ tokens: AuthedTokens }>, TypedMiddleware<{ guild: MeGuild }>];
+export function isAuthed(
+	options: IsAuthedNoGlobalAdmin & { isGuildManager: false },
+): [TypedMiddleware<{ tokens: AuthedTokens }>];
+export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 	const { fallthrough, isGlobalAdmin } = options;
 
-	const middleware: Middleware[] = [
-		async (req, res, next) => {
+	const middleware: TypedMiddleware<object>[] = [
+		defineMiddleware(async (req, res, next) => {
 			async function refresh(refreshToken: RefreshTokenData): Promise<void> {
 				// To ensure our discord access tokens are always up to date without any complex logic, we refresh it here
 				// if the token doesn't have ~7 minutes left on it (since our access tokens last 5)
@@ -197,57 +214,61 @@ export function isAuthed(options: IsAuthedOptions): Middleware[] {
 				// No access token, try refresh token if we can
 				await refresh(refreshToken);
 			}
-		},
+		}),
 	];
 
 	if (isGlobalAdmin) {
-		middleware.push(async (req, _, next) => {
-			if (!req.tokens) {
-				getContext().logger.warn('isGlobalAdmin invoked without a user. this is a bug');
-			}
+		middleware.push(
+			defineMiddleware(async (req, _, next) => {
+				if (!req.tokens) {
+					getContext().logger.warn('isGlobalAdmin invoked without a user. this is a bug');
+				}
 
-			if (!getContext().env.ADMINS.has(req.tokens?.access?.sub ?? '')) {
-				return next(forbidden('you need to be a global admin to access this resource'));
-			}
+				if (!getContext().env.ADMINS.has(req.tokens?.access?.sub ?? '')) {
+					return next(forbidden('you need to be a global admin to access this resource'));
+				}
 
-			await next();
-		});
+				await next();
+			}),
+		);
 	}
 
 	if (!options.fallthrough && !options.isGlobalAdmin && options.isGuildManager) {
-		middleware.push(async (req, _, next) => {
-			if (!req.tokens) {
-				getContext().logger.warn('isGuildManager invoked without a user. this is a bug');
-				return next(internal());
-			}
+		middleware.push(
+			defineMiddleware(async (req, _, next) => {
+				if (!req.tokens) {
+					getContext().logger.warn('isGuildManager invoked without a user. this is a bug');
+					return next(internal());
+				}
 
-			const guildId = req.params['guildId'];
-			if (!guildId) {
-				getContext().logger.warn('isGuildManager invoked without a guildId param. this is a bug');
-				return next(internal());
-			}
+				const guildId = req.params['guildId'];
+				if (!guildId) {
+					getContext().logger.warn('isGuildManager invoked without a guildId param. this is a bug');
+					return next(internal());
+				}
 
-			const me = await fetchMe(req.tokens.access.discordAccessToken, false);
-			const guild = me.guilds.find((g) => g.id === guildId);
+				const me = await fetchMe(req.tokens.access.discordAccessToken, false);
+				const guild = me.guilds.find((g) => g.id === guildId);
 
-			if (!guild) {
-				return next(forbidden('you need to be a member of this guild to access this resource'));
-			}
+				if (!guild) {
+					return next(forbidden('you need to be a member of this guild to access this resource'));
+				}
 
-			// eslint-disable-next-line require-atomic-updates
-			req.guild = guild;
+				// eslint-disable-next-line require-atomic-updates
+				req.guild = guild;
 
-			if (getContext().env.ADMINS.has(req.tokens.access.sub)) {
-				// Admin bypass
-				return next();
-			}
+				if (getContext().env.ADMINS.has(req.tokens.access.sub)) {
+					// Admin bypass
+					return next();
+				}
 
-			if (!req.tokens.access.grants.adminGuilds.includes(guildId)) {
-				return next(forbidden('you need to be a manager of this guild to access this resource'));
-			}
+				if (!req.tokens.access.grants.adminGuilds.includes(guildId)) {
+					return next(forbidden('you need to be a manager of this guild to access this resource'));
+				}
 
-			await next();
-		});
+				await next();
+			}),
+		);
 	}
 
 	return middleware;
