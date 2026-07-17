@@ -15,7 +15,8 @@ declare global {
 	var __chatsift_token_cache: Map<string, string> | undefined;
 }
 
-const tokenCache: Map<string, string> = globalThis.__chatsift_token_cache ?? (globalThis.__chatsift_token_cache = new Map());
+globalThis.__chatsift_token_cache ??= new Map();
+const tokenCache = globalThis.__chatsift_token_cache;
 
 export function getCachedAccessToken(refreshToken: string): string | null {
 	return tokenCache.get(refreshToken) ?? null;

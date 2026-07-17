@@ -1,12 +1,20 @@
-import type { InferRouteContract, createGrantRoute, deleteGrantRoute, getGrantsRoute, getGuildRoute } from '@chatsift/api';
+import type {
+	GuildChannelInfo,
+	InferRouteContract,
+	createGrantRoute,
+	deleteGrantRoute,
+	getGrantsRoute,
+	getGuildRoute,
+} from '@chatsift/api';
 import type { BotId } from '@chatsift/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
 
+export type { GuildChannelInfo } from '@chatsift/api';
+
 type GetGuildContract = InferRouteContract<typeof getGuildRoute>;
 export type GuildInfo = GetGuildContract['response'];
-export type GuildChannelInfo = GuildInfo['channels'][number];
 
 type GetGrantsContract = InferRouteContract<typeof getGrantsRoute>;
 export type GetGrantsResult = GetGrantsContract['response'];

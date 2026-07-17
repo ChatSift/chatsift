@@ -1,4 +1,4 @@
-import { getContext, NewAccessTokenHeader } from '@chatsift/backend-core';
+import { getContext, NewAccessTokenHeader, RefreshTokenCookie } from '@chatsift/backend-core';
 import type { Snowflake, RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import jwt from 'jsonwebtoken';
 import type { Response } from 'polka';
@@ -76,7 +76,7 @@ export function createRefreshToken(res: Response, oauthData: OAuthData, sub: str
 
 	const refreshToken = jwt.sign(refreshTokenData, getContext().env.ENCRYPTION_KEY, { expiresIn: '30d' });
 	res.cookie(
-		'refresh_token',
+		RefreshTokenCookie,
 		refreshToken,
 		cookieWithDomain({
 			expires: new Date(now + 30 * 24 * 60 * 60 * 1_000),
@@ -92,7 +92,7 @@ export function createRefreshToken(res: Response, oauthData: OAuthData, sub: str
 
 export function noopRefreshToken(res: Response): void {
 	res.cookie(
-		'refresh_token',
+		RefreshTokenCookie,
 		'noop',
 		cookieWithDomain({
 			expires: new Date(1_970),

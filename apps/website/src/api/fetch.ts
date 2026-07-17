@@ -1,11 +1,9 @@
-import { NewAccessTokenHeader } from '@chatsift/core';
+import { NewAccessTokenHeader, RefreshTokenCookie } from '@chatsift/core';
 import type { DehydratedState } from '@tanstack/react-query';
 import { getDefaultStore } from 'jotai';
 import { APIError } from './error';
 import { clearCachedAccessToken, getCachedAccessToken, setCachedAccessToken } from './serverTokenCache';
 import { accessTokenAtom } from './token';
-
-const REFRESH_COOKIE = 'refresh_token';
 
 function getBaseURL(): string {
 	return process.env['NEXT_PUBLIC_API_URL']!;
@@ -89,7 +87,7 @@ async function apiFetchServer<TResponse>(method: string, path: string, options: 
 	const { cookies } = await import('next/headers');
 	const cookieStore = await cookies();
 
-	const refreshToken = cookieStore.get(REFRESH_COOKIE)?.value;
+	const refreshToken = cookieStore.get(RefreshTokenCookie)?.value;
 	const cachedAccessToken = refreshToken ? getCachedAccessToken(refreshToken) : null;
 
 	const cookieHeader = cookieStore

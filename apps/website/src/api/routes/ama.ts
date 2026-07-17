@@ -10,19 +10,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
 
+export type { PossiblyMissingChannelInfo } from '@chatsift/api';
+
 type GetAMAsContract = InferRouteContract<typeof getAMAsRoute>;
 export type AMASessionWithCount = GetAMAsContract['response'][number];
 
 type GetAMAContract = InferRouteContract<typeof getAMARoute>;
 export type AMASessionDetailed = GetAMAContract['response'];
-
-/**
- * Structurally identical to the server's `util/channels.ts#PossiblyMissingChannelInfo` — a channel that used to
- * be configured for an AMA but could no longer be resolved via the Discord API (deleted, bot kicked, etc).
- */
-export interface PossiblyMissingChannelInfo {
-	id: string;
-}
 
 type CreateAMAContract = InferRouteContract<typeof createAMARoute>;
 export type CreateAMABody = CreateAMAContract['body'];

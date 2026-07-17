@@ -22,4 +22,5 @@ export { default as meRoute } from './routes/auth/me.js';
 export { default as createGrantRoute } from './routes/guilds/createGrant.js';
 export { default as deleteGrantRoute } from './routes/guilds/deleteGrant.js';
 export { default as getGuildRoute } from './routes/guilds/get.js';
+export type { GuildChannelInfo, PossiblyMissingChannelInfo } from './routes/guilds/get.js';
 export { default as getGrantsRoute } from './routes/guilds/getGrants.js';
