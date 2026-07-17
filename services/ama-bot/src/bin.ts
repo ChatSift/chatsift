@@ -1,10 +1,9 @@
-import { createDatabase, createLogger, createRawDatabase, createRedis, initContext } from '@chatsift/backend-core';
+import { createDatabase, createLogger, createRedis, initContext } from '@chatsift/backend-core';
 
 const logger = createLogger('ama-bot');
-const db = createDatabase(logger);
-const rawDb = createRawDatabase();
+const db = createDatabase();
 const redis = await createRedis(logger);
-initContext({ db, logger, rawDb, redis });
+initContext({ db, logger, redis });
 
 // Make sure to import anything else AFTER initializing the context
 const { bin } = await import('./index.js');

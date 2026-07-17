@@ -25,16 +25,16 @@ Format: `<type>(<optional scope>): <subject>`. Scope case isn't enforced; exclam
 
 Environment variables are split `.env.public` (checked in, non-secret defaults) / `.env.private` (gitignored, secrets) — see `.env.private.example` for the required shape.
 
-### Database (post-M1)
+### Database
 
-Once [02-foundation.md](roadmap/02-foundation.md) lands, the `db:*` root scripts move from Prisma-flavored (`db:generate`, `db:migrate`, `db:deploy`, `db:studio`, all `dotenv -e .env.private -e .env.public -- prisma ...`) to Atlas/kanel-flavored equivalents:
+Prisma/Kysely are gone as of M1 (#132). The root `db:*` scripts (`dotenv -e .env.private -e .env.public -- yarn workspace @chatsift/db run ...`) wrap `packages/db`'s Atlas/kanel scripts:
 
-- `db:migrate` → `atlas migrate apply` (was `prisma migrate dev`)
-- `db:migrate:down` → `atlas migrate down` (new — didn't meaningfully exist before)
-- `db:gen` → kanel codegen (was `prisma generate`)
-- `db:diff` → `atlas migrate diff` (new — generates a migration from a schema change)
+- `db:migrate` → `atlas migrate apply`
+- `db:migrate:down` → `atlas migrate down`
+- `db:gen` → kanel codegen (writes `packages/db/src/generated/`, committed)
+- `db:diff` → `atlas migrate diff` (generates a migration from a schema change)
 
-Update this section with the exact final script names once M1 lands them.
+`getContext().db` is now the `postgres.js` raw SQL client (`@chatsift/db`) everywhere — no more `rawDb`/legacy-`db` split.
 
 ## Verification standard
 

@@ -103,7 +103,7 @@ export default defineRoute({
 		}
 
 		try {
-			return await getContext().rawDb.begin(async (sql) => {
+			return await getContext().db.begin(async (sql) => {
 				const [session] = await sql<AmaSessions[]>`
 					INSERT INTO ama_sessions (
 						guild_id, title, answers_channel_id, prompt_channel_id,

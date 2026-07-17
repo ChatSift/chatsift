@@ -4,7 +4,6 @@ import { Http2ServerResponse } from 'node:http2';
 import {
 	createDatabase,
 	createLogger,
-	createRawDatabase,
 	createRedis,
 	getContext,
 	initContext,
@@ -43,20 +42,8 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 	return {
 		...actual,
 		getContext: () => ({ ...actual.getContext(), UP_SINCE: Date.now() - 1_000 * 60 * 5 }),
-		createDatabase: () => ({
-			selectFrom: () => ({
-				where: () => ({
-					where: () => ({
-						select: () => ({
-							// TODO: Mock and test at some point
-							executeTakeFirst: vi.fn(async () => undefined),
-						}),
-					}),
-				}),
-			}),
-		}),
-		// No dashboard grant for any guild — matches the old Kysely mock's `executeTakeFirst` returning `undefined`
-		createRawDatabase: () => vi.fn(async () => []),
+		// No dashboard grant for any guild
+		createDatabase: () => vi.fn(async () => []),
 		createRedis: () => ({
 			get: vi.fn(async () => null),
 		}),
@@ -65,10 +52,9 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 
 beforeAll(async () => {
 	const logger = createLogger('api');
-	const db = createDatabase(logger);
-	const rawDb = createRawDatabase();
+	const db = createDatabase();
 	const redis = await createRedis(logger);
-	initContext({ db, logger, rawDb, redis });
+	initContext({ db, logger, redis });
 });
 
 const refreshTokenMock = vi.hoisted(() => vi.fn());

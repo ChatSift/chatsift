@@ -21,9 +21,6 @@ jobs:
       - name: Install dependencies
         uses: ./actions/yarnCache
 
-      - name: Ensure prisma schema is up to date
-        run: yarn prisma generate
-
       - name: Build
         run: yarn build
 

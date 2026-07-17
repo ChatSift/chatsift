@@ -62,6 +62,35 @@ Checklist:
 
 7. Delete `prisma/` and the `prisma-kysely` generator output in `packages/private/core/src/types/entities.ts` once nothing references them.
 
+   Done (#132). The 3 remaining Kysely call sites in `services/ama-bot` (`components/submitQuestion.ts`,
+   `components/modApprove.ts`, `components/modDeny.ts`, plus type-only usage in `lib/queues.ts`) were migrated to
+   raw SQL against `@chatsift/db`'s generated `AmaSessions`/`AmaQuestions`/`AmaPromptData` row types (added
+   `AmaQuestions`/`AmaQuestionState` to the package's exports, matching the existing `AmaSessions`/`AmaPromptData`
+   precedent). With that, `getContext().db` (legacy Kysely) had zero remaining references and was deleted —
+   `getContext().rawDb` (the `postgres.js` client) took over the `db` name across the whole codebase, per this
+   ADR's target shape; the `rawDb` field name is gone. `packages/private/backend-core/src/lib/database.ts` (legacy
+   `createDatabase()`/`Kysely`/`pg`) was replaced by the renamed former `rawDatabase.ts` (function renamed
+   `createRawDatabase` → `createDatabase`); `kysely`/`pg`/`@types/pg` dropped from `backend-core`'s
+   dependencies, `kysely` dropped from `ama-bot`'s devDependencies (replaced with a `@chatsift/db` dependency).
+   `packages/private/core/src/types/entities.ts` and its `export type * from './types/entities.js'` barrel line
+   are deleted; `prisma/` (schema + migrations) is deleted; the root `prisma`/`db:generate`/`db:format`/`db:reset`/
+   `db:deploy`/`db:studio` scripts and the `prisma`/`prisma-kysely` devDependencies are gone (the Atlas/kanel-backed
+   `db:migrate`/`db:migrate:down`/`db:gen`/`db:diff` scripts are unaffected). `packages/private/core`'s `build`
+   script no longer runs `db:generate` first. `turbo.json`'s `globalDependencies` no longer lists
+   `prisma/schema.prisma`; the CI "Ensure prisma schema is up to date" step is removed; `.env.public`'s
+   `PRISMA_DATABASE_URL` is removed (kept `DATABASE_URL`, already the only variable `@chatsift/db` reads). The
+   Dockerfile's `COPY prisma ./prisma` is replaced with `COPY packages/db ...` (both the package.json-only stage
+   for `yarn workspaces focus` and the full-source stage) — the image build had never actually copied
+   `packages/db` despite `backend-core`/`services/api` depending on it at runtime since #128, a latent gap this
+   closes rather than introduces.
+
+   One preserved-not-fixed note: `submitQuestion.ts`'s session lookup joins on
+   `ama_sessions.id = ama_prompt_data.id` (matching the original Kysely query's `AMASession.id = AMAPromptData.id`
+   join), not `ama_prompt_data.ama_id` — this only coincidentally works because every `ama_prompt_data` row is
+   created 1:1 and atomically with its `ama_sessions` row (see `createAMA.ts`'s transaction), so the two
+   autoincrement sequences stay in lockstep. Pre-existing behavior, out of scope for a zero-functional-change
+   migration; worth a follow-up issue if the two tables' insert paths ever diverge.
+
 ## Part B — API core (`services/api/src/core/`)
 
 1. Add `core/route.ts`: `defineRoute` factory + `defineMiddleware<TExtra>()` + the `RouteDefinition<...>` type (method/path/body/query/params/response/middleware generics), per [ADR 0001](../adr/0001-api-contract-pattern.md).

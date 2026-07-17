@@ -53,7 +53,7 @@ export default defineRoute({
 	async handler(req): Promise<AMASessionDetailed> {
 		const { guildId, amaId } = req.params;
 
-		const [session] = await getContext().rawDb<AmaSessions[]>`
+		const [session] = await getContext().db<AmaSessions[]>`
 			SELECT * FROM ama_sessions WHERE guild_id = ${guildId} AND id = ${amaId}
 		`;
 
@@ -61,11 +61,11 @@ export default defineRoute({
 			throw notFound('ama session not found');
 		}
 
-		const [questionCount] = await getContext().rawDb<{ count: string }[]>`
+		const [questionCount] = await getContext().db<{ count: string }[]>`
 			SELECT COUNT(*) AS count FROM ama_questions WHERE ama_id = ${session.id}
 		`;
 
-		const [promptData] = await getContext().rawDb<AmaPromptData[]>`
+		const [promptData] = await getContext().db<AmaPromptData[]>`
 			SELECT * FROM ama_prompt_data WHERE ama_id = ${session.id}
 		`;
 
@@ -102,7 +102,7 @@ export default defineRoute({
 				{ guildId, amaId },
 				`AMA session ${amaId} in guild ${guildId} has missing critical channels`,
 			);
-			await getContext().rawDb`UPDATE ama_sessions SET ended = true WHERE id = ${amaId}`;
+			await getContext().db`UPDATE ama_sessions SET ended = true WHERE id = ${amaId}`;
 		}
 
 		let promptMessageExists = false;

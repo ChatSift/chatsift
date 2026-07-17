@@ -10,6 +10,7 @@ RUN apk add --update \
 COPY turbo.json package.json tsconfig.base.json tsconfig.json tsup.config.ts yarn.lock .yarnrc.yml ./
 COPY .yarn ./.yarn
 
+COPY packages/db/package.json ./packages/db/package.json
 COPY packages/public/discord-utils/package.json ./packages/public/discord-utils/package.json
 COPY packages/public/parse-relative-time/package.json ./packages/public/parse-relative-time/package.json
 COPY packages/public/pino-rotate-file/package.json ./packages/public/pino-rotate-file/package.json
@@ -21,8 +22,7 @@ COPY services/api/package.json ./services/api/package.json
 
 RUN yarn workspaces focus --all
 
-COPY prisma ./prisma
-
+COPY packages/db ./packages/db
 COPY packages/public/discord-utils ./packages/public/discord-utils
 COPY packages/public/parse-relative-time ./packages/public/parse-relative-time
 COPY packages/public/pino-rotate-file ./packages/public/pino-rotate-file

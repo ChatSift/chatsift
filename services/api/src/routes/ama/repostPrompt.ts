@@ -33,7 +33,7 @@ export default defineRoute({
 	async handler(req): Promise<void> {
 		const { guildId, amaId } = req.params;
 
-		const [existingAMA] = await getContext().rawDb<AmaSessions[]>`
+		const [existingAMA] = await getContext().db<AmaSessions[]>`
 			SELECT * FROM ama_sessions WHERE guild_id = ${guildId} AND id = ${amaId}
 		`;
 
@@ -41,7 +41,7 @@ export default defineRoute({
 			throw notFound('ama session not found');
 		}
 
-		const [promptData] = await getContext().rawDb<AmaPromptData[]>`
+		const [promptData] = await getContext().db<AmaPromptData[]>`
 			SELECT * FROM ama_prompt_data WHERE ama_id = ${amaId}
 		`;
 
@@ -86,7 +86,7 @@ export default defineRoute({
 		try {
 			// Conditional on the prompt_message_id we actually read above — if a concurrent repost already changed
 			// it, this affects zero rows instead of silently overwriting the other request's message.
-			const updateResult = await getContext().rawDb`
+			const updateResult = await getContext().db`
 				UPDATE ama_prompt_data
 				SET prompt_message_id = ${newPromptMessage.id}
 				WHERE ama_id = ${amaId} AND prompt_message_id = ${promptData.promptMessageId}

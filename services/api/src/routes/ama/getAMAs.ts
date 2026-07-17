@@ -32,20 +32,20 @@ export default defineRoute({
 		const { include_ended } = req.query;
 		const { guildId } = req.params;
 
-		const rawDb = getContext().rawDb;
-		const sessions = await rawDb<AmaSessions[]>`
+		const db = getContext().db;
+		const sessions = await db<AmaSessions[]>`
 			SELECT * FROM ama_sessions
 			WHERE guild_id = ${guildId}
-			${include_ended ? rawDb`` : rawDb`AND ended = false`}
+			${include_ended ? db`` : db`AND ended = false`}
 			ORDER BY id DESC
 		`;
 
 		const sessionIds = sessions.map((session) => session.id);
 		const questionCounts = sessionIds.length
-			? await rawDb<{ amaId: AmaSessionsId; count: string }[]>`
+			? await db<{ amaId: AmaSessionsId; count: string }[]>`
 					SELECT ama_id, COUNT(*) AS count
 					FROM ama_questions
-					WHERE ama_id IN ${rawDb(sessionIds)}
+					WHERE ama_id IN ${db(sessionIds)}
 					GROUP BY ama_id
 				`
 			: [];

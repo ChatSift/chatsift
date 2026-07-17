@@ -1,25 +1,10 @@
-import type { DB } from '@chatsift/core';
-import { Kysely, PostgresDialect } from 'kysely';
-import { Pool } from 'pg';
-import type { Logger } from 'pino';
+import type { Database } from '@chatsift/db';
+import { createDb } from '@chatsift/db';
+import { ENV } from './env.js';
 
-export function createDatabase(logger: Logger): Kysely<DB> {
-	const pool = new Pool({
-		connectionString: 'postgres://chatsift:admin@postgres:5432/chatsift',
-	});
-
-	const dialect = new PostgresDialect({
-		pool,
-	});
-
-	return new Kysely<DB>({
-		dialect,
-		log: (event) => {
-			if (event.level === 'error') {
-				logger.error({ query: event.query.sql, err: event.error }, 'Query responsible for error');
-			} else if (event.level === 'query') {
-				logger.debug({ query: event.query.sql, duration: event.queryDurationMillis }, 'Executed query');
-			}
-		},
-	});
+/**
+ * Creates the `postgres.js` raw SQL client (see docs/adr/0002-db-stack.md), attached to `getContext()` as `db`.
+ */
+export function createDatabase(): Database {
+	return createDb({ url: ENV.DATABASE_URL });
 }

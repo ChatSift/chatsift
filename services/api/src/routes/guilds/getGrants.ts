@@ -28,7 +28,7 @@ export default defineRoute({
 	async handler(req): Promise<GetGrantsResult> {
 		const { guildId } = req.params;
 
-		const grants = await getContext().rawDb<Pick<DashboardGrants, 'userId'>[]>`
+		const grants = await getContext().db<Pick<DashboardGrants, 'userId'>[]>`
 			SELECT user_id FROM dashboard_grants WHERE guild_id = ${guildId}
 		`;
 

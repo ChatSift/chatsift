@@ -59,7 +59,7 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 	const guilds = await Promise.all(
 		guildsRaw.map<Promise<MeGuild>>(
 			async ({ id, name, icon, owner, permissions, approximate_member_count, approximate_presence_count }) => {
-				const [grant] = await getContext().rawDb<Pick<DashboardGrants, 'id'>[]>`
+				const [grant] = await getContext().db<Pick<DashboardGrants, 'id'>[]>`
 					SELECT id FROM dashboard_grants WHERE guild_id = ${id} AND user_id = ${discordUser.id}
 				`;
 				const hasGrant = Boolean(grant);
