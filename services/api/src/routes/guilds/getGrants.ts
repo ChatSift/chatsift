@@ -1,37 +1,36 @@
 import { getContext } from '@chatsift/backend-core';
+import type { DashboardGrants } from '@chatsift/db';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
-import type { NextHandler, Response } from 'polka';
-import { unwrapMiddlewareHandle } from '../../core/route.js';
+import { z } from 'zod';
+import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { roundRobinAPI } from '../../util/discordAPI.js';
-import type { TRequest } from '../route.js';
-import { Route, RouteMethod } from '../route.js';
+import { snowflakeSchema } from '../../util/schemas.js';
+
+const paramsSchema = z.object({ guildId: snowflakeSchema });
 
 export interface GetGrantsResult {
 	users: (APIUser | Snowflake)[];
 }
 
-export default class GetGrants extends Route<GetGrantsResult, never> {
-	public readonly info = {
-		method: RouteMethod.get,
-		path: '/v3/guilds/:guildId/grants',
-	} as const;
-
-	public override readonly middleware = isAuthed({
+export default defineRoute({
+	method: 'get',
+	path: '/v3/guilds/:guildId/grants',
+	schema: {
+		params: paramsSchema,
+	},
+	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-	}).map(unwrapMiddlewareHandle);
+	}),
+	async handler(req): Promise<GetGrantsResult> {
+		const { guildId } = req.params;
 
-	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
-		const { guildId } = req.params as { guildId: string };
-
-		const grants = await getContext()
-			.db.selectFrom('DashboardGrant')
-			.select('userId')
-			.where('guildId', '=', guildId)
-			.execute();
+		const grants = await getContext().rawDb<Pick<DashboardGrants, 'userId'>[]>`
+			SELECT user_id FROM dashboard_grants WHERE guild_id = ${guildId}
+		`;
 
 		const api = roundRobinAPI(req.guild!);
 		const users = await Promise.all(
@@ -48,12 +47,6 @@ export default class GetGrants extends Route<GetGrantsResult, never> {
 			}),
 		);
 
-		const result: GetGrantsResult = {
-			users,
-		};
-
-		res.statusCode = 200;
-		res.setHeader('Content-Type', 'application/json');
-		return res.end(JSON.stringify(result));
-	}
-}
+		return { users };
+	},
+});

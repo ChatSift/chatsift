@@ -7,6 +7,7 @@ export type Database = postgres.Sql;
 // types here the first time a consumer actually needs them — see docs/roadmap/02-foundation.md Part C.
 export type { default as AmaPromptData, AmaPromptDataId } from './generated/public/AmaPromptData.js';
 export type { default as AmaSessions, AmaSessionsId } from './generated/public/AmaSessions.js';
+export type { default as DashboardGrants, DashboardGrantsId } from './generated/public/DashboardGrants.js';
 
 export interface CreateDbOptions {
 	/**

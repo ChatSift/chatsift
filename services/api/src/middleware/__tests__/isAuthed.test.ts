@@ -55,6 +55,8 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 				}),
 			}),
 		}),
+		// No dashboard grant for any guild — matches the old Kysely mock's `executeTakeFirst` returning `undefined`
+		createRawDatabase: () => vi.fn(async () => []),
 		createRedis: () => ({
 			get: vi.fn(async () => null),
 		}),

@@ -125,10 +125,43 @@ Each route: convert from `Route` subclass → `defineRoute`, and from Kysely →
 
 **Guilds (`services/api/src/routes/guilds/`) — 4 routes:**
 
-- [ ] `get.ts` — `GET /v3/guilds/:guildId`
-- [ ] `createGrant.ts` — `PUT /v3/guilds/:guildId/grants`
-- [ ] `deleteGrant.ts` — `DELETE /v3/guilds/:guildId/grants`
-- [ ] `getGrants.ts` — `GET /v3/guilds/:guildId/grants`
+- [x] `get.ts` — `GET /v3/guilds/:guildId`
+- [x] `createGrant.ts` — `PUT /v3/guilds/:guildId/grants`
+- [x] `deleteGrant.ts` — `DELETE /v3/guilds/:guildId/grants`
+- [x] `getGrants.ts` — `GET /v3/guilds/:guildId/grants`
+
+  Done (#130). All 4 routes now issue raw SQL against `dashboard_grants` via `container.rawDb`
+  (`@chatsift/db`'s `DashboardGrants`/`DashboardGrantsId` types, newly re-exported from the package root). This
+  route group owns the `dashboard_grants` table, so `fetchMe()` (`util/me.ts`) — shared by `isAuthed`'s
+  `isGuildManager` check and `GET /v3/auth/me` — was migrated off legacy Kysely (`getContext().db`) to `rawDb` in
+  the same PR, per the note left in #129's entry above. `createGrant.ts`/`deleteGrant.ts` intentionally still
+  manually set `res.statusCode = 200; res.end()` (matching `logout.ts`'s precedent) rather than returning `void`
+  from the handler, to preserve the pre-migration empty-200-body response exactly instead of `mountRoute`'s
+  default 204-on-`undefined`.
+
+  **This was the last of the 13 routes (Part C), which unblocked Part B step 5**: `routes/route.ts` (the legacy
+  `Route` class), `routes/routes.ts` (the value barrel), and `routes/_types/` (`routeTypes.ts` + the
+  `APIRoutes`-building `index.ts`) are now deleted — leaving them as empty stubs after dropping the guilds
+  entries broke `turbo run build` (`File '...routes.ts' is not a module`), and Part B step 5 already specified
+  deleting them "once all routes are migrated," which is now true. `services/api/src/index.ts`'s route loader no
+  longer branches on `typeof mod.default === 'function'`; every route file is a `defineRoute` object now, so it
+  always calls `mountRoute`. `middleware/validate.ts` (only used by the legacy `Route` class) and its test were
+  also deleted as dead code. `getContext().db` (legacy Kysely) itself is untouched — #132 still owns removing
+  Prisma/Kysely once the 3 Kysely call sites in `services/ama-bot` are also migrated.
+
+  Same coexistence/frontend-breakage notes as #128/#129 apply: `apps/website`'s `data/*` hooks for guilds are
+  unbridged until #131; `turbo run build` on `apps/website` stays red on the pre-existing `AMASessionDetailed`
+  gap from #128, unrelated to this PR. Verified by hand: built `services/api`, applied the Atlas baseline
+  migration to a disposable scratch Postgres (not the docker-compose volume, per Part A step 3's precedent —
+  `dashboard_grants` doesn't exist there yet since it's never had `atlas migrate apply` run against it), and
+  exercised the exact SQL from `createGrant`/`deleteGrant`/`getGrants`/`fetchMe` directly against it: insert,
+  duplicate-check, select, delete, and the `dashboard_grants_guild_id_user_id_key` unique constraint all behaved
+  as expected with `postgres.camel`-transformed results. Separately booted the real `bin()` server (scratch
+  Postgres + the existing dev Redis) and curled all 4 routes with no cookies — all four 401, and validation-before-auth
+  ordering matches the pre-migration `Route`-class behavior. Full interactive Discord login + guild-manager
+  click-through (create/delete a grant from the dashboard) still needs to be exercised manually against a real
+  Discord application before merge — same caveat #129 left, since `apps/website` can't drive it until #131 and
+  `isGuildManager` calls the real Discord API inside `fetchMe`.
 
 ## Part D — frontend `apps/website/src/api/`
 
