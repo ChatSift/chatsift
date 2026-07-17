@@ -1,9 +1,9 @@
 import type { InferRouteContract, logoutRoute, meRoute } from '@chatsift/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getDefaultStore } from 'jotai';
 import { APIError } from '../error';
 import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
+import { store } from '../store';
 import { lastExplicitLogoutAtAtom } from '../token';
 
 type MeContract = InferRouteContract<typeof meRoute>;
@@ -58,7 +58,7 @@ export function useLogout() {
 	return useMutation({
 		mutationFn: async () => apiFetch<LogoutContract['response']>('post', '/v3/auth/logout'),
 		onSuccess() {
-			getDefaultStore().set(lastExplicitLogoutAtAtom, Date.now());
+			store.set(lastExplicitLogoutAtAtom, Date.now());
 
 			// Set directly rather than invalidating: `removeQueries`/`invalidateQueries` only refetch queries
 			// that are *actively observed*, and empirically that refetch doesn't reliably happen synchronously

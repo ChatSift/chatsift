@@ -1,4 +1,5 @@
-import { atom, getDefaultStore } from 'jotai';
+import { atom } from 'jotai';
+import { store } from './store';
 
 export interface ErrorBannerMessage {
 	readonly id: number;
@@ -11,13 +12,13 @@ let nextId = 0;
 
 /**
  * Queues a dismissible global error banner (`ErrorBanner`, mounted in `Providers`). Called from outside React
- * (`queryClient.ts`'s `QueryCache.onError`), hence writing through jotai's default store rather than a hook.
+ * (`queryClient.ts`'s `QueryCache.onError`), hence writing through the shared store rather than a hook.
  */
 export function pushErrorBanner(message: string): void {
 	const id = nextId++;
-	getDefaultStore().set(errorBannerMessagesAtom, (prev) => [...prev, { id, message }]);
+	store.set(errorBannerMessagesAtom, (prev) => [...prev, { id, message }]);
 }
 
 export function dismissErrorBanner(id: number): void {
-	getDefaultStore().set(errorBannerMessagesAtom, (prev) => prev.filter((banner) => banner.id !== id));
+	store.set(errorBannerMessagesAtom, (prev) => prev.filter((banner) => banner.id !== id));
 }

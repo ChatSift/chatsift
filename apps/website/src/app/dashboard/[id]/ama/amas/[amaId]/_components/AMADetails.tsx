@@ -80,7 +80,10 @@ export function AMADetails() {
 	return (
 		<div className="grid gap-6 lg:grid-cols-2">
 			{actionError && (
-				<p className="rounded-lg border border-misc-danger bg-misc-danger/10 p-3 text-sm text-misc-danger lg:col-span-2">
+				<p
+					className="rounded-lg border border-misc-danger bg-misc-danger/10 p-3 text-sm text-misc-danger lg:col-span-2"
+					role="alert"
+				>
 					{actionError}
 				</p>
 			)}

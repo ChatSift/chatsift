@@ -1,9 +1,9 @@
 import { NewAccessTokenHeader, RefreshTokenCookie } from '@chatsift/core';
 import type { DehydratedState } from '@tanstack/react-query';
-import { getDefaultStore } from 'jotai';
-import type { ZodFieldErrorNode } from './error';
+import type { ZodErrorTree } from './error';
 import { APIError } from './error';
 import { clearCachedAccessToken, getCachedAccessToken, setCachedAccessToken } from './serverTokenCache';
+import { store } from './store';
 import { accessTokenAtom } from './token';
 
 function getBaseURL(): string {
@@ -33,12 +33,21 @@ async function parseError(response: Response): Promise<APIError> {
 	try {
 		const data = (await response.json()) as {
 			error: string;
+			// Present (via `sendBoom`'s `treeifyError` spread) only on a zod-validation 400 — all three keys are
+			// only ever present together, spread directly from `treeifyError()`'s root node.
+			errors?: string[];
+			items?: ZodErrorTree[];
 			message: string;
-			// Present (via `sendBoom`'s `treeifyError` spread) only on a zod-validation 400
-			properties?: Record<string, ZodFieldErrorNode>;
+			properties?: Record<string, ZodErrorTree>;
 			statusCode: number;
 		};
-		return new APIError(data.statusCode, data.error, data.message, data.properties);
+
+		const hasValidationErrors = data.errors !== undefined || data.properties !== undefined || data.items !== undefined;
+		const validationErrors: ZodErrorTree | undefined = hasValidationErrors
+			? { errors: data.errors ?? [], properties: data.properties, items: data.items }
+			: undefined;
+
+		return new APIError(data.statusCode, data.error, data.message, validationErrors);
 	} catch (error) {
 		console.error('failed to parse error response', {
 			status: response.status,
@@ -60,7 +69,6 @@ async function parseSuccess<TResponse>(response: Response): Promise<TResponse> {
 }
 
 async function apiFetchClient<TResponse>(method: string, path: string, options: FetchOptions): Promise<TResponse> {
-	const store = getDefaultStore();
 	const accessToken = store.get(accessTokenAtom);
 
 	const headers: Record<string, string> = {

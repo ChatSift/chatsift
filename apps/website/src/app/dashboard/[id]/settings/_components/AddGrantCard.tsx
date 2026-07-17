@@ -36,6 +36,8 @@ export function AddGrantCard({ guildId }: AddGrantCardProps) {
 					setError('Grant already exists for this user');
 				} else if (error.statusCode === 400) {
 					setError(error.fieldError('userId') ?? 'Invalid User ID');
+				} else {
+					setError(error.message || 'Failed to add grant');
 				}
 
 				return;

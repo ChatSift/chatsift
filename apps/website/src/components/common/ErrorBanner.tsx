@@ -42,7 +42,7 @@ export function ErrorBanner() {
 	}
 
 	return (
-		<div className="fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col gap-2">
+		<div className="fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col gap-2" role="status">
 			{banners.map((banner) => (
 				<Banner id={banner.id} key={banner.id} message={banner.message} />
 			))}
