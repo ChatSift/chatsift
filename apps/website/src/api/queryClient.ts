@@ -1,5 +1,4 @@
 import { isServer, QueryCache, QueryClient } from '@tanstack/react-query';
-import { cache } from 'react';
 import { APIError } from './error';
 
 export function makeQueryClient(): QueryClient {
@@ -29,12 +28,6 @@ export function makeQueryClient(): QueryClient {
 		},
 	});
 }
-
-/**
- * For use in React Server Components — scoped to the current render tree via React's request-level `cache()`.
- * One QueryClient per SSR request.
- */
-export const getQueryClient = cache(makeQueryClient);
 
 let _browserQueryClient: QueryClient | undefined;
 
