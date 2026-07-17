@@ -103,10 +103,25 @@ Each route: convert from `Route` subclass → `defineRoute`, and from Kysely →
 
 **Auth (`services/api/src/routes/auth/`) — 4 routes:**
 
-- [ ] `discord.ts` — `GET /v3/auth/discord`
-- [ ] `discordCallback.ts` — `GET /v3/auth/discord/callback`
-- [ ] `logout.ts` — `POST /v3/auth/logout`
-- [ ] `me.ts` — `GET /v3/auth/me`
+- [x] `discord.ts` — `GET /v3/auth/discord`
+- [x] `discordCallback.ts` — `GET /v3/auth/discord/callback`
+- [x] `logout.ts` — `POST /v3/auth/logout`
+- [x] `me.ts` — `GET /v3/auth/me`
+
+  Done (#129). None of the 4 auth routes issue their own DB queries — `discord.ts`/`logout.ts` are pure
+  cookie/redirect/Discord-REST handlers, and `discordCallback.ts`/`me.ts` only reach the DB transitively through
+  the shared `fetchMe()` helper (`util/me.ts`), which still queries `DashboardGrant` via legacy Kysely
+  (`getContext().db`). `fetchMe` is shared infrastructure also used by `isAuthed`'s `isGuildManager` check and by
+  the already-migrated AMA routes (#128) — same precedent as #128, which didn't touch it either. It stays on
+  Kysely until the guilds routes (#130, which own the `DashboardGrant` table) migrate it, or #132's cleanup.
+  Same coexistence/frontend-breakage notes as #128 apply: `discord.ts`/`discordCallback.ts`/`logout.ts`/`me.ts`
+  dropped out of `routes.ts`/`_types/routeTypes.ts`; `apps/website`'s `data/*` hooks for auth are unbridged until
+  #131. Verified by hand: built `services/api`, ran it against local Postgres/Redis, and curled all 4 routes —
+  `GET /v3/auth/discord` (no cookies) 302s to the correct Discord OAuth URL with `state` cookie set;
+  `GET /v3/auth/me` and `POST /v3/auth/logout` (no cookies) both 401; `GET /v3/auth/discord/callback` 400s on
+  missing query and on state mismatch — all byte-for-byte matching the pre-migration `Route`-class behavior. Full
+  interactive Discord login (browser click-through) still needs to be exercised manually against a real Discord
+  application before merge.
 
 **Guilds (`services/api/src/routes/guilds/`) — 4 routes:**
 

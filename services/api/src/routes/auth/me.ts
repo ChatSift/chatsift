@@ -1,39 +1,27 @@
-import type { NextHandler, Response } from 'polka';
-import type z from 'zod';
-import { unwrapMiddlewareHandle } from '../../core/route.js';
+import type { z } from 'zod';
+import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import type { Me } from '../../util/me.js';
 import { fetchMe } from '../../util/me.js';
 import { queryWithFreshSchema } from '../../util/schemas.js';
-import type { TRequest } from '../route.js';
-import { Route, RouteMethod } from '../route.js';
 
 export type { Me, MeGuild } from '../../util/me.js';
 
 const querySchema = queryWithFreshSchema;
 export type GetAuthMeQuery = z.input<typeof querySchema>;
 
-export default class GetAuthMe extends Route<Me, typeof querySchema> {
-	public readonly info = {
-		method: RouteMethod.get,
-		path: '/v3/auth/me',
-	} as const;
-
-	public override readonly queryValidationSchema = querySchema;
-
-	public override readonly middleware = isAuthed({
+export default defineRoute({
+	method: 'get',
+	path: '/v3/auth/me',
+	schema: {
+		query: querySchema,
+	},
+	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: false,
-	}).map(unwrapMiddlewareHandle);
-
-	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
-		const { force_fresh } = req.query;
-
-		const result: Me = await fetchMe(req.tokens!.access.discordAccessToken, force_fresh);
-
-		res.statusCode = 200;
-		res.setHeader('Content-Type', 'application/json');
-		return res.end(JSON.stringify(result));
-	}
-}
+	}),
+	async handler(req): Promise<Me> {
+		return fetchMe(req.tokens!.access.discordAccessToken, req.query.force_fresh);
+	},
+});
