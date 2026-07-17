@@ -5,10 +5,9 @@ import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { snowflakeSchema } from '../../util/schemas.js';
+import { updateAMABodySchema } from './schemas.js';
 
-const bodySchema = z.strictObject({
-	ended: z.literal(true),
-});
+const bodySchema = updateAMABodySchema;
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
 	amaId: z.coerce
@@ -36,8 +35,9 @@ export default defineRoute({
 	async handler(req): Promise<UpdateAMAResult> {
 		const data = req.body;
 		const { guildId, amaId } = req.params;
+		const db = getContext().db;
 
-		const [existingAMA] = await getContext().db<AmaSessions[]>`
+		const [existingAMA] = await db<AmaSessions[]>`
 			SELECT * FROM ama_sessions WHERE guild_id = ${guildId} AND id = ${amaId}
 		`;
 
@@ -49,9 +49,21 @@ export default defineRoute({
 			throw badData('AMA session is already ended');
 		}
 
-		const [updated] = await getContext().db<AmaSessions[]>`
+		if ('ended' in data) {
+			const [updated] = await db<AmaSessions[]>`
+				UPDATE ama_sessions
+				SET ended = ${data.ended}
+				WHERE id = ${amaId} AND guild_id = ${guildId}
+				RETURNING *
+			`;
+
+			return updated!;
+		}
+
+		const columns = Object.keys(data) as (keyof typeof data)[];
+		const [updated] = await db<AmaSessions[]>`
 			UPDATE ama_sessions
-			SET ended = ${data.ended}
+			SET ${db(data, ...columns)}
 			WHERE id = ${amaId} AND guild_id = ${guildId}
 			RETURNING *
 		`;

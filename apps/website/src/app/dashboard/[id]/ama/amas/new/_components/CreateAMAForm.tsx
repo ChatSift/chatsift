@@ -1,10 +1,12 @@
 'use client';
 
+import { createAMAWithRawPromptSchema, createAMAWithRegularPromptSchema } from '@chatsift/api/ama-schemas';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { NormalPromptFields } from './NormalPromptFields';
 import { PromptModeToggle } from './PromptModeToggle';
+import { PromptPreview } from './PromptPreview';
 import { RawPromptField } from './RawPromptField';
 import { APIError } from '@/api/error';
 import type { CreateAMABody } from '@/api/routes/ama';
@@ -31,18 +33,55 @@ interface FormData {
 
 type FormErrors = Partial<Record<keyof FormData, string>>;
 
-function validateURL(value: string): string | undefined {
-	if (!value) return undefined;
+const TOP_LEVEL_FIELDS = [
+	'title',
+	'answersChannelId',
+	'promptChannelId',
+	'modQueueId',
+	'flaggedQueueId',
+	'guestQueueId',
+	'allowedQuestionUploads',
+] as const satisfies (keyof FormData)[];
 
-	try {
-		new URL(value);
-		return undefined;
-	} catch {
-		return 'Must be a valid URL';
+const PROMPT_FIELD_MAP: Record<string, keyof FormData> = {
+	description: 'description',
+	plainText: 'plainText',
+	imageURL: 'imageURL',
+	thumbnailURL: 'thumbnailURL',
+};
+
+/**
+ * Maps a failed `safeParse`'s issues back onto `FormData` keys so validation errors render exactly like the
+ * per-field UI already expects, regardless of whether they came from this client-side parse or (via
+ * `APIError.fieldError`) from the server re-validating the exact same schema.
+ */
+function mapIssuesToFormErrors(issues: readonly { message: string; path: PropertyKey[] }[]): FormErrors {
+	const errors: FormErrors = {};
+
+	for (const issue of issues) {
+		const [first, second] = issue.path;
+
+		if (typeof first === 'string' && (TOP_LEVEL_FIELDS as readonly string[]).includes(first)) {
+			errors[first as keyof FormData] ??= issue.message;
+		} else if (first === 'prompt' && typeof second === 'string' && second in PROMPT_FIELD_MAP) {
+			errors[PROMPT_FIELD_MAP[second]!] ??= issue.message;
+		} else if (first === 'prompt_raw') {
+			errors.promptRaw ??= issue.message;
+		}
 	}
+
+	return errors;
 }
 
 const allowedChannelTypes = [ChannelType.GuildText, ...threadTypes];
+
+const CHANNEL_FIELDS = [
+	{ key: 'answersChannelId', label: 'Answers Channel' },
+	{ key: 'promptChannelId', label: 'Prompt Channel' },
+	{ key: 'modQueueId', label: 'Mod Queue' },
+	{ key: 'flaggedQueueId', label: 'Flagged Queue' },
+	{ key: 'guestQueueId', label: 'Guest Queue' },
+] as const satisfies { key: keyof FormData; label: string }[];
 
 export function CreateAMAForm() {
 	const router = useRouter();
@@ -75,82 +114,86 @@ export function CreateAMAForm() {
 		setErrors((prev) => ({ ...prev, [field]: undefined }));
 	};
 
-	const validateForm = (): boolean => {
-		const newErrors: FormErrors = {};
+	// Non-blocking: picking the same channel for two different purposes is legal (the API doesn't reject it) but
+	// is easy to do by accident with five near-identical selects, so we flag it instead of silently accepting it.
+	const duplicateChannelWarning = useMemo(() => {
+		const seen = new Map<string, string>();
+		for (const { key, label } of CHANNEL_FIELDS) {
+			const value = formData[key];
+			if (!value) continue;
 
-		if (!formData.title.trim()) {
-			newErrors.title = 'This field is required';
-		} else if (formData.title.length > 255) {
-			newErrors.title = 'Title must be at most 255 characters';
-		}
-
-		if (!formData.answersChannelId) {
-			newErrors.answersChannelId = 'This field is required';
-		}
-
-		if (!formData.promptChannelId) {
-			newErrors.promptChannelId = 'This field is required';
-		}
-
-		const allowedUploads = Number.parseInt(formData.allowedQuestionUploads, 10);
-		if (Number.isNaN(allowedUploads) || allowedUploads < 0 || allowedUploads > 10) {
-			newErrors.allowedQuestionUploads = 'Must be a number between 0 and 10';
-		}
-
-		// Normal mode validations
-		if (promptMode === 'normal') {
-			if (formData.description && formData.description.length > 4_000) {
-				newErrors.description = 'Description must be at most 4000 characters';
+			const clashLabel = seen.get(value);
+			if (clashLabel) {
+				return `${clashLabel} and ${label} are set to the same channel.`;
 			}
 
-			if (formData.plainText && formData.plainText.length > 100) {
-				newErrors.plainText = 'Plain text must be at most 100 characters';
-			}
-
-			const imageURLError = validateURL(formData.imageURL);
-			if (imageURLError) newErrors.imageURL = imageURLError;
-
-			const thumbnailURLError = validateURL(formData.thumbnailURL);
-			if (thumbnailURLError) newErrors.thumbnailURL = thumbnailURLError;
+			seen.set(value, label);
 		}
 
-		setErrors(newErrors);
-		return Object.keys(newErrors).length === 0;
+		return null;
+	}, [formData]);
+
+	const buildBody = (): { data: Record<string, unknown> } => {
+		const base: Record<string, unknown> = {
+			title: formData.title,
+			answersChannelId: formData.answersChannelId,
+			promptChannelId: formData.promptChannelId,
+			modQueueId: formData.modQueueId || null,
+			flaggedQueueId: formData.flaggedQueueId || null,
+			guestQueueId: formData.guestQueueId || null,
+			allowedQuestionUploads: Number.parseInt(formData.allowedQuestionUploads, 10),
+		};
+
+		// Only called after `validateForm` has already confirmed `formData.promptRaw` is valid JSON (or empty).
+		if (promptMode === 'raw') {
+			return { data: { ...base, prompt_raw: formData.promptRaw ? JSON.parse(formData.promptRaw) : {} } };
+		}
+
+		return {
+			data: {
+				...base,
+				prompt: {
+					description: formData.description || undefined,
+					plainText: formData.plainText || undefined,
+					imageURL: formData.imageURL || undefined,
+					thumbnailURL: formData.thumbnailURL || undefined,
+				},
+			},
+		};
+	};
+
+	const validateForm = (): CreateAMABody | undefined => {
+		if (promptMode === 'raw' && formData.promptRaw && !isValidJSON(formData.promptRaw)) {
+			setErrors({ promptRaw: 'Must be valid JSON' });
+			setGeneralError(null);
+			return undefined;
+		}
+
+		const { data } = buildBody();
+		const schema = promptMode === 'raw' ? createAMAWithRawPromptSchema : createAMAWithRegularPromptSchema;
+		const result = schema.safeParse(data);
+
+		if (!result.success) {
+			setErrors(mapIssuesToFormErrors(result.error.issues));
+			setGeneralError(null);
+			return undefined;
+		}
+
+		setErrors({});
+		return result.data as CreateAMABody;
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		if (!validateForm()) {
+		const body = validateForm();
+		if (!body) {
 			return;
 		}
 
 		setGeneralError(null);
 
 		try {
-			const bodyBase: Omit<CreateAMABody, 'prompt_raw' | 'prompt'> = {
-				title: formData.title,
-				answersChannelId: formData.answersChannelId,
-				promptChannelId: formData.promptChannelId,
-				modQueueId: formData.modQueueId || null,
-				flaggedQueueId: formData.flaggedQueueId || null,
-				guestQueueId: formData.guestQueueId || null,
-				allowedQuestionUploads: Number.parseInt(formData.allowedQuestionUploads, 10),
-			};
-
-			const body: CreateAMABody =
-				promptMode === 'raw'
-					? { ...bodyBase, prompt_raw: JSON.parse(formData.promptRaw) }
-					: {
-							...bodyBase,
-							prompt: {
-								description: formData.description || undefined,
-								plainText: formData.plainText || undefined,
-								imageURL: formData.imageURL || undefined,
-								thumbnailURL: formData.thumbnailURL || undefined,
-							},
-						};
-
 			await createAMA.mutateAsync(body);
 			router.replace(`/dashboard/${guildId}/ama/amas`);
 		} catch (error) {
@@ -162,8 +205,8 @@ export function CreateAMAForm() {
 			}
 
 			// A 400 here means the server's zod schema rejected the request even though our own client-side
-			// `validateForm` passed — map whatever field-level detail it returned back onto the same `errors` state
-			// `validateForm` uses, so it renders exactly like a client-side validation failure.
+			// validation (the exact same schema) passed — shouldn't normally happen, but map it the same way as a
+			// defense-in-depth fallback (e.g. a schema version skew between client and server bundles).
 			if (error instanceof APIError && error.statusCode === 400) {
 				const promptField = promptMode === 'raw' ? 'prompt_raw' : 'prompt';
 				const candidates: [keyof FormData, string | undefined][] = [
@@ -251,6 +294,13 @@ export function CreateAMAForm() {
 					/>
 					{errors.title && <p className="mt-1 text-sm text-misc-danger">{errors.title}</p>}
 				</div>
+
+				{duplicateChannelWarning && (
+					<p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
+						{duplicateChannelWarning}
+					</p>
+				)}
+
 				<ChannelSelect
 					allowedTypes={allowedChannelTypes}
 					channels={guildInfo!.channels}
@@ -335,35 +385,53 @@ export function CreateAMAForm() {
 
 				<PromptModeToggle mode={promptMode} onModeChange={setPromptMode} />
 
-				{promptMode === 'normal' && (
-					<NormalPromptFields
-						description={formData.description}
-						errors={errors}
-						imageURL={formData.imageURL}
-						onDescriptionChange={(value) => updateFormData('description', value)}
-						onImageURLChange={(value) => updateFormData('imageURL', value)}
-						onPlainTextChange={(value) => updateFormData('plainText', value)}
-						onThumbnailURLChange={(value) => updateFormData('thumbnailURL', value)}
-						plainText={formData.plainText}
-						thumbnailURL={formData.thumbnailURL}
-					/>
-				)}
+				<div className="grid gap-6 lg:grid-cols-2">
+					<div>
+						{promptMode === 'normal' && (
+							<NormalPromptFields
+								description={formData.description}
+								errors={errors}
+								imageURL={formData.imageURL}
+								onDescriptionChange={(value) => updateFormData('description', value)}
+								onImageURLChange={(value) => updateFormData('imageURL', value)}
+								onPlainTextChange={(value) => updateFormData('plainText', value)}
+								onThumbnailURLChange={(value) => updateFormData('thumbnailURL', value)}
+								plainText={formData.plainText}
+								thumbnailURL={formData.thumbnailURL}
+							/>
+						)}
 
-				{promptMode === 'raw' && (
-					<RawPromptField
-						onFormatClick={() => {
-							try {
-								const parsed = JSON.parse(formData.promptRaw);
-								updateFormData('promptRaw', JSON.stringify(parsed, null, 2));
-							} catch {
-								// Invalid JSON, ignore
-							}
-						}}
-						onPaste={handlePaste}
-						onValueChange={(value) => updateFormData('promptRaw', value)}
-						value={formData.promptRaw}
-					/>
-				)}
+						{promptMode === 'raw' && (
+							<RawPromptField
+								error={errors.promptRaw}
+								onFormatClick={() => {
+									try {
+										const parsed = JSON.parse(formData.promptRaw);
+										updateFormData('promptRaw', JSON.stringify(parsed, null, 2));
+									} catch {
+										// Invalid JSON, ignore
+									}
+								}}
+								onPaste={handlePaste}
+								onValueChange={(value) => updateFormData('promptRaw', value)}
+								value={formData.promptRaw}
+							/>
+						)}
+					</div>
+
+					{promptMode === 'normal' ? (
+						<PromptPreview
+							description={formData.description}
+							imageURL={formData.imageURL}
+							mode="normal"
+							plainText={formData.plainText}
+							thumbnailURL={formData.thumbnailURL}
+							title={formData.title}
+						/>
+					) : (
+						<PromptPreview mode="raw" raw={formData.promptRaw} />
+					)}
+				</div>
 			</div>
 
 			<div className="flex gap-4">
@@ -384,4 +452,13 @@ export function CreateAMAForm() {
 			</div>
 		</form>
 	);
+}
+
+function isValidJSON(value: string): boolean {
+	try {
+		JSON.parse(value);
+		return true;
+	} catch {
+		return false;
+	}
 }

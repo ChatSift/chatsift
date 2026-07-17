@@ -12,6 +12,7 @@
 		"lint:fix": "eslint src --fix"
 	},
 	"dependencies": {
+		"@chatsift/api": "workspace:^",
 		"@chatsift/core": "workspace:^",
 		"@chatsift/discord-utils": "workspace:^",
 		"@radix-ui/react-avatar": "^1.2.2",
@@ -32,10 +33,10 @@
 		"react-dom": "^18.3.1",
 		"react-icons": "^5.7.0",
 		"tailwind-merge": "^3.6.0",
-		"usehooks-ts": "^3.1.1"
+		"usehooks-ts": "^3.1.1",
+		"zod": "^4.4.3"
 	},
 	"devDependencies": {
-		"@chatsift/api": "workspace:^",
 		"@tailwindcss/typography": "^0.5.20",
 		"@types/luxon": "^3.7.2",
 		"@types/node": "^24.9.1",
