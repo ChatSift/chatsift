@@ -14,12 +14,12 @@
 	},
 	"devDependencies": {
 		"@types/node": "^24.9.1",
-		"kysely": "^0.28.8",
 		"typescript": "~5.9.3",
 		"vitest": "^3.2.7"
 	},
 	"dependencies": {
 		"@chatsift/backend-core": "workspace:^",
+		"@chatsift/db": "workspace:^",
 		"@discordjs/builders": "2.0.0-dev.1783513686-6e81ea771",
 		"@discordjs/core": "3.0.0-dev.1783513686-6e81ea771",
 		"@discordjs/rest": "3.0.0-dev.1783513686-6e81ea771",

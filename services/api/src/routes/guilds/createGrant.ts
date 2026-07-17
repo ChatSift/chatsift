@@ -41,7 +41,7 @@ export default defineRoute({
 			throw error;
 		}
 
-		const [grant] = await getContext().rawDb<Pick<DashboardGrants, 'id'>[]>`
+		const [grant] = await getContext().db<Pick<DashboardGrants, 'id'>[]>`
 			INSERT INTO dashboard_grants (guild_id, user_id, created_by_id)
 			VALUES (${guildId}, ${userId}, ${req.tokens!.access.sub})
 			ON CONFLICT (guild_id, user_id) DO NOTHING

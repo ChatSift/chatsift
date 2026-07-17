@@ -1,12 +1,11 @@
-import type { AMASession } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
 	APIModalSubmitInteraction,
 	APIMessageComponentInteraction,
 	APIModalSubmitGuildInteraction,
 } from '@discordjs/core';
 import { TextInputStyle, ComponentType, MessageFlags } from '@discordjs/core';
-import type { Selectable } from 'kysely';
 import { nanoid } from 'nanoid';
 import { client } from '../lib/client.js';
 import { collectModal } from '../lib/collector.js';
@@ -20,12 +19,15 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 	public readonly stateStore = null;
 
 	public async handle(interaction: APIMessageComponentInteraction) {
-		const ama = await getContext()
-			.db.selectFrom('AMASession')
-			.selectAll('AMASession')
-			.innerJoin('AMAPromptData', 'AMASession.id', 'AMAPromptData.id')
-			.where('AMAPromptData.promptMessageId', '=', interaction.message.id)
-			.executeTakeFirstOrThrow();
+		const [ama] = await getContext().db<AmaSessions[]>`
+			SELECT s.* FROM ama_sessions s
+			INNER JOIN ama_prompt_data p ON s.id = p.id
+			WHERE p.prompt_message_id = ${interaction.message.id}
+		`;
+
+		if (!ama) {
+			throw new Error(`No AMA session found for prompt message ${interaction.message.id}`);
+		}
 
 		if (ama.ended) {
 			await client.api.interactions.reply(interaction.id, interaction.token, {
@@ -78,7 +80,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		await this.handleModalCollected(modalInteraction as APIModalSubmitGuildInteraction, ama);
 	}
 
-	private async handleModalCollected(interaction: APIModalSubmitGuildInteraction, ama: Selectable<AMASession>) {
+	private async handleModalCollected(interaction: APIModalSubmitGuildInteraction, ama: AmaSessions) {
 		await client.api.interactions.defer(interaction.id, interaction.token, { flags: MessageFlags.Ephemeral });
 
 		const options = new ModalInteractionOptionResolver(interaction);
@@ -87,16 +89,16 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		const attachments = options.getAttachments('file-upload');
 
 		// Create the question in the database
-		const question = await getContext()
-			.db.insertInto('AMAQuestion')
-			.values({
-				amaId: ama.id,
-				authorId: interaction.member.user.id,
-				content: questionText,
-				state: ama.modQueueId ? 'PENDING_MOD_REVIEW' : ama.guestQueueId ? 'PENDING_GUEST_REVIEW' : 'APPROVED',
-			})
-			.returningAll()
-			.executeTakeFirstOrThrow();
+		const state = ama.modQueueId ? 'PENDING_MOD_REVIEW' : ama.guestQueueId ? 'PENDING_GUEST_REVIEW' : 'APPROVED';
+		const [question] = await getContext().db<AmaQuestions[]>`
+			INSERT INTO ama_questions (ama_id, author_id, content, state)
+			VALUES (${ama.id}, ${interaction.member.user.id}, ${questionText}, ${state})
+			RETURNING *
+		`;
+
+		if (!question) {
+			throw new Error(`Failed to insert question for AMA session ${ama.id}`);
+		}
 
 		// Determine where to post the question based on the AMA configuration
 		const postOptions = {
@@ -112,22 +114,18 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 			// Post to mod queue if configured, otherwise go straight to guest queue or answers channel
 			if (ama.modQueueId) {
 				const msg = await postToModQueue(postOptions);
-				await getContext()
-					.db.updateTable('AMAQuestion')
-					.set({ modQueueMessageId: msg.id })
-					.where('id', '=', question.id)
-					.execute();
+				await getContext().db`
+					UPDATE ama_questions SET mod_queue_message_id = ${msg.id} WHERE id = ${question.id}
+				`;
 				getContext().logger.info(
 					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.mod },
 					'Question submitted to mod queue',
 				);
 			} else if (ama.guestQueueId) {
 				const msg = await postToGuestQueue(postOptions);
-				await getContext()
-					.db.updateTable('AMAQuestion')
-					.set({ guestQueueMessageId: msg.id })
-					.where('id', '=', question.id)
-					.execute();
+				await getContext().db`
+					UPDATE ama_questions SET guest_queue_message_id = ${msg.id} WHERE id = ${question.id}
+				`;
 				getContext().logger.info(
 					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.guest },
 					'Question submitted to guest queue',
@@ -135,11 +133,9 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 			} else {
 				// No queues configured, post directly to answers channel
 				const msg = await postToAnswersChannel(postOptions);
-				await getContext()
-					.db.updateTable('AMAQuestion')
-					.set({ answersMessageId: msg.id, state: 'APPROVED' })
-					.where('id', '=', question.id)
-					.execute();
+				await getContext().db`
+					UPDATE ama_questions SET answers_message_id = ${msg.id}, state = 'APPROVED' WHERE id = ${question.id}
+				`;
 				getContext().logger.info(
 					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.answers },
 					'Question posted directly to answers channel',

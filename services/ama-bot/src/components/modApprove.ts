@@ -1,4 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
+import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ComponentType, MessageFlags } from '@discordjs/core';
 import { client } from '../lib/client.js';
@@ -14,11 +15,9 @@ export default class ModApproveComponent implements ComponentHandler {
 		const questionId = Number.parseInt(questionIdStr, 10);
 
 		// Fetch the question and AMA session
-		const question = await getContext()
-			.db.selectFrom('AMAQuestion')
-			.selectAll('AMAQuestion')
-			.where('id', '=', questionId)
-			.executeTakeFirst();
+		const [question] = await getContext().db<AmaQuestions[]>`
+			SELECT * FROM ama_questions WHERE id = ${questionId}
+		`;
 
 		if (!question) {
 			await client.api.interactions.reply(interaction.id, interaction.token, {
@@ -28,11 +27,13 @@ export default class ModApproveComponent implements ComponentHandler {
 			return;
 		}
 
-		const session = await getContext()
-			.db.selectFrom('AMASession')
-			.selectAll()
-			.where('id', '=', question.amaId)
-			.executeTakeFirstOrThrow();
+		const [session] = await getContext().db<AmaSessions[]>`
+			SELECT * FROM ama_sessions WHERE id = ${question.amaId}
+		`;
+
+		if (!session) {
+			throw new Error(`No AMA session found for id ${question.amaId}`);
+		}
 
 		if (session.ended) {
 			await client.api.interactions.reply(interaction.id, interaction.token, {

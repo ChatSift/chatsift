@@ -9,7 +9,7 @@
 	},
 	"types": "./dist/index.d.ts",
 	"scripts": {
-		"build": "yarn run db:generate && tsc",
+		"build": "tsc",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"lint": "eslint src",

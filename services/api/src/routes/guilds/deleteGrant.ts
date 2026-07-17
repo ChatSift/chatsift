@@ -29,7 +29,7 @@ export default defineRoute({
 		const { userId } = req.body;
 		const { guildId } = req.params;
 
-		const [deleted] = await getContext().rawDb<Pick<DashboardGrants, 'id'>[]>`
+		const [deleted] = await getContext().db<Pick<DashboardGrants, 'id'>[]>`
 			DELETE FROM dashboard_grants WHERE guild_id = ${guildId} AND user_id = ${userId}
 			RETURNING id
 		`;

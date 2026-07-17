@@ -3,9 +3,11 @@ import postgres from 'postgres';
 export type Database = postgres.Sql;
 
 // Generated row types (kanel — see docs/adr/0002-db-stack.md), re-exported from the package root so consumers can
-// annotate `rawDb<Row[]>` queries against the real schema instead of hand-duplicating row shapes. Add a table's
-// types here the first time a consumer actually needs them — see docs/roadmap/02-foundation.md Part C.
+// annotate `getContext().db<Row[]>` queries against the real schema instead of hand-duplicating row shapes. Add a
+// table's types here the first time a consumer actually needs them — see docs/roadmap/02-foundation.md Part C.
 export type { default as AmaPromptData, AmaPromptDataId } from './generated/public/AmaPromptData.js';
+export type { default as AmaQuestions, AmaQuestionsId } from './generated/public/AmaQuestions.js';
+export type { default as AmaQuestionState } from './generated/public/AmaQuestionState.js';
 export type { default as AmaSessions, AmaSessionsId } from './generated/public/AmaSessions.js';
 export type { default as DashboardGrants, DashboardGrantsId } from './generated/public/DashboardGrants.js';
 

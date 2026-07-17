@@ -29,8 +29,8 @@ So: **AutoModerator lives on, unchanged, on `v2`.** **AMA and ModMail live in th
 
 Two concrete problems motivated this rebirth push, both explained in depth in the ADRs:
 
-1. The current `main` branch's **API contract pattern** between `services/api` and `apps/website` looks type-safe but isn't — see [ADR 0001](../adr/0001-api-contract-pattern.md).
-2. The current `main` branch's **database layer** (Prisma + Kysely) works but isn't the preferred raw-SQL style and has no first-class down migrations — see [ADR 0002](../adr/0002-db-stack.md).
+1. `main`'s **API contract pattern** between `services/api` and `apps/website` looked type-safe but wasn't — see [ADR 0001](../adr/0001-api-contract-pattern.md). Fixed as of M1.
+2. `main`'s **database layer** (Prisma + Kysely) worked but wasn't the preferred raw-SQL style and had no first-class down migrations — see [ADR 0002](../adr/0002-db-stack.md). Fixed as of M1: Prisma/Kysely are gone, replaced by `postgres.js` + Atlas + kanel (`packages/db`).
 
 Both are being fixed via **refactor, not rewrite** — the underlying stack (polka, zod, TanStack Query, Next.js App Router) stays. See [01-architecture.md](01-architecture.md) for the full before/after picture.
 
@@ -57,7 +57,7 @@ M0 also included creating GitHub milestones, labels, and seed issues for this ro
 | Milestone                      | Doc                                                | Target (from 2026-07-16, ~7 hrs/wk) | Status            |
 | ------------------------------ | -------------------------------------------------- | ----------------------------------- | ----------------- |
 | M0 — Scaffolding & discovery   | this doc set + GitHub setup                        | ~2026-07-23                         | Done (2026-07-16) |
-| M1 — Foundation refactor       | [02-foundation.md](02-foundation.md)               | ~2026-08-20                         | Not started       |
+| M1 — Foundation refactor       | [02-foundation.md](02-foundation.md)               | ~2026-08-20                         | Code complete (2026-07-17); pending interactive Discord OAuth click-through verification and closing #132 |
 | M2 — Dashboard-config solid    | [03-dashboard-config.md](03-dashboard-config.md)   | ~2026-09-17                         | Not started       |
 | M3 — AMA fully running         | [04-ama-complete.md](04-ama-complete.md)           | ~2026-11-05                         | Not started       |
 | M4 — AMA drain-and-swap (live) | [05-migration-cutover.md](05-migration-cutover.md) | ~2026-11-19                         | Not started       |

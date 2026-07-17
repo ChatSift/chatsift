@@ -40,7 +40,6 @@
 		".prettierrc.json",
 		"tsconfig.json",
 		"tsconfig.*.json",
-		"vitest.config.ts",
-		"prisma/schema.prisma"
+		"vitest.config.ts"
 	]
 }

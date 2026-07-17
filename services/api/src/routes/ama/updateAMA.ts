@@ -37,7 +37,7 @@ export default defineRoute({
 		const data = req.body;
 		const { guildId, amaId } = req.params;
 
-		const [existingAMA] = await getContext().rawDb<AmaSessions[]>`
+		const [existingAMA] = await getContext().db<AmaSessions[]>`
 			SELECT * FROM ama_sessions WHERE guild_id = ${guildId} AND id = ${amaId}
 		`;
 
@@ -49,7 +49,7 @@ export default defineRoute({
 			throw badData('AMA session is already ended');
 		}
 
-		const [updated] = await getContext().rawDb<AmaSessions[]>`
+		const [updated] = await getContext().db<AmaSessions[]>`
 			UPDATE ama_sessions
 			SET ended = ${data.ended}
 			WHERE id = ${amaId} AND guild_id = ${guildId}

@@ -1,5 +1,5 @@
-import type { AMAQuestion, AMASession } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import { ContainerBuilder, MediaGalleryItemBuilder } from '@discordjs/builders';
 import type {
 	APIActionRowComponent,
@@ -10,7 +10,6 @@ import type {
 	RESTPostAPIChannelMessageJSONBody,
 } from '@discordjs/core';
 import { MessageFlags, ButtonStyle, CDNRoutes, ComponentType, ImageFormat, RouteBases } from '@discordjs/core';
-import type { Selectable } from 'kysely';
 import { client } from './client.js';
 
 /**
@@ -30,7 +29,7 @@ interface GetNextQueueResult {
 /**
  * Determines the next queue in the AMA workflow
  */
-export function getNextQueue(currently: CurrentlyInQueue, session: Selectable<AMASession>): GetNextQueueResult | null {
+export function getNextQueue(currently: CurrentlyInQueue, session: AmaSessions): GetNextQueueResult | null {
 	switch (currently) {
 		case CurrentlyInQueue.answers: {
 			return null;
@@ -118,8 +117,8 @@ interface PostToModQueueOptions {
 	attachments: APIAttachment[];
 	content: string;
 	member?: APIGuildMember | undefined;
-	question: Selectable<AMAQuestion>;
-	session: Selectable<AMASession>;
+	question: AmaQuestions;
+	session: AmaSessions;
 	user?: APIUser | undefined;
 }
 
@@ -183,8 +182,8 @@ interface PostToGuestQueueOptions {
 	attachments: APIAttachment[];
 	content: string;
 	member?: APIGuildMember | undefined;
-	question: Selectable<AMAQuestion>;
-	session: Selectable<AMASession>;
+	question: AmaQuestions;
+	session: AmaSessions;
 	user?: APIUser | undefined;
 }
 
@@ -244,8 +243,8 @@ interface PostToFlaggedQueueOptions {
 	attachments: APIAttachment[];
 	content: string;
 	member?: APIGuildMember | undefined;
-	question: Selectable<AMAQuestion>;
-	session: Selectable<AMASession>;
+	question: AmaQuestions;
+	session: AmaSessions;
 	user?: APIUser | undefined;
 }
 
@@ -305,8 +304,8 @@ interface PostToAnswersChannelOptions {
 	attachments: APIAttachment[];
 	content: string;
 	member?: APIGuildMember | undefined;
-	question: Selectable<AMAQuestion>;
-	session: Selectable<AMASession>;
+	question: AmaQuestions;
+	session: AmaSessions;
 	user?: APIUser | undefined;
 }
 
