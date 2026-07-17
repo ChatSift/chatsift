@@ -1,6 +1,7 @@
 import { NewAccessTokenHeader, RefreshTokenCookie } from '@chatsift/core';
 import type { DehydratedState } from '@tanstack/react-query';
 import { getDefaultStore } from 'jotai';
+import type { ZodFieldErrorNode } from './error';
 import { APIError } from './error';
 import { clearCachedAccessToken, getCachedAccessToken, setCachedAccessToken } from './serverTokenCache';
 import { accessTokenAtom } from './token';
@@ -30,8 +31,14 @@ function buildURL(path: string, query?: FetchOptions['query']): string {
 
 async function parseError(response: Response): Promise<APIError> {
 	try {
-		const data = (await response.json()) as { error: string; message: string; statusCode: number };
-		return new APIError(data.statusCode, data.error, data.message);
+		const data = (await response.json()) as {
+			error: string;
+			message: string;
+			// Present (via `sendBoom`'s `treeifyError` spread) only on a zod-validation 400
+			properties?: Record<string, ZodFieldErrorNode>;
+			statusCode: number;
+		};
+		return new APIError(data.statusCode, data.error, data.message, data.properties);
 	} catch (error) {
 		console.error('failed to parse error response', {
 			status: response.status,

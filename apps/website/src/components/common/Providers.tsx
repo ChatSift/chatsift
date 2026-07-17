@@ -6,6 +6,7 @@ import { Provider as JotaiProvider } from 'jotai';
 import { ThemeProvider } from 'next-themes';
 import type { PropsWithChildren } from 'react';
 import { getBrowserQueryClient } from '@/api/queryClient';
+import { ErrorBanner } from '@/components/common/ErrorBanner';
 
 export function Providers({ children }: PropsWithChildren) {
 	const queryClient = getBrowserQueryClient();
@@ -14,6 +15,7 @@ export function Providers({ children }: PropsWithChildren) {
 		<QueryClientProvider client={queryClient}>
 			<JotaiProvider>
 				<ThemeProvider attribute="class">{children}</ThemeProvider>
+				<ErrorBanner />
 			</JotaiProvider>
 			<ReactQueryDevtools buttonPosition="bottom-right" initialIsOpen={false} />
 		</QueryClientProvider>

@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { APIError } from '@/api/error';
 import type { PossiblyMissingChannelInfo } from '@/api/routes/ama';
 import { useAMA, useRepostPrompt, useUpdateAMA } from '@/api/routes/ama';
 import type { GuildChannelInfo } from '@/api/routes/guilds';
@@ -24,6 +25,7 @@ export function AMADetails() {
 	const params = useParams<{ amaId: string; id: string }>();
 	const router = useRouter();
 	const [showEndConfirm, setShowEndConfirm] = useState(false);
+	const [actionError, setActionError] = useState<string | null>(null);
 
 	const { data: ama, isLoading } = useAMA(params.id, params.amaId);
 	const updateAMA = useUpdateAMA(params.id, params.amaId);
@@ -51,10 +53,13 @@ export function AMADetails() {
 			return;
 		}
 
+		setActionError(null);
+
 		try {
 			await updateAMA.mutateAsync({ ended: true });
 			router.push(`/dashboard/${params.id}/ama/amas`);
 		} catch (error) {
+			setActionError(error instanceof APIError ? error.message : 'Failed to end AMA. Please try again.');
 			console.error('Failed to end AMA:', error);
 		} finally {
 			setShowEndConfirm(false);
@@ -62,15 +67,24 @@ export function AMADetails() {
 	};
 
 	const handleRepostPrompt = async () => {
+		setActionError(null);
+
 		try {
 			await repostPrompt.mutateAsync();
 		} catch (error) {
+			setActionError(error instanceof APIError ? error.message : 'Failed to repost the prompt. Please try again.');
 			console.error('Failed to repost prompt:', error);
 		}
 	};
 
 	return (
 		<div className="grid gap-6 lg:grid-cols-2">
+			{actionError && (
+				<p className="rounded-lg border border-misc-danger bg-misc-danger/10 p-3 text-sm text-misc-danger lg:col-span-2">
+					{actionError}
+				</p>
+			)}
+
 			{/* Session Information Card */}
 			<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
 				<h2 className="text-xl font-medium text-primary dark:text-primary-dark mb-4">Session Information</h2>
