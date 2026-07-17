@@ -8,7 +8,6 @@ import { FaWrench } from 'react-icons/fa';
 import { DashboardCrumbs } from '../_components/DashboardCrumbs';
 import { useMe } from '@/api/routes/auth';
 import { Heading } from '@/components/common/Heading';
-import { Skeleton } from '@/components/common/Skeleton';
 import { Bots } from '@/utils/bots';
 import { cn } from '@/utils/util';
 
@@ -50,14 +49,11 @@ function SectionCard({ linksExternally, className: providedClassName, href, icon
 
 export default function GuildPage() {
 	const params = useParams<{ id: string }>();
-	const { data: me, isLoading } = useMe();
+	const { data: me } = useMe();
 
+	// The parent layout's `NavGateCheck` already 404s out guilds the user can't access before this ever renders,
+	// except for global admins viewing a guild they aren't personally a member of (not in `me.guilds` at all).
 	const guild = me?.guilds.find((g) => g.id === params.id);
-
-	if (isLoading) {
-		return <Skeleton className="w-full h-[50vh]" />;
-	}
-
 	if (!guild) {
 		return notFound();
 	}

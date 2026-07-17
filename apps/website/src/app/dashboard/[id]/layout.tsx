@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { GuildNav } from './_components/GuildNav';
 import { me } from '@/api/routes/auth';
 import { NavGateCheck } from '@/components/common/NavGate';
 
@@ -21,5 +22,12 @@ export async function generateMetadata({ params }: LayoutProps<'/dashboard/[id]'
 }
 
 export default async function GuildLayout({ children }: LayoutProps<'/dashboard/[id]'>) {
-	return <NavGateCheck checkForGuildAccess>{children}</NavGateCheck>;
+	return (
+		<NavGateCheck checkForGuildAccess>
+			<div className="space-y-6">
+				<GuildNav />
+				{children}
+			</div>
+		</NavGateCheck>
+	);
 }
