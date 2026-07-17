@@ -1,10 +1,13 @@
 import type { InferRouteContract, logoutRoute, meRoute } from '@chatsift/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { APIError } from '../error';
+import { pushErrorBanner } from '../errorBanner';
 import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
 import { store } from '../store';
 import { lastExplicitLogoutAtAtom } from '../token';
+
+export const refreshMeMutationKey = ['auth', 'refreshMe'] as const;
 
 type MeContract = InferRouteContract<typeof meRoute>;
 export type MeResponse = MeContract['response'];
@@ -45,9 +48,13 @@ export function useRefreshMe() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
+		mutationKey: refreshMeMutationKey,
 		mutationFn: async () => me.queryFn(true),
 		onSuccess(data) {
 			queryClient.setQueryData(me.queryKey(), data);
+		},
+		onError(error) {
+			pushErrorBanner(error instanceof APIError ? error.message : 'Failed to refresh servers. Please try again.');
 		},
 	});
 }
