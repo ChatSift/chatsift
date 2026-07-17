@@ -155,9 +155,18 @@ export async function prefetch(
 	const { dehydrate, QueryClient } = await import('@tanstack/react-query');
 	const queryClient = new QueryClient();
 
-	const calls = prefetchFns.map(async ({ queryFn, queryKey }) =>
-		queryClient.fetchQuery({ queryKey: queryKey(), queryFn }),
-	);
+	const calls = prefetchFns.map(async ({ queryFn, queryKey }) => {
+		try {
+			await queryClient.fetchQuery({ queryKey: queryKey(), queryFn });
+		} catch (error) {
+			// A failed prefetch must never take the page down with it — this runs in server components, often in
+			// a root/shared layout, so an unhandled rejection here would 500 every route under it, not just the
+			// one that wanted this data. `dehydrate` below only ever includes queries in a `success` state by
+			// default, so simply swallowing the rejection here is enough: this query is left out of the dehydrated
+			// state, and the client transparently falls back to fetching (and error-handling) it itself on mount.
+			console.error('prefetch failed', { queryKey: queryKey(), error });
+		}
+	});
 	await Promise.all(calls);
 
 	return dehydrate(queryClient);
