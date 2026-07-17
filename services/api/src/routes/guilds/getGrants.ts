@@ -39,16 +39,27 @@ export default defineRoute({
 		`;
 
 		const api = roundRobinAPI(req.guild!);
+		const resolveCache = new Map<Snowflake, Promise<APIUser | Snowflake>>();
 		const resolveUser = async (userId: Snowflake): Promise<APIUser | Snowflake> => {
-			try {
-				return await api.users.get(userId);
-			} catch (error) {
-				if (error instanceof DiscordAPIError && error.status === 404) {
-					return userId;
-				}
-
-				throw error;
+			const cached = resolveCache.get(userId);
+			if (cached) {
+				return cached;
 			}
+
+			const promise = (async () => {
+				try {
+					return await api.users.get(userId);
+				} catch (error) {
+					if (error instanceof DiscordAPIError && error.status === 404) {
+						return userId;
+					}
+
+					throw error;
+				}
+			})();
+
+			resolveCache.set(userId, promise);
+			return promise;
 		};
 
 		const grants = await Promise.all(

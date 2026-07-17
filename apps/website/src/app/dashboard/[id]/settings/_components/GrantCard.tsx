@@ -42,7 +42,11 @@ export function GrantCard({ guildId, grant }: GrantCardProps) {
 	return (
 		<div className="flex w-full flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<div className="flex items-center gap-3">
-				<UserAvatar className="h-12 w-12 rounded-full" isLoading={false} user={isUserObject ? user : undefined} />
+				{isUserObject ? (
+					<UserAvatar className="h-12 w-12 rounded-full" isLoading={false} user={user} />
+				) : (
+					<div className="h-12 w-12 shrink-0 rounded-full bg-on-tertiary dark:bg-on-tertiary-dark" />
+				)}
 				<div className="flex flex-col overflow-hidden">
 					{globalName && (
 						<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
