@@ -10,8 +10,14 @@ import { snowflakeSchema } from '../../util/schemas.js';
 
 const paramsSchema = z.object({ guildId: snowflakeSchema });
 
+export interface Grant {
+	createdAt: Date;
+	createdBy: APIUser | Snowflake;
+	user: APIUser | Snowflake;
+}
+
 export interface GetGrantsResult {
-	users: (APIUser | Snowflake)[];
+	grants: Grant[];
 }
 
 export default defineRoute({
@@ -28,25 +34,30 @@ export default defineRoute({
 	async handler(req): Promise<GetGrantsResult> {
 		const { guildId } = req.params;
 
-		const grants = await getContext().db<Pick<DashboardGrants, 'userId'>[]>`
-			SELECT user_id FROM dashboard_grants WHERE guild_id = ${guildId}
+		const rows = await getContext().db<Pick<DashboardGrants, 'createdAt' | 'createdById' | 'userId'>[]>`
+			SELECT user_id, created_by_id, created_at FROM dashboard_grants WHERE guild_id = ${guildId}
 		`;
 
 		const api = roundRobinAPI(req.guild!);
-		const users = await Promise.all(
-			grants.map(async ({ userId }) => {
-				try {
-					return await api.users.get(userId);
-				} catch (error) {
-					if (error instanceof DiscordAPIError && error.status === 404) {
-						return userId;
-					}
-
-					throw error;
+		const resolveUser = async (userId: Snowflake): Promise<APIUser | Snowflake> => {
+			try {
+				return await api.users.get(userId);
+			} catch (error) {
+				if (error instanceof DiscordAPIError && error.status === 404) {
+					return userId;
 				}
+
+				throw error;
+			}
+		};
+
+		const grants = await Promise.all(
+			rows.map(async ({ userId, createdById, createdAt }) => {
+				const [user, createdBy] = await Promise.all([resolveUser(userId), resolveUser(createdById)]);
+				return { user, createdBy, createdAt };
 			}),
 		);
 
-		return { users };
+		return { grants };
 	},
 });

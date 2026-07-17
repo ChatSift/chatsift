@@ -36,6 +36,7 @@ CREATE TABLE dashboard_grants (
   guild_id       TEXT NOT NULL,
   user_id        TEXT NOT NULL,
   created_by_id  TEXT NOT NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
 
   CONSTRAINT dashboard_grants_guild_id_user_id_key UNIQUE (guild_id, user_id)
 );

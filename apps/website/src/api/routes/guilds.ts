@@ -18,6 +18,7 @@ export type GuildInfo = GetGuildContract['response'];
 
 type GetGrantsContract = InferRouteContract<typeof getGrantsRoute>;
 export type GetGrantsResult = GetGrantsContract['response'];
+export type Grant = GetGrantsResult['grants'][number];
 
 type CreateGrantContract = InferRouteContract<typeof createGrantRoute>;
 export type CreateGrantBody = CreateGrantContract['body'];
