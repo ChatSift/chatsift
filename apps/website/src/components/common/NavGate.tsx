@@ -7,6 +7,7 @@ import { createContext, useContext, useEffect, useMemo } from 'react';
 import { Skeleton } from './Skeleton';
 import { useMe } from '@/api/routes/auth';
 import { lastExplicitLogoutAtAtom } from '@/api/token';
+import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { URLS } from '@/utils/urls';
 
 /**
@@ -33,7 +34,7 @@ export function useNavGate() {
 }
 
 export function NavGateProvider({ children }: PropsWithChildren) {
-	const { isLoading, data: user } = useMe();
+	const { isLoading, data: user, error } = useMe();
 	const router = useRouter();
 
 	useEffect(() => {
@@ -54,6 +55,14 @@ export function NavGateProvider({ children }: PropsWithChildren) {
 		}),
 		[isLoading, user],
 	);
+
+	// Must come before the loading/unauthenticated check below: on a non-401 error (network issue, 500, ...)
+	// `data` is `undefined`, not `null`, so `user === null` is false and `isLoading` is also false by the time
+	// the query settles into its error state — falling through to render `children` with no user data at all,
+	// which crashes downstream (NavGateCheck's `user!.foo`, DashboardCrumbs' `me?.guilds` access, etc.).
+	if (error) {
+		return <UserErrorHandler error={error} />;
+	}
 
 	if (isLoading || user === null) {
 		return <Skeleton className="w-full h-[50vh]" />;

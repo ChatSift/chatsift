@@ -39,7 +39,7 @@ const envSchema = z.object({
 	DATABASE_URL: z.url(),
 
 	// Redis
-	REDIS_URL: z.url(),
+	REDIS_URL: z.url({ protocol: /^rediss?$/ }),
 
 	// AMA
 	AMA_BOT_TOKEN: z.string(),
