@@ -23,9 +23,10 @@ export function GrantsList() {
 	return (
 		<>
 			<AddGrantCard guildId={guildId} />
-			{data!.users.map((user, index) => (
-				<GrantCard guildId={guildId} isLoading={isLoading} key={index} user={user} />
-			))}
+			{data!.grants.map((grant) => {
+				const userId = typeof grant.user === 'string' ? grant.user : grant.user.id;
+				return <GrantCard grant={grant} guildId={guildId} key={userId} />;
+			})}
 		</>
 	);
 }

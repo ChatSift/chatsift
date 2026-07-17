@@ -13,6 +13,8 @@ export default interface DashboardGrants {
   userId: string;
 
   createdById: string;
+
+  createdAt: Date;
 }
 
 /** Represents the initializer for the table public.dashboard_grants */
@@ -24,6 +26,8 @@ export interface DashboardGrantsInitializer {
   userId: string;
 
   createdById: string;
+
+  createdAt?: Date;
 }
 
 /** Represents the mutator for the table public.dashboard_grants */
@@ -35,4 +39,6 @@ export interface DashboardGrantsMutator {
   userId?: string;
 
   createdById?: string;
+
+  createdAt?: Date;
 }
