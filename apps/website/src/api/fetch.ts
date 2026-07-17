@@ -1,7 +1,7 @@
 import { NewAccessTokenHeader, RefreshTokenCookie } from '@chatsift/core';
 import type { DehydratedState } from '@tanstack/react-query';
 import type { ZodErrorTree } from './error';
-import { APIError } from './error';
+import { APIError, toZodErrorTree } from './error';
 import { clearCachedAccessToken, getCachedAccessToken, setCachedAccessToken } from './serverTokenCache';
 import { store } from './store';
 import { accessTokenAtom } from './token';
@@ -36,16 +36,14 @@ async function parseError(response: Response): Promise<APIError> {
 			// Present (via `sendBoom`'s `treeifyError` spread) only on a zod-validation 400 — all three keys are
 			// only ever present together, spread directly from `treeifyError()`'s root node.
 			errors?: string[];
-			items?: ZodErrorTree[];
+			items?: (ZodErrorTree | null)[];
 			message: string;
 			properties?: Record<string, ZodErrorTree>;
 			statusCode: number;
 		};
 
 		const hasValidationErrors = data.errors !== undefined || data.properties !== undefined || data.items !== undefined;
-		const validationErrors: ZodErrorTree | undefined = hasValidationErrors
-			? { errors: data.errors ?? [], properties: data.properties, items: data.items }
-			: undefined;
+		const validationErrors = hasValidationErrors ? toZodErrorTree(data) : undefined;
 
 		return new APIError(data.statusCode, data.error, data.message, validationErrors);
 	} catch (error) {
