@@ -51,8 +51,8 @@ export default function GuildPage() {
 	const params = useParams<{ id: string }>();
 	const { data: me } = useMe();
 
-	// The parent layout's `NavGateCheck` already 404s out guilds the user can't access before this ever renders,
-	// except for global admins viewing a guild they aren't personally a member of (not in `me.guilds` at all).
+	// The parent layout's `NavGateCheck` already 404s out guilds the user isn't a member of/can't manage before this
+	// ever renders, so this is just a type-narrowing guard, not a reachable case.
 	const guild = me?.guilds.find((g) => g.id === params.id);
 	if (!guild) {
 		return notFound();
