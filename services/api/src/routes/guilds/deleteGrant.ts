@@ -29,17 +29,14 @@ export default defineRoute({
 		const { userId } = req.body;
 		const { guildId } = req.params;
 
-		const [existingGrant] = await getContext().rawDb<Pick<DashboardGrants, 'id'>[]>`
-			SELECT id FROM dashboard_grants WHERE guild_id = ${guildId} AND user_id = ${userId}
+		const [deleted] = await getContext().rawDb<Pick<DashboardGrants, 'id'>[]>`
+			DELETE FROM dashboard_grants WHERE guild_id = ${guildId} AND user_id = ${userId}
+			RETURNING id
 		`;
 
-		if (!existingGrant) {
+		if (!deleted) {
 			throw notFound('grant not found for this user');
 		}
-
-		await getContext().rawDb`
-			DELETE FROM dashboard_grants WHERE guild_id = ${guildId} AND user_id = ${userId}
-		`;
 
 		res.statusCode = 200;
 		res.end();

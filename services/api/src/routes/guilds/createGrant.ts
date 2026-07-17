@@ -31,14 +31,6 @@ export default defineRoute({
 		const { userId } = req.body;
 		const { guildId } = req.params;
 
-		const [existingGrant] = await getContext().rawDb<Pick<DashboardGrants, 'id'>[]>`
-			SELECT id FROM dashboard_grants WHERE guild_id = ${guildId} AND user_id = ${userId}
-		`;
-
-		if (existingGrant) {
-			throw badData('grant already exists for this user');
-		}
-
 		try {
 			await roundRobinAPI(req.guild!).users.get(userId);
 		} catch (error) {
@@ -49,10 +41,16 @@ export default defineRoute({
 			throw error;
 		}
 
-		await getContext().rawDb`
+		const [grant] = await getContext().rawDb<Pick<DashboardGrants, 'id'>[]>`
 			INSERT INTO dashboard_grants (guild_id, user_id, created_by_id)
 			VALUES (${guildId}, ${userId}, ${req.tokens!.access.sub})
+			ON CONFLICT (guild_id, user_id) DO NOTHING
+			RETURNING id
 		`;
+
+		if (!grant) {
+			throw badData('grant already exists for this user');
+		}
 
 		res.statusCode = 200;
 		res.end();
