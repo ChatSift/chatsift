@@ -1,11 +1,20 @@
 'use client';
 
+import { getDefaultStore } from 'jotai';
 import { useParams, useRouter } from 'next/navigation';
 import type { PropsWithChildren } from 'react';
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { Skeleton } from './Skeleton';
 import { useMe } from '@/api/routes/auth';
+import { lastExplicitLogoutAtAtom } from '@/api/token';
 import { URLS } from '@/utils/urls';
+
+/**
+ * How long after an explicit `useLogout()` call to trust that `LogoutButton` is already handling navigation,
+ * rather than treating `user: null` as a session that expired while browsing and redirecting to Discord OAuth
+ * ourselves. Generous relative to how fast a client-side navigation actually completes.
+ */
+const RECENT_LOGOUT_WINDOW_MS = 3_000;
 
 interface NavGateContextValue {
 	readonly isAuthenticated: boolean;
@@ -29,6 +38,11 @@ export function NavGateProvider({ children }: PropsWithChildren) {
 
 	useEffect(() => {
 		if (!isLoading && user === null) {
+			const lastExplicitLogoutAt = getDefaultStore().get(lastExplicitLogoutAtAtom);
+			if (Date.now() - lastExplicitLogoutAt < RECENT_LOGOUT_WINDOW_MS) {
+				return;
+			}
+
 			router.push(URLS.API.LOGIN);
 		}
 	}, [isLoading, user, router]);
