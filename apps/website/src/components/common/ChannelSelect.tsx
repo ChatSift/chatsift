@@ -1,12 +1,12 @@
 'use client';
 
-import type { GuildChannelInfo } from '@chatsift/api';
 import { sortChannels } from '@chatsift/discord-utils';
 import { ChannelType } from 'discord-api-types/v10';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SvgChevronDown } from '../icons/SvgChevronDown';
 import { Button } from './Button';
 import { ScrollArea } from './ScrollArea';
+import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { getChannelIcon } from '@/utils/channels';
 import { cn } from '@/utils/util';
 

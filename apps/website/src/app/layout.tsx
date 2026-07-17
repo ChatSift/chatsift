@@ -1,11 +1,12 @@
 import { HydrationBoundary } from '@tanstack/react-query';
 import type { Metadata } from 'next';
 import type { PropsWithChildren } from 'react';
+import { prefetch } from '@/api/fetch';
+import { me } from '@/api/routes/auth';
 import { Providers } from '@/components/common/Providers';
 import { ScrollArea } from '@/components/common/ScrollArea';
 import { Footer } from '@/components/footer/Footer';
 import { Navbar } from '@/components/nav/Navbar';
-import { server } from '@/data/server';
 
 import '@/styles/globals.css';
 
@@ -24,7 +25,7 @@ export default async function RootLayout({ children }: PropsWithChildren) {
 		<html lang="en" suppressHydrationWarning>
 			<body className="bg-base dark:bg-base-dark">
 				<Providers>
-					<HydrationBoundary state={await server.auth.me.prefetch()}>
+					<HydrationBoundary state={await prefetch([{ queryKey: me.queryKey, queryFn: async () => me.queryFn(false) }])}>
 						<ScrollArea className="h-screen">
 							<div className="h-screen flex flex-col min-h-screen">
 								<Navbar />

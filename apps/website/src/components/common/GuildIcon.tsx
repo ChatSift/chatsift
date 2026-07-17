@@ -1,7 +1,7 @@
-import type { MeGuild } from '@chatsift/api';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { PropsWithChildren } from 'react';
+import type { MeGuild } from '@/api/routes/auth';
 import { getGuildAcronym } from '@/utils/util';
 
 export interface GuildIconProps {

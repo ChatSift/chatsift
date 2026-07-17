@@ -4,8 +4,8 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import { AMASessionCard } from './AMASessionCard';
 import { CreateAMACard } from './CreateAMACard';
+import { useAMAs } from '@/api/routes/ama';
 import { Skeleton } from '@/components/common/Skeleton';
-import { client } from '@/data/client';
 
 function AMASessionSkeleton() {
 	return (
@@ -27,9 +27,7 @@ export function AMASessionsList() {
 
 	const searchQuery = searchParams.get('search') ?? '';
 
-	const { data: sessions, isLoading } = client.guilds.ama.useAMAs(params.id, {
-		include_ended: searchParams.get('include_ended') ?? 'false',
-	});
+	const { data: sessions, isLoading } = useAMAs(params.id, searchParams.get('include_ended') === 'true');
 
 	const filtered = useMemo(() => {
 		if (!sessions?.length) {

@@ -1,14 +1,14 @@
 'use client';
 
-import type { AMASessionDetailed, AMASessionWithCount } from '@chatsift/api';
 import { useParams, usePathname } from 'next/navigation';
 import { useMemo } from 'react';
+import type { AMASessionDetailed, AMASessionWithCount } from '@/api/routes/ama';
+import { useMe } from '@/api/routes/auth';
 import type { BreadcrumbOption } from '@/components/common/Breadcrumb';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { GuildIcon } from '@/components/common/GuildIcon';
 import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAMA } from '@/components/icons/SvgAMA';
-import { client } from '@/data/client';
 import { sortGuilds } from '@/utils/util';
 
 const SEGMENT_LABELS: Record<string, string> = {
@@ -118,7 +118,7 @@ interface DashboardCrumbsProps {
 }
 
 export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {}) {
-	const { data: me } = client.auth.useMe();
+	const { data: me } = useMe();
 	const params = useParams<{ id?: string }>();
 	const pathname = usePathname();
 

@@ -7,5 +7,5 @@ const redis = await createRedis(logger);
 initContext({ db, logger, rawDb, redis });
 
 // Make sure to import anything else AFTER initializing the context
-const { bin } = await import('./index.js');
-await bin();
+const { startServer } = await import('./app.js');
+await startServer();

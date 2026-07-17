@@ -3,12 +3,12 @@
 import { useParams } from 'next/navigation';
 import { AddGrantCard } from './AddGrantCard';
 import { GrantCard } from './GrantCard';
+import { useGrants } from '@/api/routes/guilds';
 import { Skeleton } from '@/components/common/Skeleton';
-import { client } from '@/data/client';
 
 export function GrantsList() {
 	const { id: guildId } = useParams<{ id: string }>();
-	const { data, isLoading } = client.guilds.grants.useGrants(guildId);
+	const { data, isLoading } = useGrants(guildId);
 
 	if (isLoading) {
 		return (

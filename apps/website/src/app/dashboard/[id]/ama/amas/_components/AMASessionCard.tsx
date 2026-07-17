@@ -1,5 +1,5 @@
-import type { AMASessionWithCount } from '@chatsift/api';
 import Link from 'next/link';
+import type { AMASessionWithCount } from '@/api/routes/ama';
 
 interface AMASessionCardProps {
 	readonly data: AMASessionWithCount;

@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
+import { me } from '@/api/routes/auth';
 import { NavGateCheck } from '@/components/common/NavGate';
-import { server } from '@/data/server';
 
 export async function generateMetadata({ params }: LayoutProps<'/dashboard/[id]'>): Promise<Metadata> {
 	const { id } = await params;
 	let name;
 
 	try {
-		const { data: me } = await server.auth.me.fetch();
-		const guild = me?.guilds.find((g) => g.id === id);
+		const data = await me.queryFn(false);
+		const guild = data?.guilds.find((g) => g.id === id);
 		name = guild?.name;
 	} catch (error) {
 		console.error(error);

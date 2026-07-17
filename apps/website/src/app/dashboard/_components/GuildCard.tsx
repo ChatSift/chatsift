@@ -1,5 +1,5 @@
-import type { MeGuild } from '@chatsift/api';
 import Link from 'next/link';
+import type { MeGuild } from '@/api/routes/auth';
 import { GuildIcon } from '@/components/common/GuildIcon';
 import { SvgAMA } from '@/components/icons/SvgAMA';
 import { cn } from '@/utils/util';

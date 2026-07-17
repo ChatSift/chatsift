@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import type { PropsWithChildren } from 'react';
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { Skeleton } from './Skeleton';
-import { client } from '@/data/client';
+import { useMe } from '@/api/routes/auth';
 import { URLS } from '@/utils/urls';
 
 interface NavGateContextValue {
@@ -24,7 +24,7 @@ export function useNavGate() {
 }
 
 export function NavGateProvider({ children }: PropsWithChildren) {
-	const { isLoading, data: user } = client.auth.useMe();
+	const { isLoading, data: user } = useMe();
 	const router = useRouter();
 
 	useEffect(() => {
@@ -66,7 +66,7 @@ type NavGateCheckProps = PropsWithChildren &
 
 export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAccess }: NavGateCheckProps) {
 	const { isAuthenticated } = useNavGate();
-	const { data: user } = client.auth.useMe();
+	const { data: user } = useMe();
 	const router = useRouter();
 	const params = useParams<{ id?: string }>();
 

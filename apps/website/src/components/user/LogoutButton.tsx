@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Button } from '../common/Button';
-import { client } from '@/data/client';
+import { useLogout } from '@/api/routes/auth';
 
 interface LogoutButtonProps {
 	// eslint-disable-next-line @typescript-eslint/method-signature-style
@@ -11,14 +11,14 @@ interface LogoutButtonProps {
 }
 
 export function LogoutButton({ className, additionally }: LogoutButtonProps) {
-	const logoutMutation = client.auth.useLogout();
+	const logoutMutation = useLogout();
 	const router = useRouter();
 
 	return (
 		<Button
 			className={className ?? ''}
 			onPress={async () => {
-				await logoutMutation.mutateAsync(undefined as never);
+				await logoutMutation.mutateAsync();
 				router.replace('/');
 				additionally?.();
 			}}

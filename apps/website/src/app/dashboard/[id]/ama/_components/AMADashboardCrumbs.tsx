@@ -1,22 +1,19 @@
 'use client';
 
-import type { AMASessionDetailed, AMASessionWithCount } from '@chatsift/api';
 import { useParams } from 'next/navigation';
 import { DashboardCrumbs } from '../../../_components/DashboardCrumbs';
-import { client } from '@/data/client';
+import type { AMASessionDetailed, AMASessionWithCount } from '@/api/routes/ama';
+import { useAMA, useAMAs } from '@/api/routes/ama';
 
 function useCurrentAMA(id: string, amaId?: string) {
-	if (!amaId) return undefined;
-	const { data: currentAMA } = client.guilds.ama.useAMA(id, amaId);
-	return currentAMA as AMASessionDetailed | undefined;
+	const { data: currentAMA } = useAMA(id, amaId);
+	return amaId ? (currentAMA as AMASessionDetailed | undefined) : undefined;
 }
 
 export function AMADashboardCrumbs() {
 	const params = useParams<{ amaId?: string; id: string }>();
 
-	const { data: amaSessions } = client.guilds.ama.useAMAs(params.id, {
-		include_ended: 'false',
-	});
+	const { data: amaSessions } = useAMAs(params.id, false);
 	const currentAMA = useCurrentAMA(params.id, params.amaId);
 
 	return (
