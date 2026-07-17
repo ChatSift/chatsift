@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import type { PropsWithChildren } from 'react';
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { Skeleton } from './Skeleton';
@@ -106,20 +106,29 @@ export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAcces
 
 		if (checkForGlobalAdmin && !user!.isGlobalAdmin) {
 			router.replace('/dashboard');
-			return;
+		}
+	}, [isAuthenticated, checkForGlobalAdmin, user, router]);
+
+	// Guild access is checked during render (not the effect above) and uses `notFound()` rather than a redirect:
+	// it needs to block the first render of `children` outright, since descendants (DashboardCrumbs, GuildNav, ...)
+	// assume the guild exists and throw/misbehave otherwise. An effect-based redirect would let that first,
+	// invalid render happen before the navigation fires.
+	if (checkForGuildAccess && isAuthenticated) {
+		if (!params.id) {
+			throw new Error('Guild ID param is required when checkForGuildAccess is true');
 		}
 
-		if (checkForGuildAccess) {
-			if (!params.id) {
-				throw new Error('Guild ID param is required when checkForGuildAccess is true');
-			}
-
-			const hasAccess = user!.isGlobalAdmin || user!.guilds.some((g) => g.id === params.id && g.meCanManage);
-			if (!hasAccess) {
-				router.replace('/dashboard');
-			}
+		// Membership itself can't be bypassed by `isGlobalAdmin`: `guilds` only ever contains guilds the logged-in
+		// user is personally a Discord member of (see `fetchMe`), and every guild-scoped API route re-derives that
+		// same list server-side (`isGuildManager` in `isAuthed.ts`) — an admin who isn't a member gets a 403 on
+		// every request regardless of what this gate does. `isGlobalAdmin` only waives the `meCanManage` permission
+		// check for guilds they do belong to, mirroring the backend's admin bypass of the `adminGuilds` grant.
+		const guild = user!.guilds.find((g) => g.id === params.id);
+		const hasAccess = guild !== undefined && (user!.isGlobalAdmin || guild.meCanManage);
+		if (!hasAccess) {
+			notFound();
 		}
-	}, [isAuthenticated, checkForGlobalAdmin, checkForGuildAccess, user, router, params]);
+	}
 
 	return <>{children}</>;
 }
