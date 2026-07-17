@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 import { FaSearch, FaServer } from 'react-icons/fa';
 import GuildCard from './GuildCard';
 import { refreshMeMutationKey, useMe } from '@/api/routes/auth';
+import { Skeleton } from '@/components/common/Skeleton';
 import { cn, sortGuilds } from '@/utils/util';
 
 function EmptyState({ icon, subtitle, title }: { readonly icon: ReactNode; readonly subtitle: string; readonly title: string }) {
@@ -16,6 +17,18 @@ function EmptyState({ icon, subtitle, title }: { readonly icon: ReactNode; reado
 			<p className="text-lg font-medium text-primary dark:text-primary-dark">{title}</p>
 			<p className="text-sm text-secondary dark:text-secondary-dark">{subtitle}</p>
 		</div>
+	);
+}
+
+function GuildListSkeleton() {
+	return (
+		<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
+			{Array.from({ length: 4 }).map((_, index) => (
+				<li key={index}>
+					<Skeleton className="h-36 w-[80vw] rounded-lg md:w-52" />
+				</li>
+			))}
+		</ul>
 	);
 }
 
@@ -37,6 +50,13 @@ export function GuildList() {
 		const filtered = manageable.filter((guild) => guild.name.toLowerCase().includes(lower));
 		return sortGuilds(filtered);
 	}, [manageable, searchQuery]);
+
+	// `me` is only `undefined` while the query is still in flight — a resolved-but-logged-out `me` never reaches
+	// this component (`NavGateProvider` gates the whole `/dashboard` tree on it), but guarding here too keeps
+	// this component correct if it's ever rendered outside that gate.
+	if (me === undefined) {
+		return <GuildListSkeleton />;
+	}
 
 	if (manageable.length === 0) {
 		return (
