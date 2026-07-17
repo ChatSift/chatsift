@@ -1,9 +1,9 @@
 'use client';
 
 import type { APIUser, Snowflake } from '@discordjs/core';
+import { useDeleteGrant } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { UserAvatar } from '@/components/user/UserAvatar';
-import { client } from '@/data/client';
 
 interface GrantCardProps {
 	readonly guildId: string;
@@ -12,7 +12,7 @@ interface GrantCardProps {
 }
 
 export function GrantCard({ guildId, user, isLoading }: GrantCardProps) {
-	const deleteGrant = client.guilds.grants.useDeleteGrant(guildId);
+	const deleteGrant = useDeleteGrant(guildId);
 
 	const handleRemove = async () => {
 		const userId = typeof user === 'string' ? user : user.id;

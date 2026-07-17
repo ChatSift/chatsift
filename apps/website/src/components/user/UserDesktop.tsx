@@ -4,11 +4,11 @@ import { LoginButton } from './LoginButton';
 import { LogoutButton } from './LogoutButton';
 import { UserAvatarMe } from './UserAvatarMe';
 import { UserErrorHandler } from './UserErrorHandler';
+import { useMe } from '@/api/routes/auth';
 import { Skeleton } from '@/components/common/Skeleton';
-import { client } from '@/data/client';
 
 export function UserDesktop() {
-	const { data: user, error, isLoading } = client.auth.useMe();
+	const { data: user, error, isLoading } = useMe();
 
 	if (error) {
 		return <UserErrorHandler error={error} />;

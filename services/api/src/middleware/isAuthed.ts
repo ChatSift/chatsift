@@ -1,6 +1,6 @@
 /* eslint-disable n/callback-return */
 
-import { getContext } from '@chatsift/backend-core';
+import { getContext, RefreshTokenCookie } from '@chatsift/backend-core';
 import type { RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
 import cookie from 'cookie';
@@ -117,7 +117,7 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 			}
 
 			const cookies = cookie.parse(req.headers.cookie ?? '');
-			const refreshTokenCookie = cookies['refresh_token'];
+			const refreshTokenCookie = cookies[RefreshTokenCookie];
 			// No refresh token, no shot the user is authed
 			if (!refreshTokenCookie) {
 				// Noop the access token as well if one is set

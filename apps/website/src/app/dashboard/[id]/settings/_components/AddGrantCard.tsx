@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { SnowflakeInput } from '../../ama/amas/new/_components/SnowflakeInput';
+import { APIError } from '@/api/error';
+import { useCreateGrant } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
-import { client } from '@/data/client';
-import { APIError } from '@/utils/fetcher';
 
 interface AddGrantCardProps {
 	readonly guildId: string;
@@ -13,7 +13,7 @@ interface AddGrantCardProps {
 export function AddGrantCard({ guildId }: AddGrantCardProps) {
 	const [userId, setUserId] = useState('');
 	const [error, setError] = useState<string | null>(null);
-	const createGrant = client.guilds.grants.useCreateGrant(guildId);
+	const createGrant = useCreateGrant(guildId);
 
 	const handleSubmit = async () => {
 		if (!userId.trim()) {
@@ -28,11 +28,11 @@ export function AddGrantCard({ guildId }: AddGrantCardProps) {
 			setUserId('');
 		} catch (error) {
 			if (error instanceof APIError) {
-				if (error.payload.statusCode === 404) {
+				if (error.statusCode === 404) {
 					setError('User not found');
-				} else if (error.payload.statusCode === 400) {
+				} else if (error.statusCode === 400) {
 					setError('Grant already exists for this user');
-				} else if (error.payload.statusCode === 422) {
+				} else if (error.statusCode === 422) {
 					setError('Invalid User ID');
 				}
 

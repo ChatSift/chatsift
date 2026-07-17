@@ -1,17 +1,18 @@
 'use client';
 
-import type { CreateAMABody } from '@chatsift/api';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { NormalPromptFields } from './NormalPromptFields';
 import { PromptModeToggle } from './PromptModeToggle';
 import { RawPromptField } from './RawPromptField';
+import { APIError } from '@/api/error';
+import type { CreateAMABody } from '@/api/routes/ama';
+import { useCreateAMA } from '@/api/routes/ama';
+import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { Skeleton } from '@/components/common/Skeleton';
-import { client } from '@/data/client';
-import { APIError } from '@/utils/fetcher';
 
 interface FormData {
 	allowedQuestionUploads: string;
@@ -48,8 +49,8 @@ export function CreateAMAForm() {
 	const params = useParams<{ id: string }>();
 	const { id: guildId } = params;
 
-	const { data: guildInfo, isLoading } = client.guilds.useInfo(guildId, { for_bot: 'AMA', force_fresh: 'false' });
-	const createAMA = client.guilds.ama.useCreateAMA(guildId);
+	const { data: guildInfo, isLoading } = useGuildInfo(guildId, 'AMA');
+	const createAMA = useCreateAMA(guildId);
 
 	const [promptMode, setPromptMode] = useState<'normal' | 'raw'>('normal');
 	const [formData, setFormData] = useState<FormData>({
@@ -153,7 +154,7 @@ export function CreateAMAForm() {
 			await createAMA.mutateAsync(body);
 			router.replace(`/dashboard/${guildId}/ama/amas`);
 		} catch (error) {
-			if (error instanceof APIError && error.payload.statusCode === 422) {
+			if (error instanceof APIError && error.statusCode === 422) {
 				if (promptMode === 'raw') {
 					setGeneralError('Invalid prompt data. Please check your JSON data and try again.');
 				} else {

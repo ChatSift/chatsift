@@ -4,7 +4,7 @@ import { LoginButton } from './LoginButton';
 import { LogoutButton } from './LogoutButton';
 import { UserAvatarMe } from './UserAvatarMe';
 import { UserErrorHandler } from './UserErrorHandler';
-import { client } from '@/data/client';
+import { useMe } from '@/api/routes/auth';
 
 interface UserMobileProps {
 	// eslint-disable-next-line @typescript-eslint/method-signature-style
@@ -12,7 +12,7 @@ interface UserMobileProps {
 }
 
 export function UserMobile({ setMobileNavOpen }: UserMobileProps) {
-	const { data: user, error } = client.auth.useMe();
+	const { data: user, error } = useMe();
 
 	if (error) {
 		return <UserErrorHandler error={error} />;

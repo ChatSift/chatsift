@@ -1,12 +1,13 @@
 'use client';
 
-import type { GuildChannelInfo, PossiblyMissingChannelInfo } from '@chatsift/api';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import type { PossiblyMissingChannelInfo } from '@/api/routes/ama';
+import { useAMA, useRepostPrompt, useUpdateAMA } from '@/api/routes/ama';
+import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
 import { SvgChannelText } from '@/components/icons/channels/SvgChannelText';
-import { client } from '@/data/client';
 import { getChannelIcon } from '@/utils/channels';
 import { formatDate } from '@/utils/util';
 
@@ -24,9 +25,9 @@ export function AMADetails() {
 	const router = useRouter();
 	const [showEndConfirm, setShowEndConfirm] = useState(false);
 
-	const { data: ama, isLoading } = client.guilds.ama.useAMA(params.id, params.amaId);
-	const updateAMA = client.guilds.ama.useUpdateAMA(params.id, params.amaId);
-	const repostPrompt = client.guilds.ama.useRepostPrompt(params.id, params.amaId);
+	const { data: ama, isLoading } = useAMA(params.id, params.amaId);
+	const updateAMA = useUpdateAMA(params.id, params.amaId);
+	const repostPrompt = useRepostPrompt(params.id, params.amaId);
 
 	if (isLoading) {
 		return (
@@ -62,7 +63,7 @@ export function AMADetails() {
 
 	const handleRepostPrompt = async () => {
 		try {
-			await repostPrompt.mutateAsync({});
+			await repostPrompt.mutateAsync();
 		} catch (error) {
 			console.error('Failed to repost prompt:', error);
 		}

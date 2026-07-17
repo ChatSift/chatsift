@@ -3,11 +3,11 @@
 import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import GuildCard from './GuildCard';
-import { client } from '@/data/client';
+import { useMe } from '@/api/routes/auth';
 import { sortGuilds } from '@/utils/util';
 
 export function GuildList() {
-	const { data: me } = client.auth.useMe();
+	const { data: me } = useMe();
 	const searchParams = useSearchParams();
 
 	const searchQuery = searchParams.get('search') ?? '';

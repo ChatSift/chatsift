@@ -1,11 +1,21 @@
 'use client';
 
+import { getDefaultStore } from 'jotai';
 import { useParams, useRouter } from 'next/navigation';
 import type { PropsWithChildren } from 'react';
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { Skeleton } from './Skeleton';
-import { client } from '@/data/client';
+import { useMe } from '@/api/routes/auth';
+import { lastExplicitLogoutAtAtom } from '@/api/token';
+import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { URLS } from '@/utils/urls';
+
+/**
+ * How long after an explicit `useLogout()` call to trust that `LogoutButton` is already handling navigation,
+ * rather than treating `user: null` as a session that expired while browsing and redirecting to Discord OAuth
+ * ourselves. Generous relative to how fast a client-side navigation actually completes.
+ */
+const RECENT_LOGOUT_WINDOW_MS = 3_000;
 
 interface NavGateContextValue {
 	readonly isAuthenticated: boolean;
@@ -24,14 +34,25 @@ export function useNavGate() {
 }
 
 export function NavGateProvider({ children }: PropsWithChildren) {
-	const { isLoading, data: user } = client.auth.useMe();
+	const { isLoading, data: user, error } = useMe();
 	const router = useRouter();
 
 	useEffect(() => {
-		if (!isLoading && user === null) {
+		// `error` must gate this too, not just the render below: on a *refetch* failure (as opposed to a first
+		// fetch failing), react-query's error reducer keeps whatever `data` was already cached rather than
+		// resetting it — so if `me` had previously resolved to `null`, a later non-401 refetch error (network
+		// blip, 500, ...) leaves `user === null` and `isLoading === false` untouched while `error` becomes
+		// populated. Without this check that still satisfies the redirect condition below, firing a Discord
+		// OAuth redirect at the same moment the render path (further down) is correctly showing UserErrorHandler.
+		if (!isLoading && !error && user === null) {
+			const lastExplicitLogoutAt = getDefaultStore().get(lastExplicitLogoutAtAtom);
+			if (Date.now() - lastExplicitLogoutAt < RECENT_LOGOUT_WINDOW_MS) {
+				return;
+			}
+
 			router.push(URLS.API.LOGIN);
 		}
-	}, [isLoading, user, router]);
+	}, [isLoading, error, user, router]);
 
 	const value = useMemo(
 		() => ({
@@ -40,6 +61,14 @@ export function NavGateProvider({ children }: PropsWithChildren) {
 		}),
 		[isLoading, user],
 	);
+
+	// Must come before the loading/unauthenticated check below: on a non-401 error (network issue, 500, ...)
+	// `data` is `undefined`, not `null`, so `user === null` is false and `isLoading` is also false by the time
+	// the query settles into its error state — falling through to render `children` with no user data at all,
+	// which crashes downstream (NavGateCheck's `user!.foo`, DashboardCrumbs' `me?.guilds` access, etc.).
+	if (error) {
+		return <UserErrorHandler error={error} />;
+	}
 
 	if (isLoading || user === null) {
 		return <Skeleton className="w-full h-[50vh]" />;
@@ -66,7 +95,7 @@ type NavGateCheckProps = PropsWithChildren &
 
 export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAccess }: NavGateCheckProps) {
 	const { isAuthenticated } = useNavGate();
-	const { data: user } = client.auth.useMe();
+	const { data: user } = useMe();
 	const router = useRouter();
 	const params = useParams<{ id?: string }>();
 

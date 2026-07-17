@@ -6,9 +6,9 @@ import { notFound, useParams } from 'next/navigation';
 import type { PropsWithChildren } from 'react';
 import { FaWrench } from 'react-icons/fa';
 import { DashboardCrumbs } from '../_components/DashboardCrumbs';
+import { useMe } from '@/api/routes/auth';
 import { Heading } from '@/components/common/Heading';
 import { Skeleton } from '@/components/common/Skeleton';
-import { client } from '@/data/client';
 import { Bots } from '@/utils/bots';
 import { cn } from '@/utils/util';
 
@@ -50,7 +50,7 @@ function SectionCard({ linksExternally, className: providedClassName, href, icon
 
 export default function GuildPage() {
 	const params = useParams<{ id: string }>();
-	const { data: me, isLoading } = client.auth.useMe();
+	const { data: me, isLoading } = useMe();
 
 	const guild = me?.guilds.find((g) => g.id === params.id);
 
