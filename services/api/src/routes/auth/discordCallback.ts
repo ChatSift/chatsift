@@ -1,9 +1,8 @@
 import { getContext } from '@chatsift/backend-core';
 import { badRequest, forbidden } from '@hapi/boom';
 import cookie from 'cookie';
-import type { NextHandler, Response } from 'polka';
 import z from 'zod';
-import { unwrapMiddlewareHandle } from '../../core/route.js';
+import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { cookieWithDomain } from '../../util/constants.js';
 import { discordAPIOAuth } from '../../util/discordAPI.js';
@@ -11,8 +10,6 @@ import { fetchMe } from '../../util/me.js';
 import { setEquals } from '../../util/setEquals.js';
 import { StateCookie } from '../../util/stateCookie.js';
 import { createAccessToken, createRefreshToken } from '../../util/tokens.js';
-import type { TRequest } from '../route.js';
-import { Route, RouteMethod } from '../route.js';
 import { DISCORD_AUTH_SCOPES } from './discord.js';
 
 const querySchema = z.strictObject({
@@ -20,29 +17,25 @@ const querySchema = z.strictObject({
 	state: z.string(),
 });
 
-export default class GetAuthDiscordCallback extends Route<never, typeof querySchema> {
-	public readonly info = {
-		method: RouteMethod.get,
-		path: '/v3/auth/discord/callback',
-	} as const;
-
-	public override readonly queryValidationSchema = querySchema;
-
-	public override readonly middleware = isAuthed({ fallthrough: true, isGlobalAdmin: false }).map(
-		unwrapMiddlewareHandle,
-	);
-
-	public override async handle(req: TRequest<typeof querySchema>, res: Response, next: NextHandler) {
+export default defineRoute({
+	method: 'get',
+	path: '/v3/auth/discord/callback',
+	schema: {
+		query: querySchema,
+	},
+	middleware: isAuthed({ fallthrough: true, isGlobalAdmin: false }),
+	async handler(req, res) {
 		if (req.tokens) {
 			res.redirect(getContext().FRONTEND_URL);
-			return res.end();
+			res.end();
+			return;
 		}
 
 		const { code, state: stateQuery } = req.query;
 
 		const parsedCookies = cookie.parse(req.headers.cookie ?? '');
 		if (stateQuery !== parsedCookies['state']) {
-			return next(badRequest('bad state'));
+			throw badRequest('bad state');
 		}
 
 		const state = StateCookie.from(stateQuery);
@@ -56,7 +49,7 @@ export default class GetAuthDiscordCallback extends Route<never, typeof querySch
 		const stateAge = Date.now() - state.createdAt.getTime();
 		const MAX_STATE_AGE = 10 * 60 * 1_000; // 10 minutes
 		if (stateAge > MAX_STATE_AGE) {
-			return next(badRequest('state expired'));
+			throw badRequest('state expired');
 		}
 
 		const result = await discordAPIOAuth.oauth2.tokenExchange({
@@ -72,7 +65,7 @@ export default class GetAuthDiscordCallback extends Route<never, typeof querySch
 				{ returnedScopes: result.scope, expectedScopes: DISCORD_AUTH_SCOPES },
 				'miss matched scopes',
 			);
-			return next(forbidden('received different scopes than expected'));
+			throw forbidden('received different scopes than expected');
 		}
 
 		const me = await fetchMe(result.access_token, true);
@@ -80,6 +73,6 @@ export default class GetAuthDiscordCallback extends Route<never, typeof querySch
 		createRefreshToken(res, result, me.id);
 
 		res.redirect(state.redirectURI);
-		return res.end();
-	}
-}
+		res.end();
+	},
+});

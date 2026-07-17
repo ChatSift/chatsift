@@ -1,25 +1,18 @@
 import { getContext } from '@chatsift/backend-core';
-import type { NextHandler, Response } from 'polka';
-import { unwrapMiddlewareHandle } from '../../core/route.js';
+import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { discordAPIOAuth } from '../../util/discordAPI.js';
 import { noopAccessToken, noopRefreshToken } from '../../util/tokens.js';
-import type { TRequest } from '../route.js';
-import { Route, RouteMethod } from '../route.js';
 
-export default class PostAuthLogout extends Route<never, never> {
-	public readonly info = {
-		method: RouteMethod.post,
-		path: '/v3/auth/logout',
-	} as const;
-
-	public override readonly middleware = isAuthed({
+export default defineRoute({
+	method: 'post',
+	path: '/v3/auth/logout',
+	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: false,
-	}).map(unwrapMiddlewareHandle);
-
-	public override async handle(req: TRequest<never>, res: Response, next: NextHandler) {
+	}),
+	async handler(req, res) {
 		await discordAPIOAuth.oauth2.revokeToken(
 			getContext().env.OAUTH_DISCORD_CLIENT_ID,
 			getContext().env.OAUTH_DISCORD_CLIENT_SECRET,
@@ -30,6 +23,6 @@ export default class PostAuthLogout extends Route<never, never> {
 		noopRefreshToken(res);
 
 		res.statusCode = 200;
-		return res.end();
-	}
-}
+		res.end();
+	},
+});
