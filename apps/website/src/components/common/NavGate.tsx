@@ -38,7 +38,13 @@ export function NavGateProvider({ children }: PropsWithChildren) {
 	const router = useRouter();
 
 	useEffect(() => {
-		if (!isLoading && user === null) {
+		// `error` must gate this too, not just the render below: on a *refetch* failure (as opposed to a first
+		// fetch failing), react-query's error reducer keeps whatever `data` was already cached rather than
+		// resetting it — so if `me` had previously resolved to `null`, a later non-401 refetch error (network
+		// blip, 500, ...) leaves `user === null` and `isLoading === false` untouched while `error` becomes
+		// populated. Without this check that still satisfies the redirect condition below, firing a Discord
+		// OAuth redirect at the same moment the render path (further down) is correctly showing UserErrorHandler.
+		if (!isLoading && !error && user === null) {
 			const lastExplicitLogoutAt = getDefaultStore().get(lastExplicitLogoutAtAtom);
 			if (Date.now() - lastExplicitLogoutAt < RECENT_LOGOUT_WINDOW_MS) {
 				return;
@@ -46,7 +52,7 @@ export function NavGateProvider({ children }: PropsWithChildren) {
 
 			router.push(URLS.API.LOGIN);
 		}
-	}, [isLoading, user, router]);
+	}, [isLoading, error, user, router]);
 
 	const value = useMemo(
 		() => ({
