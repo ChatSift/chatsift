@@ -10,15 +10,12 @@ import polka from 'polka';
 import type { RouteDefinition } from './core/route.js';
 import { mountRoute } from './core/server.js';
 import { attachHttpUtils } from './middleware/attachHttpUtils.js';
-import type { Route, TRequest } from './routes/route.js';
 import { sendBoom } from './util/sendBoom.js';
-
-export type * from './routes/_types/index.js';
 
 export async function bin(): Promise<void> {
 	const app = polka({
 		onError(err, req, res) {
-			getContext().logger.error({ err, trackingId: (req as TRequest<any>).trackingId }, 'request error');
+			getContext().logger.error({ err, trackingId: req.trackingId }, 'request error');
 
 			if (res.writableEnded) {
 				return;
@@ -60,17 +57,10 @@ export async function bin(): Promise<void> {
 
 	for await (const file of files) {
 		const mod = (await import(file)) as {
-			default?: RouteDefinition<any, any, any, any, any, any, any> | (new () => Route<any, any>);
+			default?: RouteDefinition<any, any, any, any, any, any, any>;
 		};
 
-		if (typeof mod.default === 'function') {
-			// Legacy `Route` subclass — being replaced by `defineRoute` route-by-route, see
-			// docs/roadmap/02-foundation.md Part C.
-			const route = new mod.default();
-			getContext().logger.info(route.info, 'Registering route');
-			route.register(app);
-		} else if (mod.default) {
-			// `defineRoute` route definition.
+		if (mod.default) {
 			getContext().logger.info({ method: mod.default.method, path: mod.default.path }, 'Registering route');
 			mountRoute(app, mod.default);
 		} else {

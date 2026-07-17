@@ -2,6 +2,7 @@ import { performance } from 'node:perf_hooks';
 import { setTimeout, clearTimeout } from 'node:timers';
 import type { BotId } from '@chatsift/backend-core';
 import { BOTS, getContext, GuildList, PermissionsBitField, promiseAllObject } from '@chatsift/backend-core';
+import type { DashboardGrants } from '@chatsift/db';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
 import { nanoid } from 'nanoid';
@@ -58,12 +59,9 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 	const guilds = await Promise.all(
 		guildsRaw.map<Promise<MeGuild>>(
 			async ({ id, name, icon, owner, permissions, approximate_member_count, approximate_presence_count }) => {
-				const grant = await getContext()
-					.db.selectFrom('DashboardGrant')
-					.where('guildId', '=', id)
-					.where('userId', '=', discordUser.id)
-					.select('id')
-					.executeTakeFirst();
+				const [grant] = await getContext().rawDb<Pick<DashboardGrants, 'id'>[]>`
+					SELECT id FROM dashboard_grants WHERE guild_id = ${id} AND user_id = ${discordUser.id}
+				`;
 				const hasGrant = Boolean(grant);
 
 				const guild: MeGuild = {

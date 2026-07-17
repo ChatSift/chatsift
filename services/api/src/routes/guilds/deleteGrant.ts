@@ -1,57 +1,44 @@
 import { getContext } from '@chatsift/backend-core';
+import type { DashboardGrants } from '@chatsift/db';
 import { notFound } from '@hapi/boom';
-import type { NextHandler, Response } from 'polka';
 import { z } from 'zod';
-import { unwrapMiddlewareHandle } from '../../core/route.js';
+import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { snowflakeSchema } from '../../util/schemas.js';
-import type { TRequest } from '../route.js';
-import { Route, RouteMethod } from '../route.js';
 
 const bodySchema = z.strictObject({
 	userId: snowflakeSchema,
 });
+const paramsSchema = z.object({ guildId: snowflakeSchema });
 
 export type DeleteGrantBody = z.input<typeof bodySchema>;
 
-export default class DeleteGrant extends Route<never, typeof bodySchema> {
-	public readonly info = {
-		method: RouteMethod.delete,
-		path: '/v3/guilds/:guildId/grants',
-	} as const;
-
-	public override readonly bodyValidationSchema = bodySchema;
-
-	public override readonly middleware = isAuthed({
+export default defineRoute({
+	method: 'delete',
+	path: '/v3/guilds/:guildId/grants',
+	schema: {
+		body: bodySchema,
+		params: paramsSchema,
+	},
+	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-	}).map(unwrapMiddlewareHandle);
-
-	public override async handle(req: TRequest<typeof bodySchema>, res: Response, next: NextHandler) {
+	}),
+	async handler(req, res) {
 		const { userId } = req.body;
-		const { guildId } = req.params as { guildId: string };
+		const { guildId } = req.params;
 
-		// Check if the grant exists
-		const existingGrant = await getContext()
-			.db.selectFrom('DashboardGrant')
-			.select('id')
-			.where('guildId', '=', guildId)
-			.where('userId', '=', userId)
-			.executeTakeFirst();
+		const [deleted] = await getContext().rawDb<Pick<DashboardGrants, 'id'>[]>`
+			DELETE FROM dashboard_grants WHERE guild_id = ${guildId} AND user_id = ${userId}
+			RETURNING id
+		`;
 
-		if (!existingGrant) {
-			return next(notFound('grant not found for this user'));
+		if (!deleted) {
+			throw notFound('grant not found for this user');
 		}
 
-		// Delete the grant
-		await getContext()
-			.db.deleteFrom('DashboardGrant')
-			.where('guildId', '=', guildId)
-			.where('userId', '=', userId)
-			.execute();
-
 		res.statusCode = 200;
-		return res.end();
-	}
-}
+		res.end();
+	},
+});
