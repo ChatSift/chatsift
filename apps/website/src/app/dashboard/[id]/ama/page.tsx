@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { DashboardCrumbs } from '../../_components/DashboardCrumbs';
 import { Heading } from '@/components/common/Heading';
+import { SvgAMA } from '@/components/icons/SvgAMA';
 
 export default async function AMAPage({ params }: PageProps<'/dashboard/[id]/ama/amas'>) {
 	const { id } = await params;
@@ -15,9 +16,8 @@ export default async function AMAPage({ params }: PageProps<'/dashboard/[id]/ama
 					href={`/dashboard/${id}/ama/amas`}
 					prefetch
 				>
-					{/* TODO */}
-					<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-misc-accent text-2xl font-bold text-primary-dark">
-						Q
+					<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-on-tertiary dark:bg-on-tertiary-dark">
+						<SvgAMA height={28} width={28} />
 					</div>
 					<div className="flex flex-col">
 						<p className="text-lg font-medium text-primary dark:text-primary-dark">Manage AMAs</p>

@@ -1,11 +1,11 @@
 'use client';
 
-import { getDefaultStore } from 'jotai';
 import { useParams, useRouter } from 'next/navigation';
 import type { PropsWithChildren } from 'react';
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { Skeleton } from './Skeleton';
 import { useMe } from '@/api/routes/auth';
+import { store } from '@/api/store';
 import { lastExplicitLogoutAtAtom } from '@/api/token';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { URLS } from '@/utils/urls';
@@ -45,7 +45,7 @@ export function NavGateProvider({ children }: PropsWithChildren) {
 		// populated. Without this check that still satisfies the redirect condition below, firing a Discord
 		// OAuth redirect at the same moment the render path (further down) is correctly showing UserErrorHandler.
 		if (!isLoading && !error && user === null) {
-			const lastExplicitLogoutAt = getDefaultStore().get(lastExplicitLogoutAtAtom);
+			const lastExplicitLogoutAt = store.get(lastExplicitLogoutAtAtom);
 			if (Date.now() - lastExplicitLogoutAt < RECENT_LOGOUT_WINDOW_MS) {
 				return;
 			}

@@ -155,14 +155,37 @@ export function CreateAMAForm() {
 			router.replace(`/dashboard/${guildId}/ama/amas`);
 		} catch (error) {
 			if (error instanceof APIError && error.statusCode === 422) {
-				if (promptMode === 'raw') {
-					setGeneralError('Invalid prompt data. Please check your JSON data and try again.');
-				} else {
-					setGeneralError(
-						'An unknown validation error occured. Please contact support in regards to this error. For the tech savvy, the request response includes more information.',
-					);
-				}
+				// `badData` from createAMA.ts — Discord rejected the composed message (only reachable in raw mode,
+				// since normal-mode prompts are always well-formed by construction).
+				setGeneralError('Invalid prompt data. Please check your JSON data and try again.');
+				return;
+			}
 
+			// A 400 here means the server's zod schema rejected the request even though our own client-side
+			// `validateForm` passed — map whatever field-level detail it returned back onto the same `errors` state
+			// `validateForm` uses, so it renders exactly like a client-side validation failure.
+			if (error instanceof APIError && error.statusCode === 400) {
+				const promptField = promptMode === 'raw' ? 'prompt_raw' : 'prompt';
+				const candidates: [keyof FormData, string | undefined][] = [
+					['title', error.fieldError('title')],
+					['answersChannelId', error.fieldError('answersChannelId')],
+					['promptChannelId', error.fieldError('promptChannelId')],
+					['modQueueId', error.fieldError('modQueueId')],
+					['flaggedQueueId', error.fieldError('flaggedQueueId')],
+					['guestQueueId', error.fieldError('guestQueueId')],
+					['allowedQuestionUploads', error.fieldError('allowedQuestionUploads')],
+					['description', error.fieldError(promptField, 'description')],
+					['plainText', error.fieldError(promptField, 'plainText')],
+					['imageURL', error.fieldError(promptField, 'imageURL')],
+					['thumbnailURL', error.fieldError(promptField, 'thumbnailURL')],
+				];
+
+				const newErrors: FormErrors = Object.fromEntries(
+					candidates.filter((entry): entry is [keyof FormData, string] => entry[1] !== undefined),
+				);
+
+				setErrors(newErrors);
+				setGeneralError(Object.keys(newErrors).length > 0 ? null : error.message);
 				return;
 			}
 

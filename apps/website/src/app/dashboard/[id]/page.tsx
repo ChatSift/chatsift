@@ -73,7 +73,6 @@ export default function GuildPage() {
 				<div className="flex flex-col gap-3">
 					<SectionCard
 						href={`/dashboard/${guild.id}/settings`}
-						// TODO
 						icon={<FaWrench className="text-misc-accent h-6 w-6" />}
 						subtext="View and modify general settings related to your community"
 						text="General settings"

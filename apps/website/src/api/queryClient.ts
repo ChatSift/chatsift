@@ -1,15 +1,28 @@
 import { isServer, QueryCache, QueryClient } from '@tanstack/react-query';
 import { APIError } from './error';
+import { pushErrorBanner } from './errorBanner';
 
 export function makeQueryClient(): QueryClient {
 	return new QueryClient({
 		queryCache: new QueryCache({
-			// TODO: Handle in some way
-			onError: (error) => {
+			onError: (error, query) => {
 				if (error instanceof APIError) {
 					console.error('Query error:', { statusCode: error.statusCode, error: error.error, message: error.message });
+
+					// 401s mean the session expired — `NavGateProvider` already redirects to Discord OAuth off the same
+					// error, so a banner here would just flash right before that navigation happens.
+					if (error.statusCode === 401) {
+						return;
+					}
 				} else {
 					console.error('Network error:', error);
+				}
+
+				// Only bother the user for a *background* refetch failure (stale data is still on screen, and they'd
+				// otherwise have no idea the refresh silently failed). A first-load failure (no cached data yet) is
+				// already surfaced in-place by whichever component renders `UserErrorHandler` for that query's `error`.
+				if (query.state.data !== undefined) {
+					pushErrorBanner(error instanceof APIError ? error.message : 'Something went wrong. Please try again.');
 				}
 			},
 		}),

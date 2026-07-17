@@ -1,8 +1,9 @@
 import { NewAccessTokenHeader, RefreshTokenCookie } from '@chatsift/core';
 import type { DehydratedState } from '@tanstack/react-query';
-import { getDefaultStore } from 'jotai';
-import { APIError } from './error';
+import type { ZodErrorTree } from './error';
+import { APIError, toZodErrorTree } from './error';
 import { clearCachedAccessToken, getCachedAccessToken, setCachedAccessToken } from './serverTokenCache';
+import { store } from './store';
 import { accessTokenAtom } from './token';
 
 function getBaseURL(): string {
@@ -30,8 +31,21 @@ function buildURL(path: string, query?: FetchOptions['query']): string {
 
 async function parseError(response: Response): Promise<APIError> {
 	try {
-		const data = (await response.json()) as { error: string; message: string; statusCode: number };
-		return new APIError(data.statusCode, data.error, data.message);
+		const data = (await response.json()) as {
+			error: string;
+			// Present (via `sendBoom`'s `treeifyError` spread) only on a zod-validation 400 — all three keys are
+			// only ever present together, spread directly from `treeifyError()`'s root node.
+			errors?: string[];
+			items?: (ZodErrorTree | null)[];
+			message: string;
+			properties?: Record<string, ZodErrorTree>;
+			statusCode: number;
+		};
+
+		const hasValidationErrors = data.errors !== undefined || data.properties !== undefined || data.items !== undefined;
+		const validationErrors = hasValidationErrors ? toZodErrorTree(data) : undefined;
+
+		return new APIError(data.statusCode, data.error, data.message, validationErrors);
 	} catch (error) {
 		console.error('failed to parse error response', {
 			status: response.status,
@@ -53,7 +67,6 @@ async function parseSuccess<TResponse>(response: Response): Promise<TResponse> {
 }
 
 async function apiFetchClient<TResponse>(method: string, path: string, options: FetchOptions): Promise<TResponse> {
-	const store = getDefaultStore();
 	const accessToken = store.get(accessTokenAtom);
 
 	const headers: Record<string, string> = {

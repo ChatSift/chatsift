@@ -27,13 +27,17 @@ export function AddGrantCard({ guildId }: AddGrantCardProps) {
 			await createGrant.mutateAsync({ userId: userId.trim() });
 			setUserId('');
 		} catch (error) {
+			// Route sends 404 (user doesn't exist on Discord), 422 (`badData`, grant already exists), or 400
+			// (zod validation failed on `userId` itself, e.g. not a valid snowflake) — see createGrant.ts.
 			if (error instanceof APIError) {
 				if (error.statusCode === 404) {
 					setError('User not found');
-				} else if (error.statusCode === 400) {
-					setError('Grant already exists for this user');
 				} else if (error.statusCode === 422) {
-					setError('Invalid User ID');
+					setError('Grant already exists for this user');
+				} else if (error.statusCode === 400) {
+					setError(error.fieldError('userId') ?? 'Invalid User ID');
+				} else {
+					setError(error.message || 'Failed to add grant');
 				}
 
 				return;
