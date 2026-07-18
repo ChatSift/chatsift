@@ -254,7 +254,10 @@ export function CreateAMAForm() {
 		}
 	};
 
-	if (guildInfoError) {
+	// See GrantsList.tsx for why this also checks `guildInfo === undefined`: a background refetch failure keeps
+	// the previously-cached channel list around, and that stale-but-present data should keep the form usable
+	// rather than being replaced by the full error state.
+	if (guildInfoError && guildInfo === undefined) {
 		return <UserErrorHandler error={guildInfoError} />;
 	}
 

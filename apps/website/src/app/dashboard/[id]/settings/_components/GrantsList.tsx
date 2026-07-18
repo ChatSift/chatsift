@@ -11,7 +11,10 @@ export function GrantsList() {
 	const { id: guildId } = useParams<{ id: string }>();
 	const { data, isLoading, error } = useGrants(guildId);
 
-	if (error) {
+	// `error` alone isn't enough to gate on: a *background* refetch failure keeps the previously-cached `data`
+	// (react-query's error reducer doesn't clear it), so bail out to the full error state only when there's
+	// nothing cached to keep showing. A background failure with data still on screen is the `ErrorBanner`'s job.
+	if (error && data === undefined) {
 		return <UserErrorHandler error={error} />;
 	}
 

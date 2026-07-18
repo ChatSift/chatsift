@@ -79,7 +79,10 @@ export function AMADetails() {
 	const updateAMA = useUpdateAMA(params.id, params.amaId);
 	const repostPrompt = useRepostPrompt(params.id, params.amaId);
 
-	if (error) {
+	// See GrantsList.tsx for why this also checks `ama === undefined`: a background refetch failure keeps the
+	// previously-cached session around, and that stale-but-present data should keep rendering (including any
+	// in-progress edit form) rather than being replaced by the full error state.
+	if (error && ama === undefined) {
 		return <UserErrorHandler error={error} />;
 	}
 
@@ -216,7 +219,7 @@ export function AMADetails() {
 					{!ama.ended && !editing && (
 						<Button
 							className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
-							isDisabled={isGuildInfoLoading || Boolean(guildInfoError)}
+							isDisabled={isGuildInfoLoading || (guildInfo === undefined && Boolean(guildInfoError))}
 							onPress={startEdit}
 							type="button"
 						>

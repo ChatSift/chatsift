@@ -62,7 +62,10 @@ export function AMASessionsList() {
 		return sortSessions(matching, sort);
 	}, [sessions, searchQuery, sort]);
 
-	if (error) {
+	// See GrantsList.tsx for why this also checks `sessions === undefined`: a background refetch failure keeps
+	// the previously-cached list around, and that stale-but-present data should keep rendering normally rather
+	// than being replaced by the full error state.
+	if (error && sessions === undefined) {
 		return <UserErrorHandler error={error} />;
 	}
 
