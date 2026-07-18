@@ -17,36 +17,36 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 		// finishes via editReply/followUp instead of reply/updateMessage.
 		await client.api.interactions.deferMessageUpdate(interaction.id, interaction.token);
 
-		// Fetch the question to verify it exists
-		const [question] = await getContext().db<AmaQuestions[]>`
-			SELECT * FROM ama_questions WHERE id = ${questionId}
-		`;
-
-		if (!question) {
-			await client.api.interactions.followUp(interaction.application_id, interaction.token, {
-				content: 'Question not found. It may have been deleted.',
-				flags: MessageFlags.Ephemeral,
-			});
-			return;
-		}
-
-		const [session] = await getContext().db<AmaSessions[]>`
-			SELECT * FROM ama_sessions WHERE id = ${question.amaId}
-		`;
-
-		if (!session) {
-			throw new Error(`No AMA session found for id ${question.amaId}`);
-		}
-
-		if (session.ended) {
-			await client.api.interactions.followUp(interaction.application_id, interaction.token, {
-				content: 'This AMA session has ended.',
-				flags: MessageFlags.Ephemeral,
-			});
-			return;
-		}
-
 		try {
+			// Fetch the question to verify it exists
+			const [question] = await getContext().db<AmaQuestions[]>`
+				SELECT * FROM ama_questions WHERE id = ${questionId}
+			`;
+
+			if (!question) {
+				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
+					content: 'Question not found. It may have been deleted.',
+					flags: MessageFlags.Ephemeral,
+				});
+				return;
+			}
+
+			const [session] = await getContext().db<AmaSessions[]>`
+				SELECT * FROM ama_sessions WHERE id = ${question.amaId}
+			`;
+
+			if (!session) {
+				throw new Error(`No AMA session found for id ${question.amaId}`);
+			}
+
+			if (session.ended) {
+				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
+					content: 'This AMA session has ended.',
+					flags: MessageFlags.Ephemeral,
+				});
+				return;
+			}
+
 			// Only denies from PENDING_MOD_REVIEW so a concurrent approve/deny can't both win.
 			const [denied] = await getContext().db<AmaQuestions[]>`
 				UPDATE ama_questions

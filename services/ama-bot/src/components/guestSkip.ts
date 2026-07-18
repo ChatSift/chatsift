@@ -17,35 +17,35 @@ export default class GuestSkipComponent implements ComponentHandler<string> {
 		// finishes via editReply/followUp instead of reply/updateMessage.
 		await client.api.interactions.deferMessageUpdate(interaction.id, interaction.token);
 
-		const [question] = await getContext().db<AmaQuestions[]>`
-			SELECT * FROM ama_questions WHERE id = ${questionId}
-		`;
-
-		if (!question) {
-			await client.api.interactions.followUp(interaction.application_id, interaction.token, {
-				content: 'Question not found. It may have been deleted.',
-				flags: MessageFlags.Ephemeral,
-			});
-			return;
-		}
-
-		const [session] = await getContext().db<AmaSessions[]>`
-			SELECT * FROM ama_sessions WHERE id = ${question.amaId}
-		`;
-
-		if (!session) {
-			throw new Error(`No AMA session found for id ${question.amaId}`);
-		}
-
-		if (session.ended) {
-			await client.api.interactions.followUp(interaction.application_id, interaction.token, {
-				content: 'This AMA session has ended.',
-				flags: MessageFlags.Ephemeral,
-			});
-			return;
-		}
-
 		try {
+			const [question] = await getContext().db<AmaQuestions[]>`
+				SELECT * FROM ama_questions WHERE id = ${questionId}
+			`;
+
+			if (!question) {
+				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
+					content: 'Question not found. It may have been deleted.',
+					flags: MessageFlags.Ephemeral,
+				});
+				return;
+			}
+
+			const [session] = await getContext().db<AmaSessions[]>`
+				SELECT * FROM ama_sessions WHERE id = ${question.amaId}
+			`;
+
+			if (!session) {
+				throw new Error(`No AMA session found for id ${question.amaId}`);
+			}
+
+			if (session.ended) {
+				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
+					content: 'This AMA session has ended.',
+					flags: MessageFlags.Ephemeral,
+				});
+				return;
+			}
+
 			// Only skips from PENDING_GUEST_REVIEW so a concurrent answer/skip can't both win.
 			const [skipped] = await getContext().db<AmaQuestions[]>`
 				UPDATE ama_questions
