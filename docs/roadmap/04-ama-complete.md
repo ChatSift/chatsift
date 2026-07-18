@@ -29,7 +29,7 @@ The mod→guest→answers state machine exists; what's incomplete:
 
 - [x] **Guest-review queue** (#139) — `guestApprove.ts`/`guestSkip.ts` exist and mirror `modApprove.ts`/`modDeny.ts`: question submitted → mod-approved → lands in guest queue → guest-approved → answers channel, with the same atomic-claim/lost-race cleanup pattern.
 - [x] **Flagged/reported queue** — a "flag" action from the mod queue (`mod-flag` component) posts into the flagged channel and moves the question to a terminal `FLAGGED` state. Unlike the mod/guest queues, nothing routes back out of it via the bot: it's a read-only surface for mods to review reported content and act on the user directly through Discord's own moderation tools, not a pipeline stage.
-- [x] **End/close-AMA flow** (#141) — `updateAMA`'s `ended` branch flips the flag from the dashboard; `submitQuestion.ts` rejects new submissions once `ama.ended`, and `guestApprove`/`modApprove` etc. reject further action on an ended session. Reflected in the dashboard list via M2's `IncludeEndedToggle`/`AMASessionCard`. **Still open:** a bot-side `/ama end` command — decided (see Cluster 2) and tracked under #143, not yet implemented.
+- [x] **End/close-AMA flow** (#141) — `updateAMA`'s `ended` branch flips the flag from the dashboard; `submitQuestion.ts` rejects new submissions once `ama.ended`, and `guestApprove`/`modApprove` etc. reject further action on an ended session. Reflected in the dashboard list via M2's `IncludeEndedToggle`/`AMASessionCard`. The bot-side `/ama end` command is implemented too, see Cluster 2.
 
 ## Cluster 2 — In-Discord slash commands
 
