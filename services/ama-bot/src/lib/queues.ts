@@ -167,6 +167,7 @@ export async function postToModQueue({ attachments, content, member, question, s
 
 	const messageData: RESTPostAPIChannelMessageJSONBody = {
 		components: [container.toJSON(), createButtonActionRow(buttons)],
+		flags: MessageFlags.IsComponentsV2,
 	};
 
 	const message = await client.api.channels.createMessage(session.modQueueId, messageData);
@@ -228,6 +229,7 @@ export async function postToGuestQueue({
 
 	const messageData: RESTPostAPIChannelMessageJSONBody = {
 		components: [container.toJSON(), createButtonActionRow(buttons)],
+		flags: MessageFlags.IsComponentsV2,
 	};
 
 	const message = await client.api.channels.createMessage(session.guestQueueId, messageData);
@@ -289,6 +291,7 @@ export async function postToFlaggedQueue({
 
 	const messageData: RESTPostAPIChannelMessageJSONBody = {
 		components: [container.toJSON(), createButtonActionRow(buttons)],
+		flags: MessageFlags.IsComponentsV2,
 	};
 
 	const message = await client.api.channels.createMessage(session.flaggedQueueId, messageData);
