@@ -6,6 +6,7 @@ import type {
 	APIAttachment,
 	APIButtonComponent,
 	APIGuildMember,
+	APIMessageTopLevelComponent,
 	APIUser,
 	RESTPostAPIChannelMessageJSONBody,
 } from '@discordjs/core';
@@ -111,6 +112,52 @@ function createButtonActionRow(buttons: APIButtonComponent[]): APIActionRowCompo
 		type: ComponentType.ActionRow,
 		components: buttons,
 	};
+}
+
+/**
+ * Swaps the action row of a queue message's components for a single disabled button, preserving the
+ * question container (and anything else that isn't the button row) instead of dropping it.
+ */
+export function withResolvedActionRow(
+	sourceComponents: APIMessageTopLevelComponent[] | undefined,
+	button: APIButtonComponent,
+): APIMessageTopLevelComponent[] {
+	return (sourceComponents ?? []).map((component) =>
+		component.type === ComponentType.ActionRow ? createButtonActionRow([button]) : component,
+	);
+}
+
+/**
+ * Posts a queue message, then runs `claim` (an atomic UPDATE guarded by a WHERE clause) to take ownership
+ * of the underlying row. If `claim` throws, or resolves with no row (lost a claim race to another
+ * moderator/guest, or the caller-side checks are stale), the just-posted message is cleaned up so we don't
+ * leave a stray duplicate behind — in both cases before the caller decides how to report the outcome.
+ */
+export async function claimAfterPost<TRow>(
+	claim: () => Promise<TRow[]>,
+	cleanup: (channelId: string, messageId: string) => Promise<unknown>,
+	channelId: string,
+	messageId: string,
+): Promise<TRow | undefined> {
+	const runCleanup = async () => {
+		try {
+			await cleanup(channelId, messageId);
+		} catch {
+			// Best-effort: a stray message from a lost claim race isn't worth failing the interaction over.
+		}
+	};
+
+	try {
+		const [claimed] = await claim();
+		if (!claimed) {
+			await runCleanup();
+		}
+
+		return claimed;
+	} catch (error) {
+		await runCleanup();
+		throw error;
+	}
 }
 
 interface PostToModQueueOptions {

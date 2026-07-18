@@ -4,7 +4,7 @@ import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { client } from '../lib/client.js';
 import type { ComponentHandler } from '../lib/components.js';
-import { postToFlaggedQueue } from '../lib/queues.js';
+import { claimAfterPost, postToFlaggedQueue, withResolvedActionRow } from '../lib/queues.js';
 
 export default class ModFlagComponent implements ComponentHandler<string> {
 	public readonly name = 'mod-flag';
@@ -58,8 +58,8 @@ export default class ModFlagComponent implements ComponentHandler<string> {
 
 			// Post first, claim second: if the post throws, the row is never touched and stays
 			// PENDING_MOD_REVIEW, so the button remains retryable. If we lose a claim race after posting
-			// (another moderator got there first), we clean up the message we just created instead of
-			// leaving a stray duplicate.
+			// (another moderator got there first, or the session ended in the meantime), the just-posted
+			// message is cleaned up instead of leaving a stray duplicate.
 			const msg = await postToFlaggedQueue({
 				attachments,
 				content: question.content,
@@ -69,16 +69,21 @@ export default class ModFlagComponent implements ComponentHandler<string> {
 				user,
 			});
 
-			const [claimed] = await getContext().db<AmaQuestions[]>`
-				UPDATE ama_questions
-				SET state = 'FLAGGED', flagged_queue_message_id = ${msg.id}, updated_at = now()
-				WHERE id = ${question.id} AND state = 'PENDING_MOD_REVIEW'
-				RETURNING *
-			`;
+			const claimed = await claimAfterPost(
+				async () => getContext().db<AmaQuestions[]>`
+					UPDATE ama_questions
+					SET state = 'FLAGGED', flagged_queue_message_id = ${msg.id}, updated_at = now()
+					WHERE id = ${question.id}
+						AND state = 'PENDING_MOD_REVIEW'
+						AND EXISTS (SELECT 1 FROM ama_sessions s WHERE s.id = ama_questions.ama_id AND s.ended = false)
+					RETURNING *
+				`,
+				async (channelId, messageId) => client.api.channels.deleteMessage(channelId, messageId),
+				session.flaggedQueueId!,
+				msg.id,
+			);
 
 			if (!claimed) {
-				// eslint-disable-next-line promise/prefer-await-to-then
-				void client.api.channels.deleteMessage(session.flaggedQueueId!, msg.id).catch(() => null);
 				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
 					content: 'This question was already handled by another moderator.',
 					flags: MessageFlags.Ephemeral,
@@ -86,22 +91,15 @@ export default class ModFlagComponent implements ComponentHandler<string> {
 				return;
 			}
 
-			// Update the message to show it was flagged
+			// Update the message to show it was flagged, preserving the question container.
 			await client.api.interactions.editReply(interaction.application_id, interaction.token, {
-				components: [
-					{
-						type: ComponentType.ActionRow,
-						components: [
-							{
-								type: ComponentType.Button,
-								style: ButtonStyle.Secondary,
-								label: '⚠️ Flagged',
-								custom_id: 'flagged-disabled',
-								disabled: true,
-							},
-						],
-					},
-				],
+				components: withResolvedActionRow(interaction.message.components, {
+					type: ComponentType.Button,
+					style: ButtonStyle.Secondary,
+					label: '⚠️ Flagged',
+					custom_id: 'flagged-disabled',
+					disabled: true,
+				}),
 			});
 
 			getContext().logger.info({ questionId, amaId: question.amaId }, 'Question flagged by moderator');

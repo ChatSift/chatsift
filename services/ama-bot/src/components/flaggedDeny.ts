@@ -4,6 +4,7 @@ import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { client } from '../lib/client.js';
 import type { ComponentHandler } from '../lib/components.js';
+import { withResolvedActionRow } from '../lib/queues.js';
 
 export default class FlaggedDenyComponent implements ComponentHandler<string> {
 	public readonly name = 'flagged-deny';
@@ -47,12 +48,14 @@ export default class FlaggedDenyComponent implements ComponentHandler<string> {
 				return;
 			}
 
-			// Denial from the flagged queue is terminal. Only denies from FLAGGED so a concurrent
-			// approve/deny can't both win.
+			// Denial from the flagged queue is terminal. Only denies from FLAGGED, with the session still
+			// active, so a concurrent approve/deny (or the session ending mid-flight) can't both win.
 			const [denied] = await getContext().db<AmaQuestions[]>`
 				UPDATE ama_questions
 				SET state = 'DENIED', updated_at = now()
-				WHERE id = ${question.id} AND state = 'FLAGGED'
+				WHERE id = ${question.id}
+					AND state = 'FLAGGED'
+					AND EXISTS (SELECT 1 FROM ama_sessions s WHERE s.id = ama_questions.ama_id AND s.ended = false)
 				RETURNING *
 			`;
 
@@ -64,22 +67,15 @@ export default class FlaggedDenyComponent implements ComponentHandler<string> {
 				return;
 			}
 
-			// Update the message to show it was denied
+			// Update the message to show it was denied, preserving the question container.
 			await client.api.interactions.editReply(interaction.application_id, interaction.token, {
-				components: [
-					{
-						type: ComponentType.ActionRow,
-						components: [
-							{
-								type: ComponentType.Button,
-								style: ButtonStyle.Danger,
-								label: '❌ Denied',
-								custom_id: 'denied-disabled',
-								disabled: true,
-							},
-						],
-					},
-				],
+				components: withResolvedActionRow(interaction.message.components, {
+					type: ComponentType.Button,
+					style: ButtonStyle.Danger,
+					label: '❌ Denied',
+					custom_id: 'denied-disabled',
+					disabled: true,
+				}),
 			});
 
 			getContext().logger.info({ questionId, amaId: question.amaId }, 'Flagged question denied by moderator');

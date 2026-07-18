@@ -4,7 +4,14 @@ import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { client } from '../lib/client.js';
 import type { ComponentHandler } from '../lib/components.js';
-import { CurrentlyInQueue, getNextQueue, postToAnswersChannel, postToGuestQueue } from '../lib/queues.js';
+import {
+	claimAfterPost,
+	CurrentlyInQueue,
+	getNextQueue,
+	postToAnswersChannel,
+	postToGuestQueue,
+	withResolvedActionRow,
+} from '../lib/queues.js';
 
 export default class FlaggedApproveComponent implements ComponentHandler<string> {
 	public readonly name = 'flagged-approve';
@@ -63,15 +70,9 @@ export default class FlaggedApproveComponent implements ComponentHandler<string>
 
 			// Post first, claim second: if the post throws, the row is never touched and stays FLAGGED, so
 			// the button remains retryable. If we lose a claim race after posting (another moderator got
-			// there first), we clean up the message we just created instead of leaving a stray duplicate.
-			const reportLostRace = async (channelId: string, messageId: string) => {
-				// eslint-disable-next-line promise/prefer-await-to-then
-				void client.api.channels.deleteMessage(channelId, messageId).catch(() => null);
-				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
-					content: 'This question was already handled by another moderator.',
-					flags: MessageFlags.Ephemeral,
-				});
-			};
+			// there first, or the session ended in the meantime), the just-posted message is cleaned up
+			// instead of leaving a stray duplicate.
+			let claimed: AmaQuestions | undefined;
 
 			if (nextQueue?.kind === CurrentlyInQueue.guest) {
 				const msg = await postToGuestQueue({
@@ -83,17 +84,19 @@ export default class FlaggedApproveComponent implements ComponentHandler<string>
 					user,
 				});
 
-				const [claimed] = await getContext().db<AmaQuestions[]>`
-					UPDATE ama_questions
-					SET state = 'PENDING_GUEST_REVIEW', guest_queue_message_id = ${msg.id}, updated_at = now()
-					WHERE id = ${question.id} AND state = 'FLAGGED'
-					RETURNING *
-				`;
-
-				if (!claimed) {
-					await reportLostRace(session.guestQueueId!, msg.id);
-					return;
-				}
+				claimed = await claimAfterPost(
+					async () => getContext().db<AmaQuestions[]>`
+						UPDATE ama_questions
+						SET state = 'PENDING_GUEST_REVIEW', guest_queue_message_id = ${msg.id}, updated_at = now()
+						WHERE id = ${question.id}
+							AND state = 'FLAGGED'
+							AND EXISTS (SELECT 1 FROM ama_sessions s WHERE s.id = ama_questions.ama_id AND s.ended = false)
+						RETURNING *
+					`,
+					async (channelId, messageId) => client.api.channels.deleteMessage(channelId, messageId),
+					session.guestQueueId!,
+					msg.id,
+				);
 			} else {
 				const msg = await postToAnswersChannel({
 					attachments,
@@ -104,35 +107,38 @@ export default class FlaggedApproveComponent implements ComponentHandler<string>
 					user,
 				});
 
-				const [claimed] = await getContext().db<AmaQuestions[]>`
-					UPDATE ama_questions
-					SET state = 'APPROVED', answers_message_id = ${msg.id}, updated_at = now()
-					WHERE id = ${question.id} AND state = 'FLAGGED'
-					RETURNING *
-				`;
-
-				if (!claimed) {
-					await reportLostRace(session.answersChannelId, msg.id);
-					return;
-				}
+				claimed = await claimAfterPost(
+					async () => getContext().db<AmaQuestions[]>`
+						UPDATE ama_questions
+						SET state = 'APPROVED', answers_message_id = ${msg.id}, updated_at = now()
+						WHERE id = ${question.id}
+							AND state = 'FLAGGED'
+							AND EXISTS (SELECT 1 FROM ama_sessions s WHERE s.id = ama_questions.ama_id AND s.ended = false)
+						RETURNING *
+					`,
+					async (channelId, messageId) => client.api.channels.deleteMessage(channelId, messageId),
+					session.answersChannelId,
+					msg.id,
+				);
 			}
 
-			// Update the message to show it was approved
+			if (!claimed) {
+				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
+					content: 'This question was already handled by another moderator.',
+					flags: MessageFlags.Ephemeral,
+				});
+				return;
+			}
+
+			// Update the message to show it was approved, preserving the question container.
 			await client.api.interactions.editReply(interaction.application_id, interaction.token, {
-				components: [
-					{
-						type: ComponentType.ActionRow,
-						components: [
-							{
-								type: ComponentType.Button,
-								style: ButtonStyle.Success,
-								label: '✅ Approved',
-								custom_id: 'approved-disabled',
-								disabled: true,
-							},
-						],
-					},
-				],
+				components: withResolvedActionRow(interaction.message.components, {
+					type: ComponentType.Button,
+					style: ButtonStyle.Success,
+					label: '✅ Approved',
+					custom_id: 'approved-disabled',
+					disabled: true,
+				}),
 			});
 
 			getContext().logger.info({ questionId, amaId: question.amaId }, 'Flagged question approved by moderator');
