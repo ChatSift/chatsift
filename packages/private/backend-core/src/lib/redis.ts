@@ -4,7 +4,7 @@ import { createClient, RESP_TYPES } from 'redis';
 import { ENV } from './env.js';
 
 export async function createRedis(logger: Logger) {
-	return createClient({ url: ENV.REDIS_URL })
+	return createClient({ url: ENV.IS_PRODUCTION ? ENV.REDIS_URL_PROD : ENV.REDIS_URL_DEV })
 		.withTypeMapping({
 			[RESP_TYPES.BLOB_STRING]: Buffer,
 		})

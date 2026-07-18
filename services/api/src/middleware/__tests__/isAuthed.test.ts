@@ -33,7 +33,8 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 	process.env['API_PORT'] = '9876';
 	process.env['ENCRYPTION_KEY'] = '7J7xgcVq3ZWu0RENu1riW7wJPYdqZzA1+kBRKMxhG0g=';
 	process.env['DATABASE_URL'] = 'postgres://user:password@localhost:5432/dbname';
-	process.env['REDIS_URL'] = 'redis://localhost:6379';
+	process.env['REDIS_URL_DEV'] = 'redis://localhost:6379';
+	process.env['REDIS_URL_PROD'] = 'redis://localhost:6379';
 	process.env['AMA_BOT_TOKEN'] = 'abcdef';
 
 	// eslint-disable-next-line @typescript-eslint/consistent-type-imports

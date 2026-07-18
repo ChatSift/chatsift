@@ -31,6 +31,8 @@
 		"format:check": "prettier --check .",
 		"clean": "turbo run clean && rimraf **/node_modules",
 		"clean:deps": "rimraf **/node_modules",
+		"dev:api": "turbo run build --filter=@chatsift/api && dotenv -e .env.private -e .env.public -- node --enable-source-maps ./services/api/dist/bin.js",
+		"dev:ama-bot": "turbo run build --filter=@chatsift/ama-bot && dotenv -e .env.private -e .env.public -- node --enable-source-maps ./services/ama-bot/dist/bin.js",
 		"db:migrate": "dotenv -e .env.private -e .env.public -- yarn workspace @chatsift/db run db:migrate",
 		"db:migrate:down": "dotenv -e .env.private -e .env.public -- yarn workspace @chatsift/db run db:migrate:down",
 		"db:gen": "dotenv -e .env.private -e .env.public -- yarn workspace @chatsift/db run db:gen",

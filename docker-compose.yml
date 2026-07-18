@@ -47,6 +47,8 @@ services:
       test: ['CMD-SHELL', 'redis-cli ping']
       interval: 10s
       timeout: 5s
+    ports:
+      - 127.0.0.1:6379:6379
 
   api:
     image: chatsift/chatsift-next:api
