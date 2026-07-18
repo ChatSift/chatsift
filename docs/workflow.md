@@ -21,7 +21,9 @@ Format: `<type>(<optional scope>): <subject>`. Scope case isn't enforced; exclam
 
 ## Local environment
 
-`docker-compose.yml` provides `postgres`, `redis`, `dozzle` (log viewer), plus containerized `api` and `ama-bot` services built from the root `Dockerfile`. For day-to-day development, run `postgres` + `redis` via compose and the Node services directly (`yarn workspace @chatsift/api dev`-style, or `turbo`-driven — confirm exact dev scripts per service as they're finalized in M1) for faster iteration than rebuilding containers each time.
+`docker-compose.yml` provides `postgres`, `redis`, `dozzle` (log viewer), plus containerized `api` and `ama-bot` services built from the root `Dockerfile`. For day-to-day development, run `postgres` + `redis` via compose (`docker compose up -d postgres redis`) and the Node services directly via the root `yarn dev:api` / `yarn dev:ama-bot` scripts — each builds the service (and its workspace deps) with turbo, then runs the built `dist/bin.js` with `.env.private`/`.env.public` auto-loaded via `dotenv-cli`. Re-run the script after making changes; there's no watch mode. This is faster than rebuilding containers each time.
+
+Vars that differ between a host-run service and a containerized one (`REDIS_URL_DEV`/`REDIS_URL_PROD`, `API_URL_DEV`/`API_URL_PROD`, `FRONTEND_URL_DEV`/`FRONTEND_URL_PROD`) are all declared in `.env.public` and resolved via `IS_PRODUCTION` (from `.env.private`) in `packages/private/backend-core` — `IS_PRODUCTION=false` locally, so these already point at `127.0.0.1`/`localhost` without any manual overriding.
 
 Environment variables are split `.env.public` (checked in, non-secret defaults) / `.env.private` (gitignored, secrets) — see `.env.private.example` for the required shape.
 
