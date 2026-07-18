@@ -2,23 +2,13 @@
 
 import { useIsMutating } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
-import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { FaSearch, FaServer } from 'react-icons/fa';
 import GuildCard from './GuildCard';
 import { refreshMeMutationKey, useMe } from '@/api/routes/auth';
+import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { cn, sortGuilds } from '@/utils/util';
-
-function EmptyState({ icon, subtitle, title }: { readonly icon: ReactNode; readonly subtitle: string; readonly title: string }) {
-	return (
-		<div className="flex w-full flex-col items-center gap-2 rounded-lg border border-dashed border-on-secondary bg-card p-8 text-center dark:border-on-secondary-dark dark:bg-card-dark">
-			{icon}
-			<p className="text-lg font-medium text-primary dark:text-primary-dark">{title}</p>
-			<p className="text-sm text-secondary dark:text-secondary-dark">{subtitle}</p>
-		</div>
-	);
-}
 
 function GuildListSkeleton() {
 	return (

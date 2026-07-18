@@ -533,6 +533,7 @@ __metadata:
     tailwindcss-animate: "npm:^1.0.7"
     typescript: "npm:~5.9.3"
     usehooks-ts: "npm:^3.1.1"
+    zod: "npm:^4.4.3"
   languageName: unknown
   linkType: soft
 

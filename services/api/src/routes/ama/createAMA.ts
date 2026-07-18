@@ -9,34 +9,9 @@ import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
 import { snowflakeSchema } from '../../util/schemas.js';
+import { createAMABodySchema } from './schemas.js';
 
-const base = z.strictObject({
-	modQueueId: snowflakeSchema.nullable(),
-	flaggedQueueId: snowflakeSchema.nullable(),
-	guestQueueId: snowflakeSchema.nullable(),
-	title: z.string().min(1).max(255),
-	answersChannelId: snowflakeSchema,
-	promptChannelId: snowflakeSchema,
-	allowedQuestionUploads: z.number().min(0).max(10).default(0),
-});
-
-const withRegularPrompt = base.safeExtend({
-	prompt: z.strictObject({
-		description: z.string().max(4_000).optional(),
-		plainText: z.string().max(100).optional(),
-		imageURL: z.url().optional(),
-		thumbnailURL: z.url().optional(),
-	}),
-});
-
-const withRawPrompt = base.safeExtend({
-	prompt_raw: z.strictObject({
-		content: z.string().optional(),
-		embeds: z.array(z.any()).optional(),
-	}),
-});
-
-const bodySchema = z.union([withRegularPrompt, withRawPrompt]);
+const bodySchema = createAMABodySchema;
 const paramsSchema = z.object({ guildId: snowflakeSchema });
 
 export type CreateAMABody = z.input<typeof bodySchema>;

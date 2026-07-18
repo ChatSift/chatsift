@@ -24,3 +24,14 @@ export const formatDate = (date: Date) =>
 		hour: '2-digit',
 		minute: '2-digit',
 	}).format(date);
+
+/**
+ * Unlike `Number.parseInt`, doesn't silently truncate trailing garbage ("5.7" -> 5, "5abc" -> 5) or coerce
+ * non-plain-integer syntax ("1e1" -> 10) — only a string of plain (optionally signed) digits parses, everything
+ * else (blank, decimals, scientific notation, malformed) is `NaN`, so it reaches the zod schema's `.int()`/range
+ * checks and fails there instead of silently becoming a value the user never typed.
+ */
+export const parseIntegerInput = (value: string): number => {
+	const trimmed = value.trim();
+	return /^-?\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+};

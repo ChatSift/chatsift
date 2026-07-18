@@ -2,9 +2,14 @@
 
 import { useParams, useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
+import { FaComments, FaSearch } from 'react-icons/fa';
 import { AMASessionCard } from './AMASessionCard';
 import { CreateAMACard } from './CreateAMACard';
+import type { SortOption } from './SortMenu';
+import { useSortOption } from './SortMenu';
+import type { AMASessionWithCount } from '@/api/routes/ama';
 import { useAMAs } from '@/api/routes/ama';
+import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 
 function AMASessionSkeleton() {
@@ -21,13 +26,30 @@ function AMASessionSkeleton() {
 	);
 }
 
+function sortSessions(sessions: AMASessionWithCount[], sort: SortOption): AMASessionWithCount[] {
+	const sorted = [...sessions];
+
+	switch (sort) {
+		case 'newest':
+			return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+		case 'oldest':
+			return sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+		case 'title':
+			return sorted.sort((a, b) => a.title.localeCompare(b.title));
+		case 'questions':
+			return sorted.sort((a, b) => b.questionCount - a.questionCount);
+	}
+}
+
 export function AMASessionsList() {
 	const params = useParams<{ id: string }>();
 	const searchParams = useSearchParams();
+	const sort = useSortOption();
 
 	const searchQuery = searchParams.get('search') ?? '';
+	const includeEnded = searchParams.get('include_ended') === 'true';
 
-	const { data: sessions, isLoading } = useAMAs(params.id, searchParams.get('include_ended') === 'true');
+	const { data: sessions, isLoading } = useAMAs(params.id, includeEnded);
 
 	const filtered = useMemo(() => {
 		if (!sessions?.length) {
@@ -35,8 +57,9 @@ export function AMASessionsList() {
 		}
 
 		const lower = searchQuery.toLowerCase();
-		return sessions.filter((session) => session.title.toLowerCase().includes(lower));
-	}, [sessions, searchQuery]);
+		const matching = sessions.filter((session) => session.title.toLowerCase().includes(lower));
+		return sortSessions(matching, sort);
+	}, [sessions, searchQuery, sort]);
 
 	if (isLoading) {
 		return (
@@ -49,6 +72,48 @@ export function AMASessionsList() {
 						<AMASessionSkeleton />
 					</li>
 				))}
+			</ul>
+		);
+	}
+
+	if (!sessions?.length) {
+		return (
+			<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
+				<li>
+					<CreateAMACard />
+				</li>
+				<li className="md:col-span-2 lg:col-span-3">
+					{includeEnded ? (
+						<EmptyState
+							icon={<FaComments className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
+							subtitle="Create your first AMA session to get started."
+							title="No AMA sessions yet"
+						/>
+					) : (
+						<EmptyState
+							icon={<FaComments className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
+							subtitle='There may be ended sessions hidden — toggle "Include Ended" above to check.'
+							title="No active AMA sessions"
+						/>
+					)}
+				</li>
+			</ul>
+		);
+	}
+
+	if (filtered.length === 0) {
+		return (
+			<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
+				<li>
+					<CreateAMACard />
+				</li>
+				<li className="md:col-span-2 lg:col-span-3">
+					<EmptyState
+						icon={<FaSearch className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
+						subtitle={`No AMA sessions match "${searchQuery}".`}
+						title="No results"
+					/>
+				</li>
 			</ul>
 		);
 	}

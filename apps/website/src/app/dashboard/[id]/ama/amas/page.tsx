@@ -1,6 +1,7 @@
 import { DashboardCrumbs } from '../../../_components/DashboardCrumbs';
 import { AMASessionsList } from './_components/AMASessionsList';
 import { IncludeEndedToggle } from './_components/IncludeEndedToggle';
+import { SortMenu } from './_components/SortMenu';
 import { Heading } from '@/components/common/Heading';
 import { SearchBar } from '@/components/common/SearchBar';
 
@@ -11,6 +12,7 @@ export default function AMAMangementPage() {
 				<DashboardCrumbs />
 				<Heading subtitle="Create and manage AMAs in your community" title="AMA sessions" />
 				<SearchBar placeholder="Search AMA sessions...">
+					<SortMenu />
 					<IncludeEndedToggle />
 				</SearchBar>
 			</div>
