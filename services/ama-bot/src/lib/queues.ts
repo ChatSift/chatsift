@@ -142,8 +142,9 @@ export async function claimAfterPost<TRow>(
 	const runCleanup = async () => {
 		try {
 			await cleanup(channelId, messageId);
-		} catch {
+		} catch (error) {
 			// Best-effort: a stray message from a lost claim race isn't worth failing the interaction over.
+			getContext().logger.debug({ error, channelId, messageId }, 'Failed to clean up message after lost claim race');
 		}
 	};
 
