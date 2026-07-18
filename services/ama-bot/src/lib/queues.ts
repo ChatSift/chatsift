@@ -299,7 +299,9 @@ interface PostToFlaggedQueueOptions {
 }
 
 /**
- * Posts a question to the flagged queue for review using Components v2
+ * Posts a question to the flagged queue using Components v2. This is a read-only surface for mods —
+ * nothing routes out of it via the bot; mods review the reported content here and act on the user
+ * directly through Discord's own moderation tools.
  */
 export async function postToFlaggedQueue({
 	attachments,
@@ -321,24 +323,8 @@ export async function postToFlaggedQueue({
 		includeUserId: true, // Include user ID in flagged queue
 	});
 
-	// Flagged questions get approve/deny buttons
-	const buttons: APIButtonComponent[] = [
-		{
-			type: ComponentType.Button,
-			style: ButtonStyle.Success,
-			label: 'Approve',
-			custom_id: `flagged-approve:${question.id}`,
-		},
-		{
-			type: ComponentType.Button,
-			style: ButtonStyle.Danger,
-			label: 'Deny',
-			custom_id: `flagged-deny:${question.id}`,
-		},
-	];
-
 	const messageData: RESTPostAPIChannelMessageJSONBody = {
-		components: [container.toJSON(), createButtonActionRow(buttons)],
+		components: [container.toJSON()],
 		flags: MessageFlags.IsComponentsV2,
 	};
 
