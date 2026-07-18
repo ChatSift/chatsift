@@ -5,10 +5,15 @@ import { AddGrantCard } from './AddGrantCard';
 import { GrantCard } from './GrantCard';
 import { useGrants } from '@/api/routes/guilds';
 import { Skeleton } from '@/components/common/Skeleton';
+import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 export function GrantsList() {
 	const { id: guildId } = useParams<{ id: string }>();
-	const { data, isLoading } = useGrants(guildId);
+	const { data, isLoading, error } = useGrants(guildId);
+
+	if (error) {
+		return <UserErrorHandler error={error} />;
+	}
 
 	if (isLoading) {
 		return (

@@ -15,6 +15,7 @@ import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { Skeleton } from '@/components/common/Skeleton';
+import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { parseIntegerInput } from '@/utils/util';
 
 interface FormData {
@@ -89,7 +90,7 @@ export function CreateAMAForm() {
 	const params = useParams<{ id: string }>();
 	const { id: guildId } = params;
 
-	const { data: guildInfo, isLoading } = useGuildInfo(guildId, 'AMA');
+	const { data: guildInfo, isLoading, error: guildInfoError } = useGuildInfo(guildId, 'AMA');
 	const createAMA = useCreateAMA(guildId);
 
 	const [promptMode, setPromptMode] = useState<'normal' | 'raw'>('normal');
@@ -252,6 +253,10 @@ export function CreateAMAForm() {
 			// Not valid JSON, let default paste happen
 		}
 	};
+
+	if (guildInfoError) {
+		return <UserErrorHandler error={guildInfoError} />;
+	}
 
 	if (isLoading) {
 		return (

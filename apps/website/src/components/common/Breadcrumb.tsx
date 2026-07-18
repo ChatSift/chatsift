@@ -71,7 +71,8 @@ function BreadcrumbLabel({ icon, label, href, isLast, highlight }: BreadcrumbLab
 export function Breadcrumb({ segments }: BreadcrumbProps) {
 	const [isExpanded, setIsExpanded] = useState(false);
 
-	// On mobile, show only the last 2 segments by default
+	// Below `lg:` (1024px) — phone and tablet widths alike — show only the last 2 segments by default; a full
+	// 4-5 segment trail (as `DashboardCrumbs`/`AMADashboardCrumbs` produce) doesn't fit legibly until desktop.
 	const shouldCollapse = segments.length > 3;
 	const hiddenCount = shouldCollapse && !isExpanded ? segments.length - 2 : 0;
 
@@ -80,14 +81,14 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
 			{hiddenCount > 0 && (
 				<>
 					<button
-						className="flex items-center gap-1 text-secondary dark:text-secondary-dark hover:text-primary dark:hover:text-primary-dark transition-colors sm:hidden"
+						className="flex items-center gap-1 text-secondary dark:text-secondary-dark hover:text-primary dark:hover:text-primary-dark transition-colors lg:hidden"
 						onClick={() => setIsExpanded(true)}
 						type="button"
 					>
 						<SvgChevronDown className="rotate-90" />
 						<span className="text-sm">+{hiddenCount}</span>
 					</button>
-					<span className="text-secondary dark:text-secondary-dark sm:hidden">/</span>
+					<span className="text-secondary dark:text-secondary-dark lg:hidden">/</span>
 				</>
 			)}
 
@@ -97,7 +98,7 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
 				const isHiddenOnMobile = shouldCollapse && !isExpanded && index < segments.length - 2;
 
 				return (
-					<div className={cn('flex items-center gap-2 min-w-0', isHiddenOnMobile && 'hidden sm:flex')} key={index}>
+					<div className={cn('flex items-center gap-2 min-w-0', isHiddenOnMobile && 'hidden lg:flex')} key={index}>
 						{hasOptions ? (
 							<BreadcrumbDropdown {...segment} isLast={isLast} options={segment.options} />
 						) : (

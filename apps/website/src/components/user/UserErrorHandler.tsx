@@ -3,9 +3,11 @@ import { LoginButton } from './LoginButton';
 import { APIError } from '@/api/error';
 
 /**
- * Handles the first-load error state for `useMe()` consumers (`NavGateProvider`, `UserDesktop`, `UserMobile`) —
- * no cached user data exists yet, so there's nothing to keep showing underneath. Background refetch failures
- * (data already on screen) go through the global `ErrorBanner` instead (see `queryClient.ts`'s `onError`).
+ * The app-wide first-load error state for any query: no cached data exists yet, so there's nothing to keep
+ * showing underneath. Originally `useMe()`-specific (`NavGateProvider`, `UserDesktop`, `UserMobile`), now reused
+ * by any dashboard query's first-load failure (e.g. `GrantsList`, `AMASessionsList`, `AMADetails`,
+ * `CreateAMAForm`) for one consistent error UI app-wide. Background refetch failures (data already on screen) go
+ * through the global `ErrorBanner` instead (see `queryClient.ts`'s `onError`).
  */
 export function UserErrorHandler({ error }: { readonly error: Error }) {
 	if (error instanceof APIError && error.statusCode === 401) {

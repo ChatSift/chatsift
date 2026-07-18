@@ -11,10 +11,11 @@ import type { AMASessionWithCount } from '@/api/routes/ama';
 import { useAMAs } from '@/api/routes/ama';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
+import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 function AMASessionSkeleton() {
 	return (
-		<div className="flex h-36 w-[80vw] flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark md:w-52">
+		<div className="flex h-36 w-full flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<div className="flex flex-col gap-1">
 				<Skeleton className="h-7 w-3/4" />
 				<Skeleton className="h-5 w-1/2" />
@@ -49,7 +50,7 @@ export function AMASessionsList() {
 	const searchQuery = searchParams.get('search') ?? '';
 	const includeEnded = searchParams.get('include_ended') === 'true';
 
-	const { data: sessions, isLoading } = useAMAs(params.id, includeEnded);
+	const { data: sessions, isLoading, error } = useAMAs(params.id, includeEnded);
 
 	const filtered = useMemo(() => {
 		if (!sessions?.length) {
@@ -60,6 +61,10 @@ export function AMASessionsList() {
 		const matching = sessions.filter((session) => session.title.toLowerCase().includes(lower));
 		return sortSessions(matching, sort);
 	}, [sessions, searchQuery, sort]);
+
+	if (error) {
+		return <UserErrorHandler error={error} />;
+	}
 
 	if (isLoading) {
 		return (
