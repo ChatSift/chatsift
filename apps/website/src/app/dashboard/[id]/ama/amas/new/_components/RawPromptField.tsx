@@ -28,7 +28,9 @@ export function RawPromptField({ value, onValueChange, onFormatClick, onPaste, e
 				aria-invalid={error ? true : undefined}
 				className={cn(
 					'w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent font-mono text-sm',
-					error && 'border-misc-danger focus:ring-misc-danger',
+					// `dark:border-on-secondary-dark` above compiles to a two-class selector, so it outranks a plain
+					// `border-misc-danger` in dark mode unless the same variant is repeated here.
+					error && 'border-misc-danger dark:border-misc-danger focus:ring-misc-danger',
 				)}
 				id="promptRaw"
 				onChange={(e) => onValueChange(e.target.value)}

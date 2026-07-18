@@ -26,12 +26,12 @@ export const formatDate = (date: Date) =>
 	}).format(date);
 
 /**
- * Unlike `Number.parseInt`, doesn't silently truncate trailing garbage ("5.7" -> 5, "5abc" -> 5) — the full
- * string has to be a valid number or this is `NaN`, so decimal/malformed input reaches the zod schema's `.int()`
- * check (and fails there) instead of being coerced into a value the user never typed. Blank/whitespace-only input
- * is also `NaN` rather than `Number('')`'s `0`, so clearing the field is a validation error, not a silent default.
+ * Unlike `Number.parseInt`, doesn't silently truncate trailing garbage ("5.7" -> 5, "5abc" -> 5) or coerce
+ * non-plain-integer syntax ("1e1" -> 10) — only a string of plain (optionally signed) digits parses, everything
+ * else (blank, decimals, scientific notation, malformed) is `NaN`, so it reaches the zod schema's `.int()`/range
+ * checks and fails there instead of silently becoming a value the user never typed.
  */
 export const parseIntegerInput = (value: string): number => {
 	const trimmed = value.trim();
-	return trimmed === '' ? Number.NaN : Number(trimmed);
+	return /^-?\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
 };
