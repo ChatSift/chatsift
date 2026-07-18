@@ -144,13 +144,13 @@ export async function postToModQueue({ attachments, content, member, question, s
 			type: ComponentType.Button,
 			style: ButtonStyle.Success,
 			label: 'Approve',
-			custom_id: `mod-approve|${question.id}`,
+			custom_id: `mod-approve:${question.id}`,
 		},
 		{
 			type: ComponentType.Button,
 			style: ButtonStyle.Danger,
 			label: 'Deny',
-			custom_id: `mod-deny|${question.id}`,
+			custom_id: `mod-deny:${question.id}`,
 		},
 	];
 
@@ -161,7 +161,7 @@ export async function postToModQueue({ attachments, content, member, question, s
 			style: ButtonStyle.Secondary,
 			label: 'Flag',
 			emoji: { name: '⚠️' },
-			custom_id: `mod-flag|${question.id}`,
+			custom_id: `mod-flag:${question.id}`,
 		});
 	}
 
@@ -216,13 +216,13 @@ export async function postToGuestQueue({
 			type: ComponentType.Button,
 			style: ButtonStyle.Success,
 			label: 'Answer',
-			custom_id: `guest-approve|${question.id}`,
+			custom_id: `guest-approve:${question.id}`,
 		},
 		{
 			type: ComponentType.Button,
 			style: ButtonStyle.Secondary,
 			label: 'Skip',
-			custom_id: `guest-skip|${question.id}`,
+			custom_id: `guest-skip:${question.id}`,
 		},
 	];
 
@@ -277,13 +277,13 @@ export async function postToFlaggedQueue({
 			type: ComponentType.Button,
 			style: ButtonStyle.Success,
 			label: 'Approve',
-			custom_id: `flagged-approve|${question.id}`,
+			custom_id: `flagged-approve:${question.id}`,
 		},
 		{
 			type: ComponentType.Button,
 			style: ButtonStyle.Danger,
 			label: 'Deny',
-			custom_id: `flagged-deny|${question.id}`,
+			custom_id: `flagged-deny:${question.id}`,
 		},
 	];
 

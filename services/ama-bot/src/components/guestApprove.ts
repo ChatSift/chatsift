@@ -4,16 +4,16 @@ import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { client } from '../lib/client.js';
 import type { ComponentHandler } from '../lib/components.js';
+import { postToAnswersChannel } from '../lib/queues.js';
 
-export default class ModDenyComponent implements ComponentHandler<string> {
-	public readonly name = 'mod-deny';
+export default class GuestApproveComponent implements ComponentHandler<string> {
+	public readonly name = 'guest-approve';
 
 	public readonly stateStore = null;
 
 	public async handle(interaction: APIMessageComponentInteraction, questionIdStr: string) {
 		const questionId = Number.parseInt(questionIdStr, 10);
 
-		// Fetch the question to verify it exists
 		const [question] = await getContext().db<AmaQuestions[]>`
 			SELECT * FROM ama_questions WHERE id = ${questionId}
 		`;
@@ -42,12 +42,31 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 			return;
 		}
 
+		const user = await client.api.users.get(question.authorId);
+		const member = interaction.guild_id
+			? await client.api.guilds.getMember(interaction.guild_id, question.authorId).catch(() => undefined)
+			: undefined;
+
+		// Attachments aren't persisted on the row, so we carry them forward off the source message; the
+		// question text itself comes straight from the DB (the source message's text has a footer baked in).
+		const attachments = interaction.message.attachments ?? [];
+
 		try {
+			const msg = await postToAnswersChannel({
+				attachments,
+				content: question.content,
+				member,
+				question,
+				session,
+				user,
+			});
+
 			await getContext().db`
-				UPDATE ama_questions SET state = 'DENIED', updated_at = now() WHERE id = ${question.id}
+				UPDATE ama_questions
+				SET state = 'APPROVED', answers_message_id = ${msg.id}, updated_at = now()
+				WHERE id = ${question.id}
 			`;
 
-			// Update the message to show it was denied
 			await client.api.interactions.updateMessage(interaction.id, interaction.token, {
 				components: [
 					{
@@ -55,21 +74,19 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 						components: [
 							{
 								type: ComponentType.Button,
-								style: ButtonStyle.Danger,
-								label: '❌ Denied',
-								custom_id: 'denied-disabled',
+								style: ButtonStyle.Success,
+								label: '✅ Answered',
+								custom_id: 'answered-disabled',
 								disabled: true,
 							},
 						],
 					},
 				],
 			});
-
-			getContext().logger.info({ questionId, amaId: question.amaId }, 'Question denied by moderator');
 		} catch (error) {
-			getContext().logger.error({ err: error, questionId }, 'Failed to deny question');
+			getContext().logger.error({ error, questionId }, 'Failed to approve question');
 			await client.api.interactions.reply(interaction.id, interaction.token, {
-				content: 'Failed to deny question. Please try again.',
+				content: 'Failed to approve question. Please try again.',
 				flags: MessageFlags.Ephemeral,
 			});
 		}

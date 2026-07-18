@@ -1,12 +1,12 @@
 import { getContext } from '@chatsift/backend-core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
-import { ComponentType, MessageFlags } from '@discordjs/core';
+import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { client } from '../lib/client.js';
 import type { ComponentHandler } from '../lib/components.js';
 import { CurrentlyInQueue, getNextQueue, postToAnswersChannel, postToGuestQueue } from '../lib/queues.js';
 
-export default class ModApproveComponent implements ComponentHandler {
+export default class ModApproveComponent implements ComponentHandler<string> {
 	public readonly name = 'mod-approve';
 
 	public readonly stateStore = null;
@@ -49,27 +49,9 @@ export default class ModApproveComponent implements ComponentHandler {
 			? await client.api.guilds.getMember(interaction.guild_id, question.authorId).catch(() => undefined)
 			: undefined;
 
-		// Get the original message to extract attachments
-		const originalMessage = interaction.message;
-		const attachments = originalMessage.attachments ?? [];
-
-		// Extract the question text from the container components
-		let questionText = '';
-		for (const component of originalMessage.components ?? []) {
-			if (component.type === ComponentType.Container) {
-				// Find the text display component in the container
-				for (const section of component.components ?? []) {
-					if (section.type === ComponentType.Section) {
-						for (const textComponent of section.components ?? []) {
-							if (textComponent.type === ComponentType.TextDisplay) {
-								questionText = textComponent.content;
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
+		// Attachments aren't persisted on the row, so we carry them forward off the source message; the
+		// question text itself comes straight from the DB (the source message's text has a footer baked in).
+		const attachments = interaction.message.attachments ?? [];
 
 		// Determine the next queue
 		const nextQueue = getNextQueue(CurrentlyInQueue.mod, session);
@@ -77,24 +59,36 @@ export default class ModApproveComponent implements ComponentHandler {
 		try {
 			if (nextQueue?.kind === CurrentlyInQueue.guest) {
 				// Post to guest queue
-				await postToGuestQueue({
+				const msg = await postToGuestQueue({
 					attachments,
-					content: questionText,
+					content: question.content,
 					member,
 					question,
 					session,
 					user,
 				});
+
+				await getContext().db`
+					UPDATE ama_questions
+					SET state = 'PENDING_GUEST_REVIEW', guest_queue_message_id = ${msg.id}, updated_at = now()
+					WHERE id = ${question.id}
+				`;
 			} else {
 				// Post directly to answers channel
-				await postToAnswersChannel({
+				const msg = await postToAnswersChannel({
 					attachments,
-					content: questionText,
+					content: question.content,
 					member,
 					question,
 					session,
 					user,
 				});
+
+				await getContext().db`
+					UPDATE ama_questions
+					SET state = 'APPROVED', answers_message_id = ${msg.id}, updated_at = now()
+					WHERE id = ${question.id}
+				`;
 			}
 
 			// Update the message to show it was approved
@@ -105,7 +99,7 @@ export default class ModApproveComponent implements ComponentHandler {
 						components: [
 							{
 								type: ComponentType.Button,
-								style: 3, // Success (green)
+								style: ButtonStyle.Success,
 								label: '✅ Approved',
 								custom_id: 'approved-disabled',
 								disabled: true,
