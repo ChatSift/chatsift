@@ -50,11 +50,8 @@ export async function handleComponentInteraction(interaction: APIMessageComponen
 		return;
 	}
 
-	if (!handler.stateStore && stateId) {
-		getContext().logger.warn({ componentName }, 'Unexpected State ID for component interaction not requiring state');
-		return;
-	}
-
-	const state = stateId ? await handler.stateStore?.get(stateId) : undefined;
+	// Handlers with a Redis-backed stateStore resolve `stateId` into the stored value. Handlers without one
+	// (stateStore: null) get the raw stateId string straight off the custom_id, e.g. an embedded row ID.
+	const state = stateId ? (handler.stateStore ? await handler.stateStore.get(stateId) : stateId) : undefined;
 	await handler.handle(interaction, state);
 }

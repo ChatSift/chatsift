@@ -5,8 +5,8 @@ import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { client } from '../lib/client.js';
 import type { ComponentHandler } from '../lib/components.js';
 
-export default class ModDenyComponent implements ComponentHandler<string> {
-	public readonly name = 'mod-deny';
+export default class GuestSkipComponent implements ComponentHandler<string> {
+	public readonly name = 'guest-skip';
 
 	public readonly stateStore = null;
 
@@ -18,7 +18,6 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 		await client.api.interactions.deferMessageUpdate(interaction.id, interaction.token);
 
 		try {
-			// Fetch the question to verify it exists
 			const [question] = await getContext().db<AmaQuestions[]>`
 				SELECT * FROM ama_questions WHERE id = ${questionId}
 			`;
@@ -47,23 +46,22 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 				return;
 			}
 
-			// Only denies from PENDING_MOD_REVIEW so a concurrent approve/deny can't both win.
-			const [denied] = await getContext().db<AmaQuestions[]>`
+			// Only skips from PENDING_GUEST_REVIEW so a concurrent answer/skip can't both win.
+			const [skipped] = await getContext().db<AmaQuestions[]>`
 				UPDATE ama_questions
 				SET state = 'DENIED', updated_at = now()
-				WHERE id = ${question.id} AND state = 'PENDING_MOD_REVIEW'
+				WHERE id = ${question.id} AND state = 'PENDING_GUEST_REVIEW'
 				RETURNING *
 			`;
 
-			if (!denied) {
+			if (!skipped) {
 				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
-					content: 'This question was already handled by another moderator.',
+					content: 'This question was already handled by someone else.',
 					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
 
-			// Update the message to show it was denied
 			await client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				components: [
 					{
@@ -71,9 +69,9 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 						components: [
 							{
 								type: ComponentType.Button,
-								style: ButtonStyle.Danger,
-								label: '❌ Denied',
-								custom_id: 'denied-disabled',
+								style: ButtonStyle.Secondary,
+								label: '⏭️ Skipped',
+								custom_id: 'skipped-disabled',
 								disabled: true,
 							},
 						],
@@ -81,11 +79,11 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 				],
 			});
 
-			getContext().logger.info({ questionId, amaId: question.amaId }, 'Question denied by moderator');
+			getContext().logger.info({ questionId, amaId: question.amaId }, 'Question skipped by guest');
 		} catch (error) {
-			getContext().logger.error({ err: error, questionId }, 'Failed to deny question');
+			getContext().logger.error({ err: error, questionId }, 'Failed to skip question');
 			await client.api.interactions.followUp(interaction.application_id, interaction.token, {
-				content: 'Failed to deny question. Please try again.',
+				content: 'Failed to skip question. Please try again.',
 				flags: MessageFlags.Ephemeral,
 			});
 		}

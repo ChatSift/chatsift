@@ -4,10 +4,10 @@ import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { client } from '../lib/client.js';
 import type { ComponentHandler } from '../lib/components.js';
-import { CurrentlyInQueue, getNextQueue, postToAnswersChannel, postToGuestQueue } from '../lib/queues.js';
+import { postToAnswersChannel } from '../lib/queues.js';
 
-export default class ModApproveComponent implements ComponentHandler<string> {
-	public readonly name = 'mod-approve';
+export default class GuestApproveComponent implements ComponentHandler<string> {
+	public readonly name = 'guest-approve';
 
 	public readonly stateStore = null;
 
@@ -47,7 +47,6 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 				return;
 			}
 
-			// Get user details from the interaction
 			const user = await client.api.users.get(question.authorId);
 			const member = interaction.guild_id
 				? await client.api.guilds.getMember(interaction.guild_id, question.authorId).catch(() => undefined)
@@ -57,66 +56,36 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			// question text itself comes straight from the DB (the source message's text has a footer baked in).
 			const attachments = interaction.message.attachments ?? [];
 
-			const nextQueue = getNextQueue(CurrentlyInQueue.mod, session);
-
 			// Post first, claim second: if the post throws, the row is never touched and stays
-			// PENDING_MOD_REVIEW, so the button remains retryable. If we lose a claim race after posting
-			// (another moderator got there first), we clean up the message we just created instead of
-			// leaving a stray duplicate.
-			const reportLostRace = async (channelId: string, messageId: string) => {
+			// PENDING_GUEST_REVIEW, so the button remains retryable. If we lose a claim race after posting
+			// (someone else got there first), clean up the message we just created instead of leaving a
+			// stray duplicate.
+			const msg = await postToAnswersChannel({
+				attachments,
+				content: question.content,
+				member,
+				question,
+				session,
+				user,
+			});
+
+			const [claimed] = await getContext().db<AmaQuestions[]>`
+				UPDATE ama_questions
+				SET state = 'APPROVED', answers_message_id = ${msg.id}, updated_at = now()
+				WHERE id = ${question.id} AND state = 'PENDING_GUEST_REVIEW'
+				RETURNING *
+			`;
+
+			if (!claimed) {
 				// eslint-disable-next-line promise/prefer-await-to-then
-				void client.api.channels.deleteMessage(channelId, messageId).catch(() => null);
+				void client.api.channels.deleteMessage(session.answersChannelId, msg.id).catch(() => null);
 				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
-					content: 'This question was already handled by another moderator.',
+					content: 'This question was already handled by someone else.',
 					flags: MessageFlags.Ephemeral,
 				});
-			};
-
-			if (nextQueue?.kind === CurrentlyInQueue.guest) {
-				const msg = await postToGuestQueue({
-					attachments,
-					content: question.content,
-					member,
-					question,
-					session,
-					user,
-				});
-
-				const [claimed] = await getContext().db<AmaQuestions[]>`
-					UPDATE ama_questions
-					SET state = 'PENDING_GUEST_REVIEW', guest_queue_message_id = ${msg.id}, updated_at = now()
-					WHERE id = ${question.id} AND state = 'PENDING_MOD_REVIEW'
-					RETURNING *
-				`;
-
-				if (!claimed) {
-					await reportLostRace(session.guestQueueId!, msg.id);
-					return;
-				}
-			} else {
-				const msg = await postToAnswersChannel({
-					attachments,
-					content: question.content,
-					member,
-					question,
-					session,
-					user,
-				});
-
-				const [claimed] = await getContext().db<AmaQuestions[]>`
-					UPDATE ama_questions
-					SET state = 'APPROVED', answers_message_id = ${msg.id}, updated_at = now()
-					WHERE id = ${question.id} AND state = 'PENDING_MOD_REVIEW'
-					RETURNING *
-				`;
-
-				if (!claimed) {
-					await reportLostRace(session.answersChannelId, msg.id);
-					return;
-				}
+				return;
 			}
 
-			// Update the message to show it was approved
 			await client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				components: [
 					{
@@ -125,8 +94,8 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 							{
 								type: ComponentType.Button,
 								style: ButtonStyle.Success,
-								label: '✅ Approved',
-								custom_id: 'approved-disabled',
+								label: '✅ Answered',
+								custom_id: 'answered-disabled',
 								disabled: true,
 							},
 						],
