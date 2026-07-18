@@ -15,6 +15,7 @@ import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { Skeleton } from '@/components/common/Skeleton';
+import { parseIntegerInput } from '@/utils/util';
 
 interface FormData {
 	allowedQuestionUploads: string;
@@ -141,7 +142,7 @@ export function CreateAMAForm() {
 			modQueueId: formData.modQueueId || null,
 			flaggedQueueId: formData.flaggedQueueId || null,
 			guestQueueId: formData.guestQueueId || null,
-			allowedQuestionUploads: Number.parseInt(formData.allowedQuestionUploads, 10),
+			allowedQuestionUploads: parseIntegerInput(formData.allowedQuestionUploads),
 		};
 
 		// Only called after `validateForm` has already confirmed `formData.promptRaw` is valid JSON (or empty).

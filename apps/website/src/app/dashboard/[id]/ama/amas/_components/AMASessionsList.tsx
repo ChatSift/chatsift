@@ -47,8 +47,9 @@ export function AMASessionsList() {
 	const sort = useSortOption();
 
 	const searchQuery = searchParams.get('search') ?? '';
+	const includeEnded = searchParams.get('include_ended') === 'true';
 
-	const { data: sessions, isLoading } = useAMAs(params.id, searchParams.get('include_ended') === 'true');
+	const { data: sessions, isLoading } = useAMAs(params.id, includeEnded);
 
 	const filtered = useMemo(() => {
 		if (!sessions?.length) {
@@ -82,11 +83,19 @@ export function AMASessionsList() {
 					<CreateAMACard />
 				</li>
 				<li className="md:col-span-2 lg:col-span-3">
-					<EmptyState
-						icon={<FaComments className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
-						subtitle="Create your first AMA session to get started."
-						title="No AMA sessions yet"
-					/>
+					{includeEnded ? (
+						<EmptyState
+							icon={<FaComments className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
+							subtitle="Create your first AMA session to get started."
+							title="No AMA sessions yet"
+						/>
+					) : (
+						<EmptyState
+							icon={<FaComments className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
+							subtitle='There may be ended sessions hidden — toggle "Include Ended" above to check.'
+							title="No active AMA sessions"
+						/>
+					)}
 				</li>
 			</ul>
 		);

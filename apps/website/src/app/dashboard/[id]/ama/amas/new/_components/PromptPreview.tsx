@@ -102,6 +102,8 @@ function resolvePreview(props: PromptPreviewProps): PreviewResult {
 
 export function PromptPreview(props: PromptPreviewProps) {
 	const { content, embed, error } = resolvePreview(props);
+	const hasEmbedContent =
+		Boolean(embed?.title) || Boolean(embed?.description) || Boolean(embed?.imageURL) || Boolean(embed?.thumbnailURL);
 
 	return (
 		<div className="rounded-md border border-on-secondary bg-[#313338] p-4 dark:border-on-secondary-dark">
@@ -109,16 +111,16 @@ export function PromptPreview(props: PromptPreviewProps) {
 
 			{error ? (
 				<p className="text-sm text-white/50">{error}</p>
-			) : !content && !embed?.title && !embed?.description && !embed?.imageURL ? (
-				<p className="text-sm text-white/50">Nothing to preview yet.</p>
-			) : (
+			) : content || hasEmbedContent ? (
 				<div className="space-y-2">
 					{content && <p className="whitespace-pre-wrap text-sm text-[#dbdee1]">{content}</p>}
 
-					{(embed?.title ?? embed?.description ?? embed?.imageURL) && (
+					{hasEmbedContent && (
 						<div
 							className="flex gap-3 rounded border-l-4 bg-[#2b2d31] p-3"
-							style={{ borderColor: embed?.color ? `#${embed.color.toString(16).padStart(6, '0')}` : EMBED_COLOR }}
+							style={{
+								borderColor: embed?.color === undefined ? EMBED_COLOR : `#${embed.color.toString(16).padStart(6, '0')}`,
+							}}
 						>
 							<div className="min-w-0 flex-1 space-y-1">
 								{embed?.title && <p className="text-sm font-semibold text-[#f2f3f5]">{embed.title}</p>}
@@ -137,6 +139,8 @@ export function PromptPreview(props: PromptPreviewProps) {
 						</div>
 					)}
 				</div>
+			) : (
+				<p className="text-sm text-white/50">Nothing to preview yet.</p>
 			)}
 		</div>
 	);

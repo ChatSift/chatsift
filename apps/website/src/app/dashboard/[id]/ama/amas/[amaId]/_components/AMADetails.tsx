@@ -14,7 +14,7 @@ import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { Skeleton } from '@/components/common/Skeleton';
 import { getChannelIcon } from '@/utils/channels';
-import { formatDate } from '@/utils/util';
+import { formatDate, parseIntegerInput } from '@/utils/util';
 
 const channelName = (channel: GuildChannelInfo | PossiblyMissingChannelInfo | null) =>
 	channel && 'name' in channel ? channel.name : 'Unknown';
@@ -123,7 +123,7 @@ export function AMADetails() {
 			modQueueId: configForm.modQueueId || null,
 			flaggedQueueId: configForm.flaggedQueueId || null,
 			guestQueueId: configForm.guestQueueId || null,
-			allowedQuestionUploads: Number.parseInt(configForm.allowedQuestionUploads, 10),
+			allowedQuestionUploads: parseIntegerInput(configForm.allowedQuestionUploads),
 		};
 
 		const result = updateAMAConfigSchema.safeParse(data);
@@ -315,8 +315,8 @@ export function AMADetails() {
 									<p className="text-base text-primary dark:text-primary-dark">{channelName(ama.promptChannel)}</p>
 								</div>
 								<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-									Fixed to where the original prompt message was posted. Use &quot;Repost Prompt Message&quot; below
-									to move it to a different channel.
+									Fixed to where the original prompt message was posted. If that message was deleted, use
+									&quot;Repost Prompt Message&quot; below to recreate it in this same channel.
 								</p>
 							</div>
 

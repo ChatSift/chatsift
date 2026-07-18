@@ -24,6 +24,8 @@ export function RawPromptField({ value, onValueChange, onFormatClick, onPaste, e
 				</Button>
 			</div>
 			<textarea
+				aria-describedby="promptRaw-help"
+				aria-invalid={error ? true : undefined}
 				className={cn(
 					'w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent font-mono text-sm',
 					error && 'border-misc-danger focus:ring-misc-danger',
@@ -36,9 +38,11 @@ export function RawPromptField({ value, onValueChange, onFormatClick, onPaste, e
 				value={value}
 			/>
 			{error ? (
-				<p className="mt-1 text-sm text-misc-danger">{error}</p>
+				<p className="mt-1 text-sm text-misc-danger" id="promptRaw-help">
+					{error}
+				</p>
 			) : (
-				<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">
+				<p className="mt-1 text-xs text-secondary dark:text-secondary-dark" id="promptRaw-help">
 					Paste a Discord message JSON payload. It will be auto-formatted on paste.
 				</p>
 			)}

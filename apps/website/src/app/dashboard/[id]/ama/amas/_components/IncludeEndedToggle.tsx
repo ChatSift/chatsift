@@ -9,6 +9,7 @@ export function IncludeEndedToggle() {
 
 	return (
 		<Button
+			aria-pressed={includeEnded}
 			className={`h-10 px-4 py-2 border rounded-md transition-colors text-sm ${
 				includeEnded
 					? 'bg-misc-accent border-misc-accent text-primary-dark'

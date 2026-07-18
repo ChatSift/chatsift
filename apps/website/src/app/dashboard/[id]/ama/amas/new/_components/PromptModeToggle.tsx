@@ -15,9 +15,14 @@ const options: { label: string; value: PromptMode }[] = [
 
 export function PromptModeToggle({ mode, onModeChange }: PromptModeToggleProps) {
 	return (
-		<div className="inline-flex gap-1 rounded-md border border-on-secondary bg-on-tertiary p-1 dark:border-on-secondary-dark dark:bg-on-tertiary-dark">
+		<div
+			aria-label="Prompt mode"
+			className="inline-flex gap-1 rounded-md border border-on-secondary bg-on-tertiary p-1 dark:border-on-secondary-dark dark:bg-on-tertiary-dark"
+			role="group"
+		>
 			{options.map((option) => (
 				<Button
+					aria-pressed={mode === option.value}
 					className={cn(
 						'rounded px-4 py-1.5 text-sm font-medium transition-colors',
 						mode === option.value

@@ -15,7 +15,7 @@ const createAMABase = z.strictObject({
 	title: z.string().min(1).max(255),
 	answersChannelId: snowflakeSchema,
 	promptChannelId: snowflakeSchema,
-	allowedQuestionUploads: z.number().min(0).max(10).default(0),
+	allowedQuestionUploads: z.number().int().min(0).max(10).default(0),
 });
 
 export const createAMAWithRegularPromptSchema = createAMABase.safeExtend({
@@ -47,7 +47,7 @@ export const updateAMAConfigSchema = z
 		modQueueId: snowflakeSchema.nullable().optional(),
 		flaggedQueueId: snowflakeSchema.nullable().optional(),
 		guestQueueId: snowflakeSchema.nullable().optional(),
-		allowedQuestionUploads: z.number().min(0).max(10).optional(),
+		allowedQuestionUploads: z.number().int().min(0).max(10).optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
