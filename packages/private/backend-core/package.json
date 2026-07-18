@@ -23,7 +23,7 @@
 	},
 	"dependencies": {
 		"@chatsift/db": "workspace:^",
-		"@sapphire/discord-utilities": "^3.5.0",
+		"@sapphire/discord-utilities": "^4.0.0",
 		"bin-rw": "^0.1.1",
 		"pino": "^9.14.0",
 		"redis": "^5.8.3",

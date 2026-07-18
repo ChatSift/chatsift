@@ -6,12 +6,12 @@ import type {
 	APIModalSubmitGuildInteraction,
 } from '@discordjs/core';
 import { TextInputStyle, ComponentType, MessageFlags } from '@discordjs/core';
+import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
 import { client } from '../lib/client.js';
 import { collectModal } from '../lib/collector.js';
 import type { ComponentHandler } from '../lib/components.js';
 import { CurrentlyInQueue, postToAnswersChannel, postToGuestQueue, postToModQueue } from '../lib/queues.js';
-import { ModalInteractionOptionResolver } from '../lib/resolvers/ModalInteractionOptionResolver.js';
 
 export default class SubmitQuestionComponent implements ComponentHandler {
 	public readonly name = 'submit-question';

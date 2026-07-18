@@ -2,6 +2,7 @@ import { setInterval } from 'node:timers';
 import { getContext, GuildList } from '@chatsift/backend-core';
 import type { Snowflake } from '@discordjs/core';
 import { InteractionType, Client, GatewayDispatchEvents } from '@discordjs/core';
+import { getCommandHandler, handleAutocompleteInteraction, handleCommandInteraction } from './commands.js';
 import { handleComponentInteraction } from './components.js';
 import { gateway } from './gateway.js';
 import { rest } from './rest.js';
@@ -29,10 +30,26 @@ client
 	.on(GatewayDispatchEvents.InteractionCreate, async ({ data: interaction }) => {
 		if (interaction.type === InteractionType.MessageComponent) {
 			await handleComponentInteraction(interaction);
+		} else if (interaction.type === InteractionType.ApplicationCommand) {
+			await handleCommandInteraction(interaction);
+		} else if (interaction.type === InteractionType.ApplicationCommandAutocomplete) {
+			await handleAutocompleteInteraction(interaction);
 		} else {
 			getContext().logger.warn({ interactionType: interaction.type }, 'Unhandled interaction type');
 		}
 	})
-	.once(GatewayDispatchEvents.Ready, () => {
+	.once(GatewayDispatchEvents.Ready, async ({ data }) => {
 		getContext().logger.info('Logged in successfully');
+
+		const applicationId = data.application.id;
+		const existingGlobalCommands = await client.api.applicationCommands.getGlobalCommands(applicationId);
+		if (existingGlobalCommands.length === 0) {
+			const deployHandler = getCommandHandler('deploy');
+			if (deployHandler) {
+				await client.api.applicationCommands.bulkOverwriteGlobalCommands(applicationId, [deployHandler.data]);
+				getContext().logger.info('Bootstrapped deploy command as the only global command');
+			} else {
+				getContext().logger.warn('No deploy command handler found; skipping global command bootstrap');
+			}
+		}
 	});
