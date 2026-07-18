@@ -13,13 +13,17 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 	public async handle(interaction: APIMessageComponentInteraction, questionIdStr: string) {
 		const questionId = Number.parseInt(questionIdStr, 10);
 
+		// Ack within Discord's 3s window before doing any DB/REST work below; everything past this point
+		// finishes via editReply/followUp instead of reply/updateMessage.
+		await client.api.interactions.deferMessageUpdate(interaction.id, interaction.token);
+
 		// Fetch the question to verify it exists
 		const [question] = await getContext().db<AmaQuestions[]>`
 			SELECT * FROM ama_questions WHERE id = ${questionId}
 		`;
 
 		if (!question) {
-			await client.api.interactions.reply(interaction.id, interaction.token, {
+			await client.api.interactions.followUp(interaction.application_id, interaction.token, {
 				content: 'Question not found. It may have been deleted.',
 				flags: MessageFlags.Ephemeral,
 			});
@@ -35,7 +39,7 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 		}
 
 		if (session.ended) {
-			await client.api.interactions.reply(interaction.id, interaction.token, {
+			await client.api.interactions.followUp(interaction.application_id, interaction.token, {
 				content: 'This AMA session has ended.',
 				flags: MessageFlags.Ephemeral,
 			});
@@ -43,12 +47,24 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 		}
 
 		try {
-			await getContext().db`
-				UPDATE ama_questions SET state = 'DENIED', updated_at = now() WHERE id = ${question.id}
+			// Only denies from PENDING_MOD_REVIEW so a concurrent approve/deny can't both win.
+			const [denied] = await getContext().db<AmaQuestions[]>`
+				UPDATE ama_questions
+				SET state = 'DENIED', updated_at = now()
+				WHERE id = ${question.id} AND state = 'PENDING_MOD_REVIEW'
+				RETURNING *
 			`;
 
+			if (!denied) {
+				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
+					content: 'This question was already handled by another moderator.',
+					flags: MessageFlags.Ephemeral,
+				});
+				return;
+			}
+
 			// Update the message to show it was denied
-			await client.api.interactions.updateMessage(interaction.id, interaction.token, {
+			await client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				components: [
 					{
 						type: ComponentType.ActionRow,
@@ -68,7 +84,7 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 			getContext().logger.info({ questionId, amaId: question.amaId }, 'Question denied by moderator');
 		} catch (error) {
 			getContext().logger.error({ err: error, questionId }, 'Failed to deny question');
-			await client.api.interactions.reply(interaction.id, interaction.token, {
+			await client.api.interactions.followUp(interaction.application_id, interaction.token, {
 				content: 'Failed to deny question. Please try again.',
 				flags: MessageFlags.Ephemeral,
 			});
