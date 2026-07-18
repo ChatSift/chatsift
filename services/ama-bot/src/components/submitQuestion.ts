@@ -8,7 +8,6 @@ import type {
 import { TextInputStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
-import { client } from '../lib/client.js';
 import { collectModal } from '../lib/collector.js';
 import type { ComponentHandler } from '../lib/components.js';
 import { CurrentlyInQueue, postToAnswersChannel, postToGuestQueue, postToModQueue } from '../lib/queues.js';
@@ -30,7 +29,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		}
 
 		if (ama.ended) {
-			await client.api.interactions.reply(interaction.id, interaction.token, {
+			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 				content: 'This AMA session has ended. You can no longer submit questions.',
 				flags: MessageFlags.Ephemeral,
 			});
@@ -39,7 +38,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		}
 
 		const id = nanoid();
-		await client.api.interactions.createModal(interaction.id, interaction.token, {
+		await getContext().service.client.api.interactions.createModal(interaction.id, interaction.token, {
 			custom_id: id,
 			title: 'Submit a question',
 			components: [
@@ -81,7 +80,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 	}
 
 	private async handleModalCollected(interaction: APIModalSubmitGuildInteraction, ama: AmaSessions) {
-		await client.api.interactions.defer(interaction.id, interaction.token, { flags: MessageFlags.Ephemeral });
+		await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, { flags: MessageFlags.Ephemeral });
 
 		const options = new ModalInteractionOptionResolver(interaction);
 
@@ -142,14 +141,14 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				);
 			}
 
-			await client.api.interactions.editReply(interaction.application_id, interaction.token, {
+			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				content: '✅ Your question has been submitted successfully!',
 				flags: MessageFlags.Ephemeral,
 			});
 		} catch (error) {
 			getContext().logger.error({ err: error, questionId: question.id, amaId: ama.id }, 'Failed to post question');
 
-			await client.api.interactions.editReply(interaction.application_id, interaction.token, {
+			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				content: '❌ Failed to submit your question. Please try again or contact a moderator.',
 				flags: MessageFlags.Ephemeral,
 			});

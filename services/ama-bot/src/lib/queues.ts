@@ -11,7 +11,6 @@ import type {
 	RESTPostAPIChannelMessageJSONBody,
 } from '@discordjs/core';
 import { MessageFlags, ButtonStyle, CDNRoutes, ComponentType, ImageFormat, RouteBases } from '@discordjs/core';
-import { client } from './client.js';
 
 /**
  * Represents which queue a question is currently in
@@ -218,7 +217,7 @@ export async function postToModQueue({ attachments, content, member, question, s
 		flags: MessageFlags.IsComponentsV2,
 	};
 
-	const message = await client.api.channels.createMessage(session.modQueueId, messageData);
+	const message = await getContext().service.client.api.channels.createMessage(session.modQueueId, messageData);
 	getContext().logger.info(
 		{ questionId: question.id, sessionId: session.id, channelId: session.modQueueId, messageId: message.id },
 		'Posted question to mod queue',
@@ -280,7 +279,7 @@ export async function postToGuestQueue({
 		flags: MessageFlags.IsComponentsV2,
 	};
 
-	const message = await client.api.channels.createMessage(session.guestQueueId, messageData);
+	const message = await getContext().service.client.api.channels.createMessage(session.guestQueueId, messageData);
 	getContext().logger.info(
 		{ questionId: question.id, sessionId: session.id, channelId: session.guestQueueId, messageId: message.id },
 		'Posted question to guest queue',
@@ -328,7 +327,7 @@ export async function postToFlaggedQueue({
 		flags: MessageFlags.IsComponentsV2,
 	};
 
-	const message = await client.api.channels.createMessage(session.flaggedQueueId, messageData);
+	const message = await getContext().service.client.api.channels.createMessage(session.flaggedQueueId, messageData);
 	getContext().logger.info(
 		{ questionId: question.id, sessionId: session.id, channelId: session.flaggedQueueId, messageId: message.id },
 		'Posted question to flagged queue',
@@ -370,7 +369,7 @@ export async function postToAnswersChannel({
 		flags: MessageFlags.IsComponentsV2,
 	};
 
-	const message = await client.api.channels.createMessage(session.answersChannelId, messageData);
+	const message = await getContext().service.client.api.channels.createMessage(session.answersChannelId, messageData);
 	getContext().logger.info(
 		{ questionId: question.id, sessionId: session.id, channelId: session.answersChannelId, messageId: message.id },
 		'Posted question to answers channel',

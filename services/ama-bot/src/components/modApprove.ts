@@ -2,7 +2,6 @@ import { getContext } from '@chatsift/backend-core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
-import { client } from '../lib/client.js';
 import type { ComponentHandler } from '../lib/components.js';
 import { CurrentlyInQueue, getNextQueue, postToAnswersChannel, postToGuestQueue } from '../lib/queues.js';
 
@@ -16,7 +15,7 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 
 		// Ack within Discord's 3s window before doing any DB/REST work below; everything past this point
 		// finishes via editReply/followUp instead of reply/updateMessage.
-		await client.api.interactions.deferMessageUpdate(interaction.id, interaction.token);
+		await getContext().service.client.api.interactions.deferMessageUpdate(interaction.id, interaction.token);
 
 		try {
 			const [question] = await getContext().db<AmaQuestions[]>`
@@ -24,7 +23,7 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			`;
 
 			if (!question) {
-				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
+				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 					content: 'Question not found. It may have been deleted.',
 					flags: MessageFlags.Ephemeral,
 				});
@@ -40,7 +39,7 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			}
 
 			if (session.ended) {
-				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
+				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 					content: 'This AMA session has ended.',
 					flags: MessageFlags.Ephemeral,
 				});
@@ -48,9 +47,9 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			}
 
 			// Get user details from the interaction
-			const user = await client.api.users.get(question.authorId);
+			const user = await getContext().service.client.api.users.get(question.authorId);
 			const member = interaction.guild_id
-				? await client.api.guilds.getMember(interaction.guild_id, question.authorId).catch(() => undefined)
+				? await getContext().service.client.api.guilds.getMember(interaction.guild_id, question.authorId).catch(() => undefined)
 				: undefined;
 
 			// Attachments aren't persisted on the row, so we carry them forward off the source message; the
@@ -65,8 +64,8 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			// leaving a stray duplicate.
 			const reportLostRace = async (channelId: string, messageId: string) => {
 				// eslint-disable-next-line promise/prefer-await-to-then
-				void client.api.channels.deleteMessage(channelId, messageId).catch(() => null);
-				await client.api.interactions.followUp(interaction.application_id, interaction.token, {
+				void getContext().service.client.api.channels.deleteMessage(channelId, messageId).catch(() => null);
+				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 					content: 'This question was already handled by another moderator.',
 					flags: MessageFlags.Ephemeral,
 				});
@@ -117,7 +116,7 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			}
 
 			// Update the message to show it was approved
-			await client.api.interactions.editReply(interaction.application_id, interaction.token, {
+			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				components: [
 					{
 						type: ComponentType.ActionRow,
@@ -135,7 +134,7 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			});
 		} catch (error) {
 			getContext().logger.error({ error, questionId }, 'Failed to approve question');
-			await client.api.interactions.followUp(interaction.application_id, interaction.token, {
+			await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 				content: 'Failed to approve question. Please try again.',
 				flags: MessageFlags.Ephemeral,
 			});

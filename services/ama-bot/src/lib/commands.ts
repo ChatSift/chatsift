@@ -8,6 +8,7 @@ import type {
 	RESTPostAPIChatInputApplicationCommandsJSONBody,
 	RESTPostAPIContextMenuApplicationCommandsJSONBody,
 } from '@discordjs/core';
+import { MessageFlags } from '@discordjs/core';
 
 /**
  * Deliberately excludes `RESTPostAPIPrimaryEntryPointApplicationCommandJSONBody` (the "Activity" entry-point
@@ -65,6 +66,10 @@ export async function handleCommandInteraction(interaction: APIApplicationComman
 	const handler = commands.get(interaction.data.name);
 	if (!handler) {
 		getContext().logger.warn({ commandName: interaction.data.name }, 'No handler found for command interaction');
+		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+			content: 'Something went wrong resolving this command. Please let a developer know.',
+			flags: MessageFlags.Ephemeral,
+		});
 		return;
 	}
 
