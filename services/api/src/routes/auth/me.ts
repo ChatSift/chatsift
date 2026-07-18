@@ -22,6 +22,6 @@ export default defineRoute({
 		isGuildManager: false,
 	}),
 	async handler(req): Promise<Me> {
-		return fetchMe(req.tokens!.access.discordAccessToken, req.query.force_fresh);
+		return fetchMe(req.tokens!.access.discordAccessToken, req.logger, req.query.force_fresh);
 	},
 });

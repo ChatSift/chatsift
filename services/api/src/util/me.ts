@@ -1,11 +1,10 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout, clearTimeout } from 'node:timers';
-import type { BotId } from '@chatsift/backend-core';
+import type { BotId, Logger } from '@chatsift/backend-core';
 import { BOTS, getContext, GuildList, PermissionsBitField, promiseAllObject } from '@chatsift/backend-core';
 import type { DashboardGrants } from '@chatsift/db';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
-import { nanoid } from 'nanoid';
 import { discordAPIOAuth } from './discordAPI.js';
 
 export type MeGuild = Pick<
@@ -31,13 +30,12 @@ export function clearCache() {
 	CACHE_TIMEOUTS.clear();
 }
 
-export async function fetchMe(discordAccessToken: string, force = false): Promise<Me> {
+export async function fetchMe(discordAccessToken: string, logger: Logger, force = false): Promise<Me> {
 	if (CACHE.has(discordAccessToken) && !force) {
 		return CACHE.get(discordAccessToken)!;
 	}
 
-	const track = nanoid(10);
-	getContext().logger.info({ track }, 'cache miss for /me');
+	logger.info('cache miss for /me');
 
 	const start = performance.now();
 
@@ -111,7 +109,7 @@ export async function fetchMe(discordAccessToken: string, force = false): Promis
 	}
 
 	const end = performance.now();
-	getContext().logger.info({ track, durationMs: end - start }, 'fetched /me');
+	logger.info({ durationMs: end - start }, 'fetched /me');
 
 	return me;
 }

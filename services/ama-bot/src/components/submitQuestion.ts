@@ -1,3 +1,4 @@
+import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
@@ -17,7 +18,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 
 	public readonly stateStore = null;
 
-	public async handle(interaction: APIMessageComponentInteraction) {
+	public async handle(interaction: APIMessageComponentInteraction, _state: never, logger: Logger) {
 		const [ama] = await getContext().db<AmaSessions[]>`
 			SELECT s.* FROM ama_sessions s
 			INNER JOIN ama_prompt_data p ON s.id = p.id
@@ -75,11 +76,15 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 			],
 		});
 
+		// `collectModal` resolves via its own listener in `lib/collector.ts`, bypassing the normal dispatch path
+		// in `client.ts` -- so the modal submission never gets its own per-interaction logger from there. Passing
+		// the button click's `logger` through keeps the whole click -> modal -> post flow under one `interactionId`,
+		// which traces better than trying to key on the modal submission's own (separate) interaction id anyway.
 		const modalInteraction = await collectModal(id, 5 * 60 * 1_000);
-		await this.handleModalCollected(modalInteraction as APIModalSubmitGuildInteraction, ama);
+		await this.handleModalCollected(modalInteraction as APIModalSubmitGuildInteraction, ama, logger);
 	}
 
-	private async handleModalCollected(interaction: APIModalSubmitGuildInteraction, ama: AmaSessions) {
+	private async handleModalCollected(interaction: APIModalSubmitGuildInteraction, ama: AmaSessions, logger: Logger) {
 		await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, { flags: MessageFlags.Ephemeral });
 
 		const options = new ModalInteractionOptionResolver(interaction);
@@ -103,6 +108,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		const postOptions = {
 			attachments: attachments ?? [],
 			content: questionText,
+			logger,
 			member: interaction.member,
 			question,
 			session: ama,
@@ -116,7 +122,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				await getContext().db`
 					UPDATE ama_questions SET mod_queue_message_id = ${msg.id} WHERE id = ${question.id}
 				`;
-				getContext().logger.info(
+				logger.info(
 					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.mod },
 					'Question submitted to mod queue',
 				);
@@ -125,7 +131,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				await getContext().db`
 					UPDATE ama_questions SET guest_queue_message_id = ${msg.id} WHERE id = ${question.id}
 				`;
-				getContext().logger.info(
+				logger.info(
 					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.guest },
 					'Question submitted to guest queue',
 				);
@@ -135,7 +141,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				await getContext().db`
 					UPDATE ama_questions SET answers_message_id = ${msg.id}, state = 'APPROVED' WHERE id = ${question.id}
 				`;
-				getContext().logger.info(
+				logger.info(
 					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.answers },
 					'Question posted directly to answers channel',
 				);
@@ -146,7 +152,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				flags: MessageFlags.Ephemeral,
 			});
 		} catch (error) {
-			getContext().logger.error({ err: error, questionId: question.id, amaId: ama.id }, 'Failed to post question');
+			logger.error({ err: error, questionId: question.id, amaId: ama.id }, 'Failed to post question');
 
 			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				content: '❌ Failed to submit your question. Please try again or contact a moderator.',

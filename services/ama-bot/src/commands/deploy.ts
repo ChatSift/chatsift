@@ -1,3 +1,4 @@
+import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction } from '@discordjs/core';
@@ -15,7 +16,7 @@ export default class DeployCommand implements CommandHandler {
 		.setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
 		.toJSON();
 
-	public async handle(interaction: APIApplicationCommandInteraction) {
+	public async handle(interaction: APIApplicationCommandInteraction, logger: Logger) {
 		const userId = interaction.user?.id;
 		if (!userId || !getContext().env.ADMINS.has(userId)) {
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
@@ -35,7 +36,7 @@ export default class DeployCommand implements CommandHandler {
 				content: `Deployed ${commandsData.length} global command(s).`,
 			});
 		} catch (error) {
-			getContext().logger.error({ err: error }, 'Failed to deploy global commands');
+			logger.error({ err: error }, 'Failed to deploy global commands');
 
 			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				content: 'Failed to deploy commands. Check the logs.',

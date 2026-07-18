@@ -1,3 +1,4 @@
+import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction, APIMessageStringSelectInteractionData } from '@discordjs/core';
@@ -8,7 +9,7 @@ export default class AmaEndSelectComponent implements ComponentHandler {
 
 	public readonly stateStore = null;
 
-	public async handle(interaction: APIMessageComponentInteraction) {
+	public async handle(interaction: APIMessageComponentInteraction, _state: never, _logger: Logger) {
 		const [rawId] = (interaction.data as APIMessageStringSelectInteractionData).values;
 		const amaId = Number.parseInt(rawId!, 10);
 

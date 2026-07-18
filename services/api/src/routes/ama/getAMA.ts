@@ -70,13 +70,13 @@ export default defineRoute({
 		`;
 
 		if (!promptData) {
-			getContext().logger.warn({ guildId, amaId }, `AMA session ${amaId} in guild ${guildId} is missing prompt data`);
+			req.logger.warn({ guildId, amaId }, `AMA session ${amaId} in guild ${guildId} is missing prompt data`);
 			throw internal();
 		}
 
 		const channels = await fetchGuildChannels(guildId, discordAPIAma, req.query.force_fresh);
 		if (!channels) {
-			getContext().logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
+			req.logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
 			throw internal();
 		}
 
@@ -98,7 +98,7 @@ export default defineRoute({
 		// `{ id }` when not found, so they're never falsy themselves.
 		const shouldEndNow = !session.ended && (!foundAnswersChannel || !foundPromptChannel);
 		if (shouldEndNow) {
-			getContext().logger.warn(
+			req.logger.warn(
 				{ guildId, amaId },
 				`AMA session ${amaId} in guild ${guildId} has missing critical channels`,
 			);

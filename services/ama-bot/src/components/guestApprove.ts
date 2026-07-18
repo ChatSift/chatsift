@@ -1,3 +1,4 @@
+import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
@@ -10,7 +11,7 @@ export default class GuestApproveComponent implements ComponentHandler<string> {
 
 	public readonly stateStore = null;
 
-	public async handle(interaction: APIMessageComponentInteraction, questionIdStr: string) {
+	public async handle(interaction: APIMessageComponentInteraction, questionIdStr: string, logger: Logger) {
 		const questionId = Number.parseInt(questionIdStr, 10);
 
 		// Ack within Discord's 3s window before doing any DB/REST work below; everything past this point
@@ -62,6 +63,7 @@ export default class GuestApproveComponent implements ComponentHandler<string> {
 			const msg = await postToAnswersChannel({
 				attachments,
 				content: question.content,
+				logger,
 				member,
 				question,
 				session,
@@ -102,7 +104,7 @@ export default class GuestApproveComponent implements ComponentHandler<string> {
 				],
 			});
 		} catch (error) {
-			getContext().logger.error({ error, questionId }, 'Failed to approve question');
+			logger.error({ error, questionId }, 'Failed to approve question');
 			await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 				content: 'Failed to approve question. Please try again.',
 				flags: MessageFlags.Ephemeral,

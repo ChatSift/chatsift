@@ -1,9 +1,16 @@
+import type { Logger } from '@chatsift/backend-core';
 import type { NextHandler, Request, Response } from 'polka';
 import type { z } from 'zod';
 
 declare module 'polka' {
 	interface Request {
-		trackingId: string;
+		/**
+		 * Per-request child logger bound to a `requestId`, attached by `attachLogger()` as the very first
+		 * `.use()` middleware in `app.ts` -- ahead of cors/helmet/etc -- so it's present for as much of the
+		 * request lifecycle as polka allows, including unmatched routes and errors thrown by other `.use()`
+		 * middleware. See `middleware/attachLogger.ts` for the one edge case where it can still be missing.
+		 */
+		logger: Logger;
 	}
 }
 
@@ -20,7 +27,6 @@ export type TypedRequest<TBody, TQuery, TParams> = Omit<Request, 'body' | 'param
 	body: TBody;
 	params: TParams;
 	query: TQuery;
-	trackingId: string;
 };
 
 type UnionToIntersection<TUnion> = (TUnion extends unknown ? (arg: TUnion) => void : never) extends (

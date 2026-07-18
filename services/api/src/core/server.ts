@@ -1,8 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout, clearTimeout } from 'node:timers';
-import { getContext } from '@chatsift/backend-core';
 import { badRequest } from '@hapi/boom';
-import { nanoid } from 'nanoid';
 import type { Middleware, Polka } from 'polka';
 import { ZodError } from 'zod';
 import { jsonParser } from '../middleware/jsonParser.js';
@@ -26,35 +24,21 @@ export function mountRoute<
 >(server: Polka<any>, route: RouteDefinition<TMethod, TPath, TBody, TQuery, TParams, TResponse, TMiddlewares>): void {
 	const middlewares: Middleware[] = [
 		async (req, res, next) => {
-			req.trackingId = nanoid(10);
-
 			const timeout = setTimeout(() => {
-				getContext().logger.warn(
-					{ trackingId: req.trackingId, method: req.method, path: req.path },
-					'request is probably hanging',
-				);
+				req.logger.warn({ method: req.method, path: req.path }, 'request is probably hanging');
 			}, 30_000);
 
 			const now = performance.now();
 			res.on('close', () => {
 				const durationMs = performance.now() - now;
-				getContext().logger.info(
-					{
-						trackingId: req.trackingId,
-						method: req.method,
-						path: req.path,
-						status: res.statusCode,
-						duration: durationMs,
-					},
+				req.logger.info(
+					{ method: req.method, path: req.path, status: res.statusCode, duration: durationMs },
 					'request complete',
 				);
 				clearTimeout(timeout);
 			});
 
-			getContext().logger.info(
-				{ trackingId: req.trackingId, method: req.method, path: req.path },
-				'incoming request',
-			);
+			req.logger.info({ method: req.method, path: req.path }, 'incoming request');
 			return next();
 		},
 	];
@@ -106,10 +90,7 @@ export function mountRoute<
 	// Final handler
 	middlewares.push(async (req, res, next) => {
 		try {
-			getContext().logger.info(
-				{ trackingId: req.trackingId, method: req.method, path: req.path },
-				'passing to route handler from middleware',
-			);
+			req.logger.info({ method: req.method, path: req.path }, 'passing to route handler from middleware');
 
 			// Cast is safe: body/query/params have been validated and coerced by Zod above, middleware has run
 			const result = await route.handler(
@@ -117,10 +98,7 @@ export function mountRoute<
 				res,
 			);
 
-			getContext().logger.info(
-				{ trackingId: req.trackingId, method: req.method, path: req.path },
-				'route handler complete',
-			);
+			req.logger.info({ method: req.method, path: req.path }, 'route handler complete');
 
 			if (!res.writableEnded) {
 				if (result !== undefined && result !== null) {

@@ -10,14 +10,11 @@ import { mountRoute } from '../server.js';
 
 vi.mock('http2');
 
-const loggerInfo = vi.fn();
-const loggerWarn = vi.fn();
-vi.mock('@chatsift/backend-core', () => ({
-	getContext: () => ({ logger: { info: loggerInfo, warn: loggerWarn } }),
-}));
-
 const MockedResponse = Http2ServerResponse as unknown as new () => Response;
-const makeMockedRequest = (data: any): Request => data as unknown as Request;
+// Every real request carries a `req.logger` by the time it reaches `mountRoute`'s middleware chain (attached by
+// `attachLogger()`, mounted ahead of it in `app.ts`), so mocked requests get one here too by default.
+const makeMockedRequest = (data: any): Request =>
+	({ logger: { info: vi.fn(), warn: vi.fn() }, ...data }) as unknown as Request;
 
 afterEach(() => {
 	vi.resetAllMocks();
@@ -49,7 +46,7 @@ test('registers onto the server under the route method + path', () => {
 	expect(routes.has('get:/v3/guilds/:guildId')).toBe(true);
 });
 
-test('tracking middleware assigns a trackingId and calls next', async () => {
+test('tracking middleware logs the incoming request via req.logger and calls next', async () => {
 	const { server, routes } = makeServer();
 	mountRoute(
 		server,
@@ -69,7 +66,7 @@ test('tracking middleware assigns a trackingId and calls next', async () => {
 
 	await tracking(req, res, next);
 
-	expect(req.trackingId).toEqual(expect.any(String));
+	expect(req.logger.info).toHaveBeenCalledWith({ method: 'GET', path: '/v3/foo' }, 'incoming request');
 	expect(next).toHaveBeenCalledWith();
 });
 

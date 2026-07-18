@@ -1,3 +1,4 @@
+import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
@@ -9,7 +10,7 @@ export default class GuestSkipComponent implements ComponentHandler<string> {
 
 	public readonly stateStore = null;
 
-	public async handle(interaction: APIMessageComponentInteraction, questionIdStr: string) {
+	public async handle(interaction: APIMessageComponentInteraction, questionIdStr: string, logger: Logger) {
 		const questionId = Number.parseInt(questionIdStr, 10);
 
 		// Ack within Discord's 3s window before doing any DB/REST work below; everything past this point
@@ -78,9 +79,9 @@ export default class GuestSkipComponent implements ComponentHandler<string> {
 				],
 			});
 
-			getContext().logger.info({ questionId, amaId: question.amaId }, 'Question skipped by guest');
+			logger.info({ questionId, amaId: question.amaId }, 'Question skipped by guest');
 		} catch (error) {
-			getContext().logger.error({ err: error, questionId }, 'Failed to skip question');
+			logger.error({ err: error, questionId }, 'Failed to skip question');
 			await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 				content: 'Failed to skip question. Please try again.',
 				flags: MessageFlags.Ephemeral,
