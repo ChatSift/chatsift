@@ -24,6 +24,7 @@
 		"@discordjs/core": "3.0.0-dev.1783513686-6e81ea771",
 		"@discordjs/rest": "3.0.0-dev.1783513686-6e81ea771",
 		"@discordjs/ws": "3.0.0-dev.1783513686-6e81ea771",
+		"@sapphire/discord-utilities": "^4.0.0",
 		"bin-rw": "^0.1.1",
 		"nanoid": "^5.1.6"
 	}

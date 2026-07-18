@@ -1,13 +1,13 @@
 import { setTimeout, clearTimeout } from 'node:timers';
+import { getContext } from '@chatsift/backend-core';
 import type { APIInteraction, APIModalSubmitInteraction } from '@discordjs/core';
 import { GatewayDispatchEvents, InteractionType } from '@discordjs/core';
-import { client } from './client.js';
 
 export async function collectModal(id: string, waitFor: number): Promise<APIModalSubmitInteraction> {
 	return new Promise<APIModalSubmitInteraction>((resolve, reject) => {
 		const cleanup = () => {
 			/* eslint-disable @typescript-eslint/no-use-before-define */
-			client.off(GatewayDispatchEvents.InteractionCreate, handler);
+			getContext().service.client.off(GatewayDispatchEvents.InteractionCreate, handler);
 			clearTimeout(timeout);
 			/* eslint-enable @typescript-eslint/no-use-before-define */
 		};
@@ -24,6 +24,6 @@ export async function collectModal(id: string, waitFor: number): Promise<APIModa
 			cleanup();
 		}, waitFor).unref();
 
-		client.on(GatewayDispatchEvents.InteractionCreate, handler);
+		getContext().service.client.on(GatewayDispatchEvents.InteractionCreate, handler);
 	});
 }

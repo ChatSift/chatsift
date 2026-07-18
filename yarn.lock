@@ -374,6 +374,7 @@ __metadata:
     "@discordjs/core": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@discordjs/ws": "npm:3.0.0-dev.1783513686-6e81ea771"
+    "@sapphire/discord-utilities": "npm:^4.0.0"
     "@types/node": "npm:^24.9.1"
     bin-rw: "npm:^0.1.1"
     nanoid: "npm:^5.1.6"
@@ -418,7 +419,7 @@ __metadata:
   dependencies:
     "@chatsift/core": "workspace:^"
     "@chatsift/db": "workspace:^"
-    "@sapphire/discord-utilities": "npm:^3.5.0"
+    "@sapphire/discord-utilities": "npm:^4.0.0"
     "@types/node": "npm:^24.9.1"
     bin-rw: "npm:^0.1.1"
     pino: "npm:^9.14.0"
@@ -3145,6 +3146,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sapphire/discord-utilities@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "@sapphire/discord-utilities@npm:4.0.0"
+  dependencies:
+    discord-api-types: "npm:^0.38.30"
+  checksum: 10c0/f46bb98f5b2266ab950fbf1af41b1ca057b7f1431f959b5f7b6ce63578ff7deeaeb8bb130a3ae465a304c5636e719ca83558397399dd579ee1732cf3025ee5b4
+  languageName: node
+  linkType: hard
+
 "@sapphire/snowflake@npm:^3.5.5":
   version: 3.5.5
   resolution: "@sapphire/snowflake@npm:3.5.5"
@@ -5530,7 +5540,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"discord-api-types@npm:^0.38.43, discord-api-types@npm:^0.38.50":
+"discord-api-types@npm:^0.38.30, discord-api-types@npm:^0.38.43, discord-api-types@npm:^0.38.50":
   version: 0.38.50
   resolution: "discord-api-types@npm:0.38.50"
   checksum: 10c0/704f7a142e4972f866687958698307e32264538c6aba735936c72bbf97ad0b4edeee24fb7893829a1ac680014d2c3c66071f94204488b517cedffe416d3b222a
