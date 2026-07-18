@@ -10,7 +10,7 @@ export function AMASessionCard({ data }: AMASessionCardProps) {
 	return (
 		<Link
 			className={cn(
-				'flex h-36 w-[80vw] flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 hover:border-misc-accent dark:border-on-secondary-dark dark:bg-card-dark md:w-52',
+				'flex h-36 w-full flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 hover:border-misc-accent dark:border-on-secondary-dark dark:bg-card-dark',
 				data.ended && 'opacity-60 hover:opacity-100',
 			)}
 			href={`/dashboard/${data.guildId}/ama/amas/${data.id}`}

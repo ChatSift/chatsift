@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import type { ButtonProps } from 'react-aria-components';
 import { Button as AriaButton } from 'react-aria-components';
+import { APIError } from '@/api/error';
+import { pushErrorBanner } from '@/api/errorBanner';
 import { cn } from '@/utils/util';
 
 export function Button(props: ButtonProps) {
@@ -23,6 +25,14 @@ export function Button(props: ButtonProps) {
 						setIsLoading(true);
 						// eslint-disable-next-line @typescript-eslint/await-thenable, @typescript-eslint/no-confusing-void-expression
 						await props.onPress?.(event);
+					} catch (error) {
+						// Fallback safety net, not the primary error path: handlers that already surface their own
+						// inline error UI (form submits with field-level errors, etc.) catch internally and never
+						// reach here, so this never double-shows. It only fires for onPress handlers that let a
+						// mutation error propagate uncaught — otherwise that'd be a silent failure plus an
+						// unhandled promise rejection.
+						console.error('Unhandled onPress error:', error);
+						pushErrorBanner(error instanceof APIError ? error.message : 'Something went wrong. Please try again.');
 					} finally {
 						setIsLoading(false);
 					}

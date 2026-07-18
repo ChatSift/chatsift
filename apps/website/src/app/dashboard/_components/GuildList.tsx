@@ -15,7 +15,7 @@ function GuildListSkeleton() {
 		<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
 			{Array.from({ length: 4 }).map((_, index) => (
 				<li key={index}>
-					<Skeleton className="h-36 w-[80vw] rounded-lg md:w-52" />
+					<Skeleton className="h-36 w-full rounded-lg" />
 				</li>
 			))}
 		</ul>

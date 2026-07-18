@@ -13,6 +13,7 @@ import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { Skeleton } from '@/components/common/Skeleton';
+import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { getChannelIcon } from '@/utils/channels';
 import { formatDate, parseIntegerInput } from '@/utils/util';
 
@@ -69,10 +70,21 @@ export function AMADetails() {
 	const [configForm, setConfigForm] = useState<ConfigFormData | null>(null);
 	const [configErrors, setConfigErrors] = useState<ConfigFormErrors>({});
 
-	const { data: ama, isLoading } = useAMA(params.id, params.amaId);
-	const { data: guildInfo, isLoading: isGuildInfoLoading } = useGuildInfo(params.id, 'AMA');
+	const { data: ama, isLoading, error } = useAMA(params.id, params.amaId);
+	const {
+		data: guildInfo,
+		isLoading: isGuildInfoLoading,
+		error: guildInfoError,
+	} = useGuildInfo(params.id, 'AMA');
 	const updateAMA = useUpdateAMA(params.id, params.amaId);
 	const repostPrompt = useRepostPrompt(params.id, params.amaId);
+
+	// See GrantsList.tsx for why this also checks `ama === undefined`: a background refetch failure keeps the
+	// previously-cached session around, and that stale-but-present data should keep rendering (including any
+	// in-progress edit form) rather than being replaced by the full error state.
+	if (error && ama === undefined) {
+		return <UserErrorHandler error={error} />;
+	}
 
 	if (isLoading) {
 		return (
@@ -207,7 +219,7 @@ export function AMADetails() {
 					{!ama.ended && !editing && (
 						<Button
 							className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
-							isDisabled={isGuildInfoLoading}
+							isDisabled={isGuildInfoLoading || (guildInfo === undefined && Boolean(guildInfoError))}
 							onPress={startEdit}
 							type="button"
 						>

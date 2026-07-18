@@ -9,7 +9,7 @@ export function CreateAMACard() {
 
 	return (
 		<Link
-			className="flex h-36 w-[80vw] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-on-secondary bg-card p-4 hover:border-misc-accent dark:border-on-secondary-dark dark:bg-card-dark md:w-52"
+			className="flex h-36 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-on-secondary bg-card p-4 hover:border-misc-accent dark:border-on-secondary-dark dark:bg-card-dark"
 			href={`/dashboard/${params.id}/ama/amas/new`}
 		>
 			<SvgPlus />
