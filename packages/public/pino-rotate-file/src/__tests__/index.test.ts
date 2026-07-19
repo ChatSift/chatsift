@@ -46,7 +46,12 @@ vi.mock('sonic-boom', async () => {
 	}
 
 	return {
-		SonicBoom: vi.fn(() => new MockSonicBoom()),
+		// Must be a real function, not an arrow -- vitest 4's `new mockFn()` only invokes the mock as a
+		// constructor (rather than a plain call) when the implementation itself is constructible.
+		// eslint-disable-next-line prefer-arrow-callback
+		SonicBoom: vi.fn(function SonicBoom() {
+			return new MockSonicBoom();
+		}),
 	};
 });
 
