@@ -59,7 +59,7 @@ M0 also included creating GitHub milestones, labels, and seed issues for this ro
 | M0 — Scaffolding & discovery   | this doc set + GitHub setup                        | ~2026-07-23                         | Done (2026-07-16) |
 | M1 — Foundation refactor       | [02-foundation.md](02-foundation.md)               | ~2026-08-20                         | Done (2026-07-17), milestone closed |
 | M2 — Dashboard-config solid    | [03-dashboard-config.md](03-dashboard-config.md)   | ~2026-09-17                         | Done (2026-07-18), milestone closed |
-| M3 — AMA fully running         | [04-ama-complete.md](04-ama-complete.md)           | ~2026-11-05                         | In progress — Cluster 1 (question pipeline) done; Cluster 2 (slash-command infra) done, command set in progress (#143); Clusters 3–4 not started |
+| M3 — AMA fully running         | [04-ama-complete.md](04-ama-complete.md)           | ~2026-11-05                         | In progress — Cluster 1 (question pipeline) done; Cluster 2 (slash-command infra + command set, #143) done; Cluster 3 formatting+repost-prompt done (#144), "Add Answer" gap found & deferred to a new follow-up issue (blocks #145); Cluster 4 not started |
 | M4 — AMA drain-and-swap (live) | [05-migration-cutover.md](05-migration-cutover.md) | ~2026-11-19                         | Not started       |
 | M5 — ModMail port + migrate    | [06-modmail-port.md](06-modmail-port.md)           | ~2027-01-mid                        | Not started       |
 
