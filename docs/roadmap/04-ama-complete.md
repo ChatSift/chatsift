@@ -51,11 +51,22 @@ Owner decisions for the four subcommands (given without re-reading this doc firs
 
 ## Cluster 4 — Analytics & export (#146, #147)
 
-- [ ] **Per-AMA question-count stats** — `getAMAs` already returns `questionCount`; extend with a breakdown by `AMAQuestionState` (pending/flagged/approved/denied) for a real stats view.
-- [ ] **Stats API route(s)** — new `defineRoute`-based endpoint(s) (per [02-foundation.md](02-foundation.md)'s pattern) surfacing per-AMA and possibly per-guild aggregate stats.
-- [ ] **Dashboard stats view** — slot reserved in `AMADetails.tsx` per [03-dashboard-config.md](03-dashboard-config.md); build the actual charts/numbers here.
-- [ ] **CSV export route** — a `defineRoute` endpoint returning a CSV (or a signed download) of all questions for an AMA (author, content, state, timestamps) — for moderators wanting an offline record.
-- Not started; `/ama stats` (Cluster 2) is intentionally deferred until this lands, per owner decision.
+Both closed via PR #202.
+
+- [x] **Per-AMA question-count stats** — `GET /v3/guilds/:guildId/ama/amas/:amaId/stats` (`services/api/src/routes/ama/getAMAStats.ts`) returns `{ total, byState }`, `byState` keyed by all five `AmaQuestionState` values (`PENDING_MOD_REVIEW`/`PENDING_GUEST_REVIEW`/`FLAGGED`/`APPROVED`/`DENIED`, zero-filled) via a `GROUP BY state` query, gated `isGuildManager`.
+- [x] **Stats API route** — same route as above; the "possibly per-guild aggregate" idea from the original spec wasn't built — per-AMA only, which is what the dashboard slot needed.
+- [x] **CSV export route** — `GET /v3/guilds/:guildId/ama/amas/:amaId/export` (`services/api/src/routes/ama/exportAMA.ts`), RFC 4180 field escaping plus a leading-`'` guard against CSV/formula injection (CWE-1236) on the free-text `content` column; streams `author_id,state,content,created_at,updated_at` as a `Content-Disposition: attachment` download.
+- [x] **Dashboard stats view** — `AMADetails.tsx`'s "Analytics & Export" card (previously a placeholder) now fetches `/stats` and renders total + per-state counts, plus a CSV export button that hits `/export` and triggers a browser download.
+- `/ama stats` (Cluster 2) remains **not implemented** — that was deliberately scoped out of #143 pending this cluster; now that #146/#147 have landed the blocker is gone, but adding the slash command itself hasn't been picked up as its own piece of work yet.
+- **Confirmed live** by the owner (2026-07-19) — stats view and CSV export exercised against the dashboard, not just build/lint-green.
+
+## Milestone status
+
+All 9 M3 issues (#139–#147) are closed as of PR #202 (2026-07-19). Cluster 4 (stats view + CSV export) has been click-tested live. The `Unverified end-to-end` flags on Cluster 2's three subcommands (`/ama create`/`end`/`repost-prompt`) still stand — no click-test against a live guild has been recorded for those since they were written. The GitHub milestone itself (`M3 — AMA fully running`, #4) is still open on GitHub even though its issues are all closed; closing it is a GitHub write action, so it's left for the user to run:
+
+```
+gh api repos/ChatSift/ChatSift/milestones/4 -X PATCH -f state=closed
+```
 
 ## Verification
 
