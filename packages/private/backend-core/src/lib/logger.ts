@@ -22,6 +22,7 @@ export function createLogger(name: string) {
 						destination: 1, // stdout
 						colorize: true,
 						translateTime: 'SYS:standard',
+						ignore: 'levelLabel',
 					},
 				},
 	];
