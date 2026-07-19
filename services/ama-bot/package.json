@@ -14,7 +14,7 @@
 	},
 	"devDependencies": {
 		"@types/node": "^24.9.1",
-		"typescript": "~5.9.3",
+		"typescript": "~6.0.3",
 		"vitest": "^3.2.7"
 	},
 	"dependencies": {
@@ -26,6 +26,6 @@
 		"@discordjs/ws": "3.0.0-dev.1783513686-6e81ea771",
 		"@sapphire/discord-utilities": "^4.0.0",
 		"bin-rw": "^0.1.1",
-		"nanoid": "^5.1.6"
+		"nanoid": "^6.0.0"
 	}
 }

@@ -3,9 +3,9 @@ import { randomBytes } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
 import { encrypt, decrypt } from '../crypt.js';
 
-vi.mock('crypto', async () => {
+vi.mock('node:crypto', async () => {
 	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-	const original: typeof import('crypto') = await vi.importActual('crypto');
+	const original: typeof import('node:crypto') = await vi.importActual('node:crypto');
 	// eslint-disable-next-line unicorn/consistent-function-scoping
 	const randomBytes = (len: number) => Buffer.from(Array.from<number>({ length: len }).fill(1));
 	return {

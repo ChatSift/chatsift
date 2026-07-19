@@ -3,7 +3,7 @@
 import { getContext, RefreshTokenCookie } from '@chatsift/backend-core';
 import type { RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
-import cookie from 'cookie';
+import { parseCookie } from 'cookie';
 import jwt from 'jsonwebtoken';
 import { defineMiddleware } from '../core/route.js';
 import type { TypedMiddleware } from '../core/route.js';
@@ -119,7 +119,7 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 				await next();
 			}
 
-			const cookies = cookie.parse(req.headers.cookie ?? '');
+			const cookies = parseCookie(req.headers.cookie ?? '');
 			const refreshTokenCookie = cookies[RefreshTokenCookie];
 			// No refresh token, no shot the user is authed
 			if (!refreshTokenCookie) {
