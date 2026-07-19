@@ -18,15 +18,10 @@ export default {
 			fullUrl: true,
 		},
 	},
-	eslint: {
-		ignoreDuringBuilds: true,
-	},
 	typescript: {
 		ignoreBuildErrors: false,
 	},
-	experimental: {
-		reactCompiler: true,
-	},
+	reactCompiler: true,
 	async redirects() {
 		return [
 			{
