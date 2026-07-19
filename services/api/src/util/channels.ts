@@ -1,4 +1,5 @@
 import { setTimeout, clearTimeout } from 'node:timers';
+import type { Logger } from '@chatsift/backend-core';
 import type {
 	API,
 	APIGuildChannel,
@@ -8,6 +9,7 @@ import type {
 	Snowflake,
 } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
+import { badRequest, internal } from '@hapi/boom';
 
 export interface PossiblyMissingChannelInfo {
 	id: string;
@@ -83,4 +85,37 @@ export async function fetchGuildChannels(guildId: string, api: API, force = fals
 	}
 
 	return allChannels;
+}
+
+/**
+ * Guards against a guild manager pointing AMA channel fields (prompt/answers/mod-queue/etc) at a channel that
+ * belongs to a *different* guild — `discordAPIAma` is a single bot client shared across every guild it's installed
+ * in, so nothing else stops a caller from supplying an arbitrary snowflake there. Piggybacks on `fetchGuildChannels`'s
+ * existing 5-minute cache, which is already warmed by the dashboard's normal read traffic (`getAMA.ts`), so this
+ * rarely costs an extra Discord API call in practice.
+ */
+export async function assertChannelsBelongToGuild(
+	guildId: Snowflake,
+	channelIds: (Snowflake | null | undefined)[],
+	api: API,
+	logger: Logger,
+): Promise<void> {
+	// eslint-disable-next-line unicorn/prefer-native-coercion-functions
+	const ids = channelIds.filter((id): id is Snowflake => Boolean(id));
+	if (!ids.length) {
+		return;
+	}
+
+	const channels = await fetchGuildChannels(guildId, api);
+	if (!channels) {
+		logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
+		throw internal();
+	}
+
+	const validIds = new Set(channels.map((channel) => channel.id));
+	for (const id of ids) {
+		if (!validIds.has(id)) {
+			throw badRequest(`channel ${id} does not belong to this guild`);
+		}
+	}
 }

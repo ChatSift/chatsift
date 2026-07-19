@@ -40,6 +40,13 @@ export function createLogger(name: string) {
 			formatters: {
 				level: (levelLabel, level) => ({ level, levelLabel }),
 			},
+			// `@discordjs/rest` errors carry the literal request body (including OAuth `client_secret`/`refresh_token`)
+			// on `.requestBody.json` -- redact those specific fields wherever an error ends up logged, regardless of
+			// whether it's nested under an explicit `err` key or passed as pino's bare first argument.
+			redact: {
+				paths: ['err.requestBody.json.client_secret', 'err.requestBody.json.refresh_token'],
+				censor: '[REDACTED]',
+			},
 		},
 		transport,
 	);

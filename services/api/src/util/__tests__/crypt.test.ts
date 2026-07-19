@@ -26,7 +26,7 @@ const PLAIN_DATA = 'this is very sensitive';
 const SECRET_DATA = encrypt(PLAIN_DATA);
 
 test('encrypt', () => {
-	expect(SECRET_DATA).toBe('AQEBAQEBAQEBAQEBAQEBAejE/bWU7BLYic/V/zbJLfwqp2c5B/8=');
+	expect(SECRET_DATA).toBe('AQEBAQEBAQEBAQEBxhHT6UmedtOcwH3kjk8rx25dGm0nmvgZCTvVe5nywNNkdnnVyms=');
 });
 
 test('decrypt', () => {

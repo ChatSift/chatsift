@@ -21,11 +21,13 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 	public async handle(interaction: APIMessageComponentInteraction, _state: never, logger: Logger) {
 		const [ama] = await getContext().db<AmaSessions[]>`
 			SELECT s.* FROM ama_sessions s
-			INNER JOIN ama_prompt_data p ON s.id = p.id
+			INNER JOIN ama_prompt_data p ON p.ama_id = s.id
 			WHERE p.prompt_message_id = ${interaction.message.id}
 		`;
 
-		if (!ama) {
+		// The guildId check is defense-in-depth against the join above ever resolving the wrong session again
+		// (see #177) -- it should never actually diverge from the prompt message's own guild.
+		if (!ama || ama.guildId !== interaction.guild_id) {
 			throw new Error(`No AMA session found for prompt message ${interaction.message.id}`);
 		}
 

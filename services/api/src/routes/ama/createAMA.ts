@@ -7,6 +7,7 @@ import { badData } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
+import { assertChannelsBelongToGuild } from '../../util/channels.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
 import { snowflakeSchema } from '../../util/schemas.js';
 import { createAMABodySchema } from './schemas.js';
@@ -32,6 +33,13 @@ export default defineRoute({
 	async handler(req): Promise<CreateAMAResult> {
 		const data = req.body;
 		const { guildId } = req.params;
+
+		await assertChannelsBelongToGuild(
+			guildId,
+			[data.promptChannelId, data.answersChannelId, data.modQueueId, data.flaggedQueueId, data.guestQueueId],
+			discordAPIAma,
+			req.logger,
+		);
 
 		const messageBodyBase: RESTPostAPIChannelMessageJSONBody =
 			'prompt_raw' in data
