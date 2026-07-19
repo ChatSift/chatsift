@@ -110,7 +110,7 @@ export default class AmaCommand implements CommandHandler {
 		const url = `${getContext().FRONTEND_URL}/dashboard/${interaction.guild_id}/ama/amas/new?token=${token}`;
 
 		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-			content: `Click to create a new AMA (link expires in 15 minutes, single use): ${url}`,
+			content: `Click to create a new AMA (link expires soon, single use): ${url}`,
 			flags: MessageFlags.Ephemeral,
 		});
 	}

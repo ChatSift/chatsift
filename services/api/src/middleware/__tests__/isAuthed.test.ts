@@ -21,10 +21,11 @@ import { isAuthed } from '../isAuthed.js';
 vi.mock('http2');
 
 const ADMIN_USER_ID = vi.hoisted(() => '104425482757357568');
-// Backs `isGrantConsumed`/`consumeGrantToken` (the real implementations run in these tests, unmocked) --
-// defaults to "not consumed" (redis `EXISTS` returning 0), overridden per-test where needed.
+// Backs `claimGrantToken` (the real implementation runs in these tests, unmocked) -- defaults to "claim
+// succeeds" (redis `SET ... NX` returning `'OK'`), overridden per-test where needed to simulate an
+// already-claimed (consumed) token by returning `null`, as the real client does when `NX` finds the key set.
 const redisExistsMock = vi.hoisted(() => vi.fn(async () => 0));
-const redisSetMock = vi.hoisted(() => vi.fn(async () => 'OK'));
+const redisSetMock = vi.hoisted(() => vi.fn(async (): Promise<string | null> => 'OK'));
 vi.mock('@chatsift/backend-core', async (importActual) => {
 	process.env['ROOT_DOMAIN'] = '';
 	process.env['OAUTH_DISCORD_CLIENT_ID'] = '123456789012345678';
@@ -649,7 +650,7 @@ describe('grant token auth', () => {
 	});
 
 	test('rejects an already-consumed grant token', async () => {
-		redisExistsMock.mockResolvedValueOnce(1);
+		redisSetMock.mockResolvedValueOnce(null);
 
 		const [{ handle: isAuth }] = isAuthed({
 			fallthrough: false,
@@ -663,6 +664,44 @@ describe('grant token auth', () => {
 		await isAuth(makeMockedRequest({ headers: { authorization: makeGrantJWT() }, params: {} }), res, next);
 
 		expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'grant token already used'));
+	});
+
+	test('only lets one of two concurrent requests with the same grant token through', async () => {
+		// Stands in for the real client's `SET ... NX` semantics: the first caller to reach this claims the key,
+		// any other caller for the same `jti` finds it already set. This is what makes it safe for `createAMA.ts`
+		// to rely on the claim happening here rather than a separate "is it used yet" check.
+		let claimed = false;
+		redisSetMock.mockImplementation(async () => {
+			if (claimed) {
+				return null;
+			}
+
+			claimed = true;
+			return 'OK';
+		});
+
+		const [{ handle: isAuth }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: false,
+			grants: [GRANTS.AMA_CREATE],
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		const token = makeGrantJWT();
+		const nextA = vi.fn();
+		const nextB = vi.fn();
+
+		await Promise.all([
+			isAuth(makeMockedRequest({ headers: { authorization: token }, params: {} }), res, nextA),
+			isAuth(makeMockedRequest({ headers: { authorization: token }, params: {} }), res, nextB),
+		]);
+
+		const outcomes = [nextA, nextB].map((fn) => fn.mock.calls[0]?.[0]);
+
+		expect(outcomes.filter((error) => error === undefined)).toHaveLength(1);
+		expect(outcomes.filter((error) => error !== undefined)).toEqual([makeExpectedBoom(401, 'grant token already used')]);
 	});
 
 	test('falls through to normal session auth when the header holds a real access token, not a grant', async () => {

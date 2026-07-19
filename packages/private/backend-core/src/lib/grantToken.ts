@@ -62,7 +62,7 @@ export function verifyGrantToken(token: string | undefined): GrantTokenData | nu
 
 	try {
 		const decoded = jwt.verify(token, getContext().env.ENCRYPTION_KEY) as Partial<GrantTokenData>;
-		if (decoded.kind !== 'grant' || !decoded.jti || !decoded.guildId || !decoded.grant) {
+		if (decoded.kind !== 'grant' || !decoded.jti || !decoded.guildId || !decoded.grant || !decoded.sub) {
 			return null;
 		}
 
@@ -74,13 +74,27 @@ export function verifyGrantToken(token: string | undefined): GrantTokenData | nu
 
 const usedKey = (jti: string): string => `grant:used:${jti}`;
 
-export async function isGrantConsumed(jti: string): Promise<boolean> {
-	return (await getContext().redis.exists(usedKey(jti))) === 1;
+/**
+ * Atomically claims a grant token for use via `SET ... NX` -- returns `true` if this call performed the claim
+ * (first use), `false` if it was already claimed by a concurrent or prior request. This is the whole safety
+ * property: a separate "is it used yet" check followed by a later "mark it used" write (what this replaced)
+ * leaves a window where two concurrent requests for the same `jti` can both observe "not used" and both proceed.
+ * TTL matches the max token lifetime so the key self-cleans.
+ */
+export async function claimGrantToken(jti: string): Promise<boolean> {
+	const result = await getContext().redis.set(usedKey(jti), '1', {
+		condition: 'NX',
+		expiration: { type: 'EX', value: GRANT_TOKEN_TTL_SECONDS },
+	});
+
+	return result !== null;
 }
 
 /**
- * Marks a grant token spent. TTL matches the max token lifetime so the key self-cleans.
+ * Releases a claimed grant token, allowing the same link to be retried. Used when the action the grant was
+ * claimed for (e.g. AMA creation) fails after the claim succeeded, so a failed submission doesn't permanently
+ * burn the user's single-use link.
  */
-export async function consumeGrantToken(jti: string): Promise<void> {
-	await getContext().redis.set(usedKey(jti), '1', { expiration: { type: 'EX', value: GRANT_TOKEN_TTL_SECONDS } });
+export async function releaseGrantToken(jti: string): Promise<void> {
+	await getContext().redis.del(usedKey(jti));
 }

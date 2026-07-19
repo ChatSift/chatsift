@@ -1,23 +1,24 @@
 import { randomBytes } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { beforeEach, expect, test, vi } from 'vitest';
-import {
-	consumeGrantToken,
-	createGrantToken,
-	GRANTS,
-	isGrantConsumed,
-	verifyGrantToken,
-} from '../grantToken.js';
+import { claimGrantToken, createGrantToken, GRANTS, releaseGrantToken, verifyGrantToken } from '../grantToken.js';
 
 const ENCRYPTION_KEY = randomBytes(32).toString('base64');
 
 // In-memory fake standing in for the real redis client, just enough surface for
-// `isGrantConsumed`/`consumeGrantToken` (`exists` + `set`).
+// `claimGrantToken`/`releaseGrantToken` (`set` with `condition: 'NX'` + `del`).
 const fakeRedisStore = new Map<string, string>();
 const fakeRedis = {
-	exists: vi.fn(async (key: string) => (fakeRedisStore.has(key) ? 1 : 0)),
-	set: vi.fn(async (key: string, value: string) => {
+	set: vi.fn(async (key: string, value: string, options?: { condition?: string }) => {
+		if (options?.condition === 'NX' && fakeRedisStore.has(key)) {
+			return null;
+		}
+
 		fakeRedisStore.set(key, value);
+		return 'OK';
+	}),
+	del: vi.fn(async (key: string) => {
+		fakeRedisStore.delete(key);
 	}),
 };
 
@@ -71,13 +72,31 @@ test('verifyGrantToken returns null for undefined input', () => {
 	expect(verifyGrantToken(undefined)).toBeNull();
 });
 
-test('isGrantConsumed/consumeGrantToken track one-time use', async () => {
+test('verifyGrantToken returns null when sub is missing', () => {
+	const noSub = jwt.sign(
+		{ kind: 'grant', guildId: baseData.guildId, grant: baseData.grant, jti: 'x' },
+		ENCRYPTION_KEY,
+	);
+
+	expect(verifyGrantToken(noSub)).toBeNull();
+});
+
+test('claimGrantToken/releaseGrantToken track one-time use', async () => {
 	const token = createGrantToken(baseData);
 	const { jti } = verifyGrantToken(token)!;
 
-	expect(await isGrantConsumed(jti)).toBe(false);
+	expect(await claimGrantToken(jti)).toBe(true);
 
-	await consumeGrantToken(jti);
+	await releaseGrantToken(jti);
 
-	expect(await isGrantConsumed(jti)).toBe(true);
+	expect(await claimGrantToken(jti)).toBe(true);
+});
+
+test('claimGrantToken only lets one of two concurrent claims for the same jti succeed', async () => {
+	const token = createGrantToken(baseData);
+	const { jti } = verifyGrantToken(token)!;
+
+	const [first, second] = await Promise.all([claimGrantToken(jti), claimGrantToken(jti)]);
+
+	expect([first, second].filter(Boolean)).toHaveLength(1);
 });

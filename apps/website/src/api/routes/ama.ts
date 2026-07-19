@@ -91,6 +91,13 @@ export function useCreateAMA(guildId: string) {
 		mutationFn: async (body: CreateAMABody) =>
 			apiFetch<CreateAMAResult>('post', `/v3/guilds/${guildId}/ama/amas`, { body, authToken: grant?.token }),
 		async onSuccess() {
+			// A successful grant-authed create burns the grant token server-side (single use) -- invalidating here
+			// would trigger `useAMAs`' currently-mounted refetch (e.g. via `AMADashboardCrumbs` on this same page)
+			// to replay that now-consumed token and 401. Session-based creates don't have this problem.
+			if (grant) {
+				return;
+			}
+
 			await queryClient.invalidateQueries({ queryKey: queryKeys.ama.all(guildId) });
 		},
 	});

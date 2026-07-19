@@ -1,6 +1,6 @@
 /* eslint-disable n/callback-return */
 
-import { getContext, isGrantConsumed, RefreshTokenCookie, verifyGrantToken } from '@chatsift/backend-core';
+import { claimGrantToken, getContext, RefreshTokenCookie, verifyGrantToken } from '@chatsift/backend-core';
 import type { GrantString, GrantTokenData } from '@chatsift/backend-core';
 import type { RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
@@ -152,12 +152,16 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 						return;
 					}
 
-					if (await isGrantConsumed(grantToken.jti)) {
+					// Atomically claims the token (`SET ... NX`) rather than a check-then-later-consume: two concurrent
+					// requests for the same `jti` race here, and only one can win the claim, so at most one AMA gets
+					// created per link. The route handler releases the claim on failure (see `createAMA.ts`) so a
+					// bad submission doesn't permanently burn the link.
+					if (!(await claimGrantToken(grantToken.jti))) {
 						await next(unauthorized('grant token already used'));
 						return;
 					}
 
-					// `req` is a per-request object, not shared mutable state -- the `await isGrantConsumed` above
+					// `req` is a per-request object, not shared mutable state -- the `await claimGrantToken` above
 					// crossing this assignment is what trips this rule's static analysis, but there's no real race.
 					// eslint-disable-next-line require-atomic-updates
 					req.grant = grantToken;

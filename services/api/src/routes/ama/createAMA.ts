@@ -1,4 +1,4 @@
-import { consumeGrantToken, getContext, GRANTS } from '@chatsift/backend-core';
+import { getContext, GRANTS, releaseGrantToken } from '@chatsift/backend-core';
 import type { AmaSessions } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
@@ -79,6 +79,12 @@ export default defineRoute({
 				],
 			});
 		} catch (error) {
+			// The grant (if any) was already atomically claimed in `isAuthed` before this handler ran -- release it
+			// here so a failed submit doesn't cost the user their single-use link.
+			if (req.grant) {
+				await releaseGrantToken(req.grant.jti);
+			}
+
 			if (error instanceof DiscordAPIError && error.status === 400 && 'prompt_raw' in data) {
 				throw badData('invalid prompt_raw data');
 			}
@@ -87,7 +93,7 @@ export default defineRoute({
 		}
 
 		try {
-			const session = await getContext().db.begin(async (sql) => {
+			return await getContext().db.begin(async (sql) => {
 				const [session] = await sql<AmaSessions[]>`
 					INSERT INTO ama_sessions (
 						guild_id, title, answers_channel_id, prompt_channel_id,
@@ -107,18 +113,15 @@ export default defineRoute({
 
 				return session!;
 			});
-
-			// Burn the grant token only once the create has actually succeeded -- a failed/invalid submit
-			// shouldn't cost the user their single-use link.
-			if (req.grant) {
-				await consumeGrantToken(req.grant.jti);
-			}
-
-			return session;
 		} catch (error) {
 			// If we created the prompt message but failed to insert data, delete the message to avoid orphaned prompts.
 			// eslint-disable-next-line promise/prefer-await-to-then
 			void discordAPIAma.channels.deleteMessage(data.promptChannelId, promptMessage.id).catch(() => null);
+
+			if (req.grant) {
+				await releaseGrantToken(req.grant.jti);
+			}
+
 			throw error;
 		}
 	},
