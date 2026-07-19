@@ -4,6 +4,8 @@ import { badData, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
+import { assertChannelsBelongToGuild } from '../../util/channels.js';
+import { discordAPIAma } from '../../util/discordAPI.js';
 import { snowflakeSchema } from '../../util/schemas.js';
 import { updateAMABodySchema } from './schemas.js';
 
@@ -59,6 +61,13 @@ export default defineRoute({
 
 			return updated!;
 		}
+
+		await assertChannelsBelongToGuild(
+			guildId,
+			[data.answersChannelId, data.modQueueId, data.flaggedQueueId, data.guestQueueId],
+			discordAPIAma,
+			req.logger,
+		);
 
 		const columns = Object.keys(data) as (keyof typeof data)[];
 		const [updated] = await db<AmaSessions[]>`
