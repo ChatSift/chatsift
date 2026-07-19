@@ -47,7 +47,7 @@ Owner decisions for the four subcommands (given without re-reading this doc firs
 
 - [ ] Confirm `postToAnswersChannel`'s Components V2 formatting is final-quality (avatar, question text, any attachments via media gallery) — this is the host-facing/public-facing output, worth extra polish pass.
 - [ ] **Repost prompt** — the API-side route (`repostPrompt.ts`) and `useRepostPrompt` hook exist and are confirmed working from the dashboard; the bot-side `/ama repost-prompt` command (Cluster 2) is the remaining piece — confirm it re-posts using the stored `AmaPromptData.promptJsonData` faithfully (raw vs. normal prompt mode, per `createAMA`'s `prompt_raw`/`prompt` schemas).
-- [ ] **Edit/repost of published answers** — decide and implement: can a mod edit an already-answered question's published message (e.g. to fix a typo, or re-flag after the fact)? If yes, needs a component/command + a DB update path; if explicitly not supported this stage, document that decision here.
+- [x] **Edit/repost of published answers** (#145) — **decided: not implementing this stage.** No component/command or DB update path for mutating an already-published answer message. A typo or after-the-fact re-flag is handled the same way any other Discord message correction is: manually, via Discord's own message-edit/delete, not through the bot. Revisit only if a concrete need shows up post-M3.
 
 ## Cluster 4 — Analytics & export (#146, #147)
 
