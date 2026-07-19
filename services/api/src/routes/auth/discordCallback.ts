@@ -1,6 +1,6 @@
 import { getContext } from '@chatsift/backend-core';
 import { badRequest, forbidden } from '@hapi/boom';
-import cookie from 'cookie';
+import { parseCookie } from 'cookie';
 import z from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
@@ -33,7 +33,7 @@ export default defineRoute({
 
 		const { code, state: stateQuery } = req.query;
 
-		const parsedCookies = cookie.parse(req.headers.cookie ?? '');
+		const parsedCookies = parseCookie(req.headers.cookie ?? '');
 		if (stateQuery !== parsedCookies['state']) {
 			throw badRequest('bad state');
 		}

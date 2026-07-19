@@ -10,9 +10,11 @@ import type { NextHandler, Request, Response } from 'polka';
  * It can still be missing in `onError` if something throws before this middleware runs at all (e.g. polka's own
  * routing/parsing) -- that's the one gap `app.ts`'s `onError` falls back to `getContext().logger` for.
  */
+async function attachLoggerMiddleware(req: Request, _res: Response, next: NextHandler) {
+	req.logger = getContext().logger.child({ requestId: nanoid(10) });
+	return next();
+}
+
 export function attachLogger() {
-	return async (req: Request, _res: Response, next: NextHandler) => {
-		req.logger = getContext().logger.child({ requestId: nanoid(10) });
-		return next();
-	};
+	return attachLoggerMiddleware;
 }

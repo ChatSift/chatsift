@@ -5,7 +5,7 @@ import { Heading } from '@/components/common/Heading';
 export default function SettingsPage() {
 	return (
 		<>
-			<div className="flex flex-col [&:not]:first-of-type:mt-8 [&>*]:first-of-type:mb-4">
+			<div className="flex flex-col [&>*:not(:first-of-type)]:mt-8 [&>*]:first-of-type:mb-4">
 				<DashboardCrumbs />
 				<Heading
 					subtitle="Manage who can access the dashboard for this server, outside of server admins"

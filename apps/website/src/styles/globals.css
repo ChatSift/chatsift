@@ -1,8 +1,44 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 @import url('author.css');
+@import 'tailwindcss' source(none);
+@import 'tw-animate-css';
+
+@source '../components/**/*.{js,ts,jsx,tsx,mdx}';
+@source '../app/**/*.{js,ts,jsx,tsx,mdx}';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+	--color-*: initial;
+
+	--color-base: #f1f2f5;
+	--color-base-dark: #151519;
+
+	--color-primary: #1d274e;
+	--color-primary-dark: #f6f6fb;
+
+	--color-secondary: rgba(29, 39, 78, 0.75);
+	--color-secondary-dark: #f6f6fbb2;
+
+	--color-accent: #ffffff;
+
+	--color-disabled: #1e284f80;
+	--color-disabled-dark: #f5f5fc66;
+
+	--color-on-primary: #1e284f40;
+	--color-on-primary-dark: #f4f4fd33;
+
+	--color-on-secondary: rgba(29, 39, 78, 0.15);
+	--color-on-secondary-dark: #f4f4fd1a;
+
+	--color-on-tertiary: #1e284f0d;
+	--color-on-tertiary-dark: #f4f4fd0d;
+
+	--color-misc-accent: #2f8fee;
+	--color-misc-danger: #ff5052;
+
+	--color-card: #ffffff;
+	--color-card-dark: #1c1c21;
+}
 
 body {
 	font-family: Author-Variable, sans-serif;

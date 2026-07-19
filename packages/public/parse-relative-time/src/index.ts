@@ -1,4 +1,4 @@
-/* eslint-disable jsdoc/no-undefined-types */
+ 
 
 /**
  * @remarks
@@ -33,7 +33,7 @@ const MS_VALUE_LOOKUP = {
 	month: oneMonth,
 } as const;
 
-/* eslint-disable id-length */
+ 
 const MS_VALUE_ALIAS_LOOKUP = {
 	ms: 'milisecond',
 	miliseconds: 'milisecond',
@@ -69,7 +69,7 @@ const MS_VALUE_ALIAS_LOOKUP = {
 	mons: 'month',
 	months: 'month',
 } as const satisfies Record<string, keyof typeof MS_VALUE_LOOKUP>;
-/* eslint-enable id-length */
+ 
 
 function retrieveMsValue(unit: string): TimeParserResult<number> {
 	if (unit in MS_VALUE_LOOKUP) {
