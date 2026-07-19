@@ -1,4 +1,4 @@
-import { parseCookie, stringifySetCookie } from 'cookie';
+import { parseSetCookie, stringifySetCookie } from 'cookie';
 import type { SerializeOptions } from 'cookie';
 import type { NextHandler, Request, Response } from 'polka';
 
@@ -49,17 +49,14 @@ async function attachHttpUtilsMiddleware(_: Request, res: Response, next: NextHa
 	res.cookie = (name, data, options) => {
 		const value = stringifySetCookie({ name, value: data, ...options });
 
-		const existing = parseCookie(res.getHeader('Set-Cookie')?.toString() ?? '');
-		if (existing[name]) {
-			// If the cookie already exists, we need to replace it. We also have to keep in mind we can have string | string[];
-			const existingSet = res.getHeader('Set-Cookie');
-			const existingArray = Array.isArray(existingSet) ? existingSet : existingSet ? [existingSet.toString()] : [];
-			const filtered = existingArray.filter((c) => !c.startsWith(`${name}=`));
+		// Set-Cookie headers are each a single cookie (not the `a=b; c=d` format `Cookie` request headers use), so
+		// each entry needs parsing individually via `parseSetCookie` -- keep in mind we can have string | string[].
+		const existingSet = res.getHeader('Set-Cookie');
+		const existingArray = Array.isArray(existingSet) ? existingSet : existingSet ? [existingSet.toString()] : [];
+		const filtered = existingArray.filter((setCookieHeader) => parseSetCookie(setCookieHeader).name !== name);
 
-			res.setHeader('Set-Cookie', [...filtered, value]);
-		} else {
-			res.append('Set-Cookie', value);
-		}
+		const updated = [...filtered, value];
+		res.setHeader('Set-Cookie', updated.length === 1 ? updated[0]! : updated);
 	};
 
 	return next();
