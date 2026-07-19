@@ -1,4 +1,4 @@
-import { getContext } from '@chatsift/backend-core';
+import { consumeGrantToken, getContext, GRANTS } from '@chatsift/backend-core';
 import type { AmaSessions } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
@@ -29,6 +29,7 @@ export default defineRoute({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
+		grants: [GRANTS.AMA_CREATE],
 	}),
 	async handler(req): Promise<CreateAMAResult> {
 		const data = req.body;
@@ -86,7 +87,7 @@ export default defineRoute({
 		}
 
 		try {
-			return await getContext().db.begin(async (sql) => {
+			const session = await getContext().db.begin(async (sql) => {
 				const [session] = await sql<AmaSessions[]>`
 					INSERT INTO ama_sessions (
 						guild_id, title, answers_channel_id, prompt_channel_id,
@@ -106,6 +107,14 @@ export default defineRoute({
 
 				return session!;
 			});
+
+			// Burn the grant token only once the create has actually succeeded -- a failed/invalid submit
+			// shouldn't cost the user their single-use link.
+			if (req.grant) {
+				await consumeGrantToken(req.grant.jti);
+			}
+
+			return session;
 		} catch (error) {
 			// If we created the prompt message but failed to insert data, delete the message to avoid orphaned prompts.
 			// eslint-disable-next-line promise/prefer-await-to-then

@@ -174,9 +174,55 @@ JWT-based, split across cookie + header — already close to the SimplyChords sh
 3. **Refresh token** — JWT, 30-day, httpOnly `refresh_token` cookie, contains Discord access/refresh tokens.
 4. **Access token** — JWT, 5-minute, delivered via the `X-Update-Access-Token` response header (never a cookie), contains `grants.adminGuilds`.
 5. `isAuthed({ fallthrough, isGlobalAdmin, isGuildManager })` middleware verifies the refresh cookie, reads the access token from `Authorization`, auto-refreshes if <7 min remain, and gates on global-admin or guild-manager membership.
-6. Frontend: `apps/website/src/middleware.ts` redirects `/dashboard/*` to the API login URL if no `refresh_token` cookie; the client fetcher stores the rotating access token in memory (Jotai atom in the target layout, `useState` today) and re-reads `X-Update-Access-Token` on every response.
+6. Frontend: `apps/website/src/proxy.ts` redirects `/dashboard/*` to the API login URL if no `refresh_token` cookie; the client fetcher stores the rotating access token in memory (Jotai atom in the target layout, `useState` today) and re-reads `X-Update-Access-Token` on every response.
 
 Under the target contract pattern, `isAuthed` becomes a typed `defineMiddleware` that attaches `req.identity`/`req.tokens` onto the handler's `req` type — same runtime behavior, real typing.
+
+### 4a. Grant-token auth (one-time, scoped) (#194)
+
+A second, independent auth path alongside the session flow above: a bot slash command mints a short-lived,
+single-capability JWT and embeds it in a dashboard URL, so a user with no browser session can still perform the
+one action Discord already proved they're allowed to do (having run the command at all, gated by
+`.setDefaultMemberPermissions(...)` on that command). First consumer: `/ama create`
+(`services/ama-bot/src/commands/ama.ts`) — see [04-ama-complete.md](04-ama-complete.md) Cluster 2.
+
+- **Token shape** (`GrantTokenData`, `packages/private/backend-core/src/lib/grantToken.ts`): `{ kind: 'grant', sub,
+  guildId, grant, jti, iat }`, signed with the same `ENCRYPTION_KEY` as the session tokens above, 15-minute expiry.
+  `kind: 'grant'` is a hard discriminator — without it, a grant token has no `refresh` field either, and would
+  otherwise pass the session access-token check and be treated as a valid session. `GRANTS` (same file) is the
+  registry of capability strings (currently just `ama:create`); `createGrantToken()`/`verifyGrantToken()` mint and
+  verify it, `isGrantConsumed()`/`consumeGrantToken()` enforce one-time use via a `grant:used:<jti>` Redis key.
+- **API side** (`services/api/src/middleware/isAuthed.ts`): routes opt in per-route via a new `grants: GrantString[]`
+  option. A fast path at the top of `isAuthed`'s first middleware verifies the token and, on a match, sets
+  `req.grant` and calls `next()` **before any cookie/refresh/access-token logic runs at all** — a grant request
+  never sets `X-Update-Access-Token` or touches the `refresh_token` cookie, so it can't interfere with a real
+  session in the same browser. A route's `:guildId` param (if it has one) must match the token's `guildId`; routes
+  without one (`/v3/auth/me`) use the token's `guildId` directly instead. Falls through to normal session auth if
+  the header holds a real access token instead of a grant. Opted-in routes: `getGuild`, `createAMA`, `getAMAs`, and
+  `/v3/auth/me` (see below) — each still declares which specific grant strings it accepts.
+- **`/v3/auth/me` under a grant** (`services/api/src/util/me.ts`'s `fetchMeFromGrant`): there's no Discord OAuth
+  access token to call `/users/@me` with, so it uses the bot's own REST client (already a member of the grant's
+  guild) to fetch just the acting user and that one guild, returning a `Me` shaped exactly like a real session's but
+  with a single-entry `guilds` array. This is what lets the frontend reuse the *same* dashboard route and shared
+  components (`useMe()`, `GuildNav`, `DashboardCrumbs`, ...) instead of a parallel minimal page.
+- **Frontend** (`apps/website/src/api/grant.ts`'s `useGrantAuth()`): reads `?token=` and decodes the JWT payload
+  client-side to drive rendering — this is NOT verification (no `ENCRYPTION_KEY` in the browser), the API
+  re-verifies the signature on every request regardless. Deliberately scoped to one exact route
+  (`/dashboard/:guildId/ama/amas/new`) via regex: an unscoped check would let a forged `token` query param on *any*
+  dashboard route flip `NavGateProvider`/`NavGateCheck`'s client-side gates for that route too, since the decode
+  isn't cryptographic. `apiFetch`'s `authToken` option (`api/fetch.ts`) sends the grant token instead of the stored
+  session and forces `credentials: 'omit'`, so the token never touches `accessTokenAtom` or cookies. `useMe()`,
+  `useGuildInfo()`, `useAMAs()`, `useCreateAMA()` all call `useGrantAuth()` internally and transparently switch to
+  grant auth when active — call sites don't need to know grant auth exists. `useMe()`'s query is cached under a
+  separate key (`queryKeys.auth.meGrant(token)`) so it can never collide with the real session's `me` cache entry.
+- **Dashboard chrome while a grant is active:** `GuildNav` and `DashboardCrumbs` render tabs/breadcrumbs as
+  non-interactive (no `href`) rather than hiding them, since the grant only authorizes the one page it links to —
+  navigating anywhere else would 401. `UserDesktop`/`UserMobile` show the grant's user avatar (via the real,
+  grant-authed `/me` response) with no login/logout button. `apps/website/src/proxy.ts` exempts exactly this one
+  route from its cookie-presence redirect when a `token` param is present (presence only, not verified — same
+  "UX gate, not a security boundary" reasoning as the frontend decode above).
+- **One-time use:** enforced server-side only. `createAMA`'s handler calls `consumeGrantToken(req.grant.jti)` after
+  its DB transaction succeeds (not before) — a failed/invalid submit doesn't cost the user their single-use link.
 
 ## 5. Data model reference (current 6 models, kept in target schema)
 

@@ -1,11 +1,11 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout, clearTimeout } from 'node:timers';
-import type { BotId, Logger } from '@chatsift/backend-core';
+import type { BotId, GrantTokenData, Logger } from '@chatsift/backend-core';
 import { BOTS, getContext, GuildList, PermissionsBitField, promiseAllObject } from '@chatsift/backend-core';
 import type { DashboardGrants } from '@chatsift/db';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
-import { discordAPIOAuth } from './discordAPI.js';
+import { discordAPIAma, discordAPIOAuth } from './discordAPI.js';
 
 export type MeGuild = Pick<
 	RESTAPIPartialCurrentUserGuild,
@@ -112,4 +112,37 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 	logger.info({ durationMs: end - start }, 'fetched /me');
 
 	return me;
+}
+
+/**
+ * Grant-token equivalent of `fetchMe`: there's no Discord OAuth access token to call `/users/@me`/`/users/@me/guilds`
+ * with, so instead it uses the AMA bot's own REST client (already a member of the grant's guild, or the grant
+ * couldn't have been minted) to fetch just the acting user and the one guild the grant is scoped to. `guilds` is
+ * deliberately a single-entry array -- unlike a real session, a grant token only ever authorizes one guild.
+ */
+export async function fetchMeFromGrant(grant: GrantTokenData, logger: Logger): Promise<Me> {
+	logger.info({ userId: grant.sub, guildId: grant.guildId }, 'building stripped /me from grant token');
+
+	const [discordUser, guild] = await Promise.all([
+		discordAPIAma.users.get(grant.sub),
+		discordAPIAma.guilds.get(grant.guildId),
+	]);
+
+	const meGuild: MeGuild = {
+		id: guild.id,
+		name: guild.name,
+		icon: guild.icon,
+		// The grant token itself is the authorization for this one scoped action -- there's no broader
+		// "can manage this guild" question to ask here the way there is for a real session.
+		// The authentication middleware gurantees this via its guards.
+		meCanManage: true,
+		// The grant may need to include this in the future.
+		bots: ['AMA'],
+	};
+
+	return {
+		...discordUser,
+		isGlobalAdmin: false,
+		guilds: [meGuild],
+	};
 }

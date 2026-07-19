@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { APIError } from '../error';
 import { pushErrorBanner } from '../errorBanner';
 import { apiFetch } from '../fetch';
+import { useGrantAuth } from '../grant';
 import { queryKeys } from '../queryClient';
 import { store } from '../store';
 import { lastExplicitLogoutAtAtom } from '../token';
@@ -19,9 +20,13 @@ export const me = {
 	queryKey: () => queryKeys.auth.me,
 	// A 401 here means "not logged in", not a failure — resolves to `null` rather than throwing so callers can
 	// tell that state apart from "still loading" (`undefined`) without needing to inspect the query's error.
-	queryFn: async (forceFresh = false): Promise<MeResponse | null> => {
+	// `grantToken`, when passed, is sent instead of the caller's real session (see `FetchOptions.authToken`).
+	queryFn: async (forceFresh = false, grantToken?: string): Promise<MeResponse | null> => {
 		try {
-			return await apiFetch<MeResponse>('get', '/v3/auth/me', { query: { force_fresh: forceFresh } });
+			return await apiFetch<MeResponse>('get', '/v3/auth/me', {
+				query: { force_fresh: forceFresh },
+				authToken: grantToken,
+			});
 		} catch (error) {
 			if (error instanceof APIError && error.statusCode === 401) {
 				return null;
@@ -32,10 +37,18 @@ export const me = {
 	},
 };
 
+/**
+ * Every caller (`NavGateProvider`, `GuildNav`, `DashboardCrumbs`, the Navbar user area, ...) just calls this
+ * unchanged -- it internally detects the one-time grant-token flow via `useGrantAuth()` and transparently swaps
+ * in a grant-scoped query (separate cache entry, token sent instead of the session) when active, so none of
+ * those call sites need to know grant auth exists.
+ */
 export function useMe() {
+	const grant = useGrantAuth();
+
 	return useQuery({
-		queryKey: me.queryKey(),
-		queryFn: async () => me.queryFn(false),
+		queryKey: grant ? queryKeys.auth.meGrant(grant.token) : me.queryKey(),
+		queryFn: async () => me.queryFn(false, grant?.token),
 	});
 }
 

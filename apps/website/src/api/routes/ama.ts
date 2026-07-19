@@ -9,6 +9,7 @@ import type {
 } from '@chatsift/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, apiFetchBlob } from '../fetch';
+import { useGrantAuth } from '../grant';
 import { queryKeys } from '../queryClient';
 
 export type { PossiblyMissingChannelInfo } from '@chatsift/api';
@@ -31,12 +32,20 @@ export type UpdateAMABody = UpdateAMAContract['body'];
 
 type RepostPromptContract = InferRouteContract<typeof repostPromptRoute>;
 
+/**
+ * Transparently authed via the one-time grant-token flow when active (`useGrantAuth()`), same as `useMe()` --
+ * lets `AMADashboardCrumbs`' "switch AMA" dropdown work on the grant-created page without it needing to know
+ * grant auth exists.
+ */
 export function useAMAs(guildId: string, includeEnded: boolean) {
+	const grant = useGrantAuth();
+
 	return useQuery({
 		queryKey: queryKeys.ama.list(guildId, includeEnded),
 		queryFn: async () =>
 			apiFetch<AMASessionWithCount[]>('get', `/v3/guilds/${guildId}/ama/amas`, {
 				query: { include_ended: includeEnded },
+				authToken: grant?.token,
 			}),
 	});
 }
@@ -75,11 +84,12 @@ export function useExportAMAQuestions(guildId: string, amaId: string) {
 }
 
 export function useCreateAMA(guildId: string) {
+	const grant = useGrantAuth();
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: async (body: CreateAMABody) =>
-			apiFetch<CreateAMAResult>('post', `/v3/guilds/${guildId}/ama/amas`, { body }),
+			apiFetch<CreateAMAResult>('post', `/v3/guilds/${guildId}/ama/amas`, { body, authToken: grant?.token }),
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.ama.all(guildId) });
 		},

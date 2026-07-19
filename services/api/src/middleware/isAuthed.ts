@@ -1,6 +1,7 @@
 /* eslint-disable n/callback-return */
 
-import { getContext, RefreshTokenCookie } from '@chatsift/backend-core';
+import { getContext, isGrantConsumed, RefreshTokenCookie, verifyGrantToken } from '@chatsift/backend-core';
+import type { GrantString, GrantTokenData } from '@chatsift/backend-core';
 import type { RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
 import { parseCookie } from 'cookie';
@@ -15,6 +16,12 @@ import { createAccessToken, createRefreshToken, noopAccessToken, noopRefreshToke
 
 declare module 'polka' {
 	export interface Request {
+		/**
+		 * Set instead of `tokens`/`guild` when the request authed via a scoped one-time grant token
+		 * (see `grants` option below) rather than a full session — handlers opting into `grants` must not
+		 * assume `tokens`/`guild` are populated.
+		 */
+		grant?: GrantTokenData;
 		guild?: MeGuild;
 		tokens?: {
 			access: AccessTokenData;
@@ -42,6 +49,12 @@ interface IsAuthedGlobalAdmin {
 
 interface IsAuthedNoGlobalAdmin {
 	fallthrough: false;
+	/**
+	 * If set, a scoped one-time grant token (see `@chatsift/backend-core`'s `GRANTS`) matching one of these
+	 * strings is accepted as an alternative to a full session, provided its `guildId` matches the `:guildId`
+	 * route param. Opt-in only — routes that don't set this never run the grant fast-path.
+	 */
+	grants?: readonly GrantString[];
 	isGlobalAdmin: false;
 	/**
 	 * If true, assumes `guildId` parameter is present and checks if the user can manage that guild
@@ -119,6 +132,42 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 				await next();
 			}
 
+			// Scoped grant-token fast path: entirely separate from, and prior to, the session-cookie logic
+			// below. On a match it returns before touching any cookies or the access-token-refresh header, so a
+			// grant request never mutates the caller's real session (the owner's hard isolation requirement for
+			// #194) -- see also the frontend's mirrored `credentials: 'omit'` in `apiFetch`.
+			if (!options.fallthrough && !options.isGlobalAdmin && options.grants?.length) {
+				const grantToken = verifyGrantToken(req.headers.authorization);
+				if (grantToken) {
+					if (!options.grants.includes(grantToken.grant)) {
+						await next(forbidden('grant not permitted for this route'));
+						return;
+					}
+
+					// Routes without a `:guildId` param (e.g. `/v3/auth/me`) aren't scoped to a specific guild by
+					// the URL at all -- there's nothing to compare against, so the handler uses `req.grant.guildId`
+					// directly instead. Routes that DO have the param (getGuild, createAMA) still get the check.
+					if (req.params['guildId'] !== undefined && grantToken.guildId !== req.params['guildId']) {
+						await next(forbidden('grant guild mismatch'));
+						return;
+					}
+
+					if (await isGrantConsumed(grantToken.jti)) {
+						await next(unauthorized('grant token already used'));
+						return;
+					}
+
+					// `req` is a per-request object, not shared mutable state -- the `await isGrantConsumed` above
+					// crossing this assignment is what trips this rule's static analysis, but there's no real race.
+					// eslint-disable-next-line require-atomic-updates
+					req.grant = grantToken;
+					await next();
+					return;
+				}
+				// Not a grant token (or none provided) -- fall through to normal session auth below, so a
+				// logged-in guild manager can still use grant-opted-in routes via their real session.
+			}
+
 			const cookies = parseCookie(req.headers.cookie ?? '');
 			const refreshTokenCookie = cookies[RefreshTokenCookie];
 			// No refresh token, no shot the user is authed
@@ -167,8 +216,10 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 				try {
 					// Verify the JWT access token
 					const accessToken = jwt.verify(accessTokenHeader, getContext().env.ENCRYPTION_KEY) as AccessTokenData;
-					if (accessToken.refresh) {
-						req.logger.info('access token is a refresh token, ignoring as request has been tampered with');
+					// A grant token has no `refresh` field either, so without the explicit `kind` check it would
+					// otherwise sail through this guard and be treated as a valid session access token.
+					if (accessToken.refresh || (accessToken as Partial<GrantTokenData>).kind === 'grant') {
+						req.logger.info('access token is a refresh or grant token, ignoring as request has been tampered with');
 						noopAccessToken(res);
 						noopRefreshToken(res);
 						await next(fallthrough ? undefined : unauthorized('malformed access token'));
@@ -239,6 +290,13 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 	if (!options.fallthrough && !options.isGlobalAdmin && options.isGuildManager) {
 		middleware.push(
 			defineMiddleware(async (req, _, next) => {
+				if (req.grant) {
+					// The fast path above already validated the grant token's guild scope; routes that opt into
+					// `grants` (getGuild, createAMA) don't read `req.guild`/`req.tokens`, so there's nothing left
+					// to reconstruct here.
+					return next();
+				}
+
 				if (!req.tokens) {
 					req.logger.warn('isGuildManager invoked without a user. this is a bug');
 					return next(internal());

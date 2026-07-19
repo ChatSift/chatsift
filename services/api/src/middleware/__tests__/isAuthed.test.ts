@@ -6,6 +6,7 @@ import {
 	createLogger,
 	createRedis,
 	getContext,
+	GRANTS,
 	initContext,
 	NewAccessTokenHeader,
 } from '@chatsift/backend-core';
@@ -20,6 +21,10 @@ import { isAuthed } from '../isAuthed.js';
 vi.mock('http2');
 
 const ADMIN_USER_ID = vi.hoisted(() => '104425482757357568');
+// Backs `isGrantConsumed`/`consumeGrantToken` (the real implementations run in these tests, unmocked) --
+// defaults to "not consumed" (redis `EXISTS` returning 0), overridden per-test where needed.
+const redisExistsMock = vi.hoisted(() => vi.fn(async () => 0));
+const redisSetMock = vi.hoisted(() => vi.fn(async () => 'OK'));
 vi.mock('@chatsift/backend-core', async (importActual) => {
 	process.env['ROOT_DOMAIN'] = '';
 	process.env['OAUTH_DISCORD_CLIENT_ID'] = '123456789012345678';
@@ -47,6 +52,8 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 		createDatabase: () => vi.fn(async () => []),
 		createRedis: () => ({
 			get: vi.fn(async () => null),
+			exists: redisExistsMock,
+			set: redisSetMock,
 		}),
 	};
 });
@@ -125,6 +132,31 @@ const makeRefreshJWT = ({ now = Date.now(), expiresIn = 60 * 60 * 24 * 30 }: Moc
 
 	return jwt.sign(data, getContext().env.ENCRYPTION_KEY, { expiresIn });
 };
+
+const GRANT_GUILD_ID = '123';
+
+interface MockGrantJWTData {
+	expiresIn?: number;
+	grant?: string;
+	guildId?: string;
+	jti?: string;
+	kind?: string;
+	now?: number;
+	sub?: string;
+}
+
+const makeGrantJWT = ({
+	now = Date.now(),
+	expiresIn = 15 * 60,
+	kind = 'grant',
+	sub = USER_ID,
+	guildId = GRANT_GUILD_ID,
+	grant = GRANTS.AMA_CREATE,
+	jti = 'jti-1',
+}: MockGrantJWTData = {}) =>
+	jwt.sign({ kind, sub, guildId, grant, jti, iat: Math.floor(now / 1_000) }, getContext().env.ENCRYPTION_KEY, {
+		expiresIn,
+	});
 
 // Every real request carries a `req.logger` by the time `isAuthed`'s middleware runs (attached by
 // `attachLogger()` ahead of it in `app.ts`), so mocked requests get one here too by default.
@@ -532,5 +564,169 @@ describe('guild level checks', () => {
 
 		await isGuildManager(req, res, next);
 		expect(next).toHaveBeenCalledWith(makeExpectedBoom(403, 'you need to be a manager'));
+	});
+});
+
+describe('grant token auth', () => {
+	test('accepts a valid grant token, skips all cookie/session logic, and never touches the response', async () => {
+		const [{ handle: isAuth }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: false,
+			grants: [GRANTS.AMA_CREATE],
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		const req = makeMockedRequest({ headers: { authorization: makeGrantJWT() }, params: {} });
+		await isAuth(req, res, next);
+
+		expect(next).toHaveBeenCalledWith();
+		expect(req.grant).toMatchObject({
+			kind: 'grant',
+			sub: USER_ID,
+			guildId: GRANT_GUILD_ID,
+			grant: GRANTS.AMA_CREATE,
+		});
+		expect(req.tokens).toBeUndefined();
+		// The whole point of the isolation guarantee: a grant request must never set/clear the session cookie or
+		// the access-token-refresh header, even implicitly.
+		expect(res.setHeader).not.toHaveBeenCalled();
+	});
+
+	test('rejects a grant string not permitted for this route', async () => {
+		const [{ handle: isAuth }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: false,
+			grants: ['some:other-grant' as (typeof GRANTS)[keyof typeof GRANTS]],
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		await isAuth(makeMockedRequest({ headers: { authorization: makeGrantJWT() }, params: {} }), res, next);
+
+		expect(next).toHaveBeenCalledWith(makeExpectedBoom(403, 'grant not permitted'));
+	});
+
+	test('rejects a guildId mismatch on a route with a :guildId param', async () => {
+		const [{ handle: isAuth }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: true,
+			grants: [GRANTS.AMA_CREATE],
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		await isAuth(
+			makeMockedRequest({
+				headers: { authorization: makeGrantJWT({ guildId: GRANT_GUILD_ID }) },
+				params: { guildId: 'a-different-guild' },
+			}),
+			res,
+			next,
+		);
+
+		expect(next).toHaveBeenCalledWith(makeExpectedBoom(403, 'grant guild mismatch'));
+	});
+
+	test('does not enforce a guildId match on routes without a :guildId param (e.g. /v3/auth/me)', async () => {
+		const [{ handle: isAuth }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: false,
+			grants: [GRANTS.AMA_CREATE],
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		const req = makeMockedRequest({ headers: { authorization: makeGrantJWT() }, params: {} });
+		await isAuth(req, res, next);
+
+		expect(next).toHaveBeenCalledWith();
+		expect(req.grant?.guildId).toBe(GRANT_GUILD_ID);
+	});
+
+	test('rejects an already-consumed grant token', async () => {
+		redisExistsMock.mockResolvedValueOnce(1);
+
+		const [{ handle: isAuth }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: false,
+			grants: [GRANTS.AMA_CREATE],
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		await isAuth(makeMockedRequest({ headers: { authorization: makeGrantJWT() }, params: {} }), res, next);
+
+		expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'grant token already used'));
+	});
+
+	test('falls through to normal session auth when the header holds a real access token, not a grant', async () => {
+		const [{ handle: isAuth }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: false,
+			grants: [GRANTS.AMA_CREATE],
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		const req = makeMockedRequest({
+			headers: { authorization: makeAccessJWT(), cookie: `refresh_token=${makeRefreshJWT()}` },
+			params: {},
+		});
+		await isAuth(req, res, next);
+
+		expect(next).toHaveBeenCalledWith();
+		expect(req.grant).toBeUndefined();
+		expect(req.tokens?.access.sub).toBe(USER_ID);
+	});
+
+	test('a grant-shaped token is rejected as a malformed access token on a route without `grants`, never treated as a session', async () => {
+		const [{ handle: isAuth }] = isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false });
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		await isAuth(
+			makeMockedRequest({
+				headers: { authorization: makeGrantJWT(), cookie: `refresh_token=${makeRefreshJWT()}` },
+				params: {},
+			}),
+			res,
+			next,
+		);
+
+		expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'malformed access token'));
+	});
+
+	test('guild-manager step short-circuits for a request already authed via grant', async () => {
+		const [{ handle: isAuth }, { handle: isGuildManager }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: true,
+			grants: [GRANTS.AMA_CREATE],
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		const req = makeMockedRequest({
+			headers: { authorization: makeGrantJWT({ guildId: GRANT_GUILD_ID }) },
+			params: { guildId: GRANT_GUILD_ID },
+		});
+
+		await isAuth(req, res, next);
+		expect(next).toHaveBeenCalledWith();
+		vi.clearAllMocks();
+
+		await isGuildManager(req, res, next);
+
+		expect(next).toHaveBeenCalledWith();
+		// No `req.guild` reconstruction (no `fetchMe`/Discord call) needed for a grant-authed request.
+		expect(getCurrentUserMock).not.toHaveBeenCalled();
+		expect(getGuildsMock).not.toHaveBeenCalled();
 	});
 });

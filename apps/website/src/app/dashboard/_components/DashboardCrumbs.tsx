@@ -2,6 +2,7 @@
 
 import { useParams, usePathname } from 'next/navigation';
 import { useMemo } from 'react';
+import { useGrantAuth } from '@/api/grant';
 import type { AMASessionDetailed, AMASessionWithCount } from '@/api/routes/ama';
 import { useMe } from '@/api/routes/auth';
 import type { BreadcrumbOption } from '@/components/common/Breadcrumb';
@@ -121,6 +122,7 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 	const { data: me } = useMe();
 	const params = useParams<{ id?: string }>();
 	const pathname = usePathname();
+	const grant = useGrantAuth();
 
 	if (!params.id) {
 		throw new Error('id param not found, should not be rendering this component');
@@ -191,15 +193,17 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 				}
 			}
 
-			const computedOptions = optionsEntry?.computer(
-				{ guildId: params.id, pathname, segmentPath },
-				segmentOptionsData ?? {},
-			);
+			// While a one-time grant token is active, every other segment/dropdown option here would 401 (the
+			// grant only authorizes the single page it links to) -- never compute a navigable option in that case.
+			const computedOptions = grant
+				? null
+				: optionsEntry?.computer({ guildId: params.id, pathname, segmentPath }, segmentOptionsData ?? {});
 
-			// Don't create an href for the last segment (current page)
+			// Don't create an href for the last segment (current page), or for any segment while grant mode is
+			// active (there's nowhere else on the dashboard a grant token lets you go).
 			const isLastSegment = i === relevantParts.length - 1;
 
-			if (isLastSegment) {
+			if (isLastSegment || grant) {
 				result.push({
 					label,
 					...(icon && { icon }),
@@ -218,14 +222,15 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 		}
 
 		return result;
-	}, [params.id, pathname, segmentOptionsData]);
+	}, [params.id, pathname, segmentOptionsData, grant]);
 
 	const guild = me?.guilds.find((g) => g.id === params.id);
 	if (!guild) {
 		throw new Error('guild not found, should not be rendering this component');
 	}
 
-	// Create dropdown options for other guilds with bots
+	// Create dropdown options for other guilds with bots -- naturally empty under a grant token, since
+	// `fetchMeFromGrant` only ever returns the single guild the grant is scoped to.
 	const guildOptions = sortGuilds(me?.guilds.filter((g) => g.id !== guild.id && g.bots.length > 0) ?? []).map((g) => ({
 		label: g.name,
 		href: `/dashboard/${g.id}`,
@@ -236,10 +241,10 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 	return (
 		<Breadcrumb
 			segments={[
-				{ label: 'Servers', href: '/dashboard' },
+				{ label: 'Servers', href: grant ? undefined : '/dashboard' },
 				{
 					label: guild.name,
-					href: segments.length === 0 ? undefined : `/dashboard/${guild.id}`,
+					href: grant || segments.length === 0 ? undefined : `/dashboard/${guild.id}`,
 					icon: <GuildIcon data={guild} disableLink hasBots />,
 					options: guildOptions,
 				},
