@@ -11,6 +11,14 @@ function getBaseURL(): string {
 }
 
 export interface FetchOptions {
+	/**
+	 * Sends this JWT as the `Authorization` header instead of the stored session (`accessTokenAtom`), and skips
+	 * all session-cookie/access-token-refresh handling entirely (`credentials: 'omit'`, `X-Update-Access-Token`
+	 * ignored). Used exclusively by the one-time grant-token flow (`/dashboard/:guildId/ama/amas/new?token=...`)
+	 * so it can never read from or write to the user's real session — see `useGrantAuth()` in `api/grant.ts`.
+	 * Client-only; there's no SSR path for the grant flow.
+	 */
+	authToken?: string | undefined;
 	body?: unknown;
 	headers?: Record<string, string>;
 	query?: Record<string, boolean | number | string | undefined>;
@@ -67,7 +75,11 @@ async function parseSuccess<TResponse>(response: Response): Promise<TResponse> {
 }
 
 async function apiFetchClient<TResponse>(method: string, path: string, options: FetchOptions): Promise<TResponse> {
-	const accessToken = store.get(accessTokenAtom);
+	// `authToken` (set only by the grant-token flow) fully overrides the normal session: the real
+	// `accessTokenAtom` is never read, cookies are never sent, and (below) the refresh-header response is never
+	// applied to `accessTokenAtom` -- a grant request must leave the user's real session completely untouched.
+	const isGrantRequest = options.authToken !== undefined;
+	const accessToken = options.authToken ?? store.get(accessTokenAtom);
 
 	const headers: Record<string, string> = {
 		...(options.body !== undefined && { 'Content-Type': 'application/json' }),
@@ -79,13 +91,15 @@ async function apiFetchClient<TResponse>(method: string, path: string, options: 
 	const response = await fetch(buildURL(path, options.query), {
 		method: method.toUpperCase(),
 		headers,
-		credentials: 'include',
+		credentials: isGrantRequest ? 'omit' : 'include',
 		...(options.body !== undefined && { body: JSON.stringify(options.body) }),
 	});
 
-	const newToken = response.headers.get(NewAccessTokenHeader);
-	if (newToken) {
-		store.set(accessTokenAtom, newToken === 'noop' ? null : newToken);
+	if (!isGrantRequest) {
+		const newToken = response.headers.get(NewAccessTokenHeader);
+		if (newToken) {
+			store.set(accessTokenAtom, newToken === 'noop' ? null : newToken);
+		}
 	}
 
 	if (!response.ok) {

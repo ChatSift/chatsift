@@ -65,6 +65,11 @@ export const queryKeys = {
 	auth: {
 		all: ['api', 'auth'] as const,
 		me: ['api', 'auth', 'me'] as const,
+		/**
+		 * Separate cache entry for the one-time grant-token flow (`/dashboard/:guildId/ama/amas/new?token=...`) --
+		 * keyed by the token itself so it can never collide with (or be mistaken for) the real session's `me` entry.
+		 */
+		meGrant: (token: string) => ['api', 'auth', 'me', 'grant', token] as const,
 	},
 	guilds: {
 		info: (guildId: string, forBot: string) => ['api', 'guilds', guildId, 'info', forBot] as const,

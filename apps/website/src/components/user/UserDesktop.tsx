@@ -4,10 +4,12 @@ import { LoginButton } from './LoginButton';
 import { LogoutButton } from './LogoutButton';
 import { UserAvatarMe } from './UserAvatarMe';
 import { UserErrorHandler } from './UserErrorHandler';
+import { useGrantAuth } from '@/api/grant';
 import { useMe } from '@/api/routes/auth';
 import { Skeleton } from '@/components/common/Skeleton';
 
 export function UserDesktop() {
+	const grant = useGrantAuth();
 	const { data: user, error, isLoading } = useMe();
 
 	if (error) {
@@ -24,7 +26,8 @@ export function UserDesktop() {
 
 	return (
 		<div className="flex items-center space-x-4">
-			<LogoutButton />
+			{/* Grant flow: there's no session to log out of. */}
+			{!grant && <LogoutButton />}
 			<UserAvatarMe className="h-12 w-12 rounded-full" />
 		</div>
 	);

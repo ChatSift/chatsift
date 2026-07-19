@@ -1,4 +1,4 @@
-import { BOTS } from '@chatsift/backend-core';
+import { BOTS, GRANTS } from '@chatsift/backend-core';
 import { notFound } from '@hapi/boom';
 import z from 'zod';
 import { defineRoute } from '../../core/route.js';
@@ -31,6 +31,7 @@ export default defineRoute({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
+		grants: [GRANTS.AMA_CREATE],
 	}),
 	async handler(req): Promise<GetGuildResult> {
 		const { guildId } = req.params;

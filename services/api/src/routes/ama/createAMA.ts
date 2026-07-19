@@ -1,4 +1,4 @@
-import { getContext } from '@chatsift/backend-core';
+import { getContext, GRANTS, releaseGrantToken } from '@chatsift/backend-core';
 import type { AmaSessions } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
@@ -29,63 +29,68 @@ export default defineRoute({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
+		grants: [GRANTS.AMA_CREATE],
 	}),
 	async handler(req): Promise<CreateAMAResult> {
 		const data = req.body;
 		const { guildId } = req.params;
 
-		await assertChannelsBelongToGuild(
-			guildId,
-			[data.promptChannelId, data.answersChannelId, data.modQueueId, data.flaggedQueueId, data.guestQueueId],
-			discordAPIAma,
-			req.logger,
-		);
-
-		const messageBodyBase: RESTPostAPIChannelMessageJSONBody =
-			'prompt_raw' in data
-				? data.prompt_raw
-				: {
-						content: data.prompt.plainText,
-						embeds: [
-							{
-								// TODO: real constant
-								color: 0x7289da, // blurple
-								title: data.title,
-								description: data.prompt.description,
-								image: data.prompt.imageURL ? { url: data.prompt.imageURL } : undefined,
-								thumbnail: data.prompt.thumbnailURL ? { url: data.prompt.thumbnailURL } : undefined,
-								timestamp: new Date().toISOString(),
-							},
-						],
-					};
-
-		let promptMessage;
+		// Everything below can fail after the grant (if any) was already atomically claimed in `isAuthed` -- a
+		// single outer try/catch covering validation through the DB insert means every failure path (bad channel
+		// ID, rejected prompt, Discord API error, DB error) releases the claim, so a correctable mistake doesn't
+		// cost the user their single-use link.
+		let promptMessage: Awaited<ReturnType<typeof discordAPIAma.channels.createMessage>> | undefined;
 		try {
-			promptMessage = await discordAPIAma.channels.createMessage(data.promptChannelId, {
-				...messageBodyBase,
-				components: [
-					{
-						type: ComponentType.ActionRow,
-						components: [
-							{
-								type: ComponentType.Button,
-								style: ButtonStyle.Primary,
-								label: 'Submit a question',
-								custom_id: 'submit-question',
-							},
-						],
-					},
-				],
-			});
-		} catch (error) {
-			if (error instanceof DiscordAPIError && error.status === 400 && 'prompt_raw' in data) {
-				throw badData('invalid prompt_raw data');
+			await assertChannelsBelongToGuild(
+				guildId,
+				[data.promptChannelId, data.answersChannelId, data.modQueueId, data.flaggedQueueId, data.guestQueueId],
+				discordAPIAma,
+				req.logger,
+			);
+
+			const messageBodyBase: RESTPostAPIChannelMessageJSONBody =
+				'prompt_raw' in data
+					? data.prompt_raw
+					: {
+							content: data.prompt.plainText,
+							embeds: [
+								{
+									// TODO: real constant
+									color: 0x7289da, // blurple
+									title: data.title,
+									description: data.prompt.description,
+									image: data.prompt.imageURL ? { url: data.prompt.imageURL } : undefined,
+									thumbnail: data.prompt.thumbnailURL ? { url: data.prompt.thumbnailURL } : undefined,
+									timestamp: new Date().toISOString(),
+								},
+							],
+						};
+
+			try {
+				promptMessage = await discordAPIAma.channels.createMessage(data.promptChannelId, {
+					...messageBodyBase,
+					components: [
+						{
+							type: ComponentType.ActionRow,
+							components: [
+								{
+									type: ComponentType.Button,
+									style: ButtonStyle.Primary,
+									label: 'Submit a question',
+									custom_id: 'submit-question',
+								},
+							],
+						},
+					],
+				});
+			} catch (error) {
+				if (error instanceof DiscordAPIError && error.status === 400 && 'prompt_raw' in data) {
+					throw badData('invalid prompt_raw data');
+				}
+
+				throw error;
 			}
 
-			throw error;
-		}
-
-		try {
 			return await getContext().db.begin(async (sql) => {
 				const [session] = await sql<AmaSessions[]>`
 					INSERT INTO ama_sessions (
@@ -101,15 +106,25 @@ export default defineRoute({
 
 				await sql`
 					INSERT INTO ama_prompt_data (ama_id, prompt_message_id, prompt_json_data)
-					VALUES (${session!.id}, ${promptMessage.id}, ${JSON.stringify(messageBodyBase)})
+					VALUES (${session!.id}, ${promptMessage!.id}, ${JSON.stringify(messageBodyBase)})
 				`;
 
 				return session!;
 			});
 		} catch (error) {
 			// If we created the prompt message but failed to insert data, delete the message to avoid orphaned prompts.
-			// eslint-disable-next-line promise/prefer-await-to-then
-			void discordAPIAma.channels.deleteMessage(data.promptChannelId, promptMessage.id).catch(() => null);
+			if (promptMessage) {
+				// eslint-disable-next-line promise/prefer-await-to-then
+				void discordAPIAma.channels.deleteMessage(data.promptChannelId, promptMessage.id).catch(() => null);
+			}
+
+			// Best-effort: a release failure (e.g. redis being down) must not shadow the real error above.
+			if (req.grant) {
+				await releaseGrantToken(req.grant.jti).catch((releaseError: unknown) =>
+					req.logger.error({ err: releaseError }, 'failed to release grant token'),
+				);
+			}
+
 			throw error;
 		}
 	},

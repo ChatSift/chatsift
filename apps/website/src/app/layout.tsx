@@ -1,6 +1,7 @@
 import { HydrationBoundary } from '@tanstack/react-query';
 import type { Metadata } from 'next';
 import type { PropsWithChildren } from 'react';
+import { Suspense } from 'react';
 import { prefetch } from '@/api/fetch';
 import { me } from '@/api/routes/auth';
 import { Providers } from '@/components/common/Providers';
@@ -28,7 +29,14 @@ export default async function RootLayout({ children }: PropsWithChildren) {
 					<HydrationBoundary state={await prefetch([{ queryKey: me.queryKey, queryFn: async () => me.queryFn(false) }])}>
 						<ScrollArea className="h-screen">
 							<div className="h-screen flex flex-col min-h-screen">
-								<Navbar />
+								{/*
+									`Navbar` -> `UserDesktop`/`UserMobile` -> `useMe()` -> `useGrantAuth()` calls `useSearchParams()`,
+									which Next requires a Suspense boundary around for any statically-prerendered route -- `/_not-found`
+									is prerendered regardless of the rest of the app being forced dynamic, so this is required, not optional.
+								*/}
+								<Suspense fallback={null}>
+									<Navbar />
+								</Suspense>
 								<div className="flex flex-[1_1_auto] flex-grow flex-col gap-8">
 									<main className="mx-auto mb-auto flex max-w-[80vw] flex-col justify-center gap-6 pt-6 lg:min-w-[900px] md:min-w-[640px] min-w-[320px]">
 										{children}
