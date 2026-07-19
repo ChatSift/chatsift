@@ -55,7 +55,11 @@ export async function startServer(): Promise<void> {
 
 			sendBoom(boom, res);
 		},
-		onNoMatch(_, res) {
+		onNoMatch(req, res) {
+			// req.logger is set by attachLogger(), the very first `.use()` middleware -- see the same fallback note
+			// on `onError` above for the one case it can still be missing.
+			(req.logger ?? getContext().logger).warn({ method: req.method, path: req.path }, 'no route matched');
+
 			res.setHeader('content-type', 'application/json');
 			sendBoom(notFound(), res);
 		},

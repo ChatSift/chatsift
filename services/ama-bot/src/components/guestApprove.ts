@@ -104,7 +104,7 @@ export default class GuestApproveComponent implements ComponentHandler<string> {
 				],
 			});
 		} catch (error) {
-			logger.error({ error, questionId }, 'Failed to approve question');
+			logger.error({ err: error, questionId }, 'Failed to approve question');
 			await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 				content: 'Failed to approve question. Please try again.',
 				flags: MessageFlags.Ephemeral,

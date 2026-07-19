@@ -127,7 +127,7 @@ export default class AmaRepostSelectComponent implements ComponentHandler {
 				} catch (error) {
 					// Best-effort: a stray message from a lost concurrent-repost race isn't worth failing over.
 					logger.debug(
-						{ error, channelId: session.promptChannelId, messageId: newPromptMessage.id },
+						{ err: error, channelId: session.promptChannelId, messageId: newPromptMessage.id },
 						'Failed to clean up orphaned reposted prompt message',
 					);
 				}
@@ -144,7 +144,7 @@ export default class AmaRepostSelectComponent implements ComponentHandler {
 				components: [],
 			});
 		} catch (error) {
-			logger.error({ error, amaId }, 'Failed to repost AMA prompt');
+			logger.error({ err: error, amaId }, 'Failed to repost AMA prompt');
 			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				content: 'Failed to repost the prompt. Please try again.',
 				components: [],

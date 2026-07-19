@@ -106,7 +106,7 @@ export default class ModFlagComponent implements ComponentHandler<string> {
 
 			logger.info({ questionId, amaId: question.amaId }, 'Question flagged by moderator');
 		} catch (error) {
-			logger.error({ error, questionId }, 'Failed to flag question');
+			logger.error({ err: error, questionId }, 'Failed to flag question');
 			await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 				content: 'Failed to flag question. Please try again.',
 				flags: MessageFlags.Ephemeral,
