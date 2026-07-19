@@ -76,5 +76,6 @@ export const queryKeys = {
 		all: (guildId: string) => ['api', 'ama', guildId] as const,
 		list: (guildId: string, includeEnded: boolean) => ['api', 'ama', guildId, 'list', includeEnded] as const,
 		byId: (guildId: string, amaId: string) => ['api', 'ama', guildId, amaId] as const,
+		stats: (guildId: string, amaId: string) => ['api', 'ama', guildId, amaId, 'stats'] as const,
 	},
 } as const;

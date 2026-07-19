@@ -14,7 +14,9 @@ import { mountRoute } from './core/server.js';
 import { attachHttpUtils } from './middleware/attachHttpUtils.js';
 import { attachLogger } from './middleware/attachLogger.js';
 import createAMARoute from './routes/ama/createAMA.js';
+import exportAMARoute from './routes/ama/exportAMA.js';
 import getAMARoute from './routes/ama/getAMA.js';
+import getAMAStatsRoute from './routes/ama/getAMAStats.js';
 import getAMAsRoute from './routes/ama/getAMAs.js';
 import repostPromptRoute from './routes/ama/repostPrompt.js';
 import updateAMARoute from './routes/ama/updateAMA.js';
@@ -78,7 +80,9 @@ export async function startServer(): Promise<void> {
 	// literal would force TS to unify all of them under one `TMiddlewares` instantiation, which doesn't typecheck
 	// (see the `unwrapMiddlewareHandle` doc comment in `core/route.ts` for the same heterogeneous-tuple issue).
 	mountRoute(app, createAMARoute);
+	mountRoute(app, exportAMARoute);
 	mountRoute(app, getAMARoute);
+	mountRoute(app, getAMAStatsRoute);
 	mountRoute(app, getAMAsRoute);
 	mountRoute(app, repostPromptRoute);
 	mountRoute(app, updateAMARoute);

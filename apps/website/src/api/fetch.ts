@@ -161,6 +161,38 @@ export async function apiFetch<TResponse = void>(
 	return apiFetchClient<TResponse>(method, path, options);
 }
 
+/**
+ * Client-only variant of `apiFetch` for endpoints that respond with a non-JSON download (e.g. CSV export) rather
+ * than a JSON body -- `parseSuccess`'s content-type sniffing would otherwise just discard the response. Always
+ * triggered from a user interaction in the browser (a download button), so unlike `apiFetch` there's no server
+ * (SSR/RSC) code path to support here.
+ */
+export async function apiFetchBlob(path: string, options: FetchOptions = {}): Promise<Blob> {
+	const accessToken = store.get(accessTokenAtom);
+
+	const headers: Record<string, string> = {
+		...(accessToken && { Authorization: accessToken }),
+		...options.headers,
+	};
+
+	const response = await fetch(buildURL(path, options.query), {
+		method: 'GET',
+		headers,
+		credentials: 'include',
+	});
+
+	const newToken = response.headers.get(NewAccessTokenHeader);
+	if (newToken) {
+		store.set(accessTokenAtom, newToken === 'noop' ? null : newToken);
+	}
+
+	if (!response.ok) {
+		throw await parseError(response);
+	}
+
+	return response.blob();
+}
+
 export async function prefetch(
 	prefetchFns: { queryFn(): Promise<any>; queryKey(): readonly unknown[] }[],
 ): Promise<DehydratedState> {

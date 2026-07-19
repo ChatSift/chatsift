@@ -2,12 +2,13 @@ import type {
 	InferRouteContract,
 	createAMARoute,
 	getAMARoute,
+	getAMAStatsRoute,
 	getAMAsRoute,
 	repostPromptRoute,
 	updateAMARoute,
 } from '@chatsift/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../fetch';
+import { apiFetch, apiFetchBlob } from '../fetch';
 import { queryKeys } from '../queryClient';
 
 export type { PossiblyMissingChannelInfo } from '@chatsift/api';
@@ -17,6 +18,9 @@ export type AMASessionWithCount = GetAMAsContract['response'][number];
 
 type GetAMAContract = InferRouteContract<typeof getAMARoute>;
 export type AMASessionDetailed = GetAMAContract['response'];
+
+type GetAMAStatsContract = InferRouteContract<typeof getAMAStatsRoute>;
+export type AMAStats = GetAMAStatsContract['response'];
 
 type CreateAMAContract = InferRouteContract<typeof createAMARoute>;
 export type CreateAMABody = CreateAMAContract['body'];
@@ -42,6 +46,31 @@ export function useAMA(guildId: string, amaId: string | undefined) {
 		queryKey: queryKeys.ama.byId(guildId, amaId ?? ''),
 		queryFn: async () => apiFetch<AMASessionDetailed>('get', `/v3/guilds/${guildId}/ama/amas/${amaId}`),
 		enabled: amaId !== undefined,
+	});
+}
+
+export function useAMAStats(guildId: string, amaId: string | undefined) {
+	return useQuery({
+		queryKey: queryKeys.ama.stats(guildId, amaId ?? ''),
+		queryFn: async () => apiFetch<AMAStats>('get', `/v3/guilds/${guildId}/ama/amas/${amaId}/stats`),
+		enabled: amaId !== undefined,
+	});
+}
+
+export function useExportAMAQuestions(guildId: string, amaId: string) {
+	return useMutation({
+		mutationFn: async () => {
+			const blob = await apiFetchBlob(`/v3/guilds/${guildId}/ama/amas/${amaId}/export`);
+			const url = URL.createObjectURL(blob);
+			try {
+				const anchor = document.createElement('a');
+				anchor.href = url;
+				anchor.download = `ama-${amaId}-questions.csv`;
+				anchor.click();
+			} finally {
+				URL.revokeObjectURL(url);
+			}
+		},
 	});
 }
 
