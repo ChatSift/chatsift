@@ -18,11 +18,16 @@ const paramsSchema = z.object({
 // RFC 4180 field escaping. `author_id`/`state`/timestamps are always safe (snowflakes, a fixed enum, ISO strings)
 // -- only free-text `content` can contain a comma, quote, or newline that would otherwise break column boundaries.
 function csvField(value: string): string {
-	if (/[\n",]/.test(value)) {
-		return `"${value.replaceAll('"', '""')}"`;
+	// CSV/formula injection guard (CWE-1236): `content` is arbitrary user-authored text, and Excel/Sheets treats a
+	// cell starting with =, +, -, or @ as a formula on open. Prefixing with a single quote forces it to be read as
+	// text instead of letting a submitted question execute as a formula in a mod's spreadsheet.
+	const neutralized = /^[+=@-]/.test(value) ? `'${value}` : value;
+
+	if (/[\n",]/.test(neutralized)) {
+		return `"${neutralized.replaceAll('"', '""')}"`;
 	}
 
-	return value;
+	return neutralized;
 }
 
 export default defineRoute({
