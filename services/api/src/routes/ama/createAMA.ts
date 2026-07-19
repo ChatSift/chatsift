@@ -80,9 +80,12 @@ export default defineRoute({
 			});
 		} catch (error) {
 			// The grant (if any) was already atomically claimed in `isAuthed` before this handler ran -- release it
-			// here so a failed submit doesn't cost the user their single-use link.
+			// here so a failed submit doesn't cost the user their single-use link. Best-effort: a release failure
+			// (e.g. redis being down) must not shadow the real error below.
 			if (req.grant) {
-				await releaseGrantToken(req.grant.jti);
+				await releaseGrantToken(req.grant.jti).catch((releaseError: unknown) =>
+					req.logger.error({ err: releaseError }, 'failed to release grant token'),
+				);
 			}
 
 			if (error instanceof DiscordAPIError && error.status === 400 && 'prompt_raw' in data) {
@@ -118,8 +121,11 @@ export default defineRoute({
 			// eslint-disable-next-line promise/prefer-await-to-then
 			void discordAPIAma.channels.deleteMessage(data.promptChannelId, promptMessage.id).catch(() => null);
 
+			// Best-effort, same reasoning as above: don't let a release failure shadow the real (DB) error.
 			if (req.grant) {
-				await releaseGrantToken(req.grant.jti);
+				await releaseGrantToken(req.grant.jti).catch((releaseError: unknown) =>
+					req.logger.error({ err: releaseError }, 'failed to release grant token'),
+				);
 			}
 
 			throw error;
