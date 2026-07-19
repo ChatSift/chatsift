@@ -1,17 +1,31 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
-import { ContainerBuilder, MediaGalleryItemBuilder } from '@discordjs/builders';
 import type {
 	APIActionRowComponent,
 	APIAttachment,
 	APIButtonComponent,
+	APIEmbed,
 	APIGuildMember,
 	APIMessageTopLevelComponent,
 	APIUser,
 	RESTPostAPIChannelMessageJSONBody,
 } from '@discordjs/core';
-import { MessageFlags, ButtonStyle, CDNRoutes, ComponentType, ImageFormat, RouteBases } from '@discordjs/core';
+import { ButtonStyle, CDNRoutes, ComponentType, ImageFormat, RouteBases } from '@discordjs/core';
+
+/**
+ * Prod ChatSift/AMA's `Colors.Blurple` (0x7289da) — reused so the ported answers-channel/queue
+ * embeds match what's already live in production.
+ */
+const BLURPLE = 0x7289da;
+
+/**
+ * Discord groups embeds on the same message into an image gallery when they share an identical
+ * `url` field. Used to render more than one attachment per question — prod never had this
+ * problem since it only ever supported a single legacy `imageUrl`, but main's `allowedQuestionUploads`
+ * can be greater than 1.
+ */
+const GALLERY_ANCHOR_URL = 'https://automoderator.app/ama-gallery-anchor';
 
 /**
  * Represents which queue a question is currently in
@@ -50,61 +64,73 @@ export function getNextQueue(currently: CurrentlyInQueue, session: AmaSessions):
 	}
 }
 
-interface GetBaseContainerOptions {
+interface GetBaseEmbedsOptions {
 	attachments: APIAttachment[];
 	content: string;
+	guildId: string;
 	includeUserId?: boolean | undefined;
 	member?: APIGuildMember | undefined;
 	user?: APIUser | undefined;
 }
 
 /**
- * Creates a base container using Components v2 with question content and attachments.
- * Displays user's name and avatar (prioritizing guild-specific versions).
+ * Resolves the avatar to show for a question's author, preferring the guild-specific avatar over
+ * the global one — mirrors prod ChatSift/AMA's `GuildMember#displayAvatarURL()` priority.
  */
-function getBaseContainer({
-	attachments,
-	content,
-	includeUserId = false,
-	member,
-	user,
-}: GetBaseContainerOptions): ContainerBuilder {
-	const container = new ContainerBuilder();
-
-	let footerText: string | undefined;
-	if (user) {
-		const displayName = member?.nick ?? user.global_name ?? user.username;
-		footerText = includeUserId ? `Asked by ${displayName} • ID: ${user.id}` : `Asked by ${displayName}`;
+function resolveAvatarURL(guildId: string, member: APIGuildMember | undefined, user: APIUser | undefined): string | undefined {
+	if (member?.avatar && member.user) {
+		return `${RouteBases.cdn}${CDNRoutes.guildMemberAvatar(guildId, member.user.id, member.avatar, ImageFormat.PNG)}`;
 	}
 
-	container.addSectionComponents((section) => {
-		// Add the question text and optional footer as a single text block
-		const fullContent = footerText ? `${content}\n\n${footerText}` : content;
-		section.addTextDisplayComponents((text) => text.setContent(fullContent));
-
-		// Add user avatar as thumbnail (guild avatar takes precedence)
-		if (member?.avatar && member.user) {
-			// Guild-specific avatar - we need guildId which we don't have here, so fall back to user avatar
-			// In practice, guild avatars are rare so this is fine
-			const avatarURL = `${RouteBases.cdn}${CDNRoutes.userAvatar(member.user.id, user?.avatar ?? member.user.avatar!, ImageFormat.PNG)}`;
-			section.setThumbnailAccessory((thumbnail) => thumbnail.setURL(avatarURL));
-		} else if (user?.avatar) {
-			// User's global avatar
-			const avatarURL = `${RouteBases.cdn}${CDNRoutes.userAvatar(user.id, user.avatar, ImageFormat.PNG)}`;
-			section.setThumbnailAccessory((thumbnail) => thumbnail.setURL(avatarURL));
-		}
-
-		return section;
-	});
-
-	// Add media gallery only if there are attachments
-	if (attachments.length > 0) {
-		container.addMediaGalleryComponents((gallery) =>
-			gallery.addItems(attachments.map((attachment) => new MediaGalleryItemBuilder().setURL(attachment.url))),
-		);
+	if (user?.avatar) {
+		return `${RouteBases.cdn}${CDNRoutes.userAvatar(user.id, user.avatar, ImageFormat.PNG)}`;
 	}
 
-	return container;
+	return undefined;
+}
+
+/**
+ * Builds the question embed(s) posted to every queue and the answers channel, ported to match
+ * prod ChatSift/AMA's layout exactly: author name+avatar line (no "Asked by" prefix needed since
+ * the author field already carries that), optional footer with the raw user ID for queues where a
+ * mod needs to act on it, blurple accent. Multiple attachments render as a Discord image gallery
+ * via the shared-`url` grouping trick (prod only ever supported a single legacy image).
+ */
+function getBaseEmbeds({ attachments, content, guildId, includeUserId = false, member, user }: GetBaseEmbedsOptions): APIEmbed[] {
+	const displayName = member?.nick ?? user?.global_name ?? user?.username ?? 'Unknown User';
+	const avatarURL = resolveAvatarURL(guildId, member, user);
+
+	const mainEmbed: APIEmbed = {
+		color: BLURPLE,
+		description: content,
+		author: avatarURL ? { name: displayName, icon_url: avatarURL } : { name: displayName },
+	};
+
+	if (includeUserId && user) {
+		mainEmbed.footer = avatarURL
+			? { text: `${user.username} (${user.id})`, icon_url: avatarURL }
+			: { text: `${user.username} (${user.id})` };
+	}
+
+	if (attachments.length === 0) {
+		return [mainEmbed];
+	}
+
+	if (attachments.length === 1) {
+		mainEmbed.image = { url: attachments[0]!.url };
+		return [mainEmbed];
+	}
+
+	mainEmbed.url = GALLERY_ANCHOR_URL;
+	mainEmbed.image = { url: attachments[0]!.url };
+
+	const galleryEmbeds: APIEmbed[] = attachments.slice(1).map((attachment) => ({
+		color: BLURPLE,
+		url: GALLERY_ANCHOR_URL,
+		image: { url: attachment.url },
+	}));
+
+	return [mainEmbed, ...galleryEmbeds];
 }
 
 function createButtonActionRow(buttons: APIButtonComponent[]): APIActionRowComponent<APIButtonComponent> {
@@ -173,7 +199,7 @@ interface PostToModQueueOptions {
 }
 
 /**
- * Posts a question to the mod queue with approve/deny/flag buttons using Components v2
+ * Posts a question to the mod queue with approve/deny/flag buttons
  */
 export async function postToModQueue({
 	attachments,
@@ -188,9 +214,10 @@ export async function postToModQueue({
 		throw new Error('No mod queue configured for this session');
 	}
 
-	const container = getBaseContainer({
+	const embeds = getBaseEmbeds({
 		attachments,
 		content,
+		guildId: session.guildId,
 		member,
 		user,
 		includeUserId: true, // Include user ID in mod queue
@@ -224,8 +251,8 @@ export async function postToModQueue({
 	}
 
 	const messageData: RESTPostAPIChannelMessageJSONBody = {
-		components: [container.toJSON(), createButtonActionRow(buttons)],
-		flags: MessageFlags.IsComponentsV2,
+		embeds,
+		components: [createButtonActionRow(buttons)],
 	};
 
 	const message = await getContext().service.client.api.channels.createMessage(session.modQueueId, messageData);
@@ -248,7 +275,7 @@ interface PostToGuestQueueOptions {
 }
 
 /**
- * Posts a question to the guest queue with approve/skip buttons using Components v2
+ * Posts a question to the guest queue with approve/skip buttons
  */
 export async function postToGuestQueue({
 	attachments,
@@ -263,9 +290,10 @@ export async function postToGuestQueue({
 		throw new Error('No guest queue configured for this session');
 	}
 
-	const container = getBaseContainer({
+	const embeds = getBaseEmbeds({
 		attachments,
 		content,
+		guildId: session.guildId,
 		member,
 		user,
 		includeUserId: false, // Don't include user ID in guest queue
@@ -288,8 +316,8 @@ export async function postToGuestQueue({
 	];
 
 	const messageData: RESTPostAPIChannelMessageJSONBody = {
-		components: [container.toJSON(), createButtonActionRow(buttons)],
-		flags: MessageFlags.IsComponentsV2,
+		embeds,
+		components: [createButtonActionRow(buttons)],
 	};
 
 	const message = await getContext().service.client.api.channels.createMessage(session.guestQueueId, messageData);
@@ -312,9 +340,9 @@ interface PostToFlaggedQueueOptions {
 }
 
 /**
- * Posts a question to the flagged queue using Components v2. This is a read-only surface for mods —
- * nothing routes out of it via the bot; mods review the reported content here and act on the user
- * directly through Discord's own moderation tools.
+ * Posts a question to the flagged queue. This is a read-only surface for mods — nothing routes
+ * out of it via the bot; mods review the reported content here and act on the user directly
+ * through Discord's own moderation tools.
  */
 export async function postToFlaggedQueue({
 	attachments,
@@ -329,18 +357,16 @@ export async function postToFlaggedQueue({
 		throw new Error('No flagged queue configured for this session');
 	}
 
-	const container = getBaseContainer({
+	const embeds = getBaseEmbeds({
 		attachments,
 		content,
+		guildId: session.guildId,
 		member,
 		user,
 		includeUserId: true, // Include user ID in flagged queue
 	});
 
-	const messageData: RESTPostAPIChannelMessageJSONBody = {
-		components: [container.toJSON()],
-		flags: MessageFlags.IsComponentsV2,
-	};
+	const messageData: RESTPostAPIChannelMessageJSONBody = { embeds };
 
 	const message = await getContext().service.client.api.channels.createMessage(session.flaggedQueueId, messageData);
 	logger.info(
@@ -362,7 +388,7 @@ interface PostToAnswersChannelOptions {
 }
 
 /**
- * Posts an approved question to the answers channel using Components v2
+ * Posts an approved question to the answers channel
  */
 export async function postToAnswersChannel({
 	attachments,
@@ -373,18 +399,16 @@ export async function postToAnswersChannel({
 	session,
 	user,
 }: PostToAnswersChannelOptions) {
-	const container = getBaseContainer({
+	const embeds = getBaseEmbeds({
 		attachments,
 		content,
+		guildId: session.guildId,
 		member,
 		user,
 		includeUserId: false, // Don't include user ID in answers channel
 	});
 
-	const messageData: RESTPostAPIChannelMessageJSONBody = {
-		components: [container.toJSON()],
-		flags: MessageFlags.IsComponentsV2,
-	};
+	const messageData: RESTPostAPIChannelMessageJSONBody = { embeds };
 
 	const message = await getContext().service.client.api.channels.createMessage(session.answersChannelId, messageData);
 	logger.info(
