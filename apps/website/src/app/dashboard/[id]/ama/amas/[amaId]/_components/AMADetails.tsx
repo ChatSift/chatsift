@@ -4,10 +4,9 @@ import { updateAMAConfigSchema } from '@chatsift/api/ama-schemas';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { FaChartBar } from 'react-icons/fa';
 import { APIError } from '@/api/error';
-import type { PossiblyMissingChannelInfo, UpdateAMABody } from '@/api/routes/ama';
-import { useAMA, useRepostPrompt, useUpdateAMA } from '@/api/routes/ama';
+import type { AMAStats, PossiblyMissingChannelInfo, UpdateAMABody } from '@/api/routes/ama';
+import { useAMA, useAMAStats, useExportAMAQuestions, useRepostPrompt, useUpdateAMA } from '@/api/routes/ama';
 import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
@@ -21,6 +20,27 @@ const channelName = (channel: GuildChannelInfo | PossiblyMissingChannelInfo | nu
 	channel && 'name' in channel ? channel.name : 'Unknown';
 
 const allowedChannelTypes = [ChannelType.GuildText, ...threadTypes];
+
+// `valence` picks the count's color the same way the Status badge above already colors "Active"/"Ended": accent
+// for a good outcome, danger for a bad one. PENDING_*/FLAGGED are still awaiting a mod decision, so they stay
+// neutral rather than borrowing a color that would misrepresent them as good or bad.
+//
+// `state` is a plain string literal here, not `keyof AMAStats['byState']` -- that type resolves to a (nominal) TS
+// string enum, which plain literals aren't assignable to without a cast. Cast once at the `stats.byState[state]`
+// read below instead of on every tuple entry.
+const QUESTION_STATE_TILES = [
+	{ state: 'PENDING_MOD_REVIEW', label: 'Pending Mod Review', valence: 'neutral' },
+	{ state: 'PENDING_GUEST_REVIEW', label: 'Pending Guest Review', valence: 'neutral' },
+	{ state: 'FLAGGED', label: 'Flagged', valence: 'neutral' },
+	{ state: 'APPROVED', label: 'Approved', valence: 'good' },
+	{ state: 'DENIED', label: 'Denied', valence: 'bad' },
+] as const satisfies { label: string; state: string; valence: 'bad' | 'good' | 'neutral' }[];
+
+const valenceClass = {
+	neutral: 'text-primary dark:text-primary-dark',
+	good: 'text-misc-accent',
+	bad: 'text-misc-danger',
+} as const satisfies Record<(typeof QUESTION_STATE_TILES)[number]['valence'], string>;
 
 interface ConfigFormData {
 	allowedQuestionUploads: string;
@@ -78,6 +98,8 @@ export function AMADetails() {
 	} = useGuildInfo(params.id, 'AMA');
 	const updateAMA = useUpdateAMA(params.id, params.amaId);
 	const repostPrompt = useRepostPrompt(params.id, params.amaId);
+	const { data: stats, isLoading: isStatsLoading } = useAMAStats(params.id, params.amaId);
+	const exportQuestions = useExportAMAQuestions(params.id, params.amaId);
 
 	// See GrantsList.tsx for why this also checks `ama === undefined`: a background refetch failure keeps the
 	// previously-cached session around, and that stale-but-present data should keep rendering (including any
@@ -173,6 +195,18 @@ export function AMADetails() {
 			console.error('Failed to end AMA:', error);
 		} finally {
 			setShowEndConfirm(false);
+		}
+	};
+
+	const handleExport = async () => {
+		setActionError(null);
+		setSuccessMessage(null);
+
+		try {
+			await exportQuestions.mutateAsync();
+		} catch (error) {
+			setActionError(error instanceof APIError ? error.message : 'Failed to export questions. Please try again.');
+			console.error('Failed to export AMA questions:', error);
 		}
 	};
 
@@ -467,15 +501,46 @@ export function AMADetails() {
 				</div>
 			</div>
 
-			{/* Analytics & Export Card — data lands in M3 (docs/roadmap/04-ama-complete.md); this reserves the slot. */}
+			{/* Analytics & Export Card */}
 			<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
-				<h2 className="text-xl font-medium text-primary dark:text-primary-dark mb-4">Analytics &amp; Export</h2>
-				<div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-on-secondary py-8 text-center dark:border-on-secondary-dark">
-					<FaChartBar className="h-8 w-8 text-secondary dark:text-secondary-dark" />
-					<p className="text-sm text-secondary dark:text-secondary-dark">
-						Question analytics and CSV export are coming in a future update.
-					</p>
+				<div className="mb-4 flex items-center justify-between">
+					<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Analytics &amp; Export</h2>
+					<Button
+						className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
+						isDisabled={exportQuestions.isPending}
+						onPress={handleExport}
+						type="button"
+					>
+						{exportQuestions.isPending ? 'Exporting…' : 'Export CSV'}
+					</Button>
 				</div>
+
+				{isStatsLoading ? (
+					<Skeleton className="h-24 w-full" />
+				) : stats ? (
+					<div className="space-y-4">
+						<div>
+							<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Total Questions</p>
+							<p className="text-3xl font-semibold text-primary dark:text-primary-dark">{stats.total}</p>
+						</div>
+
+						<div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+							{QUESTION_STATE_TILES.map(({ state, label, valence }) => (
+								<div
+									className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark"
+									key={state}
+								>
+									<p className={`text-2xl font-semibold ${valenceClass[valence]}`}>
+										{stats.byState[state as keyof AMAStats['byState']]}
+									</p>
+									<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">{label}</p>
+								</div>
+							))}
+						</div>
+					</div>
+				) : (
+					<p className="text-sm text-secondary dark:text-secondary-dark">Unable to load question stats.</p>
+				)}
 			</div>
 
 			{/* Actions Card */}

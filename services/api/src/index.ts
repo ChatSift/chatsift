@@ -9,7 +9,9 @@ export type { InferRouteContract } from './core/contract.js';
 export type { HttpMethod, RouteDefinition, RouteSchema, TypedRequest } from './core/route.js';
 
 export { default as createAMARoute } from './routes/ama/createAMA.js';
+export { default as exportAMARoute } from './routes/ama/exportAMA.js';
 export { default as getAMARoute } from './routes/ama/getAMA.js';
+export { default as getAMAStatsRoute } from './routes/ama/getAMAStats.js';
 export { default as getAMAsRoute } from './routes/ama/getAMAs.js';
 export { default as repostPromptRoute } from './routes/ama/repostPrompt.js';
 export { default as updateAMARoute } from './routes/ama/updateAMA.js';
