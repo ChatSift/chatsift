@@ -63,9 +63,21 @@ function parseRawEmbed(raw: string): PreviewResult {
 	const content = typeof body['content'] === 'string' ? body['content'] : undefined;
 
 	const embeds = body['embeds'];
-	const firstEmbed = Array.isArray(embeds) ? (embeds[0] as unknown) : undefined;
-	if (typeof firstEmbed !== 'object' || firstEmbed === null) {
+
+	// No `embeds` key at all is valid -- a content-only message. But if it's present, it must actually be the
+	// documented shape; silently dropping a malformed value here (instead of erroring) is exactly what made the
+	// embed look like it "didn't render" for no visible reason.
+	if (embeds === undefined) {
 		return { content };
+	}
+
+	if (!Array.isArray(embeds) || embeds.length === 0) {
+		return { error: 'Can\'t preview — "embeds" must be a non-empty array' };
+	}
+
+	const firstEmbed = embeds[0];
+	if (typeof firstEmbed !== 'object' || firstEmbed === null) {
+		return { error: "Can't preview — embeds[0] must be an object" };
 	}
 
 	const embedRecord = firstEmbed as Record<string, unknown>;

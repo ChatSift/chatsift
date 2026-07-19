@@ -91,11 +91,7 @@ export function AMADetails() {
 	const [configErrors, setConfigErrors] = useState<ConfigFormErrors>({});
 
 	const { data: ama, isLoading, error } = useAMA(params.id, params.amaId);
-	const {
-		data: guildInfo,
-		isLoading: isGuildInfoLoading,
-		error: guildInfoError,
-	} = useGuildInfo(params.id, 'AMA');
+	const { data: guildInfo, isLoading: isGuildInfoLoading, error: guildInfoError } = useGuildInfo(params.id, 'AMA');
 	const updateAMA = useUpdateAMA(params.id, params.amaId);
 	const repostPrompt = useRepostPrompt(params.id, params.amaId);
 	const { data: stats, isLoading: isStatsLoading } = useAMAStats(params.id, params.amaId);
@@ -263,7 +259,10 @@ export function AMADetails() {
 				</div>
 				<div className="space-y-4">
 					<div>
-						<label className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark" htmlFor="edit-title">
+						<label
+							className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+							htmlFor="edit-title"
+						>
 							Title
 						</label>
 						{editing ? (
@@ -338,7 +337,13 @@ export function AMADetails() {
 			</div>
 
 			{/* Channels Card */}
-			<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
+			{/* `contain-inline-size`: the Prompt Channel help text below is a long line of plain-English text with no
+			wrap opportunities counted toward CSS `max-content`, so without this its one-line width bubbles all the
+			way up through `main`'s `mx-auto`-driven shrink-to-fit sizing in the root layout and grows the whole
+			page. Containment isolates this card's content from that calculation while still letting the grid size
+			the card normally, so the text underneath can stay `w-full` and wrap at the card's real width instead of
+			being pinned to an arbitrary fixed max-width. */}
+			<div className="contain-inline-size rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
 				<h2 className="text-xl font-medium text-primary dark:text-primary-dark mb-4">Channels</h2>
 				<div className="space-y-4">
 					{editing ? (
@@ -361,8 +366,8 @@ export function AMADetails() {
 									<p className="text-base text-primary dark:text-primary-dark">{channelName(ama.promptChannel)}</p>
 								</div>
 								<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-									Fixed to where the original prompt message was posted. If that message was deleted, use
-									&quot;Repost Prompt Message&quot; below to recreate it in this same channel.
+									Fixed to where the original prompt message was posted. If that message was deleted, use &quot;Repost
+									Prompt Message&quot; below to recreate it in this same channel.
 								</p>
 							</div>
 
@@ -414,37 +419,38 @@ export function AMADetails() {
 								</div>
 							</div>
 
-							{ama.modQueueChannel && (
-								<div className="flex items-center gap-3">
-									<ChannelIcon channel={ama.modQueueChannel} />
-									<div>
-										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Mod Queue</p>
-										<p className="text-base text-primary dark:text-primary-dark">{channelName(ama.modQueueChannel)}</p>
-									</div>
+							{/* Rendered unconditionally (with a "Not set" fallback) even when unconfigured, so this card has the
+							same set of rows in view and edit mode -- otherwise toggling Edit adds up to three rows that
+							weren't there a moment ago and shoves every card below it down the page. */}
+							<div className="flex items-center gap-3">
+								<ChannelIcon channel={ama.modQueueChannel} />
+								<div>
+									<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Mod Queue</p>
+									<p className="text-base text-primary dark:text-primary-dark">
+										{ama.modQueueChannel ? channelName(ama.modQueueChannel) : 'Not set'}
+									</p>
 								</div>
-							)}
+							</div>
 
-							{ama.flaggedQueueChannel && (
-								<div className="flex items-center gap-3">
-									<ChannelIcon channel={ama.flaggedQueueChannel} />
-									<div>
-										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Flagged Queue</p>
-										<p className="text-base text-primary dark:text-primary-dark">
-											{channelName(ama.flaggedQueueChannel)}
-										</p>
-									</div>
+							<div className="flex items-center gap-3">
+								<ChannelIcon channel={ama.flaggedQueueChannel} />
+								<div>
+									<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Flagged Queue</p>
+									<p className="text-base text-primary dark:text-primary-dark">
+										{ama.flaggedQueueChannel ? channelName(ama.flaggedQueueChannel) : 'Not set'}
+									</p>
 								</div>
-							)}
+							</div>
 
-							{ama.guestQueueChannel && (
-								<div className="flex items-center gap-3">
-									<ChannelIcon channel={ama.guestQueueChannel} />
-									<div>
-										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Guest Queue</p>
-										<p className="text-base text-primary dark:text-primary-dark">{channelName(ama.guestQueueChannel)}</p>
-									</div>
+							<div className="flex items-center gap-3">
+								<ChannelIcon channel={ama.guestQueueChannel} />
+								<div>
+									<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Guest Queue</p>
+									<p className="text-base text-primary dark:text-primary-dark">
+										{ama.guestQueueChannel ? channelName(ama.guestQueueChannel) : 'Not set'}
+									</p>
 								</div>
-							)}
+							</div>
 						</>
 					)}
 				</div>
