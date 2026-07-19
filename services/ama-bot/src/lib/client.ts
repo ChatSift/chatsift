@@ -45,14 +45,19 @@ export function createClient(): Client {
 			}
 		})
 		.on(GatewayDispatchEvents.InteractionCreate, async ({ data: interaction }) => {
+			// Discord's own interaction id is already a unique, stable correlation key -- no need to mint one
+			// ourselves the way the API service does with a `nanoid`. This child logger flows into every
+			// handler for the interaction, so the whole course of it can be traced by `interactionId`.
+			const logger = getContext().logger.child({ interactionId: interaction.id, interactionType: interaction.type });
+
 			if (interaction.type === InteractionType.MessageComponent) {
-				await handleComponentInteraction(interaction);
+				await handleComponentInteraction(interaction, logger);
 			} else if (interaction.type === InteractionType.ApplicationCommand) {
-				await handleCommandInteraction(interaction);
+				await handleCommandInteraction(interaction, logger);
 			} else if (interaction.type === InteractionType.ApplicationCommandAutocomplete) {
-				await handleAutocompleteInteraction(interaction);
+				await handleAutocompleteInteraction(interaction, logger);
 			} else {
-				getContext().logger.warn({ interactionType: interaction.type }, 'Unhandled interaction type');
+				logger.warn('Unhandled interaction type');
 			}
 		})
 		.once(GatewayDispatchEvents.Ready, async ({ data }) => {

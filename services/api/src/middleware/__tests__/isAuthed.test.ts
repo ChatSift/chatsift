@@ -126,7 +126,9 @@ const makeRefreshJWT = ({ now = Date.now(), expiresIn = 60 * 60 * 24 * 30 }: Moc
 	return jwt.sign(data, getContext().env.ENCRYPTION_KEY, { expiresIn });
 };
 
-const makeMockedRequest = (data: any) => data as unknown as Request;
+// Every real request carries a `req.logger` by the time `isAuthed`'s middleware runs (attached by
+// `attachLogger()` ahead of it in `app.ts`), so mocked requests get one here too by default.
+const makeMockedRequest = (data: any) => ({ logger: getContext().logger, ...data }) as unknown as Request;
 const MockedResponse = Http2ServerResponse as unknown as new () => Response;
 const next = vi.fn();
 

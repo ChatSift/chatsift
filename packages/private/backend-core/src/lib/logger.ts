@@ -1,6 +1,8 @@
 import type { TransportTargetOptions } from 'pino';
 import { pino as createPinoLogger, transport as pinoTransport, stdTimeFunctions } from 'pino';
 
+export type { Logger } from 'pino';
+
 export function createLogger(name: string) {
 	// TODO: File rotations for prod?
 	const targets: TransportTargetOptions[] = [

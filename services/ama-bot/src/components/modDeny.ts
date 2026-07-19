@@ -1,3 +1,4 @@
+import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
@@ -9,7 +10,7 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 
 	public readonly stateStore = null;
 
-	public async handle(interaction: APIMessageComponentInteraction, questionIdStr: string) {
+	public async handle(interaction: APIMessageComponentInteraction, questionIdStr: string, logger: Logger) {
 		const questionId = Number.parseInt(questionIdStr, 10);
 
 		// Ack within Discord's 3s window before doing any DB/REST work below; everything past this point
@@ -80,9 +81,9 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 				],
 			});
 
-			getContext().logger.info({ questionId, amaId: question.amaId }, 'Question denied by moderator');
+			logger.info({ questionId, amaId: question.amaId }, 'Question denied by moderator');
 		} catch (error) {
-			getContext().logger.error({ err: error, questionId }, 'Failed to deny question');
+			logger.error({ err: error, questionId }, 'Failed to deny question');
 			await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 				content: 'Failed to deny question. Please try again.',
 				flags: MessageFlags.Ephemeral,

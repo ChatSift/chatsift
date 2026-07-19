@@ -1,3 +1,4 @@
+import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { AmaSessions } from '@chatsift/db';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
@@ -40,7 +41,7 @@ export default class AmaCommand implements CommandHandler {
 		)
 		.toJSON();
 
-	public async handle(interaction: APIApplicationCommandInteraction) {
+	public async handle(interaction: APIApplicationCommandInteraction, _logger: Logger) {
 		if (!interaction.guild_id) {
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 				content: 'This command can only be used in a server.',

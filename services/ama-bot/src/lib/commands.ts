@@ -1,6 +1,7 @@
 import { glob } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Logger } from '@chatsift/backend-core';
 import { getContext, isModuleWithDefault } from '@chatsift/backend-core';
 import type {
 	APIApplicationCommandAutocompleteInteraction,
@@ -19,8 +20,8 @@ export type CommandData = RESTPostAPIChatInputApplicationCommandsJSONBody | REST
 
 export interface CommandHandler {
 	readonly data: CommandData;
-	handle(interaction: APIApplicationCommandInteraction): Promise<void>;
-	handleAutocomplete?(interaction: APIApplicationCommandAutocompleteInteraction): Promise<void>;
+	handle(interaction: APIApplicationCommandInteraction, logger: Logger): Promise<void>;
+	handleAutocomplete?(interaction: APIApplicationCommandAutocompleteInteraction, logger: Logger): Promise<void>;
 	readonly name: string;
 }
 
@@ -62,10 +63,13 @@ export function getAllCommandsData(): CommandData[] {
 	return [...commands.values()].map((handler) => handler.data);
 }
 
-export async function handleCommandInteraction(interaction: APIApplicationCommandInteraction): Promise<void> {
+export async function handleCommandInteraction(
+	interaction: APIApplicationCommandInteraction,
+	logger: Logger,
+): Promise<void> {
 	const handler = commands.get(interaction.data.name);
 	if (!handler) {
-		getContext().logger.warn({ commandName: interaction.data.name }, 'No handler found for command interaction');
+		logger.warn({ commandName: interaction.data.name }, 'No handler found for command interaction');
 		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 			content: 'Something went wrong resolving this command. Please let a developer know.',
 			flags: MessageFlags.Ephemeral,
@@ -73,20 +77,18 @@ export async function handleCommandInteraction(interaction: APIApplicationComman
 		return;
 	}
 
-	await handler.handle(interaction);
+	await handler.handle(interaction, logger);
 }
 
 export async function handleAutocompleteInteraction(
 	interaction: APIApplicationCommandAutocompleteInteraction,
+	logger: Logger,
 ): Promise<void> {
 	const handler = commands.get(interaction.data.name);
 	if (!handler?.handleAutocomplete) {
-		getContext().logger.warn(
-			{ commandName: interaction.data.name },
-			'No autocomplete handler found for command interaction',
-		);
+		logger.warn({ commandName: interaction.data.name }, 'No autocomplete handler found for command interaction');
 		return;
 	}
 
-	await handler.handleAutocomplete(interaction);
+	await handler.handleAutocomplete(interaction, logger);
 }

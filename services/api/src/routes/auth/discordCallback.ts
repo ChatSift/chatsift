@@ -61,14 +61,14 @@ export default defineRoute({
 		});
 
 		if (!setEquals(DISCORD_AUTH_SCOPES, new Set(result.scope.split(' ')))) {
-			getContext().logger.warn(
+			req.logger.warn(
 				{ returnedScopes: result.scope, expectedScopes: DISCORD_AUTH_SCOPES },
 				'miss matched scopes',
 			);
 			throw forbidden('received different scopes than expected');
 		}
 
-		const me = await fetchMe(result.access_token, true);
+		const me = await fetchMe(result.access_token, req.logger, true);
 		createAccessToken(res, result, me);
 		createRefreshToken(res, result, me.id);
 

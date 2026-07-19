@@ -12,6 +12,7 @@ import type { Middleware } from 'polka';
 import polka from 'polka';
 import { mountRoute } from './core/server.js';
 import { attachHttpUtils } from './middleware/attachHttpUtils.js';
+import { attachLogger } from './middleware/attachLogger.js';
 import createAMARoute from './routes/ama/createAMA.js';
 import getAMARoute from './routes/ama/getAMA.js';
 import getAMAsRoute from './routes/ama/getAMAs.js';
@@ -30,14 +31,17 @@ import { sendBoom } from './util/sendBoom.js';
 export async function startServer(): Promise<void> {
 	const app = polka({
 		onError(err, req, res) {
-			getContext().logger.error({ err, trackingId: req.trackingId }, 'request error');
+			// req.logger is set by attachLogger(), the very first `.use()` middleware -- it's only absent here if
+			// something throws before any `.use()` middleware ran at all (e.g. polka's own routing/parsing).
+			const logger = req.logger ?? getContext().logger;
+			logger.error({ err }, 'request error');
 
 			if (res.writableEnded) {
 				return;
 			}
 
 			if (res.headersSent) {
-				getContext().logger.warn('weird edge case we have no clue how to handle');
+				logger.warn('weird edge case we have no clue how to handle');
 				res.end();
 				return;
 			}
@@ -46,16 +50,21 @@ export async function startServer(): Promise<void> {
 			const boom = isBoom(err) ? err : new Boom(err);
 
 			if (boom.output.statusCode === 500) {
-				getContext().logger.error(boom, boom.message);
+				logger.error(boom, boom.message);
 			}
 
 			sendBoom(boom, res);
 		},
-		onNoMatch(_, res) {
+		onNoMatch(req, res) {
+			// req.logger is set by attachLogger(), the very first `.use()` middleware -- see the same fallback note
+			// on `onError` above for the one case it can still be missing.
+			(req.logger ?? getContext().logger).warn({ method: req.method, path: req.path }, 'no route matched');
+
 			res.setHeader('content-type', 'application/json');
 			sendBoom(notFound(), res);
 		},
 	}).use(
+		attachLogger(),
 		cors({
 			origin: getContext().env.CORS,
 			credentials: true,

@@ -1,3 +1,4 @@
+import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { AmaPromptData, AmaSessions } from '@chatsift/db';
 import type {
@@ -14,7 +15,7 @@ export default class AmaRepostSelectComponent implements ComponentHandler {
 
 	public readonly stateStore = null;
 
-	public async handle(interaction: APIMessageComponentInteraction) {
+	public async handle(interaction: APIMessageComponentInteraction, _state: never, logger: Logger) {
 		const [rawId] = (interaction.data as APIMessageStringSelectInteractionData).values;
 		const amaId = Number.parseInt(rawId!, 10);
 
@@ -46,7 +47,7 @@ export default class AmaRepostSelectComponent implements ComponentHandler {
 			`;
 
 			if (!promptData) {
-				getContext().logger.error({ amaId: session.id }, 'AMA session has no prompt data row');
+				logger.error({ amaId: session.id }, 'AMA session has no prompt data row');
 				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 					content: 'No prompt data is stored for that AMA. Please contact a developer.',
 					components: [],
@@ -87,7 +88,7 @@ export default class AmaRepostSelectComponent implements ComponentHandler {
 			try {
 				messageBody = JSON.parse(promptData.promptJsonData) as RESTPostAPIChannelMessageJSONBody;
 			} catch (error) {
-				getContext().logger.error({ err: error, amaId: session.id }, 'Failed to parse stored AMA prompt JSON data');
+				logger.error({ err: error, amaId: session.id }, 'Failed to parse stored AMA prompt JSON data');
 				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 					content: `**${session.title}**'s stored prompt data is corrupted. Please contact a developer.`,
 					components: [],
@@ -125,8 +126,8 @@ export default class AmaRepostSelectComponent implements ComponentHandler {
 					await getContext().service.client.api.channels.deleteMessage(session.promptChannelId, newPromptMessage.id);
 				} catch (error) {
 					// Best-effort: a stray message from a lost concurrent-repost race isn't worth failing over.
-					getContext().logger.debug(
-						{ error, channelId: session.promptChannelId, messageId: newPromptMessage.id },
+					logger.debug(
+						{ err: error, channelId: session.promptChannelId, messageId: newPromptMessage.id },
 						'Failed to clean up orphaned reposted prompt message',
 					);
 				}
@@ -143,7 +144,7 @@ export default class AmaRepostSelectComponent implements ComponentHandler {
 				components: [],
 			});
 		} catch (error) {
-			getContext().logger.error({ error, amaId }, 'Failed to repost AMA prompt');
+			logger.error({ err: error, amaId }, 'Failed to repost AMA prompt');
 			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				content: 'Failed to repost the prompt. Please try again.',
 				components: [],

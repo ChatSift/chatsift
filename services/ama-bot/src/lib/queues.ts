@@ -1,3 +1,4 @@
+import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import { ContainerBuilder, MediaGalleryItemBuilder } from '@discordjs/builders';
@@ -137,13 +138,14 @@ export async function claimAfterPost<TRow>(
 	cleanup: (channelId: string, messageId: string) => Promise<unknown>,
 	channelId: string,
 	messageId: string,
+	logger: Logger,
 ): Promise<TRow | undefined> {
 	const runCleanup = async () => {
 		try {
 			await cleanup(channelId, messageId);
 		} catch (error) {
 			// Best-effort: a stray message from a lost claim race isn't worth failing the interaction over.
-			getContext().logger.debug({ error, channelId, messageId }, 'Failed to clean up message after lost claim race');
+			logger.debug({ err: error, channelId, messageId }, 'Failed to clean up message after lost claim race');
 		}
 	};
 
@@ -163,6 +165,7 @@ export async function claimAfterPost<TRow>(
 interface PostToModQueueOptions {
 	attachments: APIAttachment[];
 	content: string;
+	logger: Logger;
 	member?: APIGuildMember | undefined;
 	question: AmaQuestions;
 	session: AmaSessions;
@@ -172,7 +175,15 @@ interface PostToModQueueOptions {
 /**
  * Posts a question to the mod queue with approve/deny/flag buttons using Components v2
  */
-export async function postToModQueue({ attachments, content, member, question, session, user }: PostToModQueueOptions) {
+export async function postToModQueue({
+	attachments,
+	content,
+	logger,
+	member,
+	question,
+	session,
+	user,
+}: PostToModQueueOptions) {
 	if (!session.modQueueId) {
 		throw new Error('No mod queue configured for this session');
 	}
@@ -218,7 +229,7 @@ export async function postToModQueue({ attachments, content, member, question, s
 	};
 
 	const message = await getContext().service.client.api.channels.createMessage(session.modQueueId, messageData);
-	getContext().logger.info(
+	logger.info(
 		{ questionId: question.id, sessionId: session.id, channelId: session.modQueueId, messageId: message.id },
 		'Posted question to mod queue',
 	);
@@ -229,6 +240,7 @@ export async function postToModQueue({ attachments, content, member, question, s
 interface PostToGuestQueueOptions {
 	attachments: APIAttachment[];
 	content: string;
+	logger: Logger;
 	member?: APIGuildMember | undefined;
 	question: AmaQuestions;
 	session: AmaSessions;
@@ -241,6 +253,7 @@ interface PostToGuestQueueOptions {
 export async function postToGuestQueue({
 	attachments,
 	content,
+	logger,
 	member,
 	question,
 	session,
@@ -280,7 +293,7 @@ export async function postToGuestQueue({
 	};
 
 	const message = await getContext().service.client.api.channels.createMessage(session.guestQueueId, messageData);
-	getContext().logger.info(
+	logger.info(
 		{ questionId: question.id, sessionId: session.id, channelId: session.guestQueueId, messageId: message.id },
 		'Posted question to guest queue',
 	);
@@ -291,6 +304,7 @@ export async function postToGuestQueue({
 interface PostToFlaggedQueueOptions {
 	attachments: APIAttachment[];
 	content: string;
+	logger: Logger;
 	member?: APIGuildMember | undefined;
 	question: AmaQuestions;
 	session: AmaSessions;
@@ -305,6 +319,7 @@ interface PostToFlaggedQueueOptions {
 export async function postToFlaggedQueue({
 	attachments,
 	content,
+	logger,
 	member,
 	question,
 	session,
@@ -328,7 +343,7 @@ export async function postToFlaggedQueue({
 	};
 
 	const message = await getContext().service.client.api.channels.createMessage(session.flaggedQueueId, messageData);
-	getContext().logger.info(
+	logger.info(
 		{ questionId: question.id, sessionId: session.id, channelId: session.flaggedQueueId, messageId: message.id },
 		'Posted question to flagged queue',
 	);
@@ -339,6 +354,7 @@ export async function postToFlaggedQueue({
 interface PostToAnswersChannelOptions {
 	attachments: APIAttachment[];
 	content: string;
+	logger: Logger;
 	member?: APIGuildMember | undefined;
 	question: AmaQuestions;
 	session: AmaSessions;
@@ -351,6 +367,7 @@ interface PostToAnswersChannelOptions {
 export async function postToAnswersChannel({
 	attachments,
 	content,
+	logger,
 	member,
 	question,
 	session,
@@ -370,7 +387,7 @@ export async function postToAnswersChannel({
 	};
 
 	const message = await getContext().service.client.api.channels.createMessage(session.answersChannelId, messageData);
-	getContext().logger.info(
+	logger.info(
 		{ questionId: question.id, sessionId: session.id, channelId: session.answersChannelId, messageId: message.id },
 		'Posted question to answers channel',
 	);

@@ -79,21 +79,21 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 
 				const expiresAt = new Date(refreshToken.discordAccessTokenExpiresAt).getTime();
 				if (expiresAt >= Date.now() + 7 * 60 * 1_000) {
-					getContext().logger.info('discord access token is still valid for enough time, no need to refresh it');
+					req.logger.info('discord access token is still valid for enough time, no need to refresh it');
 					oauthData = {
 						access_token: refreshToken.discordAccessToken,
 						refresh_token: refreshToken.discordRefreshToken,
 						expires_in: (expiresAt - Date.now()) / 1_000,
 					};
 				} else {
-					getContext().logger.info('refreshing discord access token');
+					req.logger.info('refreshing discord access token');
 					try {
 						oauthData = await discordAPIOAuth.oauth2.refreshToken({
 							grant_type: 'refresh_token',
 							refresh_token: refreshToken.discordRefreshToken,
 						});
 					} catch (error) {
-						getContext().logger.warn({ err: error }, 'error refreshing discord access token, invalidating login');
+						req.logger.warn({ err: error }, 'error refreshing discord access token, invalidating login');
 						noopAccessToken(res);
 						noopRefreshToken(res);
 						await next(fallthrough ? undefined : unauthorized('invalidated refresh token'));
@@ -101,13 +101,16 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 					}
 				}
 
-				getContext().logger.info('request successfully refreshed token');
+				req.logger.info('request successfully refreshed token');
 
 				// We're good, rotate things
-				const me = await fetchMe(oauthData.access_token);
+				const me = await fetchMe(oauthData.access_token, req.logger);
 				const newAccessToken = createAccessToken(res, oauthData, me);
 				const newRefreshToken = createRefreshToken(res, oauthData, me.id);
 
+				// `req` is a per-request object, not shared mutable state -- the `req.logger` read above (crossing
+				// the `fetchMe` await) is what trips this rule's static analysis, but there's no real race here.
+				// eslint-disable-next-line require-atomic-updates
 				req.tokens = {
 					access: newAccessToken,
 					refresh: newRefreshToken,
@@ -132,7 +135,7 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 				// Verify the JWT refresh token
 				refreshToken = jwt.verify(refreshTokenCookie, getContext().env.ENCRYPTION_KEY) as RefreshTokenData;
 				if (!refreshToken.refresh) {
-					getContext().logger.info('refresh token is actually access, ignoring as request has been tampered with');
+					req.logger.info('refresh token is actually access, ignoring as request has been tampered with');
 					noopAccessToken(res);
 					noopRefreshToken(res);
 					await next(fallthrough ? undefined : unauthorized('malformed refresh token'));
@@ -140,13 +143,13 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 				}
 			} catch (error) {
 				if (error instanceof jwt.TokenExpiredError) {
-					getContext().logger.info('refresh token expired');
+					req.logger.info('refresh token expired');
 					noopAccessToken(res);
 					noopRefreshToken(res);
 					await next(fallthrough ? undefined : unauthorized('expired refresh token'));
 					return;
 				} else if (error instanceof jwt.JsonWebTokenError) {
-					getContext().logger.info('refresh token malformed');
+					req.logger.info('refresh token malformed');
 					// Likely tampering.
 					noopAccessToken(res);
 					noopRefreshToken(res);
@@ -160,12 +163,12 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 			// Check the JWT access token, always sent via header and not cookie
 			const accessTokenHeader = req.headers.authorization;
 			if (accessTokenHeader) {
-				getContext().logger.info('request has access token');
+				req.logger.info('request has access token');
 				try {
 					// Verify the JWT access token
 					const accessToken = jwt.verify(accessTokenHeader, getContext().env.ENCRYPTION_KEY) as AccessTokenData;
 					if (accessToken.refresh) {
-						getContext().logger.info('access token is a refresh token, ignoring as request has been tampered with');
+						req.logger.info('access token is a refresh token, ignoring as request has been tampered with');
 						noopAccessToken(res);
 						noopRefreshToken(res);
 						await next(fallthrough ? undefined : unauthorized('malformed access token'));
@@ -178,15 +181,15 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 						refresh: refreshToken,
 					};
 
-					getContext().logger.info({ userId: req.tokens.access?.sub }, 'request is authed via JWT');
+					req.logger.info({ userId: req.tokens.access?.sub }, 'request is authed via JWT');
 				} catch (error) {
 					if (error instanceof jwt.TokenExpiredError) {
-						getContext().logger.info('access token expired');
+						req.logger.info('access token expired');
 						// If it is expired, we can try to use the refresh token
 						await refresh(refreshToken);
 						return;
 					} else if (error instanceof jwt.JsonWebTokenError) {
-						getContext().logger.info('access token malformed');
+						req.logger.info('access token malformed');
 						// Don't bother with refreshes if the token is malformed. Likely tampering.
 						noopAccessToken(res);
 						noopRefreshToken(res);
@@ -221,7 +224,7 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 		middleware.push(
 			defineMiddleware(async (req, _, next) => {
 				if (!req.tokens) {
-					getContext().logger.warn('isGlobalAdmin invoked without a user. this is a bug');
+					req.logger.warn('isGlobalAdmin invoked without a user. this is a bug');
 				}
 
 				if (!getContext().env.ADMINS.has(req.tokens?.access?.sub ?? '')) {
@@ -237,17 +240,17 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 		middleware.push(
 			defineMiddleware(async (req, _, next) => {
 				if (!req.tokens) {
-					getContext().logger.warn('isGuildManager invoked without a user. this is a bug');
+					req.logger.warn('isGuildManager invoked without a user. this is a bug');
 					return next(internal());
 				}
 
 				const guildId = req.params['guildId'];
 				if (!guildId) {
-					getContext().logger.warn('isGuildManager invoked without a guildId param. this is a bug');
+					req.logger.warn('isGuildManager invoked without a guildId param. this is a bug');
 					return next(internal());
 				}
 
-				const me = await fetchMe(req.tokens.access.discordAccessToken, false);
+				const me = await fetchMe(req.tokens.access.discordAccessToken, req.logger, false);
 				const guild = me.guilds.find((g) => g.id === guildId);
 
 				if (!guild) {
