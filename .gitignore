@@ -61,3 +61,5 @@ temp/
 
 # Changesets
 .changeset/pre.json
+
+next-env.d.ts
