@@ -1,9 +1,9 @@
 import { getContext, GRANTS, releaseGrantToken } from '@chatsift/backend-core';
 import type { AmaSessions } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
-import { ButtonStyle, ComponentType } from '@discordjs/core';
+import { ButtonStyle, ComponentType, RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
-import { badData } from '@hapi/boom';
+import { badData, badRequest } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
@@ -26,6 +26,7 @@ export default defineRoute({
 		params: paramsSchema,
 	},
 	middleware: isAuthed({
+		claimsGrant: true,
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
@@ -86,6 +87,17 @@ export default defineRoute({
 			} catch (error) {
 				if (error instanceof DiscordAPIError && error.status === 400 && 'prompt_raw' in data) {
 					throw badData('invalid prompt_raw data');
+				}
+
+				// The bot lacking permission to post in the chosen prompt channel is a correctable mistake (pick a
+				// different channel, or fix the bot's permissions), not a server bug -- surface it as a 400 the
+				// frontend can show verbatim instead of letting it fall through to a generic 500.
+				if (
+					error instanceof DiscordAPIError &&
+					error.status === 403 &&
+					(error.code === RESTJSONErrorCodes.MissingAccess || error.code === RESTJSONErrorCodes.MissingPermissions)
+				) {
+					throw badRequest('the bot is missing permissions to post in the selected prompt channel');
 				}
 
 				throw error;

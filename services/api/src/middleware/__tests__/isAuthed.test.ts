@@ -649,10 +649,11 @@ describe('grant token auth', () => {
 		expect(req.grant?.guildId).toBe(GRANT_GUILD_ID);
 	});
 
-	test('rejects an already-consumed grant token', async () => {
+	test('rejects an already-consumed grant token on a route that claims it', async () => {
 		redisSetMock.mockResolvedValueOnce(null);
 
 		const [{ handle: isAuth }] = isAuthed({
+			claimsGrant: true,
 			fallthrough: false,
 			isGlobalAdmin: false,
 			isGuildManager: false,
@@ -666,7 +667,7 @@ describe('grant token auth', () => {
 		expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'grant token already used'));
 	});
 
-	test('only lets one of two concurrent requests with the same grant token through', async () => {
+	test('only lets one of two concurrent requests with the same grant token through a route that claims it', async () => {
 		// Stands in for the real client's `SET ... NX` semantics: the first caller to reach this claims the key,
 		// any other caller for the same `jti` finds it already set. This is what makes it safe for `createAMA.ts`
 		// to rely on the claim happening here rather than a separate "is it used yet" check.
@@ -681,6 +682,7 @@ describe('grant token auth', () => {
 		});
 
 		const [{ handle: isAuth }] = isAuthed({
+			claimsGrant: true,
 			fallthrough: false,
 			isGlobalAdmin: false,
 			isGuildManager: false,
@@ -702,6 +704,31 @@ describe('grant token auth', () => {
 
 		expect(outcomes.filter((error) => error === undefined)).toHaveLength(1);
 		expect(outcomes.filter((error) => error !== undefined)).toEqual([makeExpectedBoom(401, 'grant token already used')]);
+	});
+
+	test('a route without `claimsGrant` never claims the token, so the same link can be read from repeatedly before it is used', async () => {
+		// This is the regression the bug report was about: `getAMAs`/`/v3/auth/me`/`getGuild` all accept the same
+		// grant token as `createAMA` (to drive the create page's chrome while it loads), but must NOT claim it --
+		// otherwise the page load itself burns the single-use link before the user ever submits the form.
+		const [{ handle: isAuth }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: false,
+			grants: [GRANTS.AMA_CREATE],
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		const token = makeGrantJWT();
+		const nextA = vi.fn();
+		const nextB = vi.fn();
+
+		await isAuth(makeMockedRequest({ headers: { authorization: token }, params: {} }), res, nextA);
+		await isAuth(makeMockedRequest({ headers: { authorization: token }, params: {} }), res, nextB);
+
+		expect(nextA).toHaveBeenCalledWith();
+		expect(nextB).toHaveBeenCalledWith();
+		expect(redisSetMock).not.toHaveBeenCalled();
 	});
 
 	test('falls through to normal session auth when the header holds a real access token, not a grant', async () => {

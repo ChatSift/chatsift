@@ -217,6 +217,14 @@ export function CreateAMAForm() {
 				return;
 			}
 
+			// Under the grant flow, a 401 here only ever means `isAuthed` rejected the token -- either it was
+			// already claimed (a duplicate submit, or the link was already used to create an AMA) or it expired.
+			// There's no session to fall back on, so the link itself is simply no longer usable.
+			if (error instanceof APIError && error.statusCode === 401 && grant) {
+				setGeneralError('This link has already been used or has expired. Ask for a new /ama create link.');
+				return;
+			}
+
 			// A 400 here means the server's zod schema rejected the request even though our own client-side
 			// validation (the exact same schema) passed — shouldn't normally happen, but map it the same way as a
 			// defense-in-depth fallback (e.g. a schema version skew between client and server bundles).

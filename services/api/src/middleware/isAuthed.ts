@@ -48,6 +48,15 @@ interface IsAuthedGlobalAdmin {
 }
 
 interface IsAuthedNoGlobalAdmin {
+	/**
+	 * If true, reaching this middleware atomically claims (single-use-consumes) the grant token via
+	 * `claimGrantToken` before the handler runs. Set this ONLY on the one route that performs the action a grant
+	 * actually authorizes (`createAMA`) — routes that merely accept a grant to read data scoped to it while the
+	 * page loads (`getAMAs`, `/v3/auth/me`, `getGuild`) must leave this unset. Those routes are hit (with the
+	 * same token) well before the user submits anything; claiming there would burn the single-use link on page
+	 * load instead of on the actual create.
+	 */
+	claimsGrant?: boolean;
 	fallthrough: false;
 	/**
 	 * If set, a scoped one-time grant token (see `@chatsift/backend-core`'s `GRANTS`) matching one of these
@@ -152,11 +161,14 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 						return;
 					}
 
-					// Atomically claims the token (`SET ... NX`) rather than a check-then-later-consume: two concurrent
-					// requests for the same `jti` race here, and only one can win the claim, so at most one AMA gets
-					// created per link. The route handler releases the claim on failure (see `createAMA.ts`) so a
-					// bad submission doesn't permanently burn the link.
-					if (!(await claimGrantToken(grantToken.jti))) {
+					// Only the route that actually performs the grant's action claims it (see `claimsGrant`'s doc) --
+					// read-only routes accepting the same grant (getAMAs, /v3/auth/me, getGuild) skip this
+					// entirely, so loading the create page doesn't burn the link before the user submits.
+					// Atomically claims the token (`SET ... NX`) rather than a check-then-later-consume: two
+					// concurrent requests for the same `jti` race here, and only one can win the claim, so at
+					// most one AMA gets created per link. The route handler releases the claim on failure (see
+					// `createAMA.ts`) so a bad submission doesn't permanently burn the link.
+					if (options.claimsGrant && !(await claimGrantToken(grantToken.jti))) {
 						await next(unauthorized('grant token already used'));
 						return;
 					}
