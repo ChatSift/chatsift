@@ -30,59 +30,16 @@ services:
       interval: 10s
       timeout: 5s
 
-  loki:
-    image: grafana/loki:3.3.0
+  dozzle:
+    image: amir20/dozzle:latest
     restart: unless-stopped
     volumes:
-      - ./build/loki/loki-config.yaml:/etc/loki/config.yaml:ro
-      - loki-data:/loki
-    command: ['-config.file=/etc/loki/config.yaml']
-
-  docker-socket-proxy:
-    image: tecnativa/docker-socket-proxy:latest
-    restart: unless-stopped
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dozzle-data:/data
     environment:
-      # Read-only container listing/inspection only - no create/exec/stop/build/etc. This is
-      # the one component that touches the raw socket, so promtail (and anything else that
-      # needs container metadata) never gets full docker-control access itself.
-      CONTAINERS: 1
-      EVENTS: 1
-      POST: 0
-      IMAGES: 0
-      # Read-only network inspection - promtail's docker_sd needs this to compute
-      # __meta_docker_network_* labels during discovery. POST=0 above still blocks any
-      # create/connect/disconnect, so this stays read-only.
-      NETWORKS: 1
-      VOLUMES: 0
-      SERVICES: 0
-      TASKS: 0
-      SWARM: 0
-      NODES: 0
-      PLUGINS: 0
-      SYSTEM: 0
-      INFO: 0
-      DISTRIBUTION: 0
-      AUTH: 0
-      SECRETS: 0
-      CONFIGS: 0
-      BUILD: 0
-      COMMIT: 0
-      EXEC: 0
-      LOGS: 0
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-
-  promtail:
-    image: grafana/promtail:3.3.0
-    restart: unless-stopped
-    volumes:
-      - ./build/promtail/promtail-config.yaml:/etc/promtail/config.yaml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - promtail-positions:/var/promtail
-    command: ['-config.file=/etc/promtail/config.yaml']
-    depends_on:
-      - loki
-      - docker-socket-proxy
+      DOZZLE_ENABLE_ACTIONS: true
+    ports:
+      - 127.0.0.1:${LOCAL_DOZZLE_PORT}:8080
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
@@ -94,9 +51,8 @@ services:
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk:/dev/disk:ro
       # cAdvisor's own docker client needs this directly for container discovery - its remote/
-      # TCP docker-host support is flaky (unlike promtail's docker_sd, which does support the
-      # proxy cleanly). Already privileged with deep host mounts above, so the marginal risk of
-      # this on top is small; not internet-facing regardless.
+      # TCP docker-host support is flaky. Already privileged with deep host mounts above, so
+      # the marginal risk of this on top is small; not internet-facing regardless.
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   node-exporter:
@@ -160,7 +116,6 @@ services:
     ports:
       - 127.0.0.1:${LOCAL_GRAFANA_PORT}:3000
     depends_on:
-      - loki
       - prometheus
 
   redis:
@@ -200,10 +155,8 @@ services:
 volumes:
   postgres-data:
     name: 'chatsift-v3-postgres-data'
-  loki-data:
-    name: 'chatsift-v3-loki-data'
-  promtail-positions:
-    name: 'chatsift-v3-promtail-positions'
+  dozzle-data:
+    name: 'chatsift-v3-dozzle-data'
   prometheus-data:
     name: 'chatsift-v3-prometheus-data'
   grafana-data:
