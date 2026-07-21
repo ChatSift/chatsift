@@ -8,4 +8,4 @@
 .yarn
 
 packages/private/core/src/types/entities.ts
-packages/db/src/generated
+packages/private/db/src/generated

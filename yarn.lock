@@ -470,9 +470,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/db@workspace:^, @chatsift/db@workspace:packages/db":
+"@chatsift/db@workspace:^, @chatsift/db@workspace:packages/private/db":
   version: 0.0.0-use.local
-  resolution: "@chatsift/db@workspace:packages/db"
+  resolution: "@chatsift/db@workspace:packages/private/db"
   dependencies:
     "@electric-sql/pglite": "npm:^0.5.4"
     "@kristiandupont/recase": "npm:^1.2.1"

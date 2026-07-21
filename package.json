@@ -7,7 +7,6 @@
 	"type": "module",
 	"workspaces": [
 		"apps/*",
-		"packages/db",
 		"packages/public/*",
 		"packages/private/*",
 		"services/*"

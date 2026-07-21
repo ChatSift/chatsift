@@ -86,7 +86,7 @@ export default tseslint.config(
 			'**/.next/',
 			'**/shiki.bundle.ts',
 			'packages/private/core/src/types/entities.ts',
-			'packages/db/src/generated/',
+			'packages/private/db/src/generated/',
 		],
 	},
 	commonRuleset,
