@@ -14,7 +14,9 @@ export function createLoggerOptions(name: string): LoggerOptions {
 		name,
 		timestamp: stdTimeFunctions.isoTime,
 		formatters: {
-			level: (levelLabel, level) => ({ level, levelLabel }),
+			// Emit `level` as the string label (e.g. `"info"`) instead of pino's default numeric value --
+			// dozzle parses log level from this exact string.
+			level: (label) => ({ level: label }),
 		},
 		// `@discordjs/rest` errors carry the literal request body (including OAuth `client_secret`/`refresh_token`)
 		// on `.requestBody.json` -- redact those specific fields wherever an error ends up logged, regardless of
@@ -44,7 +46,6 @@ export function createLogger(name: string) {
 						destination: 1, // stdout
 						colorize: true,
 						translateTime: 'SYS:standard',
-						ignore: 'levelLabel',
 					},
 				},
 	];
