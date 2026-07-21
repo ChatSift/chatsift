@@ -2,12 +2,28 @@
 
 if [ -f .env.public ]
 then
-  export $(cat .env.public | xargs)
+  set -a
+  source .env.public
+  set +a
 fi
 
 if [ -f .env.private ]
 then
-  export $(cat .env.private | xargs)
+  set -a
+  source .env.private
+  set +a
+fi
+
+# Grafana's Discord-login allowlist is derived from ADMINS so it stays a single source of truth.
+if [ -n "$ADMINS" ]
+then
+  IFS=', ' read -ra _admin_ids <<< "$ADMINS"
+  _quoted_ids=""
+  for _id in "${_admin_ids[@]}"
+  do
+    _quoted_ids="${_quoted_ids}${_quoted_ids:+,}'${_id}'"
+  done
+  export GRAFANA_OAUTH_ROLE_ATTRIBUTE_PATH="contains([${_quoted_ids}],id)&&'Admin'"
 fi
 
 docker compose \
