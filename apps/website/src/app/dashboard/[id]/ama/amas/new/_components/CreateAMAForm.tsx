@@ -332,13 +332,11 @@ export function CreateAMAForm() {
 					/>
 					{errors.title && <p className="mt-1 text-sm text-misc-danger">{errors.title}</p>}
 				</div>
-
 				{duplicateChannelWarning && (
 					<p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
 						{duplicateChannelWarning}
 					</p>
 				)}
-
 				<ChannelSelect
 					allowedTypes={allowedChannelTypes}
 					channels={guildInfo!.channels}

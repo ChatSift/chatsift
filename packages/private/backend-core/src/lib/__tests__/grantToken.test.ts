@@ -63,7 +63,10 @@ test('verifyGrantToken returns null for a tampered token', () => {
 });
 
 test('verifyGrantToken returns null for a well-signed but non-grant-shaped token (e.g. an access token)', () => {
-	const accessTokenShaped = jwt.sign({ refresh: false, sub: baseData.sub, grants: { adminGuilds: [] } }, ENCRYPTION_KEY);
+	const accessTokenShaped = jwt.sign(
+		{ refresh: false, sub: baseData.sub, grants: { adminGuilds: [] } },
+		ENCRYPTION_KEY,
+	);
 
 	expect(verifyGrantToken(accessTokenShaped)).toBeNull();
 });
@@ -73,10 +76,7 @@ test('verifyGrantToken returns null for undefined input', () => {
 });
 
 test('verifyGrantToken returns null when sub is missing', () => {
-	const noSub = jwt.sign(
-		{ kind: 'grant', guildId: baseData.guildId, grant: baseData.grant, jti: 'x' },
-		ENCRYPTION_KEY,
-	);
+	const noSub = jwt.sign({ kind: 'grant', guildId: baseData.guildId, grant: baseData.grant, jti: 'x' }, ENCRYPTION_KEY);
 
 	expect(verifyGrantToken(noSub)).toBeNull();
 });

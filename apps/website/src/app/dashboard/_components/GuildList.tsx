@@ -70,7 +70,10 @@ export function GuildList() {
 
 	return (
 		<ul
-			className={cn('grid grid-cols-1 gap-4 transition-opacity md:grid-cols-3 lg:grid-cols-4', isRefreshing && 'opacity-50')}
+			className={cn(
+				'grid grid-cols-1 gap-4 transition-opacity md:grid-cols-3 lg:grid-cols-4',
+				isRefreshing && 'opacity-50',
+			)}
 		>
 			{sorted.map((guild) => (
 				<li key={guild.id}>

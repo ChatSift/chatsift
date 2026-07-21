@@ -703,7 +703,9 @@ describe('grant token auth', () => {
 		const outcomes = [nextA, nextB].map((fn) => fn.mock.calls[0]?.[0]);
 
 		expect(outcomes.filter((error) => error === undefined)).toHaveLength(1);
-		expect(outcomes.filter((error) => error !== undefined)).toEqual([makeExpectedBoom(401, 'grant token already used')]);
+		expect(outcomes.filter((error) => error !== undefined)).toEqual([
+			makeExpectedBoom(401, 'grant token already used'),
+		]);
 	});
 
 	test('a route without `claimsGrant` never claims the token, so the same link can be read from repeatedly before it is used', async () => {

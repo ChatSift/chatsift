@@ -27,9 +27,7 @@ export function AMASessionCard({ data }: AMASessionCardProps) {
 				<span
 					className={cn(
 						'rounded px-2 py-1 text-xs font-medium',
-						data.ended
-							? 'bg-misc-danger/10 text-misc-danger'
-							: 'bg-misc-accent/10 text-misc-accent',
+						data.ended ? 'bg-misc-danger/10 text-misc-danger' : 'bg-misc-accent/10 text-misc-accent',
 					)}
 				>
 					{data.ended ? 'Ended' : 'Active'}

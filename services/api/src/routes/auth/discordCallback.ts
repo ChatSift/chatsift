@@ -61,10 +61,7 @@ export default defineRoute({
 		});
 
 		if (!setEquals(DISCORD_AUTH_SCOPES, new Set(result.scope.split(' ')))) {
-			req.logger.warn(
-				{ returnedScopes: result.scope, expectedScopes: DISCORD_AUTH_SCOPES },
-				'miss matched scopes',
-			);
+			req.logger.warn({ returnedScopes: result.scope, expectedScopes: DISCORD_AUTH_SCOPES }, 'miss matched scopes');
 			throw forbidden('received different scopes than expected');
 		}
 

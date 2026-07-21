@@ -25,11 +25,10 @@ const paramsSchema = z.object({
 
 export type GetAMAQuery = z.input<typeof querySchema>;
 
-export interface AMASessionDetailed
-	extends Omit<
-		AMASessionWithCount,
-		'answersChannelId' | 'flaggedQueueId' | 'guestQueueId' | 'modQueueId' | 'promptChannelId'
-	> {
+export interface AMASessionDetailed extends Omit<
+	AMASessionWithCount,
+	'answersChannelId' | 'flaggedQueueId' | 'guestQueueId' | 'modQueueId' | 'promptChannelId'
+> {
 	answersChannel: GuildChannelInfo | PossiblyMissingChannelInfo;
 	flaggedQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
 	guestQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
@@ -98,10 +97,7 @@ export default defineRoute({
 		// `{ id }` when not found, so they're never falsy themselves.
 		const shouldEndNow = !session.ended && (!foundAnswersChannel || !foundPromptChannel);
 		if (shouldEndNow) {
-			req.logger.warn(
-				{ guildId, amaId },
-				`AMA session ${amaId} in guild ${guildId} has missing critical channels`,
-			);
+			req.logger.warn({ guildId, amaId }, `AMA session ${amaId} in guild ${guildId} has missing critical channels`);
 			await getContext().db`UPDATE ama_sessions SET ended = true WHERE id = ${amaId}`;
 		}
 

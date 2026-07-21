@@ -26,11 +26,16 @@ export default class DeployCommand implements CommandHandler {
 			return;
 		}
 
-		await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, { flags: MessageFlags.Ephemeral });
+		await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, {
+			flags: MessageFlags.Ephemeral,
+		});
 
 		try {
 			const commandsData = getAllCommandsData();
-			await getContext().service.client.api.applicationCommands.bulkOverwriteGlobalCommands(interaction.application_id, commandsData);
+			await getContext().service.client.api.applicationCommands.bulkOverwriteGlobalCommands(
+				interaction.application_id,
+				commandsData,
+			);
 
 			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				content: `Deployed ${commandsData.length} global command(s).`,

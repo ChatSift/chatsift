@@ -15,8 +15,7 @@ const GRANT_EXEMPT_ROUTE = /^\/dashboard\/\d+\/ama\/amas\/new\/?$/;
 export async function proxy(request: NextRequest) {
 	const cookies = request.cookies;
 
-	const hasGrantToken =
-		GRANT_EXEMPT_ROUTE.test(request.nextUrl.pathname) && request.nextUrl.searchParams.has('token');
+	const hasGrantToken = GRANT_EXEMPT_ROUTE.test(request.nextUrl.pathname) && request.nextUrl.searchParams.has('token');
 
 	if (!cookies.has(RefreshTokenCookie) && !hasGrantToken) {
 		return NextResponse.redirect(new URL(URLS.API.LOGIN, request.url));

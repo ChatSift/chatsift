@@ -35,11 +35,5 @@
 			"inputs": ["src/**/*.ts", "Dockerfile"]
 		}
 	},
-	"globalDependencies": [
-		"eslint.config.js",
-		".prettierrc.json",
-		"tsconfig.json",
-		"tsconfig.*.json",
-		"vitest.config.ts"
-	]
+	"globalDependencies": ["eslint.config.js", ".prettierrc.json", "tsconfig.json", "tsconfig.*.json", "vitest.config.ts"]
 }

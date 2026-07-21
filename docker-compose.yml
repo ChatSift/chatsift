@@ -129,6 +129,12 @@ services:
       # ever misconfigures: flip these back via SSH and `./compose up -d --force-recreate grafana`.
       GF_AUTH_DISABLE_LOGIN_FORM: 'true'
       GF_AUTH_BASIC_ENABLED: 'false'
+      # Discord's OAuth2 has no `sub` claim (just a plain `id` field), so Grafana can't match
+      # returning users the normal way and tries to recreate them on every re-login, colliding
+      # with the existing account. This falls back to matching by email. Safe here specifically
+      # because ROLE_ATTRIBUTE_STRICT + the ADMINS-derived allowlist above is the actual access
+      # boundary - only already-allowlisted Discord IDs ever get a role at all.
+      GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP: 'true'
       GF_AUTH_GENERIC_OAUTH_ENABLED: 'true'
       GF_AUTH_GENERIC_OAUTH_NAME: Discord
       GF_AUTH_GENERIC_OAUTH_CLIENT_ID: ${OAUTH_DISCORD_CLIENT_ID}
@@ -144,6 +150,7 @@ services:
       GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: ${GRAFANA_OAUTH_ROLE_ATTRIBUTE_PATH}
     volumes:
       - ./build/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./build/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
       - 127.0.0.1:${LOCAL_GRAFANA_PORT}:3000

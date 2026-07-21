@@ -60,10 +60,7 @@ export default defineRoute({
 			SELECT state, COUNT(*) AS count FROM ama_questions WHERE ama_id = ${amaId} GROUP BY state
 		`;
 
-		const byState = Object.fromEntries(QUESTION_STATES.map((state) => [state, 0])) as Record<
-			AmaQuestionState,
-			number
-		>;
+		const byState = Object.fromEntries(QUESTION_STATES.map((state) => [state, 0])) as Record<AmaQuestionState, number>;
 
 		let total = 0;
 		for (const { state, count } of counts) {

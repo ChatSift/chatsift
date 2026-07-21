@@ -16,7 +16,8 @@ import { MessageFlags } from '@discordjs/core';
  * command type) — it's global-only and not something AMA needs, and excluding it lets `data` flow straight into
  * both `bulkOverwriteGuildCommands` and `bulkOverwriteGlobalCommands` without a cast.
  */
-export type CommandData = RESTPostAPIChatInputApplicationCommandsJSONBody | RESTPostAPIContextMenuApplicationCommandsJSONBody;
+export type CommandData =
+	RESTPostAPIChatInputApplicationCommandsJSONBody | RESTPostAPIContextMenuApplicationCommandsJSONBody;
 
 export interface CommandHandler {
 	readonly data: CommandData;

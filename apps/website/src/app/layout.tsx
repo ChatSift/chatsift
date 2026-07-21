@@ -26,7 +26,9 @@ export default async function RootLayout({ children }: PropsWithChildren) {
 		<html lang="en" suppressHydrationWarning>
 			<body className="bg-base dark:bg-base-dark">
 				<Providers>
-					<HydrationBoundary state={await prefetch([{ queryKey: me.queryKey, queryFn: async () => me.queryFn(false) }])}>
+					<HydrationBoundary
+						state={await prefetch([{ queryKey: me.queryKey, queryFn: async () => me.queryFn(false) }])}
+					>
 						<ScrollArea className="h-screen">
 							<div className="h-screen flex flex-col min-h-screen">
 								{/*

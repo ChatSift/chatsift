@@ -87,7 +87,9 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 	}
 
 	private async handleModalCollected(interaction: APIModalSubmitGuildInteraction, ama: AmaSessions, logger: Logger) {
-		await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, { flags: MessageFlags.Ephemeral });
+		await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, {
+			flags: MessageFlags.Ephemeral,
+		});
 
 		const options = new ModalInteractionOptionResolver(interaction);
 

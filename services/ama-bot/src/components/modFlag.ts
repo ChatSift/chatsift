@@ -49,7 +49,9 @@ export default class ModFlagComponent implements ComponentHandler<string> {
 
 			const user = await getContext().service.client.api.users.get(question.authorId);
 			const member = interaction.guild_id
-				? await getContext().service.client.api.guilds.getMember(interaction.guild_id, question.authorId).catch(() => undefined)
+				? await getContext()
+						.service.client.api.guilds.getMember(interaction.guild_id, question.authorId)
+						.catch(() => undefined)
 				: undefined;
 
 			// Attachments aren't persisted on the row, so we carry them forward off the source message; the

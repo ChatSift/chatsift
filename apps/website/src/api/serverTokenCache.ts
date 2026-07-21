@@ -45,10 +45,7 @@ export function setCachedAccessToken(refreshToken: string, accessToken: string):
 	}
 
 	// unref so a lingering entry can never keep the process alive on its own
-	tokenCacheTimeouts.set(
-		refreshToken,
-		setTimeout(() => clearCachedAccessToken(refreshToken), TOKEN_CACHE_TTL).unref(),
-	);
+	tokenCacheTimeouts.set(refreshToken, setTimeout(() => clearCachedAccessToken(refreshToken), TOKEN_CACHE_TTL).unref());
 }
 
 export function clearCachedAccessToken(refreshToken: string): void {

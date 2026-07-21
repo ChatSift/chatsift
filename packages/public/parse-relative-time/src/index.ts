@@ -1,5 +1,3 @@
- 
-
 /**
  * @remarks
  * This is used for various ops, hence the <T>
@@ -33,7 +31,6 @@ const MS_VALUE_LOOKUP = {
 	month: oneMonth,
 } as const;
 
- 
 const MS_VALUE_ALIAS_LOOKUP = {
 	ms: 'milisecond',
 	miliseconds: 'milisecond',
@@ -69,7 +66,6 @@ const MS_VALUE_ALIAS_LOOKUP = {
 	mons: 'month',
 	months: 'month',
 } as const satisfies Record<string, keyof typeof MS_VALUE_LOOKUP>;
- 
 
 function retrieveMsValue(unit: string): TimeParserResult<number> {
 	if (unit in MS_VALUE_LOOKUP) {

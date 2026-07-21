@@ -50,7 +50,9 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			// Get user details from the interaction
 			const user = await getContext().service.client.api.users.get(question.authorId);
 			const member = interaction.guild_id
-				? await getContext().service.client.api.guilds.getMember(interaction.guild_id, question.authorId).catch(() => undefined)
+				? await getContext()
+						.service.client.api.guilds.getMember(interaction.guild_id, question.authorId)
+						.catch(() => undefined)
 				: undefined;
 
 			// Attachments aren't persisted on the row, so we carry them forward off the source message; the
@@ -64,8 +66,10 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			// (another moderator got there first), we clean up the message we just created instead of
 			// leaving a stray duplicate.
 			const reportLostRace = async (channelId: string, messageId: string) => {
-				// eslint-disable-next-line promise/prefer-await-to-then
-				void getContext().service.client.api.channels.deleteMessage(channelId, messageId).catch(() => null);
+				void getContext()
+					.service.client.api.channels.deleteMessage(channelId, messageId)
+					// eslint-disable-next-line promise/prefer-await-to-then
+					.catch(() => null);
 				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 					content: 'This question was already handled by another moderator.',
 					flags: MessageFlags.Ephemeral,

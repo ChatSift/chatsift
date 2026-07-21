@@ -77,7 +77,11 @@ interface GetBaseEmbedsOptions {
  * Resolves the avatar to show for a question's author, preferring the guild-specific avatar over
  * the global one — mirrors prod ChatSift/AMA's `GuildMember#displayAvatarURL()` priority.
  */
-function resolveAvatarURL(guildId: string, member: APIGuildMember | undefined, user: APIUser | undefined): string | undefined {
+function resolveAvatarURL(
+	guildId: string,
+	member: APIGuildMember | undefined,
+	user: APIUser | undefined,
+): string | undefined {
 	if (member?.avatar && member.user) {
 		return `${RouteBases.cdn}${CDNRoutes.guildMemberAvatar(guildId, member.user.id, member.avatar, ImageFormat.PNG)}`;
 	}
@@ -96,7 +100,14 @@ function resolveAvatarURL(guildId: string, member: APIGuildMember | undefined, u
  * mod needs to act on it, blurple accent. Multiple attachments render as a Discord image gallery
  * via the shared-`url` grouping trick (prod only ever supported a single legacy image).
  */
-function getBaseEmbeds({ attachments, content, guildId, includeUserId = false, member, user }: GetBaseEmbedsOptions): APIEmbed[] {
+function getBaseEmbeds({
+	attachments,
+	content,
+	guildId,
+	includeUserId = false,
+	member,
+	user,
+}: GetBaseEmbedsOptions): APIEmbed[] {
 	const displayName = member?.nick ?? user?.global_name ?? user?.username ?? 'Unknown User';
 	const avatarURL = resolveAvatarURL(guildId, member, user);
 

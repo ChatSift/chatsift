@@ -187,7 +187,7 @@ one action Discord already proved they're allowed to do (having run the command 
 (`services/ama-bot/src/commands/ama.ts`) — see [04-ama-complete.md](04-ama-complete.md) Cluster 2.
 
 - **Token shape** (`GrantTokenData`, `packages/private/backend-core/src/lib/grantToken.ts`): `{ kind: 'grant', sub,
-  guildId, grant, jti, iat }`, signed with the same `ENCRYPTION_KEY` as the session tokens above, 15-minute expiry.
+guildId, grant, jti, iat }`, signed with the same `ENCRYPTION_KEY` as the session tokens above, 15-minute expiry.
   `kind: 'grant'` is a hard discriminator — without it, a grant token has no `refresh` field either, and would
   otherwise pass the session access-token check and be treated as a valid session. `GRANTS` (same file) is the
   registry of capability strings (currently just `ama:create`); `createGrantToken()`/`verifyGrantToken()` mint and
@@ -203,12 +203,12 @@ one action Discord already proved they're allowed to do (having run the command 
 - **`/v3/auth/me` under a grant** (`services/api/src/util/me.ts`'s `fetchMeFromGrant`): there's no Discord OAuth
   access token to call `/users/@me` with, so it uses the bot's own REST client (already a member of the grant's
   guild) to fetch just the acting user and that one guild, returning a `Me` shaped exactly like a real session's but
-  with a single-entry `guilds` array. This is what lets the frontend reuse the *same* dashboard route and shared
+  with a single-entry `guilds` array. This is what lets the frontend reuse the _same_ dashboard route and shared
   components (`useMe()`, `GuildNav`, `DashboardCrumbs`, ...) instead of a parallel minimal page.
 - **Frontend** (`apps/website/src/api/grant.ts`'s `useGrantAuth()`): reads `?token=` and decodes the JWT payload
   client-side to drive rendering — this is NOT verification (no `ENCRYPTION_KEY` in the browser), the API
   re-verifies the signature on every request regardless. Deliberately scoped to one exact route
-  (`/dashboard/:guildId/ama/amas/new`) via regex: an unscoped check would let a forged `token` query param on *any*
+  (`/dashboard/:guildId/ama/amas/new`) via regex: an unscoped check would let a forged `token` query param on _any_
   dashboard route flip `NavGateProvider`/`NavGateCheck`'s client-side gates for that route too, since the decode
   isn't cryptographic. `apiFetch`'s `authToken` option (`api/fetch.ts`) sends the grant token instead of the stored
   session and forces `credentials: 'omit'`, so the token never touches `accessTokenAtom` or cookies. `useMe()`,
