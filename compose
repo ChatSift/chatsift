@@ -1,15 +1,39 @@
 #!/bin/bash
 
-if [ -f .env.public ]
-then
-  export $(cat .env.public | xargs)
-fi
+# Passed to `docker compose` natively so file contents are parsed as plain KEY=value pairs,
+# never executed as shell (unlike `source`/`export $(... | xargs)`, both of which let a value
+# containing $(...) or backticks run arbitrary commands).
+ENV_FILE_ARGS=()
+[ -f .env.public ] && ENV_FILE_ARGS+=(--env-file .env.public)
+[ -f .env.private ] && ENV_FILE_ARGS+=(--env-file .env.private)
 
+# Grafana's Discord-login allowlist is derived from ADMINS so it stays a single source of
+# truth. Extracted with grep/cut (no shell evaluation of the file's contents) and strictly
+# validated as a comma-separated list of numeric Discord snowflakes before use.
+admins_raw=''
 if [ -f .env.private ]
 then
-  export $(cat .env.private | xargs)
+  admins_raw="$(grep -m1 '^ADMINS=' .env.private | cut -d= -f2-)"
+fi
+
+if [ -n "$admins_raw" ]
+then
+  if ! [[ "$admins_raw" =~ ^[0-9]+(,[[:space:]]*[0-9]+)*$ ]]
+  then
+    echo "ADMINS in .env.private must be a comma-separated list of numeric Discord IDs, got: $admins_raw" >&2
+    exit 1
+  fi
+
+  IFS=', ' read -ra _admin_ids <<< "$admins_raw"
+  _quoted_ids=""
+  for _id in "${_admin_ids[@]}"
+  do
+    _quoted_ids="${_quoted_ids}${_quoted_ids:+,}'${_id}'"
+  done
+  export GRAFANA_OAUTH_ROLE_ATTRIBUTE_PATH="contains([${_quoted_ids}],id)&&'Admin'"
 fi
 
 docker compose \
   -f docker-compose.yml \
+  "${ENV_FILE_ARGS[@]}" \
   ${@%$0}

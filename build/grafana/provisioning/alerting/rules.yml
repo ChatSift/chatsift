@@ -1,0 +1,112 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: chatsift-alerts
+    folder: Alerts
+    interval: 1m
+    rules:
+      - uid: container-restarted
+        title: Container restarted
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: 'A container (re)started within the last 5 minutes - this also fires on normal deploys/restarts, not just crashes, since cadvisor start-time data cannot distinguish the two'
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              refId: A
+              expr: time() - container_start_time_seconds{name=~".*(api|ama-bot).*"}
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: '__expr__'
+            relativeTimeRange:
+              from: 0
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [300]
+
+      - uid: elevated-error-log-rate
+        title: Elevated error log rate
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Elevated ERROR log rate detected'
+        data:
+          - refId: A
+            datasourceUid: loki
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              refId: A
+              expr: count_over_time({container_name=~"api|ama-bot"} |~ "(?i)error" [5m])
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: '__expr__'
+            relativeTimeRange:
+              from: 0
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [5]
+
+      - uid: host-disk-space-low
+        title: Host disk space low
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Host disk space below 10%'
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange:
+              from: 300
+              to: 0
+            model:
+              refId: A
+              expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: '__expr__'
+            relativeTimeRange:
+              from: 0
+              to: 0
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [0.1]

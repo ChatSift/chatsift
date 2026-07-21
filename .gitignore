@@ -16,7 +16,6 @@ user-assets
 
 # Build outputs
 dist/
-build/
 out/
 .turbo/
 
