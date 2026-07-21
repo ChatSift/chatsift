@@ -33,11 +33,6 @@ limits_config:
   # compacted away on the next cycle same as anything else, so this only matters once, at
   # onboarding.
   reject_old_samples_max_age: 2160h
-  # Separate from the above: bounds how far behind a stream's already-seen high-watermark a
-  # new entry can be (default ~1h). During this same one-time bulk backfill, batches can land
-  # in a different order than strict per-line chronology, tripping this independently of the
-  # wall-clock-age check above. Match it to the same window for the same reason.
-  out_of_order_time_window: 2160h
 
 compactor:
   working_directory: /loki/compactor
