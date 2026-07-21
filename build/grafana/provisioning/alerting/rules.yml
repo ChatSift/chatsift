@@ -1,5 +1,12 @@
 apiVersion: 1
 
+# Removes the old Loki-backed "elevated-error-log-rate" rule, which file provisioning alone
+# won't retract once it's already in Grafana's DB (grafana-data volume) - it only reconciles
+# adds/updates against what's in `groups:` below, never deletes what's missing from it.
+deleteRules:
+  - orgId: 1
+    uid: elevated-error-log-rate
+
 groups:
   - orgId: 1
     name: chatsift-alerts
