@@ -32,7 +32,7 @@
 		},
 		"tag-docker": {
 			"outputs": [],
-			"inputs": ["src/**/*.ts", "Dockerfile"]
+			"inputs": ["src/**/*.ts", "Dockerfile", "docker-compose.yml", ".env.public", "compose"]
 		}
 	},
 	"globalDependencies": ["eslint.config.js", ".prettierrc.json", "tsconfig.json", "tsconfig.*.json", "vitest.config.ts"]
