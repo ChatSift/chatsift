@@ -14,6 +14,12 @@ scrape_configs:
       - host: tcp://docker-socket-proxy:2375
         refresh_interval: 5s
     relabel_configs:
+      # Only this compose project (docker-compose.yml's top-level `name: chatsift-v3`) - the
+      # docker host also runs the unrelated, out-of-scope v2 AutoModerator stack and other
+      # unrelated containers, whose old log backlogs Loki rejects as too old to ingest.
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        regex: 'chatsift-v3'
+        action: keep
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'
         target_label: 'container_name'
