@@ -93,6 +93,11 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk:/dev/disk:ro
+      # cAdvisor's own docker client needs this directly for container discovery - its remote/
+      # TCP docker-host support is flaky (unlike promtail's docker_sd, which does support the
+      # proxy cleanly). Already privileged with deep host mounts above, so the marginal risk of
+      # this on top is small; not internet-facing regardless.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
   node-exporter:
     image: prom/node-exporter:v1.8.2

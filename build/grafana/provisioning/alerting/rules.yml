@@ -69,7 +69,7 @@ groups:
               to: 0
             model:
               refId: A
-              expr: count_over_time({container_name=~"api|ama-bot"} |~ "(?i)error" [5m])
+              expr: count_over_time({container_name=~"api|ama-bot"} | json | levelLabel=~"error|fatal" [5m])
               intervalMs: 1000
               maxDataPoints: 43200
           - refId: B

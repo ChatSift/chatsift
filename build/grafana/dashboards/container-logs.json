@@ -31,7 +31,7 @@
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
-          "expr": "{container_name=~\"$container_name\"}",
+          "expr": "{container_name=~\"$container_name\"} | json | label_format level=levelLabel | line_format \"{{ if .msg }}{{ .msg }}{{ else }}{{ __line__ }}{{ end }}\"",
           "refId": "A"
         }
       ],
@@ -65,7 +65,7 @@
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
-          "expr": "{container_name=~\"$container_name\"} |~ `(?i)error`",
+          "expr": "{container_name=~\"$container_name\"} | json | levelLabel=~\"error|fatal\" | label_format level=levelLabel | line_format \"{{.msg}}\"",
           "refId": "A"
         }
       ],
