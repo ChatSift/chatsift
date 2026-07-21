@@ -1,6 +1,6 @@
 variable "database_url" {
   type    = string
-  default = getenv("DATABASE_URL")
+  default = getenv("DATABASE_URL_DEV")
 }
 
 env "local" {

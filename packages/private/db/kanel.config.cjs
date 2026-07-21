@@ -5,7 +5,7 @@ const toCamel = recase('snake', 'camel');
 /** @type {import('kanel').Config} */
 module.exports = {
 	connection: {
-		connectionString: process.env.DATABASE_URL,
+		connectionString: process.env.DATABASE_URL_DEV,
 	},
 
 	schemas: ['public'],
