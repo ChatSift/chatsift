@@ -27,6 +27,16 @@ groups:
               expr: time() - container_start_time_seconds{name=~".*(api|ama-bot).*"}
               intervalMs: 1000
               maxDataPoints: 43200
+          - refId: B
+            datasourceUid: '__expr__'
+            relativeTimeRange:
+              from: 0
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
           - refId: C
             datasourceUid: '__expr__'
             relativeTimeRange:
@@ -35,7 +45,7 @@ groups:
             model:
               refId: C
               type: threshold
-              expression: A
+              expression: B
               conditions:
                 - evaluator:
                     type: lt
@@ -62,6 +72,16 @@ groups:
               expr: count_over_time({container_name=~"api|ama-bot"} |~ "(?i)error" [5m])
               intervalMs: 1000
               maxDataPoints: 43200
+          - refId: B
+            datasourceUid: '__expr__'
+            relativeTimeRange:
+              from: 0
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
           - refId: C
             datasourceUid: '__expr__'
             relativeTimeRange:
@@ -70,7 +90,7 @@ groups:
             model:
               refId: C
               type: threshold
-              expression: A
+              expression: B
               conditions:
                 - evaluator:
                     type: gt
@@ -97,6 +117,16 @@ groups:
               expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}
               intervalMs: 1000
               maxDataPoints: 43200
+          - refId: B
+            datasourceUid: '__expr__'
+            relativeTimeRange:
+              from: 0
+              to: 0
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
           - refId: C
             datasourceUid: '__expr__'
             relativeTimeRange:
@@ -105,7 +135,7 @@ groups:
             model:
               refId: C
               type: threshold
-              expression: A
+              expression: B
               conditions:
                 - evaluator:
                     type: lt
