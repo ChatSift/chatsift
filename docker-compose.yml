@@ -49,7 +49,10 @@ services:
       EVENTS: 1
       POST: 0
       IMAGES: 0
-      NETWORKS: 0
+      # Read-only network inspection - promtail's docker_sd needs this to compute
+      # __meta_docker_network_* labels during discovery. POST=0 above still blocks any
+      # create/connect/disconnect, so this stays read-only.
+      NETWORKS: 1
       VOLUMES: 0
       SERVICES: 0
       TASKS: 0
