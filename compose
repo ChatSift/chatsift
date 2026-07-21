@@ -1,23 +1,30 @@
 #!/bin/bash
 
-if [ -f .env.public ]
-then
-  set -a
-  source .env.public
-  set +a
-fi
+# Passed to `docker compose` natively so file contents are parsed as plain KEY=value pairs,
+# never executed as shell (unlike `source`/`export $(... | xargs)`, both of which let a value
+# containing $(...) or backticks run arbitrary commands).
+ENV_FILE_ARGS=()
+[ -f .env.public ] && ENV_FILE_ARGS+=(--env-file .env.public)
+[ -f .env.private ] && ENV_FILE_ARGS+=(--env-file .env.private)
 
+# Grafana's Discord-login allowlist is derived from ADMINS so it stays a single source of
+# truth. Extracted with grep/cut (no shell evaluation of the file's contents) and strictly
+# validated as a comma-separated list of numeric Discord snowflakes before use.
+admins_raw=''
 if [ -f .env.private ]
 then
-  set -a
-  source .env.private
-  set +a
+  admins_raw="$(grep -m1 '^ADMINS=' .env.private | cut -d= -f2-)"
 fi
 
-# Grafana's Discord-login allowlist is derived from ADMINS so it stays a single source of truth.
-if [ -n "$ADMINS" ]
+if [ -n "$admins_raw" ]
 then
-  IFS=', ' read -ra _admin_ids <<< "$ADMINS"
+  if ! [[ "$admins_raw" =~ ^[0-9]+(,[[:space:]]*[0-9]+)*$ ]]
+  then
+    echo "ADMINS in .env.private must be a comma-separated list of numeric Discord IDs, got: $admins_raw" >&2
+    exit 1
+  fi
+
+  IFS=', ' read -ra _admin_ids <<< "$admins_raw"
   _quoted_ids=""
   for _id in "${_admin_ids[@]}"
   do
@@ -28,4 +35,5 @@ fi
 
 docker compose \
   -f docker-compose.yml \
+  "${ENV_FILE_ARGS[@]}" \
   ${@%$0}

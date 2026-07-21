@@ -38,17 +38,48 @@ services:
       - loki-data:/loki
     command: ['-config.file=/etc/loki/config.yaml']
 
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    restart: unless-stopped
+    environment:
+      # Read-only container listing/inspection only - no create/exec/stop/build/etc. This is
+      # the one component that touches the raw socket, so promtail (and anything else that
+      # needs container metadata) never gets full docker-control access itself.
+      CONTAINERS: 1
+      EVENTS: 1
+      POST: 0
+      IMAGES: 0
+      NETWORKS: 0
+      VOLUMES: 0
+      SERVICES: 0
+      TASKS: 0
+      SWARM: 0
+      NODES: 0
+      PLUGINS: 0
+      SYSTEM: 0
+      INFO: 0
+      DISTRIBUTION: 0
+      AUTH: 0
+      SECRETS: 0
+      CONFIGS: 0
+      BUILD: 0
+      COMMIT: 0
+      EXEC: 0
+      LOGS: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
   promtail:
     image: grafana/promtail:3.3.0
     restart: unless-stopped
     volumes:
       - ./build/promtail/promtail-config.yaml:/etc/promtail/config.yaml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - promtail-positions:/var/promtail
     command: ['-config.file=/etc/promtail/config.yaml']
     depends_on:
       - loki
+      - docker-socket-proxy
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
@@ -56,7 +87,6 @@ services:
     privileged: true
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk:/dev/disk:ro

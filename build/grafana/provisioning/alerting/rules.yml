@@ -15,16 +15,16 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: 'A container restarted in the last 10 minutes'
+          summary: 'A container (re)started within the last 5 minutes - this also fires on normal deploys/restarts, not just crashes, since cadvisor start-time data cannot distinguish the two'
         data:
           - refId: A
             datasourceUid: prometheus
             relativeTimeRange:
-              from: 600
+              from: 300
               to: 0
             model:
               refId: A
-              expr: resets(container_start_time_seconds{name=~".*(api|ama-bot).*"}[10m])
+              expr: time() - container_start_time_seconds{name=~".*(api|ama-bot).*"}
               intervalMs: 1000
               maxDataPoints: 43200
           - refId: C
@@ -38,8 +38,8 @@ groups:
               expression: A
               conditions:
                 - evaluator:
-                    type: gt
-                    params: [0]
+                    type: lt
+                    params: [300]
 
       - uid: elevated-error-log-rate
         title: Elevated error log rate
