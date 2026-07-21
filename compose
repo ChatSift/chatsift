@@ -3,9 +3,21 @@
 # Passed to `docker compose` natively so file contents are parsed as plain KEY=value pairs,
 # never executed as shell (unlike `source`/`export $(... | xargs)`, both of which let a value
 # containing $(...) or backticks run arbitrary commands).
+#
+# Merged into a single temp file rather than passed as two separate --env-file flags: compose
+# only uses the FIRST --env-file for interpolating docker-compose.yml itself (e.g. the
+# ${LOCAL_DATABASE_PORT} port mapping) - a second flag is silently ignored for that purpose,
+# even though per-service `env_file:` lists do merge both files correctly. A single merged
+# file sidesteps the ordering footgun entirely.
 ENV_FILE_ARGS=()
-[ -f .env.public ] && ENV_FILE_ARGS+=(--env-file .env.public)
-[ -f .env.private ] && ENV_FILE_ARGS+=(--env-file .env.private)
+if [ -f .env.public ] || [ -f .env.private ]
+then
+  MERGED_ENV_FILE="$(mktemp)"
+  trap 'rm -f "$MERGED_ENV_FILE"' EXIT
+  [ -f .env.public ] && cat .env.public >> "$MERGED_ENV_FILE"
+  [ -f .env.private ] && cat .env.private >> "$MERGED_ENV_FILE"
+  ENV_FILE_ARGS+=(--env-file "$MERGED_ENV_FILE")
+fi
 
 # Grafana's Discord-login allowlist is derived from ADMINS so it stays a single source of
 # truth. Extracted with grep/cut (no shell evaluation of the file's contents) and strictly
