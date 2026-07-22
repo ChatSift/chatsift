@@ -145,6 +145,8 @@ services:
     command: ['node', '--enable-source-maps', './services/api/dist/bin.js']
     ports:
       - 127.0.0.1:${API_PORT}:${API_PORT}
+    volumes:
+      - ./logs/api:/usr/chatsift/logs/api
 
   ama-bot:
     image: chatsift/chatsift-next:ama
@@ -156,6 +158,8 @@ services:
       - ./.env.public
       - ./.env.private
     command: ['node', '--enable-source-maps', './services/ama-bot/dist/bin.js']
+    volumes:
+      - ./logs/ama-bot:/usr/chatsift/logs/ama-bot
 
 volumes:
   postgres-data:

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import build from 'pino-abstract-transport';
 import type { PrettyOptions } from 'pino-pretty';
 import { prettyFactory } from 'pino-pretty';
-import { SonicBoom } from 'sonic-boom';
+import SonicBoom from 'sonic-boom';
 
 const ONE_DAY = 24 * 60 * 60 * 1_000;
 const DEFAULT_MAX_AGE_DAYS = 14;

@@ -31,7 +31,9 @@ vi.mock('node:fs/promises', () => ({
 	mkdir: vi.fn(async () => {}),
 }));
 
-const sonicBoomConstructorSpy = vi.spyOn(sonicBoom, 'SonicBoom');
+// The real module is default-only (`module.exports = SonicBoom`, see the comment on the source's import), so
+// the mock -- and the spy on it -- must target `default`, matching the source's `import SonicBoom from 'sonic-boom'`.
+const sonicBoomConstructorSpy = vi.spyOn(sonicBoom, 'default');
 
 vi.mock('sonic-boom', async () => {
 	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -49,7 +51,7 @@ vi.mock('sonic-boom', async () => {
 		// Must be a real function, not an arrow -- vitest 4's `new mockFn()` only invokes the mock as a
 		// constructor (rather than a plain call) when the implementation itself is constructible.
 		// eslint-disable-next-line prefer-arrow-callback
-		SonicBoom: vi.fn(function SonicBoom() {
+		default: vi.fn(function SonicBoom() {
 			return new MockSonicBoom();
 		}),
 	};

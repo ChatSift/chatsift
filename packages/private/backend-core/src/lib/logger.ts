@@ -1,6 +1,9 @@
+import { fileURLToPath, URL } from 'node:url';
 import type { LoggerOptions, TransportTargetOptions } from 'pino';
 import { pino as createPinoLogger, transport as pinoTransport, stdTimeFunctions } from 'pino';
 import { ENV } from './env.js';
+
+const PROD_LOG_TRANSPORT_PATH = fileURLToPath(new URL('prodLogTransport.js', import.meta.url));
 
 export type { Logger } from 'pino';
 
@@ -29,17 +32,22 @@ export function createLoggerOptions(name: string): LoggerOptions {
 }
 
 export function createLogger(name: string) {
-	// TODO: File rotations for prod?
-	const targets: TransportTargetOptions[] = [
-		ENV.IS_PRODUCTION
-			? {
-					target: 'pino/file',
+	const targets: TransportTargetOptions[] = ENV.IS_PRODUCTION
+		? [
+				{
+					// A single target that itself writes to both stdout (dozzle) and a day-rotated file on disk
+					// (`dir` is relative to the service's cwd; docker-compose bind-mounts `./logs/<name>` over it
+					// so the files are readable from the host -- see prodLogTransport.ts for why this must stay
+					// one target instead of two).
+					target: PROD_LOG_TRANSPORT_PATH,
 					level: 'trace',
 					options: {
-						destination: 1, // stdout
+						dir: `logs/${name}`,
 					},
-				}
-			: {
+				},
+			]
+		: [
+				{
 					target: 'pino-pretty',
 					level: 'trace',
 					options: {
@@ -48,7 +56,7 @@ export function createLogger(name: string) {
 						translateTime: 'SYS:standard',
 					},
 				},
-	];
+			];
 
 	const transport = pinoTransport({
 		targets,

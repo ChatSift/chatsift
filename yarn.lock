@@ -444,6 +444,7 @@ __metadata:
   dependencies:
     "@chatsift/core": "workspace:^"
     "@chatsift/db": "workspace:^"
+    "@chatsift/pino-rotate-file": "workspace:^"
     "@sapphire/discord-utilities": "npm:^4.0.0"
     "@types/jsonwebtoken": "npm:^9.0.10"
     "@types/node": "npm:^24.9.1"
@@ -451,6 +452,7 @@ __metadata:
     bin-rw: "npm:^0.1.1"
     jsonwebtoken: "npm:^9.0.3"
     pino: "npm:^10.3.1"
+    pino-abstract-transport: "npm:^3.0.0"
     pino-pretty: "npm:^13.1.3"
     redis: "npm:^6.1.0"
     typescript: "npm:~6.0.3"
@@ -509,7 +511,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/pino-rotate-file@workspace:packages/public/pino-rotate-file":
+"@chatsift/pino-rotate-file@workspace:^, @chatsift/pino-rotate-file@workspace:packages/public/pino-rotate-file":
   version: 0.0.0-use.local
   resolution: "@chatsift/pino-rotate-file@workspace:packages/public/pino-rotate-file"
   dependencies:
