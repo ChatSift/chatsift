@@ -1,6 +1,8 @@
-# Architecture: current vs. target
+# Architecture
 
-See [00-overview.md](00-overview.md) for product context. This doc is the technical map: what exists today on `main`, what it becomes, and why. The "why" for the two big changes (API contract, DB stack) is expanded in [ADR 0001](../adr/0001-api-contract-pattern.md) and [ADR 0002](../adr/0002-db-stack.md).
+See [00-overview.md](00-overview.md) for product context. This doc is the technical map of `main`. The "why" for the two big changes below (API contract, DB stack) is expanded in [ADR 0001](../adr/0001-api-contract-pattern.md) and [ADR 0002](../adr/0002-db-stack.md).
+
+> **Status:** both changes described below shipped in M1 (2026-07-17) and are the actual current state of the code, not a future target — the "Current"/"Target" labels on the two subsections are kept because the ADRs' before/after framing is still useful context for *why* the target shape looks the way it does. If you're only here to understand what the code does today, read the "Target" subsections; the "Current (being replaced)" ones are historical.
 
 ## Monorepo layout (kept as-is)
 
@@ -116,7 +118,7 @@ export function useAMAs(guildId: string, query: GetAMAsContract['query']) {
 }
 ```
 
-If a handler's return shape changes, `apps/website` fails to typecheck — for real, no cast. Full detail (mount pipeline, typed middleware context, `apiFetch`/`queryClient`/`error`/`token` frontend layer) in [ADR 0001](../adr/0001-api-contract-pattern.md) and the route-migration checklist in [02-foundation.md](02-foundation.md).
+If a handler's return shape changes, `apps/website` fails to typecheck — for real, no cast. Full detail (mount pipeline, typed middleware context, `apiFetch`/`queryClient`/`error`/`token` frontend layer) in [ADR 0001](../adr/0001-api-contract-pattern.md).
 
 ## 2. Database — current vs. target
 
@@ -154,6 +156,8 @@ New package `packages/db` (mirrors SimplyChords' `@simplychords/db`):
 
 Full comparison against alternatives (Drizzle, Prisma 7 TypedSQL, pgTyped) and the reasoning for this exact combination is in [ADR 0002](../adr/0002-db-stack.md).
 
+**Naming convention: snake_case columns + `postgres.camel` transform** (`packages/db/schema/schema.sql`, `createDb()`), not quoted camelCase identifiers. Decided in M1 over keeping Prisma's quoted-camelCase style, because: (a) it matches the reference architecture (SimplyChords) this stack is modeled on; (b) quoted camelCase identifiers are a footgun in raw SQL — an accidental unquoted reference silently lowercases and resolves to a different (or missing) column; (c) kanel's generated row types and `postgres.camel` compose cleanly — the DB stays conventional snake_case, JS-facing code stays camelCase. For kanel-specific setup gotchas (config file extension, property-name casing, a transitive peer-dep crash), see [workflow.md](../workflow.md#database).
+
 ## 3. What's explicitly kept unchanged
 
 - **HTTP framework:** polka (not Express/Fastify).
@@ -163,7 +167,7 @@ Full comparison against alternatives (Drizzle, Prisma 7 TypedSQL, pgTyped) and t
 - **Frontend framework:** Next.js App Router, React 18/19, React Compiler.
 - **Frontend state/UI:** Jotai, Tailwind, react-aria-components, Radix.
 - **Auth scheme** (see below) — unchanged in mechanism, just re-typed onto the new contract pattern.
-- **`ama-bot` gateway/component architecture:** `@discordjs/core`/`ws`, the `ComponentHandler` glob-loader (`lib/components.ts`), the queue state machine shape (`lib/queues.ts`) — extended, not replaced (see [04-ama-complete.md](04-ama-complete.md)).
+- **`ama-bot` gateway/component architecture:** `@discordjs/core`/`ws`, the `ComponentHandler` glob-loader (`lib/components.ts`), the queue state machine shape (`lib/queues.ts`) — extended, not replaced (see §6 below).
 
 ## 4. Auth flow (unchanged mechanism, reference)
 
@@ -184,7 +188,7 @@ A second, independent auth path alongside the session flow above: a bot slash co
 single-capability JWT and embeds it in a dashboard URL, so a user with no browser session can still perform the
 one action Discord already proved they're allowed to do (having run the command at all, gated by
 `.setDefaultMemberPermissions(...)` on that command). First consumer: `/ama create`
-(`services/ama-bot/src/commands/ama.ts`) — see [04-ama-complete.md](04-ama-complete.md) Cluster 2.
+(`services/ama-bot/src/commands/ama.ts`) — see §6 below.
 
 - **Token shape** (`GrantTokenData`, `packages/private/backend-core/src/lib/grantToken.ts`): `{ kind: 'grant', sub,
 guildId, grant, jti, iat }`, signed with the same `ENCRYPTION_KEY` as the session tokens above, 15-minute expiry.
@@ -224,12 +228,30 @@ guildId, grant, jti, iat }`, signed with the same `ENCRYPTION_KEY` as the sessio
 - **One-time use:** enforced server-side only. `createAMA`'s handler calls `consumeGrantToken(req.grant.jti)` after
   its DB transaction succeeds (not before) — a failed/invalid submit doesn't cost the user their single-use link.
 
-## 5. Data model reference (current 6 models, kept in target schema)
+## 5. Data model reference (6 models)
 
-From `prisma/schema.prisma` (to be reproduced in the new Atlas schema, see [02-foundation.md](02-foundation.md)):
+Reproduced from the old `prisma/schema.prisma` into the Atlas schema (`packages/db/schema/schema.sql`) in M1, field semantics unchanged:
 
 - `Experiment` / `ExperimentOverride` — feature-flag rollout ranges + per-guild overrides.
 - `DashboardGrant` — grants a `userId` dashboard-management access to a `guildId`.
 - `AMASession` — one AMA: `guildId`, `title`, channel routing (`modQueueId?`, `flaggedQueueId?`, `guestQueueId?`, `answersChannelId`, `promptChannelId`), `allowedQuestionUploads`, `ended`.
 - `AMAPromptData` — the posted prompt message for a session (`promptMessageId` unique, `promptJSONData` for reposting). 1:1 with `AMASession`.
 - `AMAQuestion` — a submitted question: `authorId`, `content`, `state` (`AMAQuestionState`: `PENDING_MOD_REVIEW | PENDING_GUEST_REVIEW | FLAGGED | APPROVED | DENIED`), per-queue message IDs.
+
+## 6. AMA bot subsystem (`services/ama-bot`)
+
+A gateway bot (`@discordjs/ws` `WebSocketManager` + `@discordjs/core` `Client`, `Guilds` intent), not an interactions-webhook bot. Landed across M1/M3; this is the standing shape as of M3's close (2026-07-19).
+
+- `lib/gateway.ts`, `lib/client.ts` — connection + guild-list tracking (writes guild IDs to Redis every 10s so the API knows which guilds the bot is in).
+- `lib/components.ts` — globs `components/**/*.js`, registers `ComponentHandler` classes (`{ name, stateStore, handle() }`); `custom_id` format is `name:stateId` with optional Redis-backed state.
+- `lib/commands.ts` — mirrors `lib/components.ts`'s loader (glob `commands/**/*.js`, register `{ name, data, handle, handleAutocomplete? }`); `index.ts` routes `ApplicationCommand`/`ApplicationCommandAutocomplete` interactions to it. Option parsing uses `@sapphire/discord-utilities`'s `ChatInputInteractionOptionResolver` / `ModalInteractionOptionResolver` / `ContextMenuInteractionOptionResolver` / `AutocompleteInteractionOptionResolver` (no in-repo resolver code).
+- `commands/deploy.ts` — admin-gated (`env.ADMINS`), bulk-overwrites **global** commands (`bulkOverwriteGlobalCommands`) from every registered handler's `data`. Deliberately global-only, no per-guild registration path — any new command handler is picked up automatically by the next `/deploy` run.
+- `commands/ama.ts` — the `/ama` command set: `create` (ephemeral reply linking to the dashboard's create screen, grant-token-authed — see §4a above), `end` (ephemeral select menu of ongoing sessions, flips `ended` via a direct DB write), `repost-prompt` (select menu, replays the stored `AMAPromptData.promptJSONData` verbatim via the bot's own REST client — intentionally not the same client instance `services/api`'s `repostPrompt` route uses, see the file for why). `/ama stats` was deliberately not built (would've duplicated Cluster-4 query logic); still open if anyone wants to pick it up.
+- `lib/queues.ts` — the core domain logic:
+  - `enum CurrentlyInQueue { mod, guest, answers }` + `getNextQueue()` — a state machine: **mod queue → (optional) guest queue → answers channel**, with an optional **flagged queue** side-branch (flagged is terminal — read-only surface for mods, nothing routes back out of it via the bot).
+  - `postToModQueue` / `postToGuestQueue` / `postToFlaggedQueue` / `postToAnswersChannel` — builder functions. Formatting matches prod `ChatSift/AMA`'s `AmaManager.getBaseEmbed` layout exactly (classic embeds, not Components V2 — that was trialed and rejected in favor of prod parity): author name+avatar line, blurple `0x7289da`, footer with `username (id)` only on mod/flagged queues (where a mod needs the raw ID to act), no footer on guest queue/answers channel. `getBaseEmbeds` also adds gallery-grouping (same-`url` trick) for >1 attachment.
+- `components/submitQuestion.ts` — user clicks "Submit a question" on the prompt message → modal (text + optional uploads, gated by `allowedQuestionUploads`) → inserts `AMAQuestion` → routes into mod/guest/answers per which queues are configured. Rejects submission once `ended`.
+- `components/modApprove.ts` / `modDeny.ts` / `mod-flag` — parse question ID from `custom_id`, advance/deny/flag via `getNextQueue`, disable buttons on the source message.
+- `components/guestApprove.ts` / `guestSkip.ts` — guest-side mirror of the mod handlers: atomically claims the row (`WHERE state = 'PENDING_GUEST_REVIEW'`), cleans up a lost-claim race, rejects if the session has ended.
+- **No answer-editing surface exists.** Prod `ChatSift/AMA` never posted "the answer" via the bot at all — a mod right-clicks the answers-channel message → "Add Answer" context-menu command → modal → appends a second embed onto the live Discord message, and neither prod nor `main` ever persisted answer text in the DB (only a message-ID pointer). That "Add Answer" flow was never ported to `main` (tracked as #200, open, not scheduled). Editing/reposting a *published* answer is explicitly out of scope regardless of whether #200 ever lands — owner decision, 2026-07-19: manual Discord message edit/delete is sufficient, not revisited.
+- **Stats/export** live on `services/api`, not the bot: `GET /v3/guilds/:guildId/ama/amas/:amaId/stats` (question counts by `AMAQuestionState`) and `GET /v3/guilds/:guildId/ama/amas/:amaId/export` (CSV, RFC 4180 escaping + a leading-`'` guard against CSV/formula injection). Surfaced in the dashboard's AMA detail view.

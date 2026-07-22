@@ -1,8 +1,8 @@
 # ADR 0001: Replace the `Route` class contract with `defineRoute`
 
-- **Status:** Accepted
+- **Status:** Accepted, implemented in M1 (2026-07-17)
 - **Date:** 2026-07-16
-- **Related:** [01-architecture.md](../roadmap/01-architecture.md), [02-foundation.md](../roadmap/02-foundation.md)
+- **Related:** [01-architecture.md](../roadmap/01-architecture.md) (current state)
 
 ## Problem
 
@@ -60,4 +60,4 @@ Adopt the SimplyChords `defineRoute` / `InferRouteContract` pattern, detailed wi
 
 - **Positive:** one source of truth per route (the `defineRoute` call); real compiler-enforced end-to-end types with zero `@ts-expect-error`; adding an endpoint touches 2 files (the route file + its one-line re-export in `index.ts`) instead of ~6; body+query+params can all be validated on the same route; response schemas can be reused for docs/validation later if wanted.
 - **Negative / accepted tradeoffs:** the response contract is inferred from the handler's _return type_, not runtime-validated against `schema.response` (matching SimplyChords — the response schema is documentation + type source, not a runtime gate; can be added later if desired). Path strings are still passed as literal strings to `apiFetch` on the frontend (not structurally checked against `route.path`) — same residual risk as today, but isolated to one call site per hook instead of a whole mirrored registry.
-- **Migration cost:** all ~13 existing routes (5 AMA, 4 auth, 4 guilds) need porting; tracked as the M1 route-migration checklist in [02-foundation.md](../roadmap/02-foundation.md).
+- **Migration cost:** all ~13 existing routes (5 AMA, 4 auth, 4 guilds) needed porting; done in M1 (#128–130) — see [01-architecture.md](../roadmap/01-architecture.md) §1.

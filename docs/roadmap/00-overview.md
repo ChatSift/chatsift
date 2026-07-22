@@ -8,7 +8,7 @@ ChatSift (automoderator.app) is a Discord bot suite with three products:
 
 - **AutoModerator** — day-to-day moderation bot.
 - **AMA** — Ask-Me-Anything event management (question submission, mod/guest review queues, publishing answers).
-- **ModMail** — DM-to-staff-thread relay for user inquiries.
+- **ModMail** — staff-thread relay for user inquiries. Prod (`ChatSift/ModMail`) is DM-based; the in-repo rebuild ([06-modmail-port.md](06-modmail-port.md), redesigned 2026-07-22) replaces the DM origin with an in-server private-thread ticket flow — the mod-side experience is unchanged.
 
 All three have (or had) real production deployments and live user data.
 
@@ -42,28 +42,28 @@ Both are being fixed via **refactor, not rewrite** — the underlying stack (pol
 
 The "beginning stage" is complete when all three are true:
 
-1. **A solid dashboard-config-first website** is running on the new API-contract + DB-stack pattern (no marketing site — deferred indefinitely, see [03-dashboard-config.md](03-dashboard-config.md)).
-2. **AMA is fully running** on the new stack, covering all four feature clusters (full question pipeline, answer-publishing polish, analytics & export, in-Discord slash commands — see [04-ama-complete.md](04-ama-complete.md)), and production traffic has been cut over from `ChatSift/AMA` via a **drain-and-swap** (no data migration — see [05-migration-cutover.md](05-migration-cutover.md)).
+1. **A solid dashboard-config-first website** is running on the new API-contract + DB-stack pattern (no marketing site — deferred indefinitely). Done as of M2 (2026-07-18).
+2. **AMA is fully running** on the new stack, covering all four feature clusters (full question pipeline, answer-publishing polish, analytics & export, in-Discord slash commands). Done as of M3 (2026-07-19); production traffic cutover from `ChatSift/AMA` via a **drain-and-swap** (no data migration) is M4, in progress — see [05-migration-cutover.md](05-migration-cutover.md).
 3. **ModMail is ported** to the new monorepo, including a **real data migration** of threads/messages/snippets/blocks from `ChatSift/ModMail` (see [06-modmail-port.md](06-modmail-port.md)).
 
 AutoModerator is explicitly **not** part of this stage.
 
 ## Setting up the GitHub side (milestones/labels/issues)
 
-M0 also included creating GitHub milestones, labels, and seed issues for this roadmap. This wasn't automated — commands were handed to the user to run (see Working conventions in [CLAUDE.md](../../CLAUDE.md)), not tracked in a standalone doc. Done: M0–M5 milestones and the `area:*`/`type:*` labels exist; M0's own seed issues (roadmap docs, ADRs, GitHub setup, prod schema discovery) were backfilled and closed after the fact since the work predated issue tracking.
+M0 also included creating GitHub milestones, labels, and seed issues for this roadmap. This wasn't automated — commands were handed to the user to run (see Working conventions in [CLAUDE.md](../../CLAUDE.md)), not tracked in a standalone doc. Done: M0–M5 milestones and the `area:*`/`type:*` labels exist; M0's own seed issues (roadmap docs, ADRs, GitHub setup, prod schema discovery) were backfilled and closed after the fact since the work predated issue tracking. The M4/M5 milestone due dates and several issue bodies are now stale against the 2026-07-22 redesign (M4's real dates, M5's ticket-model rebuild) — commands to bring them in line were handed to the user the same way, not automated.
 
 ## Milestone map
 
-| Milestone                      | Doc                                                | Target (from 2026-07-16, ~7 hrs/wk) | Status                              |
-| ------------------------------ | -------------------------------------------------- | ----------------------------------- | ----------------------------------- |
-| M0 — Scaffolding & discovery   | this doc set + GitHub setup                        | ~2026-07-23                         | Done (2026-07-16)                   |
-| M1 — Foundation refactor       | [02-foundation.md](02-foundation.md)               | ~2026-08-20                         | Done (2026-07-17), milestone closed |
-| M2 — Dashboard-config solid    | [03-dashboard-config.md](03-dashboard-config.md)   | ~2026-09-17                         | Done (2026-07-18), milestone closed |
-| M3 — AMA fully running         | [04-ama-complete.md](04-ama-complete.md)           | ~2026-11-05                         | Done (2026-07-19), milestone closed |
-| M4 — AMA drain-and-swap (live) | [05-migration-cutover.md](05-migration-cutover.md) | ~2026-11-19                         | Not started                         |
-| M5 — ModMail port + migrate    | [06-modmail-port.md](06-modmail-port.md)           | ~2027-01-mid                        | Not started                         |
+| Milestone                      | Doc                                                                       | Target                                                                            | Status                                                                       |
+| ------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| M0 — Scaffolding & discovery   | git history + GitHub setup                                                 | ~2026-07-23                                                                          | Done (2026-07-16)                                                                  |
+| M1 — Foundation refactor       | git history (spec doc removed once done; see [01-architecture.md](01-architecture.md)) | ~2026-08-20                                                                          | Done (2026-07-17), milestone closed                                               |
+| M2 — Dashboard-config solid    | git history (spec doc removed once done)                                   | ~2026-09-17                                                                          | Done (2026-07-18), milestone closed                                               |
+| M3 — AMA fully running         | git history (spec doc removed once done; see [01-architecture.md §6](01-architecture.md#6-ama-bot-subsystem-servicesama-bot)) | ~2026-11-05 | Done (2026-07-19), issues closed, GitHub milestone still open (closing it is a write action, left to the user) |
+| M4 — AMA drain-and-swap (live) | [05-migration-cutover.md](05-migration-cutover.md)                        | **2026-08-03** (kill-switch) / **2026-08-08** (cutover) — public commitments, not estimates | In progress — Canary deployed 2026-07-22                                          |
+| M5 — ModMail rebuild + migrate | [06-modmail-port.md](06-modmail-port.md)                                  | TBD — rescope after the 2026-07-22 redesign                                          | Not started; redesigned as a ticket/private-thread system, not a straight DM-based port |
 
-Dates are targets, not commitments — capacity is ~5–10 hrs/wk. M2 and M3 can interleave.
+M1–M3's per-milestone spec docs (`02-foundation.md`, `03-dashboard-config.md`, `04-ama-complete.md`) were removed once each milestone shipped — durable architecture knowledge from them now lives in [01-architecture.md](01-architecture.md) and [workflow.md](../workflow.md); planning detail is in git history if ever needed. M4's dates come from a public Discord announcement, not a capacity estimate. M5 was fundamentally redesigned on 2026-07-22 — see that doc for why.
 
 ## Glossary
 
@@ -74,11 +74,14 @@ Dates are targets, not commitments — capacity is ~5–10 hrs/wk. M2 and M3 can
 - **Cutover** — the moment production traffic/token is pointed at the new deployment.
 - **Kanel** — a tool that introspects a Postgres database and generates matching TypeScript row types.
 - **Atlas** — a schema-as-code migration tool (`ariga/atlas`) that diffs a declarative schema against migration history to auto-generate versioned up/down SQL migrations.
+- **Grant token** — a short-lived, single-use JWT a bot slash command mints to authorize one dashboard action without a browser session; see [01-architecture.md §4a](01-architecture.md#4a-grant-token-auth-one-time-scoped-194).
+- **Ticket panel** — a staff-configured embed+button (ModMail, M5) that opens a private thread for the clicking user; the new-ModMail equivalent of AMA's prompt message.
+- **Canary** — `AMA Canary`, the publicly-invitable pre-cutover deployment of the new AMA stack (client ID `1427232824854970409`), live 2026-07-22 through the M4 cutover.
 
 ## Where things live
 
 - This repo: `/Users/didinele/Documents/Work/ChatSift/ChatSift` (GitHub: `ChatSift/chatsift`).
 - Reference repo: `/Users/didinele/Documents/Work/didinele/SimplyChords` (GitHub: `didinele/SimplyChords`, private).
-- Old AMA prod: `ChatSift/AMA`.
+- Old AMA prod: `ChatSift/AMA`. Pre-cutover new-stack deployment: `AMA Canary` (client ID `1427232824854970409`).
 - Old ModMail prod: `ChatSift/ModMail`.
 - Live AutoModerator prod: `v2` branch of this repo.

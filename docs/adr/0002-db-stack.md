@@ -1,8 +1,8 @@
 # ADR 0002: Replace Prisma+Kysely with porsager/postgres + Atlas + kanel
 
-- **Status:** Accepted
+- **Status:** Accepted, implemented in M1 (2026-07-17)
 - **Date:** 2026-07-16
-- **Related:** [01-architecture.md](../roadmap/01-architecture.md), [02-foundation.md](../roadmap/02-foundation.md)
+- **Related:** [01-architecture.md](../roadmap/01-architecture.md) (current state + kanel gotchas), [workflow.md](../workflow.md#database)
 
 ## Problem
 
@@ -43,4 +43,4 @@ Adopt **`porsager/postgres` (raw SQL) + Atlas (schema + versioned migrations, wi
 - **Negative / accepted tradeoffs:**
   - **Atlas is a Go binary**, an external dependency in local dev and CI (not an npm package). Acceptable given the down-migration and auto-diff requirements; if it proves too heavy, a lighter SQL-migration runner (e.g. `node-pg-migrate`, `dbmate`) is a fallback but loses auto-diff and would make down migrations hand-written again.
   - **kanel gives schema-level types, not per-query inference** — a `sql<Row[]>` call is only as correctly typed as the row type you pick; a typo'd column selection wouldn't be caught the way pgTyped would catch it. If this friction becomes real during M1/M3, upgrading to pgTyped or `ts-safeql` for hot-path queries is a reversible, incremental follow-up — not a blocker now.
-  - **Migration effort:** the existing `prisma/schema.prisma` (6 models) and its generated Kysely usage across ~13 routes and the `ama-bot` service all need porting. Tracked in [02-foundation.md](../roadmap/02-foundation.md).
+  - **Migration effort:** the existing `prisma/schema.prisma` (6 models) and its generated Kysely usage across ~13 routes and the `ama-bot` service all needed porting. Done in M1 (#123–132) — see [01-architecture.md](../roadmap/01-architecture.md) §2 and §5 for the resulting shape.
