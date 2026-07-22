@@ -31,8 +31,15 @@
 			"cache": false
 		},
 		"tag-docker": {
+			"dependsOn": ["^build"],
 			"outputs": [],
-			"inputs": ["src/**/*.ts", "Dockerfile", "docker-compose.yml", ".env.public", "compose"]
+			"inputs": [
+				"src/**/*.ts",
+				"$TURBO_ROOT$/Dockerfile",
+				"$TURBO_ROOT$/docker-compose.yml",
+				"$TURBO_ROOT$/.env.public",
+				"$TURBO_ROOT$/compose/**"
+			]
 		}
 	},
 	"globalDependencies": ["eslint.config.js", ".prettierrc.json", "tsconfig.json", "tsconfig.*.json", "vitest.config.ts"]
