@@ -21,5 +21,13 @@ export function sendBoom(error: Boom, res: Response) {
 		};
 	}
 
+	// Route handlers throw Boom messages in lowercase sentence-fragment style (e.g. "guild not found") to read
+	// well inline in code; the frontend renders `message` verbatim to the user, so capitalize it here once
+	// rather than requiring every throw site to remember to write user-facing prose.
+	const { message } = error.output.payload;
+	if (typeof message === 'string' && message.length > 0) {
+		error.output.payload.message = message[0]!.toUpperCase() + message.slice(1);
+	}
+
 	return res.end(JSON.stringify(error.output.payload));
 }
