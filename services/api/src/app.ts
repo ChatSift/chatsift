@@ -37,7 +37,13 @@ export async function startServer(): Promise<void> {
 			// req.logger is set by attachLogger(), the very first `.use()` middleware -- it's only absent here if
 			// something throws before any `.use()` middleware ran at all (e.g. polka's own routing/parsing).
 			const logger = req.logger ?? getContext().logger;
-			logger.error({ err }, 'request error');
+			const boom = isBoom(err) ? err : new Boom(err);
+
+			if (boom.output.statusCode === 500) {
+				logger.error({ err: boom }, boom.message);
+			} else {
+				logger.warn({ err: boom }, boom.message);
+			}
 
 			if (res.writableEnded) {
 				return;
@@ -50,12 +56,6 @@ export async function startServer(): Promise<void> {
 			}
 
 			res.setHeader('content-type', 'application/json');
-			const boom = isBoom(err) ? err : new Boom(err);
-
-			if (boom.output.statusCode === 500) {
-				logger.error(boom, boom.message);
-			}
-
 			sendBoom(boom, res);
 		},
 		onNoMatch(req, res) {
