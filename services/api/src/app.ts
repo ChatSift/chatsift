@@ -24,6 +24,7 @@ import discordRoute from './routes/auth/discord.js';
 import discordCallbackRoute from './routes/auth/discordCallback.js';
 import logoutRoute from './routes/auth/logout.js';
 import meRoute from './routes/auth/me.js';
+import dozzleWebhookRoute from './routes/dozzle/webhook.js';
 import createGrantRoute from './routes/guilds/createGrant.js';
 import deleteGrantRoute from './routes/guilds/deleteGrant.js';
 import getGuildRoute from './routes/guilds/get.js';
@@ -94,6 +95,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, deleteGrantRoute);
 	mountRoute(app, getGuildRoute);
 	mountRoute(app, getGrantsRoute);
+	mountRoute(app, dozzleWebhookRoute);
 
 	app.listen(getContext().env.API_PORT, () =>
 		getContext().logger.info({ port: getContext().env.API_PORT }, 'Listening to requests'),

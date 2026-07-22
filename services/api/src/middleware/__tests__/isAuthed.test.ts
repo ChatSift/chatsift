@@ -43,6 +43,9 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 	process.env['REDIS_URL_DEV'] = 'redis://localhost:6379';
 	process.env['REDIS_URL_PROD'] = 'redis://localhost:6379';
 	process.env['AMA_BOT_TOKEN'] = 'abcdef';
+	process.env['DOZZLE_WEBHOOK_SECRET'] = 'so secret too';
+	process.env['DOZZLE_WEBHOOK_DISCORD_ID'] = '123456789012345678';
+	process.env['DOZZLE_WEBHOOK_DISCORD_TOKEN'] = 'abcdef';
 
 	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 	const actual = (await importActual()) as typeof import('@chatsift/backend-core');

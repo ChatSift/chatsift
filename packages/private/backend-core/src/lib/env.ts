@@ -45,6 +45,12 @@ const envSchema = z.object({
 
 	// AMA
 	AMA_BOT_TOKEN: z.string(),
+
+	// Dozzle log webhook relay (issue #212) — Dozzle POSTs here with a raw-JSON embed description,
+	// we prettify it and forward to the real Discord webhook
+	DOZZLE_WEBHOOK_SECRET: z.string(),
+	DOZZLE_WEBHOOK_DISCORD_ID: z.string().regex(SnowflakeRegex),
+	DOZZLE_WEBHOOK_DISCORD_TOKEN: z.string(),
 });
 
 export const ENV = envSchema.parse(process.env);
