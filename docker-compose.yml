@@ -38,6 +38,11 @@ services:
       - dozzle-data:/data
     environment:
       DOZZLE_ENABLE_ACTIONS: true
+      # Dozzle's own built-in auth (bcrypt users.yml in the dozzle-data volume). One-time setup
+      # since dozzle-data is a named volume, not a bind mount:
+      #   docker run --rm amir20/dozzle generate <username> --password '<password>' \
+      #     | docker run -i --rm -v chatsift-v3-dozzle-data:/data alpine sh -c 'cat > /data/users.yml'
+      DOZZLE_AUTH_PROVIDER: simple
     ports:
       - 127.0.0.1:${LOCAL_DOZZLE_PORT}:8080
 
