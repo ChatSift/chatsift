@@ -41,7 +41,7 @@ export default defineRoute({
 		// A user can manage a guild (and thus reach this route) without any of our bots being in it -- e.g. grants
 		// left over from before the bot was kicked. `roundRobinAPI` requires at least one bot to pick from, so
 		// fall back to the raw snowflake instead of resolving via Discord, same as the 404-below-user case.
-		const api = req.guild!.bots.length > 0 ? roundRobinAPI(req.guild!) : undefined;
+		const hasBots = req.guild!.bots.length > 0;
 		const resolveCache = new Map<Snowflake, Promise<APIUser | Snowflake>>();
 		const resolveUser = async (userId: Snowflake): Promise<APIUser | Snowflake> => {
 			const cached = resolveCache.get(userId);
@@ -50,12 +50,12 @@ export default defineRoute({
 			}
 
 			const promise = (async () => {
-				if (!api) {
+				if (!hasBots) {
 					return userId;
 				}
 
 				try {
-					return await api.users.get(userId);
+					return await roundRobinAPI(req.guild!).users.get(userId);
 				} catch (error) {
 					if (error instanceof DiscordAPIError && error.status === 404) {
 						return userId;
