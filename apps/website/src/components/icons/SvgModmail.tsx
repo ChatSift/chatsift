@@ -1,15 +1,18 @@
 export function SvgModmail({ width, height }: { readonly height?: number; readonly width?: number }) {
 	return (
 		<svg fill="none" height={height ?? 24} viewBox="0 0 24 24" width={width ?? 24} xmlns="http://www.w3.org/2000/svg">
-			<path
+			<rect
 				className="stroke-misc-accent"
-				d="M4.5 6H19.5V18H4.5V6Z"
+				height="12"
 				strokeLinejoin="round"
 				strokeWidth="1.875"
+				width="15"
+				x="4.5"
+				y="6"
 			/>
 			<path
 				className="stroke-primary dark:stroke-primary-dark"
-				d="M4.5 6.75L12 12.75L19.5 6.75"
+				d="M8.25 9.75L12 12.75L15.75 9.75"
 				strokeLinecap="round"
 				strokeLinejoin="round"
 				strokeWidth="1.875"

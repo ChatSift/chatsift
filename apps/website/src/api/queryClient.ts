@@ -83,4 +83,18 @@ export const queryKeys = {
 		byId: (guildId: string, amaId: string) => ['api', 'ama', guildId, amaId] as const,
 		stats: (guildId: string, amaId: string) => ['api', 'ama', guildId, amaId, 'stats'] as const,
 	},
+	modmail: {
+		all: (guildId: string) => ['api', 'modmail', guildId] as const,
+		config: (guildId: string) => ['api', 'modmail', guildId, 'config'] as const,
+		categories: (guildId: string) => ['api', 'modmail', guildId, 'categories'] as const,
+		panels: (guildId: string) => ['api', 'modmail', guildId, 'panels'] as const,
+		snippets: (guildId: string) => ['api', 'modmail', guildId, 'snippets'] as const,
+		blocks: (guildId: string) => ['api', 'modmail', guildId, 'blocks'] as const,
+		threads: {
+			all: (guildId: string) => ['api', 'modmail', guildId, 'threads'] as const,
+			list: (guildId: string, includeClosed: boolean) =>
+				['api', 'modmail', guildId, 'threads', 'list', includeClosed] as const,
+			byId: (guildId: string, threadId: string) => ['api', 'modmail', guildId, 'threads', threadId] as const,
+		},
+	},
 } as const;

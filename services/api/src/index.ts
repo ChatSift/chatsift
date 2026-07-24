@@ -24,6 +24,31 @@ export { default as meRoute } from './routes/auth/me.js';
 export { default as createGrantRoute } from './routes/guilds/createGrant.js';
 export { default as deleteGrantRoute } from './routes/guilds/deleteGrant.js';
 export { default as getGuildRoute } from './routes/guilds/get.js';
-export type { GuildChannelInfo, PossiblyMissingChannelInfo } from './routes/guilds/get.js';
+export type { GuildChannelInfo, GuildEmojiInfo, GuildRoleInfo, PossiblyMissingChannelInfo } from './routes/guilds/get.js';
 export { default as getGrantsRoute } from './routes/guilds/getGrants.js';
 export type { Grant } from './routes/guilds/getGrants.js';
+
+export { default as getModmailConfigRoute } from './routes/modmail/config/getConfig.js';
+export { default as updateModmailConfigRoute } from './routes/modmail/config/updateConfig.js';
+
+export { default as createModmailCategoryRoute } from './routes/modmail/categories/createCategory.js';
+export { default as deleteModmailCategoryRoute } from './routes/modmail/categories/deleteCategory.js';
+export { default as listModmailCategoriesRoute } from './routes/modmail/categories/listCategories.js';
+export { default as updateModmailCategoryRoute } from './routes/modmail/categories/updateCategory.js';
+
+export { default as createModmailPanelRoute } from './routes/modmail/panels/createPanel.js';
+export { default as deleteModmailPanelRoute } from './routes/modmail/panels/deletePanel.js';
+export { default as listModmailPanelsRoute } from './routes/modmail/panels/listPanels.js';
+export { default as updateModmailPanelRoute } from './routes/modmail/panels/updatePanel.js';
+
+export { default as createModmailSnippetRoute } from './routes/modmail/snippets/createSnippet.js';
+export { default as deleteModmailSnippetRoute } from './routes/modmail/snippets/deleteSnippet.js';
+export { default as listModmailSnippetsRoute } from './routes/modmail/snippets/listSnippets.js';
+export { default as updateModmailSnippetRoute } from './routes/modmail/snippets/updateSnippet.js';
+
+export { default as createModmailBlockRoute } from './routes/modmail/blocks/createBlock.js';
+export { default as deleteModmailBlockRoute } from './routes/modmail/blocks/deleteBlock.js';
+export { default as listModmailBlocksRoute } from './routes/modmail/blocks/listBlocks.js';
+
+export { default as getModmailThreadRoute } from './routes/modmail/threads/getThread.js';
+export { default as listModmailThreadsRoute } from './routes/modmail/threads/listThreads.js';

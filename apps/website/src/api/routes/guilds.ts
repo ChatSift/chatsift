@@ -1,5 +1,7 @@
 import type {
 	GuildChannelInfo,
+	GuildEmojiInfo,
+	GuildRoleInfo,
 	InferRouteContract,
 	createGrantRoute,
 	deleteGrantRoute,
@@ -12,7 +14,7 @@ import { apiFetch } from '../fetch';
 import { useGrantAuth } from '../grant';
 import { queryKeys } from '../queryClient';
 
-export type { GuildChannelInfo } from '@chatsift/api';
+export type { GuildChannelInfo, GuildEmojiInfo, GuildRoleInfo } from '@chatsift/api';
 
 type GetGuildContract = InferRouteContract<typeof getGuildRoute>;
 export type GuildInfo = GetGuildContract['response'];

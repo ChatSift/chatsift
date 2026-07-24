@@ -1,0 +1,19 @@
+'use client';
+
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { SvgPlus } from '@/components/icons/SvgPlus';
+
+export function CreatePanelCard() {
+	const params = useParams<{ id: string }>();
+
+	return (
+		<Link
+			className="flex h-36 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-on-secondary bg-card p-4 hover:border-misc-accent dark:border-on-secondary-dark dark:bg-card-dark"
+			href={`/dashboard/${params.id}/modmail/panels/new`}
+		>
+			<SvgPlus />
+			<span className="text-lg font-medium text-primary dark:text-primary-dark">Create Panel</span>
+		</Link>
+	);
+}

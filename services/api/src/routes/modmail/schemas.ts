@@ -1,3 +1,4 @@
+import emojiRegex from 'emoji-regex';
 import { z } from 'zod';
 import { snowflakeSchema } from '../../util/schemas.js';
 
@@ -6,6 +7,27 @@ import { snowflakeSchema } from '../../util/schemas.js';
  * the `@chatsift/api/modmail-schemas` package export (see `package.json`), mirroring `ama/schemas.ts`'s precedent
  * so the dashboard (M5's #154) validates against the exact same rules the API enforces.
  */
+
+// Discord's own shorthand for a custom guild emoji as it appears in message content (`<:name:id>`, or `<a:...>`
+// for animated) -- the dashboard's emoji picker writes this exact shape (see `EmojiInput.tsx`), so accepting it
+// here is what lets a category be routed to an emoji from any guild the bot is in, not just typed unicode.
+const DISCORD_CUSTOM_EMOJI_REGEX = /^<a?:\w{2,32}:\d{17,20}>$/;
+
+/**
+ * A category's `emoji` must be either a Discord custom-emoji shorthand or exactly one real unicode emoji
+ * (including multi-codepoint sequences like ZWJ combinations, skin-tone modifiers, flags, and keycaps) -- not
+ * arbitrary text. `emoji-regex` (mathiasbynens' package, kept in sync with the Unicode emoji spec) is used rather
+ * than a hand-rolled pattern since correctly matching every emoji sequence shape isn't something worth
+ * re-deriving here.
+ */
+function isValidCategoryEmoji(value: string): boolean {
+	if (DISCORD_CUSTOM_EMOJI_REGEX.test(value)) {
+		return true;
+	}
+
+	const matches = [...value.matchAll(emojiRegex())];
+	return matches.length === 1 && matches[0]![0] === value;
+}
 
 export const updateConfigBodySchema = z
 	.strictObject({
@@ -24,7 +46,12 @@ export const updateConfigBodySchema = z
 // the create variant avoids that.
 const categoryFields = {
 	name: z.string().min(1).max(100),
-	emoji: z.string().max(64).nullable().optional(),
+	emoji: z
+		.string()
+		.max(64)
+		.refine(isValidCategoryEmoji, 'Must be a single unicode emoji or a custom emoji from a server the bot is in')
+		.nullable()
+		.optional(),
 	description: z.string().max(500).nullable().optional(),
 	greetingMessage: z.string().max(2_000).nullable().optional(),
 	forumTagId: snowflakeSchema.nullable().optional(),
@@ -72,15 +99,17 @@ export const updatePanelBodySchema = z
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided')
 	.refine((data) => !('panel' in data && 'panel_raw' in data), 'Cannot provide both panel and panel_raw');
 
+// A snippet's name becomes the name of the Discord slash command registered for it (e.g. a snippet
+// named `reportuser` is invoked as `/reportuser`), so it's bound by Discord's own command-name rules
+// rather than an arbitrary display-name length -- see createSnippet.ts.
 export const createSnippetBodySchema = z.strictObject({
-	name: z.string().min(1).max(100),
+	name: z.string().min(1).max(32),
 	content: z.string().min(1).max(2_000),
-	commandId: snowflakeSchema,
 });
 
 export const updateSnippetBodySchema = z
 	.strictObject({
-		name: z.string().min(1).max(100).optional(),
+		name: z.string().min(1).max(32).optional(),
 		content: z.string().min(1).max(2_000).optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');

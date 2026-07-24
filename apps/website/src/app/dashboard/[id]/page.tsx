@@ -37,13 +37,13 @@ function SectionCard({ linksExternally, className: providedClassName, href, icon
 	);
 
 	return linksExternally ? (
-		<Link className={className} href={href} prefetch>
-			{content}
-		</Link>
-	) : (
 		<a className={className} href={href}>
 			{content}
 		</a>
+	) : (
+		<Link className={className} href={href} prefetch>
+			{content}
+		</Link>
 	);
 }
 
@@ -74,17 +74,17 @@ export default function GuildPage() {
 						text="General settings"
 					/>
 					{BOTS.map((bot, index) => {
-						const { Icon } = Bots[bot];
+						const { Icon, label } = Bots[bot];
 						const hasIt = guild.bots.includes(bot);
 						return (
 							<SectionCard
 								className={hasIt ? '' : 'opacity-50 hover:opacity-75'}
-								href={hasIt ? `/dashboard/${guild.id}/ama` : `/invites/${bot.toLowerCase()}`}
+								href={hasIt ? `/dashboard/${guild.id}/${bot.toLowerCase()}` : `/invites/${bot.toLowerCase()}`}
 								icon={<Icon height={32} width={32} />}
 								key={index}
 								linksExternally={!hasIt}
-								subtext={hasIt ? `Configure ${bot} bot settings` : `Invite ${bot} to your server`}
-								text={bot}
+								subtext={hasIt ? `Configure ${label} bot settings` : `Invite ${label} to your server`}
+								text={label}
 							/>
 						);
 					})}

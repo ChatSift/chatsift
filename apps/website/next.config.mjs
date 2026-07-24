@@ -40,6 +40,12 @@ export default {
 					'https://discord.com/oauth2/authorize?client_id=1427232824854970409&permissions=274878024704&scope=applications.commands%20bot',
 				permanent: true,
 			},
+			{
+				source: '/invites/modmail',
+				destination:
+					'https://discord.com/oauth2/authorize?client_id=1530137759304515647&permissions=274878024704&scope=applications.commands%20bot',
+				permanent: true,
+			},
 		];
 	},
 };

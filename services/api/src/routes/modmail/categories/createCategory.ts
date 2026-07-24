@@ -43,11 +43,11 @@ export default defineRoute({
 			return category!;
 		} catch (error) {
 			if (isUniqueViolation(error, 'categories_guild_id_name_key')) {
-				throw conflict('a category with this name already exists');
+				throw conflict('a category with this name already exists', { conflictField: 'name' });
 			}
 
 			if (isUniqueViolation(error, 'categories_guild_id_forum_tag_id_key')) {
-				throw conflict('a category is already routed to this forum tag');
+				throw conflict('a category is already routed to this forum tag', { conflictField: 'forumTagId' });
 			}
 
 			throw error;

@@ -1,63 +1,40 @@
-import { setTimeout, clearTimeout } from 'node:timers';
 import type { Logger } from '@chatsift/backend-core';
 import type {
 	API,
 	APIGuildChannel,
+	APIGuildForumTag,
 	APISortableChannel,
 	APIThreadChannel,
 	GuildChannelType,
 	Snowflake,
 } from '@discordjs/core';
-import { DiscordAPIError } from '@discordjs/rest';
+import { ChannelType } from '@discordjs/core';
 import { badRequest, internal } from '@hapi/boom';
+import { createCachedGuildFetcher } from './guildDataCache.js';
 
 export interface PossiblyMissingChannelInfo {
 	id: string;
 }
 
 export type GuildChannelInfo = APISortableChannel &
-	Pick<APIGuildChannel<GuildChannelType>, 'id' | 'name' | 'parent_id' | 'type'>;
+	Pick<APIGuildChannel<GuildChannelType>, 'id' | 'name' | 'parent_id' | 'type'> & {
+		// Only present for `ChannelType.GuildForum` channels -- the set of tags a category's `forumTagId` can be
+		// routed to (see `docs/roadmap/06-modmail-port.md`'s "forum tags only" routing decision).
+		availableTags?: APIGuildForumTag[];
+	};
 
-// TODO(DD): Should probably move this to redis
-const CACHE = new Map<Snowflake, GuildChannelInfo[]>();
-const CACHE_TIMEOUTS = new Map<string, NodeJS.Timeout>();
-const CACHE_TTL = 5 * 60 * 1_000; // 5 minutes
-
-export function clearCache() {
-	CACHE.clear();
-	for (const timeout of CACHE_TIMEOUTS.values()) {
-		clearTimeout(timeout);
-	}
-
-	CACHE_TIMEOUTS.clear();
-}
-
-export async function fetchGuildChannels(guildId: string, api: API, force = false): Promise<GuildChannelInfo[] | null> {
-	if (CACHE.has(guildId) && !force) {
-		return CACHE.get(guildId)!;
-	}
-
+async function fetchGuildChannelsRaw(guildId: string, api: API): Promise<GuildChannelInfo[]> {
 	// TODO(DD): https://github.com/discordjs/discord-api-types/pull/1397
-	const channelsRaw = await (
-		api.guilds.getChannels(guildId) as Promise<(APIGuildChannel<GuildChannelType> & APISortableChannel)[]>
-	).catch((error) => {
-		if (error instanceof DiscordAPIError && (error.status === 403 || error.status === 404)) {
-			return null;
-		}
+	const channelsRaw = (await api.guilds.getChannels(guildId)) as (APIGuildChannel<GuildChannelType> &
+		APISortableChannel & { available_tags?: APIGuildForumTag[] })[];
 
-		throw error;
-	});
-
-	if (!channelsRaw) {
-		return null;
-	}
-
-	const channels: GuildChannelInfo[] = channelsRaw.map(({ id, name, parent_id, type, position }) => ({
+	const channels: GuildChannelInfo[] = channelsRaw.map(({ id, name, parent_id, type, position, available_tags }) => ({
 		id,
 		name,
 		parent_id: parent_id ?? null,
 		type,
 		position,
+		...(type === ChannelType.GuildForum && { availableTags: available_tags ?? [] }),
 	}));
 
 	const { threads: threadsRaw } = await api.guilds.getActiveThreads(guildId);
@@ -69,22 +46,17 @@ export async function fetchGuildChannels(guildId: string, api: API, force = fals
 		position: 0, // Threads don't have a position, this should be good enough
 	}));
 
-	const allChannels = channels.concat(threads);
+	return channels.concat(threads);
+}
 
-	CACHE.set(guildId, allChannels);
-	if (CACHE_TIMEOUTS.has(guildId)) {
-		const timeout = CACHE_TIMEOUTS.get(guildId)!;
-		timeout.refresh();
-	} else {
-		const timeout = setTimeout(() => {
-			CACHE.delete(guildId);
-			CACHE_TIMEOUTS.delete(guildId);
-		}, CACHE_TTL).unref();
+const channelsFetcher = createCachedGuildFetcher(fetchGuildChannelsRaw);
 
-		CACHE_TIMEOUTS.set(guildId, timeout);
-	}
+export function clearCache() {
+	channelsFetcher.clearCache();
+}
 
-	return allChannels;
+export async function fetchGuildChannels(guildId: string, api: API, force = false): Promise<GuildChannelInfo[] | null> {
+	return channelsFetcher.fetch(guildId, api, force);
 }
 
 /**

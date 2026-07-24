@@ -7,6 +7,7 @@ import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { fetchGuildChannels } from '../../../util/channels.js';
 import { discordAPIModmail } from '../../../util/discordAPI.js';
+import { assertRolesBelongToGuild } from '../../../util/roles.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { updateConfigBodySchema } from '../schemas.js';
 
@@ -48,6 +49,10 @@ export default defineRoute({
 			if (forumChannel.type !== ChannelType.GuildForum) {
 				throw badRequest('modForumId must point at a forum channel');
 			}
+		}
+
+		if (data.alertRoleId) {
+			await assertRolesBelongToGuild(guildId, [data.alertRoleId], discordAPIModmail, req.logger);
 		}
 
 		const columns = Object.keys(data) as (keyof typeof data)[];

@@ -1,7 +1,8 @@
+import { BOTS } from '@chatsift/core';
 import Link from 'next/link';
 import type { MeGuild } from '@/api/routes/auth';
 import { GuildIcon } from '@/components/common/GuildIcon';
-import { SvgAMA } from '@/components/icons/SvgAMA';
+import { Bots } from '@/utils/bots';
 import { cn } from '@/utils/util';
 
 interface GuildCardProps {
@@ -33,11 +34,15 @@ export default function GuildCard({ data }: GuildCardProps) {
 
 				{hasBots ? (
 					<ul className="flex flex-row gap-1">
-						{data.bots.includes('AMA') && (
-							<li>
-								<SvgAMA />
-							</li>
-						)}
+						{data.bots.map((bot) => {
+							const { Icon, label } = Bots[bot];
+							return (
+								<li key={bot}>
+									<Icon />
+									<span className="sr-only">{label}</span>
+								</li>
+							);
+						})}
 					</ul>
 				) : (
 					<>
@@ -47,11 +52,17 @@ export default function GuildCard({ data }: GuildCardProps) {
 						<div className="hidden flex-col gap-1 group-hover:flex">
 							<p className="text-lg font-medium text-primary dark:text-primary-dark">Invite a bot:</p>
 							<ul className="flex flex-row gap-3">
-								<li>
-									<a href="/invites/ama">
-										<SvgAMA />
-									</a>
-								</li>
+								{BOTS.map((bot) => {
+									const { Icon, label } = Bots[bot];
+									return (
+										<li key={bot}>
+											<a href={`/invites/${bot.toLowerCase()}`}>
+												<Icon />
+												<span className="sr-only">Invite {label}</span>
+											</a>
+										</li>
+									);
+								})}
 							</ul>
 						</div>
 					</>

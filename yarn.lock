@@ -427,6 +427,7 @@ __metadata:
     busboy: "npm:^1.6.0"
     cookie: "npm:^2.0.1"
     cors: "npm:^2.8.6"
+    emoji-regex: "npm:^10.6.0"
     helmet: "npm:^8.3.0"
     jsonwebtoken: "npm:^9.0.3"
     nanoid: "npm:^6.0.0"
@@ -5586,7 +5587,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"emoji-regex@npm:^10.2.1, emoji-regex@npm:^10.3.0":
+"emoji-regex@npm:^10.2.1, emoji-regex@npm:^10.3.0, emoji-regex@npm:^10.6.0":
   version: 10.6.0
   resolution: "emoji-regex@npm:10.6.0"
   checksum: 10c0/1e4aa097bb007301c3b4b1913879ae27327fdc48e93eeefefe3b87e495eb33c5af155300be951b4349ff6ac084f4403dc9eff970acba7c1c572d89396a9a32d7

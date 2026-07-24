@@ -8,12 +8,12 @@
 
 Unlike M4's original hypothetical runbook, the cutover is no longer a plan to schedule — it was announced in the support server on **2026-07-22** and the dates below are commitments made to users, not estimates:
 
-| Date                       | Event                                                                                                                                |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **2026-07-22** (done)       | `AMA Canary` (new stack, client ID `1427232824854970409`) deployed and publicly invitable. Feedback/bug-report window opens.        |
-| **2026-08-03**              | Kill-switch: **AMA creation becomes unavailable** on the live `@AMA#5595` bot. In-flight AMAs are unaffected.                        |
-| **2026-08-03 → 2026-08-08** | Drain window (~5 days, not the original runbook's ~1 week estimate).                                                                 |
-| **2026-08-08**              | Cutover: new codebase deployed to replace the live bot. AMA creation returns, now on the new stack.                                  |
+| Date                        | Event                                                                                                                        |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **2026-07-22** (done)       | `AMA Canary` (new stack, client ID `1427232824854970409`) deployed and publicly invitable. Feedback/bug-report window opens. |
+| **2026-08-03**              | Kill-switch: **AMA creation becomes unavailable** on the live `@AMA#5595` bot. In-flight AMAs are unaffected.                |
+| **2026-08-03 → 2026-08-08** | Drain window (~5 days, not the original runbook's ~1 week estimate).                                                         |
+| **2026-08-08**              | Cutover: new codebase deployed to replace the live bot. AMA creation returns, now on the new stack.                          |
 
 The ~3-week "polishing & feedback" period referenced in the announcement is the wider window (2026-07-22 → roughly mid-August) during which Canary stays up for bug reports even after the 08-08 cutover — it is not the same interval as the 5-day drain window above, which only covers the kill-switch-to-cutover gap.
 

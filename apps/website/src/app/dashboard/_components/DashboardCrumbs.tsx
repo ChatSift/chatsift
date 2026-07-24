@@ -10,12 +10,19 @@ import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { GuildIcon } from '@/components/common/GuildIcon';
 import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAMA } from '@/components/icons/SvgAMA';
+import { SvgModmail } from '@/components/icons/SvgModmail';
 import { sortGuilds } from '@/utils/util';
 
 const SEGMENT_LABELS: Record<string, string> = {
 	ama: 'AMA Bot',
 	amas: 'AMA Sessions',
 	new: 'New',
+	modmail: 'ModMail Bot',
+	config: 'Config',
+	categories: 'Categories',
+	panels: 'Panels',
+	snippets: 'Snippets',
+	blocks: 'Blocks',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {
@@ -25,6 +32,7 @@ const SEGMENT_ICONS: Record<string, React.ReactNode> = {
 			Q
 		</div>
 	),
+	modmail: <SvgModmail height={20} width={20} />,
 } as const;
 
 interface SegmentOptionsContext {

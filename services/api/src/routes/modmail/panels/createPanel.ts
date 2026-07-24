@@ -113,10 +113,13 @@ export default defineRoute({
 			});
 		} catch (error) {
 			if (panelMessage) {
-				// eslint-disable-next-line promise/prefer-await-to-then
-				void discordAPIModmail.channels.deleteMessage(data.channelId, panelMessage.id).catch((cleanupError: unknown) =>
-					req.logger.error({ err: cleanupError }, 'failed to clean up orphaned panel message'),
-				);
+				void (async () => {
+					try {
+						await discordAPIModmail.channels.deleteMessage(data.channelId, panelMessage.id);
+					} catch (cleanupError) {
+						req.logger.error({ err: cleanupError }, 'failed to clean up orphaned panel message');
+					}
+				})();
 			}
 
 			throw error;
