@@ -2,12 +2,15 @@ import type {
 	InferRouteContract,
 	createModmailCategoryRoute,
 	createModmailPanelRoute,
+	createModmailSnippetRoute,
 	getModmailConfigRoute,
 	listModmailCategoriesRoute,
 	listModmailPanelsRoute,
+	listModmailSnippetsRoute,
 	updateModmailCategoryRoute,
 	updateModmailConfigRoute,
 	updateModmailPanelRoute,
+	updateModmailSnippetRoute,
 } from '@chatsift/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../fetch';
@@ -183,6 +186,57 @@ export function useDeleteModmailPanel(guildId: string) {
 		mutationFn: async (panelId: number) => apiFetch('delete', `/v3/guilds/${guildId}/modmail/panels/${panelId}`),
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.panels(guildId) });
+		},
+	});
+}
+
+type ListModmailSnippetsContract = InferRouteContract<typeof listModmailSnippetsRoute>;
+export type ModmailSnippet = ListModmailSnippetsContract['response'][number];
+
+type CreateModmailSnippetContract = InferRouteContract<typeof createModmailSnippetRoute>;
+export type CreateModmailSnippetBody = CreateModmailSnippetContract['body'];
+
+type UpdateModmailSnippetContract = InferRouteContract<typeof updateModmailSnippetRoute>;
+export type UpdateModmailSnippetBody = UpdateModmailSnippetContract['body'];
+
+export function useModmailSnippets(guildId: string) {
+	return useQuery({
+		queryKey: queryKeys.modmail.snippets(guildId),
+		queryFn: async () => apiFetch<ModmailSnippet[]>('get', `/v3/guilds/${guildId}/modmail/snippets`),
+	});
+}
+
+export function useCreateModmailSnippet(guildId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (body: CreateModmailSnippetBody) =>
+			apiFetch<ModmailSnippet>('post', `/v3/guilds/${guildId}/modmail/snippets`, { body }),
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.snippets(guildId) });
+		},
+	});
+}
+
+export function useUpdateModmailSnippet(guildId: string, snippetId: number) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (body: UpdateModmailSnippetBody) =>
+			apiFetch<ModmailSnippet>('patch', `/v3/guilds/${guildId}/modmail/snippets/${snippetId}`, { body }),
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.snippets(guildId) });
+		},
+	});
+}
+
+export function useDeleteModmailSnippet(guildId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (snippetId: number) => apiFetch('delete', `/v3/guilds/${guildId}/modmail/snippets/${snippetId}`),
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.snippets(guildId) });
 		},
 	});
 }

@@ -99,15 +99,17 @@ export const updatePanelBodySchema = z
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided')
 	.refine((data) => !('panel' in data && 'panel_raw' in data), 'Cannot provide both panel and panel_raw');
 
+// A snippet's name becomes the name of the Discord slash command registered for it (e.g. a snippet
+// named `reportuser` is invoked as `/reportuser`), so it's bound by Discord's own command-name rules
+// rather than an arbitrary display-name length -- see createSnippet.ts.
 export const createSnippetBodySchema = z.strictObject({
-	name: z.string().min(1).max(100),
+	name: z.string().min(1).max(32),
 	content: z.string().min(1).max(2_000),
-	commandId: snowflakeSchema,
 });
 
 export const updateSnippetBodySchema = z
 	.strictObject({
-		name: z.string().min(1).max(100).optional(),
+		name: z.string().min(1).max(32).optional(),
 		content: z.string().min(1).max(2_000).optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
