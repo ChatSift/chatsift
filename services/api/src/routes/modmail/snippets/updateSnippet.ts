@@ -51,23 +51,35 @@ export default defineRoute({
 
 		// Renamed here, outside the DB transaction/lock below -- holding a row lock (and a pooled connection) for
 		// the duration of an external Discord HTTP call risks starving the connection pool if Discord is slow or
-		// degraded, turning a Discord-side problem into a wider outage. The tradeoff: two concurrent renames of
-		// the same snippet are no longer serialized against each other, but that's the same self-healing
-		// reconciliation risk already accepted below for "the DB write fails after Discord already renamed" --
-		// the next successful edit brings the two back in sync either way.
-		if (data.name !== undefined && data.name !== existing.name) {
+		// degraded, turning a Discord-side problem into a wider outage.
+		//
+		// Compared against Discord's *live* command name, not `existing.name` (the DB's cached copy) -- if a
+		// previous edit renamed the Discord command but then failed to commit the DB write (a race, a dropped
+		// connection, whatever), `existing.name` stays stuck on the old value forever, and the dashboard's name
+		// field -- always populated from that same stale DB row -- would keep resubmitting it right back. Diffing
+		// against `existing.name` would then see no change and skip the rename on every future edit, even ones
+		// that don't touch the name, permanently baking in the drift. Reading Discord's actual current name
+		// instead means *any* edit reconciles the two, not just one that happens to type a new name.
+		if (data.name !== undefined) {
 			const applicationId = await getModmailApplicationId();
+			const liveCommand = await discordAPIModmail.applicationCommands.getGuildCommand(
+				applicationId,
+				guildId,
+				existing.commandId,
+			);
 
-			try {
-				await discordAPIModmail.applicationCommands.editGuildCommand(applicationId, guildId, existing.commandId, {
-					name: data.name,
-				});
-			} catch (error) {
-				if (error instanceof DiscordAPIError && error.status === 400) {
-					throw badData('not a valid Discord command name');
+			if (liveCommand.name !== data.name) {
+				try {
+					await discordAPIModmail.applicationCommands.editGuildCommand(applicationId, guildId, existing.commandId, {
+						name: data.name,
+					});
+				} catch (error) {
+					if (error instanceof DiscordAPIError && error.status === 400) {
+						throw badData('not a valid Discord command name');
+					}
+
+					throw error;
 				}
-
-				throw error;
 			}
 		}
 
