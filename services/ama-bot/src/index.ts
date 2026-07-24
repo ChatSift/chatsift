@@ -1,12 +1,10 @@
-import { startGuildSyncing } from './lib/client.js';
-import { registerCommandHandlers } from './lib/commands.js';
-import { registerHandlers } from './lib/components.js';
-import { gateway } from './lib/gateway.js';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { registerCommandHandlers, registerComponentHandlers } from '@chatsift/bot-core';
+
+const baseDir = dirname(fileURLToPath(import.meta.url));
 
 export async function bin(): Promise<void> {
-	await registerHandlers();
-	await registerCommandHandlers();
-
-	await gateway.connect();
-	startGuildSyncing();
+	await registerComponentHandlers(join(baseDir, 'components'));
+	await registerCommandHandlers(join(baseDir, 'commands'));
 }

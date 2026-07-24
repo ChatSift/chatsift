@@ -60,11 +60,7 @@ export function EmojiInput({ id, label, value, onChange, emojis, error, placehol
 						onPress={() => setIsOpen(!isOpen)}
 						type="button"
 					>
-						{selectedCustomEmoji ? (
-							<Emoji className="h-5 w-5" value={emojiShorthand(selectedCustomEmoji)} />
-						) : (
-							'🙂'
-						)}
+						{selectedCustomEmoji ? <Emoji className="h-5 w-5" value={emojiShorthand(selectedCustomEmoji)} /> : '🙂'}
 					</Button>
 
 					{isOpen && (

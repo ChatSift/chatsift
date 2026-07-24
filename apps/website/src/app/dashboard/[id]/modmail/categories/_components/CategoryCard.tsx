@@ -23,7 +23,13 @@ interface CategoryFormData {
 
 type CategoryFormErrors = Partial<Record<keyof CategoryFormData, string>>;
 
-const CATEGORY_FIELDS = ['name', 'emoji', 'description', 'greetingMessage', 'forumTagId'] as const satisfies (keyof CategoryFormData)[];
+const CATEGORY_FIELDS = [
+	'name',
+	'emoji',
+	'description',
+	'greetingMessage',
+	'forumTagId',
+] as const satisfies (keyof CategoryFormData)[];
 
 function mapCategoryIssues(issues: readonly { message: string; path: PropertyKey[] }[]): CategoryFormErrors {
 	const errors: CategoryFormErrors = {};
@@ -236,16 +242,16 @@ export function CategoryCard({ guildId, category, canMoveUp, canMoveDown, onMove
 						</div>
 
 						<div className="flex shrink-0 flex-col gap-0.5">
-							<Button
-								aria-label="Move up"
-								className="p-1"
-								isDisabled={!canMoveUp}
-								onPress={onMoveUp}
-								type="button"
-							>
+							<Button aria-label="Move up" className="p-1" isDisabled={!canMoveUp} onPress={onMoveUp} type="button">
 								<SvgChevronDown className="rotate-180" size={16} />
 							</Button>
-							<Button aria-label="Move down" className="p-1" isDisabled={!canMoveDown} onPress={onMoveDown} type="button">
+							<Button
+								aria-label="Move down"
+								className="p-1"
+								isDisabled={!canMoveDown}
+								onPress={onMoveDown}
+								type="button"
+							>
 								<SvgChevronDown size={16} />
 							</Button>
 						</div>
@@ -257,7 +263,9 @@ export function CategoryCard({ guildId, category, canMoveUp, canMoveDown, onMove
 								Description
 							</p>
 							<p className="text-sm text-primary dark:text-primary-dark">
-								{category.description || <span className="italic text-secondary dark:text-secondary-dark">Not set</span>}
+								{category.description || (
+									<span className="italic text-secondary dark:text-secondary-dark">Not set</span>
+								)}
 							</p>
 						</div>
 
