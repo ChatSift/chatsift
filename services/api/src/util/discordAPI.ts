@@ -10,12 +10,16 @@ export const discordAPIOAuth = new API(oauthREST);
 const amaREST = new REST({ version: '10' }).setToken(getContext().env.AMA_BOT_TOKEN);
 export const discordAPIAma = new API(amaREST);
 
+const modmailREST = new REST({ version: '10' }).setToken(getContext().env.MODMAIL_BOT_TOKEN);
+export const discordAPIModmail = new API(modmailREST);
+
 // Webhook execution is authed by the id/token in the URL itself, no bot token needed
 const webhookREST = new REST({ version: '10' });
 export const discordAPIWebhook = new API(webhookREST);
 
 export const APIMapping: Record<BotId, API> = {
 	AMA: discordAPIAma,
+	MODMAIL: discordAPIModmail,
 };
 
 // Tracks, per guild, the index (into that guild's `bots` array) that was last handed out by
