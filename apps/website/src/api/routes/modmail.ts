@@ -4,6 +4,7 @@ import type {
 	createModmailPanelRoute,
 	createModmailSnippetRoute,
 	getModmailConfigRoute,
+	listModmailBlocksRoute,
 	listModmailCategoriesRoute,
 	listModmailPanelsRoute,
 	listModmailSnippetsRoute,
@@ -237,6 +238,27 @@ export function useDeleteModmailSnippet(guildId: string) {
 		mutationFn: async (snippetId: number) => apiFetch('delete', `/v3/guilds/${guildId}/modmail/snippets/${snippetId}`),
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.snippets(guildId) });
+		},
+	});
+}
+
+type ListModmailBlocksContract = InferRouteContract<typeof listModmailBlocksRoute>;
+export type ModmailBlock = ListModmailBlocksContract['response'][number];
+
+export function useModmailBlocks(guildId: string) {
+	return useQuery({
+		queryKey: queryKeys.modmail.blocks(guildId),
+		queryFn: async () => apiFetch<ModmailBlock[]>('get', `/v3/guilds/${guildId}/modmail/blocks`),
+	});
+}
+
+export function useDeleteModmailBlock(guildId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (userId: string) => apiFetch('delete', `/v3/guilds/${guildId}/modmail/blocks`, { body: { userId } }),
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.blocks(guildId) });
 		},
 	});
 }

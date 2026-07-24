@@ -22,6 +22,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 	categories: 'Categories',
 	panels: 'Panels',
 	snippets: 'Snippets',
+	blocks: 'Blocks',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {

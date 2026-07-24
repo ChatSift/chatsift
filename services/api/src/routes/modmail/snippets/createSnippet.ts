@@ -59,7 +59,7 @@ export default defineRoute({
 				options: [
 					{
 						name: 'anon',
-						description: 'Whether to send the reply anonymously -- defaults to false',
+						description: 'Whether to send the reply anonymously - defaults to false',
 						type: ApplicationCommandOptionType.Boolean,
 					},
 				],
