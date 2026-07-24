@@ -1,9 +1,9 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import type { ComponentHandler } from '@chatsift/bot-core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
-import type { ComponentHandler } from '../lib/components.js';
 import { CurrentlyInQueue, getNextQueue, postToAnswersChannel, postToGuestQueue } from '../lib/queues.js';
 
 export default class ModApproveComponent implements ComponentHandler<string> {

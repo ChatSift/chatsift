@@ -1,6 +1,4 @@
 import { glob } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { Logger, RedisStore } from '@chatsift/backend-core';
 import { getContext, isModuleWithDefault } from '@chatsift/backend-core';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
@@ -19,9 +17,18 @@ function isComponentHandlerConstructor(input: unknown): input is ComponentHandle
 
 const components = new Map<string, ComponentHandler<any>>();
 
-export async function registerHandlers(): Promise<void> {
-	const path = join(dirname(fileURLToPath(import.meta.url)), '..', 'components');
-	const files = glob(`${path}/**/*.js`);
+export function registerComponentHandler(handler: ComponentHandler<any>): void {
+	components.set(handler.name, handler);
+	getContext().logger.info({ component: handler.name }, 'Registered component handler');
+}
+
+/**
+ * Globs `${componentsDir}/**\/*.js`, dynamically imports each module, and registers every valid default-exported
+ * `ComponentHandler` constructor. Callers pass their own service-local components directory, since this package
+ * has no `components/` of its own.
+ */
+export async function registerComponentHandlers(componentsDir: string): Promise<void> {
+	const files = glob(`${componentsDir}/**/*.js`);
 
 	for await (const file of files) {
 		const mod = await import(file);
@@ -30,9 +37,7 @@ export async function registerHandlers(): Promise<void> {
 			continue;
 		}
 
-		const handler = new mod.default();
-		components.set(handler.name, handler);
-		getContext().logger.info({ component: handler.name }, 'Registered component handler');
+		registerComponentHandler(new mod.default());
 	}
 }
 

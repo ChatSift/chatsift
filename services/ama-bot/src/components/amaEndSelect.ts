@@ -1,8 +1,8 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import type { ComponentHandler } from '@chatsift/bot-core';
 import type { AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction, APIMessageStringSelectInteractionData } from '@discordjs/core';
-import type { ComponentHandler } from '../lib/components.js';
 
 export default class AmaEndSelectComponent implements ComponentHandler {
 	public readonly name = 'ama-end-select';

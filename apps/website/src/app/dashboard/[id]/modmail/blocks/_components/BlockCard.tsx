@@ -19,7 +19,9 @@ export function BlockCard({ guildId, block }: BlockCardProps) {
 
 	const isUserObject = typeof user !== 'string';
 	const userId = isUserObject ? user.id : user;
-	const username = isUserObject ? `${user.username}${user.discriminator === '0' ? '' : `#${user.discriminator}`}` : userId;
+	const username = isUserObject
+		? `${user.username}${user.discriminator === '0' ? '' : `#${user.discriminator}`}`
+		: userId;
 	const globalName = isUserObject && user.global_name ? user.global_name : undefined;
 
 	const handleRemove = async () => {

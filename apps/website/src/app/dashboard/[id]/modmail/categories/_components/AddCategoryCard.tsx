@@ -29,7 +29,13 @@ const EMPTY_FORM: CategoryFormData = {
 	forumTagId: '',
 };
 
-const CATEGORY_FIELDS = ['name', 'emoji', 'description', 'greetingMessage', 'forumTagId'] as const satisfies (keyof CategoryFormData)[];
+const CATEGORY_FIELDS = [
+	'name',
+	'emoji',
+	'description',
+	'greetingMessage',
+	'forumTagId',
+] as const satisfies (keyof CategoryFormData)[];
 
 function mapCategoryIssues(issues: readonly { message: string; path: PropertyKey[] }[]): CategoryFormErrors {
 	const errors: CategoryFormErrors = {};
@@ -113,7 +119,10 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 	return (
 		<div className="flex w-full flex-col gap-3 rounded-lg border border-dashed border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<div>
-				<label className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark" htmlFor="category-name">
+				<label
+					className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+					htmlFor="category-name"
+				>
 					Name *
 				</label>
 				<input
@@ -172,12 +181,12 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 					value={form.greetingMessage}
 				/>
 				<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-						Falls back to the{' '}
-						<Link className="underline hover:text-misc-accent" href={`/dashboard/${guildId}/modmail/config`}>
-							guild default
-						</Link>{' '}
-						if unset.
-					</p>
+					Falls back to the{' '}
+					<Link className="underline hover:text-misc-accent" href={`/dashboard/${guildId}/modmail/config`}>
+						guild default
+					</Link>{' '}
+					if unset.
+				</p>
 				{errors.greetingMessage && <p className="mt-1 text-sm text-misc-danger">{errors.greetingMessage}</p>}
 			</div>
 

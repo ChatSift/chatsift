@@ -74,6 +74,15 @@ const edgeRuleset = merge(...edge, { files: [`apps/**/*${commonFiles}`] });
 
 const prettierRuleset = merge(...prettier, { files: [`**/*${commonFiles}`] });
 
+// vitest's `importOriginal<typeof import('mod')>()` idiom for partial-mocking a module needs an inline `import()`
+// type, which `consistent-type-imports` otherwise forbids.
+const testRuleset = {
+	files: [`**/__tests__/**/*${commonFiles}`, `**/*.test.${commonFiles}`],
+	rules: {
+		'@typescript-eslint/consistent-type-imports': 0,
+	},
+};
+
 export default tseslint.config(
 	{
 		ignores: [
@@ -100,5 +109,6 @@ export default tseslint.config(
 		files: ['**/*{js,mjs,cjs,jsx}'],
 		rules: { 'tsdoc/syntax': 0 },
 	},
+	testRuleset,
 	prettierRuleset,
 );

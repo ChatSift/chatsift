@@ -26,7 +26,9 @@ interface FormData {
 	title: string;
 }
 
-type FormErrors = Partial<Record<'buttonLabel' | 'categoryIds' | 'channelId' | 'description' | 'panelRaw' | 'title', string>>;
+type FormErrors = Partial<
+	Record<'buttonLabel' | 'categoryIds' | 'channelId' | 'description' | 'panelRaw' | 'title', string>
+>;
 
 const TOP_LEVEL_FIELDS = ['channelId', 'categoryIds'] as const;
 

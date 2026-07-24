@@ -123,11 +123,7 @@ export function PanelPreview(props: PanelPreviewProps) {
 						</div>
 					)}
 
-					<button
-						className="rounded bg-[#5865f2] px-4 py-1.5 text-sm font-medium text-white"
-						disabled
-						type="button"
-					>
+					<button className="rounded bg-[#5865f2] px-4 py-1.5 text-sm font-medium text-white" disabled type="button">
 						{buttonLabel}
 					</button>
 				</div>

@@ -1,31 +1,33 @@
 {
-	"name": "@chatsift/ama-bot",
-	"private": true,
-	"version": "1.0.0",
+	"$schema": "https://json.schemastore.org/package.json",
+	"name": "@chatsift/bot-core",
+	"version": "0.1.0",
+	"description": "Shared Discord gateway bot framework (command/component dispatch, client bootstrap)",
 	"type": "module",
+	"exports": {
+		".": "./dist/index.js"
+	},
+	"types": "./dist/index.d.ts",
 	"scripts": {
 		"build": "tsc",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"lint": "eslint src",
 		"lint:fix": "eslint src --fix",
-		"clean": "rimraf dist",
-		"tag-docker": "docker image tag chatsift/chatsift-next:latest chatsift/chatsift-next:ama"
+		"clean": "rimraf dist"
 	},
 	"devDependencies": {
+		"@chatsift/core": "workspace:^",
 		"@types/node": "^24.9.1",
+		"@vitest/coverage-v8": "^4.1.10",
 		"typescript": "~6.0.3",
 		"vitest": "^4.1.10"
 	},
 	"dependencies": {
 		"@chatsift/backend-core": "workspace:^",
-		"@chatsift/bot-core": "workspace:^",
-		"@chatsift/db": "workspace:^",
 		"@discordjs/builders": "2.0.0-dev.1783513686-6e81ea771",
 		"@discordjs/core": "3.0.0-dev.1783513686-6e81ea771",
 		"@discordjs/rest": "3.0.0-dev.1783513686-6e81ea771",
-		"@sapphire/discord-utilities": "^4.0.0",
-		"bin-rw": "^0.1.1",
-		"nanoid": "^6.0.0"
+		"@discordjs/ws": "3.0.0-dev.1783513686-6e81ea771"
 	}
 }

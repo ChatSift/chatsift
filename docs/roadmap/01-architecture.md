@@ -13,6 +13,7 @@ Yarn 4 (Berry) workspaces + Turborepo. ESM throughout.
 - `services/ama-bot` (`@chatsift/ama-bot`) — AMA gateway Discord bot (`@discordjs/core`/`ws`, Components V2).
 - `packages/private/core` (`@chatsift/core`) — framework-agnostic shared types/constants (DB entity types, `NewAccessTokenHeader`, permissions helpers).
 - `packages/private/backend-core` (`@chatsift/backend-core`) — backend runtime foundation: `getContext()`/`initContext()` (db, logger, redis, env), Redis-backed data stores.
+- `packages/private/bot-core` (`@chatsift/bot-core`) — shared Discord gateway bot framework (client bootstrap, command/component dispatch, the `/deploy` command); extracted from `services/ama-bot` (#217) so `services/modmail-bot` doesn't duplicate it. See §6 below.
 - `packages/public/*` — publishable utilities (`discord-utils`, `parse-relative-time`, `pino-rotate-file`).
 - `prisma/` — currently the Prisma schema + migrations (being replaced, see below).
 
@@ -167,7 +168,7 @@ Full comparison against alternatives (Drizzle, Prisma 7 TypedSQL, pgTyped) and t
 - **Frontend framework:** Next.js App Router, React 18/19, React Compiler.
 - **Frontend state/UI:** Jotai, Tailwind, react-aria-components, Radix.
 - **Auth scheme** (see below) — unchanged in mechanism, just re-typed onto the new contract pattern.
-- **`ama-bot` gateway/component architecture:** `@discordjs/core`/`ws`, the `ComponentHandler` glob-loader (`lib/components.ts`), the queue state machine shape (`lib/queues.ts`) — extended, not replaced (see §6 below).
+- **`ama-bot` gateway/component architecture:** `@discordjs/core`/`ws`, the `ComponentHandler` glob-loader, the queue state machine shape (`lib/queues.ts`) — extended, not replaced. The loader/client/dispatch primitives now live in `@chatsift/bot-core` (see §6 below).
 
 ## 4. Auth flow (unchanged mechanism, reference)
 
@@ -238,14 +239,22 @@ Reproduced from the old `prisma/schema.prisma` into the Atlas schema (`packages/
 - `AMAPromptData` — the posted prompt message for a session (`promptMessageId` unique, `promptJSONData` for reposting). 1:1 with `AMASession`.
 - `AMAQuestion` — a submitted question: `authorId`, `content`, `state` (`AMAQuestionState`: `PENDING_MOD_REVIEW | PENDING_GUEST_REVIEW | FLAGGED | APPROVED | DENIED`), per-queue message IDs.
 
-## 6. AMA bot subsystem (`services/ama-bot`)
+## 6. Bot framework (`@chatsift/bot-core`) + AMA bot subsystem (`services/ama-bot`)
 
-A gateway bot (`@discordjs/ws` `WebSocketManager` + `@discordjs/core` `Client`, `Guilds` intent), not an interactions-webhook bot. Landed across M1/M3; this is the standing shape as of M3's close (2026-07-19).
+A gateway bot (`@discordjs/ws` `WebSocketManager` + `@discordjs/core` `Client`, `Guilds` intent), not an interactions-webhook bot. Landed across M1/M3 as `services/ama-bot`'s own `lib/*`; extracted into the shared `packages/private/bot-core` package in #217 (2026-07-24) so `services/modmail-bot` (M5) can reuse it instead of duplicating it, with `ama-bot` migrated onto the extracted package as its first consumer. `ama-bot`'s runtime behavior is unchanged by the extraction — only where the code lives moved.
 
-- `lib/gateway.ts`, `lib/client.ts` — connection + guild-list tracking (writes guild IDs to Redis every 10s so the API knows which guilds the bot is in).
-- `lib/components.ts` — globs `components/**/*.js`, registers `ComponentHandler` classes (`{ name, stateStore, handle() }`); `custom_id` format is `name:stateId` with optional Redis-backed state.
-- `lib/commands.ts` — mirrors `lib/components.ts`'s loader (glob `commands/**/*.js`, register `{ name, data, handle, handleAutocomplete? }`); `index.ts` routes `ApplicationCommand`/`ApplicationCommandAutocomplete` interactions to it. Option parsing uses `@sapphire/discord-utilities`'s `ChatInputInteractionOptionResolver` / `ModalInteractionOptionResolver` / `ContextMenuInteractionOptionResolver` / `AutocompleteInteractionOptionResolver` (no in-repo resolver code).
-- `commands/deploy.ts` — admin-gated (`env.ADMINS`), bulk-overwrites **global** commands (`bulkOverwriteGlobalCommands`) from every registered handler's `data`. Deliberately global-only, no per-guild registration path — any new command handler is picked up automatically by the next `/deploy` run.
+**`@chatsift/bot-core`** (`packages/private/bot-core/src/lib/`) — bot-generic, parameterized by the caller:
+
+- `rest.ts`, `gateway.ts` — `createBotRest({ token })` / `createBotGateway({ token, intents, rest })` factories (shard-event logging included); no longer read a bot token off `getContext().env` internally, so every export in this package is safe to import statically regardless of `initContext()` ordering.
+- `commands.ts` — `CommandHandler` (`{ name, data, handle, handleAutocomplete? }`), `registerCommandHandler()` (direct registration) and `registerCommandHandlers(commandsDir)` (globs `${commandsDir}/**/*.js`, dynamically imports, registers), plus the `ApplicationCommand`/`ApplicationCommandAutocomplete` dispatch functions. Option parsing still uses `@sapphire/discord-utilities`'s resolvers (no in-repo resolver code).
+- `components.ts` — `ComponentHandler<State>` (`{ name, stateStore, handle() }`), `registerComponentHandler()`/`registerComponentHandlers(componentsDir)`, and `MessageComponent` dispatch; `custom_id` format is `name:stateId` with optional Redis-backed state via the handler's `stateStore`.
+- `collector.ts` — `collectModal(id, waitFor)`, a one-off modal-submit awaiter for the button→modal flows the dispatcher doesn't route (modals aren't dispatched through `components.ts`).
+- `deploy.ts` — the shared `/deploy` command (admin-gated via `env.ADMINS`, bulk-overwrites **global** commands from every registered handler's `data` — deliberately global-only, no per-guild registration). `createBotClient` registers it automatically, so no service discovers or wires it up itself.
+- `client.ts` — `createBotClient({ botId, gateway, rest })` builds the `@discordjs/core` `Client` and owns: interaction routing (dispatches to the three functions above with a per-interaction child logger), guild-set tracking with a periodic `GuildList.set(botId, ...)` Redis sync (`bot:<BotId>` key, so the API knows which guilds each bot is in), the fresh-app bootstrap that seeds `/deploy` as the only global command, and registering the shared `/deploy` command itself. Declares `ContextService.client` via `declare module '@chatsift/backend-core'`.
+
+**`services/ama-bot`** — everything AMA-specific, built on top of `@chatsift/bot-core`:
+
+- `bin.ts` — process entry: `initContext()`, then `createBotRest`/`createBotGateway`/`createBotClient` with `botId: 'AMA'` and `env.AMA_BOT_TOKEN`, `setServiceValue('client', ...)`, then registers its own `commands`/`components` dirs and connects.
 - `commands/ama.ts` — the `/ama` command set: `create` (ephemeral reply linking to the dashboard's create screen, grant-token-authed — see §4a above), `end` (ephemeral select menu of ongoing sessions, flips `ended` via a direct DB write), `repost-prompt` (select menu, replays the stored `AMAPromptData.promptJSONData` verbatim via the bot's own REST client — intentionally not the same client instance `services/api`'s `repostPrompt` route uses, see the file for why). `/ama stats` was deliberately not built (would've duplicated Cluster-4 query logic); still open if anyone wants to pick it up.
 - `lib/queues.ts` — the core domain logic:
   - `enum CurrentlyInQueue { mod, guest, answers }` + `getNextQueue()` — a state machine: **mod queue → (optional) guest queue → answers channel**, with an optional **flagged queue** side-branch (flagged is terminal — read-only surface for mods, nothing routes back out of it via the bot).

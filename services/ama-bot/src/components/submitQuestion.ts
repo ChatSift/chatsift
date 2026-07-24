@@ -1,5 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import type { ComponentHandler } from '@chatsift/bot-core';
+import { collectModal } from '@chatsift/bot-core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
 	APIModalSubmitInteraction,
@@ -9,8 +11,6 @@ import type {
 import { TextInputStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
-import { collectModal } from '../lib/collector.js';
-import type { ComponentHandler } from '../lib/components.js';
 import { CurrentlyInQueue, postToAnswersChannel, postToGuestQueue, postToModQueue } from '../lib/queues.js';
 
 export default class SubmitQuestionComponent implements ComponentHandler {
@@ -78,9 +78,10 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 			],
 		});
 
-		// `collectModal` resolves via its own listener in `lib/collector.ts`, bypassing the normal dispatch path
-		// in `client.ts` -- so the modal submission never gets its own per-interaction logger from there. Passing
-		// the button click's `logger` through keeps the whole click -> modal -> post flow under one `interactionId`,
+		// `collectModal` resolves via its own listener in `@chatsift/bot-core`'s `lib/collector.ts`, bypassing the
+		// normal dispatch path in `lib/client.ts` -- so the modal submission never gets its own per-interaction
+		// logger from there. Passing the button click's `logger` through keeps the whole click -> modal -> post
+		// flow under one `interactionId`,
 		// which traces better than trying to key on the modal submission's own (separate) interaction id anyway.
 		const modalInteraction = await collectModal(id, 5 * 60 * 1_000);
 		await this.handleModalCollected(modalInteraction as APIModalSubmitGuildInteraction, ama, logger);

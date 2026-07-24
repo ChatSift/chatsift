@@ -394,11 +394,11 @@ __metadata:
   resolution: "@chatsift/ama-bot@workspace:services/ama-bot"
   dependencies:
     "@chatsift/backend-core": "workspace:^"
+    "@chatsift/bot-core": "workspace:^"
     "@chatsift/db": "workspace:^"
     "@discordjs/builders": "npm:2.0.0-dev.1783513686-6e81ea771"
     "@discordjs/core": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
-    "@discordjs/ws": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@sapphire/discord-utilities": "npm:^4.0.0"
     "@types/node": "npm:^24.9.1"
     bin-rw: "npm:^0.1.1"
@@ -460,6 +460,23 @@ __metadata:
     typescript: "npm:~6.0.3"
     vitest: "npm:^4.1.10"
     zod: "npm:^4.4.3"
+  languageName: unknown
+  linkType: soft
+
+"@chatsift/bot-core@workspace:^, @chatsift/bot-core@workspace:packages/private/bot-core":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/bot-core@workspace:packages/private/bot-core"
+  dependencies:
+    "@chatsift/backend-core": "workspace:^"
+    "@chatsift/core": "workspace:^"
+    "@discordjs/builders": "npm:2.0.0-dev.1783513686-6e81ea771"
+    "@discordjs/core": "npm:3.0.0-dev.1783513686-6e81ea771"
+    "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
+    "@discordjs/ws": "npm:3.0.0-dev.1783513686-6e81ea771"
+    "@types/node": "npm:^24.9.1"
+    "@vitest/coverage-v8": "npm:^4.1.10"
+    typescript: "npm:~6.0.3"
+    vitest: "npm:^4.1.10"
   languageName: unknown
   linkType: soft
 

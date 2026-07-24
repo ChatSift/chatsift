@@ -259,7 +259,8 @@ export function useDeleteModmailBlock(guildId: string) {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: async (userId: string) => apiFetch('delete', `/v3/guilds/${guildId}/modmail/blocks`, { body: { userId } }),
+		mutationFn: async (userId: string) =>
+			apiFetch('delete', `/v3/guilds/${guildId}/modmail/blocks`, { body: { userId } }),
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.blocks(guildId) });
 		},

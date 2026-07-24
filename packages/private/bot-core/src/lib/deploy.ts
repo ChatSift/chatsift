@@ -3,9 +3,15 @@ import { getContext } from '@chatsift/backend-core';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction } from '@discordjs/core';
 import { ApplicationIntegrationType, InteractionContextType, MessageFlags } from '@discordjs/core';
-import type { CommandHandler } from '../lib/commands.js';
-import { getAllCommandsData } from '../lib/commands.js';
+import type { CommandHandler } from './commands.js';
+import { getAllCommandsData } from './commands.js';
 
+/**
+ * Shared by every bot — admin-gated (`env.ADMINS`), bulk-overwrites the **global** command set
+ * (`bulkOverwriteGlobalCommands`) from every command handler currently registered for the process, including
+ * itself (omitting it would delete `/deploy` on its own next run). `createBotClient` registers this
+ * automatically, so services never need to discover or wire it up themselves.
+ */
 export default class DeployCommand implements CommandHandler {
 	public readonly name = 'deploy';
 

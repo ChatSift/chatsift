@@ -94,7 +94,10 @@ export function AddSnippetCard({ guildId }: AddSnippetCardProps) {
 	return (
 		<div className="flex w-full flex-col gap-3 rounded-lg border border-dashed border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<div>
-				<label className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark" htmlFor="snippet-name">
+				<label
+					className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+					htmlFor="snippet-name"
+				>
 					Name *
 				</label>
 				<input
