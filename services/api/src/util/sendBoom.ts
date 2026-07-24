@@ -19,6 +19,14 @@ export function sendBoom(error: Boom, res: Response) {
 			...error.output.payload,
 			...treeifyError(error.data),
 		};
+	} else if (error.data && typeof error.data === 'object') {
+		// A plain object passed as a Boom's second constructor arg (e.g. `conflict(message, { conflictField })`)
+		// -- lets a route attach a machine-readable indicator alongside its human-readable message, so the
+		// frontend doesn't have to guess which form field an error applies to by pattern-matching the message text.
+		error.output.payload = {
+			...error.output.payload,
+			...error.data,
+		};
 	}
 
 	// Route handlers throw Boom messages in lowercase sentence-fragment style (e.g. "guild not found") to read

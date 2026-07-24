@@ -1,11 +1,12 @@
 'use client';
 
 import type { APIGuildForumTag } from 'discord-api-types/v10';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { SvgChevronDown } from '../icons/SvgChevronDown';
 import { Button } from './Button';
 import { Emoji } from './Emoji';
 import { ScrollArea } from './ScrollArea';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { cn } from '@/utils/util';
 
 /**
@@ -24,17 +25,17 @@ export function tagEmojiValue(tag: APIGuildForumTag): string | undefined {
 
 interface ForumTagSelectProps {
 	readonly error?: string | undefined;
+	readonly id: string;
 	readonly label: string;
 	onChange(tagId: string | undefined): void;
 	readonly placeholder?: string;
 	readonly required?: boolean;
-	readonly selectedId: string;
 	readonly tags: APIGuildForumTag[];
 	readonly value: string;
 }
 
 export function ForumTagSelect({
-	selectedId,
+	id,
 	label,
 	value,
 	onChange,
@@ -48,21 +49,7 @@ export function ForumTagSelect({
 
 	const selectedTag = tags.find((tag) => tag.id === value);
 
-	useEffect(() => {
-		const handleClickOutside = (event: MouseEvent) => {
-			if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
-				setIsOpen(false);
-			}
-		};
-
-		if (isOpen) {
-			document.addEventListener('mousedown', handleClickOutside);
-		}
-
-		return () => {
-			document.removeEventListener('mousedown', handleClickOutside);
-		};
-	}, [isOpen]);
+	useClickOutside(selectRef, isOpen, () => setIsOpen(false));
 
 	const handleSelect = (tagId: string | undefined) => {
 		onChange(tagId);
@@ -71,7 +58,7 @@ export function ForumTagSelect({
 
 	return (
 		<div>
-			<label className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2" htmlFor={selectedId}>
+			<label className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2" htmlFor={id}>
 				{label} {required && '*'}
 			</label>
 			<div className="relative" ref={selectRef}>
@@ -80,7 +67,7 @@ export function ForumTagSelect({
 						'text-base w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent text-left flex items-center justify-between',
 						error && 'border-misc-danger focus:ring-misc-danger',
 					)}
-					id={selectedId}
+					id={id}
 					onClick={() => setIsOpen(!isOpen)}
 					type="button"
 				>

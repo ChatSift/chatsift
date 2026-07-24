@@ -80,16 +80,18 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 		}
 
 		try {
-			await createCategory.mutateAsync(result.data as CreateModmailCategoryBody);
+			await createCategory.mutateAsync(result.data);
 			setForm(EMPTY_FORM);
 			setErrors({});
 		} catch (error) {
 			if (error instanceof APIError) {
 				if (error.statusCode === 409) {
-					// Boom conflicts come back as a plain message with no field path -- the API only ever throws two
-					// of these for this route (duplicate name, duplicate forum tag), so sniff the text to attribute
-					// it to the right field instead of always blaming the name.
-					setErrors({ [error.message.includes('forum tag') ? 'forumTagId' : 'name']: error.message });
+					// `conflictField` is a structured indicator the API attaches to this route's two possible
+					// conflicts (duplicate name, duplicate forum tag) -- see createCategory.ts/sendBoom.ts. Falls
+					// back to `name` only as defense-in-depth against a future conflict this route doesn't
+					// currently throw and hasn't set one for; it should never actually happen.
+					const field = error.conflictField === 'forumTagId' ? 'forumTagId' : 'name';
+					setErrors({ [field]: error.message });
 				} else if (error.statusCode === 400) {
 					setErrors(
 						Object.fromEntries(
@@ -182,9 +184,9 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 			{modForumConfigured ? (
 				<ForumTagSelect
 					error={errors.forumTagId}
+					id="category-forum-tag"
 					label="Forum Tag"
 					onChange={(value) => updateField('forumTagId', value ?? '')}
-					selectedId="category-forum-tag"
 					tags={forumTags ?? []}
 					value={form.forumTagId}
 				/>

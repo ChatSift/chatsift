@@ -33,7 +33,16 @@ export function CategoriesList() {
 	// sequential 0..n-1 `sortOrder` values and patches only the entries that actually changed -- always
 	// renumbering from scratch (rather than just swapping the two `sortOrder` values) keeps every category's
 	// `sortOrder` clean and gap-free even if older rows had arbitrary values from before this UI existed.
+	//
+	// Bails out if a reorder is already in flight -- every move button is also disabled while `isPending`
+	// (see below), but this guards the moment between a click and that disabled state actually applying. Without
+	// it, a second move fired before the first's refetch lands would build its patch from the same stale
+	// `categories` snapshot the first move started from, and its PATCH requests would race the first's.
 	const move = async (index: number, direction: -1 | 1) => {
+		if (reorderCategories.isPending) {
+			return;
+		}
+
 		const oldSortOrderById = new Map(categories!.map((category) => [category.id, category.sortOrder]));
 
 		const reordered = [...categories!];
@@ -52,8 +61,8 @@ export function CategoriesList() {
 			<AddCategoryCard guildId={guildId} />
 			{categories!.map((category, index) => (
 				<CategoryCard
-					canMoveDown={index < categories!.length - 1}
-					canMoveUp={index > 0}
+					canMoveDown={index < categories!.length - 1 && !reorderCategories.isPending}
+					canMoveUp={index > 0 && !reorderCategories.isPending}
 					category={category}
 					guildId={guildId}
 					key={category.id}

@@ -29,6 +29,14 @@ export function toZodErrorTree(source: {
 }
 
 export class APIError extends Error {
+	/**
+	 * Machine-readable field indicator a route can attach to a domain error (e.g. a 409 conflict) via
+	 * `conflict(message, { conflictField })` -- see `sendBoom.ts`. Lets the frontend attribute an error to the
+	 * right form field without pattern-matching `message` text, which silently breaks the moment the message
+	 * wording changes. `undefined` for any error that didn't set one.
+	 */
+	public readonly conflictField: string | undefined;
+
 	public readonly statusCode: number;
 
 	public readonly error: string;
@@ -39,12 +47,19 @@ export class APIError extends Error {
 	 */
 	public readonly validationErrors: ZodErrorTree | undefined;
 
-	public constructor(statusCode: number, error: string, message: string, validationErrors?: ZodErrorTree) {
+	public constructor(
+		statusCode: number,
+		error: string,
+		message: string,
+		validationErrors?: ZodErrorTree,
+		conflictField?: string,
+	) {
 		super(message);
 		this.name = 'APIError';
 		this.statusCode = statusCode;
 		this.error = error;
 		this.validationErrors = validationErrors;
+		this.conflictField = conflictField;
 	}
 
 	/**

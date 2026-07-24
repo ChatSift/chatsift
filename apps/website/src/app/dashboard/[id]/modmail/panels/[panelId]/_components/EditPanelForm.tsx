@@ -53,6 +53,18 @@ function isValidJSON(value: string): boolean {
 	}
 }
 
+// `panel.panelJsonData` is always written by our own `JSON.stringify` server-side, but pretty-printing it here
+// still shouldn't be allowed to crash the form on mount if a row ever ends up with something unexpected (a bad
+// migration, a direct DB edit, etc.) -- falls back to the raw stored string un-formatted so there's still
+// something editable in the raw-JSON textarea instead of a blank page.
+function prettyPrintOrRaw(value: string): string {
+	try {
+		return JSON.stringify(JSON.parse(value), null, 2);
+	} catch {
+		return value;
+	}
+}
+
 // Best-effort: a panel authored in "normal" mode stores exactly `{ embeds: [{ color, title, description }] }`, so
 // title/description round-trip cleanly into the normal-mode fields. A panel authored in raw mode (or edited raw
 // since) can be an arbitrary Discord message payload, so this only ever pre-fills what it can recognize -- it
@@ -92,7 +104,7 @@ export function EditPanelForm({ panel }: EditPanelFormProps) {
 	const [formData, setFormData] = useState<FormData>(() => ({
 		...bestEffortNormalFields(panel.panelJsonData),
 		buttonLabel: '',
-		panelRaw: JSON.stringify(JSON.parse(panel.panelJsonData), null, 2),
+		panelRaw: prettyPrintOrRaw(panel.panelJsonData),
 	}));
 	const [categoryIds, setCategoryIds] = useState<number[]>(panel.categoryIds);
 	const [errors, setErrors] = useState<FormErrors>({});

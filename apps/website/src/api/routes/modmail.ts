@@ -114,7 +114,10 @@ export function useReorderModmailCategories(guildId: string) {
 				),
 			);
 		},
-		async onSuccess() {
+		// `onSettled` (not `onSuccess`) -- a partial failure (some PATCHes landed before one rejected and aborted
+		// the rest) still needs a refetch, otherwise the list keeps showing the pre-reorder `sortOrder` values
+		// mixed with whichever ones happened to persist, silently diverging from the DB.
+		async onSettled() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.categories(guildId) });
 		},
 	});

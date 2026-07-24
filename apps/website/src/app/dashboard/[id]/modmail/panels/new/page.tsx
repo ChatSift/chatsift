@@ -1,7 +1,7 @@
 import { DashboardCrumbs } from '../../../../_components/DashboardCrumbs';
-import { RefreshServerDataButton } from '../../../ama/amas/new/_components/RefreshServerDataButton';
 import { CreatePanelForm } from './_components/CreatePanelForm';
 import { Heading } from '@/components/common/Heading';
+import { RefreshServerDataButton } from '@/components/common/RefreshServerDataButton';
 
 export default function NewModmailPanelPage() {
 	return (

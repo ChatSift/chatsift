@@ -14,9 +14,16 @@ export async function getModmailApplicationId(): Promise<string> {
 	}
 
 	pending ??= (async () => {
-		const application = await discordAPIModmail.applications.getCurrent();
-		modmailApplicationId = application.id;
-		return application.id;
+		try {
+			const application = await discordAPIModmail.applications.getCurrent();
+			modmailApplicationId = application.id;
+			return application.id;
+		} catch (error) {
+			// A transient failure (network blip, momentary Discord outage) shouldn't poison every future call for
+			// the rest of the process's lifetime -- clear the cached promise so the next call retries fresh.
+			pending = undefined;
+			throw error;
+		}
 	})();
 
 	return pending;

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from './Button';
 import { Emoji } from './Emoji';
 import { ScrollArea } from './ScrollArea';
 import type { GuildEmojiInfo } from '@/api/routes/guilds';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { cn } from '@/utils/util';
 
 interface EmojiInputProps {
@@ -34,21 +35,7 @@ export function EmojiInput({ id, label, value, onChange, emojis, error, placehol
 	const [isOpen, setIsOpen] = useState(false);
 	const pickerRef = useRef<HTMLDivElement>(null);
 
-	useEffect(() => {
-		const handleClickOutside = (event: MouseEvent) => {
-			if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
-				setIsOpen(false);
-			}
-		};
-
-		if (isOpen) {
-			document.addEventListener('mousedown', handleClickOutside);
-		}
-
-		return () => {
-			document.removeEventListener('mousedown', handleClickOutside);
-		};
-	}, [isOpen]);
+	useClickOutside(pickerRef, isOpen, () => setIsOpen(false));
 
 	const selectedCustomEmoji = emojis.find((emoji) => emojiShorthand(emoji) === value);
 

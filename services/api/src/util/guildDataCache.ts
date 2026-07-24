@@ -25,12 +25,22 @@ export interface CachedGuildFetcher<TResult> {
  *  - a forced refresh that now 403/404s drops any stale cache entry instead of leaving it to answer reads until
  *    TTL expiry.
  */
+interface InflightEntry<TResult> {
+	// A mutable box (not a plain boolean captured at promise-creation time) so a forced caller that coalesces onto
+	// an already-running non-forced fetch can still flip the *shared* fetch's behavior -- read at resolution time
+	// in `fetchAndCache`, not passed by value up front. Without this, a force-refresh landing while an unrelated
+	// non-forced fetch for the same key is already in flight would silently share that fetch's result and never
+	// get its 403/404-clears-cache treatment, even though the caller explicitly asked for a forced refresh.
+	readonly forceBox: { current: boolean };
+	readonly promise: Promise<TResult | null>;
+}
+
 export function createCachedGuildFetcher<TResult>(
 	fetchRaw: (guildId: string, api: API) => Promise<TResult>,
 ): CachedGuildFetcher<TResult> {
 	const cacheByApi = new Map<API, Map<Snowflake, TResult>>();
 	const timeoutsByApi = new Map<API, Map<Snowflake, NodeJS.Timeout>>();
-	const inflightByApi = new Map<API, Map<Snowflake, Promise<TResult | null>>>();
+	const inflightByApi = new Map<API, Map<Snowflake, InflightEntry<TResult>>>();
 	const CACHE_TTL = 5 * 60 * 1_000; // 5 minutes
 
 	function getMapFor<TValue>(store: Map<API, Map<Snowflake, TValue>>, api: API): Map<Snowflake, TValue> {
@@ -46,7 +56,7 @@ export function createCachedGuildFetcher<TResult>(
 	async function fetchAndCache(
 		guildId: string,
 		api: API,
-		force: boolean,
+		forceBox: { current: boolean },
 		cache: Map<Snowflake, TResult>,
 		timeouts: Map<Snowflake, NodeJS.Timeout>,
 	): Promise<TResult | null> {
@@ -59,7 +69,7 @@ export function createCachedGuildFetcher<TResult>(
 		});
 
 		if (result === null) {
-			if (force) {
+			if (forceBox.current) {
 				cache.delete(guildId);
 				const timeout = timeouts.get(guildId);
 				if (timeout) {
@@ -100,18 +110,23 @@ export function createCachedGuildFetcher<TResult>(
 
 			const existing = inflight.get(guildId);
 			if (existing) {
-				return existing;
+				if (force) {
+					existing.forceBox.current = true;
+				}
+
+				return existing.promise;
 			}
 
+			const forceBox = { current: force };
 			const promise = (async () => {
 				try {
-					return await fetchAndCache(guildId, api, force, cache, timeouts);
+					return await fetchAndCache(guildId, api, forceBox, cache, timeouts);
 				} finally {
 					inflight.delete(guildId);
 				}
 			})();
 
-			inflight.set(guildId, promise);
+			inflight.set(guildId, { forceBox, promise });
 			return promise;
 		},
 		clearCache() {

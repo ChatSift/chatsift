@@ -40,6 +40,9 @@ function buildURL(path: string, query?: FetchOptions['query']): string {
 async function parseError(response: Response): Promise<APIError> {
 	try {
 		const data = (await response.json()) as {
+			// Present only on a domain error that opted into it via `conflict(message, { conflictField })` -- see
+			// `sendBoom.ts`.
+			conflictField?: string;
 			error: string;
 			// Present (via `sendBoom`'s `treeifyError` spread) only on a zod-validation 400 — all three keys are
 			// only ever present together, spread directly from `treeifyError()`'s root node.
@@ -53,7 +56,7 @@ async function parseError(response: Response): Promise<APIError> {
 		const hasValidationErrors = data.errors !== undefined || data.properties !== undefined || data.items !== undefined;
 		const validationErrors = hasValidationErrors ? toZodErrorTree(data) : undefined;
 
-		return new APIError(data.statusCode, data.error, data.message, validationErrors);
+		return new APIError(data.statusCode, data.error, data.message, validationErrors, data.conflictField);
 	} catch (error) {
 		console.error('failed to parse error response', {
 			status: response.status,

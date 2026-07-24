@@ -3,14 +3,17 @@ import { createCachedGuildFetcher } from './guildDataCache.js';
 
 export interface GuildEmojiInfo {
 	animated: boolean;
-	id: string | null;
-	name: string | null;
+	id: string;
+	name: string;
 }
 
 async function fetchGuildEmojisRaw(guildId: string, api: API): Promise<GuildEmojiInfo[]> {
 	const emojisRaw = await api.guilds.getEmojis(guildId);
 
-	return emojisRaw.map(({ id, name, animated }) => ({ id, name, animated: animated ?? false }));
+	// `id`/`name` are typed nullable on discord-api-types' shared `APIPartialEmoji` base only for the
+	// reaction-emoji case (a unicode emoji reaction) -- a guild's own custom emoji list from this endpoint always
+	// has both populated.
+	return emojisRaw.map(({ id, name, animated }) => ({ id: id!, name: name!, animated: animated ?? false }));
 }
 
 const emojisFetcher = createCachedGuildFetcher(fetchGuildEmojisRaw);

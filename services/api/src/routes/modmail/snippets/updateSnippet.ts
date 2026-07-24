@@ -41,47 +41,56 @@ export default defineRoute({
 		const { guildId, snippetId } = req.params;
 		const db = getContext().db;
 
+		const [existing] = await db<Snippets[]>`
+			SELECT * FROM snippets WHERE id = ${snippetId} AND guild_id = ${guildId}
+		`;
+
+		if (!existing) {
+			throw notFound('snippet not found');
+		}
+
+		// Renamed here, outside the DB transaction/lock below -- holding a row lock (and a pooled connection) for
+		// the duration of an external Discord HTTP call risks starving the connection pool if Discord is slow or
+		// degraded, turning a Discord-side problem into a wider outage. The tradeoff: two concurrent renames of
+		// the same snippet are no longer serialized against each other, but that's the same self-healing
+		// reconciliation risk already accepted below for "the DB write fails after Discord already renamed" --
+		// the next successful edit brings the two back in sync either way.
+		if (data.name !== undefined && data.name !== existing.name) {
+			const applicationId = await getModmailApplicationId();
+
+			try {
+				await discordAPIModmail.applicationCommands.editGuildCommand(applicationId, guildId, existing.commandId, {
+					name: data.name,
+				});
+			} catch (error) {
+				if (error instanceof DiscordAPIError && error.status === 400) {
+					throw badData('not a valid Discord command name');
+				}
+
+				throw error;
+			}
+		}
+
 		try {
 			return await db.begin(async (sql) => {
-				const [existing] = await sql<Snippets[]>`
+				const [current] = await sql<Snippets[]>`
 					SELECT * FROM snippets WHERE id = ${snippetId} AND guild_id = ${guildId} FOR UPDATE
 				`;
 
-				if (!existing) {
+				if (!current) {
 					throw notFound('snippet not found');
 				}
 
-				// The row lock above holds for the rest of this transaction, so nothing else can rename this
-				// snippet's command concurrently -- renaming it here, before the DB write, keeps the two in sync
-				// on the success path (the only remaining risk is an unrelated failure rolling back the DB write
-				// after Discord already renamed the command, which is an accepted, self-healing edge case: the
-				// next successful edit brings them back in sync).
-				if (data.name !== undefined && data.name !== existing.name) {
-					const applicationId = await getModmailApplicationId();
-
-					try {
-						await discordAPIModmail.applicationCommands.editGuildCommand(applicationId, guildId, existing.commandId, {
-							name: data.name,
-						});
-					} catch (error) {
-						if (error instanceof DiscordAPIError && error.status === 400) {
-							throw badData('not a valid Discord command name');
-						}
-
-						throw error;
-					}
-				}
-
-				if (data.content !== undefined && data.content !== existing.content) {
+				if (data.content !== undefined && data.content !== current.content) {
 					await sql`
 						INSERT INTO snippet_updates (snippet_id, updated_by, old_content)
-						VALUES (${snippetId}, ${req.tokens!.access.sub}, ${existing.content})
+						VALUES (${snippetId}, ${req.tokens!.access.sub}, ${current.content})
 					`;
 				}
 
 				const [updated] = await sql<Snippets[]>`
 					UPDATE snippets
-					SET name = ${data.name ?? existing.name}, content = ${data.content ?? existing.content}, last_updated_at = now()
+					SET name = ${data.name ?? current.name}, content = ${data.content ?? current.content}, last_updated_at = now()
 					WHERE id = ${snippetId}
 					RETURNING *
 				`;

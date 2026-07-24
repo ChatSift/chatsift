@@ -36,7 +36,8 @@ export default defineRoute({
 		// Always resolved via the ModMail bot's own token directly (not `roundRobinAPI`) -- a block is a
 		// ModMail-specific concept, so there's no "which installed bot should answer this" ambiguity the way
 		// there is for guild-wide grants. `users.get` is a global user lookup, not a guild-member lookup, so
-		// this still works even for a guild the ModMail bot was since kicked from.
+		// this still works even for a guild the ModMail bot was since kicked from. Rate limiting across these
+		// concurrent calls is handled internally by the REST client, so no manual concurrency cap is needed here.
 		return Promise.all(
 			rows.map(async ({ userId, expiresAt }): Promise<ModmailBlockWithUser> => {
 				try {
