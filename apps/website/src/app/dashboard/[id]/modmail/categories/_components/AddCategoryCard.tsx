@@ -1,13 +1,15 @@
 'use client';
 
 import { createCategoryBodySchema } from '@chatsift/api/modmail-schemas';
+import Link from 'next/link';
 import { useState } from 'react';
-import { SnowflakeInput } from '../../../ama/amas/new/_components/SnowflakeInput';
 import { APIError } from '@/api/error';
+import { useGuildInfo } from '@/api/routes/guilds';
 import type { CreateModmailCategoryBody } from '@/api/routes/modmail';
-import { useCreateModmailCategory } from '@/api/routes/modmail';
+import { useCreateModmailCategory, useModForumTags, useModmailCategories } from '@/api/routes/modmail';
 import { Button } from '@/components/common/Button';
-import { parseIntegerInput } from '@/utils/util';
+import { EmojiInput } from '@/components/common/EmojiInput';
+import { ForumTagSelect } from '@/components/common/ForumTagSelect';
 
 interface CategoryFormData {
 	description: string;
@@ -15,7 +17,6 @@ interface CategoryFormData {
 	forumTagId: string;
 	greetingMessage: string;
 	name: string;
-	sortOrder: string;
 }
 
 type CategoryFormErrors = Partial<Record<keyof CategoryFormData, string>>;
@@ -26,17 +27,9 @@ const EMPTY_FORM: CategoryFormData = {
 	description: '',
 	greetingMessage: '',
 	forumTagId: '',
-	sortOrder: '0',
 };
 
-const CATEGORY_FIELDS = [
-	'name',
-	'emoji',
-	'description',
-	'greetingMessage',
-	'forumTagId',
-	'sortOrder',
-] as const satisfies (keyof CategoryFormData)[];
+const CATEGORY_FIELDS = ['name', 'emoji', 'description', 'greetingMessage', 'forumTagId'] as const satisfies (keyof CategoryFormData)[];
 
 function mapCategoryIssues(issues: readonly { message: string; path: PropertyKey[] }[]): CategoryFormErrors {
 	const errors: CategoryFormErrors = {};
@@ -59,6 +52,9 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 	const [form, setForm] = useState<CategoryFormData>(EMPTY_FORM);
 	const [errors, setErrors] = useState<CategoryFormErrors>({});
 	const createCategory = useCreateModmailCategory(guildId);
+	const { data: categories } = useModmailCategories(guildId);
+	const { data: guildInfo } = useGuildInfo(guildId, 'MODMAIL');
+	const { tags: forumTags, modForumConfigured } = useModForumTags(guildId);
 
 	const updateField = (field: keyof CategoryFormData, value: string) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
@@ -72,7 +68,9 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 			description: form.description.trim() || null,
 			greetingMessage: form.greetingMessage.trim() || null,
 			forumTagId: form.forumTagId.trim() || null,
-			sortOrder: parseIntegerInput(form.sortOrder),
+			// New categories always append at the end -- reordering afterwards happens via the move up/down
+			// controls on each card, not by hand-picking a number here.
+			sortOrder: categories?.length ?? 0,
 		};
 
 		const result = createCategoryBodySchema.safeParse(data);
@@ -88,7 +86,10 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 		} catch (error) {
 			if (error instanceof APIError) {
 				if (error.statusCode === 409) {
-					setErrors({ name: error.message });
+					// Boom conflicts come back as a plain message with no field path -- the API only ever throws two
+					// of these for this route (duplicate name, duplicate forum tag), so sniff the text to attribute
+					// it to the right field instead of always blaming the name.
+					setErrors({ [error.message.includes('forum tag') ? 'forumTagId' : 'name']: error.message });
 				} else if (error.statusCode === 400) {
 					setErrors(
 						Object.fromEntries(
@@ -111,7 +112,7 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 		<div className="flex w-full flex-col gap-3 rounded-lg border border-dashed border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<div>
 				<label className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark" htmlFor="category-name">
-					Name
+					Name *
 				</label>
 				<input
 					className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
@@ -125,21 +126,15 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 				{errors.name && <p className="mt-1 text-sm text-misc-danger">{errors.name}</p>}
 			</div>
 
-			<div>
-				<label className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark" htmlFor="category-emoji">
-					Emoji
-				</label>
-				<input
-					className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
-					id="category-emoji"
-					maxLength={64}
-					onChange={(e) => updateField('emoji', e.target.value)}
-					placeholder="🚩"
-					type="text"
-					value={form.emoji}
-				/>
-				{errors.emoji && <p className="mt-1 text-sm text-misc-danger">{errors.emoji}</p>}
-			</div>
+			<EmojiInput
+				emojis={guildInfo?.emojis ?? []}
+				error={errors.emoji}
+				id="category-emoji"
+				label="Emoji"
+				onChange={(value) => updateField('emoji', value)}
+				placeholder="🚩"
+				value={form.emoji}
+			/>
 
 			<div>
 				<label
@@ -174,36 +169,30 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 					rows={2}
 					value={form.greetingMessage}
 				/>
-				<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">Falls back to the guild default if unset.</p>
+				<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						Falls back to the{' '}
+						<Link className="underline hover:text-misc-accent" href={`/dashboard/${guildId}/modmail/config`}>
+							guild default
+						</Link>{' '}
+						if unset.
+					</p>
 				{errors.greetingMessage && <p className="mt-1 text-sm text-misc-danger">{errors.greetingMessage}</p>}
 			</div>
 
-			<SnowflakeInput
-				error={errors.forumTagId}
-				id="category-forum-tag"
-				label="Forum Tag ID"
-				onChange={(value) => updateField('forumTagId', value)}
-				placeholder="Optional"
-				value={form.forumTagId}
-			/>
-
-			<div>
-				<label
-					className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-					htmlFor="category-sort-order"
-				>
-					Sort Order
-				</label>
-				<input
-					className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
-					id="category-sort-order"
-					min={0}
-					onChange={(e) => updateField('sortOrder', e.target.value)}
-					type="number"
-					value={form.sortOrder}
+			{modForumConfigured ? (
+				<ForumTagSelect
+					error={errors.forumTagId}
+					label="Forum Tag"
+					onChange={(value) => updateField('forumTagId', value ?? '')}
+					selectedId="category-forum-tag"
+					tags={forumTags ?? []}
+					value={form.forumTagId}
 				/>
-				{errors.sortOrder && <p className="mt-1 text-sm text-misc-danger">{errors.sortOrder}</p>}
-			</div>
+			) : (
+				<p className="text-sm text-secondary dark:text-secondary-dark">
+					No Mod Forum configured — set one on the Config page to route this category to a forum tag.
+				</p>
+			)}
 
 			<div className="mt-auto flex justify-end">
 				<Button isDisabled={!form.name.trim()} onPress={handleSubmit}>

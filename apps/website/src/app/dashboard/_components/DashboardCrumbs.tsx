@@ -20,6 +20,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 	modmail: 'ModMail Bot',
 	config: 'Config',
 	categories: 'Categories',
+	panels: 'Panels',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {

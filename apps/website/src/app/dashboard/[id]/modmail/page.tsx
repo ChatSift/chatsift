@@ -14,6 +14,11 @@ const SECTIONS = [
 		title: 'Categories',
 		subtitle: 'Categories users pick when opening a ticket',
 	},
+	{
+		segment: 'panels',
+		title: 'Panels',
+		subtitle: 'Ticket-creation panels posted in your server',
+	},
 ] as const;
 
 export default async function ModmailPage({ params }: PageProps<'/dashboard/[id]/modmail'>) {

@@ -1,14 +1,18 @@
 import type {
 	InferRouteContract,
 	createModmailCategoryRoute,
+	createModmailPanelRoute,
 	getModmailConfigRoute,
 	listModmailCategoriesRoute,
+	listModmailPanelsRoute,
 	updateModmailCategoryRoute,
 	updateModmailConfigRoute,
+	updateModmailPanelRoute,
 } from '@chatsift/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
+import { useGuildInfo } from './guilds';
 
 type GetModmailConfigContract = InferRouteContract<typeof getModmailConfigRoute>;
 export type ModmailConfig = GetModmailConfigContract['response'];
@@ -83,6 +87,102 @@ export function useDeleteModmailCategory(guildId: string) {
 			apiFetch('delete', `/v3/guilds/${guildId}/modmail/categories/${categoryId}`),
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.categories(guildId) });
+		},
+	});
+}
+
+/**
+ * Bulk `sortOrder` patch used by the categories list's move-up/move-down controls -- `CategoriesList` recomputes
+ * every category's sequential position after a move (see there for why) and hands the ones that actually changed
+ * here, rather than the per-category `useUpdateModmailCategory` hook (awkward to instantiate for an id decided
+ * only at click-time, and this needs to update more than one category at once anyway).
+ */
+export function useReorderModmailCategories(guildId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (updates: { categoryId: number; sortOrder: number }[]) => {
+			await Promise.all(
+				updates.map(async ({ categoryId, sortOrder }) =>
+					apiFetch<ModmailCategory>('patch', `/v3/guilds/${guildId}/modmail/categories/${categoryId}`, {
+						body: { sortOrder },
+					}),
+				),
+			);
+		},
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.categories(guildId) });
+		},
+	});
+}
+
+/**
+ * Resolves the mod forum's configured tags (Discord `available_tags`) for the category form's forum-tag picker.
+ * `undefined` `tags` (as opposed to `[]`) specifically means "no mod forum configured yet" vs. "configured, but
+ * has no tags" -- the picker renders different guidance for each.
+ */
+export function useModForumTags(guildId: string) {
+	const { data: config, isLoading: isConfigLoading } = useModmailConfig(guildId);
+	const { data: guildInfo, isLoading: isGuildInfoLoading } = useGuildInfo(guildId, 'MODMAIL');
+
+	const modForumChannel = config?.modForumId
+		? guildInfo?.channels.find((channel) => channel.id === config.modForumId)
+		: undefined;
+
+	return {
+		isLoading: isConfigLoading || isGuildInfoLoading,
+		modForumConfigured: Boolean(config?.modForumId),
+		tags: modForumChannel?.availableTags,
+	};
+}
+
+type ListModmailPanelsContract = InferRouteContract<typeof listModmailPanelsRoute>;
+export type ModmailPanel = ListModmailPanelsContract['response'][number];
+
+type CreateModmailPanelContract = InferRouteContract<typeof createModmailPanelRoute>;
+export type CreateModmailPanelBody = CreateModmailPanelContract['body'];
+
+type UpdateModmailPanelContract = InferRouteContract<typeof updateModmailPanelRoute>;
+export type UpdateModmailPanelBody = UpdateModmailPanelContract['body'];
+
+export function useModmailPanels(guildId: string) {
+	return useQuery({
+		queryKey: queryKeys.modmail.panels(guildId),
+		queryFn: async () => apiFetch<ModmailPanel[]>('get', `/v3/guilds/${guildId}/modmail/panels`),
+	});
+}
+
+export function useCreateModmailPanel(guildId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (body: CreateModmailPanelBody) =>
+			apiFetch<ModmailPanel>('post', `/v3/guilds/${guildId}/modmail/panels`, { body }),
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.panels(guildId) });
+		},
+	});
+}
+
+export function useUpdateModmailPanel(guildId: string, panelId: number) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (body: UpdateModmailPanelBody) =>
+			apiFetch<ModmailPanel>('patch', `/v3/guilds/${guildId}/modmail/panels/${panelId}`, { body }),
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.panels(guildId) });
+		},
+	});
+}
+
+export function useDeleteModmailPanel(guildId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (panelId: number) => apiFetch('delete', `/v3/guilds/${guildId}/modmail/panels/${panelId}`),
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.panels(guildId) });
 		},
 	});
 }
