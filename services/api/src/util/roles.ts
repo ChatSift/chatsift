@@ -12,6 +12,12 @@ export type GuildRoleInfo = Pick<APIRole, 'color' | 'id' | 'managed' | 'name' | 
 // guildId-keyed cache across clients would let one bot's fetch answer for another's.
 const CACHE = new Map<API, Map<Snowflake, GuildRoleInfo[]>>();
 const CACHE_TIMEOUTS = new Map<API, Map<Snowflake, NodeJS.Timeout>>();
+// Tracks the one fetch currently in flight for a given (api, guildId), so overlapping calls (e.g. a forced
+// refresh landing while an earlier fetch for the same key hasn't resolved yet) share its result instead of
+// racing their own cache mutations against each other -- whichever call resolves "last" would otherwise be able
+// to clobber a newer write (a late forced-403 delete stomping a fresher success) or resurrect stale data (an old
+// success completing after a forced invalidation). Mirrors `channels.ts`.
+const INFLIGHT = new Map<API, Map<Snowflake, Promise<GuildRoleInfo[] | null>>>();
 const CACHE_TTL = 5 * 60 * 1_000; // 5 minutes
 
 export function clearCache() {
@@ -25,34 +31,23 @@ export function clearCache() {
 	CACHE_TIMEOUTS.clear();
 }
 
-function getCacheFor(api: API): Map<Snowflake, GuildRoleInfo[]> {
-	let cache = CACHE.get(api);
-	if (!cache) {
-		cache = new Map();
-		CACHE.set(api, cache);
+function getMapFor<TValue>(store: Map<API, Map<Snowflake, TValue>>, api: API): Map<Snowflake, TValue> {
+	let map = store.get(api);
+	if (!map) {
+		map = new Map();
+		store.set(api, map);
 	}
 
-	return cache;
+	return map;
 }
 
-function getTimeoutsFor(api: API): Map<Snowflake, NodeJS.Timeout> {
-	let timeouts = CACHE_TIMEOUTS.get(api);
-	if (!timeouts) {
-		timeouts = new Map();
-		CACHE_TIMEOUTS.set(api, timeouts);
-	}
-
-	return timeouts;
-}
-
-export async function fetchGuildRoles(guildId: string, api: API, force = false): Promise<GuildRoleInfo[] | null> {
-	const cache = getCacheFor(api);
-	const timeouts = getTimeoutsFor(api);
-
-	if (cache.has(guildId) && !force) {
-		return cache.get(guildId)!;
-	}
-
+async function fetchAndCacheGuildRoles(
+	guildId: string,
+	api: API,
+	force: boolean,
+	cache: Map<Snowflake, GuildRoleInfo[]>,
+	timeouts: Map<Snowflake, NodeJS.Timeout>,
+): Promise<GuildRoleInfo[] | null> {
 	const rolesRaw = await api.guilds.getRoles(guildId).catch((error) => {
 		if (error instanceof DiscordAPIError && (error.status === 403 || error.status === 404)) {
 			return null;
@@ -96,6 +91,33 @@ export async function fetchGuildRoles(guildId: string, api: API, force = false):
 	}
 
 	return roles;
+}
+
+export async function fetchGuildRoles(guildId: string, api: API, force = false): Promise<GuildRoleInfo[] | null> {
+	const cache = getMapFor(CACHE, api);
+	const timeouts = getMapFor(CACHE_TIMEOUTS, api);
+
+	if (cache.has(guildId) && !force) {
+		return cache.get(guildId)!;
+	}
+
+	const inflight = getMapFor(INFLIGHT, api);
+
+	const existing = inflight.get(guildId);
+	if (existing) {
+		return existing;
+	}
+
+	const promise = (async () => {
+		try {
+			return await fetchAndCacheGuildRoles(guildId, api, force, cache, timeouts);
+		} finally {
+			inflight.delete(guildId);
+		}
+	})();
+
+	inflight.set(guildId, promise);
+	return promise;
 }
 
 /**
