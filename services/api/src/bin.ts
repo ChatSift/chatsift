@@ -1,6 +1,8 @@
-import { createDatabase, createLogger, createRedis, initContext } from '@chatsift/backend-core';
+import { createDatabase, createLogger, createRedis, initContext, registerFatalErrorHandlers } from '@chatsift/backend-core';
 
 const logger = createLogger('api');
+registerFatalErrorHandlers(logger);
+
 const db = createDatabase();
 const redis = await createRedis(logger);
 initContext({ db, logger, redis });
