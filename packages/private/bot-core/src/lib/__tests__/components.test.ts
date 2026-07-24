@@ -94,6 +94,9 @@ describe('registerComponentHandlers', () => {
 		await registerComponentHandlers(fixturesDir);
 
 		const { calls } = await import('./fixtures/validComponent.js');
+		// The module (and its `calls` array) is cached across the whole test run, not reset per-test -- clear it
+		// so this assertion holds regardless of whether a prior run already dispatched to this fixture.
+		calls.length = 0;
 
 		const interaction = makeInteraction('fixture-valid-component:some-state');
 		await handleComponentInteraction(interaction, logger);
