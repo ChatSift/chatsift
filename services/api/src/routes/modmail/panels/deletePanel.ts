@@ -41,8 +41,10 @@ export default defineRoute({
 
 		// Best-effort: the DB row is the source of truth, so a stale/already-deleted Discord message here isn't an
 		// error worth surfacing -- mirrors the cleanup pattern in createPanel/createAMA.
-		// eslint-disable-next-line promise/prefer-await-to-then
-		void discordAPIModmail.channels.deleteMessage(deleted.channelId, deleted.messageId).catch(() => null);
+		// eslint-disable-next-line promise/prefer-await-to-then, promise/prefer-await-to-callbacks
+		void discordAPIModmail.channels.deleteMessage(deleted.channelId, deleted.messageId).catch((error: unknown) =>
+			req.logger.warn({ err: error }, 'failed to delete ticket panel message on Discord'),
+		);
 
 		res.statusCode = 200;
 		res.end();

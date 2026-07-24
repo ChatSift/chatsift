@@ -17,18 +17,27 @@ export const updateConfigBodySchema = z
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
-const categoryBase = z.strictObject({
+// Plain field shape (not a schema) rather than one `categoryBase` object reused via `.partial()` --
+// zod v4 keeps a `.default()` live through `.partial()` (a field wrapped `optional(default(...))`
+// still substitutes the default when omitted, it doesn't just become `undefined`), which would make
+// every category PATCH that omits `sortOrder` silently reset it to `0`. Defining the default only on
+// the create variant avoids that.
+const categoryFields = {
 	name: z.string().min(1).max(100),
 	emoji: z.string().max(64).nullable().optional(),
 	description: z.string().max(500).nullable().optional(),
 	greetingMessage: z.string().max(2_000).nullable().optional(),
 	forumTagId: snowflakeSchema.nullable().optional(),
-	sortOrder: z.number().int().min(0).default(0),
+	sortOrder: z.number().int().min(0),
+};
+
+export const createCategoryBodySchema = z.strictObject({
+	...categoryFields,
+	sortOrder: categoryFields.sortOrder.default(0),
 });
 
-export const createCategoryBodySchema = categoryBase;
-
-export const updateCategoryBodySchema = categoryBase
+export const updateCategoryBodySchema = z
+	.strictObject(categoryFields)
 	.partial()
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
