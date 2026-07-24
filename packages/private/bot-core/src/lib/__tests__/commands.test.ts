@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import type { APIApplicationCommandAutocompleteInteraction, APIApplicationCommandInteraction } from '@discordjs/core';
+import { MessageFlags } from '@discordjs/core';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { stubBackendCoreEnv } from './testEnv.js';
 
@@ -48,7 +49,11 @@ function makeCommandInteraction(name: string): APIApplicationCommandInteraction 
 }
 
 function makeAutocompleteInteraction(name: string): APIApplicationCommandAutocompleteInteraction {
-	return { id: 'interaction-1', token: 'tok', data: { name } } as unknown as APIApplicationCommandAutocompleteInteraction;
+	return {
+		id: 'interaction-1',
+		token: 'tok',
+		data: { name },
+	} as unknown as APIApplicationCommandAutocompleteInteraction;
 }
 
 describe('registerCommandHandler / getCommandHandler / getAllCommandsData', () => {
@@ -94,7 +99,7 @@ describe('handleCommandInteraction', () => {
 		expect(fakeReply).toHaveBeenCalledWith(
 			interaction.id,
 			interaction.token,
-			expect.objectContaining({ content: expect.any(String) }),
+			expect.objectContaining({ content: expect.any(String), flags: MessageFlags.Ephemeral }),
 		);
 		expect(fakeLogger.warn).toHaveBeenCalled();
 	});

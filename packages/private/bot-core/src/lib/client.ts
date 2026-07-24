@@ -95,7 +95,11 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 		});
 
 	setInterval(async () => {
-		void GuildList.set(botId, { guilds: [...guildIds] });
+		try {
+			await GuildList.set(botId, { guilds: [...guildIds] });
+		} catch (error) {
+			getContext().logger.error({ err: error }, 'Failed to sync guild list to Redis');
+		}
 	}, 10_000).unref();
 
 	return client;

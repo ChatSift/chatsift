@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import type { APIApplicationCommandInteraction } from '@discordjs/core';
+import { MessageFlags } from '@discordjs/core';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { stubBackendCoreEnv } from './testEnv.js';
 
@@ -67,7 +68,7 @@ describe('DeployCommand', () => {
 		expect(fakeReply).toHaveBeenCalledWith(
 			'interaction-1',
 			'tok',
-			expect.objectContaining({ content: expect.stringContaining('not authorized') }),
+			expect.objectContaining({ content: expect.stringContaining('not authorized'), flags: MessageFlags.Ephemeral }),
 		);
 		expect(fakeBulkOverwrite).not.toHaveBeenCalled();
 	});

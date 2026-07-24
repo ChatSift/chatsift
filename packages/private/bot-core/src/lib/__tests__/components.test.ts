@@ -1,7 +1,11 @@
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { stubBackendCoreEnv } from './testEnv.js';
+
+const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 
 const { fakeLogger } = vi.hoisted(() => ({
 	fakeLogger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -17,7 +21,8 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 	};
 });
 
-const { handleComponentInteraction, registerComponentHandler } = await import('../components.js');
+const { handleComponentInteraction, registerComponentHandler, registerComponentHandlers } =
+	await import('../components.js');
 
 const logger = fakeLogger as unknown as Logger;
 
@@ -81,5 +86,24 @@ describe('handleComponentInteraction', () => {
 		expect(handle).not.toHaveBeenCalled();
 		expect(get).not.toHaveBeenCalled();
 		expect(fakeLogger.warn).toHaveBeenCalled();
+	});
+});
+
+describe('registerComponentHandlers', () => {
+	test('discovers, imports, and registers a valid default-exported handler, and skips an invalid module', async () => {
+		await registerComponentHandlers(fixturesDir);
+
+		const { calls } = await import('./fixtures/validComponent.js');
+
+		const interaction = makeInteraction('fixture-valid-component:some-state');
+		await handleComponentInteraction(interaction, logger);
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0]).toMatchObject({ interaction, logger, state: 'some-state' });
+
+		expect(fakeLogger.warn).toHaveBeenCalledWith(
+			expect.objectContaining({ file: expect.stringContaining('invalidComponent.js') }),
+			'Skipped invalid component handler module',
+		);
 	});
 });
