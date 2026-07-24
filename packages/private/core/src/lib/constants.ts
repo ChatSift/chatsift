@@ -1,4 +1,4 @@
-export const BOTS = ['AMA'] as const;
+export const BOTS = ['AMA', 'MODMAIL'] as const;
 
 export type BotId = (typeof BOTS)[number];
 

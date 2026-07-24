@@ -431,6 +431,7 @@ __metadata:
     jsonwebtoken: "npm:^9.0.3"
     nanoid: "npm:^6.0.0"
     polka: "npm:^1.0.0-next.28"
+    postgres: "npm:^3.4.9"
     sharp: "npm:^0.35.3"
     typescript: "npm:~6.0.3"
     vitest: "npm:^4.1.10"

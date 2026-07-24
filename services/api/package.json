@@ -11,6 +11,10 @@
 		"./ama-schemas": {
 			"types": "./dist/routes/ama/schemas.d.ts",
 			"default": "./dist/routes/ama/schemas.js"
+		},
+		"./modmail-schemas": {
+			"types": "./dist/routes/modmail/schemas.d.ts",
+			"default": "./dist/routes/modmail/schemas.js"
 		}
 	},
 	"types": "./dist/index.d.ts",
@@ -47,6 +51,7 @@
 		"jsonwebtoken": "^9.0.3",
 		"nanoid": "^6.0.0",
 		"polka": "^1.0.0-next.28",
+		"postgres": "^3.4.9",
 		"sharp": "^0.35.3",
 		"zod": "^4.4.3"
 	}

@@ -29,6 +29,25 @@ import createGrantRoute from './routes/guilds/createGrant.js';
 import deleteGrantRoute from './routes/guilds/deleteGrant.js';
 import getGuildRoute from './routes/guilds/get.js';
 import getGrantsRoute from './routes/guilds/getGrants.js';
+import createBlockRoute from './routes/modmail/blocks/createBlock.js';
+import deleteBlockRoute from './routes/modmail/blocks/deleteBlock.js';
+import listBlocksRoute from './routes/modmail/blocks/listBlocks.js';
+import createCategoryRoute from './routes/modmail/categories/createCategory.js';
+import deleteCategoryRoute from './routes/modmail/categories/deleteCategory.js';
+import listCategoriesRoute from './routes/modmail/categories/listCategories.js';
+import updateCategoryRoute from './routes/modmail/categories/updateCategory.js';
+import getConfigRoute from './routes/modmail/config/getConfig.js';
+import updateConfigRoute from './routes/modmail/config/updateConfig.js';
+import createPanelRoute from './routes/modmail/panels/createPanel.js';
+import deletePanelRoute from './routes/modmail/panels/deletePanel.js';
+import listPanelsRoute from './routes/modmail/panels/listPanels.js';
+import updatePanelRoute from './routes/modmail/panels/updatePanel.js';
+import createSnippetRoute from './routes/modmail/snippets/createSnippet.js';
+import deleteSnippetRoute from './routes/modmail/snippets/deleteSnippet.js';
+import listSnippetsRoute from './routes/modmail/snippets/listSnippets.js';
+import updateSnippetRoute from './routes/modmail/snippets/updateSnippet.js';
+import getThreadRoute from './routes/modmail/threads/getThread.js';
+import listThreadsRoute from './routes/modmail/threads/listThreads.js';
 import { sendBoom } from './util/sendBoom.js';
 
 export async function startServer(): Promise<void> {
@@ -96,6 +115,25 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, getGuildRoute);
 	mountRoute(app, getGrantsRoute);
 	mountRoute(app, dozzleWebhookRoute);
+	mountRoute(app, getConfigRoute);
+	mountRoute(app, updateConfigRoute);
+	mountRoute(app, listCategoriesRoute);
+	mountRoute(app, createCategoryRoute);
+	mountRoute(app, updateCategoryRoute);
+	mountRoute(app, deleteCategoryRoute);
+	mountRoute(app, listPanelsRoute);
+	mountRoute(app, createPanelRoute);
+	mountRoute(app, updatePanelRoute);
+	mountRoute(app, deletePanelRoute);
+	mountRoute(app, listSnippetsRoute);
+	mountRoute(app, createSnippetRoute);
+	mountRoute(app, updateSnippetRoute);
+	mountRoute(app, deleteSnippetRoute);
+	mountRoute(app, listBlocksRoute);
+	mountRoute(app, createBlockRoute);
+	mountRoute(app, deleteBlockRoute);
+	mountRoute(app, listThreadsRoute);
+	mountRoute(app, getThreadRoute);
 
 	app.listen(getContext().env.API_PORT, () =>
 		getContext().logger.info({ port: getContext().env.API_PORT }, 'Listening to requests'),

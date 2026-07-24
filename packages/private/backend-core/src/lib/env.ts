@@ -46,6 +46,9 @@ const envSchema = z.object({
 	// AMA
 	AMA_BOT_TOKEN: z.string(),
 
+	// ModMail
+	MODMAIL_BOT_TOKEN: z.string(),
+
 	// Dozzle log webhook relay (issue #212) — Dozzle POSTs here with a raw-JSON embed description,
 	// we prettify it and forward to the real Discord webhook
 	DOZZLE_WEBHOOK_SECRET: z.string(),
