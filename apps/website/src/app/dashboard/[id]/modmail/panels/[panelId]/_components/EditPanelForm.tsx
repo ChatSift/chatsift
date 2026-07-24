@@ -214,14 +214,22 @@ export function EditPanelForm({ panel }: EditPanelFormProps) {
 		<form className="mt-8 space-y-6" onSubmit={handleSubmit}>
 			{generalError && <p className="mt-1 text-sm text-misc-danger">{generalError}</p>}
 			{successMessage && (
-				<p className="rounded-lg border border-misc-accent bg-misc-accent/10 p-3 text-sm text-misc-accent" role="status">
+				<p
+					className="rounded-lg border border-misc-accent bg-misc-accent/10 p-3 text-sm text-misc-accent"
+					role="status"
+				>
 					{successMessage}
 				</p>
 			)}
 
 			<div className="space-y-4">
 				<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Categories</h2>
-				<CategoryCheckboxList error={errors.categoryIds} guildId={guildId} onChange={setCategoryIds} value={categoryIds} />
+				<CategoryCheckboxList
+					error={errors.categoryIds}
+					guildId={guildId}
+					onChange={setCategoryIds}
+					value={categoryIds}
+				/>
 			</div>
 
 			<div className="space-y-4">

@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import type { ComponentHandler } from '@chatsift/bot-core';
 import type { AmaPromptData, AmaSessions } from '@chatsift/db';
 import type {
 	APIMessageComponentInteraction,
@@ -8,7 +9,6 @@ import type {
 } from '@discordjs/core';
 import { ButtonStyle, ComponentType, RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
-import type { ComponentHandler } from '../lib/components.js';
 
 export default class AmaRepostSelectComponent implements ComponentHandler {
 	public readonly name = 'ama-repost-select';

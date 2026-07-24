@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { createGrantToken, getContext, GRANTS } from '@chatsift/backend-core';
+import type { CommandHandler } from '@chatsift/bot-core';
 import type { AmaSessions } from '@chatsift/db';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction, APIChatInputApplicationCommandInteraction } from '@discordjs/core';
@@ -11,7 +12,6 @@ import {
 	PermissionFlagsBits,
 } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
-import type { CommandHandler } from '../lib/commands.js';
 
 type SelectKind = 'end' | 'repost-prompt';
 

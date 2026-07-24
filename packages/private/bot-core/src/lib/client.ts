@@ -1,11 +1,18 @@
 import { setInterval } from 'node:timers';
+import type { BotId } from '@chatsift/backend-core';
 import { getContext, GuildList } from '@chatsift/backend-core';
 import type { Snowflake } from '@discordjs/core';
 import { InteractionType, Client, GatewayDispatchEvents } from '@discordjs/core';
-import { getCommandHandler, handleAutocompleteInteraction, handleCommandInteraction } from './commands.js';
+import type { REST } from '@discordjs/rest';
+import type { WebSocketManager } from '@discordjs/ws';
+import {
+	getCommandHandler,
+	handleAutocompleteInteraction,
+	handleCommandInteraction,
+	registerCommandHandler,
+} from './commands.js';
 import { handleComponentInteraction } from './components.js';
-import { gateway } from './gateway.js';
-import { rest } from './rest.js';
+import DeployCommand from './deploy.js';
 
 declare module '@chatsift/backend-core' {
 	interface ContextService {
@@ -18,21 +25,32 @@ declare module '@chatsift/backend-core' {
 	}
 }
 
-// keep a copy of the guild ids we manage here to easily patch redis
-const guildIds = new Set<Snowflake>();
-
-export function startGuildSyncing(): void {
-	setInterval(async () => {
-		void GuildList.set('AMA', { guilds: [...guildIds] });
-	}, 10_000).unref();
+export interface CreateBotClientOptions {
+	/**
+	 * Identifies which bot this is for the `bot:<BotId>` guild-list Redis key that the dashboard/API reads to know
+	 * which guilds the bot is in.
+	 */
+	readonly botId: BotId;
+	readonly gateway: WebSocketManager;
+	readonly rest: REST;
 }
 
 /**
- * Builds the discord.js `Client` and wires up all gateway event routing. Called once from `bin.ts`, which then
- * registers the result into the context (`setServiceValue('client', ...)`) before the rest of the app starts —
- * everything else should reach Discord via `getContext().service.client`, never by importing this file.
+ * Builds the discord.js `Client` and wires up all gateway event routing: guild-set tracking with a periodic Redis
+ * sync, interaction dispatch (component/command/autocomplete), and the fresh-app bootstrap that seeds `/deploy` as
+ * the only global command so an admin has something to run. Also registers the shared `/deploy` command itself, so
+ * callers never need to discover or wire it up on their own.
+ *
+ * Callers register the result into the context themselves (`setServiceValue('client', ...)`) before the rest of
+ * the app starts — everything else should reach Discord via `getContext().service.client`, never by importing this
+ * file.
  */
-export function createClient(): Client {
+export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions): Client {
+	registerCommandHandler(new DeployCommand());
+
+	// keep a copy of the guild ids we manage here to easily patch redis
+	const guildIds = new Set<Snowflake>();
+
 	const client = new Client({ rest, gateway });
 
 	client
@@ -75,6 +93,14 @@ export function createClient(): Client {
 				}
 			}
 		});
+
+	setInterval(async () => {
+		try {
+			await GuildList.set(botId, { guilds: [...guildIds] });
+		} catch (error) {
+			getContext().logger.error({ err: error }, 'Failed to sync guild list to Redis');
+		}
+	}, 10_000).unref();
 
 	return client;
 }

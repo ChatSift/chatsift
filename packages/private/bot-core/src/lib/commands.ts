@@ -1,6 +1,4 @@
 import { glob } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import { getContext, isModuleWithDefault } from '@chatsift/backend-core';
 import type {
@@ -13,8 +11,8 @@ import { MessageFlags } from '@discordjs/core';
 
 /**
  * Deliberately excludes `RESTPostAPIPrimaryEntryPointApplicationCommandJSONBody` (the "Activity" entry-point
- * command type) — it's global-only and not something AMA needs, and excluding it lets `data` flow straight into
- * both `bulkOverwriteGuildCommands` and `bulkOverwriteGlobalCommands` without a cast.
+ * command type) — it's global-only and not something any current bot needs, and excluding it lets `data` flow
+ * straight into both `bulkOverwriteGuildCommands` and `bulkOverwriteGlobalCommands` without a cast.
  */
 export type CommandData =
 	RESTPostAPIChatInputApplicationCommandsJSONBody | RESTPostAPIContextMenuApplicationCommandsJSONBody;
@@ -34,9 +32,18 @@ function isCommandHandlerConstructor(input: unknown): input is CommandHandlerCon
 
 const commands = new Map<string, CommandHandler>();
 
-export async function registerCommandHandlers(): Promise<void> {
-	const path = join(dirname(fileURLToPath(import.meta.url)), '..', 'commands');
-	const files = glob(`${path}/**/*.js`);
+export function registerCommandHandler(handler: CommandHandler): void {
+	commands.set(handler.name, handler);
+	getContext().logger.info({ command: handler.name }, 'Registered command handler');
+}
+
+/**
+ * Globs `${commandsDir}/**\/*.js`, dynamically imports each module, and registers every valid default-exported
+ * `CommandHandler` constructor. Callers pass their own service-local commands directory (e.g.
+ * `join(dirname(fileURLToPath(import.meta.url)), 'commands')`), since this package has no `commands/` of its own.
+ */
+export async function registerCommandHandlers(commandsDir: string): Promise<void> {
+	const files = glob(`${commandsDir}/**/*.js`);
 
 	for await (const file of files) {
 		const mod = await import(file);
@@ -45,9 +52,7 @@ export async function registerCommandHandlers(): Promise<void> {
 			continue;
 		}
 
-		const handler = new mod.default();
-		commands.set(handler.name, handler);
-		getContext().logger.info({ command: handler.name }, 'Registered command handler');
+		registerCommandHandler(new mod.default());
 	}
 }
 

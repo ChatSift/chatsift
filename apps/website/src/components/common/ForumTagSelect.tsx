@@ -74,7 +74,9 @@ export function ForumTagSelect({
 					<span className="flex flex-1 items-center gap-1.5 truncate text-sm">
 						{selectedTag ? (
 							<>
-								{tagEmojiValue(selectedTag) && <Emoji className="h-4 w-4 shrink-0" value={tagEmojiValue(selectedTag)!} />}
+								{tagEmojiValue(selectedTag) && (
+									<Emoji className="h-4 w-4 shrink-0" value={tagEmojiValue(selectedTag)!} />
+								)}
 								{selectedTag.name}
 							</>
 						) : (
