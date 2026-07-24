@@ -53,9 +53,9 @@ export function GuildNav() {
 			icon: <FaWrench className="h-4 w-4" />,
 		},
 		...guild.bots.map((bot) => {
-			const { Icon } = Bots[bot];
+			const { Icon, label } = Bots[bot];
 			return {
-				label: bot,
+				label,
 				href: `/dashboard/${guild.id}/${bot.toLowerCase()}`,
 				icon: <Icon height={16} width={16} />,
 			};
