@@ -35,10 +35,11 @@ export default function GuildCard({ data }: GuildCardProps) {
 				{hasBots ? (
 					<ul className="flex flex-row gap-1">
 						{data.bots.map((bot) => {
-							const { Icon } = Bots[bot];
+							const { Icon, label } = Bots[bot];
 							return (
 								<li key={bot}>
 									<Icon />
+									<span className="sr-only">{label}</span>
 								</li>
 							);
 						})}
@@ -52,11 +53,12 @@ export default function GuildCard({ data }: GuildCardProps) {
 							<p className="text-lg font-medium text-primary dark:text-primary-dark">Invite a bot:</p>
 							<ul className="flex flex-row gap-3">
 								{BOTS.map((bot) => {
-									const { Icon } = Bots[bot];
+									const { Icon, label } = Bots[bot];
 									return (
 										<li key={bot}>
 											<a href={`/invites/${bot.toLowerCase()}`}>
 												<Icon />
+												<span className="sr-only">Invite {label}</span>
 											</a>
 										</li>
 									);

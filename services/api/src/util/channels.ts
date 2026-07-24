@@ -19,22 +19,51 @@ export type GuildChannelInfo = APISortableChannel &
 	Pick<APIGuildChannel<GuildChannelType>, 'id' | 'name' | 'parent_id' | 'type'>;
 
 // TODO(DD): Should probably move this to redis
-const CACHE = new Map<Snowflake, GuildChannelInfo[]>();
-const CACHE_TIMEOUTS = new Map<string, NodeJS.Timeout>();
+// Partitioned per `API` client instance (not just guildId): the same guildId can be queried through different
+// bots' clients (e.g. AMA and MODMAIL both installed in one guild), and each bot has its own guild
+// membership/permissions -- sharing one guildId-keyed cache across clients would let one bot's fetch answer for
+// another's.
+const CACHE = new Map<API, Map<Snowflake, GuildChannelInfo[]>>();
+const CACHE_TIMEOUTS = new Map<API, Map<Snowflake, NodeJS.Timeout>>();
 const CACHE_TTL = 5 * 60 * 1_000; // 5 minutes
 
 export function clearCache() {
-	CACHE.clear();
-	for (const timeout of CACHE_TIMEOUTS.values()) {
-		clearTimeout(timeout);
+	for (const timeouts of CACHE_TIMEOUTS.values()) {
+		for (const timeout of timeouts.values()) {
+			clearTimeout(timeout);
+		}
 	}
 
+	CACHE.clear();
 	CACHE_TIMEOUTS.clear();
 }
 
+function getCacheFor(api: API): Map<Snowflake, GuildChannelInfo[]> {
+	let cache = CACHE.get(api);
+	if (!cache) {
+		cache = new Map();
+		CACHE.set(api, cache);
+	}
+
+	return cache;
+}
+
+function getTimeoutsFor(api: API): Map<Snowflake, NodeJS.Timeout> {
+	let timeouts = CACHE_TIMEOUTS.get(api);
+	if (!timeouts) {
+		timeouts = new Map();
+		CACHE_TIMEOUTS.set(api, timeouts);
+	}
+
+	return timeouts;
+}
+
 export async function fetchGuildChannels(guildId: string, api: API, force = false): Promise<GuildChannelInfo[] | null> {
-	if (CACHE.has(guildId) && !force) {
-		return CACHE.get(guildId)!;
+	const cache = getCacheFor(api);
+	const timeouts = getTimeoutsFor(api);
+
+	if (cache.has(guildId) && !force) {
+		return cache.get(guildId)!;
 	}
 
 	// TODO(DD): https://github.com/discordjs/discord-api-types/pull/1397
@@ -49,6 +78,17 @@ export async function fetchGuildChannels(guildId: string, api: API, force = fals
 	});
 
 	if (!channelsRaw) {
+		// A forced refresh that now 403/404s means the bot no longer has (or never had) access to this guild --
+		// drop any stale cache entry instead of leaving it to answer reads until TTL expiry.
+		if (force) {
+			cache.delete(guildId);
+			const timeout = timeouts.get(guildId);
+			if (timeout) {
+				clearTimeout(timeout);
+				timeouts.delete(guildId);
+			}
+		}
+
 		return null;
 	}
 
@@ -71,17 +111,17 @@ export async function fetchGuildChannels(guildId: string, api: API, force = fals
 
 	const allChannels = channels.concat(threads);
 
-	CACHE.set(guildId, allChannels);
-	if (CACHE_TIMEOUTS.has(guildId)) {
-		const timeout = CACHE_TIMEOUTS.get(guildId)!;
+	cache.set(guildId, allChannels);
+	if (timeouts.has(guildId)) {
+		const timeout = timeouts.get(guildId)!;
 		timeout.refresh();
 	} else {
 		const timeout = setTimeout(() => {
-			CACHE.delete(guildId);
-			CACHE_TIMEOUTS.delete(guildId);
+			cache.delete(guildId);
+			timeouts.delete(guildId);
 		}, CACHE_TTL).unref();
 
-		CACHE_TIMEOUTS.set(guildId, timeout);
+		timeouts.set(guildId, timeout);
 	}
 
 	return allChannels;

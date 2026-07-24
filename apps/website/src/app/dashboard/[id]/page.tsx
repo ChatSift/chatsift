@@ -37,13 +37,13 @@ function SectionCard({ linksExternally, className: providedClassName, href, icon
 	);
 
 	return linksExternally ? (
-		<Link className={className} href={href} prefetch>
-			{content}
-		</Link>
-	) : (
 		<a className={className} href={href}>
 			{content}
 		</a>
+	) : (
+		<Link className={className} href={href} prefetch>
+			{content}
+		</Link>
 	);
 }
 

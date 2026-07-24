@@ -26,7 +26,7 @@ function roleColor(color: number): string {
 function RoleItem({ role }: { readonly role: GuildRoleInfo }) {
 	return (
 		<div className="flex min-w-0 items-center gap-2">
-			<span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: roleColor(role.color) }} />
+			<span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: roleColor(role.color) }} />
 			<span className="truncate text-sm">{role.name}</span>
 		</div>
 	);
@@ -93,7 +93,7 @@ export function RoleSelect({
 					</span>
 					<SvgChevronDown
 						className={cn(
-							'transition-transform text-secondary dark:text-secondary-dark flex-shrink-0',
+							'transition-transform text-secondary dark:text-secondary-dark shrink-0',
 							isOpen && 'rotate-180',
 						)}
 						size={16}
