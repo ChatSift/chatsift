@@ -100,6 +100,25 @@ async function handleFirstMessage(
 					user: message.author,
 				});
 
+				// A real `threads` row now exists for this ticket, so the durable pending record needs to
+				// go *now* — not deferred until after the relay/greeting below, which would leave both the
+				// `threads` row and the `pending_tickets` row counting the same ticket simultaneously
+				// against `countActiveTicketsForUser` (lib/threads.ts) for however long the relay/greeting
+				// take, or indefinitely if either of them fails. Best-effort: a failure here shouldn't
+				// unwind a ticket that was just successfully created (the row is otherwise harmless and
+				// would eventually be caught by `lib/pendingTicketSweep.ts`'s stale-row cleanup, which skips
+				// any pending row that already has a matching `threads` row), so it's caught and logged
+				// rather than left to propagate into the catch below and misreport an already-created
+				// ticket as a failure.
+				try {
+					await clearPendingTicketRecord(message.channel_id);
+				} catch (error) {
+					logger.warn(
+						{ err: error, guildId: pending.guildId, threadId: thread.id, userId: pending.userId },
+						'Failed to clear the pending_tickets row after finishing ticket creation',
+					);
+				}
+
 				await relayUserMessageToModThread({
 					attachments: effective.attachments,
 					contextNote: await buildContextNote(message, effective.isForwarded, thread, logger),
@@ -122,18 +141,14 @@ async function handleFirstMessage(
 					user: message.author,
 				});
 
-				// Only cleared here, on success — `PendingTicketStore` is what lets a *retry* (the user
-				// just sending another message) re-enter this same function after a failure below, so it
-				// must survive a thrown error instead of being consumed no matter what. `pending_tickets`
-				// (the durable row) is cleared alongside it for the same reason: on failure it needs to
-				// stay put so it keeps counting against `countActiveTicketsForUser` (lib/threads.ts) and
-				// stays visible to the abandoned-ticket sweep (lib/pendingTicketSweep.ts) — clearing it
-				// unconditionally would let the count silently drop and orphan the private thread from the
-				// sweep the moment `finishTicketCreation`/the relay/the greeting failed below.
-				await Promise.all([
-					PendingTicketStore.delete(message.channel_id),
-					clearPendingTicketRecord(message.channel_id),
-				]);
+				// Only cleared here, on success — this is the routing index a *retry* (the user just
+				// sending another message) would need to re-enter this same function after a failure below,
+				// but by this point `pending_tickets` is already gone and a real `threads` row exists, so a
+				// retry message actually routes through the normal open-thread relay path instead
+				// (`registerMessageRelay`'s `findOpenThreadByUserThreadId` check runs before this store is
+				// even consulted). Left in place on failure mostly as a harmless leftover — it just expires
+				// via its own TTL once nothing keys off it anymore.
+				await PendingTicketStore.delete(message.channel_id);
 			} catch (error) {
 				logger.error(
 					{ err: error, guildId: pending.guildId, userId: pending.userId },

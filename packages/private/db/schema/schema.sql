@@ -198,11 +198,12 @@ CREATE INDEX threads_category_id_idx ON threads (category_id);
 -- /reply-q command was run in.
 CREATE INDEX threads_user_thread_id_idx ON threads (user_thread_id) WHERE user_thread_id IS NOT NULL;
 CREATE INDEX threads_mod_thread_id_idx ON threads (mod_thread_id);
--- Backs `lib/threads.ts`'s `countActiveTicketsForUser` (general concurrent-thread limit) and
--- `countOpenThreadsForUserInCategory` (per-category limit) -- both filter on exactly this shape
--- (guild + user, only open threads), checked on every ticket-panel click and category pick. Partial
--- on `closed_at IS NULL` since a closed ticket never counts toward either limit and closed rows
--- vastly outnumber open ones over a guild's lifetime.
+-- Back the two concurrent-thread-limit counts in `lib/threads.ts`, both partial on
+-- `closed_at IS NULL` since a closed ticket never counts toward either limit and closed rows vastly
+-- outnumber open ones over a guild's lifetime. `countActiveTicketsForUser` (the general, guild-wide
+-- limit, checked on every ticket-panel click) filters on guild + user only, matching the first index
+-- below; `countOpenThreadsForUserInCategory` (the per-category limit, checked on every category pick)
+-- additionally filters on `category_id`, matching the second, wider index instead.
 CREATE INDEX threads_guild_id_user_id_open_idx ON threads (guild_id, user_id) WHERE closed_at IS NULL;
 CREATE INDEX threads_guild_id_user_id_category_id_open_idx ON threads (guild_id, user_id, category_id) WHERE closed_at IS NULL;
 
