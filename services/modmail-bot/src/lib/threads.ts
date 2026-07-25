@@ -2,6 +2,15 @@ import { getContext } from '@chatsift/backend-core';
 import type { Threads } from '@chatsift/db';
 
 /**
+ * The longest `auto_archive_duration` Discord offers (7 days, in minutes). Used for both a ticket's
+ * private thread and its mod-forum thread so an idle-but-open conversation takes as long as possible
+ * to get caught by Discord's own archive timer in the first place — `preventThreadArchive.ts`'s sweep
+ * is the backstop for whatever this doesn't already prevent. No longer boost-gated: Discord dropped
+ * the server-boost requirement for this tier in 2022, so it's available to every guild.
+ */
+export const MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES = 10_080;
+
+/**
  * A user's total concurrent tickets in a guild, counting both real open `threads` rows and tickets
  * still mid-setup (`pending_tickets` — private thread created, no `threads` row yet since the mod-forum
  * side and category aren't resolved). Both count against `guild_settings.max_concurrent_threads`

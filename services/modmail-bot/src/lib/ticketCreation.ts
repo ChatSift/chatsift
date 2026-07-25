@@ -5,7 +5,7 @@ import type { APIEmbed, APIGuildMember, APIUser } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
 import { templateDataFromMember, templateGuildName, templateString } from './templateString.js';
-import { countPastThreadsForUser } from './threads.js';
+import { countPastThreadsForUser, MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES } from './threads.js';
 
 /**
  * Matches prod ChatSift/ModMail's `Colors.NotQuiteBlack` — used for both the ticket-opening info
@@ -97,6 +97,7 @@ export async function finishTicketCreation({
 	const modThread = await getContext().service.client.api.channels.createForumThread(modForumId, {
 		name: `${displayName}`.slice(0, 100),
 		applied_tags: category?.forumTagId ? [category.forumTagId] : undefined,
+		auto_archive_duration: MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES,
 		message: {
 			// Plain content, not an embed field — embeds never trigger a ping, and this is the one
 			// place a new ticket should actually notify the configured alert role.
