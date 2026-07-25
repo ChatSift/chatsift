@@ -7,7 +7,7 @@ import { ChannelType, MessageFlags } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { withGuildUserLock } from '../lib/guildUserQueue.js';
 import { PendingTicketStore, recordPendingTicket } from '../lib/pendingTicket.js';
-import { countActiveTicketsForUser } from '../lib/threads.js';
+import { countActiveTicketsForUser, MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES } from '../lib/threads.js';
 
 export default class CreateTicketComponent implements ComponentHandler {
 	public readonly name = 'modmail-create-ticket';
@@ -86,6 +86,7 @@ export default class CreateTicketComponent implements ComponentHandler {
 					name: (member.nick ?? user.global_name ?? user.username).slice(0, 100),
 					type: ChannelType.PrivateThread,
 					invitable: false,
+					auto_archive_duration: MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES,
 				});
 			} catch (error) {
 				if (error instanceof DiscordAPIError && error.status === 403) {

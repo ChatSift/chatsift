@@ -1,5 +1,5 @@
 import { dirname, join } from 'node:path';
-import { setInterval } from 'node:timers';
+import { setInterval, setTimeout } from 'node:timers';
 import { fileURLToPath } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
@@ -13,6 +13,7 @@ import { withGuildUserLock } from './lib/guildUserQueue.js';
 import { resolveEffectiveContent, resolveReplyNote } from './lib/messageContext.js';
 import { clearPendingTicketRecord, PendingTicketStore } from './lib/pendingTicket.js';
 import { sweepAbandonedPendingTickets } from './lib/pendingTicketSweep.js';
+import { preventOpenThreadsFromArchiving } from './lib/preventThreadArchive.js';
 import { relayUserMessageToModThread } from './lib/relay.js';
 import { findOpenThreadByUserThreadId } from './lib/threads.js';
 import { finishTicketCreation, sendGreeting } from './lib/ticketCreation.js';
@@ -23,6 +24,14 @@ import { finishTicketCreation, sendGreeting } from './lib/ticketCreation.js';
  * is expected to stay small: only tickets currently mid-setup have a row at all).
  */
 const PENDING_TICKET_SWEEP_INTERVAL_MS = 5 * 60 * 1_000;
+
+/**
+ * How often `preventOpenThreadsFromArchiving` runs — matches prod `ChatSift/ModMail`'s
+ * `preventAutoArchive` job interval. Short enough that an open ticket's thread doesn't stay archived
+ * long after Discord's own inactivity timer trips it, long enough to not re-fetch every open ticket's
+ * threads more often than needed.
+ */
+const PREVENT_THREAD_ARCHIVE_INTERVAL_MS = 5 * 60 * 1_000;
 
 const baseDir = dirname(fileURLToPath(import.meta.url));
 
@@ -288,4 +297,23 @@ export async function bin(client: Client): Promise<void> {
 			getContext().logger.error({ err: error }, 'Failed to sweep abandoned pending tickets');
 		}
 	}, PENDING_TICKET_SWEEP_INTERVAL_MS).unref();
+
+	// Self-rescheduling rather than `setInterval` (unlike the sweep above) since its per-run cost scales
+	// with how many tickets are open rather than a small bounded table — a guild with enough concurrent
+	// tickets could in principle take long enough for one run to still be going when the next tick would
+	// otherwise fire, queuing duplicate GET/PATCH pairs for the same channels. Only scheduling the next
+	// run once the current one settles rules that out by construction.
+	const schedulePreventThreadArchiveSweep = (): void => {
+		setTimeout(async () => {
+			try {
+				await preventOpenThreadsFromArchiving(getContext().logger);
+			} catch (error) {
+				getContext().logger.error({ err: error }, 'Failed to sweep open threads for auto-archive prevention');
+			} finally {
+				schedulePreventThreadArchiveSweep();
+			}
+		}, PREVENT_THREAD_ARCHIVE_INTERVAL_MS).unref();
+	};
+
+	schedulePreventThreadArchiveSweep();
 }
