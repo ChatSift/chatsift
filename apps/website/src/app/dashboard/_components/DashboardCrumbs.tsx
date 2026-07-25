@@ -1,5 +1,6 @@
 'use client';
 
+import type { BotId } from '@chatsift/core';
 import { useParams, usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 import { useGrantAuth } from '@/api/grant';
@@ -13,7 +14,10 @@ import { GuildIcon } from '@/components/common/GuildIcon';
 import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAMA } from '@/components/icons/SvgAMA';
 import { SvgModmail } from '@/components/icons/SvgModmail';
+import { Bots } from '@/utils/bots';
 import { sortGuilds } from '@/utils/util';
+
+const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks'] as const;
 
 const SEGMENT_LABELS: Record<string, string> = {
 	ama: 'AMA Bot',
@@ -52,6 +56,10 @@ interface SegmentOptionsContext {
 export interface SegmentOptionsData {
 	amaSessions?: AMASessionWithCount[] | undefined;
 	currentAMA?: AMASessionDetailed | undefined;
+	/**
+	 * Bots invited to the current guild, used to build the bot-switcher dropdown on the `ama`/`modmail` segment.
+	 */
+	guildBots?: readonly BotId[] | undefined;
 	modmailChannels?: GuildChannelInfo[] | undefined;
 	modmailPanels?: ModmailPanel[] | undefined;
 }
@@ -75,6 +83,49 @@ interface SegmentOptionsEntry {
  * Matchers can also be functions for dynamic matching (e.g., numeric IDs)
  */
 const SEGMENT_OPTIONS: SegmentOptionsEntry[] = [
+	{
+		// Match the top-level bot segment (`ama` or `modmail`) so it can offer a shortcut to whatever other
+		// bots are invited to this guild, mirroring the guild-switch dropdown one level up.
+		matcher: (segmentPath) => segmentPath.length === 1 && (segmentPath[0] === 'ama' || segmentPath[0] === 'modmail'),
+		computer: (context, data) => {
+			const currentBot: BotId = context.segmentPath[0] === 'ama' ? 'AMA' : 'MODMAIL';
+			const options: BreadcrumbOption[] = (data.guildBots ?? [])
+				.filter((bot) => bot !== currentBot)
+				.map((bot) => {
+					const { Icon, label } = Bots[bot];
+					return {
+						label,
+						href: `/dashboard/${context.guildId}/${bot.toLowerCase()}`,
+						reactIcon: <Icon height={20} width={20} />,
+					};
+				});
+
+			if (!options.length) {
+				return null;
+			}
+
+			return { options };
+		},
+	},
+	{
+		// Match a ModMail sub-section (`config`, `categories`, `panels`, `snippets`, `blocks`) so it can offer
+		// a shortcut to the other sections, instead of forcing a trip back through the ModMail nav tabs.
+		matcher: (segmentPath) =>
+			segmentPath.length === 2 &&
+			segmentPath[0] === 'modmail' &&
+			(MODMAIL_SECTIONS as readonly string[]).includes(segmentPath[1]!),
+		computer: (context) => {
+			const currentSection = context.segmentPath[1];
+			const options: BreadcrumbOption[] = MODMAIL_SECTIONS.filter((section) => section !== currentSection).map(
+				(section) => ({
+					label: SEGMENT_LABELS[section] ?? section,
+					href: `/dashboard/${context.guildId}/modmail/${section}`,
+				}),
+			);
+
+			return { options };
+		},
+	},
 	{
 		matcher: 'ama/amas/new',
 		computer: (context, data) => {
@@ -140,6 +191,15 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 		throw new Error('id param not found, should not be rendering this component');
 	}
 
+	const guild = me?.guilds.find((g) => g.id === params.id);
+
+	// Merge in `guild.bots` so the `ama`/`modmail` segment's dropdown computer (see `SEGMENT_OPTIONS` above) can
+	// build its options without a separate data fetch -- `useMe()` already has this.
+	const effectiveSegmentOptionsData: SegmentOptionsData = useMemo(
+		() => ({ ...segmentOptionsData, guildBots: guild?.bots }),
+		[segmentOptionsData, guild?.bots],
+	);
+
 	const segments = useMemo(() => {
 		if (!params.id || !pathname) {
 			return [];
@@ -192,14 +252,14 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 				const amaId = Number(part);
 
 				// If we have currentAMA data and it matches, use it immediately
-				if (segmentOptionsData?.currentAMA?.id === amaId) {
-					label = segmentOptionsData.currentAMA.title;
-				} else if (segmentOptionsData?.currentAMA === undefined) {
+				if (effectiveSegmentOptionsData.currentAMA?.id === amaId) {
+					label = effectiveSegmentOptionsData.currentAMA.title;
+				} else if (effectiveSegmentOptionsData.currentAMA === undefined) {
 					// If currentAMA is still loading, show skeleton
 					label = <Skeleton className="h-5 w-32 inline-flex align-middle" />;
 				} else {
 					// currentAMA is loaded but doesn't match, try to find the AMA in sessions list
-					const ama = segmentOptionsData?.amaSessions?.find((s) => s.id === amaId);
+					const ama = effectiveSegmentOptionsData.amaSessions?.find((s) => s.id === amaId);
 					// If found, use title; otherwise fall back to the ID
 					label = ama ? ama.title : part;
 				}
@@ -215,11 +275,14 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 			) {
 				const panelId = Number(part);
 
-				if (segmentOptionsData?.modmailPanels === undefined || segmentOptionsData.modmailChannels === undefined) {
+				if (
+					effectiveSegmentOptionsData.modmailPanels === undefined ||
+					effectiveSegmentOptionsData.modmailChannels === undefined
+				) {
 					label = <Skeleton className="h-5 w-32 inline-flex align-middle" />;
 				} else {
-					const panel = segmentOptionsData.modmailPanels.find((p) => p.id === panelId);
-					const channel = panel && segmentOptionsData.modmailChannels.find((c) => c.id === panel.channelId);
+					const panel = effectiveSegmentOptionsData.modmailPanels.find((p) => p.id === panelId);
+					const channel = panel && effectiveSegmentOptionsData.modmailChannels.find((c) => c.id === panel.channelId);
 					label = channel ? `#${channel.name}` : (panel?.channelId ?? part);
 				}
 			}
@@ -228,7 +291,7 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 			// grant only authorizes the single page it links to) -- never compute a navigable option in that case.
 			const computedOptions = grant
 				? null
-				: optionsEntry?.computer({ guildId: params.id, pathname, segmentPath }, segmentOptionsData ?? {});
+				: optionsEntry?.computer({ guildId: params.id, pathname, segmentPath }, effectiveSegmentOptionsData);
 
 			// Don't create an href for the last segment (current page), or for any segment while grant mode is
 			// active (there's nowhere else on the dashboard a grant token lets you go).
@@ -238,7 +301,8 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 				result.push({
 					label,
 					...(icon && { icon }),
-					...(computedOptions && { icon: computedOptions.icon, options: computedOptions.options }),
+					...(computedOptions?.icon && { icon: computedOptions.icon }),
+					...(computedOptions && { options: computedOptions.options }),
 				});
 			} else {
 				// Build the href up to this segment
@@ -247,15 +311,15 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 					label,
 					href: `/${pathUpToHere}`,
 					...(icon && { icon }),
-					...(computedOptions && { icon: computedOptions.icon, options: computedOptions.options }),
+					...(computedOptions?.icon && { icon: computedOptions.icon }),
+					...(computedOptions && { options: computedOptions.options }),
 				});
 			}
 		}
 
 		return result;
-	}, [params.id, pathname, segmentOptionsData, grant]);
+	}, [params.id, pathname, effectiveSegmentOptionsData, grant]);
 
-	const guild = me?.guilds.find((g) => g.id === params.id);
 	if (!guild) {
 		throw new Error('guild not found, should not be rendering this component');
 	}

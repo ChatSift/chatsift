@@ -75,7 +75,8 @@ export function BreadcrumbDropdown({ label, icon, href, options, isLast, highlig
 										href={option.href}
 										prefetch
 									>
-										{iconUrl && (
+										{option.reactIcon}
+										{!option.reactIcon && iconUrl && (
 											<Image
 												alt={`${displayLabel} icon`}
 												className="flex h-6 w-6 items-center justify-center rounded-full"
@@ -84,7 +85,7 @@ export function BreadcrumbDropdown({ label, icon, href, options, isLast, highlig
 												width={24}
 											/>
 										)}
-										{!iconUrl && option.id && (
+										{!option.reactIcon && !iconUrl && option.id && (
 											<span className="flex h-6 w-6 items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full bg-on-tertiary text-xs dark:bg-on-tertiary-dark">
 												{getGuildAcronym(displayLabel)}
 											</span>

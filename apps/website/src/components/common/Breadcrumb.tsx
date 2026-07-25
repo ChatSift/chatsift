@@ -11,6 +11,10 @@ export interface BreadcrumbOption {
 	readonly icon?: string | null;
 	readonly id?: string;
 	readonly label: string;
+	/**
+	 * A pre-rendered icon (e.g. a bot's SVG logo) to use instead of the Discord CDN guild icon/acronym fallback.
+	 */
+	readonly reactIcon?: React.ReactNode;
 }
 
 export interface BreadcrumbSegment {
