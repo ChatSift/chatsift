@@ -39,8 +39,9 @@ export const updateConfigBodySchema = z
 		anonReplyLabel: z.string().max(100).nullable().optional(),
 		// How many tickets a single user may have open at once in this guild, summed across all
 		// categories -- categories may only tighten this further (see `maxConcurrentThreads` below),
-		// never exceed it.
-		maxConcurrentThreads: z.number().int().min(1).optional(),
+		// never exceed it. Upper-bounded to Postgres' `integer` max so an out-of-range value 400s here
+		// instead of erroring at the INSERT.
+		maxConcurrentThreads: z.number().int().min(1).max(2_147_483_647).optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
@@ -64,7 +65,8 @@ const categoryFields = {
 	// Overrides the guild's general `maxConcurrentThreads` for tickets in this category specifically;
 	// must be <= the guild's current value (validated server-side against `guild_settings`, since it
 	// depends on data outside this body). `null`/omitted means "inherit the guild's general limit".
-	maxConcurrentThreads: z.number().int().min(1).nullable().optional(),
+	// Same Postgres `integer` upper bound as the guild-level field above.
+	maxConcurrentThreads: z.number().int().min(1).max(2_147_483_647).nullable().optional(),
 };
 
 export const createCategoryBodySchema = z.strictObject({

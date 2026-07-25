@@ -124,8 +124,16 @@ async function handleFirstMessage(
 
 				// Only cleared here, on success — `PendingTicketStore` is what lets a *retry* (the user
 				// just sending another message) re-enter this same function after a failure below, so it
-				// must survive a thrown error instead of being consumed no matter what.
-				await PendingTicketStore.delete(message.channel_id);
+				// must survive a thrown error instead of being consumed no matter what. `pending_tickets`
+				// (the durable row) is cleared alongside it for the same reason: on failure it needs to
+				// stay put so it keeps counting against `countActiveTicketsForUser` (lib/threads.ts) and
+				// stays visible to the abandoned-ticket sweep (lib/pendingTicketSweep.ts) — clearing it
+				// unconditionally would let the count silently drop and orphan the private thread from the
+				// sweep the moment `finishTicketCreation`/the relay/the greeting failed below.
+				await Promise.all([
+					PendingTicketStore.delete(message.channel_id),
+					clearPendingTicketRecord(message.channel_id),
+				]);
 			} catch (error) {
 				logger.error(
 					{ err: error, guildId: pending.guildId, userId: pending.userId },
@@ -135,13 +143,6 @@ async function handleFirstMessage(
 					content:
 						'❌ Something went wrong setting up your ticket. Please try sending your message again, or contact a moderator.',
 				});
-			} finally {
-				// Cleared regardless of outcome — a real `threads` row now exists to block re-creation on
-				// success, and on failure the user shouldn't be stuck unable to retry until the 30-minute
-				// TTL catches up. Drops the durable pending_tickets row so both the general-limit count
-				// (lib/threads.ts's countActiveTicketsForUser) and the abandoned-ticket sweep
-				// (lib/pendingTicketSweep.ts) stop counting/tracking a ticket that already resolved.
-				await clearPendingTicketRecord(message.channel_id);
 			}
 
 			return;
