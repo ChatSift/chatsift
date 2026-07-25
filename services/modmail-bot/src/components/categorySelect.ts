@@ -6,8 +6,9 @@ import type { APIMessageComponentInteraction, APIMessageStringSelectInteractionD
 import { MessageFlags } from '@discordjs/core';
 import { CategorySelectStore, type CategorySelectState } from '../lib/categoryState.js';
 import { withGuildUserLock } from '../lib/guildUserQueue.js';
-import { clearPendingTicketRecord, PendingTicketByUserStore } from '../lib/pendingTicket.js';
+import { clearPendingTicketRecord } from '../lib/pendingTicket.js';
 import { relayUserMessageToModThread } from '../lib/relay.js';
+import { countOpenThreadsForUserInCategory } from '../lib/threads.js';
 import { finishTicketCreation, sendGreeting } from '../lib/ticketCreation.js';
 
 export default class CategorySelectComponent implements ComponentHandler<CategorySelectState> {
@@ -72,6 +73,32 @@ export default class CategorySelectComponent implements ComponentHandler<Categor
 		// above doesn't flow into a nested function, so TypeScript would otherwise still see
 		// `string | null` inside it.
 		const modForumId = guildSettings.modForumId;
+
+		// `category.maxConcurrentThreads` is nullable ("inherit the guild's general limit") and is
+		// clamped to the guild's current value regardless — the write-side routes validate a category
+		// override never exceeds the guild setting at the time it's set, but the guild setting can be
+		// lowered afterwards without touching existing categories, so this stays the source of truth for
+		// what the limit actually is right now.
+		const categoryMax =
+			category.maxConcurrentThreads === null
+				? guildSettings.maxConcurrentThreads
+				: Math.min(category.maxConcurrentThreads, guildSettings.maxConcurrentThreads);
+
+		const openInCategory = await countOpenThreadsForUserInCategory(guildId, user.id, category.id);
+		if (openInCategory >= categoryMax) {
+			// Not deferred yet, so this `reply` (rather than an edit) leaves the select menu itself
+			// intact and interactive — same pattern as the "category no longer available"/"no longer
+			// exists" checks above, letting the user immediately retry with a different category instead
+			// of the setup dead-ending here.
+			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+				content:
+					categoryMax === 1
+						? `You already have an open ticket in the "${category.name}" category. Close it before opening another there.`
+						: `You already have ${openInCategory} open ticket(s) in the "${category.name}" category (limit: ${categoryMax}). Close one before opening another there.`,
+				flags: MessageFlags.Ephemeral,
+			});
+			return;
+		}
 
 		// Deferred here, before the slow part (mod-forum thread creation, the relay's media re-upload,
 		// the greeting) — all of that easily outlasts Discord's 3-second component-ack window, and the
@@ -146,12 +173,10 @@ export default class CategorySelectComponent implements ComponentHandler<Categor
 			} finally {
 				// Cleared regardless of outcome — a real `threads` row now exists to block re-creation on
 				// success, and on failure the user shouldn't be stuck unable to retry until the 30-minute
-				// TTL catches up. Also drops the durable pending_tickets row so the abandoned-ticket sweep
-				// (lib/pendingTicketSweep.ts) doesn't try to clean up a thread that already resolved.
-				await Promise.all([
-					PendingTicketByUserStore.delete(`${guildId}:${user.id}`),
-					clearPendingTicketRecord(interaction.channel.id),
-				]);
+				// TTL catches up. Drops the durable pending_tickets row so both the general-limit count
+				// (lib/threads.ts's countActiveTicketsForUser) and the abandoned-ticket sweep
+				// (lib/pendingTicketSweep.ts) stop counting/tracking a ticket that already resolved.
+				await clearPendingTicketRecord(interaction.channel.id);
 			}
 
 			const stateId = data.custom_id.split(':')[1];

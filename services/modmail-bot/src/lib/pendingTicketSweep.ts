@@ -3,7 +3,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { PendingTickets } from '@chatsift/db';
 import { DiscordAPIError } from '@discordjs/rest';
 import { withGuildUserLock } from './guildUserQueue.js';
-import { PENDING_TICKET_TTL_MS, PendingTicketByUserStore, PendingTicketStore } from './pendingTicket.js';
+import { PENDING_TICKET_TTL_MS, PendingTicketStore } from './pendingTicket.js';
 
 /**
  * Run on an interval from `index.ts`'s `bin()`. A ticket's pending window is tracked in Redis with a
@@ -40,10 +40,7 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 
 		// The ticket already finished, so nothing here should still be live — but clear the same Redis
 		// state the abandoned path below does, in case whatever crashed also skipped that step.
-		await Promise.all([
-			PendingTicketStore.delete(row.privateThreadId),
-			PendingTicketByUserStore.delete(`${row.guildId}:${row.userId}`),
-		]);
+		await PendingTicketStore.delete(row.privateThreadId);
 	}
 
 	for (const pending of abandoned) {
@@ -81,13 +78,10 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 
 			await getContext().db`DELETE FROM pending_tickets WHERE private_thread_id = ${pending.privateThreadId}`;
 
-			// Best-effort — these should already have expired via their own TTL around the same time as
-			// this row's cutoff, but clearing them explicitly avoids depending on exact clock alignment
-			// between Postgres and Redis.
-			await Promise.all([
-				PendingTicketStore.delete(pending.privateThreadId),
-				PendingTicketByUserStore.delete(`${pending.guildId}:${pending.userId}`),
-			]);
+			// Best-effort — this should already have expired via its own TTL around the same time as this
+			// row's cutoff, but clearing it explicitly avoids depending on exact clock alignment between
+			// Postgres and Redis.
+			await PendingTicketStore.delete(pending.privateThreadId);
 
 			logger.info(
 				{ guildId: pending.guildId, privateThreadId: pending.privateThreadId, userId: pending.userId },

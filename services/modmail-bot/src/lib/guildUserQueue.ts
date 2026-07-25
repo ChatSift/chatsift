@@ -9,11 +9,11 @@ function keyFor(guildId: string, userId: string): string {
 /**
  * Serializes every ticket-lifecycle event (button click, category pick, first message) for a given
  * guild+user pair — mirrors discord.js/ws's `SimpleIdentifyThrottler` (one `AsyncQueue` per key, held
- * in a map). Guild-scoped rather than global per-user, since a user may eventually be allowed a
- * concurrent ticket per guild. This alone doesn't stop a *second*, later click from creating a
- * duplicate pending ticket — only truly concurrent callers race each other — so callers still need to
- * check `PendingTicketByUserStore` (see `pendingTicket.ts`) for an already-in-progress ticket once
- * they hold the lock.
+ * in a map). Guild-scoped rather than global per-user, since a user is allowed multiple concurrent
+ * tickets per guild (up to `guild_settings.max_concurrent_threads`, see `lib/threads.ts`'s
+ * `countActiveTicketsForUser`). This alone doesn't stop a *second*, later click from creating one ticket
+ * too many — only truly concurrent callers race each other — so callers still need to check that count
+ * against the guild's limit once they hold the lock (see `createTicket.ts`).
  */
 export async function withGuildUserLock<Result>(
 	guildId: string,

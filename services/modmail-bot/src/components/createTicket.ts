@@ -6,8 +6,8 @@ import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ChannelType, MessageFlags } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { withGuildUserLock } from '../lib/guildUserQueue.js';
-import { PendingTicketByUserStore, PendingTicketStore, recordPendingTicket } from '../lib/pendingTicket.js';
-import { findOpenThreadForUser } from '../lib/threads.js';
+import { PendingTicketStore, recordPendingTicket } from '../lib/pendingTicket.js';
+import { countActiveTicketsForUser } from '../lib/threads.js';
 
 export default class CreateTicketComponent implements ComponentHandler {
 	public readonly name = 'modmail-create-ticket';
@@ -40,26 +40,9 @@ export default class CreateTicketComponent implements ComponentHandler {
 		// Everything from here on is gated behind a per guild+user lock (see `lib/guildUserQueue.ts`):
 		// the interaction is already deferred, so waiting here just delays the eventual `editReply`
 		// rather than risking a missed ack. The lock alone only makes truly *concurrent* clicks safe —
-		// the `PendingTicketByUserStore` check below is what catches a second click minutes later, once
+		// the `countActiveTicketsForUser` check below is what catches a second click minutes later, once
 		// the first click's handler has already returned but before a real `threads` row exists.
 		await withGuildUserLock(guildId, user.id, async () => {
-			const existing = await findOpenThreadForUser(guildId, user.id);
-			if (existing) {
-				await editReply(
-					existing.userThreadId
-						? `You already have an open ticket: <#${existing.userThreadId}>`
-						: 'You already have an open ticket in this server.',
-				);
-				return;
-			}
-
-			const pendingKey = `${guildId}:${user.id}`;
-			const pendingForUser = await PendingTicketByUserStore.get(pendingKey);
-			if (pendingForUser) {
-				await editReply(`You already have a ticket being set up: <#${pendingForUser.privateThreadId}>`);
-				return;
-			}
-
 			const [panel] = await getContext().db<TicketPanels[]>`
 				SELECT * FROM ticket_panels WHERE message_id = ${interaction.message.id}
 			`;
@@ -76,6 +59,17 @@ export default class CreateTicketComponent implements ComponentHandler {
 
 			if (!guildSettings?.modForumId) {
 				await editReply('ModMail is not fully configured in this server yet. Please let a moderator know.');
+				return;
+			}
+
+			const maxConcurrentThreads = guildSettings.maxConcurrentThreads;
+			const activeCount = await countActiveTicketsForUser(guildId, user.id);
+			if (activeCount >= maxConcurrentThreads) {
+				await editReply(
+					maxConcurrentThreads === 1
+						? 'You already have an open ticket in this server. Close it before opening another.'
+						: `You already have ${activeCount} open ticket(s) in this server (limit: ${maxConcurrentThreads}). Close one before opening another.`,
+				);
 				return;
 			}
 
@@ -119,7 +113,6 @@ export default class CreateTicketComponent implements ComponentHandler {
 					guildId,
 					userId: user.id,
 				}),
-				PendingTicketByUserStore.set(pendingKey, { privateThreadId: privateThread.id }),
 				recordPendingTicket({ guildId, privateThreadId: privateThread.id, userId: user.id }),
 			]);
 

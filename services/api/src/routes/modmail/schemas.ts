@@ -37,6 +37,10 @@ export const updateConfigBodySchema = z
 		simpleMode: z.boolean().optional(),
 		alertRoleId: snowflakeSchema.nullable().optional(),
 		anonReplyLabel: z.string().max(100).nullable().optional(),
+		// How many tickets a single user may have open at once in this guild, summed across all
+		// categories -- categories may only tighten this further (see `maxConcurrentThreads` below),
+		// never exceed it.
+		maxConcurrentThreads: z.number().int().min(1).optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
@@ -57,6 +61,10 @@ const categoryFields = {
 	greetingMessage: z.string().max(2_000).nullable().optional(),
 	forumTagId: snowflakeSchema.nullable().optional(),
 	sortOrder: z.number().int().min(0),
+	// Overrides the guild's general `maxConcurrentThreads` for tickets in this category specifically;
+	// must be <= the guild's current value (validated server-side against `guild_settings`, since it
+	// depends on data outside this body). `null`/omitted means "inherit the guild's general limit".
+	maxConcurrentThreads: z.number().int().min(1).nullable().optional(),
 };
 
 export const createCategoryBodySchema = z.strictObject({

@@ -21,6 +21,8 @@ export default interface Categories {
   forumTagId: string | null;
 
   sortOrder: number;
+
+  maxConcurrentThreads: number | null;
 }
 
 /** Represents the initializer for the table public.categories */
@@ -40,6 +42,8 @@ export interface CategoriesInitializer {
   forumTagId?: string | null;
 
   sortOrder?: number;
+
+  maxConcurrentThreads?: number | null;
 }
 
 /** Represents the mutator for the table public.categories */
@@ -59,4 +63,6 @@ export interface CategoriesMutator {
   forumTagId?: string | null;
 
   sortOrder?: number;
+
+  maxConcurrentThreads?: number | null;
 }

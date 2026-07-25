@@ -2,15 +2,43 @@ import { getContext } from '@chatsift/backend-core';
 import type { Threads } from '@chatsift/db';
 
 /**
- * A user may only have one open ticket per guild at a time — this is what a new
- * `modmail-create-ticket` click checks before opening another private thread.
+ * A user's total concurrent tickets in a guild, counting both real open `threads` rows and tickets
+ * still mid-setup (`pending_tickets` — private thread created, no `threads` row yet since the mod-forum
+ * side and category aren't resolved). Both count against `guild_settings.max_concurrent_threads`
+ * because a pending ticket already holds a private thread and will become a real one imminently — not
+ * counting it would let a burst of clicks (all still pending) blow past the limit before any of them
+ * finish. Checked by `createTicket.ts` before creating a new private thread, under the same
+ * per guild+user lock (`lib/guildUserQueue.ts`) every other ticket-lifecycle step uses, so this count
+ * can't go stale between the check and the create.
  */
-export async function findOpenThreadForUser(guildId: string, userId: string): Promise<Threads | undefined> {
-	const [thread] = await getContext().db<Threads[]>`
-		SELECT * FROM threads WHERE guild_id = ${guildId} AND user_id = ${userId} AND closed_at IS NULL
+export async function countActiveTicketsForUser(guildId: string, userId: string): Promise<number> {
+	const [row] = await getContext().db<[{ count: string }]>`
+		SELECT (
+			(SELECT COUNT(*) FROM threads WHERE guild_id = ${guildId} AND user_id = ${userId} AND closed_at IS NULL) +
+			(SELECT COUNT(*) FROM pending_tickets WHERE guild_id = ${guildId} AND user_id = ${userId})
+		) AS count
 	`;
 
-	return thread;
+	return Number(row?.count ?? 0);
+}
+
+/**
+ * A user's open tickets within one specific category, checked against `categories.max_concurrent_threads`
+ * (falling back to the guild's general limit) by `categorySelect.ts` once a category is actually picked —
+ * unlike the general limit above, a category can't be known until then, so this can't be checked any
+ * earlier in the flow.
+ */
+export async function countOpenThreadsForUserInCategory(
+	guildId: string,
+	userId: string,
+	categoryId: number,
+): Promise<number> {
+	const [row] = await getContext().db<[{ count: string }]>`
+		SELECT COUNT(*) FROM threads
+		WHERE guild_id = ${guildId} AND user_id = ${userId} AND category_id = ${categoryId} AND closed_at IS NULL
+	`;
+
+	return Number(row?.count ?? 0);
 }
 
 /**

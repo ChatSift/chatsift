@@ -11,7 +11,7 @@ import { nanoid } from 'nanoid';
 import { CategorySelectStore } from './lib/categoryState.js';
 import { withGuildUserLock } from './lib/guildUserQueue.js';
 import { resolveEffectiveContent, resolveReplyNote } from './lib/messageContext.js';
-import { clearPendingTicketRecord, PendingTicketByUserStore, PendingTicketStore } from './lib/pendingTicket.js';
+import { clearPendingTicketRecord, PendingTicketStore } from './lib/pendingTicket.js';
 import { sweepAbandonedPendingTickets } from './lib/pendingTicketSweep.js';
 import { relayUserMessageToModThread } from './lib/relay.js';
 import { findOpenThreadByUserThreadId } from './lib/threads.js';
@@ -138,12 +138,10 @@ async function handleFirstMessage(
 			} finally {
 				// Cleared regardless of outcome — a real `threads` row now exists to block re-creation on
 				// success, and on failure the user shouldn't be stuck unable to retry until the 30-minute
-				// TTL catches up. Also drops the durable pending_tickets row so the abandoned-ticket sweep
-				// (lib/pendingTicketSweep.ts) doesn't try to clean up a thread that already resolved.
-				await Promise.all([
-					PendingTicketByUserStore.delete(`${pending.guildId}:${pending.userId}`),
-					clearPendingTicketRecord(message.channel_id),
-				]);
+				// TTL catches up. Drops the durable pending_tickets row so both the general-limit count
+				// (lib/threads.ts's countActiveTicketsForUser) and the abandoned-ticket sweep
+				// (lib/pendingTicketSweep.ts) stop counting/tracking a ticket that already resolved.
+				await clearPendingTicketRecord(message.channel_id);
 			}
 
 			return;
