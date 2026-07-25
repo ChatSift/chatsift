@@ -528,6 +528,7 @@ __metadata:
     "@discordjs/builders": "npm:2.0.0-dev.1783513686-6e81ea771"
     "@discordjs/core": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
+    "@sapphire/async-queue": "npm:^1.5.5"
     "@sapphire/discord-utilities": "npm:^4.0.0"
     "@types/node": "npm:^24.9.1"
     bin-rw: "npm:^0.1.1"

@@ -30,6 +30,21 @@ export interface RelayStickerLike {
  */
 const MAX_REUPLOAD_BYTES = 10 * 1_024 * 1_024;
 
+/**
+ * Discord enforces the upload limit against the *combined* size of every file on a single message,
+ * not per-file — so re-uploading several attachments that individually pass the per-file check above
+ * could still add up to a request Discord rejects outright. Reuses the same conservative bound as the
+ * per-file budget.
+ */
+const MAX_TOTAL_REUPLOAD_BYTES = MAX_REUPLOAD_BYTES;
+
+/**
+ * Keeps the failed-links note bounded — an embed description has a hard 4,096 character cap shared
+ * with the actual message content, and a ticket with many oversized/failed attachments could otherwise
+ * blow past that on its own.
+ */
+const MAX_FAILED_LINKS_SHOWN = 5;
+
 export interface RelayMedia {
 	/**
 	 * `attachment://<name>` reference for the first successfully-fetched image, if any — for `APIEmbed#image`.
@@ -50,7 +65,7 @@ async function fetchAsRawFile(
 	name: string,
 	contentType: string | undefined,
 	logger: Logger,
-): Promise<RawFile | undefined> {
+): Promise<{ file: RawFile; size: number } | undefined> {
 	try {
 		const res = await fetch(url);
 		if (!res.ok) {
@@ -58,7 +73,7 @@ async function fetchAsRawFile(
 		}
 
 		const data = Buffer.from(await res.arrayBuffer());
-		return { data, name, ...(contentType ? { contentType } : {}) };
+		return { file: { data, name, ...(contentType ? { contentType } : {}) }, size: data.length };
 	} catch (error) {
 		logger.warn({ err: error, url }, 'Failed to fetch media for relay, falling back to a link');
 		return undefined;
@@ -92,20 +107,22 @@ export async function buildRelayMedia(
 	const fetched: { file: RawFile; isImage: boolean }[] = [];
 	const failedLinks: string[] = [];
 	const notes: string[] = [];
+	let totalBytes = 0;
 
 	for (const attachment of attachments) {
-		if (attachment.size > MAX_REUPLOAD_BYTES) {
+		if (attachment.size > MAX_REUPLOAD_BYTES || totalBytes + attachment.size > MAX_TOTAL_REUPLOAD_BYTES) {
 			failedLinks.push(attachment.url);
 			continue;
 		}
 
-		const file = await fetchAsRawFile(attachment.url, attachment.filename, attachment.content_type, logger);
-		if (!file) {
+		const fetchResult = await fetchAsRawFile(attachment.url, attachment.filename, attachment.content_type, logger);
+		if (!fetchResult) {
 			failedLinks.push(attachment.url);
 			continue;
 		}
 
-		fetched.push({ file, isImage: isImageContentType(attachment.content_type) });
+		totalBytes += fetchResult.size;
+		fetched.push({ file: fetchResult.file, isImage: isImageContentType(attachment.content_type) });
 	}
 
 	for (const sticker of stickers) {
@@ -118,13 +135,19 @@ export async function buildRelayMedia(
 		const url = `${RouteBases.cdn}${CDNRoutes.sticker(sticker.id, format)}`;
 		const name = `${sticker.name}.${format}`;
 
-		const file = await fetchAsRawFile(url, name, format === ImageFormat.GIF ? 'image/gif' : 'image/png', logger);
-		if (!file) {
+		const fetchResult = await fetchAsRawFile(url, name, format === ImageFormat.GIF ? 'image/gif' : 'image/png', logger);
+		if (!fetchResult) {
 			failedLinks.push(url);
 			continue;
 		}
 
-		fetched.push({ file, isImage: true });
+		if (totalBytes + fetchResult.size > MAX_TOTAL_REUPLOAD_BYTES) {
+			failedLinks.push(url);
+			continue;
+		}
+
+		totalBytes += fetchResult.size;
+		fetched.push({ file: fetchResult.file, isImage: true });
 		if (sticker.format_type === StickerFormatType.APNG) {
 			notes.push(`sticker "${sticker.name}" is animated but will appear static here`);
 		}
@@ -140,7 +163,10 @@ export async function buildRelayMedia(
 		fetched.length === 1 && fetched[0]!.isImage ? `attachment://${fetched[0]!.file.name}` : undefined;
 
 	if (failedLinks.length > 0) {
-		notes.push(`couldn't forward ${failedLinks.length} item(s), original link(s): ${failedLinks.join(', ')}`);
+		const shown = failedLinks.slice(0, MAX_FAILED_LINKS_SHOWN);
+		const remaining = failedLinks.length - shown.length;
+		const suffix = remaining > 0 ? ` (+${remaining} more)` : '';
+		notes.push(`couldn't forward ${failedLinks.length} item(s), original link(s): ${shown.join(', ')}${suffix}`);
 	}
 
 	return {

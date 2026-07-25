@@ -14,6 +14,7 @@ export type { default as GuildSettings, GuildSettingsGuildId } from './generated
 export type { default as Categories, CategoriesId } from './generated/public/Categories.js';
 export type { default as TicketPanels, TicketPanelsId } from './generated/public/TicketPanels.js';
 export type { default as TicketPanelCategories } from './generated/public/TicketPanelCategories.js';
+export type { default as PendingTickets, PendingTicketsPrivateThreadId } from './generated/public/PendingTickets.js';
 export type { default as Threads, ThreadsId } from './generated/public/Threads.js';
 export type { default as ThreadMessages, ThreadMessagesId } from './generated/public/ThreadMessages.js';
 export type { default as ScheduledThreadCloses } from './generated/public/ScheduledThreadCloses.js';

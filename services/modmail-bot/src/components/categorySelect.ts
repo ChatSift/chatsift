@@ -5,6 +5,8 @@ import type { Categories, GuildSettings } from '@chatsift/db';
 import type { APIMessageComponentInteraction, APIMessageStringSelectInteractionData } from '@discordjs/core';
 import { MessageFlags } from '@discordjs/core';
 import { CategorySelectStore, type CategorySelectState } from '../lib/categoryState.js';
+import { withGuildUserLock } from '../lib/guildUserQueue.js';
+import { clearPendingTicketRecord, PendingTicketByUserStore } from '../lib/pendingTicket.js';
 import { relayUserMessageToModThread } from '../lib/relay.js';
 import { finishTicketCreation, sendGreeting } from '../lib/ticketCreation.js';
 
@@ -66,70 +68,91 @@ export default class CategorySelectComponent implements ComponentHandler<Categor
 			return;
 		}
 
-		const thread = await finishTicketCreation({
-			alertRoleId: guildSettings.alertRoleId,
-			category,
-			createdById: user.id,
-			defaultGreetingMessage: guildSettings.defaultGreetingMessage,
-			guildId,
-			logger,
-			member,
-			modForumId: guildSettings.modForumId,
-			privateThreadId: interaction.channel.id,
-			user,
-		});
+		// Captured before the closure below — narrowing from the `!guildSettings?.modForumId` guard
+		// above doesn't flow into a nested function, so TypeScript would otherwise still see
+		// `string | null` inside it.
+		const modForumId = guildSettings.modForumId;
 
-		// The category prompt only fires after the user's first message (see `index.ts`), so that
-		// message is stashed in `state` and relayed now — both the category and the message reach
-		// staff together instead of an empty ticket showing up first. There's no thread history yet
-		// to resolve a specific "replying to #N" for (see index.ts's `handleFirstMessage`), so a reply
-		// only ever gets the generic note here.
-		const contextNote = state.isForwarded
-			? '📨 *Forwarded message*'
-			: state.isReply
-				? '↩️ *replying to an earlier message*'
-				: undefined;
-
-		await relayUserMessageToModThread({
-			attachments: state.attachments.map((attachment) => ({
-				url: attachment.url,
-				filename: attachment.filename,
-				content_type: attachment.contentType || undefined,
-				size: attachment.size,
-			})),
-			contextNote,
-			content: state.content,
-			logger,
-			member,
-			messageId: state.messageId,
-			stickers: state.stickers.map((sticker) => ({
-				id: sticker.id,
-				name: sticker.name,
-				format_type: sticker.formatType,
-			})),
-			thread,
-			user,
-		});
-
-		await sendGreeting({
-			category,
-			defaultGreetingMessage: guildSettings.defaultGreetingMessage,
-			guildId,
-			member,
-			modThreadId: thread.modThreadId,
-			privateThreadId: interaction.channel.id,
-			user,
-		});
-
-		const stateId = data.custom_id.split(':')[1];
-		if (stateId) {
-			await CategorySelectStore.delete(stateId);
-		}
-
-		// Self-destruct rather than leaving a "Category selected: X" message behind — the category
-		// pick was just a one-time fork in the setup flow, not something worth a permanent trace once
-		// the actual ticket (with the user's message already relayed above) exists.
+		// Deferred here, before the slow part (mod-forum thread creation, the relay's media re-upload,
+		// the greeting) — all of that easily outlasts Discord's 3-second component-ack window, and the
+		// self-destruct deleteMessage call below needs the interaction to still be alive when it runs.
 		await getContext().service.client.api.interactions.deferMessageUpdate(interaction.id, interaction.token);
-		await getContext().service.client.api.channels.deleteMessage(interaction.channel.id, interaction.message.id);
+
+		await withGuildUserLock(guildId, user.id, async () => {
+			try {
+				const thread = await finishTicketCreation({
+					alertRoleId: guildSettings.alertRoleId,
+					category,
+					createdById: user.id,
+					guildId,
+					logger,
+					member,
+					modForumId,
+					privateThreadId: interaction.channel.id,
+					user,
+				});
+
+				// The category prompt only fires after the user's first message (see `index.ts`), so that
+				// message is stashed in `state` and relayed now — both the category and the message reach
+				// staff together instead of an empty ticket showing up first. There's no thread history yet
+				// to resolve a specific "replying to #N" for (see index.ts's `handleFirstMessage`), so a reply
+				// only ever gets the generic note here.
+				const contextNote = state.isForwarded
+					? '📨 *Forwarded message*'
+					: state.isReply
+						? '↩️ *replying to an earlier message*'
+						: undefined;
+
+				await relayUserMessageToModThread({
+					attachments: state.attachments.map((attachment) => ({
+						url: attachment.url,
+						filename: attachment.filename,
+						content_type: attachment.contentType || undefined,
+						size: attachment.size,
+					})),
+					contextNote,
+					content: state.content,
+					logger,
+					member,
+					messageId: state.messageId,
+					stickers: state.stickers.map((sticker) => ({
+						id: sticker.id,
+						name: sticker.name,
+						format_type: sticker.formatType,
+					})),
+					thread,
+					user,
+				});
+
+				await sendGreeting({
+					category,
+					defaultGreetingMessage: guildSettings.defaultGreetingMessage,
+					guildId,
+					member,
+					modThreadId: thread.modThreadId,
+					privateThreadId: interaction.channel.id,
+					user,
+				});
+			} finally {
+				// Cleared regardless of outcome — a real `threads` row now exists to block re-creation on
+				// success, and on failure the user shouldn't be stuck unable to retry until the 30-minute
+				// TTL catches up. Also drops the durable pending_tickets row so the abandoned-ticket sweep
+				// (lib/pendingTicketSweep.ts) doesn't try to clean up a thread that already resolved.
+				await Promise.all([
+					PendingTicketByUserStore.delete(`${guildId}:${user.id}`),
+					clearPendingTicketRecord(interaction.channel.id),
+				]);
+			}
+
+			const stateId = data.custom_id.split(':')[1];
+			if (stateId) {
+				await CategorySelectStore.delete(stateId);
+			}
+
+			// Self-destruct rather than leaving a "Category selected: X" message behind — the category
+			// pick was just a one-time fork in the setup flow, not something worth a permanent trace once
+			// the actual ticket (with the user's message already relayed above) exists.
+			await getContext().service.client.api.channels.deleteMessage(interaction.channel.id, interaction.message.id);
+		});
 	}
 }

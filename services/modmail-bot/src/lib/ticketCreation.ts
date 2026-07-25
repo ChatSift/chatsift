@@ -39,7 +39,6 @@ export interface FinishTicketCreationOptions {
 	alertRoleId: string | null;
 	category: Categories | null;
 	createdById: string;
-	defaultGreetingMessage: string | null;
 	guildId: string;
 	logger: Logger;
 	member: MemberLike | undefined;
@@ -61,7 +60,6 @@ export async function finishTicketCreation({
 	alertRoleId,
 	category,
 	createdById,
-	defaultGreetingMessage,
 	guildId,
 	logger,
 	member,
@@ -107,14 +105,29 @@ export async function finishTicketCreation({
 		},
 	});
 
-	const [thread] = await getContext().db<Threads[]>`
-		INSERT INTO threads (guild_id, mod_thread_id, user_id, created_by_id, category_id, user_thread_id)
-		VALUES (${guildId}, ${modThread.id}, ${user.id}, ${createdById}, ${category?.id ?? null}, ${privateThreadId})
-		RETURNING *
-	`;
+	// If the INSERT fails outright or somehow returns no row, the forum thread above is already live on
+	// Discord's side with nothing in our DB pointing at it — clean that up rather than leaving an
+	// orphaned thread a mod would see but that no `/reply` command could ever resolve back to a ticket.
+	let thread: Threads | undefined;
+	try {
+		[thread] = await getContext().db<Threads[]>`
+			INSERT INTO threads (guild_id, mod_thread_id, user_id, created_by_id, category_id, user_thread_id)
+			VALUES (${guildId}, ${modThread.id}, ${user.id}, ${createdById}, ${category?.id ?? null}, ${privateThreadId})
+			RETURNING *
+		`;
 
-	if (!thread) {
-		throw new Error(`Failed to insert thread row for mod thread ${modThread.id}`);
+		if (!thread) {
+			throw new Error(`Failed to insert thread row for mod thread ${modThread.id}`);
+		}
+	} catch (error) {
+		logger.error(
+			{ err: error, modThreadId: modThread.id },
+			'Failed to persist new ticket, deleting orphaned mod thread',
+		);
+		await getContext().service.client.api.channels.delete(modThread.id, {
+			reason: 'Rolling back failed ticket creation',
+		});
+		throw error;
 	}
 
 	logger.info({ threadId: thread.id, modThreadId: modThread.id, privateThreadId }, 'Opened new modmail ticket');

@@ -87,23 +87,45 @@ export default class ReplyCommand implements CommandHandler {
 		});
 
 		const modalInteraction = (await collectModal(id, 5 * 60 * 1_000)) as APIModalSubmitGuildInteraction;
+
+		// Deferred immediately, before the relay (media re-upload + two message posts) — that easily
+		// outlasts Discord's 3-second ack window, and without a defer the final `editReply` below would
+		// otherwise be racing an interaction that's already timed out.
+		await getContext().service.client.api.interactions.defer(modalInteraction.id, modalInteraction.token, {
+			flags: MessageFlags.Ephemeral,
+		});
+
 		const modalOptions = new ModalInteractionOptionResolver(modalInteraction);
 		const content = modalOptions.getTextInput('content');
 		const attachments = modalOptions.getAttachments('attachments') ?? [];
 
-		await relayStaffReplyToUserThread({
-			anon,
-			attachments,
-			content,
-			logger,
-			staffMember: modalInteraction.member,
-			staffUser: modalInteraction.member.user,
-			thread,
-		});
+		try {
+			await relayStaffReplyToUserThread({
+				anon,
+				attachments,
+				content,
+				logger,
+				staffMember: modalInteraction.member,
+				staffUser: modalInteraction.member.user,
+				thread,
+			});
 
-		await getContext().service.client.api.interactions.reply(modalInteraction.id, modalInteraction.token, {
-			content: '✅ Reply sent.',
-			flags: MessageFlags.Ephemeral,
-		});
+			await getContext().service.client.api.interactions.editReply(
+				modalInteraction.application_id,
+				modalInteraction.token,
+				{
+					content: '✅ Reply sent.',
+				},
+			);
+		} catch (error) {
+			logger.error({ err: error, threadId: thread.id }, 'Failed to relay staff reply');
+			await getContext().service.client.api.interactions.editReply(
+				modalInteraction.application_id,
+				modalInteraction.token,
+				{
+					content: '❌ Failed to send that reply. Please try again or contact another moderator.',
+				},
+			);
+		}
 	}
 }
