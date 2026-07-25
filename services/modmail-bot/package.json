@@ -1,0 +1,31 @@
+{
+	"name": "@chatsift/modmail-bot",
+	"private": true,
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"build": "tsc",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"lint": "eslint src",
+		"lint:fix": "eslint src --fix",
+		"clean": "rimraf dist",
+		"tag-docker": "docker image tag chatsift/chatsift-next:latest chatsift/chatsift-next:modmail"
+	},
+	"devDependencies": {
+		"@types/node": "^24.9.1",
+		"typescript": "~6.0.3",
+		"vitest": "^4.1.10"
+	},
+	"dependencies": {
+		"@chatsift/backend-core": "workspace:^",
+		"@chatsift/bot-core": "workspace:^",
+		"@chatsift/db": "workspace:^",
+		"@discordjs/builders": "2.0.0-dev.1783513686-6e81ea771",
+		"@discordjs/core": "3.0.0-dev.1783513686-6e81ea771",
+		"@discordjs/rest": "3.0.0-dev.1783513686-6e81ea771",
+		"@sapphire/discord-utilities": "^4.0.0",
+		"bin-rw": "^0.1.1",
+		"nanoid": "^6.0.0"
+	}
+}

@@ -12,10 +12,12 @@ import { Button } from '@/components/common/Button';
 import { ChannelSelect } from '@/components/common/ChannelSelect';
 import { RoleSelect } from '@/components/common/RoleSelect';
 import { Skeleton } from '@/components/common/Skeleton';
+import { TemplatePlaceholdersHint } from '@/components/common/TemplatePlaceholdersHint';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 interface ConfigFormData {
 	alertRoleId: string;
+	anonReplyLabel: string;
 	defaultGreetingMessage: string;
 	farewellMessage: string;
 	modForumId: string;
@@ -30,6 +32,7 @@ const CONFIG_FIELDS = [
 	'farewellMessage',
 	'simpleMode',
 	'alertRoleId',
+	'anonReplyLabel',
 ] as const satisfies (keyof ConfigFormData)[];
 
 function mapConfigIssues(issues: readonly { message: string; path: PropertyKey[] }[]): ConfigFormErrors {
@@ -66,6 +69,7 @@ export function ModmailConfigForm() {
 				farewellMessage: config.farewellMessage ?? '',
 				simpleMode: config.simpleMode,
 				alertRoleId: config.alertRoleId ?? '',
+				anonReplyLabel: config.anonReplyLabel ?? '',
 			});
 		}
 	}, [config, form]);
@@ -99,6 +103,7 @@ export function ModmailConfigForm() {
 			farewellMessage: form.farewellMessage || null,
 			simpleMode: form.simpleMode,
 			alertRoleId: form.alertRoleId || null,
+			anonReplyLabel: form.anonReplyLabel || null,
 		};
 
 		const result = updateConfigBodySchema.safeParse(data);
@@ -168,6 +173,7 @@ export function ModmailConfigForm() {
 					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
 						Posted in a ticket&apos;s private thread when its category doesn&apos;t set its own greeting.
 					</p>
+					<TemplatePlaceholdersHint />
 					{errors.defaultGreetingMessage && (
 						<p className="mt-1 text-sm text-misc-danger">{errors.defaultGreetingMessage}</p>
 					)}
@@ -188,7 +194,31 @@ export function ModmailConfigForm() {
 						rows={3}
 						value={form.farewellMessage}
 					/>
+					<TemplatePlaceholdersHint />
 					{errors.farewellMessage && <p className="mt-1 text-sm text-misc-danger">{errors.farewellMessage}</p>}
+				</div>
+
+				<div>
+					<label
+						className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+						htmlFor="modmail-anon-reply-label"
+					>
+						Anonymous Reply Label
+					</label>
+					<input
+						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+						id="modmail-anon-reply-label"
+						maxLength={100}
+						onChange={(e) => updateField('anonReplyLabel', e.target.value)}
+						placeholder="{{ guildName }} Team"
+						type="text"
+						value={form.anonReplyLabel}
+					/>
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						Shown as the author on anonymous staff replies. Leave blank to use the default shown above.
+					</p>
+					<TemplatePlaceholdersHint placeholders={['guildName']} />
+					{errors.anonReplyLabel && <p className="mt-1 text-sm text-misc-danger">{errors.anonReplyLabel}</p>}
 				</div>
 
 				<div>

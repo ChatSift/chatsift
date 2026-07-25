@@ -10,6 +10,7 @@ import { useCreateModmailCategory, useModForumTags, useModmailCategories } from 
 import { Button } from '@/components/common/Button';
 import { EmojiInput } from '@/components/common/EmojiInput';
 import { ForumTagSelect } from '@/components/common/ForumTagSelect';
+import { TemplatePlaceholdersHint } from '@/components/common/TemplatePlaceholdersHint';
 
 interface CategoryFormData {
 	description: string;
@@ -187,6 +188,7 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 					</Link>{' '}
 					if unset.
 				</p>
+				<TemplatePlaceholdersHint />
 				{errors.greetingMessage && <p className="mt-1 text-sm text-misc-danger">{errors.greetingMessage}</p>}
 			</div>
 

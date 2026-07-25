@@ -161,6 +161,19 @@ services:
     volumes:
       - ./logs/ama-bot:/usr/chatsift/logs/ama-bot
 
+  modmail-bot:
+    image: chatsift/chatsift-next:modmail
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    command: ['node', '--enable-source-maps', './services/modmail-bot/dist/bin.js']
+    volumes:
+      - ./logs/modmail-bot:/usr/chatsift/logs/modmail-bot
+
 volumes:
   postgres-data:
     name: 'chatsift-v3-postgres-data'

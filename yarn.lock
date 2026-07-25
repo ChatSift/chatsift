@@ -518,6 +518,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@chatsift/modmail-bot@workspace:services/modmail-bot":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/modmail-bot@workspace:services/modmail-bot"
+  dependencies:
+    "@chatsift/backend-core": "workspace:^"
+    "@chatsift/bot-core": "workspace:^"
+    "@chatsift/db": "workspace:^"
+    "@discordjs/builders": "npm:2.0.0-dev.1783513686-6e81ea771"
+    "@discordjs/core": "npm:3.0.0-dev.1783513686-6e81ea771"
+    "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
+    "@sapphire/discord-utilities": "npm:^4.0.0"
+    "@types/node": "npm:^24.9.1"
+    bin-rw: "npm:^0.1.1"
+    nanoid: "npm:^6.0.0"
+    typescript: "npm:~6.0.3"
+    vitest: "npm:^4.1.10"
+  languageName: unknown
+  linkType: soft
+
 "@chatsift/parse-relative-time@workspace:packages/public/parse-relative-time":
   version: 0.0.0-use.local
   resolution: "@chatsift/parse-relative-time@workspace:packages/public/parse-relative-time"

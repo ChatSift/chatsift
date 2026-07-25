@@ -5,6 +5,8 @@ import { useMemo } from 'react';
 import { useGrantAuth } from '@/api/grant';
 import type { AMASessionDetailed, AMASessionWithCount } from '@/api/routes/ama';
 import { useMe } from '@/api/routes/auth';
+import type { GuildChannelInfo } from '@/api/routes/guilds';
+import type { ModmailPanel } from '@/api/routes/modmail';
 import type { BreadcrumbOption } from '@/components/common/Breadcrumb';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { GuildIcon } from '@/components/common/GuildIcon';
@@ -50,6 +52,8 @@ interface SegmentOptionsContext {
 export interface SegmentOptionsData {
 	amaSessions?: AMASessionWithCount[] | undefined;
 	currentAMA?: AMASessionDetailed | undefined;
+	modmailChannels?: GuildChannelInfo[] | undefined;
+	modmailPanels?: ModmailPanel[] | undefined;
 }
 
 type SegmentOptionsComputer = (
@@ -198,6 +202,25 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 					const ama = segmentOptionsData?.amaSessions?.find((s) => s.id === amaId);
 					// If found, use title; otherwise fall back to the ID
 					label = ama ? ama.title : part;
+				}
+			}
+
+			// For ModMail ticket panel IDs, use the panel's channel name (e.g. "#general") instead of
+			// the raw numeric id -- there's no title field to fall back on the way AMA sessions have one.
+			if (
+				segmentPath.length === 3 &&
+				segmentPath[0] === 'modmail' &&
+				segmentPath[1] === 'panels' &&
+				!Number.isNaN(Number(part))
+			) {
+				const panelId = Number(part);
+
+				if (segmentOptionsData?.modmailPanels === undefined || segmentOptionsData.modmailChannels === undefined) {
+					label = <Skeleton className="h-5 w-32 inline-flex align-middle" />;
+				} else {
+					const panel = segmentOptionsData.modmailPanels.find((p) => p.id === panelId);
+					const channel = panel && segmentOptionsData.modmailChannels.find((c) => c.id === panel.channelId);
+					label = channel ? `#${channel.name}` : (panel?.channelId ?? part);
 				}
 			}
 

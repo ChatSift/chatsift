@@ -1,0 +1,151 @@
+import { Buffer } from 'node:buffer';
+import type { Logger } from '@chatsift/backend-core';
+import { CDNRoutes, ImageFormat, RouteBases, StickerFormatType } from '@discordjs/core';
+import type { RawFile } from '@discordjs/rest';
+
+/**
+ * Narrowed to just what this file reads off a real `APIAttachment`/`APIStickerItem` — the
+ * category-select-deferred path (`categorySelect.ts`) reconstructs these from a Redis-stored state
+ * rather than a live gateway payload, so keeping the field set minimal avoids needing to fake an
+ * entire `APIAttachment`/`APIStickerItem` for that path.
+ */
+export interface RelayAttachmentLike {
+	content_type?: string | undefined;
+	filename: string;
+	size: number;
+	url: string;
+}
+
+export interface RelayStickerLike {
+	format_type: StickerFormatType;
+	id: string;
+	name: string;
+}
+
+/**
+ * Conservative stand-in for "the destination channel's actual upload limit" (which depends on the
+ * guild's boost tier and isn't worth an extra API call to check) — Discord's default, non-boosted
+ * limit. Anything bigger skips re-upload and falls back to a plain link instead of risking a failed
+ * relay over one oversized file.
+ */
+const MAX_REUPLOAD_BYTES = 10 * 1_024 * 1_024;
+
+export interface RelayMedia {
+	/**
+	 * `attachment://<name>` reference for the first successfully-fetched image, if any — for `APIEmbed#image`.
+	 */
+	embedImageRef: string | undefined;
+	/**
+	 * Every attachment/sticker that was actually re-uploaded, to pass as `files` on the relayed message.
+	 */
+	files: RawFile[];
+	/**
+	 * Human-readable note about anything that couldn't be forwarded, to append to the embed description.
+	 */
+	note: string | undefined;
+}
+
+async function fetchAsRawFile(
+	url: string,
+	name: string,
+	contentType: string | undefined,
+	logger: Logger,
+): Promise<RawFile | undefined> {
+	try {
+		const res = await fetch(url);
+		if (!res.ok) {
+			throw new Error(`unexpected status ${res.status}`);
+		}
+
+		const data = Buffer.from(await res.arrayBuffer());
+		return { data, name, ...(contentType ? { contentType } : {}) };
+	} catch (error) {
+		logger.warn({ err: error, url }, 'Failed to fetch media for relay, falling back to a link');
+		return undefined;
+	}
+}
+
+function isImageContentType(contentType: string | undefined): boolean {
+	return contentType?.startsWith('image/') ?? false;
+}
+
+/**
+ * Actually re-uploads attachments and stickers on the relayed message instead of just linking the
+ * original CDN url — prod ChatSift/ModMail only ever forwarded a single image by url and dropped
+ * everything else (extra attachments, any non-image file, stickers entirely). Re-uploading means
+ * every attachment survives even after the source message/thread is gone.
+ *
+ * Stickers are fetched via their own `format_type`'s CDN extension (there is no working "always
+ * transcode to gif" route — that was tried and just broke fetching for every sticker, including
+ * previously-fine static ones). PNG/APNG both download as `.png`; Discord's own APNG bytes are
+ * animated, but re-uploading them as a plain attachment loses that (regular attachments don't get
+ * the special animated rendering an actual sticker slot has) — that limitation is called out in
+ * `note` rather than silently swallowed. GIF-format stickers download and stay animated normally.
+ * Lottie (vector, format 3) has no raster the CDN can hand back at all, so it's skipped entirely and
+ * also called out in `note`.
+ */
+export async function buildRelayMedia(
+	attachments: RelayAttachmentLike[],
+	stickers: RelayStickerLike[],
+	logger: Logger,
+): Promise<RelayMedia> {
+	const fetched: { file: RawFile; isImage: boolean }[] = [];
+	const failedLinks: string[] = [];
+	const notes: string[] = [];
+
+	for (const attachment of attachments) {
+		if (attachment.size > MAX_REUPLOAD_BYTES) {
+			failedLinks.push(attachment.url);
+			continue;
+		}
+
+		const file = await fetchAsRawFile(attachment.url, attachment.filename, attachment.content_type, logger);
+		if (!file) {
+			failedLinks.push(attachment.url);
+			continue;
+		}
+
+		fetched.push({ file, isImage: isImageContentType(attachment.content_type) });
+	}
+
+	for (const sticker of stickers) {
+		if (sticker.format_type === StickerFormatType.Lottie) {
+			notes.push(`sticker "${sticker.name}" is animated (vector) and can't be forwarded`);
+			continue;
+		}
+
+		const format = sticker.format_type === StickerFormatType.GIF ? ImageFormat.GIF : ImageFormat.PNG;
+		const url = `${RouteBases.cdn}${CDNRoutes.sticker(sticker.id, format)}`;
+		const name = `${sticker.name}.${format}`;
+
+		const file = await fetchAsRawFile(url, name, format === ImageFormat.GIF ? 'image/gif' : 'image/png', logger);
+		if (!file) {
+			failedLinks.push(url);
+			continue;
+		}
+
+		fetched.push({ file, isImage: true });
+		if (sticker.format_type === StickerFormatType.APNG) {
+			notes.push(`sticker "${sticker.name}" is animated but will appear static here`);
+		}
+	}
+
+	// Discord "claims" whichever file an embed's `image` references out of the same message's
+	// attachment list, leaving the rest to render as a separate floating attachment group above it —
+	// with 2+ files that looks like two disconnected chunks of media. Only claim one into the embed
+	// when it's the *only* file being sent; otherwise leave the embed image slot empty and let every
+	// file ride together as Discord's native multi-attachment gallery instead. The footer/author stay
+	// untouched either way.
+	const embedImageRef =
+		fetched.length === 1 && fetched[0]!.isImage ? `attachment://${fetched[0]!.file.name}` : undefined;
+
+	if (failedLinks.length > 0) {
+		notes.push(`couldn't forward ${failedLinks.length} item(s), original link(s): ${failedLinks.join(', ')}`);
+	}
+
+	return {
+		embedImageRef,
+		files: fetched.map(({ file }) => file),
+		note: notes.length > 0 ? notes.map((part) => `*(${part})*`).join('\n') : undefined,
+	};
+}

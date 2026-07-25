@@ -11,6 +11,7 @@ import { Button } from '@/components/common/Button';
 import { Emoji } from '@/components/common/Emoji';
 import { EmojiInput } from '@/components/common/EmojiInput';
 import { ForumTagSelect, tagEmojiValue } from '@/components/common/ForumTagSelect';
+import { TemplatePlaceholdersHint } from '@/components/common/TemplatePlaceholdersHint';
 import { SvgChevronDown } from '@/components/icons/SvgChevronDown';
 
 interface CategoryFormData {
@@ -208,6 +209,7 @@ export function CategoryCard({ guildId, category, canMoveUp, canMoveDown, onMove
 							rows={2}
 							value={form.greetingMessage}
 						/>
+						<TemplatePlaceholdersHint />
 						{errors.greetingMessage && <p className="mt-1 text-sm text-misc-danger">{errors.greetingMessage}</p>}
 					</div>
 
