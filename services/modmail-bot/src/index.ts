@@ -1,5 +1,5 @@
 import { dirname, join } from 'node:path';
-import { setInterval } from 'node:timers';
+import { setInterval, setTimeout } from 'node:timers';
 import { fileURLToPath } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
@@ -298,11 +298,22 @@ export async function bin(client: Client): Promise<void> {
 		}
 	}, PENDING_TICKET_SWEEP_INTERVAL_MS).unref();
 
-	setInterval(async () => {
-		try {
-			await preventOpenThreadsFromArchiving(getContext().logger);
-		} catch (error) {
-			getContext().logger.error({ err: error }, 'Failed to sweep open threads for auto-archive prevention');
-		}
-	}, PREVENT_THREAD_ARCHIVE_INTERVAL_MS).unref();
+	// Self-rescheduling rather than `setInterval` (unlike the sweep above) since its per-run cost scales
+	// with how many tickets are open rather than a small bounded table — a guild with enough concurrent
+	// tickets could in principle take long enough for one run to still be going when the next tick would
+	// otherwise fire, queuing duplicate GET/PATCH pairs for the same channels. Only scheduling the next
+	// run once the current one settles rules that out by construction.
+	const schedulePreventThreadArchiveSweep = (): void => {
+		setTimeout(async () => {
+			try {
+				await preventOpenThreadsFromArchiving(getContext().logger);
+			} catch (error) {
+				getContext().logger.error({ err: error }, 'Failed to sweep open threads for auto-archive prevention');
+			} finally {
+				schedulePreventThreadArchiveSweep();
+			}
+		}, PREVENT_THREAD_ARCHIVE_INTERVAL_MS).unref();
+	};
+
+	schedulePreventThreadArchiveSweep();
 }
