@@ -36,6 +36,7 @@ export const updateConfigBodySchema = z
 		farewellMessage: z.string().max(2_000).nullable().optional(),
 		simpleMode: z.boolean().optional(),
 		alertRoleId: snowflakeSchema.nullable().optional(),
+		anonReplyLabel: z.string().max(100).nullable().optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 

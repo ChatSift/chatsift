@@ -37,6 +37,7 @@ export default defineRoute({
 				farewellMessage: null,
 				simpleMode: false,
 				alertRoleId: null,
+				anonReplyLabel: null,
 			}
 		);
 	},

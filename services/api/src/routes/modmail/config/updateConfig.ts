@@ -57,10 +57,13 @@ export default defineRoute({
 
 		const columns = Object.keys(data) as (keyof typeof data)[];
 		const [settings] = await db<GuildSettings[]>`
-			INSERT INTO guild_settings (guild_id, mod_forum_id, default_greeting_message, farewell_message, simple_mode, alert_role_id)
+			INSERT INTO guild_settings (
+				guild_id, mod_forum_id, default_greeting_message, farewell_message, simple_mode, alert_role_id, anon_reply_label
+			)
 			VALUES (
 				${guildId}, ${data.modForumId ?? null}, ${data.defaultGreetingMessage ?? null},
-				${data.farewellMessage ?? null}, ${data.simpleMode ?? false}, ${data.alertRoleId ?? null}
+				${data.farewellMessage ?? null}, ${data.simpleMode ?? false}, ${data.alertRoleId ?? null},
+				${data.anonReplyLabel ?? null}
 			)
 			ON CONFLICT (guild_id) DO UPDATE SET ${db(data, ...columns)}
 			RETURNING *

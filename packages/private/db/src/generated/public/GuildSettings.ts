@@ -17,6 +17,8 @@ export default interface GuildSettings {
   simpleMode: boolean;
 
   alertRoleId: string | null;
+
+  anonReplyLabel: string | null;
 }
 
 /** Represents the initializer for the table public.guild_settings */
@@ -32,6 +34,8 @@ export interface GuildSettingsInitializer {
   simpleMode?: boolean;
 
   alertRoleId?: string | null;
+
+  anonReplyLabel?: string | null;
 }
 
 /** Represents the mutator for the table public.guild_settings */
@@ -47,4 +51,6 @@ export interface GuildSettingsMutator {
   simpleMode?: boolean;
 
   alertRoleId?: string | null;
+
+  anonReplyLabel?: string | null;
 }
