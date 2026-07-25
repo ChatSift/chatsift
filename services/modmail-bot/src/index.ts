@@ -121,6 +121,20 @@ async function handleFirstMessage(
 					privateThreadId: message.channel_id,
 					user: message.author,
 				});
+
+				// Only cleared here, on success — `PendingTicketStore` is what lets a *retry* (the user
+				// just sending another message) re-enter this same function after a failure below, so it
+				// must survive a thrown error instead of being consumed no matter what.
+				await PendingTicketStore.delete(message.channel_id);
+			} catch (error) {
+				logger.error(
+					{ err: error, guildId: pending.guildId, userId: pending.userId },
+					'Failed to finish ticket creation from the first message',
+				);
+				await getContext().service.client.api.channels.createMessage(message.channel_id, {
+					content:
+						'❌ Something went wrong setting up your ticket. Please try sending your message again, or contact a moderator.',
+				});
 			} finally {
 				// Cleared regardless of outcome — a real `threads` row now exists to block re-creation on
 				// success, and on failure the user shouldn't be stuck unable to retry until the 30-minute
@@ -135,52 +149,69 @@ async function handleFirstMessage(
 			return;
 		}
 
-		const stateId = nanoid();
-		await CategorySelectStore.set(stateId, {
-			attachments: effective.attachments.map((attachment) => ({
-				url: attachment.url,
-				filename: attachment.filename,
-				contentType: attachment.content_type ?? '',
-				size: attachment.size,
-			})),
-			categoryIds: pending.categoryIds,
-			content: effective.content,
-			isForwarded: effective.isForwarded,
-			// No thread exists yet for a first message, so there's no history a reply could meaningfully
-			// point at — just remember whether it was a reply at all, `categorySelect.ts` renders the
-			// generic note rather than looking up a specific (necessarily nonexistent) local message id.
-			isReply:
-				Boolean(message.message_reference?.message_id) &&
-				message.message_reference?.type !== MessageReferenceType.Forward,
-			messageId: message.id,
-			stickers: effective.stickers.map((sticker) => ({
-				id: sticker.id,
-				name: sticker.name,
-				formatType: sticker.format_type,
-			})),
-		});
+		try {
+			const stateId = nanoid();
+			await CategorySelectStore.set(stateId, {
+				attachments: effective.attachments.map((attachment) => ({
+					url: attachment.url,
+					filename: attachment.filename,
+					contentType: attachment.content_type ?? '',
+					size: attachment.size,
+				})),
+				categoryIds: pending.categoryIds,
+				content: effective.content,
+				isForwarded: effective.isForwarded,
+				// No thread exists yet for a first message, so there's no history a reply could
+				// meaningfully point at — just remember whether it was a reply at all, `categorySelect.ts`
+				// renders the generic note rather than looking up a specific (necessarily nonexistent)
+				// local message id.
+				isReply:
+					Boolean(message.message_reference?.message_id) &&
+					message.message_reference?.type !== MessageReferenceType.Forward,
+				messageId: message.id,
+				stickers: effective.stickers.map((sticker) => ({
+					id: sticker.id,
+					name: sticker.name,
+					formatType: sticker.format_type,
+				})),
+			});
 
-		await getContext().service.client.api.channels.createMessage(message.channel_id, {
-			content: 'Thanks! Please pick a category for your ticket:',
-			components: [
-				{
-					type: ComponentType.ActionRow,
-					components: [
-						{
-							type: ComponentType.StringSelect,
-							custom_id: `modmail-category-select:${stateId}`,
-							placeholder: 'Select a category',
-							options: categories.map((category) => ({
-								label: category.name.slice(0, 100),
-								value: String(category.id),
-								...(category.description ? { description: category.description.slice(0, 100) } : {}),
-								...(category.emoji ? { emoji: { name: category.emoji } } : {}),
-							})),
-						},
-					],
-				},
-			],
-		});
+			await getContext().service.client.api.channels.createMessage(message.channel_id, {
+				content: 'Thanks! Please pick a category for your ticket:',
+				components: [
+					{
+						type: ComponentType.ActionRow,
+						components: [
+							{
+								type: ComponentType.StringSelect,
+								custom_id: `modmail-category-select:${stateId}`,
+								placeholder: 'Select a category',
+								options: categories.map((category) => ({
+									label: category.name.slice(0, 100),
+									value: String(category.id),
+									...(category.description ? { description: category.description.slice(0, 100) } : {}),
+									...(category.emoji ? { emoji: { name: category.emoji } } : {}),
+								})),
+							},
+						],
+					},
+				],
+			});
+
+			// As above: only cleared on success, so a failure here (e.g. the createMessage call itself
+			// failing) leaves the user able to retry by sending another message instead of being stuck
+			// with neither an open thread nor a pending one to route against.
+			await PendingTicketStore.delete(message.channel_id);
+		} catch (error) {
+			logger.error(
+				{ err: error, guildId: pending.guildId, userId: pending.userId },
+				'Failed to prompt for a category after the first message',
+			);
+			await getContext().service.client.api.channels.createMessage(message.channel_id, {
+				content:
+					'❌ Something went wrong setting up your ticket. Please try sending your message again, or contact a moderator.',
+			});
+		}
 	});
 }
 
@@ -218,7 +249,9 @@ function registerMessageRelay(client: Client): void {
 
 			const pending = await PendingTicketStore.get(message.channel_id);
 			if (pending) {
-				await PendingTicketStore.delete(message.channel_id);
+				// `handleFirstMessage` deletes this itself, and only once it actually succeeds — deleting
+				// it eagerly here would strand the user with a dead thread on any failure inside it (see
+				// the comments in `handleFirstMessage`).
 				await handleFirstMessage(message, pending, logger);
 			}
 		} catch (error) {
