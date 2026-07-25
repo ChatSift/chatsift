@@ -1,6 +1,6 @@
 import { getContext } from '@chatsift/backend-core';
-import type { Categories, CategoriesId } from '@chatsift/db';
-import { conflict, notFound } from '@hapi/boom';
+import type { Categories, CategoriesId, GuildSettings } from '@chatsift/db';
+import { badRequest, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
@@ -37,6 +37,19 @@ export default defineRoute({
 		const data = req.body;
 		const { guildId, categoryId } = req.params;
 		const db = getContext().db;
+
+		if (data.maxConcurrentThreads !== undefined && data.maxConcurrentThreads !== null) {
+			const [guildSettings] = await db<GuildSettings[]>`
+				SELECT max_concurrent_threads FROM guild_settings WHERE guild_id = ${guildId}
+			`;
+
+			const guildMax = guildSettings?.maxConcurrentThreads ?? 1;
+			if (data.maxConcurrentThreads > guildMax) {
+				throw badRequest(`maxConcurrentThreads cannot exceed the server's general limit (${guildMax})`, {
+					conflictField: 'maxConcurrentThreads',
+				});
+			}
+		}
 
 		const columns = Object.keys(data) as (keyof typeof data)[];
 

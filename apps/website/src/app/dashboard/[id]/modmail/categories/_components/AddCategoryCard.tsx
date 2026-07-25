@@ -6,7 +6,12 @@ import { useState } from 'react';
 import { APIError } from '@/api/error';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { CreateModmailCategoryBody } from '@/api/routes/modmail';
-import { useCreateModmailCategory, useModForumTags, useModmailCategories } from '@/api/routes/modmail';
+import {
+	useCreateModmailCategory,
+	useModForumTags,
+	useModmailCategories,
+	useModmailConfig,
+} from '@/api/routes/modmail';
 import { Button } from '@/components/common/Button';
 import { EmojiInput } from '@/components/common/EmojiInput';
 import { ForumTagSelect } from '@/components/common/ForumTagSelect';
@@ -17,6 +22,7 @@ interface CategoryFormData {
 	emoji: string;
 	forumTagId: string;
 	greetingMessage: string;
+	maxConcurrentThreads: string;
 	name: string;
 }
 
@@ -28,6 +34,7 @@ const EMPTY_FORM: CategoryFormData = {
 	description: '',
 	greetingMessage: '',
 	forumTagId: '',
+	maxConcurrentThreads: '',
 };
 
 const CATEGORY_FIELDS = [
@@ -36,6 +43,7 @@ const CATEGORY_FIELDS = [
 	'description',
 	'greetingMessage',
 	'forumTagId',
+	'maxConcurrentThreads',
 ] as const satisfies (keyof CategoryFormData)[];
 
 function mapCategoryIssues(issues: readonly { message: string; path: PropertyKey[] }[]): CategoryFormErrors {
@@ -61,6 +69,7 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 	const createCategory = useCreateModmailCategory(guildId);
 	const { data: categories } = useModmailCategories(guildId);
 	const { data: guildInfo } = useGuildInfo(guildId, 'MODMAIL');
+	const { data: config } = useModmailConfig(guildId);
 	const { tags: forumTags, modForumConfigured } = useModForumTags(guildId);
 
 	const updateField = (field: keyof CategoryFormData, value: string) => {
@@ -75,6 +84,7 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 			description: form.description.trim() || null,
 			greetingMessage: form.greetingMessage.trim() || null,
 			forumTagId: form.forumTagId.trim() || null,
+			maxConcurrentThreads: form.maxConcurrentThreads.trim() ? Number(form.maxConcurrentThreads) : null,
 			// New categories always append at the end -- reordering afterwards happens via the move up/down
 			// controls on each card, not by hand-picking a number here.
 			sortOrder: categories?.length ?? 0,
@@ -92,12 +102,16 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 			setErrors({});
 		} catch (error) {
 			if (error instanceof APIError) {
-				if (error.statusCode === 409) {
-					// `conflictField` is a structured indicator the API attaches to this route's two possible
-					// conflicts (duplicate name, duplicate forum tag) -- see createCategory.ts/sendBoom.ts. Falls
-					// back to `name` only as defense-in-depth against a future conflict this route doesn't
-					// currently throw and hasn't set one for; it should never actually happen.
-					const field = error.conflictField === 'forumTagId' ? 'forumTagId' : 'name';
+				if (error.conflictField) {
+					// `conflictField` is a structured indicator the API attaches to a domain error outside plain
+					// zod validation -- either a 409 (duplicate name, duplicate forum tag) or the 400 this route
+					// throws when `maxConcurrentThreads` exceeds the guild's general limit (see
+					// createCategory.ts/sendBoom.ts). Checked before the zod-validation branch below since
+					// those errors carry no `validationErrors` tree for `fieldError` to read. Falls back to
+					// `name` only as defense-in-depth against a future conflict this route hasn't set one for.
+					const field = (CATEGORY_FIELDS as readonly string[]).includes(error.conflictField)
+						? (error.conflictField as keyof CategoryFormData)
+						: 'name';
 					setErrors({ [field]: error.message });
 				} else if (error.statusCode === 400) {
 					setErrors(
@@ -206,6 +220,32 @@ export function AddCategoryCard({ guildId }: AddCategoryCardProps) {
 					No Mod Forum configured — set one on the Config page to route this category to a forum tag.
 				</p>
 			)}
+
+			<div>
+				<label
+					className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+					htmlFor="category-max-concurrent-threads"
+				>
+					Max Concurrent Threads Override
+				</label>
+				<input
+					className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+					id="category-max-concurrent-threads"
+					min={1}
+					onChange={(e) => updateField('maxConcurrentThreads', e.target.value)}
+					placeholder={config ? String(config.maxConcurrentThreads) : ''}
+					type="number"
+					value={form.maxConcurrentThreads}
+				/>
+				<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+					How many tickets a user may have open in this category specifically. Leave blank to use the{' '}
+					<Link className="underline hover:text-misc-accent" href={`/dashboard/${guildId}/modmail/config`}>
+						guild default
+					</Link>
+					{config ? ` (currently ${config.maxConcurrentThreads})` : ''}. Cannot exceed the guild default.
+				</p>
+				{errors.maxConcurrentThreads && <p className="mt-1 text-sm text-misc-danger">{errors.maxConcurrentThreads}</p>}
+			</div>
 
 			<div className="mt-auto flex justify-end">
 				<Button isDisabled={!form.name.trim()} onPress={handleSubmit}>

@@ -3,9 +3,9 @@ import { createRecipe, DataType } from 'bin-rw';
 
 /**
  * How long a ticket is allowed to sit pending (private thread created, waiting on the user's first
- * message or category pick) before it's considered abandoned. Shared between the two Redis stores
+ * message or category pick) before it's considered abandoned. Shared between `PendingTicketStore`
  * below (routing state) and `pending_tickets` (the durable record `lib/pendingTicketSweep.ts` polls) —
- * all three track the same window and need to agree on its length.
+ * both track the same window and need to agree on its length.
  */
 export const PENDING_TICKET_TTL_MS = 30 * 60 * 1_000;
 
@@ -30,30 +30,6 @@ export const PendingTicketStore = new RedisStore<PendingTicketState>({
 		userId: DataType.String,
 	}),
 	makeKey: (channelId: string) => `modmail:pending-ticket:${channelId}`,
-	storeOld: false,
-});
-
-export interface PendingTicketByUserState {
-	privateThreadId: string;
-}
-
-/**
- * Secondary index over the same pending-ticket window, keyed by `${guildId}:${userId}` instead of the
- * private thread's channel id. `findOpenThreadForUser` (lib/threads.ts) only catches a ticket once
- * `finishTicketCreation` has actually run — before that (the whole time a ticket sits pending on the
- * user's first message, or on a category pick), nothing stopped a second `modmail-create-ticket`
- * click from spinning up a duplicate private thread. This is checked by `createTicket.ts` alongside
- * `withGuildUserLock` (lib/guildUserQueue.ts): the lock makes truly concurrent clicks safe, this index
- * is what makes a second click *minutes* later (after the first click's handler already returned) get
- * rejected instead of creating a duplicate. Same TTL as `PendingTicketStore` since they track the same
- * window; cleared explicitly once the ticket resolves (success or failure) rather than left to expire.
- */
-export const PendingTicketByUserStore = new RedisStore<PendingTicketByUserState>({
-	TTL: PENDING_TICKET_TTL_MS,
-	recipe: createRecipe({
-		privateThreadId: DataType.String,
-	}),
-	makeKey: (key: string) => `modmail:pending-ticket-by-user:${key}`,
 	storeOld: false,
 });
 

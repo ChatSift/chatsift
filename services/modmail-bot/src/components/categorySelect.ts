@@ -6,8 +6,9 @@ import type { APIMessageComponentInteraction, APIMessageStringSelectInteractionD
 import { MessageFlags } from '@discordjs/core';
 import { CategorySelectStore, type CategorySelectState } from '../lib/categoryState.js';
 import { withGuildUserLock } from '../lib/guildUserQueue.js';
-import { clearPendingTicketRecord, PendingTicketByUserStore } from '../lib/pendingTicket.js';
+import { clearPendingTicketRecord } from '../lib/pendingTicket.js';
 import { relayUserMessageToModThread } from '../lib/relay.js';
+import { countOpenThreadsForUserInCategory } from '../lib/threads.js';
 import { finishTicketCreation, sendGreeting } from '../lib/ticketCreation.js';
 
 export default class CategorySelectComponent implements ComponentHandler<CategorySelectState> {
@@ -73,13 +74,64 @@ export default class CategorySelectComponent implements ComponentHandler<Categor
 		// `string | null` inside it.
 		const modForumId = guildSettings.modForumId;
 
+		// `category.maxConcurrentThreads` is nullable ("inherit the guild's general limit") and is
+		// clamped to the guild's current value regardless — the write-side routes validate a category
+		// override never exceeds the guild setting at the time it's set, but the guild setting can be
+		// lowered afterwards without touching existing categories, so this stays the source of truth for
+		// what the limit actually is right now.
+		const categoryMax =
+			category.maxConcurrentThreads === null
+				? guildSettings.maxConcurrentThreads
+				: Math.min(category.maxConcurrentThreads, guildSettings.maxConcurrentThreads);
+
+		// Captured for the same reason as `modForumId` above — `category`'s narrowing from the `!category`
+		// guard doesn't flow into `limitMessage`'s nested function body.
+		const categoryName = category.name;
+
+		function limitMessage(openCount: number): string {
+			return openCount === 1 && categoryMax === 1
+				? `You already have an open ticket in the "${categoryName}" category. Close it before opening another there.`
+				: `You already have ${openCount} open ticket(s) in the "${categoryName}" category (limit: ${categoryMax}). Close one before opening another there.`;
+		}
+
+		// Optimistic check, purely for fast feedback — not under the lock yet, so a second ticket
+		// resolving its own category pick concurrently (a different private thread, same user) isn't
+		// serialized against this one here. The authoritative recheck happens below, inside
+		// `withGuildUserLock`, immediately before `finishTicketCreation` actually claims the slot.
+		const openInCategory = await countOpenThreadsForUserInCategory(guildId, user.id, category.id);
+		if (openInCategory >= categoryMax) {
+			// Not deferred yet, so this `reply` (rather than an edit) leaves the select menu itself
+			// intact and interactive — same pattern as the "category no longer available"/"no longer
+			// exists" checks above, letting the user immediately retry with a different category instead
+			// of the setup dead-ending here.
+			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+				content: limitMessage(openInCategory),
+				flags: MessageFlags.Ephemeral,
+			});
+			return;
+		}
+
 		// Deferred here, before the slow part (mod-forum thread creation, the relay's media re-upload,
 		// the greeting) — all of that easily outlasts Discord's 3-second component-ack window, and the
 		// self-destruct deleteMessage call below needs the interaction to still be alive when it runs.
 		await getContext().service.client.api.interactions.deferMessageUpdate(interaction.id, interaction.token);
 
 		await withGuildUserLock(guildId, user.id, async () => {
+			let succeeded = false;
 			try {
+				// Authoritative recheck, now serialized against every other ticket-lifecycle event for this
+				// guild+user by the lock — the pre-lock check above only gives fast feedback and can't stop
+				// two picks for the same category (two different private threads) both slipping under the
+				// limit if they raced each other into this handler.
+				const openInCategoryLocked = await countOpenThreadsForUserInCategory(guildId, user.id, category.id);
+				if (openInCategoryLocked >= categoryMax) {
+					await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
+						content: limitMessage(openInCategoryLocked),
+						flags: MessageFlags.Ephemeral,
+					});
+					return;
+				}
+
 				const thread = await finishTicketCreation({
 					alertRoleId: guildSettings.alertRoleId,
 					category,
@@ -133,6 +185,8 @@ export default class CategorySelectComponent implements ComponentHandler<Categor
 					privateThreadId: interaction.channel.id,
 					user,
 				});
+
+				succeeded = true;
 			} catch (error) {
 				// Without this, a failure here would propagate straight out of `withGuildUserLock` and
 				// skip both the state cleanup below and the self-destruct — leaving the category select
@@ -144,14 +198,15 @@ export default class CategorySelectComponent implements ComponentHandler<Categor
 					flags: MessageFlags.Ephemeral,
 				});
 			} finally {
-				// Cleared regardless of outcome — a real `threads` row now exists to block re-creation on
-				// success, and on failure the user shouldn't be stuck unable to retry until the 30-minute
-				// TTL catches up. Also drops the durable pending_tickets row so the abandoned-ticket sweep
-				// (lib/pendingTicketSweep.ts) doesn't try to clean up a thread that already resolved.
-				await Promise.all([
-					PendingTicketByUserStore.delete(`${guildId}:${user.id}`),
-					clearPendingTicketRecord(interaction.channel.id),
-				]);
+				// Only cleared on success (a real `threads` row now exists to block re-creation). Left in
+				// place on the limit-rejection and error paths -- the private thread that's still sitting
+				// there unresolved should keep counting against `countActiveTicketsForUser` until it's
+				// either abandoned (the durable row is what `lib/pendingTicketSweep.ts` polls to find and
+				// delete it) or a moderator sorts the user out directly. Clearing it here unconditionally
+				// would both let the count silently drop and orphan the private thread from the sweep.
+				if (succeeded) {
+					await clearPendingTicketRecord(interaction.channel.id);
+				}
 			}
 
 			const stateId = data.custom_id.split(':')[1];

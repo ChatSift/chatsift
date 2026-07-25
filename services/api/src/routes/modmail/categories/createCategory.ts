@@ -1,6 +1,6 @@
 import { getContext } from '@chatsift/backend-core';
-import type { Categories } from '@chatsift/db';
-import { conflict } from '@hapi/boom';
+import type { Categories, GuildSettings } from '@chatsift/db';
+import { badRequest, conflict } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
@@ -30,12 +30,27 @@ export default defineRoute({
 		const data = req.body;
 		const { guildId } = req.params;
 
+		if (data.maxConcurrentThreads !== undefined && data.maxConcurrentThreads !== null) {
+			const [guildSettings] = await getContext().db<GuildSettings[]>`
+				SELECT max_concurrent_threads FROM guild_settings WHERE guild_id = ${guildId}
+			`;
+
+			const guildMax = guildSettings?.maxConcurrentThreads ?? 1;
+			if (data.maxConcurrentThreads > guildMax) {
+				throw badRequest(`maxConcurrentThreads cannot exceed the server's general limit (${guildMax})`, {
+					conflictField: 'maxConcurrentThreads',
+				});
+			}
+		}
+
 		try {
 			const [category] = await getContext().db<Categories[]>`
-				INSERT INTO categories (guild_id, name, emoji, description, greeting_message, forum_tag_id, sort_order)
+				INSERT INTO categories (
+					guild_id, name, emoji, description, greeting_message, forum_tag_id, sort_order, max_concurrent_threads
+				)
 				VALUES (
 					${guildId}, ${data.name}, ${data.emoji ?? null}, ${data.description ?? null},
-					${data.greetingMessage ?? null}, ${data.forumTagId ?? null}, ${data.sortOrder}
+					${data.greetingMessage ?? null}, ${data.forumTagId ?? null}, ${data.sortOrder}, ${data.maxConcurrentThreads ?? null}
 				)
 				RETURNING *
 			`;

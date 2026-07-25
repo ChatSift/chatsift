@@ -38,6 +38,7 @@ export default defineRoute({
 				simpleMode: false,
 				alertRoleId: null,
 				anonReplyLabel: null,
+				maxConcurrentThreads: 1,
 			}
 		);
 	},

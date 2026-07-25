@@ -20,6 +20,7 @@ interface ConfigFormData {
 	anonReplyLabel: string;
 	defaultGreetingMessage: string;
 	farewellMessage: string;
+	maxConcurrentThreads: string;
 	modForumId: string;
 	simpleMode: boolean;
 }
@@ -33,6 +34,7 @@ const CONFIG_FIELDS = [
 	'simpleMode',
 	'alertRoleId',
 	'anonReplyLabel',
+	'maxConcurrentThreads',
 ] as const satisfies (keyof ConfigFormData)[];
 
 function mapConfigIssues(issues: readonly { message: string; path: PropertyKey[] }[]): ConfigFormErrors {
@@ -70,6 +72,7 @@ export function ModmailConfigForm() {
 				simpleMode: config.simpleMode,
 				alertRoleId: config.alertRoleId ?? '',
 				anonReplyLabel: config.anonReplyLabel ?? '',
+				maxConcurrentThreads: String(config.maxConcurrentThreads),
 			});
 		}
 	}, [config, form]);
@@ -104,6 +107,7 @@ export function ModmailConfigForm() {
 			simpleMode: form.simpleMode,
 			alertRoleId: form.alertRoleId || null,
 			anonReplyLabel: form.anonReplyLabel || null,
+			maxConcurrentThreads: Number(form.maxConcurrentThreads),
 		};
 
 		const result = updateConfigBodySchema.safeParse(data);
@@ -233,6 +237,30 @@ export function ModmailConfigForm() {
 					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
 						Pinged when a new ticket comes in. Leave blank for no alert.
 					</p>
+				</div>
+
+				<div>
+					<label
+						className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+						htmlFor="modmail-max-concurrent-threads"
+					>
+						Max Concurrent Threads
+					</label>
+					<input
+						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+						id="modmail-max-concurrent-threads"
+						min={1}
+						onChange={(e) => updateField('maxConcurrentThreads', e.target.value)}
+						type="number"
+						value={form.maxConcurrentThreads}
+					/>
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						How many tickets a single user may have open at once in this server, across all categories. Categories may
+						only tighten this further, never raise it.
+					</p>
+					{errors.maxConcurrentThreads && (
+						<p className="mt-1 text-sm text-misc-danger">{errors.maxConcurrentThreads}</p>
+					)}
 				</div>
 
 				<label className="flex items-center gap-2" htmlFor="modmail-simple-mode">
