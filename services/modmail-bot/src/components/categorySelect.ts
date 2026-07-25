@@ -133,6 +133,16 @@ export default class CategorySelectComponent implements ComponentHandler<Categor
 					privateThreadId: interaction.channel.id,
 					user,
 				});
+			} catch (error) {
+				// Without this, a failure here would propagate straight out of `withGuildUserLock` and
+				// skip both the state cleanup below and the self-destruct — leaving the category select
+				// stuck on-screen forever with no feedback, since `deferMessageUpdate` above already
+				// consumed the interaction's only implicit acknowledgement.
+				logger.error({ err: error, guildId, userId: user.id }, 'Failed to finish ticket creation from category select');
+				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
+					content: '❌ Something went wrong finishing your ticket. Please contact a moderator.',
+					flags: MessageFlags.Ephemeral,
+				});
 			} finally {
 				// Cleared regardless of outcome — a real `threads` row now exists to block re-creation on
 				// success, and on failure the user shouldn't be stuck unable to retry until the 30-minute

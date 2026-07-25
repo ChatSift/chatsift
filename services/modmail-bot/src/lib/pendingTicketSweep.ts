@@ -15,10 +15,30 @@ import { PENDING_TICKET_TTL_MS, PendingTicketByUserStore, PendingTicketStore } f
  * thread for each one.
  */
 export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void> {
-	const cutoff = new Date(Date.now() - PENDING_TICKET_TTL_MS);
-	const abandoned = await getContext().db<PendingTickets[]>`
-		SELECT * FROM pending_tickets WHERE created_at < ${cutoff}
-	`;
+	// A `pending_tickets` row is supposed to be cleared the moment its ticket resolves (see the
+	// `finally` blocks in categorySelect.ts/index.ts) — but that clear is best-effort against process
+	// crashes, so a completed ticket's row could in principle still be sitting here past the cutoff.
+	// The LEFT JOIN excludes exactly that case: never delete a private thread that a real `threads` row
+	// (an active, in-progress conversation) already points at.
+	const [abandoned, stale] = await Promise.all([
+		getContext().db<PendingTickets[]>`
+			SELECT pt.* FROM pending_tickets pt
+			LEFT JOIN threads t ON t.user_thread_id = pt.private_thread_id
+			WHERE pt.created_at < ${new Date(Date.now() - PENDING_TICKET_TTL_MS)} AND t.id IS NULL
+		`,
+		// Rows left behind by the same crash scenario, but for a ticket that *did* finish — nothing to
+		// abandon here, just stale bookkeeping to drop so the table stays small regardless of age.
+		getContext().db<PendingTickets[]>`
+			SELECT pt.* FROM pending_tickets pt
+			INNER JOIN threads t ON t.user_thread_id = pt.private_thread_id
+		`,
+	]);
+
+	if (stale.length > 0) {
+		await getContext().db`
+			DELETE FROM pending_tickets WHERE private_thread_id IN ${getContext().db(stale.map((row) => row.privateThreadId))}
+		`;
+	}
 
 	for (const pending of abandoned) {
 		try {
