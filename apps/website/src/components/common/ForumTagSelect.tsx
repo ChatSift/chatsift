@@ -6,6 +6,7 @@ import { SvgChevronDown } from '../icons/SvgChevronDown';
 import { Button } from './Button';
 import { Emoji } from './Emoji';
 import { ScrollArea } from './ScrollArea';
+import { Tooltip } from './Tooltip';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { cn } from '@/utils/util';
 
@@ -112,21 +113,44 @@ export function ForumTagSelect({
 									This forum has no tags configured on Discord.
 								</p>
 							) : (
-								tags.map((tag) => (
-									<Button
-										className={cn(
-											'w-full px-3 py-2 text-left transition-colors hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark cursor-pointer',
-											value === tag.id && 'bg-misc-accent/10 text-misc-accent',
-										)}
-										key={tag.id}
-										onClick={() => handleSelect(tag.id)}
-									>
-										<span className="flex items-center gap-1.5 truncate text-sm">
-											{tagEmojiValue(tag) && <Emoji className="h-4 w-4 shrink-0" value={tagEmojiValue(tag)!} />}
-											{tag.name}
-										</span>
-									</Button>
-								))
+								tags.map((tag) => {
+									const tagButton = (
+										<Button
+											className={cn(
+												'w-full px-3 py-2 text-left transition-colors',
+												tag.moderated
+													? 'cursor-not-allowed text-secondary dark:text-secondary-dark'
+													: 'cursor-pointer hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark',
+												value === tag.id && 'bg-misc-accent/10 text-misc-accent',
+											)}
+											key={tag.id}
+											onClick={tag.moderated ? () => {} : () => handleSelect(tag.id)}
+										>
+											<span className="flex items-center gap-1.5 truncate text-sm">
+												{tagEmojiValue(tag) && <Emoji className="h-4 w-4 shrink-0" value={tagEmojiValue(tag)!} />}
+												<span className="truncate">{tag.name}</span>
+												{tag.moderated && (
+													<span className="ml-auto shrink-0 text-[10px] uppercase tracking-wide text-secondary dark:text-secondary-dark">
+														Mods only
+													</span>
+												)}
+											</span>
+										</Button>
+									);
+
+									if (!tag.moderated) {
+										return tagButton;
+									}
+
+									return (
+										<Tooltip
+											content="This tag can only be applied by moderators on Discord, so it can't be assigned here."
+											key={tag.id}
+										>
+											{tagButton}
+										</Tooltip>
+									);
+								})
 							)}
 						</ScrollArea>
 					</div>
