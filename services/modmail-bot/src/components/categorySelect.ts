@@ -161,7 +161,7 @@ export default class CategorySelectComponent implements ComponentHandler {
 					guildId,
 					userId: user.id,
 				}),
-				recordPendingTicket({ guildId, privateThreadId: privateThread.id, userId: user.id }),
+				recordPendingTicket({ categoryId: category.id, guildId, privateThreadId: privateThread.id, userId: user.id }),
 			]);
 
 			await editReply(

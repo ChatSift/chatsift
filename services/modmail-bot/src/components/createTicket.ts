@@ -182,7 +182,7 @@ export default class CreateTicketComponent implements ComponentHandler {
 					guildId,
 					userId: user.id,
 				}),
-				recordPendingTicket({ guildId, privateThreadId: privateThread.id, userId: user.id }),
+				recordPendingTicket({ categoryId: null, guildId, privateThreadId: privateThread.id, userId: user.id }),
 			]);
 
 			await editReply(

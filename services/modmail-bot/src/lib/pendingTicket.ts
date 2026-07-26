@@ -1,4 +1,5 @@
 import { getContext, RedisStore } from '@chatsift/backend-core';
+import type { CategoriesId } from '@chatsift/db';
 import { createRecipe, DataType } from 'bin-rw';
 
 /**
@@ -40,6 +41,14 @@ export const PendingTicketStore = new RedisStore<PendingTicketState>({
 });
 
 export interface PendingTicketRecord {
+	/**
+	 * `null` for a zero-category panel's pending ticket, same meaning as `threads.categoryId` — stored
+	 * durably (not just in the Redis state above) so `countOpenThreadsForUserInCategory` (lib/threads.ts)
+	 * can count a still-pending pick against its category's limit, closing the race a burst of category
+	 * picks for the same category would otherwise have against that limit (see the DB comment on
+	 * `pending_tickets.category_id`).
+	 */
+	categoryId: CategoriesId | null;
 	guildId: string;
 	privateThreadId: string;
 	userId: string;
@@ -51,10 +60,15 @@ export interface PendingTicketRecord {
  * TTL lapsing gives nothing to act on, so this row is what a periodic sweep can actually query for
  * ("which pending tickets are older than the timeout") to find and delete abandoned private threads.
  */
-export async function recordPendingTicket({ guildId, privateThreadId, userId }: PendingTicketRecord): Promise<void> {
+export async function recordPendingTicket({
+	categoryId,
+	guildId,
+	privateThreadId,
+	userId,
+}: PendingTicketRecord): Promise<void> {
 	await getContext().db`
-		INSERT INTO pending_tickets (private_thread_id, guild_id, user_id)
-		VALUES (${privateThreadId}, ${guildId}, ${userId})
+		INSERT INTO pending_tickets (private_thread_id, guild_id, user_id, category_id)
+		VALUES (${privateThreadId}, ${guildId}, ${userId}, ${categoryId})
 	`;
 }
 
