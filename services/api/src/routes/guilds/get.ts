@@ -37,7 +37,7 @@ export default defineRoute({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-		grants: [GRANTS.AMA_CREATE],
+		grants: [GRANTS.AMA_CREATE, GRANTS.MODMAIL_CONFIG_UPDATE],
 	}),
 	async handler(req): Promise<GetGuildResult> {
 		const { guildId } = req.params;

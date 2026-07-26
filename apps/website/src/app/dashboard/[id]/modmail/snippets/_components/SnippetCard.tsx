@@ -3,6 +3,7 @@
 import { updateSnippetBodySchema } from '@chatsift/api/modmail-schemas';
 import { useState } from 'react';
 import { APIError } from '@/api/error';
+import { useGrantAuth } from '@/api/grant';
 import type { ModmailSnippet, UpdateModmailSnippetBody } from '@/api/routes/modmail';
 import { useDeleteModmailSnippet, useUpdateModmailSnippet } from '@/api/routes/modmail';
 import { Button } from '@/components/common/Button';
@@ -58,6 +59,7 @@ interface SnippetCardProps {
 }
 
 export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
+	const grant = useGrantAuth();
 	const [form, setForm] = useState<SnippetFormData | null>(null);
 	const [errors, setErrors] = useState<SnippetFormErrors>({});
 	const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -282,23 +284,28 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 								}`}
 					</p>
 
-					<div className="mt-auto flex justify-end gap-2">
-						{showConfirmDelete ? (
-							<>
-								<Button onPress={handleDelete}>
-									<span className="text-red-500">Yes, delete</span>
-								</Button>
-								<Button onPress={() => setShowConfirmDelete(false)}>Cancel</Button>
-							</>
-						) : (
-							<>
-								<Button onPress={startEdit}>Edit</Button>
-								<Button onPress={() => setShowConfirmDelete(true)}>
-									<span className="text-red-500">Delete</span>
-								</Button>
-							</>
-						)}
-					</div>
+					{/* A `/snippet create` grant only ever authorizes creating one snippet, not editing/deleting existing
+					ones -- those routes don't accept the grant server-side either, so hiding these controls here is
+					belt-and-suspenders, not the only guard. The list itself stays visible under a grant. */}
+					{!grant && (
+						<div className="mt-auto flex justify-end gap-2">
+							{showConfirmDelete ? (
+								<>
+									<Button onPress={handleDelete}>
+										<span className="text-red-500">Yes, delete</span>
+									</Button>
+									<Button onPress={() => setShowConfirmDelete(false)}>Cancel</Button>
+								</>
+							) : (
+								<>
+									<Button onPress={startEdit}>Edit</Button>
+									<Button onPress={() => setShowConfirmDelete(true)}>
+										<span className="text-red-500">Delete</span>
+									</Button>
+								</>
+							)}
+						</div>
+					)}
 				</>
 			)}
 		</div>

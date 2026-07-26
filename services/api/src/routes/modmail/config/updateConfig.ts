@@ -1,4 +1,4 @@
-import { getContext } from '@chatsift/backend-core';
+import { getContext, GRANTS, releaseGrantToken } from '@chatsift/backend-core';
 import type { GuildSettings } from '@chatsift/db';
 import { ChannelType } from '@discordjs/core';
 import { badRequest, internal } from '@hapi/boom';
@@ -25,52 +25,68 @@ export default defineRoute({
 		params: paramsSchema,
 	},
 	middleware: isAuthed({
+		claimsGrant: true,
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
+		grants: [GRANTS.MODMAIL_CONFIG_UPDATE],
 	}),
 	async handler(req): Promise<UpdateModmailConfigResult> {
 		const data = req.body;
 		const { guildId } = req.params;
 		const db = getContext().db;
 
-		if (data.modForumId) {
-			const channels = await fetchGuildChannels(guildId, discordAPIModmail);
-			if (!channels) {
-				req.logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
-				throw internal();
+		// Everything below can fail after the grant (if any) was already atomically claimed in `isAuthed` -- a
+		// single outer try/catch covering channel/role validation through the upsert means a correctable mistake
+		// (bad channel/role id) releases the claim instead of permanently burning the user's single-use link.
+		try {
+			if (data.modForumId) {
+				const channels = await fetchGuildChannels(guildId, discordAPIModmail);
+				if (!channels) {
+					req.logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
+					throw internal();
+				}
+
+				const forumChannel = channels.find((channel) => channel.id === data.modForumId);
+				if (!forumChannel) {
+					throw badRequest(`channel ${data.modForumId} does not belong to this guild`);
+				}
+
+				if (forumChannel.type !== ChannelType.GuildForum) {
+					throw badRequest('modForumId must point at a forum channel');
+				}
 			}
 
-			const forumChannel = channels.find((channel) => channel.id === data.modForumId);
-			if (!forumChannel) {
-				throw badRequest(`channel ${data.modForumId} does not belong to this guild`);
+			if (data.alertRoleId) {
+				await assertRolesBelongToGuild(guildId, [data.alertRoleId], discordAPIModmail, req.logger);
 			}
 
-			if (forumChannel.type !== ChannelType.GuildForum) {
-				throw badRequest('modForumId must point at a forum channel');
+			const columns = Object.keys(data) as (keyof typeof data)[];
+			const [settings] = await db<GuildSettings[]>`
+				INSERT INTO guild_settings (
+					guild_id, mod_forum_id, default_greeting_message, farewell_message, simple_mode, alert_role_id, anon_reply_label,
+					max_concurrent_threads, nuke_delay_minutes, greeting_before_opener
+				)
+				VALUES (
+					${guildId}, ${data.modForumId ?? null}, ${data.defaultGreetingMessage ?? null},
+					${data.farewellMessage ?? null}, ${data.simpleMode ?? false}, ${data.alertRoleId ?? null},
+					${data.anonReplyLabel ?? null}, ${data.maxConcurrentThreads ?? 1}, ${data.nukeDelayMinutes ?? 30},
+					${data.greetingBeforeOpener ?? false}
+				)
+				ON CONFLICT (guild_id) DO UPDATE SET ${db(data, ...columns)}
+				RETURNING *
+			`;
+
+			return settings!;
+		} catch (error) {
+			// Best-effort: a release failure (e.g. redis being down) must not shadow the real error above.
+			if (req.grant) {
+				await releaseGrantToken(req.grant.jti).catch((releaseError: unknown) =>
+					req.logger.error({ err: releaseError }, 'failed to release grant token'),
+				);
 			}
+
+			throw error;
 		}
-
-		if (data.alertRoleId) {
-			await assertRolesBelongToGuild(guildId, [data.alertRoleId], discordAPIModmail, req.logger);
-		}
-
-		const columns = Object.keys(data) as (keyof typeof data)[];
-		const [settings] = await db<GuildSettings[]>`
-			INSERT INTO guild_settings (
-				guild_id, mod_forum_id, default_greeting_message, farewell_message, simple_mode, alert_role_id, anon_reply_label,
-				max_concurrent_threads, nuke_delay_minutes, greeting_before_opener
-			)
-			VALUES (
-				${guildId}, ${data.modForumId ?? null}, ${data.defaultGreetingMessage ?? null},
-				${data.farewellMessage ?? null}, ${data.simpleMode ?? false}, ${data.alertRoleId ?? null},
-				${data.anonReplyLabel ?? null}, ${data.maxConcurrentThreads ?? 1}, ${data.nukeDelayMinutes ?? 30},
-				${data.greetingBeforeOpener ?? false}
-			)
-			ON CONFLICT (guild_id) DO UPDATE SET ${db(data, ...columns)}
-			RETURNING *
-		`;
-
-		return settings!;
 	},
 });

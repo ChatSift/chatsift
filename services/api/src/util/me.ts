@@ -1,11 +1,11 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout, clearTimeout } from 'node:timers';
 import type { BotId, GrantTokenData, Logger } from '@chatsift/backend-core';
-import { BOTS, getContext, GuildList, PermissionsBitField, promiseAllObject } from '@chatsift/backend-core';
+import { BOTS, GRANT_BOTS, getContext, GuildList, PermissionsBitField, promiseAllObject } from '@chatsift/backend-core';
 import type { DashboardGrants } from '@chatsift/db';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
-import { discordAPIAma, discordAPIOAuth } from './discordAPI.js';
+import { APIMapping, discordAPIOAuth } from './discordAPI.js';
 
 export type MeGuild = Pick<
 	RESTAPIPartialCurrentUserGuild,
@@ -116,17 +116,18 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 
 /**
  * Grant-token equivalent of `fetchMe`: there's no Discord OAuth access token to call `/users/@me`/`/users/@me/guilds`
- * with, so instead it uses the AMA bot's own REST client (already a member of the grant's guild, or the grant
- * couldn't have been minted) to fetch just the acting user and the one guild the grant is scoped to. `guilds` is
- * deliberately a single-entry array -- unlike a real session, a grant token only ever authorizes one guild.
+ * with, so instead it uses whichever bot's grant this is (`GRANT_BOTS`, since the grant's own guild is guaranteed
+ * to already have that bot installed, or the grant couldn't have been minted) to fetch just the acting user and the
+ * one guild the grant is scoped to. `guilds` is deliberately a single-entry array -- unlike a real session, a grant
+ * token only ever authorizes one guild.
  */
 export async function fetchMeFromGrant(grant: GrantTokenData, logger: Logger): Promise<Me> {
 	logger.info({ userId: grant.sub, guildId: grant.guildId }, 'building stripped /me from grant token');
 
-	const [discordUser, guild] = await Promise.all([
-		discordAPIAma.users.get(grant.sub),
-		discordAPIAma.guilds.get(grant.guildId),
-	]);
+	const bot = GRANT_BOTS[grant.grant];
+	const api = APIMapping[bot];
+
+	const [discordUser, guild] = await Promise.all([api.users.get(grant.sub), api.guilds.get(grant.guildId)]);
 
 	const meGuild: MeGuild = {
 		id: guild.id,
@@ -136,8 +137,7 @@ export async function fetchMeFromGrant(grant: GrantTokenData, logger: Logger): P
 		// "can manage this guild" question to ask here the way there is for a real session.
 		// The authentication middleware gurantees this via its guards.
 		meCanManage: true,
-		// The grant may need to include this in the future.
-		bots: ['AMA'],
+		bots: [bot],
 	};
 
 	return {

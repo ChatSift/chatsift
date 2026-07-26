@@ -1,4 +1,4 @@
-import { getContext } from '@chatsift/backend-core';
+import { getContext, GRANTS } from '@chatsift/backend-core';
 import type { GuildSettings } from '@chatsift/db';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
@@ -19,6 +19,7 @@ export default defineRoute({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
+		grants: [GRANTS.MODMAIL_CONFIG_UPDATE],
 	}),
 	async handler(req): Promise<GetModmailConfigResult> {
 		const { guildId } = req.params;
