@@ -128,6 +128,10 @@ CREATE TABLE guild_settings (
   -- see `scheduled_thread_nukes` below. The thread is locked+archived immediately on close regardless;
   -- this only delays the deletion itself, giving staff a window to still glance at it if needed.
   nuke_delay_minutes       INTEGER NOT NULL DEFAULT 30,
+  -- Whether the greeting (category's, falling back to default_greeting_message) is posted before the
+  -- user's own opener message is relayed to staff, instead of after. Defaults to false (after) --
+  -- matching prod ChatSift/ModMail's existing behavior of relay-then-greet.
+  greeting_before_opener   BOOLEAN NOT NULL DEFAULT false,
 
   CONSTRAINT guild_settings_max_concurrent_threads_check CHECK (max_concurrent_threads >= 1),
   CONSTRAINT guild_settings_nuke_delay_minutes_check CHECK (nuke_delay_minutes >= 1)

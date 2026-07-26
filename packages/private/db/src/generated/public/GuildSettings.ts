@@ -23,6 +23,8 @@ export default interface GuildSettings {
   maxConcurrentThreads: number;
 
   nukeDelayMinutes: number;
+
+  greetingBeforeOpener: boolean;
 }
 
 /** Represents the initializer for the table public.guild_settings */
@@ -44,6 +46,8 @@ export interface GuildSettingsInitializer {
   maxConcurrentThreads?: number;
 
   nukeDelayMinutes?: number;
+
+  greetingBeforeOpener?: boolean;
 }
 
 /** Represents the mutator for the table public.guild_settings */
@@ -65,4 +69,6 @@ export interface GuildSettingsMutator {
   maxConcurrentThreads?: number;
 
   nukeDelayMinutes?: number;
+
+  greetingBeforeOpener?: boolean;
 }

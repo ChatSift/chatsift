@@ -155,36 +155,46 @@ export default class CategorySelectComponent implements ComponentHandler<Categor
 						? '↩️ *replying to an earlier message*'
 						: undefined;
 
-				await relayUserMessageToModThread({
-					attachments: state.attachments.map((attachment) => ({
-						url: attachment.url,
-						filename: attachment.filename,
-						content_type: attachment.contentType || undefined,
-						size: attachment.size,
-					})),
-					contextNote,
-					content: state.content,
-					logger,
-					member,
-					messageId: state.messageId,
-					stickers: state.stickers.map((sticker) => ({
-						id: sticker.id,
-						name: sticker.name,
-						format_type: sticker.formatType,
-					})),
-					thread,
-					user,
-				});
+				const relayOpener = async () =>
+					relayUserMessageToModThread({
+						attachments: state.attachments.map((attachment) => ({
+							url: attachment.url,
+							filename: attachment.filename,
+							content_type: attachment.contentType || undefined,
+							size: attachment.size,
+						})),
+						contextNote,
+						content: state.content,
+						logger,
+						member,
+						messageId: state.messageId,
+						stickers: state.stickers.map((sticker) => ({
+							id: sticker.id,
+							name: sticker.name,
+							format_type: sticker.formatType,
+						})),
+						thread,
+						user,
+					});
 
-				await sendGreeting({
-					category,
-					defaultGreetingMessage: guildSettings.defaultGreetingMessage,
-					guildId,
-					member,
-					modThreadId: thread.modThreadId,
-					privateThreadId: interaction.channel.id,
-					user,
-				});
+				const greetUser = async () =>
+					sendGreeting({
+						category,
+						defaultGreetingMessage: guildSettings.defaultGreetingMessage,
+						guildId,
+						member,
+						modThreadId: thread.modThreadId,
+						privateThreadId: interaction.channel.id,
+						user,
+					});
+
+				if (guildSettings.greetingBeforeOpener) {
+					await greetUser();
+					await relayOpener();
+				} else {
+					await relayOpener();
+					await greetUser();
+				}
 
 				succeeded = true;
 			} catch (error) {

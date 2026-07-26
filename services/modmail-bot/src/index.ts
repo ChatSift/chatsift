@@ -157,27 +157,37 @@ async function handleFirstMessage(
 					);
 				}
 
-				await relayUserMessageToModThread({
-					attachments: effective.attachments,
-					contextNote: await buildContextNote(message, effective.isForwarded, thread, logger),
-					content: effective.content,
-					logger,
-					member: message.member,
-					messageId: message.id,
-					stickers: effective.stickers,
-					thread,
-					user: message.author,
-				});
+				const relayOpener = async () =>
+					relayUserMessageToModThread({
+						attachments: effective.attachments,
+						contextNote: await buildContextNote(message, effective.isForwarded, thread, logger),
+						content: effective.content,
+						logger,
+						member: message.member,
+						messageId: message.id,
+						stickers: effective.stickers,
+						thread,
+						user: message.author,
+					});
 
-				await sendGreeting({
-					category: null,
-					defaultGreetingMessage: guildSettings.defaultGreetingMessage,
-					guildId: pending.guildId,
-					member: message.member,
-					modThreadId: thread.modThreadId,
-					privateThreadId: message.channel_id,
-					user: message.author,
-				});
+				const greetUser = async () =>
+					sendGreeting({
+						category: null,
+						defaultGreetingMessage: guildSettings.defaultGreetingMessage,
+						guildId: pending.guildId,
+						member: message.member,
+						modThreadId: thread.modThreadId,
+						privateThreadId: message.channel_id,
+						user: message.author,
+					});
+
+				if (guildSettings.greetingBeforeOpener) {
+					await greetUser();
+					await relayOpener();
+				} else {
+					await relayOpener();
+					await greetUser();
+				}
 
 				// Only cleared here, on success — this is the routing index a *retry* (the user just
 				// sending another message) would need to re-enter this same function after a failure below,

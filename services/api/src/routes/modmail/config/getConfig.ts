@@ -40,6 +40,7 @@ export default defineRoute({
 				anonReplyLabel: null,
 				maxConcurrentThreads: 1,
 				nukeDelayMinutes: 30,
+				greetingBeforeOpener: false,
 			}
 		);
 	},
