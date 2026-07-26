@@ -331,18 +331,31 @@ function registerSnippetCommandResolver(): void {
 			return false;
 		}
 
-		const thread = await findOpenThreadByModThreadId(interaction.channel.id);
-		if (!thread) {
-			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-				content: 'Snippets can only be used inside an open ModMail ticket thread.',
-				flags: MessageFlags.Ephemeral,
-			});
-			return true;
-		}
-
 		const member = interaction.member;
 		if (!member) {
 			return false;
+		}
+
+		// Deferred immediately once this is confirmed to actually be a snippet invocation (not before —
+		// the two `return false`s above have to fall through to bot-core's own "no handler found" reply
+		// untouched, not double-ack an interaction this resolver ends up not handling). Everything past
+		// this point is a thread lookup plus the relay's DB/Discord-API work (including a possible media
+		// re-upload), comfortably enough to risk outlasting Discord's 3-second ack window. Every branch
+		// below replies via `editReply` against this defer instead of a fresh `reply`.
+		await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, {
+			flags: MessageFlags.Ephemeral,
+		});
+
+		const editReply = async (content: string) => {
+			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
+				content,
+			});
+		};
+
+		const thread = await findOpenThreadByModThreadId(interaction.channel.id);
+		if (!thread) {
+			await editReply('Snippets can only be used inside an open ModMail ticket thread.');
+			return true;
 		}
 
 		const options = new ChatInputInteractionOptionResolver(interaction as APIChatInputApplicationCommandInteraction);
@@ -356,12 +369,17 @@ function registerSnippetCommandResolver(): void {
 			staffUser: member.user,
 			thread,
 		});
-		await recordSnippetUsage(snippet.id);
 
-		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-			content: `✅ Snippet "${snippet.name}" sent.`,
-			flags: MessageFlags.Ephemeral,
-		});
+		// Best-effort — the reply below is what actually acks this interaction, and the snippet has
+		// already been relayed successfully at this point, so a usage-tracking write failure shouldn't
+		// turn into a user-facing "something went wrong" for an action that in fact succeeded.
+		try {
+			await recordSnippetUsage(snippet.id);
+		} catch (error) {
+			logger.warn({ err: error, snippetId: snippet.id }, 'Failed to record snippet usage');
+		}
+
+		await editReply(`✅ Snippet "${snippet.name}" sent.`);
 		return true;
 	});
 }

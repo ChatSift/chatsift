@@ -28,7 +28,17 @@ export async function clearReplyAlertCooldown(threadId: Threads['id']): Promise<
  */
 export async function resolveReplyAlertMentions(thread: Pick<Threads, 'id'>): Promise<string | undefined> {
 	const key = cooldownKey(thread.id);
-	if (await getContext().redis.exists(key)) {
+
+	// Atomically claims the cooldown with `SET ... NX` instead of a separate `EXISTS` check followed by
+	// a later `SET` — two user messages arriving close together could otherwise both pass the `EXISTS`
+	// check before either one's `SET` lands, and both would ping. `NX` makes only one of them ever
+	// actually acquire the key.
+	const claimed = await getContext().redis.set(key, '1', {
+		condition: 'NX',
+		expiration: { type: 'PX', value: REPLY_ALERT_COOLDOWN_MS },
+	});
+
+	if (claimed === null) {
 		return undefined;
 	}
 
@@ -37,10 +47,11 @@ export async function resolveReplyAlertMentions(thread: Pick<Threads, 'id'>): Pr
 	`;
 
 	if (subscribers.length === 0) {
+		// Nothing to ping — release the cooldown we just claimed so it doesn't needlessly block the next
+		// message from pinging once someone actually subscribes.
+		await getContext().redis.del([key]);
 		return undefined;
 	}
-
-	await getContext().redis.set(key, '1', { expiration: { type: 'PX', value: REPLY_ALERT_COOLDOWN_MS } });
 
 	return subscribers.map(({ userId }) => `<@${userId}>`).join(' ');
 }
