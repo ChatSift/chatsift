@@ -29,6 +29,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 	panels: 'Panels',
 	snippets: 'Snippets',
 	blocks: 'Blocks',
+	settings: 'Settings',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {
@@ -41,16 +42,8 @@ const SEGMENT_ICONS: Record<string, React.ReactNode> = {
 	modmail: <SvgModmail height={20} width={20} />,
 } as const;
 
-interface SegmentOptionsContext {
+interface SegmentContext {
 	guildId: string;
-	/**
-	 * The full pathname
-	 */
-	pathname: string;
-	/**
-	 * The path segments leading up to and including the current segment
-	 */
-	segmentPath: readonly string[];
 }
 
 export interface SegmentOptionsData {
@@ -64,72 +57,110 @@ export interface SegmentOptionsData {
 	modmailPanels?: ModmailPanel[] | undefined;
 }
 
-type SegmentOptionsComputer = (
-	context: SegmentOptionsContext,
-	data: SegmentOptionsData,
-) => { icon?: React.ReactNode; options: readonly BreadcrumbOption[] } | null;
+type SegmentOptions = { icon?: React.ReactNode; options: readonly BreadcrumbOption[] } | null;
 
-type SegmentOptionsMatcher = (segmentPath: readonly string[]) => boolean;
+/**
+ * One path segment of a pattern, matched literally against the raw URL segment -- except `:id`, which matches
+ * any segment that parses as a number (and is then passed to the definition's resolvers).
+ */
+type PatternToken = string;
 
-interface SegmentOptionsEntry {
-	computer: SegmentOptionsComputer;
-	matcher: SegmentOptionsMatcher | string;
+interface SegmentDefinition {
+	readonly pattern: readonly PatternToken[];
+	resolveLabel?(id: string, data: SegmentOptionsData): React.ReactNode;
+	resolveOptions?(id: string, context: SegmentContext, data: SegmentOptionsData): SegmentOptions;
+}
+
+function botSwitcherOptions(currentBot: BotId, context: SegmentContext, data: SegmentOptionsData): SegmentOptions {
+	const options: BreadcrumbOption[] = (data.guildBots ?? [])
+		.filter((bot) => bot !== currentBot)
+		.map((bot) => {
+			const { Icon, label } = Bots[bot];
+			return {
+				label,
+				href: `/dashboard/${context.guildId}/${bot.toLowerCase()}`,
+				reactIcon: <Icon height={20} width={20} />,
+			};
+		});
+
+	return options.length ? { options } : null;
+}
+
+function modmailSectionOptions(currentSection: string, context: SegmentContext): SegmentOptions {
+	const options: BreadcrumbOption[] = MODMAIL_SECTIONS.filter((section) => section !== currentSection).map(
+		(section) => ({
+			label: SEGMENT_LABELS[section] ?? section,
+			href: `/dashboard/${context.guildId}/modmail/${section}`,
+		}),
+	);
+
+	return { options };
+}
+
+function resolveAmaLabel(amaId: string, data: SegmentOptionsData): React.ReactNode {
+	// If we have currentAMA data and it matches, use it immediately
+	if (data.currentAMA?.id === Number(amaId)) {
+		return data.currentAMA.title;
+	}
+
+	// If currentAMA is still loading, show a skeleton
+	if (data.currentAMA === undefined) {
+		return <Skeleton className="h-5 w-32 inline-flex align-middle" />;
+	}
+
+	// currentAMA is loaded but doesn't match this segment; try the sessions list, else fall back to the raw id
+	const ama = data.amaSessions?.find((s) => s.id === Number(amaId));
+	return ama ? ama.title : amaId;
+}
+
+function amaIdOptions(amaId: string, context: SegmentContext, data: SegmentOptionsData): SegmentOptions {
+	const options: BreadcrumbOption[] = [
+		{ label: 'New AMA', href: `/dashboard/${context.guildId}/ama/amas/new` },
+		...(data.amaSessions ?? [])
+			.filter((s) => s.id !== Number(amaId))
+			.map((s) => ({ label: s.title, href: `/dashboard/${context.guildId}/ama/amas/${s.id}` })),
+	];
+
+	return { options };
+}
+
+// ModMail ticket panels have no title field to fall back on the way AMA sessions do, so this resolves to the
+// panel's channel name (e.g. "#general") instead of the raw numeric id.
+function resolveModmailPanelLabel(panelId: string, data: SegmentOptionsData): React.ReactNode {
+	if (data.modmailPanels === undefined || data.modmailChannels === undefined) {
+		return <Skeleton className="h-5 w-32 inline-flex align-middle" />;
+	}
+
+	const panel = data.modmailPanels.find((p) => p.id === Number(panelId));
+	const channel = panel && data.modmailChannels.find((c) => c.id === panel.channelId);
+	return channel ? `#${channel.name}` : (panel?.channelId ?? panelId);
 }
 
 /**
- * Segment options are keyed by the full path to the segment (joined by '/').
- * This allows for context-specific options without conflicts.
- * Example: 'ama/amas/new' will only match when the path is exactly [guild]/ama/amas/new
- * Matchers can also be functions for dynamic matching (e.g., numeric IDs)
+ * Segment definitions are tried in order against the full path leading up to and including the segment being
+ * rendered (e.g. `['modmail', 'panels', '42']`). The first pattern that matches wins. This is the single place
+ * that maps a URL shape to breadcrumb behaviour beyond the plain `SEGMENT_LABELS`/`SEGMENT_ICONS` lookups.
  */
-const SEGMENT_OPTIONS: SegmentOptionsEntry[] = [
+const SEGMENT_DEFINITIONS: readonly SegmentDefinition[] = [
 	{
-		// Match the top-level bot segment (`ama` or `modmail`) so it can offer a shortcut to whatever other
-		// bots are invited to this guild, mirroring the guild-switch dropdown one level up.
-		matcher: (segmentPath) => segmentPath.length === 1 && (segmentPath[0] === 'ama' || segmentPath[0] === 'modmail'),
-		computer: (context, data) => {
-			const currentBot: BotId = context.segmentPath[0] === 'ama' ? 'AMA' : 'MODMAIL';
-			const options: BreadcrumbOption[] = (data.guildBots ?? [])
-				.filter((bot) => bot !== currentBot)
-				.map((bot) => {
-					const { Icon, label } = Bots[bot];
-					return {
-						label,
-						href: `/dashboard/${context.guildId}/${bot.toLowerCase()}`,
-						reactIcon: <Icon height={20} width={20} />,
-					};
-				});
-
-			if (!options.length) {
-				return null;
-			}
-
-			return { options };
-		},
+		// The top-level bot segment (`ama`/`modmail`) offers a shortcut to whatever other bots are invited to
+		// this guild, mirroring the guild-switch dropdown one level up.
+		pattern: ['ama'],
+		resolveOptions: (_id, context, data) => botSwitcherOptions('AMA', context, data),
 	},
 	{
-		// Match a ModMail sub-section (`config`, `categories`, `panels`, `snippets`, `blocks`) so it can offer
-		// a shortcut to the other sections, instead of forcing a trip back through the ModMail nav tabs.
-		matcher: (segmentPath) =>
-			segmentPath.length === 2 &&
-			segmentPath[0] === 'modmail' &&
-			(MODMAIL_SECTIONS as readonly string[]).includes(segmentPath[1]!),
-		computer: (context) => {
-			const currentSection = context.segmentPath[1];
-			const options: BreadcrumbOption[] = MODMAIL_SECTIONS.filter((section) => section !== currentSection).map(
-				(section) => ({
-					label: SEGMENT_LABELS[section] ?? section,
-					href: `/dashboard/${context.guildId}/modmail/${section}`,
-				}),
-			);
-
-			return { options };
-		},
+		pattern: ['modmail'],
+		resolveOptions: (_id, context, data) => botSwitcherOptions('MODMAIL', context, data),
 	},
+	// Each ModMail sub-section offers a shortcut to the other sections, instead of forcing a trip back through
+	// the ModMail nav tabs.
+	...MODMAIL_SECTIONS.map((section): SegmentDefinition => ({
+		pattern: ['modmail', section],
+		resolveOptions: (_id, context) => modmailSectionOptions(section, context),
+	})),
 	{
-		matcher: 'ama/amas/new',
-		computer: (context, data) => {
-			// Only show dropdown if we have sessions
+		pattern: ['ama', 'amas', 'new'],
+		resolveOptions: (_id, context, data) => {
 			if (!data.amaSessions?.length) {
 				return null;
 			}
@@ -138,44 +169,62 @@ const SEGMENT_OPTIONS: SegmentOptionsEntry[] = [
 				label: s.title,
 				href: `/dashboard/${context.guildId}/ama/amas/${s.id}`,
 			}));
-
-			return {
-				options,
-			};
+			return { options };
 		},
 	},
 	{
-		// Match ama/amas/[numeric id]
-		matcher: (segmentPath) => {
-			if (segmentPath.length !== 3) return false;
-			if (segmentPath[0] !== 'ama') return false;
-			if (segmentPath[1] !== 'amas') return false;
-			return !Number.isNaN(Number(segmentPath[2]));
-		},
-		computer: (context, data) => {
-			// Get current AMA ID from the path
-			const currentAmaId = Number(context.segmentPath[2]);
-
-			// Build options with "New" first, then existing AMAs (excluding current)
-			const options: BreadcrumbOption[] = [
-				{
-					label: 'New AMA',
-					href: `/dashboard/${context.guildId}/ama/amas/new`,
-				},
-				...(data.amaSessions ?? [])
-					.filter((s) => s.id !== currentAmaId)
-					.map((s) => ({
-						label: s.title,
-						href: `/dashboard/${context.guildId}/ama/amas/${s.id}`,
-					})),
-			];
-
-			return {
-				options,
-			};
-		},
+		pattern: ['ama', 'amas', ':id'],
+		resolveLabel: resolveAmaLabel,
+		resolveOptions: amaIdOptions,
+	},
+	{
+		pattern: ['modmail', 'panels', ':id'],
+		resolveLabel: resolveModmailPanelLabel,
 	},
 ];
+
+/**
+ * Matches `segmentPath` (the path leading up to and including the segment being rendered) against a definition's
+ * pattern. Returns the value captured by a trailing `:id` token, if any, or `null` if there's no `:id` and the
+ * pattern otherwise matches every literal segment exactly.
+ */
+function matchPattern(pattern: readonly PatternToken[], segmentPath: readonly string[]): string | null | undefined {
+	if (pattern.length !== segmentPath.length) {
+		return undefined;
+	}
+
+	let id: string | null = null;
+	for (const [i, token] of pattern.entries()) {
+		const part = segmentPath[i]!;
+		if (token === ':id') {
+			if (Number.isNaN(Number(part))) {
+				return undefined;
+			}
+
+			id = part;
+			continue;
+		}
+
+		if (token !== part) {
+			return undefined;
+		}
+	}
+
+	return id;
+}
+
+function findSegmentDefinition(
+	segmentPath: readonly string[],
+): { definition: SegmentDefinition; id: string | null } | undefined {
+	for (const definition of SEGMENT_DEFINITIONS) {
+		const id = matchPattern(definition.pattern, segmentPath);
+		if (id !== undefined) {
+			return { definition, id };
+		}
+	}
+
+	return undefined;
+}
 
 interface DashboardCrumbsProps {
 	readonly segmentOptionsData?: SegmentOptionsData;
@@ -193,8 +242,8 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 
 	const guild = me?.guilds.find((g) => g.id === params.id);
 
-	// Merge in `guild.bots` so the `ama`/`modmail` segment's dropdown computer (see `SEGMENT_OPTIONS` above) can
-	// build its options without a separate data fetch -- `useMe()` already has this.
+	// Merge in `guild.bots` so the `ama`/`modmail` segment's dropdown (see `SEGMENT_DEFINITIONS` above) can build
+	// its options without a separate data fetch -- `useMe()` already has this.
 	const effectiveSegmentOptionsData: SegmentOptionsData = useMemo(
 		() => ({ ...segmentOptionsData, guildBots: guild?.bots }),
 		[segmentOptionsData, guild?.bots],
@@ -216,8 +265,8 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 
 		// Get all segments after the guild ID
 		const relevantParts = pathParts.slice(guildIdIndex + 1);
+		const context: SegmentContext = { guildId: params.id };
 
-		// Build segments with proper hrefs
 		const result = [];
 		for (let i = 0; i < relevantParts.length; i++) {
 			const part = relevantParts[i];
@@ -225,73 +274,21 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 				continue;
 			}
 
-			// Build the segment path up to this point for option matching
 			const segmentPath = relevantParts.slice(0, i + 1);
-			const segmentKey = segmentPath.join('/');
+			const match = findSegmentDefinition(segmentPath);
 
-			// Find matching segment options entry
-			const optionsEntry = SEGMENT_OPTIONS.find((entry) => {
-				if (typeof entry.matcher === 'string') {
-					return entry.matcher === segmentKey;
-				}
-
-				return entry.matcher(segmentPath);
-			});
-
-			// Determine the label
-			let label: React.ReactNode = SEGMENT_LABELS[part] ?? part;
+			const fallbackLabel = SEGMENT_LABELS[part] ?? part;
+			const label: React.ReactNode =
+				match?.id === undefined || match.id === null
+					? fallbackLabel
+					: (match.definition.resolveLabel?.(match.id, effectiveSegmentOptionsData) ?? fallbackLabel);
 			const icon = SEGMENT_ICONS[part];
-
-			// For AMA IDs, use the AMA title if available, or show skeleton while loading
-			if (
-				segmentPath.length === 3 &&
-				segmentPath[0] === 'ama' &&
-				segmentPath[1] === 'amas' &&
-				!Number.isNaN(Number(part))
-			) {
-				const amaId = Number(part);
-
-				// If we have currentAMA data and it matches, use it immediately
-				if (effectiveSegmentOptionsData.currentAMA?.id === amaId) {
-					label = effectiveSegmentOptionsData.currentAMA.title;
-				} else if (effectiveSegmentOptionsData.currentAMA === undefined) {
-					// If currentAMA is still loading, show skeleton
-					label = <Skeleton className="h-5 w-32 inline-flex align-middle" />;
-				} else {
-					// currentAMA is loaded but doesn't match, try to find the AMA in sessions list
-					const ama = effectiveSegmentOptionsData.amaSessions?.find((s) => s.id === amaId);
-					// If found, use title; otherwise fall back to the ID
-					label = ama ? ama.title : part;
-				}
-			}
-
-			// For ModMail ticket panel IDs, use the panel's channel name (e.g. "#general") instead of
-			// the raw numeric id -- there's no title field to fall back on the way AMA sessions have one.
-			if (
-				segmentPath.length === 3 &&
-				segmentPath[0] === 'modmail' &&
-				segmentPath[1] === 'panels' &&
-				!Number.isNaN(Number(part))
-			) {
-				const panelId = Number(part);
-
-				if (
-					effectiveSegmentOptionsData.modmailPanels === undefined ||
-					effectiveSegmentOptionsData.modmailChannels === undefined
-				) {
-					label = <Skeleton className="h-5 w-32 inline-flex align-middle" />;
-				} else {
-					const panel = effectiveSegmentOptionsData.modmailPanels.find((p) => p.id === panelId);
-					const channel = panel && effectiveSegmentOptionsData.modmailChannels.find((c) => c.id === panel.channelId);
-					label = channel ? `#${channel.name}` : (panel?.channelId ?? part);
-				}
-			}
 
 			// While a one-time grant token is active, every other segment/dropdown option here would 401 (the
 			// grant only authorizes the single page it links to) -- never compute a navigable option in that case.
 			const computedOptions = grant
 				? null
-				: optionsEntry?.computer({ guildId: params.id, pathname, segmentPath }, effectiveSegmentOptionsData);
+				: match?.definition.resolveOptions?.(match.id ?? '', context, effectiveSegmentOptionsData);
 
 			// Don't create an href for the last segment (current page), or for any segment while grant mode is
 			// active (there's nowhere else on the dashboard a grant token lets you go).
