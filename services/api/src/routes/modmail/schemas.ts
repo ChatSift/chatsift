@@ -148,7 +148,7 @@ export const updatePanelBodySchema = z
 // A snippet's name becomes the name of the Discord slash command registered for it (e.g. a snippet
 // named `reportuser` is invoked as `/reportuser`), so it's bound by Discord's own command-name rules
 // rather than an arbitrary display-name length -- see createSnippet.ts.
-const attachmentUrlSchema = z.url().max(2_000).refine(isHttpUrl, 'Attachment URL must be a public http(s) URL');
+const attachmentUrlSchema = z.url().max(2_000).refine(isHttpUrl, 'Attachment URL must use http(s)');
 
 export const createSnippetBodySchema = z
 	.strictObject({

@@ -64,8 +64,10 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 	// Rendering an `<img>` fetches it immediately on page load -- for a staff-pasted URL we haven't
 	// vetted, that's an unprompted request to wherever they typed, made by every moderator who happens
 	// to open this page. Gating it behind an explicit click means the preview only ever loads because
-	// someone here chose to load it, same as clicking the link itself.
-	const [showPreview, setShowPreview] = useState(false);
+	// someone here chose to load it, same as clicking the link itself. Tracks *which* URL was approved
+	// (not just a boolean) so editing the attachment to a different URL always requires a fresh click --
+	// otherwise approval granted to the old URL would carry over and silently preview the new one too.
+	const [previewedUrl, setPreviewedUrl] = useState<string | null>(null);
 	const updateSnippet = useUpdateModmailSnippet(guildId, snippet.id);
 	const deleteSnippet = useDeleteModmailSnippet(guildId);
 
@@ -254,7 +256,7 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 								{snippet.attachmentFilename ?? snippet.attachmentUrl}
 							</a>
 							{isImageAttachment(snippet) &&
-								(showPreview ? (
+								(previewedUrl === snippet.attachmentUrl ? (
 									// eslint-disable-next-line @next/next/no-img-element -- arbitrary staff-pasted external URL, not one of the app's known image sources Next's optimizer can proxy
 									<img
 										alt={snippet.attachmentFilename ?? 'snippet attachment'}
@@ -262,13 +264,12 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 										src={snippet.attachmentUrl}
 									/>
 								) : (
-									<button
-										className="text-xs text-secondary underline dark:text-secondary-dark"
-										onClick={() => setShowPreview(true)}
-										type="button"
+									<Button
+										className="h-fit p-0 text-xs text-secondary underline hover:bg-transparent dark:text-secondary-dark"
+										onPress={() => setPreviewedUrl(snippet.attachmentUrl)}
 									>
 										Show preview
-									</button>
+									</Button>
 								))}
 						</div>
 					)}
