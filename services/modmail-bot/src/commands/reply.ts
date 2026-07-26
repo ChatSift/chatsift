@@ -86,7 +86,19 @@ export default class ReplyCommand implements CommandHandler {
 			],
 		});
 
-		const modalInteraction = (await collectModal(id, 5 * 60 * 1_000)) as APIModalSubmitGuildInteraction;
+		let modalInteraction: APIModalSubmitGuildInteraction;
+		try {
+			modalInteraction = (await collectModal(id, 5 * 60 * 1_000)) as APIModalSubmitGuildInteraction;
+		} catch {
+			// Timing out is a routine outcome (staff opened the modal and never submitted it), not a bug --
+			// letting the rejection propagate would crash the whole bot (it surfaces as an unhandled rejection
+			// on the shared `InteractionCreate` listener in bot-core's `client.ts`, which has no 'error' handler).
+			await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
+				content: "⌛ You didn't submit that in time. Run `/reply` again when you're ready.",
+				flags: MessageFlags.Ephemeral,
+			});
+			return;
+		}
 
 		// Deferred immediately, before the relay (media re-upload + two message posts) — that easily
 		// outlasts Discord's 3-second ack window, and without a defer the final `editReply` below would

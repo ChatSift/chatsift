@@ -54,6 +54,13 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 	const client = new Client({ rest, gateway });
 
 	client
+		// discord.js-core's Client re-emits a rejected async listener's error as an 'error' event; with no
+		// listener for it here, Node's default EventEmitter behavior throws it as an uncaught exception and
+		// takes the whole process down. This is a last-resort net for whatever call sites miss -- handlers with
+		// a routine failure mode (e.g. a modal collector timing out) should still catch their own rejections.
+		.on('error', (error) => {
+			getContext().logger.error({ err: error }, 'Unhandled error in Discord client event listener');
+		})
 		.on(GatewayDispatchEvents.GuildCreate, ({ data: guild }) => {
 			guildIds.add(guild.id);
 		})
