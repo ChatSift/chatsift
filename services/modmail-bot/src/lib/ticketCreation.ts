@@ -28,10 +28,9 @@ function discordDate(date: Date): string {
 }
 
 /**
- * Called from both interaction-driven paths (`createTicket.ts`/`categorySelect.ts`, a full
- * `APIGuildMember`) and the message-driven zero-category path (`index.ts`, the `user`-less
- * `APIGuildMemberNoUser` the gateway attaches to `MESSAGE_CREATE`) — narrowed to just the fields
- * actually read here so both satisfy it.
+ * `finishTicketCreation` only ever runs from `index.ts`'s message-driven path (the `user`-less
+ * `APIGuildMemberNoUser` the gateway attaches to `MESSAGE_CREATE`), never directly from an
+ * interaction — narrowed to just the fields actually read here so that satisfies it.
  */
 type MemberLike = Pick<APIGuildMember, 'avatar' | 'joined_at' | 'nick' | 'roles'>;
 
@@ -48,10 +47,11 @@ export interface FinishTicketCreationOptions {
 }
 
 /**
- * Shared by both ticket-creation paths (a panel with no categories skips straight here, a panel with
- * categories reaches this once `categorySelect.ts` resolves a pick): opens the mod-forum thread
- * (tagged per category, if configured), inserts the `threads` row, and posts the category's greeting
- * (falling back to the guild default) back into the user's private thread. The opening embed's field
+ * Called once from `index.ts`'s `handleFirstMessage`, once the user's opening message arrives in
+ * their private thread — the category (if any) was already resolved before that thread even existed
+ * (`categorySelect.ts`), so this only ever has one job left: open the mod-forum thread (tagged per
+ * category, if configured), insert the `threads` row, and post the category's greeting (falling back
+ * to the guild default) back into the user's private thread. The opening embed's field
  * set (account age, join date, past tickets, roles) is drawn from prod ChatSift/ModMail's
  * `handleThreadManagement.ts` "who is this" panel, minus a full guild-roles fetch just to sort them
  * by position.
@@ -147,13 +147,13 @@ export interface SendGreetingOptions {
 }
 
 /**
- * Deliberately not part of `finishTicketCreation` — callers relay the user's own first message to
- * the mod thread themselves right after creating it (see `index.ts`/`categorySelect.ts`), and need to
- * sequence this against that relay call themselves depending on `guild_settings.greetingBeforeOpener`
- * (default `false`: greeting lands *after* the relay, so the mod-side thread reads opening info embed,
- * then the user's actual message, then the bot's greeting reply to it — set `true` to flip that order).
- * Posting the greeting from inside `finishTicketCreation` would hardcode one order with no way for
- * callers to flip it.
+ * Deliberately not part of `finishTicketCreation` — `index.ts`'s `handleFirstMessage` relays the
+ * user's own first message to the mod thread itself right after creating it, and needs to sequence
+ * this against that relay call depending on `guild_settings.greetingBeforeOpener` (default `false`:
+ * greeting lands *after* the relay, so the mod-side thread reads opening info embed, then the user's
+ * actual message, then the bot's greeting reply to it — set `true` to flip that order). Posting the
+ * greeting from inside `finishTicketCreation` would hardcode one order with no way for the caller to
+ * flip it.
  */
 export async function sendGreeting({
 	category,

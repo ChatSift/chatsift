@@ -13,12 +13,14 @@ export const MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES = 10_080;
 /**
  * A user's total concurrent tickets in a guild, counting both real open `threads` rows and tickets
  * still mid-setup (`pending_tickets` — private thread created, no `threads` row yet since the mod-forum
- * side and category aren't resolved). Both count against `guild_settings.max_concurrent_threads`
- * because a pending ticket already holds a private thread and will become a real one imminently — not
- * counting it would let a burst of clicks (all still pending) blow past the limit before any of them
- * finish. Checked by `createTicket.ts` before creating a new private thread, under the same
- * per guild+user lock (`lib/guildUserQueue.ts`) every other ticket-lifecycle step uses, so this count
- * can't go stale between the check and the create.
+ * side hasn't been resolved, which only happens once the user's opening message arrives). Both count
+ * against `guild_settings.max_concurrent_threads` because a pending ticket already holds a private
+ * thread and will become a real one imminently — not counting it would let a burst of clicks (all
+ * still pending) blow past the limit before any of them finish. Checked as a fast pre-check by
+ * `createTicket.ts` and, authoritatively, by `categorySelect.ts` immediately before it actually creates
+ * a private thread — both under the same per guild+user lock (`lib/guildUserQueue.ts`) every other
+ * ticket-lifecycle step uses, so the categorized path's count can't go stale between its check and the
+ * create.
  */
 export async function countActiveTicketsForUser(guildId: string, userId: string): Promise<number> {
 	const [row] = await getContext().db<[{ count: string }]>`

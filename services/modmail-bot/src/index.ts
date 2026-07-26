@@ -10,19 +10,11 @@ import type {
 	Client,
 	GatewayMessageCreateDispatchData,
 } from '@discordjs/core';
-import {
-	ApplicationCommandType,
-	ComponentType,
-	GatewayDispatchEvents,
-	MessageFlags,
-	MessageReferenceType,
-} from '@discordjs/core';
+import { ApplicationCommandType, GatewayDispatchEvents, MessageFlags } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
-import { nanoid } from 'nanoid';
-import { CategorySelectStore } from './lib/categoryState.js';
 import { withGuildUserLock } from './lib/guildUserQueue.js';
 import { resolveEffectiveContent, resolveReplyNote } from './lib/messageContext.js';
-import { clearPendingTicketRecord, PendingTicketStore } from './lib/pendingTicket.js';
+import { clearPendingTicketRecord, PendingTicketStore, type PendingTicketState } from './lib/pendingTicket.js';
 import { sweepAbandonedPendingTickets } from './lib/pendingTicketSweep.js';
 import { preventOpenThreadsFromArchiving } from './lib/preventThreadArchive.js';
 import { relayStaffReplyToUserThread, relayUserMessageToModThread } from './lib/relay.js';
@@ -83,15 +75,14 @@ async function buildContextNote(
 }
 
 /**
- * A private thread exists (`createTicket.ts` created it) but nothing has been sent to staff yet —
- * this is the user's first message. Either finishes the ticket outright (no categories configured
- * for the panel) or prompts for a category next; either way the message that triggered this is
- * captured so it reaches staff together with the category once one is resolved (see
- * `categorySelect.ts` for the deferred-category path).
+ * A private thread exists (`createTicket.ts` for a zero-category panel, `categorySelect.ts` once a
+ * category's been picked) but nothing has been sent to staff yet — this is the user's first message,
+ * finishing the ticket outright. The category (if any) is already resolved by this point, so unlike
+ * the old thread-first flow this never needs to prompt for one here.
  */
 async function handleFirstMessage(
 	message: GatewayMessageCreateDispatchData,
-	pending: { categoryIds: number[]; guildId: string; userId: string },
+	pending: PendingTicketState,
 	logger: Logger,
 ): Promise<void> {
 	// Gated behind the same per guild+user lock as the button click and category pick (see
@@ -111,163 +102,95 @@ async function handleFirstMessage(
 			return;
 		}
 
-		// Re-checked against the DB rather than trusting `pending.categoryIds.length` alone — those ids
-		// were captured at button-click time, and a category could've been deleted in the gap before the
-		// user's first message arrived. Either way (none configured, or none left), the outcome is the
-		// same: skip the category prompt and finish the ticket outright instead of rendering a select
-		// with zero options (which Discord rejects).
-		const categories =
-			pending.categoryIds.length === 0
-				? []
-				: await getContext().db<Categories[]>`
-						SELECT * FROM categories WHERE guild_id = ${pending.guildId} AND id IN ${getContext().db(pending.categoryIds)}
-						ORDER BY sort_order, id
-					`;
+		// Re-fetched against the DB rather than trusting `pending.categoryId` alone — it was resolved
+		// back when the private thread was created, and the category could've been deleted in the gap
+		// before the user's first message arrived. Either way (never had one, or it's since gone), the
+		// outcome is the same: finish the ticket as uncategorized.
+		const category =
+			pending.categoryId === 0
+				? null
+				: ((
+						await getContext().db<Categories[]>`
+							SELECT * FROM categories WHERE id = ${pending.categoryId} AND guild_id = ${pending.guildId}
+						`
+					)[0] ?? null);
 
-		if (categories.length === 0) {
+		try {
+			const thread = await finishTicketCreation({
+				alertRoleId: guildSettings.alertRoleId,
+				category,
+				createdById: pending.userId,
+				guildId: pending.guildId,
+				logger,
+				member: message.member,
+				modForumId: guildSettings.modForumId,
+				privateThreadId: message.channel_id,
+				user: message.author,
+			});
+
+			// A real `threads` row now exists for this ticket, so the durable pending record needs to
+			// go *now* — not deferred until after the relay/greeting below, which would leave both the
+			// `threads` row and the `pending_tickets` row counting the same ticket simultaneously
+			// against `countActiveTicketsForUser` (lib/threads.ts) for however long the relay/greeting
+			// take, or indefinitely if either of them fails. Best-effort: a failure here shouldn't
+			// unwind a ticket that was just successfully created (the row is otherwise harmless and
+			// would eventually be caught by `lib/pendingTicketSweep.ts`'s stale-row cleanup, which skips
+			// any pending row that already has a matching `threads` row), so it's caught and logged
+			// rather than left to propagate into the catch below and misreport an already-created
+			// ticket as a failure.
 			try {
-				const thread = await finishTicketCreation({
-					alertRoleId: guildSettings.alertRoleId,
-					category: null,
-					createdById: pending.userId,
-					guildId: pending.guildId,
+				await clearPendingTicketRecord(message.channel_id);
+			} catch (error) {
+				logger.warn(
+					{ err: error, guildId: pending.guildId, threadId: thread.id, userId: pending.userId },
+					'Failed to clear the pending_tickets row after finishing ticket creation',
+				);
+			}
+
+			const relayOpener = async () =>
+				relayUserMessageToModThread({
+					attachments: effective.attachments,
+					contextNote: await buildContextNote(message, effective.isForwarded, thread, logger),
+					content: effective.content,
 					logger,
 					member: message.member,
-					modForumId: guildSettings.modForumId,
+					messageId: message.id,
+					stickers: effective.stickers,
+					thread,
+					user: message.author,
+				});
+
+			const greetUser = async () =>
+				sendGreeting({
+					category,
+					defaultGreetingMessage: guildSettings.defaultGreetingMessage,
+					guildId: pending.guildId,
+					member: message.member,
+					modThreadId: thread.modThreadId,
 					privateThreadId: message.channel_id,
 					user: message.author,
 				});
 
-				// A real `threads` row now exists for this ticket, so the durable pending record needs to
-				// go *now* — not deferred until after the relay/greeting below, which would leave both the
-				// `threads` row and the `pending_tickets` row counting the same ticket simultaneously
-				// against `countActiveTicketsForUser` (lib/threads.ts) for however long the relay/greeting
-				// take, or indefinitely if either of them fails. Best-effort: a failure here shouldn't
-				// unwind a ticket that was just successfully created (the row is otherwise harmless and
-				// would eventually be caught by `lib/pendingTicketSweep.ts`'s stale-row cleanup, which skips
-				// any pending row that already has a matching `threads` row), so it's caught and logged
-				// rather than left to propagate into the catch below and misreport an already-created
-				// ticket as a failure.
-				try {
-					await clearPendingTicketRecord(message.channel_id);
-				} catch (error) {
-					logger.warn(
-						{ err: error, guildId: pending.guildId, threadId: thread.id, userId: pending.userId },
-						'Failed to clear the pending_tickets row after finishing ticket creation',
-					);
-				}
-
-				const relayOpener = async () =>
-					relayUserMessageToModThread({
-						attachments: effective.attachments,
-						contextNote: await buildContextNote(message, effective.isForwarded, thread, logger),
-						content: effective.content,
-						logger,
-						member: message.member,
-						messageId: message.id,
-						stickers: effective.stickers,
-						thread,
-						user: message.author,
-					});
-
-				const greetUser = async () =>
-					sendGreeting({
-						category: null,
-						defaultGreetingMessage: guildSettings.defaultGreetingMessage,
-						guildId: pending.guildId,
-						member: message.member,
-						modThreadId: thread.modThreadId,
-						privateThreadId: message.channel_id,
-						user: message.author,
-					});
-
-				if (guildSettings.greetingBeforeOpener) {
-					await greetUser();
-					await relayOpener();
-				} else {
-					await relayOpener();
-					await greetUser();
-				}
-
-				// Only cleared here, on success — this is the routing index a *retry* (the user just
-				// sending another message) would need to re-enter this same function after a failure below,
-				// but by this point `pending_tickets` is already gone and a real `threads` row exists, so a
-				// retry message actually routes through the normal open-thread relay path instead
-				// (`registerMessageRelay`'s `findOpenThreadByUserThreadId` check runs before this store is
-				// even consulted). Left in place on failure mostly as a harmless leftover — it just expires
-				// via its own TTL once nothing keys off it anymore.
-				await PendingTicketStore.delete(message.channel_id);
-			} catch (error) {
-				logger.error(
-					{ err: error, guildId: pending.guildId, userId: pending.userId },
-					'Failed to finish ticket creation from the first message',
-				);
-				await getContext().service.client.api.channels.createMessage(message.channel_id, {
-					content:
-						'❌ Something went wrong setting up your ticket. Please try sending your message again, or contact a moderator.',
-				});
+			if (guildSettings.greetingBeforeOpener) {
+				await greetUser();
+				await relayOpener();
+			} else {
+				await relayOpener();
+				await greetUser();
 			}
 
-			return;
-		}
-
-		try {
-			const stateId = nanoid();
-			await CategorySelectStore.set(stateId, {
-				attachments: effective.attachments.map((attachment) => ({
-					url: attachment.url,
-					filename: attachment.filename,
-					contentType: attachment.content_type ?? '',
-					size: attachment.size,
-				})),
-				categoryIds: pending.categoryIds,
-				content: effective.content,
-				isForwarded: effective.isForwarded,
-				// No thread exists yet for a first message, so there's no history a reply could
-				// meaningfully point at — just remember whether it was a reply at all, `categorySelect.ts`
-				// renders the generic note rather than looking up a specific (necessarily nonexistent)
-				// local message id.
-				isReply:
-					Boolean(message.message_reference?.message_id) &&
-					message.message_reference?.type !== MessageReferenceType.Forward,
-				messageId: message.id,
-				stickers: effective.stickers.map((sticker) => ({
-					id: sticker.id,
-					name: sticker.name,
-					formatType: sticker.format_type,
-				})),
-			});
-
-			await getContext().service.client.api.channels.createMessage(message.channel_id, {
-				content: 'Please pick a category for your ticket:',
-				components: [
-					{
-						type: ComponentType.ActionRow,
-						components: [
-							{
-								type: ComponentType.StringSelect,
-								custom_id: `modmail-category-select:${stateId}`,
-								placeholder: 'Select a category',
-								options: categories.map((category) => ({
-									label: category.name.slice(0, 100),
-									value: String(category.id),
-									...(category.description ? { description: category.description.slice(0, 100) } : {}),
-									...(category.emoji ? { emoji: { name: category.emoji } } : {}),
-								})),
-							},
-						],
-					},
-				],
-			});
-
-			// As above: only cleared on success, so a failure here (e.g. the createMessage call itself
-			// failing) leaves the user able to retry by sending another message instead of being stuck
-			// with neither an open thread nor a pending one to route against.
+			// Only cleared here, on success — this is the routing index a *retry* (the user just
+			// sending another message) would need to re-enter this same function after a failure below,
+			// but by this point `pending_tickets` is already gone and a real `threads` row exists, so a
+			// retry message actually routes through the normal open-thread relay path instead
+			// (`registerMessageRelay`'s `findOpenThreadByUserThreadId` check runs before this store is
+			// even consulted). Left in place on failure mostly as a harmless leftover — it just expires
+			// via its own TTL once nothing keys off it anymore.
 			await PendingTicketStore.delete(message.channel_id);
 		} catch (error) {
 			logger.error(
 				{ err: error, guildId: pending.guildId, userId: pending.userId },
-				'Failed to prompt for a category after the first message',
+				'Failed to finish ticket creation from the first message',
 			);
 			await getContext().service.client.api.channels.createMessage(message.channel_id, {
 				content:

@@ -3,7 +3,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import type { Categories, GuildSettings, TicketPanels } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
-import { ChannelType, MessageFlags } from '@discordjs/core';
+import { ChannelType, ComponentType, MessageFlags } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { findActiveBlock } from '../lib/blocks.js';
 import { withGuildUserLock } from '../lib/guildUserQueue.js';
@@ -91,6 +91,38 @@ export default class CreateTicketComponent implements ComponentHandler {
 				ORDER BY c.sort_order, c.id
 			`;
 
+			if (categories.length > 0) {
+				// No private thread yet — the user picks a category first, ephemerally, right here in
+				// response to the button. `categorySelect.ts` is the one that actually creates the private
+				// thread once a pick lands; `panel.id` rides along in the custom_id since nothing about this
+				// pick needs to be stashed anywhere in the meantime. Everything checked above (block,
+				// concurrent-ticket limit, guild config) is only a fast pre-check — nothing here reserves a
+				// slot the way the old thread-first flow did, so `categorySelect.ts` re-runs every one of
+				// these checks itself, under its own lock, immediately before it actually creates the thread.
+				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
+					content: 'Please pick a category for your ticket:',
+					components: [
+						{
+							type: ComponentType.ActionRow,
+							components: [
+								{
+									type: ComponentType.StringSelect,
+									custom_id: `modmail-category-select:${panel.id}`,
+									placeholder: 'Select a category',
+									options: categories.map((category) => ({
+										label: category.name.slice(0, 100),
+										value: String(category.id),
+										...(category.description ? { description: category.description.slice(0, 100) } : {}),
+										...(category.emoji ? { emoji: { name: category.emoji } } : {}),
+									})),
+								},
+							],
+						},
+					],
+				});
+				return;
+			}
+
 			let privateThread;
 			try {
 				privateThread = await getContext().service.client.api.channels.createThread(panel.channelId, {
@@ -114,14 +146,15 @@ export default class CreateTicketComponent implements ComponentHandler {
 			await getContext().service.client.api.threads.addMember(privateThread.id, user.id);
 
 			// Nothing is posted into the thread itself and nothing is sent to staff yet — the mod-forum
-			// thread (and, if there are categories, the category prompt) only gets created once the
-			// user's first message arrives, caught by `index.ts`'s `MessageCreate` listener via this
-			// pending-ticket record. The "what do I do now" instruction lives solely in this ephemeral
-			// reply (only the ticket opener sees it) rather than as a standalone bot message left sitting
-			// in an otherwise-empty thread.
+			// thread only gets created once the user's first message arrives, caught by `index.ts`'s
+			// `MessageCreate` listener via this pending-ticket record. This panel has no categories, so
+			// `categoryId` is `0` ("none") from the start — contrast `categorySelect.ts`, which is the one
+			// that creates this record when a panel *does* have categories, once a pick resolves one. The
+			// "what do I do now" instruction lives solely in this ephemeral reply (only the ticket opener
+			// sees it) rather than as a standalone bot message left sitting in an otherwise-empty thread.
 			await Promise.all([
 				PendingTicketStore.set(privateThread.id, {
-					categoryIds: categories.map((category) => category.id),
+					categoryId: 0,
 					guildId,
 					userId: user.id,
 				}),
