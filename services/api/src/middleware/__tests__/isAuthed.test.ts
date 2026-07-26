@@ -13,7 +13,6 @@ import {
 import jwt from 'jsonwebtoken';
 import type { Request, Response } from 'polka';
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
-import { clearCache as clearMeCache } from '../../util/me.js';
 import type { AccessTokenData } from '../../util/tokens.js';
 import { attachHttpUtils } from '../attachHttpUtils.js';
 import { isAuthed } from '../isAuthed.js';
@@ -172,7 +171,6 @@ const next = vi.fn();
 
 afterEach(() => {
 	vi.resetAllMocks();
-	clearMeCache();
 });
 
 describe('no fallthrough', () => {

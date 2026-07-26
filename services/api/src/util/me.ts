@@ -1,38 +1,82 @@
+import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
-import { setTimeout, clearTimeout } from 'node:timers';
 import type { BotId, GrantTokenData, Logger } from '@chatsift/backend-core';
-import { BOTS, GRANT_BOTS, getContext, GuildList, PermissionsBitField, promiseAllObject } from '@chatsift/backend-core';
+import {
+	BOTS,
+	GRANT_BOTS,
+	getContext,
+	GuildList,
+	PermissionsBitField,
+	promiseAllObject,
+	RedisStore,
+} from '@chatsift/backend-core';
 import type { DashboardGrants } from '@chatsift/db';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
+import type { Recipe } from 'bin-rw';
+import { createRecipe, DataType } from 'bin-rw';
 import { APIMapping, discordAPIOAuth } from './discordAPI.js';
 
-export type MeGuild = Pick<
-	RESTAPIPartialCurrentUserGuild,
-	'approximate_member_count' | 'approximate_presence_count' | 'icon' | 'id' | 'name'
-> & {
+export type MeGuild = Pick<RESTAPIPartialCurrentUserGuild, 'icon' | 'id' | 'name'> & {
 	bots: BotId[];
 	meCanManage: boolean;
 };
-export type Me = APIUser & { guilds: MeGuild[]; isGlobalAdmin: boolean };
 
-// TODO(DD): Should probably move this to redis
-const CACHE = new Map<string, Me>();
-const CACHE_TIMEOUTS = new Map<string, NodeJS.Timeout>();
-const CACHE_TTL = 5 * 60 * 1_000; // 5 minutes
+// Only the fields the dashboard actually reads off the Discord user (id/avatar/username for display,
+// discriminator/global_name for the legacy-tag fallback) -- narrowed (rather than the full `APIUser` this used to
+// spread verbatim) so the redis-backed cache below (#246) has a fixed shape to encode with bin-rw. Pick from
+// `APIUser` directly so a future field this app starts using is a one-line addition here.
+export type Me = Pick<APIUser, 'avatar' | 'discriminator' | 'global_name' | 'id' | 'username'> & {
+	guilds: MeGuild[];
+	isGlobalAdmin: boolean;
+};
 
-export function clearCache() {
-	CACHE.clear();
-	for (const timeout of CACHE_TIMEOUTS.values()) {
-		clearTimeout(timeout);
-	}
+const CACHE_TTL_MS = 5 * 60 * 1_000; // 5 minutes
 
-	CACHE_TIMEOUTS.clear();
-}
+// bin-rw has no concept of a string-literal-union field -- `bots` round-trips as a plain `string[]` -- so the
+// stored shape is `Me` with that one field widened, and `fetchMe` casts back to `BotId[]` on read. Safe because
+// this store only ever gets written the values `BOTS.filter(...)` below produces.
+type WireMe = Omit<Me, 'guilds'> & { guilds: (Omit<MeGuild, 'bots'> & { bots: string[] })[] };
+
+const MeStore = new RedisStore<WireMe>({
+	TTL: CACHE_TTL_MS,
+	// As in `channels.ts`, `DataType.String` types as non-nullable `string` even though the underlying
+	// `Reader`/`Writer` already treat null and empty-string identically on the wire -- `global_name`/`avatar`/
+	// `icon` really are `string | null` and round-trip correctly at runtime, the cast just corrects the type.
+	recipe: createRecipe({
+		id: DataType.String,
+		username: DataType.String,
+		discriminator: DataType.String,
+		global_name: DataType.String,
+		avatar: DataType.String,
+		isGlobalAdmin: DataType.Bool,
+		guilds: [
+			{
+				id: DataType.String,
+				name: DataType.String,
+				icon: DataType.String,
+				meCanManage: DataType.Bool,
+				bots: [DataType.String],
+			},
+		],
+	}) as Recipe<WireMe>,
+	// Hashed rather than keyed by the raw access token -- unlike the in-memory `Map` this replaced, this value is
+	// persisted in redis (visible to anything with redis access via KEYS/MONITOR/RDB dumps), so the key itself
+	// shouldn't double as a live OAuth credential.
+	makeKey: (tokenHash: string) => `me:${tokenHash}`,
+	storeOld: false,
+});
+
+const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
 
 export async function fetchMe(discordAccessToken: string, logger: Logger, force = false): Promise<Me> {
-	if (CACHE.has(discordAccessToken) && !force) {
-		return CACHE.get(discordAccessToken)!;
+	const tokenHash = hashToken(discordAccessToken);
+
+	if (!force) {
+		const cached = await MeStore.get(tokenHash);
+		if (cached) {
+			return { ...cached, guilds: cached.guilds.map((guild) => ({ ...guild, bots: guild.bots as BotId[] })) };
+		}
 	}
 
 	logger.info('cache miss for /me');
@@ -55,58 +99,39 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 	);
 
 	const guilds = await Promise.all(
-		guildsRaw.map<Promise<MeGuild>>(
-			async ({ id, name, icon, owner, permissions, approximate_member_count, approximate_presence_count }) => {
-				const [grant] = await getContext().db<Pick<DashboardGrants, 'id'>[]>`
-					SELECT id FROM dashboard_grants WHERE guild_id = ${id} AND user_id = ${discordUser.id}
-				`;
-				const hasGrant = Boolean(grant);
+		guildsRaw.map<Promise<MeGuild>>(async ({ id, name, icon, owner, permissions }) => {
+			const [grant] = await getContext().db<Pick<DashboardGrants, 'id'>[]>`
+				SELECT id FROM dashboard_grants WHERE guild_id = ${id} AND user_id = ${discordUser.id}
+			`;
+			const hasGrant = Boolean(grant);
 
-				const guild: MeGuild = {
-					id,
-					name,
-					icon,
-					meCanManage:
-						hasGrant ||
-						PermissionsBitField.has(
-							BigInt(permissions),
-							PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
-						) ||
-						owner,
-					bots: BOTS.filter((bot) => guildsByBot[bot]?.includes(id)),
-				};
-
-				if (approximate_member_count !== undefined) {
-					guild.approximate_member_count = approximate_member_count;
-				}
-
-				if (approximate_presence_count !== undefined) {
-					guild.approximate_presence_count = approximate_presence_count;
-				}
-
-				return guild;
-			},
-		),
+			return {
+				id,
+				name,
+				icon,
+				meCanManage:
+					hasGrant ||
+					PermissionsBitField.has(
+						BigInt(permissions),
+						PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
+					) ||
+					owner,
+				bots: BOTS.filter((bot) => guildsByBot[bot]?.includes(id)),
+			};
+		}),
 	);
 
 	const me: Me = {
-		...discordUser,
+		id: discordUser.id,
+		username: discordUser.username,
+		discriminator: discordUser.discriminator,
+		global_name: discordUser.global_name,
+		avatar: discordUser.avatar,
 		isGlobalAdmin: getContext().env.ADMINS.has(discordUser.id),
 		guilds,
 	};
 
-	CACHE.set(discordAccessToken, me);
-	if (CACHE_TIMEOUTS.has(discordAccessToken)) {
-		const timeout = CACHE_TIMEOUTS.get(discordAccessToken)!;
-		timeout.refresh();
-	} else {
-		const timeout = setTimeout(() => {
-			CACHE.delete(discordAccessToken);
-			CACHE_TIMEOUTS.delete(discordAccessToken);
-		}, CACHE_TTL).unref();
-
-		CACHE_TIMEOUTS.set(discordAccessToken, timeout);
-	}
+	await MeStore.set(tokenHash, me);
 
 	const end = performance.now();
 	logger.info({ durationMs: end - start }, 'fetched /me');
@@ -119,7 +144,8 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
  * with, so instead it uses whichever bot's grant this is (`GRANT_BOTS`, since the grant's own guild is guaranteed
  * to already have that bot installed, or the grant couldn't have been minted) to fetch just the acting user and the
  * one guild the grant is scoped to. `guilds` is deliberately a single-entry array -- unlike a real session, a grant
- * token only ever authorizes one guild.
+ * token only ever authorizes one guild. Not cached (unlike `fetchMe`) -- a grant is single-use already, so there's
+ * no repeat-read pattern here worth trading staleness for.
  */
 export async function fetchMeFromGrant(grant: GrantTokenData, logger: Logger): Promise<Me> {
 	logger.info({ userId: grant.sub, guildId: grant.guildId }, 'building stripped /me from grant token');
@@ -141,7 +167,11 @@ export async function fetchMeFromGrant(grant: GrantTokenData, logger: Logger): P
 	};
 
 	return {
-		...discordUser,
+		id: discordUser.id,
+		username: discordUser.username,
+		discriminator: discordUser.discriminator,
+		global_name: discordUser.global_name,
+		avatar: discordUser.avatar,
 		isGlobalAdmin: false,
 		guilds: [meGuild],
 	};

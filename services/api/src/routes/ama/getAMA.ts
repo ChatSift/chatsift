@@ -73,7 +73,7 @@ export default defineRoute({
 			throw internal();
 		}
 
-		const channels = await fetchGuildChannels(guildId, discordAPIAma, req.query.force_fresh);
+		const channels = await fetchGuildChannels(guildId, 'AMA', req.query.force_fresh);
 		if (!channels) {
 			req.logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
 			throw internal();

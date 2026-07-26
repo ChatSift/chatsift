@@ -1,6 +1,7 @@
-import type { Logger } from '@chatsift/backend-core';
+import type { BotId, Logger } from '@chatsift/backend-core';
 import type { API, APIRole, Snowflake } from '@discordjs/core';
 import { badRequest, internal } from '@hapi/boom';
+import { createRecipe, DataType } from 'bin-rw';
 import { createCachedGuildFetcher } from './guildDataCache.js';
 
 export type GuildRoleInfo = Pick<APIRole, 'color' | 'id' | 'managed' | 'name' | 'position'>;
@@ -15,14 +16,24 @@ async function fetchGuildRolesRaw(guildId: string, api: API): Promise<GuildRoleI
 		.map(({ id, name, color, position, managed }) => ({ id, name, color, position, managed }));
 }
 
-const rolesFetcher = createCachedGuildFetcher(fetchGuildRolesRaw);
+const rolesFetcher = createCachedGuildFetcher(
+	'roles',
+	createRecipe({
+		items: [
+			{
+				id: DataType.String,
+				name: DataType.String,
+				color: DataType.I32,
+				position: DataType.I32,
+				managed: DataType.Bool,
+			},
+		],
+	}),
+	fetchGuildRolesRaw,
+);
 
-export function clearCache() {
-	rolesFetcher.clearCache();
-}
-
-export async function fetchGuildRoles(guildId: string, api: API, force = false): Promise<GuildRoleInfo[] | null> {
-	return rolesFetcher.fetch(guildId, api, force);
+export async function fetchGuildRoles(guildId: string, botId: BotId, force = false): Promise<GuildRoleInfo[] | null> {
+	return rolesFetcher.fetch(guildId, botId, force);
 }
 
 /**
@@ -32,7 +43,7 @@ export async function fetchGuildRoles(guildId: string, api: API, force = false):
 export async function assertRolesBelongToGuild(
 	guildId: Snowflake,
 	roleIds: (Snowflake | null | undefined)[],
-	api: API,
+	botId: BotId,
 	logger: Logger,
 ): Promise<void> {
 	// eslint-disable-next-line unicorn/prefer-native-coercion-functions
@@ -41,7 +52,7 @@ export async function assertRolesBelongToGuild(
 		return;
 	}
 
-	const roles = await fetchGuildRoles(guildId, api);
+	const roles = await fetchGuildRoles(guildId, botId);
 	if (!roles) {
 		logger.warn({ guildId }, `Failed to fetch roles for guild ${guildId}`);
 		throw internal();

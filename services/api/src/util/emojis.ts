@@ -1,4 +1,6 @@
+import type { BotId } from '@chatsift/backend-core';
 import type { API } from '@discordjs/core';
+import { createRecipe, DataType } from 'bin-rw';
 import { createCachedGuildFetcher } from './guildDataCache.js';
 
 export interface GuildEmojiInfo {
@@ -16,12 +18,20 @@ async function fetchGuildEmojisRaw(guildId: string, api: API): Promise<GuildEmoj
 	return emojisRaw.map(({ id, name, animated }) => ({ id: id!, name: name!, animated: animated ?? false }));
 }
 
-const emojisFetcher = createCachedGuildFetcher(fetchGuildEmojisRaw);
+const emojisFetcher = createCachedGuildFetcher(
+	'emojis',
+	createRecipe({
+		items: [
+			{
+				id: DataType.String,
+				name: DataType.String,
+				animated: DataType.Bool,
+			},
+		],
+	}),
+	fetchGuildEmojisRaw,
+);
 
-export function clearCache() {
-	emojisFetcher.clearCache();
-}
-
-export async function fetchGuildEmojis(guildId: string, api: API, force = false): Promise<GuildEmojiInfo[] | null> {
-	return emojisFetcher.fetch(guildId, api, force);
+export async function fetchGuildEmojis(guildId: string, botId: BotId, force = false): Promise<GuildEmojiInfo[] | null> {
+	return emojisFetcher.fetch(guildId, botId, force);
 }
