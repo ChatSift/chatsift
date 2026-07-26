@@ -1,4 +1,4 @@
-import { getContext, GRANTS, releaseGrantToken } from '@chatsift/backend-core';
+import { getContext, GRANTS } from '@chatsift/backend-core';
 import type { Snippets } from '@chatsift/db';
 import type { RESTPostAPIApplicationGuildCommandsJSONBody } from '@discordjs/core';
 import { ApplicationCommandOptionType } from '@discordjs/core';
@@ -9,6 +9,7 @@ import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { discordAPIModmail } from '../../../util/discordAPI.js';
 import { getModmailApplicationId } from '../../../util/discordApplication.js';
+import { releaseGrantOnError } from '../../../util/grant.js';
 import { isUniqueViolation } from '../../../util/postgres.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { createSnippetBodySchema } from '../schemas.js';
@@ -120,13 +121,7 @@ export default defineRoute({
 				throw error;
 			}
 		} catch (error) {
-			// Best-effort: a release failure (e.g. redis being down) must not shadow the real error above.
-			if (req.grant) {
-				await releaseGrantToken(req.grant.jti).catch((releaseError: unknown) =>
-					req.logger.error({ err: releaseError }, 'failed to release grant token'),
-				);
-			}
-
+			await releaseGrantOnError(req.grant, req.logger);
 			throw error;
 		}
 	},

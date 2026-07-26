@@ -1,4 +1,4 @@
-import { getContext, GRANTS, releaseGrantToken } from '@chatsift/backend-core';
+import { getContext, GRANTS } from '@chatsift/backend-core';
 import type { GuildSettings } from '@chatsift/db';
 import { ChannelType } from '@discordjs/core';
 import { badRequest, internal } from '@hapi/boom';
@@ -7,6 +7,7 @@ import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { fetchGuildChannels } from '../../../util/channels.js';
 import { discordAPIModmail } from '../../../util/discordAPI.js';
+import { releaseGrantOnError } from '../../../util/grant.js';
 import { assertRolesBelongToGuild } from '../../../util/roles.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { updateConfigBodySchema } from '../schemas.js';
@@ -79,13 +80,7 @@ export default defineRoute({
 
 			return settings!;
 		} catch (error) {
-			// Best-effort: a release failure (e.g. redis being down) must not shadow the real error above.
-			if (req.grant) {
-				await releaseGrantToken(req.grant.jti).catch((releaseError: unknown) =>
-					req.logger.error({ err: releaseError }, 'failed to release grant token'),
-				);
-			}
-
+			await releaseGrantOnError(req.grant, req.logger);
 			throw error;
 		}
 	},
