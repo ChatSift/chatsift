@@ -6,6 +6,7 @@ import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
 import type { RelayAttachmentLike, RelayStickerLike } from './media.js';
 import { buildRelayMedia } from './media.js';
+import { clearReplyAlertCooldown, resolveReplyAlertMentions } from './replyAlerts.js';
 import { templateGuildName } from './templateString.js';
 import { incrementLocalMessageId, insertThreadMessage } from './threads.js';
 
@@ -109,7 +110,14 @@ export async function relayUserMessageToModThread({
 		footer: identityFooter(user),
 	};
 
-	const messageData: CreateMessageOptions = { embeds: [embed], files: media.files };
+	// Pings, if any, go on the message's plain-text `content` — pinging from inside an embed never
+	// actually notifies anyone, so this has to live alongside it rather than in the embed's description.
+	const pingMentions = await resolveReplyAlertMentions(thread);
+	const messageData: CreateMessageOptions = {
+		embeds: [embed],
+		files: media.files,
+		...(pingMentions ? { content: pingMentions } : {}),
+	};
 
 	const posted = await getContext().service.client.api.channels.createMessage(thread.modThreadId, messageData);
 	logger.info(
@@ -225,4 +233,9 @@ export async function relayStaffReplyToUserThread({
 		userId: thread.userId,
 		userMessageId: relayedMessage.id,
 	});
+
+	// A staffer just replied, so the *next* user message should alert subscribers again right away
+	// rather than possibly waiting out a cooldown that started before this reply (see
+	// `lib/replyAlerts.ts`).
+	await clearReplyAlertCooldown(thread.id);
 }

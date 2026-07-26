@@ -42,6 +42,11 @@ export const updateConfigBodySchema = z
 		// never exceed it. Upper-bounded to Postgres' `integer` max so an out-of-range value 400s here
 		// instead of erroring at the INSERT.
 		maxConcurrentThreads: z.number().int().min(1).max(2_147_483_647).optional(),
+		// How long, after a ticket closes, before its private thread is actually deleted -- see
+		// `scheduled_thread_nukes`. Capped well below the general integer max (unlike the two fields
+		// above): this is a delay in minutes, not a count, and a year is already an absurdly generous
+		// upper bound for "give staff time to double check before this gets nuked".
+		nukeDelayMinutes: z.number().int().min(1).max(525_600).optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 

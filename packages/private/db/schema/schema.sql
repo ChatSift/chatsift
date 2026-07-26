@@ -124,8 +124,13 @@ CREATE TABLE guild_settings (
   -- countActiveTicketsForUser), not a DB constraint, since it's a soft business rule checked
   -- alongside a Discord API call, not something the write itself can violate.
   max_concurrent_threads   INTEGER NOT NULL DEFAULT 1,
+  -- How long, after a ticket closes, before the user's private thread is actually deleted ("nuked") --
+  -- see `scheduled_thread_nukes` below. The thread is locked+archived immediately on close regardless;
+  -- this only delays the deletion itself, giving staff a window to still glance at it if needed.
+  nuke_delay_minutes       INTEGER NOT NULL DEFAULT 30,
 
-  CONSTRAINT guild_settings_max_concurrent_threads_check CHECK (max_concurrent_threads >= 1)
+  CONSTRAINT guild_settings_max_concurrent_threads_check CHECK (max_concurrent_threads >= 1),
+  CONSTRAINT guild_settings_nuke_delay_minutes_check CHECK (nuke_delay_minutes >= 1)
 );
 
 CREATE TABLE categories (
@@ -245,6 +250,15 @@ CREATE TABLE scheduled_thread_closes (
   scheduled_by_id TEXT NOT NULL,
   silent          BOOLEAN NOT NULL DEFAULT false,
   close_at        TIMESTAMPTZ NOT NULL
+);
+
+-- A closed ticket's private thread is locked+archived immediately (services/modmail-bot's
+-- `lib/threadClose.ts`) but not deleted outright -- this row is what a periodic sweep
+-- (`lib/threadNukeSweep.ts`) polls to actually delete it once `guild_settings.nuke_delay_minutes` has
+-- passed. Cascades with `threads` since there's nothing left to nuke if the ticket row itself is gone.
+CREATE TABLE scheduled_thread_nukes (
+  thread_id INTEGER PRIMARY KEY REFERENCES threads (id) ON DELETE CASCADE,
+  nuke_at   TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE blocks (

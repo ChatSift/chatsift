@@ -38,6 +38,29 @@ export function registerCommandHandler(handler: CommandHandler): void {
 }
 
 /**
+ * Returns `true` if it fully handled the interaction (including replying to it), `false` to fall
+ * through to the usual "no handler found" error reply.
+ */
+export type UnknownCommandResolver = (
+	interaction: APIApplicationCommandInteraction,
+	logger: Logger,
+) => Promise<boolean>;
+
+let unknownCommandResolver: UnknownCommandResolver | undefined;
+
+/**
+ * Escape hatch for commands that can't be statically registered via `registerCommandHandlers` because
+ * they're created per-guild at runtime (e.g. services/modmail-bot's snippets, each their own guild
+ * slash command minted by the API — see `services/api/src/routes/modmail/snippets/createSnippet.ts`).
+ * `handleCommandInteraction` calls this only when the static `commands` map has no match for the
+ * interaction's command name, so it never shadows a real static command handler. At most one resolver
+ * is supported (no service currently needs more than one dynamic-command source).
+ */
+export function registerUnknownCommandResolver(resolver: UnknownCommandResolver): void {
+	unknownCommandResolver = resolver;
+}
+
+/**
  * Globs `${commandsDir}/**\/*.js`, dynamically imports each module, and registers every valid default-exported
  * `CommandHandler` constructor. Callers pass their own service-local commands directory (e.g.
  * `join(dirname(fileURLToPath(import.meta.url)), 'commands')`), since this package has no `commands/` of its own.
@@ -75,6 +98,10 @@ export async function handleCommandInteraction(
 ): Promise<void> {
 	const handler = commands.get(interaction.data.name);
 	if (!handler) {
+		if (unknownCommandResolver && (await unknownCommandResolver(interaction, logger))) {
+			return;
+		}
+
 		logger.warn({ commandName: interaction.data.name }, 'No handler found for command interaction');
 		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 			content: 'Something went wrong resolving this command. Please let a developer know.',

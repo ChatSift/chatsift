@@ -22,6 +22,7 @@ interface ConfigFormData {
 	farewellMessage: string;
 	maxConcurrentThreads: string;
 	modForumId: string;
+	nukeDelayMinutes: string;
 	simpleMode: boolean;
 }
 
@@ -35,6 +36,7 @@ const CONFIG_FIELDS = [
 	'alertRoleId',
 	'anonReplyLabel',
 	'maxConcurrentThreads',
+	'nukeDelayMinutes',
 ] as const satisfies (keyof ConfigFormData)[];
 
 function mapConfigIssues(issues: readonly { message: string; path: PropertyKey[] }[]): ConfigFormErrors {
@@ -73,6 +75,7 @@ export function ModmailConfigForm() {
 				alertRoleId: config.alertRoleId ?? '',
 				anonReplyLabel: config.anonReplyLabel ?? '',
 				maxConcurrentThreads: String(config.maxConcurrentThreads),
+				nukeDelayMinutes: String(config.nukeDelayMinutes),
 			});
 		}
 	}, [config, form]);
@@ -108,6 +111,7 @@ export function ModmailConfigForm() {
 			alertRoleId: form.alertRoleId || null,
 			anonReplyLabel: form.anonReplyLabel || null,
 			maxConcurrentThreads: Number(form.maxConcurrentThreads),
+			nukeDelayMinutes: Number(form.nukeDelayMinutes),
 		};
 
 		const result = updateConfigBodySchema.safeParse(data);
@@ -261,6 +265,28 @@ export function ModmailConfigForm() {
 					{errors.maxConcurrentThreads && (
 						<p className="mt-1 text-sm text-misc-danger">{errors.maxConcurrentThreads}</p>
 					)}
+				</div>
+
+				<div>
+					<label
+						className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+						htmlFor="modmail-nuke-delay-minutes"
+					>
+						Private Thread Deletion Delay (minutes)
+					</label>
+					<input
+						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+						id="modmail-nuke-delay-minutes"
+						min={1}
+						onChange={(e) => updateField('nukeDelayMinutes', e.target.value)}
+						type="number"
+						value={form.nukeDelayMinutes}
+					/>
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						How long after a ticket closes before the user&apos;s private thread is deleted. It&apos;s locked and
+						archived immediately on close either way; this only delays the actual deletion.
+					</p>
+					{errors.nukeDelayMinutes && <p className="mt-1 text-sm text-misc-danger">{errors.nukeDelayMinutes}</p>}
 				</div>
 
 				<label className="flex items-center gap-2" htmlFor="modmail-simple-mode">
