@@ -72,8 +72,14 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 		.on(GatewayDispatchEvents.InteractionCreate, async ({ data: interaction }) => {
 			// Discord's own interaction id is already a unique, stable correlation key -- no need to mint one
 			// ourselves the way the API service does with a `nanoid`. This child logger flows into every
-			// handler for the interaction, so the whole course of it can be traced by `interactionId`.
-			const logger = getContext().logger.child({ interactionId: interaction.id, interactionType: interaction.type });
+			// handler for the interaction, so the whole course of it can be traced by `interactionId`. `guildId`
+			// is `null` (rather than omitted) for interactions that happen outside a guild (DMs), so every log
+			// line consistently carries the key either way (see issue #242).
+			const logger = getContext().logger.child({
+				interactionId: interaction.id,
+				interactionType: interaction.type,
+				guildId: interaction.guild_id ?? null,
+			});
 
 			if (interaction.type === InteractionType.MessageComponent) {
 				await handleComponentInteraction(interaction, logger);

@@ -212,7 +212,11 @@ function registerMessageRelay(client: Client): void {
 			return;
 		}
 
-		const logger = getContext().logger.child({ event: 'messageCreate', channelId: message.channel_id });
+		const logger = getContext().logger.child({
+			event: 'messageCreate',
+			channelId: message.channel_id,
+			guildId: message.guild_id ?? null,
+		});
 
 		try {
 			const thread = await findOpenThreadByUserThreadId(message.channel_id);

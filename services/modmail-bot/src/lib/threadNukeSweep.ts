@@ -9,8 +9,8 @@ import { DiscordAPIError } from '@discordjs/rest';
  * `scheduled_thread_nukes.nuke_at` lapsing and deletes the channel for real.
  */
 export async function sweepThreadNukes(logger: Logger): Promise<void> {
-	const due = await getContext().db<(Pick<Threads, 'userThreadId'> & ScheduledThreadNukes)[]>`
-		SELECT sn.thread_id, sn.nuke_at, t.user_thread_id
+	const due = await getContext().db<(Pick<Threads, 'guildId' | 'userThreadId'> & ScheduledThreadNukes)[]>`
+		SELECT sn.thread_id, sn.nuke_at, t.user_thread_id, t.guild_id
 		FROM scheduled_thread_nukes sn
 		INNER JOIN threads t ON t.id = sn.thread_id
 		WHERE sn.nuke_at <= now()
@@ -18,6 +18,8 @@ export async function sweepThreadNukes(logger: Logger): Promise<void> {
 
 	await Promise.all(
 		due.map(async (row) => {
+			const rowLogger = logger.child({ guildId: row.guildId, threadId: row.threadId });
+
 			try {
 				if (row.userThreadId) {
 					try {
@@ -32,9 +34,9 @@ export async function sweepThreadNukes(logger: Logger): Promise<void> {
 				}
 
 				await getContext().db`DELETE FROM scheduled_thread_nukes WHERE thread_id = ${row.threadId}`;
-				logger.info({ threadId: row.threadId }, 'Nuked a closed modmail ticket private thread');
+				rowLogger.info('Nuked a closed modmail ticket private thread');
 			} catch (error) {
-				logger.error({ err: error, threadId: row.threadId }, 'Failed to nuke a closed ticket private thread');
+				rowLogger.error({ err: error }, 'Failed to nuke a closed ticket private thread');
 			}
 		}),
 	);
