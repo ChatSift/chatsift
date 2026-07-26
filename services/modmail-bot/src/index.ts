@@ -3,10 +3,21 @@ import { setInterval, setTimeout } from 'node:timers';
 import { fileURLToPath } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
-import { registerCommandHandlers, registerComponentHandlers } from '@chatsift/bot-core';
+import { registerCommandHandlers, registerComponentHandlers, registerUnknownCommandResolver } from '@chatsift/bot-core';
 import type { Categories, GuildSettings, Threads } from '@chatsift/db';
-import type { Client, GatewayMessageCreateDispatchData } from '@discordjs/core';
-import { ComponentType, GatewayDispatchEvents, MessageReferenceType } from '@discordjs/core';
+import type {
+	APIChatInputApplicationCommandInteraction,
+	Client,
+	GatewayMessageCreateDispatchData,
+} from '@discordjs/core';
+import {
+	ApplicationCommandType,
+	ComponentType,
+	GatewayDispatchEvents,
+	MessageFlags,
+	MessageReferenceType,
+} from '@discordjs/core';
+import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
 import { CategorySelectStore } from './lib/categoryState.js';
 import { withGuildUserLock } from './lib/guildUserQueue.js';
@@ -14,8 +25,11 @@ import { resolveEffectiveContent, resolveReplyNote } from './lib/messageContext.
 import { clearPendingTicketRecord, PendingTicketStore } from './lib/pendingTicket.js';
 import { sweepAbandonedPendingTickets } from './lib/pendingTicketSweep.js';
 import { preventOpenThreadsFromArchiving } from './lib/preventThreadArchive.js';
-import { relayUserMessageToModThread } from './lib/relay.js';
-import { findOpenThreadByUserThreadId } from './lib/threads.js';
+import { relayStaffReplyToUserThread, relayUserMessageToModThread } from './lib/relay.js';
+import { sweepScheduledCloses } from './lib/scheduledCloseSweep.js';
+import { findSnippetByCommandId, recordSnippetUsage } from './lib/snippets.js';
+import { sweepThreadNukes } from './lib/threadNukeSweep.js';
+import { findOpenThreadByModThreadId, findOpenThreadByUserThreadId } from './lib/threads.js';
 import { finishTicketCreation, sendGreeting } from './lib/ticketCreation.js';
 
 /**
@@ -24,6 +38,21 @@ import { finishTicketCreation, sendGreeting } from './lib/ticketCreation.js';
  * is expected to stay small: only tickets currently mid-setup have a row at all).
  */
 const PENDING_TICKET_SWEEP_INTERVAL_MS = 5 * 60 * 1_000;
+
+/**
+ * How often `sweepScheduledCloses` runs — `/close schedule`'s delay is minute-granularity, so this
+ * needs to be short enough that a scheduled close doesn't fire noticeably late relative to what was
+ * promised, while `scheduled_thread_closes` is expected to stay small (only tickets someone actually
+ * scheduled a close for have a row at all).
+ */
+const SCHEDULED_CLOSE_SWEEP_INTERVAL_MS = 60 * 1_000;
+
+/**
+ * How often `sweepThreadNukes` runs — same minute-granularity reasoning as the scheduled-close sweep
+ * above (`guild_settings.nuke_delay_minutes` is also minutes), and `scheduled_thread_nukes` is
+ * similarly expected to stay small.
+ */
+const THREAD_NUKE_SWEEP_INTERVAL_MS = 60 * 1_000;
 
 /**
  * How often `preventOpenThreadsFromArchiving` runs — matches prod `ChatSift/ModMail`'s
@@ -200,7 +229,7 @@ async function handleFirstMessage(
 			});
 
 			await getContext().service.client.api.channels.createMessage(message.channel_id, {
-				content: 'Thanks! Please pick a category for your ticket:',
+				content: 'Please pick a category for your ticket:',
 				components: [
 					{
 						type: ComponentType.ActionRow,
@@ -283,10 +312,65 @@ function registerMessageRelay(client: Client): void {
 	});
 }
 
+/**
+ * Snippets are minted as their own per-guild slash command directly against Discord by the API
+ * (`services/api/src/routes/modmail/snippets/createSnippet.ts`), so they never go through
+ * `registerCommandHandlers`' static `commands/` directory — this is the fallback `@chatsift/bot-core`
+ * calls when a command interaction's name doesn't match any statically-registered handler (see
+ * `registerUnknownCommandResolver`). Returns `false` (not a snippet, or not usable here) to fall
+ * through to bot-core's normal "no handler found" error for anything that isn't actually one of ours.
+ */
+function registerSnippetCommandResolver(): void {
+	registerUnknownCommandResolver(async (interaction, logger) => {
+		if (interaction.data.type !== ApplicationCommandType.ChatInput || !interaction.guild_id || !interaction.channel) {
+			return false;
+		}
+
+		const snippet = await findSnippetByCommandId(interaction.guild_id, interaction.data.id);
+		if (!snippet) {
+			return false;
+		}
+
+		const thread = await findOpenThreadByModThreadId(interaction.channel.id);
+		if (!thread) {
+			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+				content: 'Snippets can only be used inside an open ModMail ticket thread.',
+				flags: MessageFlags.Ephemeral,
+			});
+			return true;
+		}
+
+		const member = interaction.member;
+		if (!member) {
+			return false;
+		}
+
+		const options = new ChatInputInteractionOptionResolver(interaction as APIChatInputApplicationCommandInteraction);
+		const anon = options.getBoolean('anon') ?? false;
+
+		await relayStaffReplyToUserThread({
+			anon,
+			content: snippet.content,
+			logger,
+			staffMember: member,
+			staffUser: member.user,
+			thread,
+		});
+		await recordSnippetUsage(snippet.id);
+
+		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+			content: `✅ Snippet "${snippet.name}" sent.`,
+			flags: MessageFlags.Ephemeral,
+		});
+		return true;
+	});
+}
+
 export async function bin(client: Client): Promise<void> {
 	await registerComponentHandlers(join(baseDir, 'components'));
 	await registerCommandHandlers(join(baseDir, 'commands'));
 	registerMessageRelay(client);
+	registerSnippetCommandResolver();
 
 	// `.unref()` so this interval never keeps the process alive on its own — matches bot-core's
 	// client.ts guild-list-sync interval, the only other recurring background loop in the codebase.
@@ -297,6 +381,23 @@ export async function bin(client: Client): Promise<void> {
 			getContext().logger.error({ err: error }, 'Failed to sweep abandoned pending tickets');
 		}
 	}, PENDING_TICKET_SWEEP_INTERVAL_MS).unref();
+
+	setInterval(async () => {
+		try {
+			await sweepScheduledCloses(getContext().logger);
+		} catch (error) {
+			getContext().logger.error({ err: error }, 'Failed to sweep scheduled ticket closes');
+		}
+	}, SCHEDULED_CLOSE_SWEEP_INTERVAL_MS).unref();
+
+	await sweepThreadNukes(getContext().logger);
+	setInterval(async () => {
+		try {
+			await sweepThreadNukes(getContext().logger);
+		} catch (error) {
+			getContext().logger.error({ err: error }, 'Failed to sweep scheduled thread nukes');
+		}
+	}, THREAD_NUKE_SWEEP_INTERVAL_MS).unref();
 
 	// Self-rescheduling rather than `setInterval` (unlike the sweep above) since its per-run cost scales
 	// with how many tickets are open rather than a small bounded table — a guild with enough concurrent

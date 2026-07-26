@@ -5,6 +5,7 @@ import type { Categories, GuildSettings, TicketPanels } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ChannelType, MessageFlags } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
+import { findActiveBlock } from '../lib/blocks.js';
 import { withGuildUserLock } from '../lib/guildUserQueue.js';
 import { PendingTicketStore, recordPendingTicket } from '../lib/pendingTicket.js';
 import { countActiveTicketsForUser, MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES } from '../lib/threads.js';
@@ -59,6 +60,16 @@ export default class CreateTicketComponent implements ComponentHandler {
 
 			if (!guildSettings?.modForumId) {
 				await editReply('ModMail is not fully configured in this server yet. Please let a moderator know.');
+				return;
+			}
+
+			const block = await findActiveBlock(guildId, user.id);
+			if (block) {
+				await editReply(
+					block.expiresAt
+						? `You are blocked from opening ModMail tickets in this server until <t:${Math.floor(block.expiresAt.getTime() / 1_000)}:f>.`
+						: 'You are blocked from opening ModMail tickets in this server.',
+				);
 				return;
 			}
 

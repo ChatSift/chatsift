@@ -39,6 +39,7 @@ export default defineRoute({
 				alertRoleId: null,
 				anonReplyLabel: null,
 				maxConcurrentThreads: 1,
+				nukeDelayMinutes: 30,
 			}
 		);
 	},

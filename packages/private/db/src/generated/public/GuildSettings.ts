@@ -21,6 +21,8 @@ export default interface GuildSettings {
   anonReplyLabel: string | null;
 
   maxConcurrentThreads: number;
+
+  nukeDelayMinutes: number;
 }
 
 /** Represents the initializer for the table public.guild_settings */
@@ -40,6 +42,8 @@ export interface GuildSettingsInitializer {
   anonReplyLabel?: string | null;
 
   maxConcurrentThreads?: number;
+
+  nukeDelayMinutes?: number;
 }
 
 /** Represents the mutator for the table public.guild_settings */
@@ -59,4 +63,6 @@ export interface GuildSettingsMutator {
   anonReplyLabel?: string | null;
 
   maxConcurrentThreads?: number;
+
+  nukeDelayMinutes?: number;
 }

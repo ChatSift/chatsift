@@ -18,6 +18,7 @@ export type { default as PendingTickets, PendingTicketsPrivateThreadId } from '.
 export type { default as Threads, ThreadsId } from './generated/public/Threads.js';
 export type { default as ThreadMessages, ThreadMessagesId } from './generated/public/ThreadMessages.js';
 export type { default as ScheduledThreadCloses } from './generated/public/ScheduledThreadCloses.js';
+export type { default as ScheduledThreadNukes } from './generated/public/ScheduledThreadNukes.js';
 export type { default as Blocks } from './generated/public/Blocks.js';
 export type { default as ThreadOpenAlerts } from './generated/public/ThreadOpenAlerts.js';
 export type { default as ThreadReplyAlerts } from './generated/public/ThreadReplyAlerts.js';
