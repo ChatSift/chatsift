@@ -83,7 +83,20 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		// logger from there. Passing the button click's `logger` through keeps the whole click -> modal -> post
 		// flow under one `interactionId`,
 		// which traces better than trying to key on the modal submission's own (separate) interaction id anyway.
-		const modalInteraction = await collectModal(id, 5 * 60 * 1_000);
+		let modalInteraction: APIModalSubmitInteraction;
+		try {
+			modalInteraction = await collectModal(id, 5 * 60 * 1_000);
+		} catch {
+			// Timing out is a routine outcome (user opened the modal and never submitted it), not a bug --
+			// letting the rejection propagate would crash the whole bot (it surfaces as an unhandled rejection
+			// on the shared `InteractionCreate` listener in bot-core's `client.ts`, which has no 'error' handler).
+			await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
+				content: "⌛ You didn't submit that in time. Click the button again when you're ready.",
+				flags: MessageFlags.Ephemeral,
+			});
+			return;
+		}
+
 		await this.handleModalCollected(modalInteraction as APIModalSubmitGuildInteraction, ama, logger);
 	}
 
