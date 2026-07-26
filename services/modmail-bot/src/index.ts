@@ -361,14 +361,23 @@ function registerSnippetCommandResolver(): void {
 		const options = new ChatInputInteractionOptionResolver(interaction as APIChatInputApplicationCommandInteraction);
 		const anon = options.getBoolean('anon') ?? false;
 
-		await relayStaffReplyToUserThread({
-			anon,
-			content: snippet.content,
-			logger,
-			staffMember: member,
-			staffUser: member.user,
-			thread,
-		});
+		try {
+			await relayStaffReplyToUserThread({
+				anon,
+				content: snippet.content,
+				logger,
+				staffMember: member,
+				staffUser: member.user,
+				thread,
+			});
+		} catch (error) {
+			// Mirrors `commands/reply.ts`'s own try/catch around the same relay call — a failed relay means
+			// nothing was actually sent, so usage tracking below must not run, and the deferred reply needs
+			// an explicit failure message rather than being left to time out silently.
+			logger.error({ err: error, snippetId: snippet.id, threadId: thread.id }, 'Failed to relay a snippet reply');
+			await editReply('❌ Failed to send that snippet. Please try again or contact another moderator.');
+			return true;
+		}
 
 		// Best-effort — the reply below is what actually acks this interaction, and the snippet has
 		// already been relayed successfully at this point, so a usage-tracking write failure shouldn't
