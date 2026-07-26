@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import type { Logger } from '@chatsift/backend-core';
 import { RedisStore } from '@chatsift/backend-core';
 import type { API } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
@@ -38,20 +39,32 @@ const GuildEmojiIdsStore = new RedisStore<GuildEmojiIds>({
  * The ticket's own guild's custom emote ids — Redis-cached (see `GUILD_EMOJI_IDS_TTL_MS`) since this is
  * checked on essentially every relayed message. Only ids are needed: a token's own name/animated flag
  * already comes from parsing the message content itself (see `EmojiToken`), not from the guild's list.
+ *
+ * Returns `null` (rather than letting the error propagate) if Redis or the Discord REST call fails --
+ * this is a new dependency both relay directions didn't previously have, and a transient hiccup here
+ * shouldn't be able to crash or silently swallow a message relay/staff reply that would otherwise have
+ * gone through fine. Callers decide how to degrade: see `relayUserMessageToModThread` (relays the
+ * original content unresolved) versus the staff-reply commands (reject with a retryable error instead of
+ * guessing at emote membership).
  */
-export async function fetchGuildEmojiIds(guildId: string, api: API): Promise<Set<string>> {
-	const cached = await GuildEmojiIdsStore.get(guildId);
-	if (cached) {
-		return new Set(cached.ids);
-	}
+export async function fetchGuildEmojiIds(guildId: string, api: API, logger: Logger): Promise<Set<string> | null> {
+	try {
+		const cached = await GuildEmojiIdsStore.get(guildId);
+		if (cached) {
+			return new Set(cached.ids);
+		}
 
-	const emojisRaw = await api.guilds.getEmojis(guildId);
-	// `id` is typed nullable on discord-api-types' shared `APIPartialEmoji` base only for the
-	// reaction-emoji case (a unicode emoji reaction) -- a guild's own custom emoji list from this
-	// endpoint always has it populated.
-	const ids = emojisRaw.map((emoji) => emoji.id!);
-	await GuildEmojiIdsStore.set(guildId, { ids });
-	return new Set(ids);
+		const emojisRaw = await api.guilds.getEmojis(guildId);
+		// `id` is typed nullable on discord-api-types' shared `APIPartialEmoji` base only for the
+		// reaction-emoji case (a unicode emoji reaction) -- a guild's own custom emoji list from this
+		// endpoint always has it populated.
+		const ids = emojisRaw.map((emoji) => emoji.id!);
+		await GuildEmojiIdsStore.set(guildId, { ids });
+		return new Set(ids);
+	} catch (error) {
+		logger.warn({ err: error, guildId }, 'Failed to resolve guild emoji ids');
+		return null;
+	}
 }
 
 export interface EmojiToken {
@@ -120,6 +133,14 @@ export function findForeignEmojiTokens(content: string, guildEmojiIds: Set<strin
 const MAX_INLINE_CONTENT_LENGTH = 2_000;
 
 /**
+ * Keeps the rejection preamble bounded even when a reply references many distinct foreign emotes --
+ * mirrors `media.ts`'s `MAX_FAILED_LINKS_SHOWN` "+N more" convention. Matters even in the file-attachment
+ * fallback below, where the preamble is sent alone as `content`: an uncapped names list could otherwise
+ * push the preamble itself past `MAX_INLINE_CONTENT_LENGTH` on its own.
+ */
+const MAX_FOREIGN_EMOJI_NAMES_SHOWN = 5;
+
+/**
  * Picks a fence at least one backtick longer than the longest run already inside `content` -- guarantees
  * the code block's own delimiters can never be confused with backticks the mod's original text happens
  * to contain, so the copy-pasted block is always faithful.
@@ -146,8 +167,12 @@ export function buildForeignEmojiRejection(
 	originalContent: string,
 ): ForeignEmojiRejection {
 	const uniqueNames = [...new Set(foreignTokens.map((token) => `:${token.name}:`))];
+	const shownNames = uniqueNames.slice(0, MAX_FOREIGN_EMOJI_NAMES_SHOWN);
+	const omittedCount = uniqueNames.length - shownNames.length;
+	const namesList = omittedCount > 0 ? `${shownNames.join(', ')} (+${omittedCount} more)` : shownNames.join(', ');
+
 	const plural = uniqueNames.length === 1 ? '' : 's';
-	const preamble = `❌ Your reply includes an emote${plural} not from this server (${uniqueNames.join(', ')}), so it can't be sent. Fix ${
+	const preamble = `❌ Your reply includes an emote${plural} not from this server (${namesList}), so it can't be sent. Fix ${
 		uniqueNames.length === 1 ? 'it' : 'them'
 	} and run the command again -- your original text is below so you don't lose it.`;
 

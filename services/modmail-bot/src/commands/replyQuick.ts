@@ -45,7 +45,15 @@ export default class ReplyQuickCommand implements CommandHandler {
 		const content = options.getString('content', true);
 		const anon = options.getBoolean('anon') ?? false;
 
-		const guildEmojiIds = await fetchGuildEmojiIds(interaction.guild_id, getContext().service.client.api);
+		const guildEmojiIds = await fetchGuildEmojiIds(interaction.guild_id, getContext().service.client.api, logger);
+		if (!guildEmojiIds) {
+			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+				content: "⚠️ Couldn't verify this server's emotes right now. Please try again in a moment.",
+				flags: MessageFlags.Ephemeral,
+			});
+			return;
+		}
+
 		const foreignEmojiTokens = findForeignEmojiTokens(content, guildEmojiIds);
 		if (foreignEmojiTokens.length > 0) {
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {

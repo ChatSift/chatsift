@@ -112,7 +112,18 @@ export default class ReplyCommand implements CommandHandler {
 		const content = modalOptions.getTextInput('content');
 		const attachments = modalOptions.getAttachments('attachments') ?? [];
 
-		const guildEmojiIds = await fetchGuildEmojiIds(modalInteraction.guild_id, getContext().service.client.api);
+		const guildEmojiIds = await fetchGuildEmojiIds(modalInteraction.guild_id, getContext().service.client.api, logger);
+		if (!guildEmojiIds) {
+			await getContext().service.client.api.interactions.editReply(
+				modalInteraction.application_id,
+				modalInteraction.token,
+				{
+					content: "⚠️ Couldn't verify this server's emotes right now. Please try `/reply` again in a moment.",
+				},
+			);
+			return;
+		}
+
 		const foreignEmojiTokens = findForeignEmojiTokens(content, guildEmojiIds);
 		if (foreignEmojiTokens.length > 0) {
 			await getContext().service.client.api.interactions.editReply(

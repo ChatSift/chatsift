@@ -299,7 +299,12 @@ function registerSnippetCommandResolver(): void {
 		const options = new ChatInputInteractionOptionResolver(interaction as APIChatInputApplicationCommandInteraction);
 		const anon = options.getBoolean('anon') ?? false;
 
-		const guildEmojiIds = await fetchGuildEmojiIds(interaction.guild_id, getContext().service.client.api);
+		const guildEmojiIds = await fetchGuildEmojiIds(interaction.guild_id, getContext().service.client.api, logger);
+		if (!guildEmojiIds) {
+			await editReply("⚠️ Couldn't verify this server's emotes right now. Please try again in a moment.");
+			return true;
+		}
+
 		const foreignEmojiTokens = findForeignEmojiTokens(snippet.content, guildEmojiIds);
 		if (foreignEmojiTokens.length > 0) {
 			await getContext().service.client.api.interactions.editReply(

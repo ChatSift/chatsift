@@ -101,8 +101,8 @@ export async function relayUserMessageToModThread({
 
 	const author = nicknameAuthor(thread.guildId, member, user);
 	const media = await buildRelayMedia(attachments, stickers, logger);
-	const guildEmojiIds = await fetchGuildEmojiIds(thread.guildId, getContext().service.client.api);
-	const resolvedContent = resolveContentForRelay(content, guildEmojiIds);
+	const guildEmojiIds = await fetchGuildEmojiIds(thread.guildId, getContext().service.client.api, logger);
+	const resolvedContent = guildEmojiIds ? resolveContentForRelay(content, guildEmojiIds) : content;
 	const description = [contextNote, resolvedContent, media.note].filter(Boolean).join('\n\n');
 
 	const embed: APIEmbed = {
