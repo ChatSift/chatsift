@@ -13,12 +13,14 @@ export const MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES = 10_080;
 /**
  * A user's total concurrent tickets in a guild, counting both real open `threads` rows and tickets
  * still mid-setup (`pending_tickets` — private thread created, no `threads` row yet since the mod-forum
- * side and category aren't resolved). Both count against `guild_settings.max_concurrent_threads`
- * because a pending ticket already holds a private thread and will become a real one imminently — not
- * counting it would let a burst of clicks (all still pending) blow past the limit before any of them
- * finish. Checked by `createTicket.ts` before creating a new private thread, under the same
- * per guild+user lock (`lib/guildUserQueue.ts`) every other ticket-lifecycle step uses, so this count
- * can't go stale between the check and the create.
+ * side hasn't been resolved, which only happens once the user's opening message arrives). Both count
+ * against `guild_settings.max_concurrent_threads` because a pending ticket already holds a private
+ * thread and will become a real one imminently — not counting it would let a burst of clicks (all
+ * still pending) blow past the limit before any of them finish. Checked as a fast pre-check by
+ * `createTicket.ts` and, authoritatively, by `categorySelect.ts` immediately before it actually creates
+ * a private thread — both under the same per guild+user lock (`lib/guildUserQueue.ts`) every other
+ * ticket-lifecycle step uses, so the categorized path's count can't go stale between its check and the
+ * create.
  */
 export async function countActiveTicketsForUser(guildId: string, userId: string): Promise<number> {
 	const [row] = await getContext().db<[{ count: string }]>`
@@ -35,7 +37,11 @@ export async function countActiveTicketsForUser(guildId: string, userId: string)
  * A user's open tickets within one specific category, checked against `categories.max_concurrent_threads`
  * (falling back to the guild's general limit) by `categorySelect.ts` once a category is actually picked —
  * unlike the general limit above, a category can't be known until then, so this can't be checked any
- * earlier in the flow.
+ * earlier in the flow. Same combined-count shape as `countActiveTicketsForUser` above and for the same
+ * reason: a category pick that's already created a private thread but is still waiting on the user's
+ * opening message (`pending_tickets`, with `category_id` set the moment the pick resolves — see
+ * `categorySelect.ts`) has no `threads` row yet, so counting `threads` alone would let a burst of picks
+ * for the *same* category blow past its limit before any of them finish.
  */
 export async function countOpenThreadsForUserInCategory(
 	guildId: string,
@@ -43,8 +49,12 @@ export async function countOpenThreadsForUserInCategory(
 	categoryId: number,
 ): Promise<number> {
 	const [row] = await getContext().db<[{ count: string }]>`
-		SELECT COUNT(*) FROM threads
-		WHERE guild_id = ${guildId} AND user_id = ${userId} AND category_id = ${categoryId} AND closed_at IS NULL
+		SELECT (
+			(SELECT COUNT(*) FROM threads
+				WHERE guild_id = ${guildId} AND user_id = ${userId} AND category_id = ${categoryId} AND closed_at IS NULL) +
+			(SELECT COUNT(*) FROM pending_tickets
+				WHERE guild_id = ${guildId} AND user_id = ${userId} AND category_id = ${categoryId})
+		) AS count
 	`;
 
 	return Number(row?.count ?? 0);

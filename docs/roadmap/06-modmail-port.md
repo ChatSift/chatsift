@@ -18,15 +18,17 @@ Direct quote from the design discussion (2026-07-22), owner's framing:
 
 **Critically: the mod side does not change.** A ticket still lands as a post in the mod-side forum with a running message history, exactly like today's `Thread`/`ThreadMessage` model. Only the user-facing origin changes: an in-server private thread (created by clicking a button) instead of a DM channel. This is why the old schema below is still the migration source, not a from-scratch design — it just gains a few new concepts (categories, panels, an origin distinction) on top.
 
-## New create-flow (design outline from the collaborator, 2026-07-22)
+## New create-flow (design outline from the collaborator, 2026-07-22; reordered 2026-07-26)
 
 1. A staff-configured embed with a "Create Ticket" button is posted in a channel (a **ticket panel**, new concept — mirrors AMA's prompt-message pattern).
-2. User clicks the button → bot opens a **private thread** for them (in a designated parent channel).
-3. Bot asks the user to pick a **category** in that private thread.
-4. Category selection opens the corresponding **forum thread** for mods (in the designated mod forum channel) and asks the user, in their private thread, what they need help with.
-5. Optionally, a category can have a **custom greeting message** posted into the private thread on creation.
+2. User clicks the button. If the panel has categories configured, the bot prompts them to pick one, ephemerally (only the ticket opener sees it) — no private thread exists yet at this point. **If the panel has no categories configured, this step is skipped entirely** and the button click goes straight to step 3.
+3. Once a category is picked (or immediately, for a no-category panel) → bot opens a **private thread** for the user (in the panel's designated parent channel) and tells them, ephemerally, to describe what they need help with there.
+4. Once the user's opening message actually arrives in that private thread, the bot opens the corresponding **forum thread** for mods (in the designated mod forum channel) and relays that first message into it. This step is identical for both paths — a no-category ticket's `threads.category_id` is simply `null`.
+5. Optionally, a category can have a **custom greeting message** posted into the private thread once the forum thread is created.
 6. On close: the user's private thread is **deleted** ("nuked") — they can't revisit it. The mod-forum thread is **not** deleted; it stays as the durable staff-side record, matching today's behavior.
 7. Modmail messages still flow to the mod forum exactly as before (relay both directions while the ticket is open).
+
+**Why the reorder:** the original design created the private thread first and only asked for a category once the user's first message arrived (posted as a real message inside that thread). Picking the category ephemerally up front, before any thread exists, means a category is always resolved before a private thread is ever created — simpler state (no need to stash a captured first message across the category pick) and no empty/abandoned private thread for a user who clicks the button but never actually picks a category.
 
 ## QOL: mention/user-ID auto-embed (anti user-ID-swapping)
 
@@ -160,8 +162,9 @@ New `app/dashboard/[id]/modmail/` area mirroring the AMA dashboard's structure: 
 
 Mirrors `services/ama-bot`'s structure ([01-architecture.md §6](01-architecture.md#6-ama-bot-subsystem-servicesama-bot) — component loader, command loader, resolvers):
 
-- **Ticket panel button** → creates a private thread for the user in the configured parent channel.
-- **Category select** (posted in the new private thread) → creates the mod-forum thread (tagged/routed per category), posts the category's greeting (or guild default) back into the user's private thread.
+- **Ticket panel button** → an ephemeral category prompt (skipped, straight to thread creation, if the panel has no categories configured).
+- **Category select** (the ephemeral reply to the button) → creates a private thread for the user in the configured parent channel and tells them, ephemerally, to describe their issue there.
+- **User's opening message in that private thread** → creates the mod-forum thread (tagged/routed per category), relays the message into it, posts the category's greeting (or guild default) back into the user's private thread.
 - **Relay, both directions** — private-thread message → mod-forum thread (`ThreadMessage` row, `userMessageId` now means "message ID in the user's private thread" rather than "in a DM"); staff reply in the mod-forum thread → relayed into the user's private thread, anonymous-reply support (`anon` flag) unchanged.
 - **Close** — mod-forum thread archived (not deleted, stays as the durable record); user's private thread channel **deleted** after a final closing message, per the "nuke the modmail after for the user" decision. Scheduled/silent close unchanged.
 - **Mention/user-ID auto-embed QOL** — see the dedicated section above.
@@ -189,4 +192,4 @@ From the design discussion (2026-07-22), kept here so M5's implementation doesn'
 
 ## Verification
 
-Schema authored and migrated cleanly via Atlas; full ticket lifecycle exercised on the new bot: click a panel → private thread created → pick a category → mod-forum thread created with the right tag/routing → category greeting posted → relay a message each direction → an anonymous reply → a snippet use → a scheduled silent close → close a ticket and confirm the private thread is deleted while the mod-forum thread survives → a blocked user's ticket-panel click rejected → the mention/user-ID auto-embed fires for a normal-user mention and is suppressed for a staff-mentioning-staff message. Migration dry-run reconciled against the old database (row counts + spot-checked thread content) before any live cutover.
+Schema authored and migrated cleanly via Atlas; full ticket lifecycle exercised on the new bot: click a panel → pick a category ephemerally → private thread created → send the opening message → mod-forum thread created with the right tag/routing → category greeting posted → relay a message each direction → an anonymous reply → a snippet use → a scheduled silent close → close a ticket and confirm the private thread is deleted while the mod-forum thread survives → a blocked user's ticket-panel click rejected → the mention/user-ID auto-embed fires for a normal-user mention and is suppressed for a staff-mentioning-staff message. Separately, the no-category path: click a panel with no categories attached → private thread created immediately (no ephemeral prompt) → send the opening message → mod-forum thread created with `category_id` null and no tag applied → guild-default greeting (not a category greeting) posted. Migration dry-run reconciled against the old database (row counts + spot-checked thread content) before any live cutover.

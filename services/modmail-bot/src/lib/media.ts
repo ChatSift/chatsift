@@ -4,10 +4,10 @@ import { CDNRoutes, ImageFormat, RouteBases, StickerFormatType } from '@discordj
 import type { RawFile } from '@discordjs/rest';
 
 /**
- * Narrowed to just what this file reads off a real `APIAttachment`/`APIStickerItem` — the
- * category-select-deferred path (`categorySelect.ts`) reconstructs these from a Redis-stored state
- * rather than a live gateway payload, so keeping the field set minimal avoids needing to fake an
- * entire `APIAttachment`/`APIStickerItem` for that path.
+ * Narrowed to just what this file reads off a real `APIAttachment`/`APIStickerItem` — a forwarded
+ * message's `message_snapshots[].message` (see `messageContext.ts`'s `MessageLike`) carries a reduced
+ * payload shape, so keeping this minimal lets both it and a live gateway message satisfy the same type
+ * without faking an entire `APIAttachment`/`APIStickerItem` for the snapshot case.
  */
 export interface RelayAttachmentLike {
 	content_type?: string | undefined;

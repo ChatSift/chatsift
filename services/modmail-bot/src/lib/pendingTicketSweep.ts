@@ -8,19 +8,21 @@ import { PENDING_TICKET_TTL_MS, PendingTicketStore } from './pendingTicket.js';
 /**
  * Run on an interval from `index.ts`'s `bin()`. A ticket's pending window is tracked in Redis with a
  * TTL purely for routing incoming events — that TTL lapsing doesn't tell anyone to act on it, so a
- * private thread whose setup the user never finished (no first message, or all its categories got
- * deleted before they picked one) would otherwise sit around forever. That's a real gap #156's closing
- * flow doesn't cover either: its close command only exists inside a ticket's mod-forum thread, which
- * never gets created for a ticket that never finished being set up. This polls the durable
- * `pending_tickets` table (see schema.sql) for rows past the timeout and deletes the orphaned private
- * thread for each one.
+ * private thread whose setup the user never finished would otherwise sit around forever. By the time a
+ * private thread (and so a `pending_tickets` row) exists at all, the category question is already
+ * settled — either resolved to a real category (`categorySelect.ts`) or the panel had none configured to
+ * begin with (`createTicket.ts`) — so the only thing left to abandon is the user never sending their
+ * opening message. That's a real gap #156's closing flow doesn't cover either: its close command only
+ * exists inside a ticket's mod-forum thread, which never gets created for a ticket that never finished
+ * being set up. This polls the durable `pending_tickets` table (see schema.sql) for rows past the
+ * timeout and deletes the orphaned private thread for each one.
  */
 export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void> {
-	// A `pending_tickets` row is supposed to be cleared the moment its ticket resolves (see the
-	// `finally` blocks in categorySelect.ts/index.ts) — but that clear is best-effort against process
-	// crashes, so a completed ticket's row could in principle still be sitting here past the cutoff.
-	// The LEFT JOIN excludes exactly that case: never delete a private thread that a real `threads` row
-	// (an active, in-progress conversation) already points at.
+	// A `pending_tickets` row is supposed to be cleared the moment its ticket resolves (see
+	// `handleFirstMessage` in index.ts) — but that clear is best-effort against process crashes, so a
+	// completed ticket's row could in principle still be sitting here past the cutoff. The LEFT JOIN
+	// excludes exactly that case: never delete a private thread that a real `threads` row (an active,
+	// in-progress conversation) already points at.
 	const [abandoned, stale] = await Promise.all([
 		getContext().db<PendingTickets[]>`
 			SELECT pt.* FROM pending_tickets pt
@@ -63,7 +65,7 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 
 			try {
 				await getContext().service.client.api.channels.delete(pending.privateThreadId, {
-					reason: 'Ticket setup abandoned (no first message or category pick within the timeout)',
+					reason: 'Ticket setup abandoned (no opening message sent within the timeout)',
 				});
 			} catch (error) {
 				// A 404 just means the thread is already gone (deleted manually, archived and pruned, etc.) —
