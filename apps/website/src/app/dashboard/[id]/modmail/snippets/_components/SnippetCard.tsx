@@ -92,11 +92,15 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 			return;
 		}
 
+		const attachmentUrl = form.attachmentUrl.trim() || null;
+
 		const data: UpdateModmailSnippetBody = {
 			name: normalizeSnippetName(form.name),
 			content: form.content.trim(),
-			attachmentUrl: form.attachmentUrl.trim() || null,
-			attachmentFilename: form.attachmentFilename.trim() || null,
+			attachmentUrl,
+			// A filename without a URL is meaningless and the API schema rejects it outright -- clearing the
+			// URL always clears the filename along with it, regardless of what's still typed in that field.
+			attachmentFilename: attachmentUrl ? form.attachmentFilename.trim() || null : null,
 		};
 
 		const result = updateSnippetBodySchema.safeParse(data);

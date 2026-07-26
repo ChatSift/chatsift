@@ -313,7 +313,10 @@ CREATE TABLE snippets (
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  CONSTRAINT snippets_guild_id_name_key UNIQUE (guild_id, name)
+  CONSTRAINT snippets_guild_id_name_key UNIQUE (guild_id, name),
+  -- Backstop for the API's own validation (services/api's updateSnippet.ts clears attachment_filename
+  -- whenever attachment_url is cleared) -- a filename with no URL to attach it to is meaningless.
+  CONSTRAINT snippets_attachment_filename_requires_url_check CHECK (attachment_filename IS NULL OR attachment_url IS NOT NULL)
 );
 
 CREATE TABLE snippet_updates (

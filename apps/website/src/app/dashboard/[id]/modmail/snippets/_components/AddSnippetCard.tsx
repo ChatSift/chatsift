@@ -66,7 +66,9 @@ export function AddSnippetCard({ guildId }: AddSnippetCardProps) {
 			name: normalizeSnippetName(form.name),
 			content: form.content.trim(),
 			...(attachmentUrl && { attachmentUrl }),
-			...(attachmentFilename && { attachmentFilename }),
+			// A filename without a URL is meaningless (there's nothing to attach it to) and the API schema
+			// rejects it outright -- only send it alongside an actual URL.
+			...(attachmentUrl && attachmentFilename && { attachmentFilename }),
 		};
 
 		const result = createSnippetBodySchema.safeParse(data);

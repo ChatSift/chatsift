@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { URL } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import { CDNRoutes, ImageFormat, RouteBases, StickerFormatType } from '@discordjs/core';
 import type { RawFile } from '@discordjs/rest';
@@ -45,6 +46,21 @@ const MAX_TOTAL_REUPLOAD_BYTES = MAX_REUPLOAD_BYTES;
  */
 const MAX_FAILED_LINKS_SHOWN = 5;
 
+/**
+ * How long a single media fetch (including following redirects) is allowed to take before giving up and
+ * falling back to a link — real Discord CDN URLs respond in well under this; a staff-pasted URL to a
+ * slow or non-responding host would otherwise tie up the interaction handler indefinitely.
+ */
+const FETCH_TIMEOUT_MS = 10_000;
+
+/**
+ * Same rationale as most browsers/HTTP clients -- enough to follow a real redirect chain (e.g. a CDN
+ * front door), not enough to be useful as a resource-exhaustion vector via a redirect loop.
+ */
+const MAX_REDIRECTS = 5;
+
+const IPV4_LITERAL_REGEX = /^(?<a>\d{1,3})\.(?<b>\d{1,3})\.(?<c>\d{1,3})\.(?<d>\d{1,3})$/;
+
 export interface RelayMedia {
 	/**
 	 * `attachment://<name>` reference for the first successfully-fetched image, if any — for `APIEmbed#image`.
@@ -60,6 +76,52 @@ export interface RelayMedia {
 	note: string | undefined;
 }
 
+/**
+ * Mirrors `isSafeAttachmentUrl` in `services/api/src/routes/modmail/schemas.ts` -- kept as a separate
+ * copy since this app and `services/api` don't share a validation-utils package (keep the two in sync
+ * if either changes). This copy is the *real* enforcement boundary: the API's is just a fast-fail
+ * create/update-time UX check, whereas this runs on every actual fetch, including every redirect hop
+ * below -- a URL that resolved to something public when a snippet was created could still 302 into an
+ * internal address at send time.
+ *
+ * Only catches IP literals and `localhost`, not a hostname that *resolves* to a private/internal
+ * address (no DNS lookup here) -- accepted gap for a staff-gated (guild-manager-only) feature rather
+ * than adding a DNS-rebinding-proof dispatcher for this.
+ */
+function isSafeMediaUrl(url: URL): boolean {
+	if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+		return false;
+	}
+
+	const hostname = url.hostname.toLowerCase().replaceAll(/^\[|]$/g, '');
+	if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
+		return false;
+	}
+
+	const ipv4 = IPV4_LITERAL_REGEX.exec(hostname);
+	if (ipv4) {
+		const { a: aStr, b: bStr } = ipv4.groups as Record<'a' | 'b' | 'c' | 'd', string>;
+		const a = Number(aStr);
+		const b = Number(bStr);
+		return !(
+			a === 0 ||
+			a === 10 ||
+			a === 127 ||
+			(a === 100 && b >= 64 && b <= 127) ||
+			(a === 169 && b === 254) ||
+			(a === 172 && b >= 16 && b <= 31) ||
+			(a === 192 && b === 168) ||
+			a >= 224
+		);
+	}
+
+	if (hostname.includes(':')) {
+		return !(hostname === '::1' || hostname === '::' || /^f[cd]/.test(hostname) || /^fe[89ab]/.test(hostname));
+	}
+
+	return true;
+}
+
 async function fetchAsRawFile(
 	url: string,
 	name: string,
@@ -67,16 +129,83 @@ async function fetchAsRawFile(
 	logger: Logger,
 ): Promise<{ file: RawFile; size: number } | undefined> {
 	try {
-		const res = await fetch(url);
+		let currentUrl: URL;
+		try {
+			currentUrl = new URL(url);
+		} catch {
+			throw new Error('malformed url');
+		}
+
+		let res: Response;
+		let redirects = 0;
+		// `redirect: 'manual'` so every hop -- not just the first URL -- gets checked against
+		// `isSafeMediaUrl` before it's actually connected to.
+		for (;;) {
+			if (!isSafeMediaUrl(currentUrl)) {
+				throw new Error(`refusing to fetch a non-public url: ${currentUrl.toString()}`);
+			}
+
+			res = await fetch(currentUrl, { redirect: 'manual', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+
+			if (res.status >= 300 && res.status < 400 && res.headers.has('location')) {
+				if (redirects >= MAX_REDIRECTS) {
+					throw new Error('too many redirects');
+				}
+
+				redirects++;
+				currentUrl = new URL(res.headers.get('location')!, currentUrl);
+				continue;
+			}
+
+			break;
+		}
+
 		if (!res.ok) {
 			throw new Error(`unexpected status ${res.status}`);
+		}
+
+		// Cheap pre-check against the declared length before reading anything -- doesn't replace the
+		// streamed cap below (a server can lie about or omit `content-length`), just avoids starting a
+		// pointless download when it's honest about being oversized.
+		const declaredLength = Number(res.headers.get('content-length'));
+		if (Number.isFinite(declaredLength) && declaredLength > MAX_REUPLOAD_BYTES) {
+			throw new Error('declared content-length exceeds the reupload limit');
+		}
+
+		if (!res.body) {
+			throw new Error('response has no body');
+		}
+
+		// Read incrementally with a hard cap instead of `res.arrayBuffer()` -- that buffers the *entire*
+		// response before any size check runs, so an oversized or infinitely-streaming response (whether
+		// malicious or just a server that lied about/omitted `content-length`) would otherwise be read
+		// into memory in full before being rejected.
+		const chunks: Uint8Array[] = [];
+		let total = 0;
+		const reader = res.body.getReader();
+		try {
+			for (;;) {
+				const { done, value } = await reader.read();
+				if (done) {
+					break;
+				}
+
+				total += value.byteLength;
+				if (total > MAX_REUPLOAD_BYTES) {
+					throw new Error('response body exceeds the reupload limit');
+				}
+
+				chunks.push(value);
+			}
+		} finally {
+			reader.releaseLock();
 		}
 
 		// Real Discord attachments/stickers always pass a `contentType` in already -- this fallback only
 		// matters for a snippet's staff-pasted URL, which has no Discord-verified metadata up front.
 		const resolvedContentType = contentType ?? res.headers.get('content-type') ?? undefined;
 
-		const data = Buffer.from(await res.arrayBuffer());
+		const data = Buffer.concat(chunks);
 		return {
 			file: { data, name, ...(resolvedContentType ? { contentType: resolvedContentType } : {}) },
 			size: data.length,
@@ -131,8 +260,8 @@ export async function buildRelayMedia(
 		// Re-checked against the *actual* fetched size, not just the caller-declared `attachment.size` --
 		// real Discord attachments/stickers always carry an accurate size up front, but a snippet's
 		// staff-pasted URL doesn't, so it reports `size: 0` to clear the pre-fetch guard above and relies
-		// on this check instead.
-		if (fetchResult.size > MAX_REUPLOAD_BYTES) {
+		// on this check instead (mirrors the sticker loop's post-fetch total check below).
+		if (fetchResult.size > MAX_REUPLOAD_BYTES || totalBytes + fetchResult.size > MAX_TOTAL_REUPLOAD_BYTES) {
 			failedLinks.push(attachment.url);
 			continue;
 		}
