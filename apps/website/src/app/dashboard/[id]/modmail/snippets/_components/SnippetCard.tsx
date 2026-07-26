@@ -61,6 +61,11 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 	const [form, setForm] = useState<SnippetFormData | null>(null);
 	const [errors, setErrors] = useState<SnippetFormErrors>({});
 	const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+	// Rendering an `<img>` fetches it immediately on page load -- for a staff-pasted URL we haven't
+	// vetted, that's an unprompted request to wherever they typed, made by every moderator who happens
+	// to open this page. Gating it behind an explicit click means the preview only ever loads because
+	// someone here chose to load it, same as clicking the link itself.
+	const [showPreview, setShowPreview] = useState(false);
 	const updateSnippet = useUpdateModmailSnippet(guildId, snippet.id);
 	const deleteSnippet = useDeleteModmailSnippet(guildId);
 
@@ -200,7 +205,8 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 							value={form.attachmentUrl}
 						/>
 						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-							Optional. Sent as a file attachment every time this snippet is used. Clear to remove it.
+							Optional. Shown as an image on every reply this snippet sends -- must be a direct link to an image. Clear
+							to remove it.
 						</p>
 						{errors.attachmentUrl && <p className="mt-1 text-sm text-misc-danger">{errors.attachmentUrl}</p>}
 					</div>
@@ -237,17 +243,8 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 
 					<p className="whitespace-pre-wrap text-sm text-primary dark:text-primary-dark">{snippet.content}</p>
 
-					{snippet.attachmentUrl &&
-						(isImageAttachment(snippet) ? (
-							<a href={snippet.attachmentUrl} rel="noreferrer" target="_blank">
-								{/* eslint-disable-next-line @next/next/no-img-element -- arbitrary staff-pasted external URL, not one of the app's known image sources Next's optimizer can proxy */}
-								<img
-									alt={snippet.attachmentFilename ?? 'snippet attachment'}
-									className="max-h-40 rounded-md border border-on-secondary dark:border-on-secondary-dark"
-									src={snippet.attachmentUrl}
-								/>
-							</a>
-						) : (
+					{snippet.attachmentUrl && (
+						<div className="flex flex-col items-start gap-1">
 							<a
 								className="text-sm text-misc-accent underline"
 								href={snippet.attachmentUrl}
@@ -256,7 +253,25 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 							>
 								{snippet.attachmentFilename ?? snippet.attachmentUrl}
 							</a>
-						))}
+							{isImageAttachment(snippet) &&
+								(showPreview ? (
+									// eslint-disable-next-line @next/next/no-img-element -- arbitrary staff-pasted external URL, not one of the app's known image sources Next's optimizer can proxy
+									<img
+										alt={snippet.attachmentFilename ?? 'snippet attachment'}
+										className="max-h-40 rounded-md border border-on-secondary dark:border-on-secondary-dark"
+										src={snippet.attachmentUrl}
+									/>
+								) : (
+									<button
+										className="text-xs text-secondary underline dark:text-secondary-dark"
+										onClick={() => setShowPreview(true)}
+										type="button"
+									>
+										Show preview
+									</button>
+								))}
+						</div>
+					)}
 
 					<p className="text-xs text-secondary dark:text-secondary-dark">
 						{snippet.timesUsed === 0

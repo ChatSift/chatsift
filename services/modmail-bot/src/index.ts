@@ -20,7 +20,7 @@ import { sweepAbandonedPendingTickets } from './lib/pendingTicketSweep.js';
 import { preventOpenThreadsFromArchiving } from './lib/preventThreadArchive.js';
 import { relayStaffReplyToUserThread, relayUserMessageToModThread } from './lib/relay.js';
 import { sweepScheduledCloses } from './lib/scheduledCloseSweep.js';
-import { attachmentsForSnippet, findSnippetByCommandId, recordSnippetUsage } from './lib/snippets.js';
+import { findSnippetByCommandId, recordSnippetUsage } from './lib/snippets.js';
 import { sweepThreadNukes } from './lib/threadNukeSweep.js';
 import { findOpenThreadByModThreadId, findOpenThreadByUserThreadId } from './lib/threads.js';
 import { finishTicketCreation, sendGreeting } from './lib/ticketCreation.js';
@@ -318,8 +318,8 @@ function registerSnippetCommandResolver(): void {
 		try {
 			await relayStaffReplyToUserThread({
 				anon,
-				attachments: attachmentsForSnippet(snippet),
 				content: snippet.content,
+				externalImageUrl: snippet.attachmentUrl ?? undefined,
 				logger,
 				staffMember: member,
 				staffUser: member.user,

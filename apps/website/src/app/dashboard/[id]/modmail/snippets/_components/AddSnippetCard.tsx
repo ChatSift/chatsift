@@ -164,7 +164,7 @@ export function AddSnippetCard({ guildId }: AddSnippetCardProps) {
 					value={form.attachmentUrl}
 				/>
 				<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-					Optional. Sent as a file attachment every time this snippet is used.
+					Optional. Shown as an image on every reply this snippet sends -- must be a direct link to an image.
 				</p>
 				{errors.attachmentUrl && <p className="mt-1 text-sm text-misc-danger">{errors.attachmentUrl}</p>}
 			</div>

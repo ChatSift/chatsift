@@ -30,23 +30,16 @@ function isValidCategoryEmoji(value: string): boolean {
 }
 
 /**
- * A snippet's `attachmentUrl` gets fetched server-side by `services/modmail-bot` on every invocation
- * (see `lib/media.ts`), so accepting an arbitrary URL here is an SSRF vector against the bot's own
- * network -- rejects anything other than http(s), plus obvious loopback/private/link-local/reserved IP
- * literals (including cloud metadata endpoints like `169.254.169.254`) and `localhost`.
- *
- * This only catches IP literals, not a hostname that *resolves* to one of those ranges (no DNS lookup
- * here -- this file has to stay browser-safe, see the file-level comment above). The actual fetch-time
- * check in `services/modmail-bot/src/lib/media.ts` is the real enforcement boundary (it re-validates on
- * every redirect hop too, which a create/update-time check can never see); this is a fast-fail UX
- * check, not the security boundary.
+ * A snippet's `attachmentUrl` is rendered as a Discord embed's `image.url` directly
+ * (`services/modmail-bot`'s `relay.ts`) -- Discord's own servers fetch/proxy that URL when rendering
+ * the embed, the bot's own process never connects to it, so this just needs to rule out non-http(s)
+ * schemes (`javascript:`, `data:`, etc.), not private/internal hosts -- there's no SSRF against our own
+ * infrastructure to defend against here.
  */
-const IPV4_LITERAL_REGEX = /^(?<a>\d{1,3})\.(?<b>\d{1,3})\.(?<c>\d{1,3})\.(?<d>\d{1,3})$/;
-
 // This file must stay browser-safe (see file-level comment above), so it needs the global WHATWG `URL`
 // -- `node:url`'s doesn't exist in a browser bundle.
 /* eslint-disable n/prefer-global/url */
-function isSafeAttachmentUrl(value: string): boolean {
+function isHttpUrl(value: string): boolean {
 	let url: URL;
 	try {
 		url = new URL(value);
@@ -55,37 +48,7 @@ function isSafeAttachmentUrl(value: string): boolean {
 	}
 	/* eslint-enable n/prefer-global/url */
 
-	if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-		return false;
-	}
-
-	const hostname = url.hostname.toLowerCase().replaceAll(/^\[|]$/g, '');
-	if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
-		return false;
-	}
-
-	const ipv4 = IPV4_LITERAL_REGEX.exec(hostname);
-	if (ipv4) {
-		const { a, b } = ipv4.groups as Record<'a' | 'b' | 'c' | 'd', string>;
-		const first = Number(a);
-		const second = Number(b);
-		return !(
-			first === 0 ||
-			first === 10 ||
-			first === 127 ||
-			(first === 100 && second >= 64 && second <= 127) ||
-			(first === 169 && second === 254) ||
-			(first === 172 && second >= 16 && second <= 31) ||
-			(first === 192 && second === 168) ||
-			first >= 224
-		);
-	}
-
-	if (hostname.includes(':')) {
-		return !(hostname === '::1' || hostname === '::' || /^f[cd]/.test(hostname) || /^fe[89ab]/.test(hostname));
-	}
-
-	return true;
+	return url.protocol === 'http:' || url.protocol === 'https:';
 }
 
 export const updateConfigBodySchema = z
@@ -185,10 +148,7 @@ export const updatePanelBodySchema = z
 // A snippet's name becomes the name of the Discord slash command registered for it (e.g. a snippet
 // named `reportuser` is invoked as `/reportuser`), so it's bound by Discord's own command-name rules
 // rather than an arbitrary display-name length -- see createSnippet.ts.
-const attachmentUrlSchema = z
-	.url()
-	.max(2_000)
-	.refine(isSafeAttachmentUrl, 'Attachment URL must be a public http(s) URL');
+const attachmentUrlSchema = z.url().max(2_000).refine(isHttpUrl, 'Attachment URL must be a public http(s) URL');
 
 export const createSnippetBodySchema = z
 	.strictObject({
