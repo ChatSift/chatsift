@@ -17,6 +17,7 @@ import {
 } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver, ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
+import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from '../lib/emojis.js';
 import { relayStaffReplyToUserThread } from '../lib/relay.js';
 import { findOpenThreadByModThreadId } from '../lib/threads.js';
 
@@ -110,6 +111,28 @@ export default class ReplyCommand implements CommandHandler {
 		const modalOptions = new ModalInteractionOptionResolver(modalInteraction);
 		const content = modalOptions.getTextInput('content');
 		const attachments = modalOptions.getAttachments('attachments') ?? [];
+
+		const guildEmojiIds = await fetchGuildEmojiIds(modalInteraction.guild_id, getContext().service.client.api, logger);
+		if (!guildEmojiIds) {
+			await getContext().service.client.api.interactions.editReply(
+				modalInteraction.application_id,
+				modalInteraction.token,
+				{
+					content: "⚠️ Couldn't verify this server's emotes right now. Please try `/reply` again in a moment.",
+				},
+			);
+			return;
+		}
+
+		const foreignEmojiTokens = findForeignEmojiTokens(content, guildEmojiIds);
+		if (foreignEmojiTokens.length > 0) {
+			await getContext().service.client.api.interactions.editReply(
+				modalInteraction.application_id,
+				modalInteraction.token,
+				buildForeignEmojiRejection(foreignEmojiTokens, content),
+			);
+			return;
+		}
 
 		try {
 			await relayStaffReplyToUserThread({
