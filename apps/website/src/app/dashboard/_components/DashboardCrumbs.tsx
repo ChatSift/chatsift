@@ -34,11 +34,6 @@ const SEGMENT_LABELS: Record<string, string> = {
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {
 	ama: <SvgAMA height={20} width={20} />,
-	amas: (
-		<div className="flex h-5 w-5 items-center justify-center rounded bg-misc-accent text-xs font-bold text-primary-dark">
-			Q
-		</div>
-	),
 	modmail: <SvgModmail height={20} width={20} />,
 } as const;
 
