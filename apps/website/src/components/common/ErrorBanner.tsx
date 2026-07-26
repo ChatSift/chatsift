@@ -4,6 +4,7 @@ import { useAtomValue } from 'jotai';
 import { useEffect } from 'react';
 import { FaExclamationTriangle, FaTimes } from 'react-icons/fa';
 import { dismissErrorBanner, errorBannerMessagesAtom } from '@/api/errorBanner';
+import { Button } from '@/components/common/Button';
 
 const AUTO_DISMISS_MS = 8_000;
 
@@ -17,14 +18,13 @@ function Banner({ id, message }: { readonly id: number; readonly message: string
 		<div className="flex items-center gap-3 rounded-lg border-[1px] border-misc-danger bg-card p-3 shadow-lg dark:bg-card-dark">
 			<FaExclamationTriangle className="h-4 w-4 shrink-0 text-misc-danger" />
 			<p className="text-sm text-primary dark:text-primary-dark">{message}</p>
-			<button
+			<Button
 				aria-label="Dismiss"
-				className="ml-auto text-secondary hover:text-primary dark:text-secondary-dark dark:hover:text-primary-dark"
-				onClick={() => dismissErrorBanner(id)}
-				type="button"
+				className="ml-auto h-fit p-0 text-secondary hover:bg-transparent hover:text-primary dark:text-secondary-dark dark:hover:bg-transparent dark:hover:text-primary-dark"
+				onPress={() => dismissErrorBanner(id)}
 			>
 				<FaTimes className="h-3.5 w-3.5" />
-			</button>
+			</Button>
 		</div>
 	);
 }

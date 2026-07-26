@@ -319,6 +319,7 @@ function registerSnippetCommandResolver(): void {
 			await relayStaffReplyToUserThread({
 				anon,
 				content: snippet.content,
+				externalImageUrl: snippet.attachmentUrl ?? undefined,
 				logger,
 				staffMember: member,
 				staffUser: member.user,

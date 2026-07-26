@@ -76,8 +76,16 @@ export default defineRoute({
 
 		try {
 			const [snippet] = await db<Snippets[]>`
-				INSERT INTO snippets (guild_id, command_id, created_by_id, name, content)
-				VALUES (${guildId}, ${command.id}, ${req.tokens!.access.sub}, ${data.name}, ${data.content})
+				INSERT INTO snippets (guild_id, command_id, created_by_id, name, content, attachment_url, attachment_filename)
+				VALUES (
+					${guildId},
+					${command.id},
+					${req.tokens!.access.sub},
+					${data.name},
+					${data.content},
+					${data.attachmentUrl ?? null},
+					${data.attachmentFilename ?? null}
+				)
 				RETURNING *
 			`;
 

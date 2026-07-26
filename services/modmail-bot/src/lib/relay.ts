@@ -144,6 +144,14 @@ export interface RelayStaffReplyOptions {
 	anon: boolean;
 	attachments?: RelayAttachmentLike[] | undefined;
 	content: string;
+	/**
+	 * A snippet's fixed attachment, set directly as the embed's `image.url` rather than routed through
+	 * `buildRelayMedia`'s fetch-and-re-upload path -- Discord's own servers fetch/proxy an embed image
+	 * URL when rendering it, so this never has the bot's own process making an outbound request to a
+	 * staff-supplied URL at all. Mutually exclusive with `attachments` in practice: only the snippet
+	 * command resolver passes this, and only `/reply`/`/reply-q` pass `attachments`.
+	 */
+	externalImageUrl?: string | undefined;
 	logger: Logger;
 	staffMember: MemberLike | undefined;
 	staffUser: APIUser;
@@ -164,6 +172,7 @@ export async function relayStaffReplyToUserThread({
 	anon,
 	attachments = [],
 	content,
+	externalImageUrl,
 	logger,
 	staffMember,
 	staffUser,
@@ -177,7 +186,8 @@ export async function relayStaffReplyToUserThread({
 
 	const media = await buildRelayMedia(attachments, [], logger);
 	const description = [content, media.note].filter(Boolean).join('\n\n');
-	const image = media.embedImageRef ? { image: { url: media.embedImageRef } } : {};
+	const imageUrl = externalImageUrl ?? media.embedImageRef;
+	const image = imageUrl ? { image: { url: imageUrl } } : {};
 
 	// Anon: resolve the configurable "{guildName} Team"-style label once, used as the log embed's
 	// author (a "sent as" badge — mods still get the real identity from the footer below regardless)

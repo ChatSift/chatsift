@@ -29,6 +29,28 @@ function isValidCategoryEmoji(value: string): boolean {
 	return matches.length === 1 && matches[0]![0] === value;
 }
 
+/**
+ * A snippet's `attachmentUrl` is rendered as a Discord embed's `image.url` directly
+ * (`services/modmail-bot`'s `relay.ts`) -- Discord's own servers fetch/proxy that URL when rendering
+ * the embed, the bot's own process never connects to it, so this just needs to rule out non-http(s)
+ * schemes (`javascript:`, `data:`, etc.), not private/internal hosts -- there's no SSRF against our own
+ * infrastructure to defend against here.
+ */
+// This file must stay browser-safe (see file-level comment above), so it needs the global WHATWG `URL`
+// -- `node:url`'s doesn't exist in a browser bundle.
+/* eslint-disable n/prefer-global/url */
+function isHttpUrl(value: string): boolean {
+	let url: URL;
+	try {
+		url = new URL(value);
+	} catch {
+		return false;
+	}
+	/* eslint-enable n/prefer-global/url */
+
+	return url.protocol === 'http:' || url.protocol === 'https:';
+}
+
 export const updateConfigBodySchema = z
 	.strictObject({
 		modForumId: snowflakeSchema.nullable().optional(),
@@ -126,17 +148,36 @@ export const updatePanelBodySchema = z
 // A snippet's name becomes the name of the Discord slash command registered for it (e.g. a snippet
 // named `reportuser` is invoked as `/reportuser`), so it's bound by Discord's own command-name rules
 // rather than an arbitrary display-name length -- see createSnippet.ts.
-export const createSnippetBodySchema = z.strictObject({
-	name: z.string().min(1).max(32),
-	content: z.string().min(1).max(2_000),
-});
+const attachmentUrlSchema = z.url().max(2_000).refine(isHttpUrl, 'Attachment URL must use http(s)');
+
+export const createSnippetBodySchema = z
+	.strictObject({
+		name: z.string().min(1).max(32),
+		content: z.string().min(1).max(2_000),
+		attachmentUrl: attachmentUrlSchema.optional(),
+		attachmentFilename: z.string().min(1).max(256).optional(),
+	})
+	.refine((data) => !data.attachmentFilename || data.attachmentUrl, {
+		message: 'attachmentFilename requires attachmentUrl to also be set',
+		path: ['attachmentFilename'],
+	});
 
 export const updateSnippetBodySchema = z
 	.strictObject({
 		name: z.string().min(1).max(32).optional(),
 		content: z.string().min(1).max(2_000).optional(),
+		attachmentUrl: attachmentUrlSchema.nullable().optional(),
+		attachmentFilename: z.string().min(1).max(256).nullable().optional(),
 	})
-	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
+	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided')
+	// Only catches the contradiction within a single request (clearing the URL while setting a filename
+	// in the same payload) -- reconciling against a snippet's *existing* stored URL needs the current DB
+	// row, which this schema can't see, so `updateSnippet.ts`'s handler additionally clears a stale
+	// filename whenever the resolved URL ends up null.
+	.refine((data) => !(data.attachmentUrl === null && data.attachmentFilename), {
+		message: 'attachmentFilename cannot be set while clearing attachmentUrl',
+		path: ['attachmentFilename'],
+	});
 
 export const createBlockBodySchema = z.strictObject({
 	userId: snowflakeSchema,

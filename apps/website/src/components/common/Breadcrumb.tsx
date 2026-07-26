@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { BreadcrumbDropdown } from './BreadcrumbDropdown';
+import { Button } from './Button';
 import { SvgChevronDown } from '@/components/icons/SvgChevronDown';
 import { cn } from '@/utils/util';
 
@@ -84,14 +85,13 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
 		<nav className="flex items-center gap-2 text-base sm:text-lg overflow-hidden">
 			{hiddenCount > 0 && (
 				<>
-					<button
-						className="flex items-center gap-1 text-secondary dark:text-secondary-dark hover:text-primary dark:hover:text-primary-dark transition-colors lg:hidden"
-						onClick={() => setIsExpanded(true)}
-						type="button"
+					<Button
+						className="h-fit p-0 text-secondary transition-colors hover:bg-transparent hover:text-primary dark:text-secondary-dark dark:hover:bg-transparent dark:hover:text-primary-dark lg:hidden"
+						onPress={() => setIsExpanded(true)}
 					>
 						<SvgChevronDown className="rotate-90" />
 						<span className="text-sm">+{hiddenCount}</span>
-					</button>
+					</Button>
 					<span className="text-secondary dark:text-secondary-dark lg:hidden">/</span>
 				</>
 			)}

@@ -100,9 +100,29 @@ export default defineRoute({
 					`;
 				}
 
+				// `data.attachmentUrl`/`data.attachmentFilename` are `.nullable().optional()` -- `undefined` (the
+				// key was omitted) means "leave unchanged", while an explicit `null` means "clear it", so these
+				// can't use the plain `?? current.x` fallback the other fields above use (that would treat an
+				// explicit `null` the same as "unchanged" and silently ignore the clear).
+				const attachmentUrl = data.attachmentUrl === undefined ? current.attachmentUrl : data.attachmentUrl;
+				// The schema only rejects clearing the URL and setting a filename in the *same* request --
+				// it can't see that e.g. the URL was already null before this request and this one only sets a
+				// filename. Force the invariant here instead of erroring, since the DB also enforces it via a
+				// CHECK constraint (`snippets_attachment_filename_requires_url_check`) that this would otherwise trip.
+				const attachmentFilename = attachmentUrl
+					? data.attachmentFilename === undefined
+						? current.attachmentFilename
+						: data.attachmentFilename
+					: null;
+
 				const [updated] = await sql<Snippets[]>`
 					UPDATE snippets
-					SET name = ${data.name ?? current.name}, content = ${data.content ?? current.content}, last_updated_at = now()
+					SET
+						name = ${data.name ?? current.name},
+						content = ${data.content ?? current.content},
+						attachment_url = ${attachmentUrl},
+						attachment_filename = ${attachmentFilename},
+						last_updated_at = now()
 					WHERE id = ${snippetId}
 					RETURNING *
 				`;

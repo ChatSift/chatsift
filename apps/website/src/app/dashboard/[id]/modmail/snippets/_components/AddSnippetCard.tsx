@@ -9,15 +9,22 @@ import { Button } from '@/components/common/Button';
 import { normalizeSnippetName } from '@/utils/snippetName';
 
 interface SnippetFormData {
+	attachmentFilename: string;
+	attachmentUrl: string;
 	content: string;
 	name: string;
 }
 
 type SnippetFormErrors = Partial<Record<keyof SnippetFormData, string>>;
 
-const EMPTY_FORM: SnippetFormData = { name: '', content: '' };
+const EMPTY_FORM: SnippetFormData = { name: '', content: '', attachmentUrl: '', attachmentFilename: '' };
 
-const SNIPPET_FIELDS = ['name', 'content'] as const satisfies (keyof SnippetFormData)[];
+const SNIPPET_FIELDS = [
+	'name',
+	'content',
+	'attachmentUrl',
+	'attachmentFilename',
+] as const satisfies (keyof SnippetFormData)[];
 
 function mapSnippetIssues(issues: readonly { message: string; path: PropertyKey[] }[]): SnippetFormErrors {
 	const errors: SnippetFormErrors = {};
@@ -52,9 +59,16 @@ export function AddSnippetCard({ guildId }: AddSnippetCardProps) {
 	const normalizeName = () => updateField('name', normalizeSnippetName(form.name));
 
 	const handleSubmit = async () => {
+		const attachmentUrl = form.attachmentUrl.trim();
+		const attachmentFilename = form.attachmentFilename.trim();
+
 		const data: CreateModmailSnippetBody = {
 			name: normalizeSnippetName(form.name),
 			content: form.content.trim(),
+			...(attachmentUrl && { attachmentUrl }),
+			// A filename without a URL is meaningless (there's nothing to attach it to) and the API schema
+			// rejects it outright -- only send it alongside an actual URL.
+			...(attachmentUrl && attachmentFilename && { attachmentFilename }),
 		};
 
 		const result = createSnippetBodySchema.safeParse(data);
@@ -132,6 +146,46 @@ export function AddSnippetCard({ guildId }: AddSnippetCardProps) {
 					value={form.content}
 				/>
 				{errors.content && <p className="mt-1 text-sm text-misc-danger">{errors.content}</p>}
+			</div>
+
+			<div>
+				<label
+					className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+					htmlFor="snippet-attachment-url"
+				>
+					Attachment URL
+				</label>
+				<input
+					className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+					id="snippet-attachment-url"
+					onChange={(e) => updateField('attachmentUrl', e.target.value)}
+					placeholder="https://..."
+					type="url"
+					value={form.attachmentUrl}
+				/>
+				<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+					Optional. Shown as an image on every reply this snippet sends -- must be a direct link to an image.
+				</p>
+				{errors.attachmentUrl && <p className="mt-1 text-sm text-misc-danger">{errors.attachmentUrl}</p>}
+			</div>
+
+			<div>
+				<label
+					className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+					htmlFor="snippet-attachment-filename"
+				>
+					Attachment filename
+				</label>
+				<input
+					className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+					id="snippet-attachment-filename"
+					maxLength={256}
+					onChange={(e) => updateField('attachmentFilename', e.target.value)}
+					placeholder="screenshot.png"
+					type="text"
+					value={form.attachmentFilename}
+				/>
+				{errors.attachmentFilename && <p className="mt-1 text-sm text-misc-danger">{errors.attachmentFilename}</p>}
 			</div>
 
 			<div className="mt-auto flex justify-end">
