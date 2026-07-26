@@ -25,6 +25,10 @@ export default interface Snippets {
   createdAt: Date;
 
   lastUpdatedAt: Date;
+
+  attachmentUrl: string | null;
+
+  attachmentFilename: string | null;
 }
 
 /** Represents the initializer for the table public.snippets */
@@ -48,6 +52,10 @@ export interface SnippetsInitializer {
   createdAt?: Date;
 
   lastUpdatedAt?: Date;
+
+  attachmentUrl?: string | null;
+
+  attachmentFilename?: string | null;
 }
 
 /** Represents the mutator for the table public.snippets */
@@ -71,4 +79,8 @@ export interface SnippetsMutator {
   createdAt?: Date;
 
   lastUpdatedAt?: Date;
+
+  attachmentUrl?: string | null;
+
+  attachmentFilename?: string | null;
 }

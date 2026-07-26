@@ -72,8 +72,15 @@ async function fetchAsRawFile(
 			throw new Error(`unexpected status ${res.status}`);
 		}
 
+		// Real Discord attachments/stickers always pass a `contentType` in already -- this fallback only
+		// matters for a snippet's staff-pasted URL, which has no Discord-verified metadata up front.
+		const resolvedContentType = contentType ?? res.headers.get('content-type') ?? undefined;
+
 		const data = Buffer.from(await res.arrayBuffer());
-		return { file: { data, name, ...(contentType ? { contentType } : {}) }, size: data.length };
+		return {
+			file: { data, name, ...(resolvedContentType ? { contentType: resolvedContentType } : {}) },
+			size: data.length,
+		};
 	} catch (error) {
 		logger.warn({ err: error, url }, 'Failed to fetch media for relay, falling back to a link');
 		return undefined;
@@ -121,8 +128,17 @@ export async function buildRelayMedia(
 			continue;
 		}
 
+		// Re-checked against the *actual* fetched size, not just the caller-declared `attachment.size` --
+		// real Discord attachments/stickers always carry an accurate size up front, but a snippet's
+		// staff-pasted URL doesn't, so it reports `size: 0` to clear the pre-fetch guard above and relies
+		// on this check instead.
+		if (fetchResult.size > MAX_REUPLOAD_BYTES) {
+			failedLinks.push(attachment.url);
+			continue;
+		}
+
 		totalBytes += fetchResult.size;
-		fetched.push({ file: fetchResult.file, isImage: isImageContentType(attachment.content_type) });
+		fetched.push({ file: fetchResult.file, isImage: isImageContentType(fetchResult.file.contentType) });
 	}
 
 	for (const sticker of stickers) {

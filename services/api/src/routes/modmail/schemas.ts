@@ -129,12 +129,16 @@ export const updatePanelBodySchema = z
 export const createSnippetBodySchema = z.strictObject({
 	name: z.string().min(1).max(32),
 	content: z.string().min(1).max(2_000),
+	attachmentUrl: z.url().max(2_000).optional(),
+	attachmentFilename: z.string().min(1).max(256).optional(),
 });
 
 export const updateSnippetBodySchema = z
 	.strictObject({
 		name: z.string().min(1).max(32).optional(),
 		content: z.string().min(1).max(2_000).optional(),
+		attachmentUrl: z.url().max(2_000).nullable().optional(),
+		attachmentFilename: z.string().min(1).max(256).nullable().optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 

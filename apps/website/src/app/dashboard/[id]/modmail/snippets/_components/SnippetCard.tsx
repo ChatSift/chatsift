@@ -10,13 +10,20 @@ import { normalizeSnippetName } from '@/utils/snippetName';
 import { formatDate } from '@/utils/util';
 
 interface SnippetFormData {
+	attachmentFilename: string;
+	attachmentUrl: string;
 	content: string;
 	name: string;
 }
 
 type SnippetFormErrors = Partial<Record<keyof SnippetFormData, string>>;
 
-const SNIPPET_FIELDS = ['name', 'content'] as const satisfies (keyof SnippetFormData)[];
+const SNIPPET_FIELDS = [
+	'name',
+	'content',
+	'attachmentUrl',
+	'attachmentFilename',
+] as const satisfies (keyof SnippetFormData)[];
 
 function mapSnippetIssues(issues: readonly { message: string; path: PropertyKey[] }[]): SnippetFormErrors {
 	const errors: SnippetFormErrors = {};
@@ -32,7 +39,17 @@ function mapSnippetIssues(issues: readonly { message: string; path: PropertyKey[
 }
 
 function formFromSnippet(snippet: ModmailSnippet): SnippetFormData {
-	return { name: snippet.name, content: snippet.content };
+	return {
+		name: snippet.name,
+		content: snippet.content,
+		attachmentUrl: snippet.attachmentUrl ?? '',
+		attachmentFilename: snippet.attachmentFilename ?? '',
+	};
+}
+
+function isImageAttachment(snippet: Pick<ModmailSnippet, 'attachmentFilename' | 'attachmentUrl'>): boolean {
+	const name = snippet.attachmentFilename ?? snippet.attachmentUrl ?? '';
+	return /\.(?:avif|gif|jpe?g|png|webp)$/i.test(name);
 }
 
 interface SnippetCardProps {
@@ -78,6 +95,8 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 		const data: UpdateModmailSnippetBody = {
 			name: normalizeSnippetName(form.name),
 			content: form.content.trim(),
+			attachmentUrl: form.attachmentUrl.trim() || null,
+			attachmentFilename: form.attachmentFilename.trim() || null,
 		};
 
 		const result = updateSnippetBodySchema.safeParse(data);
@@ -161,6 +180,46 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 						{errors.content && <p className="mt-1 text-sm text-misc-danger">{errors.content}</p>}
 					</div>
 
+					<div>
+						<label
+							className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+							htmlFor={`snippet-attachment-url-${snippet.id}`}
+						>
+							Attachment URL
+						</label>
+						<input
+							className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+							id={`snippet-attachment-url-${snippet.id}`}
+							onChange={(e) => updateField('attachmentUrl', e.target.value)}
+							placeholder="https://..."
+							type="url"
+							value={form.attachmentUrl}
+						/>
+						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+							Optional. Sent as a file attachment every time this snippet is used. Clear to remove it.
+						</p>
+						{errors.attachmentUrl && <p className="mt-1 text-sm text-misc-danger">{errors.attachmentUrl}</p>}
+					</div>
+
+					<div>
+						<label
+							className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+							htmlFor={`snippet-attachment-filename-${snippet.id}`}
+						>
+							Attachment filename
+						</label>
+						<input
+							className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+							id={`snippet-attachment-filename-${snippet.id}`}
+							maxLength={256}
+							onChange={(e) => updateField('attachmentFilename', e.target.value)}
+							placeholder="screenshot.png"
+							type="text"
+							value={form.attachmentFilename}
+						/>
+						{errors.attachmentFilename && <p className="mt-1 text-sm text-misc-danger">{errors.attachmentFilename}</p>}
+					</div>
+
 					<div className="mt-auto flex justify-end gap-2">
 						<Button onPress={handleSave}>Save</Button>
 						<Button onPress={cancelEdit}>Cancel</Button>
@@ -173,6 +232,27 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 					</p>
 
 					<p className="whitespace-pre-wrap text-sm text-primary dark:text-primary-dark">{snippet.content}</p>
+
+					{snippet.attachmentUrl &&
+						(isImageAttachment(snippet) ? (
+							<a href={snippet.attachmentUrl} rel="noreferrer" target="_blank">
+								{/* eslint-disable-next-line @next/next/no-img-element -- arbitrary staff-pasted external URL, not one of the app's known image sources Next's optimizer can proxy */}
+								<img
+									alt={snippet.attachmentFilename ?? 'snippet attachment'}
+									className="max-h-40 rounded-md border border-on-secondary dark:border-on-secondary-dark"
+									src={snippet.attachmentUrl}
+								/>
+							</a>
+						) : (
+							<a
+								className="text-sm text-misc-accent underline"
+								href={snippet.attachmentUrl}
+								rel="noreferrer"
+								target="_blank"
+							>
+								{snippet.attachmentFilename ?? snippet.attachmentUrl}
+							</a>
+						))}
 
 					<p className="text-xs text-secondary dark:text-secondary-dark">
 						{snippet.timesUsed === 0
