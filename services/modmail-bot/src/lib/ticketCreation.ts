@@ -148,10 +148,12 @@ export interface SendGreetingOptions {
 
 /**
  * Deliberately not part of `finishTicketCreation` — callers relay the user's own first message to
- * the mod thread themselves right after creating it (see `index.ts`/`categorySelect.ts`), and the
- * greeting has to land *after* that relay so the mod-side thread reads in the right order: opening
- * info embed, then the user's actual message, then the bot's greeting reply to it. Posting the
- * greeting from inside `finishTicketCreation` raced ahead of that relay and showed up first.
+ * the mod thread themselves right after creating it (see `index.ts`/`categorySelect.ts`), and need to
+ * sequence this against that relay call themselves depending on `guild_settings.greetingBeforeOpener`
+ * (default `false`: greeting lands *after* the relay, so the mod-side thread reads opening info embed,
+ * then the user's actual message, then the bot's greeting reply to it — set `true` to flip that order).
+ * Posting the greeting from inside `finishTicketCreation` would hardcode one order with no way for
+ * callers to flip it.
  */
 export async function sendGreeting({
 	category,

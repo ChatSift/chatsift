@@ -47,6 +47,9 @@ export const updateConfigBodySchema = z
 		// above): this is a delay in minutes, not a count, and a year is already an absurdly generous
 		// upper bound for "give staff time to double check before this gets nuked".
 		nukeDelayMinutes: z.number().int().min(1).max(525_600).optional(),
+		// Whether the greeting (category's, falling back to defaultGreetingMessage) is posted before the
+		// user's own opener message is relayed to staff, instead of after. Defaults to false (after).
+		greetingBeforeOpener: z.boolean().optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 

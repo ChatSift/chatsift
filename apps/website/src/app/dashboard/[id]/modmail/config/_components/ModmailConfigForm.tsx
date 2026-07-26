@@ -20,6 +20,7 @@ interface ConfigFormData {
 	anonReplyLabel: string;
 	defaultGreetingMessage: string;
 	farewellMessage: string;
+	greetingBeforeOpener: boolean;
 	maxConcurrentThreads: string;
 	modForumId: string;
 	nukeDelayMinutes: string;
@@ -37,6 +38,7 @@ const CONFIG_FIELDS = [
 	'anonReplyLabel',
 	'maxConcurrentThreads',
 	'nukeDelayMinutes',
+	'greetingBeforeOpener',
 ] as const satisfies (keyof ConfigFormData)[];
 
 function mapConfigIssues(issues: readonly { message: string; path: PropertyKey[] }[]): ConfigFormErrors {
@@ -76,6 +78,7 @@ export function ModmailConfigForm() {
 				anonReplyLabel: config.anonReplyLabel ?? '',
 				maxConcurrentThreads: String(config.maxConcurrentThreads),
 				nukeDelayMinutes: String(config.nukeDelayMinutes),
+				greetingBeforeOpener: config.greetingBeforeOpener,
 			});
 		}
 	}, [config, form]);
@@ -112,6 +115,7 @@ export function ModmailConfigForm() {
 			anonReplyLabel: form.anonReplyLabel || null,
 			maxConcurrentThreads: Number(form.maxConcurrentThreads),
 			nukeDelayMinutes: Number(form.nukeDelayMinutes),
+			greetingBeforeOpener: form.greetingBeforeOpener,
 		};
 
 		const result = updateConfigBodySchema.safeParse(data);
@@ -299,6 +303,25 @@ export function ModmailConfigForm() {
 					/>
 					<span className="text-sm font-medium text-secondary dark:text-secondary-dark">Simple Mode</span>
 				</label>
+
+				<div>
+					<label className="flex items-center gap-2" htmlFor="modmail-greeting-before-opener">
+						<input
+							checked={form.greetingBeforeOpener}
+							className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
+							id="modmail-greeting-before-opener"
+							onChange={(e) => updateField('greetingBeforeOpener', e.target.checked)}
+							type="checkbox"
+						/>
+						<span className="text-sm font-medium text-secondary dark:text-secondary-dark">
+							Send Greeting Before Opener Message
+						</span>
+					</label>
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						When enabled, the greeting is posted before the user&apos;s own opening message is relayed to staff, instead
+						of after.
+					</p>
+				</div>
 			</div>
 
 			<Button

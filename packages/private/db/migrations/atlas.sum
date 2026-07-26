@@ -1,4 +1,4 @@
-h1:Z+c2ML0Wzoxzn4nhSO/sXVgZeg3YP/BbNS7qIocs9s8=
+h1:xNtCbLRu47DnBbOYR6khuLdDXKLLx2bKsPrbfA2aRws=
 20260716151040_baseline.sql h1:B/n9QPxT6pMJ4nSYIoFX5UaKFF98tDAHxkQ1jO5gNVA=
 20260717164748.sql h1:WWb95+b5taaoX7EyYDAG4lZaChTxQlxarniam3exKeo=
 20260723151325.sql h1:g7mbXjHZNRLTEJOBCj3FkmI5M3+KM3MgiJtITREOd7M=
@@ -9,3 +9,4 @@ h1:Z+c2ML0Wzoxzn4nhSO/sXVgZeg3YP/BbNS7qIocs9s8=
 20260725172504_add_thread_concurrency_limits.sql h1:I/54cfxwx+d0Q0dOZH4FogP2Jrjhi37IBhyKTGs06K0=
 20260725185821_add_thread_concurrency_indexes.sql h1:Dte62ea3FGfZvW1K2ik4JKbYv+wXBwqbQ3yvdAAfKFQ=
 20260726070153_nuke_delay_and_scheduled_nukes.sql h1:+cAh8YKwaihbGsO6+6KD9kYH/lBJDn72RK6+a5eRmoM=
+20260726133549_add_greeting_before_opener.sql h1:ze5+fqwUX9eiGrzUCMTC2R5ZI9MQPdp8bXEiwmHA8UE=
