@@ -21,15 +21,22 @@ interface DecodedGrantPayload {
 }
 
 /**
- * Only this exact route accepts a grant token in place of a session — restricting the check to it (rather than
- * treating any `?token=` anywhere in the dashboard as a grant) matters for more than tidiness: `useGrantAuth`'s
+ * Only these exact routes accept a grant token in place of a session — restricting the check to them (rather
+ * than treating any `?token=` anywhere in the dashboard as a grant) matters for more than tidiness: `useGrantAuth`'s
  * decode below is NOT cryptographic verification (it can't be, this runs in the browser with no access to
  * `ENCRYPTION_KEY`), so an unscoped check would let a forged `token` param on an unrelated dashboard route flip
- * `NavGateProvider`/`NavGateCheck`'s client-side gates for that route too. Scoping to this one path keeps that
+ * `NavGateProvider`/`NavGateCheck`'s client-side gates for that route too. Scoping to this exact list keeps that
  * blast radius at zero — every real authorization decision still happens server-side in `isAuthed`, which does
  * verify the signature, regardless of what this hook decides to render.
+ *
+ * Kept in sync with `proxy.ts`'s `GRANT_EXEMPT_ROUTES` — a route added here without a matching entry there gets
+ * bounced to OAuth login by the proxy before this hook ever runs.
  */
-const GRANT_ROUTE = /^\/dashboard\/(?<guildId>\d+)\/ama\/amas\/new\/?$/;
+const GRANT_ROUTES = [
+	/^\/dashboard\/(?<guildId>\d+)\/ama\/amas\/new\/?$/,
+	/^\/dashboard\/(?<guildId>\d+)\/modmail\/snippets\/?$/,
+	/^\/dashboard\/(?<guildId>\d+)\/modmail\/config\/?$/,
+];
 
 function decodeGrantPayload(token: string): DecodedGrantPayload | null {
 	try {
@@ -45,11 +52,11 @@ function decodeGrantPayload(token: string): DecodedGrantPayload | null {
 }
 
 /**
- * Reads the one-time grant token from the `?token=` query param on `/dashboard/:guildId/ama/amas/new` and decodes
- * its shape client-side — this is NOT verification, the API re-verifies the JWT signature on every request. It
- * only drives what the frontend renders (dashboard chrome in a read-only state, the create form authed via the
- * token instead of a session) ahead of the first real request confirming the token is actually valid. Returns
- * `null` outside that one route, or when the token is missing/malformed.
+ * Reads the one-time grant token from the `?token=` query param on one of `GRANT_ROUTES` and decodes its shape
+ * client-side — this is NOT verification, the API re-verifies the JWT signature on every request. It only drives
+ * what the frontend renders (dashboard chrome in a read-only state, the page authed via the token instead of a
+ * session) ahead of the first real request confirming the token is actually valid. Returns `null` outside those
+ * routes, or when the token is missing/malformed.
  *
  * The token itself is never written to `accessTokenAtom` or any cookie — it's threaded per-request via
  * `apiFetch`'s `authToken` option instead, so the grant flow can never touch the caller's real session.
@@ -59,7 +66,14 @@ export function useGrantAuth(): GrantAuth | null {
 	const token = useSearchParams().get('token');
 
 	return useMemo(() => {
-		const routeMatch = GRANT_ROUTE.exec(pathname);
+		let routeMatch: RegExpExecArray | null = null;
+		for (const route of GRANT_ROUTES) {
+			routeMatch = route.exec(pathname);
+			if (routeMatch) {
+				break;
+			}
+		}
+
 		if (!routeMatch || !token) {
 			return null;
 		}

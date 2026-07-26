@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { BotId } from '@chatsift/core';
 import jwt from 'jsonwebtoken';
 import { getContext } from './context.js';
 
@@ -9,8 +10,21 @@ import { getContext } from './context.js';
  */
 export const GRANTS = {
 	AMA_CREATE: 'ama:create',
+	MODMAIL_SNIPPET_CREATE: 'modmail:snippet:create',
+	MODMAIL_CONFIG_UPDATE: 'modmail:config:update',
 } as const;
 export type GrantString = (typeof GRANTS)[keyof typeof GRANTS];
+
+/**
+ * Which bot's REST client/identity `fetchMeFromGrant` should use for a given grant — kept as an explicit
+ * map (rather than deriving it from the grant string's `ama:`/`modmail:` prefix) so adding a grant that
+ * doesn't happen to follow that naming convention can't silently resolve to the wrong bot.
+ */
+export const GRANT_BOTS: Record<GrantString, BotId> = {
+	[GRANTS.AMA_CREATE]: 'AMA',
+	[GRANTS.MODMAIL_SNIPPET_CREATE]: 'MODMAIL',
+	[GRANTS.MODMAIL_CONFIG_UPDATE]: 'MODMAIL',
+};
 
 export interface GrantTokenData {
 	/**

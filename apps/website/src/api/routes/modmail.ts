@@ -15,6 +15,7 @@ import type {
 } from '@chatsift/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../fetch';
+import { useGrantAuth } from '../grant';
 import { queryKeys } from '../queryClient';
 import { useGuildInfo } from './guilds';
 
@@ -24,19 +25,27 @@ export type ModmailConfig = GetModmailConfigContract['response'];
 type UpdateModmailConfigContract = InferRouteContract<typeof updateModmailConfigRoute>;
 export type UpdateModmailConfigBody = UpdateModmailConfigContract['body'];
 
+/**
+ * Transparently authed via the one-time grant-token flow when active (`useGrantAuth()`), same as `useMe()`/
+ * `useGuildInfo()` -- lets the `/config` grant page load current settings without needing a real session.
+ */
 export function useModmailConfig(guildId: string) {
+	const grant = useGrantAuth();
+
 	return useQuery({
 		queryKey: queryKeys.modmail.config(guildId),
-		queryFn: async () => apiFetch<ModmailConfig>('get', `/v3/guilds/${guildId}/modmail/config`),
+		queryFn: async () =>
+			apiFetch<ModmailConfig>('get', `/v3/guilds/${guildId}/modmail/config`, { authToken: grant?.token }),
 	});
 }
 
 export function useUpdateModmailConfig(guildId: string) {
+	const grant = useGrantAuth();
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: async (body: UpdateModmailConfigBody) =>
-			apiFetch<ModmailConfig>('patch', `/v3/guilds/${guildId}/modmail/config`, { body }),
+			apiFetch<ModmailConfig>('patch', `/v3/guilds/${guildId}/modmail/config`, { body, authToken: grant?.token }),
 		async onSuccess(data) {
 			queryClient.setQueryData(queryKeys.modmail.config(guildId), data);
 		},
@@ -203,20 +212,33 @@ export type CreateModmailSnippetBody = CreateModmailSnippetContract['body'];
 type UpdateModmailSnippetContract = InferRouteContract<typeof updateModmailSnippetRoute>;
 export type UpdateModmailSnippetBody = UpdateModmailSnippetContract['body'];
 
+/**
+ * Transparently authed via the one-time grant-token flow when active (`useGrantAuth()`), same as `useMe()`/
+ * `useGuildInfo()` -- the `/snippet create` grant page keeps the existing snippets list visible (only their
+ * edit/delete controls are hidden, see `SnippetCard`), so this needs to keep working under a grant.
+ */
 export function useModmailSnippets(guildId: string) {
+	const grant = useGrantAuth();
+
 	return useQuery({
 		queryKey: queryKeys.modmail.snippets(guildId),
-		queryFn: async () => apiFetch<ModmailSnippet[]>('get', `/v3/guilds/${guildId}/modmail/snippets`),
+		queryFn: async () =>
+			apiFetch<ModmailSnippet[]>('get', `/v3/guilds/${guildId}/modmail/snippets`, { authToken: grant?.token }),
 	});
 }
 
 export function useCreateModmailSnippet(guildId: string) {
+	const grant = useGrantAuth();
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: async (body: CreateModmailSnippetBody) =>
-			apiFetch<ModmailSnippet>('post', `/v3/guilds/${guildId}/modmail/snippets`, { body }),
+			apiFetch<ModmailSnippet>('post', `/v3/guilds/${guildId}/modmail/snippets`, { body, authToken: grant?.token }),
 		async onSuccess() {
+			// Unlike `useCreateAMA` (whose create page hides the AMA list, so refetching after a grant-authed
+			// create would just replay the now-consumed token for no visible benefit) this page keeps the
+			// snippet list visible under a grant, so the newly created snippet should appear in it right away --
+			// `listSnippets` has no `claimsGrant`, so repeat reads with the same token are always safe.
 			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.snippets(guildId) });
 		},
 	});
