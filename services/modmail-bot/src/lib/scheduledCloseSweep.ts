@@ -25,10 +25,12 @@ export async function sweepScheduledCloses(logger: Logger): Promise<void> {
 
 	await Promise.all(
 		due.map(async (row) => {
+			const rowLogger = logger.child({ guildId: row.guildId, threadId: row.id });
+
 			try {
-				await closeThread({ closedById: row.scheduledById, logger, silent: row.silent, thread: row });
+				await closeThread({ closedById: row.scheduledById, logger: rowLogger, silent: row.silent, thread: row });
 			} catch (error) {
-				logger.error({ err: error, threadId: row.id }, 'Failed to run a scheduled ticket close');
+				rowLogger.error({ err: error }, 'Failed to run a scheduled ticket close');
 			}
 		}),
 	);

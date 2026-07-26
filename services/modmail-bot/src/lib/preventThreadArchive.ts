@@ -26,11 +26,13 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 	const checks = openThreads.flatMap((thread) =>
 		[thread.modThreadId, thread.userThreadId]
 			.filter((id): id is string => id !== null)
-			.map((channelId) => ({ threadId: thread.id, channelId })),
+			.map((channelId) => ({ threadId: thread.id, guildId: thread.guildId, channelId })),
 	);
 
 	await Promise.all(
-		checks.map(async ({ threadId, channelId }) => {
+		checks.map(async ({ threadId, guildId, channelId }) => {
+			const rowLogger = logger.child({ guildId, threadId, channelId });
+
 			try {
 				const channel = await getContext().service.client.api.channels.get(channelId);
 				if ('thread_metadata' in channel && channel.thread_metadata?.archived) {
@@ -40,11 +42,11 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 						{ reason: 'Keeping an open modmail ticket thread from auto-archiving' },
 					);
 
-					logger.info({ threadId, channelId }, 'Unarchived an open modmail thread');
+					rowLogger.info('Unarchived an open modmail thread');
 				}
 			} catch (error) {
 				if (!(error instanceof DiscordAPIError && error.status === 404)) {
-					logger.warn({ err: error, threadId, channelId }, 'Failed to unarchive an open modmail thread');
+					rowLogger.warn({ err: error }, 'Failed to unarchive an open modmail thread');
 					return;
 				}
 
@@ -62,7 +64,7 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 				`;
 
 				if (closed) {
-					logger.warn({ threadId, channelId }, 'Closed a modmail ticket because its Discord channel no longer exists');
+					rowLogger.warn('Closed a modmail ticket because its Discord channel no longer exists');
 				}
 			}
 		}),

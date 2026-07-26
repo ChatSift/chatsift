@@ -72,7 +72,7 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 				// not worth logging as a failure, the row still gets cleared below either way.
 				if (!(error instanceof DiscordAPIError && error.status === 404)) {
 					logger.warn(
-						{ err: error, privateThreadId: pending.privateThreadId },
+						{ err: error, guildId: pending.guildId, privateThreadId: pending.privateThreadId },
 						'Failed to delete an abandoned pending ticket thread',
 					);
 				}

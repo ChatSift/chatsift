@@ -55,6 +55,11 @@ export function createLoggerOptions(name: string): LoggerOptions {
 	return {
 		level: 'trace',
 		name,
+		// Drops pino's default `pid`/`hostname` bindings -- neither is meaningful here (every service runs as
+		// pid 1 in its own container, and the hostname is just the container id), and dozzle/the on-disk logs
+		// don't key off either. `{}` (rather than `null`) keeps `name` itself, which pino also derives from
+		// `base`.
+		base: {},
 		timestamp: stdTimeFunctions.isoTime,
 		formatters: {
 			// Emit `level` as the string label (e.g. `"info"`) instead of pino's default numeric value --
