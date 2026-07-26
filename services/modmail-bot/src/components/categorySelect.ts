@@ -1,7 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
-import type { Categories, GuildSettings } from '@chatsift/db';
+import type { Categories, GuildSettings, TicketPanels } from '@chatsift/db';
 import type { APIMessageComponentInteraction, APIMessageStringSelectInteractionData } from '@discordjs/core';
 import { ChannelType } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
@@ -38,8 +38,7 @@ export default class CategorySelectComponent implements ComponentHandler {
 
 		const guildId = interaction.guild_id;
 		const member = interaction.member;
-		const channel = interaction.channel;
-		if (!guildId || !member || !channel) {
+		if (!guildId || !member) {
 			await editReply('This can only be used in a server.');
 			return;
 		}
@@ -55,10 +54,24 @@ export default class CategorySelectComponent implements ComponentHandler {
 		// unlocked) gets its authoritative recheck here, immediately before the thread actually gets
 		// created.
 		await withGuildUserLock(guildId, user.id, async () => {
+			// Re-fetched (rather than trusting `interaction.channel`) so the thread always lands in the
+			// panel's *configured* parent channel, not wherever this component interaction happens to
+			// report as its channel — this also doubles as the "does the panel still exist" check a
+			// deleted panel would otherwise only surface indirectly via an empty `categories` result below.
+			const [panel] = await getContext().db<TicketPanels[]>`
+				SELECT * FROM ticket_panels WHERE id = ${panelId} AND guild_id = ${guildId}
+			`;
+
+			if (!panel) {
+				logger.warn({ panelId, guildId }, 'Category select picked a panel that no longer exists');
+				await editReply('That ticket panel no longer exists. Please open a new ticket.');
+				return;
+			}
+
 			const categories = await getContext().db<Categories[]>`
 				SELECT c.* FROM categories c
 				INNER JOIN ticket_panel_categories tpc ON tpc.category_id = c.id
-				WHERE tpc.ticket_panel_id = ${panelId}
+				WHERE tpc.ticket_panel_id = ${panel.id}
 				ORDER BY c.sort_order, c.id
 			`;
 
@@ -119,7 +132,7 @@ export default class CategorySelectComponent implements ComponentHandler {
 
 			let privateThread;
 			try {
-				privateThread = await getContext().service.client.api.channels.createThread(channel.id, {
+				privateThread = await getContext().service.client.api.channels.createThread(panel.channelId, {
 					name: (member.nick ?? user.global_name ?? user.username).slice(0, 100),
 					type: ChannelType.PrivateThread,
 					invitable: false,
@@ -127,7 +140,7 @@ export default class CategorySelectComponent implements ComponentHandler {
 				});
 			} catch (error) {
 				if (error instanceof DiscordAPIError && error.status === 403) {
-					logger.warn({ err: error, channelId: channel.id }, 'Missing permissions to create a ticket thread');
+					logger.warn({ err: error, channelId: panel.channelId }, 'Missing permissions to create a ticket thread');
 					await editReply(
 						'The bot is missing permissions to create a ticket thread here. Please let a moderator know.',
 					);

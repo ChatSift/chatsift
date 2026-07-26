@@ -87,9 +87,14 @@ export const updateCategoryBodySchema = z
 	.partial()
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
+// Capped at 25 -- Discord's own limit on a string select's `options` array, which is exactly how
+// `services/modmail-bot`'s `createTicket.ts` renders a panel's categories as a picker. Enforced here
+// (and inherited by the dashboard forms below, which validate against this exact schema) rather than
+// in the bot, so a panel can never end up with more categories attached than the picker could ever
+// render, instead of the bot silently truncating the list at select-build time.
 const panelBase = z.strictObject({
 	channelId: snowflakeSchema,
-	categoryIds: z.array(z.number().int().positive()).min(1),
+	categoryIds: z.array(z.number().int().positive()).min(1).max(25),
 });
 
 export const createPanelWithRegularContentSchema = panelBase.safeExtend({
@@ -111,7 +116,7 @@ export const createPanelBodySchema = z.union([createPanelWithRegularContentSchem
 
 export const updatePanelBodySchema = z
 	.strictObject({
-		categoryIds: z.array(z.number().int().positive()).min(1).optional(),
+		categoryIds: z.array(z.number().int().positive()).min(1).max(25).optional(),
 		panel: createPanelWithRegularContentSchema.shape.panel.optional(),
 		panel_raw: createPanelWithRawContentSchema.shape.panel_raw.optional(),
 	})

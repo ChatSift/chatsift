@@ -63,7 +63,7 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 
 			try {
 				await getContext().service.client.api.channels.delete(pending.privateThreadId, {
-					reason: 'Ticket setup abandoned (no first message or category pick within the timeout)',
+					reason: 'Ticket setup abandoned (no opening message sent within the timeout)',
 				});
 			} catch (error) {
 				// A 404 just means the thread is already gone (deleted manually, archived and pruned, etc.) —
