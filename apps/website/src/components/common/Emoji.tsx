@@ -16,8 +16,16 @@ export function Emoji({ value, className }: EmojiProps) {
 
 	const { animated, name, id } = match.groups;
 
+	// `.webp` always resolves regardless of source format, unlike `.gif` -- some animated custom emotes
+	// are natively webp-sourced rather than gif-sourced, and Discord's CDN 404s a `.gif` request for
+	// those (issue #234). `?animated=true` is required for webp to actually play back the animation
+	// instead of a static first frame.
+	const src = animated
+		? `https://cdn.discordapp.com/emojis/${id}.webp?animated=true`
+		: `https://cdn.discordapp.com/emojis/${id}.png`;
+
 	return (
 		// eslint-disable-next-line @next/next/no-img-element
-		<img alt={name} className={className} src={`https://cdn.discordapp.com/emojis/${id}.${animated ? 'gif' : 'png'}`} />
+		<img alt={name} className={className} src={src} />
 	);
 }

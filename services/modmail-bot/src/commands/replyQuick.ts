@@ -5,6 +5,7 @@ import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction, APIChatInputApplicationCommandInteraction } from '@discordjs/core';
 import { ApplicationIntegrationType, InteractionContextType, MessageFlags } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
+import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from '../lib/emojis.js';
 import { relayStaffReplyToUserThread } from '../lib/relay.js';
 import { findOpenThreadByModThreadId } from '../lib/threads.js';
 
@@ -43,6 +44,16 @@ export default class ReplyQuickCommand implements CommandHandler {
 		const options = new ChatInputInteractionOptionResolver(interaction as APIChatInputApplicationCommandInteraction);
 		const content = options.getString('content', true);
 		const anon = options.getBoolean('anon') ?? false;
+
+		const guildEmojiIds = await fetchGuildEmojiIds(interaction.guild_id, getContext().service.client.api);
+		const foreignEmojiTokens = findForeignEmojiTokens(content, guildEmojiIds);
+		if (foreignEmojiTokens.length > 0) {
+			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+				...buildForeignEmojiRejection(foreignEmojiTokens, content),
+				flags: MessageFlags.Ephemeral,
+			});
+			return;
+		}
 
 		await relayStaffReplyToUserThread({
 			anon,

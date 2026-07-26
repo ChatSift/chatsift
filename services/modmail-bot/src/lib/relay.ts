@@ -3,6 +3,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { Threads } from '@chatsift/db';
 import type { APIEmbed, APIEmbedAuthor, APIGuildMember, APIUser, CreateMessageOptions } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
+import { fetchGuildEmojiIds, resolveContentForRelay } from './emojis.js';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
 import type { RelayAttachmentLike, RelayStickerLike } from './media.js';
 import { buildRelayMedia } from './media.js';
@@ -100,7 +101,9 @@ export async function relayUserMessageToModThread({
 
 	const author = nicknameAuthor(thread.guildId, member, user);
 	const media = await buildRelayMedia(attachments, stickers, logger);
-	const description = [contextNote, content, media.note].filter(Boolean).join('\n\n');
+	const guildEmojiIds = await fetchGuildEmojiIds(thread.guildId, getContext().service.client.api);
+	const resolvedContent = resolveContentForRelay(content, guildEmojiIds);
+	const description = [contextNote, resolvedContent, media.note].filter(Boolean).join('\n\n');
 
 	const embed: APIEmbed = {
 		color: GREEN,

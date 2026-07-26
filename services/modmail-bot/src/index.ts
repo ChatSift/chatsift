@@ -12,6 +12,7 @@ import type {
 } from '@discordjs/core';
 import { ApplicationCommandType, GatewayDispatchEvents, MessageFlags } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
+import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from './lib/emojis.js';
 import { withGuildUserLock } from './lib/guildUserQueue.js';
 import { resolveEffectiveContent, resolveReplyNote } from './lib/messageContext.js';
 import { clearPendingTicketRecord, PendingTicketStore, type PendingTicketState } from './lib/pendingTicket.js';
@@ -297,6 +298,17 @@ function registerSnippetCommandResolver(): void {
 
 		const options = new ChatInputInteractionOptionResolver(interaction as APIChatInputApplicationCommandInteraction);
 		const anon = options.getBoolean('anon') ?? false;
+
+		const guildEmojiIds = await fetchGuildEmojiIds(interaction.guild_id, getContext().service.client.api);
+		const foreignEmojiTokens = findForeignEmojiTokens(snippet.content, guildEmojiIds);
+		if (foreignEmojiTokens.length > 0) {
+			await getContext().service.client.api.interactions.editReply(
+				interaction.application_id,
+				interaction.token,
+				buildForeignEmojiRejection(foreignEmojiTokens, snippet.content),
+			);
+			return true;
+		}
 
 		try {
 			await relayStaffReplyToUserThread({
