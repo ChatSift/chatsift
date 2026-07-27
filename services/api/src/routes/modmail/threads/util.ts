@@ -137,10 +137,15 @@ export interface ResolvedThreadMessageAttachment extends RecordedAttachmentJson 
  * has no `ex` param, is treated as *not* expired -- this only ever triggers a refetch on a url shape we
  * actually recognize as stale, never speculatively.
  */
+const HEX_PATTERN = /^[\da-f]+$/i;
+
 function isAttachmentUrlExpired(url: string): boolean {
 	try {
 		const ex = new URL(url).searchParams.get('ex');
-		if (!ex) {
+		// `Number.parseInt(ex, 16)` alone would happily parse a leading valid-hex prefix off a garbage
+		// value (e.g. `"12g34"` -> `18`) instead of rejecting it outright -- validate the full string is
+		// hex first so a malformed `ex` can't be misread as some arbitrary (and possibly "expired") timestamp.
+		if (!ex || !HEX_PATTERN.test(ex)) {
 			return false;
 		}
 

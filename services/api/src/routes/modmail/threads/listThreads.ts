@@ -70,17 +70,23 @@ export default defineRoute({
 		const hasNextPage = rows.length > limit;
 		const page = hasNextPage ? rows.slice(0, limit) : rows;
 
-		// Rate limiting across these concurrent calls is handled internally by the REST client.
-		const threads = await Promise.all(
-			page.map(async (row): Promise<ThreadListItem> => {
-				const { categoryEmoji, categoryName, ...thread } = row;
-				const category = toThreadCategory(
-					thread.categoryId ? { emoji: categoryEmoji, id: thread.categoryId, name: categoryName! } : null,
-				);
-				const user = await resolveUser(thread.userId);
-				return { ...thread, category, user };
-			}),
+		// Dedup'd rather than one `resolveUser` per row -- the same user can easily have several threads
+		// on this page (that's the whole point of "past ticket history"), and re-resolving them
+		// individually would multiply Discord API calls for no benefit. Same approach `getThread.ts` uses
+		// for its `participants` map.
+		const userIds = new Set(page.map((row) => row.userId));
+		const userEntries = await Promise.all(
+			[...userIds].map(async (userId): Promise<[string, APIUser | Snowflake]> => [userId, await resolveUser(userId)]),
 		);
+		const usersById = new Map(userEntries);
+
+		const threads = page.map((row): ThreadListItem => {
+			const { categoryEmoji, categoryName, ...thread } = row;
+			const category = toThreadCategory(
+				thread.categoryId ? { emoji: categoryEmoji, id: thread.categoryId, name: categoryName! } : null,
+			);
+			return { ...thread, category, user: usersById.get(thread.userId)! };
+		});
 
 		return { nextCursor: hasNextPage ? page.at(-1)!.id : null, threads };
 	},

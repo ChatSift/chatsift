@@ -175,10 +175,26 @@ export async function findStaffReplyByLocalId(
  * -- a no-op if no `thread_message_content` row exists for this message (predates recording, or recording
  * was never enabled), since there's nothing to reconcile in that case. No edit-history/versioning in this
  * phase (see #261) -- the previous content just isn't kept anywhere.
+ *
+ * Also a no-op if the guild's `record_thread_content` consent has since been turned back off -- checked
+ * atomically in the same `UPDATE` (an `EXISTS` against the row's *current* guild_settings state) rather
+ * than a preceding `isRecordingEnabled` call-and-branch, so a disable that races a concurrent edit can't
+ * leave a stale write behind. Consent being off should mean *no* further writes touch recorded content at
+ * all, not just that new messages stop being recorded -- an existing row surviving a disable (per the
+ * "not reset back to null" audit-trail decision) is not license to keep mutating it afterward.
  */
-export async function updateRecordedMessageContent(threadMessageId: ThreadMessagesId, text: string): Promise<void> {
+export async function updateRecordedMessageContent(
+	guildId: string,
+	threadMessageId: ThreadMessagesId,
+	text: string,
+): Promise<void> {
 	await getContext().db`
-		UPDATE thread_message_content SET content = ${text} WHERE thread_message_id = ${threadMessageId}
+		UPDATE thread_message_content
+		SET content = ${text}
+		WHERE thread_message_id = ${threadMessageId}
+			AND EXISTS (
+				SELECT 1 FROM guild_settings WHERE guild_id = ${guildId} AND record_thread_content = true
+			)
 	`;
 }
 

@@ -81,10 +81,11 @@ export async function handleUserMessageUpdate(
 			const newDescription = [contextNote, resolvedContent].filter(Boolean).join('\n\n');
 			const oldDescription = logEmbed.description ?? '*(no content)*';
 
-			// No-op if this message predates recording being enabled (no `thread_message_content` row to
-			// update) -- no versioning/edit-history in this phase, the recorded copy is just overwritten in
-			// place to match whatever the mod-forum log embed now shows (see #261).
-			await updateRecordedMessageContent(row.id, resolvedContent);
+			// No-op if this message predates recording being enabled, or if recording has since been turned
+			// back off for the guild (both checked atomically inside `updateRecordedMessageContent` itself)
+			// -- no versioning/edit-history in this phase, the recorded copy is just overwritten in place to
+			// match whatever the mod-forum log embed now shows (see #261).
+			await updateRecordedMessageContent(thread.guildId, row.id, resolvedContent);
 
 			await getContext().service.client.api.channels.editMessage(thread.modThreadId, row.guildMessageId, {
 				embeds: [buildEditedEmbed(logEmbed, newDescription, true)],
