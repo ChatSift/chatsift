@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import { registerCommandHandlers, registerComponentHandlers, registerUnknownCommandResolver } from '@chatsift/bot-core';
-import type { Categories, GuildSettings, Threads } from '@chatsift/db';
+import type { Categories, GuildSettings } from '@chatsift/db';
 import type {
 	APIChatInputApplicationCommandInteraction,
 	Client,
@@ -14,7 +14,7 @@ import { ApplicationCommandType, GatewayDispatchEvents, MessageFlags } from '@di
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from './lib/emojis.js';
 import { withGuildUserLock } from './lib/guildUserQueue.js';
-import { resolveEffectiveContent, resolveReplyNote } from './lib/messageContext.js';
+import { buildContextNote, resolveEffectiveContent } from './lib/messageContext.js';
 import { clearPendingTicketRecord, PendingTicketStore, type PendingTicketState } from './lib/pendingTicket.js';
 import { sweepAbandonedPendingTickets } from './lib/pendingTicketSweep.js';
 import { preventOpenThreadsFromArchiving } from './lib/preventThreadArchive.js';
@@ -24,6 +24,7 @@ import { findSnippetByCommandId, recordSnippetUsage } from './lib/snippets.js';
 import { sweepThreadNukes } from './lib/threadNukeSweep.js';
 import { findOpenThreadByModThreadId, findOpenThreadByUserThreadId } from './lib/threads.js';
 import { finishTicketCreation, sendGreeting } from './lib/ticketCreation.js';
+import { handleUserMessageDelete, handleUserMessageUpdate } from './lib/userMessageLifecycle.js';
 
 /**
  * How often `sweepAbandonedPendingTickets` runs — short enough that an abandoned thread doesn't sit
@@ -56,24 +57,6 @@ const THREAD_NUKE_SWEEP_INTERVAL_MS = 60 * 1_000;
 const PREVENT_THREAD_ARCHIVE_INTERVAL_MS = 5 * 60 * 1_000;
 
 const baseDir = dirname(fileURLToPath(import.meta.url));
-
-/**
- * Forwarded messages get their own note (there's no earlier local message number to point at, unlike
- * a reply) — everything else defers to `resolveReplyNote`, which itself returns `undefined` when the
- * message isn't a reply at all.
- */
-async function buildContextNote(
-	message: GatewayMessageCreateDispatchData,
-	isForwarded: boolean,
-	thread: Pick<Threads, 'guildId' | 'id' | 'modThreadId'>,
-	logger: Logger,
-): Promise<string | undefined> {
-	if (isForwarded) {
-		return '📨 *Forwarded message*';
-	}
-
-	return resolveReplyNote(thread, message, logger);
-}
 
 /**
  * A private thread exists (`createTicket.ts` for a zero-category panel, `categorySelect.ts` once a
@@ -251,6 +234,43 @@ function registerMessageRelay(client: Client): void {
 }
 
 /**
+ * The other half of #253: a user editing or deleting a message they'd already sent in their ticket's
+ * private thread needs the mod-forum log copy kept in sync, same reasoning as `registerMessageRelay`
+ * above for why this is a raw gateway listener rather than routed through `@chatsift/bot-core`. Each
+ * event's actual handling lives in `lib/userMessageLifecycle.ts` -- this just wires the listener and
+ * makes sure a failure in either handler can't crash the process.
+ */
+function registerMessageLifecycleRelay(client: Client): void {
+	client.on(GatewayDispatchEvents.MessageUpdate, async ({ data: message }) => {
+		const logger = getContext().logger.child({
+			event: 'messageUpdate',
+			channelId: message.channel_id,
+			guildId: message.guild_id ?? null,
+		});
+
+		try {
+			await handleUserMessageUpdate(message, logger);
+		} catch (error) {
+			logger.error({ err: error }, 'Failed to handle message update in modmail-bot');
+		}
+	});
+
+	client.on(GatewayDispatchEvents.MessageDelete, async ({ data: message }) => {
+		const logger = getContext().logger.child({
+			event: 'messageDelete',
+			channelId: message.channel_id,
+			guildId: message.guild_id ?? null,
+		});
+
+		try {
+			await handleUserMessageDelete(message.channel_id, message.id, logger);
+		} catch (error) {
+			logger.error({ err: error }, 'Failed to handle message delete in modmail-bot');
+		}
+	});
+}
+
+/**
  * Snippets are minted as their own per-guild slash command directly against Discord by the API
  * (`services/api/src/routes/modmail/snippets/createSnippet.ts`), so they never go through
  * `registerCommandHandlers`' static `commands/` directory — this is the fallback `@chatsift/bot-core`
@@ -352,6 +372,7 @@ export async function bin(client: Client): Promise<void> {
 	await registerComponentHandlers(join(baseDir, 'components'));
 	await registerCommandHandlers(join(baseDir, 'commands'));
 	registerMessageRelay(client);
+	registerMessageLifecycleRelay(client);
 	registerSnippetCommandResolver();
 
 	// `.unref()` so this interval never keeps the process alive on its own — matches bot-core's

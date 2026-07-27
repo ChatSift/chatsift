@@ -85,3 +85,23 @@ export async function resolveReplyNote(
 		return '↩️ *replying to an earlier message*';
 	}
 }
+
+/**
+ * Forwarded messages get their own note (there's no earlier local message number to point at, unlike
+ * a reply) -- everything else defers to `resolveReplyNote`, which itself returns `undefined` when the
+ * message isn't a reply at all. Shared by both the `MessageCreate` relay and the `MessageUpdate`
+ * lifecycle handler (`lib/userMessageLifecycle.ts`) -- a user's edit keeps whatever reply/forward
+ * context the original message had, so this is recomputed the same way for both.
+ */
+export async function buildContextNote(
+	message: MessageLike,
+	isForwarded: boolean,
+	thread: Pick<Threads, 'guildId' | 'id' | 'modThreadId'>,
+	logger: Logger,
+): Promise<string | undefined> {
+	if (isForwarded) {
+		return '📨 *Forwarded message*';
+	}
+
+	return resolveReplyNote(thread, message, logger);
+}
