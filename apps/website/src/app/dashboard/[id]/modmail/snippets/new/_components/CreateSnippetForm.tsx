@@ -52,7 +52,7 @@ export function CreateSnippetForm() {
 		}
 
 		try {
-			await createSnippet.mutateAsync(result.data as CreateModmailSnippetBody);
+			await createSnippet.mutateAsync(result.data);
 			router.replace(`/dashboard/${guildId}/modmail/snippets`);
 		} catch (error) {
 			setErrors(mapSnippetApiError(error, 'create'));
