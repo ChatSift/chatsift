@@ -1,4 +1,16 @@
 import type { APIEmbed, APIEmbedFooter, APIEmbedImage } from '@discordjs/core';
+import { RESTJSONErrorCodes } from '@discordjs/core';
+import { DiscordAPIError } from '@discordjs/rest';
+
+/**
+ * Only 404 / Unknown Message means "actually gone" -- anything else (missing permissions, rate limits,
+ * transport errors) should surface as a real failure rather than being treated as a deleted reply.
+ * Mirrors `services/ama-bot/src/components/amaRepostSelect.ts`'s use of this same check; shared here
+ * between `/edit` and `/delete` rather than duplicated per-command.
+ */
+export function isUnknownMessageError(error: unknown): boolean {
+	return error instanceof DiscordAPIError && (error.status === 404 || error.code === RESTJSONErrorCodes.UnknownMessage);
+}
 
 /**
  * Discord's own "danger" red -- distinct from `relay.ts`'s `GREEN`/`BLURPLE`, so a deleted reply's log

@@ -3,20 +3,10 @@ import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction, APIChatInputApplicationCommandInteraction } from '@discordjs/core';
-import { ApplicationIntegrationType, InteractionContextType, MessageFlags, RESTJSONErrorCodes } from '@discordjs/core';
-import { DiscordAPIError } from '@discordjs/rest';
+import { ApplicationIntegrationType, InteractionContextType, MessageFlags } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
-import { isMarkedDeleted, markEmbedDeleted } from '../lib/replyModeration.js';
+import { isMarkedDeleted, isUnknownMessageError, markEmbedDeleted } from '../lib/replyModeration.js';
 import { findOpenThreadByModThreadId, findStaffReplyByLocalId } from '../lib/threads.js';
-
-/**
- * Only 404 / Unknown Message means "actually gone" -- anything else (missing permissions, rate limits,
- * transport errors) should surface as a real failure. Mirrors `edit.ts`'s copy of the same check, itself
- * copied from `services/ama-bot/src/components/amaRepostSelect.ts`.
- */
-function isUnknownMessageError(error: unknown): boolean {
-	return error instanceof DiscordAPIError && (error.status === 404 || error.code === RESTJSONErrorCodes.UnknownMessage);
-}
 
 export default class DeleteCommand implements CommandHandler {
 	public readonly name = 'delete';

@@ -14,24 +14,24 @@ import {
 	ComponentType,
 	InteractionContextType,
 	MessageFlags,
-	RESTJSONErrorCodes,
 	TextInputStyle,
 } from '@discordjs/core';
-import { DiscordAPIError } from '@discordjs/rest';
 import { ChatInputInteractionOptionResolver, ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
 import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from '../lib/emojis.js';
-import { isMarkedDeleted, markFooterEdited, resolveEditedImage } from '../lib/replyModeration.js';
+import {
+	isMarkedDeleted,
+	isUnknownMessageError,
+	markFooterEdited,
+	resolveEditedImage,
+} from '../lib/replyModeration.js';
 import { findOpenThreadByModThreadId, findStaffReplyByLocalId } from '../lib/threads.js';
 
 /**
- * Only 404 / Unknown Message means "actually gone" -- anything else (missing permissions, rate limits,
- * transport errors) should surface as a real failure rather than being treated as a deleted reply.
- * Mirrors `services/ama-bot/src/components/amaRepostSelect.ts`'s existing use of this same check.
+ * Discord's modal `TextInput` max -- matches `reply.ts`'s own content field, and is 96 characters short
+ * of an embed description's own 4,096-character cap, which is why the pre-fill below has to truncate.
  */
-function isUnknownMessageError(error: unknown): boolean {
-	return error instanceof DiscordAPIError && (error.status === 404 || error.code === RESTJSONErrorCodes.UnknownMessage);
-}
+const MODAL_CONTENT_MAX_LENGTH = 4_000;
 
 /**
  * Replaces an existing embed's text with newly-edited content, leaving `color`/`author` untouched.
@@ -136,7 +136,10 @@ export default class EditCommand implements CommandHandler {
 				return;
 			}
 
-			prefill = embed?.description ?? '';
+			// Capped to the text input's own `max_length` below -- an embed description can run up to 4,096
+			// characters, 96 more than a modal text input allows, so a long reply's pre-fill has to be
+			// truncated rather than handed to `createModal` as-is (which Discord would reject outright).
+			prefill = (embed?.description ?? '').slice(0, MODAL_CONTENT_MAX_LENGTH);
 		} catch (error) {
 			logger.warn({ err: error, threadId: thread.id, replyId }, 'Failed to fetch log message for /edit pre-fill');
 		}
@@ -155,7 +158,7 @@ export default class EditCommand implements CommandHandler {
 							label: 'Message',
 							style: TextInputStyle.Paragraph,
 							min_length: 1,
-							max_length: 4_000,
+							max_length: MODAL_CONTENT_MAX_LENGTH,
 							required: true,
 							...(prefill ? { value: prefill } : {}),
 						},
