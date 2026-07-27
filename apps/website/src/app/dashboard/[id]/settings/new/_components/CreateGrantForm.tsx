@@ -78,7 +78,7 @@ export function CreateGrantForm() {
 				</Button>
 				<Button
 					className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
-					onPress={() => router.back()}
+					onPress={() => router.replace(`/dashboard/${guildId}/settings`)}
 					type="button"
 				>
 					Cancel

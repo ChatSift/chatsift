@@ -4,7 +4,8 @@ import { updateCategoryBodySchema } from '@chatsift/api/modmail-schemas';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { APIError } from '@/api/error';
+import type { CategoryFormData, CategoryFormErrors } from '../../_components/categoryForm';
+import { mapCategoryApiError, mapCategoryIssues } from '../../_components/categoryForm';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { ModmailCategory, UpdateModmailCategoryBody } from '@/api/routes/modmail';
 import {
@@ -19,39 +20,6 @@ import { ForumTagSelect } from '@/components/common/ForumTagSelect';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TemplatePlaceholdersHint } from '@/components/common/TemplatePlaceholdersHint';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
-
-interface CategoryFormData {
-	description: string;
-	emoji: string;
-	forumTagId: string;
-	greetingMessage: string;
-	maxConcurrentThreads: string;
-	name: string;
-}
-
-type CategoryFormErrors = Partial<Record<keyof CategoryFormData, string>>;
-
-const CATEGORY_FIELDS = [
-	'name',
-	'emoji',
-	'description',
-	'greetingMessage',
-	'forumTagId',
-	'maxConcurrentThreads',
-] as const satisfies (keyof CategoryFormData)[];
-
-function mapCategoryIssues(issues: readonly { message: string; path: PropertyKey[] }[]): CategoryFormErrors {
-	const errors: CategoryFormErrors = {};
-
-	for (const issue of issues) {
-		const [first] = issue.path;
-		if (typeof first === 'string' && (CATEGORY_FIELDS as readonly string[]).includes(first)) {
-			errors[first as keyof CategoryFormData] ??= issue.message;
-		}
-	}
-
-	return errors;
-}
 
 function formFromCategory(category: ModmailCategory): CategoryFormData {
 	return {
@@ -111,33 +79,7 @@ export function EditCategoryForm({ category }: EditCategoryFormProps) {
 			setErrors({});
 			setSuccessMessage('Category updated.');
 		} catch (error) {
-			if (error instanceof APIError) {
-				if (error.conflictField) {
-					// `conflictField` is a structured indicator the API attaches to a domain error outside plain
-					// zod validation -- either a 409 (duplicate name, duplicate forum tag) or the 400 this route
-					// throws when `maxConcurrentThreads` exceeds the guild's general limit (see
-					// createCategory.ts/sendBoom.ts). Checked before the zod-validation branch below since
-					// those errors carry no `validationErrors` tree for `fieldError` to read. Falls back to
-					// `name` only as defense-in-depth against a future conflict this route hasn't set one for.
-					const field = (CATEGORY_FIELDS as readonly string[]).includes(error.conflictField)
-						? (error.conflictField as keyof CategoryFormData)
-						: 'name';
-					setErrors({ [field]: error.message });
-				} else if (error.statusCode === 400) {
-					setErrors(
-						Object.fromEntries(
-							CATEGORY_FIELDS.map((field) => [field, error.fieldError(field)]).filter(([, message]) => message),
-						),
-					);
-				} else {
-					setErrors({ name: error.message || 'Failed to update category' });
-				}
-
-				return;
-			}
-
-			setErrors({ name: 'Failed to update category' });
-			console.error('Failed to update category', error);
+			setErrors(mapCategoryApiError(error, 'update'));
 		}
 	};
 
@@ -298,7 +240,7 @@ export function EditCategoryFormLoader() {
 		return <UserErrorHandler error={error} />;
 	}
 
-	if (isLoading) {
+	if (isLoading || !categories) {
 		return (
 			<div className="mt-8 space-y-6">
 				<Skeleton className="h-10 w-full" />
@@ -308,7 +250,7 @@ export function EditCategoryFormLoader() {
 		);
 	}
 
-	const category = categories!.find((candidate) => String(candidate.id) === params.categoryId);
+	const category = categories.find((candidate) => String(candidate.id) === params.categoryId);
 	if (!category) {
 		return (
 			<div className="py-12 text-center">

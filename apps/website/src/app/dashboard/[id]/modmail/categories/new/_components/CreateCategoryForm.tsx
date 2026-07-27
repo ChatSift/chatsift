@@ -4,7 +4,8 @@ import { createCategoryBodySchema } from '@chatsift/api/modmail-schemas';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { APIError } from '@/api/error';
+import type { CategoryFormData, CategoryFormErrors } from '../../_components/categoryForm';
+import { mapCategoryApiError, mapCategoryIssues } from '../../_components/categoryForm';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { CreateModmailCategoryBody } from '@/api/routes/modmail';
 import {
@@ -18,17 +19,6 @@ import { EmojiInput } from '@/components/common/EmojiInput';
 import { ForumTagSelect } from '@/components/common/ForumTagSelect';
 import { TemplatePlaceholdersHint } from '@/components/common/TemplatePlaceholdersHint';
 
-interface CategoryFormData {
-	description: string;
-	emoji: string;
-	forumTagId: string;
-	greetingMessage: string;
-	maxConcurrentThreads: string;
-	name: string;
-}
-
-type CategoryFormErrors = Partial<Record<keyof CategoryFormData, string>>;
-
 const EMPTY_FORM: CategoryFormData = {
 	name: '',
 	emoji: '',
@@ -37,28 +27,6 @@ const EMPTY_FORM: CategoryFormData = {
 	forumTagId: '',
 	maxConcurrentThreads: '',
 };
-
-const CATEGORY_FIELDS = [
-	'name',
-	'emoji',
-	'description',
-	'greetingMessage',
-	'forumTagId',
-	'maxConcurrentThreads',
-] as const satisfies (keyof CategoryFormData)[];
-
-function mapCategoryIssues(issues: readonly { message: string; path: PropertyKey[] }[]): CategoryFormErrors {
-	const errors: CategoryFormErrors = {};
-
-	for (const issue of issues) {
-		const [first] = issue.path;
-		if (typeof first === 'string' && (CATEGORY_FIELDS as readonly string[]).includes(first)) {
-			errors[first as keyof CategoryFormData] ??= issue.message;
-		}
-	}
-
-	return errors;
-}
 
 export function CreateCategoryForm() {
 	const router = useRouter();
@@ -80,6 +48,12 @@ export function CreateCategoryForm() {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
+		// `categories` isn't loaded yet -- bail rather than default `sortOrder` to 0, which could silently
+		// collide with an existing category actually at sortOrder 0 instead of appending to the end.
+		if (categories === undefined) {
+			return;
+		}
+
 		const data: CreateModmailCategoryBody = {
 			name: form.name.trim(),
 			emoji: form.emoji.trim() || null,
@@ -89,7 +63,7 @@ export function CreateCategoryForm() {
 			maxConcurrentThreads: form.maxConcurrentThreads.trim() ? Number(form.maxConcurrentThreads) : null,
 			// New categories always append at the end -- reordering afterwards happens via the move up/down
 			// controls on each card, not by hand-picking a number here.
-			sortOrder: categories?.length ?? 0,
+			sortOrder: categories.length,
 		};
 
 		const result = createCategoryBodySchema.safeParse(data);
@@ -102,33 +76,7 @@ export function CreateCategoryForm() {
 			await createCategory.mutateAsync(result.data);
 			router.replace(`/dashboard/${guildId}/modmail/categories`);
 		} catch (error) {
-			if (error instanceof APIError) {
-				if (error.conflictField) {
-					// `conflictField` is a structured indicator the API attaches to a domain error outside plain
-					// zod validation -- either a 409 (duplicate name, duplicate forum tag) or the 400 this route
-					// throws when `maxConcurrentThreads` exceeds the guild's general limit (see
-					// createCategory.ts/sendBoom.ts). Checked before the zod-validation branch below since
-					// those errors carry no `validationErrors` tree for `fieldError` to read. Falls back to
-					// `name` only as defense-in-depth against a future conflict this route hasn't set one for.
-					const field = (CATEGORY_FIELDS as readonly string[]).includes(error.conflictField)
-						? (error.conflictField as keyof CategoryFormData)
-						: 'name';
-					setErrors({ [field]: error.message });
-				} else if (error.statusCode === 400) {
-					setErrors(
-						Object.fromEntries(
-							CATEGORY_FIELDS.map((field) => [field, error.fieldError(field)]).filter(([, message]) => message),
-						),
-					);
-				} else {
-					setErrors({ name: error.message || 'Failed to create category' });
-				}
-
-				return;
-			}
-
-			setErrors({ name: 'Failed to create category' });
-			console.error('Failed to create category', error);
+			setErrors(mapCategoryApiError(error, 'create'));
 		}
 	};
 
@@ -257,7 +205,7 @@ export function CreateCategoryForm() {
 			<div className="flex gap-4">
 				<Button
 					className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-					isDisabled={!form.name.trim() || createCategory.isPending}
+					isDisabled={!form.name.trim() || createCategory.isPending || categories === undefined}
 					type="submit"
 				>
 					{createCategory.isPending ? 'Creating...' : 'Add Category'}

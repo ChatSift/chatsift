@@ -3,42 +3,14 @@
 import { updateSnippetBodySchema } from '@chatsift/api/modmail-schemas';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { APIError } from '@/api/error';
+import type { SnippetFormData, SnippetFormErrors } from '../../_components/snippetForm';
+import { mapSnippetApiError, mapSnippetIssues } from '../../_components/snippetForm';
 import type { ModmailSnippet, UpdateModmailSnippetBody } from '@/api/routes/modmail';
 import { useModmailSnippets, useUpdateModmailSnippet } from '@/api/routes/modmail';
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { normalizeSnippetName } from '@/utils/snippetName';
-
-interface SnippetFormData {
-	attachmentFilename: string;
-	attachmentUrl: string;
-	content: string;
-	name: string;
-}
-
-type SnippetFormErrors = Partial<Record<keyof SnippetFormData, string>>;
-
-const SNIPPET_FIELDS = [
-	'name',
-	'content',
-	'attachmentUrl',
-	'attachmentFilename',
-] as const satisfies (keyof SnippetFormData)[];
-
-function mapSnippetIssues(issues: readonly { message: string; path: PropertyKey[] }[]): SnippetFormErrors {
-	const errors: SnippetFormErrors = {};
-
-	for (const issue of issues) {
-		const [first] = issue.path;
-		if (typeof first === 'string' && (SNIPPET_FIELDS as readonly string[]).includes(first)) {
-			errors[first as keyof SnippetFormData] ??= issue.message;
-		}
-	}
-
-	return errors;
-}
 
 function formFromSnippet(snippet: ModmailSnippet): SnippetFormData {
 	return {
@@ -97,24 +69,7 @@ export function EditSnippetForm({ snippet }: EditSnippetFormProps) {
 			setErrors({});
 			setSuccessMessage('Snippet updated.');
 		} catch (error) {
-			if (error instanceof APIError) {
-				if (error.statusCode === 409 || error.statusCode === 422) {
-					setErrors({ name: error.message });
-				} else if (error.statusCode === 400) {
-					setErrors(
-						Object.fromEntries(
-							SNIPPET_FIELDS.map((field) => [field, error.fieldError(field)]).filter(([, message]) => message),
-						),
-					);
-				} else {
-					setErrors({ name: error.message || 'Failed to update snippet' });
-				}
-
-				return;
-			}
-
-			setErrors({ name: 'Failed to update snippet' });
-			console.error('Failed to update snippet', error);
+			setErrors(mapSnippetApiError(error, 'update'));
 		}
 	};
 
@@ -140,6 +95,8 @@ export function EditSnippetForm({ snippet }: EditSnippetFormProps) {
 						Name *
 					</label>
 					<input
+						aria-describedby={errors.name ? 'snippet-name-error' : undefined}
+						aria-invalid={Boolean(errors.name)}
 						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
 						id="snippet-name"
 						maxLength={32}
@@ -151,7 +108,11 @@ export function EditSnippetForm({ snippet }: EditSnippetFormProps) {
 					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
 						Will be usable as <span className="font-mono">/{normalizeSnippetName(form.name) || '...'}</span>
 					</p>
-					{errors.name && <p className="mt-1 text-sm text-misc-danger">{errors.name}</p>}
+					{errors.name && (
+						<p className="mt-1 text-sm text-misc-danger" id="snippet-name-error">
+							{errors.name}
+						</p>
+					)}
 				</div>
 
 				<div>
@@ -162,6 +123,8 @@ export function EditSnippetForm({ snippet }: EditSnippetFormProps) {
 						Content *
 					</label>
 					<textarea
+						aria-describedby={errors.content ? 'snippet-content-error' : undefined}
+						aria-invalid={Boolean(errors.content)}
 						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
 						id="snippet-content"
 						maxLength={2_000}
@@ -169,7 +132,11 @@ export function EditSnippetForm({ snippet }: EditSnippetFormProps) {
 						rows={4}
 						value={form.content}
 					/>
-					{errors.content && <p className="mt-1 text-sm text-misc-danger">{errors.content}</p>}
+					{errors.content && (
+						<p className="mt-1 text-sm text-misc-danger" id="snippet-content-error">
+							{errors.content}
+						</p>
+					)}
 				</div>
 
 				<div>
@@ -180,6 +147,8 @@ export function EditSnippetForm({ snippet }: EditSnippetFormProps) {
 						Attachment URL
 					</label>
 					<input
+						aria-describedby={errors.attachmentUrl ? 'snippet-attachment-url-error' : undefined}
+						aria-invalid={Boolean(errors.attachmentUrl)}
 						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
 						id="snippet-attachment-url"
 						onChange={(e) => updateField('attachmentUrl', e.target.value)}
@@ -191,7 +160,11 @@ export function EditSnippetForm({ snippet }: EditSnippetFormProps) {
 						Optional. Shown as an image on every reply this snippet sends -- must be a direct link to an image. Clear to
 						remove it.
 					</p>
-					{errors.attachmentUrl && <p className="mt-1 text-sm text-misc-danger">{errors.attachmentUrl}</p>}
+					{errors.attachmentUrl && (
+						<p className="mt-1 text-sm text-misc-danger" id="snippet-attachment-url-error">
+							{errors.attachmentUrl}
+						</p>
+					)}
 				</div>
 
 				<div>
@@ -202,6 +175,8 @@ export function EditSnippetForm({ snippet }: EditSnippetFormProps) {
 						Attachment filename
 					</label>
 					<input
+						aria-describedby={errors.attachmentFilename ? 'snippet-attachment-filename-error' : undefined}
+						aria-invalid={Boolean(errors.attachmentFilename)}
 						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
 						id="snippet-attachment-filename"
 						maxLength={256}
@@ -210,7 +185,11 @@ export function EditSnippetForm({ snippet }: EditSnippetFormProps) {
 						type="text"
 						value={form.attachmentFilename}
 					/>
-					{errors.attachmentFilename && <p className="mt-1 text-sm text-misc-danger">{errors.attachmentFilename}</p>}
+					{errors.attachmentFilename && (
+						<p className="mt-1 text-sm text-misc-danger" id="snippet-attachment-filename-error">
+							{errors.attachmentFilename}
+						</p>
+					)}
 				</div>
 			</div>
 
@@ -242,7 +221,7 @@ export function EditSnippetFormLoader() {
 		return <UserErrorHandler error={error} />;
 	}
 
-	if (isLoading) {
+	if (isLoading || !snippets) {
 		return (
 			<div className="mt-8 space-y-6">
 				<Skeleton className="h-10 w-full" />
@@ -252,7 +231,7 @@ export function EditSnippetFormLoader() {
 		);
 	}
 
-	const snippet = snippets!.find((candidate) => String(candidate.id) === params.snippetId);
+	const snippet = snippets.find((candidate) => String(candidate.id) === params.snippetId);
 	if (!snippet) {
 		return (
 			<div className="py-12 text-center">
