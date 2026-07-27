@@ -7,7 +7,7 @@ import { useGrantAuth } from '@/api/grant';
 import type { AMASessionDetailed, AMASessionWithCount } from '@/api/routes/ama';
 import { useMe } from '@/api/routes/auth';
 import type { GuildChannelInfo } from '@/api/routes/guilds';
-import type { ModmailPanel } from '@/api/routes/modmail';
+import type { ModmailCategory, ModmailPanel, ModmailSnippet } from '@/api/routes/modmail';
 import type { BreadcrumbOption } from '@/components/common/Breadcrumb';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { GuildIcon } from '@/components/common/GuildIcon';
@@ -48,8 +48,10 @@ export interface SegmentOptionsData {
 	 * Bots invited to the current guild, used to build the bot-switcher dropdown on the `ama`/`modmail` segment.
 	 */
 	guildBots?: readonly BotId[] | undefined;
+	modmailCategories?: ModmailCategory[] | undefined;
 	modmailChannels?: GuildChannelInfo[] | undefined;
 	modmailPanels?: ModmailPanel[] | undefined;
+	modmailSnippets?: ModmailSnippet[] | undefined;
 }
 
 type SegmentOptions = { icon?: React.ReactNode; options: readonly BreadcrumbOption[] } | null;
@@ -131,6 +133,24 @@ function resolveModmailPanelLabel(panelId: string, data: SegmentOptionsData): Re
 	return channel ? `#${channel.name}` : (panel?.channelId ?? panelId);
 }
 
+function resolveModmailCategoryLabel(categoryId: string, data: SegmentOptionsData): React.ReactNode {
+	if (data.modmailCategories === undefined) {
+		return <Skeleton className="h-5 w-32 inline-flex align-middle" />;
+	}
+
+	const category = data.modmailCategories.find((c) => c.id === Number(categoryId));
+	return category?.name ?? categoryId;
+}
+
+function resolveModmailSnippetLabel(snippetId: string, data: SegmentOptionsData): React.ReactNode {
+	if (data.modmailSnippets === undefined) {
+		return <Skeleton className="h-5 w-32 inline-flex align-middle" />;
+	}
+
+	const snippet = data.modmailSnippets.find((s) => s.id === Number(snippetId));
+	return snippet ? `/${snippet.name}` : snippetId;
+}
+
 /**
  * Segment definitions are tried in order against the full path leading up to and including the segment being
  * rendered (e.g. `['modmail', 'panels', '42']`). The first pattern that matches wins. This is the single place
@@ -175,6 +195,14 @@ const SEGMENT_DEFINITIONS: readonly SegmentDefinition[] = [
 	{
 		pattern: ['modmail', 'panels', ':id'],
 		resolveLabel: resolveModmailPanelLabel,
+	},
+	{
+		pattern: ['modmail', 'categories', ':id'],
+		resolveLabel: resolveModmailCategoryLabel,
+	},
+	{
+		pattern: ['modmail', 'snippets', ':id'],
+		resolveLabel: resolveModmailSnippetLabel,
 	},
 ];
 
