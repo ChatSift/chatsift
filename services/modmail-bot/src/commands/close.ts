@@ -26,6 +26,9 @@ export default class CloseCommand implements CommandHandler {
 							.setName('silent')
 							.setDescription("Skip the farewell message to the user - doesn't affect the mod-forum log")
 							.setRequired(false),
+					)
+					.addBooleanOptions((option) =>
+						option.setName('anon').setDescription('Send the farewell message anonymously').setRequired(false),
 					),
 			(subcommand) =>
 				subcommand
@@ -43,6 +46,9 @@ export default class CloseCommand implements CommandHandler {
 							.setName('silent')
 							.setDescription("Skip the farewell message to the user - doesn't affect the mod-forum log")
 							.setRequired(false),
+					)
+					.addBooleanOptions((option) =>
+						option.setName('anon').setDescription('Send the farewell message anonymously').setRequired(false),
 					),
 			(subcommand) => subcommand.setName('cancel').setDescription('Cancel a pending scheduled close for this ticket'),
 		)
@@ -80,6 +86,7 @@ export default class CloseCommand implements CommandHandler {
 		switch (subcommand) {
 			case 'now': {
 				const silent = options.getBoolean('silent') ?? false;
+				const anon = options.getBoolean('anon') ?? false;
 
 				// Replied *before* closing rather than after: `closeThread` archives + locks the mod-forum
 				// thread as one of its last steps, and Discord rejects creating a new interaction response
@@ -92,7 +99,7 @@ export default class CloseCommand implements CommandHandler {
 				// `false` means the thread was already closed by the time this ran (e.g. a scheduled close
 				// firing in the same instant) — nothing left for this call to do, so say so rather than
 				// implying this command was what closed it.
-				const closed = await closeThread({ closedById: staffId, logger, silent, thread });
+				const closed = await closeThread({ anon, closedById: staffId, logger, silent, thread });
 				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 					content: closed ? '✅ Ticket closed.' : 'This ticket was already closed.',
 				});
@@ -102,12 +109,13 @@ export default class CloseCommand implements CommandHandler {
 			case 'schedule': {
 				const minutes = options.getInteger('minutes', true);
 				const silent = options.getBoolean('silent') ?? false;
+				const anon = options.getBoolean('anon') ?? false;
 				const closeAt = new Date(Date.now() + minutes * 60_000);
 
 				await getContext().db`
-					INSERT INTO scheduled_thread_closes (thread_id, scheduled_by_id, silent, close_at)
-					VALUES (${thread.id}, ${staffId}, ${silent}, ${closeAt})
-					ON CONFLICT (thread_id) DO UPDATE SET scheduled_by_id = EXCLUDED.scheduled_by_id, silent = EXCLUDED.silent, close_at = EXCLUDED.close_at
+					INSERT INTO scheduled_thread_closes (thread_id, scheduled_by_id, silent, anon, close_at)
+					VALUES (${thread.id}, ${staffId}, ${silent}, ${anon}, ${closeAt})
+					ON CONFLICT (thread_id) DO UPDATE SET scheduled_by_id = EXCLUDED.scheduled_by_id, silent = EXCLUDED.silent, anon = EXCLUDED.anon, close_at = EXCLUDED.close_at
 				`;
 
 				// Public, not ephemeral — other staff working this ticket should see it's about to close

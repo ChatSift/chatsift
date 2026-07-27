@@ -12,6 +12,8 @@ export default interface ScheduledThreadCloses {
   silent: boolean;
 
   closeAt: Date;
+
+  anon: boolean;
 }
 
 /** Represents the initializer for the table public.scheduled_thread_closes */
@@ -23,6 +25,8 @@ export interface ScheduledThreadClosesInitializer {
   silent?: boolean;
 
   closeAt: Date;
+
+  anon?: boolean;
 }
 
 /** Represents the mutator for the table public.scheduled_thread_closes */
@@ -34,4 +38,6 @@ export interface ScheduledThreadClosesMutator {
   silent?: boolean;
 
   closeAt?: Date;
+
+  anon?: boolean;
 }
