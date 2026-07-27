@@ -98,28 +98,29 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 		>,
 	);
 
-	const guilds = await Promise.all(
-		guildsRaw.map<Promise<MeGuild>>(async ({ id, name, icon, owner, permissions }) => {
-			const [grant] = await getContext().db<Pick<DashboardGrants, 'id'>[]>`
-				SELECT id FROM dashboard_grants WHERE guild_id = ${id} AND user_id = ${discordUser.id}
-			`;
-			const hasGrant = Boolean(grant);
-
-			return {
-				id,
-				name,
-				icon,
-				meCanManage:
-					hasGrant ||
-					PermissionsBitField.has(
-						BigInt(permissions),
-						PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
-					) ||
-					owner,
-				bots: BOTS.filter((bot) => guildsByBot[bot]?.includes(id)),
-			};
-		}),
+	// One query for every grant this user holds, rather than one `dashboard_grants` round trip per guild below --
+	// `guildsRaw` can be dozens of guilds long, and this collapses that to a single lookup.
+	const grantedGuildIds = new Set(
+		(
+			await getContext().db<Pick<DashboardGrants, 'guildId'>[]>`
+				SELECT guild_id FROM dashboard_grants WHERE user_id = ${discordUser.id}
+			`
+		).map((grant) => grant.guildId),
 	);
+
+	const guilds: MeGuild[] = guildsRaw.map(({ id, name, icon, owner, permissions }) => ({
+		id,
+		name,
+		icon,
+		meCanManage:
+			grantedGuildIds.has(id) ||
+			PermissionsBitField.has(
+				BigInt(permissions),
+				PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
+			) ||
+			owner,
+		bots: BOTS.filter((bot) => guildsByBot[bot]?.includes(id)),
+	}));
 
 	const me: Me = {
 		id: discordUser.id,

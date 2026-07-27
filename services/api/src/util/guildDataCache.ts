@@ -1,5 +1,5 @@
 import type { BotId } from '@chatsift/backend-core';
-import { RedisStore } from '@chatsift/backend-core';
+import { getContext, RedisStore } from '@chatsift/backend-core';
 import type { API } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import type { Recipe } from 'bin-rw';
@@ -39,6 +39,11 @@ interface InflightEntry<TResult> {
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1_000; // 5 minutes
+// Deliberately much shorter than `CACHE_TTL_MS`: a 403/404 (bot lost/never had access) gets its own short-lived
+// negative cache so a guild that keeps getting hit (e.g. a still-valid dashboard session for a guild the bot was
+// removed from) doesn't hammer Discord's REST rate limit on every request -- but if a moderator notices and
+// reinstalls the bot, that recovery shouldn't have to wait out the full 5-minute positive TTL to take effect.
+const NEGATIVE_CACHE_TTL_MS = 30 * 1_000; // 30 seconds
 
 export function createCachedGuildFetcher<TResult>(
 	keyPrefix: string,
@@ -53,6 +58,13 @@ export function createCachedGuildFetcher<TResult>(
 		makeKey: (compoundKey: string) => `guilddata:${keyPrefix}:${compoundKey}`,
 		storeOld: false,
 	});
+
+	// A negative result isn't stored through `store`/bin-rw: bin-rw's `Array` wire type can't distinguish `null`
+	// from `[]` (both collapse to the same null-marker byte on write, and always decode back to `[]`), so there's
+	// no honest way to represent "we confirmed this bot can't see this guild" versus "this guild has zero
+	// channels/roles/emojis" as a value in that same recipe. A separate boolean-flag key (mirroring
+	// `grantToken.ts`'s raw `redis.set`/`.exists` use for similar non-structured flags) sidesteps that entirely.
+	const negativeKey = (key: string) => `guilddata:${keyPrefix}:negative:${key}`;
 
 	const inflight = new Map<string, InflightEntry<TResult>>();
 
@@ -75,9 +87,14 @@ export function createCachedGuildFetcher<TResult>(
 				await store.delete(key);
 			}
 
+			await getContext().redis.set(negativeKey(key), '1', {
+				expiration: { type: 'PX', value: NEGATIVE_CACHE_TTL_MS },
+			});
 			return null;
 		}
 
+		// Guild access can come back (bot reinstalled) well before a stale negative entry would otherwise expire.
+		await getContext().redis.del(negativeKey(key));
 		await store.set(key, { items: result });
 		return result;
 	}
@@ -90,6 +107,10 @@ export function createCachedGuildFetcher<TResult>(
 				const cached = await store.get(key);
 				if (cached) {
 					return cached.items;
+				}
+
+				if (await getContext().redis.exists(negativeKey(key))) {
+					return null;
 				}
 			}
 
