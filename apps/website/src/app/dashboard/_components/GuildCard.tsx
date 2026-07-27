@@ -1,7 +1,9 @@
 import { BOTS } from '@chatsift/core';
 import Link from 'next/link';
+import { Link as AriaLink } from 'react-aria-components';
 import type { MeGuild } from '@/api/routes/auth';
 import { GuildIcon } from '@/components/common/GuildIcon';
+import { Tooltip } from '@/components/common/Tooltip';
 import { Bots } from '@/utils/bots';
 import { cn } from '@/utils/util';
 
@@ -51,10 +53,12 @@ export default function GuildCard({ data }: GuildCardProps) {
 									const { Icon, label } = Bots[bot];
 									return (
 										<li key={bot}>
-											<a href={`/invites/${bot.toLowerCase()}`}>
-												<Icon height={BOT_ICON_SIZE} width={BOT_ICON_SIZE} />
-												<span className="sr-only">Invite {label}</span>
-											</a>
+											<Tooltip content={`Invite ${label}`}>
+												<AriaLink href={`/invites/${bot.toLowerCase()}`}>
+													<Icon height={BOT_ICON_SIZE} width={BOT_ICON_SIZE} />
+													<span className="sr-only">Invite {label}</span>
+												</AriaLink>
+											</Tooltip>
 										</li>
 									);
 								})}
