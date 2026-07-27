@@ -1,20 +1,30 @@
 import { getContext, type BotId } from '@chatsift/backend-core';
 import type { Snowflake } from '@discordjs/core';
 import { API } from '@discordjs/core';
-import { REST } from '@discordjs/rest';
+import { REST, RESTEvents } from '@discordjs/rest';
 import type { MeGuild } from './me.js';
 
-const oauthREST = new REST({ version: '10' });
+function createRest(): REST {
+	const rest = new REST({ version: '10' });
+
+	rest.on(RESTEvents.RateLimited, (rateLimitInfo) => {
+		getContext().logger.warn(rateLimitInfo, 'Hit a Discord REST rate limit');
+	});
+
+	return rest;
+}
+
+const oauthREST = createRest();
 export const discordAPIOAuth = new API(oauthREST);
 
-const amaREST = new REST({ version: '10' }).setToken(getContext().env.AMA_BOT_TOKEN);
+const amaREST = createRest().setToken(getContext().env.AMA_BOT_TOKEN);
 export const discordAPIAma = new API(amaREST);
 
-const modmailREST = new REST({ version: '10' }).setToken(getContext().env.MODMAIL_BOT_TOKEN);
+const modmailREST = createRest().setToken(getContext().env.MODMAIL_BOT_TOKEN);
 export const discordAPIModmail = new API(modmailREST);
 
 // Webhook execution is authed by the id/token in the URL itself, no bot token needed
-const webhookREST = new REST({ version: '10' });
+const webhookREST = createRest();
 export const discordAPIWebhook = new API(webhookREST);
 
 export const APIMapping: Record<BotId, API> = {
