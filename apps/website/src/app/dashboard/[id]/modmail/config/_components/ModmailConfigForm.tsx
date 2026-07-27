@@ -326,7 +326,7 @@ export function ModmailConfigForm() {
 					)}
 				</div>
 
-				<label className="flex items-center gap-2" htmlFor="modmail-simple-mode">
+				{/* <label className="flex items-center gap-2" htmlFor="modmail-simple-mode">
 					<input
 						checked={form.simpleMode}
 						className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
@@ -335,7 +335,7 @@ export function ModmailConfigForm() {
 						type="checkbox"
 					/>
 					<span className="text-sm font-medium text-secondary dark:text-secondary-dark">Simple Mode</span>
-				</label>
+				</label> */}
 
 				<div>
 					<label className="flex items-center gap-2" htmlFor="modmail-greeting-before-opener">
