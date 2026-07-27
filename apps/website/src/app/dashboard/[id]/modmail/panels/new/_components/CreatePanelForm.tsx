@@ -4,11 +4,11 @@ import { createPanelWithRawContentSchema, createPanelWithRegularContentSchema } 
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { CategoryCheckboxList } from './CategoryCheckboxList';
-import { PanelEmbedFields } from './PanelEmbedFields';
-import { PanelModeToggle } from './PanelModeToggle';
-import { PanelPreview } from './PanelPreview';
-import { PanelRawField } from './PanelRawField';
+import { CategoryCheckboxList } from '../../_components/CategoryCheckboxList';
+import { PanelEmbedFields } from '../../_components/PanelEmbedFields';
+import { PanelModeToggle } from '../../_components/PanelModeToggle';
+import { PanelPreview } from '../../_components/PanelPreview';
+import { PanelRawField } from '../../_components/PanelRawField';
 import { APIError } from '@/api/error';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { CreateModmailPanelBody } from '@/api/routes/modmail';

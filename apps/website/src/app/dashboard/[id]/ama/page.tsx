@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { DashboardCrumbs } from '../../_components/DashboardCrumbs';
 import { Heading } from '@/components/common/Heading';
+import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 import { SvgAMA } from '@/components/icons/SvgAMA';
 
 export default async function AMAPage({ params }: PageProps<'/dashboard/[id]/ama/amas'>) {

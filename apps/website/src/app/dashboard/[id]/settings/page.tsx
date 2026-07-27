@@ -1,6 +1,6 @@
-import { DashboardCrumbs } from '../../_components/DashboardCrumbs';
 import { GrantsList } from './_components/GrantsList';
 import { Heading } from '@/components/common/Heading';
+import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
 export default function SettingsPage() {
 	return (

@@ -231,10 +231,6 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 	const pathname = usePathname();
 	const grant = useGrantAuth();
 
-	if (!params.id) {
-		throw new Error('id param not found, should not be rendering this component');
-	}
-
 	const guild = me?.guilds.find((g) => g.id === params.id);
 
 	// Merge in `guild.bots` so the `ama`/`modmail` segment's dropdown (see `SEGMENT_DEFINITIONS` above) can build
@@ -311,6 +307,10 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 
 		return result;
 	}, [params.id, pathname, effectiveSegmentOptionsData, grant]);
+
+	if (!params.id) {
+		throw new Error('id param not found, should not be rendering this component');
+	}
 
 	if (!guild) {
 		throw new Error('guild not found, should not be rendering this component');

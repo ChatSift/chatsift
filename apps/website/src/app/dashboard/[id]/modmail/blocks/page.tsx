@@ -1,6 +1,6 @@
-import { DashboardCrumbs } from '../../../_components/DashboardCrumbs';
 import { BlocksList } from './_components/BlocksList';
 import { Heading } from '@/components/common/Heading';
+import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
 export default function ModmailBlocksPage() {
 	return (

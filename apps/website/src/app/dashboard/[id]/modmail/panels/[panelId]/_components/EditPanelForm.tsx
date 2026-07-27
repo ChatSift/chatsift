@@ -3,11 +3,11 @@
 import { updatePanelBodySchema } from '@chatsift/api/modmail-schemas';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { CategoryCheckboxList } from '../../new/_components/CategoryCheckboxList';
-import { PanelEmbedFields } from '../../new/_components/PanelEmbedFields';
-import { PanelModeToggle } from '../../new/_components/PanelModeToggle';
-import { PanelPreview } from '../../new/_components/PanelPreview';
-import { PanelRawField } from '../../new/_components/PanelRawField';
+import { CategoryCheckboxList } from '../../_components/CategoryCheckboxList';
+import { PanelEmbedFields } from '../../_components/PanelEmbedFields';
+import { PanelModeToggle } from '../../_components/PanelModeToggle';
+import { PanelPreview } from '../../_components/PanelPreview';
+import { PanelRawField } from '../../_components/PanelRawField';
 import { APIError } from '@/api/error';
 import type { ModmailPanel, UpdateModmailPanelBody } from '@/api/routes/modmail';
 import { useModmailPanels, useUpdateModmailPanel } from '@/api/routes/modmail';

@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
 import type { PropsWithChildren } from 'react';
 import { FaWrench } from 'react-icons/fa';
-import { DashboardCrumbs } from '../_components/DashboardCrumbs';
 import { useMe } from '@/api/routes/auth';
 import { Heading } from '@/components/common/Heading';
+import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 import { Bots } from '@/utils/bots';
 import { cn } from '@/utils/util';
 

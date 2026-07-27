@@ -3,6 +3,7 @@
 import { useModmailCategories } from '@/api/routes/modmail';
 import { Emoji } from '@/components/common/Emoji';
 import { Skeleton } from '@/components/common/Skeleton';
+import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 interface CategoryCheckboxListProps {
 	readonly error?: string | undefined;
@@ -12,11 +13,18 @@ interface CategoryCheckboxListProps {
 }
 
 export function CategoryCheckboxList({ guildId, value, onChange, error }: CategoryCheckboxListProps) {
-	const { data: categories, isLoading } = useModmailCategories(guildId);
+	const { data: categories, isLoading, error: categoriesError } = useModmailCategories(guildId);
 
 	const toggle = (categoryId: number) => {
 		onChange(value.includes(categoryId) ? value.filter((id) => id !== categoryId) : [...value, categoryId]);
 	};
+
+	// See GrantsList.tsx for why this also checks `categories === undefined`: a background refetch failure keeps
+	// the previously-cached list around, and that stale-but-present data should keep this field usable rather
+	// than being replaced by the full error state.
+	if (categoriesError && categories === undefined) {
+		return <UserErrorHandler error={categoriesError} />;
+	}
 
 	return (
 		<div>

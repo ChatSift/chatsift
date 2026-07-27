@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { SnowflakeInput } from '../../ama/amas/new/_components/SnowflakeInput';
 import { APIError } from '@/api/error';
 import { useCreateGrant } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
+import { SnowflakeInput } from '@/components/common/SnowflakeInput';
 
 interface AddGrantCardProps {
 	readonly guildId: string;

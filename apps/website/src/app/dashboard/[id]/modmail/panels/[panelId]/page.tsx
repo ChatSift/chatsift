@@ -1,6 +1,6 @@
-import { ModmailPanelCrumbs } from '../../_components/ModmailPanelCrumbs';
 import { EditPanelFormLoader } from './_components/EditPanelForm';
 import { Heading } from '@/components/common/Heading';
+import { ModmailPanelCrumbs } from '@/components/dashboard/ModmailPanelCrumbs';
 
 export default function EditModmailPanelPage() {
 	return (

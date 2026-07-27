@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { DashboardCrumbs } from '../../../_components/DashboardCrumbs';
+import { DashboardCrumbs } from './DashboardCrumbs';
 import type { AMASessionDetailed, AMASessionWithCount } from '@/api/routes/ama';
 import { useAMA, useAMAs } from '@/api/routes/ama';
 
