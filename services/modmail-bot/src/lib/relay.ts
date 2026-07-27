@@ -153,6 +153,12 @@ export interface RelayStaffReplyOptions {
 	 */
 	externalImageUrl?: string | undefined;
 	logger: Logger;
+	/**
+	 * Whether to mention the user on the relayed copy — surfaced as a `/reply` modal checkbox / `/reply-q`
+	 * boolean option, since threads replaced DMs and the user may no longer be watching the thread (#251).
+	 * Optional (defaults to `false`) since the snippet-relay call site has no ping option of its own.
+	 */
+	ping?: boolean | undefined;
 	staffMember: MemberLike | undefined;
 	staffUser: APIUser;
 	thread: Threads;
@@ -174,6 +180,7 @@ export async function relayStaffReplyToUserThread({
 	content,
 	externalImageUrl,
 	logger,
+	ping = false,
 	staffMember,
 	staffUser,
 	thread,
@@ -231,6 +238,9 @@ export async function relayStaffReplyToUserThread({
 		getContext().service.client.api.channels.createMessage(thread.userThreadId, {
 			embeds: [userFacingEmbed],
 			files: media.files,
+			// Same reasoning as `relayUserMessageToModThread`'s `pingMentions` -- a mention only notifies
+			// from plain `content`, never from inside an embed.
+			...(ping ? { content: `<@${thread.userId}>` } : {}),
 		}),
 	]);
 

@@ -21,6 +21,9 @@ export default class ReplyQuickCommand implements CommandHandler {
 			option.setName('content').setDescription('The message to send').setRequired(true).setMaxLength(4_000),
 		)
 		.addBooleanOptions((option) => option.setName('anon').setDescription('Send anonymously').setRequired(false))
+		.addBooleanOptions((option) =>
+			option.setName('ping').setDescription('Mention the user with this reply').setRequired(false),
+		)
 		.toJSON();
 
 	public async handle(interaction: APIApplicationCommandInteraction, logger: Logger) {
@@ -44,6 +47,7 @@ export default class ReplyQuickCommand implements CommandHandler {
 		const options = new ChatInputInteractionOptionResolver(interaction as APIChatInputApplicationCommandInteraction);
 		const content = options.getString('content', true);
 		const anon = options.getBoolean('anon') ?? false;
+		const ping = options.getBoolean('ping') ?? false;
 
 		const guildEmojiIds = await fetchGuildEmojiIds(interaction.guild_id, getContext().service.client.api, logger);
 		if (!guildEmojiIds) {
@@ -67,6 +71,7 @@ export default class ReplyQuickCommand implements CommandHandler {
 			anon,
 			content,
 			logger,
+			ping,
 			staffMember: interaction.member,
 			staffUser: interaction.member.user,
 			thread,

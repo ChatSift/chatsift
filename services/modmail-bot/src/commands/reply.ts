@@ -3,11 +3,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
 import { collectModal } from '@chatsift/bot-core';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
-import type {
-	APIApplicationCommandInteraction,
-	APIChatInputApplicationCommandInteraction,
-	APIModalSubmitGuildInteraction,
-} from '@discordjs/core';
+import type { APIApplicationCommandInteraction, APIModalSubmitGuildInteraction } from '@discordjs/core';
 import {
 	ApplicationIntegrationType,
 	ComponentType,
@@ -15,11 +11,21 @@ import {
 	MessageFlags,
 	TextInputStyle,
 } from '@discordjs/core';
-import { ChatInputInteractionOptionResolver, ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
+import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
 import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from '../lib/emojis.js';
 import { relayStaffReplyToUserThread } from '../lib/relay.js';
 import { findOpenThreadByModThreadId } from '../lib/threads.js';
+
+/**
+ * `ModalInteractionOptionResolver` has no dedicated checkbox getter (discord-api-types added
+ * `Checkbox` after the resolver's helper methods were written), so this narrows the generic
+ * `.get()` result itself.
+ */
+function getCheckboxValue(modalOptions: ModalInteractionOptionResolver, customId: string): boolean {
+	const component = modalOptions.get(customId);
+	return component.type === ComponentType.Checkbox && component.value;
+}
 
 export default class ReplyCommand implements CommandHandler {
 	public readonly name = 'reply';
@@ -29,7 +35,6 @@ export default class ReplyCommand implements CommandHandler {
 		.setDescription('Reply to this ModMail ticket (opens a box for the message content)')
 		.setContexts(InteractionContextType.Guild)
 		.setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
-		.addBooleanOptions((option) => option.setName('anon').setDescription('Send anonymously').setRequired(false))
 		.toJSON();
 
 	public async handle(interaction: APIApplicationCommandInteraction, logger: Logger) {
@@ -50,9 +55,6 @@ export default class ReplyCommand implements CommandHandler {
 			return;
 		}
 
-		const options = new ChatInputInteractionOptionResolver(interaction as APIChatInputApplicationCommandInteraction);
-		const anon = options.getBoolean('anon') ?? false;
-
 		const id = nanoid();
 		await getContext().service.client.api.interactions.createModal(interaction.id, interaction.token, {
 			custom_id: id,
@@ -71,6 +73,24 @@ export default class ReplyCommand implements CommandHandler {
 							required: true,
 						},
 					],
+				},
+				{
+					type: ComponentType.Label,
+					label: 'Send anonymously',
+					description: "Hide your identity behind the server's name instead of your own.",
+					component: {
+						type: ComponentType.Checkbox,
+						custom_id: 'anon',
+					},
+				},
+				{
+					type: ComponentType.Label,
+					label: 'Ping with this reply',
+					description: 'Mention the user so they get notified.',
+					component: {
+						type: ComponentType.Checkbox,
+						custom_id: 'ping',
+					},
 				},
 				{
 					type: ComponentType.Label,
@@ -111,6 +131,8 @@ export default class ReplyCommand implements CommandHandler {
 		const modalOptions = new ModalInteractionOptionResolver(modalInteraction);
 		const content = modalOptions.getTextInput('content');
 		const attachments = modalOptions.getAttachments('attachments') ?? [];
+		const anon = getCheckboxValue(modalOptions, 'anon');
+		const ping = getCheckboxValue(modalOptions, 'ping');
 
 		const guildEmojiIds = await fetchGuildEmojiIds(modalInteraction.guild_id, getContext().service.client.api, logger);
 		if (!guildEmojiIds) {
@@ -140,6 +162,7 @@ export default class ReplyCommand implements CommandHandler {
 				attachments,
 				content,
 				logger,
+				ping,
 				staffMember: modalInteraction.member,
 				staffUser: modalInteraction.member.user,
 				thread,
