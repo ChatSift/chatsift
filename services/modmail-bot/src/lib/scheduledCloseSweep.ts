@@ -4,6 +4,7 @@ import type { Threads } from '@chatsift/db';
 import { closeThread } from './threadClose.js';
 
 interface DueScheduledClose extends Threads {
+	anon: boolean;
 	scheduledById: string;
 	silent: boolean;
 }
@@ -17,7 +18,7 @@ interface DueScheduledClose extends Threads {
  */
 export async function sweepScheduledCloses(logger: Logger): Promise<void> {
 	const due = await getContext().db<DueScheduledClose[]>`
-		SELECT t.*, sc.scheduled_by_id, sc.silent
+		SELECT t.*, sc.scheduled_by_id, sc.silent, sc.anon
 		FROM scheduled_thread_closes sc
 		INNER JOIN threads t ON t.id = sc.thread_id
 		WHERE sc.close_at <= now() AND t.closed_at IS NULL
@@ -28,7 +29,13 @@ export async function sweepScheduledCloses(logger: Logger): Promise<void> {
 			const rowLogger = logger.child({ guildId: row.guildId, threadId: row.id });
 
 			try {
-				await closeThread({ closedById: row.scheduledById, logger: rowLogger, silent: row.silent, thread: row });
+				await closeThread({
+					anon: row.anon,
+					closedById: row.scheduledById,
+					logger: rowLogger,
+					silent: row.silent,
+					thread: row,
+				});
 			} catch (error) {
 				rowLogger.error({ err: error }, 'Failed to run a scheduled ticket close');
 			}

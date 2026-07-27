@@ -24,7 +24,7 @@ const BLURPLE = 0x5865f2;
  * `APIGuildMemberNoUser` the gateway attaches to `MESSAGE_CREATE`/`MESSAGE_UPDATE` payloads — this
  * only ever reads `nick`/`avatar`, so it's narrowed to just those instead of requiring the full type.
  */
-type MemberLike = Pick<APIGuildMember, 'avatar' | 'nick'>;
+export type MemberLike = Pick<APIGuildMember, 'avatar' | 'nick'>;
 
 /**
  * Global (non-guild-specific) avatar — matches prod's footer, which always uses `user.displayAvatarURL()`.
@@ -45,7 +45,7 @@ function resolveGuildAvatarURL(guildId: string, member: MemberLike | undefined, 
 	return resolveGlobalAvatarURL(user);
 }
 
-function identityFooter(user: APIUser, prefix?: string) {
+export function identityFooter(user: APIUser, prefix?: string) {
 	const globalAvatarURL = resolveGlobalAvatarURL(user);
 	const text = `${prefix ?? ''}${user.username} (${user.id})`;
 	return globalAvatarURL ? { text, icon_url: globalAvatarURL } : { text };
@@ -57,7 +57,11 @@ function identityFooter(user: APIUser, prefix?: string) {
  * `sendStaffThreadMessage.ts`). Deliberately not "improved" to always show one: that would just
  * duplicate the same identity that's already in the footer.
  */
-function nicknameAuthor(guildId: string, member: MemberLike | undefined, user: APIUser): APIEmbedAuthor | undefined {
+export function nicknameAuthor(
+	guildId: string,
+	member: MemberLike | undefined,
+	user: APIUser,
+): APIEmbedAuthor | undefined {
 	if (!member?.nick) {
 		return undefined;
 	}

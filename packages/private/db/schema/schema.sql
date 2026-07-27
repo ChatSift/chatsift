@@ -264,6 +264,11 @@ CREATE TABLE scheduled_thread_closes (
   thread_id       INTEGER PRIMARY KEY REFERENCES threads (id) ON DELETE CASCADE,
   scheduled_by_id TEXT NOT NULL,
   silent          BOOLEAN NOT NULL DEFAULT false,
+  -- Whether the farewell message this schedule eventually posts should be anonymous ("{guildName}
+  -- Team") instead of attributed to scheduled_by_id -- mirrors /close now's anon option (and
+  -- /reply's), see services/modmail-bot's lib/threadClose.ts. Attributed is the default, matching
+  -- staff replies.
+  anon            BOOLEAN NOT NULL DEFAULT false,
   close_at        TIMESTAMPTZ NOT NULL
 );
 
