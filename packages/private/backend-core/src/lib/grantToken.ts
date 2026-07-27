@@ -12,6 +12,7 @@ export const GRANTS = {
 	AMA_CREATE: 'ama:create',
 	MODMAIL_SNIPPET_CREATE: 'modmail:snippet:create',
 	MODMAIL_CONFIG_UPDATE: 'modmail:config:update',
+	MODMAIL_BLOCKS_READ: 'modmail:blocks:read',
 } as const;
 export type GrantString = (typeof GRANTS)[keyof typeof GRANTS];
 
@@ -24,6 +25,7 @@ export const GRANT_BOTS: Record<GrantString, BotId> = {
 	[GRANTS.AMA_CREATE]: 'AMA',
 	[GRANTS.MODMAIL_SNIPPET_CREATE]: 'MODMAIL',
 	[GRANTS.MODMAIL_CONFIG_UPDATE]: 'MODMAIL',
+	[GRANTS.MODMAIL_BLOCKS_READ]: 'MODMAIL',
 };
 
 export interface GrantTokenData {

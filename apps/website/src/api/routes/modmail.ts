@@ -270,10 +270,19 @@ export function useDeleteModmailSnippet(guildId: string) {
 type ListModmailBlocksContract = InferRouteContract<typeof listModmailBlocksRoute>;
 export type ModmailBlock = ListModmailBlocksContract['response'][number];
 
+/**
+ * Transparently authed via the one-time grant-token flow when active (`useGrantAuth()`), same as
+ * `useModmailConfig`/`useModmailSnippets` -- the `/block-list` grant page needs this to keep working
+ * without a real session. Unlike those, the grant this accepts (`MODMAIL_BLOCKS_READ`) is never claimed
+ * server-side (see `listBlocks.ts`), so the same link can be reloaded repeatedly.
+ */
 export function useModmailBlocks(guildId: string) {
+	const grant = useGrantAuth();
+
 	return useQuery({
 		queryKey: queryKeys.modmail.blocks(guildId),
-		queryFn: async () => apiFetch<ModmailBlock[]>('get', `/v3/guilds/${guildId}/modmail/blocks`),
+		queryFn: async () =>
+			apiFetch<ModmailBlock[]>('get', `/v3/guilds/${guildId}/modmail/blocks`, { authToken: grant?.token }),
 	});
 }
 

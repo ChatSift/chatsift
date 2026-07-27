@@ -526,6 +526,7 @@ __metadata:
     "@chatsift/backend-core": "workspace:^"
     "@chatsift/bot-core": "workspace:^"
     "@chatsift/db": "workspace:^"
+    "@chatsift/parse-relative-time": "workspace:^"
     "@discordjs/builders": "npm:2.0.0-dev.1783513686-6e81ea771"
     "@discordjs/core": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
@@ -539,7 +540,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@chatsift/parse-relative-time@workspace:packages/public/parse-relative-time":
+"@chatsift/parse-relative-time@workspace:^, @chatsift/parse-relative-time@workspace:packages/public/parse-relative-time":
   version: 0.0.0-use.local
   resolution: "@chatsift/parse-relative-time@workspace:packages/public/parse-relative-time"
   dependencies:

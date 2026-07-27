@@ -36,6 +36,7 @@ const GRANT_ROUTES = [
 	/^\/dashboard\/(?<guildId>\d+)\/ama\/amas\/new\/?$/,
 	/^\/dashboard\/(?<guildId>\d+)\/modmail\/snippets\/?$/,
 	/^\/dashboard\/(?<guildId>\d+)\/modmail\/config\/?$/,
+	/^\/dashboard\/(?<guildId>\d+)\/modmail\/blocks\/?$/,
 ];
 
 function decodeGrantPayload(token: string): DecodedGrantPayload | null {
