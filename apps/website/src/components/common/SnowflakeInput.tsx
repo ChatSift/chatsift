@@ -23,14 +23,21 @@ export function SnowflakeInput({
 				{label} {required && '*'}
 			</label>
 			<input
+				aria-describedby={error ? `${id}-error` : undefined}
+				aria-invalid={error ? true : undefined}
 				className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
 				id={id}
 				onChange={(e) => onChange(e.target.value)}
 				placeholder={placeholder}
+				required={required}
 				type="text"
 				value={value}
 			/>
-			{error && <p className="mt-1 text-sm text-misc-danger">{error}</p>}
+			{error && (
+				<p className="mt-1 text-sm text-misc-danger" id={`${id}-error`}>
+					{error}
+				</p>
+			)}
 		</div>
 	);
 }

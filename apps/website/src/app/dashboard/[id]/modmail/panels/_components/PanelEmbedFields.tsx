@@ -28,6 +28,8 @@ export function PanelEmbedFields({
 					Title
 				</label>
 				<input
+					aria-describedby={errors.title ? 'panel-title-error' : undefined}
+					aria-invalid={errors.title ? true : undefined}
 					className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
 					id="panel-title"
 					maxLength={255}
@@ -36,7 +38,11 @@ export function PanelEmbedFields({
 					type="text"
 					value={title}
 				/>
-				{errors.title && <p className="mt-1 text-sm text-misc-danger">{errors.title}</p>}
+				{errors.title && (
+					<p className="mt-1 text-sm text-misc-danger" id="panel-title-error">
+						{errors.title}
+					</p>
+				)}
 			</div>
 
 			<div>
@@ -47,6 +53,8 @@ export function PanelEmbedFields({
 					Description (optional, max 4000 characters)
 				</label>
 				<textarea
+					aria-describedby={errors.description ? 'panel-description-error' : undefined}
+					aria-invalid={errors.description ? true : undefined}
 					className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
 					id="panel-description"
 					maxLength={4_000}
@@ -55,7 +63,11 @@ export function PanelEmbedFields({
 					rows={4}
 					value={description}
 				/>
-				{errors.description && <p className="mt-1 text-sm text-misc-danger">{errors.description}</p>}
+				{errors.description && (
+					<p className="mt-1 text-sm text-misc-danger" id="panel-description-error">
+						{errors.description}
+					</p>
+				)}
 			</div>
 
 			<div>
@@ -66,6 +78,8 @@ export function PanelEmbedFields({
 					Button Label
 				</label>
 				<input
+					aria-describedby={errors.buttonLabel ? 'panel-button-label-error' : undefined}
+					aria-invalid={errors.buttonLabel ? true : undefined}
 					className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
 					id="panel-button-label"
 					maxLength={80}
@@ -74,7 +88,11 @@ export function PanelEmbedFields({
 					type="text"
 					value={buttonLabel}
 				/>
-				{errors.buttonLabel && <p className="mt-1 text-sm text-misc-danger">{errors.buttonLabel}</p>}
+				{errors.buttonLabel && (
+					<p className="mt-1 text-sm text-misc-danger" id="panel-button-label-error">
+						{errors.buttonLabel}
+					</p>
+				)}
 			</div>
 		</div>
 	);
