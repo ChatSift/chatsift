@@ -1,7 +1,7 @@
-import { AMADashboardCrumbs } from '../../_components/AMADashboardCrumbs';
 import { CreateAMAForm } from './_components/CreateAMAForm';
 import { Heading } from '@/components/common/Heading';
 import { RefreshServerDataButton } from '@/components/common/RefreshServerDataButton';
+import { AMADashboardCrumbs } from '@/components/dashboard/AMADashboardCrumbs';
 
 export default function NewAMAPage() {
 	return (

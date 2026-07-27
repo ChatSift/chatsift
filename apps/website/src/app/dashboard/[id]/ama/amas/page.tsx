@@ -1,9 +1,9 @@
-import { DashboardCrumbs } from '../../../_components/DashboardCrumbs';
 import { AMASessionsList } from './_components/AMASessionsList';
 import { IncludeEndedToggle } from './_components/IncludeEndedToggle';
 import { SortMenu } from './_components/SortMenu';
 import { Heading } from '@/components/common/Heading';
 import { SearchBar } from '@/components/common/SearchBar';
+import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
 export default function AMAMangementPage() {
 	return (

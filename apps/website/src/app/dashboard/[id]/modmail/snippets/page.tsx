@@ -1,6 +1,6 @@
-import { DashboardCrumbs } from '../../../_components/DashboardCrumbs';
 import { SnippetsList } from './_components/SnippetsList';
 import { Heading } from '@/components/common/Heading';
+import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
 export default function ModmailSnippetsPage() {
 	return (

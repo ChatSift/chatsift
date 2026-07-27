@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { DashboardCrumbs } from '../../../_components/DashboardCrumbs';
+import { DashboardCrumbs } from './DashboardCrumbs';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { useModmailPanels } from '@/api/routes/modmail';
 

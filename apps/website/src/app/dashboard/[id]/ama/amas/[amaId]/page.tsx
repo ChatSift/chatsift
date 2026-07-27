@@ -1,6 +1,6 @@
-import { AMADashboardCrumbs } from '../../_components/AMADashboardCrumbs';
 import { AMADetails } from './_components/AMADetails';
 import { Heading } from '@/components/common/Heading';
+import { AMADashboardCrumbs } from '@/components/dashboard/AMADashboardCrumbs';
 
 export default function AMADetailPage() {
 	return (

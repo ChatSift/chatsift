@@ -1,6 +1,6 @@
-import { DashboardCrumbs } from '../../../_components/DashboardCrumbs';
 import { PanelsList } from './_components/PanelsList';
 import { Heading } from '@/components/common/Heading';
+import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
 export default function ModmailPanelsPage() {
 	return (
