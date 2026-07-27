@@ -15,6 +15,7 @@ const GRANT_EXEMPT_ROUTES = [
 	/^\/dashboard\/\d+\/ama\/amas\/new\/?$/,
 	/^\/dashboard\/\d+\/modmail\/snippets\/?$/,
 	/^\/dashboard\/\d+\/modmail\/config\/?$/,
+	/^\/dashboard\/\d+\/modmail\/blocks\/?$/,
 ];
 
 export async function proxy(request: NextRequest) {
