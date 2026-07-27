@@ -330,7 +330,7 @@ function registerSnippetCommandResolver(): void {
 			// nothing was actually sent, so usage tracking below must not run, and the deferred reply needs
 			// an explicit failure message rather than being left to time out silently.
 			logger.error({ err: error, snippetId: snippet.id, threadId: thread.id }, 'Failed to relay a snippet reply');
-			await editReply('❌ Failed to send that snippet. Please try again or contact another moderator.');
+			await editReply('❌ Failed to send that snippet. Please try again or reach out for support.');
 			return true;
 		}
 
