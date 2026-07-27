@@ -424,6 +424,7 @@ __metadata:
     "@types/jsonwebtoken": "npm:^9.0.10"
     "@types/node": "npm:^24.9.1"
     bcrypt: "npm:^6.0.0"
+    bin-rw: "npm:^0.1.1"
     busboy: "npm:^1.6.0"
     cookie: "npm:^2.0.1"
     cors: "npm:^2.8.6"

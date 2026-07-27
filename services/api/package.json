@@ -44,6 +44,7 @@
 		"@hapi/boom": "^10.0.1",
 		"@sapphire/discord-utilities": "^4.0.0",
 		"bcrypt": "^6.0.0",
+		"bin-rw": "^0.1.1",
 		"busboy": "^1.6.0",
 		"cookie": "^2.0.1",
 		"cors": "^2.8.6",

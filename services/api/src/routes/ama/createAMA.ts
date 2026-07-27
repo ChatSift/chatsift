@@ -45,7 +45,7 @@ export default defineRoute({
 			await assertChannelsBelongToGuild(
 				guildId,
 				[data.promptChannelId, data.answersChannelId, data.modQueueId, data.flaggedQueueId, data.guestQueueId],
-				discordAPIAma,
+				'AMA',
 				req.logger,
 			);
 

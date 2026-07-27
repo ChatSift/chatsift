@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { fetchGuildChannels } from '../../../util/channels.js';
-import { discordAPIModmail } from '../../../util/discordAPI.js';
 import { releaseGrantOnError } from '../../../util/grant.js';
 import { assertRolesBelongToGuild } from '../../../util/roles.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
@@ -42,7 +41,7 @@ export default defineRoute({
 		// (bad channel/role id) releases the claim instead of permanently burning the user's single-use link.
 		try {
 			if (data.modForumId) {
-				const channels = await fetchGuildChannels(guildId, discordAPIModmail);
+				const channels = await fetchGuildChannels(guildId, 'MODMAIL');
 				if (!channels) {
 					req.logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
 					throw internal();
@@ -59,7 +58,7 @@ export default defineRoute({
 			}
 
 			if (data.alertRoleId) {
-				await assertRolesBelongToGuild(guildId, [data.alertRoleId], discordAPIModmail, req.logger);
+				await assertRolesBelongToGuild(guildId, [data.alertRoleId], 'MODMAIL', req.logger);
 			}
 
 			const columns = Object.keys(data) as (keyof typeof data)[];

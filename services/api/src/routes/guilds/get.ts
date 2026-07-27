@@ -4,7 +4,6 @@ import z from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { fetchGuildChannels, type GuildChannelInfo } from '../../util/channels.js';
-import { APIMapping } from '../../util/discordAPI.js';
 import { fetchGuildEmojis, type GuildEmojiInfo } from '../../util/emojis.js';
 import { fetchGuildRoles, type GuildRoleInfo } from '../../util/roles.js';
 import { queryWithFreshSchema, snowflakeSchema } from '../../util/schemas.js';
@@ -53,9 +52,9 @@ export default defineRoute({
 		}
 
 		const [channels, roles, emojis] = await Promise.all([
-			fetchGuildChannels(guildId, APIMapping[for_bot], force_fresh),
-			fetchGuildRoles(guildId, APIMapping[for_bot], force_fresh),
-			fetchGuildEmojis(guildId, APIMapping[for_bot], force_fresh),
+			fetchGuildChannels(guildId, for_bot, force_fresh),
+			fetchGuildRoles(guildId, for_bot, force_fresh),
+			fetchGuildEmojis(guildId, for_bot, force_fresh),
 		]);
 
 		if (!channels || !roles || !emojis) {

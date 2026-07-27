@@ -36,7 +36,7 @@ export default defineRoute({
 		const { guildId } = req.params;
 		const db = getContext().db;
 
-		await assertChannelsBelongToGuild(guildId, [data.channelId], discordAPIModmail, req.logger);
+		await assertChannelsBelongToGuild(guildId, [data.channelId], 'MODMAIL', req.logger);
 
 		const categories = await db<Pick<Categories, 'id'>[]>`
 			SELECT id FROM categories WHERE guild_id = ${guildId} AND id IN ${db(data.categoryIds)}

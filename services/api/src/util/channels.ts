@@ -1,4 +1,4 @@
-import type { Logger } from '@chatsift/backend-core';
+import type { BotId, Logger } from '@chatsift/backend-core';
 import type {
 	API,
 	APIGuildChannel,
@@ -10,6 +10,8 @@ import type {
 } from '@discordjs/core';
 import { ChannelType } from '@discordjs/core';
 import { badRequest, internal } from '@hapi/boom';
+import type { Recipe } from 'bin-rw';
+import { createRecipe, DataType } from 'bin-rw';
 import { createCachedGuildFetcher } from './guildDataCache.js';
 
 export interface PossiblyMissingChannelInfo {
@@ -18,9 +20,10 @@ export interface PossiblyMissingChannelInfo {
 
 export type GuildChannelInfo = APISortableChannel &
 	Pick<APIGuildChannel<GuildChannelType>, 'id' | 'name' | 'parent_id' | 'type'> & {
-		// Only present for `ChannelType.GuildForum` channels -- the set of tags a category's `forumTagId` can be
-		// routed to (see `docs/roadmap/06-modmail-port.md`'s "forum tags only" routing decision).
-		availableTags?: APIGuildForumTag[];
+		// The set of tags a category's `forumTagId` can be routed to (see `docs/roadmap/06-modmail-port.md`'s
+		// "forum tags only" routing decision) -- always present (empty for non-`ChannelType.GuildForum` channels)
+		// rather than optional, so the redis-backed cache below (#246) has one fixed shape to encode.
+		availableTags: APIGuildForumTag[];
 	};
 
 async function fetchGuildChannelsRaw(guildId: string, api: API): Promise<GuildChannelInfo[]> {
@@ -34,7 +37,7 @@ async function fetchGuildChannelsRaw(guildId: string, api: API): Promise<GuildCh
 		parent_id: parent_id ?? null,
 		type,
 		position,
-		...(type === ChannelType.GuildForum && { availableTags: available_tags ?? [] }),
+		availableTags: type === ChannelType.GuildForum ? (available_tags ?? []) : [],
 	}));
 
 	const { threads: threadsRaw } = await api.guilds.getActiveThreads(guildId);
@@ -44,32 +47,60 @@ async function fetchGuildChannelsRaw(guildId: string, api: API): Promise<GuildCh
 		parent_id: parent_id!,
 		type,
 		position: 0, // Threads don't have a position, this should be good enough
+		availableTags: [],
 	}));
 
 	return channels.concat(threads);
 }
 
-const channelsFetcher = createCachedGuildFetcher(fetchGuildChannelsRaw);
+const channelsFetcher = createCachedGuildFetcher(
+	'channels',
+	// bin-rw's `DataType.String` maps to `string` in its own types, but the `Reader`/`Writer` pair actually treat
+	// null/undefined and an empty string identically on the wire (both become the null marker byte, both decode
+	// back to `null`) -- so this recipe already round-trips `parent_id`/`emoji_id`/`emoji_name`'s real `string |
+	// null` shape correctly at runtime, it's only the *type* that needs correcting here.
+	createRecipe({
+		items: [
+			{
+				id: DataType.String,
+				name: DataType.String,
+				parent_id: DataType.String,
+				type: DataType.I32,
+				position: DataType.I32,
+				availableTags: [
+					{
+						id: DataType.String,
+						name: DataType.String,
+						moderated: DataType.Bool,
+						emoji_id: DataType.String,
+						emoji_name: DataType.String,
+					},
+				],
+			},
+		],
+	}) as Recipe<{ items: GuildChannelInfo[] }>,
+	fetchGuildChannelsRaw,
+);
 
-export function clearCache() {
-	channelsFetcher.clearCache();
-}
-
-export async function fetchGuildChannels(guildId: string, api: API, force = false): Promise<GuildChannelInfo[] | null> {
-	return channelsFetcher.fetch(guildId, api, force);
+export async function fetchGuildChannels(
+	guildId: string,
+	botId: BotId,
+	force = false,
+): Promise<GuildChannelInfo[] | null> {
+	return channelsFetcher.fetch(guildId, botId, force);
 }
 
 /**
  * Guards against a guild manager pointing AMA channel fields (prompt/answers/mod-queue/etc) at a channel that
- * belongs to a *different* guild — `discordAPIAma` is a single bot client shared across every guild it's installed
- * in, so nothing else stops a caller from supplying an arbitrary snowflake there. Piggybacks on `fetchGuildChannels`'s
- * existing 5-minute cache, which is already warmed by the dashboard's normal read traffic (`getAMA.ts`), so this
- * rarely costs an extra Discord API call in practice.
+ * belongs to a *different* guild -- a bot's REST client is shared across every guild it's installed in, so nothing
+ * else stops a caller from supplying an arbitrary snowflake there. Piggybacks on `fetchGuildChannels`'s existing
+ * cache, which is already warmed by the dashboard's normal read traffic (`getAMA.ts`), so this rarely costs an
+ * extra Discord API call in practice.
  */
 export async function assertChannelsBelongToGuild(
 	guildId: Snowflake,
 	channelIds: (Snowflake | null | undefined)[],
-	api: API,
+	botId: BotId,
 	logger: Logger,
 ): Promise<void> {
 	// eslint-disable-next-line unicorn/prefer-native-coercion-functions
@@ -78,7 +109,7 @@ export async function assertChannelsBelongToGuild(
 		return;
 	}
 
-	const channels = await fetchGuildChannels(guildId, api);
+	const channels = await fetchGuildChannels(guildId, botId);
 	if (!channels) {
 		logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
 		throw internal();
