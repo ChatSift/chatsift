@@ -14,6 +14,7 @@ Full doc set:
 - [docs/adr/0002-db-stack.md](docs/adr/0002-db-stack.md) — why the DB stack was replaced (implemented, M1).
 - [docs/roadmap/05-migration-cutover.md](docs/roadmap/05-migration-cutover.md) — M4, AMA drain-and-swap cutover (in progress).
 - [docs/roadmap/06-modmail-port.md](docs/roadmap/06-modmail-port.md) — M5, ModMail rebuild + migration (not started).
+- [docs/roadmap/07-modmail-thread-history.md](docs/roadmap/07-modmail-thread-history.md) — dashboard view of past ModMail threads (#261, not started).
 - [docs/workflow.md](docs/workflow.md) — branching, commits, local dev, verification standard.
 
 M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done and their per-milestone spec docs have been removed; durable architecture knowledge from them lives in 01-architecture.md and workflow.md now. Git history has the specs if you need the original planning detail.

@@ -156,7 +156,7 @@ New route group `routes/modmail/`: guild config get/update, category CRUD, ticke
 
 ### 3. Dashboard (`apps/website`)
 
-New `app/dashboard/[id]/modmail/` area mirroring the AMA dashboard's structure: config screen (mod forum, default greeting/farewell, alert role, staff role), **category management** (name/emoji/description/greeting/forum tag), **ticket panel builder** (embed editor + raw-JSON mode, channel picker, live preview — mirrors `CreateAMAForm`'s normal/raw toggle), snippet management, block management. Thread history view optional, same caveat as original plan.
+New `app/dashboard/[id]/modmail/` area mirroring the AMA dashboard's structure: config screen (mod forum, default greeting/farewell, alert role, staff role), **category management** (name/emoji/description/greeting/forum tag), **ticket panel builder** (embed editor + raw-JSON mode, channel picker, live preview — mirrors `CreateAMAForm`'s normal/raw toggle), snippet management, block management. Thread history view planned separately, see [07-modmail-thread-history.md](07-modmail-thread-history.md) (#261).
 
 ### 4. Bot (`services/modmail-bot`, new service)
 
