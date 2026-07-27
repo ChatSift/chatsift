@@ -1,12 +1,14 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { Threads } from '@chatsift/db';
-import type { APIEmbed, APIEmbedAuthor, APIGuildMember, APIUser, CreateMessageOptions } from '@discordjs/core';
-import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
+import type { APIEmbed, APIEmbedAuthor, APIUser, CreateMessageOptions } from '@discordjs/core';
+import { resolveGlobalAvatarURL, resolveGuildAvatarURL } from './avatars.js';
+import type { MemberLike } from './avatars.js';
 import { fetchGuildEmojiIds, resolveContentForRelay } from './emojis.js';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
 import type { RelayAttachmentLike, RelayStickerLike } from './media.js';
 import { buildRelayMedia } from './media.js';
+import { postReferencedUserEmbeds } from './referencedUserEmbed.js';
 import { clearReplyAlertCooldown, resolveReplyAlertMentions } from './replyAlerts.js';
 import { templateGuildName } from './templateString.js';
 import { incrementLocalMessageId, insertThreadMessage } from './threads.js';
@@ -18,32 +20,6 @@ import { incrementLocalMessageId, insertThreadMessage } from './threads.js';
  */
 const GREEN = 0x57f287;
 const BLURPLE = 0x5865f2;
-
-/**
- * Both call sites pass either a full interaction `APIGuildMember` or the `user`-less
- * `APIGuildMemberNoUser` the gateway attaches to `MESSAGE_CREATE`/`MESSAGE_UPDATE` payloads — this
- * only ever reads `nick`/`avatar`, so it's narrowed to just those instead of requiring the full type.
- */
-export type MemberLike = Pick<APIGuildMember, 'avatar' | 'nick'>;
-
-/**
- * Global (non-guild-specific) avatar — matches prod's footer, which always uses `user.displayAvatarURL()`.
- */
-function resolveGlobalAvatarURL(user: APIUser): string | undefined {
-	return user.avatar ? `${RouteBases.cdn}${CDNRoutes.userAvatar(user.id, user.avatar, ImageFormat.PNG)}` : undefined;
-}
-
-/**
- * Guild-preferring avatar — matches prod's author icon, which uses `GuildMember#displayAvatarURL()`
- * (guild avatar if set, else falls back to the global one).
- */
-function resolveGuildAvatarURL(guildId: string, member: MemberLike | undefined, user: APIUser): string | undefined {
-	if (member?.avatar) {
-		return `${RouteBases.cdn}${CDNRoutes.guildMemberAvatar(guildId, user.id, member.avatar, ImageFormat.PNG)}`;
-	}
-
-	return resolveGlobalAvatarURL(user);
-}
 
 export function identityFooter(user: APIUser, prefix?: string) {
 	const globalAvatarURL = resolveGlobalAvatarURL(user);
@@ -142,6 +118,12 @@ export async function relayUserMessageToModThread({
 		userId: user.id,
 		userMessageId: messageId,
 	});
+
+	// #215: this only ever runs against the message the ticket opener themselves just typed (this
+	// function is never called for a staff reply, see the doc comment above), so there's no "staff
+	// mentioning staff" case to gate on -- every referenced id gets checked, unconditionally, including
+	// the author's own.
+	await postReferencedUserEmbeds({ content, logger, thread });
 }
 
 export interface RelayStaffReplyOptions {
