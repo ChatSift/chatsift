@@ -24,6 +24,7 @@ interface ConfigFormData {
 	maxConcurrentThreads: string;
 	modForumId: string;
 	nukeDelayMinutes: string;
+	nukeEnabled: boolean;
 	simpleMode: boolean;
 }
 
@@ -77,7 +78,8 @@ export function ModmailConfigForm() {
 				alertRoleId: config.alertRoleId ?? '',
 				anonReplyLabel: config.anonReplyLabel ?? '',
 				maxConcurrentThreads: String(config.maxConcurrentThreads),
-				nukeDelayMinutes: String(config.nukeDelayMinutes),
+				nukeDelayMinutes: config.nukeDelayMinutes === null ? '' : String(config.nukeDelayMinutes),
+				nukeEnabled: config.nukeDelayMinutes !== null,
 				greetingBeforeOpener: config.greetingBeforeOpener,
 			});
 		}
@@ -114,7 +116,7 @@ export function ModmailConfigForm() {
 			alertRoleId: form.alertRoleId || null,
 			anonReplyLabel: form.anonReplyLabel || null,
 			maxConcurrentThreads: Number(form.maxConcurrentThreads),
-			nukeDelayMinutes: Number(form.nukeDelayMinutes),
+			nukeDelayMinutes: form.nukeEnabled ? Number(form.nukeDelayMinutes) : null,
 			greetingBeforeOpener: form.greetingBeforeOpener,
 		};
 
@@ -272,25 +274,56 @@ export function ModmailConfigForm() {
 				</div>
 
 				<div>
-					<label
-						className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-						htmlFor="modmail-nuke-delay-minutes"
-					>
-						Private Thread Deletion Delay (minutes)
+					<label className="flex items-center gap-2" htmlFor="modmail-nuke-enabled">
+						<input
+							checked={form.nukeEnabled}
+							className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
+							id="modmail-nuke-enabled"
+							onChange={(e) => {
+								const nukeEnabled = e.target.checked;
+								setForm((prev) =>
+									prev
+										? {
+												...prev,
+												nukeEnabled,
+												nukeDelayMinutes: nukeEnabled && !prev.nukeDelayMinutes ? '30' : prev.nukeDelayMinutes,
+											}
+										: prev,
+								);
+							}}
+							type="checkbox"
+						/>
+						<span className="text-sm font-medium text-secondary dark:text-secondary-dark">
+							Automatically User Thread After Close
+						</span>
 					</label>
-					<input
-						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
-						id="modmail-nuke-delay-minutes"
-						min={1}
-						onChange={(e) => updateField('nukeDelayMinutes', e.target.value)}
-						type="number"
-						value={form.nukeDelayMinutes}
-					/>
 					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-						How long after a ticket closes before the user&apos;s private thread is deleted. It&apos;s locked and
-						archived immediately on close either way; this only delays the actual deletion.
+						Off by default. The private thread is always locked when a ticket closes; when this is on, users effectively
+						lose their access to past conversations they've had in ModMail.
 					</p>
-					{errors.nukeDelayMinutes && <p className="mt-1 text-sm text-misc-danger">{errors.nukeDelayMinutes}</p>}
+					{form.nukeEnabled && (
+						<div className="mt-2">
+							<label
+								className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+								htmlFor="modmail-nuke-delay-minutes"
+							>
+								Deletion Delay (minutes)
+							</label>
+							<input
+								className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+								id="modmail-nuke-delay-minutes"
+								min={1}
+								onChange={(e) => updateField('nukeDelayMinutes', e.target.value)}
+								type="number"
+								value={form.nukeDelayMinutes}
+							/>
+							<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+								How long after a ticket closes before the user&apos;s private thread is actually deleted, giving the
+								user a window to view staff's final response(s).
+							</p>
+							{errors.nukeDelayMinutes && <p className="mt-1 text-sm text-misc-danger">{errors.nukeDelayMinutes}</p>}
+						</div>
+					)}
 				</div>
 
 				<label className="flex items-center gap-2" htmlFor="modmail-simple-mode">
