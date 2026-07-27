@@ -1,5 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
-import type { Threads, ThreadMessages } from '@chatsift/db';
+import type { Threads, ThreadMessages, ThreadMessagesId } from '@chatsift/db';
 
 /**
  * The longest `auto_archive_duration` Discord offers (7 days, in minutes). Used for both a ticket's
@@ -123,17 +123,33 @@ export async function incrementLocalMessageId(threadId: Threads['id']): Promise<
  * the relay can link straight to it ("replying to [this message](...)") — mods never see our internal
  * local numbering, so that's not useful to reference here. Matches on `user_message_id` since that
  * column holds the id of whichever message actually appeared in the private thread (the user's own
- * message, or a relayed staff reply, both go through `insertThreadMessage`).
+ * message, or a relayed staff reply, both go through `insertThreadMessage`). Also returns the target
+ * row's own `id` (not just its Discord message id) -- `relay.ts` reuses this same lookup a second time
+ * to resolve `thread_message_content.replied_to_thread_message_id` when recording is enabled, since it
+ * already runs the exact query needed for that.
  */
 export async function findRepliedToGuildMessageId(
 	threadId: Threads['id'],
 	userMessageId: string,
-): Promise<string | undefined> {
-	const [row] = await getContext().db<[{ guildMessageId: string }]>`
-		SELECT guild_message_id FROM thread_messages WHERE thread_id = ${threadId} AND user_message_id = ${userMessageId}
+): Promise<{ guildMessageId: string; id: ThreadMessagesId } | undefined> {
+	const [row] = await getContext().db<[{ guildMessageId: string; id: ThreadMessagesId }]>`
+		SELECT id, guild_message_id FROM thread_messages WHERE thread_id = ${threadId} AND user_message_id = ${userMessageId}
 	`;
 
-	return row?.guildMessageId;
+	return row;
+}
+
+/**
+ * Gates whether `relay.ts` records full message content into `thread_message_content` for a guild --
+ * consent is opt-in (see `guild_settings.record_thread_content`, #261), so this is checked once per
+ * relay call rather than assumed.
+ */
+export async function isRecordingEnabled(guildId: string): Promise<boolean> {
+	const [row] = await getContext().db<[{ recordThreadContent: boolean }]>`
+		SELECT record_thread_content FROM guild_settings WHERE guild_id = ${guildId}
+	`;
+
+	return row?.recordThreadContent ?? false;
 }
 
 /**
@@ -155,6 +171,34 @@ export async function findStaffReplyByLocalId(
 }
 
 /**
+ * Overwrites a recorded message's content in place when the user edits it (`lib/userMessageLifecycle.ts`)
+ * -- a no-op if no `thread_message_content` row exists for this message (predates recording, or recording
+ * was never enabled), since there's nothing to reconcile in that case. No edit-history/versioning in this
+ * phase (see #261) -- the previous content just isn't kept anywhere.
+ *
+ * Also a no-op if the guild's `record_thread_content` consent has since been turned back off -- checked
+ * atomically in the same `UPDATE` (an `EXISTS` against the row's *current* guild_settings state) rather
+ * than a preceding `isRecordingEnabled` call-and-branch, so a disable that races a concurrent edit can't
+ * leave a stale write behind. Consent being off should mean *no* further writes touch recorded content at
+ * all, not just that new messages stop being recorded -- an existing row surviving a disable (per the
+ * "not reset back to null" audit-trail decision) is not license to keep mutating it afterward.
+ */
+export async function updateRecordedMessageContent(
+	guildId: string,
+	threadMessageId: ThreadMessagesId,
+	text: string,
+): Promise<void> {
+	await getContext().db`
+		UPDATE thread_message_content
+		SET content = ${text}
+		WHERE thread_message_id = ${threadMessageId}
+			AND EXISTS (
+				SELECT 1 FROM guild_settings WHERE guild_id = ${guildId} AND record_thread_content = true
+			)
+	`;
+}
+
+/**
  * Looked up by the `MessageUpdate`/`MessageDelete` relay handlers to resolve a raw Discord message
  * id (all a `MESSAGE_DELETE` payload ever carries -- no local numbering, no author) back to its
  * `thread_messages` row. `staff_id IS NULL` scopes this to the user's own messages specifically --
@@ -173,8 +217,41 @@ export async function findUserThreadMessageByMessageId(
 	return row;
 }
 
+/**
+ * Matches `thread_message_content.attachments`' documented JSONB shape (see schema.sql).
+ */
+export interface RecordedAttachment {
+	contentType: string | null;
+	filename: string;
+	size: number;
+	url: string;
+}
+
+/**
+ * Matches `thread_message_content.stickers`' documented JSONB shape (see schema.sql).
+ */
+export interface RecordedSticker {
+	formatType: number;
+	id: string;
+	name: string;
+}
+
+/**
+ * Populated by `relay.ts` only when `isRecordingEnabled` is true for the guild -- `insertThreadMessage`
+ * wraps the `thread_messages` insert and this sidecar insert in one transaction when present, and skips
+ * `thread_message_content` entirely when absent (the "predates recording" case, see schema.sql).
+ */
+export interface InsertThreadMessageContentOptions {
+	attachments: RecordedAttachment[];
+	isForwarded: boolean;
+	repliedToThreadMessageId: ThreadMessagesId | null;
+	stickers: RecordedSticker[];
+	text: string;
+}
+
 export interface InsertThreadMessageOptions {
 	anon: boolean;
+	content?: InsertThreadMessageContentOptions | undefined;
 	guildId: string;
 	guildMessageId: string;
 	localThreadMessageId: number;
@@ -186,6 +263,7 @@ export interface InsertThreadMessageOptions {
 
 export async function insertThreadMessage({
 	anon,
+	content,
 	guildId,
 	guildMessageId,
 	localThreadMessageId,
@@ -194,11 +272,39 @@ export async function insertThreadMessage({
 	userId,
 	userMessageId,
 }: InsertThreadMessageOptions): Promise<void> {
-	await getContext().db`
-		INSERT INTO thread_messages (
-			local_thread_message_id, guild_id, thread_id, user_id, user_message_id, staff_id, guild_message_id, anon
-		) VALUES (
-			${localThreadMessageId}, ${guildId}, ${threadId}, ${userId}, ${userMessageId}, ${staffId}, ${guildMessageId}, ${anon}
-		)
-	`;
+	const db = getContext().db;
+
+	if (!content) {
+		await db`
+			INSERT INTO thread_messages (
+				local_thread_message_id, guild_id, thread_id, user_id, user_message_id, staff_id, guild_message_id, anon
+			) VALUES (
+				${localThreadMessageId}, ${guildId}, ${threadId}, ${userId}, ${userMessageId}, ${staffId}, ${guildMessageId}, ${anon}
+			)
+		`;
+		return;
+	}
+
+	await db.begin(async (tx) => {
+		const [row] = await tx<[{ id: ThreadMessagesId }]>`
+			INSERT INTO thread_messages (
+				local_thread_message_id, guild_id, thread_id, user_id, user_message_id, staff_id, guild_message_id, anon
+			) VALUES (
+				${localThreadMessageId}, ${guildId}, ${threadId}, ${userId}, ${userMessageId}, ${staffId}, ${guildMessageId}, ${anon}
+			)
+			RETURNING id
+		`;
+
+		// `sql.json()`'s `JSONValue` type doesn't structurally accept a plain interface array (it wants an
+		// explicit index signature) even though `RecordedAttachment[]`/`RecordedSticker[]` are already
+		// JSON-safe -- serializing to text and casting is simpler than fighting that here.
+		await tx`
+			INSERT INTO thread_message_content (
+				thread_message_id, content, replied_to_thread_message_id, is_forwarded, attachments, stickers
+			) VALUES (
+				${row!.id}, ${content.text}, ${content.repliedToThreadMessageId}, ${content.isForwarded},
+				${JSON.stringify(content.attachments)}::jsonb, ${JSON.stringify(content.stickers)}::jsonb
+			)
+		`;
+	});
 }

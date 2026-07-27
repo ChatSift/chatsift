@@ -17,6 +17,7 @@ export type { default as TicketPanelCategories } from './generated/public/Ticket
 export type { default as PendingTickets, PendingTicketsPrivateThreadId } from './generated/public/PendingTickets.js';
 export type { default as Threads, ThreadsId } from './generated/public/Threads.js';
 export type { default as ThreadMessages, ThreadMessagesId } from './generated/public/ThreadMessages.js';
+export type { default as ThreadMessageContent } from './generated/public/ThreadMessageContent.js';
 export type { default as ScheduledThreadCloses } from './generated/public/ScheduledThreadCloses.js';
 export type { default as ScheduledThreadNukes } from './generated/public/ScheduledThreadNukes.js';
 export type { default as Blocks } from './generated/public/Blocks.js';

@@ -42,6 +42,9 @@ export default defineRoute({
 				maxConcurrentThreads: 1,
 				nukeDelayMinutes: null,
 				greetingBeforeOpener: false,
+				recordThreadContent: false,
+				recordThreadContentEnabledBy: null,
+				recordThreadContentEnabledAt: null,
 			}
 		);
 	},

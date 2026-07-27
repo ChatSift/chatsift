@@ -7,6 +7,8 @@
 			"Bash(yarn turbo *)",
 			"Bash(yarn prettier *)",
 			"Bash(yarn lint *)",
+			"Bash(yarn lint:fix *)",
+			"Bash(yarn build *)",
 			"Bash(gh issue view *)",
 			"Bash(gh issue list *)",
 			"Bash(gh pr view *)",

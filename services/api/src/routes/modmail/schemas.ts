@@ -73,6 +73,11 @@ export const updateConfigBodySchema = z
 		// Whether the greeting (category's, falling back to defaultGreetingMessage) is posted before the
 		// user's own opener message is relayed to staff, instead of after. Defaults to false (after).
 		greetingBeforeOpener: z.boolean().optional(),
+		// Consent toggle for recording full message content (see `thread_message_content`, #261) -- a real
+		// privacy decision, so this is opt-in per guild rather than defaulted on. `updateConfig.ts` stamps
+		// `recordThreadContentEnabledBy`/`EnabledAt` server-side (from the caller's own token) only on the
+		// false->true transition; both are left untouched on a later disable.
+		recordThreadContent: z.boolean().optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 

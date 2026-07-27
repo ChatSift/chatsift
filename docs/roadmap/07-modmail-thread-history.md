@@ -53,7 +53,18 @@ Verified against the live repo (2026-07-27), not assumed from the M5 doc:
 - **Deleted messages**: the recorded copy survives even if the live Discord message is deleted — consistent
   with the "mod-forum thread is the durable record" principle M5 already established.
 - **Attachments**: store the Discord CDN URL as captured at record-time, as-is. No re-hosting to owned
-  storage. URL staleness is an accepted tradeoff for now (revisit later if it's a real problem).
+  storage. Discord's attachment CDN URLs are signed with an expiry (`ex` query param), so "as-is" doesn't
+  mean "permanently stale": since the mod-forum message these were re-uploaded onto is never deleted (see
+  above), an expired URL is healed lazily, on read, by `getThread.ts` re-fetching that same message
+  (`thread_messages.guildMessageId` + `threads.modThreadId`, no schema change needed) and re-matching its
+  current attachments back onto the recorded ones by filename. This only fires when a recorded URL's `ex`
+  timestamp has actually passed (not speculatively on every read), and the refreshed URL is **not**
+  persisted back to `thread_message_content` — it'll just re-expire eventually, and keeping a GET route
+  side-effect-free was judged simpler than a self-healing write-back cache. If the source message itself
+  is gone (the durable record deleted out of band — not expected, but not ruled out), the affected
+  attachment(s) are flagged unavailable in the API response instead of failing the request; the frontend
+  is expected to render that as "attachment no longer exists on Discord" rather than attempting to load a
+  dead URL. See `services/api/src/routes/modmail/threads/util.ts`'s `resolveMessageAttachments`.
 
 ## Phase 1 — DB + API (+ coupled bot writer)
 
@@ -144,7 +155,9 @@ client-side against `useGuildInfo`), `appliedTagIds` (`discordAPIModmail.channel
 `COUNT(*)` query `lib/threads.ts`'s `countPastThreadsForUser` already runs bot-side — duplicate rather than
 share across the service boundary), `otherThreads` (sibling threads for the same user, for "navigate to
 this user's other threads"), `participants` (dedup'd `{userId/staffId → APIUser}` map scoped to the
-current message page, keeping per-message rows lean). Shared enrichment helpers go in a new
+current message page, keeping per-message rows lean), and — per-message, only for recorded rows —
+`recordedContent.attachments` resolved through `resolveMessageAttachments` (lazy expired-URL refresh, see
+the **Attachments** decision above). Shared enrichment helpers go in a new
 `services/api/src/routes/modmail/threads/util.ts` rather than being duplicated across the two route files.
 
 No new route files/mounts needed — both routes are extended in place; `InferRouteContract` carries the

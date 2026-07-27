@@ -14,7 +14,7 @@ import { ApplicationCommandType, GatewayDispatchEvents, MessageFlags } from '@di
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from './lib/emojis.js';
 import { withGuildUserLock } from './lib/guildUserQueue.js';
-import { buildContextNote, resolveEffectiveContent } from './lib/messageContext.js';
+import { buildContextNote, resolveEffectiveContent, resolveReplyReferenceId } from './lib/messageContext.js';
 import { clearPendingTicketRecord, PendingTicketStore, type PendingTicketState } from './lib/pendingTicket.js';
 import { sweepAbandonedPendingTickets } from './lib/pendingTicketSweep.js';
 import { preventOpenThreadsFromArchiving } from './lib/preventThreadArchive.js';
@@ -136,9 +136,11 @@ async function handleFirstMessage(
 					attachments: effective.attachments,
 					contextNote: await buildContextNote(message, effective.isForwarded, thread, logger),
 					content: effective.content,
+					isForwarded: effective.isForwarded,
 					logger,
 					member: message.member,
 					messageId: message.id,
+					repliedToMessageId: resolveReplyReferenceId(message),
 					stickers: effective.stickers,
 					thread,
 					user: message.author,
@@ -210,9 +212,11 @@ function registerMessageRelay(client: Client): void {
 					attachments: effective.attachments,
 					contextNote: await buildContextNote(message, effective.isForwarded, thread, logger),
 					content: effective.content,
+					isForwarded: effective.isForwarded,
 					logger,
 					member: message.member,
 					messageId: message.id,
+					repliedToMessageId: resolveReplyReferenceId(message),
 					stickers: effective.stickers,
 					thread,
 					user: message.author,

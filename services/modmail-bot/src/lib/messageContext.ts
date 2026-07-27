@@ -56,6 +56,20 @@ export function resolveEffectiveContent(message: MessageLike): EffectiveMessageC
 }
 
 /**
+ * The raw Discord message id a (non-forwarded) message is natively replying to, or `undefined` if it
+ * isn't a reply at all -- shared by `resolveReplyNote` below and by `relay.ts`'s content-recording path,
+ * which needs the same reference id to resolve `thread_message_content.replied_to_thread_message_id`.
+ */
+export function resolveReplyReferenceId(message: MessageLike): string | undefined {
+	const reference = message.message_reference;
+	if (!reference?.message_id || reference.type === MessageReferenceType.Forward) {
+		return undefined;
+	}
+
+	return reference.message_id;
+}
+
+/**
  * A Discord-native reply (the swipe/right-click "Reply" action, not a forward) carries no visual
  * indicator once relayed unless called out explicitly — this resolves the replied-to message back to
  * wherever it was relayed in the mod thread and links straight to it. Our own local message numbering
@@ -67,18 +81,18 @@ export async function resolveReplyNote(
 	message: MessageLike,
 	logger: Logger,
 ): Promise<string | undefined> {
-	const reference = message.message_reference;
-	if (!reference?.message_id || reference.type === MessageReferenceType.Forward) {
+	const replyReferenceId = resolveReplyReferenceId(message);
+	if (!replyReferenceId) {
 		return undefined;
 	}
 
 	try {
-		const guildMessageId = await findRepliedToGuildMessageId(thread.id, reference.message_id);
-		if (!guildMessageId) {
+		const target = await findRepliedToGuildMessageId(thread.id, replyReferenceId);
+		if (!target) {
 			return '↩️ *replying to an earlier message*';
 		}
 
-		const link = `https://discord.com/channels/${thread.guildId}/${thread.modThreadId}/${guildMessageId}`;
+		const link = `https://discord.com/channels/${thread.guildId}/${thread.modThreadId}/${target.guildMessageId}`;
 		return `↩️ *replying to [this message](${link})*`;
 	} catch (error) {
 		logger.warn({ err: error }, 'Failed to resolve reply context for relay');
