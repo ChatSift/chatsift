@@ -294,7 +294,7 @@ export function ModmailConfigForm() {
 							type="checkbox"
 						/>
 						<span className="text-sm font-medium text-secondary dark:text-secondary-dark">
-							Automatically User Thread After Close
+							Automatically Delete User's Private Thread After Close
 						</span>
 					</label>
 					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
