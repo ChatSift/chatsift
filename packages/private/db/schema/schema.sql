@@ -125,16 +125,18 @@ CREATE TABLE guild_settings (
   -- alongside a Discord API call, not something the write itself can violate.
   max_concurrent_threads   INTEGER NOT NULL DEFAULT 1,
   -- How long, after a ticket closes, before the user's private thread is actually deleted ("nuked") --
-  -- see `scheduled_thread_nukes` below. The thread is locked+archived immediately on close regardless;
-  -- this only delays the deletion itself, giving staff a window to still glance at it if needed.
-  nuke_delay_minutes       INTEGER NOT NULL DEFAULT 30,
+  -- see `scheduled_thread_nukes` below. The thread is locked (but deliberately left unarchived, see
+  -- services/modmail-bot's `lib/threadClose.ts`) immediately on close regardless. NULL (the default)
+  -- means "never nuke" -- an explicit opt-in is required to schedule deletion at all; when opted out,
+  -- the thread just sits locked until Discord's own inactivity auto-archive eventually catches it.
+  nuke_delay_minutes       INTEGER,
   -- Whether the greeting (category's, falling back to default_greeting_message) is posted before the
   -- user's own opener message is relayed to staff, instead of after. Defaults to false (after) --
   -- matching prod ChatSift/ModMail's existing behavior of relay-then-greet.
   greeting_before_opener   BOOLEAN NOT NULL DEFAULT false,
 
   CONSTRAINT guild_settings_max_concurrent_threads_check CHECK (max_concurrent_threads >= 1),
-  CONSTRAINT guild_settings_nuke_delay_minutes_check CHECK (nuke_delay_minutes >= 1)
+  CONSTRAINT guild_settings_nuke_delay_minutes_check CHECK (nuke_delay_minutes IS NULL OR nuke_delay_minutes >= 1)
 );
 
 CREATE TABLE categories (
@@ -265,10 +267,11 @@ CREATE TABLE scheduled_thread_closes (
   close_at        TIMESTAMPTZ NOT NULL
 );
 
--- A closed ticket's private thread is locked+archived immediately (services/modmail-bot's
--- `lib/threadClose.ts`) but not deleted outright -- this row is what a periodic sweep
--- (`lib/threadNukeSweep.ts`) polls to actually delete it once `guild_settings.nuke_delay_minutes` has
--- passed. Cascades with `threads` since there's nothing left to nuke if the ticket row itself is gone.
+-- A closed ticket's private thread is locked immediately (services/modmail-bot's `lib/threadClose.ts`)
+-- but not deleted outright -- a row here is what a periodic sweep (`lib/threadNukeSweep.ts`) polls to
+-- actually delete it once `guild_settings.nuke_delay_minutes` has passed. Only written when that column
+-- is non-NULL (deletion is opt-in); a guild that never opts in simply never gets a row. Cascades with
+-- `threads` since there's nothing left to nuke if the ticket row itself is gone.
 CREATE TABLE scheduled_thread_nukes (
   thread_id INTEGER PRIMARY KEY REFERENCES threads (id) ON DELETE CASCADE,
   nuke_at   TIMESTAMPTZ NOT NULL

@@ -70,7 +70,7 @@ export default defineRoute({
 				VALUES (
 					${guildId}, ${data.modForumId ?? null}, ${data.defaultGreetingMessage ?? null},
 					${data.farewellMessage ?? null}, ${data.simpleMode ?? false}, ${data.alertRoleId ?? null},
-					${data.anonReplyLabel ?? null}, ${data.maxConcurrentThreads ?? 1}, ${data.nukeDelayMinutes ?? 30},
+					${data.anonReplyLabel ?? null}, ${data.maxConcurrentThreads ?? 1}, ${data.nukeDelayMinutes ?? null},
 					${data.greetingBeforeOpener ?? false}
 				)
 				ON CONFLICT (guild_id) DO UPDATE SET ${db(data, ...columns)}

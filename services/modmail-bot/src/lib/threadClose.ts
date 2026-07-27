@@ -32,9 +32,12 @@ export interface CloseThreadOptions {
 /**
  * Closes a ModMail ticket: archives + locks the mod-forum thread (kept as the durable staff-side
  * record per the redesign, see `docs/roadmap/06-modmail-port.md` §"new create-flow" step 6) and
- * locks the user's private thread — it isn't deleted right away; a `scheduled_thread_nukes` row is
- * written instead so `lib/threadNukeSweep.ts` deletes it once `guild_settings.nuke_delay_minutes` has
- * passed, giving staff a window to still glance at it before it's actually gone. Shared by `/close`
+ * locks the user's private thread. Deletion of that private thread is opt-in and, when enabled via
+ * `guild_settings.nuke_delay_minutes`, not immediate — a `scheduled_thread_nukes` row is written
+ * instead so `lib/threadNukeSweep.ts` deletes it once the delay has passed, giving staff a window to
+ * still glance at it before it's actually gone. When left disabled (the default), the thread is simply
+ * left locked; it eventually falls out of the channel list on its own once Discord's own inactivity
+ * auto-archive catches it. Shared by `/close`
  * (immediate) and the scheduled-close sweep (`lib/scheduledCloseSweep.ts`) so both paths close a
  * ticket identically. Returns `false` without doing anything further if the thread was already closed
  * by the time this runs (e.g. a manual `/close` racing the sweep for the same scheduled ticket) — the
@@ -90,12 +93,20 @@ export async function closeThread({ closedById, logger, silent, thread }: CloseT
 			}
 		}
 
-		const nukeDelayMinutes = guildSettings?.nukeDelayMinutes ?? 30;
-		const nukeAt = new Date(Date.now() + nukeDelayMinutes * 60_000);
-		await getContext().db`
-			INSERT INTO scheduled_thread_nukes (thread_id, nuke_at) VALUES (${thread.id}, ${nukeAt})
-			ON CONFLICT (thread_id) DO UPDATE SET nuke_at = EXCLUDED.nuke_at
-		`;
+		const nukeDelayMinutes = guildSettings?.nukeDelayMinutes ?? null;
+		if (nukeDelayMinutes === null) {
+			// Deletion is opt-in (`guild_settings.nuke_delay_minutes` defaults to NULL) -- if a guild
+			// disabled it after an earlier close already scheduled a nuke for this same thread (re-closing
+			// via the scheduled-close sweep race described above), that stale row must not survive to fire
+			// later once the setting no longer says to.
+			await getContext().db`DELETE FROM scheduled_thread_nukes WHERE thread_id = ${thread.id}`;
+		} else {
+			const nukeAt = new Date(Date.now() + nukeDelayMinutes * 60_000);
+			await getContext().db`
+				INSERT INTO scheduled_thread_nukes (thread_id, nuke_at) VALUES (${thread.id}, ${nukeAt})
+				ON CONFLICT (thread_id) DO UPDATE SET nuke_at = EXCLUDED.nuke_at
+			`;
+		}
 	}
 
 	try {

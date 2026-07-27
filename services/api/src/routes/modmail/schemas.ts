@@ -67,8 +67,9 @@ export const updateConfigBodySchema = z
 		// How long, after a ticket closes, before its private thread is actually deleted -- see
 		// `scheduled_thread_nukes`. Capped well below the general integer max (unlike the two fields
 		// above): this is a delay in minutes, not a count, and a year is already an absurdly generous
-		// upper bound for "give staff time to double check before this gets nuked".
-		nukeDelayMinutes: z.number().int().min(1).max(525_600).optional(),
+		// upper bound for "give staff time to double check before this gets nuked". Deletion is opt-in:
+		// `null` (the default) means never nuke the private thread at all, rather than merely delaying it.
+		nukeDelayMinutes: z.number().int().min(1).max(525_600).nullable().optional(),
 		// Whether the greeting (category's, falling back to defaultGreetingMessage) is posted before the
 		// user's own opener message is relayed to staff, instead of after. Defaults to false (after).
 		greetingBeforeOpener: z.boolean().optional(),

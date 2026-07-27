@@ -14,7 +14,10 @@
 			"Bash(git mv *)",
 			"Bash(echo \"EXIT: $?\")",
 			"Bash(yarn test *)",
-			"Bash(yarn eslint *)"
+			"Bash(yarn eslint *)",
+			"Bash(yarn db:diff *)",
+			"Bash(yarn db:migrate *)",
+			"Bash(yarn db:gen)"
 		]
 	}
 }

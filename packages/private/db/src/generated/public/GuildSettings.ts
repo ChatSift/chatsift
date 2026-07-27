@@ -22,7 +22,7 @@ export default interface GuildSettings {
 
   maxConcurrentThreads: number;
 
-  nukeDelayMinutes: number;
+  nukeDelayMinutes: number | null;
 
   greetingBeforeOpener: boolean;
 }
@@ -45,7 +45,7 @@ export interface GuildSettingsInitializer {
 
   maxConcurrentThreads?: number;
 
-  nukeDelayMinutes?: number;
+  nukeDelayMinutes?: number | null;
 
   greetingBeforeOpener?: boolean;
 }
@@ -68,7 +68,7 @@ export interface GuildSettingsMutator {
 
   maxConcurrentThreads?: number;
 
-  nukeDelayMinutes?: number;
+  nukeDelayMinutes?: number | null;
 
   greetingBeforeOpener?: boolean;
 }
