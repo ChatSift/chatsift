@@ -157,7 +157,16 @@ async function postFarewellMessage(
 			// `closedById` when someone closes their own test ticket — two independent lookups regardless,
 			// since either can fail on its own.
 			closer = await getContext().service.client.api.guilds.getMember(thread.guildId, closedById);
-		} catch {
+		} catch (error) {
+			// Only a confirmed-gone member (404, "Unknown Member") should anonymize/degrade the audit
+			// footer below — anything else (rate limit, network blip, transient 5xx) is a real failure
+			// that shouldn't silently override an explicit `anon: false` or blank out a still-valid
+			// identity, so it propagates to the outer catch instead (same distinction the private-thread
+			// lock edit above makes for its own 404 case).
+			if (!(error instanceof DiscordAPIError && error.status === 404)) {
+				throw error;
+			}
+
 			closer = undefined;
 		}
 
