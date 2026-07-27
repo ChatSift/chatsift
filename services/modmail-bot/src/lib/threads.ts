@@ -154,6 +154,25 @@ export async function findStaffReplyByLocalId(
 	return row;
 }
 
+/**
+ * Looked up by the `MessageUpdate`/`MessageDelete` relay handlers to resolve a raw Discord message
+ * id (all a `MESSAGE_DELETE` payload ever carries -- no local numbering, no author) back to its
+ * `thread_messages` row. `staff_id IS NULL` scopes this to the user's own messages specifically --
+ * a relayed staff-reply copy also lives in the same private thread, but that's `/edit`/`/delete`'s
+ * territory (`findStaffReplyByLocalId` above), not this one's.
+ */
+export async function findUserThreadMessageByMessageId(
+	threadId: Threads['id'],
+	userMessageId: string,
+): Promise<ThreadMessages | undefined> {
+	const [row] = await getContext().db<ThreadMessages[]>`
+		SELECT * FROM thread_messages
+		WHERE thread_id = ${threadId} AND user_message_id = ${userMessageId} AND staff_id IS NULL
+	`;
+
+	return row;
+}
+
 export interface InsertThreadMessageOptions {
 	anon: boolean;
 	guildId: string;

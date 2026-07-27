@@ -6,7 +6,6 @@ import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type {
 	APIApplicationCommandInteraction,
 	APIChatInputApplicationCommandInteraction,
-	APIEmbed,
 	APIModalSubmitGuildInteraction,
 } from '@discordjs/core';
 import {
@@ -19,12 +18,7 @@ import {
 import { ChatInputInteractionOptionResolver, ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
 import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from '../lib/emojis.js';
-import {
-	isMarkedDeleted,
-	isUnknownMessageError,
-	markFooterEdited,
-	resolveEditedImage,
-} from '../lib/replyModeration.js';
+import { buildEditedEmbed, isMarkedDeleted, isUnknownMessageError } from '../lib/replyModeration.js';
 import { findOpenThreadByModThreadId, findStaffReplyByLocalId } from '../lib/threads.js';
 
 /**
@@ -32,28 +26,6 @@ import { findOpenThreadByModThreadId, findStaffReplyByLocalId } from '../lib/thr
  * of an embed description's own 4,096-character cap, which is why the pre-fill below has to truncate.
  */
 const MODAL_CONTENT_MAX_LENGTH = 4_000;
-
-/**
- * Replaces an existing embed's text with newly-edited content, leaving `color`/`author` untouched.
- * `image` is re-derived via `resolveEditedImage` rather than carried over verbatim -- see its doc comment
- * for why resending the resolved CDN url as-is duplicates the image. Edit is deliberately text-only
- * otherwise: `thread_messages` stores no content or media metadata beyond the two Discord message ids, so
- * there's nothing to reconstruct an attachment/media note from -- whatever the embed already has there is
- * carried forward as-is.
- *
- * `markEdited` is only ever `true` for the mod-forum log copy -- the "edited" marker is internal
- * bookkeeping for staff, same as the `Reply ID:` prefix itself (`relay.ts`), and shouldn't leak onto the
- * copy the user who opened the ticket actually sees.
- */
-function buildEditedEmbed(embed: APIEmbed, content: string, markEdited: boolean): APIEmbed {
-	const image = resolveEditedImage(embed.image);
-	return {
-		...embed,
-		description: content,
-		...(image ? { image } : {}),
-		...(markEdited && embed.footer ? { footer: markFooterEdited(embed.footer) } : {}),
-	};
-}
 
 export default class EditCommand implements CommandHandler {
 	public readonly name = 'edit';

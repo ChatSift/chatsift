@@ -25,6 +25,13 @@ export function isMarkedDeleted(embed: APIEmbed): boolean {
 }
 
 /**
+ * Discord's yellow -- used only for the standalone "message edited" notification the
+ * `MessageUpdate` relay handler posts alongside its edit, distinct from both the log embed's own
+ * (untouched) color and `DELETED_COLOR` above so the three states stay visually distinguishable.
+ */
+export const EDITED_COLOR = 0xfee75c;
+
+/**
  * Mutates a fetched log embed to obviously show a reply was deleted -- struck-through description, a
  * "Deleted by" note, and `DELETED_COLOR` -- while leaving the message itself in place as an audit trace
  * (the `/delete` command only actually deletes the user-facing copy). Idempotency is the caller's
@@ -85,4 +92,27 @@ export function resolveEditedImage(image: APIEmbedImage | undefined): APIEmbedIm
 	}
 
 	return { url: `attachment://${decodeURIComponent(match.groups!['filename']!)}` };
+}
+
+/**
+ * Replaces an existing embed's text with newly-edited content, leaving `color`/`author` untouched.
+ * `image` is re-derived via `resolveEditedImage` rather than carried over verbatim -- see its doc
+ * comment for why resending the resolved CDN url as-is duplicates the image. Edit is deliberately
+ * text-only otherwise: `thread_messages` stores no content or media metadata beyond the two Discord
+ * message ids, so there's nothing to reconstruct an attachment/media note from -- whatever the embed
+ * already has there is carried forward as-is. Shared between `/edit` (staff replies) and the
+ * `MessageUpdate` relay handler (a user editing their own message).
+ *
+ * `markEdited` is only ever `true` for the mod-forum log copy -- the "edited" marker is internal
+ * bookkeeping for staff, same as the `Reply ID:` prefix itself (`relay.ts`), and shouldn't leak onto
+ * the copy the user who opened the ticket actually sees.
+ */
+export function buildEditedEmbed(embed: APIEmbed, content: string, markEdited: boolean): APIEmbed {
+	const image = resolveEditedImage(embed.image);
+	return {
+		...embed,
+		description: content,
+		...(image ? { image } : {}),
+		...(markEdited && embed.footer ? { footer: markFooterEdited(embed.footer) } : {}),
+	};
 }
