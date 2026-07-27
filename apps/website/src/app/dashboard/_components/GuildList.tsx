@@ -15,7 +15,7 @@ function GuildListSkeleton() {
 		<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
 			{Array.from({ length: 4 }).map((_, index) => (
 				<li key={index}>
-					<Skeleton className="h-36 w-full rounded-lg" />
+					<Skeleton className="h-[9.5rem] w-full rounded-lg" />
 				</li>
 			))}
 		</ul>
@@ -76,7 +76,7 @@ export function GuildList() {
 			)}
 		>
 			{sorted.map((guild) => (
-				<li key={guild.id}>
+				<li className="min-w-0" key={guild.id}>
 					<GuildCard data={guild} />
 				</li>
 			))}
