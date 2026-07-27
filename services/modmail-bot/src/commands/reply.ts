@@ -158,7 +158,7 @@ export default class ReplyCommand implements CommandHandler {
 				modalInteraction.application_id,
 				modalInteraction.token,
 				{
-					content: '❌ Failed to send that reply. Please try again or contact another moderator.',
+					content: '❌ Failed to send that reply. Please try again or reach out for support.',
 				},
 			);
 		}

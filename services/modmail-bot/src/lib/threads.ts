@@ -1,5 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
-import type { Threads } from '@chatsift/db';
+import type { Threads, ThreadMessages } from '@chatsift/db';
 
 /**
  * The longest `auto_archive_duration` Discord offers (7 days, in minutes). Used for both a ticket's
@@ -134,6 +134,24 @@ export async function findRepliedToGuildMessageId(
 	`;
 
 	return row?.guildMessageId;
+}
+
+/**
+ * Looked up by `/edit` and `/delete` to resolve the `Reply ID: N` a mod typed to the row it refers to.
+ * `staff_id IS NOT NULL` excludes user messages -- they share the same per-thread numbering space but
+ * were never given a `Reply ID:` footer (see `relay.ts`), so mods have no way to reference them this
+ * way in the first place.
+ */
+export async function findStaffReplyByLocalId(
+	threadId: Threads['id'],
+	localThreadMessageId: number,
+): Promise<ThreadMessages | undefined> {
+	const [row] = await getContext().db<ThreadMessages[]>`
+		SELECT * FROM thread_messages
+		WHERE thread_id = ${threadId} AND local_thread_message_id = ${localThreadMessageId} AND staff_id IS NOT NULL
+	`;
+
+	return row;
 }
 
 export interface InsertThreadMessageOptions {
