@@ -9,7 +9,62 @@ import type { RelayAttachmentLike, RelayStickerLike } from './media.js';
 import { buildRelayMedia } from './media.js';
 import { clearReplyAlertCooldown, resolveReplyAlertMentions } from './replyAlerts.js';
 import { templateGuildName } from './templateString.js';
-import { incrementLocalMessageId, insertThreadMessage } from './threads.js';
+import type { InsertThreadMessageContentOptions, RecordedAttachment } from './threads.js';
+import {
+	findRepliedToGuildMessageId,
+	incrementLocalMessageId,
+	insertThreadMessage,
+	isRecordingEnabled,
+} from './threads.js';
+
+/**
+ * Shared by both relay directions: matches the *original* (pre-reupload) attachment list against a
+ * posted message's own REST response by filename to pick up the durable, re-hosted CDN url -- see
+ * `InsertThreadMessageContentOptions`'s doc comment on why this matters. Falls back to the original url
+ * for anything `buildRelayMedia` failed to re-upload (dropped from `posted.attachments`), consistent with
+ * the accepted "URL staleness" tradeoff for attachments (#261).
+ *
+ * The single-image case needs special handling: per `media.ts`'s `buildRelayMedia` doc comment, when
+ * exactly one image is being sent, it's claimed into the embed's `image` field rather than riding as a
+ * separate gallery entry -- and confirmed live (#261 manual verification) that Discord's message REST
+ * response then reports an *empty* top-level `attachments` array for that file entirely. Without this,
+ * the single-image case (by far the most common one) would always silently fall through to the stale
+ * pre-upload url despite a perfectly good re-hosted one being available on the embed itself.
+ */
+function buildRecordedAttachments(
+	originalAttachments: RelayAttachmentLike[],
+	posted: {
+		attachments: { content_type?: string | undefined; filename: string; size: number; url: string }[];
+		embeds: APIEmbed[];
+	},
+	/**
+	 * Filename of the attachment claimed by the embed's `image` (i.e. `media.embedImageRef` with the
+	 * `attachment://` prefix stripped), if any.
+	 */
+	embedClaimedFilename: string | undefined,
+): RecordedAttachment[] {
+	const byFilename = new Map(posted.attachments.map((attachment) => [attachment.filename, attachment]));
+	const embedImageUrl = posted.embeds[0]?.image?.url;
+
+	return originalAttachments.map((original) => {
+		if (original.filename === embedClaimedFilename && embedImageUrl) {
+			return {
+				contentType: original.content_type ?? null,
+				filename: original.filename,
+				size: original.size,
+				url: embedImageUrl,
+			};
+		}
+
+		const uploaded = byFilename.get(original.filename);
+		return {
+			contentType: uploaded?.content_type ?? original.content_type ?? null,
+			filename: original.filename,
+			size: uploaded?.size ?? original.size,
+			url: uploaded?.url ?? original.url,
+		};
+	});
+}
 
 /**
  * Matches prod ChatSift/ModMail's `Colors.Green`/`Colors.Blurple` convention (`sendMemberThreadMessage.ts`/
@@ -77,9 +132,20 @@ export interface RelayUserMessageOptions {
 	 * A short note prepended to the embed description — "forwarded" or "replying to #N", see `lib/messageContext.ts`.
 	 */
 	contextNote?: string | undefined;
+	/**
+	 * Whether this message is a Discord "Forward" (see `lib/messageContext.ts`'s `resolveEffectiveContent`)
+	 * -- only consumed when content recording is enabled, to populate `thread_message_content.is_forwarded`.
+	 */
+	isForwarded: boolean;
 	logger: Logger;
 	member: MemberLike | undefined;
 	messageId: string;
+	/**
+	 * The raw Discord message id this message is natively replying to (see `lib/messageContext.ts`'s
+	 * `resolveReplyReferenceId`), if any -- only consumed when content recording is enabled, to resolve
+	 * `thread_message_content.replied_to_thread_message_id`.
+	 */
+	repliedToMessageId?: string | undefined;
 	stickers: RelayStickerLike[];
 	thread: Threads;
 	user: APIUser;
@@ -94,9 +160,11 @@ export async function relayUserMessageToModThread({
 	attachments,
 	contextNote,
 	content,
+	isForwarded,
 	logger,
 	member,
 	messageId,
+	repliedToMessageId,
 	stickers,
 	thread,
 	user,
@@ -132,8 +200,21 @@ export async function relayUserMessageToModThread({
 		'Relayed user message to mod thread',
 	);
 
+	let recordedContent: InsertThreadMessageContentOptions | undefined;
+	if (await isRecordingEnabled(thread.guildId)) {
+		const repliedTo = repliedToMessageId ? await findRepliedToGuildMessageId(thread.id, repliedToMessageId) : undefined;
+		recordedContent = {
+			attachments: buildRecordedAttachments(attachments, posted, media.embedImageRef?.replace('attachment://', '')),
+			isForwarded,
+			repliedToThreadMessageId: repliedTo?.id ?? null,
+			stickers: stickers.map((sticker) => ({ formatType: sticker.format_type, id: sticker.id, name: sticker.name })),
+			text: resolvedContent,
+		};
+	}
+
 	await insertThreadMessage({
 		anon: false,
+		content: recordedContent,
 		guildId: thread.guildId,
 		guildMessageId: posted.id,
 		localThreadMessageId,
@@ -250,8 +331,29 @@ export async function relayStaffReplyToUserThread({
 
 	logger.info({ threadId: thread.id, localThreadMessageId, anon }, 'Relayed staff reply to user thread');
 
+	// Staff replies are command-driven (`/reply`, `/reply-q`), never a Discord-native reply/forward, so
+	// there's no reply target or sticker concept to resolve here -- just the content text and whatever
+	// attachments were actually re-uploaded onto the user-facing copy. `externalImageUrl` (a snippet's
+	// fixed image) is deliberately excluded from the claimed-filename check -- it isn't one of `attachments`
+	// at all, so there's nothing in `attachments` for it to match against.
+	let recordedContent: InsertThreadMessageContentOptions | undefined;
+	if (await isRecordingEnabled(thread.guildId)) {
+		recordedContent = {
+			attachments: buildRecordedAttachments(
+				attachments,
+				relayedMessage,
+				media.embedImageRef?.replace('attachment://', ''),
+			),
+			isForwarded: false,
+			repliedToThreadMessageId: null,
+			stickers: [],
+			text: content,
+		};
+	}
+
 	await insertThreadMessage({
 		anon,
+		content: recordedContent,
 		guildId: thread.guildId,
 		guildMessageId: logMessage.id,
 		localThreadMessageId,

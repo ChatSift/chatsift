@@ -25,6 +25,12 @@ export default interface GuildSettings {
   nukeDelayMinutes: number | null;
 
   greetingBeforeOpener: boolean;
+
+  recordThreadContent: boolean;
+
+  recordThreadContentEnabledBy: string | null;
+
+  recordThreadContentEnabledAt: Date | null;
 }
 
 /** Represents the initializer for the table public.guild_settings */
@@ -48,6 +54,12 @@ export interface GuildSettingsInitializer {
   nukeDelayMinutes?: number | null;
 
   greetingBeforeOpener?: boolean;
+
+  recordThreadContent?: boolean;
+
+  recordThreadContentEnabledBy?: string | null;
+
+  recordThreadContentEnabledAt?: Date | null;
 }
 
 /** Represents the mutator for the table public.guild_settings */
@@ -71,4 +83,10 @@ export interface GuildSettingsMutator {
   nukeDelayMinutes?: number | null;
 
   greetingBeforeOpener?: boolean;
+
+  recordThreadContent?: boolean;
+
+  recordThreadContentEnabledBy?: string | null;
+
+  recordThreadContentEnabledAt?: Date | null;
 }

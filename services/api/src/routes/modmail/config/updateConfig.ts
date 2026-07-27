@@ -62,18 +62,40 @@ export default defineRoute({
 			}
 
 			const columns = Object.keys(data) as (keyof typeof data)[];
+
+			// `record_thread_content_enabled_by`/`_at` only get (re-)stamped on a false->true transition
+			// of the toggle itself, and are otherwise left exactly as they were -- including across a
+			// later disable, per the audit-trail decision in #261. Computed via a `CASE` comparing the
+			// row's pre-update value (bare `guild_settings.record_thread_content`) against the proposed new
+			// one (`EXCLUDED.record_thread_content`) so this works correctly in the same upsert regardless
+			// of whether `recordThreadContent` was even part of this particular PATCH body.
+			const recordThreadContentEnabledNow = data.recordThreadContent === true;
 			const [settings] = await db<GuildSettings[]>`
 				INSERT INTO guild_settings (
 					guild_id, mod_forum_id, default_greeting_message, farewell_message, simple_mode, alert_role_id, anon_reply_label,
-					max_concurrent_threads, nuke_delay_minutes, greeting_before_opener
+					max_concurrent_threads, nuke_delay_minutes, greeting_before_opener, record_thread_content,
+					record_thread_content_enabled_by, record_thread_content_enabled_at
 				)
 				VALUES (
 					${guildId}, ${data.modForumId ?? null}, ${data.defaultGreetingMessage ?? null},
 					${data.farewellMessage ?? null}, ${data.simpleMode ?? false}, ${data.alertRoleId ?? null},
 					${data.anonReplyLabel ?? null}, ${data.maxConcurrentThreads ?? 1}, ${data.nukeDelayMinutes ?? null},
-					${data.greetingBeforeOpener ?? false}
+					${data.greetingBeforeOpener ?? false}, ${data.recordThreadContent ?? false},
+					${recordThreadContentEnabledNow ? req.tokens.access.sub : null},
+					${recordThreadContentEnabledNow ? new Date() : null}
 				)
-				ON CONFLICT (guild_id) DO UPDATE SET ${db(data, ...columns)}
+				ON CONFLICT (guild_id) DO UPDATE SET
+					${db(data, ...columns)},
+					record_thread_content_enabled_by = CASE
+						WHEN EXCLUDED.record_thread_content AND NOT guild_settings.record_thread_content
+							THEN EXCLUDED.record_thread_content_enabled_by
+						ELSE guild_settings.record_thread_content_enabled_by
+					END,
+					record_thread_content_enabled_at = CASE
+						WHEN EXCLUDED.record_thread_content AND NOT guild_settings.record_thread_content
+							THEN EXCLUDED.record_thread_content_enabled_at
+						ELSE guild_settings.record_thread_content_enabled_at
+					END
 				RETURNING *
 			`;
 

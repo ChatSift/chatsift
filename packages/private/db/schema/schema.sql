@@ -134,6 +134,14 @@ CREATE TABLE guild_settings (
   -- user's own opener message is relayed to staff, instead of after. Defaults to false (after) --
   -- matching prod ChatSift/ModMail's existing behavior of relay-then-greet.
   greeting_before_opener   BOOLEAN NOT NULL DEFAULT false,
+  -- Consent toggle for recording full message content into `thread_message_content` (see below) --
+  -- defaults to false since capturing every reply and surrounding message in a ticket is a real privacy
+  -- decision, not a default a guild should be opted into silently. `enabled_by`/`enabled_at` form an
+  -- audit trail of who opted in and when; services/api's updateConfig.ts only sets them on the
+  -- false->true transition and deliberately leaves them populated after a later disable (see #261).
+  record_thread_content                  BOOLEAN NOT NULL DEFAULT false,
+  record_thread_content_enabled_by       TEXT,
+  record_thread_content_enabled_at       TIMESTAMPTZ,
 
   CONSTRAINT guild_settings_max_concurrent_threads_check CHECK (max_concurrent_threads >= 1),
   CONSTRAINT guild_settings_nuke_delay_minutes_check CHECK (nuke_delay_minutes IS NULL OR nuke_delay_minutes >= 1)
@@ -259,6 +267,25 @@ CREATE TABLE thread_messages (
 );
 
 CREATE INDEX thread_messages_thread_id_idx ON thread_messages (thread_id);
+
+-- Sidecar to `thread_messages`, 1:1, same PK-is-FK shape as `scheduled_thread_closes`/
+-- `scheduled_thread_nukes` below -- keeps the load-bearing `thread_messages` table lean while giving
+-- recorded content its own lifecycle. Only written by services/modmail-bot's `insertThreadMessage` when
+-- `guild_settings.record_thread_content` is on for the guild at relay time (see #261); a message with no
+-- row here means it predates recording being enabled (or recording was never turned on), which the
+-- dashboard thread view renders as a "not recorded" placeholder rather than backfilling or guessing.
+CREATE TABLE thread_message_content (
+  thread_message_id            INTEGER PRIMARY KEY REFERENCES thread_messages (id) ON DELETE CASCADE,
+  content                      TEXT NOT NULL DEFAULT '',
+  replied_to_thread_message_id INTEGER REFERENCES thread_messages (id) ON DELETE SET NULL,
+  is_forwarded                 BOOLEAN NOT NULL DEFAULT false,
+  attachments                  JSONB NOT NULL DEFAULT '[]', -- [{ url, filename, contentType, size }]
+  stickers                     JSONB NOT NULL DEFAULT '[]', -- [{ id, name, formatType }]
+  recorded_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX thread_message_content_replied_to_idx ON thread_message_content (replied_to_thread_message_id)
+  WHERE replied_to_thread_message_id IS NOT NULL;
 
 CREATE TABLE scheduled_thread_closes (
   thread_id       INTEGER PRIMARY KEY REFERENCES threads (id) ON DELETE CASCADE,

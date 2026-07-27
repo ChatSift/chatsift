@@ -12,7 +12,11 @@ import {
 	isUnknownMessageError,
 	markEmbedDeleted,
 } from './replyModeration.js';
-import { findOpenThreadByUserThreadId, findUserThreadMessageByMessageId } from './threads.js';
+import {
+	findOpenThreadByUserThreadId,
+	findUserThreadMessageByMessageId,
+	updateRecordedMessageContent,
+} from './threads.js';
 
 /**
  * Handles a user editing a message they'd already sent in their ticket's private thread (#253) --
@@ -76,6 +80,11 @@ export async function handleUserMessageUpdate(
 			const contextNote = await buildContextNote(message, effective.isForwarded, thread, logger);
 			const newDescription = [contextNote, resolvedContent].filter(Boolean).join('\n\n');
 			const oldDescription = logEmbed.description ?? '*(no content)*';
+
+			// No-op if this message predates recording being enabled (no `thread_message_content` row to
+			// update) -- no versioning/edit-history in this phase, the recorded copy is just overwritten in
+			// place to match whatever the mod-forum log embed now shows (see #261).
+			await updateRecordedMessageContent(row.id, resolvedContent);
 
 			await getContext().service.client.api.channels.editMessage(thread.modThreadId, row.guildMessageId, {
 				embeds: [buildEditedEmbed(logEmbed, newDescription, true)],
