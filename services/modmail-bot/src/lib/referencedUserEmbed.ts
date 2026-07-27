@@ -7,12 +7,10 @@ import { DiscordAPIError } from '@discordjs/rest';
 import { resolveGuildAvatarURL } from './avatars.js';
 
 /**
- * Discord's "Fuchsia" -- distinct from every other accent color already in use in this codebase
- * (`relay.ts`'s GREEN/BLURPLE, `replyModeration.ts`'s DELETED_COLOR/EDITED_COLOR) so a referenced-user
- * card reads as its own kind of thing at a glance, never confusable with a relayed message or an
- * edited/deleted notice.
+ * Discord's "danger" red (matches `replyModeration.ts`'s `DELETED_COLOR`) -- deliberately alarming, since
+ * this card exists specifically to flag a "heads up, verify who's actually being talked about" moment.
  */
-const REFERENCED_USER_COLOR = 0xeb459e;
+const REFERENCED_USER_COLOR = 0xed4245;
 
 /**
  * Matches a Discord mention (`<@id>`/`<@!id>`) or a bare snowflake-shaped number anywhere in free text —
@@ -130,7 +128,7 @@ function buildReferencedUserEmbed(guildId: string, resolved: ResolvedReferencedU
 	return {
 		author: avatarURL ? { icon_url: avatarURL, name: displayName } : { name: displayName },
 		color: REFERENCED_USER_COLOR,
-		description: '🔎 *ID referenced in the message above*',
+		description: '🔎 *ID referenced in the replied-to message*',
 		fields,
 		footer: { text: `User ID: ${user.id}` },
 		...(avatarURL ? { thumbnail: { url: avatarURL } } : {}),
@@ -140,6 +138,13 @@ function buildReferencedUserEmbed(guildId: string, resolved: ResolvedReferencedU
 export interface PostReferencedUserEmbedsOptions {
 	content: string;
 	logger: Logger;
+	/**
+	 * The id of the relayed message this card is about -- the card is sent as a native reply to it (see
+	 * below) rather than relying on send order, so which message it's actually about stays unambiguous
+	 * even if another message gets relayed into the same thread while this one's REST lookups are still
+	 * in flight.
+	 */
+	relayedMessageId: string;
 	thread: Pick<Threads, 'guildId' | 'modThreadId'>;
 }
 
@@ -156,10 +161,19 @@ export interface PostReferencedUserEmbedsOptions {
  * Best-effort and isolated per candidate id: a REST hiccup resolving one id, or the whole thing failing,
  * must never take down the message relay this runs alongside -- every failure is caught and logged here
  * rather than left to propagate.
+ *
+ * Nothing here is serialized against other messages in the same thread -- resolving a candidate id is a
+ * couple of REST round-trips, easily slow enough for a second message (and its own relay copy) to land in
+ * the mod thread first. Rather than adding a per-thread lock around the whole relay path just for this,
+ * the follow-up is sent as a native Discord reply (`message_reference`) targeting the exact message it's
+ * about, so Discord's own "replying to" UI keeps the association correct regardless of what else lands in
+ * between -- `fail_if_not_exists: false` so a since-deleted relayed message degrades to a normal
+ * (unanchored) message instead of failing the whole post.
  */
 export async function postReferencedUserEmbeds({
 	content,
 	logger,
+	relayedMessageId,
 	thread,
 }: PostReferencedUserEmbedsOptions): Promise<void> {
 	const candidateIds = extractReferencedUserIds(content);
@@ -184,7 +198,10 @@ export async function postReferencedUserEmbeds({
 	}
 
 	try {
-		await getContext().service.client.api.channels.createMessage(thread.modThreadId, { embeds });
+		await getContext().service.client.api.channels.createMessage(thread.modThreadId, {
+			embeds,
+			message_reference: { fail_if_not_exists: false, message_id: relayedMessageId },
+		});
 	} catch (error) {
 		logger.warn(
 			{ err: error, modThreadId: thread.modThreadId },

@@ -123,7 +123,7 @@ export async function relayUserMessageToModThread({
 	// function is never called for a staff reply, see the doc comment above), so there's no "staff
 	// mentioning staff" case to gate on -- every referenced id gets checked, unconditionally, including
 	// the author's own.
-	await postReferencedUserEmbeds({ content, logger, thread });
+	await postReferencedUserEmbeds({ content, logger, relayedMessageId: posted.id, thread });
 }
 
 export interface RelayStaffReplyOptions {
