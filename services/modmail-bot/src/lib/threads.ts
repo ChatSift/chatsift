@@ -1,5 +1,6 @@
 import { getContext } from '@chatsift/backend-core';
 import type { Threads, ThreadMessages, ThreadMessagesId } from '@chatsift/db';
+import type postgres from 'postgres';
 
 /**
  * The longest `auto_archive_duration` Discord offers (7 days, in minutes). Used for both a ticket's
@@ -140,6 +141,24 @@ export async function findRepliedToGuildMessageId(
 }
 
 /**
+ * Sibling to `findRepliedToGuildMessageId` for a Discord-native reply *within the mod-forum thread
+ * itself* (internal chatter replying to another mod-thread message) -- the reply target there is
+ * already the mod-thread copy, so this matches on `guild_message_id` directly instead of resolving
+ * from the user-thread side. The target can be any prior row in the thread (a relayed user message, a
+ * `/reply` log copy, or another internal message) -- all three share the same `thread_messages` shape.
+ */
+export async function findRepliedToByModMessageId(
+	threadId: Threads['id'],
+	guildMessageId: string,
+): Promise<ThreadMessagesId | undefined> {
+	const [row] = await getContext().db<[{ id: ThreadMessagesId }]>`
+		SELECT id FROM thread_messages WHERE thread_id = ${threadId} AND guild_message_id = ${guildMessageId}
+	`;
+
+	return row?.id;
+}
+
+/**
  * Gates whether `relay.ts` records full message content into `thread_message_content` for a guild --
  * consent is opt-in (see `guild_settings.record_thread_content`, #261), so this is checked once per
  * relay call rather than assumed.
@@ -156,18 +175,25 @@ export async function isRecordingEnabled(guildId: string): Promise<boolean> {
  * Looked up by `/edit` and `/delete` to resolve the `Reply ID: N` a mod typed to the row it refers to.
  * `staff_id IS NOT NULL` excludes user messages -- they share the same per-thread numbering space but
  * were never given a `Reply ID:` footer (see `relay.ts`), so mods have no way to reference them this
- * way in the first place.
+ * way in the first place. `NOT is_internal` further excludes internal mod-thread chatter (#261) -- also
+ * staff-authored, but never given a `Reply ID:` footer either (nothing was relayed anywhere for it to
+ * reference), so it's excluded the same way user messages are. The combination of both guarantees a
+ * matched row always has a real `user_message_id` -- only a `/reply`/`/reply-q`-relayed row can be both
+ * staff-authored and non-internal -- which the return type narrows to so callers don't need their own
+ * null check on a column that's `NULL`-able in general (internal rows) but never for what this
+ * specifically selects.
  */
 export async function findStaffReplyByLocalId(
 	threadId: Threads['id'],
 	localThreadMessageId: number,
-): Promise<ThreadMessages | undefined> {
+): Promise<(ThreadMessages & { userMessageId: string }) | undefined> {
 	const [row] = await getContext().db<ThreadMessages[]>`
 		SELECT * FROM thread_messages
-		WHERE thread_id = ${threadId} AND local_thread_message_id = ${localThreadMessageId} AND staff_id IS NOT NULL
+		WHERE thread_id = ${threadId} AND local_thread_message_id = ${localThreadMessageId}
+			AND staff_id IS NOT NULL AND NOT is_internal
 	`;
 
-	return row;
+	return row as (ThreadMessages & { userMessageId: string }) | undefined;
 }
 
 /**
@@ -254,11 +280,16 @@ export interface InsertThreadMessageOptions {
 	content?: InsertThreadMessageContentOptions | undefined;
 	guildId: string;
 	guildMessageId: string;
+	/**
+	 * True for mod-to-mod chatter posted directly in the mod-forum thread -- never crosses to the user's
+	 * private thread, so `userMessageId` is `null` for these (see schema.sql).
+	 */
+	isInternal?: boolean | undefined;
 	localThreadMessageId: number;
 	staffId: string | null;
 	threadId: Threads['id'];
 	userId: string;
-	userMessageId: string;
+	userMessageId: string | null;
 }
 
 export async function insertThreadMessage({
@@ -266,6 +297,7 @@ export async function insertThreadMessage({
 	content,
 	guildId,
 	guildMessageId,
+	isInternal = false,
 	localThreadMessageId,
 	staffId,
 	threadId,
@@ -277,9 +309,11 @@ export async function insertThreadMessage({
 	if (!content) {
 		await db`
 			INSERT INTO thread_messages (
-				local_thread_message_id, guild_id, thread_id, user_id, user_message_id, staff_id, guild_message_id, anon
+				local_thread_message_id, guild_id, thread_id, user_id, user_message_id, staff_id, guild_message_id, anon,
+				is_internal
 			) VALUES (
-				${localThreadMessageId}, ${guildId}, ${threadId}, ${userId}, ${userMessageId}, ${staffId}, ${guildMessageId}, ${anon}
+				${localThreadMessageId}, ${guildId}, ${threadId}, ${userId}, ${userMessageId}, ${staffId}, ${guildMessageId}, ${anon},
+				${isInternal}
 			)
 		`;
 		return;
@@ -288,22 +322,31 @@ export async function insertThreadMessage({
 	await db.begin(async (tx) => {
 		const [row] = await tx<[{ id: ThreadMessagesId }]>`
 			INSERT INTO thread_messages (
-				local_thread_message_id, guild_id, thread_id, user_id, user_message_id, staff_id, guild_message_id, anon
+				local_thread_message_id, guild_id, thread_id, user_id, user_message_id, staff_id, guild_message_id, anon,
+				is_internal
 			) VALUES (
-				${localThreadMessageId}, ${guildId}, ${threadId}, ${userId}, ${userMessageId}, ${staffId}, ${guildMessageId}, ${anon}
+				${localThreadMessageId}, ${guildId}, ${threadId}, ${userId}, ${userMessageId}, ${staffId}, ${guildMessageId}, ${anon},
+				${isInternal}
 			)
 			RETURNING id
 		`;
 
-		// `sql.json()`'s `JSONValue` type doesn't structurally accept a plain interface array (it wants an
-		// explicit index signature) even though `RecordedAttachment[]`/`RecordedSticker[]` are already
-		// JSON-safe -- serializing to text and casting is simpler than fighting that here.
+		// Must go through `sql.json()`, not `${JSON.stringify(x)}::jsonb` -- the latter binds the value as an
+		// untyped (oid 0) parameter, and postgres.js/Postgres resolve that combination by wrapping the
+		// already-stringified text in a second layer of JSON encoding (`to_jsonb(text)` semantics) instead of
+		// parsing it, so the column ends up holding a JSON *string* containing escaped JSON rather than a real
+		// array (reproduced in isolation against a temp table when this was debugged). `sql.json()` binds the
+		// value with the correct json oid up front, so postgres.js's own serializer only stringifies once.
+		// `RecordedAttachment[]`/`RecordedSticker[]` (plain interfaces, no index signature) aren't structurally
+		// assignable to `JSONValue` -- narrowed through `unknown` rather than fighting that, they're already
+		// JSON-safe by construction.
 		await tx`
 			INSERT INTO thread_message_content (
 				thread_message_id, content, replied_to_thread_message_id, is_forwarded, attachments, stickers
 			) VALUES (
 				${row!.id}, ${content.text}, ${content.repliedToThreadMessageId}, ${content.isForwarded},
-				${JSON.stringify(content.attachments)}::jsonb, ${JSON.stringify(content.stickers)}::jsonb
+				${tx.json(content.attachments as unknown as postgres.JSONValue)},
+				${tx.json(content.stickers as unknown as postgres.JSONValue)}
 			)
 		`;
 	});

@@ -258,10 +258,17 @@ CREATE TABLE thread_messages (
   guild_id                 TEXT NOT NULL,
   thread_id                INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE,
   user_id                  TEXT NOT NULL,
-  user_message_id          TEXT NOT NULL,
+  -- NULL for an `is_internal` row -- internal chatter never crosses into the user's private thread, so
+  -- there's no corresponding message on that side to point at (unlike a user message or a `/reply`'s
+  -- relayed copy, both of which always have one).
+  user_message_id          TEXT,
   staff_id                 TEXT,
   guild_message_id         TEXT NOT NULL,
   anon                     BOOLEAN NOT NULL DEFAULT false,
+  -- True for a plain message posted directly in the mod-forum thread (mod-to-mod discussion), as opposed
+  -- to a user message relayed in or a `/reply`/`/reply-q` log copy -- never part of the user-facing
+  -- exchange, so the dashboard renders it visually set apart from the actual conversation (#261).
+  is_internal              BOOLEAN NOT NULL DEFAULT false,
 
   CONSTRAINT thread_messages_thread_id_local_thread_message_id_key UNIQUE (thread_id, local_thread_message_id)
 );

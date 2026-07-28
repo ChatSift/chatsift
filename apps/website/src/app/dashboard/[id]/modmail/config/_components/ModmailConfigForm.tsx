@@ -14,6 +14,7 @@ import { RoleSelect } from '@/components/common/RoleSelect';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TemplatePlaceholdersHint } from '@/components/common/TemplatePlaceholdersHint';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
+import { formatDate } from '@/utils/util';
 
 interface ConfigFormData {
 	alertRoleId: string;
@@ -25,6 +26,7 @@ interface ConfigFormData {
 	modForumId: string;
 	nukeDelayMinutes: string;
 	nukeEnabled: boolean;
+	recordThreadContent: boolean;
 	simpleMode: boolean;
 }
 
@@ -40,6 +42,7 @@ const CONFIG_FIELDS = [
 	'maxConcurrentThreads',
 	'nukeDelayMinutes',
 	'greetingBeforeOpener',
+	'recordThreadContent',
 ] as const satisfies (keyof ConfigFormData)[];
 
 function mapConfigIssues(issues: readonly { message: string; path: PropertyKey[] }[]): ConfigFormErrors {
@@ -81,6 +84,7 @@ export function ModmailConfigForm() {
 				nukeDelayMinutes: config.nukeDelayMinutes === null ? '' : String(config.nukeDelayMinutes),
 				nukeEnabled: config.nukeDelayMinutes !== null,
 				greetingBeforeOpener: config.greetingBeforeOpener,
+				recordThreadContent: config.recordThreadContent,
 			});
 		}
 	}, [config, form]);
@@ -118,6 +122,7 @@ export function ModmailConfigForm() {
 			maxConcurrentThreads: Number(form.maxConcurrentThreads),
 			nukeDelayMinutes: form.nukeEnabled ? Number(form.nukeDelayMinutes) : null,
 			greetingBeforeOpener: form.greetingBeforeOpener,
+			recordThreadContent: form.recordThreadContent,
 		};
 
 		const result = updateConfigBodySchema.safeParse(data);
@@ -354,6 +359,30 @@ export function ModmailConfigForm() {
 						When enabled, the greeting is posted before the user&apos;s own opening message is relayed to staff, instead
 						of after.
 					</p>
+				</div>
+
+				<div className="rounded-lg border border-misc-danger bg-misc-danger/10 p-4">
+					<label className="flex items-center gap-2" htmlFor="modmail-record-thread-content">
+						<input
+							checked={form.recordThreadContent}
+							className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
+							id="modmail-record-thread-content"
+							onChange={(e) => updateField('recordThreadContent', e.target.checked)}
+							type="checkbox"
+						/>
+						<span className="text-sm font-medium text-primary dark:text-primary-dark">Record Full Thread Content</span>
+					</label>
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						Off by default. When enabled, all replies sent through the bot and all surrounding messages in the mod
+						thread are recorded so staff can browse past threads in full on the dashboard. This is a real privacy
+						decision -- make sure your team has consented to conversations being stored this way before turning it on.
+					</p>
+					{config?.recordThreadContentEnabledAt && (
+						<p className="mt-2 text-xs text-secondary dark:text-secondary-dark">
+							Enabled by {config.recordThreadContentEnabledBy} on{' '}
+							{formatDate(new Date(config.recordThreadContentEnabledAt))}.
+						</p>
+					)}
 				</div>
 			</div>
 

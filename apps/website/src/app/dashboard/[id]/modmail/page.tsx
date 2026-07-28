@@ -29,6 +29,11 @@ const SECTIONS = [
 		title: 'Blocks',
 		subtitle: 'Users blocked from opening new tickets',
 	},
+	{
+		segment: 'threads',
+		title: 'Threads',
+		subtitle: 'Browse past and open threads',
+	},
 ] as const;
 
 export default async function ModmailPage({ params }: PageProps<'/dashboard/[id]/modmail'>) {

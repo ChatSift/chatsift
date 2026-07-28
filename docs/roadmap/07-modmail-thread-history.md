@@ -5,7 +5,9 @@ that milestone's `threads`/`thread_messages`/category/forum-tag model already ex
 Not itself a numbered milestone (M0–M5); tracked as its own GitHub issue (#261) since the original M5 doc
 explicitly left it optional/unscoped ("Thread history view optional, same caveat as original plan").
 
-## Status: planned 2026-07-27, not started
+## Status: Phase 1 done 2026-07-27, Phase 2 done 2026-07-28 (scope grew beyond what's written below — see
+
+"Phase 2 additions" at the end of that section), Phase 3 not started
 
 ## Goal
 
@@ -65,6 +67,20 @@ Verified against the live repo (2026-07-27), not assumed from the M5 doc:
   attachment(s) are flagged unavailable in the API response instead of failing the request; the frontend
   is expected to render that as "attachment no longer exists on Discord" rather than attempting to load a
   dead URL. See `services/api/src/routes/modmail/threads/util.ts`'s `resolveMessageAttachments`.
+- **Internal mod-thread chatter** (added during Phase 2, not originally scoped in either phase below): the
+  issue text's "all surrounding messages in the mod thread are recorded" was narrowed away during Phase 1
+  to just the user-relay and `/reply`/`/reply-q` log copies — plain mod-to-mod discussion posted directly
+  in the mod-forum thread was never captured at all. Revisited and added: `thread_messages` gained
+  `is_internal BOOLEAN NOT NULL DEFAULT false` and `user_message_id` was loosened to nullable (`NULL` for
+  an internal row — nothing was ever relayed to the user's thread for it to point at). Captured the same
+  way user messages are (a raw `MessageCreate` listener, this time matched against a thread's `modThreadId`
+  instead of `userThreadId`), gated on the same recording consent toggle, and only worth inserting a row
+  for at all when that's on (unlike a real relayed exchange, an unrecorded internal row would carry zero
+  information). Deliberately **asymmetric** with the "deleted messages survive" decision above: a mod
+  deleting their own internal note is a true delete (row removed), not a soft "keep but don't show" —
+  internal chatter isn't part of the user-facing exchange the "mod-forum thread is the durable record"
+  principle is protecting, so there's nothing being lost that the ticket record depends on. See "Phase 2
+  additions" below and Phase 3's edit/delete-capture items.
 
 ## Phase 1 — DB + API (+ coupled bot writer)
 
@@ -120,6 +136,13 @@ recorded" placeholder. Workflow: edit `schema.sql` → `yarn db:diff` (Atlas gen
   `UPDATE ... SET content = ?` in place. No edit-history/versioning table in this phase (explicitly deferred
   — would mirror `snippet_updates`' pattern if ever needed). On delete: **no mutation of the recorded row**
   — it survives per the confirmed decision above.
+
+**Bug found and fixed during Phase 2** (not a Phase 1 scope change, just noting where): `insertThreadMessage`
+originally wrote `attachments`/`stickers` as `${JSON.stringify(x)}::jsonb`. Binding an already-stringified
+value as an untyped parameter with a `::jsonb` cast makes postgres.js/Postgres double-encode it — the
+column ends up holding a JSON _string_ containing escaped JSON instead of a real array, which surfaced as a
+500 (`attachments.some is not a function`) the first time a recorded message with attachments was read back.
+Fixed by binding through `sql.json(...)` instead, which carries the correct type through in one pass.
 
 ### API (`services/api/src`)
 
@@ -192,26 +215,98 @@ includeClosed)` and `useModmailThread(guildId, threadId)`, both paging via the `
   without Discord-accurate styling yet.
 - **Navigation wiring**: add a "Threads" card to `modmail/page.tsx`'s `SECTIONS` array; in
   `apps/website/src/components/dashboard/DashboardCrumbs.tsx`, add `'threads'` to `MODMAIL_SECTIONS` and a
-  `SEGMENT_DEFINITIONS` entry for `['modmail', 'threads', ':id']` (label falls back to `Ticket #${id}` —
-  threads have no name field).
+  `SEGMENT_DEFINITIONS` entry for `['modmail', 'threads', ':id']` (label falls back to `Thread #${id}` —
+  threads have no name field; "Ticket" terminology from the rest of ModMail's UI was deliberately not used
+  for this feature's own pages, see "Phase 2 additions" below).
 
 Basic cursor "Load more" pagination is sufficient for this phase — no virtualization library yet.
 
+### Phase 2 additions (beyond what was scoped above)
+
+Landed in the same PR as the plan above, discovered/requested once the scaffold was actually being used:
+
+- **Terminology**: this feature's own UI (breadcrumb, page titles, sidebar, empty states, the recording
+  consent copy) says "Thread" throughout — "Thread #N" rather than "Ticket #N" — not "Ticket". The rest of
+  ModMail's dashboard (categories/panels/snippets/blocks) still says "ticket" and was deliberately left
+  alone; this rename was scoped to only the new pages.
+- **Search bar** — not in the original plan at all. `apps/website/src/app/dashboard/[id]/modmail/threads/
+page.tsx` now uses the same `SearchBar`/`useURLParam` pattern as the AMA sessions list. Backend side:
+  `listThreads.ts`'s new `q` param — an exact snowflake filters `threads.user_id` directly; free text
+  resolves against Discord's own guild-member-search endpoint (prefix match on username/nickname) since no
+  username is ever stored, then filters `user_id = ANY(...)`. This means a name search only finds ticket
+  authors still in the guild; an id search always works.
+- **Sticker rendering** — pulled forward from Phase 3's `DiscordAttachments.tsx` scope: `ThreadMessage.tsx`
+  renders `recordedContent.stickers` as real images (static formats off Discord's CDN, `GIF` off the media
+  proxy host); `Lottie` stickers have no static image and fall back to a name chip. Everything else in
+  Phase 3's rendering list (markdown, mentions, embeds, attachment image grid/lightbox) is still untouched.
+- **Internal mod-thread chatter** — see the new Decisions entry above for the schema/capture side. On the
+  frontend, an internal message renders in a visually distinct dashed, amber-tinted box with a lock icon
+  and an explicit "not seen by the user" label — deliberately more than a small badge, so it can't be
+  mistaken for part of the actual user conversation at a glance.
+
 ## Phase 3 — Complete Discord-like view
+
+**Not a rewrite.** Per owner feedback once Phase 2 landed: the current minimal rendering is good enough
+that Phase 3 does _not_ need to chase pixel-accurate Discord reproduction or a heavy refactor of what's
+there — the items below are the actual gaps to close, not a mandate to redo the UI. Ordered roughly by how
+much they were flagged as musts vs. nice-to-haves.
+
+### Musts (owner-flagged gaps, 2026-07-28)
+
+- **Mod-side message grouping & collapse**: mostly already covered by the `MessageAuthorHeader.tsx`
+  bullet below (avatar/name suppressed on consecutive messages from the same author, Discord-style) —
+  confirmed still the right shape for this. New wrinkle since Phase 2: internal mod-thread chatter (see
+  Decisions above) should additionally be collapsible _as a block_ — a back-and-forth of internal notes
+  between two relayed/`/reply` messages shouldn't force scrolling through all of it by default the way nothing
+  in Phase 2 currently prevents.
+- **Mod-side plain message edit/delete isn't captured**: `lib/userMessageLifecycle.ts`'s `MessageUpdate`/
+  `MessageDelete` listeners only watch a ticket's _private_ thread (the user's side). A plain message posted
+  directly in the mod-forum thread (an `is_internal` row) that a mod then edits or deletes via Discord's own
+  UI updates neither the live message (expected, Discord already did that) nor our recorded copy — the
+  dashboard silently shows stale content. Needs the same shape of listener, scoped to `guild_message_id` +
+  `is_internal = true` instead of `user_message_id` (mirrors `findUserThreadMessageByMessageId`, just on the
+  mod-thread side rather than the user-thread side). **Delete must be a true delete** — `DELETE FROM
+thread_messages WHERE ...` (cascades to `thread_message_content` and to anything replying to it, per the
+  existing `ON DELETE CASCADE`/`ON DELETE SET NULL` FKs), not the soft "survives" treatment user-side
+  deletes get. This is a deliberate asymmetry (see the Decisions entry above): the durable-record principle
+  protects the user-facing exchange, not a mod's own retracted internal note.
+- **Edit badge + history for user-side messages**: content is currently overwritten in place
+  (`userMessageLifecycle.ts`) with no trace that an edit happened — this resolves what used to be Open
+  Question #2 below, now confirmed needed. Requires a new sidecar table mirroring `snippet_updates`' pattern
+  (e.g. `thread_message_content_edits`, one row per prior version, FK to `thread_message_content`) written
+  on each edit instead of the current blind overwrite. Frontend: a small clickable "edited" badge on the
+  message that opens a tooltip/popover listing prior versions (newest first) when more than one edit has
+  happened.
+- **Delete badge for user-side messages**: the Decisions section's "recorded copy survives" only means the
+  _content_ isn't touched — there's currently no marker anywhere that the live message was ever deleted, so
+  the dashboard can't tell a still-live message from a deleted one. Needs a `deleted_at TIMESTAMPTZ` (or
+  similar) column, set by `userMessageLifecycle.ts`'s delete handler instead of the current no-op, purely
+  for display — the row and its content keep existing exactly as they do today. Frontend: a "deleted" badge
+  alongside (not instead of) the message content.
+- **Jump to top/bottom UI**: an explicit affordance to jump to the start or the latest end of a thread's
+  messages, not just "Load more" at the bottom. Ties into the virtualization item below — once
+  `direction: before/after` is exercised properly, jump-to-latest and jump-to-oldest both become "load a
+  page at that end and scroll to it" rather than paging through everything in between.
+
+### Everything else originally scoped for this phase
 
 - **Rendering**: start with a short research spike (don't assume a library exists — verify) into whether
   something like `discord-markdown` or a Discord-styled component library actually fits the bot's
-  constrained message shape (plain markdown, at most one embed, files, no reactions/polls/components). If
-  nothing fits cleanly, hand-roll a small set of components: `DiscordMarkdown.tsx`
-  (mentions/emoji/channel-refs/formatting), `DiscordEmbed.tsx`, `DiscordAttachments.tsx` (image
-  grid/lightbox, file chips), `MessageAuthorHeader.tsx` (avatar, consecutive-message grouping),
-  `ReplyPreview.tsx` (Discord-accurate collapsed reply bar with click-to-jump). Extend the existing
-  Discord-dark-theme token approach already in `panels/_components/PanelPreview.tsx` rather than
-  reinventing colors.
+  constrained message shape (plain markdown, at most one embed, files, no reactions/polls/components).
+  Stickers (images) and basic attachment links already render as of Phase 2 — remaining gap is markdown/
+  mentions/emoji/channel-refs and the embed itself. If nothing fits cleanly, hand-roll a small set of
+  components: `DiscordMarkdown.tsx` (mentions/emoji/channel-refs/formatting), `DiscordEmbed.tsx`,
+  `DiscordAttachments.tsx` (image grid/lightbox, file chips — stickers already have a minimal version of
+  this), `MessageAuthorHeader.tsx` (avatar, consecutive-message grouping), `ReplyPreview.tsx`
+  (Discord-accurate collapsed reply bar with click-to-jump). Extend the existing Discord-dark-theme token
+  approach already in `panels/_components/PanelPreview.tsx` rather than reinventing colors. Per the owner
+  note above, this is about closing real gaps (markdown/mentions/embeds), not chasing 1:1 fidelity for its
+  own sake.
 - **Virtualization**: introduce `@tanstack/react-virtual` in `ThreadMessageList.tsx` once rendering is heavy
   enough per-message to matter at "thousands of messages" scale. This is also where the API's
   `direction: before/after` pagination (designed in Phase 1, used one-directionally in Phase 2) gets
-  exercised properly — initial load jumps to the latest messages, older pages load on scroll-up.
+  exercised properly — initial load jumps to the latest messages, older pages load on scroll-up. Also what
+  the jump-to-top/bottom must above builds on.
 - **Full collapse/expand UX**: replace Phase 2's plain toggle with Discord's actual reply-grouping visual —
   expand shows the referenced message inline, not just a jump-link.
 
@@ -228,18 +323,27 @@ Basic cursor "Load more" pagination is sufficient for this phase — no virtuali
 - **Phase 2**: run `apps/website` locally against the Phase 1 API; toggle recording on via the new settings
   checkbox; navigate list → detail, confirm open/closed filtering re-fetches correctly, sidebar metadata
   renders (roles, thread count, category, tags), "Load more" works on both threads and messages, reply
-  collapse/expand toggles correctly, a pre-recording message shows the "not recorded" placeholder.
+  collapse/expand toggles correctly, a pre-recording message shows the "not recorded" placeholder. Also
+  covering the Phase 2 additions: search by both a raw id and a still-in-guild member's name returns the
+  expected threads; a message containing a sticker renders it (static image, or the animated `GIF` variant);
+  a plain message posted directly in the mod-forum thread shows up in the thread view styled distinctly
+  (dashed amber box) from the real user-facing exchange, and does _not_ appear anywhere in the user's own
+  private thread.
 - **Phase 3**: exercise a thread containing markdown, mentions, custom emoji, an embed, image and non-image
   attachments, and a native reply — confirm rendering matches what the bot actually posted to Discord;
   confirm virtualization keeps a very long thread's DOM bounded (spot-check via browser devtools node
-  count) and scroll-up correctly loads older pages via `direction: before`.
+  count) and scroll-up correctly loads older pages via `direction: before`. Plus the musts: editing/deleting
+  a plain mod-thread message updates/removes the recorded copy (and delete is a real `DELETE`, confirm the
+  row is actually gone, not just hidden); an edited user message shows the edit badge, clicking it lists
+  every prior version in order; a deleted user message shows the delete badge while its content is still
+  fully readable; jump-to-top and jump-to-bottom both land at the right end of a long thread without paging
+  through everything in between.
 
 ## Open questions (not blocking, revisit if they come up during implementation)
 
 1. Consent UX: is a single checkbox sufficient, or does the compliance weight of "recording all ticket
    conversations" warrant a stronger confirmation (modal, typed-confirmation input)?
-2. Edit history: content is overwritten in place on a user edit, no version history — revisit if that turns
-   out to matter (mirroring `snippet_updates`' pattern).
+2. ~~Edit history~~ — resolved 2026-07-28: confirmed needed, now a Phase 3 must (see above).
 3. Retention/purge: no retention window or right-to-erasure sweep is in scope here — "recorded forever once
    opted in" is accepted for now; a `nukeDelayMinutes`-style retention window for recorded content could be
    a follow-up issue.
@@ -247,3 +351,7 @@ Basic cursor "Load more" pagination is sufficient for this phase — no virtuali
    when the ticket was active — confirm this stays desired as the feature gets used.
 5. Pagination defaults (25 threads/page, 50 messages/page) are reasonable starting points but arbitrary —
    worth sanity-checking against real thread sizes before locking them into the public API contract.
+6. Internal-chatter true-delete (Phase 3 must, above) means a mod's own DB row can vanish entirely, unlike
+   everything else this feature records — worth a beat of thought on whether that ever needs its own audit
+   trail (e.g. "an internal note existed and was deleted, by whom, when") before implementing, or whether
+   "true delete, no trace" is genuinely the intent.
