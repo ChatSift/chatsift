@@ -1,5 +1,6 @@
 import { getContext, GRANTS } from '@chatsift/backend-core';
 import type { GuildSettings } from '@chatsift/db';
+import type { APIUser, Snowflake } from '@discordjs/core';
 import { ChannelType } from '@discordjs/core';
 import { badRequest, internal } from '@hapi/boom';
 import { z } from 'zod';
@@ -10,12 +11,19 @@ import { releaseGrantOnError } from '../../../util/grant.js';
 import { assertRolesBelongToGuild } from '../../../util/roles.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { updateConfigBodySchema } from '../schemas.js';
+import { resolveUser } from '../threads/util.js';
 
 const bodySchema = updateConfigBodySchema;
 const paramsSchema = z.object({ guildId: snowflakeSchema });
 
 export type UpdateModmailConfigBody = z.input<typeof bodySchema>;
-export type UpdateModmailConfigResult = GuildSettings;
+
+export interface UpdateModmailConfigResult extends GuildSettings {
+	// See `getConfig.ts`'s matching field for why this exists -- kept in sync here so the mutation
+	// response (which the frontend writes straight into the same query cache, see `useUpdateModmailConfig`)
+	// doesn't regress to a raw snowflake until the next GET refetch.
+	recordThreadContentEnabledByUser: APIUser | Snowflake | null;
+}
 
 export default defineRoute({
 	method: 'patch',
@@ -99,7 +107,12 @@ export default defineRoute({
 				RETURNING *
 			`;
 
-			return settings!;
+			return {
+				...settings!,
+				recordThreadContentEnabledByUser: settings!.recordThreadContentEnabledBy
+					? await resolveUser(settings!.recordThreadContentEnabledBy)
+					: null,
+			};
 		} catch (error) {
 			await releaseGrantOnError(req.grant, req.logger);
 			throw error;

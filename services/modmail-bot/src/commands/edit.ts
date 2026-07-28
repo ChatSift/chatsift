@@ -19,7 +19,7 @@ import { ChatInputInteractionOptionResolver, ModalInteractionOptionResolver } fr
 import { nanoid } from 'nanoid';
 import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from '../lib/emojis.js';
 import { buildEditedEmbed, isMarkedDeleted, isUnknownMessageError } from '../lib/replyModeration.js';
-import { findOpenThreadByModThreadId, findStaffReplyByLocalId } from '../lib/threads.js';
+import { findOpenThreadByModThreadId, findStaffReplyByLocalId, updateRecordedMessageContent } from '../lib/threads.js';
 
 /**
  * Discord's modal `TextInput` max -- matches `reply.ts`'s own content field, and is 96 characters short
@@ -211,6 +211,14 @@ export default class EditCommand implements CommandHandler {
 				getContext().service.client.api.channels.editMessage(userThreadId, row.userMessageId, {
 					embeds: [buildEditedEmbed(userEmbed, content, false)],
 				}),
+				// Recorded content (Phase 3, #261) -- this command was never wired through the raw gateway
+				// `MessageUpdate` listener `updateRecordedMessageContent` was originally built for
+				// (`lib/userMessageLifecycle.ts` only covers the user-thread and internal-mod-chatter cases,
+				// neither of which matches a staff-authored `/reply` log copy), so it has to be called here
+				// directly. No-ops if this reply predates recording or the guild has since disabled it (same
+				// atomic check the function does for every caller); archives the prior version into
+				// `thread_message_content_edits` before overwriting, same as every other edit path.
+				updateRecordedMessageContent(thread.guildId, row.id, content),
 			]);
 
 			logger.info({ threadId: thread.id, replyId }, 'Edited staff reply');

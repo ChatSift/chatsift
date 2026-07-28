@@ -46,6 +46,7 @@ import createSnippetRoute from './routes/modmail/snippets/createSnippet.js';
 import deleteSnippetRoute from './routes/modmail/snippets/deleteSnippet.js';
 import listSnippetsRoute from './routes/modmail/snippets/listSnippets.js';
 import updateSnippetRoute from './routes/modmail/snippets/updateSnippet.js';
+import getThreadMessageEditsRoute from './routes/modmail/threads/getMessageEdits.js';
 import getThreadRoute from './routes/modmail/threads/getThread.js';
 import listThreadsRoute from './routes/modmail/threads/listThreads.js';
 import { sendBoom } from './util/sendBoom.js';
@@ -134,6 +135,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, deleteBlockRoute);
 	mountRoute(app, listThreadsRoute);
 	mountRoute(app, getThreadRoute);
+	mountRoute(app, getThreadMessageEditsRoute);
 
 	app.listen(getContext().env.API_PORT, () =>
 		getContext().logger.info({ port: getContext().env.API_PORT }, 'Listening to requests'),

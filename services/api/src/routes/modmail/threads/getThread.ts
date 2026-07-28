@@ -45,6 +45,12 @@ export interface RecordedStickerJson {
 export interface ThreadMessageRecordedContent {
 	attachments: ResolvedThreadMessageAttachment[];
 	content: string;
+	/**
+	 * How many prior versions exist in `thread_message_content_edits` (Phase 3, #261) -- a count rather
+	 * than the full history so a page of messages doesn't balloon in size for messages nobody ever clicks
+	 * the "edited" badge on. The full list is a separate on-demand fetch, see `getMessageEdits.ts`.
+	 */
+	editCount: number;
 	isForwarded: boolean;
 	recordedAt: Date;
 	repliedToThreadMessageId: ThreadMessagesId | null;
@@ -64,12 +70,23 @@ export interface ThreadDetail extends Threads {
 	category: ThreadCategory | null;
 	member: APIGuildMember | null;
 	messages: ThreadDetailMessage[];
+	/**
+	 * The `local_thread_message_id` to continue paging *forward* (newer messages) from, or `null` if this
+	 * page already reaches the latest message in the thread. Symmetric with `previousCursor` below --
+	 * unlike Phase 2 (which only ever paged forward from the oldest message), Phase 3's initial load lands
+	 * on the latest messages, so scrolling up needs its own cursor from the very first fetch.
+	 */
 	nextCursor: number | null;
 	otherThreads: Threads[];
 	/**
 	 * Dedup'd `{ userId/staffId -> resolved user }` map, scoped to the current message page only.
 	 */
 	participants: Record<string, APIUser | Snowflake>;
+	/**
+	 * The `local_thread_message_id` to continue paging *backward* (older messages) from, or `null` if this
+	 * page already reaches the very first message in the thread.
+	 */
+	previousCursor: number | null;
 	userThreadCount: number;
 }
 
@@ -80,6 +97,7 @@ export interface ThreadDetail extends Threads {
 interface ThreadMessageRow extends ThreadMessages {
 	recordedAttachments: unknown;
 	recordedContent: string | null;
+	recordedEditCount: string;
 	recordedIsForwarded: boolean | null;
 	recordedRecordedAt: Date | null;
 	recordedRepliedToThreadMessageId: ThreadMessagesId | null;
@@ -120,12 +138,14 @@ export default defineRoute({
 			throw notFound('thread not found');
 		}
 
-		// No cursor: first page, always starts from the oldest message regardless of `direction`. With a
-		// cursor, `after` continues forward (ascending) from it and `before` pages backward (descending,
-		// reversed back to ascending below) -- see `createPaginationQuerySchema`'s doc comment on why
-		// cursor pagination at all, and #261's own doc for why `before` matters once Phase 3 adds
-		// jump-to-latest + scroll-up.
-		const goingForward = cursor === undefined || direction === 'after';
+		// Unlike Phase 2, `direction` decides query order even with no cursor -- there's no more implicit
+		// "no cursor always means oldest-first" special case. `direction: 'before'` + no cursor (the default,
+		// see `querySchema`) fetches the *latest* page (descending from the true end, reversed back to
+		// ascending below); `direction: 'after'` + no cursor fetches the very first page from the start.
+		// Either way, a cursor continues paging in whichever direction it's paired with. This is what lets
+		// the frontend land on the latest messages by default while still being able to jump to the oldest
+		// ones, and to page in both directions from any point (see `previousCursor`/`nextCursor` below).
+		const goingForward = direction === 'after';
 		const rows = await db<ThreadMessageRow[]>`
 			SELECT
 				tm.*,
@@ -134,35 +154,47 @@ export default defineRoute({
 				tmc.is_forwarded AS recorded_is_forwarded,
 				tmc.attachments AS recorded_attachments,
 				tmc.stickers AS recorded_stickers,
-				tmc.recorded_at AS recorded_recorded_at
+				tmc.recorded_at AS recorded_recorded_at,
+				(SELECT COUNT(*) FROM thread_message_content_edits e WHERE e.thread_message_id = tm.id) AS recorded_edit_count
 			FROM thread_messages tm
 			LEFT JOIN thread_message_content tmc ON tmc.thread_message_id = tm.id
 			WHERE tm.thread_id = ${threadId}
 			${
 				cursor === undefined
 					? db``
-					: direction === 'after'
+					: goingForward
 						? db`AND tm.local_thread_message_id > ${cursor}`
 						: db`AND tm.local_thread_message_id < ${cursor}`
 			}
 			ORDER BY tm.local_thread_message_id ${goingForward ? db`ASC` : db`DESC`}
-			LIMIT ${limit + 1}
+			LIMIT ${limit}
 		`;
 
-		const hasNextPage = rows.length > limit;
-		const page = hasNextPage ? rows.slice(0, limit) : rows;
-		const orderedPage = goingForward ? page : [...page].reverse();
-		const nextCursor = hasNextPage
-			? goingForward
-				? orderedPage.at(-1)!.localThreadMessageId
-				: orderedPage[0]!.localThreadMessageId
-			: null;
+		const orderedPage = goingForward ? rows : [...rows].reverse();
+
+		// Symmetric boundary check in both directions, regardless of which direction was actually queried --
+		// simpler and just as cheap as tracking a single "hasMore in the direction we asked for" flag, and it
+		// means every page (including the very first one) always carries both cursors a bi-directional
+		// infinite query needs.
+		const firstId = orderedPage[0]?.localThreadMessageId;
+		const lastId = orderedPage.at(-1)?.localThreadMessageId;
+		const [olderExists, newerExists] = await Promise.all([
+			firstId === undefined
+				? undefined
+				: db`SELECT 1 FROM thread_messages WHERE thread_id = ${threadId} AND local_thread_message_id < ${firstId} LIMIT 1`,
+			lastId === undefined
+				? undefined
+				: db`SELECT 1 FROM thread_messages WHERE thread_id = ${threadId} AND local_thread_message_id > ${lastId} LIMIT 1`,
+		]);
+		const previousCursor = olderExists?.length ? firstId! : null;
+		const nextCursor = newerExists?.length ? lastId! : null;
 
 		const messages = await Promise.all(
 			orderedPage.map(async (row): Promise<ThreadDetailMessage> => {
 				const {
 					recordedAttachments,
 					recordedContent,
+					recordedEditCount,
 					recordedIsForwarded,
 					recordedRecordedAt,
 					recordedRepliedToThreadMessageId,
@@ -185,6 +217,7 @@ export default defineRoute({
 					recordedContent: {
 						attachments,
 						content: recordedContent,
+						editCount: Number(recordedEditCount),
 						isForwarded: recordedIsForwarded!,
 						recordedAt: recordedRecordedAt!,
 						repliedToThreadMessageId: recordedRepliedToThreadMessageId,
@@ -222,6 +255,7 @@ export default defineRoute({
 			nextCursor,
 			otherThreads,
 			participants: Object.fromEntries(participantEntries),
+			previousCursor,
 			userThreadCount,
 		};
 	},

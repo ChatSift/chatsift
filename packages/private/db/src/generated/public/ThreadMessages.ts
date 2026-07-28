@@ -27,6 +27,10 @@ export default interface ThreadMessages {
   anon: boolean;
 
   isInternal: boolean;
+
+  deletedAt: Date | null;
+
+  isSystem: boolean;
 }
 
 /** Represents the initializer for the table public.thread_messages */
@@ -50,6 +54,10 @@ export interface ThreadMessagesInitializer {
   anon?: boolean;
 
   isInternal?: boolean;
+
+  deletedAt?: Date | null;
+
+  isSystem?: boolean;
 }
 
 /** Represents the mutator for the table public.thread_messages */
@@ -73,4 +81,8 @@ export interface ThreadMessagesMutator {
   anon?: boolean;
 
   isInternal?: boolean;
+
+  deletedAt?: Date | null;
+
+  isSystem?: boolean;
 }

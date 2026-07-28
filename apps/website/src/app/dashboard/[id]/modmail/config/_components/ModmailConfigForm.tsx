@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { APIError } from '@/api/error';
 import { useGuildInfo } from '@/api/routes/guilds';
-import type { UpdateModmailConfigBody } from '@/api/routes/modmail';
+import type { ModmailConfig, UpdateModmailConfigBody } from '@/api/routes/modmail';
 import { useModmailConfig, useUpdateModmailConfig } from '@/api/routes/modmail';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect } from '@/components/common/ChannelSelect';
@@ -56,6 +56,22 @@ function mapConfigIssues(issues: readonly { message: string; path: PropertyKey[]
 	}
 
 	return errors;
+}
+
+/**
+ * A raw snowflake is unfriendly to show directly in the "Enabled by" audit line -- `resolvedUser` is the
+ * server-resolved `APIUser` (or the bare snowflake on a 404, e.g. a deleted account) the API now returns
+ * alongside the raw id, see `getConfig.ts`/`updateConfig.ts`'s `recordThreadContentEnabledByUser`.
+ */
+function enabledByLabel(
+	resolvedUser: ModmailConfig['recordThreadContentEnabledByUser'],
+	fallbackId: string | null,
+): string {
+	if (!resolvedUser) {
+		return fallbackId ?? 'unknown';
+	}
+
+	return typeof resolvedUser === 'string' ? resolvedUser : (resolvedUser.global_name ?? resolvedUser.username);
 }
 
 export function ModmailConfigForm() {
@@ -375,12 +391,12 @@ export function ModmailConfigForm() {
 					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
 						Off by default. When enabled, all replies sent through the bot and all surrounding messages in the mod
 						thread are recorded so staff can browse past threads in full on the dashboard. This is a real privacy
-						decision -- make sure your team has consented to conversations being stored this way before turning it on.
+						decision - make sure your team has consented to conversations being stored this way before turning it on.
 					</p>
 					{config?.recordThreadContentEnabledAt && (
 						<p className="mt-2 text-xs text-secondary dark:text-secondary-dark">
-							Enabled by {config.recordThreadContentEnabledBy} on{' '}
-							{formatDate(new Date(config.recordThreadContentEnabledAt))}.
+							Enabled by {enabledByLabel(config.recordThreadContentEnabledByUser, config.recordThreadContentEnabledBy)}{' '}
+							on {formatDate(new Date(config.recordThreadContentEnabledAt))}.
 						</p>
 					)}
 				</div>

@@ -7,7 +7,10 @@ explicitly left it optional/unscoped ("Thread history view optional, same caveat
 
 ## Status: Phase 1 done 2026-07-27, Phase 2 done 2026-07-28 (scope grew beyond what's written below — see
 
-"Phase 2 additions" at the end of that section), Phase 3 not started
+"Phase 2 additions" at the end of that section), Phase 3 done 2026-07-28 (`turbo run build lint test`
+green; owner to live-verify manually rather than an in-session run of the three services — see "Phase 3
+notes" at the end of that section for what shipped vs. what was deliberately trimmed from the original
+scope)
 
 ## Goal
 
@@ -311,6 +314,107 @@ thread_messages WHERE ...`, not the soft "survives" treatment user-side deletes 
   the jump-to-top/bottom must above builds on.
 - **Full collapse/expand UX**: replace Phase 2's plain toggle with Discord's actual reply-grouping visual —
   expand shows the referenced message inline, not just a jump-link.
+
+### Phase 3 notes (what actually shipped vs. the scope above)
+
+Landed 2026-07-28, in one pass covering both the "musts" and the "everything else" list, with two
+deliberate scope trims decided by the owner mid-implementation:
+
+- **Rendering spike resolved differently than guessed**: the research spike found `@discord/markdown-react`
+  - `@discord/markdown-wasm` (official `@discord`-scoped npm packages, published 1–2 weeks prior) rather
+    than `discord-markdown` — zero non-peer deps, an AST covering exactly the bot's message shape (mentions,
+    custom/unicode emoji, timestamps, spoiler/bold/italic/underline/strikethrough, code/code-block, headings,
+    lists, quotes). The wasm parser's Node-side loader turned out to break under Next's _server_ bundle (a
+    `URL` instance-identity mismatch with `fs.readFile`'s validator) — fixed by lazy-loading `DiscordMarkdown.tsx`
+    itself via `next/dynamic(..., { ssr: false })` at every call site (`ThreadMessage.tsx`) rather than
+    importing it directly, so the wasm module is never evaluated server-side at all.
+- **Embeds explicitly cut**: owner call — nothing records embed data at all (no `embeds` column anywhere),
+  and reconstructing that was judged not worth it. No `DiscordEmbed.tsx` exists; this remains a real gap if
+  ever revisited.
+- **Attachments/stickers explicitly left alone**: owner call — Phase 2's plain-link attachments and sticker
+  images already work well enough; no `DiscordAttachments.tsx` image-grid/lightbox was built.
+- **Musts**: all five shipped — mod-side grouping (`MessageAuthorHeader.tsx`, consecutive-same-author
+  suppression) plus internal-chatter block collapse (`InternalChatterGroup.tsx`, collapsed by default for
+  runs of 2+); internal mod-message edit/delete capture (`handleInternalMessageUpdate`/
+  `handleInternalMessageDelete` in `lib/userMessageLifecycle.ts`, true `DELETE` for the delete path); edit
+  badge + history (new `thread_message_content_edits` table, mirrors `snippet_updates`'s archive-then-
+  overwrite pattern; `EditHistoryBadge.tsx` lazily fetches via a new `getMessageEdits.ts` route rather than
+  inlining full history into `getThread.ts`'s response); delete badge (`thread_messages.deleted_at`,
+  display-only).
+- **Jump-to-top/bottom: shipped, then removed by owner decision after manual testing.** The
+  `jumpToLatest`/`jumpToOldest` hook actions and their UI buttons in `ThreadMessageList.tsx` existed briefly
+  the same session and were deleted outright — "Load older messages"/"Load more" plus normal scrolling was
+  judged sufficient. If ever revisited, the underlying mechanism ("fetch one fresh page anchored at that
+  end, replace the whole cached page list with it") is straightforward to redo, just not currently in the
+  codebase.
+- **Pagination reworked, not just extended (this part stayed)**: `getThread.ts`'s cursor logic changed so
+  `direction` decides query order even with no cursor (previously `cursor === undefined` always meant
+  oldest-first regardless of `direction`) — the default is now a `previousCursor`/`nextCursor`-symmetric
+  response, landing on the _latest_ messages first. `useModmailThread` is a genuinely bi-directional
+  `useInfiniteQuery` (`getNextPageParam`/`getPreviousPageParam` both wired) independent of the jump feature
+  above — this is what "Load older messages" pages backward from.
+- **Virtualization**: `@tanstack/react-virtual` in `ThreadMessageList.tsx`, with a manual scroll-anchor
+  restore (capture `scrollHeight` before a `fetchPreviousPage`, restore the delta after) since the
+  virtualizer has no built-in notion of "this batch was prepended, not appended." This is the one piece of
+  Phase 3 most worth extra scrutiny during manual testing — scroll-anchor-on-prepend is a notoriously fiddly
+  class of bug in any virtualized chat UI.
+
+### Bugs found during the owner's manual testing pass (fixed same session)
+
+- **`/edit`/`/delete` never touched recorded content**: these mod slash commands (`commands/edit.ts`/
+  `commands/delete.ts`) edit/delete a staff reply's two Discord copies directly via REST, completely
+  bypassing the gateway `MessageUpdate`/`MessageDelete` listeners — those only cover the user-thread and
+  internal-mod-chatter cases, neither of which matches a staff-authored `/reply` log copy. Fixed by calling
+  `updateRecordedMessageContent`/`markUserThreadMessageDeleted` directly inside the two command handlers,
+  since they already have the resolved `thread_messages` row in hand from `findStaffReplyByLocalId`.
+- **Greeting/farewell messages were never recorded at all** — not even as a "not recorded" placeholder,
+  they simply had no `thread_messages` row, an invisible gap in the transcript. Fixed by having
+  `lib/ticketCreation.ts#sendGreeting` and `lib/threadClose.ts#postFarewellMessage` call
+  `insertThreadMessage` themselves (gated on `isRecordingEnabled`, same as internal chatter — an unrecorded
+  row would carry zero information). Neither has a real "sender" the way every other row does, which needed
+  a new `thread_messages.is_system BOOLEAN` column to avoid misattributing them: the greeting has no actor
+  at all (`staff_id: null`), while a farewell can be genuinely attributed to the closing staffer
+  (`staff_id: closedById`) or anonymized (`staff_id: null`) exactly like `/reply`'s own anon option. The
+  frontend renders `is_system` rows in a distinct blue/sky box with a robot icon, showing "System" as the
+  author when unattributed rather than falling back to the ticket's `user_id` (which every row carries
+  regardless, and would otherwise visually misattribute the message to the user).
+- **"Enabled by `223703707118731264`" on the config page** — the recording-consent audit line rendered the
+  raw `record_thread_content_enabled_by` snowflake directly. Fixed by having `getConfig.ts`/`updateConfig.ts`
+  resolve it server-side into `recordThreadContentEnabledByUser` (an `APIUser`, or the bare snowflake on a 404) via the same `resolveUser` helper `threads/util.ts` already used — both routes needed the fix, not
+  just the GET, since `useUpdateModmailConfig` writes the PATCH response straight into the same query cache.
+- **Forwarded messages didn't read as forwarded** — the only indicator was a subtle `· forwarded` timestamp
+  suffix in `MessageAuthorHeader.tsx`, which lived inside the header — the same header that
+  `buildRenderItems` suppresses for a message grouped under the previous one. A forwarded message from the
+  same author as the message right before it lost its only tell entirely. Fixed by (1) forcing
+  `showHeader: true` whenever `recordedContent.isForwarded` is set, same as the existing `isSystem`/
+  `isInternal` forcing conditions, and (2) promoting the indicator from inline text to its own
+  `📨 Forwarded` badge chip, matching the existing `Staff`/`Sent anonymously` badge treatment instead of
+  competing with the timestamp for attention.
+- **Mod-side polish requested directly by the owner (not a bug, a follow-up ask)**: the mod-forum thread's
+  name only ever showed the user's display name, with no way to cross-reference it against the numeric
+  `Thread #X` the dashboard uses everywhere (`ThreadDetail.tsx`, `ThreadSidebar.tsx`, `DashboardCrumbs.tsx`).
+  The first attempt fixed this with a best-effort `channels.edit` rename right after the `threads` row
+  insert (the ticket number doesn't exist until then) — reverted almost immediately once manual testing
+  showed Discord posts an unhideable "_Bot_ changed the post title: ..." system message on every such
+  rename. Replaced with reserving the id upfront instead: `finishTicketCreation` now does
+  `SELECT nextval(pg_get_serial_sequence('threads', 'id'))` _before_ creating the Discord forum thread at
+  all, uses that reserved id straight in the initial `Thread #<id> - <displayName>` name, and then passes
+  it explicitly as the `id` column on the later `INSERT INTO threads` (`GENERATED BY DEFAULT AS IDENTITY`
+  allows this). No rename, no system message. A sequence gap on a failed ticket creation (already handled
+  by deleting the orphaned Discord thread) is an accepted, ordinary cost of this — nothing reads
+  `threads.id` expecting no gaps.
+
+  Separately, when recording is on, the very first message in a new mod thread is now a small `-#` subtext
+  notice (`⚠️ This ticket's messages are being recorded and viewable on the dashboard.`) posted ahead of the
+  user-info embed — Discord bakes whatever's passed to `createForumThread`'s own `message` option in as the
+  unmovable first post, so achieving "notice first, info embed second" required deferring the info embed
+  (and the alert-role ping that used to ride along with it) to a follow-up `createMessage` call, which also
+  let a `[View in dash]` link field get added to that embed pointing at
+  `<FRONTEND_URL>/dashboard/<guildId>/modmail/threads/<thread.id>`. The "Past Tickets" field's count is now
+  also a hyperlink (to `.../modmail/threads?search=<user.id>&include_closed=true`) under the same recording
+  gate, so a mod can jump straight to a user's history instead of just seeing a bare number. When recording
+  is off, ticket creation keeps the original single-message flow — no notice, no dashboard link, no linked
+  ticket count — only the `Thread #<id>` name prefix applies unconditionally either way.
 
 ## Verification
 
