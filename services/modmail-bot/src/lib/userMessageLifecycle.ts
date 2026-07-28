@@ -89,7 +89,10 @@ export async function handleUserMessageUpdate(
 			// back off for the guild (both checked atomically inside `updateRecordedMessageContent` itself).
 			// The prior content is archived into `thread_message_content_edits` before being overwritten to
 			// match whatever the mod-forum log embed now shows -- see that function's own doc comment.
-			await updateRecordedMessageContent(thread.guildId, row.id, resolvedContent);
+			// Recorded as `effective.content` (the raw text), not `resolvedContent` -- see
+			// `relay.ts#relayUserMessageToModThread`'s matching comment on why the foreign-emoji-to-hyperlink
+			// downgrade is a live-Discord-embed-only concern, not something the dashboard's own renderer needs.
+			await updateRecordedMessageContent(thread.guildId, row.id, effective.content);
 
 			await getContext().service.client.api.channels.editMessage(thread.modThreadId, row.guildMessageId, {
 				embeds: [buildEditedEmbed(logEmbed, newDescription, true)],
@@ -211,14 +214,15 @@ export async function handleInternalMessageUpdate(
 
 	try {
 		const effective = resolveEffectiveContent(message);
-		const guildEmojiIds = await fetchGuildEmojiIds(thread.guildId, getContext().service.client.api, logger);
-		const resolvedContent = guildEmojiIds
-			? resolveContentForRelay(effective.content, guildEmojiIds)
-			: effective.content;
 
+		// No emoji-substitution concern here unlike the user-thread side (`handleUserMessageUpdate`) --
+		// this message was never relayed anywhere by the bot, a mod posted it directly into the mod-forum
+		// thread with their own client, so Discord already rendered whatever emoji it contains correctly.
+		// Nothing here is Discord-facing at all, just the recorded copy, so there's nothing to resolve.
+		//
 		// No-op if this predates recording, or recording has since been disabled (checked atomically inside
 		// `updateRecordedMessageContent`) -- same archive-then-overwrite behavior as the user-thread side.
-		await updateRecordedMessageContent(thread.guildId, row.id, resolvedContent);
+		await updateRecordedMessageContent(thread.guildId, row.id, effective.content);
 
 		logger.info({ threadId: thread.id }, 'Updated recorded content for an edited internal mod-thread message');
 	} catch (error) {
