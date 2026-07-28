@@ -9,6 +9,7 @@ import {
 	ComponentType,
 	InteractionContextType,
 	MessageFlags,
+	PermissionFlagsBits,
 	TextInputStyle,
 } from '@discordjs/core';
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
@@ -33,6 +34,7 @@ export default class ReplyCommand implements CommandHandler {
 	public readonly data = new ChatInputCommandBuilder()
 		.setName('reply')
 		.setDescription('Reply to this ModMail ticket (opens a box for the message content)')
+		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.setContexts(InteractionContextType.Guild)
 		.setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
 		.toJSON();

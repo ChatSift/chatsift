@@ -3,7 +3,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction } from '@discordjs/core';
-import { ApplicationIntegrationType, InteractionContextType, MessageFlags } from '@discordjs/core';
+import { ApplicationIntegrationType, InteractionContextType, MessageFlags, PermissionFlagsBits } from '@discordjs/core';
 import { findOpenThreadByModThreadId } from '../lib/threads.js';
 
 export default class AlertCommand implements CommandHandler {
@@ -12,6 +12,7 @@ export default class AlertCommand implements CommandHandler {
 	public readonly data = new ChatInputCommandBuilder()
 		.setName('alert')
 		.setDescription('Toggle a ping for yourself whenever the user sends a new message in this ticket')
+		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.setContexts(InteractionContextType.Guild)
 		.setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
 		.toJSON();

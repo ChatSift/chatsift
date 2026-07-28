@@ -3,7 +3,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction, APIChatInputApplicationCommandInteraction } from '@discordjs/core';
-import { ApplicationIntegrationType, InteractionContextType, MessageFlags } from '@discordjs/core';
+import { ApplicationIntegrationType, InteractionContextType, MessageFlags, PermissionFlagsBits } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from '../lib/emojis.js';
 import { relayStaffReplyToUserThread } from '../lib/relay.js';
@@ -15,6 +15,7 @@ export default class ReplyQuickCommand implements CommandHandler {
 	public readonly data = new ChatInputCommandBuilder()
 		.setName('reply-q')
 		.setDescription('Quickly reply to this ModMail ticket with a single-line message')
+		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.setContexts(InteractionContextType.Guild)
 		.setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
 		.addStringOptions((option) =>

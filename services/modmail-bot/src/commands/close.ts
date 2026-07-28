@@ -3,7 +3,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction, APIChatInputApplicationCommandInteraction } from '@discordjs/core';
-import { ApplicationIntegrationType, InteractionContextType, MessageFlags } from '@discordjs/core';
+import { ApplicationIntegrationType, InteractionContextType, MessageFlags, PermissionFlagsBits } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { closeThread } from '../lib/threadClose.js';
 import { findOpenThreadByModThreadId } from '../lib/threads.js';
@@ -14,6 +14,7 @@ export default class CloseCommand implements CommandHandler {
 	public readonly data = new ChatInputCommandBuilder()
 		.setName('close')
 		.setDescription('Close this ModMail ticket')
+		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.setContexts(InteractionContextType.Guild)
 		.setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
 		.addSubcommands(

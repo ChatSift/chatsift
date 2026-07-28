@@ -3,7 +3,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction, APIChatInputApplicationCommandInteraction } from '@discordjs/core';
-import { ApplicationIntegrationType, InteractionContextType, MessageFlags } from '@discordjs/core';
+import { ApplicationIntegrationType, InteractionContextType, MessageFlags, PermissionFlagsBits } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { isMarkedDeleted, isUnknownMessageError, markEmbedDeleted } from '../lib/replyModeration.js';
 import { findOpenThreadByModThreadId, findStaffReplyByLocalId, markUserThreadMessageDeleted } from '../lib/threads.js';
@@ -14,6 +14,7 @@ export default class DeleteCommand implements CommandHandler {
 	public readonly data = new ChatInputCommandBuilder()
 		.setName('delete')
 		.setDescription("Delete a past staff reply from the user's side of this ModMail ticket by its Reply ID")
+		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.setContexts(InteractionContextType.Guild)
 		.setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
 		.addIntegerOptions((option) =>

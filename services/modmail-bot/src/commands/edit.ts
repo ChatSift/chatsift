@@ -13,6 +13,7 @@ import {
 	ComponentType,
 	InteractionContextType,
 	MessageFlags,
+	PermissionFlagsBits,
 	TextInputStyle,
 } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver, ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
@@ -33,6 +34,7 @@ export default class EditCommand implements CommandHandler {
 	public readonly data = new ChatInputCommandBuilder()
 		.setName('edit')
 		.setDescription('Edit a past staff reply in this ModMail ticket by its Reply ID')
+		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.setContexts(InteractionContextType.Guild)
 		.setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
 		.addIntegerOptions((option) =>
