@@ -18,13 +18,15 @@ export default interface ThreadMessages {
 
   userId: string;
 
-  userMessageId: string;
+  userMessageId: string | null;
 
   staffId: string | null;
 
   guildMessageId: string;
 
   anon: boolean;
+
+  isInternal: boolean;
 }
 
 /** Represents the initializer for the table public.thread_messages */
@@ -39,13 +41,15 @@ export interface ThreadMessagesInitializer {
 
   userId: string;
 
-  userMessageId: string;
+  userMessageId?: string | null;
 
   staffId?: string | null;
 
   guildMessageId: string;
 
   anon?: boolean;
+
+  isInternal?: boolean;
 }
 
 /** Represents the mutator for the table public.thread_messages */
@@ -60,11 +64,13 @@ export interface ThreadMessagesMutator {
 
   userId?: string;
 
-  userMessageId?: string;
+  userMessageId?: string | null;
 
   staffId?: string | null;
 
   guildMessageId?: string;
 
   anon?: boolean;
+
+  isInternal?: boolean;
 }

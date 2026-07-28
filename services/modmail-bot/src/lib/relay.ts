@@ -8,11 +8,14 @@ import { fetchGuildEmojiIds, resolveContentForRelay } from './emojis.js';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
 import type { RelayAttachmentLike, RelayStickerLike } from './media.js';
 import { buildRelayMedia } from './media.js';
+import type { MessageLike } from './messageContext.js';
+import { resolveEffectiveContent, resolveReplyReferenceId } from './messageContext.js';
 import { postReferencedUserEmbeds } from './referencedUserEmbed.js';
 import { clearReplyAlertCooldown, resolveReplyAlertMentions } from './replyAlerts.js';
 import { templateGuildName } from './templateString.js';
 import type { InsertThreadMessageContentOptions, RecordedAttachment } from './threads.js';
 import {
+	findRepliedToByModMessageId,
 	findRepliedToGuildMessageId,
 	incrementLocalMessageId,
 	insertThreadMessage,
@@ -349,4 +352,68 @@ export async function relayStaffReplyToUserThread({
 	// rather than possibly waiting out a cooldown that started before this reply (see
 	// `lib/replyAlerts.ts`).
 	await clearReplyAlertCooldown(thread.id);
+}
+
+export interface RecordInternalModMessageOptions {
+	logger: Logger;
+	message: MessageLike & { id: string };
+	staffId: string;
+	thread: Threads;
+}
+
+/**
+ * Records a plain message posted directly in the mod-forum thread -- mod-to-mod discussion that never
+ * crosses to the user's private thread, as opposed to a relayed user message or a `/reply` log copy
+ * (both handled above). Unlike those, there's no "real" cross-thread exchange this row represents on
+ * its own, so it's only worth inserting at all when recording is actually on -- gated here rather than
+ * at the call site, mirroring `isRecordingEnabled`'s other two call sites for consistency. Attachments/
+ * stickers are taken straight off the message itself (no re-upload/matching needed, unlike
+ * `buildRecordedAttachments` -- this message already *is* the durable mod-forum copy).
+ */
+export async function recordInternalModMessage({
+	logger,
+	message,
+	staffId,
+	thread,
+}: RecordInternalModMessageOptions): Promise<void> {
+	if (!(await isRecordingEnabled(thread.guildId))) {
+		return;
+	}
+
+	const localThreadMessageId = await incrementLocalMessageId(thread.id);
+	const effective = resolveEffectiveContent(message);
+	const replyReferenceId = resolveReplyReferenceId(message);
+	const repliedToThreadMessageId = replyReferenceId
+		? ((await findRepliedToByModMessageId(thread.id, replyReferenceId)) ?? null)
+		: null;
+
+	await insertThreadMessage({
+		anon: false,
+		content: {
+			attachments: effective.attachments.map((attachment) => ({
+				contentType: attachment.content_type ?? null,
+				filename: attachment.filename,
+				size: attachment.size,
+				url: attachment.url,
+			})),
+			isForwarded: effective.isForwarded,
+			repliedToThreadMessageId,
+			stickers: effective.stickers.map((sticker) => ({
+				formatType: sticker.format_type,
+				id: sticker.id,
+				name: sticker.name,
+			})),
+			text: effective.content,
+		},
+		guildId: thread.guildId,
+		guildMessageId: message.id,
+		isInternal: true,
+		localThreadMessageId,
+		staffId,
+		threadId: thread.id,
+		userId: thread.userId,
+		userMessageId: null,
+	});
+
+	logger.info({ threadId: thread.id, localThreadMessageId }, 'Recorded internal mod-thread message');
 }

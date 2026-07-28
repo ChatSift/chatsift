@@ -18,7 +18,7 @@ import { buildContextNote, resolveEffectiveContent, resolveReplyReferenceId } fr
 import { clearPendingTicketRecord, PendingTicketStore, type PendingTicketState } from './lib/pendingTicket.js';
 import { sweepAbandonedPendingTickets } from './lib/pendingTicketSweep.js';
 import { preventOpenThreadsFromArchiving } from './lib/preventThreadArchive.js';
-import { relayStaffReplyToUserThread, relayUserMessageToModThread } from './lib/relay.js';
+import { recordInternalModMessage, relayStaffReplyToUserThread, relayUserMessageToModThread } from './lib/relay.js';
 import { sweepScheduledCloses } from './lib/scheduledCloseSweep.js';
 import { findSnippetByCommandId, recordSnippetUsage } from './lib/snippets.js';
 import { sweepThreadNukes } from './lib/threadNukeSweep.js';
@@ -221,6 +221,16 @@ function registerMessageRelay(client: Client): void {
 					thread,
 					user: message.author,
 				});
+				return;
+			}
+
+			// Not the user's own thread -- check whether this is a plain message posted directly in a
+			// ticket's mod-forum thread (mod-to-mod discussion, as opposed to a `/reply`-driven relay,
+			// which is command-driven and never reaches this listener at all). `recordInternalModMessage`
+			// itself no-ops when recording isn't enabled for the guild, so there's no gate needed here.
+			const modThread = await findOpenThreadByModThreadId(message.channel_id);
+			if (modThread) {
+				await recordInternalModMessage({ logger, message, staffId: message.author.id, thread: modThread });
 				return;
 			}
 

@@ -17,7 +17,7 @@ import { SvgModmail } from '@/components/icons/SvgModmail';
 import { Bots } from '@/utils/bots';
 import { sortGuilds } from '@/utils/util';
 
-const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks'] as const;
+const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks', 'threads'] as const;
 
 const SEGMENT_LABELS: Record<string, string> = {
 	ama: 'AMA Bot',
@@ -29,6 +29,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 	panels: 'Panels',
 	snippets: 'Snippets',
 	blocks: 'Blocks',
+	threads: 'Threads',
 	settings: 'Settings',
 } as const;
 
@@ -203,6 +204,12 @@ const SEGMENT_DEFINITIONS: readonly SegmentDefinition[] = [
 	{
 		pattern: ['modmail', 'snippets', ':id'],
 		resolveLabel: resolveModmailSnippetLabel,
+	},
+	{
+		// Threads have no name field to resolve against (unlike panels/categories/snippets above), so this
+		// just formats the raw id -- see #261's own doc for why.
+		pattern: ['modmail', 'threads', ':id'],
+		resolveLabel: (threadId) => `Thread #${threadId}`,
 	},
 ];
 

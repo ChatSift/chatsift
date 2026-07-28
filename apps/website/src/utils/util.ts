@@ -25,6 +25,16 @@ export const formatDate = (date: Date) =>
 		minute: '2-digit',
 	}).format(date);
 
+const DISCORD_EPOCH = 1_420_070_400_000n;
+
+/**
+ * `thread_messages` (#261) has no `createdAt` column of its own -- the message's own Discord snowflake id
+ * already encodes its creation time, so the dashboard derives it from that instead of adding a redundant
+ * column that could ever drift from the id it's decoded from.
+ */
+export const discordSnowflakeToDate = (snowflake: string): Date =>
+	new Date(Number((BigInt(snowflake) >> 22n) + DISCORD_EPOCH));
+
 /**
  * Unlike `Number.parseInt`, doesn't silently truncate trailing garbage ("5.7" -> 5, "5abc" -> 5) or coerce
  * non-plain-integer syntax ("1e1" -> 10) — only a string of plain (optionally signed) digits parses, everything
