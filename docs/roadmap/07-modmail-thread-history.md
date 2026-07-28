@@ -266,10 +266,12 @@ much they were flagged as musts vs. nice-to-haves.
   dashboard silently shows stale content. Needs the same shape of listener, scoped to `guild_message_id` +
   `is_internal = true` instead of `user_message_id` (mirrors `findUserThreadMessageByMessageId`, just on the
   mod-thread side rather than the user-thread side). **Delete must be a true delete** — `DELETE FROM
-thread_messages WHERE ...` (cascades to `thread_message_content` and to anything replying to it, per the
-  existing `ON DELETE CASCADE`/`ON DELETE SET NULL` FKs), not the soft "survives" treatment user-side
-  deletes get. This is a deliberate asymmetry (see the Decisions entry above): the durable-record principle
-  protects the user-facing exchange, not a mod's own retracted internal note.
+thread_messages WHERE ...`, not the soft "survives" treatment user-side deletes get. Per the existing FKs,
+  this cascades to remove the row's own `thread_message_content` (`ON DELETE CASCADE`), while any other
+  message that replied to it keeps existing with `replied_to_thread_message_id` cleared to `NULL`
+  (`ON DELETE SET NULL`) rather than being deleted itself. This is a deliberate asymmetry (see the Decisions
+  entry above): the durable-record principle protects the user-facing exchange, not a mod's own retracted
+  internal note.
 - **Edit badge + history for user-side messages**: content is currently overwritten in place
   (`userMessageLifecycle.ts`) with no trace that an edit happened — this resolves what used to be Open
   Question #2 below, now confirmed needed. Requires a new sidecar table mirroring `snippet_updates`' pattern
@@ -334,7 +336,9 @@ thread_messages WHERE ...` (cascades to `thread_message_content` and to anything
   confirm virtualization keeps a very long thread's DOM bounded (spot-check via browser devtools node
   count) and scroll-up correctly loads older pages via `direction: before`. Plus the musts: editing/deleting
   a plain mod-thread message updates/removes the recorded copy (and delete is a real `DELETE`, confirm the
-  row is actually gone, not just hidden); an edited user message shows the edit badge, clicking it lists
+  row is actually gone, not just hidden — including that its own `thread_message_content` row cascades away,
+  while any other message that had replied to it survives with `replied_to_thread_message_id` cleared to
+  `NULL` rather than also being deleted); an edited user message shows the edit badge, clicking it lists
   every prior version in order; a deleted user message shows the delete badge while its content is still
   fully readable; jump-to-top and jump-to-bottom both land at the right end of a long thread without paging
   through everything in between.
