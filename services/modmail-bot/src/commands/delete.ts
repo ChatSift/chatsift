@@ -6,7 +6,7 @@ import type { APIApplicationCommandInteraction, APIChatInputApplicationCommandIn
 import { ApplicationIntegrationType, InteractionContextType, MessageFlags } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { isMarkedDeleted, isUnknownMessageError, markEmbedDeleted } from '../lib/replyModeration.js';
-import { findOpenThreadByModThreadId, findStaffReplyByLocalId } from '../lib/threads.js';
+import { findOpenThreadByModThreadId, findStaffReplyByLocalId, markUserThreadMessageDeleted } from '../lib/threads.js';
 
 export default class DeleteCommand implements CommandHandler {
 	public readonly name = 'delete';
@@ -100,6 +100,14 @@ export default class DeleteCommand implements CommandHandler {
 					throw error;
 				}
 			}
+
+			// Recorded-message marker (Phase 3, #261) -- same "survives, just flagged" treatment as a user
+			// deleting their own message (`markUserThreadMessageDeleted`'s own doc comment): the row and its
+			// `thread_message_content` are untouched, this only sets `deleted_at` for the dashboard's delete
+			// badge. This command was never wired through the raw gateway `MessageDelete` listener that
+			// function was originally built for (`lib/userMessageLifecycle.ts` only covers the user-thread
+			// and internal-mod-chatter cases), so it has to be called here directly.
+			await markUserThreadMessageDeleted(row.id);
 
 			await getContext().service.client.api.channels.editMessage(thread.modThreadId, row.guildMessageId, {
 				embeds: [markEmbedDeleted(logEmbed, staffId)],

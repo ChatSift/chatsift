@@ -24,7 +24,12 @@ import { findSnippetByCommandId, recordSnippetUsage } from './lib/snippets.js';
 import { sweepThreadNukes } from './lib/threadNukeSweep.js';
 import { findOpenThreadByModThreadId, findOpenThreadByUserThreadId } from './lib/threads.js';
 import { finishTicketCreation, sendGreeting } from './lib/ticketCreation.js';
-import { handleUserMessageDelete, handleUserMessageUpdate } from './lib/userMessageLifecycle.js';
+import {
+	handleInternalMessageDelete,
+	handleInternalMessageUpdate,
+	handleUserMessageDelete,
+	handleUserMessageUpdate,
+} from './lib/userMessageLifecycle.js';
 
 /**
  * How often `sweepAbandonedPendingTickets` runs — short enough that an abandoned thread doesn't sit
@@ -154,6 +159,7 @@ async function handleFirstMessage(
 					member: message.member,
 					modThreadId: thread.modThreadId,
 					privateThreadId: message.channel_id,
+					threadId: thread.id,
 					user: message.author,
 				});
 
@@ -253,6 +259,13 @@ function registerMessageRelay(client: Client): void {
  * above for why this is a raw gateway listener rather than routed through `@chatsift/bot-core`. Each
  * event's actual handling lives in `lib/userMessageLifecycle.ts` -- this just wires the listener and
  * makes sure a failure in either handler can't crash the process.
+ *
+ * Phase 3 (#261) added the mod-forum-side counterpart (`handleInternalMessageUpdate`/`handleInternalMessageDelete`)
+ * for a mod editing/deleting their own plain message posted directly in the mod-forum thread. Both the
+ * user-thread and mod-thread handlers run unconditionally on every event rather than branching like
+ * `registerMessageRelay` does -- a channel can't be both a ticket's `user_thread_id` and `mod_thread_id` at
+ * once, so at most one of the two ever finds a matching thread and does anything; each still gets its own
+ * try/catch so a failure in one can't suppress the other.
  */
 function registerMessageLifecycleRelay(client: Client): void {
 	client.on(GatewayDispatchEvents.MessageUpdate, async ({ data: message }) => {
@@ -267,6 +280,12 @@ function registerMessageLifecycleRelay(client: Client): void {
 		} catch (error) {
 			logger.error({ err: error }, 'Failed to handle message update in modmail-bot');
 		}
+
+		try {
+			await handleInternalMessageUpdate(message, logger);
+		} catch (error) {
+			logger.error({ err: error }, 'Failed to handle internal message update in modmail-bot');
+		}
 	});
 
 	client.on(GatewayDispatchEvents.MessageDelete, async ({ data: message }) => {
@@ -280,6 +299,12 @@ function registerMessageLifecycleRelay(client: Client): void {
 			await handleUserMessageDelete(message.channel_id, message.id, logger);
 		} catch (error) {
 			logger.error({ err: error }, 'Failed to handle message delete in modmail-bot');
+		}
+
+		try {
+			await handleInternalMessageDelete(message.channel_id, message.id, logger);
+		} catch (error) {
+			logger.error({ err: error }, 'Failed to handle internal message delete in modmail-bot');
 		}
 	});
 }

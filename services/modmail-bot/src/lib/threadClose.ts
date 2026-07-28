@@ -6,6 +6,7 @@ import { DiscordAPIError } from '@discordjs/rest';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
 import { identityFooter, nicknameAuthor } from './relay.js';
 import { templateDataFromMember, templateGuildName, templateString } from './templateString.js';
+import { incrementLocalMessageId, insertThreadMessage, isRecordingEnabled } from './threads.js';
 
 /**
  * Matches prod ChatSift/ModMail's `Colors.Red` — distinct from the relay colors (`lib/relay.ts`) and
@@ -198,7 +199,7 @@ async function postFarewellMessage(
 		}
 
 		// User-facing copy, into the private thread.
-		await getContext().service.client.api.channels.createMessage(thread.userThreadId, {
+		const userMessage = await getContext().service.client.api.channels.createMessage(thread.userThreadId, {
 			embeds: [
 				{
 					color: CLOSE_RED,
@@ -213,7 +214,7 @@ async function postFarewellMessage(
 		// same as `relayStaffReplyToUserThread`'s `logEmbed`: staff never lose the audit trail just
 		// because the user-facing copy was anonymized. Posted before the "Ticket closed by" log embed
 		// (see `closeThread`) so mods see what the user was told before the closure announcement itself.
-		await getContext().service.client.api.channels.createMessage(thread.modThreadId, {
+		const modMessage = await getContext().service.client.api.channels.createMessage(thread.modThreadId, {
 			embeds: [
 				{
 					color: CLOSE_RED,
@@ -223,6 +224,33 @@ async function postFarewellMessage(
 				},
 			],
 		});
+
+		// Recorded the same way a staff reply is (Phase 3, #261) -- `is_system` distinguishes it from a
+		// real staff/user message on read (see schema.sql's own doc comment). `staffId` is still populated
+		// when attributed (matches the mod-forum log's own "always show the real closer" behavior above),
+		// `null` for an anonymized farewell or an unresolvable closer -- there's no real actor to name in
+		// either case. Only inserted when recording is enabled, same as internal mod-chatter.
+		if (await isRecordingEnabled(thread.guildId)) {
+			const localThreadMessageId = await incrementLocalMessageId(thread.id);
+			await insertThreadMessage({
+				anon,
+				content: {
+					attachments: [],
+					isForwarded: false,
+					repliedToThreadMessageId: null,
+					stickers: [],
+					text: content,
+				},
+				guildId: thread.guildId,
+				guildMessageId: modMessage.id,
+				isSystem: true,
+				localThreadMessageId,
+				staffId: anon || !closer ? null : closedById,
+				threadId: thread.id,
+				userId: thread.userId,
+				userMessageId: userMessage.id,
+			});
+		}
 	} catch (error) {
 		logger.warn({ err: error, threadId: thread.id }, 'Failed to post the farewell message before closing');
 	}

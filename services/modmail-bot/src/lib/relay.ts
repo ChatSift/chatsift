@@ -187,7 +187,13 @@ export async function relayUserMessageToModThread({
 			isForwarded,
 			repliedToThreadMessageId: repliedTo?.id ?? null,
 			stickers: stickers.map((sticker) => ({ formatType: sticker.format_type, id: sticker.id, name: sticker.name })),
-			text: resolvedContent,
+			// Deliberately the original `content`, not `resolvedContent` -- the name-only hyperlink downgrade
+			// above exists because *Discord itself* won't inline-render a custom emote foreign to the posting
+			// guild, a restriction that only applies to the live relayed embed. The dashboard's own renderer
+			// (`DiscordMarkdown.tsx`'s `EmojiRenderer`) just hits the emoji CDN directly by id with no such
+			// guild-ownership check, so recording the downgraded text here would only make the dashboard worse
+			// at rendering these than it's actually capable of.
+			text: content,
 		};
 	}
 

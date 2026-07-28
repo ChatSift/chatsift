@@ -10,10 +10,17 @@ import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 export function ThreadDetail() {
 	const { id: guildId, threadId } = useParams<{ id: string; threadId: string }>();
-	const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useModmailThread(
-		guildId,
-		threadId,
-	);
+	const {
+		data,
+		isLoading,
+		error,
+		fetchNextPage,
+		fetchPreviousPage,
+		hasNextPage,
+		hasPreviousPage,
+		isFetchingNextPage,
+		isFetchingPreviousPage,
+	} = useModmailThread(guildId, threadId);
 
 	if (error && data === undefined) {
 		return <UserErrorHandler error={error} />;
@@ -49,8 +56,11 @@ export function ThreadDetail() {
 				<div className="min-w-0 flex-1">
 					<ThreadMessageList
 						fetchNextPage={fetchNextPage}
+						fetchPreviousPage={fetchPreviousPage}
 						hasNextPage={hasNextPage}
+						hasPreviousPage={hasPreviousPage}
 						isFetchingNextPage={isFetchingNextPage}
+						isFetchingPreviousPage={isFetchingPreviousPage}
 						messages={messages}
 						participants={participants}
 					/>

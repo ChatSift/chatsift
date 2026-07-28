@@ -95,6 +95,8 @@ export const queryKeys = {
 			list: (guildId: string, includeClosed: boolean, q: string) =>
 				['api', 'modmail', guildId, 'threads', 'list', includeClosed, q] as const,
 			byId: (guildId: string, threadId: string) => ['api', 'modmail', guildId, 'threads', threadId] as const,
+			messageEdits: (guildId: string, threadId: string, messageId: number) =>
+				['api', 'modmail', guildId, 'threads', threadId, 'messages', messageId, 'edits'] as const,
 		},
 	},
 } as const;

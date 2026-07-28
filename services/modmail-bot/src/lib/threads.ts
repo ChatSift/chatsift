@@ -1,5 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
-import type { Threads, ThreadMessages, ThreadMessagesId } from '@chatsift/db';
+import type { Threads, ThreadMessages, ThreadMessagesId, ThreadMessageContent } from '@chatsift/db';
 import type postgres from 'postgres';
 
 /**
@@ -197,30 +197,68 @@ export async function findStaffReplyByLocalId(
 }
 
 /**
- * Overwrites a recorded message's content in place when the user edits it (`lib/userMessageLifecycle.ts`)
- * -- a no-op if no `thread_message_content` row exists for this message (predates recording, or recording
- * was never enabled), since there's nothing to reconcile in that case. No edit-history/versioning in this
- * phase (see #261) -- the previous content just isn't kept anywhere.
+ * Overwrites a recorded message's content in place when its author edits it (`lib/userMessageLifecycle.ts`,
+ * both the user-thread and internal-mod-chatter handlers) -- a no-op if no `thread_message_content` row
+ * exists for this message (predates recording, or recording was never enabled), since there's nothing to
+ * reconcile in that case.
+ *
+ * Phase 3 (#261): before overwriting, the *current* content is archived into `thread_message_content_edits`
+ * (mirrors `services/api`'s `updateSnippet.ts` archive-then-overwrite pattern for `snippet_updates`) --
+ * but only when the content actually changed, so a no-op "edit" (Discord re-sending the same content, e.g.
+ * a link-unfurl backfill that still passed `handleUserMessageUpdate`'s guards) doesn't mint a spurious
+ * version. Locks the row (`FOR UPDATE`) for the duration so a burst of rapid edits can't interleave their
+ * archive-then-overwrite steps and drop a version.
  *
  * Also a no-op if the guild's `record_thread_content` consent has since been turned back off -- checked
- * atomically in the same `UPDATE` (an `EXISTS` against the row's *current* guild_settings state) rather
- * than a preceding `isRecordingEnabled` call-and-branch, so a disable that races a concurrent edit can't
- * leave a stale write behind. Consent being off should mean *no* further writes touch recorded content at
- * all, not just that new messages stop being recorded -- an existing row surviving a disable (per the
- * "not reset back to null" audit-trail decision) is not license to keep mutating it afterward.
+ * atomically in the same `SELECT ... FOR UPDATE` (an `EXISTS` against the row's *current* guild_settings
+ * state) rather than a preceding `isRecordingEnabled` call-and-branch, so a disable that races a concurrent
+ * edit can't leave a stale write behind. Consent being off should mean *no* further writes touch recorded
+ * content at all, not just that new messages stop being recorded -- an existing row surviving a disable
+ * (per the "not reset back to null" audit-trail decision) is not license to keep mutating it afterward.
  */
 export async function updateRecordedMessageContent(
 	guildId: string,
 	threadMessageId: ThreadMessagesId,
 	text: string,
 ): Promise<void> {
+	await getContext().db.begin(async (tx) => {
+		const [current] = await tx<ThreadMessageContent[]>`
+			SELECT * FROM thread_message_content
+			WHERE thread_message_id = ${threadMessageId}
+				AND EXISTS (
+					SELECT 1 FROM guild_settings WHERE guild_id = ${guildId} AND record_thread_content = true
+				)
+			FOR UPDATE
+		`;
+
+		if (!current) {
+			return;
+		}
+
+		if (current.content !== text) {
+			await tx`
+				INSERT INTO thread_message_content_edits (thread_message_id, old_content)
+				VALUES (${threadMessageId}, ${current.content})
+			`;
+		}
+
+		await tx`
+			UPDATE thread_message_content SET content = ${text} WHERE thread_message_id = ${threadMessageId}
+		`;
+	});
+}
+
+/**
+ * Sets a user-side recorded message's `deleted_at` when the user deletes it client-side
+ * (`lib/userMessageLifecycle.ts`'s `handleUserMessageDelete`) -- display-only (Phase 3, #261): unlike the
+ * edit path above, nothing about `thread_message_content` itself is touched, since the "recorded copy
+ * survives a delete" decision means there's no content change to reconcile, just a fact to mark. A no-op
+ * if already set (idempotent against a duplicate `MESSAGE_DELETE`, or the lifecycle handler retrying after
+ * a partial failure).
+ */
+export async function markUserThreadMessageDeleted(threadMessageId: ThreadMessagesId): Promise<void> {
 	await getContext().db`
-		UPDATE thread_message_content
-		SET content = ${text}
-		WHERE thread_message_id = ${threadMessageId}
-			AND EXISTS (
-				SELECT 1 FROM guild_settings WHERE guild_id = ${guildId} AND record_thread_content = true
-			)
+		UPDATE thread_messages SET deleted_at = now() WHERE id = ${threadMessageId} AND deleted_at IS NULL
 	`;
 }
 
@@ -241,6 +279,45 @@ export async function findUserThreadMessageByMessageId(
 	`;
 
 	return row;
+}
+
+/**
+ * Sibling to `findUserThreadMessageByMessageId` for the mod-thread side of #261's Phase 3 edit/delete
+ * capture -- an internal mod-to-mod message has no `user_message_id` to match on (see schema.sql), so this
+ * matches on `guild_message_id` (the raw id of the plain message posted directly in the mod-forum thread)
+ * scoped to `is_internal = true`, which also excludes `/reply`/`/reply-q` log copies (staff-authored but
+ * never internal) the same way `findStaffReplyByLocalId` excludes them from its own territory.
+ */
+export async function findModThreadMessageByMessageId(
+	threadId: Threads['id'],
+	guildMessageId: string,
+): Promise<ThreadMessages | undefined> {
+	const [row] = await getContext().db<ThreadMessages[]>`
+		SELECT * FROM thread_messages
+		WHERE thread_id = ${threadId} AND guild_message_id = ${guildMessageId} AND is_internal
+	`;
+
+	return row;
+}
+
+/**
+ * True-deletes an internal mod-thread message row when a mod deletes their own plain message via Discord's
+ * own UI (Phase 3, #261) -- deliberately asymmetric with the "deleted messages survive" rule for
+ * user-facing messages (see the Decisions entry in docs/roadmap/07-modmail-thread-history.md): internal
+ * chatter isn't part of the durable user-facing record, so there's nothing worth keeping a "deleted but
+ * still readable" trace of. Cascades to the row's own `thread_message_content` (`ON DELETE CASCADE`); any
+ * other message that had replied to it survives with `replied_to_thread_message_id` cleared to `NULL`
+ * (`ON DELETE SET NULL`) rather than also being deleted. Returns whether a row was actually deleted, purely
+ * so the caller can decide whether it's worth logging.
+ */
+export async function deleteInternalThreadMessage(threadId: Threads['id'], guildMessageId: string): Promise<boolean> {
+	const rows = await getContext().db<{ id: ThreadMessagesId }[]>`
+		DELETE FROM thread_messages
+		WHERE thread_id = ${threadId} AND guild_message_id = ${guildMessageId} AND is_internal
+		RETURNING id
+	`;
+
+	return rows.length > 0;
 }
 
 /**
@@ -285,6 +362,11 @@ export interface InsertThreadMessageOptions {
 	 * private thread, so `userMessageId` is `null` for these (see schema.sql).
 	 */
 	isInternal?: boolean | undefined;
+	/**
+	 * True for the bot's own automated greeting/farewell messages -- see schema.sql's doc comment on why
+	 * this needs to be its own flag rather than inferred from `staffId`/`userId`.
+	 */
+	isSystem?: boolean | undefined;
 	localThreadMessageId: number;
 	staffId: string | null;
 	threadId: Threads['id'];
@@ -298,6 +380,7 @@ export async function insertThreadMessage({
 	guildId,
 	guildMessageId,
 	isInternal = false,
+	isSystem = false,
 	localThreadMessageId,
 	staffId,
 	threadId,
@@ -310,10 +393,10 @@ export async function insertThreadMessage({
 		await db`
 			INSERT INTO thread_messages (
 				local_thread_message_id, guild_id, thread_id, user_id, user_message_id, staff_id, guild_message_id, anon,
-				is_internal
+				is_internal, is_system
 			) VALUES (
 				${localThreadMessageId}, ${guildId}, ${threadId}, ${userId}, ${userMessageId}, ${staffId}, ${guildMessageId}, ${anon},
-				${isInternal}
+				${isInternal}, ${isSystem}
 			)
 		`;
 		return;
@@ -323,10 +406,10 @@ export async function insertThreadMessage({
 		const [row] = await tx<[{ id: ThreadMessagesId }]>`
 			INSERT INTO thread_messages (
 				local_thread_message_id, guild_id, thread_id, user_id, user_message_id, staff_id, guild_message_id, anon,
-				is_internal
+				is_internal, is_system
 			) VALUES (
 				${localThreadMessageId}, ${guildId}, ${threadId}, ${userId}, ${userMessageId}, ${staffId}, ${guildMessageId}, ${anon},
-				${isInternal}
+				${isInternal}, ${isSystem}
 			)
 			RETURNING id
 		`;

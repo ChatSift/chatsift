@@ -575,6 +575,8 @@ __metadata:
     "@chatsift/api": "workspace:^"
     "@chatsift/core": "workspace:^"
     "@chatsift/discord-utils": "workspace:^"
+    "@discord/markdown-react": "npm:^0.3.1"
+    "@discord/markdown-wasm": "npm:^0.2.1"
     "@radix-ui/react-avatar": "npm:^1.2.2"
     "@radix-ui/react-dropdown-menu": "npm:^2.1.20"
     "@radix-ui/react-navigation-menu": "npm:^1.2.18"
@@ -582,6 +584,7 @@ __metadata:
     "@tailwindcss/postcss": "npm:^4.3.3"
     "@tanstack/react-query": "npm:^5.101.2"
     "@tanstack/react-query-devtools": "npm:^5.101.2"
+    "@tanstack/react-virtual": "npm:^3.14.8"
     "@types/luxon": "npm:^3.7.2"
     "@types/node": "npm:^24.9.1"
     "@types/react": "npm:^19.2.17"
@@ -833,6 +836,22 @@ __metadata:
   version: 1.2.1
   resolution: "@conventional-changelog/template@npm:1.2.1"
   checksum: 10c0/5a391c5fa8f740d892aac8d5ee14e255625d6c1938e6c3c04c104129a58b5baff3c9c04592744ba0dbbbce7b421ca906af378f194b10d7803c4906b23028e0b4
+  languageName: node
+  linkType: hard
+
+"@discord/markdown-react@npm:^0.3.1":
+  version: 0.3.1
+  resolution: "@discord/markdown-react@npm:0.3.1"
+  peerDependencies:
+    react: 17 - 19
+  checksum: 10c0/ce4a2f4b884fe2f19e50fc3cc3d97b41656589b28df5f47d65f83d4f7b4930a4805427acbe38a27f543436669eb2a249ad1623c91745cac45a99ec25dac6e6a2
+  languageName: node
+  linkType: hard
+
+"@discord/markdown-wasm@npm:^0.2.1":
+  version: 0.2.1
+  resolution: "@discord/markdown-wasm@npm:0.2.1"
+  checksum: 10c0/80ea89313908e7d44b4520206607b389fdac5fdd70f1cc36f983f8c7ed53add562619bcde17a47291b6efd6f06acc7d0eb196f8abd243a07900cc64f84aee605
   languageName: node
   linkType: hard
 
@@ -3511,6 +3530,25 @@ __metadata:
   peerDependencies:
     react: ^18 || ^19
   checksum: 10c0/076b2db0d85a6dc96d461789715ae0df2e439d9a20a41e629446275f8177a856c3b89d242ad3d31eadaf421f080b9834bcd9f94e5143f4cd7f947a10af9e42b3
+  languageName: node
+  linkType: hard
+
+"@tanstack/react-virtual@npm:^3.14.8":
+  version: 3.14.8
+  resolution: "@tanstack/react-virtual@npm:3.14.8"
+  dependencies:
+    "@tanstack/virtual-core": "npm:3.17.6"
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 10c0/09762894bb6cadeb0a9764943e4aac629d2f5e36a681bdb98c1867b4b964e2f37cc59e844b8b003d4aba4046b76a67c3c7306b6ac9c39e6bbceb4681ff1afdcd
+  languageName: node
+  linkType: hard
+
+"@tanstack/virtual-core@npm:3.17.6":
+  version: 3.17.6
+  resolution: "@tanstack/virtual-core@npm:3.17.6"
+  checksum: 10c0/64a6491ddf90203f2231065908ae775a02178052e74f26293dffc87a3af7c74c36acb8f37fce8e76ff7f4b91020cbfb46b606226261a691d60452df9f9f82677
   languageName: node
   linkType: hard
 
