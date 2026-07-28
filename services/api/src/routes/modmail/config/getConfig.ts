@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
-import { resolveUser } from '../threads/util.js';
+import { resolveUserBestEffort } from '../threads/util.js';
 
 const paramsSchema = z.object({ guildId: snowflakeSchema });
 
@@ -59,7 +59,7 @@ export default defineRoute({
 		return {
 			...resolved,
 			recordThreadContentEnabledByUser: resolved.recordThreadContentEnabledBy
-				? await resolveUser(resolved.recordThreadContentEnabledBy)
+				? await resolveUserBestEffort(resolved.recordThreadContentEnabledBy, req.logger)
 				: null,
 		};
 	},

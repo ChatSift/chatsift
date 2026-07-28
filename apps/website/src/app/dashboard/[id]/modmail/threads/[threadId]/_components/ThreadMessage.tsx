@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { FaLock, FaRobot, FaTrash } from 'react-icons/fa';
 import { EditHistoryBadge } from './EditHistoryBadge';
 import { MessageAuthorHeader } from './MessageAuthorHeader';
-import { messageAuthorId, participantLabel, stickerImageUrl } from './threadMessageUtils';
+import { messageAuthorId, resolveAuthorLabel, stickerImageUrl } from './threadMessageUtils';
 import type { ModmailThreadMessage } from '@/api/routes/modmailThreads';
 import { Skeleton } from '@/components/common/Skeleton';
 import { UserAvatar } from '@/components/user/UserAvatar';
@@ -59,7 +59,7 @@ export function ThreadMessage({
 	// comment). An *attributed* farewell still resolves normally, since `staffId` is genuinely the closer.
 	const isUnattributedSystemMessage = message.isSystem && !isStaff;
 	const authorEntry = isUnattributedSystemMessage ? undefined : participants[authorId];
-	const authorLabel = isUnattributedSystemMessage ? 'System' : participantLabel(authorEntry, authorId);
+	const authorLabel = resolveAuthorLabel(message, participants);
 	const timestamp = discordSnowflakeToDate(message.guildMessageId);
 
 	const repliedToId = message.recordedContent?.repliedToThreadMessageId ?? null;
@@ -132,10 +132,7 @@ export function ThreadMessage({
 						}}
 						type="button"
 					>
-						<span className="shrink-0">
-							↩{' '}
-							{repliedTo ? participantLabel(participants[messageAuthorId(repliedTo)], messageAuthorId(repliedTo)) : ''}
-						</span>
+						<span className="shrink-0">↩ {repliedTo ? resolveAuthorLabel(repliedTo, participants) : ''}</span>
 						<span className="truncate">
 							{repliedTo
 								? (repliedTo.recordedContent?.content ?? '(not recorded)')
@@ -147,27 +144,18 @@ export function ThreadMessage({
 				{message.recordedContent?.content && (
 					<div className="mt-1 break-words text-sm text-primary dark:text-primary-dark">
 						<DiscordMarkdown content={message.recordedContent.content} participants={participants} />
-						{message.recordedContent.editCount > 0 && (
-							<>
-								{' '}
-								<EditHistoryBadge messageId={message.id} />
-							</>
-						)}
 					</div>
 				)}
 				{message.recordedContent && !message.recordedContent.content && !hasAttachments && !hasStickers && (
-					<p className="mt-1 text-sm italic text-secondary dark:text-secondary-dark">
-						(no text content)
-						{message.recordedContent.editCount > 0 && (
-							<>
-								{' '}
-								<EditHistoryBadge messageId={message.id} />
-							</>
-						)}
-					</p>
+					<p className="mt-1 text-sm italic text-secondary dark:text-secondary-dark">(no text content)</p>
 				)}
 				{!message.recordedContent && (
 					<p className="mt-1 text-sm italic text-secondary dark:text-secondary-dark">Not recorded</p>
+				)}
+				{message.recordedContent && message.recordedContent.editCount > 0 && (
+					<p className="mt-0.5">
+						<EditHistoryBadge messageId={message.id} />
+					</p>
 				)}
 
 				{message.deletedAt && (

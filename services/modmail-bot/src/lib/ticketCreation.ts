@@ -178,20 +178,27 @@ export async function finishTicketCreation({
 	if (recording) {
 		// Deferred from the forum-thread-creation call above (see its own comment) now that `thread.id`
 		// exists to link back to — carries the alert-role ping the recording notice itself didn't, so a
-		// new ticket still notifies exactly like it would have without recording on.
-		const dashboardUrl = `${getContext().FRONTEND_URL}/dashboard/${guildId}/modmail/threads/${thread.id}`;
-		await getContext().service.client.api.channels.createMessage(modThread.id, {
-			...(alertRoleId ? { content: `<@&${alertRoleId}>` } : {}),
-			embeds: [
-				{
-					...openingEmbed,
-					fields: [
-						...openingEmbedFields,
-						{ name: 'Dashboard', value: `[View in dash](${dashboardUrl})`, inline: true },
-					],
-				},
-			],
-		});
+		// new ticket still notifies exactly like it would have without recording on. Best-effort: the ticket
+		// itself is already fully created and persisted by this point, so a Discord hiccup posting this one
+		// follow-up embed shouldn't fail ticket creation outright and block the relay/greeting flow that
+		// still needs to run in `index.ts#handleFirstMessage` right after this returns.
+		try {
+			const dashboardUrl = `${getContext().FRONTEND_URL}/dashboard/${guildId}/modmail/threads/${thread.id}`;
+			await getContext().service.client.api.channels.createMessage(modThread.id, {
+				...(alertRoleId ? { content: `<@&${alertRoleId}>` } : {}),
+				embeds: [
+					{
+						...openingEmbed,
+						fields: [
+							...openingEmbedFields,
+							{ name: 'Dashboard', value: `[View in dash](${dashboardUrl})`, inline: true },
+						],
+					},
+				],
+			});
+		} catch (error) {
+			logger.warn({ err: error, threadId: thread.id }, 'Failed to post the opening info embed to the mod thread');
+		}
 	}
 
 	logger.info({ threadId: thread.id, modThreadId: modThread.id, privateThreadId }, 'Opened new modmail ticket');

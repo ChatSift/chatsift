@@ -11,7 +11,7 @@ import { releaseGrantOnError } from '../../../util/grant.js';
 import { assertRolesBelongToGuild } from '../../../util/roles.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { updateConfigBodySchema } from '../schemas.js';
-import { resolveUser } from '../threads/util.js';
+import { resolveUserBestEffort } from '../threads/util.js';
 
 const bodySchema = updateConfigBodySchema;
 const paramsSchema = z.object({ guildId: snowflakeSchema });
@@ -110,7 +110,7 @@ export default defineRoute({
 			return {
 				...settings!,
 				recordThreadContentEnabledByUser: settings!.recordThreadContentEnabledBy
-					? await resolveUser(settings!.recordThreadContentEnabledBy)
+					? await resolveUserBestEffort(settings!.recordThreadContentEnabledBy, req.logger)
 					: null,
 			};
 		} catch (error) {

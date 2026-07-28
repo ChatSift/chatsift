@@ -1,4 +1,5 @@
 import { URL } from 'node:url';
+import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { Categories, Threads, ThreadsId } from '@chatsift/db';
 import type { APIGuildMember, APIUser, Snowflake } from '@discordjs/core';
@@ -35,6 +36,23 @@ export async function resolveUser(userId: Snowflake): Promise<APIUser | Snowflak
 		}
 
 		throw error;
+	}
+}
+
+/**
+ * `resolveUser` re-throws anything that isn't a plain 404 (rate limits, a transient 5xx, the bot's token
+ * being briefly invalid) -- fine for `getThread.ts`/`listThreads.ts`, where a participant's name is core to
+ * the response. The config screen's "Enabled by" audit line is a nice-to-have annotation on top of settings
+ * that otherwise have nothing to do with Discord's API being up, so a transient failure resolving it
+ * shouldn't fail the whole config GET/PATCH -- falls back to the bare snowflake and logs instead, same
+ * fallback shape a real 404 already gets.
+ */
+export async function resolveUserBestEffort(userId: Snowflake, logger: Logger): Promise<APIUser | Snowflake> {
+	try {
+		return await resolveUser(userId);
+	} catch (error) {
+		logger.warn({ err: error, userId }, 'Failed to resolve recordThreadContentEnabledBy for the config audit line');
+		return userId;
 	}
 }
 

@@ -211,15 +211,20 @@ export default class EditCommand implements CommandHandler {
 				getContext().service.client.api.channels.editMessage(userThreadId, row.userMessageId, {
 					embeds: [buildEditedEmbed(userEmbed, content, false)],
 				}),
-				// Recorded content (Phase 3, #261) -- this command was never wired through the raw gateway
-				// `MessageUpdate` listener `updateRecordedMessageContent` was originally built for
-				// (`lib/userMessageLifecycle.ts` only covers the user-thread and internal-mod-chatter cases,
-				// neither of which matches a staff-authored `/reply` log copy), so it has to be called here
-				// directly. No-ops if this reply predates recording or the guild has since disabled it (same
-				// atomic check the function does for every caller); archives the prior version into
-				// `thread_message_content_edits` before overwriting, same as every other edit path.
-				updateRecordedMessageContent(thread.guildId, row.id, content),
 			]);
+
+			// Recorded content (Phase 3, #261) -- this command was never wired through the raw gateway
+			// `MessageUpdate` listener `updateRecordedMessageContent` was originally built for
+			// (`lib/userMessageLifecycle.ts` only covers the user-thread and internal-mod-chatter cases,
+			// neither of which matches a staff-authored `/reply` log copy), so it has to be called here
+			// directly. Deliberately sequenced *after* both Discord edits resolve, not raced alongside them in
+			// the `Promise.all` above -- `Promise.all` doesn't cancel a still-in-flight promise just because a
+			// sibling rejects, so archiving/overwriting the recorded content here would otherwise happen even
+			// when one of the actual Discord edits failed. No-ops if this reply predates recording or the
+			// guild has since disabled it (same atomic check the function does for every caller); archives the
+			// prior version into `thread_message_content_edits` before overwriting, same as every other edit
+			// path.
+			await updateRecordedMessageContent(thread.guildId, row.id, content);
 
 			logger.info({ threadId: thread.id, replyId }, 'Edited staff reply');
 			await getContext().service.client.api.interactions.editReply(

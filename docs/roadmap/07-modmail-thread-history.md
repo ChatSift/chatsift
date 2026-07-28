@@ -333,14 +333,15 @@ deliberate scope trims decided by the owner mid-implementation:
   ever revisited.
 - **Attachments/stickers explicitly left alone**: owner call — Phase 2's plain-link attachments and sticker
   images already work well enough; no `DiscordAttachments.tsx` image-grid/lightbox was built.
-- **Musts**: all five shipped — mod-side grouping (`MessageAuthorHeader.tsx`, consecutive-same-author
-  suppression) plus internal-chatter block collapse (`InternalChatterGroup.tsx`, collapsed by default for
-  runs of 2+); internal mod-message edit/delete capture (`handleInternalMessageUpdate`/
-  `handleInternalMessageDelete` in `lib/userMessageLifecycle.ts`, true `DELETE` for the delete path); edit
-  badge + history (new `thread_message_content_edits` table, mirrors `snippet_updates`'s archive-then-
-  overwrite pattern; `EditHistoryBadge.tsx` lazily fetches via a new `getMessageEdits.ts` route rather than
-  inlining full history into `getThread.ts`'s response); delete badge (`thread_messages.deleted_at`,
-  display-only).
+- **Musts**: four of the five originally listed were delivered and stayed — mod-side grouping
+  (`MessageAuthorHeader.tsx`, consecutive-same-author suppression) plus internal-chatter block collapse
+  (`InternalChatterGroup.tsx`, collapsed by default for runs of 2+); internal mod-message edit/delete capture
+  (`handleInternalMessageUpdate`/`handleInternalMessageDelete` in `lib/userMessageLifecycle.ts`, true
+  `DELETE` for the delete path); edit badge + history (new `thread_message_content_edits` table, mirrors
+  `snippet_updates`'s archive-then-overwrite pattern; `EditHistoryBadge.tsx` lazily fetches via a new
+  `getMessageEdits.ts` route rather than inlining full history into `getThread.ts`'s response); delete badge
+  (`thread_messages.deleted_at`, display-only). The fifth, jump-to-top/bottom, was also built but then
+  deliberately removed — see the next bullet.
 - **Jump-to-top/bottom: shipped, then removed by owner decision after manual testing.** The
   `jumpToLatest`/`jumpToOldest` hook actions and their UI buttons in `ThreadMessageList.tsx` existed briefly
   the same session and were deleted outright — "Load older messages"/"Load more" plus normal scrolling was

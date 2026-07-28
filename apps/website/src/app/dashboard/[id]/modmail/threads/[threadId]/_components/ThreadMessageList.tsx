@@ -11,7 +11,7 @@ import { Button } from '@/components/common/Button';
 
 interface ThreadMessageListProps {
 	fetchNextPage(): void;
-	fetchPreviousPage(): void;
+	fetchPreviousPage(): Promise<unknown>;
 	readonly hasNextPage: boolean;
 	readonly hasPreviousPage: boolean;
 	readonly isFetchingNextPage: boolean;
@@ -55,12 +55,19 @@ export function ThreadMessageList({
 	// itself has no notion of "this batch was prepended, not appended").
 	const pendingScrollRestoreRef = useRef<number | null>(null);
 
-	const handleFetchPreviousPage = () => {
+	const handleFetchPreviousPage = async () => {
 		if (parentRef.current) {
 			pendingScrollRestoreRef.current = parentRef.current.scrollHeight;
 		}
 
-		fetchPreviousPage();
+		try {
+			await fetchPreviousPage();
+		} catch {
+			// A failed fetch never grows `messages`, so the scroll-restore effect's own `[messages]` dependency
+			// would never fire to consume this -- left set, it would incorrectly apply to whatever *next*
+			// unrelated messages update happens to land.
+			pendingScrollRestoreRef.current = null;
+		}
 	};
 
 	useLayoutEffect(() => {
@@ -95,7 +102,7 @@ export function ThreadMessageList({
 						<Button
 							className="w-fit self-center border border-on-secondary text-xs dark:border-on-secondary-dark"
 							isDisabled={isFetchingPreviousPage}
-							onPress={() => handleFetchPreviousPage()}
+							onPress={async () => handleFetchPreviousPage()}
 						>
 							{isFetchingPreviousPage ? 'Loading...' : 'Load older messages'}
 						</Button>

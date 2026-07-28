@@ -24,6 +24,7 @@ export function InternalChatterGroup({ messages, messagesById, participants }: I
 	return (
 		<div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 dark:border-amber-400/30 dark:bg-amber-400/5">
 			<button
+				aria-expanded={isExpanded}
 				className="flex w-full items-center gap-1.5 p-3 text-left text-xs font-medium text-amber-600 dark:text-amber-400"
 				onClick={() => setIsExpanded((previous) => !previous)}
 				type="button"

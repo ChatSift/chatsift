@@ -19,7 +19,7 @@ interface EditHistoryBadgeProps {
 export function EditHistoryBadge({ messageId }: EditHistoryBadgeProps) {
 	const { id: guildId, threadId } = useParams<{ id: string; threadId: string }>();
 	const [isOpen, setIsOpen] = useState(false);
-	const { data, isLoading } = useModmailMessageEdits(guildId, threadId, messageId, isOpen);
+	const { data, error, isLoading, refetch } = useModmailMessageEdits(guildId, threadId, messageId, isOpen);
 
 	return (
 		<DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
@@ -37,10 +37,22 @@ export function EditHistoryBadge({ messageId }: EditHistoryBadgeProps) {
 							<Skeleton className="h-10 w-full" />
 						</div>
 					)}
-					{!isLoading && data?.edits.length === 0 && (
+					{!isLoading && error && (
+						<div className="flex flex-col items-start gap-2">
+							<p className="text-sm text-red-600 dark:text-red-400">Failed to load edit history.</p>
+							<Button
+								className="text-xs text-secondary hover:underline dark:text-secondary-dark"
+								onPress={() => void refetch()}
+								type="button"
+							>
+								Retry
+							</Button>
+						</div>
+					)}
+					{!isLoading && !error && data?.edits.length === 0 && (
 						<p className="text-sm text-secondary dark:text-secondary-dark">No prior versions recorded.</p>
 					)}
-					{!isLoading && data && data.edits.length > 0 && (
+					{!isLoading && !error && data && data.edits.length > 0 && (
 						<div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
 							{data.edits.map((edit, index) => (
 								<div

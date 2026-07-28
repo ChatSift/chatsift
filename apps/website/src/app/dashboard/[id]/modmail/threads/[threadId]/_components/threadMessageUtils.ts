@@ -21,6 +21,26 @@ export function isStaffMessage(message: ModmailThreadMessage): boolean {
 	return message.staffId !== null;
 }
 
+/**
+ * The display name a message's author should render under, everywhere one is needed (the message's own
+ * header in `ThreadMessage.tsx`, and the reply-preview button pointing at an earlier message) -- a system
+ * message with no `staffId` (the greeting, or an anonymized farewell) has no real actor to resolve, so
+ * `messageAuthorId` falling back to `userId` would misattribute it to the ticket's own user (that column is
+ * always populated even for these rows, see schema.sql's own doc comment). An *attributed* farewell still
+ * resolves normally, since `staffId` is genuinely the closer.
+ */
+export function resolveAuthorLabel(
+	message: ModmailThreadMessage,
+	participants: Record<string, APIUser | Snowflake>,
+): string {
+	if (message.isSystem && message.staffId === null) {
+		return 'System';
+	}
+
+	const authorId = messageAuthorId(message);
+	return participantLabel(participants[authorId], authorId);
+}
+
 export type RecordedSticker = NonNullable<ModmailThreadMessage['recordedContent']>['stickers'][number];
 
 /**
