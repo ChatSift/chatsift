@@ -641,7 +641,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Top queries by mean execution time. Requires the manual one-time pg_stat_statements setup documented in docs/workflow.md on already-provisioned volumes; query text is truncated (--collector.stat_statements.query_length) and only present when --collector.stat_statements.include_query is set.",
+      "description": "Top queries by mean execution time, joined against pg_stat_statements_query_id (queryid -> query text, only present when --collector.stat_statements.include_query is set) so the query text shows up directly instead of just the queryid. Text is truncated per --collector.stat_statements.query_length. Requires the manual one-time pg_stat_statements setup documented in docs/workflow.md on already-provisioned volumes.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -689,6 +689,30 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "job"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "instance"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
           }
         ]
       },
@@ -723,7 +747,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "topk(20, rate(pg_stat_statements_seconds_total[$__rate_interval]) / rate(pg_stat_statements_calls_total[$__rate_interval]))",
+          "expr": "topk(20, rate(pg_stat_statements_seconds_total[$__rate_interval]) / rate(pg_stat_statements_calls_total[$__rate_interval])) * on(queryid) group_left(query) pg_stat_statements_query_id",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -749,6 +773,6 @@
   "timezone": "",
   "title": "Postgres Overview",
   "uid": "postgres-overview",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
