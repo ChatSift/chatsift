@@ -5,7 +5,7 @@ import { badData, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
-import { discordAPIModmail } from '../../../util/discordAPI.js';
+import { apiForGuild } from '../../../util/discordAPI.js';
 import { getModmailApplicationId } from '../../../util/discordApplication.js';
 import { isUniqueViolation } from '../../../util/postgres.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
@@ -61,16 +61,13 @@ export default defineRoute({
 		// that don't touch the name, permanently baking in the drift. Reading Discord's actual current name
 		// instead means *any* edit reconciles the two, not just one that happens to type a new name.
 		if (data.name !== undefined) {
-			const applicationId = await getModmailApplicationId();
-			const liveCommand = await discordAPIModmail.applicationCommands.getGuildCommand(
-				applicationId,
-				guildId,
-				existing.commandId,
-			);
+			const applicationId = await getModmailApplicationId(guildId);
+			const api = apiForGuild('MODMAIL', guildId);
+			const liveCommand = await api.applicationCommands.getGuildCommand(applicationId, guildId, existing.commandId);
 
 			if (liveCommand.name !== data.name) {
 				try {
-					await discordAPIModmail.applicationCommands.editGuildCommand(applicationId, guildId, existing.commandId, {
+					await api.applicationCommands.editGuildCommand(applicationId, guildId, existing.commandId, {
 						name: data.name,
 					});
 				} catch (error) {

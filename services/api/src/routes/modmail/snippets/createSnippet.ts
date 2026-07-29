@@ -7,7 +7,7 @@ import { badData, conflict } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
-import { discordAPIModmail } from '../../../util/discordAPI.js';
+import { apiForGuild } from '../../../util/discordAPI.js';
 import { getModmailApplicationId } from '../../../util/discordApplication.js';
 import { releaseGrantOnError } from '../../../util/grant.js';
 import { isUniqueViolation } from '../../../util/postgres.js';
@@ -56,7 +56,8 @@ export default defineRoute({
 			// invoked as `/reportuser`) rather than a subcommand of some shared `/snippet` command -- so it has to
 			// exist on Discord's side before we have a commandId to store, and a name Discord rejects (reserved,
 			// bad characters, etc.) only surfaces here, not at zod-validation time.
-			const applicationId = await getModmailApplicationId();
+			const applicationId = await getModmailApplicationId(guildId);
+			const api = apiForGuild('MODMAIL', guildId);
 
 			let command;
 			try {
@@ -73,7 +74,7 @@ export default defineRoute({
 					],
 				};
 
-				command = await discordAPIModmail.applicationCommands.createGuildCommand(applicationId, guildId, commandBody);
+				command = await api.applicationCommands.createGuildCommand(applicationId, guildId, commandBody);
 			} catch (error) {
 				if (error instanceof DiscordAPIError && error.status === 400) {
 					throw badData('not a valid Discord command name');
@@ -106,7 +107,7 @@ export default defineRoute({
 			} catch (error) {
 				void (async () => {
 					try {
-						await discordAPIModmail.applicationCommands.deleteGuildCommand(applicationId, guildId, command!.id);
+						await api.applicationCommands.deleteGuildCommand(applicationId, guildId, command!.id);
 					} catch (cleanupError) {
 						req.logger.error({ err: cleanupError }, 'failed to clean up orphaned snippet command');
 					}

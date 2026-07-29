@@ -7,7 +7,7 @@ import { badData, badRequest, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
-import { discordAPIModmail } from '../../../util/discordAPI.js';
+import { apiForGuild } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { updatePanelBodySchema } from '../schemas.js';
 import type { TicketPanelWithCategories } from './listPanels.js';
@@ -74,7 +74,7 @@ export default defineRoute({
 			};
 
 			try {
-				await discordAPIModmail.channels.editMessage(existingPanel.channelId, existingPanel.messageId, {
+				await apiForGuild('MODMAIL', guildId).channels.editMessage(existingPanel.channelId, existingPanel.messageId, {
 					...messageBodyBase,
 					components: [
 						{

@@ -59,7 +59,7 @@ export default defineRoute({
 		return {
 			...resolved,
 			recordThreadContentEnabledByUser: resolved.recordThreadContentEnabledBy
-				? await resolveUserBestEffort(resolved.recordThreadContentEnabledBy, req.logger)
+				? await resolveUserBestEffort(guildId, resolved.recordThreadContentEnabledBy, req.logger)
 				: null,
 		};
 	},

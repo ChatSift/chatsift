@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { assertChannelsBelongToGuild } from '../../../util/channels.js';
-import { discordAPIModmail } from '../../../util/discordAPI.js';
+import { apiForGuild } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { createPanelBodySchema } from '../schemas.js';
 import type { TicketPanelWithCategories } from './listPanels.js';
@@ -37,6 +37,7 @@ export default defineRoute({
 		const db = getContext().db;
 
 		await assertChannelsBelongToGuild(guildId, [data.channelId], 'MODMAIL', req.logger);
+		const api = apiForGuild('MODMAIL', guildId);
 
 		const categories = await db<Pick<Categories, 'id'>[]>`
 			SELECT id FROM categories WHERE guild_id = ${guildId} AND id IN ${db(data.categoryIds)}
@@ -46,7 +47,7 @@ export default defineRoute({
 			throw badRequest('one or more categoryIds do not belong to this guild');
 		}
 
-		let panelMessage: Awaited<ReturnType<typeof discordAPIModmail.channels.createMessage>> | undefined;
+		let panelMessage: Awaited<ReturnType<typeof api.channels.createMessage>> | undefined;
 		try {
 			const messageBodyBase: RESTPostAPIChannelMessageJSONBody =
 				'panel_raw' in data
@@ -63,7 +64,7 @@ export default defineRoute({
 						};
 
 			try {
-				panelMessage = await discordAPIModmail.channels.createMessage(data.channelId, {
+				panelMessage = await api.channels.createMessage(data.channelId, {
 					...messageBodyBase,
 					components: [
 						{
@@ -115,7 +116,7 @@ export default defineRoute({
 			if (panelMessage) {
 				void (async () => {
 					try {
-						await discordAPIModmail.channels.deleteMessage(data.channelId, panelMessage.id);
+						await api.channels.deleteMessage(data.channelId, panelMessage.id);
 					} catch (cleanupError) {
 						req.logger.error({ err: cleanupError }, 'failed to clean up orphaned panel message');
 					}

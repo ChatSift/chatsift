@@ -3,7 +3,7 @@ import { getContext, RedisStore } from '@chatsift/backend-core';
 import type { API } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import type { Recipe } from 'bin-rw';
-import { APIMapping } from './discordAPI.js';
+import { resolveGuildAPI } from './discordAPI.js';
 
 export interface CachedGuildFetcher<TResult> {
 	fetch(guildId: string, botId: BotId, force?: boolean): Promise<TResult | null>;
@@ -17,9 +17,13 @@ export interface CachedGuildFetcher<TResult> {
  *
  * Shared mechanics, factored out once three call sites needed the identical behavior:
  *  - a 5-minute TTL cache in redis (shared across every replica/restart, unlike a process-local `Map`), partitioned
- *    per `(botId, guildId)` -- the same guildId can be queried through different bots (e.g. AMA and MODMAIL both
- *    installed in one guild), and each bot has its own guild membership/permissions, so sharing one guildId-keyed
- *    entry across bots would let one bot's fetch answer for another's;
+ *    per `(botId, guildId, instance)` -- the same guildId can be queried through different bots (e.g. AMA and
+ *    MODMAIL both installed in one guild), and each bot has its own guild membership/permissions, so sharing one
+ *    guildId-keyed entry across bots would let one bot's fetch answer for another's. The `instance` dimension
+ *    (`resolveGuildAPI`'s `cacheKey`, `'public'` or a custom instance's id) additionally means a guild moving
+ *    between the public deployment and a custom instance (or between two instances) lands on a fresh cache entry
+ *    instead of serving data fetched through an application that no longer owns the guild -- see
+ *    docs/roadmap/08-modmail-custom-instances.md's P2 section;
  *  - in-flight de-duplication (still in-process -- this only needs to protect a single replica from racing itself
  *    on overlapping requests for the same key before the first one has written to redis), so overlapping calls for
  *    the same (botId, guildId) -- e.g. a forced refresh landing while an earlier fetch for the same key hasn't
@@ -101,7 +105,8 @@ export function createCachedGuildFetcher<TResult>(
 
 	return {
 		async fetch(guildId, botId, force = false) {
-			const key = `${botId}:${guildId}`;
+			const { api, cacheKey } = resolveGuildAPI(botId, guildId);
+			const key = `${botId}:${guildId}:${cacheKey}`;
 
 			if (!force) {
 				const cached = await store.get(key);
@@ -126,7 +131,7 @@ export function createCachedGuildFetcher<TResult>(
 			const forceBox = { current: force };
 			const promise = (async () => {
 				try {
-					return await fetchAndCache(guildId, APIMapping[botId], forceBox, key);
+					return await fetchAndCache(guildId, api, forceBox, key);
 				} finally {
 					inflight.delete(key);
 				}

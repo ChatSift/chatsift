@@ -90,6 +90,15 @@ export function getCustomInstanceGuildIds(): ReadonlySet<string> {
 }
 
 /**
+ * Every currently-known custom instance -- used by `services/api`'s `/me` guild-list union (each instance
+ * publishes its own `bot:MODMAIL#<id>` redis guild list) and by anything that needs to enumerate instances
+ * rather than look one up by guild (e.g. a future resync-all operation).
+ */
+export function getAllInstances(): Instance[] {
+	return [...byGuildId.values()];
+}
+
+/**
  * This process's own instance, resolved from `ENV.MODMAIL_INSTANCE_ID` -- `null` for the public
  * deployment and for every non-bot process (the API never sets that env var), not just "not loaded
  * yet".

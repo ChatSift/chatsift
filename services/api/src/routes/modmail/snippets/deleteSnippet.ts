@@ -6,7 +6,7 @@ import { notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
-import { discordAPIModmail } from '../../../util/discordAPI.js';
+import { apiForGuild } from '../../../util/discordAPI.js';
 import { getModmailApplicationId } from '../../../util/discordApplication.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 
@@ -41,10 +41,14 @@ export default defineRoute({
 			throw notFound('snippet not found');
 		}
 
-		const applicationId = await getModmailApplicationId();
+		const applicationId = await getModmailApplicationId(guildId);
 
 		try {
-			await discordAPIModmail.applicationCommands.deleteGuildCommand(applicationId, guildId, snippet.commandId);
+			await apiForGuild('MODMAIL', guildId).applicationCommands.deleteGuildCommand(
+				applicationId,
+				guildId,
+				snippet.commandId,
+			);
 		} catch (error) {
 			// Already gone on Discord's side (e.g. deleted out of band) -- fine, that's the state we want anyway.
 			if (!(error instanceof DiscordAPIError && error.code === RESTJSONErrorCodes.UnknownApplicationCommand)) {
