@@ -156,7 +156,7 @@ New route group `routes/modmail/`: guild config get/update, category CRUD, ticke
 
 ### 3. Dashboard (`apps/website`)
 
-New `app/dashboard/[id]/modmail/` area mirroring the AMA dashboard's structure: config screen (mod forum, default greeting/farewell, alert role, staff role), **category management** (name/emoji/description/greeting/forum tag), **ticket panel builder** (embed editor + raw-JSON mode, channel picker, live preview — mirrors `CreateAMAForm`'s normal/raw toggle), snippet management, block management. Thread history view planned separately, see [07-modmail-thread-history.md](07-modmail-thread-history.md) (#261).
+New `app/dashboard/[id]/modmail/` area mirroring the AMA dashboard's structure: config screen (mod forum, default greeting/farewell, alert role, staff role), **category management** (name/emoji/description/greeting/forum tag), **ticket panel builder** (embed editor + raw-JSON mode, channel picker, live preview — mirrors `CreateAMAForm`'s normal/raw toggle), snippet management, block management. Thread history view planned separately (#261) — shipped; see [01-architecture.md §7](01-architecture.md#7-modmail-thread-history-dashboard-view-261).
 
 ### 4. Bot (`services/modmail-bot`, new service)
 
@@ -189,6 +189,8 @@ From the design discussion (2026-07-22), kept here so M5's implementation doesn'
 > There's a vision of offering custom branded instances of the bot to specific paying customers — a special env flag for single-guild mode (binding the bot to that guild ID), a special section in that guild's dashboard settings to manage their custom instance, and **DMs return** (bypassing the private-thread ticket flow entirely, matching current prod behavior) depending on an env var on the deployment. These would be priced deployments hardcoded into the main repo's docker-compose per customer, sharing the shared Postgres/Redis/API backend — so a main-stack outage takes the custom instance down too, cosmetically separate only. "Probably the last thing to implement, but worth keeping in mind in how we design the bot from the get-go."
 
 **Design constraint this puts on M5:** don't hardcode "a ticket always starts via a private thread" deep into the relay/close/snippet/block/alert logic. The ticket-creation entrypoint (panel button + private thread, vs. a future DM) should be a swappable front door feeding the same `Thread`/`ThreadMessage` model — which the schema above already supports, since `userThreadId` is nullable and the mod-forum side doesn't care how a thread originated. No further action needed for M5 beyond keeping that boundary clean; don't build the env flag, the dashboard section, or DM support itself this milestone.
+
+Planned as its own effort, tracked as [#216](https://github.com/ChatSift/ChatSift/issues/216): see [08-modmail-custom-instances.md](08-modmail-custom-instances.md).
 
 ## Verification
 
