@@ -26,7 +26,8 @@ export async function proxy(request: NextRequest) {
 		request.nextUrl.searchParams.has('token');
 
 	if (!cookies.has(RefreshTokenCookie) && !hasGrantToken) {
-		return NextResponse.redirect(new URL(URLS.API.LOGIN, request.url));
+		const redirectTo = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+		return NextResponse.redirect(new URL(URLS.API.login(redirectTo), request.url));
 	}
 
 	return NextResponse.next();
