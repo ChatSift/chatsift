@@ -9,6 +9,20 @@ import { isUnknownMessageError } from './replyModeration.js';
 import { findOpenThreadByModThreadId } from './threads.js';
 
 /**
+ * Single-process guard against two concurrent context-menu invocations (either command, or one of each)
+ * targeting the *same* message racing each other into a duplicate relay -- `interaction.data.resolved`
+ * is a snapshot handed to every invocation independently, so without this, two staff clicking within the
+ * same window would both pass every check below and both call `relayStaffReplyToUserThread`. Claimed
+ * synchronously (`.has()` immediately followed by `.add()`, no `await` in between) right before the relay
+ * call, so there's no interleaving window even without an explicit lock -- Node never preempts a
+ * synchronous block. Released on a relay failure so the mod can retry; left claimed on success, since the
+ * original message is deleted right after and a stray stale-client re-click on it should still be a no-op
+ * rather than a second relay. Never grows unbounded in practice -- one entry per successful conversion,
+ * a manual, low-frequency staff action.
+ */
+const claimedTargetMessageIds = new Set<string>();
+
+/**
  * Shared by the `Reply` / `Reply Anonymously` message context menu commands (only their `anon` value and
  * user-facing label differ) -- takes a plain message a staff member typed directly in a ticket's
  * mod-forum thread (the `is_internal` case `relay.ts#recordInternalModMessage` records) and turns it into
@@ -24,29 +38,34 @@ export async function handleReplyWithMessageContextMenu(
 	anon: boolean,
 	commandLabel: string,
 ): Promise<void> {
-	if (!interaction.guild_id || !interaction.channel || !interaction.member) {
-		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-			content: 'This can only be used in a server.',
-			flags: MessageFlags.Ephemeral,
+	// Deferred unconditionally, before any DB/Discord-API round trip below (the thread lookup, and
+	// especially `fetchGuildEmojiIds`, which can hit Discord's REST API on a cache miss) -- otherwise
+	// those checks are racing Discord's 3-second ack window with nothing acknowledging the interaction
+	// yet. Every branch below responds via `editReply` against this defer instead of a fresh `reply`.
+	await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, {
+		flags: MessageFlags.Ephemeral,
+	});
+
+	const editReply = async (content: string) => {
+		await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
+			content,
 		});
+	};
+
+	if (!interaction.guild_id || !interaction.channel || !interaction.member) {
+		await editReply('This can only be used in a server.');
 		return;
 	}
 
 	const thread = await findOpenThreadByModThreadId(interaction.channel.id);
 	if (!thread) {
-		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-			content: 'This can only be used on a message inside an open ModMail ticket thread.',
-			flags: MessageFlags.Ephemeral,
-		});
+		await editReply('This can only be used on a message inside an open ModMail ticket thread.');
 		return;
 	}
 
 	const target = interaction.data.resolved.messages[interaction.data.target_id];
 	if (!target) {
-		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-			content: "Couldn't find that message. Please try again.",
-			flags: MessageFlags.Ephemeral,
-		});
+		await editReply("Couldn't find that message. Please try again.");
 		return;
 	}
 
@@ -55,46 +74,40 @@ export async function handleReplyWithMessageContextMenu(
 	// exactly what this command exists to convert. Rejecting bot messages outright also rules out ever
 	// trying to re-relay an embed-only message, which has no plain `content` to send.
 	if (target.author.bot) {
-		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-			content: `${commandLabel} only works on a plain message a staff member typed directly in this thread, not one the bot posted.`,
-			flags: MessageFlags.Ephemeral,
-		});
+		await editReply(
+			`${commandLabel} only works on a plain message a staff member typed directly in this thread, not one the bot posted.`,
+		);
 		return;
 	}
 
 	const effective = resolveEffectiveContent(target);
 	if (!effective.content.trim() && effective.attachments.length === 0) {
-		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-			content: "That message has no text or attachments to send, so there's nothing to reply with.",
-			flags: MessageFlags.Ephemeral,
-		});
+		await editReply("That message has no text or attachments to send, so there's nothing to reply with.");
 		return;
 	}
 
 	const guildEmojiIds = await fetchGuildEmojiIds(interaction.guild_id, getContext().service.client.api, logger);
 	if (!guildEmojiIds) {
-		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-			content: "⚠️ Couldn't verify this server's emotes right now. Please try again in a moment.",
-			flags: MessageFlags.Ephemeral,
-		});
+		await editReply("⚠️ Couldn't verify this server's emotes right now. Please try again in a moment.");
 		return;
 	}
 
 	const foreignEmojiTokens = findForeignEmojiTokens(effective.content, guildEmojiIds);
 	if (foreignEmojiTokens.length > 0) {
-		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-			...buildForeignEmojiRejection(foreignEmojiTokens, effective.content),
-			flags: MessageFlags.Ephemeral,
+		const rejection = buildForeignEmojiRejection(foreignEmojiTokens, effective.content);
+		await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
+			content: rejection.content,
+			...(rejection.files ? { files: rejection.files } : {}),
 		});
 		return;
 	}
 
-	// Deferred only once every rejectable-without-side-effects check above has passed -- same reasoning as
-	// `commands/reply.ts`: the relay (media re-upload + two message posts) plus the delete below easily
-	// outlast Discord's 3-second ack window.
-	await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, {
-		flags: MessageFlags.Ephemeral,
-	});
+	if (claimedTargetMessageIds.has(target.id)) {
+		await editReply('This message is already being (or has already been) sent as a reply.');
+		return;
+	}
+
+	claimedTargetMessageIds.add(target.id);
 
 	try {
 		await relayStaffReplyToUserThread({
@@ -107,10 +120,11 @@ export async function handleReplyWithMessageContextMenu(
 			thread,
 		});
 	} catch (error) {
+		// Release the claim -- nothing was actually sent, so a retry (running the command again) needs to
+		// be possible.
+		claimedTargetMessageIds.delete(target.id);
 		logger.error({ err: error, threadId: thread.id }, `Failed to relay a "${commandLabel}" reply`);
-		await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
-			content: '❌ Failed to send that reply. Please try again or reach out for support.',
-		});
+		await editReply('❌ Failed to send that reply. Please try again or reach out for support.');
 		return;
 	}
 
@@ -130,7 +144,5 @@ export async function handleReplyWithMessageContextMenu(
 		}
 	}
 
-	await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
-		content: '✅ Reply sent.',
-	});
+	await editReply('✅ Reply sent.');
 }
