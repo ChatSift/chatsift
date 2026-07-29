@@ -14,8 +14,15 @@ import { GuildIcon } from '@/components/common/GuildIcon';
 import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAMA } from '@/components/icons/SvgAMA';
 import { SvgModmail } from '@/components/icons/SvgModmail';
-import { Bots } from '@/utils/bots';
+import type { BotBrandingSource } from '@/utils/bots';
+import { BotIcon, resolveBotBranding } from '@/utils/bots';
 import { sortGuilds } from '@/utils/util';
+
+const NO_CUSTOM_INSTANCE: BotBrandingSource = {
+	customInstanceIconUrl: null,
+	customInstanceId: null,
+	customInstanceLabel: null,
+};
 
 const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks', 'threads'] as const;
 
@@ -49,13 +56,18 @@ export interface SegmentOptionsData {
 	 * Bots invited to the current guild, used to build the bot-switcher dropdown on the `ama`/`modmail` segment.
 	 */
 	guildBots?: readonly BotId[] | undefined;
+	/**
+	 * The current guild's custom-instance fields (#216), used to brand the `modmail` segment's own label/icon and
+	 * its bot-switcher options when a custom instance owns the guild.
+	 */
+	guildBranding?: BotBrandingSource | undefined;
 	modmailCategories?: ModmailCategory[] | undefined;
 	modmailChannels?: GuildChannelInfo[] | undefined;
 	modmailPanels?: ModmailPanel[] | undefined;
 	modmailSnippets?: ModmailSnippet[] | undefined;
 }
 
-type SegmentOptions = { icon?: React.ReactNode; options: readonly BreadcrumbOption[] } | null;
+type SegmentOptions = { icon?: React.ReactNode; label?: React.ReactNode; options: readonly BreadcrumbOption[] } | null;
 
 /**
  * One path segment of a pattern, matched literally against the raw URL segment -- except `:id`, which matches
@@ -70,18 +82,33 @@ interface SegmentDefinition {
 }
 
 function botSwitcherOptions(currentBot: BotId, context: SegmentContext, data: SegmentOptionsData): SegmentOptions {
+	const branding = data.guildBranding ?? NO_CUSTOM_INSTANCE;
+
 	const options: BreadcrumbOption[] = (data.guildBots ?? [])
 		.filter((bot) => bot !== currentBot)
 		.map((bot) => {
-			const { Icon, label } = Bots[bot];
+			const botBranding = resolveBotBranding(branding, bot);
 			return {
-				label,
+				label: botBranding.label,
 				href: `/dashboard/${context.guildId}/${bot.toLowerCase()}`,
-				reactIcon: <Icon height={20} width={20} />,
+				reactIcon: <BotIcon bot={bot} branding={botBranding} height={20} width={20} />,
 			};
 		});
 
-	return options.length ? { options } : null;
+	// Only MODMAIL can be a custom instance (#216) -- for every other case (including a guild with no custom
+	// instance at all) the static SEGMENT_LABELS/SEGMENT_ICONS fallback is already correct, so there's nothing to
+	// override and the previous behaviour (no crumb dropdown when there's nothing to switch to) stays intact.
+	const isCustomModmail = currentBot === 'MODMAIL' && branding.customInstanceId !== null;
+	if (!isCustomModmail) {
+		return options.length ? { options } : null;
+	}
+
+	const currentBranding = resolveBotBranding(branding, currentBot);
+	return {
+		options,
+		icon: <BotIcon bot={currentBot} branding={currentBranding} height={20} width={20} />,
+		label: currentBranding.label,
+	};
 }
 
 function modmailSectionOptions(currentSection: string, context: SegmentContext): SegmentOptions {
@@ -271,8 +298,8 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 	// Merge in `guild.bots` so the `ama`/`modmail` segment's dropdown (see `SEGMENT_DEFINITIONS` above) can build
 	// its options without a separate data fetch -- `useMe()` already has this.
 	const effectiveSegmentOptionsData: SegmentOptionsData = useMemo(
-		() => ({ ...segmentOptionsData, guildBots: guild?.bots }),
-		[segmentOptionsData, guild?.bots],
+		() => ({ ...segmentOptionsData, guildBots: guild?.bots, guildBranding: guild }),
+		[segmentOptionsData, guild],
 	);
 
 	const segments = useMemo(() => {
@@ -303,18 +330,18 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 			const segmentPath = relevantParts.slice(0, i + 1);
 			const match = findSegmentDefinition(segmentPath);
 
-			const fallbackLabel = SEGMENT_LABELS[part] ?? part;
-			const label: React.ReactNode =
-				match?.id === undefined || match.id === null
-					? fallbackLabel
-					: (match.definition.resolveLabel?.(match.id, effectiveSegmentOptionsData) ?? fallbackLabel);
-			const icon = SEGMENT_ICONS[part];
-
 			// While a one-time grant token is active, every other segment/dropdown option here would 401 (the
 			// grant only authorizes the single page it links to) -- never compute a navigable option in that case.
 			const computedOptions = grant
 				? null
 				: match?.definition.resolveOptions?.(match.id ?? '', context, effectiveSegmentOptionsData);
+
+			const fallbackLabel = SEGMENT_LABELS[part] ?? part;
+			const label: React.ReactNode =
+				match?.id === undefined || match.id === null
+					? (computedOptions?.label ?? fallbackLabel)
+					: (match.definition.resolveLabel?.(match.id, effectiveSegmentOptionsData) ?? fallbackLabel);
+			const icon = SEGMENT_ICONS[part];
 
 			// Don't create an href for the last segment (current page), or for any segment while grant mode is
 			// active (there's nowhere else on the dashboard a grant token lets you go).

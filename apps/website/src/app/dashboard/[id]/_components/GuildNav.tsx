@@ -5,7 +5,7 @@ import { useParams, usePathname } from 'next/navigation';
 import { FaWrench } from 'react-icons/fa';
 import { useGrantAuth } from '@/api/grant';
 import { useMe } from '@/api/routes/auth';
-import { Bots } from '@/utils/bots';
+import { BotIcon, resolveBotBranding } from '@/utils/bots';
 import { cn } from '@/utils/util';
 
 interface NavItem {
@@ -53,11 +53,11 @@ export function GuildNav() {
 			icon: <FaWrench className="h-4 w-4" />,
 		},
 		...guild.bots.map((bot) => {
-			const { Icon, label } = Bots[bot];
+			const branding = resolveBotBranding(guild, bot);
 			return {
-				label,
+				label: branding.label,
 				href: `/dashboard/${guild.id}/${bot.toLowerCase()}`,
-				icon: <Icon height={16} width={16} />,
+				icon: <BotIcon bot={bot} branding={branding} height={16} width={16} />,
 			};
 		}),
 	];

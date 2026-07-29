@@ -8,7 +8,7 @@ import { FaWrench } from 'react-icons/fa';
 import { useMe } from '@/api/routes/auth';
 import { Heading } from '@/components/common/Heading';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
-import { Bots } from '@/utils/bots';
+import { BotIcon, resolveBotBranding } from '@/utils/bots';
 import { cn } from '@/utils/util';
 
 interface SectionCardProps extends PropsWithChildren {
@@ -74,17 +74,17 @@ export default function GuildPage() {
 						text="General settings"
 					/>
 					{BOTS.map((bot, index) => {
-						const { Icon, label } = Bots[bot];
+						const branding = resolveBotBranding(guild, bot);
 						const hasIt = guild.bots.includes(bot);
 						return (
 							<SectionCard
 								className={hasIt ? '' : 'opacity-50 hover:opacity-75'}
 								href={hasIt ? `/dashboard/${guild.id}/${bot.toLowerCase()}` : `/invites/${bot.toLowerCase()}`}
-								icon={<Icon height={32} width={32} />}
+								icon={<BotIcon bot={bot} branding={branding} height={32} width={32} />}
 								key={index}
 								linksExternally={!hasIt}
-								subtext={hasIt ? `Configure ${label} bot settings` : `Invite ${label} to your server`}
-								text={label}
+								subtext={hasIt ? `Configure ${branding.label} bot settings` : `Invite ${branding.label} to your server`}
+								text={branding.label}
 							/>
 						);
 					})}
