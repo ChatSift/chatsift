@@ -4,7 +4,7 @@ import { notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
-import { discordAPIModmail } from '../../../util/discordAPI.js';
+import { apiForGuild } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 
 const paramsSchema = z.object({
@@ -43,7 +43,7 @@ export default defineRoute({
 		// error worth surfacing -- mirrors the cleanup pattern in createPanel/createAMA.
 		void (async () => {
 			try {
-				await discordAPIModmail.channels.deleteMessage(deleted.channelId, deleted.messageId);
+				await apiForGuild('MODMAIL', guildId).channels.deleteMessage(deleted.channelId, deleted.messageId);
 			} catch (error) {
 				req.logger.warn({ err: error }, 'failed to delete ticket panel message on Discord');
 			}

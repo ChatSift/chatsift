@@ -5,7 +5,7 @@ import { SnowflakeRegex } from '@sapphire/discord-utilities';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
-import { discordAPIModmail } from '../../../util/discordAPI.js';
+import { apiForGuild } from '../../../util/discordAPI.js';
 import { createPaginationQuerySchema, snowflakeSchema } from '../../../util/schemas.js';
 import type { ThreadCategory } from './util.js';
 import { resolveUser, toThreadCategory } from './util.js';
@@ -39,7 +39,7 @@ async function resolveMatchingUserIds(guildId: string, q: string | undefined): P
 		return [q];
 	}
 
-	const members = await discordAPIModmail.guilds.searchForMembers(guildId, { query: q, limit: 1_000 });
+	const members = await apiForGuild('MODMAIL', guildId).guilds.searchForMembers(guildId, { query: q, limit: 1_000 });
 	return members.map((member) => member.user!.id);
 }
 
@@ -107,7 +107,10 @@ export default defineRoute({
 		// for its `participants` map.
 		const userIds = new Set(page.map((row) => row.userId));
 		const userEntries = await Promise.all(
-			[...userIds].map(async (userId): Promise<[string, APIUser | Snowflake]> => [userId, await resolveUser(userId)]),
+			[...userIds].map(async (userId): Promise<[string, APIUser | Snowflake]> => [
+				userId,
+				await resolveUser(guildId, userId),
+			]),
 		);
 		const usersById = new Map(userEntries);
 

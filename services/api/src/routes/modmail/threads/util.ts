@@ -4,7 +4,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { Categories, Threads, ThreadsId } from '@chatsift/db';
 import type { APIGuildMember, APIUser, Snowflake } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
-import { discordAPIModmail } from '../../../util/discordAPI.js';
+import { apiForGuild } from '../../../util/discordAPI.js';
 
 /**
  * Shared enrichment helpers for `listThreads.ts`/`getThread.ts` (#261) -- kept out of both route files
@@ -22,14 +22,15 @@ export function toThreadCategory(category: Pick<Categories, 'emoji' | 'id' | 'na
 }
 
 /**
- * Resolves a raw Discord user id to the full `APIUser` via the ModMail bot's own token -- a global user
- * lookup, not a guild-member one, so this still resolves a user who's since left the guild. Falls back to
- * the bare snowflake on a 404 (account deleted, or Discord just doesn't know it) rather than failing the
- * whole request over one unresolvable id.
+ * Resolves a raw Discord user id to the full `APIUser` via the ModMail bot's own token (the public one, or
+ * the guild's owning custom instance -- see `discordAPI.ts#apiForGuild`) -- a global user lookup, not a
+ * guild-member one, so this still resolves a user who's since left the guild. Falls back to the bare
+ * snowflake on a 404 (account deleted, or Discord just doesn't know it) rather than failing the whole
+ * request over one unresolvable id.
  */
-export async function resolveUser(userId: Snowflake): Promise<APIUser | Snowflake> {
+export async function resolveUser(guildId: Snowflake, userId: Snowflake): Promise<APIUser | Snowflake> {
 	try {
-		return await discordAPIModmail.users.get(userId);
+		return await apiForGuild('MODMAIL', guildId).users.get(userId);
 	} catch (error) {
 		if (error instanceof DiscordAPIError && error.status === 404) {
 			return userId;
@@ -47,9 +48,13 @@ export async function resolveUser(userId: Snowflake): Promise<APIUser | Snowflak
  * shouldn't fail the whole config GET/PATCH -- falls back to the bare snowflake and logs instead, same
  * fallback shape a real 404 already gets.
  */
-export async function resolveUserBestEffort(userId: Snowflake, logger: Logger): Promise<APIUser | Snowflake> {
+export async function resolveUserBestEffort(
+	guildId: Snowflake,
+	userId: Snowflake,
+	logger: Logger,
+): Promise<APIUser | Snowflake> {
 	try {
-		return await resolveUser(userId);
+		return await resolveUser(guildId, userId);
 	} catch (error) {
 		logger.warn({ err: error, userId }, 'Failed to resolve recordThreadContentEnabledBy for the config audit line');
 		return userId;
@@ -64,7 +69,7 @@ export async function resolveUserBestEffort(userId: Snowflake, logger: Logger): 
  */
 export async function resolveMember(guildId: Snowflake, userId: Snowflake): Promise<APIGuildMember | null> {
 	try {
-		return await discordAPIModmail.guilds.getMember(guildId, userId);
+		return await apiForGuild('MODMAIL', guildId).guilds.getMember(guildId, userId);
 	} catch (error) {
 		if (error instanceof DiscordAPIError && error.status === 404) {
 			return null;
@@ -80,12 +85,12 @@ export async function resolveMember(guildId: Snowflake, userId: Snowflake): Prom
  * deletes it. Falls back to an empty list if the channel is somehow gone rather than failing the request,
  * even though that's not expected to happen given the above.
  */
-export async function resolveAppliedTagIds(modThreadId: Snowflake): Promise<Snowflake[]> {
+export async function resolveAppliedTagIds(guildId: Snowflake, modThreadId: Snowflake): Promise<Snowflake[]> {
 	try {
 		// `applied_tags` only exists on a forum's child thread channel (never on the forum channel
 		// itself), which isn't its own distinct type in `@discordjs/core` -- narrowed by hand here rather
 		// than importing every thread-channel variant just to union them.
-		const channel = await discordAPIModmail.channels.get(modThreadId);
+		const channel = await apiForGuild('MODMAIL', guildId).channels.get(modThreadId);
 		return (channel as { applied_tags?: Snowflake[] }).applied_tags ?? [];
 	} catch (error) {
 		if (error instanceof DiscordAPIError && error.status === 404) {
@@ -186,6 +191,7 @@ function isAttachmentUrlExpired(url: string): boolean {
  * `available: false` rather than failing the request.
  */
 export async function resolveMessageAttachments(
+	guildId: Snowflake,
 	modThreadId: Snowflake,
 	guildMessageId: Snowflake,
 	attachments: RecordedAttachmentJson[],
@@ -195,7 +201,7 @@ export async function resolveMessageAttachments(
 	}
 
 	try {
-		const message = await discordAPIModmail.channels.getMessage(modThreadId, guildMessageId);
+		const message = await apiForGuild('MODMAIL', guildId).channels.getMessage(modThreadId, guildMessageId);
 		const byFilename = new Map(message.attachments.map((attachment) => [attachment.filename, attachment]));
 
 		return attachments.map((attachment): ResolvedThreadMessageAttachment => {

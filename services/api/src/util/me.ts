@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
-import type { BotId, GrantTokenData, Logger } from '@chatsift/backend-core';
+import type { BotId, GrantTokenData, Instance, Logger } from '@chatsift/backend-core';
 import {
 	BOTS,
 	GRANT_BOTS,
+	getAllInstances,
 	getContext,
+	getInstanceForGuild,
 	GuildList,
 	PermissionsBitField,
 	promiseAllObject,
@@ -15,10 +17,19 @@ import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
 import type { Recipe } from 'bin-rw';
 import { createRecipe, DataType } from 'bin-rw';
-import { APIMapping, discordAPIOAuth } from './discordAPI.js';
+import { apiForGuild, discordAPIOAuth } from './discordAPI.js';
+import { getInstanceBranding } from './discordApplication.js';
 
 export type MeGuild = Pick<RESTAPIPartialCurrentUserGuild, 'icon' | 'id' | 'name'> & {
 	bots: BotId[];
+	/**
+	 * This guild's owning custom instance (#216), or `null` for a guild served by the public deployment.
+	 * `customInstanceIconUrl` can still be `null` alongside a non-null `customInstanceId` -- the instance's
+	 * Discord application simply has no icon set, or resolving it failed and this fell back gracefully.
+	 */
+	customInstanceIconUrl: string | null;
+	customInstanceId: string | null;
+	customInstanceLabel: string | null;
 	meCanManage: boolean;
 };
 
@@ -57,13 +68,19 @@ const MeStore = new RedisStore<WireMe>({
 				icon: DataType.String,
 				meCanManage: DataType.Bool,
 				bots: [DataType.String],
+				customInstanceId: DataType.String,
+				customInstanceLabel: DataType.String,
+				customInstanceIconUrl: DataType.String,
 			},
 		],
 	}) as Recipe<WireMe>,
 	// Hashed rather than keyed by the raw access token -- unlike the in-memory `Map` this replaced, this value is
 	// persisted in redis (visible to anything with redis access via KEYS/MONITOR/RDB dumps), so the key itself
 	// shouldn't double as a live OAuth credential.
-	makeKey: (tokenHash: string) => `me:${tokenHash}`,
+	// `me2:` (bumped from `me:` when #216 P2 added the `customInstance*` fields) -- `bin-rw`'s recipe is a
+	// positional wire format with no version marker, so a pre-existing `me:`-keyed entry would otherwise
+	// misdecode against the new, wider recipe for up to the 5-minute TTL rather than just missing the cache.
+	makeKey: (tokenHash: string) => `me2:${tokenHash}`,
 	storeOld: false,
 });
 
@@ -91,12 +108,23 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 	const discordUser = await discordAPIOAuth.users.getCurrent({ auth });
 	const guildsRaw = await discordAPIOAuth.users.getGuilds({ with_counts: true }, { auth });
 
-	const guildsByBot = await promiseAllObject(
-		Object.fromEntries(BOTS.map((bot) => [bot, GuildList.get(bot).then((data) => data?.guilds ?? [])])) as Record<
-			BotId,
-			Promise<string[]>
-		>,
-	);
+	const instances = getAllInstances();
+
+	const [guildsByBot, instanceGuildLists] = await Promise.all([
+		promiseAllObject(
+			Object.fromEntries(BOTS.map((bot) => [bot, GuildList.get(bot).then((data) => data?.guilds ?? [])])) as Record<
+				BotId,
+				Promise<string[]>
+			>,
+		),
+		// Each custom instance publishes its own `bot:MODMAIL#<id>` guild list (`lib/data/bots.ts`) rather than
+		// overwriting the public deployment's `bot:MODMAIL` -- so "is MODMAIL installed in this guild" has to
+		// union the public list with every instance's, or a partner guild would show no ModMail badge at all.
+		Promise.all(
+			instances.map(async (instance) => GuildList.get(`MODMAIL#${instance.id}`).then((data) => data?.guilds ?? [])),
+		),
+	]);
+	const modmailGuildIds = new Set([...(guildsByBot.MODMAIL ?? []), ...instanceGuildLists.flat()]);
 
 	// One query for every grant this user holds, rather than one `dashboard_grants` round trip per guild below --
 	// `guildsRaw` can be dozens of guilds long, and this collapses that to a single lookup.
@@ -108,19 +136,44 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 		).map((grant) => grant.guildId),
 	);
 
-	const guilds: MeGuild[] = guildsRaw.map(({ id, name, icon, owner, permissions }) => ({
-		id,
-		name,
-		icon,
-		meCanManage:
-			grantedGuildIds.has(id) ||
-			PermissionsBitField.has(
-				BigInt(permissions),
-				PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
-			) ||
-			owner,
-		bots: BOTS.filter((bot) => guildsByBot[bot]?.includes(id)),
-	}));
+	// Only resolved for instances the user is actually in a guild for -- no point spending a Discord call (even
+	// a redis-cached one) branding an instance this response will never mention.
+	const relevantInstances = instances.filter((instance) => guildsRaw.some((guild) => guild.id === instance.guildId));
+	const brandingEntries = await Promise.all(
+		relevantInstances.map(async (instance): Promise<[string, Awaited<ReturnType<typeof getInstanceBranding>>]> => {
+			try {
+				return [instance.id, await getInstanceBranding(instance)];
+			} catch (error) {
+				// Best-effort, same shape as `resolveUserBestEffort` -- a partner's icon failing to resolve
+				// shouldn't fail the whole `/me` response, just fall back to no icon.
+				logger.warn({ err: error, instanceId: instance.id }, 'failed to resolve custom instance branding');
+				return [instance.id, { iconUrl: null, label: instance.label }];
+			}
+		}),
+	);
+	const brandingByInstanceId = new Map(brandingEntries);
+
+	const guilds: MeGuild[] = guildsRaw.map(({ id, name, icon, owner, permissions }) => {
+		const instance: Instance | null = getInstanceForGuild(id);
+		const branding = instance ? brandingByInstanceId.get(instance.id) : undefined;
+
+		return {
+			id,
+			name,
+			icon,
+			meCanManage:
+				grantedGuildIds.has(id) ||
+				PermissionsBitField.has(
+					BigInt(permissions),
+					PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
+				) ||
+				owner,
+			bots: BOTS.filter((bot) => (bot === 'MODMAIL' ? modmailGuildIds.has(id) : guildsByBot[bot]?.includes(id))),
+			customInstanceId: instance?.id ?? null,
+			customInstanceLabel: instance?.label ?? null,
+			customInstanceIconUrl: branding?.iconUrl ?? null,
+		};
+	});
 
 	const me: Me = {
 		id: discordUser.id,
@@ -147,14 +200,24 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
  * one guild the grant is scoped to. `guilds` is deliberately a single-entry array -- unlike a real session, a grant
  * token only ever authorizes one guild. Not cached (unlike `fetchMe`) -- a grant is single-use already, so there's
  * no repeat-read pattern here worth trading staleness for.
+ *
+ * Resolved via `apiForGuild`, not the raw `GRANT_BOTS`/`APIMapping` pairing -- several ModMail grants
+ * (`MODMAIL_SNIPPET_CREATE`/`MODMAIL_CONFIG_UPDATE`/`MODMAIL_BLOCKS_READ`) are minted by a command running on
+ * whichever bot currently owns `grant.guildId`, which for a partner guild is the custom instance, not the
+ * public deployment -- the public token has no access there at all.
  */
 export async function fetchMeFromGrant(grant: GrantTokenData, logger: Logger): Promise<Me> {
 	logger.info({ userId: grant.sub, guildId: grant.guildId }, 'building stripped /me from grant token');
 
 	const bot = GRANT_BOTS[grant.grant];
-	const api = APIMapping[bot];
+	const api = apiForGuild(bot, grant.guildId);
+	const instance = getInstanceForGuild(grant.guildId);
 
-	const [discordUser, guild] = await Promise.all([api.users.get(grant.sub), api.guilds.get(grant.guildId)]);
+	const [discordUser, guild, branding] = await Promise.all([
+		api.users.get(grant.sub),
+		api.guilds.get(grant.guildId),
+		instance ? getInstanceBranding(instance) : undefined,
+	]);
 
 	const meGuild: MeGuild = {
 		id: guild.id,
@@ -165,6 +228,9 @@ export async function fetchMeFromGrant(grant: GrantTokenData, logger: Logger): P
 		// The authentication middleware gurantees this via its guards.
 		meCanManage: true,
 		bots: [bot],
+		customInstanceId: instance?.id ?? null,
+		customInstanceLabel: instance?.label ?? null,
+		customInstanceIconUrl: branding?.iconUrl ?? null,
 	};
 
 	return {

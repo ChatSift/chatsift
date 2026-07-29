@@ -207,6 +207,7 @@ export default defineRoute({
 				}
 
 				const attachments = await resolveMessageAttachments(
+					guildId,
 					thread.modThreadId,
 					message.guildMessageId,
 					recordedAttachments as RecordedAttachmentJson[],
@@ -238,11 +239,14 @@ export default defineRoute({
 		const [category, member, appliedTagIds, userThreadCount, otherThreads, participantEntries] = await Promise.all([
 			fetchCategoryForThread(thread.categoryId),
 			resolveMember(guildId, thread.userId),
-			resolveAppliedTagIds(thread.modThreadId),
+			resolveAppliedTagIds(guildId, thread.modThreadId),
 			countPastThreadsForUser(guildId, thread.userId),
 			fetchOtherThreadsForUser(guildId, thread.userId, thread.id),
 			Promise.all(
-				[...participantIds].map(async (id): Promise<[string, APIUser | Snowflake]> => [id, await resolveUser(id)]),
+				[...participantIds].map(async (id): Promise<[string, APIUser | Snowflake]> => [
+					id,
+					await resolveUser(guildId, id),
+				]),
 			),
 		]);
 

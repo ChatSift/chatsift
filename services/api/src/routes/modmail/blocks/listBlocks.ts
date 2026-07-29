@@ -5,7 +5,7 @@ import { DiscordAPIError } from '@discordjs/rest';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
-import { discordAPIModmail } from '../../../util/discordAPI.js';
+import { apiForGuild } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 
 const paramsSchema = z.object({ guildId: snowflakeSchema });
@@ -38,13 +38,15 @@ export default defineRoute({
 
 		// Always resolved via the ModMail bot's own token directly (not `roundRobinAPI`) -- a block is a
 		// ModMail-specific concept, so there's no "which installed bot should answer this" ambiguity the way
-		// there is for guild-wide grants. `users.get` is a global user lookup, not a guild-member lookup, so
+		// there is for guild-wide grants. `apiForGuild` picks the public token or the guild's owning custom
+		// instance's token as appropriate. `users.get` is a global user lookup, not a guild-member lookup, so
 		// this still works even for a guild the ModMail bot was since kicked from. Rate limiting across these
 		// concurrent calls is handled internally by the REST client, so no manual concurrency cap is needed here.
+		const api = apiForGuild('MODMAIL', guildId);
 		return Promise.all(
 			rows.map(async ({ userId, expiresAt }): Promise<ModmailBlockWithUser> => {
 				try {
-					const user = await discordAPIModmail.users.get(userId);
+					const user = await api.users.get(userId);
 					return { user, expiresAt };
 				} catch (error) {
 					if (error instanceof DiscordAPIError && error.status === 404) {
