@@ -24,7 +24,8 @@ export function sanitizeRedirectTo(redirectTo: string | undefined, logger: Logge
 		return fallback;
 	}
 
-	if (parsed.origin !== frontend.origin || !parsed.pathname.startsWith('/dashboard')) {
+	const isDashboardPath = parsed.pathname === '/dashboard' || parsed.pathname.startsWith('/dashboard/');
+	if (parsed.origin !== frontend.origin || !isDashboardPath) {
 		logger.warn({ redirectTo }, 'received redirect_to outside of the dashboard origin/path, falling back to default');
 		return fallback;
 	}

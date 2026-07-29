@@ -48,6 +48,19 @@ test('rejects a same-origin path outside of /dashboard', () => {
 	expect(logger.warn).toHaveBeenCalledOnce();
 });
 
+test('rejects a path that merely starts with the /dashboard string without a segment boundary', () => {
+	const logger = createMockLogger();
+	// '/dashboardevil'.startsWith('/dashboard') is true -- a naive prefix check would wrongly accept this.
+	expect(sanitizeRedirectTo('/dashboardevil', logger)).toBe('/dashboard');
+	expect(logger.warn).toHaveBeenCalledOnce();
+});
+
+test('accepts the bare /dashboard path with no trailing segment', () => {
+	const logger = createMockLogger();
+	expect(sanitizeRedirectTo('/dashboard', logger)).toBe('/dashboard');
+	expect(logger.warn).not.toHaveBeenCalled();
+});
+
 test('rejects a path that traverses outside of /dashboard via dot-segments', () => {
 	const logger = createMockLogger();
 	// `new URL` normalizes '/dashboard/../../evil' down to pathname '/evil', which no longer starts with
