@@ -70,7 +70,7 @@ scripts only run against a _fresh_ data directory, so the init script above won'
 `chatsift-v3-postgres-data` volume):
 
 ```sh
-docker compose exec postgres psql -U chatsift -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
+./compose exec postgres psql -U chatsift -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
 ./compose up -d --force-recreate postgres
 ```
 

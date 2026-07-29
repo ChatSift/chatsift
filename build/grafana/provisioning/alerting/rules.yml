@@ -109,7 +109,7 @@ groups:
         title: Postgres down
         condition: C
         for: 2m
-        noDataState: OK
+        noDataState: Alerting
         execErrState: Error
         labels:
           severity: critical
