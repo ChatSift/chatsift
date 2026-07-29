@@ -9,7 +9,7 @@ import {
 const logger = createLogger('api');
 registerFatalErrorHandlers(logger);
 
-const db = createDatabase(logger);
+const db = createDatabase();
 const redis = await createRedis(logger);
 initContext({ db, logger, redis });
 

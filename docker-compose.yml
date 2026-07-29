@@ -31,6 +31,11 @@ services:
       - 'pg_stat_statements.max=5000'
       - '-c'
       - 'log_min_duration_statement=${POSTGRES_SLOW_QUERY_LOG_MS:-200}'
+      # Bound parameter *values* would otherwise be logged alongside a slow statement (Postgres's
+      # default) - queries here are parameterized user/message data (Discord IDs, ticket content,
+      # snippet text, ...), so only the query shape ($1, $2, ...) goes to dozzle, never the values.
+      - '-c'
+      - 'log_parameter_max_length=0'
     restart: unless-stopped
     env_file:
       - ./.env.public

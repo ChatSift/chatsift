@@ -65,7 +65,7 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 
 beforeAll(async () => {
 	const logger = createLogger('api');
-	const db = createDatabase(logger);
+	const db = createDatabase();
 	const redis = await createRedis(logger);
 	initContext({ db, logger, redis });
 });
