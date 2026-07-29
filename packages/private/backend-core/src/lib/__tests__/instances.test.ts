@@ -10,10 +10,10 @@ vi.mock('../context.js', () => ({
 	getContext: () => ({ db: fakeDb, logger: fakeLogger, env: envState }),
 }));
 
-// `decryptSecret` is exercised on its own in secret.test.ts -- here a row's `token` column is already
+// `decrypt` is exercised on its own in crypt.test.ts -- here a row's `token` column is already
 // "encrypted" as `enc:<plaintext>` so the round trip stays a plain string comparison.
-vi.mock('../secret.js', () => ({
-	decryptSecret: (value: string) => value.replace(/^enc:/, ''),
+vi.mock('../crypt.js', () => ({
+	decrypt: (value: string) => value.replace(/^enc:/, ''),
 }));
 
 function row(overrides: Partial<{ guildId: string; id: string; label: string; token: string }> = {}) {

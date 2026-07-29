@@ -1,7 +1,7 @@
 import { setInterval } from 'node:timers';
 import type { ModmailInstances } from '@chatsift/db';
 import { getContext } from './context.js';
-import { decryptSecret } from './secret.js';
+import { decrypt } from './crypt.js';
 
 /**
  * A decoded `modmail_instances` row -- `token` is the plaintext bot token (decrypted once here, not
@@ -21,7 +21,7 @@ let selfInstance: Instance | null = null;
 let refreshTimer: NodeJS.Timeout | null = null;
 
 function decode(row: ModmailInstances): Instance {
-	return { id: row.id, guildId: row.guildId, label: row.label, token: decryptSecret(row.token) };
+	return { id: row.id, guildId: row.guildId, label: row.label, token: decrypt(row.token) };
 }
 
 async function fetchInstances(): Promise<Instance[]> {

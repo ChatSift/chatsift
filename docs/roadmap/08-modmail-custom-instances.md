@@ -77,7 +77,7 @@ CREATE TABLE modmail_instances (
 );
 ```
 
-The token column stores `iv:authTag:ciphertext` (base64 segments); a small `encryptSecret`/`decryptSecret` pair in `packages/private/backend-core` handles it. If the team would rather not encrypt, the alternative is plaintext plus a note that DB dumps become credential material — but the encrypted path is a few dozen lines and `ENCRYPTION_KEY` already exists, so it's the recommendation.
+The token column stores a base64 `[iv | ciphertext | authTag]` blob; `packages/private/backend-core`'s `encrypt`/`decrypt` (`lib/crypt.ts`) handle it — this already existed, promoted up from `services/api/src/util/crypt.ts` (previously unused there) rather than adding a second AES-256-GCM helper with its own serialization. If the team would rather not encrypt, the alternative is plaintext plus a note that DB dumps become credential material — but the encrypted path is a few dozen lines and `ENCRYPTION_KEY` already exists, so it's the recommendation.
 
 ### Registry access (`packages/private/backend-core/src/lib/instances.ts`, new)
 
@@ -140,7 +140,7 @@ Each phase is one PR, each independently mergeable and verifiable. P1–P3 ship 
 ### P1 — Registry table + ownership gating (bot side)
 
 - `packages/private/db`: `modmail_instances` table, Atlas migration, kanel regen.
-- `packages/private/backend-core`: `lib/instances.ts` (above); `encryptSecret`/`decryptSecret`; `ENV.MODMAIL_INSTANCE_ID` (optional); `GuildList` key type widening in `lib/data/bots.ts`.
+- `packages/private/backend-core`: `lib/instances.ts` (above); `lib/crypt.ts`'s `encrypt`/`decrypt`, promoted from `services/api/src/util/crypt.ts` (see above); `ENV.MODMAIL_INSTANCE_ID` (optional); `GuildList` key type widening in `lib/data/bots.ts`.
 - `services/modmail-bot/src/bin.ts`: resolve self-instance → token and `botId` (`MODMAIL` or `MODMAIL#<id>`); add the `DirectMessages` intent (harmless for the public deployment, required later by P4); fail fast on an unresolvable `MODMAIL_INSTANCE_ID`.
 - `services/modmail-bot/src/lib/instance.ts` (new): `ownsGuild(guildId)` plus the SQL scope fragment the sweeps use.
 - Gate the three raw listeners in `services/modmail-bot/src/index.ts` (`registerMessageRelay`, both halves of `registerMessageLifecycleRelay`).

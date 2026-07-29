@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { getContext } from '@chatsift/backend-core';
+import { getContext } from './context.js';
 
 // GCM's recommended nonce size -- using 16 (like a CBC/CTR IV) works but wastes bytes and is slightly slower.
 const IV_LENGTH = 12;
