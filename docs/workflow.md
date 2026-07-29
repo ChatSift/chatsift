@@ -44,6 +44,41 @@ Prisma/Kysely are gone as of M1 (#132). The root `db:*` scripts (`dotenv -e .env
 - `getPropertyMetadata` must camelCase row property names (via `@kristiandupont/recase`, `recase('snake', 'camel')`) — kanel only PascalCases type/interface names by default, not properties, so without this override generated types carry snake_case keys while actual query results are camelCase at runtime (per the `postgres.camel` transform above).
 - `@electric-sql/pglite` must stay a devDependency even though nothing uses the pglite driver — kanel's CLI crashes on startup without it, due to an unconditional unmet peer `require` inside `extract-pg-schema`'s nested `knex-pglite` dependency.
 
+### Query performance tracking (#270)
+
+Two complementary layers, both zero-dependency (reuse infra/tooling already in the stack, no new npm packages):
+
+- **DB-side (`pg_stat_statements` + `postgres-exporter`)**: the `postgres` compose service enables
+  `pg_stat_statements` (`shared_preload_libraries`, `log_min_duration_statement=${POSTGRES_SLOW_QUERY_LOG_MS:-200}`
+  — slow queries land in dozzle like every other service's logs, no extra plumbing) and mounts
+  `build/postgres/init/01-pg-stat-statements.sql` (`CREATE EXTENSION IF NOT EXISTS pg_stat_statements;`). A
+  `postgres-exporter` service scrapes it into the existing Prometheus (`build/prometheus/prometheus.yml`), and the
+  `postgres-overview` Grafana dashboard (`build/grafana/dashboards/postgres-overview.json`) surfaces connections,
+  cache hit ratio, throughput, locks, and a top-20-slowest-queries table (from the exporter's native
+  `--collector.stat_statements`, not the deprecated `queries.yaml`/`--extend.query-path` mechanism). Two alert
+  rules (`postgres-down`, `postgres-connections-near-limit`) were added to `build/grafana/provisioning/alerting/rules.yml`,
+  routed through the existing Discord alert webhook automatically.
+- **App-side (`createDb()` slow-query log)**: `packages/private/db/src/index.ts`'s `createDb()` optionally wraps
+  the returned `postgres.js` client (via `Proxy`, `.finally()` on the returned `Query` — nothing about the object
+  handed back to callers changes) to time every query, including inside `.begin()`/`.savepoint()`. Queries at or
+  above `POSTGRES_SLOW_QUERY_LOG_MS` are logged via `logger.warn` through whichever service's own pino logger is
+  passed in — `createDatabase(logger)` in `packages/private/backend-core/src/lib/database.ts` wires this up for
+  every service automatically. Unlike the DB-side view, this carries per-service context at effectively no cost:
+  no new dependency, no Postgres restart, no extension.
+
+**One-time manual step for already-provisioned databases** (both local dev and prod — `docker-entrypoint-initdb.d`
+scripts only run against a _fresh_ data directory, so the init script above won't fire on an existing
+`chatsift-v3-postgres-data` volume):
+
+```sh
+docker compose exec postgres psql -U chatsift -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
+./compose up -d --force-recreate postgres
+```
+
+The restart is required because `shared_preload_libraries` is a postmaster-context setting, not reloadable. Run
+this yourself on each already-running Postgres (local + prod) — it's not something an agent should run on your
+behalf.
+
 ## Verification standard
 
 Before calling any phase/issue done:

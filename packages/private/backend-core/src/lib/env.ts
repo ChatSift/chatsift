@@ -38,6 +38,8 @@ const envSchema = z.object({
 	// DB (packages/db — postgres.js raw SQL client, see docs/adr/0002-db-stack.md)
 	DATABASE_URL_DEV: z.url(),
 	DATABASE_URL_PROD: z.url(),
+	// #270 - shared with Postgres's own log_min_duration_statement (docker-compose.yml); see createDatabase().
+	POSTGRES_SLOW_QUERY_LOG_MS: z.string().pipe(z.coerce.number()).default(200),
 
 	// Redis
 	REDIS_URL_DEV: z.url({ protocol: /^rediss?$/ }),

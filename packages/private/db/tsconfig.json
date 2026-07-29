@@ -2,7 +2,12 @@
 	"extends": "../../../tsconfig.base.json",
 	"compilerOptions": {
 		"outDir": "./dist",
-		"rootDir": "./src"
+		"rootDir": "./src",
+		// Unlike sibling packages, this one has no package-local node_modules (fully hoisted) -- TS's
+		// automatic @types/* discovery doesn't reach the root node_modules/@types from here without this
+		// explicit hint, which only bites once a file actually imports a Node builtin (src/index.ts's
+		// `node:perf_hooks` for #270's slow-query timer, the first such import in this package).
+		"types": ["node"]
 	},
 	"include": ["src/**/*"],
 	"exclude": ["dist", "node_modules"]

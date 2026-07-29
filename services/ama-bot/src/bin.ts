@@ -14,7 +14,7 @@ import { bin } from './index.js';
 const logger = createLogger('ama-bot');
 registerFatalErrorHandlers(logger);
 
-const db = createDatabase();
+const db = createDatabase(logger);
 const redis = await createRedis(logger);
 initContext({ db, logger, redis });
 
