@@ -216,7 +216,16 @@ export async function fetchMeFromGrant(grant: GrantTokenData, logger: Logger): P
 	const [discordUser, guild, branding] = await Promise.all([
 		api.users.get(grant.sub),
 		api.guilds.get(grant.guildId),
-		instance ? getInstanceBranding(instance) : undefined,
+		// Best-effort, same as `fetchMe`'s `brandingEntries` -- a failure to resolve a partner's icon is a
+		// cosmetic annotation on top of an otherwise-successful grant-authed request, not a reason to fail
+		// the whole thing (this ran inside the same `Promise.all` as the two calls above, so an unguarded
+		// rejection here would have failed those too).
+		instance
+			? getInstanceBranding(instance).catch((error: unknown) => {
+					logger.warn({ err: error, instanceId: instance.id }, 'failed to resolve custom instance branding');
+					return { iconUrl: null, label: instance.label };
+				})
+			: undefined,
 	]);
 
 	const meGuild: MeGuild = {

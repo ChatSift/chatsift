@@ -70,6 +70,11 @@ interface BrandingCacheEntry {
 
 const brandingCache = new Map<string, BrandingCacheEntry>();
 const brandingRefreshInFlight = new Set<string>();
+// De-dupes concurrent cold-start callers (both `brandingCache` and `brandingStore` empty for this instance)
+// onto a single in-flight lookup -- mirrors `getModmailApplicationId`'s `pending` map above. Without this, a
+// burst of `/me` requests landing before the very first fetch for a given instance resolves would each kick
+// off their own redis read + potential Discord call instead of sharing one.
+const brandingPending = new Map<string, Promise<InstanceBranding>>();
 
 const brandingStore = new RedisStore<{ iconUrl: string | null }>({
 	TTL: BRANDING_TTL_MS,
@@ -134,14 +139,24 @@ export async function getInstanceBranding(instance: Instance): Promise<InstanceB
 		return cached.branding;
 	}
 
-	const redisCached = await brandingStore.get(instance.id);
-	if (redisCached) {
-		const branding: InstanceBranding = { iconUrl: redisCached.iconUrl, label: instance.label };
-		brandingCache.set(instance.id, { branding, expiresAt: Date.now() + BRANDING_TTL_MS });
-		return branding;
+	let inflight = brandingPending.get(instance.id);
+	if (!inflight) {
+		inflight = (async () => {
+			try {
+				const redisCached = await brandingStore.get(instance.id);
+				const branding: InstanceBranding = redisCached
+					? { iconUrl: redisCached.iconUrl, label: instance.label }
+					: await fetchBrandingFromDiscord(instance);
+
+				brandingCache.set(instance.id, { branding, expiresAt: Date.now() + BRANDING_TTL_MS });
+				return branding;
+			} finally {
+				brandingPending.delete(instance.id);
+			}
+		})();
+
+		brandingPending.set(instance.id, inflight);
 	}
 
-	const branding = await fetchBrandingFromDiscord(instance);
-	brandingCache.set(instance.id, { branding, expiresAt: Date.now() + BRANDING_TTL_MS });
-	return branding;
+	return inflight;
 }
