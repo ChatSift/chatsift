@@ -1,6 +1,6 @@
 'use client';
 
-import { notFound, useParams, useRouter } from 'next/navigation';
+import { notFound, useParams, usePathname, useRouter } from 'next/navigation';
 import type { PropsWithChildren } from 'react';
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { Skeleton } from './Skeleton';
@@ -36,6 +36,7 @@ export function useNavGate() {
 export function NavGateProvider({ children }: PropsWithChildren) {
 	const { isLoading, data: user, error } = useMe();
 	const router = useRouter();
+	const pathname = usePathname();
 
 	useEffect(() => {
 		// `error` must gate this too, not just the render below: on a *refetch* failure (as opposed to a first
@@ -50,9 +51,9 @@ export function NavGateProvider({ children }: PropsWithChildren) {
 				return;
 			}
 
-			router.push(URLS.API.LOGIN);
+			router.push(URLS.API.login(pathname));
 		}
-	}, [isLoading, error, user, router]);
+	}, [isLoading, error, user, router, pathname]);
 
 	const value = useMemo(
 		() => ({
