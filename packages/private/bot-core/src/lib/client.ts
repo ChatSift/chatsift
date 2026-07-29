@@ -1,5 +1,5 @@
 import { setInterval } from 'node:timers';
-import type { BotId } from '@chatsift/backend-core';
+import type { GuildListKey } from '@chatsift/backend-core';
 import { getContext, GuildList } from '@chatsift/backend-core';
 import type { Snowflake } from '@discordjs/core';
 import { InteractionType, Client, GatewayDispatchEvents } from '@discordjs/core';
@@ -28,9 +28,11 @@ declare module '@chatsift/backend-core' {
 export interface CreateBotClientOptions {
 	/**
 	 * Identifies which bot this is for the `bot:<BotId>` guild-list Redis key that the dashboard/API reads to know
-	 * which guilds the bot is in.
+	 * which guilds the bot is in. A custom ModMail instance (#216) passes its own widened
+	 * `` MODMAIL#${instanceId} `` key instead of the bare `BotId` so it doesn't overwrite the public
+	 * deployment's guild list.
 	 */
-	readonly botId: BotId;
+	readonly botId: GuildListKey;
 	readonly gateway: WebSocketManager;
 	readonly rest: REST;
 }

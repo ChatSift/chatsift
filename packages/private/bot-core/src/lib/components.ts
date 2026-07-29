@@ -2,6 +2,8 @@ import { glob } from 'node:fs/promises';
 import type { Logger, RedisStore } from '@chatsift/backend-core';
 import { getContext, isModuleWithDefault } from '@chatsift/backend-core';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
+import { MessageFlags } from '@discordjs/core';
+import { resolveForeignOwnerLabel } from './ownership.js';
 
 export interface ComponentHandler<State = never> {
 	handle(interaction: APIMessageComponentInteraction, state: State, logger: Logger): Promise<void>;
@@ -45,6 +47,17 @@ export async function handleComponentInteraction(
 	interaction: APIMessageComponentInteraction,
 	logger: Logger,
 ): Promise<void> {
+	// See the matching check in commands.ts's handleCommandInteraction -- defense-in-depth against a
+	// leftover panel/button whose message belongs to an application that no longer owns this guild.
+	const foreignOwnerLabel = resolveForeignOwnerLabel(interaction.guild_id);
+	if (foreignOwnerLabel) {
+		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+			content: `This server is served by ${foreignOwnerLabel}. Please use its commands instead.`,
+			flags: MessageFlags.Ephemeral,
+		});
+		return;
+	}
+
 	const [componentName, stateId] = interaction.data.custom_id.split(':') as [string, string?];
 
 	const handler = components.get(componentName);

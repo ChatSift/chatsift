@@ -8,6 +8,7 @@ import type {
 	RESTPostAPIContextMenuApplicationCommandsJSONBody,
 } from '@discordjs/core';
 import { MessageFlags } from '@discordjs/core';
+import { resolveForeignOwnerLabel } from './ownership.js';
 
 /**
  * Deliberately excludes `RESTPostAPIPrimaryEntryPointApplicationCommandJSONBody` (the "Activity" entry-point
@@ -96,6 +97,20 @@ export async function handleCommandInteraction(
 	interaction: APIApplicationCommandInteraction,
 	logger: Logger,
 ): Promise<void> {
+	// Component/slash-command interactions are Discord-application-scoped already (a leftover command
+	// only ever dispatches to the application that registered it), so this is defense-in-depth rather
+	// than the actual doubling-risk boundary -- see docs/roadmap/08-modmail-custom-instances.md. It
+	// mainly matters right after an instance swap, where stale `/snippet` commands under the old
+	// application would otherwise act on a guild this deployment no longer owns.
+	const foreignOwnerLabel = resolveForeignOwnerLabel(interaction.guild_id);
+	if (foreignOwnerLabel) {
+		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+			content: `This server is served by ${foreignOwnerLabel}. Please use its commands instead.`,
+			flags: MessageFlags.Ephemeral,
+		});
+		return;
+	}
+
 	const handler = commands.get(interaction.data.name);
 	if (!handler) {
 		if (unknownCommandResolver && (await unknownCommandResolver(interaction, logger))) {
@@ -117,6 +132,13 @@ export async function handleAutocompleteInteraction(
 	interaction: APIApplicationCommandAutocompleteInteraction,
 	logger: Logger,
 ): Promise<void> {
+	// No user-facing reply here (unlike the command/component handlers) -- an autocomplete response
+	// can only be a choice list, not a message, so there's nothing meaningful to say. The point is
+	// just to not run a foreign guild's autocomplete query at all; Discord shows no results either way.
+	if (resolveForeignOwnerLabel(interaction.guild_id)) {
+		return;
+	}
+
 	const handler = commands.get(interaction.data.name);
 	if (!handler?.handleAutocomplete) {
 		logger.warn({ commandName: interaction.data.name }, 'No autocomplete handler found for command interaction');

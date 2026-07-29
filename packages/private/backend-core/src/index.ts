@@ -9,4 +9,6 @@ export * from './lib/database.js';
 export * from './lib/env.js';
 export * from './lib/grantToken.js';
 export * from './lib/logger.js';
+export * from './lib/instances.js';
 export * from './lib/redis.js';
+export * from './lib/secret.js';

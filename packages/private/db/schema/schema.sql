@@ -108,6 +108,28 @@ CREATE INDEX ama_questions_ama_id_idx ON ama_questions (ama_id);
 -- the new user_thread_id now that a thread has two Discord-thread concepts (mod-forum side vs.
 -- the user's private thread). Free to do since this table has no prior rows in the new schema.
 
+-- Registry of branded, single-guild ModMail deployments (#216). A row here is what makes a guild
+-- "owned" by a custom instance: the public modmail-bot deployment no-ops for any guild listed here,
+-- and services/api routes every Discord call for that guild through this instance's token instead of
+-- MODMAIL_BOT_TOKEN. Rows are inserted by hand (see docs/workflow.md) alongside adding the matching
+-- docker-compose service -- there is deliberately no API/dashboard CRUD for this table, since it
+-- holds a live bot token. See docs/roadmap/08-modmail-custom-instances.md for the full design.
+CREATE TABLE modmail_instances (
+  -- Slug, matched against the deployment's own MODMAIL_INSTANCE_ID env var. Stable; renaming one
+  -- means redeploying the service that carries it.
+  id         TEXT PRIMARY KEY,
+  -- One instance per guild, enforced here rather than in application code -- the whole ownership
+  -- model in docs/roadmap/08-modmail-custom-instances.md rests on this being unambiguous.
+  guild_id   TEXT NOT NULL UNIQUE,
+  -- The custom bot application's token, encrypted at rest with ENCRYPTION_KEY (AES-256-GCM), same
+  -- key the JWT signing path already uses. Encrypted rather than plain because a Postgres dump or a
+  -- backup snapshot would otherwise carry live bot credentials for every partner.
+  token      TEXT NOT NULL,
+  -- Display name shown in place of "ModMail" throughout this guild's dashboard.
+  label      TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE guild_settings (
   guild_id                 TEXT PRIMARY KEY,
   mod_forum_id             TEXT,

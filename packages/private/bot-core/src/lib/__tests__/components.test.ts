@@ -2,13 +2,15 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { MessageFlags } from '@discordjs/core';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { stubBackendCoreEnv } from './testEnv.js';
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 
-const { fakeLogger } = vi.hoisted(() => ({
+const { fakeLogger, fakeReply } = vi.hoisted(() => ({
 	fakeLogger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
+	fakeReply: vi.fn(),
 }));
 
 vi.mock('@chatsift/backend-core', async (importActual) => {
@@ -17,12 +19,24 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 
 	return {
 		...actual,
-		getContext: () => ({ logger: fakeLogger }),
+		getContext: () => ({
+			logger: fakeLogger,
+			service: {
+				client: {
+					api: {
+						interactions: {
+							reply: fakeReply,
+						},
+					},
+				},
+			},
+		}),
 	};
 });
 
 const { handleComponentInteraction, registerComponentHandler, registerComponentHandlers } =
 	await import('../components.js');
+const { setGuildOwnershipFilter } = await import('../ownership.js');
 
 const logger = fakeLogger as unknown as Logger;
 
@@ -30,8 +44,19 @@ beforeEach(() => {
 	vi.clearAllMocks();
 });
 
-function makeInteraction(customId: string): APIMessageComponentInteraction {
-	return { data: { custom_id: customId } } as unknown as APIMessageComponentInteraction;
+afterEach(() => {
+	// See commands.test.ts's matching afterEach -- there's no unregister API, so tests reset the
+	// module-level filter back to "no foreign owner anywhere" themselves.
+	setGuildOwnershipFilter(() => null);
+});
+
+function makeInteraction(customId: string, guildId?: string): APIMessageComponentInteraction {
+	return {
+		id: 'interaction-1',
+		token: 'tok',
+		data: { custom_id: customId },
+		guild_id: guildId,
+	} as unknown as APIMessageComponentInteraction;
 }
 
 describe('handleComponentInteraction', () => {
@@ -108,5 +133,40 @@ describe('registerComponentHandlers', () => {
 			expect.objectContaining({ file: expect.stringContaining('invalidComponent.js') }),
 			'Skipped invalid component handler module',
 		);
+	});
+});
+
+describe('guild ownership gating (#216)', () => {
+	test('replies with the foreign owner label and never resolves state or dispatches to the handler', async () => {
+		const handle = vi.fn();
+		const get = vi.fn();
+		registerComponentHandler({ name: 'unit-test-comp-foreign', stateStore: { get }, handle } as any);
+		setGuildOwnershipFilter((guildId) => (guildId === 'foreign-guild' ? 'Some Partner ModMail' : null));
+
+		const interaction = makeInteraction('unit-test-comp-foreign:row-1', 'foreign-guild');
+		await handleComponentInteraction(interaction, logger);
+
+		expect(get).not.toHaveBeenCalled();
+		expect(handle).not.toHaveBeenCalled();
+		expect(fakeReply).toHaveBeenCalledWith(
+			interaction.id,
+			interaction.token,
+			expect.objectContaining({
+				content: expect.stringContaining('Some Partner ModMail'),
+				flags: MessageFlags.Ephemeral,
+			}),
+		);
+	});
+
+	test('dispatches normally when this deployment owns the guild', async () => {
+		const handle = vi.fn();
+		registerComponentHandler({ name: 'unit-test-comp-owned', stateStore: null, handle } as any);
+		setGuildOwnershipFilter((guildId) => (guildId === 'foreign-guild' ? 'Some Partner ModMail' : null));
+
+		const interaction = makeInteraction('unit-test-comp-owned:row-1', 'owned-guild');
+		await handleComponentInteraction(interaction, logger);
+
+		expect(handle).toHaveBeenCalledWith(interaction, 'row-1', logger);
+		expect(fakeReply).not.toHaveBeenCalled();
 	});
 });

@@ -1,6 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { Threads } from '@chatsift/db';
+import { getOwnershipScope } from './instance.js';
 import { closeThread } from './threadClose.js';
 
 interface DueScheduledClose extends Threads {
@@ -17,11 +18,16 @@ interface DueScheduledClose extends Threads {
  * done.
  */
 export async function sweepScheduledCloses(logger: Logger): Promise<void> {
+	// See docs/roadmap/08-modmail-custom-instances.md -- closing a ticket in a guild this deployment
+	// doesn't own would race whichever deployment does.
+	const scope = getOwnershipScope();
+
 	const due = await getContext().db<DueScheduledClose[]>`
 		SELECT t.*, sc.scheduled_by_id, sc.silent, sc.anon
 		FROM scheduled_thread_closes sc
 		INNER JOIN threads t ON t.id = sc.thread_id
 		WHERE sc.close_at <= now() AND t.closed_at IS NULL
+			AND ${scope.kind === 'only' ? getContext().db`t.guild_id = ${scope.guildId}` : getContext().db`t.guild_id != ALL(${scope.excludedGuildIds})`}
 	`;
 
 	await Promise.all(
