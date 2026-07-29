@@ -10,6 +10,13 @@ export default {
 				hostname: 'cdn.discordapp.com',
 				pathname: '/icons/**',
 			},
+			{
+				// Custom ModMail instance branding (#216 P3) -- a bot application's own icon, distinct from a
+				// guild icon above.
+				protocol: 'https',
+				hostname: 'cdn.discordapp.com',
+				pathname: '/app-icons/**',
+			},
 		],
 	},
 	productionBrowserSourceMaps: true,

@@ -4,7 +4,7 @@ import { Link as AriaLink } from 'react-aria-components';
 import type { MeGuild } from '@/api/routes/auth';
 import { GuildIcon } from '@/components/common/GuildIcon';
 import { Tooltip } from '@/components/common/Tooltip';
-import { Bots } from '@/utils/bots';
+import { BotIcon, Bots, resolveBotBranding } from '@/utils/bots';
 import { cn } from '@/utils/util';
 
 interface GuildCardProps {
@@ -32,11 +32,11 @@ export default function GuildCard({ data }: GuildCardProps) {
 				{hasBots ? (
 					<ul className="flex flex-row items-center gap-1">
 						{data.bots.map((bot) => {
-							const { Icon, label } = Bots[bot];
+							const branding = resolveBotBranding(data, bot);
 							return (
 								<li key={bot}>
-									<Icon height={BOT_ICON_SIZE} width={BOT_ICON_SIZE} />
-									<span className="sr-only">{label}</span>
+									<BotIcon bot={bot} branding={branding} height={BOT_ICON_SIZE} width={BOT_ICON_SIZE} />
+									<span className="sr-only">{branding.label}</span>
 								</li>
 							);
 						})}
