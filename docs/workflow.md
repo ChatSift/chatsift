@@ -49,7 +49,7 @@ Prisma/Kysely are gone as of M1 (#132). The root `db:*` scripts (`dotenv -e .env
 Entirely DB-side, zero-dependency (reuses infra already in the stack — Prometheus/Grafana/dozzle — no new npm
 packages, no application code). An app-level equivalent (timing queries in `createDb()`) was considered and
 deliberately rejected: postgres.js exposes no query-completion event, so the only way to time an individual
-`sql\`...\``call is`Proxy`-wrapping the client or rewriting every call site — not worth it when this DB-side
+`` sql`...` `` call is `Proxy`-wrapping the client or rewriting every call site — not worth it when this DB-side
 layer already gives the same signal (which query, how slow) for free.
 
 The `postgres` compose service enables `pg_stat_statements` (`shared_preload_libraries`,
