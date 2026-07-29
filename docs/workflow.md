@@ -44,6 +44,40 @@ Prisma/Kysely are gone as of M1 (#132). The root `db:*` scripts (`dotenv -e .env
 - `getPropertyMetadata` must camelCase row property names (via `@kristiandupont/recase`, `recase('snake', 'camel')`) — kanel only PascalCases type/interface names by default, not properties, so without this override generated types carry snake_case keys while actual query results are camelCase at runtime (per the `postgres.camel` transform above).
 - `@electric-sql/pglite` must stay a devDependency even though nothing uses the pglite driver — kanel's CLI crashes on startup without it, due to an unconditional unmet peer `require` inside `extract-pg-schema`'s nested `knex-pglite` dependency.
 
+### Query performance tracking (#270)
+
+Entirely DB-side, zero-dependency (reuses infra already in the stack — Prometheus/Grafana/dozzle — no new npm
+packages, no application code). An app-level equivalent (timing queries in `createDb()`) was considered and
+deliberately rejected: postgres.js exposes no query-completion event, so the only way to time an individual
+`` sql`...` `` call is `Proxy`-wrapping the client or rewriting every call site — not worth it when this DB-side
+layer already gives the same signal (which query, how slow) for free.
+
+The `postgres` compose service enables `pg_stat_statements` (`shared_preload_libraries`,
+`log_min_duration_statement=${POSTGRES_SLOW_QUERY_LOG_MS:-200}` — slow queries land in dozzle like every other
+service's logs) and mounts `build/postgres/init/01-pg-stat-statements.sql`
+(`CREATE EXTENSION IF NOT EXISTS pg_stat_statements;`). `log_parameter_max_length=0` is also set, so a slow
+statement's logged text stays `$1`/`$2` placeholders — bound values (Discord IDs, ticket/message content, etc.)
+never reach the log. A `postgres-exporter` service scrapes it into the existing Prometheus
+(`build/prometheus/prometheus.yml`), and the `postgres-overview` Grafana dashboard
+(`build/grafana/dashboards/postgres-overview.json`) surfaces connections, cache hit ratio, throughput, locks, and a
+top-20-slowest-queries table (from the exporter's native `--collector.stat_statements`, not the deprecated
+`queries.yaml`/`--extend.query-path` mechanism — this one is cardinality-bounded by `queryid`, and never stores
+bound values either, by design). Two alert rules (`postgres-down`, `postgres-connections-near-limit`) were added to
+`build/grafana/provisioning/alerting/rules.yml`, routed through the existing Discord alert webhook automatically.
+
+**One-time manual step for already-provisioned databases** (both local dev and prod — `docker-entrypoint-initdb.d`
+scripts only run against a _fresh_ data directory, so the init script above won't fire on an existing
+`chatsift-v3-postgres-data` volume):
+
+```sh
+./compose exec postgres psql -U chatsift -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
+./compose up -d --force-recreate postgres
+```
+
+The restart is required because `shared_preload_libraries` is a postmaster-context setting, not reloadable. Run
+this yourself on each already-running Postgres (local + prod) — it's not something an agent should run on your
+behalf.
+
 ## Verification standard
 
 Before calling any phase/issue done:

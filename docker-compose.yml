@@ -19,6 +19,23 @@ services:
       POSTGRES_DB: 'chatsift'
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Only runs against a fresh data directory - already-provisioned volumes need the manual
+      # one-time step documented in docs/workflow.md.
+      - ./build/postgres/init:/docker-entrypoint-initdb.d:ro
+    command:
+      - '-c'
+      - 'shared_preload_libraries=pg_stat_statements'
+      - '-c'
+      - 'pg_stat_statements.track=all'
+      - '-c'
+      - 'pg_stat_statements.max=5000'
+      - '-c'
+      - 'log_min_duration_statement=${POSTGRES_SLOW_QUERY_LOG_MS:-200}'
+      # Bound parameter *values* would otherwise be logged alongside a slow statement (Postgres's
+      # default) - queries here are parameterized user/message data (Discord IDs, ticket content,
+      # snippet text, ...), so only the query shape ($1, $2, ...) goes to dozzle, never the values.
+      - '-c'
+      - 'log_parameter_max_length=0'
     restart: unless-stopped
     env_file:
       - ./.env.public
@@ -29,6 +46,22 @@ services:
       test: ['CMD-SHELL', 'pg_isready -U chatsift']
       interval: 10s
       timeout: 5s
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    environment:
+      DATA_SOURCE_NAME: '${DATABASE_URL_PROD}?sslmode=disable'
+    command:
+      - '--collector.stat_statements'
+      - '--collector.stat_statements.include_query'
+      - '--collector.stat_statements.query_length=200'
+      - '--collector.stat_statements.limit=20'
+    depends_on:
+      - postgres
 
   dozzle:
     image: amir20/dozzle:latest
@@ -78,6 +111,7 @@ services:
     depends_on:
       - cadvisor
       - node-exporter
+      - postgres-exporter
 
   grafana:
     image: grafana/grafana:11.4.0
