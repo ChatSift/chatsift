@@ -33,7 +33,7 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 	const [abandoned, stale] = await Promise.all([
 		getContext().db<PendingTickets[]>`
 			SELECT pt.* FROM pending_tickets pt
-			LEFT JOIN threads t ON t.user_thread_id = pt.private_thread_id
+			LEFT JOIN threads t ON t.user_channel_id = pt.private_thread_id
 			WHERE pt.created_at < ${new Date(Date.now() - PENDING_TICKET_TTL_MS)} AND t.id IS NULL
 				AND ${scope.kind === 'only' ? getContext().db`pt.guild_id = ${scope.guildId}` : getContext().db`pt.guild_id != ALL(${scope.excludedGuildIds})`}
 		`,
@@ -41,7 +41,7 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 		// abandon here, just stale bookkeeping to drop so the table stays small regardless of age.
 		getContext().db<PendingTickets[]>`
 			SELECT pt.* FROM pending_tickets pt
-			INNER JOIN threads t ON t.user_thread_id = pt.private_thread_id
+			INNER JOIN threads t ON t.user_channel_id = pt.private_thread_id
 			WHERE ${scope.kind === 'only' ? getContext().db`pt.guild_id = ${scope.guildId}` : getContext().db`pt.guild_id != ALL(${scope.excludedGuildIds})`}
 		`,
 	]);
@@ -64,7 +64,7 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 		await withGuildUserLock(pending.guildId, pending.userId, async () => {
 			const [stillAbandoned] = await getContext().db<PendingTickets[]>`
 				SELECT pt.* FROM pending_tickets pt
-				LEFT JOIN threads t ON t.user_thread_id = pt.private_thread_id
+				LEFT JOIN threads t ON t.user_channel_id = pt.private_thread_id
 				WHERE pt.private_thread_id = ${pending.privateThreadId} AND t.id IS NULL
 			`;
 

@@ -17,6 +17,7 @@ import type {
 } from '@discordjs/core';
 import { ApplicationCommandType, GatewayDispatchEvents, MessageFlags } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
+import { handleDmMessage } from './lib/dmTicket.js';
 import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from './lib/emojis.js';
 import { withGuildUserLock } from './lib/guildUserQueue.js';
 import { ownsGuild, resolveGuildOwnerLabel } from './lib/instance.js';
@@ -24,11 +25,16 @@ import { buildContextNote, resolveEffectiveContent, resolveReplyReferenceId } fr
 import { clearPendingTicketRecord, PendingTicketStore, type PendingTicketState } from './lib/pendingTicket.js';
 import { sweepAbandonedPendingTickets } from './lib/pendingTicketSweep.js';
 import { preventOpenThreadsFromArchiving } from './lib/preventThreadArchive.js';
-import { recordInternalModMessage, relayStaffReplyToUserThread, relayUserMessageToModThread } from './lib/relay.js';
+import {
+	recordInternalModMessage,
+	relayStaffReplyToUserThread,
+	relayUserMessageToModThread,
+	UndeliverableUserError,
+} from './lib/relay.js';
 import { sweepScheduledCloses } from './lib/scheduledCloseSweep.js';
 import { findSnippetByCommandId, recordSnippetUsage } from './lib/snippets.js';
 import { sweepThreadNukes } from './lib/threadNukeSweep.js';
-import { findOpenThreadByModThreadId, findOpenThreadByUserThreadId } from './lib/threads.js';
+import { findOpenThreadByModThreadId, findOpenThreadByUserChannelId } from './lib/threads.js';
 import { finishTicketCreation, sendGreeting } from './lib/ticketCreation.js';
 import {
 	handleInternalMessageDelete,
@@ -119,8 +125,9 @@ async function handleFirstMessage(
 				logger,
 				member: message.member,
 				modForumId: guildSettings.modForumId,
-				privateThreadId: message.channel_id,
+				origin: 'panel',
 				user: message.author,
+				userChannelId: message.channel_id,
 			});
 
 			// A real `threads` row now exists for this ticket, so the durable pending record needs to
@@ -164,9 +171,9 @@ async function handleFirstMessage(
 					guildId: pending.guildId,
 					member: message.member,
 					modThreadId: thread.modThreadId,
-					privateThreadId: message.channel_id,
 					threadId: thread.id,
 					user: message.author,
+					userChannelId: message.channel_id,
 				});
 
 			if (guildSettings.greetingBeforeOpener) {
@@ -181,7 +188,7 @@ async function handleFirstMessage(
 			// sending another message) would need to re-enter this same function after a failure below,
 			// but by this point `pending_tickets` is already gone and a real `threads` row exists, so a
 			// retry message actually routes through the normal open-thread relay path instead
-			// (`registerMessageRelay`'s `findOpenThreadByUserThreadId` check runs before this store is
+			// (`registerMessageRelay`'s `findOpenThreadByUserChannelId` check runs before this store is
 			// even consulted). Left in place on failure mostly as a harmless leftover — it just expires
 			// via its own TTL once nothing keys off it anymore.
 			await PendingTicketStore.delete(message.channel_id);
@@ -210,10 +217,11 @@ function registerMessageRelay(client: Client): void {
 			return;
 		}
 
-		// A DM (`guild_id` absent, only reachable now that `bin.ts` adds the `DirectMessages` intent
-		// ahead of P4) has no guild-ownership question to ask -- left to fall through to the lookups
-		// below, which simply won't match anything until DM mode exists. A guild message this
-		// deployment doesn't own (#216) must never be relayed -- see docs/roadmap/08-modmail-custom-instances.md.
+		// A DM (`guild_id` absent) has no guild-ownership question to ask -- left to fall through to the
+		// lookups below, which resolve an open DM-origin ticket (its `user_channel_id` is the DM channel
+		// itself, see schema.sql) the same way a private thread does, or fall all the way through to
+		// `handleDmMessage` (#216, P4) once none of them match. A guild message this deployment doesn't
+		// own must never be relayed -- see docs/roadmap/08-modmail-custom-instances.md.
 		if (message.guild_id && !ownsGuild(message.guild_id)) {
 			return;
 		}
@@ -225,7 +233,7 @@ function registerMessageRelay(client: Client): void {
 		});
 
 		try {
-			const thread = await findOpenThreadByUserThreadId(message.channel_id);
+			const thread = await findOpenThreadByUserChannelId(message.channel_id);
 			if (thread) {
 				const effective = resolveEffectiveContent(message);
 				await relayUserMessageToModThread({
@@ -260,6 +268,12 @@ function registerMessageRelay(client: Client): void {
 				// it eagerly here would strand the user with a dead thread on any failure inside it (see
 				// the comments in `handleFirstMessage`).
 				await handleFirstMessage(message, pending, logger);
+			} else if (!message.guild_id) {
+				// None of the above matched and this is a DM -- either a fresh opener or a message sent
+				// while a category pick is still pending (#216, P4). `handleDmMessage` itself no-ops for a
+				// deployment that isn't DM-mode-enabled (or isn't a custom instance at all), so this is safe
+				// to call unconditionally for every unmatched DM.
+				await handleDmMessage(message, logger);
 			}
 		} catch (error) {
 			logger.error({ err: error }, 'Failed to handle message in modmail-bot');
@@ -277,7 +291,7 @@ function registerMessageRelay(client: Client): void {
  * Phase 3 (#261) added the mod-forum-side counterpart (`handleInternalMessageUpdate`/`handleInternalMessageDelete`)
  * for a mod editing/deleting their own plain message posted directly in the mod-forum thread. Both the
  * user-thread and mod-thread handlers run unconditionally on every event rather than branching like
- * `registerMessageRelay` does -- a channel can't be both a ticket's `user_thread_id` and `mod_thread_id` at
+ * `registerMessageRelay` does -- a channel can't be both a ticket's `user_channel_id` and `mod_thread_id` at
  * once, so at most one of the two ever finds a matching thread and does anything; each still gets its own
  * try/catch so a failure in one can't suppress the other.
  */
@@ -410,6 +424,17 @@ function registerSnippetCommandResolver(): void {
 			// Mirrors `commands/reply.ts`'s own try/catch around the same relay call — a failed relay means
 			// nothing was actually sent, so usage tracking below must not run, and the deferred reply needs
 			// an explicit failure message rather than being left to time out silently.
+			if (error instanceof UndeliverableUserError) {
+				logger.warn(
+					{ err: error, snippetId: snippet.id, threadId: thread.id },
+					'Snippet could not be delivered to the user',
+				);
+				await editReply(
+					"❌ Couldn't deliver that snippet — the user has DMs closed or left the server. Nothing was sent.",
+				);
+				return true;
+			}
+
 			logger.error({ err: error, snippetId: snippet.id, threadId: thread.id }, 'Failed to relay a snippet reply');
 			await editReply('❌ Failed to send that snippet. Please try again or reach out for support.');
 			return true;

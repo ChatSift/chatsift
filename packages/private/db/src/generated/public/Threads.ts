@@ -28,7 +28,9 @@ export default interface Threads {
 
   categoryId: CategoriesId | null;
 
-  userThreadId: string | null;
+  userChannelId: string | null;
+
+  origin: string;
 }
 
 /** Represents the initializer for the table public.threads */
@@ -53,7 +55,9 @@ export interface ThreadsInitializer {
 
   categoryId?: CategoriesId | null;
 
-  userThreadId?: string | null;
+  userChannelId?: string | null;
+
+  origin?: string;
 }
 
 /** Represents the mutator for the table public.threads */
@@ -78,5 +82,7 @@ export interface ThreadsMutator {
 
   categoryId?: CategoriesId | null;
 
-  userThreadId?: string | null;
+  userChannelId?: string | null;
+
+  origin?: string;
 }

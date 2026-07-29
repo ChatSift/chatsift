@@ -21,8 +21,12 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 	// below) a thread in a guild this deployment doesn't own would race whichever deployment does.
 	const scope = getOwnershipScope();
 
+	// `origin != 'dm'` -- a DM-origin ticket's `user_channel_id` is a plain DM channel, never a Discord
+	// thread, so `channels.get` on it below would never find `thread_metadata` to unarchive in the
+	// first place. Filtered out here rather than discovered per-row from the Discord response, since
+	// `origin` is already known without an API call (#216, P4).
 	const openThreads = await getContext().db<Threads[]>`
-		SELECT * FROM threads WHERE closed_at IS NULL
+		SELECT * FROM threads WHERE closed_at IS NULL AND origin != 'dm'
 			AND ${scope.kind === 'only' ? getContext().db`guild_id = ${scope.guildId}` : getContext().db`guild_id != ALL(${scope.excludedGuildIds})`}
 	`;
 
@@ -30,7 +34,7 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 	// each pair is independent of every other, there's no shared state to serialize on the way
 	// `pendingTicketSweep.ts` has to for its per guild+user lock.
 	const checks = openThreads.flatMap((thread) =>
-		[thread.modThreadId, thread.userThreadId]
+		[thread.modThreadId, thread.userChannelId]
 			.filter((id): id is string => id !== null)
 			.map((channelId) => ({ threadId: thread.id, guildId: thread.guildId, channelId })),
 	);

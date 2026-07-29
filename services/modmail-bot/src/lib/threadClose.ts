@@ -64,7 +64,7 @@ export async function closeThread({ anon, closedById, logger, silent, thread }: 
 		return false;
 	}
 
-	if (thread.userThreadId) {
+	if (thread.userChannelId) {
 		const [guildSettings] = await getContext().db<[Pick<GuildSettings, 'farewellMessage' | 'nukeDelayMinutes'>?]>`
 			SELECT farewell_message, nuke_delay_minutes FROM guild_settings WHERE guild_id = ${thread.guildId}
 		`;
@@ -81,7 +81,7 @@ export async function closeThread({ anon, closedById, logger, silent, thread }: 
 			// just reads as "it disappeared". Locked-but-unarchived keeps it visible (read-only) until the
 			// scheduled nuke actually deletes it, so the user can see it's closed rather than guessing.
 			await getContext().service.client.api.channels.edit(
-				thread.userThreadId,
+				thread.userChannelId,
 				{ locked: true },
 				{ reason: 'ModMail ticket closed' },
 			);
@@ -144,7 +144,7 @@ async function postFarewellMessage(
 	closedById: string,
 	logger: Logger,
 ): Promise<void> {
-	if (!thread.userThreadId) {
+	if (!thread.userChannelId) {
 		return;
 	}
 
@@ -199,7 +199,7 @@ async function postFarewellMessage(
 		}
 
 		// User-facing copy, into the private thread.
-		const userMessage = await getContext().service.client.api.channels.createMessage(thread.userThreadId, {
+		const userMessage = await getContext().service.client.api.channels.createMessage(thread.userChannelId, {
 			embeds: [
 				{
 					color: CLOSE_RED,

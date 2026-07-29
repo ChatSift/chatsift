@@ -15,7 +15,7 @@ import {
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
 import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from '../lib/emojis.js';
-import { relayStaffReplyToUserThread } from '../lib/relay.js';
+import { relayStaffReplyToUserThread, UndeliverableUserError } from '../lib/relay.js';
 import { findOpenThreadByModThreadId } from '../lib/threads.js';
 
 /**
@@ -178,6 +178,18 @@ export default class ReplyCommand implements CommandHandler {
 				},
 			);
 		} catch (error) {
+			if (error instanceof UndeliverableUserError) {
+				logger.warn({ err: error, threadId: thread.id }, 'Reply could not be delivered to the user');
+				await getContext().service.client.api.interactions.editReply(
+					modalInteraction.application_id,
+					modalInteraction.token,
+					{
+						content: "❌ Couldn't deliver that reply — the user has DMs closed or left the server. Nothing was sent.",
+					},
+				);
+				return;
+			}
+
 			logger.error({ err: error, threadId: thread.id }, 'Failed to relay staff reply');
 			await getContext().service.client.api.interactions.editReply(
 				modalInteraction.application_id,

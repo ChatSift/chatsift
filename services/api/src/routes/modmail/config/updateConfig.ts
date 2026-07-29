@@ -1,4 +1,4 @@
-import { getContext, GRANTS } from '@chatsift/backend-core';
+import { getContext, getInstanceForGuild, GRANTS } from '@chatsift/backend-core';
 import type { GuildSettings } from '@chatsift/db';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { ChannelType } from '@discordjs/core';
@@ -67,6 +67,13 @@ export default defineRoute({
 
 			if (data.alertRoleId) {
 				await assertRolesBelongToGuild(guildId, [data.alertRoleId], 'MODMAIL', req.logger);
+			}
+
+			// DM mode is only meaningful for a guild a custom instance owns -- the public deployment never
+			// reads `guild_settings.dm_mode` at all (see schema.sql's doc comment on the column). Setting it
+			// `false` is always allowed since that's already every guild's default.
+			if (data.dmMode === true && !getInstanceForGuild(guildId)) {
+				throw badRequest('dmMode can only be enabled for a guild with a custom ModMail instance');
 			}
 
 			const columns = Object.keys(data) as (keyof typeof data)[];

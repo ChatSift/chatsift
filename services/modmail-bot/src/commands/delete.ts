@@ -46,8 +46,8 @@ export default class DeleteCommand implements CommandHandler {
 
 		// See `edit.ts` for why this is pulled into a standalone `const` rather than read off `thread`
 		// repeatedly -- keeps the null-narrowing intact across the `await`s below.
-		const userThreadId = thread.userThreadId;
-		if (!userThreadId) {
+		const userChannelId = thread.userChannelId;
+		if (!userChannelId) {
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 				content: 'This ticket has no active user thread to delete a reply from.',
 				flags: MessageFlags.Ephemeral,
@@ -90,7 +90,7 @@ export default class DeleteCommand implements CommandHandler {
 			}
 
 			try {
-				await getContext().service.client.api.channels.deleteMessage(userThreadId, row.userMessageId, {
+				await getContext().service.client.api.channels.deleteMessage(userChannelId, row.userMessageId, {
 					reason: `Reply #${replyId} deleted by ${staffId} via /delete`,
 				});
 			} catch (error) {

@@ -4,7 +4,9 @@ import { updateConfigBodySchema } from '@chatsift/api/modmail-schemas';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { FaExclamationTriangle } from 'react-icons/fa';
 import { APIError } from '@/api/error';
+import { useMe } from '@/api/routes/auth';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { ModmailConfig, UpdateModmailConfigBody } from '@/api/routes/modmail';
 import { useModmailConfig, useUpdateModmailConfig } from '@/api/routes/modmail';
@@ -20,6 +22,7 @@ interface ConfigFormData {
 	alertRoleId: string;
 	anonReplyLabel: string;
 	defaultGreetingMessage: string;
+	dmMode: boolean;
 	farewellMessage: string;
 	greetingBeforeOpener: boolean;
 	maxConcurrentThreads: string;
@@ -43,6 +46,7 @@ const CONFIG_FIELDS = [
 	'nukeDelayMinutes',
 	'greetingBeforeOpener',
 	'recordThreadContent',
+	'dmMode',
 ] as const satisfies (keyof ConfigFormData)[];
 
 function mapConfigIssues(issues: readonly { message: string; path: PropertyKey[] }[]): ConfigFormErrors {
@@ -74,6 +78,21 @@ function enabledByLabel(
 	return typeof resolvedUser === 'string' ? resolvedUser : (resolvedUser.global_name ?? resolvedUser.username);
 }
 
+/**
+ * A plain muted `<p>` reads as just more fine print next to a field's own description -- easy to skim
+ * past exactly where it matters most (a setting silently doing nothing). Styled to actually stop the
+ * eye instead: same treatment `ErrorBanner.tsx` uses for real errors, reused here for "this is
+ * misleading, not broken."
+ */
+function DmModeCaveat({ children }: { readonly children: React.ReactNode }) {
+	return (
+		<p className="mt-2 flex items-start gap-2 rounded-md border border-misc-danger bg-misc-danger/10 p-2 text-sm text-misc-danger">
+			<FaExclamationTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+			<span>{children}</span>
+		</p>
+	);
+}
+
 export function ModmailConfigForm() {
 	const params = useParams<{ id: string }>();
 	const [form, setForm] = useState<ConfigFormData | null>(null);
@@ -84,6 +103,11 @@ export function ModmailConfigForm() {
 	const { data: config, isLoading, error } = useModmailConfig(params.id);
 	const { data: guildInfo, isLoading: isGuildInfoLoading } = useGuildInfo(params.id, 'MODMAIL');
 	const updateConfig = useUpdateModmailConfig(params.id);
+	const { data: me } = useMe();
+
+	// DM mode only makes sense for a guild running its own custom ModMail instance -- the public
+	// deployment never reads `guild_settings.dm_mode` at all (see updateConfig.ts's matching 400).
+	const isCustomInstance = (me?.guilds.find((guild) => guild.id === params.id)?.customInstanceId ?? null) !== null;
 
 	// Seed local form state once the config loads; a background refetch after save must not clobber whatever the
 	// user is currently typing, so this only runs while `form` is still unset.
@@ -101,6 +125,7 @@ export function ModmailConfigForm() {
 				nukeEnabled: config.nukeDelayMinutes !== null,
 				greetingBeforeOpener: config.greetingBeforeOpener,
 				recordThreadContent: config.recordThreadContent,
+				dmMode: config.dmMode,
 			});
 		}
 	}, [config, form]);
@@ -139,6 +164,7 @@ export function ModmailConfigForm() {
 			nukeDelayMinutes: form.nukeEnabled ? Number(form.nukeDelayMinutes) : null,
 			greetingBeforeOpener: form.greetingBeforeOpener,
 			recordThreadContent: form.recordThreadContent,
+			...(isCustomInstance ? { dmMode: form.dmMode } : {}),
 		};
 
 		const result = updateConfigBodySchema.safeParse(data);
@@ -289,6 +315,9 @@ export function ModmailConfigForm() {
 						How many tickets a single user may have open at once in this server, across all categories. Categories may
 						only tighten this further, never raise it.
 					</p>
+					{form.dmMode && (
+						<DmModeCaveat>Ignored while DM mode is on — a user is limited to one open ticket at a time.</DmModeCaveat>
+					)}
 					{errors.maxConcurrentThreads && (
 						<p className="mt-1 text-sm text-misc-danger">{errors.maxConcurrentThreads}</p>
 					)}
@@ -322,6 +351,12 @@ export function ModmailConfigForm() {
 						Off by default. The private thread is always locked when a ticket closes; when this is on, users effectively
 						lose their access to past conversations they've had in ModMail.
 					</p>
+					{form.dmMode && (
+						<DmModeCaveat>
+							Ignored while DM mode is on — there is no private thread to delete there, a ticket's history just stays in
+							your DM history with the user.
+						</DmModeCaveat>
+					)}
 					{form.nukeEnabled && (
 						<div className="mt-2">
 							<label
@@ -375,7 +410,32 @@ export function ModmailConfigForm() {
 						When enabled, the greeting is posted before the user&apos;s own opening message is relayed to staff, instead
 						of after.
 					</p>
+					{form.dmMode && (
+						<DmModeCaveat>
+							Ignored while DM mode is on — the greeting always posts after the opening message there.
+						</DmModeCaveat>
+					)}
 				</div>
+
+				{isCustomInstance && (
+					<div>
+						<label className="flex items-center gap-2" htmlFor="modmail-dm-mode">
+							<input
+								checked={form.dmMode}
+								className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
+								id="modmail-dm-mode"
+								onChange={(e) => updateField('dmMode', e.target.checked)}
+								type="checkbox"
+							/>
+							<span className="text-sm font-medium text-secondary dark:text-secondary-dark">DM Mode</span>
+						</label>
+						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+							Users open a ticket by DMing the bot directly instead of clicking a panel button. Ticket panels go inert
+							while this is on — nothing about them is deleted, and turning this back off restores them exactly as
+							configured.
+						</p>
+					</div>
+				)}
 
 				<div className="rounded-lg border border-misc-danger bg-misc-danger/10 p-4">
 					<label className="flex items-center gap-2" htmlFor="modmail-record-thread-content">

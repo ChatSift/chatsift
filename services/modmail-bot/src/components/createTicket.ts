@@ -2,37 +2,14 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import type { Categories, GuildSettings, TicketPanels } from '@chatsift/db';
-import type { APIMessageComponentEmoji, APIMessageComponentInteraction } from '@discordjs/core';
+import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ChannelType, ComponentType, MessageFlags } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { findActiveBlock } from '../lib/blocks.js';
+import { buildCategorySelectOptions } from '../lib/categorySelectOptions.js';
 import { withGuildUserLock } from '../lib/guildUserQueue.js';
 import { PendingTicketStore, recordPendingTicket } from '../lib/pendingTicket.js';
 import { countActiveTicketsForUser, MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES } from '../lib/threads.js';
-
-// Matches Discord's own shorthand for a custom guild emoji (`<:name:id>`, `<a:name:id>` for animated) --
-// the same shape the dashboard's `EmojiInput.tsx` writes into `Category.emoji` when a custom emoji is
-// picked (see `apps/website`'s `Emoji.tsx` for the identical pattern used to render it back). A select
-// option's `emoji` field needs `{ id, name }` for a custom emoji (Discord renders it from the id, the
-// name is just accessibility metadata) versus `{ name }` alone for a plain unicode emoji -- passing the
-// raw `<:name:id>` string through as `name` renders literal angle-bracket text instead of the emoji.
-const CUSTOM_EMOJI_REGEX = /^<(?<animated>a)?:(?<name>\w{2,32}):(?<id>\d{17,20})>$/;
-
-function categoryOptionEmoji(emoji: string): APIMessageComponentEmoji {
-	const match = CUSTOM_EMOJI_REGEX.exec(emoji);
-	if (!match?.groups) {
-		return { name: emoji };
-	}
-
-	// `name` and `id` are always captured when the regex matches at all -- only `animated` is an
-	// optional group -- so the non-null assertions just narrow past `groups`' blanket
-	// `string | undefined` index-signature typing, they're not asserting past anything actually unknown.
-	return {
-		id: match.groups['id']!,
-		name: match.groups['name']!,
-		...(match.groups['animated'] ? { animated: true } : {}),
-	};
-}
 
 export default class CreateTicketComponent implements ComponentHandler {
 	public readonly name = 'modmail-create-ticket';
@@ -87,6 +64,15 @@ export default class CreateTicketComponent implements ComponentHandler {
 				return;
 			}
 
+			// Panels are never auto-deleted when DM mode is turned on (decision 9 in
+			// docs/roadmap/08-modmail-custom-instances.md) -- a leftover button click is inert instead,
+			// pointing the user at the actual entry point, so flipping DM mode back off restores the panel
+			// flow exactly as configured.
+			if (guildSettings.dmMode) {
+				await editReply('This server uses DMs — just message the bot directly to open a ticket.');
+				return;
+			}
+
 			const block = await findActiveBlock(guildId, user.id);
 			if (block) {
 				await editReply(
@@ -133,12 +119,7 @@ export default class CreateTicketComponent implements ComponentHandler {
 									type: ComponentType.StringSelect,
 									custom_id: `modmail-category-select:${panel.id}`,
 									placeholder: 'Select a category',
-									options: categories.map((category) => ({
-										label: category.name.slice(0, 100),
-										value: String(category.id),
-										...(category.description ? { description: category.description.slice(0, 100) } : {}),
-										...(category.emoji ? { emoji: categoryOptionEmoji(category.emoji) } : {}),
-									})),
+									options: buildCategorySelectOptions(categories),
 								},
 							],
 						},

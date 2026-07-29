@@ -16,7 +16,7 @@ import {
 	deleteInternalThreadMessage,
 	findModThreadMessageByMessageId,
 	findOpenThreadByModThreadId,
-	findOpenThreadByUserThreadId,
+	findOpenThreadByUserChannelId,
 	findUserThreadMessageByMessageId,
 	markUserThreadMessageDeleted,
 	updateRecordedMessageContent,
@@ -41,7 +41,7 @@ export async function handleUserMessageUpdate(
 	logger: Logger,
 ): Promise<void> {
 	// Pulled into standalone consts rather than read off `message` repeatedly -- same reasoning as
-	// `commands/edit.ts`'s `userThreadId` const: narrowing a plain object *property* isn't guaranteed to
+	// `commands/edit.ts`'s `userChannelId` const: narrowing a plain object *property* isn't guaranteed to
 	// persist across the `await`s (and the nested closure) below the way a narrowed local variable is.
 	const author = message.author;
 	const content = message.content;
@@ -49,7 +49,7 @@ export async function handleUserMessageUpdate(
 		return;
 	}
 
-	const thread = await findOpenThreadByUserThreadId(message.channel_id);
+	const thread = await findOpenThreadByUserChannelId(message.channel_id);
 	if (!thread) {
 		return;
 	}
@@ -135,7 +135,7 @@ export async function handleUserMessageUpdate(
  * `markEmbedDeleted` as-is still reads correctly, since it names whoever it's given as the deleter.
  */
 export async function handleUserMessageDelete(channelId: string, messageId: string, logger: Logger): Promise<void> {
-	const thread = await findOpenThreadByUserThreadId(channelId);
+	const thread = await findOpenThreadByUserChannelId(channelId);
 	if (!thread) {
 		return;
 	}
