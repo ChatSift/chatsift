@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { randomBytes } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
-import { encrypt, decrypt } from '../crypt.js';
+import { decrypt, encrypt } from '../crypt.js';
 
 vi.mock('node:crypto', async () => {
 	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -14,7 +14,7 @@ vi.mock('node:crypto', async () => {
 	};
 });
 
-vi.mock('@chatsift/backend-core', () => ({
+vi.mock('../context.js', () => ({
 	getContext: () => ({
 		env: {
 			ENCRYPTION_KEY: randomBytes(32).toString('base64'),

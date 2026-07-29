@@ -2,6 +2,7 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { Threads } from '@chatsift/db';
 import { DiscordAPIError } from '@discordjs/rest';
+import { getOwnershipScope } from './instance.js';
 
 /**
  * Discord auto-archives a thread after its configured `auto_archive_duration` of inactivity,
@@ -16,8 +17,13 @@ import { DiscordAPIError } from '@discordjs/rest';
  * an open ticket's channels on any kind of interval.
  */
 export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<void> {
+	// See docs/roadmap/08-modmail-custom-instances.md -- unarchiving (or closing, in the 404 branch
+	// below) a thread in a guild this deployment doesn't own would race whichever deployment does.
+	const scope = getOwnershipScope();
+
 	const openThreads = await getContext().db<Threads[]>`
 		SELECT * FROM threads WHERE closed_at IS NULL
+			AND ${scope.kind === 'only' ? getContext().db`guild_id = ${scope.guildId}` : getContext().db`guild_id != ALL(${scope.excludedGuildIds})`}
 	`;
 
 	// Flattened rather than nested loops so every channel's GET (+ maybe PATCH) fires concurrently —

@@ -11,6 +11,7 @@ export type { default as AmaQuestionState } from './generated/public/AmaQuestion
 export type { default as AmaSessions, AmaSessionsId } from './generated/public/AmaSessions.js';
 export type { default as DashboardGrants, DashboardGrantsId } from './generated/public/DashboardGrants.js';
 export type { default as GuildSettings, GuildSettingsGuildId } from './generated/public/GuildSettings.js';
+export type { default as ModmailInstances, ModmailInstancesId } from './generated/public/ModmailInstances.js';
 export type { default as Categories, CategoriesId } from './generated/public/Categories.js';
 export type { default as TicketPanels, TicketPanelsId } from './generated/public/TicketPanels.js';
 export type { default as TicketPanelCategories } from './generated/public/TicketPanelCategories.js';

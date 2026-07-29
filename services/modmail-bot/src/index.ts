@@ -3,7 +3,12 @@ import { setInterval, setTimeout } from 'node:timers';
 import { fileURLToPath } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
-import { registerCommandHandlers, registerComponentHandlers, registerUnknownCommandResolver } from '@chatsift/bot-core';
+import {
+	registerCommandHandlers,
+	registerComponentHandlers,
+	registerUnknownCommandResolver,
+	setGuildOwnershipFilter,
+} from '@chatsift/bot-core';
 import type { Categories, GuildSettings } from '@chatsift/db';
 import type {
 	APIChatInputApplicationCommandInteraction,
@@ -14,6 +19,7 @@ import { ApplicationCommandType, GatewayDispatchEvents, MessageFlags } from '@di
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from './lib/emojis.js';
 import { withGuildUserLock } from './lib/guildUserQueue.js';
+import { ownsGuild, resolveGuildOwnerLabel } from './lib/instance.js';
 import { buildContextNote, resolveEffectiveContent, resolveReplyReferenceId } from './lib/messageContext.js';
 import { clearPendingTicketRecord, PendingTicketStore, type PendingTicketState } from './lib/pendingTicket.js';
 import { sweepAbandonedPendingTickets } from './lib/pendingTicketSweep.js';
@@ -204,6 +210,14 @@ function registerMessageRelay(client: Client): void {
 			return;
 		}
 
+		// A DM (`guild_id` absent, only reachable now that `bin.ts` adds the `DirectMessages` intent
+		// ahead of P4) has no guild-ownership question to ask -- left to fall through to the lookups
+		// below, which simply won't match anything until DM mode exists. A guild message this
+		// deployment doesn't own (#216) must never be relayed -- see docs/roadmap/08-modmail-custom-instances.md.
+		if (message.guild_id && !ownsGuild(message.guild_id)) {
+			return;
+		}
+
 		const logger = getContext().logger.child({
 			event: 'messageCreate',
 			channelId: message.channel_id,
@@ -269,6 +283,10 @@ function registerMessageRelay(client: Client): void {
  */
 function registerMessageLifecycleRelay(client: Client): void {
 	client.on(GatewayDispatchEvents.MessageUpdate, async ({ data: message }) => {
+		if (message.guild_id && !ownsGuild(message.guild_id)) {
+			return;
+		}
+
 		const logger = getContext().logger.child({
 			event: 'messageUpdate',
 			channelId: message.channel_id,
@@ -289,6 +307,10 @@ function registerMessageLifecycleRelay(client: Client): void {
 	});
 
 	client.on(GatewayDispatchEvents.MessageDelete, async ({ data: message }) => {
+		if (message.guild_id && !ownsGuild(message.guild_id)) {
+			return;
+		}
+
 		const logger = getContext().logger.child({
 			event: 'messageDelete',
 			channelId: message.channel_id,
@@ -408,6 +430,11 @@ function registerSnippetCommandResolver(): void {
 }
 
 export async function bin(client: Client): Promise<void> {
+	// Must run before the gateway connects (see bin.ts) -- once it's live, an interaction for a guild
+	// this deployment doesn't own (#216) gets the "served by <label>" reply instead of being
+	// dispatched to a handler. See docs/roadmap/08-modmail-custom-instances.md.
+	setGuildOwnershipFilter(resolveGuildOwnerLabel);
+
 	await registerComponentHandlers(join(baseDir, 'components'));
 	await registerCommandHandlers(join(baseDir, 'commands'));
 	registerMessageRelay(client);

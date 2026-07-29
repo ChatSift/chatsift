@@ -3,6 +3,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { PendingTickets } from '@chatsift/db';
 import { DiscordAPIError } from '@discordjs/rest';
 import { withGuildUserLock } from './guildUserQueue.js';
+import { getOwnershipScope } from './instance.js';
 import { PENDING_TICKET_TTL_MS, PendingTicketStore } from './pendingTicket.js';
 
 /**
@@ -23,17 +24,25 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 	// completed ticket's row could in principle still be sitting here past the cutoff. The LEFT JOIN
 	// excludes exactly that case: never delete a private thread that a real `threads` row (an active,
 	// in-progress conversation) already points at.
+	// A guild owned by a different ModMail deployment (#216) is entirely off-limits here -- both
+	// halves of this sweep delete Discord channels and DB rows, and running it against a guild this
+	// process doesn't own would race the deployment that actually does. See
+	// docs/roadmap/08-modmail-custom-instances.md and `getOwnershipScope`'s own doc comment.
+	const scope = getOwnershipScope();
+
 	const [abandoned, stale] = await Promise.all([
 		getContext().db<PendingTickets[]>`
 			SELECT pt.* FROM pending_tickets pt
 			LEFT JOIN threads t ON t.user_thread_id = pt.private_thread_id
 			WHERE pt.created_at < ${new Date(Date.now() - PENDING_TICKET_TTL_MS)} AND t.id IS NULL
+				AND ${scope.kind === 'only' ? getContext().db`pt.guild_id = ${scope.guildId}` : getContext().db`pt.guild_id != ALL(${scope.excludedGuildIds})`}
 		`,
 		// Rows left behind by the same crash scenario, but for a ticket that *did* finish — nothing to
 		// abandon here, just stale bookkeeping to drop so the table stays small regardless of age.
 		getContext().db<PendingTickets[]>`
 			SELECT pt.* FROM pending_tickets pt
 			INNER JOIN threads t ON t.user_thread_id = pt.private_thread_id
+			WHERE ${scope.kind === 'only' ? getContext().db`pt.guild_id = ${scope.guildId}` : getContext().db`pt.guild_id != ALL(${scope.excludedGuildIds})`}
 		`,
 	]);
 
