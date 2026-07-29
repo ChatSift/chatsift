@@ -114,6 +114,7 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 							grant_type: 'refresh_token',
 							refresh_token: refreshToken.discordRefreshToken,
 						});
+						req.logger.info('request successfully refreshed token');
 					} catch (error) {
 						req.logger.warn({ err: error }, 'error refreshing discord access token, invalidating login');
 						noopAccessToken(res);
@@ -122,8 +123,6 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 						return;
 					}
 				}
-
-				req.logger.info('request successfully refreshed token');
 
 				// We're good, rotate things
 				const me = await fetchMe(oauthData.access_token, req.logger);

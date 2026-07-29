@@ -48,4 +48,4 @@ fi
 docker compose \
   -f docker-compose.yml \
   "${ENV_FILE_ARGS[@]}" \
-  ${@%$0}
+  "$@"
