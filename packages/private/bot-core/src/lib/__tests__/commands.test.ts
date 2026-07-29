@@ -173,6 +173,10 @@ describe('guild ownership gating (#216)', () => {
 				flags: MessageFlags.Ephemeral,
 			}),
 		);
+		expect(fakeLogger.warn).toHaveBeenCalledWith(
+			expect.objectContaining({ guildId: 'foreign-guild', foreignOwnerLabel: 'Some Partner ModMail' }),
+			expect.any(String),
+		);
 	});
 
 	test('handleCommandInteraction dispatches normally when this deployment owns the guild', async () => {
@@ -201,5 +205,9 @@ describe('guild ownership gating (#216)', () => {
 		await handleAutocompleteInteraction(interaction, logger);
 
 		expect(handleAutocomplete).not.toHaveBeenCalled();
+		expect(fakeLogger.warn).toHaveBeenCalledWith(
+			expect.objectContaining({ guildId: 'foreign-guild', foreignOwnerLabel: 'Some Partner ModMail' }),
+			expect.any(String),
+		);
 	});
 });

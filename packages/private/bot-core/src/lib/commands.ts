@@ -104,6 +104,10 @@ export async function handleCommandInteraction(
 	// application would otherwise act on a guild this deployment no longer owns.
 	const foreignOwnerLabel = resolveForeignOwnerLabel(interaction.guild_id);
 	if (foreignOwnerLabel) {
+		logger.warn(
+			{ guildId: interaction.guild_id, commandName: interaction.data.name, foreignOwnerLabel },
+			'Blocked a command interaction for a guild owned by a different deployment',
+		);
 		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 			content: `This server is served by ${foreignOwnerLabel}. Please use its commands instead.`,
 			flags: MessageFlags.Ephemeral,
@@ -135,7 +139,12 @@ export async function handleAutocompleteInteraction(
 	// No user-facing reply here (unlike the command/component handlers) -- an autocomplete response
 	// can only be a choice list, not a message, so there's nothing meaningful to say. The point is
 	// just to not run a foreign guild's autocomplete query at all; Discord shows no results either way.
-	if (resolveForeignOwnerLabel(interaction.guild_id)) {
+	const foreignOwnerLabel = resolveForeignOwnerLabel(interaction.guild_id);
+	if (foreignOwnerLabel) {
+		logger.warn(
+			{ guildId: interaction.guild_id, commandName: interaction.data.name, foreignOwnerLabel },
+			'Blocked an autocomplete interaction for a guild owned by a different deployment',
+		);
 		return;
 	}
 

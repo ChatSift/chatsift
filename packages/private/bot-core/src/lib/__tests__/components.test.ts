@@ -156,6 +156,10 @@ describe('guild ownership gating (#216)', () => {
 				flags: MessageFlags.Ephemeral,
 			}),
 		);
+		expect(fakeLogger.warn).toHaveBeenCalledWith(
+			expect.objectContaining({ guildId: 'foreign-guild', foreignOwnerLabel: 'Some Partner ModMail' }),
+			expect.any(String),
+		);
 	});
 
 	test('dispatches normally when this deployment owns the guild', async () => {

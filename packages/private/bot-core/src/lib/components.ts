@@ -51,6 +51,10 @@ export async function handleComponentInteraction(
 	// leftover panel/button whose message belongs to an application that no longer owns this guild.
 	const foreignOwnerLabel = resolveForeignOwnerLabel(interaction.guild_id);
 	if (foreignOwnerLabel) {
+		logger.warn(
+			{ guildId: interaction.guild_id, customId: interaction.data.custom_id, foreignOwnerLabel },
+			'Blocked a component interaction for a guild owned by a different deployment',
+		);
 		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 			content: `This server is served by ${foreignOwnerLabel}. Please use its commands instead.`,
 			flags: MessageFlags.Ephemeral,

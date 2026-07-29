@@ -2,7 +2,18 @@
 
 **Tracking issue:** [#216](https://github.com/ChatSift/ChatSift/issues/216). **Depends on:** M5 (`06-modmail-port.md`) and the thread-history work ([01-architecture.md §7](01-architecture.md#7-modmail-thread-history-dashboard-view-261)) — both landed. **Live production impact:** yes, but additive: no data migration, and the public instance's behavior is unchanged for every guild that doesn't have a custom instance.
 
-## Status: planned 2026-07-29, not started
+## Status: P1 shipped 2026-07-29 (bot-side registry + ownership gating); P2 (instance-aware API) not started
+
+**Picking this up in a new session? Read this before touching P2:**
+
+- P1 landed on top of `main` as uncommitted/staged changes (per this repo's CLAUDE.md, work is left staged for the user to commit themselves — check `git status`/`git diff` first to see the actual current state rather than assuming P1 is or isn't merged).
+- `packages/private/db/schema/schema.sql` has `modmail_instances`; migration `20260729085859.sql` applied to local dev Postgres; kanel types regenerated (`ModmailInstances`/`ModmailInstancesId`, exported from `@chatsift/db`).
+- **Encryption reused an existing, previously-unused util instead of adding a new one.** `services/api/src/util/crypt.ts` already had a correct `encrypt`/`decrypt` (AES-256-GCM, single base64 `[iv|ciphertext|authTag]` blob) that nothing actually called — it was promoted to `packages/private/backend-core/src/lib/crypt.ts` (same function names) rather than the plan's originally-sketched `encryptSecret`/`decryptSecret`. The old `services/api` copy and its test are deleted. **If P2 needs to encrypt/decrypt anything, use `encrypt`/`decrypt` from `@chatsift/backend-core` — don't re-invent another helper.**
+- `ENCRYPTION_KEY`'s zod schema (`packages/private/backend-core/src/lib/env.ts`) now validates it actually base64-decodes to 32 bytes, not just that the string is 44 characters. `MODMAIL_INSTANCE_ID` trims and requires non-empty when present. `envSchema` itself is now exported (not just the parsed `ENV` singleton) specifically so `__tests__/env.test.ts` can `.safeParse()` variants without re-importing the module per case.
+- `packages/private/backend-core/src/lib/instances.ts` (`loadInstances`/`getInstanceForGuild`/`getCustomInstanceGuildIds`/`getSelfInstance`) is the registry snapshot P2's `apiForGuild`/`getModmailApplicationId` etc. should read from — it's already boot-loaded and 60s-refreshed, no new plumbing needed there.
+- `packages/private/bot-core`'s `setGuildOwnershipFilter`/`resolveForeignOwnerLabel` (`lib/ownership.ts`) exist and are wired into `services/modmail-bot` already — P2 doesn't need to touch these, they're bot-interaction-specific, not API-request-specific (the API needs its own guild-ownership check per route, most likely inside `isAuthed`/route middleware, not this hook).
+- Manually verified end-to-end against local dev (real Postgres, real `modmail-bot` process): `MODMAIL_INSTANCE_ID` pointing at a missing row crashes fast on boot; inserting a `modmail_instances` row for a real test guild (1530909114736050316) made the public bot stop relaying/sweeping there and reply "this server is served by `<label>`" on its commands/components, within the 60s refresh window. Row was deleted afterward — the table is empty on `main` again.
+- `turbo run build lint test` is green across all 32 workspace packages as of this status update.
 
 Supersedes the "Future, explicitly not this milestone" section of [06-modmail-port.md](06-modmail-port.md), which reserved the design space but deliberately left it unbuilt. That section's one binding constraint on M5 — "don't hardcode 'a ticket always starts via a private thread' deep into the relay/close/snippet/block/alert logic" — was honored, and this plan cashes it in: the DM entrypoint below reuses `threads`/`thread_messages` untouched.
 
@@ -137,7 +148,7 @@ No `pending_tickets` row is written for a DM-pending ticket. That table exists s
 
 Each phase is one PR, each independently mergeable and verifiable. P1–P3 ship the instance concept with no DM support at all — a custom instance at that point is a cosmetically separate bot running the ordinary panel flow, which is already a shippable product.
 
-### P1 — Registry table + ownership gating (bot side)
+### P1 — Registry table + ownership gating (bot side) — done 2026-07-29
 
 - `packages/private/db`: `modmail_instances` table, Atlas migration, kanel regen.
 - `packages/private/backend-core`: `lib/instances.ts` (above); `lib/crypt.ts`'s `encrypt`/`decrypt`, promoted from `services/api/src/util/crypt.ts` (see above); `ENV.MODMAIL_INSTANCE_ID` (optional); `GuildList` key type widening in `lib/data/bots.ts`.
@@ -147,7 +158,7 @@ Each phase is one PR, each independently mergeable and verifiable. P1–P3 ship 
 - Scope all four sweeps: `lib/pendingTicketSweep.ts`, `lib/scheduledCloseSweep.ts`, `lib/threadNukeSweep.ts`, `lib/preventThreadArchive.ts`.
 - `packages/private/bot-core`: optional `setGuildOwnershipFilter(fn)` hook consulted by `handleCommandInteraction`/`handleComponentInteraction`/`handleAutocompleteInteraction`, so an unowned guild's leftover commands answer with "this server is served by <label>" instead of acting on shared rows.
 
-_Verify:_ public bot in a guild that has a registry row ignores every message event and sweeps nothing for it; the same guild with the row removed goes back to normal within one refresh interval.
+_Verify:_ public bot in a guild that has a registry row ignores every message event and sweeps nothing for it; the same guild with the row removed goes back to normal within one refresh interval. **Done** — verified manually against local dev with a real `modmail-bot` process and test guild 1530909114736050316; see the status note at the top of this doc.
 
 ### P2 — Instance-aware API
 
