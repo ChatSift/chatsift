@@ -64,13 +64,13 @@ export default class EditCommand implements CommandHandler {
 			return;
 		}
 
-		// Extracted to a standalone `const` (rather than repeatedly reading `thread.userThreadId`) so
+		// Extracted to a standalone `const` (rather than repeatedly reading `thread.userChannelId`) so
 		// TypeScript's null-narrowing survives the `await`s below -- narrowing a plain object *property*
 		// isn't guaranteed to persist across an intervening function call the way a narrowed local variable
 		// is. An open thread with a staff reply already relayed into it should always have this set (see
 		// `relay.ts`'s own guard on the same field), but it's still nullable in the schema, hence the check.
-		const userThreadId = thread.userThreadId;
-		if (!userThreadId) {
+		const userChannelId = thread.userChannelId;
+		if (!userChannelId) {
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 				content: 'This ticket has no active user thread to edit a reply in.',
 				flags: MessageFlags.Ephemeral,
@@ -184,7 +184,7 @@ export default class EditCommand implements CommandHandler {
 		}
 
 		try {
-			const userMessage = await getContext().service.client.api.channels.getMessage(userThreadId, row.userMessageId);
+			const userMessage = await getContext().service.client.api.channels.getMessage(userChannelId, row.userMessageId);
 
 			const logMessage = await getContext().service.client.api.channels.getMessage(
 				thread.modThreadId,
@@ -210,7 +210,7 @@ export default class EditCommand implements CommandHandler {
 				getContext().service.client.api.channels.editMessage(thread.modThreadId, row.guildMessageId, {
 					embeds: [buildEditedEmbed(logEmbed, content, true)],
 				}),
-				getContext().service.client.api.channels.editMessage(userThreadId, row.userMessageId, {
+				getContext().service.client.api.channels.editMessage(userChannelId, row.userMessageId, {
 					embeds: [buildEditedEmbed(userEmbed, content, false)],
 				}),
 			]);

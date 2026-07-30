@@ -54,6 +54,7 @@ export default defineRoute({
 			recordThreadContent: false,
 			recordThreadContentEnabledBy: null,
 			recordThreadContentEnabledAt: null,
+			dmMode: false,
 		};
 
 		return {

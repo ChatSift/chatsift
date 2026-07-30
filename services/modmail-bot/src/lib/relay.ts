@@ -2,6 +2,8 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { Threads } from '@chatsift/db';
 import type { APIEmbed, APIEmbedAuthor, APIUser, CreateMessageOptions } from '@discordjs/core';
+import { RESTJSONErrorCodes } from '@discordjs/core';
+import { DiscordAPIError } from '@discordjs/rest';
 import { resolveGlobalAvatarURL, resolveGuildAvatarURL } from './avatars.js';
 import type { MemberLike } from './avatars.js';
 import { fetchGuildEmojiIds, resolveContentForRelay } from './emojis.js';
@@ -21,6 +23,17 @@ import {
 	insertThreadMessage,
 	isRecordingEnabled,
 } from './threads.js';
+
+/**
+ * Thrown by `relayStaffReplyToUserThread` when the user-facing copy itself couldn't be delivered --
+ * DMs closed or the bot blocked (both surface as Discord's `CannotSendMessagesToThisUser`), or the
+ * target channel is simply gone (a deleted private thread has the same failure shape). Every caller
+ * (`commands/reply.ts`, `commands/replyQuick.ts`, `lib/replyContextMenu.ts`, the snippet resolver in
+ * `index.ts`) catches this specifically to surface a distinct message instead of the generic
+ * "something went wrong" -- most relevant for DM mode (#216, P4/P5), where "the user closed their DMs"
+ * is a routine, not exceptional, thing for staff to run into.
+ */
+export class UndeliverableUserError extends Error {}
 
 /**
  * Shared by both relay directions: matches the *original* (pre-reupload) attachment list against a
@@ -261,8 +274,8 @@ export async function relayStaffReplyToUserThread({
 	staffUser,
 	thread,
 }: RelayStaffReplyOptions): Promise<void> {
-	if (!thread.userThreadId) {
-		throw new Error(`Thread ${thread.id} has no user_thread_id to relay a reply into`);
+	if (!thread.userChannelId) {
+		throw new Error(`Thread ${thread.id} has no user_channel_id to relay a reply into`);
 	}
 
 	const localThreadMessageId = await incrementLocalMessageId(thread.id);
@@ -306,19 +319,53 @@ export async function relayStaffReplyToUserThread({
 		? { color: BLURPLE, description, ...image, footer: anonFooter! }
 		: { color: BLURPLE, description, ...(author ? { author } : {}), ...image, footer: identityFooter(staffUser) };
 
-	const [logMessage, relayedMessage] = await Promise.all([
-		getContext().service.client.api.channels.createMessage(thread.modThreadId, {
-			embeds: [logEmbed],
-			files: media.files,
-		}),
-		getContext().service.client.api.channels.createMessage(thread.userThreadId, {
+	// Sent *before* the mod-side log copy, deliberately not in parallel with it (unlike this function's
+	// pre-#216 shape) -- if the user side can't be delivered at all (DMs closed/bot blocked, or the
+	// target channel is just gone), nothing should be logged or recorded as if a reply actually went
+	// out. See `UndeliverableUserError`'s doc comment.
+	let relayedMessage;
+	try {
+		relayedMessage = await getContext().service.client.api.channels.createMessage(thread.userChannelId, {
 			embeds: [userFacingEmbed],
 			files: media.files,
 			// Same reasoning as `relayUserMessageToModThread`'s `pingMentions` -- a mention only notifies
 			// from plain `content`, never from inside an embed.
 			...(ping ? { content: `<@${thread.userId}>` } : {}),
-		}),
-	]);
+		});
+	} catch (error) {
+		if (
+			error instanceof DiscordAPIError &&
+			(error.code === RESTJSONErrorCodes.CannotSendMessagesToThisUser || error.status === 404)
+		) {
+			throw new UndeliverableUserError(`Could not deliver a reply to user ${thread.userId} in thread ${thread.id}`, {
+				cause: error,
+			});
+		}
+
+		throw error;
+	}
+
+	// The user-facing copy above is the point of no return: everything from here down is mod-side
+	// bookkeeping (the log copy, the `thread_messages` row), and a failure in either must not propagate
+	// back to the caller (`/reply`, `/reply-q`, the reply context menus, the snippet resolver) as a
+	// generic failure -- every one of them reports a plain failure as "nothing was sent" and lets staff
+	// retry, which would double-deliver a reply the user already received. Best-effort instead: log and
+	// return, accepting a missing log copy / recording gap as the degraded outcome. Matches
+	// `lib/threads.ts#incrementLocalMessageId`'s own accepted tradeoff (a gap in local numbering is fine)
+	// and `closeThread`'s precedent of catching its own mod-forum log post the same way.
+	let logMessage;
+	try {
+		logMessage = await getContext().service.client.api.channels.createMessage(thread.modThreadId, {
+			embeds: [logEmbed],
+			files: media.files,
+		});
+	} catch (error) {
+		logger.error(
+			{ err: error, threadId: thread.id, localThreadMessageId },
+			'Delivered a reply to the user but failed to post its mod-forum log copy',
+		);
+		return;
+	}
 
 	logger.info({ threadId: thread.id, localThreadMessageId, anon }, 'Relayed staff reply to user thread');
 
@@ -342,17 +389,28 @@ export async function relayStaffReplyToUserThread({
 		};
 	}
 
-	await insertThreadMessage({
-		anon,
-		content: recordedContent,
-		guildId: thread.guildId,
-		guildMessageId: logMessage.id,
-		localThreadMessageId,
-		staffId: staffUser.id,
-		threadId: thread.id,
-		userId: thread.userId,
-		userMessageId: relayedMessage.id,
-	});
+	try {
+		await insertThreadMessage({
+			anon,
+			content: recordedContent,
+			guildId: thread.guildId,
+			guildMessageId: logMessage.id,
+			localThreadMessageId,
+			staffId: staffUser.id,
+			threadId: thread.id,
+			userId: thread.userId,
+			userMessageId: relayedMessage.id,
+		});
+	} catch (error) {
+		// Same reasoning as the log-copy catch above -- both Discord sends already succeeded, so this is
+		// a best-effort bookkeeping write, not something that should turn a delivered reply into a
+		// reported failure.
+		logger.error(
+			{ err: error, threadId: thread.id, localThreadMessageId },
+			'Delivered a reply and its mod-forum log copy but failed to record it',
+		);
+		return;
+	}
 
 	// A staffer just replied, so the *next* user message should alert subscribers again right away
 	// rather than possibly waiting out a cooldown that started before this reply (see

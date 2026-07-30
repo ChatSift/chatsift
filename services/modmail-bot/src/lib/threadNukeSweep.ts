@@ -14,8 +14,8 @@ export async function sweepThreadNukes(logger: Logger): Promise<void> {
 	// deployment doesn't own would race whichever deployment does.
 	const scope = getOwnershipScope();
 
-	const due = await getContext().db<(Pick<Threads, 'guildId' | 'userThreadId'> & ScheduledThreadNukes)[]>`
-		SELECT sn.thread_id, sn.nuke_at, t.user_thread_id, t.guild_id
+	const due = await getContext().db<(Pick<Threads, 'guildId' | 'userChannelId'> & ScheduledThreadNukes)[]>`
+		SELECT sn.thread_id, sn.nuke_at, t.user_channel_id, t.guild_id
 		FROM scheduled_thread_nukes sn
 		INNER JOIN threads t ON t.id = sn.thread_id
 		WHERE sn.nuke_at <= now()
@@ -27,9 +27,9 @@ export async function sweepThreadNukes(logger: Logger): Promise<void> {
 			const rowLogger = logger.child({ guildId: row.guildId, threadId: row.threadId });
 
 			try {
-				if (row.userThreadId) {
+				if (row.userChannelId) {
 					try {
-						await getContext().service.client.api.channels.delete(row.userThreadId, {
+						await getContext().service.client.api.channels.delete(row.userChannelId, {
 							reason: 'Scheduled ModMail private thread deletion',
 						});
 					} catch (error) {

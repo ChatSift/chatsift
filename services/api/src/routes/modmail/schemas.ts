@@ -78,6 +78,10 @@ export const updateConfigBodySchema = z
 		// `recordThreadContentEnabledBy`/`EnabledAt` server-side (from the caller's own token) only on the
 		// false->true transition; both are left untouched on a later disable.
 		recordThreadContent: z.boolean().optional(),
+		// Whether this guild's ModMail runs on the DM front door instead of ticket panels (#216, P4). Only
+		// settable true for a guild with a `modmail_instances` row -- `updateConfig.ts` 400s otherwise, since
+		// the public deployment never reads this column at all.
+		dmMode: z.boolean().optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 

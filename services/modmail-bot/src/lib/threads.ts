@@ -62,6 +62,35 @@ export async function countOpenThreadsForUserInCategory(
 }
 
 /**
+ * A user's open DM-origin tickets in a guild. DM mode's concurrency-1 cap (#216, P4) is fully enforced
+ * in P5; until then `components/dmCategorySelect.ts` uses this to close the one race that matters
+ * without it -- an opener's category pick can land up to `PENDING_TICKET_TTL_MS` later, so a second DM
+ * opener started (and picked) in the meantime could otherwise create a second ticket for the same user.
+ */
+export async function countOpenDmThreadsForUser(guildId: string, userId: string): Promise<number> {
+	const [row] = await getContext().db<[{ count: string }]>`
+		SELECT COUNT(*) FROM threads
+			WHERE guild_id = ${guildId} AND user_id = ${userId} AND origin = 'dm' AND closed_at IS NULL
+	`;
+
+	return Number(row?.count ?? 0);
+}
+
+/**
+ * Every open ticket a user has in a guild, any origin. `lib/dmTicket.ts#handleDmMessage` uses this to
+ * redirect a DM to an already-open *panel*-origin ticket instead of starting a second, parallel one via
+ * DM mode -- a DM-origin open ticket can never show up here in practice (a user has exactly one DM
+ * channel with the bot, so an open DM-origin thread's `user_channel_id` always equals the very message
+ * that would already have matched `findOpenThreadByUserChannelId` upstream in `registerMessageRelay`,
+ * before `handleDmMessage` is ever reached at all).
+ */
+export async function findOpenThreadsForUser(guildId: string, userId: string): Promise<Threads[]> {
+	return getContext().db<Threads[]>`
+		SELECT * FROM threads WHERE guild_id = ${guildId} AND user_id = ${userId} AND closed_at IS NULL
+	`;
+}
+
+/**
  * Shown as a field on the ticket-opening embed (`lib/ticketCreation.ts`) — how many prior tickets
  * this user has had in the guild, closed or not, mirroring prod ChatSift/ModMail's "Past Modmails"
  * field.
@@ -75,13 +104,13 @@ export async function countPastThreadsForUser(guildId: string, userId: string): 
 }
 
 /**
- * Looked up on every message posted anywhere, to check whether the channel is a ticket's private
- * thread (user → mod relay direction). Most channels won't match, hence the partial index on
- * `user_thread_id`.
+ * Looked up on every message posted anywhere (a private thread's or a DM's), to check whether the
+ * channel is a ticket's user-side channel (user → mod relay direction). Most channels won't match,
+ * hence the partial index on `user_channel_id`.
  */
-export async function findOpenThreadByUserThreadId(userThreadId: string): Promise<Threads | undefined> {
+export async function findOpenThreadByUserChannelId(userChannelId: string): Promise<Threads | undefined> {
 	const [thread] = await getContext().db<Threads[]>`
-		SELECT * FROM threads WHERE user_thread_id = ${userThreadId} AND closed_at IS NULL
+		SELECT * FROM threads WHERE user_channel_id = ${userChannelId} AND closed_at IS NULL
 	`;
 
 	return thread;

@@ -4,7 +4,7 @@ import type { APIMessageApplicationCommandInteraction } from '@discordjs/core';
 import { MessageFlags } from '@discordjs/core';
 import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens } from './emojis.js';
 import { resolveEffectiveContent } from './messageContext.js';
-import { relayStaffReplyToUserThread } from './relay.js';
+import { relayStaffReplyToUserThread, UndeliverableUserError } from './relay.js';
 import { isUnknownMessageError } from './replyModeration.js';
 import { findOpenThreadByModThreadId } from './threads.js';
 
@@ -123,6 +123,13 @@ export async function handleReplyWithMessageContextMenu(
 		// Release the claim -- nothing was actually sent, so a retry (running the command again) needs to
 		// be possible.
 		claimedTargetMessageIds.delete(target.id);
+
+		if (error instanceof UndeliverableUserError) {
+			logger.warn({ err: error, threadId: thread.id }, 'Reply could not be delivered to the user');
+			await editReply("❌ Couldn't deliver that reply — the user has DMs closed or left the server. Nothing was sent.");
+			return;
+		}
+
 		logger.error({ err: error, threadId: thread.id }, `Failed to relay a "${commandLabel}" reply`);
 		await editReply('❌ Failed to send that reply. Please try again or reach out for support.');
 		return;

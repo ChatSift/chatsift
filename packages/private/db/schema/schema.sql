@@ -105,8 +105,9 @@ CREATE INDEX ama_questions_ama_id_idx ON ama_questions (ama_id);
 --     categories chosen at panel-creation time — hence ticket_panel_categories.
 --
 -- threads.channel_id (old Prisma model) is renamed to mod_thread_id here, disambiguating it from
--- the new user_thread_id now that a thread has two Discord-thread concepts (mod-forum side vs.
--- the user's private thread). Free to do since this table has no prior rows in the new schema.
+-- the new user_channel_id now that a thread has two Discord-channel concepts (mod-forum side vs.
+-- the user's side, panel private thread or DM channel). Free to do since this table has no prior
+-- rows in the new schema.
 
 -- Registry of branded, single-guild ModMail deployments (#216). A row here is what makes a guild
 -- "owned" by a custom instance: the public modmail-bot deployment no-ops for any guild listed here,
@@ -164,6 +165,12 @@ CREATE TABLE guild_settings (
   record_thread_content                  BOOLEAN NOT NULL DEFAULT false,
   record_thread_content_enabled_by       TEXT,
   record_thread_content_enabled_at       TIMESTAMPTZ,
+  -- Whether this guild's ModMail runs on the pre-M5 DM front door instead of ticket panels (#216).
+  -- Only meaningful for a guild with a modmail_instances row -- the public deployment never reads it,
+  -- and services/api rejects setting it true for a guild with no custom instance. When on, ticket
+  -- panels go inert (see the create-ticket component) and the panel-specific settings below stop
+  -- applying, but nothing about them is deleted: flipping this back off restores the panel flow as-is.
+  dm_mode                                BOOLEAN NOT NULL DEFAULT false,
 
   CONSTRAINT guild_settings_max_concurrent_threads_check CHECK (max_concurrent_threads >= 1),
   CONSTRAINT guild_settings_nuke_delay_minutes_check CHECK (nuke_delay_minutes IS NULL OR nuke_delay_minutes >= 1)
@@ -229,15 +236,27 @@ CREATE TABLE threads (
   closed_at                     TIMESTAMPTZ,
   last_local_thread_message_id  INTEGER NOT NULL DEFAULT 0,
   category_id                   INTEGER REFERENCES categories (id) ON DELETE SET NULL,
-  user_thread_id                TEXT
+  -- The Discord channel the bot relays a user's side of the conversation through -- a private thread
+  -- for the M5 panel flow ('panel' origin below), or the opener's DM channel for DM mode (#216, P4).
+  -- Named generically (not "...thread_id") because it isn't always a thread; a DM channel id is stable
+  -- per (user, bot application) pair, which is what lets the relay/edit/delete-sync/`/reply` code work
+  -- unchanged for both origins -- see docs/roadmap/08-modmail-custom-instances.md.
+  user_channel_id                TEXT,
+  -- How this ticket was opened. 'panel' is the M5 flow (user_channel_id is a real private thread this
+  -- bot created and may lock/delete); 'dm' means user_channel_id is the opener's DM channel id, which
+  -- must never be locked, archived or deleted. Only 'dm' is possible for a guild running DM mode
+  -- (guild_settings.dm_mode); every other ticket is 'panel'.
+  origin                        TEXT NOT NULL DEFAULT 'panel',
+
+  CONSTRAINT threads_origin_check CHECK (origin IN ('panel', 'dm'))
 );
 
 CREATE INDEX threads_guild_id_idx ON threads (guild_id);
 CREATE INDEX threads_category_id_idx ON threads (category_id);
--- Both looked up on every relayed message/reply command in services/modmail-bot: user_thread_id to
--- find the ticket a private-thread message belongs to, mod_thread_id to find the ticket a /reply or
+-- Both looked up on every relayed message/reply command in services/modmail-bot: user_channel_id to
+-- find the ticket a private-thread/DM message belongs to, mod_thread_id to find the ticket a /reply or
 -- /reply-q command was run in.
-CREATE INDEX threads_user_thread_id_idx ON threads (user_thread_id) WHERE user_thread_id IS NOT NULL;
+CREATE INDEX threads_user_channel_id_idx ON threads (user_channel_id) WHERE user_channel_id IS NOT NULL;
 CREATE INDEX threads_mod_thread_id_idx ON threads (mod_thread_id);
 -- Back the two concurrent-thread-limit counts in `lib/threads.ts`, both partial on
 -- `closed_at IS NULL` since a closed ticket never counts toward either limit and closed rows vastly

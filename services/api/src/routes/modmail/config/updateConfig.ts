@@ -1,4 +1,4 @@
-import { getContext, GRANTS } from '@chatsift/backend-core';
+import { getContext, getInstanceForGuild, GRANTS } from '@chatsift/backend-core';
 import type { GuildSettings } from '@chatsift/db';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { ChannelType } from '@discordjs/core';
@@ -69,6 +69,13 @@ export default defineRoute({
 				await assertRolesBelongToGuild(guildId, [data.alertRoleId], 'MODMAIL', req.logger);
 			}
 
+			// DM mode is only meaningful for a guild a custom instance owns -- the public deployment never
+			// reads `guild_settings.dm_mode` at all (see schema.sql's doc comment on the column). Setting it
+			// `false` is always allowed since that's already every guild's default.
+			if (data.dmMode === true && !getInstanceForGuild(guildId)) {
+				throw badRequest('dmMode can only be enabled for a guild with a custom ModMail instance');
+			}
+
 			const columns = Object.keys(data) as (keyof typeof data)[];
 
 			// `record_thread_content_enabled_by`/`_at` only get (re-)stamped on a false->true transition
@@ -82,7 +89,7 @@ export default defineRoute({
 				INSERT INTO guild_settings (
 					guild_id, mod_forum_id, default_greeting_message, farewell_message, simple_mode, alert_role_id, anon_reply_label,
 					max_concurrent_threads, nuke_delay_minutes, greeting_before_opener, record_thread_content,
-					record_thread_content_enabled_by, record_thread_content_enabled_at
+					record_thread_content_enabled_by, record_thread_content_enabled_at, dm_mode
 				)
 				VALUES (
 					${guildId}, ${data.modForumId ?? null}, ${data.defaultGreetingMessage ?? null},
@@ -90,7 +97,7 @@ export default defineRoute({
 					${data.anonReplyLabel ?? null}, ${data.maxConcurrentThreads ?? 1}, ${data.nukeDelayMinutes ?? null},
 					${data.greetingBeforeOpener ?? false}, ${data.recordThreadContent ?? false},
 					${recordThreadContentEnabledNow ? req.tokens.access.sub : null},
-					${recordThreadContentEnabledNow ? new Date() : null}
+					${recordThreadContentEnabledNow ? new Date() : null}, ${data.dmMode ?? false}
 				)
 				ON CONFLICT (guild_id) DO UPDATE SET
 					${db(data, ...columns)},

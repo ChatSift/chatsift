@@ -55,19 +55,30 @@ export interface FinishTicketCreationOptions {
 	logger: Logger;
 	member: MemberLike | undefined;
 	modForumId: string;
-	privateThreadId: string;
+	/**
+	 * How this ticket was opened -- `'panel'` from `index.ts#handleFirstMessage`, `'dm'` from
+	 * `lib/dmTicket.ts` (#216, P4). Stored on `threads.origin`; see that column's doc comment in
+	 * schema.sql for what each caller must never do to `userChannelId` as a result.
+	 */
+	origin: Threads['origin'];
 	user: APIUser;
+	/**
+	 * The Discord channel the user's side of the conversation happens in -- a private thread this bot
+	 * created (`origin: 'panel'`) or the opener's DM channel (`origin: 'dm'`). See `threads.user_channel_id`'s
+	 * doc comment in schema.sql for why this is deliberately not called "...threadId".
+	 */
+	userChannelId: string;
 }
 
 /**
- * Called once from `index.ts`'s `handleFirstMessage`, once the user's opening message arrives in
- * their private thread — the category (if any) was already resolved before that thread even existed
- * (`categorySelect.ts`), so this only ever has one job left: open the mod-forum thread (tagged per
- * category, if configured), insert the `threads` row, and post the category's greeting (falling back
- * to the guild default) back into the user's private thread. The opening embed's field
- * set (account age, join date, past tickets, roles) is drawn from prod ChatSift/ModMail's
- * `handleThreadManagement.ts` "who is this" panel, minus a full guild-roles fetch just to sort them
- * by position.
+ * Called once from `index.ts`'s `handleFirstMessage` (panel flow) or `lib/dmTicket.ts` (DM mode,
+ * #216 P4), once the user's opening message is known -- the category (if any) was already resolved
+ * before this point (`categorySelect.ts`/`dmTicket.ts`'s category prompt), so this only ever has one
+ * job left: open the mod-forum thread (tagged per category, if configured), insert the `threads` row,
+ * and post the category's greeting (falling back to the guild default) back into the user's channel.
+ * The opening embed's field set (account age, join date, past tickets, roles) is drawn from prod
+ * ChatSift/ModMail's `handleThreadManagement.ts` "who is this" panel, minus a full guild-roles fetch
+ * just to sort them by position.
  */
 export async function finishTicketCreation({
 	alertRoleId,
@@ -77,8 +88,9 @@ export async function finishTicketCreation({
 	logger,
 	member,
 	modForumId,
-	privateThreadId,
+	origin,
 	user,
+	userChannelId,
 }: FinishTicketCreationOptions): Promise<Threads> {
 	const displayName = member?.nick ?? user.global_name ?? user.username;
 	const avatarURL = member?.avatar
@@ -153,10 +165,10 @@ export async function finishTicketCreation({
 	let thread: Threads | undefined;
 	try {
 		[thread] = await getContext().db<Threads[]>`
-			INSERT INTO threads (id, guild_id, mod_thread_id, user_id, created_by_id, category_id, user_thread_id)
+			INSERT INTO threads (id, guild_id, mod_thread_id, user_id, created_by_id, category_id, user_channel_id, origin)
 			VALUES (
 				${reservedThreadId}, ${guildId}, ${modThread.id}, ${user.id}, ${createdById}, ${category?.id ?? null},
-				${privateThreadId}
+				${userChannelId}, ${origin}
 			)
 			RETURNING *
 		`;
@@ -201,7 +213,7 @@ export async function finishTicketCreation({
 		}
 	}
 
-	logger.info({ threadId: thread.id, modThreadId: modThread.id, privateThreadId }, 'Opened new modmail ticket');
+	logger.info({ threadId: thread.id, modThreadId: modThread.id, userChannelId }, 'Opened new modmail ticket');
 
 	return thread;
 }
@@ -212,9 +224,9 @@ export interface SendGreetingOptions {
 	guildId: string;
 	member: MemberLike | undefined;
 	modThreadId: string;
-	privateThreadId: string;
 	threadId: Threads['id'];
 	user: APIUser;
+	userChannelId: string;
 }
 
 /**
@@ -232,9 +244,9 @@ export async function sendGreeting({
 	guildId,
 	member,
 	modThreadId,
-	privateThreadId,
 	threadId,
 	user,
+	userChannelId,
 }: SendGreetingOptions): Promise<void> {
 	const greeting = category?.greetingMessage ?? defaultGreetingMessage;
 	if (!greeting || !member) {
@@ -257,7 +269,7 @@ export async function sendGreeting({
 	// thread too, the same way a staff-sent reply's log copy does, instead of it only being
 	// visible from the user's side.
 	const [userMessage, modMessage] = await Promise.all([
-		getContext().service.client.api.channels.createMessage(privateThreadId, { embeds: [greetingEmbed] }),
+		getContext().service.client.api.channels.createMessage(userChannelId, { embeds: [greetingEmbed] }),
 		getContext().service.client.api.channels.createMessage(modThreadId, { embeds: [greetingEmbed] }),
 	]);
 

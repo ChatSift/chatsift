@@ -91,6 +91,13 @@ export default class CategorySelectComponent implements ComponentHandler {
 				return;
 			}
 
+			// Defense-in-depth against DM mode being turned on in the gap between the button click and this
+			// pick landing -- see the matching check (and its comment) in `createTicket.ts`.
+			if (guildSettings.dmMode) {
+				await editReply('This server uses DMs — just message the bot directly to open a ticket.');
+				return;
+			}
+
 			const block = await findActiveBlock(guildId, user.id);
 			if (block) {
 				await editReply(
