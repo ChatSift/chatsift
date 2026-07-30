@@ -256,16 +256,25 @@ export async function handleDmMessage(message: GatewayMessageCreateDispatchData,
 		const categories = await fetchDmCategories(guildId);
 
 		if (categories.length === 0) {
-			await finishDmTicket({
-				category: null,
-				guildId,
-				guildSettings,
-				logger,
-				member,
-				openerMessage: message,
-				user: message.author,
-				userChannelId: dmChannelId,
-			});
+			try {
+				await finishDmTicket({
+					category: null,
+					guildId,
+					guildSettings,
+					logger,
+					member,
+					openerMessage: message,
+					user: message.author,
+					userChannelId: dmChannelId,
+				});
+			} catch (error) {
+				logger.error({ err: error, guildId, userId }, 'Failed to finish DM ticket creation');
+				await sendDm(
+					dmChannelId,
+					'❌ Something went wrong setting up your ticket. Please try sending your message again, or contact a moderator.',
+				);
+			}
+
 			return;
 		}
 

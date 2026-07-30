@@ -89,7 +89,7 @@ export default defineRoute({
 				INSERT INTO guild_settings (
 					guild_id, mod_forum_id, default_greeting_message, farewell_message, simple_mode, alert_role_id, anon_reply_label,
 					max_concurrent_threads, nuke_delay_minutes, greeting_before_opener, record_thread_content,
-					record_thread_content_enabled_by, record_thread_content_enabled_at
+					record_thread_content_enabled_by, record_thread_content_enabled_at, dm_mode
 				)
 				VALUES (
 					${guildId}, ${data.modForumId ?? null}, ${data.defaultGreetingMessage ?? null},
@@ -97,7 +97,7 @@ export default defineRoute({
 					${data.anonReplyLabel ?? null}, ${data.maxConcurrentThreads ?? 1}, ${data.nukeDelayMinutes ?? null},
 					${data.greetingBeforeOpener ?? false}, ${data.recordThreadContent ?? false},
 					${recordThreadContentEnabledNow ? req.tokens.access.sub : null},
-					${recordThreadContentEnabledNow ? new Date() : null}
+					${recordThreadContentEnabledNow ? new Date() : null}, ${data.dmMode ?? false}
 				)
 				ON CONFLICT (guild_id) DO UPDATE SET
 					${db(data, ...columns)},

@@ -164,7 +164,10 @@ export function ModmailConfigForm() {
 			nukeDelayMinutes: form.nukeEnabled ? Number(form.nukeDelayMinutes) : null,
 			greetingBeforeOpener: form.greetingBeforeOpener,
 			recordThreadContent: form.recordThreadContent,
-			...(isCustomInstance ? { dmMode: form.dmMode } : {}),
+			// `|| form.dmMode` covers the recovery path: a guild that lost its custom instance while
+			// `dmMode` was still true must still be able to serialize `dmMode: false` back to the API --
+			// `isCustomInstance` alone would silently drop the field and strand the row on `true` forever.
+			...(isCustomInstance || form.dmMode ? { dmMode: form.dmMode } : {}),
 		};
 
 		const result = updateConfigBodySchema.safeParse(data);
@@ -417,7 +420,7 @@ export function ModmailConfigForm() {
 					)}
 				</div>
 
-				{isCustomInstance && (
+				{(isCustomInstance || form.dmMode) && (
 					<div>
 						<label className="flex items-center gap-2" htmlFor="modmail-dm-mode">
 							<input

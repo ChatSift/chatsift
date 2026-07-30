@@ -335,7 +335,7 @@ export async function relayStaffReplyToUserThread({
 	} catch (error) {
 		if (
 			error instanceof DiscordAPIError &&
-			(error.code === RESTJSONErrorCodes.CannotSendMessagesToThisUser || error.status === 403 || error.status === 404)
+			(error.code === RESTJSONErrorCodes.CannotSendMessagesToThisUser || error.status === 404)
 		) {
 			throw new UndeliverableUserError(`Could not deliver a reply to user ${thread.userId} in thread ${thread.id}`, {
 				cause: error,

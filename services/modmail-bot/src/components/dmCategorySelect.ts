@@ -10,6 +10,7 @@ import type {
 import { DiscordAPIError } from '@discordjs/rest';
 import { findActiveBlock } from '../lib/blocks.js';
 import { DmPendingOpenerStore, fetchDmCategories, finishDmTicket, sendDm } from '../lib/dmTicket.js';
+import { withGuildUserLock } from '../lib/guildUserQueue.js';
 import { countOpenDmThreadsForUser } from '../lib/threads.js';
 
 /**
@@ -80,89 +81,110 @@ export default class DmCategorySelectComponent implements ComponentHandler {
 			await finish(content);
 		};
 
-		const pending = await DmPendingOpenerStore.get(userId);
-		if (!pending) {
-			await finish('This ticket request has expired. Please send a new message to start over.');
-			return;
-		}
+		// Same per guild+user lock `lib/dmTicket.ts#handleDmMessage` uses -- without it, this pick could
+		// race a fresh opener DM (or a double-submitted pick) landing concurrently for the same user,
+		// both passing their own `countOpenDmThreadsForUser` check before either has actually inserted a
+		// `threads` row.
+		await withGuildUserLock(guildId, userId, async () => {
+			const pending = await DmPendingOpenerStore.get(userId);
+			if (!pending) {
+				await finish('This ticket request has expired. Please send a new message to start over.');
+				return;
+			}
 
-		const data = interaction.data as APIMessageStringSelectInteractionData;
-		const categoryId = Number(data.values[0]);
+			const data = interaction.data as APIMessageStringSelectInteractionData;
+			const categoryId = Number(data.values[0]);
 
-		// Re-validated against the live category list, same defensive re-check `categorySelect.ts` does
-		// against its panel's list -- a category can be deleted between the opener and the pick.
-		const categories = await fetchDmCategories(guildId);
-		const category = categories.find((candidate) => candidate.id === categoryId);
-		if (!category) {
-			logger.warn({ categoryId, guildId }, 'DM category select picked an id no longer offered');
-			await bail('That category is no longer available. Please DM the bot again to start a new ticket.');
-			return;
-		}
+			// Re-validated against the live category list, same defensive re-check `categorySelect.ts` does
+			// against its panel's list -- a category can be deleted between the opener and the pick.
+			const categories = await fetchDmCategories(guildId);
+			const category = categories.find((candidate) => candidate.id === categoryId);
+			if (!category) {
+				logger.warn({ categoryId, guildId }, 'DM category select picked an id no longer offered');
+				await bail('That category is no longer available. Please DM the bot again to start a new ticket.');
+				return;
+			}
 
-		const [guildSettings] = await getContext().db<GuildSettings[]>`
-			SELECT * FROM guild_settings WHERE guild_id = ${guildId}
-		`;
+			const [guildSettings] = await getContext().db<GuildSettings[]>`
+				SELECT * FROM guild_settings WHERE guild_id = ${guildId}
+			`;
 
-		if (!guildSettings?.modForumId) {
-			await bail('ModMail is not fully configured in this server yet. Please let a moderator know.');
-			return;
-		}
+			if (!guildSettings?.modForumId) {
+				await bail('ModMail is not fully configured in this server yet. Please let a moderator know.');
+				return;
+			}
 
-		const block = await findActiveBlock(guildId, userId);
-		if (block) {
-			await bail(
-				block.expiresAt
-					? `You are blocked from opening ModMail tickets in this server until <t:${Math.floor(block.expiresAt.getTime() / 1_000)}:f>.`
-					: 'You are blocked from opening ModMail tickets in this server.',
-			);
-			return;
-		}
+			// Re-checked here too -- a moderator can turn DM mode back off while a pick is still pending,
+			// same reasoning as the block/membership/category re-checks around it.
+			if (!guildSettings.dmMode) {
+				await bail('This server no longer uses DM mode. Please contact a moderator to open a ticket.');
+				return;
+			}
 
-		// Guards the race between the opener and a pick landing up to `PENDING_TICKET_TTL_MS` later --
-		// see `countOpenDmThreadsForUser`'s own doc comment.
-		if ((await countOpenDmThreadsForUser(guildId, userId)) > 0) {
-			await bail('You already have an open ticket in this server.');
-			return;
-		}
-
-		let member: APIGuildMember;
-		try {
-			member = await getContext().service.client.api.guilds.getMember(guildId, userId);
-		} catch (error) {
-			if (error instanceof DiscordAPIError && error.status === 404) {
+			const block = await findActiveBlock(guildId, userId);
+			if (block) {
 				await bail(
-					'You need to be a member of this server to open a ticket. Please join first, then DM the bot again.',
+					block.expiresAt
+						? `You are blocked from opening ModMail tickets in this server until <t:${Math.floor(block.expiresAt.getTime() / 1_000)}:f>.`
+						: 'You are blocked from opening ModMail tickets in this server.',
 				);
 				return;
 			}
 
-			throw error;
-		}
-
-		let openerMessage;
-		try {
-			openerMessage = await getContext().service.client.api.channels.getMessage(dmChannelId, pending.openerMessageId);
-		} catch (error) {
-			if (error instanceof DiscordAPIError && error.status === 404) {
-				await bail('Your original message could not be found. Please DM the bot again to start a new ticket.');
+			// Guards the race between the opener and a pick landing up to `PENDING_TICKET_TTL_MS` later --
+			// see `countOpenDmThreadsForUser`'s own doc comment.
+			if ((await countOpenDmThreadsForUser(guildId, userId)) > 0) {
+				await bail('You already have an open ticket in this server.');
 				return;
 			}
 
-			throw error;
-		}
+			let member: APIGuildMember;
+			try {
+				member = await getContext().service.client.api.guilds.getMember(guildId, userId);
+			} catch (error) {
+				if (error instanceof DiscordAPIError && error.status === 404) {
+					await bail(
+						'You need to be a member of this server to open a ticket. Please join first, then DM the bot again.',
+					);
+					return;
+				}
 
-		await finishDmTicket({
-			category,
-			guildId,
-			guildSettings,
-			logger,
-			member,
-			openerMessage,
-			user: interaction.user!,
-			userChannelId: dmChannelId,
+				throw error;
+			}
+
+			let openerMessage;
+			try {
+				openerMessage = await getContext().service.client.api.channels.getMessage(dmChannelId, pending.openerMessageId);
+			} catch (error) {
+				if (error instanceof DiscordAPIError && error.status === 404) {
+					await bail('Your original message could not be found. Please DM the bot again to start a new ticket.');
+					return;
+				}
+
+				throw error;
+			}
+
+			try {
+				await finishDmTicket({
+					category,
+					guildId,
+					guildSettings,
+					logger,
+					member,
+					openerMessage,
+					user: interaction.user!,
+					userChannelId: dmChannelId,
+				});
+			} catch (error) {
+				logger.error({ err: error, categoryId, guildId, userId }, 'Failed to finish DM ticket creation');
+				await bail(
+					'❌ Something went wrong setting up your ticket. Please try sending your message again, or contact a moderator.',
+				);
+				return;
+			}
+
+			await DmPendingOpenerStore.delete(userId);
+			await deletePrompt();
 		});
-
-		await DmPendingOpenerStore.delete(userId);
-		await deletePrompt();
 	}
 }
