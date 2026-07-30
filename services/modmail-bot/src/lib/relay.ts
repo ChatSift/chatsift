@@ -345,10 +345,27 @@ export async function relayStaffReplyToUserThread({
 		throw error;
 	}
 
-	const logMessage = await getContext().service.client.api.channels.createMessage(thread.modThreadId, {
-		embeds: [logEmbed],
-		files: media.files,
-	});
+	// The user-facing copy above is the point of no return: everything from here down is mod-side
+	// bookkeeping (the log copy, the `thread_messages` row), and a failure in either must not propagate
+	// back to the caller (`/reply`, `/reply-q`, the reply context menus, the snippet resolver) as a
+	// generic failure -- every one of them reports a plain failure as "nothing was sent" and lets staff
+	// retry, which would double-deliver a reply the user already received. Best-effort instead: log and
+	// return, accepting a missing log copy / recording gap as the degraded outcome. Matches
+	// `lib/threads.ts#incrementLocalMessageId`'s own accepted tradeoff (a gap in local numbering is fine)
+	// and `closeThread`'s precedent of catching its own mod-forum log post the same way.
+	let logMessage;
+	try {
+		logMessage = await getContext().service.client.api.channels.createMessage(thread.modThreadId, {
+			embeds: [logEmbed],
+			files: media.files,
+		});
+	} catch (error) {
+		logger.error(
+			{ err: error, threadId: thread.id, localThreadMessageId },
+			'Delivered a reply to the user but failed to post its mod-forum log copy',
+		);
+		return;
+	}
 
 	logger.info({ threadId: thread.id, localThreadMessageId, anon }, 'Relayed staff reply to user thread');
 
@@ -372,17 +389,28 @@ export async function relayStaffReplyToUserThread({
 		};
 	}
 
-	await insertThreadMessage({
-		anon,
-		content: recordedContent,
-		guildId: thread.guildId,
-		guildMessageId: logMessage.id,
-		localThreadMessageId,
-		staffId: staffUser.id,
-		threadId: thread.id,
-		userId: thread.userId,
-		userMessageId: relayedMessage.id,
-	});
+	try {
+		await insertThreadMessage({
+			anon,
+			content: recordedContent,
+			guildId: thread.guildId,
+			guildMessageId: logMessage.id,
+			localThreadMessageId,
+			staffId: staffUser.id,
+			threadId: thread.id,
+			userId: thread.userId,
+			userMessageId: relayedMessage.id,
+		});
+	} catch (error) {
+		// Same reasoning as the log-copy catch above -- both Discord sends already succeeded, so this is
+		// a best-effort bookkeeping write, not something that should turn a delivered reply into a
+		// reported failure.
+		logger.error(
+			{ err: error, threadId: thread.id, localThreadMessageId },
+			'Delivered a reply and its mod-forum log copy but failed to record it',
+		);
+		return;
+	}
 
 	// A staffer just replied, so the *next* user message should alert subscribers again right away
 	// rather than possibly waiting out a cooldown that started before this reply (see

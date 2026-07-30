@@ -278,23 +278,32 @@ export async function handleDmMessage(message: GatewayMessageCreateDispatchData,
 			return;
 		}
 
-		await DmPendingOpenerStore.set(userId, { guildId, openerMessageId: message.id });
+		try {
+			await getContext().service.client.api.channels.createMessage(dmChannelId, {
+				content: 'Please pick a category for your ticket:',
+				components: [
+					{
+						type: ComponentType.ActionRow,
+						components: [
+							{
+								type: ComponentType.StringSelect,
+								custom_id: DM_CATEGORY_SELECT_CUSTOM_ID,
+								placeholder: 'Select a category',
+								options: buildCategorySelectOptions(categories),
+							},
+						],
+					},
+				],
+			});
+		} catch (error) {
+			logger.error({ err: error, guildId, userId }, 'Failed to post the DM category-select prompt');
+			return;
+		}
 
-		await getContext().service.client.api.channels.createMessage(dmChannelId, {
-			content: 'Please pick a category for your ticket:',
-			components: [
-				{
-					type: ComponentType.ActionRow,
-					components: [
-						{
-							type: ComponentType.StringSelect,
-							custom_id: DM_CATEGORY_SELECT_CUSTOM_ID,
-							placeholder: 'Select a category',
-							options: buildCategorySelectOptions(categories),
-						},
-					],
-				},
-			],
-		});
+		// Only stashed once the prompt has actually been posted -- setting this first would risk a failed
+		// `createMessage` above leaving a pending record with no select message behind it: the next DM
+		// would hit the "pick a category above" nudge (see the pending check earlier in this function)
+		// pointing at a prompt that was never sent, stuck until the record's own TTL expires.
+		await DmPendingOpenerStore.set(userId, { guildId, openerMessageId: message.id });
 	});
 }
