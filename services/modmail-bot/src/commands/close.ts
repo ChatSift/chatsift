@@ -1,6 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
+import { parseRelativeTimeSafe } from '@chatsift/parse-relative-time';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction, APIChatInputApplicationCommandInteraction } from '@discordjs/core';
 import { ApplicationIntegrationType, InteractionContextType, MessageFlags, PermissionFlagsBits } from '@discordjs/core';
@@ -35,12 +36,11 @@ export default class CloseCommand implements CommandHandler {
 				subcommand
 					.setName('schedule')
 					.setDescription('Schedule this ticket to close after a delay')
-					.addIntegerOptions((option) =>
+					.addStringOptions((option) =>
 						option
-							.setName('minutes')
-							.setDescription('Delay, in minutes, before the ticket closes')
-							.setRequired(true)
-							.setMinValue(1),
+							.setName('duration')
+							.setDescription('Delay before the ticket closes, e.g. "7d", "2h30m"')
+							.setRequired(true),
 					)
 					.addBooleanOptions((option) =>
 						option
@@ -108,10 +108,17 @@ export default class CloseCommand implements CommandHandler {
 			}
 
 			case 'schedule': {
-				const minutes = options.getInteger('minutes', true);
+				const duration = options.getString('duration', true);
 				const silent = options.getBoolean('silent') ?? false;
 				const anon = options.getBoolean('anon') ?? false;
-				const closeAt = new Date(Date.now() + minutes * 60_000);
+
+				const parsed = parseRelativeTimeSafe(duration);
+				if (!parsed.ok) {
+					await reply(`Couldn't parse that duration: ${parsed.message}`);
+					return;
+				}
+
+				const closeAt = new Date(Date.now() + parsed.value);
 
 				await getContext().db`
 					INSERT INTO scheduled_thread_closes (thread_id, scheduled_by_id, silent, anon, close_at)
