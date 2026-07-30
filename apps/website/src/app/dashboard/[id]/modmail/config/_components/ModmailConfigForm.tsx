@@ -109,6 +109,12 @@ export function ModmailConfigForm() {
 	// deployment never reads `guild_settings.dm_mode` at all (see updateConfig.ts's matching 400).
 	const isCustomInstance = (me?.guilds.find((guild) => guild.id === params.id)?.customInstanceId ?? null) !== null;
 
+	// The recovery-path guard below deliberately reads the *persisted* `config.dmMode`, not the
+	// in-progress `form.dmMode` -- keying it off the pending edit would flip this false the instant a
+	// recovered guild unchecks the box, unmounting the checkbox mid-edit and, worse, dropping `dmMode`
+	// from the PATCH payload entirely so the uncheck never actually reaches the API.
+	const canShowDmMode = isCustomInstance || (config?.dmMode ?? false);
+
 	// Seed local form state once the config loads; a background refetch after save must not clobber whatever the
 	// user is currently typing, so this only runs while `form` is still unset.
 	useEffect(() => {
@@ -164,10 +170,7 @@ export function ModmailConfigForm() {
 			nukeDelayMinutes: form.nukeEnabled ? Number(form.nukeDelayMinutes) : null,
 			greetingBeforeOpener: form.greetingBeforeOpener,
 			recordThreadContent: form.recordThreadContent,
-			// `|| form.dmMode` covers the recovery path: a guild that lost its custom instance while
-			// `dmMode` was still true must still be able to serialize `dmMode: false` back to the API --
-			// `isCustomInstance` alone would silently drop the field and strand the row on `true` forever.
-			...(isCustomInstance || form.dmMode ? { dmMode: form.dmMode } : {}),
+			...(canShowDmMode ? { dmMode: form.dmMode } : {}),
 		};
 
 		const result = updateConfigBodySchema.safeParse(data);
@@ -420,7 +423,7 @@ export function ModmailConfigForm() {
 					)}
 				</div>
 
-				{(isCustomInstance || form.dmMode) && (
+				{canShowDmMode && (
 					<div>
 						<label className="flex items-center gap-2" htmlFor="modmail-dm-mode">
 							<input
