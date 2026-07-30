@@ -8,7 +8,7 @@ import { FaExclamationTriangle } from 'react-icons/fa';
 import { APIError } from '@/api/error';
 import { useMe } from '@/api/routes/auth';
 import { useGuildInfo } from '@/api/routes/guilds';
-import type { ModmailConfig, UpdateModmailConfigBody } from '@/api/routes/modmail';
+import type { ModmailConfig, ResyncModmailResult, UpdateModmailConfigBody } from '@/api/routes/modmail';
 import { useModmailConfig, useResyncModmail, useUpdateModmailConfig } from '@/api/routes/modmail';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect } from '@/components/common/ChannelSelect';
@@ -106,6 +106,7 @@ export function ModmailConfigForm() {
 	const resyncModmail = useResyncModmail(params.id);
 	const { data: me } = useMe();
 	const [resyncMessage, setResyncMessage] = useState<string | null>(null);
+	const [resyncFailures, setResyncFailures] = useState<ResyncModmailResult['failures']>([]);
 
 	// DM mode only makes sense for a guild running its own custom ModMail instance -- the public
 	// deployment never reads `guild_settings.dm_mode` at all (see updateConfig.ts's matching 400).
@@ -203,12 +204,14 @@ export function ModmailConfigForm() {
 
 	const handleResync = async () => {
 		setResyncMessage(null);
+		setResyncFailures([]);
 		const result = await resyncModmail.mutateAsync();
 		setResyncMessage(
 			`Done — ${result.snippetsRecreated} snippet command${result.snippetsRecreated === 1 ? '' : 's'} recreated, ` +
 				`${result.staleCommandsDeleted} stale command${result.staleCommandsDeleted === 1 ? '' : 's'} removed, ` +
 				`${result.panelsReposted} panel${result.panelsReposted === 1 ? '' : 's'} reposted.`,
 		);
+		setResyncFailures(result.failures);
 	};
 
 	return (
@@ -499,6 +502,26 @@ export function ModmailConfigForm() {
 						<p className="text-sm text-misc-accent" role="status">
 							{resyncMessage}
 						</p>
+					)}
+					{resyncFailures.length > 0 && (
+						<div
+							className="flex items-start gap-2 rounded-md border border-misc-danger bg-misc-danger/10 p-2 text-sm text-misc-danger"
+							role="alert"
+						>
+							<FaExclamationTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+							<div>
+								<p>
+									{resyncFailures.length} item{resyncFailures.length === 1 ? '' : 's'} failed and were skipped:
+								</p>
+								<ul className="mt-1 list-inside list-disc">
+									{resyncFailures.map((failure, index) => (
+										<li key={index}>
+											{failure.item}: {failure.error}
+										</li>
+									))}
+								</ul>
+							</div>
+						</div>
 					)}
 					<Button
 						className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
