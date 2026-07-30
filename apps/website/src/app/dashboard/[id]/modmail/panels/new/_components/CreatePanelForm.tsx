@@ -8,13 +8,13 @@ import { CategoryCheckboxList } from '../../_components/CategoryCheckboxList';
 import { PanelEmbedFields } from '../../_components/PanelEmbedFields';
 import { PanelModeToggle } from '../../_components/PanelModeToggle';
 import { PanelPreview } from '../../_components/PanelPreview';
-import { PanelRawField } from '../../_components/PanelRawField';
 import { APIError } from '@/api/error';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { CreateModmailPanelBody } from '@/api/routes/modmail';
 import { useCreateModmailPanel } from '@/api/routes/modmail';
-import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
+import { FormActions } from '@/components/common/FormActions';
+import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
@@ -242,8 +242,10 @@ export function CreatePanelForm() {
 								title={formData.title}
 							/>
 						) : (
-							<PanelRawField
+							<RawJsonField
 								error={errors.panelRaw}
+								id="panelRaw"
+								label="Raw JSON Panel Message"
 								onFormatClick={() => {
 									try {
 										const parsed = JSON.parse(formData.panelRaw);
@@ -272,22 +274,12 @@ export function CreatePanelForm() {
 				</div>
 			</div>
 
-			<div className="flex gap-4">
-				<Button
-					className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-					isDisabled={createPanel.isPending}
-					type="submit"
-				>
-					{createPanel.isPending ? 'Creating...' : 'Create Panel'}
-				</Button>
-				<Button
-					className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
-					onPress={() => router.back()}
-					type="button"
-				>
-					Cancel
-				</Button>
-			</div>
+			<FormActions
+				isSubmitting={createPanel.isPending}
+				onCancel={() => router.back()}
+				pendingLabel="Creating..."
+				submitLabel="Create Panel"
+			/>
 		</form>
 	);
 }

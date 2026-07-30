@@ -1,20 +1,28 @@
-import { Button } from '@/components/common/Button';
+import { Button } from './Button';
 import { cn } from '@/utils/util';
 
-interface RawPromptFieldProps {
+interface RawJsonFieldProps {
 	readonly error?: string | undefined;
+	readonly id: string;
+	readonly label: string;
 	onFormatClick(): void;
 	onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>): void;
 	onValueChange(value: string): void;
 	readonly value: string;
 }
 
-export function RawPromptField({ value, onValueChange, onFormatClick, onPaste, error }: RawPromptFieldProps) {
+/**
+ * The raw-JSON textarea + "Format" button shared by the modmail panel and AMA prompt "raw mode" editors --
+ * both post a Discord message payload, so the field, its paste-to-format behavior, and its help text are identical.
+ */
+export function RawJsonField({ id, label, value, onValueChange, onFormatClick, onPaste, error }: RawJsonFieldProps) {
+	const helpId = `${id}-help`;
+
 	return (
 		<div>
 			<div className="flex justify-between items-center mb-2">
-				<label className="block text-sm font-medium text-secondary dark:text-secondary-dark" htmlFor="promptRaw">
-					Raw JSON Prompt
+				<label className="block text-sm font-medium text-secondary dark:text-secondary-dark" htmlFor={id}>
+					{label}
 				</label>
 				<Button
 					className="px-3 py-1 text-sm rounded-md bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
@@ -24,7 +32,7 @@ export function RawPromptField({ value, onValueChange, onFormatClick, onPaste, e
 				</Button>
 			</div>
 			<textarea
-				aria-describedby="promptRaw-help"
+				aria-describedby={helpId}
 				aria-invalid={error ? true : undefined}
 				className={cn(
 					'w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent font-mono text-sm',
@@ -32,7 +40,7 @@ export function RawPromptField({ value, onValueChange, onFormatClick, onPaste, e
 					// `border-misc-danger` in dark mode unless the same variant is repeated here.
 					error && 'border-misc-danger dark:border-misc-danger focus:ring-misc-danger',
 				)}
-				id="promptRaw"
+				id={id}
 				onChange={(e) => onValueChange(e.target.value)}
 				onPaste={onPaste}
 				placeholder={'{\n  "content": "Message text",\n  "embeds": [...]\n}'}
@@ -40,11 +48,11 @@ export function RawPromptField({ value, onValueChange, onFormatClick, onPaste, e
 				value={value}
 			/>
 			{error ? (
-				<p className="mt-1 text-sm text-misc-danger" id="promptRaw-help">
+				<p className="mt-1 text-sm text-misc-danger" id={helpId}>
 					{error}
 				</p>
 			) : (
-				<p className="mt-1 text-xs text-secondary dark:text-secondary-dark" id="promptRaw-help">
+				<p className="mt-1 text-xs text-secondary dark:text-secondary-dark" id={helpId}>
 					Paste a Discord message JSON payload. It will be auto-formatted on paste.
 				</p>
 			)}
