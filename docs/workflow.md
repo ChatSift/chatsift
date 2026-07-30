@@ -78,6 +78,42 @@ The restart is required because `shared_preload_libraries` is a postmaster-conte
 this yourself on each already-running Postgres (local + prod) — it's not something an agent should run on your
 behalf.
 
+### API request metrics (#277)
+
+Reuses the same Prometheus/Grafana infra as #270, plus one new npm dependency: `prom-client` in `services/api`. The
+API's existing per-route timing middleware (`mountRoute` in `services/api/src/core/server.ts` — already fires for
+every route, since it's the first middleware `mountRoute` installs) now also observes an
+`http_request_duration_seconds` histogram (`services/api/src/core/metrics.ts`), labelled by `method`, `route` (the
+route _pattern_, e.g. `/v3/guilds/:guildId` — not the resolved URL, so cardinality stays bounded), and
+`status_code`. Request counts and rates are derived from the same histogram (`_count`/`rate(...)`), no separate
+counter needed.
+
+The API exposes this at `GET /metrics` (bare, unversioned — matches the same bare `/metrics` every other scrape
+target in `build/prometheus/prometheus.yml` already uses), guarded by a Bearer-token middleware
+(`services/api/src/middleware/requireMetricsSecret.ts`, mirroring the Dozzle webhook's `requireWebhookSecret`
+shared-secret pattern) rather than a custom header — Prometheus's `scrape_config` has native
+`authorization.credentials_file` support, which re-reads the token from disk on every scrape, so rotating the
+secret needs no Prometheus restart.
+
+A new `api` job in `build/prometheus/prometheus.yml` scrapes `api:7004` with that credentials file. A new
+`api-overview` Grafana dashboard (`build/grafana/dashboards/api-overview.json`) shows request rate by route,
+p50/p95/p99 latency, and a per-route summary table.
+
+**One-time manual step** (same shape as Dozzle's `users.yml` setup in #212 — this is the one thing that can't be
+committed to git, since `prometheus.yml` has no env-var-expansion mechanism at all):
+
+```sh
+# Same value as METRICS_SECRET in .env.private
+echo -n '<your METRICS_SECRET value>' > build/prometheus/metrics_secret
+chmod 644 build/prometheus/metrics_secret
+./compose up -d --force-recreate prometheus
+```
+
+Also as part of #277: the `postgres-overview` dashboard's "Top 20 Queries by Mean Execution Time" table dropped the
+`datname`, `queryid`, and `user` columns (noise — `queryid` is redundant once `query` text is joined in, and this
+deployment is single-database/single-user) via the same `fieldConfig.overrides`/`custom.hidden` mechanism already
+used to hide `job`/`instance`.
+
 ## Custom ModMail instances (#216)
 
 Branded, single-guild ModMail deployments for approved close partners — see

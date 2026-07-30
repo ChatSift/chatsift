@@ -29,6 +29,7 @@ import createGrantRoute from './routes/guilds/createGrant.js';
 import deleteGrantRoute from './routes/guilds/deleteGrant.js';
 import getGuildRoute from './routes/guilds/get.js';
 import getGrantsRoute from './routes/guilds/getGrants.js';
+import metricsRoute from './routes/metrics/metrics.js';
 import createBlockRoute from './routes/modmail/blocks/createBlock.js';
 import deleteBlockRoute from './routes/modmail/blocks/deleteBlock.js';
 import listBlocksRoute from './routes/modmail/blocks/listBlocks.js';
@@ -117,6 +118,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, getGuildRoute);
 	mountRoute(app, getGrantsRoute);
 	mountRoute(app, dozzleWebhookRoute);
+	mountRoute(app, metricsRoute);
 	mountRoute(app, getConfigRoute);
 	mountRoute(app, updateConfigRoute);
 	mountRoute(app, listCategoriesRoute);

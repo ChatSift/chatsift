@@ -107,8 +107,10 @@ services:
     restart: unless-stopped
     volumes:
       - ./build/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./build/prometheus/metrics_secret:/etc/prometheus/metrics_secret:ro
       - prometheus-data:/prometheus
     depends_on:
+      - api
       - cadvisor
       - node-exporter
       - postgres-exporter

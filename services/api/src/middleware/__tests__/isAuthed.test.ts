@@ -46,6 +46,7 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 	process.env['DOZZLE_WEBHOOK_SECRET'] = 'so secret too';
 	process.env['DOZZLE_WEBHOOK_DISCORD_ID'] = '123456789012345678';
 	process.env['DOZZLE_WEBHOOK_DISCORD_TOKEN'] = 'abcdef';
+	process.env['METRICS_SECRET'] = 'so secret three';
 
 	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 	const actual = (await importActual()) as typeof import('@chatsift/backend-core');
