@@ -89,6 +89,11 @@ export default defineRoute({
 					if (error instanceof DiscordAPIError && error.code === RESTJSONErrorCodes.UnknownApplicationCommand) {
 						stillValid = false;
 					} else {
+						// Inconclusive, not confirmed-stale -- a transient failure checking the command (rate limit,
+						// network blip) tells us nothing about whether it's actually gone. Keep it in `liveCommandIds`
+						// so the stale-cleanup pass below doesn't delete a command that may well still be fine just
+						// because this one check failed, then surface the failure below instead of guessing.
+						liveCommandIds.add(snippet.commandId);
 						throw error;
 					}
 				}
