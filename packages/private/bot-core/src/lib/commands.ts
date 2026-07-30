@@ -99,7 +99,7 @@ export async function handleCommandInteraction(
 ): Promise<void> {
 	// Component/slash-command interactions are Discord-application-scoped already (a leftover command
 	// only ever dispatches to the application that registered it), so this is defense-in-depth rather
-	// than the actual doubling-risk boundary -- see docs/roadmap/08-modmail-custom-instances.md. It
+	// than the actual doubling-risk boundary -- see docs/roadmap/01-architecture.md §8. It
 	// mainly matters right after an instance swap, where stale `/snippet` commands under the old
 	// application would otherwise act on a guild this deployment no longer owns.
 	const foreignOwnerLabel = resolveForeignOwnerLabel(interaction.guild_id);

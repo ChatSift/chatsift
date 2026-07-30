@@ -18,7 +18,7 @@ interface DueScheduledClose extends Threads {
  * done.
  */
 export async function sweepScheduledCloses(logger: Logger): Promise<void> {
-	// See docs/roadmap/08-modmail-custom-instances.md -- closing a ticket in a guild this deployment
+	// See docs/roadmap/01-architecture.md §8 -- closing a ticket in a guild this deployment
 	// doesn't own would race whichever deployment does.
 	const scope = getOwnershipScope();
 

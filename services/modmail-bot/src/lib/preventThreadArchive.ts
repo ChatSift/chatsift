@@ -17,7 +17,7 @@ import { getOwnershipScope } from './instance.js';
  * an open ticket's channels on any kind of interval.
  */
 export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<void> {
-	// See docs/roadmap/08-modmail-custom-instances.md -- unarchiving (or closing, in the 404 branch
+	// See docs/roadmap/01-architecture.md §8 -- unarchiving (or closing, in the 404 branch
 	// below) a thread in a guild this deployment doesn't own would race whichever deployment does.
 	const scope = getOwnershipScope();
 

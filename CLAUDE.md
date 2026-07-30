@@ -14,10 +14,9 @@ Full doc set:
 - [docs/adr/0002-db-stack.md](docs/adr/0002-db-stack.md) — why the DB stack was replaced (implemented, M1).
 - [docs/roadmap/05-migration-cutover.md](docs/roadmap/05-migration-cutover.md) — M4, AMA drain-and-swap cutover (in progress).
 - [docs/roadmap/06-modmail-port.md](docs/roadmap/06-modmail-port.md) — M5, ModMail rebuild + migration (not started).
-- [docs/roadmap/08-modmail-custom-instances.md](docs/roadmap/08-modmail-custom-instances.md) — #216, branded single-guild ModMail deployments + DM front door (P1 shipped 2026-07-29, bot-side ownership gating; P2 instance-aware API next).
 - [docs/workflow.md](docs/workflow.md) — branching, commits, local dev, verification standard.
 
-M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done and their per-milestone spec docs have been removed; durable architecture knowledge from them lives in 01-architecture.md and workflow.md now. Git history has the specs if you need the original planning detail. The ModMail dashboard thread-history view (#261) shipped the same way — its spec doc is gone, durable shape now lives in [01-architecture.md §7](docs/roadmap/01-architecture.md#7-modmail-thread-history-dashboard-view-261).
+M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done and their per-milestone spec docs have been removed; durable architecture knowledge from them lives in 01-architecture.md and workflow.md now. Git history has the specs if you need the original planning detail. The ModMail dashboard thread-history view (#261) shipped the same way — its spec doc is gone, durable shape now lives in [01-architecture.md §7](docs/roadmap/01-architecture.md#7-modmail-thread-history-dashboard-view-261). Custom ModMail instances (#216, branded single-guild deployments + DM front door) shipped the same way too — durable shape is [01-architecture.md §8](docs/roadmap/01-architecture.md#8-custom-modmail-instances-216), the operational runbook is in [docs/workflow.md](docs/workflow.md#custom-modmail-instances-216).
 
 ## Quick facts
 

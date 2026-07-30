@@ -8,7 +8,7 @@ interface BotInfo {
 
 /**
  * The public deployment of a bot keys its `bot:<BotId>` Redis guild list on the bare `BotId`. A
- * custom, single-guild ModMail instance (#216, docs/roadmap/08-modmail-custom-instances.md) is a
+ * custom, single-guild ModMail instance (#216, docs/roadmap/01-architecture.md §8) is a
  * second, independently-deployed process sharing that same `BotId`, so it publishes under its own
  * `bot:MODMAIL#<instanceId>` key instead of overwriting the public deployment's.
  */

@@ -58,3 +58,5 @@ export { default as listModmailBlocksRoute } from './routes/modmail/blocks/listB
 export { default as getModmailThreadRoute } from './routes/modmail/threads/getThread.js';
 export { default as getModmailThreadMessageEditsRoute } from './routes/modmail/threads/getMessageEdits.js';
 export { default as listModmailThreadsRoute } from './routes/modmail/threads/listThreads.js';
+
+export { default as resyncModmailRoute } from './routes/modmail/resync.js';

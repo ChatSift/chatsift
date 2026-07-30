@@ -65,7 +65,7 @@ export default class CreateTicketComponent implements ComponentHandler {
 			}
 
 			// Panels are never auto-deleted when DM mode is turned on (decision 9 in
-			// docs/roadmap/08-modmail-custom-instances.md) -- a leftover button click is inert instead,
+			// docs/roadmap/01-architecture.md §8) -- a leftover button click is inert instead,
 			// pointing the user at the actual entry point, so flipping DM mode back off restores the panel
 			// flow exactly as configured.
 			if (guildSettings.dmMode) {

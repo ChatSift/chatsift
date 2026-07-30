@@ -3,7 +3,7 @@ import { getCustomInstanceGuildIds, getInstanceForGuild, getSelfInstance } from 
 const PUBLIC_LABEL = 'the public ModMail bot';
 
 /**
- * The ownership rule from docs/roadmap/08-modmail-custom-instances.md: a guild with a
+ * The ownership rule from docs/roadmap/01-architecture.md §8: a guild with a
  * `modmail_instances` row belongs to that instance and no other; every other guild belongs to the
  * public deployment. Holds regardless of which bots are actually present in the guild -- the whole
  * point is to stay correct even if an admin left both the public and a custom bot in the same server.

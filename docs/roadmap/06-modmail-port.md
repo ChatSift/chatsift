@@ -182,15 +182,9 @@ Mirrors `services/ama-bot`'s structure ([01-architecture.md §6](01-architecture
    - Deploy the new bot, point the token, smoke-test (create a ticket via a panel, reply from staff, close a ticket and confirm the private thread is gone).
    - Keep old deployment + database warm for rollback until confidence is established.
 
-## Future, explicitly not this milestone: single-guild custom-instance mode
+## Custom-instance mode (#216) — was reserved design space here, now shipped
 
-From the design discussion (2026-07-22), kept here so M5's implementation doesn't foreclose it:
-
-> There's a vision of offering custom branded instances of the bot to specific paying customers — a special env flag for single-guild mode (binding the bot to that guild ID), a special section in that guild's dashboard settings to manage their custom instance, and **DMs return** (bypassing the private-thread ticket flow entirely, matching current prod behavior) depending on an env var on the deployment. These would be priced deployments hardcoded into the main repo's docker-compose per customer, sharing the shared Postgres/Redis/API backend — so a main-stack outage takes the custom instance down too, cosmetically separate only. "Probably the last thing to implement, but worth keeping in mind in how we design the bot from the get-go."
-
-**Design constraint this puts on M5:** don't hardcode "a ticket always starts via a private thread" deep into the relay/close/snippet/block/alert logic. The ticket-creation entrypoint (panel button + private thread, vs. a future DM) should be a swappable front door feeding the same `Thread`/`ThreadMessage` model — which the schema above already supports, since `userThreadId` is nullable and the mod-forum side doesn't care how a thread originated. No further action needed for M5 beyond keeping that boundary clean; don't build the env flag, the dashboard section, or DM support itself this milestone.
-
-Planned as its own effort, tracked as [#216](https://github.com/ChatSift/ChatSift/issues/216): see [08-modmail-custom-instances.md](08-modmail-custom-instances.md).
+This section originally reserved design space (from a 2026-07-22 discussion) for a future "single-guild custom-instance mode" — branded deployments for paying partners, with DMs returning as the ticket front door instead of the private-thread flow. It put one binding constraint on M5 itself: don't hardcode "a ticket always starts via a private thread" deep into the relay/close/snippet/block/alert logic, so a future DM front door could feed the same `Thread`/`ThreadMessage` model without a rework. That constraint was honored (`userThreadId`, later renamed `user_channel_id`, was already nullable), and the feature itself shipped 2026-07-30 as its own effort, tracked as [#216](https://github.com/ChatSift/ChatSift/issues/216) — see [01-architecture.md §8](01-architecture.md#8-custom-modmail-instances-216) for the durable shape. The original design-discussion quote and planning narrative are in git history if ever needed.
 
 ## Verification
 

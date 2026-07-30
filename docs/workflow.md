@@ -78,6 +78,87 @@ The restart is required because `shared_preload_libraries` is a postmaster-conte
 this yourself on each already-running Postgres (local + prod) — it's not something an agent should run on your
 behalf.
 
+## Custom ModMail instances (#216)
+
+Branded, single-guild ModMail deployments for approved close partners — see
+[roadmap/01-architecture.md §8](roadmap/01-architecture.md#8-custom-modmail-instances-216) for the full design. Hand-managed
+by design: there is no dashboard/API provisioning flow, since a `modmail_instances` row
+holds a live bot token. The steps below are things only an operator with direct Postgres/compose access runs —
+not something an agent should do on your behalf.
+
+### Onboarding a partner
+
+Order matters — do these in sequence, not in parallel:
+
+1. **Insert the registry row first**, before starting anything. `modmail_instances.token` must be the partner's bot
+   token encrypted with `ENCRYPTION_KEY`, in the exact AES-256-GCM `base64([iv | ciphertext | authTag])` shape
+   `packages/private/backend-core`'s `encrypt`/`decrypt` (`lib/crypt.ts`) use — those functions themselves read
+   `ENCRYPTION_KEY` off a fully-initialized app context (`getContext()`), so they aren't a bare one-liner import;
+   the snippet below reimplements the same shape standalone instead (verified round-trips correctly against the
+   real `decrypt()` during P6's own smoke test):
+
+   ```sh
+   npx dotenv -e .env.private -e .env.public -- node -e "
+     const crypto = require('crypto');
+     const IV_LENGTH = 12;
+     const key = Buffer.from(process.env.ENCRYPTION_KEY, 'base64');
+     const iv = crypto.randomBytes(IV_LENGTH);
+     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+     const ciphertext = Buffer.concat([cipher.update(process.argv[1], 'utf8'), cipher.final()]);
+     console.log(Buffer.concat([iv, ciphertext, cipher.getAuthTag()]).toString('base64'));
+   " '<the partner bot token>'
+   ```
+
+   Then insert the row with the encrypted value (pick a stable, lowercase `id` slug — this is what the deployment's
+   `MODMAIL_INSTANCE_ID` must match, and renaming it later means redeploying). psql's `:'var'` substitution doesn't
+   interpolate through `-c` reliably in every setup — writing the insert to a small `.sql` file and running it with
+   `-v`/`-f` is the more reliable route:
+
+   ```sh
+   printf "INSERT INTO modmail_instances (id, guild_id, token, label) VALUES ('<partner-slug>', '<guild id>', :'enc', '<display label>');\n" > /tmp/insert_instance.sql
+   ./compose exec -T postgres psql -U chatsift -d chatsift -v enc='<encrypted token from above>' -f - < /tmp/insert_instance.sql
+   ```
+
+   (`-T` disables the pseudo-tty compose would otherwise allocate, which is what lets the `<` redirect actually
+   reach `psql`'s stdin through `docker compose exec`.)
+
+2. **Wait up to 60s** (the registry's refresh interval, `packages/private/backend-core/src/lib/instances.ts`) —
+   the public `modmail-bot`/`api` processes pick up the new row and stop acting on that guild without a restart.
+   Confirm before moving on: the public bot should now answer that guild's leftover commands/panel with "this
+   server is served by `<label>`" instead of doing anything.
+3. **Start the partner's deployment.** Copy the commented-out `modmail-bot-<partner-slug>` template block in
+   `docker-compose.yml` (right after the public `modmail-bot` service), fill in `<partner-slug>` throughout
+   (service name, `MODMAIL_INSTANCE_ID`, log volume), uncomment it, then `./compose up -d modmail-bot-<partner-slug>`.
+   It fails fast on boot if `MODMAIL_INSTANCE_ID` doesn't match a row (see `loadInstances()`'s doc comment).
+4. **Run Resync** from that guild's ModMail config page in the dashboard (visible now that the guild has a custom
+   instance — see `services/api/src/routes/modmail/resync.ts`). This registers every existing snippet as a guild
+   command under the partner's application and reposts every panel message, since both were created under the
+   public application and Discord scopes commands/message-authorship to the application that created them.
+5. Verify: `/snippet` commands work and the panel button opens a ticket, both through the partner's bot presence.
+
+### Offboarding a partner (moving a guild back to the public deployment)
+
+Reverse order — resync while the row (and therefore the partner's token) is still reachable, _then_ tear down:
+
+1. **Run Resync first**, while the `modmail_instances` row still exists. Deleting the row before this loses the
+   ability to reach the partner's application at all for cleanup, and — more importantly — resync always targets
+   whichever application the registry says currently owns the guild, so it must run before the row disappears
+   for a swap in this direction to have anything to reconcile _from_.
+
+   Note this asymmetry with onboarding: resync targets the _new_ owner, and during offboarding the new owner
+   (public) only becomes current once the row is gone. So this step actually happens in two parts — resync once
+   with the row still present to let the partner's application clean up what it can reach, then delete the row
+   (step 3 below), then resync again now that the guild resolves to the public application, to recreate/repost
+   everything under it.
+
+2. **Stop the partner's deployment** (`./compose stop modmail-bot-<partner-slug>`, then remove or re-comment its
+   `docker-compose.yml` block).
+3. **Delete the registry row** (`DELETE FROM modmail_instances WHERE id = '<partner-slug>'`). The public bot
+   resumes ownership within 60s of this.
+4. **Run Resync again** for the same guild, now that it resolves to the public deployment, to finish reconciling
+   snippets/panels onto it.
+5. Verify the same golden path as onboarding, this time through the public bot.
+
 ## Verification standard
 
 Before calling any phase/issue done:

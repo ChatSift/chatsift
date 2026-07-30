@@ -10,7 +10,7 @@ import { getOwnershipScope } from './instance.js';
  * `scheduled_thread_nukes.nuke_at` lapsing and deletes the channel for real.
  */
 export async function sweepThreadNukes(logger: Logger): Promise<void> {
-	// See docs/roadmap/08-modmail-custom-instances.md -- deleting a private thread in a guild this
+	// See docs/roadmap/01-architecture.md §8 -- deleting a private thread in a guild this
 	// deployment doesn't own would race whichever deployment does.
 	const scope = getOwnershipScope();
 

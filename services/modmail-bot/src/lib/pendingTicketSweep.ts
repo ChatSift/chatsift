@@ -27,7 +27,7 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 	// A guild owned by a different ModMail deployment (#216) is entirely off-limits here -- both
 	// halves of this sweep delete Discord channels and DB rows, and running it against a guild this
 	// process doesn't own would race the deployment that actually does. See
-	// docs/roadmap/08-modmail-custom-instances.md and `getOwnershipScope`'s own doc comment.
+	// docs/roadmap/01-architecture.md §8 and `getOwnershipScope`'s own doc comment.
 	const scope = getOwnershipScope();
 
 	const [abandoned, stale] = await Promise.all([
