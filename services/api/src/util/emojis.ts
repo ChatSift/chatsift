@@ -1,5 +1,6 @@
 import type { BotId } from '@chatsift/backend-core';
 import type { API } from '@discordjs/core';
+import type { Recipe } from 'bin-rw';
 import { createRecipe, DataType } from 'bin-rw';
 import { createCachedGuildFetcher } from './guildDataCache.js';
 
@@ -20,15 +21,20 @@ async function fetchGuildEmojisRaw(guildId: string, api: API): Promise<GuildEmoj
 
 const emojisFetcher = createCachedGuildFetcher(
 	'emojis',
-	createRecipe({
-		items: [
-			{
-				id: DataType.String,
-				name: DataType.String,
-				animated: DataType.Bool,
-			},
-		],
-	}),
+	// bin-rw's own inferred type is wider than `GuildEmojiInfo` -- every field decodes nullable, but
+	// `fetchGuildEmojisRaw` above already guarantees non-null values -- the cast corrects that.
+	createRecipe(
+		{
+			items: [
+				{
+					id: DataType.String,
+					name: DataType.String,
+					animated: DataType.Bool,
+				},
+			],
+		},
+		{ versioned: true },
+	) as Recipe<{ items: GuildEmojiInfo[] }>,
 	fetchGuildEmojisRaw,
 );
 

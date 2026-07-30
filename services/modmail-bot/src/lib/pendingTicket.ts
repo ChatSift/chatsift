@@ -1,5 +1,6 @@
 import { getContext, RedisStore } from '@chatsift/backend-core';
 import type { CategoriesId } from '@chatsift/db';
+import type { Recipe } from 'bin-rw';
 import { createRecipe, DataType } from 'bin-rw';
 
 /**
@@ -13,9 +14,9 @@ export const PENDING_TICKET_TTL_MS = 30 * 60 * 1_000;
 export interface PendingTicketState {
 	/**
 	 * The category already resolved before this thread was created (`categorySelect.ts`), or `0` for a
-	 * panel with no categories configured (`createTicket.ts`'s zero-category path) — `bin-rw`'s `I32`
-	 * isn't nullable, and `0` is never a real category id (`categories.id` is an `IDENTITY` column
-	 * starting at 1).
+	 * panel with no categories configured (`createTicket.ts`'s zero-category path) — `0` is never a real
+	 * category id (`categories.id` is an `IDENTITY` column starting at 1), so it's used as the sentinel
+	 * here rather than `null`.
 	 */
 	categoryId: number;
 	guildId: string;
@@ -31,11 +32,16 @@ export interface PendingTicketState {
  */
 export const PendingTicketStore = new RedisStore<PendingTicketState>({
 	TTL: PENDING_TICKET_TTL_MS,
-	recipe: createRecipe({
-		categoryId: DataType.I32,
-		guildId: DataType.String,
-		userId: DataType.String,
-	}),
+	// bin-rw's own inferred type has every field nullable; none of these three ever actually are here --
+	// the cast corrects that.
+	recipe: createRecipe(
+		{
+			categoryId: DataType.I32,
+			guildId: DataType.String,
+			userId: DataType.String,
+		},
+		{ versioned: true },
+	) as Recipe<PendingTicketState>,
 	makeKey: (channelId: string) => `modmail:pending-ticket:${channelId}`,
 	storeOld: false,
 });

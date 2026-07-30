@@ -1,3 +1,4 @@
+import type { Buffer } from 'node:buffer';
 import { getContext } from '../context.js';
 import type { IEntity } from './_entity.js';
 
@@ -20,7 +21,7 @@ export class RedisStore<ValueType, KeyType extends string = string> {
 			await getContext().redis.pExpire(key, this.entity.TTL);
 		}
 
-		return this.entity.recipe.decode(raw);
+		return this.decodeOrEvict(key, raw);
 	}
 
 	public async getOld(id: KeyType): Promise<ValueType | null> {
@@ -39,7 +40,24 @@ export class RedisStore<ValueType, KeyType extends string = string> {
 			await getContext().redis.pExpire(key, this.entity.TTL);
 		}
 
-		return this.entity.recipe.decode(raw);
+		return this.decodeOrEvict(key, raw);
+	}
+
+	// A decode failure here (most commonly `RecipeSchemaMismatchError` from a `versioned` recipe, but any
+	// throw from `decode()` is treated the same way) means whatever's stored under `key` doesn't match what
+	// this entity can read back -- e.g. leftover bytes from a since-changed recipe shape. This is just a
+	// cache: the source of truth lives elsewhere, so the safe, simple response is to evict the bad entry and
+	// report a miss rather than let the error propagate to the caller. Still logged (rather than swallowed
+	// outright) since a decode failure that isn't just schema drift -- a real bug in a recipe, say -- would
+	// otherwise silently degrade to permanent cache misses with no visibility at all.
+	private async decodeOrEvict(key: string, raw: Buffer): Promise<ValueType | null> {
+		try {
+			return this.entity.recipe.decode(raw);
+		} catch (error) {
+			getContext().logger.warn({ err: error, key }, 'failed to decode cached value, evicting');
+			await getContext().redis.del([key]);
+			return null;
+		}
 	}
 
 	public async set(id: KeyType, value: ValueType): Promise<void> {

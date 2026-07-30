@@ -28,7 +28,7 @@
 		"@chatsift/db": "workspace:^",
 		"@chatsift/pino-rotate-file": "workspace:^",
 		"@sapphire/discord-utilities": "^4.0.0",
-		"bin-rw": "^0.1.1",
+		"bin-rw": "^0.2.0",
 		"jsonwebtoken": "^9.0.3",
 		"pino": "^10.3.1",
 		"pino-abstract-transport": "^3.0.0",

@@ -4,6 +4,7 @@ import type { Categories, GuildSettings, Threads } from '@chatsift/db';
 import type { APIGuildMember, APIMessage, APIUser, GatewayMessageCreateDispatchData } from '@discordjs/core';
 import { ComponentType } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
+import type { Recipe } from 'bin-rw';
 import { createRecipe, DataType } from 'bin-rw';
 import { findActiveBlock } from './blocks.js';
 import { buildCategorySelectOptions } from './categorySelectOptions.js';
@@ -49,10 +50,15 @@ export interface DmPendingOpener {
  */
 export const DmPendingOpenerStore = new RedisStore<DmPendingOpener>({
 	TTL: PENDING_TICKET_TTL_MS,
-	recipe: createRecipe({
-		guildId: DataType.String,
-		openerMessageId: DataType.String,
-	}),
+	// bin-rw's own inferred type is `string | null` for both fields -- neither is ever actually null here --
+	// the cast corrects that.
+	recipe: createRecipe(
+		{
+			guildId: DataType.String,
+			openerMessageId: DataType.String,
+		},
+		{ versioned: true },
+	) as Recipe<DmPendingOpener>,
 	makeKey: (userId: string) => `modmail:dm-pending-opener:${userId}`,
 	storeOld: false,
 });

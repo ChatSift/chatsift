@@ -4,6 +4,7 @@ import { RedisStore } from '@chatsift/backend-core';
 import type { API } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import type { RawFile } from '@discordjs/rest';
+import type { Recipe } from 'bin-rw';
 import { createRecipe, DataType } from 'bin-rw';
 
 /**
@@ -28,9 +29,14 @@ interface GuildEmojiIds {
 
 const GuildEmojiIdsStore = new RedisStore<GuildEmojiIds>({
 	TTL: GUILD_EMOJI_IDS_TTL_MS,
-	recipe: createRecipe({
-		ids: [DataType.String],
-	}),
+	// bin-rw's own inferred type is `(string | null)[] | null` -- every entry here is always a real
+	// snowflake, never `null`, so the cast corrects that.
+	recipe: createRecipe(
+		{
+			ids: [DataType.String],
+		},
+		{ versioned: true },
+	) as Recipe<GuildEmojiIds>,
 	makeKey: (guildId: string) => `modmail:guild-emojis:${guildId}`,
 	storeOld: false,
 });

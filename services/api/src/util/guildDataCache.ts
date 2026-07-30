@@ -63,11 +63,11 @@ export function createCachedGuildFetcher<TResult>(
 		storeOld: false,
 	});
 
-	// A negative result isn't stored through `store`/bin-rw: bin-rw's `Array` wire type can't distinguish `null`
-	// from `[]` (both collapse to the same null-marker byte on write, and always decode back to `[]`), so there's
-	// no honest way to represent "we confirmed this bot can't see this guild" versus "this guild has zero
-	// channels/roles/emojis" as a value in that same recipe. A separate boolean-flag key (mirroring
-	// `grantToken.ts`'s raw `redis.set`/`.exists` use for similar non-structured flags) sidesteps that entirely.
+	// A negative result isn't stored through `store`/bin-rw: even though bin-rw's `Array` wire type can now
+	// (0.2.0+) distinguish `null` from `[]`, `store`'s single `TTL` is fixed per entity, and a negative result
+	// deliberately needs its own much shorter TTL (`NEGATIVE_CACHE_TTL_MS` below) than a positive one -- so this
+	// still needs a separate key regardless. A boolean-flag key (mirroring `grantToken.ts`'s raw
+	// `redis.set`/`.exists` use for similar non-structured flags) is the simplest way to get that second TTL.
 	const negativeKey = (key: string) => `guilddata:${keyPrefix}:negative:${key}`;
 
 	const inflight = new Map<string, InflightEntry<TResult>>();

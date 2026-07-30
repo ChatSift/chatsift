@@ -401,7 +401,7 @@ __metadata:
     "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@sapphire/discord-utilities": "npm:^4.0.0"
     "@types/node": "npm:^24.9.1"
-    bin-rw: "npm:^0.1.1"
+    bin-rw: "npm:^0.2.0"
     nanoid: "npm:^6.0.0"
     typescript: "npm:~6.0.3"
     vitest: "npm:^4.1.10"
@@ -424,7 +424,7 @@ __metadata:
     "@types/jsonwebtoken": "npm:^9.0.10"
     "@types/node": "npm:^24.9.1"
     bcrypt: "npm:^6.0.0"
-    bin-rw: "npm:^0.1.1"
+    bin-rw: "npm:^0.2.0"
     busboy: "npm:^1.6.0"
     cookie: "npm:^2.0.1"
     cors: "npm:^2.8.6"
@@ -453,7 +453,7 @@ __metadata:
     "@types/jsonwebtoken": "npm:^9.0.10"
     "@types/node": "npm:^24.9.1"
     "@vitest/coverage-v8": "npm:^4.1.10"
-    bin-rw: "npm:^0.1.1"
+    bin-rw: "npm:^0.2.0"
     jsonwebtoken: "npm:^9.0.3"
     pino: "npm:^10.3.1"
     pino-abstract-transport: "npm:^3.0.0"
@@ -534,7 +534,7 @@ __metadata:
     "@sapphire/async-queue": "npm:^1.5.5"
     "@sapphire/discord-utilities": "npm:^4.0.0"
     "@types/node": "npm:^24.9.1"
-    bin-rw: "npm:^0.1.1"
+    bin-rw: "npm:^0.2.0"
     nanoid: "npm:^6.0.0"
     typescript: "npm:~6.0.3"
     vitest: "npm:^4.1.10"
@@ -4840,10 +4840,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bin-rw@npm:^0.1.1":
-  version: 0.1.1
-  resolution: "bin-rw@npm:0.1.1"
-  checksum: 10c0/c859c78cd7839c45fa761a1d2153b33790ed405c8af5740fe0789753e7d54ed3e329069c4342c198afde22179fe21c2e840f666a3a8a11dddba24ebf90e2a2ac
+"bin-rw@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "bin-rw@npm:0.2.0"
+  checksum: 10c0/8a2e0e3b323d6d1be704d2f841bf1f0d0651b9610845ec5223e4465d5beaf9ba3c4615720ead1733c6a61d774ffd7f1c303d140823a320fa55a3c920143988e6
   languageName: node
   linkType: hard
 
