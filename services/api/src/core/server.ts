@@ -4,6 +4,7 @@ import { badRequest } from '@hapi/boom';
 import type { Middleware, Polka } from 'polka';
 import { ZodError } from 'zod';
 import { jsonParser } from '../middleware/jsonParser.js';
+import { httpRequestDuration } from './metrics.js';
 import type { HttpMethod, MiddlewareContext, RouteDefinition, TypedMiddleware, TypedRequest } from './route.js';
 
 /**
@@ -31,6 +32,10 @@ export function mountRoute<
 			const now = performance.now();
 			res.on('close', () => {
 				const durationMs = performance.now() - now;
+				httpRequestDuration.observe(
+					{ method: route.method.toUpperCase(), route: route.path, status_code: String(res.statusCode) },
+					durationMs / 1_000,
+				);
 				req.logger.info(
 					{ method: req.method, path: req.path, status: res.statusCode, duration: durationMs },
 					'request complete',

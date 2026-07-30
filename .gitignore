@@ -34,6 +34,10 @@ coverage/
 .env.production.local
 .env.private
 
+# Prometheus scrape auth secret (issue #277) — must match METRICS_SECRET in .env.private, see
+# docs/workflow.md
+build/prometheus/metrics_secret
+
 # OS
 .DS_Store
 Thumbs.db

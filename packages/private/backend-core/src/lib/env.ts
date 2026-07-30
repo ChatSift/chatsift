@@ -72,6 +72,11 @@ export const envSchema = z.object({
 	DOZZLE_WEBHOOK_SECRET: z.string(),
 	DOZZLE_WEBHOOK_DISCORD_ID: z.string().regex(SnowflakeRegex),
 	DOZZLE_WEBHOOK_DISCORD_TOKEN: z.string(),
+
+	// Metrics (#277) — guards the API's `/metrics` Prometheus scrape endpoint via a Bearer token
+	// (see requireMetricsSecret.ts). Same value must also be mirrored into the gitignored
+	// build/prometheus/metrics_secret file Prometheus reads its scrape credentials from.
+	METRICS_SECRET: z.string(),
 });
 
 export const ENV = envSchema.parse(process.env);

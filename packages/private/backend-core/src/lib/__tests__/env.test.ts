@@ -26,6 +26,7 @@ process.env['MODMAIL_BOT_TOKEN'] = 'abcdef';
 process.env['DOZZLE_WEBHOOK_SECRET'] = 'so secret too';
 process.env['DOZZLE_WEBHOOK_DISCORD_ID'] = '123456789012345678';
 process.env['DOZZLE_WEBHOOK_DISCORD_TOKEN'] = 'abcdef';
+process.env['METRICS_SECRET'] = 'so secret three';
 
 const { envSchema } = await import('../env.js');
 
