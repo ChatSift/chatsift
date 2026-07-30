@@ -42,6 +42,7 @@ import createPanelRoute from './routes/modmail/panels/createPanel.js';
 import deletePanelRoute from './routes/modmail/panels/deletePanel.js';
 import listPanelsRoute from './routes/modmail/panels/listPanels.js';
 import updatePanelRoute from './routes/modmail/panels/updatePanel.js';
+import resyncRoute from './routes/modmail/resync.js';
 import createSnippetRoute from './routes/modmail/snippets/createSnippet.js';
 import deleteSnippetRoute from './routes/modmail/snippets/deleteSnippet.js';
 import listSnippetsRoute from './routes/modmail/snippets/listSnippets.js';
@@ -136,6 +137,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listThreadsRoute);
 	mountRoute(app, getThreadRoute);
 	mountRoute(app, getThreadMessageEditsRoute);
+	mountRoute(app, resyncRoute);
 
 	app.listen(getContext().env.API_PORT, () =>
 		getContext().logger.info({ port: getContext().env.API_PORT }, 'Listening to requests'),

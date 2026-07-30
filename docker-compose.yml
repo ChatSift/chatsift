@@ -208,6 +208,28 @@ services:
     volumes:
       - ./logs/modmail-bot:/usr/chatsift/logs/modmail-bot
 
+  # Template for a branded, single-guild ModMail deployment (#216) -- see
+  # docs/roadmap/08-modmail-custom-instances.md and the onboarding/offboarding runbook in
+  # docs/workflow.md. Copy this block once per approved partner (one block per instance -- these are
+  # hand-managed, not self-serve, see decision 1 in the roadmap doc), replacing `<partner-slug>`
+  # throughout with that partner's `modmail_instances.id` row. Everything else (image, build context,
+  # env files) is identical to the public `modmail-bot` service above; `MODMAIL_INSTANCE_ID` is the only
+  # thing that locks this process to that one guild/token.
+  # modmail-bot-<partner-slug>:
+  #   image: chatsift/chatsift-next:modmail
+  #   build:
+  #     context: ./
+  #     dockerfile: ./Dockerfile
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ./.env.public
+  #     - ./.env.private
+  #   environment:
+  #     MODMAIL_INSTANCE_ID: '<partner-slug>'
+  #   command: ['node', '--enable-source-maps', './services/modmail-bot/dist/bin.js']
+  #   volumes:
+  #     - ./logs/modmail-bot-<partner-slug>:/usr/chatsift/logs/modmail-bot-<partner-slug>
+
 volumes:
   postgres-data:
     name: 'chatsift-v3-postgres-data'

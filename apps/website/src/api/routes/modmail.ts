@@ -8,6 +8,7 @@ import type {
 	listModmailCategoriesRoute,
 	listModmailPanelsRoute,
 	listModmailSnippetsRoute,
+	resyncModmailRoute,
 	updateModmailCategoryRoute,
 	updateModmailConfigRoute,
 	updateModmailPanelRoute,
@@ -294,6 +295,29 @@ export function useDeleteModmailBlock(guildId: string) {
 			apiFetch('delete', `/v3/guilds/${guildId}/modmail/blocks`, { body: { userId } }),
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.blocks(guildId) });
+		},
+	});
+}
+
+type ResyncModmailContract = InferRouteContract<typeof resyncModmailRoute>;
+export type ResyncModmailResult = ResyncModmailContract['response'];
+
+/**
+ * #216 P6 -- reconciles snippet commands and panel messages against whichever application currently owns
+ * `guildId`, for use after a custom-instance swap (see docs/roadmap/08-modmail-custom-instances.md). Panels/
+ * snippets are refetched on success since a recreated command/reposted panel changes their `commandId`/
+ * `messageId`, which the list views don't otherwise know to refresh.
+ */
+export function useResyncModmail(guildId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async () => apiFetch<ResyncModmailResult>('post', `/v3/guilds/${guildId}/modmail/resync`, { body: {} }),
+		async onSuccess() {
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeys.modmail.panels(guildId) }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.modmail.snippets(guildId) }),
+			]);
 		},
 	});
 }
