@@ -15,6 +15,8 @@ import { ChannelSelect } from '@/components/common/ChannelSelect';
 import { RoleSelect } from '@/components/common/RoleSelect';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TemplatePlaceholdersHint } from '@/components/common/TemplatePlaceholdersHint';
+import { TextAreaField } from '@/components/common/TextAreaField';
+import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { formatDate } from '@/utils/util';
 
@@ -242,71 +244,52 @@ export function ModmailConfigForm() {
 					value={form.modForumId}
 				/>
 
-				<div>
-					<label
-						className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-						htmlFor="modmail-default-greeting"
-					>
-						Default Greeting Message
-					</label>
-					<textarea
-						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
-						id="modmail-default-greeting"
-						maxLength={2_000}
-						onChange={(e) => updateField('defaultGreetingMessage', e.target.value)}
-						rows={3}
-						value={form.defaultGreetingMessage}
-					/>
-					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-						Posted in a ticket&apos;s private thread when its category doesn&apos;t set its own greeting.
-					</p>
-					<TemplatePlaceholdersHint />
-					{errors.defaultGreetingMessage && (
-						<p className="mt-1 text-sm text-misc-danger">{errors.defaultGreetingMessage}</p>
-					)}
-				</div>
+				<TextAreaField
+					error={errors.defaultGreetingMessage}
+					helper={
+						<>
+							<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+								Posted in a ticket&apos;s private thread when its category doesn&apos;t set its own greeting.
+							</p>
+							<TemplatePlaceholdersHint />
+						</>
+					}
+					id="modmail-default-greeting"
+					label="Default Greeting Message"
+					maxLength={2_000}
+					onChange={(value) => updateField('defaultGreetingMessage', value)}
+					rows={3}
+					value={form.defaultGreetingMessage}
+				/>
 
-				<div>
-					<label
-						className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-						htmlFor="modmail-farewell"
-					>
-						Farewell Message
-					</label>
-					<textarea
-						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
-						id="modmail-farewell"
-						maxLength={2_000}
-						onChange={(e) => updateField('farewellMessage', e.target.value)}
-						rows={3}
-						value={form.farewellMessage}
-					/>
-					<TemplatePlaceholdersHint />
-					{errors.farewellMessage && <p className="mt-1 text-sm text-misc-danger">{errors.farewellMessage}</p>}
-				</div>
+				<TextAreaField
+					error={errors.farewellMessage}
+					helper={<TemplatePlaceholdersHint />}
+					id="modmail-farewell"
+					label="Farewell Message"
+					maxLength={2_000}
+					onChange={(value) => updateField('farewellMessage', value)}
+					rows={3}
+					value={form.farewellMessage}
+				/>
 
-				<div>
-					<label
-						className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-						htmlFor="modmail-anon-reply-label"
-					>
-						Anonymous Reply Label
-					</label>
-					<input
-						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
-						id="modmail-anon-reply-label"
-						maxLength={100}
-						onChange={(e) => updateField('anonReplyLabel', e.target.value)}
-						placeholder="{{ guildName }} Team"
-						type="text"
-						value={form.anonReplyLabel}
-					/>
-					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-						Shown as the author on anonymous staff replies. Leave blank to use the default shown above.
-					</p>
-					<TemplatePlaceholdersHint placeholders={['guildName']} />
-					{errors.anonReplyLabel && <p className="mt-1 text-sm text-misc-danger">{errors.anonReplyLabel}</p>}
-				</div>
+				<TextField
+					error={errors.anonReplyLabel}
+					helper={
+						<>
+							<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+								Shown as the author on anonymous staff replies. Leave blank to use the default shown above.
+							</p>
+							<TemplatePlaceholdersHint placeholders={['guildName']} />
+						</>
+					}
+					id="modmail-anon-reply-label"
+					label="Anonymous Reply Label"
+					maxLength={100}
+					onChange={(value) => updateField('anonReplyLabel', value)}
+					placeholder="{{ guildName }} Team"
+					value={form.anonReplyLabel}
+				/>
 
 				<div>
 					<RoleSelect
@@ -322,32 +305,28 @@ export function ModmailConfigForm() {
 					</p>
 				</div>
 
-				<div>
-					<label
-						className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-						htmlFor="modmail-max-concurrent-threads"
-					>
-						Max Concurrent Threads
-					</label>
-					<input
-						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
-						id="modmail-max-concurrent-threads"
-						min={1}
-						onChange={(e) => updateField('maxConcurrentThreads', e.target.value)}
-						type="number"
-						value={form.maxConcurrentThreads}
-					/>
-					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-						How many tickets a single user may have open at once in this server, across all categories. Categories may
-						only tighten this further, never raise it.
-					</p>
-					{form.dmMode && (
-						<DmModeCaveat>Ignored while DM mode is on — a user is limited to one open ticket at a time.</DmModeCaveat>
-					)}
-					{errors.maxConcurrentThreads && (
-						<p className="mt-1 text-sm text-misc-danger">{errors.maxConcurrentThreads}</p>
-					)}
-				</div>
+				<TextField
+					error={errors.maxConcurrentThreads}
+					helper={
+						<>
+							<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+								How many tickets a single user may have open at once in this server, across all categories. Categories
+								may only tighten this further, never raise it.
+							</p>
+							{form.dmMode && (
+								<DmModeCaveat>
+									Ignored while DM mode is on — a user is limited to one open ticket at a time.
+								</DmModeCaveat>
+							)}
+						</>
+					}
+					id="modmail-max-concurrent-threads"
+					label="Max Concurrent Threads"
+					min={1}
+					onChange={(value) => updateField('maxConcurrentThreads', value)}
+					type="number"
+					value={form.maxConcurrentThreads}
+				/>
 
 				<div>
 					<label className="flex items-center gap-2" htmlFor="modmail-nuke-enabled">
@@ -385,25 +364,21 @@ export function ModmailConfigForm() {
 					)}
 					{form.nukeEnabled && (
 						<div className="mt-2">
-							<label
-								className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-								htmlFor="modmail-nuke-delay-minutes"
-							>
-								Deletion Delay (minutes)
-							</label>
-							<input
-								className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+							<TextField
+								error={errors.nukeDelayMinutes}
+								helper={
+									<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+										How long after a ticket closes before the user&apos;s private thread is actually deleted, giving the
+										user a window to view staff's final response(s).
+									</p>
+								}
 								id="modmail-nuke-delay-minutes"
+								label="Deletion Delay (minutes)"
 								min={1}
-								onChange={(e) => updateField('nukeDelayMinutes', e.target.value)}
+								onChange={(value) => updateField('nukeDelayMinutes', value)}
 								type="number"
 								value={form.nukeDelayMinutes}
 							/>
-							<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-								How long after a ticket closes before the user&apos;s private thread is actually deleted, giving the
-								user a window to view staff's final response(s).
-							</p>
-							{errors.nukeDelayMinutes && <p className="mt-1 text-sm text-misc-danger">{errors.nukeDelayMinutes}</p>}
 						</div>
 					)}
 				</div>

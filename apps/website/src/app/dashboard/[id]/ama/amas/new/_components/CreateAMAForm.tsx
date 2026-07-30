@@ -8,16 +8,17 @@ import { FaCheckCircle } from 'react-icons/fa';
 import { NormalPromptFields } from './NormalPromptFields';
 import { PromptModeToggle } from './PromptModeToggle';
 import { PromptPreview } from './PromptPreview';
-import { RawPromptField } from './RawPromptField';
 import { APIError } from '@/api/error';
 import { useGrantAuth } from '@/api/grant';
 import type { CreateAMABody } from '@/api/routes/ama';
 import { useCreateAMA } from '@/api/routes/ama';
 import { useGuildInfo } from '@/api/routes/guilds';
-import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { EmptyState } from '@/components/common/EmptyState';
+import { FormActions } from '@/components/common/FormActions';
+import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
+import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { parseIntegerInput } from '@/utils/util';
 
@@ -317,21 +318,15 @@ export function CreateAMAForm() {
 			{/* Base Fields */}
 			<div className="space-y-4">
 				<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Session Details</h2>
-				<div>
-					<label className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2" htmlFor="title">
-						Title *
-					</label>
-					<input
-						className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
-						id="title"
-						maxLength={255}
-						onChange={(e) => updateFormData('title', e.target.value)}
-						placeholder="AMA with renowed JP VA John Doe"
-						type="text"
-						value={formData.title}
-					/>
-					{errors.title && <p className="mt-1 text-sm text-misc-danger">{errors.title}</p>}
-				</div>
+				<TextField
+					error={errors.title}
+					id="title"
+					label="Title *"
+					maxLength={255}
+					onChange={(value) => updateFormData('title', value)}
+					placeholder="AMA with renowned JP VA John Doe"
+					value={formData.title}
+				/>
 				{duplicateChannelWarning && (
 					<p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
 						{duplicateChannelWarning}
@@ -389,30 +384,22 @@ export function CreateAMAForm() {
 					selectedId="guestQueueId"
 					value={formData.guestQueueId}
 				/>
-				<div>
-					<label
-						className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2"
-						htmlFor="allowedQuestionUploads"
-					>
-						Allowed Question Uploads
-					</label>
-					<input
-						className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
-						id="allowedQuestionUploads"
-						max={10}
-						min={0}
-						onChange={(e) => updateFormData('allowedQuestionUploads', e.target.value)}
-						placeholder="0"
-						type="number"
-						value={formData.allowedQuestionUploads}
-					/>
-					{errors.allowedQuestionUploads && (
-						<p className="mt-1 text-sm text-misc-danger">{errors.allowedQuestionUploads}</p>
-					)}
-					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-						Number of file attachments (0-10) users can include with their questions
-					</p>
-				</div>
+				<TextField
+					error={errors.allowedQuestionUploads}
+					helper={
+						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+							Number of file attachments (0-10) users can include with their questions
+						</p>
+					}
+					id="allowedQuestionUploads"
+					label="Allowed Question Uploads"
+					max={10}
+					min={0}
+					onChange={(value) => updateFormData('allowedQuestionUploads', value)}
+					placeholder="0"
+					type="number"
+					value={formData.allowedQuestionUploads}
+				/>
 			</div>
 
 			{/* Prompt Mode Selection */}
@@ -438,8 +425,10 @@ export function CreateAMAForm() {
 						)}
 
 						{promptMode === 'raw' && (
-							<RawPromptField
+							<RawJsonField
 								error={errors.promptRaw}
+								id="promptRaw"
+								label="Raw JSON Prompt"
 								onFormatClick={() => {
 									try {
 										const parsed = JSON.parse(formData.promptRaw);
@@ -470,25 +459,14 @@ export function CreateAMAForm() {
 				</div>
 			</div>
 
-			<div className="flex gap-4">
-				<Button
-					className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-					isDisabled={createAMA.isPending}
-					type="submit"
-				>
-					{createAMA.isPending ? 'Creating...' : 'Create AMA Session'}
-				</Button>
-				{/* Grant flow: `router.back()` would leave the flow and drop the one-time `?token=` param. */}
-				{!grant && (
-					<Button
-						className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
-						onPress={() => router.back()}
-						type="button"
-					>
-						Cancel
-					</Button>
-				)}
-			</div>
+			{/* Grant flow: `router.back()` would leave the flow and drop the one-time `?token=` param. */}
+			<FormActions
+				isSubmitting={createAMA.isPending}
+				onCancel={() => router.back()}
+				pendingLabel="Creating..."
+				showCancel={!grant}
+				submitLabel="Create AMA Session"
+			/>
 		</form>
 	);
 }

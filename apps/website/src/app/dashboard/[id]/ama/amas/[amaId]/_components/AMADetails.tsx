@@ -12,6 +12,7 @@ import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { Skeleton } from '@/components/common/Skeleton';
+import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { getChannelIcon } from '@/utils/channels';
 import { formatDate, parseIntegerInput } from '@/utils/util';
@@ -258,29 +259,21 @@ export function AMADetails() {
 					)}
 				</div>
 				<div className="space-y-4">
-					<div>
-						<label
-							className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-							htmlFor="edit-title"
-						>
-							Title
-						</label>
-						{editing ? (
-							<>
-								<input
-									className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
-									id="edit-title"
-									maxLength={255}
-									onChange={(e) => updateConfigField('title', e.target.value)}
-									type="text"
-									value={configForm.title}
-								/>
-								{configErrors.title && <p className="mt-1 text-sm text-misc-danger">{configErrors.title}</p>}
-							</>
-						) : (
+					{editing ? (
+						<TextField
+							error={configErrors.title}
+							id="edit-title"
+							label="Title"
+							maxLength={255}
+							onChange={(value) => updateConfigField('title', value)}
+							value={configForm.title}
+						/>
+					) : (
+						<div>
+							<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Title</p>
 							<p className="text-lg text-primary dark:text-primary-dark">{ama.title}</p>
-						)}
-					</div>
+						</div>
+					)}
 
 					<div>
 						<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Status</p>
@@ -305,34 +298,25 @@ export function AMADetails() {
 						<p className="text-lg text-primary dark:text-primary-dark">{formatDate(new Date(ama.createdAt))}</p>
 					</div>
 
-					<div>
-						<label
-							className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-							htmlFor="edit-allowed-uploads"
-						>
-							Allowed Uploads
-						</label>
-						{editing ? (
-							<>
-								<input
-									className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
-									id="edit-allowed-uploads"
-									max={10}
-									min={0}
-									onChange={(e) => updateConfigField('allowedQuestionUploads', e.target.value)}
-									type="number"
-									value={configForm.allowedQuestionUploads}
-								/>
-								{configErrors.allowedQuestionUploads && (
-									<p className="mt-1 text-sm text-misc-danger">{configErrors.allowedQuestionUploads}</p>
-								)}
-							</>
-						) : (
+					{editing ? (
+						<TextField
+							error={configErrors.allowedQuestionUploads}
+							id="edit-allowed-uploads"
+							label="Allowed Uploads"
+							max={10}
+							min={0}
+							onChange={(value) => updateConfigField('allowedQuestionUploads', value)}
+							type="number"
+							value={configForm.allowedQuestionUploads}
+						/>
+					) : (
+						<div>
+							<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Allowed Uploads</p>
 							<p className="text-lg text-primary dark:text-primary-dark">
 								{ama.allowedQuestionUploads} {ama.allowedQuestionUploads === 1 ? 'file' : 'files'} per question
 							</p>
-						)}
-					</div>
+						</div>
+					)}
 				</div>
 			</div>
 

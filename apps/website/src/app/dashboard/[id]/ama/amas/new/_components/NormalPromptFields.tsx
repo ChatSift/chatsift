@@ -1,3 +1,6 @@
+import { TextAreaField } from '@/components/common/TextAreaField';
+import { TextField } from '@/components/common/TextField';
+
 interface NormalPromptFieldsProps {
 	readonly description: string;
 	readonly errors: {
@@ -28,70 +31,46 @@ export function NormalPromptFields({
 }: NormalPromptFieldsProps) {
 	return (
 		<div className="space-y-4">
-			<div>
-				<label className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2" htmlFor="plainText">
-					Plain Text (optional, max 100 characters)
-				</label>
-				<input
-					className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
-					id="plainText"
-					maxLength={100}
-					onChange={(e) => onPlainTextChange(e.target.value)}
-					placeholder="Message content above the embed"
-					type="text"
-					value={plainText}
-				/>
-				{errors.plainText && <p className="mt-1 text-sm text-misc-danger">{errors.plainText}</p>}
-			</div>
+			<TextField
+				error={errors.plainText}
+				id="plainText"
+				label="Plain Text (optional, max 100 characters)"
+				maxLength={100}
+				onChange={onPlainTextChange}
+				placeholder="Message content above the embed"
+				value={plainText}
+			/>
 
-			<div>
-				<label className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2" htmlFor="description">
-					Description (optional, max 4000 characters)
-				</label>
-				<textarea
-					className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
-					id="description"
-					maxLength={4_000}
-					onChange={(e) => onDescriptionChange(e.target.value)}
-					placeholder="Embed description text"
-					rows={4}
-					value={description}
-				/>
-				{errors.description && <p className="mt-1 text-sm text-misc-danger">{errors.description}</p>}
-			</div>
+			<TextAreaField
+				error={errors.description}
+				id="description"
+				label="Description (optional, max 4000 characters)"
+				maxLength={4_000}
+				onChange={onDescriptionChange}
+				placeholder="Embed description text"
+				rows={4}
+				value={description}
+			/>
 
-			<div>
-				<label className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2" htmlFor="imageURL">
-					Image URL (optional)
-				</label>
-				<input
-					className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
-					id="imageURL"
-					onChange={(e) => onImageURLChange(e.target.value)}
-					placeholder="https://example.com/image.png"
-					type="url"
-					value={imageURL}
-				/>
-				{errors.imageURL && <p className="mt-1 text-sm text-misc-danger">{errors.imageURL}</p>}
-			</div>
+			<TextField
+				error={errors.imageURL}
+				id="imageURL"
+				label="Image URL (optional)"
+				onChange={onImageURLChange}
+				placeholder="https://example.com/image.png"
+				type="url"
+				value={imageURL}
+			/>
 
-			<div>
-				<label
-					className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2"
-					htmlFor="thumbnailURL"
-				>
-					Thumbnail URL (optional)
-				</label>
-				<input
-					className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
-					id="thumbnailURL"
-					onChange={(e) => onThumbnailURLChange(e.target.value)}
-					placeholder="https://example.com/thumbnail.png"
-					type="url"
-					value={thumbnailURL}
-				/>
-				{errors.thumbnailURL && <p className="mt-1 text-sm text-misc-danger">{errors.thumbnailURL}</p>}
-			</div>
+			<TextField
+				error={errors.thumbnailURL}
+				id="thumbnailURL"
+				label="Thumbnail URL (optional)"
+				onChange={onThumbnailURLChange}
+				placeholder="https://example.com/thumbnail.png"
+				type="url"
+				value={thumbnailURL}
+			/>
 		</div>
 	);
 }
