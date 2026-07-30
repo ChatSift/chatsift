@@ -50,7 +50,7 @@ export default {
 			{
 				source: '/invites/modmail',
 				destination:
-					'https://discord.com/oauth2/authorize?client_id=1530137759304515647&permissions=274878024704&scope=applications.commands%20bot',
+					'https://discord.com/oauth2/authorize?client_id=1530137759304515647&permissions=360777370624&scope=applications.commands%20bot',
 				permanent: true,
 			},
 		];
