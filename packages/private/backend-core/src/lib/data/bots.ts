@@ -1,4 +1,5 @@
 import type { BotId } from '@chatsift/core';
+import type { Recipe } from 'bin-rw';
 import { createRecipe, DataType } from 'bin-rw';
 import { RedisStore } from './_store.js';
 
@@ -16,9 +17,14 @@ export type GuildListKey = BotId | `${BotId}#${string}`;
 
 export const GuildList = new RedisStore<BotInfo, GuildListKey>({
 	TTL: null,
-	recipe: createRecipe({
-		guilds: [DataType.String],
-	}),
+	// bin-rw's own inferred type is `(string | null)[] | null` for `guilds` -- every entry here is always a
+	// real snowflake, never `null`, so the cast corrects that.
+	recipe: createRecipe(
+		{
+			guilds: [DataType.String],
+		},
+		{ versioned: true },
+	) as Recipe<BotInfo>,
 	makeKey: (id: GuildListKey) => `bot:${id}`,
 	storeOld: false,
 });

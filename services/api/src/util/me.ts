@@ -16,7 +16,7 @@ import type { DashboardGrants } from '@chatsift/db';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
 import type { Recipe } from 'bin-rw';
-import { createRecipe, DataType } from 'bin-rw';
+import { createRecipe, DataType, stringLiteral } from 'bin-rw';
 import { apiForGuild, discordAPIOAuth } from './discordAPI.js';
 import { getInstanceBranding } from './discordApplication.js';
 
@@ -44,43 +44,38 @@ export type Me = Pick<APIUser, 'avatar' | 'discriminator' | 'global_name' | 'id'
 
 const CACHE_TTL_MS = 5 * 60 * 1_000; // 5 minutes
 
-// bin-rw has no concept of a string-literal-union field -- `bots` round-trips as a plain `string[]` -- so the
-// stored shape is `Me` with that one field widened, and `fetchMe` casts back to `BotId[]` on read. Safe because
-// this store only ever gets written the values `BOTS.filter(...)` below produces.
-type WireMe = Omit<Me, 'guilds'> & { guilds: (Omit<MeGuild, 'bots'> & { bots: string[] })[] };
-
-const MeStore = new RedisStore<WireMe>({
+const MeStore = new RedisStore<Me>({
 	TTL: CACHE_TTL_MS,
-	// As in `channels.ts`, `DataType.String` types as non-nullable `string` even though the underlying
-	// `Reader`/`Writer` already treat null and empty-string identically on the wire -- `global_name`/`avatar`/
-	// `icon` really are `string | null` and round-trip correctly at runtime, the cast just corrects the type.
-	recipe: createRecipe({
-		id: DataType.String,
-		username: DataType.String,
-		discriminator: DataType.String,
-		global_name: DataType.String,
-		avatar: DataType.String,
-		isGlobalAdmin: DataType.Bool,
-		guilds: [
-			{
-				id: DataType.String,
-				name: DataType.String,
-				icon: DataType.String,
-				meCanManage: DataType.Bool,
-				bots: [DataType.String],
-				customInstanceId: DataType.String,
-				customInstanceLabel: DataType.String,
-				customInstanceIconUrl: DataType.String,
-			},
-		],
-	}) as Recipe<WireMe>,
+	// bin-rw's own inferred type is wider than `Me`: every `DataType.String`/`stringLiteral` field decodes as
+	// `string | null` (or `BotId | null` for `bots`), whereas `global_name`/`avatar`/`icon` are the only fields
+	// that are genuinely nullable here -- the cast corrects that.
+	recipe: createRecipe(
+		{
+			id: DataType.String,
+			username: DataType.String,
+			discriminator: DataType.String,
+			global_name: DataType.String,
+			avatar: DataType.String,
+			isGlobalAdmin: DataType.Bool,
+			guilds: [
+				{
+					id: DataType.String,
+					name: DataType.String,
+					icon: DataType.String,
+					meCanManage: DataType.Bool,
+					bots: [stringLiteral<BotId>()],
+					customInstanceId: DataType.String,
+					customInstanceLabel: DataType.String,
+					customInstanceIconUrl: DataType.String,
+				},
+			],
+		},
+		{ versioned: true },
+	) as Recipe<Me>,
 	// Hashed rather than keyed by the raw access token -- unlike the in-memory `Map` this replaced, this value is
 	// persisted in redis (visible to anything with redis access via KEYS/MONITOR/RDB dumps), so the key itself
 	// shouldn't double as a live OAuth credential.
-	// `me2:` (bumped from `me:` when #216 P2 added the `customInstance*` fields) -- `bin-rw`'s recipe is a
-	// positional wire format with no version marker, so a pre-existing `me:`-keyed entry would otherwise
-	// misdecode against the new, wider recipe for up to the 5-minute TTL rather than just missing the cache.
-	makeKey: (tokenHash: string) => `me2:${tokenHash}`,
+	makeKey: (tokenHash: string) => `me:${tokenHash}`,
 	storeOld: false,
 });
 
@@ -92,7 +87,7 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 	if (!force) {
 		const cached = await MeStore.get(tokenHash);
 		if (cached) {
-			return { ...cached, guilds: cached.guilds.map((guild) => ({ ...guild, bots: guild.bots as BotId[] })) };
+			return cached;
 		}
 	}
 

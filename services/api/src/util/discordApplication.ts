@@ -78,7 +78,7 @@ const brandingPending = new Map<string, Promise<InstanceBranding>>();
 
 const brandingStore = new RedisStore<{ iconUrl: string | null }>({
 	TTL: BRANDING_TTL_MS,
-	recipe: createRecipe({ iconUrl: DataType.String }),
+	recipe: createRecipe({ iconUrl: DataType.String }, { versioned: true }),
 	makeKey: (instanceId: string) => `modmail:instance-branding:${instanceId}`,
 	storeOld: false,
 });

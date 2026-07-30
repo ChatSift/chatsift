@@ -55,30 +55,33 @@ async function fetchGuildChannelsRaw(guildId: string, api: API): Promise<GuildCh
 
 const channelsFetcher = createCachedGuildFetcher(
 	'channels',
-	// bin-rw's `DataType.String` maps to `string` in its own types, but the `Reader`/`Writer` pair actually treat
-	// null/undefined and an empty string identically on the wire (both become the null marker byte, both decode
-	// back to `null`) -- so this recipe already round-trips `parent_id`/`emoji_id`/`emoji_name`'s real `string |
-	// null` shape correctly at runtime, it's only the *type* that needs correcting here.
-	createRecipe({
-		items: [
-			{
-				id: DataType.String,
-				name: DataType.String,
-				parent_id: DataType.String,
-				type: DataType.I32,
-				position: DataType.I32,
-				availableTags: [
-					{
-						id: DataType.String,
-						name: DataType.String,
-						moderated: DataType.Bool,
-						emoji_id: DataType.String,
-						emoji_name: DataType.String,
-					},
-				],
-			},
-		],
-	}) as Recipe<{ items: GuildChannelInfo[] }>,
+	// bin-rw's own inferred type is wider than `GuildChannelInfo` -- every `DataType.String` field decodes
+	// as `string | null` and `type` as `number | null`, whereas the app-level shape has `parent_id` as the
+	// only genuinely-nullable field and `type` narrowed to `GuildChannelType` -- so the cast below is still
+	// needed to align the two, just not for the null/empty-string reason it used to be.
+	createRecipe(
+		{
+			items: [
+				{
+					id: DataType.String,
+					name: DataType.String,
+					parent_id: DataType.String,
+					type: DataType.I32,
+					position: DataType.I32,
+					availableTags: [
+						{
+							id: DataType.String,
+							name: DataType.String,
+							moderated: DataType.Bool,
+							emoji_id: DataType.String,
+							emoji_name: DataType.String,
+						},
+					],
+				},
+			],
+		},
+		{ versioned: true },
+	) as Recipe<{ items: GuildChannelInfo[] }>,
 	fetchGuildChannelsRaw,
 );
 

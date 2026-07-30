@@ -1,6 +1,7 @@
 import type { BotId, Logger } from '@chatsift/backend-core';
 import type { API, APIRole, Snowflake } from '@discordjs/core';
 import { badRequest, internal } from '@hapi/boom';
+import type { Recipe } from 'bin-rw';
 import { createRecipe, DataType } from 'bin-rw';
 import { createCachedGuildFetcher } from './guildDataCache.js';
 
@@ -18,17 +19,22 @@ async function fetchGuildRolesRaw(guildId: string, api: API): Promise<GuildRoleI
 
 const rolesFetcher = createCachedGuildFetcher(
 	'roles',
-	createRecipe({
-		items: [
-			{
-				id: DataType.String,
-				name: DataType.String,
-				color: DataType.I32,
-				position: DataType.I32,
-				managed: DataType.Bool,
-			},
-		],
-	}),
+	// bin-rw's own inferred type is wider than `GuildRoleInfo` -- every field decodes nullable, but
+	// `fetchGuildRolesRaw` above already guarantees non-null values -- the cast corrects that.
+	createRecipe(
+		{
+			items: [
+				{
+					id: DataType.String,
+					name: DataType.String,
+					color: DataType.I32,
+					position: DataType.I32,
+					managed: DataType.Bool,
+				},
+			],
+		},
+		{ versioned: true },
+	) as Recipe<{ items: GuildRoleInfo[] }>,
 	fetchGuildRolesRaw,
 );
 

@@ -27,7 +27,7 @@
 		"@discordjs/rest": "3.0.0-dev.1783513686-6e81ea771",
 		"@sapphire/async-queue": "^1.5.5",
 		"@sapphire/discord-utilities": "^4.0.0",
-		"bin-rw": "^0.1.1",
+		"bin-rw": "^0.2.0",
 		"nanoid": "^6.0.0"
 	}
 }
