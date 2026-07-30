@@ -2,9 +2,11 @@
 
 **Tracking issue:** [#216](https://github.com/ChatSift/ChatSift/issues/216). **Depends on:** M5 (`06-modmail-port.md`) and the thread-history work ([01-architecture.md §7](01-architecture.md#7-modmail-thread-history-dashboard-view-261)) — both landed. **Live production impact:** yes, but additive: no data migration, and the public instance's behavior is unchanged for every guild that doesn't have a custom instance.
 
-## Status: P1/P2/P3 shipped and merged to `main` (#278/#279/#280); P4 (DM mode) implemented + manually verified 2026-07-29, not yet committed; P5 mostly pulled forward into P4 already
+## Status: P1–P4 shipped and merged to `main` (#278/#279/#280/#281); P5 implemented + manually verified 2026-07-30
 
-**Picking this up in a new session? Read this before touching P5:**
+P5's one remaining item — `lib/threadClose.ts`'s `origin` branching — is done: `origin === 'dm'` now skips the private-thread lock and nuke scheduling entirely (the farewell still posts, since `userChannelId` already correctly points at the DM channel for either origin). Verified live 2026-07-30 with the same-token test guild (recipe below): opened a DM ticket, ran `/close` with `nuke_delay_minutes` deliberately set to 5 so the pre-fix behavior would have shown up immediately, and confirmed no `scheduled_thread_nukes` row was written, no "Failed to lock the user private thread" warning was logged, and the farewell embed landed in DMs. `turbo run build lint test` green throughout (151 tests). Left staged/uncommitted per this repo's CLAUDE.md. Only P6 (resync + operations) remains.
+
+**Picking this up in a new session? Read this before touching P4's history:**
 
 - P1/P2/P3 are committed on `main`. P4 (below) is implemented and manually verified this session (three rounds — an initial pass plus two rounds of bugs found live and fixed) but left staged/uncommitted per this repo's CLAUDE.md — check `git status`/`git diff` before assuming what's merged.
 - **Column rename, not just new columns:** `threads.user_thread_id` is renamed to `user_channel_id` (schema, a hand-fixed migration — see below — kanel types, every `services/modmail-bot` call site). The name was already misleading once a DM channel could live there; fixed now rather than carrying the confusion forward. The matching index is `threads_user_channel_id_idx`. `lib/ticketCreation.ts`'s `privateThreadId` params were renamed to `userChannelId` for the same reason — that function is now called from both the panel and DM paths.
@@ -233,11 +235,11 @@ _Verify:_ partner guild shows the custom avatar and label on the guild card, nav
 
 _Verify:_ DM opener → category prompt → pick → mod-forum thread with the right tag → opener relayed → greeting after (regardless of `greetingBeforeOpener`); a mid-pick message gets the nudge and is not relayed; a no-category guild skips straight to thread creation; a blocked user and a non-member are both rejected; a user with an already-open ticket gets redirected instead of opening a second one; a blocked user spamming DMs only costs one Discord API call per cooldown window, not per message. **All confirmed live** this session against the same-token test guild — see the status section above.
 
-### P5 — DM-mode divergences and error surfaces
+### P5 — DM-mode divergences and error surfaces — implemented + manually verified 2026-07-30
 
-Most of this phase's originally-planned scope shipped as part of P4 already (see the status section above) — what's left:
+Most of this phase's originally-planned scope shipped as part of P4 already (see the status section above) — what was left:
 
-- `lib/threadClose.ts`: `origin = 'dm'` skips the private-thread lock and never schedules a nuke; the farewell posts into the DM. **This is the only remaining item with real code to write.**
+- `lib/threadClose.ts`: `origin = 'dm'` skips the private-thread lock and never schedules a nuke; the farewell posts into the DM (unchanged — it already worked for both origins, since `userChannelId` holds the DM channel id regardless). **Done** — the whole lock+nuke block is now wrapped in `if (thread.origin !== 'dm')`.
 - ~~`lib/threadNukeSweep.ts`, `lib/pendingTicketSweep.ts`: skip DM-origin threads.~~ Confirmed during P4 that neither needs any change: a DM-origin ticket never gets a row in `scheduled_thread_nukes` (nuking is scheduled at close time, which doesn't handle DM tickets until the item above lands) or `pending_tickets` (DM openers never write one at all, decision 8) in the first place.
 - ~~`lib/preventThreadArchive.ts`: skip DM-origin threads.~~ Done in P4 (`origin != 'dm'` filter).
 - ~~`lib/relay.ts`: resequence user-copy-before-log-copy; typed `UndeliverableUserError`.~~ Done in P4.
@@ -245,7 +247,7 @@ Most of this phase's originally-planned scope shipped as part of P4 already (see
 - ~~`components/createTicket.ts`: inert redirect reply while DM mode is on (decision 9).~~ Done in P4, plus the same guard added to `categorySelect.ts` for defense-in-depth.
 - ~~Concurrency clamped to 1 in DM mode regardless of `max_concurrent_threads`.~~ Done in P4, as a free side effect of the existing-open-ticket redirect — no dedicated enforcement code was needed.
 
-_Verify:_ close a DM ticket (farewell delivered, no lock/nuke attempted, mod thread archived).
+_Verify:_ close a DM ticket (farewell delivered, no lock/nuke attempted, mod thread archived). **Done** — confirmed live 2026-07-30, see the status section above.
 
 ### P6 — Resync + operations
 
@@ -261,7 +263,7 @@ _Verify:_ move a test guild from the public instance to a custom one and back; a
 - **Onboarding order matters.** The public bot stops acting on a guild within 60s of the row appearing. Insert the row before starting the custom deployment and that window is never live; do it the other way around and both bots briefly relay.
 - **Tokens for partner bots live in the main stack's database.** Unavoidable given decision 2 — the API must be able to act _as_ the partner's bot to post panels and mint snippet commands. Encrypted at rest; the encryption key stays in `.env.private`.
 - **A swap orphans application-scoped objects.** Snippet commands and panel messages belong to the application that created them. P6's resync is the answer; until it runs, a swapped guild has dead `/snippet` commands and a panel whose button dispatches to a bot that no longer owns the guild (and which, thanks to P1's ownership filter, answers with the "served by <label>" message rather than doing something wrong).
-- **`origin` is the only thing distinguishing a DM channel from a private thread** in `user_channel_id` (renamed from `user_thread_id` in P4 — see the status section). Any future code path that locks, archives or deletes `user_channel_id` must branch on it. `lib/threadClose.ts` (P5's one remaining item) is the only place that still needs this; every sweep already either filters `origin` (`preventThreadArchive.ts`) or is structurally unaffected (`threadNukeSweep.ts`/`pendingTicketSweep.ts`, confirmed in P4).
+- **`origin` is the only thing distinguishing a DM channel from a private thread** in `user_channel_id` (renamed from `user_thread_id` in P4 — see the status section). Any future code path that locks, archives or deletes `user_channel_id` must branch on it. `lib/threadClose.ts` now does (P5, done); every sweep already either filters `origin` (`preventThreadArchive.ts`) or is structurally unaffected (`threadNukeSweep.ts`/`pendingTicketSweep.ts`, confirmed in P4).
 - **DM mode ignores real settings.** `greeting_before_opener` and `max_concurrent_threads` remain editable and visibly do nothing (decision 6) — `max_concurrent_threads` is enforced regardless, but implicitly (the existing-open-ticket redirect never consults it), not by reading and comparing against the setting. Both, plus the deletion-delay/nuke toggle, now show a warning-styled caveat in the dashboard (P4), not just quiet muted text — the tooltip-only mitigation from the original plan wasn't enough on its own, per live feedback during P4.
 
 ## Explicitly out of scope
