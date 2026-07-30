@@ -81,8 +81,8 @@ behalf.
 ## Custom ModMail instances (#216)
 
 Branded, single-guild ModMail deployments for approved close partners — see
-[roadmap/08-modmail-custom-instances.md](roadmap/08-modmail-custom-instances.md) for the full design. Hand-managed
-by design (decision 1 in that doc): there is no dashboard/API provisioning flow, since a `modmail_instances` row
+[roadmap/01-architecture.md §8](roadmap/01-architecture.md#8-custom-modmail-instances-216) for the full design. Hand-managed
+by design: there is no dashboard/API provisioning flow, since a `modmail_instances` row
 holds a live bot token. The steps below are things only an operator with direct Postgres/compose access runs —
 not something an agent should do on your behalf.
 

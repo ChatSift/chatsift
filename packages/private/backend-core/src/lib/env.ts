@@ -61,7 +61,7 @@ export const envSchema = z.object({
 
 	// ModMail
 	MODMAIL_BOT_TOKEN: z.string(),
-	// Set only on a custom-instance deployment (#216, docs/roadmap/08-modmail-custom-instances.md), in
+	// Set only on a custom-instance deployment (#216, docs/roadmap/01-architecture.md §8), in
 	// that service's own docker-compose `environment:` block -- never in .env.public/.env.private,
 	// since it must differ per partner deployment sharing the same env files. Absent (the public
 	// deployment) means "this process is the public ModMail instance".

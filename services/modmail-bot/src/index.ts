@@ -221,7 +221,7 @@ function registerMessageRelay(client: Client): void {
 		// lookups below, which resolve an open DM-origin ticket (its `user_channel_id` is the DM channel
 		// itself, see schema.sql) the same way a private thread does, or fall all the way through to
 		// `handleDmMessage` (#216, P4) once none of them match. A guild message this deployment doesn't
-		// own must never be relayed -- see docs/roadmap/08-modmail-custom-instances.md.
+		// own must never be relayed -- see docs/roadmap/01-architecture.md §8.
 		if (message.guild_id && !ownsGuild(message.guild_id)) {
 			return;
 		}
@@ -457,7 +457,7 @@ function registerSnippetCommandResolver(): void {
 export async function bin(client: Client): Promise<void> {
 	// Must run before the gateway connects (see bin.ts) -- once it's live, an interaction for a guild
 	// this deployment doesn't own (#216) gets the "served by <label>" reply instead of being
-	// dispatched to a handler. See docs/roadmap/08-modmail-custom-instances.md.
+	// dispatched to a handler. See docs/roadmap/01-architecture.md §8.
 	setGuildOwnershipFilter(resolveGuildOwnerLabel);
 
 	await registerComponentHandlers(join(baseDir, 'components'));

@@ -45,7 +45,7 @@ export interface DmPendingOpener {
  * serialize its full content into Redis, same reasoning as `PendingTicketStore` in `lib/pendingTicket.ts`
  * (whose TTL this reuses). No durable-table counterpart is needed the way `pending_tickets` backs that
  * store: there's no private-thread channel for `lib/pendingTicketSweep.ts` to clean up on timeout, a DM
- * channel just sits there unless the user comes back to it. See docs/roadmap/08-modmail-custom-instances.md.
+ * channel just sits there unless the user comes back to it. See docs/roadmap/01-architecture.md §8.
  */
 export const DmPendingOpenerStore = new RedisStore<DmPendingOpener>({
 	TTL: PENDING_TICKET_TTL_MS,

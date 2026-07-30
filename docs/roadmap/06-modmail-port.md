@@ -190,7 +190,7 @@ From the design discussion (2026-07-22), kept here so M5's implementation doesn'
 
 **Design constraint this puts on M5:** don't hardcode "a ticket always starts via a private thread" deep into the relay/close/snippet/block/alert logic. The ticket-creation entrypoint (panel button + private thread, vs. a future DM) should be a swappable front door feeding the same `Thread`/`ThreadMessage` model — which the schema above already supports, since `userThreadId` is nullable and the mod-forum side doesn't care how a thread originated. No further action needed for M5 beyond keeping that boundary clean; don't build the env flag, the dashboard section, or DM support itself this milestone.
 
-Planned as its own effort, tracked as [#216](https://github.com/ChatSift/ChatSift/issues/216): see [08-modmail-custom-instances.md](08-modmail-custom-instances.md).
+Planned as its own effort, tracked as [#216](https://github.com/ChatSift/ChatSift/issues/216): shipped 2026-07-30, see [01-architecture.md §8](01-architecture.md#8-custom-modmail-instances-216).
 
 ## Verification
 

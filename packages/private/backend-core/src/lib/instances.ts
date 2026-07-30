@@ -5,7 +5,7 @@ import { decrypt } from './crypt.js';
 
 /**
  * A decoded `modmail_instances` row -- `token` is the plaintext bot token (decrypted once here, not
- * on every read), see docs/roadmap/08-modmail-custom-instances.md.
+ * on every read), see docs/roadmap/01-architecture.md §8.
  */
 export interface Instance {
 	readonly guildId: string;

@@ -23,7 +23,7 @@ initContext({ db, logger, redis });
 
 // Throws (crashing this process) if `ENV.MODMAIL_INSTANCE_ID` is set but matches no
 // `modmail_instances` row -- a custom deployment with no resolvable identity can't safely run at
-// all. See docs/roadmap/08-modmail-custom-instances.md.
+// all. See docs/roadmap/01-architecture.md §8.
 await loadInstances();
 
 const selfInstance = getSelfInstance();

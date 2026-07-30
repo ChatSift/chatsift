@@ -304,7 +304,7 @@ export type ResyncModmailResult = ResyncModmailContract['response'];
 
 /**
  * #216 P6 -- reconciles snippet commands and panel messages against whichever application currently owns
- * `guildId`, for use after a custom-instance swap (see docs/roadmap/08-modmail-custom-instances.md). Panels/
+ * `guildId`, for use after a custom-instance swap (see docs/roadmap/01-architecture.md §8). Panels/
  * snippets are refetched on success since a recreated command/reposted panel changes their `commandId`/
  * `messageId`, which the list views don't otherwise know to refresh.
  */

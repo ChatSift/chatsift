@@ -5,7 +5,7 @@ import { useModmailConfig } from '@/api/routes/modmail';
 
 /**
  * Panels themselves are untouched by DM mode in P4 -- a click is only made inert in P5 (decision 9 in
- * docs/roadmap/08-modmail-custom-instances.md). This banner is the read-only half of that: telling
+ * docs/roadmap/01-architecture.md §8). This banner is the read-only half of that: telling
  * whoever's looking at this page why a panel they might still see posted in the server won't do
  * anything useful for a user right now.
  */

@@ -58,7 +58,7 @@ export interface ResolvedGuildAPI {
 	 * Discord data per `(botId, guildId)` (`guildDataCache.ts`, `discordApplication.ts`). Folding this into a
 	 * cache key means a guild swapping instances (or moving on/off the public deployment) naturally lands on
 	 * a fresh cache entry instead of serving data fetched through an application that no longer owns the
-	 * guild, see docs/roadmap/08-modmail-custom-instances.md's P2 section.
+	 * guild, see docs/roadmap/01-architecture.md §8.
 	 */
 	cacheKey: string;
 }
@@ -66,7 +66,7 @@ export interface ResolvedGuildAPI {
 /**
  * Resolves which `API` client (i.e. bot token) owns a given `(botId, guildId)` pair. Only `MODMAIL` can ever
  * resolve to a custom instance -- `AMA` (and any other future bot) always uses its single public token,
- * since custom instances are a ModMail-only concept (see docs/roadmap/08-modmail-custom-instances.md).
+ * since custom instances are a ModMail-only concept (see docs/roadmap/01-architecture.md §8).
  */
 export function resolveGuildAPI(botId: BotId, guildId: Snowflake): ResolvedGuildAPI {
 	if (botId === 'MODMAIL') {

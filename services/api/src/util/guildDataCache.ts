@@ -23,7 +23,7 @@ export interface CachedGuildFetcher<TResult> {
  *    (`resolveGuildAPI`'s `cacheKey`, `'public'` or a custom instance's id) additionally means a guild moving
  *    between the public deployment and a custom instance (or between two instances) lands on a fresh cache entry
  *    instead of serving data fetched through an application that no longer owns the guild -- see
- *    docs/roadmap/08-modmail-custom-instances.md's P2 section;
+ *    docs/roadmap/01-architecture.md §8;
  *  - in-flight de-duplication (still in-process -- this only needs to protect a single replica from racing itself
  *    on overlapping requests for the same key before the first one has written to redis), so overlapping calls for
  *    the same (botId, guildId) -- e.g. a forced refresh landing while an earlier fetch for the same key hasn't

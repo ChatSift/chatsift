@@ -114,13 +114,13 @@ CREATE INDEX ama_questions_ama_id_idx ON ama_questions (ama_id);
 -- and services/api routes every Discord call for that guild through this instance's token instead of
 -- MODMAIL_BOT_TOKEN. Rows are inserted by hand (see docs/workflow.md) alongside adding the matching
 -- docker-compose service -- there is deliberately no API/dashboard CRUD for this table, since it
--- holds a live bot token. See docs/roadmap/08-modmail-custom-instances.md for the full design.
+-- holds a live bot token. See docs/roadmap/01-architecture.md §8 for the full design.
 CREATE TABLE modmail_instances (
   -- Slug, matched against the deployment's own MODMAIL_INSTANCE_ID env var. Stable; renaming one
   -- means redeploying the service that carries it.
   id         TEXT PRIMARY KEY,
   -- One instance per guild, enforced here rather than in application code -- the whole ownership
-  -- model in docs/roadmap/08-modmail-custom-instances.md rests on this being unambiguous.
+  -- model in docs/roadmap/01-architecture.md §8 rests on this being unambiguous.
   guild_id   TEXT NOT NULL UNIQUE,
   -- The custom bot application's token, encrypted at rest with ENCRYPTION_KEY (AES-256-GCM), same
   -- key the JWT signing path already uses. Encrypted rather than plain because a Postgres dump or a
@@ -240,7 +240,7 @@ CREATE TABLE threads (
   -- for the M5 panel flow ('panel' origin below), or the opener's DM channel for DM mode (#216, P4).
   -- Named generically (not "...thread_id") because it isn't always a thread; a DM channel id is stable
   -- per (user, bot application) pair, which is what lets the relay/edit/delete-sync/`/reply` code work
-  -- unchanged for both origins -- see docs/roadmap/08-modmail-custom-instances.md.
+  -- unchanged for both origins -- see docs/roadmap/01-architecture.md §8.
   user_channel_id                TEXT,
   -- How this ticket was opened. 'panel' is the M5 flow (user_channel_id is a real private thread this
   -- bot created and may lock/delete); 'dm' means user_channel_id is the opener's DM channel id, which

@@ -209,7 +209,7 @@ services:
       - ./logs/modmail-bot:/usr/chatsift/logs/modmail-bot
 
   # Template for a branded, single-guild ModMail deployment (#216) -- see
-  # docs/roadmap/08-modmail-custom-instances.md and the onboarding/offboarding runbook in
+  # docs/roadmap/01-architecture.md §8 and the onboarding/offboarding runbook in
   # docs/workflow.md. Copy this block once per approved partner (one block per instance -- these are
   # hand-managed, not self-serve, see decision 1 in the roadmap doc), replacing `<partner-slug>`
   # throughout with that partner's `modmail_instances.id` row. Everything else (image, build context,

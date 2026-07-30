@@ -24,7 +24,7 @@ export interface ResyncModmailResult {
 }
 
 /**
- * See docs/roadmap/08-modmail-custom-instances.md, P6. A guild swapping which application owns it (public to/from
+ * See docs/roadmap/01-architecture.md §8. A guild swapping which application owns it (public to/from
  * a custom instance, or between two custom instances) orphans everything Discord scopes to an application id --
  * a snippet's guild command and a panel's message both belong to whoever created them, not to the guild, so
  * the newly-owning application doesn't just "see" them. This route reconciles both against whichever
