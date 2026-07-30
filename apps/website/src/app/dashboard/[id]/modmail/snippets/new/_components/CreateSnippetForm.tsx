@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { SnippetFormData, SnippetFormErrors } from '../../_components/snippetForm';
 import { mapSnippetApiError, mapSnippetIssues } from '../../_components/snippetForm';
+import { SnippetNamePreviewHelper } from '../../_components/snippetFormHelpers';
 import type { CreateModmailSnippetBody } from '@/api/routes/modmail';
 import { useCreateModmailSnippet } from '@/api/routes/modmail';
 import { FormActions } from '@/components/common/FormActions';
@@ -70,11 +71,7 @@ export function CreateSnippetForm() {
 
 				<TextField
 					error={errors.name}
-					helper={
-						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-							Will be usable as <span className="font-mono">/{previewName || '...'}</span>
-						</p>
-					}
+					helper={<SnippetNamePreviewHelper name={previewName} />}
 					id="snippet-name"
 					label="Name *"
 					maxLength={32}

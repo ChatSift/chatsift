@@ -324,7 +324,7 @@ export function CreateAMAForm() {
 					label="Title *"
 					maxLength={255}
 					onChange={(value) => updateFormData('title', value)}
-					placeholder="AMA with renowed JP VA John Doe"
+					placeholder="AMA with renowned JP VA John Doe"
 					value={formData.title}
 				/>
 				{duplicateChannelWarning && (

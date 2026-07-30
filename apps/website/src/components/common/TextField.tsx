@@ -32,6 +32,8 @@ export function TextField({
 	max,
 }: TextFieldProps) {
 	const errorId = `${id}-error`;
+	const helperId = `${id}-helper`;
+	const describedBy = [helper && helperId, error && errorId].filter(Boolean).join(' ') || undefined;
 
 	return (
 		<div>
@@ -39,7 +41,7 @@ export function TextField({
 				{label}
 			</label>
 			<input
-				aria-describedby={error ? errorId : undefined}
+				aria-describedby={describedBy}
 				aria-invalid={error ? true : undefined}
 				className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
 				id={id}
@@ -52,7 +54,7 @@ export function TextField({
 				type={type}
 				value={value}
 			/>
-			{helper}
+			{helper && <div id={helperId}>{helper}</div>}
 			{error && (
 				<p className="mt-1 text-sm text-misc-danger" id={errorId}>
 					{error}

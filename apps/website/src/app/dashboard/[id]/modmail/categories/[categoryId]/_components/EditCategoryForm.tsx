@@ -1,11 +1,11 @@
 'use client';
 
 import { updateCategoryBodySchema } from '@chatsift/api/modmail-schemas';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { CategoryFormData, CategoryFormErrors } from '../../_components/categoryForm';
 import { mapCategoryApiError, mapCategoryIssues } from '../../_components/categoryForm';
+import { GreetingMessageHelper, MaxConcurrentThreadsHelper } from '../../_components/categoryFormHelpers';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { ModmailCategory, UpdateModmailCategoryBody } from '@/api/routes/modmail';
 import {
@@ -18,7 +18,6 @@ import { EmojiInput } from '@/components/common/EmojiInput';
 import { FormActions } from '@/components/common/FormActions';
 import { ForumTagSelect } from '@/components/common/ForumTagSelect';
 import { Skeleton } from '@/components/common/Skeleton';
-import { TemplatePlaceholdersHint } from '@/components/common/TemplatePlaceholdersHint';
 import { TextAreaField } from '@/components/common/TextAreaField';
 import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
@@ -129,18 +128,7 @@ export function EditCategoryForm({ category }: EditCategoryFormProps) {
 
 				<TextAreaField
 					error={errors.greetingMessage}
-					helper={
-						<>
-							<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-								Falls back to the{' '}
-								<Link className="underline hover:text-misc-accent" href={`/dashboard/${guildId}/modmail/config`}>
-									guild default
-								</Link>{' '}
-								if unset.
-							</p>
-							<TemplatePlaceholdersHint />
-						</>
-					}
+					helper={<GreetingMessageHelper guildId={guildId} />}
 					id="category-greeting"
 					label="Greeting Message"
 					maxLength={2_000}
@@ -166,15 +154,7 @@ export function EditCategoryForm({ category }: EditCategoryFormProps) {
 
 				<TextField
 					error={errors.maxConcurrentThreads}
-					helper={
-						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-							How many tickets a user may have open in this category specifically. Leave blank to use the{' '}
-							<Link className="underline hover:text-misc-accent" href={`/dashboard/${guildId}/modmail/config`}>
-								guild default
-							</Link>
-							{config ? ` (currently ${config.maxConcurrentThreads})` : ''}. Cannot exceed the guild default.
-						</p>
-					}
+					helper={<MaxConcurrentThreadsHelper config={config} guildId={guildId} />}
 					id="category-max-concurrent-threads"
 					label="Max Concurrent Threads Override"
 					min={1}
