@@ -25,6 +25,8 @@ export function mountRoute<
 >(server: Polka<any>, route: RouteDefinition<TMethod, TPath, TBody, TQuery, TParams, TResponse, TMiddlewares>): void {
 	const middlewares: Middleware[] = [
 		async (req, res, next) => {
+			const isMetricsRequest = req.path === '/metrics' && req.method === 'GET';
+
 			const timeout = setTimeout(() => {
 				req.logger.warn({ method: req.method, path: req.path }, 'request is probably hanging');
 			}, 30_000);
@@ -37,9 +39,8 @@ export function mountRoute<
 					durationMs / 1_000,
 				);
 
-				const isMetrics =
-					req.path === '/metrics' && req.method === 'GET' && res.statusCode >= 200 && res.statusCode < 300;
-				if (!isMetrics) {
+				const isMetricsSuccess = isMetricsRequest && res.statusCode >= 200 && res.statusCode < 300;
+				if (!isMetricsSuccess) {
 					req.logger.info(
 						{ method: req.method, path: req.path, status: res.statusCode, duration: durationMs },
 						'request complete',
@@ -49,7 +50,10 @@ export function mountRoute<
 				clearTimeout(timeout);
 			});
 
-			req.logger.info({ method: req.method, path: req.path }, 'incoming request');
+			if (!isMetricsRequest) {
+				req.logger.info({ method: req.method, path: req.path }, 'incoming request');
+			}
+
 			return next();
 		},
 	];
@@ -100,8 +104,12 @@ export function mountRoute<
 
 	// Final handler
 	middlewares.push(async (req, res, next) => {
+		const isMetricsRequest = req.path === '/metrics' && req.method === 'GET';
+
 		try {
-			req.logger.info({ method: req.method, path: req.path }, 'passing to route handler from middleware');
+			if (!isMetricsRequest) {
+				req.logger.info({ method: req.method, path: req.path }, 'passing to route handler from middleware');
+			}
 
 			// Cast is safe: body/query/params have been validated and coerced by Zod above, middleware has run
 			const result = await route.handler(
@@ -109,7 +117,9 @@ export function mountRoute<
 				res,
 			);
 
-			req.logger.info({ method: req.method, path: req.path }, 'route handler complete');
+			if (!isMetricsRequest) {
+				req.logger.info({ method: req.method, path: req.path }, 'route handler complete');
+			}
 
 			if (!res.writableEnded) {
 				if (result !== undefined && result !== null) {
