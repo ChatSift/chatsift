@@ -36,10 +36,16 @@ export function mountRoute<
 					{ method: route.method.toUpperCase(), route: route.path, status_code: String(res.statusCode) },
 					durationMs / 1_000,
 				);
-				req.logger.info(
-					{ method: req.method, path: req.path, status: res.statusCode, duration: durationMs },
-					'request complete',
-				);
+
+				const isMetrics =
+					req.path === '/metrics' && req.method === 'GET' && res.statusCode >= 200 && res.statusCode < 300;
+				if (!isMetrics) {
+					req.logger.info(
+						{ method: req.method, path: req.path, status: res.statusCode, duration: durationMs },
+						'request complete',
+					);
+				}
+
 				clearTimeout(timeout);
 			});
 
