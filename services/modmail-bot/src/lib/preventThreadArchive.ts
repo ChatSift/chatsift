@@ -9,9 +9,9 @@ import { getOwnershipScope } from './instance.js';
  * regardless of whether a modmail ticket built on top of it is still open — a conversation that goes
  * quiet on both sides for long enough (mods haven't replied, user hasn't messaged back yet) can trip
  * that timer well before anyone actually closes the ticket. Run on an interval from `index.ts`'s
- * `bin()`, mirroring prod `ChatSift/ModMail`'s `preventAutoArchive` job: re-fetch every open ticket's
- * two Discord threads (mod-forum + private) and unarchive any that got caught by it, so an open
- * ticket never silently stops accepting replies out from under the people using it. Also doubles as
+ * `bin()`: re-fetch every open ticket's two Discord threads (mod-forum + private) and unarchive any
+ * that got caught by it, so an open ticket never silently stops accepting replies out from under the
+ * people using it. Also doubles as
  * this sweep's only opportunity to notice a channel that isn't merely archived but gone outright
  * (deleted out-of-band) — see the 404 branch below — since nothing else in the bot currently re-checks
  * an open ticket's channels on any kind of interval.

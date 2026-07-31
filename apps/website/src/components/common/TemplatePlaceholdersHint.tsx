@@ -12,8 +12,8 @@ interface TemplatePlaceholdersHintProps {
 
 /**
  * Documents the `{{ name }}` placeholder syntax `services/modmail-bot`'s `lib/templateString.ts`
- * substitutes before posting text (ported from prod ChatSift/ModMail's own template syntax) — the
- * dashboard has no other way to tell an admin these exist since the fields are just plain inputs.
+ * substitutes before posting text — the dashboard has no other way to tell an admin these exist since
+ * the fields are just plain inputs.
  */
 export function TemplatePlaceholdersHint({ placeholders = ALL_PLACEHOLDERS }: TemplatePlaceholdersHintProps) {
 	return (

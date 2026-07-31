@@ -85,8 +85,7 @@ function buildRecordedAttachments(
 }
 
 /**
- * Matches prod ChatSift/ModMail's `Colors.Green`/`Colors.Blurple` convention (`sendMemberThreadMessage.ts`/
- * `sendStaffThreadMessage.ts`): user messages and staff replies get different accent colors so the two
+ * User messages and staff replies get different accent colors (green/blurple) so the two
  * directions are visually distinguishable at a glance in the mod-forum thread.
  */
 const GREEN = 0x57f287;
@@ -99,10 +98,9 @@ export function identityFooter(user: APIUser, prefix?: string) {
 }
 
 /**
- * Prod only sets an author line at all when the member has a server nickname — a member with no
- * nickname gets no author, just the footer identity (see `sendMemberThreadMessage.ts`/
- * `sendStaffThreadMessage.ts`). Deliberately not "improved" to always show one: that would just
- * duplicate the same identity that's already in the footer.
+ * An author line is only set at all when the member has a server nickname — a member with no
+ * nickname gets no author, just the footer identity. Deliberately not "improved" to always show one:
+ * that would just duplicate the same identity that's already in the footer.
  */
 export function nicknameAuthor(
 	guildId: string,
@@ -258,10 +256,9 @@ export interface RelayStaffReplyOptions {
  * thread (so other staff can see what was sent, including who sent it even when anon) and the
  * relayed copy posted into the user's private thread. Both message ids are real Discord messages
  * this function creates, matching `thread_messages.user_message_id`/`guild_message_id` both being
- * non-nullable columns. The `Reply ID: N` footer is mod-side only, mirroring prod
- * `sendStaffThreadMessage.ts` exactly: it only ever edits that prefix into the guild-side message
- * after the user's copy has already been sent, so the user never sees it — internal bookkeeping,
- * not something to leak to the person who opened the ticket.
+ * non-nullable columns. The `Reply ID: N` footer is mod-side only: it's edited into the guild-side
+ * message only after the user's copy has already been sent, so the user never sees it — internal
+ * bookkeeping, not something to leak to the person who opened the ticket.
  */
 export async function relayStaffReplyToUserThread({
 	anon,
@@ -312,7 +309,7 @@ export async function relayStaffReplyToUserThread({
 	};
 
 	// User-facing embed: non-anon shows the same nickname author (if any) plus a plain identity
-	// footer, no reply id. Anon deliberately diverges from prod here (which puts "{guild} Team" in
+	// footer, no reply id. Anon deliberately diverges from ChatSift/ModMail here (which puts "{guild} Team" in
 	// the author slot) — that read as duplicated information with the footer, so the anonymized
 	// identity lives only in the footer and there's no author line at all.
 	const userFacingEmbed: APIEmbed = anon

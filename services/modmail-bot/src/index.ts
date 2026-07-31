@@ -66,10 +66,9 @@ const SCHEDULED_CLOSE_SWEEP_INTERVAL_MS = 60 * 1_000;
 const THREAD_NUKE_SWEEP_INTERVAL_MS = 60 * 1_000;
 
 /**
- * How often `preventOpenThreadsFromArchiving` runs — matches prod `ChatSift/ModMail`'s
- * `preventAutoArchive` job interval. Short enough that an open ticket's thread doesn't stay archived
- * long after Discord's own inactivity timer trips it, long enough to not re-fetch every open ticket's
- * threads more often than needed.
+ * How often `preventOpenThreadsFromArchiving` runs — short enough that an open ticket's thread
+ * doesn't stay archived long after Discord's own inactivity timer trips it, long enough to not
+ * re-fetch every open ticket's threads more often than needed.
  */
 const PREVENT_THREAD_ARCHIVE_INTERVAL_MS = 5 * 60 * 1_000;
 

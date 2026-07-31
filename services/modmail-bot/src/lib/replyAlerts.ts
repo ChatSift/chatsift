@@ -2,7 +2,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { Threads } from '@chatsift/db';
 
 /**
- * Debounce window for one ticket's reply-alert pings. Prod ChatSift/ModMail's `/alert` pinged every
+ * Debounce window for one ticket's reply-alert pings. ChatSift/ModMail's `/alert` pinged every
  * subscriber on *every* relayed user message — a user sending a burst of short messages in a row (or
  * just typing across several sends) turned into a repeat ping per message per subscriber. This caps it
  * to at most one ping per cooldown window per ticket, reset early the moment a staffer actually

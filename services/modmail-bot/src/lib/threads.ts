@@ -92,8 +92,7 @@ export async function findOpenThreadsForUser(guildId: string, userId: string): P
 
 /**
  * Shown as a field on the ticket-opening embed (`lib/ticketCreation.ts`) — how many prior tickets
- * this user has had in the guild, closed or not, mirroring prod ChatSift/ModMail's "Past Modmails"
- * field.
+ * this user has had in the guild, closed or not.
  */
 export async function countPastThreadsForUser(guildId: string, userId: string): Promise<number> {
 	const [row] = await getContext().db<[{ count: string }]>`

@@ -7,9 +7,8 @@ export interface GuildInfo {
 }
 
 /**
- * Used for the "\{guild name\} Team" author (name + icon, matching prod ChatSift/ModMail's
- * `sendStaffThreadMessage.ts`/`modmailMessageCreate.ts` anon/greeting author) — low enough call
- * frequency (once per ticket open, occasionally per anon reply) that an uncached REST call is fine,
+ * Used for the "\{guild name\} Team" author (name + icon) on anon replies and ticket greetings —
+ * low enough call frequency (once per ticket open, occasionally per anon reply) that an uncached REST call is fine,
  * no need for a guild-info cache layer.
  */
 export async function getGuildInfo(guildId: string): Promise<GuildInfo> {

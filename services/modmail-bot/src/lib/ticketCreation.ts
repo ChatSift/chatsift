@@ -14,9 +14,9 @@ import {
 } from './threads.js';
 
 /**
- * Matches prod ChatSift/ModMail's `Colors.NotQuiteBlack` — used for both the ticket-opening info
- * embed and the greeting, distinct from the green/blurple relay colors (`lib/relay.ts`) so
- * "informational" posts read differently from an actual back-and-forth message.
+ * Used for both the ticket-opening info embed and the greeting, distinct from the green/blurple
+ * relay colors (`lib/relay.ts`) so "informational" posts read differently from an actual
+ * back-and-forth message.
  */
 const NOT_QUITE_BLACK = 0x23272a;
 
@@ -76,9 +76,9 @@ export interface FinishTicketCreationOptions {
  * before this point (`categorySelect.ts`/`dmTicket.ts`'s category prompt), so this only ever has one
  * job left: open the mod-forum thread (tagged per category, if configured), insert the `threads` row,
  * and post the category's greeting (falling back to the guild default) back into the user's channel.
- * The opening embed's field set (account age, join date, past tickets, roles) is drawn from prod
- * ChatSift/ModMail's `handleThreadManagement.ts` "who is this" panel, minus a full guild-roles fetch
- * just to sort them by position.
+ * The opening embed's field set (account age, join date, past tickets, roles) intentionally skips a
+ * full guild-roles fetch just to sort the roles by position — not worth the extra API call for a
+ * cosmetic ordering.
  */
 export async function finishTicketCreation({
 	alertRoleId,
@@ -256,7 +256,7 @@ export async function sendGreeting({
 	const [guild, labelTemplate] = await Promise.all([getGuildInfo(guildId), getAnonReplyLabelTemplate(guildId)]);
 	const label = templateGuildName(labelTemplate, guild.name);
 
-	// Same divergence from prod as anon replies (lib/relay.ts): the "\{guildName\} Team" identity
+	// Same divergence from ChatSift/ModMail as anon replies (lib/relay.ts): the "\{guildName\} Team" identity
 	// lives in the footer, not the author slot — an author line here would just duplicate it.
 	const resolvedContent = templateString(greeting, templateDataFromMember(guild.name, member, user));
 	const greetingEmbed: APIEmbed = {

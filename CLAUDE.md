@@ -9,11 +9,11 @@ This repo is mid-rebirth. **Read [docs/roadmap/00-overview.md](docs/roadmap/00-o
 Full doc set:
 
 - [docs/roadmap/00-overview.md](docs/roadmap/00-overview.md) — history, glossary, milestone map. Read first.
-- [docs/roadmap/01-architecture.md](docs/roadmap/01-architecture.md) — current architecture with code excerpts (API contract, DB stack, AMA bot subsystem).
+- [docs/roadmap/01-architecture.md](docs/roadmap/01-architecture.md) — current architecture with code excerpts (API contract, DB stack, AMA bot subsystem, ModMail bot subsystem).
 - [docs/adr/0001-api-contract-pattern.md](docs/adr/0001-api-contract-pattern.md) — why the API contract pattern was replaced (implemented, M1).
 - [docs/adr/0002-db-stack.md](docs/adr/0002-db-stack.md) — why the DB stack was replaced (implemented, M1).
 - [docs/roadmap/05-migration-cutover.md](docs/roadmap/05-migration-cutover.md) — M4, AMA drain-and-swap cutover (in progress).
-- [docs/roadmap/06-modmail-port.md](docs/roadmap/06-modmail-port.md) — M5, ModMail rebuild + migration (not started).
+- [docs/roadmap/06-modmail-port.md](docs/roadmap/06-modmail-port.md) — M5, ModMail: feature work shipped, only the legacy data migration + cutover remain.
 - [docs/workflow.md](docs/workflow.md) — branching, commits, local dev, verification standard.
 
 M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done and their per-milestone spec docs have been removed; durable architecture knowledge from them lives in 01-architecture.md and workflow.md now. Git history has the specs if you need the original planning detail. The ModMail dashboard thread-history view (#261) shipped the same way — its spec doc is gone, durable shape now lives in [01-architecture.md §7](docs/roadmap/01-architecture.md#7-modmail-thread-history-dashboard-view-261). Custom ModMail instances (#216, branded single-guild deployments + DM front door) shipped the same way too — durable shape is [01-architecture.md §8](docs/roadmap/01-architecture.md#8-custom-modmail-instances-216), the operational runbook is in [docs/workflow.md](docs/workflow.md#custom-modmail-instances-216).
@@ -21,7 +21,7 @@ M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done a
 ## Quick facts
 
 - Yarn 4 (Berry) workspaces + Turborepo monorepo, ESM, TypeScript strict.
-- `apps/website` — Next.js App Router dashboard. `services/api` — polka HTTP API. `services/ama-bot` — gateway Discord bot. `packages/private/{core,backend-core}` — shared code.
+- `apps/website` — Next.js App Router dashboard. `services/api` — polka HTTP API. `services/ama-bot`/`services/modmail-bot` — gateway Discord bots. `packages/private/{core,backend-core,bot-core}` — shared code.
 - **This repo is being actively refactored** — M1 (foundation refactor) landed 2026-07-17, so the ADRs' "current/being replaced" framing is historical, not the present state; [01-architecture.md](docs/roadmap/01-architecture.md) has the actual current shape. Check the actual code first regardless — docs describe intent and rationale, not necessarily the exact present-moment state if work has progressed since a doc was last updated.
 - Commands: `turbo run build`, `turbo run lint`, `yarn test` (vitest). Commit messages are commitlint-enforced (angular config) — see [docs/workflow.md](docs/workflow.md).
 - Reference architecture for the API contract + DB patterns: `/Users/didinele/Documents/Work/didinele/SimplyChords` (private repo, local path only — not fetchable by URL).

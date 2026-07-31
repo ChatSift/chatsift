@@ -9,7 +9,7 @@ import { templateDataFromMember, templateGuildName, templateString } from './tem
 import { incrementLocalMessageId, insertThreadMessage, isRecordingEnabled } from './threads.js';
 
 /**
- * Matches prod ChatSift/ModMail's `Colors.Red` — distinct from the relay colors (`lib/relay.ts`) and
+ * Discord's red — distinct from the relay colors (`lib/relay.ts`) and
  * the opening/greeting `NOT_QUITE_BLACK` (`lib/ticketCreation.ts`), so a closed ticket reads visually
  * distinct from every other kind of post in the thread.
  */
@@ -39,7 +39,7 @@ export interface CloseThreadOptions {
 
 /**
  * Closes a ModMail ticket: archives + locks the mod-forum thread (kept as the durable staff-side
- * record per the redesign, see `docs/roadmap/06-modmail-port.md` §"new create-flow" step 6) and, for
+ * record per the ticket-system redesign, see docs/roadmap/01-architecture.md §6a) and, for
  * a `origin: 'panel'` ticket, locks the user's private thread. Deletion of that private thread is
  * opt-in and, when enabled via `guild_settings.nuke_delay_minutes`, not immediate — a
  * `scheduled_thread_nukes` row is written instead so `lib/threadNukeSweep.ts` deletes it once the

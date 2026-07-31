@@ -1,46 +1,24 @@
-# M5 — ModMail → ticket-style rebuild + data migration spec
+# M5 — ModMail: legacy data migration + cutover
 
-**Milestone target:** TBD — rescope once M4 cutover work is done. This is a materially larger effort than the original "port ModMail as-is" plan it replaces (new create-flow, new dashboard surfaces, a new QOL feature), so the old ~7-week estimate no longer applies. **Depends on:** M1 (foundation pattern), M4 (mirrors the AMA bot's structure and the grant-token/dashboard-config conventions it established). **Live production impact:** yes — this milestone includes a real data migration.
+**Milestone target:** TBD — no date has been publicly announced for ModMail yet (unlike M4's, see [05-migration-cutover.md](05-migration-cutover.md)). **Depends on:** nothing blocking — the M1 foundation pattern and the M4-established bot/grant-token conventions this milestone originally depended on have both already shipped and been reused (see below). **Live production impact:** yes, and unlike M4 this one includes a real historical-data migration.
 
-## Status: redesigned 2026-07-22, supersedes the original port plan
+## Status: feature work shipped 2026-07-30; only the legacy migration + cutover remain
 
-The original M5 plan was a straight port of `ChatSift/ModMail`'s DM-based relay model. Owner + collaborator decided (2026-07-22) to rebuild ModMail as a **ticket system** instead: users no longer DM the bot. This doc is the redesign; the "old schema" section below is retained because most of it still applies — **the mod-side experience is explicitly unchanged**, only how a ticket originates changes.
+M5 was redesigned 2026-07-22 (from a straight DM-based port into a ticket/private-thread system — rationale below) and, as of that redesign, fully implemented: schema, API, dashboard, and bot, plus two follow-on efforts built on top of it — the thread-history dashboard view (#261) and custom instances + DM mode (#216). None of that is a plan anymore; it's documented as current-state architecture in [01-architecture.md §6a](01-architecture.md#6a-modmail-bot-subsystem-servicesmodmail-bot-m5) (base ticket system), [§7](01-architecture.md#7-modmail-thread-history-dashboard-view-261) (thread history), and [§8](01-architecture.md#8-custom-modmail-instances-216) (custom instances/DM mode). This doc is no longer a design spec — it's scoped down to the one thing still outstanding: migrating real historical thread data out of legacy `ChatSift/ModMail` and cutting the **public** deployment over to `services/modmail-bot`.
 
-## Goal
+**Why this hasn't happened yet, despite `services/modmail-bot` already being live:** custom instances (#216) put the new bot into real production use back on 2026-07-30, but only for partner guilds — those are guilds with no prior history, so there was nothing to migrate. The public deployment is the harder case: it's the one legacy `ChatSift/ModMail` still serves today, with years of real thread history that has to survive the swap intact. That's the entire remaining scope of this milestone.
 
-Port ModMail from its standalone production repo (`ChatSift/ModMail`) into this monorepo on the new architecture (`defineRoute` contract, postgres.js/Atlas/kanel DB stack), replacing the DM-based create flow with an in-server private-thread ticket flow, and migrate what production data still maps cleanly onto the new shape.
-
-## Why the redesign: DMing the bot is being killed
+## Why the redesign: DMing the bot was killed
 
 Direct quote from the design discussion (2026-07-22), owner's framing:
 
 > "I think we should kill DMing the bot, it's pretty terrible lmao. My idea is to have staff teams set up a prompt just like AMA, and as the user you click the button and get a private thread within the server anyway where you type, and on the mod end it looks the exact same. Its totally ok because only server admins can technically peek into that private thread, so it's still very privacy isolated. One 'downside' is it's potentially messier to allow the user to revisit conversations with the mod team — maybe you want to completely nuke their perspective sometime after the thread is closed. I'd imagine more people are more on that end. I guess in a sense this makes it more of a ticket bot than a modmail, but I think this is the superior model anyway."
 
-**Critically: the mod side does not change.** A ticket still lands as a post in the mod-side forum with a running message history, exactly like today's `Thread`/`ThreadMessage` model. Only the user-facing origin changes: an in-server private thread (created by clicking a button) instead of a DM channel. This is why the old schema below is still the migration source, not a from-scratch design — it just gains a few new concepts (categories, panels, an origin distinction) on top.
+**The mod side didn't change.** A ticket still lands as a post in the mod-side forum with a running message history, exactly like the old `Thread`/`ThreadMessage` model. Only the user-facing origin changed: an in-server private thread (or, for a custom instance opted into DM mode, still a DM — see [01-architecture.md §8](01-architecture.md#8-custom-modmail-instances-216)) instead of every guild being DM-only. This is why the old schema below is still the migration source for the public deployment, not a from-scratch design — the new schema is the old one plus a handful of new concepts (categories, panels, an origin distinction) layered on top. Full design-outline/build narrative for the create-flow, the mention/user-ID QOL feature, and the schema-authoring decisions lives in git history (this doc's pre-2026-07-30 revisions) and in closed issue #152, not here — [01-architecture.md §6a](01-architecture.md#6a-modmail-bot-subsystem-servicesmodmail-bot-m5) has the shipped shape.
 
-## New create-flow (design outline from the collaborator, 2026-07-22; reordered 2026-07-26)
+## Old schema (migration source)
 
-1. A staff-configured embed with a "Create Ticket" button is posted in a channel (a **ticket panel**, new concept — mirrors AMA's prompt-message pattern).
-2. User clicks the button. If the panel has categories configured, the bot prompts them to pick one, ephemerally (only the ticket opener sees it) — no private thread exists yet at this point. **If the panel has no categories configured, this step is skipped entirely** and the button click goes straight to step 3.
-3. Once a category is picked (or immediately, for a no-category panel) → bot opens a **private thread** for the user (in the panel's designated parent channel) and tells them, ephemerally, to describe what they need help with there.
-4. Once the user's opening message actually arrives in that private thread, the bot opens the corresponding **forum thread** for mods (in the designated mod forum channel) and relays that first message into it. This step is identical for both paths — a no-category ticket's `threads.category_id` is simply `null`.
-5. Optionally, a category can have a **custom greeting message** posted into the private thread once the forum thread is created.
-6. On close: the user's private thread is **deleted** ("nuked") — they can't revisit it. The mod-forum thread is **not** deleted; it stays as the durable staff-side record, matching today's behavior.
-7. Modmail messages still flow to the mod forum exactly as before (relay both directions while the ticket is open).
-
-**Why the reorder:** the original design created the private thread first and only asked for a category once the user's first message arrived (posted as a real message inside that thread). Picking the category ephemerally up front, before any thread exists, means a category is always resolved before a private thread is ever created — simpler state (no need to stash a captured first message across the category pick) and no empty/abandoned private thread for a user who clicks the button but never actually picks a category.
-
-## QOL: mention/user-ID auto-embed (anti user-ID-swapping)
-
-From the collaborator's design notes:
-
-> "If a message includes a userID/mention in the forum thread, pull up a mini user info embed automatically after the message. This is to combat userID swapping during the report phase. Exclude mentions/userID embeds for mod messages if it resolves to a staff member from a staff member message — so mentioning an admin to flag a modmail won't prompt the embed, but mentioning a normal user will."
-
-Concretely: scan messages posted in a mod-forum ticket thread for a Discord mention or a raw snowflake-shaped token (18–20 digit number). If it resolves to a real guild member, post a compact follow-up embed (avatar, tag, ID, account-created-at, joined-at) — **unless** the resolved user is staff **and** the message author is also staff (mods flagging each other shouldn't trigger noise; mods flagging a _normal_ user still should, even though the author is staff). "Staff" needs a concrete definition during implementation — likely a configurable staff role, or reuse of dashboard-grant/guild-permission data; decide and document here once scoped.
-
-## Old schema (migration source — mostly still applies, see notes)
-
-From `ChatSift/ModMail`'s `prisma/schema.prisma` (captured 2026-07-16):
+From legacy `ChatSift/ModMail`'s `prisma/schema.prisma` (captured 2026-07-16):
 
 ```prisma
 model GuildSettings {
@@ -134,58 +112,27 @@ model ThreadReplyAlert {
 }
 ```
 
-**Migration note (revised 2026-07-22):** because the mod-side model is unchanged, `Thread`/`ThreadMessage`/`Block`/`Snippet`(+`SnippetUpdates`)/`ScheduledThreadClose`/`ThreadOpenAlert`/`ThreadReplyAlert` all still map close to 1:1 onto the new schema — this is **not** the divergent-schema situation AMA was in ([05-migration-cutover.md](05-migration-cutover.md)). The only real gaps: old `Thread.channelId` was always a DM-adjacent staff channel with no notion of "how did this start" or "category" — migrated rows simply get `category_id = null` and `user_thread_id = null` (see new schema below), which is correct: they're historical, closed, and were never going to get the nuke-on-close treatment anyway since there's no private thread to delete.
+## Schema mapping (old → new)
 
-## New schema (Atlas, `packages/db`)
+Because the mod-side model didn't change, this is a close-to-1:1 mapping, not the divergent-schema situation AMA was in ([05-migration-cutover.md](05-migration-cutover.md)) — see [01-architecture.md §6a](01-architecture.md#6a-modmail-bot-subsystem-servicesmodmail-bot-m5) for the actual current column names:
 
-Reproduce the 9 models above (naming-convention per M1: snake_case + `postgres.camel`, see [01-architecture.md](01-architecture.md)), plus:
+- `Thread` → `threads`: `channelId` → `mod_thread_id` (rename only). `category_id` and `user_channel_id` are both `NULL` on every migrated row — correct, since a legacy thread has no category concept and its DM channel isn't something the new bot should ever lock/nuke (it was never a private thread it created). `origin` defaults to `'panel'` at the column level, but a migrated row should be backfilled to `'dm'` (matching how #216's own DM-mode migration was backfilled, per §8) since that's what it historically was.
+- `ThreadMessage` → `thread_messages`: maps 1:1 (`userMessageId`/`guildMessageId`/`staffId`/`anon` unchanged in shape). `is_internal`/`is_system`/`deleted_at` (added for #261) are all `false`/`NULL` for migrated rows — none of that context exists for historical data, and that's an accurate "not recorded" state, not a gap to backfill.
+- `Block`, `Snippet`+`SnippetUpdates`, `ScheduledThreadClose`, `ThreadOpenAlert`, `ThreadReplyAlert` — map 1:1 onto `blocks`, `snippets`+`snippet_updates`, `scheduled_thread_closes`, `thread_open_alerts`, `thread_reply_alerts`.
+- `GuildSettings` → `guild_settings`: `modmailChannelId` → `mod_forum_id` — **confirm during the migration run** whether the legacy value was already a Forum channel or a plain text channel; the new mod side requires a Forum (tag-based category routing). A plain-channel guild needs an admin to create/pick a real forum before its `mod_forum_id` can be set, which isn't something the migration script itself can resolve.
+- No `thread_message_content` rows are created for migrated messages (content recording, #261, didn't exist historically) — the dashboard thread view already renders a "not recorded" placeholder for exactly this case, so this needs no special handling in the script.
 
-- **`GuildSettings`** — drop `greetingMessage` in favor of per-category greetings (see `Category` below); keep a guild-level default used when a category doesn't set its own. Keep `farewellMessage`, `alertRoleId`. Replace `modmailChannelId` with `modForumId` (must be a Forum channel now, since the mod side stays a forum — confirm during implementation whether prod's `modmailChannelId` was already a forum or a plain channel; if plain, this is a behavior note, not just a rename). Add a `staffRoleId` (or similar) for the mention/user-ID QOL feature's staff check, unless dashboard-grant data ends up sufficient.
-- **`Category`** (new) — `id`, `guildId`, `name`, `emoji?`, `description?`, `greetingMessage?` (nullable — falls back to guild default), `forumTagId?` (if the mod forum uses one tag per category rather than separate forums — decide during implementation), sort order.
-- **`TicketPanel`** (new) — `id`, `guildId`, `channelId`, `messageId`, embed content. Support a raw-JSON authoring mode mirroring AMA's raw-prompt-mode precedent (`AMAPromptData.promptJSONData`), since that pattern is already proven and liked. Multiple panels per guild allowed.
-- **`Thread`** — add `categoryId` (nullable — null for pre-migration rows and any guild with no categories configured) and `userThreadId` (nullable — the private thread's channel ID; null for migrated rows and, later, for custom-instance DM-origin tickets, see below). Consider renaming `channelId` to something like `modThreadId` for clarity now that there are two "thread" concepts; if renamed, that's a migration column-rename, not a semantic change.
-- **`ThreadMessage`**, **`Block`**, **`Snippet`**/**`SnippetUpdates`**, **`ScheduledThreadClose`**, **`ThreadOpenAlert`**/**`ThreadReplyAlert`** — unchanged in shape from the old schema; `anon`, local per-thread numbering, snippets, scheduled/silent close, and open/reply alerts are all still assumed carried-forward features (none of them were called out as cut in the redesign discussion) — confirm each is still wanted before implementation, since the discussion above focused only on the create-flow and the mention QOL feature.
+## Remaining scope
 
-## Scope
-
-### 1. New schema — see above.
-
-### 2. API (`services/api`, `defineRoute` pattern)
-
-New route group `routes/modmail/`: guild config get/update, category CRUD, ticket-panel CRUD (incl. raw-JSON mode), snippet CRUD, block create/list/delete, thread list/detail (dashboard thread-history view — decide scope during implementation, same as the original plan left open).
-
-### 3. Dashboard (`apps/website`)
-
-New `app/dashboard/[id]/modmail/` area mirroring the AMA dashboard's structure: config screen (mod forum, default greeting/farewell, alert role, staff role), **category management** (name/emoji/description/greeting/forum tag), **ticket panel builder** (embed editor + raw-JSON mode, channel picker, live preview — mirrors `CreateAMAForm`'s normal/raw toggle), snippet management, block management. Thread history view planned separately (#261) — shipped; see [01-architecture.md §7](01-architecture.md#7-modmail-thread-history-dashboard-view-261).
-
-### 4. Bot (`services/modmail-bot`, new service)
-
-Mirrors `services/ama-bot`'s structure ([01-architecture.md §6](01-architecture.md#6-ama-bot-subsystem-servicesama-bot) — component loader, command loader, resolvers):
-
-- **Ticket panel button** → an ephemeral category prompt (skipped, straight to thread creation, if the panel has no categories configured).
-- **Category select** (the ephemeral reply to the button) → creates a private thread for the user in the configured parent channel and tells them, ephemerally, to describe their issue there.
-- **User's opening message in that private thread** → creates the mod-forum thread (tagged/routed per category), relays the message into it, posts the category's greeting (or guild default) back into the user's private thread.
-- **Relay, both directions** — private-thread message → mod-forum thread (`ThreadMessage` row, `userMessageId` now means "message ID in the user's private thread" rather than "in a DM"); staff reply in the mod-forum thread → relayed into the user's private thread, anonymous-reply support (`anon` flag) unchanged.
-- **Close** — mod-forum thread archived (not deleted, stays as the durable record); user's private thread channel **deleted** after a final closing message, per the "nuke the modmail after for the user" decision. Scheduled/silent close unchanged.
-- **Mention/user-ID auto-embed QOL** — see the dedicated section above.
-- Local per-thread message numbering (`localThreadMessageId`), snippets (quick-insert, autocomplete), blocks (prevent a blocked user from opening new tickets — replaces "prevent a blocked user's DMs from opening new threads"), open/reply alerts — all carried forward, see the schema notes above on confirming each is still wanted.
-
-## Data migration (real migration — schema is close to identical, see notes above)
-
-1. **Schema mapping:** `Thread`/`ThreadMessage`/`Block`/`Snippet`+`SnippetUpdates`/`ScheduledThreadClose`/`ThreadOpenAlert`/`ThreadReplyAlert` map close to 1:1; `categoryId`/`userThreadId` on migrated `Thread` rows are `null`. Confirm the `modmailChannelId` → `modForumId` mapping (rename vs. behavior change) once the new schema is authored.
-2. **Write a migration script** (old Postgres → new Postgres) transforming all 9 old tables, preserving IDs/relations/timestamps exactly (thread history is the whole point of migrating — it must be intact).
-3. **Dry-run** against a copy of the production `ChatSift/ModMail` database; reconcile row counts and spot-check message content/ordering per thread.
-4. **Cutover runbook** (mirroring [05-migration-cutover.md](05-migration-cutover.md)'s structure, but WITH data migration this time):
-   - Announce a maintenance window (ModMail is more synchronous/user-facing than AMA — a message sent during cutover shouldn't get lost).
-   - Freeze old ModMail (stop accepting new DMs/replies — the old bot is still DM-based right up to cutover) for the migration run.
+1. **Write a migration script** (old Postgres → new Postgres) transforming all 9 legacy tables per the mapping above, preserving IDs/relations/timestamps exactly — thread history staying intact is the entire point of migrating.
+2. **Dry-run** against a copy of the production legacy `ChatSift/ModMail` database; reconcile row counts and spot-check message content/ordering per thread.
+3. **Cutover runbook** (mirroring [05-migration-cutover.md](05-migration-cutover.md)'s structure, but _with_ a data migration this time):
+   - Announce a maintenance window — ModMail is more synchronous/user-facing than AMA was, a message sent mid-cutover shouldn't get lost.
+   - Freeze the legacy bot (stop accepting new DMs/replies — it's still DM-based right up to cutover) for the migration run.
    - Run the migration script against a final snapshot.
-   - Deploy the new bot, point the token, smoke-test (create a ticket via a panel, reply from staff, close a ticket and confirm the private thread is gone).
-   - Keep old deployment + database warm for rollback until confidence is established.
-
-## Custom-instance mode (#216) — was reserved design space here, now shipped
-
-This section originally reserved design space (from a 2026-07-22 discussion) for a future "single-guild custom-instance mode" — branded deployments for paying partners, with DMs returning as the ticket front door instead of the private-thread flow. It put one binding constraint on M5 itself: don't hardcode "a ticket always starts via a private thread" deep into the relay/close/snippet/block/alert logic, so a future DM front door could feed the same `Thread`/`ThreadMessage` model without a rework. That constraint was honored (`userThreadId`, later renamed `user_channel_id`, was already nullable), and the feature itself shipped 2026-07-30 as its own effort, tracked as [#216](https://github.com/ChatSift/ChatSift/issues/216) — see [01-architecture.md §8](01-architecture.md#8-custom-modmail-instances-216) for the durable shape. The original design-discussion quote and planning narrative are in git history if ever needed.
+   - Deploy `services/modmail-bot` as the public deployment, point the token, smoke-test (create a ticket via a panel, reply from staff, close a ticket and confirm the private thread is gone, pull up a migrated legacy thread in the dashboard thread view and confirm its history rendered correctly).
+   - Keep the legacy deployment + database warm for rollback until confidence is established.
 
 ## Verification
 
-Schema authored and migrated cleanly via Atlas; full ticket lifecycle exercised on the new bot: click a panel → pick a category ephemerally → private thread created → send the opening message → mod-forum thread created with the right tag/routing → category greeting posted → relay a message each direction → an anonymous reply → a snippet use → a scheduled silent close → close a ticket and confirm the private thread is deleted while the mod-forum thread survives → a blocked user's ticket-panel click rejected → the mention/user-ID auto-embed fires for a normal-user mention and is suppressed for a staff-mentioning-staff message. Separately, the no-category path: click a panel with no categories attached → private thread created immediately (no ephemeral prompt) → send the opening message → mod-forum thread created with `category_id` null and no tag applied → guild-default greeting (not a category greeting) posted. Migration dry-run reconciled against the old database (row counts + spot-checked thread content) before any live cutover.
+Everything covered by [01-architecture.md §6a/§7/§8](01-architecture.md#6a-modmail-bot-subsystem-servicesmodmail-bot-m5) was already verified feature-by-feature as each piece shipped (2026-07-16 through 2026-07-30) — see closed issues #152, #261, #216 for the phase-by-phase acceptance checks, not repeated here. What's still unverified is exactly the "Remaining scope" above: the migration dry-run's row-count/content reconciliation, and the live cutover's smoke test.

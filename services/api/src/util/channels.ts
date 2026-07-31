@@ -20,8 +20,8 @@ export interface PossiblyMissingChannelInfo {
 
 export type GuildChannelInfo = APISortableChannel &
 	Pick<APIGuildChannel<GuildChannelType>, 'id' | 'name' | 'parent_id' | 'type'> & {
-		// The set of tags a category's `forumTagId` can be routed to (see `docs/roadmap/06-modmail-port.md`'s
-		// "forum tags only" routing decision) -- always present (empty for non-`ChannelType.GuildForum` channels)
+		// The set of tags a category's `forumTagId` can be routed to (see docs/roadmap/01-architecture.md
+		// §6a's "forum tags only" routing decision) -- always present (empty for non-`ChannelType.GuildForum` channels)
 		// rather than optional, so the redis-backed cache below (#246) has one fixed shape to encode.
 		availableTags: APIGuildForumTag[];
 	};

@@ -14,15 +14,14 @@ import type {
 import { ButtonStyle, CDNRoutes, ComponentType, ImageFormat, RouteBases } from '@discordjs/core';
 
 /**
- * Prod ChatSift/AMA's `Colors.Blurple` (0x7289da) — reused so the ported answers-channel/queue
- * embeds match what's already live in production.
+ * Discord's blurple accent, used across every AMA queue/answers-channel embed.
  */
 const BLURPLE = 0x7289da;
 
 /**
  * Discord groups embeds on the same message into an image gallery when they share an identical
- * `url` field. Used to render more than one attachment per question — prod never had this
- * problem since it only ever supported a single legacy `imageUrl`, but main's `allowedQuestionUploads`
+ * `url` field. Used to render more than one attachment per question — ChatSift/AMA never had this
+ * problem since it only ever supported a single `imageUrl`, but main's `allowedQuestionUploads`
  * can be greater than 1.
  */
 const GALLERY_ANCHOR_URL = 'https://automoderator.app/ama-gallery-anchor';
@@ -75,7 +74,7 @@ interface GetBaseEmbedsOptions {
 
 /**
  * Resolves the avatar to show for a question's author, preferring the guild-specific avatar over
- * the global one — mirrors prod ChatSift/AMA's `GuildMember#displayAvatarURL()` priority.
+ * the global one.
  */
 function resolveAvatarURL(
 	guildId: string,
@@ -94,11 +93,11 @@ function resolveAvatarURL(
 }
 
 /**
- * Builds the question embed(s) posted to every queue and the answers channel, ported to match
- * prod ChatSift/AMA's layout exactly: author name+avatar line (no "Asked by" prefix needed since
- * the author field already carries that), optional footer with the raw user ID for queues where a
- * mod needs to act on it, blurple accent. Multiple attachments render as a Discord image gallery
- * via the shared-`url` grouping trick (prod only ever supported a single legacy image).
+ * Builds the question embed(s) posted to every queue and the answers channel: author name+avatar
+ * line (no "Asked by" prefix needed since the author field already carries that), optional footer
+ * with the raw user ID for queues where a mod needs to act on it, blurple accent. Multiple
+ * attachments render as a Discord image gallery via the shared-`url` grouping trick (see
+ * `GALLERY_ANCHOR_URL` above).
  */
 function getBaseEmbeds({
 	attachments,

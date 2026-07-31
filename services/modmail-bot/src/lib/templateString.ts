@@ -8,10 +8,10 @@ export interface TemplateData {
 }
 
 /**
- * Same placeholder set/format (`{{ name }}`) as prod ChatSift/ModMail's `templateString.ts`, minus
- * `roles` (not worth an extra guild-roles fetch just for a greeting/farewell template variable).
- * Lets a dashboard-authored greeting reference who's opening the ticket instead of always being
- * static text.
+ * Lets a dashboard-authored greeting/farewell reference who's opening the ticket instead of always
+ * being static text, via a `{{ name }}` placeholder. ChatSift/ModMail's own template syntax also
+ * supported a `roles` placeholder; deliberately not carried over here — not worth an extra
+ * guild-roles fetch just for a template variable.
  */
 export function templateDataFromMember(
 	guildName: string,

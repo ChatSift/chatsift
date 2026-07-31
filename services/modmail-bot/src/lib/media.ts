@@ -86,7 +86,7 @@ function isImageContentType(contentType: string | undefined): boolean {
 
 /**
  * Actually re-uploads attachments and stickers on the relayed message instead of just linking the
- * original CDN url — prod ChatSift/ModMail only ever forwarded a single image by url and dropped
+ * original CDN url — ChatSift/ModMail only ever forwarded a single image by url and dropped
  * everything else (extra attachments, any non-image file, stickers entirely). Re-uploading means
  * every attachment survives even after the source message/thread is gone.
  *
