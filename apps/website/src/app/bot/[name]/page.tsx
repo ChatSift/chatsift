@@ -48,7 +48,7 @@ export default async function BotPage({ params }: PageProps<'/bot/[name]'>) {
 			<section className="flex flex-col gap-6">
 				<ScreenshotGallery botName={label} screenshots={marketing.screenshots} />
 				<div className="flex flex-col gap-3">
-					<h2 className="text-3xl font-medium text-primary dark:text-primary-dark">{marketing.pageTitle}</h2>
+					<h1 className="text-3xl font-medium text-primary dark:text-primary-dark">{marketing.pageTitle}</h1>
 					{marketing.pageDescription.map((line) => (
 						<p className="text-secondary dark:text-secondary-dark" key={line}>
 							{line}
@@ -66,14 +66,14 @@ export default async function BotPage({ params }: PageProps<'/bot/[name]'>) {
 			</section>
 			<section className="flex flex-col gap-4">
 				<div className="flex flex-col gap-1">
-					<h3 className="text-xl font-medium text-primary dark:text-primary-dark">{marketing.features.title}</h3>
+					<h2 className="text-xl font-medium text-primary dark:text-primary-dark">{marketing.features.title}</h2>
 					<p className="text-secondary dark:text-secondary-dark">{marketing.features.text}</p>
 				</div>
 				<FeatureGrid features={marketing.features.items} />
 			</section>
 			{otherBots.length > 0 && (
 				<section className="flex flex-col gap-4">
-					<h3 className="text-xl font-medium text-primary dark:text-primary-dark">Check out our other bots</h3>
+					<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Check out our other bots</h2>
 					<ul className="flex flex-col gap-4 sm:flex-row">
 						{otherBots.map((otherBot) => {
 							const otherMarketing = marketingBots[otherBot];

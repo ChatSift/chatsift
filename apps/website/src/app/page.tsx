@@ -8,9 +8,9 @@ export default function HomePage() {
 	return (
 		<div className="flex flex-col gap-12 pb-12">
 			<section className="flex flex-col gap-6">
-				<h2 className="text-3xl font-medium text-primary dark:text-primary-dark">
+				<h1 className="text-3xl font-medium text-primary dark:text-primary-dark">
 					Built for how your server actually runs
-				</h2>
+				</h1>
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 					<LinkButton external href="/support">
 						Join our Discord server
@@ -18,7 +18,7 @@ export default function HomePage() {
 				</div>
 			</section>
 			<section className="flex flex-col gap-4">
-				<h3 className="text-2xl font-medium text-primary dark:text-primary-dark">Our bots</h3>
+				<h2 className="text-2xl font-medium text-primary dark:text-primary-dark">Our bots</h2>
 				<ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					{BOTS.map((bot) => (
 						<li key={bot}>
