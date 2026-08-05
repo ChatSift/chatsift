@@ -8,7 +8,7 @@ import { cookieWithDomain } from '../../util/constants.js';
 import { sanitizeRedirectTo } from '../../util/redirectTo.js';
 import { StateCookie } from '../../util/stateCookie.js';
 
-export const DISCORD_AUTH_SCOPES = new Set(['identify', 'email', 'guilds', 'guilds.members.read'] as const);
+export const DISCORD_AUTH_SCOPES = new Set(['identify', 'guilds', 'guilds.members.read'] as const);
 
 const querySchema = z.strictObject({
 	redirect_to: z.string().optional(),

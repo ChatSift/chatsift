@@ -5,6 +5,7 @@ import {
 	createDatabase,
 	createLogger,
 	createRedis,
+	encrypt,
 	getContext,
 	GRANTS,
 	initContext,
@@ -118,7 +119,10 @@ const makeAccessJWT = ({ now = Date.now(), expiresIn = 5 * 60, grants, sub = USE
 		grants: { adminGuilds: grants?.guildIds ?? [] },
 	};
 
-	return jwt.sign(data, getContext().env.ENCRYPTION_KEY, { expiresIn });
+	// Mirrors createAccessToken's real behavior -- discordAccessToken is encrypted (not just signed) at rest.
+	return jwt.sign({ ...data, discordAccessToken: encrypt(data.discordAccessToken) }, getContext().env.ENCRYPTION_KEY, {
+		expiresIn,
+	});
 };
 
 interface MockRefreshJWTData {
@@ -136,7 +140,16 @@ const makeRefreshJWT = ({ now = Date.now(), expiresIn = 60 * 60 * 24 * 30 }: Moc
 		discordRefreshToken: GOOD_REFRESH_TOKEN,
 	};
 
-	return jwt.sign(data, getContext().env.ENCRYPTION_KEY, { expiresIn });
+	// Mirrors createRefreshToken's real behavior -- these fields are encrypted (not just signed) at rest.
+	return jwt.sign(
+		{
+			...data,
+			discordAccessToken: encrypt(data.discordAccessToken),
+			discordRefreshToken: encrypt(data.discordRefreshToken),
+		},
+		getContext().env.ENCRYPTION_KEY,
+		{ expiresIn },
+	);
 };
 
 const GRANT_GUILD_ID = '123';

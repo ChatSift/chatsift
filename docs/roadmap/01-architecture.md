@@ -356,3 +356,59 @@ Shipped 2026-07-30 across six phases, on top of M5's ticket model (§7 above). B
 **Resync** (`POST /v3/guilds/:guildId/modmail/resync`, `services/api/src/routes/modmail/resync.ts`) — reconciles snippet commands and panel messages against whichever application _currently_ owns a guild, needed because Discord scopes both to the creating application: a swap orphans a snippet's guild command and a panel's message-authorship alike. Deliberately a manual dashboard button (shown for custom-instance guilds and global admins), not automatic on every registry refresh — ownership can flap (a row edited twice in quick succession, a bad deploy rolled back), and reposting every panel on every refresh tick would be wasteful and could repost panels that never needed it. The detection trick needs no memory of which application _used to_ own the guild: a stale snippet command 404s (`UnknownApplicationCommand`) when looked up under the current owner, since command ids are application-scoped; a stale panel message fails to edit (`CannotEditMessageAuthoredByAnotherUser`, or `UnknownMessage` if it's gone) under the current owner, since only the authoring application can edit it. A command under the current application not backing any live snippet is deleted as an orphan; a repost reads the button's label back off the still-live message first (`panel_json_data` never stored it), falling back to a default if the message is gone entirely.
 
 **A real asymmetry between onboarding and offboarding**, worth remembering before "simplifying" this into one button: resync always targets whichever application the registry says _currently_ owns the guild. Onboarding only ever needs one resync call (the row already points at the new partner by the time it runs). **Offboarding needs two** — once before deleting the `modmail_instances` row (so the partner's application can still clean up what it can reach), and once after (now that the guild resolves back to public, to actually recreate/repost onto it). See the workflow.md runbook for the full ordered sequence.
+
+## 9. Terms, Privacy Policy & Discord compliance (#263)
+
+A compliance pass against Discord's Developer Terms of Service/Developer Policy, prompted by the fact that neither
+a Terms of Service nor a Privacy Policy existed anywhere on `automoderator.app` before this. Scoped down from a
+broader audit to the items the owner confirmed were real gaps — see #263 for the full audit (data
+inventory, retention posture, everything considered and explicitly _not_ actioned, and why).
+
+**What shipped:**
+
+- **`/terms` and `/privacy` pages** (`apps/website/src/app/terms/`, `.../privacy/`), linked from `Footer.tsx`.
+  Plain static content pages, `LegalSection` (`components/marketing/LegalSection.tsx`) is the only shared piece —
+  a heading + body wrapper so the pages read as plain semantic HTML instead of hand-styling every paragraph/list.
+  Privacy Policy content reflects actual current behavior, not aspirational policy: data is retained indefinitely
+  while a server has the bot configured (no purge timer — the dashboard's historical views, e.g. past AMA
+  sessions and ModMail thread history §7, are an intentional ongoing record staff rely on, not a queue to be
+  drained), and deletion/access requests are handled manually by reaching out on the support server rather than a
+  self-service flow.
+- **Dropped the unused `email` OAuth scope** (`services/api/src/routes/auth/discord.ts`'s `DISCORD_AUTH_SCOPES`) —
+  it was requested but never read anywhere in `services/api` or `apps/website`; data minimization, not a feature
+  change. `identify`/`guilds`/`guilds.members.read` are unaffected. Existing sessions issued under the old scope
+  set keep working; only new logins get the narrower grant.
+- **Discord OAuth tokens are now encrypted, not just signed, inside session JWTs** (`services/api/src/util/tokens.ts`,
+  `middleware/isAuthed.ts`): `discordAccessToken`/`discordRefreshToken` are wrapped with the same
+  `encrypt`/`decrypt` (`packages/private/backend-core/src/lib/crypt.ts`, AES-256-GCM) already used for
+  `modmail_instances.token`, applied only at the sign/verify boundary — every downstream reader (`me.ts`,
+  `logout.ts`, the guild-manager check, the refresh flow) still sees plaintext and needed no changes. Closes a real
+  gap: a JWT is only base64-encoded, not encrypted, by default, so the raw Discord credentials were previously
+  readable from a leaked `refresh_token` cookie or `X-Update-Access-Token` header value without needing to break
+  the signature.
+- **Redis runs fully in-memory** (`docker-compose.yml`'s `redis` service: `--save '' --appendonly no`) — nothing
+  in the stack treats it as a source of truth (`GuildList`/instance snapshots republish on an interval,
+  `PendingTicketStore` mirrors the durable `pending_tickets` table, grant-token claims are best-effort), so there
+  was no reason for it to write RDB/AOF snapshots to disk at all. Removes it from the at-rest-encryption scope
+  entirely instead of needing the same treatment as Postgres, and drops the fsync/bgsave overhead as a side effect.
+- **Improved the 404 page** (`apps/website/src/app/not-found.tsx`) — was a single line of text plus a client-only
+  "Go back" button; now also offers a plain `Link`-based "Return home" (works even before the client bundle
+  hydrates) alongside the existing back button.
+
+**Explicitly considered and not actioned** (owner calls, not oversights — don't re-litigate without new
+information):
+
+- **No retention/purge window for AMA questions or ModMail transcripts.** The dashboard surfaces full history for
+  essentially every table; there's no data that can be honestly argued as "no longer necessary" while that
+  remains true. Would need revisiting only if a feature that depends on that history goes away.
+- **No self-service data-deletion flow.** The support-server-contact path in the Privacy Policy is the actual
+  process, not a placeholder for a future build.
+- **No cleanup when a bot leaves a guild or a user's data becomes orphaned.** Standard bot behavior — data has to
+  survive a re-invite for settings to still be there, same as every other Discord bot.
+- **No custom-ModMail-instance Terms addendum.** Considered because partner deployments (§8 above) share
+  ChatSift's Postgres/Redis, but ChatSift owns the Discord application on every instance (including branded
+  ones) — there's no separate data controller relationship to document.
+- **Postgres at-rest disk encryption** (Developer Terms §5(c)) is real but is a host-level change (`fscrypt` on
+  the production VPS), not something achievable from this repo — runbook is in
+  [workflow.md](../workflow.md#encryption-at-rest-263), execution is on the operator, not tracked as "shipped"
+  here.

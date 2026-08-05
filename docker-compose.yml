@@ -162,6 +162,11 @@ services:
   redis:
     image: redis:6-alpine
     restart: unless-stopped
+    # Nothing in the stack treats Redis as a source of truth (GuildList/instance snapshots republish on an
+    # interval, PendingTicketStore mirrors the durable `pending_tickets` table, grant-token claims are
+    # best-effort) -- so it runs fully in-memory: no RDB snapshotting (`--save ''`), no AOF. Removes the only
+    # disk-backed state that would otherwise need at-rest encryption, and skips the fsync/bgsave overhead.
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
     healthcheck:
       test: ['CMD-SHELL', 'redis-cli ping']
       interval: 10s
