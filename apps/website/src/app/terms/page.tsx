@@ -74,7 +74,7 @@ export default function TermsPage() {
 					Using a Discord bot or the dashboard doesn't replace or override your agreement with Discord — Discord's{' '}
 					<a href="https://discord.com/terms">Terms of Service</a>,{' '}
 					<a href="https://discord.com/guidelines">Community Guidelines</a>, and{' '}
-					<a href="https://support-dev.discord.com/hc/en-us/articles/8562894815383">Developer Policy</a> all still apply
+					<a href="https://support-dev.discord.com/hc/en-us/articles/8563934450327">Developer Policy</a> all still apply
 					to you. Nothing in these Terms overrides Discord's own terms.
 				</p>
 			</LegalSection>

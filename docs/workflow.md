@@ -218,9 +218,14 @@ size inflation).
 host, a maintenance window, and judgment calls (backup verification, reboot testing) that shouldn't be automated
 blind.
 
-1. **Enable the ext4 encryption feature** (online, doesn't require unmounting `/`):
+1. **Enable the ext4 encryption feature** (online, doesn't require unmounting `/`). Resolve the actual backing
+   device rather than assuming `/dev/sda1` — that's `df -T /`'s current output on the production host, but isn't
+   guaranteed to stay the device Docker's data lives on (a future attached volume, a differently-partitioned
+   replacement host, etc.):
    ```sh
-   sudo tune2fs -O encrypt /dev/sda1
+   docker_device="$(findmnt -no SOURCE /var/lib/docker)"
+   [ "$(findmnt -no FSTYPE /var/lib/docker)" = ext4 ] || { echo "not ext4, stop here"; exit 1; }
+   sudo tune2fs -O encrypt "$docker_device"
    ```
 2. **Install and initialize fscrypt** (one-time, `apt install fscrypt` on recent Debian/Ubuntu; build from
    [google/fscrypt](https://github.com/google/fscrypt) if unpackaged):
@@ -250,7 +255,16 @@ blind.
    ./compose up -d postgres
    ./compose logs postgres  # confirm a clean start, no corruption/recovery errors
    ```
-   Once the API and bots are confirmed healthy against it, delete `_data.bak`.
+   Once the API and bots are confirmed healthy against it, **securely wipe `_data.bak`**, not just `rm -rf` it —
+   a plain delete leaves the plaintext data recoverable from the underlying disk blocks, which defeats the entire
+   point of encrypting `_data` in the first place:
+   ```sh
+   sudo find /var/lib/docker/volumes/chatsift-v3-postgres-data/_data.bak -type f -exec shred -u {} +
+   sudo rm -rf /var/lib/docker/volumes/chatsift-v3-postgres-data/_data.bak
+   ```
+   (`shred` only guarantees overwrite on a filesystem without copy-on-write/journaling quirks that can leave
+   stale copies elsewhere on disk — if this ever runs on anything other than plain ext4, treat the whole disk as
+   needing attention, not just this one directory.)
 6. **Auto-unlock at boot** — the directory relocks on every reboot until something unlocks it again, and that has
    to happen before Docker starts the `postgres` container. A oneshot systemd unit ahead of `docker.service`
    (there's no separate systemd unit for the compose stack itself — Docker's own `restart: unless-stopped` per
@@ -271,12 +285,26 @@ blind.
    [Install]
    WantedBy=multi-user.target
    ```
+   `Before=docker.service` alone only orders the two units when both are going to start anyway — it doesn't stop
+   Docker from starting if the unlock fails. A drop-in on `docker.service` itself turns that into a hard
+   dependency, so a failed unlock actually blocks Docker (and therefore the `postgres` container) from starting
+   against a missing/still-locked directory instead of quietly booting into an empty one:
+   ```ini
+   # /etc/systemd/system/docker.service.d/10-fscrypt-postgres.conf
+   [Unit]
+   Requires=fscrypt-unlock-postgres.service
+   After=fscrypt-unlock-postgres.service
+   ```
    ```sh
    sudo systemctl daemon-reload
    sudo systemctl enable fscrypt-unlock-postgres.service
    ```
-7. **Test it for real**: reboot the host during a maintenance window, confirm the unlock unit ran
-   (`journalctl -u fscrypt-unlock-postgres`) before Postgres came up, and confirm the API/bots reconnected cleanly.
+7. **Test it for real**, both directions, during a maintenance window:
+   - Reboot the host, confirm the unlock unit ran (`journalctl -u fscrypt-unlock-postgres`) before Postgres came
+     up, and confirm the API/bots reconnected cleanly.
+   - Confirm the failure mode too: temporarily move `/etc/fscrypt-postgres.key` aside, reboot, and verify
+     `docker.service` (and therefore `postgres`) stays down instead of silently starting against an empty
+     directory — then restore the keyfile and reboot once more to confirm normal recovery.
 
 What this does and doesn't defend against: it protects data if the disk is stolen or a backup/snapshot is exposed
 on Hetzner's side (the actual scenario "encryption at rest" targets). It does not protect against a live
