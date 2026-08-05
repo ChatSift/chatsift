@@ -16,6 +16,14 @@ const createAMABase = z.strictObject({
 	answersChannelId: snowflakeSchema,
 	promptChannelId: snowflakeSchema,
 	allowedQuestionUploads: z.number().int().min(0).max(10).default(0),
+	// Optional automated close date (#290) -- ama-bot's scheduledCloseSweep.ts flips `ended` once this
+	// lapses, the same way `/ama end` does. `.nullable()` alone (not just `.optional()`) so an edit can
+	// explicitly clear a previously-set date, mirroring modmail's `expiresAt`.
+	scheduledCloseAt: z.iso
+		.datetime()
+		.refine((value) => new Date(value).getTime() > Date.now(), 'Scheduled close date must be in the future')
+		.nullable()
+		.optional(),
 });
 
 export const createAMAWithRegularPromptSchema = createAMABase.safeExtend({
@@ -48,6 +56,7 @@ export const updateAMAConfigSchema = z
 		flaggedQueueId: snowflakeSchema.nullable().optional(),
 		guestQueueId: snowflakeSchema.nullable().optional(),
 		allowedQuestionUploads: z.number().int().min(0).max(10).optional(),
+		scheduledCloseAt: createAMABase.shape.scheduledCloseAt,
 		prompt: createAMAWithRegularPromptSchema.shape.prompt.optional(),
 		prompt_raw: createAMAWithRawPromptSchema.shape.prompt_raw.optional(),
 	})

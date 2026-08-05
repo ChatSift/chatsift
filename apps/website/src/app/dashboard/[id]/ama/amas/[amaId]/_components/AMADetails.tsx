@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { getChannelIcon } from '@/utils/channels';
-import { formatDate, parseIntegerInput } from '@/utils/util';
+import { dateToDatetimeLocalValue, datetimeLocalValueToISOString, formatDate, parseIntegerInput } from '@/utils/util';
 
 const channelName = (channel: GuildChannelInfo | PossiblyMissingChannelInfo | null) =>
 	channel && 'name' in channel ? channel.name : 'Unknown';
@@ -54,6 +54,7 @@ interface ConfigFormData {
 	flaggedQueueId: string;
 	guestQueueId: string;
 	modQueueId: string;
+	scheduledCloseAt: string;
 	title: string;
 }
 
@@ -66,6 +67,7 @@ const CONFIG_FIELDS = [
 	'flaggedQueueId',
 	'guestQueueId',
 	'allowedQuestionUploads',
+	'scheduledCloseAt',
 ] as const satisfies (keyof ConfigFormData)[];
 
 function mapConfigIssues(issues: readonly { message: string; path: PropertyKey[] }[]): ConfigFormErrors {
@@ -174,6 +176,13 @@ export function AMADetails() {
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [configForm, setConfigForm] = useState<ConfigFormData | null>(null);
+	// Snapshot of `scheduledCloseAt` as loaded, in the same datetime-local string form as `configForm`'s --
+	// `handleSaveConfig` diffs against this so an edit that never touches the date (e.g. just the title)
+	// doesn't resend it. That matters beyond a no-op write: the datetime-local input only has minute
+	// precision, so round-tripping an untouched value through it and back to ISO can shift it by
+	// truncating seconds, and if the stored date is already close to "now" that resend could even trip the
+	// "must be in the future" validation on a field the user never meant to change.
+	const [initialScheduledCloseAt, setInitialScheduledCloseAt] = useState('');
 	const [configErrors, setConfigErrors] = useState<ConfigFormErrors>({});
 	const [promptForm, setPromptForm] = useState<PromptFormData | null>(null);
 	const [promptMode, setPromptMode] = useState<PromptMode>('raw');
@@ -210,6 +219,8 @@ export function AMADetails() {
 	}
 
 	const startEdit = () => {
+		const scheduledCloseAt = ama.scheduledCloseAt ? dateToDatetimeLocalValue(new Date(ama.scheduledCloseAt)) : '';
+
 		setConfigForm({
 			title: ama.title,
 			answersChannelId: ama.answersChannel.id,
@@ -217,7 +228,9 @@ export function AMADetails() {
 			flaggedQueueId: ama.flaggedQueueChannel?.id ?? '',
 			guestQueueId: ama.guestQueueChannel?.id ?? '',
 			allowedQuestionUploads: String(ama.allowedQuestionUploads),
+			scheduledCloseAt,
 		});
+		setInitialScheduledCloseAt(scheduledCloseAt);
 		setConfigErrors({});
 		setActionError(null);
 		setSuccessMessage(null);
@@ -243,6 +256,11 @@ export function AMADetails() {
 			flaggedQueueId: configForm.flaggedQueueId || null,
 			guestQueueId: configForm.guestQueueId || null,
 			allowedQuestionUploads: parseIntegerInput(configForm.allowedQuestionUploads),
+			// Omitted entirely (not sent as `undefined`) when untouched -- see `initialScheduledCloseAt`'s
+			// comment for why resending an unchanged value isn't safe to do unconditionally.
+			...(configForm.scheduledCloseAt !== initialScheduledCloseAt && {
+				scheduledCloseAt: datetimeLocalValueToISOString(configForm.scheduledCloseAt) ?? null,
+			}),
 		};
 
 		const result = updateAMAConfigSchema.safeParse(data);
@@ -553,6 +571,29 @@ export function AMADetails() {
 							<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Allowed Uploads</p>
 							<p className="text-lg text-primary dark:text-primary-dark">
 								{ama.allowedQuestionUploads} {ama.allowedQuestionUploads === 1 ? 'file' : 'files'} per question
+							</p>
+						</div>
+					)}
+
+					{editing ? (
+						<TextField
+							error={configErrors.scheduledCloseAt}
+							helper={
+								<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+									Optional - automatically ends the AMA at this date/time. Clear to cancel it.
+								</p>
+							}
+							id="edit-scheduled-close-at"
+							label="Scheduled Close Date"
+							onChange={(value) => updateConfigField('scheduledCloseAt', value)}
+							type="datetime-local"
+							value={configForm.scheduledCloseAt}
+						/>
+					) : (
+						<div>
+							<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Scheduled Close Date</p>
+							<p className="text-lg text-primary dark:text-primary-dark">
+								{ama.scheduledCloseAt ? formatDate(new Date(ama.scheduledCloseAt)) : 'Not set'}
 							</p>
 						</div>
 					)}

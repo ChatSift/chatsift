@@ -19,7 +19,8 @@
 			"Bash(yarn eslint *)",
 			"Bash(yarn db:diff *)",
 			"Bash(yarn db:migrate *)",
-			"Bash(yarn db:gen)"
+			"Bash(yarn db:gen)",
+			"Bash(yarn dotenv *)"
 		]
 	}
 }
