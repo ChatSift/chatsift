@@ -385,7 +385,21 @@ inventory, retention posture, everything considered and explicitly _not_ actione
   `logout.ts`, the guild-manager check, the refresh flow) still sees plaintext and needed no changes. Closes a real
   gap: a JWT is only base64-encoded, not encrypted, by default, so the raw Discord credentials were previously
   readable from a leaked `refresh_token` cookie or `X-Update-Access-Token` header value without needing to break
-  the signature.
+  the signature. Sessions issued before this change carry those fields as plaintext, which fails GCM auth-tag
+  verification on decrypt — `isAuthed.ts` catches that specific failure and rethrows it as a `JsonWebTokenError`,
+  routing it into the same "malformed, force a clean re-login" branch already used for tampered tokens, instead of
+  an uncaught 500 on every pre-existing session's first request after deploy.
+- **The post-OAuth scope check is a named two-set match, not a strict equality against one set**
+  (`services/api/src/routes/auth/discordCallback.ts`): dropping the `email` scope above surfaced that Discord can
+  skip the consent screen and return a standing authorization's previously-granted scopes as-is, rather than
+  trimming to what a given request asked for — an account that had already authorized under the old scope set kept
+  getting `email` back and tripped the equality check with a 403. Fixed as an explicit `DISCORD_AUTH_SCOPES` OR
+  `DISCORD_AUTH_SCOPES ∪ {email}` match (both via `setEquals`), not a general "extra scopes are fine" subset
+  check — deliberately, so scope-tampering via a crafted authorize URL is still rejected for anything outside
+  these two known-good sets. (The actual defense against that tampering is the `state` cookie's random nonce,
+  checked earlier in the same handler — a crafted authorize link can't produce a `state` that validates without
+  going through this route's own hardcoded scope list in the first place, so the scope check itself was always
+  defense-in-depth, not the primary control.)
 - **Redis runs fully in-memory** (`docker-compose.yml`'s `redis` service: `--save '' --appendonly no`) — nothing
   in the stack treats it as a source of truth (`GuildList`/instance snapshots republish on an interval,
   `PendingTicketStore` mirrors the durable `pending_tickets` table, grant-token claims are best-effort), so there
@@ -393,7 +407,20 @@ inventory, retention posture, everything considered and explicitly _not_ actione
   entirely instead of needing the same treatment as Postgres, and drops the fsync/bgsave overhead as a side effect.
 - **Improved the 404 page** (`apps/website/src/app/not-found.tsx`) — was a single line of text plus a client-only
   "Go back" button; now also offers a plain `Link`-based "Return home" (works even before the client bundle
-  hydrates) alongside the existing back button.
+  hydrates) alongside the existing back button. Surfaced a gap in the shared `Button` component while at it:
+  `common/Button.tsx` never set `cursor-pointer` (Tailwind v4's preflight resets buttons to `cursor: default`),
+  so every interactive `Button` usage needed it added per call site — fixed at the source instead, in `Button.tsx`
+  itself, ahead of `disabled:cursor-not-allowed` so the disabled state still overrides correctly.
+- **Postgres at-rest disk encryption is live on the production host**, via native ext4 directory encryption
+  (`fscrypt`) on `_data`, not a separate LUKS volume — full runbook (as actually run, including two `fscrypt` CLI
+  corrections found live: `encrypt` takes `--key=FILE` not `--key-file=FILE`, and `unlock` doesn't accept
+  `--source` at all) is in [workflow.md](../workflow.md#encryption-at-rest-263). Done 2026-08-05: happy-path reboot
+  tested for real (unlock unit runs before `docker.service` via a hard `Requires=`/`After=` dependency, not just
+  `Before=` ordering, which doesn't block startup on failure); the failure-path half (deliberately breaking the
+  unlock to confirm Docker refuses to start) was knowingly skipped since the host also carries other live
+  production workloads unrelated to ChatSift — an operator judgment call, not an oversight, and worth doing for
+  real on any future host this runs on. Redis needed no equivalent treatment (see above) — it's the only other
+  service holding non-application-level-encrypted data at rest.
 
 **Explicitly considered and not actioned** (owner calls, not oversights — don't re-litigate without new
 information):
@@ -408,7 +435,3 @@ information):
 - **No custom-ModMail-instance Terms addendum.** Considered because partner deployments (§8 above) share
   ChatSift's Postgres/Redis, but ChatSift owns the Discord application on every instance (including branded
   ones) — there's no separate data controller relationship to document.
-- **Postgres at-rest disk encryption** (Developer Terms §5(c)) is real but is a host-level change (`fscrypt` on
-  the production VPS), not something achievable from this repo — runbook is in
-  [workflow.md](../workflow.md#encryption-at-rest-263), execution is on the operator, not tracked as "shipped"
-  here.

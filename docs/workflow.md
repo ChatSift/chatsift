@@ -218,6 +218,15 @@ size inflation).
 host, a maintenance window, and judgment calls (backup verification, reboot testing) that shouldn't be automated
 blind.
 
+> **Status: done, live on the production host as of 2026-08-05.** The steps below are what was actually run,
+> corrected in place for two `fscrypt` CLI mistakes discovered live (see the callouts on steps 4 and 6 — `encrypt`
+> takes `--key=FILE`, not `--key-file=FILE`, and `unlock` doesn't accept `--source` at all, only `encrypt` does).
+> The happy-path reboot test (step 7) was run for real and passed. The failure-path half of step 7 was
+> deliberately **not** run against production — this host also runs real, currently-serving workloads unrelated to
+> ChatSift, and deliberately breaking the boot sequence to prove a negative wasn't worth that risk once the
+> mechanism (`docker.service`'s `Requires=` on the unlock unit) was understood and the happy path confirmed
+> working. If this is ever re-run on a different host, the failure-path test is still worth doing there.
+
 1. **Enable the ext4 encryption feature** (online, doesn't require unmounting `/`). Resolve the actual backing
    device rather than assuming `/dev/sda1` — that's `df -T /`'s current output on the production host, but isn't
    guaranteed to stay the device Docker's data lives on (a future attached volume, a differently-partitioned
@@ -245,9 +254,20 @@ blind.
    ```sh
    sudo sh -c 'head -c 32 /dev/urandom > /etc/fscrypt-postgres.key && chmod 600 /etc/fscrypt-postgres.key'
    sudo fscrypt encrypt /var/lib/docker/volumes/chatsift-v3-postgres-data/_data \
-     --source=raw_key --key-file=/etc/fscrypt-postgres.key
+     --source=raw_key --key=/etc/fscrypt-postgres.key --name=postgres-data
    ```
-   The directory is unlocked for the current session immediately after `encrypt` runs, so it's writable right away.
+   The flag is `--key=FILE`, not `--key-file=FILE` (`fscrypt encrypt --help` is the source of truth if this drifts
+   again — the CLI doesn't do fuzzy matching, an unrecognized flag just dumps usage and exits 1). `--name` avoids
+   an interactive prompt for the protector's name. The directory is unlocked for the current session immediately
+   after `encrypt` runs, so it's writable right away.
+   Copy `/etc/fscrypt-postgres.key`'s contents off the host now, before going any further — it's the only thing
+   standing between an intact backup and permanently unrecoverable data, same as `ENCRYPTION_KEY`. It's raw binary,
+   not text, so base64-encode it for safe storage (`base64 -w0 /etc/fscrypt-postgres.key` on Linux, `base64 -b 0
+-i` on macOS) into a password manager as a Secure Note, and include the exact restore command
+   (`base64 -d > /etc/fscrypt-postgres.key && chmod 600 /etc/fscrypt-postgres.key`) in the note body rather than
+   just the key on its own. Clean up every plaintext copy made along the way (scp'd-down files, temp copies used to
+   get it off the host) once it's safely stored — a copy sitting in a home directory defeats the same purpose the
+   `_data.bak` wipe below protects.
 5. **Copy the data back in and verify**, then bring Postgres back up:
    ```sh
    sudo rsync -a --info=progress2 /var/lib/docker/volumes/chatsift-v3-postgres-data/_data.bak/ \
@@ -269,6 +289,7 @@ blind.
    to happen before Docker starts the `postgres` container. A oneshot systemd unit ahead of `docker.service`
    (there's no separate systemd unit for the compose stack itself — Docker's own `restart: unless-stopped` per
    service is what brings containers back after `docker.service` starts):
+
    ```ini
    # /etc/systemd/system/fscrypt-unlock-postgres.service
    [Unit]
@@ -279,32 +300,61 @@ blind.
 
    [Service]
    Type=oneshot
-   ExecStart=/usr/bin/fscrypt unlock /var/lib/docker/volumes/chatsift-v3-postgres-data/_data --source=raw_key --key-file=/etc/fscrypt-postgres.key
+   ExecStart=/usr/bin/fscrypt unlock /var/lib/docker/volumes/chatsift-v3-postgres-data/_data --key=/etc/fscrypt-postgres.key --quiet
    RemainAfterExit=yes
 
    [Install]
    WantedBy=multi-user.target
    ```
+
+   `unlock` doesn't accept `--source` at all (that's an `encrypt`-only flag, for choosing what kind of _new_
+   protector to create) — only `--key=FILE` for the raw-key path here, and `--quiet` since this runs with no TTY
+   at boot and must never sit waiting on a prompt it can't answer. Confirm `which fscrypt` matches the binary path
+   in `ExecStart` before enabling — worth checking per-host, not assumed from this doc.
+
    `Before=docker.service` alone only orders the two units when both are going to start anyway — it doesn't stop
    Docker from starting if the unlock fails. A drop-in on `docker.service` itself turns that into a hard
    dependency, so a failed unlock actually blocks Docker (and therefore the `postgres` container) from starting
    against a missing/still-locked directory instead of quietly booting into an empty one:
+
    ```ini
    # /etc/systemd/system/docker.service.d/10-fscrypt-postgres.conf
    [Unit]
    Requires=fscrypt-unlock-postgres.service
    After=fscrypt-unlock-postgres.service
    ```
+
    ```sh
    sudo systemctl daemon-reload
    sudo systemctl enable fscrypt-unlock-postgres.service
    ```
-7. **Test it for real**, both directions, during a maintenance window:
-   - Reboot the host, confirm the unlock unit ran (`journalctl -u fscrypt-unlock-postgres`) before Postgres came
-     up, and confirm the API/bots reconnected cleanly.
-   - Confirm the failure mode too: temporarily move `/etc/fscrypt-postgres.key` aside, reboot, and verify
-     `docker.service` (and therefore `postgres`) stays down instead of silently starting against an empty
-     directory — then restore the keyfile and reboot once more to confirm normal recovery.
+
+7. **Test the happy path for real** during a maintenance window — this is the non-negotiable one, since it's what
+   every routine reboot going forward actually depends on:
+
+   ```sh
+   reboot
+   # after it comes back:
+   systemctl status fscrypt-unlock-postgres.service
+   journalctl -b -u fscrypt-unlock-postgres.service --no-pager
+   fscrypt status /var/lib/docker/volumes/chatsift-v3-postgres-data/_data   # Unlocked: Yes
+   docker compose ps                                                        # everything back on its own
+   ./compose logs postgres --tail 30                                        # clean start, no recovery warnings
+   ```
+
+   Before this reboot, it's worth a lower-risk dry run of the unlock command itself, without touching the host's
+   boot sequence at all: `./compose stop postgres`, `fscrypt lock <dir>`, `systemctl start
+fscrypt-unlock-postgres.service`, confirm it succeeds and `fscrypt status` flips back to `Unlocked: Yes`, then
+   `./compose up -d postgres`. Catches a broken `ExecStart` line without needing a reboot to find out.
+
+   **The failure-path half — temporarily moving the keyfile aside, rebooting, and confirming `docker.service`
+   correctly refuses to start — is worth doing if the host is otherwise idle, but is a judgment call to skip on a
+   host that also carries other live production workloads.** `Requires=`/`After=` is well-understood, standard
+   systemd behavior, not something exotic that needs live proof to trust; deliberately breaking a boot sequence to
+   confirm a negative isn't worth the risk on a shared box once the happy path is already confirmed. If skipped,
+   say so explicitly (don't let it read as "forgotten") and revisit on the next host this runs on. **If this step
+   is skipped, immediately move the keyfile back to its real path** if it was relocated as prep — an _unplanned_
+   reboot before that happens hits the failure path for real, not as a test.
 
 What this does and doesn't defend against: it protects data if the disk is stolen or a backup/snapshot is exposed
 on Hetzner's side (the actual scenario "encryption at rest" targets). It does not protect against a live
