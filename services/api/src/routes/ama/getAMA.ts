@@ -34,6 +34,7 @@ export interface AMASessionDetailed extends Omit<
 	guestQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
 	modQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
 	promptChannel: GuildChannelInfo | PossiblyMissingChannelInfo;
+	promptJsonData: string;
 	promptMessageExists: boolean;
 }
 
@@ -118,6 +119,7 @@ export default defineRoute({
 			guestQueueChannel,
 			modQueueChannel,
 			promptChannel,
+			promptJsonData: promptData.promptJsonData,
 			promptMessageExists,
 		};
 	},

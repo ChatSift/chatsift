@@ -48,7 +48,10 @@ export const updateAMAConfigSchema = z
 		flaggedQueueId: snowflakeSchema.nullable().optional(),
 		guestQueueId: snowflakeSchema.nullable().optional(),
 		allowedQuestionUploads: z.number().int().min(0).max(10).optional(),
+		prompt: createAMAWithRegularPromptSchema.shape.prompt.optional(),
+		prompt_raw: createAMAWithRawPromptSchema.shape.prompt_raw.optional(),
 	})
-	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
+	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided')
+	.refine((data) => !('prompt' in data && 'prompt_raw' in data), 'Cannot provide both prompt and prompt_raw');
 
 export const updateAMABodySchema = z.union([updateAMAEndSchema, updateAMAConfigSchema]);

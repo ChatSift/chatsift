@@ -4,6 +4,10 @@ import { updateAMAConfigSchema } from '@chatsift/api/ama-schemas';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { NormalPromptFields } from '../../_components/NormalPromptFields';
+import type { PromptMode } from '../../_components/PromptModeToggle';
+import { PromptModeToggle } from '../../_components/PromptModeToggle';
+import { PromptPreview } from '../../_components/PromptPreview';
 import { APIError } from '@/api/error';
 import type { AMAStats, PossiblyMissingChannelInfo, UpdateAMABody } from '@/api/routes/ama';
 import { useAMA, useAMAStats, useExportAMAQuestions, useRepostPrompt, useUpdateAMA } from '@/api/routes/ama';
@@ -11,6 +15,7 @@ import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
+import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
@@ -82,6 +87,86 @@ function ChannelIcon({ channel }: { readonly channel: GuildChannelInfo | Possibl
 	return <Icon size={20} />;
 }
 
+interface PromptFormData {
+	description: string;
+	imageURL: string;
+	plainText: string;
+	promptRaw: string;
+	thumbnailURL: string;
+}
+
+type PromptFormErrors = Partial<Record<keyof PromptFormData, string>>;
+
+const PROMPT_FIELD_MAP: Record<string, keyof PromptFormData> = {
+	description: 'description',
+	plainText: 'plainText',
+	imageURL: 'imageURL',
+	thumbnailURL: 'thumbnailURL',
+};
+
+function mapPromptIssues(issues: readonly { message: string; path: PropertyKey[] }[]): PromptFormErrors {
+	const errors: PromptFormErrors = {};
+
+	for (const issue of issues) {
+		const [first, second] = issue.path;
+
+		if (first === 'prompt' && typeof second === 'string' && second in PROMPT_FIELD_MAP) {
+			errors[PROMPT_FIELD_MAP[second]!] ??= issue.message;
+		} else if (first === 'prompt_raw') {
+			errors.promptRaw ??= issue.message;
+		}
+	}
+
+	return errors;
+}
+
+function isValidJSON(value: string): boolean {
+	try {
+		JSON.parse(value);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+// `ama.promptJsonData` is always written by our own `JSON.stringify` server-side, but pretty-printing it here
+// still shouldn't be allowed to crash the form on mount if a row ever ends up with something unexpected -- falls
+// back to the raw stored string un-formatted so there's still something editable in the raw-JSON textarea instead
+// of a blank page.
+function prettyPrintOrRaw(value: string): string {
+	try {
+		return JSON.stringify(JSON.parse(value), null, 2);
+	} catch {
+		return value;
+	}
+}
+
+// Best-effort: a prompt authored in "normal" mode stores exactly the shape `createAMA.ts` builds (`content` +
+// `embeds[0].{description,image.url,thumbnail.url}`), so this round-trips cleanly. A prompt authored in raw mode
+// (or edited raw since) can be an arbitrary Discord message payload, so this only ever pre-fills what it can
+// recognize -- it never fails, it just leaves fields blank for shapes it doesn't understand.
+function bestEffortPromptFields(promptJsonData: string): Omit<PromptFormData, 'promptRaw'> {
+	try {
+		const parsed = JSON.parse(promptJsonData) as Record<string, unknown>;
+		const embeds = parsed['embeds'];
+		const embed =
+			Array.isArray(embeds) && embeds.length > 0 && typeof embeds[0] === 'object' && embeds[0] !== null
+				? (embeds[0] as Record<string, unknown>)
+				: null;
+		const image = embed?.['image'] as Record<string, unknown> | undefined;
+		const thumbnail = embed?.['thumbnail'] as Record<string, unknown> | undefined;
+
+		return {
+			plainText: typeof parsed['content'] === 'string' ? parsed['content'] : '',
+			description: embed && typeof embed['description'] === 'string' ? embed['description'] : '',
+			imageURL: typeof image?.['url'] === 'string' ? image['url'] : '',
+			thumbnailURL: typeof thumbnail?.['url'] === 'string' ? thumbnail['url'] : '',
+		};
+	} catch {
+		return { plainText: '', description: '', imageURL: '', thumbnailURL: '' };
+	}
+}
+
 export function AMADetails() {
 	const params = useParams<{ amaId: string; id: string }>();
 	const router = useRouter();
@@ -90,6 +175,9 @@ export function AMADetails() {
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [configForm, setConfigForm] = useState<ConfigFormData | null>(null);
 	const [configErrors, setConfigErrors] = useState<ConfigFormErrors>({});
+	const [promptForm, setPromptForm] = useState<PromptFormData | null>(null);
+	const [promptMode, setPromptMode] = useState<PromptMode>('raw');
+	const [promptErrors, setPromptErrors] = useState<PromptFormErrors>({});
 
 	const { data: ama, isLoading, error } = useAMA(params.id, params.amaId);
 	const { data: guildInfo, isLoading: isGuildInfoLoading, error: guildInfoError } = useGuildInfo(params.id, 'AMA');
@@ -176,6 +264,156 @@ export function AMADetails() {
 		}
 	};
 
+	const startPromptEdit = () => {
+		setPromptForm({
+			...bestEffortPromptFields(ama.promptJsonData),
+			promptRaw: prettyPrintOrRaw(ama.promptJsonData),
+		});
+		setPromptMode('raw');
+		setPromptErrors({});
+		setActionError(null);
+		setSuccessMessage(null);
+	};
+
+	const cancelPromptEdit = () => {
+		setPromptForm(null);
+		setPromptErrors({});
+	};
+
+	const updatePromptField = (field: keyof PromptFormData, value: string) => {
+		setPromptForm((prev) => (prev ? { ...prev, [field]: value } : prev));
+		setPromptErrors((prev) => ({ ...prev, [field]: undefined }));
+	};
+
+	// Normal-mode fields and the raw JSON textarea are two independent representations of the same in-progress
+	// edit -- without re-deriving one from the other on toggle, switching modes after typing would silently show
+	// (and, on save, submit) stale content from whenever the form was opened. Raw -> normal only re-derives when
+	// the raw text is currently valid JSON, so a mid-edit typo in raw mode doesn't blow away the normal fields.
+	const handlePromptModeChange = (mode: PromptMode) => {
+		setPromptForm((prev) => {
+			if (!prev) {
+				return prev;
+			}
+
+			if (mode === 'raw' && promptMode === 'normal') {
+				const messageBody = {
+					content: prev.plainText || undefined,
+					embeds: [
+						{
+							description: prev.description || undefined,
+							image: prev.imageURL ? { url: prev.imageURL } : undefined,
+							thumbnail: prev.thumbnailURL ? { url: prev.thumbnailURL } : undefined,
+						},
+					],
+				};
+
+				return { ...prev, promptRaw: JSON.stringify(messageBody, null, 2) };
+			}
+
+			if (mode === 'normal' && promptMode === 'raw' && isValidJSON(prev.promptRaw)) {
+				return { ...prev, ...bestEffortPromptFields(prev.promptRaw) };
+			}
+
+			return prev;
+		});
+
+		setPromptMode(mode);
+		setPromptErrors({});
+	};
+
+	const handleSavePrompt = async () => {
+		if (!promptForm) return;
+
+		if (promptMode === 'raw' && promptForm.promptRaw && !isValidJSON(promptForm.promptRaw)) {
+			setPromptErrors({ promptRaw: 'Must be valid JSON' });
+			return;
+		}
+
+		const body =
+			promptMode === 'raw'
+				? { prompt_raw: promptForm.promptRaw ? JSON.parse(promptForm.promptRaw) : {} }
+				: {
+						prompt: {
+							description: promptForm.description || undefined,
+							plainText: promptForm.plainText || undefined,
+							imageURL: promptForm.imageURL || undefined,
+							thumbnailURL: promptForm.thumbnailURL || undefined,
+						},
+					};
+
+		const result = updateAMAConfigSchema.safeParse(body);
+		if (!result.success) {
+			const newErrors = mapPromptIssues(result.error.issues);
+			setPromptErrors(newErrors);
+			// `mapPromptIssues` only recognizes issues nested under `prompt`/`prompt_raw` -- a root-level refine
+			// issue (e.g. the schema's "at least one field" / "cannot provide both" checks) maps to nothing, which
+			// would otherwise fail this validation silently with no feedback at all.
+			if (Object.keys(newErrors).length === 0) {
+				setActionError(result.error.issues[0]?.message ?? 'Invalid prompt data.');
+			}
+
+			return;
+		}
+
+		setActionError(null);
+
+		try {
+			await updateAMA.mutateAsync(result.data as UpdateAMABody);
+			setPromptForm(null);
+			setPromptErrors({});
+			setSuccessMessage('Prompt message updated.');
+		} catch (error) {
+			if (error instanceof APIError && error.statusCode === 422) {
+				setActionError(error.message || 'Invalid prompt data. Please check your JSON data and try again.');
+				return;
+			}
+
+			if (error instanceof APIError && error.statusCode === 400) {
+				// `prompt_raw`'s schema shape (`content`/`embeds`) has no field overlap with the normal-mode
+				// sub-fields below, so raw mode reads the whole-field error directly instead of probing sub-paths
+				// that can never match.
+				if (promptMode === 'raw') {
+					const rawError = error.fieldError('prompt_raw');
+					setPromptErrors(rawError ? { promptRaw: rawError } : {});
+					setActionError(rawError ? null : error.message);
+					return;
+				}
+
+				const candidates: [keyof PromptFormErrors, string | undefined][] = [
+					['description', error.fieldError('prompt', 'description')],
+					['plainText', error.fieldError('prompt', 'plainText')],
+					['imageURL', error.fieldError('prompt', 'imageURL')],
+					['thumbnailURL', error.fieldError('prompt', 'thumbnailURL')],
+				];
+
+				const newErrors: PromptFormErrors = Object.fromEntries(
+					candidates.filter((entry): entry is [keyof PromptFormErrors, string] => entry[1] !== undefined),
+				);
+
+				setPromptErrors(newErrors);
+				setActionError(Object.keys(newErrors).length > 0 ? null : error.message);
+				return;
+			}
+
+			setActionError(error instanceof APIError ? error.message : 'Failed to update prompt. Please try again.');
+			console.error('Failed to update AMA prompt:', error);
+		}
+	};
+
+	const handlePastePrompt = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+		const pastedText = e.clipboardData.getData('text');
+
+		try {
+			const parsed = JSON.parse(pastedText);
+			const formatted = JSON.stringify(parsed, null, 2);
+
+			e.preventDefault();
+			updatePromptField('promptRaw', formatted);
+		} catch {
+			// Not valid JSON, let default paste happen
+		}
+	};
+
 	const handleEndAMA = async () => {
 		if (!showEndConfirm) {
 			setShowEndConfirm(true);
@@ -221,6 +459,7 @@ export function AMADetails() {
 	};
 
 	const editing = configForm !== null;
+	const promptEditing = promptForm !== null;
 	const channels = guildInfo?.channels ?? [];
 
 	return (
@@ -247,7 +486,7 @@ export function AMADetails() {
 			<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
 				<div className="mb-4 flex items-center justify-between">
 					<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Session Information</h2>
-					{!ama.ended && !editing && (
+					{!ama.ended && !editing && !promptEditing && (
 						<Button
 							className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
 							isDisabled={isGuildInfoLoading || (guildInfo === undefined && Boolean(guildInfoError))}
@@ -459,9 +698,20 @@ export function AMADetails() {
 				</div>
 			)}
 
-			{/* Prompt Message Status Card */}
+			{/* Prompt Message Card */}
 			<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
-				<h2 className="text-xl font-medium text-primary dark:text-primary-dark mb-4">Prompt Message Status</h2>
+				<div className="mb-4 flex items-center justify-between">
+					<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Prompt Message</h2>
+					{ama.promptMessageExists && !ama.ended && !editing && !promptEditing && (
+						<Button
+							className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
+							onPress={startPromptEdit}
+							type="button"
+						>
+							Edit
+						</Button>
+					)}
+				</div>
 				<div className="space-y-4">
 					<div>
 						<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Message Status</p>
@@ -486,6 +736,83 @@ export function AMADetails() {
 							<p className="mt-2 text-sm text-secondary dark:text-secondary-dark">
 								This will create a new prompt message in the prompt channel.
 							</p>
+						</div>
+					)}
+
+					{/* Renders the currently-live content -- `PromptPreview`'s raw mode parses arbitrary Discord message
+					JSON, so this works whether the prompt was originally authored in normal or raw mode. Swapped out for
+					the interactive (unsaved-edits) preview below once editing starts. */}
+					{!promptEditing && <PromptPreview mode="raw" raw={ama.promptJsonData} />}
+
+					{promptEditing && (
+						<div className="space-y-4 pt-2">
+							<PromptModeToggle mode={promptMode} onModeChange={handlePromptModeChange} />
+
+							<div className="grid gap-6 lg:grid-cols-2">
+								<div>
+									{promptMode === 'normal' ? (
+										<NormalPromptFields
+											description={promptForm.description}
+											errors={promptErrors}
+											imageURL={promptForm.imageURL}
+											onDescriptionChange={(value) => updatePromptField('description', value)}
+											onImageURLChange={(value) => updatePromptField('imageURL', value)}
+											onPlainTextChange={(value) => updatePromptField('plainText', value)}
+											onThumbnailURLChange={(value) => updatePromptField('thumbnailURL', value)}
+											plainText={promptForm.plainText}
+											thumbnailURL={promptForm.thumbnailURL}
+										/>
+									) : (
+										<RawJsonField
+											error={promptErrors.promptRaw}
+											id="promptRaw"
+											label="Raw JSON Prompt"
+											onFormatClick={() => {
+												try {
+													const parsed = JSON.parse(promptForm.promptRaw);
+													updatePromptField('promptRaw', JSON.stringify(parsed, null, 2));
+												} catch {
+													// Invalid JSON, ignore
+												}
+											}}
+											onPaste={handlePastePrompt}
+											onValueChange={(value) => updatePromptField('promptRaw', value)}
+											value={promptForm.promptRaw}
+										/>
+									)}
+								</div>
+
+								{promptMode === 'normal' ? (
+									<PromptPreview
+										description={promptForm.description}
+										imageURL={promptForm.imageURL}
+										mode="normal"
+										plainText={promptForm.plainText}
+										thumbnailURL={promptForm.thumbnailURL}
+										title={ama.title}
+									/>
+								) : (
+									<PromptPreview mode="raw" raw={promptForm.promptRaw} />
+								)}
+							</div>
+
+							<div className="flex gap-3">
+								<Button
+									className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+									isDisabled={updateAMA.isPending}
+									onPress={handleSavePrompt}
+									type="button"
+								>
+									Save Changes
+								</Button>
+								<Button
+									className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
+									onPress={cancelPromptEdit}
+									type="button"
+								>
+									Cancel
+								</Button>
+							</div>
 						</div>
 					)}
 				</div>

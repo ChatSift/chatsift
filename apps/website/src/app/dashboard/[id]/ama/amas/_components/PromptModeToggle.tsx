@@ -1,7 +1,7 @@
 import { Button } from '@/components/common/Button';
 import { cn } from '@/utils/util';
 
-type PromptMode = 'normal' | 'raw';
+export type PromptMode = 'normal' | 'raw';
 
 interface PromptModeToggleProps {
 	readonly mode: PromptMode;

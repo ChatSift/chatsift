@@ -5,9 +5,10 @@ import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { FaCheckCircle } from 'react-icons/fa';
-import { NormalPromptFields } from './NormalPromptFields';
-import { PromptModeToggle } from './PromptModeToggle';
-import { PromptPreview } from './PromptPreview';
+import { NormalPromptFields } from '../../_components/NormalPromptFields';
+import type { PromptMode } from '../../_components/PromptModeToggle';
+import { PromptModeToggle } from '../../_components/PromptModeToggle';
+import { PromptPreview } from '../../_components/PromptPreview';
 import { APIError } from '@/api/error';
 import { useGrantAuth } from '@/api/grant';
 import type { CreateAMABody } from '@/api/routes/ama';
@@ -99,7 +100,7 @@ export function CreateAMAForm() {
 	const createAMA = useCreateAMA(guildId);
 	const [createdViaGrant, setCreatedViaGrant] = useState(false);
 
-	const [promptMode, setPromptMode] = useState<'normal' | 'raw'>('normal');
+	const [promptMode, setPromptMode] = useState<PromptMode>('normal');
 	const [formData, setFormData] = useState<FormData>({
 		title: '',
 		answersChannelId: '',
