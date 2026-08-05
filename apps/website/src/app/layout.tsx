@@ -40,7 +40,7 @@ export default async function RootLayout({ children }: PropsWithChildren) {
 									<Navbar />
 								</Suspense>
 								<div className="flex flex-[1_1_auto] flex-grow flex-col gap-8">
-									<main className="mx-auto mb-auto flex max-w-[80vw] flex-col justify-center gap-6 pt-6 lg:min-w-[900px] md:min-w-[640px] min-w-[320px]">
+									<main className="mx-auto mb-auto flex w-[min(912px,80vw)] flex-col justify-center gap-6 pt-6 lg:min-w-[900px] md:min-w-[640px] min-w-[320px]">
 										{children}
 									</main>
 									<Footer />
