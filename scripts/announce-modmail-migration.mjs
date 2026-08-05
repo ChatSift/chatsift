@@ -37,9 +37,21 @@ if (!mode) {
 
 let migrationStart;
 if (process.env.MIGRATION_START_ISO) {
-	migrationStart = new Date(process.env.MIGRATION_START_ISO);
+	const raw = process.env.MIGRATION_START_ISO;
+
+	// The <t:...> Discord timestamp markup below is computed from `migrationStart.getTime()`, which is
+	// only correct if the input is unambiguously UTC -- an offset-less "local" ISO string (e.g.
+	// "2026-09-01T17:00:00") gets parsed as the *runner's* local timezone by `Date`, silently shifting
+	// every timestamp shown to recipients. Reject anything without an explicit "Z" or numeric offset
+	// instead of trusting whoever invokes this script to always remember `Z`.
+	if (!/(?:Z|[+-]\d{2}:?\d{2})$/.test(raw)) {
+		console.error(`MIGRATION_START_ISO must include an explicit UTC/offset designator (e.g. a trailing "Z"): ${raw}`);
+		process.exit(1);
+	}
+
+	migrationStart = new Date(raw);
 	if (Number.isNaN(migrationStart.getTime())) {
-		console.error(`MIGRATION_START_ISO is not a valid date: ${process.env.MIGRATION_START_ISO}`);
+		console.error(`MIGRATION_START_ISO is not a valid date: ${raw}`);
 		process.exit(1);
 	}
 } else if (mode === 'live') {
@@ -59,6 +71,12 @@ const TEST_RECIPIENT = { guildName: 'NASCAR', ownerId: '223703707118731264' };
 // table borders in the source data (owner username/ID ran into the guild-name
 // column); their owner IDs below were confirmed via GET /guilds/:id (owner_id)
 // against the live prod bot rather than guessed from the garbled text.
+//
+// `/r/Beastars` and `Hybridgumi Base` below share an owner id -- unverified whether that's the same person
+// owning both guilds or a leftover transcription error from the garbled source rows mentioned above (not
+// re-checked against GET /guilds/:id the way the two garbled rows were). Either way, sending the same owner
+// two separate DMs would be wrong, so `dedupeByOwner` below folds any repeated owner id into a single DM
+// naming every guild it owns instead of guessing which entry (if either) is bad.
 const OWNERS = [
 	{ guildName: 'redsun.tf', ownerId: '832345724984623165' },
 	{ guildName: 'Fiendish Whores', ownerId: '424614666363338752' },
@@ -97,7 +115,13 @@ function separator() {
 	return { type: COMPONENT.SEPARATOR, divider: true, spacing: 2 };
 }
 
-function buildComponents(guildName) {
+// `Intl.ListFormat` gives the natural "A", "A and B", "A, B, and C" phrasing for however many guilds this
+// owner has -- almost always one, occasionally more (see the `OWNERS` comment on shared owner ids above).
+const guildListFormatter = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' });
+
+function buildComponents(guildNames) {
+	const guildList = guildListFormatter.format(guildNames.map((name) => `**${name}**`));
+
 	return [
 		{
 			type: COMPONENT.CONTAINER,
@@ -105,7 +129,7 @@ function buildComponents(guildName) {
 			components: [
 				text('# ModMail is getting a major upgrade'),
 				text(
-					`Hey! We wanted to give you a heads up as the owner of **${guildName}** on ModMail ` +
+					`Hey! We wanted to give you a heads up as the owner of ${guildList} on ModMail ` +
 						`about some big changes coming your way.`,
 				),
 				separator(),
@@ -173,16 +197,41 @@ async function sendDm(userId, components) {
 	}
 }
 
-const recipients = mode === 'test' ? [TEST_RECIPIENT] : OWNERS;
+/**
+ * Folds repeated owner ids in `entries` into one `{ ownerId, guildNames }` per owner, preserving each
+ * owner's first-seen order and each owner's guilds in list order -- so a shared owner (see the `OWNERS`
+ * comment above) gets exactly one DM naming every guild they own instead of one per guild.
+ */
+function dedupeByOwner(entries) {
+	const byOwnerId = new Map();
+
+	for (const { guildName, ownerId } of entries) {
+		const existing = byOwnerId.get(ownerId);
+		if (existing) {
+			existing.guildNames.push(guildName);
+		} else {
+			byOwnerId.set(ownerId, { ownerId, guildNames: [guildName] });
+		}
+	}
+
+	return [...byOwnerId.values()];
+}
+
+const recipients =
+	mode === 'test'
+		? [{ ownerId: TEST_RECIPIENT.ownerId, guildNames: [TEST_RECIPIENT.guildName] }]
+		: dedupeByOwner(OWNERS);
 
 console.log(`Mode: ${mode}. Sending to ${recipients.length} recipient(s).`);
 
-for (const { guildName, ownerId } of recipients) {
+for (const { guildNames, ownerId } of recipients) {
+	const label = `${guildNames.join(', ')} (${ownerId})`;
+
 	try {
-		await sendDm(ownerId, buildComponents(guildName));
-		console.log(`OK   ${guildName} (${ownerId})`);
+		await sendDm(ownerId, buildComponents(guildNames));
+		console.log(`OK   ${label}`);
 	} catch (error) {
-		console.error(`FAIL ${guildName} (${ownerId}): ${error.message}`);
+		console.error(`FAIL ${label}: ${error.message}`);
 	}
 
 	// gentle pacing, avoid hammering the createDM/message rate limits
