@@ -53,6 +53,11 @@ export default {
 					'https://discord.com/oauth2/authorize?client_id=1530137759304515647&permissions=360777370624&scope=applications.commands%20bot',
 				permanent: true,
 			},
+			{
+				source: '/kofi',
+				destination: 'https://ko-fi.com/chatsift',
+				permanent: true,
+			},
 		];
 	},
 };
