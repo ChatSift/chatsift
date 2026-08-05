@@ -5,6 +5,7 @@ import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { NormalPromptFields } from '../../_components/NormalPromptFields';
+import type { PromptMode } from '../../_components/PromptModeToggle';
 import { PromptModeToggle } from '../../_components/PromptModeToggle';
 import { PromptPreview } from '../../_components/PromptPreview';
 import { APIError } from '@/api/error';
@@ -175,7 +176,7 @@ export function AMADetails() {
 	const [configForm, setConfigForm] = useState<ConfigFormData | null>(null);
 	const [configErrors, setConfigErrors] = useState<ConfigFormErrors>({});
 	const [promptForm, setPromptForm] = useState<PromptFormData | null>(null);
-	const [promptMode, setPromptMode] = useState<'normal' | 'raw'>('raw');
+	const [promptMode, setPromptMode] = useState<PromptMode>('raw');
 	const [promptErrors, setPromptErrors] = useState<PromptFormErrors>({});
 
 	const { data: ama, isLoading, error } = useAMA(params.id, params.amaId);
@@ -284,6 +285,42 @@ export function AMADetails() {
 		setPromptErrors((prev) => ({ ...prev, [field]: undefined }));
 	};
 
+	// Normal-mode fields and the raw JSON textarea are two independent representations of the same in-progress
+	// edit -- without re-deriving one from the other on toggle, switching modes after typing would silently show
+	// (and, on save, submit) stale content from whenever the form was opened. Raw -> normal only re-derives when
+	// the raw text is currently valid JSON, so a mid-edit typo in raw mode doesn't blow away the normal fields.
+	const handlePromptModeChange = (mode: PromptMode) => {
+		setPromptForm((prev) => {
+			if (!prev) {
+				return prev;
+			}
+
+			if (mode === 'raw' && promptMode === 'normal') {
+				const messageBody = {
+					content: prev.plainText || undefined,
+					embeds: [
+						{
+							description: prev.description || undefined,
+							image: prev.imageURL ? { url: prev.imageURL } : undefined,
+							thumbnail: prev.thumbnailURL ? { url: prev.thumbnailURL } : undefined,
+						},
+					],
+				};
+
+				return { ...prev, promptRaw: JSON.stringify(messageBody, null, 2) };
+			}
+
+			if (mode === 'normal' && promptMode === 'raw' && isValidJSON(prev.promptRaw)) {
+				return { ...prev, ...bestEffortPromptFields(prev.promptRaw) };
+			}
+
+			return prev;
+		});
+
+		setPromptMode(mode);
+		setPromptErrors({});
+	};
+
 	const handleSavePrompt = async () => {
 		if (!promptForm) return;
 
@@ -306,7 +343,15 @@ export function AMADetails() {
 
 		const result = updateAMAConfigSchema.safeParse(body);
 		if (!result.success) {
-			setPromptErrors(mapPromptIssues(result.error.issues));
+			const newErrors = mapPromptIssues(result.error.issues);
+			setPromptErrors(newErrors);
+			// `mapPromptIssues` only recognizes issues nested under `prompt`/`prompt_raw` -- a root-level refine
+			// issue (e.g. the schema's "at least one field" / "cannot provide both" checks) maps to nothing, which
+			// would otherwise fail this validation silently with no feedback at all.
+			if (Object.keys(newErrors).length === 0) {
+				setActionError(result.error.issues[0]?.message ?? 'Invalid prompt data.');
+			}
+
 			return;
 		}
 
@@ -324,12 +369,21 @@ export function AMADetails() {
 			}
 
 			if (error instanceof APIError && error.statusCode === 400) {
-				const promptField = promptMode === 'raw' ? 'prompt_raw' : 'prompt';
+				// `prompt_raw`'s schema shape (`content`/`embeds`) has no field overlap with the normal-mode
+				// sub-fields below, so raw mode reads the whole-field error directly instead of probing sub-paths
+				// that can never match.
+				if (promptMode === 'raw') {
+					const rawError = error.fieldError('prompt_raw');
+					setPromptErrors(rawError ? { promptRaw: rawError } : {});
+					setActionError(rawError ? null : error.message);
+					return;
+				}
+
 				const candidates: [keyof PromptFormErrors, string | undefined][] = [
-					['description', error.fieldError(promptField, 'description')],
-					['plainText', error.fieldError(promptField, 'plainText')],
-					['imageURL', error.fieldError(promptField, 'imageURL')],
-					['thumbnailURL', error.fieldError(promptField, 'thumbnailURL')],
+					['description', error.fieldError('prompt', 'description')],
+					['plainText', error.fieldError('prompt', 'plainText')],
+					['imageURL', error.fieldError('prompt', 'imageURL')],
+					['thumbnailURL', error.fieldError('prompt', 'thumbnailURL')],
 				];
 
 				const newErrors: PromptFormErrors = Object.fromEntries(
@@ -692,7 +746,7 @@ export function AMADetails() {
 
 					{promptEditing && (
 						<div className="space-y-4 pt-2">
-							<PromptModeToggle mode={promptMode} onModeChange={setPromptMode} />
+							<PromptModeToggle mode={promptMode} onModeChange={handlePromptModeChange} />
 
 							<div className="grid gap-6 lg:grid-cols-2">
 								<div>
