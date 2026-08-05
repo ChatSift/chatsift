@@ -44,9 +44,9 @@ export function SearchBar({ children, placeholder }: SearchBarProps) {
 	};
 
 	return (
-		<div className="bg-card dark:bg-card-dark border border-on-secondary dark:border-on-secondary-dark rounded-lg p-4 flex gap-3 items-center">
+		<div className="bg-card dark:bg-card-dark border border-on-secondary dark:border-on-secondary-dark rounded-lg p-4 flex flex-wrap gap-3 items-center">
 			<input
-				className="w-full px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
+				className="min-w-[200px] flex-1 px-3 py-2 border border-on-secondary dark:border-on-secondary-dark rounded-md bg-card dark:bg-card-dark text-primary dark:text-primary-dark focus:outline-none focus:ring-2 focus:ring-misc-accent focus:border-misc-accent"
 				onChange={(e) => {
 					update(e.target.value);
 					setSearchValue(e.target.value);

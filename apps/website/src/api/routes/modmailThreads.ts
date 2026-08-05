@@ -24,12 +24,12 @@ export type ModmailThreadMessageEditsResult = GetModmailThreadMessageEditsContra
  * full collection in one shot, `listThreads`/`getThread` are the first paginated routes (see their `cursor`/
  * `nextCursor` contract).
  */
-export function useModmailThreads(guildId: string, includeClosed: boolean, q = '') {
+export function useModmailThreads(guildId: string, includeClosed: boolean, q = '', categoryId?: number) {
 	return useInfiniteQuery({
-		queryKey: queryKeys.modmail.threads.list(guildId, includeClosed, q),
+		queryKey: queryKeys.modmail.threads.list(guildId, includeClosed, q, categoryId),
 		queryFn: async ({ pageParam }) =>
 			apiFetch<ListModmailThreadsResult>('get', `/v3/guilds/${guildId}/modmail/threads`, {
-				query: { include_closed: includeClosed, cursor: pageParam, q: q || undefined },
+				query: { include_closed: includeClosed, cursor: pageParam, q: q || undefined, category_id: categoryId },
 			}),
 		initialPageParam: undefined as number | undefined,
 		getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,

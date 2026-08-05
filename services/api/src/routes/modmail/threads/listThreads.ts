@@ -16,6 +16,7 @@ const querySchema = z
 		// Ticket-opener search (see `resolveMatchingUserIds` below): either a raw snowflake for an exact
 		// match, or free text resolved against the guild's member list via Discord's own search.
 		q: z.string().trim().min(1).max(100).optional(),
+		category_id: z.coerce.number().int().positive().optional(),
 	})
 	.extend(createPaginationQuerySchema(25, 100).shape);
 const paramsSchema = z.object({ guildId: snowflakeSchema });
@@ -78,7 +79,7 @@ export default defineRoute({
 		isGuildManager: true,
 	}),
 	async handler(req): Promise<ListThreadsResult> {
-		const { cursor, include_closed, limit, q } = req.query;
+		const { category_id, cursor, include_closed, limit, q } = req.query;
 		const { guildId } = req.params;
 
 		const matchingUserIds = await resolveMatchingUserIds(guildId, q);
@@ -94,6 +95,7 @@ export default defineRoute({
 			${include_closed ? db`` : db`AND t.closed_at IS NULL`}
 			${cursor ? db`AND t.id < ${cursor}` : db``}
 			${matchingUserIds ? db`AND t.user_id = ANY(${matchingUserIds})` : db``}
+			${category_id ? db`AND t.category_id = ${category_id}` : db``}
 			ORDER BY t.id DESC
 			LIMIT ${limit + 1}
 		`;

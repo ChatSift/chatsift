@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
+import { useCategoryFilter } from './CategoryFilter';
 import type { ModmailThreadListItem } from '@/api/routes/modmailThreads';
 import { useModmailThreads } from '@/api/routes/modmailThreads';
 import { Button } from '@/components/common/Button';
@@ -62,11 +63,13 @@ export function ThreadsList() {
 
 	const search = searchParams.get('search') ?? '';
 	const includeClosed = searchParams.get('include_closed') === 'true';
+	const categoryId = useCategoryFilter();
 
 	const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useModmailThreads(
 		guildId,
 		includeClosed,
 		search,
+		categoryId,
 	);
 
 	const threads = data?.pages.flatMap((page) => page.threads) ?? [];

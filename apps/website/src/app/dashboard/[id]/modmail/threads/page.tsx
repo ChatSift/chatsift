@@ -1,3 +1,4 @@
+import { CategoryFilter } from './_components/CategoryFilter';
 import { IncludeClosedToggle } from './_components/IncludeClosedToggle';
 import { ThreadsList } from './_components/ThreadsList';
 import { Heading } from '@/components/common/Heading';
@@ -11,6 +12,7 @@ export default function ModmailThreadsPage() {
 				<DashboardCrumbs />
 				<Heading subtitle="Browse past and open ModMail threads" title="ModMail Threads" />
 				<SearchBar placeholder="Search by user (name or id)...">
+					<CategoryFilter />
 					<IncludeClosedToggle />
 				</SearchBar>
 			</div>
