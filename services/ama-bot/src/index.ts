@@ -21,11 +21,27 @@ export async function bin(): Promise<void> {
 
 	// `.unref()` so this interval never keeps the process alive on its own -- matches bot-core's
 	// client.ts guild-list-sync interval and modmail-bot's own sweep intervals.
+	let sweepInFlight = false;
 	setInterval(async () => {
+		// Guards against overlapping runs if a sweep ever takes longer than the interval (a slow DB, a
+		// connection hiccup) -- skipping the tick instead of piling up concurrent queries against the same
+		// small table.
+		if (sweepInFlight) {
+			return;
+		}
+
+		sweepInFlight = true;
 		try {
 			await sweepScheduledAmaCloses(getContext().logger);
 		} catch (error) {
 			getContext().logger.error({ err: error }, 'Failed to sweep scheduled AMA closes');
+		} finally {
+			// `sweepInFlight` is deliberately shared closure state read again here after the `await` above --
+			// that's what trips this rule's static analysis, but Node's single-threaded event loop means the
+			// only other place that reads/writes it is this same callback's next tick, which the guard above
+			// already prevents from overlapping with this one.
+			// eslint-disable-next-line require-atomic-updates
+			sweepInFlight = false;
 		}
 	}, SCHEDULED_CLOSE_SWEEP_INTERVAL_MS).unref();
 }

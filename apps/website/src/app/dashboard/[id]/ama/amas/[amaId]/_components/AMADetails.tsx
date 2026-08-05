@@ -176,6 +176,13 @@ export function AMADetails() {
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [configForm, setConfigForm] = useState<ConfigFormData | null>(null);
+	// Snapshot of `scheduledCloseAt` as loaded, in the same datetime-local string form as `configForm`'s --
+	// `handleSaveConfig` diffs against this so an edit that never touches the date (e.g. just the title)
+	// doesn't resend it. That matters beyond a no-op write: the datetime-local input only has minute
+	// precision, so round-tripping an untouched value through it and back to ISO can shift it by
+	// truncating seconds, and if the stored date is already close to "now" that resend could even trip the
+	// "must be in the future" validation on a field the user never meant to change.
+	const [initialScheduledCloseAt, setInitialScheduledCloseAt] = useState('');
 	const [configErrors, setConfigErrors] = useState<ConfigFormErrors>({});
 	const [promptForm, setPromptForm] = useState<PromptFormData | null>(null);
 	const [promptMode, setPromptMode] = useState<PromptMode>('raw');
@@ -212,6 +219,8 @@ export function AMADetails() {
 	}
 
 	const startEdit = () => {
+		const scheduledCloseAt = ama.scheduledCloseAt ? dateToDatetimeLocalValue(new Date(ama.scheduledCloseAt)) : '';
+
 		setConfigForm({
 			title: ama.title,
 			answersChannelId: ama.answersChannel.id,
@@ -219,8 +228,9 @@ export function AMADetails() {
 			flaggedQueueId: ama.flaggedQueueChannel?.id ?? '',
 			guestQueueId: ama.guestQueueChannel?.id ?? '',
 			allowedQuestionUploads: String(ama.allowedQuestionUploads),
-			scheduledCloseAt: ama.scheduledCloseAt ? dateToDatetimeLocalValue(new Date(ama.scheduledCloseAt)) : '',
+			scheduledCloseAt,
 		});
+		setInitialScheduledCloseAt(scheduledCloseAt);
 		setConfigErrors({});
 		setActionError(null);
 		setSuccessMessage(null);
@@ -246,7 +256,11 @@ export function AMADetails() {
 			flaggedQueueId: configForm.flaggedQueueId || null,
 			guestQueueId: configForm.guestQueueId || null,
 			allowedQuestionUploads: parseIntegerInput(configForm.allowedQuestionUploads),
-			scheduledCloseAt: datetimeLocalValueToISOString(configForm.scheduledCloseAt) ?? null,
+			// Omitted entirely (not sent as `undefined`) when untouched -- see `initialScheduledCloseAt`'s
+			// comment for why resending an unchanged value isn't safe to do unconditionally.
+			...(configForm.scheduledCloseAt !== initialScheduledCloseAt && {
+				scheduledCloseAt: datetimeLocalValueToISOString(configForm.scheduledCloseAt) ?? null,
+			}),
 		};
 
 		const result = updateAMAConfigSchema.safeParse(data);
