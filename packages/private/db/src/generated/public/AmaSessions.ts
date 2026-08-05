@@ -27,6 +27,8 @@ export default interface AmaSessions {
   ended: boolean;
 
   createdAt: Date;
+
+  scheduledCloseAt: Date | null;
 }
 
 /** Represents the initializer for the table public.ama_sessions */
@@ -52,6 +54,8 @@ export interface AmaSessionsInitializer {
   ended?: boolean;
 
   createdAt?: Date;
+
+  scheduledCloseAt?: Date | null;
 }
 
 /** Represents the mutator for the table public.ama_sessions */
@@ -77,4 +81,6 @@ export interface AmaSessionsMutator {
   ended?: boolean;
 
   createdAt?: Date;
+
+  scheduledCloseAt?: Date | null;
 }

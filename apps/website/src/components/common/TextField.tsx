@@ -9,7 +9,7 @@ interface TextFieldProps {
 	onBlur?(): void;
 	onChange(value: string): void;
 	readonly placeholder?: string;
-	readonly type?: 'number' | 'text' | 'url';
+	readonly type?: 'datetime-local' | 'number' | 'text' | 'url';
 	readonly value: string;
 }
 

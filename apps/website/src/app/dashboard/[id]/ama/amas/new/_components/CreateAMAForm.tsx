@@ -21,7 +21,7 @@ import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
-import { parseIntegerInput } from '@/utils/util';
+import { datetimeLocalValueToISOString, parseIntegerInput } from '@/utils/util';
 
 interface FormData {
 	allowedQuestionUploads: string;
@@ -34,6 +34,7 @@ interface FormData {
 	plainText: string;
 	promptChannelId: string;
 	promptRaw: string;
+	scheduledCloseAt: string;
 	thumbnailURL: string;
 	title: string;
 }
@@ -48,6 +49,7 @@ const TOP_LEVEL_FIELDS = [
 	'flaggedQueueId',
 	'guestQueueId',
 	'allowedQuestionUploads',
+	'scheduledCloseAt',
 ] as const satisfies (keyof FormData)[];
 
 const PROMPT_FIELD_MAP: Record<string, keyof FormData> = {
@@ -114,6 +116,7 @@ export function CreateAMAForm() {
 		imageURL: '',
 		thumbnailURL: '',
 		promptRaw: '',
+		scheduledCloseAt: '',
 	});
 	const [errors, setErrors] = useState<FormErrors>({});
 	const [generalError, setGeneralError] = useState<string | null>(null);
@@ -151,6 +154,7 @@ export function CreateAMAForm() {
 			flaggedQueueId: formData.flaggedQueueId || null,
 			guestQueueId: formData.guestQueueId || null,
 			allowedQuestionUploads: parseIntegerInput(formData.allowedQuestionUploads),
+			scheduledCloseAt: datetimeLocalValueToISOString(formData.scheduledCloseAt),
 		};
 
 		// Only called after `validateForm` has already confirmed `formData.promptRaw` is valid JSON (or empty).
@@ -240,6 +244,7 @@ export function CreateAMAForm() {
 					['flaggedQueueId', error.fieldError('flaggedQueueId')],
 					['guestQueueId', error.fieldError('guestQueueId')],
 					['allowedQuestionUploads', error.fieldError('allowedQuestionUploads')],
+					['scheduledCloseAt', error.fieldError('scheduledCloseAt')],
 					['description', error.fieldError(promptField, 'description')],
 					['plainText', error.fieldError(promptField, 'plainText')],
 					['imageURL', error.fieldError(promptField, 'imageURL')],
@@ -400,6 +405,19 @@ export function CreateAMAForm() {
 					placeholder="0"
 					type="number"
 					value={formData.allowedQuestionUploads}
+				/>
+				<TextField
+					error={errors.scheduledCloseAt}
+					helper={
+						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+							Optional - automatically ends the AMA at this date/time. Can be changed later.
+						</p>
+					}
+					id="scheduledCloseAt"
+					label="Scheduled Close Date (optional)"
+					onChange={(value) => updateFormData('scheduledCloseAt', value)}
+					type="datetime-local"
+					value={formData.scheduledCloseAt}
 				/>
 			</div>
 

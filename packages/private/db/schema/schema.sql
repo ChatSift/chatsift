@@ -52,6 +52,10 @@ CREATE TABLE ama_sessions (
   prompt_channel_id        TEXT NOT NULL,
   allowed_question_uploads INTEGER NOT NULL DEFAULT 2,
   ended                    BOOLEAN NOT NULL DEFAULT false,
+  -- Optional automated close date (#290), settable at creation and editable retroactively (while the AMA is
+  -- still active -- updateAMA.ts already rejects any edit once `ended`) via services/ama-bot's
+  -- scheduledCloseSweep.ts, which flips `ended` the same way `/ama end` does once this lapses.
+  scheduled_close_at       TIMESTAMPTZ,
   created_at               TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

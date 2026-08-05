@@ -25,6 +25,25 @@ export const formatDate = (date: Date) =>
 		minute: '2-digit',
 	}).format(date);
 
+/**
+ * Formats a `Date` for a native `<input type="datetime-local">`'s `value` -- that control reads/writes
+ * `YYYY-MM-DDTHH:mm` in the browser's local timezone with no offset, which `Date#toISOString()` can't
+ * produce directly (it's always UTC). Pairs with `datetimeLocalValueToISOString` below for the reverse
+ * direction.
+ */
+export const dateToDatetimeLocalValue = (date: Date): string => {
+	const pad = (value: number) => String(value).padStart(2, '0');
+	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+/**
+ * The reverse of `dateToDatetimeLocalValue` -- `new Date(...)` already parses an offset-less
+ * `YYYY-MM-DDTHH:mm` string as local time, so this is just the ISO-string round trip the API schema
+ * (`z.iso.datetime()`) expects. Returns `undefined` for an empty/cleared input.
+ */
+export const datetimeLocalValueToISOString = (value: string): string | undefined =>
+	value ? new Date(value).toISOString() : undefined;
+
 const DISCORD_EPOCH = 1_420_070_400_000n;
 
 /**

@@ -107,11 +107,12 @@ export default defineRoute({
 				const [session] = await sql<AmaSessions[]>`
 					INSERT INTO ama_sessions (
 						guild_id, title, answers_channel_id, prompt_channel_id,
-						mod_queue_id, flagged_queue_id, guest_queue_id, allowed_question_uploads, ended
+						mod_queue_id, flagged_queue_id, guest_queue_id, allowed_question_uploads, ended, scheduled_close_at
 					)
 					VALUES (
 						${guildId}, ${data.title}, ${data.answersChannelId}, ${data.promptChannelId},
-						${data.modQueueId}, ${data.flaggedQueueId}, ${data.guestQueueId}, ${data.allowedQuestionUploads}, false
+						${data.modQueueId}, ${data.flaggedQueueId}, ${data.guestQueueId}, ${data.allowedQuestionUploads}, false,
+						${data.scheduledCloseAt ?? null}
 					)
 					RETURNING *
 				`;

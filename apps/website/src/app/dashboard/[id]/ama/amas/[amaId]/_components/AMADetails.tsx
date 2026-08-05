@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { getChannelIcon } from '@/utils/channels';
-import { formatDate, parseIntegerInput } from '@/utils/util';
+import { dateToDatetimeLocalValue, datetimeLocalValueToISOString, formatDate, parseIntegerInput } from '@/utils/util';
 
 const channelName = (channel: GuildChannelInfo | PossiblyMissingChannelInfo | null) =>
 	channel && 'name' in channel ? channel.name : 'Unknown';
@@ -54,6 +54,7 @@ interface ConfigFormData {
 	flaggedQueueId: string;
 	guestQueueId: string;
 	modQueueId: string;
+	scheduledCloseAt: string;
 	title: string;
 }
 
@@ -66,6 +67,7 @@ const CONFIG_FIELDS = [
 	'flaggedQueueId',
 	'guestQueueId',
 	'allowedQuestionUploads',
+	'scheduledCloseAt',
 ] as const satisfies (keyof ConfigFormData)[];
 
 function mapConfigIssues(issues: readonly { message: string; path: PropertyKey[] }[]): ConfigFormErrors {
@@ -217,6 +219,7 @@ export function AMADetails() {
 			flaggedQueueId: ama.flaggedQueueChannel?.id ?? '',
 			guestQueueId: ama.guestQueueChannel?.id ?? '',
 			allowedQuestionUploads: String(ama.allowedQuestionUploads),
+			scheduledCloseAt: ama.scheduledCloseAt ? dateToDatetimeLocalValue(new Date(ama.scheduledCloseAt)) : '',
 		});
 		setConfigErrors({});
 		setActionError(null);
@@ -243,6 +246,7 @@ export function AMADetails() {
 			flaggedQueueId: configForm.flaggedQueueId || null,
 			guestQueueId: configForm.guestQueueId || null,
 			allowedQuestionUploads: parseIntegerInput(configForm.allowedQuestionUploads),
+			scheduledCloseAt: datetimeLocalValueToISOString(configForm.scheduledCloseAt) ?? null,
 		};
 
 		const result = updateAMAConfigSchema.safeParse(data);
@@ -553,6 +557,29 @@ export function AMADetails() {
 							<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Allowed Uploads</p>
 							<p className="text-lg text-primary dark:text-primary-dark">
 								{ama.allowedQuestionUploads} {ama.allowedQuestionUploads === 1 ? 'file' : 'files'} per question
+							</p>
+						</div>
+					)}
+
+					{editing ? (
+						<TextField
+							error={configErrors.scheduledCloseAt}
+							helper={
+								<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+									Optional - automatically ends the AMA at this date/time. Clear to cancel it.
+								</p>
+							}
+							id="edit-scheduled-close-at"
+							label="Scheduled Close Date"
+							onChange={(value) => updateConfigField('scheduledCloseAt', value)}
+							type="datetime-local"
+							value={configForm.scheduledCloseAt}
+						/>
+					) : (
+						<div>
+							<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Scheduled Close Date</p>
+							<p className="text-lg text-primary dark:text-primary-dark">
+								{ama.scheduledCloseAt ? formatDate(new Date(ama.scheduledCloseAt)) : 'Not set'}
 							</p>
 						</div>
 					)}
