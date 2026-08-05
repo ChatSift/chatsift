@@ -195,6 +195,123 @@ Reverse order — resync while the row (and therefore the partner's token) is st
    snippets/panels onto it.
 5. Verify the same golden path as onboarding, this time through the public bot.
 
+## Encryption at rest (#263)
+
+Discord's Developer Terms of Service §5(c) ("Implement Good Security") lists "encryption of the data at rest" as a
+required safeguard for API Data. Nearly everything in Postgres (Discord IDs, AMA question content, ModMail
+transcripts, snippet content, guild settings — only `modmail_instances.token` is already application-level
+encrypted, see the custom-instances section above) sits in plaintext on the host's disk today. Redis needs no
+equivalent treatment: nothing in the stack treats it as a source of truth (`GuildList`/instance snapshots
+republish on an interval, `PendingTicketStore` mirrors the durable `pending_tickets` table, grant-token claims are
+best-effort), so `docker-compose.yml`'s `redis` service instead runs with RDB/AOF disabled
+(`--save '' --appendonly no`) — fully in-memory, nothing on disk to encrypt in the first place.
+
+For Postgres, the chosen approach is **native ext4 directory encryption (`fscrypt`)** on the existing disk, not a
+separate LUKS-encrypted volume — fewer moving parts (no new block device to provision/attach/bill for, no loop
+files, no `crypttab`), and the underlying crypto (AES-256-XTS via the kernel's AES-NI-accelerated path) is the same
+either way. Confirmed viable on the production host: `df -T /` reports `ext4`, and `/proc/cpuinfo` has the `aes`
+flag (plus `pclmulqdq`) — so this is expected to be a performance non-event (low single-digit percent at most on
+sustained write-heavy I/O, no measurable memory or storage overhead; content encryption is block-for-block, no
+size inflation).
+
+**This is an operator runbook, not something an agent should do on your behalf** — it needs root on the production
+host, a maintenance window, and judgment calls (backup verification, reboot testing) that shouldn't be automated
+blind.
+
+1. **Enable the ext4 encryption feature** (online, doesn't require unmounting `/`). Resolve the actual backing
+   device rather than assuming `/dev/sda1` — that's `df -T /`'s current output on the production host, but isn't
+   guaranteed to stay the device Docker's data lives on (a future attached volume, a differently-partitioned
+   replacement host, etc.):
+   ```sh
+   docker_device="$(findmnt -no SOURCE /var/lib/docker)"
+   [ "$(findmnt -no FSTYPE /var/lib/docker)" = ext4 ] || { echo "not ext4, stop here"; exit 1; }
+   sudo tune2fs -O encrypt "$docker_device"
+   ```
+2. **Install and initialize fscrypt** (one-time, `apt install fscrypt` on recent Debian/Ubuntu; build from
+   [google/fscrypt](https://github.com/google/fscrypt) if unpackaged):
+   ```sh
+   sudo apt install fscrypt
+   sudo fscrypt setup
+   ```
+3. **Stop Postgres and set the data directory aside** — `fscrypt encrypt` requires an empty target directory:
+   ```sh
+   ./compose stop postgres
+   sudo mv /var/lib/docker/volumes/chatsift-v3-postgres-data/_data /var/lib/docker/volumes/chatsift-v3-postgres-data/_data.bak
+   sudo mkdir /var/lib/docker/volumes/chatsift-v3-postgres-data/_data
+   ```
+4. **Generate the unlock key and encrypt the directory.** A raw keyfile (not a passphrase protector) is what lets
+   this unlock unattended at boot — treat it like `ENCRYPTION_KEY`: back it up offline (e.g. a password manager),
+   since losing it makes the encrypted directory permanently unrecoverable, independent of normal DB backups.
+   ```sh
+   sudo sh -c 'head -c 32 /dev/urandom > /etc/fscrypt-postgres.key && chmod 600 /etc/fscrypt-postgres.key'
+   sudo fscrypt encrypt /var/lib/docker/volumes/chatsift-v3-postgres-data/_data \
+     --source=raw_key --key-file=/etc/fscrypt-postgres.key
+   ```
+   The directory is unlocked for the current session immediately after `encrypt` runs, so it's writable right away.
+5. **Copy the data back in and verify**, then bring Postgres back up:
+   ```sh
+   sudo rsync -a --info=progress2 /var/lib/docker/volumes/chatsift-v3-postgres-data/_data.bak/ \
+     /var/lib/docker/volumes/chatsift-v3-postgres-data/_data/
+   ./compose up -d postgres
+   ./compose logs postgres  # confirm a clean start, no corruption/recovery errors
+   ```
+   Once the API and bots are confirmed healthy against it, **securely wipe `_data.bak`**, not just `rm -rf` it —
+   a plain delete leaves the plaintext data recoverable from the underlying disk blocks, which defeats the entire
+   point of encrypting `_data` in the first place:
+   ```sh
+   sudo find /var/lib/docker/volumes/chatsift-v3-postgres-data/_data.bak -type f -exec shred -u {} +
+   sudo rm -rf /var/lib/docker/volumes/chatsift-v3-postgres-data/_data.bak
+   ```
+   (`shred` only guarantees overwrite on a filesystem without copy-on-write/journaling quirks that can leave
+   stale copies elsewhere on disk — if this ever runs on anything other than plain ext4, treat the whole disk as
+   needing attention, not just this one directory.)
+6. **Auto-unlock at boot** — the directory relocks on every reboot until something unlocks it again, and that has
+   to happen before Docker starts the `postgres` container. A oneshot systemd unit ahead of `docker.service`
+   (there's no separate systemd unit for the compose stack itself — Docker's own `restart: unless-stopped` per
+   service is what brings containers back after `docker.service` starts):
+   ```ini
+   # /etc/systemd/system/fscrypt-unlock-postgres.service
+   [Unit]
+   Description=Unlock fscrypt-encrypted Postgres data directory
+   DefaultDependencies=no
+   Before=docker.service
+   RequiresMountsFor=/var/lib/docker
+
+   [Service]
+   Type=oneshot
+   ExecStart=/usr/bin/fscrypt unlock /var/lib/docker/volumes/chatsift-v3-postgres-data/_data --source=raw_key --key-file=/etc/fscrypt-postgres.key
+   RemainAfterExit=yes
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   `Before=docker.service` alone only orders the two units when both are going to start anyway — it doesn't stop
+   Docker from starting if the unlock fails. A drop-in on `docker.service` itself turns that into a hard
+   dependency, so a failed unlock actually blocks Docker (and therefore the `postgres` container) from starting
+   against a missing/still-locked directory instead of quietly booting into an empty one:
+   ```ini
+   # /etc/systemd/system/docker.service.d/10-fscrypt-postgres.conf
+   [Unit]
+   Requires=fscrypt-unlock-postgres.service
+   After=fscrypt-unlock-postgres.service
+   ```
+   ```sh
+   sudo systemctl daemon-reload
+   sudo systemctl enable fscrypt-unlock-postgres.service
+   ```
+7. **Test it for real**, both directions, during a maintenance window:
+   - Reboot the host, confirm the unlock unit ran (`journalctl -u fscrypt-unlock-postgres`) before Postgres came
+     up, and confirm the API/bots reconnected cleanly.
+   - Confirm the failure mode too: temporarily move `/etc/fscrypt-postgres.key` aside, reboot, and verify
+     `docker.service` (and therefore `postgres`) stays down instead of silently starting against an empty
+     directory — then restore the keyfile and reboot once more to confirm normal recovery.
+
+What this does and doesn't defend against: it protects data if the disk is stolen or a backup/snapshot is exposed
+on Hetzner's side (the actual scenario "encryption at rest" targets). It does not protect against a live
+compromise of the host itself — the key has to be available for Postgres to restart unattended, so a root-level
+attacker on a running box can read the unlocked data either way, same as any at-rest scheme for an
+always-on service.
+
 ## Verification standard
 
 Before calling any phase/issue done:

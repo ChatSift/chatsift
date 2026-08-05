@@ -1,6 +1,6 @@
 /* eslint-disable n/callback-return */
 
-import { claimGrantToken, getContext, RefreshTokenCookie, verifyGrantToken } from '@chatsift/backend-core';
+import { claimGrantToken, decrypt, getContext, RefreshTokenCookie, verifyGrantToken } from '@chatsift/backend-core';
 import type { GrantString, GrantTokenData } from '@chatsift/backend-core';
 import type { RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
@@ -197,13 +197,30 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 			let refreshToken: RefreshTokenData;
 			try {
 				// Verify the JWT refresh token
-				refreshToken = jwt.verify(refreshTokenCookie, getContext().env.ENCRYPTION_KEY) as RefreshTokenData;
-				if (!refreshToken.refresh) {
+				const decoded = jwt.verify(refreshTokenCookie, getContext().env.ENCRYPTION_KEY) as RefreshTokenData;
+				if (!decoded.refresh) {
 					req.logger.info('refresh token is actually access, ignoring as request has been tampered with');
 					noopAccessToken(res);
 					noopRefreshToken(res);
 					await next(fallthrough ? undefined : unauthorized('malformed refresh token'));
 					return;
+				}
+
+				// discordAccessToken/discordRefreshToken are encrypted (not just signed) at rest in the JWT -- see
+				// createRefreshToken -- so every reader downstream of this point gets plaintext back and doesn't
+				// need to know about the encryption at all.
+				try {
+					refreshToken = {
+						...decoded,
+						discordAccessToken: decrypt(decoded.discordAccessToken),
+						discordRefreshToken: decrypt(decoded.discordRefreshToken),
+					};
+				} catch {
+					// A session issued before this encryption was added carries these fields as plaintext, which
+					// fails GCM auth-tag verification here -- re-thrown as a JsonWebTokenError so it falls into the
+					// same "malformed, force a clean re-login" branch below as genuine tampering, instead of an
+					// uncaught 500 on every pre-existing session's first request after deploy.
+					throw new jwt.JsonWebTokenError('failed to decrypt refresh token payload');
 				}
 			} catch (error) {
 				if (error instanceof jwt.TokenExpiredError) {
@@ -230,10 +247,10 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 				req.logger.info('request has access token');
 				try {
 					// Verify the JWT access token
-					const accessToken = jwt.verify(accessTokenHeader, getContext().env.ENCRYPTION_KEY) as AccessTokenData;
+					const decoded = jwt.verify(accessTokenHeader, getContext().env.ENCRYPTION_KEY) as AccessTokenData;
 					// A grant token has no `refresh` field either, so without the explicit `kind` check it would
 					// otherwise sail through this guard and be treated as a valid session access token.
-					if (accessToken.refresh || (accessToken as Partial<GrantTokenData>).kind === 'grant') {
+					if (decoded.refresh || (decoded as Partial<GrantTokenData>).kind === 'grant') {
 						req.logger.info('access token is a refresh or grant token, ignoring as request has been tampered with');
 						noopAccessToken(res);
 						noopRefreshToken(res);
@@ -241,9 +258,18 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 						return;
 					}
 
-					// We're good
+					// We're good -- discordAccessToken is encrypted (not just signed) at rest in the JWT, see
+					// createAccessToken, so decrypt it back to plaintext for every downstream reader. Same
+					// pre-encryption-session handling as the refresh token block above.
+					let decryptedAccessToken: string;
+					try {
+						decryptedAccessToken = decrypt(decoded.discordAccessToken);
+					} catch {
+						throw new jwt.JsonWebTokenError('failed to decrypt access token payload');
+					}
+
 					req.tokens = {
-						access: accessToken,
+						access: { ...decoded, discordAccessToken: decryptedAccessToken },
 						refresh: refreshToken,
 					};
 

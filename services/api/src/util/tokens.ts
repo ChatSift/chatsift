@@ -1,4 +1,4 @@
-import { getContext, NewAccessTokenHeader, RefreshTokenCookie } from '@chatsift/backend-core';
+import { encrypt, getContext, NewAccessTokenHeader, RefreshTokenCookie } from '@chatsift/backend-core';
 import type { Snowflake, RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import jwt from 'jsonwebtoken';
 import type { Response } from 'polka';
@@ -47,7 +47,13 @@ export function createAccessToken(res: Response, oauthData: OAuthData, user: Me)
 		grants: getTokenGrants(user),
 	};
 
-	const accessToken = jwt.sign(accessTokenData, getContext().env.ENCRYPTION_KEY, { expiresIn: 5 * 60 });
+	// The Discord access token is Discord's own credential, not ours -- encrypted here (not just signed) so it isn't
+	// plaintext-readable from a decoded JWT if the `X-Update-Access-Token` header value ever leaks.
+	const accessToken = jwt.sign(
+		{ ...accessTokenData, discordAccessToken: encrypt(discordAccessToken) },
+		getContext().env.ENCRYPTION_KEY,
+		{ expiresIn: 5 * 60 },
+	);
 	res.setHeader(NewAccessTokenHeader, accessToken);
 
 	return accessTokenData;
@@ -74,7 +80,17 @@ export function createRefreshToken(res: Response, oauthData: OAuthData, sub: str
 		discordAccessTokenExpiresAt,
 	};
 
-	const refreshToken = jwt.sign(refreshTokenData, getContext().env.ENCRYPTION_KEY, { expiresIn: '30d' });
+	// Same reasoning as createAccessToken above -- these are Discord's own credentials, encrypted (not just signed)
+	// so they aren't plaintext-readable from a decoded JWT if the refresh_token cookie ever leaks.
+	const refreshToken = jwt.sign(
+		{
+			...refreshTokenData,
+			discordAccessToken: encrypt(discordAccessToken),
+			discordRefreshToken: encrypt(discordRefreshToken),
+		},
+		getContext().env.ENCRYPTION_KEY,
+		{ expiresIn: '30d' },
+	);
 	res.cookie(
 		RefreshTokenCookie,
 		refreshToken,
