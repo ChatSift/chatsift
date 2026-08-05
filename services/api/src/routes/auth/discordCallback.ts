@@ -17,6 +17,14 @@ const querySchema = z.strictObject({
 	state: z.string(),
 });
 
+// A session already authorized under the pre-#263 scope set (which included `email`) can come back through here
+// without a fresh consent prompt -- Discord returns that standing grant's scopes as-is rather than trimming to
+// what this request asked for. Handled as an explicit, exact legacy set rather than a general "extra scopes are
+// fine" subset check, so scope-tampering via a crafted authorize URL is still rejected for anything outside these
+// two known-good sets -- the `state` cookie above is what actually defends against that, but there's no reason to
+// widen what this check accepts beyond the one real legacy case.
+const LEGACY_DISCORD_AUTH_SCOPES = new Set([...DISCORD_AUTH_SCOPES, 'email']);
+
 export default defineRoute({
 	method: 'get',
 	path: '/v3/auth/discord/callback',
@@ -60,8 +68,12 @@ export default defineRoute({
 			redirect_uri: `${getContext().API_URL}/v3/auth/discord/callback`,
 		});
 
-		if (!setEquals(DISCORD_AUTH_SCOPES, new Set(result.scope.split(' ')))) {
-			req.logger.warn({ returnedScopes: result.scope, expectedScopes: DISCORD_AUTH_SCOPES }, 'miss matched scopes');
+		const returnedScopes = new Set(result.scope.split(' '));
+		if (!setEquals(DISCORD_AUTH_SCOPES, returnedScopes) && !setEquals(LEGACY_DISCORD_AUTH_SCOPES, returnedScopes)) {
+			req.logger.warn(
+				{ returnedScopes: result.scope, expectedScopes: [...DISCORD_AUTH_SCOPES] },
+				'miss matched scopes',
+			);
 			throw forbidden('received different scopes than expected');
 		}
 

@@ -21,7 +21,7 @@ export default function NotFound() {
 				*/}
 				<LinkButton href="/">Return home</LinkButton>
 				<Button
-					className="cursor-pointer justify-center rounded-md border border-on-secondary px-5 py-2.5 text-lg font-medium text-primary dark:border-on-secondary-dark dark:text-primary-dark"
+					className="justify-center rounded-md border border-on-secondary px-5 py-2.5 text-lg font-medium text-primary dark:border-on-secondary-dark dark:text-primary-dark"
 					onPress={() => router.back()}
 				>
 					Go back

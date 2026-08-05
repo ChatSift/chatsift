@@ -15,7 +15,7 @@ export function Button(props: ButtonProps) {
 		<AriaButton
 			{...rest}
 			className={cn(
-				'disabled:cursor-not-allowed disabled:opacity-50 bg-transparent flex h-fit items-center gap-2 whitespace-nowrap rounded-md px-1.5 py-1.5 text-lg hover:bg-on-tertiary active:bg-on-secondary dark:hover:bg-on-tertiary-dark dark:active:bg-on-secondary-dark',
+				'cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 bg-transparent flex h-fit items-center gap-2 whitespace-nowrap rounded-md px-1.5 py-1.5 text-lg hover:bg-on-tertiary active:bg-on-secondary dark:hover:bg-on-tertiary-dark dark:active:bg-on-secondary-dark',
 				props.className,
 			)}
 			isDisabled={props.isDisabled || isLoading}
