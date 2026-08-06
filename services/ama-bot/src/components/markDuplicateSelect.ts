@@ -11,6 +11,7 @@ import type {
 } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, MessageFlags, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
+import { MERGEABLE_STATES } from './markDuplicate.js';
 
 /**
  * How many resolved merged-asker names the refreshed embed actually shows -- `getBaseEmbeds` only ever
@@ -31,8 +32,8 @@ interface CurrentMessage {
 
 /**
  * Resolves which (channelId, messageId) pair currently displays a question, if any -- a question can
- * be mid-flight with no live message at all (e.g. held at APPROVED awaiting a dashboard Send), in
- * which case there's nothing to refresh.
+ * be mid-flight with no live message at all (dash-only stage), in which case there's nothing to
+ * refresh.
  */
 function resolveCurrentMessage(question: AmaQuestions, session: AmaSessions): CurrentMessage | null {
 	if (question.state === 'PENDING_MOD_REVIEW' && session.modQueueId && question.modQueueMessageId) {
@@ -45,6 +46,20 @@ function resolveCurrentMessage(question: AmaQuestions, session: AmaSessions): Cu
 
 	if (question.state === 'FLAGGED' && session.flaggedQueueId && question.flaggedQueueMessageId) {
 		return { channelId: session.flaggedQueueId, messageId: question.flaggedQueueMessageId, includeUserId: true };
+	}
+
+	// APPROVED has no queue message "of its own" -- when prepared answers hold a question here, the last
+	// queue message it actually got posted to (guest queue takes priority, since that's the later stage)
+	// is left in place with its button swapped rather than deleted, and the question's own
+	// {mod,guest}_queue_message_id keeps pointing at it. Mirrors `services/api`'s own `util.ts`.
+	if (question.state === 'APPROVED') {
+		if (session.guestQueueId && question.guestQueueMessageId) {
+			return { channelId: session.guestQueueId, messageId: question.guestQueueMessageId, includeUserId: false };
+		}
+
+		if (session.modQueueId && question.modQueueMessageId) {
+			return { channelId: session.modQueueId, messageId: question.modQueueMessageId, includeUserId: true };
+		}
 	}
 
 	if (question.state === 'ASKED' && question.answersMessageId) {
@@ -62,7 +77,8 @@ type MergeResult =
 			original: AmaQuestions;
 			session: AmaSessions;
 	  }
-	| { kind: 'mismatch' };
+	| { kind: 'mismatch' }
+	| { kind: 'not-mergeable'; state: string };
 
 /**
  * Completes the duplicate-merge flow started by `markDuplicate.ts` (#293 follow-up): the duplicate
@@ -110,6 +126,17 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 					return { kind: 'mismatch' };
 				}
 
+				// Re-checked here, under the row lock, rather than trusting `markDuplicate.ts`'s own filtered
+				// search results -- either question's state can change (denied, flagged, asked, sent) in the
+				// time between that search and this select being submitted.
+				if (!MERGEABLE_STATES.has(duplicate.state)) {
+					return { kind: 'not-mergeable', state: duplicate.state };
+				}
+
+				if (!MERGEABLE_STATES.has(original.state)) {
+					return { kind: 'not-mergeable', state: original.state };
+				}
+
 				const [session] = await sql<AmaSessions[]>`
 					SELECT * FROM ama_sessions WHERE id = ${original.amaId}
 				`;
@@ -151,6 +178,14 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 			if (merged.kind === 'mismatch') {
 				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 					content: 'Both questions must belong to the same AMA. This merge was aborted.',
+					components: [],
+				});
+				return;
+			}
+
+			if (merged.kind === 'not-mergeable') {
+				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
+					content: `One of these questions is now in state ${merged.state}, which can no longer be merged. This merge was aborted.`,
 					components: [],
 				});
 				return;

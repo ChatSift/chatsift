@@ -43,8 +43,8 @@ export interface CurrentQueueMessage {
  * Resolves which (channelId, messageId) pair currently displays a question, if any -- mirrors
  * `services/ama-bot`'s `markDuplicateSelect.ts` (kept as a separate copy for the same reason
  * `resolveAmaUser` is: different service, different API client, no shared cross-service home for it
- * yet). A question can be mid-flight with no live message at all (dash-only stage, or held at
- * APPROVED awaiting a dashboard Send), in which case there's nothing to refresh or clean up.
+ * yet). A question can be mid-flight with no live message at all (dash-only stage), in which case
+ * there's nothing to refresh, clean up, or read attachments back from.
  */
 export function resolveCurrentQueueMessage(question: AmaQuestions, session: AmaSessions): CurrentQueueMessage | null {
 	if (question.state === 'PENDING_MOD_REVIEW' && session.modQueueId && question.modQueueMessageId) {
@@ -57,6 +57,22 @@ export function resolveCurrentQueueMessage(question: AmaQuestions, session: AmaS
 
 	if (question.state === 'FLAGGED' && session.flaggedQueueId && question.flaggedQueueMessageId) {
 		return { channelId: session.flaggedQueueId, messageId: question.flaggedQueueMessageId };
+	}
+
+	// APPROVED has no queue message "of its own" -- when prepared answers hold a question here, the last
+	// queue message it actually got posted to (guest queue takes priority, since that's the later stage)
+	// is left in place with its button swapped for a disabled/Send one rather than deleted, and the
+	// question's own {mod,guest}_queue_message_id keeps pointing at it. Without this, an approved
+	// question's attachments would resolve to `[]` the moment it left PENDING_*_REVIEW, well before it's
+	// actually sent.
+	if (question.state === 'APPROVED') {
+		if (session.guestQueueId && question.guestQueueMessageId) {
+			return { channelId: session.guestQueueId, messageId: question.guestQueueMessageId };
+		}
+
+		if (session.modQueueId && question.modQueueMessageId) {
+			return { channelId: session.modQueueId, messageId: question.modQueueMessageId };
+		}
 	}
 
 	if (question.state === 'ASKED' && question.answersMessageId) {

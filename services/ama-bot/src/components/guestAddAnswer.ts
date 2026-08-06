@@ -213,6 +213,24 @@ export default class GuestAddAnswerComponent implements ComponentHandler<string>
 				return;
 			}
 
+			// Re-checked against the freshly-reloaded guest list, not just the modal's own `usesGuestSelect`
+			// branch decided at open time -- the guest list (or whether it's even configured at all) can
+			// change between opening this modal and submitting it, which would otherwise let a stale
+			// selection or a free-text id that's no longer a configured guest slip through unvalidated. The
+			// implicit "leave unselected, default to yourself" path is exempt -- that's always allowed
+			// regardless of the guest list.
+			if (answeredByIdRaw && session && session.guestIds.length > 0 && !session.guestIds.includes(answeredByIdRaw)) {
+				await getContext().service.client.api.interactions.editReply(
+					modalInteraction.application_id,
+					modalInteraction.token,
+					{
+						content:
+							'❌ "Answered by" must be one of this AMA\'s configured guests. The guest list may have changed since you opened this modal -- please try again.',
+					},
+				);
+				return;
+			}
+
 			const [claimed] = await getContext().db<AmaQuestions[]>`
 				UPDATE ama_questions
 				SET state = 'APPROVED', answer_content = ${answerText}, answer_image_url = ${answerImageUrl},
