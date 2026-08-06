@@ -774,7 +774,7 @@ export function AMADetails() {
 								</div>
 
 								<div>
-									<span className="text-sm font-medium text-secondary dark:text-secondary-dark">Guests (optional)</span>
+									<h3 className="text-xl font-medium text-primary dark:text-primary-dark">Guests (optional)</h3>
 									<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
 										Known guest-answerer user IDs. Once at least one is added, &quot;answered by&quot; becomes a picker
 										restricted to this list (in both the guest queue&apos;s Add Answer modal and the dashboard) instead
@@ -894,18 +894,20 @@ export function AMADetails() {
 								</div>
 
 								<div>
-									<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Guests</p>
+									<h3 className="mb-3 text-xl font-medium text-primary dark:text-primary-dark">Guests</h3>
 									{ama.guests.length === 0 ? (
 										<p className="text-lg text-primary dark:text-primary-dark">None configured</p>
 									) : (
-										<div className="flex flex-col gap-1">
+										<div className="flex flex-col gap-3">
 											{ama.guests.map((guest) => {
 												const guestId = typeof guest === 'string' ? guest : guest.id;
 												return (
-													<div className="flex items-center gap-2" key={guestId}>
-														<AuthorAvatar className="h-5 w-5 rounded-full" user={guest} />
-														<p className="text-sm text-primary dark:text-primary-dark">{userLabel(guest)}</p>
-														<p className="text-xs text-secondary dark:text-secondary-dark">({guestId})</p>
+													<div className="flex items-center gap-3" key={guestId}>
+														<AuthorAvatar className="h-8 w-8 rounded-full" user={guest} />
+														<div>
+															<p className="text-base text-primary dark:text-primary-dark">{userLabel(guest)}</p>
+															<p className="text-xs text-secondary dark:text-secondary-dark">{guestId}</p>
+														</div>
 													</div>
 												);
 											})}

@@ -453,7 +453,7 @@ export function CreateAMAForm() {
 					</p>
 				</div>
 				<div>
-					<span className="text-sm font-medium text-secondary dark:text-secondary-dark">Guests (optional)</span>
+					<h3 className="text-xl font-medium text-primary dark:text-primary-dark">Guests (optional)</h3>
 					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
 						Known guest-answerer user IDs. Once at least one is added, &quot;answered by&quot; becomes a picker
 						restricted to this list (in both the guest queue&apos;s Add Answer modal and the dashboard) instead of a

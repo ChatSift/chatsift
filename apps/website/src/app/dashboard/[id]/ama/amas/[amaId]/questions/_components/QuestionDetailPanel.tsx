@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { FaCheck } from 'react-icons/fa';
 import { AuthorAvatar } from './AuthorAvatar';
 import { MergeDuplicatePicker } from './MergeDuplicatePicker';
 import { TagPicker } from './TagPicker';
@@ -11,6 +12,7 @@ import { APIError } from '@/api/error';
 import { useAMA, useAMAQuestion, useSendAMAQuestion, useUpdateAMAQuestion } from '@/api/routes/ama';
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
+import { cn } from '@/utils/util';
 
 interface QuestionDetailPanelProps {
 	onMerged(): void;
@@ -143,32 +145,62 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 					/>
 					{ama && ama.guests.length > 0 && (
 						<div>
-							<label
-								className="mb-1 block text-xs font-medium text-secondary dark:text-secondary-dark"
-								htmlFor="answered-by"
-							>
+							<span className="mb-1 block text-xs font-medium text-secondary dark:text-secondary-dark">
 								Answered by
-							</label>
-							<select
-								className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary focus:border-misc-accent focus:outline-none disabled:opacity-50 dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
-								disabled={!canEditAnswer}
-								id="answered-by"
-								onChange={(e) => setAnsweredById(e.target.value)}
-								value={answeredById}
-							>
-								{/* Explicit, not just an empty placeholder -- leaving this selected and hitting Save
-								Answer really does default to whoever's logged into the dashboard right now, not
-								"nobody"/unset. */}
-								<option value="">Default - answered by you (dashboard user)</option>
+							</span>
+							<div className="flex flex-col gap-1.5">
+								{/* An explicit row, not just an empty/placeholder state -- leaving this selected and
+								hitting Save Answer really does default to whoever's logged into the dashboard right
+								now, not "nobody"/unset. */}
+								<Button
+									aria-pressed={answeredById === ''}
+									className={cn(
+										'w-full justify-start gap-2 rounded-md border px-3 py-2 text-left text-sm',
+										answeredById === ''
+											? 'border-misc-accent bg-misc-accent/10 text-misc-accent'
+											: 'border-on-secondary text-primary dark:border-on-secondary-dark dark:text-primary-dark',
+									)}
+									isDisabled={!canEditAnswer}
+									onPress={() => setAnsweredById('')}
+									type="button"
+								>
+									<span className="min-w-0 flex-1 whitespace-normal wrap-break-word">
+										Default - answered by you (dashboard user)
+									</span>
+									{answeredById === '' && <FaCheck className="h-3.5 w-3.5 shrink-0" />}
+								</Button>
 								{ama.guests.map((guest) => {
 									const guestId = typeof guest === 'string' ? guest : guest.id;
+									const isSelected = answeredById === guestId;
 									return (
-										<option key={guestId} value={guestId}>
-											{userLabel(guest)}
-										</option>
+										<Button
+											aria-pressed={isSelected}
+											className={cn(
+												'w-full justify-start gap-2 rounded-md border px-3 py-2 text-left text-sm',
+												isSelected
+													? 'border-misc-accent bg-misc-accent/10'
+													: 'border-on-secondary dark:border-on-secondary-dark',
+											)}
+											isDisabled={!canEditAnswer}
+											key={guestId}
+											onPress={() => setAnsweredById(guestId)}
+											type="button"
+										>
+											<AuthorAvatar className="h-5 w-5 shrink-0 rounded-full" user={guest} />
+											<span
+												className={cn(
+													'min-w-0 flex-1 truncate',
+													isSelected ? 'text-misc-accent' : 'text-primary dark:text-primary-dark',
+												)}
+											>
+												{userLabel(guest)}
+											</span>
+											<span className="shrink-0 text-xs text-secondary dark:text-secondary-dark">({guestId})</span>
+											{isSelected && <FaCheck className="h-3.5 w-3.5 shrink-0 text-misc-accent" />}
+										</Button>
 									);
 								})}
-							</select>
+							</div>
 						</div>
 					)}
 					{canEditAnswer && (
