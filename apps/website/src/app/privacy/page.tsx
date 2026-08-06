@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 	title: 'Privacy Policy',
 };
 
-const LAST_UPDATED = 'August 5, 2026';
+const LAST_UPDATED = 'August 6, 2026';
 
 export default function PrivacyPage() {
 	return (
@@ -30,6 +30,13 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						<strong>AMA content.</strong> Questions submitted through an AMA session, tied to the submitting user's ID.
+						If a server's staff answer a question and it's sent to the AMA's answers channel, that question and its
+						answer can also be viewed on a public, unauthenticated answers page - anyone with the link can see it, no
+						Discord account or server membership required. That page shows the question content, the answer content and
+						image (if any), and the asker's and answerer's Discord display name and avatar. If staff mark one question
+						as a duplicate of another, the duplicate is deleted and its submitter is recorded internally as an
+						additional asker of the surviving question, visible only to that server's staff; the public answers page
+						shows only the surviving question's original asker.
 					</li>
 					<li>
 						<strong>ModMail content.</strong> Ticket messages are only stored beyond the lifetime of the Discord
@@ -66,6 +73,11 @@ export default function PrivacyPage() {
 				<p>
 					Dashboard session cookies expire after 30 days of inactivity. If you'd like something deleted sooner, see
 					Section 7 below.
+				</p>
+				<p>
+					A published AMA answers page (see Section 2) stays reachable for as long as the underlying question data does
+					- an AMA being marked as ended doesn't take its answers page down. If you'd like a question removed from a
+					public answers page, see Section 7 below.
 				</p>
 			</LegalSection>
 

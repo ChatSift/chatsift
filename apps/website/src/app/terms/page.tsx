@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 	title: 'Terms of Service',
 };
 
-const LAST_UPDATED = 'August 5, 2026';
+const LAST_UPDATED = 'August 6, 2026';
 
 export default function TermsPage() {
 	return (
@@ -60,8 +60,15 @@ export default function TermsPage() {
 				<p>
 					AMA questions/answers, ModMail conversations, snippets, and similar content you or your server's members
 					submit through the Service ("your content") remain yours. By submitting it, you grant us a license to store,
-					process, and display it back to you and your server's staff solely to operate the Service. We don't claim
-					ownership of it, and we don't use it for anything beyond that.
+					process, and display it back to you and your server's staff solely to operate the Service - including, where a
+					server's staff choose to answer and publish an AMA question, displaying that question and its answer on a
+					public page that doesn't require a Discord account or server membership to view. We don't claim ownership of
+					your content, and we don't use it for anything beyond operating the Service.
+				</p>
+				<p>
+					A server's staff, not ChatSift, decide whether and how a question you submit through that server's AMA feature
+					gets answered and published. If you'd rather a question not be made publicly viewable this way, don't submit
+					it through the Service.
 				</p>
 				<p>
 					You're responsible for your content and for making sure you have the right to submit it. We may remove content
