@@ -83,7 +83,7 @@ export default class BlockCommand implements CommandHandler {
 
 		await reply(
 			`✅ <@${targetUserId}> is now blocked from opening new ModMail tickets, ${expiryClause}.\n\n` +
-				"They have **not** been notified of this, and any of their existing tickets remain open and unaffected — let them know yourself if that's needed.",
+				"They have **not** been notified of this, and any of their existing tickets remain open and unaffected - let them know yourself if that's needed.",
 		);
 	}
 }

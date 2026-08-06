@@ -94,7 +94,7 @@ export default class CategorySelectComponent implements ComponentHandler {
 			// Defense-in-depth against DM mode being turned on in the gap between the button click and this
 			// pick landing -- see the matching check (and its comment) in `createTicket.ts`.
 			if (guildSettings.dmMode) {
-				await editReply('This server uses DMs — just message the bot directly to open a ticket.');
+				await editReply('This server uses DMs - just message the bot directly to open a ticket.');
 				return;
 			}
 
@@ -172,7 +172,7 @@ export default class CategorySelectComponent implements ComponentHandler {
 			]);
 
 			await editReply(
-				`Your ticket has been created: <#${privateThread.id}>. Describe what you need help with there — a staff member will follow up once you send your message.`,
+				`Your ticket has been created: <#${privateThread.id}>. Describe what you need help with there - a staff member will follow up once you send your message.`,
 			);
 		});
 	}

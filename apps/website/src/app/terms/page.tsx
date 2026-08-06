@@ -22,7 +22,7 @@ export default function TermsPage() {
 				</p>
 				<p>
 					You must be at least 13 years old, or the minimum age required by the laws of your country, to use the Service
-					— the same minimum age Discord itself requires. If you don't meet that requirement, don't use the Service.
+					- the same minimum age Discord itself requires. If you don't meet that requirement, don't use the Service.
 				</p>
 			</LegalSection>
 
@@ -36,7 +36,7 @@ export default function TermsPage() {
 
 			<LegalSection title="3. Your account & access">
 				<p>
-					The dashboard is accessed via Discord OAuth login — we never ask for or accept your Discord password directly.
+					The dashboard is accessed via Discord OAuth login - we never ask for or accept your Discord password directly.
 					You can manage a server's bot configuration through the dashboard if you hold the relevant permissions in that
 					Discord server, or if an existing manager has explicitly granted you dashboard access for that server from its
 					settings page.
@@ -71,7 +71,7 @@ export default function TermsPage() {
 
 			<LegalSection title="6. Discord's own terms apply too">
 				<p>
-					Using a Discord bot or the dashboard doesn't replace or override your agreement with Discord — Discord's{' '}
+					Using a Discord bot or the dashboard doesn't replace or override your agreement with Discord - Discord's{' '}
 					<a href="https://discord.com/terms">Terms of Service</a>,{' '}
 					<a href="https://discord.com/guidelines">Community Guidelines</a>, and{' '}
 					<a href="https://support-dev.discord.com/hc/en-us/articles/8563934450327">Developer Policy</a> all still apply
@@ -83,7 +83,7 @@ export default function TermsPage() {
 				<p>
 					You can stop using the Service at any time by removing a bot from your server or simply not using the
 					dashboard. We may suspend or terminate your access to the Service, or a specific server's access, at our
-					discretion — most commonly for a violation of these Terms, abuse of the Service, or at Discord's own request.
+					discretion - most commonly for a violation of these Terms, abuse of the Service, or at Discord's own request.
 				</p>
 			</LegalSection>
 

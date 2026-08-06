@@ -82,6 +82,21 @@ export const queryKeys = {
 		list: (guildId: string, includeEnded: boolean) => ['api', 'ama', guildId, 'list', includeEnded] as const,
 		byId: (guildId: string, amaId: string) => ['api', 'ama', guildId, amaId] as const,
 		stats: (guildId: string, amaId: string) => ['api', 'ama', guildId, amaId, 'stats'] as const,
+		tags: (guildId: string, amaId: string) => ['api', 'ama', guildId, amaId, 'tags'] as const,
+		questions: {
+			all: (guildId: string, amaId: string) => ['api', 'ama', guildId, amaId, 'questions'] as const,
+			list: (
+				guildId: string,
+				amaId: string,
+				states: string | undefined,
+				tagId: number | undefined,
+				authorId: string | undefined,
+				q: string,
+			) => ['api', 'ama', guildId, amaId, 'questions', 'list', states, tagId, authorId, q] as const,
+			byId: (guildId: string, amaId: string, questionId: number) =>
+				['api', 'ama', guildId, amaId, 'questions', questionId] as const,
+		},
+		publicAnswers: (shareToken: string) => ['api', 'ama', 'public', shareToken] as const,
 	},
 	modmail: {
 		all: (guildId: string) => ['api', 'modmail', guildId] as const,

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { snowflakeSchema } from '../../util/schemas.js';
+import { QUESTION_STATES } from './constants.js';
 
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
@@ -14,19 +15,6 @@ const paramsSchema = z.object({
 		.positive()
 		.transform((value) => value as AmaSessionsId),
 });
-
-// Kept as a literal tuple rather than derived from the `ama_question_state` enum at runtime: `AmaQuestionState` is
-// `export type`-only (kanel generates it as a real enum, but `@chatsift/db` only re-exports its type), so there's
-// no runtime value to iterate here. Mirrors `CREATE TYPE ama_question_state` in packages/db/schema/schema.sql.
-// The cast is required because TS string enums are nominal -- a plain string literal isn't structurally
-// assignable to one, even though the runtime values are identical.
-const QUESTION_STATES = [
-	'PENDING_MOD_REVIEW',
-	'PENDING_GUEST_REVIEW',
-	'FLAGGED',
-	'APPROVED',
-	'DENIED',
-] as readonly AmaQuestionState[];
 
 export interface AMAStats {
 	byState: Record<AmaQuestionState, number>;

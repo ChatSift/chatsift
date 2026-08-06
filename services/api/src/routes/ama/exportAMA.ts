@@ -53,15 +53,40 @@ export default defineRoute({
 			throw notFound('ama session not found');
 		}
 
-		const questions = await db<Pick<AmaQuestions, 'authorId' | 'content' | 'createdAt' | 'state' | 'updatedAt'>[]>`
-			SELECT author_id, state, content, created_at, updated_at
-			FROM ama_questions
-			WHERE ama_id = ${amaId}
-			ORDER BY created_at ASC
-		`;
+		type ExportQuestionRow = Pick<
+			AmaQuestions,
+			'answerContent' | 'answeredById' | 'authorId' | 'content' | 'createdAt' | 'id' | 'state' | 'updatedAt'
+		>;
+
+		const [questions, tagsByQuestion, askersByQuestion] = await Promise.all([
+			db<ExportQuestionRow[]>`
+				SELECT id, author_id, state, content, answer_content, answered_by_id, created_at, updated_at
+				FROM ama_questions
+				WHERE ama_id = ${amaId}
+				ORDER BY created_at ASC
+			`,
+			// Grouped ;-joined per question rather than a per-row LEFT JOIN, which would multiply rows for a
+			// question with more than one tag/asker and break the 1-row-per-question CSV shape.
+			db<{ names: string; questionId: number }[]>`
+				SELECT ta.question_id, string_agg(t.name, ';' ORDER BY t.name) AS names
+				FROM ama_question_tag_assignments ta
+				INNER JOIN ama_question_tags t ON t.id = ta.tag_id
+				WHERE t.ama_id = ${amaId}
+				GROUP BY ta.question_id
+			`,
+			db<{ authorIds: string; questionId: number }[]>`
+				SELECT question_id, string_agg(author_id, ';' ORDER BY merged_at) AS author_ids
+				FROM ama_question_askers
+				WHERE question_id IN (SELECT id FROM ama_questions WHERE ama_id = ${amaId})
+				GROUP BY question_id
+			`,
+		]);
+
+		const tagsByQuestionId = new Map(tagsByQuestion.map((row) => [row.questionId, row.names]));
+		const askersByQuestionId = new Map(askersByQuestion.map((row) => [row.questionId, row.authorIds]));
 
 		const rows = [
-			'author_id,state,content,created_at,updated_at',
+			'author_id,state,content,created_at,updated_at,answer_content,answered_by_id,tags,askers',
 			...questions.map((question) =>
 				[
 					question.authorId,
@@ -69,6 +94,10 @@ export default defineRoute({
 					csvField(question.content),
 					question.createdAt.toISOString(),
 					question.updatedAt.toISOString(),
+					question.answerContent ? csvField(question.answerContent) : '',
+					question.answeredById ?? '',
+					tagsByQuestionId.get(question.id) ?? '',
+					askersByQuestionId.get(question.id) ?? '',
 				].join(','),
 			),
 		];

@@ -8,6 +8,8 @@ import { NormalPromptFields } from '../../_components/NormalPromptFields';
 import type { PromptMode } from '../../_components/PromptModeToggle';
 import { PromptModeToggle } from '../../_components/PromptModeToggle';
 import { PromptPreview } from '../../_components/PromptPreview';
+import { AuthorAvatar } from '../questions/_components/AuthorAvatar';
+import { userLabel } from '../questions/_components/userLabel';
 import { APIError } from '@/api/error';
 import type { AMAStats, PossiblyMissingChannelInfo, UpdateAMABody } from '@/api/routes/ama';
 import { useAMA, useAMAStats, useExportAMAQuestions, useRepostPrompt, useUpdateAMA } from '@/api/routes/ama';
@@ -38,7 +40,10 @@ const QUESTION_STATE_TILES = [
 	{ state: 'PENDING_MOD_REVIEW', label: 'Pending Mod Review', valence: 'neutral' },
 	{ state: 'PENDING_GUEST_REVIEW', label: 'Pending Guest Review', valence: 'neutral' },
 	{ state: 'FLAGGED', label: 'Flagged', valence: 'neutral' },
-	{ state: 'APPROVED', label: 'Approved', valence: 'good' },
+	// `APPROVED` no longer means "posted" (#293 follow-up) -- with prepared answers on, it means "approved,
+	// awaiting an answer/send", so it stays neutral now; `ASKED` is the new "actually posted" terminal state.
+	{ state: 'APPROVED', label: 'Approved', valence: 'neutral' },
+	{ state: 'ASKED', label: 'Asked', valence: 'good' },
 	{ state: 'DENIED', label: 'Denied', valence: 'bad' },
 ] as const satisfies { label: string; state: string; valence: 'bad' | 'good' | 'neutral' }[];
 
@@ -52,8 +57,11 @@ interface ConfigFormData {
 	allowedQuestionUploads: string;
 	answersChannelId: string;
 	flaggedQueueId: string;
+	guestIds: string[];
 	guestQueueId: string;
 	modQueueId: string;
+	modReviewEnabled: boolean;
+	preparedAnswersEnabled: boolean;
 	scheduledCloseAt: string;
 	title: string;
 }
@@ -66,6 +74,7 @@ const CONFIG_FIELDS = [
 	'modQueueId',
 	'flaggedQueueId',
 	'guestQueueId',
+	'guestIds',
 	'allowedQuestionUploads',
 	'scheduledCloseAt',
 ] as const satisfies (keyof ConfigFormData)[];
@@ -187,6 +196,7 @@ export function AMADetails() {
 	const [promptForm, setPromptForm] = useState<PromptFormData | null>(null);
 	const [promptMode, setPromptMode] = useState<PromptMode>('raw');
 	const [promptErrors, setPromptErrors] = useState<PromptFormErrors>({});
+	const [linkCopied, setLinkCopied] = useState(false);
 
 	const { data: ama, isLoading, error } = useAMA(params.id, params.amaId);
 	const { data: guildInfo, isLoading: isGuildInfoLoading, error: guildInfoError } = useGuildInfo(params.id, 'AMA');
@@ -227,8 +237,11 @@ export function AMADetails() {
 			modQueueId: ama.modQueueChannel?.id ?? '',
 			flaggedQueueId: ama.flaggedQueueChannel?.id ?? '',
 			guestQueueId: ama.guestQueueChannel?.id ?? '',
+			modReviewEnabled: ama.modReviewEnabled,
+			preparedAnswersEnabled: ama.preparedAnswersEnabled,
 			allowedQuestionUploads: String(ama.allowedQuestionUploads),
 			scheduledCloseAt,
+			guestIds: ama.guestIds,
 		});
 		setInitialScheduledCloseAt(scheduledCloseAt);
 		setConfigErrors({});
@@ -246,16 +259,39 @@ export function AMADetails() {
 		setConfigErrors((prev) => ({ ...prev, [field]: undefined }));
 	};
 
+	const updateConfigCheckbox = (field: 'modReviewEnabled' | 'preparedAnswersEnabled', value: boolean) => {
+		setConfigForm((prev) => (prev ? { ...prev, [field]: value } : prev));
+	};
+
+	const updateGuestId = (index: number, value: string) => {
+		setConfigForm((prev) =>
+			prev ? { ...prev, guestIds: prev.guestIds.map((id, i) => (i === index ? value : id)) } : prev,
+		);
+	};
+
+	const addGuestId = () => {
+		setConfigForm((prev) => (prev ? { ...prev, guestIds: [...prev.guestIds, ''] } : prev));
+	};
+
+	const removeGuestId = (index: number) => {
+		setConfigForm((prev) => (prev ? { ...prev, guestIds: prev.guestIds.filter((_id, i) => i !== index) } : prev));
+	};
+
 	const handleSaveConfig = async () => {
 		if (!configForm) return;
 
 		const data = {
 			title: configForm.title,
 			answersChannelId: configForm.answersChannelId,
-			modQueueId: configForm.modQueueId || null,
-			flaggedQueueId: configForm.flaggedQueueId || null,
+			modQueueId: configForm.modReviewEnabled ? configForm.modQueueId || null : null,
+			// Flagging only ever happens from mod review, so this is dropped the same way modQueueId is.
+			flaggedQueueId: configForm.modReviewEnabled ? configForm.flaggedQueueId || null : null,
+			// Guest review has no dash-only mode -- it's just whether a channel is set, no separate toggle.
 			guestQueueId: configForm.guestQueueId || null,
+			modReviewEnabled: configForm.modReviewEnabled,
+			preparedAnswersEnabled: configForm.preparedAnswersEnabled,
 			allowedQuestionUploads: parseIntegerInput(configForm.allowedQuestionUploads),
+			guestIds: [...new Set(configForm.guestIds.map((id) => id.trim()).filter(Boolean))],
 			// Omitted entirely (not sent as `undefined`) when untouched -- see `initialScheduledCloseAt`'s
 			// comment for why resending an unchanged value isn't safe to do unconditionally.
 			...(configForm.scheduledCloseAt !== initialScheduledCloseAt && {
@@ -463,6 +499,13 @@ export function AMADetails() {
 		}
 	};
 
+	const handleCopyPublicLink = async () => {
+		const url = `${window.location.origin}/ama-answers/${ama.shareToken}`;
+		await navigator.clipboard.writeText(url);
+		setLinkCopied(true);
+		setTimeout(() => setLinkCopied(false), 2_000);
+	};
+
 	const handleRepostPrompt = async () => {
 		setActionError(null);
 		setSuccessMessage(null);
@@ -481,468 +524,621 @@ export function AMADetails() {
 	const channels = guildInfo?.channels ?? [];
 
 	return (
-		<div className="grid gap-6 lg:grid-cols-2">
-			{actionError && (
-				<p
-					className="rounded-lg border border-misc-danger bg-misc-danger/10 p-3 text-sm text-misc-danger lg:col-span-2"
-					role="alert"
-				>
-					{actionError}
-				</p>
-			)}
-
-			{successMessage && (
-				<p
-					className="rounded-lg border border-misc-accent bg-misc-accent/10 p-3 text-sm text-misc-accent lg:col-span-2"
-					role="status"
-				>
-					{successMessage}
-				</p>
-			)}
-
-			{/* Session Information Card */}
-			<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
-				<div className="mb-4 flex items-center justify-between">
-					<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Session Information</h2>
-					{!ama.ended && !editing && !promptEditing && (
-						<Button
-							className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
-							isDisabled={isGuildInfoLoading || (guildInfo === undefined && Boolean(guildInfoError))}
-							onPress={startEdit}
-							type="button"
-						>
-							Edit
-						</Button>
-					)}
-				</div>
-				<div className="space-y-4">
-					{editing ? (
-						<TextField
-							error={configErrors.title}
-							id="edit-title"
-							label="Title"
-							maxLength={255}
-							onChange={(value) => updateConfigField('title', value)}
-							value={configForm.title}
-						/>
-					) : (
-						<div>
-							<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Title</p>
-							<p className="text-lg text-primary dark:text-primary-dark">{ama.title}</p>
-						</div>
-					)}
-
+		<div className="flex flex-col gap-6">
+			<div className="rounded-lg border border-misc-accent bg-misc-accent/10 p-6">
+				<div className="flex flex-wrap items-center justify-between gap-4">
 					<div>
-						<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Status</p>
-						<span
-							className={`inline-block rounded px-3 py-1 text-sm font-medium ${
-								ama.ended ? 'bg-misc-danger/10 text-misc-danger' : 'bg-misc-accent/10 text-misc-accent'
-							}`}
-						>
-							{ama.ended ? 'Ended' : 'Active'}
-						</span>
-					</div>
-
-					<div>
-						<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Questions</p>
-						<p className="text-lg text-primary dark:text-primary-dark">
-							{ama.questionCount} {ama.questionCount === 1 ? 'question' : 'questions'}
+						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Question Triage</h2>
+						<p className="text-sm text-secondary dark:text-secondary-dark">
+							Browse, tag, prepare answers, and merge duplicate questions.
 						</p>
 					</div>
-
-					<div>
-						<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Created</p>
-						<p className="text-lg text-primary dark:text-primary-dark">{formatDate(new Date(ama.createdAt))}</p>
-					</div>
-
-					{editing ? (
-						<TextField
-							error={configErrors.allowedQuestionUploads}
-							id="edit-allowed-uploads"
-							label="Allowed Uploads"
-							max={10}
-							min={0}
-							onChange={(value) => updateConfigField('allowedQuestionUploads', value)}
-							type="number"
-							value={configForm.allowedQuestionUploads}
-						/>
-					) : (
-						<div>
-							<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Allowed Uploads</p>
-							<p className="text-lg text-primary dark:text-primary-dark">
-								{ama.allowedQuestionUploads} {ama.allowedQuestionUploads === 1 ? 'file' : 'files'} per question
-							</p>
-						</div>
-					)}
-
-					{editing ? (
-						<TextField
-							error={configErrors.scheduledCloseAt}
-							helper={
-								<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-									Optional - automatically ends the AMA at this date/time. Clear to cancel it.
-								</p>
-							}
-							id="edit-scheduled-close-at"
-							label="Scheduled Close Date"
-							onChange={(value) => updateConfigField('scheduledCloseAt', value)}
-							type="datetime-local"
-							value={configForm.scheduledCloseAt}
-						/>
-					) : (
-						<div>
-							<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Scheduled Close Date</p>
-							<p className="text-lg text-primary dark:text-primary-dark">
-								{ama.scheduledCloseAt ? formatDate(new Date(ama.scheduledCloseAt)) : 'Not set'}
-							</p>
-						</div>
-					)}
+					<Button
+						className="shrink-0 rounded-md bg-misc-accent px-5 py-2.5 text-base font-medium text-white transition-colors hover:opacity-90"
+						onPress={() => router.push(`/dashboard/${params.id}/ama/amas/${params.amaId}/questions`)}
+						type="button"
+					>
+						View Questions
+					</Button>
 				</div>
 			</div>
 
-			{/* Channels Card */}
-			{/* `contain-inline-size`: the Prompt Channel help text below is a long line of plain-English text with no
+			<div className="grid gap-6 lg:grid-cols-2">
+				{actionError && (
+					<p
+						className="rounded-lg border border-misc-danger bg-misc-danger/10 p-3 text-sm text-misc-danger lg:col-span-2"
+						role="alert"
+					>
+						{actionError}
+					</p>
+				)}
+
+				{successMessage && (
+					<p
+						className="rounded-lg border border-misc-accent bg-misc-accent/10 p-3 text-sm text-misc-accent lg:col-span-2"
+						role="status"
+					>
+						{successMessage}
+					</p>
+				)}
+
+				{/* Session Information Card */}
+				<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
+					<div className="mb-4 flex items-center justify-between">
+						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Session Information</h2>
+						{!ama.ended && !editing && !promptEditing && (
+							<Button
+								className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
+								isDisabled={isGuildInfoLoading || (guildInfo === undefined && Boolean(guildInfoError))}
+								onPress={startEdit}
+								type="button"
+							>
+								Edit
+							</Button>
+						)}
+					</div>
+					<div className="space-y-4">
+						{editing ? (
+							<TextField
+								error={configErrors.title}
+								id="edit-title"
+								label="Title"
+								maxLength={255}
+								onChange={(value) => updateConfigField('title', value)}
+								value={configForm.title}
+							/>
+						) : (
+							<div>
+								<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Title</p>
+								<p className="text-lg text-primary dark:text-primary-dark">{ama.title}</p>
+							</div>
+						)}
+
+						<div>
+							<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Status</p>
+							<span
+								className={`inline-block rounded px-3 py-1 text-sm font-medium ${
+									ama.ended ? 'bg-misc-danger/10 text-misc-danger' : 'bg-misc-accent/10 text-misc-accent'
+								}`}
+							>
+								{ama.ended ? 'Ended' : 'Active'}
+							</span>
+						</div>
+
+						<div>
+							<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Questions</p>
+							<p className="text-lg text-primary dark:text-primary-dark">
+								{ama.questionCount} {ama.questionCount === 1 ? 'question' : 'questions'}
+							</p>
+						</div>
+
+						<div>
+							<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Created</p>
+							<p className="text-lg text-primary dark:text-primary-dark">{formatDate(new Date(ama.createdAt))}</p>
+						</div>
+
+						{editing ? (
+							<TextField
+								error={configErrors.allowedQuestionUploads}
+								id="edit-allowed-uploads"
+								label="Allowed Uploads"
+								max={10}
+								min={0}
+								onChange={(value) => updateConfigField('allowedQuestionUploads', value)}
+								type="number"
+								value={configForm.allowedQuestionUploads}
+							/>
+						) : (
+							<div>
+								<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Allowed Uploads</p>
+								<p className="text-lg text-primary dark:text-primary-dark">
+									{ama.allowedQuestionUploads} {ama.allowedQuestionUploads === 1 ? 'file' : 'files'} per question
+								</p>
+							</div>
+						)}
+
+						{editing ? (
+							<TextField
+								error={configErrors.scheduledCloseAt}
+								helper={
+									<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+										Optional - automatically ends the AMA at this date/time. Clear to cancel it.
+									</p>
+								}
+								id="edit-scheduled-close-at"
+								label="Scheduled Close Date"
+								onChange={(value) => updateConfigField('scheduledCloseAt', value)}
+								type="datetime-local"
+								value={configForm.scheduledCloseAt}
+							/>
+						) : (
+							<div>
+								<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Scheduled Close Date</p>
+								<p className="text-lg text-primary dark:text-primary-dark">
+									{ama.scheduledCloseAt ? formatDate(new Date(ama.scheduledCloseAt)) : 'Not set'}
+								</p>
+							</div>
+						)}
+
+						<div>
+							<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Public Answers Page</p>
+							<p className="mb-2 text-sm text-secondary dark:text-secondary-dark">
+								A read-only page listing asked questions and their answers - no login required.
+							</p>
+							<div className="flex items-center gap-3">
+								<Button
+									className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
+									onPress={handleCopyPublicLink}
+									type="button"
+								>
+									Copy Public Answers Link
+								</Button>
+								{linkCopied && <span className="text-sm text-misc-accent">Copied!</span>}
+							</div>
+						</div>
+					</div>
+				</div>
+
+				{/* Channels Card */}
+				{/* `contain-inline-size`: the Prompt Channel help text below is a long line of plain-English text with no
 			wrap opportunities counted toward CSS `max-content`, so without this its one-line width bubbles all the
 			way up through `main`'s `mx-auto`-driven shrink-to-fit sizing in the root layout and grows the whole
 			page. Containment isolates this card's content from that calculation while still letting the grid size
 			the card normally, so the text underneath can stay `w-full` and wrap at the card's real width instead of
 			being pinned to an arbitrary fixed max-width. */}
-			<div className="contain-inline-size rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
-				<h2 className="text-xl font-medium text-primary dark:text-primary-dark mb-4">Channels</h2>
-				<div className="space-y-4">
-					{editing ? (
-						<>
-							<ChannelSelect
-								allowedTypes={allowedChannelTypes}
-								channels={channels}
-								error={configErrors.answersChannelId}
-								label="Answers Channel"
-								onChange={(value) => updateConfigField('answersChannelId', value)}
-								required
-								selectedId="edit-answersChannelId"
-								value={configForm.answersChannelId}
-							/>
+				<div className="contain-inline-size rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
+					<h2 className="text-xl font-medium text-primary dark:text-primary-dark mb-4">Channels</h2>
+					<div className="space-y-4">
+						{editing ? (
+							<>
+								<ChannelSelect
+									allowedTypes={allowedChannelTypes}
+									channels={channels}
+									error={configErrors.answersChannelId}
+									label="Answers Channel"
+									onChange={(value) => updateConfigField('answersChannelId', value)}
+									required
+									selectedId="edit-answersChannelId"
+									value={configForm.answersChannelId}
+								/>
 
-							<div>
-								<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Prompt Channel</p>
-								<div className="mt-1 flex items-center gap-3">
-									<ChannelIcon channel={ama.promptChannel} />
-									<p className="text-base text-primary dark:text-primary-dark">{channelName(ama.promptChannel)}</p>
-								</div>
-								<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-									Fixed to where the original prompt message was posted. If that message was deleted, use &quot;Repost
-									Prompt Message&quot; below to recreate it in this same channel.
-								</p>
-							</div>
-
-							<ChannelSelect
-								allowedTypes={allowedChannelTypes}
-								channels={channels}
-								error={configErrors.modQueueId}
-								label="Mod Queue (optional)"
-								onChange={(value) => updateConfigField('modQueueId', value)}
-								selectedId="edit-modQueueId"
-								value={configForm.modQueueId}
-							/>
-
-							<ChannelSelect
-								allowedTypes={allowedChannelTypes}
-								channels={channels}
-								error={configErrors.flaggedQueueId}
-								label="Flagged Queue (optional)"
-								onChange={(value) => updateConfigField('flaggedQueueId', value)}
-								selectedId="edit-flaggedQueueId"
-								value={configForm.flaggedQueueId}
-							/>
-
-							<ChannelSelect
-								allowedTypes={allowedChannelTypes}
-								channels={channels}
-								error={configErrors.guestQueueId}
-								label="Guest Queue (optional)"
-								onChange={(value) => updateConfigField('guestQueueId', value)}
-								selectedId="edit-guestQueueId"
-								value={configForm.guestQueueId}
-							/>
-						</>
-					) : (
-						<>
-							<div className="flex items-center gap-3">
-								<ChannelIcon channel={ama.answersChannel} />
-								<div>
-									<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Answers Channel</p>
-									<p className="text-base text-primary dark:text-primary-dark">{channelName(ama.answersChannel)}</p>
-								</div>
-							</div>
-
-							<div className="flex items-center gap-3">
-								<ChannelIcon channel={ama.promptChannel} />
 								<div>
 									<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Prompt Channel</p>
-									<p className="text-base text-primary dark:text-primary-dark">{channelName(ama.promptChannel)}</p>
-								</div>
-							</div>
-
-							{/* Rendered unconditionally (with a "Not set" fallback) even when unconfigured, so this card has the
-							same set of rows in view and edit mode -- otherwise toggling Edit adds up to three rows that
-							weren't there a moment ago and shoves every card below it down the page. */}
-							<div className="flex items-center gap-3">
-								<ChannelIcon channel={ama.modQueueChannel} />
-								<div>
-									<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Mod Queue</p>
-									<p className="text-base text-primary dark:text-primary-dark">
-										{ama.modQueueChannel ? channelName(ama.modQueueChannel) : 'Not set'}
+									<div className="mt-1 flex items-center gap-3">
+										<ChannelIcon channel={ama.promptChannel} />
+										<p className="text-base text-primary dark:text-primary-dark">{channelName(ama.promptChannel)}</p>
+									</div>
+									<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+										Fixed to where the original prompt message was posted. If that message was deleted, use &quot;Repost
+										Prompt Message&quot; below to recreate it in this same channel.
 									</p>
 								</div>
-							</div>
 
-							<div className="flex items-center gap-3">
-								<ChannelIcon channel={ama.flaggedQueueChannel} />
 								<div>
-									<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Flagged Queue</p>
-									<p className="text-base text-primary dark:text-primary-dark">
-										{ama.flaggedQueueChannel ? channelName(ama.flaggedQueueChannel) : 'Not set'}
-									</p>
-								</div>
-							</div>
-
-							<div className="flex items-center gap-3">
-								<ChannelIcon channel={ama.guestQueueChannel} />
-								<div>
-									<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Guest Queue</p>
-									<p className="text-base text-primary dark:text-primary-dark">
-										{ama.guestQueueChannel ? channelName(ama.guestQueueChannel) : 'Not set'}
-									</p>
-								</div>
-							</div>
-						</>
-					)}
-				</div>
-			</div>
-
-			{editing && (
-				<div className="flex gap-3 lg:col-span-2">
-					<Button
-						className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
-						onPress={handleSaveConfig}
-						type="button"
-					>
-						Save Changes
-					</Button>
-					<Button
-						className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
-						onPress={cancelEdit}
-						type="button"
-					>
-						Cancel
-					</Button>
-				</div>
-			)}
-
-			{/* Prompt Message Card */}
-			<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
-				<div className="mb-4 flex items-center justify-between">
-					<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Prompt Message</h2>
-					{ama.promptMessageExists && !ama.ended && !editing && !promptEditing && (
-						<Button
-							className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
-							onPress={startPromptEdit}
-							type="button"
-						>
-							Edit
-						</Button>
-					)}
-				</div>
-				<div className="space-y-4">
-					<div>
-						<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Message Status</p>
-						<span
-							className={`inline-block rounded px-3 py-1 text-sm font-medium ${
-								ama.promptMessageExists ? 'bg-misc-accent/10 text-misc-accent' : 'bg-misc-danger/10 text-misc-danger'
-							}`}
-						>
-							{ama.promptMessageExists ? 'Active on Discord' : 'Message Deleted'}
-						</span>
-					</div>
-
-					{!ama.promptMessageExists && !ama.ended && (
-						<div className="pt-2">
-							<Button
-								className="bg-misc-accent text-white rounded-md hover:bg-misc-accent/90 transition-colors disabled:opacity-50"
-								onPress={handleRepostPrompt}
-								type="button"
-							>
-								Repost Prompt Message
-							</Button>
-							<p className="mt-2 text-sm text-secondary dark:text-secondary-dark">
-								This will create a new prompt message in the prompt channel.
-							</p>
-						</div>
-					)}
-
-					{/* Renders the currently-live content -- `PromptPreview`'s raw mode parses arbitrary Discord message
-					JSON, so this works whether the prompt was originally authored in normal or raw mode. Swapped out for
-					the interactive (unsaved-edits) preview below once editing starts. */}
-					{!promptEditing && <PromptPreview mode="raw" raw={ama.promptJsonData} />}
-
-					{promptEditing && (
-						<div className="space-y-4 pt-2">
-							<PromptModeToggle mode={promptMode} onModeChange={handlePromptModeChange} />
-
-							<div className="grid gap-6 lg:grid-cols-2">
-								<div>
-									{promptMode === 'normal' ? (
-										<NormalPromptFields
-											description={promptForm.description}
-											errors={promptErrors}
-											imageURL={promptForm.imageURL}
-											onDescriptionChange={(value) => updatePromptField('description', value)}
-											onImageURLChange={(value) => updatePromptField('imageURL', value)}
-											onPlainTextChange={(value) => updatePromptField('plainText', value)}
-											onThumbnailURLChange={(value) => updatePromptField('thumbnailURL', value)}
-											plainText={promptForm.plainText}
-											thumbnailURL={promptForm.thumbnailURL}
+									<label className="flex items-center gap-2" htmlFor="edit-mod-review-enabled">
+										<input
+											checked={configForm.modReviewEnabled}
+											className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
+											id="edit-mod-review-enabled"
+											onChange={(e) => updateConfigCheckbox('modReviewEnabled', e.target.checked)}
+											type="checkbox"
 										/>
-									) : (
-										<RawJsonField
-											error={promptErrors.promptRaw}
-											id="promptRaw"
-											label="Raw JSON Prompt"
-											onFormatClick={() => {
-												try {
-													const parsed = JSON.parse(promptForm.promptRaw);
-													updatePromptField('promptRaw', JSON.stringify(parsed, null, 2));
-												} catch {
-													// Invalid JSON, ignore
-												}
-											}}
-											onPaste={handlePastePrompt}
-											onValueChange={(value) => updatePromptField('promptRaw', value)}
-											value={promptForm.promptRaw}
-										/>
+										<span className="text-sm font-medium text-secondary dark:text-secondary-dark">
+											Enable mod review
+										</span>
+									</label>
+									{configForm.modReviewEnabled && (
+										<div className="mt-2 space-y-3">
+											<ChannelSelect
+												allowedTypes={allowedChannelTypes}
+												channels={channels}
+												error={configErrors.modQueueId}
+												label="Mod Queue (optional)"
+												onChange={(value) => updateConfigField('modQueueId', value)}
+												selectedId="edit-modQueueId"
+												value={configForm.modQueueId}
+											/>
+											{!configForm.modQueueId && (
+												<p className="rounded-md border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm text-blue-600 dark:text-blue-400">
+													No channel picked - mod review will be managed entirely from the dashboard.
+												</p>
+											)}
+											<ChannelSelect
+												allowedTypes={allowedChannelTypes}
+												channels={channels}
+												error={configErrors.flaggedQueueId}
+												label="Flagged Queue (optional)"
+												onChange={(value) => updateConfigField('flaggedQueueId', value)}
+												selectedId="edit-flaggedQueueId"
+												value={configForm.flaggedQueueId}
+											/>
+										</div>
 									)}
 								</div>
 
-								{promptMode === 'normal' ? (
-									<PromptPreview
-										description={promptForm.description}
-										imageURL={promptForm.imageURL}
-										mode="normal"
-										plainText={promptForm.plainText}
-										thumbnailURL={promptForm.thumbnailURL}
-										title={ama.title}
+								<div>
+									<ChannelSelect
+										allowedTypes={allowedChannelTypes}
+										channels={channels}
+										error={configErrors.guestQueueId}
+										label="Guest Queue (optional)"
+										onChange={(value) => updateConfigField('guestQueueId', value)}
+										selectedId="edit-guestQueueId"
+										value={configForm.guestQueueId}
 									/>
-								) : (
-									<PromptPreview mode="raw" raw={promptForm.promptRaw} />
-								)}
-							</div>
+									<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+										Unlike mod review, guest review always happens in Discord -- guests generally don&apos;t have
+										dashboard access. Leave this unset to skip the guest queue entirely; questions still get
+										approved/answered from the dashboard.
+									</p>
+								</div>
 
-							<div className="flex gap-3">
-								<Button
-									className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
-									isDisabled={updateAMA.isPending}
-									onPress={handleSavePrompt}
-									type="button"
-								>
-									Save Changes
-								</Button>
-								<Button
-									className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
-									onPress={cancelPromptEdit}
-									type="button"
-								>
-									Cancel
-								</Button>
-							</div>
-						</div>
-					)}
+								<div>
+									<span className="text-sm font-medium text-secondary dark:text-secondary-dark">Guests (optional)</span>
+									<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+										Known guest-answerer user IDs. Once at least one is added, &quot;answered by&quot; becomes a picker
+										restricted to this list (in both the guest queue&apos;s Add Answer modal and the dashboard) instead
+										of a free-text ID.
+									</p>
+									{configErrors.guestIds && <p className="mt-1 text-sm text-misc-danger">{configErrors.guestIds}</p>}
+									<div className="mt-2 space-y-2">
+										{configForm.guestIds.map((guestId, index) => (
+											<div className="flex items-center gap-2" key={index}>
+												<input
+													className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary focus:border-misc-accent focus:outline-none dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+													onChange={(e) => updateGuestId(index, e.target.value)}
+													placeholder="Discord user ID"
+													type="text"
+													value={guestId}
+												/>
+												<Button
+													className="h-9 shrink-0 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
+													onPress={() => removeGuestId(index)}
+													type="button"
+												>
+													Remove
+												</Button>
+											</div>
+										))}
+										<Button
+											className="h-9 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
+											onPress={addGuestId}
+											type="button"
+										>
+											+ Add Guest
+										</Button>
+									</div>
+								</div>
+
+								<div>
+									<label className="flex items-center gap-2" htmlFor="edit-prepared-answers-enabled">
+										<input
+											checked={configForm.preparedAnswersEnabled}
+											className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
+											id="edit-prepared-answers-enabled"
+											onChange={(e) => updateConfigCheckbox('preparedAnswersEnabled', e.target.checked)}
+											type="checkbox"
+										/>
+										<span className="text-sm font-medium text-secondary dark:text-secondary-dark">
+											Enable prepared answers
+										</span>
+									</label>
+								</div>
+							</>
+						) : (
+							<>
+								<div className="flex items-center gap-3">
+									<ChannelIcon channel={ama.answersChannel} />
+									<div>
+										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Answers Channel</p>
+										<p className="text-base text-primary dark:text-primary-dark">{channelName(ama.answersChannel)}</p>
+									</div>
+								</div>
+
+								<div className="flex items-center gap-3">
+									<ChannelIcon channel={ama.promptChannel} />
+									<div>
+										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Prompt Channel</p>
+										<p className="text-base text-primary dark:text-primary-dark">{channelName(ama.promptChannel)}</p>
+									</div>
+								</div>
+
+								{/* Rendered unconditionally (with a "Not set" fallback) even when unconfigured, so this card has the
+							same set of rows in view and edit mode -- otherwise toggling Edit adds up to three rows that
+							weren't there a moment ago and shoves every card below it down the page. */}
+								<div className="flex items-center gap-3">
+									<ChannelIcon channel={ama.modQueueChannel} />
+									<div>
+										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Mod Queue</p>
+										<p className="text-base text-primary dark:text-primary-dark">
+											{ama.modReviewEnabled
+												? ama.modQueueChannel
+													? channelName(ama.modQueueChannel)
+													: 'Dashboard only'
+												: 'Disabled'}
+										</p>
+									</div>
+								</div>
+
+								<div className="flex items-center gap-3">
+									<ChannelIcon channel={ama.flaggedQueueChannel} />
+									<div>
+										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Flagged Queue</p>
+										<p className="text-base text-primary dark:text-primary-dark">
+											{ama.modReviewEnabled
+												? ama.flaggedQueueChannel
+													? channelName(ama.flaggedQueueChannel)
+													: 'Not set'
+												: 'Disabled'}
+										</p>
+									</div>
+								</div>
+
+								<div className="flex items-center gap-3">
+									<ChannelIcon channel={ama.guestQueueChannel} />
+									<div>
+										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Guest Queue</p>
+										<p className="text-base text-primary dark:text-primary-dark">
+											{ama.guestQueueChannel ? channelName(ama.guestQueueChannel) : 'Not set'}
+										</p>
+									</div>
+								</div>
+
+								<div>
+									<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Prepared Answers</p>
+									<p className="text-lg text-primary dark:text-primary-dark">
+										{ama.preparedAnswersEnabled ? 'Enabled' : 'Disabled'}
+									</p>
+								</div>
+
+								<div>
+									<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Guests</p>
+									{ama.guests.length === 0 ? (
+										<p className="text-lg text-primary dark:text-primary-dark">None configured</p>
+									) : (
+										<div className="flex flex-col gap-1">
+											{ama.guests.map((guest) => {
+												const guestId = typeof guest === 'string' ? guest : guest.id;
+												return (
+													<div className="flex items-center gap-2" key={guestId}>
+														<AuthorAvatar className="h-5 w-5 rounded-full" user={guest} />
+														<p className="text-sm text-primary dark:text-primary-dark">{userLabel(guest)}</p>
+														<p className="text-xs text-secondary dark:text-secondary-dark">({guestId})</p>
+													</div>
+												);
+											})}
+										</div>
+									)}
+								</div>
+							</>
+						)}
+					</div>
 				</div>
-			</div>
 
-			{/* Analytics & Export Card */}
-			<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
-				<div className="mb-4 flex items-center justify-between">
-					<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Analytics &amp; Export</h2>
-					<Button
-						className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
-						isDisabled={exportQuestions.isPending}
-						onPress={handleExport}
-						type="button"
-					>
-						{exportQuestions.isPending ? 'Exporting…' : 'Export CSV'}
-					</Button>
-				</div>
+				{editing && (
+					<div className="flex gap-3 lg:col-span-2">
+						<Button
+							className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+							onPress={handleSaveConfig}
+							type="button"
+						>
+							Save Changes
+						</Button>
+						<Button
+							className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
+							onPress={cancelEdit}
+							type="button"
+						>
+							Cancel
+						</Button>
+					</div>
+				)}
 
-				{isStatsLoading ? (
-					<Skeleton className="h-24 w-full" />
-				) : stats ? (
+				{/* Prompt Message Card */}
+				<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
+					<div className="mb-4 flex items-center justify-between">
+						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Prompt Message</h2>
+						{ama.promptMessageExists && !ama.ended && !editing && !promptEditing && (
+							<Button
+								className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
+								onPress={startPromptEdit}
+								type="button"
+							>
+								Edit
+							</Button>
+						)}
+					</div>
 					<div className="space-y-4">
 						<div>
-							<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Total Questions</p>
-							<p className="text-3xl font-semibold text-primary dark:text-primary-dark">{stats.total}</p>
+							<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Message Status</p>
+							<span
+								className={`inline-block rounded px-3 py-1 text-sm font-medium ${
+									ama.promptMessageExists ? 'bg-misc-accent/10 text-misc-accent' : 'bg-misc-danger/10 text-misc-danger'
+								}`}
+							>
+								{ama.promptMessageExists ? 'Active on Discord' : 'Message Deleted'}
+							</span>
 						</div>
 
-						<div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-							{QUESTION_STATE_TILES.map(({ state, label, valence }) => (
-								<div
-									className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark"
-									key={state}
+						{!ama.promptMessageExists && !ama.ended && (
+							<div className="pt-2">
+								<Button
+									className="bg-misc-accent text-white rounded-md hover:bg-misc-accent/90 transition-colors disabled:opacity-50"
+									onPress={handleRepostPrompt}
+									type="button"
 								>
-									<p className={`text-2xl font-semibold ${valenceClass[valence]}`}>
-										{stats.byState[state as keyof AMAStats['byState']]}
-									</p>
-									<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">{label}</p>
+									Repost Prompt Message
+								</Button>
+								<p className="mt-2 text-sm text-secondary dark:text-secondary-dark">
+									This will create a new prompt message in the prompt channel.
+								</p>
+							</div>
+						)}
+
+						{/* Renders the currently-live content -- `PromptPreview`'s raw mode parses arbitrary Discord message
+					JSON, so this works whether the prompt was originally authored in normal or raw mode. Swapped out for
+					the interactive (unsaved-edits) preview below once editing starts. */}
+						{!promptEditing && <PromptPreview mode="raw" raw={ama.promptJsonData} />}
+
+						{promptEditing && (
+							<div className="space-y-4 pt-2">
+								<PromptModeToggle mode={promptMode} onModeChange={handlePromptModeChange} />
+
+								<div className="grid gap-6 lg:grid-cols-2">
+									<div>
+										{promptMode === 'normal' ? (
+											<NormalPromptFields
+												description={promptForm.description}
+												errors={promptErrors}
+												imageURL={promptForm.imageURL}
+												onDescriptionChange={(value) => updatePromptField('description', value)}
+												onImageURLChange={(value) => updatePromptField('imageURL', value)}
+												onPlainTextChange={(value) => updatePromptField('plainText', value)}
+												onThumbnailURLChange={(value) => updatePromptField('thumbnailURL', value)}
+												plainText={promptForm.plainText}
+												thumbnailURL={promptForm.thumbnailURL}
+											/>
+										) : (
+											<RawJsonField
+												error={promptErrors.promptRaw}
+												id="promptRaw"
+												label="Raw JSON Prompt"
+												onFormatClick={() => {
+													try {
+														const parsed = JSON.parse(promptForm.promptRaw);
+														updatePromptField('promptRaw', JSON.stringify(parsed, null, 2));
+													} catch {
+														// Invalid JSON, ignore
+													}
+												}}
+												onPaste={handlePastePrompt}
+												onValueChange={(value) => updatePromptField('promptRaw', value)}
+												value={promptForm.promptRaw}
+											/>
+										)}
+									</div>
+
+									{promptMode === 'normal' ? (
+										<PromptPreview
+											description={promptForm.description}
+											imageURL={promptForm.imageURL}
+											mode="normal"
+											plainText={promptForm.plainText}
+											thumbnailURL={promptForm.thumbnailURL}
+											title={ama.title}
+										/>
+									) : (
+										<PromptPreview mode="raw" raw={promptForm.promptRaw} />
+									)}
 								</div>
-							))}
-						</div>
-					</div>
-				) : (
-					<p className="text-sm text-secondary dark:text-secondary-dark">Unable to load question stats.</p>
-				)}
-			</div>
 
-			{/* Actions Card */}
-			{!ama.ended && (
-				<div className="rounded-lg border border-misc-danger/20 bg-card p-6 dark:border-misc-danger/20 dark:bg-card-dark lg:col-span-2">
-					<h2 className="text-xl font-medium text-misc-danger mb-4">Danger Zone</h2>
-					{showEndConfirm ? (
+								<div className="flex gap-3">
+									<Button
+										className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+										isDisabled={updateAMA.isPending}
+										onPress={handleSavePrompt}
+										type="button"
+									>
+										Save Changes
+									</Button>
+									<Button
+										className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
+										onPress={cancelPromptEdit}
+										type="button"
+									>
+										Cancel
+									</Button>
+								</div>
+							</div>
+						)}
+					</div>
+				</div>
+
+				{/* Analytics & Export Card */}
+				<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
+					<div className="mb-4 flex items-center justify-between">
+						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Analytics &amp; Export</h2>
+						<Button
+							className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
+							isDisabled={exportQuestions.isPending}
+							onPress={handleExport}
+							type="button"
+						>
+							{exportQuestions.isPending ? 'Exporting…' : 'Export CSV'}
+						</Button>
+					</div>
+
+					{isStatsLoading ? (
+						<Skeleton className="h-24 w-full" />
+					) : stats ? (
 						<div className="space-y-4">
-							<p className="text-base text-primary dark:text-primary-dark">
-								Are you sure you want to end this AMA? This action is <strong>irreversible</strong>.
-							</p>
-							<div className="flex gap-3">
-								<Button
-									className="px-3 py-2.5 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors disabled:opacity-50"
-									onPress={handleEndAMA}
-									type="button"
-								>
-									Yes, End AMA
-								</Button>
-								<Button
-									className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
-									onPress={() => setShowEndConfirm(false)}
-									type="button"
-								>
-									Cancel
-								</Button>
+							<div>
+								<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Total Questions</p>
+								<p className="text-3xl font-semibold text-primary dark:text-primary-dark">{stats.total}</p>
+							</div>
+
+							<div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+								{QUESTION_STATE_TILES.map(({ state, label, valence }) => (
+									<div
+										className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark"
+										key={state}
+									>
+										<p className={`text-2xl font-semibold ${valenceClass[valence]}`}>
+											{stats.byState[state as keyof AMAStats['byState']]}
+										</p>
+										<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">{label}</p>
+									</div>
+								))}
 							</div>
 						</div>
 					) : (
-						<div className="space-y-4">
-							<p className="text-base text-primary dark:text-primary-dark">
-								Ending an AMA will prevent new questions from being submitted. This action cannot be undone.
-							</p>
-							<Button
-								className="px-3 py-2.5 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors"
-								onPress={handleEndAMA}
-								type="button"
-							>
-								End AMA Session
-							</Button>
-						</div>
+						<p className="text-sm text-secondary dark:text-secondary-dark">Unable to load question stats.</p>
 					)}
 				</div>
-			)}
+
+				{/* Actions Card */}
+				{!ama.ended && (
+					<div className="rounded-lg border border-misc-danger/20 bg-card p-6 dark:border-misc-danger/20 dark:bg-card-dark lg:col-span-2">
+						<h2 className="text-xl font-medium text-misc-danger mb-4">Danger Zone</h2>
+						{showEndConfirm ? (
+							<div className="space-y-4">
+								<p className="text-base text-primary dark:text-primary-dark">
+									Are you sure you want to end this AMA? This action is <strong>irreversible</strong>.
+								</p>
+								<div className="flex gap-3">
+									<Button
+										className="px-3 py-2.5 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors disabled:opacity-50"
+										onPress={handleEndAMA}
+										type="button"
+									>
+										Yes, End AMA
+									</Button>
+									<Button
+										className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
+										onPress={() => setShowEndConfirm(false)}
+										type="button"
+									>
+										Cancel
+									</Button>
+								</div>
+							</div>
+						) : (
+							<div className="space-y-4">
+								<p className="text-base text-primary dark:text-primary-dark">
+									Ending an AMA will prevent new questions from being submitted. This action cannot be undone.
+								</p>
+								<Button
+									className="px-3 py-2.5 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors"
+									onPress={handleEndAMA}
+									type="button"
+								>
+									End AMA Session
+								</Button>
+							</div>
+						)}
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }

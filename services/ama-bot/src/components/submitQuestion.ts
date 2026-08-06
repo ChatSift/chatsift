@@ -108,10 +108,21 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		const options = new ModalInteractionOptionResolver(interaction);
 
 		const questionText = options.getTextInput('question-text');
-		const attachments = options.getAttachments('file-upload');
+		// The `file-upload` component only exists in the modal when uploads are allowed for this AMA (see
+		// the conditional push above) -- calling `getAttachments` when it's absent throws.
+		const attachments = ama.allowedQuestionUploads > 0 ? options.getAttachments('file-upload') : null;
 
-		// Create the question in the database
-		const state = ama.modQueueId ? 'PENDING_MOD_REVIEW' : ama.guestQueueId ? 'PENDING_GUEST_REVIEW' : 'APPROVED';
+		// Mod review's stage existence is keyed off `modReviewEnabled`, not queue-channel truthiness -- it
+		// can be dashboard-only (no Discord channel configured for it), see #293 follow-up / schema.sql.
+		// Guest review has no dash-only mode (guests generally don't have dashboard access), so its
+		// existence is just `guestQueueId` truthiness.
+		const state = ama.modReviewEnabled
+			? 'PENDING_MOD_REVIEW'
+			: ama.guestQueueId
+				? 'PENDING_GUEST_REVIEW'
+				: ama.preparedAnswersEnabled
+					? 'APPROVED'
+					: 'ASKED';
 		const [question] = await getContext().db<AmaQuestions[]>`
 			INSERT INTO ama_questions (ama_id, author_id, content, state)
 			VALUES (${ama.id}, ${interaction.member.user.id}, ${questionText}, ${state})
@@ -134,12 +145,16 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		};
 
 		try {
-			// Post to mod queue if configured, otherwise go straight to guest queue or answers channel
-			if (ama.modQueueId) {
-				const msg = await postToModQueue(postOptions);
-				await getContext().db`
-					UPDATE ama_questions SET mod_queue_message_id = ${msg.id} WHERE id = ${question.id}
-				`;
+			if (ama.modReviewEnabled) {
+				// Posting the queue message is separate from the stage existing -- a dash-only-enabled stage
+				// (no channel picked) has nothing to post, it just sits at PENDING_MOD_REVIEW for the dashboard.
+				if (ama.modQueueId) {
+					const msg = await postToModQueue(postOptions);
+					await getContext().db`
+						UPDATE ama_questions SET mod_queue_message_id = ${msg.id} WHERE id = ${question.id}
+					`;
+				}
+
 				logger.info(
 					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.mod },
 					'Question submitted to mod queue',
@@ -149,15 +164,21 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				await getContext().db`
 					UPDATE ama_questions SET guest_queue_message_id = ${msg.id} WHERE id = ${question.id}
 				`;
+
 				logger.info(
 					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.guest },
 					'Question submitted to guest queue',
 				);
+			} else if (ama.preparedAnswersEnabled) {
+				// No review stages and prepared answers is on: hold at APPROVED, awaiting a prepared answer
+				// and an explicit dashboard Send -- nothing auto-posts when this toggle is on (#293 follow-up).
+				logger.info({ questionId: question.id, amaId: ama.id }, 'Question submitted directly to approved (held)');
 			} else {
-				// No queues configured, post directly to answers channel
+				// No queues configured and prepared answers off, post directly to answers channel (unchanged
+				// prod behavior, now landing on ASKED instead of the old APPROVED).
 				const msg = await postToAnswersChannel(postOptions);
 				await getContext().db`
-					UPDATE ama_questions SET answers_message_id = ${msg.id}, state = 'APPROVED' WHERE id = ${question.id}
+					UPDATE ama_questions SET answers_message_id = ${msg.id}, state = 'ASKED' WHERE id = ${question.id}
 				`;
 				logger.info(
 					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.answers },

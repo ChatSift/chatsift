@@ -3,7 +3,7 @@ import type { AmaPromptData, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
-import { badData, internal, notFound } from '@hapi/boom';
+import { badData, badRequest, internal, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
@@ -72,7 +72,24 @@ export default defineRoute({
 			req.logger,
 		);
 
-		const { prompt, prompt_raw, ...configFields } = data;
+		// Dash-only review stages (#293 follow-up): a queue channel can only be set while its stage is
+		// enabled. Unlike `createAMA.ts`'s schema-level refine, this is a partial update -- either field
+		// might be omitted from `data` -- so the effective (post-merge) values have to be checked here
+		// against the existing row, mirroring the DB's own CHECK constraints.
+		const effectiveModReviewEnabled = data.modReviewEnabled ?? existingAMA.modReviewEnabled;
+		const effectiveModQueueId = 'modQueueId' in data ? data.modQueueId : existingAMA.modQueueId;
+		if (!effectiveModReviewEnabled && effectiveModQueueId) {
+			throw badRequest('modQueueId can only be set when modReviewEnabled is true');
+		}
+
+		// Flagging only ever happens from PENDING_MOD_REVIEW (see modApprove.ts), so flaggedQueueId is
+		// tied to modReviewEnabled specifically, mirroring the ama_sessions_flagged_queue_id_check CHECK.
+		const effectiveFlaggedQueueId = 'flaggedQueueId' in data ? data.flaggedQueueId : existingAMA.flaggedQueueId;
+		if (!effectiveModReviewEnabled && effectiveFlaggedQueueId) {
+			throw badRequest('flaggedQueueId can only be set when modReviewEnabled is true');
+		}
+
+		const { prompt, prompt_raw, guestIds, ...configFields } = data;
 
 		let promptJsonData: string | undefined;
 		if (prompt ?? prompt_raw) {
@@ -141,6 +158,19 @@ export default defineRoute({
 				const [row] = await sql<AmaSessions[]>`
 					UPDATE ama_sessions
 					SET ${sql(configFields, ...columns)}
+					WHERE id = ${amaId} AND guild_id = ${guildId}
+					RETURNING *
+				`;
+				updated = row!;
+			}
+
+			// Kept as a separate statement from the dynamic `configFields` update above -- postgres.js needs
+			// `sql.array()` to type an empty array correctly (`guestIds` can be cleared back to `[]`), which
+			// the generic `sql(configFields, ...columns)` helper above has no way to apply per-column.
+			if (guestIds !== undefined) {
+				const [row] = await sql<AmaSessions[]>`
+					UPDATE ama_sessions
+					SET guest_ids = ${sql.array(guestIds)}
 					WHERE id = ${amaId} AND guild_id = ${guildId}
 					RETURNING *
 				`;

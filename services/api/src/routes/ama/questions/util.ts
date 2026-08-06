@@ -1,0 +1,93 @@
+import type { AmaQuestions, AmaSessions } from '@chatsift/db';
+import type { APIAttachment, APIUser, Snowflake } from '@discordjs/core';
+import { DiscordAPIError } from '@discordjs/rest';
+import { apiForGuild, discordAPIAma } from '../../../util/discordAPI.js';
+
+/**
+ * Resolves a raw Discord user id to the full `APIUser` via the AMA bot's own token -- mirrors
+ * `modmail/threads/util.ts`'s identically-shaped `resolveUser` (kept as a separate copy since it's
+ * pinned to a different bot id and there's no shared cross-product home for it yet). Falls back to
+ * the bare snowflake on a 404 rather than failing the whole request over one unresolvable id.
+ */
+export async function resolveAmaUser(guildId: Snowflake, userId: Snowflake): Promise<APIUser | Snowflake> {
+	try {
+		return await apiForGuild('AMA', guildId).users.get(userId);
+	} catch (error) {
+		if (error instanceof DiscordAPIError && error.status === 404) {
+			return userId;
+		}
+
+		throw error;
+	}
+}
+
+/**
+ * Best-effort display name for embed rebuilding (duplicate merges) -- unlike `resolveAmaUser`, callers
+ * here only need a label to print, not the full `APIUser`/fallback-snowflake union, so failures just
+ * degrade to the raw id instead of needing to be unwrapped by every call site.
+ */
+export async function resolveAmaDisplayName(guildId: Snowflake, userId: Snowflake): Promise<string> {
+	const resolved = await resolveAmaUser(guildId, userId);
+	return typeof resolved === 'string' ? resolved : (resolved.global_name ?? resolved.username);
+}
+
+export interface CurrentQueueMessage {
+	channelId: string;
+	messageId: string;
+}
+
+/**
+ * Resolves which (channelId, messageId) pair currently displays a question, if any -- mirrors
+ * `services/ama-bot`'s `markDuplicateSelect.ts` (kept as a separate copy for the same reason
+ * `resolveAmaUser` is: different service, different API client, no shared cross-service home for it
+ * yet). A question can be mid-flight with no live message at all (dash-only stage, or held at
+ * APPROVED awaiting a dashboard Send), in which case there's nothing to refresh or clean up.
+ */
+export function resolveCurrentQueueMessage(question: AmaQuestions, session: AmaSessions): CurrentQueueMessage | null {
+	if (question.state === 'PENDING_MOD_REVIEW' && session.modQueueId && question.modQueueMessageId) {
+		return { channelId: session.modQueueId, messageId: question.modQueueMessageId };
+	}
+
+	if (question.state === 'PENDING_GUEST_REVIEW' && session.guestQueueId && question.guestQueueMessageId) {
+		return { channelId: session.guestQueueId, messageId: question.guestQueueMessageId };
+	}
+
+	if (question.state === 'FLAGGED' && session.flaggedQueueId && question.flaggedQueueMessageId) {
+		return { channelId: session.flaggedQueueId, messageId: question.flaggedQueueMessageId };
+	}
+
+	if (question.state === 'ASKED' && question.answersMessageId) {
+		return { channelId: session.answersChannelId, messageId: question.answersMessageId };
+	}
+
+	return null;
+}
+
+/**
+ * A question's attachments aren't persisted on its own row (see `services/ama-bot`'s `lib/queues.ts`
+ * doc comments) -- the bot always carries them forward off the interaction's source message instead.
+ * From the API side there's no interaction to read them off, so this fetches the question's current
+ * live message (if any) and reads its attachments back from Discord. A dash-only-held question with
+ * no live message at all has no recoverable attachments -- returns `[]`, a known limitation rather
+ * than a bug (there was never a Discord message to have attachments on in the first place).
+ */
+export async function resolveQuestionAttachments(
+	question: AmaQuestions,
+	session: AmaSessions,
+): Promise<APIAttachment[]> {
+	const current = resolveCurrentQueueMessage(question, session);
+	if (!current) {
+		return [];
+	}
+
+	try {
+		const message = await discordAPIAma.channels.getMessage(current.channelId, current.messageId);
+		return message.attachments;
+	} catch (error) {
+		if (error instanceof DiscordAPIError && error.status === 404) {
+			return [];
+		}
+
+		throw error;
+	}
+}

@@ -1,166 +1,23 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { getBaseEmbeds } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
-	APIActionRowComponent,
 	APIAttachment,
 	APIButtonComponent,
-	APIEmbed,
 	APIGuildMember,
-	APIMessageTopLevelComponent,
 	APIUser,
 	RESTPostAPIChannelMessageJSONBody,
 } from '@discordjs/core';
-import { ButtonStyle, CDNRoutes, ComponentType, ImageFormat, RouteBases } from '@discordjs/core';
+import { ButtonStyle, ComponentType } from '@discordjs/core';
 
-/**
- * Discord's blurple accent, used across every AMA queue/answers-channel embed.
- */
-const BLURPLE = 0x7289da;
+export { CurrentlyInQueue, getNextQueue, withResolvedActionRow } from '@chatsift/core';
 
-/**
- * Discord groups embeds on the same message into an image gallery when they share an identical
- * `url` field. Used to render more than one attachment per question — ChatSift/AMA never had this
- * problem since it only ever supported a single `imageUrl`, but main's `allowedQuestionUploads`
- * can be greater than 1.
- */
-const GALLERY_ANCHOR_URL = 'https://automoderator.app/ama-gallery-anchor';
-
-/**
- * Represents which queue a question is currently in
- */
-export enum CurrentlyInQueue {
-	mod,
-	guest,
-	answers,
-}
-
-interface GetNextQueueResult {
-	kind: CurrentlyInQueue;
-	queueId: string;
-}
-
-/**
- * Determines the next queue in the AMA workflow
- */
-export function getNextQueue(currently: CurrentlyInQueue, session: AmaSessions): GetNextQueueResult | null {
-	switch (currently) {
-		case CurrentlyInQueue.answers: {
-			return null;
-		}
-
-		case CurrentlyInQueue.guest: {
-			return { kind: CurrentlyInQueue.answers, queueId: session.answersChannelId };
-		}
-
-		case CurrentlyInQueue.mod: {
-			if (session.guestQueueId) {
-				return { kind: CurrentlyInQueue.guest, queueId: session.guestQueueId };
-			}
-
-			return { kind: CurrentlyInQueue.answers, queueId: session.answersChannelId };
-		}
-	}
-}
-
-interface GetBaseEmbedsOptions {
-	attachments: APIAttachment[];
-	content: string;
-	guildId: string;
-	includeUserId?: boolean | undefined;
-	member?: APIGuildMember | undefined;
-	user?: APIUser | undefined;
-}
-
-/**
- * Resolves the avatar to show for a question's author, preferring the guild-specific avatar over
- * the global one.
- */
-function resolveAvatarURL(
-	guildId: string,
-	member: APIGuildMember | undefined,
-	user: APIUser | undefined,
-): string | undefined {
-	if (member?.avatar && member.user) {
-		return `${RouteBases.cdn}${CDNRoutes.guildMemberAvatar(guildId, member.user.id, member.avatar, ImageFormat.PNG)}`;
-	}
-
-	if (user?.avatar) {
-		return `${RouteBases.cdn}${CDNRoutes.userAvatar(user.id, user.avatar, ImageFormat.PNG)}`;
-	}
-
-	return undefined;
-}
-
-/**
- * Builds the question embed(s) posted to every queue and the answers channel: author name+avatar
- * line (no "Asked by" prefix needed since the author field already carries that), optional footer
- * with the raw user ID for queues where a mod needs to act on it, blurple accent. Multiple
- * attachments render as a Discord image gallery via the shared-`url` grouping trick (see
- * `GALLERY_ANCHOR_URL` above).
- */
-function getBaseEmbeds({
-	attachments,
-	content,
-	guildId,
-	includeUserId = false,
-	member,
-	user,
-}: GetBaseEmbedsOptions): APIEmbed[] {
-	const displayName = member?.nick ?? user?.global_name ?? user?.username ?? 'Unknown User';
-	const avatarURL = resolveAvatarURL(guildId, member, user);
-
-	const mainEmbed: APIEmbed = {
-		color: BLURPLE,
-		description: content,
-		author: avatarURL ? { name: displayName, icon_url: avatarURL } : { name: displayName },
-	};
-
-	if (includeUserId && user) {
-		mainEmbed.footer = avatarURL
-			? { text: `${user.username} (${user.id})`, icon_url: avatarURL }
-			: { text: `${user.username} (${user.id})` };
-	}
-
-	if (attachments.length === 0) {
-		return [mainEmbed];
-	}
-
-	if (attachments.length === 1) {
-		mainEmbed.image = { url: attachments[0]!.url };
-		return [mainEmbed];
-	}
-
-	mainEmbed.url = GALLERY_ANCHOR_URL;
-	mainEmbed.image = { url: attachments[0]!.url };
-
-	const galleryEmbeds: APIEmbed[] = attachments.slice(1).map((attachment) => ({
-		color: BLURPLE,
-		url: GALLERY_ANCHOR_URL,
-		image: { url: attachment.url },
-	}));
-
-	return [mainEmbed, ...galleryEmbeds];
-}
-
-function createButtonActionRow(buttons: APIButtonComponent[]): APIActionRowComponent<APIButtonComponent> {
+function createButtonActionRow(buttons: APIButtonComponent[]) {
 	return {
-		type: ComponentType.ActionRow,
+		type: ComponentType.ActionRow as const,
 		components: buttons,
 	};
-}
-
-/**
- * Swaps the action row of a queue message's components for a single disabled button, preserving the
- * question container (and anything else that isn't the button row) instead of dropping it.
- */
-export function withResolvedActionRow(
-	sourceComponents: APIMessageTopLevelComponent[] | undefined,
-	button: APIButtonComponent,
-): APIMessageTopLevelComponent[] {
-	return (sourceComponents ?? []).map((component) =>
-		component.type === ComponentType.ActionRow ? createButtonActionRow([button]) : component,
-	);
 }
 
 /**
@@ -260,6 +117,15 @@ export async function postToModQueue({
 		});
 	}
 
+	// Duplicate-merge entry point (#293 follow-up) -- available on the mod queue and guest queue,
+	// deliberately not on the flagged queue (that surface stays read-only, see postToFlaggedQueue).
+	buttons.push({
+		type: ComponentType.Button,
+		style: ButtonStyle.Secondary,
+		label: 'Mark Duplicate',
+		custom_id: `mark-duplicate:${question.id}`,
+	});
+
 	const messageData: RESTPostAPIChannelMessageJSONBody = {
 		embeds,
 		components: [createButtonActionRow(buttons)],
@@ -285,7 +151,10 @@ interface PostToGuestQueueOptions {
 }
 
 /**
- * Posts a question to the guest queue with approve/skip buttons
+ * Posts a question to the guest queue. When `session.preparedAnswersEnabled` is off, the primary
+ * button posts straight to the answers channel ("Answer", `guest-approve`) — unchanged prod
+ * behavior. When on, that same button instead opens the "Add Answer" modal (`guest-add-answer`,
+ * #293 follow-up) and nothing gets posted until the dashboard's Send action runs.
  */
 export async function postToGuestQueue({
 	attachments,
@@ -309,21 +178,36 @@ export async function postToGuestQueue({
 		includeUserId: false, // Don't include user ID in guest queue
 	});
 
-	// Create action buttons for guest queue
-	const buttons: APIButtonComponent[] = [
-		{
-			type: ComponentType.Button,
-			style: ButtonStyle.Success,
-			label: 'Answer',
-			custom_id: `guest-approve:${question.id}`,
-		},
-		{
-			type: ComponentType.Button,
-			style: ButtonStyle.Secondary,
-			label: 'Skip',
-			custom_id: `guest-skip:${question.id}`,
-		},
-	];
+	const buttons: APIButtonComponent[] = session.preparedAnswersEnabled
+		? [
+				{
+					type: ComponentType.Button,
+					style: ButtonStyle.Success,
+					label: 'Add Answer',
+					custom_id: `guest-add-answer:${question.id}`,
+				},
+			]
+		: [
+				{
+					type: ComponentType.Button,
+					style: ButtonStyle.Success,
+					label: 'Answer',
+					custom_id: `guest-approve:${question.id}`,
+				},
+			];
+
+	buttons.push({
+		type: ComponentType.Button,
+		style: ButtonStyle.Secondary,
+		label: 'Skip',
+		custom_id: `guest-skip:${question.id}`,
+	});
+	buttons.push({
+		type: ComponentType.Button,
+		style: ButtonStyle.Secondary,
+		label: 'Mark Duplicate',
+		custom_id: `mark-duplicate:${question.id}`,
+	});
 
 	const messageData: RESTPostAPIChannelMessageJSONBody = {
 		embeds,

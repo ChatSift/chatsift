@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { getContext, GRANTS, releaseGrantToken } from '@chatsift/backend-core';
 import type { AmaSessions } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
@@ -103,16 +104,22 @@ export default defineRoute({
 				throw error;
 			}
 
+			// Backing the public read-only answers page (`/ama-answers/:shareToken`) -- generated unconditionally
+			// at creation, not just for dash-only-queue AMAs (the owner asked for this on every AMA).
+			const shareToken = randomBytes(24).toString('hex');
+
 			return await getContext().db.begin(async (sql) => {
 				const [session] = await sql<AmaSessions[]>`
 					INSERT INTO ama_sessions (
 						guild_id, title, answers_channel_id, prompt_channel_id,
-						mod_queue_id, flagged_queue_id, guest_queue_id, allowed_question_uploads, ended, scheduled_close_at
+						mod_queue_id, flagged_queue_id, guest_queue_id, allowed_question_uploads, ended, scheduled_close_at,
+						mod_review_enabled, prepared_answers_enabled, share_token, guest_ids
 					)
 					VALUES (
 						${guildId}, ${data.title}, ${data.answersChannelId}, ${data.promptChannelId},
 						${data.modQueueId}, ${data.flaggedQueueId}, ${data.guestQueueId}, ${data.allowedQuestionUploads}, false,
-						${data.scheduledCloseAt ?? null}
+						${data.scheduledCloseAt ?? null},
+						${data.modReviewEnabled}, ${data.preparedAnswersEnabled}, ${shareToken}, ${sql.array(data.guestIds)}
 					)
 					RETURNING *
 				`;

@@ -14,6 +14,7 @@ import { useGrantAuth } from '@/api/grant';
 import type { CreateAMABody } from '@/api/routes/ama';
 import { useCreateAMA } from '@/api/routes/ama';
 import { useGuildInfo } from '@/api/routes/guilds';
+import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { EmptyState } from '@/components/common/EmptyState';
 import { FormActions } from '@/components/common/FormActions';
@@ -28,10 +29,13 @@ interface FormData {
 	answersChannelId: string;
 	description: string;
 	flaggedQueueId: string;
+	guestIds: string[];
 	guestQueueId: string;
 	imageURL: string;
 	modQueueId: string;
+	modReviewEnabled: boolean;
 	plainText: string;
+	preparedAnswersEnabled: boolean;
 	promptChannelId: string;
 	promptRaw: string;
 	scheduledCloseAt: string;
@@ -48,6 +52,7 @@ const TOP_LEVEL_FIELDS = [
 	'modQueueId',
 	'flaggedQueueId',
 	'guestQueueId',
+	'guestIds',
 	'allowedQuestionUploads',
 	'scheduledCloseAt',
 ] as const satisfies (keyof FormData)[];
@@ -117,6 +122,9 @@ export function CreateAMAForm() {
 		thumbnailURL: '',
 		promptRaw: '',
 		scheduledCloseAt: '',
+		modReviewEnabled: false,
+		preparedAnswersEnabled: false,
+		guestIds: [],
 	});
 	const [errors, setErrors] = useState<FormErrors>({});
 	const [generalError, setGeneralError] = useState<string | null>(null);
@@ -124,6 +132,22 @@ export function CreateAMAForm() {
 	const updateFormData = (field: keyof FormData, value: string | undefined) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 		setErrors((prev) => ({ ...prev, [field]: undefined }));
+	};
+
+	const updateCheckboxField = (field: 'modReviewEnabled' | 'preparedAnswersEnabled', value: boolean) => {
+		setFormData((prev) => ({ ...prev, [field]: value }));
+	};
+
+	const updateGuestId = (index: number, value: string) => {
+		setFormData((prev) => ({ ...prev, guestIds: prev.guestIds.map((id, i) => (i === index ? value : id)) }));
+	};
+
+	const addGuestId = () => {
+		setFormData((prev) => ({ ...prev, guestIds: [...prev.guestIds, ''] }));
+	};
+
+	const removeGuestId = (index: number) => {
+		setFormData((prev) => ({ ...prev, guestIds: prev.guestIds.filter((_id, i) => i !== index) }));
 	};
 
 	// Non-blocking: picking the same channel for two different purposes is legal (the API doesn't reject it) but
@@ -150,11 +174,19 @@ export function CreateAMAForm() {
 			title: formData.title,
 			answersChannelId: formData.answersChannelId,
 			promptChannelId: formData.promptChannelId,
-			modQueueId: formData.modQueueId || null,
-			flaggedQueueId: formData.flaggedQueueId || null,
+			// A queue's channel only makes it through while its stage is enabled -- unchecking the stage
+			// hides the channel select but doesn't clear its stale value, so this is where that gets
+			// dropped rather than sent along with modReviewEnabled: false.
+			modQueueId: formData.modReviewEnabled ? formData.modQueueId || null : null,
+			// Flagging only ever happens from mod review, so this is dropped the same way modQueueId is.
+			flaggedQueueId: formData.modReviewEnabled ? formData.flaggedQueueId || null : null,
+			// Guest review has no dash-only mode -- it's just whether a channel is set, no separate toggle.
 			guestQueueId: formData.guestQueueId || null,
+			modReviewEnabled: formData.modReviewEnabled,
+			preparedAnswersEnabled: formData.preparedAnswersEnabled,
 			allowedQuestionUploads: parseIntegerInput(formData.allowedQuestionUploads),
 			scheduledCloseAt: datetimeLocalValueToISOString(formData.scheduledCloseAt),
+			guestIds: [...new Set(formData.guestIds.map((id) => id.trim()).filter(Boolean))],
 		};
 
 		// Only called after `validateForm` has already confirmed `formData.promptRaw` is valid JSON (or empty).
@@ -243,6 +275,7 @@ export function CreateAMAForm() {
 					['modQueueId', error.fieldError('modQueueId')],
 					['flaggedQueueId', error.fieldError('flaggedQueueId')],
 					['guestQueueId', error.fieldError('guestQueueId')],
+					['guestIds', error.fieldError('guestIds')],
 					['allowedQuestionUploads', error.fieldError('allowedQuestionUploads')],
 					['scheduledCloseAt', error.fieldError('scheduledCloseAt')],
 					['description', error.fieldError(promptField, 'description')],
@@ -360,36 +393,117 @@ export function CreateAMAForm() {
 					selectedId="promptChannelId"
 					value={formData.promptChannelId}
 				/>{' '}
-				<ChannelSelect
-					allowedTypes={allowedChannelTypes}
-					channels={guildInfo!.channels}
-					error={errors.modQueueId}
-					label="Mod Queue (optional)"
-					onChange={(value) => updateFormData('modQueueId', value)}
-					placeholder="Select a channel for mod queue"
-					selectedId="modQueueId"
-					value={formData.modQueueId}
-				/>{' '}
-				<ChannelSelect
-					allowedTypes={allowedChannelTypes}
-					channels={guildInfo!.channels}
-					error={errors.flaggedQueueId}
-					label="Flagged Queue (optional)"
-					onChange={(value) => updateFormData('flaggedQueueId', value)}
-					placeholder="Select a channel for flagged questions"
-					selectedId="flaggedQueueId"
-					value={formData.flaggedQueueId}
-				/>{' '}
-				<ChannelSelect
-					allowedTypes={allowedChannelTypes}
-					channels={guildInfo!.channels}
-					error={errors.guestQueueId}
-					label="Guest Queue (optional)"
-					onChange={(value) => updateFormData('guestQueueId', value)}
-					placeholder="Select a channel for guest queue"
-					selectedId="guestQueueId"
-					value={formData.guestQueueId}
-				/>
+				<div>
+					<label className="flex items-center gap-2" htmlFor="ama-mod-review-enabled">
+						<input
+							checked={formData.modReviewEnabled}
+							className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
+							id="ama-mod-review-enabled"
+							onChange={(e) => updateCheckboxField('modReviewEnabled', e.target.checked)}
+							type="checkbox"
+						/>
+						<span className="text-sm font-medium text-secondary dark:text-secondary-dark">Enable mod review</span>
+					</label>
+					{formData.modReviewEnabled && (
+						<div className="mt-2 space-y-3">
+							<ChannelSelect
+								allowedTypes={allowedChannelTypes}
+								channels={guildInfo!.channels}
+								error={errors.modQueueId}
+								label="Mod Queue (optional)"
+								onChange={(value) => updateFormData('modQueueId', value)}
+								placeholder="Select a channel for mod queue"
+								selectedId="modQueueId"
+								value={formData.modQueueId}
+							/>
+							{!formData.modQueueId && (
+								<p className="rounded-md border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm text-blue-600 dark:text-blue-400">
+									No channel picked - mod review will be managed entirely from the dashboard, with no Discord message
+									posted for it.
+								</p>
+							)}
+							<ChannelSelect
+								allowedTypes={allowedChannelTypes}
+								channels={guildInfo!.channels}
+								error={errors.flaggedQueueId}
+								label="Flagged Queue (optional)"
+								onChange={(value) => updateFormData('flaggedQueueId', value)}
+								placeholder="Select a channel for flagged questions"
+								selectedId="flaggedQueueId"
+								value={formData.flaggedQueueId}
+							/>
+						</div>
+					)}
+				</div>{' '}
+				<div>
+					<ChannelSelect
+						allowedTypes={allowedChannelTypes}
+						channels={guildInfo!.channels}
+						error={errors.guestQueueId}
+						label="Guest Queue (optional)"
+						onChange={(value) => updateFormData('guestQueueId', value)}
+						placeholder="Select a channel for guest queue"
+						selectedId="guestQueueId"
+						value={formData.guestQueueId}
+					/>
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						Unlike mod review, guest review always happens in Discord -- guests generally don&apos;t have dashboard
+						access. Leave this unset to skip the guest queue entirely; questions still get approved/answered from the
+						dashboard.
+					</p>
+				</div>
+				<div>
+					<span className="text-sm font-medium text-secondary dark:text-secondary-dark">Guests (optional)</span>
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						Known guest-answerer user IDs. Once at least one is added, &quot;answered by&quot; becomes a picker
+						restricted to this list (in both the guest queue&apos;s Add Answer modal and the dashboard) instead of a
+						free-text ID. Editable any time.
+					</p>
+					{errors.guestIds && <p className="mt-1 text-sm text-misc-danger">{errors.guestIds}</p>}
+					<div className="mt-2 space-y-2">
+						{formData.guestIds.map((guestId, index) => (
+							<div className="flex items-center gap-2" key={index}>
+								<input
+									className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary focus:border-misc-accent focus:outline-none dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+									onChange={(e) => updateGuestId(index, e.target.value)}
+									placeholder="Discord user ID"
+									type="text"
+									value={guestId}
+								/>
+								<Button
+									className="h-9 shrink-0 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
+									onPress={() => removeGuestId(index)}
+									type="button"
+								>
+									Remove
+								</Button>
+							</div>
+						))}
+						<Button
+							className="h-9 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
+							onPress={addGuestId}
+							type="button"
+						>
+							+ Add Guest
+						</Button>
+					</div>
+				</div>
+				<div>
+					<label className="flex items-center gap-2" htmlFor="ama-prepared-answers-enabled">
+						<input
+							checked={formData.preparedAnswersEnabled}
+							className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
+							id="ama-prepared-answers-enabled"
+							onChange={(e) => updateCheckboxField('preparedAnswersEnabled', e.target.checked)}
+							type="checkbox"
+						/>
+						<span className="text-sm font-medium text-secondary dark:text-secondary-dark">Enable prepared answers</span>
+					</label>
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						Decouples approving a question from posting it - an answer can be prepared ahead of time (in the guest
+						queue, or from the dashboard) and only goes out to the answers channel once you hit Send.
+					</p>
+				</div>
 				<TextField
 					error={errors.allowedQuestionUploads}
 					helper={

@@ -16,6 +16,17 @@ export { default as getAMAsRoute } from './routes/ama/getAMAs.js';
 export { default as repostPromptRoute } from './routes/ama/repostPrompt.js';
 export { default as updateAMARoute } from './routes/ama/updateAMA.js';
 
+export { default as listAMAQuestionsRoute } from './routes/ama/questions/listQuestions.js';
+export { default as getAMAQuestionRoute } from './routes/ama/questions/getQuestion.js';
+export { default as updateAMAQuestionRoute } from './routes/ama/questions/updateQuestion.js';
+export { default as sendAMAQuestionRoute } from './routes/ama/questions/sendQuestion.js';
+export { default as mergeAMAQuestionRoute } from './routes/ama/questions/mergeQuestion.js';
+export { default as mergeAMAQuestionsBulkRoute } from './routes/ama/questions/mergeQuestionsBulk.js';
+export { default as publicAMAAnswersRoute } from './routes/ama/questions/publicAnswers.js';
+
+export { default as listAMATagsRoute } from './routes/ama/tags/listTags.js';
+export { default as createAMATagRoute } from './routes/ama/tags/createTag.js';
+
 export { default as discordRoute } from './routes/auth/discord.js';
 export { default as discordCallbackRoute } from './routes/auth/discordCallback.js';
 export { default as logoutRoute } from './routes/auth/logout.js';

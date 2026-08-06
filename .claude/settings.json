@@ -20,7 +20,8 @@
 			"Bash(yarn db:diff *)",
 			"Bash(yarn db:migrate *)",
 			"Bash(yarn db:gen)",
-			"Bash(yarn dotenv *)"
+			"Bash(yarn dotenv *)",
+			"Bash(atlas migrate *)"
 		]
 	}
 }

@@ -24,6 +24,17 @@ const createAMABase = z.strictObject({
 		.refine((value) => new Date(value).getTime() > Date.now(), 'Scheduled close date must be in the future')
 		.nullable()
 		.optional(),
+	// Dash-only mod review (#293 follow-up): splits "does this stage exist" from "does it have a Discord
+	// channel" -- mod review can be enabled with no channel picked, meaning it's managed entirely from
+	// the dashboard. Mirrors the CHECK constraint in schema.sql. Guest review has no dash-only mode --
+	// guests generally don't have dashboard access, so its existence is just `guestQueueId` truthiness.
+	modReviewEnabled: z.boolean().optional().default(false),
+	// Decouples approving a question from posting it (#293 follow-up) -- see schema.sql's comment on
+	// `ama_sessions.prepared_answers_enabled`.
+	preparedAnswersEnabled: z.boolean().optional().default(false),
+	// Known guest-answerer user ids (#293 follow-up) -- backs the "answered by" picker in both the guest
+	// queue's Add Answer modal and the dashboard's answer editor. Editable retroactively via updateAMA.
+	guestIds: z.array(snowflakeSchema).optional().default([]),
 });
 
 export const createAMAWithRegularPromptSchema = createAMABase.safeExtend({
@@ -42,7 +53,16 @@ export const createAMAWithRawPromptSchema = createAMABase.safeExtend({
 	}),
 });
 
-export const createAMABodySchema = z.union([createAMAWithRegularPromptSchema, createAMAWithRawPromptSchema]);
+export const createAMABodySchema = z
+	.union([createAMAWithRegularPromptSchema, createAMAWithRawPromptSchema])
+	.refine((data) => data.modReviewEnabled || !data.modQueueId, {
+		message: 'modQueueId can only be set when modReviewEnabled is true',
+		path: ['modQueueId'],
+	})
+	.refine((data) => data.modReviewEnabled || !data.flaggedQueueId, {
+		message: 'flaggedQueueId can only be set when modReviewEnabled is true (flagging only happens from mod review)',
+		path: ['flaggedQueueId'],
+	});
 
 export const updateAMAEndSchema = z.strictObject({
 	ended: z.literal(true),
@@ -57,6 +77,9 @@ export const updateAMAConfigSchema = z
 		guestQueueId: snowflakeSchema.nullable().optional(),
 		allowedQuestionUploads: z.number().int().min(0).max(10).optional(),
 		scheduledCloseAt: createAMABase.shape.scheduledCloseAt,
+		modReviewEnabled: z.boolean().optional(),
+		preparedAnswersEnabled: z.boolean().optional(),
+		guestIds: z.array(snowflakeSchema).optional(),
 		prompt: createAMAWithRegularPromptSchema.shape.prompt.optional(),
 		prompt_raw: createAMAWithRawPromptSchema.shape.prompt_raw.optional(),
 	})

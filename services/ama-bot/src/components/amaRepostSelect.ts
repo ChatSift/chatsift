@@ -36,7 +36,7 @@ export default class AmaRepostSelectComponent implements ComponentHandler {
 
 			if (session.ended) {
 				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
-					content: `**${session.title}** has already ended — its prompt won't be reposted.`,
+					content: `**${session.title}** has already ended - its prompt won't be reposted.`,
 					components: [],
 				});
 				return;
@@ -78,7 +78,7 @@ export default class AmaRepostSelectComponent implements ComponentHandler {
 
 			if (messageExists) {
 				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
-					content: `The prompt message for **${session.title}** still exists — delete it first if you want to repost.`,
+					content: `The prompt message for **${session.title}** still exists - delete it first if you want to repost.`,
 					components: [],
 				});
 				return;

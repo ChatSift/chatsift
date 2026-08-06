@@ -9,6 +9,9 @@ export type { default as AmaPromptData, AmaPromptDataId } from './generated/publ
 export type { default as AmaQuestions, AmaQuestionsId } from './generated/public/AmaQuestions.js';
 export type { default as AmaQuestionState } from './generated/public/AmaQuestionState.js';
 export type { default as AmaSessions, AmaSessionsId } from './generated/public/AmaSessions.js';
+export type { default as AmaQuestionAskers, AmaQuestionAskersId } from './generated/public/AmaQuestionAskers.js';
+export type { default as AmaQuestionTags, AmaQuestionTagsId } from './generated/public/AmaQuestionTags.js';
+export type { default as AmaQuestionTagAssignments } from './generated/public/AmaQuestionTagAssignments.js';
 export type { default as DashboardGrants, DashboardGrantsId } from './generated/public/DashboardGrants.js';
 export type { default as GuildSettings, GuildSettingsGuildId } from './generated/public/GuildSettings.js';
 export type { default as ModmailInstances, ModmailInstancesId } from './generated/public/ModmailInstances.js';

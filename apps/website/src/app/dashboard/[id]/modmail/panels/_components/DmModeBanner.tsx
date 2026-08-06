@@ -22,7 +22,7 @@ export function DmModeBanner() {
 			className="rounded-lg border border-misc-accent bg-misc-accent/10 p-3 text-sm text-misc-accent md:col-span-2 lg:col-span-3"
 			role="status"
 		>
-			This server uses DM mode — users open tickets by DMing the bot directly. Panels posted below won&apos;t do
+			This server uses DM mode - users open tickets by DMing the bot directly. Panels posted below won&apos;t do
 			anything useful for them while it&apos;s on.
 		</p>
 	);

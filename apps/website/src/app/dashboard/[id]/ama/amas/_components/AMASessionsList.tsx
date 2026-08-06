@@ -100,7 +100,7 @@ export function AMASessionsList() {
 					) : (
 						<EmptyState
 							icon={<FaComments className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
-							subtitle='There may be ended sessions hidden — toggle "Include Ended" above to check.'
+							subtitle='There may be ended sessions hidden - toggle "Include Ended" above to check.'
 							title="No active AMA sessions"
 						/>
 					)}

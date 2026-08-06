@@ -37,11 +37,11 @@ function parseRawPanel(raw: string): PreviewResult {
 	try {
 		parsed = JSON.parse(raw);
 	} catch {
-		return { error: "Can't preview — invalid JSON" };
+		return { error: "Can't preview - invalid JSON" };
 	}
 
 	if (typeof parsed !== 'object' || parsed === null) {
-		return { error: "Can't preview — expected a JSON object" };
+		return { error: "Can't preview - expected a JSON object" };
 	}
 
 	const body = parsed as Record<string, unknown>;
@@ -57,12 +57,12 @@ function parseRawPanel(raw: string): PreviewResult {
 	}
 
 	if (!Array.isArray(embeds) || embeds.length === 0) {
-		return { error: 'Can\'t preview — "embeds" must be a non-empty array' };
+		return { error: 'Can\'t preview - "embeds" must be a non-empty array' };
 	}
 
 	const firstEmbed = embeds[0];
 	if (typeof firstEmbed !== 'object' || firstEmbed === null) {
-		return { error: "Can't preview — embeds[0] must be an object" };
+		return { error: "Can't preview - embeds[0] must be an object" };
 	}
 
 	const embedRecord = firstEmbed as Record<string, unknown>;
