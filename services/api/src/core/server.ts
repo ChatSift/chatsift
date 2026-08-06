@@ -120,13 +120,6 @@ export function mountRoute<
 				req.logger.info({ method: req.method, path: req.path }, 'route handler complete');
 			}
 
-			if (route.realtimeChannel) {
-				const channel = route.realtimeChannel(req);
-				if (channel) {
-					getContext().service.wsHub.broadcast(channel, { type: 'invalidate', channel });
-				}
-			}
-
 			if (!res.writableEnded) {
 				if (result !== undefined && result !== null) {
 					res.statusCode = 200;
@@ -135,6 +128,17 @@ export function mountRoute<
 				} else {
 					res.statusCode = 204;
 					res.end();
+				}
+			}
+
+			// Checked against the final status (after response handling above, in case a handler set a
+			// non-2xx status and ended the response itself, e.g. `logout.ts`) -- a route resolving without
+			// throwing doesn't guarantee a successful response, and clients shouldn't be told to refetch
+			// off the back of a 4xx/5xx.
+			if (route.realtimeChannel && res.statusCode >= 200 && res.statusCode < 300) {
+				const channel = route.realtimeChannel(req);
+				if (channel) {
+					getContext().service.wsHub.broadcast(channel, { type: 'invalidate', channel });
 				}
 			}
 		} catch (error) {

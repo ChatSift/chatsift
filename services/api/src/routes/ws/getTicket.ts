@@ -20,12 +20,15 @@ export default defineRoute({
 		isGlobalAdmin: false,
 		isGuildManager: false,
 	}),
-	async handler(req): Promise<GetWsTicketResult> {
+	async handler(req, res): Promise<GetWsTicketResult> {
 		const ticket = createWsTicket({
 			sub: req.tokens!.access.sub,
 			adminGuilds: req.tokens!.access.grants.adminGuilds,
 			isAdmin: getContext().env.ADMINS.has(req.tokens!.access.sub),
 		});
+
+		// This is a bearer credential (short-lived, but still) -- must never be cached by a shared/intermediate cache.
+		res.setHeader('Cache-Control', 'no-store');
 
 		return { ticket };
 	},

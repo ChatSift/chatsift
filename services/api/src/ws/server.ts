@@ -91,32 +91,11 @@ export function attachWebSocketServer(httpServer: Server): WsHub {
 
 	const alive = new WeakMap<WebSocket, boolean>();
 
-	httpServer.on('upgrade', (req: IncomingMessage, socket, head) => {
-		const url = new URL(req.url ?? '', 'http://internal');
-		if (url.pathname !== WS_PATH) {
-			return;
-		}
-
-		const origin = req.headers.origin;
-		if (origin && !getContext().env.CORS.test(origin)) {
-			logger.warn({ origin }, 'rejected ws upgrade: origin not allowed');
-			socket.destroy();
-			return;
-		}
-
-		const ticket = verifyWsTicket(url.searchParams.get('ticket') ?? undefined);
-		if (!ticket) {
-			logger.warn('rejected ws upgrade: invalid or expired ticket');
-			socket.destroy();
-			return;
-		}
-
-		wss.handleUpgrade(req, socket, head, (ws) => {
-			wss.emit('connection', ws, req, ticket);
-		});
-	});
-
-	wss.on('connection', (ws: WebSocket, _req: IncomingMessage, ticket: WsTicketData) => {
+	// Called directly from `handleUpgrade`'s callback below (not via `wss.on('connection', ...)`) -- `ws`
+	// doesn't type a 'connection' listener as accepting more than `(ws, request)`, and the ticket is only
+	// available in this closure anyway, so routing it through as a synthetic third emit argument would just
+	// be working around the types instead of with them.
+	function setupConnection(ws: WebSocket, ticket: WsTicketData): void {
 		alive.set(ws, true);
 
 		ws.on('pong', () => alive.set(ws, true));
@@ -145,6 +124,34 @@ export function attachWebSocketServer(httpServer: Server): WsHub {
 		ws.on('close', () => {
 			hub.unsubscribeAll(ws);
 			alive.delete(ws);
+		});
+	}
+
+	httpServer.on('upgrade', (req: IncomingMessage, socket, head) => {
+		const url = new URL(req.url ?? '', 'http://internal');
+		if (url.pathname !== WS_PATH) {
+			// No other upgrade path is served yet -- reject outright rather than leaving the socket to hang
+			// with no response, which is what a bare `return` here would do.
+			socket.destroy();
+			return;
+		}
+
+		const origin = req.headers.origin;
+		if (origin && !getContext().env.CORS.test(origin)) {
+			logger.warn({ origin }, 'rejected ws upgrade: origin not allowed');
+			socket.destroy();
+			return;
+		}
+
+		const ticket = verifyWsTicket(url.searchParams.get('ticket') ?? undefined);
+		if (!ticket) {
+			logger.warn('rejected ws upgrade: invalid or expired ticket');
+			socket.destroy();
+			return;
+		}
+
+		wss.handleUpgrade(req, socket, head, (ws) => {
+			setupConnection(ws, ticket);
 		});
 	});
 
