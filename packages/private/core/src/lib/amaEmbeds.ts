@@ -23,6 +23,11 @@ export const BLURPLE = 0x7289da;
 export const GALLERY_ANCHOR_URL = 'https://automoderator.app/ama-gallery-anchor';
 
 /**
+ * Discord's own hard cap on embeds per message.
+ */
+const MAX_EMBEDS_PER_MESSAGE = 10;
+
+/**
  * Represents which queue a question is currently in
  */
 export enum CurrentlyInQueue {
@@ -74,9 +79,22 @@ interface GetBaseEmbedsOptions {
 	 * this just renders whatever list it's given.
 	 */
 	extraAskerDisplayNames?: string[] | undefined;
+	/**
+	 * When `extraAskerDisplayNames` has already been truncated by the caller (only resolving the
+	 * handful of names actually shown avoids resolving every merged asker just to throw most of them
+	 * away), this is the true total count to base the "[...and N more]" remainder on -- defaults to
+	 * `extraAskerDisplayNames.length` when omitted, i.e. "the list I gave you is the whole list."
+	 */
+	extraAskerTotalCount?: number | undefined;
 	guildId: string;
 	includeUserId?: boolean | undefined;
 	member?: APIGuildMember | undefined;
+	/**
+	 * Reserves this many embed slots so the total this call produces stays under Discord's 10-embed
+	 * cap even after the caller appends more afterward -- e.g. `buildPublishEmbeds`/`postToGuestQueue`
+	 * appending `getAnswerEmbed`'s result onto a question that already has the max attachments.
+	 */
+	reserveEmbedSlots?: number | undefined;
 	user?: APIUser | undefined;
 }
 
@@ -105,14 +123,18 @@ function resolveAvatarURL(
  * askers (#293 follow-up). Shows up to 3 names verbatim before collapsing the rest into a count, so a
  * question merged many times over doesn't blow out the embed author line.
  */
-function buildAuthorName(primaryDisplayName: string, extraAskerDisplayNames: string[] | undefined): string {
+function buildAuthorName(
+	primaryDisplayName: string,
+	extraAskerDisplayNames: string[] | undefined,
+	extraAskerTotalCount: number | undefined,
+): string {
 	if (!extraAskerDisplayNames?.length) {
 		return primaryDisplayName;
 	}
 
-	const names = [primaryDisplayName, ...extraAskerDisplayNames];
-	const shown = names.slice(0, 3);
-	const remaining = names.length - shown.length;
+	const shown = [primaryDisplayName, ...extraAskerDisplayNames].slice(0, 3);
+	const totalCount = 1 + (extraAskerTotalCount ?? extraAskerDisplayNames.length);
+	const remaining = totalCount - shown.length;
 
 	return `Asked by ${shown.join(', ')}${remaining > 0 ? ` [...and ${remaining} more]` : ''}`;
 }
@@ -128,13 +150,15 @@ export function getBaseEmbeds({
 	attachments,
 	content,
 	extraAskerDisplayNames,
+	extraAskerTotalCount,
 	guildId,
 	includeUserId = false,
 	member,
+	reserveEmbedSlots = 0,
 	user,
 }: GetBaseEmbedsOptions): APIEmbed[] {
 	const displayName = member?.nick ?? user?.global_name ?? user?.username ?? 'Unknown User';
-	const authorName = buildAuthorName(displayName, extraAskerDisplayNames);
+	const authorName = buildAuthorName(displayName, extraAskerDisplayNames, extraAskerTotalCount);
 	const avatarURL = resolveAvatarURL(guildId, member, user);
 
 	const mainEmbed: APIEmbed = {
@@ -161,7 +185,10 @@ export function getBaseEmbeds({
 	mainEmbed.url = GALLERY_ANCHOR_URL;
 	mainEmbed.image = { url: attachments[0]!.url };
 
-	const galleryEmbeds: APIEmbed[] = attachments.slice(1).map((attachment) => ({
+	// The main embed always takes one of the `MAX_EMBEDS_PER_MESSAGE` slots -- whatever's left over
+	// (minus the caller's reserve, e.g. room for `getAnswerEmbed`'s result) is what the gallery can use.
+	const maxGalleryEmbeds = Math.max(0, MAX_EMBEDS_PER_MESSAGE - reserveEmbedSlots - 1);
+	const galleryEmbeds: APIEmbed[] = attachments.slice(1, 1 + maxGalleryEmbeds).map((attachment) => ({
 		color: BLURPLE,
 		url: GALLERY_ANCHOR_URL,
 		image: { url: attachment.url },
@@ -203,7 +230,7 @@ export function getAnswerEmbed({
 	return embed;
 }
 
-function createButtonActionRow(buttons: APIButtonComponent[]): APIActionRowComponent<APIButtonComponent> {
+export function createButtonActionRow(buttons: APIButtonComponent[]): APIActionRowComponent<APIButtonComponent> {
 	return {
 		type: ComponentType.ActionRow,
 		components: buttons,

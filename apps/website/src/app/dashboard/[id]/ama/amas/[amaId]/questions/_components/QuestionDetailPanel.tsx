@@ -174,11 +174,13 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 					{canEditAnswer && (
 						<Button
 							className="h-8 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
-							isDisabled={updateQuestion.isPending || !answerContent.trim()}
+							isDisabled={updateQuestion.isPending}
 							onPress={async () =>
 								runAction(async () =>
 									updateQuestion.mutateAsync({
-										answerContent: answerContent.trim(),
+										// Empty means "clear the prepared answer back out" -- the API rejects an empty
+										// string outright (min length 1), so that has to be `null`, not `''`.
+										answerContent: answerContent.trim() || null,
 										answerImageUrl: answerImageUrl.trim() || null,
 										answeredById: answeredById || null,
 									}),

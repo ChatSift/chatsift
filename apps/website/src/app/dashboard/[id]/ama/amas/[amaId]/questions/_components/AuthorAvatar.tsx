@@ -26,7 +26,6 @@ export function AuthorAvatar({ user, className = 'h-6 w-6 rounded-full' }: Autho
 			assetURL={assetURL}
 			className={className}
 			disableLink
-			href="/dummy"
 			initials={userLabel(user).slice(0, 2)}
 			isLoading={false}
 		/>

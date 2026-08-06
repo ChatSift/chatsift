@@ -60,6 +60,17 @@ export default class SendQuestionComponent implements ComponentHandler<string> {
 				return;
 			}
 
+			if (!question.answerContent) {
+				// This button only ever appears after `guestAddAnswer.ts` has set `answer_content` (see this
+				// file's own doc comment) -- a missing answer here means the row got into an unexpected state,
+				// not something to silently paper over with a non-null assertion.
+				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
+					content: 'This question has no prepared answer to send. Please prepare an answer first.',
+					flags: MessageFlags.Ephemeral,
+				});
+				return;
+			}
+
 			let answeredByUser: APIUser | undefined;
 			if (question.answeredById) {
 				answeredByUser = await getContext()
@@ -79,7 +90,7 @@ export default class SendQuestionComponent implements ComponentHandler<string> {
 			const embeds: APIEmbed[] = [
 				...(interaction.message.embeds ?? []),
 				getAnswerEmbed({
-					answerContent: question.answerContent!,
+					answerContent: question.answerContent,
 					answerImageUrl: question.answerImageUrl,
 					answeredByAvatarURL,
 					answeredByDisplayName,

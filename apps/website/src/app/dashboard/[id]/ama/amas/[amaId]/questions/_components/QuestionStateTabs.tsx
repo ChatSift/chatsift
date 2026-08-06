@@ -24,19 +24,29 @@ const TABS = [
 
 const DEFAULT_TAB_ID = 'pending-mod';
 
+/**
+ * Falls back to `DEFAULT_TAB_ID` for a missing/unknown tab id (no `tab` param yet, or a stale one from
+ * before a tab was renamed/removed) -- shared so the filter actually applied and the tab shown as
+ * active can never disagree with each other.
+ */
+function resolveTabId(tab: string | null): (typeof TABS)[number]['id'] {
+	return (TABS.find((t) => t.id === tab) ?? TABS.find((t) => t.id === DEFAULT_TAB_ID)!).id;
+}
+
 export function useQuestionStateFilter(): string | undefined {
 	const [tab] = useURLParam('tab');
-	return TABS.find((t) => t.id === (tab ?? DEFAULT_TAB_ID))?.states;
+	return TABS.find((t) => t.id === resolveTabId(tab))?.states;
 }
 
 export function QuestionStateTabs() {
 	const [tab, setTab] = useURLParam('tab');
-	const active = TABS.find((t) => t.id === tab)?.id ?? DEFAULT_TAB_ID;
+	const active = resolveTabId(tab);
 
 	return (
 		<div className="flex flex-wrap gap-2">
 			{TABS.map((t) => (
 				<Button
+					aria-pressed={active === t.id}
 					className={cn(
 						'h-10 border border-on-secondary px-3 text-sm text-primary dark:border-on-secondary-dark dark:text-primary-dark',
 						active === t.id && 'bg-misc-accent/10 text-misc-accent dark:text-misc-accent',

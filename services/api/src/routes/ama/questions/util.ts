@@ -1,5 +1,8 @@
-import type { AmaQuestions, AmaSessions } from '@chatsift/db';
-import type { APIAttachment, APIUser, Snowflake } from '@discordjs/core';
+import { getContext } from '@chatsift/backend-core';
+import { getAnswerEmbed, getBaseEmbeds } from '@chatsift/core';
+import type { AmaQuestionAskers, AmaQuestions, AmaSessions } from '@chatsift/db';
+import type { APIAttachment, APIEmbed, APIUser, Snowflake } from '@discordjs/core';
+import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { apiForGuild, discordAPIAma } from '../../../util/discordAPI.js';
 
@@ -90,4 +93,62 @@ export async function resolveQuestionAttachments(
 
 		throw error;
 	}
+}
+
+/**
+ * Builds the embed(s) for a question actually landing in the answers channel -- the question embed
+ * (with merged-asker names, if any) plus, when an answer was prepared ahead of time, the second
+ * answer embed. Shared by every path that can publish a question directly to `ASKED`
+ * (`sendQuestion.ts`'s explicit dashboard Send action, and `updateQuestion.ts`'s direct-approve
+ * branches for AMAs with no guest queue/prepared-answers stage) so none of them can drift and forget
+ * to include a prepared answer that was set before the direct approve happened.
+ */
+export async function buildPublishEmbeds(
+	guildId: Snowflake,
+	question: AmaQuestions,
+	session: AmaSessions,
+): Promise<APIEmbed[]> {
+	const extraAskers = await getContext().db<AmaQuestionAskers[]>`
+		SELECT * FROM ama_question_askers WHERE question_id = ${question.id} ORDER BY merged_at ASC
+	`;
+
+	const [attachments, user, extraAskerNames] = await Promise.all([
+		resolveQuestionAttachments(question, session),
+		resolveAmaUser(guildId, question.authorId),
+		Promise.all(extraAskers.map(async (row) => resolveAmaDisplayName(guildId, row.authorId))),
+	]);
+
+	const embeds = getBaseEmbeds({
+		attachments,
+		content: question.content,
+		extraAskerDisplayNames: extraAskerNames,
+		guildId,
+		user: typeof user === 'string' ? undefined : user,
+		// Leaves room for the answer embed appended below when there's one to append, so a question
+		// with the max attachments doesn't blow past Discord's 10-embed cap once the answer is added.
+		reserveEmbedSlots: question.answerContent ? 1 : 0,
+	});
+
+	if (question.answerContent) {
+		const answeredByUser = question.answeredById ? await resolveAmaUser(guildId, question.answeredById) : undefined;
+		const answeredByDisplayName =
+			typeof answeredByUser === 'string' || !answeredByUser
+				? (question.answeredById ?? 'Unknown User')
+				: (answeredByUser.global_name ?? answeredByUser.username);
+		const answeredByAvatarURL =
+			typeof answeredByUser === 'object' && answeredByUser?.avatar
+				? `${RouteBases.cdn}${CDNRoutes.userAvatar(answeredByUser.id, answeredByUser.avatar, ImageFormat.PNG)}`
+				: undefined;
+
+		embeds.push(
+			getAnswerEmbed({
+				answerContent: question.answerContent,
+				answerImageUrl: question.answerImageUrl,
+				answeredByAvatarURL,
+				answeredByDisplayName,
+			}),
+		);
+	}
+
+	return embeds;
 }

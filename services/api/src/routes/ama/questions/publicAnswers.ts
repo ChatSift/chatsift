@@ -81,27 +81,42 @@ export default defineRoute({
 		}
 
 		const questions = await db<AmaQuestions[]>`
-			SELECT * FROM ama_questions WHERE ama_id = ${session.id} AND state = 'ASKED' ORDER BY created_at ASC
+			SELECT * FROM ama_questions
+			WHERE ama_id = ${session.id} AND state = 'ASKED' AND answer_content IS NOT NULL
+			ORDER BY created_at ASC
 		`;
 
-		const resolved = await Promise.all(
-			questions.map(async (question): Promise<PublicAnsweredQuestion> => {
-				const [authorResolved, answeredByResolved] = await Promise.all([
-					resolveAmaUser(session.guildId, question.authorId),
-					question.answeredById ? resolveAmaUser(session.guildId, question.answeredById) : null,
-				]);
+		// Dedup'd the same way `listQuestions.ts` resolves authors -- several questions on this page can
+		// easily share an author or an answerer (or the same user can be both across different questions).
+		const userIds = new Set<string>();
+		for (const question of questions) {
+			userIds.add(question.authorId);
+			if (question.answeredById) {
+				userIds.add(question.answeredById);
+			}
+		}
 
-				return {
-					answerContent: question.answerContent,
-					answerImageUrl: question.answerImageUrl,
-					answeredBy: answeredByResolved ? toPublicUserInfo(answeredByResolved) : null,
-					askedAt: question.updatedAt,
-					author: toPublicUserInfo(authorResolved),
-					content: question.content,
-					id: question.id,
-				};
-			}),
+		const resolvedEntries = await Promise.all(
+			[...userIds].map(async (userId): Promise<[string, APIUser | Snowflake]> => [
+				userId,
+				await resolveAmaUser(session.guildId, userId),
+			]),
 		);
+		const resolvedById = new Map(resolvedEntries);
+
+		const resolved = questions.map((question): PublicAnsweredQuestion => {
+			const answeredByResolved = question.answeredById ? resolvedById.get(question.answeredById) : undefined;
+
+			return {
+				answerContent: question.answerContent,
+				answerImageUrl: question.answerImageUrl,
+				answeredBy: answeredByResolved ? toPublicUserInfo(answeredByResolved) : null,
+				askedAt: question.updatedAt,
+				author: toPublicUserInfo(resolvedById.get(question.authorId)!),
+				content: question.content,
+				id: question.id,
+			};
+		});
 
 		return { questions: resolved, title: session.title };
 	},

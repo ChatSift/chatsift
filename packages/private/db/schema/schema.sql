@@ -72,9 +72,9 @@ CREATE TABLE ama_sessions (
   -- from this pattern -- both stay Discord-only and NOT NULL, no toggle.
   mod_review_enabled       BOOLEAN NOT NULL DEFAULT false,
   -- Opaque id backing the public, unauthenticated read-only answers page (`/ama-answers/:shareToken`).
-  -- Generated at creation; NULL is never produced going forward but is allowed here only because
-  -- pre-existing rows need a backfill value too (generated alongside the migration).
-  share_token              TEXT UNIQUE,
+  -- Generated unconditionally at creation (see createAMA.ts) -- pre-existing rows were backfilled a
+  -- generated value in the same migration that added this column.
+  share_token              TEXT NOT NULL UNIQUE,
   -- Known guest-answerer user ids for this AMA (freeform, editable retroactively) -- backs the "answered
   -- by" picker both in the guest queue's Add Answer modal and the dashboard's answer editor, replacing a
   -- free-text user-id field with a real select once at least one guest is configured. Empty by default,
@@ -126,7 +126,11 @@ CREATE TABLE ama_questions (
   answered_by_id           TEXT,
   answered_at              TIMESTAMPTZ,
   created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at               TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Referenced by ama_question_tag_assignments' composite FK below, so a tag assignment's own ama_id
+  -- is guaranteed to match the question it's attached to, not just the tag.
+  CONSTRAINT ama_questions_id_ama_id_key UNIQUE (id, ama_id)
 );
 
 CREATE INDEX ama_questions_ama_id_idx ON ama_questions (ama_id);
@@ -153,19 +157,33 @@ CREATE TABLE ama_question_tags (
   name       TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  CONSTRAINT ama_question_tags_ama_id_name_key UNIQUE (ama_id, name)
+  CONSTRAINT ama_question_tags_ama_id_name_key UNIQUE (ama_id, name),
+  -- Referenced by ama_question_tag_assignments' composite FK below, so a tag assignment's own ama_id
+  -- is guaranteed to match the tag it's attached to, not just the question.
+  CONSTRAINT ama_question_tags_id_ama_id_key UNIQUE (id, ama_id)
 );
 
 CREATE INDEX ama_question_tags_ama_id_idx ON ama_question_tags (ama_id);
 
+-- ama_id is redundant with both question_id -> ama_questions.ama_id and tag_id ->
+-- ama_question_tags.ama_id individually, but carrying it here lets both composite FKs below pin it to
+-- the *same* value on both sides -- which is what actually rules out a tag from AMA A ever getting
+-- assigned to a question in AMA B. Set by the application at insert time (see updateQuestion.ts),
+-- always equal to the (already-validated-matching) ama_id of both the question and the tag.
 CREATE TABLE ama_question_tag_assignments (
-  question_id INTEGER NOT NULL REFERENCES ama_questions (id) ON DELETE CASCADE,
-  tag_id      INTEGER NOT NULL REFERENCES ama_question_tags (id) ON DELETE CASCADE,
+  question_id INTEGER NOT NULL,
+  tag_id      INTEGER NOT NULL,
+  ama_id      INTEGER NOT NULL,
 
-  PRIMARY KEY (question_id, tag_id)
+  PRIMARY KEY (question_id, tag_id),
+  CONSTRAINT ama_question_tag_assignments_question_fkey FOREIGN KEY (question_id, ama_id)
+    REFERENCES ama_questions (id, ama_id) ON DELETE CASCADE,
+  CONSTRAINT ama_question_tag_assignments_tag_fkey FOREIGN KEY (tag_id, ama_id)
+    REFERENCES ama_question_tags (id, ama_id) ON DELETE CASCADE
 );
 
 CREATE INDEX ama_question_tag_assignments_tag_id_idx ON ama_question_tag_assignments (tag_id);
+CREATE INDEX ama_question_tag_assignments_ama_id_idx ON ama_question_tag_assignments (ama_id);
 
 -- ModMail (M5, ticket-system rebuild — see docs/roadmap/06-modmail-port.md and issue #152).
 --

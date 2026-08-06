@@ -12,6 +12,11 @@ import { ComponentType, MessageFlags, TextInputStyle } from '@discordjs/core';
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
 
+// Mirrors `markDuplicateSelect.ts`'s and `services/api`'s own `MERGEABLE_STATES` -- a question that's
+// already DENIED/FLAGGED/ASKED can't be picked as the original either (see `mergeQuestion.ts`'s
+// matching validation), so it shouldn't show up as a selectable search result to begin with.
+const MERGEABLE_STATES = new Set(['PENDING_MOD_REVIEW', 'PENDING_GUEST_REVIEW', 'APPROVED']);
+
 /**
  * Entry point for the duplicate-merge flow (#293 follow-up), available on both the mod queue and
  * guest queue (not the flagged queue, which stays a read-only surface). Opens a modal to search for
@@ -90,6 +95,7 @@ export default class MarkDuplicateComponent implements ComponentHandler<string> 
 			const matches = await getContext().db<AmaQuestions[]>`
 				SELECT * FROM ama_questions
 				WHERE ama_id = ${question.amaId} AND id != ${question.id} AND content ILIKE ${`%${query}%`}
+					AND state = ANY(${[...MERGEABLE_STATES]})
 				ORDER BY created_at DESC
 				LIMIT 25
 			`;

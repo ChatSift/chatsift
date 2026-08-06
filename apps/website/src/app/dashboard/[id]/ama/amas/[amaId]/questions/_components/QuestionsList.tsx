@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthorAvatar } from './AuthorAvatar';
 import { BulkMergePicker } from './BulkMergePicker';
 import { QuestionDetailPanel } from './QuestionDetailPanel';
@@ -81,6 +81,7 @@ function QuestionRow({ isExpanded, isSelected, onToggle, onToggleSelect, questio
 				<div className="flex min-w-0 flex-1 items-start gap-3">
 					{selectMode && (
 						<input
+							aria-label={`Select question #${question.id} for merging`}
 							checked={isSelected}
 							className="mt-1.5 h-4 w-4 shrink-0 rounded border-on-secondary disabled:opacity-30 dark:border-on-secondary-dark"
 							disabled={!canSelect}
@@ -168,6 +169,13 @@ export function QuestionsList() {
 		setSelectedIds([]);
 		setShowBulkMerge(false);
 	};
+
+	// A selection is only ever meaningful against the result set it was made from -- switching states/tag/
+	// author/search out from under it would let a bulk merge silently include questions the user never
+	// actually looked at (or can no longer even see in the list) once the filters change.
+	useEffect(() => {
+		exitSelectMode();
+	}, [states, tagId, authorId, search]);
 
 	const toggleSelected = (questionId: number) => {
 		setSelectedIds((prev) =>

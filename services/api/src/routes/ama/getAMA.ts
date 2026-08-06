@@ -115,7 +115,13 @@ export default defineRoute({
 			promptMessageExists = false;
 		}
 
-		const guests = await Promise.all(session.guestIds.map(async (guestId) => resolveAmaUser(guildId, guestId)));
+		// `resolveAmaUser` only falls back to the bare id on a 404 -- anything else (a rate limit, a
+		// transient Discord outage) would otherwise reject this whole request over what's ultimately a
+		// minor display detail. Falls back to the raw id here too rather than letting one bad guest lookup
+		// take down the entire AMA detail view.
+		const guests = await Promise.all(
+			session.guestIds.map(async (guestId) => resolveAmaUser(guildId, guestId).catch(() => guestId)),
+		);
 
 		return {
 			...session,

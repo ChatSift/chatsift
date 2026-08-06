@@ -3,12 +3,15 @@
 
 import type { AmaQuestionsId } from './AmaQuestions';
 import type { AmaQuestionTagsId } from './AmaQuestionTags';
+import type { AmaSessionsId } from './AmaSessions';
 
 /** Represents the table public.ama_question_tag_assignments */
 export default interface AmaQuestionTagAssignments {
   questionId: AmaQuestionsId;
 
   tagId: AmaQuestionTagsId;
+
+  amaId: AmaSessionsId;
 }
 
 /** Represents the initializer for the table public.ama_question_tag_assignments */
@@ -16,6 +19,8 @@ export interface AmaQuestionTagAssignmentsInitializer {
   questionId: AmaQuestionsId;
 
   tagId: AmaQuestionTagsId;
+
+  amaId: AmaSessionsId;
 }
 
 /** Represents the mutator for the table public.ama_question_tag_assignments */
@@ -23,4 +28,6 @@ export interface AmaQuestionTagAssignmentsMutator {
   questionId?: AmaQuestionsId;
 
   tagId?: AmaQuestionTagsId;
+
+  amaId?: AmaSessionsId;
 }

@@ -1,3 +1,4 @@
+import type { AmaQuestionState } from '@chatsift/db';
 import { z } from 'zod';
 import { snowflakeSchema } from '../../util/schemas.js';
 
@@ -7,6 +8,18 @@ import { snowflakeSchema } from '../../util/schemas.js';
  * same rules the API enforces, without pulling the rest of this package (bcrypt, jsonwebtoken, discord.js REST,
  * route handlers, ...) into a client bundle.
  */
+
+// A question can only ever reach FLAGGED from PENDING_MOD_REVIEW (a mod's own separate-handling call),
+// ASKED means it's already publicly posted (its answers-channel message gets deleted on merge), and
+// DENIED is already a resolved outcome -- merging any of those away as "just a duplicate", or merging a
+// new asker into one, would silently undo a decision or mutate already-public content. Shared between
+// `services/api` (`mergeShared.ts`'s route-level validation) and `apps/website` (the dashboard's merge
+// pickers/selection UI) via this browser-safe module so both can never drift out of sync.
+export const MERGEABLE_STATES: ReadonlySet<AmaQuestionState> = new Set([
+	'PENDING_MOD_REVIEW',
+	'PENDING_GUEST_REVIEW',
+	'APPROVED',
+] as readonly AmaQuestionState[]);
 
 const createAMABase = z.strictObject({
 	modQueueId: snowflakeSchema.nullable(),
@@ -34,7 +47,9 @@ const createAMABase = z.strictObject({
 	preparedAnswersEnabled: z.boolean().optional().default(false),
 	// Known guest-answerer user ids (#293 follow-up) -- backs the "answered by" picker in both the guest
 	// queue's Add Answer modal and the dashboard's answer editor. Editable retroactively via updateAMA.
-	guestIds: z.array(snowflakeSchema).optional().default([]),
+	// Capped well above any realistic guest list -- bounds `getAMA.ts`'s per-guest Discord lookups and
+	// Discord's own 25-option select limit (`guestAddAnswer.ts` already slices further for that).
+	guestIds: z.array(snowflakeSchema).max(50).optional().default([]),
 });
 
 export const createAMAWithRegularPromptSchema = createAMABase.safeExtend({
@@ -79,7 +94,7 @@ export const updateAMAConfigSchema = z
 		scheduledCloseAt: createAMABase.shape.scheduledCloseAt,
 		modReviewEnabled: z.boolean().optional(),
 		preparedAnswersEnabled: z.boolean().optional(),
-		guestIds: z.array(snowflakeSchema).optional(),
+		guestIds: z.array(snowflakeSchema).max(50).optional(),
 		prompt: createAMAWithRegularPromptSchema.shape.prompt.optional(),
 		prompt_raw: createAMAWithRawPromptSchema.shape.prompt_raw.optional(),
 	})

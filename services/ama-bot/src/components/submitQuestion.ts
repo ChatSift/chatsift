@@ -153,12 +153,17 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 					await getContext().db`
 						UPDATE ama_questions SET mod_queue_message_id = ${msg.id} WHERE id = ${question.id}
 					`;
-				}
 
-				logger.info(
-					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.mod },
-					'Question submitted to mod queue',
-				);
+					logger.info(
+						{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.mod },
+						'Question submitted to mod queue',
+					);
+				} else {
+					logger.info(
+						{ questionId: question.id, amaId: ama.id },
+						'Question submitted directly to mod review (dashboard-only, no queue channel configured)',
+					);
+				}
 			} else if (ama.guestQueueId) {
 				const msg = await postToGuestQueue(postOptions);
 				await getContext().db`
@@ -177,8 +182,10 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				// No queues configured and prepared answers off, post directly to answers channel (unchanged
 				// prod behavior, now landing on ASKED instead of the old APPROVED).
 				const msg = await postToAnswersChannel(postOptions);
+				// `state` is already 'ASKED' from the INSERT above (this branch only runs when the computed
+				// `state` fell through to 'ASKED') -- only the message id needs setting here.
 				await getContext().db`
-					UPDATE ama_questions SET answers_message_id = ${msg.id}, state = 'ASKED' WHERE id = ${question.id}
+					UPDATE ama_questions SET answers_message_id = ${msg.id} WHERE id = ${question.id}
 				`;
 				logger.info(
 					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.answers },

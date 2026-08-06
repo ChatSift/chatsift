@@ -16,7 +16,6 @@ function PublicUserBadge({ user }: { readonly user: PublicUserInfo }) {
 				assetURL={user.avatarUrl ?? undefined}
 				className="h-8 w-8 rounded-full"
 				disableLink
-				href="/dummy"
 				initials={user.displayName.slice(0, 2)}
 				isLoading={false}
 			/>
@@ -83,9 +82,17 @@ export function PublicAnswers() {
 									<p className="whitespace-pre-wrap text-primary dark:text-primary-dark">{question.answerContent}</p>
 									{question.answerImageUrl && (
 										// External, unregistered Discord CDN domain -- not worth wiring into next/image's
-										// remote-pattern allowlist for this one public page.
+										// remote-pattern allowlist for this one public page. `referrerPolicy` avoids
+										// leaking this (unauthenticated, publicly-linkable) page's URL to whatever host
+										// the image ends up on; `loading="lazy"` defers fetching until it's in view.
 										// eslint-disable-next-line @next/next/no-img-element
-										<img alt="Answer attachment" className="mt-2 max-w-full rounded-md" src={question.answerImageUrl} />
+										<img
+											alt="Answer attachment"
+											className="mt-2 max-w-full rounded-md"
+											loading="lazy"
+											referrerPolicy="no-referrer"
+											src={question.answerImageUrl}
+										/>
 									)}
 								</div>
 							)}

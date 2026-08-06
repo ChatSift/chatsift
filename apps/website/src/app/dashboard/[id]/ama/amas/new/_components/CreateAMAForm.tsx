@@ -464,6 +464,7 @@ export function CreateAMAForm() {
 						{formData.guestIds.map((guestId, index) => (
 							<div className="flex items-center gap-2" key={index}>
 								<input
+									aria-label={`Guest ${index + 1} user ID`}
 									className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary focus:border-misc-accent focus:outline-none dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
 									onChange={(e) => updateGuestId(index, e.target.value)}
 									placeholder="Discord user ID"
@@ -471,6 +472,7 @@ export function CreateAMAForm() {
 									value={guestId}
 								/>
 								<Button
+									aria-label={`Remove guest ${index + 1}`}
 									className="h-9 shrink-0 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
 									onPress={() => removeGuestId(index)}
 									type="button"

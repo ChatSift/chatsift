@@ -7,9 +7,11 @@ import { isAuthed } from '../../../middleware/isAuthed.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { MERGEABLE_STATES, mergeDuplicatesIntoOriginal } from './mergeShared.js';
 
+// Caps roughly matching the dashboard's own bulk-selection UI (`QuestionsList.tsx`'s "Select
+// Duplicates" mode) -- there's no realistic case for merging hundreds of questions in one request.
 const bodySchema = z.strictObject({
 	intoQuestionId: z.number().int().positive(),
-	questionIds: z.array(z.number().int().positive()).min(1),
+	questionIds: z.array(z.number().int().positive()).min(1).max(100),
 });
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
@@ -66,6 +68,13 @@ export default defineRoute({
 
 		if (!original) {
 			throw notFound('the target question was not found in this AMA');
+		}
+
+		// The target has to still be in the active pipeline too -- merging new askers into an already
+		// DENIED/FLAGGED/ASKED question would either silently resurrect a resolved decision or, for ASKED,
+		// mutate already-public content in a way nobody asked for.
+		if (!MERGEABLE_STATES.has(original.state)) {
+			throw badRequest(`cannot merge into a question in state ${original.state}`);
 		}
 
 		const duplicates = await db<AmaQuestions[]>`

@@ -1,6 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
-import { getBaseEmbeds } from '@chatsift/core';
+import { createButtonActionRow, getBaseEmbeds } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
 	APIAttachment,
@@ -12,13 +12,6 @@ import type {
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 
 export { CurrentlyInQueue, getNextQueue, withResolvedActionRow } from '@chatsift/core';
-
-function createButtonActionRow(buttons: APIButtonComponent[]) {
-	return {
-		type: ComponentType.ActionRow as const,
-		components: buttons,
-	};
-}
 
 /**
  * Posts a queue message, then runs `claim` (an atomic UPDATE guarded by a WHERE clause) to take ownership
@@ -176,6 +169,10 @@ export async function postToGuestQueue({
 		member,
 		user,
 		includeUserId: false, // Don't include user ID in guest queue
+		// When prepared answers are on, `send-question.ts` later copies this exact message's embeds and
+		// appends `getAnswerEmbed`'s result onto them for the answers-channel post -- reserve that slot
+		// now so a question with the max attachments doesn't blow past Discord's 10-embed cap then.
+		reserveEmbedSlots: session.preparedAnswersEnabled ? 1 : 0,
 	});
 
 	const buttons: APIButtonComponent[] = session.preparedAnswersEnabled

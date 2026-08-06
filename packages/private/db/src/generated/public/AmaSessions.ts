@@ -34,7 +34,7 @@ export default interface AmaSessions {
 
   modReviewEnabled: boolean;
 
-  shareToken: string | null;
+  shareToken: string;
 
   guestIds: string[];
 }
@@ -69,7 +69,7 @@ export interface AmaSessionsInitializer {
 
   modReviewEnabled?: boolean;
 
-  shareToken?: string | null;
+  shareToken: string;
 
   guestIds?: string[];
 }
@@ -104,7 +104,7 @@ export interface AmaSessionsMutator {
 
   modReviewEnabled?: boolean;
 
-  shareToken?: string | null;
+  shareToken?: string;
 
   guestIds?: string[];
 }

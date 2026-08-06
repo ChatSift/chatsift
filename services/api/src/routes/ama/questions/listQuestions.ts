@@ -1,7 +1,7 @@
 import { getContext } from '@chatsift/backend-core';
 import type { AmaQuestions, AmaQuestionState, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import type { APIUser, Snowflake } from '@discordjs/core';
-import { notFound } from '@hapi/boom';
+import { badRequest, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
@@ -80,7 +80,12 @@ export default defineRoute({
 		let states: AmaQuestionState[] | undefined;
 		if (statesRaw) {
 			const parsed = statesRaw.split(',') as AmaQuestionState[];
-			states = parsed.filter((state) => QUESTION_STATES.includes(state));
+			const invalid = parsed.filter((state) => !QUESTION_STATES.includes(state));
+			if (invalid.length > 0) {
+				throw badRequest(`invalid state(s): ${invalid.join(', ')}`);
+			}
+
+			states = parsed;
 		}
 
 		// Fetches one extra row over `limit` purely to know whether a next page exists, same idiom as

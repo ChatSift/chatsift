@@ -1,6 +1,5 @@
-// FLAGGED means a mod specifically pulled this question aside for separate handling, and ASKED means
-// it's already publicly posted (possibly with an answer) -- merging either away as "just a duplicate"
-// would silently undo that decision or delete public content. DENIED is already a resolved outcome.
-// Only questions still in the active pending/approved pipeline can be merged away. Mirrors the API's own
-// `MERGEABLE_STATES` (services/api/src/routes/ama/questions/mergeShared.ts).
-export const MERGEABLE_STATES = new Set(['PENDING_MOD_REVIEW', 'PENDING_GUEST_REVIEW', 'APPROVED']);
+// Single source of truth shared with the API (services/api/src/routes/ama/schemas.ts, re-exported by
+// services/api/src/routes/ama/questions/mergeShared.ts) via the browser-safe `@chatsift/api/ama-schemas`
+// package export -- keeping one definition means the dashboard's selection UI and the API's own merge
+// validation can never drift out of sync on which states are still mergeable.
+export { MERGEABLE_STATES } from '@chatsift/api/ama-schemas';

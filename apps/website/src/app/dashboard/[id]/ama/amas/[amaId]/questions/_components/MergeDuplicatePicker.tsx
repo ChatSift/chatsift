@@ -31,7 +31,9 @@ export function MergeDuplicatePicker({ questionId, onClose, onMerged, onMergingC
 	const mergeQuestion = useMergeAMAQuestion(guildId, amaId, questionId);
 
 	const isSearching = debouncedQuery.trim().length > 0;
-	const { data } = useAMAQuestions(guildId, amaId, { q: debouncedQuery || undefined });
+	const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useAMAQuestions(guildId, amaId, {
+		q: debouncedQuery || undefined,
+	});
 	const allMatches = (data?.pages.flatMap((page) => page.questions) ?? []).filter((q) => q.id !== questionId);
 	// With no search typed yet, default to the most recent few questions (already in memory, already
 	// most-recent-first via `listQuestions.ts`'s keyset order) instead of making the user search before
@@ -63,6 +65,7 @@ export function MergeDuplicatePicker({ questionId, onClose, onMerged, onMergingC
 				</Button>
 			</div>
 			<input
+				aria-label="Search question content"
 				autoFocus
 				className="mb-2 w-full rounded-md border border-on-secondary bg-card px-2 py-1.5 text-sm text-primary focus:border-misc-accent focus:outline-none dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
 				onChange={(e) => {
@@ -106,6 +109,16 @@ export function MergeDuplicatePicker({ questionId, onClose, onMerged, onMergingC
 							</Button>
 						</div>
 					))
+				)}
+				{isSearching && hasNextPage && (
+					<Button
+						className="w-full border border-on-secondary text-xs dark:border-on-secondary-dark"
+						isDisabled={isFetchingNextPage}
+						onPress={() => fetchNextPage()}
+						type="button"
+					>
+						{isFetchingNextPage ? 'Loading...' : 'Load more'}
+					</Button>
 				)}
 			</div>
 		</div>

@@ -3,14 +3,27 @@ import { getBaseEmbeds } from '@chatsift/core';
 import type { AmaQuestionAskers, AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { Snowflake } from '@discordjs/core';
 import { discordAPIAma } from '../../../util/discordAPI.js';
-import { resolveAmaDisplayName, resolveAmaUser, resolveCurrentQueueMessage } from './util.js';
+import {
+	buildPublishEmbeds,
+	resolveAmaDisplayName,
+	resolveAmaUser,
+	resolveCurrentQueueMessage,
+	resolveQuestionAttachments,
+} from './util.js';
 
-// A question can only ever reach FLAGGED from PENDING_MOD_REVIEW (a mod's own separate-handling call),
-// ASKED means it's already publicly posted (its answers-channel message gets deleted below), and DENIED
-// is already a resolved outcome -- merging any of those away as "just a duplicate" would silently undo a
-// decision or destroy public content. Mirrors the dashboard's own `MERGEABLE_STATES`
-// (QuestionDetailPanel.tsx / QuestionsList.tsx).
-export const MERGEABLE_STATES = new Set(['PENDING_MOD_REVIEW', 'PENDING_GUEST_REVIEW', 'APPROVED']);
+// Re-exported so `mergeQuestion.ts`/`mergeQuestionsBulk.ts` can keep importing it from here -- the
+// definition itself lives in `schemas.ts` since that's the one browser-safe module shared with
+// `apps/website`'s merge pickers, and duplicating the set in two places is exactly the drift this
+// consolidation is meant to prevent.
+export { MERGEABLE_STATES } from '../schemas.js';
+
+/**
+ * How many resolved merged-asker names the refreshed embed actually shows -- `getBaseEmbeds` only ever
+ * displays the primary author plus up to 2 more before collapsing the rest into a "[...and N more]"
+ * count, so resolving beyond that (a Discord API call per asker) would be pure waste on a merge with
+ * many duplicates.
+ */
+const MAX_SHOWN_EXTRA_ASKERS = 2;
 
 /**
  * Merges `duplicates` into `original`: carries over each duplicate's own askers (including anyone
@@ -72,21 +85,44 @@ export async function mergeDuplicatesIntoOriginal(
 
 	const currentMessage = resolveCurrentQueueMessage(original, session);
 	if (currentMessage) {
-		const [extraAskerNames, user] = await Promise.all([
-			Promise.all(mergedAskerRows.map(async (row) => resolveAmaDisplayName(guildId, row.authorId))),
-			resolveAmaUser(guildId, original.authorId),
-		]);
+		// Best-effort: the merge itself (the transaction above, plus the duplicate cleanup) already
+		// committed successfully -- a failure anywhere in resolving/posting the refreshed embed (a
+		// deleted message, a Discord outage, a rate limit) shouldn't turn an otherwise-successful merge
+		// into a 500 for the caller.
+		try {
+			let embeds;
+			if (original.state === 'ASKED') {
+				// The live message here *is* the answers-channel post -- reuse the same builder every other
+				// publish path uses so a merge doesn't silently drop the question's attachments/answer embed.
+				embeds = await buildPublishEmbeds(guildId, original, session);
+			} else {
+				// Mirrors postToModQueue/postToFlaggedQueue's own `includeUserId: true` -- those are the only
+				// two queues that ever show it to begin with.
+				const includeUserId = original.state === 'PENDING_MOD_REVIEW' || original.state === 'FLAGGED';
+				const [attachments, user, extraAskerNames] = await Promise.all([
+					resolveQuestionAttachments(original, session),
+					resolveAmaUser(guildId, original.authorId),
+					Promise.all(
+						mergedAskerRows
+							.slice(0, MAX_SHOWN_EXTRA_ASKERS)
+							.map(async (row) => resolveAmaDisplayName(guildId, row.authorId)),
+					),
+				]);
 
-		const embeds = getBaseEmbeds({
-			attachments: [],
-			content: original.content,
-			extraAskerDisplayNames: extraAskerNames,
-			guildId,
-			user: typeof user === 'string' ? undefined : user,
-		});
+				embeds = getBaseEmbeds({
+					attachments,
+					content: original.content,
+					extraAskerDisplayNames: extraAskerNames,
+					extraAskerTotalCount: mergedAskerRows.length,
+					guildId,
+					includeUserId,
+					user: typeof user === 'string' ? undefined : user,
+				});
+			}
 
-		await discordAPIAma.channels
-			.editMessage(currentMessage.channelId, currentMessage.messageId, { embeds })
-			.catch(() => null);
+			await discordAPIAma.channels.editMessage(currentMessage.channelId, currentMessage.messageId, { embeds });
+		} catch {
+			// no-op -- see comment above.
+		}
 	}
 }

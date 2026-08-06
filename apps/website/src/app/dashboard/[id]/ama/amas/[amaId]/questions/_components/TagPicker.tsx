@@ -77,6 +77,7 @@ export function TagPicker({ assignedTagIds, onChange }: TagPickerProps) {
 			{isOpen && (
 				<div className="absolute left-0 z-50 mt-1 w-56 rounded-md border border-on-secondary bg-card p-2 shadow-lg dark:border-on-secondary-dark dark:bg-card-dark">
 					<input
+						aria-label="Search or create a tag"
 						autoFocus
 						className="mb-2 w-full rounded-md border border-on-secondary bg-card px-2 py-1.5 text-sm text-primary focus:border-misc-accent focus:outline-none dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
 						onChange={(e) => setQuery(e.target.value)}

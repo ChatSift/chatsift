@@ -1,14 +1,12 @@
 import { getContext } from '@chatsift/backend-core';
-import { getAnswerEmbed, getBaseEmbeds } from '@chatsift/core';
-import type { AmaQuestionAskers, AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
-import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
+import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { badRequest, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
-import { resolveAmaDisplayName, resolveAmaUser, resolveQuestionAttachments } from './util.js';
+import { buildPublishEmbeds } from './util.js';
 
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
@@ -61,53 +59,25 @@ export default defineRoute({
 			throw badRequest(`cannot send a question in state ${question.state}; it must be APPROVED first`);
 		}
 
-		const extraAskers = await db<AmaQuestionAskers[]>`
-			SELECT * FROM ama_question_askers WHERE question_id = ${questionId} ORDER BY merged_at ASC
-		`;
-
-		const [attachments, user, extraAskerNames] = await Promise.all([
-			resolveQuestionAttachments(question, session),
-			resolveAmaUser(guildId, question.authorId),
-			Promise.all(extraAskers.map(async (row) => resolveAmaDisplayName(guildId, row.authorId))),
-		]);
-
-		const embeds = getBaseEmbeds({
-			attachments,
-			content: question.content,
-			extraAskerDisplayNames: extraAskerNames,
-			guildId,
-			user: typeof user === 'string' ? undefined : user,
-		});
-
-		if (question.answerContent) {
-			const answeredByUser = question.answeredById ? await resolveAmaUser(guildId, question.answeredById) : undefined;
-			const answeredByDisplayName =
-				typeof answeredByUser === 'string' || !answeredByUser
-					? (question.answeredById ?? 'Unknown User')
-					: (answeredByUser.global_name ?? answeredByUser.username);
-			const answeredByAvatarURL =
-				typeof answeredByUser === 'object' && answeredByUser?.avatar
-					? `${RouteBases.cdn}${CDNRoutes.userAvatar(answeredByUser.id, answeredByUser.avatar, ImageFormat.PNG)}`
-					: undefined;
-
-			embeds.push(
-				getAnswerEmbed({
-					answerContent: question.answerContent,
-					answerImageUrl: question.answerImageUrl,
-					answeredByAvatarURL,
-					answeredByDisplayName,
-				}),
-			);
-		}
-
+		const embeds = await buildPublishEmbeds(guildId, question, session);
 		const message = await discordAPIAma.channels.createMessage(session.answersChannelId, { embeds });
 
-		const [sent] = await db<AmaQuestions[]>`
-			UPDATE ama_questions
-			SET state = 'ASKED', answers_message_id = ${message.id}, updated_at = now()
-			WHERE id = ${questionId} AND state = 'APPROVED'
-			RETURNING *
-		`;
+		let sent: AmaQuestions | undefined;
+		try {
+			[sent] = await db<AmaQuestions[]>`
+				UPDATE ama_questions
+				SET state = 'ASKED', answers_message_id = ${message.id}, updated_at = now()
+				WHERE id = ${questionId} AND state = 'APPROVED'
+				RETURNING *
+			`;
+		} catch (error) {
+			// The message is already publicly visible at this point -- if the DB write itself throws (not just
+			// resolves empty), leaving it up would silently publish a question that was never actually claimed
+			// as ASKED. Mirrors `createAMA.ts`'s own delete-on-failure compensation.
+			// eslint-disable-next-line promise/prefer-await-to-then
+			void discordAPIAma.channels.deleteMessage(session.answersChannelId, message.id).catch(() => null);
+			throw error;
+		}
 
 		if (!sent) {
 			// eslint-disable-next-line promise/prefer-await-to-then

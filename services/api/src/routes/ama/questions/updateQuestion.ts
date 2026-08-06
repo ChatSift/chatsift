@@ -9,7 +9,7 @@ import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
-import { resolveAmaUser, resolveCurrentQueueMessage, resolveQuestionAttachments } from './util.js';
+import { buildPublishEmbeds, resolveAmaUser, resolveCurrentQueueMessage, resolveQuestionAttachments } from './util.js';
 
 const stateModeSchema = z.strictObject({
 	state: z.enum(['APPROVED', 'DENIED', 'FLAGGED']),
@@ -127,8 +127,8 @@ export default defineRoute({
 
 				if (data.tagIds.length > 0) {
 					await sql`
-						INSERT INTO ama_question_tag_assignments (question_id, tag_id)
-						SELECT ${questionId}, id FROM ama_question_tags WHERE ama_id = ${amaId} AND id = ANY(${data.tagIds})
+						INSERT INTO ama_question_tag_assignments (question_id, tag_id, ama_id)
+						SELECT ${questionId}, id, ${amaId} FROM ama_question_tags WHERE ama_id = ${amaId} AND id = ANY(${data.tagIds})
 					`;
 				}
 
@@ -158,12 +158,20 @@ export default defineRoute({
 			// to whatever guest was previously set.
 			const answeredById =
 				'answeredById' in data ? (data.answeredById ?? req.tokens.access.sub) : question.answeredById;
+			// Same "field omitted vs. explicitly cleared" distinction as `answeredById` above -- `data.answerContent
+			// ?? question.answerContent` would treat an explicit `null` (clearing a prepared answer back out)
+			// identically to the field never being sent at all, making it impossible to ever clear these back to null.
+			// The `?? null` never actually changes behavior here (a present JSON key can't parse to `undefined`,
+			// only a real `string` or `null`) -- it's purely to satisfy postgres.js's tagged-template typing,
+			// which doesn't accept `undefined` as an interpolated value.
+			const answerContent = 'answerContent' in data ? (data.answerContent ?? null) : question.answerContent;
+			const answerImageUrl = 'answerImageUrl' in data ? (data.answerImageUrl ?? null) : question.answerImageUrl;
 
 			const [updated] = await db<AmaQuestions[]>`
 				UPDATE ama_questions
 				SET
-					answer_content = ${data.answerContent ?? question.answerContent},
-					answer_image_url = ${data.answerImageUrl ?? question.answerImageUrl},
+					answer_content = ${answerContent},
+					answer_image_url = ${answerImageUrl},
 					answered_by_id = ${answeredById ?? req.tokens.access.sub},
 					answered_at = now(),
 					updated_at = now()
@@ -171,7 +179,14 @@ export default defineRoute({
 				RETURNING *
 			`;
 
-			return updated!;
+			// The question can vanish between the initial read above and this write (e.g. a concurrent
+			// duplicate-merge deleting it) -- treat that the same as any other not-found rather than crashing
+			// on a non-null assertion.
+			if (!updated) {
+				throw notFound('question not found');
+			}
+
+			return updated;
 		}
 
 		// State-transition mode -- replicates the bot's atomic-claim + Discord-side-effect pattern from
@@ -256,6 +271,10 @@ export default defineRoute({
 					content: question.content,
 					guildId,
 					user: typeof user === 'string' ? undefined : user,
+					// Mirrors `postToGuestQueue`'s own reserve -- this dashboard-driven routing produces the
+					// same kind of guest-queue message the bot does, and `send-question.ts` copies its embeds
+					// forward the same way.
+					reserveEmbedSlots: session.preparedAnswersEnabled ? 1 : 0,
 				});
 				const buttons: APIButtonComponent[] = session.preparedAnswersEnabled
 					? [
@@ -279,6 +298,15 @@ export default defineRoute({
 					style: ButtonStyle.Secondary,
 					label: 'Skip',
 					custom_id: `guest-skip:${question.id}`,
+				});
+				// Mirrors `postToGuestQueue`'s own button set (services/ama-bot/src/lib/queues.ts) -- a question
+				// routed to the guest queue from the dashboard must offer the same Mark Duplicate entry point as
+				// one routed there by the bot itself.
+				buttons.push({
+					type: ComponentType.Button,
+					style: ButtonStyle.Secondary,
+					label: 'Mark Duplicate',
+					custom_id: `mark-duplicate:${question.id}`,
 				});
 				const message = await discordAPIAma.channels.createMessage(session.guestQueueId, {
 					embeds,
@@ -323,16 +351,7 @@ export default defineRoute({
 				return approved;
 			}
 
-			const [attachments, user] = await Promise.all([
-				resolveQuestionAttachments(question, session),
-				resolveAmaUser(guildId, question.authorId),
-			]);
-			const embeds = getBaseEmbeds({
-				attachments,
-				content: question.content,
-				guildId,
-				user: typeof user === 'string' ? undefined : user,
-			});
+			const embeds = await buildPublishEmbeds(guildId, question, session);
 			const message = await discordAPIAma.channels.createMessage(session.answersChannelId, { embeds });
 
 			const [asked] = await db<AmaQuestions[]>`
@@ -376,16 +395,7 @@ export default defineRoute({
 				return approved;
 			}
 
-			const [attachments, user] = await Promise.all([
-				resolveQuestionAttachments(question, session),
-				resolveAmaUser(guildId, question.authorId),
-			]);
-			const embeds = getBaseEmbeds({
-				attachments,
-				content: question.content,
-				guildId,
-				user: typeof user === 'string' ? undefined : user,
-			});
+			const embeds = await buildPublishEmbeds(guildId, question, session);
 			const message = await discordAPIAma.channels.createMessage(session.answersChannelId, { embeds });
 
 			const [asked] = await db<AmaQuestions[]>`

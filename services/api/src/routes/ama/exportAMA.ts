@@ -96,7 +96,10 @@ export default defineRoute({
 					question.updatedAt.toISOString(),
 					question.answerContent ? csvField(question.answerContent) : '',
 					question.answeredById ?? '',
-					tagsByQuestionId.get(question.id) ?? '',
+					// Tag names are freeform user-authored text (up to 50 chars, see `createTag.ts`) unlike
+					// `askers` (always `;`-joined snowflakes) -- they need the same escaping/injection guard as
+					// `content`/`answer_content` above, or a tag containing a comma/quote breaks the row shape.
+					csvField(tagsByQuestionId.get(question.id) ?? ''),
 					askersByQuestionId.get(question.id) ?? '',
 				].join(','),
 			),

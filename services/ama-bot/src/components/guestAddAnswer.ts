@@ -1,3 +1,4 @@
+import { URL } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
@@ -13,6 +14,11 @@ import type {
 import { ButtonStyle, ComponentType, MessageFlags, TextInputStyle } from '@discordjs/core';
 import { ModalInteractionOptionResolver, SnowflakeRegex } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
+
+/**
+ * Discord's own hard cap on options per string select.
+ */
+const DISCORD_SELECT_OPTION_LIMIT = 25;
 
 /**
  * Guest-queue counterpart to `guest-approve` for AMAs with `prepared_answers_enabled` on (#293
@@ -60,7 +66,12 @@ export default class GuestAddAnswerComponent implements ComponentHandler<string>
 					component: {
 						type: ComponentType.StringSelect,
 						custom_id: 'answered-by-id',
-						options: await buildGuestOptions(session.guestIds),
+						// Capped to Discord's own 25-option select limit, and built with no API calls -- a
+						// modal must be shown within Discord's ~3s interaction response window, and resolving
+						// every guest's display name first (N parallel `users.get` calls) risks blowing past it.
+						// Falls back to the raw id as the label; the select's options are already restricted to
+						// `session.guestIds`, so the id alone is still enough to pick unambiguously.
+						options: buildGuestOptions(session.guestIds.slice(0, DISCORD_SELECT_OPTION_LIMIT)),
 						min_values: 0,
 						max_values: 1,
 					},
@@ -148,6 +159,15 @@ export default class GuestAddAnswerComponent implements ComponentHandler<string>
 		const options = new ModalInteractionOptionResolver(modalInteraction);
 		const answerText = options.getTextInput('answer-text');
 		const answerImageUrl = options.getTextInput('answer-image-url') || null;
+
+		if (answerImageUrl && !isHttpUrl(answerImageUrl)) {
+			await getContext().service.client.api.interactions.editReply(
+				modalInteraction.application_id,
+				modalInteraction.token,
+				{ content: '❌ "Image URL" must be a valid http(s) URL.' },
+			);
+			return;
+		}
 
 		// The select's options are already restricted to `session.guestIds`, so there's nothing further
 		// to validate there -- the snowflake-format check only matters for the free-text fallback.
@@ -252,18 +272,22 @@ export default class GuestAddAnswerComponent implements ComponentHandler<string>
 }
 
 /**
- * Best-effort display names for the guest select's options -- an unresolvable guest (left the server,
- * bad id) still gets a usable option, it just falls back to showing the raw id as its label.
+ * Builds the guest select's options directly from the configured ids -- see the call site's comment
+ * for why this deliberately doesn't resolve display names via the API at modal-creation time.
  */
-async function buildGuestOptions(guestIds: string[]): Promise<APISelectMenuOption[]> {
-	return Promise.all(
-		guestIds.map(async (guestId) => {
-			try {
-				const user = await getContext().service.client.api.users.get(guestId);
-				return { label: (user.global_name ?? user.username).slice(0, 100), value: guestId };
-			} catch {
-				return { label: guestId, value: guestId };
-			}
-		}),
-	);
+function buildGuestOptions(guestIds: string[]): APISelectMenuOption[] {
+	return guestIds.map((guestId) => ({ label: guestId, value: guestId }));
+}
+
+/**
+ * Rejects anything that isn't an absolute http(s) URL -- this gets embedded directly as `image.url` in
+ * the answer embed, so a `javascript:`/`data:`/malformed value shouldn't be allowed to reach Discord's
+ * embed renderer unvalidated.
+ */
+function isHttpUrl(value: string): boolean {
+	try {
+		return ['http:', 'https:'].includes(new URL(value).protocol);
+	} catch {
+		return false;
+	}
 }

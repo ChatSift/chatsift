@@ -29,11 +29,15 @@ export function QuestionTagFilter() {
 
 	useClickOutside(ref, isOpen, () => setIsOpen(false));
 
-	if (!tags?.length) {
+	// Hiding the whole filter when there are no tags is right when nothing's selected (there's nothing
+	// useful to filter by) -- but if a tag filter is already active in the URL, hiding this would strand
+	// the user with no way to clear it back out (e.g. tags got deleted, or this AMA's tags haven't
+	// finished loading yet).
+	if (!tags?.length && !tagId) {
 		return null;
 	}
 
-	const selected = tags.find((tag) => tag.id === tagId);
+	const selected = tags?.find((tag) => tag.id === tagId);
 
 	const handleSelect = (nextTagId: number | undefined) => {
 		setTagParam(nextTagId ? String(nextTagId) : null);
@@ -63,7 +67,7 @@ export function QuestionTagFilter() {
 					>
 						All tags
 					</Button>
-					{tags.map((tag) => (
+					{tags?.map((tag) => (
 						<Button
 							className={cn(
 								'w-full justify-start rounded-none px-3 py-2 text-left text-sm',

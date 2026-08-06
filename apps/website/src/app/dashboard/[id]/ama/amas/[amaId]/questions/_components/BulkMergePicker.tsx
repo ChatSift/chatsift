@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useDebounceValue } from 'usehooks-ts';
 import { AuthorAvatar } from './AuthorAvatar';
+import { MERGEABLE_STATES } from './mergeableStates';
 import { userLabel } from './userLabel';
 import { useAMAQuestions, useMergeAMAQuestionsBulk } from '@/api/routes/ama';
 import { Button } from '@/components/common/Button';
@@ -29,8 +30,15 @@ export function BulkMergePicker({ questionIds, onClose, onMerged }: BulkMergePic
 	const mergeQuestionsBulk = useMergeAMAQuestionsBulk(guildId, amaId);
 
 	const isSearching = debouncedQuery.trim().length > 0;
-	const { data } = useAMAQuestions(guildId, amaId, { q: debouncedQuery || undefined });
-	const allMatches = (data?.pages.flatMap((page) => page.questions) ?? []).filter((q) => !questionIds.includes(q.id));
+	const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useAMAQuestions(guildId, amaId, {
+		q: debouncedQuery || undefined,
+	});
+	// A question already selected as one of the duplicates being merged away can't also be the target --
+	// and the target itself has to still be in the active pipeline (mirrors the API's own validation in
+	// `mergeQuestionsBulk.ts`), so a DENIED/FLAGGED/ASKED question shouldn't be offered as a pick here.
+	const allMatches = (data?.pages.flatMap((page) => page.questions) ?? []).filter(
+		(q) => !questionIds.includes(q.id) && MERGEABLE_STATES.has(q.state),
+	);
 	// With no search typed yet, default to the most recent few questions (already in memory, already
 	// most-recent-first via `listQuestions.ts`'s keyset order) instead of making the user search before
 	// seeing anything at all.
@@ -53,6 +61,7 @@ export function BulkMergePicker({ questionIds, onClose, onMerged }: BulkMergePic
 				</Button>
 			</div>
 			<input
+				aria-label="Search question content"
 				autoFocus
 				className="mb-2 w-full rounded-md border border-on-secondary bg-card px-2 py-1.5 text-sm text-primary focus:border-misc-accent focus:outline-none dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
 				onChange={(e) => {
@@ -96,6 +105,16 @@ export function BulkMergePicker({ questionIds, onClose, onMerged }: BulkMergePic
 							</Button>
 						</div>
 					))
+				)}
+				{isSearching && hasNextPage && (
+					<Button
+						className="w-full border border-on-secondary text-xs dark:border-on-secondary-dark"
+						isDisabled={isFetchingNextPage}
+						onPress={() => fetchNextPage()}
+						type="button"
+					>
+						{isFetchingNextPage ? 'Loading...' : 'Load more'}
+					</Button>
 				)}
 			</div>
 		</div>

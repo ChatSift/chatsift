@@ -71,6 +71,13 @@ export default defineRoute({
 			throw badRequest(`cannot merge away a question in state ${duplicate.state}`);
 		}
 
+		// The target has to still be in the active pipeline too -- merging a new asker into an already
+		// DENIED/FLAGGED/ASKED question would either silently resurrect a resolved decision or, for ASKED,
+		// mutate already-public content in a way nobody asked for.
+		if (!MERGEABLE_STATES.has(original.state)) {
+			throw badRequest(`cannot merge into a question in state ${original.state}`);
+		}
+
 		await mergeDuplicatesIntoOriginal(guildId, session, original, [duplicate]);
 
 		return original;
