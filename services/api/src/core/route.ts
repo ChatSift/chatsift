@@ -102,6 +102,14 @@ export interface RouteDefinition<
 	method: TMethod;
 	middleware?: TMiddlewares;
 	path: TPath;
+	/**
+	 * If set, `mountRoute` computes a WS gateway channel from the request after this route's handler completes
+	 * successfully (2xx) and broadcasts a bare `{ type: 'invalidate' }` signal to it (`services/api/src/ws`) --
+	 * one hook point instead of a broadcast call at every early-return branch inside the handler itself. Return
+	 * `undefined` to skip broadcasting for a particular request. Channel-name builders live in `@chatsift/core`'s
+	 * `realtimeChannels.ts` so the frontend subscribes to the exact same string.
+	 */
+	realtimeChannel?(req: MiddlewareContext<TMiddlewares> & TypedRequest<TBody, TQuery, TParams>): string | undefined;
 	schema?: RouteSchema<TBody, TQuery, TParams, TResponse>;
 }
 

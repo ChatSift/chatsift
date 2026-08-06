@@ -1,4 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
+import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestionTags, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
@@ -34,6 +35,7 @@ export default defineRoute({
 		isGlobalAdmin: false,
 		isGuildManager: true,
 	}),
+	realtimeChannel: (req) => amaQuestionsChannel(req.params.guildId, req.params.amaId),
 	async handler(req): Promise<CreateTagResult> {
 		const { guildId, amaId } = req.params;
 		const db = getContext().db;

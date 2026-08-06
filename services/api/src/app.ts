@@ -4,7 +4,8 @@
  * can't be statically imported before the context exists.
  */
 
-import { getContext, NewAccessTokenHeader } from '@chatsift/backend-core';
+import { createServer } from 'node:http';
+import { getContext, NewAccessTokenHeader, setServiceValue } from '@chatsift/backend-core';
 import { Boom, isBoom, notFound } from '@hapi/boom';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -60,10 +61,19 @@ import updateSnippetRoute from './routes/modmail/snippets/updateSnippet.js';
 import getThreadMessageEditsRoute from './routes/modmail/threads/getMessageEdits.js';
 import getThreadRoute from './routes/modmail/threads/getThread.js';
 import listThreadsRoute from './routes/modmail/threads/listThreads.js';
+import getWsTicketRoute from './routes/ws/getTicket.js';
 import { sendBoom } from './util/sendBoom.js';
+import { attachWebSocketServer } from './ws/server.js';
 
 export async function startServer(): Promise<void> {
+	// Constructed explicitly (rather than letting polka create its own via `app.listen()`) so the WS gateway
+	// can hook `upgrade` on it before the server starts listening -- polka is a thin router over a plain
+	// `http.Server` under the hood, so passing one in via `server:` and later calling `app.listen()` is
+	// equivalent to polka's own default, just with a reference available up front.
+	const httpServer = createServer();
+
 	const app = polka({
+		server: httpServer,
 		onError(err, req, res) {
 			// req.logger is set by attachLogger(), the very first `.use()` middleware -- it's only absent here if
 			// something throws before any `.use()` middleware ran at all (e.g. polka's own routing/parsing).
@@ -107,6 +117,8 @@ export async function startServer(): Promise<void> {
 		helmet(getContext().env.IS_PRODUCTION ? {} : { contentSecurityPolicy: false }) as Middleware,
 		attachHttpUtils(),
 	);
+
+	setServiceValue('wsHub', attachWebSocketServer(httpServer));
 
 	// Each call is instantiated against its own route's middleware tuple — folding these into a loop over an array
 	// literal would force TS to unify all of them under one `TMiddlewares` instantiation, which doesn't typecheck
@@ -158,6 +170,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, getThreadRoute);
 	mountRoute(app, getThreadMessageEditsRoute);
 	mountRoute(app, resyncRoute);
+	mountRoute(app, getWsTicketRoute);
 
 	app.listen(getContext().env.API_PORT, () =>
 		getContext().logger.info({ port: getContext().env.API_PORT }, 'Listening to requests'),

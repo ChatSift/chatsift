@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout, clearTimeout } from 'node:timers';
+import { getContext } from '@chatsift/backend-core';
 import { badRequest } from '@hapi/boom';
 import type { Middleware, Polka } from 'polka';
 import { ZodError } from 'zod';
@@ -103,7 +104,9 @@ export function mountRoute<
 	}
 
 	// Final handler
-	middlewares.push(async (req, res, next) => {
+	middlewares.push(async (reqUncast, res, next) => {
+		// Cast is safe: body/query/params have been validated and coerced by Zod above, middleware has run
+		const req = reqUncast as unknown as MiddlewareContext<TMiddlewares> & TypedRequest<TBody, TQuery, TParams>;
 		const isMetricsRequest = req.path === '/metrics' && req.method === 'GET';
 
 		try {
@@ -111,14 +114,17 @@ export function mountRoute<
 				req.logger.info({ method: req.method, path: req.path }, 'passing to route handler from middleware');
 			}
 
-			// Cast is safe: body/query/params have been validated and coerced by Zod above, middleware has run
-			const result = await route.handler(
-				req as unknown as MiddlewareContext<TMiddlewares> & TypedRequest<TBody, TQuery, TParams>,
-				res,
-			);
+			const result = await route.handler(req, res);
 
 			if (!isMetricsRequest) {
 				req.logger.info({ method: req.method, path: req.path }, 'route handler complete');
+			}
+
+			if (route.realtimeChannel) {
+				const channel = route.realtimeChannel(req);
+				if (channel) {
+					getContext().service.wsHub.broadcast(channel, { type: 'invalidate', channel });
+				}
 			}
 
 			if (!res.writableEnded) {
