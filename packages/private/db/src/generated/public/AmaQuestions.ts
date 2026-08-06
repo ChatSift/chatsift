@@ -30,6 +30,14 @@ export default interface AmaQuestions {
   createdAt: Date;
 
   updatedAt: Date;
+
+  answerContent: string | null;
+
+  answerImageUrl: string | null;
+
+  answeredById: string | null;
+
+  answeredAt: Date | null;
 }
 
 /** Represents the initializer for the table public.ama_questions */
@@ -55,6 +63,14 @@ export interface AmaQuestionsInitializer {
   createdAt?: Date;
 
   updatedAt?: Date;
+
+  answerContent?: string | null;
+
+  answerImageUrl?: string | null;
+
+  answeredById?: string | null;
+
+  answeredAt?: Date | null;
 }
 
 /** Represents the mutator for the table public.ama_questions */
@@ -80,4 +96,12 @@ export interface AmaQuestionsMutator {
   createdAt?: Date;
 
   updatedAt?: Date;
+
+  answerContent?: string | null;
+
+  answerImageUrl?: string | null;
+
+  answeredById?: string | null;
+
+  answeredAt?: Date | null;
 }

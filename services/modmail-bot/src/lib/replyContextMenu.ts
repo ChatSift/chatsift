@@ -126,7 +126,7 @@ export async function handleReplyWithMessageContextMenu(
 
 		if (error instanceof UndeliverableUserError) {
 			logger.warn({ err: error, threadId: thread.id }, 'Reply could not be delivered to the user');
-			await editReply("❌ Couldn't deliver that reply — the user has DMs closed or left the server. Nothing was sent.");
+			await editReply("❌ Couldn't deliver that reply - the user has DMs closed or left the server. Nothing was sent.");
 			return;
 		}
 

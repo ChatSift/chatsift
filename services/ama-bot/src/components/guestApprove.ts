@@ -74,7 +74,7 @@ export default class GuestApproveComponent implements ComponentHandler<string> {
 
 			const [claimed] = await getContext().db<AmaQuestions[]>`
 				UPDATE ama_questions
-				SET state = 'APPROVED', answers_message_id = ${msg.id}, updated_at = now()
+				SET state = 'ASKED', answers_message_id = ${msg.id}, updated_at = now()
 				WHERE id = ${question.id} AND state = 'PENDING_GUEST_REVIEW'
 				RETURNING *
 			`;

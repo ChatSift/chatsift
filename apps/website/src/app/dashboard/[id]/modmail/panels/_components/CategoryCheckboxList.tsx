@@ -55,7 +55,7 @@ export function CategoryCheckboxList({ guildId, value, onChange, error }: Catego
 				</div>
 			) : (
 				<p className="text-sm text-secondary dark:text-secondary-dark">
-					No categories configured yet — create one on the Categories page first.
+					No categories configured yet - create one on the Categories page first.
 				</p>
 			)}
 			{error && <p className="mt-1 text-sm text-misc-danger">{error}</p>}

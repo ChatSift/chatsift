@@ -29,6 +29,14 @@ export default interface AmaSessions {
   createdAt: Date;
 
   scheduledCloseAt: Date | null;
+
+  preparedAnswersEnabled: boolean;
+
+  modReviewEnabled: boolean;
+
+  shareToken: string;
+
+  guestIds: string[];
 }
 
 /** Represents the initializer for the table public.ama_sessions */
@@ -56,6 +64,14 @@ export interface AmaSessionsInitializer {
   createdAt?: Date;
 
   scheduledCloseAt?: Date | null;
+
+  preparedAnswersEnabled?: boolean;
+
+  modReviewEnabled?: boolean;
+
+  shareToken: string;
+
+  guestIds?: string[];
 }
 
 /** Represents the mutator for the table public.ama_sessions */
@@ -83,4 +99,12 @@ export interface AmaSessionsMutator {
   createdAt?: Date;
 
   scheduledCloseAt?: Date | null;
+
+  preparedAnswersEnabled?: boolean;
+
+  modReviewEnabled?: boolean;
+
+  shareToken?: string;
+
+  guestIds?: string[];
 }

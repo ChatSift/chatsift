@@ -8,6 +8,7 @@ enum AmaQuestionState {
   FLAGGED = 'FLAGGED',
   APPROVED = 'APPROVED',
   DENIED = 'DENIED',
+  ASKED = 'ASKED',
 };
 
 export default AmaQuestionState;

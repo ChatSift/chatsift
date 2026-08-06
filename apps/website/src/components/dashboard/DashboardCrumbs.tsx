@@ -38,6 +38,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 	blocks: 'Blocks',
 	threads: 'Threads',
 	settings: 'Settings',
+	questions: 'Questions',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {

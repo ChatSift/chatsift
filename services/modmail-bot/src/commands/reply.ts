@@ -184,7 +184,7 @@ export default class ReplyCommand implements CommandHandler {
 					modalInteraction.application_id,
 					modalInteraction.token,
 					{
-						content: "❌ Couldn't deliver that reply — the user has DMs closed or left the server. Nothing was sent.",
+						content: "❌ Couldn't deliver that reply - the user has DMs closed or left the server. Nothing was sent.",
 					},
 				);
 				return;

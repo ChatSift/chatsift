@@ -1,0 +1,128 @@
+import { getContext } from '@chatsift/backend-core';
+import { getBaseEmbeds } from '@chatsift/core';
+import type { AmaQuestionAskers, AmaQuestions, AmaSessions } from '@chatsift/db';
+import type { Snowflake } from '@discordjs/core';
+import { discordAPIAma } from '../../../util/discordAPI.js';
+import {
+	buildPublishEmbeds,
+	resolveAmaDisplayName,
+	resolveAmaUser,
+	resolveCurrentQueueMessage,
+	resolveQuestionAttachments,
+} from './util.js';
+
+// Re-exported so `mergeQuestion.ts`/`mergeQuestionsBulk.ts` can keep importing it from here -- the
+// definition itself lives in `schemas.ts` since that's the one browser-safe module shared with
+// `apps/website`'s merge pickers, and duplicating the set in two places is exactly the drift this
+// consolidation is meant to prevent.
+export { MERGEABLE_STATES } from '../schemas.js';
+
+/**
+ * How many resolved merged-asker names the refreshed embed actually shows -- `getBaseEmbeds` only ever
+ * displays the primary author plus up to 2 more before collapsing the rest into a "[...and N more]"
+ * count, so resolving beyond that (a Discord API call per asker) would be pure waste on a merge with
+ * many duplicates.
+ */
+const MAX_SHOWN_EXTRA_ASKERS = 2;
+
+/**
+ * Merges `duplicates` into `original`: carries over each duplicate's own askers (including anyone
+ * previously chain-merged into it) and deletes the duplicate rows in one transaction, then best-effort
+ * cleans up whichever queue/answers messages the duplicates had and refreshes `original`'s own live
+ * message (if any) once at the end with the full, freshly-queried asker list. Shared by the single-question
+ * merge route and the bulk-merge route so both go through the exact same DB/Discord side effects.
+ */
+export async function mergeDuplicatesIntoOriginal(
+	guildId: Snowflake,
+	session: AmaSessions,
+	original: AmaQuestions,
+	duplicates: AmaQuestions[],
+): Promise<void> {
+	const db = getContext().db;
+	const duplicateIds = duplicates.map((duplicate) => duplicate.id);
+
+	await db.begin(async (sql) => {
+		for (const duplicate of duplicates) {
+			await sql`
+				INSERT INTO ama_question_askers (question_id, author_id)
+				VALUES (${original.id}, ${duplicate.authorId})
+				ON CONFLICT (question_id, author_id) DO NOTHING
+			`;
+
+			// Chained merge: anyone previously merged into this duplicate carries over to the original.
+			await sql`
+				INSERT INTO ama_question_askers (question_id, author_id)
+				SELECT ${original.id}, author_id FROM ama_question_askers WHERE question_id = ${duplicate.id}
+				ON CONFLICT (question_id, author_id) DO NOTHING
+			`;
+		}
+
+		await sql`DELETE FROM ama_questions WHERE id = ANY(${duplicateIds})`;
+	});
+
+	// Best-effort cleanup of whichever of the duplicates' queue messages exist.
+	const duplicateMessages: { channelId: string | null; messageId: string | null }[] = duplicates.flatMap(
+		(duplicate) => [
+			{ channelId: session.modQueueId, messageId: duplicate.modQueueMessageId },
+			{ channelId: session.guestQueueId, messageId: duplicate.guestQueueMessageId },
+			{ channelId: session.flaggedQueueId, messageId: duplicate.flaggedQueueMessageId },
+			{ channelId: session.answersChannelId, messageId: duplicate.answersMessageId },
+		],
+	);
+	await Promise.all(
+		duplicateMessages
+			.filter((entry): entry is { channelId: string; messageId: string } => Boolean(entry.channelId && entry.messageId))
+			.map(async ({ channelId, messageId }) =>
+				discordAPIAma.channels.deleteMessage(channelId, messageId).catch(() => null),
+			),
+	);
+
+	// Re-queried fresh rather than accumulated across the loop above -- this is the single source of
+	// truth once the duplicates are gone, and stays correct however many duplicates were merged.
+	const mergedAskerRows = await db<AmaQuestionAskers[]>`
+		SELECT * FROM ama_question_askers WHERE question_id = ${original.id} ORDER BY merged_at ASC
+	`;
+
+	const currentMessage = resolveCurrentQueueMessage(original, session);
+	if (currentMessage) {
+		// Best-effort: the merge itself (the transaction above, plus the duplicate cleanup) already
+		// committed successfully -- a failure anywhere in resolving/posting the refreshed embed (a
+		// deleted message, a Discord outage, a rate limit) shouldn't turn an otherwise-successful merge
+		// into a 500 for the caller.
+		try {
+			let embeds;
+			if (original.state === 'ASKED') {
+				// The live message here *is* the answers-channel post -- reuse the same builder every other
+				// publish path uses so a merge doesn't silently drop the question's attachments/answer embed.
+				embeds = await buildPublishEmbeds(guildId, original, session);
+			} else {
+				// Mirrors postToModQueue/postToFlaggedQueue's own `includeUserId: true` -- those are the only
+				// two queues that ever show it to begin with.
+				const includeUserId = original.state === 'PENDING_MOD_REVIEW' || original.state === 'FLAGGED';
+				const [attachments, user, extraAskerNames] = await Promise.all([
+					resolveQuestionAttachments(original, session),
+					resolveAmaUser(guildId, original.authorId),
+					Promise.all(
+						mergedAskerRows
+							.slice(0, MAX_SHOWN_EXTRA_ASKERS)
+							.map(async (row) => resolveAmaDisplayName(guildId, row.authorId)),
+					),
+				]);
+
+				embeds = getBaseEmbeds({
+					attachments,
+					content: original.content,
+					extraAskerDisplayNames: extraAskerNames,
+					extraAskerTotalCount: mergedAskerRows.length,
+					guildId,
+					includeUserId,
+					user: typeof user === 'string' ? undefined : user,
+				});
+			}
+
+			await discordAPIAma.channels.editMessage(currentMessage.channelId, currentMessage.messageId, { embeds });
+		} catch {
+			// no-op -- see comment above.
+		}
+	}
+}

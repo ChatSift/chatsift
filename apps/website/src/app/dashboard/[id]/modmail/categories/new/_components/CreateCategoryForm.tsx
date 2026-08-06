@@ -138,7 +138,7 @@ export function CreateCategoryForm() {
 					/>
 				) : (
 					<p className="text-sm text-secondary dark:text-secondary-dark">
-						No Mod Forum configured — set one on the Config page to route this category to a forum tag.
+						No Mod Forum configured - set one on the Config page to route this category to a forum tag.
 					</p>
 				)}
 

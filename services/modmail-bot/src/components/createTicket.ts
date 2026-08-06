@@ -69,7 +69,7 @@ export default class CreateTicketComponent implements ComponentHandler {
 			// pointing the user at the actual entry point, so flipping DM mode back off restores the panel
 			// flow exactly as configured.
 			if (guildSettings.dmMode) {
-				await editReply('This server uses DMs — just message the bot directly to open a ticket.');
+				await editReply('This server uses DMs - just message the bot directly to open a ticket.');
 				return;
 			}
 
@@ -167,7 +167,7 @@ export default class CreateTicketComponent implements ComponentHandler {
 			]);
 
 			await editReply(
-				`Your ticket has been created: <#${privateThread.id}>. Describe what you need help with there — a staff member will follow up once you send your message.`,
+				`Your ticket has been created: <#${privateThread.id}>. Describe what you need help with there - a staff member will follow up once you send your message.`,
 			);
 		});
 	}

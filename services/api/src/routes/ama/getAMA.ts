@@ -1,5 +1,6 @@
 import { getContext } from '@chatsift/backend-core';
 import type { AmaPromptData, AmaSessions, AmaSessionsId } from '@chatsift/db';
+import type { APIUser, Snowflake } from '@discordjs/core';
 import { internal, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
@@ -10,6 +11,7 @@ import { discordAPIAma } from '../../util/discordAPI.js';
 import { queryWithFreshSchema, snowflakeSchema } from '../../util/schemas.js';
 import type { GuildChannelInfo } from '../guilds/get.js';
 import type { AMASessionWithCount } from './getAMAs.js';
+import { resolveAmaUser } from './questions/util.js';
 
 const querySchema = queryWithFreshSchema;
 const paramsSchema = z.object({
@@ -32,6 +34,9 @@ export interface AMASessionDetailed extends Omit<
 	answersChannel: GuildChannelInfo | PossiblyMissingChannelInfo;
 	flaggedQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
 	guestQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
+	// Resolved `guestIds`, same order -- backs the "answered by" guest pickers (dashboard answer editor,
+	// Discord's Add Answer modal reads its own copy) without every consumer re-resolving raw ids itself.
+	guests: (APIUser | Snowflake)[];
 	modQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
 	promptChannel: GuildChannelInfo | PossiblyMissingChannelInfo;
 	promptJsonData: string;
@@ -110,6 +115,14 @@ export default defineRoute({
 			promptMessageExists = false;
 		}
 
+		// `resolveAmaUser` only falls back to the bare id on a 404 -- anything else (a rate limit, a
+		// transient Discord outage) would otherwise reject this whole request over what's ultimately a
+		// minor display detail. Falls back to the raw id here too rather than letting one bad guest lookup
+		// take down the entire AMA detail view.
+		const guests = await Promise.all(
+			session.guestIds.map(async (guestId) => resolveAmaUser(guildId, guestId).catch(() => guestId)),
+		);
+
 		return {
 			...session,
 			ended: shouldEndNow ? true : session.ended,
@@ -117,6 +130,7 @@ export default defineRoute({
 			answersChannel,
 			flaggedQueueChannel,
 			guestQueueChannel,
+			guests,
 			modQueueChannel,
 			promptChannel,
 			promptJsonData: promptData.promptJsonData,

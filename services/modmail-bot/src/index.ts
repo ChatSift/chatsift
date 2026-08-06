@@ -429,7 +429,7 @@ function registerSnippetCommandResolver(): void {
 					'Snippet could not be delivered to the user',
 				);
 				await editReply(
-					"❌ Couldn't deliver that snippet — the user has DMs closed or left the server. Nothing was sent.",
+					"❌ Couldn't deliver that snippet - the user has DMs closed or left the server. Nothing was sent.",
 				);
 				return true;
 			}

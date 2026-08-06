@@ -209,7 +209,7 @@ export function ModmailConfigForm() {
 		setResyncFailures([]);
 		const result = await resyncModmail.mutateAsync();
 		setResyncMessage(
-			`Done — ${result.snippetsRecreated} snippet command${result.snippetsRecreated === 1 ? '' : 's'} recreated, ` +
+			`Done - ${result.snippetsRecreated} snippet command${result.snippetsRecreated === 1 ? '' : 's'} recreated, ` +
 				`${result.staleCommandsDeleted} stale command${result.staleCommandsDeleted === 1 ? '' : 's'} removed, ` +
 				`${result.panelsReposted} panel${result.panelsReposted === 1 ? '' : 's'} reposted.`,
 		);
@@ -315,7 +315,7 @@ export function ModmailConfigForm() {
 							</p>
 							{form.dmMode && (
 								<DmModeCaveat>
-									Ignored while DM mode is on — a user is limited to one open ticket at a time.
+									Ignored while DM mode is on - a user is limited to one open ticket at a time.
 								</DmModeCaveat>
 							)}
 						</>
@@ -358,7 +358,7 @@ export function ModmailConfigForm() {
 					</p>
 					{form.dmMode && (
 						<DmModeCaveat>
-							Ignored while DM mode is on — there is no private thread to delete there, a ticket's history just stays in
+							Ignored while DM mode is on - there is no private thread to delete there, a ticket's history just stays in
 							your DM history with the user.
 						</DmModeCaveat>
 					)}
@@ -413,7 +413,7 @@ export function ModmailConfigForm() {
 					</p>
 					{form.dmMode && (
 						<DmModeCaveat>
-							Ignored while DM mode is on — the greeting always posts after the opening message there.
+							Ignored while DM mode is on - the greeting always posts after the opening message there.
 						</DmModeCaveat>
 					)}
 				</div>
@@ -432,7 +432,7 @@ export function ModmailConfigForm() {
 						</label>
 						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
 							Users open a ticket by DMing the bot directly instead of clicking a panel button. Ticket panels go inert
-							while this is on — nothing about them is deleted, and turning this back off restores them exactly as
+							while this is on - nothing about them is deleted, and turning this back off restores them exactly as
 							configured.
 						</p>
 					</div>
@@ -469,7 +469,7 @@ export function ModmailConfigForm() {
 						<h3 className="text-sm font-medium text-primary dark:text-primary-dark">Resync</h3>
 						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
 							Recreates any snippet command or panel message that belongs to an application that no longer owns this
-							server — needed after moving this server onto or off of a custom ModMail instance. Safe to run any time;
+							server - needed after moving this server onto or off of a custom ModMail instance. Safe to run any time;
 							anything already correct is left alone.
 						</p>
 					</div>

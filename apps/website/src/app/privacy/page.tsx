@@ -6,7 +6,7 @@ export const metadata: Metadata = {
 	title: 'Privacy Policy',
 };
 
-const LAST_UPDATED = 'August 5, 2026';
+const LAST_UPDATED = 'August 6, 2026';
 
 export default function PrivacyPage() {
 	return (
@@ -24,23 +24,30 @@ export default function PrivacyPage() {
 				<p>We only collect what the Service needs to do the thing you're using it for:</p>
 				<ul>
 					<li>
-						<strong>Discord identifiers.</strong> User IDs, guild (server) IDs, channel/message IDs — the raw
+						<strong>Discord identifiers.</strong> User IDs, guild (server) IDs, channel/message IDs - the raw
 						identifiers Discord itself uses. We don't separately store your username, avatar, or discriminator; those
 						are fetched live from Discord whenever the dashboard displays them, not kept in our database.
 					</li>
 					<li>
 						<strong>AMA content.</strong> Questions submitted through an AMA session, tied to the submitting user's ID.
+						If a server's staff answer a question and it's sent to the AMA's answers channel, that question and its
+						answer can also be viewed on a public, unauthenticated answers page - anyone with the link can see it, no
+						Discord account or server membership required. That page shows the question content, the answer content and
+						image (if any), and the asker's and answerer's Discord display name and avatar. If staff mark one question
+						as a duplicate of another, the duplicate is deleted and its submitter is recorded internally as an
+						additional asker of the surviving question, visible only to that server's staff; the public answers page
+						shows only the surviving question's original asker.
 					</li>
 					<li>
 						<strong>ModMail content.</strong> Ticket messages are only stored beyond the lifetime of the Discord
-						conversation itself if a server's staff explicitly turn on transcript recording for that server — it's
+						conversation itself if a server's staff explicitly turn on transcript recording for that server - it's
 						opt-in per server, off by default. Server config (snippets, greeting messages, category setup) is always
 						stored, since it's how the bot is configured.
 					</li>
 					<li>
 						<strong>Dashboard session data.</strong> When you log in via Discord OAuth, we request the{' '}
-						<code>identify</code>, <code>guilds</code>, and <code>guilds.members.read</code> scopes — enough to know who
-						you are and which servers you can manage — and hold a Discord access/refresh token in an encrypted session
+						<code>identify</code>, <code>guilds</code>, and <code>guilds.members.read</code> scopes - enough to know who
+						you are and which servers you can manage - and hold a Discord access/refresh token in an encrypted session
 						cookie so you stay logged in. We don't request or store your email address.
 					</li>
 				</ul>
@@ -59,13 +66,18 @@ export default function PrivacyPage() {
 			<LegalSection title="4. How long we keep it">
 				<p>
 					Server configuration, AMA questions, and (where a server has opted in) ModMail transcripts are kept
-					indefinitely — this is what powers the dashboard's historical views (past AMA sessions, ticket history,
+					indefinitely - this is what powers the dashboard's historical views (past AMA sessions, ticket history,
 					snippet usage), which server staff rely on as an ongoing record, not just a live queue. If a feature is
 					discontinued, we will purge all data associated with it.
 				</p>
 				<p>
 					Dashboard session cookies expire after 30 days of inactivity. If you'd like something deleted sooner, see
 					Section 7 below.
+				</p>
+				<p>
+					A published AMA answers page (see Section 2) stays reachable for as long as the underlying question data does
+					- an AMA being marked as ended doesn't take its answers page down. If you'd like a question removed from a
+					public answers page, see Section 7 below.
 				</p>
 			</LegalSection>
 
@@ -100,14 +112,14 @@ export default function PrivacyPage() {
 			<LegalSection title="7. Your rights & how to reach us">
 				<p>
 					If you'd like to know what data we hold about you, or want it deleted, reach out to a ChatSift Team member on
-					our <a href="/support">support server</a> — we'll handle it directly.
+					our <a href="/support">support server</a> - we'll handle it directly.
 				</p>
 			</LegalSection>
 
 			<LegalSection title="8. Children's privacy">
 				<p>
 					The Service is only for people who meet Discord's own minimum age requirement (13, or older where local law
-					requires it) — we don't knowingly collect data from anyone younger, and access is gated entirely through your
+					requires it) - we don't knowingly collect data from anyone younger, and access is gated entirely through your
 					Discord account.
 				</p>
 			</LegalSection>

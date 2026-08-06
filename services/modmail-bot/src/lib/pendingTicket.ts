@@ -27,7 +27,7 @@ export interface PendingTicketState {
  * A private thread exists but isn't a ticket yet — the user is expected to describe their issue
  * before anything is sent to staff. Keyed by the private thread's channel id, this bridges ticket
  * creation (`createTicket.ts` for a zero-category panel, `categorySelect.ts` once a category is
- * picked — either way the category is already resolved by the time a thread exists) to the
+ * picked - either way the category is already resolved by the time a thread exists) to the
  * `MessageCreate` handler in `index.ts` that catches the user's first message and finishes the ticket.
  */
 export const PendingTicketStore = new RedisStore<PendingTicketState>({

@@ -56,7 +56,36 @@ CREATE TABLE ama_sessions (
   -- still active -- updateAMA.ts already rejects any edit once `ended`) via services/ama-bot's
   -- scheduledCloseSweep.ts, which flips `ended` the same way `/ama end` does once this lapses.
   scheduled_close_at       TIMESTAMPTZ,
-  created_at               TIMESTAMPTZ NOT NULL DEFAULT now()
+  -- Decouples approving a question from posting it (#293 follow-up, "Tommy" AMA question management).
+  -- Off (default): unchanged behavior, approval == posting. On: approval only sets state to APPROVED,
+  -- an answer can be prepared ahead of time (guest queue's "Add Answer" modal, or the dashboard), and
+  -- posting to answers_channel_id only happens via the dashboard's explicit Send action.
+  prepared_answers_enabled BOOLEAN NOT NULL DEFAULT false,
+  -- Splits "does this review stage exist" from "does it have a Discord channel" -- lets mod review be
+  -- enabled but dashboard-only (no queue message posted anywhere). Mod review has dashboard-visible
+  -- staff to hand it to, so this makes sense there; guest review does not have a dash-only mode -- guests
+  -- generally don't have dashboard access, so a "dash-only guest queue" would be unresolvable by anyone.
+  -- Guest review's existence is therefore just `guest_queue_id IS NOT NULL`, no separate flag.
+  -- Backfilled for existing rows as `(mod_queue_id IS NOT NULL)`, which exactly preserves prior
+  -- behavior: a stage that was never configured stays fully skipped, not silently reinterpreted.
+  -- Submission (prompt_channel_id) and final publishing (answers_channel_id) are deliberately excluded
+  -- from this pattern -- both stay Discord-only and NOT NULL, no toggle.
+  mod_review_enabled       BOOLEAN NOT NULL DEFAULT false,
+  -- Opaque id backing the public, unauthenticated read-only answers page (`/ama-answers/:shareToken`).
+  -- Generated unconditionally at creation (see createAMA.ts) -- pre-existing rows were backfilled a
+  -- generated value in the same migration that added this column.
+  share_token              TEXT NOT NULL UNIQUE,
+  -- Known guest-answerer user ids for this AMA (freeform, editable retroactively) -- backs the "answered
+  -- by" picker both in the guest queue's Add Answer modal and the dashboard's answer editor, replacing a
+  -- free-text user-id field with a real select once at least one guest is configured. Empty by default,
+  -- in which case both surfaces fall back to their original free-text/default-to-self behavior.
+  guest_ids                TEXT[] NOT NULL DEFAULT '{}',
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT ama_sessions_mod_review_enabled_check CHECK (mod_review_enabled OR mod_queue_id IS NULL),
+  -- A question can only ever reach FLAGGED from PENDING_MOD_REVIEW (see modApprove.ts) -- if mod review
+  -- isn't enabled, flagging never happens, so a flagged_queue_id would be dead config.
+  CONSTRAINT ama_sessions_flagged_queue_id_check CHECK (mod_review_enabled OR flagged_queue_id IS NULL)
 );
 
 CREATE TABLE ama_prompt_data (
@@ -66,12 +95,17 @@ CREATE TABLE ama_prompt_data (
   prompt_json_data  TEXT NOT NULL
 );
 
+-- 'ASKED' (#293 follow-up) is the only state meaning "posted to the answers channel" -- 'APPROVED'
+-- universally means "approved, not necessarily posted yet" now. When `prepared_answers_enabled` is
+-- off, the approve paths set 'ASKED' directly (posting immediately, same as the old 'APPROVED'
+-- behavior); when on, they hold at 'APPROVED' and only the dashboard's Send action produces 'ASKED'.
 CREATE TYPE ama_question_state AS ENUM (
   'PENDING_MOD_REVIEW',
   'PENDING_GUEST_REVIEW',
   'FLAGGED',
   'APPROVED',
-  'DENIED'
+  'DENIED',
+  'ASKED'
 );
 
 CREATE TABLE ama_questions (
@@ -84,11 +118,72 @@ CREATE TABLE ama_questions (
   guest_queue_message_id   TEXT,
   flagged_queue_message_id TEXT,
   answers_message_id       TEXT,
+  -- Prepared-answer fields (#293 follow-up), populated ahead of Send when `ama_sessions.
+  -- prepared_answers_enabled` is on -- via the guest queue's "Add Answer" modal or the dashboard.
+  -- All nullable: a question can reach 'APPROVED' with no answer prepared yet.
+  answer_content           TEXT,
+  answer_image_url         TEXT,
+  answered_by_id           TEXT,
+  answered_at              TIMESTAMPTZ,
   created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at               TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Referenced by ama_question_tag_assignments' composite FK below, so a tag assignment's own ama_id
+  -- is guaranteed to match the question it's attached to, not just the tag.
+  CONSTRAINT ama_questions_id_ama_id_key UNIQUE (id, ama_id)
 );
 
 CREATE INDEX ama_questions_ama_id_idx ON ama_questions (ama_id);
+
+-- Duplicate-merge target (#293 follow-up): merging question A into B deletes A and adds an
+-- `ama_question_askers` row for B recording A's author, so B's embed can render "Asked by X, Y, Z
+-- [...and N more]". B's own `author_id` is never duplicated in here -- only merged-in askers.
+CREATE TABLE ama_question_askers (
+  id          INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  question_id INTEGER NOT NULL REFERENCES ama_questions (id) ON DELETE CASCADE,
+  author_id   TEXT NOT NULL,
+  merged_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT ama_question_askers_question_id_author_id_key UNIQUE (question_id, author_id)
+);
+
+CREATE INDEX ama_question_askers_question_id_idx ON ama_question_askers (question_id);
+
+-- Per-AMA-session freeform mod-side tags (#293 follow-up) -- dashboard-only, not reusable across
+-- sessions (genuinely temporary, scoped to a single AMA's lifetime).
+CREATE TABLE ama_question_tags (
+  id         INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  ama_id     INTEGER NOT NULL REFERENCES ama_sessions (id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT ama_question_tags_ama_id_name_key UNIQUE (ama_id, name),
+  -- Referenced by ama_question_tag_assignments' composite FK below, so a tag assignment's own ama_id
+  -- is guaranteed to match the tag it's attached to, not just the question.
+  CONSTRAINT ama_question_tags_id_ama_id_key UNIQUE (id, ama_id)
+);
+
+CREATE INDEX ama_question_tags_ama_id_idx ON ama_question_tags (ama_id);
+
+-- ama_id is redundant with both question_id -> ama_questions.ama_id and tag_id ->
+-- ama_question_tags.ama_id individually, but carrying it here lets both composite FKs below pin it to
+-- the *same* value on both sides -- which is what actually rules out a tag from AMA A ever getting
+-- assigned to a question in AMA B. Set by the application at insert time (see updateQuestion.ts),
+-- always equal to the (already-validated-matching) ama_id of both the question and the tag.
+CREATE TABLE ama_question_tag_assignments (
+  question_id INTEGER NOT NULL,
+  tag_id      INTEGER NOT NULL,
+  ama_id      INTEGER NOT NULL,
+
+  PRIMARY KEY (question_id, tag_id),
+  CONSTRAINT ama_question_tag_assignments_question_fkey FOREIGN KEY (question_id, ama_id)
+    REFERENCES ama_questions (id, ama_id) ON DELETE CASCADE,
+  CONSTRAINT ama_question_tag_assignments_tag_fkey FOREIGN KEY (tag_id, ama_id)
+    REFERENCES ama_question_tags (id, ama_id) ON DELETE CASCADE
+);
+
+CREATE INDEX ama_question_tag_assignments_tag_id_idx ON ama_question_tag_assignments (tag_id);
+CREATE INDEX ama_question_tag_assignments_ama_id_idx ON ama_question_tag_assignments (ama_id);
 
 -- ModMail (M5, ticket-system rebuild — see docs/roadmap/06-modmail-port.md and issue #152).
 --

@@ -4,7 +4,7 @@ import type { ComponentHandler } from '@chatsift/bot-core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
-import { CurrentlyInQueue, getNextQueue, postToAnswersChannel, postToGuestQueue } from '../lib/queues.js';
+import { postToAnswersChannel, postToGuestQueue } from '../lib/queues.js';
 
 export default class ModApproveComponent implements ComponentHandler<string> {
 	public readonly name = 'mod-approve';
@@ -59,8 +59,6 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			// question text itself comes straight from the DB (the source message's text has a footer baked in).
 			const attachments = interaction.message.attachments ?? [];
 
-			const nextQueue = getNextQueue(CurrentlyInQueue.mod, session);
-
 			// Post first, claim second: if the post throws, the row is never touched and stays
 			// PENDING_MOD_REVIEW, so the button remains retryable. If we lose a claim race after posting
 			// (another moderator got there first), we clean up the message we just created instead of
@@ -76,7 +74,9 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 				});
 			};
 
-			if (nextQueue?.kind === CurrentlyInQueue.guest) {
+			// Guest review has no dash-only mode (guests generally don't have dashboard access) -- its
+			// stage existence is just `guestQueueId` truthiness, unlike mod review's separate enabled flag.
+			if (session.guestQueueId) {
 				const msg = await postToGuestQueue({
 					attachments,
 					content: question.content,
@@ -95,7 +95,24 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 				`;
 
 				if (!claimed) {
-					await reportLostRace(session.guestQueueId!, msg.id);
+					await reportLostRace(session.guestQueueId, msg.id);
+					return;
+				}
+			} else if (session.preparedAnswersEnabled) {
+				// No guest stage and prepared answers is on: hold at APPROVED, awaiting a prepared answer and
+				// an explicit dashboard Send (#293 follow-up) -- nothing posts here.
+				const [claimed] = await getContext().db<AmaQuestions[]>`
+					UPDATE ama_questions
+					SET state = 'APPROVED', updated_at = now()
+					WHERE id = ${question.id} AND state = 'PENDING_MOD_REVIEW'
+					RETURNING *
+				`;
+
+				if (!claimed) {
+					await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
+						content: 'This question was already handled by another moderator.',
+						flags: MessageFlags.Ephemeral,
+					});
 					return;
 				}
 			} else {
@@ -111,7 +128,7 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 
 				const [claimed] = await getContext().db<AmaQuestions[]>`
 					UPDATE ama_questions
-					SET state = 'APPROVED', answers_message_id = ${msg.id}, updated_at = now()
+					SET state = 'ASKED', answers_message_id = ${msg.id}, updated_at = now()
 					WHERE id = ${question.id} AND state = 'PENDING_MOD_REVIEW'
 					RETURNING *
 				`;
