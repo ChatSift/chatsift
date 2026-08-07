@@ -28,14 +28,14 @@ interface CurrentMessage {
  * refresh.
  */
 function resolveCurrentMessage(question: AmaQuestions, session: AmaSessions): CurrentMessage | null {
-	if (question.state === 'PENDING_REVIEW' && session.queueId && question.queueMessageId) {
-		return { channelId: session.queueId, messageId: question.queueMessageId, includeUserId: true };
-	}
-
 	// APPROVED has no queue message "of its own" -- when prepared answers hold a question here, the
 	// queue message it got posted to is left in place with its button swapped rather than deleted, and
 	// the question's own `queue_message_id` keeps pointing at it. Mirrors `services/api`'s own `util.ts`.
-	if (question.state === 'APPROVED' && session.queueId && question.queueMessageId) {
+	if (
+		(question.state === 'PENDING_REVIEW' || question.state === 'APPROVED') &&
+		session.queueId &&
+		question.queueMessageId
+	) {
 		return { channelId: session.queueId, messageId: question.queueMessageId, includeUserId: true };
 	}
 

@@ -143,10 +143,15 @@ export function CreateAMAForm() {
 	};
 
 	// Non-blocking: picking the same channel for two different purposes is legal (the API doesn't reject it) but
-	// is easy to do by accident with five near-identical selects, so we flag it instead of silently accepting it.
+	// is easy to do by accident with a few near-identical selects, so we flag it instead of silently accepting it.
 	const duplicateChannelWarning = useMemo(() => {
 		const seen = new Map<string, string>();
 		for (const { key, label } of CHANNEL_FIELDS) {
+			// The queue field only makes it into the submitted body while review is enabled (see
+			// `buildBody`, which sends `null` regardless of this field's value otherwise) -- flagging a
+			// clash against a channel that won't actually be sent would be a false positive.
+			if (key === 'queueId' && !formData.reviewEnabled) continue;
+
 			const value = formData[key];
 			if (!value) continue;
 

@@ -87,7 +87,7 @@ export async function mergeDuplicatesIntoOriginal(
 					attachments,
 					content: original.content,
 					guildId,
-					includeUserId: original.state === 'PENDING_REVIEW',
+					includeUserId: true,
 					user: typeof user === 'string' ? undefined : user,
 				});
 			}

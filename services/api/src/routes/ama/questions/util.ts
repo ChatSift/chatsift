@@ -36,16 +36,16 @@ export interface CurrentQueueMessage {
  * there's nothing to refresh, clean up, or read attachments back from.
  */
 export function resolveCurrentQueueMessage(question: AmaQuestions, session: AmaSessions): CurrentQueueMessage | null {
-	if (question.state === 'PENDING_REVIEW' && session.queueId && question.queueMessageId) {
-		return { channelId: session.queueId, messageId: question.queueMessageId };
-	}
-
 	// APPROVED has no queue message "of its own" -- when prepared answers hold a question here, the
 	// queue message it got posted to is left in place with its button swapped for a disabled/Send one
 	// rather than deleted, and the question's own `queue_message_id` keeps pointing at it. Without
 	// this, an approved question's attachments would resolve to `[]` the moment it left PENDING_REVIEW,
 	// well before it's actually sent.
-	if (question.state === 'APPROVED' && session.queueId && question.queueMessageId) {
+	if (
+		(question.state === 'PENDING_REVIEW' || question.state === 'APPROVED') &&
+		session.queueId &&
+		question.queueMessageId
+	) {
 		return { channelId: session.queueId, messageId: question.queueMessageId };
 	}
 
