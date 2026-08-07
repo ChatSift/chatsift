@@ -13,6 +13,7 @@ import {
 	countOpenThreadsForUserInCategory,
 	MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES,
 } from '../lib/threads.js';
+import { sendEarlyGreeting } from '../lib/ticketCreation.js';
 
 /**
  * The category picker (`createTicket.ts`) is itself the ephemeral response to the "Create Ticket"
@@ -160,11 +161,32 @@ export default class CategorySelectComponent implements ComponentHandler {
 			await getContext().service.client.api.threads.addMember(privateThread.id, user.id);
 
 			// Same pending-ticket bridge as the zero-category path in `createTicket.ts` — the mod-forum
-			// thread and greeting still only get created once the user's first message arrives (`index.ts`),
-			// but the category itself is already resolved, so `categoryId` here is real rather than `0`.
+			// thread still only gets created once the user's first message arrives (`index.ts`), but the
+			// category itself is already resolved, so `categoryId` here is real rather than `0`.
+			//
+			// The greeting is sent early here too when `greetingBeforeOpener` is on — see the matching
+			// comment in `createTicket.ts` for why this is the only point it can actually land ahead of
+			// the user's own message. Best-effort, same reasoning as there.
+			let greetingUserMessageId: string | null = null;
+			if (guildSettings.greetingBeforeOpener) {
+				try {
+					greetingUserMessageId = await sendEarlyGreeting({
+						category,
+						defaultGreetingMessage: guildSettings.defaultGreetingMessage,
+						guildId,
+						member,
+						user,
+						userChannelId: privateThread.id,
+					});
+				} catch (error) {
+					logger.warn({ err: error, threadId: privateThread.id }, 'Failed to send the early greeting message');
+				}
+			}
+
 			await Promise.all([
 				PendingTicketStore.set(privateThread.id, {
 					categoryId: category.id,
+					greetingUserMessageId,
 					guildId,
 					userId: user.id,
 				}),

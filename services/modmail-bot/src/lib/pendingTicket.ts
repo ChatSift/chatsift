@@ -19,6 +19,13 @@ export interface PendingTicketState {
 	 * here rather than `null`.
 	 */
 	categoryId: number;
+	/**
+	 * Set when `createTicket.ts`/`categorySelect.ts` already posted the greeting into the private thread
+	 * at creation time (`guild_settings.greetingBeforeOpener`, via `sendEarlyGreeting`) — `null` when no
+	 * greeting went out early (setting off, no greeting configured, or the member shape didn't resolve).
+	 * `index.ts`'s `handleFirstMessage` reads this back so `sendGreeting` doesn't double-post to the user.
+	 */
+	greetingUserMessageId: string | null;
 	guildId: string;
 	userId: string;
 }
@@ -32,11 +39,12 @@ export interface PendingTicketState {
  */
 export const PendingTicketStore = new RedisStore<PendingTicketState>({
 	TTL: PENDING_TICKET_TTL_MS,
-	// bin-rw's own inferred type has every field nullable; none of these three ever actually are here --
-	// the cast corrects that.
+	// bin-rw's own inferred type has every field nullable; `categoryId`/`guildId`/`userId` never actually
+	// are here (`greetingUserMessageId` legitimately can be) -- the cast corrects that.
 	recipe: createRecipe(
 		{
 			categoryId: DataType.I32,
+			greetingUserMessageId: DataType.String,
 			guildId: DataType.String,
 			userId: DataType.String,
 		},

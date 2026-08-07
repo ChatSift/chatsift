@@ -10,6 +10,7 @@ import { buildCategorySelectOptions } from '../lib/categorySelectOptions.js';
 import { withGuildUserLock } from '../lib/guildUserQueue.js';
 import { PendingTicketStore, recordPendingTicket } from '../lib/pendingTicket.js';
 import { countActiveTicketsForUser, MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES } from '../lib/threads.js';
+import { sendEarlyGreeting } from '../lib/ticketCreation.js';
 
 export default class CreateTicketComponent implements ComponentHandler {
 	public readonly name = 'modmail-create-ticket';
@@ -150,16 +151,38 @@ export default class CreateTicketComponent implements ComponentHandler {
 
 			await getContext().service.client.api.threads.addMember(privateThread.id, user.id);
 
-			// Nothing is posted into the thread itself and nothing is sent to staff yet — the mod-forum
-			// thread only gets created once the user's first message arrives, caught by `index.ts`'s
-			// `MessageCreate` listener via this pending-ticket record. This panel has no categories, so
-			// `categoryId` is `0` ("none") from the start — contrast `categorySelect.ts`, which is the one
-			// that creates this record when a panel *does* have categories, once a pick resolves one. The
-			// "what do I do now" instruction lives solely in this ephemeral reply (only the ticket opener
-			// sees it) rather than as a standalone bot message left sitting in an otherwise-empty thread.
+			// Nothing is sent to staff yet — the mod-forum thread only gets created once the user's first
+			// message arrives, caught by `index.ts`'s `MessageCreate` listener via this pending-ticket
+			// record. This panel has no categories, so `categoryId` is `0` ("none") from the start —
+			// contrast `categorySelect.ts`, which is the one that creates this record when a panel *does*
+			// have categories, once a pick resolves one.
+			//
+			// The greeting is the one exception to "nothing posted into the thread yet": when
+			// `greetingBeforeOpener` is on, it has to go out now, before the user says anything, since
+			// that's the only point at which the bot can actually land ahead of their first message (see
+			// `sendEarlyGreeting`'s doc comment). Best-effort — a failure here shouldn't block ticket
+			// creation, it just means the greeting falls back to landing after the opener at finish time,
+			// same as `greetingBeforeOpener` being off.
+			let greetingUserMessageId: string | null = null;
+			if (guildSettings.greetingBeforeOpener) {
+				try {
+					greetingUserMessageId = await sendEarlyGreeting({
+						category: null,
+						defaultGreetingMessage: guildSettings.defaultGreetingMessage,
+						guildId,
+						member,
+						user,
+						userChannelId: privateThread.id,
+					});
+				} catch (error) {
+					logger.warn({ err: error, threadId: privateThread.id }, 'Failed to send the early greeting message');
+				}
+			}
+
 			await Promise.all([
 				PendingTicketStore.set(privateThread.id, {
 					categoryId: 0,
+					greetingUserMessageId,
 					guildId,
 					userId: user.id,
 				}),

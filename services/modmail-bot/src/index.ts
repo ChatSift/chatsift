@@ -167,6 +167,7 @@ async function handleFirstMessage(
 				sendGreeting({
 					category,
 					defaultGreetingMessage: guildSettings.defaultGreetingMessage,
+					earlyUserMessageId: pending.greetingUserMessageId ?? undefined,
 					guildId: pending.guildId,
 					member: message.member,
 					modThreadId: thread.modThreadId,

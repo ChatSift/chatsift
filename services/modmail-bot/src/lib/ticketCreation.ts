@@ -218,9 +218,96 @@ export async function finishTicketCreation({
 	return thread;
 }
 
+interface GreetingContent {
+	embed: APIEmbed;
+	resolvedContent: string;
+}
+
+/**
+ * Shared by `sendEarlyGreeting` and `sendGreeting` — the embed and its resolved text don't depend on
+ * when or where it ends up posted, only the destination(s) and recording do.
+ */
+async function buildGreetingContent({
+	category,
+	defaultGreetingMessage,
+	guildId,
+	member,
+	user,
+}: {
+	category: Categories | null;
+	defaultGreetingMessage: string | null;
+	guildId: string;
+	member: MemberLike | undefined;
+	user: APIUser;
+}): Promise<GreetingContent | null> {
+	const greeting = category?.greetingMessage ?? defaultGreetingMessage;
+	if (!greeting || !member) {
+		return null;
+	}
+
+	const [guild, labelTemplate] = await Promise.all([getGuildInfo(guildId), getAnonReplyLabelTemplate(guildId)]);
+	const label = templateGuildName(labelTemplate, guild.name);
+
+	// Same divergence from ChatSift/ModMail as anon replies (lib/relay.ts): the "\{guildName\} Team" identity
+	// lives in the footer, not the author slot — an author line here would just duplicate it.
+	const resolvedContent = templateString(greeting, templateDataFromMember(guild.name, member, user));
+	return {
+		embed: {
+			color: NOT_QUITE_BLACK,
+			description: resolvedContent,
+			footer: guild.iconURL ? { text: label, icon_url: guild.iconURL } : { text: label },
+		},
+		resolvedContent,
+	};
+}
+
+export interface SendEarlyGreetingOptions {
+	category: Categories | null;
+	defaultGreetingMessage: string | null;
+	guildId: string;
+	member: MemberLike | undefined;
+	user: APIUser;
+	userChannelId: string;
+}
+
+/**
+ * `guild_settings.greetingBeforeOpener`'s "before" only has anything to reorder against on the mod
+ * side (`sendGreeting` below) — on the user's own channel, the opener *is* the message that triggers
+ * ticket creation, so it already exists there before the bot can react at all; no ordering of calls at
+ * finish time can land a bot reply ahead of the message that caused the bot to run. The only way to
+ * actually greet the user before their own opener is to post here, at private-thread-creation time
+ * (`createTicket.ts`/`categorySelect.ts`), before they've said anything. Returns the posted message's
+ * id — threaded through `PendingTicketState.greetingUserMessageId` so `sendGreeting` can skip
+ * re-posting to the user and reuse this id for recording once a real `threads` row exists — or `null`
+ * if no greeting is configured for this category/guild.
+ */
+export async function sendEarlyGreeting({
+	category,
+	defaultGreetingMessage,
+	guildId,
+	member,
+	user,
+	userChannelId,
+}: SendEarlyGreetingOptions): Promise<string | null> {
+	const content = await buildGreetingContent({ category, defaultGreetingMessage, guildId, member, user });
+	if (!content) {
+		return null;
+	}
+
+	const message = await getContext().service.client.api.channels.createMessage(userChannelId, {
+		embeds: [content.embed],
+	});
+	return message.id;
+}
+
 export interface SendGreetingOptions {
 	category: Categories | null;
 	defaultGreetingMessage: string | null;
+	/**
+	 * Set when `sendEarlyGreeting` already posted the user-facing copy (`greetingBeforeOpener`, before
+	 * the opener arrived) — skips re-posting to `userChannelId` and reuses this id for recording instead.
+	 */
+	earlyUserMessageId?: string | undefined;
 	guildId: string;
 	member: MemberLike | undefined;
 	modThreadId: string;
@@ -241,6 +328,7 @@ export interface SendGreetingOptions {
 export async function sendGreeting({
 	category,
 	defaultGreetingMessage,
+	earlyUserMessageId,
 	guildId,
 	member,
 	modThreadId,
@@ -248,29 +336,22 @@ export async function sendGreeting({
 	user,
 	userChannelId,
 }: SendGreetingOptions): Promise<void> {
-	const greeting = category?.greetingMessage ?? defaultGreetingMessage;
-	if (!greeting || !member) {
+	const content = await buildGreetingContent({ category, defaultGreetingMessage, guildId, member, user });
+	if (!content) {
 		return;
 	}
 
-	const [guild, labelTemplate] = await Promise.all([getGuildInfo(guildId), getAnonReplyLabelTemplate(guildId)]);
-	const label = templateGuildName(labelTemplate, guild.name);
-
-	// Same divergence from ChatSift/ModMail as anon replies (lib/relay.ts): the "\{guildName\} Team" identity
-	// lives in the footer, not the author slot — an author line here would just duplicate it.
-	const resolvedContent = templateString(greeting, templateDataFromMember(guild.name, member, user));
-	const greetingEmbed: APIEmbed = {
-		color: NOT_QUITE_BLACK,
-		description: resolvedContent,
-		footer: guild.iconURL ? { text: label, icon_url: guild.iconURL } : { text: label },
-	};
-
 	// Posted into both threads — mods should see the automated greeting land in the mod-forum
 	// thread too, the same way a staff-sent reply's log copy does, instead of it only being
-	// visible from the user's side.
-	const [userMessage, modMessage] = await Promise.all([
-		getContext().service.client.api.channels.createMessage(userChannelId, { embeds: [greetingEmbed] }),
-		getContext().service.client.api.channels.createMessage(modThreadId, { embeds: [greetingEmbed] }),
+	// visible from the user's side. `earlyUserMessageId` set means `sendEarlyGreeting` already put the
+	// user-facing copy out, so only the mod-thread copy needs posting here.
+	const [userMessageId, modMessage] = await Promise.all([
+		earlyUserMessageId
+			? Promise.resolve(earlyUserMessageId)
+			: getContext()
+					.service.client.api.channels.createMessage(userChannelId, { embeds: [content.embed] })
+					.then((message) => message.id),
+		getContext().service.client.api.channels.createMessage(modThreadId, { embeds: [content.embed] }),
 	]);
 
 	// Recorded the same way a staff reply is (Phase 3, #261) -- `is_system` distinguishes it from a real
@@ -286,7 +367,7 @@ export async function sendGreeting({
 				isForwarded: false,
 				repliedToThreadMessageId: null,
 				stickers: [],
-				text: resolvedContent,
+				text: content.resolvedContent,
 			},
 			guildId,
 			guildMessageId: modMessage.id,
@@ -295,7 +376,7 @@ export async function sendGreeting({
 			staffId: null,
 			threadId,
 			userId: user.id,
-			userMessageId: userMessage.id,
+			userMessageId,
 		});
 	}
 }
