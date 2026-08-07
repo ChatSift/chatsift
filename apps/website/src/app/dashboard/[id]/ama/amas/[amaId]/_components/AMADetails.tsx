@@ -1043,7 +1043,7 @@ export function AMADetails() {
 				</div>
 
 				{/* Actions Card */}
-				{!ama.ended && (
+				{canManage && !ama.ended && (
 					<div className="rounded-lg border border-misc-danger/20 bg-card p-6 dark:border-misc-danger/20 dark:bg-card-dark lg:col-span-2">
 						<h2 className="text-xl font-medium text-misc-danger mb-4">Danger Zone</h2>
 						{showEndConfirm ? (

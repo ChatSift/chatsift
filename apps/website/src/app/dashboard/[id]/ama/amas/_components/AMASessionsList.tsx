@@ -119,9 +119,7 @@ export function AMASessionsList() {
 	if (filtered.length === 0) {
 		return (
 			<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
-				<li>
-					<CreateAMACard />
-				</li>
+				{createCardItem}
 				<li className="md:col-span-2 lg:col-span-3">
 					<EmptyState
 						icon={<FaSearch className="h-8 w-8 text-secondary dark:text-secondary-dark" />}

@@ -2,13 +2,15 @@ import { getContext } from '@chatsift/backend-core';
 import { getBaseEmbeds } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { Snowflake } from '@discordjs/core';
+import { conflict } from '@hapi/boom';
 import { discordAPIAma } from '../../../util/discordAPI.js';
-import { resolveAmaUser, resolveCurrentQueueMessage, resolveQuestionAttachments } from './util.js';
-
 // Re-exported so `mergeQuestion.ts`/`mergeQuestionsBulk.ts` can keep importing it from here -- the
 // definition itself lives in `schemas.ts` since that's the one browser-safe module shared with
 // `apps/website`'s merge pickers, and duplicating the set in two places is exactly the drift this
 // consolidation is meant to prevent.
+import { MERGEABLE_STATES } from '../schemas.js';
+import { resolveAmaUser, resolveCurrentQueueMessage, resolveQuestionAttachments } from './util.js';
+
 export { MERGEABLE_STATES } from '../schemas.js';
 
 /**
@@ -30,6 +32,23 @@ export async function mergeDuplicatesIntoOriginal(
 	const duplicateIds = duplicates.map((duplicate) => duplicate.id);
 
 	await db.begin(async (sql) => {
+		// Re-validate under lock rather than trusting the callers' earlier (pre-transaction) state checks --
+		// those ran against a snapshot that a concurrent request (another merge, an approve/deny, a send)
+		// could have invalidated in the gap between that check and this transaction acquiring the rows.
+		// `FOR UPDATE` blocks any such concurrent writer on these same rows until this transaction commits.
+		const lockedIds = [original.id, ...duplicateIds];
+		const locked = await sql<Pick<AmaQuestions, 'id' | 'state'>[]>`
+			SELECT id, state FROM ama_questions WHERE id = ANY(${lockedIds}) FOR UPDATE
+		`;
+		const lockedById = new Map(locked.map((row) => [row.id, row.state]));
+		const stillMergeable = lockedIds.every((id) => {
+			const state = lockedById.get(id);
+			return state !== undefined && MERGEABLE_STATES.has(state);
+		});
+		if (!stillMergeable) {
+			throw conflict('one or more questions changed state before the merge could complete');
+		}
+
 		for (const duplicate of duplicates) {
 			await sql`
 				INSERT INTO ama_question_askers (question_id, author_id, content)

@@ -35,7 +35,7 @@ export default defineRoute({
 	async handler(req): Promise<AMASessionWithCount[]> {
 		const { include_ended } = req.query;
 		const { guildId } = req.params;
-		const isManager = isGuildManagerToken(req);
+		const isManager = await isGuildManagerToken(req);
 
 		const db = getContext().db;
 		const sessions = await db<AmaSessions[]>`

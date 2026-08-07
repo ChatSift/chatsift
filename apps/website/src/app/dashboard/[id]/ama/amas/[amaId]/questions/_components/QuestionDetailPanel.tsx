@@ -68,7 +68,8 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 	// Discord message already went out as-is), and every other state either hasn't been approved yet or
 	// never had one to begin with. A sent question with an answer gets a read-only view instead, below.
 	const showAnswerEditor = question.state === 'APPROVED';
-	const showSentAnswer = question.state === 'ASKED' && Boolean(question.answerContent);
+	const showSentAnswer =
+		question.state === 'ASKED' && (Boolean(question.answerContent) || Boolean(question.answerImageUrl));
 	const answeredByUser = question.answeredById
 		? (ama?.guests.find((guest) => (typeof guest === 'string' ? guest : guest.id) === question.answeredById) ??
 			question.answeredById)
@@ -146,9 +147,11 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 			{showSentAnswer && (
 				<div className="space-y-2">
 					<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Answer</p>
-					<p className="whitespace-pre-wrap wrap-break-word rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark">
-						{question.answerContent}
-					</p>
+					{question.answerContent && (
+						<p className="whitespace-pre-wrap wrap-break-word rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark">
+							{question.answerContent}
+						</p>
+					)}
 					{question.answerImageUrl && (
 						// eslint-disable-next-line @next/next/no-img-element
 						<img alt="" className="max-h-64 max-w-full rounded-md" src={question.answerImageUrl} />

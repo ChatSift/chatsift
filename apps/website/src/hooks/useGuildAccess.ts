@@ -29,7 +29,10 @@ export interface GuildAccess {
  */
 export function resolveGuildAccess(me: MeResponse | null | undefined, guildId: string | undefined): GuildAccess {
 	const guild = me?.guilds.find((g) => g.id === guildId);
-	const canManage = Boolean(me?.isGlobalAdmin || guild?.meCanManage);
+	// `isGlobalAdmin` only waives the `meCanManage` permission check for a guild the user actually belongs
+	// to (per `guild` being resolved) -- it never grants access to a guild they aren't a member of at all,
+	// which a guest-only synthesized `MeGuild` entry (see `fetchMe`) still counts as not being.
+	const canManage = Boolean(guild && (me?.isGlobalAdmin || guild.meCanManage));
 	const isAmaGuestOnly = !canManage && guild !== undefined && guild.amaGuestSessionIds.length > 0;
 
 	return { guild, canManage, isAmaGuestOnly };

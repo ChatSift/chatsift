@@ -1,7 +1,7 @@
 /* eslint-disable n/callback-return */
 
 import { claimGrantToken, decrypt, getContext, RefreshTokenCookie, verifyGrantToken } from '@chatsift/backend-core';
-import type { GrantString, GrantTokenData } from '@chatsift/backend-core';
+import type { GrantString, GrantTokenData, Logger } from '@chatsift/backend-core';
 import type { AmaSessions } from '@chatsift/db';
 import type { RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
@@ -87,18 +87,20 @@ export interface AuthedTokens {
 }
 
 /**
- * Cheap (no DB/Discord round trip), claim-only check for "does this request act as a manager of
- * `:guildId`" -- a grant-authed request always does (it's already scoped to one guild and one action),
- * otherwise it's the same admin/`adminGuilds` claim the full `isGuildManager` middleware checks, just
- * without that middleware's additional live guild-membership re-verification via `fetchMe`. Exported for
- * routes like `getAMAs.ts` that need to branch their own query on manager-vs-not rather than hard-gating
- * the whole route on it.
+ * Claim-only fast path plus the same live guild-membership re-verification the full `isGuildManager`
+ * middleware does via `fetchMe` -- a grant-authed request always counts as a manager (it's already
+ * scoped to one guild and one action), but an admin/`adminGuilds` claim alone does NOT, since that claim
+ * can go stale between token issuance and this request (guild left, admin status revoked). `fetchMe` is
+ * cache-backed (see `MeStore`), so this stays cheap on the common case. Exported for routes like
+ * `getAMAs.ts` that need to branch their own query on manager-vs-not rather than hard-gating the whole
+ * route on it.
  */
-export function isGuildManagerToken(req: {
+export async function isGuildManagerToken(req: {
 	grant?: GrantTokenData;
+	logger: Logger;
 	params: Record<string, string>;
 	tokens?: { access: AccessTokenData };
-}): boolean {
+}): Promise<boolean> {
 	if (req.grant) {
 		return true;
 	}
@@ -108,7 +110,16 @@ export function isGuildManagerToken(req: {
 		return false;
 	}
 
-	return getContext().env.ADMINS.has(req.tokens.access.sub) || req.tokens.access.grants.adminGuilds.includes(guildId);
+	const isManagerClaim =
+		getContext().env.ADMINS.has(req.tokens.access.sub) || req.tokens.access.grants.adminGuilds.includes(guildId);
+	if (!isManagerClaim) {
+		return false;
+	}
+
+	// Membership itself can't be bypassed by the admin claim -- same rule `isGuildManager: true` enforces
+	// below.
+	const me = await fetchMe(req.tokens.access.discordAccessToken, req.logger, false);
+	return me.guilds.some((guild) => guild.id === guildId);
 }
 
 export function isAuthed(options: IsAuthedFallthrough): [TypedMiddleware<{ tokens?: AuthedTokens }>];
