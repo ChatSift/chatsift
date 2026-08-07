@@ -62,7 +62,7 @@ export default defineRoute({
 	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
-		isGuildManager: true,
+		isGuildManager: 'or-ama-guest',
 	}),
 	async handler(req): Promise<ListQuestionsResult> {
 		const { guildId, amaId } = req.params;

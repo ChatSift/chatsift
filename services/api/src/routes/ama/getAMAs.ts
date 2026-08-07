@@ -2,7 +2,7 @@ import { getContext, GRANTS } from '@chatsift/backend-core';
 import type { AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
-import { isAuthed } from '../../middleware/isAuthed.js';
+import { isAuthed, isGuildManagerToken } from '../../middleware/isAuthed.js';
 import { snowflakeSchema } from '../../util/schemas.js';
 
 const querySchema = z.strictObject({
@@ -26,18 +26,23 @@ export default defineRoute({
 	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
-		isGuildManager: true,
+		// Not a hard `isGuildManager` gate -- guests need to reach this too (it backs breadcrumbs/nav on
+		// every AMA subpage, including the ones guests can reach), just filtered to a narrower result set
+		// in the handler below rather than rejected outright.
+		isGuildManager: false,
 		grants: [GRANTS.AMA_CREATE],
 	}),
 	async handler(req): Promise<AMASessionWithCount[]> {
 		const { include_ended } = req.query;
 		const { guildId } = req.params;
+		const isManager = await isGuildManagerToken(req);
 
 		const db = getContext().db;
 		const sessions = await db<AmaSessions[]>`
 			SELECT * FROM ama_sessions
 			WHERE guild_id = ${guildId}
 			${include_ended ? db`` : db`AND ended = false`}
+			${isManager ? db`` : db`AND ${req.tokens.access.sub} = ANY(guest_ids)`}
 			ORDER BY id DESC
 		`;
 

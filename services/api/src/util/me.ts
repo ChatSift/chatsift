@@ -12,7 +12,7 @@ import {
 	promiseAllObject,
 	RedisStore,
 } from '@chatsift/backend-core';
-import type { DashboardGrants } from '@chatsift/db';
+import type { AmaSessions, DashboardGrants } from '@chatsift/db';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
 import type { Recipe } from 'bin-rw';
@@ -21,6 +21,13 @@ import { apiForGuild, discordAPIOAuth } from './discordAPI.js';
 import { getInstanceBranding } from './discordApplication.js';
 
 export type MeGuild = Pick<RESTAPIPartialCurrentUserGuild, 'icon' | 'id' | 'name'> & {
+	/**
+	 * AMA session ids in this guild where the logged-in user is a configured guest
+	 * (`ama_sessions.guest_ids`), regardless of `meCanManage`/actual Discord guild membership -- backs
+	 * the dashboard's scoped guest access (see `middleware/isAuthed.ts`'s `'or-ama-guest'` path for the
+	 * API-side authorization this mirrors). Empty when the user isn't an AMA guest in this guild at all.
+	 */
+	amaGuestSessionIds: number[];
 	bots: BotId[];
 	/**
 	 * This guild's owning custom instance (#216), or `null` for a guild served by the public deployment.
@@ -64,6 +71,7 @@ const MeStore = new RedisStore<Me>({
 					icon: DataType.String,
 					meCanManage: DataType.Bool,
 					bots: [stringLiteral<BotId>()],
+					amaGuestSessionIds: [DataType.I32],
 					customInstanceId: DataType.String,
 					customInstanceLabel: DataType.String,
 					customInstanceIconUrl: DataType.String,
@@ -131,6 +139,21 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 		).map((grant) => grant.guildId),
 	);
 
+	// Guest access to an AMA is independent of guild membership -- a guest configured in some session's
+	// `guest_ids` might not be an OAuth member of that guild at all (see `MeGuild.amaGuestSessionIds`'s
+	// doc comment). Queried once here rather than per-guild, same reasoning as `grantedGuildIds` above.
+	const guestSessionsByGuild = new Map<string, number[]>();
+	for (const row of await getContext().db<Pick<AmaSessions, 'guildId' | 'id'>[]>`
+		SELECT id, guild_id FROM ama_sessions WHERE ${discordUser.id} = ANY(guest_ids)
+	`) {
+		const existing = guestSessionsByGuild.get(row.guildId);
+		if (existing) {
+			existing.push(row.id);
+		} else {
+			guestSessionsByGuild.set(row.guildId, [row.id]);
+		}
+	}
+
 	// Only resolved for instances the user is actually in a guild for -- no point spending a Discord call (even
 	// a redis-cached one) branding an instance this response will never mention.
 	const relevantInstances = instances.filter((instance) => guildsRaw.some((guild) => guild.id === instance.guildId));
@@ -164,11 +187,45 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 				) ||
 				owner,
 			bots: BOTS.filter((bot) => (bot === 'MODMAIL' ? modmailGuildIds.has(id) : guildsByBot[bot]?.includes(id))),
+			amaGuestSessionIds: guestSessionsByGuild.get(id) ?? [],
 			customInstanceId: instance?.id ?? null,
 			customInstanceLabel: instance?.label ?? null,
 			customInstanceIconUrl: branding?.iconUrl ?? null,
 		};
 	});
+
+	// A guest who isn't an OAuth member of the guild at all has no entry in `guilds` yet -- synthesize one
+	// via the AMA bot's own API access (mirrors `fetchMeFromGrant`'s membership-independent guild lookup),
+	// so their dashboard guild list still shows this guild for the AMA(s) they're scoped to. No custom-
+	// instance branding lookup here -- custom instances (#216) are a ModMail-only concept, and this path
+	// only ever synthesizes AMA-bot guilds.
+	const memberGuildIds = new Set(guilds.map((guild) => guild.id));
+	const guestOnlyGuildIds = [...guestSessionsByGuild.keys()].filter((id) => !memberGuildIds.has(id));
+	const guestOnlyGuilds = await Promise.all(
+		guestOnlyGuildIds.map(async (guildId): Promise<MeGuild | null> => {
+			try {
+				const guild = await apiForGuild('AMA', guildId).guilds.get(guildId);
+
+				return {
+					id: guild.id,
+					name: guild.name,
+					icon: guild.icon,
+					meCanManage: false,
+					bots: ['AMA'],
+					amaGuestSessionIds: guestSessionsByGuild.get(guildId) ?? [],
+					customInstanceId: null,
+					customInstanceLabel: null,
+					customInstanceIconUrl: null,
+				};
+			} catch (error) {
+				// Best-effort: if the AMA bot can no longer reach this guild (kicked, etc.), drop it from the
+				// guest's guild list rather than failing the whole /me response over one bad guild.
+				logger.warn({ err: error, guildId }, 'failed to resolve guest-only guild for AMA guest access');
+				return null;
+			}
+		}),
+	);
+	guilds.push(...guestOnlyGuilds.filter((guild): guild is MeGuild => guild !== null));
 
 	const me: Me = {
 		id: discordUser.id,
@@ -232,6 +289,9 @@ export async function fetchMeFromGrant(grant: GrantTokenData, logger: Logger): P
 		// The authentication middleware gurantees this via its guards.
 		meCanManage: true,
 		bots: [bot],
+		// Irrelevant for a grant-authed single-guild session -- that flow is already scoped to one action
+		// via the grant itself, never routed through AMA-guest-specific dashboard gating.
+		amaGuestSessionIds: [],
 		customInstanceId: instance?.id ?? null,
 		customInstanceLabel: instance?.label ?? null,
 		customInstanceIconUrl: branding?.iconUrl ?? null,

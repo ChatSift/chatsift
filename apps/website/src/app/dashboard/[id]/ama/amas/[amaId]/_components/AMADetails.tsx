@@ -12,6 +12,7 @@ import { PromptModeToggle } from '../../_components/PromptModeToggle';
 import { PromptPreview } from '../../_components/PromptPreview';
 import { AuthorAvatar } from '../questions/_components/AuthorAvatar';
 import { userLabel } from '../questions/_components/userLabel';
+import { QUESTION_STATE_TILES, valenceClass } from './questionStateTiles';
 import { APIError } from '@/api/error';
 import type { AMAStats, PossiblyMissingChannelInfo, UpdateAMABody } from '@/api/routes/ama';
 import {
@@ -30,6 +31,7 @@ import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
+import { useGuildAccess } from '@/hooks/useGuildAccess';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 import { getChannelIcon } from '@/utils/channels';
 import { dateToDatetimeLocalValue, datetimeLocalValueToISOString, formatDate, parseIntegerInput } from '@/utils/util';
@@ -38,28 +40,6 @@ const channelName = (channel: GuildChannelInfo | PossiblyMissingChannelInfo | nu
 	channel && 'name' in channel ? channel.name : 'Unknown';
 
 const allowedChannelTypes = [ChannelType.GuildText, ...threadTypes];
-
-// `valence` picks the count's color the same way the Status badge above already colors "Active"/"Ended": accent
-// for a good outcome, danger for a bad one. PENDING_REVIEW is still awaiting a decision, so it stays neutral
-// rather than borrowing a color that would misrepresent it as good or bad.
-//
-// `state` is a plain string literal here, not `keyof AMAStats['byState']` -- that type resolves to a (nominal) TS
-// string enum, which plain literals aren't assignable to without a cast. Cast once at the `stats.byState[state]`
-// read below instead of on every tuple entry.
-const QUESTION_STATE_TILES = [
-	{ state: 'PENDING_REVIEW', label: 'Pending', valence: 'neutral' },
-	// `APPROVED` no longer means "posted" (#293 follow-up) -- with prepared answers on, it means "approved,
-	// awaiting an answer/send", so it stays neutral now; `ASKED` is the new "actually posted" terminal state.
-	{ state: 'APPROVED', label: 'Approved', valence: 'neutral' },
-	{ state: 'ASKED', label: 'Asked', valence: 'good' },
-	{ state: 'DENIED', label: 'Denied', valence: 'bad' },
-] as const satisfies { label: string; state: string; valence: 'bad' | 'good' | 'neutral' }[];
-
-const valenceClass = {
-	neutral: 'text-primary dark:text-primary-dark',
-	good: 'text-misc-accent',
-	bad: 'text-misc-danger',
-} as const satisfies Record<(typeof QUESTION_STATE_TILES)[number]['valence'], string>;
 
 interface ConfigFormData {
 	allowedQuestionUploads: string;
@@ -215,6 +195,11 @@ export function AMADetails() {
 	const repostPrompt = useRepostPrompt(params.id, params.amaId);
 	const { data: stats, isLoading: isStatsLoading } = useAMAStats(params.id, params.amaId);
 	const exportQuestions = useExportAMAQuestions(params.id, params.amaId);
+
+	// Guests can view this whole page (session info, channels, stats) -- they just can't edit any of it
+	// or take the destructive/maintenance actions below (config edit, prompt edit, repost, export, end).
+	// Every mutating button/card on this page is gated on `canManage`.
+	const { canManage } = useGuildAccess(params.id);
 
 	// See GrantsList.tsx for why this also checks `ama === undefined`: a background refetch failure keeps the
 	// previously-cached session around, and that stale-but-present data should keep rendering (including any
@@ -571,7 +556,7 @@ export function AMADetails() {
 				<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
 					<div className="mb-4 flex items-center justify-between">
 						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Session Information</h2>
-						{!ama.ended && !editing && !promptEditing && (
+						{canManage && !ama.ended && !editing && !promptEditing && (
 							<Button
 								className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
 								isDisabled={isGuildInfoLoading || (guildInfo === undefined && Boolean(guildInfoError))}
@@ -894,7 +879,7 @@ export function AMADetails() {
 				<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
 					<div className="mb-4 flex items-center justify-between">
 						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Prompt Message</h2>
-						{ama.promptMessageExists && !ama.ended && !editing && !promptEditing && (
+						{canManage && ama.promptMessageExists && !ama.ended && !editing && !promptEditing && (
 							<Button
 								className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
 								onPress={startPromptEdit}
@@ -916,7 +901,7 @@ export function AMADetails() {
 							</span>
 						</div>
 
-						{!ama.promptMessageExists && !ama.ended && (
+						{canManage && !ama.promptMessageExists && !ama.ended && (
 							<div className="pt-2">
 								<Button
 									className="bg-misc-accent text-white rounded-md hover:bg-misc-accent/90 transition-colors disabled:opacity-50"
@@ -1014,38 +999,43 @@ export function AMADetails() {
 				<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
 					<div className="mb-4 flex items-center justify-between">
 						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Analytics &amp; Export</h2>
-						<Button
-							className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
-							isDisabled={exportQuestions.isPending}
-							onPress={handleExport}
-							type="button"
-						>
-							{exportQuestions.isPending ? 'Exporting…' : 'Export CSV'}
-						</Button>
+						{canManage && (
+							<Button
+								className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
+								isDisabled={exportQuestions.isPending}
+								onPress={handleExport}
+								type="button"
+							>
+								{exportQuestions.isPending ? 'Exporting…' : 'Export CSV'}
+							</Button>
+						)}
 					</div>
 
 					{isStatsLoading ? (
 						<Skeleton className="h-24 w-full" />
 					) : stats ? (
-						<div className="space-y-4">
-							<div>
-								<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Total Questions</p>
-								<p className="text-3xl font-semibold text-primary dark:text-primary-dark">{stats.total}</p>
+						<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+							<div className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark">
+								<p className="text-2xl font-semibold text-primary dark:text-primary-dark">{stats.total}</p>
+								<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">Total Questions</p>
 							</div>
-
-							<div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-								{QUESTION_STATE_TILES.map(({ state, label, valence }) => (
-									<div
-										className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark"
-										key={state}
-									>
-										<p className={`text-2xl font-semibold ${valenceClass[valence]}`}>
-											{stats.byState[state as keyof AMAStats['byState']]}
-										</p>
-										<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">{label}</p>
-									</div>
-								))}
+							<div className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark">
+								<p className="text-2xl font-semibold text-primary dark:text-primary-dark">
+									{stats.mergedDuplicatesCount}
+								</p>
+								<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">Merged Duplicates</p>
 							</div>
+							{QUESTION_STATE_TILES.map(({ state, label, valence }) => (
+								<div
+									className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark"
+									key={state}
+								>
+									<p className={`text-2xl font-semibold ${valenceClass[valence]}`}>
+										{stats.byState[state as keyof AMAStats['byState']]}
+									</p>
+									<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">{label}</p>
+								</div>
+							))}
 						</div>
 					) : (
 						<p className="text-sm text-secondary dark:text-secondary-dark">Unable to load question stats.</p>
@@ -1053,7 +1043,7 @@ export function AMADetails() {
 				</div>
 
 				{/* Actions Card */}
-				{!ama.ended && (
+				{canManage && !ama.ended && (
 					<div className="rounded-lg border border-misc-danger/20 bg-card p-6 dark:border-misc-danger/20 dark:bg-card-dark lg:col-span-2">
 						<h2 className="text-xl font-medium text-misc-danger mb-4">Danger Zone</h2>
 						{showEndConfirm ? (

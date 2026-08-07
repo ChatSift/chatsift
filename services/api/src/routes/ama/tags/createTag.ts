@@ -33,7 +33,7 @@ export default defineRoute({
 	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
-		isGuildManager: true,
+		isGuildManager: 'or-ama-guest',
 	}),
 	realtimeChannel: (req) => amaQuestionsChannel(req.params.guildId, req.params.amaId),
 	async handler(req): Promise<CreateTagResult> {

@@ -8,6 +8,7 @@ import { useMe } from '@/api/routes/auth';
 import { store } from '@/api/store';
 import { lastExplicitLogoutAtAtom } from '@/api/token';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
+import { resolveGuildAccess } from '@/hooks/useGuildAccess';
 import { URLS } from '@/utils/urls';
 
 /**
@@ -100,6 +101,17 @@ export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAcces
 	const { data: user } = useMe();
 	const router = useRouter();
 	const params = useParams<{ id?: string }>();
+	const pathname = usePathname();
+
+	// Guest-only access to the bare guild root is just a landing pad for the redirect below -- there's no
+	// actual content there for a guest (that page is the manager-only settings hub), so this is computed
+	// during render (not inside the effect) so the "render nothing" branch further down can use it too.
+	const { canManage, isAmaGuestOnly } =
+		checkForGuildAccess && isAuthenticated
+			? resolveGuildAccess(user, params.id)
+			: { canManage: true, isAmaGuestOnly: false };
+	const isGuildRoot = /^\/dashboard\/[^/]+\/?$/.test(pathname ?? '');
+	const isAmaGuestOnlyOnGuildRoot = isAmaGuestOnly && isGuildRoot;
 
 	useEffect(() => {
 		if (!isAuthenticated) {
@@ -108,13 +120,20 @@ export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAcces
 
 		if (checkForGlobalAdmin && !user!.isGlobalAdmin) {
 			router.replace('/dashboard');
+			return;
 		}
-	}, [isAuthenticated, checkForGlobalAdmin, user, router]);
 
-	// Guild access is checked during render (not the effect above) and uses `notFound()` rather than a redirect:
-	// it needs to block the first render of `children` outright, since descendants (DashboardCrumbs, GuildNav, ...)
-	// assume the guild exists and throw/misbehave otherwise. An effect-based redirect would let that first,
-	// invalid render happen before the navigation fires.
+		// Centralized here rather than in every page that could be the guild root, so none of them need to
+		// know guest status exists at all -- they just never render while this is in flight.
+		if (isAmaGuestOnlyOnGuildRoot) {
+			router.replace(`/dashboard/${params.id}/ama`);
+		}
+	}, [isAuthenticated, checkForGlobalAdmin, user, router, isAmaGuestOnlyOnGuildRoot, params.id]);
+
+	// Guild access is checked during render (not the effects above) and uses `notFound()` rather than a
+	// redirect: it needs to block the first render of `children` outright, since descendants
+	// (DashboardCrumbs, GuildNav, ...) assume the guild exists and throw/misbehave otherwise. An
+	// effect-based redirect would let that first, invalid render happen before the navigation fires.
 	if (checkForGuildAccess && isAuthenticated) {
 		if (!params.id) {
 			throw new Error('Guild ID param is required when checkForGuildAccess is true');
@@ -125,11 +144,20 @@ export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAcces
 		// same list server-side (`isGuildManager` in `isAuthed.ts`) — an admin who isn't a member gets a 403 on
 		// every request regardless of what this gate does. `isGlobalAdmin` only waives the `meCanManage` permission
 		// check for guilds they do belong to, mirroring the backend's admin bypass of the `adminGuilds` grant.
-		const guild = user!.guilds.find((g) => g.id === params.id);
-		const hasAccess = guild !== undefined && (user!.isGlobalAdmin || guild.meCanManage);
-		if (!hasAccess) {
+		//
+		// An AMA guest with no general manage access still gets in, but only under this guild's `/ama`
+		// subtree, plus the bare guild root (so the effect above has a mounted tree to redirect away from) —
+		// everything else (Settings, other bots) 404s for them exactly like any other non-member/non-manager.
+		const isAmaPath = /^\/dashboard\/[^/]+\/ama(?:\/|$)/.test(pathname ?? '');
+		if (!canManage && !(isAmaGuestOnly && (isAmaPath || isGuildRoot))) {
 			notFound();
 		}
+	}
+
+	// Render nothing on the guild root while the redirect effect above fires, instead of flashing the
+	// manager-only overview page's content at a guest-only viewer for one frame.
+	if (isAmaGuestOnlyOnGuildRoot) {
+		return null;
 	}
 
 	return <>{children}</>;

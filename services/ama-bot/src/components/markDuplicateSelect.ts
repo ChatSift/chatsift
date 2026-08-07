@@ -104,7 +104,7 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 				}
 
 				// Re-checked here, under the row lock, rather than trusting `markDuplicate.ts`'s own filtered
-				// search results -- either question's state can change (denied, flagged, asked, sent) in the
+				// search results -- either question's state can change (approved, denied, asked/sent) in the
 				// time between that search and this select being submitted.
 				if (!MERGEABLE_STATES.has(duplicate.state)) {
 					return { kind: 'not-mergeable', state: duplicate.state };

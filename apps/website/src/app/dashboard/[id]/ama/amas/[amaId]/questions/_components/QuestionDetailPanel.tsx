@@ -62,16 +62,30 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 	};
 
 	const canTriage = ACTIONABLE_STATES.has(question.state);
-	const canSend = question.state === 'APPROVED';
 	const canMerge = MERGEABLE_STATES.has(question.state);
-	// Once sent, the answer already went out in the Discord message as-is -- editing it here would just
-	// be silently lying to whoever's looking at the dashboard, so it's disabled outright instead of
-	// allowed-with-a-caveat.
-	const canEditAnswer = question.state !== 'ASKED';
-	// DENIED never had (and never will have) a prepared answer -- it only happens straight from
-	// PENDING_REVIEW (see updateQuestion.ts), so there's nothing for this editor to show once a
-	// question lands there; hide it outright instead of an empty disabled form.
-	const showAnswerEditor = question.state !== 'DENIED';
+	// The answer editor only ever shows up for a question that's actually awaiting a prepared answer --
+	// once sent, editing it here would just be silently lying to whoever's looking at the dashboard (the
+	// Discord message already went out as-is), and every other state either hasn't been approved yet or
+	// never had one to begin with. A sent question with an answer gets a read-only view instead, below.
+	const showAnswerEditor = question.state === 'APPROVED';
+	const showSentAnswer =
+		question.state === 'ASKED' && (Boolean(question.answerContent) || Boolean(question.answerImageUrl));
+	const answeredByUser = question.answeredById
+		? (ama?.guests.find((guest) => (typeof guest === 'string' ? guest : guest.id) === question.answeredById) ??
+			question.answeredById)
+		: null;
+
+	const handleSendAnswer = async () =>
+		runAction(async () => {
+			await updateQuestion.mutateAsync({
+				// Empty means "no prepared answer" -- the API rejects an empty string outright (min length
+				// 1), so that has to be `null`, not `''`.
+				answerContent: answerContent.trim() || null,
+				answerImageUrl: answerImageUrl.trim() || null,
+				answeredById: answeredById || null,
+			});
+			await sendQuestion.mutateAsync();
+		});
 
 	return (
 		<div className="space-y-4 rounded-lg border border-on-secondary bg-on-tertiary/30 p-4 dark:border-on-secondary-dark dark:bg-on-tertiary-dark/30">
@@ -130,23 +144,40 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 				/>
 			</div>
 
+			{showSentAnswer && (
+				<div className="space-y-2">
+					<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Answer</p>
+					{question.answerContent && (
+						<p className="whitespace-pre-wrap wrap-break-word rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark">
+							{question.answerContent}
+						</p>
+					)}
+					{question.answerImageUrl && (
+						// eslint-disable-next-line @next/next/no-img-element
+						<img alt="" className="max-h-64 max-w-full rounded-md" src={question.answerImageUrl} />
+					)}
+					{answeredByUser && (
+						<div className="flex items-center gap-2">
+							<AuthorAvatar className="h-5 w-5 rounded-full" user={answeredByUser} />
+							<p className="text-xs text-secondary dark:text-secondary-dark">Answered by {userLabel(answeredByUser)}</p>
+						</div>
+					)}
+				</div>
+			)}
+
 			{showAnswerEditor && (
 				<div className="space-y-2">
-					<p className="text-sm font-medium text-secondary dark:text-secondary-dark">
-						Answer {!canEditAnswer && '(already sent)'}
-					</p>
+					<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Answer</p>
 					<textarea
 						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary focus:border-misc-accent focus:outline-none disabled:opacity-50 dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
-						disabled={!canEditAnswer}
 						maxLength={4_000}
 						onChange={(e) => setAnswerContent(e.target.value)}
-						placeholder="Prepare an answer ahead of time..."
+						placeholder="Write the answer..."
 						rows={4}
 						value={answerContent}
 					/>
 					<input
 						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary focus:border-misc-accent focus:outline-none disabled:opacity-50 dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
-						disabled={!canEditAnswer}
 						onChange={(e) => setAnswerImageUrl(e.target.value)}
 						placeholder="Answer image URL (optional)"
 						type="text"
@@ -159,8 +190,8 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 							</span>
 							<div className="flex flex-col gap-1.5">
 								{/* An explicit row, not just an empty/placeholder state -- leaving this selected and
-								hitting Save Answer really does default to whoever's logged into the dashboard right
-								now, not "nobody"/unset. */}
+								hitting Send really does default to whoever's logged into the dashboard right now,
+								not "nobody"/unset. */}
 								<Button
 									aria-pressed={answeredById === ''}
 									className={cn(
@@ -169,7 +200,6 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 											? 'border-misc-accent bg-misc-accent/10 text-misc-accent'
 											: 'border-on-secondary text-primary dark:border-on-secondary-dark dark:text-primary-dark',
 									)}
-									isDisabled={!canEditAnswer}
 									onPress={() => setAnsweredById('')}
 									type="button"
 								>
@@ -190,7 +220,6 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 													? 'border-misc-accent bg-misc-accent/10'
 													: 'border-on-secondary dark:border-on-secondary-dark',
 											)}
-											isDisabled={!canEditAnswer}
 											key={guestId}
 											onPress={() => setAnsweredById(guestId)}
 											type="button"
@@ -212,26 +241,14 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 							</div>
 						</div>
 					)}
-					{canEditAnswer && (
-						<Button
-							className="h-8 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
-							isDisabled={updateQuestion.isPending}
-							onPress={async () =>
-								runAction(async () =>
-									updateQuestion.mutateAsync({
-										// Empty means "clear the prepared answer back out" -- the API rejects an empty
-										// string outright (min length 1), so that has to be `null`, not `''`.
-										answerContent: answerContent.trim() || null,
-										answerImageUrl: answerImageUrl.trim() || null,
-										answeredById: answeredById || null,
-									}),
-								)
-							}
-							type="button"
-						>
-							Save Answer
-						</Button>
-					)}
+					<Button
+						className="h-9 bg-misc-accent px-3 text-sm text-white hover:opacity-90"
+						isDisabled={updateQuestion.isPending || sendQuestion.isPending}
+						onPress={handleSendAnswer}
+						type="button"
+					>
+						Send
+					</Button>
 				</div>
 			)}
 
@@ -255,16 +272,6 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 							Deny
 						</Button>
 					</>
-				)}
-				{canSend && (
-					<Button
-						className="h-9 bg-misc-accent px-3 text-sm text-white hover:opacity-90"
-						isDisabled={sendQuestion.isPending}
-						onPress={async () => runAction(async () => sendQuestion.mutateAsync())}
-						type="button"
-					>
-						Send
-					</Button>
 				)}
 				{canMerge && (
 					<Button

@@ -1,7 +1,8 @@
 /* eslint-disable n/callback-return */
 
 import { claimGrantToken, decrypt, getContext, RefreshTokenCookie, verifyGrantToken } from '@chatsift/backend-core';
-import type { GrantString, GrantTokenData } from '@chatsift/backend-core';
+import type { GrantString, GrantTokenData, Logger } from '@chatsift/backend-core';
+import type { AmaSessions } from '@chatsift/db';
 import type { RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
 import { parseCookie } from 'cookie';
@@ -66,9 +67,13 @@ interface IsAuthedNoGlobalAdmin {
 	grants?: readonly GrantString[];
 	isGlobalAdmin: false;
 	/**
-	 * If true, assumes `guildId` parameter is present and checks if the user can manage that guild
+	 * If true, assumes `guildId` parameter is present and checks if the user can manage that guild.
+	 * `'or-ama-guest'` additionally accepts anyone listed in the `:amaId` route param's session's
+	 * `guest_ids` (see `ama_sessions.guest_ids`'s doc comment in schema.sql) as an alternative to
+	 * being a manager — for AMA question-action routes that guests get scoped dashboard access to.
+	 * Only ever set on routes with an `:amaId` param.
 	 */
-	isGuildManager: boolean;
+	isGuildManager: boolean | 'or-ama-guest';
 }
 
 type IsAuthedOptions = IsAuthedFallthrough | IsAuthedGlobalAdmin | IsAuthedNoGlobalAdmin;
@@ -81,8 +86,46 @@ export interface AuthedTokens {
 	refresh: RefreshTokenData;
 }
 
+/**
+ * Claim-only fast path plus the same live guild-membership re-verification the full `isGuildManager`
+ * middleware does via `fetchMe` -- a grant-authed request always counts as a manager (it's already
+ * scoped to one guild and one action), but an admin/`adminGuilds` claim alone does NOT, since that claim
+ * can go stale between token issuance and this request (guild left, admin status revoked). `fetchMe` is
+ * cache-backed (see `MeStore`), so this stays cheap on the common case. Exported for routes like
+ * `getAMAs.ts` that need to branch their own query on manager-vs-not rather than hard-gating the whole
+ * route on it.
+ */
+export async function isGuildManagerToken(req: {
+	grant?: GrantTokenData;
+	logger: Logger;
+	params: Record<string, string>;
+	tokens?: { access: AccessTokenData };
+}): Promise<boolean> {
+	if (req.grant) {
+		return true;
+	}
+
+	const guildId = req.params['guildId'];
+	if (!req.tokens || !guildId) {
+		return false;
+	}
+
+	const isManagerClaim =
+		getContext().env.ADMINS.has(req.tokens.access.sub) || req.tokens.access.grants.adminGuilds.includes(guildId);
+	if (!isManagerClaim) {
+		return false;
+	}
+
+	// Membership itself can't be bypassed by the admin claim -- same rule `isGuildManager: true` enforces
+	// below.
+	const me = await fetchMe(req.tokens.access.discordAccessToken, req.logger, false);
+	return me.guilds.some((guild) => guild.id === guildId);
+}
+
 export function isAuthed(options: IsAuthedFallthrough): [TypedMiddleware<{ tokens?: AuthedTokens }>];
-export function isAuthed(options: IsAuthedGlobalAdmin): [TypedMiddleware<{ tokens: AuthedTokens }>, TypedMiddleware];
+export function isAuthed(
+	options: IsAuthedGlobalAdmin | (IsAuthedNoGlobalAdmin & { isGuildManager: 'or-ama-guest' }),
+): [TypedMiddleware<{ tokens: AuthedTokens }>, TypedMiddleware];
 export function isAuthed(
 	options: IsAuthedNoGlobalAdmin & { isGuildManager: true },
 ): [TypedMiddleware<{ tokens: AuthedTokens }>, TypedMiddleware<{ guild: MeGuild }>];
@@ -329,6 +372,8 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 	}
 
 	if (!options.fallthrough && !options.isGlobalAdmin && options.isGuildManager) {
+		const allowAmaGuest = options.isGuildManager === 'or-ama-guest';
+
 		middleware.push(
 			defineMiddleware(async (req, _, next) => {
 				if (req.grant) {
@@ -349,26 +394,46 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 					return next(internal());
 				}
 
-				const me = await fetchMe(req.tokens.access.discordAccessToken, req.logger, false);
-				const guild = me.guilds.find((g) => g.id === guildId);
+				const isManagerClaim =
+					getContext().env.ADMINS.has(req.tokens.access.sub) || req.tokens.access.grants.adminGuilds.includes(guildId);
 
-				if (!guild) {
-					return next(forbidden('you need to be a member of this guild to access this resource'));
-				}
+				if (isManagerClaim) {
+					// Membership itself can't be bypassed by the admin claim -- an admin who isn't a member of
+					// this guild still gets rejected here, same as a plain manager would (see NavGate.tsx's
+					// mirrored comment on the frontend gate).
+					const me = await fetchMe(req.tokens.access.discordAccessToken, req.logger, false);
+					const guild = me.guilds.find((g) => g.id === guildId);
 
-				// eslint-disable-next-line require-atomic-updates
-				req.guild = guild;
+					if (!guild) {
+						return next(forbidden('you need to be a member of this guild to access this resource'));
+					}
 
-				if (getContext().env.ADMINS.has(req.tokens.access.sub)) {
-					// Admin bypass
+					// eslint-disable-next-line require-atomic-updates
+					req.guild = guild;
 					return next();
 				}
 
-				if (!req.tokens.access.grants.adminGuilds.includes(guildId)) {
-					return next(forbidden('you need to be a manager of this guild to access this resource'));
+				// Not a manager -- the only other way in is being a configured guest of the specific AMA this
+				// route is scoped to. Membership-independent by design: a guest might not be an OAuth member of
+				// the guild at all (see `util/me.ts`'s `fetchMe` guest-guild synthesis for the frontend-facing
+				// side of that).
+				if (allowAmaGuest) {
+					const amaId = req.params['amaId'];
+					if (!amaId) {
+						req.logger.warn('isGuildManager "or-ama-guest" invoked without an amaId param. this is a bug');
+						return next(internal());
+					}
+
+					const [session] = await getContext().db<Pick<AmaSessions, 'guestIds' | 'guildId'>[]>`
+						SELECT guild_id, guest_ids FROM ama_sessions WHERE id = ${amaId}
+					`;
+
+					if (session?.guildId === guildId && session.guestIds.includes(req.tokens.access.sub)) {
+						return next();
+					}
 				}
 
-				await next();
+				return next(forbidden('you need to be a manager of this guild to access this resource'));
 			}),
 		);
 	}

@@ -34,8 +34,8 @@ export function BulkMergePicker({ questionIds, onClose, onMerged }: BulkMergePic
 		q: debouncedQuery || undefined,
 	});
 	// A question already selected as one of the duplicates being merged away can't also be the target --
-	// and the target itself has to still be in the active pipeline (mirrors the API's own validation in
-	// `mergeQuestionsBulk.ts`), so a DENIED/ASKED question shouldn't be offered as a pick here.
+	// and the target itself has to still be PENDING_REVIEW (mirrors the API's own validation in
+	// `mergeQuestionsBulk.ts`), so an APPROVED/DENIED/ASKED question shouldn't be offered as a pick here.
 	const allMatches = (data?.pages.flatMap((page) => page.questions) ?? []).filter(
 		(q) => !questionIds.includes(q.id) && MERGEABLE_STATES.has(q.state),
 	);

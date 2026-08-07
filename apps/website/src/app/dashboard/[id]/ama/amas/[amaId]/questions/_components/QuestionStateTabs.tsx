@@ -5,16 +5,18 @@ import { useURLParam } from '@/hooks/useURLParam';
 import { cn } from '@/utils/util';
 
 /**
- * Mods and guests now review the same single queue, so there's just one "Pending" tab. Defaults to
- * "All" -- with mods and guests sharing the queue, there's no single stage that's obviously the one
- * needing attention the way "Pending (Mod)" used to be.
+ * Mods and guests now review the same single queue, so there's just one "Pending Review" tab. "Guest
+ * Questions" is the `APPROVED` state -- once prepared answers hold a question there, it's a guest's job
+ * to write the answer and send it, so the label describes who acts on it rather than the raw state name.
+ * Defaults to "All" -- with mods and guests sharing the queue, there's no single stage that's obviously
+ * the one needing attention the way "Pending (Mod)" used to be.
  */
 const TABS = [
 	{ id: 'all', label: 'All', states: undefined },
-	{ id: 'pending', label: 'Pending', states: 'PENDING_REVIEW' },
-	{ id: 'approved', label: 'Approved', states: 'APPROVED' },
-	{ id: 'asked', label: 'Asked', states: 'ASKED' },
+	{ id: 'pending', label: 'Pending Review', states: 'PENDING_REVIEW' },
 	{ id: 'denied', label: 'Denied', states: 'DENIED' },
+	{ id: 'guest-questions', label: 'Guest Questions', states: 'APPROVED' },
+	{ id: 'asked', label: 'Asked Questions', states: 'ASKED' },
 ] as const;
 
 const DEFAULT_TAB_ID = 'all';

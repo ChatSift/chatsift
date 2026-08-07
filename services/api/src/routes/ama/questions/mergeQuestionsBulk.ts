@@ -42,7 +42,7 @@ export default defineRoute({
 	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
-		isGuildManager: true,
+		isGuildManager: 'or-ama-guest',
 	}),
 	realtimeChannel: (req) => amaQuestionsChannel(req.params.guildId, req.params.amaId),
 	async handler(req): Promise<MergeQuestionsBulkResult> {
@@ -72,9 +72,9 @@ export default defineRoute({
 			throw notFound('the target question was not found in this AMA');
 		}
 
-		// The target has to still be in the active pipeline too -- merging new askers into an already
-		// DENIED/FLAGGED/ASKED question would either silently resurrect a resolved decision or, for ASKED,
-		// mutate already-public content in a way nobody asked for.
+		// The target has to still be PENDING_REVIEW too -- merging new askers into an already
+		// APPROVED/DENIED/ASKED question would either hand a guest a surprise extra asker after the fact,
+		// silently resurrect a resolved decision, or (for ASKED) mutate already-public content.
 		if (!MERGEABLE_STATES.has(original.state)) {
 			throw badRequest(`cannot merge into a question in state ${original.state}`);
 		}
