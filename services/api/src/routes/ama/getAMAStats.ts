@@ -18,6 +18,12 @@ const paramsSchema = z.object({
 
 export interface AMAStats {
 	byState: Record<AmaQuestionState, number>;
+	/**
+	 * Total number of duplicate questions merged away into another question in this AMA (i.e. rows in
+	 * `ama_question_askers` across every question still in this session) -- not itself a question count,
+	 * so it's surfaced alongside `byState`/`total` rather than folded into either.
+	 */
+	mergedDuplicatesCount: number;
 	total: number;
 }
 
@@ -30,7 +36,7 @@ export default defineRoute({
 	middleware: isAuthed({
 		fallthrough: false,
 		isGlobalAdmin: false,
-		isGuildManager: true,
+		isGuildManager: 'or-ama-guest',
 	}),
 	async handler(req): Promise<AMAStats> {
 		const { guildId, amaId } = req.params;
@@ -44,9 +50,16 @@ export default defineRoute({
 			throw notFound('ama session not found');
 		}
 
-		const counts = await db<{ count: string; state: AmaQuestionState }[]>`
-			SELECT state, COUNT(*) AS count FROM ama_questions WHERE ama_id = ${amaId} GROUP BY state
-		`;
+		const [counts, [mergedDuplicates]] = await Promise.all([
+			db<{ count: string; state: AmaQuestionState }[]>`
+				SELECT state, COUNT(*) AS count FROM ama_questions WHERE ama_id = ${amaId} GROUP BY state
+			`,
+			db<{ count: string }[]>`
+				SELECT COUNT(*) AS count FROM ama_question_askers a
+				INNER JOIN ama_questions q ON q.id = a.question_id
+				WHERE q.ama_id = ${amaId}
+			`,
+		]);
 
 		const byState = Object.fromEntries(QUESTION_STATES.map((state) => [state, 0])) as Record<AmaQuestionState, number>;
 
@@ -57,6 +70,6 @@ export default defineRoute({
 			total += parsed;
 		}
 
-		return { byState, total };
+		return { byState, mergedDuplicatesCount: Number(mergedDuplicates?.count ?? 0), total };
 	},
 });

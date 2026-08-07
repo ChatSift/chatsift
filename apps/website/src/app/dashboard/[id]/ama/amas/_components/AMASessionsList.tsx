@@ -9,6 +9,7 @@ import type { SortOption } from './SortMenu';
 import { useSortOption } from './SortMenu';
 import type { AMASessionWithCount } from '@/api/routes/ama';
 import { useAMAs } from '@/api/routes/ama';
+import { useMe } from '@/api/routes/auth';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
@@ -51,6 +52,16 @@ export function AMASessionsList() {
 	const includeEnded = searchParams.get('include_ended') === 'true';
 
 	const { data: sessions, isLoading, error } = useAMAs(params.id, includeEnded);
+	const { data: me } = useMe();
+	const guild = me?.guilds.find((g) => g.id === params.id);
+	// Creating a session is manager-only -- a guest only ever sees the specific AMA(s) they're scoped to
+	// (already filtered server-side, see `getAMAs.ts`), so there's nothing for a "create" card to do here.
+	const canCreate = Boolean(me?.isGlobalAdmin || guild?.meCanManage);
+	const createCardItem = canCreate ? (
+		<li>
+			<CreateAMACard />
+		</li>
+	) : null;
 
 	const filtered = useMemo(() => {
 		if (!sessions?.length) {
@@ -72,9 +83,7 @@ export function AMASessionsList() {
 	if (isLoading) {
 		return (
 			<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
-				<li>
-					<CreateAMACard />
-				</li>
+				{createCardItem}
 				{Array.from({ length: 3 }).map((_, index) => (
 					<li key={index}>
 						<AMASessionSkeleton />
@@ -87,9 +96,7 @@ export function AMASessionsList() {
 	if (!sessions?.length) {
 		return (
 			<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
-				<li>
-					<CreateAMACard />
-				</li>
+				{createCardItem}
 				<li className="md:col-span-2 lg:col-span-3">
 					{includeEnded ? (
 						<EmptyState
@@ -128,9 +135,7 @@ export function AMASessionsList() {
 
 	return (
 		<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
-			<li>
-				<CreateAMACard />
-			</li>
+			{createCardItem}
 			{filtered.map((session) => (
 				<li key={session.id}>
 					<AMASessionCard data={session} />

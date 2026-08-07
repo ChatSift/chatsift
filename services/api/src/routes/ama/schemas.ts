@@ -9,14 +9,16 @@ import { snowflakeSchema } from '../../util/schemas.js';
  * route handlers, ...) into a client bundle.
  */
 
-// ASKED means it's already publicly posted (its answers-channel message gets deleted on merge), and
-// DENIED is already a resolved outcome -- merging either away as "just a duplicate", or merging a new
-// asker into one, would silently undo a decision or mutate already-public content. Shared between
-// `services/api` (`mergeShared.ts`'s route-level validation) and `apps/website` (the dashboard's merge
-// pickers/selection UI) via this browser-safe module so both can never drift out of sync.
+// Only PENDING_REVIEW is mergeable -- once a question is APPROVED it's already handed off for a guest
+// to write and send an answer, so folding another question's askers into it at that point doesn't fit
+// the workflow anymore. ASKED means it's already publicly posted (its answers-channel message gets
+// deleted on merge), and DENIED is already a resolved outcome -- merging either away as "just a
+// duplicate", or merging a new asker into one, would silently undo a decision or mutate already-public
+// content. Shared between `services/api` (`mergeShared.ts`'s route-level validation) and `apps/website`
+// (the dashboard's merge pickers/selection UI) via this browser-safe module so both can never drift out
+// of sync.
 export const MERGEABLE_STATES: ReadonlySet<AmaQuestionState> = new Set([
 	'PENDING_REVIEW',
-	'APPROVED',
 ] as readonly AmaQuestionState[]);
 
 const createAMABase = z.strictObject({

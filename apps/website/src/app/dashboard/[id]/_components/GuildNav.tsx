@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { FaWrench } from 'react-icons/fa';
 import { useGrantAuth } from '@/api/grant';
-import { useMe } from '@/api/routes/auth';
+import { useGuildAccess } from '@/hooks/useGuildAccess';
 import { BotIcon, resolveBotBranding } from '@/utils/bots';
 import { cn } from '@/utils/util';
 
@@ -30,37 +30,45 @@ function navLinkClassName(isActive: boolean) {
  * New products (e.g. ModMail) show up here automatically once they're added to `BOTS`/`Bots` — no per-product wiring.
  */
 export function GuildNav() {
-	const { data: me } = useMe();
 	const params = useParams<{ id: string }>();
 	const pathname = usePathname();
 	const grant = useGrantAuth();
+	// A guest with no general manage access only ever gets the AMA tab -- Overview/Settings/other bots
+	// all assume manager-level guild config access `NavGateCheck` doesn't grant them (see its
+	// `isAmaGuestOnly` carve-out, scoped the same way).
+	const { guild, isAmaGuestOnly } = useGuildAccess(params.id);
 
-	const guild = me?.guilds.find((g) => g.id === params.id);
 	if (!guild || !pathname) {
 		return null;
 	}
 
-	const items: NavItem[] = [
-		{
-			label: 'Overview',
-			href: `/dashboard/${guild.id}`,
-			icon: null,
-			exact: true,
-		},
-		{
-			label: 'Settings',
-			href: `/dashboard/${guild.id}/settings`,
-			icon: <FaWrench className="h-4 w-4" />,
-		},
-		...guild.bots.map((bot) => {
+	const botItems = guild.bots
+		.filter((bot) => !isAmaGuestOnly || bot === 'AMA')
+		.map((bot) => {
 			const branding = resolveBotBranding(guild, bot);
 			return {
 				label: branding.label,
 				href: `/dashboard/${guild.id}/${bot.toLowerCase()}`,
 				icon: <BotIcon bot={bot} branding={branding} height={16} width={16} />,
 			};
-		}),
-	];
+		});
+
+	const items: NavItem[] = isAmaGuestOnly
+		? botItems
+		: [
+				{
+					label: 'Overview',
+					href: `/dashboard/${guild.id}`,
+					icon: null,
+					exact: true,
+				},
+				{
+					label: 'Settings',
+					href: `/dashboard/${guild.id}/settings`,
+					icon: <FaWrench className="h-4 w-4" />,
+				},
+				...botItems,
+			];
 
 	return (
 		<nav className="flex items-center gap-2 overflow-x-auto border-b border-on-secondary pb-3 dark:border-on-secondary-dark">

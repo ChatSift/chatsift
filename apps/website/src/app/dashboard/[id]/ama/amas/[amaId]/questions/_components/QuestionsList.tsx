@@ -28,15 +28,15 @@ function previewContent(content: string): string {
 }
 
 const STATE_LABELS: Record<string, string> = {
-	PENDING_REVIEW: 'Pending',
-	APPROVED: 'Approved',
-	ASKED: 'Asked',
+	PENDING_REVIEW: 'Pending Review',
+	APPROVED: 'Guest Questions',
+	ASKED: 'Asked Questions',
 	DENIED: 'Denied',
 };
 
-// Mirrors `AMADetails.tsx`'s `QUESTION_STATE_TILES` valence (neutral/good/bad) so a state means the same
-// thing everywhere in the AMA dashboard -- a flat single color across all states (the original version
-// of this chip) made "Denied" look identical to "Asked", which reads as a mistake, not a status.
+// Mirrors `questionStateTiles.ts`'s valence (neutral/good/bad) so a state means the same thing everywhere
+// in the AMA dashboard -- a flat single color across all states (the original version of this chip) made
+// "Denied" look identical to "Asked", which reads as a mistake, not a status.
 const STATE_CHIP_CLASSES: Record<string, string> = {
 	PENDING_REVIEW: 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark',
 	APPROVED: 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark',
@@ -65,7 +65,7 @@ function QuestionRow({ isExpanded, isSelected, onToggle, onToggleSelect, questio
 
 	const stateToTab: Record<string, string> = {
 		PENDING_REVIEW: 'pending',
-		APPROVED: 'approved',
+		APPROVED: 'guest-questions',
 		ASKED: 'asked',
 		DENIED: 'denied',
 	};
