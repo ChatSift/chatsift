@@ -3,9 +3,7 @@
 
 /** Represents the enum public.ama_question_state */
 enum AmaQuestionState {
-  PENDING_MOD_REVIEW = 'PENDING_MOD_REVIEW',
-  PENDING_GUEST_REVIEW = 'PENDING_GUEST_REVIEW',
-  FLAGGED = 'FLAGGED',
+  PENDING_REVIEW = 'PENDING_REVIEW',
   APPROVED = 'APPROVED',
   DENIED = 'DENIED',
   ASKED = 'ASKED',

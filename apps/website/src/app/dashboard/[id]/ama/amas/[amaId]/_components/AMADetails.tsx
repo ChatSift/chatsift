@@ -40,16 +40,14 @@ const channelName = (channel: GuildChannelInfo | PossiblyMissingChannelInfo | nu
 const allowedChannelTypes = [ChannelType.GuildText, ...threadTypes];
 
 // `valence` picks the count's color the same way the Status badge above already colors "Active"/"Ended": accent
-// for a good outcome, danger for a bad one. PENDING_*/FLAGGED are still awaiting a mod decision, so they stay
-// neutral rather than borrowing a color that would misrepresent them as good or bad.
+// for a good outcome, danger for a bad one. PENDING_REVIEW is still awaiting a decision, so it stays neutral
+// rather than borrowing a color that would misrepresent it as good or bad.
 //
 // `state` is a plain string literal here, not `keyof AMAStats['byState']` -- that type resolves to a (nominal) TS
 // string enum, which plain literals aren't assignable to without a cast. Cast once at the `stats.byState[state]`
 // read below instead of on every tuple entry.
 const QUESTION_STATE_TILES = [
-	{ state: 'PENDING_MOD_REVIEW', label: 'Pending Mod Review', valence: 'neutral' },
-	{ state: 'PENDING_GUEST_REVIEW', label: 'Pending Guest Review', valence: 'neutral' },
-	{ state: 'FLAGGED', label: 'Flagged', valence: 'neutral' },
+	{ state: 'PENDING_REVIEW', label: 'Pending', valence: 'neutral' },
 	// `APPROVED` no longer means "posted" (#293 follow-up) -- with prepared answers on, it means "approved,
 	// awaiting an answer/send", so it stays neutral now; `ASKED` is the new "actually posted" terminal state.
 	{ state: 'APPROVED', label: 'Approved', valence: 'neutral' },
@@ -66,12 +64,10 @@ const valenceClass = {
 interface ConfigFormData {
 	allowedQuestionUploads: string;
 	answersChannelId: string;
-	flaggedQueueId: string;
 	guestIds: string[];
-	guestQueueId: string;
-	modQueueId: string;
-	modReviewEnabled: boolean;
 	preparedAnswersEnabled: boolean;
+	queueId: string;
+	reviewEnabled: boolean;
 	scheduledCloseAt: string;
 	title: string;
 }
@@ -81,9 +77,7 @@ type ConfigFormErrors = Partial<Record<keyof ConfigFormData, string>>;
 const CONFIG_FIELDS = [
 	'title',
 	'answersChannelId',
-	'modQueueId',
-	'flaggedQueueId',
-	'guestQueueId',
+	'queueId',
 	'guestIds',
 	'allowedQuestionUploads',
 	'scheduledCloseAt',
@@ -251,10 +245,8 @@ export function AMADetails() {
 		setConfigForm({
 			title: ama.title,
 			answersChannelId: ama.answersChannel.id,
-			modQueueId: ama.modQueueChannel?.id ?? '',
-			flaggedQueueId: ama.flaggedQueueChannel?.id ?? '',
-			guestQueueId: ama.guestQueueChannel?.id ?? '',
-			modReviewEnabled: ama.modReviewEnabled,
+			queueId: ama.queueChannel?.id ?? '',
+			reviewEnabled: ama.reviewEnabled,
 			preparedAnswersEnabled: ama.preparedAnswersEnabled,
 			allowedQuestionUploads: String(ama.allowedQuestionUploads),
 			scheduledCloseAt,
@@ -276,7 +268,7 @@ export function AMADetails() {
 		setConfigErrors((prev) => ({ ...prev, [field]: undefined }));
 	};
 
-	const updateConfigCheckbox = (field: 'modReviewEnabled' | 'preparedAnswersEnabled', value: boolean) => {
+	const updateConfigCheckbox = (field: 'preparedAnswersEnabled' | 'reviewEnabled', value: boolean) => {
 		setConfigForm((prev) => (prev ? { ...prev, [field]: value } : prev));
 	};
 
@@ -300,12 +292,8 @@ export function AMADetails() {
 		const data = {
 			title: configForm.title,
 			answersChannelId: configForm.answersChannelId,
-			modQueueId: configForm.modReviewEnabled ? configForm.modQueueId || null : null,
-			// Flagging only ever happens from mod review, so this is dropped the same way modQueueId is.
-			flaggedQueueId: configForm.modReviewEnabled ? configForm.flaggedQueueId || null : null,
-			// Guest review has no dash-only mode -- it's just whether a channel is set, no separate toggle.
-			guestQueueId: configForm.guestQueueId || null,
-			modReviewEnabled: configForm.modReviewEnabled,
+			queueId: configForm.reviewEnabled ? configForm.queueId || null : null,
+			reviewEnabled: configForm.reviewEnabled,
 			preparedAnswersEnabled: configForm.preparedAnswersEnabled,
 			allowedQuestionUploads: parseIntegerInput(configForm.allowedQuestionUploads),
 			guestIds: [...new Set(configForm.guestIds.map((id) => id.trim()).filter(Boolean))],
@@ -732,70 +720,41 @@ export function AMADetails() {
 								</div>
 
 								<div>
-									<label className="flex items-center gap-2" htmlFor="edit-mod-review-enabled">
+									<label className="flex items-center gap-2" htmlFor="edit-review-enabled">
 										<input
-											checked={configForm.modReviewEnabled}
+											checked={configForm.reviewEnabled}
 											className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
-											id="edit-mod-review-enabled"
-											onChange={(e) => updateConfigCheckbox('modReviewEnabled', e.target.checked)}
+											id="edit-review-enabled"
+											onChange={(e) => updateConfigCheckbox('reviewEnabled', e.target.checked)}
 											type="checkbox"
 										/>
-										<span className="text-sm font-medium text-secondary dark:text-secondary-dark">
-											Enable mod review
-										</span>
+										<span className="text-sm font-medium text-secondary dark:text-secondary-dark">Enable review</span>
 									</label>
-									{configForm.modReviewEnabled && (
+									{configForm.reviewEnabled && (
 										<div className="mt-2 space-y-3">
 											<ChannelSelect
 												allowedTypes={allowedChannelTypes}
 												channels={channels}
-												error={configErrors.modQueueId}
-												label="Mod Queue (optional)"
-												onChange={(value) => updateConfigField('modQueueId', value)}
-												selectedId="edit-modQueueId"
-												value={configForm.modQueueId}
+												error={configErrors.queueId}
+												label="Queue (optional)"
+												onChange={(value) => updateConfigField('queueId', value)}
+												selectedId="edit-queueId"
+												value={configForm.queueId}
 											/>
-											{!configForm.modQueueId && (
+											{!configForm.queueId && (
 												<p className="rounded-md border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm text-blue-600 dark:text-blue-400">
-													No channel picked - mod review will be managed entirely from the dashboard.
+													No channel picked - review will be managed entirely from the dashboard.
 												</p>
 											)}
-											<ChannelSelect
-												allowedTypes={allowedChannelTypes}
-												channels={channels}
-												error={configErrors.flaggedQueueId}
-												label="Flagged Queue (optional)"
-												onChange={(value) => updateConfigField('flaggedQueueId', value)}
-												selectedId="edit-flaggedQueueId"
-												value={configForm.flaggedQueueId}
-											/>
 										</div>
 									)}
-								</div>
-
-								<div>
-									<ChannelSelect
-										allowedTypes={allowedChannelTypes}
-										channels={channels}
-										error={configErrors.guestQueueId}
-										label="Guest Queue (optional)"
-										onChange={(value) => updateConfigField('guestQueueId', value)}
-										selectedId="edit-guestQueueId"
-										value={configForm.guestQueueId}
-									/>
-									<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-										Unlike mod review, guest review always happens in Discord -- guests generally don&apos;t have
-										dashboard access. Leave this unset to skip the guest queue entirely; questions still get
-										approved/answered from the dashboard.
-									</p>
 								</div>
 
 								<div>
 									<h3 className="text-xl font-medium text-primary dark:text-primary-dark">Guests (optional)</h3>
 									<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
 										Known guest-answerer user IDs. Once at least one is added, &quot;answered by&quot; becomes a picker
-										restricted to this list (in both the guest queue&apos;s Add Answer modal and the dashboard) instead
-										of a free-text ID.
+										restricted to this list instead of a free-text ID.
 									</p>
 									{configErrors.guestIds && <p className="mt-1 text-sm text-misc-danger">{configErrors.guestIds}</p>}
 									<div className="mt-2 space-y-2">
@@ -863,42 +822,18 @@ export function AMADetails() {
 								</div>
 
 								{/* Rendered unconditionally (with a "Not set" fallback) even when unconfigured, so this card has the
-							same set of rows in view and edit mode -- otherwise toggling Edit adds up to three rows that
-							weren't there a moment ago and shoves every card below it down the page. */}
+							same set of rows in view and edit mode -- otherwise toggling Edit adds a row that wasn't
+							there a moment ago and shoves every card below it down the page. */}
 								<div className="flex items-center gap-3">
-									<ChannelIcon channel={ama.modQueueChannel} />
+									<ChannelIcon channel={ama.queueChannel} />
 									<div>
-										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Mod Queue</p>
+										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Queue</p>
 										<p className="text-base text-primary dark:text-primary-dark">
-											{ama.modReviewEnabled
-												? ama.modQueueChannel
-													? channelName(ama.modQueueChannel)
+											{ama.reviewEnabled
+												? ama.queueChannel
+													? channelName(ama.queueChannel)
 													: 'Dashboard only'
 												: 'Disabled'}
-										</p>
-									</div>
-								</div>
-
-								<div className="flex items-center gap-3">
-									<ChannelIcon channel={ama.flaggedQueueChannel} />
-									<div>
-										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Flagged Queue</p>
-										<p className="text-base text-primary dark:text-primary-dark">
-											{ama.modReviewEnabled
-												? ama.flaggedQueueChannel
-													? channelName(ama.flaggedQueueChannel)
-													: 'Not set'
-												: 'Disabled'}
-										</p>
-									</div>
-								</div>
-
-								<div className="flex items-center gap-3">
-									<ChannelIcon channel={ama.guestQueueChannel} />
-									<div>
-										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Guest Queue</p>
-										<p className="text-base text-primary dark:text-primary-dark">
-											{ama.guestQueueChannel ? channelName(ama.guestQueueChannel) : 'Not set'}
 										</p>
 									</div>
 								</div>

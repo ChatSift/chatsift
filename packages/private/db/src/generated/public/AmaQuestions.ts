@@ -19,11 +19,7 @@ export default interface AmaQuestions {
 
   content: string;
 
-  modQueueMessageId: string | null;
-
-  guestQueueMessageId: string | null;
-
-  flaggedQueueMessageId: string | null;
+  queueMessageId: string | null;
 
   answersMessageId: string | null;
 
@@ -52,11 +48,7 @@ export interface AmaQuestionsInitializer {
 
   content: string;
 
-  modQueueMessageId?: string | null;
-
-  guestQueueMessageId?: string | null;
-
-  flaggedQueueMessageId?: string | null;
+  queueMessageId?: string | null;
 
   answersMessageId?: string | null;
 
@@ -85,11 +77,7 @@ export interface AmaQuestionsMutator {
 
   content?: string;
 
-  modQueueMessageId?: string | null;
-
-  guestQueueMessageId?: string | null;
-
-  flaggedQueueMessageId?: string | null;
+  queueMessageId?: string | null;
 
   answersMessageId?: string | null;
 

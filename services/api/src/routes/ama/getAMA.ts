@@ -29,18 +29,16 @@ export type GetAMAQuery = z.input<typeof querySchema>;
 
 export interface AMASessionDetailed extends Omit<
 	AMASessionWithCount,
-	'answersChannelId' | 'flaggedQueueId' | 'guestQueueId' | 'modQueueId' | 'promptChannelId'
+	'answersChannelId' | 'promptChannelId' | 'queueId'
 > {
 	answersChannel: GuildChannelInfo | PossiblyMissingChannelInfo;
-	flaggedQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
-	guestQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
-	// Resolved `guestIds`, same order -- backs the "answered by" guest pickers (dashboard answer editor,
-	// Discord's Add Answer modal reads its own copy) without every consumer re-resolving raw ids itself.
+	// Resolved `guestIds`, same order -- backs the "answered by" guest pickers in the dashboard's
+	// answer editor without every consumer re-resolving raw ids itself.
 	guests: (APIUser | Snowflake)[];
-	modQueueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
 	promptChannel: GuildChannelInfo | PossiblyMissingChannelInfo;
 	promptJsonData: string;
 	promptMessageExists: boolean;
+	queueChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
 }
 
 export default defineRoute({
@@ -87,14 +85,8 @@ export default defineRoute({
 
 		const foundAnswersChannel = channels.find((c) => c.id === session.answersChannelId);
 		const answersChannel = foundAnswersChannel ?? { id: session.answersChannelId };
-		const flaggedQueueChannel = session.flaggedQueueId
-			? (channels.find((c) => c.id === session.flaggedQueueId) ?? { id: session.flaggedQueueId })
-			: null;
-		const guestQueueChannel = session.guestQueueId
-			? (channels.find((c) => c.id === session.guestQueueId) ?? { id: session.guestQueueId })
-			: null;
-		const modQueueChannel = session.modQueueId
-			? (channels.find((c) => c.id === session.modQueueId) ?? { id: session.modQueueId })
+		const queueChannel = session.queueId
+			? (channels.find((c) => c.id === session.queueId) ?? { id: session.queueId })
 			: null;
 		const foundPromptChannel = channels.find((c) => c.id === session.promptChannelId);
 		const promptChannel = foundPromptChannel ?? { id: session.promptChannelId };
@@ -128,13 +120,11 @@ export default defineRoute({
 			ended: shouldEndNow ? true : session.ended,
 			questionCount: Number(questionCount?.count ?? 0),
 			answersChannel,
-			flaggedQueueChannel,
-			guestQueueChannel,
 			guests,
-			modQueueChannel,
 			promptChannel,
 			promptJsonData: promptData.promptJsonData,
 			promptMessageExists,
+			queueChannel,
 		};
 	},
 });

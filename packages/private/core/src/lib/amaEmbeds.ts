@@ -31,67 +31,19 @@ const MAX_EMBEDS_PER_MESSAGE = 10;
  * Represents which queue a question is currently in
  */
 export enum CurrentlyInQueue {
-	mod,
-	guest,
+	queue,
 	answers,
-}
-
-interface SessionQueueIds {
-	answersChannelId: string;
-	guestQueueId: string | null;
-}
-
-interface GetNextQueueResult {
-	kind: CurrentlyInQueue;
-	queueId: string;
-}
-
-/**
- * Determines the next queue in the AMA workflow
- */
-export function getNextQueue(currently: CurrentlyInQueue, session: SessionQueueIds): GetNextQueueResult | null {
-	switch (currently) {
-		case CurrentlyInQueue.answers: {
-			return null;
-		}
-
-		case CurrentlyInQueue.guest: {
-			return { kind: CurrentlyInQueue.answers, queueId: session.answersChannelId };
-		}
-
-		case CurrentlyInQueue.mod: {
-			if (session.guestQueueId) {
-				return { kind: CurrentlyInQueue.guest, queueId: session.guestQueueId };
-			}
-
-			return { kind: CurrentlyInQueue.answers, queueId: session.answersChannelId };
-		}
-	}
 }
 
 interface GetBaseEmbedsOptions {
 	attachments: APIAttachment[];
 	content: string;
-	/**
-	 * Display names of askers merged into this question via the duplicate-merge flow (#293 follow-up)
-	 * -- when present, the author line reads "Asked by X, Y, Z [...and N more]" instead of a single
-	 * author. Capped display (first few names + a remainder count) is the caller's responsibility;
-	 * this just renders whatever list it's given.
-	 */
-	extraAskerDisplayNames?: string[] | undefined;
-	/**
-	 * When `extraAskerDisplayNames` has already been truncated by the caller (only resolving the
-	 * handful of names actually shown avoids resolving every merged asker just to throw most of them
-	 * away), this is the true total count to base the "[...and N more]" remainder on -- defaults to
-	 * `extraAskerDisplayNames.length` when omitted, i.e. "the list I gave you is the whole list."
-	 */
-	extraAskerTotalCount?: number | undefined;
 	guildId: string;
 	includeUserId?: boolean | undefined;
 	member?: APIGuildMember | undefined;
 	/**
 	 * Reserves this many embed slots so the total this call produces stays under Discord's 10-embed
-	 * cap even after the caller appends more afterward -- e.g. `buildPublishEmbeds`/`postToGuestQueue`
+	 * cap even after the caller appends more afterward -- e.g. `buildPublishEmbeds`
 	 * appending `getAnswerEmbed`'s result onto a question that already has the max attachments.
 	 */
 	reserveEmbedSlots?: number | undefined;
@@ -119,46 +71,23 @@ function resolveAvatarURL(
 }
 
 /**
- * Builds the "Asked by X, Y, Z [...and N more]" author name for a question with merged-in duplicate
- * askers (#293 follow-up). Shows up to 3 names verbatim before collapsing the rest into a count, so a
- * question merged many times over doesn't blow out the embed author line.
- */
-function buildAuthorName(
-	primaryDisplayName: string,
-	extraAskerDisplayNames: string[] | undefined,
-	extraAskerTotalCount: number | undefined,
-): string {
-	if (!extraAskerDisplayNames?.length) {
-		return primaryDisplayName;
-	}
-
-	const shown = [primaryDisplayName, ...extraAskerDisplayNames].slice(0, 3);
-	const totalCount = 1 + (extraAskerTotalCount ?? extraAskerDisplayNames.length);
-	const remaining = totalCount - shown.length;
-
-	return `Asked by ${shown.join(', ')}${remaining > 0 ? ` [...and ${remaining} more]` : ''}`;
-}
-
-/**
- * Builds the question embed(s) posted to every queue and the answers channel: author name+avatar
- * line (no "Asked by" prefix needed since the author field already carries that, unless this
- * question has merged-in duplicate askers), optional footer with the raw user ID for queues where a
- * mod needs to act on it, blurple accent. Multiple attachments render as a Discord image gallery via
- * the shared-`url` grouping trick (see `GALLERY_ANCHOR_URL` above).
+ * Builds the question embed(s) posted to the queue and the answers channel: author name+avatar line,
+ * optional footer with the raw user ID for the queue where a reviewer needs to act on it, blurple
+ * accent. Merged-duplicate askers are a dashboard-only detail (see `ama_question_askers`) -- the
+ * Discord embed only ever shows this question's own author, never the merged-in ones. Multiple
+ * attachments render as a Discord image gallery via the shared-`url` grouping trick (see
+ * `GALLERY_ANCHOR_URL` above).
  */
 export function getBaseEmbeds({
 	attachments,
 	content,
-	extraAskerDisplayNames,
-	extraAskerTotalCount,
 	guildId,
 	includeUserId = false,
 	member,
 	reserveEmbedSlots = 0,
 	user,
 }: GetBaseEmbedsOptions): APIEmbed[] {
-	const displayName = member?.nick ?? user?.global_name ?? user?.username ?? 'Unknown User';
-	const authorName = buildAuthorName(displayName, extraAskerDisplayNames, extraAskerTotalCount);
+	const authorName = member?.nick ?? user?.global_name ?? user?.username ?? 'Unknown User';
 	const avatarURL = resolveAvatarURL(guildId, member, user);
 
 	const mainEmbed: APIEmbed = {

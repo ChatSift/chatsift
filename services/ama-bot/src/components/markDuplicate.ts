@@ -12,16 +12,15 @@ import { ComponentType, MessageFlags, TextInputStyle } from '@discordjs/core';
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
 
-// Mirrors `services/api`'s own `MERGEABLE_STATES` -- a question that's already DENIED/FLAGGED/ASKED
-// can't be picked as the original either (see `mergeQuestion.ts`'s matching validation), so it
-// shouldn't show up as a selectable search result to begin with. Exported for `markDuplicateSelect.ts`
-// to re-check at merge time, since a question's state can change between this search and that select.
-export const MERGEABLE_STATES = new Set(['PENDING_MOD_REVIEW', 'PENDING_GUEST_REVIEW', 'APPROVED']);
+// Mirrors `services/api`'s own `MERGEABLE_STATES` -- a question that's already DENIED/ASKED can't be
+// picked as the original either (see `mergeQuestion.ts`'s matching validation), so it shouldn't show
+// up as a selectable search result to begin with. Exported for `markDuplicateSelect.ts` to re-check
+// at merge time, since a question's state can change between this search and that select.
+export const MERGEABLE_STATES = new Set(['PENDING_REVIEW', 'APPROVED']);
 
 /**
- * Entry point for the duplicate-merge flow (#293 follow-up), available on both the mod queue and
- * guest queue (not the flagged queue, which stays a read-only surface). Opens a modal to search for
- * the original question, then follows up with an ephemeral select of matches for
+ * Entry point for the duplicate-merge flow (#293 follow-up), available on the queue. Opens a modal to
+ * search for the original question, then follows up with an ephemeral select of matches for
  * `markDuplicateSelect.ts` to act on.
  */
 export default class MarkDuplicateComponent implements ComponentHandler<string> {

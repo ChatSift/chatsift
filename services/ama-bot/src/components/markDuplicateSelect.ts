@@ -2,7 +2,7 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import { amaQuestionsChannel, getAnswerEmbed, getBaseEmbeds } from '@chatsift/core';
-import type { AmaQuestionAskers, AmaQuestions, AmaSessions } from '@chatsift/db';
+import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
 	APIAttachment,
 	APIEmbed,
@@ -13,18 +13,10 @@ import { CDNRoutes, ImageFormat, MessageFlags, RouteBases } from '@discordjs/cor
 import { DiscordAPIError } from '@discordjs/rest';
 import { MERGEABLE_STATES } from './markDuplicate.js';
 
-/**
- * How many resolved merged-asker names the refreshed embed actually shows -- `getBaseEmbeds` only ever
- * displays the primary author plus up to 2 more before collapsing the rest into a "[...and N more]"
- * count, so resolving beyond that (a Discord API call per asker) would be pure waste on a merge with
- * many duplicates.
- */
-const MAX_SHOWN_EXTRA_ASKERS = 2;
-
 interface CurrentMessage {
 	channelId: string;
 	/**
-	 * Mirrors postToModQueue/postToFlaggedQueue's own `includeUserId: true` -- the only two queues that ever show it.
+	 * Mirrors postToQueue's own `includeUserId: true` -- the only queue that ever shows it.
 	 */
 	includeUserId: boolean;
 	messageId: string;
@@ -36,30 +28,15 @@ interface CurrentMessage {
  * refresh.
  */
 function resolveCurrentMessage(question: AmaQuestions, session: AmaSessions): CurrentMessage | null {
-	if (question.state === 'PENDING_MOD_REVIEW' && session.modQueueId && question.modQueueMessageId) {
-		return { channelId: session.modQueueId, messageId: question.modQueueMessageId, includeUserId: true };
-	}
-
-	if (question.state === 'PENDING_GUEST_REVIEW' && session.guestQueueId && question.guestQueueMessageId) {
-		return { channelId: session.guestQueueId, messageId: question.guestQueueMessageId, includeUserId: false };
-	}
-
-	if (question.state === 'FLAGGED' && session.flaggedQueueId && question.flaggedQueueMessageId) {
-		return { channelId: session.flaggedQueueId, messageId: question.flaggedQueueMessageId, includeUserId: true };
-	}
-
-	// APPROVED has no queue message "of its own" -- when prepared answers hold a question here, the last
-	// queue message it actually got posted to (guest queue takes priority, since that's the later stage)
-	// is left in place with its button swapped rather than deleted, and the question's own
-	// {mod,guest}_queue_message_id keeps pointing at it. Mirrors `services/api`'s own `util.ts`.
-	if (question.state === 'APPROVED') {
-		if (session.guestQueueId && question.guestQueueMessageId) {
-			return { channelId: session.guestQueueId, messageId: question.guestQueueMessageId, includeUserId: false };
-		}
-
-		if (session.modQueueId && question.modQueueMessageId) {
-			return { channelId: session.modQueueId, messageId: question.modQueueMessageId, includeUserId: true };
-		}
+	// APPROVED has no queue message "of its own" -- when prepared answers hold a question here, the
+	// queue message it got posted to is left in place with its button swapped rather than deleted, and
+	// the question's own `queue_message_id` keeps pointing at it. Mirrors `services/api`'s own `util.ts`.
+	if (
+		(question.state === 'PENDING_REVIEW' || question.state === 'APPROVED') &&
+		session.queueId &&
+		question.queueMessageId
+	) {
+		return { channelId: session.queueId, messageId: question.queueMessageId, includeUserId: true };
 	}
 
 	if (question.state === 'ASKED' && question.answersMessageId) {
@@ -73,7 +50,6 @@ type MergeResult =
 	| {
 			duplicate: AmaQuestions;
 			kind: 'ok';
-			mergedAskerRows: AmaQuestionAskers[];
 			original: AmaQuestions;
 			session: AmaSessions;
 	  }
@@ -82,9 +58,10 @@ type MergeResult =
 
 /**
  * Completes the duplicate-merge flow started by `markDuplicate.ts` (#293 follow-up): the duplicate
- * question is deleted, its author (and anyone already merged into it, for chained merges) is
- * recorded as an extra asker on the original, and the original's live message (if any) is refreshed
- * to show "Asked by X, Y, Z [...and N more]".
+ * question is deleted, its author and preserved content (and anyone already merged into it, for
+ * chained merges) is recorded as an extra asker on the original for the dashboard's merged-duplicate
+ * display, and the original's live Discord message (if any) is refreshed -- which continues to show
+ * only the original's own author, never the merged-in ones.
  */
 export default class MarkDuplicateSelectComponent implements ComponentHandler<string> {
 	public readonly name = 'mark-duplicate-select';
@@ -146,15 +123,16 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 				}
 
 				await sql`
-					INSERT INTO ama_question_askers (question_id, author_id)
-					VALUES (${originalId}, ${duplicate.authorId})
+					INSERT INTO ama_question_askers (question_id, author_id, content)
+					VALUES (${originalId}, ${duplicate.authorId}, ${duplicate.content})
 					ON CONFLICT (question_id, author_id) DO NOTHING
 				`;
 
-				// Chained merge: anyone previously merged into the duplicate carries over to the original.
+				// Chained merge: anyone previously merged into the duplicate (with their preserved content)
+				// carries over to the original.
 				await sql`
-					INSERT INTO ama_question_askers (question_id, author_id)
-					SELECT ${originalId}, author_id FROM ama_question_askers WHERE question_id = ${duplicateId}
+					INSERT INTO ama_question_askers (question_id, author_id, content)
+					SELECT ${originalId}, author_id, content FROM ama_question_askers WHERE question_id = ${duplicateId}
 					ON CONFLICT (question_id, author_id) DO NOTHING
 				`;
 
@@ -168,11 +146,7 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 					);
 				}
 
-				const mergedAskerRows = await sql<AmaQuestionAskers[]>`
-					SELECT * FROM ama_question_askers WHERE question_id = ${originalId} ORDER BY merged_at ASC
-				`;
-
-				return { duplicate, kind: 'ok', mergedAskerRows, original, session };
+				return { duplicate, kind: 'ok', original, session };
 			});
 
 			if (merged.kind === 'mismatch') {
@@ -191,16 +165,14 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 				return;
 			}
 
-			const { duplicate, mergedAskerRows, original, session } = merged;
+			const { duplicate, original, session } = merged;
 
 			await publishRealtimeInvalidate(amaQuestionsChannel(session.guildId, original.amaId));
 
 			// Best-effort cleanup of whichever of the duplicate's queue messages exist -- a lost race or a
 			// message deleted out-of-band means this simply no-ops for that one.
 			const duplicateMessages: { channelId: string | null; messageId: string | null }[] = [
-				{ channelId: session.modQueueId, messageId: duplicate.modQueueMessageId },
-				{ channelId: session.guestQueueId, messageId: duplicate.guestQueueMessageId },
-				{ channelId: session.flaggedQueueId, messageId: duplicate.flaggedQueueMessageId },
+				{ channelId: session.queueId, messageId: duplicate.queueMessageId },
 				{ channelId: session.answersChannelId, messageId: duplicate.answersMessageId },
 			];
 			await Promise.all(
@@ -218,22 +190,15 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 					),
 			);
 
-			// Refresh the original's live message (if any) to reflect the merged askers. Best-effort: the
-			// merge itself already committed above, so a failure here (deleted message, rate limit, a
-			// transient Discord error) shouldn't be reported as a failed merge.
+			// Refresh the original's live message (if any) -- it continues to show only the original's own
+			// author (merged askers are a dashboard-only detail). Best-effort: the merge itself already
+			// committed above, so a failure here (deleted message, rate limit, a transient Discord error)
+			// shouldn't be reported as a failed merge.
 			const currentMessage = resolveCurrentMessage(original, session);
 			if (currentMessage) {
 				try {
-					const [attachments, extraAskers, user] = await Promise.all([
+					const [attachments, user] = await Promise.all([
 						fetchAttachments(currentMessage.channelId, currentMessage.messageId),
-						Promise.all(
-							mergedAskerRows.slice(0, MAX_SHOWN_EXTRA_ASKERS).map(async (row) => {
-								const resolvedUser = await getContext()
-									.service.client.api.users.get(row.authorId)
-									.catch(() => null);
-								return resolvedUser?.global_name ?? resolvedUser?.username ?? row.authorId;
-							}),
-						),
 						getContext()
 							.service.client.api.users.get(original.authorId)
 							.catch(() => undefined),
@@ -248,8 +213,6 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 					const embeds: APIEmbed[] = getBaseEmbeds({
 						attachments,
 						content: original.content,
-						extraAskerDisplayNames: extraAskers,
-						extraAskerTotalCount: mergedAskerRows.length,
 						guildId: session.guildId,
 						includeUserId: currentMessage.includeUserId,
 						member,

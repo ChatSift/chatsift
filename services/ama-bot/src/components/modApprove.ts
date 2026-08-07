@@ -5,7 +5,7 @@ import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
-import { postToAnswersChannel, postToGuestQueue } from '../lib/queues.js';
+import { postToAnswersChannel } from '../lib/queues.js';
 
 export default class ModApproveComponent implements ComponentHandler<string> {
 	public readonly name = 'mod-approve';
@@ -61,7 +61,7 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			const attachments = interaction.message.attachments ?? [];
 
 			// Post first, claim second: if the post throws, the row is never touched and stays
-			// PENDING_MOD_REVIEW, so the button remains retryable. If we lose a claim race after posting
+			// PENDING_REVIEW, so the button remains retryable. If we lose a claim race after posting
 			// (another moderator got there first), we clean up the message we just created instead of
 			// leaving a stray duplicate.
 			const reportLostRace = async (channelId: string, messageId: string) => {
@@ -75,37 +75,13 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 				});
 			};
 
-			// Guest review has no dash-only mode (guests generally don't have dashboard access) -- its
-			// stage existence is just `guestQueueId` truthiness, unlike mod review's separate enabled flag.
-			if (session.guestQueueId) {
-				const msg = await postToGuestQueue({
-					attachments,
-					content: question.content,
-					logger,
-					member,
-					question,
-					session,
-					user,
-				});
-
-				const [claimed] = await getContext().db<AmaQuestions[]>`
-					UPDATE ama_questions
-					SET state = 'PENDING_GUEST_REVIEW', guest_queue_message_id = ${msg.id}, updated_at = now()
-					WHERE id = ${question.id} AND state = 'PENDING_MOD_REVIEW'
-					RETURNING *
-				`;
-
-				if (!claimed) {
-					await reportLostRace(session.guestQueueId, msg.id);
-					return;
-				}
-			} else if (session.preparedAnswersEnabled) {
-				// No guest stage and prepared answers is on: hold at APPROVED, awaiting a prepared answer and
-				// an explicit dashboard Send (#293 follow-up) -- nothing posts here.
+			if (session.preparedAnswersEnabled) {
+				// Prepared answers is on: hold at APPROVED, awaiting a prepared answer and an explicit
+				// dashboard Send (#293 follow-up) -- nothing posts here.
 				const [claimed] = await getContext().db<AmaQuestions[]>`
 					UPDATE ama_questions
 					SET state = 'APPROVED', updated_at = now()
-					WHERE id = ${question.id} AND state = 'PENDING_MOD_REVIEW'
+					WHERE id = ${question.id} AND state = 'PENDING_REVIEW'
 					RETURNING *
 				`;
 
@@ -130,7 +106,7 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 				const [claimed] = await getContext().db<AmaQuestions[]>`
 					UPDATE ama_questions
 					SET state = 'ASKED', answers_message_id = ${msg.id}, updated_at = now()
-					WHERE id = ${question.id} AND state = 'PENDING_MOD_REVIEW'
+					WHERE id = ${question.id} AND state = 'PENDING_REVIEW'
 					RETURNING *
 				`;
 

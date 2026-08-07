@@ -1,7 +1,6 @@
 import { getContext } from '@chatsift/backend-core';
-import { amaQuestionsChannel, getBaseEmbeds, withResolvedActionRow } from '@chatsift/core';
-import type { AmaQuestions, AmaQuestionsId, AmaQuestionState, AmaSessions, AmaSessionsId } from '@chatsift/db';
-import type { APIButtonComponent } from '@discordjs/core';
+import { amaQuestionsChannel, withResolvedActionRow } from '@chatsift/core';
+import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { badRequest, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
@@ -9,10 +8,10 @@ import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
-import { buildPublishEmbeds, resolveAmaUser, resolveCurrentQueueMessage, resolveQuestionAttachments } from './util.js';
+import { buildPublishEmbeds } from './util.js';
 
 const stateModeSchema = z.strictObject({
-	state: z.enum(['APPROVED', 'DENIED', 'FLAGGED']),
+	state: z.enum(['APPROVED', 'DENIED']),
 });
 
 const answerModeSchema = z
@@ -50,22 +49,11 @@ type ClickableButtonStyle = ButtonStyle.Danger | ButtonStyle.Primary | ButtonSty
 async function markSourceMessageResolved(
 	question: AmaQuestions,
 	session: AmaSessions,
-	fromState: AmaQuestionState,
 	style: ClickableButtonStyle,
 	label: string,
 ): Promise<void> {
-	const channelId =
-		fromState === 'PENDING_MOD_REVIEW'
-			? session.modQueueId
-			: fromState === 'PENDING_GUEST_REVIEW'
-				? session.guestQueueId
-				: null;
-	const messageId =
-		fromState === 'PENDING_MOD_REVIEW'
-			? question.modQueueMessageId
-			: fromState === 'PENDING_GUEST_REVIEW'
-				? question.guestQueueMessageId
-				: null;
+	const channelId = session.queueId;
+	const messageId = question.queueMessageId;
 
 	if (!channelId || !messageId) {
 		return;
@@ -145,14 +133,12 @@ export default defineRoute({
 			}
 
 			// Once a guest list is configured for this AMA, "answered by" must be one of those guests --
-			// no more freeform ids, matching the same restriction the guest queue's Add Answer modal
-			// applies once `guestIds` is non-empty (see `guestAddAnswer.ts`).
+			// no more freeform ids.
 			if (data.answeredById && session.guestIds.length > 0 && !session.guestIds.includes(data.answeredById)) {
 				throw badRequest("answeredById must be one of this AMA's configured guests");
 			}
 
-			// Defaults to the dashboard user making the edit, not the question's own author -- mirrors
-			// `guestAddAnswer.ts`'s modal, which defaults to whichever guest/mod submitted it. Distinct
+			// Defaults to the dashboard user making the edit, not the question's own author. Distinct
 			// from `answerContent`/`answerImageUrl` above: `answeredById` needs to tell "field omitted,
 			// leave as-is" apart from "field explicitly cleared back to the default" -- an explicit
 			// `null` (the dashboard's "Default (you)" option) must actually reset it, not fall through
@@ -191,18 +177,17 @@ export default defineRoute({
 		}
 
 		// State-transition mode -- replicates the bot's atomic-claim + Discord-side-effect pattern from
-		// the dashboard, keying stage existence off `*_review_enabled` and Discord posting off `*_queue_id`
-		// (see schema.sql's comments on those columns / docs/roadmap's #293 follow-up).
+		// the dashboard, keying review's existence off `review_enabled` and Discord posting off
+		// `queue_id` (see schema.sql's comments on those columns / docs/roadmap's #293 follow-up).
 		if (data.state === 'DENIED') {
-			if (question.state !== 'PENDING_MOD_REVIEW' && question.state !== 'PENDING_GUEST_REVIEW') {
+			if (question.state !== 'PENDING_REVIEW') {
 				throw badRequest(`cannot deny a question in state ${question.state}`);
 			}
 
-			const fromState = question.state;
 			const [denied] = await db<AmaQuestions[]>`
 				UPDATE ama_questions
 				SET state = 'DENIED', updated_at = now()
-				WHERE id = ${questionId} AND state = ${fromState}
+				WHERE id = ${questionId} AND state = 'PENDING_REVIEW'
 				RETURNING *
 			`;
 
@@ -210,212 +195,47 @@ export default defineRoute({
 				throw conflict('this question was already handled by someone else');
 			}
 
-			await markSourceMessageResolved(question, session, fromState, ButtonStyle.Danger, '❌ Denied');
+			await markSourceMessageResolved(question, session, ButtonStyle.Danger, '❌ Denied');
 			return denied;
 		}
 
-		if (data.state === 'FLAGGED') {
-			if (question.state !== 'PENDING_MOD_REVIEW') {
-				throw badRequest(`cannot flag a question in state ${question.state}`);
-			}
-
-			let flaggedMessageId: string | null = null;
-			if (session.flaggedQueueId) {
-				const [attachments, user] = await Promise.all([
-					resolveQuestionAttachments(question, session),
-					resolveAmaUser(guildId, question.authorId),
-				]);
-				const embeds = getBaseEmbeds({
-					attachments,
-					content: question.content,
-					guildId,
-					includeUserId: true,
-					user: typeof user === 'string' ? undefined : user,
-				});
-				const message = await discordAPIAma.channels.createMessage(session.flaggedQueueId, { embeds });
-				flaggedMessageId = message.id;
-			}
-
-			const [flagged] = await db<AmaQuestions[]>`
-				UPDATE ama_questions
-				SET state = 'FLAGGED', flagged_queue_message_id = ${flaggedMessageId}, updated_at = now()
-				WHERE id = ${questionId} AND state = 'PENDING_MOD_REVIEW'
-				RETURNING *
-			`;
-
-			if (!flagged) {
-				if (flaggedMessageId) {
-					// eslint-disable-next-line promise/prefer-await-to-then
-					void discordAPIAma.channels.deleteMessage(session.flaggedQueueId!, flaggedMessageId).catch(() => null);
-				}
-
-				throw conflict('this question was already handled by someone else');
-			}
-
-			await markSourceMessageResolved(question, session, question.state, ButtonStyle.Secondary, '⚠️ Flagged');
-			return flagged;
-		}
-
 		// data.state === 'APPROVED'
-		if (question.state === 'PENDING_MOD_REVIEW') {
-			const fromState = question.state;
+		if (question.state !== 'PENDING_REVIEW') {
+			throw badRequest(`cannot approve a question in state ${question.state}`);
+		}
 
-			// Guest review has no dash-only mode (guests generally don't have dashboard access) -- its
-			// existence is just `guestQueueId` truthiness, unlike mod review's separate enabled flag.
-			if (session.guestQueueId) {
-				const [attachments, user] = await Promise.all([
-					resolveQuestionAttachments(question, session),
-					resolveAmaUser(guildId, question.authorId),
-				]);
-				const embeds = getBaseEmbeds({
-					attachments,
-					content: question.content,
-					guildId,
-					user: typeof user === 'string' ? undefined : user,
-					// Mirrors `postToGuestQueue`'s own reserve -- this dashboard-driven routing produces the
-					// same kind of guest-queue message the bot does, and `send-question.ts` copies its embeds
-					// forward the same way.
-					reserveEmbedSlots: session.preparedAnswersEnabled ? 1 : 0,
-				});
-				const buttons: APIButtonComponent[] = session.preparedAnswersEnabled
-					? [
-							{
-								type: ComponentType.Button,
-								style: ButtonStyle.Success,
-								label: 'Add Answer',
-								custom_id: `guest-add-answer:${question.id}`,
-							},
-						]
-					: [
-							{
-								type: ComponentType.Button,
-								style: ButtonStyle.Success,
-								label: 'Answer',
-								custom_id: `guest-approve:${question.id}`,
-							},
-						];
-				buttons.push({
-					type: ComponentType.Button,
-					style: ButtonStyle.Secondary,
-					label: 'Skip',
-					custom_id: `guest-skip:${question.id}`,
-				});
-				// Mirrors `postToGuestQueue`'s own button set (services/ama-bot/src/lib/queues.ts) -- a question
-				// routed to the guest queue from the dashboard must offer the same Mark Duplicate entry point as
-				// one routed there by the bot itself.
-				buttons.push({
-					type: ComponentType.Button,
-					style: ButtonStyle.Secondary,
-					label: 'Mark Duplicate',
-					custom_id: `mark-duplicate:${question.id}`,
-				});
-				const message = await discordAPIAma.channels.createMessage(session.guestQueueId, {
-					embeds,
-					components: [{ type: ComponentType.ActionRow, components: buttons }],
-				});
-
-				const [routed] = await db<AmaQuestions[]>`
-					UPDATE ama_questions
-					SET state = 'PENDING_GUEST_REVIEW', guest_queue_message_id = ${message.id}, updated_at = now()
-					WHERE id = ${questionId} AND state = 'PENDING_MOD_REVIEW'
-					RETURNING *
-				`;
-
-				if (!routed) {
-					// eslint-disable-next-line promise/prefer-await-to-then
-					void discordAPIAma.channels.deleteMessage(session.guestQueueId, message.id).catch(() => null);
-					throw conflict('this question was already handled by someone else');
-				}
-
-				await markSourceMessageResolved(question, session, fromState, ButtonStyle.Success, '✅ Approved');
-				return routed;
-			}
-
-			if (session.preparedAnswersEnabled) {
-				const [approved] = await db<AmaQuestions[]>`
-					UPDATE ama_questions SET state = 'APPROVED', updated_at = now()
-					WHERE id = ${questionId} AND state = 'PENDING_MOD_REVIEW'
-					RETURNING *
-				`;
-
-				if (!approved) {
-					throw conflict('this question was already handled by someone else');
-				}
-
-				await markSourceMessageResolved(
-					question,
-					session,
-					fromState,
-					ButtonStyle.Success,
-					'✅ Approved - awaiting send',
-				);
-				return approved;
-			}
-
-			const embeds = await buildPublishEmbeds(guildId, question, session);
-			const message = await discordAPIAma.channels.createMessage(session.answersChannelId, { embeds });
-
-			const [asked] = await db<AmaQuestions[]>`
-				UPDATE ama_questions
-				SET state = 'ASKED', answers_message_id = ${message.id}, updated_at = now()
-				WHERE id = ${questionId} AND state = 'PENDING_MOD_REVIEW'
+		if (session.preparedAnswersEnabled) {
+			const [approved] = await db<AmaQuestions[]>`
+				UPDATE ama_questions SET state = 'APPROVED', updated_at = now()
+				WHERE id = ${questionId} AND state = 'PENDING_REVIEW'
 				RETURNING *
 			`;
 
-			if (!asked) {
-				// eslint-disable-next-line promise/prefer-await-to-then
-				void discordAPIAma.channels.deleteMessage(session.answersChannelId, message.id).catch(() => null);
+			if (!approved) {
 				throw conflict('this question was already handled by someone else');
 			}
 
-			await markSourceMessageResolved(question, session, fromState, ButtonStyle.Success, '✅ Approved');
-			return asked;
+			await markSourceMessageResolved(question, session, ButtonStyle.Success, '✅ Approved - awaiting send');
+			return approved;
 		}
 
-		if (question.state === 'PENDING_GUEST_REVIEW') {
-			const fromState = question.state;
+		const embeds = await buildPublishEmbeds(guildId, question, session);
+		const message = await discordAPIAma.channels.createMessage(session.answersChannelId, { embeds });
 
-			if (session.preparedAnswersEnabled) {
-				const [approved] = await db<AmaQuestions[]>`
-					UPDATE ama_questions SET state = 'APPROVED', updated_at = now()
-					WHERE id = ${questionId} AND state = 'PENDING_GUEST_REVIEW'
-					RETURNING *
-				`;
+		const [asked] = await db<AmaQuestions[]>`
+			UPDATE ama_questions
+			SET state = 'ASKED', answers_message_id = ${message.id}, updated_at = now()
+			WHERE id = ${questionId} AND state = 'PENDING_REVIEW'
+			RETURNING *
+		`;
 
-				if (!approved) {
-					throw conflict('this question was already handled by someone else');
-				}
-
-				await markSourceMessageResolved(
-					question,
-					session,
-					fromState,
-					ButtonStyle.Success,
-					'✅ Approved - awaiting send',
-				);
-				return approved;
-			}
-
-			const embeds = await buildPublishEmbeds(guildId, question, session);
-			const message = await discordAPIAma.channels.createMessage(session.answersChannelId, { embeds });
-
-			const [asked] = await db<AmaQuestions[]>`
-				UPDATE ama_questions
-				SET state = 'ASKED', answers_message_id = ${message.id}, updated_at = now()
-				WHERE id = ${questionId} AND state = 'PENDING_GUEST_REVIEW'
-				RETURNING *
-			`;
-
-			if (!asked) {
-				// eslint-disable-next-line promise/prefer-await-to-then
-				void discordAPIAma.channels.deleteMessage(session.answersChannelId, message.id).catch(() => null);
-				throw conflict('this question was already handled by someone else');
-			}
-
-			await markSourceMessageResolved(question, session, fromState, ButtonStyle.Success, '✅ Answered');
-			return asked;
+		if (!asked) {
+			// eslint-disable-next-line promise/prefer-await-to-then
+			void discordAPIAma.channels.deleteMessage(session.answersChannelId, message.id).catch(() => null);
+			throw conflict('this question was already handled by someone else');
 		}
 
-		throw badRequest(`cannot approve a question in state ${question.state}`);
+		await markSourceMessageResolved(question, session, ButtonStyle.Success, '✅ Approved');
+		return asked;
 	},
 });
