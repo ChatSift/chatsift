@@ -45,7 +45,7 @@ export default defineRoute({
 		try {
 			await assertChannelsBelongToGuild(
 				guildId,
-				[data.promptChannelId, data.answersChannelId, data.modQueueId, data.flaggedQueueId, data.guestQueueId],
+				[data.promptChannelId, data.answersChannelId, data.queueId],
 				'AMA',
 				req.logger,
 			);
@@ -112,14 +112,14 @@ export default defineRoute({
 				const [session] = await sql<AmaSessions[]>`
 					INSERT INTO ama_sessions (
 						guild_id, title, answers_channel_id, prompt_channel_id,
-						mod_queue_id, flagged_queue_id, guest_queue_id, allowed_question_uploads, ended, scheduled_close_at,
-						mod_review_enabled, prepared_answers_enabled, share_token, guest_ids
+						queue_id, allowed_question_uploads, ended, scheduled_close_at,
+						review_enabled, prepared_answers_enabled, share_token, guest_ids
 					)
 					VALUES (
 						${guildId}, ${data.title}, ${data.answersChannelId}, ${data.promptChannelId},
-						${data.modQueueId}, ${data.flaggedQueueId}, ${data.guestQueueId}, ${data.allowedQuestionUploads}, false,
+						${data.queueId}, ${data.allowedQuestionUploads}, false,
 						${data.scheduledCloseAt ?? null},
-						${data.modReviewEnabled}, ${data.preparedAnswersEnabled}, ${shareToken}, ${sql.array(data.guestIds)}
+						${data.reviewEnabled}, ${data.preparedAnswersEnabled}, ${shareToken}, ${sql.array(data.guestIds)}
 					)
 					RETURNING *
 				`;

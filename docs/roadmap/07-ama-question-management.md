@@ -6,6 +6,8 @@
 
 Schema, bot, API, and dashboard work described below is written. What's outstanding is the manual end-to-end verification pass against a real test guild (per [docs/workflow.md](../workflow.md)'s standard) before this is folded into [01-architecture.md](01-architecture.md) the way M1–M3/#261/#216 were.
 
+> **Superseded (2026-08-07):** before this ever got its live-verification pass, the two-stage mod-queue/guest-queue pipeline and the `FLAGGED` state described below were both simplified away — see the "collapse AMA queues" change on `refactor/ama-queues`. Guests now review the same single queue as mods via scoped dashboard access instead of a dedicated Discord channel, and flagging (a dead-end with no forward path) was removed outright. The **prepared answers / tags / duplicate-merging** feature set this doc covers is otherwise still accurate and shipped as designed — only the queue-routing/state-machine parts below are historical. Current model lives in [01-architecture.md §5-6](01-architecture.md#5-data-model-reference-6-models).
+
 ## Why
 
 Three related asks arrived together:

@@ -48,11 +48,11 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 				return;
 			}
 
-			// Only denies from PENDING_MOD_REVIEW so a concurrent approve/deny can't both win.
+			// Only denies from PENDING_REVIEW so a concurrent approve/deny can't both win.
 			const [denied] = await getContext().db<AmaQuestions[]>`
 				UPDATE ama_questions
 				SET state = 'DENIED', updated_at = now()
-				WHERE id = ${question.id} AND state = 'PENDING_MOD_REVIEW'
+				WHERE id = ${question.id} AND state = 'PENDING_REVIEW'
 				RETURNING *
 			`;
 

@@ -11,7 +11,7 @@ import type {
 } from '@discordjs/core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 
-export { CurrentlyInQueue, getNextQueue, withResolvedActionRow } from '@chatsift/core';
+export { CurrentlyInQueue, withResolvedActionRow } from '@chatsift/core';
 
 /**
  * Posts a queue message, then runs `claim` (an atomic UPDATE guarded by a WHERE clause) to take ownership
@@ -48,7 +48,7 @@ export async function claimAfterPost<TRow>(
 	}
 }
 
-interface PostToModQueueOptions {
+interface PostToQueueOptions {
 	attachments: APIAttachment[];
 	content: string;
 	logger: Logger;
@@ -59,9 +59,10 @@ interface PostToModQueueOptions {
 }
 
 /**
- * Posts a question to the mod queue with approve/deny/flag buttons
+ * Posts a question to the queue with approve/deny buttons. Reviewed by mods in Discord here, or by
+ * anyone in `session.guestIds` via the dashboard -- both act on the same row.
  */
-export async function postToModQueue({
+export async function postToQueue({
 	attachments,
 	content,
 	logger,
@@ -69,9 +70,9 @@ export async function postToModQueue({
 	question,
 	session,
 	user,
-}: PostToModQueueOptions) {
-	if (!session.modQueueId) {
-		throw new Error('No mod queue configured for this session');
+}: PostToQueueOptions) {
+	if (!session.queueId) {
+		throw new Error('No queue configured for this session');
 	}
 
 	const embeds = getBaseEmbeds({
@@ -80,10 +81,9 @@ export async function postToModQueue({
 		guildId: session.guildId,
 		member,
 		user,
-		includeUserId: true, // Include user ID in mod queue
+		includeUserId: true, // Include user ID in the queue
 	});
 
-	// Create action buttons using raw API structures
 	const buttons: APIButtonComponent[] = [
 		{
 			type: ComponentType.Button,
@@ -97,172 +97,23 @@ export async function postToModQueue({
 			label: 'Deny',
 			custom_id: `mod-deny:${question.id}`,
 		},
-	];
-
-	// Add flag button if flagged queue exists
-	if (session.flaggedQueueId) {
-		buttons.push({
+		{
 			type: ComponentType.Button,
 			style: ButtonStyle.Secondary,
-			label: 'Flag',
-			emoji: { name: '⚠️' },
-			custom_id: `mod-flag:${question.id}`,
-		});
-	}
-
-	// Duplicate-merge entry point (#293 follow-up) -- available on the mod queue and guest queue,
-	// deliberately not on the flagged queue (that surface stays read-only, see postToFlaggedQueue).
-	buttons.push({
-		type: ComponentType.Button,
-		style: ButtonStyle.Secondary,
-		label: 'Mark Duplicate',
-		custom_id: `mark-duplicate:${question.id}`,
-	});
+			label: 'Mark Duplicate',
+			custom_id: `mark-duplicate:${question.id}`,
+		},
+	];
 
 	const messageData: RESTPostAPIChannelMessageJSONBody = {
 		embeds,
 		components: [createButtonActionRow(buttons)],
 	};
 
-	const message = await getContext().service.client.api.channels.createMessage(session.modQueueId, messageData);
+	const message = await getContext().service.client.api.channels.createMessage(session.queueId, messageData);
 	logger.info(
-		{ questionId: question.id, sessionId: session.id, channelId: session.modQueueId, messageId: message.id },
-		'Posted question to mod queue',
-	);
-
-	return message;
-}
-
-interface PostToGuestQueueOptions {
-	attachments: APIAttachment[];
-	content: string;
-	logger: Logger;
-	member?: APIGuildMember | undefined;
-	question: AmaQuestions;
-	session: AmaSessions;
-	user?: APIUser | undefined;
-}
-
-/**
- * Posts a question to the guest queue. When `session.preparedAnswersEnabled` is off, the primary
- * button posts straight to the answers channel ("Answer", `guest-approve`) — unchanged prod
- * behavior. When on, that same button instead opens the "Add Answer" modal (`guest-add-answer`,
- * #293 follow-up) and nothing gets posted until the dashboard's Send action runs.
- */
-export async function postToGuestQueue({
-	attachments,
-	content,
-	logger,
-	member,
-	question,
-	session,
-	user,
-}: PostToGuestQueueOptions) {
-	if (!session.guestQueueId) {
-		throw new Error('No guest queue configured for this session');
-	}
-
-	const embeds = getBaseEmbeds({
-		attachments,
-		content,
-		guildId: session.guildId,
-		member,
-		user,
-		includeUserId: false, // Don't include user ID in guest queue
-		// When prepared answers are on, `send-question.ts` later copies this exact message's embeds and
-		// appends `getAnswerEmbed`'s result onto them for the answers-channel post -- reserve that slot
-		// now so a question with the max attachments doesn't blow past Discord's 10-embed cap then.
-		reserveEmbedSlots: session.preparedAnswersEnabled ? 1 : 0,
-	});
-
-	const buttons: APIButtonComponent[] = session.preparedAnswersEnabled
-		? [
-				{
-					type: ComponentType.Button,
-					style: ButtonStyle.Success,
-					label: 'Add Answer',
-					custom_id: `guest-add-answer:${question.id}`,
-				},
-			]
-		: [
-				{
-					type: ComponentType.Button,
-					style: ButtonStyle.Success,
-					label: 'Answer',
-					custom_id: `guest-approve:${question.id}`,
-				},
-			];
-
-	buttons.push({
-		type: ComponentType.Button,
-		style: ButtonStyle.Secondary,
-		label: 'Skip',
-		custom_id: `guest-skip:${question.id}`,
-	});
-	buttons.push({
-		type: ComponentType.Button,
-		style: ButtonStyle.Secondary,
-		label: 'Mark Duplicate',
-		custom_id: `mark-duplicate:${question.id}`,
-	});
-
-	const messageData: RESTPostAPIChannelMessageJSONBody = {
-		embeds,
-		components: [createButtonActionRow(buttons)],
-	};
-
-	const message = await getContext().service.client.api.channels.createMessage(session.guestQueueId, messageData);
-	logger.info(
-		{ questionId: question.id, sessionId: session.id, channelId: session.guestQueueId, messageId: message.id },
-		'Posted question to guest queue',
-	);
-
-	return message;
-}
-
-interface PostToFlaggedQueueOptions {
-	attachments: APIAttachment[];
-	content: string;
-	logger: Logger;
-	member?: APIGuildMember | undefined;
-	question: AmaQuestions;
-	session: AmaSessions;
-	user?: APIUser | undefined;
-}
-
-/**
- * Posts a question to the flagged queue. This is a read-only surface for mods — nothing routes
- * out of it via the bot; mods review the reported content here and act on the user directly
- * through Discord's own moderation tools.
- */
-export async function postToFlaggedQueue({
-	attachments,
-	content,
-	logger,
-	member,
-	question,
-	session,
-	user,
-}: PostToFlaggedQueueOptions) {
-	if (!session.flaggedQueueId) {
-		throw new Error('No flagged queue configured for this session');
-	}
-
-	const embeds = getBaseEmbeds({
-		attachments,
-		content,
-		guildId: session.guildId,
-		member,
-		user,
-		includeUserId: true, // Include user ID in flagged queue
-	});
-
-	const messageData: RESTPostAPIChannelMessageJSONBody = { embeds };
-
-	const message = await getContext().service.client.api.channels.createMessage(session.flaggedQueueId, messageData);
-	logger.info(
-		{ questionId: question.id, sessionId: session.id, channelId: session.flaggedQueueId, messageId: message.id },
-		'Posted question to flagged queue',
+		{ questionId: question.id, sessionId: session.id, channelId: session.queueId, messageId: message.id },
+		'Posted question to queue',
 	);
 
 	return message;

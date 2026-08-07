@@ -9,22 +9,18 @@ import { snowflakeSchema } from '../../util/schemas.js';
  * route handlers, ...) into a client bundle.
  */
 
-// A question can only ever reach FLAGGED from PENDING_MOD_REVIEW (a mod's own separate-handling call),
 // ASKED means it's already publicly posted (its answers-channel message gets deleted on merge), and
-// DENIED is already a resolved outcome -- merging any of those away as "just a duplicate", or merging a
-// new asker into one, would silently undo a decision or mutate already-public content. Shared between
+// DENIED is already a resolved outcome -- merging either away as "just a duplicate", or merging a new
+// asker into one, would silently undo a decision or mutate already-public content. Shared between
 // `services/api` (`mergeShared.ts`'s route-level validation) and `apps/website` (the dashboard's merge
 // pickers/selection UI) via this browser-safe module so both can never drift out of sync.
 export const MERGEABLE_STATES: ReadonlySet<AmaQuestionState> = new Set([
-	'PENDING_MOD_REVIEW',
-	'PENDING_GUEST_REVIEW',
+	'PENDING_REVIEW',
 	'APPROVED',
 ] as readonly AmaQuestionState[]);
 
 const createAMABase = z.strictObject({
-	modQueueId: snowflakeSchema.nullable(),
-	flaggedQueueId: snowflakeSchema.nullable(),
-	guestQueueId: snowflakeSchema.nullable(),
+	queueId: snowflakeSchema.nullable(),
 	title: z.string().min(1).max(255),
 	answersChannelId: snowflakeSchema,
 	promptChannelId: snowflakeSchema,
@@ -37,18 +33,18 @@ const createAMABase = z.strictObject({
 		.refine((value) => new Date(value).getTime() > Date.now(), 'Scheduled close date must be in the future')
 		.nullable()
 		.optional(),
-	// Dash-only mod review (#293 follow-up): splits "does this stage exist" from "does it have a Discord
-	// channel" -- mod review can be enabled with no channel picked, meaning it's managed entirely from
-	// the dashboard. Mirrors the CHECK constraint in schema.sql. Guest review has no dash-only mode --
-	// guests generally don't have dashboard access, so its existence is just `guestQueueId` truthiness.
-	modReviewEnabled: z.boolean().optional().default(false),
+	// Dash-only review (#293 follow-up): splits "does review exist" from "does it have a Discord
+	// channel" -- review can be enabled with no channel picked, meaning it's managed entirely from the
+	// dashboard (by mods there and/or any configured `guestIds`). Mirrors the CHECK constraint in
+	// schema.sql.
+	reviewEnabled: z.boolean().optional().default(false),
 	// Decouples approving a question from posting it (#293 follow-up) -- see schema.sql's comment on
 	// `ama_sessions.prepared_answers_enabled`.
 	preparedAnswersEnabled: z.boolean().optional().default(false),
-	// Known guest-answerer user ids (#293 follow-up) -- backs the "answered by" picker in both the guest
-	// queue's Add Answer modal and the dashboard's answer editor. Editable retroactively via updateAMA.
-	// Capped well above any realistic guest list -- bounds `getAMA.ts`'s per-guest Discord lookups and
-	// Discord's own 25-option select limit (`guestAddAnswer.ts` already slices further for that).
+	// Known guest user ids (#293 follow-up, scope widened for guest dashboard access) -- grants scoped
+	// dashboard access to this AMA (approve/deny/merge/prepare+send answers/tag) regardless of general
+	// guild-manage status, and backs the "answered by" picker in the dashboard's answer editor. Editable
+	// retroactively via updateAMA. Capped well above any realistic guest list.
 	guestIds: z.array(snowflakeSchema).max(50).optional().default([]),
 });
 
@@ -70,13 +66,9 @@ export const createAMAWithRawPromptSchema = createAMABase.safeExtend({
 
 export const createAMABodySchema = z
 	.union([createAMAWithRegularPromptSchema, createAMAWithRawPromptSchema])
-	.refine((data) => data.modReviewEnabled || !data.modQueueId, {
-		message: 'modQueueId can only be set when modReviewEnabled is true',
-		path: ['modQueueId'],
-	})
-	.refine((data) => data.modReviewEnabled || !data.flaggedQueueId, {
-		message: 'flaggedQueueId can only be set when modReviewEnabled is true (flagging only happens from mod review)',
-		path: ['flaggedQueueId'],
+	.refine((data) => data.reviewEnabled || !data.queueId, {
+		message: 'queueId can only be set when reviewEnabled is true',
+		path: ['queueId'],
 	});
 
 export const updateAMAEndSchema = z.strictObject({
@@ -87,12 +79,10 @@ export const updateAMAConfigSchema = z
 	.strictObject({
 		title: z.string().min(1).max(255).optional(),
 		answersChannelId: snowflakeSchema.optional(),
-		modQueueId: snowflakeSchema.nullable().optional(),
-		flaggedQueueId: snowflakeSchema.nullable().optional(),
-		guestQueueId: snowflakeSchema.nullable().optional(),
+		queueId: snowflakeSchema.nullable().optional(),
 		allowedQuestionUploads: z.number().int().min(0).max(10).optional(),
 		scheduledCloseAt: createAMABase.shape.scheduledCloseAt,
-		modReviewEnabled: z.boolean().optional(),
+		reviewEnabled: z.boolean().optional(),
 		preparedAnswersEnabled: z.boolean().optional(),
 		guestIds: z.array(snowflakeSchema).max(50).optional(),
 		prompt: createAMAWithRegularPromptSchema.shape.prompt.optional(),

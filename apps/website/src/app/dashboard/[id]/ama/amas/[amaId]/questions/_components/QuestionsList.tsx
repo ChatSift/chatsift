@@ -28,21 +28,17 @@ function previewContent(content: string): string {
 }
 
 const STATE_LABELS: Record<string, string> = {
-	PENDING_MOD_REVIEW: 'Pending Mod Review',
-	PENDING_GUEST_REVIEW: 'Pending Guest Review',
-	FLAGGED: 'Flagged',
+	PENDING_REVIEW: 'Pending',
 	APPROVED: 'Approved',
 	ASKED: 'Asked',
 	DENIED: 'Denied',
 };
 
 // Mirrors `AMADetails.tsx`'s `QUESTION_STATE_TILES` valence (neutral/good/bad) so a state means the same
-// thing everywhere in the AMA dashboard -- a flat single color across all six states (the original
-// version of this chip) made "Denied" look identical to "Asked", which reads as a mistake, not a status.
+// thing everywhere in the AMA dashboard -- a flat single color across all states (the original version
+// of this chip) made "Denied" look identical to "Asked", which reads as a mistake, not a status.
 const STATE_CHIP_CLASSES: Record<string, string> = {
-	PENDING_MOD_REVIEW: 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark',
-	PENDING_GUEST_REVIEW: 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark',
-	FLAGGED: 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark',
+	PENDING_REVIEW: 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark',
 	APPROVED: 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark',
 	ASKED: 'bg-misc-accent/10 text-misc-accent',
 	DENIED: 'bg-misc-danger/10 text-misc-danger',
@@ -68,9 +64,7 @@ function QuestionRow({ isExpanded, isSelected, onToggle, onToggleSelect, questio
 	const [, setTabParam] = useURLParam('tab');
 
 	const stateToTab: Record<string, string> = {
-		PENDING_MOD_REVIEW: 'pending-mod',
-		PENDING_GUEST_REVIEW: 'pending-guest',
-		FLAGGED: 'flagged',
+		PENDING_REVIEW: 'pending',
 		APPROVED: 'approved',
 		ASKED: 'asked',
 		DENIED: 'denied',

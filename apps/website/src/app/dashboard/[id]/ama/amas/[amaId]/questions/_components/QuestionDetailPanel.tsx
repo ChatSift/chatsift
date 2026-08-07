@@ -12,14 +12,14 @@ import { APIError } from '@/api/error';
 import { useAMA, useAMAQuestion, useSendAMAQuestion, useUpdateAMAQuestion } from '@/api/routes/ama';
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
-import { cn } from '@/utils/util';
+import { cn, formatDate } from '@/utils/util';
 
 interface QuestionDetailPanelProps {
 	onMerged(): void;
 	readonly questionId: number;
 }
 
-const ACTIONABLE_STATES = new Set(['PENDING_MOD_REVIEW', 'PENDING_GUEST_REVIEW']);
+const ACTIONABLE_STATES = new Set(['PENDING_REVIEW']);
 
 export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPanelProps) {
 	const { id: guildId, amaId } = useParams<{ amaId: string; id: string }>();
@@ -62,17 +62,16 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 	};
 
 	const canTriage = ACTIONABLE_STATES.has(question.state);
-	const canFlag = question.state === 'PENDING_MOD_REVIEW';
 	const canSend = question.state === 'APPROVED';
 	const canMerge = MERGEABLE_STATES.has(question.state);
 	// Once sent, the answer already went out in the Discord message as-is -- editing it here would just
 	// be silently lying to whoever's looking at the dashboard, so it's disabled outright instead of
 	// allowed-with-a-caveat.
 	const canEditAnswer = question.state !== 'ASKED';
-	// FLAGGED and DENIED never had (and never will have) a prepared answer -- both only happen straight
-	// from PENDING_MOD_REVIEW/PENDING_GUEST_REVIEW (see updateQuestion.ts), so there's nothing for this
-	// editor to show once a question lands there; hide it outright instead of an empty disabled form.
-	const showAnswerEditor = question.state !== 'FLAGGED' && question.state !== 'DENIED';
+	// DENIED never had (and never will have) a prepared answer -- it only happens straight from
+	// PENDING_REVIEW (see updateQuestion.ts), so there's nothing for this editor to show once a
+	// question lands there; hide it outright instead of an empty disabled form.
+	const showAnswerEditor = question.state !== 'DENIED';
 
 	return (
 		<div className="space-y-4 rounded-lg border border-on-secondary bg-on-tertiary/30 p-4 dark:border-on-secondary-dark dark:bg-on-tertiary-dark/30">
@@ -95,16 +94,26 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 				{question.extraAskers.length > 0 && (
 					<div className="mt-2">
 						<p className="text-xs text-secondary dark:text-secondary-dark">
-							and {question.extraAskers.length} {question.extraAskers.length === 1 ? 'other' : 'others'}:
+							Merged {question.extraAskers.length} duplicate{question.extraAskers.length === 1 ? '' : 's'}:
 						</p>
-						<div className="mt-1 flex flex-col gap-1">
+						<div className="mt-1 flex flex-col gap-2">
 							{question.extraAskers.map((asker) => {
 								const authorId = typeof asker.author === 'string' ? asker.author : asker.author.id;
 								return (
-									<div className="flex items-center gap-2" key={authorId}>
-										<AuthorAvatar className="h-5 w-5 rounded-full" user={asker.author} />
-										<p className="text-sm text-primary dark:text-primary-dark">{userLabel(asker.author)}</p>
-										<p className="text-xs text-secondary dark:text-secondary-dark">({authorId})</p>
+									<div
+										className="rounded-md border border-on-secondary p-2 dark:border-on-secondary-dark"
+										key={authorId}
+									>
+										<div className="flex items-center gap-2">
+											<AuthorAvatar className="h-5 w-5 rounded-full" user={asker.author} />
+											<p className="text-sm text-primary dark:text-primary-dark">{userLabel(asker.author)}</p>
+											<p className="text-xs text-secondary dark:text-secondary-dark">
+												merged {formatDate(new Date(asker.mergedAt))}
+											</p>
+										</div>
+										<p className="mt-1 whitespace-pre-wrap wrap-break-word text-sm text-secondary dark:text-secondary-dark">
+											{asker.content ?? <em>Original message unavailable (merged before this was tracked)</em>}
+										</p>
 									</div>
 								);
 							})}
@@ -245,16 +254,6 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 						>
 							Deny
 						</Button>
-						{canFlag && (
-							<Button
-								className="h-9 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
-								isDisabled={updateQuestion.isPending}
-								onPress={async () => runAction(async () => updateQuestion.mutateAsync({ state: 'FLAGGED' }))}
-								type="button"
-							>
-								Flag
-							</Button>
-						)}
 					</>
 				)}
 				{canSend && (

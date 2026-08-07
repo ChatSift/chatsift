@@ -6,11 +6,4 @@ import type { AmaQuestionState } from '@chatsift/db';
  * only re-exports its type), so there's no runtime value to iterate here. Mirrors
  * `CREATE TYPE ama_question_state` in packages/private/db/schema/schema.sql.
  */
-export const QUESTION_STATES = [
-	'PENDING_MOD_REVIEW',
-	'PENDING_GUEST_REVIEW',
-	'FLAGGED',
-	'APPROVED',
-	'DENIED',
-	'ASKED',
-] as readonly AmaQuestionState[];
+export const QUESTION_STATES = ['PENDING_REVIEW', 'APPROVED', 'DENIED', 'ASKED'] as readonly AmaQuestionState[];

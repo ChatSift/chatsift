@@ -25,6 +25,12 @@ const paramsSchema = z.object({
 
 export interface ExtraAsker {
 	author: APIUser | Snowflake;
+	/**
+	 * The duplicate's original question text, snapshotted at merge time (see `ama_question_askers`).
+	 * `null` for rows merged before this column existed -- that content was already destroyed by the
+	 * merge's delete, unrecoverably.
+	 */
+	content: string | null;
 	mergedAt: Date;
 }
 
@@ -82,6 +88,7 @@ export default defineRoute({
 			Promise.all(
 				askerRows.map(async (row): Promise<ExtraAsker> => ({
 					author: await resolveAmaUser(guildId, row.authorId),
+					content: row.content,
 					mergedAt: row.mergedAt,
 				})),
 			),

@@ -12,7 +12,7 @@ import type {
 import { TextInputStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
-import { CurrentlyInQueue, postToAnswersChannel, postToGuestQueue, postToModQueue } from '../lib/queues.js';
+import { CurrentlyInQueue, postToAnswersChannel, postToQueue } from '../lib/queues.js';
 
 export default class SubmitQuestionComponent implements ComponentHandler {
 	public readonly name = 'submit-question';
@@ -113,17 +113,9 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		// the conditional push above) -- calling `getAttachments` when it's absent throws.
 		const attachments = ama.allowedQuestionUploads > 0 ? options.getAttachments('file-upload') : null;
 
-		// Mod review's stage existence is keyed off `modReviewEnabled`, not queue-channel truthiness -- it
-		// can be dashboard-only (no Discord channel configured for it), see #293 follow-up / schema.sql.
-		// Guest review has no dash-only mode (guests generally don't have dashboard access), so its
-		// existence is just `guestQueueId` truthiness.
-		const state = ama.modReviewEnabled
-			? 'PENDING_MOD_REVIEW'
-			: ama.guestQueueId
-				? 'PENDING_GUEST_REVIEW'
-				: ama.preparedAnswersEnabled
-					? 'APPROVED'
-					: 'ASKED';
+		// Review's stage existence is keyed off `reviewEnabled`, not queue-channel truthiness -- it can be
+		// dashboard-only (no Discord channel configured for it), see #293 follow-up / schema.sql.
+		const state = ama.reviewEnabled ? 'PENDING_REVIEW' : ama.preparedAnswersEnabled ? 'APPROVED' : 'ASKED';
 		const [question] = await getContext().db<AmaQuestions[]>`
 			INSERT INTO ama_questions (ama_id, author_id, content, state)
 			VALUES (${ama.id}, ${interaction.member.user.id}, ${questionText}, ${state})
@@ -146,37 +138,27 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		};
 
 		try {
-			if (ama.modReviewEnabled) {
+			if (ama.reviewEnabled) {
 				// Posting the queue message is separate from the stage existing -- a dash-only-enabled stage
-				// (no channel picked) has nothing to post, it just sits at PENDING_MOD_REVIEW for the dashboard.
-				if (ama.modQueueId) {
-					const msg = await postToModQueue(postOptions);
+				// (no channel picked) has nothing to post, it just sits at PENDING_REVIEW for the dashboard.
+				if (ama.queueId) {
+					const msg = await postToQueue(postOptions);
 					await getContext().db`
-						UPDATE ama_questions SET mod_queue_message_id = ${msg.id} WHERE id = ${question.id}
+						UPDATE ama_questions SET queue_message_id = ${msg.id} WHERE id = ${question.id}
 					`;
 
 					logger.info(
-						{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.mod },
-						'Question submitted to mod queue',
+						{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.queue },
+						'Question submitted to queue',
 					);
 				} else {
 					logger.info(
 						{ questionId: question.id, amaId: ama.id },
-						'Question submitted directly to mod review (dashboard-only, no queue channel configured)',
+						'Question submitted directly to review (dashboard-only, no queue channel configured)',
 					);
 				}
-			} else if (ama.guestQueueId) {
-				const msg = await postToGuestQueue(postOptions);
-				await getContext().db`
-					UPDATE ama_questions SET guest_queue_message_id = ${msg.id} WHERE id = ${question.id}
-				`;
-
-				logger.info(
-					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.guest },
-					'Question submitted to guest queue',
-				);
 			} else if (ama.preparedAnswersEnabled) {
-				// No review stages and prepared answers is on: hold at APPROVED, awaiting a prepared answer
+				// No review stage and prepared answers is on: hold at APPROVED, awaiting a prepared answer
 				// and an explicit dashboard Send -- nothing auto-posts when this toggle is on (#293 follow-up).
 				logger.info({ questionId: question.id, amaId: ama.id }, 'Question submitted directly to approved (held)');
 			} else {

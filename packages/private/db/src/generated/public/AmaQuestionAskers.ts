@@ -15,6 +15,8 @@ export default interface AmaQuestionAskers {
   authorId: string;
 
   mergedAt: Date;
+
+  content: string | null;
 }
 
 /** Represents the initializer for the table public.ama_question_askers */
@@ -26,6 +28,8 @@ export interface AmaQuestionAskersInitializer {
   authorId: string;
 
   mergedAt?: Date;
+
+  content?: string | null;
 }
 
 /** Represents the mutator for the table public.ama_question_askers */
@@ -37,4 +41,6 @@ export interface AmaQuestionAskersMutator {
   authorId?: string;
 
   mergedAt?: Date;
+
+  content?: string | null;
 }

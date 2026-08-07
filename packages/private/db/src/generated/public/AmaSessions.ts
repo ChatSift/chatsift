@@ -10,11 +10,7 @@ export default interface AmaSessions {
 
   guildId: string;
 
-  modQueueId: string | null;
-
-  flaggedQueueId: string | null;
-
-  guestQueueId: string | null;
+  queueId: string | null;
 
   title: string;
 
@@ -32,7 +28,7 @@ export default interface AmaSessions {
 
   preparedAnswersEnabled: boolean;
 
-  modReviewEnabled: boolean;
+  reviewEnabled: boolean;
 
   shareToken: string;
 
@@ -45,11 +41,7 @@ export interface AmaSessionsInitializer {
 
   guildId: string;
 
-  modQueueId?: string | null;
-
-  flaggedQueueId?: string | null;
-
-  guestQueueId?: string | null;
+  queueId?: string | null;
 
   title: string;
 
@@ -67,7 +59,7 @@ export interface AmaSessionsInitializer {
 
   preparedAnswersEnabled?: boolean;
 
-  modReviewEnabled?: boolean;
+  reviewEnabled?: boolean;
 
   shareToken: string;
 
@@ -80,11 +72,7 @@ export interface AmaSessionsMutator {
 
   guildId?: string;
 
-  modQueueId?: string | null;
-
-  flaggedQueueId?: string | null;
-
-  guestQueueId?: string | null;
+  queueId?: string | null;
 
   title?: string;
 
@@ -102,7 +90,7 @@ export interface AmaSessionsMutator {
 
   preparedAnswersEnabled?: boolean;
 
-  modReviewEnabled?: boolean;
+  reviewEnabled?: boolean;
 
   shareToken?: string;
 
