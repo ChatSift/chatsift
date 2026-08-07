@@ -1,7 +1,8 @@
-import { NewAccessTokenHeader, RefreshTokenCookie } from '@chatsift/core';
+import { NewAccessTokenHeader, RealtimeClientIdHeader, RefreshTokenCookie } from '@chatsift/core';
 import type { DehydratedState } from '@tanstack/react-query';
 import type { ZodErrorTree } from './error';
 import { APIError, toZodErrorTree } from './error';
+import { REALTIME_CLIENT_ID } from './realtimeClientId';
 import { clearCachedAccessToken, getCachedAccessToken, setCachedAccessToken } from './serverTokenCache';
 import { store } from './store';
 import { accessTokenAtom } from './token';
@@ -88,6 +89,12 @@ async function apiFetchClient<TResponse>(method: string, path: string, options: 
 		...(options.body !== undefined && { 'Content-Type': 'application/json' }),
 		// The API expects the bare JWT here, not a `Bearer `-prefixed scheme.
 		...(accessToken && { Authorization: accessToken }),
+		// Lets a mutation's own broadcast (`realtimeChannel` on `defineRoute`) tag itself with the tab that
+		// caused it, so that tab can skip the resulting gateway signal instead of redundantly refetching what
+		// it already just fetched via this same request's `onSuccess` -- see `realtimeClientId.ts` for why
+		// this can't just be the session's user id. Harmless to send on every request; only routes that
+		// declare `realtimeChannel` ever read it.
+		...(REALTIME_CLIENT_ID && { [RealtimeClientIdHeader]: REALTIME_CLIENT_ID }),
 		...options.headers,
 	};
 

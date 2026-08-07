@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout, clearTimeout } from 'node:timers';
-import { getContext } from '@chatsift/backend-core';
+import { publishRealtimeInvalidate } from '@chatsift/backend-core';
+import { RealtimeClientIdHeader } from '@chatsift/core';
 import { badRequest } from '@hapi/boom';
 import type { Middleware, Polka } from 'polka';
 import { ZodError } from 'zod';
@@ -138,7 +139,16 @@ export function mountRoute<
 			if (route.realtimeChannel && res.statusCode >= 200 && res.statusCode < 300) {
 				const channel = route.realtimeChannel(req);
 				if (channel) {
-					getContext().service.wsHub.broadcast(channel, { type: 'invalidate', channel });
+					// Publishes over Redis rather than reaching into a local `WsHub` -- `services/ama-bot`'s
+					// interaction handlers publish the exact same way, so this process doesn't need to be the
+					// one a given browser socket is actually connected to for the signal to reach it.
+					//
+					// The header (not the authenticated user's id) is what tags the signal with an origin -- see
+					// `RealtimeInvalidateMessage.originClientId`'s doc comment for why those two are different
+					// things and the user id can't be substituted here.
+					const originClientIdHeader = req.headers[RealtimeClientIdHeader.toLowerCase()];
+					const originClientId = Array.isArray(originClientIdHeader) ? originClientIdHeader[0] : originClientIdHeader;
+					await publishRealtimeInvalidate(channel, originClientId);
 				}
 			}
 		} catch (error) {

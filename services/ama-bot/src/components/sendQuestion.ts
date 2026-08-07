@@ -1,7 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
-import { getAnswerEmbed } from '@chatsift/core';
+import { amaQuestionsChannel, getAnswerEmbed } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIEmbed, APIMessageComponentInteraction, APIUser } from '@discordjs/core';
 import { ButtonStyle, CDNRoutes, ComponentType, ImageFormat, MessageFlags, RouteBases } from '@discordjs/core';
@@ -121,6 +121,8 @@ export default class SendQuestionComponent implements ComponentHandler<string> {
 				});
 				return;
 			}
+
+			await publishRealtimeInvalidate(amaQuestionsChannel(session.guildId, question.amaId));
 
 			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				components: [

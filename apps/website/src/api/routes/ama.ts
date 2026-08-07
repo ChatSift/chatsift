@@ -200,10 +200,25 @@ export function useAMAQuestion(guildId: string, amaId: string, questionId: numbe
 	});
 }
 
-async function invalidateAMAQuestions(queryClient: ReturnType<typeof useQueryClient>, guildId: string, amaId: string) {
+/**
+ * Also called directly by `useRealtimeInvalidate` (`hooks/useRealtimeInvalidate.ts`) as the reaction to a
+ * `ws.ts` invalidate signal on the `amaQuestionsChannel` -- the gateway only ever says "something on this
+ * channel changed", so the reaction is exactly the same cache invalidation a local mutation's own
+ * `onSuccess` already does below.
+ *
+ * Also invalidates `useAMA`'s own query (`ama.byId`), not just the question list/stats -- `getAMA.ts` computes
+ * `questionCount` live off the same `ama_questions` table, and `AMADetails.tsx` renders it, so a question
+ * being added/merged/removed has to refresh that cached session object too or it silently goes stale.
+ */
+export async function invalidateAMAQuestions(
+	queryClient: ReturnType<typeof useQueryClient>,
+	guildId: string,
+	amaId: string,
+) {
 	await Promise.all([
 		queryClient.invalidateQueries({ queryKey: queryKeys.ama.questions.all(guildId, amaId) }),
 		queryClient.invalidateQueries({ queryKey: queryKeys.ama.stats(guildId, amaId) }),
+		queryClient.invalidateQueries({ queryKey: queryKeys.ama.byId(guildId, amaId) }),
 	]);
 }
 

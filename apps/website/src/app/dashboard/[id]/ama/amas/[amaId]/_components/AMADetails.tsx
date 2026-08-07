@@ -1,6 +1,8 @@
 'use client';
 
 import { updateAMAConfigSchema } from '@chatsift/api/ama-schemas';
+import { amaQuestionsChannel } from '@chatsift/core';
+import { useQueryClient } from '@tanstack/react-query';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -12,7 +14,14 @@ import { AuthorAvatar } from '../questions/_components/AuthorAvatar';
 import { userLabel } from '../questions/_components/userLabel';
 import { APIError } from '@/api/error';
 import type { AMAStats, PossiblyMissingChannelInfo, UpdateAMABody } from '@/api/routes/ama';
-import { useAMA, useAMAStats, useExportAMAQuestions, useRepostPrompt, useUpdateAMA } from '@/api/routes/ama';
+import {
+	invalidateAMAQuestions,
+	useAMA,
+	useAMAStats,
+	useExportAMAQuestions,
+	useRepostPrompt,
+	useUpdateAMA,
+} from '@/api/routes/ama';
 import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
@@ -21,6 +30,7 @@ import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
+import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 import { getChannelIcon } from '@/utils/channels';
 import { dateToDatetimeLocalValue, datetimeLocalValueToISOString, formatDate, parseIntegerInput } from '@/utils/util';
 
@@ -181,6 +191,13 @@ function bestEffortPromptFields(promptJsonData: string): Omit<PromptFormData, 'p
 export function AMADetails() {
 	const params = useParams<{ amaId: string; id: string }>();
 	const router = useRouter();
+	const queryClient = useQueryClient();
+	// Same channel `QuestionsList.tsx` subscribes to -- its stat tiles below are invalidated together with
+	// questions server-side already (`invalidateAMAQuestions`), so there's no separate "AMA details changed"
+	// channel to introduce.
+	useRealtimeInvalidate(amaQuestionsChannel(params.id, params.amaId), () => {
+		void invalidateAMAQuestions(queryClient, params.id, params.amaId);
+	});
 	const [showEndConfirm, setShowEndConfirm] = useState(false);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);

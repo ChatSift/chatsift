@@ -1,7 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
-import { getAnswerEmbed, getBaseEmbeds } from '@chatsift/core';
+import { amaQuestionsChannel, getAnswerEmbed, getBaseEmbeds } from '@chatsift/core';
 import type { AmaQuestionAskers, AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
 	APIAttachment,
@@ -192,6 +192,8 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 			}
 
 			const { duplicate, mergedAskerRows, original, session } = merged;
+
+			await publishRealtimeInvalidate(amaQuestionsChannel(session.guildId, original.amaId));
 
 			// Best-effort cleanup of whichever of the duplicate's queue messages exist -- a lost race or a
 			// message deleted out-of-band means this simply no-ops for that one.

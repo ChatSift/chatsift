@@ -71,3 +71,5 @@ export { default as getModmailThreadMessageEditsRoute } from './routes/modmail/t
 export { default as listModmailThreadsRoute } from './routes/modmail/threads/listThreads.js';
 
 export { default as resyncModmailRoute } from './routes/modmail/resync.js';
+
+export { default as getWsTicketRoute } from './routes/ws/getTicket.js';

@@ -1,7 +1,8 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import { collectModal } from '@chatsift/bot-core';
+import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
 	APIModalSubmitInteraction,
@@ -204,6 +205,13 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				content: '❌ Failed to submit your question. Please try again or contact a moderator.',
 				flags: MessageFlags.Ephemeral,
 			});
+		} finally {
+			// Published once the row has settled into its final shape (queue message id set, if any) rather
+			// than right after the INSERT -- publishing earlier would race a dashboard refetch against the
+			// UPDATE above and could deliver a stale `*_message_id`. Runs regardless of whether posting to
+			// Discord succeeded: the row itself is already committed either way, and other dashboard clients
+			// should still learn about it even if e.g. the queue post failed.
+			await publishRealtimeInvalidate(amaQuestionsChannel(ama.guildId, ama.id));
 		}
 	}
 }
