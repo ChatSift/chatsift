@@ -1,5 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
-import { getBaseEmbeds, withResolvedActionRow } from '@chatsift/core';
+import { amaQuestionsChannel, getBaseEmbeds, withResolvedActionRow } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaQuestionState, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import type { APIButtonComponent } from '@discordjs/core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
@@ -100,6 +100,7 @@ export default defineRoute({
 		isGlobalAdmin: false,
 		isGuildManager: true,
 	}),
+	realtimeChannel: (req) => amaQuestionsChannel(req.params.guildId, req.params.amaId),
 	async handler(req): Promise<UpdateQuestionResult> {
 		const { guildId, amaId, questionId } = req.params;
 		const data = req.body;

@@ -1,4 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
+import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { badRequest, notFound } from '@hapi/boom';
 import { z } from 'zod';
@@ -43,6 +44,7 @@ export default defineRoute({
 		isGlobalAdmin: false,
 		isGuildManager: true,
 	}),
+	realtimeChannel: (req) => amaQuestionsChannel(req.params.guildId, req.params.amaId),
 	async handler(req): Promise<MergeQuestionsBulkResult> {
 		const { guildId, amaId } = req.params;
 		const { intoQuestionId: originalId, questionIds } = req.body;

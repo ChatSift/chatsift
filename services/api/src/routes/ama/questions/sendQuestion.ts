@@ -1,4 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
+import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { badRequest, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
@@ -35,6 +36,7 @@ export default defineRoute({
 		isGlobalAdmin: false,
 		isGuildManager: true,
 	}),
+	realtimeChannel: (req) => amaQuestionsChannel(req.params.guildId, req.params.amaId),
 	async handler(req): Promise<SendQuestionResult> {
 		const { guildId, amaId, questionId } = req.params;
 		const db = getContext().db;

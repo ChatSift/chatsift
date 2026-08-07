@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout, clearTimeout } from 'node:timers';
+import { getContext } from '@chatsift/backend-core';
 import { badRequest } from '@hapi/boom';
 import type { Middleware, Polka } from 'polka';
 import { ZodError } from 'zod';
@@ -103,7 +104,9 @@ export function mountRoute<
 	}
 
 	// Final handler
-	middlewares.push(async (req, res, next) => {
+	middlewares.push(async (reqUncast, res, next) => {
+		// Cast is safe: body/query/params have been validated and coerced by Zod above, middleware has run
+		const req = reqUncast as unknown as MiddlewareContext<TMiddlewares> & TypedRequest<TBody, TQuery, TParams>;
 		const isMetricsRequest = req.path === '/metrics' && req.method === 'GET';
 
 		try {
@@ -111,11 +114,7 @@ export function mountRoute<
 				req.logger.info({ method: req.method, path: req.path }, 'passing to route handler from middleware');
 			}
 
-			// Cast is safe: body/query/params have been validated and coerced by Zod above, middleware has run
-			const result = await route.handler(
-				req as unknown as MiddlewareContext<TMiddlewares> & TypedRequest<TBody, TQuery, TParams>,
-				res,
-			);
+			const result = await route.handler(req, res);
 
 			if (!isMetricsRequest) {
 				req.logger.info({ method: req.method, path: req.path }, 'route handler complete');
@@ -129,6 +128,17 @@ export function mountRoute<
 				} else {
 					res.statusCode = 204;
 					res.end();
+				}
+			}
+
+			// Checked against the final status (after response handling above, in case a handler set a
+			// non-2xx status and ended the response itself, e.g. `logout.ts`) -- a route resolving without
+			// throwing doesn't guarantee a successful response, and clients shouldn't be told to refetch
+			// off the back of a 4xx/5xx.
+			if (route.realtimeChannel && res.statusCode >= 200 && res.statusCode < 300) {
+				const channel = route.realtimeChannel(req);
+				if (channel) {
+					getContext().service.wsHub.broadcast(channel, { type: 'invalidate', channel });
 				}
 			}
 		} catch (error) {
