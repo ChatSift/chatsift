@@ -5,7 +5,7 @@
  */
 
 import { createServer } from 'node:http';
-import { getContext, NewAccessTokenHeader, setServiceValue } from '@chatsift/backend-core';
+import { getContext, NewAccessTokenHeader } from '@chatsift/backend-core';
 import { Boom, isBoom, notFound } from '@hapi/boom';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -118,7 +118,7 @@ export async function startServer(): Promise<void> {
 		attachHttpUtils(),
 	);
 
-	setServiceValue('wsHub', attachWebSocketServer(httpServer));
+	await attachWebSocketServer(httpServer);
 
 	// Each call is instantiated against its own route's middleware tuple — folding these into a loop over an array
 	// literal would force TS to unify all of them under one `TMiddlewares` instantiation, which doesn't typecheck

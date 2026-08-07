@@ -10,12 +10,13 @@ import { mountRoute } from '../server.js';
 
 vi.mock('http2');
 
-const broadcastMock = vi.hoisted(() => vi.fn());
+const publishRealtimeInvalidateMock = vi.hoisted(() => vi.fn());
 
-// `core/server.ts` imports `getContext` from `@chatsift/backend-core`, which eagerly parses `process.env`
-// against its full schema at module-load time -- this env-var block is required just to let the module
-// load, mirroring `middleware/__tests__/isAuthed.test.ts`'s identical mock. `getContext` itself is stubbed
-// down to only what `mountRoute`'s `realtimeChannel` broadcast hook reads.
+// `core/server.ts` imports `publishRealtimeInvalidate` from `@chatsift/backend-core`, which transitively
+// (via `context.js`) eagerly parses `process.env` against its full schema at module-load time -- this
+// env-var block is required just to let the module load, mirroring `middleware/__tests__/isAuthed.test.ts`'s
+// identical mock. `publishRealtimeInvalidate` itself is stubbed down to just recording calls -- `mountRoute`'s
+// `realtimeChannel` hook only ever calls it, never inspects a return value.
 vi.mock('@chatsift/backend-core', async (importActual) => {
 	process.env['ROOT_DOMAIN'] = '';
 	process.env['OAUTH_DISCORD_CLIENT_ID'] = '123456789012345678';
@@ -42,7 +43,7 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 
 	return {
 		...actual,
-		getContext: () => ({ service: { wsHub: { broadcast: broadcastMock } } }),
+		publishRealtimeInvalidate: publishRealtimeInvalidateMock,
 	};
 });
 
@@ -328,7 +329,7 @@ test('forwards handler errors to next instead of throwing', async () => {
 	expect(next).toHaveBeenCalledWith(error);
 });
 
-test('broadcasts to the WS gateway via realtimeChannel when the handler succeeds', async () => {
+test('publishes a realtime invalidate signal via realtimeChannel when the handler succeeds', async () => {
 	const { server, routes } = makeServer();
 	mountRoute(
 		server,
@@ -353,10 +354,42 @@ test('broadcasts to the WS gateway via realtimeChannel when the handler succeeds
 
 	await final(req, res, next);
 
-	expect(broadcastMock).toHaveBeenCalledWith('some-channel', { type: 'invalidate', channel: 'some-channel' });
+	expect(publishRealtimeInvalidateMock).toHaveBeenCalledWith('some-channel', undefined);
 });
 
-test('does not broadcast when realtimeChannel returns undefined', async () => {
+test('forwards the RealtimeClientIdHeader as the origin so the WS gateway can skip echoing back to it', async () => {
+	const { server, routes } = makeServer();
+	mountRoute(
+		server,
+		defineRoute({
+			method: 'get',
+			path: '/v3/foo',
+			realtimeChannel: () => 'some-channel',
+			async handler() {
+				return { ok: true };
+			},
+		}),
+	);
+
+	const handlers = routes.get('get:/v3/foo')! as ((req: Request, res: Response, next: any) => Promise<void>)[];
+	const final = handlers.at(-1)!;
+
+	const req = makeMockedRequest({
+		headers: { 'x-realtime-client-id': 'tab-abc' },
+		method: 'GET',
+		path: '/v3/foo',
+	});
+	const res = new MockedResponse();
+	Object.defineProperty(res, 'statusCode', { writable: true, enumerable: true, configurable: true });
+	Object.defineProperty(res, 'writableEnded', { writable: true, enumerable: true, configurable: true, value: false });
+	const next = vi.fn();
+
+	await final(req, res, next);
+
+	expect(publishRealtimeInvalidateMock).toHaveBeenCalledWith('some-channel', 'tab-abc');
+});
+
+test('does not publish when realtimeChannel returns undefined', async () => {
 	const { server, routes } = makeServer();
 	mountRoute(
 		server,
@@ -381,10 +414,10 @@ test('does not broadcast when realtimeChannel returns undefined', async () => {
 
 	await final(req, res, next);
 
-	expect(broadcastMock).not.toHaveBeenCalled();
+	expect(publishRealtimeInvalidateMock).not.toHaveBeenCalled();
 });
 
-test('does not broadcast when the handler throws', async () => {
+test('does not publish when the handler throws', async () => {
 	const { server, routes } = makeServer();
 	mountRoute(
 		server,
@@ -407,5 +440,5 @@ test('does not broadcast when the handler throws', async () => {
 
 	await final(req, res, next);
 
-	expect(broadcastMock).not.toHaveBeenCalled();
+	expect(publishRealtimeInvalidateMock).not.toHaveBeenCalled();
 });

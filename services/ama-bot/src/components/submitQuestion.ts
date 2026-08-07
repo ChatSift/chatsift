@@ -1,7 +1,8 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import { collectModal } from '@chatsift/bot-core';
+import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
 	APIModalSubmitInteraction,
@@ -132,6 +133,11 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		if (!question) {
 			throw new Error(`Failed to insert question for AMA session ${ama.id}`);
 		}
+
+		// Published right after the row exists, independent of the queue-posting below -- the dashboard
+		// should learn about a new question regardless of whether posting to a Discord queue channel
+		// (best-effort, in the try/catch that follows) succeeds.
+		await publishRealtimeInvalidate(amaQuestionsChannel(ama.guildId, ama.id));
 
 		// Determine where to post the question based on the AMA configuration
 		const postOptions = {

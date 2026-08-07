@@ -1,8 +1,9 @@
 import { URL } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import { collectModal } from '@chatsift/bot-core';
+import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
 	APIMessageComponentInteraction,
@@ -246,6 +247,13 @@ export default class GuestAddAnswerComponent implements ComponentHandler<string>
 					{ content: 'This question was already handled by someone else.' },
 				);
 				return;
+			}
+
+			// `session` is guaranteed non-null here: `claimed` only comes back non-null if the row (and thus
+			// its AMA) still exists, and the `session?.ended` check above already returned early on a missing
+			// session -- TS just can't see that correlation across the two independent queries.
+			if (session) {
+				await publishRealtimeInvalidate(amaQuestionsChannel(session.guildId, claimed.amaId));
 			}
 
 			// The button click that opened this modal was answered with the modal itself (not a deferred

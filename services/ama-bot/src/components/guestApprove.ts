@@ -1,6 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
+import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
@@ -90,6 +91,8 @@ export default class GuestApproveComponent implements ComponentHandler<string> {
 				});
 				return;
 			}
+
+			await publishRealtimeInvalidate(amaQuestionsChannel(session.guildId, question.amaId));
 
 			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				components: [

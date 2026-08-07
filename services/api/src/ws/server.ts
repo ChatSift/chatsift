@@ -2,22 +2,11 @@ import { Buffer } from 'node:buffer';
 import type { IncomingMessage, Server } from 'node:http';
 import { setInterval, clearInterval } from 'node:timers';
 import { URL } from 'node:url';
-import { getContext, verifyWsTicket } from '@chatsift/backend-core';
-import type { WsTicketData } from '@chatsift/backend-core';
+import { getContext, verifyWsTicket, REALTIME_INVALIDATE_CHANNEL } from '@chatsift/backend-core';
+import type { RealtimeInvalidateMessage, WsTicketData } from '@chatsift/backend-core';
 import type { RawData, WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
 import { WsHub } from './hub.js';
-
-declare module '@chatsift/backend-core' {
-	interface ContextService {
-		/**
-		 * The gateway's channel registry, so any route handler can broadcast an invalidation signal via
-		 * `getContext().service.wsHub` after a successful mutation (see `realtimeChannel` on `defineRoute`,
-		 * `services/api/src/core/server.ts`) without importing this module directly.
-		 */
-		wsHub: WsHub;
-	}
-}
 
 const WS_PATH = '/v3/ws';
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -82,12 +71,36 @@ function isAuthorizedForChannel(ticket: WsTicketData, channel: string): boolean 
  * a thin router over a plain `http.Server` -- see the architecture notes for how this was confirmed),
  * handling the `/v3/ws` upgrade path only and leaving every other upgrade request untouched.
  *
- * Returns the `WsHub` so `app.ts` can register it on `Context.service` for route handlers to broadcast through.
+ * Also opens a dedicated Redis subscriber connection (a client in `SUBSCRIBE` mode can't issue other commands,
+ * so this can't reuse `getContext().redis`) listening on `REALTIME_INVALIDATE_CHANNEL` -- every mutation site,
+ * whether it runs in this process (route handlers, via `mountRoute`'s `realtimeChannel` hook) or
+ * `services/ama-bot` (Discord interaction handlers, which write straight to Postgres), publishes there via
+ * `publishRealtimeInvalidate`. Nothing outside this module needs the `WsHub` instance -- delivery to local
+ * sockets happens entirely inside the subscriber callback below -- so unlike the route handlers' side of this
+ * (which goes through Redis, not a direct reference), this function has no return value.
  */
-export function attachWebSocketServer(httpServer: Server): WsHub {
+export async function attachWebSocketServer(httpServer: Server): Promise<void> {
 	const hub = new WsHub();
 	const wss = new WebSocketServer({ noServer: true });
 	const logger = getContext().logger.child({ module: 'ws' });
+
+	const subscriber = getContext().redis.duplicate();
+	subscriber.on('error', (err) => logger.error(err, 'redis subscriber error'));
+	await subscriber.connect();
+	await subscriber.subscribe(REALTIME_INVALIDATE_CHANNEL, (raw) => {
+		// `withTypeMapping`'s `BLOB_STRING -> Buffer` mapping (see `createRedis`) only applies to regular
+		// command replies (GET, etc.) -- a pub/sub message's type is controlled by `subscribe`'s own
+		// `bufferMode` param instead, which is left at its default (`false`) here, so `raw` is already `string`.
+		let message: RealtimeInvalidateMessage;
+		try {
+			message = JSON.parse(raw) as RealtimeInvalidateMessage;
+		} catch {
+			logger.warn({ raw }, 'discarding malformed realtime invalidate message');
+			return;
+		}
+
+		hub.deliverLocal(message.channel, message);
+	});
 
 	const alive = new WeakMap<WebSocket, boolean>();
 
@@ -95,7 +108,11 @@ export function attachWebSocketServer(httpServer: Server): WsHub {
 	// doesn't type a 'connection' listener as accepting more than `(ws, request)`, and the ticket is only
 	// available in this closure anyway, so routing it through as a synthetic third emit argument would just
 	// be working around the types instead of with them.
-	function setupConnection(ws: WebSocket, ticket: WsTicketData): void {
+	function setupConnection(ws: WebSocket, ticket: WsTicketData, clientId: string | null): void {
+		if (clientId) {
+			hub.registerClient(ws, clientId);
+		}
+
 		alive.set(ws, true);
 
 		ws.on('pong', () => alive.set(ws, true));
@@ -150,8 +167,12 @@ export function attachWebSocketServer(httpServer: Server): WsHub {
 			return;
 		}
 
+		// Optional: an older/unexpected client without one just never gets self-echo suppression, it isn't a
+		// reason to reject the connection outright.
+		const clientId = url.searchParams.get('clientId');
+
 		wss.handleUpgrade(req, socket, head, (ws) => {
-			setupConnection(ws, ticket);
+			setupConnection(ws, ticket, clientId);
 		});
 	});
 
@@ -171,7 +192,14 @@ export function attachWebSocketServer(httpServer: Server): WsHub {
 	}, HEARTBEAT_INTERVAL_MS);
 	heartbeat.unref();
 
-	wss.on('close', () => clearInterval(heartbeat));
-
-	return hub;
+	wss.on('close', () => {
+		clearInterval(heartbeat);
+		void (async () => {
+			try {
+				await subscriber.quit();
+			} catch (error) {
+				logger.error(error, 'failed to close redis subscriber');
+			}
+		})();
+	});
 }

@@ -200,7 +200,17 @@ export function useAMAQuestion(guildId: string, amaId: string, questionId: numbe
 	});
 }
 
-async function invalidateAMAQuestions(queryClient: ReturnType<typeof useQueryClient>, guildId: string, amaId: string) {
+/**
+ * Also called directly by `useRealtimeInvalidate` (`hooks/useRealtimeInvalidate.ts`) as the reaction to a
+ * `ws.ts` invalidate signal on the `amaQuestionsChannel` -- the gateway only ever says "something on this
+ * channel changed", so the reaction is exactly the same cache invalidation a local mutation's own
+ * `onSuccess` already does below.
+ */
+export async function invalidateAMAQuestions(
+	queryClient: ReturnType<typeof useQueryClient>,
+	guildId: string,
+	amaId: string,
+) {
 	await Promise.all([
 		queryClient.invalidateQueries({ queryKey: queryKeys.ama.questions.all(guildId, amaId) }),
 		queryClient.invalidateQueries({ queryKey: queryKeys.ama.stats(guildId, amaId) }),

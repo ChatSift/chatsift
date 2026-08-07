@@ -1,5 +1,7 @@
 'use client';
 
+import { amaQuestionsChannel } from '@chatsift/core';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AuthorAvatar } from './AuthorAvatar';
@@ -10,10 +12,11 @@ import { useTagFilter } from './QuestionTagFilter';
 import { MERGEABLE_STATES } from './mergeableStates';
 import { userLabel } from './userLabel';
 import type { AMAQuestionListItem } from '@/api/routes/ama';
-import { useAMAQuestions } from '@/api/routes/ama';
+import { invalidateAMAQuestions, useAMAQuestions } from '@/api/routes/ama';
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
+import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 import { useURLParam } from '@/hooks/useURLParam';
 
 const ROW_PREVIEW_LENGTH = 160;
@@ -144,6 +147,11 @@ function QuestionRow({ isExpanded, isSelected, onToggle, onToggleSelect, questio
 
 export function QuestionsList() {
 	const { id: guildId, amaId } = useParams<{ amaId: string; id: string }>();
+	const queryClient = useQueryClient();
+	useRealtimeInvalidate(amaQuestionsChannel(guildId, amaId), () => {
+		void invalidateAMAQuestions(queryClient, guildId, amaId);
+	});
+
 	const searchParams = useSearchParams();
 	const search = searchParams.get('search') ?? '';
 	const states = useQuestionStateFilter();
