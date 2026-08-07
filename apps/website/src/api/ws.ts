@@ -58,6 +58,13 @@ class RealtimeClient {
 			if (listeners.size === 0) {
 				this.channels.delete(channel);
 				this.send({ type: 'unsubscribe', channel });
+
+				// Nothing left subscribed anywhere -- tear the socket down instead of leaving it open with
+				// zero subscriptions, matching this class's whole "lazily-connected" premise. The next
+				// `subscribe()` call reconnects from scratch.
+				if (this.channels.size === 0) {
+					this.disconnect();
+				}
 			}
 		};
 	}
@@ -91,7 +98,14 @@ class RealtimeClient {
 				});
 
 				socket.addEventListener('close', () => {
-					this.socket = null;
+					// Only clear `this.socket` if it's still literally this socket -- `disconnect()` (called
+					// from the unsubscribe path above) already nulls it out synchronously and may have let a
+					// fresh `subscribe()` open a newer socket before this (asynchronous) close event fires;
+					// blindly nulling here would wipe out that newer, still-live connection.
+					if (this.socket === socket) {
+						this.socket = null;
+					}
+
 					this.scheduleReconnect();
 				});
 
@@ -110,9 +124,27 @@ class RealtimeClient {
 		})();
 	}
 
+	private disconnect(): void {
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer);
+			this.reconnectTimer = null;
+		}
+
+		this.socket?.close();
+		this.socket = null;
+	}
+
 	private ensureConnected(): void {
 		if (this.socket || this.connecting) {
 			return;
+		}
+
+		// A `subscribe()` can land while a previous disconnect is still backing off (socket is null,
+		// `connecting` is false, but a reconnect is scheduled) -- clearing the stale timer here avoids it
+		// firing later and opening a second, redundant connection on top of the one started immediately below.
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer);
+			this.reconnectTimer = null;
 		}
 
 		this.connect();
@@ -147,6 +179,14 @@ class RealtimeClient {
 
 		this.reconnectTimer = setTimeout(() => {
 			this.reconnectTimer = null;
+
+			// Any of these mean this reconnect is no longer needed: every consumer unsubscribed while it was
+			// pending (`disconnect()` would have cleared this timer too, but a fresh `subscribe()` racing
+			// against that isn't impossible to reason about defensively), or a fresh `subscribe()` already
+			// opened -- or is opening -- a new connection in the meantime via `ensureConnected()`.
+			if (this.channels.size === 0 || this.socket || this.connecting) {
+				return;
+			}
 
 			for (const listeners of this.channels.values()) {
 				for (const listener of listeners) {

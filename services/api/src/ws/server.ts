@@ -53,6 +53,38 @@ function parseClientMessage(raw: RawData): SubscribeMessage | null {
 }
 
 /**
+ * `JSON.parse` alone only guarantees the raw string was valid JSON -- it says nothing about the resulting
+ * value's shape (`"{}"`, `"null"`, `"[1,2,3]"` all parse cleanly). Every message on this Redis channel is
+ * first-party today (`services/api` and `services/ama-bot` are the only publishers), but validating the shape
+ * here anyway -- mirroring `parseClientMessage`'s same treatment of the client-facing WS messages above --
+ * means a malformed payload gets logged and dropped instead of handing `hub.deliverLocal` a `channel` that
+ * silently isn't a string.
+ */
+function parseInvalidateMessage(raw: string): RealtimeInvalidateMessage | null {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return null;
+	}
+
+	if (typeof parsed !== 'object' || parsed === null) {
+		return null;
+	}
+
+	const candidate = parsed as Partial<RealtimeInvalidateMessage>;
+	if (candidate.type !== 'invalidate' || typeof candidate.channel !== 'string' || !candidate.channel) {
+		return null;
+	}
+
+	if (candidate.originClientId !== undefined && typeof candidate.originClientId !== 'string') {
+		return null;
+	}
+
+	return candidate as RealtimeInvalidateMessage;
+}
+
+/**
  * A channel is `<domain>:<guildId>:<...>` (see `@chatsift/core`'s `realtimeChannels.ts`) -- authorization only
  * ever needs the guild id, not the rest of the channel's shape, so this stays generic across every current and
  * future channel domain instead of each one needing its own authorization function.
@@ -91,10 +123,8 @@ export async function attachWebSocketServer(httpServer: Server): Promise<void> {
 		// `withTypeMapping`'s `BLOB_STRING -> Buffer` mapping (see `createRedis`) only applies to regular
 		// command replies (GET, etc.) -- a pub/sub message's type is controlled by `subscribe`'s own
 		// `bufferMode` param instead, which is left at its default (`false`) here, so `raw` is already `string`.
-		let message: RealtimeInvalidateMessage;
-		try {
-			message = JSON.parse(raw) as RealtimeInvalidateMessage;
-		} catch {
+		const message = parseInvalidateMessage(raw);
+		if (!message) {
 			logger.warn({ raw }, 'discarding malformed realtime invalidate message');
 			return;
 		}

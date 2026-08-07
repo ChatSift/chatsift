@@ -134,11 +134,6 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 			throw new Error(`Failed to insert question for AMA session ${ama.id}`);
 		}
 
-		// Published right after the row exists, independent of the queue-posting below -- the dashboard
-		// should learn about a new question regardless of whether posting to a Discord queue channel
-		// (best-effort, in the try/catch that follows) succeeds.
-		await publishRealtimeInvalidate(amaQuestionsChannel(ama.guildId, ama.id));
-
 		// Determine where to post the question based on the AMA configuration
 		const postOptions = {
 			attachments: attachments ?? [],
@@ -210,6 +205,13 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				content: '❌ Failed to submit your question. Please try again or contact a moderator.',
 				flags: MessageFlags.Ephemeral,
 			});
+		} finally {
+			// Published once the row has settled into its final shape (queue message id set, if any) rather
+			// than right after the INSERT -- publishing earlier would race a dashboard refetch against the
+			// UPDATE above and could deliver a stale `*_message_id`. Runs regardless of whether posting to
+			// Discord succeeded: the row itself is already committed either way, and other dashboard clients
+			// should still learn about it even if e.g. the queue post failed.
+			await publishRealtimeInvalidate(amaQuestionsChannel(ama.guildId, ama.id));
 		}
 	}
 }
