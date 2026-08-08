@@ -1,5 +1,6 @@
 'use client';
 
+import type { BotId } from '@chatsift/core';
 import type {
 	BoldProps,
 	CodeBlockProps,
@@ -27,9 +28,16 @@ import { parse } from '@discord/markdown-wasm/sync';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { useParams } from 'next/navigation';
 import { createContext, useContext, useMemo, useState } from 'react';
-import { participantLabel } from './threadMessageUtils';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { cn, formatDate } from '@/utils/util';
+
+function participantLabel(entry: APIUser | Snowflake | undefined, fallbackId: string): string {
+	if (!entry) {
+		return fallbackId;
+	}
+
+	return typeof entry === 'string' ? entry : (entry.global_name ?? entry.username);
+}
 
 interface DiscordMarkdownContextValue {
 	readonly participants: Record<string, APIUser | Snowflake>;
@@ -248,28 +256,34 @@ const renderers: Renderers = {
 
 interface DiscordMarkdownProps {
 	readonly content: string;
-	readonly participants: Record<string, APIUser | Snowflake>;
+	/**
+	 * Which bot to resolve the guild's role list against (for `@role` mentions) -- the roles themselves aren't
+	 * bot-specific, but `useGuildInfo` requires a `for_bot` to authorize the guild-info fetch.
+	 */
+	readonly forBot: BotId;
+	readonly participants?: Record<string, APIUser | Snowflake> | undefined;
 }
 
 /**
- * Renders a recorded message's content the way Discord actually would -- mentions/emoji/timestamps/
- * formatting, not just plain text (Phase 3, #261). Uses Discord's own official `@discord/markdown-react` +
- * `@discord/markdown-wasm` packages rather than hand-rolling a parser -- their AST node coverage (mentions,
- * custom/unicode emoji, timestamps, spoilers, code, lists, quotes) matches exactly what the bot's
- * constrained message shape (plain markdown, at most one embed, no reactions/polls/components) can contain.
- * Embeds are deliberately out of scope here -- nothing records embed data at all (see
- * docs/roadmap/07-modmail-thread-history.md), so there's nothing for a renderer to render.
+ * Renders Discord message content the way Discord actually would -- mentions/emoji/timestamps/formatting,
+ * not just plain text (Phase 3, #261; extended to dashboard "preview" surfaces in #301). Uses Discord's own
+ * official `@discord/markdown-react` + `@discord/markdown-wasm` packages rather than hand-rolling a parser --
+ * their AST node coverage (mentions, custom/unicode emoji, timestamps, spoilers, code, lists, quotes)
+ * matches exactly what the bot's constrained message shape (plain markdown, at most one embed, no
+ * reactions/polls/components) can contain. Embeds are deliberately out of scope here -- nothing records
+ * embed data at all for recorded ModMail history (see docs/roadmap/07-modmail-thread-history.md), and
+ * preview surfaces render their embed fields separately -- so there's nothing for a renderer to render.
  *
  * `@discord/markdown-wasm/sync`'s top-level `await` (loading its wasm binary the moment the module is
  * evaluated) breaks under Next's *server* bundle -- its Node-side loader does `fs.readFile(new URL(...))`,
  * and the `URL` instance the bundler's transform produces isn't the same `URL` Node's `fs` module validates
  * against. This component must never be evaluated during SSR as a result -- see the `next/dynamic(...,
- * { ssr: false })` wrapper at every import site (`ThreadMessage.tsx`) rather than importing this file
- * directly.
+ * { ssr: false })` wrapper at every import site (`ThreadMessage.tsx`, `PromptPreview.tsx`, `PanelPreview.tsx`,
+ * `SnippetCard.tsx`) rather than importing this file directly.
  */
-export function DiscordMarkdown({ content, participants }: DiscordMarkdownProps) {
+export function DiscordMarkdown({ content, participants = {}, forBot }: DiscordMarkdownProps) {
 	const { id: guildId } = useParams<{ id: string }>();
-	const { data: guildInfo } = useGuildInfo(guildId, 'MODMAIL');
+	const { data: guildInfo } = useGuildInfo(guildId, forBot);
 	const ast = useMemo(() => parse(content), [content]);
 	const contextValue = useMemo(
 		() => ({ participants, roles: guildInfo?.roles ?? [] }),

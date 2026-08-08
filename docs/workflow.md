@@ -166,7 +166,7 @@ Order matters — do these in sequence, not in parallel:
    `docker-compose.yml` (right after the public `modmail-bot` service), fill in `<partner-slug>` throughout
    (service name, `MODMAIL_INSTANCE_ID`, log volume), uncomment it, then `./compose up -d modmail-bot-<partner-slug>`.
    It fails fast on boot if `MODMAIL_INSTANCE_ID` doesn't match a row (see `loadInstances()`'s doc comment).
-4. **Run Resync** from that guild's ModMail config page in the dashboard (visible now that the guild has a custom
+4. **Run Resync** from that guild's ModMail Snippets page in the dashboard (visible now that the guild has a custom
    instance — see `services/api/src/routes/modmail/resync.ts`). This registers every existing snippet as a guild
    command under the partner's application and reposts every panel message, since both were created under the
    public application and Discord scopes commands/message-authorship to the application that created them.
