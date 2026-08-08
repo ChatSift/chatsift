@@ -40,7 +40,6 @@ jobs:
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment'
-          show_full_output: true
           # Interactive-session tools (ScheduleWakeup/SendMessage/Monitor, background
           # Agent/Task execution) assume a persistent host that re-invokes the session
           # later. This action runs the SDK once per job and exits when the turn ends,
