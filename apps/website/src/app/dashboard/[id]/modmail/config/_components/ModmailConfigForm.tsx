@@ -267,7 +267,7 @@ export function ModmailConfigForm() {
 					label="Anonymous Reply Label"
 					maxLength={100}
 					onChange={(value) => updateField('anonReplyLabel', value)}
-					placeholder="{{ guildName }} Team"
+					placeholder="{{guildName}} Team"
 					value={form.anonReplyLabel}
 				/>
 

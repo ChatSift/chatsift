@@ -69,6 +69,7 @@ export default defineRoute({
 						color: 0x7289da, // blurple
 						title: data.panel!.title,
 						description: data.panel!.description,
+						...(data.panel!.attachmentUrl && { image: { url: data.panel!.attachmentUrl } }),
 					},
 				],
 			};

@@ -2,13 +2,16 @@ import { TextAreaField } from '@/components/common/TextAreaField';
 import { TextField } from '@/components/common/TextField';
 
 interface PanelEmbedFieldsProps {
+	readonly attachmentUrl: string;
 	readonly buttonLabel: string;
 	readonly description: string;
 	readonly errors: {
+		readonly attachmentUrl?: string;
 		readonly buttonLabel?: string;
 		readonly description?: string;
 		readonly title?: string;
 	};
+	onAttachmentUrlChange(value: string): void;
 	onButtonLabelChange(value: string): void;
 	onDescriptionChange(value: string): void;
 	onTitleChange(value: string): void;
@@ -19,10 +22,12 @@ export function PanelEmbedFields({
 	title,
 	description,
 	buttonLabel,
+	attachmentUrl,
 	errors,
 	onTitleChange,
 	onDescriptionChange,
 	onButtonLabelChange,
+	onAttachmentUrlChange,
 }: PanelEmbedFieldsProps) {
 	return (
 		<div className="space-y-4">
@@ -55,6 +60,21 @@ export function PanelEmbedFields({
 				onChange={onButtonLabelChange}
 				placeholder="Create Ticket"
 				value={buttonLabel}
+			/>
+
+			<TextField
+				error={errors.attachmentUrl}
+				helper={
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						Optional. Shown as an image on the panel embed -- must be a direct link to an image.
+					</p>
+				}
+				id="panel-attachment-url"
+				label="Image URL"
+				onChange={onAttachmentUrlChange}
+				placeholder="https://..."
+				type="url"
+				value={attachmentUrl}
 			/>
 		</div>
 	);

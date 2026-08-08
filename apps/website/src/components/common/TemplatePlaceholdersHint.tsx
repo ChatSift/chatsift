@@ -11,7 +11,7 @@ interface TemplatePlaceholdersHintProps {
 }
 
 /**
- * Documents the `{{ name }}` placeholder syntax `services/modmail-bot`'s `lib/templateString.ts`
+ * Documents the `{{name}}` placeholder syntax `services/modmail-bot`'s `lib/templateString.ts`
  * substitutes before posting text — the dashboard has no other way to tell an admin these exist since
  * the fields are just plain inputs.
  */
@@ -22,7 +22,7 @@ export function TemplatePlaceholdersHint({ placeholders = ALL_PLACEHOLDERS }: Te
 			{placeholders.map((placeholder, index) => (
 				<span key={placeholder}>
 					<code className="rounded bg-on-secondary px-1 py-0.5 text-xs dark:bg-on-secondary-dark">
-						{`{{ ${placeholder} }}`}
+						{`{{${placeholder}}}`}
 					</code>
 					{index < placeholders.length - 1 ? ', ' : ''}
 				</span>

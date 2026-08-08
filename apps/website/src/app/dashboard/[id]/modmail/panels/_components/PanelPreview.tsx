@@ -1,6 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { useState } from 'react';
+import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
 
 // `ssr: false` is load-bearing -- see `DiscordMarkdown.tsx`'s own doc comment on why its wasm parser can't
@@ -19,6 +21,7 @@ const DiscordMarkdown = dynamic(
 interface PreviewEmbed {
 	readonly color?: number | undefined;
 	readonly description?: string | undefined;
+	readonly imageUrl?: string | undefined;
 	readonly title?: string | undefined;
 }
 
@@ -29,6 +32,7 @@ interface PreviewResult {
 }
 
 interface NormalPreviewProps {
+	readonly attachmentUrl: string;
 	readonly buttonLabel: string;
 	readonly description: string;
 	readonly mode: 'normal';
@@ -84,6 +88,11 @@ function parseRawPanel(raw: string): PreviewResult {
 	}
 
 	const embedRecord = firstEmbed as Record<string, unknown>;
+	const image = embedRecord['image'];
+	const imageUrl =
+		typeof image === 'object' && image !== null && typeof (image as Record<string, unknown>)['url'] === 'string'
+			? ((image as Record<string, unknown>)['url'] as string)
+			: undefined;
 
 	return {
 		content,
@@ -91,6 +100,7 @@ function parseRawPanel(raw: string): PreviewResult {
 			title: typeof embedRecord['title'] === 'string' ? embedRecord['title'] : undefined,
 			description: typeof embedRecord['description'] === 'string' ? embedRecord['description'] : undefined,
 			color: typeof embedRecord['color'] === 'number' ? embedRecord['color'] : undefined,
+			imageUrl,
 		},
 	};
 }
@@ -104,16 +114,21 @@ function resolvePreview(props: PanelPreviewProps): PreviewResult {
 		embed: {
 			title: props.title || undefined,
 			description: props.description || undefined,
+			imageUrl: props.attachmentUrl || undefined,
 		},
 	};
 }
 
 export function PanelPreview(props: PanelPreviewProps) {
 	const { content, embed, error } = resolvePreview(props);
-	const hasEmbedContent = Boolean(embed?.title) || Boolean(embed?.description);
+	const hasEmbedContent = Boolean(embed?.title) || Boolean(embed?.description) || Boolean(embed?.imageUrl);
 	// Raw-mode panels always get the fixed "Create Ticket" button server-side (see createPanel.ts) -- only
 	// normal-mode panels have a user-configurable label.
 	const buttonLabel = (props.mode === 'normal' && props.buttonLabel.trim()) || 'Create Ticket';
+	// Rendering an `<img>` fetches it immediately -- gate behind an explicit click the same way
+	// `SnippetCard` does, since this is a staff-pasted URL nobody here has vetted. Tracks *which* URL was
+	// approved so editing to a different image always requires a fresh click.
+	const [previewedUrl, setPreviewedUrl] = useState<string | null>(null);
 
 	return (
 		<div className="rounded-md border border-on-secondary bg-[#313338] p-4 dark:border-on-secondary-dark">
@@ -143,6 +158,22 @@ export function PanelPreview(props: PanelPreviewProps) {
 										<DiscordMarkdown content={embed.description} forBot="MODMAIL" />
 									</div>
 								)}
+								{embed?.imageUrl &&
+									(previewedUrl === embed.imageUrl ? (
+										// eslint-disable-next-line @next/next/no-img-element -- arbitrary staff-pasted external URL, not one of the app's known image sources Next's optimizer can proxy
+										<img
+											alt="Panel embed"
+											className="max-h-40 rounded-md border border-on-secondary dark:border-on-secondary-dark"
+											src={embed.imageUrl}
+										/>
+									) : (
+										<Button
+											className="h-fit p-0 text-xs text-white/50 underline hover:bg-transparent"
+											onPress={() => setPreviewedUrl(embed.imageUrl!)}
+										>
+											Show image preview
+										</Button>
+									))}
 							</div>
 						</div>
 					)}

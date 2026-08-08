@@ -9,7 +9,7 @@ export interface TemplateData {
 
 /**
  * Lets a dashboard-authored greeting/farewell reference who's opening the ticket instead of always
- * being static text, via a `{{ name }}` placeholder. ChatSift/ModMail's own template syntax also
+ * being static text, via a `{{name}}` placeholder. ChatSift/ModMail's own template syntax also
  * supported a `roles` placeholder; deliberately not carried over here — not worth an extra
  * guild-roles fetch just for a template variable.
  */
@@ -30,7 +30,9 @@ export function templateDataFromMember(
 
 export function templateString(content: string, data: TemplateData): string {
 	return content.replaceAll(
-		/{{ (?<template>\w+?) }}/gm,
+		// Tolerates optional whitespace around the name so already-saved guild configs authored under the
+		// old `{{ name }}` hint text keep resolving, even though the dashboard now documents/writes `{{name}}`.
+		/{{\s*(?<template>\w+?)\s*}}/gm,
 		(_, template: string) => data[template as keyof TemplateData] ?? `[unknown template ${template}]`,
 	);
 }

@@ -16,13 +16,16 @@ import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 interface FormData {
+	attachmentUrl: string;
 	buttonLabel: string;
 	description: string;
 	panelRaw: string;
 	title: string;
 }
 
-type FormErrors = Partial<Record<'buttonLabel' | 'categoryIds' | 'description' | 'panelRaw' | 'title', string>>;
+type FormErrors = Partial<
+	Record<'attachmentUrl' | 'buttonLabel' | 'categoryIds' | 'description' | 'panelRaw' | 'title', string>
+>;
 
 function mapIssuesToFormErrors(issues: readonly { message: string; path: PropertyKey[] }[]): FormErrors {
 	const errors: FormErrors = {};
@@ -33,7 +36,7 @@ function mapIssuesToFormErrors(issues: readonly { message: string; path: Propert
 		if (first === 'categoryIds') {
 			errors.categoryIds ??= issue.message;
 		} else if (first === 'panel' && typeof second === 'string') {
-			if (second === 'title' || second === 'description' || second === 'buttonLabel') {
+			if (second === 'title' || second === 'description' || second === 'buttonLabel' || second === 'attachmentUrl') {
 				errors[second] ??= issue.message;
 			}
 		} else if (first === 'panel_raw') {
@@ -71,22 +74,29 @@ function prettyPrintOrRaw(value: string): string {
 // never fails, it just leaves fields blank for shapes it doesn't understand. Note there's no `buttonLabel` in
 // here at all: the button's current label lives only in the live Discord component, not in `panelJsonData`, so it
 // can't be recovered -- leaving it blank on submit resets it to the schema's 'Create Ticket' default.
-function bestEffortNormalFields(panelJsonData: string): { description: string; title: string } {
+function bestEffortNormalFields(panelJsonData: string): { attachmentUrl: string; description: string; title: string } {
 	try {
 		const parsed = JSON.parse(panelJsonData) as Record<string, unknown>;
 		const embeds = parsed['embeds'];
 		if (Array.isArray(embeds) && embeds.length > 0 && typeof embeds[0] === 'object' && embeds[0] !== null) {
 			const embed = embeds[0] as Record<string, unknown>;
+			const image = embed['image'];
+			const attachmentUrl =
+				typeof image === 'object' && image !== null && typeof (image as Record<string, unknown>)['url'] === 'string'
+					? ((image as Record<string, unknown>)['url'] as string)
+					: '';
+
 			return {
 				title: typeof embed['title'] === 'string' ? embed['title'] : '',
 				description: typeof embed['description'] === 'string' ? embed['description'] : '',
+				attachmentUrl,
 			};
 		}
 	} catch {
 		// Not JSON, or not the expected shape -- fall through to blank fields.
 	}
 
-	return { title: '', description: '' };
+	return { title: '', description: '', attachmentUrl: '' };
 }
 
 interface EditPanelFormProps {
@@ -129,6 +139,7 @@ export function EditPanelForm({ panel }: EditPanelFormProps) {
 				title: formData.title,
 				description: formData.description || undefined,
 				buttonLabel: formData.buttonLabel || undefined,
+				attachmentUrl: formData.attachmentUrl || undefined,
 			},
 		};
 	};
@@ -180,6 +191,7 @@ export function EditPanelForm({ panel }: EditPanelFormProps) {
 					['title', error.fieldError(panelField, 'title')],
 					['description', error.fieldError(panelField, 'description')],
 					['buttonLabel', error.fieldError(panelField, 'buttonLabel')],
+					['attachmentUrl', error.fieldError(panelField, 'attachmentUrl')],
 				];
 
 				const newErrors: FormErrors = Object.fromEntries(
@@ -247,9 +259,11 @@ export function EditPanelForm({ panel }: EditPanelFormProps) {
 					<div>
 						{mode === 'normal' ? (
 							<PanelEmbedFields
+								attachmentUrl={formData.attachmentUrl}
 								buttonLabel={formData.buttonLabel}
 								description={formData.description}
 								errors={errors}
+								onAttachmentUrlChange={(value) => updateFormData('attachmentUrl', value)}
 								onButtonLabelChange={(value) => updateFormData('buttonLabel', value)}
 								onDescriptionChange={(value) => updateFormData('description', value)}
 								onTitleChange={(value) => updateFormData('title', value)}
@@ -277,6 +291,7 @@ export function EditPanelForm({ panel }: EditPanelFormProps) {
 
 					{mode === 'normal' ? (
 						<PanelPreview
+							attachmentUrl={formData.attachmentUrl}
 							buttonLabel={formData.buttonLabel}
 							description={formData.description}
 							mode="normal"
