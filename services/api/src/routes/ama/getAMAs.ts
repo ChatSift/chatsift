@@ -1,4 +1,4 @@
-import { getContext, GRANTS } from '@chatsift/backend-core';
+import { getContext } from '@chatsift/backend-core';
 import type { AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
@@ -30,7 +30,6 @@ export default defineRoute({
 		// every AMA subpage, including the ones guests can reach), just filtered to a narrower result set
 		// in the handler below rather than rejected outright.
 		isGuildManager: false,
-		grants: [GRANTS.AMA_CREATE],
 	}),
 	async handler(req, res): Promise<AMASessionWithCount[]> {
 		const { include_ended } = req.query;

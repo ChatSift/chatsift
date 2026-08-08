@@ -183,55 +183,77 @@ JWT-based, split across cookie + header — already close to the SimplyChords sh
 
 Under the target contract pattern, `isAuthed` becomes a typed `defineMiddleware` that attaches `req.identity`/`req.tokens` onto the handler's `req` type — same runtime behavior, real typing.
 
-### 4a. Grant-token auth (one-time, scoped) (#194)
+### 4a. `/dashboard` command auth (guild-scoped session, no OAuth) (#194)
 
-A second, independent auth path alongside the session flow above: a bot slash command mints a short-lived,
-single-capability JWT and embeds it in a dashboard URL, so a user with no browser session can still perform the
-one action Discord already proved they're allowed to do (having run the command at all, gated by
-`.setDefaultMemberPermissions(...)` on that command). First consumer: `/ama create`
-(`services/ama-bot/src/commands/ama.ts`) — see §6 below.
+Replaces an earlier one-time, single-capability grant-token design (see git history if you need it). A `/dashboard`
+command — identical on every bot, registered automatically by `createBotClient`
+(`packages/private/bot-core/src/lib/dashboardCommand.ts`) — mints a link that exchanges for a normal session scoped
+to one guild, rather than a token authorizing one specific action. Past the exchange there is a single auth code
+path: a scoped session flows through exactly the same `isAuthed` logic as a real OAuth session.
 
-- **Token shape** (`GrantTokenData`, `packages/private/backend-core/src/lib/grantToken.ts`): `{ kind: 'grant', sub,
-guildId, grant, jti, iat }`, signed with the same `ENCRYPTION_KEY` as the session tokens above, 15-minute expiry.
-  `kind: 'grant'` is a hard discriminator — without it, a grant token has no `refresh` field either, and would
-  otherwise pass the session access-token check and be treated as a valid session. `GRANTS` (same file) is the
-  registry of capability strings: `ama:create` (first consumer, above) plus three ModMail ones added for the M5
-  bot's own dashboard-linking slash commands — `modmail:snippet:create` (`/snippet create`), `modmail:config:update`
-  (`/config`), `modmail:blocks:read` (`/block-list`); `createGrantToken()`/`verifyGrantToken()` mint and verify it,
-  `isGrantConsumed()`/`consumeGrantToken()` enforce one-time use via a `grant:used:<jti>` Redis key.
-- **API side** (`services/api/src/middleware/isAuthed.ts`): routes opt in per-route via a new `grants: GrantString[]`
-  option. A fast path at the top of `isAuthed`'s first middleware verifies the token and, on a match, sets
-  `req.grant` and calls `next()` **before any cookie/refresh/access-token logic runs at all** — a grant request
-  never sets `X-Update-Access-Token` or touches the `refresh_token` cookie, so it can't interfere with a real
-  session in the same browser. A route's `:guildId` param (if it has one) must match the token's `guildId`; routes
-  without one (`/v3/auth/me`) use the token's `guildId` directly instead. Falls through to normal session auth if
-  the header holds a real access token instead of a grant. Opted-in routes: `getGuild`, `createAMA`, `getAMAs`,
-  ModMail's `getConfig`/`updateConfig`/`listSnippets`/`createSnippet`/`listBlocks`, and `/v3/auth/me` (accepts every
-  grant string, since it just needs to resolve _a_ valid grant's identity/guild regardless of which capability it
-  carries) — each other route still declares which specific grant strings it accepts.
-- **`/v3/auth/me` under a grant** (`services/api/src/util/me.ts`'s `fetchMeFromGrant`): there's no Discord OAuth
-  access token to call `/users/@me` with, so it uses the bot's own REST client (already a member of the grant's
-  guild) to fetch just the acting user and that one guild, returning a `Me` shaped exactly like a real session's but
-  with a single-entry `guilds` array. This is what lets the frontend reuse the _same_ dashboard route and shared
-  components (`useMe()`, `GuildNav`, `DashboardCrumbs`, ...) instead of a parallel minimal page.
-- **Frontend** (`apps/website/src/api/grant.ts`'s `useGrantAuth()`): reads `?token=` and decodes the JWT payload
-  client-side to drive rendering — this is NOT verification (no `ENCRYPTION_KEY` in the browser), the API
-  re-verifies the signature on every request regardless. Deliberately scoped to one exact route
-  (`/dashboard/:guildId/ama/amas/new`) via regex: an unscoped check would let a forged `token` query param on _any_
-  dashboard route flip `NavGateProvider`/`NavGateCheck`'s client-side gates for that route too, since the decode
-  isn't cryptographic. `apiFetch`'s `authToken` option (`api/fetch.ts`) sends the grant token instead of the stored
-  session and forces `credentials: 'omit'`, so the token never touches `accessTokenAtom` or cookies. `useMe()`,
-  `useGuildInfo()`, `useAMAs()`, `useCreateAMA()` all call `useGrantAuth()` internally and transparently switch to
-  grant auth when active — call sites don't need to know grant auth exists. `useMe()`'s query is cached under a
-  separate key (`queryKeys.auth.meGrant(token)`) so it can never collide with the real session's `me` cache entry.
-- **Dashboard chrome while a grant is active:** `GuildNav` and `DashboardCrumbs` render tabs/breadcrumbs as
-  non-interactive (no `href`) rather than hiding them, since the grant only authorizes the one page it links to —
-  navigating anywhere else would 401. `UserDesktop`/`UserMobile` show the grant's user avatar (via the real,
-  grant-authed `/me` response) with no login/logout button. `apps/website/src/proxy.ts` exempts exactly this one
-  route from its cookie-presence redirect when a `token` param is present (presence only, not verified — same
-  "UX gate, not a security boundary" reasoning as the frontend decode above).
-- **One-time use:** enforced server-side only. `createAMA`'s handler calls `consumeGrantToken(req.grant.jti)` after
-  its DB transaction succeeds (not before) — a failed/invalid submit doesn't cost the user their single-use link.
+- **`/dashboard open`**: mints a short-lived (~2 min), best-effort-single-use (see the claim-durability note below)
+  `DashboardLinkTokenData` JWT (`{ kind: 'dashboard-link', sub, guildId, jti, iat }`,
+  `packages/private/backend-core/src/lib/dashboardSession.ts`) and replies ephemerally with a spoilered link to
+  `GET {API_URL}/v3/auth/dashboard?token=...` — the link points at the API, not the dashboard, so the token is
+  only ever in the URL for that one initial request; the exchange consumes it and 302s to a clean
+  `/dashboard/:guildId` URL with nothing in it, unlike the token itself ending up in the dashboard's own address
+  bar for the whole visit the way the old grant tokens did. The reply text warns that the link expires in 2
+  minutes and is meant to be used once, the session it grants lasts 30 minutes with full guild-manager access to
+  that one guild, and — if the user is already logged in normally in that browser — opening it will replace their
+  session. `/dashboard revoke` ends every live scoped session for the caller in that guild
+  (`revokeDashboardSessionsFor`).
+- **Exchange** (`services/api/src/routes/auth/dashboardLink.ts`, no `isAuthed` — there's no session yet):
+  verifies + atomically claims the link token (`claimDashboardLinkToken`, `SET ... NX`, same one-time-use pattern
+  the old grant tokens used), re-verifies `ManageGuild` at click time (permissions can have changed since the link
+  was minted), starts a session record in Redis (`startDashboardSession`, 30-minute TTL), mints a scoped
+  access/refresh pair, and 302s to a clean `/dashboard/:guildId` URL. Any existing session cookie in that browser is
+  unconditionally overwritten.
+
+  The single-use claim is best-effort, not durable, the same tradeoff as everything else Redis backs here (see the
+  in-memory-Redis bullet below) — a restart within the token's own ~2-minute lifetime clears the claim record and
+  makes a previously-used link exchangeable again for whatever remains of that window. Accepted rather than
+  persisted: the replay is bounded to ~2 minutes, requires Redis to restart in that exact window, and grants
+  nothing beyond what the token's own embedded `sub` already had (the guild owner's/manager's own time-boxed
+  access) — durably persisting single-use claim markers only to close a window this narrow wasn't worth breaking
+  the "Redis is disposable" property everything else here relies on.
+
+- **Token shape** (`services/api/src/util/tokens.ts`): `AccessTokenData`/`RefreshTokenData` are now discriminated
+  unions on `kind: 'oauth' | 'scoped'`. A `ScopedAccessTokenData` sets `grants.adminGuilds = [guildId]` — exactly
+  the field `isGuildManager`/`isGuildManagerToken` already read for an OAuth session's admin claim, so no new
+  authorization branch was needed there. A `ScopedRefreshTokenData` carries `absoluteExpiresAt`; every rotation
+  (`createScopedRefreshToken`) clamps its own `expiresIn` to whatever remains until that timestamp, which is what
+  makes the 30-minute cap absolute rather than sliding.
+- **Cross-cutting guard rails** (`middleware/isAuthed.ts`): the global-admin `ADMINS` bypass (both in
+  `isGuildManagerToken` and the `isGuildManager` middleware) only applies to `kind: 'oauth'` — otherwise a global
+  admin's own link would work as an any-guild credential. The `isGlobalAdmin` middleware denies `kind: 'scoped'`
+  outright, regardless of `ADMINS` membership. A per-route `allowScopedSession: false` option (set on
+  `createGrant`/`deleteGrant`) blocks a scoped session even on its own matching guild — otherwise a leaked link
+  could mint itself _permanent_ dashboard access before its own window elapses. Rotation (`refreshScoped`)
+  re-verifies the session hasn't been revoked and re-resolves `ManageGuild` from Discord on every cycle (bypassing
+  the identity cache — see below — so this is a real re-check, not a replay of the first answer).
+- **Identity resolution** (`services/api/src/util/me.ts`'s `fetchMeForScopedSession`): no Discord OAuth token to
+  call `/users/@me` with, so it resolves the acting user + guild via whichever installed bot(s) actually have that
+  guild (same `GuildList` union `fetchMe` uses) — this is what makes a link minted by one bot also unlock every
+  other bot's config in that guild. `meCanManage` uses the identical rule `fetchMe` applies to a real session
+  (owner, `ManageGuild`/`Administrator`, or a `dashboard_grants` row), just computed from bot REST instead of the
+  user's own OAuth token. Cached 5 minutes (`ScopedMeStore`), with a `force` bypass used by both the exchange route
+  and every refresh cycle.
+- **Boot-time route guard** (`services/api/src/core/server.ts`): every route mounted with `isAuthed`-derived
+  middleware (tagged via `IS_AUTHED_MARKER`) must either contain a `:guildId` path param or be explicitly listed in
+  `NON_GUILD_SCOPED_ROUTES` — a scoped session is allowed by default on every `isAuthed` route (unlike the old
+  grant tokens' per-route opt-in), so a route reachable outside a single guild needs an explicit decision at boot,
+  not silence. Having `:guildId` in the path isn't accepted as proof on its own, either — the guard also requires
+  `isGuildManager: true`/`'or-ama-guest'` (tagged via `IS_GUILD_MANAGER_MARKER`) actually be enforced for it, since
+  a `:guildId` param a route never checks the caller against is exactly the shape of hole a scoped session's
+  authorization boundary depends on not existing. The one route that legitimately skips it
+  (`routes/ama/getAMAs.ts`, which calls `isGuildManagerToken` itself to filter rather than reject) is listed in a
+  parallel `MANUALLY_GUILD_VERIFIED_ROUTES` set instead.
+- **Frontend**: a scoped session is a normal cookie session with exactly one guild in `me.guilds` — `NavGate`,
+  `GuildNav`, `DashboardCrumbs`, snippet/block edit controls, and logout all work completely unchanged. The only
+  scoped-session-aware frontend code is additive: `MeResponse.sessionKind`/`scopedExpiresAt`
+  (`services/api/src/routes/auth/me.ts`) drive a persistent banner
+  (`apps/website/src/components/dashboard/ScopedSessionBanner.tsx`) naming the guild, showing time remaining, and
+  offering a full OAuth login, plus a tooltip on the guild switcher when only one server is available.
 
 ## 5. Data model reference (6 models)
 
@@ -260,7 +282,7 @@ A gateway bot (`@discordjs/ws` `WebSocketManager` + `@discordjs/core` `Client`, 
 **`services/ama-bot`** — everything AMA-specific, built on top of `@chatsift/bot-core`:
 
 - `bin.ts` — process entry: `initContext()`, then `createBotRest`/`createBotGateway`/`createBotClient` with `botId: 'AMA'` and `env.AMA_BOT_TOKEN`, `setServiceValue('client', ...)`, then registers its own `commands`/`components` dirs and connects.
-- `commands/ama.ts` — the `/ama` command set: `create` (ephemeral reply linking to the dashboard's create screen, grant-token-authed — see §4a above), `end` (ephemeral select menu of ongoing sessions, flips `ended` via a direct DB write), `repost-prompt` (select menu, replays the stored `AMAPromptData.promptJSONData` verbatim via the bot's own REST client — intentionally not the same client instance `services/api`'s `repostPrompt` route uses, see the file for why). `/ama stats` was deliberately not built (would've duplicated Cluster-4 query logic); still open if anyone wants to pick it up.
+- `commands/ama.ts` — the `/ama` command set: `end` (ephemeral select menu of ongoing sessions, flips `ended` via a direct DB write), `repost-prompt` (select menu, replays the stored `AMAPromptData.promptJSONData` verbatim via the bot's own REST client — intentionally not the same client instance `services/api`'s `repostPrompt` route uses, see the file for why). Creating a new AMA is reached via `/dashboard` (§4a above) rather than a bot subcommand — the create form needs channel pickers and other dashboard-only UI a slash command can't offer. `/ama stats` was deliberately not built (would've duplicated Cluster-4 query logic); still open if anyone wants to pick it up.
 - `lib/queues.ts` — the core domain logic:
   - `enum CurrentlyInQueue { queue, answers }` — a state machine: **queue → answers channel**. Mods act on the queue in Discord; anyone in `session.guestIds` acts on the same queue via the dashboard instead (see `services/api`'s `'or-ama-guest'` auth path in §4a's neighborhood). Flagging and the separate guest-queue stage that used to exist here were both removed (#293 follow-up simplification).
   - `postToQueue` / `postToAnswersChannel` — builder functions: author name+avatar line, blurple `0x7289da`, footer with `username (id)` on the queue (where a reviewer needs the raw ID to act), no footer on the answers channel. Classic embeds, not Components V2 — Components V2 was trialed and rejected in favor of matching `ChatSift/AMA`'s existing embed layout. `getBaseEmbeds` also adds gallery-grouping (same-`url` trick) for >1 attachment; it only ever renders a question's own author, never merged-duplicate askers (those are a dashboard-only detail, see §5's `AMAQuestionAsker`).
@@ -287,7 +309,7 @@ Built on `@chatsift/bot-core` (§6 above), same shape as `services/ama-bot`: `bi
 - `scheduled_thread_closes` (`/close schedule`) and `scheduled_thread_nukes` (post-close deletion, gated on `nuke_delay_minutes` being set) — both polled by their own 1-minute sweeps.
 - `blocks`, `thread_open_alerts`, `thread_reply_alerts`, `snippets`+`snippet_updates` — carried forward close to 1:1 from `ChatSift/ModMail`'s schema.
 
-**API** (`services/api/src/routes/modmail/`): `config/` (get/update — the guild-settings fields above), `categories/` (CRUD), `panels/` (CRUD, incl. raw-JSON mode), `snippets/` (CRUD — `createSnippet`/`updateSnippet` mint/rename the per-guild Discord slash command directly, see below), `blocks/` (create/list/delete), `threads/` (§7), `resync.ts` (§8). Three ModMail grant strings (`modmail:snippet:create`, `modmail:config:update`, `modmail:blocks:read`) let `/snippet create`, `/config`, and `/block-list` link straight to the matching dashboard page the same way `/ama create` does — see §4a above.
+**API** (`services/api/src/routes/modmail/`): `config/` (get/update — the guild-settings fields above), `categories/` (CRUD), `panels/` (CRUD, incl. raw-JSON mode), `snippets/` (CRUD — `createSnippet`/`updateSnippet` mint/rename the per-guild Discord slash command directly, see below), `blocks/` (create/list/delete), `threads/` (§7), `resync.ts` (§8). All of these (config, snippets, blocks) are also reachable from a `/dashboard` link the same way AMA creation is — see §4a above; there's no longer a separate ModMail-specific linking command per page.
 
 **Dashboard** (`apps/website/src/app/dashboard/[id]/modmail/`): `config/`, `categories/` (+ `[categoryId]`/`new`), `panels/` (+ `[panelId]`/`new`, embed editor with a raw-JSON toggle mirroring `CreateAMAForm`'s, live preview, a `DmModeBanner` when the guild is in DM mode since panels go inert there), `snippets/` (+ `[snippetId]`/`new`), `blocks/`, `threads/` (§7).
 
@@ -297,7 +319,7 @@ Built on `@chatsift/bot-core` (§6 above), same shape as `services/ama-bot`: `bi
 
 **Mention/user-ID auto-embed (#215, anti "ID swapping")** — `lib/referencedUserEmbed.ts`: scans a user's own relayed message for a Discord mention or a bare 17–20 digit snowflake, resolves each (capped at 3) against the guild, and posts a compact profile card (avatar, account-created-at, join date or "not currently a member") as a native reply to the relayed message, for every id that resolves to a real account — deliberately unconditional. **Diverges from the original design** (which called for suppressing the card when both the referenced user and the message author are staff): the schema notes explicitly rejected adding a staff-role concept (#152), and since this only ever runs on the ticket opener's own messages (staff replies are command-driven, never relayed through this path), there's no "staff flagging staff" case to suppress in the first place — every resolved id gets a card.
 
-**Snippets** (`lib/snippets.ts`, `commands/snippet.ts`): each snippet is minted as its own per-guild Discord slash command by `services/api` on create — there's no static `CommandHandler` for these, so `index.ts`'s `registerUnknownCommandResolver` looks one up by `interaction.data.id` (`findSnippetByCommandId`) instead of dispatching through `@chatsift/bot-core`'s static command map. Supports an attachment (`snippets.attachment_url`/`attachment_filename`). `/snippet create` doesn't create one itself — it mints a grant token and links to the dashboard form (needs live slash-command-name normalization the modal flow doesn't have).
+**Snippets** (`lib/snippets.ts`): each snippet is minted as its own per-guild Discord slash command by `services/api` on create — there's no static `CommandHandler` for these, so `index.ts`'s `registerUnknownCommandResolver` looks one up by `interaction.data.id` (`findSnippetByCommandId`) instead of dispatching through `@chatsift/bot-core`'s static command map. Supports an attachment (`snippets.attachment_url`/`attachment_filename`). Creating one happens from the dashboard (reached via `/dashboard`, §4a above), not a bot command — needs live slash-command-name normalization a modal flow doesn't have.
 
 **Blocks** (`lib/blocks.ts`, `commands/block.ts`/`unblock.ts`/`blockList.ts`): dashboard- and command-managed; optional expiry (`expires_at`, relative-duration parsed via `@chatsift/parse-relative-time`). Checked as a fast pre-check before the category prompt is even shown, then re-checked authoritatively in `categorySelect.ts` immediately before a private thread is actually created.
 
@@ -403,7 +425,7 @@ inventory, retention posture, everything considered and explicitly _not_ actione
   defense-in-depth, not the primary control.)
 - **Redis runs fully in-memory** (`docker-compose.yml`'s `redis` service: `--save '' --appendonly no`) — nothing
   in the stack treats it as a source of truth (`GuildList`/instance snapshots republish on an interval,
-  `PendingTicketStore` mirrors the durable `pending_tickets` table, grant-token claims are best-effort), so there
+  `PendingTicketStore` mirrors the durable `pending_tickets` table, dashboard-link-token claims are best-effort), so there
   was no reason for it to write RDB/AOF snapshots to disk at all. Removes it from the at-rest-encryption scope
   entirely instead of needing the same treatment as Postgres, and drops the fsync/bgsave overhead as a side effect.
 - **Improved the 404 page** (`apps/website/src/app/not-found.tsx`) — was a single line of text plus a client-only

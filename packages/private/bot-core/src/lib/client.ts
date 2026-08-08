@@ -12,6 +12,7 @@ import {
 	registerCommandHandler,
 } from './commands.js';
 import { handleComponentInteraction } from './components.js';
+import DashboardCommand from './dashboardCommand.js';
 import DeployCommand from './deploy.js';
 
 declare module '@chatsift/backend-core' {
@@ -40,8 +41,8 @@ export interface CreateBotClientOptions {
 /**
  * Builds the discord.js `Client` and wires up all gateway event routing: guild-set tracking with a periodic Redis
  * sync, interaction dispatch (component/command/autocomplete), and the fresh-app bootstrap that seeds `/deploy` as
- * the only global command so an admin has something to run. Also registers the shared `/deploy` command itself, so
- * callers never need to discover or wire it up on their own.
+ * the only global command so an admin has something to run. Also registers the shared `/deploy` and `/dashboard`
+ * commands themselves, so callers never need to discover or wire either of them up on their own.
  *
  * Callers register the result into the context themselves (`setServiceValue('client', ...)`) before the rest of
  * the app starts — everything else should reach Discord via `getContext().service.client`, never by importing this
@@ -49,6 +50,7 @@ export interface CreateBotClientOptions {
  */
 export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions): Client {
 	registerCommandHandler(new DeployCommand());
+	registerCommandHandler(new DashboardCommand());
 
 	// keep a copy of the guild ids we manage here to easily patch redis
 	const guildIds = new Set<Snowflake>();

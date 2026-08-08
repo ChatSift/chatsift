@@ -40,9 +40,9 @@ export function createWsTicket(data: Pick<WsTicketData, 'adminGuilds' | 'isAdmin
  * Returns the payload only if the JWT is valid AND is a ws ticket; `null` otherwise (expired, malformed,
  * tampered, or a differently-shaped token like an access/refresh/grant token).
  *
- * Deliberately not single-use (unlike `verifyGrantToken`'s token, see `grantToken.ts`) -- a ticket only
- * authorizes opening a socket, not a state-changing action, and exposure is already bounded by the short
- * TTL. A reconnecting client must be free to fetch-and-use a fresh ticket on every attempt without racing
+ * Deliberately not single-use (unlike `verifyDashboardLinkToken`'s token, see `dashboardSession.ts`) -- a
+ * ticket only authorizes opening a socket, not a state-changing action, and exposure is already bounded by the
+ * short TTL. A reconnecting client must be free to fetch-and-use a fresh ticket on every attempt without racing
  * a single-use claim against itself.
  */
 export function verifyWsTicket(token: string | undefined): WsTicketData | null {

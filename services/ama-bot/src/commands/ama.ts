@@ -1,5 +1,5 @@
 import type { Logger } from '@chatsift/backend-core';
-import { createGrantToken, getContext, GRANTS } from '@chatsift/backend-core';
+import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
 import type { AmaSessions } from '@chatsift/db';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
@@ -40,8 +40,6 @@ export default class AmaCommand implements CommandHandler {
 		.setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
 		.setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
 		.addSubcommands(
-			(subcommand) =>
-				subcommand.setName('create').setDescription('Get a one-time link to create a new AMA from the dashboard'),
 			(subcommand) => subcommand.setName('end').setDescription("End one of this server's ongoing AMAs"),
 			(subcommand) =>
 				subcommand.setName('repost-prompt').setDescription('Repost an AMA prompt message that was deleted'),
@@ -61,11 +59,6 @@ export default class AmaCommand implements CommandHandler {
 		const subcommand = options.getSubcommand(true);
 
 		switch (subcommand) {
-			case 'create': {
-				await this.handleCreate(interaction);
-				break;
-			}
-
 			case 'end': {
 				await this.handleSelect(interaction, 'end');
 				break;
@@ -83,36 +76,6 @@ export default class AmaCommand implements CommandHandler {
 				});
 			}
 		}
-	}
-
-	/**
-	 * Deliberately does not create an AMA itself - creation needs the full config form (channels, upload limits,
-	 * prompt mode) that only the dashboard exposes. Instead this mints a short-lived, single-use grant token
-	 * scoped to `ama:create` in this guild for the runner, and points at the same dashboard create page a
-	 * logged-in manager would use — it accepts the grant token in place of a full OAuth login (see `isAuthed`'s
-	 * `grants` option), so there's no separate page to keep in sync.
-	 */
-	private async handleCreate(interaction: APIApplicationCommandInteraction) {
-		const user = interaction.member?.user ?? interaction.user;
-		if (!user) {
-			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-				content: 'Could not determine who ran this command.',
-				flags: MessageFlags.Ephemeral,
-			});
-			return;
-		}
-
-		const token = createGrantToken({
-			sub: user.id,
-			guildId: interaction.guild_id!,
-			grant: GRANTS.AMA_CREATE,
-		});
-		const url = `${getContext().FRONTEND_URL}/dashboard/${interaction.guild_id}/ama/amas/new?token=${token}`;
-
-		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-			content: `Click to create a new AMA (link expires soon, single use): ${url}`,
-			flags: MessageFlags.Ephemeral,
-		});
 	}
 
 	/**

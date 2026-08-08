@@ -3,7 +3,6 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useState } from 'react';
-import { useGrantAuth } from '@/api/grant';
 import type { ModmailSnippet } from '@/api/routes/modmail';
 import { useDeleteModmailSnippet } from '@/api/routes/modmail';
 import { Button } from '@/components/common/Button';
@@ -34,7 +33,6 @@ interface SnippetCardProps {
 }
 
 export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
-	const grant = useGrantAuth();
 	const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 	// Rendering an `<img>` fetches it immediately on page load -- for a staff-pasted URL we haven't
 	// vetted, that's an unprompted request to wherever they typed, made by every moderator who happens
@@ -97,33 +95,28 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 						}`}
 			</p>
 
-			{/* A `/snippet create` grant only ever authorizes creating one snippet, not editing/deleting existing
-			ones -- those routes don't accept the grant server-side either, so hiding these controls here is
-			belt-and-suspenders, not the only guard. The list itself stays visible under a grant. */}
-			{!grant && (
-				<div className="mt-auto flex justify-end gap-2">
-					{showConfirmDelete ? (
-						<>
-							<Button onPress={handleDelete}>
-								<span className="text-red-500">Yes, delete</span>
-							</Button>
-							<Button onPress={() => setShowConfirmDelete(false)}>Cancel</Button>
-						</>
-					) : (
-						<>
-							<Link
-								className="flex h-fit items-center gap-2 whitespace-nowrap rounded-md bg-transparent px-1.5 py-1.5 text-lg text-primary hover:bg-on-tertiary active:bg-on-secondary dark:text-primary-dark dark:hover:bg-on-tertiary-dark dark:active:bg-on-secondary-dark"
-								href={`/dashboard/${guildId}/modmail/snippets/${snippet.id}`}
-							>
-								Edit
-							</Link>
-							<Button onPress={() => setShowConfirmDelete(true)}>
-								<span className="text-red-500">Delete</span>
-							</Button>
-						</>
-					)}
-				</div>
-			)}
+			<div className="mt-auto flex justify-end gap-2">
+				{showConfirmDelete ? (
+					<>
+						<Button onPress={handleDelete}>
+							<span className="text-red-500">Yes, delete</span>
+						</Button>
+						<Button onPress={() => setShowConfirmDelete(false)}>Cancel</Button>
+					</>
+				) : (
+					<>
+						<Link
+							className="flex h-fit items-center gap-2 whitespace-nowrap rounded-md bg-transparent px-1.5 py-1.5 text-lg text-primary hover:bg-on-tertiary active:bg-on-secondary dark:text-primary-dark dark:hover:bg-on-tertiary-dark dark:active:bg-on-secondary-dark"
+							href={`/dashboard/${guildId}/modmail/snippets/${snippet.id}`}
+						>
+							Edit
+						</Link>
+						<Button onPress={() => setShowConfirmDelete(true)}>
+							<span className="text-red-500">Delete</span>
+						</Button>
+					</>
+				)}
+			</div>
 		</div>
 	);
 }

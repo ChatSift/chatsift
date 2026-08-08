@@ -1,30 +1,38 @@
 /* eslint-disable n/callback-return */
 
-import { claimGrantToken, decrypt, getContext, RefreshTokenCookie, verifyGrantToken } from '@chatsift/backend-core';
-import type { GrantString, GrantTokenData, Logger } from '@chatsift/backend-core';
+import {
+	decrypt,
+	getContext,
+	isDashboardSessionLive,
+	RefreshTokenCookie,
+	revokeDashboardSession,
+} from '@chatsift/backend-core';
+import type { Logger } from '@chatsift/backend-core';
 import type { AmaSessions } from '@chatsift/db';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
 import { parseCookie } from 'cookie';
 import jwt from 'jsonwebtoken';
 import type { Response } from 'polka';
+import { IS_AUTHED_MARKER, IS_GUILD_MANAGER_MARKER } from '../core/isAuthedMarker.js';
 import { defineMiddleware } from '../core/route.js';
 import type { TypedMiddleware } from '../core/route.js';
 import { isUnauthorizedDiscordError } from '../util/discordErrors.js';
 import type { RefreshedOAuthData } from '../util/discordOAuthRefresh.js';
 import { refreshDiscordAccessToken } from '../util/discordOAuthRefresh.js';
 import type { Me, MeGuild } from '../util/me.js';
-import { fetchMe } from '../util/me.js';
-import type { RefreshTokenData, AccessTokenData } from '../util/tokens.js';
-import { createAccessToken, createRefreshToken, noopAccessToken, noopRefreshToken } from '../util/tokens.js';
+import { fetchMe, fetchMeForScopedSession } from '../util/me.js';
+import type { RefreshTokenData, AccessTokenData, ScopedRefreshTokenData } from '../util/tokens.js';
+import {
+	createAccessToken,
+	createRefreshToken,
+	createScopedAccessToken,
+	createScopedRefreshToken,
+	noopAccessToken,
+	noopRefreshToken,
+} from '../util/tokens.js';
 
 declare module 'polka' {
 	export interface Request {
-		/**
-		 * Set instead of `tokens`/`guild` when the request authed via a scoped one-time grant token
-		 * (see `grants` option below) rather than a full session — handlers opting into `grants` must not
-		 * assume `tokens`/`guild` are populated.
-		 */
-		grant?: GrantTokenData;
 		guild?: MeGuild;
 		tokens?: {
 			access: AccessTokenData;
@@ -52,21 +60,16 @@ interface IsAuthedGlobalAdmin {
 
 interface IsAuthedNoGlobalAdmin {
 	/**
-	 * If true, reaching this middleware atomically claims (single-use-consumes) the grant token via
-	 * `claimGrantToken` before the handler runs. Set this ONLY on the one route that performs the action a grant
-	 * actually authorizes (`createAMA`) — routes that merely accept a grant to read data scoped to it while the
-	 * page loads (`getAMAs`, `/v3/auth/me`, `getGuild`) must leave this unset. Those routes are hit (with the
-	 * same token) well before the user submits anything; claiming there would burn the single-use link on page
-	 * load instead of on the actual create.
+	 * If `false`, a guild-scoped `/dashboard` session (see `util/tokens.ts`'s `ScopedAccessTokenData`) is
+	 * rejected with 403 even if it would otherwise pass `isGuildManager` for this exact guild -- for the one
+	 * class of route where that must never be reachable from a link-minted session: `dashboard_grants` CRUD
+	 * (`createGrant`/`deleteGrant`), since a scoped session using it could mint itself *permanent* dashboard
+	 * access before its own 30-minute window runs out. Defaults to `true` (allowed) -- a scoped session is
+	 * meant to behave like a normal session scoped to one guild everywhere else, so routes don't need to opt in
+	 * one by one.
 	 */
-	claimsGrant?: boolean;
+	allowScopedSession?: boolean;
 	fallthrough: false;
-	/**
-	 * If set, a scoped one-time grant token (see `@chatsift/backend-core`'s `GRANTS`) matching one of these
-	 * strings is accepted as an alternative to a full session, provided its `guildId` matches the `:guildId`
-	 * route param. Opt-in only — routes that don't set this never run the grant fast-path.
-	 */
-	grants?: readonly GrantString[];
 	isGlobalAdmin: false;
 	/**
 	 * If true, assumes `guildId` parameter is present and checks if the user can manage that guild.
@@ -89,32 +92,29 @@ export interface AuthedTokens {
 }
 
 /**
- * Claim-only fast path plus the same live guild-membership re-verification the full `isGuildManager`
- * middleware does via `fetchMe` -- a grant-authed request always counts as a manager (it's already
- * scoped to one guild and one action), but an admin/`adminGuilds` claim alone does NOT, since that claim
- * can go stale between token issuance and this request (guild left, admin status revoked). `fetchMe` is
- * cache-backed (see `MeStore`), so this stays cheap on the common case. Exported for routes like
- * `getAMAs.ts` that need to branch their own query on manager-vs-not rather than hard-gating the whole
- * route on it.
- */
-/**
- * `fetchMe` against a discord access token carried inside a still-unexpired session access token.
+ * `fetchMe`/`fetchMeForScopedSession` against whatever's embedded in a still-unexpired session access token --
+ * dispatches on `access.kind` so every call site (the manager-claim re-verification below, `/v3/auth/me`) works
+ * unchanged regardless of whether the session is a full OAuth login or a `/dashboard`-minted scoped one.
  *
- * That embedded token can be dead well before the JWT wrapping it expires (the user re-authorized elsewhere,
- * revoked the app, or another session rotated the pair) -- same underlying hazard `refresh` handles, but these
- * call sites can't recover the way it does, since they don't own the response's token lifecycle. Nooping the
- * access token and 401ing makes the client drop its copy and retry, and that retry lands in `refresh`, which is
- * able to rotate. Letting the 401 propagate instead 500s the request for as long as the session access token
- * stays unexpired.
+ * For an OAuth session, that embedded discord access token can be dead well before the JWT wrapping it expires
+ * (the user re-authorized elsewhere, revoked the app, or another session rotated the pair) -- same underlying
+ * hazard `refresh` handles, but these call sites can't recover the way it does, since they don't own the
+ * response's token lifecycle. Nooping the access token and 401ing makes the client drop its copy and retry, and
+ * that retry lands in `refresh`, which is able to rotate. Letting the 401 propagate instead 500s the request for
+ * as long as the session access token stays unexpired.
  */
 export async function fetchMeForSession(
-	discordAccessToken: string,
+	access: AccessTokenData,
 	logger: Logger,
 	res: Response,
 	force = false,
 ): Promise<Me> {
+	if (access.kind === 'scoped') {
+		return fetchMeForScopedSession(access.guildId, access.sub, logger, force);
+	}
+
 	try {
-		return await fetchMe(discordAccessToken, logger, force);
+		return await fetchMe(access.discordAccessToken, logger, force);
 	} catch (error) {
 		if (!isUnauthorizedDiscordError(error)) {
 			throw error;
@@ -128,31 +128,31 @@ export async function fetchMeForSession(
 
 export async function isGuildManagerToken(
 	req: {
-		grant?: GrantTokenData;
 		logger: Logger;
 		params: Record<string, string>;
 		tokens?: { access: AccessTokenData };
 	},
 	res: Response,
 ): Promise<boolean> {
-	if (req.grant) {
-		return true;
-	}
-
 	const guildId = req.params['guildId'];
 	if (!req.tokens || !guildId) {
 		return false;
 	}
 
+	// The global-admin bypass only applies to a real OAuth session -- a scoped `/dashboard` session's
+	// `grants.adminGuilds` is always exactly `[guildId]` (see `ScopedAccessTokenData`'s doc comment) precisely
+	// so its authority can never widen past the one guild it was minted for, even for a user who also happens
+	// to be a global admin.
 	const isManagerClaim =
-		getContext().env.ADMINS.has(req.tokens.access.sub) || req.tokens.access.grants.adminGuilds.includes(guildId);
+		(req.tokens.access.kind === 'oauth' && getContext().env.ADMINS.has(req.tokens.access.sub)) ||
+		req.tokens.access.grants.adminGuilds.includes(guildId);
 	if (!isManagerClaim) {
 		return false;
 	}
 
 	// Membership itself can't be bypassed by the admin claim -- same rule `isGuildManager: true` enforces
 	// below.
-	const me = await fetchMeForSession(req.tokens.access.discordAccessToken, req.logger, res);
+	const me = await fetchMeForSession(req.tokens.access, req.logger, res);
 	return me.guilds.some((guild) => guild.id === guildId);
 }
 
@@ -171,7 +171,7 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 
 	const middleware: TypedMiddleware<object>[] = [
 		defineMiddleware(async (req, res, next) => {
-			async function refresh(refreshToken: RefreshTokenData): Promise<void> {
+			async function refreshOAuth(refreshToken: Extract<RefreshTokenData, { kind: 'oauth' }>): Promise<void> {
 				// Redeems the refresh token for a new pair. Resolves to `null` once it has already responded --
 				// a refresh token discord won't accept is the one case here that genuinely can't be recovered from
 				// without the user logging in again.
@@ -263,47 +263,72 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 				await next();
 			}
 
-			// Scoped grant-token fast path: entirely separate from, and prior to, the session-cookie logic
-			// below. On a match it returns before touching any cookies or the access-token-refresh header, so a
-			// grant request never mutates the caller's real session (the owner's hard isolation requirement for
-			// #194) -- see also the frontend's mirrored `credentials: 'omit'` in `apiFetch`.
-			if (!options.fallthrough && !options.isGlobalAdmin && options.grants?.length) {
-				const grantToken = verifyGrantToken(req.headers.authorization);
-				if (grantToken) {
-					if (!options.grants.includes(grantToken.grant)) {
-						await next(forbidden('grant not permitted for this route'));
-						return;
-					}
+			/**
+			 * A `/dashboard`-minted session's refresh: no Discord token dance, just (1) confirm the session
+			 * hasn't been revoked (`/dashboard revoke`) or outlived its absolute 30-minute cap, (2) re-resolve
+			 * `Me` straight from Discord (bypassing `ScopedMeStore`'s cache -- otherwise this "periodic
+			 * re-verification" would just keep re-reading the same cached answer for the session's whole
+			 * lifetime, since every read slides the cache's own TTL forward) to catch a `ManageGuild` revocation
+			 * since the link was minted, then (3) remint a pair whose `expiresIn` is clamped to whatever remains
+			 * of the absolute cap -- see `createScopedRefreshToken`'s doc comment for why that clamp is what
+			 * makes the cap absolute rather than sliding.
+			 */
+			async function refreshScoped(refreshToken: ScopedRefreshTokenData): Promise<void> {
+				async function invalidate(reason: string, boom: ReturnType<typeof unauthorized>): Promise<void> {
+					req.logger.info({ reason }, 'invalidating scoped dashboard session');
+					noopAccessToken(res);
+					noopRefreshToken(res);
+					await next(fallthrough ? undefined : boom);
+				}
 
-					// Routes without a `:guildId` param (e.g. `/v3/auth/me`) aren't scoped to a specific guild by
-					// the URL at all -- there's nothing to compare against, so the handler uses `req.grant.guildId`
-					// directly instead. Routes that DO have the param (getGuild, createAMA) still get the check.
-					if (req.params['guildId'] !== undefined && grantToken.guildId !== req.params['guildId']) {
-						await next(forbidden('grant guild mismatch'));
-						return;
-					}
-
-					// Only the route that actually performs the grant's action claims it (see `claimsGrant`'s doc) --
-					// read-only routes accepting the same grant (getAMAs, /v3/auth/me, getGuild) skip this
-					// entirely, so loading the create page doesn't burn the link before the user submits.
-					// Atomically claims the token (`SET ... NX`) rather than a check-then-later-consume: two
-					// concurrent requests for the same `jti` race here, and only one can win the claim, so at
-					// most one AMA gets created per link. The route handler releases the claim on failure (see
-					// `createAMA.ts`) so a bad submission doesn't permanently burn the link.
-					if (options.claimsGrant && !(await claimGrantToken(grantToken.jti))) {
-						await next(unauthorized('grant token already used'));
-						return;
-					}
-
-					// `req` is a per-request object, not shared mutable state -- the `await claimGrantToken` above
-					// crossing this assignment is what trips this rule's static analysis, but there's no real race.
-					// eslint-disable-next-line require-atomic-updates
-					req.grant = grantToken;
-					await next();
+				const live = await isDashboardSessionLive(refreshToken.sid);
+				if (!live || Date.now() >= new Date(refreshToken.absoluteExpiresAt).getTime()) {
+					await invalidate('revoked or expired', unauthorized('dashboard session expired or was revoked'));
 					return;
 				}
-				// Not a grant token (or none provided) -- fall through to normal session auth below, so a
-				// logged-in guild manager can still use grant-opted-in routes via their real session.
+
+				let me: Me;
+				try {
+					me = await fetchMeForScopedSession(refreshToken.guildId, refreshToken.sub, req.logger, true);
+				} catch (error) {
+					req.logger.warn({ err: error }, 'failed to re-resolve scoped dashboard session');
+					await invalidate('re-resolve failed', unauthorized('dashboard session is no longer valid'));
+					return;
+				}
+
+				if (!me.guilds[0]?.meCanManage) {
+					await revokeDashboardSession(refreshToken.sid);
+					await invalidate('lost manage-guild permission', unauthorized('you no longer manage this guild'));
+					return;
+				}
+
+				const newAccessToken = createScopedAccessToken(res, {
+					sub: refreshToken.sub,
+					guildId: refreshToken.guildId,
+					sid: refreshToken.sid,
+				});
+				const newRefreshToken = createScopedRefreshToken(res, {
+					sub: refreshToken.sub,
+					guildId: refreshToken.guildId,
+					sid: refreshToken.sid,
+					absoluteExpiresAt: refreshToken.absoluteExpiresAt,
+				});
+
+				// eslint-disable-next-line require-atomic-updates
+				req.tokens = {
+					access: newAccessToken,
+					refresh: newRefreshToken,
+				};
+
+				await next();
+			}
+
+			async function refresh(refreshToken: RefreshTokenData): Promise<void> {
+				if (refreshToken.kind === 'scoped') {
+					return refreshScoped(refreshToken);
+				}
+
+				return refreshOAuth(refreshToken);
 			}
 
 			const cookies = parseCookie(req.headers.cookie ?? '');
@@ -329,21 +354,26 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 					return;
 				}
 
-				// discordAccessToken/discordRefreshToken are encrypted (not just signed) at rest in the JWT -- see
-				// createRefreshToken -- so every reader downstream of this point gets plaintext back and doesn't
-				// need to know about the encryption at all.
-				try {
-					refreshToken = {
-						...decoded,
-						discordAccessToken: decrypt(decoded.discordAccessToken),
-						discordRefreshToken: decrypt(decoded.discordRefreshToken),
-					};
-				} catch {
-					// A session issued before this encryption was added carries these fields as plaintext, which
-					// fails GCM auth-tag verification here -- re-thrown as a JsonWebTokenError so it falls into the
-					// same "malformed, force a clean re-login" branch below as genuine tampering, instead of an
-					// uncaught 500 on every pre-existing session's first request after deploy.
-					throw new jwt.JsonWebTokenError('failed to decrypt refresh token payload');
+				if (decoded.kind === 'scoped') {
+					// No discord credential embedded in a scoped refresh token -- nothing to decrypt.
+					refreshToken = decoded;
+				} else {
+					// discordAccessToken/discordRefreshToken are encrypted (not just signed) at rest in the JWT -- see
+					// createRefreshToken -- so every reader downstream of this point gets plaintext back and doesn't
+					// need to know about the encryption at all.
+					try {
+						refreshToken = {
+							...decoded,
+							discordAccessToken: decrypt(decoded.discordAccessToken),
+							discordRefreshToken: decrypt(decoded.discordRefreshToken),
+						};
+					} catch {
+						// A session issued before this encryption was added carries these fields as plaintext, which
+						// fails GCM auth-tag verification here -- re-thrown as a JsonWebTokenError so it falls into the
+						// same "malformed, force a clean re-login" branch below as genuine tampering, instead of an
+						// uncaught 500 on every pre-existing session's first request after deploy.
+						throw new jwt.JsonWebTokenError('failed to decrypt refresh token payload');
+					}
 				}
 			} catch (error) {
 				if (error instanceof jwt.TokenExpiredError) {
@@ -371,30 +401,43 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 				try {
 					// Verify the JWT access token
 					const decoded = jwt.verify(accessTokenHeader, getContext().env.ENCRYPTION_KEY) as AccessTokenData;
-					// A grant token has no `refresh` field either, so without the explicit `kind` check it would
-					// otherwise sail through this guard and be treated as a valid session access token.
-					if (decoded.refresh || (decoded as Partial<GrantTokenData>).kind === 'grant') {
-						req.logger.info('access token is a refresh or grant token, ignoring as request has been tampered with');
+					// A dashboard-link token has no `refresh` field either, so without the explicit `kind` check it
+					// would otherwise sail through this guard and be treated as a valid session access token. A
+					// `kind` mismatch against the refresh cookie (e.g. a scoped access token paired with an oauth
+					// refresh cookie) can't happen from a genuine pair -- both are always minted together -- so
+					// it's treated the same as tampering.
+					if (
+						decoded.refresh ||
+						(decoded as { kind?: string }).kind === 'dashboard-link' ||
+						decoded.kind !== refreshToken.kind
+					) {
+						req.logger.info(
+							'access token is a refresh/link token or mismatched with the refresh token, ignoring as request has been tampered with',
+						);
 						noopAccessToken(res);
 						noopRefreshToken(res);
 						await next(fallthrough ? undefined : unauthorized('malformed access token'));
 						return;
 					}
 
-					// We're good -- discordAccessToken is encrypted (not just signed) at rest in the JWT, see
-					// createAccessToken, so decrypt it back to plaintext for every downstream reader. Same
-					// pre-encryption-session handling as the refresh token block above.
-					let decryptedAccessToken: string;
-					try {
-						decryptedAccessToken = decrypt(decoded.discordAccessToken);
-					} catch {
-						throw new jwt.JsonWebTokenError('failed to decrypt access token payload');
-					}
+					if (decoded.kind === 'scoped') {
+						req.tokens = { access: decoded, refresh: refreshToken };
+					} else {
+						// We're good -- discordAccessToken is encrypted (not just signed) at rest in the JWT, see
+						// createAccessToken, so decrypt it back to plaintext for every downstream reader. Same
+						// pre-encryption-session handling as the refresh token block above.
+						let decryptedAccessToken: string;
+						try {
+							decryptedAccessToken = decrypt(decoded.discordAccessToken);
+						} catch {
+							throw new jwt.JsonWebTokenError('failed to decrypt access token payload');
+						}
 
-					req.tokens = {
-						access: { ...decoded, discordAccessToken: decryptedAccessToken },
-						refresh: refreshToken,
-					};
+						req.tokens = {
+							access: { ...decoded, discordAccessToken: decryptedAccessToken },
+							refresh: refreshToken,
+						};
+					}
 
 					req.logger.info({ userId: req.tokens.access?.sub }, 'request is authed via JWT');
 				} catch (error) {
@@ -416,16 +459,21 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 			}
 
 			if (req.tokens) {
-				// Make sure the refresh token is rotated
-				req.tokens.refresh = createRefreshToken(
-					res,
-					{
-						access_token: req.tokens.refresh.discordAccessToken,
-						refresh_token: req.tokens.refresh.discordRefreshToken,
-						expires_at: req.tokens.refresh.discordAccessTokenExpiresAt,
-					},
-					req.tokens.access.sub,
-				);
+				// Make sure the refresh token is rotated -- oauth sessions only. A scoped session's cookie
+				// already carries the correct clamped expiry from the last mint/rotation, and re-touching it
+				// here on every request (rather than only on the periodic rotation in `refreshScoped`) would
+				// turn the absolute 30-minute cap into a sliding one.
+				if (req.tokens.refresh.kind === 'oauth') {
+					req.tokens.refresh = createRefreshToken(
+						res,
+						{
+							access_token: req.tokens.refresh.discordAccessToken,
+							refresh_token: req.tokens.refresh.discordRefreshToken,
+							expires_at: req.tokens.refresh.discordAccessTokenExpiresAt,
+						},
+						req.tokens.access.sub,
+					);
+				}
 
 				await next();
 			} else {
@@ -442,8 +490,27 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 					req.logger.warn('isGlobalAdmin invoked without a user. this is a bug');
 				}
 
+				// A scoped `/dashboard` session is denied outright, regardless of whether the acting user is
+				// also a global admin -- global-admin routes are never guild-scoped, so there's no sense in
+				// which a session minted for one guild should reach them.
+				if (req.tokens?.access.kind === 'scoped') {
+					return next(forbidden('global admin routes are not available to a /dashboard session'));
+				}
+
 				if (!getContext().env.ADMINS.has(req.tokens?.access?.sub ?? '')) {
 					return next(forbidden('you need to be a global admin to access this resource'));
+				}
+
+				await next();
+			}),
+		);
+	}
+
+	if (!options.fallthrough && !options.isGlobalAdmin && options.allowScopedSession === false) {
+		middleware.push(
+			defineMiddleware(async (req, _, next) => {
+				if (req.tokens?.access.kind === 'scoped') {
+					return next(forbidden('this action is not available via a /dashboard session'));
 				}
 
 				await next();
@@ -454,68 +521,69 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 	if (!options.fallthrough && !options.isGlobalAdmin && options.isGuildManager) {
 		const allowAmaGuest = options.isGuildManager === 'or-ama-guest';
 
-		middleware.push(
-			defineMiddleware(async (req, res, next) => {
-				if (req.grant) {
-					// The fast path above already validated the grant token's guild scope; routes that opt into
-					// `grants` (getGuild, createAMA) don't read `req.guild`/`req.tokens`, so there's nothing left
-					// to reconstruct here.
-					return next();
+		const guildManagerMiddleware = defineMiddleware(async (req, res, next) => {
+			if (!req.tokens) {
+				req.logger.warn('isGuildManager invoked without a user. this is a bug');
+				return next(internal());
+			}
+
+			const guildId = req.params['guildId'];
+			if (!guildId) {
+				req.logger.warn('isGuildManager invoked without a guildId param. this is a bug');
+				return next(internal());
+			}
+
+			// See `isGuildManagerToken`'s doc comment on this same line -- the global-admin bypass never
+			// applies to a scoped session, only an OAuth one.
+			const isManagerClaim =
+				(req.tokens.access.kind === 'oauth' && getContext().env.ADMINS.has(req.tokens.access.sub)) ||
+				req.tokens.access.grants.adminGuilds.includes(guildId);
+
+			if (isManagerClaim) {
+				// Membership itself can't be bypassed by the admin claim -- an admin who isn't a member of
+				// this guild still gets rejected here, same as a plain manager would (see NavGate.tsx's
+				// mirrored comment on the frontend gate).
+				const me = await fetchMeForSession(req.tokens.access, req.logger, res);
+				const guild = me.guilds.find((g) => g.id === guildId);
+
+				if (!guild) {
+					return next(forbidden('you need to be a member of this guild to access this resource'));
 				}
 
-				if (!req.tokens) {
-					req.logger.warn('isGuildManager invoked without a user. this is a bug');
+				// eslint-disable-next-line require-atomic-updates
+				req.guild = guild;
+				return next();
+			}
+
+			// Not a manager -- the only other way in is being a configured guest of the specific AMA this
+			// route is scoped to. Membership-independent by design: a guest might not be an OAuth member of
+			// the guild at all (see `util/me.ts`'s `fetchMe` guest-guild synthesis for the frontend-facing
+			// side of that).
+			if (allowAmaGuest) {
+				const amaId = req.params['amaId'];
+				if (!amaId) {
+					req.logger.warn('isGuildManager "or-ama-guest" invoked without an amaId param. this is a bug');
 					return next(internal());
 				}
 
-				const guildId = req.params['guildId'];
-				if (!guildId) {
-					req.logger.warn('isGuildManager invoked without a guildId param. this is a bug');
-					return next(internal());
-				}
+				const [session] = await getContext().db<Pick<AmaSessions, 'guestIds' | 'guildId'>[]>`
+					SELECT guild_id, guest_ids FROM ama_sessions WHERE id = ${amaId}
+				`;
 
-				const isManagerClaim =
-					getContext().env.ADMINS.has(req.tokens.access.sub) || req.tokens.access.grants.adminGuilds.includes(guildId);
-
-				if (isManagerClaim) {
-					// Membership itself can't be bypassed by the admin claim -- an admin who isn't a member of
-					// this guild still gets rejected here, same as a plain manager would (see NavGate.tsx's
-					// mirrored comment on the frontend gate).
-					const me = await fetchMeForSession(req.tokens.access.discordAccessToken, req.logger, res);
-					const guild = me.guilds.find((g) => g.id === guildId);
-
-					if (!guild) {
-						return next(forbidden('you need to be a member of this guild to access this resource'));
-					}
-
-					// eslint-disable-next-line require-atomic-updates
-					req.guild = guild;
+				if (session?.guildId === guildId && session.guestIds.includes(req.tokens.access.sub)) {
 					return next();
 				}
+			}
 
-				// Not a manager -- the only other way in is being a configured guest of the specific AMA this
-				// route is scoped to. Membership-independent by design: a guest might not be an OAuth member of
-				// the guild at all (see `util/me.ts`'s `fetchMe` guest-guild synthesis for the frontend-facing
-				// side of that).
-				if (allowAmaGuest) {
-					const amaId = req.params['amaId'];
-					if (!amaId) {
-						req.logger.warn('isGuildManager "or-ama-guest" invoked without an amaId param. this is a bug');
-						return next(internal());
-					}
+			return next(forbidden('you need to be a manager of this guild to access this resource'));
+		});
 
-					const [session] = await getContext().db<Pick<AmaSessions, 'guestIds' | 'guildId'>[]>`
-						SELECT guild_id, guest_ids FROM ama_sessions WHERE id = ${amaId}
-					`;
+		Reflect.set(guildManagerMiddleware, IS_GUILD_MANAGER_MARKER, true);
+		middleware.push(guildManagerMiddleware);
+	}
 
-					if (session?.guildId === guildId && session.guestIds.includes(req.tokens.access.sub)) {
-						return next();
-					}
-				}
-
-				return next(forbidden('you need to be a manager of this guild to access this resource'));
-			}),
-		);
+	for (const mw of middleware) {
+		Reflect.set(mw, IS_AUTHED_MARKER, true);
 	}
 
 	return middleware;

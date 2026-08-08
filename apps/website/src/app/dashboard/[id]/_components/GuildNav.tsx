@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { FaWrench } from 'react-icons/fa';
-import { useGrantAuth } from '@/api/grant';
 import { GuildIcon } from '@/components/common/GuildIcon';
 import { useGuildAccess } from '@/hooks/useGuildAccess';
 import { BotIcon, resolveBotBranding } from '@/utils/bots';
@@ -33,7 +32,6 @@ function navLinkClassName(isActive: boolean) {
 export function GuildNav() {
 	const params = useParams<{ id: string }>();
 	const pathname = usePathname();
-	const grant = useGrantAuth();
 	// A guest with no general manage access only ever gets the AMA tab -- Overview/Settings/other bots
 	// all assume manager-level guild config access `NavGateCheck` doesn't grant them (see its
 	// `isAmaGuestOnly` carve-out, scoped the same way).
@@ -77,22 +75,6 @@ export function GuildNav() {
 
 			{items.map((item) => {
 				const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-
-				// While a one-time grant token is active, every page but the one it links to would 401 (the
-				// grant only authorizes that single action) -- render tabs as non-interactive rather than
-				// hiding them, so the dashboard chrome still looks structurally normal.
-				if (grant) {
-					return (
-						<span
-							aria-disabled="true"
-							className={cn(navLinkClassName(isActive), 'cursor-not-allowed opacity-60')}
-							key={item.href}
-						>
-							{item.icon}
-							{item.label}
-						</span>
-					);
-				}
 
 				return (
 					<Link className={navLinkClassName(isActive)} href={item.href} key={item.href} prefetch>

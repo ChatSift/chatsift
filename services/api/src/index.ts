@@ -27,6 +27,7 @@ export { default as publicAMAAnswersRoute } from './routes/ama/questions/publicA
 export { default as listAMATagsRoute } from './routes/ama/tags/listTags.js';
 export { default as createAMATagRoute } from './routes/ama/tags/createTag.js';
 
+export { default as dashboardLinkRoute } from './routes/auth/dashboardLink.js';
 export { default as discordRoute } from './routes/auth/discord.js';
 export { default as discordCallbackRoute } from './routes/auth/discordCallback.js';
 export { default as logoutRoute } from './routes/auth/logout.js';

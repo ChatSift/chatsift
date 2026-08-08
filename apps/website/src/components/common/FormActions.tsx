@@ -6,13 +6,11 @@ interface FormActionsProps {
 	readonly isSubmitting: boolean;
 	onCancel(): void;
 	readonly pendingLabel: string;
-	readonly showCancel?: boolean;
 	readonly submitLabel: string;
 }
 
 /**
- * The submit + cancel button pair repeated at the bottom of every create/edit form in the dashboard --
- * `showCancel` exists only for the AMA grant flow, where `router.back()` would drop the one-time `?token=` param.
+ * The submit + cancel button pair repeated at the bottom of every create/edit form in the dashboard.
  */
 export function FormActions({
 	submitLabel,
@@ -21,7 +19,6 @@ export function FormActions({
 	isSubmitDisabled = false,
 	onCancel,
 	cancelLabel = 'Cancel',
-	showCancel = true,
 }: FormActionsProps) {
 	return (
 		<div className="flex gap-4">
@@ -32,15 +29,14 @@ export function FormActions({
 			>
 				{isSubmitting ? pendingLabel : submitLabel}
 			</Button>
-			{showCancel && (
-				<Button
-					className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
-					onPress={onCancel}
-					type="button"
-				>
-					{cancelLabel}
-				</Button>
-			)}
+			<Button
+				className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+				isDisabled={isSubmitting}
+				onPress={onCancel}
+				type="button"
+			>
+				{cancelLabel}
+			</Button>
 		</div>
 	);
 }

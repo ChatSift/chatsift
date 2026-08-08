@@ -6,8 +6,69 @@ import { badRequest } from '@hapi/boom';
 import type { Middleware, Polka } from 'polka';
 import { ZodError } from 'zod';
 import { jsonParser } from '../middleware/jsonParser.js';
+import { IS_AUTHED_MARKER, IS_GUILD_MANAGER_MARKER } from './isAuthedMarker.js';
 import { httpRequestDuration } from './metrics.js';
 import type { HttpMethod, MiddlewareContext, RouteDefinition, TypedMiddleware, TypedRequest } from './route.js';
+
+/**
+ * Every `isAuthed`-guarded route not scoped to a single guild via a `:guildId` param. A guild-scoped
+ * `/dashboard` session (see `middleware/isAuthed.ts`) defaults to *allowed* on every `isAuthed` route so that,
+ * unlike the one-time grant tokens it replaced, adding a new guild-scoped route never needs an auth opt-in --
+ * the trade-off is that a route reachable *outside* a single guild needs an explicit decision instead of
+ * silence, which is what `assertGuildScopedRouteGuard` below enforces at boot. Add a route here only after
+ * confirming it's safe for a time-boxed, guild-scoped credential to reach.
+ */
+const NON_GUILD_SCOPED_ROUTES = new Set<string>([
+	'/v3/auth/discord',
+	'/v3/auth/discord/callback',
+	'/v3/auth/logout',
+	'/v3/auth/me',
+	'/v3/ws/ticket',
+]);
+
+/**
+ * `:guildId`-scoped routes that deliberately don't set `isGuildManager: true`/`'or-ama-guest'` and so get none
+ * of `isAuthed`'s automatic enforcement, because they call `isGuildManagerToken` themselves and derive their
+ * result set from it rather than rejecting outright -- see `routes/ama/getAMAs.ts`'s own comment on why (guests
+ * need to reach it too, just filtered to a narrower result). A path in this set is asserting "I checked
+ * `req.params.guildId` against the token by hand", not "no check is needed" -- add to it only alongside that
+ * same manual call.
+ */
+const MANUALLY_GUILD_VERIFIED_ROUTES = new Set<string>(['/v3/guilds/:guildId/ama/amas']);
+
+function assertGuildScopedRouteGuard(
+	route: Pick<RouteDefinition<any, any, any, any, any, any>, 'method' | 'path'>,
+	usesIsAuthed: boolean,
+	usesGuildManagerCheck: boolean,
+): void {
+	if (!usesIsAuthed) {
+		return;
+	}
+
+	if (!route.path.includes(':guildId')) {
+		if (NON_GUILD_SCOPED_ROUTES.has(route.path)) {
+			return;
+		}
+
+		throw new Error(
+			`Route ${route.method.toUpperCase()} ${route.path} is authed via isAuthed() but has no :guildId param and ` +
+				`is not in NON_GUILD_SCOPED_ROUTES (core/server.ts) -- a /dashboard scoped session defaults to allowed ` +
+				`on every isAuthed route, so a route reachable outside a single guild needs an explicit decision here, ` +
+				`not silence.`,
+		);
+	}
+
+	if (usesGuildManagerCheck || MANUALLY_GUILD_VERIFIED_ROUTES.has(route.path)) {
+		return;
+	}
+
+	throw new Error(
+		`Route ${route.method.toUpperCase()} ${route.path} has a :guildId param but doesn't set isGuildManager: ` +
+			`true/'or-ama-guest' and isn't in MANUALLY_GUILD_VERIFIED_ROUTES (core/server.ts) -- having :guildId in ` +
+			`the path proves nothing on its own about whether the caller's guild access was actually checked ` +
+			`against it, which is what a /dashboard scoped session's whole authorization boundary rests on.`,
+	);
+}
 
 /**
  * Mounts a `defineRoute` definition onto a Polka server: conditional JSON parsing, zod validation of
@@ -25,6 +86,12 @@ export function mountRoute<
 	TResponse,
 	TMiddlewares extends readonly TypedMiddleware<object>[],
 >(server: Polka<any>, route: RouteDefinition<TMethod, TPath, TBody, TQuery, TParams, TResponse, TMiddlewares>): void {
+	assertGuildScopedRouteGuard(
+		route,
+		route.middleware?.some((mw) => Reflect.get(mw, IS_AUTHED_MARKER) === true) ?? false,
+		route.middleware?.some((mw) => Reflect.get(mw, IS_GUILD_MANAGER_MARKER) === true) ?? false,
+	);
+
 	const middlewares: Middleware[] = [
 		async (req, res, next) => {
 			const isMetricsRequest = req.path === '/metrics' && req.method === 'GET';

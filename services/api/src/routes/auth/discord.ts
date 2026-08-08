@@ -24,7 +24,9 @@ export default defineRoute({
 	handler(req, res) {
 		const redirectPath = sanitizeRedirectTo(req.query.redirect_to, req.logger);
 
-		if (req.tokens) {
+		// A scoped (`/dashboard`-link) session must still be able to reach this route to upgrade to a full
+		// OAuth login -- only an already-oauth-authed visitor gets bounced straight back.
+		if (req.tokens?.access.kind === 'oauth') {
 			res.redirect(`${getContext().FRONTEND_URL}${redirectPath}`);
 			res.end();
 			return;

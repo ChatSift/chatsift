@@ -1,4 +1,4 @@
-import { getContext, GRANTS } from '@chatsift/backend-core';
+import { getContext } from '@chatsift/backend-core';
 import type { Snippets } from '@chatsift/db';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
@@ -17,7 +17,6 @@ export default defineRoute({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-		grants: [GRANTS.MODMAIL_SNIPPET_CREATE],
 	}),
 	async handler(req): Promise<Snippets[]> {
 		const { guildId } = req.params;

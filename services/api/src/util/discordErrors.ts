@@ -15,3 +15,12 @@ import { DiscordAPIError } from '@discordjs/rest';
 export function isUnauthorizedDiscordError(error: unknown): boolean {
 	return error instanceof DiscordAPIError && error.status === 401;
 }
+
+/**
+ * Whether `error` is discord reporting the requested resource doesn't exist -- distinct from unauthorized above:
+ * this is discord saying "there's no such user/guild/member", not "your credential is bad". Callers use this to
+ * tell "the guild kicked the bot or the member left between mint and use" apart from a genuine outage.
+ */
+export function isNotFoundDiscordError(error: unknown): boolean {
+	return error instanceof DiscordAPIError && error.status === 404;
+}

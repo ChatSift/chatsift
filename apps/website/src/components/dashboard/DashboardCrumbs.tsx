@@ -3,7 +3,6 @@
 import type { BotId } from '@chatsift/core';
 import { useParams, usePathname } from 'next/navigation';
 import { useMemo } from 'react';
-import { useGrantAuth } from '@/api/grant';
 import type { AMASessionDetailed, AMASessionWithCount } from '@/api/routes/ama';
 import { useMe } from '@/api/routes/auth';
 import type { GuildChannelInfo } from '@/api/routes/guilds';
@@ -290,7 +289,6 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 	const { data: me } = useMe();
 	const params = useParams<{ id?: string }>();
 	const pathname = usePathname();
-	const grant = useGrantAuth();
 
 	const guild = me?.guilds.find((g) => g.id === params.id);
 
@@ -329,11 +327,7 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 			const segmentPath = relevantParts.slice(0, i + 1);
 			const match = findSegmentDefinition(segmentPath);
 
-			// While a one-time grant token is active, every other segment/dropdown option here would 401 (the
-			// grant only authorizes the single page it links to) -- never compute a navigable option in that case.
-			const computedOptions = grant
-				? null
-				: match?.definition.resolveOptions?.(match.id ?? '', context, effectiveSegmentOptionsData);
+			const computedOptions = match?.definition.resolveOptions?.(match.id ?? '', context, effectiveSegmentOptionsData);
 
 			const fallbackLabel = SEGMENT_LABELS[part] ?? part;
 			const label: React.ReactNode =
@@ -342,11 +336,10 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 					: (match.definition.resolveLabel?.(match.id, effectiveSegmentOptionsData) ?? fallbackLabel);
 			const icon = SEGMENT_ICONS[part];
 
-			// Don't create an href for the last segment (current page), or for any segment while grant mode is
-			// active (there's nowhere else on the dashboard a grant token lets you go).
+			// Don't create an href for the last segment (current page).
 			const isLastSegment = i === relevantParts.length - 1;
 
-			if (isLastSegment || grant) {
+			if (isLastSegment) {
 				result.push({
 					label,
 					...(icon && { icon }),
@@ -367,7 +360,7 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 		}
 
 		return result;
-	}, [params.id, pathname, effectiveSegmentOptionsData, grant]);
+	}, [params.id, pathname, effectiveSegmentOptionsData]);
 
 	if (!params.id) {
 		throw new Error('id param not found, should not be rendering this component');
@@ -377,8 +370,8 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 		throw new Error('guild not found, should not be rendering this component');
 	}
 
-	// Create dropdown options for other guilds with bots -- naturally empty under a grant token, since
-	// `fetchMeFromGrant` only ever returns the single guild the grant is scoped to.
+	// Create dropdown options for other guilds with bots -- naturally empty under a `/dashboard`-minted scoped
+	// session, since `fetchMeForScopedSession` only ever returns the single guild the session is scoped to.
 	const guildOptions = sortGuilds(me?.guilds.filter((g) => g.id !== guild.id && g.bots.length > 0) ?? []).map((g) => ({
 		label: g.name,
 		href: `/dashboard/${g.id}`,
@@ -389,10 +382,10 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 	return (
 		<Breadcrumb
 			segments={[
-				{ label: 'Servers', href: grant ? undefined : '/dashboard' },
+				{ label: 'Servers', href: '/dashboard' },
 				{
 					label: guild.name,
-					href: grant || segments.length === 0 ? undefined : `/dashboard/${guild.id}`,
+					href: segments.length === 0 ? undefined : `/dashboard/${guild.id}`,
 					options: guildOptions,
 				},
 				...segments,

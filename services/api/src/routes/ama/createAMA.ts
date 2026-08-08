@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { getContext, GRANTS, releaseGrantToken } from '@chatsift/backend-core';
+import { getContext } from '@chatsift/backend-core';
 import type { AmaSessions } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { ButtonStyle, ComponentType, RESTJSONErrorCodes } from '@discordjs/core';
@@ -27,20 +27,14 @@ export default defineRoute({
 		params: paramsSchema,
 	},
 	middleware: isAuthed({
-		claimsGrant: true,
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-		grants: [GRANTS.AMA_CREATE],
 	}),
 	async handler(req): Promise<CreateAMAResult> {
 		const data = req.body;
 		const { guildId } = req.params;
 
-		// Everything below can fail after the grant (if any) was already atomically claimed in `isAuthed` -- a
-		// single outer try/catch covering validation through the DB insert means every failure path (bad channel
-		// ID, rejected prompt, Discord API error, DB error) releases the claim, so a correctable mistake doesn't
-		// cost the user their single-use link.
 		let promptMessage: Awaited<ReturnType<typeof discordAPIAma.channels.createMessage>> | undefined;
 		try {
 			await assertChannelsBelongToGuild(
@@ -136,13 +130,6 @@ export default defineRoute({
 			if (promptMessage) {
 				// eslint-disable-next-line promise/prefer-await-to-then
 				void discordAPIAma.channels.deleteMessage(data.promptChannelId, promptMessage.id).catch(() => null);
-			}
-
-			// Best-effort: a release failure (e.g. redis being down) must not shadow the real error above.
-			if (req.grant) {
-				await releaseGrantToken(req.grant.jti).catch((releaseError: unknown) =>
-					req.logger.error({ err: releaseError }, 'failed to release grant token'),
-				);
 			}
 
 			throw error;

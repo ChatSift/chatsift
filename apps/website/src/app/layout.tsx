@@ -32,9 +32,9 @@ export default async function RootLayout({ children }: PropsWithChildren) {
 						<ScrollArea className="h-screen">
 							<div className="h-screen flex flex-col min-h-screen">
 								{/*
-									`Navbar` -> `UserDesktop`/`UserMobile` -> `useMe()` -> `useGrantAuth()` calls `useSearchParams()`,
-									which Next requires a Suspense boundary around for any statically-prerendered route -- `/_not-found`
-									is prerendered regardless of the rest of the app being forced dynamic, so this is required, not optional.
+									`Navbar` -> `UserDesktop`/`UserMobile` -> `LoginButton` calls `useSearchParams()`, which Next requires
+									a Suspense boundary around for any statically-prerendered route -- `/_not-found` is prerendered
+									regardless of the rest of the app being forced dynamic, so this is required, not optional.
 								*/}
 								<Suspense fallback={null}>
 									<Navbar />

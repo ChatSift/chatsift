@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
-import type { BotId, GrantTokenData, Instance, Logger } from '@chatsift/backend-core';
+import type { BotId, Instance, Logger } from '@chatsift/backend-core';
 import {
 	BOTS,
-	GRANT_BOTS,
 	getAllInstances,
 	getContext,
 	getInstanceForGuild,
@@ -15,10 +14,12 @@ import {
 import type { AmaSessions, DashboardGrants } from '@chatsift/db';
 import type { APIUser, RESTAPIPartialCurrentUserGuild } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
+import { unauthorized } from '@hapi/boom';
 import type { Recipe } from 'bin-rw';
 import { createRecipe, DataType, stringLiteral } from 'bin-rw';
 import { apiForGuild, discordAPIOAuth } from './discordAPI.js';
 import { getInstanceBranding } from './discordApplication.js';
+import { isNotFoundDiscordError } from './discordErrors.js';
 
 export type MeGuild = Pick<RESTAPIPartialCurrentUserGuild, 'icon' | 'id' | 'name'> & {
 	/**
@@ -51,39 +52,52 @@ export type Me = Pick<APIUser, 'avatar' | 'discriminator' | 'global_name' | 'id'
 
 const CACHE_TTL_MS = 5 * 60 * 1_000; // 5 minutes
 
+// bin-rw's own inferred type is wider than `Me`: every `DataType.String`/`stringLiteral` field decodes as
+// `string | null` (or `BotId | null` for `bots`), whereas `global_name`/`avatar`/`icon` are the only fields
+// that are genuinely nullable here -- the cast corrects that. Shared between `MeStore` and `ScopedMeStore`
+// below, since both cache the exact same `Me` shape, just under a different key scheme.
+const meRecipe = createRecipe(
+	{
+		id: DataType.String,
+		username: DataType.String,
+		discriminator: DataType.String,
+		global_name: DataType.String,
+		avatar: DataType.String,
+		isGlobalAdmin: DataType.Bool,
+		guilds: [
+			{
+				id: DataType.String,
+				name: DataType.String,
+				icon: DataType.String,
+				meCanManage: DataType.Bool,
+				bots: [stringLiteral<BotId>()],
+				amaGuestSessionIds: [DataType.I32],
+				customInstanceId: DataType.String,
+				customInstanceLabel: DataType.String,
+				customInstanceIconUrl: DataType.String,
+			},
+		],
+	},
+	{ versioned: true },
+) as Recipe<Me>;
+
 const MeStore = new RedisStore<Me>({
 	TTL: CACHE_TTL_MS,
-	// bin-rw's own inferred type is wider than `Me`: every `DataType.String`/`stringLiteral` field decodes as
-	// `string | null` (or `BotId | null` for `bots`), whereas `global_name`/`avatar`/`icon` are the only fields
-	// that are genuinely nullable here -- the cast corrects that.
-	recipe: createRecipe(
-		{
-			id: DataType.String,
-			username: DataType.String,
-			discriminator: DataType.String,
-			global_name: DataType.String,
-			avatar: DataType.String,
-			isGlobalAdmin: DataType.Bool,
-			guilds: [
-				{
-					id: DataType.String,
-					name: DataType.String,
-					icon: DataType.String,
-					meCanManage: DataType.Bool,
-					bots: [stringLiteral<BotId>()],
-					amaGuestSessionIds: [DataType.I32],
-					customInstanceId: DataType.String,
-					customInstanceLabel: DataType.String,
-					customInstanceIconUrl: DataType.String,
-				},
-			],
-		},
-		{ versioned: true },
-	) as Recipe<Me>,
+	recipe: meRecipe,
 	// Hashed rather than keyed by the raw access token -- unlike the in-memory `Map` this replaced, this value is
 	// persisted in redis (visible to anything with redis access via KEYS/MONITOR/RDB dumps), so the key itself
 	// shouldn't double as a live OAuth credential.
 	makeKey: (tokenHash: string) => `me:${tokenHash}`,
+	storeOld: false,
+});
+
+// Keyed by `guildId:sub` rather than a token hash -- a scoped session has no long-lived Discord credential to
+// hash (see `fetchMeForScopedSession`), and every session minted for the same (guild, user) pair would want to
+// share this entry anyway.
+const ScopedMeStore = new RedisStore<Me>({
+	TTL: CACHE_TTL_MS,
+	recipe: meRecipe,
+	makeKey: (id: string) => `me:scoped:${id}`,
 	storeOld: false,
 });
 
@@ -181,7 +195,7 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 			icon,
 			meCanManage:
 				grantedGuildIds.has(id) ||
-				PermissionsBitField.has(
+				PermissionsBitField.any(
 					BigInt(permissions),
 					PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
 				) ||
@@ -195,10 +209,10 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 	});
 
 	// A guest who isn't an OAuth member of the guild at all has no entry in `guilds` yet -- synthesize one
-	// via the AMA bot's own API access (mirrors `fetchMeFromGrant`'s membership-independent guild lookup),
-	// so their dashboard guild list still shows this guild for the AMA(s) they're scoped to. No custom-
-	// instance branding lookup here -- custom instances (#216) are a ModMail-only concept, and this path
-	// only ever synthesizes AMA-bot guilds.
+	// via the AMA bot's own API access (mirrors `fetchMeForScopedSession`'s membership-independent guild
+	// lookup), so their dashboard guild list still shows this guild for the AMA(s) they're scoped to. No
+	// custom-instance branding lookup here -- custom instances (#216) are a ModMail-only concept, and this
+	// path only ever synthesizes AMA-bot guilds.
 	const memberGuildIds = new Set(guilds.map((guild) => guild.id));
 	const guestOnlyGuildIds = [...guestSessionsByGuild.keys()].filter((id) => !memberGuildIds.has(id));
 	const guestOnlyGuilds = await Promise.all(
@@ -246,58 +260,139 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 }
 
 /**
- * Grant-token equivalent of `fetchMe`: there's no Discord OAuth access token to call `/users/@me`/`/users/@me/guilds`
- * with, so instead it uses whichever bot's grant this is (`GRANT_BOTS`, since the grant's own guild is guaranteed
- * to already have that bot installed, or the grant couldn't have been minted) to fetch just the acting user and the
- * one guild the grant is scoped to. `guilds` is deliberately a single-entry array -- unlike a real session, a grant
- * token only ever authorizes one guild. Not cached (unlike `fetchMe`) -- a grant is single-use already, so there's
- * no repeat-read pattern here worth trading staleness for.
+ * Scoped-session equivalent of `fetchMe`: there's no Discord OAuth access token to call
+ * `/users/@me`/`/users/@me/guilds` with, so instead this resolves identity + permissions for exactly one
+ * (guildId, sub) pair via whichever ChatSift bot(s) are actually installed there, using the same
+ * `GuildList`-union logic `fetchMe` uses to populate `MeGuild.bots`. `guilds` is deliberately a single-entry
+ * array -- unlike a real session, a scoped session only ever authorizes one guild.
  *
- * Resolved via `apiForGuild`, not the raw `GRANT_BOTS`/`APIMapping` pairing -- several ModMail grants
- * (`MODMAIL_SNIPPET_CREATE`/`MODMAIL_CONFIG_UPDATE`/`MODMAIL_BLOCKS_READ`) are minted by a command running on
- * whichever bot currently owns `grant.guildId`, which for a partner guild is the custom instance, not the
- * public deployment -- the public token has no access there at all.
+ * `meCanManage` is computed with the exact same rule `fetchMe` uses below (owner, `ManageGuild`/`Administrator`,
+ * or a `dashboard_grants` row) -- just sourced from a bot's view of guild membership/roles instead of the
+ * user's own OAuth token, since there isn't one here. Callers (the `/v3/auth/dashboard` exchange route and
+ * `isAuthed`'s scoped refresh branch) are what actually enforce this value; this function itself makes no
+ * authorization decision, it can and does return `meCanManage: false`.
+ *
+ * Cached in `ScopedMeStore` (same TTL/shape as `MeStore`) -- unlike the old single-use grant tokens this
+ * replaces, a scoped session is read repeatedly (every 5-minute access-token rotation, every dashboard page
+ * load) for up to 30 minutes, so this is a real repeat-read pattern worth caching.
  */
-export async function fetchMeFromGrant(grant: GrantTokenData, logger: Logger): Promise<Me> {
-	logger.info({ userId: grant.sub, guildId: grant.guildId }, 'building stripped /me from grant token');
+export async function fetchMeForScopedSession(
+	guildId: string,
+	sub: string,
+	logger: Logger,
+	force = false,
+): Promise<Me> {
+	const cacheKey = `${guildId}:${sub}`;
+	if (!force) {
+		const cached = await ScopedMeStore.get(cacheKey);
+		if (cached) {
+			return cached;
+		}
+	}
 
-	const bot = GRANT_BOTS[grant.grant];
-	const api = apiForGuild(bot, grant.guildId);
-	const instance = getInstanceForGuild(grant.guildId);
+	logger.info({ userId: sub, guildId }, 'cache miss for scoped dashboard session /me');
 
-	const [discordUser, guild, branding] = await Promise.all([
-		api.users.get(grant.sub),
-		api.guilds.get(grant.guildId),
-		// Best-effort, same as `fetchMe`'s `brandingEntries` -- a failure to resolve a partner's icon is a
-		// cosmetic annotation on top of an otherwise-successful grant-authed request, not a reason to fail
-		// the whole thing (this ran inside the same `Promise.all` as the two calls above, so an unguarded
-		// rejection here would have failed those too).
-		instance
-			? getInstanceBranding(instance).catch((error: unknown) => {
-					logger.warn({ err: error, instanceId: instance.id }, 'failed to resolve custom instance branding');
-					return { iconUrl: null, label: instance.label };
-				})
-			: undefined,
+	const instances = getAllInstances();
+	const [guildsByBot, instanceGuildLists] = await Promise.all([
+		promiseAllObject(
+			Object.fromEntries(BOTS.map((bot) => [bot, GuildList.get(bot).then((data) => data?.guilds ?? [])])) as Record<
+				BotId,
+				Promise<string[]>
+			>,
+		),
+		Promise.all(
+			instances.map(async (instance) => GuildList.get(`MODMAIL#${instance.id}`).then((data) => data?.guilds ?? [])),
+		),
 	]);
+	const modmailGuildIds = new Set([...(guildsByBot.MODMAIL ?? []), ...instanceGuildLists.flat()]);
+
+	const bots = BOTS.filter((bot) =>
+		bot === 'MODMAIL' ? modmailGuildIds.has(guildId) : (guildsByBot[bot]?.includes(guildId) ?? false),
+	);
+	if (!bots.length) {
+		// No ChatSift bot has this guild in its list any more (kicked since the link was minted, most likely) --
+		// nothing left that could resolve identity/permissions for it.
+		throw unauthorized('no bot is installed in this guild any more');
+	}
+
+	// Any installed bot works equally well here -- the calls below are guild-membership/role reads, not
+	// bot-specific actions, so there's no reason to prefer one over another the way `roundRobinAPI` does for
+	// outbound call spreading.
+	const bot = bots[0]!;
+	const api = apiForGuild(bot, guildId);
+	const instance = getInstanceForGuild(guildId);
+
+	let discordUser: APIUser;
+	let guild: Awaited<ReturnType<typeof api.guilds.get>>;
+	let member: Awaited<ReturnType<typeof api.guilds.getMember>>;
+	let roles: Awaited<ReturnType<typeof api.guilds.getRoles>>;
+	let hasGrant: boolean;
+	let branding: Awaited<ReturnType<typeof getInstanceBranding>> | undefined;
+
+	try {
+		[discordUser, guild, member, roles, hasGrant, branding] = await Promise.all([
+			api.users.get(sub),
+			api.guilds.get(guildId),
+			api.guilds.getMember(guildId, sub),
+			api.guilds.getRoles(guildId),
+			getContext().db<
+				Pick<DashboardGrants, 'id'>[]
+			>`SELECT id FROM dashboard_grants WHERE guild_id = ${guildId} AND user_id = ${sub}`.then(
+				(rows) => rows.length > 0,
+			),
+			// Best-effort, same as `fetchMe`'s `brandingEntries` -- a failure to resolve a partner's icon is a
+			// cosmetic annotation on top of an otherwise-successful request, not a reason to fail the whole thing.
+			instance
+				? getInstanceBranding(instance).catch((error: unknown) => {
+						logger.warn({ err: error, instanceId: instance.id }, 'failed to resolve custom instance branding');
+						return { iconUrl: null, label: instance.label };
+					})
+				: undefined,
+		]);
+	} catch (error) {
+		// The user/member/guild this session is minted for can 404 -- kicked from the guild, left, or the
+		// account no longer exists -- between mint and use. Same "nothing left that could resolve identity for
+		// this guild" outcome as the empty-`bots` branch above, so it gets the same treatment. Anything else
+		// (5xx, rate limit, network) says nothing about eligibility and must not be swallowed as a 401.
+		if (!isNotFoundDiscordError(error)) {
+			throw error;
+		}
+
+		logger.warn({ err: error, userId: sub, guildId }, 'discord reported the user/member/guild as gone');
+		throw unauthorized('could not resolve guild membership for this session');
+	}
+
+	// `@everyone`'s permissions apply to every member and its role id always equals the guild id -- included
+	// here the same way Discord's own permission resolution does, even though `guilds.getRoles` returns it
+	// like any other role.
+	const memberRoleIds = new Set([guildId, ...member.roles]);
+	let permissionBits = 0n;
+	for (const role of roles) {
+		if (memberRoleIds.has(role.id)) {
+			permissionBits |= BigInt(role.permissions);
+		}
+	}
+
+	const meCanManage =
+		guild.owner_id === sub ||
+		hasGrant ||
+		PermissionsBitField.any(permissionBits, PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator);
 
 	const meGuild: MeGuild = {
 		id: guild.id,
 		name: guild.name,
 		icon: guild.icon,
-		// The grant token itself is the authorization for this one scoped action -- there's no broader
-		// "can manage this guild" question to ask here the way there is for a real session.
-		// The authentication middleware gurantees this via its guards.
-		meCanManage: true,
-		bots: [bot],
-		// Irrelevant for a grant-authed single-guild session -- that flow is already scoped to one action
-		// via the grant itself, never routed through AMA-guest-specific dashboard gating.
+		meCanManage,
+		bots,
+		// Irrelevant for a scoped single-guild session -- that flow is never routed through AMA-guest-specific
+		// dashboard gating.
 		amaGuestSessionIds: [],
 		customInstanceId: instance?.id ?? null,
 		customInstanceLabel: instance?.label ?? null,
 		customInstanceIconUrl: branding?.iconUrl ?? null,
 	};
 
-	return {
+	const me: Me = {
 		id: discordUser.id,
 		username: discordUser.username,
 		discriminator: discordUser.discriminator,
@@ -306,4 +401,8 @@ export async function fetchMeFromGrant(grant: GrantTokenData, logger: Logger): P
 		isGlobalAdmin: false,
 		guilds: [meGuild],
 	};
+
+	await ScopedMeStore.set(cacheKey, me);
+
+	return me;
 }

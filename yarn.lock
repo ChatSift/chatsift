@@ -479,6 +479,7 @@ __metadata:
     "@discordjs/core": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
     "@discordjs/ws": "npm:3.0.0-dev.1783513686-6e81ea771"
+    "@sapphire/discord-utilities": "npm:^4.0.0"
     "@types/node": "npm:^24.9.1"
     "@vitest/coverage-v8": "npm:^4.1.10"
     typescript: "npm:~6.0.3"

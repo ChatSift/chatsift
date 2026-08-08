@@ -3,11 +3,13 @@
 import { useIsMutating } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
-import { FaSearch, FaServer } from 'react-icons/fa';
+import { Button } from 'react-aria-components';
+import { FaInfoCircle, FaSearch, FaServer } from 'react-icons/fa';
 import GuildCard from './GuildCard';
 import { refreshMeMutationKey, useMe } from '@/api/routes/auth';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
+import { Tooltip } from '@/components/common/Tooltip';
 import { cn, sortGuilds } from '@/utils/util';
 
 function GuildListSkeleton() {
@@ -69,17 +71,33 @@ export function GuildList() {
 	}
 
 	return (
-		<ul
-			className={cn(
-				'grid grid-cols-1 gap-4 transition-opacity md:grid-cols-3 lg:grid-cols-4',
-				isRefreshing && 'opacity-50',
+		<>
+			{me?.sessionKind === 'scoped' && (
+				<div className="mb-4 flex items-center gap-1.5 text-sm text-secondary dark:text-secondary-dark">
+					<span>Only this server is shown</span>
+					<Tooltip content="You may be unable to manage other servers because you signed in via a /dashboard link, which only grants temporary access to the server it was created from.">
+						<Button
+							aria-label="Why only this server is shown"
+							className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-primary dark:focus-visible:ring-primary-dark"
+							type="button"
+						>
+							<FaInfoCircle className="h-3.5 w-3.5" />
+						</Button>
+					</Tooltip>
+				</div>
 			)}
-		>
-			{sorted.map((guild) => (
-				<li className="min-w-0" key={guild.id}>
-					<GuildCard data={guild} />
-				</li>
-			))}
-		</ul>
+			<ul
+				className={cn(
+					'grid grid-cols-1 gap-4 transition-opacity md:grid-cols-3 lg:grid-cols-4',
+					isRefreshing && 'opacity-50',
+				)}
+			>
+				{sorted.map((guild) => (
+					<li className="min-w-0" key={guild.id}>
+						<GuildCard data={guild} />
+					</li>
+				))}
+			</ul>
+		</>
 	);
 }
