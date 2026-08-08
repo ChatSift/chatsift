@@ -34,7 +34,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 
 		if (ama.ended) {
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-				content: 'This AMA session has ended. You can no longer submit questions.',
+				content: 'This AMA is no longer accepting new questions.',
 				flags: MessageFlags.Ephemeral,
 			});
 

@@ -36,7 +36,7 @@ export default class AmaRepostSelectComponent implements ComponentHandler {
 
 			if (session.ended) {
 				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
-					content: `**${session.title}** has already ended - its prompt won't be reposted.`,
+					content: `**${session.title}** is closed to new questions - its prompt won't be reposted.`,
 					components: [],
 				});
 				return;

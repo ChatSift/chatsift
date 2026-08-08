@@ -28,7 +28,7 @@ const createAMABase = z.strictObject({
 	promptChannelId: snowflakeSchema,
 	allowedQuestionUploads: z.number().int().min(0).max(10).default(0),
 	// Optional automated close date (#290) -- ama-bot's scheduledCloseSweep.ts flips `ended` once this
-	// lapses, the same way `/ama end` does. `.nullable()` alone (not just `.optional()`) so an edit can
+	// lapses, the same way `/ama close` does. `.nullable()` alone (not just `.optional()`) so an edit can
 	// explicitly clear a previously-set date, mirroring modmail's `expiresAt`.
 	scheduledCloseAt: z.iso
 		.datetime()
@@ -73,8 +73,11 @@ export const createAMABodySchema = z
 		path: ['queueId'],
 	});
 
-export const updateAMAEndSchema = z.strictObject({
-	ended: z.literal(true),
+// `ended` is the DB column, but what it actually gates is question *submission* (#299) -- everything else
+// (triage, answering, config edits) keeps working on a closed session, and closing is reversible, hence a
+// plain boolean rather than the one-way `z.literal(true)` this used to be.
+export const updateAMAEndedSchema = z.strictObject({
+	ended: z.boolean(),
 });
 
 export const updateAMAConfigSchema = z
@@ -93,4 +96,4 @@ export const updateAMAConfigSchema = z
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided')
 	.refine((data) => !('prompt' in data && 'prompt_raw' in data), 'Cannot provide both prompt and prompt_raw');
 
-export const updateAMABodySchema = z.union([updateAMAEndSchema, updateAMAConfigSchema]);
+export const updateAMABodySchema = z.union([updateAMAEndedSchema, updateAMAConfigSchema]);

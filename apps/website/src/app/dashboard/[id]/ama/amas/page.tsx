@@ -1,6 +1,6 @@
 import { AMASessionsHeading } from './_components/AMASessionsHeading';
 import { AMASessionsList } from './_components/AMASessionsList';
-import { IncludeEndedToggle } from './_components/IncludeEndedToggle';
+import { OpenOnlyToggle } from './_components/OpenOnlyToggle';
 import { SortMenu } from './_components/SortMenu';
 import { SearchBar } from '@/components/common/SearchBar';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
@@ -13,7 +13,7 @@ export default function AMAMangementPage() {
 				<AMASessionsHeading />
 				<SearchBar placeholder="Search AMA sessions...">
 					<SortMenu />
-					<IncludeEndedToggle />
+					<OpenOnlyToggle />
 				</SearchBar>
 			</div>
 

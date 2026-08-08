@@ -13,20 +13,20 @@ import {
 } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 
-type SelectKind = 'end' | 'repost-prompt';
+type SelectKind = 'close' | 'repost-prompt';
 
 const SELECT_CUSTOM_ID: Record<SelectKind, string> = {
-	end: 'ama-end-select',
+	close: 'ama-close-select',
 	'repost-prompt': 'ama-repost-select',
 };
 
 const SELECT_PLACEHOLDER: Record<SelectKind, string> = {
-	end: 'Select an AMA to end',
+	close: 'Select an AMA to close',
 	'repost-prompt': 'Select an AMA to repost the prompt for',
 };
 
 const SELECT_PROMPT: Record<SelectKind, string> = {
-	end: 'Choose which AMA to end:',
+	close: 'Choose which AMA to stop accepting questions on:',
 	'repost-prompt': 'Choose which AMA to repost the prompt for:',
 };
 
@@ -40,7 +40,10 @@ export default class AmaCommand implements CommandHandler {
 		.setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
 		.setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
 		.addSubcommands(
-			(subcommand) => subcommand.setName('end').setDescription("End one of this server's ongoing AMAs"),
+			(subcommand) =>
+				subcommand
+					.setName('close')
+					.setDescription("Stop accepting new questions on one of this server's AMAs (reversible)"),
 			(subcommand) =>
 				subcommand.setName('repost-prompt').setDescription('Repost an AMA prompt message that was deleted'),
 		)
@@ -59,8 +62,8 @@ export default class AmaCommand implements CommandHandler {
 		const subcommand = options.getSubcommand(true);
 
 		switch (subcommand) {
-			case 'end': {
-				await this.handleSelect(interaction, 'end');
+			case 'close': {
+				await this.handleSelect(interaction, 'close');
 				break;
 			}
 
@@ -79,9 +82,9 @@ export default class AmaCommand implements CommandHandler {
 	}
 
 	/**
-	 * Shared by `end` and `repost-prompt`: both act on one of the guild's ongoing AMAs, picked via a select menu
-	 * instead of a raw ID option. The actual action runs from the resulting `ama-end-select`/`ama-repost-select`
-	 * component handler once the user picks an option.
+	 * Shared by `close` and `repost-prompt`: both act on one of the guild's AMAs that are still accepting
+	 * questions, picked via a select menu instead of a raw ID option. The actual action runs from the resulting
+	 * `ama-close-select`/`ama-repost-select` component handler once the user picks an option.
 	 */
 	private async handleSelect(interaction: APIApplicationCommandInteraction, kind: SelectKind) {
 		const sessions = await getContext().db<AmaSessions[]>`
@@ -90,7 +93,7 @@ export default class AmaCommand implements CommandHandler {
 
 		if (!sessions.length) {
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-				content: 'There are no ongoing AMAs in this server.',
+				content: 'There are no AMAs accepting questions in this server.',
 				flags: MessageFlags.Ephemeral,
 			});
 			return;

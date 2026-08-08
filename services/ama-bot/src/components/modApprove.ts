@@ -40,13 +40,9 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 				throw new Error(`No AMA session found for id ${question.amaId}`);
 			}
 
-			if (session.ended) {
-				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
-					content: 'This AMA session has ended.',
-					flags: MessageFlags.Ephemeral,
-				});
-				return;
-			}
+			// No `session.ended` guard: closing an AMA only stops new submissions (#299) -- questions already in
+			// the queue stay fully reviewable (and answerable) afterwards, which is the whole point of closing
+			// rather than ending.
 
 			// Get user details from the interaction
 			const user = await getContext().service.client.api.users.get(question.authorId);

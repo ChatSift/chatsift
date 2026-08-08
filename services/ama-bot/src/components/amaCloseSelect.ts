@@ -4,8 +4,8 @@ import type { ComponentHandler } from '@chatsift/bot-core';
 import type { AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction, APIMessageStringSelectInteractionData } from '@discordjs/core';
 
-export default class AmaEndSelectComponent implements ComponentHandler {
-	public readonly name = 'ama-end-select';
+export default class AmaCloseSelectComponent implements ComponentHandler {
+	public readonly name = 'ama-close-select';
 
 	public readonly stateStore = null;
 
@@ -29,7 +29,7 @@ export default class AmaEndSelectComponent implements ComponentHandler {
 
 		if (session.ended) {
 			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
-				content: `**${session.title}** has already ended.`,
+				content: `**${session.title}** is already closed to new questions.`,
 				components: [],
 			});
 			return;
@@ -40,7 +40,7 @@ export default class AmaEndSelectComponent implements ComponentHandler {
 		`;
 
 		await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
-			content: `Ended **${session.title}**. It will no longer accept new questions.`,
+			content: `Closed question submissions for **${session.title}**. Questions already submitted can still be reviewed and answered from the dashboard, and submissions can be reopened there.`,
 			components: [],
 		});
 	}
