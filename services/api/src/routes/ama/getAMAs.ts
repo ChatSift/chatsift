@@ -32,10 +32,10 @@ export default defineRoute({
 		isGuildManager: false,
 		grants: [GRANTS.AMA_CREATE],
 	}),
-	async handler(req): Promise<AMASessionWithCount[]> {
+	async handler(req, res): Promise<AMASessionWithCount[]> {
 		const { include_ended } = req.query;
 		const { guildId } = req.params;
-		const isManager = await isGuildManagerToken(req);
+		const isManager = await isGuildManagerToken(req, res);
 
 		const db = getContext().db;
 		const sessions = await db<AmaSessions[]>`

@@ -11,9 +11,11 @@ import {
 	initContext,
 	NewAccessTokenHeader,
 } from '@chatsift/backend-core';
+import { DiscordAPIError } from '@discordjs/rest';
 import jwt from 'jsonwebtoken';
 import type { Request, Response } from 'polka';
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
+import { resetDiscordOAuthRefreshCoalescing } from '../../util/discordOAuthRefresh.js';
 import type { AccessTokenData } from '../../util/tokens.js';
 import { attachHttpUtils } from '../attachHttpUtils.js';
 import { isAuthed } from '../isAuthed.js';
@@ -126,17 +128,27 @@ const makeAccessJWT = ({ now = Date.now(), expiresIn = 5 * 60, grants, sub = USE
 };
 
 interface MockRefreshJWTData {
+	/**
+	 * How far out the embedded discord access token claims to be valid. The default (5 minutes) sits inside
+	 * `refresh`'s ~7 minute buffer, so it takes the rotation path; anything past that buffer instead exercises
+	 * the reuse path, where the stored token is handed straight to `/me` without asking discord to reissue it.
+	 */
+	accessTokenExpiresInMs?: number;
 	expiresIn?: number;
 	now?: number;
 }
 
-const makeRefreshJWT = ({ now = Date.now(), expiresIn = 60 * 60 * 24 * 30 }: MockRefreshJWTData = {}) => {
+const makeRefreshJWT = ({
+	now = Date.now(),
+	expiresIn = 60 * 60 * 24 * 30,
+	accessTokenExpiresInMs = 1_000 * 60 * 5,
+}: MockRefreshJWTData = {}) => {
 	const data = {
 		refresh: true,
 		iat: Math.floor(now / 1_000),
 		sub: USER_ID,
 		discordAccessToken: GOOD_ACCESS_TOKEN,
-		discordAccessTokenExpiresAt: new Date(now + 1_000 * 60 * 5).toISOString(),
+		discordAccessTokenExpiresAt: new Date(now + accessTokenExpiresInMs).toISOString(),
 		discordRefreshToken: GOOD_REFRESH_TOKEN,
 	};
 
@@ -180,11 +192,21 @@ const makeGrantJWT = ({
 // Every real request carries a `req.logger` by the time `isAuthed`'s middleware runs (attached by
 // `attachLogger()` ahead of it in `app.ts`), so mocked requests get one here too by default.
 const makeMockedRequest = (data: any) => ({ logger: getContext().logger, ...data }) as unknown as Request;
+
+const makeDiscordError = (status: number, message: string) =>
+	new DiscordAPIError({ code: 0, message }, 0, status, 'GET', 'https://discord.com', {});
+const unauthorizedDiscordError = () => makeDiscordError(401, '401: Unauthorized');
+// Comfortably past `refresh`'s ~7 minute buffer, so it reuses the stored access token instead of rotating it.
+const stillValidCookie = () => `refresh_token=${makeRefreshJWT({ accessTokenExpiresInMs: 1_000 * 60 * 60 })}`;
 const MockedResponse = Http2ServerResponse as unknown as new () => Response;
 const next = vi.fn();
 
 afterEach(() => {
 	vi.resetAllMocks();
+	// Rotations are coalesced across requests for a grace window that deliberately outlives the request that
+	// performed them -- without this, a test reusing `GOOD_REFRESH_TOKEN` silently inherits the previous test's
+	// result and never reaches `refreshTokenMock` at all.
+	resetDiscordOAuthRefreshCoalescing();
 });
 
 describe('no fallthrough', () => {
@@ -373,8 +395,11 @@ describe('no fallthrough', () => {
 
 			expect(next).toHaveBeenCalledWith();
 			expect(res.setHeader).toHaveBeenCalledTimes(2);
-			expect(res.setHeader).toHaveBeenNthCalledWith(1, NewAccessTokenHeader, expect.any(String));
-			expect(res.setHeader).toHaveBeenNthCalledWith(2, 'Set-Cookie', expect.stringContaining('refresh_token='));
+			// Refresh cookie first, access token second: discord invalidates the old refresh token the instant the
+			// rotation succeeds, so the new one is committed to the response before anything that can still throw
+			// (the `/me` call backing the access token's grants) runs. See `refresh` in `isAuthed.ts`.
+			expect(res.setHeader).toHaveBeenNthCalledWith(1, 'Set-Cookie', expect.stringContaining('refresh_token='));
+			expect(res.setHeader).toHaveBeenNthCalledWith(2, NewAccessTokenHeader, expect.any(String));
 		});
 
 		test("good refresh token but user's discord refresh did not work", async () => {
@@ -399,6 +424,92 @@ describe('no fallthrough', () => {
 			expect(res.setHeader).toHaveBeenNthCalledWith(1, NewAccessTokenHeader, 'noop');
 			expect(res.setHeader).toHaveBeenNthCalledWith(2, 'Set-Cookie', expect.stringContaining('refresh_token=noop'));
 		});
+	});
+
+	// `discordAccessTokenExpiresAt` is our own bookkeeping, never reconfirmed with discord, so the token it
+	// vouches for can be dead long before it says so. Nothing on the reuse path writes a cookie, so a 401 left
+	// to propagate here used to 500 the request *and* leave the same dead token in the cookie for the next one
+	// -- every subsequent request failing identically until real time caught up with `expiresAt`, up to a week.
+	describe('stored discord access token is dead before its recorded expiry', () => {
+		test('recovers by rotating instead of failing the request', async () => {
+			const res = new MockedResponse();
+			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+			// Dead on the reuse path, fine once the rotation below hands over a fresh token.
+			getCurrentUserMock.mockRejectedValueOnce(unauthorizedDiscordError()).mockResolvedValue({ id: USER_ID });
+			getGuildsMock.mockResolvedValue([]);
+			refreshTokenMock.mockResolvedValue({
+				access_token: GOOD_ACCESS_TOKEN,
+				expires_in: 5 * 60,
+				refresh_token: GOOD_REFRESH_TOKEN,
+			});
+
+			await middleware(makeMockedRequest({ headers: { cookie: stillValidCookie() } }), res, next);
+
+			expect(refreshTokenMock).toHaveBeenCalledTimes(1);
+			expect(next).toHaveBeenCalledWith();
+			// A recovered session, not a re-login: both tokens are reissued rather than nooped.
+			expect(res.setHeader).toHaveBeenNthCalledWith(1, 'Set-Cookie', expect.stringContaining('refresh_token='));
+			expect(res.setHeader).not.toHaveBeenCalledWith('Set-Cookie', expect.stringContaining('refresh_token=noop'));
+			expect(res.setHeader).toHaveBeenNthCalledWith(2, NewAccessTokenHeader, expect.any(String));
+		});
+
+		test('only forces a re-login once the refresh token is rejected too', async () => {
+			const res = new MockedResponse();
+			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+			getCurrentUserMock.mockRejectedValue(unauthorizedDiscordError());
+			refreshTokenMock.mockRejectedValue(new Error('invalid_grant'));
+
+			await middleware(makeMockedRequest({ headers: { cookie: stillValidCookie() } }), res, next);
+
+			expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'invalidated refresh token'));
+			expect(res.setHeader).toHaveBeenNthCalledWith(1, NewAccessTokenHeader, 'noop');
+			expect(res.setHeader).toHaveBeenNthCalledWith(2, 'Set-Cookie', expect.stringContaining('refresh_token=noop'));
+		});
+
+		test('does not spend a rotation on a non-401 discord failure', async () => {
+			const res = new MockedResponse();
+			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+			// A discord outage says nothing about whether the token is still good.
+			getCurrentUserMock.mockRejectedValue(makeDiscordError(500, '500: Internal Server Error'));
+
+			await expect(
+				middleware(makeMockedRequest({ headers: { cookie: stillValidCookie() } }), res, next),
+			).rejects.toThrow('500: Internal Server Error');
+
+			expect(refreshTokenMock).not.toHaveBeenCalled();
+			// Critically, the session is left completely intact for the next request to retry with.
+			expect(res.setHeader).not.toHaveBeenCalledWith('Set-Cookie', expect.stringContaining('refresh_token=noop'));
+		});
+	});
+
+	// Discord rotates refresh tokens, so the loser of a concurrent redemption gets `invalid_grant` back -- which
+	// is indistinguishable from a genuinely dead token and gets the user logged out. The browser fires several
+	// dashboard requests in parallel off one session, so this is an ordinary page load, not a rare interleaving.
+	test('coalesces concurrent rotations of the same refresh token onto one discord call', async () => {
+		const responses = [1, 2, 3].map(() => new MockedResponse());
+		await Promise.all(responses.map(async (res) => attachHttpUtils()({} as unknown as Request, res, vi.fn())));
+
+		refreshTokenMock.mockResolvedValue({
+			access_token: GOOD_ACCESS_TOKEN,
+			expires_in: 5 * 60,
+			refresh_token: GOOD_REFRESH_TOKEN,
+		});
+		getCurrentUserMock.mockResolvedValue({ id: USER_ID });
+		getGuildsMock.mockResolvedValue([]);
+
+		const cookie = `refresh_token=${makeRefreshJWT()}`;
+		await Promise.all(
+			responses.map(async (res) => middleware(makeMockedRequest({ headers: { cookie } }), res, vi.fn())),
+		);
+
+		expect(refreshTokenMock).toHaveBeenCalledTimes(1);
+		for (const res of responses) {
+			expect(res.setHeader).toHaveBeenCalledWith('Set-Cookie', expect.stringContaining('refresh_token='));
+			expect(res.setHeader).not.toHaveBeenCalledWith('Set-Cookie', expect.stringContaining('refresh_token=noop'));
+		}
 	});
 });
 

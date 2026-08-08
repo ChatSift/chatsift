@@ -3,14 +3,16 @@
 import { claimGrantToken, decrypt, getContext, RefreshTokenCookie, verifyGrantToken } from '@chatsift/backend-core';
 import type { GrantString, GrantTokenData, Logger } from '@chatsift/backend-core';
 import type { AmaSessions } from '@chatsift/db';
-import type { RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
 import { parseCookie } from 'cookie';
 import jwt from 'jsonwebtoken';
+import type { Response } from 'polka';
 import { defineMiddleware } from '../core/route.js';
 import type { TypedMiddleware } from '../core/route.js';
-import { discordAPIOAuth } from '../util/discordAPI.js';
-import type { MeGuild } from '../util/me.js';
+import { isUnauthorizedDiscordError } from '../util/discordErrors.js';
+import type { RefreshedOAuthData } from '../util/discordOAuthRefresh.js';
+import { refreshDiscordAccessToken } from '../util/discordOAuthRefresh.js';
+import type { Me, MeGuild } from '../util/me.js';
 import { fetchMe } from '../util/me.js';
 import type { RefreshTokenData, AccessTokenData } from '../util/tokens.js';
 import { createAccessToken, createRefreshToken, noopAccessToken, noopRefreshToken } from '../util/tokens.js';
@@ -95,12 +97,44 @@ export interface AuthedTokens {
  * `getAMAs.ts` that need to branch their own query on manager-vs-not rather than hard-gating the whole
  * route on it.
  */
-export async function isGuildManagerToken(req: {
-	grant?: GrantTokenData;
-	logger: Logger;
-	params: Record<string, string>;
-	tokens?: { access: AccessTokenData };
-}): Promise<boolean> {
+/**
+ * `fetchMe` against a discord access token carried inside a still-unexpired session access token.
+ *
+ * That embedded token can be dead well before the JWT wrapping it expires (the user re-authorized elsewhere,
+ * revoked the app, or another session rotated the pair) -- same underlying hazard `refresh` handles, but these
+ * call sites can't recover the way it does, since they don't own the response's token lifecycle. Nooping the
+ * access token and 401ing makes the client drop its copy and retry, and that retry lands in `refresh`, which is
+ * able to rotate. Letting the 401 propagate instead 500s the request for as long as the session access token
+ * stays unexpired.
+ */
+export async function fetchMeForSession(
+	discordAccessToken: string,
+	logger: Logger,
+	res: Response,
+	force = false,
+): Promise<Me> {
+	try {
+		return await fetchMe(discordAccessToken, logger, force);
+	} catch (error) {
+		if (!isUnauthorizedDiscordError(error)) {
+			throw error;
+		}
+
+		logger.warn({ err: error }, 'session access token embeds a dead discord access token, forcing a re-auth');
+		noopAccessToken(res);
+		throw unauthorized('discord session is no longer valid');
+	}
+}
+
+export async function isGuildManagerToken(
+	req: {
+		grant?: GrantTokenData;
+		logger: Logger;
+		params: Record<string, string>;
+		tokens?: { access: AccessTokenData };
+	},
+	res: Response,
+): Promise<boolean> {
 	if (req.grant) {
 		return true;
 	}
@@ -118,7 +152,7 @@ export async function isGuildManagerToken(req: {
 
 	// Membership itself can't be bypassed by the admin claim -- same rule `isGuildManager: true` enforces
 	// below.
-	const me = await fetchMe(req.tokens.access.discordAccessToken, req.logger, false);
+	const me = await fetchMeForSession(req.tokens.access.discordAccessToken, req.logger, res);
 	return me.guilds.some((guild) => guild.id === guildId);
 }
 
@@ -138,39 +172,85 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 	const middleware: TypedMiddleware<object>[] = [
 		defineMiddleware(async (req, res, next) => {
 			async function refresh(refreshToken: RefreshTokenData): Promise<void> {
-				// To ensure our discord access tokens are always up to date without any complex logic, we refresh it here
-				// if the token doesn't have ~7 minutes left on it (since our access tokens last 5)
-				let oauthData: Pick<RESTPostOAuth2AccessTokenResult, 'access_token' | 'expires_in' | 'refresh_token'>;
-
-				const expiresAt = new Date(refreshToken.discordAccessTokenExpiresAt).getTime();
-				if (expiresAt >= Date.now() + 7 * 60 * 1_000) {
-					req.logger.info('discord access token is still valid for enough time, no need to refresh it');
-					oauthData = {
-						access_token: refreshToken.discordAccessToken,
-						refresh_token: refreshToken.discordRefreshToken,
-						expires_in: (expiresAt - Date.now()) / 1_000,
-					};
-				} else {
+				// Redeems the refresh token for a new pair. Resolves to `null` once it has already responded --
+				// a refresh token discord won't accept is the one case here that genuinely can't be recovered from
+				// without the user logging in again.
+				async function rotate(): Promise<RefreshedOAuthData | null> {
 					req.logger.info('refreshing discord access token');
 					try {
-						oauthData = await discordAPIOAuth.oauth2.refreshToken({
-							grant_type: 'refresh_token',
-							refresh_token: refreshToken.discordRefreshToken,
-						});
+						const rotated = await refreshDiscordAccessToken(refreshToken.discordRefreshToken, req.logger);
 						req.logger.info('request successfully refreshed token');
+						return rotated;
 					} catch (error) {
 						req.logger.warn({ err: error }, 'error refreshing discord access token, invalidating login');
 						noopAccessToken(res);
 						noopRefreshToken(res);
 						await next(fallthrough ? undefined : unauthorized('invalidated refresh token'));
-						return;
+						return null;
 					}
 				}
 
-				// We're good, rotate things
-				const me = await fetchMe(oauthData.access_token, req.logger);
+				let oauthData: RefreshedOAuthData | undefined;
+				let me: Me | undefined;
+				// Set only on the rotation path below, where the cookie has to be written before `/me` is called.
+				let rotatedRefreshToken: RefreshTokenData | undefined;
+
+				// To ensure our discord access tokens are always up to date without any complex logic, we refresh it here
+				// if the token doesn't have ~7 minutes left on it (since our access tokens last 5)
+				const expiresAt = new Date(refreshToken.discordAccessTokenExpiresAt).getTime();
+				if (expiresAt >= Date.now() + 7 * 60 * 1_000) {
+					req.logger.info('discord access token is still valid for enough time, no need to refresh it');
+					const stored: RefreshedOAuthData = {
+						access_token: refreshToken.discordAccessToken,
+						refresh_token: refreshToken.discordRefreshToken,
+						expires_in: (expiresAt - Date.now()) / 1_000,
+					};
+
+					try {
+						me = await fetchMe(stored.access_token, req.logger);
+						oauthData = stored;
+					} catch (error) {
+						// `discordAccessTokenExpiresAt` is our own bookkeeping, not something discord reconfirms per
+						// request -- the token it describes can be dead long before that timestamp (the user
+						// re-authorized from another browser, revoked the app, or a concurrent session rotated this
+						// pair, since rotating invalidates the previous access token). Letting that propagate is what
+						// made this a *sticky* failure rather than a one-off: nothing in this branch writes a cookie,
+						// so the request 500s AND the next one re-reads the very same dead token out of the very same
+						// cookie, repeating until real time drags `expiresAt` inside the window above -- up to a week,
+						// since that's how long discord's access tokens live.
+						//
+						// A 401 specifically means "this access token is dead", which the refresh token below can
+						// still fix, so fall through and rotate instead of failing. Anything else (5xx, rate limit,
+						// network) says nothing about the token's validity and must not spend a rotation.
+						if (!isUnauthorizedDiscordError(error)) {
+							throw error;
+						}
+
+						req.logger.warn(
+							{ err: error },
+							'stored discord access token was rejected before its recorded expiry, rotating it',
+						);
+					}
+				}
+
+				if (!oauthData || !me) {
+					const rotated = await rotate();
+					if (!rotated) {
+						return;
+					}
+
+					oauthData = rotated;
+					// Committed to the cookie *before* the `/me` call below, unlike the reuse path above. Discord
+					// invalidates the old refresh token the moment this rotation succeeds, so if `fetchMe` then threw
+					// and we hadn't got here, the client would be left holding a refresh token that no longer works --
+					// a forced logout caused by an unrelated blip, on a session we'd just successfully renewed.
+					// `refreshToken.sub` rather than `me.id` (not fetched yet) since a rotation is always same-user.
+					rotatedRefreshToken = createRefreshToken(res, oauthData, refreshToken.sub);
+					me = await fetchMe(oauthData.access_token, req.logger);
+				}
+
 				const newAccessToken = createAccessToken(res, oauthData, me);
-				const newRefreshToken = createRefreshToken(res, oauthData, me.id);
+				const newRefreshToken = rotatedRefreshToken ?? createRefreshToken(res, oauthData, me.id);
 
 				// `req` is a per-request object, not shared mutable state -- the `req.logger` read above (crossing
 				// the `fetchMe` await) is what trips this rule's static analysis, but there's no real race here.
@@ -375,7 +455,7 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 		const allowAmaGuest = options.isGuildManager === 'or-ama-guest';
 
 		middleware.push(
-			defineMiddleware(async (req, _, next) => {
+			defineMiddleware(async (req, res, next) => {
 				if (req.grant) {
 					// The fast path above already validated the grant token's guild scope; routes that opt into
 					// `grants` (getGuild, createAMA) don't read `req.guild`/`req.tokens`, so there's nothing left
@@ -401,7 +481,7 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 					// Membership itself can't be bypassed by the admin claim -- an admin who isn't a member of
 					// this guild still gets rejected here, same as a plain manager would (see NavGate.tsx's
 					// mirrored comment on the frontend gate).
-					const me = await fetchMe(req.tokens.access.discordAccessToken, req.logger, false);
+					const me = await fetchMeForSession(req.tokens.access.discordAccessToken, req.logger, res);
 					const guild = me.guilds.find((g) => g.id === guildId);
 
 					if (!guild) {
