@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useGrantAuth } from '@/api/grant';
 import type { ModmailBlock } from '@/api/routes/modmail';
 import { useDeleteModmailBlock } from '@/api/routes/modmail';
 import { Button } from '@/components/common/Button';
@@ -17,10 +16,6 @@ export function BlockCard({ guildId, block }: BlockCardProps) {
 	const { user, expiresAt } = block;
 	const [showConfirm, setShowConfirm] = useState(false);
 	const deleteBlock = useDeleteModmailBlock(guildId);
-	// A `/block-list` grant only ever authorizes reading this list, not unblocking anyone -- that route
-	// doesn't accept the grant server-side either (see `deleteBlock.ts`), so hiding this here is
-	// belt-and-suspenders, not the only guard. The list itself stays visible under a grant.
-	const grant = useGrantAuth();
 
 	const isUserObject = typeof user !== 'string';
 	const userId = isUserObject ? user.id : user;
@@ -58,22 +53,20 @@ export function BlockCard({ guildId, block }: BlockCardProps) {
 				{expiresAt ? `Expires ${formatDate(new Date(expiresAt))}` : 'Never expires'}
 			</p>
 
-			{!grant && (
-				<div className="mt-auto flex justify-end gap-2">
-					{showConfirm ? (
-						<>
-							<Button onPress={handleRemove}>
-								<span className="text-red-500">Yes, unblock</span>
-							</Button>
-							<Button onPress={() => setShowConfirm(false)}>Cancel</Button>
-						</>
-					) : (
-						<Button onPress={() => setShowConfirm(true)}>
-							<span className="text-red-500">Unblock</span>
+			<div className="mt-auto flex justify-end gap-2">
+				{showConfirm ? (
+					<>
+						<Button onPress={handleRemove}>
+							<span className="text-red-500">Yes, unblock</span>
 						</Button>
-					)}
-				</div>
-			)}
+						<Button onPress={() => setShowConfirm(false)}>Cancel</Button>
+					</>
+				) : (
+					<Button onPress={() => setShowConfirm(true)}>
+						<span className="text-red-500">Unblock</span>
+					</Button>
+				)}
+			</div>
 		</div>
 	);
 }

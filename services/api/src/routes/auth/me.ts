@@ -1,16 +1,26 @@
-import { GRANTS } from '@chatsift/backend-core';
-import type { GrantString } from '@chatsift/backend-core';
 import type { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { fetchMeForSession, isAuthed } from '../../middleware/isAuthed.js';
 import type { Me } from '../../util/me.js';
-import { fetchMeFromGrant } from '../../util/me.js';
 import { queryWithFreshSchema } from '../../util/schemas.js';
 
 export type { Me, MeGuild } from '../../util/me.js';
 
 const querySchema = queryWithFreshSchema;
 export type GetAuthMeQuery = z.input<typeof querySchema>;
+
+export interface MeResponse extends Me {
+	/**
+	 * Absolute cutoff for a `/dashboard`-minted session (`ScopedRefreshTokenData.absoluteExpiresAt`), `null` for
+	 * a normal OAuth session -- drives the frontend's limited-session banner.
+	 */
+	scopedExpiresAt: string | null;
+	/**
+	 * `'scoped'` for a session minted by the `/v3/auth/dashboard` link exchange rather than a full OAuth login --
+	 * see `middleware/isAuthed.ts`'s `AccessTokenData`/`RefreshTokenData` discriminated unions.
+	 */
+	sessionKind: 'oauth' | 'scoped';
+}
 
 export default defineRoute({
 	method: 'get',
@@ -22,19 +32,17 @@ export default defineRoute({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: false,
-		// Unlike getGuild/createAMA, this route doesn't care which capability the grant is for -- any valid
-		// grant just needs a stripped identity back for its own guild. List every known grant string here
-		// (rather than hardcoding one) so a future second grant type doesn't need this route touched too.
-		grants: Object.values(GRANTS) as GrantString[],
 	}),
-	async handler(req, res): Promise<Me> {
-		if (req.grant) {
-			return fetchMeFromGrant(req.grant, req.logger);
-		}
-
+	async handler(req, res): Promise<MeResponse> {
 		// `fetchMeForSession` rather than a bare `fetchMe`: this is the endpoint the dashboard's whole auth state
 		// hangs off, so a session access token whose embedded discord token has since died has to come back as a
 		// recoverable 401 (which drops the client's token and re-auths on the next request) rather than a 500.
-		return fetchMeForSession(req.tokens!.access.discordAccessToken, req.logger, res, req.query.force_fresh);
+		const me = await fetchMeForSession(req.tokens!.access, req.logger, res, req.query.force_fresh);
+
+		return {
+			...me,
+			sessionKind: req.tokens!.access.kind,
+			scopedExpiresAt: req.tokens!.refresh.kind === 'scoped' ? req.tokens!.refresh.absoluteExpiresAt : null,
+		};
 	},
 });

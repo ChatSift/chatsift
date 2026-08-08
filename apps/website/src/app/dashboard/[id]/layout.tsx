@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { GuildNav } from './_components/GuildNav';
 import { me } from '@/api/routes/auth';
 import { NavGateCheck } from '@/components/common/NavGate';
+import { ScopedSessionBanner } from '@/components/dashboard/ScopedSessionBanner';
 
 export async function generateMetadata({ params }: LayoutProps<'/dashboard/[id]'>): Promise<Metadata> {
 	const { id } = await params;
@@ -25,6 +26,7 @@ export default async function GuildLayout({ children }: LayoutProps<'/dashboard/
 	return (
 		<NavGateCheck checkForGuildAccess>
 			<div className="space-y-6">
+				<ScopedSessionBanner />
 				<GuildNav />
 				{children}
 			</div>

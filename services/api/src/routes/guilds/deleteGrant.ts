@@ -24,6 +24,9 @@ export default defineRoute({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
+		// See createGrant.ts's matching comment -- deleting a grant is lower risk than creating one, but
+		// keeping `dashboard_grants` CRUD off-limits to a scoped session as a whole is simpler to reason about.
+		allowScopedSession: false,
 	}),
 	async handler(req, res) {
 		const { userId } = req.body;

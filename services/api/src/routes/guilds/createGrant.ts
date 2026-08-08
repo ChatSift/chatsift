@@ -26,6 +26,9 @@ export default defineRoute({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
+		// A leaked `/dashboard` link is bounded by its 30-minute session -- letting it also mint a
+		// `dashboard_grants` row would turn that into *permanent* dashboard access for the guild.
+		allowScopedSession: false,
 	}),
 	async handler(req, res) {
 		const { userId } = req.body;

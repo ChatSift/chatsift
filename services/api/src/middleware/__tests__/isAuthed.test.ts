@@ -7,7 +7,6 @@ import {
 	createRedis,
 	encrypt,
 	getContext,
-	GRANTS,
 	initContext,
 	NewAccessTokenHeader,
 } from '@chatsift/backend-core';
@@ -16,6 +15,7 @@ import jwt from 'jsonwebtoken';
 import type { Request, Response } from 'polka';
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import { resetDiscordOAuthRefreshCoalescing } from '../../util/discordOAuthRefresh.js';
+import type { Me } from '../../util/me.js';
 import type { AccessTokenData } from '../../util/tokens.js';
 import { attachHttpUtils } from '../attachHttpUtils.js';
 import { isAuthed } from '../isAuthed.js';
@@ -23,11 +23,10 @@ import { isAuthed } from '../isAuthed.js';
 vi.mock('http2');
 
 const ADMIN_USER_ID = vi.hoisted(() => '104425482757357568');
-// Backs `claimGrantToken` (the real implementation runs in these tests, unmocked) -- defaults to "claim
-// succeeds" (redis `SET ... NX` returning `'OK'`), overridden per-test where needed to simulate an
-// already-claimed (consumed) token by returning `null`, as the real client does when `NX` finds the key set.
 const redisExistsMock = vi.hoisted(() => vi.fn(async () => 0));
 const redisSetMock = vi.hoisted(() => vi.fn(async (): Promise<string | null> => 'OK'));
+const isDashboardSessionLiveMock = vi.hoisted(() => vi.fn(async () => true));
+const revokeDashboardSessionMock = vi.hoisted(() => vi.fn(async () => undefined));
 vi.mock('@chatsift/backend-core', async (importActual) => {
 	process.env['ROOT_DOMAIN'] = '';
 	process.env['OAUTH_DISCORD_CLIENT_ID'] = '123456789012345678';
@@ -51,7 +50,6 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 	process.env['DOZZLE_WEBHOOK_DISCORD_TOKEN'] = 'abcdef';
 	process.env['METRICS_SECRET'] = 'so secret three';
 
-	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 	const actual = (await importActual()) as typeof import('@chatsift/backend-core');
 
 	return {
@@ -64,6 +62,10 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 			exists: redisExistsMock,
 			set: redisSetMock,
 		}),
+		// The redis-backed session registry itself is exercised in `dashboardSession.test.ts` -- mocked here so
+		// isAuthed's scoped-session tests can drive it directly without needing a full redis stub.
+		isDashboardSessionLive: isDashboardSessionLiveMock,
+		revokeDashboardSession: revokeDashboardSessionMock,
 	};
 });
 
@@ -89,6 +91,19 @@ vi.mock('../../util/discordAPI.js', () => ({
 	},
 }));
 
+// `fetchMeForScopedSession` would otherwise hit real Discord REST clients (built from the fake bot tokens
+// above) to resolve a scoped session's identity/permissions -- mocked at the module boundary the same way
+// `discordAPI.js` is, so isAuthed's tests can drive its result directly.
+const fetchMeForScopedSessionMock = vi.hoisted(() => vi.fn());
+vi.mock('../../util/me.js', async (importActual) => {
+	const actual = (await importActual()) as typeof import('../../util/me.js');
+
+	return {
+		...actual,
+		fetchMeForScopedSession: fetchMeForScopedSessionMock,
+	};
+});
+
 const makeExpectedBoom = (statusCode: number, message: string) =>
 	expect.objectContaining({
 		output: expect.objectContaining({
@@ -101,9 +116,7 @@ const makeExpectedBoom = (statusCode: number, message: string) =>
 
 const USER_ID = '223703707118731264';
 const GOOD_ACCESS_TOKEN = ':)';
-const BAD_ACCESS_TOKEN = ':(';
 const GOOD_REFRESH_TOKEN = ':>';
-const BAD_REFRESH_TOKEN = ':<';
 
 interface MockAccessJWTData {
 	expiresIn?: number;
@@ -114,6 +127,7 @@ interface MockAccessJWTData {
 
 const makeAccessJWT = ({ now = Date.now(), expiresIn = 5 * 60, grants, sub = USER_ID }: MockAccessJWTData = {}) => {
 	const data: AccessTokenData = {
+		kind: 'oauth',
 		refresh: false,
 		iat: Math.floor(now / 1_000),
 		sub,
@@ -144,6 +158,7 @@ const makeRefreshJWT = ({
 	accessTokenExpiresInMs = 1_000 * 60 * 5,
 }: MockRefreshJWTData = {}) => {
 	const data = {
+		kind: 'oauth' as const,
 		refresh: true,
 		iat: Math.floor(now / 1_000),
 		sub: USER_ID,
@@ -164,30 +179,94 @@ const makeRefreshJWT = ({
 	);
 };
 
-const GRANT_GUILD_ID = '123';
+const SCOPED_GUILD_ID = '555555555555555555';
+const SCOPED_SID = 'sid-1';
 
-interface MockGrantJWTData {
+interface MockScopedAccessJWTData {
 	expiresIn?: number;
-	grant?: string;
 	guildId?: string;
-	jti?: string;
 	kind?: string;
 	now?: number;
+	sid?: string;
 	sub?: string;
 }
 
-const makeGrantJWT = ({
+const makeScopedAccessJWT = ({
 	now = Date.now(),
-	expiresIn = 15 * 60,
-	kind = 'grant',
+	expiresIn = 5 * 60,
+	kind = 'scoped',
 	sub = USER_ID,
-	guildId = GRANT_GUILD_ID,
-	grant = GRANTS.AMA_CREATE,
-	jti = 'jti-1',
-}: MockGrantJWTData = {}) =>
-	jwt.sign({ kind, sub, guildId, grant, jti, iat: Math.floor(now / 1_000) }, getContext().env.ENCRYPTION_KEY, {
-		expiresIn,
-	});
+	guildId = SCOPED_GUILD_ID,
+	sid = SCOPED_SID,
+}: MockScopedAccessJWTData = {}) =>
+	jwt.sign(
+		{ kind, refresh: false, iat: Math.floor(now / 1_000), sub, guildId, sid, grants: { adminGuilds: [guildId] } },
+		getContext().env.ENCRYPTION_KEY,
+		{ expiresIn },
+	);
+
+interface MockScopedRefreshJWTData {
+	absoluteExpiresAt?: string;
+	expiresIn?: number;
+	guildId?: string;
+	kind?: string;
+	now?: number;
+	sid?: string;
+	sub?: string;
+}
+
+const makeScopedRefreshJWT = ({
+	now = Date.now(),
+	expiresIn = 30 * 60,
+	kind = 'scoped',
+	sub = USER_ID,
+	guildId = SCOPED_GUILD_ID,
+	sid = SCOPED_SID,
+	absoluteExpiresAt = new Date(now + 30 * 60 * 1_000).toISOString(),
+}: MockScopedRefreshJWTData = {}) =>
+	jwt.sign(
+		{ kind, refresh: true, iat: Math.floor(now / 1_000), sub, guildId, sid, absoluteExpiresAt },
+		getContext().env.ENCRYPTION_KEY,
+		{ expiresIn },
+	);
+
+const makeDashboardLinkJWT = ({
+	now = Date.now(),
+	expiresIn = 2 * 60,
+	sub = USER_ID,
+	guildId = SCOPED_GUILD_ID,
+	jti = 'link-jti-1',
+}: { expiresIn?: number; guildId?: string; jti?: string; now?: number; sub?: string } = {}) =>
+	jwt.sign(
+		{ kind: 'dashboard-link', sub, guildId, jti, iat: Math.floor(now / 1_000) },
+		getContext().env.ENCRYPTION_KEY,
+		{
+			expiresIn,
+		},
+	);
+
+const makeScopedMe = (overrides: Partial<Me['guilds'][number]> = {}): Me => ({
+	id: USER_ID,
+	username: 'someone',
+	discriminator: '0',
+	global_name: null,
+	avatar: null,
+	isGlobalAdmin: false,
+	guilds: [
+		{
+			id: SCOPED_GUILD_ID,
+			name: 'Some Guild',
+			icon: null,
+			meCanManage: true,
+			bots: ['AMA'],
+			amaGuestSessionIds: [],
+			customInstanceId: null,
+			customInstanceLabel: null,
+			customInstanceIconUrl: null,
+			...overrides,
+		},
+	],
+});
 
 // Every real request carries a `req.logger` by the time `isAuthed`'s middleware runs (attached by
 // `attachLogger()` ahead of it in `app.ts`), so mocked requests get one here too by default.
@@ -200,6 +279,25 @@ const unauthorizedDiscordError = () => makeDiscordError(401, '401: Unauthorized'
 const stillValidCookie = () => `refresh_token=${makeRefreshJWT({ accessTokenExpiresInMs: 1_000 * 60 * 60 })}`;
 const MockedResponse = Http2ServerResponse as unknown as new () => Response;
 const next = vi.fn();
+
+/**
+ * Pulls the JWT out of the most recent `Set-Cookie: refresh_token=...` header `res.setHeader` was called with,
+ * for tests that need to inspect what `refresh` actually minted (e.g. that a scoped session's rotated refresh
+ * token never carries an `exp` past its `absoluteExpiresAt`).
+ */
+function decodeSetCookieRefreshToken(res: Response): jwt.JwtPayload {
+	const setHeaderMock = res.setHeader as unknown as { mock: { calls: unknown[][] } };
+	const call = setHeaderMock.mock.calls.find(
+		([header, value]) => header === 'Set-Cookie' && typeof value === 'string' && value.includes('refresh_token='),
+	);
+	if (!call) {
+		throw new Error('no Set-Cookie refresh_token header was set');
+	}
+
+	const cookieValue = call[1] as string;
+	const token = /refresh_token=(?<value>[^;]+)/.exec(cookieValue)!.groups!['value']!;
+	return jwt.decode(decodeURIComponent(token)) as jwt.JwtPayload;
+}
 
 afterEach(() => {
 	vi.resetAllMocks();
@@ -589,6 +687,29 @@ describe('is global admin', () => {
 		expect(next).toHaveBeenCalledWith();
 		expect(result).toHaveLength(1);
 	});
+
+	// A scoped `/dashboard` session is denied outright on a global-admin route, even for a user who also
+	// happens to be a global admin -- global-admin routes are never guild-scoped, so there's no sense in which
+	// a session minted for one guild should reach them (see `isAuthed.ts`'s `isGlobalAdmin` middleware block).
+	test('blocks a scoped session whose sub is a global admin', async () => {
+		const [{ handle: isAuth }, { handle: isAdmin }] = isAuthed({ fallthrough: false, isGlobalAdmin: true });
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		const req = makeMockedRequest({
+			headers: {
+				authorization: makeScopedAccessJWT({ sub: ADMIN_USER_ID }),
+				cookie: `refresh_token=${makeScopedRefreshJWT({ sub: ADMIN_USER_ID })}`,
+			},
+		});
+
+		await isAuth(req, res, next);
+		expect(next).toHaveBeenCalledWith();
+		vi.clearAllMocks();
+
+		await isAdmin(req, res, next);
+		expect(next).toHaveBeenCalledWith(makeExpectedBoom(403, 'not available to a /dashboard session'));
+	});
 });
 
 describe('guild level checks', () => {
@@ -647,7 +768,7 @@ describe('guild level checks', () => {
 		expect(next).toHaveBeenCalledWith(makeExpectedBoom(500, 'internal'));
 	});
 
-	test('token grant based pass', async () => {
+	test('adminGuilds claim based pass', async () => {
 		const res = new MockedResponse();
 		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
 
@@ -671,7 +792,7 @@ describe('guild level checks', () => {
 		expect(next).toHaveBeenCalledWith();
 	});
 
-	test('grant based fail', async () => {
+	test('adminGuilds claim based fail', async () => {
 		const res = new MockedResponse();
 		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
 
@@ -696,222 +817,81 @@ describe('guild level checks', () => {
 	});
 });
 
-describe('grant token auth', () => {
-	test('accepts a valid grant token, skips all cookie/session logic, and never touches the response', async () => {
-		const [{ handle: isAuth }] = isAuthed({
-			fallthrough: false,
-			isGlobalAdmin: false,
-			isGuildManager: false,
-			grants: [GRANTS.AMA_CREATE],
-		});
-		const res = new MockedResponse();
-		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
-
-		const req = makeMockedRequest({ headers: { authorization: makeGrantJWT() }, params: {} });
-		await isAuth(req, res, next);
-
-		expect(next).toHaveBeenCalledWith();
-		expect(req.grant).toMatchObject({
-			kind: 'grant',
-			sub: USER_ID,
-			guildId: GRANT_GUILD_ID,
-			grant: GRANTS.AMA_CREATE,
-		});
-		expect(req.tokens).toBeUndefined();
-		// The whole point of the isolation guarantee: a grant request must never set/clear the session cookie or
-		// the access-token-refresh header, even implicitly.
-		expect(res.setHeader).not.toHaveBeenCalled();
-	});
-
-	test('rejects a grant string not permitted for this route', async () => {
-		const [{ handle: isAuth }] = isAuthed({
-			fallthrough: false,
-			isGlobalAdmin: false,
-			isGuildManager: false,
-			grants: ['some:other-grant' as (typeof GRANTS)[keyof typeof GRANTS]],
-		});
-		const res = new MockedResponse();
-		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
-
-		await isAuth(makeMockedRequest({ headers: { authorization: makeGrantJWT() }, params: {} }), res, next);
-
-		expect(next).toHaveBeenCalledWith(makeExpectedBoom(403, 'grant not permitted'));
-	});
-
-	test('rejects a guildId mismatch on a route with a :guildId param', async () => {
-		const [{ handle: isAuth }] = isAuthed({
-			fallthrough: false,
-			isGlobalAdmin: false,
-			isGuildManager: true,
-			grants: [GRANTS.AMA_CREATE],
-		});
-		const res = new MockedResponse();
-		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
-
-		await isAuth(
-			makeMockedRequest({
-				headers: { authorization: makeGrantJWT({ guildId: GRANT_GUILD_ID }) },
-				params: { guildId: 'a-different-guild' },
-			}),
-			res,
-			next,
-		);
-
-		expect(next).toHaveBeenCalledWith(makeExpectedBoom(403, 'grant guild mismatch'));
-	});
-
-	test('does not enforce a guildId match on routes without a :guildId param (e.g. /v3/auth/me)', async () => {
-		const [{ handle: isAuth }] = isAuthed({
-			fallthrough: false,
-			isGlobalAdmin: false,
-			isGuildManager: false,
-			grants: [GRANTS.AMA_CREATE],
-		});
-		const res = new MockedResponse();
-		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
-
-		const req = makeMockedRequest({ headers: { authorization: makeGrantJWT() }, params: {} });
-		await isAuth(req, res, next);
-
-		expect(next).toHaveBeenCalledWith();
-		expect(req.grant?.guildId).toBe(GRANT_GUILD_ID);
-	});
-
-	test('rejects an already-consumed grant token on a route that claims it', async () => {
-		redisSetMock.mockResolvedValueOnce(null);
-
-		const [{ handle: isAuth }] = isAuthed({
-			claimsGrant: true,
-			fallthrough: false,
-			isGlobalAdmin: false,
-			isGuildManager: false,
-			grants: [GRANTS.AMA_CREATE],
-		});
-		const res = new MockedResponse();
-		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
-
-		await isAuth(makeMockedRequest({ headers: { authorization: makeGrantJWT() }, params: {} }), res, next);
-
-		expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'grant token already used'));
-	});
-
-	test('only lets one of two concurrent requests with the same grant token through a route that claims it', async () => {
-		// Stands in for the real client's `SET ... NX` semantics: the first caller to reach this claims the key,
-		// any other caller for the same `jti` finds it already set. This is what makes it safe for `createAMA.ts`
-		// to rely on the claim happening here rather than a separate "is it used yet" check.
-		let claimed = false;
-		redisSetMock.mockImplementation(async () => {
-			if (claimed) {
-				return null;
-			}
-
-			claimed = true;
-			return 'OK';
-		});
-
-		const [{ handle: isAuth }] = isAuthed({
-			claimsGrant: true,
-			fallthrough: false,
-			isGlobalAdmin: false,
-			isGuildManager: false,
-			grants: [GRANTS.AMA_CREATE],
-		});
-		const res = new MockedResponse();
-		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
-
-		const token = makeGrantJWT();
-		const nextA = vi.fn();
-		const nextB = vi.fn();
-
-		await Promise.all([
-			isAuth(makeMockedRequest({ headers: { authorization: token }, params: {} }), res, nextA),
-			isAuth(makeMockedRequest({ headers: { authorization: token }, params: {} }), res, nextB),
-		]);
-
-		const outcomes = [nextA, nextB].map((fn) => fn.mock.calls[0]?.[0]);
-
-		expect(outcomes.filter((error) => error === undefined)).toHaveLength(1);
-		expect(outcomes.filter((error) => error !== undefined)).toEqual([
-			makeExpectedBoom(401, 'grant token already used'),
-		]);
-	});
-
-	test('a route without `claimsGrant` never claims the token, so the same link can be read from repeatedly before it is used', async () => {
-		// This is the regression the bug report was about: `getAMAs`/`/v3/auth/me`/`getGuild` all accept the same
-		// grant token as `createAMA` (to drive the create page's chrome while it loads), but must NOT claim it --
-		// otherwise the page load itself burns the single-use link before the user ever submits the form.
-		const [{ handle: isAuth }] = isAuthed({
-			fallthrough: false,
-			isGlobalAdmin: false,
-			isGuildManager: false,
-			grants: [GRANTS.AMA_CREATE],
-		});
-		const res = new MockedResponse();
-		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
-
-		const token = makeGrantJWT();
-		const nextA = vi.fn();
-		const nextB = vi.fn();
-
-		await isAuth(makeMockedRequest({ headers: { authorization: token }, params: {} }), res, nextA);
-		await isAuth(makeMockedRequest({ headers: { authorization: token }, params: {} }), res, nextB);
-
-		expect(nextA).toHaveBeenCalledWith();
-		expect(nextB).toHaveBeenCalledWith();
-		expect(redisSetMock).not.toHaveBeenCalled();
-	});
-
-	test('falls through to normal session auth when the header holds a real access token, not a grant', async () => {
-		const [{ handle: isAuth }] = isAuthed({
-			fallthrough: false,
-			isGlobalAdmin: false,
-			isGuildManager: false,
-			grants: [GRANTS.AMA_CREATE],
-		});
-		const res = new MockedResponse();
-		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
-
-		const req = makeMockedRequest({
-			headers: { authorization: makeAccessJWT(), cookie: `refresh_token=${makeRefreshJWT()}` },
-			params: {},
-		});
-		await isAuth(req, res, next);
-
-		expect(next).toHaveBeenCalledWith();
-		expect(req.grant).toBeUndefined();
-		expect(req.tokens?.access.sub).toBe(USER_ID);
-	});
-
-	test('a grant-shaped token is rejected as a malformed access token on a route without `grants`, never treated as a session', async () => {
+describe('scoped dashboard session auth', () => {
+	test('a valid scoped access token is accepted as a normal session', async () => {
 		const [{ handle: isAuth }] = isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false });
 		const res = new MockedResponse();
 		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
 
-		await isAuth(
-			makeMockedRequest({
-				headers: { authorization: makeGrantJWT(), cookie: `refresh_token=${makeRefreshJWT()}` },
-				params: {},
-			}),
-			res,
-			next,
-		);
+		const req = makeMockedRequest({
+			headers: {
+				authorization: makeScopedAccessJWT(),
+				cookie: `refresh_token=${makeScopedRefreshJWT()}`,
+			},
+		});
 
-		expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'malformed access token'));
+		await isAuth(req, res, next);
+
+		expect(next).toHaveBeenCalledWith();
+		expect(req.tokens?.access).toMatchObject({
+			kind: 'scoped',
+			sub: USER_ID,
+			guildId: SCOPED_GUILD_ID,
+			sid: SCOPED_SID,
+			grants: { adminGuilds: [SCOPED_GUILD_ID] },
+		});
+		// Unlike an oauth session, a still-valid scoped access token never rotates the refresh cookie on every
+		// request -- only `refreshScoped` (once the access token itself expires) does, see `isAuthed.ts`.
+		expect(res.setHeader).not.toHaveBeenCalled();
 	});
 
-	test('guild-manager step short-circuits for a request already authed via grant', async () => {
+	test('isGuildManager passes for the session’s own guild without any Discord call', async () => {
 		const [{ handle: isAuth }, { handle: isGuildManager }] = isAuthed({
 			fallthrough: false,
 			isGlobalAdmin: false,
 			isGuildManager: true,
-			grants: [GRANTS.AMA_CREATE],
 		});
 		const res = new MockedResponse();
 		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
 
 		const req = makeMockedRequest({
-			headers: { authorization: makeGrantJWT({ guildId: GRANT_GUILD_ID }) },
-			params: { guildId: GRANT_GUILD_ID },
+			headers: {
+				authorization: makeScopedAccessJWT(),
+				cookie: `refresh_token=${makeScopedRefreshJWT()}`,
+			},
+			params: { guildId: SCOPED_GUILD_ID },
+		});
+
+		await isAuth(req, res, next);
+		expect(next).toHaveBeenCalledWith();
+		vi.clearAllMocks();
+
+		fetchMeForScopedSessionMock.mockResolvedValue(makeScopedMe());
+
+		await isGuildManager(req, res, next);
+
+		expect(next).toHaveBeenCalledWith();
+		expect(req.guild).toMatchObject({ id: SCOPED_GUILD_ID, meCanManage: true });
+		expect(getCurrentUserMock).not.toHaveBeenCalled();
+		expect(getGuildsMock).not.toHaveBeenCalled();
+	});
+
+	test('isGuildManager rejects a guild the session is not scoped to', async () => {
+		const [{ handle: isAuth }, { handle: isGuildManager }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: true,
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		const req = makeMockedRequest({
+			headers: {
+				authorization: makeScopedAccessJWT(),
+				cookie: `refresh_token=${makeScopedRefreshJWT()}`,
+			},
+			// A different guild than the one the session was minted for.
+			params: { guildId: 'a-different-guild' },
 		});
 
 		await isAuth(req, res, next);
@@ -920,9 +900,203 @@ describe('grant token auth', () => {
 
 		await isGuildManager(req, res, next);
 
+		expect(next).toHaveBeenCalledWith(makeExpectedBoom(403, 'you need to be a manager'));
+	});
+
+	// The global-admin `ADMINS` bypass inside `isGuildManagerToken`/the `isGuildManager` middleware only ever
+	// applies to an oauth session -- otherwise a global admin's own `/dashboard` link would silently work as an
+	// any-guild credential, defeating the entire point of scoping it to one guild.
+	test('the global-admin bypass does not widen a scoped session past its own guild', async () => {
+		const [{ handle: isAuth }, { handle: isGuildManager }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: true,
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		const req = makeMockedRequest({
+			headers: {
+				authorization: makeScopedAccessJWT({ sub: ADMIN_USER_ID }),
+				cookie: `refresh_token=${makeScopedRefreshJWT({ sub: ADMIN_USER_ID })}`,
+			},
+			params: { guildId: 'a-different-guild' },
+		});
+
+		await isAuth(req, res, next);
 		expect(next).toHaveBeenCalledWith();
-		// No `req.guild` reconstruction (no `fetchMe`/Discord call) needed for a grant-authed request.
-		expect(getCurrentUserMock).not.toHaveBeenCalled();
-		expect(getGuildsMock).not.toHaveBeenCalled();
+		vi.clearAllMocks();
+
+		await isGuildManager(req, res, next);
+
+		expect(next).toHaveBeenCalledWith(makeExpectedBoom(403, 'you need to be a manager'));
+	});
+
+	test('allowScopedSession: false rejects a scoped session even on its own matching guild', async () => {
+		// `allowScopedSession: false` inserts its own denial middleware ahead of the `isGuildManager` one --
+		// three elements this time, not two.
+		const [{ handle: isAuth }, { handle: denyScoped }] = isAuthed({
+			fallthrough: false,
+			isGlobalAdmin: false,
+			isGuildManager: true,
+			allowScopedSession: false,
+		});
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		const req = makeMockedRequest({
+			headers: {
+				authorization: makeScopedAccessJWT(),
+				cookie: `refresh_token=${makeScopedRefreshJWT()}`,
+			},
+			params: { guildId: SCOPED_GUILD_ID },
+		});
+
+		await isAuth(req, res, next);
+		expect(next).toHaveBeenCalledWith();
+		vi.clearAllMocks();
+
+		await denyScoped(req, res, next);
+		expect(next).toHaveBeenCalledWith(makeExpectedBoom(403, 'not available via a /dashboard session'));
+	});
+
+	test('a dashboard-link token is rejected as a malformed access token, never treated as a session', async () => {
+		const [{ handle: isAuth }] = isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false });
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		await isAuth(
+			makeMockedRequest({
+				headers: {
+					authorization: makeDashboardLinkJWT(),
+					cookie: `refresh_token=${makeScopedRefreshJWT()}`,
+				},
+			}),
+			res,
+			next,
+		);
+
+		expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'malformed access token'));
+	});
+
+	test('a scoped access token paired with an oauth refresh cookie is rejected as tampered', async () => {
+		const [{ handle: isAuth }] = isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false });
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+		await isAuth(
+			makeMockedRequest({
+				headers: {
+					authorization: makeScopedAccessJWT(),
+					cookie: `refresh_token=${makeRefreshJWT()}`,
+				},
+			}),
+			res,
+			next,
+		);
+
+		expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'malformed access token'));
+	});
+
+	describe('refreshing an expired scoped access token', () => {
+		test('revoked/expired session forces a re-login', async () => {
+			const [{ handle: isAuth }] = isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false });
+			const res = new MockedResponse();
+			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+			isDashboardSessionLiveMock.mockResolvedValue(false);
+
+			await isAuth(
+				makeMockedRequest({
+					headers: {
+						authorization: makeScopedAccessJWT({ expiresIn: 0 }),
+						cookie: `refresh_token=${makeScopedRefreshJWT()}`,
+					},
+				}),
+				res,
+				next,
+			);
+
+			expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'expired or was revoked'));
+			expect(res.setHeader).toHaveBeenCalledWith(NewAccessTokenHeader, 'noop');
+			expect(res.setHeader).toHaveBeenCalledWith('Set-Cookie', expect.stringContaining('refresh_token=noop'));
+		});
+
+		test('a session past its absolute cap forces a re-login even if still marked live', async () => {
+			const [{ handle: isAuth }] = isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false });
+			const res = new MockedResponse();
+			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+			isDashboardSessionLiveMock.mockResolvedValue(true);
+
+			await isAuth(
+				makeMockedRequest({
+					headers: {
+						authorization: makeScopedAccessJWT({ expiresIn: 0 }),
+						cookie: `refresh_token=${makeScopedRefreshJWT({ absoluteExpiresAt: new Date(Date.now() - 1_000).toISOString() })}`,
+					},
+				}),
+				res,
+				next,
+			);
+
+			expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'expired or was revoked'));
+		});
+
+		test('a user who lost manage-guild permission is logged out and their session revoked', async () => {
+			const [{ handle: isAuth }] = isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false });
+			const res = new MockedResponse();
+			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+			isDashboardSessionLiveMock.mockResolvedValue(true);
+			fetchMeForScopedSessionMock.mockResolvedValue(makeScopedMe({ meCanManage: false }));
+
+			await isAuth(
+				makeMockedRequest({
+					headers: {
+						authorization: makeScopedAccessJWT({ expiresIn: 0 }),
+						cookie: `refresh_token=${makeScopedRefreshJWT()}`,
+					},
+				}),
+				res,
+				next,
+			);
+
+			expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'no longer manage this guild'));
+			expect(revokeDashboardSessionMock).toHaveBeenCalledWith(SCOPED_SID);
+		});
+
+		test('a still-manageable session rotates cleanly, clamped to the absolute cap', async () => {
+			const [{ handle: isAuth }] = isAuthed({ fallthrough: false, isGlobalAdmin: false, isGuildManager: false });
+			const res = new MockedResponse();
+			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+			isDashboardSessionLiveMock.mockResolvedValue(true);
+			fetchMeForScopedSessionMock.mockResolvedValue(makeScopedMe());
+
+			const absoluteExpiresAt = new Date(Date.now() + 10 * 60 * 1_000).toISOString();
+
+			await isAuth(
+				makeMockedRequest({
+					headers: {
+						authorization: makeScopedAccessJWT({ expiresIn: 0 }),
+						cookie: `refresh_token=${makeScopedRefreshJWT({ absoluteExpiresAt })}`,
+					},
+				}),
+				res,
+				next,
+			);
+
+			expect(next).toHaveBeenCalledWith();
+			expect(res.setHeader).toHaveBeenCalledWith(NewAccessTokenHeader, expect.any(String));
+			expect(fetchMeForScopedSessionMock).toHaveBeenCalledWith(SCOPED_GUILD_ID, USER_ID, expect.anything(), true);
+
+			// The rotated refresh token's own `exp` must never exceed the session's absolute cap -- otherwise
+			// rotation would silently turn the 30-minute cap into a sliding window.
+			const decoded = decodeSetCookieRefreshToken(res);
+			expect(decoded.exp).toBeLessThanOrEqual(Math.floor(new Date(absoluteExpiresAt).getTime() / 1_000));
+			expect(decoded['absoluteExpiresAt']).toBe(absoluteExpiresAt);
+			expect(decoded['kind']).toBe('scoped');
+		});
 	});
 });

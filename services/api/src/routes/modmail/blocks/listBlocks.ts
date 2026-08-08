@@ -1,4 +1,4 @@
-import { getContext, GRANTS } from '@chatsift/backend-core';
+import { getContext } from '@chatsift/backend-core';
 import type { Blocks } from '@chatsift/db';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
@@ -25,9 +25,6 @@ export default defineRoute({
 		fallthrough: false,
 		isGlobalAdmin: false,
 		isGuildManager: true,
-		// No `claimsGrant` — this route only ever reads, so the same grant link can be reloaded for as
-		// long as the token stays valid (see `isAuthed`'s `claimsGrant` doc and `commands/blockList.ts`).
-		grants: [GRANTS.MODMAIL_BLOCKS_READ],
 	}),
 	async handler(req): Promise<ModmailBlockWithUser[]> {
 		const { guildId } = req.params;

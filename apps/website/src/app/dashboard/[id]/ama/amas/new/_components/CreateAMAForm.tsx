@@ -4,19 +4,16 @@ import { createAMAWithRawPromptSchema, createAMAWithRegularPromptSchema } from '
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { FaCheckCircle } from 'react-icons/fa';
 import { NormalPromptFields } from '../../_components/NormalPromptFields';
 import type { PromptMode } from '../../_components/PromptModeToggle';
 import { PromptModeToggle } from '../../_components/PromptModeToggle';
 import { PromptPreview } from '../../_components/PromptPreview';
 import { APIError } from '@/api/error';
-import { useGrantAuth } from '@/api/grant';
 import type { CreateAMABody } from '@/api/routes/ama';
 import { useCreateAMA } from '@/api/routes/ama';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
-import { EmptyState } from '@/components/common/EmptyState';
 import { FormActions } from '@/components/common/FormActions';
 import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -95,11 +92,9 @@ export function CreateAMAForm() {
 	const router = useRouter();
 	const params = useParams<{ id: string }>();
 	const { id: guildId } = params;
-	const grant = useGrantAuth();
 
 	const { data: guildInfo, isLoading, error: guildInfoError } = useGuildInfo(guildId, 'AMA');
 	const createAMA = useCreateAMA(guildId);
-	const [createdViaGrant, setCreatedViaGrant] = useState(false);
 
 	const [promptMode, setPromptMode] = useState<PromptMode>('normal');
 	const [formData, setFormData] = useState<FormData>({
@@ -233,26 +228,12 @@ export function CreateAMAForm() {
 
 		try {
 			await createAMA.mutateAsync(body);
-			if (grant) {
-				// No session to redirect a dashboard page for under the grant flow -- show an in-place success
-				// message instead (the list page at `/dashboard/:guildId/ama/amas` isn't grant-accessible).
-				setCreatedViaGrant(true);
-			} else {
-				router.replace(`/dashboard/${guildId}/ama/amas`);
-			}
+			router.replace(`/dashboard/${guildId}/ama/amas`);
 		} catch (error) {
 			if (error instanceof APIError && error.statusCode === 422) {
 				// `badData` from createAMA.ts — Discord rejected the composed message (only reachable in raw mode,
 				// since normal-mode prompts are always well-formed by construction).
 				setGeneralError('Invalid prompt data. Please check your JSON data and try again.');
-				return;
-			}
-
-			// Under the grant flow, a 401 here only ever means `isAuthed` rejected the token -- either it was
-			// already claimed (a duplicate submit, or the link was already used to create an AMA) or it expired.
-			// There's no session to fall back on, so the link itself is simply no longer usable.
-			if (error instanceof APIError && error.statusCode === 401 && grant) {
-				setGeneralError('This link has already been used or has expired. Ask for a new /ama create link.');
 				return;
 			}
 
@@ -303,16 +284,6 @@ export function CreateAMAForm() {
 			// Not valid JSON, let default paste happen
 		}
 	};
-
-	if (createdViaGrant) {
-		return (
-			<EmptyState
-				icon={<FaCheckCircle className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
-				subtitle="You can close this tab now."
-				title="AMA created"
-			/>
-		);
-	}
 
 	// See GrantsList.tsx for why this also checks `guildInfo === undefined`: a background refetch failure keeps
 	// the previously-cached channel list around, and that stale-but-present data should keep the form usable
@@ -557,12 +528,10 @@ export function CreateAMAForm() {
 				</div>
 			</div>
 
-			{/* Grant flow: `router.back()` would leave the flow and drop the one-time `?token=` param. */}
 			<FormActions
 				isSubmitting={createAMA.isPending}
 				onCancel={() => router.back()}
 				pendingLabel="Creating..."
-				showCancel={!grant}
 				submitLabel="Create AMA Session"
 			/>
 		</form>

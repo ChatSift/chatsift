@@ -11,7 +11,6 @@ import type {
 import type { BotId } from '@chatsift/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../fetch';
-import { useGrantAuth } from '../grant';
 import { queryKeys } from '../queryClient';
 
 export type { GuildChannelInfo, GuildEmojiInfo, GuildRoleInfo } from '@chatsift/api';
@@ -29,19 +28,12 @@ export type CreateGrantBody = CreateGrantContract['body'];
 type DeleteGrantContract = InferRouteContract<typeof deleteGrantRoute>;
 export type DeleteGrantBody = DeleteGrantContract['body'];
 
-/**
- * Transparently authed via the one-time grant-token flow when active (`useGrantAuth()`), same as `useMe()` --
- * callers don't need to know or care which auth path is in effect.
- */
 export function useGuildInfo(guildId: string, forBot: BotId) {
-	const grant = useGrantAuth();
-
 	return useQuery({
 		queryKey: queryKeys.guilds.info(guildId, forBot),
 		queryFn: async () =>
 			apiFetch<GuildInfo>('get', `/v3/guilds/${guildId}`, {
 				query: { for_bot: forBot, force_fresh: false },
-				authToken: grant?.token,
 			}),
 	});
 }
@@ -51,14 +43,12 @@ export function useGuildInfo(guildId: string, forBot: BotId) {
  * `useGuildInfo()` cache entry for the same `(guildId, forBot)` pair.
  */
 export function useRefreshGuildInfo(guildId: string, forBot: BotId) {
-	const grant = useGrantAuth();
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		mutationFn: async () =>
 			apiFetch<GuildInfo>('get', `/v3/guilds/${guildId}`, {
 				query: { for_bot: forBot, force_fresh: true },
-				authToken: grant?.token,
 			}),
 		onSuccess(data) {
 			queryClient.setQueryData(queryKeys.guilds.info(guildId, forBot), data);

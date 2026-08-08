@@ -30,6 +30,7 @@ import repostPromptRoute from './routes/ama/repostPrompt.js';
 import createAMATagRoute from './routes/ama/tags/createTag.js';
 import listAMATagsRoute from './routes/ama/tags/listTags.js';
 import updateAMARoute from './routes/ama/updateAMA.js';
+import dashboardLinkRoute from './routes/auth/dashboardLink.js';
 import discordRoute from './routes/auth/discord.js';
 import discordCallbackRoute from './routes/auth/discordCallback.js';
 import logoutRoute from './routes/auth/logout.js';
@@ -140,6 +141,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listAMATagsRoute);
 	mountRoute(app, createAMATagRoute);
 	mountRoute(app, discordRoute);
+	mountRoute(app, dashboardLinkRoute);
 	mountRoute(app, discordCallbackRoute);
 	mountRoute(app, logoutRoute);
 	mountRoute(app, meRoute);
