@@ -32,7 +32,7 @@ export function AMASessionCard({ data }: AMASessionCardProps) {
 							: 'bg-misc-accent/10 text-misc-accent',
 					)}
 				>
-					{data.ended ? 'Closed' : 'Open'}
+					{data.ended ? 'Closed Submissions' : 'Open Submissions'}
 				</span>
 			</div>
 		</Link>
