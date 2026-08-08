@@ -34,7 +34,7 @@ export default class DashboardCommand implements CommandHandler {
 		)
 		.toJSON();
 
-	public async handle(interaction: APIApplicationCommandInteraction, _logger: Logger) {
+	public async handle(interaction: APIApplicationCommandInteraction, logger: Logger) {
 		if (!interaction.guild_id) {
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 				content: 'This command can only be used in a server.',
@@ -57,12 +57,12 @@ export default class DashboardCommand implements CommandHandler {
 
 		switch (subcommand) {
 			case 'open': {
-				await this.handleOpen(interaction, user.id);
+				await this.handleOpen(interaction, user.id, logger);
 				break;
 			}
 
 			case 'revoke': {
-				await this.handleRevoke(interaction, user.id);
+				await this.handleRevoke(interaction, user.id, logger);
 				break;
 			}
 
@@ -81,9 +81,12 @@ export default class DashboardCommand implements CommandHandler {
 	 * cookie, so the token itself is never visible in the dashboard's URL bar or browser history the way the
 	 * old grant tokens were (`?token=` stayed on the page for the whole visit).
 	 */
-	private async handleOpen(interaction: APIApplicationCommandInteraction, sub: string): Promise<void> {
-		const token = createDashboardLinkToken({ sub, guildId: interaction.guild_id! });
+	private async handleOpen(interaction: APIApplicationCommandInteraction, sub: string, logger: Logger): Promise<void> {
+		const guildId = interaction.guild_id!;
+		const token = createDashboardLinkToken({ sub, guildId });
 		const url = `${getContext().API_URL}/v3/auth/dashboard?token=${token}`;
+
+		logger.info({ sub, guildId }, 'minted a /dashboard link');
 
 		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 			content: [
@@ -91,7 +94,7 @@ export default class DashboardCommand implements CommandHandler {
 				`||${url}||`,
 				'',
 				'**Do not share this link with anyone else** - they will be able to act on your behalf on the ' +
-					'dashboard for the next 30 minutes, and you will have no way to stop them without' +
+					'dashboard for the next 30 minutes, and you will have no way to stop them without ' +
 					'running `/dashboard revoke`, which immediately ends every session this command ' +
 					'has opened for this server.',
 				'',
@@ -102,8 +105,15 @@ export default class DashboardCommand implements CommandHandler {
 		});
 	}
 
-	private async handleRevoke(interaction: APIApplicationCommandInteraction, sub: string): Promise<void> {
-		await revokeDashboardSessionsFor(sub, interaction.guild_id!);
+	private async handleRevoke(
+		interaction: APIApplicationCommandInteraction,
+		sub: string,
+		logger: Logger,
+	): Promise<void> {
+		const guildId = interaction.guild_id!;
+		await revokeDashboardSessionsFor(sub, guildId);
+
+		logger.info({ sub, guildId }, 'revoked all /dashboard sessions for this guild');
 
 		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 			content: 'Any active dashboard sessions opened via a `/dashboard` link for this server have been ended.',

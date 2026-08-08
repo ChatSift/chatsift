@@ -3,6 +3,7 @@
 import { useIsMutating } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
+import { Button } from 'react-aria-components';
 import { FaInfoCircle, FaSearch, FaServer } from 'react-icons/fa';
 import GuildCard from './GuildCard';
 import { refreshMeMutationKey, useMe } from '@/api/routes/auth';
@@ -75,7 +76,13 @@ export function GuildList() {
 				<div className="mb-4 flex items-center gap-1.5 text-sm text-secondary dark:text-secondary-dark">
 					<span>Only this server is shown</span>
 					<Tooltip content="You may be unable to manage other servers because you signed in via a /dashboard link, which only grants temporary access to the server it was created from.">
-						<FaInfoCircle className="h-3.5 w-3.5" />
+						<Button
+							aria-label="Why only this server is shown"
+							className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-primary dark:focus-visible:ring-primary-dark"
+							type="button"
+						>
+							<FaInfoCircle className="h-3.5 w-3.5" />
+						</Button>
 					</Tooltip>
 				</div>
 			)}

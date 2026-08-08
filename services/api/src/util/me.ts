@@ -19,6 +19,7 @@ import type { Recipe } from 'bin-rw';
 import { createRecipe, DataType, stringLiteral } from 'bin-rw';
 import { apiForGuild, discordAPIOAuth } from './discordAPI.js';
 import { getInstanceBranding } from './discordApplication.js';
+import { isNotFoundDiscordError } from './discordErrors.js';
 
 export type MeGuild = Pick<RESTAPIPartialCurrentUserGuild, 'icon' | 'id' | 'name'> & {
 	/**
@@ -194,7 +195,7 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 			icon,
 			meCanManage:
 				grantedGuildIds.has(id) ||
-				PermissionsBitField.has(
+				PermissionsBitField.any(
 					BigInt(permissions),
 					PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
 				) ||
@@ -321,23 +322,45 @@ export async function fetchMeForScopedSession(
 	const api = apiForGuild(bot, guildId);
 	const instance = getInstanceForGuild(guildId);
 
-	const [discordUser, guild, member, roles, hasGrant, branding] = await Promise.all([
-		api.users.get(sub),
-		api.guilds.get(guildId),
-		api.guilds.getMember(guildId, sub),
-		api.guilds.getRoles(guildId),
-		getContext().db<
-			Pick<DashboardGrants, 'id'>[]
-		>`SELECT id FROM dashboard_grants WHERE guild_id = ${guildId} AND user_id = ${sub}`.then((rows) => rows.length > 0),
-		// Best-effort, same as `fetchMe`'s `brandingEntries` -- a failure to resolve a partner's icon is a
-		// cosmetic annotation on top of an otherwise-successful request, not a reason to fail the whole thing.
-		instance
-			? getInstanceBranding(instance).catch((error: unknown) => {
-					logger.warn({ err: error, instanceId: instance.id }, 'failed to resolve custom instance branding');
-					return { iconUrl: null, label: instance.label };
-				})
-			: undefined,
-	]);
+	let discordUser: APIUser;
+	let guild: Awaited<ReturnType<typeof api.guilds.get>>;
+	let member: Awaited<ReturnType<typeof api.guilds.getMember>>;
+	let roles: Awaited<ReturnType<typeof api.guilds.getRoles>>;
+	let hasGrant: boolean;
+	let branding: Awaited<ReturnType<typeof getInstanceBranding>> | undefined;
+
+	try {
+		[discordUser, guild, member, roles, hasGrant, branding] = await Promise.all([
+			api.users.get(sub),
+			api.guilds.get(guildId),
+			api.guilds.getMember(guildId, sub),
+			api.guilds.getRoles(guildId),
+			getContext().db<
+				Pick<DashboardGrants, 'id'>[]
+			>`SELECT id FROM dashboard_grants WHERE guild_id = ${guildId} AND user_id = ${sub}`.then(
+				(rows) => rows.length > 0,
+			),
+			// Best-effort, same as `fetchMe`'s `brandingEntries` -- a failure to resolve a partner's icon is a
+			// cosmetic annotation on top of an otherwise-successful request, not a reason to fail the whole thing.
+			instance
+				? getInstanceBranding(instance).catch((error: unknown) => {
+						logger.warn({ err: error, instanceId: instance.id }, 'failed to resolve custom instance branding');
+						return { iconUrl: null, label: instance.label };
+					})
+				: undefined,
+		]);
+	} catch (error) {
+		// The user/member/guild this session is minted for can 404 -- kicked from the guild, left, or the
+		// account no longer exists -- between mint and use. Same "nothing left that could resolve identity for
+		// this guild" outcome as the empty-`bots` branch above, so it gets the same treatment. Anything else
+		// (5xx, rate limit, network) says nothing about eligibility and must not be swallowed as a 401.
+		if (!isNotFoundDiscordError(error)) {
+			throw error;
+		}
+
+		logger.warn({ err: error, userId: sub, guildId }, 'discord reported the user/member/guild as gone');
+		throw unauthorized('could not resolve guild membership for this session');
+	}
 
 	// `@everyone`'s permissions apply to every member and its role id always equals the guild id -- included
 	// here the same way Discord's own permission resolution does, even though `guilds.getRoles` returns it
@@ -353,7 +376,7 @@ export async function fetchMeForScopedSession(
 	const meCanManage =
 		guild.owner_id === sub ||
 		hasGrant ||
-		PermissionsBitField.has(permissionBits, PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator);
+		PermissionsBitField.any(permissionBits, PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator);
 
 	const meGuild: MeGuild = {
 		id: guild.id,

@@ -68,6 +68,11 @@ const linkUsedKey = (jti: string): string => `dashboard:link:used:${jti}`;
  * Atomically claims a link token for use via `SET ... NX` -- a separate check-then-later-consume would leave a
  * window where two concurrent exchange requests for the same `jti` can both observe "not used" and both
  * proceed. TTL matches the token's own lifetime so the key self-cleans.
+ *
+ * Best-effort, not durable -- redis here runs fully in-memory (see docs/roadmap/01-architecture.md's Redis
+ * bullet), so a restart within the token's ~2-minute lifetime clears this claim and makes an already-used link
+ * exchangeable again for whatever remains of that window. Accepted: the replay window is short, requires a
+ * redis restart at the exact wrong moment, and grants nothing beyond what the token's own `sub` already had.
  */
 export async function claimDashboardLinkToken(jti: string): Promise<boolean> {
 	const result = await getContext().redis.set(linkUsedKey(jti), '1', {
@@ -104,9 +109,15 @@ export async function startDashboardSession(sid: string, data: DashboardSessionR
 	const redis = getContext().redis;
 	const indexKey = sessionIndexKey(data.sub, data.guildId);
 
-	await redis.set(sessionKey(sid), '1', { expiration: { type: 'EX', value: DASHBOARD_SESSION_TTL_SECONDS } });
-	await redis.sAdd(indexKey, sid);
-	await redis.expire(indexKey, DASHBOARD_SESSION_TTL_SECONDS);
+	// A single pipelined transaction rather than three sequential awaits -- a crash/connection drop between the
+	// `set` and the `sAdd` would otherwise leave a live session key with no index entry, which `/dashboard
+	// revoke` (`revokeDashboardSessionsFor`, index-only lookup) would then be unable to find and kill.
+	await redis
+		.multi()
+		.set(sessionKey(sid), '1', { expiration: { type: 'EX', value: DASHBOARD_SESSION_TTL_SECONDS } })
+		.sAdd(indexKey, sid)
+		.expire(indexKey, DASHBOARD_SESSION_TTL_SECONDS)
+		.exec();
 }
 
 export async function isDashboardSessionLive(sid: string): Promise<boolean> {

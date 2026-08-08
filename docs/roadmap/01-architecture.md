@@ -194,16 +194,28 @@ path: a scoped session flows through exactly the same `isAuthed` logic as a real
 - **`/dashboard open`**: mints a short-lived (~2 min), single-use `DashboardLinkTokenData` JWT (`{ kind:
 'dashboard-link', sub, guildId, jti, iat }`, `packages/private/backend-core/src/lib/dashboardSession.ts`) and
   replies ephemerally with a spoilered link to `GET {API_URL}/v3/auth/dashboard?token=...` — the link points at the
-  API, not the dashboard, so the token itself is never visible in the browser's URL bar or history. The reply text
-  warns that the link is single-use, expires in 30 minutes once opened, grants full guild-manager access to that
-  one guild, and — if the user is already logged in normally in that browser — will replace their session.
-  `/dashboard revoke` ends every live scoped session for the caller in that guild (`revokeDashboardSessionsFor`).
+  API, not the dashboard, so the token is only ever in the URL for that one initial request; the exchange consumes
+  it and 302s to a clean `/dashboard/:guildId` URL with nothing in it, unlike the token itself ending up in the
+  dashboard's own address bar for the whole visit the way the old grant tokens did. The reply text warns that the
+  link expires in 2 minutes and is single-use, the session it grants lasts 30 minutes with full guild-manager
+  access to that one guild, and — if the user is already logged in normally in that browser — opening it will
+  replace their session. `/dashboard revoke` ends every live scoped session for the caller in that guild
+  (`revokeDashboardSessionsFor`).
 - **Exchange** (`services/api/src/routes/auth/dashboardLink.ts`, no `isAuthed` — there's no session yet):
   verifies + atomically claims the link token (`claimDashboardLinkToken`, `SET ... NX`, same one-time-use pattern
   the old grant tokens used), re-verifies `ManageGuild` at click time (permissions can have changed since the link
   was minted), starts a session record in Redis (`startDashboardSession`, 30-minute TTL), mints a scoped
   access/refresh pair, and 302s to a clean `/dashboard/:guildId` URL. Any existing session cookie in that browser is
   unconditionally overwritten.
+
+  The single-use claim is best-effort, not durable, the same tradeoff as everything else Redis backs here (see the
+  in-memory-Redis bullet below) — a restart within the token's own ~2-minute lifetime clears the claim record and
+  makes a previously-used link exchangeable again for whatever remains of that window. Accepted rather than
+  persisted: the replay is bounded to ~2 minutes, requires Redis to restart in that exact window, and grants
+  nothing beyond what the token's own embedded `sub` already had (the guild owner's/manager's own time-boxed
+  access) — durably persisting single-use claim markers only to close a window this narrow wasn't worth breaking
+  the "Redis is disposable" property everything else here relies on.
+
 - **Token shape** (`services/api/src/util/tokens.ts`): `AccessTokenData`/`RefreshTokenData` are now discriminated
   unions on `kind: 'oauth' | 'scoped'`. A `ScopedAccessTokenData` sets `grants.adminGuilds = [guildId]` — exactly
   the field `isGuildManager`/`isGuildManagerToken` already read for an OAuth session's admin claim, so no new
@@ -229,7 +241,12 @@ path: a scoped session flows through exactly the same `isAuthed` logic as a real
   middleware (tagged via `IS_AUTHED_MARKER`) must either contain a `:guildId` path param or be explicitly listed in
   `NON_GUILD_SCOPED_ROUTES` — a scoped session is allowed by default on every `isAuthed` route (unlike the old
   grant tokens' per-route opt-in), so a route reachable outside a single guild needs an explicit decision at boot,
-  not silence.
+  not silence. Having `:guildId` in the path isn't accepted as proof on its own, either — the guard also requires
+  `isGuildManager: true`/`'or-ama-guest'` (tagged via `IS_GUILD_MANAGER_MARKER`) actually be enforced for it, since
+  a `:guildId` param a route never checks the caller against is exactly the shape of hole a scoped session's
+  authorization boundary depends on not existing. The one route that legitimately skips it
+  (`routes/ama/getAMAs.ts`, which calls `isGuildManagerToken` itself to filter rather than reject) is listed in a
+  parallel `MANUALLY_GUILD_VERIFIED_ROUTES` set instead.
 - **Frontend**: a scoped session is a normal cookie session with exactly one guild in `me.guilds` — `NavGate`,
   `GuildNav`, `DashboardCrumbs`, snippet/block edit controls, and logout all work completely unchanged. The only
   scoped-session-aware frontend code is additive: `MeResponse.sessionKind`/`scopedExpiresAt`

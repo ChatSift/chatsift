@@ -12,3 +12,11 @@
  * first.
  */
 export const IS_AUTHED_MARKER = Symbol('isAuthed');
+
+/**
+ * Marks specifically the `isGuildManager: true | 'or-ama-guest'` middleware `isAuthed()` conditionally pushes --
+ * lets `server.ts`'s boot-time guard tell "this route has a `:guildId` param AND actually verifies the caller
+ * manages it" apart from a route that merely happens to have `:guildId` in its path (see that guard's doc
+ * comment for why path shape alone isn't enough to trust a guild-scoped credential with).
+ */
+export const IS_GUILD_MANAGER_MARKER = Symbol('isGuildManager');

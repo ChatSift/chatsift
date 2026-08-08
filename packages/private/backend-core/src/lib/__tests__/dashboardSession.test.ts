@@ -43,6 +43,38 @@ const fakeRedis = {
 	expire: vi.fn(async () => true),
 };
 
+// Minimal `multi()` fake -- queues calls against the same handlers above and runs them in order on `.exec()`,
+// enough to exercise `startDashboardSession`'s pipelined write without a real transaction.
+const fakeMulti = () => {
+	const queue: (() => Promise<unknown>)[] = [];
+	const builder = {
+		set: (...args: Parameters<(typeof fakeRedis)['set']>) => {
+			queue.push(async () => fakeRedis.set(...args));
+			return builder;
+		},
+		sAdd: (...args: Parameters<(typeof fakeRedis)['sAdd']>) => {
+			queue.push(async () => fakeRedis.sAdd(...args));
+			return builder;
+		},
+		expire: (...args: Parameters<(typeof fakeRedis)['expire']>) => {
+			queue.push(async () => fakeRedis.expire(...args));
+			return builder;
+		},
+		exec: async () => {
+			const results: unknown[] = [];
+			for (const run of queue) {
+				results.push(await run());
+			}
+
+			return results;
+		},
+	};
+
+	return builder;
+};
+
+Object.assign(fakeRedis, { multi: vi.fn(fakeMulti) });
+
 vi.mock('../context.js', () => ({
 	getContext: () => ({
 		env: { ENCRYPTION_KEY },

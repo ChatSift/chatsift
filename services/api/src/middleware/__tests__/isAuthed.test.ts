@@ -287,7 +287,10 @@ const next = vi.fn();
  */
 function decodeSetCookieRefreshToken(res: Response): jwt.JwtPayload {
 	const setHeaderMock = res.setHeader as unknown as { mock: { calls: unknown[][] } };
-	const call = setHeaderMock.mock.calls.find(
+	// `findLast`, not `find` -- a single test can drive multiple rounds of cookie-setting against the same
+	// mocked `res` (e.g. a rotation followed by a second request reusing it), and it's always the most recent
+	// `Set-Cookie` that reflects the current state, not the first one ever set.
+	const call = setHeaderMock.mock.calls.findLast(
 		([header, value]) => header === 'Set-Cookie' && typeof value === 'string' && value.includes('refresh_token='),
 	);
 	if (!call) {

@@ -30,7 +30,8 @@ export function FormActions({
 				{isSubmitting ? pendingLabel : submitLabel}
 			</Button>
 			<Button
-				className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
+				className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+				isDisabled={isSubmitting}
 				onPress={onCancel}
 				type="button"
 			>

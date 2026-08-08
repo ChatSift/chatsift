@@ -13,7 +13,7 @@ import { forbidden, internal, unauthorized } from '@hapi/boom';
 import { parseCookie } from 'cookie';
 import jwt from 'jsonwebtoken';
 import type { Response } from 'polka';
-import { IS_AUTHED_MARKER } from '../core/isAuthedMarker.js';
+import { IS_AUTHED_MARKER, IS_GUILD_MANAGER_MARKER } from '../core/isAuthedMarker.js';
 import { defineMiddleware } from '../core/route.js';
 import type { TypedMiddleware } from '../core/route.js';
 import { isUnauthorizedDiscordError } from '../util/discordErrors.js';
@@ -521,64 +521,65 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 	if (!options.fallthrough && !options.isGlobalAdmin && options.isGuildManager) {
 		const allowAmaGuest = options.isGuildManager === 'or-ama-guest';
 
-		middleware.push(
-			defineMiddleware(async (req, res, next) => {
-				if (!req.tokens) {
-					req.logger.warn('isGuildManager invoked without a user. this is a bug');
+		const guildManagerMiddleware = defineMiddleware(async (req, res, next) => {
+			if (!req.tokens) {
+				req.logger.warn('isGuildManager invoked without a user. this is a bug');
+				return next(internal());
+			}
+
+			const guildId = req.params['guildId'];
+			if (!guildId) {
+				req.logger.warn('isGuildManager invoked without a guildId param. this is a bug');
+				return next(internal());
+			}
+
+			// See `isGuildManagerToken`'s doc comment on this same line -- the global-admin bypass never
+			// applies to a scoped session, only an OAuth one.
+			const isManagerClaim =
+				(req.tokens.access.kind === 'oauth' && getContext().env.ADMINS.has(req.tokens.access.sub)) ||
+				req.tokens.access.grants.adminGuilds.includes(guildId);
+
+			if (isManagerClaim) {
+				// Membership itself can't be bypassed by the admin claim -- an admin who isn't a member of
+				// this guild still gets rejected here, same as a plain manager would (see NavGate.tsx's
+				// mirrored comment on the frontend gate).
+				const me = await fetchMeForSession(req.tokens.access, req.logger, res);
+				const guild = me.guilds.find((g) => g.id === guildId);
+
+				if (!guild) {
+					return next(forbidden('you need to be a member of this guild to access this resource'));
+				}
+
+				// eslint-disable-next-line require-atomic-updates
+				req.guild = guild;
+				return next();
+			}
+
+			// Not a manager -- the only other way in is being a configured guest of the specific AMA this
+			// route is scoped to. Membership-independent by design: a guest might not be an OAuth member of
+			// the guild at all (see `util/me.ts`'s `fetchMe` guest-guild synthesis for the frontend-facing
+			// side of that).
+			if (allowAmaGuest) {
+				const amaId = req.params['amaId'];
+				if (!amaId) {
+					req.logger.warn('isGuildManager "or-ama-guest" invoked without an amaId param. this is a bug');
 					return next(internal());
 				}
 
-				const guildId = req.params['guildId'];
-				if (!guildId) {
-					req.logger.warn('isGuildManager invoked without a guildId param. this is a bug');
-					return next(internal());
-				}
+				const [session] = await getContext().db<Pick<AmaSessions, 'guestIds' | 'guildId'>[]>`
+					SELECT guild_id, guest_ids FROM ama_sessions WHERE id = ${amaId}
+				`;
 
-				// See `isGuildManagerToken`'s doc comment on this same line -- the global-admin bypass never
-				// applies to a scoped session, only an OAuth one.
-				const isManagerClaim =
-					(req.tokens.access.kind === 'oauth' && getContext().env.ADMINS.has(req.tokens.access.sub)) ||
-					req.tokens.access.grants.adminGuilds.includes(guildId);
-
-				if (isManagerClaim) {
-					// Membership itself can't be bypassed by the admin claim -- an admin who isn't a member of
-					// this guild still gets rejected here, same as a plain manager would (see NavGate.tsx's
-					// mirrored comment on the frontend gate).
-					const me = await fetchMeForSession(req.tokens.access, req.logger, res);
-					const guild = me.guilds.find((g) => g.id === guildId);
-
-					if (!guild) {
-						return next(forbidden('you need to be a member of this guild to access this resource'));
-					}
-
-					// eslint-disable-next-line require-atomic-updates
-					req.guild = guild;
+				if (session?.guildId === guildId && session.guestIds.includes(req.tokens.access.sub)) {
 					return next();
 				}
+			}
 
-				// Not a manager -- the only other way in is being a configured guest of the specific AMA this
-				// route is scoped to. Membership-independent by design: a guest might not be an OAuth member of
-				// the guild at all (see `util/me.ts`'s `fetchMe` guest-guild synthesis for the frontend-facing
-				// side of that).
-				if (allowAmaGuest) {
-					const amaId = req.params['amaId'];
-					if (!amaId) {
-						req.logger.warn('isGuildManager "or-ama-guest" invoked without an amaId param. this is a bug');
-						return next(internal());
-					}
+			return next(forbidden('you need to be a manager of this guild to access this resource'));
+		});
 
-					const [session] = await getContext().db<Pick<AmaSessions, 'guestIds' | 'guildId'>[]>`
-						SELECT guild_id, guest_ids FROM ama_sessions WHERE id = ${amaId}
-					`;
-
-					if (session?.guildId === guildId && session.guestIds.includes(req.tokens.access.sub)) {
-						return next();
-					}
-				}
-
-				return next(forbidden('you need to be a manager of this guild to access this resource'));
-			}),
-		);
+		Reflect.set(guildManagerMiddleware, IS_GUILD_MANAGER_MARKER, true);
+		middleware.push(guildManagerMiddleware);
 	}
 
 	for (const mw of middleware) {

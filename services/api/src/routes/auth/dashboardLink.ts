@@ -16,7 +16,7 @@ const querySchema = z.object({
 	token: z.string(),
 });
 
-type DashboardLinkError = 'expired' | 'forbidden' | 'used';
+type DashboardLinkError = 'expired' | 'forbidden' | 'unavailable' | 'used';
 
 /**
  * Exchanges a `/dashboard`-minted link token (`?token=`, see `commands/dashboard.ts` on every bot) for a
@@ -59,8 +59,18 @@ export default defineRoute({
 		}
 
 		// Re-verified here, not trusted from whenever the command minted the link -- the user's roles or the
-		// bot's presence in the guild can both have changed in the (short, but nonzero) time since.
-		const me = await fetchMeForScopedSession(link.guildId, link.sub, req.logger, true);
+		// bot's presence in the guild can both have changed in the (short, but nonzero) time since. Wrapped so
+		// any failure here (guild/member gone, discord outage) still bounces the browser back to a friendly
+		// dashboard error instead of leaking a raw JSON error out of what's otherwise an all-redirects flow.
+		let me: Awaited<ReturnType<typeof fetchMeForScopedSession>>;
+		try {
+			me = await fetchMeForScopedSession(link.guildId, link.sub, req.logger, true);
+		} catch (error) {
+			req.logger.warn({ err: error }, 'failed to resolve identity while exchanging a /dashboard link');
+			bounce('unavailable');
+			return;
+		}
+
 		if (!me.guilds[0]?.meCanManage) {
 			bounce('forbidden');
 			return;
