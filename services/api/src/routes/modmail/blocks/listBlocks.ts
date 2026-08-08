@@ -1,12 +1,12 @@
 import { getContext } from '@chatsift/backend-core';
 import type { Blocks } from '@chatsift/db';
 import type { APIUser, Snowflake } from '@discordjs/core';
-import { DiscordAPIError } from '@discordjs/rest';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { apiForGuild } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
+import { resolveDiscordUser } from '../../../util/users.js';
 
 const paramsSchema = z.object({ guildId: snowflakeSchema });
 
@@ -37,22 +37,15 @@ export default defineRoute({
 		// ModMail-specific concept, so there's no "which installed bot should answer this" ambiguity the way
 		// there is for guild-wide grants. `apiForGuild` picks the public token or the guild's owning custom
 		// instance's token as appropriate. `users.get` is a global user lookup, not a guild-member lookup, so
-		// this still works even for a guild the ModMail bot was since kicked from. Rate limiting across these
-		// concurrent calls is handled internally by the REST client, so no manual concurrency cap is needed here.
+		// this still works even for a guild the ModMail bot was since kicked from. `resolveDiscordUser` serves
+		// these from the shared cross-bot user cache, so a long block list doesn't spend one Discord request
+		// per row against a bucket that only allows 30 per 30 seconds.
 		const api = apiForGuild('MODMAIL', guildId);
 		return Promise.all(
-			rows.map(async ({ userId, expiresAt }): Promise<ModmailBlockWithUser> => {
-				try {
-					const user = await api.users.get(userId);
-					return { user, expiresAt };
-				} catch (error) {
-					if (error instanceof DiscordAPIError && error.status === 404) {
-						return { user: userId, expiresAt };
-					}
-
-					throw error;
-				}
-			}),
+			rows.map(async ({ userId, expiresAt }): Promise<ModmailBlockWithUser> => ({
+				user: await resolveDiscordUser(api, userId),
+				expiresAt,
+			})),
 		);
 	},
 });

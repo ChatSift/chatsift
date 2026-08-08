@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { fetchUser } from '@chatsift/bot-core';
 import type { Threads } from '@chatsift/db';
 import type { APIEmbed, APIEmbedField, APIGuildMember, APIUser } from '@discordjs/core';
 import { RESTJSONErrorCodes } from '@discordjs/core';
@@ -74,15 +75,12 @@ function isUnknownUserOrMemberError(error: unknown): boolean {
 async function resolveReferencedUser(guildId: string, userId: string): Promise<ResolvedReferencedUser | null> {
 	const api = getContext().service.client.api;
 
-	let user: APIUser;
-	try {
-		user = await api.users.get(userId);
-	} catch (error) {
-		if (isUnknownUserOrMemberError(error)) {
-			return null;
-		}
-
-		throw error;
+	// Cache-first, and negative results are cached too (`fetchUser` -> `fetchUserCached`): a message pasting
+	// numbers that aren't real accounts is exactly the shape that would otherwise re-spend a request against
+	// the 30-per-30s `GET /users/{id}` bucket on every single message.
+	const user = await fetchUser(api, userId);
+	if (!user) {
+		return null;
 	}
 
 	let member: APIGuildMember | null = null;

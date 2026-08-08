@@ -1,6 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
+import { fetchUser } from '@chatsift/bot-core';
 import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
@@ -44,8 +45,9 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			// the queue stay fully reviewable (and answerable) afterwards, which is the whole point of closing
 			// rather than ending.
 
-			// Get user details from the interaction
-			const user = await getContext().service.client.api.users.get(question.authorId);
+			// Get user details from the interaction -- cache-first (`fetchUser`), and in practice always a hit:
+			// the author was primed into the shared cache when they submitted the question.
+			const user = (await fetchUser(getContext().service.client.api, question.authorId)) ?? undefined;
 			const member = interaction.guild_id
 				? await getContext()
 						.service.client.api.guilds.getMember(interaction.guild_id, question.authorId)

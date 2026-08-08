@@ -1,6 +1,6 @@
 import { setInterval } from 'node:timers';
 import type { GuildListKey } from '@chatsift/backend-core';
-import { getContext, GuildList } from '@chatsift/backend-core';
+import { getContext, GuildList, primeUserCache } from '@chatsift/backend-core';
 import type { Snowflake } from '@discordjs/core';
 import { InteractionType, Client, GatewayDispatchEvents } from '@discordjs/core';
 import type { REST } from '@discordjs/rest';
@@ -84,6 +84,16 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 				interactionType: interaction.type,
 				guildId: interaction.guild_id ?? null,
 			});
+
+			// Every interaction payload already carries the acting user's full profile, so warming the shared
+			// user cache from it costs nothing and saves a real Discord request later. This is what makes an
+			// AMA questions page cheap to load: each author was cached the moment they submitted, rather than
+			// being fetched one-by-one months later through a bucket that allows 30 requests per 30 seconds.
+			// `member.user` in a guild, `user` in DMs -- both are the same global user object.
+			const actingUser = interaction.member?.user ?? interaction.user;
+			if (actingUser) {
+				primeUserCache(actingUser);
+			}
 
 			if (interaction.type === InteractionType.MessageComponent) {
 				await handleComponentInteraction(interaction, logger);

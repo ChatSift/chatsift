@@ -7,3 +7,4 @@ export { default as DeployCommand } from './lib/deploy.js';
 export * from './lib/gateway.js';
 export * from './lib/ownership.js';
 export * from './lib/rest.js';
+export * from './lib/users.js';

@@ -1,6 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
+import { fetchUser } from '@chatsift/bot-core';
 import { amaQuestionsChannel, getAnswerEmbed, getBaseEmbeds } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
@@ -199,9 +200,7 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 				try {
 					const [attachments, user] = await Promise.all([
 						fetchAttachments(currentMessage.channelId, currentMessage.messageId),
-						getContext()
-							.service.client.api.users.get(original.authorId)
-							.catch(() => undefined),
+						fetchUser(getContext().service.client.api, original.authorId).catch(() => null),
 					]);
 					const member = session.guildId
 						? await getContext()
@@ -217,14 +216,12 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 						includeUserId: currentMessage.includeUserId,
 						member,
 						reserveEmbedSlots: hasAnswer ? 1 : 0,
-						user,
+						user: user ?? undefined,
 					});
 
 					if (hasAnswer) {
 						const answeredByUser = original.answeredById
-							? await getContext()
-									.service.client.api.users.get(original.answeredById)
-									.catch(() => null)
+							? await fetchUser(getContext().service.client.api, original.answeredById).catch(() => null)
 							: null;
 						const answeredByDisplayName =
 							answeredByUser?.global_name ?? answeredByUser?.username ?? original.answeredById ?? 'Unknown User';
