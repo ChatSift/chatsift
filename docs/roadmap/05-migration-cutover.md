@@ -21,6 +21,16 @@ The ~3-week "polishing & feedback" period referenced in the announcement is the 
 
 AMA sessions are inherently short-lived events (a single Q&A window), not durable records users expect to persist indefinitely like ModMail threads. Rather than write and validate a transform script for a old-`Ama`/`AmaQuestion` → new-`AMASession`/`AMAQuestion` schema mismatch (see the field diff below), the simpler and lower-risk path is a **drain-and-swap**: stop new AMAs from starting on the old bot, let whatever's in-flight finish naturally, then deploy the new bot. Old AMA data is left behind in the old database (kept as a cold backup, not migrated).
 
+### Exception: one-off per-customer import (`scripts/import-legacy-ama.mjs`)
+
+The no-migration decision is about the fleet, not an absolute ban. `scripts/import-legacy-ama.mjs` imports **a single legacy AMA for a single customer** so they land in the new dashboard with real questions to exercise the M6 triage features ([07-ama-question-management.md](07-ama-question-management.md)) instead of an empty list.
+
+It sidesteps the "inventing state" objection by not inventing any: every imported question is reset to `PENDING_REVIEW` ("just asked"), which is a deliberate reset rather than a reconstruction. The imported session is `ended = true` with a dashboard-only review stage (`review_enabled = true`, `queue_id = NULL`) and `prepared_answers_enabled = true`, so no dashboard action can publish into the customer's live answers channel without an explicit Send.
+
+The script **emits SQL to stdout rather than connecting to a database** — it reads a JSON file hand-extracted from the legacy DB and prints one `BEGIN`/`COMMIT` around a single plpgsql `DO` block, which you review and then pipe into `psql`. That keeps it to node builtins only (a deploy-host checkout has no installed workspace to import `@chatsift/db` from) and makes a production write reviewable before it happens. Apply with `-v ON_ERROR_STOP=1` so a failure aborts instead of half-applying. Its only network call is a **read** of the legacy prompt message, reconstructing `ama_prompt_data.prompt_json_data` (`NOT NULL`, no legacy source); `--no-fetch-prompt` skips it and synthesizes a minimal body from the title.
+
+Accepted losses: legacy `imageUrl` (the new stack never persists question attachments), `answerMessageId` (stale once state is reset — optionally preserved as a `Previously answered` tag via `--tag-answered`), and any record of which questions a mod had already denied. Per-question `created_at` is synthesized as the session's `createdAt` plus one second per row, since legacy `AmaQuestion` has no timestamp and its autoincrement id is the only ordering signal. Usage is documented in the script's header comment. This is a one-off, not a reusable migration path.
+
 ## Old schema (reference only — NOT a migration source)
 
 From `ChatSift/AMA`'s `prisma/schema.prisma` (captured 2026-07-16, for parity/reference during M3 feature work, not for transformation):
