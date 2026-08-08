@@ -9,10 +9,10 @@ import type { SortOption } from './SortMenu';
 import { useSortOption } from './SortMenu';
 import type { AMASessionWithCount } from '@/api/routes/ama';
 import { useAMAs } from '@/api/routes/ama';
-import { useMe } from '@/api/routes/auth';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
+import { useGuildAccess } from '@/hooks/useGuildAccess';
 
 function AMASessionSkeleton() {
 	return (
@@ -52,12 +52,10 @@ export function AMASessionsList() {
 	const includeEnded = searchParams.get('include_ended') === 'true';
 
 	const { data: sessions, isLoading, error } = useAMAs(params.id, includeEnded);
-	const { data: me } = useMe();
-	const guild = me?.guilds.find((g) => g.id === params.id);
 	// Creating a session is manager-only -- a guest only ever sees the specific AMA(s) they're scoped to
 	// (already filtered server-side, see `getAMAs.ts`), so there's nothing for a "create" card to do here.
-	const canCreate = Boolean(me?.isGlobalAdmin || guild?.meCanManage);
-	const createCardItem = canCreate ? (
+	const { canManage } = useGuildAccess(params.id);
+	const createCardItem = canManage ? (
 		<li>
 			<CreateAMACard />
 		</li>
@@ -101,8 +99,12 @@ export function AMASessionsList() {
 					{includeEnded ? (
 						<EmptyState
 							icon={<FaComments className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
-							subtitle="Create your first AMA session to get started."
-							title="No AMA sessions yet"
+							subtitle={
+								canManage
+									? 'Create your first AMA session to get started.'
+									: 'Sessions show up here once a server manager adds you as a guest on one.'
+							}
+							title={canManage ? 'No AMA sessions yet' : 'No AMA sessions shared with you'}
 						/>
 					) : (
 						<EmptyState
