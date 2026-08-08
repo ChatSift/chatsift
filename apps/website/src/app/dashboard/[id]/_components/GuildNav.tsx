@@ -47,7 +47,12 @@ export function GuildNav() {
 			const branding = resolveBotBranding(guild, bot);
 			return {
 				label: branding.label,
-				href: `/dashboard/${guild.id}/${bot.toLowerCase()}`,
+				// Skip the AMA hub for a guest -- `NavGateCheck` would only bounce them off it to the sessions
+				// list anyway, and a nav tab that visibly redirects reads as broken.
+				href:
+					isAmaGuestOnly && bot === 'AMA'
+						? `/dashboard/${guild.id}/ama/amas`
+						: `/dashboard/${guild.id}/${bot.toLowerCase()}`,
 				icon: <BotIcon bot={bot} branding={branding} height={16} width={16} />,
 			};
 		});

@@ -111,7 +111,12 @@ export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAcces
 			? resolveGuildAccess(user, params.id)
 			: { canManage: true, isAmaGuestOnly: false };
 	const isGuildRoot = /^\/dashboard\/[^/]+\/?$/.test(pathname ?? '');
-	const isAmaGuestOnlyOnGuildRoot = isAmaGuestOnly && isGuildRoot;
+	// The AMA hub (`/dashboard/[id]/ama`) is the same kind of dead end for a guest: manager-framed
+	// "configure AMA for your server" copy wrapped around a single link to the sessions list, which is the
+	// only thing under it they can open. Folded into the guild-root redirect rather than given its own
+	// guest-aware variant, so a guest only ever sees pages that were written for them.
+	const isAmaHub = /^\/dashboard\/[^/]+\/ama\/?$/.test(pathname ?? '');
+	const isAmaGuestOnlyOnHub = isAmaGuestOnly && (isGuildRoot || isAmaHub);
 
 	useEffect(() => {
 		if (!isAuthenticated) {
@@ -123,12 +128,12 @@ export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAcces
 			return;
 		}
 
-		// Centralized here rather than in every page that could be the guild root, so none of them need to
+		// Centralized here rather than in every page that could be a guest dead end, so none of them need to
 		// know guest status exists at all -- they just never render while this is in flight.
-		if (isAmaGuestOnlyOnGuildRoot) {
-			router.replace(`/dashboard/${params.id}/ama`);
+		if (isAmaGuestOnlyOnHub) {
+			router.replace(`/dashboard/${params.id}/ama/amas`);
 		}
-	}, [isAuthenticated, checkForGlobalAdmin, user, router, isAmaGuestOnlyOnGuildRoot, params.id]);
+	}, [isAuthenticated, checkForGlobalAdmin, user, router, isAmaGuestOnlyOnHub, params.id]);
 
 	// Guild access is checked during render (not the effects above) and uses `notFound()` rather than a
 	// redirect: it needs to block the first render of `children` outright, since descendants
@@ -154,9 +159,9 @@ export function NavGateCheck({ children, checkForGlobalAdmin, checkForGuildAcces
 		}
 	}
 
-	// Render nothing on the guild root while the redirect effect above fires, instead of flashing the
-	// manager-only overview page's content at a guest-only viewer for one frame.
-	if (isAmaGuestOnlyOnGuildRoot) {
+	// Render nothing on those pages while the redirect effect above fires, instead of flashing manager-only
+	// content at a guest-only viewer for one frame.
+	if (isAmaGuestOnlyOnHub) {
 		return null;
 	}
 

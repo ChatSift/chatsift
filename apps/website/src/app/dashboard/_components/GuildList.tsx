@@ -10,6 +10,7 @@ import { refreshMeMutationKey, useMe } from '@/api/routes/auth';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { Tooltip } from '@/components/common/Tooltip';
+import { resolveGuildAccess } from '@/hooks/useGuildAccess';
 import { cn, sortGuilds } from '@/utils/util';
 
 function GuildListSkeleton() {
@@ -31,17 +32,40 @@ export function GuildList() {
 
 	const searchQuery = searchParams.get('search') ?? '';
 
-	const manageable = useMemo(() => me?.guilds.filter((g) => g.meCanManage) ?? [], [me]);
+	// AMA guests belong here too, not just managers: a guest-only guild always has `meCanManage: false` (see
+	// `fetchMe`'s guest-guild synthesis), so filtering on that alone left a guest who manages nothing staring at
+	// the "no servers" empty state below -- with no way to reach the AMA they were invited to answer, even
+	// though every gate under `/dashboard/[id]/ama` already grants them access. Tiers come from the shared
+	// `resolveGuildAccess` rather than a local `meCanManage` read, so this list agrees with what `NavGateCheck`
+	// will actually let the viewer do when they click through (global admins included).
+	const visible = useMemo(
+		() =>
+			(me?.guilds ?? [])
+				.map((guild) => {
+					const { canManage, isAmaGuestOnly } = resolveGuildAccess(me, guild.id);
+					return { guild, canManage, isAmaGuestOnly };
+				})
+				.filter((entry) => entry.canManage || entry.isAmaGuestOnly),
+		[me],
+	);
+	const hasGuestGuilds = useMemo(() => visible.some((entry) => entry.isAmaGuestOnly), [visible]);
 	const sorted = useMemo(() => {
 		const lower = searchQuery.toLowerCase();
 
-		if (!manageable.length) {
+		if (!visible.length) {
 			return [];
 		}
 
-		const filtered = manageable.filter((guild) => guild.name.toLowerCase().includes(lower));
-		return sortGuilds(filtered);
-	}, [manageable, searchQuery]);
+		const filtered = visible.filter((entry) => entry.guild.name.toLowerCase().includes(lower));
+		// Managed servers first, then guest-only ones -- guest access is a much narrower thing (one or two
+		// sessions someone added you to) and shouldn't outrank a server you actually run. `sortGuilds` works on
+		// bare `MeGuild`s, so the tier flags are re-attached by id afterwards.
+		const byId = new Map(filtered.map((entry) => [entry.guild.id, entry]));
+		return [
+			...sortGuilds(filtered.filter((entry) => entry.canManage).map((entry) => entry.guild)),
+			...sortGuilds(filtered.filter((entry) => !entry.canManage).map((entry) => entry.guild)),
+		].map((guild) => ({ guild, isAmaGuestOnly: byId.get(guild.id)!.isAmaGuestOnly }));
+	}, [visible, searchQuery]);
 
 	// `me` is only `undefined` while the query is still in flight — a resolved-but-logged-out `me` never reaches
 	// this component (`NavGateProvider` gates the whole `/dashboard` tree on it), but guarding here too keeps
@@ -50,11 +74,11 @@ export function GuildList() {
 		return <GuildListSkeleton />;
 	}
 
-	if (manageable.length === 0) {
+	if (visible.length === 0) {
 		return (
 			<EmptyState
 				icon={<FaServer className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
-				subtitle="You need Manage Server permissions on a Discord server to configure it here. Just got promoted? Hit Refresh above."
+				subtitle="You need Manage Server permissions on a Discord server to configure it here, or an invite to answer questions in someone's AMA. Just got promoted? Hit Refresh above."
 				title="No servers to manage yet"
 			/>
 		);
@@ -86,15 +110,21 @@ export function GuildList() {
 					</Tooltip>
 				</div>
 			)}
+			{hasGuestGuilds && (
+				<p className="mb-4 text-sm text-secondary dark:text-secondary-dark">
+					Servers marked <span className="font-medium text-primary dark:text-primary-dark">Guest</span> are ones you
+					were invited to answer an AMA in — you&apos;ll only see those sessions there, nothing else.
+				</p>
+			)}
 			<ul
 				className={cn(
 					'grid grid-cols-1 gap-4 transition-opacity md:grid-cols-3 lg:grid-cols-4',
 					isRefreshing && 'opacity-50',
 				)}
 			>
-				{sorted.map((guild) => (
+				{sorted.map(({ guild, isAmaGuestOnly }) => (
 					<li className="min-w-0" key={guild.id}>
-						<GuildCard data={guild} />
+						<GuildCard data={guild} isGuest={isAmaGuestOnly} />
 					</li>
 				))}
 			</ul>
