@@ -33,7 +33,9 @@ export default defineRoute({
 	},
 	middleware: isAuthed({ fallthrough: true, isGlobalAdmin: false }),
 	async handler(req, res) {
-		if (req.tokens) {
+		// Same reasoning as discord.ts's redirect_to guard: a scoped session must not short-circuit the actual
+		// code exchange below, or upgrading from a `/dashboard` link to a full login can never complete.
+		if (req.tokens?.access.kind === 'oauth') {
 			res.redirect(getContext().FRONTEND_URL);
 			res.end();
 			return;

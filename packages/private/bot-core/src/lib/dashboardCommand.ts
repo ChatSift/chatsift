@@ -90,13 +90,13 @@ export default class DashboardCommand implements CommandHandler {
 				'Click to open the dashboard for this server (expires in 2 minutes, single use):',
 				`||${url}||`,
 				'',
-				'**Do not share this link with anyone else** — they will be able to act on your behalf on the ' +
-					'dashboard for the next 30 minutes, and you will have no way to stop them without reaching out to ' +
-					'the developers (or running `/dashboard revoke`, which immediately ends every session this command ' +
-					'has opened for this server).',
+				'**Do not share this link with anyone else** - they will be able to act on your behalf on the ' +
+					'dashboard for the next 30 minutes, and you will have no way to stop them without' +
+					'running `/dashboard revoke`, which immediately ends every session this command ' +
+					'has opened for this server.',
 				'',
 				"If you're already logged into the dashboard normally in this browser, opening this link will sign " +
-					"you out of that session — there's no reason to use it while already logged in.",
+					"you out of that session - there's no reason to use it while already logged in.",
 			].join('\n'),
 			flags: MessageFlags.Ephemeral,
 		});
