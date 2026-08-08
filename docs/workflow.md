@@ -99,6 +99,17 @@ A new `api` job in `build/prometheus/prometheus.yml` scrapes `api:7004` with tha
 `api-overview` Grafana dashboard (`build/grafana/dashboards/api-overview.json`) shows request rate by route,
 p50/p95/p99 latency, and a per-route summary table.
 
+**Every rate/increase on that dashboard is computed over a `$window` template variable (default `1h`), not
+`$__rate_interval`.** This API's traffic is low enough — fractions of a request per second — that a ~5m window
+contains zero requests for most individual routes, and the latency queries are ratios: `rate(_sum) / rate(_count)`
+becomes `0 / 0` = NaN, and `histogram_quantile` over all-zero buckets is NaN too. Those NaNs then rendered on the
+table's _base_ threshold colour (green), so "no data" was indistinguishable from "excellent latency". The summary
+table's latency queries now additionally guard on `... > 0` (a `> 0` filter on the denominator, and an
+`and on (method, route)` guard for the quantile) so a route with no in-window traffic drops out of the result
+entirely and displays as an em dash via a NaN/null value mapping. The table also leads with a raw **Requests**
+column — at this volume, a p95 is only worth reading next to the sample count it was computed from. Widen `$window`
+to 6h/24h when routes still show an em dash; narrow it to chase a short-lived spike.
+
 **One-time manual step** (same shape as Dozzle's `users.yml` setup in #212 — this is the one thing that can't be
 committed to git, since `prometheus.yml` has no env-var-expansion mechanism at all):
 

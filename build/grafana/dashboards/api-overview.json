@@ -81,13 +81,13 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
-          "expr": "sum by (method, route) (rate(http_request_duration_seconds_count[$__rate_interval]))",
+          "expr": "sum by (method, route) (rate(http_request_duration_seconds_count[$window]))",
           "legendFormat": "{{method}} {{route}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Request Rate by Route",
+      "title": "Request Rate by Route (avg over $window)",
       "type": "timeseries"
     },
     {
@@ -117,10 +117,10 @@
             "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
-            "pointSize": 1,
+            "pointSize": 5,
             "scaleDistribution": { "type": "linear" },
-            "showPoints": "auto",
-            "spanNulls": false,
+            "showPoints": "always",
+            "spanNulls": 3600000,
             "stacking": { "group": "A", "mode": "none" },
             "thresholdsStyle": { "mode": "off" }
           },
@@ -148,7 +148,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le, route) (rate(http_request_duration_seconds_bucket[$window])))",
           "legendFormat": "{{route}} p50",
           "range": true,
           "refId": "A"
@@ -156,7 +156,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket[$window])))",
           "legendFormat": "{{route}} p95",
           "range": true,
           "refId": "B"
@@ -164,13 +164,13 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$window])))",
           "legendFormat": "{{route}} p99",
           "range": true,
           "refId": "C"
         }
       ],
-      "title": "Latency Quantiles (p50 / p95 / p99)",
+      "title": "Latency Quantiles (p50 / p95 / p99, $window window)",
       "type": "timeseries"
     },
     {
@@ -183,7 +183,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "Requests/sec, average latency, and p95 latency per route over the dashboard's rate-interval window. The three underlying queries are combined into one row per route+method via the Merge transformation below.",
+      "description": "Request count, requests/sec, average latency, and p95 latency per route over the $window lookback. The four underlying queries are combined into one row per route+method via the Merge transformation below.\n\nLatency is only meaningful when the window actually contains requests: at this API's volume a short window leaves most routes at zero, and `rate(_sum) / rate(_count)` then evaluates 0/0 = NaN. The latency queries guard on `_count > 0` so a route with no traffic in-window drops out of the result and renders as an em dash rather than a NaN sitting on a green threshold background. Read the Requests column first - a p95 over 2 samples is not a p95.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -191,7 +191,22 @@
             "cellOptions": { "type": "auto" },
             "inspect": false
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "match": "nan",
+                "result": { "color": "text", "index": 0, "text": "—" }
+              },
+              "type": "special"
+            },
+            {
+              "options": {
+                "match": "null",
+                "result": { "color": "text", "index": 1, "text": "—" }
+              },
+              "type": "special"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -211,14 +226,26 @@
             "properties": [{ "id": "custom.hidden", "value": true }]
           },
           {
+            "matcher": { "id": "byName", "options": "Time" },
+            "properties": [{ "id": "custom.hidden", "value": true }]
+          },
+          {
             "matcher": { "id": "byName", "options": "Value #A" },
+            "properties": [
+              { "id": "unit", "value": "short" },
+              { "id": "decimals", "value": 0 },
+              { "id": "displayName", "value": "Requests" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Value #B" },
             "properties": [
               { "id": "unit", "value": "reqps" },
               { "id": "displayName", "value": "Requests/sec" }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Value #B" },
+            "matcher": { "id": "byName", "options": "Value #C" },
             "properties": [
               { "id": "unit", "value": "s" },
               { "id": "displayName", "value": "Avg Latency" },
@@ -226,7 +253,7 @@
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Value #C" },
+            "matcher": { "id": "byName", "options": "Value #D" },
             "properties": [
               { "id": "unit", "value": "s" },
               { "id": "displayName", "value": "p95 Latency" },
@@ -246,14 +273,14 @@
           "show": false
         },
         "showHeader": true,
-        "sortBy": [{ "desc": true, "displayName": "Requests/sec" }]
+        "sortBy": [{ "desc": true, "displayName": "Requests" }]
       },
       "pluginVersion": "11.1.0",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
-          "expr": "sum by (method, route) (rate(http_request_duration_seconds_count[$__rate_interval]))",
+          "expr": "sum by (method, route) (increase(http_request_duration_seconds_count[$window]))",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -263,7 +290,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
-          "expr": "sum by (method, route) (rate(http_request_duration_seconds_sum[$__rate_interval])) / sum by (method, route) (rate(http_request_duration_seconds_count[$__rate_interval]))",
+          "expr": "sum by (method, route) (rate(http_request_duration_seconds_count[$window]))",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -273,12 +300,22 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le, method, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+          "expr": "sum by (method, route) (increase(http_request_duration_seconds_sum[$window]))\n  /\n(sum by (method, route) (increase(http_request_duration_seconds_count[$window])) > 0)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
           "range": false,
           "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, method, route) (rate(http_request_duration_seconds_bucket[$window])))\n  and on (method, route)\n(sum by (method, route) (increase(http_request_duration_seconds_count[$window])) > 0)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "D"
         }
       ],
       "transformations": [
@@ -287,14 +324,36 @@
           "options": {}
         }
       ],
-      "title": "Per-Route Summary (5m rate window)",
+      "title": "Per-Route Summary ($window window)",
       "type": "table"
     }
   ],
   "refresh": "30s",
   "schemaVersion": 39,
   "tags": ["api"],
-  "templating": { "list": [] },
+  "templating": {
+    "list": [
+      {
+        "auto": false,
+        "current": { "selected": true, "text": "1h", "value": "1h" },
+        "description": "Lookback window every rate/increase on this dashboard is computed over. This API's traffic is low (fractions of a request per second), so the Prometheus default of a ~5m window leaves most routes with zero requests in-window, which makes latency a 0/0 NaN. Widen this if routes still show no latency; narrow it if you're chasing a short-lived spike.",
+        "hide": 0,
+        "label": "Window",
+        "name": "window",
+        "options": [
+          { "selected": false, "text": "5m", "value": "5m" },
+          { "selected": false, "text": "15m", "value": "15m" },
+          { "selected": true, "text": "1h", "value": "1h" },
+          { "selected": false, "text": "6h", "value": "6h" },
+          { "selected": false, "text": "24h", "value": "24h" }
+        ],
+        "query": "5m,15m,1h,6h,24h",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
+      }
+    ]
+  },
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "",
