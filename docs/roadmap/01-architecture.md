@@ -191,15 +191,16 @@ command — identical on every bot, registered automatically by `createBotClient
 to one guild, rather than a token authorizing one specific action. Past the exchange there is a single auth code
 path: a scoped session flows through exactly the same `isAuthed` logic as a real OAuth session.
 
-- **`/dashboard open`**: mints a short-lived (~2 min), single-use `DashboardLinkTokenData` JWT (`{ kind:
-'dashboard-link', sub, guildId, jti, iat }`, `packages/private/backend-core/src/lib/dashboardSession.ts`) and
-  replies ephemerally with a spoilered link to `GET {API_URL}/v3/auth/dashboard?token=...` — the link points at the
-  API, not the dashboard, so the token is only ever in the URL for that one initial request; the exchange consumes
-  it and 302s to a clean `/dashboard/:guildId` URL with nothing in it, unlike the token itself ending up in the
-  dashboard's own address bar for the whole visit the way the old grant tokens did. The reply text warns that the
-  link expires in 2 minutes and is single-use, the session it grants lasts 30 minutes with full guild-manager
-  access to that one guild, and — if the user is already logged in normally in that browser — opening it will
-  replace their session. `/dashboard revoke` ends every live scoped session for the caller in that guild
+- **`/dashboard open`**: mints a short-lived (~2 min), best-effort-single-use (see the claim-durability note below)
+  `DashboardLinkTokenData` JWT (`{ kind: 'dashboard-link', sub, guildId, jti, iat }`,
+  `packages/private/backend-core/src/lib/dashboardSession.ts`) and replies ephemerally with a spoilered link to
+  `GET {API_URL}/v3/auth/dashboard?token=...` — the link points at the API, not the dashboard, so the token is
+  only ever in the URL for that one initial request; the exchange consumes it and 302s to a clean
+  `/dashboard/:guildId` URL with nothing in it, unlike the token itself ending up in the dashboard's own address
+  bar for the whole visit the way the old grant tokens did. The reply text warns that the link expires in 2
+  minutes and is meant to be used once, the session it grants lasts 30 minutes with full guild-manager access to
+  that one guild, and — if the user is already logged in normally in that browser — opening it will replace their
+  session. `/dashboard revoke` ends every live scoped session for the caller in that guild
   (`revokeDashboardSessionsFor`).
 - **Exchange** (`services/api/src/routes/auth/dashboardLink.ts`, no `isAuthed` — there's no session yet):
   verifies + atomically claims the link token (`claimDashboardLinkToken`, `SET ... NX`, same one-time-use pattern
