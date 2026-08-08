@@ -41,7 +41,7 @@ export function GuildIcon({ data, hasBots, disableLink, size = 48 }: GuildIconPr
 			<Parent disableLink={disableLink} url={url}>
 				{icon ? (
 					<Image
-						alt="Guild icon"
+						alt={`${data.name} icon`}
 						className="flex items-center justify-center rounded-full border-on-secondary bg-on-tertiary dark:border-on-secondary-dark dark:bg-on-tertiary-dark"
 						src={icon}
 						style={dimensions}
@@ -49,6 +49,7 @@ export function GuildIcon({ data, hasBots, disableLink, size = 48 }: GuildIconPr
 					/>
 				) : (
 					<p
+						aria-label={data.name}
 						className="flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full border-on-secondary bg-on-tertiary font-medium leading-none after:max-w-[70%] dark:border-on-secondary-dark dark:bg-on-tertiary-dark"
 						style={{ ...dimensions, fontSize: acronymFontSize }}
 					>
