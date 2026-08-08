@@ -5,7 +5,7 @@ import { useCallback } from 'react';
 
 /**
  * Reads/writes a single query-string param, replacing the current history entry. Centralizes the
- * read-searchParams / mutate / push-new-url boilerplate that filter/sort controls (`IncludeEndedToggle`,
+ * read-searchParams / mutate / push-new-url boilerplate that filter/sort controls (`OpenOnlyToggle`,
  * `SortMenu`, ...) all need — keeps list-page state consistently URL-driven (shareable, survives back/forward)
  * without each control reimplementing the same `URLSearchParams` dance.
  */

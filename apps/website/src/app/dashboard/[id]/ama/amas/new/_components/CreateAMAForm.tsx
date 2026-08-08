@@ -460,7 +460,7 @@ export function CreateAMAForm() {
 					error={errors.scheduledCloseAt}
 					helper={
 						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-							Optional - automatically ends the AMA at this date/time. Can be changed later.
+							Optional - automatically stops accepting new questions at this date/time. Can be changed later.
 						</p>
 					}
 					id="scheduledCloseAt"

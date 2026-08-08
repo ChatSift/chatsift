@@ -40,13 +40,8 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 				throw new Error(`No AMA session found for id ${question.amaId}`);
 			}
 
-			if (session.ended) {
-				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
-					content: 'This AMA session has ended.',
-					flags: MessageFlags.Ephemeral,
-				});
-				return;
-			}
+			// No `session.ended` guard: closing an AMA only stops new submissions (#299) -- questions already in
+			// the queue stay fully reviewable afterwards, which is the whole point of closing rather than ending.
 
 			// Only denies from PENDING_REVIEW so a concurrent approve/deny can't both win.
 			const [denied] = await getContext().db<AmaQuestions[]>`

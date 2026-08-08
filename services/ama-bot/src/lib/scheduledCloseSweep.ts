@@ -2,11 +2,14 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 
 /**
- * Run on an interval from `index.ts`'s `bin()` -- `ama_sessions.scheduled_close_at` lapsing doesn't end
- * anything on its own, this is what actually acts on it. Flips `ended` the same plain way
- * `components/amaEndSelect.ts` does (no Discord message posted); the `ended = false` filter mirrors
- * modmail's `scheduledCloseSweep.ts` guarding against re-processing a session someone already ended
- * manually (via `/ama end`) before this got to it.
+ * Run on an interval from `index.ts`'s `bin()` -- `ama_sessions.scheduled_close_at` lapsing doesn't close
+ * anything on its own, this is what actually acts on it. Flips `ended` (which only gates new question
+ * submissions, see #299) the same plain way `components/amaCloseSelect.ts` does (no Discord message posted);
+ * the `ended = false` filter mirrors modmail's `scheduledCloseSweep.ts` guarding against re-processing a
+ * session someone already closed manually (via `/ama close`) before this got to it.
+ *
+ * Reopening a session whose date has already lapsed clears `scheduled_close_at` (see `updateAMA.ts`), so
+ * this can't immediately re-close what someone just deliberately reopened.
  */
 export async function sweepScheduledAmaCloses(logger: Logger): Promise<void> {
 	const due = await getContext().db<{ id: number; title: string }[]>`
@@ -17,6 +20,9 @@ export async function sweepScheduledAmaCloses(logger: Logger): Promise<void> {
 	`;
 
 	for (const session of due) {
-		logger.info({ amaId: session.id }, `Auto-ended AMA "${session.title}" via its scheduled close date`);
+		logger.info(
+			{ amaId: session.id },
+			`Auto-closed question submissions for AMA "${session.title}" via its scheduled close date`,
+		);
 	}
 }

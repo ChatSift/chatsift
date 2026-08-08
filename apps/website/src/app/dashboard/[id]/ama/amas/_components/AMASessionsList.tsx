@@ -49,9 +49,10 @@ export function AMASessionsList() {
 	const sort = useSortOption();
 
 	const searchQuery = searchParams.get('search') ?? '';
-	const includeEnded = searchParams.get('include_ended') === 'true';
+	// Everything is listed by default; the toggle narrows down to sessions still accepting questions (#299).
+	const openOnly = searchParams.get('open_only') === 'true';
 
-	const { data: sessions, isLoading, error } = useAMAs(params.id, includeEnded);
+	const { data: sessions, isLoading, error } = useAMAs(params.id, !openOnly);
 	// Creating a session is manager-only -- a guest only ever sees the specific AMA(s) they're scoped to
 	// (already filtered server-side, see `getAMAs.ts`), so there's nothing for a "create" card to do here.
 	const { canManage } = useGuildAccess(params.id);
@@ -96,7 +97,13 @@ export function AMASessionsList() {
 			<ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
 				{createCardItem}
 				<li className="md:col-span-2 lg:col-span-3">
-					{includeEnded ? (
+					{openOnly ? (
+						<EmptyState
+							icon={<FaComments className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
+							subtitle='There may be closed sessions hidden - turn off "Hide Closed" above to see them.'
+							title="No AMA sessions accepting questions"
+						/>
+					) : (
 						<EmptyState
 							icon={<FaComments className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
 							subtitle={
@@ -105,12 +112,6 @@ export function AMASessionsList() {
 									: 'Sessions show up here once a server manager adds you as a guest on one.'
 							}
 							title={canManage ? 'No AMA sessions yet' : 'No AMA sessions shared with you'}
-						/>
-					) : (
-						<EmptyState
-							icon={<FaComments className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
-							subtitle='There may be ended sessions hidden - toggle "Include Ended" above to check.'
-							title="No active AMA sessions"
 						/>
 					)}
 				</li>

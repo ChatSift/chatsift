@@ -50,14 +50,22 @@ export default defineRoute({
 			throw notFound('AMA session not found');
 		}
 
-		if (existingAMA.ended) {
-			throw badData('AMA session is already ended');
-		}
-
+		// Deliberately no "session is closed, refuse to touch it" guard (#299): closing an AMA only stops new
+		// question *submissions* -- triage, answering and config edits all continue afterwards, and closing is
+		// reversible.
 		if ('ended' in data) {
+			// Reopening has to defuse an already-lapsed `scheduled_close_at`, otherwise ama-bot's
+			// `scheduledCloseSweep.ts` (which matches on `scheduled_close_at <= now() AND ended = false`)
+			// would immediately close the session again on its next tick. A future date is left alone --
+			// that's still a close the owner asked for.
 			const [updated] = await db<AmaSessions[]>`
 				UPDATE ama_sessions
 				SET ended = ${data.ended}
+				${
+					data.ended
+						? db``
+						: db`, scheduled_close_at = CASE WHEN scheduled_close_at <= now() THEN NULL ELSE scheduled_close_at END`
+				}
 				WHERE id = ${amaId} AND guild_id = ${guildId}
 				RETURNING *
 			`;

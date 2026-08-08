@@ -172,7 +172,7 @@ export function AMADetails() {
 	useRealtimeInvalidate(amaQuestionsChannel(params.id, params.amaId), () => {
 		void invalidateAMAQuestions(queryClient, params.id, params.amaId);
 	});
-	const [showEndConfirm, setShowEndConfirm] = useState(false);
+	const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [configForm, setConfigForm] = useState<ConfigFormData | null>(null);
@@ -197,8 +197,9 @@ export function AMADetails() {
 	const exportQuestions = useExportAMAQuestions(params.id, params.amaId);
 
 	// Guests can view this whole page (session info, channels, stats) -- they just can't edit any of it
-	// or take the destructive/maintenance actions below (config edit, prompt edit, repost, export, end).
-	// Every mutating button/card on this page is gated on `canManage`.
+	// or take the maintenance actions below (config edit, prompt edit, repost, export, close/reopen
+	// submissions). Every mutating button/card on this page is gated on `canManage`. None of them are gated
+	// on the session being open anymore (#299) -- a closed session is still actively worked on.
 	const { canManage } = useGuildAccess(params.id);
 
 	// See GrantsList.tsx for why this also checks `ama === undefined`: a background refetch failure keeps the
@@ -458,22 +459,42 @@ export function AMADetails() {
 		}
 	};
 
-	const handleEndAMA = async () => {
-		if (!showEndConfirm) {
-			setShowEndConfirm(true);
+	// Closing only stops new submissions (#299) -- the rest of this page (triage, answers, config, export) stays
+	// just as relevant afterwards, so this deliberately stays put instead of navigating back to the session list.
+	const handleCloseSubmissions = async () => {
+		if (!showCloseConfirm) {
+			setShowCloseConfirm(true);
 			return;
 		}
 
 		setActionError(null);
+		setSuccessMessage(null);
 
 		try {
 			await updateAMA.mutateAsync({ ended: true });
-			router.push(`/dashboard/${params.id}/ama/amas`);
+			setSuccessMessage('Question submissions closed. Existing questions can still be reviewed and answered.');
 		} catch (error) {
-			setActionError(error instanceof APIError ? error.message : 'Failed to end AMA. Please try again.');
-			console.error('Failed to end AMA:', error);
+			setActionError(
+				error instanceof APIError ? error.message : 'Failed to close question submissions. Please try again.',
+			);
+			console.error('Failed to close AMA question submissions:', error);
 		} finally {
-			setShowEndConfirm(false);
+			setShowCloseConfirm(false);
+		}
+	};
+
+	const handleReopenSubmissions = async () => {
+		setActionError(null);
+		setSuccessMessage(null);
+
+		try {
+			await updateAMA.mutateAsync({ ended: false });
+			setSuccessMessage('Question submissions reopened.');
+		} catch (error) {
+			setActionError(
+				error instanceof APIError ? error.message : 'Failed to reopen question submissions. Please try again.',
+			);
+			console.error('Failed to reopen AMA question submissions:', error);
 		}
 	};
 
@@ -556,7 +577,7 @@ export function AMADetails() {
 				<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
 					<div className="mb-4 flex items-center justify-between">
 						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Session Information</h2>
-						{canManage && !ama.ended && !editing && !promptEditing && (
+						{canManage && !editing && !promptEditing && (
 							<Button
 								className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
 								isDisabled={isGuildInfoLoading || (guildInfo === undefined && Boolean(guildInfoError))}
@@ -585,13 +606,15 @@ export function AMADetails() {
 						)}
 
 						<div>
-							<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Status</p>
+							<p className="text-sm font-medium text-secondary dark:text-secondary-dark mb-1">Question Submissions</p>
 							<span
 								className={`inline-block rounded px-3 py-1 text-sm font-medium ${
-									ama.ended ? 'bg-misc-danger/10 text-misc-danger' : 'bg-misc-accent/10 text-misc-accent'
+									ama.ended
+										? 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark'
+										: 'bg-misc-accent/10 text-misc-accent'
 								}`}
 							>
-								{ama.ended ? 'Ended' : 'Active'}
+								{ama.ended ? 'Closed' : 'Open'}
 							</span>
 						</div>
 
@@ -632,7 +655,7 @@ export function AMADetails() {
 								error={configErrors.scheduledCloseAt}
 								helper={
 									<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-										Optional - automatically ends the AMA at this date/time. Clear to cancel it.
+										Optional - automatically closes question submissions at this date/time. Clear to cancel it.
 									</p>
 								}
 								id="edit-scheduled-close-at"
@@ -879,7 +902,7 @@ export function AMADetails() {
 				<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
 					<div className="mb-4 flex items-center justify-between">
 						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Prompt Message</h2>
-						{canManage && ama.promptMessageExists && !ama.ended && !editing && !promptEditing && (
+						{canManage && ama.promptMessageExists && !editing && !promptEditing && (
 							<Button
 								className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
 								onPress={startPromptEdit}
@@ -901,6 +924,9 @@ export function AMADetails() {
 							</span>
 						</div>
 
+						{/* The one action still gated on submissions being open, matching `amaRepostSelect.ts`'s own guard:
+					the prompt message is the submit-a-question entry point, so reposting it on a closed session just
+					hands people a button that turns them away. Reopen first, then repost. */}
 						{canManage && !ama.promptMessageExists && !ama.ended && (
 							<div className="pt-2">
 								<Button
@@ -1042,26 +1068,51 @@ export function AMADetails() {
 					)}
 				</div>
 
-				{/* Actions Card */}
-				{canManage && !ama.ended && (
-					<div className="rounded-lg border border-misc-danger/20 bg-card p-6 dark:border-misc-danger/20 dark:bg-card-dark lg:col-span-2">
-						<h2 className="text-xl font-medium text-misc-danger mb-4">Danger Zone</h2>
-						{showEndConfirm ? (
+				{/* Question Submissions Card */}
+				{canManage && (
+					<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
+						<h2 className="mb-4 text-xl font-medium text-primary dark:text-primary-dark">Question Submissions</h2>
+						{ama.ended ? (
 							<div className="space-y-4">
 								<p className="text-base text-primary dark:text-primary-dark">
-									Are you sure you want to end this AMA? This action is <strong>irreversible</strong>.
+									This AMA is closed to new questions - the &quot;Submit a question&quot; button turns people away.
+									Everything else still works: questions already submitted can be reviewed, answered and exported.
+								</p>
+								<Button
+									className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+									isDisabled={updateAMA.isPending}
+									onPress={handleReopenSubmissions}
+									type="button"
+								>
+									Reopen Question Submissions
+								</Button>
+								{/* A scheduled close date that has already lapsed is cleared server-side on reopen, otherwise
+							ama-bot's sweep would close the session again within a minute -- called out here so that
+							silently-cleared date isn't a surprise. */}
+								{ama.scheduledCloseAt && new Date(ama.scheduledCloseAt).getTime() <= Date.now() && (
+									<p className="text-sm text-secondary dark:text-secondary-dark">
+										Reopening also clears the scheduled close date, since it has already passed.
+									</p>
+								)}
+							</div>
+						) : showCloseConfirm ? (
+							<div className="space-y-4">
+								<p className="text-base text-primary dark:text-primary-dark">
+									Close question submissions for this AMA? Questions already submitted stay fully manageable - you just
+									stop receiving new ones. You can reopen submissions here at any time.
 								</p>
 								<div className="flex gap-3">
 									<Button
 										className="px-3 py-2.5 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors disabled:opacity-50"
-										onPress={handleEndAMA}
+										isDisabled={updateAMA.isPending}
+										onPress={handleCloseSubmissions}
 										type="button"
 									>
-										Yes, End AMA
+										Yes, Close Submissions
 									</Button>
 									<Button
 										className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
-										onPress={() => setShowEndConfirm(false)}
+										onPress={() => setShowCloseConfirm(false)}
 										type="button"
 									>
 										Cancel
@@ -1071,14 +1122,15 @@ export function AMADetails() {
 						) : (
 							<div className="space-y-4">
 								<p className="text-base text-primary dark:text-primary-dark">
-									Ending an AMA will prevent new questions from being submitted. This action cannot be undone.
+									This AMA is accepting new questions. Closing submissions stops new ones from coming in; reviewing and
+									answering what is already here carries on as normal.
 								</p>
 								<Button
 									className="px-3 py-2.5 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors"
-									onPress={handleEndAMA}
+									onPress={handleCloseSubmissions}
 									type="button"
 								>
-									End AMA Session
+									Close Question Submissions
 								</Button>
 							</div>
 						)}
