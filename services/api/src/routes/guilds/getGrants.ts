@@ -1,12 +1,12 @@
 import { getContext } from '@chatsift/backend-core';
 import type { DashboardGrants } from '@chatsift/db';
 import type { APIUser, Snowflake } from '@discordjs/core';
-import { DiscordAPIError } from '@discordjs/rest';
 import { z } from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { roundRobinAPI } from '../../util/discordAPI.js';
 import { snowflakeSchema } from '../../util/schemas.js';
+import { resolveDiscordUser } from '../../util/users.js';
 
 const paramsSchema = z.object({ guildId: snowflakeSchema });
 
@@ -41,33 +41,13 @@ export default defineRoute({
 		// A user can manage a guild (and thus reach this route) without any of our bots being in it -- e.g. grants
 		// left over from before the bot was kicked. `roundRobinAPI` requires at least one bot to pick from, so
 		// fall back to the raw snowflake instead of resolving via Discord, same as the 404-below-user case.
+		//
+		// The per-request de-dup map this used to keep is gone: `resolveDiscordUser` de-dups in-flight fetches
+		// for the same id process-wide (and answers repeat ids straight out of the shared cache), which covers
+		// the same-user-twice case this was written for and then some.
 		const hasBots = req.guild!.bots.length > 0;
-		const resolveCache = new Map<Snowflake, Promise<APIUser | Snowflake>>();
-		const resolveUser = async (userId: Snowflake): Promise<APIUser | Snowflake> => {
-			const cached = resolveCache.get(userId);
-			if (cached) {
-				return cached;
-			}
-
-			const promise = (async () => {
-				if (!hasBots) {
-					return userId;
-				}
-
-				try {
-					return await roundRobinAPI(req.guild!).users.get(userId);
-				} catch (error) {
-					if (error instanceof DiscordAPIError && error.status === 404) {
-						return userId;
-					}
-
-					throw error;
-				}
-			})();
-
-			resolveCache.set(userId, promise);
-			return promise;
-		};
+		const resolveUser = async (userId: Snowflake): Promise<APIUser | Snowflake> =>
+			hasBots ? resolveDiscordUser(roundRobinAPI(req.guild!), userId) : userId;
 
 		const grants = await Promise.all(
 			rows.map(async ({ userId, createdById, createdAt }) => {

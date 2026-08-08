@@ -20,6 +20,7 @@ import { createRecipe, DataType, stringLiteral } from 'bin-rw';
 import { apiForGuild, discordAPIOAuth } from './discordAPI.js';
 import { getInstanceBranding } from './discordApplication.js';
 import { isNotFoundDiscordError } from './discordErrors.js';
+import { resolveDiscordUserOrNull } from './users.js';
 
 export type MeGuild = Pick<RESTAPIPartialCurrentUserGuild, 'icon' | 'id' | 'name'> & {
 	/**
@@ -103,6 +104,47 @@ const ScopedMeStore = new RedisStore<Me>({
 
 const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
 
+/**
+ * In-flight de-duplication for both `fetchMe` and `fetchMeForScopedSession` (own map each, since their keys
+ * mean different things). A dashboard page load fires ~7 requests in parallel, every one of which runs
+ * `isAuthed` -- so on a cold cache all 7 used to miss `MeStore` simultaneously and each make its own
+ * `/users/@me` + `/users/@me/guilds` pair. `/users/@me/guilds` allows *one* request per second per user
+ * token, so 6 of those 7 got rate limited and the whole page load serialized behind ~6 seconds of REST
+ * queueing. Worse, the two expiries line up: session access tokens live 5 minutes and `CACHE_TTL_MS` is 5
+ * minutes, so a tab idle for that long comes back with both expired at once and hits exactly this.
+ *
+ * Process-local (like `guildDataCache.ts`'s equivalent): it only needs to stop one replica racing itself,
+ * and whichever fetch wins writes the shared redis entry the others would have written anyway.
+ *
+ * A `force: true` caller coalesces onto an already-running fetch rather than starting a second one -- an
+ * in-flight fetch is by definition already hitting Discord right now, which is exactly what forcing asks
+ * for; it just observes state from when that fetch started rather than from its own call.
+ */
+async function singleFlight<TValue>(
+	inflight: Map<string, Promise<TValue>>,
+	key: string,
+	run: () => Promise<TValue>,
+): Promise<TValue> {
+	const existing = inflight.get(key);
+	if (existing) {
+		return existing;
+	}
+
+	const promise = (async () => {
+		try {
+			return await run();
+		} finally {
+			inflight.delete(key);
+		}
+	})();
+
+	inflight.set(key, promise);
+	return promise;
+}
+
+const inflightMe = new Map<string, Promise<Me>>();
+const inflightScopedMe = new Map<string, Promise<Me>>();
+
 export async function fetchMe(discordAccessToken: string, logger: Logger, force = false): Promise<Me> {
 	const tokenHash = hashToken(discordAccessToken);
 
@@ -113,6 +155,19 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 		}
 	}
 
+	return singleFlight(inflightMe, tokenHash, async () => fetchMeUncached(discordAccessToken, tokenHash, logger));
+}
+
+/**
+ * The actual `/me` resolution, only ever reached through `fetchMe` above (which owns the cache read and the
+ * in-flight de-duplication).
+ *
+ * The `/users/@me` call here is deliberately the one Discord user fetch in this service that does *not* go
+ * through the shared cross-bot user cache (`util/users.ts`): it's made with the user's own OAuth token and
+ * comes back with fields (`email`, `verified`, `locale`, ...) that must never land in a cache every bot and
+ * every guild's dashboard reads from. Its caching is `MeStore`, keyed per session.
+ */
+async function fetchMeUncached(discordAccessToken: string, tokenHash: string, logger: Logger): Promise<Me> {
 	logger.info('cache miss for /me');
 
 	const start = performance.now();
@@ -122,8 +177,11 @@ export async function fetchMe(discordAccessToken: string, logger: Logger, force 
 		token: discordAccessToken,
 	};
 
-	const discordUser = await discordAPIOAuth.users.getCurrent({ auth });
-	const guildsRaw = await discordAPIOAuth.users.getGuilds({ with_counts: true }, { auth });
+	// Separate rate-limit buckets, so there's nothing to gain from doing these one after the other.
+	const [discordUser, guildsRaw] = await Promise.all([
+		discordAPIOAuth.users.getCurrent({ auth }),
+		discordAPIOAuth.users.getGuilds({ with_counts: true }, { auth }),
+	]);
 
 	const instances = getAllInstances();
 
@@ -290,6 +348,22 @@ export async function fetchMeForScopedSession(
 		}
 	}
 
+	return singleFlight(inflightScopedMe, cacheKey, async () =>
+		fetchMeForScopedSessionUncached(guildId, sub, cacheKey, logger),
+	);
+}
+
+/**
+ * The actual scoped-session resolution, only ever reached through `fetchMeForScopedSession` above -- which
+ * owns the cache read and the in-flight de-duplication (see `singleFlight`; the parallel-dashboard-request
+ * pile-up it exists for applies equally here, and `refreshScoped` in `middleware/isAuthed.ts` always forces).
+ */
+async function fetchMeForScopedSessionUncached(
+	guildId: string,
+	sub: string,
+	cacheKey: string,
+	logger: Logger,
+): Promise<Me> {
 	logger.info({ userId: sub, guildId }, 'cache miss for scoped dashboard session /me');
 
 	const instances = getAllInstances();
@@ -322,7 +396,7 @@ export async function fetchMeForScopedSession(
 	const api = apiForGuild(bot, guildId);
 	const instance = getInstanceForGuild(guildId);
 
-	let discordUser: APIUser;
+	let discordUser: APIUser | null;
 	let guild: Awaited<ReturnType<typeof api.guilds.get>>;
 	let member: Awaited<ReturnType<typeof api.guilds.getMember>>;
 	let roles: Awaited<ReturnType<typeof api.guilds.getRoles>>;
@@ -331,7 +405,11 @@ export async function fetchMeForScopedSession(
 
 	try {
 		[discordUser, guild, member, roles, hasGrant, branding] = await Promise.all([
-			api.users.get(sub),
+			// Cached (unlike the `/users/@me` call in `fetchMe`, which never can be) -- a scoped session
+			// re-resolves itself on every 5-minute rotation, and this is the same global user lookup every
+			// dashboard route makes, so it may as well share their cache. `null` here is the same "Discord
+			// doesn't know this user any more" signal a 404 from the other calls below carries.
+			resolveDiscordUserOrNull(api, sub),
 			api.guilds.get(guildId),
 			api.guilds.getMember(guildId, sub),
 			api.guilds.getRoles(guildId),
@@ -359,6 +437,11 @@ export async function fetchMeForScopedSession(
 		}
 
 		logger.warn({ err: error, userId: sub, guildId }, 'discord reported the user/member/guild as gone');
+		throw unauthorized('could not resolve guild membership for this session');
+	}
+
+	if (!discordUser) {
+		logger.warn({ userId: sub, guildId }, 'discord reported the user as gone');
 		throw unauthorized('could not resolve guild membership for this session');
 	}
 

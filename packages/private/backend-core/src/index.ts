@@ -3,6 +3,7 @@ export * from '@chatsift/core';
 export type * from './lib/data/_entity.js';
 export * from './lib/data/_store.js';
 export * from './lib/data/bots.js';
+export * from './lib/data/users.js';
 
 export * from './lib/context.js';
 export * from './lib/crypt.js';

@@ -5,6 +5,7 @@ import type { Categories, Threads, ThreadsId } from '@chatsift/db';
 import type { APIGuildMember, APIUser, Snowflake } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { apiForGuild } from '../../../util/discordAPI.js';
+import { resolveDiscordUser } from '../../../util/users.js';
 
 /**
  * Shared enrichment helpers for `listThreads.ts`/`getThread.ts` (#261) -- kept out of both route files
@@ -27,17 +28,12 @@ export function toThreadCategory(category: Pick<Categories, 'emoji' | 'id' | 'na
  * guild-member one, so this still resolves a user who's since left the guild. Falls back to the bare
  * snowflake on a 404 (account deleted, or Discord just doesn't know it) rather than failing the whole
  * request over one unresolvable id.
+ *
+ * Cache-first via `util/users.ts` -- shared with every other bot's user lookups, since the underlying
+ * route is a global lookup whose answer doesn't depend on which token asked.
  */
 export async function resolveUser(guildId: Snowflake, userId: Snowflake): Promise<APIUser | Snowflake> {
-	try {
-		return await apiForGuild('MODMAIL', guildId).users.get(userId);
-	} catch (error) {
-		if (error instanceof DiscordAPIError && error.status === 404) {
-			return userId;
-		}
-
-		throw error;
-	}
+	return resolveDiscordUser(apiForGuild('MODMAIL', guildId), userId);
 }
 
 /**

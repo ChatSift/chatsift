@@ -4,23 +4,19 @@ import type { APIAttachment, APIEmbed, APIUser, Snowflake } from '@discordjs/cor
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { apiForGuild, discordAPIAma } from '../../../util/discordAPI.js';
+import { resolveDiscordUser } from '../../../util/users.js';
 
 /**
  * Resolves a raw Discord user id to the full `APIUser` via the AMA bot's own token -- mirrors
  * `modmail/threads/util.ts`'s identically-shaped `resolveUser` (kept as a separate copy since it's
  * pinned to a different bot id and there's no shared cross-product home for it yet). Falls back to
  * the bare snowflake on a 404 rather than failing the whole request over one unresolvable id.
+ *
+ * Cache-first via `util/users.ts` -- a questions page resolves one author per distinct asker, which
+ * without the cache is the exact pattern that saturates Discord's 30-per-30s `GET /users/{id}` bucket.
  */
 export async function resolveAmaUser(guildId: Snowflake, userId: Snowflake): Promise<APIUser | Snowflake> {
-	try {
-		return await apiForGuild('AMA', guildId).users.get(userId);
-	} catch (error) {
-		if (error instanceof DiscordAPIError && error.status === 404) {
-			return userId;
-		}
-
-		throw error;
-	}
+	return resolveDiscordUser(apiForGuild('AMA', guildId), userId);
 }
 
 export interface CurrentQueueMessage {
