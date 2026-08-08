@@ -51,6 +51,12 @@ function isHttpUrl(value: string): boolean {
 	return url.protocol === 'http:' || url.protocol === 'https:';
 }
 
+// Shared by a snippet's `attachmentUrl` and a normal-mode panel's `attachmentUrl` below -- both end up as
+// a Discord embed's `image.url` directly (`isHttpUrl`'s doc comment above covers why this only checks the
+// scheme). Defined up here (rather than next to `createSnippetBodySchema`) so `createPanelWithRegularContentSchema`
+// can use it too.
+const attachmentUrlSchema = z.url().max(2_000).refine(isHttpUrl, 'Attachment URL must use http(s)');
+
 export const updateConfigBodySchema = z
 	.strictObject({
 		modForumId: snowflakeSchema.nullable().optional(),
@@ -134,6 +140,11 @@ export const createPanelWithRegularContentSchema = panelBase.safeExtend({
 		title: z.string().max(255),
 		description: z.string().max(4_000).optional(),
 		buttonLabel: z.string().min(1).max(80).default('Create Ticket'),
+		// Rendered as the embed's `image.url` directly (`createPanel.ts`/`updatePanel.ts`), same as a
+		// snippet's `attachmentUrl` -- see `isHttpUrl`'s doc comment above. The edit form always resends
+		// the full `panel` object, so omitting this (rather than needing a `null` to clear) is enough to
+		// drop an existing image.
+		attachmentUrl: attachmentUrlSchema.optional(),
 	}),
 });
 
@@ -154,11 +165,6 @@ export const updatePanelBodySchema = z
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided')
 	.refine((data) => !('panel' in data && 'panel_raw' in data), 'Cannot provide both panel and panel_raw');
-
-// A snippet's name becomes the name of the Discord slash command registered for it (e.g. a snippet
-// named `reportuser` is invoked as `/reportuser`), so it's bound by Discord's own command-name rules
-// rather than an arbitrary display-name length -- see createSnippet.ts.
-const attachmentUrlSchema = z.url().max(2_000).refine(isHttpUrl, 'Attachment URL must use http(s)');
 
 export const createSnippetBodySchema = z
 	.strictObject({

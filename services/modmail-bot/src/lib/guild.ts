@@ -22,7 +22,7 @@ export async function getGuildInfo(guildId: string): Promise<GuildInfo> {
 /**
  * Default matches `TemplatePlaceholdersHint`'s placeholder in the dashboard's config form.
  */
-const DEFAULT_ANON_REPLY_LABEL = '{{ guildName }} Team';
+const DEFAULT_ANON_REPLY_LABEL = '{{guildName}} Team';
 
 /**
  * The dashboard-configurable author label template for anon replies (`guild_settings.anon_reply_label`,

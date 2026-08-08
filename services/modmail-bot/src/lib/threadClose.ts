@@ -181,7 +181,7 @@ async function postFarewellMessage(
 
 		try {
 			// Mirrors `sendGreeting` (`lib/ticketCreation.ts`): full template data (join date, username, etc)
-			// when the member is still resolvable, falling back to just `{{ guildName }}` (matches the anon
+			// when the member is still resolvable, falling back to just `{{guildName}}` (matches the anon
 			// reply label precedent) when they've since left the guild.
 			const member = await getContext().service.client.api.guilds.getMember(thread.guildId, thread.userId);
 			content = templateString(farewellMessage, templateDataFromMember(guild.name, member, member.user));
@@ -191,7 +191,7 @@ async function postFarewellMessage(
 
 		// Same attributed-vs-anon split as staff replies (`relayStaffReplyToUserThread`, `lib/relay.ts`):
 		// attributed (the default) shows the closing staffer's real nickname/identity as the "sent as"
-		// author on both copies; anon shows the "{{ guildName }} Team" label instead. Also falls back to
+		// author on both copies; anon shows the "{{guildName}} Team" label instead. Also falls back to
 		// anon if the closer can no longer be resolved as a guild member (e.g. they've since left —
 		// plausible for a delayed scheduled close).
 		let author: ReturnType<typeof nicknameAuthor>;

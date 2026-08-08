@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 interface FormData {
+	attachmentUrl: string;
 	buttonLabel: string;
 	channelId: string;
 	description: string;
@@ -27,7 +28,7 @@ interface FormData {
 }
 
 type FormErrors = Partial<
-	Record<'buttonLabel' | 'categoryIds' | 'channelId' | 'description' | 'panelRaw' | 'title', string>
+	Record<'attachmentUrl' | 'buttonLabel' | 'categoryIds' | 'channelId' | 'description' | 'panelRaw' | 'title', string>
 >;
 
 const TOP_LEVEL_FIELDS = ['channelId', 'categoryIds'] as const;
@@ -41,7 +42,7 @@ function mapIssuesToFormErrors(issues: readonly { message: string; path: Propert
 		if (typeof first === 'string' && (TOP_LEVEL_FIELDS as readonly string[]).includes(first)) {
 			errors[first as 'categoryIds' | 'channelId'] ??= issue.message;
 		} else if (first === 'panel' && typeof second === 'string') {
-			if (second === 'title' || second === 'description' || second === 'buttonLabel') {
+			if (second === 'title' || second === 'description' || second === 'buttonLabel' || second === 'attachmentUrl') {
 				errors[second] ??= issue.message;
 			}
 		} else if (first === 'panel_raw') {
@@ -77,6 +78,7 @@ export function CreatePanelForm() {
 		title: '',
 		description: '',
 		buttonLabel: '',
+		attachmentUrl: '',
 		panelRaw: '',
 	});
 	const [categoryIds, setCategoryIds] = useState<number[]>([]);
@@ -101,6 +103,7 @@ export function CreatePanelForm() {
 				title: formData.title,
 				description: formData.description || undefined,
 				buttonLabel: formData.buttonLabel || undefined,
+				attachmentUrl: formData.attachmentUrl || undefined,
 			},
 		};
 	};
@@ -153,6 +156,7 @@ export function CreatePanelForm() {
 					['title', error.fieldError(panelField, 'title')],
 					['description', error.fieldError(panelField, 'description')],
 					['buttonLabel', error.fieldError(panelField, 'buttonLabel')],
+					['attachmentUrl', error.fieldError(panelField, 'attachmentUrl')],
 				];
 
 				const newErrors: FormErrors = Object.fromEntries(
@@ -233,9 +237,11 @@ export function CreatePanelForm() {
 					<div>
 						{mode === 'normal' ? (
 							<PanelEmbedFields
+								attachmentUrl={formData.attachmentUrl}
 								buttonLabel={formData.buttonLabel}
 								description={formData.description}
 								errors={errors}
+								onAttachmentUrlChange={(value) => updateFormData('attachmentUrl', value)}
 								onButtonLabelChange={(value) => updateFormData('buttonLabel', value)}
 								onDescriptionChange={(value) => updateFormData('description', value)}
 								onTitleChange={(value) => updateFormData('title', value)}
@@ -263,6 +269,7 @@ export function CreatePanelForm() {
 
 					{mode === 'normal' ? (
 						<PanelPreview
+							attachmentUrl={formData.attachmentUrl}
 							buttonLabel={formData.buttonLabel}
 							description={formData.description}
 							mode="normal"
