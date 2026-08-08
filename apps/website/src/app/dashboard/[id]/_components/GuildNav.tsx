@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { FaWrench } from 'react-icons/fa';
 import { useGrantAuth } from '@/api/grant';
+import { GuildIcon } from '@/components/common/GuildIcon';
 import { useGuildAccess } from '@/hooks/useGuildAccess';
 import { BotIcon, resolveBotBranding } from '@/utils/bots';
 import { cn } from '@/utils/util';
@@ -72,6 +73,8 @@ export function GuildNav() {
 
 	return (
 		<nav className="flex items-center gap-2 overflow-x-auto border-b border-on-secondary pb-3 dark:border-on-secondary-dark">
+			<GuildIcon data={guild} disableLink hasBots size={36} />
+
 			{items.map((item) => {
 				const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
 

@@ -1,12 +1,27 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useGrantAuth } from '@/api/grant';
 import type { ModmailSnippet } from '@/api/routes/modmail';
 import { useDeleteModmailSnippet } from '@/api/routes/modmail';
 import { Button } from '@/components/common/Button';
+import { Skeleton } from '@/components/common/Skeleton';
 import { formatDate } from '@/utils/util';
+
+// `ssr: false` is load-bearing -- see `DiscordMarkdown.tsx`'s own doc comment on why its wasm parser can't
+// be evaluated server-side at all under Next's bundler.
+const DiscordMarkdown = dynamic(
+	async () => {
+		const mod = await import('@/components/common/DiscordMarkdown');
+		return mod.DiscordMarkdown;
+	},
+	{
+		loading: () => <Skeleton className="h-4 w-48" />,
+		ssr: false,
+	},
+);
 
 function isImageAttachment(snippet: Pick<ModmailSnippet, 'attachmentFilename' | 'attachmentUrl'>): boolean {
 	const name = snippet.attachmentFilename ?? snippet.attachmentUrl ?? '';
@@ -41,7 +56,9 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 				/{snippet.name}
 			</p>
 
-			<p className="whitespace-pre-wrap text-sm text-primary dark:text-primary-dark">{snippet.content}</p>
+			<div className="whitespace-pre-wrap text-sm text-primary dark:text-primary-dark">
+				<DiscordMarkdown content={snippet.content} forBot="MODMAIL" />
+			</div>
 
 			{snippet.attachmentUrl && (
 				<div className="flex flex-col items-start gap-1">

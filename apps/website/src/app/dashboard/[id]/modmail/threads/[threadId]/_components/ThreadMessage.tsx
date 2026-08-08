@@ -15,7 +15,7 @@ import { cn, discordSnowflakeToDate, formatDate } from '@/utils/util';
 // why its wasm parser can't be evaluated server-side at all under Next's bundler.
 const DiscordMarkdown = dynamic(
 	async () => {
-		const mod = await import('./DiscordMarkdown');
+		const mod = await import('@/components/common/DiscordMarkdown');
 		return mod.DiscordMarkdown;
 	},
 	{
@@ -143,7 +143,7 @@ export function ThreadMessage({
 
 				{message.recordedContent?.content && (
 					<div className="mt-1 break-words text-sm text-primary dark:text-primary-dark">
-						<DiscordMarkdown content={message.recordedContent.content} participants={participants} />
+						<DiscordMarkdown content={message.recordedContent.content} forBot="MODMAIL" participants={participants} />
 					</div>
 				)}
 				{message.recordedContent && !message.recordedContent.content && !hasAttachments && !hasStickers && (

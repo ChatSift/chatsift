@@ -10,7 +10,6 @@ import type { GuildChannelInfo } from '@/api/routes/guilds';
 import type { ModmailCategory, ModmailPanel, ModmailSnippet } from '@/api/routes/modmail';
 import type { BreadcrumbOption } from '@/components/common/Breadcrumb';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
-import { GuildIcon } from '@/components/common/GuildIcon';
 import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAMA } from '@/components/icons/SvgAMA';
 import { SvgModmail } from '@/components/icons/SvgModmail';
@@ -27,8 +26,8 @@ const NO_CUSTOM_INSTANCE: BotBrandingSource = {
 const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks', 'threads'] as const;
 
 const SEGMENT_LABELS: Record<string, string> = {
-	ama: 'AMA Bot',
-	amas: 'AMA Sessions',
+	ama: 'AMA',
+	amas: 'Sessions',
 	new: 'New',
 	modmail: 'ModMail Bot',
 	config: 'Config',
@@ -139,15 +138,14 @@ function resolveAmaLabel(amaId: string, data: SegmentOptionsData): React.ReactNo
 	return ama ? ama.title : amaId;
 }
 
+// Deliberately no "New AMA" shortcut here (#303) -- you're already looking at an active AMA's breadcrumb,
+// so switching to creating a brand new one reads as a stray/confusing option rather than a useful shortcut.
 function amaIdOptions(amaId: string, context: SegmentContext, data: SegmentOptionsData): SegmentOptions {
-	const options: BreadcrumbOption[] = [
-		{ label: 'New AMA', href: `/dashboard/${context.guildId}/ama/amas/new` },
-		...(data.amaSessions ?? [])
-			.filter((s) => s.id !== Number(amaId))
-			.map((s) => ({ label: s.title, href: `/dashboard/${context.guildId}/ama/amas/${s.id}` })),
-	];
+	const options: BreadcrumbOption[] = (data.amaSessions ?? [])
+		.filter((s) => s.id !== Number(amaId))
+		.map((s) => ({ label: s.title, href: `/dashboard/${context.guildId}/ama/amas/${s.id}` }));
 
-	return { options };
+	return options.length ? { options } : null;
 }
 
 // ModMail ticket panels have no title field to fall back on the way AMA sessions do, so this resolves to the
@@ -395,7 +393,6 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 				{
 					label: guild.name,
 					href: grant || segments.length === 0 ? undefined : `/dashboard/${guild.id}`,
-					icon: <GuildIcon data={guild} disableLink hasBots />,
 					options: guildOptions,
 				},
 				...segments,

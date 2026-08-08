@@ -1,3 +1,21 @@
+'use client';
+
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/common/Skeleton';
+
+// `ssr: false` is load-bearing -- see `DiscordMarkdown.tsx`'s own doc comment on why its wasm parser can't
+// be evaluated server-side at all under Next's bundler.
+const DiscordMarkdown = dynamic(
+	async () => {
+		const mod = await import('@/components/common/DiscordMarkdown');
+		return mod.DiscordMarkdown;
+	},
+	{
+		loading: () => <Skeleton className="h-4 w-48" />,
+		ssr: false,
+	},
+);
+
 interface PreviewEmbed {
 	readonly color?: number | undefined;
 	readonly description?: string | undefined;
@@ -105,7 +123,11 @@ export function PanelPreview(props: PanelPreviewProps) {
 				<p className="text-sm text-white/50">{error}</p>
 			) : (
 				<div className="space-y-2">
-					{content && <p className="whitespace-pre-wrap text-sm text-[#dbdee1]">{content}</p>}
+					{content && (
+						<div className="whitespace-pre-wrap text-sm text-[#dbdee1]">
+							<DiscordMarkdown content={content} forBot="MODMAIL" />
+						</div>
+					)}
 
 					{hasEmbedContent && (
 						<div
@@ -117,7 +139,9 @@ export function PanelPreview(props: PanelPreviewProps) {
 							<div className="min-w-0 flex-1 space-y-1">
 								{embed?.title && <p className="text-sm font-semibold text-[#f2f3f5]">{embed.title}</p>}
 								{embed?.description && (
-									<p className="whitespace-pre-wrap text-sm text-[#dbdee1]">{embed.description}</p>
+									<div className="whitespace-pre-wrap text-sm text-[#dbdee1]">
+										<DiscordMarkdown content={embed.description} forBot="MODMAIL" />
+									</div>
 								)}
 							</div>
 						</div>
