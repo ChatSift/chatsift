@@ -4,6 +4,7 @@ import type {
 	createModmailPanelRoute,
 	createModmailSnippetRoute,
 	getModmailConfigRoute,
+	getModmailSnippetUpdatesRoute,
 	listModmailBlocksRoute,
 	listModmailCategoriesRoute,
 	listModmailPanelsRoute,
@@ -204,10 +205,27 @@ export type CreateModmailSnippetBody = CreateModmailSnippetContract['body'];
 type UpdateModmailSnippetContract = InferRouteContract<typeof updateModmailSnippetRoute>;
 export type UpdateModmailSnippetBody = UpdateModmailSnippetContract['body'];
 
+type GetModmailSnippetUpdatesContract = InferRouteContract<typeof getModmailSnippetUpdatesRoute>;
+export type ModmailSnippetRevisionsResult = GetModmailSnippetUpdatesContract['response'];
+export type ModmailSnippetRevision = ModmailSnippetRevisionsResult['revisions'][number];
+
 export function useModmailSnippets(guildId: string) {
 	return useQuery({
 		queryKey: queryKeys.modmail.snippets(guildId),
 		queryFn: async () => apiFetch<ModmailSnippet[]>('get', `/v3/guilds/${guildId}/modmail/snippets`),
+	});
+}
+
+/**
+ * A snippet's edit history (#324). Unlike `useModmailMessageEdits`' lazy `enabled` gate, this fetches
+ * eagerly -- there's exactly one history panel on the edit page, not one per row of a long list, so
+ * there's no fan-out to defer and the panel is visible as soon as the page settles.
+ */
+export function useModmailSnippetRevisions(guildId: string, snippetId: number) {
+	return useQuery({
+		queryKey: queryKeys.modmail.snippetUpdates(guildId, snippetId),
+		queryFn: async () =>
+			apiFetch<ModmailSnippetRevisionsResult>('get', `/v3/guilds/${guildId}/modmail/snippets/${snippetId}/updates`),
 	});
 }
 

@@ -60,6 +60,12 @@ export { default as updateModmailPanelRoute } from './routes/modmail/panels/upda
 
 export { default as createModmailSnippetRoute } from './routes/modmail/snippets/createSnippet.js';
 export { default as deleteModmailSnippetRoute } from './routes/modmail/snippets/deleteSnippet.js';
+export { default as getModmailSnippetUpdatesRoute } from './routes/modmail/snippets/getSnippetUpdates.js';
+export type {
+	SnippetRevision,
+	SnippetRevisionField,
+	SnippetRevisionsResult,
+} from './routes/modmail/snippets/getSnippetUpdates.js';
 export { default as listModmailSnippetsRoute } from './routes/modmail/snippets/listSnippets.js';
 export { default as updateModmailSnippetRoute } from './routes/modmail/snippets/updateSnippet.js';
 

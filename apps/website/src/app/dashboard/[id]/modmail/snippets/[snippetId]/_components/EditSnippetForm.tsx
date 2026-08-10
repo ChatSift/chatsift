@@ -6,7 +6,8 @@ import { useState } from 'react';
 import type { SnippetFormData, SnippetFormErrors } from '../../_components/snippetForm';
 import { mapSnippetApiError, mapSnippetIssues } from '../../_components/snippetForm';
 import { SnippetNamePreviewHelper } from '../../_components/snippetFormHelpers';
-import type { ModmailSnippet, UpdateModmailSnippetBody } from '@/api/routes/modmail';
+import { SnippetRevisionHistory } from './SnippetRevisionHistory';
+import type { ModmailSnippet, ModmailSnippetRevision, UpdateModmailSnippetBody } from '@/api/routes/modmail';
 import { useModmailSnippets, useUpdateModmailSnippet } from '@/api/routes/modmail';
 import { FormActions } from '@/components/common/FormActions';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -74,6 +75,27 @@ export function EditSnippetForm({ snippet }: EditSnippetFormProps) {
 		} catch (error) {
 			setErrors(mapSnippetApiError(error, 'update'));
 		}
+	};
+
+	// Deliberately only seeds the form -- the staff member still has to press Save. Routing a restore
+	// through the normal submit path is what keeps it archiving the state it overwrites, renaming the
+	// Discord command, and hitting the duplicate-name check; a one-click restore would have to
+	// reimplement all three.
+	const restoreRevision = (revision: ModmailSnippetRevision) => {
+		setForm((prev) =>
+			revision.oldName === null
+				? // Legacy row -- content is the only field it ever captured, so leave the rest of the form as-is
+					// rather than blanking a name and attachment it simply doesn't know about.
+					{ ...prev, content: revision.oldContent }
+				: {
+						name: revision.oldName,
+						content: revision.oldContent,
+						attachmentUrl: revision.oldAttachmentUrl ?? '',
+						attachmentFilename: revision.oldAttachmentFilename ?? '',
+					},
+		);
+		setErrors({});
+		setSuccessMessage('Restored into the form -- press Save Changes to apply it.');
 	};
 
 	return (
@@ -145,6 +167,8 @@ export function EditSnippetForm({ snippet }: EditSnippetFormProps) {
 				pendingLabel="Saving..."
 				submitLabel="Save Changes"
 			/>
+
+			<SnippetRevisionHistory onRestore={restoreRevision} snippetId={snippet.id} />
 		</form>
 	);
 }

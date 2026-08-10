@@ -57,6 +57,7 @@ import updatePanelRoute from './routes/modmail/panels/updatePanel.js';
 import resyncRoute from './routes/modmail/resync.js';
 import createSnippetRoute from './routes/modmail/snippets/createSnippet.js';
 import deleteSnippetRoute from './routes/modmail/snippets/deleteSnippet.js';
+import getSnippetUpdatesRoute from './routes/modmail/snippets/getSnippetUpdates.js';
 import listSnippetsRoute from './routes/modmail/snippets/listSnippets.js';
 import updateSnippetRoute from './routes/modmail/snippets/updateSnippet.js';
 import getThreadMessageEditsRoute from './routes/modmail/threads/getMessageEdits.js';
@@ -162,6 +163,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, updatePanelRoute);
 	mountRoute(app, deletePanelRoute);
 	mountRoute(app, listSnippetsRoute);
+	mountRoute(app, getSnippetUpdatesRoute);
 	mountRoute(app, createSnippetRoute);
 	mountRoute(app, updateSnippetRoute);
 	mountRoute(app, deleteSnippetRoute);
