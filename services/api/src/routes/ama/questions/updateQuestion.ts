@@ -187,7 +187,13 @@ export default defineRoute({
 							answerImageUrl,
 							answeredById: effectiveAnsweredById,
 						};
-						const embeds = await buildQuestionEmbeds(guildId, projected, session, { kind: currentMessage.kind });
+						// `liveQuestion` is the stored row: the embeds render from the projection, but recovering
+						// the question's existing images has to go off what the live message looks like *now*,
+						// which is the pre-edit answer state. See `buildQuestionEmbeds`' own doc on the option.
+						const embeds = await buildQuestionEmbeds(guildId, projected, session, {
+							kind: currentMessage.kind,
+							liveQuestion: question,
+						});
 						// `resolveEmbedsForEdit` because the question's image urls were read back off the live
 						// message -- resending them resolved on a PATCH renders each image twice (see its doc comment).
 						await discordAPIAma.channels.editMessage(currentMessage.channelId, currentMessage.messageId, {
