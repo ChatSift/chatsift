@@ -2,7 +2,7 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import { fetchUser } from '@chatsift/bot-core';
-import { amaQuestionsChannel } from '@chatsift/core';
+import { amaPublicAnswersChannel, amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
@@ -119,7 +119,13 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 				}
 			}
 
-			await publishRealtimeInvalidate(amaQuestionsChannel(session.guildId, question.amaId));
+			// The public answers page too (#323): with `prepared_answers_enabled` off this approve posts
+			// straight to the answers channel, and if an answer was already recorded from the dashboard
+			// beforehand the question becomes publicly visible right here.
+			await publishRealtimeInvalidate([
+				amaQuestionsChannel(session.guildId, question.amaId),
+				amaPublicAnswersChannel(question.amaId),
+			]);
 
 			// Update the message to show it was approved
 			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {

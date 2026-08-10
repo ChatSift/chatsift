@@ -1,5 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
-import { amaQuestionsChannel, withResolvedActionRow } from '@chatsift/core';
+import { amaPublicAnswersChannel, amaQuestionsChannel, withResolvedActionRow } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { badRequest, conflict, notFound } from '@hapi/boom';
@@ -88,7 +88,12 @@ export default defineRoute({
 		isGlobalAdmin: false,
 		isGuildManager: 'or-ama-guest',
 	}),
-	realtimeChannel: (req) => amaQuestionsChannel(req.params.guildId, req.params.amaId),
+	// Two audiences: the dashboard's question list, and the public answers page (#323) -- the direct-approve
+	// branch below can post straight to the answers channel, which is what that page mirrors.
+	realtimeChannel: (req) => [
+		amaQuestionsChannel(req.params.guildId, req.params.amaId),
+		amaPublicAnswersChannel(req.params.amaId),
+	],
 	async handler(req): Promise<UpdateQuestionResult> {
 		const { guildId, amaId, questionId } = req.params;
 		const data = req.body;

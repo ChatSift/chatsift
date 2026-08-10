@@ -466,3 +466,60 @@ information):
 - **No custom-ModMail-instance Terms addendum.** Considered because partner deployments (§8 above) share
   ChatSift's Postgres/Redis, but ChatSift owns the Discord application on every instance (including branded
   ones) — there's no separate data controller relationship to document.
+
+## 10. Realtime WS gateway (#297/#298, #323)
+
+A cache-invalidation bus, not an event log. The server never pushes data — only a bare
+`{ type: 'invalidate', channel }` telling a subscribed browser that something behind a query key changed, at
+which point the client refetches over normal HTTP. There's no replay or ordering guarantee for signals missed
+while disconnected, so `apps/website/src/api/ws.ts` fires every still-subscribed channel's listeners once on
+reconnect rather than trying to catch up.
+
+**Transport.** `services/api/src/ws/server.ts` attaches a `ws` `WebSocketServer` to the same `http.Server`
+polka already listens on, handling the `/v3/ws` upgrade path only. Fan-out goes through Redis pub/sub
+(`REALTIME_INVALIDATE_CHANNEL`, `packages/private/backend-core/src/lib/realtimeBroadcast.ts`) rather than a
+local `WsHub` reference, so a publisher doesn't have to be in the process a given browser socket is connected
+to — which is also how `services/ama-bot`'s Discord interaction handlers, which never touch the API process,
+publish at all. Signals are tagged with the originating browser tab's `clientId` so the tab whose own mutation
+caused the change doesn't get told to refetch what it already invalidated.
+
+**Publishing.** `defineRoute`'s `realtimeChannel` hook (`services/api/src/core/route.ts`) computes the
+channel(s) from the request; `mountRoute` broadcasts after the handler resolves 2xx, so a handler with several
+early-return branches doesn't need a publish call in each. It may return an array — an AMA answer, for
+instance, lands on both the dashboard's channel and the public page's. Bot-side handlers call
+`publishRealtimeInvalidate` directly. Either way, several channels go over as one batched call: the wire still
+carries one message per channel (the subscriber dispatches on a single `channel`), but node-redis pipelines
+them into a single round trip instead of `n` sequential ones — worth caring about because publishing happens
+after the mutation has committed, on the request's critical path.
+
+**Channels** are built in `packages/private/core/src/lib/realtimeChannels.ts` so both sides agree on the exact
+string, same "one source of truth" reasoning as the route contracts.
+
+**Authorization** (`services/api/src/ws/authorizeChannel.ts`) happens per `subscribe` frame against claims
+baked into a short-lived (60s) JWT ticket, minted over normal HTTP before the socket opens — a browser
+`WebSocket` handshake can't carry the session's `Authorization` header. Two independent paths:
+
+1. **Guild-wide grant.** A guild-scoped channel is `<domain>:<guildId>:<...>`; a manager of that guild (or a
+   global admin) gets everything under it, no per-domain rule needed. The **three-segment minimum is
+   load-bearing**, not a parse guard — see below.
+2. **Exact-match allowlist** (`WsTicketData.channels`), for access that isn't a guild-manager grant:
+   - **AMA guests** (#323). Guest access lives in `ama_sessions.guest_ids` and is deliberately independent of
+     `meCanManage` (a guest-only guild is synthesized with `meCanManage: false`, see `util/me.ts`), so it never
+     reaches `grants.adminGuilds` and path 1 can't see it. `routes/ws/getTicket.ts` resolves the guest's
+     sessions at mint time and lists their concrete channels — the WS mirror of `isAuthed`'s `'or-ama-guest'`
+     path. A `/dashboard`-scoped session's lookup is confined to its own guild, matching how its `adminGuilds`
+     already behaves.
+   - **The public answers page** (`/ama-answers/[shareToken]`). Unauthenticated — knowing the share token _is_
+     the authorization — so `routes/ama/questions/publicWsTicket.ts` trades a valid token for a ticket carrying
+     nothing but the one `amaPublicAnswersChannel` it resolves to. The frontend uses a separate
+     `RealtimeClient` for it (`usePublicRealtimeClient`), since the session-backed singleton mints from a
+     session this page normally doesn't have.
+
+`amaPublicAnswersChannel` is `ama-public:<amaId>` — deliberately **guildless**, breaking the format above. That
+page hides every raw Discord id it can, so handing an anonymous browser a guild snowflake would undo that for
+nothing. The consequence is that it's reachable only via path 2, never inherited by whoever manages the guild;
+path 1's segment-count check is what enforces that, rather than trusting snowflakes and small serial ama ids to
+never collide.
+
+Ticket claims are resolved once at mint time, so they're as stale as `adminGuilds` already was — bounded by the
+60s TTL plus the client re-minting on every (re)connect.

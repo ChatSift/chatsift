@@ -23,6 +23,7 @@ export { default as sendAMAQuestionRoute } from './routes/ama/questions/sendQues
 export { default as mergeAMAQuestionRoute } from './routes/ama/questions/mergeQuestion.js';
 export { default as mergeAMAQuestionsBulkRoute } from './routes/ama/questions/mergeQuestionsBulk.js';
 export { default as publicAMAAnswersRoute } from './routes/ama/questions/publicAnswers.js';
+export { default as publicAMAWsTicketRoute } from './routes/ama/questions/publicWsTicket.js';
 
 export { default as listAMATagsRoute } from './routes/ama/tags/listTags.js';
 export { default as createAMATagRoute } from './routes/ama/tags/createTag.js';

@@ -1,9 +1,19 @@
-import type { InferRouteContract, getWsTicketRoute } from '@chatsift/api';
+import type { InferRouteContract, getWsTicketRoute, publicAMAWsTicketRoute } from '@chatsift/api';
 import { apiFetch } from './fetch';
 import { REALTIME_CLIENT_ID } from './realtimeClientId';
 
 type GetWsTicketContract = InferRouteContract<typeof getWsTicketRoute>;
 type GetWsTicketResult = GetWsTicketContract['response'];
+
+type PublicWsTicketContract = InferRouteContract<typeof publicAMAWsTicketRoute>;
+type PublicWsTicketResult = PublicWsTicketContract['response'];
+
+/**
+ * How a client obtains a fresh gateway ticket. Injected rather than hardcoded because the public answers page
+ * has no session to mint one from and goes through its own share-token endpoint instead (#323) -- everything
+ * else about the connection (backoff, re-subscribe, self-echo suppression) is identical between the two.
+ */
+type TicketMinter = () => Promise<string>;
 
 interface ServerMessage {
 	channel: string;
@@ -28,10 +38,11 @@ function wsURL(): string {
  * short-lived (`wsTicket.ts`) and deliberately not single-use -- see `docs/roadmap` plan for the gateway.
  *
  * This is a cache-invalidation bus, not a durable event log: there's no replay/ordering guarantee for signals
- * missed while disconnected, so a reconnect fires every still-subscribed channel's listeners once immediately,
- * on top of re-sending `subscribe` for each of them server-side.
+ * missed while a socket wasn't subscribed. Every connect therefore fires each subscribed channel's listeners
+ * once from the `open` handler, right after re-sending `subscribe` for them -- covering both the initial
+ * startup gap (mint + handshake, after the page's own first fetch) and any reconnect.
  */
-class RealtimeClient {
+export class RealtimeClient {
 	private readonly channels = new Map<string, Set<InvalidateListener>>();
 
 	private connecting = false;
@@ -41,6 +52,8 @@ class RealtimeClient {
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 	private socket: WebSocket | null = null;
+
+	public constructor(private readonly mintTicket: TicketMinter) {}
 
 	public subscribe(channel: string, onInvalidate: InvalidateListener): () => void {
 		let listeners = this.channels.get(channel);
@@ -74,7 +87,17 @@ class RealtimeClient {
 
 		void (async () => {
 			try {
-				const { ticket } = await apiFetch<GetWsTicketResult>('get', '/v3/ws/ticket');
+				const ticket = await this.mintTicket();
+
+				// Every consumer unsubscribed while the ticket was in flight (a fast navigate away from a
+				// realtime page). `disconnect()` can't have stopped us: it only closes `this.socket`, which is
+				// still null this whole time. Bailing before the socket exists is the only way to avoid leaving
+				// one open with nothing subscribed to it -- `scheduleReconnect` bails on an empty `channels`, so
+				// nothing downstream would ever reap it.
+				if (this.channels.size === 0) {
+					return;
+				}
+
 				// `clientId` (same value `fetch.ts` sends as `RealtimeClientIdHeader` on every mutation, see
 				// `realtimeClientId.ts`) tags this specific socket so the server can skip echoing an invalidate
 				// signal back to the tab whose own mutation caused it.
@@ -88,8 +111,31 @@ class RealtimeClient {
 
 				socket.addEventListener('open', () => {
 					this.reconnectAttempt = 0;
+
+					// Same race as above, one await later: the handshake is its own window for the last
+					// consumer to go away.
+					if (this.channels.size === 0) {
+						socket.close();
+						return;
+					}
+
 					for (const channel of this.channels.keys()) {
 						this.send({ type: 'subscribe', channel });
+					}
+
+					// Nothing that happened before this socket was subscribed produced a signal we could have
+					// received, so every channel gets one catch-up invalidation now that it can. That covers the
+					// startup gap (the page's own first fetch resolves, then the ticket round trip and handshake
+					// run -- a mutation landing in between would otherwise be missed until the *next* one) as
+					// well as the reconnect gap, since this is a plain invalidation bus with no replay.
+					//
+					// Costs one redundant refetch per connect, immediately after the initial fetch. Cheap next
+					// to silently serving stale data indefinitely, and TanStack dedupes it whenever the first
+					// fetch is still in flight.
+					for (const listeners of this.channels.values()) {
+						for (const listener of listeners) {
+							listener();
+						}
 					}
 				});
 
@@ -188,12 +234,9 @@ class RealtimeClient {
 				return;
 			}
 
-			for (const listeners of this.channels.values()) {
-				for (const listener of listeners) {
-					listener();
-				}
-			}
-
+			// The catch-up invalidation deliberately isn't fired here -- the `open` handler does it instead, so
+			// it lands once subscriptions are actually re-established rather than optimistically ahead of a
+			// reconnect that may itself fail.
 			this.connect();
 		}, delay);
 	}
@@ -208,4 +251,27 @@ class RealtimeClient {
 	}
 }
 
-export const realtimeClient = new RealtimeClient();
+/**
+ * The session-backed client every authenticated page uses -- one socket per tab, shared across channels.
+ */
+export const realtimeClient = new RealtimeClient(
+	async () => (await apiFetch<GetWsTicketResult>('get', '/v3/ws/ticket')).ticket,
+);
+
+/**
+ * A client for the public answers page (#323), scoped to one share token. Deliberately *not* the singleton
+ * above: that one mints its ticket from the session, and this page is reachable (and normally read) with no
+ * session at all -- knowing the share token is the whole authorization, exactly as it is for the page's own
+ * data fetch.
+ *
+ * Constructing one is inert (the socket only opens on the first `subscribe`), but the instance still has to be
+ * stable across renders, since `useRealtimeInvalidate` re-subscribes when it changes -- callers should go
+ * through `usePublicRealtimeClient` rather than calling this in a render body.
+ */
+export function createPublicRealtimeClient(shareToken: string): RealtimeClient {
+	return new RealtimeClient(
+		async () =>
+			(await apiFetch<PublicWsTicketResult>('get', `/v3/ama/public/${encodeURIComponent(shareToken)}/ws-ticket`))
+				.ticket,
+	);
+}

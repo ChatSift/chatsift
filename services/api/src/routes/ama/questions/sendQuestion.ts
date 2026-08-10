@@ -1,5 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
-import { amaQuestionsChannel } from '@chatsift/core';
+import { amaPublicAnswersChannel, amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { badRequest, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
@@ -36,7 +36,12 @@ export default defineRoute({
 		isGlobalAdmin: false,
 		isGuildManager: 'or-ama-guest',
 	}),
-	realtimeChannel: (req) => amaQuestionsChannel(req.params.guildId, req.params.amaId),
+	// Two audiences: the dashboard's question list, and the public answers page (#323) -- sending is exactly
+	// the transition that makes a question show up there (`ASKED` with an answer recorded).
+	realtimeChannel: (req) => [
+		amaQuestionsChannel(req.params.guildId, req.params.amaId),
+		amaPublicAnswersChannel(req.params.amaId),
+	],
 	async handler(req): Promise<SendQuestionResult> {
 		const { guildId, amaId, questionId } = req.params;
 		const db = getContext().db;

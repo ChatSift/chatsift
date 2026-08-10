@@ -1,4 +1,6 @@
 import { createWsTicket, getContext } from '@chatsift/backend-core';
+import { amaQuestionsChannel } from '@chatsift/core';
+import type { AmaSessions } from '@chatsift/db';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 
@@ -21,10 +23,29 @@ export default defineRoute({
 		isGuildManager: false,
 	}),
 	async handler(req, res): Promise<GetWsTicketResult> {
+		const access = req.tokens!.access;
+
+		// AMA guest access never shows up in `grants.adminGuilds` (it isn't a `meCanManage` grant -- see
+		// `WsTicketData.channels`), so without this a guest opens a perfectly valid socket whose every
+		// `subscribe` frame is then silently dropped by the gateway. Resolved straight from the source of
+		// truth `isAuthed`'s `'or-ama-guest'` path uses rather than via `fetchMeForSession`, which would drag
+		// in a Discord round trip this route has no other need for.
+		//
+		// A scoped `/dashboard` session is confined to the guild it was minted for, the same way its
+		// `adminGuilds` always is (`util/tokens.ts`'s `ScopedAccessTokenData`) -- otherwise a link-minted
+		// session would pick up realtime for a guest AMA in some unrelated guild.
+		const db = getContext().db;
+		const guestSessions = await db<Pick<AmaSessions, 'guildId' | 'id'>[]>`
+			SELECT id, guild_id FROM ama_sessions
+			WHERE ${access.sub} = ANY(guest_ids)
+			${access.kind === 'scoped' ? db`AND guild_id = ${access.guildId}` : db``}
+		`;
+
 		const ticket = createWsTicket({
-			sub: req.tokens!.access.sub,
-			adminGuilds: req.tokens!.access.grants.adminGuilds,
-			isAdmin: getContext().env.ADMINS.has(req.tokens!.access.sub),
+			sub: access.sub,
+			adminGuilds: access.grants.adminGuilds,
+			channels: guestSessions.map((session) => amaQuestionsChannel(session.guildId, session.id)),
+			isAdmin: getContext().env.ADMINS.has(access.sub),
 		});
 
 		// This is a bearer credential (short-lived, but still) -- must never be cached by a shared/intermediate cache.

@@ -354,7 +354,69 @@ test('publishes a realtime invalidate signal via realtimeChannel when the handle
 
 	await final(req, res, next);
 
+	// Exactly one call, with the bare string -- a normalization that spread the string instead of wrapping it
+	// would publish one message per *character* and still satisfy a bare `toHaveBeenCalledWith`.
+	expect(publishRealtimeInvalidateMock).toHaveBeenCalledOnce();
 	expect(publishRealtimeInvalidateMock).toHaveBeenCalledWith('some-channel', undefined);
+});
+
+test('hands an array realtimeChannel over as a single batched publish', async () => {
+	const { server, routes } = makeServer();
+	mountRoute(
+		server,
+		defineRoute({
+			method: 'get',
+			path: '/v3/foo',
+			realtimeChannel: () => ['channel-a', 'channel-b'],
+			async handler() {
+				return { ok: true };
+			},
+		}),
+	);
+
+	const handlers = routes.get('get:/v3/foo')! as ((req: Request, res: Response, next: any) => Promise<void>)[];
+	const final = handlers.at(-1)!;
+
+	const req = makeMockedRequest({ headers: { 'x-realtime-client-id': 'tab-abc' }, method: 'GET', path: '/v3/foo' });
+	const res = new MockedResponse();
+	Object.defineProperty(res, 'statusCode', { writable: true, enumerable: true, configurable: true });
+	Object.defineProperty(res, 'writableEnded', { writable: true, enumerable: true, configurable: true, value: false });
+	const next = vi.fn();
+
+	await final(req, res, next);
+
+	// One call, not one per channel -- `publishRealtimeInvalidate` fans out internally so the publishes
+	// pipeline into a single Redis round trip.
+	expect(publishRealtimeInvalidateMock).toHaveBeenCalledOnce();
+	expect(publishRealtimeInvalidateMock).toHaveBeenCalledWith(['channel-a', 'channel-b'], 'tab-abc');
+});
+
+test('does not publish when realtimeChannel returns an empty array', async () => {
+	const { server, routes } = makeServer();
+	mountRoute(
+		server,
+		defineRoute({
+			method: 'get',
+			path: '/v3/foo',
+			realtimeChannel: () => [],
+			async handler() {
+				return { ok: true };
+			},
+		}),
+	);
+
+	const handlers = routes.get('get:/v3/foo')! as ((req: Request, res: Response, next: any) => Promise<void>)[];
+	const final = handlers.at(-1)!;
+
+	const req = makeMockedRequest({ headers: {}, method: 'GET', path: '/v3/foo' });
+	const res = new MockedResponse();
+	Object.defineProperty(res, 'statusCode', { writable: true, enumerable: true, configurable: true });
+	Object.defineProperty(res, 'writableEnded', { writable: true, enumerable: true, configurable: true, value: false });
+	const next = vi.fn();
+
+	await final(req, res, next);
+
+	expect(publishRealtimeInvalidateMock).not.toHaveBeenCalled();
 });
 
 test('forwards the RealtimeClientIdHeader as the origin so the WS gateway can skip echoing back to it', async () => {

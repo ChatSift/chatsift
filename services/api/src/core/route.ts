@@ -108,8 +108,14 @@ export interface RouteDefinition<
 	 * one hook point instead of a broadcast call at every early-return branch inside the handler itself. Return
 	 * `undefined` to skip broadcasting for a particular request. Channel-name builders live in `@chatsift/core`'s
 	 * `realtimeChannels.ts` so the frontend subscribes to the exact same string.
+	 *
+	 * An array broadcasts to each channel in turn, for the mutations whose result shows up in more than one
+	 * audience's view of the data -- an AMA answer, say, lands on both the dashboard's `amaQuestionsChannel` and
+	 * the public page's `amaPublicAnswersChannel` (#323).
 	 */
-	realtimeChannel?(req: MiddlewareContext<TMiddlewares> & TypedRequest<TBody, TQuery, TParams>): string | undefined;
+	realtimeChannel?(
+		req: MiddlewareContext<TMiddlewares> & TypedRequest<TBody, TQuery, TParams>,
+	): string[] | string | undefined;
 	schema?: RouteSchema<TBody, TQuery, TParams, TResponse>;
 }
 

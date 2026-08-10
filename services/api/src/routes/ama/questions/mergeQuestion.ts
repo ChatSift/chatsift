@@ -1,5 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
-import { amaQuestionsChannel, MERGE_SOURCE_STATES, MERGE_TARGET_STATES } from '@chatsift/core';
+import { amaPublicAnswersChannel, amaQuestionsChannel, MERGE_SOURCE_STATES, MERGE_TARGET_STATES } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { badRequest, notFound } from '@hapi/boom';
 import { z } from 'zod';
@@ -40,7 +40,12 @@ export default defineRoute({
 		isGlobalAdmin: false,
 		isGuildManager: 'or-ama-guest',
 	}),
-	realtimeChannel: (req) => amaQuestionsChannel(req.params.guildId, req.params.amaId),
+	// Two audiences: the dashboard's question list, and the public answers page (#323) -- `MERGE_TARGET_STATES`
+	// includes `ASKED`, so a merge can rewrite a question that page is already showing.
+	realtimeChannel: (req) => [
+		amaQuestionsChannel(req.params.guildId, req.params.amaId),
+		amaPublicAnswersChannel(req.params.amaId),
+	],
 	async handler(req): Promise<MergeQuestionResult> {
 		const { guildId, amaId, questionId: duplicateId } = req.params;
 		const { intoQuestionId: originalId } = req.body;

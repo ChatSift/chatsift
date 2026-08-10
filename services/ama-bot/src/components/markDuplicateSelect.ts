@@ -4,6 +4,7 @@ import type { ComponentHandler } from '@chatsift/bot-core';
 import { fetchUser } from '@chatsift/bot-core';
 import type { QuestionImageSource } from '@chatsift/core';
 import {
+	amaPublicAnswersChannel,
 	amaQuestionsChannel,
 	getAnswerEmbed,
 	getBaseEmbeds,
@@ -181,7 +182,12 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 
 			const { duplicate, extraAskerCount, original, session } = merged;
 
-			await publishRealtimeInvalidate(amaQuestionsChannel(session.guildId, original.amaId));
+			// The public answers page too (#323): `MERGE_TARGET_STATES` includes `ASKED`, so a merge can
+			// rewrite a question that page is already showing.
+			await publishRealtimeInvalidate([
+				amaQuestionsChannel(session.guildId, original.amaId),
+				amaPublicAnswersChannel(original.amaId),
+			]);
 
 			// Best-effort cleanup of whichever of the duplicate's queue messages exist -- a lost race or a
 			// message deleted out-of-band means this simply no-ops for that one.

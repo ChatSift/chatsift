@@ -9,11 +9,27 @@ import { getContext } from './context.js';
  * works normally there) and passed as a `?ticket=` query param when opening the socket instead.
  *
  * Carries exactly what `isAuthed`'s `isGuildManager` check already uses (`grants.adminGuilds` +
- * the global-admin bypass) so per-channel authorization at subscribe-time is a plain in-memory check
- * against the ticket's own claims -- no Discord/DB call needed on every subscribe.
+ * the global-admin bypass), plus an explicit per-channel allowlist for the access paths that aren't
+ * guild-manager grants at all (`channels`), so per-channel authorization at subscribe-time is a plain
+ * in-memory check against the ticket's own claims -- no Discord/DB call needed on every subscribe.
  */
 export interface WsTicketData {
 	adminGuilds: string[];
+	/**
+	 * Channels this ticket may subscribe to by exact string match, *in addition to* the guild-wide
+	 * `adminGuilds` grant. Needed because not every kind of access is a guild-manager grant:
+	 *
+	 * - An AMA guest's access lives in `ama_sessions.guest_ids` and is deliberately independent of
+	 *   `meCanManage` (a guest-only guild is synthesized with `meCanManage: false`, see `util/me.ts`), so
+	 *   it never reaches `adminGuilds` -- their specific `amaQuestionsChannel`s are listed here instead,
+	 *   mirroring `isAuthed`'s `'or-ama-guest'` path on the HTTP side.
+	 * - The public answers page (`/v3/ama/public/:shareToken`) is unauthenticated entirely; its ticket
+	 *   carries nothing *but* the one `amaPublicAnswersChannel` the share token resolves to.
+	 *
+	 * Resolved once at mint time rather than checked per subscribe, so it's as stale as `adminGuilds`
+	 * already is -- bounded by the 60s TTL plus the client re-minting on every (re)connect.
+	 */
+	channels: string[];
 	iat: number;
 	isAdmin: boolean;
 	/**
@@ -25,11 +41,12 @@ export interface WsTicketData {
 
 const WS_TICKET_TTL_SECONDS = 60;
 
-export function createWsTicket(data: Pick<WsTicketData, 'adminGuilds' | 'isAdmin' | 'sub'>): string {
+export function createWsTicket(data: Pick<WsTicketData, 'adminGuilds' | 'channels' | 'isAdmin' | 'sub'>): string {
 	const payload: Omit<WsTicketData, 'iat'> = {
 		kind: 'ws',
 		sub: data.sub,
 		adminGuilds: data.adminGuilds,
+		channels: data.channels,
 		isAdmin: data.isAdmin,
 	};
 
@@ -56,7 +73,10 @@ export function verifyWsTicket(token: string | undefined): WsTicketData | null {
 			return null;
 		}
 
-		return decoded as WsTicketData;
+		return {
+			...decoded,
+			channels: Array.isArray(decoded.channels) ? decoded.channels : [],
+		} as WsTicketData;
 	} catch {
 		return null;
 	}

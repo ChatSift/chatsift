@@ -1,4 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
+import { amaPublicAnswersChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
@@ -47,6 +48,12 @@ function toPublicUserInfo(resolved: APIUser | Snowflake): PublicUserInfo {
 
 export interface PublicAnswersResult {
 	questions: PublicAnsweredQuestion[];
+	/**
+	 * WS gateway channel this page's data is invalidated on (#323). Handed back by the server rather than
+	 * derived client-side because `amaPublicAnswersChannel` needs the ama id, and the whole point of this
+	 * route is that the viewer only ever knows the share token.
+	 */
+	realtimeChannel: string;
 	title: string;
 }
 
@@ -118,6 +125,6 @@ export default defineRoute({
 			};
 		});
 
-		return { questions: resolved, title: session.title };
+		return { questions: resolved, realtimeChannel: amaPublicAnswersChannel(session.id), title: session.title };
 	},
 });
