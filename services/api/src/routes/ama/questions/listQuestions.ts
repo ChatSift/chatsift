@@ -90,6 +90,11 @@ export default defineRoute({
 
 		// Fetches one extra row over `limit` purely to know whether a next page exists, same idiom as
 		// modmail's listThreads.ts.
+		//
+		// The asker join excludes the question's own author so this `(+N)` badge counts the same people the
+		// Discord embed's "Also asked by" line does (see `countExtraAskers` in `util.ts`) -- merging two of
+		// your own questions records you as an asker on your own question, which shouldn't read as somebody
+		// else having asked it too.
 		const rows = await db<QuestionListRow[]>`
 			SELECT
 				q.*,
@@ -99,7 +104,7 @@ export default defineRoute({
 					'[]'
 				) AS tags
 			FROM ama_questions q
-			LEFT JOIN ama_question_askers a ON a.question_id = q.id
+			LEFT JOIN ama_question_askers a ON a.question_id = q.id AND a.author_id <> q.author_id
 			LEFT JOIN ama_question_tag_assignments ta ON ta.question_id = q.id
 			LEFT JOIN ama_question_tags t ON t.id = ta.tag_id
 			WHERE q.ama_id = ${amaId}

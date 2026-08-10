@@ -1,51 +1,53 @@
 import { getContext } from '@chatsift/backend-core';
-import { getBaseEmbeds } from '@chatsift/core';
+import { MERGE_SOURCE_STATES, MERGE_TARGET_STATES, resolveEmbedsForEdit } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { Snowflake } from '@discordjs/core';
 import { conflict } from '@hapi/boom';
 import { discordAPIAma } from '../../../util/discordAPI.js';
-// Re-exported so `mergeQuestion.ts`/`mergeQuestionsBulk.ts` can keep importing it from here -- the
-// definition itself lives in `schemas.ts` since that's the one browser-safe module shared with
-// `apps/website`'s merge pickers, and duplicating the set in two places is exactly the drift this
-// consolidation is meant to prevent.
-import { MERGEABLE_STATES } from '../schemas.js';
-import { resolveAmaUser, resolveCurrentQueueMessage, resolveQuestionAttachments } from './util.js';
-
-export { MERGEABLE_STATES } from '../schemas.js';
+import { buildQuestionEmbeds, resolveCurrentQueueMessage } from './util.js';
 
 /**
  * Merges `duplicates` into `original`: carries over each duplicate's own author, preserved content,
  * and askers (including anyone previously chain-merged into it, with their own preserved content) for
  * the dashboard's merged-duplicate display, and deletes the duplicate rows in one transaction, then
  * best-effort cleans up whichever queue/answers messages the duplicates had and refreshes `original`'s
- * own live Discord message (if any) -- which continues to show only `original`'s own author. Shared
- * by the single-question merge route and the bulk-merge route so both go through the exact same
+ * own live Discord message (if any) -- which since #326 shows a count of the extra people who asked it.
+ * Shared by the single-question merge route and the bulk-merge route so both go through the exact same
  * DB/Discord side effects.
+ *
+ * Returns `original` as re-read under the merge's own row lock, so callers echo back its actual current
+ * state rather than the snapshot they validated against.
  */
 export async function mergeDuplicatesIntoOriginal(
 	guildId: Snowflake,
 	session: AmaSessions,
 	original: AmaQuestions,
 	duplicates: AmaQuestions[],
-): Promise<void> {
+): Promise<AmaQuestions> {
 	const db = getContext().db;
 	const duplicateIds = duplicates.map((duplicate) => duplicate.id);
 
-	await db.begin(async (sql) => {
+	const locked = await db.begin<AmaQuestions>(async (sql) => {
 		// Re-validate under lock rather than trusting the callers' earlier (pre-transaction) state checks --
 		// those ran against a snapshot that a concurrent request (another merge, an approve/deny, a send)
 		// could have invalidated in the gap between that check and this transaction acquiring the rows.
 		// `FOR UPDATE` blocks any such concurrent writer on these same rows until this transaction commits.
+		// `ORDER BY id` so two merges touching the same pair of rows acquire them in the same order and
+		// can't deadlock against each other -- mirrors `services/ama-bot`'s `markDuplicateSelect.ts`.
 		const lockedIds = [original.id, ...duplicateIds];
-		const locked = await sql<Pick<AmaQuestions, 'id' | 'state'>[]>`
-			SELECT id, state FROM ama_questions WHERE id = ANY(${lockedIds}) FOR UPDATE
+		const lockedRows = await sql<AmaQuestions[]>`
+			SELECT * FROM ama_questions WHERE id = ANY(${lockedIds}) ORDER BY id FOR UPDATE
 		`;
-		const lockedById = new Map(locked.map((row) => [row.id, row.state]));
-		const stillMergeable = lockedIds.every((id) => {
-			const state = lockedById.get(id);
-			return state !== undefined && MERGEABLE_STATES.has(state);
+		const lockedById = new Map(lockedRows.map((row) => [row.id, row]));
+
+		// The target only has to still be *absorbable* (#328: PENDING_REVIEW, APPROVED or ASKED), while every
+		// duplicate still has to be PENDING_REVIEW -- merging one away deletes it outright.
+		const lockedOriginal = lockedById.get(original.id);
+		const duplicatesStillMergeable = duplicateIds.every((id) => {
+			const state = lockedById.get(id)?.state;
+			return state !== undefined && MERGE_SOURCE_STATES.has(state);
 		});
-		if (!stillMergeable) {
+		if (!lockedOriginal || !MERGE_TARGET_STATES.has(lockedOriginal.state) || !duplicatesStillMergeable) {
 			throw conflict('one or more questions changed state before the merge could complete');
 		}
 
@@ -66,6 +68,8 @@ export async function mergeDuplicatesIntoOriginal(
 		}
 
 		await sql`DELETE FROM ama_questions WHERE id = ANY(${duplicateIds})`;
+
+		return lockedOriginal;
 	});
 
 	// Best-effort cleanup of whichever of the duplicates' queue messages exist.
@@ -83,33 +87,27 @@ export async function mergeDuplicatesIntoOriginal(
 			),
 	);
 
-	// `original` is always PENDING_REVIEW here -- that's the only state left in `MERGEABLE_STATES`, and
-	// both call sites (`mergeQuestion.ts`/`mergeQuestionsBulk.ts`) validate against it before this ever
-	// runs -- so its only possible live message is the queue message, never the answers-channel post.
-	const currentMessage = resolveCurrentQueueMessage(original, session);
+	// Resolved off the *locked* row, never the caller's pre-transaction copy: since #328 an APPROVED
+	// target is legal, and it could have been sent (-> ASKED, with a fresh `answers_message_id`) in the
+	// gap before the lock -- refreshing from the stale copy would edit the dead queue message and leave
+	// the live public post showing the old count.
+	const currentMessage = resolveCurrentQueueMessage(locked, session);
 	if (currentMessage) {
 		// Best-effort: the merge itself (the transaction above, plus the duplicate cleanup) already
 		// committed successfully -- a failure anywhere in resolving/posting the refreshed embed (a
 		// deleted message, a Discord outage, a rate limit) shouldn't turn an otherwise-successful merge
 		// into a 500 for the caller.
 		try {
-			// Mirrors postToQueue's own `includeUserId: true` -- the only queue that ever shows it.
-			const [attachments, user] = await Promise.all([
-				resolveQuestionAttachments(original, session),
-				resolveAmaUser(guildId, original.authorId),
-			]);
-
-			const embeds = getBaseEmbeds({
-				attachments,
-				content: original.content,
-				guildId,
-				includeUserId: true,
-				user: typeof user === 'string' ? undefined : user,
+			const embeds = await buildQuestionEmbeds(guildId, locked, session, { kind: currentMessage.kind });
+			// `resolveEmbedsForEdit` because these image urls were read straight back off the live message --
+			// resending them resolved on a PATCH makes Discord render the image twice (see its doc comment).
+			await discordAPIAma.channels.editMessage(currentMessage.channelId, currentMessage.messageId, {
+				embeds: resolveEmbedsForEdit(embeds),
 			});
-
-			await discordAPIAma.channels.editMessage(currentMessage.channelId, currentMessage.messageId, { embeds });
 		} catch {
 			// no-op -- see comment above.
 		}
 	}
+
+	return locked;
 }

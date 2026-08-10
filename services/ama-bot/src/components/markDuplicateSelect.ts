@@ -2,7 +2,14 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import { fetchUser } from '@chatsift/bot-core';
-import { amaQuestionsChannel, getAnswerEmbed, getBaseEmbeds } from '@chatsift/core';
+import {
+	amaQuestionsChannel,
+	getAnswerEmbed,
+	getBaseEmbeds,
+	MERGE_SOURCE_STATES,
+	MERGE_TARGET_STATES,
+	resolveEmbedsForEdit,
+} from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
 	APIAttachment,
@@ -12,7 +19,7 @@ import type {
 } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, MessageFlags, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
-import { MERGEABLE_STATES } from './markDuplicate.js';
+import { countExtraAskers } from '../lib/askers.js';
 
 interface CurrentMessage {
 	channelId: string;
@@ -50,19 +57,24 @@ function resolveCurrentMessage(question: AmaQuestions, session: AmaSessions): Cu
 type MergeResult =
 	| {
 			duplicate: AmaQuestions;
+			/**
+			 * Counted inside the merge transaction itself, so refreshing the embed below costs no extra
+			 * round trip (and can't read a count some concurrent merge has moved on from).
+			 */
+			extraAskerCount: number;
 			kind: 'ok';
 			original: AmaQuestions;
 			session: AmaSessions;
 	  }
 	| { kind: 'mismatch' }
-	| { kind: 'not-mergeable'; state: string };
+	| { kind: 'not-mergeable'; side: 'duplicate' | 'original'; state: string };
 
 /**
  * Completes the duplicate-merge flow started by `markDuplicate.ts` (#293 follow-up): the duplicate
  * question is deleted, its author and preserved content (and anyone already merged into it, for
- * chained merges) is recorded as an extra asker on the original for the dashboard's merged-duplicate
- * display, and the original's live Discord message (if any) is refreshed -- which continues to show
- * only the original's own author, never the merged-in ones.
+ * chained merges) is recorded as an extra asker on the original, and the original's live Discord
+ * message (if any) is refreshed -- showing a count of the extra people who asked it (#326; who they
+ * are stays a dashboard-only detail).
  */
 export default class MarkDuplicateSelectComponent implements ComponentHandler<string> {
 	public readonly name = 'mark-duplicate-select';
@@ -106,13 +118,14 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 
 				// Re-checked here, under the row lock, rather than trusting `markDuplicate.ts`'s own filtered
 				// search results -- either question's state can change (approved, denied, asked/sent) in the
-				// time between that search and this select being submitted.
-				if (!MERGEABLE_STATES.has(duplicate.state)) {
-					return { kind: 'not-mergeable', state: duplicate.state };
+				// time between that search and this select being submitted. The two sides have different bars
+				// (#328): merging away deletes the question, absorbing an asker doesn't.
+				if (!MERGE_SOURCE_STATES.has(duplicate.state)) {
+					return { kind: 'not-mergeable', side: 'duplicate', state: duplicate.state };
 				}
 
-				if (!MERGEABLE_STATES.has(original.state)) {
-					return { kind: 'not-mergeable', state: original.state };
+				if (!MERGE_TARGET_STATES.has(original.state)) {
+					return { kind: 'not-mergeable', side: 'original', state: original.state };
 				}
 
 				const [session] = await sql<AmaSessions[]>`
@@ -147,7 +160,7 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 					);
 				}
 
-				return { duplicate, kind: 'ok', original, session };
+				return { duplicate, extraAskerCount: await countExtraAskers(sql, original), kind: 'ok', original, session };
 			});
 
 			if (merged.kind === 'mismatch') {
@@ -160,13 +173,16 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 
 			if (merged.kind === 'not-mergeable') {
 				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
-					content: `One of these questions is now in state ${merged.state}, which can no longer be merged. This merge was aborted.`,
+					content:
+						merged.side === 'duplicate'
+							? `This question is now in state ${merged.state} and can no longer be merged away. This merge was aborted.`
+							: `The question you picked is now in state ${merged.state} and can no longer absorb a duplicate. This merge was aborted.`,
 					components: [],
 				});
 				return;
 			}
 
-			const { duplicate, original, session } = merged;
+			const { duplicate, extraAskerCount, original, session } = merged;
 
 			await publishRealtimeInvalidate(amaQuestionsChannel(session.guildId, original.amaId));
 
@@ -191,10 +207,10 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 					),
 			);
 
-			// Refresh the original's live message (if any) -- it continues to show only the original's own
-			// author (merged askers are a dashboard-only detail). Best-effort: the merge itself already
-			// committed above, so a failure here (deleted message, rate limit, a transient Discord error)
-			// shouldn't be reported as a failed merge.
+			// Refresh the original's live message (if any) so its merged-asker count reflects the merge that
+			// just happened (#326) -- who those askers are stays a dashboard-only detail. Best-effort: the
+			// merge itself already committed above, so a failure here (deleted message, rate limit, a
+			// transient Discord error) shouldn't be reported as a failed merge.
 			const currentMessage = resolveCurrentMessage(original, session);
 			if (currentMessage) {
 				try {
@@ -212,6 +228,7 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 					const embeds: APIEmbed[] = getBaseEmbeds({
 						attachments,
 						content: original.content,
+						extraAskerCount,
 						guildId: session.guildId,
 						includeUserId: currentMessage.includeUserId,
 						member,
@@ -239,11 +256,14 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 						);
 					}
 
+					// `resolveEmbedsForEdit` because these image urls were read straight back off the live message
+					// -- resending them resolved on a PATCH makes Discord render the image twice (see its doc
+					// comment).
 					await getContext().service.client.api.channels.editMessage(
 						currentMessage.channelId,
 						currentMessage.messageId,
 						{
-							embeds,
+							embeds: resolveEmbedsForEdit(embeds),
 						},
 					);
 				} catch (error) {

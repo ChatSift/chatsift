@@ -2,6 +2,13 @@ import postgres from 'postgres';
 
 export type Database = postgres.Sql;
 
+/**
+ * The handle a `db.begin` callback is given. Structurally *not* a `Database` (it has no `begin`/`END`/
+ * connection-level members), so a query helper meant to be callable both standalone and mid-transaction
+ * has to accept `Database | DatabaseTransaction` rather than just the former.
+ */
+export type DatabaseTransaction = postgres.TransactionSql;
+
 // Generated row types (kanel — see docs/adr/0002-db-stack.md), re-exported from the package root so consumers can
 // annotate `getContext().db<Row[]>` queries against the real schema instead of hand-duplicating row shapes. Add a
 // table's types here the first time a consumer actually needs them — see docs/roadmap/02-foundation.md Part C.

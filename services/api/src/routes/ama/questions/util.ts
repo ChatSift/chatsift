@@ -1,6 +1,7 @@
+import { getContext } from '@chatsift/backend-core';
 import { getAnswerEmbed, getBaseEmbeds } from '@chatsift/core';
-import type { AmaQuestions, AmaSessions } from '@chatsift/db';
-import type { APIAttachment, APIEmbed, APIUser, Snowflake } from '@discordjs/core';
+import type { AmaQuestions, AmaSessions, Database, DatabaseTransaction } from '@chatsift/db';
+import type { APIAttachment, APIEmbed, APIGuildMember, APIUser, Snowflake } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { apiForGuild, discordAPIAma } from '../../../util/discordAPI.js';
@@ -19,8 +20,18 @@ export async function resolveAmaUser(guildId: Snowflake, userId: Snowflake): Pro
 	return resolveDiscordUser(apiForGuild('AMA', guildId), userId);
 }
 
+/**
+ * Which of the two message surfaces a question currently lives on. Drives both what the embed shows
+ * (the raw user id only ever goes to the mod-facing queue, a prepared answer only ever to the public
+ * answers channel) and which message gets edited -- mirrors `services/ama-bot`'s own
+ * `CurrentMessage.includeUserId`, made an explicit surface name here since #328 lets a merge refresh
+ * either one.
+ */
+export type QuestionMessageKind = 'answers' | 'queue';
+
 export interface CurrentQueueMessage {
 	channelId: string;
+	kind: QuestionMessageKind;
 	messageId: string;
 }
 
@@ -42,11 +53,11 @@ export function resolveCurrentQueueMessage(question: AmaQuestions, session: AmaS
 		session.queueId &&
 		question.queueMessageId
 	) {
-		return { channelId: session.queueId, messageId: question.queueMessageId };
+		return { channelId: session.queueId, kind: 'queue', messageId: question.queueMessageId };
 	}
 
 	if (question.state === 'ASKED' && question.answersMessageId) {
-		return { channelId: session.answersChannelId, messageId: question.answersMessageId };
+		return { channelId: session.answersChannelId, kind: 'answers', messageId: question.answersMessageId };
 	}
 
 	return null;
@@ -82,35 +93,93 @@ export async function resolveQuestionAttachments(
 }
 
 /**
- * Builds the embed(s) for a question actually landing in the answers channel -- the question embed
- * plus, when an answer was prepared ahead of time, the second answer embed. Merged-duplicate askers
- * are a dashboard-only detail (see `ama_question_askers`) -- this embed only ever shows the question's
- * own author. Shared by every path that can publish a question directly to `ASKED`
+ * How many *other* distinct people asked this same question, i.e. merged-duplicate askers excluding
+ * the question's own author (#326). Takes the `sql` handle rather than reaching for the context so
+ * callers inside a `db.begin` can count against the same transaction they just merged in.
+ *
+ * The self-exclusion is load-bearing: nothing stops someone asking twice and a mod merging one of
+ * their questions into the other, and the merge INSERT has no guard for it -- without the filter the
+ * embed would announce "1 other person" about the author themselves. `::int` because postgres.js hands
+ * back a bare `COUNT(*)` (int8) as a string, which every downstream `> 0` check would read as truthy.
+ */
+export async function countExtraAskers(
+	sql: Database | DatabaseTransaction,
+	question: Pick<AmaQuestions, 'authorId' | 'id'>,
+): Promise<number> {
+	const [row] = await sql<{ count: number }[]>`
+		SELECT COUNT(*)::int AS count FROM ama_question_askers
+		WHERE question_id = ${question.id} AND author_id <> ${question.authorId}
+	`;
+
+	return row?.count ?? 0;
+}
+
+/**
+ * Best-effort guild member lookup for a question's author, so the embed can prefer their nick and
+ * guild avatar the way `services/ama-bot`'s own paths (which always have the member off the source
+ * interaction) do. Without it an API-side re-render of a bot-posted message would silently swap the
+ * displayed name/avatar for the global ones.
+ */
+async function resolveAmaMember(guildId: Snowflake, userId: Snowflake): Promise<APIGuildMember | undefined> {
+	try {
+		return await apiForGuild('AMA', guildId).guilds.getMember(guildId, userId);
+	} catch {
+		// Left the guild, never joined it, or the bot can't see them -- the global name/avatar is a fine
+		// fallback, and this whole lookup is cosmetic.
+		return undefined;
+	}
+}
+
+interface BuildQuestionEmbedsOptions {
+	/**
+	 * Which surface these embeds are headed for -- defaults to `'answers'`, the publishing paths'
+	 * behavior. See {@link QuestionMessageKind}.
+	 */
+	kind?: QuestionMessageKind | undefined;
+}
+
+/**
+ * Builds the embed(s) for a question on either message surface: the question embed (with its
+ * merged-duplicate asker count, #326) plus, on the answers channel only, the second answer embed when
+ * one was prepared ahead of time. Shared by every path that publishes a question to `ASKED`
  * (`sendQuestion.ts`'s explicit dashboard Send action, and `updateQuestion.ts`'s direct-approve branch
  * for AMAs with no prepared-answers stage) so none of them can drift and forget to include a prepared
- * answer that was set before the direct approve happened.
+ * answer that was set before the direct approve happened -- and by `mergeShared.ts`, which since #328
+ * can be refreshing either surface.
+ *
+ * The answer embed is gated on the surface, not just on `answer_content` being set: an APPROVED
+ * question can already have an answer prepared while its queue message is still the live one, and the
+ * queue has never shown the answer (matching `services/ama-bot`'s own merge re-render).
  */
-export async function buildPublishEmbeds(
+export async function buildQuestionEmbeds(
 	guildId: Snowflake,
 	question: AmaQuestions,
 	session: AmaSessions,
+	{ kind = 'answers' }: BuildQuestionEmbedsOptions = {},
 ): Promise<APIEmbed[]> {
-	const [attachments, user] = await Promise.all([
+	const includeAnswer = kind === 'answers' && Boolean(question.answerContent);
+	const [attachments, user, member, extraAskerCount] = await Promise.all([
 		resolveQuestionAttachments(question, session),
 		resolveAmaUser(guildId, question.authorId),
+		resolveAmaMember(guildId, question.authorId),
+		countExtraAskers(getContext().db, question),
 	]);
 
 	const embeds = getBaseEmbeds({
 		attachments,
 		content: question.content,
+		extraAskerCount,
 		guildId,
+		// Mirrors postToQueue's own `includeUserId: true` -- the only surface that ever shows it.
+		includeUserId: kind === 'queue',
+		member,
 		user: typeof user === 'string' ? undefined : user,
 		// Leaves room for the answer embed appended below when there's one to append, so a question
 		// with the max attachments doesn't blow past Discord's 10-embed cap once the answer is added.
-		reserveEmbedSlots: question.answerContent ? 1 : 0,
+		reserveEmbedSlots: includeAnswer ? 1 : 0,
 	});
 
-	if (question.answerContent) {
+	if (includeAnswer) {
 		const answeredByUser = question.answeredById ? await resolveAmaUser(guildId, question.answeredById) : undefined;
 		const answeredByDisplayName =
 			typeof answeredByUser === 'string' || !answeredByUser
@@ -123,7 +192,9 @@ export async function buildPublishEmbeds(
 
 		embeds.push(
 			getAnswerEmbed({
-				answerContent: question.answerContent,
+				// Non-null by construction -- `includeAnswer` is exactly `answerContent` being set (plus the
+				// surface check), which TS can't narrow through the intermediate boolean.
+				answerContent: question.answerContent!,
 				answerImageUrl: question.answerImageUrl,
 				answeredByAvatarURL,
 				answeredByDisplayName,

@@ -1,12 +1,12 @@
 'use client';
 
+import { MERGE_SOURCE_STATES } from '@chatsift/core';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { AuthorAvatar } from './AuthorAvatar';
 import { MergeDuplicatePicker } from './MergeDuplicatePicker';
 import { TagPicker } from './TagPicker';
-import { MERGEABLE_STATES } from './mergeableStates';
 import { userLabel } from './userLabel';
 import { APIError } from '@/api/error';
 import { useAMA, useAMAQuestion, useSendAMAQuestion, useUpdateAMAQuestion } from '@/api/routes/ama';
@@ -62,7 +62,7 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 	};
 
 	const canTriage = ACTIONABLE_STATES.has(question.state);
-	const canMerge = MERGEABLE_STATES.has(question.state);
+	const canMerge = MERGE_SOURCE_STATES.has(question.state);
 	// The answer editor only ever shows up for a question that's actually awaiting a prepared answer --
 	// once sent, editing it here would just be silently lying to whoever's looking at the dashboard (the
 	// Discord message already went out as-is), and every other state either hasn't been approved yet or

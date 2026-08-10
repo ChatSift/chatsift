@@ -38,6 +38,11 @@ export enum CurrentlyInQueue {
 interface GetBaseEmbedsOptions {
 	attachments: APIAttachment[];
 	content: string;
+	/**
+	 * How many *other distinct people* asked this same question -- i.e. rows in `ama_question_askers`
+	 * for it, excluding the question's own author (#326). `0`/omitted renders nothing at all.
+	 */
+	extraAskerCount?: number | undefined;
 	guildId: string;
 	includeUserId?: boolean | undefined;
 	member?: APIGuildMember | undefined;
@@ -73,14 +78,15 @@ function resolveAvatarURL(
 /**
  * Builds the question embed(s) posted to the queue and the answers channel: author name+avatar line,
  * optional footer with the raw user ID for the queue where a reviewer needs to act on it, blurple
- * accent. Merged-duplicate askers are a dashboard-only detail (see `ama_question_askers`) -- the
- * Discord embed only ever shows this question's own author, never the merged-in ones. Multiple
- * attachments render as a Discord image gallery via the shared-`url` grouping trick (see
- * `GALLERY_ANCHOR_URL` above).
+ * accent. Merged-duplicate askers show up as a bare count (#326) -- who they are stays a dashboard-only
+ * detail (see `ama_question_askers`), since resolving every merged asker's name would cost a Discord
+ * user lookup each on a path that re-renders on every merge. Multiple attachments render as a Discord
+ * image gallery via the shared-`url` grouping trick (see `GALLERY_ANCHOR_URL` above).
  */
 export function getBaseEmbeds({
 	attachments,
 	content,
+	extraAskerCount = 0,
 	guildId,
 	includeUserId = false,
 	member,
@@ -100,6 +106,20 @@ export function getBaseEmbeds({
 		mainEmbed.footer = avatarURL
 			? { text: `${user.username} (${user.id})`, icon_url: avatarURL }
 			: { text: `${user.username} (${user.id})` };
+	}
+
+	// Set before the no-attachments early return below, not after -- otherwise the (common) attachment-less
+	// question silently loses the field. A field costs no embed slot, so this never affects the gallery
+	// splitting or `reserveEmbedSlots` maths further down. Phrased as people rather than merges: the
+	// underlying rows are unique per `(question_id, author_id)`, so the same person asking twice counts once.
+	if (extraAskerCount > 0) {
+		mainEmbed.fields = [
+			{
+				name: 'Also asked by',
+				value: extraAskerCount === 1 ? '1 other person' : `${extraAskerCount} other people`,
+				inline: false,
+			},
+		];
 	}
 
 	if (attachments.length === 0) {

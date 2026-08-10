@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useDebounceValue } from 'usehooks-ts';
 import { AuthorAvatar } from './AuthorAvatar';
-import { MERGEABLE_STATES } from './mergeableStates';
+import { DEFAULT_STATE_CHIP_CLASS, MERGE_TARGET_STATES_PARAM, STATE_CHIP_CLASSES, STATE_LABELS } from './questionState';
 import { userLabel } from './userLabel';
 import { useAMAQuestions, useMergeAMAQuestionsBulk } from '@/api/routes/ama';
 import { Button } from '@/components/common/Button';
@@ -32,13 +32,11 @@ export function BulkMergePicker({ questionIds, onClose, onMerged }: BulkMergePic
 	const isSearching = debouncedQuery.trim().length > 0;
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useAMAQuestions(guildId, amaId, {
 		q: debouncedQuery || undefined,
+		states: MERGE_TARGET_STATES_PARAM,
 	});
-	// A question already selected as one of the duplicates being merged away can't also be the target --
-	// and the target itself has to still be PENDING_REVIEW (mirrors the API's own validation in
-	// `mergeQuestionsBulk.ts`), so an APPROVED/DENIED/ASKED question shouldn't be offered as a pick here.
-	const allMatches = (data?.pages.flatMap((page) => page.questions) ?? []).filter(
-		(q) => !questionIds.includes(q.id) && MERGEABLE_STATES.has(q.state),
-	);
+	// The state filter is server-side (see `MERGE_TARGET_STATES_PARAM`); what's left to do here is drop the
+	// questions already selected as duplicates, which isn't expressible as a list filter.
+	const allMatches = (data?.pages.flatMap((page) => page.questions) ?? []).filter((q) => !questionIds.includes(q.id));
 	// With no search typed yet, default to the most recent few questions (already in memory, already
 	// most-recent-first via `listQuestions.ts`'s keyset order) instead of making the user search before
 	// seeing anything at all.
@@ -93,6 +91,13 @@ export function BulkMergePicker({ questionIds, onClose, onMerged }: BulkMergePic
 								<div className="mt-1 flex items-center gap-1.5">
 									<AuthorAvatar className="h-4 w-4 rounded-full" user={match.author} />
 									<p className="text-xs text-secondary dark:text-secondary-dark">{userLabel(match.author)}</p>
+									{/* Targets aren't all pending any more (#328) -- merging into an already-asked question
+									edits a message the server has already seen, which is worth knowing before clicking. */}
+									<span
+										className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATE_CHIP_CLASSES[match.state] ?? DEFAULT_STATE_CHIP_CLASS}`}
+									>
+										{STATE_LABELS[match.state] ?? match.state}
+									</span>
 								</div>
 							</div>
 							<Button
