@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { ModmailBlock } from '@/api/routes/modmail';
 import { useDeleteModmailBlock } from '@/api/routes/modmail';
 import { Button } from '@/components/common/Button';
+import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { UserAvatar } from '@/components/user/UserAvatar';
 import { formatDate } from '@/utils/util';
 
@@ -14,7 +15,7 @@ interface BlockCardProps {
 
 export function BlockCard({ guildId, block }: BlockCardProps) {
 	const { user, expiresAt } = block;
-	const [showConfirm, setShowConfirm] = useState(false);
+	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 	const deleteBlock = useDeleteModmailBlock(guildId);
 
 	const isUserObject = typeof user !== 'string';
@@ -23,11 +24,6 @@ export function BlockCard({ guildId, block }: BlockCardProps) {
 		? `${user.username}${user.discriminator === '0' ? '' : `#${user.discriminator}`}`
 		: userId;
 	const globalName = isUserObject && user.global_name ? user.global_name : undefined;
-
-	const handleRemove = async () => {
-		await deleteBlock.mutateAsync(userId);
-		setShowConfirm(false);
-	};
 
 	return (
 		<div className="flex w-full flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
@@ -54,19 +50,22 @@ export function BlockCard({ guildId, block }: BlockCardProps) {
 			</p>
 
 			<div className="mt-auto flex justify-end gap-2">
-				{showConfirm ? (
-					<>
-						<Button onPress={handleRemove}>
-							<span className="text-misc-danger">Yes, unblock</span>
-						</Button>
-						<Button onPress={() => setShowConfirm(false)}>Cancel</Button>
-					</>
-				) : (
-					<Button onPress={() => setShowConfirm(true)}>
-						<span className="text-misc-danger">Unblock</span>
-					</Button>
-				)}
+				<Button onPress={() => setIsConfirmOpen(true)}>
+					<span className="text-misc-danger">Unblock</span>
+				</Button>
 			</div>
+
+			<ConfirmModal
+				confirmLabel="Unblock"
+				isDestructive
+				isOpen={isConfirmOpen}
+				onConfirm={async () => deleteBlock.mutateAsync(userId)}
+				onOpenChange={setIsConfirmOpen}
+				title={`Unblock ${globalName ?? username}?`}
+			>
+				They&apos;ll be able to open ModMail threads again straight away.
+				{expiresAt && ` The block would otherwise have lapsed on its own ${formatDate(new Date(expiresAt))}.`}
+			</ConfirmModal>
 		</div>
 	);
 }

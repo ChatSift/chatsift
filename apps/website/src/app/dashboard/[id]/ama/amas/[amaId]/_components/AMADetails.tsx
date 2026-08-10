@@ -29,6 +29,7 @@ import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
+import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
@@ -174,7 +175,7 @@ export function AMADetails() {
 	useRealtimeInvalidate(amaQuestionsChannel(params.id, params.amaId), () => {
 		void invalidateAMAQuestions(queryClient, params.id, params.amaId);
 	});
-	const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+	const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [configForm, setConfigForm] = useState<ConfigFormData | null>(null);
@@ -463,12 +464,9 @@ export function AMADetails() {
 
 	// Closing only stops new submissions (#299) -- the rest of this page (triage, answers, config, export) stays
 	// just as relevant afterwards, so this deliberately stays put instead of navigating back to the session list.
+	// Errors here go to `actionError` rather than being left to `Button`'s banner, matching every other action on
+	// this page -- so this deliberately doesn't rethrow, and `ConfirmModal` closes either way.
 	const handleCloseSubmissions = async () => {
-		if (!showCloseConfirm) {
-			setShowCloseConfirm(true);
-			return;
-		}
-
 		setActionError(null);
 		setSuccessMessage(null);
 
@@ -480,8 +478,6 @@ export function AMADetails() {
 				error instanceof APIError ? error.message : 'Failed to close question submissions. Please try again.',
 			);
 			console.error('Failed to close AMA question submissions:', error);
-		} finally {
-			setShowCloseConfirm(false);
 		}
 	};
 
@@ -1127,30 +1123,6 @@ export function AMADetails() {
 									</p>
 								)}
 							</div>
-						) : showCloseConfirm ? (
-							<div className="space-y-4">
-								<p className="text-base text-primary dark:text-primary-dark">
-									Close question submissions for this AMA? Questions already submitted stay fully manageable - you just
-									stop receiving new ones. You can reopen submissions here at any time.
-								</p>
-								<div className="flex gap-3">
-									<Button
-										className="px-3 py-2.5 bg-misc-danger text-accent rounded-md hover:bg-misc-danger/90 transition-colors disabled:opacity-50"
-										isDisabled={updateAMA.isPending}
-										onPress={handleCloseSubmissions}
-										type="button"
-									>
-										Yes, Close Submissions
-									</Button>
-									<Button
-										className="px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors"
-										onPress={() => setShowCloseConfirm(false)}
-										type="button"
-									>
-										Cancel
-									</Button>
-								</div>
-							</div>
 						) : (
 							<div className="space-y-4">
 								<p className="text-base text-primary dark:text-primary-dark">
@@ -1159,13 +1131,27 @@ export function AMADetails() {
 								</p>
 								<Button
 									className="px-3 py-2.5 bg-misc-danger text-accent rounded-md hover:bg-misc-danger/90 transition-colors"
-									onPress={handleCloseSubmissions}
+									isDisabled={updateAMA.isPending}
+									onPress={() => setIsCloseConfirmOpen(true)}
 									type="button"
 								>
 									Close Question Submissions
 								</Button>
 							</div>
 						)}
+
+						{/* Not destructive despite the red button above it -- the Reopen path right there is the undo, so the
+							modal's accent-coloured confirm is the honest signal. */}
+						<ConfirmModal
+							confirmLabel="Close submissions"
+							isOpen={isCloseConfirmOpen}
+							onConfirm={handleCloseSubmissions}
+							onOpenChange={setIsCloseConfirmOpen}
+							title="Close question submissions?"
+						>
+							Questions already submitted stay fully manageable - you just stop receiving new ones. You can reopen
+							submissions here at any time.
+						</ConfirmModal>
 					</div>
 				)}
 			</div>
