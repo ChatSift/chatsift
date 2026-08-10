@@ -34,7 +34,7 @@ export function PanelCard({ guildId, panel, channelName }: PanelCardProps) {
 				{showConfirmDelete ? (
 					<>
 						<Button onPress={handleDelete}>
-							<span className="text-red-500">Yes, delete</span>
+							<span className="text-misc-danger">Yes, delete</span>
 						</Button>
 						<Button onPress={() => setShowConfirmDelete(false)}>Cancel</Button>
 					</>
@@ -47,7 +47,7 @@ export function PanelCard({ guildId, panel, channelName }: PanelCardProps) {
 							Edit
 						</Link>
 						<Button onPress={() => setShowConfirmDelete(true)}>
-							<span className="text-red-500">Delete</span>
+							<span className="text-misc-danger">Delete</span>
 						</Button>
 					</>
 				)}

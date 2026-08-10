@@ -80,7 +80,7 @@ export function ResyncCard({ description, resync }: ResyncCardProps) {
 				</div>
 			)}
 			<Button
-				className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+				className="px-3 py-2.5 bg-misc-accent text-accent rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
 				onPress={handleResync}
 				type="button"
 			>

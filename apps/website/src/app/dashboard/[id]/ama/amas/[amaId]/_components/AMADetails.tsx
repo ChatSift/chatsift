@@ -547,7 +547,7 @@ export function AMADetails() {
 						</p>
 					</div>
 					<Button
-						className="shrink-0 rounded-md bg-misc-accent px-5 py-2.5 text-base font-medium text-white transition-colors hover:opacity-90"
+						className="shrink-0 rounded-md bg-misc-accent px-5 py-2.5 text-base font-medium text-accent transition-colors hover:opacity-90"
 						onPress={() => router.push(`/dashboard/${params.id}/ama/amas/${params.amaId}/questions`)}
 						type="button"
 					>
@@ -829,7 +829,7 @@ export function AMADetails() {
 												value={configForm.queueId}
 											/>
 											{!configForm.queueId && (
-												<p className="rounded-md border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm text-blue-600 dark:text-blue-400">
+												<p className="rounded-md border border-misc-accent/40 bg-misc-accent/10 px-3 py-2 text-sm text-misc-accent">
 													No channel picked - review will be managed entirely from the dashboard.
 												</p>
 											)}
@@ -961,7 +961,7 @@ export function AMADetails() {
 				{editing && (
 					<div className="flex gap-3 lg:col-span-2">
 						<Button
-							className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+							className="px-3 py-2.5 bg-misc-accent text-accent rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
 							onPress={handleSaveConfig}
 							type="button"
 						>
@@ -1009,7 +1009,7 @@ export function AMADetails() {
 						{canManage && !ama.promptMessageExists && !ama.ended && (
 							<div className="pt-2">
 								<Button
-									className="bg-misc-accent text-white rounded-md hover:bg-misc-accent/90 transition-colors disabled:opacity-50"
+									className="bg-misc-accent text-accent rounded-md hover:bg-misc-accent/90 transition-colors disabled:opacity-50"
 									onPress={handleRepostPrompt}
 									type="button"
 								>
@@ -1080,7 +1080,7 @@ export function AMADetails() {
 
 								<div className="flex gap-3">
 									<Button
-										className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+										className="px-3 py-2.5 bg-misc-accent text-accent rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
 										isDisabled={updateAMA.isPending}
 										onPress={handleSavePrompt}
 										type="button"
@@ -1111,7 +1111,7 @@ export function AMADetails() {
 									Everything else still works: questions already submitted can be reviewed, answered and exported.
 								</p>
 								<Button
-									className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+									className="px-3 py-2.5 bg-misc-accent text-accent rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
 									isDisabled={updateAMA.isPending}
 									onPress={handleReopenSubmissions}
 									type="button"
@@ -1135,7 +1135,7 @@ export function AMADetails() {
 								</p>
 								<div className="flex gap-3">
 									<Button
-										className="px-3 py-2.5 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors disabled:opacity-50"
+										className="px-3 py-2.5 bg-misc-danger text-accent rounded-md hover:bg-misc-danger/90 transition-colors disabled:opacity-50"
 										isDisabled={updateAMA.isPending}
 										onPress={handleCloseSubmissions}
 										type="button"
@@ -1158,7 +1158,7 @@ export function AMADetails() {
 									answering what is already here carries on as normal.
 								</p>
 								<Button
-									className="px-3 py-2.5 bg-misc-danger text-white rounded-md hover:bg-misc-danger/90 transition-colors"
+									className="px-3 py-2.5 bg-misc-danger text-accent rounded-md hover:bg-misc-danger/90 transition-colors"
 									onPress={handleCloseSubmissions}
 									type="button"
 								>

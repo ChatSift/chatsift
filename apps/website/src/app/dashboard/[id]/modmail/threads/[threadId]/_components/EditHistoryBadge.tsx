@@ -39,7 +39,7 @@ export function EditHistoryBadge({ messageId }: EditHistoryBadgeProps) {
 					)}
 					{!isLoading && error && (
 						<div className="flex flex-col items-start gap-2">
-							<p className="text-sm text-red-600 dark:text-red-400">Failed to load edit history.</p>
+							<p className="text-sm text-misc-danger">Failed to load edit history.</p>
 							<Button
 								className="text-xs text-secondary hover:underline dark:text-secondary-dark"
 								onPress={() => void refetch()}

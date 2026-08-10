@@ -57,13 +57,13 @@ export function BlockCard({ guildId, block }: BlockCardProps) {
 				{showConfirm ? (
 					<>
 						<Button onPress={handleRemove}>
-							<span className="text-red-500">Yes, unblock</span>
+							<span className="text-misc-danger">Yes, unblock</span>
 						</Button>
 						<Button onPress={() => setShowConfirm(false)}>Cancel</Button>
 					</>
 				) : (
 					<Button onPress={() => setShowConfirm(true)}>
-						<span className="text-red-500">Unblock</span>
+						<span className="text-misc-danger">Unblock</span>
 					</Button>
 				)}
 			</div>

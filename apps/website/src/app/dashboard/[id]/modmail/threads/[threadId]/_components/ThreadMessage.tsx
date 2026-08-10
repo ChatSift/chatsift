@@ -74,16 +74,16 @@ export function ThreadMessage({
 				'flex gap-3',
 				message.isInternal &&
 					!isGroupedInternal &&
-					'rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 p-3 dark:border-amber-400/30 dark:bg-amber-400/5',
+					'rounded-lg border border-dashed border-misc-warning/40 bg-misc-warning/5 p-3 dark:border-misc-warning-dark/30 dark:bg-misc-warning-dark/5',
 				message.isSystem &&
-					'rounded-lg border border-sky-500/30 bg-sky-500/5 p-3 dark:border-sky-400/20 dark:bg-sky-400/5',
+					'rounded-lg border border-misc-system/30 bg-misc-system/5 p-3 dark:border-misc-system-dark/20 dark:bg-misc-system-dark/5',
 			)}
 		>
 			{showHeader ? (
 				authorEntry && typeof authorEntry !== 'string' ? (
 					<UserAvatar className="h-8 w-8 shrink-0 rounded-full" isLoading={false} user={authorEntry} />
 				) : isUnattributedSystemMessage ? (
-					<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-500/10 text-sky-600 dark:bg-sky-400/10 dark:text-sky-400">
+					<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-misc-system/10 text-misc-system dark:bg-misc-system-dark/10 dark:text-misc-system-dark">
 						<FaRobot className="h-4 w-4" />
 					</div>
 				) : (
@@ -95,14 +95,14 @@ export function ThreadMessage({
 
 			<div className="min-w-0 flex-1">
 				{showHeader && message.isInternal && !isGroupedInternal && (
-					<div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+					<div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-misc-warning dark:text-misc-warning-dark">
 						<FaLock className="h-3 w-3" />
 						Internal message
 					</div>
 				)}
 
 				{showHeader && message.isSystem && (
-					<div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-sky-600 dark:text-sky-400">
+					<div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-misc-system dark:text-misc-system-dark">
 						<FaRobot className="h-3 w-3" />
 						Automated message
 					</div>
@@ -159,7 +159,7 @@ export function ThreadMessage({
 				)}
 
 				{message.deletedAt && (
-					<div className="mt-1 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+					<div className="mt-1 flex items-center gap-1 text-xs text-misc-danger">
 						<FaTrash className="h-2.5 w-2.5" />
 						Deleted {formatDate(new Date(message.deletedAt))}
 					</div>

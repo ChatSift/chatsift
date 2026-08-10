@@ -115,7 +115,7 @@ export function CategoryCard({ guildId, category, canMoveUp, canMoveDown, onMove
 				{showConfirmDelete ? (
 					<>
 						<Button onPress={handleDelete}>
-							<span className="text-red-500">Yes, delete</span>
+							<span className="text-misc-danger">Yes, delete</span>
 						</Button>
 						<Button onPress={() => setShowConfirmDelete(false)}>Cancel</Button>
 					</>
@@ -128,7 +128,7 @@ export function CategoryCard({ guildId, category, canMoveUp, canMoveDown, onMove
 							Edit
 						</Link>
 						<Button onPress={() => setShowConfirmDelete(true)}>
-							<span className="text-red-500">Delete</span>
+							<span className="text-misc-danger">Delete</span>
 						</Button>
 					</>
 				)}

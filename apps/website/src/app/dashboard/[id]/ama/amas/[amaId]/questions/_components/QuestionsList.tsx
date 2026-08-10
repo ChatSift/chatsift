@@ -186,7 +186,7 @@ export function QuestionsList() {
 					<>
 						<span className="text-sm text-secondary dark:text-secondary-dark">{selectedIds.length} selected</span>
 						<Button
-							className="h-9 bg-misc-accent px-3 text-sm text-white hover:opacity-90"
+							className="h-9 bg-misc-accent px-3 text-sm text-accent hover:opacity-90"
 							onPress={() => {
 								// Collapse the expanded row first if it's one of the selected duplicates -- its
 								// own `useAMAQuestion` query would otherwise race the merge's cache invalidation

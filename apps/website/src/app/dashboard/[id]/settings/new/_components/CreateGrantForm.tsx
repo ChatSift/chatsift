@@ -70,7 +70,7 @@ export function CreateGrantForm() {
 
 			<div className="flex gap-4">
 				<Button
-					className="px-3 py-2.5 bg-misc-accent text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+					className="px-3 py-2.5 bg-misc-accent text-accent rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
 					isDisabled={!userId.trim() || createGrant.isPending}
 					type="submit"
 				>

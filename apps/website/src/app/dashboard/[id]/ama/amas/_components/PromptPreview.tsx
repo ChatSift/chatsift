@@ -137,10 +137,10 @@ export function PromptPreview(props: PromptPreviewProps) {
 
 	return (
 		<div className="rounded-md border border-on-secondary bg-[#313338] p-4 dark:border-on-secondary-dark">
-			<p className="mb-2 text-xs font-medium uppercase tracking-wide text-white/40">Prompt preview</p>
+			<p className="mb-2 text-xs font-medium uppercase tracking-wide text-accent/40">Prompt preview</p>
 
 			{error ? (
-				<p className="text-sm text-white/50">{error}</p>
+				<p className="text-sm text-accent/50">{error}</p>
 			) : content || hasEmbedContent ? (
 				<div className="space-y-2">
 					{content && (
@@ -176,7 +176,7 @@ export function PromptPreview(props: PromptPreviewProps) {
 					)}
 				</div>
 			) : (
-				<p className="text-sm text-white/50">Nothing to preview yet.</p>
+				<p className="text-sm text-accent/50">Nothing to preview yet.</p>
 			)}
 		</div>
 	);

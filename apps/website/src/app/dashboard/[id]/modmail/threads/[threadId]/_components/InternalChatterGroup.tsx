@@ -22,10 +22,10 @@ export function InternalChatterGroup({ messages, messagesById, participants }: I
 	const [isExpanded, setIsExpanded] = useState(false);
 
 	return (
-		<div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 dark:border-amber-400/30 dark:bg-amber-400/5">
+		<div className="rounded-lg border border-dashed border-misc-warning/40 bg-misc-warning/5 dark:border-misc-warning-dark/30 dark:bg-misc-warning-dark/5">
 			<button
 				aria-expanded={isExpanded}
-				className="flex w-full items-center gap-1.5 p-3 text-left text-xs font-medium text-amber-600 dark:text-amber-400"
+				className="flex w-full items-center gap-1.5 p-3 text-left text-xs font-medium text-misc-warning dark:text-misc-warning-dark"
 				onClick={() => setIsExpanded((previous) => !previous)}
 				type="button"
 			>
@@ -35,7 +35,7 @@ export function InternalChatterGroup({ messages, messagesById, participants }: I
 			</button>
 
 			{isExpanded && (
-				<div className="flex flex-col gap-4 border-t border-dashed border-amber-500/40 p-3 dark:border-amber-400/30">
+				<div className="flex flex-col gap-4 border-t border-dashed border-misc-warning/40 p-3 dark:border-misc-warning-dark/30">
 					{messages.map((message) => (
 						<ThreadMessage
 							isGroupedInternal

@@ -99,7 +99,7 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 				{showConfirmDelete ? (
 					<>
 						<Button onPress={handleDelete}>
-							<span className="text-red-500">Yes, delete</span>
+							<span className="text-misc-danger">Yes, delete</span>
 						</Button>
 						<Button onPress={() => setShowConfirmDelete(false)}>Cancel</Button>
 					</>
@@ -112,7 +112,7 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 							Edit
 						</Link>
 						<Button onPress={() => setShowConfirmDelete(true)}>
-							<span className="text-red-500">Delete</span>
+							<span className="text-misc-danger">Delete</span>
 						</Button>
 					</>
 				)}
