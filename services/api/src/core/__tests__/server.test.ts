@@ -354,6 +354,9 @@ test('publishes a realtime invalidate signal via realtimeChannel when the handle
 
 	await final(req, res, next);
 
+	// Exactly one call, with the bare string -- a normalization that spread the string instead of wrapping it
+	// would publish one message per *character* and still satisfy a bare `toHaveBeenCalledWith`.
+	expect(publishRealtimeInvalidateMock).toHaveBeenCalledOnce();
 	expect(publishRealtimeInvalidateMock).toHaveBeenCalledWith('some-channel', undefined);
 });
 
