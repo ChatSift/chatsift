@@ -28,7 +28,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 	ama: 'AMA',
 	amas: 'Sessions',
 	new: 'New',
-	modmail: 'ModMail Bot',
+	modmail: 'ModMail',
 	config: 'Config',
 	categories: 'Categories',
 	panels: 'Panels',
