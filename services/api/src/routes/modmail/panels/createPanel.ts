@@ -1,7 +1,7 @@
 import { getContext } from '@chatsift/backend-core';
 import type { Categories, TicketPanels } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
-import { ButtonStyle, ComponentType, RESTJSONErrorCodes } from '@discordjs/core';
+import { RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { badData, badRequest } from '@hapi/boom';
 import { z } from 'zod';
@@ -10,6 +10,7 @@ import { isAuthed } from '../../../middleware/isAuthed.js';
 import { assertChannelsBelongToGuild } from '../../../util/channels.js';
 import { apiForGuild } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
+import { buildPanelComponents } from '../discordBodies.js';
 import { createPanelBodySchema } from '../schemas.js';
 import type { TicketPanelWithCategories } from './listPanels.js';
 
@@ -67,19 +68,7 @@ export default defineRoute({
 			try {
 				panelMessage = await api.channels.createMessage(data.channelId, {
 					...messageBodyBase,
-					components: [
-						{
-							type: ComponentType.ActionRow,
-							components: [
-								{
-									type: ComponentType.Button,
-									style: ButtonStyle.Primary,
-									label: 'panel' in data ? data.panel.buttonLabel : 'Create Ticket',
-									custom_id: 'modmail-create-ticket',
-								},
-							],
-						},
-					],
+					components: buildPanelComponents('panel' in data ? data.panel.buttonLabel : undefined),
 				});
 			} catch (error) {
 				if (error instanceof DiscordAPIError && error.status === 400 && 'panel_raw' in data) {

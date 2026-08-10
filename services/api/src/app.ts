@@ -53,11 +53,12 @@ import updateConfigRoute from './routes/modmail/config/updateConfig.js';
 import createPanelRoute from './routes/modmail/panels/createPanel.js';
 import deletePanelRoute from './routes/modmail/panels/deletePanel.js';
 import listPanelsRoute from './routes/modmail/panels/listPanels.js';
+import resyncPanelsRoute from './routes/modmail/panels/resyncPanels.js';
 import updatePanelRoute from './routes/modmail/panels/updatePanel.js';
-import resyncRoute from './routes/modmail/resync.js';
 import createSnippetRoute from './routes/modmail/snippets/createSnippet.js';
 import deleteSnippetRoute from './routes/modmail/snippets/deleteSnippet.js';
 import listSnippetsRoute from './routes/modmail/snippets/listSnippets.js';
+import resyncSnippetsRoute from './routes/modmail/snippets/resyncSnippets.js';
 import updateSnippetRoute from './routes/modmail/snippets/updateSnippet.js';
 import getThreadMessageEditsRoute from './routes/modmail/threads/getMessageEdits.js';
 import getThreadRoute from './routes/modmail/threads/getThread.js';
@@ -161,17 +162,18 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, createPanelRoute);
 	mountRoute(app, updatePanelRoute);
 	mountRoute(app, deletePanelRoute);
+	mountRoute(app, resyncPanelsRoute);
 	mountRoute(app, listSnippetsRoute);
 	mountRoute(app, createSnippetRoute);
 	mountRoute(app, updateSnippetRoute);
 	mountRoute(app, deleteSnippetRoute);
+	mountRoute(app, resyncSnippetsRoute);
 	mountRoute(app, listBlocksRoute);
 	mountRoute(app, createBlockRoute);
 	mountRoute(app, deleteBlockRoute);
 	mountRoute(app, listThreadsRoute);
 	mountRoute(app, getThreadRoute);
 	mountRoute(app, getThreadMessageEditsRoute);
-	mountRoute(app, resyncRoute);
 	mountRoute(app, getWsTicketRoute);
 
 	app.listen(getContext().env.API_PORT, () =>

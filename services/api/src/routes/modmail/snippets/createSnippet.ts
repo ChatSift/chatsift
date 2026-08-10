@@ -1,7 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
 import type { Snippets } from '@chatsift/db';
-import type { RESTPostAPIApplicationGuildCommandsJSONBody } from '@discordjs/core';
-import { ApplicationCommandOptionType } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { badData, conflict } from '@hapi/boom';
 import { z } from 'zod';
@@ -11,6 +9,7 @@ import { apiForGuild } from '../../../util/discordAPI.js';
 import { getModmailApplicationId } from '../../../util/discordApplication.js';
 import { isUniqueViolation } from '../../../util/postgres.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
+import { buildSnippetCommandBody } from '../discordBodies.js';
 import { createSnippetBodySchema } from '../schemas.js';
 
 const bodySchema = createSnippetBodySchema;
@@ -44,29 +43,18 @@ export default defineRoute({
 			throw conflict('a snippet with this name already exists');
 		}
 
-		// Each snippet is registered as its own guild slash command (e.g. a snippet named `reportuser` is
-		// invoked as `/reportuser`) rather than a subcommand of some shared `/snippet` command -- so it has to
-		// exist on Discord's side before we have a commandId to store, and a name Discord rejects (reserved,
-		// bad characters, etc.) only surfaces here, not at zod-validation time.
+		// The snippet's guild command has to exist on Discord's side before we have a commandId to store, and a
+		// name Discord rejects (reserved, bad characters, etc.) only surfaces here, not at zod-validation time.
 		const applicationId = await getModmailApplicationId(guildId);
 		const api = apiForGuild('MODMAIL', guildId);
 
 		let command;
 		try {
-			const commandBody: RESTPostAPIApplicationGuildCommandsJSONBody = {
-				name: data.name,
-				description: 'ModMail snippet',
-				default_member_permissions: '0',
-				options: [
-					{
-						name: 'anon',
-						description: 'Whether to send the reply anonymously - defaults to false',
-						type: ApplicationCommandOptionType.Boolean,
-					},
-				],
-			};
-
-			command = await api.applicationCommands.createGuildCommand(applicationId, guildId, commandBody);
+			command = await api.applicationCommands.createGuildCommand(
+				applicationId,
+				guildId,
+				buildSnippetCommandBody(data.name),
+			);
 		} catch (error) {
 			if (error instanceof DiscordAPIError && error.status === 400) {
 				throw badData('not a valid Discord command name');

@@ -8,7 +8,8 @@ import type {
 	listModmailCategoriesRoute,
 	listModmailPanelsRoute,
 	listModmailSnippetsRoute,
-	resyncModmailRoute,
+	resyncModmailPanelsRoute,
+	resyncModmailSnippetsRoute,
 	updateModmailCategoryRoute,
 	updateModmailConfigRoute,
 	updateModmailPanelRoute,
@@ -268,25 +269,41 @@ export function useDeleteModmailBlock(guildId: string) {
 	});
 }
 
-type ResyncModmailContract = InferRouteContract<typeof resyncModmailRoute>;
-export type ResyncModmailResult = ResyncModmailContract['response'];
+type ResyncModmailSnippetsContract = InferRouteContract<typeof resyncModmailSnippetsRoute>;
+export type ResyncModmailSnippetsResult = ResyncModmailSnippetsContract['response'];
+
+type ResyncModmailPanelsContract = InferRouteContract<typeof resyncModmailPanelsRoute>;
+export type ResyncModmailPanelsResult = ResyncModmailPanelsContract['response'];
+
+export type ResyncFailure = ResyncModmailSnippetsResult['failures'][number];
 
 /**
- * #216 P6 -- reconciles snippet commands and panel messages against whichever application currently owns
- * `guildId`, for use after a custom-instance swap (see docs/roadmap/01-architecture.md §8). Panels/
- * snippets are refetched on success since a recreated command/reposted panel changes their `commandId`/
- * `messageId`, which the list views don't otherwise know to refresh.
+ * #216 P6, split per-surface in #331 -- these reconcile snippet commands (and panel messages, respectively)
+ * against whichever application currently owns `guildId`, for use after a custom-instance swap (see
+ * docs/roadmap/01-architecture.md §8). Each refetches only its own list on success, since a recreated
+ * command/reposted panel changes that row's `commandId`/`messageId` and the list views don't otherwise know
+ * to refresh.
  */
-export function useResyncModmail(guildId: string) {
+export function useResyncModmailSnippets(guildId: string) {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: async () => apiFetch<ResyncModmailResult>('post', `/v3/guilds/${guildId}/modmail/resync`, { body: {} }),
+		mutationFn: async () =>
+			apiFetch<ResyncModmailSnippetsResult>('post', `/v3/guilds/${guildId}/modmail/snippets/resync`, { body: {} }),
 		async onSuccess() {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: queryKeys.modmail.panels(guildId) }),
-				queryClient.invalidateQueries({ queryKey: queryKeys.modmail.snippets(guildId) }),
-			]);
+			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.snippets(guildId) });
+		},
+	});
+}
+
+export function useResyncModmailPanels(guildId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async () =>
+			apiFetch<ResyncModmailPanelsResult>('post', `/v3/guilds/${guildId}/modmail/panels/resync`, { body: {} }),
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.panels(guildId) });
 		},
 	});
 }
