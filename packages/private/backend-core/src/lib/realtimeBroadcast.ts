@@ -28,22 +28,44 @@ export interface RealtimeInvalidateMessage {
 }
 
 /**
- * Publishes an invalidate signal for a WS gateway channel (`@chatsift/core`'s `realtimeChannels.ts` builders).
- * Never throws -- a failed publish just means a connected dashboard misses a live refresh, not that the
- * mutation that triggered it (already committed by the time every call site reaches this) should be treated
+ * Publishes an invalidate signal for one or more WS gateway channels (`@chatsift/core`'s `realtimeChannels.ts`
+ * builders). Never throws -- a failed publish just means a connected dashboard misses a live refresh, not that
+ * the mutation that triggered it (already committed by the time every call site reaches this) should be treated
  * as failed, so this logs and swallows rather than propagating into the caller's own error handling.
  *
- * @param channel - The WS gateway channel to invalidate (`@chatsift/core`'s `realtimeChannels.ts` builders).
- * @param originClientId - See `RealtimeInvalidateMessage.originClientId`. Only ever set by
- * `services/api/src/core/server.ts` (read off the mutation request's `RealtimeClientIdHeader`) --
- * `services/ama-bot`'s call sites have no such header to read and always omit it.
+ * Several channels still go out as one message each -- the subscriber side (`services/api/src/ws/server.ts`)
+ * dispatches on a single `channel`, and a multi-channel message shape would buy nothing there. What the batch
+ * saves is the network: node-redis pipelines commands issued in the same tick, so `n` channels cost one round
+ * trip instead of `n` sequential ones. That matters because callers publish *after* their mutation has already
+ * committed, on the request's critical path.
+ *
+ * @param channels - The WS gateway channel(s) to invalidate. An empty array is a no-op.
+ * @param originClientId - See `RealtimeInvalidateMessage.originClientId`. Applied to every channel in the
+ * batch. Only ever set by `services/api/src/core/server.ts` (read off the mutation request's
+ * `RealtimeClientIdHeader`) -- `services/ama-bot`'s call sites have no such header to read and always omit it.
  */
-export async function publishRealtimeInvalidate(channel: string, originClientId?: string): Promise<void> {
-	const message: RealtimeInvalidateMessage = { type: 'invalidate', channel, ...(originClientId && { originClientId }) };
+export async function publishRealtimeInvalidate(channels: string[] | string, originClientId?: string): Promise<void> {
+	const list = typeof channels === 'string' ? [channels] : channels;
+	if (!list.length) {
+		return;
+	}
 
 	try {
-		await getContext().redis.publish(REALTIME_INVALIDATE_CHANNEL, JSON.stringify(message));
+		// One `Promise.all` rather than a loop of awaits so the publishes land in the same tick and get
+		// pipelined. A partial failure rejects here and is swallowed like any other -- the channels that did
+		// go out stay delivered, and the ones that didn't degrade to a stale tab, same as a total failure.
+		await Promise.all(
+			list.map(async (channel) => {
+				const message: RealtimeInvalidateMessage = {
+					type: 'invalidate',
+					channel,
+					...(originClientId && { originClientId }),
+				};
+
+				return getContext().redis.publish(REALTIME_INVALIDATE_CHANNEL, JSON.stringify(message));
+			}),
+		);
 	} catch (error) {
-		getContext().logger.warn({ err: error, channel }, 'failed to publish realtime invalidate signal');
+		getContext().logger.warn({ err: error, channels: list }, 'failed to publish realtime invalidate signal');
 	}
 }

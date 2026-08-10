@@ -6,6 +6,7 @@ import { getContext, verifyWsTicket, REALTIME_INVALIDATE_CHANNEL } from '@chatsi
 import type { RealtimeInvalidateMessage, WsTicketData } from '@chatsift/backend-core';
 import type { RawData, WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
+import { isAuthorizedForChannel } from './authorizeChannel.js';
 import { WsHub } from './hub.js';
 
 const WS_PATH = '/v3/ws';
@@ -85,20 +86,6 @@ function parseInvalidateMessage(raw: string): RealtimeInvalidateMessage | null {
 }
 
 /**
- * A channel is `<domain>:<guildId>:<...>` (see `@chatsift/core`'s `realtimeChannels.ts`) -- authorization only
- * ever needs the guild id, not the rest of the channel's shape, so this stays generic across every current and
- * future channel domain instead of each one needing its own authorization function.
- */
-function isAuthorizedForChannel(ticket: WsTicketData, channel: string): boolean {
-	const guildId = channel.split(':')[1];
-	if (!guildId) {
-		return false;
-	}
-
-	return ticket.isAdmin || ticket.adminGuilds.includes(guildId);
-}
-
-/**
  * Attaches a `ws` WebSocket server to the same `http.Server` polka's HTTP handling already listens on (polka is
  * a thin router over a plain `http.Server` -- see the architecture notes for how this was confirmed),
  * handling the `/v3/ws` upgrade path only and leaving every other upgrade request untouched.
@@ -156,7 +143,7 @@ export async function attachWebSocketServer(httpServer: Server): Promise<void> {
 			if (!isAuthorizedForChannel(ticket, message.channel)) {
 				logger.warn(
 					{ sub: ticket.sub, channel: message.channel },
-					'rejected channel subscribe: not a manager of this guild',
+					'rejected channel subscribe: ticket authorizes neither this channel nor its guild',
 				);
 				return;
 			}

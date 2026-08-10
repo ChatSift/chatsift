@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import type { RealtimeClient } from '@/api/ws';
 import { realtimeClient } from '@/api/ws';
 
 /**
@@ -8,8 +9,16 @@ import { realtimeClient } from '@/api/ws';
  * the component, re-running `onInvalidate` (a TanStack Query cache invalidation, typically) whenever the
  * server signals something on that channel changed. `onInvalidate` is read through a ref so callers don't need
  * to memoize it themselves.
+ *
+ * `client` defaults to the session-backed singleton, which is what every page under `/dashboard` wants. The
+ * public answers page passes its own share-token-backed client instead (`usePublicRealtimeClient`, #323) --
+ * it must be a stable reference across renders, since changing it re-runs the effect.
  */
-export function useRealtimeInvalidate(channel: string | undefined, onInvalidate: () => void): void {
+export function useRealtimeInvalidate(
+	channel: string | undefined,
+	onInvalidate: () => void,
+	client: RealtimeClient = realtimeClient,
+): void {
 	const onInvalidateRef = useRef(onInvalidate);
 	onInvalidateRef.current = onInvalidate;
 
@@ -18,6 +27,6 @@ export function useRealtimeInvalidate(channel: string | undefined, onInvalidate:
 			return undefined;
 		}
 
-		return realtimeClient.subscribe(channel, () => onInvalidateRef.current());
-	}, [channel]);
+		return client.subscribe(channel, () => onInvalidateRef.current());
+	}, [channel, client]);
 }

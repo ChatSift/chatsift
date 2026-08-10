@@ -4,11 +4,17 @@ import type { MeGuild } from '@/api/routes/auth';
 
 export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
+/**
+ * Most-configured servers first, then alphabetically.
+ *
+ * The name tiebreak isn't cosmetic (#321): this used to be `reverse().sort(byBotCount)`, and since `Array#sort`
+ * is stable, every equal-bot-count group silently fell back to reverse-`/me` order -- which puts AMA-guest-only
+ * guilds last, because `fetchMe` appends the ones the viewer isn't a Discord member of after everything else.
+ * Sorting on something intrinsic to the guild instead makes the order deterministic and independent of how the
+ * API happened to assemble the list.
+ */
 export const sortGuilds = (guilds: MeGuild[]) =>
-	guilds
-		.slice()
-		.reverse()
-		.sort((a, b) => b.bots.length - a.bots.length);
+	guilds.slice().sort((a, b) => b.bots.length - a.bots.length || a.name.localeCompare(b.name));
 
 export const getGuildAcronym = (guildName: string) =>
 	guildName

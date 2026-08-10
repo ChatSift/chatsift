@@ -204,18 +204,19 @@ export function mountRoute<
 			// throwing doesn't guarantee a successful response, and clients shouldn't be told to refetch
 			// off the back of a 4xx/5xx.
 			if (route.realtimeChannel && res.statusCode >= 200 && res.statusCode < 300) {
-				const channel = route.realtimeChannel(req);
-				if (channel) {
-					// Publishes over Redis rather than reaching into a local `WsHub` -- `services/ama-bot`'s
-					// interaction handlers publish the exact same way, so this process doesn't need to be the
-					// one a given browser socket is actually connected to for the signal to reach it.
-					//
+				const channels = route.realtimeChannel(req);
+				if (channels?.length) {
 					// The header (not the authenticated user's id) is what tags the signal with an origin -- see
 					// `RealtimeInvalidateMessage.originClientId`'s doc comment for why those two are different
 					// things and the user id can't be substituted here.
 					const originClientIdHeader = req.headers[RealtimeClientIdHeader.toLowerCase()];
 					const originClientId = Array.isArray(originClientIdHeader) ? originClientIdHeader[0] : originClientIdHeader;
-					await publishRealtimeInvalidate(channel, originClientId);
+
+					// Publishes over Redis rather than reaching into a local `WsHub` -- `services/ama-bot`'s
+					// interaction handlers publish the exact same way, so this process doesn't need to be the
+					// one a given browser socket is actually connected to for the signal to reach it. Multiple
+					// channels are handed over as a batch so they cost one round trip, not one each.
+					await publishRealtimeInvalidate(channels, originClientId);
 				}
 			}
 		} catch (error) {

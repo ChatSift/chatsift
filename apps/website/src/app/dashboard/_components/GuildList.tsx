@@ -57,14 +57,16 @@ export function GuildList() {
 		}
 
 		const filtered = visible.filter((entry) => entry.guild.name.toLowerCase().includes(lower));
-		// Managed servers first, then guest-only ones -- guest access is a much narrower thing (one or two
-		// sessions someone added you to) and shouldn't outrank a server you actually run. `sortGuilds` works on
-		// bare `MeGuild`s, so the tier flags are re-attached by id afterwards.
+		// One pass over everything, guest-only guilds included (#321). This used to sort managed servers and
+		// guest ones into separate buckets and concat them, which parked guest cards at the very end of a long
+		// list -- for someone who was invited specifically to answer an AMA, that's the one card they came for.
+		// Nothing is lost by interleaving: each card carries a `Guest` badge and the banner below explains them.
+		// `sortGuilds` works on bare `MeGuild`s, so the tier flags are re-attached by id afterwards.
 		const byId = new Map(filtered.map((entry) => [entry.guild.id, entry]));
-		return [
-			...sortGuilds(filtered.filter((entry) => entry.canManage).map((entry) => entry.guild)),
-			...sortGuilds(filtered.filter((entry) => !entry.canManage).map((entry) => entry.guild)),
-		].map((guild) => ({ guild, isAmaGuestOnly: byId.get(guild.id)!.isAmaGuestOnly }));
+		return sortGuilds(filtered.map((entry) => entry.guild)).map((guild) => ({
+			guild,
+			isAmaGuestOnly: byId.get(guild.id)!.isAmaGuestOnly,
+		}));
 	}, [visible, searchQuery]);
 
 	// `me` is only `undefined` while the query is still in flight — a resolved-but-logged-out `me` never reaches
