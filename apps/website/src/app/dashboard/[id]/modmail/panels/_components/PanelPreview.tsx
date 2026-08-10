@@ -132,10 +132,10 @@ export function PanelPreview(props: PanelPreviewProps) {
 
 	return (
 		<div className="rounded-md border border-on-secondary bg-[#313338] p-4 dark:border-on-secondary-dark">
-			<p className="mb-2 text-xs font-medium uppercase tracking-wide text-white/40">Panel preview</p>
+			<p className="mb-2 text-xs font-medium uppercase tracking-wide text-accent/40">Panel preview</p>
 
 			{error ? (
-				<p className="text-sm text-white/50">{error}</p>
+				<p className="text-sm text-accent/50">{error}</p>
 			) : (
 				<div className="space-y-2">
 					{content && (
@@ -168,7 +168,7 @@ export function PanelPreview(props: PanelPreviewProps) {
 										/>
 									) : (
 										<Button
-											className="h-fit p-0 text-xs text-white/50 underline hover:bg-transparent"
+											className="h-fit p-0 text-xs text-accent/50 underline hover:bg-transparent"
 											onPress={() => setPreviewedUrl(embed.imageUrl!)}
 										>
 											Show image preview
@@ -178,7 +178,7 @@ export function PanelPreview(props: PanelPreviewProps) {
 						</div>
 					)}
 
-					<button className="rounded bg-[#5865f2] px-4 py-1.5 text-sm font-medium text-white" disabled type="button">
+					<button className="rounded bg-[#5865f2] px-4 py-1.5 text-sm font-medium text-accent" disabled type="button">
 						{buttonLabel}
 					</button>
 				</div>

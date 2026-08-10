@@ -67,13 +67,13 @@ export function GrantCard({ guildId, grant }: GrantCardProps) {
 				{showConfirm ? (
 					<>
 						<Button onPress={handleRemove}>
-							<span className="text-red-500">Yes, remove</span>
+							<span className="text-misc-danger">Yes, remove</span>
 						</Button>
 						<Button onPress={() => setShowConfirm(false)}>Cancel</Button>
 					</>
 				) : (
 					<Button onPress={() => setShowConfirm(true)}>
-						<span className="text-red-500">Remove</span>
+						<span className="text-misc-danger">Remove</span>
 					</Button>
 				)}
 			</div>

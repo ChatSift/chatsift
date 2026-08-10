@@ -28,6 +28,7 @@ import sendAMAQuestionRoute from './routes/ama/questions/sendQuestion.js';
 import updateAMAQuestionRoute from './routes/ama/questions/updateQuestion.js';
 import repostPromptRoute from './routes/ama/repostPrompt.js';
 import createAMATagRoute from './routes/ama/tags/createTag.js';
+import deleteAMATagRoute from './routes/ama/tags/deleteTag.js';
 import listAMATagsRoute from './routes/ama/tags/listTags.js';
 import updateAMARoute from './routes/ama/updateAMA.js';
 import dashboardLinkRoute from './routes/auth/dashboardLink.js';
@@ -142,6 +143,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, publicAMAAnswersRoute);
 	mountRoute(app, listAMATagsRoute);
 	mountRoute(app, createAMATagRoute);
+	mountRoute(app, deleteAMATagRoute);
 	mountRoute(app, discordRoute);
 	mountRoute(app, dashboardLinkRoute);
 	mountRoute(app, discordCallbackRoute);

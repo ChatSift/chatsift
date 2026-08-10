@@ -15,7 +15,13 @@ const paramsSchema = z.object({
 		.transform((value) => value as AmaSessionsId),
 });
 
-export type ListTagsResult = AmaQuestionTags[];
+/**
+ * `count` is how many questions in this session currently carry the tag. It's here rather than only on
+ * `getAMAStats.ts`'s `byTag` because the Triage page's tag picker needs it without pulling the whole
+ * stats payload -- deleting a tag cascades its assignments away, so the confirm has to say how many
+ * questions that's about to affect.
+ */
+export type ListTagsResult = (AmaQuestionTags & { count: number })[];
 
 export default defineRoute({
 	method: 'get',
@@ -40,8 +46,19 @@ export default defineRoute({
 			throw notFound('ama session not found');
 		}
 
-		return db<AmaQuestionTags[]>`
-			SELECT * FROM ama_question_tags WHERE ama_id = ${amaId} ORDER BY name ASC
+		// LEFT JOIN, so a tag nobody has used yet reports 0 instead of dropping out of the list entirely
+		// (same aggregate `getAMAStats.ts` runs for `byTag`).
+		const tags = await db<(AmaQuestionTags & { count: string })[]>`
+			SELECT t.*, COUNT(ta.question_id) AS count
+			FROM ama_question_tags t
+			LEFT JOIN ama_question_tag_assignments ta ON ta.tag_id = t.id
+			WHERE t.ama_id = ${amaId}
+			GROUP BY t.id
+			ORDER BY t.name ASC
 		`;
+
+		// postgres.js hands COUNT back as a string -- bigint doesn't round-trip through JSON safely, so it
+		// never gets coerced for us.
+		return tags.map((tag) => ({ ...tag, count: Number(tag.count) }));
 	},
 });

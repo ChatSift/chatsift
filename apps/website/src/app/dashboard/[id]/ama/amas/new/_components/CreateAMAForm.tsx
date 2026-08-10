@@ -329,7 +329,7 @@ export function CreateAMAForm() {
 					value={formData.title}
 				/>
 				{duplicateChannelWarning && (
-					<p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
+					<p className="rounded-md border border-misc-warning/40 bg-misc-warning/10 px-3 py-2 text-sm text-misc-warning dark:text-misc-warning-dark">
 						{duplicateChannelWarning}
 					</p>
 				)}
@@ -379,7 +379,7 @@ export function CreateAMAForm() {
 								value={formData.queueId}
 							/>
 							{!formData.queueId && (
-								<p className="rounded-md border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm text-blue-600 dark:text-blue-400">
+								<p className="rounded-md border border-misc-accent/40 bg-misc-accent/10 px-3 py-2 text-sm text-misc-accent">
 									No channel picked - review will be managed entirely from the dashboard, with no Discord message posted
 									for it.
 								</p>

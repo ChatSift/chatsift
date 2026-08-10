@@ -61,6 +61,9 @@ export type AMATag = ListAMATagsContract['response'][number];
 
 type CreateAMATagContract = InferRouteContract<typeof createAMATagRoute>;
 export type CreateAMATagBody = CreateAMATagContract['body'];
+// Deliberately not `AMATag`: a freshly created tag has no `count` on it (nothing's assigned to it yet, and
+// `createTag.ts` doesn't compute one) -- only `listTags.ts` carries that.
+export type CreateAMATagResult = CreateAMATagContract['response'];
 
 type PublicAMAAnswersContract = InferRouteContract<typeof publicAMAAnswersRoute>;
 export type PublicAMAAnswersResult = PublicAMAAnswersContract['response'];
@@ -192,6 +195,11 @@ export function useAMAQuestion(guildId: string, amaId: string, questionId: numbe
  * Also invalidates `useAMA`'s own query (`ama.byId`), not just the question list/stats -- `getAMA.ts` computes
  * `questionCount` live off the same `ama_questions` table, and `AMADetails.tsx` renders it, so a question
  * being added/merged/removed has to refresh that cached session object too or it silently goes stale.
+ *
+ * `ama.tags` is in here for the same reason: tag create/delete publish on `amaQuestionsChannel` (there's
+ * no separate tag channel), so without it a tag someone else just deleted would linger in this viewer's
+ * picker and filter until a reload. It also keeps each tag's `count` honest -- `listTags.ts` returns one
+ * per tag, and every assignment change moves it.
  */
 export async function invalidateAMAQuestions(
 	queryClient: ReturnType<typeof useQueryClient>,
@@ -202,6 +210,7 @@ export async function invalidateAMAQuestions(
 		queryClient.invalidateQueries({ queryKey: queryKeys.ama.questions.all(guildId, amaId) }),
 		queryClient.invalidateQueries({ queryKey: queryKeys.ama.stats(guildId, amaId) }),
 		queryClient.invalidateQueries({ queryKey: queryKeys.ama.byId(guildId, amaId) }),
+		queryClient.invalidateQueries({ queryKey: queryKeys.ama.tags(guildId, amaId) }),
 	]);
 }
 
@@ -271,9 +280,25 @@ export function useCreateAMATag(guildId: string, amaId: string) {
 
 	return useMutation({
 		mutationFn: async (body: CreateAMATagBody) =>
-			apiFetch<AMATag>('post', `/v3/guilds/${guildId}/ama/amas/${amaId}/tags`, { body }),
+			apiFetch<CreateAMATagResult>('post', `/v3/guilds/${guildId}/ama/amas/${amaId}/tags`, { body }),
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.ama.tags(guildId, amaId) });
+		},
+	});
+}
+
+/**
+ * Deleting a tag cascades its assignments off every question that carried it, so this has to refresh the
+ * question/stats caches too, not just the tag list -- hence `invalidateAMAQuestions` on top of the tag
+ * key (which that helper covers, but spelling it out here would be redundant).
+ */
+export function useDeleteAMATag(guildId: string, amaId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (tagId: number) => apiFetch('delete', `/v3/guilds/${guildId}/ama/amas/${amaId}/tags/${tagId}`),
+		async onSuccess() {
+			await invalidateAMAQuestions(queryClient, guildId, amaId);
 		},
 	});
 }

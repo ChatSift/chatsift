@@ -26,7 +26,7 @@ export function PromptModeToggle({ mode, onModeChange }: PromptModeToggleProps) 
 					className={cn(
 						'rounded px-4 py-1.5 text-sm font-medium transition-colors',
 						mode === option.value
-							? 'bg-misc-accent text-white shadow-sm'
+							? 'bg-misc-accent text-accent shadow-sm'
 							: 'text-secondary hover:bg-on-secondary/50 dark:text-secondary-dark dark:hover:bg-on-secondary-dark/50',
 					)}
 					key={option.value}

@@ -36,8 +36,22 @@
 	--color-misc-accent: #2f8fee;
 	--color-misc-danger: #ff5052;
 
+	/* Warning (ModMail internal/staff-only messages, "heads up" banners) and system (automated ModMail
+	   messages). Both carry a `-dark` pair like the core colors above -- these are used as small text on
+	   the card background, where one shade can't stay legible in both themes. */
+	--color-misc-warning: #d97706;
+	--color-misc-warning-dark: #fbbf24;
+
+	--color-misc-system: #0284c7;
+	--color-misc-system-dark: #38bdf8;
+
 	--color-card: #ffffff;
 	--color-card-dark: #1c1c21;
+
+	/* Scrim behind a modal. Needed as a token because `--color-*: initial` above drops Tailwind's default
+	   palette, so `bg-black/60` and friends compile to nothing at all. Deliberately the same in both
+	   themes -- it dims whatever is behind it rather than tinting toward the theme. */
+	--color-overlay: #00000099;
 }
 
 body {

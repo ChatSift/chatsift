@@ -17,7 +17,7 @@ interface LinkButtonProps {
 export function LinkButton({ href, children, external = false, variant = 'primary', className }: LinkButtonProps) {
 	const classes = cn(
 		'inline-flex items-center justify-center gap-2 rounded-md px-5 py-2.5 text-lg font-medium whitespace-nowrap',
-		variant === 'primary' && 'bg-misc-accent text-white hover:opacity-90',
+		variant === 'primary' && 'bg-misc-accent text-accent hover:opacity-90',
 		variant === 'ghost' &&
 			'border border-on-secondary text-primary hover:bg-on-tertiary dark:border-on-secondary-dark dark:text-primary-dark dark:hover:bg-on-tertiary-dark',
 		className,

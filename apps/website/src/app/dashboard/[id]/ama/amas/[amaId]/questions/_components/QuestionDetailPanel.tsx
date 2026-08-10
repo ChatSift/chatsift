@@ -242,7 +242,7 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 						</div>
 					)}
 					<Button
-						className="h-9 bg-misc-accent px-3 text-sm text-white hover:opacity-90"
+						className="h-9 bg-misc-accent px-3 text-sm text-accent hover:opacity-90"
 						isDisabled={updateQuestion.isPending || sendQuestion.isPending}
 						onPress={handleSendAnswer}
 						type="button"
@@ -256,7 +256,7 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 				{canTriage && (
 					<>
 						<Button
-							className="h-9 bg-misc-accent px-3 text-sm text-white hover:opacity-90"
+							className="h-9 bg-misc-accent px-3 text-sm text-accent hover:opacity-90"
 							isDisabled={updateQuestion.isPending}
 							onPress={async () => runAction(async () => updateQuestion.mutateAsync({ state: 'APPROVED' }))}
 							type="button"
@@ -264,7 +264,7 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 							Approve
 						</Button>
 						<Button
-							className="h-9 bg-misc-danger px-3 text-sm text-white hover:opacity-90"
+							className="h-9 bg-misc-danger px-3 text-sm text-accent hover:opacity-90"
 							isDisabled={updateQuestion.isPending}
 							onPress={async () => runAction(async () => updateQuestion.mutateAsync({ state: 'DENIED' }))}
 							type="button"
