@@ -7,7 +7,7 @@ import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
-import { buildPublishEmbeds } from './util.js';
+import { buildQuestionEmbeds } from './util.js';
 
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
@@ -61,7 +61,7 @@ export default defineRoute({
 			throw badRequest(`cannot send a question in state ${question.state}; it must be APPROVED first`);
 		}
 
-		const embeds = await buildPublishEmbeds(guildId, question, session);
+		const embeds = await buildQuestionEmbeds(guildId, question, session);
 		const message = await discordAPIAma.channels.createMessage(session.answersChannelId, { embeds });
 
 		let sent: AmaQuestions | undefined;

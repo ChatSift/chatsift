@@ -8,7 +8,7 @@ import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
-import { buildPublishEmbeds } from './util.js';
+import { buildQuestionEmbeds } from './util.js';
 
 const stateModeSchema = z.strictObject({
 	state: z.enum(['APPROVED', 'DENIED']),
@@ -219,7 +219,7 @@ export default defineRoute({
 			return approved;
 		}
 
-		const embeds = await buildPublishEmbeds(guildId, question, session);
+		const embeds = await buildQuestionEmbeds(guildId, question, session);
 		const message = await discordAPIAma.channels.createMessage(session.answersChannelId, { embeds });
 
 		const [asked] = await db<AmaQuestions[]>`

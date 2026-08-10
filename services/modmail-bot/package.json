@@ -20,6 +20,7 @@
 	"dependencies": {
 		"@chatsift/backend-core": "workspace:^",
 		"@chatsift/bot-core": "workspace:^",
+		"@chatsift/core": "workspace:^",
 		"@chatsift/db": "workspace:^",
 		"@chatsift/parse-relative-time": "workspace:^",
 		"@discordjs/builders": "2.0.0-dev.1783513686-6e81ea771",

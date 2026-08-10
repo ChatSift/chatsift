@@ -2,7 +2,8 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import { collectModal } from '@chatsift/bot-core';
-import type { AmaQuestions } from '@chatsift/db';
+import { MERGE_TARGET_STATES } from '@chatsift/core';
+import type { AmaQuestions, AmaQuestionState } from '@chatsift/db';
 import type {
 	APIMessageComponentInteraction,
 	APIModalSubmitGuildInteraction,
@@ -12,11 +13,14 @@ import { ComponentType, MessageFlags, TextInputStyle } from '@discordjs/core';
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
 
-// Mirrors `services/api`'s own `MERGEABLE_STATES` -- only PENDING_REVIEW is mergeable (an APPROVED
-// question is already handed off for a guest to answer, DENIED/ASKED are resolved outcomes), so nothing
-// else should show up as a selectable search result to begin with. Exported for `markDuplicateSelect.ts`
-// to re-check at merge time, since a question's state can change between this search and that select.
-export const MERGEABLE_STATES = new Set(['PENDING_REVIEW']);
+// Phrased around what merging into that target actually does to it, rather than reusing the dashboard's
+// own state labels ("Guest Questions"/"Asked Questions") -- in the queue the consequence is what a mod
+// needs to weigh, and an ASKED target especially means editing a message the server has already seen.
+const TARGET_STATE_DESCRIPTIONS: Partial<Record<AmaQuestionState, string>> = {
+	PENDING_REVIEW: 'Still pending review',
+	APPROVED: 'Approved - a guest is answering it',
+	ASKED: 'Already posted publicly',
+};
 
 /**
  * Entry point for the duplicate-merge flow (#293 follow-up), available on the queue. Opens a modal to
@@ -92,10 +96,13 @@ export default class MarkDuplicateComponent implements ComponentHandler<string> 
 				return;
 			}
 
+			// Scoped to the states a question can actually absorb a duplicate in (#328) -- which since that
+			// issue includes APPROVED and ASKED, so a late duplicate can still be folded into a question a
+			// guest is already answering, or one that's already been posted.
 			const matches = await getContext().db<AmaQuestions[]>`
 				SELECT * FROM ama_questions
 				WHERE ama_id = ${question.amaId} AND id != ${question.id} AND content ILIKE ${`%${query}%`}
-					AND state = ANY(${[...MERGEABLE_STATES]})
+					AND state = ANY(${[...MERGE_TARGET_STATES]})
 				ORDER BY created_at DESC
 				LIMIT 25
 			`;
@@ -122,10 +129,17 @@ export default class MarkDuplicateComponent implements ComponentHandler<string> 
 									type: ComponentType.StringSelect,
 									custom_id: `mark-duplicate-select:${question.id}`,
 									placeholder: 'Select the original question',
-									options: matches.map((match) => ({
-										label: `#${match.id} - ${match.content.slice(0, 80)}`,
-										value: String(match.id),
-									})),
+									// The state is spelled out per option because targets are heterogeneous now (#328) --
+									// picking an ASKED one edits an already-public post, which a mod has no other way
+									// of telling apart from an ordinary pending question here.
+									options: matches.map((match) => {
+										const description = TARGET_STATE_DESCRIPTIONS[match.state];
+										return {
+											label: `#${match.id} - ${match.content.slice(0, 80)}`,
+											value: String(match.id),
+											...(description ? { description } : {}),
+										};
+									}),
 								},
 							],
 						},

@@ -1,4 +1,3 @@
-import type { AmaQuestionState } from '@chatsift/db';
 import { z } from 'zod';
 import { snowflakeSchema } from '../../util/schemas.js';
 
@@ -7,19 +6,11 @@ import { snowflakeSchema } from '../../util/schemas.js';
  * the `@chatsift/api/ama-schemas` package export (see `package.json`) so the dashboard validates against the exact
  * same rules the API enforces, without pulling the rest of this package (bcrypt, jsonwebtoken, discord.js REST,
  * route handlers, ...) into a client bundle.
+ *
+ * Note: the duplicate-merge state sets used to live here for the same "share it with the dashboard" reason, but
+ * `services/ama-bot` needs them too and doesn't depend on this package -- they're in `@chatsift/core`'s
+ * `amaMerge.ts` now, which all three consumers share.
  */
-
-// Only PENDING_REVIEW is mergeable -- once a question is APPROVED it's already handed off for a guest
-// to write and send an answer, so folding another question's askers into it at that point doesn't fit
-// the workflow anymore. ASKED means it's already publicly posted (its answers-channel message gets
-// deleted on merge), and DENIED is already a resolved outcome -- merging either away as "just a
-// duplicate", or merging a new asker into one, would silently undo a decision or mutate already-public
-// content. Shared between `services/api` (`mergeShared.ts`'s route-level validation) and `apps/website`
-// (the dashboard's merge pickers/selection UI) via this browser-safe module so both can never drift out
-// of sync.
-export const MERGEABLE_STATES: ReadonlySet<AmaQuestionState> = new Set([
-	'PENDING_REVIEW',
-] as readonly AmaQuestionState[]);
 
 const createAMABase = z.strictObject({
 	queueId: snowflakeSchema.nullable(),

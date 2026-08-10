@@ -1,9 +1,9 @@
 import type {
 	APIActionRowComponent,
-	APIAttachment,
 	APIButtonComponent,
 	APIEmbed,
 	APIGuildMember,
+	APIMessage,
 	APIMessageTopLevelComponent,
 	APIUser,
 } from 'discord-api-types/v10';
@@ -35,9 +35,24 @@ export enum CurrentlyInQueue {
 	answers,
 }
 
+/**
+ * All `getBaseEmbeds` ever needs off an attachment. Widened from `APIAttachment` so a caller
+ * re-rendering an existing message can hand over image urls recovered from that message's own embeds
+ * (see `resolveQuestionImageSources`) without fabricating the rest of an attachment payload --
+ * `message.attachments` still satisfies it structurally.
+ */
+export interface QuestionImageSource {
+	url: string;
+}
+
 interface GetBaseEmbedsOptions {
-	attachments: APIAttachment[];
+	attachments: QuestionImageSource[];
 	content: string;
+	/**
+	 * How many *other distinct people* asked this same question -- i.e. rows in `ama_question_askers`
+	 * for it, excluding the question's own author (#326). `0`/omitted renders nothing at all.
+	 */
+	extraAskerCount?: number | undefined;
 	guildId: string;
 	includeUserId?: boolean | undefined;
 	member?: APIGuildMember | undefined;
@@ -73,14 +88,15 @@ function resolveAvatarURL(
 /**
  * Builds the question embed(s) posted to the queue and the answers channel: author name+avatar line,
  * optional footer with the raw user ID for the queue where a reviewer needs to act on it, blurple
- * accent. Merged-duplicate askers are a dashboard-only detail (see `ama_question_askers`) -- the
- * Discord embed only ever shows this question's own author, never the merged-in ones. Multiple
- * attachments render as a Discord image gallery via the shared-`url` grouping trick (see
- * `GALLERY_ANCHOR_URL` above).
+ * accent. Merged-duplicate askers show up as a bare count (#326) -- who they are stays a dashboard-only
+ * detail (see `ama_question_askers`), since resolving every merged asker's name would cost a Discord
+ * user lookup each on a path that re-renders on every merge. Multiple attachments render as a Discord
+ * image gallery via the shared-`url` grouping trick (see `GALLERY_ANCHOR_URL` above).
  */
 export function getBaseEmbeds({
 	attachments,
 	content,
+	extraAskerCount = 0,
 	guildId,
 	includeUserId = false,
 	member,
@@ -100,6 +116,20 @@ export function getBaseEmbeds({
 		mainEmbed.footer = avatarURL
 			? { text: `${user.username} (${user.id})`, icon_url: avatarURL }
 			: { text: `${user.username} (${user.id})` };
+	}
+
+	// Set before the no-attachments early return below, not after -- otherwise the (common) attachment-less
+	// question silently loses the field. A field costs no embed slot, so this never affects the gallery
+	// splitting or `reserveEmbedSlots` maths further down. Phrased as people rather than merges: the
+	// underlying rows are unique per `(question_id, author_id)`, so the same person asking twice counts once.
+	if (extraAskerCount > 0) {
+		mainEmbed.fields = [
+			{
+				name: 'Also asked by',
+				value: extraAskerCount === 1 ? '1 other person' : `${extraAskerCount} other people`,
+				inline: false,
+			},
+		];
 	}
 
 	if (attachments.length === 0) {
@@ -157,6 +187,34 @@ export function getAnswerEmbed({
 	}
 
 	return embed;
+}
+
+/**
+ * Recovers a question's images from a message that's already live, for a re-render that has to keep
+ * them.
+ *
+ * Needed because a question's images are only ever *uploaded* once, onto whichever message was posted
+ * first (the queue message, or the answers message for a session with review disabled). Everything
+ * posted afterwards just points its embeds at those same CDN urls -- in particular the answers-channel
+ * message is created with `{ embeds }` and no files at all, so its own `attachments` array is empty and
+ * re-deriving images from it would silently drop them (which is exactly what happens if you rebuild an
+ * `ASKED` question's embeds from `message.attachments`).
+ *
+ * Prefers real attachments when the message has them, and otherwise reads the urls back out of the
+ * embeds. `hasAnswerEmbed` drops the trailing answer embed, whose image is the prepared answer's own
+ * (`getAnswerEmbed` rebuilds it from `answer_image_url`) rather than part of the question -- the
+ * inverse of how `buildQuestionEmbeds`/`markDuplicateSelect` append it.
+ */
+export function resolveQuestionImageSources(
+	message: Pick<APIMessage, 'attachments' | 'embeds'>,
+	hasAnswerEmbed: boolean,
+): QuestionImageSource[] {
+	if (message.attachments.length > 0) {
+		return message.attachments;
+	}
+
+	const questionEmbeds = hasAnswerEmbed ? message.embeds.slice(0, -1) : message.embeds;
+	return questionEmbeds.flatMap((embed) => (embed.image ? [{ url: embed.image.url }] : []));
 }
 
 export function createButtonActionRow(buttons: APIButtonComponent[]): APIActionRowComponent<APIButtonComponent> {

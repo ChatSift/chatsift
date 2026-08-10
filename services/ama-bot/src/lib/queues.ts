@@ -51,6 +51,11 @@ export async function claimAfterPost<TRow>(
 interface PostToQueueOptions {
 	attachments: APIAttachment[];
 	content: string;
+	/**
+	 * Merged-duplicate askers (#326) -- omitted for a question being posted for the first time, which by
+	 * definition has none yet. See `lib/askers.ts`.
+	 */
+	extraAskerCount?: number | undefined;
 	logger: Logger;
 	member?: APIGuildMember | undefined;
 	question: AmaQuestions;
@@ -65,6 +70,7 @@ interface PostToQueueOptions {
 export async function postToQueue({
 	attachments,
 	content,
+	extraAskerCount,
 	logger,
 	member,
 	question,
@@ -78,6 +84,7 @@ export async function postToQueue({
 	const embeds = getBaseEmbeds({
 		attachments,
 		content,
+		extraAskerCount,
 		guildId: session.guildId,
 		member,
 		user,
@@ -122,6 +129,11 @@ export async function postToQueue({
 interface PostToAnswersChannelOptions {
 	attachments: APIAttachment[];
 	content: string;
+	/**
+	 * Merged-duplicate askers (#326) -- unlike the queue's, this one is worth passing: a question can
+	 * collect duplicates while it sits in review and only then get approved straight through to here.
+	 */
+	extraAskerCount?: number | undefined;
 	logger: Logger;
 	member?: APIGuildMember | undefined;
 	question: AmaQuestions;
@@ -135,6 +147,7 @@ interface PostToAnswersChannelOptions {
 export async function postToAnswersChannel({
 	attachments,
 	content,
+	extraAskerCount,
 	logger,
 	member,
 	question,
@@ -144,6 +157,7 @@ export async function postToAnswersChannel({
 	const embeds = getBaseEmbeds({
 		attachments,
 		content,
+		extraAskerCount,
 		guildId: session.guildId,
 		member,
 		user,

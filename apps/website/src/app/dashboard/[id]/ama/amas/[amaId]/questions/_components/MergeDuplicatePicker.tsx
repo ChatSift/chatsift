@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useDebounceValue } from 'usehooks-ts';
 import { AuthorAvatar } from './AuthorAvatar';
+import { DEFAULT_STATE_CHIP_CLASS, MERGE_TARGET_STATES_PARAM, STATE_CHIP_CLASSES, STATE_LABELS } from './questionState';
 import { userLabel } from './userLabel';
 import { useAMAQuestions, useMergeAMAQuestion } from '@/api/routes/ama';
 import { Button } from '@/components/common/Button';
@@ -31,8 +32,12 @@ export function MergeDuplicatePicker({ questionId, onClose, onMerged, onMergingC
 	const mergeQuestion = useMergeAMAQuestion(guildId, amaId, questionId);
 
 	const isSearching = debouncedQuery.trim().length > 0;
+	// Scoped to the states a question can actually absorb a duplicate in (see `MERGE_TARGET_STATES_PARAM`).
+	// Without it this list offered every question in the AMA and the API rejected the ineligible ones with a
+	// 400 banner after the click (#328) -- and DENIED questions, which can never be a target, were offered too.
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useAMAQuestions(guildId, amaId, {
 		q: debouncedQuery || undefined,
+		states: MERGE_TARGET_STATES_PARAM,
 	});
 	const allMatches = (data?.pages.flatMap((page) => page.questions) ?? []).filter((q) => q.id !== questionId);
 	// With no search typed yet, default to the most recent few questions (already in memory, already
@@ -97,6 +102,13 @@ export function MergeDuplicatePicker({ questionId, onClose, onMerged, onMergingC
 								<div className="mt-1 flex items-center gap-1.5">
 									<AuthorAvatar className="h-4 w-4 rounded-full" user={match.author} />
 									<p className="text-xs text-secondary dark:text-secondary-dark">{userLabel(match.author)}</p>
+									{/* Targets aren't all pending any more (#328) -- merging into an already-asked question
+									edits a message the server has already seen, which is worth knowing before clicking. */}
+									<span
+										className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATE_CHIP_CLASSES[match.state] ?? DEFAULT_STATE_CHIP_CLASS}`}
+									>
+										{STATE_LABELS[match.state] ?? match.state}
+									</span>
 								</div>
 							</div>
 							<Button

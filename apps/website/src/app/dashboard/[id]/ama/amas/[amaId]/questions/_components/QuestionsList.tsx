@@ -1,6 +1,6 @@
 'use client';
 
-import { amaQuestionsChannel } from '@chatsift/core';
+import { amaQuestionsChannel, MERGE_SOURCE_STATES } from '@chatsift/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -9,7 +9,7 @@ import { BulkMergePicker } from './BulkMergePicker';
 import { QuestionDetailPanel } from './QuestionDetailPanel';
 import { useQuestionStateFilter } from './QuestionStateTabs';
 import { useTagFilter } from './QuestionTagFilter';
-import { MERGEABLE_STATES } from './mergeableStates';
+import { DEFAULT_STATE_CHIP_CLASS, STATE_CHIP_CLASSES, STATE_LABELS } from './questionState';
 import { userLabel } from './userLabel';
 import type { AMAQuestionListItem } from '@/api/routes/ama';
 import { invalidateAMAQuestions, useAMAQuestions } from '@/api/routes/ama';
@@ -26,23 +26,6 @@ const ROW_PREVIEW_LENGTH = 160;
 function previewContent(content: string): string {
 	return content.length > ROW_PREVIEW_LENGTH ? `${content.slice(0, ROW_PREVIEW_LENGTH).trimEnd()}…` : content;
 }
-
-const STATE_LABELS: Record<string, string> = {
-	PENDING_REVIEW: 'Pending Review',
-	APPROVED: 'Guest Questions',
-	ASKED: 'Asked Questions',
-	DENIED: 'Denied',
-};
-
-// Mirrors `questionStateTiles.ts`'s valence (neutral/good/bad) so a state means the same thing everywhere
-// in the AMA dashboard -- a flat single color across all states (the original version of this chip) made
-// "Denied" look identical to "Asked", which reads as a mistake, not a status.
-const STATE_CHIP_CLASSES: Record<string, string> = {
-	PENDING_REVIEW: 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark',
-	APPROVED: 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark',
-	ASKED: 'bg-misc-accent/10 text-misc-accent',
-	DENIED: 'bg-misc-danger/10 text-misc-danger',
-};
 
 function useAuthorFilter(): string | undefined {
 	const [authorParam] = useURLParam('author');
@@ -70,7 +53,7 @@ function QuestionRow({ isExpanded, isSelected, onToggle, onToggleSelect, questio
 		DENIED: 'denied',
 	};
 
-	const canSelect = MERGEABLE_STATES.has(question.state);
+	const canSelect = MERGE_SOURCE_STATES.has(question.state);
 
 	return (
 		<div className="rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
@@ -122,7 +105,7 @@ function QuestionRow({ isExpanded, isSelected, onToggle, onToggleSelect, questio
 						</Button>
 					))}
 					<Button
-						className={`h-auto rounded-full px-2.5 py-1 text-xs font-medium hover:opacity-80 ${STATE_CHIP_CLASSES[question.state] ?? 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark'}`}
+						className={`h-auto rounded-full px-2.5 py-1 text-xs font-medium hover:opacity-80 ${STATE_CHIP_CLASSES[question.state] ?? DEFAULT_STATE_CHIP_CLASS}`}
 						onPress={() => setTabParam(stateToTab[question.state] ?? null)}
 					>
 						{STATE_LABELS[question.state] ?? question.state}

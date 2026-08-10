@@ -132,9 +132,11 @@ CREATE TABLE ama_questions (
 CREATE INDEX ama_questions_ama_id_idx ON ama_questions (ama_id);
 
 -- Duplicate-merge target (#293 follow-up): merging question A into B deletes A and adds an
--- `ama_question_askers` row for B recording A's author. B's own `author_id` is never duplicated in
--- here -- only merged-in askers. The live Discord embed only ever shows B's own author now (merged
--- askers are a dashboard-only detail, not rendered in Discord); `content` preserves A's original
+-- `ama_question_askers` row for B recording A's author. B's own `author_id` *can* land in here when
+-- someone asks twice and both of their questions get merged together, so anything counting "other
+-- people who asked this" has to filter it back out (see `countExtraAskers`). The live Discord embed
+-- shows a bare count of those askers (#326) and never their names -- who they are stays a
+-- dashboard-only detail; `content` preserves A's original
 -- question text for the dashboard's merged-duplicate display, snapshotted at merge time since the
 -- row it came from is deleted. Nullable, and deliberately never backfilled for rows merged before
 -- this column existed -- that content was already destroyed by the delete, unrecoverably.

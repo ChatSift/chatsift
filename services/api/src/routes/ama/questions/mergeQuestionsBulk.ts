@@ -1,12 +1,12 @@
 import { getContext } from '@chatsift/backend-core';
-import { amaQuestionsChannel } from '@chatsift/core';
+import { amaQuestionsChannel, MERGE_SOURCE_STATES, MERGE_TARGET_STATES } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { badRequest, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
-import { MERGEABLE_STATES, mergeDuplicatesIntoOriginal } from './mergeShared.js';
+import { mergeDuplicatesIntoOriginal } from './mergeShared.js';
 
 // Caps roughly matching the dashboard's own bulk-selection UI (`QuestionsList.tsx`'s "Select
 // Duplicates" mode) -- there's no realistic case for merging hundreds of questions in one request.
@@ -72,10 +72,8 @@ export default defineRoute({
 			throw notFound('the target question was not found in this AMA');
 		}
 
-		// The target has to still be PENDING_REVIEW too -- merging new askers into an already
-		// APPROVED/DENIED/ASKED question would either hand a guest a surprise extra asker after the fact,
-		// silently resurrect a resolved decision, or (for ASKED) mutate already-public content.
-		if (!MERGEABLE_STATES.has(original.state)) {
+		// The target's bar is lower than the duplicates' (#328) -- see `mergeQuestion.ts` for why.
+		if (!MERGE_TARGET_STATES.has(original.state)) {
 			throw badRequest(`cannot merge into a question in state ${original.state}`);
 		}
 
@@ -87,7 +85,7 @@ export default defineRoute({
 			throw notFound('one or more selected questions were not found in this AMA');
 		}
 
-		const unmergeable = duplicates.filter((duplicate) => !MERGEABLE_STATES.has(duplicate.state));
+		const unmergeable = duplicates.filter((duplicate) => !MERGE_SOURCE_STATES.has(duplicate.state));
 		if (unmergeable.length > 0) {
 			throw badRequest(
 				`cannot merge away question(s) #${unmergeable.map((question) => question.id).join(', #')} -- ` +
@@ -95,8 +93,6 @@ export default defineRoute({
 			);
 		}
 
-		await mergeDuplicatesIntoOriginal(guildId, session, original, duplicates);
-
-		return original;
+		return mergeDuplicatesIntoOriginal(guildId, session, original, duplicates);
 	},
 });

@@ -6,6 +6,7 @@ import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
+import { countExtraAskers } from '../lib/askers.js';
 import { postToAnswersChannel } from '../lib/queues.js';
 
 export default class ModApproveComponent implements ComponentHandler<string> {
@@ -91,9 +92,13 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 					return;
 				}
 			} else {
+				// Duplicates can have been merged into this question while it sat in the queue, and this branch
+				// posts it publicly without ever going through `buildQuestionEmbeds` -- so the count has to be
+				// read here or the answers-channel post is the one place it silently goes missing (#326).
 				const msg = await postToAnswersChannel({
 					attachments,
 					content: question.content,
+					extraAskerCount: await countExtraAskers(getContext().db, question),
 					logger,
 					member,
 					question,
