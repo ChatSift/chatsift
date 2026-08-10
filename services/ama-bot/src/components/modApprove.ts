@@ -108,7 +108,7 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 
 				const [claimed] = await getContext().db<AmaQuestions[]>`
 					UPDATE ama_questions
-					SET state = 'ASKED', answers_message_id = ${msg.id}, updated_at = now()
+					SET state = 'ASKED', answers_message_id = ${msg.id}, asked_at = now(), updated_at = now()
 					WHERE id = ${question.id} AND state = 'PENDING_REVIEW'
 					RETURNING *
 				`;

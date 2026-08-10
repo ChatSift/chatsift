@@ -116,9 +116,11 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		// Review's stage existence is keyed off `reviewEnabled`, not queue-channel truthiness -- it can be
 		// dashboard-only (no Discord channel configured for it), see #293 follow-up / schema.sql.
 		const state = ama.reviewEnabled ? 'PENDING_REVIEW' : ama.preparedAnswersEnabled ? 'APPROVED' : 'ASKED';
+		// The only path that reaches 'ASKED' without an UPDATE, so `asked_at` is set right here rather than
+		// alongside `answers_message_id` further down -- the row is already in its final state on insert.
 		const [question] = await getContext().db<AmaQuestions[]>`
-			INSERT INTO ama_questions (ama_id, author_id, content, state)
-			VALUES (${ama.id}, ${interaction.member.user.id}, ${questionText}, ${state})
+			INSERT INTO ama_questions (ama_id, author_id, content, state, asked_at)
+			VALUES (${ama.id}, ${interaction.member.user.id}, ${questionText}, ${state}, ${state === 'ASKED' ? new Date() : null})
 			RETURNING *
 		`;
 

@@ -1,14 +1,20 @@
 import { getContext } from '@chatsift/backend-core';
-import { amaPublicAnswersChannel, amaQuestionsChannel, withResolvedActionRow } from '@chatsift/core';
+import {
+	amaPublicAnswersChannel,
+	amaQuestionsChannel,
+	resolveEmbedsForEdit,
+	withResolvedActionRow,
+} from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
-import { badRequest, conflict, notFound } from '@hapi/boom';
+import { badGateway, badRequest, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../../util/discordAPI.js';
+import { isNotFoundDiscordError } from '../../../util/discordErrors.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
-import { buildQuestionEmbeds } from './util.js';
+import { buildQuestionEmbeds, resolveCurrentQueueMessage } from './util.js';
 
 const stateModeSchema = z.strictObject({
 	state: z.enum(['APPROVED', 'DENIED']),
@@ -89,7 +95,8 @@ export default defineRoute({
 		isGuildManager: 'or-ama-guest',
 	}),
 	// Two audiences: the dashboard's question list, and the public answers page (#323) -- the direct-approve
-	// branch below can post straight to the answers channel, which is what that page mirrors.
+	// branch below can post straight to the answers channel, which is what that page mirrors, and since #327
+	// the answer branch can edit a question that's already on it.
 	realtimeChannel: (req) => [
 		amaQuestionsChannel(req.params.guildId, req.params.amaId),
 		amaPublicAnswersChannel(req.params.amaId),
@@ -131,12 +138,6 @@ export default defineRoute({
 		}
 
 		if (!('state' in data)) {
-			// Once sent, the answer already went out in the Discord message as-is -- editing it here
-			// afterward would silently diverge from what was actually posted.
-			if (question.state === 'ASKED') {
-				throw badRequest('cannot edit the answer after the question has been sent');
-			}
-
 			// Once a guest list is configured for this AMA, "answered by" must be one of those guests --
 			// no more freeform ids.
 			if (data.answeredById && session.guestIds.length > 0 && !session.guestIds.includes(data.answeredById)) {
@@ -158,13 +159,56 @@ export default defineRoute({
 			// which doesn't accept `undefined` as an interpolated value.
 			const answerContent = 'answerContent' in data ? (data.answerContent ?? null) : question.answerContent;
 			const answerImageUrl = 'answerImageUrl' in data ? (data.answerImageUrl ?? null) : question.answerImageUrl;
+			// The second half of the same default: `answeredById` above can still resolve to null (field
+			// omitted on a question that never had one), and this column is never stored null. Resolved once,
+			// here, so the embed rendered below and the row written further down can't disagree about who
+			// answered -- projecting the un-defaulted value would footer the Discord embed "Unknown User".
+			const effectiveAnsweredById = answeredById ?? req.tokens.access.sub;
+
+			// Editing an answer that already went out (#327) has to reach the message it went out in, or the
+			// dashboard and the public answers page would start showing something Discord doesn't. Deliberately
+			// *not* best-effort the way `mergeShared.ts`' own re-render is: there the merge had already
+			// committed and a failed refresh was cosmetic, whereas here the Discord edit *is* the change, so it
+			// runs first and a failure leaves nothing written at all.
+			if (question.state === 'ASKED') {
+				const currentMessage = resolveCurrentQueueMessage(question, session);
+
+				// No live message to keep in sync (an 'ASKED' row whose post never landed, e.g. the send failed
+				// after claiming the state) -- nothing to edit, so just save.
+				if (currentMessage) {
+					try {
+						// The row as it's *about to be* written -- the embed has to show the incoming answer, not
+						// the stored one. Inside the try alongside the edit itself: composing these embeds reads
+						// the live message back for its attachments, so it's the same "couldn't reach Discord"
+						// failure and deserves the same answer.
+						const projected: AmaQuestions = {
+							...question,
+							answerContent,
+							answerImageUrl,
+							answeredById: effectiveAnsweredById,
+						};
+						const embeds = await buildQuestionEmbeds(guildId, projected, session, { kind: currentMessage.kind });
+						// `resolveEmbedsForEdit` because the question's image urls were read back off the live
+						// message -- resending them resolved on a PATCH renders each image twice (see its doc comment).
+						await discordAPIAma.channels.editMessage(currentMessage.channelId, currentMessage.messageId, {
+							embeds: resolveEmbedsForEdit(embeds),
+						});
+					} catch (error) {
+						// A deleted message is the one tolerable failure: there's no longer anything to diverge
+						// from, and refusing the edit would strand the answer as uneditable forever.
+						if (!isNotFoundDiscordError(error)) {
+							throw badGateway('failed to update the posted Discord message; no changes were saved');
+						}
+					}
+				}
+			}
 
 			const [updated] = await db<AmaQuestions[]>`
 				UPDATE ama_questions
 				SET
 					answer_content = ${answerContent},
 					answer_image_url = ${answerImageUrl},
-					answered_by_id = ${answeredById ?? req.tokens.access.sub},
+					answered_by_id = ${effectiveAnsweredById},
 					answered_at = now(),
 					updated_at = now()
 				WHERE id = ${questionId}
@@ -229,7 +273,7 @@ export default defineRoute({
 
 		const [asked] = await db<AmaQuestions[]>`
 			UPDATE ama_questions
-			SET state = 'ASKED', answers_message_id = ${message.id}, updated_at = now()
+			SET state = 'ASKED', answers_message_id = ${message.id}, asked_at = now(), updated_at = now()
 			WHERE id = ${questionId} AND state = 'PENDING_REVIEW'
 			RETURNING *
 		`;

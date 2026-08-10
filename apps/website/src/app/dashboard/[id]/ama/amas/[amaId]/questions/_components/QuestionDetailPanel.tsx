@@ -11,6 +11,7 @@ import { userLabel } from './userLabel';
 import { APIError } from '@/api/error';
 import { useAMA, useAMAQuestion, useSendAMAQuestion, useUpdateAMAQuestion } from '@/api/routes/ama';
 import { Button } from '@/components/common/Button';
+import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { Skeleton } from '@/components/common/Skeleton';
 import { cn, formatDate } from '@/utils/util';
 
@@ -39,6 +40,7 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 	const [answeredById, setAnsweredById] = useState('');
 	const [error, setError] = useState<string | null>(null);
 	const [showMerge, setShowMerge] = useState(false);
+	const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
 	useEffect(() => {
 		if (question) {
@@ -63,27 +65,41 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 
 	const canTriage = ACTIONABLE_STATES.has(question.state);
 	const canMerge = MERGE_SOURCE_STATES.has(question.state);
-	// The answer editor only ever shows up for a question that's actually awaiting a prepared answer --
-	// once sent, editing it here would just be silently lying to whoever's looking at the dashboard (the
-	// Discord message already went out as-is), and every other state either hasn't been approved yet or
-	// never had one to begin with. A sent question with an answer gets a read-only view instead, below.
-	const showAnswerEditor = question.state === 'APPROVED';
-	const showSentAnswer =
-		question.state === 'ASKED' && (Boolean(question.answerContent) || Boolean(question.answerImageUrl));
+	// The answer editor shows for a question awaiting a prepared answer, and (since #327) for one that's
+	// already been sent -- editing there rewrites the live Discord message rather than diverging from it,
+	// so the dashboard isn't claiming anything the answers channel doesn't also say. PENDING_REVIEW and
+	// DENIED get nothing: neither is "pending to be posted", and DENIED never had an answer to begin with.
+	const isSent = question.state === 'ASKED';
+	const showAnswerEditor = question.state === 'APPROVED' || isSent;
 	const answeredByUser = question.answeredById
 		? (ama?.guests.find((guest) => (typeof guest === 'string' ? guest : guest.id) === question.answeredById) ??
 			question.answeredById)
 		: null;
+	// Whether the recorded answerer is someone the picker below can actually represent. They often aren't:
+	// picking "Default (you)" stores the acting dashboard user's id, and a sent question always has one
+	// recorded -- so a plain moderator ends up in this column routinely, as does a guest who's since been
+	// removed from the AMA.
+	const isAnsweredByGuest = Boolean(
+		question.answeredById &&
+		ama?.guests.some((guest) => (typeof guest === 'string' ? guest : guest.id) === question.answeredById),
+	);
+
+	// Empty means "no prepared answer" -- the API rejects an empty string outright (min length 1), so that
+	// has to be `null`, not `''`. Shared by Save and Send so the two can't drift on that.
+	const saveAnswer = async () =>
+		updateQuestion.mutateAsync({
+			answerContent: answerContent.trim() || null,
+			answerImageUrl: answerImageUrl.trim() || null,
+			// Sent only when it actually changed. The route reads a missing key as "leave as-is" (that
+			// distinction is load-bearing there), and echoing the untouched value back would 400 whenever the
+			// recorded answerer isn't one of the configured guests -- see `isAnsweredByGuest`, which is the
+			// common case for anything already sent.
+			...(answeredById === (question.answeredById ?? '') ? {} : { answeredById: answeredById || null }),
+		});
 
 	const handleSendAnswer = async () =>
 		runAction(async () => {
-			await updateQuestion.mutateAsync({
-				// Empty means "no prepared answer" -- the API rejects an empty string outright (min length
-				// 1), so that has to be `null`, not `''`.
-				answerContent: answerContent.trim() || null,
-				answerImageUrl: answerImageUrl.trim() || null,
-				answeredById: answeredById || null,
-			});
+			await saveAnswer();
 			await sendQuestion.mutateAsync();
 		});
 
@@ -144,30 +160,24 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 				/>
 			</div>
 
-			{showSentAnswer && (
+			{showAnswerEditor && (
 				<div className="space-y-2">
 					<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Answer</p>
-					{question.answerContent && (
-						<p className="whitespace-pre-wrap wrap-break-word rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark">
-							{question.answerContent}
+					{isSent && (
+						<p className="text-xs text-secondary dark:text-secondary-dark">
+							Already sent — saving edits the message that&apos;s live in the answers channel, and the public answers
+							page.
 						</p>
 					)}
-					{question.answerImageUrl && (
-						// eslint-disable-next-line @next/next/no-img-element
-						<img alt="" className="max-h-64 max-w-full rounded-md" src={question.answerImageUrl} />
-					)}
-					{answeredByUser && (
+					{/* Who's currently recorded as the answerer, shown whenever the picker below can't show it
+					itself -- either because there are no guests (so it doesn't render) or because whoever
+					answered isn't one of them (so it renders with nothing selected). */}
+					{answeredByUser && !isAnsweredByGuest && (
 						<div className="flex items-center gap-2">
 							<AuthorAvatar className="h-5 w-5 rounded-full" user={answeredByUser} />
 							<p className="text-xs text-secondary dark:text-secondary-dark">Answered by {userLabel(answeredByUser)}</p>
 						</div>
 					)}
-				</div>
-			)}
-
-			{showAnswerEditor && (
-				<div className="space-y-2">
-					<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Answer</p>
 					<textarea
 						className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary focus:border-misc-accent focus:outline-none disabled:opacity-50 dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
 						maxLength={4_000}
@@ -241,16 +251,54 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 							</div>
 						</div>
 					)}
-					<Button
-						className="h-9 bg-misc-accent px-3 text-sm text-accent hover:opacity-90"
-						isDisabled={updateQuestion.isPending || sendQuestion.isPending}
-						onPress={handleSendAnswer}
-						type="button"
-					>
-						Send
-					</Button>
+					<div className="flex flex-wrap gap-2">
+						<Button
+							className={cn(
+								'h-9 px-3 text-sm',
+								isSent
+									? 'bg-misc-accent text-accent hover:opacity-90'
+									: 'border border-on-secondary dark:border-on-secondary-dark',
+							)}
+							isDisabled={updateQuestion.isPending || sendQuestion.isPending}
+							// A sent question's edit is confirmed first -- it rewrites something already public in
+							// two places. Nothing to confirm before it's sent: that answer is still a draft.
+							onPress={async () => (isSent ? setShowSaveConfirm(true) : runAction(saveAnswer))}
+							type="button"
+						>
+							{isSent ? 'Save changes' : 'Save Answer'}
+						</Button>
+						{!isSent && (
+							<Button
+								className="h-9 bg-misc-accent px-3 text-sm text-accent hover:opacity-90"
+								isDisabled={updateQuestion.isPending || sendQuestion.isPending}
+								onPress={handleSendAnswer}
+								type="button"
+							>
+								Send
+							</Button>
+						)}
+					</div>
 				</div>
 			)}
+
+			{/* Mounted outside the editor block rather than next to its button, so it survives anything that
+			could unmount that subtree mid-action -- same reasoning as `TagPicker`'s own confirm. */}
+			<ConfirmModal
+				confirmLabel="Save changes"
+				isOpen={showSaveConfirm}
+				// Raw, not wrapped in `runAction`: this is the one place the panel *wants* a rejection to
+				// propagate. `ConfirmModal` only closes once `onConfirm` resolves, so a failed edit (the API
+				// refuses to save anything it couldn't push to Discord) leaves the dialog up with `Button`'s
+				// error banner over it, rather than closing onto an inline message the modal was covering.
+				onConfirm={async () => void (await saveAnswer())}
+				onOpenChange={setShowSaveConfirm}
+				title="Edit a sent answer?"
+			>
+				<p>
+					This question has already been sent. Saving rewrites the existing message in the answers channel and updates
+					the public answers page - anyone who already read it will see the new text.
+				</p>
+			</ConfirmModal>
 
 			<div className="flex flex-wrap gap-2">
 				{canTriage && (

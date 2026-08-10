@@ -118,7 +118,12 @@ export default defineRoute({
 				answerContent: question.answerContent,
 				answerImageUrl: question.answerImageUrl,
 				answeredBy: answeredByResolved ? toPublicUserInfo(answeredByResolved) : null,
-				askedAt: question.updatedAt,
+				// `asked_at`, not `updated_at`: since #327 an already-sent answer can still be edited, and
+				// every such edit bumps `updated_at` -- reading it here would move a months-old question's
+				// displayed date to whenever someone last fixed a typo in its answer. The `??` only covers
+				// rows the migration's backfill left null (there shouldn't be any -- it filled every 'ASKED'
+				// row, which is all this route selects -- but the column is nullable, so it has to narrow).
+				askedAt: question.askedAt ?? question.updatedAt,
 				author: toPublicUserInfo(resolvedById.get(question.authorId)!),
 				content: question.content,
 				id: question.id,

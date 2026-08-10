@@ -73,7 +73,7 @@ export default defineRoute({
 		try {
 			[sent] = await db<AmaQuestions[]>`
 				UPDATE ama_questions
-				SET state = 'ASKED', answers_message_id = ${message.id}, updated_at = now()
+				SET state = 'ASKED', answers_message_id = ${message.id}, asked_at = now(), updated_at = now()
 				WHERE id = ${questionId} AND state = 'APPROVED'
 				RETURNING *
 			`;
