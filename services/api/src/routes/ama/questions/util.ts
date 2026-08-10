@@ -1,7 +1,8 @@
 import { getContext } from '@chatsift/backend-core';
-import { getAnswerEmbed, getBaseEmbeds } from '@chatsift/core';
+import type { QuestionImageSource } from '@chatsift/core';
+import { getAnswerEmbed, getBaseEmbeds, resolveQuestionImageSources } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions, Database, DatabaseTransaction } from '@chatsift/db';
-import type { APIAttachment, APIEmbed, APIGuildMember, APIUser, Snowflake } from '@discordjs/core';
+import type { APIEmbed, APIGuildMember, APIUser, Snowflake } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { apiForGuild, discordAPIAma } from '../../../util/discordAPI.js';
@@ -66,23 +67,32 @@ export function resolveCurrentQueueMessage(question: AmaQuestions, session: AmaS
 /**
  * A question's attachments aren't persisted on its own row (see `services/ama-bot`'s `lib/queues.ts`
  * doc comments) -- the bot always carries them forward off the interaction's source message instead.
- * From the API side there's no interaction to read them off, so this fetches the question's current
- * live message (if any) and reads its attachments back from Discord. A dash-only-held question with
- * no live message at all has no recoverable attachments -- returns `[]`, a known limitation rather
- * than a bug (there was never a Discord message to have attachments on in the first place).
+ * From the API side there's no interaction to read them off, so this reads them back from Discord.
+ *
+ * The **queue** message is preferred as the source whenever the question has one, in any state: it's
+ * where the files were actually uploaded, it isn't deleted when the question is approved (the button
+ * row is swapped, see `markSourceMessageResolved`), and unlike the answers-channel message it has a
+ * real `attachments` array. Only a session with review disabled has no queue message at all, and there
+ * `resolveQuestionImageSources` recovers the urls out of the live message's own embeds.
+ *
+ * A dash-only-held question with no live message anywhere has no recoverable images -- returns `[]`, a
+ * known limitation rather than a bug (there was never a Discord message to have attachments on).
  */
 export async function resolveQuestionAttachments(
 	question: AmaQuestions,
 	session: AmaSessions,
-): Promise<APIAttachment[]> {
-	const current = resolveCurrentQueueMessage(question, session);
-	if (!current) {
+): Promise<QuestionImageSource[]> {
+	const source =
+		session.queueId && question.queueMessageId
+			? { channelId: session.queueId, messageId: question.queueMessageId }
+			: resolveCurrentQueueMessage(question, session);
+	if (!source) {
 		return [];
 	}
 
 	try {
-		const message = await discordAPIAma.channels.getMessage(current.channelId, current.messageId);
-		return message.attachments;
+		const message = await discordAPIAma.channels.getMessage(source.channelId, source.messageId);
+		return resolveQuestionImageSources(message, Boolean(question.answerContent));
 	} catch (error) {
 		if (error instanceof DiscordAPIError && error.status === 404) {
 			return [];

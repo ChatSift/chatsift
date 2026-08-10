@@ -2,6 +2,7 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import { fetchUser } from '@chatsift/bot-core';
+import type { QuestionImageSource } from '@chatsift/core';
 import {
 	amaQuestionsChannel,
 	getAnswerEmbed,
@@ -9,14 +10,10 @@ import {
 	MERGE_SOURCE_STATES,
 	MERGE_TARGET_STATES,
 	resolveEmbedsForEdit,
+	resolveQuestionImageSources,
 } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
-import type {
-	APIAttachment,
-	APIEmbed,
-	APIMessageComponentInteraction,
-	APIMessageStringSelectInteractionData,
-} from '@discordjs/core';
+import type { APIEmbed, APIMessageComponentInteraction, APIMessageStringSelectInteractionData } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, MessageFlags, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { countExtraAskers } from '../lib/askers.js';
@@ -215,7 +212,7 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 			if (currentMessage) {
 				try {
 					const [attachments, user] = await Promise.all([
-						fetchAttachments(currentMessage.channelId, currentMessage.messageId),
+						fetchQuestionImages(original, session),
 						fetchUser(getContext().service.client.api, original.authorId).catch(() => null),
 					]);
 					const member = session.guildId
@@ -288,13 +285,26 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 }
 
 /**
- * A question's attachments aren't persisted on its own row -- fetches the live message and reads them
- * back off it instead. Mirrors `services/api`'s `resolveQuestionAttachments`.
+ * A question's images aren't persisted on its own row -- fetches them back off a live message instead.
+ * Mirrors `services/api`'s `resolveQuestionAttachments`, including its preference for the queue
+ * message: that's where the files were actually uploaded, and it survives approval (the button row is
+ * swapped, not the message deleted). The answers-channel message is posted as `{ embeds }` with no
+ * files, so its own `attachments` is empty and reading images off it needs
+ * `resolveQuestionImageSources` -- without that, refreshing an already-posted question would drop its
+ * images entirely.
  */
-async function fetchAttachments(channelId: string, messageId: string): Promise<APIAttachment[]> {
+async function fetchQuestionImages(question: AmaQuestions, session: AmaSessions): Promise<QuestionImageSource[]> {
+	const source =
+		session.queueId && question.queueMessageId
+			? { channelId: session.queueId, messageId: question.queueMessageId }
+			: resolveCurrentMessage(question, session);
+	if (!source) {
+		return [];
+	}
+
 	try {
-		const message = await getContext().service.client.api.channels.getMessage(channelId, messageId);
-		return message.attachments;
+		const message = await getContext().service.client.api.channels.getMessage(source.channelId, source.messageId);
+		return resolveQuestionImageSources(message, Boolean(question.answerContent));
 	} catch (error) {
 		if (error instanceof DiscordAPIError && error.status === 404) {
 			return [];
