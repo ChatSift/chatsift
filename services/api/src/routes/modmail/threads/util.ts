@@ -80,6 +80,10 @@ export async function resolveMember(guildId: Snowflake, userId: Snowflake): Prom
  * one, since closing only locks+archives it (`services/modmail-bot`'s `lib/threadClose.ts`), never
  * deletes it. Falls back to an empty list if the channel is somehow gone rather than failing the request,
  * even though that's not expected to happen given the above.
+ *
+ * 403 is tolerated alongside 404 for the sake of threads migrated out of legacy `ChatSift/ModMail`
+ * (#157): those point at years-old channels the bot may no longer have View Channel on, and tags are
+ * a sidebar detail -- losing them should not 500 the whole transcript the migration exists to preserve.
  */
 export async function resolveAppliedTagIds(guildId: Snowflake, modThreadId: Snowflake): Promise<Snowflake[]> {
 	try {
@@ -89,7 +93,7 @@ export async function resolveAppliedTagIds(guildId: Snowflake, modThreadId: Snow
 		const channel = await apiForGuild('MODMAIL', guildId).channels.get(modThreadId);
 		return (channel as { applied_tags?: Snowflake[] }).applied_tags ?? [];
 	} catch (error) {
-		if (error instanceof DiscordAPIError && error.status === 404) {
+		if (error instanceof DiscordAPIError && (error.status === 404 || error.status === 403)) {
 			return [];
 		}
 

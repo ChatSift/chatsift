@@ -2,7 +2,12 @@
 	"extends": "../../../tsconfig.base.json",
 	"compilerOptions": {
 		"outDir": "./dist",
-		"rootDir": "./src"
+		"rootDir": "./src",
+		// TS 6 no longer auto-includes every `@types` package it can find on the way up, and unlike the
+		// other workspaces nothing in this one's dependency graph pulls node's types in transitively --
+		// `postgres`'s .d.ts is the only third-party one here and it references none. src/scripts/ needs
+		// them (process, console), so ask for them explicitly.
+		"types": ["node"]
 	},
 	"include": ["src/**/*"],
 	"exclude": ["dist", "node_modules"]
