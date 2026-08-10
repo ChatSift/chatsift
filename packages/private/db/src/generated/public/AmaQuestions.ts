@@ -34,6 +34,8 @@ export default interface AmaQuestions {
   answeredById: string | null;
 
   answeredAt: Date | null;
+
+  askedAt: Date | null;
 }
 
 /** Represents the initializer for the table public.ama_questions */
@@ -63,6 +65,8 @@ export interface AmaQuestionsInitializer {
   answeredById?: string | null;
 
   answeredAt?: Date | null;
+
+  askedAt?: Date | null;
 }
 
 /** Represents the mutator for the table public.ama_questions */
@@ -92,4 +96,6 @@ export interface AmaQuestionsMutator {
   answeredById?: string | null;
 
   answeredAt?: Date | null;
+
+  askedAt?: Date | null;
 }

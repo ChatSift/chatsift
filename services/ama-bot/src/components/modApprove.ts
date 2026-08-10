@@ -7,7 +7,7 @@ import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { countExtraAskers } from '../lib/askers.js';
-import { postToAnswersChannel } from '../lib/queues.js';
+import { claimAfterPost, postToAnswersChannel } from '../lib/queues.js';
 
 export default class ModApproveComponent implements ComponentHandler<string> {
 	public readonly name = 'mod-approve';
@@ -60,19 +60,13 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 			const attachments = interaction.message.attachments ?? [];
 
 			// Post first, claim second: if the post throws, the row is never touched and stays
-			// PENDING_REVIEW, so the button remains retryable. If we lose a claim race after posting
-			// (another moderator got there first), we clean up the message we just created instead of
-			// leaving a stray duplicate.
-			const reportLostRace = async (channelId: string, messageId: string) => {
-				void getContext()
-					.service.client.api.channels.deleteMessage(channelId, messageId)
-					// eslint-disable-next-line promise/prefer-await-to-then
-					.catch(() => null);
-				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
+			// PENDING_REVIEW, so the button remains retryable. Cleaning up the message we just posted when
+			// the claim doesn't land is `claimAfterPost`'s job below, so this only reports.
+			const notifyAlreadyHandled = async () =>
+				getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 					content: 'This question was already handled by another moderator.',
 					flags: MessageFlags.Ephemeral,
 				});
-			};
 
 			if (session.preparedAnswersEnabled) {
 				// Prepared answers is on: hold at APPROVED, awaiting a prepared answer and an explicit
@@ -85,10 +79,7 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 				`;
 
 				if (!claimed) {
-					await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
-						content: 'This question was already handled by another moderator.',
-						flags: MessageFlags.Ephemeral,
-					});
+					await notifyAlreadyHandled();
 					return;
 				}
 			} else {
@@ -106,15 +97,25 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 					user,
 				});
 
-				const [claimed] = await getContext().db<AmaQuestions[]>`
-					UPDATE ama_questions
-					SET state = 'ASKED', answers_message_id = ${msg.id}, updated_at = now()
-					WHERE id = ${question.id} AND state = 'PENDING_REVIEW'
-					RETURNING *
-				`;
+				// Via `claimAfterPost` rather than a bare UPDATE: the message is already publicly visible at
+				// this point, so a claim that *throws* has to clean it up just like one that comes back empty
+				// (lost race) does -- otherwise a DB blip strands a question in the answers channel that no
+				// row points at, and the still-PENDING_REVIEW button posts a second copy when retried.
+				const claimed = await claimAfterPost<AmaQuestions>(
+					async () => getContext().db<AmaQuestions[]>`
+						UPDATE ama_questions
+						SET state = 'ASKED', answers_message_id = ${msg.id}, asked_at = now(), updated_at = now()
+						WHERE id = ${question.id} AND state = 'PENDING_REVIEW'
+						RETURNING *
+					`,
+					async (channelId, messageId) => getContext().service.client.api.channels.deleteMessage(channelId, messageId),
+					session.answersChannelId,
+					msg.id,
+					logger,
+				);
 
 				if (!claimed) {
-					await reportLostRace(session.answersChannelId, msg.id);
+					await notifyAlreadyHandled();
 					return;
 				}
 			}

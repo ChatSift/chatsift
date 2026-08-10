@@ -166,9 +166,13 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				// prod behavior, now landing on ASKED instead of the old APPROVED).
 				const msg = await postToAnswersChannel(postOptions);
 				// `state` is already 'ASKED' from the INSERT above (this branch only runs when the computed
-				// `state` fell through to 'ASKED') -- only the message id needs setting here.
+				// `state` fell through to 'ASKED'), so only the message id and `asked_at` are set here.
+				// `asked_at` deliberately lands *after* the post rather than in the INSERT: it means "when
+				// this went out", and if `postToAnswersChannel` throws, the catch below leaves the row 'ASKED'
+				// with neither an `answers_message_id` nor an `asked_at` -- which is exactly what a question
+				// that never actually made it to the channel should look like.
 				await getContext().db`
-					UPDATE ama_questions SET answers_message_id = ${msg.id} WHERE id = ${question.id}
+					UPDATE ama_questions SET answers_message_id = ${msg.id}, asked_at = now() WHERE id = ${question.id}
 				`;
 				logger.info(
 					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.answers },

@@ -146,6 +146,21 @@ interface BuildQuestionEmbedsOptions {
 	 * behavior. See {@link QuestionMessageKind}.
 	 */
 	kind?: QuestionMessageKind | undefined;
+
+	/**
+	 * The row as the message being edited *currently* renders it, for callers whose `question` is a
+	 * projection of an edit that hasn't been written yet (#327's edit of an already-'ASKED' answer).
+	 * Defaults to `question`, which is correct for every caller re-rendering from stored state.
+	 *
+	 * Only {@link resolveQuestionAttachments} reads it, and only for one thing: whether the live message
+	 * ends in an answer embed to slice back off before recovering the question's own images. That has to
+	 * describe the message as it exists right now, not as it's about to. Passing the projection instead
+	 * silently drops the question's image the first time an answer is added to an 'ASKED' question whose
+	 * images live in its embeds rather than its attachments (a review-disabled AMA -- see
+	 * `resolveQuestionImageSources`), and mis-reads the answer embed's own image as the question's when
+	 * an answer is cleared back out.
+	 */
+	liveQuestion?: AmaQuestions | undefined;
 }
 
 /**
@@ -165,11 +180,13 @@ export async function buildQuestionEmbeds(
 	guildId: Snowflake,
 	question: AmaQuestions,
 	session: AmaSessions,
-	{ kind = 'answers' }: BuildQuestionEmbedsOptions = {},
+	{ kind = 'answers', liveQuestion = question }: BuildQuestionEmbedsOptions = {},
 ): Promise<APIEmbed[]> {
 	const includeAnswer = kind === 'answers' && Boolean(question.answerContent);
 	const [attachments, user, member, extraAskerCount] = await Promise.all([
-		resolveQuestionAttachments(question, session),
+		// `liveQuestion`, not `question` -- this reads the *existing* message back, so it has to be told
+		// what that message currently looks like. See the option's own doc comment.
+		resolveQuestionAttachments(liveQuestion, session),
 		resolveAmaUser(guildId, question.authorId),
 		resolveAmaMember(guildId, question.authorId),
 		countExtraAskers(getContext().db, question),

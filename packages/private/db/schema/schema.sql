@@ -114,13 +114,22 @@ CREATE TABLE ama_questions (
   content                  TEXT NOT NULL,
   queue_message_id         TEXT,
   answers_message_id       TEXT,
-  -- Prepared-answer fields (#293 follow-up), populated ahead of Send when `ama_sessions.
-  -- prepared_answers_enabled` is on -- via the guest queue's "Add Answer" modal or the dashboard.
-  -- All nullable: a question can reach 'APPROVED' with no answer prepared yet.
+  -- Answer fields (#293 follow-up), written from the dashboard only -- the bot-side "Add Answer" modal
+  -- this comment used to also name was never actually built (#200, still open). Populated ahead of Send
+  -- when `ama_sessions.prepared_answers_enabled` is on, and since #327 also editable afterwards, on an
+  -- already-'ASKED' question (which re-renders the live answers-channel message rather than reposting).
+  -- All nullable: a question can reach 'APPROVED' with no answer prepared yet, and an AMA answered live
+  -- on stream may never record one at all.
   answer_content           TEXT,
   answer_image_url         TEXT,
   answered_by_id           TEXT,
   answered_at              TIMESTAMPTZ,
+  -- Set once, on the transition to 'ASKED' (every path that posts to the answers channel writes it).
+  -- The public answers page used to read `updated_at` for this, which stopped being correct once #327
+  -- made an already-sent answer editable -- fixing a typo months later would have moved the question's
+  -- displayed "asked at" to today. Nullable: non-'ASKED' rows never have one, and rows predating this
+  -- column were backfilled from `updated_at` (the best approximation available).
+  asked_at                 TIMESTAMPTZ,
   created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
 
