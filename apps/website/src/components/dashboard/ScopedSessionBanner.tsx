@@ -36,7 +36,7 @@ export function ScopedSessionBanner() {
 	}
 
 	return (
-		<div className="flex flex-wrap items-center gap-3 rounded-lg border border-misc-warning/40 bg-misc-warning/10 px-3 py-2 text-sm text-misc-warning dark:text-misc-warning-dark">
+		<div className="flex flex-wrap items-center gap-3 rounded-lg border border-misc-warning/40 bg-misc-warning/10 px-3 py-2 text-sm text-misc-warning dark:border-misc-warning-dark/40 dark:bg-misc-warning-dark/10 dark:text-misc-warning-dark">
 			<FaClock className="h-4 w-4 shrink-0" />
 			<p className="flex-1">
 				You're viewing <span className="font-medium">{me.guilds[0]?.name}</span> via a temporary{' '}

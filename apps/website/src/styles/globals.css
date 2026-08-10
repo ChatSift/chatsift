@@ -38,11 +38,15 @@
 
 	/* Warning (ModMail internal/staff-only messages, "heads up" banners) and system (automated ModMail
 	   messages). Both carry a `-dark` pair like the core colors above -- these are used as small text on
-	   the card background, where one shade can't stay legible in both themes. */
-	--color-misc-warning: #d97706;
+	   the card background, where one shade can't stay legible in both themes.
+	   The light values are deliberately darker than the mid-tone they replace: each is used as small text
+	   *on top of* its own 5-10% tint, which lifts the background and eats the contrast. At amber-600 /
+	   sky-600 that lands around 2.9:1 and 4.1:1 -- both under WCAG AA. These clear 4.5:1 against the
+	   tinted surface over `--color-base` (the worst case), not just against plain white. */
+	--color-misc-warning: #92400e;
 	--color-misc-warning-dark: #fbbf24;
 
-	--color-misc-system: #0284c7;
+	--color-misc-system: #0369a1;
 	--color-misc-system-dark: #38bdf8;
 
 	--color-card: #ffffff;
