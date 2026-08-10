@@ -4,6 +4,7 @@ import { updateAMAConfigSchema } from '@chatsift/api/ama-schemas';
 import { amaQuestionsChannel } from '@chatsift/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChannelType } from 'discord-api-types/v10';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { NormalPromptFields } from '../../_components/NormalPromptFields';
@@ -12,6 +13,7 @@ import { PromptModeToggle } from '../../_components/PromptModeToggle';
 import { PromptPreview } from '../../_components/PromptPreview';
 import { AuthorAvatar } from '../questions/_components/AuthorAvatar';
 import { userLabel } from '../questions/_components/userLabel';
+import { StatChip } from './StatChip';
 import { QUESTION_STATE_TILES, valenceClass } from './questionStateTiles';
 import { APIError } from '@/api/error';
 import type { AMAStats, PossiblyMissingChannelInfo, UpdateAMABody } from '@/api/routes/ama';
@@ -573,6 +575,83 @@ export function AMADetails() {
 					</p>
 				)}
 
+				{/* Analytics & Export Card -- sits directly under the Question Triage banner rather than down with
+				the config cards: it's the "how is this AMA doing" answer someone opens this page for, and its tag
+				chips are a second entry point into Triage, so it belongs next to the primary one. */}
+				<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
+					<div className="mb-4 flex items-center justify-between">
+						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Analytics &amp; Export</h2>
+						{canManage && (
+							<Button
+								className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
+								isDisabled={exportQuestions.isPending}
+								onPress={handleExport}
+								type="button"
+							>
+								{exportQuestions.isPending ? 'Exporting…' : 'Export CSV'}
+							</Button>
+						)}
+					</div>
+
+					{isStatsLoading ? (
+						<Skeleton className="h-24 w-full" />
+					) : stats ? (
+						<div className="flex flex-col gap-6">
+							<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+								<div className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark">
+									<p className="text-2xl font-semibold text-primary dark:text-primary-dark">{stats.total}</p>
+									<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">Total Questions</p>
+								</div>
+								<div className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark">
+									<p className="text-2xl font-semibold text-primary dark:text-primary-dark">{stats.uniqueAskerCount}</p>
+									<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">Unique Askers</p>
+								</div>
+								{/* "Duplicates", not "Merged Duplicates" -- at lg:grid-cols-7 the longer label is the only one
+							that wraps to two lines, and a grid row stretches every other tile to match it. */}
+								<div className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark">
+									<p className="text-2xl font-semibold text-primary dark:text-primary-dark">
+										{stats.mergedDuplicatesCount}
+									</p>
+									<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">Duplicates</p>
+								</div>
+								{QUESTION_STATE_TILES.map(({ state, label, valence }) => (
+									<div
+										className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark"
+										key={state}
+									>
+										<p className={`text-2xl font-semibold ${valenceClass[valence]}`}>
+											{stats.byState[state as keyof AMAStats['byState']]}
+										</p>
+										<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">{label}</p>
+									</div>
+								))}
+							</div>
+
+							{/* Chips rather than more tiles: tag count is unbounded, so a grid row would blow the card up
+						once a session has more than a handful. Each one deep-links into Triage pre-filtered to that
+						tag -- `?tag=` is exactly the param `useTagFilter` reads (QuestionTagFilter.tsx). */}
+							{stats.byTag.length > 0 && (
+								<div>
+									<h3 className="mb-2 text-sm font-medium text-primary dark:text-primary-dark">Questions by Tag</h3>
+									<div className="flex flex-wrap gap-2">
+										{stats.byTag.map((tag) => (
+											<Link
+												className="rounded-md transition-opacity hover:opacity-80"
+												href={`/dashboard/${params.id}/ama/amas/${params.amaId}/questions?tag=${tag.id}`}
+												key={tag.id}
+											>
+												<StatChip label={tag.name} value={tag.count} />
+											</Link>
+										))}
+									</div>
+								</div>
+							)}
+						</div>
+					) : (
+						<p className="text-sm text-secondary dark:text-secondary-dark">Unable to load question stats.</p>
+					)}
+				</div>
+
 				{/* Session Information Card */}
 				<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
 					<div className="mb-4 flex items-center justify-between">
@@ -1019,53 +1098,6 @@ export function AMADetails() {
 							</div>
 						)}
 					</div>
-				</div>
-
-				{/* Analytics & Export Card */}
-				<div className="rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark lg:col-span-2">
-					<div className="mb-4 flex items-center justify-between">
-						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Analytics &amp; Export</h2>
-						{canManage && (
-							<Button
-								className="px-3 py-1.5 text-sm bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark rounded-md hover:bg-on-secondary dark:hover:bg-on-secondary-dark transition-colors disabled:opacity-50"
-								isDisabled={exportQuestions.isPending}
-								onPress={handleExport}
-								type="button"
-							>
-								{exportQuestions.isPending ? 'Exporting…' : 'Export CSV'}
-							</Button>
-						)}
-					</div>
-
-					{isStatsLoading ? (
-						<Skeleton className="h-24 w-full" />
-					) : stats ? (
-						<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-							<div className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark">
-								<p className="text-2xl font-semibold text-primary dark:text-primary-dark">{stats.total}</p>
-								<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">Total Questions</p>
-							</div>
-							<div className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark">
-								<p className="text-2xl font-semibold text-primary dark:text-primary-dark">
-									{stats.mergedDuplicatesCount}
-								</p>
-								<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">Merged Duplicates</p>
-							</div>
-							{QUESTION_STATE_TILES.map(({ state, label, valence }) => (
-								<div
-									className="rounded-lg border border-on-secondary p-4 text-center dark:border-on-secondary-dark"
-									key={state}
-								>
-									<p className={`text-2xl font-semibold ${valenceClass[valence]}`}>
-										{stats.byState[state as keyof AMAStats['byState']]}
-									</p>
-									<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">{label}</p>
-								</div>
-							))}
-						</div>
-					) : (
-						<p className="text-sm text-secondary dark:text-secondary-dark">Unable to load question stats.</p>
-					)}
 				</div>
 
 				{/* Question Submissions Card */}
