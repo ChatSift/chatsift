@@ -1,5 +1,6 @@
-// Shared between `AMADetails.tsx`'s full stat card and the `analytics/` subpage's simplified one, so a
-// state's label/color can't drift between the two views. Labels mirror the Triage page's tab names
+// Backs the state tiles in `AMADetails.tsx`'s "Analytics & Export" card. Kept as its own module rather
+// than inlined: `valenceClass` is also what `StatChip.tsx` colors by, and `AMADetails.tsx` is long enough
+// without a config table in the middle of it. Labels mirror the Triage page's tab names
 // (`QuestionStateTabs.tsx`) -- "Guest Questions"/"Asked Questions" describe who acts on/what happens to
 // a question in that state, not the raw `PENDING_REVIEW`/`APPROVED`/`ASKED` state name.
 //

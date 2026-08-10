@@ -1,5 +1,4 @@
 import { QuestionStateTabs } from './_components/QuestionStateTabs';
-import { QuestionStatsSummary } from './_components/QuestionStatsSummary';
 import { QuestionTagFilter } from './_components/QuestionTagFilter';
 import { QuestionsList } from './_components/QuestionsList';
 import { Heading } from '@/components/common/Heading';
@@ -12,7 +11,6 @@ export default function AMAQuestionsPage() {
 			<div className="flex flex-col [&>*:not(:first-of-type)]:mt-8 [&>*]:first-of-type:mb-4">
 				<AMADashboardCrumbs />
 				<Heading subtitle="Triage, tag, prepare answers, and merge duplicates" title="Questions" />
-				<QuestionStatsSummary />
 				<QuestionStateTabs />
 				<SearchBar placeholder="Search question content...">
 					<QuestionTagFilter />
