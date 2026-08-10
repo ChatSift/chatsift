@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import type { ModmailCategory } from '@/api/routes/modmail';
-import { useDeleteModmailCategory, useModForumTags, useModmailConfig } from '@/api/routes/modmail';
+import { useDeleteModmailCategory, useModForumTags, useModmailConfig, useModmailPanels } from '@/api/routes/modmail';
 import { Button } from '@/components/common/Button';
+import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { Emoji } from '@/components/common/Emoji';
 import { tagEmojiValue } from '@/components/common/ForumTagSelect';
 import { SvgChevronDown } from '@/components/icons/SvgChevronDown';
@@ -19,15 +20,15 @@ interface CategoryCardProps {
 }
 
 export function CategoryCard({ guildId, category, canMoveUp, canMoveDown, onMoveUp, onMoveDown }: CategoryCardProps) {
-	const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 	const deleteCategory = useDeleteModmailCategory(guildId);
 	const { data: config } = useModmailConfig(guildId);
 	const { tags: forumTags } = useModForumTags(guildId);
+	// Only read for the delete confirmation's copy: `ticket_panel_categories` cascades on category delete, so
+	// deleting this quietly rewrites every panel offering it. React Query dedupes the fetch across every card.
+	const { data: panels } = useModmailPanels(guildId);
 
-	const handleDelete = async () => {
-		await deleteCategory.mutateAsync(category.id);
-		setShowConfirmDelete(false);
-	};
+	const panelsOfferingCount = panels?.filter((panel) => panel.categoryIds.includes(category.id)).length ?? 0;
 
 	return (
 		<div className="flex w-full flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
@@ -112,27 +113,31 @@ export function CategoryCard({ guildId, category, canMoveUp, canMoveDown, onMove
 			</div>
 
 			<div className="mt-auto flex justify-end gap-2">
-				{showConfirmDelete ? (
-					<>
-						<Button onPress={handleDelete}>
-							<span className="text-misc-danger">Yes, delete</span>
-						</Button>
-						<Button onPress={() => setShowConfirmDelete(false)}>Cancel</Button>
-					</>
-				) : (
-					<>
-						<Link
-							className="flex h-fit items-center gap-2 whitespace-nowrap rounded-md bg-transparent px-1.5 py-1.5 text-lg text-primary hover:bg-on-tertiary active:bg-on-secondary dark:text-primary-dark dark:hover:bg-on-tertiary-dark dark:active:bg-on-secondary-dark"
-							href={`/dashboard/${guildId}/modmail/categories/${category.id}`}
-						>
-							Edit
-						</Link>
-						<Button onPress={() => setShowConfirmDelete(true)}>
-							<span className="text-misc-danger">Delete</span>
-						</Button>
-					</>
-				)}
+				<Link
+					className="flex h-fit items-center gap-2 whitespace-nowrap rounded-md bg-transparent px-1.5 py-1.5 text-lg text-primary hover:bg-on-tertiary active:bg-on-secondary dark:text-primary-dark dark:hover:bg-on-tertiary-dark dark:active:bg-on-secondary-dark"
+					href={`/dashboard/${guildId}/modmail/categories/${category.id}`}
+				>
+					Edit
+				</Link>
+				<Button onPress={() => setIsConfirmOpen(true)}>
+					<span className="text-misc-danger">Delete</span>
+				</Button>
 			</div>
+
+			<ConfirmModal
+				confirmLabel="Delete category"
+				isDestructive
+				isOpen={isConfirmOpen}
+				onConfirm={async () => deleteCategory.mutateAsync(category.id)}
+				onOpenChange={setIsConfirmOpen}
+				title={`Delete "${category.name}"?`}
+			>
+				{panelsOfferingCount > 0
+					? `It's offered by ${panelsOfferingCount} panel${panelsOfferingCount === 1 ? '' : 's'} and will be removed from ${panelsOfferingCount === 1 ? 'it' : 'them'}. `
+					: 'No panel currently offers it. '}
+				Nobody will be able to pick it when opening a thread anymore. Threads already opened under it stay where they
+				are, but stop counting as belonging to any category. This can&apos;t be undone.
+			</ConfirmModal>
 		</div>
 	);
 }

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { Grant } from '@/api/routes/guilds';
 import { useDeleteGrant } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
+import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { UserAvatar } from '@/components/user/UserAvatar';
 import { formatDate } from '@/utils/util';
 
@@ -23,14 +24,8 @@ function userDisplayName(user: APIUser | Snowflake): string {
 
 export function GrantCard({ guildId, grant }: GrantCardProps) {
 	const { user, createdBy, createdAt } = grant;
-	const [showConfirm, setShowConfirm] = useState(false);
+	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 	const deleteGrant = useDeleteGrant(guildId);
-
-	const handleRemove = async () => {
-		const userId = typeof user === 'string' ? user : user.id;
-		await deleteGrant.mutateAsync({ userId });
-		setShowConfirm(false);
-	};
 
 	const isUserObject = typeof user !== 'string';
 	const userId = typeof user === 'string' ? user : user.id;
@@ -64,19 +59,22 @@ export function GrantCard({ guildId, grant }: GrantCardProps) {
 			</p>
 
 			<div className="mt-auto flex justify-end gap-2">
-				{showConfirm ? (
-					<>
-						<Button onPress={handleRemove}>
-							<span className="text-misc-danger">Yes, remove</span>
-						</Button>
-						<Button onPress={() => setShowConfirm(false)}>Cancel</Button>
-					</>
-				) : (
-					<Button onPress={() => setShowConfirm(true)}>
-						<span className="text-misc-danger">Remove</span>
-					</Button>
-				)}
+				<Button onPress={() => setIsConfirmOpen(true)}>
+					<span className="text-misc-danger">Remove</span>
+				</Button>
 			</div>
+
+			<ConfirmModal
+				confirmLabel="Remove access"
+				isDestructive
+				isOpen={isConfirmOpen}
+				onConfirm={async () => deleteGrant.mutateAsync({ userId })}
+				onOpenChange={setIsConfirmOpen}
+				title={`Remove ${globalName ?? username}'s access?`}
+			>
+				They lose access to this server&apos;s dashboard immediately. You can grant it again later, but this record of
+				who granted it and when is gone for good.
+			</ConfirmModal>
 		</div>
 	);
 }

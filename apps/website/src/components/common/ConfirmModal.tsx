@@ -16,10 +16,12 @@ interface ConfirmModalProps {
 }
 
 /**
- * Modal confirmation for an action that can't be undone. Replaces the older inline "click Delete, the
- * button turns into Yes, delete / Cancel" pattern (`CategoryCard.tsx`, `SnippetCard.tsx`, ...) -- inline
- * confirms have no room for context about what the action actually affects, which matters as soon as
- * the thing being deleted is referenced elsewhere.
+ * Modal confirmation for an action that can't be undone. #335 moved every remaining confirm onto this and
+ * retired the older inline "click Delete, the button turns into Yes, delete / Cancel" pattern -- inline
+ * confirms had no room for context about what the action actually affects, which matters as soon as the
+ * thing being deleted is referenced elsewhere (`CategoryCard.tsx` counts the panels offering the category;
+ * `SnippetCard.tsx` spells out that the guild slash command goes with it). Prefer this over a bare
+ * destructive button anywhere a mistake isn't cheap to undo.
  *
  * `Button` already tracks its own pending state and surfaces a thrown error as a banner, so `onConfirm`
  * can just be the raw `mutateAsync` -- but it doesn't know about this modal, hence the explicit close
