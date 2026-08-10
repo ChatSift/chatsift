@@ -56,6 +56,7 @@ export { default as updateModmailCategoryRoute } from './routes/modmail/categori
 export { default as createModmailPanelRoute } from './routes/modmail/panels/createPanel.js';
 export { default as deleteModmailPanelRoute } from './routes/modmail/panels/deletePanel.js';
 export { default as listModmailPanelsRoute } from './routes/modmail/panels/listPanels.js';
+export { default as resyncModmailPanelsRoute } from './routes/modmail/panels/resyncPanels.js';
 export { default as updateModmailPanelRoute } from './routes/modmail/panels/updatePanel.js';
 
 export { default as createModmailSnippetRoute } from './routes/modmail/snippets/createSnippet.js';
@@ -67,6 +68,7 @@ export type {
 	SnippetRevisionsResult,
 } from './routes/modmail/snippets/getSnippetUpdates.js';
 export { default as listModmailSnippetsRoute } from './routes/modmail/snippets/listSnippets.js';
+export { default as resyncModmailSnippetsRoute } from './routes/modmail/snippets/resyncSnippets.js';
 export { default as updateModmailSnippetRoute } from './routes/modmail/snippets/updateSnippet.js';
 
 export { default as createModmailBlockRoute } from './routes/modmail/blocks/createBlock.js';
@@ -76,7 +78,5 @@ export { default as listModmailBlocksRoute } from './routes/modmail/blocks/listB
 export { default as getModmailThreadRoute } from './routes/modmail/threads/getThread.js';
 export { default as getModmailThreadMessageEditsRoute } from './routes/modmail/threads/getMessageEdits.js';
 export { default as listModmailThreadsRoute } from './routes/modmail/threads/listThreads.js';
-
-export { default as resyncModmailRoute } from './routes/modmail/resync.js';
 
 export { default as getWsTicketRoute } from './routes/ws/getTicket.js';

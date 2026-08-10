@@ -177,33 +177,36 @@ Order matters — do these in sequence, not in parallel:
    `docker-compose.yml` (right after the public `modmail-bot` service), fill in `<partner-slug>` throughout
    (service name, `MODMAIL_INSTANCE_ID`, log volume), uncomment it, then `./compose up -d modmail-bot-<partner-slug>`.
    It fails fast on boot if `MODMAIL_INSTANCE_ID` doesn't match a row (see `loadInstances()`'s doc comment).
-4. **Run Resync** from that guild's ModMail Snippets page in the dashboard (visible now that the guild has a custom
-   instance — see `services/api/src/routes/modmail/resync.ts`). This registers every existing snippet as a guild
-   command under the partner's application and reposts every panel message, since both were created under the
-   public application and Discord scopes commands/message-authorship to the application that created them.
+4. **Run both Resyncs** for that guild in the dashboard — the button on the ModMail **Snippets** page
+   (`services/api/src/routes/modmail/snippets/resyncSnippets.ts`) and the one on the ModMail **Panels** page
+   (`services/api/src/routes/modmail/panels/resyncPanels.ts`); both are visible now that the guild has a custom
+   instance. They're two separate buttons since #331 — snippets registers every existing snippet as a guild command
+   under the partner's application, panels reposts every panel message. Both are needed here, since both kinds of
+   object were created under the public application and Discord scopes commands/message-authorship to the
+   application that created them.
 5. Verify: `/snippet` commands work and the panel button opens a ticket, both through the partner's bot presence.
 
 ### Offboarding a partner (moving a guild back to the public deployment)
 
 Reverse order — resync while the row (and therefore the partner's token) is still reachable, _then_ tear down:
 
-1. **Run Resync first**, while the `modmail_instances` row still exists. Deleting the row before this loses the
-   ability to reach the partner's application at all for cleanup, and — more importantly — resync always targets
-   whichever application the registry says currently owns the guild, so it must run before the row disappears
-   for a swap in this direction to have anything to reconcile _from_.
+1. **Run both Resyncs first** (Snippets page, then Panels page), while the `modmail_instances` row still exists.
+   Deleting the row before this loses the ability to reach the partner's application at all for cleanup, and —
+   more importantly — resync always targets whichever application the registry says currently owns the guild, so
+   it must run before the row disappears for a swap in this direction to have anything to reconcile _from_.
 
    Note this asymmetry with onboarding: resync targets the _new_ owner, and during offboarding the new owner
-   (public) only becomes current once the row is gone. So this step actually happens in two parts — resync once
-   with the row still present to let the partner's application clean up what it can reach, then delete the row
-   (step 3 below), then resync again now that the guild resolves to the public application, to recreate/repost
-   everything under it.
+   (public) only becomes current once the row is gone. So this step actually happens in two parts — run both
+   buttons with the row still present to let the partner's application clean up what it can reach, then delete the
+   row (step 3 below), then run both again now that the guild resolves to the public application, to
+   recreate/repost everything under it. Four button presses total, two per page.
 
 2. **Stop the partner's deployment** (`./compose stop modmail-bot-<partner-slug>`, then remove or re-comment its
    `docker-compose.yml` block).
 3. **Delete the registry row** (`DELETE FROM modmail_instances WHERE id = '<partner-slug>'`). The public bot
    resumes ownership within 60s of this.
-4. **Run Resync again** for the same guild, now that it resolves to the public deployment, to finish reconciling
-   snippets/panels onto it.
+4. **Run both Resyncs again** for the same guild, now that it resolves to the public deployment, to finish
+   reconciling snippets (Snippets page) and panels (Panels page) onto it.
 5. Verify the same golden path as onboarding, this time through the public bot.
 
 ## Encryption at rest (#263)
