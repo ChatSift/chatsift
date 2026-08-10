@@ -556,6 +556,32 @@ async function migrateScheduledThreadCloses(
 }
 
 /**
+ * Every guild id appearing anywhere in the legacy database -- the set of guilds this migration touches.
+ *
+ * It has to union *all five* guild-carrying tables, not just `GuildSettings` and `Thread`. Nothing in
+ * either schema ties a `Block`, `ThreadOpenAlert` or `Snippet` to a settings row or a thread (no FKs,
+ * and the legacy bot could block a user in a guild that never finished configuring), and every
+ * `migrate*` function above copies its table wholesale rather than filtering by guild. Deriving a
+ * narrower set here would make `--verify` compare an unfiltered legacy `COUNT(*)` against a
+ * guild-filtered target count and report a false `FAIL` on a perfectly good migration -- exactly the
+ * kind of thing that makes a reconciliation tool worthless during a cutover.
+ *
+ * `ThreadMessage` is deliberately absent: its `guildId` always matches its parent `Thread`, which is
+ * already covered. `ThreadReplyAlert`/`ScheduledThreadClose` carry no `guildId` at all.
+ */
+async function collectLegacyGuildIds(legacy: Database): Promise<string[]> {
+	const rows = await legacy<{ guildId: string }[]>`
+		SELECT "guildId" AS guild_id FROM "GuildSettings"
+		UNION SELECT "guildId" AS guild_id FROM "Thread"
+		UNION SELECT "guildId" AS guild_id FROM "Block"
+		UNION SELECT "guildId" AS guild_id FROM "ThreadOpenAlert"
+		UNION SELECT "guildId" AS guild_id FROM "Snippet"
+	`;
+
+	return rows.map((row) => row.guildId);
+}
+
+/**
  * Everything that must hold before a single row is written. Anything returned in `errors` aborts the
  * run outright; `warnings` are printed and proceed.
  */
@@ -624,36 +650,33 @@ async function preflight(legacy: Database, target: Executor): Promise<{ errors: 
 		}
 	}
 
-	const legacyGuildIds = await legacy<{ guildId: string }[]>`
-		SELECT "guildId" AS guild_id FROM "GuildSettings"
-		UNION
-		SELECT DISTINCT "guildId" AS guild_id FROM "Thread"
+	const guildIds = await collectLegacyGuildIds(legacy);
+
+	// None of the three `= ANY(${guildIds})` lookups below need an "is the list empty" guard: postgres.js
+	// infers the element type of an empty array fine, and `= ANY('{}')` is simply false for every row, so
+	// an empty legacy database returns no rows and warns about nothing -- which is the correct answer, not
+	// a degenerate case to special-case around.
+	const existingSettings = await target<{ guildId: string }[]>`
+		SELECT guild_id FROM guild_settings WHERE guild_id = ANY(${guildIds})
 	`;
-	const guildIds = legacyGuildIds.map((row) => row.guildId);
+	if (existingSettings.length > 0) {
+		warnings.push(
+			`${existingSettings.length} legacy guild(s) already have a guild_settings row here and will be left ` +
+				`untouched: ${existingSettings.map((row) => row.guildId).join(', ')}`,
+		);
+	}
 
-	if (guildIds.length > 0) {
-		const existingSettings = await target<{ guildId: string }[]>`
-			SELECT guild_id FROM guild_settings WHERE guild_id = ANY(${guildIds})
-		`;
-		if (existingSettings.length > 0) {
-			warnings.push(
-				`${existingSettings.length} legacy guild(s) already have a guild_settings row here and will be left ` +
-					`untouched: ${existingSettings.map((row) => row.guildId).join(', ')}`,
-			);
-		}
-
-		// Partner guilds onboarded onto custom instances are supposed to have had no prior history at
-		// all. One showing up here means that assumption needs re-checking before anything is written.
-		const instances = await target<{ guildId: string; id: string }[]>`
-			SELECT id, guild_id FROM modmail_instances WHERE guild_id = ANY(${guildIds})
-		`;
-		if (instances.length > 0) {
-			warnings.push(
-				`${instances.length} legacy guild(s) are owned by a custom ModMail instance, which was not expected — ` +
-					`re-check the "partner guilds have no legacy history" assumption: ` +
-					instances.map((row) => `${row.guildId} (${row.id})`).join(', '),
-			);
-		}
+	// Partner guilds onboarded onto custom instances are supposed to have had no prior history at
+	// all. One showing up here means that assumption needs re-checking before anything is written.
+	const instances = await target<{ guildId: string; id: string }[]>`
+		SELECT id, guild_id FROM modmail_instances WHERE guild_id = ANY(${guildIds})
+	`;
+	if (instances.length > 0) {
+		warnings.push(
+			`${instances.length} legacy guild(s) are owned by a custom ModMail instance, which was not expected — ` +
+				`re-check the "partner guilds have no legacy history" assumption: ` +
+				instances.map((row) => `${row.guildId} (${row.id})`).join(', '),
+		);
 	}
 
 	const collidingSnippets = await target<{ guildId: string; name: string }[]>`
@@ -731,7 +754,11 @@ async function verifySnippetUpdates(
 		SELECT id, guild_id, name, created_at FROM snippets WHERE guild_id = ANY(${guildIds})
 	`;
 
-	const key = (guildId: string, name: string, createdAt: Date): string => `${guildId} ${name} ${createdAt.getTime()}`;
+	// `JSON.stringify` rather than joining on a delimiter: it can't be made ambiguous by a delimiter
+	// character turning up inside a snippet name, and unlike the NUL byte this used to use, it doesn't
+	// make the whole source file read as binary to `grep`/`file`.
+	const key = (guildId: string, name: string, createdAt: Date): string =>
+		JSON.stringify([guildId, name, createdAt.getTime()]);
 	const targetByKey = new Map(targetSnippets.map((row) => [key(row.guildId, row.name, row.createdAt), row.id]));
 
 	const migratedLegacyIds: number[] = [];
@@ -783,13 +810,10 @@ async function runVerify(legacy: Database, target: Executor): Promise<boolean> {
 		console.log(`  ${matched ? 'OK  ' : 'FAIL'} ${label.padEnd(24)} legacy=${left} target=${right}`);
 	};
 
-	const guildIds = (
-		await legacy<{ guildId: string }[]>`
-			SELECT "guildId" AS guild_id FROM "GuildSettings"
-			UNION
-			SELECT DISTINCT "guildId" AS guild_id FROM "Thread"
-		`
-	).map((row) => row.guildId);
+	// Must be the same set `preflight` uses, and must cover every guild-carrying legacy table -- see
+	// `collectLegacyGuildIds`. The legacy-side counts below are unfiltered `COUNT(*)`, so any guild
+	// missing from this list would be counted on one side and filtered out on the other.
+	const guildIds = await collectLegacyGuildIds(legacy);
 
 	console.log('\nRow counts');
 
@@ -865,6 +889,19 @@ async function runVerify(legacy: Database, target: Executor): Promise<boolean> {
 		const actual = targetPerThread.get(modThreadId);
 		if (actual !== expected) {
 			mismatched.push(`${modThreadId} (legacy=${expected} target=${actual ?? 'missing'})`);
+		}
+	}
+
+	// Walking only the legacy side never surfaces a thread that exists here but not there. Strictly, some
+	// other check always trips too -- an unpaired extra shows up in the row counts, and a paired one means
+	// its partner (a legacy thread that failed to migrate) is caught by the loop above -- so this isn't
+	// detecting anything otherwise invisible. What it buys is a *complete* diagnosis in one pass, instead
+	// of fixing the half that got reported and re-running to discover the other half. An extra on this
+	// side means either a partially-cleaned-up re-run or a native ticket being misread as migrated by the
+	// `origin = 'dm' AND user_channel_id IS NULL` predicate.
+	for (const [modThreadId, actual] of targetPerThread) {
+		if (!legacyPerThread.has(modThreadId)) {
+			mismatched.push(`${modThreadId} (legacy=missing target=${actual})`);
 		}
 	}
 
@@ -946,10 +983,28 @@ function resolveMode(): Mode {
 // bracket access. Destructuring is the one form both are happy with.
 const { IS_PRODUCTION, DATABASE_URL_DEV, DATABASE_URL_PROD, LEGACY_DATABASE_URL } = process.env;
 
+// The exact sets `zod`'s `stringbool()` uses, which is what parses IS_PRODUCTION in
+// `@chatsift/backend-core`'s shared env schema. Duplicated rather than imported because this script
+// deliberately doesn't pull in backend-core (see the file header) -- but it has to agree with it
+// *exactly*: this script picking a different database than every other service in the stack, while
+// `--live` commits real inserts, is the single worst way for it to be wrong.
+const TRUTHY = new Set(['true', '1', 'yes', 'on', 'y', 'enabled']);
+const FALSY = new Set(['false', '0', 'no', 'off', 'n', 'disabled']);
+
 function resolveTargetUrl(): string {
-	// Mirrors `@chatsift/backend-core`'s `createDatabase()` without importing it (see the file header
-	// for why). `z.stringbool()` is what parses IS_PRODUCTION there; this is the same accepted set.
-	const isProduction = ['true', '1', 'yes', 'on'].includes((IS_PRODUCTION ?? '').toLowerCase());
+	// `envSchema` declares IS_PRODUCTION as `.default(false)`, so unset means dev -- but an unrecognized
+	// value is an error there, not a silent falsy. Match that: quietly treating `IS_PRODUCTION=maybe` as
+	// dev would point a `--live` run at DATABASE_URL_DEV while the rest of the stack ran on prod config.
+	const raw = (IS_PRODUCTION ?? 'false').toLowerCase();
+	if (!TRUTHY.has(raw) && !FALSY.has(raw)) {
+		console.error(
+			`IS_PRODUCTION is set to ${JSON.stringify(IS_PRODUCTION)}, which is not a recognized boolean — ` +
+				`expected one of ${[...TRUTHY, ...FALSY].join(', ')}. Refusing to guess which database to target.`,
+		);
+		process.exit(1);
+	}
+
+	const isProduction = TRUTHY.has(raw);
 	const url = isProduction ? DATABASE_URL_PROD : DATABASE_URL_DEV;
 
 	if (!url) {
@@ -997,6 +1052,16 @@ try {
 		let stats: Stats = {};
 		try {
 			await target.begin(async (tx) => {
+				// The whole migration is one transaction, and it interleaves reads against the *legacy*
+				// database between writes here -- so this connection sits idle for stretches that have
+				// nothing to do with how fast Postgres is. A server-side `statement_timeout` or
+				// `idle_in_transaction_session_timeout` (neither is set on the local compose Postgres, but
+				// production is configured elsewhere) would kill the transaction partway through and force
+				// the whole run to be restarted. `SET LOCAL` scopes both to this transaction, so they revert
+				// on commit or rollback rather than leaking into the pooled connection.
+				await tx`SET LOCAL statement_timeout = 0`;
+				await tx`SET LOCAL idle_in_transaction_session_timeout = 0`;
+
 				stats = await runMigration(legacy, tx);
 
 				if (mode === 'dry-run') {
