@@ -17,6 +17,12 @@ export default interface SnippetUpdates {
   updatedBy: string;
 
   oldContent: string;
+
+  oldName: string | null;
+
+  oldAttachmentUrl: string | null;
+
+  oldAttachmentFilename: string | null;
 }
 
 /** Represents the initializer for the table public.snippet_updates */
@@ -30,6 +36,12 @@ export interface SnippetUpdatesInitializer {
   updatedBy: string;
 
   oldContent: string;
+
+  oldName?: string | null;
+
+  oldAttachmentUrl?: string | null;
+
+  oldAttachmentFilename?: string | null;
 }
 
 /** Represents the mutator for the table public.snippet_updates */
@@ -43,4 +55,10 @@ export interface SnippetUpdatesMutator {
   updatedBy?: string;
 
   oldContent?: string;
+
+  oldName?: string | null;
+
+  oldAttachmentUrl?: string | null;
+
+  oldAttachmentFilename?: string | null;
 }

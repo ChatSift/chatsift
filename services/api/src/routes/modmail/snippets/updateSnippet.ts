@@ -90,13 +90,8 @@ export default defineRoute({
 					throw notFound('snippet not found');
 				}
 
-				if (data.content !== undefined && data.content !== current.content) {
-					await sql`
-						INSERT INTO snippet_updates (snippet_id, updated_by, old_content)
-						VALUES (${snippetId}, ${req.tokens!.access.sub}, ${current.content})
-					`;
-				}
-
+				const name = data.name ?? current.name;
+				const content = data.content ?? current.content;
 				// `data.attachmentUrl`/`data.attachmentFilename` are `.nullable().optional()` -- `undefined` (the
 				// key was omitted) means "leave unchanged", while an explicit `null` means "clear it", so these
 				// can't use the plain `?? current.x` fallback the other fields above use (that would treat an
@@ -112,11 +107,40 @@ export default defineRoute({
 						: data.attachmentFilename
 					: null;
 
+				// Archive on a change to *any* editable field, not just content (#324) -- a rename or an
+				// attachment swap used to leave no trace at all, so the history the dashboard now renders would
+				// have silently misrepresented what actually happened to the snippet. Compared against the
+				// resolved next-values rather than `data`, so a request that submits every field unchanged (the
+				// dashboard's edit form always does -- it PATCHes the whole form) doesn't record an empty
+				// revision. The row snapshots `current` in full; see `getSnippetUpdates.ts` for why the
+				// per-revision diff is derived from consecutive snapshots instead of stored alongside them.
+				const isChanged =
+					name !== current.name ||
+					content !== current.content ||
+					attachmentUrl !== current.attachmentUrl ||
+					attachmentFilename !== current.attachmentFilename;
+
+				if (isChanged) {
+					await sql`
+						INSERT INTO snippet_updates (
+							snippet_id, updated_by, old_content, old_name, old_attachment_url, old_attachment_filename
+						)
+						VALUES (
+							${snippetId},
+							${req.tokens!.access.sub},
+							${current.content},
+							${current.name},
+							${current.attachmentUrl},
+							${current.attachmentFilename}
+						)
+					`;
+				}
+
 				const [updated] = await sql<Snippets[]>`
 					UPDATE snippets
 					SET
-						name = ${data.name ?? current.name},
-						content = ${data.content ?? current.content},
+						name = ${name},
+						content = ${content},
 						attachment_url = ${attachmentUrl},
 						attachment_filename = ${attachmentFilename},
 						last_updated_at = now()
