@@ -303,9 +303,17 @@ export function useDeleteAMATag(guildId: string, amaId: string) {
 	});
 }
 
+/**
+ * Shared by this hook and the route's server-side fetch (`app/ama-answers/[shareToken]/_lib/publicAnswers.ts`),
+ * which needs to hit the same endpoint from `generateMetadata` to build the link embed (#295).
+ */
+export function publicAMAAnswersPath(shareToken: string): string {
+	return `/v3/ama/public/${shareToken}`;
+}
+
 export function usePublicAMAAnswers(shareToken: string) {
 	return useQuery({
 		queryKey: queryKeys.ama.publicAnswers(shareToken),
-		queryFn: async () => apiFetch<PublicAMAAnswersResult>('get', `/v3/ama/public/${shareToken}`),
+		queryFn: async () => apiFetch<PublicAMAAnswersResult>('get', publicAMAAnswersPath(shareToken)),
 	});
 }

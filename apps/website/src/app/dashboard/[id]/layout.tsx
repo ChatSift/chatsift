@@ -6,20 +6,31 @@ import { ScopedSessionBanner } from '@/components/dashboard/ScopedSessionBanner'
 
 export async function generateMetadata({ params }: LayoutProps<'/dashboard/[id]'>): Promise<Metadata> {
 	const { id } = await params;
-	let name;
 
+	// "No usable session" is the normal path here since #295: `proxy.ts` waves link unfurlers past the OAuth
+	// redirect so that dashboard links unfurl as a ChatSift card, and they arrive with no cookie. Titling that
+	// "Server not found" would put a false negative in the embed -- a caller who can't see the guild list has
+	// learnt nothing about whether the guild exists. Only a *resolved* `/me` that genuinely lacks this guild
+	// is the real not-found case.
+	//
+	// Note `me.queryFn` resolves to `null` on a 401 rather than throwing (it treats "not logged in" as a
+	// value, not an error), so the no-session case is this null check, not the `catch` below -- which is left
+	// for the genuinely exceptional failures, and lands on the same generic title.
+	//
+	// The description/`openGraph` the card needs are inherited from `dashboard/layout.tsx`, so only the title
+	// has to be restated in either case.
 	try {
 		const data = await me.queryFn(false);
-		const guild = data?.guilds.find((g) => g.id === id);
-		name = guild?.name;
+		if (!data) {
+			return { title: 'Dashboard' };
+		}
+
+		const guild = data.guilds.find((g) => g.id === id);
+		return { title: guild?.name ?? 'Server not found' };
 	} catch (error) {
 		console.error(error);
-		name = null;
+		return { title: 'Dashboard' };
 	}
-
-	return {
-		title: name ?? 'Server not found',
-	};
 }
 
 export default async function GuildLayout({ children }: LayoutProps<'/dashboard/[id]'>) {

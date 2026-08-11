@@ -1,5 +1,4 @@
 import { BOTS } from '@chatsift/core';
-import type { BotId } from '@chatsift/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -7,12 +6,9 @@ import { Heading } from '@/components/common/Heading';
 import { FeatureGrid } from '@/components/marketing/FeatureGrid';
 import { LinkButton } from '@/components/marketing/LinkButton';
 import { ScreenshotGallery } from '@/components/marketing/ScreenshotGallery';
-import { marketingBots } from '@/data/marketingBots';
+import { marketingBots, resolveBot } from '@/data/marketingBots';
 import { Bots } from '@/utils/bots';
-
-function resolveBot(name: string): BotId | undefined {
-	return BOTS.find((bot) => bot.toLowerCase() === name);
-}
+import { socialMetadata } from '@/utils/site';
 
 export function generateStaticParams() {
 	return BOTS.map((bot) => ({ name: bot.toLowerCase() }));
@@ -26,10 +22,12 @@ export async function generateMetadata({ params }: PageProps<'/bot/[name]'>): Pr
 	}
 
 	const marketing = marketingBots[bot];
-	return {
+	return socialMetadata({
 		title: marketing.pageTitle,
 		description: marketing.cardDescription,
-	};
+		path: `/bot/${name}`,
+		hasOwnImage: true,
+	});
 }
 
 export default async function BotPage({ params }: PageProps<'/bot/[name]'>) {
