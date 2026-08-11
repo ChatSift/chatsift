@@ -90,8 +90,9 @@ test('the rejection wording is singular for one emote and plural for several', (
 	expect(one.content).toContain('includes an emote not from this server (:wave:)');
 	expect(one.content).toContain('Fix it and run the command again');
 
+	// The article switches along with the noun -- "an emotes" is what this used to read.
 	const many = buildForeignEmojiRejection(tokens('wave', 'dance'), 'hi');
-	expect(many.content).toContain('includes an emotes not from this server (:wave:, :dance:)');
+	expect(many.content).toContain('includes emotes not from this server (:wave:, :dance:)');
 	expect(many.content).toContain('Fix them and run the command again');
 });
 

@@ -68,15 +68,13 @@ test('isModuleWithDefault detects a default export', () => {
 	expect(isModuleWithDefault({ default: undefined })).toBe(true);
 });
 
-// Asserted as falsy rather than `=== false`: the implementation leads with a bare `mod &&`, so a nullish
-// input short-circuits and the function returns that value verbatim (`null`/`undefined`/`''`) despite its
-// `boolean` type predicate. Harmless as written -- both call sites (`bot-core`'s `commands.ts`/`components.ts`)
-// only ever use it as an `if (!...)` guard -- so this pins the real behavior instead of over-asserting.
+// Asserted as `=== false` rather than merely falsy: the `&&` chain would otherwise short-circuit on a
+// nullish `mod` and return that value verbatim, contradicting the declared `boolean` type predicate.
 test('isModuleWithDefault rejects anything that is not an object', () => {
-	expect(isModuleWithDefault(null)).toBeFalsy();
-	expect(isModuleWithDefault(undefined)).toBeFalsy();
-	expect(isModuleWithDefault('not a module')).toBeFalsy();
-	expect(isModuleWithDefault(42)).toBeFalsy();
+	expect(isModuleWithDefault(null)).toBe(false);
+	expect(isModuleWithDefault(undefined)).toBe(false);
+	expect(isModuleWithDefault('not a module')).toBe(false);
+	expect(isModuleWithDefault(42)).toBe(false);
 });
 
 const isString = (value: unknown): value is string => typeof value === 'string';

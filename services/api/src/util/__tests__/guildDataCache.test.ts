@@ -197,6 +197,12 @@ test('a forced call coalescing onto an unforced one still clears the stale entry
 	const fetcher = createCachedGuildFetcher('channels', {} as never, fetchRaw);
 
 	const unforced = fetcher.fetch(GUILD, 'AMA');
+	// Load-bearing wait, not incidental: an unforced call suspends on `store.get` before it ever registers
+	// itself as in-flight, while a forced one runs straight through to `inflight.set`. Issuing the two
+	// back-to-back therefore lets the *forced* call create the entry -- which is the already-covered
+	// inverse case below, and leaves the mutation this test exists for untouched.
+	await vi.waitFor(() => expect(fetchRaw).toHaveBeenCalled());
+
 	const forced = fetcher.fetch(GUILD, 'AMA', true);
 	gate.reject(discordError(403));
 

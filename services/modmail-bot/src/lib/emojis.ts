@@ -177,9 +177,12 @@ export function buildForeignEmojiRejection(
 	const omittedCount = uniqueNames.length - shownNames.length;
 	const namesList = omittedCount > 0 ? `${shownNames.join(', ')} (+${omittedCount} more)` : shownNames.join(', ');
 
-	const plural = uniqueNames.length === 1 ? '' : 's';
-	const preamble = `❌ Your reply includes an emote${plural} not from this server (${namesList}), so it can't be sent. Fix ${
-		uniqueNames.length === 1 ? 'it' : 'them'
+	// The article has to be part of the singular/plural switch, not a bare `s` suffix on the noun -- otherwise
+	// the multi-emote case reads "includes an emotes not from this server".
+	const isSingular = uniqueNames.length === 1;
+	const subject = isSingular ? 'an emote' : 'emotes';
+	const preamble = `❌ Your reply includes ${subject} not from this server (${namesList}), so it can't be sent. Fix ${
+		isSingular ? 'it' : 'them'
 	} and run the command again -- your original text is below so you don't lose it.`;
 
 	const fence = fenceFor(originalContent);
