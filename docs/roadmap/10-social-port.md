@@ -6,9 +6,9 @@ nothing in flight — M4's AMA cutover ([05-migration-cutover.md](05-migration-c
 production impact:** none until P6 (cutover) — everything before that is additive: new tables, new service, new routes,
 new dashboard pages. Legacy `ChatSift/Social` keeps running untouched the whole time.
 
-## Status: not started — this document is the plan
+## Status: P1 (schema) done — P2 onward not started
 
-Nothing below is implemented. `10-` is the next free roadmap slot. This doc follows the established lifecycle
+`10-` is the next free roadmap slot. This doc follows the established lifecycle
 ([09-appeals.md](09-appeals.md) explains it): when the phases land, it gets **deleted** and its durable shape is condensed
 into a new `## 11. Social bot subsystem` section of [01-architecture.md](01-architecture.md) (the next free section
 number there), with any operator runbook material (cutover steps, interaction-command resync) going to
@@ -235,14 +235,30 @@ Additive throughout; nothing touches legacy until P6. Each phase ends verified p
 [workflow.md](../workflow.md#verification-standard) — run the affected service and exercise the change against the
 test guild, not just build/lint/test.
 
-- [ ] **P1 — Schema.** Six `social_*` tables per the mapping above; Atlas migration; kanel regen. Unit-test nothing
+- [x] **P1 — Schema.** Six `social_*` tables per the mapping above; Atlas migration; kanel regen. Unit-test nothing
       here beyond what the schema tooling already enforces; the shape gets exercised by P2/P3.
+      _Done._ `social_guild_settings`, `social_users`, `social_channels`, `social_roles`, `social_rewards`,
+      `social_interactions` + a `social_level_up_notification_mode` enum, in `schema/schema.sql`'s Social section
+      (migration `20260811185101_add_social_tables.sql`). That section's header comment enumerates the four
+      deviations from the legacy schema **P5 has to encode** — uppercased notification-mode values, NOT NULL
+      multipliers coalescing legacy's NULL to 1, `social_interactions`' surrogate `id` + nullable `command_id`, and
+      guild-first composite PKs. Config bounds are deliberately _not_ CHECKs (legacy only ever enforced them in
+      slash-command option definitions, so prod data isn't guaranteed to satisfy them); they land in P2's zod
+      schemas. The only CHECKs are the ones bad data would genuinely break: `required_xp_base`/
+      `required_xp_multiplier` `>= 1` (a 0 in either makes the level walk non-terminating), multipliers `>= 1`, and
+      `social_rewards.level >= 0`. Dispatch's `(guild_id, command_id)` partial index is **UNIQUE** — two rows
+      sharing a command id would make dispatch pick one nondeterministically — which obliges the P3/P6 resync to
+      clear a guild's command ids before writing the new ones rather than updating row-by-row (a bulk overwrite
+      preserves a command's id by name, so an in-place order exists that transiently collides). No generated types
+      were exported from `@chatsift/db`'s `index.ts` yet — that file's convention is to add a table the first time a
+      consumer needs it, which is P2.
 - [ ] **P2 — API.** The route set above, with zod validation mirroring legacy's bounds (config bounds listed in the
       feature catalog — the dashboard inherits them as its validation source of truth). Vitest coverage per the
       existing route-test patterns.
 - [ ] **P3 — Bot.** Scaffold `services/social-bot`; port the tracking engine (Redis keys and semantics verbatim, keys
       documented in code); implement additive role-diffing (ledger 2); `/level`; `/dashboard`; interaction dispatch +
-      per-guild command registration with resync (ledger 3); level-up notifications; intent audit. This is the phase
+      per-guild command registration with resync (ledger 3 — clear-then-write, see P1's note); level-up
+      notifications; intent audit. This is the phase
       with real behavioral risk — verify XP gain, window cooldown, multiplier stacking, clean-tier promotion, and each
       notification mode live in the test guild.
 - [ ] **P4 — Dashboard.** The section described above. Verify each form round-trips against the P2 API and that
