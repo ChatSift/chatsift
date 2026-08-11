@@ -496,6 +496,7 @@ __metadata:
     "@types/node": "npm:^24.9.1"
     discord-api-types: "npm:^0.38.50"
     typescript: "npm:~6.0.3"
+    vitest: "npm:^4.1.10"
   languageName: unknown
   linkType: soft
 

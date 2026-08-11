@@ -19,7 +19,8 @@
 	"devDependencies": {
 		"@chatsift/db": "workspace:^",
 		"@types/node": "^24.9.1",
-		"typescript": "~6.0.3"
+		"typescript": "~6.0.3",
+		"vitest": "^4.1.10"
 	},
 	"dependencies": {
 		"@sapphire/bitfield": "^1.2.4",
