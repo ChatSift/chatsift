@@ -116,6 +116,14 @@ export async function renderOgCard({ eyebrow, subtitle, title }: OgCardOptions):
 
 			<div style={{ display: 'flex', width: 200, height: 10, borderRadius: 5, backgroundColor: COLOR_ACCENT }} />
 		</div>,
-		{ ...OG_SIZE, ...(fonts && { fonts }) },
+		{
+			...OG_SIZE,
+			...(fonts && { fonts }),
+			// A card is only ever meant to be seen inside someone else's embed, never as a search result of its
+			// own. Matters most for the AMA share page: its `noindex` lives in a meta tag, which an image
+			// response has nowhere to put -- and `app/robots.ts` deliberately doesn't disallow that path, so
+			// this header is what keeps the card out of image search alongside it.
+			headers: { 'X-Robots-Tag': 'noindex' },
+		},
 	);
 }

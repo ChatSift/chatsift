@@ -31,8 +31,10 @@ export async function generateMetadata({ params }: PageProps<'/ama-answers/[shar
 		}),
 		// The share token is a capability, not a public identifier: holding the link is the whole access check.
 		// Unfurlers ignore `robots` (so the embed above still works), but a search engine indexing one of these
-		// would hand the link to everyone who never had it. `app/robots.ts` disallows the path too -- that only
-		// stops crawling, which isn't enough on its own for a URL someone else has linked publicly.
+		// would hand the link to everyone who never had it.
+		//
+		// This is the *only* mechanism guarding these pages -- `app/robots.ts` deliberately doesn't disallow
+		// the path, because a crawler has to be allowed to fetch a page before it can see the page's `noindex`.
 		robots: { index: false, follow: false },
 	};
 }
