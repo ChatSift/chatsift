@@ -587,3 +587,180 @@ CREATE TABLE snippet_updates (
 );
 
 CREATE INDEX snippet_updates_snippet_id_idx ON snippet_updates (snippet_id);
+
+-- Social (#343, leveling + social interactions — see docs/roadmap/10-social-port.md).
+--
+-- Reproduces the 6 models from `ChatSift/Social`'s `prisma/schema.prisma` (GuildSettings, Reward, User,
+-- Channel, Role, SocialInteraction). Every table is `social_`-prefixed, following AMA's `ama_*`
+-- (ModMail's unprefixed `guild_settings`/`threads` are grandfathered, not a pattern — and
+-- `guild_settings` is literally taken).
+--
+-- The four deviations from legacy, collected here because the P5 migration script
+-- (`migrateLegacySocial.ts`) has to account for every one of them; each is also documented at the
+-- column it affects:
+--   1. `level_up_notification_mode` values are uppercased to match this schema's other enum
+--      (`ama_question_state`): None -> NONE, DM -> DM, Channel -> CHANNEL.
+--   2. `social_channels.multiplier`/`social_roles.multiplier` are NOT NULL DEFAULT 1. Legacy's
+--      `Int? @default(1)` was nullable, but a NULL there meant exactly 1 (every read site did
+--      `multiplier ?? 1`), so the migration coalesces NULL -> 1 and nothing changes semantically.
+--   3. `social_interactions` gets a surrogate `id` and a nullable `command_id` (see that table).
+--   4. Composite primary keys are guild-first, where legacy's were (thing, guild) — see
+--      `social_users`.
+--
+-- Bounds: legacy enforced its config bounds (required-messages 1-15, timespan 1-60s, xp-gain >= 1,
+-- required-xp-base 1-500, required-xp-multiplier 1-100, channel multiplier 1-10) only in slash-command
+-- option definitions, so they were never true of the data — only of writes made through the current
+-- version of the bot. Those bounds live in services/api's zod schemas (P2), not here; the only CHECKs
+-- below are the ones a bad value would actually break something with, since a CHECK legacy data can
+-- violate is a migration that fails on prod rows.
+
+-- Legacy's `LevelUpNotificationMode` (None/DM/Channel), uppercased per deviation 1 above.
+CREATE TYPE social_level_up_notification_mode AS ENUM (
+  'NONE',
+  'DM',
+  'CHANNEL'
+);
+
+CREATE TABLE social_guild_settings (
+  guild_id                                  TEXT PRIMARY KEY,
+  -- These three are legacy's "is this guild configured at all" gate: the bot is fully inert in a guild
+  -- until `required_messages`, `required_messages_timespan` and `xp_gain` are all non-NULL. Deliberately
+  -- nullable rather than defaulted -- "row exists, not fully configured yet" is a real state the
+  -- dashboard flow needs to render, and defaulting them would silently switch XP tracking on for a guild
+  -- that only ever touched, say, the notification message.
+  --
+  -- `required_messages` messages within `required_messages_timespan` seconds earn XP once; the rolling
+  -- window itself lives in Redis (`leveling_tracking:`/`leveling_ineligible:` keys), never here.
+  required_messages                         INTEGER,
+  -- Seconds.
+  required_messages_timespan                INTEGER,
+  xp_gain                                   INTEGER,
+  -- XP curve: total XP required for level n is `required_xp_base + required_xp_multiplier * n(n-1)/2`
+  -- (closed form of the triangular series). This formula is frozen for migration fidelity -- changing it
+  -- silently re-levels every migrated user.
+  required_xp_base                          INTEGER,
+  required_xp_multiplier                    INTEGER,
+  level_up_notification_mode                social_level_up_notification_mode NOT NULL DEFAULT 'NONE',
+  -- Where a 'CHANNEL' notification goes when the message's own channel can't be posted in. The bot
+  -- nulls this itself when the fallback turns out to be dead (ported legacy behavior).
+  level_up_notification_fallback_channel_id TEXT,
+  -- Template supporting `{{ username }}`, `{{ level }}`, `{{ guildName }}` and `{{ earnedRewards }}`.
+  -- NULL falls back to the default at render time rather than being baked in here, so the default can
+  -- change later without a data migration (same reasoning as `guild_settings.anon_reply_label`).
+  level_up_notification_message             TEXT,
+
+  -- Not style bounds: level derivation walks levels upward while the accumulated requirement is still
+  -- covered by the user's XP, so a base of 0 (with any multiplier) or a multiplier of 0 makes the
+  -- requirement stop growing and the walk never terminate. Legacy's own command options already
+  -- enforced both minimums, so real data satisfies these; a row that doesn't is one that would hang the
+  -- bot, and failing the migration loudly on it is the correct outcome.
+  CONSTRAINT social_guild_settings_required_xp_base_check
+    CHECK (required_xp_base IS NULL OR required_xp_base >= 1),
+  CONSTRAINT social_guild_settings_required_xp_multiplier_check
+    CHECK (required_xp_multiplier IS NULL OR required_xp_multiplier >= 1)
+);
+
+-- Per-guild XP ledger. Guild-first PK (deviation 4): legacy's `@@id([userId, guildId])` order was
+-- arbitrary -- every lookup is equality on both -- but guild-first additionally serves guild-scoped
+-- scans (the migration's per-guild XP-sum verification, and the leaderboard that redesign ledger item 5
+-- leaves as a follow-up). Same reasoning applies to `social_channels`/`social_roles`/`social_rewards`
+-- below. No `(guild_id, xp DESC)` index yet -- `xp` is written on a hot path (every XP grant) and
+-- nothing reads it in rank order until that leaderboard actually exists.
+CREATE TABLE social_users (
+  guild_id TEXT NOT NULL,
+  user_id  TEXT NOT NULL,
+  -- Total XP, with no regard for level calculations -- a level is always derived from this through the
+  -- curve above, never stored. INTEGER rather than BIGINT deliberately: postgres.js hands int8 back as a
+  -- string (it doesn't fit a JS number), and no plausible amount of XP approaches int4's ceiling.
+  xp       INTEGER NOT NULL DEFAULT 0,
+  -- Per-user opt-out: this user earns no XP in this guild.
+  ignored  BOOLEAN NOT NULL DEFAULT false,
+
+  PRIMARY KEY (guild_id, user_id)
+);
+
+-- A row here can describe the message's own channel, its parent category, or (for a thread) the thread
+-- parent's parent -- the bot resolves both `ignored` and `multiplier` by walking that chain, which is
+-- what lets one row silence or boost an entire category.
+CREATE TABLE social_channels (
+  guild_id   TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  ignored    BOOLEAN NOT NULL DEFAULT false,
+  -- NOT NULL DEFAULT 1 (deviation 2). Multiplies the guild's `xp_gain`; stays integral per redesign
+  -- ledger item 4 (fractional multipliers change hot-path XP math and are out of port scope).
+  multiplier INTEGER NOT NULL DEFAULT 1,
+
+  PRIMARY KEY (guild_id, channel_id),
+  CONSTRAINT social_channels_multiplier_check CHECK (multiplier >= 1)
+);
+
+-- Role multipliers stack multiplicatively across every configured role the member holds, on top of the
+-- channel multiplier.
+CREATE TABLE social_roles (
+  guild_id   TEXT NOT NULL,
+  role_id    TEXT NOT NULL,
+  -- NOT NULL DEFAULT 1 (deviation 2), same as `social_channels.multiplier`.
+  multiplier INTEGER NOT NULL DEFAULT 1,
+
+  PRIMARY KEY (guild_id, role_id),
+  CONSTRAINT social_roles_multiplier_check CHECK (multiplier >= 1)
+);
+
+-- Role rewards. One row per rewarded role, so a role can only be a reward for a single level in a guild
+-- (legacy's `/reward create` was an upsert per role for exactly this reason).
+CREATE TABLE social_rewards (
+  guild_id TEXT NOT NULL,
+  role_id  TEXT NOT NULL,
+  level    INTEGER NOT NULL,
+  -- A "clean"/tiered reward: only the *highest* clean reward at or below the member's level is held, so
+  -- a new tier replaces the previous one. Non-clean rewards simply accumulate. The bot computes both
+  -- sets additively (which roles to add, which superseded clean tiers to remove) rather than rebuilding
+  -- the member's whole role set the way legacy did -- see redesign ledger item 2.
+  clean    BOOLEAN NOT NULL DEFAULT false,
+
+  PRIMARY KEY (guild_id, role_id),
+  CONSTRAINT social_rewards_level_check CHECK (level >= 0)
+);
+
+-- Custom per-guild commands (`/hug`-style): each row is backed by a real Discord guild application
+-- command named after it, and renders this stored content when invoked.
+--
+-- Deviation 3, both halves. The surrogate `id`: legacy keyed these `@@id([guildId, name])`, which makes
+-- a rename an identity change and gives the dashboard's edit/delete routes nothing stable to address --
+-- the same shape `snippets` (its closest analogue in this schema, down to the `command_id`) already
+-- solved with an identity PK plus a `(guild_id, name)` UNIQUE. That UNIQUE also keeps the property the
+-- natural key gave the migration: an accidental re-run fails loudly instead of duplicating rows.
+CREATE TABLE social_interactions (
+  id             INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  guild_id       TEXT NOT NULL,
+  -- The guild command this interaction dispatches from. Nullable, where legacy had it NOT NULL (and in
+  -- its PK): a command id belongs to an *application*, so every legacy id 404s under the new bot's
+  -- application. The migration writes NULL here and the P6 cutover resync assigns real ids -- the exact
+  -- lesson ModMail's snippets taught (docs/roadmap/01-architecture.md §8). Dispatch tolerates a stale or
+  -- missing id anyway, falling back to a `(guild_id, name)` lookup on the invoked command's name before
+  -- declaring the interaction gone. See redesign ledger item 3.
+  command_id     TEXT,
+  -- Doubles as the Discord command name, hence the guild-wide uniqueness below.
+  name           TEXT NOT NULL,
+  -- Templated with `{{ author }}` and `{{ targets }}` (the latter only meaningful when `allow_targets`).
+  content        TEXT NOT NULL,
+  -- Embed color, kept as the string legacy stored rather than the integer Discord wants -- parsing is
+  -- the renderer's job, and reinterpreting it here would need a data migration to be sure of the format.
+  color          TEXT,
+  -- Sent outside the embed, alongside it, when `embed` is on.
+  plain_content  TEXT,
+  -- Rendered as the embed's image.
+  attachment_url TEXT,
+  uses           INTEGER NOT NULL DEFAULT 0,
+  embed          BOOLEAN NOT NULL DEFAULT false,
+  -- Whether the generated command takes user-mention options, which render into `{{ targets }}`.
+  allow_targets  BOOLEAN NOT NULL DEFAULT false,
+
+  CONSTRAINT social_interactions_guild_id_name_key UNIQUE (guild_id, name)
+);
+
+-- Dispatch's primary lookup. Partial because a row with no command id is only reachable through the
+-- `(guild_id, name)` fallback (covered by the UNIQUE above) until a resync gives it one -- which,
+-- immediately post-migration, is every row.
+CREATE INDEX social_interactions_guild_id_command_id_idx ON social_interactions (guild_id, command_id)
+  WHERE command_id IS NOT NULL;
