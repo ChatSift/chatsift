@@ -31,7 +31,14 @@ test('uploads are rejected when no Discord message would ever carry them', () =>
 	);
 
 	expect(result.success).toBe(false);
-	expect(result.error?.issues.some((issue) => issue.path[0] === 'allowedQuestionUploads')).toBe(true);
+	// Narrowed rather than optional-chained: `result.error?.issues.some(...)` would quietly evaluate to
+	// `undefined` (and fail on the wrong assertion) if the parse ever started succeeding, instead of
+	// asserting against real issues.
+	if (result.success) {
+		expect.fail('expected the parse to fail');
+	}
+
+	expect(result.error.issues.some((issue) => issue.path[0] === 'allowedQuestionUploads')).toBe(true);
 });
 
 test('uploads are allowed once either channel exists', () => {

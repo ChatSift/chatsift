@@ -7,7 +7,7 @@ import { FaCheck } from 'react-icons/fa';
 import { AuthorAvatar } from './AuthorAvatar';
 import { MergeDuplicatePicker } from './MergeDuplicatePicker';
 import { TagPicker } from './TagPicker';
-import { answerEditorHint } from './answerEditorHint';
+import { answerEditorHint, saveConfirmCopy } from './answerEditorCopy';
 import { userLabel } from './userLabel';
 import { APIError } from '@/api/error';
 import { useAMA, useAMAQuestion, useSendAMAQuestion, useUpdateAMAQuestion } from '@/api/routes/ama';
@@ -73,11 +73,12 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 	const isSent = question.state === 'ASKED';
 	const showAnswerEditor = question.state === 'APPROVED' || isSent;
 	// Whether this AMA publishes to Discord at all (#316) -- a public-page-only one has no answers-channel
-	// message to rewrite, so every bit of copy below that promises a Discord edit would be a lie. `Boolean`
-	// rather than a null check so the *unknown* case (`ama` not loaded yet) reads as "no Discord": that
-	// branch only ever claims things about the public page, which are true either way, whereas claiming a
-	// Discord edit that never happens is not.
-	const postsToDiscord = Boolean(ama?.answersChannel);
+	// message to rewrite, so any copy below promising a Discord edit would be a lie. Deliberately
+	// `undefined` until `useAMA` resolves rather than collapsing to a boolean: both branches make a
+	// *definite* claim ("...the message that's live in the answers channel" / "This AMA doesn't post answers
+	// to Discord"), so guessing either way flashes something false for one render. Callers hold the
+	// Discord-specific wording back until this is known.
+	const postsToDiscord = ama ? Boolean(ama.answersChannel) : undefined;
 	// Whether an *answer* has actually gone out yet -- deliberately not "is the question 'ASKED'", which is
 	// what this used to key off and is a different fact. A question reaches 'ASKED' with no answer at all
 	// whenever review and prepared answers are both off (`submitQuestion.ts` routes straight there), and in
@@ -311,13 +312,9 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 				// but the confirm still earns its place: the answer is already public on the share page either way.
 				onConfirm={async () => void (await saveAnswer())}
 				onOpenChange={setShowSaveConfirm}
-				title={postsToDiscord ? 'Edit a sent answer?' : 'Edit a published answer?'}
+				title={saveConfirmCopy(postsToDiscord).title}
 			>
-				<p>
-					{postsToDiscord
-						? 'This answer has already gone out. Saving rewrites the existing message in the answers channel and updates the public answers page - anyone who already read it will see the new text.'
-						: 'This answer has already been published to the public answers page. Saving updates it there - anyone who already read it will see the new text.'}
-				</p>
+				<p>{saveConfirmCopy(postsToDiscord).body}</p>
 			</ConfirmModal>
 
 			<div className="flex flex-wrap gap-2">
