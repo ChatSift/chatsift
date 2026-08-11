@@ -1,6 +1,6 @@
 # M5 — ModMail: legacy data migration + cutover
 
-**Milestone target:** TBD — no date has been publicly announced for ModMail yet (unlike M4's, see [05-migration-cutover.md](05-migration-cutover.md)). **Depends on:** nothing blocking — the M1 foundation pattern and the M4-established bot/grant-token conventions this milestone originally depended on have both already shipped and been reused (see below). **Live production impact:** yes, and unlike M4 this one includes a real historical-data migration.
+**Milestone target:** the freeze window opens **2026-08-24T15:00:00Z** and the migration runs at **2026-08-26T15:00:00Z** (both 18:00 EEST) — announced to guild owners, so this is now a public commitment, not an internal aim. See [Pre-cutover comms](#pre-cutover-comms-313) for who was told what. **Depends on:** nothing blocking — the M1 foundation pattern and the M4-established bot/grant-token conventions this milestone originally depended on have both already shipped and been reused (see below). **Live production impact:** yes, and unlike M4 this one includes a real historical-data migration.
 
 ## Status: feature work shipped 2026-07-30; only the legacy migration + cutover remain
 
@@ -131,11 +131,31 @@ Because the mod-side model didn't change, this is a close-to-1:1 mapping, not th
    - `mod_forum_id` is migrated as `NULL` for every guild, deliberately: the legacy value was a text channel and the new mod side needs a Forum. The script prints the list of affected guilds so it can drive follow-up comms.
 2. **Dry-run** against a copy of the production legacy `ChatSift/ModMail` database; reconcile row counts and spot-check message content/ordering per thread. `--dry-run` runs the whole migration in a transaction and rolls it back (so every FK/CHECK/unique constraint is genuinely exercised), and `--verify` is the read-only reconciler: per-table row counts, per-thread message counts, and full message-set comparison on a random sample. **Do the NASCAR pilot first** (below) — it exercises the same code path against real history at a fraction of the blast radius, and produces the first honest wall-clock number.
 3. **Cutover runbook** (mirroring [05-migration-cutover.md](05-migration-cutover.md)'s structure, but _with_ a data migration this time):
-   - Announce a maintenance window — ModMail is more synchronous/user-facing than AMA was, a message sent mid-cutover shouldn't get lost.
+   - Announce a maintenance window — ModMail is more synchronous/user-facing than AMA was, a message sent mid-cutover shouldn't get lost. See [Pre-cutover comms](#pre-cutover-comms-313) for the three channels this goes out on and the one date they all share.
    - Freeze the legacy bot (stop accepting new DMs/replies — it's still DM-based right up to cutover) for the migration run.
    - Run the migration script against a final snapshot, then `--verify`. **Record the wall-clock duration of the dry-run (item 2) and budget the maintenance window off that** — it's the only honest estimate available, since runtime is dominated by legacy row counts nobody has measured yet. The script sets `statement_timeout`/`idle_in_transaction_session_timeout` to 0 for its own transaction (it holds one transaction open across reads of the _legacy_ database, so it idles for reasons unrelated to Postgres' own speed), but that only covers server-side limits — a connection killed by something in between, or the operator's own shell timing out, still means restarting the whole run.
    - Deploy `services/modmail-bot` as the public deployment, point the token, smoke-test (create a ticket via a panel, reply from staff, close a ticket and confirm the private thread is gone, pull up a migrated legacy thread in the dashboard thread view and confirm its history rendered correctly).
    - Keep the legacy deployment + database warm for rollback until confidence is established.
+
+## Pre-cutover comms (#313)
+
+Three separate measures, all driven off **one instant**: `2026-08-24T15:00:00Z` (Mon 24 Aug 2026, 18:00 EEST), with the freeze running 48h to `2026-08-26T15:00:00Z`. If that date ever moves, all three have to move together — owners and moderators looking at two different dates is worse than either date being wrong.
+
+1. **Owner DMs** — [`scripts/announce-modmail-migration.mjs`](../../scripts/announce-modmail-migration.mjs) in this repo. Dependency-free node-builtins script (it runs on a deploy host with no installed workspace, same constraint as the other root scripts), plain REST `POST /users/@me/channels` + `POST /channels/:id/messages`, Components V2 body. Recipients are a **hardcoded 21-entry `OWNERS` list** sourced from the prod ModMail guild-activity table — filtered by _actual bot usage_, not member count, so large-but-idle guilds are deliberately absent. Repeated owner ids are folded into one DM naming every guild they own. Requires `MODMAIL_ANNOUNCE_TOKEN` (the legacy prod bot's token, so the DM comes from the bot the owner recognises) plus an explicit `--test` (one recipient — us, labelled as a fake "ChatSift" guild) or `--live` — there is no default, so a bare invocation can't blast real owners. The date is **hardcoded** in the script now that it's settled, not passed in; `MIGRATION_START_ISO` still overrides it but is rejected without an explicit `Z`/offset, because `Date` would otherwise parse it in the runner's local timezone and silently shift every `<t:…>` the recipients see. Every run prints the resolved window before sending anything:
+
+   ```sh
+   # __PROD_MODMAIL_TOK__ from .env.private -- NOT __PROD_AMA_TOK__, which sits right above it and
+   # would put the announcement in front of owners as a DM from the AMA bot they never installed.
+   MODMAIL_ANNOUNCE_TOKEN=$__PROD_MODMAIL_TOK__ node scripts/announce-modmail-migration.mjs --test   # then --live
+   ```
+
+   **NASCAR is deliberately absent** from both `OWNERS` and the test recipient: they're the pilot (below), moving onto their own #216 custom instance in DM mode, so this announcement's copy — public cutover date, panel-configuration requirement — is simply not true for them.
+
+2. **Legacy bot status** — a custom presence on the legacy bot spelling out the date (Discord doesn't render `<t:…>` in a presence). Set on `ClientReady` **and re-applied hourly on a `setInterval`**: Discord drops a bot's presence over time and across gateway resumes, so a one-shot `setPresence()` (or an IDENTIFY-payload presence) quietly decays to nothing.
+
+3. **In-thread moderator notice** — a yellow notice embed prepended to the starter message of every newly opened legacy thread, ahead of the existing info embed. This is the measure that actually reaches the people running the queue: the owner DMs above reach 21 accounts, and moderators aren't among them. It rides the existing starter message rather than being a follow-up post, so it's genuinely the first thing in the thread and costs no extra API call; the starter message's `content` (member mention + alert-role ping) is untouched, so it adds no second ping.
+
+(2) and (3) live in **legacy `ChatSift/ModMail`**, not in this repo — they only make sense on the bot people are using today. Branch `feat/migration-notices` there: a disposable `packages/bot/src/util/migrationNotice.ts` holding the timestamps, the status text and the embed builder, wired into `events/ready.ts` and `util/handleThreadManagement.ts`. Everything is hardcoded rather than plumbed through that repo's `struct/Env.ts` on purpose — it has a known expiry date. Merging to `main` there triggers `.github/workflows/deploy.yml`, which builds and pushes `chatsift/modmail:latest`; the prod stack then needs a pull + restart to pick it up. Deploy well ahead of the 24th, and delete both call sites after cutover (or just decommission the legacy deployment, #159).
 
 ## The NASCAR pilot
 

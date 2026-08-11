@@ -3,15 +3,17 @@
 // than a legacy embed.
 //
 // Usage:
-//   MODMAIL_ANNOUNCE_TOKEN=<bot token> MIGRATION_START_ISO=<ISO datetime, UTC> \
-//     node announce-modmail-migration.mjs --test
-//   MODMAIL_ANNOUNCE_TOKEN=<bot token> MIGRATION_START_ISO=<ISO datetime, UTC> \
-//     node announce-modmail-migration.mjs --live
+//   MODMAIL_ANNOUNCE_TOKEN=<bot token> node announce-modmail-migration.mjs --test
+//   MODMAIL_ANNOUNCE_TOKEN=<bot token> node announce-modmail-migration.mjs --live
 //
-// MIGRATION_START_ISO is the exact UTC start of the 48h thread-freeze window,
-// e.g. "2026-09-01T17:00:00Z". Required for --live. For --test it defaults to
-// 7 days from now (clearly a placeholder) if omitted, so a test send doesn't
-// need the real date decided yet.
+// The freeze window start is settled: 2026-08-24T15:00:00Z (Mon 24 Aug 2026, 18:00
+// EEST), hardcoded below as MIGRATION_START_DEFAULT_ISO. The same instant is
+// hardcoded on the legacy bot side (ChatSift/ModMail, packages/bot/src/util/
+// migrationNotice.ts) for the bot status and the in-thread moderator notice -- if
+// it ever moves, both have to move together, or owners and moderators end up
+// looking at two different dates. See docs/roadmap/06-modmail-port.md.
+//
+// MIGRATION_START_ISO overrides it, and must carry an explicit UTC designator.
 //
 // --test sends ONLY to the hardcoded TEST_RECIPIENT below (fake "ChatSift" guild).
 // --live sends to every entry in OWNERS. One of the two flags is required — there
@@ -35,37 +37,40 @@ if (!mode) {
 	process.exit(1);
 }
 
-let migrationStart;
-if (process.env.MIGRATION_START_ISO) {
-	const raw = process.env.MIGRATION_START_ISO;
+// The announced start of the 48h thread-freeze window. Hardcoded rather than left to the
+// invocation now that the date is settled: it's the one value shared with the legacy bot's
+// status and in-thread notice (see the header), and a typo'd env var on the --live run is not
+// a mistake there's any taking back once 21 DMs are out.
+const MIGRATION_START_DEFAULT_ISO = '2026-08-24T15:00:00Z';
 
-	// The <t:...> Discord timestamp markup below is computed from `migrationStart.getTime()`, which is
-	// only correct if the input is unambiguously UTC -- an offset-less "local" ISO string (e.g.
-	// "2026-09-01T17:00:00") gets parsed as the *runner's* local timezone by `Date`, silently shifting
-	// every timestamp shown to recipients. Reject anything without an explicit "Z" or numeric offset
-	// instead of trusting whoever invokes this script to always remember `Z`.
-	if (!/(?:Z|[+-]\d{2}:?\d{2})$/.test(raw)) {
-		console.error(`MIGRATION_START_ISO must include an explicit UTC/offset designator (e.g. a trailing "Z"): ${raw}`);
-		process.exit(1);
-	}
+const raw = process.env.MIGRATION_START_ISO ?? MIGRATION_START_DEFAULT_ISO;
 
-	migrationStart = new Date(raw);
-	if (Number.isNaN(migrationStart.getTime())) {
-		console.error(`MIGRATION_START_ISO is not a valid date: ${raw}`);
-		process.exit(1);
-	}
-} else if (mode === 'live') {
-	console.error('MIGRATION_START_ISO (exact UTC start of the freeze window) is required for --live');
+// The <t:...> Discord timestamp markup below is computed from `migrationStart.getTime()`, which is
+// only correct if the input is unambiguously UTC -- an offset-less "local" ISO string (e.g.
+// "2026-09-01T17:00:00") gets parsed as the *runner's* local timezone by `Date`, silently shifting
+// every timestamp shown to recipients. Reject anything without an explicit "Z" or numeric offset
+// instead of trusting whoever overrides this to always remember `Z`.
+if (!/(?:Z|[+-]\d{2}:?\d{2})$/.test(raw)) {
+	console.error(`MIGRATION_START_ISO must include an explicit UTC/offset designator (e.g. a trailing "Z"): ${raw}`);
 	process.exit(1);
-} else {
-	migrationStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000);
-	console.log(`MIGRATION_START_ISO not set — using placeholder date for test send: ${migrationStart.toISOString()}`);
+}
+
+const migrationStart = new Date(raw);
+if (Number.isNaN(migrationStart.getTime())) {
+	console.error(`MIGRATION_START_ISO is not a valid date: ${raw}`);
+	process.exit(1);
 }
 
 const migrationStartTs = Math.floor(migrationStart.getTime() / 1_000);
 const freezeEndTs = migrationStartTs + 48 * 60 * 60;
 
-const TEST_RECIPIENT = { guildName: 'NASCAR', ownerId: '223703707118731264' };
+console.log(`Freeze window: ${migrationStart.toISOString()} -> ${new Date(freezeEndTs * 1_000).toISOString()}`);
+
+// Deliberately not a real partner guild. NASCAR used to sit here, and shouldn't: they're being
+// migrated separately as the pilot (docs/roadmap/06-modmail-port.md), onto their own #216 custom
+// instance in DM mode, so none of the copy below is true for them -- a mis-flagged run must not be
+// able to tell them otherwise. The owner id is our own, so a --test send only ever DMs us.
+const TEST_RECIPIENT = { guildName: 'ChatSift', ownerId: '223703707118731264' };
 
 // Sourced from the prod ModMail guild-activity table. Two rows had corrupted
 // table borders in the source data (owner username/ID ran into the guild-name
