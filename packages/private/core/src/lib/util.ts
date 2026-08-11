@@ -7,5 +7,7 @@ export function isModuleWithDefault<Type>(
 	typePredicate?: (value: any) => value is Type,
 ): mod is ModuleWithDefault<Type> {
 	const predicateIsTrue = typePredicate ? typePredicate(mod?.default) : true;
-	return mod && typeof mod === 'object' && 'default' in mod && predicateIsTrue;
+	// `Boolean(...)` rather than returning the `&&` chain directly: a nullish `mod` short-circuits to that
+	// value verbatim, which contradicts the `boolean` type predicate above.
+	return Boolean(mod && typeof mod === 'object' && 'default' in mod && predicateIsTrue);
 }
