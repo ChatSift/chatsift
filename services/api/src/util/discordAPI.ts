@@ -23,6 +23,9 @@ export const discordAPIAma = new API(amaREST);
 const modmailREST = createRest().setToken(getContext().env.MODMAIL_BOT_TOKEN);
 export const discordAPIModmail = new API(modmailREST);
 
+const socialREST = createRest().setToken(getContext().env.SOCIAL_BOT_TOKEN);
+export const discordAPISocial = new API(socialREST);
+
 // Webhook execution is authed by the id/token in the URL itself, no bot token needed
 const webhookREST = createRest();
 export const discordAPIWebhook = new API(webhookREST);
@@ -30,6 +33,7 @@ export const discordAPIWebhook = new API(webhookREST);
 export const APIMapping: Record<BotId, API> = {
 	AMA: discordAPIAma,
 	MODMAIL: discordAPIModmail,
+	SOCIAL: discordAPISocial,
 };
 
 // Lazily built, kept for the life of the process -- a custom instance's token never changes without a

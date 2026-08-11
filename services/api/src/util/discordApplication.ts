@@ -1,23 +1,25 @@
-import { getInstanceForGuild, RedisStore, type Instance } from '@chatsift/backend-core';
+import { RedisStore, type BotId, type Instance } from '@chatsift/backend-core';
 import { createRecipe, DataType } from 'bin-rw';
-import { apiForGuild } from './discordAPI.js';
+import { apiForGuild, resolveGuildAPI } from './discordAPI.js';
 
-const applicationIdByInstance = new Map<string, string>();
+const applicationIdByBotInstance = new Map<string, string>();
 const pending = new Map<string, Promise<string>>();
 
 /**
- * A ModMail bot's own Discord application id -- required as the first argument to every guild
- * slash-command call (create/edit/delete). Not exposed via env; an application's id never changes, so it's
- * fetched once per bot token (public, or a given custom instance) and cached for the life of the process.
+ * A bot's own Discord application id -- required as the first argument to every guild slash-command call
+ * (create/edit/delete), which ModMail needs for snippets and Social for its per-guild interaction commands.
+ * Not exposed via env; an application's id never changes, so it's fetched once per bot token and cached for
+ * the life of the process.
  *
- * Keyed off `guildId` rather than a bot token directly -- `'public'` for a guild with no `modmail_instances`
- * row, otherwise the owning instance's id -- mirroring `discordAPI.ts#resolveGuildAPI`'s cache-key
- * dimension, since a partner's bot application is a different id from the public one.
+ * Keyed off `(botId, guildId)` rather than a bot token directly, resolved through
+ * `discordAPI.ts#resolveGuildAPI`'s own cache key -- `'public'` for anything on a bot's public deployment,
+ * otherwise the owning ModMail instance's id, since a partner's bot application is a different id from the
+ * public one. Only MODMAIL can ever resolve to something other than `'public'`.
  */
-export async function getModmailApplicationId(guildId: string): Promise<string> {
-	const key = getInstanceForGuild(guildId)?.id ?? 'public';
+export async function getBotApplicationId(botId: BotId, guildId: string): Promise<string> {
+	const key = `${botId}:${resolveGuildAPI(botId, guildId).cacheKey}`;
 
-	const cached = applicationIdByInstance.get(key);
+	const cached = applicationIdByBotInstance.get(key);
 	if (cached) {
 		return cached;
 	}
@@ -26,8 +28,8 @@ export async function getModmailApplicationId(guildId: string): Promise<string> 
 	if (!inflight) {
 		inflight = (async () => {
 			try {
-				const application = await apiForGuild('MODMAIL', guildId).applications.getCurrent();
-				applicationIdByInstance.set(key, application.id);
+				const application = await apiForGuild(botId, guildId).applications.getCurrent();
+				applicationIdByBotInstance.set(key, application.id);
 				return application.id;
 			} catch (error) {
 				// A transient failure (network blip, momentary Discord outage) shouldn't poison every future call for

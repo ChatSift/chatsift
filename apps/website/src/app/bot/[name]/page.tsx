@@ -1,4 +1,3 @@
-import { BOTS } from '@chatsift/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -6,12 +5,12 @@ import { Heading } from '@/components/common/Heading';
 import { FeatureGrid } from '@/components/marketing/FeatureGrid';
 import { LinkButton } from '@/components/marketing/LinkButton';
 import { ScreenshotGallery } from '@/components/marketing/ScreenshotGallery';
-import { marketingBots, resolveBot } from '@/data/marketingBots';
+import { MARKETED_BOTS, marketingBots, resolveBot } from '@/data/marketingBots';
 import { Bots } from '@/utils/bots';
 import { socialMetadata } from '@/utils/site';
 
 export function generateStaticParams() {
-	return BOTS.map((bot) => ({ name: bot.toLowerCase() }));
+	return MARKETED_BOTS.map((bot) => ({ name: bot.toLowerCase() }));
 }
 
 export async function generateMetadata({ params }: PageProps<'/bot/[name]'>): Promise<Metadata> {
@@ -39,7 +38,7 @@ export default async function BotPage({ params }: PageProps<'/bot/[name]'>) {
 
 	const marketing = marketingBots[bot];
 	const { label } = Bots[bot];
-	const otherBots = BOTS.filter((otherBot) => otherBot !== bot);
+	const otherBots = MARKETED_BOTS.filter((otherBot) => otherBot !== bot);
 
 	return (
 		<div className="flex flex-col gap-12 pb-12">

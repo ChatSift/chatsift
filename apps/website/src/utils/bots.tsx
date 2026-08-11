@@ -2,10 +2,16 @@ import type { BotId } from '@chatsift/core';
 import Image from 'next/image';
 import { SvgAMA } from '@/components/icons/SvgAMA';
 import { SvgModmail } from '@/components/icons/SvgModmail';
+import { SvgSocial } from '@/components/icons/SvgSocial';
 
+// Every `BotId` needs an entry here, including one with no public marketing page yet (SOCIAL, #343) -- this
+// is the *dashboard's* branding, and a guild the bot is actually in gets a nav tab from it (`GuildNav.tsx`)
+// regardless of whether the product has been announced. `data/marketingBots.ts` is the public-facing half,
+// and that one is deliberately partial.
 export const Bots = {
 	AMA: { Icon: SvgAMA, label: 'AMA' },
 	MODMAIL: { Icon: SvgModmail, label: 'ModMail' },
+	SOCIAL: { Icon: SvgSocial, label: 'Social' },
 } as const satisfies Record<BotId, { Icon: React.ComponentType<{ height?: number; width?: number }>; label: string }>;
 
 export interface BotBrandingSource {

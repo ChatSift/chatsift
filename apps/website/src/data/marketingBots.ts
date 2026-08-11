@@ -1,13 +1,25 @@
-import { BOTS } from '@chatsift/core';
 import type { BotId } from '@chatsift/core';
+
+/**
+ * The bots with public marketing copy -- a deliberate subset of `BOTS`, not a mirror of it. A product becomes
+ * a real `BotId` (and gets a dashboard nav tab in the guilds it's installed in) well before it's announced:
+ * SOCIAL (#343) is a `BotId` from its API phase onward, months ahead of any public page. Everything public --
+ * the homepage grid, `/bot/[name]` and its OG image, the cross-links between bot pages -- iterates *this*,
+ * so adding a bot to `BOTS` never publishes anything on its own. Move an id here (with its entry below) when
+ * the product actually launches.
+ */
+export const MARKETED_BOTS = ['AMA', 'MODMAIL'] as const satisfies readonly BotId[];
+
+export type MarketedBotId = (typeof MARKETED_BOTS)[number];
 
 /**
  * Resolves the lowercased `/bot/[name]` segment back to its `BotId`. Lives here rather than in the page so
  * the route's `opengraph-image` can share it -- both need to turn the same param into the same
- * `marketingBots` entry.
+ * `marketingBots` entry. An unmarketed bot's slug resolves to `undefined` exactly like an unknown one, so
+ * `/bot/social` 404s until Social is launched rather than rendering a half-empty page.
  */
-export function resolveBot(name: string): BotId | undefined {
-	return BOTS.find((bot) => bot.toLowerCase() === name);
+export function resolveBot(name: string): MarketedBotId | undefined {
+	return MARKETED_BOTS.find((bot) => bot.toLowerCase() === name);
 }
 
 export interface MarketingScreenshot {
@@ -43,7 +55,7 @@ export interface MarketingBot {
 	readonly screenshots: readonly MarketingScreenshot[];
 }
 
-export const marketingBots: Record<BotId, MarketingBot> = {
+export const marketingBots: Record<MarketedBotId, MarketingBot> = {
 	AMA: {
 		pageTitle: 'AMA (Ask Me Anything)',
 		cardDescription: 'Manage and coordinate your Ask-Me-Anything events with ease.',

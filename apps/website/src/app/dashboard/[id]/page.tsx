@@ -8,6 +8,8 @@ import { FaWrench } from 'react-icons/fa';
 import { useMe } from '@/api/routes/auth';
 import { Heading } from '@/components/common/Heading';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
+import type { MarketedBotId } from '@/data/marketingBots';
+import { MARKETED_BOTS } from '@/data/marketingBots';
 import { BotIcon, resolveBotBranding } from '@/utils/bots';
 import { cn } from '@/utils/util';
 
@@ -74,21 +76,28 @@ export default function GuildPage() {
 						subtext="View and modify general settings related to your community"
 						text="General settings"
 					/>
-					{BOTS.map((bot, index) => {
-						const branding = resolveBotBranding(guild, bot);
-						const hasIt = guild.bots.includes(bot);
-						return (
-							<SectionCard
-								className={hasIt ? '' : 'opacity-50 hover:opacity-75'}
-								href={hasIt ? `/dashboard/${guild.id}/${bot.toLowerCase()}` : `/invites/${bot.toLowerCase()}`}
-								icon={<BotIcon bot={bot} branding={branding} height={32} width={32} />}
-								key={index}
-								linksExternally={!hasIt}
-								subtext={hasIt ? `Configure ${branding.label} bot settings` : `Invite ${branding.label} to your server`}
-								text={branding.label}
-							/>
-						);
-					})}
+					{/* A guild sees every bot it actually has (so a not-yet-launched product is still configurable
+					    once installed, see BOTS in @chatsift/core), plus the ones it could invite -- which is only
+					    the marketed set, since `/invites/<name>` doesn't exist for anything unlaunched. */}
+					{BOTS.filter((bot) => guild.bots.includes(bot) || MARKETED_BOTS.includes(bot as MarketedBotId)).map(
+						(bot, index) => {
+							const branding = resolveBotBranding(guild, bot);
+							const hasIt = guild.bots.includes(bot);
+							return (
+								<SectionCard
+									className={hasIt ? '' : 'opacity-50 hover:opacity-75'}
+									href={hasIt ? `/dashboard/${guild.id}/${bot.toLowerCase()}` : `/invites/${bot.toLowerCase()}`}
+									icon={<BotIcon bot={bot} branding={branding} height={32} width={32} />}
+									key={index}
+									linksExternally={!hasIt}
+									subtext={
+										hasIt ? `Configure ${branding.label} bot settings` : `Invite ${branding.label} to your server`
+									}
+									text={branding.label}
+								/>
+							);
+						},
+					)}
 				</div>
 			</div>
 		</div>

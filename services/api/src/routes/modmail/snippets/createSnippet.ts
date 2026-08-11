@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { apiForGuild } from '../../../util/discordAPI.js';
-import { getModmailApplicationId } from '../../../util/discordApplication.js';
+import { getBotApplicationId } from '../../../util/discordApplication.js';
 import { isUniqueViolation } from '../../../util/postgres.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { buildSnippetCommandBody } from '../discordBodies.js';
@@ -45,7 +45,7 @@ export default defineRoute({
 
 		// The snippet's guild command has to exist on Discord's side before we have a commandId to store, and a
 		// name Discord rejects (reserved, bad characters, etc.) only surfaces here, not at zod-validation time.
-		const applicationId = await getModmailApplicationId(guildId);
+		const applicationId = await getBotApplicationId('MODMAIL', guildId);
 		const api = apiForGuild('MODMAIL', guildId);
 
 		let command;

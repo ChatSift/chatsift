@@ -7,10 +7,10 @@ import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { apiForGuild } from '../../../util/discordAPI.js';
+import type { ResyncFailure } from '../../../util/resync.js';
+import { describeError } from '../../../util/resync.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { buildPanelComponents, DEFAULT_PANEL_BUTTON_LABEL } from '../discordBodies.js';
-import type { ResyncFailure } from '../resyncShared.js';
-import { describeError } from '../resyncShared.js';
 
 const bodySchema = z.strictObject({});
 const paramsSchema = z.object({ guildId: snowflakeSchema });

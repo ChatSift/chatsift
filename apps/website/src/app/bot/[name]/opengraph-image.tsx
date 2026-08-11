@@ -1,5 +1,4 @@
-import { BOTS } from '@chatsift/core';
-import { marketingBots, resolveBot } from '@/data/marketingBots';
+import { MARKETED_BOTS, marketingBots, resolveBot } from '@/data/marketingBots';
 import { renderOgCard } from '@/utils/og';
 import { SITE_DESCRIPTION, SITE_NAME } from '@/utils/site';
 
@@ -12,7 +11,7 @@ export const alt = `${SITE_NAME} bot`;
  * on the first unfurl -- an unfurler that times out caches the *miss*, so a cold render is worth avoiding.
  */
 export function generateStaticParams() {
-	return BOTS.map((bot) => ({ name: bot.toLowerCase() }));
+	return MARKETED_BOTS.map((bot) => ({ name: bot.toLowerCase() }));
 }
 
 // Next generates `PageProps`/`LayoutProps` for typed routes but has no equivalent for the metadata file

@@ -67,6 +67,12 @@ export const envSchema = z.object({
 	// deployment) means "this process is the public ModMail instance".
 	MODMAIL_INSTANCE_ID: z.string().trim().min(1).optional(),
 
+	// Social (#343). Required like every other bot token: services/api needs it from the Social port's API
+	// phase onward (it registers/deletes the per-guild interaction commands), so a deployment without it
+	// would fail at the first interaction write rather than at boot. Custom instances are a ModMail-only
+	// concept, so there's no per-instance counterpart here.
+	SOCIAL_BOT_TOKEN: z.string(),
+
 	// Dozzle log webhook relay (issue #212) — Dozzle POSTs here with a raw-JSON embed description,
 	// we prettify it and forward to the real Discord webhook
 	DOZZLE_WEBHOOK_SECRET: z.string(),

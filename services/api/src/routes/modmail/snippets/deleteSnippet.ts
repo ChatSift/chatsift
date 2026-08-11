@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { apiForGuild } from '../../../util/discordAPI.js';
-import { getModmailApplicationId } from '../../../util/discordApplication.js';
+import { getBotApplicationId } from '../../../util/discordApplication.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 
 const paramsSchema = z.object({
@@ -41,7 +41,7 @@ export default defineRoute({
 			throw notFound('snippet not found');
 		}
 
-		const applicationId = await getModmailApplicationId(guildId);
+		const applicationId = await getBotApplicationId('MODMAIL', guildId);
 
 		try {
 			await apiForGuild('MODMAIL', guildId).applicationCommands.deleteGuildCommand(
