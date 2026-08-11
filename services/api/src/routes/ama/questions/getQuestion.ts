@@ -35,6 +35,14 @@ export interface ExtraAsker {
 }
 
 export interface QuestionDetail extends AmaQuestions {
+	/**
+	 * Resolved `answeredById`, null when nothing has been recorded yet. Resolved here rather than left to
+	 * the dashboard, which used to match the raw id against `ama.guests` and could therefore only ever
+	 * name a *guest* -- an AMA with no guests configured (or one answered by a plain moderator, which is
+	 * what "Default (you)" records) rendered a bare snowflake with no avatar. The public answers page has
+	 * always resolved it server-side; this brings the dashboard in line.
+	 */
+	answeredBy: APIUser | Snowflake | null;
 	author: APIUser | Snowflake;
 	extraAskers: ExtraAsker[];
 	tags: QuestionTagInfo[];
@@ -83,8 +91,12 @@ export default defineRoute({
 			`,
 		]);
 
-		const [author, extraAskers] = await Promise.all([
+		const [author, answeredBy, extraAskers] = await Promise.all([
 			resolveAmaUser(guildId, question.authorId),
+			// Cache-first like every other `resolveAmaUser` call here, and in practice almost always a hit --
+			// the answerer is typically the dashboard user who just acted, or a guest already resolved for the
+			// AMA detail view.
+			question.answeredById ? resolveAmaUser(guildId, question.answeredById) : null,
 			Promise.all(
 				askerRows.map(async (row): Promise<ExtraAsker> => ({
 					author: await resolveAmaUser(guildId, row.authorId),
@@ -94,6 +106,6 @@ export default defineRoute({
 			),
 		]);
 
-		return { ...question, author, extraAskers, tags: tagRows };
+		return { ...question, answeredBy, author, extraAskers, tags: tagRows };
 	},
 });

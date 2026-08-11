@@ -1,4 +1,9 @@
 interface TextFieldProps {
+	/**
+	 * Renders the input non-editable while leaving it (and its `helper`) on screen -- for fields whose value
+	 * is forced by another setting, where hiding them would leave no room to explain why.
+	 */
+	readonly disabled?: boolean;
 	readonly error?: string | undefined;
 	readonly helper?: React.ReactNode;
 	readonly id: string;
@@ -30,6 +35,7 @@ export function TextField({
 	maxLength,
 	min,
 	max,
+	disabled = false,
 }: TextFieldProps) {
 	const errorId = `${id}-error`;
 	const helperId = `${id}-helper`;
@@ -43,7 +49,8 @@ export function TextField({
 			<input
 				aria-describedby={describedBy}
 				aria-invalid={error ? true : undefined}
-				className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+				className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent disabled:cursor-not-allowed disabled:opacity-50 dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+				disabled={disabled}
 				id={id}
 				max={max}
 				maxLength={maxLength}

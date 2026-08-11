@@ -1,6 +1,6 @@
 'use client';
 
-import { updateAMAConfigSchema } from '@chatsift/api/ama-schemas';
+import { hasDiscordMessageSurface, updateAMAConfigSchema } from '@chatsift/api/ama-schemas';
 import { amaQuestionsChannel } from '@chatsift/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChannelType } from 'discord-api-types/v10';
@@ -47,6 +47,9 @@ const allowedChannelTypes = [ChannelType.GuildText, ...threadTypes];
 interface ConfigFormData {
 	allowedQuestionUploads: string;
 	answersChannelId: string;
+	// Form-state-only toggle, mirroring `reviewEnabled`/`queueId` -- off means `answersChannelId: null`
+	// goes to the API (#316).
+	answersToDiscord: boolean;
 	guestIds: string[];
 	preparedAnswersEnabled: boolean;
 	queueId: string;
@@ -228,12 +231,25 @@ export function AMADetails() {
 		);
 	}
 
+	// The two channels as the API will actually see them: a toggled-off select keeps its stale value, so
+	// "off" has to win over "still has a value". Both are null while the editor is closed, which only
+	// makes `uploadsDisabled` below vacuously true -- nothing reads it then.
+	const effectiveAnswersChannelId = configForm?.answersToDiscord ? configForm.answersChannelId || null : null;
+	const effectiveQueueId = configForm?.reviewEnabled ? configForm.queueId || null : null;
+	// The API's own rule (#316), shared rather than re-derived, so this can't diverge from what updateAMA
+	// will accept.
+	const uploadsDisabled = !hasDiscordMessageSurface({
+		answersChannelId: effectiveAnswersChannelId,
+		queueId: effectiveQueueId,
+	});
+
 	const startEdit = () => {
 		const scheduledCloseAt = ama.scheduledCloseAt ? dateToDatetimeLocalValue(new Date(ama.scheduledCloseAt)) : '';
 
 		setConfigForm({
 			title: ama.title,
-			answersChannelId: ama.answersChannel.id,
+			answersChannelId: ama.answersChannel?.id ?? '',
+			answersToDiscord: ama.answersChannel !== null,
 			queueId: ama.queueChannel?.id ?? '',
 			reviewEnabled: ama.reviewEnabled,
 			preparedAnswersEnabled: ama.preparedAnswersEnabled,
@@ -257,8 +273,14 @@ export function AMADetails() {
 		setConfigErrors((prev) => ({ ...prev, [field]: undefined }));
 	};
 
-	const updateConfigCheckbox = (field: 'preparedAnswersEnabled' | 'reviewEnabled', value: boolean) => {
+	const updateConfigCheckbox = (
+		field: 'answersToDiscord' | 'preparedAnswersEnabled' | 'reviewEnabled',
+		value: boolean,
+	) => {
 		setConfigForm((prev) => (prev ? { ...prev, [field]: value } : prev));
+		// Any of these three can be what made an uploads error stale (they're the inputs to
+		// `uploadsDisabled`), so drop it rather than leaving a message about a rule that no longer applies.
+		setConfigErrors(({ allowedQuestionUploads: _cleared, ...rest }) => rest);
 	};
 
 	const updateGuestId = (index: number, value: string) => {
@@ -280,11 +302,13 @@ export function AMADetails() {
 
 		const data = {
 			title: configForm.title,
-			answersChannelId: configForm.answersChannelId,
-			queueId: configForm.reviewEnabled ? configForm.queueId || null : null,
+			answersChannelId: effectiveAnswersChannelId,
+			queueId: effectiveQueueId,
 			reviewEnabled: configForm.reviewEnabled,
 			preparedAnswersEnabled: configForm.preparedAnswersEnabled,
-			allowedQuestionUploads: parseIntegerInput(configForm.allowedQuestionUploads),
+			// See `uploadsDisabled` -- forced to 0 rather than submitting a value typed before the toggles
+			// that invalidated it were flipped.
+			allowedQuestionUploads: uploadsDisabled ? 0 : parseIntegerInput(configForm.allowedQuestionUploads),
 			guestIds: [...new Set(configForm.guestIds.map((id) => id.trim()).filter(Boolean))],
 			// Omitted entirely (not sent as `undefined`) when untouched -- see `initialScheduledCloseAt`'s
 			// comment for why resending an unchanged value isn't safe to do unconditionally.
@@ -707,14 +731,24 @@ export function AMADetails() {
 
 						{editing ? (
 							<TextField
+								disabled={uploadsDisabled}
 								error={configErrors.allowedQuestionUploads}
+								helper={
+									uploadsDisabled ? (
+										<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+											Unavailable for this configuration. Uploaded files live on the Discord message a question is
+											posted to, and this AMA posts to neither an answers channel nor a review queue - there would be
+											nowhere to keep them. Turn on either one to allow uploads.
+										</p>
+									) : undefined
+								}
 								id="edit-allowed-uploads"
 								label="Allowed Uploads"
 								max={10}
 								min={0}
 								onChange={(value) => updateConfigField('allowedQuestionUploads', value)}
 								type="number"
-								value={configForm.allowedQuestionUploads}
+								value={uploadsDisabled ? '0' : configForm.allowedQuestionUploads}
 							/>
 						) : (
 							<div>
@@ -779,16 +813,39 @@ export function AMADetails() {
 					<div className="space-y-4">
 						{editing ? (
 							<>
-								<ChannelSelect
-									allowedTypes={allowedChannelTypes}
-									channels={channels}
-									error={configErrors.answersChannelId}
-									label="Answers Channel"
-									onChange={(value) => updateConfigField('answersChannelId', value)}
-									required
-									selectedId="edit-answersChannelId"
-									value={configForm.answersChannelId}
-								/>
+								<div>
+									<label className="flex items-center gap-2" htmlFor="edit-answers-to-discord">
+										<input
+											checked={configForm.answersToDiscord}
+											className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
+											id="edit-answers-to-discord"
+											onChange={(e) => updateConfigCheckbox('answersToDiscord', e.target.checked)}
+											type="checkbox"
+										/>
+										<span className="text-sm font-medium text-secondary dark:text-secondary-dark">
+											Post answers to a Discord channel
+										</span>
+									</label>
+									{configForm.answersToDiscord ? (
+										<div className="mt-2">
+											<ChannelSelect
+												allowedTypes={allowedChannelTypes}
+												channels={channels}
+												error={configErrors.answersChannelId}
+												label="Answers Channel"
+												onChange={(value) => updateConfigField('answersChannelId', value)}
+												required
+												selectedId="edit-answersChannelId"
+												value={configForm.answersChannelId}
+											/>
+										</div>
+									) : (
+										<p className="mt-2 rounded-md border border-misc-accent/40 bg-misc-accent/10 px-3 py-2 text-sm text-misc-accent">
+											Answers won&apos;t be posted to Discord - the public answers page becomes the only place they show
+											up. Questions already posted to a channel stay where they are.
+										</p>
+									)}
+								</div>
 
 								<div>
 									<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Prompt Channel</p>
@@ -892,7 +949,9 @@ export function AMADetails() {
 									<ChannelIcon channel={ama.answersChannel} />
 									<div>
 										<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Answers Channel</p>
-										<p className="text-base text-primary dark:text-primary-dark">{channelName(ama.answersChannel)}</p>
+										<p className="text-base text-primary dark:text-primary-dark">
+											{ama.answersChannel ? channelName(ama.answersChannel) : 'Public page only'}
+										</p>
 									</div>
 								</div>
 

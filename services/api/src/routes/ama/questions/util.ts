@@ -57,7 +57,15 @@ export function resolveCurrentQueueMessage(question: AmaQuestions, session: AmaS
 		return { channelId: session.queueId, kind: 'queue', messageId: question.queueMessageId };
 	}
 
-	if (question.state === 'ASKED' && question.answersMessageId) {
+	// `answersChannelId` can be null since #316 (a public-page-only AMA). A question submitted under that
+	// config reaches 'ASKED' without ever getting an `answers_message_id`, so it falls through to the same
+	// "no live message" return as a dash-only-held one. The channel check is load-bearing rather than
+	// redundant for the *other* order: an AMA switched to public-page-only after some questions were
+	// already posted keeps their `answers_message_id`s, but a message can only be addressed as
+	// (channel, message) -- with the channel cleared there is no way to reach it. Those already-posted
+	// messages consequently freeze at whatever they last rendered; the dashboard and the public page stay
+	// authoritative.
+	if (question.state === 'ASKED' && question.answersMessageId && session.answersChannelId) {
 		return { channelId: session.answersChannelId, kind: 'answers', messageId: question.answersMessageId };
 	}
 

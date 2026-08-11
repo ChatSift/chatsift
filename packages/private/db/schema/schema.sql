@@ -46,8 +46,20 @@ CREATE TABLE ama_sessions (
   guild_id                 TEXT NOT NULL,
   queue_id                 TEXT,
   title                    TEXT NOT NULL,
-  answers_channel_id       TEXT NOT NULL,
+  -- Nullable since #316: NULL means this AMA publishes nowhere on Discord, and the public answers page
+  -- (`share_token` below) is the only surface an answer ever reaches. Every path that would otherwise
+  -- post/edit/delete an answers-channel message skips the Discord call and leaves
+  -- `ama_questions.answers_message_id` null; the question still transitions to 'ASKED' with an
+  -- `asked_at`, which is what the public page reads. Switching an existing AMA either way only affects
+  -- questions sent afterwards -- already-posted messages are left alone rather than retro-deleted.
+  answers_channel_id       TEXT,
   prompt_channel_id        TEXT NOT NULL,
+  -- Max files on the submit modal. Must be 0 when the AMA has no Discord message surface at all
+  -- (answers_channel_id IS NULL AND queue_id IS NULL) -- attachments are never persisted here, every
+  -- consumer reads them back off whichever live Discord message currently shows the question (see
+  -- services/api's questions/util.ts `resolveQuestionAttachments`), so with no message they'd be
+  -- silently dropped. Enforced in services/api (createAMA/updateAMA) rather than by a CHECK, so the
+  -- dashboard can surface *why* the field is disabled instead of failing on a constraint violation.
   allowed_question_uploads INTEGER NOT NULL DEFAULT 2,
   ended                    BOOLEAN NOT NULL DEFAULT false,
   -- Optional automated close date (#290), settable at creation and editable retroactively (while the AMA is
@@ -65,8 +77,10 @@ CREATE TABLE ama_sessions (
   -- dash-only review stage always has somewhere to be handled. Backfilled for existing rows as
   -- `(mod_queue_id IS NOT NULL)`, which exactly preserves prior behavior: a stage that was never
   -- configured stays fully skipped, not silently reinterpreted.
-  -- Submission (prompt_channel_id) and final publishing (answers_channel_id) are deliberately excluded
-  -- from this pattern -- both stay Discord-only and NOT NULL, no toggle.
+  -- Submission (prompt_channel_id) stays deliberately excluded from this pattern -- it's the only entry
+  -- point a question can arrive through (the prompt message's "Submit a question" button), so there'd be
+  -- nothing left to submit *with*. Publishing used to be excluded for the same "cannot be dash-only"
+  -- reason but no longer is; see answers_channel_id above (#316).
   review_enabled           BOOLEAN NOT NULL DEFAULT false,
   -- Opaque id backing the public, unauthenticated read-only answers page (`/ama-answers/:shareToken`).
   -- Generated unconditionally at creation (see createAMA.ts) -- pre-existing rows were backfilled a

@@ -28,27 +28,10 @@ const redisSetMock = vi.hoisted(() => vi.fn(async (): Promise<string | null> => 
 const isDashboardSessionLiveMock = vi.hoisted(() => vi.fn(async () => true));
 const revokeDashboardSessionMock = vi.hoisted(() => vi.fn(async () => undefined));
 vi.mock('@chatsift/backend-core', async (importActual) => {
-	process.env['ROOT_DOMAIN'] = '';
-	process.env['OAUTH_DISCORD_CLIENT_ID'] = '123456789012345678';
-	process.env['OAUTH_DISCORD_CLIENT_SECRET'] = 'so secret';
-	process.env['API_URL_DEV'] = 'http://localhost:9876';
-	process.env['API_URL_PROD'] = 'https://api.example.com';
-	process.env['FRONTEND_URL_DEV'] = 'http://localhost:3000';
-	process.env['FRONTEND_URL_PROD'] = 'https://example.com';
+	const { stubTestEnv } = await import('../../__tests__/stubEnv.js');
+	stubTestEnv();
+	// Not part of the shared block: this suite is the only one that needs a global admin to exist.
 	process.env['ADMINS'] = ADMIN_USER_ID;
-	process.env['CORS'] = 'http:\\/\\/localhost:3000';
-	process.env['API_PORT'] = '9876';
-	process.env['ENCRYPTION_KEY'] = '7J7xgcVq3ZWu0RENu1riW7wJPYdqZzA1+kBRKMxhG0g=';
-	process.env['DATABASE_URL_DEV'] = 'postgres://user:password@localhost:5432/dbname';
-	process.env['DATABASE_URL_PROD'] = 'postgres://user:password@localhost:5432/dbname';
-	process.env['REDIS_URL_DEV'] = 'redis://localhost:6379';
-	process.env['REDIS_URL_PROD'] = 'redis://localhost:6379';
-	process.env['AMA_BOT_TOKEN'] = 'abcdef';
-	process.env['MODMAIL_BOT_TOKEN'] = 'abcdef';
-	process.env['DOZZLE_WEBHOOK_SECRET'] = 'so secret too';
-	process.env['DOZZLE_WEBHOOK_DISCORD_ID'] = '123456789012345678';
-	process.env['DOZZLE_WEBHOOK_DISCORD_TOKEN'] = 'abcdef';
-	process.env['METRICS_SECRET'] = 'so secret three';
 
 	const actual = (await importActual()) as typeof import('@chatsift/backend-core');
 

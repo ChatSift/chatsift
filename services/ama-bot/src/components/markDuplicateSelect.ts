@@ -45,7 +45,10 @@ function resolveCurrentMessage(question: AmaQuestions, session: AmaSessions): Cu
 		return { channelId: session.queueId, messageId: question.queueMessageId, includeUserId: true };
 	}
 
-	if (question.state === 'ASKED' && question.answersMessageId) {
+	// The `answersChannelId` check mirrors `services/api`'s `resolveCurrentQueueMessage` -- see its comment
+	// for why a null channel (a public-page-only AMA, #316) means there's nothing addressable here even
+	// when the question kept an `answers_message_id` from before the switch.
+	if (question.state === 'ASKED' && question.answersMessageId && session.answersChannelId) {
 		return { channelId: session.answersChannelId, messageId: question.answersMessageId, includeUserId: false };
 	}
 

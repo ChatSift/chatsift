@@ -163,20 +163,25 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				logger.info({ questionId: question.id, amaId: ama.id }, 'Question submitted directly to approved (held)');
 			} else {
 				// No queues configured and prepared answers off, post directly to answers channel (unchanged
-				// prod behavior, now landing on ASKED instead of the old APPROVED).
+				// prod behavior, now landing on ASKED instead of the old APPROVED). `null` back means this is a
+				// public-page-only AMA (#316) with no answers channel to post to -- same "the stage exists, it
+				// just has no Discord message" shape as the dash-only review branch above.
 				const msg = await postToAnswersChannel(postOptions);
 				// `state` is already 'ASKED' from the INSERT above (this branch only runs when the computed
 				// `state` fell through to 'ASKED'), so only the message id and `asked_at` are set here.
 				// `asked_at` deliberately lands *after* the post rather than in the INSERT: it means "when
 				// this went out", and if `postToAnswersChannel` throws, the catch below leaves the row 'ASKED'
 				// with neither an `answers_message_id` nor an `asked_at` -- which is exactly what a question
-				// that never actually made it to the channel should look like.
+				// that never actually made it to the channel should look like. A skipped post still sets
+				// `asked_at` (it did "go out", to the public page) but leaves the message id null.
 				await getContext().db`
-					UPDATE ama_questions SET answers_message_id = ${msg.id}, asked_at = now() WHERE id = ${question.id}
+					UPDATE ama_questions
+					SET answers_message_id = ${msg?.id ?? null}, asked_at = now()
+					WHERE id = ${question.id}
 				`;
 				logger.info(
-					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.answers },
-					'Question posted directly to answers channel',
+					{ questionId: question.id, amaId: ama.id, queue: CurrentlyInQueue.answers, posted: Boolean(msg) },
+					msg ? 'Question posted directly to answers channel' : 'Question asked directly (public answers page only)',
 				);
 			}
 

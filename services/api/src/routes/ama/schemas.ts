@@ -15,7 +15,9 @@ import { snowflakeSchema } from '../../util/schemas.js';
 const createAMABase = z.strictObject({
 	queueId: snowflakeSchema.nullable(),
 	title: z.string().min(1).max(255),
-	answersChannelId: snowflakeSchema,
+	// Nullable since #316: no answers channel means this AMA publishes nowhere on Discord and the public
+	// answers page is the only surface an answer reaches. See schema.sql's comment on the column.
+	answersChannelId: snowflakeSchema.nullable(),
 	promptChannelId: snowflakeSchema,
 	allowedQuestionUploads: z.number().int().min(0).max(10).default(0),
 	// Optional automated close date (#290) -- ama-bot's scheduledCloseSweep.ts flips `ended` once this
@@ -57,11 +59,36 @@ export const createAMAWithRawPromptSchema = createAMABase.safeExtend({
 	}),
 });
 
+/**
+ * Whether an AMA with this channel configuration ever puts a question on a Discord message at all
+ * (#316). Attachments are never persisted on `ama_questions` -- every consumer reads them back off
+ * whichever live message currently shows the question (`questions/util.ts`'s
+ * `resolveQuestionAttachments`), so with neither channel configured an upload would be accepted from
+ * the submit modal and then silently dropped. Uploads are therefore refused outright in that
+ * combination rather than half-working.
+ *
+ * Exported (and browser-safe, like the rest of this module) so the dashboard can disable its uploads
+ * field off the exact same rule the API enforces, instead of re-deriving the condition.
+ */
+export function hasDiscordMessageSurface(config: {
+	answersChannelId?: string | null | undefined;
+	queueId?: string | null | undefined;
+}): boolean {
+	return Boolean(config.answersChannelId ?? config.queueId);
+}
+
+export const UPLOADS_WITHOUT_DISCORD_SURFACE_MESSAGE =
+	'File uploads need either an answers channel or a review queue -- attachments live on the Discord message, so an AMA that posts nowhere has no way to keep them';
+
 export const createAMABodySchema = z
 	.union([createAMAWithRegularPromptSchema, createAMAWithRawPromptSchema])
 	.refine((data) => data.reviewEnabled || !data.queueId, {
 		message: 'queueId can only be set when reviewEnabled is true',
 		path: ['queueId'],
+	})
+	.refine((data) => hasDiscordMessageSurface(data) || data.allowedQuestionUploads === 0, {
+		message: UPLOADS_WITHOUT_DISCORD_SURFACE_MESSAGE,
+		path: ['allowedQuestionUploads'],
 	});
 
 // `ended` is the DB column, but what it actually gates is question *submission* (#299) -- everything else
@@ -74,7 +101,9 @@ export const updateAMAEndedSchema = z.strictObject({
 export const updateAMAConfigSchema = z
 	.strictObject({
 		title: z.string().min(1).max(255).optional(),
-		answersChannelId: snowflakeSchema.optional(),
+		// `.nullable()` as well as `.optional()` (mirroring `queueId`) so an existing AMA can be switched to
+		// public-page-only after the fact, not just created that way (#316).
+		answersChannelId: snowflakeSchema.nullable().optional(),
 		queueId: snowflakeSchema.nullable().optional(),
 		allowedQuestionUploads: z.number().int().min(0).max(10).optional(),
 		scheduledCloseAt: createAMABase.shape.scheduledCloseAt,

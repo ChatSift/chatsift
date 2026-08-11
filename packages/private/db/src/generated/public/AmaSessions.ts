@@ -14,7 +14,7 @@ export default interface AmaSessions {
 
   title: string;
 
-  answersChannelId: string;
+  answersChannelId: string | null;
 
   promptChannelId: string;
 
@@ -45,7 +45,7 @@ export interface AmaSessionsInitializer {
 
   title: string;
 
-  answersChannelId: string;
+  answersChannelId?: string | null;
 
   promptChannelId: string;
 
@@ -76,7 +76,7 @@ export interface AmaSessionsMutator {
 
   title?: string;
 
-  answersChannelId?: string;
+  answersChannelId?: string | null;
 
   promptChannelId?: string;
 

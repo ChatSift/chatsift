@@ -31,7 +31,8 @@ export interface AMASessionDetailed extends Omit<
 	AMASessionWithCount,
 	'answersChannelId' | 'promptChannelId' | 'queueId'
 > {
-	answersChannel: GuildChannelInfo | PossiblyMissingChannelInfo;
+	// Null on a public-page-only AMA (#316) -- same shape as `queueChannel` below.
+	answersChannel: GuildChannelInfo | PossiblyMissingChannelInfo | null;
 	// Resolved `guestIds`, same order -- backs the "answered by" guest pickers in the dashboard's
 	// answer editor without every consumer re-resolving raw ids itself.
 	guests: (APIUser | Snowflake)[];
@@ -83,8 +84,9 @@ export default defineRoute({
 			throw internal();
 		}
 
-		const foundAnswersChannel = channels.find((c) => c.id === session.answersChannelId);
-		const answersChannel = foundAnswersChannel ?? { id: session.answersChannelId };
+		const answersChannelId = session.answersChannelId;
+		const foundAnswersChannel = answersChannelId ? channels.find((c) => c.id === answersChannelId) : undefined;
+		const answersChannel = answersChannelId ? (foundAnswersChannel ?? { id: answersChannelId }) : null;
 		const queueChannel = session.queueId
 			? (channels.find((c) => c.id === session.queueId) ?? { id: session.queueId })
 			: null;
@@ -92,8 +94,10 @@ export default defineRoute({
 		const promptChannel = foundPromptChannel ?? { id: session.promptChannelId };
 
 		// Check the raw `find(...)` results, not `answersChannel`/`promptChannel` — those always fall back to
-		// `{ id }` when not found, so they're never falsy themselves.
-		const shouldEndNow = !session.ended && (!foundAnswersChannel || !foundPromptChannel);
+		// `{ id }` when not found, so they're never falsy themselves. The answers half is conditional on one
+		// being configured at all: a public-page-only AMA (#316) has nothing to go missing, and without the
+		// guard every such session would close itself the first time this route ran.
+		const shouldEndNow = !session.ended && ((Boolean(answersChannelId) && !foundAnswersChannel) || !foundPromptChannel);
 		if (shouldEndNow) {
 			req.logger.warn({ guildId, amaId }, `AMA session ${amaId} in guild ${guildId} has missing critical channels`);
 			await getContext().db`UPDATE ama_sessions SET ended = true WHERE id = ${amaId}`;

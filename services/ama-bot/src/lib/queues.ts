@@ -142,7 +142,11 @@ interface PostToAnswersChannelOptions {
 }
 
 /**
- * Posts an approved question to the answers channel
+ * Posts an approved question to the answers channel, or resolves `null` when the session has none
+ * configured -- a public-page-only AMA (#316), where the question still becomes 'ASKED' but the public
+ * answers page is the only place it shows up. Deliberately not the `throw` that `postToQueue` uses for
+ * its missing channel: there, a caller reaching it without a `queueId` is a bug, whereas here "no
+ * channel" is a supported configuration every caller has to handle.
  */
 export async function postToAnswersChannel({
 	attachments,
@@ -154,6 +158,10 @@ export async function postToAnswersChannel({
 	session,
 	user,
 }: PostToAnswersChannelOptions) {
+	if (!session.answersChannelId) {
+		return null;
+	}
+
 	const embeds = getBaseEmbeds({
 		attachments,
 		content,

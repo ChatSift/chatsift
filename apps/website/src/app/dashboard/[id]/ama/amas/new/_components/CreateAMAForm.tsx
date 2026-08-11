@@ -1,6 +1,10 @@
 'use client';
 
-import { createAMAWithRawPromptSchema, createAMAWithRegularPromptSchema } from '@chatsift/api/ama-schemas';
+import {
+	createAMAWithRawPromptSchema,
+	createAMAWithRegularPromptSchema,
+	hasDiscordMessageSurface,
+} from '@chatsift/api/ama-schemas';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -24,6 +28,9 @@ import { datetimeLocalValueToISOString, parseIntegerInput } from '@/utils/util';
 interface FormData {
 	allowedQuestionUploads: string;
 	answersChannelId: string;
+	// Mirrors `reviewEnabled`/`queueId`: the toggle lives in form state only, the API just sees a null
+	// `answersChannelId` when it's off (#316).
+	answersToDiscord: boolean;
 	description: string;
 	guestIds: string[];
 	imageURL: string;
@@ -100,6 +107,7 @@ export function CreateAMAForm() {
 	const [formData, setFormData] = useState<FormData>({
 		title: '',
 		answersChannelId: '',
+		answersToDiscord: true,
 		promptChannelId: '',
 		queueId: '',
 		allowedQuestionUploads: '0',
@@ -121,8 +129,14 @@ export function CreateAMAForm() {
 		setErrors((prev) => ({ ...prev, [field]: undefined }));
 	};
 
-	const updateCheckboxField = (field: 'preparedAnswersEnabled' | 'reviewEnabled', value: boolean) => {
+	const updateCheckboxField = (
+		field: 'answersToDiscord' | 'preparedAnswersEnabled' | 'reviewEnabled',
+		value: boolean,
+	) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
+		// Any of these three can be what made an uploads error stale (they're the inputs to
+		// `uploadsDisabled`), so drop it rather than leaving a message about a rule that no longer applies.
+		setErrors(({ allowedQuestionUploads: _cleared, ...rest }) => rest);
 	};
 
 	const updateGuestId = (index: number, value: string) => {
@@ -137,15 +151,28 @@ export function CreateAMAForm() {
 		setFormData((prev) => ({ ...prev, guestIds: prev.guestIds.filter((_id, i) => i !== index) }));
 	};
 
+	// The two channels as the API will actually see them -- a hidden select keeps its stale value, so
+	// "unchecked" has to win over "still has a value" everywhere downstream (`buildBody`, the duplicate
+	// warning, the uploads rule).
+	const effectiveAnswersChannelId = formData.answersToDiscord ? formData.answersChannelId || null : null;
+	const effectiveQueueId = formData.reviewEnabled ? formData.queueId || null : null;
+	// Exactly the API's own rule (#316) rather than a re-derivation, so the field can't be enabled here and
+	// then rejected server-side.
+	const uploadsDisabled = !hasDiscordMessageSurface({
+		answersChannelId: effectiveAnswersChannelId,
+		queueId: effectiveQueueId,
+	});
+
 	// Non-blocking: picking the same channel for two different purposes is legal (the API doesn't reject it) but
 	// is easy to do by accident with a few near-identical selects, so we flag it instead of silently accepting it.
 	const duplicateChannelWarning = useMemo(() => {
 		const seen = new Map<string, string>();
 		for (const { key, label } of CHANNEL_FIELDS) {
-			// The queue field only makes it into the submitted body while review is enabled (see
-			// `buildBody`, which sends `null` regardless of this field's value otherwise) -- flagging a
-			// clash against a channel that won't actually be sent would be a false positive.
+			// The queue and answers fields only make it into the submitted body while their respective
+			// toggles are on (see `buildBody`, which sends `null` regardless of the field's value otherwise)
+			// -- flagging a clash against a channel that won't actually be sent would be a false positive.
 			if (key === 'queueId' && !formData.reviewEnabled) continue;
+			if (key === 'answersChannelId' && !formData.answersToDiscord) continue;
 
 			const value = formData[key];
 			if (!value) continue;
@@ -164,15 +191,18 @@ export function CreateAMAForm() {
 	const buildBody = (): { data: Record<string, unknown> } => {
 		const base: Record<string, unknown> = {
 			title: formData.title,
-			answersChannelId: formData.answersChannelId,
+			// Null when "post answers to Discord" is off (#316) -- same stale-value handling as `queueId`.
+			answersChannelId: effectiveAnswersChannelId,
 			promptChannelId: formData.promptChannelId,
 			// The queue's channel only makes it through while review is enabled -- unchecking it hides the
 			// channel select but doesn't clear its stale value, so this is where that gets dropped rather
 			// than sent along with reviewEnabled: false.
-			queueId: formData.reviewEnabled ? formData.queueId || null : null,
+			queueId: effectiveQueueId,
 			reviewEnabled: formData.reviewEnabled,
 			preparedAnswersEnabled: formData.preparedAnswersEnabled,
-			allowedQuestionUploads: parseIntegerInput(formData.allowedQuestionUploads),
+			// Forced to 0 when there'd be no Discord message to hang attachments off -- the input is disabled
+			// in that state, but a value typed before the toggles flipped would otherwise still be submitted.
+			allowedQuestionUploads: uploadsDisabled ? 0 : parseIntegerInput(formData.allowedQuestionUploads),
 			scheduledCloseAt: datetimeLocalValueToISOString(formData.scheduledCloseAt),
 			guestIds: [...new Set(formData.guestIds.map((id) => id.trim()).filter(Boolean))],
 		};
@@ -333,17 +363,40 @@ export function CreateAMAForm() {
 						{duplicateChannelWarning}
 					</p>
 				)}
-				<ChannelSelect
-					allowedTypes={allowedChannelTypes}
-					channels={guildInfo!.channels}
-					error={errors.answersChannelId}
-					label="Answers Channel"
-					onChange={(value) => updateFormData('answersChannelId', value)}
-					placeholder="Select the channel where answers will be posted"
-					required
-					selectedId="answersChannelId"
-					value={formData.answersChannelId}
-				/>{' '}
+				<div>
+					<label className="flex items-center gap-2" htmlFor="ama-answers-to-discord">
+						<input
+							checked={formData.answersToDiscord}
+							className="h-4 w-4 rounded border-on-secondary dark:border-on-secondary-dark"
+							id="ama-answers-to-discord"
+							onChange={(e) => updateCheckboxField('answersToDiscord', e.target.checked)}
+							type="checkbox"
+						/>
+						<span className="text-sm font-medium text-secondary dark:text-secondary-dark">
+							Post answers to a Discord channel
+						</span>
+					</label>
+					{formData.answersToDiscord ? (
+						<div className="mt-2">
+							<ChannelSelect
+								allowedTypes={allowedChannelTypes}
+								channels={guildInfo!.channels}
+								error={errors.answersChannelId}
+								label="Answers Channel"
+								onChange={(value) => updateFormData('answersChannelId', value)}
+								placeholder="Select the channel where answers will be posted"
+								required
+								selectedId="answersChannelId"
+								value={formData.answersChannelId}
+							/>
+						</div>
+					) : (
+						<p className="mt-2 rounded-md border border-misc-accent/40 bg-misc-accent/10 px-3 py-2 text-sm text-misc-accent">
+							Answers won&apos;t be posted to Discord at all - the public answers page will be the only place they show
+							up. Share its link from this AMA&apos;s page once it&apos;s created.
+						</p>
+					)}
+				</div>{' '}
 				<ChannelSelect
 					allowedTypes={allowedChannelTypes}
 					channels={guildInfo!.channels}
@@ -441,11 +494,20 @@ export function CreateAMAForm() {
 					</p>
 				</div>
 				<TextField
+					disabled={uploadsDisabled}
 					error={errors.allowedQuestionUploads}
 					helper={
-						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-							Number of file attachments (0-10) users can include with their questions
-						</p>
+						uploadsDisabled ? (
+							<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+								Unavailable for this configuration. Uploaded files live on the Discord message a question is posted to,
+								and this AMA posts to neither an answers channel nor a review queue - there would be nowhere to keep
+								them. Turn on either one to allow uploads.
+							</p>
+						) : (
+							<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+								Number of file attachments (0-10) users can include with their questions
+							</p>
+						)
 					}
 					id="allowedQuestionUploads"
 					label="Allowed Question Uploads"
@@ -454,7 +516,7 @@ export function CreateAMAForm() {
 					onChange={(value) => updateFormData('allowedQuestionUploads', value)}
 					placeholder="0"
 					type="number"
-					value={formData.allowedQuestionUploads}
+					value={uploadsDisabled ? '0' : formData.allowedQuestionUploads}
 				/>
 				<TextField
 					error={errors.scheduledCloseAt}
