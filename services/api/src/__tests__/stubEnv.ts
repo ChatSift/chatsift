@@ -41,6 +41,7 @@ export function stubTestEnv(): void {
 	process.env['REDIS_URL_PROD'] = 'redis://localhost:6379';
 	process.env['AMA_BOT_TOKEN'] = 'abcdef';
 	process.env['MODMAIL_BOT_TOKEN'] = 'abcdef';
+	process.env['SOCIAL_BOT_TOKEN'] = 'abcdef';
 	process.env['DOZZLE_WEBHOOK_SECRET'] = 'so secret too';
 	process.env['DOZZLE_WEBHOOK_DISCORD_ID'] = '123456789012345678';
 	process.env['DOZZLE_WEBHOOK_DISCORD_TOKEN'] = 'abcdef';

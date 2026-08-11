@@ -1,9 +1,9 @@
-import { BOTS } from '@chatsift/core';
 import Link from 'next/link';
 import { Link as AriaLink } from 'react-aria-components';
 import type { MeGuild } from '@/api/routes/auth';
 import { GuildIcon } from '@/components/common/GuildIcon';
 import { Tooltip } from '@/components/common/Tooltip';
+import { MARKETED_BOTS } from '@/data/marketingBots';
 import { BotIcon, Bots, resolveBotBranding } from '@/utils/bots';
 import { cn } from '@/utils/util';
 
@@ -68,7 +68,9 @@ export default function GuildCard({ data, isGuest }: GuildCardProps) {
 						<div className="invisible col-start-1 row-start-1 flex flex-row items-center gap-3 group-hover:visible">
 							<p className="text-lg font-medium text-primary dark:text-primary-dark">Invite a bot:</p>
 							<ul className="flex flex-row items-center gap-3">
-								{BOTS.map((bot) => {
+								{/* Only bots with a real invite redirect (`next.config.mjs`) can be advertised here -- a
+								    `BotId` that exists but hasn't launched yet has no `/invites/<name>` target. */}
+								{MARKETED_BOTS.map((bot) => {
 									const { Icon, label } = Bots[bot];
 									return (
 										<li key={bot}>

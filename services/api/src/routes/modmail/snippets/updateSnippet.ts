@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { apiForGuild } from '../../../util/discordAPI.js';
-import { getModmailApplicationId } from '../../../util/discordApplication.js';
+import { getBotApplicationId } from '../../../util/discordApplication.js';
 import { isUniqueViolation } from '../../../util/postgres.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { updateSnippetBodySchema } from '../schemas.js';
@@ -61,7 +61,7 @@ export default defineRoute({
 		// that don't touch the name, permanently baking in the drift. Reading Discord's actual current name
 		// instead means *any* edit reconciles the two, not just one that happens to type a new name.
 		if (data.name !== undefined) {
-			const applicationId = await getModmailApplicationId(guildId);
+			const applicationId = await getBotApplicationId('MODMAIL', guildId);
 			const api = apiForGuild('MODMAIL', guildId);
 			const liveCommand = await api.applicationCommands.getGuildCommand(applicationId, guildId, existing.commandId);
 

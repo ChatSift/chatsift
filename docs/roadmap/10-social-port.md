@@ -6,7 +6,7 @@ nothing in flight — M4's AMA cutover ([05-migration-cutover.md](05-migration-c
 production impact:** none until P6 (cutover) — everything before that is additive: new tables, new service, new routes,
 new dashboard pages. Legacy `ChatSift/Social` keeps running untouched the whole time.
 
-## Status: P1 (schema) done — P2 onward not started
+## Status: P1 (schema) and P2 (API) done — P3 onward not started
 
 `10-` is the next free roadmap slot. This doc follows the established lifecycle
 ([09-appeals.md](09-appeals.md) explains it): when the phases land, it gets **deleted** and its durable shape is condensed
@@ -252,9 +252,25 @@ test guild, not just build/lint/test.
       preserves a command's id by name, so an in-place order exists that transiently collides). No generated types
       were exported from `@chatsift/db`'s `index.ts` yet — that file's convention is to add a table the first time a
       consumer needs it, which is P2.
-- [ ] **P2 — API.** The route set above, with zod validation mirroring legacy's bounds (config bounds listed in the
+- [x] **P2 — API.** The route set above, with zod validation mirroring legacy's bounds (config bounds listed in the
       feature catalog — the dashboard inherits them as its validation source of truth). Vitest coverage per the
       existing route-test patterns.
+      _Done_, 16 routes under `services/api/src/routes/social/`: config get/patch, channels & roles & rewards
+      list/upsert/delete, interactions list/create/patch/delete + resync. Schemas are browser-safe and exported as
+      `@chatsift/api/social-schemas` for P4, with 17 vitest cases pinning the legacy bounds, the enum casing, the
+      full-representation PUT defaults and the zod-v4 `.partial()`-keeps-defaults trap. Notes for later phases: - **`SOCIAL` is now a real `BotId`** (`packages/private/core`), which is what lets social routes use
+      `apiForGuild`/the per-`(bot, guild)` channel+role caches like every other product. `SOCIAL_BOT_TOKEN` is a
+      **required env var** — the API won't boot without it, locally or in prod. - Marketing is decoupled from `BOTS`: `apps/website`'s `marketingBots` is keyed by a new `MARKETED_BOTS`
+      subset, and every public surface (homepage grid, `/bot/[name]` + its OG image, cross-bot upsells) iterates
+      that instead. Social therefore has a dashboard identity (icon, label, nav tab once installed) with no public
+      page — move it into `MARKETED_BOTS` at launch. The dashboard's "invite a bot" affordances are filtered the
+      same way, since `/invites/social` doesn't exist yet. - Resync is **shared machinery** now: `services/api/src/util/commandResync.ts` (+ `util/resync.ts` for the
+      failure shape, moved out of `routes/modmail/resyncShared.ts`). ModMail's snippet resync was refactored onto
+      it with its wire shape unchanged; Social's differs only in supplying `clearCommandIds` (the nullable
+      `command_id` + UNIQUE index need clear-then-write). Applies to canary↔production movement as much as
+      cutover, which is why it's a permanent route rather than a one-off script. - `getModmailApplicationId` generalized to `getBotApplicationId(botId, guildId)`; the embed-image URL rule
+      moved to `util/schemas.ts` as `httpUrlSchema` (was private to modmail's schemas). - **Not verified live** — the API needs a real `SOCIAL_BOT_TOKEN`, and there's no Social bot to issue one for
+      until P3. Build/lint/test green; exercising these against Discord happens with P3/P4.
 - [ ] **P3 — Bot.** Scaffold `services/social-bot`; port the tracking engine (Redis keys and semantics verbatim, keys
       documented in code); implement additive role-diffing (ledger 2); `/level`; `/dashboard`; interaction dispatch +
       per-guild command registration with resync (ledger 3 — clear-then-write, see P1's note); level-up

@@ -1,6 +1,6 @@
 import emojiRegex from 'emoji-regex';
 import { z } from 'zod';
-import { snowflakeSchema } from '../../util/schemas.js';
+import { httpUrlSchema, snowflakeSchema } from '../../util/schemas.js';
 
 /**
  * Browser-safe: only `zod` + the pure `snowflakeSchema` regex, nothing server-only. Exposed to `apps/website` via
@@ -29,33 +29,10 @@ function isValidCategoryEmoji(value: string): boolean {
 	return matches.length === 1 && matches[0]![0] === value;
 }
 
-/**
- * A snippet's `attachmentUrl` is rendered as a Discord embed's `image.url` directly
- * (`services/modmail-bot`'s `relay.ts`) -- Discord's own servers fetch/proxy that URL when rendering
- * the embed, the bot's own process never connects to it, so this just needs to rule out non-http(s)
- * schemes (`javascript:`, `data:`, etc.), not private/internal hosts -- there's no SSRF against our own
- * infrastructure to defend against here.
- */
-// This file must stay browser-safe (see file-level comment above), so it needs the global WHATWG `URL`
-// -- `node:url`'s doesn't exist in a browser bundle.
-/* eslint-disable n/prefer-global/url */
-function isHttpUrl(value: string): boolean {
-	let url: URL;
-	try {
-		url = new URL(value);
-	} catch {
-		return false;
-	}
-	/* eslint-enable n/prefer-global/url */
-
-	return url.protocol === 'http:' || url.protocol === 'https:';
-}
-
 // Shared by a snippet's `attachmentUrl` and a normal-mode panel's `attachmentUrl` below -- both end up as
-// a Discord embed's `image.url` directly (`isHttpUrl`'s doc comment above covers why this only checks the
-// scheme). Defined up here (rather than next to `createSnippetBodySchema`) so `createPanelWithRegularContentSchema`
-// can use it too.
-const attachmentUrlSchema = z.url().max(2_000).refine(isHttpUrl, 'Attachment URL must use http(s)');
+// a Discord embed's `image.url` directly. The rule itself lives in `util/schemas.ts` (its doc comment covers
+// why this only checks the scheme), since social interactions need the identical one.
+const attachmentUrlSchema = httpUrlSchema;
 
 export const updateConfigBodySchema = z
 	.strictObject({

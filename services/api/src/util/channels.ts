@@ -125,3 +125,45 @@ export async function assertChannelsBelongToGuild(
 		}
 	}
 }
+
+/**
+ * Channel types a bot can never send a message to, so a config field meaning "post here" (Social's
+ * `levelUpNotificationFallbackChannelId`) must reject them up front rather than failing silently at send time.
+ *
+ * Deliberately a denylist, not an allowlist of the types that *do* take messages: Discord keeps adding channel
+ * types, and a new message-carrying one should work here the day it ships instead of being rejected until
+ * someone remembers to widen a list. Threads, voice-channel text and announcement channels all take messages
+ * and are all allowed by omission.
+ */
+const NON_POSTABLE_CHANNEL_TYPES = new Set<number>([
+	ChannelType.GuildCategory,
+	ChannelType.GuildForum,
+	ChannelType.GuildMedia,
+	ChannelType.GuildDirectory,
+]);
+
+/**
+ * `assertChannelsBelongToGuild` plus a "can a message actually be sent here" check -- for the config fields
+ * that name a channel the bot will post *to*, as opposed to one it only reads from or matches against.
+ */
+export async function assertChannelIsPostable(
+	guildId: Snowflake,
+	channelId: Snowflake,
+	botId: BotId,
+	logger: Logger,
+): Promise<void> {
+	const channels = await fetchGuildChannels(guildId, botId);
+	if (!channels) {
+		logger.warn({ guildId }, `Failed to fetch channels for guild ${guildId}`);
+		throw internal();
+	}
+
+	const channel = channels.find((entry) => entry.id === channelId);
+	if (!channel) {
+		throw badRequest(`channel ${channelId} does not belong to this guild`);
+	}
+
+	if (NON_POSTABLE_CHANNEL_TYPES.has(channel.type)) {
+		throw badRequest(`channel ${channelId} cannot receive messages`);
+	}
+}

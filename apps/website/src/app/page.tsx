@@ -1,8 +1,7 @@
-import { BOTS } from '@chatsift/core';
 import { Heading } from '@/components/common/Heading';
 import { BotCard } from '@/components/marketing/BotCard';
 import { LinkButton } from '@/components/marketing/LinkButton';
-import { marketingBots } from '@/data/marketingBots';
+import { MARKETED_BOTS, marketingBots } from '@/data/marketingBots';
 
 export default function HomePage() {
 	return (
@@ -20,7 +19,7 @@ export default function HomePage() {
 			<section className="flex flex-col gap-4">
 				<h2 className="text-2xl font-medium text-primary dark:text-primary-dark">Our bots</h2>
 				<ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-					{BOTS.map((bot) => (
+					{MARKETED_BOTS.map((bot) => (
 						<li key={bot}>
 							<BotCard bot={bot} cardDescription={marketingBots[bot].cardDescription} />
 						</li>

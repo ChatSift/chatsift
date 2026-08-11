@@ -40,6 +40,16 @@ export type { default as ThreadOpenAlerts } from './generated/public/ThreadOpenA
 export type { default as ThreadReplyAlerts } from './generated/public/ThreadReplyAlerts.js';
 export type { default as Snippets, SnippetsId } from './generated/public/Snippets.js';
 export type { default as SnippetUpdates, SnippetUpdatesId } from './generated/public/SnippetUpdates.js';
+export type {
+	default as SocialGuildSettings,
+	SocialGuildSettingsGuildId,
+} from './generated/public/SocialGuildSettings.js';
+export type { default as SocialLevelUpNotificationMode } from './generated/public/SocialLevelUpNotificationMode.js';
+export type { default as SocialUsers } from './generated/public/SocialUsers.js';
+export type { default as SocialChannels } from './generated/public/SocialChannels.js';
+export type { default as SocialRoles } from './generated/public/SocialRoles.js';
+export type { default as SocialRewards } from './generated/public/SocialRewards.js';
+export type { default as SocialInteractions, SocialInteractionsId } from './generated/public/SocialInteractions.js';
 
 export interface CreateDbOptions {
 	/**

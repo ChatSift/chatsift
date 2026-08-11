@@ -15,6 +15,10 @@
 		"./modmail-schemas": {
 			"types": "./dist/routes/modmail/schemas.d.ts",
 			"default": "./dist/routes/modmail/schemas.js"
+		},
+		"./social-schemas": {
+			"types": "./dist/routes/social/schemas.d.ts",
+			"default": "./dist/routes/social/schemas.js"
 		}
 	},
 	"types": "./dist/index.d.ts",

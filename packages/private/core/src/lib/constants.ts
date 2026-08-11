@@ -1,4 +1,8 @@
-export const BOTS = ['AMA', 'MODMAIL'] as const;
+// Order is load-bearing for presentation only (the dashboard's guild nav and the homepage's bot grid both
+// map over this). 'SOCIAL' (#343) is a real BotId from its API phase onward -- what it does *not* have yet is
+// public marketing copy, which is why `apps/website`'s `marketingBots` is a partial record keyed off this and
+// the public pages render only the bots that have an entry (see that file).
+export const BOTS = ['AMA', 'MODMAIL', 'SOCIAL'] as const;
 
 export type BotId = (typeof BOTS)[number];
 
