@@ -139,21 +139,41 @@ Because the mod-side model didn't change, this is a close-to-1:1 mapping, not th
 
 ## The NASCAR pilot
 
-NASCAR self-hosts its own deployment of legacy `ChatSift/ModMail` against its own Postgres. That makes it the rehearsal this milestone has been missing: a real legacy database with real history, small enough that a bad outcome is recoverable, and — because that database holds only their guild — needing none of the per-guild scoping the script deliberately doesn't have. Their new home is the **canary/main deployment** (`/home/deploys/repos/canary`); the `prod` branch runs no `modmail-bot` at all and folds into canary on 2026-08-13 ([prod-branch.md](../prod-branch.md)), so this was never a real choice. Afterwards they get a #216 custom instance in DM mode, so their users' flow matches what they have today.
+NASCAR self-hosts its own deployment of legacy `ChatSift/ModMail` (VPS checkout `/home/deploys/repos/nascar-modmail`) against its own Postgres. That makes it the rehearsal this milestone has been missing: a real legacy database with real history, small enough that a bad outcome is recoverable. Their new home is the **canary/main deployment** (`/home/deploys/repos/canary`); the `prod` branch runs no `modmail-bot` at all and folds into canary on 2026-08-13 ([prod-branch.md](../prod-branch.md)), so this was never a real choice. Afterwards they get a #216 custom instance in DM mode, so their users' flow matches what they have today.
 
-**0. Confirm their legacy schema hasn't drifted.** Every query in the script uses quoted camelCase legacy column names, so drift from the schema captured above is a hard mid-run failure. `pg_dump --schema-only` their database and diff the nine tables against ["Old schema"](#old-schema-migration-source) before anything else.
+Measured by dry-run 2026-08-11 (guild `877239953174691910`): **271 threads, 1289 messages, 1 `guild_settings` row** once the dead test guild below is removed — and **zero** snippets, snippet-updates, blocks, thread-open-alerts, thread-reply-alerts and scheduled-closes. Only three of the nine tables carry data; the rest of the script is a no-op for them. So the Snippets resync in step 8 is moot, and `threads` plus `guild_settings` are the only roots a rollback would have to touch.
 
-**1. Restore a copy.** Point `LEGACY_DATABASE_URL` at a restored copy, never their live database — the script holds one transaction open across reads of the legacy side.
+**The migration itself takes ~1 second** (2.8s wall-clock, of which 1.75s was the turbo build). The maintenance window is sized entirely by the human steps — dump, restore, test-guild delete, instance onboarding, forum config — not by the migration. Do not budget a long freeze on its account.
+
+**0. Confirm their legacy schema hasn't drifted.** Every query in the script uses quoted camelCase legacy column names, so drift from the schema captured above is a hard mid-run failure. `pg_dump --schema-only` their database and diff the nine tables against ["Old schema"](#old-schema-migration-source) before anything else. A tenth table in the dump is Prisma's own `_prisma_migrations` ledger, which the script never reads.
+
+**1. Restore a copy, then drop the dead test guild.** Point `LEGACY_DATABASE_URL` at a restored copy, never their live database — the script holds one transaction open across reads of the legacy side. Restoring it into canary's own Postgres as a separate database (`nascar_trial`) keeps everything in one container with no cross-stack networking.
+
+Their database holds **two** guilds, not one, and every `migrate*` function copies its table wholesale — so the second one rides along into canary unless it's removed first. It was confirmed dead on 2026-08-11 (`GET /guilds/:id` under their bot token 404s: the bot isn't in it anymore). Delete it from the _copy_ rather than filtering in the script — same effect, no code change, and it re-applies unchanged to each fresh dump:
+
+```sql
+BEGIN;
+DELETE FROM "Thread"          WHERE "guildId" = '<test guild id>';  -- cascades messages/alerts/closes
+DELETE FROM "GuildSettings"   WHERE "guildId" = '<test guild id>';
+DELETE FROM "Block"           WHERE "guildId" = '<test guild id>';
+DELETE FROM "ThreadOpenAlert" WHERE "guildId" = '<test guild id>';
+DELETE FROM "Snippet"         WHERE "guildId" = '<test guild id>';
+COMMIT;
+```
+
+**Every fresh dump contains it again** — re-run this before each migration attempt, and re-take the baseline counts afterwards so they match what the script will actually read. Confirm `GuildSettings` is down to 1 before continuing.
 
 **2. Freeze.** Their legacy bot is DM-based; stop it accepting new threads/replies for the window.
 
-**3. Force-close open threads** on the legacy side. Preflight refuses to run otherwise, deliberately.
+**3. Force-close open threads.** Preflight refuses to run otherwise, deliberately. For a rehearsal ahead of the freeze, do it in the copy (`UPDATE "Thread" SET "closedAt" = now(), "closedById" = '<id>' WHERE "closedAt" IS NULL`) — that is itself a faithful rehearsal of the real freeze step.
 
 **4. Dry-run, and record wall-clock** — this is the number that sizes the public window (item 3 above):
 
 ```sh
-LEGACY_DATABASE_URL=<copy> yarn migrate:legacy-modmail --source nascar --dry-run
+IS_PRODUCTION=false LEGACY_DATABASE_URL=<copy> yarn migrate:legacy-modmail --source nascar --dry-run
 ```
+
+**`IS_PRODUCTION=false` is required when running from the VPS host shell**, and is not a mistake: with it `true`, `resolveTargetUrl()` picks `DATABASE_URL_PROD`, whose `postgres` hostname only resolves inside the compose network. Both URLs reach the same physical database on canary — `DATABASE_URL_DEV` just goes via the host-published port. Get that port from `./compose port postgres 5432`, not from `.env.private` (canary doesn't set `LOCAL_DATABASE_PORT` there), and confirm it reaches the right database (`SELECT * FROM modmail_instances`) before trusting it for a `--live` run.
 
 **5. Live, then verify:**
 
@@ -173,7 +193,7 @@ Expect their guild in the "needs a forum" list — `mod_forum_id` migrates as `N
 - **Pick a Forum.** Their admin sets `mod_forum_id` on the dashboard. Until then ModMail does not work for them.
 - **Resync snippets.** Migrated `snippets.command_id` values belong to their _legacy_ application and 404 under the new one — press the snippets resync button ([§8](01-architecture.md#8-custom-modmail-instances-216)). Panels resync is not needed; no panels existed on legacy.
 
-**9. Keep their legacy deployment and database warm** for rollback until confidence is established.
+**9. Keep their legacy deployment and database warm** for rollback until confidence is established, and **archive the dump offsite** — the same single dump that fed the migration, taken before the test-guild delete and the force-close, so the archive is pristine legacy state and provably identical to what was imported. Checksum it across the transfer and test-restore it once; the VPS surviving is an assumption a rollback plan shouldn't make. The file holds Discord IDs, timestamps and guild config strings — the legacy schema stores no message content — so it is personal data but not a conversation archive.
 
 ## Verification
 
