@@ -66,8 +66,28 @@ export default defineRoute({
 			throw badRequest(`cannot send a question in state ${question.state}; it must be APPROVED first`);
 		}
 
+		// Public-page-only AMA (#316): there's no channel to publish to, so "send" is purely the state
+		// transition -- the question becomes visible on `/ama-answers/:shareToken` (which this route already
+		// invalidates below) and `answers_message_id` stays null. No message means nothing to compensate
+		// for either, so the claim runs on its own.
+		const answersChannelId = session.answersChannelId;
+		if (!answersChannelId) {
+			const [sentWithoutPost] = await db<AmaQuestions[]>`
+				UPDATE ama_questions
+				SET state = 'ASKED', asked_at = now(), updated_at = now()
+				WHERE id = ${questionId} AND state = 'APPROVED'
+				RETURNING *
+			`;
+
+			if (!sentWithoutPost) {
+				throw conflict('this question was already sent');
+			}
+
+			return sentWithoutPost;
+		}
+
 		const embeds = await buildQuestionEmbeds(guildId, question, session);
-		const message = await discordAPIAma.channels.createMessage(session.answersChannelId, { embeds });
+		const message = await discordAPIAma.channels.createMessage(answersChannelId, { embeds });
 
 		let sent: AmaQuestions | undefined;
 		try {
@@ -82,13 +102,13 @@ export default defineRoute({
 			// resolves empty), leaving it up would silently publish a question that was never actually claimed
 			// as ASKED. Mirrors `createAMA.ts`'s own delete-on-failure compensation.
 			// eslint-disable-next-line promise/prefer-await-to-then
-			void discordAPIAma.channels.deleteMessage(session.answersChannelId, message.id).catch(() => null);
+			void discordAPIAma.channels.deleteMessage(answersChannelId, message.id).catch(() => null);
 			throw error;
 		}
 
 		if (!sent) {
 			// eslint-disable-next-line promise/prefer-await-to-then
-			void discordAPIAma.channels.deleteMessage(session.answersChannelId, message.id).catch(() => null);
+			void discordAPIAma.channels.deleteMessage(answersChannelId, message.id).catch(() => null);
 			throw conflict('this question was already sent');
 		}
 

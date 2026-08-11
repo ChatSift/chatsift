@@ -7,6 +7,7 @@ import { FaCheck } from 'react-icons/fa';
 import { AuthorAvatar } from './AuthorAvatar';
 import { MergeDuplicatePicker } from './MergeDuplicatePicker';
 import { TagPicker } from './TagPicker';
+import { answerEditorHint } from './answerEditorHint';
 import { userLabel } from './userLabel';
 import { APIError } from '@/api/error';
 import { useAMA, useAMAQuestion, useSendAMAQuestion, useUpdateAMAQuestion } from '@/api/routes/ama';
@@ -71,10 +72,26 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 	// DENIED get nothing: neither is "pending to be posted", and DENIED never had an answer to begin with.
 	const isSent = question.state === 'ASKED';
 	const showAnswerEditor = question.state === 'APPROVED' || isSent;
-	const answeredByUser = question.answeredById
-		? (ama?.guests.find((guest) => (typeof guest === 'string' ? guest : guest.id) === question.answeredById) ??
-			question.answeredById)
-		: null;
+	// Whether this AMA publishes to Discord at all (#316) -- a public-page-only one has no answers-channel
+	// message to rewrite, so every bit of copy below that promises a Discord edit would be a lie. `Boolean`
+	// rather than a null check so the *unknown* case (`ama` not loaded yet) reads as "no Discord": that
+	// branch only ever claims things about the public page, which are true either way, whereas claiming a
+	// Discord edit that never happens is not.
+	const postsToDiscord = Boolean(ama?.answersChannel);
+	// Whether an *answer* has actually gone out yet -- deliberately not "is the question 'ASKED'", which is
+	// what this used to key off and is a different fact. A question reaches 'ASKED' with no answer at all
+	// whenever review and prepared answers are both off (`submitQuestion.ts` routes straight there), and in
+	// that state nobody has read an answer: the answers-channel message carries only the question embed, and
+	// the public answers page filters on `answer_content IS NOT NULL` (see `publicAnswers.ts`) so it isn't
+	// listed there either. Everything below that says "already" or asks for confirmation is about the answer,
+	// so it hangs off this. Reads the *stored* answer, not the textarea -- what's live now, not what's about
+	// to be saved.
+	const hasPublishedAnswer = isSent && Boolean(question.answerContent);
+	// Resolved server-side (see `getQuestion.ts`'s `answeredBy`). This used to look the id up in
+	// `ama.guests`, which meant it could only ever name a guest -- anyone else, including the "Default
+	// (you)" moderator that every sent answer records by default, fell through to a bare snowflake with no
+	// avatar.
+	const answeredByUser = question.answeredBy;
 	// Whether the recorded answerer is someone the picker below can actually represent. They often aren't:
 	// picking "Default (you)" stores the acting dashboard user's id, and a sent question always has one
 	// recorded -- so a plain moderator ends up in this column routinely, as does a guest who's since been
@@ -165,8 +182,7 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 					<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Answer</p>
 					{isSent && (
 						<p className="text-xs text-secondary dark:text-secondary-dark">
-							Already sent — saving edits the message that&apos;s live in the answers channel, and the public answers
-							page.
+							{answerEditorHint(hasPublishedAnswer, postsToDiscord)}
 						</p>
 					)}
 					{/* Who's currently recorded as the answerer, shown whenever the picker below can't show it
@@ -260,12 +276,13 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 									: 'border border-on-secondary dark:border-on-secondary-dark',
 							)}
 							isDisabled={updateQuestion.isPending || sendQuestion.isPending}
-							// A sent question's edit is confirmed first -- it rewrites something already public in
-							// two places. Nothing to confirm before it's sent: that answer is still a draft.
-							onPress={async () => (isSent ? setShowSaveConfirm(true) : runAction(saveAnswer))}
+							// Confirmed only when an answer is already out there to be rewritten. A draft (not sent
+							// yet) and an 'ASKED' question that never got an answer are both first saves -- warning
+							// that "anyone who already read it will see the new text" would be about nobody.
+							onPress={async () => (hasPublishedAnswer ? setShowSaveConfirm(true) : runAction(saveAnswer))}
 							type="button"
 						>
-							{isSent ? 'Save changes' : 'Save Answer'}
+							{hasPublishedAnswer ? 'Save changes' : 'Save Answer'}
 						</Button>
 						{!isSent && (
 							<Button
@@ -290,13 +307,16 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 				// propagate. `ConfirmModal` only closes once `onConfirm` resolves, so a failed edit (the API
 				// refuses to save anything it couldn't push to Discord) leaves the dialog up with `Button`'s
 				// error banner over it, rather than closing onto an inline message the modal was covering.
+				// That failure mode can't arise on a public-page-only AMA -- there's no Discord write to fail --
+				// but the confirm still earns its place: the answer is already public on the share page either way.
 				onConfirm={async () => void (await saveAnswer())}
 				onOpenChange={setShowSaveConfirm}
-				title="Edit a sent answer?"
+				title={postsToDiscord ? 'Edit a sent answer?' : 'Edit a published answer?'}
 			>
 				<p>
-					This question has already been sent. Saving rewrites the existing message in the answers channel and updates
-					the public answers page - anyone who already read it will see the new text.
+					{postsToDiscord
+						? 'This answer has already gone out. Saving rewrites the existing message in the answers channel and updates the public answers page - anyone who already read it will see the new text.'
+						: 'This answer has already been published to the public answers page. Saving updates it there - anyone who already read it will see the new text.'}
 				</p>
 			</ConfirmModal>
 

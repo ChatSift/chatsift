@@ -10,7 +10,7 @@ import { isAuthed } from '../../middleware/isAuthed.js';
 import { assertChannelsBelongToGuild } from '../../util/channels.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
 import { snowflakeSchema } from '../../util/schemas.js';
-import { updateAMABodySchema } from './schemas.js';
+import { hasDiscordMessageSurface, updateAMABodySchema, UPLOADS_WITHOUT_DISCORD_SURFACE_MESSAGE } from './schemas.js';
 
 const bodySchema = updateAMABodySchema;
 const paramsSchema = z.object({
@@ -83,6 +83,17 @@ export default defineRoute({
 		const effectiveQueueId = 'queueId' in data ? data.queueId : existingAMA.queueId;
 		if (!effectiveReviewEnabled && effectiveQueueId) {
 			throw badRequest('queueId can only be set when reviewEnabled is true');
+		}
+
+		// Same "check the effective post-merge values" treatment for #316's uploads rule, which `createAMA.ts`
+		// gets from a schema-level refine it can't share here for the same partial-update reason.
+		const effectiveAnswersChannelId = 'answersChannelId' in data ? data.answersChannelId : existingAMA.answersChannelId;
+		const effectiveUploads = data.allowedQuestionUploads ?? existingAMA.allowedQuestionUploads;
+		if (
+			effectiveUploads > 0 &&
+			!hasDiscordMessageSurface({ answersChannelId: effectiveAnswersChannelId, queueId: effectiveQueueId })
+		) {
+			throw badRequest(UPLOADS_WITHOUT_DISCORD_SURFACE_MESSAGE);
 		}
 
 		const { prompt, prompt_raw, guestIds, ...configFields } = data;

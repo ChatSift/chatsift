@@ -616,6 +616,7 @@ __metadata:
     tw-animate-css: "npm:^1.4.0"
     typescript: "npm:~6.0.3"
     usehooks-ts: "npm:^3.1.1"
+    vitest: "npm:^4.1.10"
     zod: "npm:^4.4.3"
   languageName: unknown
   linkType: soft

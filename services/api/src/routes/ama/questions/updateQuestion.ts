@@ -274,8 +274,28 @@ export default defineRoute({
 			return approved;
 		}
 
+		// Public-page-only AMA (#316): approving still publishes, just not to Discord -- the question goes
+		// straight to 'ASKED' with no `answers_message_id`, and the public answers page (already in this
+		// route's `realtimeChannel`) is where it shows up. No message posted means no compensation needed.
+		const answersChannelId = session.answersChannelId;
+		if (!answersChannelId) {
+			const [askedWithoutPost] = await db<AmaQuestions[]>`
+				UPDATE ama_questions
+				SET state = 'ASKED', asked_at = now(), updated_at = now()
+				WHERE id = ${questionId} AND state = 'PENDING_REVIEW'
+				RETURNING *
+			`;
+
+			if (!askedWithoutPost) {
+				throw conflict('this question was already handled by someone else');
+			}
+
+			await markSourceMessageResolved(question, session, ButtonStyle.Success, '✅ Approved');
+			return askedWithoutPost;
+		}
+
 		const embeds = await buildQuestionEmbeds(guildId, question, session);
-		const message = await discordAPIAma.channels.createMessage(session.answersChannelId, { embeds });
+		const message = await discordAPIAma.channels.createMessage(answersChannelId, { embeds });
 
 		const [asked] = await db<AmaQuestions[]>`
 			UPDATE ama_questions
@@ -286,7 +306,7 @@ export default defineRoute({
 
 		if (!asked) {
 			// eslint-disable-next-line promise/prefer-await-to-then
-			void discordAPIAma.channels.deleteMessage(session.answersChannelId, message.id).catch(() => null);
+			void discordAPIAma.channels.deleteMessage(answersChannelId, message.id).catch(() => null);
 			throw conflict('this question was already handled by someone else');
 		}
 

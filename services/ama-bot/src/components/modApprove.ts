@@ -97,26 +97,46 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 					user,
 				});
 
-				// Via `claimAfterPost` rather than a bare UPDATE: the message is already publicly visible at
-				// this point, so a claim that *throws* has to clean it up just like one that comes back empty
-				// (lost race) does -- otherwise a DB blip strands a question in the answers channel that no
-				// row points at, and the still-PENDING_REVIEW button posts a second copy when retried.
-				const claimed = await claimAfterPost<AmaQuestions>(
-					async () => getContext().db<AmaQuestions[]>`
+				// `null` back means a public-page-only AMA (#316): nothing was posted, so there's nothing for a
+				// failed claim to clean up and the plain guarded UPDATE below is the whole transition.
+				if (msg) {
+					// Via `claimAfterPost` rather than a bare UPDATE: the message is already publicly visible at
+					// this point, so a claim that *throws* has to clean it up just like one that comes back empty
+					// (lost race) does -- otherwise a DB blip strands a question in the answers channel that no
+					// row points at, and the still-PENDING_REVIEW button posts a second copy when retried.
+					const claimed = await claimAfterPost<AmaQuestions>(
+						async () => getContext().db<AmaQuestions[]>`
+							UPDATE ama_questions
+							SET state = 'ASKED', answers_message_id = ${msg.id}, asked_at = now(), updated_at = now()
+							WHERE id = ${question.id} AND state = 'PENDING_REVIEW'
+							RETURNING *
+						`,
+						async (channelId, messageId) =>
+							getContext().service.client.api.channels.deleteMessage(channelId, messageId),
+						// Off the message rather than `session.answersChannelId` (which is nullable since #316 and
+						// would need an assertion here): this is the channel the post actually landed in, which is
+						// what a compensating delete has to address anyway.
+						msg.channel_id,
+						msg.id,
+						logger,
+					);
+
+					if (!claimed) {
+						await notifyAlreadyHandled();
+						return;
+					}
+				} else {
+					const [claimed] = await getContext().db<AmaQuestions[]>`
 						UPDATE ama_questions
-						SET state = 'ASKED', answers_message_id = ${msg.id}, asked_at = now(), updated_at = now()
+						SET state = 'ASKED', asked_at = now(), updated_at = now()
 						WHERE id = ${question.id} AND state = 'PENDING_REVIEW'
 						RETURNING *
-					`,
-					async (channelId, messageId) => getContext().service.client.api.channels.deleteMessage(channelId, messageId),
-					session.answersChannelId,
-					msg.id,
-					logger,
-				);
+					`;
 
-				if (!claimed) {
-					await notifyAlreadyHandled();
-					return;
+					if (!claimed) {
+						await notifyAlreadyHandled();
+						return;
+					}
 				}
 			}
 
