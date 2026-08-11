@@ -2,15 +2,23 @@
 // stack's schema (#157). See docs/roadmap/06-modmail-port.md for the milestone context and
 // docs/roadmap/01-architecture.md §6a for the target schema.
 //
-// Usage (mode flag is required -- there is no default, so a bare invocation can't touch prod):
-//   LEGACY_DATABASE_URL=postgres://... yarn migrate:legacy-modmail --dry-run
-//   LEGACY_DATABASE_URL=postgres://... yarn migrate:legacy-modmail --live
-//   LEGACY_DATABASE_URL=postgres://... yarn migrate:legacy-modmail --verify
+// Usage (both flags are required -- there is no default mode, so a bare invocation can't touch prod):
+//   LEGACY_DATABASE_URL=postgres://... yarn migrate:legacy-modmail --source <slug> --dry-run
+//   LEGACY_DATABASE_URL=postgres://... yarn migrate:legacy-modmail --source <slug> --live
+//   LEGACY_DATABASE_URL=postgres://... yarn migrate:legacy-modmail --source <slug> --verify
 //
 // --dry-run runs the *entire* migration inside a transaction and then rolls it back, so every FK,
 // CHECK and unique constraint is genuinely exercised against real data without writing anything.
 // --live is byte-for-byte the same run, committed. --verify is read-only against both databases and
 // reconciles row counts plus per-thread message sets (the tooling #158 wants).
+//
+// --source names the legacy deployment being migrated (e.g. `nascar`, `public`) and is written to
+// `threads.migration_source`. There is more than one legacy database in the world: alongside the
+// public `ChatSift/ModMail` deployment, partners self-host their own copies, and migrating one of
+// those as a rehearsal must not wedge the public run later. Every "did I already migrate this?"
+// question below -- the re-run guard and every target-side --verify count -- is scoped to this slug,
+// so runs from different sources are fully independent while a second run of the *same* source is
+// still refused.
 //
 // LEGACY_DATABASE_URL is read straight off the environment rather than added to
 // `@chatsift/backend-core`'s `envSchema`: that schema is a top-level `.parse(process.env)` evaluated
@@ -365,7 +373,11 @@ async function migrateThreadOpenAlerts(legacy: Database, tx: Executor): Promise<
 	return statFor(rows.length, inserted);
 }
 
-async function migrateThreads(legacy: Database, tx: Executor): Promise<[TableStat, Map<number, number>]> {
+async function migrateThreads(
+	legacy: Database,
+	tx: Executor,
+	source: string,
+): Promise<[TableStat, Map<number, number>]> {
 	const rows = await legacy<LegacyThread[]>`
 		SELECT
 			"threadId"                 AS thread_id,
@@ -397,7 +409,8 @@ async function migrateThreads(legacy: Database, tx: Executor): Promise<[TableSta
 	// `WHERE closed_at IS NULL AND origin != 'dm'` and force-stamps `closed_at = now()` on any row
 	// whose `mod_thread_id` 404s. Every migrated row is closed (preflight refuses to run otherwise),
 	// so it cannot fire either way -- 'dm' makes that true by construction instead of by luck, and is
-	// also just historically accurate.
+	// also just historically accurate. It is *only* that, though: `migration_source` below is what
+	// marks a row as migrated, so nothing here depends on 'dm' being unique to migrated rows.
 	const values = rows.map((row, index) => ({
 		id: ids[index]!,
 		guildId: row.guildId,
@@ -409,6 +422,7 @@ async function migrateThreads(legacy: Database, tx: Executor): Promise<[TableSta
 		closedAt: row.closedAt,
 		lastLocalThreadMessageId: row.lastLocalThreadMessageId,
 		origin: 'dm',
+		migrationSource: source,
 	}));
 
 	let inserted = 0;
@@ -416,7 +430,7 @@ async function migrateThreads(legacy: Database, tx: Executor): Promise<[TableSta
 		// No unique constraint on `threads`, so a conflict here is impossible and deliberately not
 		// swallowed -- if one ever surfaces it is a bug worth seeing, not a row to skip.
 		const result = await tx<{ id: number }[]>`
-			INSERT INTO threads ${tx(batch, 'id', 'guildId', 'modThreadId', 'userId', 'createdById', 'createdAt', 'closedById', 'closedAt', 'lastLocalThreadMessageId', 'origin')}
+			INSERT INTO threads ${tx(batch, 'id', 'guildId', 'modThreadId', 'userId', 'createdById', 'createdAt', 'closedById', 'closedAt', 'lastLocalThreadMessageId', 'origin', 'migrationSource')}
 			RETURNING id
 		`;
 		inserted += result.length;
@@ -585,7 +599,11 @@ async function collectLegacyGuildIds(legacy: Database): Promise<string[]> {
  * Everything that must hold before a single row is written. Anything returned in `errors` aborts the
  * run outright; `warnings` are printed and proceed.
  */
-async function preflight(legacy: Database, target: Executor): Promise<{ errors: string[]; warnings: string[] }> {
+async function preflight(
+	legacy: Database,
+	target: Executor,
+	source: string,
+): Promise<{ errors: string[]; warnings: string[] }> {
 	const errors: string[] = [];
 	const warnings: string[] = [];
 
@@ -593,18 +611,23 @@ async function preflight(legacy: Database, target: Executor): Promise<{ errors: 
 	// slip mid-cutover. `guild_settings`/`snippets`/`blocks`/`thread_open_alerts` all self-skip on their
 	// unique keys, but `threads` has no unique constraint (deliberately -- see migrateThreads), so a
 	// second run would silently duplicate every ticket and every message in it. Refuse instead, using
-	// the same "this row was migrated" predicate `--verify` uses: a natively created DM-mode ticket
-	// always carries a real DM channel id, and a panel ticket is `origin = 'panel'`.
+	// the same "this row was migrated" predicate `--verify` uses.
+	//
+	// Scoped to `--source` rather than global, which is the entire reason that flag exists: rows left
+	// behind by a *different* legacy deployment must not read as "already migrated" here, or the first
+	// partner rehearsal would permanently block the public cutover — and the remedy printed below
+	// would delete that partner's freshly migrated history. A second run of the same source is still
+	// refused, which is the case this guard was actually written for.
 	const [alreadyMigrated] = await target<[{ count: string }]>`
-		SELECT COUNT(*) FROM threads WHERE origin = 'dm' AND user_channel_id IS NULL
+		SELECT COUNT(*) FROM threads WHERE migration_source = ${source}
 	`;
 
 	if (Number(alreadyMigrated!.count) > 0) {
 		errors.push(
-			`the target already holds ${alreadyMigrated!.count} migrated thread(s) — this looks like a re-run, and ` +
-				`thread history is not idempotent (a second pass duplicates every ticket). If you genuinely mean to ` +
-				`start over, delete them first (messages, reply alerts and scheduled closes cascade):\n` +
-				`        DELETE FROM threads WHERE origin = 'dm' AND user_channel_id IS NULL;`,
+			`the target already holds ${alreadyMigrated!.count} thread(s) migrated from source '${source}' — this looks ` +
+				`like a re-run, and thread history is not idempotent (a second pass duplicates every ticket). If you ` +
+				`genuinely mean to start over, delete them first (messages, reply alerts and scheduled closes cascade):\n` +
+				`        DELETE FROM threads WHERE migration_source = '${source}';`,
 		);
 	}
 
@@ -709,7 +732,7 @@ async function guildsNeedingAForum(legacy: Database): Promise<string[]> {
 	return rows.map((row) => row.guildId);
 }
 
-async function runMigration(legacy: Database, tx: Executor): Promise<Stats> {
+async function runMigration(legacy: Database, tx: Executor, source: string): Promise<Stats> {
 	const stats: Stats = {};
 
 	stats['guild_settings'] = await migrateGuildSettings(legacy, tx);
@@ -721,7 +744,7 @@ async function runMigration(legacy: Database, tx: Executor): Promise<Stats> {
 	stats['blocks'] = await migrateBlocks(legacy, tx);
 	stats['thread_open_alerts'] = await migrateThreadOpenAlerts(legacy, tx);
 
-	const [threadStat, threadIds] = await migrateThreads(legacy, tx);
+	const [threadStat, threadIds] = await migrateThreads(legacy, tx, source);
 	stats['threads'] = threadStat;
 	stats['thread_messages'] = await migrateThreadMessages(legacy, tx, threadIds);
 	stats['thread_reply_alerts'] = await migrateThreadReplyAlerts(legacy, tx, threadIds);
@@ -795,13 +818,13 @@ async function verifySnippetUpdates(
 /**
  * Read-only reconciliation across both databases (#158's tooling).
  *
- * Migrated threads are identified by `origin = 'dm' AND user_channel_id IS NULL` -- a natively
- * created DM-mode ticket always carries a real DM channel id, and a panel ticket is `origin = 'panel'`,
- * so that predicate matches migrated rows and nothing else. This does assume the target has not
- * accepted new ModMail writes for these guilds since the migration ran, which is exactly the
- * situation during a cutover.
+ * Migrated threads are identified by `migration_source = ${source}`, so this reconciles the legacy
+ * database currently connected against only the rows *that* run produced -- rows migrated from some
+ * other legacy deployment are invisible here rather than counted against a legacy database they never
+ * came from. This does assume the target has not accepted new ModMail writes for these guilds since
+ * the migration ran, which is exactly the situation during a cutover.
  */
-async function runVerify(legacy: Database, target: Executor): Promise<boolean> {
+async function runVerify(legacy: Database, target: Executor, source: string): Promise<boolean> {
 	let ok = true;
 
 	const report = (label: string, left: number, right: number): void => {
@@ -841,10 +864,10 @@ async function runVerify(legacy: Database, target: Executor): Promise<boolean> {
 			(SELECT COUNT(*) FROM snippets WHERE guild_id = ANY(${guildIds}))          AS snippets,
 			(SELECT COUNT(*) FROM blocks WHERE guild_id = ANY(${guildIds}))            AS blocks,
 			(SELECT COUNT(*) FROM thread_open_alerts WHERE guild_id = ANY(${guildIds})) AS thread_open_alerts,
-			(SELECT COUNT(*) FROM threads WHERE origin = 'dm' AND user_channel_id IS NULL) AS threads,
-			(SELECT COUNT(*) FROM thread_messages m JOIN threads t ON t.id = m.thread_id WHERE t.origin = 'dm' AND t.user_channel_id IS NULL) AS thread_messages,
-			(SELECT COUNT(*) FROM thread_reply_alerts a JOIN threads t ON t.id = a.thread_id WHERE t.origin = 'dm' AND t.user_channel_id IS NULL) AS thread_reply_alerts,
-			(SELECT COUNT(*) FROM scheduled_thread_closes c JOIN threads t ON t.id = c.thread_id WHERE t.origin = 'dm' AND t.user_channel_id IS NULL) AS scheduled_thread_closes
+			(SELECT COUNT(*) FROM threads WHERE migration_source = ${source}) AS threads,
+			(SELECT COUNT(*) FROM thread_messages m JOIN threads t ON t.id = m.thread_id WHERE t.migration_source = ${source}) AS thread_messages,
+			(SELECT COUNT(*) FROM thread_reply_alerts a JOIN threads t ON t.id = a.thread_id WHERE t.migration_source = ${source}) AS thread_reply_alerts,
+			(SELECT COUNT(*) FROM scheduled_thread_closes c JOIN threads t ON t.id = c.thread_id WHERE t.migration_source = ${source}) AS scheduled_thread_closes
 	`;
 
 	for (const [table, count] of Object.entries(legacyCounts!)) {
@@ -878,7 +901,7 @@ async function runVerify(legacy: Database, target: Executor): Promise<boolean> {
 				SELECT t.mod_thread_id, COUNT(m.id) AS messages
 				FROM threads t
 				LEFT JOIN thread_messages m ON m.thread_id = t.id
-				WHERE t.origin = 'dm' AND t.user_channel_id IS NULL
+				WHERE t.migration_source = ${source}
 				GROUP BY t.mod_thread_id
 			`
 		).map((row) => [row.modThreadId, Number(row.messages)]),
@@ -897,8 +920,8 @@ async function runVerify(legacy: Database, target: Executor): Promise<boolean> {
 	// its partner (a legacy thread that failed to migrate) is caught by the loop above -- so this isn't
 	// detecting anything otherwise invisible. What it buys is a *complete* diagnosis in one pass, instead
 	// of fixing the half that got reported and re-running to discover the other half. An extra on this
-	// side means either a partially-cleaned-up re-run or a native ticket being misread as migrated by the
-	// `origin = 'dm' AND user_channel_id IS NULL` predicate.
+	// side means either a partially-cleaned-up re-run, or `--source` naming a different legacy deployment
+	// than `LEGACY_DATABASE_URL` points at.
 	for (const [modThreadId, actual] of targetPerThread) {
 		if (!legacyPerThread.has(modThreadId)) {
 			mismatched.push(`${modThreadId} (legacy=missing target=${actual})`);
@@ -934,7 +957,7 @@ async function runVerify(legacy: Database, target: Executor): Promise<boolean> {
 			SELECT m.local_thread_message_id, m.guild_message_id
 			FROM thread_messages m
 			JOIN threads t ON t.id = m.thread_id
-			WHERE t.mod_thread_id = ${thread.channelId} AND t.origin = 'dm' AND t.user_channel_id IS NULL
+			WHERE t.mod_thread_id = ${thread.channelId} AND t.migration_source = ${source}
 			ORDER BY m.local_thread_message_id
 		`;
 
@@ -965,7 +988,13 @@ function printStats(stats: Stats): void {
 	}
 }
 
-function resolveMode(): Mode {
+// `--source` values land in `threads.migration_source` and are interpolated into the `DELETE`
+// statement `preflight` prints for an operator to paste, so they are kept to an unambiguous slug
+// rather than accepting arbitrary text. Deliberately the same shape as `modmail_instances.id`, since
+// a partner migration and that partner's instance slug naturally want to be the same string.
+const SOURCE_PATTERN = /^[a-z0-9-]+$/u;
+
+function resolveArgs(): { mode: Mode; source: string } {
 	const flags = process.argv.filter((argument) => ['--dry-run', '--live', '--verify'].includes(argument));
 
 	if (flags.length !== 1) {
@@ -975,7 +1004,21 @@ function resolveMode(): Mode {
 		process.exit(1);
 	}
 
-	return flags[0]!.slice(2) as Mode;
+	// Read positionally rather than with a `--source=x` split so both spellings aren't half-supported;
+	// `--source` with nothing after it yields `undefined` and falls into the same error as omitting it.
+	const sourceIndex = process.argv.indexOf('--source');
+	const source = sourceIndex === -1 ? undefined : process.argv[sourceIndex + 1];
+
+	if (!source || !SOURCE_PATTERN.test(source)) {
+		console.error(
+			`Pass --source <slug> naming the legacy deployment being migrated (e.g. --source nascar). Must match ` +
+				`${SOURCE_PATTERN.source}. It is recorded on every migrated thread, and is what keeps one legacy ` +
+				`deployment's migration from blocking or miscounting another's.`,
+		);
+		process.exit(1);
+	}
+
+	return { mode: flags[0]!.slice(2) as Mode, source };
 }
 
 // Destructured rather than accessed key-by-key: `ProcessEnv` is an index signature, so
@@ -1015,7 +1058,7 @@ function resolveTargetUrl(): string {
 	return url;
 }
 
-const mode = resolveMode();
+const { mode, source } = resolveArgs();
 
 const legacyUrl = LEGACY_DATABASE_URL;
 if (!legacyUrl) {
@@ -1030,12 +1073,12 @@ let exitCode = 0;
 
 try {
 	if (mode === 'verify') {
-		console.log('Mode: verify (read-only)');
-		exitCode = (await runVerify(legacy, target)) ? 0 : 1;
+		console.log(`Mode: verify (read-only), source: ${source}`);
+		exitCode = (await runVerify(legacy, target, source)) ? 0 : 1;
 	} else {
-		console.log(`Mode: ${mode}${mode === 'dry-run' ? ' (everything below is rolled back)' : ''}`);
+		console.log(`Mode: ${mode}${mode === 'dry-run' ? ' (everything below is rolled back)' : ''}, source: ${source}`);
 
-		const { errors, warnings } = await preflight(legacy, target);
+		const { errors, warnings } = await preflight(legacy, target, source);
 
 		for (const warning of warnings) {
 			console.warn(`WARN  ${warning}`);
@@ -1062,7 +1105,7 @@ try {
 				await tx`SET LOCAL statement_timeout = 0`;
 				await tx`SET LOCAL idle_in_transaction_session_timeout = 0`;
 
-				stats = await runMigration(legacy, tx);
+				stats = await runMigration(legacy, tx, source);
 
 				if (mode === 'dry-run') {
 					throw new RollbackSignal();

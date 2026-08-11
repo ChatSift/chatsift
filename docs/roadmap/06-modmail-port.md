@@ -124,11 +124,12 @@ Because the mod-side model didn't change, this is a close-to-1:1 mapping, not th
 
 ## Remaining scope
 
-1. ~~**Write a migration script**~~ — done (#157): `packages/private/db/src/scripts/migrateLegacyModmail.ts`, run via `yarn migrate:legacy-modmail --dry-run|--live|--verify` with `LEGACY_DATABASE_URL` pointing at a restored copy of the legacy database. Transforms all 9 legacy tables per the mapping above, preserving relations and timestamps exactly. **Integer PKs are regenerated, not preserved** — the new database already holds partner-instance rows, so legacy ids would collide; ids come off each table's identity sequence via `nextval`, which also means no `setval()` fixup afterwards. Three things worth knowing before running it:
+1. ~~**Write a migration script**~~ — done (#157): `packages/private/db/src/scripts/migrateLegacyModmail.ts`, run via `yarn migrate:legacy-modmail --source <slug> --dry-run|--live|--verify` with `LEGACY_DATABASE_URL` pointing at a restored copy of the legacy database. Transforms all 9 legacy tables per the mapping above, preserving relations and timestamps exactly. **Integer PKs are regenerated, not preserved** — the new database already holds partner-instance rows, so legacy ids would collide; ids come off each table's identity sequence via `nextval`, which also means no `setval()` fixup afterwards. Four things worth knowing before running it:
+   - **`--source <slug>` is required**, and names the legacy deployment being migrated (`nascar`, `public`, …). It is written to `threads.migration_source` and is what scopes both the re-run guard and every target-side `--verify` count. This exists because the public `ChatSift/ModMail` deployment is _not_ the only legacy database — partners self-host their own copies (see the NASCAR pilot below), and migrating one must not wedge or miscount another. The script originally identified its own rows by inferring `origin = 'dm' AND user_channel_id IS NULL`, which is global: one partner migration would have made every later run, including the public cutover, abort as a "re-run" — and the abort's suggested `DELETE` would have destroyed that partner's freshly migrated history.
    - It **refuses to run while any legacy thread is still open**. Force-closing them is a deliberate runbook step (item 3 below), not something the script does silently.
-   - It **refuses to run twice**. Thread history is not idempotent — `threads` has no unique key to conflict on, so a second pass would duplicate every ticket. Starting over means deleting the migrated rows by hand first; the abort message carries the exact statement.
+   - It **refuses to run twice for the same `--source`**. Thread history is not idempotent — `threads` has no unique key to conflict on, so a second pass would duplicate every ticket. Starting over means deleting that source's migrated rows by hand first; the abort message carries the exact statement, scoped to the slug. A _different_ `--source` is deliberately allowed to proceed.
    - `mod_forum_id` is migrated as `NULL` for every guild, deliberately: the legacy value was a text channel and the new mod side needs a Forum. The script prints the list of affected guilds so it can drive follow-up comms.
-2. **Dry-run** against a copy of the production legacy `ChatSift/ModMail` database; reconcile row counts and spot-check message content/ordering per thread. `--dry-run` runs the whole migration in a transaction and rolls it back (so every FK/CHECK/unique constraint is genuinely exercised), and `--verify` is the read-only reconciler: per-table row counts, per-thread message counts, and full message-set comparison on a random sample.
+2. **Dry-run** against a copy of the production legacy `ChatSift/ModMail` database; reconcile row counts and spot-check message content/ordering per thread. `--dry-run` runs the whole migration in a transaction and rolls it back (so every FK/CHECK/unique constraint is genuinely exercised), and `--verify` is the read-only reconciler: per-table row counts, per-thread message counts, and full message-set comparison on a random sample. **Do the NASCAR pilot first** (below) — it exercises the same code path against real history at a fraction of the blast radius, and produces the first honest wall-clock number.
 3. **Cutover runbook** (mirroring [05-migration-cutover.md](05-migration-cutover.md)'s structure, but _with_ a data migration this time):
    - Announce a maintenance window — ModMail is more synchronous/user-facing than AMA was, a message sent mid-cutover shouldn't get lost.
    - Freeze the legacy bot (stop accepting new DMs/replies — it's still DM-based right up to cutover) for the migration run.
@@ -136,6 +137,46 @@ Because the mod-side model didn't change, this is a close-to-1:1 mapping, not th
    - Deploy `services/modmail-bot` as the public deployment, point the token, smoke-test (create a ticket via a panel, reply from staff, close a ticket and confirm the private thread is gone, pull up a migrated legacy thread in the dashboard thread view and confirm its history rendered correctly).
    - Keep the legacy deployment + database warm for rollback until confidence is established.
 
+## The NASCAR pilot
+
+NASCAR self-hosts its own deployment of legacy `ChatSift/ModMail` against its own Postgres. That makes it the rehearsal this milestone has been missing: a real legacy database with real history, small enough that a bad outcome is recoverable, and — because that database holds only their guild — needing none of the per-guild scoping the script deliberately doesn't have. Their new home is the **canary/main deployment** (`/home/deploys/repos/canary`); the `prod` branch runs no `modmail-bot` at all and folds into canary on 2026-08-13 ([prod-branch.md](../prod-branch.md)), so this was never a real choice. Afterwards they get a #216 custom instance in DM mode, so their users' flow matches what they have today.
+
+**0. Confirm their legacy schema hasn't drifted.** Every query in the script uses quoted camelCase legacy column names, so drift from the schema captured above is a hard mid-run failure. `pg_dump --schema-only` their database and diff the nine tables against ["Old schema"](#old-schema-migration-source) before anything else.
+
+**1. Restore a copy.** Point `LEGACY_DATABASE_URL` at a restored copy, never their live database — the script holds one transaction open across reads of the legacy side.
+
+**2. Freeze.** Their legacy bot is DM-based; stop it accepting new threads/replies for the window.
+
+**3. Force-close open threads** on the legacy side. Preflight refuses to run otherwise, deliberately.
+
+**4. Dry-run, and record wall-clock** — this is the number that sizes the public window (item 3 above):
+
+```sh
+LEGACY_DATABASE_URL=<copy> yarn migrate:legacy-modmail --source nascar --dry-run
+```
+
+**5. Live, then verify:**
+
+```sh
+LEGACY_DATABASE_URL=<copy> yarn migrate:legacy-modmail --source nascar --live
+LEGACY_DATABASE_URL=<copy> yarn migrate:legacy-modmail --source nascar --verify
+```
+
+Expect their guild in the "needs a forum" list — `mod_forum_id` migrates as `NULL` by design.
+
+**6. Onboard the #216 instance** per [workflow.md](../workflow.md#custom-modmail-instances-216), slug `nascar`. Do this _after_ step 5: preflight warns when a legacy guild already has a `modmail_instances` row, and while that warning is harmless here, it's one you'd want to take seriously during the public run rather than learn to ignore.
+
+**7. Enable DM mode** (`guild_settings.dm_mode = true`) so the user-facing flow matches legacy. The API rejects this unless the instance row exists, so it must follow step 6.
+
+**8. Two manual repairs, neither automatic:**
+
+- **Pick a Forum.** Their admin sets `mod_forum_id` on the dashboard. Until then ModMail does not work for them.
+- **Resync snippets.** Migrated `snippets.command_id` values belong to their _legacy_ application and 404 under the new one — press the snippets resync button ([§8](01-architecture.md#8-custom-modmail-instances-216)). Panels resync is not needed; no panels existed on legacy.
+
+**9. Keep their legacy deployment and database warm** for rollback until confidence is established.
+
 ## Verification
 
 Everything covered by [01-architecture.md §6a/§7/§8](01-architecture.md#6a-modmail-bot-subsystem-servicesmodmail-bot-m5) was already verified feature-by-feature as each piece shipped (2026-07-16 through 2026-07-30) — see closed issues #152, #261, #216 for the phase-by-phase acceptance checks, not repeated here. What's still unverified is exactly the "Remaining scope" above: the migration dry-run's row-count/content reconciliation, and the live cutover's smoke test.
+
+The `--source` change itself was verified 2026-08-11 against two throwaway legacy-schema databases holding disjoint guilds, migrating into a scratch target: source `a` live + verify clean; source `b` dry-run **not** blocked by `a`'s rows (the old global predicate returned 3 there, i.e. it would have aborted); both sources live, then each verifying independently against its own legacy database with 6 threads in the target; a second `a` live correctly refused, with the printed `DELETE` removing exactly `a`'s 3 threads and leaving `b` intact with no orphaned messages.

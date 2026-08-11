@@ -186,6 +186,24 @@ Order matters — do these in sequence, not in parallel:
    application that created them.
 5. Verify: `/snippet` commands work and the panel button opens a ticket, both through the partner's bot presence.
 
+#### Onboarding a partner who has legacy ModMail history
+
+The steps above assume a guild with no prior history, which was true of every partner onboarded in 2026-07. A
+partner self-hosting legacy `ChatSift/ModMail` (their own copy, their own Postgres) needs their data migrated
+first — see the NASCAR pilot in
+[roadmap/06-modmail-port.md](roadmap/06-modmail-port.md#the-nascar-pilot) for the full sequence. Three deltas to
+the runbook above:
+
+- **Migrate before inserting the registry row**, not after. `migrateLegacyModmail.ts`'s preflight warns when a
+  legacy guild already has a `modmail_instances` row — harmless in this case, but it's a warning worth keeping
+  meaningful for the public cutover.
+- **Pass `--source <partner-slug>`** to the migration, matching the instance slug. This is what keeps one
+  partner's migration from blocking or miscounting the public one later.
+- **Step 4's Snippets resync is mandatory, not optional** — migrated `snippets.command_id` values belong to the
+  partner's _legacy_ application and 404 under their new one. The Panels resync is a no-op for a migrated guild
+  (legacy had no panels), but pressing it costs nothing. Their admin must also pick a Forum on the dashboard
+  before anything works: `mod_forum_id` is deliberately migrated as `NULL`.
+
 ### Offboarding a partner (moving a guild back to the public deployment)
 
 Reverse order — resync while the row (and therefore the partner's token) is still reachable, _then_ tear down:

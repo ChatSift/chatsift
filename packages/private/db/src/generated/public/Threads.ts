@@ -31,6 +31,8 @@ export default interface Threads {
   userChannelId: string | null;
 
   origin: string;
+
+  migrationSource: string | null;
 }
 
 /** Represents the initializer for the table public.threads */
@@ -58,6 +60,8 @@ export interface ThreadsInitializer {
   userChannelId?: string | null;
 
   origin?: string;
+
+  migrationSource?: string | null;
 }
 
 /** Represents the mutator for the table public.threads */
@@ -85,4 +89,6 @@ export interface ThreadsMutator {
   userChannelId?: string | null;
 
   origin?: string;
+
+  migrationSource?: string | null;
 }

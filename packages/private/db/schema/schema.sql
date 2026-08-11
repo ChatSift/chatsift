@@ -358,6 +358,12 @@ CREATE TABLE threads (
   -- must never be locked, archived or deleted. Only 'dm' is possible for a guild running DM mode
   -- (guild_settings.dm_mode); every other ticket is 'panel'.
   origin                        TEXT NOT NULL DEFAULT 'panel',
+  -- Which legacy migration run produced this row; NULL for a natively created ticket. Written by
+  -- packages/private/db/src/scripts/migrateLegacyModmail.ts's --source flag. Replaces the inferential
+  -- "origin = 'dm' AND user_channel_id IS NULL" predicate that script used to identify its own rows,
+  -- which could neither tell two legacy sources apart (so migrating one blocked every later run) nor
+  -- distinguish a migrated row from a natively created DM-mode ticket with a missing channel id.
+  migration_source              TEXT,
 
   CONSTRAINT threads_origin_check CHECK (origin IN ('panel', 'dm'))
 );
@@ -377,6 +383,9 @@ CREATE INDEX threads_mod_thread_id_idx ON threads (mod_thread_id);
 -- additionally filters on `category_id`, matching the second, wider index instead.
 CREATE INDEX threads_guild_id_user_id_open_idx ON threads (guild_id, user_id) WHERE closed_at IS NULL;
 CREATE INDEX threads_guild_id_user_id_category_id_open_idx ON threads (guild_id, user_id, category_id) WHERE closed_at IS NULL;
+-- Only ever read by migrateLegacyModmail.ts (its re-run guard and every target-side --verify count),
+-- and partial because natively created rows -- the overwhelming majority -- leave it NULL.
+CREATE INDEX threads_migration_source_idx ON threads (migration_source) WHERE migration_source IS NOT NULL;
 
 -- Tracks a ticket from the moment its private thread is created (services/modmail-bot's
 -- createTicket.ts for a no-category panel, categorySelect.ts once a category's been picked) until
