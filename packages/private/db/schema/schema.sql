@@ -762,5 +762,17 @@ CREATE TABLE social_interactions (
 -- Dispatch's primary lookup. Partial because a row with no command id is only reachable through the
 -- `(guild_id, name)` fallback (covered by the UNIQUE above) until a resync gives it one -- which,
 -- immediately post-migration, is every row.
-CREATE INDEX social_interactions_guild_id_command_id_idx ON social_interactions (guild_id, command_id)
+--
+-- UNIQUE because dispatch resolves an incoming interaction to exactly one row by its command id: two
+-- rows sharing one would make it pick nondeterministically, and a command id identifies a single Discord
+-- command, so sharing one is never legitimate. Being partial, this constrains nothing about the
+-- all-NULL post-migration state.
+--
+-- Consequence for the resync routine (redesign ledger item 3): clear a guild's `command_id`s first, then
+-- write the newly registered ids -- don't update row-by-row in place. A bulk overwrite preserves a
+-- command's id when its name is unchanged, so renaming interaction A and creating a new interaction with
+-- A's old name hands the new row an id the stale row still holds, and an in-place update order exists
+-- that transiently violates this index (which, being an index rather than a constraint, can't be
+-- deferred to commit).
+CREATE UNIQUE INDEX social_interactions_guild_id_command_id_idx ON social_interactions (guild_id, command_id)
   WHERE command_id IS NOT NULL;

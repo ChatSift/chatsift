@@ -41,7 +41,7 @@ CREATE TABLE "social_interactions" (
   CONSTRAINT "social_interactions_guild_id_name_key" UNIQUE ("guild_id", "name")
 );
 -- Create index "social_interactions_guild_id_command_id_idx" to table: "social_interactions"
-CREATE INDEX "social_interactions_guild_id_command_id_idx" ON "social_interactions" ("guild_id", "command_id") WHERE (command_id IS NOT NULL);
+CREATE UNIQUE INDEX "social_interactions_guild_id_command_id_idx" ON "social_interactions" ("guild_id", "command_id") WHERE (command_id IS NOT NULL);
 -- Create "social_rewards" table
 CREATE TABLE "social_rewards" (
   "guild_id" text NOT NULL,

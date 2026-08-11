@@ -246,14 +246,19 @@ test guild, not just build/lint/test.
       slash-command option definitions, so prod data isn't guaranteed to satisfy them); they land in P2's zod
       schemas. The only CHECKs are the ones bad data would genuinely break: `required_xp_base`/
       `required_xp_multiplier` `>= 1` (a 0 in either makes the level walk non-terminating), multipliers `>= 1`, and
-      `social_rewards.level >= 0`. No generated types were exported from `@chatsift/db`'s `index.ts` yet — that
-      file's convention is to add a table the first time a consumer needs it, which is P2.
+      `social_rewards.level >= 0`. Dispatch's `(guild_id, command_id)` partial index is **UNIQUE** — two rows
+      sharing a command id would make dispatch pick one nondeterministically — which obliges the P3/P6 resync to
+      clear a guild's command ids before writing the new ones rather than updating row-by-row (a bulk overwrite
+      preserves a command's id by name, so an in-place order exists that transiently collides). No generated types
+      were exported from `@chatsift/db`'s `index.ts` yet — that file's convention is to add a table the first time a
+      consumer needs it, which is P2.
 - [ ] **P2 — API.** The route set above, with zod validation mirroring legacy's bounds (config bounds listed in the
       feature catalog — the dashboard inherits them as its validation source of truth). Vitest coverage per the
       existing route-test patterns.
 - [ ] **P3 — Bot.** Scaffold `services/social-bot`; port the tracking engine (Redis keys and semantics verbatim, keys
       documented in code); implement additive role-diffing (ledger 2); `/level`; `/dashboard`; interaction dispatch +
-      per-guild command registration with resync (ledger 3); level-up notifications; intent audit. This is the phase
+      per-guild command registration with resync (ledger 3 — clear-then-write, see P1's note); level-up
+      notifications; intent audit. This is the phase
       with real behavioral risk — verify XP gain, window cooldown, multiplier stacking, clean-tier promotion, and each
       notification mode live in the test guild.
 - [ ] **P4 — Dashboard.** The section described above. Verify each form round-trips against the P2 API and that
