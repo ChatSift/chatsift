@@ -59,6 +59,20 @@ export default defineRoute({
 		const plainContent = data.plainContent === undefined ? existing.plainContent : data.plainContent;
 		const attachmentUrl = data.attachmentUrl === undefined ? existing.attachmentUrl : data.attachmentUrl;
 
+		// Same pre-check `createInteraction.ts` runs, for the same reason: without it a rename onto a taken name
+		// edits the live Discord command first and only trips the unique index afterwards, leaving Discord's
+		// copy renamed while the row keeps its old name. The index stays the real guard against the race.
+		if (data.name !== undefined && data.name !== existing.name) {
+			const [conflicting] = await db<Pick<SocialInteractions, 'id'>[]>`
+				SELECT id FROM social_interactions
+				WHERE guild_id = ${guildId} AND name = ${data.name} AND id != ${interactionId}
+			`;
+
+			if (conflicting) {
+				throw conflict('an interaction with this name already exists');
+			}
+		}
+
 		// Only the two fields baked into the Discord command itself need it re-issued. Done outside any
 		// transaction: holding a row lock (and a pooled connection) across an external HTTP call risks
 		// starving the pool whenever Discord is slow -- same reasoning as modmail's `updateSnippet.ts`.

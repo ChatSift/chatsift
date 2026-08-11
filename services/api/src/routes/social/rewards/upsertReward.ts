@@ -1,6 +1,6 @@
 import { getContext } from '@chatsift/backend-core';
 import type { SocialRewards } from '@chatsift/db';
-import { badRequest } from '@hapi/boom';
+import { badRequest, internal } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
@@ -41,8 +41,10 @@ export default defineRoute({
 		// `@everyone` for us, so a caller naming it lands on the "does not belong to this guild" branch.
 		const roles = await fetchGuildRoles(guildId, 'SOCIAL');
 		if (!roles) {
+			// Same 500 `assertRolesBelongToGuild` raises for this branch, and for the same reason: the caller's
+			// body may well be fine, we just couldn't reach Discord to find out -- a 400 would blame them for it.
 			req.logger.warn({ guildId }, `Failed to fetch roles for guild ${guildId}`);
-			throw badRequest(`could not verify role ${roleId}`);
+			throw internal();
 		}
 
 		const role = roles.find((entry) => entry.id === roleId);

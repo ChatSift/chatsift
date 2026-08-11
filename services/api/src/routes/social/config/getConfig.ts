@@ -29,20 +29,24 @@ export default defineRoute({
 
 		// No row yet is the common case (a guild that has never configured Social) -- return the same shape a
 		// fresh row would have instead of 404ing, so the dashboard config screen renders defaults on first
-		// load, same as modmail's `getConfig.ts`. The three nulls below are the inert state described in
-		// schema.sql: a guild only starts tracking XP once all of them are set.
-		return (
-			settings ?? {
-				guildId: guildId as SocialGuildSettings['guildId'],
-				requiredMessages: null,
-				requiredMessagesTimespan: null,
-				xpGain: null,
-				requiredXpBase: null,
-				requiredXpMultiplier: null,
-				levelUpNotificationMode: 'NONE' as SocialGuildSettings['levelUpNotificationMode'],
-				levelUpNotificationFallbackChannelId: null,
-				levelUpNotificationMessage: null,
-			}
-		);
+		// load, same as modmail's `getConfig.ts`. This is the inert state described in schema.sql: a guild
+		// only starts tracking XP once `requiredMessages`, `requiredMessagesTimespan` and `xpGain` are all
+		// set (the other nulls below are just unconfigured, not part of that gate).
+		const defaults: SocialGuildSettings = {
+			guildId: guildId as SocialGuildSettings['guildId'],
+			requiredMessages: null,
+			requiredMessagesTimespan: null,
+			xpGain: null,
+			requiredXpBase: null,
+			requiredXpMultiplier: null,
+			// Kanel generates the enum as a TS `enum`, which `@chatsift/db` re-exports type-only -- so there's no
+			// member to reference here and a bare literal isn't assignable to it. The annotation above is what
+			// actually checks this object; the cast only bridges that.
+			levelUpNotificationMode: 'NONE' as SocialGuildSettings['levelUpNotificationMode'],
+			levelUpNotificationFallbackChannelId: null,
+			levelUpNotificationMessage: null,
+		};
+
+		return settings ?? defaults;
 	},
 });

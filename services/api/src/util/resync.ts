@@ -3,9 +3,9 @@
  * point at (snippet/interaction guild commands, ticket panel messages) back against the DB.
  *
  * Resync exists because everything Discord scopes to an *application* is orphaned when the application that
- * owns a guild changes: ModMail's public deployment <-> a custom instance (#216,
- * docs/roadmap/01-architecture.md §8), or a bot's production deployment <-> its canary. A command id minted by
- * one application simply doesn't resolve under another, and the new owner doesn't inherit anything. Migrated
+ * owns a guild changes: a guild moving between ModMail's public deployment and a custom instance (#216,
+ * docs/roadmap/01-architecture.md §8), or between a bot's production deployment and its canary. A command id
+ * minted by one application simply doesn't resolve under another, and the new owner inherits nothing. Migrated
  * data lands in the same state by construction (see `social_interactions.command_id`, written NULL by the
  * legacy migration), as does anything deleted out of band or half-written by a failed mutation.
  *

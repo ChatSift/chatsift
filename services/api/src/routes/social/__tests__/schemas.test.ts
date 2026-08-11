@@ -97,7 +97,8 @@ test('a channel multiplier stays within legacy 1-10, and cannot be zero or negat
 
 test('a reward needs a level of at least 1 and defaults to non-clean', () => {
 	const reward = upsertSocialRewardBodySchema.safeParse({ level: 5 });
-	expect(reward.success && reward.data.clean).toBe(false);
+	expect(reward.success).toBe(true);
+	expect(reward.data?.clean).toBe(false);
 	expect(upsertSocialRewardBodySchema.safeParse({ level: 0 }).success).toBe(false);
 	expect(upsertSocialRewardBodySchema.safeParse({}).success).toBe(false);
 });
@@ -147,8 +148,9 @@ test('interaction booleans default to false on create', () => {
 // that omits these silently reset them -- the same trap `modmail/schemas.ts` documents for `sortOrder`.
 test('an interaction update leaves omitted booleans absent instead of defaulting them', () => {
 	const updated = updateSocialInteractionBodySchema.safeParse({ content: 'new content' });
-	expect(updated.success && 'embed' in updated.data).toBe(false);
-	expect(updated.success && 'allowTargets' in updated.data).toBe(false);
+	expect(updated.success).toBe(true);
+	// Exact-shape rather than two `in` checks, so a defaulted key can't slip through as `false === false`.
+	expect(updated.data).toStrictEqual({ content: 'new content' });
 });
 
 test('an interaction update rejects an empty body', () => {
