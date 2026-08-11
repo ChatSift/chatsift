@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import { Heading } from '@/components/common/Heading';
 import { LegalSection } from '@/components/marketing/LegalSection';
+import { socialMetadata } from '@/utils/site';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = socialMetadata({
 	title: 'Privacy Policy',
-};
+	description: 'What data ChatSift collects, why it collects it, and how long it keeps it.',
+	path: '/privacy',
+});
 
 const LAST_UPDATED = 'August 6, 2026';
 

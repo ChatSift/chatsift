@@ -1,4 +1,14 @@
+import { BOTS } from '@chatsift/core';
 import type { BotId } from '@chatsift/core';
+
+/**
+ * Resolves the lowercased `/bot/[name]` segment back to its `BotId`. Lives here rather than in the page so
+ * the route's `opengraph-image` can share it -- both need to turn the same param into the same
+ * `marketingBots` entry.
+ */
+export function resolveBot(name: string): BotId | undefined {
+	return BOTS.find((bot) => bot.toLowerCase() === name);
+}
 
 export interface MarketingScreenshot {
 	readonly alt: string;

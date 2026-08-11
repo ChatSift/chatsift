@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import { Heading } from '@/components/common/Heading';
 import { LegalSection } from '@/components/marketing/LegalSection';
+import { socialMetadata } from '@/utils/site';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = socialMetadata({
 	title: 'Terms of Service',
-};
+	description: 'The terms you agree to when using ChatSift and its Discord bots.',
+	path: '/terms',
+});
 
 const LAST_UPDATED = 'August 6, 2026';
 

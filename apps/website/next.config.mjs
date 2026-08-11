@@ -20,6 +20,12 @@ export default {
 		],
 	},
 	productionBrowserSourceMaps: true,
+	// `utils/og.tsx` reads the Author `.ttf`s off disk at request time to brand the social cards (#295).
+	// Next's file tracer only follows static imports, so without this the fonts are left out of the
+	// serverless bundle and every card silently renders in the fallback font.
+	outputFileTracingIncludes: {
+		'/**/opengraph-image': ['./public/assets/fonts/Author-Regular.ttf', './public/assets/fonts/Author-Semibold.ttf'],
+	},
 	logging: {
 		fetches: {
 			fullUrl: true,
