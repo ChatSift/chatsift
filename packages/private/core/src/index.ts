@@ -7,5 +7,7 @@ export * from './lib/inflight.js';
 export * from './lib/promiseAllObject.js';
 export * from './lib/realtimeChannels.js';
 export * from './lib/snowflake.js';
+export * from './lib/socialLevel.js';
+export * from './lib/socialRewards.js';
 export * from './lib/template.js';
 export * from './lib/util.js';

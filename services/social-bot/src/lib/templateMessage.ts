@@ -1,5 +1,7 @@
 import { templateString } from '@chatsift/core';
 
+export { DEFAULT_LEVEL_UP_MESSAGE } from '@chatsift/core';
+
 /**
  * The two user-authored strings Social renders: a guild's level-up notification
  * (`social_guild_settings.level_up_notification_message`) and a social interaction's content/plain content
@@ -33,13 +35,6 @@ export interface SocialInteractionTemplateData {
 	 */
 	targets: string;
 }
-
-/**
- * Used when a guild has no `level_up_notification_message` of its own. Kept here rather than defaulted in the
- * column so it can change without a data migration -- the same reasoning `guild_settings.anon_reply_label` uses.
- */
-export const DEFAULT_LEVEL_UP_MESSAGE =
-	'{{ username }}, you just reached level {{ level }} in {{ guildName }}{{ earnedRewards }}!';
 
 export function templateLevelUpMessage(content: string, data: LevelUpTemplateData): string {
 	return templateString(content, data);

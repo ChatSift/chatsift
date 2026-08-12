@@ -13,6 +13,17 @@ import { cn } from '@/utils/util';
 interface ChannelSelectProps {
 	readonly allowedTypes: ChannelType[];
 	readonly channels: GuildChannelInfo[];
+	/**
+	 * Channels that stay listed but can't be picked -- for a create flow whose write would silently overwrite
+	 * something that already exists (Social's channel config, #343 P4). Listed rather than filtered out on
+	 * purpose: seeing a channel greyed out with a reason is what tells someone it's already configured, where
+	 * a missing entry just reads as the picker being broken.
+	 */
+	readonly disabledIds?: readonly string[] | undefined;
+	/**
+	 * Why `disabledIds` are disabled, shown beside each of them.
+	 */
+	readonly disabledReason?: string | undefined;
 	readonly error?: string | undefined;
 	readonly label: string;
 	onChange(channelId: string | undefined): void;
@@ -34,9 +45,16 @@ export function ChannelSelect({
 	placeholder = 'Select a channel',
 	required = false,
 	allowedTypes,
+	disabledIds,
+	disabledReason,
 }: ChannelSelectProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const selectRef = useRef<HTMLDivElement>(null);
+
+	// No separate prop: `allowedTypes` already says what the caller will accept, and before #343 P4 naming
+	// `GuildCategory` there did nothing at all (categories rendered as unselectable group headers regardless),
+	// so no existing call site changes behaviour by this being derived rather than opted into.
+	const allowCategories = allowedTypes.includes(ChannelType.GuildCategory);
 
 	const sortedChannels = sortChannels(channels);
 	const selectedChannel = channels.find((ch) => ch.id === value);
@@ -127,21 +145,43 @@ export function ChannelSelect({
 								const shouldDisplay = isParentToAllowed || isAllowedType;
 
 								// Determine if this channel is selectable
-								const isSelectable = !isCategory && isAllowedType;
+								const isDisabledById = disabledIds?.includes(channel.id) ?? false;
+								const isSelectable = isAllowedType && (!isCategory || allowCategories) && !isDisabledById;
 
 								if (!shouldDisplay) {
 									return null;
 								}
 
-								// Categories are always displayed but not selectable
+								// Categories head their group and aren't pickable, unless the caller asked for them by putting
+								// `GuildCategory` in `allowedTypes` -- Social's channel config (#343 P4) does, because one row
+								// against a category is how a whole category is silenced or boosted at once. They keep the header
+								// styling either way; the only difference is whether the header responds to a click.
 								if (isCategory) {
+									if (!isSelectable) {
+										return (
+											<div
+												className="px-3 py-2 text-xs font-semibold text-secondary dark:text-secondary-dark uppercase tracking-wide bg-on-tertiary dark:bg-on-tertiary-dark"
+												key={channel.id}
+											>
+												<ChannelItem channel={channel} />
+												{isDisabledById && disabledReason && (
+													<span className="ml-2 normal-case">({disabledReason})</span>
+												)}
+											</div>
+										);
+									}
+
 									return (
-										<div
-											className="px-3 py-2 text-xs font-semibold text-secondary dark:text-secondary-dark uppercase tracking-wide bg-on-tertiary dark:bg-on-tertiary-dark"
+										<Button
+											className={cn(
+												'w-full px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide bg-on-tertiary dark:bg-on-tertiary-dark cursor-pointer transition-colors hover:bg-on-secondary dark:hover:bg-on-secondary-dark',
+												value === channel.id ? 'text-misc-accent' : 'text-secondary dark:text-secondary-dark',
+											)}
 											key={channel.id}
+											onClick={() => handleSelect(channel.id, true)}
 										>
 											<ChannelItem channel={channel} />
-										</div>
+										</Button>
 									);
 								}
 
@@ -160,6 +200,9 @@ export function ChannelSelect({
 										onClick={() => handleSelect(channel.id, isSelectable)}
 									>
 										<ChannelItem channel={channel} />
+										{isDisabledById && disabledReason && (
+											<span className="ml-2 text-xs text-secondary dark:text-secondary-dark">({disabledReason})</span>
+										)}
 									</Button>
 								);
 							})}

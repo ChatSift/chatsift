@@ -8,6 +8,15 @@ import type { GuildRoleInfo } from '@/api/routes/guilds';
 import { cn } from '@/utils/util';
 
 interface RoleSelectProps {
+	/**
+	 * Roles that stay listed but can't be picked -- see `ChannelSelect`'s equivalent for why they're greyed out
+	 * rather than filtered out.
+	 */
+	readonly disabledIds?: readonly string[] | undefined;
+	/**
+	 * Why `disabledIds` are disabled, shown beside each of them.
+	 */
+	readonly disabledReason?: string | undefined;
 	readonly error?: string | undefined;
 	readonly label: string;
 	onChange(roleId: string | undefined): void;
@@ -41,6 +50,8 @@ export function RoleSelect({
 	error,
 	placeholder = 'Select a role',
 	required = false,
+	disabledIds,
+	disabledReason,
 }: RoleSelectProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const selectRef = useRef<HTMLDivElement>(null);
@@ -115,18 +126,29 @@ export function RoleSelect({
 									<span className="text-sm text-secondary dark:text-secondary-dark">None</span>
 								</Button>
 							)}
-							{sortedRoles.map((role) => (
-								<Button
-									className={cn(
-										'w-full px-3 py-2 text-left transition-colors hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark cursor-pointer',
-										value === role.id && 'bg-misc-accent/10 text-misc-accent',
-									)}
-									key={role.id}
-									onClick={() => handleSelect(role.id)}
-								>
-									<RoleItem role={role} />
-								</Button>
-							))}
+							{sortedRoles.map((role) => {
+								const isDisabled = disabledIds?.includes(role.id) ?? false;
+
+								return (
+									<Button
+										className={cn(
+											'w-full px-3 py-2 text-left transition-colors',
+											isDisabled
+												? 'cursor-not-allowed opacity-50'
+												: 'hover:bg-on-tertiary dark:hover:bg-on-tertiary-dark cursor-pointer',
+											value === role.id && !isDisabled && 'bg-misc-accent/10 text-misc-accent',
+										)}
+										isDisabled={isDisabled}
+										key={role.id}
+										onClick={() => handleSelect(role.id)}
+									>
+										<RoleItem role={role} />
+										{isDisabled && disabledReason && (
+											<span className="ml-2 text-xs text-secondary dark:text-secondary-dark">({disabledReason})</span>
+										)}
+									</Button>
+								);
+							})}
 						</ScrollArea>
 					</div>
 				)}

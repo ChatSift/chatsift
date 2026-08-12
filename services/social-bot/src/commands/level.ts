@@ -1,12 +1,17 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
+import { calculateTotalRequiredXp, calculateUserLevel } from '@chatsift/core';
 import type { SocialGuildSettings, SocialRewards, SocialUsers } from '@chatsift/db';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction, APIChatInputApplicationCommandInteraction } from '@discordjs/core';
 import { ApplicationIntegrationType, InteractionContextType, MessageFlags } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
-import { calculateTotalRequiredXp, calculateUserLevel } from '../lib/calculateLevel.js';
+import { sortRoleIdsByHierarchy } from '../lib/discordCache.js';
+
+function mentions(roleIds: readonly string[]): string {
+	return roleIds.length > 0 ? roleIds.map((roleId) => `<@&${roleId}>`).join(', ') : 'None';
+}
 
 export default class LevelCommand implements CommandHandler {
 	public readonly name = 'level';
@@ -78,20 +83,38 @@ export default class LevelCommand implements CommandHandler {
 		const reachedAt = calculateTotalRequiredXp(requiredXpBase, requiredXpMultiplier, level);
 		const nextAt = calculateTotalRequiredXp(requiredXpBase, requiredXpMultiplier, level + 1);
 
+		// Every reward, not just the ones up to `level + 1`: the next one to look forward to is whatever is
+		// closest above the user's level, which may be several levels away.
 		const rewards = await db<SocialRewards[]>`
-			SELECT * FROM social_rewards WHERE guild_id = ${interaction.guild_id} AND level <= ${level + 1}
+			SELECT * FROM social_rewards WHERE guild_id = ${interaction.guild_id}
 		`;
 
-		const current = rewards.filter((reward) => reward.level <= level);
-		const next = rewards.filter((reward) => reward.level === level + 1);
-		const describe = (subset: readonly SocialRewards[]) =>
-			subset.length > 0 ? subset.map((reward) => `<@&${reward.roleId}>`).join(', ') : 'None';
+		// Listed in the guild's own role hierarchy rather than the query's order, so a set of rank roles reads
+		// top-down the way the member list shows them instead of in an order nobody chose.
+		const current = await sortRoleIdsByHierarchy(
+			interaction.guild_id,
+			rewards.filter((reward) => reward.level <= level).map((reward) => reward.roleId),
+		);
+
+		const upcoming = rewards.filter((reward) => reward.level > level);
+		const nextLevel = upcoming.length > 0 ? Math.min(...upcoming.map((reward) => reward.level)) : null;
+		// Ties (two roles rewarded at the same level) are listed together, in hierarchy order for the same
+		// reason as above.
+		const next =
+			nextLevel === null
+				? []
+				: await sortRoleIdsByHierarchy(
+						interaction.guild_id,
+						upcoming.filter((reward) => reward.level === nextLevel).map((reward) => reward.roleId),
+					);
 
 		const info = [
 			`**Level**: ${level} (${xp} total XP)`,
 			`**Progress**: ${xp - reachedAt} / ${nextAt - reachedAt} XP`,
-			`**Current rewards**: ${describe(current)}`,
-			`**Reward at next level**: ${describe(next)}`,
+			`**Current rewards**: ${mentions(current)}`,
+			// Names the level it's actually at rather than only ever describing the very next level, which read
+			// as "None" for every member who wasn't one level short of something.
+			nextLevel === null ? '**Next reward**: None' : `**Next reward**: ${mentions(next)} (at level ${nextLevel})`,
 		];
 
 		// Role mentions inside an embed description render as names without pinging, so no `allowed_mentions`

@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest';
-import { calculateTotalRequiredXp, calculateUserLevel } from '../calculateLevel.js';
+import { calculateTotalRequiredXp, calculateUserLevel } from '../socialLevel.js';
 
 /**
  * These pin the migration-fidelity guarantee (#343): every migrated user's level is re-derived from their XP
- * through this curve, so a change here silently re-levels the entire user base. See `calculateLevel.ts`'s header
+ * through this curve, so a change here silently re-levels the entire user base. See `socialLevel.ts`'s header
  * for why the formula stays as-is despite looking wrong against its own cited derivation.
  */
 

@@ -134,4 +134,12 @@ export const queryKeys = {
 				['api', 'modmail', guildId, 'threads', threadId, 'messages', messageId, 'edits'] as const,
 		},
 	},
+	social: {
+		all: (guildId: string) => ['api', 'social', guildId] as const,
+		config: (guildId: string) => ['api', 'social', guildId, 'config'] as const,
+		channels: (guildId: string) => ['api', 'social', guildId, 'channels'] as const,
+		roles: (guildId: string) => ['api', 'social', guildId, 'roles'] as const,
+		rewards: (guildId: string) => ['api', 'social', guildId, 'rewards'] as const,
+		interactions: (guildId: string) => ['api', 'social', guildId, 'interactions'] as const,
+	},
 } as const;
