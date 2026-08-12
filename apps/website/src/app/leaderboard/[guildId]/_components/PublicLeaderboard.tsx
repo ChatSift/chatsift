@@ -1,7 +1,6 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { FaExclamationCircle } from 'react-icons/fa';
@@ -13,17 +12,19 @@ import {
 	usePublicSocialLeaderboard,
 } from '@/api/routes/social';
 import { EmptyState } from '@/components/common/EmptyState';
+import { GenericAvatar } from '@/components/common/GenericAvatar';
 import { LeaderboardPager, LeaderboardTable, LeaderboardTableSkeleton } from '@/components/social/LeaderboardTable';
 import { usePublicRealtimeClient } from '@/hooks/usePublicRealtimeClient';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
+import { getGuildAcronym } from '@/utils/util';
 
 /**
  * Unauthenticated, read-only view of a guild's XP leaderboard. Lives outside `/dashboard` entirely, the same
  * "outside the authenticated tree" placement as `/ama-answers` and `/privacy`.
  *
  * Addressed by the plain guild id rather than a share token: see the dashboard's `PublicLeaderboardCard` for
- * why. Member ids never appear in the payload regardless -- the guild id is the page's address, the members
- * are its content.
+ * why, and `services/api`'s `toPublicUserInfo` for exactly how much of a member this payload does and doesn't
+ * carry (less than the invariant this once claimed -- avatar URLs embed a user id).
  */
 export function PublicLeaderboard() {
 	const { guildId } = useParams<{ guildId: string }>();
@@ -71,12 +72,17 @@ export function PublicLeaderboard() {
 	return (
 		<div className="flex flex-col gap-6">
 			<div className="flex items-center gap-3">
-				{data.guildIconUrl && (
-					// Goes through next/image normally: `cdn.discordapp.com/icons/**` is already in
-					// `next.config`'s `remotePatterns` for the dashboard's own `GuildIcon`, and this is the same
-					// URL shape. Decorative next to the heading, hence the empty alt.
-					<Image alt="" className="h-10 w-10 rounded-full" height={40} src={data.guildIconUrl} width={40} />
-				)}
+				{/* `GenericAvatar` rather than a bare image, the same component the rows below use: it brings the
+				    initials fallback, so a server with no icon (or one this bot can no longer read) still gets a
+				    marker instead of a gap. Not `GuildIcon` -- that one takes a whole `MeGuild`, which is exactly
+				    the authenticated shape this page deliberately never has. */}
+				<GenericAvatar
+					assetURL={data.guildIconUrl ?? undefined}
+					className="h-10 w-10 rounded-full"
+					disableLink
+					initials={getGuildAcronym(data.guildName ?? 'Server')}
+					isLoading={false}
+				/>
 				<h1 className="text-2xl font-semibold text-primary dark:text-primary-dark">
 					{data.guildName ? `${data.guildName} leaderboard` : 'Leaderboard'}
 				</h1>

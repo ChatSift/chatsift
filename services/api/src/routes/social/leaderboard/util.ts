@@ -94,6 +94,27 @@ export async function buildLeaderboardPage({
 			rank: offset + index + 1,
 			xp: row.xp,
 		})),
-		total: rows[0]?.total ?? 0,
+		total: rows[0]?.total ?? (await countLeaderboardRows(guildId)),
 	};
+}
+
+/**
+ * Fallback for the one case the windowed `COUNT(*) OVER ()` above can't answer: an empty page carries no row
+ * to read the count off, so it would report `total: 0` and tell the client the guild has nobody ranked at all.
+ * That's wrong whenever the page is merely past the end -- a hand-written `offset`, or a bookmarked last page
+ * whose rows have since been ignored -- and it strands the client, since the pager derives its page count from
+ * `total` and would collapse to a single page with no way back.
+ *
+ * A second query rather than always counting separately: this only runs on an empty page, where there was no
+ * user resolution to do and the request is cheap anyway.
+ */
+async function countLeaderboardRows(guildId: Snowflake): Promise<number> {
+	// Filter kept identical to the page query above -- a count over a different set would be worse than none.
+	const [row] = await getContext().db<{ total: number }[]>`
+		SELECT COUNT(*)::int AS total
+		FROM social_users
+		WHERE guild_id = ${guildId} AND NOT ignored AND xp > 0
+	`;
+
+	return row?.total ?? 0;
 }

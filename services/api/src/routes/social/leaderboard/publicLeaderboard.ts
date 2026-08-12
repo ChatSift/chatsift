@@ -1,6 +1,7 @@
 import { getContext } from '@chatsift/backend-core';
 import { socialLeaderboardChannel } from '@chatsift/core';
 import type { SocialGuildSettings } from '@chatsift/db';
+import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
@@ -33,8 +34,10 @@ export interface PublicLeaderboardResult extends LeaderboardPage {
  * the page unlisted (whoever holds the link can forward it) at the cost of a second identifier to store,
  * rotate and keep a realtime channel in step with. See schema.sql's `public_leaderboard` comment.
  *
- * Rows still go through `toPublicUserInfo`, so no member's snowflake ever reaches this page even though the
- * guild's own id is right there in the URL -- the guild id is the address, the member ids are the content.
+ * Rows go through `toPublicUserInfo`, which emits no member id as a field. It does **not** make the page
+ * id-free: a Discord avatar URL is `/avatars/<userId>/<hash>.png`, so anyone with a custom avatar has their
+ * snowflake inside `avatarUrl`. See that helper for what the guarantee actually is and what removing the id
+ * would cost. AMA's public answers page has the same property, and predates this one.
  */
 export default defineRoute({
 	method: 'get',
@@ -72,7 +75,9 @@ export default defineRoute({
 
 		return {
 			...page,
-			guildIconUrl: guild?.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
+			guildIconUrl: guild?.icon
+				? `${RouteBases.cdn}${CDNRoutes.guildIcon(guild.id, guild.icon, ImageFormat.PNG)}`
+				: null,
 			guildName: guild?.name ?? null,
 			realtimeChannel: socialLeaderboardChannel(guildId),
 		};

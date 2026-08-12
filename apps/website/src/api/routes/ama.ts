@@ -308,7 +308,7 @@ export function useDeleteAMATag(guildId: string, amaId: string) {
  * which needs to hit the same endpoint from `generateMetadata` to build the link embed (#295).
  */
 export function publicAMAAnswersPath(shareToken: string): string {
-	return `/v3/ama/public/${shareToken}`;
+	return `/v3/ama/public/${encodeURIComponent(shareToken)}`;
 }
 
 /**

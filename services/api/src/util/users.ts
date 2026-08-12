@@ -41,13 +41,20 @@ export async function resolveDiscordUser(api: API, userId: Snowflake): Promise<A
 }
 
 /**
- * What an unauthenticated page is allowed to know about a user: a display name and an avatar, never the raw
- * snowflake. Shared by the two share-token surfaces -- AMA's public answers page (#323) and Social's public
- * leaderboard -- because the rule is the surface's, not either product's, and a second copy is a second place
- * for an id to start leaking.
+ * What an unauthenticated page is allowed to know about a user: a display name and an avatar. Shared by both
+ * unauthenticated surfaces -- AMA's public answers page (#323) and Social's public leaderboard -- because the
+ * rule is the surface's, not either product's, and a second copy is a second place for a field to creep back
+ * in.
+ *
+ * Note that this does **not** hide the user's id, and cannot while it returns a Discord CDN avatar URL: those
+ * are `/avatars/<userId>/<hash>.png` by construction, so a member with a custom avatar has their snowflake in
+ * the `avatarUrl` string. What this guarantees is narrower and worth stating exactly: no id is emitted as its
+ * own field, so nothing downstream can key, join, or filter on one, and a member on the default avatar emits
+ * no id at all. Actually removing it would mean proxying every avatar through our own domain or dropping
+ * avatars from these pages -- both real decisions, neither taken (see docs/roadmap/10-social-port.md).
  *
  * `resolveDiscordUser`'s bare-snowflake fallback (an unresolvable or 404'd user) renders as "Unknown User"
- * with no avatar rather than leaking the id it couldn't resolve.
+ * with no avatar rather than printing the id it couldn't resolve.
  */
 export interface PublicUserInfo {
 	avatarUrl: string | null;

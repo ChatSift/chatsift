@@ -184,3 +184,11 @@ test('leaderboard paging rejects an oversized or nonsensical page', () => {
 	expect(leaderboardQuerySchema.safeParse({ offset: -1 }).success).toBe(false);
 	expect(leaderboardQuerySchema.safeParse({ limit: 10.5 }).success).toBe(false);
 });
+
+// `offset` is anonymous-caller-controlled on the public route, so it's bounded to a range a human could
+// actually walk rather than left open to `Number.MAX_SAFE_INTEGER`.
+test('leaderboard paging bounds how deep an offset may go', () => {
+	expect(leaderboardQuerySchema.safeParse({ offset: 100_000 }).success).toBe(true);
+	expect(leaderboardQuerySchema.safeParse({ offset: 100_001 }).success).toBe(false);
+	expect(leaderboardQuerySchema.safeParse({ offset: Number.MAX_SAFE_INTEGER }).success).toBe(false);
+});

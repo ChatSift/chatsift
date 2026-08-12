@@ -62,6 +62,7 @@ export const updateSocialConfigBodySchema = z
  */
 const LEADERBOARD_MAX_PAGE_SIZE = 50;
 const LEADERBOARD_DEFAULT_PAGE_SIZE = 25;
+const LEADERBOARD_MAX_OFFSET = 100_000;
 
 /**
  * Offset/limit rather than the cursor pagination `createPaginationQuerySchema` establishes for
@@ -81,7 +82,7 @@ export const leaderboardQuerySchema = z.object({
 		.max(LEADERBOARD_MAX_PAGE_SIZE)
 		.optional()
 		.default(LEADERBOARD_DEFAULT_PAGE_SIZE),
-	offset: z.coerce.number().int().min(0).optional().default(0),
+	offset: z.coerce.number().int().min(0).max(LEADERBOARD_MAX_OFFSET).optional().default(0),
 });
 
 /**

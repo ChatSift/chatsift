@@ -690,10 +690,15 @@ CREATE TABLE social_users (
 -- filtered rather than ranked, but they're a rounding error next to a guild's member count and putting
 -- them in the index key would cost more on the write side than the filter saves on the read side.
 --
+-- `user_id ASC` is part of the key, not decoration: it's the leaderboard's tie-breaker, and ties are the
+-- normal case rather than an edge one here -- every member earns the same `xp_gain` per grant, so a guild
+-- full of people on their third grant all sit on exactly the same XP. Without it the index orders by `xp`
+-- and Postgres re-sorts each tied run to make paging stable.
+--
 -- Deliberately accepted cost: `xp` is written on the hot path (every XP grant re-indexes the row). That
 -- is why this was held back until something actually read in rank order -- now something does, and a
 -- leaderboard without it is a full sort of the guild's `social_users` per page view.
-CREATE INDEX social_users_guild_id_xp_idx ON social_users (guild_id, xp DESC);
+CREATE INDEX social_users_guild_id_xp_idx ON social_users (guild_id, xp DESC, user_id ASC);
 
 -- A row here can describe the message's own channel, its parent category, or (for a thread) the thread
 -- parent's parent -- the bot resolves both `ignored` and `multiplier` by walking that chain, which is

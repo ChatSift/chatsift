@@ -197,7 +197,7 @@ The exhaustive "where warranted" list. Each item is a decision, not an open ques
    follow-up issue if wanted.
 5. **Leaderboard: shipped as a follow-up after P4, still not a cutover dependency.** The legacy bot has no
    leaderboard anywhere (`/level` is the only read), so all of this is new surface rather than ported behaviour —
-   see [Leaderboard](#leaderboard-ledger-item-5) below for what landed. Nothing about it blocks P5/P6: it reads
+   see the **Leaderboard** entry under [Phases](#phases) for what landed. Nothing about it blocks P5/P6: it reads
    `social_users` and adds one nullable-free boolean to `social_guild_settings`, both of which the migration
    already writes.
 
@@ -457,8 +457,12 @@ The leaderboard adds, on top of all of the above:
 12. **The public page** — off by default (`/leaderboard/<guildId>` 404s), reachable once the switch is on, and
     updating live in a second browser with no session at all. Turning the switch back off should refetch that
     tab straight onto its "not found" state rather than leaving it on stale-but-live-looking data.
-13. **No ids leak** — the public page's network responses contain no member snowflakes, only display names and
-    avatar URLs.
+13. **No id fields** — the public page's network responses carry no member id as a field, only display names
+    and avatar URLs. Note the standing caveat rather than testing for something untrue: a Discord avatar URL
+    is `/avatars/<userId>/<hash>.png`, so any member with a custom avatar has their snowflake inside that
+    string. Removing it means proxying avatars through our own domain or dropping them from public pages —
+    **an open decision**, applying equally to AMA's public answers page, which has had the same property since
+    #323.
 14. **Paging** — with more than 25 ranked members, page 2 shows ranks 26+ and the pager disables at both ends.
 15. **`/leaderboard`** — renders for a non-admin, pings nobody, shows current nicknames, and its "See the full
     leaderboard" link appears only while the guild has the public page enabled.
