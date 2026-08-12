@@ -3,14 +3,12 @@ import { getContext } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import type { Categories, GuildSettings, TicketPanels } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
-import { ChannelType, ComponentType, MessageFlags } from '@discordjs/core';
-import { DiscordAPIError } from '@discordjs/rest';
+import { ComponentType, MessageFlags } from '@discordjs/core';
 import { findActiveBlock } from '../lib/blocks.js';
 import { buildCategorySelectOptions } from '../lib/categorySelectOptions.js';
 import { withGuildUserLock } from '../lib/guildUserQueue.js';
-import { PendingTicketStore, recordPendingTicket } from '../lib/pendingTicket.js';
-import { countActiveTicketsForUser, MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES } from '../lib/threads.js';
-import { sendEarlyGreeting } from '../lib/ticketCreation.js';
+import { createPanelTicket } from '../lib/panelTicket.js';
+import { countActiveTicketsForUser } from '../lib/threads.js';
 
 export default class CreateTicketComponent implements ComponentHandler {
 	public readonly name = 'modmail-create-ticket';
@@ -102,7 +100,11 @@ export default class CreateTicketComponent implements ComponentHandler {
 				ORDER BY c.sort_order, c.id
 			`;
 
-			if (categories.length > 0) {
+			// A single-category panel has nothing to actually pick — a one-option select is an extra click
+			// that can only ever resolve one way — so only two or more categories get a picker. One or zero
+			// both fall through to `createPanelTicket` below, which takes the category (or `null`) straight
+			// through. `lib/dmTicket.ts` does the same for DM mode.
+			if (categories.length > 1) {
 				// No private thread yet — the user picks a category first, ephemerally, right here in
 				// response to the button. `categorySelect.ts` is the one that actually creates the private
 				// thread once a pick lands; `panel.id` rides along in the custom_id since nothing about this
@@ -129,69 +131,15 @@ export default class CreateTicketComponent implements ComponentHandler {
 				return;
 			}
 
-			let privateThread;
-			try {
-				privateThread = await getContext().service.client.api.channels.createThread(panel.channelId, {
-					name: (member.nick ?? user.global_name ?? user.username).slice(0, 100),
-					type: ChannelType.PrivateThread,
-					invitable: false,
-					auto_archive_duration: MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES,
-				});
-			} catch (error) {
-				if (error instanceof DiscordAPIError && error.status === 403) {
-					logger.warn({ err: error, channelId: panel.channelId }, 'Missing permissions to create a ticket thread');
-					await editReply(
-						'The bot is missing permissions to create a ticket thread here. Please let a moderator know.',
-					);
-					return;
-				}
-
-				throw error;
-			}
-
-			await getContext().service.client.api.threads.addMember(privateThread.id, user.id);
-
-			// Nothing is sent to staff yet — the mod-forum thread only gets created once the user's first
-			// message arrives, caught by `index.ts`'s `MessageCreate` listener via this pending-ticket
-			// record. This panel has no categories, so `categoryId` is `0` ("none") from the start —
-			// contrast `categorySelect.ts`, which is the one that creates this record when a panel *does*
-			// have categories, once a pick resolves one.
-			//
-			// The greeting is the one exception to "nothing posted into the thread yet": when
-			// `greetingBeforeOpener` is on, it has to go out now, before the user says anything, since
-			// that's the only point at which the bot can actually land ahead of their first message (see
-			// `sendEarlyGreeting`'s doc comment). Best-effort — a failure here shouldn't block ticket
-			// creation, it just means the greeting falls back to landing after the opener at finish time,
-			// same as `greetingBeforeOpener` being off.
-			let greetingUserMessageId: string | null = null;
-			if (guildSettings.greetingBeforeOpener) {
-				try {
-					greetingUserMessageId = await sendEarlyGreeting({
-						category: null,
-						defaultGreetingMessage: guildSettings.defaultGreetingMessage,
-						guildId,
-						member,
-						user,
-						userChannelId: privateThread.id,
-					});
-				} catch (error) {
-					logger.warn({ err: error, threadId: privateThread.id }, 'Failed to send the early greeting message');
-				}
-			}
-
-			await Promise.all([
-				PendingTicketStore.set(privateThread.id, {
-					categoryId: 0,
-					greetingUserMessageId,
-					guildId,
-					userId: user.id,
-				}),
-				recordPendingTicket({ categoryId: null, guildId, privateThreadId: privateThread.id, userId: user.id }),
-			]);
-
-			await editReply(
-				`Your ticket has been created: <#${privateThread.id}>. Describe what you need help with there - a staff member will follow up once you send your message.`,
-			);
+			await createPanelTicket({
+				category: categories[0] ?? null,
+				guildId,
+				guildSettings,
+				interaction,
+				logger,
+				member,
+				panel,
+			});
 		});
 	}
 }

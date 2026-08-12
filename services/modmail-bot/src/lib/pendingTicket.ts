@@ -13,14 +13,14 @@ export const PENDING_TICKET_TTL_MS = 30 * 60 * 1_000;
 
 export interface PendingTicketState {
 	/**
-	 * The category already resolved before this thread was created (`categorySelect.ts`), or `0` for a
-	 * panel with no categories configured (`createTicket.ts`'s zero-category path) — `0` is never a real
-	 * category id (`categories.id` is an `IDENTITY` column starting at 1), so it's used as the sentinel
-	 * here rather than `null`.
+	 * The category already resolved before this thread was created (`lib/panelTicket.ts`, from a pick or
+	 * from a single-category panel), or `0` for a panel with no categories configured — `0` is never a
+	 * real category id (`categories.id` is an `IDENTITY` column starting at 1), so it's used as the
+	 * sentinel here rather than `null`.
 	 */
 	categoryId: number;
 	/**
-	 * Set when `createTicket.ts`/`categorySelect.ts` already posted the greeting into the private thread
+	 * Set when `lib/panelTicket.ts` already posted the greeting into the private thread
 	 * at creation time (`guild_settings.greetingBeforeOpener`, via `sendEarlyGreeting`) — `null` when no
 	 * greeting went out early (setting off, no greeting configured, or the member shape didn't resolve).
 	 * `index.ts`'s `handleFirstMessage` reads this back so `sendGreeting` doesn't double-post to the user.
@@ -33,9 +33,9 @@ export interface PendingTicketState {
 /**
  * A private thread exists but isn't a ticket yet — the user is expected to describe their issue
  * before anything is sent to staff. Keyed by the private thread's channel id, this bridges ticket
- * creation (`createTicket.ts` for a zero-category panel, `categorySelect.ts` once a category is
- * picked - either way the category is already resolved by the time a thread exists) to the
- * `MessageCreate` handler in `index.ts` that catches the user's first message and finishes the ticket.
+ * creation (`lib/panelTicket.ts`, reached with the category already resolved - none, a single-category
+ * panel's only one, or a pick from `categorySelect.ts`) to the `MessageCreate` handler in `index.ts`
+ * that catches the user's first message and finishes the ticket.
  */
 export const PendingTicketStore = new RedisStore<PendingTicketState>({
 	TTL: PENDING_TICKET_TTL_MS,

@@ -261,10 +261,14 @@ export async function handleDmMessage(message: GatewayMessageCreateDispatchData,
 
 		const categories = await fetchDmCategories(guildId);
 
-		if (categories.length === 0) {
+		// One category is as good as none as far as the prompt goes -- a single-option select is an extra
+		// round trip (and a message left sitting in the user's DMs) that can only ever resolve one way, so
+		// it's applied straight through here instead. Same shortcut as the panel flow's
+		// `components/createTicket.ts`; two or more is the only case the prompt earns its place.
+		if (categories.length <= 1) {
 			try {
 				await finishDmTicket({
-					category: null,
+					category: categories[0] ?? null,
 					guildId,
 					guildSettings,
 					logger,
