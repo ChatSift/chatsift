@@ -125,9 +125,11 @@ const { from, to, live, xpOnly } = resolveArgs();
 const legacy = createDb({ url: resolveLegacyUrl() });
 const target = createDb({ url: resolveTargetUrl() });
 
-let exitCode = 0;
-
-try {
+/**
+ * The whole run, returning the process exit code rather than calling `process.exit` itself -- so an abort
+ * cannot lose the very message explaining it. See the matching comment in `migrateLegacySocial.ts`.
+ */
+async function run(): Promise<number> {
 	console.log(
 		`Mode: ${live ? 'live' : 'dry-run (everything below is rolled back)'}, ` +
 			`${from} -> ${to}${xpOnly ? ', xp-only' : ''}`,
@@ -141,7 +143,7 @@ try {
 			console.error(`ABORT ${violation}`);
 		}
 
-		process.exit(1);
+		return 1;
 	}
 
 	// Aborts rather than warns, and does so before the transaction opens. This script wipes `--to` before it
@@ -155,7 +157,7 @@ try {
 			`ABORT legacy guild ${from} has no User rows — check --from. Refusing to continue, because this script ` +
 				`deletes ${to}'s existing Social rows before copying and would leave it empty.`,
 		);
-		process.exit(1);
+		return 1;
 	}
 
 	let stats: Stats = {};
@@ -189,8 +191,11 @@ try {
 		}
 	}
 
+	// A dry run rolls all of this back, so it reports in the conditional -- "Deleted 21 rows" above a
+	// "nothing was written" footer is the kind of contradiction an operator resolves by trusting the louder
+	// half, and here the louder half is the one that reads as data loss.
 	const deletedTotal = Object.values(deleted).reduce((sum, count) => sum + count, 0);
-	console.log(`\nDeleted from guild ${to}: ${deletedTotal} row(s)`);
+	console.log(`\n${live ? 'Deleted from' : 'Would delete from'} guild ${to}: ${deletedTotal} row(s)`);
 	for (const [table, count] of Object.entries(deleted)) {
 		if (count > 0) {
 			console.log(`  ${table.padEnd(26)}${String(count).padStart(6)}`);
@@ -201,20 +206,28 @@ try {
 
 	if (!xpOnly && (stats['social_rewards']?.inserted ?? 0) > 0) {
 		console.log(
-			`\nNote: ${stats['social_rewards']!.inserted} reward role(s) were copied and reference roles in guild ` +
-				`${from}, which do not exist in ${to} — the bot will fail to grant them on level-up. Delete them from ` +
-				'the dashboard, or re-run with --xp-only.',
+			`\nNote: ${stats['social_rewards']!.inserted} reward role(s) ${live ? 'were copied and reference' : 'would be copied, referencing'} ` +
+				`roles in guild ${from}, which do not exist in ${to} — the bot will fail to grant them on level-up. ` +
+				'Delete them from the dashboard, or re-run with --xp-only.',
 		);
 	}
 
 	if ((stats['social_interactions']?.inserted ?? 0) > 0) {
 		console.log(
-			`\nNote: ${stats['social_interactions']!.inserted} interaction(s) were copied with command_id = NULL. Run ` +
-				`the interactions resync on ${to}'s dashboard to register them as real commands.`,
+			`\nNote: ${stats['social_interactions']!.inserted} interaction(s) ${live ? 'were' : 'would be'} copied with ` +
+				`command_id = NULL. Run the interactions resync on ${to}'s dashboard to register them as real commands.`,
 		);
 	}
 
 	console.log(live ? '\nCommitted.' : '\nRolled back — nothing was written. Re-run with --live to apply.');
+
+	return 0;
+}
+
+let exitCode = 0;
+
+try {
+	exitCode = await run();
 } catch (error) {
 	console.error(error);
 	exitCode = 1;
@@ -223,4 +236,5 @@ try {
 	await target.end();
 }
 
-process.exit(exitCode);
+// Assigned rather than `process.exit(exitCode)`, so pending stdout drains first. See `run`'s doc comment.
+process.exitCode = exitCode;

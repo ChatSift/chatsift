@@ -467,12 +467,17 @@ export async function findConstraintViolations(legacy: Database, options: CopyOp
 
 	// A base or multiplier of 0 makes the level walk's requirement stop growing, so the derivation never
 	// terminates -- the bot hangs rather than misbehaves. See the CHECK's comment in schema.sql.
+	//
+	// The parentheses around the OR are load-bearing. AND binds tighter, so without them appending the guild
+	// filter would group as "base < 1 OR (multiplier < 1 AND guildId = ...)" -- reporting violations from
+	// every *other* guild, and aborting a single-guild copy over data it was never going to touch. This is
+	// the only predicate in this function with an OR in it; the four below are single conditions.
 	const badCurves = await legacy<
 		{ guildId: string; requiredXpBase: number | null; requiredXpMultiplier: number | null }[]
 	>`
 		SELECT "guildId" AS guild_id, "requiredXpBase" AS required_xp_base, "requiredXpMultiplier" AS required_xp_multiplier
 		FROM "GuildSettings"
-		WHERE "requiredXpBase" < 1 OR "requiredXpMultiplier" < 1
+		WHERE ("requiredXpBase" < 1 OR "requiredXpMultiplier" < 1)
 		${options.onlyGuildId === undefined ? legacy`` : legacy`AND "guildId" = ${options.onlyGuildId}`}
 		ORDER BY "guildId"
 	`;

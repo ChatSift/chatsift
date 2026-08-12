@@ -111,10 +111,25 @@ async function preflight(legacy: Database, target: Executor): Promise<{ errors: 
 async function runVerify(legacy: Database, target: Executor): Promise<boolean> {
 	let ok = true;
 
+	// Three states rather than two. A target *shortfall* means something did not land, which is a failure.
+	// A target *excess* is not: it is a guild that used Social on the new stack before the cutover, which
+	// preflight already warned about and which `compareSignatures` below deliberately tolerates for the same
+	// reason -- failing here would make that warning fire twice under a worse name. But excess is still
+	// called out rather than folded into OK, because the only thing besides pre-existing rows that could
+	// produce it is corruption, and that must never pass silently.
 	const report = (label: string, left: number, right: number): void => {
-		const matched = left === right;
-		ok &&= matched;
-		console.log(`  ${matched ? 'OK  ' : 'FAIL'} ${label.padEnd(26)} legacy=${left} target=${right}`);
+		let status: string;
+		if (right < left) {
+			status = 'FAIL';
+			ok = false;
+		} else if (right > left) {
+			status = 'WARN';
+		} else {
+			status = 'OK  ';
+		}
+
+		const excess = right > left ? ` (+${right - left} not from this migration)` : '';
+		console.log(`  ${status} ${label.padEnd(26)} legacy=${left} target=${right}${excess}`);
 	};
 
 	const guildIds = await collectLegacyGuildIds(legacy);
@@ -534,72 +549,87 @@ const { mode, source } = resolveArgs();
 const legacy = createDb({ url: resolveLegacyUrl() });
 const target = createDb({ url: resolveTargetUrl() });
 
+/**
+ * The whole run, returning the process exit code rather than calling `process.exit` itself.
+ *
+ * That matters for more than tidiness: `process.exit` tears the process down without draining pending
+ * stdout writes, which are asynchronous whenever output is a pipe -- and these scripts are routinely run
+ * piped through `tail`/`grep`. An abort that exits immediately after printing its reason can therefore lose
+ * the reason. Returning a code lets the `finally` below close both clients and lets Node exit on its own
+ * once the streams have flushed.
+ */
+async function run(): Promise<number> {
+	if (mode === 'verify') {
+		console.log(`Mode: verify (read-only), source: ${source}`);
+		return (await runVerify(legacy, target)) ? 0 : 1;
+	}
+
+	console.log(`Mode: ${mode}${mode === 'dry-run' ? ' (everything below is rolled back)' : ''}, source: ${source}`);
+
+	const { errors, warnings } = await preflight(legacy, target);
+
+	for (const warning of warnings) {
+		console.warn(`WARN  ${warning}`);
+	}
+
+	if (errors.length > 0) {
+		for (const error of errors) {
+			console.error(`ABORT ${error}`);
+		}
+
+		return 1;
+	}
+
+	let stats: Stats = {};
+	const startedAt = Date.now();
+
+	try {
+		await target.begin(async (tx) => {
+			// The whole migration is one transaction, and it interleaves reads against the *legacy* database
+			// between writes here -- so this connection sits idle for stretches that have nothing to do with
+			// how fast Postgres is. A server-side `statement_timeout` or `idle_in_transaction_session_timeout`
+			// would kill the transaction partway through and force the whole run to be restarted. `SET LOCAL`
+			// scopes both to this transaction, so they revert on commit or rollback rather than leaking into
+			// the pooled connection.
+			await tx`SET LOCAL statement_timeout = 0`;
+			await tx`SET LOCAL idle_in_transaction_session_timeout = 0`;
+
+			stats = await copyAll(legacy, tx, {});
+
+			if (mode === 'dry-run') {
+				throw new RollbackSignal();
+			}
+		});
+	} catch (error) {
+		if (!(error instanceof RollbackSignal)) {
+			throw error;
+		}
+	}
+
+	printStats(stats);
+
+	// The number that sizes the cutover window (P6 step 1). `social_users` is the only table of unknown
+	// magnitude, so a dry-run's wall-clock is the only honest estimate there is.
+	console.log(`\nWall-clock: ${((Date.now() - startedAt) / 1_000).toFixed(1)}s`);
+
+	const [withInteractions] = await legacy<[{ count: string }]>`
+		SELECT COUNT(DISTINCT "guildId") FROM "SocialInteraction"
+	`;
+	console.log(
+		`\n${withInteractions!.count} guild(s) have social interactions, every one of them migrated with ` +
+			`command_id = NULL by design.\nRun the interactions resync for each before their custom commands work ` +
+			'again (P6 step 6) — until then dispatch falls back to a (guild_id, name) lookup.',
+	);
+
+	console.log(mode === 'dry-run' ? '\nRolled back — nothing was written.' : '\nCommitted.');
+
+	return 0;
+}
+
 let exitCode = 0;
 
 try {
-	if (mode === 'verify') {
-		console.log(`Mode: verify (read-only), source: ${source}`);
-		exitCode = (await runVerify(legacy, target)) ? 0 : 1;
-	} else {
-		console.log(`Mode: ${mode}${mode === 'dry-run' ? ' (everything below is rolled back)' : ''}, source: ${source}`);
-
-		const { errors, warnings } = await preflight(legacy, target);
-
-		for (const warning of warnings) {
-			console.warn(`WARN  ${warning}`);
-		}
-
-		if (errors.length > 0) {
-			for (const error of errors) {
-				console.error(`ABORT ${error}`);
-			}
-
-			process.exit(1);
-		}
-
-		let stats: Stats = {};
-		const startedAt = Date.now();
-
-		try {
-			await target.begin(async (tx) => {
-				// The whole migration is one transaction, and it interleaves reads against the *legacy* database
-				// between writes here -- so this connection sits idle for stretches that have nothing to do with
-				// how fast Postgres is. A server-side `statement_timeout` or `idle_in_transaction_session_timeout`
-				// would kill the transaction partway through and force the whole run to be restarted. `SET LOCAL`
-				// scopes both to this transaction, so they revert on commit or rollback rather than leaking into
-				// the pooled connection.
-				await tx`SET LOCAL statement_timeout = 0`;
-				await tx`SET LOCAL idle_in_transaction_session_timeout = 0`;
-
-				stats = await copyAll(legacy, tx, {});
-
-				if (mode === 'dry-run') {
-					throw new RollbackSignal();
-				}
-			});
-		} catch (error) {
-			if (!(error instanceof RollbackSignal)) {
-				throw error;
-			}
-		}
-
-		printStats(stats);
-
-		// The number that sizes the cutover window (P6 step 1). `social_users` is the only table of unknown
-		// magnitude, so a dry-run's wall-clock is the only honest estimate there is.
-		console.log(`\nWall-clock: ${((Date.now() - startedAt) / 1_000).toFixed(1)}s`);
-
-		const [withInteractions] = await legacy<[{ count: string }]>`
-			SELECT COUNT(DISTINCT "guildId") FROM "SocialInteraction"
-		`;
-		console.log(
-			`\n${withInteractions!.count} guild(s) have social interactions, every one of them migrated with ` +
-				`command_id = NULL by design.\nRun the interactions resync for each before their custom commands work ` +
-				'again (P6 step 6) — until then dispatch falls back to a (guild_id, name) lookup.',
-		);
-
-		console.log(mode === 'dry-run' ? '\nRolled back — nothing was written.' : '\nCommitted.');
-	}
+	exitCode = await run();
 } catch (error) {
 	console.error(error);
 	exitCode = 1;
@@ -608,4 +638,6 @@ try {
 	await target.end();
 }
 
-process.exit(exitCode);
+// Assigned rather than `process.exit(exitCode)`: both clients are closed above, so nothing holds the event
+// loop open and Node exits on its own -- after stdout has drained. See `run`'s doc comment.
+process.exitCode = exitCode;
