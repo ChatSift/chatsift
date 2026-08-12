@@ -45,6 +45,7 @@ export default defineRoute({
 			levelUpNotificationMode: 'NONE' as SocialGuildSettings['levelUpNotificationMode'],
 			levelUpNotificationFallbackChannelId: null,
 			levelUpNotificationMessage: null,
+			publicLeaderboard: false,
 		};
 
 		return settings ?? defaults;

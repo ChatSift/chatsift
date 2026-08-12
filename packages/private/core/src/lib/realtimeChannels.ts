@@ -30,3 +30,21 @@ export function amaQuestionsChannel(guildId: string, amaId: number | string): st
 export function amaPublicAnswersChannel(amaId: number | string): string {
 	return `ama-public:${amaId}`;
 }
+
+/**
+ * The Social leaderboard's channel -- guild-scoped and nothing finer, since the whole page is one ranked list
+ * and there's no sub-resource to watch separately.
+ *
+ * The one channel **both** of its audiences subscribe to: the dashboard page
+ * (`/dashboard/:guildId/social/leaderboard`) through the gateway's guild-manager path, and the public page
+ * (`/leaderboard/:guildId`) through its ticket's explicit `channels` allowlist, which is the whole of what
+ * that ticket authorizes. Unlike AMA, the public surface here needs no channel of its own: it's keyed by the
+ * same guild id it already displays in its own URL, so there is no snowflake to keep out of the string.
+ *
+ * Signals come from `services/social-bot` (every XP grant is a Postgres write the API never sees), throttled
+ * there rather than here -- see its `leaderboardBroadcast.ts` -- and from the config route, since the curve
+ * decides what level every listed member is shown at.
+ */
+export function socialLeaderboardChannel(guildId: string): string {
+	return `social:${guildId}:leaderboard`;
+}

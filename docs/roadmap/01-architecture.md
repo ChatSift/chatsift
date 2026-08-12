@@ -516,12 +516,25 @@ baked into a short-lived (60s) JWT ticket, minted over normal HTTP before the so
      nothing but the one `amaPublicAnswersChannel` it resolves to. The frontend uses a separate
      `RealtimeClient` for it (`usePublicRealtimeClient`), since the session-backed singleton mints from a
      session this page normally doesn't have.
+   - **The public leaderboard page** (`/leaderboard/[guildId]`, #343 follow-up). Unauthenticated, gated on the
+     guild's `public_leaderboard` flag rather than on any credential, so
+     `routes/social/leaderboard/publicWsTicket.ts` mints a ticket carrying `socialLeaderboardChannel(guildId)`
+     and an **empty `adminGuilds`**. That emptiness is load-bearing here in a way it isn't for AMA: this
+     channel _is_ guild-shaped, so a ticket claiming the guild would walk path 1 into every other Social
+     channel under it. It's the one channel both audiences share — the dashboard reaches the identical string
+     through path 1 — which is why there's no public twin of it to keep in sync.
 
 `amaPublicAnswersChannel` is `ama-public:<amaId>` — deliberately **guildless**, breaking the format above. That
 page hides every raw Discord id it can, so handing an anonymous browser a guild snowflake would undo that for
 nothing. The consequence is that it's reachable only via path 2, never inherited by whoever manages the guild;
 path 1's segment-count check is what enforces that, rather than trusting snowflakes and small serial ama ids to
 never collide.
+
+The leaderboard page deliberately does **not** follow that pattern, because its URL is the guild id: there is
+one leaderboard per guild, so an unguessable identifier would only have made the page unlisted (whoever the
+link is given to can forward it regardless) in exchange for a second identifier to store, rotate, and keep a
+guildless channel in step with. Member ids still never appear in its payload — the guild id is the address,
+the members are the content.
 
 Ticket claims are resolved once at mint time, so they're as stale as `adminGuilds` already was — bounded by the
 60s TTL plus the client re-minting on every (re)connect.

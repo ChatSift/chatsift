@@ -30,6 +30,11 @@ const SECTIONS = [
 		title: 'Interactions',
 		subtitle: 'Custom slash commands like /hug anyone can use',
 	},
+	{
+		segment: 'leaderboard',
+		title: 'Leaderboard',
+		subtitle: "Leaderboard for your community's most active members, and the public page for it",
+	},
 ] as const;
 
 export default async function SocialPage({ params }: PageProps<'/dashboard/[id]/social'>) {

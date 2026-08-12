@@ -141,5 +141,10 @@ export const queryKeys = {
 		roles: (guildId: string) => ['api', 'social', guildId, 'roles'] as const,
 		rewards: (guildId: string) => ['api', 'social', guildId, 'rewards'] as const,
 		interactions: (guildId: string) => ['api', 'social', guildId, 'interactions'] as const,
+		leaderboard: (guildId: string) => ['api', 'social', guildId, 'leaderboard'] as const,
+		leaderboardPage: (guildId: string, offset: number) => ['api', 'social', guildId, 'leaderboard', offset] as const,
+		publicLeaderboard: (guildId: string) => ['api', 'social', 'public', guildId, 'leaderboard'] as const,
+		publicLeaderboardPage: (guildId: string, offset: number) =>
+			['api', 'social', 'public', guildId, 'leaderboard', offset] as const,
 	},
 } as const;

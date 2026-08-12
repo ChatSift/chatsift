@@ -1,5 +1,5 @@
 import type { WsTicketData } from '@chatsift/backend-core';
-import { amaPublicAnswersChannel, amaQuestionsChannel } from '@chatsift/core';
+import { amaPublicAnswersChannel, amaQuestionsChannel, socialLeaderboardChannel } from '@chatsift/core';
 import { expect, test } from 'vitest';
 import { isAuthorizedForChannel } from '../authorizeChannel.js';
 
@@ -66,6 +66,28 @@ test('the guildless public domain is never reachable via the guild path', () => 
 	// admin must not inherit it either.
 	expect(isAuthorizedForChannel(ticket({ adminGuilds: ['1'] }), amaPublicAnswersChannel(1))).toBe(false);
 	expect(isAuthorizedForChannel(ticket({ isAdmin: true }), amaPublicAnswersChannel(1))).toBe(false);
+});
+
+test('a public leaderboard ticket reaches its own guild channel and nothing else under that guild', () => {
+	// Unlike AMA's public page, this channel *is* guild-shaped, so the allowlist is doing load-bearing work
+	// rather than just naming a guildless string: an empty `adminGuilds` is what stops this ticket from
+	// walking the guild-wide path into every other Social channel in the same guild.
+	const publicTicket = ticket({
+		sub: `public-leaderboard:${GUILD}`,
+		channels: [socialLeaderboardChannel(GUILD)],
+	});
+
+	expect(isAuthorizedForChannel(publicTicket, socialLeaderboardChannel(GUILD))).toBe(true);
+	expect(isAuthorizedForChannel(publicTicket, socialLeaderboardChannel(OTHER_GUILD))).toBe(false);
+	expect(isAuthorizedForChannel(publicTicket, amaQuestionsChannel(GUILD, 1))).toBe(false);
+	expect(isAuthorizedForChannel(publicTicket, `social:${GUILD}:anything-else`)).toBe(false);
+});
+
+test('a manager of the guild reaches its leaderboard without it being listed', () => {
+	// The other half of the same channel: the dashboard subscribes to the identical string through the
+	// guild-wide grant, which is why there is only one channel here rather than a public twin.
+	expect(isAuthorizedForChannel(ticket({ adminGuilds: [GUILD] }), socialLeaderboardChannel(GUILD))).toBe(true);
+	expect(isAuthorizedForChannel(ticket({ adminGuilds: [OTHER_GUILD] }), socialLeaderboardChannel(GUILD))).toBe(false);
 });
 
 test('rejects a malformed channel', () => {

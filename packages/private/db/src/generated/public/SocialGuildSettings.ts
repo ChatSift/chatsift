@@ -25,6 +25,8 @@ export default interface SocialGuildSettings {
   levelUpNotificationFallbackChannelId: string | null;
 
   levelUpNotificationMessage: string | null;
+
+  publicLeaderboard: boolean;
 }
 
 /** Represents the initializer for the table public.social_guild_settings */
@@ -46,6 +48,8 @@ export interface SocialGuildSettingsInitializer {
   levelUpNotificationFallbackChannelId?: string | null;
 
   levelUpNotificationMessage?: string | null;
+
+  publicLeaderboard?: boolean;
 }
 
 /** Represents the mutator for the table public.social_guild_settings */
@@ -67,4 +71,6 @@ export interface SocialGuildSettingsMutator {
   levelUpNotificationFallbackChannelId?: string | null;
 
   levelUpNotificationMessage?: string | null;
+
+  publicLeaderboard?: boolean;
 }

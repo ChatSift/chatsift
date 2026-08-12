@@ -308,7 +308,15 @@ export function useDeleteAMATag(guildId: string, amaId: string) {
  * which needs to hit the same endpoint from `generateMetadata` to build the link embed (#295).
  */
 export function publicAMAAnswersPath(shareToken: string): string {
-	return `/v3/ama/public/${shareToken}`;
+	return `/v3/ama/public/${encodeURIComponent(shareToken)}`;
+}
+
+/**
+ * The matching ticket endpoint, handed to `usePublicRealtimeClient` -- which is pointed at a path rather than
+ * given a token, since it serves every unauthenticated page and each has its own route.
+ */
+export function publicAMAWsTicketPath(shareToken: string): string {
+	return `/v3/ama/public/${encodeURIComponent(shareToken)}/ws-ticket`;
 }
 
 export function usePublicAMAAnswers(shareToken: string) {

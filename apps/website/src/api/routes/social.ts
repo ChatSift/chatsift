@@ -4,8 +4,10 @@ import type {
 	getSocialConfigRoute,
 	listSocialChannelsRoute,
 	listSocialInteractionsRoute,
+	listSocialLeaderboardRoute,
 	listSocialRewardsRoute,
 	listSocialRolesRoute,
+	publicSocialLeaderboardRoute,
 	resyncSocialInteractionsRoute,
 	updateSocialConfigRoute,
 	updateSocialInteractionRoute,
@@ -204,6 +206,63 @@ export function useDeleteSocialInteraction(guildId: string) {
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.social.interactions(guildId) });
 		},
+	});
+}
+
+type ListSocialLeaderboardContract = InferRouteContract<typeof listSocialLeaderboardRoute>;
+export type SocialLeaderboardPage = ListSocialLeaderboardContract['response'];
+export type SocialLeaderboardEntry = SocialLeaderboardPage['entries'][number];
+
+type PublicSocialLeaderboardContract = InferRouteContract<typeof publicSocialLeaderboardRoute>;
+export type PublicSocialLeaderboardResult = PublicSocialLeaderboardContract['response'];
+
+/**
+ * Rows per leaderboard page, and the value every offset here is a multiple of. Kept below the API's own
+ * `MAX_PAGE_SIZE` (50) for the reason that cap exists: a page costs one `GET /users/{id}` per row on a cold
+ * user cache, so a smaller page is a page that renders promptly the first time anyone opens it.
+ */
+export const SOCIAL_LEADERBOARD_PAGE_SIZE = 25;
+
+export function useSocialLeaderboard(guildId: string, page: number) {
+	const offset = (page - 1) * SOCIAL_LEADERBOARD_PAGE_SIZE;
+
+	return useQuery({
+		queryKey: queryKeys.social.leaderboardPage(guildId, offset),
+		queryFn: async () =>
+			apiFetch<SocialLeaderboardPage>('get', `/v3/guilds/${guildId}/social/leaderboard`, {
+				query: { limit: SOCIAL_LEADERBOARD_PAGE_SIZE, offset },
+			}),
+		// Keeps the previous page on screen while the next one loads, rather than collapsing the table to a
+		// skeleton on every click -- and, more to the point here, while a realtime signal refetches.
+		placeholderData: (previous) => previous,
+	});
+}
+
+/**
+ * Shared by the public page's hook and its server-side prefetch/metadata read
+ * (`app/leaderboard/[guildId]/_lib/publicLeaderboard.ts`), same arrangement as `publicAMAAnswersPath`.
+ */
+export function publicSocialLeaderboardPath(guildId: string): string {
+	return `/v3/social/public/${guildId}`;
+}
+
+/**
+ * The matching ticket endpoint, handed to `usePublicRealtimeClient`. See `publicAMAWsTicketPath`.
+ */
+export function publicSocialLeaderboardWsTicketPath(guildId: string): string {
+	return `/v3/social/public/${encodeURIComponent(guildId)}/ws-ticket`;
+}
+
+export function usePublicSocialLeaderboard(guildId: string, page: number) {
+	const offset = (page - 1) * SOCIAL_LEADERBOARD_PAGE_SIZE;
+
+	return useQuery({
+		queryKey: queryKeys.social.publicLeaderboardPage(guildId, offset),
+		queryFn: async () =>
+			apiFetch<PublicSocialLeaderboardResult>('get', publicSocialLeaderboardPath(guildId), {
+				query: { limit: SOCIAL_LEADERBOARD_PAGE_SIZE, offset },
+			}),
+		placeholderData: (previous) => previous,
 	});
 }
 

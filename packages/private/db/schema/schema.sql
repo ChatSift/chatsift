@@ -648,6 +648,13 @@ CREATE TABLE social_guild_settings (
   -- NULL falls back to the default at render time rather than being baked in here, so the default can
   -- change later without a data migration (same reasoning as `guild_settings.anon_reply_label`).
   level_up_notification_message             TEXT,
+  -- Opt-in for the unauthenticated leaderboard page (`/leaderboard/:guildId`). Deliberately *not* an
+  -- `ama_sessions.share_token`-style capability: an unguessable link would only make the page unlisted, since
+  -- whoever it's handed to can forward it anyway, and the cost of that thin guarantee is a whole parallel
+  -- identifier (plus a guildless realtime channel, since the page must not show the viewer a guild snowflake
+  -- it already has in its URL). One leaderboard per guild, keyed by the guild -- so this is just on or off.
+  -- Off by default: everything the page shows is member activity data.
+  public_leaderboard                        BOOLEAN NOT NULL DEFAULT false,
 
   -- Not style bounds: level derivation walks levels upward while the accumulated requirement is still
   -- covered by the user's XP, so a base of 0 (with any multiplier) or a multiplier of 0 makes the
@@ -662,10 +669,9 @@ CREATE TABLE social_guild_settings (
 
 -- Per-guild XP ledger. Guild-first PK (deviation 4): legacy's `@@id([userId, guildId])` order was
 -- arbitrary -- every lookup is equality on both -- but guild-first additionally serves guild-scoped
--- scans (the migration's per-guild XP-sum verification, and the leaderboard that redesign ledger item 5
--- leaves as a follow-up). Same reasoning applies to `social_channels`/`social_roles`/`social_rewards`
--- below. No `(guild_id, xp DESC)` index yet -- `xp` is written on a hot path (every XP grant) and
--- nothing reads it in rank order until that leaderboard actually exists.
+-- scans (the migration's per-guild XP-sum verification, and the leaderboard, which redesign ledger item 5
+-- left as a follow-up and which shipped after P4). Same reasoning applies to
+-- `social_channels`/`social_roles`/`social_rewards` below.
 CREATE TABLE social_users (
   guild_id TEXT NOT NULL,
   user_id  TEXT NOT NULL,
@@ -678,6 +684,21 @@ CREATE TABLE social_users (
 
   PRIMARY KEY (guild_id, user_id)
 );
+
+-- The leaderboard's only access path: rank order within one guild, which the guild-first PK can't serve
+-- (it orders by `user_id`, so ranking means sorting the whole guild every page). `ignored` rows are
+-- filtered rather than ranked, but they're a rounding error next to a guild's member count and putting
+-- them in the index key would cost more on the write side than the filter saves on the read side.
+--
+-- `user_id ASC` is part of the key, not decoration: it's the leaderboard's tie-breaker, and ties are the
+-- normal case rather than an edge one here -- every member earns the same `xp_gain` per grant, so a guild
+-- full of people on their third grant all sit on exactly the same XP. Without it the index orders by `xp`
+-- and Postgres re-sorts each tied run to make paging stable.
+--
+-- Deliberately accepted cost: `xp` is written on the hot path (every XP grant re-indexes the row). That
+-- is why this was held back until something actually read in rank order -- now something does, and a
+-- leaderboard without it is a full sort of the guild's `social_users` per page view.
+CREATE INDEX social_users_guild_id_xp_idx ON social_users (guild_id, xp DESC, user_id ASC);
 
 -- A row here can describe the message's own channel, its parent category, or (for a thread) the thread
 -- parent's parent -- the bot resolves both `ignored` and `multiplier` by walking that chain, which is

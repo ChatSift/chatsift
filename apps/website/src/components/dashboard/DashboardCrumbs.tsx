@@ -26,7 +26,7 @@ const NO_CUSTOM_INSTANCE: BotBrandingSource = {
 
 const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks', 'threads'] as const;
 
-const SOCIAL_SECTIONS = ['config', 'channels', 'roles', 'rewards', 'interactions'] as const;
+const SOCIAL_SECTIONS = ['config', 'channels', 'roles', 'rewards', 'interactions', 'leaderboard'] as const;
 
 const SEGMENT_LABELS: Record<string, string> = {
 	ama: 'AMA',
@@ -46,6 +46,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 	roles: 'Roles',
 	rewards: 'Rewards',
 	interactions: 'Interactions',
+	leaderboard: 'Leaderboard',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {

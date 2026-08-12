@@ -1,17 +1,27 @@
-import type { InferRouteContract, getWsTicketRoute, publicAMAWsTicketRoute } from '@chatsift/api';
+import type {
+	InferRouteContract,
+	getWsTicketRoute,
+	publicAMAWsTicketRoute,
+	publicSocialLeaderboardWsTicketRoute,
+} from '@chatsift/api';
 import { apiFetch } from './fetch';
 import { REALTIME_CLIENT_ID } from './realtimeClientId';
 
 type GetWsTicketContract = InferRouteContract<typeof getWsTicketRoute>;
 type GetWsTicketResult = GetWsTicketContract['response'];
 
-type PublicWsTicketContract = InferRouteContract<typeof publicAMAWsTicketRoute>;
-type PublicWsTicketResult = PublicWsTicketContract['response'];
+/**
+ * Every unauthenticated ticket endpoint answers the same `{ ticket }` shape; the union is what keeps that a
+ * checked fact rather than an assumption, so adding a third public surface can't quietly drift.
+ */
+type PublicWsTicketResult =
+	| InferRouteContract<typeof publicAMAWsTicketRoute>['response']
+	| InferRouteContract<typeof publicSocialLeaderboardWsTicketRoute>['response'];
 
 /**
- * How a client obtains a fresh gateway ticket. Injected rather than hardcoded because the public answers page
- * has no session to mint one from and goes through its own share-token endpoint instead (#323) -- everything
- * else about the connection (backoff, re-subscribe, self-echo suppression) is identical between the two.
+ * How a client obtains a fresh gateway ticket. Injected rather than hardcoded because the public pages have no
+ * session to mint one from and go through their own unauthenticated endpoints instead (#323) -- everything
+ * else about the connection (backoff, re-subscribe, self-echo suppression) is identical between them.
  */
 type TicketMinter = () => Promise<string>;
 
@@ -259,19 +269,15 @@ export const realtimeClient = new RealtimeClient(
 );
 
 /**
- * A client for the public answers page (#323), scoped to one share token. Deliberately *not* the singleton
- * above: that one mints its ticket from the session, and this page is reachable (and normally read) with no
- * session at all -- knowing the share token is the whole authorization, exactly as it is for the page's own
- * data fetch.
+ * A client for one of the unauthenticated pages -- AMA's public answers (#323) or Social's public leaderboard
+ * -- pointed at that page's own ticket endpoint. Deliberately *not* the singleton above: that one mints its
+ * ticket from the session, and these pages are reachable (and normally read) with no session at all, so
+ * whatever their ticket route checks is the whole authorization, exactly as it is for the page's own fetch.
  *
  * Constructing one is inert (the socket only opens on the first `subscribe`), but the instance still has to be
  * stable across renders, since `useRealtimeInvalidate` re-subscribes when it changes -- callers should go
  * through `usePublicRealtimeClient` rather than calling this in a render body.
  */
-export function createPublicRealtimeClient(shareToken: string): RealtimeClient {
-	return new RealtimeClient(
-		async () =>
-			(await apiFetch<PublicWsTicketResult>('get', `/v3/ama/public/${encodeURIComponent(shareToken)}/ws-ticket`))
-				.ticket,
-	);
+export function createPublicRealtimeClient(ticketPath: string): RealtimeClient {
+	return new RealtimeClient(async () => (await apiFetch<PublicWsTicketResult>('get', ticketPath)).ticket);
 }
