@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@/api/formErrors';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { SocialChannel, UpsertSocialChannelBody } from '@/api/routes/social';
-import { useSocialChannels, useUpsertSocialChannel } from '@/api/routes/social';
+import { useDeleteSocialChannel, useSocialChannels, useUpsertSocialChannel } from '@/api/routes/social';
 import { ChannelSelect } from '@/components/common/ChannelSelect';
 import { FormActions } from '@/components/common/FormActions';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -41,8 +41,9 @@ const CHANNEL_FIELDS = ['channelId', 'ignored', 'multiplier'] as const satisfies
 interface SocialChannelFormProps {
 	/**
 	 * The row being edited, or `undefined` when adding one. The API is a single full-representation PUT keyed by
-	 * the channel, so the two cases are the same request -- all that differs is whether the channel is still up
-	 * for grabs (editing locks it, since changing it would mean writing a second row rather than moving this one).
+	 * the channel, so both cases are the same request -- and retargeting an existing row is that PUT against the
+	 * new channel followed by a DELETE of the old one, since `channel_id` is half the primary key and there is
+	 * no such thing as moving a row to a new key.
 	 */
 	readonly channel?: SocialChannel | undefined;
 }
@@ -65,11 +66,17 @@ export function SocialChannelForm({ channel }: SocialChannelFormProps) {
 	// also how someone discovers the row already exists (it's edited from the list, not from here).
 	const { data: configuredChannels, error: configuredChannelsError } = useSocialChannels(guildId);
 	const upsertChannel = useUpsertSocialChannel(guildId);
+	const deleteChannel = useDeleteSocialChannel(guildId);
+
+	// Retargeting is indistinguishable from adding as far as safety goes -- both write a row that doesn't exist
+	// yet -- so everything guarding the add flow has to guard this too.
+	const isRetarget = Boolean(channel) && form.channelId !== channel?.channelId;
+	const isPickingChannel = !channel || isRetarget;
 
 	// Until this list arrives there's nothing to grey out, so submitting would be exactly the silent overwrite
 	// the greying exists to prevent. Blocks on an outright failure too, not just on the load -- an unreadable
 	// list is no safer to guess against than an unloaded one.
-	const isAddBlocked = !channel && configuredChannels === undefined;
+	const isPickBlocked = isPickingChannel && configuredChannels === undefined;
 
 	const updateField = <TField extends keyof ChannelFormData>(field: TField, value: ChannelFormData[TField]) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
@@ -84,10 +91,10 @@ export function SocialChannelForm({ channel }: SocialChannelFormProps) {
 			return;
 		}
 
-		if (isAddBlocked) {
+		if (isPickBlocked) {
 			setErrors({
 				channelId: configuredChannelsError
-					? "Couldn't load this server's configured channels, so adding one isn't safe right now. Reload and try again."
+					? "Couldn't load this server's configured channels, so picking one isn't safe right now. Reload and try again."
 					: 'Still loading this server’s configured channels.',
 			});
 			return;
@@ -111,6 +118,16 @@ export function SocialChannelForm({ channel }: SocialChannelFormProps) {
 
 		try {
 			await upsertChannel.mutateAsync({ channelId: form.channelId, body: result.data });
+
+			// PUT first, DELETE second, deliberately: if the delete fails the guild is left with both rows --
+			// visible in the list and removable there -- where the reverse order would lose the configuration
+			// entirely on the same failure. Not a transaction, because the API models these as two independent
+			// resources and the recoverable failure mode doesn't justify a bespoke retarget endpoint.
+			if (isRetarget) {
+				await deleteChannel.mutateAsync(channel!.channelId);
+				router.replace(`/dashboard/${guildId}/social/channels`);
+				return;
+			}
 
 			if (channel) {
 				setErrors({});
@@ -143,20 +160,23 @@ export function SocialChannelForm({ channel }: SocialChannelFormProps) {
 			)}
 
 			<div className="space-y-4">
-				{channel ? null : (
-					<ChannelSelect
-						allowedTypes={ALLOWED_CHANNEL_TYPES}
-						channels={guildInfo?.channels ?? []}
-						disabledIds={configuredChannels?.map((configured) => configured.channelId)}
-						disabledReason="already configured"
-						error={errors.channelId}
-						label="Channel"
-						onChange={(value) => updateField('channelId', value ?? '')}
-						required
-						selectedId="social-channel"
-						value={form.channelId}
-					/>
-				)}
+				<ChannelSelect
+					allowedTypes={ALLOWED_CHANNEL_TYPES}
+					channels={guildInfo?.channels ?? []}
+					// The row being edited is excluded so it stays pickable (it's the current value); every *other*
+					// configured channel stays greyed out, since retargeting onto one would upsert over its row.
+					disabledIds={configuredChannels
+						?.filter((configured) => configured.channelId !== channel?.channelId)
+						.map((configured) => configured.channelId)}
+					disabledReason="already configured"
+					error={errors.channelId}
+					isLoading={isGuildInfoLoading}
+					label="Channel"
+					onChange={(value) => updateField('channelId', value ?? '')}
+					required
+					selectedId="social-channel"
+					value={form.channelId}
+				/>
 
 				<div>
 					<label className="flex items-center gap-2" htmlFor="social-channel-ignored">
@@ -196,7 +216,7 @@ export function SocialChannelForm({ channel }: SocialChannelFormProps) {
 			</div>
 
 			<FormActions
-				isSubmitDisabled={!form.channelId || isAddBlocked || (!channel && isGuildInfoLoading)}
+				isSubmitDisabled={!form.channelId || isPickBlocked || (isPickingChannel && isGuildInfoLoading)}
 				isSubmitting={upsertChannel.isPending}
 				onCancel={() => router.back()}
 				pendingLabel={channel ? 'Saving...' : 'Adding...'}

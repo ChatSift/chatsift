@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@/api/formErrors';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { SocialRole, UpsertSocialRoleBody } from '@/api/routes/social';
-import { useSocialRoles, useUpsertSocialRole } from '@/api/routes/social';
+import { useDeleteSocialRole, useSocialRoles, useUpsertSocialRole } from '@/api/routes/social';
 import { FormActions } from '@/components/common/FormActions';
 import { RoleSelect } from '@/components/common/RoleSelect';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -24,7 +24,8 @@ const ROLE_FIELDS = ['roleId', 'multiplier'] as const satisfies (keyof RoleFormD
 
 interface SocialRoleFormProps {
 	/**
-	 * The row being edited, or `undefined` when adding one -- same single-PUT arrangement as the channel form.
+	 * The row being edited, or `undefined` when adding one -- same single-PUT arrangement as the channel form,
+	 * including retargeting being a PUT against the new role plus a DELETE of the old row.
 	 */
 	readonly role?: SocialRole | undefined;
 }
@@ -45,8 +46,13 @@ export function SocialRoleForm({ role }: SocialRoleFormProps) {
 	// adding would silently overwrite it -- which also means not submitting until this list is actually known.
 	const { data: configuredRoles, error: configuredRolesError } = useSocialRoles(guildId);
 	const upsertRole = useUpsertSocialRole(guildId);
+	const deleteRole = useDeleteSocialRole(guildId);
 
-	const isAddBlocked = !role && configuredRoles === undefined;
+	// See the channel form: retargeting writes a row that doesn't exist yet, so it needs the add flow's guards.
+	const isRetarget = Boolean(role) && form.roleId !== role?.roleId;
+	const isPickingRole = !role || isRetarget;
+
+	const isPickBlocked = isPickingRole && configuredRoles === undefined;
 
 	const updateField = (field: keyof RoleFormData, value: string) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
@@ -61,10 +67,10 @@ export function SocialRoleForm({ role }: SocialRoleFormProps) {
 			return;
 		}
 
-		if (isAddBlocked) {
+		if (isPickBlocked) {
 			setErrors({
 				roleId: configuredRolesError
-					? "Couldn't load this server's configured roles, so adding one isn't safe right now. Reload and try again."
+					? "Couldn't load this server's configured roles, so picking one isn't safe right now. Reload and try again."
 					: 'Still loading this server’s configured roles.',
 			});
 			return;
@@ -83,6 +89,13 @@ export function SocialRoleForm({ role }: SocialRoleFormProps) {
 
 		try {
 			await upsertRole.mutateAsync({ roleId: form.roleId, body: result.data });
+
+			// PUT then DELETE -- see the channel form for why this order and why it isn't a transaction.
+			if (isRetarget) {
+				await deleteRole.mutateAsync(role!.roleId);
+				router.replace(`/dashboard/${guildId}/social/roles`);
+				return;
+			}
 
 			if (role) {
 				setErrors({});
@@ -115,19 +128,22 @@ export function SocialRoleForm({ role }: SocialRoleFormProps) {
 			)}
 
 			<div className="space-y-4">
-				{role ? null : (
-					<RoleSelect
-						disabledIds={configuredRoles?.map((configured) => configured.roleId)}
-						disabledReason="already configured"
-						error={errors.roleId}
-						label="Role"
-						onChange={(value) => updateField('roleId', value ?? '')}
-						required
-						roles={guildInfo?.roles ?? []}
-						selectedId="social-role"
-						value={form.roleId}
-					/>
-				)}
+				<RoleSelect
+					// The edited row's own role stays pickable (it's the current value); other configured roles stay
+					// greyed out, since retargeting onto one would upsert over its row.
+					disabledIds={configuredRoles
+						?.filter((configured) => configured.roleId !== role?.roleId)
+						.map((configured) => configured.roleId)}
+					disabledReason="already configured"
+					error={errors.roleId}
+					isLoading={isGuildInfoLoading}
+					label="Role"
+					onChange={(value) => updateField('roleId', value ?? '')}
+					required
+					roles={guildInfo?.roles ?? []}
+					selectedId="social-role"
+					value={form.roleId}
+				/>
 
 				<TextField
 					error={errors.multiplier}
@@ -147,7 +163,7 @@ export function SocialRoleForm({ role }: SocialRoleFormProps) {
 			</div>
 
 			<FormActions
-				isSubmitDisabled={!form.roleId || isAddBlocked || (!role && isGuildInfoLoading)}
+				isSubmitDisabled={!form.roleId || isPickBlocked || (isPickingRole && isGuildInfoLoading)}
 				isSubmitting={upsertRole.isPending}
 				onCancel={() => router.back()}
 				pendingLabel={role ? 'Saving...' : 'Adding...'}
