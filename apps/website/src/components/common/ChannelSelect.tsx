@@ -2,6 +2,7 @@
 
 import { sortChannels } from '@chatsift/discord-utils';
 import { ChannelType } from 'discord-api-types/v10';
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SvgChevronDown } from '../icons/SvgChevronDown';
 import { Button } from './Button';
@@ -25,6 +26,13 @@ interface ChannelSelectProps {
 	 */
 	readonly disabledReason?: string | undefined;
 	readonly error?: string | undefined;
+	/**
+	 * Whether the option list is still being fetched. Without this the component cannot tell "this id isn't
+	 * loaded yet" from "this id no longer exists", and would flash a false deletion warning on every load of a
+	 * perfectly valid config. Callers feeding it a value from saved config must pass their guild-info loading
+	 * flag; create flows start with an empty value and don't need it.
+	 */
+	readonly isLoading?: boolean | undefined;
 	readonly label: string;
 	onChange(channelId: string | undefined): void;
 	readonly placeholder?: string;
@@ -47,6 +55,7 @@ export function ChannelSelect({
 	allowedTypes,
 	disabledIds,
 	disabledReason,
+	isLoading = false,
 }: ChannelSelectProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const selectRef = useRef<HTMLDivElement>(null);
@@ -86,6 +95,18 @@ export function ChannelSelect({
 		setIsOpen(false);
 	};
 
+	// See `RoleSelect`'s equivalent for the full reasoning: a `value` naming a channel Discord no longer has
+	// is reachable (the config row outlives the channel, which SocialChannelsList already renders as such),
+	// and falling through to the placeholder made it look like nothing was selected.
+	let trigger: ReactNode;
+	if (selectedChannel) {
+		trigger = <ChannelItem channel={selectedChannel} />;
+	} else if (value && !isLoading) {
+		trigger = <span className="truncate text-sm text-misc-danger">Deleted channel ({value})</span>;
+	} else {
+		trigger = <span className="text-secondary dark:text-secondary-dark">{placeholder}</span>;
+	}
+
 	return (
 		<div>
 			<label className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2" htmlFor={selectedId}>
@@ -101,13 +122,7 @@ export function ChannelSelect({
 					onClick={() => setIsOpen(!isOpen)}
 					type="button"
 				>
-					<span className="flex items-center gap-2 flex-1 min-w-0">
-						{selectedChannel ? (
-							<ChannelItem channel={selectedChannel} />
-						) : (
-							<span className="text-secondary dark:text-secondary-dark">{placeholder}</span>
-						)}
-					</span>
+					<span className="flex items-center gap-2 flex-1 min-w-0">{trigger}</span>
 					<SvgChevronDown
 						className={cn(
 							'transition-transform text-secondary dark:text-secondary-dark flex-shrink-0',

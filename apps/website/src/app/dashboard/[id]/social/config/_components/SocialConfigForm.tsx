@@ -372,6 +372,7 @@ export function SocialConfigForm() {
 							allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement]}
 							channels={channels}
 							error={errors.levelUpNotificationFallbackChannelId}
+							isLoading={isGuildInfoLoading}
 							label="Fallback channel"
 							onChange={(value) => updateField('levelUpNotificationFallbackChannelId', value ?? '')}
 							selectedId="social-level-up-fallback-channel"

@@ -854,6 +854,7 @@ export function AMADetails() {
 												allowedTypes={allowedChannelTypes}
 												channels={channels}
 												error={configErrors.answersChannelId}
+												isLoading={isGuildInfoLoading}
 												label="Answers Channel"
 												onChange={(value) => updateConfigField('answersChannelId', value)}
 												required
@@ -898,6 +899,7 @@ export function AMADetails() {
 												allowedTypes={allowedChannelTypes}
 												channels={channels}
 												error={configErrors.queueId}
+												isLoading={isGuildInfoLoading}
 												label="Queue (optional)"
 												onChange={(value) => updateConfigField('queueId', value)}
 												selectedId="edit-queueId"

@@ -1,6 +1,7 @@
 'use client';
 
 import type { APIGuildForumTag } from 'discord-api-types/v10';
+import type { ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import { SvgChevronDown } from '../icons/SvgChevronDown';
 import { Button } from './Button';
@@ -27,6 +28,13 @@ export function tagEmojiValue(tag: APIGuildForumTag): string | undefined {
 interface ForumTagSelectProps {
 	readonly error?: string | undefined;
 	readonly id: string;
+	/**
+	 * Whether the option list is still being fetched. Without this the component cannot tell "this id isn't
+	 * loaded yet" from "this id no longer exists", and would flash a false deletion warning on every load of a
+	 * perfectly valid config. Callers feeding it a value from saved config must pass their guild-info loading
+	 * flag; create flows start with an empty value and don't need it.
+	 */
+	readonly isLoading?: boolean | undefined;
 	readonly label: string;
 	onChange(tagId: string | undefined): void;
 	readonly placeholder?: string;
@@ -44,6 +52,7 @@ export function ForumTagSelect({
 	error,
 	placeholder = 'Select a forum tag',
 	required = false,
+	isLoading = false,
 }: ForumTagSelectProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const selectRef = useRef<HTMLDivElement>(null);
@@ -56,6 +65,23 @@ export function ForumTagSelect({
 		onChange(tagId);
 		setIsOpen(false);
 	};
+
+	// Third member of the same family as `RoleSelect`/`ChannelSelect` -- see the former for the reasoning. A
+	// tag removed from the forum leaves ModMail's category routing pointing at an id that resolves to
+	// nothing, and rendering the placeholder there claimed the panel had no tag rather than a dead one.
+	let trigger: ReactNode;
+	if (selectedTag) {
+		trigger = (
+			<>
+				{tagEmojiValue(selectedTag) && <Emoji className="h-4 w-4 shrink-0" value={tagEmojiValue(selectedTag)!} />}
+				{selectedTag.name}
+			</>
+		);
+	} else if (value && !isLoading) {
+		trigger = <span className="truncate text-misc-danger">Deleted tag ({value})</span>;
+	} else {
+		trigger = <span className="text-secondary dark:text-secondary-dark">{placeholder}</span>;
+	}
 
 	return (
 		<div>
@@ -72,18 +98,7 @@ export function ForumTagSelect({
 					onClick={() => setIsOpen(!isOpen)}
 					type="button"
 				>
-					<span className="flex flex-1 items-center gap-1.5 truncate text-sm">
-						{selectedTag ? (
-							<>
-								{tagEmojiValue(selectedTag) && (
-									<Emoji className="h-4 w-4 shrink-0" value={tagEmojiValue(selectedTag)!} />
-								)}
-								{selectedTag.name}
-							</>
-						) : (
-							<span className="text-secondary dark:text-secondary-dark">{placeholder}</span>
-						)}
-					</span>
+					<span className="flex flex-1 items-center gap-1.5 truncate text-sm">{trigger}</span>
 					<SvgChevronDown
 						className={cn(
 							'transition-transform text-secondary dark:text-secondary-dark shrink-0',

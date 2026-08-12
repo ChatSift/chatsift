@@ -47,7 +47,7 @@ export function EditCategoryForm({ category }: EditCategoryFormProps) {
 	const updateCategory = useUpdateModmailCategory(guildId, category.id);
 	const { data: guildInfo } = useGuildInfo(guildId, 'MODMAIL');
 	const { data: config } = useModmailConfig(guildId);
-	const { tags: forumTags, modForumConfigured } = useModForumTags(guildId);
+	const { tags: forumTags, modForumConfigured, isLoading: isForumTagsLoading } = useModForumTags(guildId);
 
 	const updateField = (field: keyof CategoryFormData, value: string) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
@@ -141,6 +141,7 @@ export function EditCategoryForm({ category }: EditCategoryFormProps) {
 					<ForumTagSelect
 						error={errors.forumTagId}
 						id="category-forum-tag"
+						isLoading={isForumTagsLoading}
 						label="Forum Tag"
 						onChange={(value) => updateField('forumTagId', value ?? '')}
 						tags={forumTags ?? []}

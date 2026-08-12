@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { SvgChevronDown } from '../icons/SvgChevronDown';
 import { Button } from './Button';
@@ -18,6 +19,13 @@ interface RoleSelectProps {
 	 */
 	readonly disabledReason?: string | undefined;
 	readonly error?: string | undefined;
+	/**
+	 * Whether the option list is still being fetched. Without this the component cannot tell "this id isn't
+	 * loaded yet" from "this id no longer exists", and would flash a false deletion warning on every load of a
+	 * perfectly valid config. Callers feeding it a value from saved config must pass their guild-info loading
+	 * flag; create flows start with an empty value and don't need it.
+	 */
+	readonly isLoading?: boolean | undefined;
 	readonly label: string;
 	onChange(roleId: string | undefined): void;
 	readonly placeholder?: string;
@@ -52,6 +60,7 @@ export function RoleSelect({
 	required = false,
 	disabledIds,
 	disabledReason,
+	isLoading = false,
 }: RoleSelectProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const selectRef = useRef<HTMLDivElement>(null);
@@ -80,6 +89,21 @@ export function RoleSelect({
 		setIsOpen(false);
 	};
 
+	// A `value` naming a role Discord no longer has is a real, reachable state: the config row outlives the
+	// role (SocialRolesList says so at its card label, and renders exactly this wording). Falling through to
+	// the placeholder made that indistinguishable from "nothing selected" -- so an edit form for a dangling
+	// row looked untouched while still holding the old id, and saving it silently rewrote the same dead
+	// reference. Deliberately *not* cleared here: mutating form state during render would turn opening a page
+	// into an edit, and the dropdown's "None" (or picking a live role) is the explicit fix.
+	let trigger: ReactNode;
+	if (selectedRole) {
+		trigger = <RoleItem role={selectedRole} />;
+	} else if (value && !isLoading) {
+		trigger = <span className="truncate text-sm text-misc-danger">Deleted role ({value})</span>;
+	} else {
+		trigger = <span className="text-secondary dark:text-secondary-dark">{placeholder}</span>;
+	}
+
 	return (
 		<div>
 			<label className="block text-sm font-medium text-secondary dark:text-secondary-dark mb-2" htmlFor={selectedId}>
@@ -95,13 +119,7 @@ export function RoleSelect({
 					onClick={() => setIsOpen(!isOpen)}
 					type="button"
 				>
-					<span className="flex items-center gap-2 flex-1 min-w-0">
-						{selectedRole ? (
-							<RoleItem role={selectedRole} />
-						) : (
-							<span className="text-secondary dark:text-secondary-dark">{placeholder}</span>
-						)}
-					</span>
+					<span className="flex items-center gap-2 flex-1 min-w-0">{trigger}</span>
 					<SvgChevronDown
 						className={cn(
 							'transition-transform text-secondary dark:text-secondary-dark shrink-0',

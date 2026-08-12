@@ -218,6 +218,7 @@ export function ModmailConfigForm() {
 					allowedTypes={[ChannelType.GuildForum]}
 					channels={channels}
 					error={errors.modForumId}
+					isLoading={isGuildInfoLoading}
 					label="Mod Forum"
 					onChange={(value) => updateField('modForumId', value ?? '')}
 					selectedId="modmail-mod-forum"
@@ -274,6 +275,7 @@ export function ModmailConfigForm() {
 				<div>
 					<RoleSelect
 						error={errors.alertRoleId}
+						isLoading={isGuildInfoLoading}
 						label="Alert Role"
 						onChange={(value) => updateField('alertRoleId', value ?? '')}
 						roles={roles}
