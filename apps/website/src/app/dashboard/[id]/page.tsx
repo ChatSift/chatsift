@@ -83,6 +83,21 @@ export default function GuildPage() {
 						(bot, index) => {
 							const branding = resolveBotBranding(guild, bot);
 							const hasIt = guild.bots.includes(bot);
+
+							// A custom instance (#216) is *this server's own* ModMail app, so it reads as such here rather
+							// than by `branding.label` -- that label is the partner's outward brand (what the public bot
+							// says when it defers, what the nav tab shows), which tells an admin landing on this page
+							// nothing about what the card does. A custom instance always implies the guild has the bot,
+							// so this never collides with the invite copy.
+							let subtext: string;
+							if (branding.isCustomInstance) {
+								subtext = 'Configure your custom ModMail app';
+							} else if (hasIt) {
+								subtext = `Configure ${branding.label} bot settings`;
+							} else {
+								subtext = `Invite ${branding.label} to your server`;
+							}
+
 							return (
 								<SectionCard
 									className={hasIt ? '' : 'opacity-50 hover:opacity-75'}
@@ -90,10 +105,8 @@ export default function GuildPage() {
 									icon={<BotIcon bot={bot} branding={branding} height={32} width={32} />}
 									key={index}
 									linksExternally={!hasIt}
-									subtext={
-										hasIt ? `Configure ${branding.label} bot settings` : `Invite ${branding.label} to your server`
-									}
-									text={branding.label}
+									subtext={subtext}
+									text={branding.isCustomInstance ? `${guild.name} ModMail` : branding.label}
 								/>
 							);
 						},

@@ -97,12 +97,11 @@ function botSwitcherOptions(currentBot: BotId, context: SegmentContext, data: Se
 	// Only MODMAIL can be a custom instance (#216) -- for every other case (including a guild with no custom
 	// instance at all) the static SEGMENT_LABELS/SEGMENT_ICONS fallback is already correct, so there's nothing to
 	// override and the previous behaviour (no crumb dropdown when there's nothing to switch to) stays intact.
-	const isCustomModmail = currentBot === 'MODMAIL' && branding.customInstanceId !== null;
-	if (!isCustomModmail) {
+	const currentBranding = resolveBotBranding(branding, currentBot);
+	if (!currentBranding.isCustomInstance) {
 		return options.length ? { options } : null;
 	}
 
-	const currentBranding = resolveBotBranding(branding, currentBot);
 	return {
 		options,
 		icon: <BotIcon bot={currentBot} branding={currentBranding} height={20} width={20} />,

@@ -22,6 +22,12 @@ export interface BotBrandingSource {
 
 export interface BotBranding {
 	readonly iconUrl: string | null;
+	/**
+	 * Whether this resolved to a partner's own ModMail application rather than the public bot. Callers that
+	 * phrase copy differently for a custom instance read this instead of re-deriving
+	 * `bot === 'MODMAIL' && guild.customInstanceId`, which is the same condition this function already owns.
+	 */
+	readonly isCustomInstance: boolean;
 	readonly label: string;
 }
 
@@ -31,10 +37,14 @@ export interface BotBranding {
  */
 export function resolveBotBranding(guild: BotBrandingSource, bot: BotId): BotBranding {
 	if (bot === 'MODMAIL' && guild.customInstanceId) {
-		return { label: guild.customInstanceLabel ?? Bots.MODMAIL.label, iconUrl: guild.customInstanceIconUrl };
+		return {
+			label: guild.customInstanceLabel ?? Bots.MODMAIL.label,
+			iconUrl: guild.customInstanceIconUrl,
+			isCustomInstance: true,
+		};
 	}
 
-	return { label: Bots[bot].label, iconUrl: null };
+	return { label: Bots[bot].label, iconUrl: null, isCustomInstance: false };
 }
 
 export interface BotIconProps {
