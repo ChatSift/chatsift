@@ -393,6 +393,22 @@ test guild, not just build/lint/test.
   - The `(guild_id, xp DESC)` index schema.sql deliberately held back now exists, since something finally reads
     in rank order.
 
+- [x] **Reward staff notes.** Another additive follow-up, not a phase — requested via Tommy relaying a NASCAR
+      moderator ("a description field would be good for staff so we can have notes of like, hey, this reward lets
+      them share links across the server with native automod"). `social_rewards.description TEXT` (migration
+      `20260812162554_add_social_reward_description.sql`), carried through `upsertSocialRewardBodySchema` and
+      rendered on the rewards cards plus the reward form.
+  - **Staff-facing only, and that is the load-bearing decision** — the owner's call. `services/social-bot` never
+    reads the column, so `/level` is unchanged. The reasoning: moderators write these expecting other moderators
+    to read them, so surfacing them to members later would retroactively publish notes written in private. If a
+    member-visible blurb is ever wanted it gets its own column rather than repurposing this one. Recorded at the
+    column in schema.sql, since that's where someone would go looking before wiring it into an embed.
+  - `.default(null)` rather than `.optional()` in the body schema, keeping the PUT a genuine full representation
+    (an omitted note clears it, exactly as an omitted `clean` sets it false). `''` is rejected by `min(1)` so
+    "no note" has one representation in the column, not two.
+  - Nothing in P5 changes: the legacy schema has no counterpart, migrated rows land with `description` NULL, and
+    both `--verify` signature builders already omit it, so they stay in agreement.
+
 - [x] **P5 — Migration script.** Landed as **three** files rather than one: `scripts/lib/legacySocial.ts` holds the
       legacy-to-new column mapping, and two entrypoints sit on it —
       `scripts/migrateLegacySocial.ts` (`yarn migrate:legacy-social`) and `scripts/copyLegacySocialGuild.ts`

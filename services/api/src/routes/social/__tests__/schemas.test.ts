@@ -104,6 +104,21 @@ test('a reward needs a level of at least 1 and defaults to non-clean', () => {
 	expect(upsertSocialRewardBodySchema.safeParse({}).success).toBe(false);
 });
 
+test("a reward's staff note defaults to null and is cleared with null, never an empty string", () => {
+	// Defaulting rather than being omittable is what keeps this a full-representation PUT: leaving the field out
+	// clears the note, the same way leaving `clean` out sets it false.
+	expect(upsertSocialRewardBodySchema.safeParse({ level: 5 }).data?.description).toBeNull();
+	expect(upsertSocialRewardBodySchema.safeParse({ level: 5, description: null }).data?.description).toBeNull();
+
+	const noted = upsertSocialRewardBodySchema.safeParse({ level: 5, description: 'Shares links via automod' });
+	expect(noted.data?.description).toBe('Shares links via automod');
+
+	// `''` is rejected outright so "cleared" has exactly one representation in the column.
+	expect(upsertSocialRewardBodySchema.safeParse({ level: 5, description: '' }).success).toBe(false);
+	expect(upsertSocialRewardBodySchema.safeParse({ level: 5, description: 'x'.repeat(500) }).success).toBe(true);
+	expect(upsertSocialRewardBodySchema.safeParse({ level: 5, description: 'x'.repeat(501) }).success).toBe(false);
+});
+
 // Discord's own rule for a CHAT_INPUT command name -- an interaction's name *is* the command name, so a bad
 // one has to 400 here rather than being rejected by Discord at registration time.
 test('an interaction name must be a valid lowercase command name', () => {

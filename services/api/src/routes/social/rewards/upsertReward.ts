@@ -32,7 +32,7 @@ export default defineRoute({
 		isGuildManager: true,
 	}),
 	async handler(req): Promise<UpsertSocialRewardResult> {
-		const { level, clean } = req.body;
+		const { level, clean, description } = req.body;
 		const { guildId, roleId } = req.params;
 
 		// Stricter than `assertRolesBelongToGuild`: a reward role is one the bot has to *assign*, and a managed
@@ -57,11 +57,12 @@ export default defineRoute({
 		}
 
 		const [reward] = await getContext().db<SocialRewards[]>`
-			INSERT INTO social_rewards (guild_id, role_id, level, clean)
-			VALUES (${guildId}, ${roleId}, ${level}, ${clean})
+			INSERT INTO social_rewards (guild_id, role_id, level, clean, description)
+			VALUES (${guildId}, ${roleId}, ${level}, ${clean}, ${description})
 			ON CONFLICT (guild_id, role_id) DO UPDATE SET
 				level = EXCLUDED.level,
-				clean = EXCLUDED.clean
+				clean = EXCLUDED.clean,
+				description = EXCLUDED.description
 			RETURNING *
 		`;
 

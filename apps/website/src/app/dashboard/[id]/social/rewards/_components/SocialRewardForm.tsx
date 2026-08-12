@@ -10,18 +10,20 @@ import { useSocialRewards, useUpsertSocialReward } from '@/api/routes/social';
 import { FormActions } from '@/components/common/FormActions';
 import { RoleSelect } from '@/components/common/RoleSelect';
 import { Skeleton } from '@/components/common/Skeleton';
+import { TextAreaField } from '@/components/common/TextAreaField';
 import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 interface RewardFormData {
 	clean: boolean;
+	description: string;
 	level: string;
 	roleId: string;
 }
 
 type RewardFormErrors = Partial<Record<keyof RewardFormData, string>>;
 
-const REWARD_FIELDS = ['roleId', 'level', 'clean'] as const satisfies (keyof RewardFormData)[];
+const REWARD_FIELDS = ['roleId', 'level', 'clean', 'description'] as const satisfies (keyof RewardFormData)[];
 
 interface SocialRewardFormProps {
 	/**
@@ -39,6 +41,7 @@ export function SocialRewardForm({ reward }: SocialRewardFormProps) {
 		roleId: reward?.roleId ?? '',
 		level: String(reward?.level ?? 5),
 		clean: reward?.clean ?? false,
+		description: reward?.description ?? '',
 	}));
 	const [errors, setErrors] = useState<RewardFormErrors>({});
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -73,7 +76,13 @@ export function SocialRewardForm({ reward }: SocialRewardFormProps) {
 			return;
 		}
 
-		const data: UpsertSocialRewardBody = { level: Number(form.level), clean: form.clean };
+		const data: UpsertSocialRewardBody = {
+			level: Number(form.level),
+			clean: form.clean,
+			// `null` rather than `''` for an empty note: the schema's `min(1)` rejects the empty string outright, so
+			// this is what clearing the field has to send.
+			description: form.description.trim() || null,
+		};
 
 		const result = upsertSocialRewardBodySchema.safeParse(data);
 		if (!result.success) {
@@ -153,6 +162,23 @@ export function SocialRewardForm({ reward }: SocialRewardFormProps) {
 					onChange={(value) => updateField('level', value)}
 					type="number"
 					value={form.level}
+				/>
+
+				<TextAreaField
+					error={errors.description}
+					helper={
+						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+							Only ever shown here, to people who can manage this server. Use it to record what the role actually
+							unlocks.
+						</p>
+					}
+					id="social-reward-description"
+					label="Staff note (optional)"
+					maxLength={500}
+					onChange={(value) => updateField('description', value)}
+					placeholder="e.g. Lets them share links across the server with native automod"
+					rows={3}
+					value={form.description}
 				/>
 
 				<div>

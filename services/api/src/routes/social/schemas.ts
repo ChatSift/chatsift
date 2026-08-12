@@ -116,6 +116,13 @@ export const upsertSocialRewardBodySchema = z.strictObject({
 	// A "clean"/tiered reward: only the highest one at or below the member's level is held, so a new tier
 	// replaces the previous one instead of stacking. Non-clean rewards accumulate.
 	clean: z.boolean().default(false),
+	// Staff-facing note on what the role actually grants -- see the column comment in schema.sql for why this
+	// is deliberately never shown to members. 500 is generous for a note and well under anything that would
+	// make the rewards list unreadable; there is no Discord limit to respect precisely because the bot never
+	// renders it. `.default(null)` rather than `.optional()` keeps this a genuine full-representation PUT, the
+	// same way `clean` defaults instead of being omittable -- an omitted field clears the note rather than
+	// silently preserving it. Clearing is `null`, never `''`, which `min(1)` rejects outright.
+	description: z.string().min(1).max(500).nullable().default(null),
 });
 
 // Discord's own rule for a `CHAT_INPUT` command name: lowercase, no spaces. Enforced here so a bad name is a

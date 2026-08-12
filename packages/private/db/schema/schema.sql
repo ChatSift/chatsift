@@ -738,6 +738,13 @@ CREATE TABLE social_rewards (
   -- sets additively (which roles to add, which superseded clean tiers to remove) rather than rebuilding
   -- the member's whole role set the way legacy did -- see redesign ledger item 2.
   clean    BOOLEAN NOT NULL DEFAULT false,
+  -- Free-text staff note: what this role actually grants ("lets them share links across the server with
+  -- native automod"), which the role name alone never says. Deliberately **staff-facing only** -- the
+  -- dashboard renders it, and services/social-bot never reads it, so `/level` is unaffected. That's the
+  -- owner's call and it's load-bearing: moderators write this expecting other moderators to read it, so
+  -- surfacing it to members later would retroactively publish notes written in private. Adding a separate
+  -- member-visible blurb is the correct move if that's ever wanted, not repurposing this column.
+  description TEXT,
 
   PRIMARY KEY (guild_id, role_id),
   CONSTRAINT social_rewards_level_check CHECK (level >= 0)

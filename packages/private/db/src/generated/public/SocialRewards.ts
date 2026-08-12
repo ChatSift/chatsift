@@ -16,6 +16,8 @@ export default interface SocialRewards {
   level: number;
 
   clean: boolean;
+
+  description: string | null;
 }
 
 /** Represents the initializer for the table public.social_rewards */
@@ -27,6 +29,8 @@ export interface SocialRewardsInitializer {
   level: number;
 
   clean?: boolean;
+
+  description?: string | null;
 }
 
 /** Represents the mutator for the table public.social_rewards */
@@ -38,4 +42,6 @@ export interface SocialRewardsMutator {
   level?: number;
 
   clean?: boolean;
+
+  description?: string | null;
 }

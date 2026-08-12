@@ -35,6 +35,15 @@ function SocialRewardCard({ guildId, reward, roleInfo }: SocialRewardCardProps) 
 				{reward.clean ? 'Replaces the previous tier' : 'Kept alongside earlier rewards'}
 			</p>
 
+			{/* The whole point of the note is being readable at a glance next to the role, so it renders in full
+			    rather than truncated -- `whitespace-pre-line` keeps any line breaks a mod typed. Cards in this grid
+			    already size to their content, so a longer note grows its own card instead of clipping. */}
+			{reward.description && (
+				<p className="whitespace-pre-line break-words border-l-2 border-on-secondary pl-2 text-sm text-secondary dark:border-on-secondary-dark dark:text-secondary-dark">
+					{reward.description}
+				</p>
+			)}
+
 			<div className="mt-auto flex justify-end gap-2">
 				<Link
 					className="flex h-fit items-center gap-2 whitespace-nowrap rounded-md bg-transparent px-1.5 py-1.5 text-lg text-primary hover:bg-on-tertiary active:bg-on-secondary dark:text-primary-dark dark:hover:bg-on-tertiary-dark dark:active:bg-on-secondary-dark"
