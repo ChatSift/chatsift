@@ -237,6 +237,25 @@ services:
   #   volumes:
   #     - ./logs/modmail-bot-<partner-slug>:/usr/chatsift/logs/modmail-bot-<partner-slug>
 
+  # First real instance of the template above, and the first partner onboarded with pre-existing
+  # legacy history (migrated 2026-08-12, `--source nascar`). Runs as their *legacy* application's
+  # bot user rather than a fresh one, so their members keep the same DM correspondent -- which means
+  # their old self-hosted deployment must never run again: same token, same gateway identity.
+  modmail-bot-nascar:
+    image: chatsift/chatsift-next:modmail
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    environment:
+      MODMAIL_INSTANCE_ID: 'nascar'
+    command: ['node', '--enable-source-maps', './services/modmail-bot/dist/bin.js']
+    volumes:
+      - ./logs/modmail-bot-nascar:/usr/chatsift/logs/modmail-bot-nascar
+
 volumes:
   postgres-data:
     name: 'chatsift-v3-postgres-data'
