@@ -128,7 +128,9 @@ function buildReferencedUserEmbed(guildId: string, resolved: ResolvedReferencedU
 		color: REFERENCED_USER_COLOR,
 		description: '🔎 *ID referenced in the replied-to message*',
 		fields,
-		footer: { text: `User ID: ${user.id}` },
+		// Bare id, no "User ID:" label -- the id is the one thing here staff actually copy out, and a prefix
+		// only gets in the way of a double-click select.
+		footer: { text: user.id },
 		...(avatarURL ? { thumbnail: { url: avatarURL } } : {}),
 	};
 }

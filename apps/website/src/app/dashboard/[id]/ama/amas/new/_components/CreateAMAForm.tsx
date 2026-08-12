@@ -18,6 +18,7 @@ import { useCreateAMA } from '@/api/routes/ama';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
+import { hexToColor, validateColorInput } from '@/components/common/ColorField';
 import { FormActions } from '@/components/common/FormActions';
 import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -31,6 +32,10 @@ interface FormData {
 	// Mirrors `reviewEnabled`/`queueId`: the toggle lives in form state only, the API just sees a null
 	// `answersChannelId` when it's off (#316).
 	answersToDiscord: boolean;
+	/**
+	 * `#rrggbb`, or empty for "use the default" -- see `ColorField`.
+	 */
+	color: string;
 	description: string;
 	guestIds: string[];
 	imageURL: string;
@@ -62,6 +67,7 @@ const PROMPT_FIELD_MAP: Record<string, keyof FormData> = {
 	plainText: 'plainText',
 	imageURL: 'imageURL',
 	thumbnailURL: 'thumbnailURL',
+	color: 'color',
 };
 
 /**
@@ -115,6 +121,7 @@ export function CreateAMAForm() {
 		plainText: '',
 		imageURL: '',
 		thumbnailURL: '',
+		color: '',
 		promptRaw: '',
 		scheduledCloseAt: '',
 		reviewEnabled: false,
@@ -220,6 +227,7 @@ export function CreateAMAForm() {
 					plainText: formData.plainText || undefined,
 					imageURL: formData.imageURL || undefined,
 					thumbnailURL: formData.thumbnailURL || undefined,
+					color: hexToColor(formData.color) ?? undefined,
 				},
 			},
 		};
@@ -228,6 +236,15 @@ export function CreateAMAForm() {
 	const validateForm = (): CreateAMABody | undefined => {
 		if (promptMode === 'raw' && formData.promptRaw && !isValidJSON(formData.promptRaw)) {
 			setErrors({ promptRaw: 'Must be valid JSON' });
+			setGeneralError(null);
+			return undefined;
+		}
+
+		// Checked here rather than left to the schema: `buildBody` can only send a number or nothing, so an
+		// unparseable hex would reach the API as an omitted field and post the default instead of failing.
+		const colorError = promptMode === 'normal' ? validateColorInput(formData.color) : null;
+		if (colorError) {
+			setErrors({ color: colorError });
 			setGeneralError(null);
 			return undefined;
 		}
@@ -284,6 +301,7 @@ export function CreateAMAForm() {
 					['plainText', error.fieldError(promptField, 'plainText')],
 					['imageURL', error.fieldError(promptField, 'imageURL')],
 					['thumbnailURL', error.fieldError(promptField, 'thumbnailURL')],
+					['color', error.fieldError(promptField, 'color')],
 				];
 
 				const newErrors: FormErrors = Object.fromEntries(
@@ -543,9 +561,11 @@ export function CreateAMAForm() {
 					<div>
 						{promptMode === 'normal' && (
 							<NormalPromptFields
+								color={formData.color}
 								description={formData.description}
 								errors={errors}
 								imageURL={formData.imageURL}
+								onColorChange={(value) => updateFormData('color', value)}
 								onDescriptionChange={(value) => updateFormData('description', value)}
 								onImageURLChange={(value) => updateFormData('imageURL', value)}
 								onPlainTextChange={(value) => updateFormData('plainText', value)}
@@ -577,6 +597,7 @@ export function CreateAMAForm() {
 
 					{promptMode === 'normal' ? (
 						<PromptPreview
+							color={formData.color}
 							description={formData.description}
 							imageURL={formData.imageURL}
 							mode="normal"

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { snowflakeSchema } from '../../util/schemas.js';
+import { embedColorSchema, snowflakeSchema } from '../../util/schemas.js';
 
 /**
  * Browser-safe: only `zod` + the pure `snowflakeSchema` regex, nothing server-only. Exposed to `apps/website` via
@@ -49,6 +49,9 @@ export const createAMAWithRegularPromptSchema = createAMABase.safeExtend({
 		plainText: z.string().max(100).optional(),
 		imageURL: z.url().optional(),
 		thumbnailURL: z.url().optional(),
+		// Omitted means `DEFAULT_EMBED_COLOR` (see `createAMA.ts`), not "leave whatever was there" -- the
+		// edit form always resends the full `prompt` object, same as every other field here.
+		color: embedColorSchema.optional(),
 	}),
 });
 

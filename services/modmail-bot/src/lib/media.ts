@@ -97,7 +97,7 @@ function isImageContentType(contentType: string | undefined): boolean {
  * the special animated rendering an actual sticker slot has) — that limitation is called out in
  * `note` rather than silently swallowed. GIF-format stickers download and stay animated normally.
  * Lottie (vector, format 3) has no raster the CDN can hand back at all, so it's skipped entirely and
- * also called out in `note`.
+ * also called out in `note`. Every sticker is named in `note` regardless of format — see the loop below.
  */
 export async function buildRelayMedia(
 	attachments: RelayAttachmentLike[],
@@ -125,9 +125,14 @@ export async function buildRelayMedia(
 		fetched.push({ file: fetchResult.file, isImage: isImageContentType(attachment.content_type) });
 	}
 
+	// Every sticker gets a note, unconditionally and whatever its format -- a re-uploaded sticker arrives in
+	// the mod thread as a plain image attachment, visually indistinguishable from the user having sent a
+	// picture, and "they sent a sticker" is itself information (tone, low effort, a reaction rather than a
+	// statement) worth not losing. Format-specific caveats ride along in the same note rather than adding a
+	// second line per sticker.
 	for (const sticker of stickers) {
 		if (sticker.format_type === StickerFormatType.Lottie) {
-			notes.push(`sticker "${sticker.name}" is animated (vector) and can't be forwarded`);
+			notes.push(`sent a sticker: "${sticker.name}" (animated vector, can't be forwarded)`);
 			continue;
 		}
 
@@ -136,21 +141,19 @@ export async function buildRelayMedia(
 		const name = `${sticker.name}.${format}`;
 
 		const fetchResult = await fetchAsRawFile(url, name, format === ImageFormat.GIF ? 'image/gif' : 'image/png', logger);
-		if (!fetchResult) {
-			failedLinks.push(url);
-			continue;
-		}
-
-		if (totalBytes + fetchResult.size > MAX_TOTAL_REUPLOAD_BYTES) {
+		if (!fetchResult || totalBytes + fetchResult.size > MAX_TOTAL_REUPLOAD_BYTES) {
+			notes.push(`sent a sticker: "${sticker.name}"`);
 			failedLinks.push(url);
 			continue;
 		}
 
 		totalBytes += fetchResult.size;
 		fetched.push({ file: fetchResult.file, isImage: true });
-		if (sticker.format_type === StickerFormatType.APNG) {
-			notes.push(`sticker "${sticker.name}" is animated but will appear static here`);
-		}
+		notes.push(
+			sticker.format_type === StickerFormatType.APNG
+				? `sent a sticker: "${sticker.name}" (animated, shown static here)`
+				: `sent a sticker: "${sticker.name}"`,
+		);
 	}
 
 	// Discord "claims" whichever file an embed's `image` references out of the same message's

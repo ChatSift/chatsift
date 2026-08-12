@@ -1,6 +1,6 @@
 import emojiRegex from 'emoji-regex';
 import { z } from 'zod';
-import { httpUrlSchema, snowflakeSchema } from '../../util/schemas.js';
+import { embedColorSchema, httpUrlSchema, snowflakeSchema } from '../../util/schemas.js';
 
 /**
  * Browser-safe: only `zod` + the pure `snowflakeSchema` regex, nothing server-only. Exposed to `apps/website` via
@@ -122,6 +122,12 @@ export const createPanelWithRegularContentSchema = panelBase.safeExtend({
 		// the full `panel` object, so omitting this (rather than needing a `null` to clear) is enough to
 		// drop an existing image.
 		attachmentUrl: attachmentUrlSchema.optional(),
+		// The embed's small corner image, as opposed to `attachmentUrl`'s full-width one. Same
+		// omit-to-clear semantics and the same URL rule.
+		thumbnailUrl: attachmentUrlSchema.optional(),
+		// Omitted means `DEFAULT_EMBED_COLOR` (see `createPanel.ts`), not "leave whatever was there" --
+		// consistent with every other field on this object, which the edit form always resends in full.
+		color: embedColorSchema.optional(),
 	}),
 });
 

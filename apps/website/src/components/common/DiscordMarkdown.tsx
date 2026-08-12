@@ -127,20 +127,42 @@ function SmallRenderer({ children }: SmallProps) {
 	return <span className="text-xs text-secondary dark:text-secondary-dark">{children}</span>;
 }
 
+/**
+ * Markers are deliberately *outside* the content box (with padding to make room) rather than
+ * `list-inside`. A list item's children come back from `@discord/markdown-react` as paragraph nodes,
+ * which `ParagraphRenderer` renders as block `<div>`s -- and an inside marker sits inline at the start
+ * of the item's content, so the first block child immediately breaks the line and leaves every bullet
+ * stranded on a row of its own above its text. Outside markers also give wrapped lines a proper hanging
+ * indent, which is what Discord itself does.
+ *
+ * Nested lists arrive as a `list` node inside an item's content, so they nest as real DOM lists --
+ * `marker:` keeps the marker colored with the surrounding text rather than inheriting a link/mention
+ * color from whatever the item happens to start with.
+ */
 function ListRenderer({ type, value, children }: ListProps) {
 	if (type === 'ordered') {
 		return (
-			<ol className="my-1 list-inside list-decimal" start={value}>
+			<ol
+				className="my-1 list-outside list-decimal pl-6 marker:text-secondary dark:marker:text-secondary-dark"
+				start={value}
+			>
 				{children}
 			</ol>
 		);
 	}
 
-	return <ul className="my-1 list-inside list-disc">{children}</ul>;
+	return (
+		<ul className="my-1 list-outside list-disc pl-6 marker:text-secondary dark:marker:text-secondary-dark">
+			{children}
+		</ul>
+	);
 }
 
 function ListItemRenderer({ children }: ListItemProps) {
-	return <li>{children}</li>;
+	// `[&>*:first-child]:mt-0`/`last-child:mb-0` strips the paragraph/nested-list margins at the item's own
+	// edges so items sit tight against each other the way Discord renders them, while margins *between*
+	// blocks inside a single item survive.
+	return <li className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{children}</li>;
 }
 
 function EmptyRenderer(_props: EmptyProps) {

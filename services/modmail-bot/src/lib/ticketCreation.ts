@@ -1,7 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { Categories, Threads } from '@chatsift/db';
-import type { APIEmbed, APIGuildMember, APIUser } from '@discordjs/core';
+import type { APIEmbed, APIEmbedField, APIGuildMember, APIUser } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
 import { templateDataFromMember, templateGuildName, templateString } from './templateString.js';
@@ -21,13 +21,6 @@ import {
 const NOT_QUITE_BLACK = 0x23272a;
 
 /**
- * Discord's subtext markdown (`-#`) keeps this from competing visually with the actual "who is this"
- * info embed right below it -- it only needs to register once, not draw the eye every time mods scroll
- * past the top of the thread.
- */
-const RECORDING_NOTICE_CONTENT = "-# ⚠️ This ticket's messages are being recorded and viewable on the dashboard.";
-
-/**
  * Discord's snowflake epoch (2015-01-01T00:00:00.000Z), used to derive account-creation date.
  */
 const DISCORD_EPOCH = 1_420_070_400_000n;
@@ -36,8 +29,25 @@ function snowflakeCreatedAt(id: string): Date {
 	return new Date(Number((BigInt(id) >> 22n) + DISCORD_EPOCH));
 }
 
+/**
+ * Both halves of a date field: the absolute date on the first line, Discord's own relative rendering
+ * ("3 years ago") on the second. The relative half is the one staff actually skim for -- "is this a
+ * brand new account" / "did they join yesterday" -- but it's useless on its own once a ticket is a few
+ * months old and someone reads it back, hence keeping both rather than picking one.
+ */
 function discordDate(date: Date): string {
-	return `<t:${Math.floor(date.getTime() / 1_000)}:D>`;
+	const seconds = Math.floor(date.getTime() / 1_000);
+	return `<t:${seconds}:D>\n<t:${seconds}:R>`;
+}
+
+/**
+ * Leaves room for the ` - Thread #N` suffix inside Discord's 100-character forum-thread-name cap, so a
+ * long display name truncates instead of pushing the ticket number out of the title entirely -- the
+ * number is the part staff search by, so it's the part that must survive.
+ */
+function buildModThreadName(displayName: string, threadId: number): string {
+	const suffix = ` - Thread #${threadId}`;
+	return `${displayName.slice(0, 100 - suffix.length)}${suffix}`;
 }
 
 /**
@@ -117,19 +127,36 @@ export async function finishTicketCreation({
 	// Only worth linking when recording is on -- the dashboard search results a mod would land on show
 	// recorded content, so following the link with recording off would just be a list of "not recorded"
 	// placeholders.
-	const pastTicketsValue = recording
-		? `[${pastTicketCount}](${getContext().FRONTEND_URL}/dashboard/${guildId}/modmail/threads?search=${user.id}&include_closed=true)`
-		: String(pastTicketCount);
+	const pastTicketsSearchUrl = `${getContext().FRONTEND_URL}/dashboard/${guildId}/modmail/threads?search=${user.id}&include_closed=true`;
+	const historyValue =
+		pastTicketCount === 0
+			? 'None'
+			: [
+					`${pastTicketCount} ticket${pastTicketCount === 1 ? '' : 's'}`,
+					...(recording ? [`[Open dashboard](${pastTicketsSearchUrl})`] : []),
+				].join('\n');
 
-	const openingEmbedFields = [
-		{ name: 'Account Created', value: discordDate(snowflakeCreatedAt(user.id)), inline: true },
+	// Discord lays inline fields out three to a row, so this ordering is the layout: one row of
+	// "who is this" context, then roles on a full-width row of its own (a role list wraps badly in a
+	// third-of-a-row column), then the ticket's own metadata.
+	const openingEmbedFields: APIEmbedField[] = [
 		...(member?.joined_at
 			? [{ name: 'Joined Server', value: discordDate(new Date(member.joined_at)), inline: true }]
 			: []),
-		{ name: 'Past Tickets', value: pastTicketsValue, inline: true },
+		{ name: 'Account Created', value: discordDate(snowflakeCreatedAt(user.id)), inline: true },
+		{ name: 'History', value: historyValue, inline: true },
+		{ name: 'Roles', value: roles, inline: false },
 		...(category ? [{ name: 'Category', value: category.name, inline: true }] : []),
 		{ name: 'Opened By', value: `<@${createdById}>`, inline: true },
-		{ name: 'Roles', value: roles, inline: true },
+		...(recording
+			? [
+					{
+						name: 'Dashboard',
+						value: `[View this ticket](${getContext().FRONTEND_URL}/dashboard/${guildId}/modmail/threads/${reservedThreadId})`,
+						inline: true,
+					},
+				]
+			: []),
 	];
 
 	const openingEmbed: APIEmbed = {
@@ -140,23 +167,22 @@ export async function finishTicketCreation({
 		timestamp: new Date().toISOString(),
 	};
 
-	// When recording is on, the recording notice has to be the thread's actual starter message (Discord
-	// bakes whatever's passed to `message` here in as the very first post, nothing can be inserted before
-	// it after the fact) -- the opening info embed and alert-role ping move to a follow-up `createMessage`
-	// below instead, once a `threads.id` exists to link back to. When recording is off there's no notice
-	// to lead with, so the embed goes right back to being the starter message like before.
+	// The info embed is the thread's starter message unconditionally. It used to be displaced into a
+	// follow-up message whenever recording was on, because a "this ticket is being recorded" notice had to
+	// take the starter slot (Discord bakes whatever's passed to `message` here in as the very first post,
+	// and nothing can be inserted before it after the fact) -- that notice is gone, so the split it forced
+	// is gone with it. Linking to the dashboard from here is fine despite the `threads` row not existing
+	// yet: `reservedThreadId` is the id the INSERT below uses.
 	const modThread = await getContext().service.client.api.channels.createForumThread(modForumId, {
-		name: `Thread #${reservedThreadId} - ${displayName}`.slice(0, 100),
+		name: buildModThreadName(displayName, reservedThreadId),
 		applied_tags: category?.forumTagId ? [category.forumTagId] : undefined,
 		auto_archive_duration: MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES,
-		message: recording
-			? { content: RECORDING_NOTICE_CONTENT }
-			: {
-					// Plain content, not an embed field — embeds never trigger a ping, and this is the one
-					// place a new ticket should actually notify the configured alert role.
-					...(alertRoleId ? { content: `<@&${alertRoleId}>` } : {}),
-					embeds: [openingEmbed],
-				},
+		message: {
+			// Plain content, not an embed field — embeds never trigger a ping, and this is the one
+			// place a new ticket should actually notify the configured alert role.
+			...(alertRoleId ? { content: `<@&${alertRoleId}>` } : {}),
+			embeds: [openingEmbed],
+		},
 	});
 
 	// If the INSERT fails outright or somehow returns no row, the forum thread above is already live on
@@ -185,32 +211,6 @@ export async function finishTicketCreation({
 			reason: 'Rolling back failed ticket creation',
 		});
 		throw error;
-	}
-
-	if (recording) {
-		// Deferred from the forum-thread-creation call above (see its own comment) now that `thread.id`
-		// exists to link back to — carries the alert-role ping the recording notice itself didn't, so a
-		// new ticket still notifies exactly like it would have without recording on. Best-effort: the ticket
-		// itself is already fully created and persisted by this point, so a Discord hiccup posting this one
-		// follow-up embed shouldn't fail ticket creation outright and block the relay/greeting flow that
-		// still needs to run in `index.ts#handleFirstMessage` right after this returns.
-		try {
-			const dashboardUrl = `${getContext().FRONTEND_URL}/dashboard/${guildId}/modmail/threads/${thread.id}`;
-			await getContext().service.client.api.channels.createMessage(modThread.id, {
-				...(alertRoleId ? { content: `<@&${alertRoleId}>` } : {}),
-				embeds: [
-					{
-						...openingEmbed,
-						fields: [
-							...openingEmbedFields,
-							{ name: 'Dashboard', value: `[View in dash](${dashboardUrl})`, inline: true },
-						],
-					},
-				],
-			});
-		} catch (error) {
-			logger.warn({ err: error, threadId: thread.id }, 'Failed to post the opening info embed to the mod thread');
-		}
 	}
 
 	logger.info({ threadId: thread.id, modThreadId: modThread.id, userChannelId }, 'Opened new modmail ticket');

@@ -10,6 +10,7 @@ import { PanelPreview } from '../../_components/PanelPreview';
 import { APIError } from '@/api/error';
 import type { ModmailPanel, UpdateModmailPanelBody } from '@/api/routes/modmail';
 import { useModmailPanels, useUpdateModmailPanel } from '@/api/routes/modmail';
+import { colorToHex, hexToColor, validateColorInput } from '@/components/common/ColorField';
 import { FormActions } from '@/components/common/FormActions';
 import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -18,14 +19,28 @@ import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 interface FormData {
 	attachmentUrl: string;
 	buttonLabel: string;
+	/**
+	 * `#rrggbb`, or empty for "use the default" -- see `ColorField`.
+	 */
+	color: string;
 	description: string;
 	panelRaw: string;
+	thumbnailUrl: string;
 	title: string;
 }
 
 type FormErrors = Partial<
-	Record<'attachmentUrl' | 'buttonLabel' | 'categoryIds' | 'description' | 'panelRaw' | 'title', string>
+	Record<
+		'attachmentUrl' | 'buttonLabel' | 'categoryIds' | 'color' | 'description' | 'panelRaw' | 'thumbnailUrl' | 'title',
+		string
+	>
 >;
+
+/**
+ * The keys under `panel` in the request body that map one-to-one onto a form field of the same name --
+ * everything the schema can complain about that has somewhere to render the complaint.
+ */
+const PANEL_EMBED_FIELDS = ['title', 'description', 'buttonLabel', 'attachmentUrl', 'thumbnailUrl', 'color'] as const;
 
 function mapIssuesToFormErrors(issues: readonly { message: string; path: PropertyKey[] }[]): FormErrors {
 	const errors: FormErrors = {};
@@ -36,8 +51,8 @@ function mapIssuesToFormErrors(issues: readonly { message: string; path: Propert
 		if (first === 'categoryIds') {
 			errors.categoryIds ??= issue.message;
 		} else if (first === 'panel' && typeof second === 'string') {
-			if (second === 'title' || second === 'description' || second === 'buttonLabel' || second === 'attachmentUrl') {
-				errors[second] ??= issue.message;
+			if (PANEL_EMBED_FIELDS.includes(second as (typeof PANEL_EMBED_FIELDS)[number])) {
+				errors[second as (typeof PANEL_EMBED_FIELDS)[number]] ??= issue.message;
 			}
 		} else if (first === 'panel_raw') {
 			errors.panelRaw ??= issue.message;
@@ -74,29 +89,49 @@ function prettyPrintOrRaw(value: string): string {
 // never fails, it just leaves fields blank for shapes it doesn't understand. Note there's no `buttonLabel` in
 // here at all: the button's current label lives only in the live Discord component, not in `panelJsonData`, so it
 // can't be recovered -- leaving it blank on submit resets it to the schema's 'Create Ticket' default.
-function bestEffortNormalFields(panelJsonData: string): { attachmentUrl: string; description: string; title: string } {
+type NormalFields = Pick<FormData, 'attachmentUrl' | 'color' | 'description' | 'thumbnailUrl' | 'title'>;
+
+const BLANK_NORMAL_FIELDS: NormalFields = {
+	title: '',
+	description: '',
+	attachmentUrl: '',
+	thumbnailUrl: '',
+	color: '',
+};
+
+function embedMediaUrl(value: unknown): string {
+	if (typeof value !== 'object' || value === null) {
+		return '';
+	}
+
+	const url = (value as Record<string, unknown>)['url'];
+	return typeof url === 'string' ? url : '';
+}
+
+function bestEffortNormalFields(panelJsonData: string): NormalFields {
 	try {
 		const parsed = JSON.parse(panelJsonData) as Record<string, unknown>;
 		const embeds = parsed['embeds'];
 		if (Array.isArray(embeds) && embeds.length > 0 && typeof embeds[0] === 'object' && embeds[0] !== null) {
 			const embed = embeds[0] as Record<string, unknown>;
-			const image = embed['image'];
-			const attachmentUrl =
-				typeof image === 'object' && image !== null && typeof (image as Record<string, unknown>)['url'] === 'string'
-					? ((image as Record<string, unknown>)['url'] as string)
-					: '';
 
 			return {
 				title: typeof embed['title'] === 'string' ? embed['title'] : '',
 				description: typeof embed['description'] === 'string' ? embed['description'] : '',
-				attachmentUrl,
+				attachmentUrl: embedMediaUrl(embed['image']),
+				thumbnailUrl: embedMediaUrl(embed['thumbnail']),
+				// Pre-filled even when it's the default -- a panel authored before colors were configurable
+				// stored the default explicitly, and blanking the field would misrepresent it as "unset" while
+				// still resolving to the same color. `colorToHex` is safe for any stored number; out-of-range
+				// values (only reachable via raw mode) are what the `ColorField` hex check rejects on submit.
+				color: typeof embed['color'] === 'number' ? colorToHex(embed['color']) : '',
 			};
 		}
 	} catch {
 		// Not JSON, or not the expected shape -- fall through to blank fields.
 	}
 
-	return { title: '', description: '', attachmentUrl: '' };
+	return BLANK_NORMAL_FIELDS;
 }
 
 interface EditPanelFormProps {
@@ -140,6 +175,8 @@ export function EditPanelForm({ panel }: EditPanelFormProps) {
 				description: formData.description || undefined,
 				buttonLabel: formData.buttonLabel || undefined,
 				attachmentUrl: formData.attachmentUrl || undefined,
+				thumbnailUrl: formData.thumbnailUrl || undefined,
+				color: hexToColor(formData.color) ?? undefined,
 			},
 		};
 	};
@@ -147,6 +184,15 @@ export function EditPanelForm({ panel }: EditPanelFormProps) {
 	const validateForm = (): UpdateModmailPanelBody | undefined => {
 		if (mode === 'raw' && formData.panelRaw && !isValidJSON(formData.panelRaw)) {
 			setErrors({ panelRaw: 'Must be valid JSON' });
+			setGeneralError(null);
+			return undefined;
+		}
+
+		// Checked here rather than left to the schema: `buildBody` can only send a number or nothing, so an
+		// unparseable hex would reach the API as an omitted field and post the default instead of failing.
+		const colorError = mode === 'normal' ? validateColorInput(formData.color) : null;
+		if (colorError) {
+			setErrors({ color: colorError });
 			setGeneralError(null);
 			return undefined;
 		}
@@ -192,6 +238,8 @@ export function EditPanelForm({ panel }: EditPanelFormProps) {
 					['description', error.fieldError(panelField, 'description')],
 					['buttonLabel', error.fieldError(panelField, 'buttonLabel')],
 					['attachmentUrl', error.fieldError(panelField, 'attachmentUrl')],
+					['thumbnailUrl', error.fieldError(panelField, 'thumbnailUrl')],
+					['color', error.fieldError(panelField, 'color')],
 				];
 
 				const newErrors: FormErrors = Object.fromEntries(
@@ -261,12 +309,16 @@ export function EditPanelForm({ panel }: EditPanelFormProps) {
 							<PanelEmbedFields
 								attachmentUrl={formData.attachmentUrl}
 								buttonLabel={formData.buttonLabel}
+								color={formData.color}
 								description={formData.description}
 								errors={errors}
 								onAttachmentUrlChange={(value) => updateFormData('attachmentUrl', value)}
 								onButtonLabelChange={(value) => updateFormData('buttonLabel', value)}
+								onColorChange={(value) => updateFormData('color', value)}
 								onDescriptionChange={(value) => updateFormData('description', value)}
+								onThumbnailUrlChange={(value) => updateFormData('thumbnailUrl', value)}
 								onTitleChange={(value) => updateFormData('title', value)}
+								thumbnailUrl={formData.thumbnailUrl}
 								title={formData.title}
 							/>
 						) : (
@@ -293,8 +345,10 @@ export function EditPanelForm({ panel }: EditPanelFormProps) {
 						<PanelPreview
 							attachmentUrl={formData.attachmentUrl}
 							buttonLabel={formData.buttonLabel}
+							color={formData.color}
 							description={formData.description}
 							mode="normal"
+							thumbnailUrl={formData.thumbnailUrl}
 							title={formData.title}
 						/>
 					) : (

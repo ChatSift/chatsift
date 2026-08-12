@@ -6,6 +6,14 @@ export const BOTS = ['AMA', 'MODMAIL', 'SOCIAL'] as const;
 
 export type BotId = (typeof BOTS)[number];
 
+/**
+ * Discord blurple -- the accent every dashboard-authored embed (ticket panels, AMA prompts) falls back to
+ * when nobody picked a color. Shared so the dashboard's preview swatch and the value services/api actually
+ * posts can't drift apart, which they did while this was a magic number copied into four routes and two
+ * preview components.
+ */
+export const DEFAULT_EMBED_COLOR = 0x7289da;
+
 export const NewAccessTokenHeader = 'X-Update-Access-Token' as const;
 export const RefreshTokenCookie = 'refresh_token' as const;
 

@@ -1,4 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
+import { DEFAULT_EMBED_COLOR } from '@chatsift/core';
 import type { Categories, TicketPanels } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { RESTJSONErrorCodes } from '@discordjs/core';
@@ -56,11 +57,11 @@ export default defineRoute({
 					: {
 							embeds: [
 								{
-									// TODO: real constant
-									color: 0x7289da, // blurple
+									color: data.panel.color ?? DEFAULT_EMBED_COLOR,
 									title: data.panel.title,
 									description: data.panel.description,
 									...(data.panel.attachmentUrl && { image: { url: data.panel.attachmentUrl } }),
+									...(data.panel.thumbnailUrl && { thumbnail: { url: data.panel.thumbnailUrl } }),
 								},
 							],
 						};

@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { getContext } from '@chatsift/backend-core';
+import { DEFAULT_EMBED_COLOR } from '@chatsift/core';
 import type { AmaSessions } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { ButtonStyle, ComponentType, RESTJSONErrorCodes } from '@discordjs/core';
@@ -51,8 +52,7 @@ export default defineRoute({
 							content: data.prompt.plainText,
 							embeds: [
 								{
-									// TODO: real constant
-									color: 0x7289da, // blurple
+									color: data.prompt.color ?? DEFAULT_EMBED_COLOR,
 									title: data.title,
 									description: data.prompt.description,
 									image: data.prompt.imageURL ? { url: data.prompt.imageURL } : undefined,

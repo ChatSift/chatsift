@@ -1,7 +1,7 @@
 'use client';
 
 import { hasDiscordMessageSurface, updateAMAConfigSchema } from '@chatsift/api/ama-schemas';
-import { amaQuestionsChannel } from '@chatsift/core';
+import { amaQuestionsChannel, DEFAULT_EMBED_COLOR } from '@chatsift/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChannelType } from 'discord-api-types/v10';
 import Link from 'next/link';
@@ -29,6 +29,7 @@ import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
+import { colorToHex, hexToColor, validateColorInput } from '@/components/common/ColorField';
 import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -89,6 +90,10 @@ function ChannelIcon({ channel }: { readonly channel: GuildChannelInfo | Possibl
 }
 
 interface PromptFormData {
+	/**
+	 * `#rrggbb`, or empty for "use the default" -- see `ColorField`.
+	 */
+	color: string;
 	description: string;
 	imageURL: string;
 	plainText: string;
@@ -103,6 +108,7 @@ const PROMPT_FIELD_MAP: Record<string, keyof PromptFormData> = {
 	plainText: 'plainText',
 	imageURL: 'imageURL',
 	thumbnailURL: 'thumbnailURL',
+	color: 'color',
 };
 
 function mapPromptIssues(issues: readonly { message: string; path: PropertyKey[] }[]): PromptFormErrors {
@@ -162,9 +168,10 @@ function bestEffortPromptFields(promptJsonData: string): Omit<PromptFormData, 'p
 			description: embed && typeof embed['description'] === 'string' ? embed['description'] : '',
 			imageURL: typeof image?.['url'] === 'string' ? image['url'] : '',
 			thumbnailURL: typeof thumbnail?.['url'] === 'string' ? thumbnail['url'] : '',
+			color: embed && typeof embed['color'] === 'number' ? colorToHex(embed['color']) : '',
 		};
 	} catch {
-		return { plainText: '', description: '', imageURL: '', thumbnailURL: '' };
+		return { plainText: '', description: '', imageURL: '', thumbnailURL: '', color: '' };
 	}
 }
 
@@ -375,6 +382,11 @@ export function AMADetails() {
 							description: prev.description || undefined,
 							image: prev.imageURL ? { url: prev.imageURL } : undefined,
 							thumbnail: prev.thumbnailURL ? { url: prev.thumbnailURL } : undefined,
+							// Falls back to the default rather than omitting the key: this JSON *replaces* the
+							// normal-mode fields once raw mode takes over, and `createAMA.ts`'s default only applies
+							// to a normal-mode body -- omitting it here would silently drop the stripe the preview
+							// was showing a moment ago.
+							color: hexToColor(prev.color) ?? DEFAULT_EMBED_COLOR,
 						},
 					],
 				};
@@ -401,6 +413,14 @@ export function AMADetails() {
 			return;
 		}
 
+		// Checked here rather than left to the schema: the body below can only carry a number or nothing, so
+		// an unparseable hex would reach the API as an omitted field and post the default instead of failing.
+		const colorError = promptMode === 'normal' ? validateColorInput(promptForm.color) : null;
+		if (colorError) {
+			setPromptErrors({ color: colorError });
+			return;
+		}
+
 		const body =
 			promptMode === 'raw'
 				? { prompt_raw: promptForm.promptRaw ? JSON.parse(promptForm.promptRaw) : {} }
@@ -410,6 +430,7 @@ export function AMADetails() {
 							plainText: promptForm.plainText || undefined,
 							imageURL: promptForm.imageURL || undefined,
 							thumbnailURL: promptForm.thumbnailURL || undefined,
+							color: hexToColor(promptForm.color) ?? undefined,
 						},
 					};
 
@@ -456,6 +477,7 @@ export function AMADetails() {
 					['plainText', error.fieldError('prompt', 'plainText')],
 					['imageURL', error.fieldError('prompt', 'imageURL')],
 					['thumbnailURL', error.fieldError('prompt', 'thumbnailURL')],
+					['color', error.fieldError('prompt', 'color')],
 				];
 
 				const newErrors: PromptFormErrors = Object.fromEntries(
@@ -1089,9 +1111,11 @@ export function AMADetails() {
 									<div>
 										{promptMode === 'normal' ? (
 											<NormalPromptFields
+												color={promptForm.color}
 												description={promptForm.description}
 												errors={promptErrors}
 												imageURL={promptForm.imageURL}
+												onColorChange={(value) => updatePromptField('color', value)}
 												onDescriptionChange={(value) => updatePromptField('description', value)}
 												onImageURLChange={(value) => updatePromptField('imageURL', value)}
 												onPlainTextChange={(value) => updatePromptField('plainText', value)}
@@ -1121,6 +1145,7 @@ export function AMADetails() {
 
 									{promptMode === 'normal' ? (
 										<PromptPreview
+											color={promptForm.color}
 											description={promptForm.description}
 											imageURL={promptForm.imageURL}
 											mode="normal"
