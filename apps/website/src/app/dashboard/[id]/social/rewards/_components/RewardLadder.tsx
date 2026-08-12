@@ -19,6 +19,15 @@ function roleColor(role: GuildRoleInfo | undefined): string {
 	return `#${role.color.toString(16).padStart(6, '0')}`;
 }
 
+/**
+ * Every role a member at `level` ends up holding, as a set -- the tier plus the stacking rewards, which is what
+ * `resolveEarnedRewards` already decides. Callers diff two of these to describe a rung.
+ */
+function heldRoleIds(rewards: readonly SocialReward[], level: number): Set<string> {
+	const { stacking, tier } = resolveEarnedRewards(rewards, level);
+	return new Set([...(tier ? [tier.roleId] : []), ...stacking.map((reward) => reward.roleId)]);
+}
+
 interface RoleChipProps {
 	readonly isTier?: boolean;
 	readonly role: GuildRoleInfo | undefined;
@@ -67,18 +76,20 @@ export function RewardLadder() {
 
 	const rungs = levels.map((level) => {
 		const { stacking, tier } = resolveEarnedRewards(rewards, level);
-		const granted = rewards.filter((reward) => reward.level === level);
+		// Diffed against the rung below rather than read off the rows configured *at* this level: those are not
+		// the same thing. Two clean rewards at one level mean only one of them is ever held, so listing the raw
+		// rows would name a role the chips above deliberately leave out.
+		const held = heldRoleIds(rewards, level);
+		const previouslyHeld = heldRoleIds(rewards, level - 1);
 
 		return {
 			level,
 			tier,
 			stacking,
-			granted,
-			// The tier this rung takes away, if it takes one away at all: only a rung that grants a clean reward
-			// does, and only when a lower clean reward exists to be superseded.
-			replaces: granted.some((reward) => reward.clean)
-				? (resolveEarnedRewards(rewards, level - 1).tier?.roleId ?? null)
-				: null,
+			entering: [...held].filter((roleId) => !previouslyHeld.has(roleId)),
+			// Whatever stops being held here -- only ever a superseded clean tier, since stacking rewards are
+			// never taken back off.
+			leaving: [...previouslyHeld].filter((roleId) => !held.has(roleId)),
 		};
 	});
 
@@ -95,10 +106,9 @@ export function RewardLadder() {
 
 			<ol className="space-y-0">
 				{rungs.map((rung, index) => {
-					const earnsLabel = rung.granted
-						.map((reward) => `@${roleById.get(reward.roleId)?.name ?? reward.roleId}`)
-						.join(', ');
-					const replacesLabel = rung.replaces ? `@${roleById.get(rung.replaces)?.name ?? rung.replaces}` : null;
+					const label = (roleId: string) => `@${roleById.get(roleId)?.name ?? roleId}`;
+					const earnsLabel = rung.entering.map((roleId) => label(roleId)).join(', ');
+					const replacesLabel = rung.leaving.length > 0 ? rung.leaving.map((roleId) => label(roleId)).join(', ') : null;
 
 					return (
 						<li className="flex gap-3" key={rung.level}>
@@ -119,8 +129,12 @@ export function RewardLadder() {
 								{/* Which of the chips above are new here, as opposed to carried up from a lower rung -- a rung
 								    of five chips otherwise gives no clue what reaching this level actually did. */}
 								<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">
-									Earns {earnsLabel}
-									{replacesLabel ? `, replacing ${replacesLabel}` : ''}
+									{earnsLabel
+										? `Earns ${earnsLabel}${replacesLabel ? `, replacing ${replacesLabel}` : ''}`
+										: // Reachable only by configuring two "only one of these at a time" rewards at the same
+											// level, where one of them can never be held. Worth saying out loud rather than
+											// rendering an empty line, since it's a mistake nothing else on this page shows.
+											'Nothing new -- another reward at this level takes precedence.'}
 								</p>
 							</div>
 						</li>

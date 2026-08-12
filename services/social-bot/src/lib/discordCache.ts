@@ -25,11 +25,17 @@ interface CachedChannel {
 interface CachedGuild {
 	name: string;
 	/**
-	 * Role names, held as parallel arrays because bin-rw recipes have no map type. Only read when rendering a
-	 * level-up notification's `{{ earnedRewards }}`, so the shape never matters on the hot path.
+	 * Role names and positions, held as parallel arrays because bin-rw recipes have no map type. Only read when
+	 * rendering a level-up notification's `{{ earnedRewards }}` or a `/level` reply, so the shape never matters
+	 * on the hot path.
 	 */
 	roleIds: string[];
 	roleNames: string[];
+	/**
+	 * Discord's own hierarchy index -- higher is higher up the role list. `/level` sorts by it so the roles it
+	 * lists read in the order the server itself shows them, rather than in primary-key order.
+	 */
+	rolePositions: number[];
 }
 
 // Channel topology changes rarely and a stale answer is cheap (one message tracked against the wrong category),
@@ -55,7 +61,12 @@ const channelStore = new RedisStore<CachedChannel>({
 const guildStore = new RedisStore<CachedGuild>({
 	TTL: GUILD_TTL_MS,
 	recipe: createRecipe(
-		{ name: DataType.String, roleIds: [DataType.String], roleNames: [DataType.String] },
+		{
+			name: DataType.String,
+			roleIds: [DataType.String],
+			roleNames: [DataType.String],
+			rolePositions: [DataType.I32],
+		},
 		{ versioned: true },
 	) as Recipe<CachedGuild>,
 	makeKey: (guildId: string) => `socialguild:${guildId}`,
@@ -129,6 +140,7 @@ async function loadGuild(guildId: string): Promise<CachedGuild | null> {
 				name: guild.name,
 				roleIds: guild.roles.map((role) => role.id),
 				roleNames: guild.roles.map((role) => role.name),
+				rolePositions: guild.roles.map((role) => role.position),
 			};
 
 			await getContext().redis.del(guildNegativeKey(guildId));
@@ -189,6 +201,28 @@ export async function getRoleName(guildId: string, roleId: string): Promise<stri
 
 	const index = guild.roleIds.indexOf(roleId);
 	return index === -1 ? undefined : guild.roleNames[index];
+}
+
+/**
+ * Reorders role ids into the guild's own hierarchy, highest first -- the order Discord itself lists roles in, and
+ * therefore the only order a reply naming several of them doesn't look shuffled. Ids the guild doesn't have (a
+ * deleted reward role) sort last rather than being dropped, since the caller decides whether an unresolvable
+ * mention is worth showing.
+ *
+ * Falls back to the input order if the guild can't be read at all.
+ */
+export async function sortRoleIdsByHierarchy(guildId: string, roleIds: readonly string[]): Promise<string[]> {
+	const guild = await loadGuild(guildId);
+	if (!guild) {
+		return [...roleIds];
+	}
+
+	const positionOf = (roleId: string) => {
+		const index = guild.roleIds.indexOf(roleId);
+		return index === -1 ? Number.NEGATIVE_INFINITY : (guild.rolePositions[index] ?? Number.NEGATIVE_INFINITY);
+	};
+
+	return [...roleIds].sort((left, right) => positionOf(right) - positionOf(left));
 }
 
 /**

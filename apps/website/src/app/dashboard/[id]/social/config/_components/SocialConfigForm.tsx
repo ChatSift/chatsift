@@ -6,6 +6,7 @@ import { ChannelType } from 'discord-api-types/v10';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { SOCIAL_CONFIG_DEFAULTS, isTrackingConfigured } from '../../_components/socialConfig';
+import { EligibilityExample } from './EligibilityExample';
 import { XpCurvePreview } from './XpCurvePreview';
 import { APIError } from '@/api/error';
 import { mapIssuesToFieldErrors } from '@/api/formErrors';
@@ -177,7 +178,12 @@ export function SocialConfigForm() {
 	const previewBase = Number(form.requiredXpBase);
 	const previewMultiplier = Number(form.requiredXpMultiplier);
 	const previewXpGain = Number(form.xpGain);
+	const previewRequiredMessages = Number(form.requiredMessages);
+	const previewTimespan = Number(form.requiredMessagesTimespan);
 	const canPreviewCurve = previewBase >= 1 && previewMultiplier >= 1;
+	// Both worked examples below stay hidden while their inputs are mid-edit rather than narrating a half-typed
+	// number back as though it were the configuration.
+	const canPreviewEligibility = previewRequiredMessages >= 1 && previewTimespan >= 1 && previewXpGain >= 1;
 
 	return (
 		<div className="space-y-6">
@@ -221,8 +227,9 @@ export function SocialConfigForm() {
 							error={errors.requiredMessages}
 							helper={
 								<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-									How many messages someone has to send inside the window below before a single XP grant lands. Set it
-									to 1 to grant XP on every message.
+									How many messages it takes to earn anything. They have to arrive inside the window below, and the
+									whole batch is worth one grant -- not one per message. This is what stops someone farming XP by
+									spamming. Set it to 1 to award XP on every message instead, with no window and no cooldown.
 								</p>
 							}
 							id="social-required-messages"
@@ -238,8 +245,9 @@ export function SocialConfigForm() {
 							error={errors.requiredMessagesTimespan}
 							helper={
 								<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-									The rolling window those messages have to land in. Once someone earns a grant they can&apos;t earn
-									another until the window they started rolls past.
+									How long that batch has to arrive in, timed from its first message. It doubles as the cooldown: after
+									a grant, the rest of that same window has to run out before a new batch starts counting, so nobody can
+									ever earn more than once per this many seconds.
 								</p>
 							}
 							id="social-required-messages-timespan"
@@ -255,7 +263,7 @@ export function SocialConfigForm() {
 							error={errors.xpGain}
 							helper={
 								<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-									XP awarded per grant, before channel and role multipliers.
+									What one grant is worth. Channel and role multipliers apply on top of this.
 								</p>
 							}
 							id="social-xp-gain"
@@ -265,6 +273,14 @@ export function SocialConfigForm() {
 							type="number"
 							value={form.xpGain}
 						/>
+
+						{canPreviewEligibility && (
+							<EligibilityExample
+								requiredMessages={previewRequiredMessages}
+								timespanSeconds={previewTimespan}
+								xpGain={previewXpGain}
+							/>
+						)}
 
 						<div className="border-t border-on-secondary pt-4 dark:border-on-secondary-dark">
 							<h3 className="text-sm font-medium text-primary dark:text-primary-dark">Level curve</h3>

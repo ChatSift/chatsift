@@ -45,9 +45,11 @@ export function SocialRewardForm({ reward }: SocialRewardFormProps) {
 
 	const { data: guildInfo, isLoading: isGuildInfoLoading } = useGuildInfo(guildId, 'SOCIAL');
 	// See the channel form: a role can only reward one level, so picking one that's already rewarded here would
-	// move that reward rather than adding a new one.
-	const { data: configuredRewards } = useSocialRewards(guildId);
+	// move that reward rather than adding a new one -- and that check can't run until this list has loaded.
+	const { data: configuredRewards, error: configuredRewardsError } = useSocialRewards(guildId);
 	const upsertReward = useUpsertSocialReward(guildId);
+
+	const isAddBlocked = !reward && configuredRewards === undefined;
 
 	const updateField = <TField extends keyof RewardFormData>(field: TField, value: RewardFormData[TField]) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
@@ -59,6 +61,15 @@ export function SocialRewardForm({ reward }: SocialRewardFormProps) {
 
 		if (!form.roleId) {
 			setErrors({ roleId: 'Pick a role' });
+			return;
+		}
+
+		if (isAddBlocked) {
+			setErrors({
+				roleId: configuredRewardsError
+					? "Couldn't load this server's existing rewards, so adding one isn't safe right now. Reload and try again."
+					: 'Still loading this server’s existing rewards.',
+			});
 			return;
 		}
 
@@ -166,7 +177,7 @@ export function SocialRewardForm({ reward }: SocialRewardFormProps) {
 			</div>
 
 			<FormActions
-				isSubmitDisabled={!form.roleId || (!reward && isGuildInfoLoading)}
+				isSubmitDisabled={!form.roleId || isAddBlocked || (!reward && isGuildInfoLoading)}
 				isSubmitting={upsertReward.isPending}
 				onCancel={() => router.back()}
 				pendingLabel={reward ? 'Saving...' : 'Adding...'}

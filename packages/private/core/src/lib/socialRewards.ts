@@ -32,8 +32,10 @@ export interface EarnedRewards {
 /**
  * What a member at `level` should be holding out of `rewards`.
  *
- * Ties (two clean rewards configured at the same level) resolve to whichever comes first in `rewards` -- stable
- * for a given input, and the schema permits the configuration without blessing it.
+ * The schema permits two clean rewards at the same level, so the tie has to break on something -- and it
+ * deliberately breaks on the lower `roleId` rather than on input order. The bot reads its rewards from an
+ * unordered `SELECT` while the dashboard reads them `ORDER BY level, role_id`, so an order-dependent rule would
+ * let the ladder confidently draw a tier the bot then doesn't grant.
  */
 export function resolveEarnedRewards(rewards: readonly RewardRule[], level: number): EarnedRewards {
 	const earned = rewards.filter((reward) => reward.level <= level);
@@ -42,9 +44,12 @@ export function resolveEarnedRewards(rewards: readonly RewardRule[], level: numb
 		stacking: earned.filter((reward) => !reward.clean),
 		tier: earned
 			.filter((reward) => reward.clean)
-			.reduce<RewardRule | null>(
-				(highest, reward) => (highest === null || reward.level > highest.level ? reward : highest),
-				null,
-			),
+			.reduce<RewardRule | null>((highest, reward) => {
+				if (highest === null || reward.level > highest.level) {
+					return reward;
+				}
+
+				return reward.level === highest.level && reward.roleId < highest.roleId ? reward : highest;
+			}, null),
 	};
 }

@@ -42,9 +42,11 @@ export function SocialRoleForm({ role }: SocialRoleFormProps) {
 
 	const { data: guildInfo, isLoading: isGuildInfoLoading } = useGuildInfo(guildId, 'SOCIAL');
 	// See the channel form: the write is an upsert, so an already-configured role has to be unpickable here or
-	// adding would silently overwrite it.
-	const { data: configuredRoles } = useSocialRoles(guildId);
+	// adding would silently overwrite it -- which also means not submitting until this list is actually known.
+	const { data: configuredRoles, error: configuredRolesError } = useSocialRoles(guildId);
 	const upsertRole = useUpsertSocialRole(guildId);
+
+	const isAddBlocked = !role && configuredRoles === undefined;
 
 	const updateField = (field: keyof RoleFormData, value: string) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
@@ -56,6 +58,15 @@ export function SocialRoleForm({ role }: SocialRoleFormProps) {
 
 		if (!form.roleId) {
 			setErrors({ roleId: 'Pick a role' });
+			return;
+		}
+
+		if (isAddBlocked) {
+			setErrors({
+				roleId: configuredRolesError
+					? "Couldn't load this server's configured roles, so adding one isn't safe right now. Reload and try again."
+					: 'Still loading this server’s configured roles.',
+			});
 			return;
 		}
 
@@ -136,7 +147,7 @@ export function SocialRoleForm({ role }: SocialRoleFormProps) {
 			</div>
 
 			<FormActions
-				isSubmitDisabled={!form.roleId || (!role && isGuildInfoLoading)}
+				isSubmitDisabled={!form.roleId || isAddBlocked || (!role && isGuildInfoLoading)}
 				isSubmitting={upsertRole.isPending}
 				onCancel={() => router.back()}
 				pendingLabel={role ? 'Saving...' : 'Adding...'}

@@ -63,8 +63,13 @@ export function SocialChannelForm({ channel }: SocialChannelFormProps) {
 	// Only needed by the add flow: the write is an upsert, so picking a channel that already has a row would
 	// silently overwrite it instead of adding anything. Those channels stay listed but greyed out, which is
 	// also how someone discovers the row already exists (it's edited from the list, not from here).
-	const { data: configuredChannels } = useSocialChannels(guildId);
+	const { data: configuredChannels, error: configuredChannelsError } = useSocialChannels(guildId);
 	const upsertChannel = useUpsertSocialChannel(guildId);
+
+	// Until this list arrives there's nothing to grey out, so submitting would be exactly the silent overwrite
+	// the greying exists to prevent. Blocks on an outright failure too, not just on the load -- an unreadable
+	// list is no safer to guess against than an unloaded one.
+	const isAddBlocked = !channel && configuredChannels === undefined;
 
 	const updateField = <TField extends keyof ChannelFormData>(field: TField, value: ChannelFormData[TField]) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
@@ -76,6 +81,15 @@ export function SocialChannelForm({ channel }: SocialChannelFormProps) {
 
 		if (!form.channelId) {
 			setErrors({ channelId: 'Pick a channel' });
+			return;
+		}
+
+		if (isAddBlocked) {
+			setErrors({
+				channelId: configuredChannelsError
+					? "Couldn't load this server's configured channels, so adding one isn't safe right now. Reload and try again."
+					: 'Still loading this server’s configured channels.',
+			});
 			return;
 		}
 
@@ -182,7 +196,7 @@ export function SocialChannelForm({ channel }: SocialChannelFormProps) {
 			</div>
 
 			<FormActions
-				isSubmitDisabled={!form.channelId || (!channel && isGuildInfoLoading)}
+				isSubmitDisabled={!form.channelId || isAddBlocked || (!channel && isGuildInfoLoading)}
 				isSubmitting={upsertChannel.isPending}
 				onCancel={() => router.back()}
 				pendingLabel={channel ? 'Saving...' : 'Adding...'}

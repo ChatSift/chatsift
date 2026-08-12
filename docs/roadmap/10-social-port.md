@@ -6,7 +6,11 @@ nothing in flight — M4's AMA cutover ([05-migration-cutover.md](05-migration-c
 production impact:** none until P6 (cutover) — everything before that is additive: new tables, new service, new routes,
 new dashboard pages. Legacy `ChatSift/Social` keeps running untouched the whole time.
 
-## Status: P1 (schema), P2 (API), P3 (bot) and P4 (dashboard) done — P5 onward not started
+## Status: P1–P4 implemented, P3 and P4 awaiting live verification — P5 onward not started
+
+The `[x]` on a phase below means its code is written and build/lint/test green, per this repo's convention. **P3
+and P4 have never been exercised against Discord or a browser** — see [Verification](#verification); nothing in
+Social has run outside CI yet.
 
 `10-` is the next free roadmap slot. This doc follows the established lifecycle
 ([09-appeals.md](09-appeals.md) explains it): when the phases land, it gets **deleted** and its durable shape is condensed
@@ -349,6 +353,11 @@ test guild, not just build/lint/test.
     rather than a silent overwrite.
   - `social_channels`/`social_roles`/`social_rewards` branded id types are now exported from `@chatsift/db`'s
     `index.ts`; without them TypeScript can't name the dashboard's hook return types.
+  - Two `/level` fixes landed alongside (P3 code, owner-reported while reviewing P4): the reward line now names
+    the next reward's actual level rather than only ever describing `level + 1` (which read "None" for everyone
+    not one level short of something), and both reward lists are ordered by the guild's role hierarchy. The
+    guild cache gained `rolePositions` for it — a versioned recipe change, so existing `socialguild:` entries
+    are discarded rather than misread.
 - [ ] **P5 — Migration script.** `packages/private/db/src/scripts/migrateLegacySocial.ts` +
       `yarn migrate:legacy-social`, cloned from `migrateLegacyModmail.ts`'s conventions: `LEGACY_DATABASE_URL`,
       `--dry-run` (full run in a rolled-back transaction) / `--live` / `--verify` (read-only reconciliation: per-table
@@ -376,10 +385,11 @@ test guild, not just build/lint/test.
 Per-phase live verification as listed above ([workflow.md](../workflow.md#verification-standard) is the standard —
 build/lint/test alone doesn't prove a feature).
 
-**P3's live verification is still outstanding**, and it's also the first time P2's routes will touch Discord at all
-(they were written before a Social application existed). Needs a `SOCIAL_BOT_TOKEN` in `.env.private` for a fresh
-application, then `yarn dev:social-bot` alongside `yarn dev:api`, and a guild configured through the API by hand
-since the dashboard is P4:
+**P3's and P4's live verification are both still outstanding**, and this is also the first time P2's routes will
+touch Discord at all (they were written before a Social application existed). Needs a `SOCIAL_BOT_TOKEN` in
+`.env.private` for a fresh application, then `yarn dev:social-bot` alongside `yarn dev:api` — and with P4 landed,
+the guild can now be configured from the dashboard rather than by hand, which is itself the first half of P4's
+verification:
 
 1. XP gain — messages move `social_users.xp` by exactly `xp_gain`.
 2. Window cooldown — with `required_messages = 3, timespan = 10`, one grant per window, and the bar expiring on the
@@ -397,7 +407,14 @@ since the dashboard is P4:
 9. Name fallback + resync — `UPDATE social_interactions SET command_id = NULL` (the exact post-migration state),
    confirm dispatch still resolves by name and self-heals the id, then run the resync and confirm it **does not
    delete `/level`** (the global-commands constraint).
-10. `bot:SOCIAL` appears in redis and the guild shows a Social tab. The migration script gets the two-scratch-DB treatment in P5 before any
-    prod dump is involved; P6's dry-run wall-clock is the only honest window estimate, same discipline as ModMail's. The
-    XP-curve formula gets a dedicated unit test pinning known (settings, xp) → level values, since it's the one piece of
-    math a refactor could silently break and a migration fidelity guarantee depends on.
+10. `bot:SOCIAL` appears in redis and the guild shows a Social tab.
+
+P4 additionally needs, in a browser: every one of the five sections round-tripping a save against the API; the
+curve preview and eligibility example matching what the bot actually does once tracking is on; the
+channel/role/reward add flows refusing an already-configured entry; and the interactions resync card recreating a
+command after `UPDATE social_interactions SET command_id = NULL` (item 9 above, driven from the dashboard).
+
+The migration script gets the two-scratch-DB treatment in P5 before any
+prod dump is involved; P6's dry-run wall-clock is the only honest window estimate, same discipline as ModMail's. The
+XP-curve formula gets a dedicated unit test pinning known (settings, xp) → level values, since it's the one piece of
+math a refactor could silently break and a migration fidelity guarantee depends on.
