@@ -41,6 +41,16 @@ export default class LevelCommand implements CommandHandler {
 			return;
 		}
 
+		// Deferred once the validation above is out of the way: three queries follow, and while each is an
+		// indexed lookup, none of them has to be fast for this to still be the right shape -- a lookup command
+		// showing a brief thinking state costs nothing, where blowing the three-second ack window costs the
+		// whole response. (Social interactions deliberately don't defer -- see `lib/interactions.ts`.)
+		await api.interactions.defer(interaction.id, interaction.token, { flags: MessageFlags.Ephemeral });
+
+		const editReply = async (content: string) => {
+			await api.interactions.editReply(interaction.application_id, interaction.token, { content });
+		};
+
 		const db = getContext().db;
 
 		const [settings] = await db<SocialGuildSettings[]>`
@@ -52,7 +62,7 @@ export default class LevelCommand implements CommandHandler {
 		const requiredXpBase = settings?.requiredXpBase ?? null;
 		const requiredXpMultiplier = settings?.requiredXpMultiplier ?? null;
 		if (requiredXpBase === null || requiredXpMultiplier === null) {
-			await reply('This server has not been configured yet.');
+			await editReply('This server has not been configured yet.');
 			return;
 		}
 
@@ -85,8 +95,9 @@ export default class LevelCommand implements CommandHandler {
 		];
 
 		// Role mentions inside an embed description render as names without pinging, so no `allowed_mentions`
-		// handling is needed. Ephemeral, matching legacy -- this is a self-service lookup, not an announcement.
-		await api.interactions.reply(interaction.id, interaction.token, {
+		// handling is needed. Ephemeral (inherited from the defer above), matching legacy -- this is a
+		// self-service lookup, not an announcement.
+		await api.interactions.editReply(interaction.application_id, interaction.token, {
 			embeds: [
 				{
 					author: {
@@ -99,7 +110,6 @@ export default class LevelCommand implements CommandHandler {
 					color: 0x58_65_f2,
 				},
 			],
-			flags: MessageFlags.Ephemeral,
 		});
 	}
 }

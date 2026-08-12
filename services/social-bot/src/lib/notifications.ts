@@ -63,7 +63,12 @@ export async function sendLevelUpNotification({
 		return;
 	}
 
-	const content = templateLevelUpMessage(settings.levelUpNotificationMessage ?? DEFAULT_LEVEL_UP_MESSAGE, {
+	// An empty stored template falls back to the default rather than rendering an empty body, which Discord
+	// refuses to send at all. The API rejects empty on write, but nothing stops a legacy row migrating in with
+	// one (P5) -- and disabling notifications is what the `NONE` mode is for. Trimmed, so a whitespace-only
+	// template counts as empty too.
+	const stored = settings.levelUpNotificationMessage?.trim();
+	const content = templateLevelUpMessage(stored === undefined || stored === '' ? DEFAULT_LEVEL_UP_MESSAGE : stored, {
 		earnedRewards: await formatEarnedRewards(guildId, earnedRewards),
 		guildName: (await getGuildName(guildId)) ?? 'this server',
 		level: String(level),

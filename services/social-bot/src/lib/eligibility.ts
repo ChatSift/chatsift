@@ -89,11 +89,16 @@ export async function isEligibleForXp({
 
 	const now = Date.now();
 
+	const windowMs = timespanSeconds * 1_000;
+
 	await redis.zAdd(tracking, { score: now, value: messageId });
 	await redis.expire(tracking, timespanSeconds + TRACKING_TTL_SLACK_SECONDS);
-	await redis.zRemRangeByScore(tracking, 0, now - TRACKING_TRIM_MS);
+	// Never trims inside the guild's own window: the count below spans `windowMs`, so trimming to a fixed
+	// horizon shorter than that would delete entries before they could be counted and silently cap the window.
+	// Unreachable while the API caps the timespan at 60 seconds, but the two numbers shouldn't be able to
+	// disagree at all.
+	await redis.zRemRangeByScore(tracking, 0, now - Math.max(windowMs, TRACKING_TRIM_MS));
 
-	const windowMs = timespanSeconds * 1_000;
 	const messageIds = await redis.zRangeByScore(tracking, now - windowMs, now);
 
 	if (messageIds.length < requiredMessages) {
@@ -108,9 +113,12 @@ export async function isEligibleForXp({
 	const oldest = messageIds[0]!.toString();
 	const elapsed = now - snowflakeTimestampMs(oldest);
 
-	// `Math.abs` guards the degenerate case legacy asserted on rather than handled: a clock skew or a stale
-	// entry can make this negative, and a negative PX is an error reply that would abort the grant entirely.
-	const barForMs = Math.abs(windowMs - elapsed);
+	// Clamped, not `Math.abs`'d as legacy did. `elapsed` comes from the message's snowflake (Discord's clock)
+	// while the window filter above uses the ZADD score (this process's clock), so the two can disagree enough
+	// to make this negative -- and `Math.abs` would then turn "the window is already over" into a bar of however
+	// far past it we are, which is unrelated to anything. A floor of 1ms also keeps `PX` valid, since redis
+	// rejects a zero expiry.
+	const barForMs = Math.max(1, windowMs - elapsed);
 
 	await redis.set(ineligible, 'true', { PX: barForMs });
 	await redis.del(tracking);

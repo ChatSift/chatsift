@@ -178,13 +178,14 @@ async function track(
 		SELECT * FROM social_rewards WHERE guild_id = ${guildId}
 	`;
 
+	let rewardsApplied = false;
 	if (rewards.length > 0) {
 		// Run on every grant, not only on a level-up: legacy's rebuild-the-world approach incidentally repaired
 		// a member missing a role they should already have had, and that self-healing is worth keeping. It's
 		// free when nothing differs -- the diff is computed against the roles already in the message payload,
 		// and no Discord call is made unless there's an actual difference.
 		const diff = computeRewardRoleDiff({ heldRoleIds: member.roles, level: newLevel, rewards });
-		await applyRewardRoles({ diff, guildId, heldRoleIds: member.roles, logger, userId });
+		rewardsApplied = await applyRewardRoles({ diff, guildId, heldRoleIds: member.roles, logger, userId });
 	}
 
 	if (newLevel > oldLevel) {
@@ -192,7 +193,12 @@ async function track(
 			channelId: message.channel_id,
 			// Everything crossed by this grant, not just `oldLevel + 1` -- a single message with a large enough
 			// multiplier can span more than one level, and legacy silently swallowed the extras (#343 P3).
-			earnedRewards: rewards.filter((reward) => reward.level > oldLevel && reward.level <= newLevel),
+			//
+			// Suppressed entirely when the role write was skipped or failed: announcing "and received: Veteran"
+			// to someone who didn't get the role is worse than announcing the level-up alone.
+			earnedRewards: rewardsApplied
+				? rewards.filter((reward) => reward.level > oldLevel && reward.level <= newLevel)
+				: [],
 			guildId,
 			level: newLevel,
 			logger,

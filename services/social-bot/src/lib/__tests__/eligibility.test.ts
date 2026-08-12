@@ -117,16 +117,26 @@ test('the oldest tracked message is read as a string, not a Buffer', async () =>
 	expect(setOptions.PX).toBeLessThan(9_200);
 });
 
-test('a stale oldest entry cannot produce a negative bar', async () => {
-	// Clock skew or an entry older than the window would make the remainder negative, and a negative PX is an
-	// error reply that would abort the grant.
+test('a window already elapsed clamps to a minimal bar rather than inverting', async () => {
+	// The snowflake clock (Discord's) and the ZADD score (ours) can disagree, so the remainder can come out
+	// negative. Taking its absolute value -- as legacy did -- would bar the user for how far *past* the window
+	// they are, which is unrelated to anything. Redis also rejects a PX of 0.
 	const now = Date.now();
 	redis.zRangeByScore.mockResolvedValue([Buffer.from(snowflakeAt(now - 60_000)), Buffer.from(snowflakeAt(now))]);
 
 	expect(await isEligibleForXp(options({ requiredMessages: 2, timespanSeconds: 10 }))).toBe(true);
 
 	const [, , setOptions] = redis.set.mock.calls[0]!;
-	expect(setOptions.PX).toBeGreaterThan(0);
+	expect(setOptions.PX).toBe(1);
+});
+
+test('the tracking trim never cuts inside a window longer than the fixed horizon', async () => {
+	// Unreachable while the API caps the timespan at 60s, but the trim horizon and the counting window must not
+	// be able to disagree -- trimming first would delete entries the count still needs.
+	await isEligibleForXp(options({ timespanSeconds: 1_200 }));
+
+	const [, , max] = redis.zRemRangeByScore.mock.calls[0]!;
+	expect(max).toBeLessThanOrEqual(Date.now() - 1_200 * 1_000);
 });
 
 test('the tracking set is trimmed to ten minutes regardless of the guild window', async () => {
