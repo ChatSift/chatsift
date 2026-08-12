@@ -39,6 +39,8 @@
 		"db:gen": "dotenv -e .env.private -e .env.public -- yarn workspace @chatsift/db run db:gen",
 		"db:diff": "dotenv -e .env.private -e .env.public -- yarn workspace @chatsift/db run db:diff",
 		"migrate:legacy-modmail": "turbo run build --filter=@chatsift/db && dotenv -e .env.private -e .env.public -- node --enable-source-maps ./packages/private/db/dist/scripts/migrateLegacyModmail.js",
+		"migrate:legacy-social": "turbo run build --filter=@chatsift/db && dotenv -e .env.private -e .env.public -- node --enable-source-maps ./packages/private/db/dist/scripts/migrateLegacySocial.js",
+		"copy:legacy-social-guild": "turbo run build --filter=@chatsift/db && dotenv -e .env.private -e .env.public -- node --enable-source-maps ./packages/private/db/dist/scripts/copyLegacySocialGuild.js",
 		"postinstall": "is-ci || husky || true",
 		"update": "yarn upgrade-interactive"
 	},

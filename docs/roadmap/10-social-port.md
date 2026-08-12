@@ -6,7 +6,7 @@ nothing in flight — M4's AMA cutover ([05-migration-cutover.md](05-migration-c
 production impact:** none until P6 (cutover) — everything before that is additive: new tables, new service, new routes,
 new dashboard pages. Legacy `ChatSift/Social` keeps running untouched the whole time.
 
-## Status: P1–P4 plus the leaderboard implemented, none of it live-verified yet — P5 onward not started
+## Status: P1–P5 plus the leaderboard implemented, none of it live-verified yet — P6 (cutover) not started
 
 The `[x]` on a phase below means its code is written and build/lint/test green, per this repo's convention. **P3,
 P4 and the leaderboard have never been exercised against Discord or a browser** — see
@@ -393,17 +393,46 @@ test guild, not just build/lint/test.
   - The `(guild_id, xp DESC)` index schema.sql deliberately held back now exists, since something finally reads
     in rank order.
 
-- [ ] **P5 — Migration script.** `packages/private/db/src/scripts/migrateLegacySocial.ts` +
-      `yarn migrate:legacy-social`, cloned from `migrateLegacyModmail.ts`'s conventions: `LEGACY_DATABASE_URL`,
-      `--dry-run` (full run in a rolled-back transaction) / `--live` / `--verify` (read-only reconciliation: per-table
-      counts, per-guild XP sums, random-sample row comparison). Keep `--source` for consistency even though Social has
-      a single legacy deployment and natural PKs already make re-runs fail loudly — it's cheap and keeps the two
-      scripts' operator ergonomics identical. Mapping is 1:1 snake_casing with two exceptions:
-      `social_interactions.command_id` is written **`NULL`** (legacy ids belong to the legacy application; the P6
-      resync assigns real ones), and anything Redis (`leveling_tracking`/`leveling_ineligible` keys, legacy db 1) is
-      **deliberately not migrated** — ephemeral by design; worst case a user's cooldown resets once at cutover.
-      Verified with the two-scratch-database method established for ModMail (src/dst throwaway DBs, id-independent
-      diff) before ever touching a prod dump.
+- [x] **P5 — Migration script.** Landed as **three** files rather than one: `scripts/lib/legacySocial.ts` holds the
+      legacy-to-new column mapping, and two entrypoints sit on it —
+      `scripts/migrateLegacySocial.ts` (`yarn migrate:legacy-social`) and `scripts/copyLegacySocialGuild.ts`
+      (`yarn copy:legacy-social-guild`). The split is deliberate: the two have **opposite safety models**, so neither
+      one's flags belong on the other. The migration touches every guild, never rewrites a guild id and never deletes;
+      the copy wipes its target guild and rewrites every guild id it writes. Sharing the mapping keeps them from
+      drifting apart from each other or from schema.sql.
+  - **`migrateLegacySocial.ts`** follows `migrateLegacyModmail.ts`'s conventions: `LEGACY_DATABASE_URL`, `--dry-run`
+    (full run in a rolled-back transaction) / `--live` / `--verify`. Mapping is 1:1 snake_casing with the four
+    schema.sql deviations applied, plus `social_interactions.command_id` written **`NULL`** (legacy ids belong to the
+    legacy application; the P6 resync assigns real ones) and `public_leaderboard` left at its `false` default. Anything
+    Redis (`leveling_tracking`/`leveling_ineligible` keys, legacy db 1) is **deliberately not migrated** — ephemeral by
+    design; worst case a user's cooldown resets once at cutover.
+    - `--source` is kept for operator ergonomics but, unlike ModMail's, **is not persisted** — there is no
+      `migration_source` column, because every Social key is natural. It labels the run's output and nothing else.
+    - **A re-run is a safe no-op, not an abort.** Nothing here can duplicate (every insert skips on its natural key),
+      so where ModMail's preflight refuses, this one warns and reports the skips in its stats. What it _does_ abort on
+      is legacy data the target's CHECKs would reject — legacy enforced its bounds only in slash-command options, so
+      they were never true of data at rest. Preflight names the offending guild/channel/role rather than letting it
+      surface as an opaque mid-transaction constraint error.
+    - `--verify` does per-table counts, **per-guild XP sums** (the headline check for the one table too big to compare
+      row by row), full field-level comparison of the five small tables, and a 50-row `social_users` sample. It exits 1
+      on any mismatch.
+    - A dry run prints wall-clock, which is what sizes the P6 window.
+  - **`copyLegacySocialGuild.ts`** copies one legacy guild under a _different_ guild id, for stocking a canary test
+    guild with realistic leveling data. `--from`/`--to`, `--dry-run`/`--live`, and `--xp-only` (settings + users only).
+    It deletes `--to`'s existing rows in all six tables first, so re-runs are a clean replace — `--xp-only` narrows the
+    copy but deliberately _not_ the wipe, so a previous full run can't leave rewards stranded under replaced users. A
+    `--from` naming a guild with no XP is refused, since with the wipe that can only empty `--to`.
+    - Fidelity is a mixed blessing across a guild boundary, and the script says so on completion: `social_users`
+      transfers perfectly (ids are global, and the leaderboard resolves names through `GET /users/{id}`, a _global_
+      lookup — so migrated members render with real usernames and avatars without being members of `--to`), while
+      channels/roles are inert and reward role ids don't exist in the target, which is what `--xp-only` is for.
+  - **Verified** with the two-scratch-database method ([workflow.md](../workflow.md)): a hand-transcribed legacy schema
+    in `social_src` seeded with four guilds covering every branch (NULL multipliers, all three notification modes,
+    `xp = 0` and `ignored` rows, the nullable-config gate, a guild with no settings row, hostile strings), migrated into
+    `social_dst`. Confirmed: dry-run leaves the target empty, all four deviations land, a re-run skips everything,
+    preflight aborts on each CHECK violation, and `--verify` goes **red** on five separately corrupted rows — a green
+    check that can't go red proves nothing. The copy script was verified to remap ids, leave the source guild
+    untouched, and restore exact XP totals across a tampered re-run. **No prod dump has been involved yet.**
 - [ ] **P6 — Cutover.** Runbook, mirroring [06-modmail-port.md](06-modmail-port.md)'s but simpler — no open-thread
       concept, no per-guild manual repair step, no comms-critical moderator surface: 1. Dry-run against a restored copy of the prod `social` database; record wall-clock (the `User` table is the
       only unknown-magnitude table; nobody has counted it) and size the window off that. 2. Announce/schedule a short maintenance window if the dry-run warrants one at all — XP accrual pausing for
