@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import {
 	createSocialInteractionBodySchema,
+	leaderboardQuerySchema,
 	updateSocialConfigBodySchema,
 	updateSocialInteractionBodySchema,
 	upsertSocialChannelBodySchema,
@@ -155,4 +156,31 @@ test('an interaction update leaves omitted booleans absent instead of defaulting
 
 test('an interaction update rejects an empty body', () => {
 	expect(updateSocialInteractionBodySchema.safeParse({}).success).toBe(false);
+});
+
+test('the public leaderboard toggle is a plain optional boolean', () => {
+	expect(updateSocialConfigBodySchema.safeParse({ publicLeaderboard: true }).success).toBe(true);
+	expect(updateSocialConfigBodySchema.safeParse({ publicLeaderboard: false }).success).toBe(true);
+	// Not nullable, unlike every other field on this schema: the column is NOT NULL DEFAULT false, so "off"
+	// is a real value rather than an absence, and `null` would have to mean the same thing as `false`.
+	expect(updateSocialConfigBodySchema.safeParse({ publicLeaderboard: null }).success).toBe(false);
+});
+
+// Query params arrive as strings, hence the coercion -- a schema that only accepted numbers would reject
+// every real request.
+test('leaderboard paging coerces strings and defaults to the first page', () => {
+	const parsed = leaderboardQuerySchema.safeParse({});
+	expect(parsed.success && parsed.data).toStrictEqual({ limit: 25, offset: 0 });
+
+	const coerced = leaderboardQuerySchema.safeParse({ limit: '50', offset: '75' });
+	expect(coerced.success && coerced.data).toStrictEqual({ limit: 50, offset: 75 });
+});
+
+// The cap exists because each row costs a `GET /users/{id}` against a 30-per-30s bucket -- an unbounded
+// `limit` would be a way for one request to stall the whole token's user lookups.
+test('leaderboard paging rejects an oversized or nonsensical page', () => {
+	expect(leaderboardQuerySchema.safeParse({ limit: 51 }).success).toBe(false);
+	expect(leaderboardQuerySchema.safeParse({ limit: 0 }).success).toBe(false);
+	expect(leaderboardQuerySchema.safeParse({ offset: -1 }).success).toBe(false);
+	expect(leaderboardQuerySchema.safeParse({ limit: 10.5 }).success).toBe(false);
 });

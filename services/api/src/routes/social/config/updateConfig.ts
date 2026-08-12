@@ -1,4 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
+import { socialLeaderboardChannel } from '@chatsift/core';
 import type { SocialGuildSettings } from '@chatsift/db';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
@@ -25,6 +26,10 @@ export default defineRoute({
 		isGlobalAdmin: false,
 		isGuildManager: true,
 	}),
+	// Every field here reaches the leaderboard: the curve decides what level each listed member is shown at,
+	// and `publicLeaderboard` decides whether the public page resolves at all -- so turning it off refetches
+	// anyone still watching straight onto its 404 rather than leaving them on a live-looking page.
+	realtimeChannel: (req) => socialLeaderboardChannel(req.params.guildId),
 	async handler(req): Promise<UpdateSocialConfigResult> {
 		const data = req.body;
 		const { guildId } = req.params;
@@ -43,13 +48,13 @@ export default defineRoute({
 			INSERT INTO social_guild_settings (
 				guild_id, required_messages, required_messages_timespan, xp_gain, required_xp_base,
 				required_xp_multiplier, level_up_notification_mode, level_up_notification_fallback_channel_id,
-				level_up_notification_message
+				level_up_notification_message, public_leaderboard
 			)
 			VALUES (
 				${guildId}, ${data.requiredMessages ?? null}, ${data.requiredMessagesTimespan ?? null},
 				${data.xpGain ?? null}, ${data.requiredXpBase ?? null}, ${data.requiredXpMultiplier ?? null},
 				${data.levelUpNotificationMode ?? 'NONE'}, ${data.levelUpNotificationFallbackChannelId ?? null},
-				${data.levelUpNotificationMessage ?? null}
+				${data.levelUpNotificationMessage ?? null}, ${data.publicLeaderboard ?? false}
 			)
 			ON CONFLICT (guild_id) DO UPDATE SET ${db(data, ...columns)}
 			RETURNING *

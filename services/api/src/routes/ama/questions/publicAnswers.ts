@@ -2,20 +2,16 @@ import { getContext } from '@chatsift/backend-core';
 import { amaPublicAnswersChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIUser, Snowflake } from '@discordjs/core';
-import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
+import type { PublicUserInfo } from '../../../util/users.js';
+import { toPublicUserInfo } from '../../../util/users.js';
 import { resolveAmaUser } from './util.js';
 
 const paramsSchema = z.object({
 	shareToken: z.string().min(1),
 });
-
-export interface PublicUserInfo {
-	avatarUrl: string | null;
-	displayName: string;
-}
 
 export interface PublicAnsweredQuestion {
 	answerContent: string | null;
@@ -25,25 +21,6 @@ export interface PublicAnsweredQuestion {
 	author: PublicUserInfo;
 	content: string;
 	id: number;
-}
-
-/**
- * Reduces a resolved Discord user down to just what the public page is allowed to show -- never the
- * raw snowflake (see this route's own doc comment), only a display name + avatar. `resolveAmaUser`'s
- * bare-snowflake fallback (an unresolvable/404'd user) renders as "Unknown User" with no avatar
- * instead of leaking the id it couldn't resolve.
- */
-function toPublicUserInfo(resolved: APIUser | Snowflake): PublicUserInfo {
-	if (typeof resolved === 'string') {
-		return { avatarUrl: null, displayName: 'Unknown User' };
-	}
-
-	return {
-		avatarUrl: resolved.avatar
-			? `${RouteBases.cdn}${CDNRoutes.userAvatar(resolved.id, resolved.avatar, ImageFormat.PNG)}`
-			: null,
-		displayName: resolved.global_name ?? resolved.username,
-	};
 }
 
 export interface PublicAnswersResult {

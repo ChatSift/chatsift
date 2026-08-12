@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { FaExclamationCircle } from 'react-icons/fa';
 import { queryKeys } from '@/api/queryClient';
 import type { PublicUserInfo } from '@/api/routes/ama';
-import { usePublicAMAAnswers } from '@/api/routes/ama';
+import { publicAMAWsTicketPath, usePublicAMAAnswers } from '@/api/routes/ama';
 import { EmptyState } from '@/components/common/EmptyState';
 import { GenericAvatar } from '@/components/common/GenericAvatar';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -36,7 +36,7 @@ function PublicUserBadge({ user }: { readonly user: PublicUserInfo }) {
 export function PublicAnswers() {
 	const { shareToken } = useParams<{ shareToken: string }>();
 	const queryClient = useQueryClient();
-	const realtimeClient = usePublicRealtimeClient(shareToken);
+	const realtimeClient = usePublicRealtimeClient(publicAMAWsTicketPath(shareToken));
 	const { data, isLoading, error } = usePublicAMAAnswers(shareToken);
 
 	// Live updates for this page too (#323) -- someone watching along while an AMA runs shouldn't have to

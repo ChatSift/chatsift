@@ -6,6 +6,7 @@ import type { SocialChannels, SocialGuildSettings, SocialRewards, SocialRoles, S
 import type { GatewayMessageCreateDispatchData } from '@discordjs/core';
 import { resolveChannelChain } from './discordCache.js';
 import { isEligibleForXp } from './eligibility.js';
+import { broadcastLeaderboardChange } from './leaderboardBroadcast.js';
 import { sendLevelUpNotification } from './notifications.js';
 import { applyRewardRoles, computeRewardRoleDiff } from './rewards.js';
 
@@ -159,6 +160,11 @@ async function track(
 	if (!granted) {
 		return;
 	}
+
+	// Someone's rank just moved. Fired here rather than after the level/reward work below because that work
+	// is conditional -- a guild with no curve configured returns early -- while the XP change, which is the
+	// whole content of a leaderboard, has already happened either way.
+	await broadcastLeaderboardChange(guildId);
 
 	const newXp = granted.xp;
 	const oldXp = newXp - increment;

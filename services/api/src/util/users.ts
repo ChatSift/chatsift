@@ -1,5 +1,6 @@
 import { fetchUserCached } from '@chatsift/backend-core';
 import type { API, APIUser, Snowflake } from '@discordjs/core';
+import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { isNotFoundDiscordError } from './discordErrors.js';
 
 /**
@@ -37,4 +38,31 @@ export async function resolveDiscordUserOrNull(api: API, userId: Snowflake): Pro
  */
 export async function resolveDiscordUser(api: API, userId: Snowflake): Promise<APIUser | Snowflake> {
 	return (await resolveDiscordUserOrNull(api, userId)) ?? userId;
+}
+
+/**
+ * What an unauthenticated page is allowed to know about a user: a display name and an avatar, never the raw
+ * snowflake. Shared by the two share-token surfaces -- AMA's public answers page (#323) and Social's public
+ * leaderboard -- because the rule is the surface's, not either product's, and a second copy is a second place
+ * for an id to start leaking.
+ *
+ * `resolveDiscordUser`'s bare-snowflake fallback (an unresolvable or 404'd user) renders as "Unknown User"
+ * with no avatar rather than leaking the id it couldn't resolve.
+ */
+export interface PublicUserInfo {
+	avatarUrl: string | null;
+	displayName: string;
+}
+
+export function toPublicUserInfo(resolved: APIUser | Snowflake): PublicUserInfo {
+	if (typeof resolved === 'string') {
+		return { avatarUrl: null, displayName: 'Unknown User' };
+	}
+
+	return {
+		avatarUrl: resolved.avatar
+			? `${RouteBases.cdn}${CDNRoutes.userAvatar(resolved.id, resolved.avatar, ImageFormat.PNG)}`
+			: null,
+		displayName: resolved.global_name ?? resolved.username,
+	};
 }

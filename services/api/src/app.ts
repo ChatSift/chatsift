@@ -76,6 +76,9 @@ import deleteSocialInteractionRoute from './routes/social/interactions/deleteInt
 import listSocialInteractionsRoute from './routes/social/interactions/listInteractions.js';
 import resyncSocialInteractionsRoute from './routes/social/interactions/resyncInteractions.js';
 import updateSocialInteractionRoute from './routes/social/interactions/updateInteraction.js';
+import listSocialLeaderboardRoute from './routes/social/leaderboard/listLeaderboard.js';
+import publicSocialLeaderboardRoute from './routes/social/leaderboard/publicLeaderboard.js';
+import publicSocialLeaderboardWsTicketRoute from './routes/social/leaderboard/publicWsTicket.js';
 import deleteSocialRewardRoute from './routes/social/rewards/deleteReward.js';
 import listSocialRewardsRoute from './routes/social/rewards/listRewards.js';
 import upsertSocialRewardRoute from './routes/social/rewards/upsertReward.js';
@@ -212,6 +215,9 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, updateSocialInteractionRoute);
 	mountRoute(app, deleteSocialInteractionRoute);
 	mountRoute(app, resyncSocialInteractionsRoute);
+	mountRoute(app, listSocialLeaderboardRoute);
+	mountRoute(app, publicSocialLeaderboardRoute);
+	mountRoute(app, publicSocialLeaderboardWsTicketRoute);
 	mountRoute(app, getWsTicketRoute);
 
 	app.listen(getContext().env.API_PORT, () =>

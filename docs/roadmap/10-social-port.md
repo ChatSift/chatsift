@@ -6,11 +6,11 @@ nothing in flight — M4's AMA cutover ([05-migration-cutover.md](05-migration-c
 production impact:** none until P6 (cutover) — everything before that is additive: new tables, new service, new routes,
 new dashboard pages. Legacy `ChatSift/Social` keeps running untouched the whole time.
 
-## Status: P1–P4 implemented, P3 and P4 awaiting live verification — P5 onward not started
+## Status: P1–P4 plus the leaderboard implemented, none of it live-verified yet — P5 onward not started
 
-The `[x]` on a phase below means its code is written and build/lint/test green, per this repo's convention. **P3
-and P4 have never been exercised against Discord or a browser** — see [Verification](#verification); nothing in
-Social has run outside CI yet.
+The `[x]` on a phase below means its code is written and build/lint/test green, per this repo's convention. **P3,
+P4 and the leaderboard have never been exercised against Discord or a browser** — see
+[Verification](#verification); nothing in Social has run outside CI yet.
 
 `10-` is the next free roadmap slot. This doc follows the established lifecycle
 ([09-appeals.md](09-appeals.md) explains it): when the phases land, it gets **deleted** and its durable shape is condensed
@@ -195,10 +195,11 @@ The exhaustive "where warranted" list. Each item is a decision, not an open ques
 4. **Multipliers stay integers.** Parity: channel multipliers 1–10, role multipliers as-is, `int` columns. Widening to
    fractional (0.5×) is a real feature request shape but changes XP math on a hot path — out of scope; file it as a
    follow-up issue if wanted.
-5. **Leaderboard: optional follow-up, not port scope.** The legacy bot has no leaderboard anywhere (`/level` is the
-   only read). A dashboard leaderboard page is the obvious new-stack win and the `social_users` table trivially
-   supports it (`ORDER BY xp DESC`), but it must not block cutover. Not planned in the phases below; noted here so the
-   schema doesn't preclude it (it doesn't).
+5. **Leaderboard: shipped as a follow-up after P4, still not a cutover dependency.** The legacy bot has no
+   leaderboard anywhere (`/level` is the only read), so all of this is new surface rather than ported behaviour —
+   see [Leaderboard](#leaderboard-ledger-item-5) below for what landed. Nothing about it blocks P5/P6: it reads
+   `social_users` and adds one nullable-free boolean to `social_guild_settings`, both of which the migration
+   already writes.
 
 Explicitly _not_ redesigned: the XP curve (frozen for migration fidelity), the Redis eligibility engine (ports
 near-verbatim, same keys and semantics), notification modes/templating, the channel→category→thread-grandparent
@@ -358,6 +359,40 @@ test guild, not just build/lint/test.
     not one level short of something), and both reward lists are ordered by the guild's role hierarchy. The
     guild cache gained `rolePositions` for it — a versioned recipe change, so existing `socialguild:` entries
     are discarded rather than misread.
+- [x] **Leaderboard (ledger item 5).** Not a phase — an additive follow-up built between P4 and P5, on the same
+      "code written, build/lint/test green, live verification outstanding" footing as P3/P4. Four surfaces over one
+      query:
+  - **Dashboard** `/dashboard/[id]/social/leaderboard` — ranked page of 25 with level and progress-to-next-level,
+    live over `socialLeaderboardChannel`, plus the public-page switch.
+  - **Public page** `/leaderboard/[guildId]` — unauthenticated, outside `/dashboard` (so `proxy.ts`'s
+    OAuth-redirect matcher never sees it), `noindex`, and rendering the identical payload. Every row goes through
+    the shared `toPublicUserInfo` (promoted out of AMA's `publicAnswers.ts`), so no member snowflake reaches it.
+  - **`/leaderboard` command** — public, everyone-usable, `allowed_mentions: { parse: [] }`, and rendering
+    members as raw `<@id>` mentions rather than resolved names: the client renders those as current nicknames at
+    no API cost, which matters because this bot has no member cache and no `GuildMembers` intent to build one
+    with. Links the public page when the guild has it on.
+  - **API** — `GET /v3/guilds/:guildId/social/leaderboard` and `GET /v3/social/public/:guildId` (+ its ws-ticket),
+    both off one `buildLeaderboardPage`.
+
+  Decisions worth keeping:
+  - **The public page is addressed by the guild id, not a share token.** An unguessable URL would only make it
+    unlisted — the first person it's given to can forward it — and the cost was a parallel identifier plus a
+    guildless realtime channel keyed on a digest of it, since the page mustn't show a viewer a snowflake it
+    already has. One `public_leaderboard` boolean replaced all of that, and the toggle is the whole control.
+    Off is indistinguishable from "Social was never set up here". The trade accepted: no middle "unlisted"
+    setting, and enabled guilds are enumerable by guild id.
+  - **Offset/limit paging**, diverging from `createPaginationQuerySchema`'s cursor convention. That convention
+    exists for identity-PK lists where an offset drifts under inserts; a leaderboard orders by a mutable `xp` no
+    cursor could page stably anyway, and rank _is_ `offset + n`.
+  - **Page size caps at 50** because each row is one `GET /users/{id}` against a 30-per-30s bucket on a cold
+    cache. Rows are filtered to `xp > 0 AND NOT ignored` — the `xp > 0` matters for **P5**, since legacy's
+    `/level` upserted a row for anyone it was pointed at and those migrate in as zero-XP entries nobody earned.
+  - **The bot's broadcast is throttled** through a redis `SET NX EX` gate (`lib/leaderboardBroadcast.ts`), so a
+    busy guild coalesces to one signal per 5s instead of one per XP grant. Leading-edge, so a watcher can sit one
+    grant stale after a burst ends — invisible on a ranking, and the alternative needs a timer owner.
+  - The `(guild_id, xp DESC)` index schema.sql deliberately held back now exists, since something finally reads
+    in rank order.
+
 - [ ] **P5 — Migration script.** `packages/private/db/src/scripts/migrateLegacySocial.ts` +
       `yarn migrate:legacy-social`, cloned from `migrateLegacyModmail.ts`'s conventions: `LEGACY_DATABASE_URL`,
       `--dry-run` (full run in a rolled-back transaction) / `--live` / `--verify` (read-only reconciliation: per-table
@@ -385,8 +420,8 @@ test guild, not just build/lint/test.
 Per-phase live verification as listed above ([workflow.md](../workflow.md#verification-standard) is the standard —
 build/lint/test alone doesn't prove a feature).
 
-**P3's and P4's live verification are both still outstanding**, and this is also the first time P2's routes will
-touch Discord at all (they were written before a Social application existed). Needs a `SOCIAL_BOT_TOKEN` in
+**Live verification is still outstanding for P3, P4 and the leaderboard**, and this is also the first time P2's
+routes will touch Discord at all (they were written before a Social application existed). Needs a `SOCIAL_BOT_TOKEN` in
 `.env.private` for a fresh application, then `yarn dev:social-bot` alongside `yarn dev:api` — and with P4 landed,
 the guild can now be configured from the dashboard rather than by hand, which is itself the first half of P4's
 verification:
@@ -409,10 +444,26 @@ verification:
    delete `/level`** (the global-commands constraint).
 10. `bot:SOCIAL` appears in redis and the guild shows a Social tab.
 
-P4 additionally needs, in a browser: every one of the five sections round-tripping a save against the API; the
-curve preview and eligibility example matching what the bot actually does once tracking is on; the
+P4 additionally needs, in a browser: every one of the five config sections round-tripping a save against the API;
+the curve preview and eligibility example matching what the bot actually does once tracking is on; the
 channel/role/reward add flows refusing an already-configured entry; and the interactions resync card recreating a
 command after `UPDATE social_interactions SET command_id = NULL` (item 9 above, driven from the dashboard).
+
+The leaderboard adds, on top of all of the above:
+
+11. **Live movement** — with the dashboard leaderboard open, send messages until a grant lands and watch the list
+    update with no refresh. Then send several in quick succession and confirm the 5s throttle coalesces them
+    (redis `social:leaderboard-signal:<guildId>` is the gate) rather than producing a signal per grant.
+12. **The public page** — off by default (`/leaderboard/<guildId>` 404s), reachable once the switch is on, and
+    updating live in a second browser with no session at all. Turning the switch back off should refetch that
+    tab straight onto its "not found" state rather than leaving it on stale-but-live-looking data.
+13. **No ids leak** — the public page's network responses contain no member snowflakes, only display names and
+    avatar URLs.
+14. **Paging** — with more than 25 ranked members, page 2 shows ranks 26+ and the pager disables at both ends.
+15. **`/leaderboard`** — renders for a non-admin, pings nobody, shows current nicknames, and its "See the full
+    leaderboard" link appears only while the guild has the public page enabled.
+16. **Level agreement** — a member's level on the leaderboard matches what `/level` reports for them, and both
+    disappear (leaving bare XP) when the curve is unconfigured.
 
 The migration script gets the two-scratch-DB treatment in P5 before any
 prod dump is involved; P6's dry-run wall-clock is the only honest window estimate, same discipline as ModMail's. The

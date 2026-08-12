@@ -96,6 +96,10 @@ export { default as deleteSocialRewardRoute } from './routes/social/rewards/dele
 export { default as listSocialRewardsRoute } from './routes/social/rewards/listRewards.js';
 export { default as upsertSocialRewardRoute } from './routes/social/rewards/upsertReward.js';
 
+export { default as listSocialLeaderboardRoute } from './routes/social/leaderboard/listLeaderboard.js';
+export { default as publicSocialLeaderboardRoute } from './routes/social/leaderboard/publicLeaderboard.js';
+export { default as publicSocialLeaderboardWsTicketRoute } from './routes/social/leaderboard/publicWsTicket.js';
+
 export { default as createSocialInteractionRoute } from './routes/social/interactions/createInteraction.js';
 export { default as deleteSocialInteractionRoute } from './routes/social/interactions/deleteInteraction.js';
 export { default as listSocialInteractionsRoute } from './routes/social/interactions/listInteractions.js';

@@ -48,8 +48,41 @@ export const updateSocialConfigBodySchema = z
 		// "use the built-in default", which is why clearing it is distinct from setting it to an empty string
 		// (rejected by `.min(1)`) -- an empty notification message would post nothing at all.
 		levelUpNotificationMessage: z.string().min(1).max(2_000).nullable().optional(),
+		// Opt-in for the unauthenticated `/leaderboard/:guildId` page. A plain boolean rather than a share
+		// token (see schema.sql for why): one leaderboard per guild, already keyed by the guild id the page
+		// puts in its own URL, so there is nothing an unguessable identifier would protect.
+		publicLeaderboard: z.boolean().optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
+
+/**
+ * Every row of a leaderboard page costs one `GET /users/{id}` on a cold cache, and that endpoint sits in a
+ * 30-per-30s per-token bucket `@discordjs/rest` serializes against (see `util/users.ts`). 50 is already two
+ * pages' worth of that budget; anything larger turns a single page view into a visibly stalled request.
+ */
+const LEADERBOARD_MAX_PAGE_SIZE = 50;
+const LEADERBOARD_DEFAULT_PAGE_SIZE = 25;
+
+/**
+ * Offset/limit rather than the cursor pagination `createPaginationQuerySchema` establishes for
+ * `modmail/threads`. That convention exists because those lists order by an identity primary key, where an
+ * offset drifts under concurrent inserts -- neither half applies here. A leaderboard orders by a mutable
+ * `xp`, which no cursor could page stably anyway, and its whole content is *rank*: a rank is `offset + n`,
+ * so paging by offset is the only thing that computes one without re-counting the guild per row.
+ *
+ * Lives in this file rather than beside the routes so it stays free of server-only imports, which is what
+ * lets it be unit-tested alongside the rest of Social's bounds.
+ */
+export const leaderboardQuerySchema = z.object({
+	limit: z.coerce
+		.number()
+		.int()
+		.positive()
+		.max(LEADERBOARD_MAX_PAGE_SIZE)
+		.optional()
+		.default(LEADERBOARD_DEFAULT_PAGE_SIZE),
+	offset: z.coerce.number().int().min(0).optional().default(0),
+});
 
 /**
  * Channel and role rows are full-representation PUTs, not partial patches: the body below *is* the row's
