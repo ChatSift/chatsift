@@ -7,7 +7,7 @@ Conventions for working on the ChatSift rebirth (see [roadmap/00-overview.md](ro
 - Work happens on feature branches off `main`, one PR per logical change. Suggested branch naming: `<type>/<short-description>` (e.g. `feat/ama-guest-queue`, `refactor/defineRoute-ama-routes`, `docs/roadmap-scaffolding`).
 - Squash-merge to `main` with a conventional-commit-style message (see below) — keeps `main`'s history one-commit-per-change even if a branch had many WIP commits.
 - Reference the relevant milestone/issue in the PR description (`Closes #123`).
-- Global merge gate: `turbo run build lint test` green. For changes with a runtime surface (anything other than docs/tests), also do a manual `/verify`-style pass — run the affected service(s) and exercise the change, don't rely on typecheck/tests alone to prove a feature works.
+- Global merge gate: `turbo run build lint test` green. Anything with a runtime surface (anything other than docs/tests) also needs a manual pass exercising the change — but see [Verification standard](#verification-standard) for which half of that an agent can actually do and which half is yours.
 
 ## Commit messages
 
@@ -396,11 +396,37 @@ always-on service.
 
 ## Verification standard
 
-Before calling any phase/issue done:
+Before calling any phase/issue done. **The two halves have different owners** — an agent does the first, the
+operator does the second. Typecheck and unit tests verify code correctness, not feature correctness, and an agent
+cannot close that gap on its own: it has no Discord connection and no browser session.
 
-1. `turbo run build lint test` green.
-2. Run the actual affected service(s) locally against a locally-migrated database (and a test Discord guild/bot token for bot-touching work) and exercise the golden path plus the edge cases called out in that phase's doc. Typecheck and unit tests verify code correctness, not feature correctness — this step is not optional for anything with a runtime surface.
-3. For milestones with an explicit acceptance-criteria list (M1's zero-`@ts-expect-error` gate, M4/M5's migration-reconciliation checks), confirm each item explicitly before closing the milestone.
+### What an agent can and must verify
+
+1. `turbo run build lint test` green. (Prefer the allowlisted `yarn build` / `yarn lint` / `yarn test` shapes — they
+   avoid extra permission prompts.)
+2. Anything genuinely checkable without Discord or an authenticated session:
+   - Unit tests for pure logic — see `services/modmail-bot/src/lib/__tests__/` for the existing patterns.
+   - A locally-running API: confirm a new route is actually mounted, i.e. it returns **401 rather than 404**. That's
+     the ceiling without a session, and it's still worth doing — it catches a route that was written but never
+     registered.
+   - SQL/migration scripts, diffed against two throwaway scratch databases (src/dst, offset sequences,
+     id-independent diff).
+3. Read back the code paths the change touches, including every call site, rather than assuming.
+
+### What only the operator can verify
+
+Everything with a real Discord or authenticated-dashboard surface: slash commands, panel buttons, ticket flows, DM
+handling, OAuth, and all dashboard UI behaviour. Frontend work is the sharpest case — a Tailwind class that compiles
+to nothing (see [frontend.md](frontend.md#theme-and-colour-tokens)) passes build _and_ lint and still renders wrong.
+
+**Report honestly.** State what you ran and what passed. Do not describe a feature as working, verified, or done
+when only the typecheck/test half was possible — say explicitly which parts remain, and list the specific golden
+path and edge cases worth clicking through, so the manual pass is a checklist rather than a guess.
+
+### Milestones
+
+For milestones with an explicit acceptance-criteria list (M1's zero-`@ts-expect-error` gate, M4/M5's
+migration-reconciliation checks), confirm each item explicitly before closing the milestone.
 
 ## Where to look first
 
