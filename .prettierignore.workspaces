@@ -1,0 +1,6 @@
+# Layered on top of .prettierignore for the *root* prettier pass only (#346). Every workspace formats itself
+# through its own turbo-cached `format` script, so the root pass covers only what no workspace owns -- docs,
+# .github, compose, actions, .husky and the root config files.
+apps/
+packages/
+services/

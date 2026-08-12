@@ -16,7 +16,7 @@
 			"Bash(git mv *)",
 			"Bash(echo \"EXIT: $?\")",
 			"Bash(yarn test *)",
-			"Bash(yarn test:nocov *)",
+			"Bash(yarn format:check *)",
 			"Bash(yarn eslint *)",
 			"Bash(yarn db:diff *)",
 			"Bash(yarn db:migrate *)",
