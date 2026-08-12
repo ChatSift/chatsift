@@ -21,6 +21,7 @@ COPY packages/private/db/package.json ./packages/private/db/package.json
 COPY services/ama-bot/package.json ./services/ama-bot/package.json
 COPY services/api/package.json ./services/api/package.json
 COPY services/modmail-bot/package.json ./services/modmail-bot/package.json
+COPY services/social-bot/package.json ./services/social-bot/package.json
 
 RUN yarn workspaces focus --all
 
@@ -35,6 +36,7 @@ COPY packages/private/db ./packages/private/db
 COPY services/ama-bot ./services/ama-bot
 COPY services/api ./services/api
 COPY services/modmail-bot ./services/modmail-bot
+COPY services/social-bot ./services/social-bot
 
 RUN yarn turbo run build
 RUN yarn workspaces focus --all --production
