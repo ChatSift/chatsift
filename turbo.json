@@ -2,8 +2,11 @@
 	"$schema": "https://turbo.build/schema.json",
 	"tasks": {
 		"build": {
+			// Next 16 moved the Turbopack persistent dev cache to .next/dev/cache, so the
+			// !.next/cache/** negation stopped covering it and every build tarred multi-GB
+			// of dev-server state into a new cache entry (408G local cache before this).
 			"dependsOn": ["^build"],
-			"outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+			"outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
 		},
 		"lint": {
 			"dependsOn": ["^build"]
