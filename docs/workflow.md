@@ -7,7 +7,7 @@ Conventions for working on the ChatSift rebirth (see [roadmap/00-overview.md](ro
 - Work happens on feature branches off `main`, one PR per logical change. Suggested branch naming: `<type>/<short-description>` (e.g. `feat/ama-guest-queue`, `refactor/defineRoute-ama-routes`, `docs/roadmap-scaffolding`).
 - Squash-merge to `main` with a conventional-commit-style message (see below) — keeps `main`'s history one-commit-per-change even if a branch had many WIP commits.
 - Reference the relevant milestone/issue in the PR description (`Closes #123`).
-- Global merge gate: `turbo run build lint test` green. Anything with a runtime surface (anything other than docs/tests) also needs a manual pass exercising the change — but see [Verification standard](#verification-standard) for which half of that an agent can actually do and which half is yours.
+- Global merge gate: `turbo run build lint test format:check` green. Anything with a runtime surface (anything other than docs/tests) also needs a manual pass exercising the change — but see [Verification standard](#verification-standard) for which half of that an agent can actually do and which half is yours.
 
 ## Commit messages
 
@@ -402,10 +402,13 @@ cannot close that gap on its own: it has no Discord connection and no browser se
 
 ### What an agent can and must verify
 
-1. `turbo run build lint test` green. (Prefer the allowlisted `yarn build` / `yarn lint` / `yarn test` shapes — they
-   avoid extra permission prompts.)
+1. `turbo run build lint test format:check` green. (Prefer the allowlisted `yarn build` / `yarn lint` / `yarn test`
+   shapes — they avoid extra permission prompts.) All four are per-package turbo tasks, so a repeat run is a cache
+   hit; use `--force` if you need to distrust the cache.
 2. Anything genuinely checkable without Discord or an authenticated session:
-   - Unit tests for pure logic — see `services/modmail-bot/src/lib/__tests__/` for the existing patterns.
+   - Unit tests for pure logic — see `services/modmail-bot/src/lib/__tests__/` for the existing patterns. Vitest
+     runs per package (`vitest.shared.ts` + a `vitest.config.ts` per workspace), so watch mode is
+     `yarn workspace <name> test:watch` rather than a root-level command.
    - A locally-running API: confirm a new route is actually mounted, i.e. it returns **401 rather than 404**. That's
      the ceiling without a session, and it's still worth doing — it catches a route that was written but never
      registered.

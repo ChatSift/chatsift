@@ -13,8 +13,14 @@
 			"cache": false
 		},
 		"test": {
-			"dependsOn": ["^build"]
+			"dependsOn": ["^build"],
+			"inputs": ["src/**", "vitest.config.ts", "tsconfig.json", "package.json"],
+			"outputs": ["coverage/**"]
 		},
+		"format": {
+			"cache": false
+		},
+		"format:check": {},
 		"clean": {
 			"cache": false
 		},
@@ -42,5 +48,13 @@
 			]
 		}
 	},
-	"globalDependencies": ["eslint.config.js", ".prettierrc.json", "tsconfig.json", "tsconfig.*.json", "vitest.config.ts"]
+	"globalDependencies": [
+		"eslint.config.js",
+		".prettierrc.json",
+		".prettierignore",
+		".prettierignore.workspaces",
+		"tsconfig.json",
+		"tsconfig.*.json",
+		"vitest.shared.ts"
+	]
 }

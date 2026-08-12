@@ -14,6 +14,8 @@
 		"test:watch": "vitest",
 		"lint": "eslint src",
 		"lint:fix": "eslint src --fix",
+		"format": "prettier --write . --ignore-path ../../../.gitignore --ignore-path ../../../.prettierignore",
+		"format:check": "prettier --check . --ignore-path ../../../.gitignore --ignore-path ../../../.prettierignore",
 		"clean": "rimraf dist"
 	},
 	"devDependencies": {

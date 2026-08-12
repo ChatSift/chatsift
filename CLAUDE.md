@@ -24,7 +24,7 @@ M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done a
 - Yarn 4 (Berry) workspaces + Turborepo monorepo, ESM, TypeScript strict.
 - `apps/website` — Next.js App Router dashboard. `services/api` — polka HTTP API. `services/ama-bot`/`services/modmail-bot` — gateway Discord bots. `packages/private/{core,backend-core,bot-core}` — shared code.
 - **This repo is being actively refactored** — M1 (foundation refactor) landed 2026-07-17, so the ADRs' "current/being replaced" framing is historical, not the present state; [01-architecture.md](docs/roadmap/01-architecture.md) has the actual current shape. Check the actual code first regardless — docs describe intent and rationale, not necessarily the exact present-moment state if work has progressed since a doc was last updated.
-- Commands: `turbo run build`, `turbo run lint`, `yarn test` (vitest). Commit messages are commitlint-enforced (angular config) — see [docs/workflow.md](docs/workflow.md).
+- Commands: `yarn build`, `yarn lint`, `yarn test`, `yarn format:check` — all four are per-package turbo tasks, so repeat runs are cache hits. Commit messages are commitlint-enforced (angular config) — see [docs/workflow.md](docs/workflow.md).
 - Reference architecture for the API contract + DB patterns: `/Users/didinele/Documents/Work/didinele/SimplyChords` (private repo, local path only — not fetchable by URL).
 
 ## Engineering principles
@@ -39,7 +39,7 @@ M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done a
 
 ## Working conventions
 
-- Follow [docs/workflow.md](docs/workflow.md) for branching/commits/verification. **The verification split matters:** an agent's job is `yarn build`, `yarn lint`, `yarn test` green plus whatever else it can genuinely check. Runtime verification of Discord and dashboard behaviour is the user's — an agent has no Discord connection and no session, so the most it can do against a locally-running API is confirm a route is mounted and returns 401 rather than 404. Never claim a feature "works"; state what you verified and what you left for the user to exercise.
+- Follow [docs/workflow.md](docs/workflow.md) for branching/commits/verification. **The verification split matters:** an agent's job is `yarn build`, `yarn lint`, `yarn test`, `yarn format:check` green plus whatever else it can genuinely check. Runtime verification of Discord and dashboard behaviour is the user's — an agent has no Discord connection and no session, so the most it can do against a locally-running API is confirm a route is mounted and returns 401 rather than 404. Never claim a feature "works"; state what you verified and what you left for the user to exercise.
 - AutoModerator (`v2` branch) is out of scope for all work described in `docs/roadmap/` — it's a separate, already-shipped product.
 - **Never run `git commit` or any GitHub write action (creating milestones/labels/issues/PRs, etc.) on the user's behalf.** Do the analysis/content work, leave changes staged or written to disk, and hand back exact commands or a step-by-step instruction doc for the user to run themselves. Read-only `gh`/`git` inspection is fine.
 
