@@ -383,8 +383,13 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 					await next(fallthrough ? undefined : unauthorized('expired refresh token'));
 					return;
 				} else if (error instanceof jwt.JsonWebTokenError) {
-					req.logger.info('refresh token malformed');
-					// Likely tampering.
+					// Not necessarily tampering, which is what this used to assume: a session minted before the
+					// payload encryption landed (2026-08-05, #293) fails the decrypt above and is re-thrown into
+					// this same branch, and those cookies live 30 days -- so for a month after that deploy this is
+					// the *expected* path for anyone returning after a long enough absence, not an attack. The
+					// underlying reason is logged so the two can still be told apart in production; the response
+					// stays a 401 either way, since both genuinely require a fresh login.
+					req.logger.info({ reason: error.message }, 'refresh token failed verification, forcing a re-login');
 					noopAccessToken(res);
 					noopRefreshToken(res);
 					await next(fallthrough ? undefined : unauthorized('malformed refresh token'));

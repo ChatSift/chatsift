@@ -2,6 +2,13 @@ import { isServer, QueryCache, QueryClient } from '@tanstack/react-query';
 import { APIError } from './error';
 import { pushErrorBanner } from './errorBanner';
 
+/**
+ * Hoisted out of `queryKeys` below purely so the `QueryCache` `onError` in `makeQueryClient` can reference it
+ * without reading a `const` declared further down the file. `queryKeys.auth.me` is still how this is spelled
+ * everywhere else -- it's the same tuple, not a second source of truth.
+ */
+const meQueryKey = ['api', 'auth', 'me'] as const;
+
 export function makeQueryClient(): QueryClient {
 	return new QueryClient({
 		queryCache: new QueryCache({
@@ -9,9 +16,21 @@ export function makeQueryClient(): QueryClient {
 				if (error instanceof APIError) {
 					console.error('Query error:', { statusCode: error.statusCode, error: error.error, message: error.message });
 
-					// 401s mean the session expired — `NavGateProvider` already redirects to Discord OAuth off the same
-					// error, so a banner here would just flash right before that navigation happens.
+					// A 401 on *any* query means the session itself is gone (every 401 the API raises comes out of
+					// `isAuthed`, which clears the cookies on its way), not just that one request failing. Nothing
+					// else notices on its own, though: `me.queryFn` deliberately resolves a 401 to `null` instead of
+					// throwing, so the `me` entry keeps serving its cached, logged-in user — the navbar stays signed
+					// in while every page-level query renders `UserErrorHandler`'s inline "Log in" button underneath
+					// it, and `NavGateProvider`'s redirect never fires because it gates on `user === null`. Writing
+					// that `null` here is what hands the expiry back to `NavGateProvider`. No banner either way: a
+					// redirect to Discord OAuth is about to happen.
 					if (error.statusCode === 401) {
+						// The `me` query is excluded (it can't 401 anyway, per above) so this can never recurse, and
+						// skipped on the server, where each SSR pass gets a throwaway client that nothing observes.
+						if (!isServer && query.queryKey[1] !== 'auth') {
+							getBrowserQueryClient().setQueryData(meQueryKey, null);
+						}
+
 						return;
 					}
 				} else {
@@ -64,7 +83,7 @@ export const queryKeys = {
 	all: ['api'] as const,
 	auth: {
 		all: ['api', 'auth'] as const,
-		me: ['api', 'auth', 'me'] as const,
+		me: meQueryKey,
 	},
 	guilds: {
 		info: (guildId: string, forBot: string) => ['api', 'guilds', guildId, 'info', forBot] as const,

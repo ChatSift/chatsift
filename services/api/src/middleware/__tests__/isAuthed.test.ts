@@ -162,6 +162,27 @@ const makeRefreshJWT = ({
 	);
 };
 
+/**
+ * A refresh token in the shape `createRefreshToken` minted *before* #293 encrypted the two Discord
+ * credentials at rest: correctly signed and structurally a perfectly good JWT, but with plaintext where the
+ * decrypt step now expects ciphertext. `decrypt` fails GCM auth-tag verification on it, which `isAuthed`
+ * re-throws as a `JsonWebTokenError` so it joins the same forced-re-login path as genuine tampering.
+ */
+const makeLegacyPlaintextRefreshJWT = ({ now = Date.now(), expiresIn = 60 * 60 * 24 * 30 }: MockRefreshJWTData = {}) =>
+	jwt.sign(
+		{
+			kind: 'oauth' as const,
+			refresh: true,
+			iat: Math.floor(now / 1_000),
+			sub: USER_ID,
+			discordAccessToken: GOOD_ACCESS_TOKEN,
+			discordAccessTokenExpiresAt: new Date(now + 1_000 * 60 * 5).toISOString(),
+			discordRefreshToken: GOOD_REFRESH_TOKEN,
+		},
+		getContext().env.ENCRYPTION_KEY,
+		{ expiresIn },
+	);
+
 const SCOPED_GUILD_ID = '555555555555555555';
 const SCOPED_SID = 'sid-1';
 
@@ -414,6 +435,30 @@ describe('no fallthrough', () => {
 			expect(res.setHeader).toHaveBeenNthCalledWith(2, 'Set-Cookie', expect.stringContaining('refresh_token=noop'));
 		});
 
+		// The pre-encryption cookie format (#293, 2026-08-05): same signature, same claims, but
+		// discordAccessToken/discordRefreshToken sitting there as plaintext rather than ciphertext. Those
+		// cookies live 30 days, so real sessions kept arriving in this shape for a month after that deploy --
+		// it has to land on the same clean 401-and-clear as any other unverifiable token, never a 500.
+		test('legacy refresh token with an unencrypted payload', async () => {
+			const res = new MockedResponse();
+			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+			await middleware(
+				makeMockedRequest({
+					headers: {
+						authorization: makeAccessJWT({ expiresIn: 0 }),
+						cookie: `refresh_token=${makeLegacyPlaintextRefreshJWT()}`,
+					},
+				}),
+				res,
+				next,
+			);
+
+			expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'malformed refresh token'));
+			expect(res.setHeader).toHaveBeenCalledTimes(2);
+			expect(res.setHeader).toHaveBeenNthCalledWith(1, NewAccessTokenHeader, 'noop');
+			expect(res.setHeader).toHaveBeenNthCalledWith(2, 'Set-Cookie', expect.stringContaining('refresh_token=noop'));
+		});
+
 		test('refresh token set to access', async () => {
 			const res = new MockedResponse();
 			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
@@ -625,6 +670,25 @@ describe('falls through', () => {
 		expect(res.setHeader).toHaveBeenCalledTimes(1);
 		expect(res.setHeader).toHaveBeenNthCalledWith(1, 'Set-Cookie', expect.stringContaining('refresh_token='));
 		expect(next).toHaveBeenCalledWith();
+	});
+
+	// What makes `POST /v3/auth/logout` reachable for a session whose cookie can't be verified at all. Before
+	// it was moved onto `fallthrough`, that route's own middleware 401'd first and the handler never ran --
+	// so the only in-app control that clears a bad cookie was itself unusable while the cookie was bad.
+	test('an unverifiable refresh token still clears cookies and falls through', async () => {
+		const res = new MockedResponse();
+		await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+		const req = makeMockedRequest({
+			headers: { cookie: `refresh_token=${makeLegacyPlaintextRefreshJWT()}` },
+		});
+		await middleware(req, res, next);
+
+		expect(next).toHaveBeenCalledWith(undefined);
+		// No tokens to hand the route: it has nothing to revoke upstream and clearing the cookies is the
+		// entirety of the logout in this case.
+		expect(req.tokens).toBeUndefined();
+		expect(res.setHeader).toHaveBeenCalledWith(NewAccessTokenHeader, 'noop');
+		expect(res.setHeader).toHaveBeenCalledWith('Set-Cookie', expect.stringContaining('refresh_token=noop'));
 	});
 });
 
