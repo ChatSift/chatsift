@@ -1,4 +1,11 @@
 /**
+ * Social's XP curve (#343). Shared rather than living in `services/social-bot` because the dashboard's config
+ * form previews it (P4) and every migrated user's level is re-derived through it (P5) -- a second copy of the
+ * formula anywhere would be a silent re-levelling waiting to happen. Deliberately unchanged from legacy despite
+ * looking wrong against the derivation it cites; the argument is in docs/roadmap/10-social-port.md's P3 entry.
+ */
+
+/**
  * Total (cumulative) XP needed to *be* `level`. `level` is 1-based; level 0 needs no XP at all and is what
  * everyone starts at, so callers asking about it should short-circuit rather than call this with 0 -- legacy
  * threw on `level <= 0` and its `/level` command special-cased it for exactly that reason.

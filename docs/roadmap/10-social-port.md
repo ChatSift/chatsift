@@ -6,7 +6,7 @@ nothing in flight — M4's AMA cutover ([05-migration-cutover.md](05-migration-c
 production impact:** none until P6 (cutover) — everything before that is additive: new tables, new service, new routes,
 new dashboard pages. Legacy `ChatSift/Social` keeps running untouched the whole time.
 
-## Status: P1 (schema), P2 (API) and P3 (bot) done — P4 onward not started
+## Status: P1 (schema), P2 (API), P3 (bot) and P4 (dashboard) done — P5 onward not started
 
 `10-` is the next free roadmap slot. This doc follows the established lifecycle
 ([09-appeals.md](09-appeals.md) explains it): when the phases land, it gets **deleted** and its durable shape is condensed
@@ -293,9 +293,9 @@ test guild, not just build/lint/test.
     exactly once ever. No `(base, multiplier)` reconciles them (different quadratic families; they meet only at
     `base = 0`, which a CHECK forbids), and the two readings aren't even the same knob: here `base` is a one-time
     entry cost for level 1, under the prose it would be a permanent per-level surcharge. Adopting the prose would
-    silently reinterpret every guild's configured value _and_ re-level every migrated user. Frozen, with the full
-    argument in `services/social-bot/src/lib/calculateLevel.ts`. **P4 should label the field "XP to reach level 1"
-    rather than "base".**
+    silently reinterpret every guild's configured value _and_ re-level every migrated user. Frozen; the argument
+    lives here and the code (moved to `@chatsift/core`'s `socialLevel.ts` in P4) points back at it. **P4 should
+    label the field "XP to reach level 1" rather than "base".**
   - Reward roles are applied with **one `PATCH` on the member**, not per-role `PUT`/`DELETE`. The per-role
     endpoints sit in a far tighter per-guild bucket and a tier promotion needs two of them, which saturates it when
     several members level up together. The diffing in `rewards.ts` is unchanged — it just produces an absolute role
@@ -321,8 +321,34 @@ test guild, not just build/lint/test.
   - Guild topology (channel parents for the ignore/multiplier walk, role names and guild name for level-up
     templating) is a redis cache in `lib/discordCache.ts`, modelled on the shared user cache — lazily fetched,
     negatively cached on 403/404, in-flight de-duplicated.
-- [ ] **P4 — Dashboard.** The section described above. Verify each form round-trips against the P2 API and that
+- [x] **P4 — Dashboard.** The section described above. Verify each form round-trips against the P2 API and that
       interaction create/resync reflects in Discord.
+      _Done_ (build/lint/test/format green; **live verification is the user's**, and P3's is still outstanding
+      too). `apps/website/src/app/dashboard/[id]/social/` with five sections — config, channels, roles, rewards,
+      interactions — plus `api/routes/social.ts` (one hook per endpoint), `queryKeys.social`, the 16 route
+      exports P2 never added to `services/api/src/index.ts`, and breadcrumb wiring. Notes for P5/P6:
+  - **The config form models the tracking gate as one switch.** `required_messages`,
+    `required_messages_timespan` and `xp_gain` are nullable as a unit (the bot's `isConfigured`), so an "Enable
+    XP tracking" checkbox writes or nulls all three together. The curve pair is written _with_ them rather than
+    offered separately: tracking-on-with-no-curve is a state the bot tolerates (XP accrues, nobody levels) and
+    nobody wants, and it's exactly what a P5-migrated row can land in. Turning tracking off omits the curve keys
+    instead of nulling them, so a curve someone thought about survives.
+  - **Two pieces of logic were promoted to `@chatsift/core` rather than reimplemented in the dashboard**, both
+    because a second copy would let the dashboard confidently describe something the bot doesn't do: the XP
+    curve (`socialLevel.ts`, moved wholesale out of `services/social-bot/src/lib/calculateLevel.ts` with its
+    test) and the reward-tier rule (`socialRewards.ts`'s `resolveEarnedRewards`, which
+    `computeRewardRoleDiff` now sits on top of). `DEFAULT_LEVEL_UP_MESSAGE` moved too, and switched to the
+    unspaced `{{username}}` form — identical output, since the shared `templateString` tolerates both.
+  - **The interactions page's resync card is `alwaysVisible`**, unlike ModMail's two. Every row P5 migrates
+    lands with `command_id IS NULL`, so this is the P6 step an ordinary guild performs for itself; interaction
+    cards in that state carry a "Needs resync" badge keyed off the same null.
+  - Shared-component changes, both additive: `ChannelSelect` now makes categories selectable when the caller
+    puts `GuildCategory` in `allowedTypes` (Social's channel rows key the whole category→child→thread walk, so
+    picking a category _is_ the feature), and both selects take `disabledIds`/`disabledReason` — the
+    channel/role/reward add flows are upserts, so an already-configured entry has to be visibly unpickable
+    rather than a silent overwrite.
+  - `social_channels`/`social_roles`/`social_rewards` branded id types are now exported from `@chatsift/db`'s
+    `index.ts`; without them TypeScript can't name the dashboard's hook return types.
 - [ ] **P5 — Migration script.** `packages/private/db/src/scripts/migrateLegacySocial.ts` +
       `yarn migrate:legacy-social`, cloned from `migrateLegacyModmail.ts`'s conventions: `LEGACY_DATABASE_URL`,
       `--dry-run` (full run in a rolled-back transaction) / `--live` / `--verify` (read-only reconciliation: per-table

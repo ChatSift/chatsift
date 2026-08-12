@@ -1,12 +1,12 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
+import { calculateTotalRequiredXp, calculateUserLevel } from '@chatsift/core';
 import type { SocialGuildSettings, SocialRewards, SocialUsers } from '@chatsift/db';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction, APIChatInputApplicationCommandInteraction } from '@discordjs/core';
 import { ApplicationIntegrationType, InteractionContextType, MessageFlags } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
-import { calculateTotalRequiredXp, calculateUserLevel } from '../lib/calculateLevel.js';
 
 export default class LevelCommand implements CommandHandler {
 	public readonly name = 'level';

@@ -81,4 +81,25 @@ export { default as getModmailThreadRoute } from './routes/modmail/threads/getTh
 export { default as getModmailThreadMessageEditsRoute } from './routes/modmail/threads/getMessageEdits.js';
 export { default as listModmailThreadsRoute } from './routes/modmail/threads/listThreads.js';
 
+export { default as getSocialConfigRoute } from './routes/social/config/getConfig.js';
+export { default as updateSocialConfigRoute } from './routes/social/config/updateConfig.js';
+
+export { default as deleteSocialChannelRoute } from './routes/social/channels/deleteChannel.js';
+export { default as listSocialChannelsRoute } from './routes/social/channels/listChannels.js';
+export { default as upsertSocialChannelRoute } from './routes/social/channels/upsertChannel.js';
+
+export { default as deleteSocialRoleRoute } from './routes/social/roles/deleteRole.js';
+export { default as listSocialRolesRoute } from './routes/social/roles/listRoles.js';
+export { default as upsertSocialRoleRoute } from './routes/social/roles/upsertRole.js';
+
+export { default as deleteSocialRewardRoute } from './routes/social/rewards/deleteReward.js';
+export { default as listSocialRewardsRoute } from './routes/social/rewards/listRewards.js';
+export { default as upsertSocialRewardRoute } from './routes/social/rewards/upsertReward.js';
+
+export { default as createSocialInteractionRoute } from './routes/social/interactions/createInteraction.js';
+export { default as deleteSocialInteractionRoute } from './routes/social/interactions/deleteInteraction.js';
+export { default as listSocialInteractionsRoute } from './routes/social/interactions/listInteractions.js';
+export { default as resyncSocialInteractionsRoute } from './routes/social/interactions/resyncInteractions.js';
+export { default as updateSocialInteractionRoute } from './routes/social/interactions/updateInteraction.js';
+
 export { default as getWsTicketRoute } from './routes/ws/getTicket.js';

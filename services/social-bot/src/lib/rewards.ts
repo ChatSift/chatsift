@@ -1,7 +1,10 @@
 import { clearTimeout, setTimeout } from 'node:timers';
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
-import type { SocialRewards } from '@chatsift/db';
+import type { RewardRule } from '@chatsift/core';
+import { resolveEarnedRewards } from '@chatsift/core';
+
+export type { RewardRule } from '@chatsift/core';
 
 /**
  * Reward-role application (#343 P3, redesign ledger item 2).
@@ -16,17 +19,6 @@ import type { SocialRewards } from '@chatsift/db';
 export interface RewardRoleDiff {
 	add: string[];
 	remove: string[];
-}
-
-/**
- * Structural rather than `Pick<SocialRewards, ...>`: `@chatsift/db` brands its id columns, and this function has
- * no need of that -- keeping it to plain strings is what lets the tier logic be exercised with ordinary fixtures.
- * A real `social_rewards` row satisfies it as-is.
- */
-export interface RewardRule {
-	clean: boolean;
-	level: number;
-	roleId: string;
 }
 
 export interface ComputeRewardRoleDiffOptions {
@@ -59,32 +51,21 @@ export function computeRewardRoleDiff({ heldRoleIds, level, rewards }: ComputeRe
 	const add = new Set<string>();
 	const remove = new Set<string>();
 
-	const earned = rewards.filter((reward) => reward.level <= level);
+	// Which roles the member *should* hold is `@chatsift/core`'s call, shared with the dashboard's reward ladder
+	// so the two can't describe "clean" differently. What's left here is the part that's specific to writing a
+	// diff rather than a target set: nothing but a superseded tier is ever taken away.
+	const { stacking, tier } = resolveEarnedRewards(rewards, level);
 
-	for (const reward of earned) {
-		if (!reward.clean && !held.has(reward.roleId)) {
+	for (const reward of [...stacking, ...(tier ? [tier] : [])]) {
+		if (!held.has(reward.roleId)) {
 			add.add(reward.roleId);
 		}
-	}
-
-	// The tier the member should be on: the highest-level clean reward they qualify for. Ties (two clean rewards
-	// configured at the same level) resolve arbitrarily but stably -- the schema allows it and legacy had the
-	// same property.
-	const currentTier = earned
-		.filter((reward) => reward.clean)
-		.reduce<RewardRule | null>(
-			(highest, reward) => (highest === null || reward.level > highest.level ? reward : highest),
-			null,
-		);
-
-	if (currentTier && !held.has(currentTier.roleId)) {
-		add.add(currentTier.roleId);
 	}
 
 	for (const reward of rewards) {
 		// Every *other* clean reward role they hold is a tier they've outgrown -- or one they were given early
 		// and don't qualify for. Both are equally wrong to keep.
-		if (reward.clean && reward.roleId !== currentTier?.roleId && held.has(reward.roleId)) {
+		if (reward.clean && reward.roleId !== tier?.roleId && held.has(reward.roleId)) {
 			remove.add(reward.roleId);
 		}
 	}

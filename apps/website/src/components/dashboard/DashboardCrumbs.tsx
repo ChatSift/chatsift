@@ -5,13 +5,15 @@ import { useParams, usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 import type { AMASessionDetailed, AMASessionWithCount } from '@/api/routes/ama';
 import { useMe } from '@/api/routes/auth';
-import type { GuildChannelInfo } from '@/api/routes/guilds';
+import type { GuildChannelInfo, GuildRoleInfo } from '@/api/routes/guilds';
 import type { ModmailCategory, ModmailPanel, ModmailSnippet } from '@/api/routes/modmail';
+import type { SocialInteraction } from '@/api/routes/social';
 import type { BreadcrumbOption } from '@/components/common/Breadcrumb';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAMA } from '@/components/icons/SvgAMA';
 import { SvgModmail } from '@/components/icons/SvgModmail';
+import { SvgSocial } from '@/components/icons/SvgSocial';
 import type { BotBrandingSource } from '@/utils/bots';
 import { BotIcon, resolveBotBranding } from '@/utils/bots';
 import { sortGuilds } from '@/utils/util';
@@ -23,6 +25,8 @@ const NO_CUSTOM_INSTANCE: BotBrandingSource = {
 };
 
 const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks', 'threads'] as const;
+
+const SOCIAL_SECTIONS = ['config', 'channels', 'roles', 'rewards', 'interactions'] as const;
 
 const SEGMENT_LABELS: Record<string, string> = {
 	ama: 'AMA',
@@ -37,11 +41,17 @@ const SEGMENT_LABELS: Record<string, string> = {
 	threads: 'Threads',
 	settings: 'Settings',
 	questions: 'Questions',
+	social: 'Social',
+	channels: 'Channels',
+	roles: 'Roles',
+	rewards: 'Rewards',
+	interactions: 'Interactions',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {
 	ama: <SvgAMA height={20} width={20} />,
 	modmail: <SvgModmail height={20} width={20} />,
+	social: <SvgSocial height={20} width={20} />,
 } as const;
 
 interface SegmentContext {
@@ -64,6 +74,14 @@ export interface SegmentOptionsData {
 	modmailChannels?: GuildChannelInfo[] | undefined;
 	modmailPanels?: ModmailPanel[] | undefined;
 	modmailSnippets?: ModmailSnippet[] | undefined;
+	/**
+	 * The guild's channels and roles as Discord has them, used to name the `social/channels/[channelId]`,
+	 * `social/roles/[roleId]` and `social/rewards/[roleId]` segments -- those tables key on the snowflake
+	 * itself, so unlike ModMail's rows there's no stored name to fall back on.
+	 */
+	socialChannels?: GuildChannelInfo[] | undefined;
+	socialInteractions?: SocialInteraction[] | undefined;
+	socialRoles?: GuildRoleInfo[] | undefined;
 }
 
 type SegmentOptions = { icon?: React.ReactNode; label?: React.ReactNode; options: readonly BreadcrumbOption[] } | null;
@@ -118,6 +136,50 @@ function modmailSectionOptions(currentSection: string, context: SegmentContext):
 	);
 
 	return { options };
+}
+
+function socialSectionOptions(currentSection: string, context: SegmentContext): SegmentOptions {
+	const options: BreadcrumbOption[] = SOCIAL_SECTIONS.filter((section) => section !== currentSection).map(
+		(section) => ({
+			label: SEGMENT_LABELS[section] ?? section,
+			href: `/dashboard/${context.guildId}/social/${section}`,
+		}),
+	);
+
+	return { options };
+}
+
+/**
+ * Social's channel/role/reward segments are the snowflake itself -- there's no stored name on the row the way a
+ * ModMail category or snippet has one, so these resolve against the guild's own channel and role lists. A
+ * snowflake with no match is one deleted on Discord's side since it was configured; the raw id is the only
+ * honest thing left to show.
+ */
+function resolveSocialChannelLabel(channelId: string, data: SegmentOptionsData): React.ReactNode {
+	if (data.socialChannels === undefined) {
+		return <Skeleton className="h-5 w-32 inline-flex align-middle" />;
+	}
+
+	const channel = data.socialChannels.find((candidate) => candidate.id === channelId);
+	return channel ? `#${channel.name}` : channelId;
+}
+
+function resolveSocialRoleLabel(roleId: string, data: SegmentOptionsData): React.ReactNode {
+	if (data.socialRoles === undefined) {
+		return <Skeleton className="h-5 w-32 inline-flex align-middle" />;
+	}
+
+	const role = data.socialRoles.find((candidate) => candidate.id === roleId);
+	return role ? `@${role.name}` : roleId;
+}
+
+function resolveSocialInteractionLabel(interactionId: string, data: SegmentOptionsData): React.ReactNode {
+	if (data.socialInteractions === undefined) {
+		return <Skeleton className="h-5 w-32 inline-flex align-middle" />;
+	}
+
+	const interaction = data.socialInteractions.find((candidate) => candidate.id === Number(interactionId));
+	return interaction ? `/${interaction.name}` : interactionId;
 }
 
 function resolveAmaLabel(amaId: string, data: SegmentOptionsData): React.ReactNode {
@@ -191,6 +253,30 @@ const SEGMENT_DEFINITIONS: readonly SegmentDefinition[] = [
 	{
 		pattern: ['modmail'],
 		resolveOptions: (_id, context, data) => botSwitcherOptions('MODMAIL', context, data),
+	},
+	{
+		pattern: ['social'],
+		resolveOptions: (_id, context, data) => botSwitcherOptions('SOCIAL', context, data),
+	},
+	...SOCIAL_SECTIONS.map((section): SegmentDefinition => ({
+		pattern: ['social', section],
+		resolveOptions: (_id, context) => socialSectionOptions(section, context),
+	})),
+	{
+		pattern: ['social', 'channels', ':id'],
+		resolveLabel: resolveSocialChannelLabel,
+	},
+	{
+		pattern: ['social', 'roles', ':id'],
+		resolveLabel: resolveSocialRoleLabel,
+	},
+	{
+		pattern: ['social', 'rewards', ':id'],
+		resolveLabel: resolveSocialRoleLabel,
+	},
+	{
+		pattern: ['social', 'interactions', ':id'],
+		resolveLabel: resolveSocialInteractionLabel,
 	},
 	// Each ModMail sub-section offers a shortcut to the other sections, instead of forcing a trip back through
 	// the ModMail nav tabs.

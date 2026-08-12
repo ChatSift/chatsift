@@ -17,24 +17,31 @@ export interface ResyncOutcome {
 }
 
 interface ResyncCardProps {
+	/**
+	 * Shows the card to everyone who can manage the guild, instead of only where a custom-instance swap could
+	 * have happened. Social's interaction commands (#343) need it: every row migrated out of legacy Social
+	 * arrives with no command id at all, so an ordinary guild has a real reason to run this once.
+	 */
+	readonly alwaysVisible?: boolean;
 	readonly description: string;
 	resync(): Promise<ResyncOutcome>;
 }
 
 /**
- * Shared chrome for the two resync cards (#331 split the single #216 P6 endpoint into a snippets one and a
- * panels one, each surfaced on its own dashboard page). Resync is only ever needed around a custom-instance
- * swap, so it stays hidden for a normal guild -- a global admin can still reach it anywhere, since they're the
- * one who'd actually perform a swap and may need to run it for a guild they don't otherwise manage day-to-day.
+ * Shared chrome for the resync cards (#331 split the single #216 P6 endpoint into a snippets one and a panels
+ * one, each surfaced on its own dashboard page; #343 P4 added Social's interactions). For the ModMail surfaces
+ * resync is only ever needed around a custom-instance swap, so it stays hidden for a normal guild -- a global
+ * admin can still reach it anywhere, since they're the one who'd actually perform a swap and may need to run it
+ * for a guild they don't otherwise manage day-to-day.
  */
-export function ResyncCard({ description, resync }: ResyncCardProps) {
+export function ResyncCard({ alwaysVisible = false, description, resync }: ResyncCardProps) {
 	const params = useParams<{ id: string }>();
 	const { data: me } = useMe();
 	const [message, setMessage] = useState<string | null>(null);
 	const [failures, setFailures] = useState<ResyncFailure[]>([]);
 
 	const isCustomInstance = (me?.guilds.find((guild) => guild.id === params.id)?.customInstanceId ?? null) !== null;
-	const canResync = isCustomInstance || (me?.isGlobalAdmin ?? false);
+	const canResync = alwaysVisible || isCustomInstance || (me?.isGlobalAdmin ?? false);
 
 	if (!canResync) {
 		return null;

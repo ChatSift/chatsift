@@ -45,10 +45,21 @@ export type {
 	SocialGuildSettingsGuildId,
 } from './generated/public/SocialGuildSettings.js';
 export type { default as SocialLevelUpNotificationMode } from './generated/public/SocialLevelUpNotificationMode.js';
-export type { default as SocialUsers } from './generated/public/SocialUsers.js';
-export type { default as SocialChannels } from './generated/public/SocialChannels.js';
-export type { default as SocialRoles } from './generated/public/SocialRoles.js';
-export type { default as SocialRewards } from './generated/public/SocialRewards.js';
+export type { default as SocialUsers, SocialUsersGuildId, SocialUsersUserId } from './generated/public/SocialUsers.js';
+// The branded snowflake ids these three tables key on have to be re-exported alongside the rows, unlike the
+// other composite-key tables above: `apps/website` derives its hook return types straight off the route
+// contracts, and TypeScript can't name a type whose brand isn't reachable from this entry point (#343 P4).
+export type {
+	default as SocialChannels,
+	SocialChannelsChannelId,
+	SocialChannelsGuildId,
+} from './generated/public/SocialChannels.js';
+export type { default as SocialRoles, SocialRolesGuildId, SocialRolesRoleId } from './generated/public/SocialRoles.js';
+export type {
+	default as SocialRewards,
+	SocialRewardsGuildId,
+	SocialRewardsRoleId,
+} from './generated/public/SocialRewards.js';
 export type { default as SocialInteractions, SocialInteractionsId } from './generated/public/SocialInteractions.js';
 
 export interface CreateDbOptions {

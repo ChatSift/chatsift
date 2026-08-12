@@ -1,9 +1,9 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import { withGuildUserLock } from '@chatsift/bot-core';
+import { calculateUserLevel } from '@chatsift/core';
 import type { SocialChannels, SocialGuildSettings, SocialRewards, SocialRoles, SocialUsers } from '@chatsift/db';
 import type { GatewayMessageCreateDispatchData } from '@discordjs/core';
-import { calculateUserLevel } from './calculateLevel.js';
 import { resolveChannelChain } from './discordCache.js';
 import { isEligibleForXp } from './eligibility.js';
 import { sendLevelUpNotification } from './notifications.js';

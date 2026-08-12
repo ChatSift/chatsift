@@ -14,6 +14,14 @@ export type BotId = (typeof BOTS)[number];
  */
 export const DEFAULT_EMBED_COLOR = 0x7289da;
 
+/**
+ * What Social posts when a guild has no `level_up_notification_message` of its own (#343). Shared for the same
+ * reason as the color above: the dashboard shows it as the field's placeholder, since leaving that field blank
+ * is exactly what selects it, and a stale copy there would advertise a message the bot doesn't send.
+ */
+export const DEFAULT_LEVEL_UP_MESSAGE =
+	'{{username}}, you just reached level {{level}} in {{guildName}}{{earnedRewards}}!';
+
 export const NewAccessTokenHeader = 'X-Update-Access-Token' as const;
 export const RefreshTokenCookie = 'refresh_token' as const;
 
