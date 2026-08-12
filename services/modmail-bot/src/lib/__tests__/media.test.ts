@@ -111,7 +111,7 @@ test('a Lottie sticker is skipped with its own note and no fetch', async () => {
 
 	expect(fetchMock).not.toHaveBeenCalled();
 	expect(media.files).toHaveLength(0);
-	expect(media.note).toBe('*(sticker "wave" is animated (vector) and can\'t be forwarded)*');
+	expect(media.note).toBe('*(sent a sticker: "wave" (animated vector, can\'t be forwarded))*');
 });
 
 // Discord's own APNG bytes are animated, but a regular attachment slot doesn't get the special animated
@@ -123,7 +123,7 @@ test('an APNG sticker uploads but warns that it will look static', async () => {
 
 	expect(fetchMock.mock.calls[0]![0]).toContain('/stickers/1.png');
 	expect(media.files[0]!.name).toBe('wave.png');
-	expect(media.note).toBe('*(sticker "wave" is animated but will appear static here)*');
+	expect(media.note).toBe('*(sent a sticker: "wave" (animated, shown static here))*');
 });
 
 test('a GIF sticker takes the gif CDN route and stays animated', async () => {
@@ -133,7 +133,30 @@ test('a GIF sticker takes the gif CDN route and stays animated', async () => {
 
 	expect(fetchMock.mock.calls[0]![0]).toContain('/stickers/1.gif');
 	expect(media.files[0]).toMatchObject({ name: 'wave.gif', contentType: 'image/gif' });
-	expect(media.note).toBeUndefined();
+	expect(media.note).toBe('*(sent a sticker: "wave")*');
+});
+
+// A re-uploaded sticker is just another image attachment once it lands, so the note is what tells mods it
+// was a sticker at all -- it has to be there even in the plain, everything-worked case.
+test('a successfully forwarded sticker is still called out as a sticker', async () => {
+	stubFetch();
+
+	const media = await buildRelayMedia([], [sticker()], logger);
+
+	expect(media.files[0]!.name).toBe('wave.png');
+	expect(media.note).toBe('*(sent a sticker: "wave")*');
+});
+
+test('a sticker that could not be downloaded is named as a sticker and linked', async () => {
+	vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+
+	const media = await buildRelayMedia([], [sticker()], logger);
+
+	expect(media.files).toHaveLength(0);
+	expect(media.note!.split('\n')).toStrictEqual([
+		'*(sent a sticker: "wave")*',
+		"*(couldn't forward 1 item(s), original link(s): https://cdn.discordapp.com/stickers/1.png)*",
+	]);
 });
 
 // Discord "claims" whichever file an embed's `image` references out of the message's attachment list,
@@ -188,7 +211,7 @@ test('multiple notes are each italicized and joined by newlines', async () => {
 	);
 
 	expect(media.note!.split('\n')).toStrictEqual([
-		'*(sticker "wave" is animated (vector) and can\'t be forwarded)*',
+		'*(sent a sticker: "wave" (animated vector, can\'t be forwarded))*',
 		"*(couldn't forward 1 item(s), original link(s): https://cdn.example/a.png)*",
 	]);
 });

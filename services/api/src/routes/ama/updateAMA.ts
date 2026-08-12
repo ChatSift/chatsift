@@ -1,4 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
+import { DEFAULT_EMBED_COLOR } from '@chatsift/core';
 import type { AmaPromptData, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import type { RESTPostAPIChannelMessageJSONBody } from '@discordjs/core';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
@@ -114,8 +115,7 @@ export default defineRoute({
 				content: prompt!.plainText,
 				embeds: [
 					{
-						// TODO: real constant
-						color: 0x7289da, // blurple
+						color: prompt!.color ?? DEFAULT_EMBED_COLOR,
 						title: configFields.title ?? existingAMA.title,
 						description: prompt!.description,
 						image: prompt!.imageURL ? { url: prompt!.imageURL } : undefined,

@@ -5,6 +5,15 @@ import type { RelayAttachmentLike, RelayStickerLike } from './media.js';
 import { findRepliedToGuildMessageId } from './threads.js';
 
 /**
+ * Just the two text-bearing halves of `APIPoll` — enough to render one, and narrow enough that a real
+ * gateway poll object satisfies it structurally without this file depending on the full payload type.
+ */
+export interface PollLike {
+	answers: { poll_media: { text?: string | undefined } }[];
+	question: { text?: string | undefined };
+}
+
+/**
  * Minimal shape both a live gateway `MESSAGE_CREATE` payload and the `message_snapshots[].message`
  * inside it satisfy — enough to resolve either level of a possibly-forwarded message.
  */
@@ -18,8 +27,16 @@ export interface MessageLike {
 		  }
 		| undefined;
 	message_snapshots?:
-		| { message: { attachments: RelayAttachmentLike[]; content: string; sticker_items?: RelayStickerLike[] } }[]
+		| {
+				message: {
+					attachments: RelayAttachmentLike[];
+					content: string;
+					poll?: PollLike | undefined;
+					sticker_items?: RelayStickerLike[] | undefined;
+				};
+		  }[]
 		| undefined;
+	poll?: PollLike | undefined;
 	sticker_items?: RelayStickerLike[] | undefined;
 }
 
@@ -28,6 +45,32 @@ export interface EffectiveMessageContent {
 	content: string;
 	isForwarded: boolean;
 	stickers: RelayStickerLike[];
+}
+
+/**
+ * A poll lives entirely in its own `poll` object -- a poll message's `content` is empty, so relaying
+ * content/attachments/stickers the way everything else does drops it without a trace, which is exactly
+ * what a user sending a poll into their ticket used to get. There's nothing to re-post as an actual
+ * poll (creating one needs its own message, and a mod-thread copy that could be *voted on* would be
+ * actively misleading), so it's flattened into text instead -- the question and its options, which is
+ * all the information a poll actually carries for staff reading a ticket.
+ *
+ * Folded into `content` rather than returned as its own field so it rides along everywhere content
+ * already goes -- the relayed embed's description *and* `thread_message_content.text` -- instead of
+ * needing every call site to learn about polls.
+ */
+function renderPoll(poll: PollLike): string {
+	const question = poll.question.text?.trim();
+	const answers = poll.answers.map((answer) => answer.poll_media.text?.trim()).filter(Boolean);
+
+	// Empty-string question, not just a missing one, has to fall back too -- every field of Discord's poll
+	// media object is optional, so a `??` here would happily render an empty header.
+	const header = question?.length ? question : '*(no question)*';
+	return [`📊 **Poll:** ${header}`, ...answers.map((answer) => `- ${answer}`)].join('\n');
+}
+
+function withPoll(content: string, poll: PollLike | undefined): string {
+	return poll ? [content, renderPoll(poll)].filter(Boolean).join('\n\n') : content;
 }
 
 /**
@@ -41,7 +84,7 @@ export function resolveEffectiveContent(message: MessageLike): EffectiveMessageC
 	if (message.message_reference?.type === MessageReferenceType.Forward && snapshot) {
 		return {
 			attachments: snapshot.attachments,
-			content: snapshot.content,
+			content: withPoll(snapshot.content, snapshot.poll),
 			isForwarded: true,
 			stickers: snapshot.sticker_items ?? [],
 		};
@@ -49,7 +92,7 @@ export function resolveEffectiveContent(message: MessageLike): EffectiveMessageC
 
 	return {
 		attachments: message.attachments,
-		content: message.content,
+		content: withPoll(message.content, message.poll),
 		isForwarded: false,
 		stickers: message.sticker_items ?? [],
 	};

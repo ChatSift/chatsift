@@ -1,6 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext, getSelfInstance, RedisStore } from '@chatsift/backend-core';
-import type { Categories, GuildSettings, Threads } from '@chatsift/db';
+import type { Categories, GuildSettings, Threads, TicketPanels } from '@chatsift/db';
 import type { APIGuildMember, APIMessage, APIUser, GatewayMessageCreateDispatchData } from '@discordjs/core';
 import { ComponentType } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
@@ -34,6 +34,27 @@ const BLOCKED_NOTICE_COOLDOWN_MS = 5 * 60 * 1_000;
 function blockedNoticeCooldownKey(guildId: string, userId: string): string {
 	return `modmail:dm-blocked-notice-cooldown:${guildId}:${userId}`;
 }
+
+/**
+ * Same shape and reasoning as `BLOCKED_NOTICE_COOLDOWN_MS` above, for the "this isn't how you reach us"
+ * reply below: a DM has no interaction friction in front of it, so without an atomic claim every message
+ * a user mashes into the bot's DMs would cost a reply of our own. Longer than the blocked-notice window
+ * because this notice is purely informational -- someone who didn't read it the first time won't read it
+ * the fourth, and the whole point is that the bot cannot be turned into a message relay.
+ */
+const DM_NOT_ACCEPTED_COOLDOWN_MS = 15 * 60 * 1_000;
+
+function dmNotAcceptedCooldownKey(guildId: string | null, userId: string): string {
+	// The public deployment has no single guild a bare DM belongs to, so its cooldown is per-user only.
+	return `modmail:dm-not-accepted-cooldown:${guildId ?? 'public'}:${userId}`;
+}
+
+/**
+ * Capped -- a guild with a dozen panels shouldn't turn a one-line "go use the panel" reply into a wall of
+ * links. The first few (oldest first, which is the closest thing to "the main one" available without
+ * asking guilds to rank them) covers the realistic case.
+ */
+const MAX_LINKED_PANELS = 3;
 
 export interface DmPendingOpener {
 	guildId: string;
@@ -162,15 +183,88 @@ export async function sendDm(channelId: string, content: string): Promise<void> 
 }
 
 /**
+ * The reply a DM gets when this deployment doesn't take ModMail through DMs at all -- either the public
+ * bot (which has no single guild a bare DM could belong to) or a custom instance with `dm_mode` off.
+ * Without this, a DM to the bot was silently dropped, which reads as the bot being broken rather than as
+ * "you're in the wrong place"; DM mode is the exception, not the norm, so most users who try this get
+ * nothing back today.
+ *
+ * `guildId` is non-null only for a custom instance, and that's exactly the case where we know which
+ * server the user meant and can therefore point at its actual ticket panels. The public bot can't:
+ * a DM there carries no indication of which of the bot's many guilds the user is trying to reach, so it
+ * gets generic "go use whatever that server set up" wording rather than guessing.
+ *
+ * Claims the cooldown *before* doing anything else -- the claim is the rate limit, and everything after
+ * it (a panels query, a Discord `createMessage`) is the cost it exists to bound.
+ */
+async function sendDmNotAcceptedNotice({
+	dmChannelId,
+	guildId,
+	logger,
+	userId,
+}: {
+	dmChannelId: string;
+	guildId: string | null;
+	logger: Logger;
+	userId: string;
+}): Promise<void> {
+	const claimed = await getContext().redis.set(dmNotAcceptedCooldownKey(guildId, userId), '1', {
+		condition: 'NX',
+		expiration: { type: 'PX', value: DM_NOT_ACCEPTED_COOLDOWN_MS },
+	});
+
+	if (claimed === null) {
+		return;
+	}
+
+	let content =
+		"I don't handle ModMail through DMs. Head to the server you're trying to reach and open a ticket the way that server has it set up -- usually a panel with a button in one of its channels.";
+
+	if (guildId) {
+		const panels = await getContext().db<Pick<TicketPanels, 'channelId' | 'messageId'>[]>`
+			SELECT channel_id, message_id FROM ticket_panels
+			WHERE guild_id = ${guildId}
+			ORDER BY id
+			LIMIT ${MAX_LINKED_PANELS}
+		`;
+
+		// Jump links rather than `<#channel>` mentions: a channel mention in a DM only renders as a real
+		// channel for a client that already knows the channel, and degrades to a raw id otherwise -- a jump
+		// link is unambiguous text either way.
+		const links = panels.map(
+			(panel) => `https://discord.com/channels/${guildId}/${panel.channelId}/${panel.messageId}`,
+		);
+
+		content =
+			links.length > 0
+				? `This server doesn't take ModMail through DMs. Open a ticket from ${links.length === 1 ? 'this panel' : 'one of these panels'} instead:\n${links.join('\n')}`
+				: "This server doesn't take ModMail through DMs, and there's no ticket panel set up to point you at. Please contact a moderator directly.";
+	}
+
+	try {
+		await sendDm(dmChannelId, content);
+	} catch (error) {
+		// The user just DMed us, so this should essentially never fail -- and if it does, there's nothing
+		// useful left to do about a purely informational reply.
+		logger.warn({ err: error, guildId, userId }, 'Failed to send the "DMs are not how you reach us" notice');
+	}
+}
+
+/**
  * Called from `index.ts`'s `registerMessageRelay` only once a DM message matched no open ticket, no
  * open mod-forum thread, and no pending panel ticket -- i.e. every case DM mode actually needs to
- * handle itself: a fresh opener, or a message sent while a category pick is still pending.
+ * handle itself: a fresh opener, or a message sent while a category pick is still pending. Anything that
+ * isn't a DM-mode deployment falls through to `sendDmNotAcceptedNotice` rather than being dropped.
  */
 export async function handleDmMessage(message: GatewayMessageCreateDispatchData, logger: Logger): Promise<void> {
+	const userId = message.author.id;
+	const dmChannelId = message.channel_id;
+
 	// DM mode is only meaningful for a deployment locked to one guild -- the public bot (many guilds,
-	// no single guild a bare DM could belong to) always ignores DMs.
+	// no single guild a bare DM could belong to) never opens tickets from a DM.
 	const selfInstance = getSelfInstance();
 	if (!selfInstance) {
+		await sendDmNotAcceptedNotice({ dmChannelId, guildId: null, logger, userId });
 		return;
 	}
 
@@ -180,11 +274,9 @@ export async function handleDmMessage(message: GatewayMessageCreateDispatchData,
 	`;
 
 	if (!guildSettings?.dmMode) {
+		await sendDmNotAcceptedNotice({ dmChannelId, guildId, logger, userId });
 		return;
 	}
-
-	const userId = message.author.id;
-	const dmChannelId = message.channel_id;
 
 	// Same per guild+user lock every other ticket-lifecycle step uses (see `lib/guildUserQueue.ts`) --
 	// serializes a burst of DMs the same way a burst of panel clicks is serialized.

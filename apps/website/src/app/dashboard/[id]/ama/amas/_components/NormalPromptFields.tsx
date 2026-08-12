@@ -1,15 +1,22 @@
+import { ColorField } from '@/components/common/ColorField';
 import { TextAreaField } from '@/components/common/TextAreaField';
 import { TextField } from '@/components/common/TextField';
 
 interface NormalPromptFieldsProps {
+	/**
+	 * `#rrggbb`, or empty for "use the default" -- see `ColorField`.
+	 */
+	readonly color: string;
 	readonly description: string;
 	readonly errors: {
+		readonly color?: string;
 		readonly description?: string;
 		readonly imageURL?: string;
 		readonly plainText?: string;
 		readonly thumbnailURL?: string;
 	};
 	readonly imageURL: string;
+	onColorChange(value: string): void;
 	onDescriptionChange(value: string): void;
 	onImageURLChange(value: string): void;
 	onPlainTextChange(value: string): void;
@@ -23,11 +30,13 @@ export function NormalPromptFields({
 	description,
 	imageURL,
 	thumbnailURL,
+	color,
 	errors,
 	onPlainTextChange,
 	onDescriptionChange,
 	onImageURLChange,
 	onThumbnailURLChange,
+	onColorChange,
 }: NormalPromptFieldsProps) {
 	return (
 		<div className="space-y-4">
@@ -50,6 +59,19 @@ export function NormalPromptFields({
 				placeholder="Embed description text"
 				rows={4}
 				value={description}
+			/>
+
+			<ColorField
+				error={errors.color}
+				helper={
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						Optional. The stripe down the left edge of the embed.
+					</p>
+				}
+				id="color"
+				label="Embed Color"
+				onChange={onColorChange}
+				value={color}
 			/>
 
 			<TextField

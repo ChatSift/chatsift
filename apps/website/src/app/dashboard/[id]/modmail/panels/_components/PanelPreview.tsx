@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { Button } from '@/components/common/Button';
+import { DEFAULT_EMBED_COLOR_HEX, hexToColor } from '@/components/common/ColorField';
 import { Skeleton } from '@/components/common/Skeleton';
 
 // `ssr: false` is load-bearing -- see `DiscordMarkdown.tsx`'s own doc comment on why its wasm parser can't
@@ -22,6 +23,7 @@ interface PreviewEmbed {
 	readonly color?: number | undefined;
 	readonly description?: string | undefined;
 	readonly imageUrl?: string | undefined;
+	readonly thumbnailUrl?: string | undefined;
 	readonly title?: string | undefined;
 }
 
@@ -34,8 +36,13 @@ interface PreviewResult {
 interface NormalPreviewProps {
 	readonly attachmentUrl: string;
 	readonly buttonLabel: string;
+	/**
+	 * `#rrggbb`, or empty for "use the default".
+	 */
+	readonly color: string;
 	readonly description: string;
 	readonly mode: 'normal';
+	readonly thumbnailUrl: string;
 	readonly title: string;
 }
 
@@ -46,9 +53,9 @@ interface RawPreviewProps {
 
 type PanelPreviewProps = NormalPreviewProps | RawPreviewProps;
 
-// Matches the hardcoded embed color in `services/api/src/routes/modmail/panels/createPanel.ts` -- keep this
-// preview honest with what actually gets posted.
-const EMBED_COLOR = '#7289da';
+// Shared with `services/api/src/routes/modmail/panels/createPanel.ts`'s own fallback, so this preview stays
+// honest with what actually gets posted when no color is picked.
+const EMBED_COLOR = DEFAULT_EMBED_COLOR_HEX;
 
 function parseRawPanel(raw: string): PreviewResult {
 	if (!raw.trim()) {
@@ -88,11 +95,8 @@ function parseRawPanel(raw: string): PreviewResult {
 	}
 
 	const embedRecord = firstEmbed as Record<string, unknown>;
-	const image = embedRecord['image'];
-	const imageUrl =
-		typeof image === 'object' && image !== null && typeof (image as Record<string, unknown>)['url'] === 'string'
-			? ((image as Record<string, unknown>)['url'] as string)
-			: undefined;
+	const image = embedRecord['image'] as Record<string, unknown> | undefined;
+	const thumbnail = embedRecord['thumbnail'] as Record<string, unknown> | undefined;
 
 	return {
 		content,
@@ -100,7 +104,8 @@ function parseRawPanel(raw: string): PreviewResult {
 			title: typeof embedRecord['title'] === 'string' ? embedRecord['title'] : undefined,
 			description: typeof embedRecord['description'] === 'string' ? embedRecord['description'] : undefined,
 			color: typeof embedRecord['color'] === 'number' ? embedRecord['color'] : undefined,
-			imageUrl,
+			imageUrl: typeof image?.['url'] === 'string' ? image['url'] : undefined,
+			thumbnailUrl: typeof thumbnail?.['url'] === 'string' ? thumbnail['url'] : undefined,
 		},
 	};
 }
@@ -115,20 +120,27 @@ function resolvePreview(props: PanelPreviewProps): PreviewResult {
 			title: props.title || undefined,
 			description: props.description || undefined,
 			imageUrl: props.attachmentUrl || undefined,
+			thumbnailUrl: props.thumbnailUrl || undefined,
+			// `?? undefined` so a half-typed hex previews as the default rather than flickering to black --
+			// same value the API would fall back to for that (rejected) input anyway.
+			color: hexToColor(props.color) ?? undefined,
 		},
 	};
 }
 
 export function PanelPreview(props: PanelPreviewProps) {
 	const { content, embed, error } = resolvePreview(props);
-	const hasEmbedContent = Boolean(embed?.title) || Boolean(embed?.description) || Boolean(embed?.imageUrl);
+	const hasEmbedContent =
+		Boolean(embed?.title) || Boolean(embed?.description) || Boolean(embed?.imageUrl) || Boolean(embed?.thumbnailUrl);
 	// Raw-mode panels always get the fixed "Create Ticket" button server-side (see createPanel.ts) -- only
 	// normal-mode panels have a user-configurable label.
 	const buttonLabel = (props.mode === 'normal' && props.buttonLabel.trim()) || 'Create Ticket';
 	// Rendering an `<img>` fetches it immediately -- gate behind an explicit click the same way
-	// `SnippetCard` does, since this is a staff-pasted URL nobody here has vetted. Tracks *which* URL was
-	// approved so editing to a different image always requires a fresh click.
-	const [previewedUrl, setPreviewedUrl] = useState<string | null>(null);
+	// `SnippetCard` does, since this is a staff-pasted URL nobody here has vetted. Tracks *which* URLs were
+	// approved (image and thumbnail are approved separately) so editing to a different image always
+	// requires a fresh click.
+	const [previewedUrls, setPreviewedUrls] = useState<readonly string[]>([]);
+	const approveUrl = (url: string) => setPreviewedUrls((prev) => (prev.includes(url) ? prev : [...prev, url]));
 
 	return (
 		<div className="rounded-md border border-on-secondary bg-[#313338] p-4 dark:border-on-secondary-dark">
@@ -159,7 +171,7 @@ export function PanelPreview(props: PanelPreviewProps) {
 									</div>
 								)}
 								{embed?.imageUrl &&
-									(previewedUrl === embed.imageUrl ? (
+									(previewedUrls.includes(embed.imageUrl) ? (
 										// eslint-disable-next-line @next/next/no-img-element -- arbitrary staff-pasted external URL, not one of the app's known image sources Next's optimizer can proxy
 										<img
 											alt="Panel embed"
@@ -169,12 +181,28 @@ export function PanelPreview(props: PanelPreviewProps) {
 									) : (
 										<Button
 											className="h-fit p-0 text-xs text-accent/50 underline hover:bg-transparent"
-											onPress={() => setPreviewedUrl(embed.imageUrl!)}
+											onPress={() => approveUrl(embed.imageUrl!)}
 										>
 											Show image preview
 										</Button>
 									))}
 							</div>
+							{embed?.thumbnailUrl &&
+								(previewedUrls.includes(embed.thumbnailUrl) ? (
+									// eslint-disable-next-line @next/next/no-img-element -- arbitrary staff-pasted external URL, not one of the app's known image sources Next's optimizer can proxy
+									<img
+										alt="Panel embed thumbnail"
+										className="h-16 w-16 shrink-0 rounded object-cover"
+										src={embed.thumbnailUrl}
+									/>
+								) : (
+									<Button
+										className="h-fit shrink-0 p-0 text-xs text-accent/50 underline hover:bg-transparent"
+										onPress={() => approveUrl(embed.thumbnailUrl!)}
+									>
+										Show thumbnail
+									</Button>
+								))}
 						</div>
 					)}
 

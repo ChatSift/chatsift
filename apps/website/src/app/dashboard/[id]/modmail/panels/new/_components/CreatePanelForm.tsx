@@ -13,6 +13,7 @@ import { useGuildInfo } from '@/api/routes/guilds';
 import type { CreateModmailPanelBody } from '@/api/routes/modmail';
 import { useCreateModmailPanel } from '@/api/routes/modmail';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
+import { hexToColor } from '@/components/common/ColorField';
 import { FormActions } from '@/components/common/FormActions';
 import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -22,16 +23,38 @@ interface FormData {
 	attachmentUrl: string;
 	buttonLabel: string;
 	channelId: string;
+	/**
+	 * `#rrggbb`, or empty for "use the default" -- see `ColorField`.
+	 */
+	color: string;
 	description: string;
 	panelRaw: string;
+	thumbnailUrl: string;
 	title: string;
 }
 
 type FormErrors = Partial<
-	Record<'attachmentUrl' | 'buttonLabel' | 'categoryIds' | 'channelId' | 'description' | 'panelRaw' | 'title', string>
+	Record<
+		| 'attachmentUrl'
+		| 'buttonLabel'
+		| 'categoryIds'
+		| 'channelId'
+		| 'color'
+		| 'description'
+		| 'panelRaw'
+		| 'thumbnailUrl'
+		| 'title',
+		string
+	>
 >;
 
 const TOP_LEVEL_FIELDS = ['channelId', 'categoryIds'] as const;
+
+/**
+ * The keys under `panel` in the request body that map one-to-one onto a form field of the same name --
+ * everything the schema can complain about that has somewhere to render the complaint.
+ */
+const PANEL_EMBED_FIELDS = ['title', 'description', 'buttonLabel', 'attachmentUrl', 'thumbnailUrl', 'color'] as const;
 
 function mapIssuesToFormErrors(issues: readonly { message: string; path: PropertyKey[] }[]): FormErrors {
 	const errors: FormErrors = {};
@@ -42,8 +65,8 @@ function mapIssuesToFormErrors(issues: readonly { message: string; path: Propert
 		if (typeof first === 'string' && (TOP_LEVEL_FIELDS as readonly string[]).includes(first)) {
 			errors[first as 'categoryIds' | 'channelId'] ??= issue.message;
 		} else if (first === 'panel' && typeof second === 'string') {
-			if (second === 'title' || second === 'description' || second === 'buttonLabel' || second === 'attachmentUrl') {
-				errors[second] ??= issue.message;
+			if (PANEL_EMBED_FIELDS.includes(second as (typeof PANEL_EMBED_FIELDS)[number])) {
+				errors[second as (typeof PANEL_EMBED_FIELDS)[number]] ??= issue.message;
 			}
 		} else if (first === 'panel_raw') {
 			errors.panelRaw ??= issue.message;
@@ -79,6 +102,8 @@ export function CreatePanelForm() {
 		description: '',
 		buttonLabel: '',
 		attachmentUrl: '',
+		thumbnailUrl: '',
+		color: '',
 		panelRaw: '',
 	});
 	const [categoryIds, setCategoryIds] = useState<number[]>([]);
@@ -104,6 +129,8 @@ export function CreatePanelForm() {
 				description: formData.description || undefined,
 				buttonLabel: formData.buttonLabel || undefined,
 				attachmentUrl: formData.attachmentUrl || undefined,
+				thumbnailUrl: formData.thumbnailUrl || undefined,
+				color: hexToColor(formData.color) ?? undefined,
 			},
 		};
 	};
@@ -157,6 +184,8 @@ export function CreatePanelForm() {
 					['description', error.fieldError(panelField, 'description')],
 					['buttonLabel', error.fieldError(panelField, 'buttonLabel')],
 					['attachmentUrl', error.fieldError(panelField, 'attachmentUrl')],
+					['thumbnailUrl', error.fieldError(panelField, 'thumbnailUrl')],
+					['color', error.fieldError(panelField, 'color')],
 				];
 
 				const newErrors: FormErrors = Object.fromEntries(
@@ -239,12 +268,16 @@ export function CreatePanelForm() {
 							<PanelEmbedFields
 								attachmentUrl={formData.attachmentUrl}
 								buttonLabel={formData.buttonLabel}
+								color={formData.color}
 								description={formData.description}
 								errors={errors}
 								onAttachmentUrlChange={(value) => updateFormData('attachmentUrl', value)}
 								onButtonLabelChange={(value) => updateFormData('buttonLabel', value)}
+								onColorChange={(value) => updateFormData('color', value)}
 								onDescriptionChange={(value) => updateFormData('description', value)}
+								onThumbnailUrlChange={(value) => updateFormData('thumbnailUrl', value)}
 								onTitleChange={(value) => updateFormData('title', value)}
+								thumbnailUrl={formData.thumbnailUrl}
 								title={formData.title}
 							/>
 						) : (
@@ -271,8 +304,10 @@ export function CreatePanelForm() {
 						<PanelPreview
 							attachmentUrl={formData.attachmentUrl}
 							buttonLabel={formData.buttonLabel}
+							color={formData.color}
 							description={formData.description}
 							mode="normal"
+							thumbnailUrl={formData.thumbnailUrl}
 							title={formData.title}
 						/>
 					) : (

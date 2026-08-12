@@ -95,6 +95,62 @@ test('missing sticker_items normalize to an empty array', () => {
 	).toStrictEqual([]);
 });
 
+// A poll message carries no `content` at all -- relaying content/attachments/stickers alone dropped it
+// silently, so the question and its options are flattened into the content instead.
+test('a poll is flattened into the message content', () => {
+	expect(
+		resolveEffectiveContent({
+			attachments: [],
+			content: '',
+			poll: {
+				answers: [{ poll_media: { text: 'Red' } }, { poll_media: { text: 'Blue' } }],
+				question: { text: 'Favourite colour?' },
+			},
+		}).content,
+	).toBe('📊 **Poll:** Favourite colour?\n- Red\n- Blue');
+});
+
+test('a poll with text alongside it keeps both, separated', () => {
+	expect(
+		resolveEffectiveContent({
+			attachments: [],
+			content: 'help me decide',
+			poll: { answers: [{ poll_media: { text: 'Yes' } }], question: { text: 'Should I?' } },
+		}).content,
+	).toBe('help me decide\n\n📊 **Poll:** Should I?\n- Yes');
+});
+
+// Every field of `APIPollMedia` is optional in the payload type, so a poll with nothing usable in it must
+// still render as *something* -- the point is that mods can tell a poll was sent at all.
+test('a poll with no usable text still announces itself', () => {
+	expect(
+		resolveEffectiveContent({
+			attachments: [],
+			content: '',
+			poll: { answers: [{ poll_media: {} }], question: {} },
+		}).content,
+	).toBe('📊 **Poll:** *(no question)*');
+});
+
+test('a forwarded poll is read off the snapshot, not the empty outer message', () => {
+	expect(
+		resolveEffectiveContent({
+			attachments: [],
+			content: '',
+			message_reference: { type: MessageReferenceType.Forward },
+			message_snapshots: [
+				{
+					message: {
+						attachments: [],
+						content: '',
+						poll: { answers: [{ poll_media: { text: 'A' } }], question: { text: 'Which?' } },
+					},
+				},
+			],
+		}),
+	).toMatchObject({ content: '📊 **Poll:** Which?\n- A', isForwarded: true });
+});
+
 test('a native reply resolves to a link into the mod thread', async () => {
 	fakeFindRepliedToGuildMessageId.mockResolvedValue({ guildMessageId: '777' });
 

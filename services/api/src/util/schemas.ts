@@ -31,6 +31,18 @@ function isHttpUrl(value: string): boolean {
 // to name its own field can re-`.refine()` with one.
 export const httpUrlSchema = z.url().max(2_000).refine(isHttpUrl, 'Must be an http(s) URL');
 
+/**
+ * A Discord embed accent color, as the packed 24-bit integer Discord's own `embed.color` field takes --
+ * not a `#rrggbb` string. The dashboard's color input speaks hex and converts at the edge (see
+ * `ColorField.tsx`); keeping the wire format numeric means the value lands in `panel_json_data`/
+ * `prompt_json_data` in exactly the form Discord wants, with no parse step that could disagree with
+ * whatever the preview rendered.
+ *
+ * Lives here alongside `httpUrlSchema` for the same reason: both modmail and AMA embed builders need the
+ * identical rule, and this module is the browser-safe one they already share.
+ */
+export const embedColorSchema = z.number().int().min(0).max(0xffffff);
+
 export const queryWithFreshSchema = z.strictObject({
 	force_fresh: z.stringbool().optional().default(false),
 });

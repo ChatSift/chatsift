@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { DEFAULT_EMBED_COLOR_HEX, hexToColor } from '@/components/common/ColorField';
 import { Skeleton } from '@/components/common/Skeleton';
 
 // `ssr: false` is load-bearing -- see `DiscordMarkdown.tsx`'s own doc comment on why its wasm parser can't
@@ -31,6 +32,10 @@ interface PreviewResult {
 }
 
 interface NormalPreviewProps {
+	/**
+	 * `#rrggbb`, or empty for "use the default".
+	 */
+	readonly color: string;
 	readonly description: string;
 	readonly imageURL: string;
 	readonly mode: 'normal';
@@ -46,9 +51,9 @@ interface RawPreviewProps {
 
 type PromptPreviewProps = NormalPreviewProps | RawPreviewProps;
 
-// Matches the hardcoded embed color in `services/api/src/routes/ama/createAMA.ts` — keep this preview honest with
-// what actually gets posted.
-const EMBED_COLOR = '#7289da';
+// Shared with `services/api/src/routes/ama/createAMA.ts`'s own fallback, so this preview stays honest with what
+// actually gets posted when no color is picked.
+const EMBED_COLOR = DEFAULT_EMBED_COLOR_HEX;
 
 function isValidURL(value: string | undefined): value is string {
 	if (!value) return false;
@@ -126,6 +131,9 @@ function resolvePreview(props: PromptPreviewProps): PreviewResult {
 			description: props.description || undefined,
 			imageURL: isValidURL(props.imageURL) ? props.imageURL : undefined,
 			thumbnailURL: isValidURL(props.thumbnailURL) ? props.thumbnailURL : undefined,
+			// `?? undefined` so a half-typed hex previews as the default rather than flickering to black --
+			// same value the API would fall back to for that (rejected) input anyway.
+			color: hexToColor(props.color) ?? undefined,
 		},
 	};
 }
