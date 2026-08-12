@@ -6,7 +6,7 @@ nothing in flight — M4's AMA cutover ([05-migration-cutover.md](05-migration-c
 production impact:** none until P6 (cutover) — everything before that is additive: new tables, new service, new routes,
 new dashboard pages. Legacy `ChatSift/Social` keeps running untouched the whole time.
 
-## Status: P1 (schema) and P2 (API) done — P3 onward not started
+## Status: P1 (schema), P2 (API) and P3 (bot) done — P4 onward not started
 
 `10-` is the next free roadmap slot. This doc follows the established lifecycle
 ([09-appeals.md](09-appeals.md) explains it): when the phases land, it gets **deleted** and its durable shape is condensed
@@ -271,12 +271,56 @@ test guild, not just build/lint/test.
       cutover, which is why it's a permanent route rather than a one-off script. - `getModmailApplicationId` generalized to `getBotApplicationId(botId, guildId)`; the embed-image URL rule
       moved to `util/schemas.ts` as `httpUrlSchema` (was private to modmail's schemas). - **Not verified live** — the API needs a real `SOCIAL_BOT_TOKEN`, and there's no Social bot to issue one for
       until P3. Build/lint/test green; exercising these against Discord happens with P3/P4.
-- [ ] **P3 — Bot.** Scaffold `services/social-bot`; port the tracking engine (Redis keys and semantics verbatim, keys
+- [x] **P3 — Bot.** Scaffold `services/social-bot`; port the tracking engine (Redis keys and semantics verbatim, keys
       documented in code); implement additive role-diffing (ledger 2); `/level`; `/dashboard`; interaction dispatch +
       per-guild command registration with resync (ledger 3 — clear-then-write, see P1's note); level-up
       notifications; intent audit. This is the phase
       with real behavioral risk — verify XP gain, window cooldown, multiplier stacking, clean-tier promotion, and each
       notification mode live in the test guild.
+      _Done_ (build/lint/test green; **live verification still outstanding** — see the Verification section).
+      `services/social-bot` on `@chatsift/bot-core`, plus the four infra edits (`Dockerfile`, `docker-compose.yml`,
+      root `dev:social-bot`, `bin-rw`/`@sapphire/async-queue` deps). Notes for later phases:
+  - **Intent audit result: `Guilds | GuildMessages`, no privileged intents.** No `MessageContent` — the tracker
+    counts messages and never reads their text. No `GuildMembers` — the acting member and their `roles` array
+    arrive inline on `MESSAGE_CREATE`. Same pair legacy ran on, so nothing about the port widens what Discord
+    grants the bot.
+  - **The XP curve was audited and deliberately left alone.** It looks wrong against the derivation it cites
+    (https://didinele.me/blog/math-journey, live copy gone — read it via web.archive.org), and it isn't. That post
+    contains three mutually inconsistent recurrences; the shipped closed form is a correct solution of the one
+    whose terms it actually lists, and the two typos in its intermediate working both vanish before the final
+    formula. What genuinely differs is the post's opening _prose_, which describes each level costing
+    `base + (k-1)m` — totalling `x*base + m*x(x-1)/2`, i.e. `base` charged once per level where the code charges it
+    exactly once ever. No `(base, multiplier)` reconciles them (different quadratic families; they meet only at
+    `base = 0`, which a CHECK forbids), and the two readings aren't even the same knob: here `base` is a one-time
+    entry cost for level 1, under the prose it would be a permanent per-level surcharge. Adopting the prose would
+    silently reinterpret every guild's configured value _and_ re-level every migrated user. Frozen, with the full
+    argument in `services/social-bot/src/lib/calculateLevel.ts`. **P4 should label the field "XP to reach level 1"
+    rather than "base".**
+  - Reward roles are applied with **one `PATCH` on the member**, not per-role `PUT`/`DELETE`. The per-role
+    endpoints sit in a far tighter per-guild bucket and a tier promotion needs two of them, which saturates it when
+    several members level up together. The diffing in `rewards.ts` is unchanged — it just produces an absolute role
+    array (everything held, minus superseded tiers, plus what was earned) instead of a call list.
+  - Three legacy bugs fixed in passing: the role-multiplier lookup was missing its `guild_id` filter; channel
+    resolution picked arbitrarily between a channel's own row and its category's (now most-specific-first); and a
+    grant spanning two levels announced only `oldLevel + 1` and swallowed the rest (now derives the true level and
+    grants every reward it crossed).
+  - Two deliberate behaviour changes: `/level` no longer upserts a `social_users` row for whoever it's pointed at,
+    and a non-embed interaction appends its `attachment_url` for Discord to unfurl rather than re-uploading the
+    image through the bot on every invocation.
+  - **Interaction target options renamed `target`/`target2`/`target3` → `user`/`user2`/`user3`** in the API's
+    `routes/social/discordBodies.ts`, which is a contract with the bot's dispatch renderer. Legacy had five
+    (`target1` required); three, all optional, is a deliberate narrowing that also makes a bare `/hug` valid.
+  - **Social templates now use ModMail's syntax**, via a shared `templateString` promoted to `@chatsift/core`.
+    Whitespace inside the braces is tolerated, so a migrated template containing `{{name}}` starts resolving where
+    legacy rendered it literally. The shared version also fixes a prototype-chain leak both had (`{{ constructor }}`
+    resolved to `Object.prototype.constructor` and stringified into the message).
+  - Also promoted while here: `withQueueLock`/`withGuildUserLock` into `@chatsift/bot-core` (ModMail's
+    `guildUserQueue.ts` now re-exports it), and `snowflakeTimestampMs` + `createInflightDeduper` into
+    `@chatsift/core`. Social serializes each guild+user's messages through the lock, closing a double-grant race
+    legacy had.
+  - Guild topology (channel parents for the ignore/multiplier walk, role names and guild name for level-up
+    templating) is a redis cache in `lib/discordCache.ts`, modelled on the shared user cache — lazily fetched,
+    negatively cached on 403/404, in-flight de-duplicated.
 - [ ] **P4 — Dashboard.** The section described above. Verify each form round-trips against the P2 API and that
       interaction create/resync reflects in Discord.
 - [ ] **P5 — Migration script.** `packages/private/db/src/scripts/migrateLegacySocial.ts` +
@@ -304,7 +348,30 @@ test guild, not just build/lint/test.
 ## Verification
 
 Per-phase live verification as listed above ([workflow.md](../workflow.md#verification-standard) is the standard —
-build/lint/test alone doesn't prove a feature). The migration script gets the two-scratch-DB treatment in P5 before any
-prod dump is involved; P6's dry-run wall-clock is the only honest window estimate, same discipline as ModMail's. The
-XP-curve formula gets a dedicated unit test pinning known (settings, xp) → level values, since it's the one piece of
-math a refactor could silently break and a migration fidelity guarantee depends on.
+build/lint/test alone doesn't prove a feature).
+
+**P3's live verification is still outstanding**, and it's also the first time P2's routes will touch Discord at all
+(they were written before a Social application existed). Needs a `SOCIAL_BOT_TOKEN` in `.env.private` for a fresh
+application, then `yarn dev:social-bot` alongside `yarn dev:api`, and a guild configured through the API by hand
+since the dashboard is P4:
+
+1. XP gain — messages move `social_users.xp` by exactly `xp_gain`.
+2. Window cooldown — with `required_messages = 3, timespan = 10`, one grant per window, and the bar expiring on the
+   _remainder_ of the window rather than a flat delay. Watch both redis keys.
+3. Multiplier stacking — a channel multiplier and two role multipliers multiply.
+4. Category/thread inheritance — configure a category, post in a child channel and in a thread; confirm a
+   channel-level row beats its category's.
+5. Clean-tier promotion — old tier removed, new one added, unrelated and managed roles untouched.
+6. Multi-level jump — an `xp_gain` large enough to cross two levels grants both levels' rewards and announces the
+   higher one.
+7. Each notification mode, including a fallback channel that can't be posted in, and a _deleted_ fallback nulling
+   the column.
+8. Interactions — create via the API, confirm `/name` renders with and without targets, embed and non-embed, and
+   that `uses` increments.
+9. Name fallback + resync — `UPDATE social_interactions SET command_id = NULL` (the exact post-migration state),
+   confirm dispatch still resolves by name and self-heals the id, then run the resync and confirm it **does not
+   delete `/level`** (the global-commands constraint).
+10. `bot:SOCIAL` appears in redis and the guild shows a Social tab. The migration script gets the two-scratch-DB treatment in P5 before any
+    prod dump is involved; P6's dry-run wall-clock is the only honest window estimate, same discipline as ModMail's. The
+    XP-curve formula gets a dedicated unit test pinning known (settings, xp) → level values, since it's the one piece of
+    math a refactor could silently break and a migration fidelity guarantee depends on.

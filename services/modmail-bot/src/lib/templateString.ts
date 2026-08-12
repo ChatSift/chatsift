@@ -1,4 +1,7 @@
+import { templateString } from '@chatsift/core';
 import type { APIGuildMember, APIUser } from '@discordjs/core';
+
+export { templateString } from '@chatsift/core';
 
 export interface TemplateData {
 	guildName: string;
@@ -26,15 +29,6 @@ export function templateDataFromMember(
 		userId: user.id,
 		username: user.username,
 	};
-}
-
-export function templateString(content: string, data: TemplateData): string {
-	return content.replaceAll(
-		// Tolerates optional whitespace around the name so already-saved guild configs authored under the
-		// old `{{ name }}` hint text keep resolving, even though the dashboard now documents/writes `{{name}}`.
-		/{{\s*(?<template>\w+?)\s*}}/gm,
-		(_, template: string) => data[template as keyof TemplateData] ?? `[unknown template ${template}]`,
-	);
 }
 
 /**

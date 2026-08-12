@@ -215,6 +215,19 @@ services:
     volumes:
       - ./logs/modmail-bot:/usr/chatsift/logs/modmail-bot
 
+  social-bot:
+    image: chatsift/chatsift-next:social
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    command: ['node', '--enable-source-maps', './services/social-bot/dist/bin.js']
+    volumes:
+      - ./logs/social-bot:/usr/chatsift/logs/social-bot
+
   # Template for a branded, single-guild ModMail deployment (#216) -- see
   # docs/roadmap/01-architecture.md §8 and the onboarding/offboarding runbook in
   # docs/workflow.md. Copy this block once per approved partner (one block per instance -- these are

@@ -10,11 +10,13 @@ import { ApplicationCommandOptionType } from '@discordjs/core';
  */
 
 /**
- * How many `{{ targets }}` a single invocation can mention. Three is a judgement call, not a legacy-verified
- * number: the legacy repo isn't checked out and the port doc only records that `{{ targets }}` is plural and
- * populated from user-mention options. Widening or narrowing it later is cheap -- a resync re-registers every
- * command from this body, so the option set follows whatever this says (#343 P3 should sanity-check the
- * rendered output against the live legacy bot before cutover).
+ * How many `{{ targets }}` a single invocation can mention.
+ *
+ * Legacy registered five (`target1` required, `target2`-`target5` optional) -- checked against its source during
+ * #343 P3, which is what the previous note here asked for. Three, all optional, is a deliberate narrowing: the
+ * fourth and fifth were realistically never used, and dropping legacy's *required* first option is the more
+ * useful half of the change, since it makes a bare `/hug` valid. Widening later is cheap -- a resync re-registers
+ * every command from this body, so the option set follows whatever this says.
  */
 const MAX_TARGETS = 3;
 
@@ -34,10 +36,14 @@ export function buildInteractionCommandBody(
 		description: 'Custom server interaction',
 		options: allowTargets
 			? Array.from({ length: MAX_TARGETS }, (_, index) => ({
-					// `target`, `target2`, `target3` -- the first is unnumbered so the common single-target case
-					// reads as `/hug target:@someone`, and every one of them is optional so `/hug` on its own
-					// stays valid (it renders with an empty `{{ targets }}`).
-					name: index === 0 ? 'target' : `target${index + 1}`,
+					// `user`, `user2`, `user3` -- the first is unnumbered so the common single-target case reads as
+					// `/hug user:@someone`, and every one of them is optional so `/hug` on its own stays valid (it
+					// renders with an empty `{{ targets }}`).
+					//
+					// The bot's dispatch renderer reads these names to build `{{ targets }}`
+					// (services/social-bot/src/lib/interactions.ts), so they're a contract between the two
+					// services, not just labels.
+					name: index === 0 ? 'user' : `user${index + 1}`,
 					description: index === 0 ? 'Who to direct this at' : `Additional person to direct this at (${index + 1})`,
 					type: ApplicationCommandOptionType.User as const,
 				}))
