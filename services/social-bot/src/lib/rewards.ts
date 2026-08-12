@@ -1,7 +1,7 @@
 import { clearTimeout, setTimeout } from 'node:timers';
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
-import type { RewardRule } from '@chatsift/core';
+import type { RewardRule, RolePositions } from '@chatsift/core';
 import { resolveEarnedRewards } from '@chatsift/core';
 
 export type { RewardRule } from '@chatsift/core';
@@ -31,6 +31,11 @@ export interface ComputeRewardRoleDiffOptions {
 	 */
 	level: number;
 	/**
+	 * The guild's role hierarchy, which decides ties between two rewards configured at the same level. An empty
+	 * map is fine (the guild couldn't be read) -- see `RolePositions`.
+	 */
+	positions: RolePositions;
+	/**
 	 * Every reward configured in the guild -- not a pre-filtered subset. Superseded clean tiers can only be
 	 * identified by looking at rewards above the member's level too.
 	 */
@@ -46,7 +51,12 @@ export interface ComputeRewardRoleDiffOptions {
  *
  * Nothing outside the guild's configured reward roles ever appears in either list.
  */
-export function computeRewardRoleDiff({ heldRoleIds, level, rewards }: ComputeRewardRoleDiffOptions): RewardRoleDiff {
+export function computeRewardRoleDiff({
+	heldRoleIds,
+	level,
+	positions,
+	rewards,
+}: ComputeRewardRoleDiffOptions): RewardRoleDiff {
 	const held = new Set(heldRoleIds);
 	const add = new Set<string>();
 	const remove = new Set<string>();
@@ -54,7 +64,7 @@ export function computeRewardRoleDiff({ heldRoleIds, level, rewards }: ComputeRe
 	// Which roles the member *should* hold is `@chatsift/core`'s call, shared with the dashboard's reward ladder
 	// so the two can't describe "clean" differently. What's left here is the part that's specific to writing a
 	// diff rather than a target set: nothing but a superseded tier is ever taken away.
-	const { stacking, tier } = resolveEarnedRewards(rewards, level);
+	const { stacking, tier } = resolveEarnedRewards(rewards, level, positions);
 
 	for (const reward of [...stacking, ...(tier ? [tier] : [])]) {
 		if (!held.has(reward.roleId)) {

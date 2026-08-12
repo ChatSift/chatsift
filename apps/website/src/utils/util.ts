@@ -16,6 +16,13 @@ export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 export const sortGuilds = (guilds: MeGuild[]) =>
 	guilds.slice().sort((a, b) => b.bots.length - a.bots.length || a.name.localeCompare(b.name));
 
+/**
+ * A Discord role's colour as CSS. `0` is Discord's "no colour" sentinel and renders as its default grey rather
+ * than black -- as does a role that couldn't be resolved at all, which callers pass `undefined` for.
+ */
+export const roleColor = (color: number | null | undefined): string =>
+	color ? `#${color.toString(16).padStart(6, '0')}` : '#99aab5';
+
 export const getGuildAcronym = (guildName: string) =>
 	guildName
 		.replaceAll("'s ", ' ')

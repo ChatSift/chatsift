@@ -6,7 +6,7 @@ import { SvgChevronDown } from '../icons/SvgChevronDown';
 import { Button } from './Button';
 import { ScrollArea } from './ScrollArea';
 import type { GuildRoleInfo } from '@/api/routes/guilds';
-import { cn } from '@/utils/util';
+import { cn, roleColor } from '@/utils/util';
 
 interface RoleSelectProps {
 	/**
@@ -33,11 +33,6 @@ interface RoleSelectProps {
 	readonly roles: GuildRoleInfo[];
 	readonly selectedId: string;
 	readonly value: string;
-}
-
-function roleColor(color: number): string {
-	// Discord represents "no color" (the default role color) as `0`, which would otherwise render as pure black.
-	return color === 0 ? '#99aab5' : `#${color.toString(16).padStart(6, '0')}`;
 }
 
 function RoleItem({ role }: { readonly role: GuildRoleInfo }) {

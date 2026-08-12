@@ -4,7 +4,7 @@ import { withGuildUserLock } from '@chatsift/bot-core';
 import { calculateUserLevel } from '@chatsift/core';
 import type { SocialChannels, SocialGuildSettings, SocialRewards, SocialRoles, SocialUsers } from '@chatsift/db';
 import type { GatewayMessageCreateDispatchData } from '@discordjs/core';
-import { resolveChannelChain } from './discordCache.js';
+import { getRolePositions, resolveChannelChain } from './discordCache.js';
 import { isEligibleForXp } from './eligibility.js';
 import { broadcastLeaderboardChange } from './leaderboardBroadcast.js';
 import { sendLevelUpNotification } from './notifications.js';
@@ -190,7 +190,10 @@ async function track(
 		// a member missing a role they should already have had, and that self-healing is worth keeping. It's
 		// free when nothing differs -- the diff is computed against the roles already in the message payload,
 		// and no Discord call is made unless there's an actual difference.
-		const diff = computeRewardRoleDiff({ heldRoleIds: member.roles, level: newLevel, rewards });
+		// Two rewards at the same level are decided by the guild's role hierarchy, so the diff needs it -- a
+		// cached read (see `getRolePositions`), and only reached once the guild has rewards configured at all.
+		const positions = await getRolePositions(guildId);
+		const diff = computeRewardRoleDiff({ heldRoleIds: member.roles, level: newLevel, positions, rewards });
 		rewardsApplied = await applyRewardRoles({ diff, guildId, heldRoleIds: member.roles, logger, userId });
 	}
 

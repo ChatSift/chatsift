@@ -1,30 +1,20 @@
 'use client';
 
+import type { RolePositions } from '@chatsift/core';
 import { resolveEarnedRewards } from '@chatsift/core';
 import { useParams } from 'next/navigation';
 import type { GuildRoleInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { SocialReward } from '@/api/routes/social';
 import { useSocialRewards } from '@/api/routes/social';
-import { cn } from '@/utils/util';
-
-/**
- * Discord renders a role with no color as grey rather than black. Same rule `RoleSelect` applies to its dots.
- */
-function roleColor(role: GuildRoleInfo | undefined): string {
-	if (!role || role.color === 0) {
-		return '#99aab5';
-	}
-
-	return `#${role.color.toString(16).padStart(6, '0')}`;
-}
+import { cn, roleColor } from '@/utils/util';
 
 /**
  * Every role a member at `level` ends up holding, as a set -- the tier plus the stacking rewards, which is what
  * `resolveEarnedRewards` already decides. Callers diff two of these to describe a rung.
  */
-function heldRoleIds(rewards: readonly SocialReward[], level: number): Set<string> {
-	const { stacking, tier } = resolveEarnedRewards(rewards, level);
+function heldRoleIds(rewards: readonly SocialReward[], level: number, positions: RolePositions): Set<string> {
+	const { stacking, tier } = resolveEarnedRewards(rewards, level, positions);
 	return new Set([...(tier ? [tier.roleId] : []), ...stacking.map((reward) => reward.roleId)]);
 }
 
@@ -44,7 +34,7 @@ function RoleChip({ isTier = false, role, roleId }: RoleChipProps) {
 					: 'border-on-secondary text-secondary dark:border-on-secondary-dark dark:text-secondary-dark',
 			)}
 		>
-			<span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: roleColor(role) }} />
+			<span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: roleColor(role?.color) }} />
 			{role ? role.name : `Deleted role (${roleId})`}
 		</span>
 	);
@@ -69,18 +59,22 @@ export function RewardLadder() {
 	}
 
 	const roleById = new Map((guildInfo?.roles ?? []).map((role) => [role.id, role]));
+	// Two rewards at the same level are decided by the guild's role hierarchy, exactly as the bot decides them
+	// -- the ladder has to break the tie the same way or it draws a tier nobody is granted. Empty until
+	// `useGuildInfo` resolves, which `resolveEarnedRewards` handles (it falls back to role ids).
+	const positions: RolePositions = new Map([...roleById].map(([roleId, role]) => [roleId, role.position]));
 	// One rung per level that actually rewards something -- two roles at the same level share a rung, which is
 	// also how the member experiences it.
 	const levels = [...new Set(rewards.map((reward) => reward.level))].sort((a, b) => a - b);
 	const hasTiers = rewards.some((reward) => reward.clean);
 
 	const rungs = levels.map((level) => {
-		const { stacking, tier } = resolveEarnedRewards(rewards, level);
+		const { stacking, tier } = resolveEarnedRewards(rewards, level, positions);
 		// Diffed against the rung below rather than read off the rows configured *at* this level: those are not
 		// the same thing. Two clean rewards at one level mean only one of them is ever held, so listing the raw
 		// rows would name a role the chips above deliberately leave out.
-		const held = heldRoleIds(rewards, level);
-		const previouslyHeld = heldRoleIds(rewards, level - 1);
+		const held = heldRoleIds(rewards, level, positions);
+		const previouslyHeld = heldRoleIds(rewards, level - 1, positions);
 
 		return {
 			level,

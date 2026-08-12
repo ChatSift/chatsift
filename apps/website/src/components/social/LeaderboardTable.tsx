@@ -5,7 +5,7 @@ import type { SocialLeaderboardEntry, SocialLeaderboardPage } from '@/api/routes
 import { Button } from '@/components/common/Button';
 import { GenericAvatar } from '@/components/common/GenericAvatar';
 import { Skeleton } from '@/components/common/Skeleton';
-import { cn } from '@/utils/util';
+import { cn, roleColor } from '@/utils/util';
 
 const numberFormat = new Intl.NumberFormat('en-US');
 
@@ -35,6 +35,28 @@ function rankClasses(rank: number): string {
 		: 'bg-on-tertiary text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark';
 }
 
+/**
+ * The highest reward role the member currently holds -- which one that is, is `@chatsift/core`'s call (see
+ * `resolveHighestReward`), resolved to a name and a colour by the API. Wearing the role's own colour rather
+ * than a theme token is the point: it's the same marker the server itself shows beside them in Discord.
+ */
+function RewardBadge({ reward }: { readonly reward: NonNullable<SocialLeaderboardEntry['reward']> }) {
+	const color = roleColor(reward.color);
+
+	return (
+		<span
+			className="inline-flex max-w-36 shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs"
+			// Tinted rather than filled: a role colour is arbitrary, and a solid fill of one would be unreadable
+			// against half the palette in one theme or the other.
+			style={{ backgroundColor: `${color}1f`, borderColor: `${color}59`, color }}
+			title={reward.name}
+		>
+			<span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+			<span className="min-w-0 truncate">{reward.name}</span>
+		</span>
+	);
+}
+
 interface LeaderboardRowProps {
 	readonly curve: SocialLeaderboardPage['curve'];
 	readonly entry: SocialLeaderboardEntry;
@@ -61,7 +83,10 @@ function LeaderboardRow({ curve, entry }: LeaderboardRowProps) {
 			/>
 
 			<div className="min-w-0 flex-1">
-				<p className="truncate font-medium text-primary dark:text-primary-dark">{entry.displayName}</p>
+				<div className="flex min-w-0 items-center gap-2">
+					<p className="truncate font-medium text-primary dark:text-primary-dark">{entry.displayName}</p>
+					{entry.reward && <RewardBadge reward={entry.reward} />}
+				</div>
 				{curve && entry.level !== null && (
 					<div className="mt-1 flex items-center gap-2">
 						<span className="shrink-0 text-xs text-secondary dark:text-secondary-dark">Level {entry.level}</span>

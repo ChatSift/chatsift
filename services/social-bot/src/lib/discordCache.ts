@@ -204,6 +204,27 @@ export async function getRoleName(guildId: string, roleId: string): Promise<stri
 }
 
 /**
+ * The guild's role hierarchy, in the shape `@chatsift/core`'s reward rules break their ties on. Empty when the
+ * guild can't be read, which those rules already treat as "no hierarchy known" and fall back to role ids for.
+ *
+ * Reads through the same hour-long redis entry as every other guild lookup here, so the reward path pays a
+ * cached read per grant rather than a Discord request.
+ */
+export async function getRolePositions(guildId: string): Promise<Map<string, number>> {
+	const guild = await loadGuild(guildId);
+	if (!guild) {
+		return new Map();
+	}
+
+	return new Map(
+		guild.roleIds.flatMap((roleId, index) => {
+			const position = guild.rolePositions[index];
+			return position === undefined ? [] : [[roleId, position] as const];
+		}),
+	);
+}
+
+/**
  * Reorders role ids into the guild's own hierarchy, highest first -- the order Discord itself lists roles in, and
  * therefore the only order a reply naming several of them doesn't look shuffled. Ids the guild doesn't have (a
  * deleted reward role) sort last rather than being dropped, since the caller decides whether an unresolvable
@@ -212,15 +233,12 @@ export async function getRoleName(guildId: string, roleId: string): Promise<stri
  * Falls back to the input order if the guild can't be read at all.
  */
 export async function sortRoleIdsByHierarchy(guildId: string, roleIds: readonly string[]): Promise<string[]> {
-	const guild = await loadGuild(guildId);
-	if (!guild) {
+	const positions = await getRolePositions(guildId);
+	if (positions.size === 0) {
 		return [...roleIds];
 	}
 
-	const positionOf = (roleId: string) => {
-		const index = guild.roleIds.indexOf(roleId);
-		return index === -1 ? Number.NEGATIVE_INFINITY : (guild.rolePositions[index] ?? Number.NEGATIVE_INFINITY);
-	};
+	const positionOf = (roleId: string) => positions.get(roleId) ?? Number.NEGATIVE_INFINITY;
 
 	return [...roleIds].sort((left, right) => positionOf(right) - positionOf(left));
 }

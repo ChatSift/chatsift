@@ -409,6 +409,29 @@ test guild, not just build/lint/test.
   - Nothing in P5 changes: the legacy schema has no counterpart, migrated rows land with `description` NULL, and
     both `--verify` signature builders already omit it, so they stay in agreement.
 
+- [x] **Highest reward on the leaderboards.** Each row on the dashboard and public leaderboards now carries the
+      reward role the member currently holds, rendered as a chip in the role's own Discord colour. The resolution is
+      `@chatsift/core`'s new `resolveHighestReward`, and the API builds it once per page in
+      `routes/social/leaderboard/util.ts` — one `social_rewards` read plus the already-cached `fetchGuildRoles`, so
+      nothing is per row.
+  - **The highest reward of _either_ kind, not `resolveEarnedRewards(...).tier`.** `clean` defaults to false, so a
+    guild that never touches that checkbox has no tier at all and every row would have shown an empty badge. The
+    clean/stacking split describes what the bot takes back off on a promotion, not which role is the member's most
+    impressive one.
+  - **All reward tie-breaking now breaks on Discord role position**, not the lower role id it used to — the owner's
+    call, and applied to `resolveEarnedRewards` too rather than only the new function, so the bot, the ladder and
+    the leaderboards can't disagree about which of two rewards at the same level wins. Positions are a required
+    argument: the bot passes `discordCache.getRolePositions` (its existing hour-long redis guild entry, so the grant
+    path pays a cached read), the dashboard passes `useGuildInfo`'s roles, the API passes `fetchGuildRoles`. An
+    empty map — a guild that can't be read — falls back to the lower role id, which keeps the answer deterministic
+    rather than dependent on each caller's `SELECT` order.
+  - **Rewards whose role Discord no longer has are dropped, not drawn.** A `social_rewards` row outlives its role,
+    and nobody wears a deleted one. When the role list can't be fetched _at all_, the page carries no badges rather
+    than declaring the guild's whole ladder deleted.
+  - Not added to the bot's `/leaderboard` embed — that surface stays as it is.
+  - `roleColor` (Discord's `0` = default grey rule) was about to be copied a third time, so it moved to
+    `apps/website/src/utils/util.ts`; `RoleSelect` and `RewardLadder` now share it.
+
 - [x] **P5 — Migration script.** Landed as **three** files rather than one: `scripts/lib/legacySocial.ts` holds the
       legacy-to-new column mapping, and two entrypoints sit on it —
       `scripts/migrateLegacySocial.ts` (`yarn migrate:legacy-social`) and `scripts/copyLegacySocialGuild.ts`
