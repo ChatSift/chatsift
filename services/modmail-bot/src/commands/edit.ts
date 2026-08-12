@@ -40,7 +40,7 @@ export default class EditCommand implements CommandHandler {
 		.addIntegerOptions((option) =>
 			option
 				.setName('id')
-				.setDescription('The Reply ID shown in this ticket’s mod-forum log message footer')
+				.setDescription("The Reply ID shown in this ticket's mod-forum log message footer")
 				.setRequired(true)
 				.setMinValue(1),
 		)

@@ -95,7 +95,7 @@ export function SocialChannelForm({ channel }: SocialChannelFormProps) {
 			setErrors({
 				channelId: configuredChannelsError
 					? "Couldn't load this server's configured channels, so picking one isn't safe right now. Reload and try again."
-					: 'Still loading this server’s configured channels.',
+					: "Still loading this server's configured channels.",
 			});
 			return;
 		}

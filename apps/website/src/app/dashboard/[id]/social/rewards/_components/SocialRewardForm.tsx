@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@/api/formErrors';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { SocialReward, UpsertSocialRewardBody } from '@/api/routes/social';
-import { useSocialRewards, useUpsertSocialReward } from '@/api/routes/social';
+import { useDeleteSocialReward, useSocialRewards, useUpsertSocialReward } from '@/api/routes/social';
 import { FormActions } from '@/components/common/FormActions';
 import { RoleSelect } from '@/components/common/RoleSelect';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -28,7 +28,9 @@ const REWARD_FIELDS = ['roleId', 'level', 'clean', 'description'] as const satis
 interface SocialRewardFormProps {
 	/**
 	 * The reward being edited, or `undefined` when adding one. A role rewards exactly one level (the table's
-	 * primary key), so re-submitting a role that's already rewarded moves it rather than adding a second entry.
+	 * primary key), so re-submitting a role that's already rewarded moves it rather than adding a second entry
+	 * -- and, same as the channel/role forms, retargeting an existing reward is a PUT against the new role
+	 * followed by a DELETE of the old row.
 	 */
 	readonly reward?: SocialReward | undefined;
 }
@@ -51,8 +53,13 @@ export function SocialRewardForm({ reward }: SocialRewardFormProps) {
 	// move that reward rather than adding a new one -- and that check can't run until this list has loaded.
 	const { data: configuredRewards, error: configuredRewardsError } = useSocialRewards(guildId);
 	const upsertReward = useUpsertSocialReward(guildId);
+	const deleteReward = useDeleteSocialReward(guildId);
 
-	const isAddBlocked = !reward && configuredRewards === undefined;
+	// See the channel form: retargeting writes a row that doesn't exist yet, so it needs the add flow's guards.
+	const isRetarget = Boolean(reward) && form.roleId !== reward?.roleId;
+	const isPickingRole = !reward || isRetarget;
+
+	const isPickBlocked = isPickingRole && configuredRewards === undefined;
 
 	const updateField = <TField extends keyof RewardFormData>(field: TField, value: RewardFormData[TField]) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
@@ -67,11 +74,11 @@ export function SocialRewardForm({ reward }: SocialRewardFormProps) {
 			return;
 		}
 
-		if (isAddBlocked) {
+		if (isPickBlocked) {
 			setErrors({
 				roleId: configuredRewardsError
-					? "Couldn't load this server's existing rewards, so adding one isn't safe right now. Reload and try again."
-					: 'Still loading this server’s existing rewards.',
+					? "Couldn't load this server's existing rewards, so picking a role isn't safe right now. Reload and try again."
+					: "Still loading this server's existing rewards.",
 			});
 			return;
 		}
@@ -95,6 +102,13 @@ export function SocialRewardForm({ reward }: SocialRewardFormProps) {
 
 		try {
 			await upsertReward.mutateAsync({ roleId: form.roleId, body: result.data });
+
+			// PUT then DELETE -- see the channel form for why this order and why it isn't a transaction.
+			if (isRetarget) {
+				await deleteReward.mutateAsync(reward!.roleId);
+				router.replace(`/dashboard/${guildId}/social/rewards`);
+				return;
+			}
 
 			if (reward) {
 				setErrors({});
@@ -127,25 +141,28 @@ export function SocialRewardForm({ reward }: SocialRewardFormProps) {
 			)}
 
 			<div className="space-y-4">
-				{reward ? null : (
-					<div>
-						<RoleSelect
-							disabledIds={configuredRewards?.map((configured) => configured.roleId)}
-							disabledReason="already a reward"
-							error={errors.roleId}
-							label="Role"
-							onChange={(value) => updateField('roleId', value ?? '')}
-							required
-							roles={guildInfo?.roles ?? []}
-							selectedId="social-reward-role"
-							value={form.roleId}
-						/>
-						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-							Has to be a role the bot can actually hand out -- roles managed by another integration are rejected, and
-							the bot&apos;s own highest role has to sit above this one on Discord.
-						</p>
-					</div>
-				)}
+				<div>
+					<RoleSelect
+						// The edited row's own role stays pickable (it's the current value); every other rewarded role stays
+						// greyed out, since retargeting onto one would upsert over its reward.
+						disabledIds={configuredRewards
+							?.filter((configured) => configured.roleId !== reward?.roleId)
+							.map((configured) => configured.roleId)}
+						disabledReason="already a reward"
+						error={errors.roleId}
+						isLoading={isGuildInfoLoading}
+						label="Role"
+						onChange={(value) => updateField('roleId', value ?? '')}
+						required
+						roles={guildInfo?.roles ?? []}
+						selectedId="social-reward-role"
+						value={form.roleId}
+					/>
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+						Has to be a role the bot can actually hand out -- roles managed by another integration are rejected, and the
+						bot&apos;s own highest role has to sit above this one on Discord.
+					</p>
+				</div>
 
 				<TextField
 					error={errors.level}
@@ -203,7 +220,7 @@ export function SocialRewardForm({ reward }: SocialRewardFormProps) {
 			</div>
 
 			<FormActions
-				isSubmitDisabled={!form.roleId || isAddBlocked || (!reward && isGuildInfoLoading)}
+				isSubmitDisabled={!form.roleId || isPickBlocked || (isPickingRole && isGuildInfoLoading)}
 				isSubmitting={upsertReward.isPending}
 				onCancel={() => router.back()}
 				pendingLabel={reward ? 'Saving...' : 'Adding...'}

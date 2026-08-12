@@ -71,7 +71,7 @@ export function SocialRoleForm({ role }: SocialRoleFormProps) {
 			setErrors({
 				roleId: configuredRolesError
 					? "Couldn't load this server's configured roles, so picking one isn't safe right now. Reload and try again."
-					: 'Still loading this server’s configured roles.',
+					: "Still loading this server's configured roles.",
 			});
 			return;
 		}

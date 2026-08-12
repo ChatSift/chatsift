@@ -49,7 +49,7 @@ test('redacts client_secret when the error is logged under an explicit `err` key
 	expect(output()).toContain('[REDACTED]');
 });
 
-test('redacts refresh_token when the error is passed as pino’s bare first argument', () => {
+test("redacts refresh_token when the error is passed as pino's bare first argument", () => {
 	const { logger, output } = createCapturingLogger();
 	const error = new FakeDiscordRestError({
 		grant_type: 'refresh_token',

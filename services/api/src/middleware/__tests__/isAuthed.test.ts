@@ -895,7 +895,7 @@ describe('scoped dashboard session auth', () => {
 		expect(res.setHeader).not.toHaveBeenCalled();
 	});
 
-	test('isGuildManager passes for the session’s own guild without any Discord call', async () => {
+	test("isGuildManager passes for the session's own guild without any Discord call", async () => {
 		const [{ handle: isAuth }, { handle: isGuildManager }] = isAuthed({
 			fallthrough: false,
 			isGlobalAdmin: false,

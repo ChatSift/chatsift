@@ -24,13 +24,13 @@ export function answerEditorHint(hasPublishedAnswer: boolean, postsToDiscord: bo
 
 	if (hasPublishedAnswer) {
 		return postsToDiscord
-			? 'Already sent — saving edits the answer on the message that’s live in the answers channel, and on the public answers page.'
-			: 'Already published — saving updates the answer on the public answers page. This AMA doesn’t post answers to Discord.';
+			? "Already sent — saving edits the answer on the message that's live in the answers channel, and on the public answers page."
+			: "Already published — saving updates the answer on the public answers page. This AMA doesn't post answers to Discord.";
 	}
 
 	return postsToDiscord
 		? 'This question is already posted in the answers channel, but has no answer yet. Saving adds your answer to that message and publishes it to the public answers page.'
-		: 'This AMA doesn’t post answers to Discord. Saving publishes this question and its answer to the public answers page.';
+		: "This AMA doesn't post answers to Discord. Saving publishes this question and its answer to the public answers page.";
 }
 
 /**
@@ -47,7 +47,7 @@ export function saveConfirmCopy(postsToDiscord: boolean | undefined): { body: st
 	if (postsToDiscord === undefined) {
 		return {
 			title: 'Edit a published answer?',
-			body: 'This answer has already gone out. Saving updates it everywhere it’s currently visible - anyone who already read it will see the new text.',
+			body: "This answer has already gone out. Saving updates it everywhere it's currently visible - anyone who already read it will see the new text.",
 		};
 	}
 
