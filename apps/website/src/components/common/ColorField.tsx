@@ -29,6 +29,18 @@ export function hexToColor(hex: string): number | null {
 
 export const DEFAULT_EMBED_COLOR_HEX = colorToHex(DEFAULT_EMBED_COLOR);
 
+export const INVALID_COLOR_MESSAGE = `Must be a hex color, e.g. ${DEFAULT_EMBED_COLOR_HEX}`;
+
+/**
+ * A blank field is a real choice ("use the default"); a non-empty field that isn't a usable hex is a typo.
+ * `hexToColor` returns `null` for both, so a form that only did `hexToColor(...) ?? undefined` would
+ * quietly post the default for a mistyped brand color and report success. Returns the message to render
+ * under the field, or `null` when there's nothing wrong with it.
+ */
+export function validateColorInput(value: string): string | null {
+	return value && hexToColor(value) === null ? INVALID_COLOR_MESSAGE : null;
+}
+
 interface ColorFieldProps {
 	readonly error?: string | undefined;
 	readonly helper?: React.ReactNode;

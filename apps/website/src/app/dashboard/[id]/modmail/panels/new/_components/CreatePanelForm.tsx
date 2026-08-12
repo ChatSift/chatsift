@@ -13,7 +13,7 @@ import { useGuildInfo } from '@/api/routes/guilds';
 import type { CreateModmailPanelBody } from '@/api/routes/modmail';
 import { useCreateModmailPanel } from '@/api/routes/modmail';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
-import { hexToColor } from '@/components/common/ColorField';
+import { hexToColor, validateColorInput } from '@/components/common/ColorField';
 import { FormActions } from '@/components/common/FormActions';
 import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -138,6 +138,15 @@ export function CreatePanelForm() {
 	const validateForm = (): CreateModmailPanelBody | undefined => {
 		if (mode === 'raw' && formData.panelRaw && !isValidJSON(formData.panelRaw)) {
 			setErrors({ panelRaw: 'Must be valid JSON' });
+			setGeneralError(null);
+			return undefined;
+		}
+
+		// Checked here rather than left to the schema: `buildBody` can only send a number or nothing, so an
+		// unparseable hex would reach the API as an omitted field and post the default instead of failing.
+		const colorError = mode === 'normal' ? validateColorInput(formData.color) : null;
+		if (colorError) {
+			setErrors({ color: colorError });
 			setGeneralError(null);
 			return undefined;
 		}

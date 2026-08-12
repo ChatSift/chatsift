@@ -147,6 +147,20 @@ test('a successfully forwarded sticker is still called out as a sticker', async 
 	expect(media.note).toBe('*(sent a sticker: "wave")*');
 });
 
+// Unlike attachments, a sticker's size isn't known until it's been fetched -- so the cumulative budget can
+// only be checked after the download, on the far side of the same branch a failed download takes.
+test('a sticker that blows the cumulative budget is dropped after being downloaded', async () => {
+	stubFetch(6 * MiB);
+
+	const media = await buildRelayMedia([attachment({ size: 6 * MiB })], [sticker()], logger);
+
+	expect(media.files.map((file) => file.name)).toStrictEqual(['a.png']);
+	expect(media.note!.split('\n')).toStrictEqual([
+		'*(sent a sticker: "wave")*',
+		"*(couldn't forward 1 item(s), original link(s): https://cdn.discordapp.com/stickers/1.png)*",
+	]);
+});
+
 test('a sticker that could not be downloaded is named as a sticker and linked', async () => {
 	vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
 

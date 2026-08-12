@@ -18,7 +18,7 @@ import { useCreateAMA } from '@/api/routes/ama';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
-import { hexToColor } from '@/components/common/ColorField';
+import { hexToColor, validateColorInput } from '@/components/common/ColorField';
 import { FormActions } from '@/components/common/FormActions';
 import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -236,6 +236,15 @@ export function CreateAMAForm() {
 	const validateForm = (): CreateAMABody | undefined => {
 		if (promptMode === 'raw' && formData.promptRaw && !isValidJSON(formData.promptRaw)) {
 			setErrors({ promptRaw: 'Must be valid JSON' });
+			setGeneralError(null);
+			return undefined;
+		}
+
+		// Checked here rather than left to the schema: `buildBody` can only send a number or nothing, so an
+		// unparseable hex would reach the API as an omitted field and post the default instead of failing.
+		const colorError = promptMode === 'normal' ? validateColorInput(formData.color) : null;
+		if (colorError) {
+			setErrors({ color: colorError });
 			setGeneralError(null);
 			return undefined;
 		}

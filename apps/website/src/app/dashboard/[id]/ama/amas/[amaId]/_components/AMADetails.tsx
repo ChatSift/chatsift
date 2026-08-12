@@ -1,7 +1,7 @@
 'use client';
 
 import { hasDiscordMessageSurface, updateAMAConfigSchema } from '@chatsift/api/ama-schemas';
-import { amaQuestionsChannel } from '@chatsift/core';
+import { amaQuestionsChannel, DEFAULT_EMBED_COLOR } from '@chatsift/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChannelType } from 'discord-api-types/v10';
 import Link from 'next/link';
@@ -29,7 +29,7 @@ import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
-import { colorToHex, hexToColor } from '@/components/common/ColorField';
+import { colorToHex, hexToColor, validateColorInput } from '@/components/common/ColorField';
 import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { RawJsonField } from '@/components/common/RawJsonField';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -382,7 +382,11 @@ export function AMADetails() {
 							description: prev.description || undefined,
 							image: prev.imageURL ? { url: prev.imageURL } : undefined,
 							thumbnail: prev.thumbnailURL ? { url: prev.thumbnailURL } : undefined,
-							color: hexToColor(prev.color) ?? undefined,
+							// Falls back to the default rather than omitting the key: this JSON *replaces* the
+							// normal-mode fields once raw mode takes over, and `createAMA.ts`'s default only applies
+							// to a normal-mode body -- omitting it here would silently drop the stripe the preview
+							// was showing a moment ago.
+							color: hexToColor(prev.color) ?? DEFAULT_EMBED_COLOR,
 						},
 					],
 				};
@@ -406,6 +410,14 @@ export function AMADetails() {
 
 		if (promptMode === 'raw' && promptForm.promptRaw && !isValidJSON(promptForm.promptRaw)) {
 			setPromptErrors({ promptRaw: 'Must be valid JSON' });
+			return;
+		}
+
+		// Checked here rather than left to the schema: the body below can only carry a number or nothing, so
+		// an unparseable hex would reach the API as an omitted field and post the default instead of failing.
+		const colorError = promptMode === 'normal' ? validateColorInput(promptForm.color) : null;
+		if (colorError) {
+			setPromptErrors({ color: colorError });
 			return;
 		}
 
