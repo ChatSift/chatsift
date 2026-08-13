@@ -25,6 +25,15 @@ test('parseFullRoute only strips a leading prefix', () => {
 	expect(parseFullRoute('/channels/1425493115053019319/api/v10')).toBe('/channels/1425493115053019319/api/v10');
 });
 
+test('parseFullRoute only strips whole path segments', () => {
+	// Unanchored, these would silently become `/foo/bar` and `/-docs` -- a route rewritten into a different,
+	// valid-looking one rather than an obvious failure.
+	expect(parseFullRoute('/apifoo/bar')).toBe('/apifoo/bar');
+	expect(parseFullRoute('/api-docs')).toBe('/api-docs');
+	// `v10x` is not a version segment, so only `/api` comes off.
+	expect(parseFullRoute('/api/v10x/guilds/1425493115053019319')).toBe('/v10x/guilds/1425493115053019319');
+});
+
 test('every ratelimit accounting header is withheld from the caller', () => {
 	for (const header of [
 		'x-ratelimit-limit',

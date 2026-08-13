@@ -25,6 +25,13 @@ export function retryAfterSeconds(error: RateLimitError, jitterMs: number): numb
 export async function populateSuccessResponse(res: ServerResponse, data: ResponseLike): Promise<void> {
 	res.statusCode = data.status;
 
+	// Framing headers (`content-length`, `content-encoding`, `transfer-encoding`) are copied verbatim onto a
+	// body that node re-frames itself when we pipe it below, which is only safe because of a property of the
+	// request side: `forwardableRequestHeaders` never forwards `accept-encoding`, so Discord always answers
+	// uncompressed, with a `content-length` matching the bytes we pipe. Forward `accept-encoding` upstream one
+	// day -- or hit a response Discord chunks, since undici hands us a de-chunked stream while the header still
+	// says `chunked` -- and the copied header would contradict the body, hanging or truncating the client.
+	// Pinned here rather than fixed with a hop-by-hop deny-list because the request side is the real invariant.
 	for (const [header, value] of data.headers) {
 		if (!shouldForwardResponseHeader(header)) {
 			continue;

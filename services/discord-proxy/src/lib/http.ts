@@ -4,8 +4,12 @@ import type { RouteLike } from '@discordjs/rest';
 /**
  * Clients talk to us with the same absolute paths they'd send Discord (`/api/v10/guilds/:id`), but `REST`
  * wants the version-less route (`/guilds/:id`) and re-adds `/api/v{version}` itself from its own options.
+ *
+ * The trailing lookahead anchors the match to a whole path segment. Without it, any path that merely begins
+ * with those characters gets stripped too -- `/apifoo/bar` would become `/foo/bar`, and `/api/v10x/guilds`
+ * would lose a `/v10` it never had -- silently rewriting a route into a different, valid-looking one.
  */
-const API_PREFIX = /^\/api(?:\/v\d+)?/;
+const API_PREFIX = /^\/api(?:\/v\d+)?(?=\/|$)/;
 
 /**
  * Turns an inbound request path into the `RouteLike` `REST` expects. A request for the bare prefix
