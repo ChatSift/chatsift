@@ -6,7 +6,7 @@ import type { REST } from '@discordjs/rest';
 import { CompressionMethod, WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
 import { createRedisIdentifyThrottler } from './identifyThrottler.js';
 import { claimReplicaSlot } from './replica.js';
-import { createSessionStore } from './sessions.js';
+import { retrieveSessionInfo, startSessionStore, updateSessionInfo } from './sessions.js';
 import { onShutdown } from './shutdown.js';
 
 export interface CreateBotGatewayOptions {
@@ -31,7 +31,7 @@ export async function createBotGateway({
 	rest,
 	token,
 }: CreateBotGatewayOptions): Promise<WebSocketManager> {
-	const sessions = createSessionStore(botId);
+	startSessionStore(botId);
 
 	// Fetched here rather than left to the manager because the shard count is an *input* to the claim below --
 	// this replica cannot know which slice is its own until it knows how many there are. The manager fetches it
@@ -51,19 +51,14 @@ export async function createBotGateway({
 		compression: CompressionMethod.ZlibNative,
 		shardCount,
 		shardIds,
-		retrieveSessionInfo: async (shardId) => sessions.retrieveSessionInfo(shardId),
-		updateSessionInfo: async (shardId, sessionInfo) => sessions.updateSessionInfo(shardId, sessionInfo),
+		retrieveSessionInfo,
+		updateSessionInfo,
 		buildIdentifyThrottler: async (manager) =>
 			createRedisIdentifyThrottler(
 				botId,
 				(await manager.fetchGatewayInformation()).session_start_limit.max_concurrency,
 			),
 	});
-
-	// Flushing on shutdown is what turns a planned restart into a RESUME from the exact sequence it stopped at,
-	// rather than one up to a flush interval stale. See `lib/sessions.ts` for why the store is write-behind, and
-	// `lib/shutdown.ts` for why the gateway itself is deliberately not destroyed here.
-	onShutdown('gateway-sessions', async () => sessions.flush());
 
 	gateway
 		.on(WebSocketShardEvents.Closed, (code, shardId) => getContext().logger.info({ shardId, code }, 'Shard CLOSED'))

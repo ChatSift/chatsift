@@ -1,12 +1,5 @@
 import type { BotId } from '@chatsift/core';
-import type { Recipe } from 'bin-rw';
-import { createRecipe, DataType } from 'bin-rw';
 import { getContext } from '../context.js';
-import { RedisStore } from './_store.js';
-
-interface BotInfo {
-	guilds: string[];
-}
 
 /**
  * The public deployment of a bot keys its guild list on the bare `BotId`. A custom, single-guild ModMail
@@ -17,67 +10,70 @@ interface BotInfo {
 export type GuildListKey = BotId | `${BotId}#${string}`;
 
 /**
- * How long a replica's published slice survives without being refreshed. `createBotClient` republishes every 10s,
- * so this is six missed writes -- long enough to ride out a slow tick, short enough that a replica which died
- * without releasing its slice stops being counted quickly. Staleness lives in the key's TTL rather than in the
- * value so a dead replica's guilds disappear on their own, with nothing having to notice it died.
+ * How long a replica's set of guilds survives without being touched
  */
 const ENTRY_TTL_MS = 60_000;
 
-const store = new RedisStore<BotInfo>({
-	TTL: ENTRY_TTL_MS,
-	// The TTL here means "this replica is still publishing", not "this value is still wanted", so readers must not
-	// extend it. `RedisStore.get` slides the TTL forward by default, which would let the dashboard's constant
-	// reads keep a dead replica's slice alive indefinitely -- the exact staleness this entry's expiry exists to
-	// clear.
-	refreshTTLOnRead: false,
-	// bin-rw's own inferred type is `(string | null)[] | null` for `guilds` -- every entry here is always a
-	// real snowflake, never `null`, so the cast corrects that.
-	recipe: createRecipe(
-		{
-			guilds: [DataType.String],
-		},
-		{ versioned: true },
-	) as Recipe<BotInfo>,
-	// `id` here is the composite `<GuildListKey>:<replicaIndex>` built by `entryId` -- see `publishGuildList`.
-	makeKey: (id: string) => `guilds:${id}`,
-	storeOld: false,
-});
-
-const entryId = (id: GuildListKey, replicaIndex: number): string => `${id}:${replicaIndex}`;
+/**
+ * The guild set for one replica of one bot
+ */
+const guildsKey = (id: GuildListKey, replicaIndex: number): string => `guilds:${id}:${replicaIndex}`;
 
 /**
- * Set of replica indices currently publishing for this key. Exists so a reader can find every slice in two round
- * trips without `SCAN MATCH guilds:*` -- a match-scan still walks the entire keyspace, which here is dominated by
- * the `discorduser:*` cache and can run to millions of keys.
+ * Set of replica indices currently publishing for this key.
  */
 const indexKey = (id: GuildListKey): string => `guildsreplicas:${id}`;
 
 /**
- * Publishes the guilds *this replica* is responsible for.
+ * Starts this replica's slice from empty, and registers it as publishing.
  *
- * Sharded horizontally, a replica only ever sees `GUILD_CREATE` for the shards it owns, so no single process
- * knows the whole set. Writing one key per replica and unioning on read is what keeps that correct; a single
- * whole-array key (which is what this was before) would have each replica overwriting the others every 10s and
- * the dashboard flapping between disjoint guild sets. This is the same failure #216 hit with two ModMail
- * deployments sharing one key, and the same fix.
+ * Called on READY -- a fresh IDENTIFY is about to re-announce every guild via `GUILD_CREATE.
  */
-export async function publishGuildList(id: GuildListKey, replicaIndex: number, guilds: string[]): Promise<void> {
-	await store.set(entryId(id, replicaIndex), { guilds });
-	await getContext().redis.sAdd(indexKey(id), String(replicaIndex));
+export async function resetGuildList(id: GuildListKey, replicaIndex: number): Promise<void> {
+	const { redis } = getContext();
+	await redis.del(guildsKey(id, replicaIndex));
+	await redis.sAdd(indexKey(id), String(replicaIndex));
+}
+
+/**
+ * Whether this replica still has a slice. A resume that finds none has lost state it cannot rebuild from the
+ * gateway -- see `bot-core/src/lib/client.ts` for what it does about that.
+ */
+export async function guildListExists(id: GuildListKey, replicaIndex: number): Promise<boolean> {
+	return (await getContext().redis.exists(guildsKey(id, replicaIndex))) === 1;
+}
+
+export async function addGuildToList(id: GuildListKey, replicaIndex: number, guildId: string): Promise<void> {
+	const { redis } = getContext();
+	await redis.sAdd(guildsKey(id, replicaIndex), guildId);
+	await redis.pExpire(guildsKey(id, replicaIndex), ENTRY_TTL_MS);
+	await redis.sAdd(indexKey(id), String(replicaIndex));
+}
+
+export async function removeGuildFromList(id: GuildListKey, replicaIndex: number, guildId: string): Promise<void> {
+	await getContext().redis.sRem(guildsKey(id, replicaIndex), guildId);
+}
+
+/**
+ * Returns `false` when the key is already gone, which means this replica's slice expired underneath it -- the
+ * same lost-state condition `guildListExists` reports on resume.
+ */
+export async function touchGuildList(id: GuildListKey, replicaIndex: number): Promise<boolean> {
+	const { redis } = getContext();
+	const refreshed = await redis.pExpire(guildsKey(id, replicaIndex), ENTRY_TTL_MS);
+	// A bot in no guilds has no key to refresh, so re-registering the index here keeps it discoverable rather
+	// than letting it fall out of the set the moment it is legitimately empty.
+	await redis.sAdd(indexKey(id), String(replicaIndex));
+	return Boolean(refreshed);
 }
 
 /**
  * Every guild this bot is in, unioned across replicas.
- *
- * An index member whose entry has expired is pruned as it's found, so a replica that goes away for good doesn't
- * leave the set growing forever. Pruning on read (rather than in a sweep) is enough because the set is only ever
- * this small and every reader does it.
  */
 export async function readGuildList(id: GuildListKey): Promise<string[]> {
 	const { redis } = getContext();
-	const members = await redis.sMembers(indexKey(id));
-	if (members.length === 0) {
+	const replicas = await redis.sMembers(indexKey(id));
+	if (replicas.length === 0) {
 		return [];
 	}
 
@@ -85,14 +81,17 @@ export async function readGuildList(id: GuildListKey): Promise<string[]> {
 	const stale: string[] = [];
 
 	await Promise.all(
-		members.map(async (member) => {
-			const entry = await store.get(entryId(id, Number(member.toString())));
-			if (entry) {
-				for (const guildId of entry.guilds) {
-					guilds.add(guildId);
-				}
-			} else {
-				stale.push(member.toString());
+		replicas.map(async (replica) => {
+			const replicaIndex = replica.toString();
+			const key = guildsKey(id, Number(replicaIndex));
+
+			if ((await redis.exists(key)) !== 1) {
+				stale.push(replicaIndex);
+				return;
+			}
+
+			for (const guildId of await redis.sMembers(key)) {
+				guilds.add(guildId.toString());
 			}
 		}),
 	);
@@ -105,10 +104,9 @@ export async function readGuildList(id: GuildListKey): Promise<string[]> {
 }
 
 /**
- * Drops this replica's slice, so a graceful shutdown stops counting its guilds immediately rather than leaving
- * them to expire with the key's TTL.
+ * Stops this replica being counted, so a graceful shutdown drops its guilds from the union immediately rather
+ * than leaving them advertised until the TTL runs out.
  */
 export async function dropGuildList(id: GuildListKey, replicaIndex: number): Promise<void> {
-	await store.delete(entryId(id, replicaIndex));
 	await getContext().redis.sRem(indexKey(id), String(replicaIndex));
 }

@@ -1,6 +1,16 @@
+import process from 'node:process';
 import { setInterval } from 'node:timers';
 import type { GuildListKey } from '@chatsift/backend-core';
-import { dropGuildList, getContext, primeUserCache, publishGuildList } from '@chatsift/backend-core';
+import {
+	addGuildToList,
+	dropGuildList,
+	getContext,
+	guildListExists,
+	primeUserCache,
+	removeGuildFromList,
+	resetGuildList,
+	touchGuildList,
+} from '@chatsift/backend-core';
 import type { Snowflake } from '@discordjs/core';
 import { InteractionType, Client, GatewayDispatchEvents } from '@discordjs/core';
 import type { REST } from '@discordjs/rest';
@@ -15,6 +25,7 @@ import { handleComponentInteraction } from './components.js';
 import DashboardCommand from './dashboardCommand.js';
 import DeployCommand from './deploy.js';
 import { getReplicaIndex } from './replica.js';
+import { invalidateStoredSessions } from './sessions.js';
 import { onShutdown } from './shutdown.js';
 
 declare module '@chatsift/backend-core' {
@@ -54,10 +65,20 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 	registerCommandHandler(new DeployCommand());
 	registerCommandHandler(new DashboardCommand());
 
-	// keep a copy of the guild ids we manage here to easily patch redis
-	const guildIds = new Set<Snowflake>();
-
 	const client = new Client({ rest, gateway });
+
+	// Losing the guild set is unrecoverable from a resumed session without a massive amount of API requests
+	async function recoverLostGuildList(reason: string): Promise<void> {
+		getContext().logger.error({ botId, reason }, 'lost the guild list, dropping the session to force a re-identify');
+
+		try {
+			await invalidateStoredSessions();
+		} catch (error) {
+			getContext().logger.error({ err: error, botId }, 'failed to invalidate sessions before restarting');
+		}
+
+		process.kill(process.pid, 'SIGTERM');
+	}
 
 	client
 		// discord.js-core's Client re-emits a rejected async listener's error as an 'error' event; with no
@@ -67,12 +88,19 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 		.on('error', (error) => {
 			getContext().logger.error({ err: error }, 'Unhandled error in Discord client event listener');
 		})
-		.on(GatewayDispatchEvents.GuildCreate, ({ data: guild }) => {
-			guildIds.add(guild.id);
+		.on(GatewayDispatchEvents.GuildCreate, async ({ data: guild }) => {
+			await addGuildToList(botId, getReplicaIndex(), guild.id);
 		})
-		.on(GatewayDispatchEvents.GuildDelete, ({ data: guild }) => {
+		.on(GatewayDispatchEvents.GuildDelete, async ({ data: guild }) => {
 			if (!guild.unavailable) {
-				guildIds.delete(guild.id);
+				await removeGuildFromList(botId, getReplicaIndex(), guild.id);
+			}
+		})
+		.on(GatewayDispatchEvents.Resumed, async () => {
+			getContext().logger.info('Resumed an existing session');
+
+			if (!(await guildListExists(botId, getReplicaIndex()))) {
+				await recoverLostGuildList('no guild list to resume onto');
 			}
 		})
 		.on(GatewayDispatchEvents.InteractionCreate, async ({ data: interaction }) => {
@@ -110,6 +138,10 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 		.once(GatewayDispatchEvents.Ready, async ({ data }) => {
 			getContext().logger.info('Logged in successfully');
 
+			// A fresh IDENTIFY re-announces every guild via GUILD_CREATE, so anything already under this index
+			// belongs to a previous life of it and must not survive. This is the only place the set is cleared.
+			await resetGuildList(botId, getReplicaIndex());
+
 			// `.once` makes this fire a single time per *process*, which stops being "once" as soon as a bot runs
 			// more than one replica: each would independently see zero global commands and each would bulk-overwrite.
 			// The claim is taken before the check below rather than around just the write, so two replicas can't both
@@ -137,11 +169,16 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 			}
 		});
 
+	// A heartbeat, not a republish: the set is maintained per event, so this only re-arms its TTL. A key that is
+	// already gone (a redis outage outlasting the TTL) is the same lost-state condition the resume path handles,
+	// and is recovered the same way rather than left to run empty.
 	setInterval(async () => {
 		try {
-			await publishGuildList(botId, getReplicaIndex(), [...guildIds]);
+			if (!(await touchGuildList(botId, getReplicaIndex()))) {
+				await recoverLostGuildList('guild list expired while running');
+			}
 		} catch (error) {
-			getContext().logger.error({ err: error }, 'Failed to sync guild list to Redis');
+			getContext().logger.error({ err: error }, 'Failed to refresh the guild list TTL');
 		}
 	}, 10_000).unref();
 
