@@ -14,6 +14,11 @@ export interface ContextService {}
 export interface Context {
 	API_URL: string;
 	BCRYPT_SALT_ROUNDS: number;
+	/**
+	 * Base URL every `REST` client in this process should talk to, or `null` to talk to Discord directly.
+	 * See `DISCORD_PROXY_URL_DEV`/`_PROD` in env.ts for why "unset" is a supported, meaningful state.
+	 */
+	DISCORD_PROXY_URL: string | null;
 	FRONTEND_URL: string;
 	UP_SINCE: number;
 
@@ -37,6 +42,7 @@ export function initContext(given: Pick<Context, 'db' | 'logger' | 'redis'>): vo
 	context = {
 		API_URL: ENV.IS_PRODUCTION ? ENV.API_URL_PROD : ENV.API_URL_DEV,
 		BCRYPT_SALT_ROUNDS: 14,
+		DISCORD_PROXY_URL: (ENV.IS_PRODUCTION ? ENV.DISCORD_PROXY_URL_PROD : ENV.DISCORD_PROXY_URL_DEV) ?? null,
 		FRONTEND_URL: ENV.IS_PRODUCTION ? ENV.FRONTEND_URL_PROD : ENV.FRONTEND_URL_DEV,
 		UP_SINCE: Date.now(),
 

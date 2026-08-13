@@ -22,6 +22,7 @@ export function stubBackendCoreEnv(): void {
 	process.env['DATABASE_URL_PROD'] = 'postgres://user:password@localhost:5432/dbname';
 	process.env['REDIS_URL_DEV'] = 'redis://localhost:6379';
 	process.env['REDIS_URL_PROD'] = 'redis://localhost:6379';
+	process.env['DISCORD_PROXY_PORT'] = '9877';
 	process.env['AMA_BOT_TOKEN'] = 'abcdef';
 	process.env['MODMAIL_BOT_TOKEN'] = 'abcdef';
 	process.env['SOCIAL_BOT_TOKEN'] = 'abcdef';

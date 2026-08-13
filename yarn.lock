@@ -516,6 +516,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@chatsift/discord-proxy@workspace:services/discord-proxy":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/discord-proxy@workspace:services/discord-proxy"
+  dependencies:
+    "@chatsift/backend-core": "workspace:^"
+    "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
+    "@types/node": "npm:^24.9.1"
+    typescript: "npm:~6.0.3"
+    vitest: "npm:^4.1.10"
+  languageName: unknown
+  linkType: soft
+
 "@chatsift/discord-utils@workspace:^, @chatsift/discord-utils@workspace:packages/public/discord-utils":
   version: 0.0.0-use.local
   resolution: "@chatsift/discord-utils@workspace:packages/public/discord-utils"

@@ -1,0 +1,26 @@
+{
+	"name": "@chatsift/discord-proxy",
+	"private": true,
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"build": "tsc",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"lint": "eslint src",
+		"lint:fix": "eslint src --fix",
+		"format": "prettier --write . --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
+		"format:check": "prettier --check . --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
+		"clean": "rimraf dist",
+		"tag-docker": "docker image tag chatsift/chatsift-next:latest chatsift/chatsift-next:discord-proxy"
+	},
+	"devDependencies": {
+		"@types/node": "^24.9.1",
+		"typescript": "~6.0.3",
+		"vitest": "^4.1.10"
+	},
+	"dependencies": {
+		"@chatsift/backend-core": "workspace:^",
+		"@discordjs/rest": "3.0.0-dev.1783513686-6e81ea771"
+	}
+}

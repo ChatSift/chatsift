@@ -21,6 +21,7 @@ process.env['DATABASE_URL_DEV'] = 'postgres://user:password@localhost:5432/dbnam
 process.env['DATABASE_URL_PROD'] = 'postgres://user:password@localhost:5432/dbname';
 process.env['REDIS_URL_DEV'] = 'redis://localhost:6379';
 process.env['REDIS_URL_PROD'] = 'redis://localhost:6379';
+process.env['DISCORD_PROXY_PORT'] = '9877';
 process.env['AMA_BOT_TOKEN'] = 'abcdef';
 process.env['MODMAIL_BOT_TOKEN'] = 'abcdef';
 process.env['SOCIAL_BOT_TOKEN'] = 'abcdef';
@@ -35,6 +36,41 @@ const validEnv = { ...process.env };
 
 test('a valid env object parses successfully', () => {
 	expect(envSchema.safeParse(validEnv).success).toBe(true);
+});
+
+test('an unset or blank DISCORD_PROXY_URL means "no proxy", not a validation failure', () => {
+	// docker-compose's `env_file` turns a bare `FOO=` into an empty string rather than leaving it unset, so
+	// both spellings of "switched off" have to survive -- that's the production kill switch.
+	for (const value of [undefined, '', '   ']) {
+		const result = envSchema.safeParse({ ...validEnv, DISCORD_PROXY_URL_PROD: value });
+		expect(result.success).toBe(true);
+		expect(result.data?.DISCORD_PROXY_URL_PROD).toBeUndefined();
+	}
+});
+
+test('a configured DISCORD_PROXY_URL has to be an origin plus exactly /api', () => {
+	expect(envSchema.safeParse({ ...validEnv, DISCORD_PROXY_URL_PROD: 'http://discord-proxy:7005/api' }).success).toBe(
+		true,
+	);
+	expect(envSchema.safeParse({ ...validEnv, DISCORD_PROXY_URL_PROD: 'https://proxy.example.com/api' }).success).toBe(
+		true,
+	);
+
+	for (const invalid of [
+		// Parses as scheme `discord-proxy:` rather than a host, so the protocol guard is what catches it.
+		'discord-proxy:7005',
+		// `REST` would emit `/v10/...`, which the proxy's `/api(/v\d+)?` strip never matches.
+		'http://discord-proxy:7005',
+		// Produces `//v10/...`, same problem.
+		'http://discord-proxy:7005/api/',
+		'http://discord-proxy:7005/',
+		'http://discord-proxy:7005/api/v10',
+		'http://discord-proxy:7005/proxy',
+		'http://discord-proxy:7005/api?debug=1',
+		'http://discord-proxy:7005/api#fragment',
+	]) {
+		expect(envSchema.safeParse({ ...validEnv, DISCORD_PROXY_URL_PROD: invalid }).success).toBe(false);
+	}
 });
 
 test('ENCRYPTION_KEY rejects a 44-char string that is not valid base64 for a 32-byte key', () => {

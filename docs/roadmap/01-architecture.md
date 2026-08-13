@@ -538,3 +538,105 @@ the members are the content.
 
 Ticket claims are resolved once at mint time, so they're as stale as `adminGuilds` already was — bounded by the
 60s TTL plus the client re-minting on every (re)connect.
+
+## 11. Discord REST proxy (`services/discord-proxy`)
+
+Every bot token in this stack is used from **two** processes: that bot's own `services/*-bot`, and
+`services/api` (the dashboard fetches channels/roles/members, resyncs commands, executes webhooks). Discord
+scopes rate limits to the token, but `@discordjs/rest` keeps bucket state in memory per `REST` instance — so
+each token had two independent accountants, each of which only ever saw a fraction of what that token
+actually sent. Both under-count, and Discord is the one that notices.
+
+`services/discord-proxy` is a single HTTP hop in front of `discord.com/api` that makes that accounting happen
+in exactly one place. Clients keep their own `REST`; they just point its `api` option at the proxy.
+
+### One process, not one per bot
+
+The token count isn't 3 — it's 3 public bots plus one per custom ModMail instance (§8), and those are added
+by partner onboarding, from a DB row, at runtime. A proxy-per-token topology would mean a new container, a
+new compose block, and a URL for `api` to discover on every onboarding.
+
+Instead the proxy partitions by the inbound `Authorization` header, keeping **one `REST` instance per bot
+token** (`lib/rests.ts`). That's what upstream's `apps/proxy-container` doesn't do — it builds a single
+`REST` and hands everything to it with `auth: false`, which tracks `globalRemaining` per instance and keys
+handlers on `${bucketHash}:${majorParameter}`, so N tokens would share one 50/s allowance and collide on
+identical hashes. Hence its README telling you not to point multiple bots at one container. One instance per
+token restores both, and makes the token count a runtime detail rather than a deployment topology.
+
+### Why not depend on `@discordjs/proxy`
+
+Not because it couldn't be composed — `proxyRequests(rest)` returns a handler bound to one `REST`, so a
+`Map<token, RequestHandler>` would have worked fine. The blocker is version pinning: `@discordjs/proxy@latest`
+wants `@discordjs/rest@^2.4.0` and its `dev` tag pins an _exact_ dev build of rest that differs from this
+repo's. Two copies of `@discordjs/rest` in one tree is fatal here specifically, because `populateErrorResponse`
+dispatches on `instanceof DiscordAPIError / HTTPError / RateLimitError` — across copies those are different
+constructor identities, so every Discord error would fall through to "unknown" and 500. Adopting it means a
+monorepo-wide bump of rest/core/ws/builders to match.
+
+Worth revisiting when that bump happens and the 429 fix below has landed upstream: `lib/responses.ts` could
+then mostly collapse into the library's helpers, leaving `lib/rests.ts` as the composition layer on top.
+
+Two things deliberately do **not** get their own instance:
+
+- **`Bearer` requests** pool onto a single shared instance. Those tokens are per end user, so keying on them
+  would grow the map by one entry per dashboard visitor, forever. `services/api` keeps its OAuth client
+  pointed straight at Discord for the same reason (`util/discordAPI.ts`) — it's the only process making
+  those calls, so there was never a second accountant to reconcile with.
+- **Requests with no `Authorization`** (interaction callbacks, webhook execution) pool there too, correctly:
+  Discord buckets those by the id/token in the URL, which `REST` already derives as the major parameter.
+
+### Fail-fast, not queueing
+
+The proxy's `REST` instances run with `rejectOnRateLimit: () => true, retries: 0`. A rate limit comes back to
+the caller as a 429 rather than being absorbed here as latency.
+
+This is what keeps retry policy in the caller's hands. `@discordjs/rest` retries 429s transparently by
+default, and per-request `rejectOnRateLimit` lets an individual call site opt out — a user-facing ModMail
+relay can give up where a background sweep would wait. If the proxy queued instead, the client would never
+see a 429, its `onRateLimit` would never fire, and that lever would be dead code stack-wide. It also means we
+never hold a socket open waiting out someone else's bucket.
+
+Two consequences worth knowing:
+
+- **`X-RateLimit-Global` and `X-RateLimit-Scope` are re-emitted on our 429s** (`lib/responses.ts`), because
+  the client rebuilds its `RateLimitData` from exactly those two headers. `@discordjs/proxy` drops them,
+  which makes every rate limit seen through it look non-global and user-scoped — reported upstream. The
+  accounting headers (`limit`/`remaining`/`reset`/`bucket`) _are_ stripped, on the 2xx path, so clients can't
+  rebuild bucket state from a partial view of the token's traffic.
+- **The Cloudflare ban counter has to be read here.** `@discordjs/rest` increments its invalid-request count
+  on any 401/403/429, so clients now count the proxy's synthesized 429s — which never left the network.
+  Only this process knows what actually reached Discord, so `invalidRequestWarningInterval` is set on its
+  instances and the warning is logged with the application id it belongs to.
+
+`Retry-After` carries up to 250ms of jitter. Refused clients otherwise sleep the identical interval and wake
+together into another refusal; at two processes per token the herd is small, but desynchronizing is free.
+
+### Deliberately not a cache
+
+The old stack's proxy (`origin/v2`) cached GETs by route. That is not carried over. The app layer above it
+already caches the same data far better — `services/api`'s `guildDataCache.ts` and `services/social-bot`'s
+`discordCache.ts` are redis-backed rather than process-local, with invalidation, negative caching, and
+crucially keyed per `(botId, guildId, instance)`. A URL-keyed cache down here would serve one bot's view of a
+guild to another, re-deriving that partition from scratch to avoid it. The proxy stays a pure accountant.
+
+### Configuration and the kill switch
+
+`DISCORD_PROXY_URL_DEV`/`_PROD` are **optional on both sides**. Unset (or blank — docker-compose's `env_file`
+turns `FOO=` into an empty string) means every client talks to `discord.com` directly, exactly as it did
+before this service existed.
+
+That's the local-dev default, so `yarn dev:api` doesn't need a second process running alongside it, and it's
+the production kill switch: blank `DISCORD_PROXY_URL_PROD`, redeploy, and the whole stack reverts with no
+code change. The value must end in `/api` — `REST` appends `/v{version}{route}` to it, so it's the same
+shape as the `https://discord.com/api` it replaces.
+
+Note the rollout unit is the entire stack, not one bot: `services/api` holds every token, so pointing it at
+the proxy points all of them at once.
+
+Every client service `depends_on` the proxy's healthcheck (`GET /health`), because `REST` clients are built
+at import time and a base URL that isn't listening yet would have the process flap on startup. That
+dependency stays in place even when the proxy is switched off — the container just sits idle.
+
+The proxy itself never calls `initContext`: it touches neither postgres nor redis, so a database outage can't
+take Discord connectivity down with it, and it can come up before either is reachable — which matters, since
+everything else now waits on its healthcheck.
