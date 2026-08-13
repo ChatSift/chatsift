@@ -1,11 +1,21 @@
-import { getContext, getInstanceForGuild, type BotId, type Instance } from '@chatsift/backend-core';
+import {
+	discordRestProxyOptions,
+	getContext,
+	getInstanceForGuild,
+	type BotId,
+	type Instance,
+} from '@chatsift/backend-core';
 import type { Snowflake } from '@discordjs/core';
 import { API } from '@discordjs/core';
 import { REST, RESTEvents } from '@discordjs/rest';
 import type { MeGuild } from './me.js';
 
-function createRest(): REST {
-	const rest = new REST({ version: '10' });
+/**
+ * @param proxied - Whether to route through `services/discord-proxy`. True for anything carrying a bot token,
+ * since that token is also in use by that bot's own process and the two must share one rate limit accountant.
+ */
+function createRest(proxied: boolean): REST {
+	const rest = new REST({ version: '10', ...(proxied ? discordRestProxyOptions() : {}) });
 
 	rest.on(RESTEvents.RateLimited, (rateLimitInfo) => {
 		getContext().logger.warn(rateLimitInfo, 'Hit a Discord REST rate limit');
@@ -14,20 +24,26 @@ function createRest(): REST {
 	return rest;
 }
 
-const oauthREST = createRest();
+// Not proxied, and must stay that way: these requests carry a per-user `Bearer` token (or exchange an OAuth
+// code), and the proxy partitions its rate limit state by `Authorization` header -- so proxying them would
+// leak one `REST` instance per dashboard visitor. Nothing is lost by going direct: this process is the only
+// one making OAuth calls, so there's no second accountant to reconcile with in the first place.
+const oauthREST = createRest(false);
 export const discordAPIOAuth = new API(oauthREST);
 
-const amaREST = createRest().setToken(getContext().env.AMA_BOT_TOKEN);
+const amaREST = createRest(true).setToken(getContext().env.AMA_BOT_TOKEN);
 export const discordAPIAma = new API(amaREST);
 
-const modmailREST = createRest().setToken(getContext().env.MODMAIL_BOT_TOKEN);
+const modmailREST = createRest(true).setToken(getContext().env.MODMAIL_BOT_TOKEN);
 export const discordAPIModmail = new API(modmailREST);
 
-const socialREST = createRest().setToken(getContext().env.SOCIAL_BOT_TOKEN);
+const socialREST = createRest(true).setToken(getContext().env.SOCIAL_BOT_TOKEN);
 export const discordAPISocial = new API(socialREST);
 
-// Webhook execution is authed by the id/token in the URL itself, no bot token needed
-const webhookREST = createRest();
+// Webhook execution is authed by the id/token in the URL itself, no bot token needed -- still proxied, since
+// those buckets key off the webhook id rather than a token and the proxy pools every token-less caller onto
+// one accountant, which is the right shape if a bot ever starts executing webhooks too.
+const webhookREST = createRest(true);
 export const discordAPIWebhook = new API(webhookREST);
 
 export const APIMapping: Record<BotId, API> = {
@@ -45,7 +61,7 @@ const instanceAPIs = new Map<string, API>();
 function apiForInstance(instance: Instance): API {
 	let api = instanceAPIs.get(instance.id);
 	if (!api) {
-		api = new API(createRest().setToken(instance.token));
+		api = new API(createRest(true).setToken(instance.token));
 		instanceAPIs.set(instance.id, api);
 	}
 

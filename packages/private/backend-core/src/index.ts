@@ -9,6 +9,7 @@ export * from './lib/context.js';
 export * from './lib/crypt.js';
 export * from './lib/dashboardSession.js';
 export * from './lib/database.js';
+export * from './lib/discordRest.js';
 export * from './lib/env.js';
 export * from './lib/instances.js';
 export * from './lib/logger.js';

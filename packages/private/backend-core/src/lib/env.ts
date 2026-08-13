@@ -3,6 +3,20 @@ import process from 'node:process';
 import { SnowflakeRegex } from '@sapphire/discord-utilities';
 import z from 'zod';
 
+// An absent *or empty* http(s) URL, both meaning "not configured". The empty case isn't pedantry:
+// docker-compose's `env_file` turns a bare `FOO=` into an empty string rather than leaving it unset, so a
+// plain `z.url().optional()` would reject the most natural way to switch an optional URL off.
+//
+// The protocol guard matters as much as the rest of it (same reasoning as `REDIS_URL_*` below): WHATWG URL
+// parsing happily accepts `discord-proxy:7005` as a URL with scheme `discord-proxy:`, so the obvious typo of
+// omitting `http://` would otherwise validate here and fail much later, as a confusing runtime error.
+const optionalHttpUrl = z
+	.string()
+	.trim()
+	.transform((value) => (value === '' ? undefined : value))
+	.pipe(z.url({ protocol: /^https?$/ }).optional())
+	.optional();
+
 // Exported (in addition to the parsed `ENV` singleton below) so tests can exercise individual fields
 // via `.safeParse()` against a valid base object, without needing to mutate `process.env` and
 // re-import the module for every case -- see `__tests__/env.test.ts`.
@@ -55,6 +69,15 @@ export const envSchema = z.object({
 	// Redis
 	REDIS_URL_DEV: z.url({ protocol: /^rediss?$/ }),
 	REDIS_URL_PROD: z.url({ protocol: /^rediss?$/ }),
+
+	// Discord REST proxy (services/discord-proxy). The port it listens on is required -- the service can't
+	// start without one -- but the URL clients dial is deliberately optional on both sides: unset means
+	// "talk to discord.com directly", which is both the local-dev default (so `yarn dev:api` doesn't need a
+	// second process running alongside it) and the production kill switch (drop the value, redeploy, and
+	// every service goes back to what it did before the proxy existed, no code revert).
+	DISCORD_PROXY_PORT: z.string().pipe(z.coerce.number()),
+	DISCORD_PROXY_URL_DEV: optionalHttpUrl,
+	DISCORD_PROXY_URL_PROD: optionalHttpUrl,
 
 	// AMA
 	AMA_BOT_TOKEN: z.string(),

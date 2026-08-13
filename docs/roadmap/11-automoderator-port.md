@@ -19,7 +19,11 @@ Recorded so they don't get re-litigated.
 
 1. **Monolith, not microservices.** Legacy's seven services (`gateway`, `discord-proxy`, `interactions`, `automod`,
    `mod-observer`, `logging`, `scheduler`) collapse into one `services/*-bot` process on `@chatsift/bot-core`, exactly
-   like AMA, ModMail and Social. The split is what created the need for a broker in the first place.
+   like AMA, ModMail and Social. The split is what created the need for a broker in the first place. The one
+   exception is `discord-proxy`, which came back as a stack-wide `services/discord-proxy` for a reason legacy
+   didn't have — a bot's token being used from both its bot process and `services/api` — but it's shared
+   infrastructure this port consumes, not a per-bot service. See
+   [01-architecture.md §11](01-architecture.md#11-discord-rest-proxy-servicesdiscord-proxy).
 2. **AMQP is gone. Redis is the only broker.** See [Brokerage](#brokerage-what-actually-needs-a-broker) — most of
    legacy's three AMQP exchanges become in-process function calls, and what genuinely remains cross-process already
    has a mechanism in `backend-core`.
@@ -59,7 +63,7 @@ Four consequences of the drops, accepted knowingly:
 | ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | 7 services + AMQP fanout                        | one `services/automoderator-bot` process                                                           |
 | `services/gateway` (custom gateway)             | `createBotGateway` from `@chatsift/bot-core`                                                       |
-| `services/discord-proxy` (shared REST cache)    | `createBotRest` — dropped as a separate concern                                                    |
+| `services/discord-proxy` (shared REST cache)    | `services/discord-proxy` — rate limiting only; the route cache is dropped                          |
 | `services/interactions` (+ its own HTTP server) | `registerCommandHandlers` / `registerUnknownCommandResolver`                                       |
 | `services/automod` runner pipeline              | in-process filter pipeline, same transform → check → run → cleanup → log shape                     |
 | `services/mod-observer`                         | in-process gateway listeners                                                                       |

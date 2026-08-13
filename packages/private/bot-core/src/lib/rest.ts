@@ -1,4 +1,4 @@
-import { getContext } from '@chatsift/backend-core';
+import { discordRestProxyOptions, getContext } from '@chatsift/backend-core';
 import { REST, RESTEvents } from '@discordjs/rest';
 
 export interface CreateBotRestOptions {
@@ -6,7 +6,7 @@ export interface CreateBotRestOptions {
 }
 
 export function createBotRest({ token }: CreateBotRestOptions): REST {
-	const rest = new REST({ version: '10' }).setToken(token);
+	const rest = new REST({ version: '10', ...discordRestProxyOptions() }).setToken(token);
 
 	rest.on(RESTEvents.RateLimited, (rateLimitInfo) => {
 		getContext().logger.warn(rateLimitInfo, 'Hit a Discord REST rate limit');
