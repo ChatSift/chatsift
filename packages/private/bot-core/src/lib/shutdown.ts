@@ -35,9 +35,16 @@ const steps: { name: string; run: ShutdownStep }[] = [];
 let shutdownStartedAt: number | null = null;
 
 /**
- * Registers work to run before the process exits, in registration order. Intended for anything that must reach
- * redis or the database one last time -- flushing gateway sessions, releasing a replica lease, dropping this
- * replica's guild-list entry -- since `registerShutdownHandlers` tears both connections down after the last step.
+ * Registers work to run before the process exits, in **reverse** registration order. Intended for anything that
+ * must reach redis or the database one last time -- flushing gateway sessions, releasing a replica lease,
+ * dropping this replica's guild-list entry -- since `registerShutdownHandlers` tears both connections down after
+ * the last step.
+ *
+ * Reverse order is what makes the replica lease safe to hold onto. Boot order is claim-slot → gateway → client,
+ * so `replica-lease` registers first and unwinding in registration order would release the index *before*
+ * flushing gateway sessions and dropping the guild-list slice -- handing the index to a hot spare that would then
+ * write the same `gwsession:` keys and publish the same guild slice this process is still writing. Unwinding in
+ * the opposite order to construction keeps the lease held until everything scoped to it has finished.
  *
  * A step that throws is logged and skipped; one broken step must not strand the rest.
  */
@@ -46,7 +53,7 @@ export function onShutdown(name: string, run: ShutdownStep): void {
 }
 
 async function runSteps(): Promise<void> {
-	for (const { name, run } of steps) {
+	for (const { name, run } of [...steps].reverse()) {
 		try {
 			await run();
 		} catch (error) {

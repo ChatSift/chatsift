@@ -1,8 +1,11 @@
 # Horizontal scaling for bots (`@chatsift/bot-core`)
 
-**Depends on:** nothing. **Blocks:** [11-automoderator-port.md](11-automoderator-port.md) P8, which was written
-against a mechanism that did not exist yet. **Live production impact:** none by default — every bot behaves
-exactly as before until a `<BOT>_SHARDS_PER_REPLICA` value is set.
+**Depends on:** nothing. **Unblocks:** [11-automoderator-port.md](11-automoderator-port.md) P8, which was written
+against a mechanism that did not exist yet. **Live production impact:** scaling is off by default — no bot runs
+more than one replica until a `<BOT>_SHARDS_PER_REPLICA` value is set. It is _not_ a no-op change, though: every
+bot now stores gateway sessions in redis, claims a replica slot at boot, throttles identifies through redis, and
+handles `SIGTERM`. That shared path is deliberate (see below) and is what needs watching on the deploy that ships
+it, rather than anything gated behind the env var.
 
 ## Status: implemented
 
@@ -13,9 +16,11 @@ at boot against redis, not configured per container.
 
 The design goal that shaped everything else: **scaling out is a configuration change, and the scaled code path is
 the one dev runs every day.** There is deliberately no `if (shards === 1)` branch anywhere. With
-`SHARDS_PER_REPLICA` unset a bot claims a single index covering every shard, which is byte-for-byte today's
-behaviour — but it gets there through the same claim, the same redis keys and the same session store that a
-16-shard deployment uses. A scaling path that only executes in production is a scaling path nobody has tested.
+`SHARDS_PER_REPLICA` unset a bot claims a single index covering every shard — the same gateway topology it had
+before — but it reaches that through the same claim, the same redis keys, the same identify throttler and the same
+session store a 16-shard deployment uses. The observable Discord behaviour is unchanged; the machinery underneath
+it is not, and that is the point. A scaling path that only executes in production is a scaling path nobody has
+tested.
 
 ## The one number a human sets
 
@@ -43,28 +48,69 @@ untrusted Discord input.
 ```
 shardCount=14, SHARDS_PER_REPLICA=4  ->  totalIndices=4
 
-4 replicas:  idx0 [0-3]  idx1 [4-7]  idx2 [8-11]  idx3 [12,13]
-3 replicas:  idx0 [0-3]  idx1 [4-7]  idx2 [8-13]        <- absorbs the tail
+index slices:  idx0 [0-3]  idx1 [4-7]  idx2 [8-11]  idx3 [12,13]
+
+4 replicas:  one index each                    -> 4 / 4 / 4 / 2 shards
+3 replicas:  the third holds idx2 AND idx3     -> 4 / 4 / 6 shards
 5 replicas:  the surplus finds nothing free and waits as a hot spare
 ```
 
+A slice belongs to an _index_; a replica owns the union of the indices it holds. Those are the same thing only
+when the cluster is at its intended size.
+
 Two properties fall out of this rather than needing rules of their own:
 
-- **Claims are atomic, so two replicas can never hold the same index.** The settle window therefore only affects
-  how evenly work is spread — a short one costs balance, never correctness.
+- **Claims are atomic, so two replicas can never hold the same index.** The settle window is therefore never a
+  correctness concern, however the timing falls.
 - **Coverage is always complete.** An index nobody claimed is picked up by the replica below it, so running fewer
   replicas than intended means somebody works harder, not that a guild stops being watched.
 
-An index owns a _fixed_ slice, so it means the same shards no matter how many peers are up. That is what lets a
-replica hold its assignment for its whole lifetime instead of resharding underneath itself whenever the cluster
-changes size.
+An index owns a slice that is the same shards no matter how many peers are up. That is what lets a replica hold
+its assignment for its whole lifetime instead of resharding underneath itself whenever the cluster changes size.
+
+### On balance
+
+Slices are flat — index `i` owns `[i * SHARDS_PER_REPLICA, (i + 1) * SHARDS_PER_REPLICA)` — rather than dividing
+the shard count proportionally across indices. Proportional slicing would balance the tail better (`3/4/3/4`
+instead of `4/4/4/2` for 14 shards) and was rejected anyway, because it trades the wrong thing:
+
+- **An index must mean the same shards regardless of the current shard count.** Flat slices survive Discord
+  raising its recommendation: 14 → 15 grows only the tail replica. Proportional boundaries move on almost any
+  bump, so every replica reshards, every replica restarts, and every replica's guilds change.
+- **`SHARDS_PER_REPLICA` stays the capacity bound its name promises**, not a divisor. A replica never exceeds it
+  unless it is covering for a peer that never claimed its index.
+
+So a short tail is **headroom, not imbalance** — `4/4/4/2` fills to `4/4/4/3`, `4/4/4/4`, and then a fifth index
+appears. Sizing a container is a question about `SHARDS_PER_REPLICA` alone.
+
+Genuine imbalance has exactly two causes, and both are the cluster not being at its intended size:
+
+- **A replica is missing.** A peer covers its indices. This is unavoidable rather than a design choice: if three
+  replicas must cover four indices' worth of shards, one of them holds more. The alternative is dark shards, which
+  is the trade this design deliberately refuses.
+- **A straggler.** A replica starting after its peers' settle window finds everything claimed and idles as a hot
+  spare while some peer holds two indices. See below.
+
+Perfect balance under a changing replica count would mean re-slicing `shardCount` across however many replicas are
+currently live — which makes every replica's assignment depend on every other's liveness, so one replica
+appearing or disappearing reshards (and therefore restarts) the entire cluster, and two replicas disagreeing for
+even a moment about the live count produces overlapping or missing shards. That is a materially worse failure mode
+than one replica temporarily carrying an extra index.
 
 ### Changing shards means restarting
 
 `@discordjs/ws` cannot add shards to a live `WebSocketManager` — `updateShardCount` tears everything down and
 respawns it. So a replica whose coverage should change logs and exits 0, and Docker restarts it. A watcher does
-this when indices go unclaimed, debounced over two checks and acted on only by the replica holding the lowest
-index, so one gap causes one restart rather than a cluster-wide bounce.
+this when indices go unclaimed, debounced over two checks so a peer that is merely between renewals (or one
+Docker is already restarting) doesn't trigger it.
+
+**Which replica reacts matters, and is not the obvious one.** Re-derivation claims the lowest free index and then
+extends upward, stopping at the first index a live peer holds — so a replica can never jump over a living peer.
+The replica that can close a gap is therefore the one whose run ends immediately below it, not the lowest holder
+in the cluster. With `A[0] B[1] C[2] D[3]` and `C` gone, `A` restarting would reclaim index 0, stop dead at live
+`B`, and leave index 2 exactly as unclaimed as it found it — then repeat every interval, bouncing its own shards
+forever while index 2 stayed dark. `B` is the only replica whose re-derivation reaches index 2. A gap at index 0
+is the one case with nothing below it, so the lowest holder takes that one.
 
 This is only affordable because restarts RESUME. See below.
 

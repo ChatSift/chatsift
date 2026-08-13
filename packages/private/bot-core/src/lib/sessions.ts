@@ -101,6 +101,10 @@ export function createSessionStore(botId: GuildListKey): SessionStore {
 						await store.delete(makeId(botId, shardId));
 					}
 				} catch (error) {
+					// Put it back: at runtime the next dispatch event would re-mark it anyway, but the shutdown
+					// flush has no next event, so silently dropping it here would lose exactly the resume point
+					// that flush exists to persist.
+					dirty.add(shardId);
 					getContext().logger.error({ err: error, shardId }, 'failed to persist gateway session info');
 				}
 			}),

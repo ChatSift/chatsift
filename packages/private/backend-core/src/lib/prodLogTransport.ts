@@ -22,10 +22,14 @@ export interface ProdLogTransportOptions {
 export default async function prodLogTransport(options: ProdLogTransportOptions) {
 	// Every replica of a scaled bot bind-mounts the *same* host log directory, and the day file is written in
 	// buffered chunks that can span a line boundary -- so without a per-writer suffix they interleave and corrupt
-	// each other. Docker sets `HOSTNAME` to the container id, which is exactly the "one file per replica" key
-	// needed. Only applied when the bot is actually scaled, so an unscaled deployment keeps the plain
+	// each other (#355). Docker sets `HOSTNAME` to the container id, which is exactly the "one file per replica"
+	// key needed. Only applied when the bot is actually scaled, so an unscaled deployment keeps the plain
 	// `<date>.log` name operators already grep for, and doesn't accumulate a new file per container recreate.
-	const suffix = process.env['SHARDS_PER_REPLICA'] ? process.env['HOSTNAME'] : undefined;
+	//
+	// Falls back to the pid rather than to no suffix at all: `SHARDS_PER_REPLICA` being set already means "expect
+	// several writers here", so an environment that happens not to export `HOSTNAME` must not silently collapse
+	// back onto one shared file, which is the corruption this exists to prevent.
+	const suffix = process.env['SHARDS_PER_REPLICA'] ? (process.env['HOSTNAME'] ?? `pid-${process.pid}`) : undefined;
 	const file = await pinoRotateFile({ dir: options.dir, mkdir: true, suffix });
 
 	return build(

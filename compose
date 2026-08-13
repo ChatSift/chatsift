@@ -52,22 +52,28 @@ fi
 #
 # Host-side on purpose: this box already has docker access, so nothing needs the docker socket
 # mounted into a container that processes untrusted Discord input.
-# Same precedence as the merged env file above (.env.private wins), and the same grep/cut approach as
-# the ADMINS block: read the value without ever letting the file's contents be evaluated as shell.
+# Same precedence as the merged env file above (.env.private is concatenated last, so it wins), and the
+# same grep/cut approach as the ADMINS block: read the value without ever letting the file's contents be
+# evaluated as shell.
+#
+# Presence in .env.private wins, not just a non-empty value there. `KEY=` is a deliberate "not configured
+# here" -- it is how .env.public spells the default -- and `${private:-$public}` would silently fall back
+# to the public value instead. The container reads the merged file and would see the empty one, so this
+# script must agree with it or it would size a service from a value the bots themselves never receive.
 read_env() {
-  local key="$1" public_value='' private_value=''
+  local key="$1" value=''
 
-  if [ -f .env.public ]
+  if [ -f .env.public ] && grep -q "^${key}=" .env.public
   then
-    public_value="$(grep -m1 "^${key}=" .env.public | cut -d= -f2-)"
+    value="$(grep -m1 "^${key}=" .env.public | cut -d= -f2-)"
   fi
 
-  if [ -f .env.private ]
+  if [ -f .env.private ] && grep -q "^${key}=" .env.private
   then
-    private_value="$(grep -m1 "^${key}=" .env.private | cut -d= -f2-)"
+    value="$(grep -m1 "^${key}=" .env.private | cut -d= -f2-)"
   fi
 
-  printf '%s' "${private_value:-$public_value}"
+  printf '%s' "$value"
 }
 
 SCALE_ARGS=()
@@ -91,8 +97,10 @@ plan_scale() {
     return 0
   fi
 
-  response="$(curl -sS --max-time 10 -H "Authorization: Bot ${token}" \
-    https://discord.com/api/v10/gateway/bot 2>/dev/null)" || response=''
+  # The token goes in via a curl config on stdin rather than as an argument: anything in argv is readable
+  # from the process list by any local user for as long as the request runs.
+  response="$(printf 'header = "Authorization: Bot %s"\nsilent\nshow-error\nmax-time = 10\nurl = "%s"\n' \
+    "$token" 'https://discord.com/api/v10/gateway/bot' | curl -K - 2>/dev/null)" || response=''
   shards="$(printf '%s' "$response" | grep -o '"shards"[[:space:]]*:[[:space:]]*[0-9]\+' | grep -o '[0-9]\+$')"
 
   if ! [[ "$shards" =~ ^[0-9]+$ ]] || [ "$shards" -lt 1 ]

@@ -17,7 +17,7 @@ export class RedisStore<ValueType, KeyType extends string = string> {
 			return null;
 		}
 
-		if (this.entity.TTL) {
+		if (this.entity.TTL && this.entity.refreshTTLOnRead !== false) {
 			await getContext().redis.pExpire(key, this.entity.TTL);
 		}
 
@@ -36,7 +36,7 @@ export class RedisStore<ValueType, KeyType extends string = string> {
 			return null;
 		}
 
-		if (this.entity.TTL) {
+		if (this.entity.TTL && this.entity.refreshTTLOnRead !== false) {
 			await getContext().redis.pExpire(key, this.entity.TTL);
 		}
 

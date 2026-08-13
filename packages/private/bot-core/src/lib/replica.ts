@@ -47,10 +47,17 @@ export function computeTotalIndices(shardCount: number, shardsPerReplica: number
 /**
  * The shards belonging to a set of replica indices.
  *
- * Each index owns a fixed slice, so an index means the same shards no matter how many peers happen to be up --
- * which is what lets a replica hold its assignment for its whole lifetime instead of resharding underneath itself
- * whenever the cluster changes size. A replica covering more than one index (because it claimed indices its peers
- * did not) simply gets the union.
+ * Index `i` owns exactly `[i * shardsPerReplica, (i + 1) * shardsPerReplica)`, clamped to the real shard count.
+ * A flat slice rather than a proportional one, deliberately: it makes an index's meaning **independent of the
+ * shard count**, so Discord raising its recommendation from 14 to 15 grows only the tail replica and leaves every
+ * other assignment untouched. Dividing the shards proportionally instead would move every boundary on almost any
+ * bump, restarting the whole cluster and changing which guilds each replica serves.
+ *
+ * It also keeps `shardsPerReplica` honest as the capacity bound its name claims, rather than a divisor: a replica
+ * never runs more than that many shards unless it is covering for a peer that never claimed its index.
+ *
+ * The tail replica therefore runs short (14 shards over 4 indices is `4/4/4/2`) until the bot grows into it --
+ * `4/4/4/3`, `4/4/4/4`, then a fifth index appears. That is headroom, not imbalance.
  */
 export function shardIdsForIndices(indices: number[], shardCount: number, shardsPerReplica: number): number[] {
 	const shardIds: number[] = [];
@@ -191,6 +198,13 @@ export async function claimReplicaSlot({
 		primary = await claimLowestFree();
 	}
 
+	const heldIndices = [primary];
+	// Renewal starts before the settle wait, not after it. The primary lease is already ticking down from the
+	// moment it was claimed, so anything between the claim and the first renew -- the settle wait, a greedy
+	// `tryClaim` stalling on slow redis -- eats into its TTL. `startRenewing` reads `heldIndices` fresh on every
+	// tick, so the greedy indices pushed below are picked up automatically.
+	startRenewing(botId, heldIndices, token);
+
 	// Only worth waiting when there is something above to claim. Holding the highest index (which is every
 	// unscaled bot, and so every `yarn dev:*` run) means the greedy step below has nothing to do, and waiting
 	// would just add seconds to every boot for no reason.
@@ -198,7 +212,6 @@ export async function claimReplicaSlot({
 		await sleep(settleMs);
 	}
 
-	const heldIndices = [primary];
 	for (let index = primary + 1; index < totalIndices; index++) {
 		if (!(await tryClaim(index))) {
 			break;
@@ -228,7 +241,6 @@ export async function claimReplicaSlot({
 		shardIds.length > shardsPerReplica ? 'claimed replica slot, covering for missing replicas' : 'claimed replica slot',
 	);
 
-	startRenewing(botId, heldIndices, token);
 	startWatching(botId, heldIndices, totalIndices);
 	onShutdown('replica-lease', async () => releaseAll(botId, heldIndices, token));
 
@@ -236,6 +248,8 @@ export async function claimReplicaSlot({
 }
 
 function startRenewing(botId: GuildListKey, heldIndices: number[], token: string): void {
+	let lastRenewedAt = Date.now();
+
 	setInterval(async () => {
 		const { logger, redis } = getContext();
 
@@ -254,20 +268,44 @@ function startRenewing(botId: GuildListKey, heldIndices: number[], token: string
 					return;
 				}
 			} catch (error) {
+				// A single failed renew is nothing -- the lease outlives several intervals. But redis being
+				// unreachable for longer than the whole TTL means the lease has certainly expired by now and a
+				// peer may already have claimed the index, and the CAS above cannot tell us so while redis is
+				// still down. Treat sustained failure as a lost lease rather than keeping shards a peer now owns.
 				logger.error({ err: error, botId, index }, 'failed to renew replica lease');
+
+				if (Date.now() - lastRenewedAt > LEASE_TTL_MS) {
+					logger.error(
+						{ botId, heldIndices, sinceMs: Date.now() - lastRenewedAt },
+						'replica lease not renewed for longer than its TTL, restarting',
+					);
+					process.kill(process.pid, 'SIGTERM');
+				}
+
+				return;
 			}
 		}
+
+		lastRenewedAt = Date.now();
 	}, RENEW_INTERVAL_MS).unref();
 }
 
 /**
  * Watches for indices no replica holds, which is what a scaled-down or permanently-dead peer leaves behind.
  *
- * Only the replica holding the lowest claimed index reacts, so one gap causes one restart rather than a
- * cluster-wide bounce, and only after the gap has survived two consecutive checks -- a single miss is far more
- * likely to be a peer between renewals than a peer that is gone. Reacting means restarting, because
- * `@discordjs/ws` cannot add shards to a live manager (`updateShardCount` tears down and respawns everything), so
- * re-deriving on a fresh boot is both simpler and, thanks to the redis session store, nearly free.
+ * Exactly one replica reacts to a given gap, and it has to be one that can actually *fill* it. Re-derivation
+ * claims the lowest free index and then extends upward, stopping at the first index a live peer holds -- so a
+ * replica can never jump over a living peer. The replica that can close a gap is therefore the one whose run ends
+ * immediately below it (`firstGap - 1`), not the lowest holder in the cluster: with `A[0] B[1] C[2] D[3]` and `C`
+ * gone, `A` restarting would reclaim index 0, stop dead at live `B`, and leave index 2 exactly as unclaimed as it
+ * found it -- then do it again every interval, bouncing its own shards forever while index 2 stayed dark.
+ *
+ * A gap at index 0 is the one case with nothing below it, so the lowest holder takes that one.
+ *
+ * Reacting means restarting, because `@discordjs/ws` cannot add shards to a live manager (`updateShardCount`
+ * tears down and respawns everything), so re-deriving on a fresh boot is both simpler and, thanks to the redis
+ * session store, nearly free. Gated on the gap surviving two consecutive checks: a single miss is far more likely
+ * to be a peer between renewals, or one Docker is already restarting, than a peer that is gone for good.
  */
 function startWatching(botId: GuildListKey, heldIndices: number[], totalIndices: number): void {
 	let consecutiveGaps = 0;
@@ -286,8 +324,10 @@ function startWatching(botId: GuildListKey, heldIndices: number[], totalIndices:
 				return;
 			}
 
+			const firstGap = gaps[0]!;
 			const lowestHeld = Math.min(...holders.flatMap((held, index) => (held ? [index] : [])));
-			if (lowestHeld !== heldIndices[0]) {
+			const canFillIt = firstGap === 0 ? lowestHeld === heldIndices[0] : heldIndices.includes(firstGap - 1);
+			if (!canFillIt) {
 				return;
 			}
 

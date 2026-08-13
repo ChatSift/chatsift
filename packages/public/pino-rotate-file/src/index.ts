@@ -22,7 +22,7 @@ export interface PinoRotateFileOptions {
 	 * Distinguishes this writer's files from another process writing the same `dir`, producing
 	 * `<date>.<suffix>.log` instead of `<date>.log`.
 	 *
-	 * Needed when several processes share one directory: the day file is opened in append mode, but writes are
+	 * Needed when several processes share one directory (#355): the day file is opened in append mode, but writes are
 	 * buffered and flushed in chunks that can span a line boundary, so concurrent writers interleave and corrupt
 	 * each other's lines. They would also each independently decide to rotate at midnight and end each other's
 	 * stream.

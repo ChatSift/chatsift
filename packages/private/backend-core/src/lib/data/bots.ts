@@ -26,6 +26,11 @@ const ENTRY_TTL_MS = 60_000;
 
 const store = new RedisStore<BotInfo>({
 	TTL: ENTRY_TTL_MS,
+	// The TTL here means "this replica is still publishing", not "this value is still wanted", so readers must not
+	// extend it. `RedisStore.get` slides the TTL forward by default, which would let the dashboard's constant
+	// reads keep a dead replica's slice alive indefinitely -- the exact staleness this entry's expiry exists to
+	// clear.
+	refreshTTLOnRead: false,
 	// bin-rw's own inferred type is `(string | null)[] | null` for `guilds` -- every entry here is always a
 	// real snowflake, never `null`, so the cast corrects that.
 	recipe: createRecipe(
