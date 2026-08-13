@@ -233,6 +233,11 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+    # Maps the per-bot value from the env files onto the generic name bot-core reads, so `./compose` can
+    # size this service's replica count from it while the container itself stays bot-agnostic. Unset means
+    # one replica running every shard. `./compose up` computes `--scale` from the same value.
+    environment:
+      SHARDS_PER_REPLICA: ${AMA_SHARDS_PER_REPLICA:-}
     command: ['node', '--enable-source-maps', './services/ama-bot/dist/bin.js']
     volumes:
       - ./logs/ama-bot:/usr/chatsift/logs/ama-bot
@@ -249,6 +254,8 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+    environment:
+      SHARDS_PER_REPLICA: ${MODMAIL_SHARDS_PER_REPLICA:-}
     command: ['node', '--enable-source-maps', './services/modmail-bot/dist/bin.js']
     volumes:
       - ./logs/modmail-bot:/usr/chatsift/logs/modmail-bot
@@ -265,6 +272,8 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+    environment:
+      SHARDS_PER_REPLICA: ${SOCIAL_SHARDS_PER_REPLICA:-}
     command: ['node', '--enable-source-maps', './services/social-bot/dist/bin.js']
     volumes:
       - ./logs/social-bot:/usr/chatsift/logs/social-bot

@@ -44,6 +44,10 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 			get: vi.fn(async () => null),
 			exists: redisExistsMock,
 			set: redisSetMock,
+			// `/me` unions the guild list across each bot's replicas (`data/bots.ts`), which starts from the set of
+			// replica indices -- empty here, since no bot is running in these tests.
+			sMembers: vi.fn(async () => []),
+			sRem: vi.fn(async () => 0),
 		}),
 		// The redis-backed session registry itself is exercised in `dashboardSession.test.ts` -- mocked here so
 		// isAuthed's scoped-session tests can drive it directly without needing a full redis stub.

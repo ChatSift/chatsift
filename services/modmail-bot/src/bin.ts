@@ -10,7 +10,7 @@ import {
 	registerFatalErrorHandlers,
 	setServiceValue,
 } from '@chatsift/backend-core';
-import { createBotClient, createBotGateway, createBotRest } from '@chatsift/bot-core';
+import { createBotClient, createBotGateway, createBotRest, registerShutdownHandlers } from '@chatsift/bot-core';
 import { GatewayIntentBits } from '@discordjs/core';
 import { bin } from './index.js';
 
@@ -20,6 +20,7 @@ registerFatalErrorHandlers(logger);
 const db = createDatabase();
 const redis = await createRedis(logger);
 initContext({ db, logger, redis });
+registerShutdownHandlers();
 
 // Throws (crashing this process) if `ENV.MODMAIL_INSTANCE_ID` is set but matches no
 // `modmail_instances` row -- a custom deployment with no resolvable identity can't safely run at
@@ -37,7 +38,8 @@ const rest = createBotRest({ token });
 // `DirectMessages` is added ahead of when it's actually needed -- P4's DM-mode opener flow (see the
 // roadmap doc above) -- since it's harmless for a deployment nobody DMs and toggling it later would
 // mean every deployment needs a resync of its gateway session either way.
-const gateway = createBotGateway({
+const gateway = await createBotGateway({
+	botId,
 	token,
 	intents:
 		GatewayIntentBits.Guilds |

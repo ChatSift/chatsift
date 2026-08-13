@@ -89,6 +89,26 @@ export const envSchema = z.object({
 	DISCORD_PROXY_URL_DEV: discordProxyUrl,
 	DISCORD_PROXY_URL_PROD: discordProxyUrl,
 
+	// Horizontal scaling (#355). The only number an operator sets: how many gateway shards one replica should
+	// aim to run. Everything else is derived -- Discord's `/gateway/bot` recommendation decides the shard count,
+	// and each replica works out which slice is its own against redis (`bot-core/src/lib/replica.ts`).
+	// Absent means "one replica runs every shard", which is the current topology for every bot. Set per bot in
+	// that service's own docker-compose `environment:` block, like `MODMAIL_INSTANCE_ID` above, since bots do not
+	// grow at the same rate and a single shared value would be wrong for most of them.
+	// Blank is treated as absent (rather than as `0`) for the same reason the proxy URLs above are: these live in
+	// shared env files where a documented-but-empty key is the normal way to say "not configured here".
+	//
+	// Base-10 digits only, deliberately narrower than `Number()`: `./compose` validates the same value with a
+	// `^[0-9]+$` check to size `--scale`, and `Number()` would accept `1e3`/`0x10` here so a deployment could
+	// pass this schema and then fail at deploy time instead. The two must agree on what a valid value looks like.
+	SHARDS_PER_REPLICA: z
+		.string()
+		.trim()
+		.regex(/^(?:\d+)?$/, 'must be a base-10 integer (or empty for "not configured")')
+		.transform((value) => (value === '' ? undefined : Number(value)))
+		.pipe(z.number().int().positive().optional())
+		.optional(),
+
 	// AMA
 	AMA_BOT_TOKEN: z.string(),
 

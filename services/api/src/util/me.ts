@@ -6,9 +6,9 @@ import {
 	getAllInstances,
 	getContext,
 	getInstanceForGuild,
-	GuildList,
 	PermissionsBitField,
 	promiseAllObject,
+	readGuildList,
 	RedisStore,
 } from '@chatsift/backend-core';
 import type { AmaSessions, DashboardGrants } from '@chatsift/db';
@@ -187,17 +187,13 @@ async function fetchMeUncached(discordAccessToken: string, tokenHash: string, lo
 
 	const [guildsByBot, instanceGuildLists] = await Promise.all([
 		promiseAllObject(
-			Object.fromEntries(BOTS.map((bot) => [bot, GuildList.get(bot).then((data) => data?.guilds ?? [])])) as Record<
-				BotId,
-				Promise<string[]>
-			>,
+			Object.fromEntries(BOTS.map((bot) => [bot, readGuildList(bot)])) as Record<BotId, Promise<string[]>>,
 		),
-		// Each custom instance publishes its own `bot:MODMAIL#<id>` guild list (`lib/data/bots.ts`) rather than
-		// overwriting the public deployment's `bot:MODMAIL` -- so "is MODMAIL installed in this guild" has to
-		// union the public list with every instance's, or a partner guild would show no ModMail badge at all.
-		Promise.all(
-			instances.map(async (instance) => GuildList.get(`MODMAIL#${instance.id}`).then((data) => data?.guilds ?? [])),
-		),
+		// Each custom instance publishes its own `MODMAIL#<id>` guild list (`lib/data/bots.ts`) rather than
+		// overwriting the public deployment's -- so "is MODMAIL installed in this guild" has to union the public
+		// list with every instance's, or a partner guild would show no ModMail badge at all. `readGuildList` itself
+		// unions across that deployment's own replicas.
+		Promise.all(instances.map(async (instance) => readGuildList(`MODMAIL#${instance.id}`))),
 	]);
 	const modmailGuildIds = new Set([...(guildsByBot.MODMAIL ?? []), ...instanceGuildLists.flat()]);
 
@@ -369,14 +365,9 @@ async function fetchMeForScopedSessionUncached(
 	const instances = getAllInstances();
 	const [guildsByBot, instanceGuildLists] = await Promise.all([
 		promiseAllObject(
-			Object.fromEntries(BOTS.map((bot) => [bot, GuildList.get(bot).then((data) => data?.guilds ?? [])])) as Record<
-				BotId,
-				Promise<string[]>
-			>,
+			Object.fromEntries(BOTS.map((bot) => [bot, readGuildList(bot)])) as Record<BotId, Promise<string[]>>,
 		),
-		Promise.all(
-			instances.map(async (instance) => GuildList.get(`MODMAIL#${instance.id}`).then((data) => data?.guilds ?? [])),
-		),
+		Promise.all(instances.map(async (instance) => readGuildList(`MODMAIL#${instance.id}`))),
 	]);
 	const modmailGuildIds = new Set([...(guildsByBot.MODMAIL ?? []), ...instanceGuildLists.flat()]);
 

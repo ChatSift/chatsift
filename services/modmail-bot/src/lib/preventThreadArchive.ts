@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { ownsShardForGuild } from '@chatsift/bot-core';
 import type { Threads } from '@chatsift/db';
 import { DiscordAPIError } from '@discordjs/rest';
 import { getOwnershipScope } from './instance.js';
@@ -33,11 +34,13 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 	// Flattened rather than nested loops so every channel's GET (+ maybe PATCH) fires concurrently —
 	// each pair is independent of every other, there's no shared state to serialize on the way
 	// `pendingTicketSweep.ts` has to for its per guild+user lock.
-	const checks = openThreads.flatMap((thread) =>
-		[thread.modThreadId, thread.userChannelId]
-			.filter((id): id is string => id !== null)
-			.map((channelId) => ({ threadId: thread.id, guildId: thread.guildId, channelId })),
-	);
+	const checks = openThreads
+		.filter((thread) => ownsShardForGuild(thread.guildId))
+		.flatMap((thread) =>
+			[thread.modThreadId, thread.userChannelId]
+				.filter((id): id is string => id !== null)
+				.map((channelId) => ({ threadId: thread.id, guildId: thread.guildId, channelId })),
+		);
 
 	await Promise.all(
 		checks.map(async ({ threadId, guildId, channelId }) => {

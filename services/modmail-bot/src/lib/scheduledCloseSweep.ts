@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { ownsShardForGuild } from '@chatsift/bot-core';
 import type { Threads } from '@chatsift/db';
 import { getOwnershipScope } from './instance.js';
 import { closeThread } from './threadClose.js';
@@ -31,20 +32,22 @@ export async function sweepScheduledCloses(logger: Logger): Promise<void> {
 	`;
 
 	await Promise.all(
-		due.map(async (row) => {
-			const rowLogger = logger.child({ guildId: row.guildId, threadId: row.id });
+		due
+			.filter((row) => ownsShardForGuild(row.guildId))
+			.map(async (row) => {
+				const rowLogger = logger.child({ guildId: row.guildId, threadId: row.id });
 
-			try {
-				await closeThread({
-					anon: row.anon,
-					closedById: row.scheduledById,
-					logger: rowLogger,
-					silent: row.silent,
-					thread: row,
-				});
-			} catch (error) {
-				rowLogger.error({ err: error }, 'Failed to run a scheduled ticket close');
-			}
-		}),
+				try {
+					await closeThread({
+						anon: row.anon,
+						closedById: row.scheduledById,
+						logger: rowLogger,
+						silent: row.silent,
+						thread: row,
+					});
+				} catch (error) {
+					rowLogger.error({ err: error }, 'Failed to run a scheduled ticket close');
+				}
+			}),
 	);
 }

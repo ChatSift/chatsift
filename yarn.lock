@@ -483,6 +483,7 @@ __metadata:
     "@sapphire/discord-utilities": "npm:^4.0.0"
     "@types/node": "npm:^24.9.1"
     "@vitest/coverage-v8": "npm:^4.1.10"
+    bin-rw: "npm:^0.2.0"
     typescript: "npm:~6.0.3"
     vitest: "npm:^4.1.10"
   languageName: unknown
