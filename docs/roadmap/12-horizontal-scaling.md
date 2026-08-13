@@ -61,9 +61,20 @@ when the cluster is at its intended size.
 Two properties fall out of this rather than needing rules of their own:
 
 - **Claims are atomic, so two replicas can never hold the same index.** The settle window is therefore never a
-  correctness concern, however the timing falls.
-- **Coverage is always complete.** An index nobody claimed is picked up by the replica below it, so running fewer
-  replicas than intended means somebody works harder, not that a guild stops being watched.
+  correctness concern, however the timing falls. This one holds at every instant.
+- **Coverage converges.** An index nobody claimed gets picked up by the replica below it, so running fewer
+  replicas than intended costs effort rather than coverage — but that is the _settled_ state, not a continuous
+  guarantee. A replica that dies takes its shards down until something reclaims its index, so **transient dark
+  shards are possible and expected**:
+
+  | How the index came free                  | Dark for                                                                                         |
+  | ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
+  | Crash or planned restart                 | that container's restart, typically seconds — it reclaims its own index                          |
+  | Removed for good (scale-down, host gone) | up to the lease TTL, plus two watcher checks, plus the neighbour's restart — on the order of 90s |
+
+  Nothing shortens the second case without giving up the debounce that stops a peer merely between renewals from
+  bouncing the cluster. If a bot ever needs sub-minute recovery from a permanently removed replica, that is a
+  reason to revisit the watcher interval, not the assignment scheme.
 
 An index owns a slice that is the same shards no matter how many peers are up. That is what lets a replica hold
 its assignment for its whole lifetime instead of resharding underneath itself whenever the cluster changes size.
@@ -77,17 +88,17 @@ instead of `4/4/4/2` for 14 shards) and was rejected anyway, because it trades t
 - **An index must mean the same shards regardless of the current shard count.** Flat slices survive Discord
   raising its recommendation: 14 → 15 grows only the tail replica. Proportional boundaries move on almost any
   bump, so every replica reshards, every replica restarts, and every replica's guilds change.
-- **`SHARDS_PER_REPLICA` stays the capacity bound its name promises**, not a divisor. A replica never exceeds it
-  unless it is covering for a peer that never claimed its index.
+- **`SHARDS_PER_REPLICA` stays a shard count**, not a divisor — index `i` means the same slice whatever the
+  cluster is doing, which is what makes the previous point true.
 
 So a short tail is **headroom, not imbalance** — `4/4/4/2` fills to `4/4/4/3`, `4/4/4/4`, and then a fifth index
-appears. Sizing a container is a question about `SHARDS_PER_REPLICA` alone.
+appears.
 
 Genuine imbalance has exactly two causes, and both are the cluster not being at its intended size:
 
 - **A replica is missing.** A peer covers its indices. This is unavoidable rather than a design choice: if three
-  replicas must cover four indices' worth of shards, one of them holds more. The alternative is dark shards, which
-  is the trade this design deliberately refuses.
+  replicas must cover four indices' worth of shards, one of them holds more. The alternative is leaving those
+  shards uncovered for as long as the replica stays away, which is the trade this design refuses.
 - **A straggler.** A replica starting after its peers' settle window finds everything claimed and idles as a hot
   spare while some peer holds two indices. See below.
 
@@ -96,6 +107,22 @@ currently live — which makes every replica's assignment depend on every other'
 appearing or disappearing reshards (and therefore restarts) the entire cluster, and two replicas disagreeing for
 even a moment about the live count produces overlapping or missing shards. That is a materially worse failure mode
 than one replica temporarily carrying an extra index.
+
+### Sizing a container
+
+`SHARDS_PER_REPLICA` is the **steady-state target, not a hard cap**, so it is not the only input to sizing. A
+replica holds the union of every index it claims, and it claims extras precisely when peers are missing — which is
+also when the surviving replicas are carrying the most load:
+
+| Cluster state                  | Shards on the heaviest replica |
+| ------------------------------ | ------------------------------ |
+| Fully provisioned              | `SHARDS_PER_REPLICA`           |
+| One peer missing               | `2 × SHARDS_PER_REPLICA`       |
+| Worst case (only one survivor) | the entire `shardCount`        |
+
+Size for at least **twice** `SHARDS_PER_REPLICA` if a single replica loss should be absorbed without degrading,
+and treat `shardsOwned` in the boot log (and the `covering for missing replicas` message) as the signal that a
+replica is running above its target.
 
 ### Changing shards means restarting
 

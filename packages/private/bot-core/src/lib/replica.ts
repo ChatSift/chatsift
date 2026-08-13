@@ -137,10 +137,15 @@ export interface ReplicaSlot {
  * so peers starting alongside can claim theirs, then greedily claim whatever is still free immediately above.
  *
  * Complete coverage falls out of that greedy step rather than needing a rule of its own -- an index left
- * unclaimed by a peer that never started is picked up by the replica below it, so the union of every replica's
- * shards is always the full set. The cost of running too few replicas is therefore that somebody works harder,
- * never that a guild stops being watched. Running too many is equally safe: the surplus finds nothing free and
- * waits as a hot spare.
+ * unclaimed by a peer that never started is picked up by the replica below it, so once the cluster settles the
+ * union of every replica's shards is the full set. The cost of running too few replicas is therefore that
+ * somebody works harder, not that a guild goes unwatched. Running too many is equally safe: the surplus finds
+ * nothing free and waits as a hot spare.
+ *
+ * That is the settled state, not a continuous guarantee: a replica that dies takes its shards down until
+ * something reclaims its index -- its own restart in the ordinary case, or `startWatching` promoting a neighbour
+ * when it is gone for good. Transient dark shards are expected; see docs/roadmap/12-horizontal-scaling.md for how
+ * long each case lasts.
  *
  * The known wart is a *straggler*: a replica that starts well after `settleMs` has passed for its peers finds
  * everything already claimed and idles as a hot spare, leaving the cluster correct but unbalanced until the next
