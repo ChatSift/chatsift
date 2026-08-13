@@ -1,15 +1,8 @@
-# TODO: Wait for maintainers to fix this stuff
 name: Claude Code Review
 
-# Manual-only. Run from the Actions tab, or:
-#   gh workflow run claude-code-review.yml -f pr_number=123
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'Pull request number to review'
-        required: true
-        type: string
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
 
 jobs:
   claude-review:
@@ -24,11 +17,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # workflow_dispatch checks out the dispatched branch by default, so
-          # point at the PR head explicitly -- the review needs the PR's own
-          # CLAUDE.md files. (refs/pull/N/head rather than /merge: the merge ref
-          # doesn't exist for PRs with conflicts.)
-          ref: refs/pull/${{ inputs.pr_number }}/head
           fetch-depth: 1
 
       - name: Run Claude Code Review
@@ -36,20 +24,27 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ inputs.pr_number }} --comment'
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request with a focus on:
+            - Correctness bugs and edge cases
+            - Code quality and adherence to this repo's CLAUDE.md conventions
+            - Security implications
+            - Performance considerations
+
+            Provide detailed feedback using inline comments for specific issues.
           # Interactive-session tools (ScheduleWakeup/SendMessage/Monitor, background
           # Agent/Task execution) assume a persistent host that re-invokes the session
           # later. This action runs the SDK once per job and exits when the turn ends,
-          # so a scheduled wakeup or an orphaned background subagent never gets picked
-          # back up -- the run silently reports success with no PR comment ever posted.
-          # This is a known upstream bug: anthropics/claude-code-action#1462 and #1499
-          # (fixes in flight: PR #1465, #1500, unmerged as of writing). Workaround per
-          # the maintainers on #1462: block the interactive-only tools and tell Claude
-          # explicitly to run subagents synchronously.
+          # so the run silently reports success with no review ever posted. Upstream:
+          # anthropics/claude-code-action#1462, #1499.
           claude_args: |
+            --model claude-opus-4-8
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
             --disallowedTools "ScheduleWakeup,SendMessage,Monitor"
-            --append-system-prompt "This session runs once inside a GitHub Actions job and cannot be resumed or notified later. Never call Agent or Task without run_in_background: false. Do not end your turn assuming a background subagent or scheduled wakeup will continue the work -- it will not. Wait for every subagent synchronously and only finish once the actual deliverable (e.g. the PR comment) has been produced."
+            --append-system-prompt "This session runs once inside a GitHub Actions job and cannot be resumed or notified later. Never call Agent or Task without run_in_background: false. Do not end your turn assuming a background subagent or scheduled wakeup will continue the work -- it will not. Wait for every subagent synchronously and only finish once the actual deliverable (the PR review) has been produced."
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
