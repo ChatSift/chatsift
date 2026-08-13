@@ -13,6 +13,14 @@ import type { Logger } from 'pino';
  *    on them would grow the map without bound -- one entry per dashboard visitor, forever. `services/api`
  *    deliberately keeps its OAuth client pointed straight at Discord for this reason (see `discordAPI.ts`);
  *    this is the safety net for anything that slips through.
+ *
+ * Pooling does mean these callers share one `globalRequestsPerSecond` budget, which is left at the default 50
+ * rather than the `Infinity` the clients use. That's deliberate and costs nothing today: Discord's 50/s global
+ * limit is per bot token and doesn't apply to token-less routes at all, so this is a self-imposed backstop
+ * against runaway volume rather than a mirror of anything upstream. It notably cannot delay an interaction
+ * callback -- `@discordjs/rest` routes `/interactions/:id/:token/callback` to a `BurstHandler`, which neither
+ * reads nor decrements the global counter (only `SequentialHandler` does), so the 3s ack window is never at
+ * this budget's mercy. Webhook execution is the only pooled traffic it can actually throttle.
  */
 const POOLED_KEY = '';
 
