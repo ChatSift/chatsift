@@ -23,9 +23,23 @@ const NO_MENTIONS: APIAllowedMentions = { parse: [] };
  *
  * Roles that no longer exist in the guild are dropped rather than rendered as a dangling id.
  */
-async function formatEarnedRewards(guildId: string, earned: readonly Pick<SocialRewards, 'roleId'>[]): Promise<string> {
+async function formatEarnedRewards(
+	guildId: string,
+	earned: readonly Pick<SocialRewards, 'roleId'>[],
+	logger: Logger,
+): Promise<string> {
 	const resolved = await Promise.all(earned.map(async (reward) => getRoleName(guildId, reward.roleId)));
 	const names = resolved.filter((name) => name !== undefined);
+
+	// A reward role that was applied but can't be named is dropped from the message, so the member is told
+	// they levelled up and nothing more. Either the role was deleted or the guild is unreadable -- the
+	// `discordCache` warn distinguishes them.
+	if (names.length !== earned.length) {
+		logger.warn(
+			{ guildId, roleIds: earned.map((reward) => reward.roleId), named: names.length },
+			'Some earned reward roles could not be named; omitting them from the level-up message',
+		);
+	}
 
 	return names.length > 0 ? ` and received: ${names.join(', ')}` : '';
 }
@@ -69,7 +83,7 @@ export async function sendLevelUpNotification({
 	// template counts as empty too.
 	const stored = settings.levelUpNotificationMessage?.trim();
 	const content = templateLevelUpMessage(stored === undefined || stored === '' ? DEFAULT_LEVEL_UP_MESSAGE : stored, {
-		earnedRewards: await formatEarnedRewards(guildId, earnedRewards),
+		earnedRewards: await formatEarnedRewards(guildId, earnedRewards, logger),
 		guildName: (await getGuildName(guildId)) ?? 'this server',
 		level: String(level),
 		username,

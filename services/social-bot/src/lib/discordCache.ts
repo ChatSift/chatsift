@@ -112,6 +112,11 @@ async function loadChannel(channelId: string): Promise<CachedChannel | null> {
 				throw error;
 			}
 
+			// Debug, not warn: the parent walk in `resolveChannelChain` routinely reaches categories nobody
+			// granted access to, and the only cost is one message tracked without its category's multiplier.
+			// Logged at all because "the multiplier isn't applying" otherwise looks identical to a bad row.
+			getContext().logger.debug({ err: error, channelId }, 'Social channel unreadable, negatively caching');
+
 			await getContext().redis.set(channelNegativeKey(channelId), '1', {
 				expiration: { type: 'PX', value: NEGATIVE_TTL_MS },
 			});
@@ -151,6 +156,12 @@ async function loadGuild(guildId: string): Promise<CachedGuild | null> {
 			if (!isMissing(error)) {
 				throw error;
 			}
+
+			// Warn, unlike the channel case: an unreadable guild silently degrades three user-visible things
+			// for the whole negative-cache window -- reward ties lose the role hierarchy, `{{ guildName }}`
+			// renders as "this server", and every earned reward is dropped from the level-up message. All
+			// three read as config bugs from the outside.
+			getContext().logger.warn({ err: error, guildId }, 'Social guild unreadable, negatively caching');
 
 			await getContext().redis.set(guildNegativeKey(guildId), '1', {
 				expiration: { type: 'PX', value: NEGATIVE_TTL_MS },

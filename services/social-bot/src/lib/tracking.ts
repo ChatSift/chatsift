@@ -198,6 +198,16 @@ async function track(
 	}
 
 	if (newLevel > oldLevel) {
+		// One line per level-up: the rarest and most user-visible thing this bot does, and the first thing to
+		// check when someone reports levelling without their role. Deliberately not logged per grant --
+		// `createLogger` pins the level to trace with no env override, so a per-message line would be a volume
+		// problem on an active guild. `rewardsConfigured` disambiguates "the write was skipped or failed" from
+		// "this guild has no rewards at all", which both leave `rewardsApplied` false.
+		logger.info(
+			{ guildId, userId, oldLevel, newLevel, increment, rewardsApplied, rewardsConfigured: rewards.length },
+			'Member levelled up',
+		);
+
 		await sendLevelUpNotification({
 			channelId: message.channel_id,
 			// Everything crossed by this grant, not just `oldLevel + 1` -- a single message with a large enough

@@ -157,6 +157,11 @@ export async function applyRewardRoles({
 	}
 
 	if (barred.has(barKey(guildId, userId))) {
+		// The failure that set the bar was logged once; without this the next few minutes of skips are
+		// invisible, and each one also strips `earnedRewards` from the level-up message -- so a member gets
+		// congratulated with no mention of the role they didn't receive.
+		logger.debug({ guildId, userId, add: diff.add, remove: diff.remove }, 'Reward roles skipped, member is barred');
+
 		return false;
 	}
 
@@ -167,6 +172,10 @@ export async function applyRewardRoles({
 			{ roles: applyDiffToRoles(heldRoleIds, diff) },
 			{ reason: 'Social level rewards' },
 		);
+
+		// Only reached when the diff was non-empty, so this is per-write rather than per-message -- it's the
+		// line that answers "did they actually get the role", for both level-ups and the self-healing repair.
+		logger.info({ guildId, userId, add: diff.add, remove: diff.remove }, 'Applied reward roles');
 
 		return true;
 	} catch (error) {
