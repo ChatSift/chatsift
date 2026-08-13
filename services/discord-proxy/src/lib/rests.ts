@@ -42,10 +42,10 @@ export function describeRestKey(key: string): string {
 /**
  * One `REST` per token, rather than one shared `REST` with per-request `auth`.
  *
- * This is the difference between this service and `@discordjs/proxy`, whose README tells you not to point
- * multiple bots at one container. It hands every request to a single `REST` with `auth: false`, and that
- * instance keys its handlers on `${bucketHash}:${majorParameter}` while tracking `globalRemaining` per REST
- * instance rather than per token -- so N tokens share one 50/s allowance and collide on identical hashes.
+ * This is the difference between this service and upstream's `apps/proxy-container`, whose README tells you
+ * not to point multiple bots at one container. It hands every request to a single `REST` with `auth: false`,
+ * and that instance keys its handlers on `${bucketHash}:${majorParameter}` while tracking `globalRemaining`
+ * per REST instance rather than per token -- so N tokens share one 50/s allowance and collide on hashes.
  * Giving each token its own instance restores both, and is what lets one process stand in for the N proxy
  * containers the old stack would have needed (one per bot, plus one per custom ModMail instance, which are
  * added by partner onboarding at runtime -- see docs/roadmap/01-architecture.md §8).

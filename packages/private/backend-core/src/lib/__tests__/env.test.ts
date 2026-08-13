@@ -48,11 +48,29 @@ test('an unset or blank DISCORD_PROXY_URL means "no proxy", not a validation fai
 	}
 });
 
-test('a configured DISCORD_PROXY_URL still has to be a real URL', () => {
-	expect(envSchema.safeParse({ ...validEnv, DISCORD_PROXY_URL_PROD: 'discord-proxy:7005' }).success).toBe(false);
+test('a configured DISCORD_PROXY_URL has to be an origin plus exactly /api', () => {
 	expect(envSchema.safeParse({ ...validEnv, DISCORD_PROXY_URL_PROD: 'http://discord-proxy:7005/api' }).success).toBe(
 		true,
 	);
+	expect(envSchema.safeParse({ ...validEnv, DISCORD_PROXY_URL_PROD: 'https://proxy.example.com/api' }).success).toBe(
+		true,
+	);
+
+	for (const invalid of [
+		// Parses as scheme `discord-proxy:` rather than a host, so the protocol guard is what catches it.
+		'discord-proxy:7005',
+		// `REST` would emit `/v10/...`, which the proxy's `/api(/v\d+)?` strip never matches.
+		'http://discord-proxy:7005',
+		// Produces `//v10/...`, same problem.
+		'http://discord-proxy:7005/api/',
+		'http://discord-proxy:7005/',
+		'http://discord-proxy:7005/api/v10',
+		'http://discord-proxy:7005/proxy',
+		'http://discord-proxy:7005/api?debug=1',
+		'http://discord-proxy:7005/api#fragment',
+	]) {
+		expect(envSchema.safeParse({ ...validEnv, DISCORD_PROXY_URL_PROD: invalid }).success).toBe(false);
+	}
 });
 
 test('ENCRYPTION_KEY rejects a 44-char string that is not valid base64 for a 32-byte key', () => {

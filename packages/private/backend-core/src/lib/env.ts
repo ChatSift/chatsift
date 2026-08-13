@@ -1,21 +1,35 @@
 import { Buffer } from 'node:buffer';
 import process from 'node:process';
+import { URL } from 'node:url';
 import { SnowflakeRegex } from '@sapphire/discord-utilities';
 import z from 'zod';
 
-// An absent *or empty* http(s) URL, both meaning "not configured". The empty case isn't pedantry:
+// An absent *or empty* proxy base URL, both meaning "not configured". The empty case isn't pedantry:
 // docker-compose's `env_file` turns a bare `FOO=` into an empty string rather than leaving it unset, so a
 // plain `z.url().optional()` would reject the most natural way to switch an optional URL off.
 //
-// The protocol guard matters as much as the rest of it (same reasoning as `REDIS_URL_*` below): WHATWG URL
-// parsing happily accepts `discord-proxy:7005` as a URL with scheme `discord-proxy:`, so the obvious typo of
-// omitting `http://` would otherwise validate here and fail much later, as a confusing runtime error.
-const optionalHttpUrl = z
+// Everything past the protocol check exists because `REST` builds request URLs as `${api}/v${version}${route}`
+// and the proxy strips a leading `/api(/v\d+)?` back off. Anything but exactly `/api` silently desynchronizes
+// those two -- `discord-proxy:7005` parses as scheme `discord-proxy:`, a bare origin makes `REST` emit
+// `/v10/...` that the proxy won't recognize, and a trailing slash produces a `//v10/...` that misses its
+// strip regex. All three fail far from here, as confusing runtime 404s, so they're rejected at boot instead.
+const discordProxyUrl = z
 	.string()
 	.trim()
 	.transform((value) => (value === '' ? undefined : value))
 	.pipe(z.url({ protocol: /^https?$/ }).optional())
-	.optional();
+	.optional()
+	.refine(
+		(value) => {
+			if (value === undefined) {
+				return true;
+			}
+
+			const url = new URL(value);
+			return url.pathname === '/api' && url.search === '' && url.hash === '';
+		},
+		{ message: 'must be an origin followed by exactly /api, with no trailing slash, query or fragment' },
+	);
 
 // Exported (in addition to the parsed `ENV` singleton below) so tests can exercise individual fields
 // via `.safeParse()` against a valid base object, without needing to mutate `process.env` and
@@ -70,14 +84,10 @@ export const envSchema = z.object({
 	REDIS_URL_DEV: z.url({ protocol: /^rediss?$/ }),
 	REDIS_URL_PROD: z.url({ protocol: /^rediss?$/ }),
 
-	// Discord REST proxy (services/discord-proxy). The port it listens on is required -- the service can't
-	// start without one -- but the URL clients dial is deliberately optional on both sides: unset means
-	// "talk to discord.com directly", which is both the local-dev default (so `yarn dev:api` doesn't need a
-	// second process running alongside it) and the production kill switch (drop the value, redeploy, and
-	// every service goes back to what it did before the proxy existed, no code revert).
+	// Proxy
 	DISCORD_PROXY_PORT: z.string().pipe(z.coerce.number()),
-	DISCORD_PROXY_URL_DEV: optionalHttpUrl,
-	DISCORD_PROXY_URL_PROD: optionalHttpUrl,
+	DISCORD_PROXY_URL_DEV: discordProxyUrl,
+	DISCORD_PROXY_URL_PROD: discordProxyUrl,
 
 	// AMA
 	AMA_BOT_TOKEN: z.string(),

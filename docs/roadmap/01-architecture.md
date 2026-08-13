@@ -557,11 +557,24 @@ by partner onboarding, from a DB row, at runtime. A proxy-per-token topology wou
 new compose block, and a URL for `api` to discover on every onboarding.
 
 Instead the proxy partitions by the inbound `Authorization` header, keeping **one `REST` instance per bot
-token** (`lib/rests.ts`). This is the specific thing `@discordjs/proxy` can't do — its README says not to
-point multiple bots at one container, because it hands everything to a single `REST` with `auth: false`,
-which tracks `globalRemaining` per instance and keys handlers on `${bucketHash}:${majorParameter}`. N tokens
-would share one 50/s allowance and collide on identical hashes. One instance per token restores both, and
-makes the token count a runtime detail rather than a deployment topology.
+token** (`lib/rests.ts`). That's what upstream's `apps/proxy-container` doesn't do — it builds a single
+`REST` and hands everything to it with `auth: false`, which tracks `globalRemaining` per instance and keys
+handlers on `${bucketHash}:${majorParameter}`, so N tokens would share one 50/s allowance and collide on
+identical hashes. Hence its README telling you not to point multiple bots at one container. One instance per
+token restores both, and makes the token count a runtime detail rather than a deployment topology.
+
+### Why not depend on `@discordjs/proxy`
+
+Not because it couldn't be composed — `proxyRequests(rest)` returns a handler bound to one `REST`, so a
+`Map<token, RequestHandler>` would have worked fine. The blocker is version pinning: `@discordjs/proxy@latest`
+wants `@discordjs/rest@^2.4.0` and its `dev` tag pins an _exact_ dev build of rest that differs from this
+repo's. Two copies of `@discordjs/rest` in one tree is fatal here specifically, because `populateErrorResponse`
+dispatches on `instanceof DiscordAPIError / HTTPError / RateLimitError` — across copies those are different
+constructor identities, so every Discord error would fall through to "unknown" and 500. Adopting it means a
+monorepo-wide bump of rest/core/ws/builders to match.
+
+Worth revisiting when that bump happens and the 429 fix below has landed upstream: `lib/responses.ts` could
+then mostly collapse into the library's helpers, leaving `lib/rests.ts` as the composition layer on top.
 
 Two things deliberately do **not** get their own instance:
 
