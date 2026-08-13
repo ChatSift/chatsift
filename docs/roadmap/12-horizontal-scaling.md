@@ -45,13 +45,21 @@ untrusted Discord input.
 3. Greedily claim any index still free immediately above.
 4. Own the union of the fixed slices belonging to every index held.
 
+**Indices and shard ids are different number spaces**, and they collide confusingly at the low end — index `0`
+entitles its holder to shards `0-3`. Only _indices_ are ever leased in redis; shard ids are derived from them
+locally, by arithmetic. For a 14-shard bot there are four redis keys, not fourteen.
+
 ```
 shardCount=14, SHARDS_PER_REPLICA=4  ->  totalIndices=4
 
-index slices:  idx0 [0-3]  idx1 [4-7]  idx2 [8-11]  idx3 [12,13]
+redis key           what holding it means
+shardlease:<bot>:0  -> run shards 0,1,2,3
+shardlease:<bot>:1  -> run shards 4,5,6,7
+shardlease:<bot>:2  -> run shards 8,9,10,11
+shardlease:<bot>:3  -> run shards 12,13
 
-4 replicas:  one index each                    -> 4 / 4 / 4 / 2 shards
-3 replicas:  the third holds idx2 AND idx3     -> 4 / 4 / 6 shards
+4 replicas:  one index each                          -> 4 / 4 / 4 / 2 shards
+3 replicas:  the third holds indices 2 AND 3         -> 4 / 4 / 6 shards
 5 replicas:  the surplus finds nothing free and waits as a hot spare
 ```
 
@@ -100,7 +108,8 @@ Genuine imbalance has exactly two causes, and both are the cluster not being at 
   replicas must cover four indices' worth of shards, one of them holds more. The alternative is leaving those
   shards uncovered for as long as the replica stays away, which is the trade this design refuses.
 - **A straggler.** A replica starting after its peers' settle window finds everything claimed and idles as a hot
-  spare while some peer holds two indices. See below.
+  spare while some peer holds two indices — until that peer notices it and hands one back, see
+  [Handing an index back](#handing-an-index-back).
 
 Perfect balance under a changing replica count would mean re-slicing `shardCount` across however many replicas are
 currently live — which makes every replica's assignment depend on every other's liveness, so one replica
@@ -114,11 +123,11 @@ than one replica temporarily carrying an extra index.
 replica holds the union of every index it claims, and it claims extras precisely when peers are missing — which is
 also when the surviving replicas are carrying the most load:
 
-| Cluster state                  | Shards on the heaviest replica |
-| ------------------------------ | ------------------------------ |
-| Fully provisioned              | `SHARDS_PER_REPLICA`           |
-| One peer missing               | `2 × SHARDS_PER_REPLICA`       |
-| Worst case (only one survivor) | the entire `shardCount`        |
+| Cluster state                  | Shards on the heaviest replica                                          |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| Fully provisioned              | `SHARDS_PER_REPLICA`                                                    |
+| One peer missing               | `2 × SHARDS_PER_REPLICA`, until the peer returns and is handed one back |
+| Worst case (only one survivor) | the entire `shardCount`                                                 |
 
 Size for at least **twice** `SHARDS_PER_REPLICA` if a single replica loss should be absorbed without degrading,
 and treat `shardsOwned` in the boot log (and the `covering for missing replicas` message) as the signal that a
@@ -141,11 +150,33 @@ is the one case with nothing below it, so the lowest holder takes that one.
 
 This is only affordable because restarts RESUME. See below.
 
-### Known wart: stragglers
+### Handing an index back
 
-A replica starting well after its peers' settle window finds everything claimed and idles as a hot spare, leaving
-the cluster correct but unbalanced until the next restart. It is logged as a warning. Fixing it live needs
-cross-replica negotiation that is not worth it when `./compose` starts replicas together by construction.
+A replica that finds every index claimed idles as a **hot spare**, advertising itself in a redis sorted set
+(`shardspares:<botId>`, scored by when it last checked in). That advertisement is what lets the cluster recover
+its balance, and it exists because without it recovery simply never happened:
+
+> Four replicas, `C` dies. `B` is elected, restarts, and comes back holding indices 1 _and_ 2 — correct, and
+> carrying double load. `C`'s container then recovers, finds all four indices claimed, and idles forever. There is
+> no gap any more, so the watcher never fires. `B` runs 2× load next to an idle container until the next
+> `./compose up`. Restarting `B` doesn't help either: `B` and the spare just race for the freed indices and swap
+> roles.
+
+So every transient replica loss used to cost balance permanently. The handoff closes that with two rules:
+
+1. **A covering replica sheds when a spare is waiting.** The watcher, on finding no gaps, checks whether it holds
+   more than one index while a spare is advertising — and if so restarts. Shutdown releases every index it holds.
+2. **A replica stands down from greedy claiming while a spare is advertising.** This is the half that makes it
+   stick: without it the shedding replica would grab its extra index straight back on the way up, swapping roles
+   with the spare instead of rebalancing.
+
+Suppressing the greedy step is deliberately all the negotiation there is — no replica tells another what to take.
+Whoever is left claims what the other declined, on its next poll. If the spare dies mid-handoff its advertisement
+goes stale, the next boot covers as before, and a gap (if any) falls back to the watcher.
+
+The remaining rough edge is a **straggler**: a replica starting well after its peers' settle window still idles
+rather than triggering an immediate rebalance — it only gets an index once a covering peer notices it. That is one
+watcher interval, not "until the next deploy".
 
 ## What actually had to change
 
@@ -217,7 +248,9 @@ exit with its sockets open instead leaves Discord holding a resumable session. T
 - `claimed replica slot, covering for missing replicas` means the cluster is short — one replica is carrying more
   than its target. Coverage is fine; capacity is not.
 - `no free replica index, idling as a hot spare` means more replicas are running than the shard count needs, or a
-  straggler missed its settle window.
+  straggler missed its settle window. Paired with `a hot spare is waiting...restarting to hand them over` on a
+  covering peer, that is the rebalance working; on its own for more than a watcher interval, nobody was covering.
+- `hot spare took over a freed replica index` closes that loop -- the spare is no longer idle.
 - `lost replica lease, restarting to re-derive shard assignment` means a renewal found somebody else holding the
   index. Rare and self-healing, but a repeated one means redis latency is eating the lease TTL.
 - `replica indices still unclaimed, restarting to take them over` means a peer died or was scaled away.

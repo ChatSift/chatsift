@@ -10,11 +10,6 @@ import { createSessionStore } from './sessions.js';
 import { onShutdown } from './shutdown.js';
 
 export interface CreateBotGatewayOptions {
-	/**
-	 * Namespaces this bot's gateway sessions, replica leases and identify buckets in the shared redis. Same
-	 * widened key as `createBotClient`'s, since a custom ModMail instance (#216) is its own Discord application
-	 * with its own sessions and its own shard count.
-	 */
 	readonly botId: GuildListKey;
 	readonly intents: GatewayIntentBits;
 	readonly rest: REST;
@@ -46,8 +41,6 @@ export async function createBotGateway({
 	const { shardIds } = await claimReplicaSlot({
 		botId,
 		shardCount,
-		// Unset means this replica takes everything, so the claim resolves to a single index. Same code path,
-		// same redis keys, just a cluster of one.
 		shardsPerReplica: ENV.SHARDS_PER_REPLICA ?? shardCount,
 	});
 
@@ -60,9 +53,6 @@ export async function createBotGateway({
 		shardIds,
 		retrieveSessionInfo: async (shardId) => sessions.retrieveSessionInfo(shardId),
 		updateSessionInfo: async (shardId, sessionInfo) => sessions.updateSessionInfo(shardId, sessionInfo),
-		// Read off the manager rather than the `gatewayInformation` above, matching how the default builds
-		// `SimpleIdentifyThrottler` -- the manager caches its own fetch, so this costs nothing and stays correct
-		// if the value is ever re-read (e.g. after `updateShardCount`).
 		buildIdentifyThrottler: async (manager) =>
 			createRedisIdentifyThrottler(
 				botId,

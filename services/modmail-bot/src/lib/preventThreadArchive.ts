@@ -34,9 +34,6 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 	// Flattened rather than nested loops so every channel's GET (+ maybe PATCH) fires concurrently —
 	// each pair is independent of every other, there's no shared state to serialize on the way
 	// `pendingTicketSweep.ts` has to for its per guild+user lock.
-	// Instance scoping above says which deployment owns the guild; this says which replica of it does. Every
-	// replica polls this same table, so without it each would re-fetch (and unarchive) every open ticket's
-	// channels -- N times the Discord requests for exactly one ticket's worth of work.
 	const checks = openThreads
 		.filter((thread) => ownsShardForGuild(thread.guildId))
 		.flatMap((thread) =>

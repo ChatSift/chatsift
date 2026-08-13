@@ -7,19 +7,13 @@ import { getContext } from '@chatsift/backend-core';
 import { onShutdown } from './shutdown.js';
 
 /**
- * How long a claim survives without renewal. Long enough that a replica busy handling a burst of events doesn't
- * lose its shards to a missed tick, short enough that a replica which died without releasing frees them promptly.
+ * How long a claim survives without renewal.
  */
 const LEASE_TTL_MS = 30_000;
 const RENEW_INTERVAL_MS = 10_000;
 
 /**
  * How long to wait between claiming a primary index and greedily claiming whatever is still free above it.
- *
- * This affects *balance only*, never correctness: greedy claims are atomic `SET NX`, so two replicas can never
- * end up holding the same index however the timing falls. Without any wait, whichever replica booted first would
- * claim every index before its peers got started and they would all idle as hot spares -- so this just needs to
- * comfortably cover the spread between replicas in one `docker compose up`.
  */
 const SETTLE_MS = 5_000;
 
@@ -27,13 +21,36 @@ const WATCH_INTERVAL_MS = 30_000;
 const HOT_SPARE_POLL_MS = 10_000;
 
 /**
- * Renew and release are compare-and-set rather than plain `PEXPIRE`/`DEL`: a replica that stalled long enough for
- * its lease to expire and be re-claimed elsewhere must not then extend or delete somebody else's claim.
+ * How long a hot spare's advertisement counts for. Comfortably more than `HOT_SPARE_POLL_MS`.
  */
+const SPARE_STALE_MS = 40_000;
+
+/**
+ * Sorted set of hot spares waiting for an index, scored by when each last advertised.
+ */
+const sparesKey = (botId: GuildListKey): string => `shardspares:${botId}`;
+
 const RENEW_SCRIPT = `if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('PEXPIRE', KEYS[1], ARGV[2]) else return 0 end`;
 const RELEASE_SCRIPT = `if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end`;
 
 const leaseKey = (botId: GuildListKey, index: number): string => `shardlease:${botId}:${index}`;
+
+async function advertiseSpare(botId: GuildListKey, token: string): Promise<void> {
+	await getContext().redis.zAdd(sparesKey(botId), { score: Date.now(), value: token });
+}
+
+async function withdrawSpare(botId: GuildListKey, token: string): Promise<void> {
+	await getContext().redis.zRem(sparesKey(botId), token);
+}
+
+/**
+ * Whether any replica is currently idle and waiting for an index, pruning advertisements that have gone stale.
+ */
+async function hasWaitingSpare(botId: GuildListKey): Promise<boolean> {
+	const { redis } = getContext();
+	await redis.zRemRangeByScore(sparesKey(botId), 0, Date.now() - SPARE_STALE_MS);
+	return (await redis.zCard(sparesKey(botId))) > 0;
+}
 
 /**
  * How many replicas it takes to cover `shardCount` at `shardsPerReplica` each. This is the only place the two
@@ -56,8 +73,7 @@ export function computeTotalIndices(shardCount: number, shardsPerReplica: number
  * It also keeps `shardsPerReplica` honest as the capacity bound its name claims, rather than a divisor: a replica
  * never runs more than that many shards unless it is covering for a peer that never claimed its index.
  *
- * The tail replica therefore runs short (14 shards over 4 indices is `4/4/4/2`) until the bot grows into it --
- * `4/4/4/3`, `4/4/4/4`, then a fifth index appears. That is headroom, not imbalance.
+ * The tail replica therefore runs short (14 shards over 4 indices is `4/4/4/2`) until the bot grows into it.
  */
 export function shardIdsForIndices(indices: number[], shardCount: number, shardsPerReplica: number): number[] {
 	const shardIds: number[] = [];
@@ -99,16 +115,7 @@ export function guildShardId(guildId: string, shardCount: number): number {
 /**
  * Whether this replica is the one responsible for a guild.
  *
- * Gateway-driven work never needs this -- a replica only receives events for shards it owns, so ownership is
- * enforced by Discord for free. Work driven from the *database* on a timer has no such protection: every replica
- * polls the same tables, so without this every sweep would act on every guild and N replicas would each try to
- * close the same ticket or nuke the same thread.
- *
- * Composes with, rather than replaces, the instance-level `getOwnershipScope`/`resolveForeignOwnerLabel` scoping
- * from #216: that decides which *deployment* owns a guild, this decides which replica of that deployment does.
- *
- * Returns `true` before a slot has been claimed, which is the right answer for a process that owns everything --
- * including `services/api`, which never claims one.
+ * Great for avoiding complex atomic logic in tasks like DB sweeps that are tied to a table with a `guild_id`.
  */
 export function ownsShardForGuild(guildId: string): boolean {
 	if (ownedShardIds.size === 0) {
@@ -120,9 +127,10 @@ export function ownsShardForGuild(guildId: string): boolean {
 
 export interface ReplicaSlot {
 	/**
-	 * Every index this replica holds, lowest first. More than one means it is covering for indices no peer
-	 * claimed -- i.e. the cluster is running fewer replicas than `shardsPerReplica` implies, and this replica is
-	 * carrying the difference rather than letting those shards go unwatched.
+	 * Every index this replica holds, lowest first, and always a **contiguous run** -- `[2, 3]` is reachable,
+	 * `[0, 3]` is not. More than one means it is covering for indices no peer claimed: the cluster is running
+	 * fewer replicas than `shardsPerReplica` implies and this replica is carrying the difference rather than
+	 * letting those shards go unwatched.
 	 */
 	readonly heldIndices: number[];
 	readonly index: number;
@@ -162,10 +170,6 @@ export async function claimReplicaSlot({
 }: {
 	readonly botId: GuildListKey;
 	readonly hotSparePollMs?: number;
-	/**
-	 * How long to let peers claim before greedily taking what is left. Only ever worth overriding to tune the
-	 * balance/startup-latency trade-off described on `SETTLE_MS`; correctness does not depend on it.
-	 */
 	readonly settleMs?: number;
 	readonly shardCount: number;
 	readonly shardsPerReplica: number;
@@ -194,35 +198,44 @@ export async function claimReplicaSlot({
 	}
 
 	let primary = await claimLowestFree();
-	while (primary === null) {
-		// Every index is spoken for, so this replica is surplus to the shard count. Idling (rather than exiting)
-		// is deliberate: exiting would put the container into a restart loop, whereas a hot spare costs nothing
-		// and takes over the moment a peer's lease expires.
+	if (primary === null) {
+		// Every index is accounted for, so this replica is surplus to the shard count. Now we idle -- but
+		// advertised, not silently: a peer covering two indices watches for this and hands one back.
 		logger.warn({ botId, totalIndices, shardCount, shardsPerReplica }, 'no free replica index, idling as a hot spare');
-		await sleep(hotSparePollMs);
-		primary = await claimLowestFree();
+
+		while (primary === null) {
+			await advertiseSpare(botId, token);
+			await sleep(hotSparePollMs);
+			primary = await claimLowestFree();
+		}
+
+		await withdrawSpare(botId, token);
+		logger.info({ botId, replicaIndex: primary }, 'hot spare took over a freed replica index');
 	}
 
 	const heldIndices = [primary];
-	// Renewal starts before the settle wait, not after it. The primary lease is already ticking down from the
-	// moment it was claimed, so anything between the claim and the first renew -- the settle wait, a greedy
-	// `tryClaim` stalling on slow redis -- eats into its TTL. `startRenewing` reads `heldIndices` fresh on every
-	// tick, so the greedy indices pushed below are picked up automatically.
 	startRenewing(botId, heldIndices, token);
 
-	// Only worth waiting when there is something above to claim. Holding the highest index (which is every
-	// unscaled bot, and so every `yarn dev:*` run) means the greedy step below has nothing to do, and waiting
-	// would just add seconds to every boot for no reason.
+	// No point to wait for the last shard. Also great for single-shard bots.
 	if (primary < totalIndices - 1) {
 		await sleep(settleMs);
 	}
 
-	for (let index = primary + 1; index < totalIndices; index++) {
-		if (!(await tryClaim(index))) {
-			break;
-		}
+	// Stand down from covering when somebody is idle and able to do it properly. This is what makes a handoff
+	// stick: the covering replica restarts to shed an index, and without this it would simply grab the index
+	// straight back on the way up -- swapping roles with the spare instead of rebalancing. Suppressing the greedy
+	// step (rather than negotiating who takes what) keeps the protocol to one flag: whoever is left over claims
+	// what this replica declined, on its next poll.
+	if (await hasWaitingSpare(botId)) {
+		logger.info({ botId, replicaIndex: primary }, 'a hot spare is waiting, not claiming beyond this index');
+	} else {
+		for (let index = primary + 1; index < totalIndices; index++) {
+			if (!(await tryClaim(index))) {
+				break;
+			}
 
-		heldIndices.push(index);
+			heldIndices.push(index);
+		}
 	}
 
 	replicaIndex = primary;
@@ -239,8 +252,6 @@ export async function claimReplicaSlot({
 			shardCount,
 			shardsPerReplica,
 			totalIndices,
-			// The one number worth alerting on: above `shardsPerReplica` means the cluster is short of replicas
-			// and this process is absorbing the difference.
 			shardsOwned: shardIds.length,
 		},
 		shardIds.length > shardsPerReplica ? 'claimed replica slot, covering for missing replicas' : 'claimed replica slot',
@@ -252,6 +263,9 @@ export async function claimReplicaSlot({
 	return { index: primary, heldIndices, shardIds };
 }
 
+/**
+ * Re-asserts what indeces this replica is responsible for
+ */
 function startRenewing(botId: GuildListKey, heldIndices: number[], token: string): void {
 	let lastRenewedAt = Date.now();
 
@@ -266,17 +280,11 @@ function startRenewing(botId: GuildListKey, heldIndices: number[], token: string
 				});
 
 				if (!renewed) {
-					// Something else holds this index now, so this process is running shards it no longer owns and
-					// a peer may already be running them too. Restarting re-derives the assignment from scratch.
 					logger.error({ botId, index }, 'lost replica lease, restarting to re-derive shard assignment');
 					process.kill(process.pid, 'SIGTERM');
 					return;
 				}
 			} catch (error) {
-				// A single failed renew is nothing -- the lease outlives several intervals. But redis being
-				// unreachable for longer than the whole TTL means the lease has certainly expired by now and a
-				// peer may already have claimed the index, and the CAS above cannot tell us so while redis is
-				// still down. Treat sustained failure as a lost lease rather than keeping shards a peer now owns.
 				logger.error({ err: error, botId, index }, 'failed to renew replica lease');
 
 				if (Date.now() - lastRenewedAt > LEASE_TTL_MS) {
@@ -296,21 +304,12 @@ function startRenewing(botId: GuildListKey, heldIndices: number[], token: string
 }
 
 /**
- * Watches for indices no replica holds, which is what a scaled-down or permanently-dead peer leaves behind.
+ * Periodically checks if a replica (or more) has disappeared and a set of shards is therefore uncovered.
+ * Taking over a free index implies restarting this whole process so `claimReplicaSlot` can re-derive.
  *
- * Exactly one replica reacts to a given gap, and it has to be one that can actually *fill* it. Re-derivation
- * claims the lowest free index and then extends upward, stopping at the first index a live peer holds -- so a
- * replica can never jump over a living peer. The replica that can close a gap is therefore the one whose run ends
- * immediately below it (`firstGap - 1`), not the lowest holder in the cluster: with `A[0] B[1] C[2] D[3]` and `C`
- * gone, `A` restarting would reclaim index 0, stop dead at live `B`, and leave index 2 exactly as unclaimed as it
- * found it -- then do it again every interval, bouncing its own shards forever while index 2 stayed dark.
- *
- * A gap at index 0 is the one case with nothing below it, so the lowest holder takes that one.
- *
- * Reacting means restarting, because `@discordjs/ws` cannot add shards to a live manager (`updateShardCount`
- * tears down and respawns everything), so re-deriving on a fresh boot is both simpler and, thanks to the redis
- * session store, nearly free. Gated on the gap surviving two consecutive checks: a single miss is far more likely
- * to be a peer between renewals, or one Docker is already restarting, than a peer that is gone for good.
+ * To avoid complexity, only one replica reacts: whoever holds the index directly below the lowest gap.
+ * `claimReplicaSlot` never claims past a live peer, so nobody else could fill it anyway. A gap at index 0
+ * has nothing below it, so the lowest remaining holder takes that one.
  */
 function startWatching(botId: GuildListKey, heldIndices: number[], totalIndices: number): void {
 	let consecutiveGaps = 0;
@@ -326,6 +325,20 @@ function startWatching(botId: GuildListKey, heldIndices: number[], totalIndices:
 			const gaps = holders.flatMap((held, index) => (held ? [] : [index]));
 			if (gaps.length === 0) {
 				consecutiveGaps = 0;
+
+				// No gaps, but this replica may still be carrying a peer's index while a revived replica idles
+				// next to it -- which is where every recovered failure lands, since the index it absorbed stops
+				// being a gap the moment it absorbs it. Nothing else would ever notice, so the cluster would run
+				// permanently lopsided until the next deploy. Restarting sheds the extras (shutdown releases every
+				// held index) and the greedy step stands down on the way back up, leaving them for the spare.
+				if (heldIndices.length > 1 && (await hasWaitingSpare(botId))) {
+					logger.info(
+						{ botId, heldIndices },
+						'a hot spare is waiting and this replica is covering extra indices, restarting to hand them over',
+					);
+					process.kill(process.pid, 'SIGTERM');
+				}
+
 				return;
 			}
 
@@ -350,6 +363,9 @@ function startWatching(botId: GuildListKey, heldIndices: number[], totalIndices:
 	}, WATCH_INTERVAL_MS).unref();
 }
 
+/**
+ * Release all our indeces
+ */
 async function releaseAll(botId: GuildListKey, heldIndices: number[], token: string): Promise<void> {
 	const { redis } = getContext();
 

@@ -1,8 +1,10 @@
 import { setTimeout } from 'node:timers';
+import { setTimeout as sleepMs } from 'node:timers/promises';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { claimReplicaSlot, computeTotalIndices, getReplicaIndex, shardIdsForIndices } from '../replica.js';
 
 const keys = new Map<string, string>();
+const sortedSets = new Map<string, Map<string, number>>();
 const info = vi.fn();
 const warn = vi.fn();
 
@@ -24,6 +26,25 @@ vi.mock('@chatsift/backend-core', () => ({
 			async eval() {
 				return 1;
 			},
+			async zAdd(key: string, { score, value }: { score: number; value: string }) {
+				const set = sortedSets.get(key) ?? new Map<string, number>();
+				set.set(value, score);
+				sortedSets.set(key, set);
+			},
+			async zRem(key: string, member: string) {
+				sortedSets.get(key)?.delete(member);
+			},
+			async zRemRangeByScore(key: string, min: number, max: number) {
+				const set = sortedSets.get(key);
+				for (const [member, score] of set ?? []) {
+					if (score >= min && score <= max) {
+						set!.delete(member);
+					}
+				}
+			},
+			async zCard(key: string) {
+				return sortedSets.get(key)?.size ?? 0;
+			},
 		},
 	}),
 }));
@@ -38,8 +59,16 @@ async function boot(shardCount: number, shardsPerReplica: number) {
 	return claimReplicaSlot({ botId: 'AMA', shardCount, shardsPerReplica, settleMs: 0 });
 }
 
+/**
+ * Mimics a replica parked in the hot-spare loop, which advertises itself on every poll.
+ */
+function advertiseSpare(atMs = Date.now()) {
+	sortedSets.set('shardspares:AMA', new Map([['a-waiting-spare', atMs]]));
+}
+
 beforeEach(() => {
 	keys.clear();
+	sortedSets.clear();
 	info.mockReset();
 	warn.mockReset();
 });
@@ -176,6 +205,27 @@ test('indices are claimed lowest-first so index 0 always has an owner', async ()
 	expect(slots.flatMap((slot) => slot.shardIds)).toContain(0);
 });
 
+test('held indices are always a contiguous run, never hopping over a live peer', async () => {
+	// `startWatching` picks the holder of `firstGap - 1` to close a gap, which is only a valid choice because a
+	// replica's run stops dead at the first index a peer holds. If the greedy loop ever `continue`d instead of
+	// breaking, a replica could hold [0, 3] and the watcher would start electing replicas that cannot actually
+	// reach the gap -- with every other test still green. This is the guard for that.
+	// Two replicas, five indices: indices 2-4 are free, but they sit above a live peer from A's point of view.
+	const slots = await Promise.all([boot(20, 4), boot(20, 4)]);
+	const [a, b] = slots.sort((left, right) => left.index - right.index);
+
+	// A stops dead at live B rather than hopping it to collect the free indices above.
+	expect(a!.heldIndices).toStrictEqual([0]);
+	// B is the one that reaches them, and takes them as an unbroken run.
+	expect(b!.heldIndices).toStrictEqual([1, 2, 3, 4]);
+
+	// Stated as the general invariant: whatever a replica holds is always start..start+n with no holes.
+	for (const slot of slots) {
+		const expected = Array.from({ length: slot.heldIndices.length }, (_, offset) => slot.heldIndices[0]! + offset);
+		expect(slot.heldIndices).toStrictEqual(expected);
+	}
+});
+
 test('a dead middle replica is taken over by the peer directly below it, not the lowest', async () => {
 	// Re-derivation claims the lowest free index then extends upward, stopping at the first index a live peer
 	// holds -- so a replica can never jump over a living peer. With A[0] B[1] C[2] D[3] and C gone, having A
@@ -235,4 +285,52 @@ test('a straggler that finds nothing free waits as a hot spare, then takes over 
 
 	await expect(straggler).resolves.toMatchObject({ index: 2, shardIds: [8, 9, 10, 11] });
 	expect(warn.mock.calls[0]?.[1]).toBe('no free replica index, idling as a hot spare');
+});
+
+test('a covering replica stands down from greedy claiming while a spare is waiting', async () => {
+	advertiseSpare();
+
+	const slot = await boot(16, 4);
+
+	// Without the stand-down it would sweep up all four indices, leaving the spare nothing to take -- which is
+	// what made a recovered failure stay permanently lopsided.
+	expect(slot.heldIndices).toStrictEqual([0]);
+});
+
+test('a spare that stopped advertising does not keep a replica from covering', async () => {
+	// A spare that died mid-wait must not block its peers from covering the indices it will never claim.
+	advertiseSpare(Date.now() - 120_000);
+
+	const slot = await boot(16, 4);
+
+	expect(slot.heldIndices).toStrictEqual([0, 1, 2, 3]);
+});
+
+test('a returning replica gets an index back instead of idling forever', async () => {
+	// Three replicas for four indices: one of them is covering.
+	const slots = await Promise.all([boot(16, 4), boot(16, 4), boot(16, 4)]);
+	const covering = slots.find((slot) => slot.heldIndices.length > 1)!;
+	expect(covering.heldIndices).toStrictEqual([2, 3]);
+
+	// The fourth replica comes back. Nothing is free, so it advertises and waits.
+	const returning = claimReplicaSlot({
+		botId: 'AMA',
+		shardCount: 16,
+		shardsPerReplica: 4,
+		settleMs: 0,
+		hotSparePollMs: 10,
+	});
+	await sleepMs(40);
+
+	// The covering replica sheds: shutdown releases every index it holds, then it re-derives.
+	for (const index of covering.heldIndices) {
+		keys.delete(`shardlease:AMA:${index}`);
+	}
+
+	const [revived, tookOver] = await Promise.all([boot(16, 4), returning]);
+
+	// Balanced: one index each, and between them they still cover everything the covering replica had.
+	expect(revived.heldIndices).toHaveLength(1);
+	expect(tookOver.heldIndices).toHaveLength(1);
+	expect([...revived.heldIndices, ...tookOver.heldIndices].sort((left, right) => left - right)).toStrictEqual([2, 3]);
 });

@@ -47,9 +47,6 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 		`,
 	]);
 
-	// Instance scoping above says which deployment owns the guild; this says which replica of it does. Both
-	// halves below delete Discord channels and rows, so two replicas running them over the same guild would
-	// race exactly the way two deployments would -- and `withGuildUserLock` cannot help, being process-local.
 	for (const row of stale.filter((row) => ownsShardForGuild(row.guildId))) {
 		await getContext().db`DELETE FROM pending_tickets WHERE private_thread_id = ${row.privateThreadId}`;
 

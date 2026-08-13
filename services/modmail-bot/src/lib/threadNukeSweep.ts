@@ -24,8 +24,6 @@ export async function sweepThreadNukes(logger: Logger): Promise<void> {
 	`;
 
 	await Promise.all(
-		// Instance scoping above says which deployment owns the guild; this says which replica of it does.
-		// Two replicas racing here would both issue the delete and one would log a spurious failure.
 		due
 			.filter((row) => ownsShardForGuild(row.guildId))
 			.map(async (row) => {

@@ -32,8 +32,6 @@ export async function sweepScheduledCloses(logger: Logger): Promise<void> {
 	`;
 
 	await Promise.all(
-		// Instance scoping above says which deployment owns the guild; this says which replica of it does.
-		// Without it every replica would act on every due row and race the others closing the same ticket.
 		due
 			.filter((row) => ownsShardForGuild(row.guildId))
 			.map(async (row) => {
