@@ -6,11 +6,25 @@ nothing in flight — M4's AMA cutover ([05-migration-cutover.md](05-migration-c
 production impact:** none until P6 (cutover) — everything before that is additive: new tables, new service, new routes,
 new dashboard pages. Legacy `ChatSift/Social` keeps running untouched the whole time.
 
-## Status: P1–P5 plus the leaderboard implemented, none of it live-verified yet — P6 (cutover) not started
+## Status: done — cut over to the new stack 2026-08-13
 
-The `[x]` on a phase below means its code is written and build/lint/test green, per this repo's convention. **P3,
-P4 and the leaderboard have never been exercised against Discord or a browser** — see
-[Verification](#verification); nothing in Social has run outside CI yet.
+All six phases shipped. The legacy `ChatSift/Social` bot was removed from `ChatSift/stack` at cutover; its
+`social` database on `postgres-old` is deliberately kept until the AutoModerator port lets the whole legacy
+stack be torn down at once.
+
+The cutover went without incident. Two things were decided going in and are worth carrying to the next one:
+the legacy application's **token was reused** (so no guild had to re-invite), and the migration was run
+**inside the already-running `api` container** rather than from a host checkout — same image, so it has the
+compiled script and inherits prod `IS_PRODUCTION`/`DATABASE_URL_PROD` instead of having them typed by hand.
+
+Reusing the token carries one trap that cost nothing only because it was caught first: `bot-core` bootstraps
+`/deploy` on Ready **only when the application has zero global commands** ([client.ts](../../packages/private/bot-core/src/lib/client.ts)),
+so the legacy app's existing globals had to be cleared with a bulk `PUT [] ` before first boot — otherwise
+`/deploy` never registers and there is no way to install `/level` and `/leaderboard`.
+
+The pre-cutover verification matrix below was deliberately **not** worked through in full. With NASCAR the
+only guild that matters for this bot, the call was to invest in diagnosability instead and fix forward —
+see [What to watch in the logs](#what-to-watch-in-the-logs).
 
 `10-` is the next free roadmap slot. This doc follows the established lifecycle
 ([09-appeals.md](09-appeals.md) explains it): when the phases land, it gets **deleted** and its durable shape is condensed
@@ -472,7 +486,7 @@ test guild, not just build/lint/test.
     preflight aborts on each CHECK violation, and `--verify` goes **red** on five separately corrupted rows — a green
     check that can't go red proves nothing. The copy script was verified to remap ids, leave the source guild
     untouched, and restore exact XP totals across a tampered re-run. **No prod dump has been involved yet.**
-- [ ] **P6 — Cutover.** Runbook, mirroring [06-modmail-port.md](06-modmail-port.md)'s but simpler — no open-thread
+- [x] **P6 — Cutover.** Done 2026-08-13, without incident. Runbook, mirroring [06-modmail-port.md](06-modmail-port.md)'s but simpler — no open-thread
       concept, no per-guild manual repair step, no comms-critical moderator surface: 1. Dry-run against a restored copy of the prod `social` database; record wall-clock (the `User` table is the
       only unknown-magnitude table; nobody has counted it) and size the window off that. 2. Announce/schedule a short maintenance window if the dry-run warrants one at all — XP accrual pausing for
       minutes is far less user-visible than ModMail messages dropping. 3. Freeze = stop the legacy bot (XP accrues on every message; a stopped bot is a consistent snapshot — nothing
@@ -483,10 +497,32 @@ test guild, not just build/lint/test.
       reward role applied; `/level` shows migrated XP; a custom interaction responds. 8. Keep the legacy deployment + database warm for rollback until confident, then decommission
       (`stack/docker-compose.social.yml`, the `social` database on `postgres-old`, the DockerHub image pipeline).
 
+## What to watch in the logs
+
+Added in `9cc26c49` ahead of the cutover, in place of working through the verification matrix below. None of
+these sit on the per-message hot path: `createLogger` pins the level to `trace` with no env override, so a
+line per message would be a volume problem on an active guild. Every one of them fires only on a level-up or
+an actual Discord write.
+
+| Message                                       | Level   | What it tells you                                                                                                                                                                                                                                                                                 |
+| --------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Social guild unreadable`                     | `warn`  | A 403/404 on the guild, negatively cached for 5 minutes. Degrades three things at once and silently: reward ties lose the role hierarchy, `{{ guildName }}` renders as "this server", and every earned reward is dropped from the level-up message. All three look like config bugs from outside. |
+| `Member levelled up`                          | `info`  | Carries `oldLevel`, `newLevel`, `increment`, `rewardsApplied`, `rewardsConfigured` — the last separating "the role write failed" from "this guild has no rewards".                                                                                                                                |
+| `Applied reward roles`                        | `info`  | Only fires on a non-empty diff, so per-write rather than per-message. The line that answers "did they actually get the role", for level-ups and the self-healing repair alike.                                                                                                                    |
+| `Reward roles skipped, member is barred`      | `debug` | The three-minute bar after a failed role write. Each skip also strips `earnedRewards` from the announcement, so a member is congratulated with no mention of the role they didn't get.                                                                                                            |
+| `Some earned reward roles could not be named` | `warn`  | The role was applied but can't be resolved — deleted, or the guild is unreadable. The guild warn above distinguishes the two.                                                                                                                                                                     |
+| `Social channel unreadable`                   | `debug` | Routine: the parent walk in `resolveChannelChain` reaches categories nobody granted access to. Only cost is one message tracked without its category's multiplier.                                                                                                                                |
+
+**Known blind spot:** the per-message gates — guild not configured, user ignored, channel ignored, not
+eligible — stay unlogged for the volume reason above. "XP isn't accruing at all" is therefore a
+database-inspection question, not a log-reading one. A `LOG_LEVEL` env knob would fix that properly, but it's
+a `backend-core` change touching every service.
+
 ## Verification
 
 Per-phase live verification as listed above ([workflow.md](../workflow.md#verification-standard) is the standard —
-build/lint/test alone doesn't prove a feature).
+build/lint/test alone doesn't prove a feature). **Most of this was deliberately not worked through** — see the
+status note at the top. It stays here as the checklist to reach for if something surfaces in NASCAR.
 
 **Live verification is still outstanding for P3, P4 and the leaderboard**, and this is also the first time P2's
 routes will touch Discord at all (they were written before a Social application existed). Needs a `SOCIAL_BOT_TOKEN` in
