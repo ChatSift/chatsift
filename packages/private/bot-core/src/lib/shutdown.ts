@@ -55,8 +55,7 @@ async function shutdown(signal: string): Promise<void> {
 	await sleep(DRAIN_GRACE_MS);
 	await runRegisteredSteps();
 
-	// TODO: We don't kill the gateway to prevent it from settings state to null/none. Should investigate
-	// if discord.js is making the right assumption here, and if not, open a PR.
+	// TODO: discord.js PR
 	try {
 		await Promise.all([redis.quit(), db.end({ timeout: 2 })]);
 	} catch (error) {

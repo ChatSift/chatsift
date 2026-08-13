@@ -164,8 +164,11 @@ its balance, and it exists because without it recovery simply never happened:
 
 So every transient replica loss used to cost balance permanently. The handoff closes that with two rules:
 
-1. **A covering replica sheds when a spare is waiting.** The watcher, on finding no gaps, checks whether it holds
-   more than one index while a spare is advertising — and if so restarts. Shutdown releases every index it holds.
+1. **An elected covering replica sheds when a spare is waiting.** The watcher, on finding no gaps, works out
+   which replicas are covering (from the lease owners) and elects the lowest-primary ones, **capped at the number
+   of spares actually waiting**. Shedding means restarting, and a restart releases _every_ index that replica
+   holds — so letting all covering replicas react to one spare would black out far more than that spare can take
+   back, and every restart past the first would be churn. Debounced over two checks, like the gap branch.
 2. **A replica stands down from greedy claiming while a spare is advertising.** This is the half that makes it
    stick: without it the shedding replica would grab its extra index straight back on the way up, swapping roles
    with the spare instead of rebalancing.
@@ -173,6 +176,22 @@ So every transient replica loss used to cost balance permanently. The handoff cl
 Suppressing the greedy step is deliberately all the negotiation there is — no replica tells another what to take.
 Whoever is left claims what the other declined, on its next poll. If the spare dies mid-handoff its advertisement
 goes stale, the next boot covers as before, and a gap (if any) falls back to the watcher.
+
+**It converges, but not always in one step.** The rule is "the shedder drops to its primary, the spare takes the
+rest", which is exact when one peer died and returned (`B[1,2]` → `B[1] S[2]`) and coarser the more a single
+replica had absorbed:
+
+| Before                          | One spare returns  | Split                       |
+| ------------------------------- | ------------------ | --------------------------- |
+| `A[0]  B[1,2]`                  | `A[0] B[1] S[2]`   | even                        |
+| `A[0]  B[1,2,3]`                | `A[0] B[1] S[2,3]` | even for three replicas     |
+| `A[0,1,2,3]` (only one running) | `A[0] S[1,2,3]`    | 1/3 — `2/2` would be better |
+
+Each returning replica pulls the largest holder down to one index and takes what it drops, so `1/3` becomes
+`1/1/2` and then `1/1/1/1` as the rest come back. No step is ever worse than the state before it, coverage stays
+complete throughout, and the fully-staffed end state is one index each. Landing evenly in a _single_ step would
+mean a replica knowing how many peers are live and how many indices each holds — the cross-replica bookkeeping
+this design avoids everywhere else.
 
 The remaining rough edge is a **straggler**: a replica starting well after its peers' settle window still idles
 rather than triggering an immediate rebalance — it only gets an index once a covering peer notices it. That is one

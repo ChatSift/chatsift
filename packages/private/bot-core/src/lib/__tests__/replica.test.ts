@@ -1,7 +1,14 @@
+import { Buffer } from 'node:buffer';
 import { setTimeout } from 'node:timers';
 import { setTimeout as sleepMs } from 'node:timers/promises';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { claimReplicaSlot, computeTotalIndices, getReplicaIndex, shardIdsForIndices } from '../replica.js';
+import {
+	claimReplicaSlot,
+	computeTotalIndices,
+	electGiveBackOwners,
+	getReplicaIndex,
+	shardIdsForIndices,
+} from '../replica.js';
 
 const keys = new Map<string, string>();
 const sortedSets = new Map<string, Map<string, number>>();
@@ -22,6 +29,11 @@ vi.mock('@chatsift/backend-core', () => ({
 			},
 			async exists(key: string) {
 				return keys.has(key) ? 1 : 0;
+			},
+			async get(key: string) {
+				// Buffers, like the shared client's type mapping produces.
+				const value = keys.get(key);
+				return value === undefined ? null : Buffer.from(value);
 			},
 			async eval() {
 				return 1;
@@ -57,6 +69,13 @@ vi.mock('../shutdown.js', () => ({ onShutdown: vi.fn() }));
  */
 async function boot(shardCount: number, shardsPerReplica: number) {
 	return claimReplicaSlot({ botId: 'AMA', shardCount, shardsPerReplica, settleMs: 0 });
+}
+
+/**
+ * Boots a replica that is expected to find nothing free, so it parks in the hot-spare loop and advertises.
+ */
+async function parkSpare() {
+	return claimReplicaSlot({ botId: 'AMA', shardCount: 16, shardsPerReplica: 4, settleMs: 0, hotSparePollMs: 5 });
 }
 
 /**
@@ -333,4 +352,66 @@ test('a returning replica gets an index back instead of idling forever', async (
 	expect(revived.heldIndices).toHaveLength(1);
 	expect(tookOver.heldIndices).toHaveLength(1);
 	expect([...revived.heldIndices, ...tookOver.heldIndices].sort((left, right) => left - right)).toStrictEqual([2, 3]);
+});
+
+test('a replica can hold three or four indices when peers are missing', async () => {
+	const [a, b] = await Promise.all([boot(16, 4), boot(16, 4)]);
+	expect(b.heldIndices).toStrictEqual([1, 2, 3]);
+	expect(a.heldIndices).toStrictEqual([0]);
+
+	keys.clear();
+	const lone = await boot(16, 4);
+	expect(lone.heldIndices).toStrictEqual([0, 1, 2, 3]);
+});
+
+test('each returning spare pulls the biggest holder down and never loses coverage', async () => {
+	// The handoff is "the shedder drops to its primary, the spare takes the rest" -- exactly right when one
+	// peer died and came back, and progressively coarser the more indices one replica had absorbed. What must
+	// hold at every step is that coverage stays complete and the spare stops being idle.
+	let held = [await boot(16, 4)];
+	expect(held[0]!.heldIndices).toStrictEqual([0, 1, 2, 3]);
+
+	// Replicas trickle back one at a time; each one forces the largest holder to shed.
+	for (const expectedMax of [3, 2, 1]) {
+		const spare = parkSpare();
+		await sleepMs(30);
+
+		const covering = held.find((slot) => slot.heldIndices.length > 1)!;
+		for (const index of covering.heldIndices) {
+			keys.delete(`shardlease:AMA:${index}`);
+		}
+
+		const [rebooted, tookOver] = await Promise.all([boot(16, 4), spare]);
+		held = [...held.filter((slot) => slot !== covering), rebooted, tookOver];
+
+		// Coverage is whole again, and nobody is idle.
+		expect(held.flatMap((slot) => slot.heldIndices).sort((left, right) => left - right)).toStrictEqual([0, 1, 2, 3]);
+		expect(Math.max(...held.map((slot) => slot.heldIndices.length))).toBe(expectedMax);
+	}
+
+	// Fully staffed: one index each.
+	expect(held.map((slot) => slot.heldIndices.length)).toStrictEqual([1, 1, 1, 1]);
+});
+
+test('only as many replicas give back as there are spares to take the work', () => {
+	// Two replicas each covering two indices, one spare. A restart sheds *every* index a replica holds, so if
+	// both reacted the cluster would go fully dark to hand back a single index -- and the second restart would
+	// achieve nothing, since one spare can only absorb one.
+	const owners = ['r0', 'r0', 'r1', 'r1'];
+
+	expect(electGiveBackOwners(owners, 1)).toStrictEqual(['r0']);
+	expect(electGiveBackOwners(owners, 2)).toStrictEqual(['r0', 'r1']);
+	// More spares than covering replicas is fine -- nobody extra is elected.
+	expect(electGiveBackOwners(owners, 5)).toStrictEqual(['r0', 'r1']);
+});
+
+test('nobody gives back when no spare is waiting, or when nobody is covering', () => {
+	expect(electGiveBackOwners(['r0', 'r0', 'r1', 'r1'], 0)).toStrictEqual([]);
+	expect(electGiveBackOwners(['r0', 'r1', 'r2', 'r3'], 2)).toStrictEqual([]);
+});
+
+test('give-back is elected lowest primary first, and ignores unclaimed indices', () => {
+	// Deterministic ordering matters: every replica runs this independently and must reach the same answer.
+	expect(electGiveBackOwners(['r2', 'r2', 'r0', 'r0'], 1)).toStrictEqual(['r2']);
+	expect(electGiveBackOwners([null, 'r1', 'r1', null], 1)).toStrictEqual(['r1']);
 });

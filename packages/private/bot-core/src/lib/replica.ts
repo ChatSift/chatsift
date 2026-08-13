@@ -44,12 +44,39 @@ async function withdrawSpare(botId: GuildListKey, token: string): Promise<void> 
 }
 
 /**
- * Whether any replica is currently idle and waiting for an index, pruning advertisements that have gone stale.
+ * How many replicas are currently idle and waiting for an index, pruning advertisements that have gone stale.
  */
-async function hasWaitingSpare(botId: GuildListKey): Promise<boolean> {
+async function countWaitingSpares(botId: GuildListKey): Promise<number> {
 	const { redis } = getContext();
 	await redis.zRemRangeByScore(sparesKey(botId), 0, Date.now() - SPARE_STALE_MS);
-	return (await redis.zCard(sparesKey(botId))) > 0;
+	return redis.zCard(sparesKey(botId));
+}
+
+async function hasWaitingSpare(botId: GuildListKey): Promise<boolean> {
+	return (await countWaitingSpares(botId)) > 0;
+}
+
+/**
+ * Which replicas should give an index back this round, lowest primary first, capped at the number of spares
+ * actually waiting to take one.
+ */
+export function electGiveBackOwners(owners: (string | null)[], spareCount: number): string[] {
+	if (spareCount <= 0) {
+		return [];
+	}
+
+	const indicesByOwner = new Map<string, number[]>();
+	for (const [index, owner] of owners.entries()) {
+		if (owner) {
+			indicesByOwner.set(owner, [...(indicesByOwner.get(owner) ?? []), index]);
+		}
+	}
+
+	return [...indicesByOwner.entries()]
+		.filter(([, indices]) => indices.length > 1)
+		.sort(([, left], [, right]) => left[0]! - right[0]!)
+		.slice(0, spareCount)
+		.map(([owner]) => owner);
 }
 
 /**
@@ -203,6 +230,10 @@ export async function claimReplicaSlot({
 		// advertised, not silently: a peer covering two indices watches for this and hands one back.
 		logger.warn({ botId, totalIndices, shardCount, shardsPerReplica }, 'no free replica index, idling as a hot spare');
 
+		// Registered here rather than after a slot is claimed: a spare `SIGTERM`ed mid-idle would otherwise leave
+		// its advertisement to expire, and a covering peer could restart to hand off to a replica already gone.
+		onShutdown('replica-spare', async () => withdrawSpare(botId, token));
+
 		while (primary === null) {
 			await advertiseSpare(botId, token);
 			await sleep(hotSparePollMs);
@@ -257,14 +288,14 @@ export async function claimReplicaSlot({
 		shardIds.length > shardsPerReplica ? 'claimed replica slot, covering for missing replicas' : 'claimed replica slot',
 	);
 
-	startWatching(botId, heldIndices, totalIndices);
+	startWatching(botId, heldIndices, totalIndices, token);
 	onShutdown('replica-lease', async () => releaseAll(botId, heldIndices, token));
 
 	return { index: primary, heldIndices, shardIds };
 }
 
 /**
- * Re-asserts what indeces this replica is responsible for
+ * Re-asserts what indices this replica is responsible for
  */
 function startRenewing(botId: GuildListKey, heldIndices: number[], token: string): void {
 	let lastRenewedAt = Date.now();
@@ -311,18 +342,22 @@ function startRenewing(botId: GuildListKey, heldIndices: number[], token: string
  * `claimReplicaSlot` never claims past a live peer, so nobody else could fill it anyway. A gap at index 0
  * has nothing below it, so the lowest remaining holder takes that one.
  */
-function startWatching(botId: GuildListKey, heldIndices: number[], totalIndices: number): void {
+function startWatching(botId: GuildListKey, heldIndices: number[], totalIndices: number, token: string): void {
 	let consecutiveGaps = 0;
+	let consecutiveGiveBacks = 0;
 
 	setInterval(async () => {
 		const { logger, redis } = getContext();
 
 		try {
-			const holders = await Promise.all(
-				Array.from({ length: totalIndices }, async (_, index) => redis.exists(leaseKey(botId, index))),
-			);
+			// Owners rather than mere existence: the give-back branch has to see who holds what across the whole
+			// cluster, not just whether an index is taken. Values come back as buffers under the shared client's
+			// type mapping, so normalise before comparing to our own token.
+			const owners = (
+				await Promise.all(Array.from({ length: totalIndices }, async (_, index) => redis.get(leaseKey(botId, index))))
+			).map((owner) => owner?.toString() ?? null);
 
-			const gaps = holders.flatMap((held, index) => (held ? [] : [index]));
+			const gaps = owners.flatMap((owner, index) => (owner ? [] : [index]));
 			if (gaps.length === 0) {
 				consecutiveGaps = 0;
 
@@ -331,19 +366,32 @@ function startWatching(botId: GuildListKey, heldIndices: number[], totalIndices:
 				// being a gap the moment it absorbs it. Nothing else would ever notice, so the cluster would run
 				// permanently lopsided until the next deploy. Restarting sheds the extras (shutdown releases every
 				// held index) and the greedy step stands down on the way back up, leaving them for the spare.
-				if (heldIndices.length > 1 && (await hasWaitingSpare(botId))) {
-					logger.info(
-						{ botId, heldIndices },
-						'a hot spare is waiting and this replica is covering extra indices, restarting to hand them over',
-					);
-					process.kill(process.pid, 'SIGTERM');
+
+				// Elected rather than "whoever is covering", and debounced like the gap branch below: a restart
+				// sheds every index this replica holds, so several covering replicas all reacting to one spare
+				// would black out far more than that spare can take back.
+				const givingBack = electGiveBackOwners(owners, await countWaitingSpares(botId));
+				if (!givingBack.includes(token)) {
+					consecutiveGiveBacks = 0;
+					return;
 				}
 
+				consecutiveGiveBacks += 1;
+				if (consecutiveGiveBacks < 2) {
+					return;
+				}
+
+				logger.info(
+					{ botId, heldIndices },
+					'a hot spare is waiting and this replica is covering extra indices, restarting to hand them over',
+				);
+				process.kill(process.pid, 'SIGTERM');
 				return;
 			}
 
+			consecutiveGiveBacks = 0;
 			const firstGap = gaps[0]!;
-			const lowestHeld = Math.min(...holders.flatMap((held, index) => (held ? [index] : [])));
+			const lowestHeld = Math.min(...owners.flatMap((owner, index) => (owner ? [index] : [])));
 			const canFillIt = firstGap === 0 ? lowestHeld === heldIndices[0] : heldIndices.includes(firstGap - 1);
 			if (!canFillIt) {
 				return;
@@ -364,7 +412,7 @@ function startWatching(botId: GuildListKey, heldIndices: number[], totalIndices:
 }
 
 /**
- * Release all our indeces
+ * Release all our indices
  */
 async function releaseAll(botId: GuildListKey, heldIndices: number[], token: string): Promise<void> {
 	const { redis } = getContext();
