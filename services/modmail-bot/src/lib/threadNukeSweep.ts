@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { ownsShardForGuild } from '@chatsift/bot-core';
 import type { ScheduledThreadNukes, Threads } from '@chatsift/db';
 import { DiscordAPIError } from '@discordjs/rest';
 import { getOwnershipScope } from './instance.js';
@@ -23,27 +24,31 @@ export async function sweepThreadNukes(logger: Logger): Promise<void> {
 	`;
 
 	await Promise.all(
-		due.map(async (row) => {
-			const rowLogger = logger.child({ guildId: row.guildId, threadId: row.threadId });
+		// Instance scoping above says which deployment owns the guild; this says which replica of it does.
+		// Two replicas racing here would both issue the delete and one would log a spurious failure.
+		due
+			.filter((row) => ownsShardForGuild(row.guildId))
+			.map(async (row) => {
+				const rowLogger = logger.child({ guildId: row.guildId, threadId: row.threadId });
 
-			try {
-				if (row.userChannelId) {
-					try {
-						await getContext().service.client.api.channels.delete(row.userChannelId, {
-							reason: 'Scheduled ModMail private thread deletion',
-						});
-					} catch (error) {
-						if (!(error instanceof DiscordAPIError && error.status === 404)) {
-							throw error;
+				try {
+					if (row.userChannelId) {
+						try {
+							await getContext().service.client.api.channels.delete(row.userChannelId, {
+								reason: 'Scheduled ModMail private thread deletion',
+							});
+						} catch (error) {
+							if (!(error instanceof DiscordAPIError && error.status === 404)) {
+								throw error;
+							}
 						}
 					}
-				}
 
-				await getContext().db`DELETE FROM scheduled_thread_nukes WHERE thread_id = ${row.threadId}`;
-				rowLogger.info('Nuked a closed modmail ticket private thread');
-			} catch (error) {
-				rowLogger.error({ err: error }, 'Failed to nuke a closed ticket private thread');
-			}
-		}),
+					await getContext().db`DELETE FROM scheduled_thread_nukes WHERE thread_id = ${row.threadId}`;
+					rowLogger.info('Nuked a closed modmail ticket private thread');
+				} catch (error) {
+					rowLogger.error({ err: error }, 'Failed to nuke a closed ticket private thread');
+				}
+			}),
 	);
 }

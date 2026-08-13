@@ -14,6 +14,8 @@ Full doc set:
 - [docs/adr/0002-db-stack.md](docs/adr/0002-db-stack.md) — why the DB stack was replaced (implemented, M1).
 - [docs/roadmap/05-migration-cutover.md](docs/roadmap/05-migration-cutover.md) — M4, AMA drain-and-swap cutover (in progress).
 - [docs/roadmap/06-modmail-port.md](docs/roadmap/06-modmail-port.md) — M5, ModMail: feature work shipped, only the legacy data migration + cutover remain.
+- [docs/roadmap/11-automoderator-port.md](docs/roadmap/11-automoderator-port.md) — AutoModerator rebuilt as a monolith on the v3 stack (planned). Supersedes the "AutoModerator is out of scope" framing below and in 00-overview.
+- [docs/roadmap/12-horizontal-scaling.md](docs/roadmap/12-horizontal-scaling.md) — how bots run as N replicas (implemented, off by default). Read before touching `bot-core`'s gateway/session/replica code or adding a DB-driven timer to a bot.
 - [docs/workflow.md](docs/workflow.md) — branching, commits, local dev, verification standard.
 - [docs/frontend.md](docs/frontend.md) — `apps/website` conventions: theme tokens, component library, forms, data fetching. Read before writing UI code.
 

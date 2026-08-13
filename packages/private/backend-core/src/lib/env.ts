@@ -89,6 +89,21 @@ export const envSchema = z.object({
 	DISCORD_PROXY_URL_DEV: discordProxyUrl,
 	DISCORD_PROXY_URL_PROD: discordProxyUrl,
 
+	// Horizontal scaling. The only number an operator sets: how many gateway shards one replica of a bot should
+	// aim to run. Everything else is derived -- Discord's `/gateway/bot` recommendation decides the shard count,
+	// and each replica works out which slice is its own against redis (`bot-core/src/lib/replica.ts`).
+	// Absent means "one replica runs every shard", which is the current topology for every bot. Set per bot in
+	// that service's own docker-compose `environment:` block, like `MODMAIL_INSTANCE_ID` above, since bots do not
+	// grow at the same rate and a single shared value would be wrong for most of them.
+	// Blank is treated as absent (rather than as `0`) for the same reason the proxy URLs above are: these live in
+	// shared env files where a documented-but-empty key is the normal way to say "not configured here".
+	SHARDS_PER_REPLICA: z
+		.string()
+		.trim()
+		.transform((value) => (value === '' ? undefined : Number(value)))
+		.pipe(z.number().int().positive().optional())
+		.optional(),
+
 	// AMA
 	AMA_BOT_TOKEN: z.string(),
 

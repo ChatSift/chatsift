@@ -227,6 +227,61 @@ Reverse order — resync while the row (and therefore the partner's token) is st
    reconciling snippets (Snippets page) and panels (Panels page) onto it.
 5. Verify the same golden path as onboarding, this time through the public bot.
 
+## Scaling a bot across replicas
+
+Design and rationale: [docs/roadmap/12-horizontal-scaling.md](roadmap/12-horizontal-scaling.md). This is the
+operational half.
+
+**Nothing is needed until Discord recommends more than one shard for a bot.** Below that, leaving
+`<BOT>_SHARDS_PER_REPLICA` blank is correct — the bot already runs one replica holding every shard, through the
+same code path a scaled one uses.
+
+### Turning it on
+
+1. Check what Discord actually recommends. There is no point sharding ahead of it:
+
+   ```bash
+   curl -s -H "Authorization: Bot $TOKEN" https://discord.com/api/v10/gateway/bot | grep -o '"shards":[0-9]*'
+   ```
+
+2. Set `<BOT>_SHARDS_PER_REPLICA` in `.env.public` (`AMA_`, `MODMAIL_`, `SOCIAL_`). This is the only number to
+   choose: how many shards one replica should carry. Replica count is derived from it.
+3. `./compose up -d`. It reads `/gateway/bot` itself, prints the arithmetic
+   (`ama-bot: 14 shard(s) / 4 per replica -> 4 replica(s)`) and passes `--scale`.
+4. Confirm each replica claimed a distinct index:
+
+   ```bash
+   ./compose logs ama-bot | grep 'claimed replica slot'
+   ```
+
+   Every replica should appear once, with disjoint `shardIds` whose union is the full shard range.
+
+### Changing the number later
+
+Re-run `./compose up -d`. Discord's recommendation is re-read every time, so a shard-count bump is picked up at
+the next deploy without anyone editing a number. Between the bump and that deploy the cluster is
+under-provisioned, not broken — a replica absorbs the uncovered shards and logs `covering for missing replicas`.
+
+### Turning it off
+
+Blank the value and `./compose up -d`. Compose scales the service back to one; the survivor's watcher notices the
+freed indices and restarts once to take them over.
+
+### Things worth knowing
+
+- **Replicas are cattle.** They share one image and one env block; which shards each runs is claimed at boot, not
+  configured. Never hand-pin a replica to a shard range.
+- **Restarting a replica is cheap and is the intended way to change its shard set** — sessions are stored in redis
+  and resumed, so a bounce replays a gap rather than re-identifying.
+- **Start replicas together.** A replica joining long after the others idles as a hot spare rather than
+  rebalancing (`no free replica index` in the logs). `./compose up` does the right thing; starting one by hand
+  later does not.
+- **Log files gain a per-container suffix** (`2026-08-13.<container-id>.log`) once a bot is scaled, because all
+  replicas bind-mount the same host directory. Unscaled bots keep the plain `<date>.log` name. Dozzle is
+  unaffected either way — it reads stdout, which is per-container regardless.
+- **Custom ModMail instances (#216) are never scaled.** They are single-guild by definition, so one shard, one
+  replica. `./compose` only sizes the public deployments.
+
 ## Encryption at rest (#263)
 
 Discord's Developer Terms of Service §5(c) ("Implement Good Security") lists "encryption of the data at rest" as a

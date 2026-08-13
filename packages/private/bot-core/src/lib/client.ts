@@ -1,6 +1,6 @@
 import { setInterval } from 'node:timers';
 import type { GuildListKey } from '@chatsift/backend-core';
-import { getContext, GuildList, primeUserCache } from '@chatsift/backend-core';
+import { dropGuildList, getContext, primeUserCache, publishGuildList } from '@chatsift/backend-core';
 import type { Snowflake } from '@discordjs/core';
 import { InteractionType, Client, GatewayDispatchEvents } from '@discordjs/core';
 import type { REST } from '@discordjs/rest';
@@ -14,6 +14,8 @@ import {
 import { handleComponentInteraction } from './components.js';
 import DashboardCommand from './dashboardCommand.js';
 import DeployCommand from './deploy.js';
+import { getReplicaIndex } from './replica.js';
+import { onShutdown } from './shutdown.js';
 
 declare module '@chatsift/backend-core' {
 	interface ContextService {
@@ -108,6 +110,20 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 		.once(GatewayDispatchEvents.Ready, async ({ data }) => {
 			getContext().logger.info('Logged in successfully');
 
+			// `.once` makes this fire a single time per *process*, which stops being "once" as soon as a bot runs
+			// more than one replica: each would independently see zero global commands and each would bulk-overwrite.
+			// The claim is taken before the check below rather than around just the write, so two replicas can't both
+			// pass the emptiness test and race. A short expiry (rather than a permanent key) keeps this self-healing:
+			// if the replica holding the claim dies before deploying, the next restart retries instead of leaving the
+			// application with no commands at all and no way to bootstrap.
+			const bootstrapClaimed = await getContext().redis.set(`deploybootstrap:${botId}`, '1', {
+				condition: 'NX',
+				expiration: { type: 'PX', value: 5 * 60 * 1_000 },
+			});
+			if (!bootstrapClaimed) {
+				return;
+			}
+
 			const applicationId = data.application.id;
 			const existingGlobalCommands = await client.api.applicationCommands.getGlobalCommands(applicationId);
 			if (existingGlobalCommands.length === 0) {
@@ -123,11 +139,15 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 
 	setInterval(async () => {
 		try {
-			await GuildList.set(botId, { guilds: [...guildIds] });
+			await publishGuildList(botId, getReplicaIndex(), [...guildIds]);
 		} catch (error) {
 			getContext().logger.error({ err: error }, 'Failed to sync guild list to Redis');
 		}
 	}, 10_000).unref();
+
+	// Without this the slice lingers for its TTL after a deliberate restart, so the dashboard keeps crediting this
+	// replica with guilds nothing is currently receiving events for.
+	onShutdown('guild-list', async () => dropGuildList(botId, getReplicaIndex()));
 
 	return client;
 }

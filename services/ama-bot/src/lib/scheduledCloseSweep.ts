@@ -12,6 +12,10 @@ import { getContext } from '@chatsift/backend-core';
  * this can't immediately re-close what someone just deliberately reopened.
  */
 export async function sweepScheduledAmaCloses(logger: Logger): Promise<void> {
+	// Deliberately *not* shard-scoped with `ownsShardForGuild`, unlike ModMail's sweeps. This is a single atomic
+	// `UPDATE ... WHERE ended = false ... RETURNING`, so exactly one replica's statement can ever claim a given
+	// row and the rest come back empty -- the row is the lock. Adding a guild filter on top would buy nothing and
+	// would mean selecting a `guild_id` this query has no other use for.
 	const due = await getContext().db<{ id: number; title: string }[]>`
 		UPDATE ama_sessions
 		SET ended = true

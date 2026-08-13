@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { ownsShardForGuild } from '@chatsift/bot-core';
 import type { PendingTickets } from '@chatsift/db';
 import { DiscordAPIError } from '@discordjs/rest';
 import { withGuildUserLock } from './guildUserQueue.js';
@@ -46,7 +47,10 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 		`,
 	]);
 
-	for (const row of stale) {
+	// Instance scoping above says which deployment owns the guild; this says which replica of it does. Both
+	// halves below delete Discord channels and rows, so two replicas running them over the same guild would
+	// race exactly the way two deployments would -- and `withGuildUserLock` cannot help, being process-local.
+	for (const row of stale.filter((row) => ownsShardForGuild(row.guildId))) {
 		await getContext().db`DELETE FROM pending_tickets WHERE private_thread_id = ${row.privateThreadId}`;
 
 		// The ticket already finished, so nothing here should still be live — but clear the same Redis
@@ -54,7 +58,7 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 		await PendingTicketStore.delete(row.privateThreadId);
 	}
 
-	for (const pending of abandoned) {
+	for (const pending of abandoned.filter((row) => ownsShardForGuild(row.guildId))) {
 		// Re-checked under the same per guild+user lock `finishTicketCreation` holds while turning a
 		// pending ticket into a real one (see categorySelect.ts/index.ts) — the initial scan above could
 		// be arbitrarily stale by the time execution reaches here, and without this a ticket that

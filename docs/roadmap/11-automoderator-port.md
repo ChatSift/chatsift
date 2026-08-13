@@ -29,9 +29,9 @@ Recorded so they don't get re-litigated.
    has a mechanism in `backend-core`.
 3. **Per-feature phasing.** Foundations first (schema baseline, API surface, dashboard scaffold, observability,
    dev affordances), then one feature at a time through the full stack.
-4. **First bot to opt into bot-core horizontal scaling.** The mechanism doesn't exist yet; this doc's job is to
-   ensure AutoModerator is _shaped_ to opt in later as a config change, not a rewrite. See
-   [Scaling readiness](#scaling-readiness).
+4. **First bot to opt into bot-core horizontal scaling.** The mechanism now exists
+   ([12-horizontal-scaling.md](12-horizontal-scaling.md)) and opting in is configuration, as intended. This doc's
+   job is still to ensure AutoModerator is _shaped_ for it. See [Scaling readiness](#scaling-readiness).
 5. **The invite worker is dropped.** `invite-lookup.chatsift.workers.dev` is live but its source isn't in this repo
    and nothing on `main` calls it. Invite resolution happens through the bot's own REST client instead.
 6. **Banword matching is delegated to Discord.** Feature 01 ships no matcher — see
@@ -134,8 +134,9 @@ So the broker disappears with the split that created it. Redis's actual roles he
    `backend-core/src/lib/realtimeBroadcast.ts` over the `ws:invalidate` channel, consumed by the API's WS gateway.
    Every mutating route declares `realtimeChannel` and gets it for free.
 3. **The guild list** — `bot:AUTOMODERATOR`, same as every other bot.
-4. **Distributed locks** — _not needed until P8._ `withGuildUserLock` is process-local, which is correct for one
-   replica. See [Scaling readiness](#scaling-readiness) for what has to become a Redis lock when that changes.
+4. **Distributed locks** — still not needed at P8, in most places. `withGuildUserLock` is process-local, which
+   stays correct under sharding because a guild's events only ever reach one replica. See
+   [Scaling readiness](#scaling-readiness) item 4 for the narrow set that genuinely needs a Redis lock.
 
 **No queue library.** The scheduler stays a polled task table, as it was in legacy. BullMQ or similar would be a new
 dependency buying a retry/backoff/delay model the `tasks` table already implements in ~40 lines, and would put job
@@ -395,8 +396,16 @@ sanity on the message cache, and a pass over every `ActionExecutor` call site co
 
 ### P8 — Horizontal scaling opt-in
 
-**Blocked on bot-core.** Ships when the scaling mechanism exists. This phase is the opt-in plus whatever the
-mechanism requires; the invariants that make it cheap are held from P0 onward and listed below.
+**No longer blocked** — the mechanism shipped, see [12-horizontal-scaling.md](12-horizontal-scaling.md). This
+phase is now genuinely just configuration, provided the invariants below were held from P0:
+
+- Add `AUTOMODERATOR_SHARDS_PER_REPLICA` to `.env.public` and map it onto the service's `SHARDS_PER_REPLICA` in
+  `docker-compose.yml`, following the three existing bot blocks.
+- Add a `plan_scale automoderator-bot AUTOMODERATOR_BOT_TOKEN AUTOMODERATOR_SHARDS_PER_REPLICA` line to `./compose`.
+- Audit every DB-driven timer this port adds for `ownsShardForGuild`. The scheduler does not need it (`SKIP LOCKED`
+  already claims), but anything that reads rows and then acts on Discord does.
+
+The bot itself needs no code change to opt in: `createBotGateway` claims a slot on every boot regardless.
 
 ---
 
@@ -434,8 +443,15 @@ than a rewrite.
 3. **The scheduler claims rather than reads.** `FOR UPDATE SKIP LOCKED` from P2, so N replicas is safe by
    construction rather than by leader election.
 4. **Read-modify-write paths are enumerated and lock-ready.** Ladder counting, report dedupe and case-number
-   allocation are the three. Case numbers are already database-allocated; the other two need a Redis lock the day
-   replica count exceeds one — flagged in code at their call sites, not just here.
+   allocation are the three. Case numbers are already database-allocated.
+
+   **Narrowed once the mechanism landed** ([12-horizontal-scaling.md](12-horizontal-scaling.md)): the other two do
+   _not_ automatically need a Redis lock. A guild maps to exactly one shard owned by exactly one replica, so
+   `withGuildUserLock` still serializes every guild-scoped gateway event and interaction for a guild+user pair,
+   exactly as it does today — and DMs always arrive on shard 0. What genuinely needs a distributed lock is
+   narrower: state `services/api` also mutates, and anything keyed on something other than a guild. Check which
+   category a call site is in rather than assuming the broad version.
+
 5. **Metrics are replica-safe.** No metric assumes a single process; the scrape config gains per-replica targets
    rather than the code aggregating.
 

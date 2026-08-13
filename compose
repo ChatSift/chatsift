@@ -45,7 +45,91 @@ then
   export GRAFANA_OAUTH_ROLE_ATTRIBUTE_PATH="contains([${_quoted_ids}],id)&&'Admin'"
 fi
 
+# Replica counts for sharded bots are computed here rather than written down anywhere, so the only
+# number a human maintains is <BOT>_SHARDS_PER_REPLICA. Discord's own /gateway/bot recommendation
+# decides the shard count; each replica then works out which slice is its own against redis (see
+# packages/private/bot-core/src/lib/replica.ts).
+#
+# Host-side on purpose: this box already has docker access, so nothing needs the docker socket
+# mounted into a container that processes untrusted Discord input.
+# Same precedence as the merged env file above (.env.private wins), and the same grep/cut approach as
+# the ADMINS block: read the value without ever letting the file's contents be evaluated as shell.
+read_env() {
+  local key="$1" public_value='' private_value=''
+
+  if [ -f .env.public ]
+  then
+    public_value="$(grep -m1 "^${key}=" .env.public | cut -d= -f2-)"
+  fi
+
+  if [ -f .env.private ]
+  then
+    private_value="$(grep -m1 "^${key}=" .env.private | cut -d= -f2-)"
+  fi
+
+  printf '%s' "${private_value:-$public_value}"
+}
+
+SCALE_ARGS=()
+plan_scale() {
+  local service="$1" token_key="$2" shards_per_replica_key="$3"
+  local shards_per_replica token response shards replicas running
+
+  shards_per_replica="$(read_env "$shards_per_replica_key")"
+  # Unset means this bot isn't sharded across replicas, which is the default -- leave compose alone.
+  [ -n "$shards_per_replica" ] || return 0
+  if ! [[ "$shards_per_replica" =~ ^[0-9]+$ ]] || [ "$shards_per_replica" -lt 1 ]
+  then
+    echo "${shards_per_replica_key} must be a positive integer, got: ${shards_per_replica}" >&2
+    exit 1
+  fi
+
+  token="$(read_env "$token_key")"
+  if [ -z "$token" ]
+  then
+    echo "warning: ${shards_per_replica_key} is set but ${token_key} is empty; leaving ${service} scale untouched" >&2
+    return 0
+  fi
+
+  response="$(curl -sS --max-time 10 -H "Authorization: Bot ${token}" \
+    https://discord.com/api/v10/gateway/bot 2>/dev/null)" || response=''
+  shards="$(printf '%s' "$response" | grep -o '"shards"[[:space:]]*:[[:space:]]*[0-9]\+' | grep -o '[0-9]\+$')"
+
+  if ! [[ "$shards" =~ ^[0-9]+$ ]] || [ "$shards" -lt 1 ]
+  then
+    # Deliberately keeps whatever is already running instead of falling back to 1: silently scaling a
+    # sharded bot down to a single replica because Discord was briefly unreachable would be a far worse
+    # outcome than deploying with a stale-but-correct replica count.
+    running="$(docker compose -f docker-compose.yml "${ENV_FILE_ARGS[@]}" ps -q "$service" 2>/dev/null | grep -c .)"
+    if [ "${running:-0}" -gt 0 ]
+    then
+      echo "warning: could not read Discord's shard count for ${service}; holding at ${running} replica(s)" >&2
+      SCALE_ARGS+=(--scale "${service}=${running}")
+    else
+      echo "warning: could not read Discord's shard count for ${service}; leaving its scale untouched" >&2
+    fi
+
+    return 0
+  fi
+
+  replicas=$(( (shards + shards_per_replica - 1) / shards_per_replica ))
+  echo "${service}: ${shards} shard(s) / ${shards_per_replica} per replica -> ${replicas} replica(s)"
+  SCALE_ARGS+=(--scale "${service}=${replicas}")
+}
+
+# Only for `up`. Every other subcommand (logs, stop, ps, exec, ...) must not silently restructure the
+# deployment, and `--scale` isn't meaningful for them anyway.
+if [ "$1" = 'up' ]
+then
+  plan_scale ama-bot AMA_BOT_TOKEN AMA_SHARDS_PER_REPLICA
+  # Only the public deployment: a custom instance (#216) is single-guild by definition, so it is always
+  # one shard and one replica.
+  plan_scale modmail-bot MODMAIL_BOT_TOKEN MODMAIL_SHARDS_PER_REPLICA
+  plan_scale social-bot SOCIAL_BOT_TOKEN SOCIAL_SHARDS_PER_REPLICA
+fi
+
 docker compose \
   -f docker-compose.yml \
   "${ENV_FILE_ARGS[@]}" \
-  "$@"
+  "$@" \
+  "${SCALE_ARGS[@]}"

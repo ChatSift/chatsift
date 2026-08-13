@@ -18,6 +18,16 @@ export interface PinoRotateFileOptions {
 	maxAgeDays?: number;
 	mkdir?: boolean;
 	prettyOptions?: PrettyOptions;
+	/**
+	 * Distinguishes this writer's files from another process writing the same `dir`, producing
+	 * `<date>.<suffix>.log` instead of `<date>.log`.
+	 *
+	 * Needed when several processes share one directory: the day file is opened in append mode, but writes are
+	 * buffered and flushed in chunks that can span a line boundary, so concurrent writers interleave and corrupt
+	 * each other's lines. They would also each independently decide to rotate at midnight and end each other's
+	 * stream.
+	 */
+	suffix?: string | undefined;
 }
 
 interface Dest {
@@ -25,8 +35,10 @@ interface Dest {
 	stream: SonicBoom;
 }
 
-function createFileName(time: number): string {
-	return `${new Date(time).toISOString().split('T')[0]!}.log`;
+function createFileName(time: number, suffix?: string): string {
+	const date = new Date(time).toISOString().split('T')[0]!;
+	// The date stays the first dot-segment either way, which is what `cleanup` parses to decide age.
+	return suffix ? `${date}.${suffix}.log` : `${date}.log`;
 }
 
 async function cleanup(dir: string, maxAgeDays: number): Promise<void> {
@@ -78,11 +90,11 @@ export async function pinoRotateFile(options: PinoRotateFileOptions) {
 	await access(options.dir, fsConstants.R_OK | fsConstants.W_OK);
 	await cleanup(options.dir, options.maxAgeDays ?? DEFAULT_MAX_AGE_DAYS);
 
-	let dest = await createDest(join(options.dir, createFileName(Date.now())));
+	let dest = await createDest(join(options.dir, createFileName(Date.now(), options.suffix)));
 	return build(
 		async (source: AsyncIterable<{ time: number }>) => {
 			for await (const payload of source) {
-				const path = join(options.dir, createFileName(Date.now()));
+				const path = join(options.dir, createFileName(Date.now(), options.suffix));
 				if (dest.path !== path) {
 					await cleanup(options.dir, options.maxAgeDays ?? DEFAULT_MAX_AGE_DAYS);
 					await endStream(dest.stream);
