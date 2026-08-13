@@ -19,6 +19,10 @@
 		"./social-schemas": {
 			"types": "./dist/routes/social/schemas.d.ts",
 			"default": "./dist/routes/social/schemas.js"
+		},
+		"./automoderator-schemas": {
+			"types": "./dist/routes/automoderator/schemas.d.ts",
+			"default": "./dist/routes/automoderator/schemas.js"
 		}
 	},
 	"types": "./dist/index.d.ts",

@@ -37,7 +37,12 @@ import discordRoute from './routes/auth/discord.js';
 import discordCallbackRoute from './routes/auth/discordCallback.js';
 import logoutRoute from './routes/auth/logout.js';
 import meRoute from './routes/auth/me.js';
+import getAutomoderatorConfigRoute from './routes/automoderator/config/getConfig.js';
+import updateAutomoderatorConfigRoute from './routes/automoderator/config/updateConfig.js';
 import dozzleWebhookRoute from './routes/dozzle/webhook.js';
+import deleteExperimentRoute from './routes/experiments/deleteExperiment.js';
+import listExperimentsRoute from './routes/experiments/listExperiments.js';
+import upsertExperimentRoute from './routes/experiments/upsertExperiment.js';
 import createGrantRoute from './routes/guilds/createGrant.js';
 import deleteGrantRoute from './routes/guilds/deleteGrant.js';
 import getGuildRoute from './routes/guilds/get.js';
@@ -218,6 +223,11 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listSocialLeaderboardRoute);
 	mountRoute(app, publicSocialLeaderboardRoute);
 	mountRoute(app, publicSocialLeaderboardWsTicketRoute);
+	mountRoute(app, getAutomoderatorConfigRoute);
+	mountRoute(app, updateAutomoderatorConfigRoute);
+	mountRoute(app, listExperimentsRoute);
+	mountRoute(app, upsertExperimentRoute);
+	mountRoute(app, deleteExperimentRoute);
 	mountRoute(app, getWsTicketRoute);
 
 	app.listen(getContext().env.API_PORT, () =>

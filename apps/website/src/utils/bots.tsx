@@ -1,6 +1,7 @@
 import type { BotId } from '@chatsift/core';
 import Image from 'next/image';
 import { SvgAMA } from '@/components/icons/SvgAMA';
+import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { SvgModmail } from '@/components/icons/SvgModmail';
 import { SvgSocial } from '@/components/icons/SvgSocial';
 
@@ -12,6 +13,7 @@ export const Bots = {
 	AMA: { Icon: SvgAMA, label: 'AMA' },
 	MODMAIL: { Icon: SvgModmail, label: 'ModMail' },
 	SOCIAL: { Icon: SvgSocial, label: 'Social' },
+	AUTOMODERATOR: { Icon: SvgAutoModerator, label: 'AutoModerator' },
 } as const satisfies Record<BotId, { Icon: React.ComponentType<{ height?: number; width?: number }>; label: string }>;
 
 export interface BotBrandingSource {

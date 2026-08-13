@@ -7,11 +7,15 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: planned
+## Status: P0 done, P1 next
 
 Scope is settled (36 features surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is per-feature vertical
 slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so nothing sits half-built
 across the stack.
+
+P0 landed 2026-08-13 and is verified end to end against the test guild — see its section for what shipped and the
+two deviations. **The AutoMod spike passed**, so feature 01's design and P5's scope are settled on evidence rather
+than assumption; see [The AutoMod hybrid](#the-automod-hybrid).
 
 ## Owner decisions already made
 
@@ -113,8 +117,9 @@ to drive matching.
   to read and write AutoMod rules**, not just our own table.
 - A guild with no keyword rules configured gets no events, and therefore no banword enforcement. The dashboard needs
   to surface that state honestly rather than showing an empty-but-healthy filter page.
-- This is the single riskiest assumption in the plan. **P0 ships a spike that proves the event round-trip** before
-  anything is built on it.
+- This was the single riskiest assumption in the plan. **P0's spike proved it** (2026-08-13): a native keyword
+  rule blocking `ball` produced an `AUTO_MODERATION_ACTION_EXECUTION` carrying `matched_keyword: "ball"` and the
+  offending `user_id`, with the message already suppressed by Discord. Policy can key on the keyword as designed.
 
 ## Brokerage: what actually needs a broker
 
@@ -194,7 +199,7 @@ a single `ActionExecutor` seam. **Nothing else calls REST for a side effect.** T
 dry-run one flag rather than a hundred conditionals, and it's cheap only if it's established in P0, before there are
 call sites to retrofit.
 
-**Modes**, resolved per invocation with precedence env → guild → invocation:
+**Modes:**
 
 - `live` — normal.
 - `dry-run` — Discord side effects suppressed; **database writes still happen**, with cases marked `dry_run = true`.
@@ -205,8 +210,23 @@ Persisting in dry-run is the non-obvious call, and it's deliberate: escalation l
 dry-run that persists nothing can't exercise the thing most likely to be wrong. The `dry_run` flag keeps those rows
 filterable, and **ladder counting ignores them in `live` mode** so a dev session can't push a real user up a rung.
 
-`AUTOMODERATOR_DRY_RUN` defaults to `true` when `IS_PRODUCTION` is false. Getting this backwards is how a dev session
-bans someone in the real guild.
+**Dry-run is a development affordance, not an operational mode.** `resolveDryRun` short-circuits to `live` whenever
+`IS_PRODUCTION`, before consulting anything else — so a production guild can neither be put into dry-run nor left
+stuck in it. Outside production the precedence is guild → invocation:
+
+- **Guild** — `automoderator_guild_settings.dry_run`, `NOT NULL DEFAULT true`. A guild nobody has configured is in
+  dry-run, because that's the reading that can't ban someone in a real guild from a dev session.
+- **Invocation** — a command explicitly asking to preview what it would do. Can only ever turn dry-run _on_, so
+  nothing reachable from inside an interaction escapes the guild's setting.
+
+There is deliberately **no deployment-wide env var**. It would only ever read one way in production, which makes it a
+switch that lies — and "why did nothing happen" traced back to a stale env var is a worse failure than not having the
+knob. The consequence to accept: there is no way to put production as a whole into observe-only mode. Per-feature
+experiment gating (below) is the production kill switch, and it's the better-shaped one, since it can be flipped for
+a single guild without a deploy.
+
+`automoderator_dry_run_suppressions_total` should therefore be flat at zero in production by construction, not by
+convention — a non-zero value there means `resolveDryRun`'s short-circuit has been broken.
 
 ### Feature gating
 
@@ -271,6 +291,25 @@ behave as documented, feature 01's design changes and P5 gets rescoped — which
 Infra edits that come with a new service, following Social's precedent: `AUTOMODERATOR_BOT_TOKEN` in
 `backend-core`'s `env.ts`, `'AUTOMODERATOR'` added to `BOTS` in `@chatsift/core`, `Dockerfile`, `docker-compose.yml`,
 dev scripts.
+
+**Shipped 2026-08-13.** Two deviations from the table above, both deliberate:
+
+- **`PATCH` as well as `GET` on the config route.** "One route proving the contract" and "a config form" are
+  incompatible if the form can't save.
+- **No seed script.** At P0 there is one boolean to seed, so it lands at P1 with cases and log channels instead.
+  The dangling-channel/role-id seeding it exists for has nothing to point at yet.
+
+The experiment read helper is `@chatsift/backend-core`'s `experiments.ts` (snapshot + 60s refresh, modelled on
+`instances.ts`; buckets are basis points, salted per experiment name so each rollout picks a different slice), and
+the override admin path is `GET`/`PUT`/`DELETE /v3/experiments[/:name]` — global-admin only, declarative override
+sets, no dashboard page. **P0 itself gates nothing**: there is no feature to switch off yet, and the first real gate
+is P1's.
+
+Still outstanding: `AUTOMODERATOR_BOT_TOKEN` must be added to `.env.private` before _any_ service boots — it is a
+required var read by `services/api` too, which is exactly the shape of the 2026-08-11 incident the
+`build/grafana/provisioning/alerting/rules.yml` comment records. And the spike itself has to be run:
+`/automod-spike seed <word>`, then trip it, then confirm an `automoderator decision: automod` line carrying
+`matched`.
 
 ---
 
@@ -462,8 +501,8 @@ The diagnosability bias that applied to Social applies harder here — this bot 
 - `automoderator_automod_events_total` flat at zero for a guild that has banword policies configured means the
   hybrid is broken for that guild: either no native rules exist, or the intent isn't granted. This is the failure
   mode most likely to be silent.
-- `automoderator_dry_run_suppressions_total` non-zero in production means a guild or the env has dry-run on when it
-  shouldn't. Should always be zero in prod.
+- `automoderator_dry_run_suppressions_total` non-zero in production means `resolveDryRun`'s `IS_PRODUCTION`
+  short-circuit has been broken — actions the logs claim were taken did not happen. Zero in prod by construction.
 - `automoderator_scheduler_lag_seconds` climbing means tempbans aren't expiring — the classic "why is this user
   still banned" report.
 - `automoderator_log_dispatch_total{result="failed"}` means webhooks are 404ing; legacy self-healed by deleting the

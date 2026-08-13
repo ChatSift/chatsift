@@ -279,6 +279,27 @@ services:
     volumes:
       - ./logs/social-bot:/usr/chatsift/logs/social-bot
 
+  # docs/roadmap/11-automoderator-port.md. Additive until P9 -- legacy AutoModerator keeps running from
+  # ChatSift/stack against postgres-old the whole time this one is being built, so the two coexist and this
+  # service must not be pointed at the legacy application's token before that cutover.
+  # No SHARDS_PER_REPLICA yet: opting into horizontal scaling is P8, and the port holds the invariants that
+  # make it configuration rather than a rewrite (see that doc's Scaling readiness section).
+  automoderator-bot:
+    image: chatsift/chatsift-next:automoderator
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    depends_on:
+      discord-proxy:
+        condition: service_healthy
+    command: ['node', '--enable-source-maps', './services/automoderator-bot/dist/bin.js']
+    volumes:
+      - ./logs/automoderator-bot:/usr/chatsift/logs/automoderator-bot
+
   # Template for a branded, single-guild ModMail deployment (#216) -- see
   # docs/roadmap/01-architecture.md §8 and the onboarding/offboarding runbook in
   # docs/workflow.md. Copy this block once per approved partner (one block per instance -- these are

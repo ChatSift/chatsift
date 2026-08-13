@@ -35,6 +35,7 @@
 		"dev:ama-bot": "turbo run build --filter=@chatsift/ama-bot && dotenv -e .env.private -e .env.public -- node --enable-source-maps ./services/ama-bot/dist/bin.js",
 		"dev:modmail-bot": "turbo run build --filter=@chatsift/modmail-bot && dotenv -e .env.private -e .env.public -- node --enable-source-maps ./services/modmail-bot/dist/bin.js",
 		"dev:social-bot": "turbo run build --filter=@chatsift/social-bot && dotenv -e .env.private -e .env.public -- node --enable-source-maps ./services/social-bot/dist/bin.js",
+		"dev:automoderator-bot": "turbo run build --filter=@chatsift/automoderator-bot && dotenv -e .env.private -e .env.public -- node --enable-source-maps ./services/automoderator-bot/dist/bin.js",
 		"db:migrate": "dotenv -e .env.private -e .env.public -- yarn workspace @chatsift/db run db:migrate",
 		"db:migrate:down": "dotenv -e .env.private -e .env.public -- yarn workspace @chatsift/db run db:migrate:down",
 		"db:gen": "dotenv -e .env.private -e .env.public -- yarn workspace @chatsift/db run db:gen",

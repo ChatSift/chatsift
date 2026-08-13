@@ -12,6 +12,7 @@ import type { BreadcrumbOption } from '@/components/common/Breadcrumb';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAMA } from '@/components/icons/SvgAMA';
+import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { SvgModmail } from '@/components/icons/SvgModmail';
 import { SvgSocial } from '@/components/icons/SvgSocial';
 import type { BotBrandingSource } from '@/utils/bots';
@@ -27,6 +28,9 @@ const NO_CUSTOM_INSTANCE: BotBrandingSource = {
 const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks', 'threads'] as const;
 
 const SOCIAL_SECTIONS = ['config', 'channels', 'roles', 'rewards', 'interactions', 'leaderboard'] as const;
+
+// One entry per phase of docs/roadmap/11-automoderator-port.md, in step with the hub page's own SECTIONS.
+const AUTOMODERATOR_SECTIONS = ['config'] as const;
 
 const SEGMENT_LABELS: Record<string, string> = {
 	ama: 'AMA',
@@ -47,12 +51,14 @@ const SEGMENT_LABELS: Record<string, string> = {
 	rewards: 'Rewards',
 	interactions: 'Interactions',
 	leaderboard: 'Leaderboard',
+	automoderator: 'AutoModerator',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {
 	ama: <SvgAMA height={20} width={20} />,
 	modmail: <SvgModmail height={20} width={20} />,
 	social: <SvgSocial height={20} width={20} />,
+	automoderator: <SvgAutoModerator height={20} width={20} />,
 } as const;
 
 interface SegmentContext {
@@ -133,6 +139,17 @@ function modmailSectionOptions(currentSection: string, context: SegmentContext):
 		(section) => ({
 			label: SEGMENT_LABELS[section] ?? section,
 			href: `/dashboard/${context.guildId}/modmail/${section}`,
+		}),
+	);
+
+	return { options };
+}
+
+function automoderatorSectionOptions(currentSection: string, context: SegmentContext): SegmentOptions {
+	const options: BreadcrumbOption[] = AUTOMODERATOR_SECTIONS.filter((section) => section !== currentSection).map(
+		(section) => ({
+			label: SEGMENT_LABELS[section] ?? section,
+			href: `/dashboard/${context.guildId}/automoderator/${section}`,
 		}),
 	);
 
@@ -259,6 +276,14 @@ const SEGMENT_DEFINITIONS: readonly SegmentDefinition[] = [
 		pattern: ['social'],
 		resolveOptions: (_id, context, data) => botSwitcherOptions('SOCIAL', context, data),
 	},
+	{
+		pattern: ['automoderator'],
+		resolveOptions: (_id, context, data) => botSwitcherOptions('AUTOMODERATOR', context, data),
+	},
+	...AUTOMODERATOR_SECTIONS.map((section): SegmentDefinition => ({
+		pattern: ['automoderator', section],
+		resolveOptions: (_id, context) => automoderatorSectionOptions(section, context),
+	})),
 	...SOCIAL_SECTIONS.map((section): SegmentDefinition => ({
 		pattern: ['social', section],
 		resolveOptions: (_id, context) => socialSectionOptions(section, context),

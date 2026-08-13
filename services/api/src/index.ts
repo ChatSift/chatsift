@@ -106,4 +106,12 @@ export { default as listSocialInteractionsRoute } from './routes/social/interact
 export { default as resyncSocialInteractionsRoute } from './routes/social/interactions/resyncInteractions.js';
 export { default as updateSocialInteractionRoute } from './routes/social/interactions/updateInteraction.js';
 
+export { default as getAutomoderatorConfigRoute } from './routes/automoderator/config/getConfig.js';
+export { default as updateAutomoderatorConfigRoute } from './routes/automoderator/config/updateConfig.js';
+
+export { default as listExperimentsRoute } from './routes/experiments/listExperiments.js';
+export type { ExperimentWithOverrides } from './routes/experiments/listExperiments.js';
+export { default as upsertExperimentRoute } from './routes/experiments/upsertExperiment.js';
+export { default as deleteExperimentRoute } from './routes/experiments/deleteExperiment.js';
+
 export { default as getWsTicketRoute } from './routes/ws/getTicket.js';

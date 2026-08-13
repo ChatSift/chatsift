@@ -15,15 +15,10 @@ import type { Snowflake } from '@discordjs/core';
 import { InteractionType, Client, GatewayDispatchEvents } from '@discordjs/core';
 import type { REST } from '@discordjs/rest';
 import type { WebSocketManager } from '@discordjs/ws';
-import {
-	getCommandHandler,
-	handleAutocompleteInteraction,
-	handleCommandInteraction,
-	registerCommandHandler,
-} from './commands.js';
+import { handleAutocompleteInteraction, handleCommandInteraction, registerCommandHandler } from './commands.js';
 import { handleComponentInteraction } from './components.js';
 import DashboardCommand from './dashboardCommand.js';
-import DeployCommand from './deploy.js';
+import DeployCommand, { bootstrapGlobalCommands } from './deploy.js';
 import { getReplicaIndex } from './replica.js';
 import { invalidateStoredSessions } from './sessions.js';
 import { onShutdown } from './shutdown.js';
@@ -80,6 +75,27 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 		process.kill(process.pid, 'SIGTERM');
 	}
 
+	// Runs on Ready *and* Resumed, guarded rather than `.once`, for the same reason the guild list is kept in
+	// redis: since the session store, an ordinary restart replays as RESUMED, so a Ready-only hook stops firing
+	// after the application's first boot ever. RESUMED carries no payload, hence the application-id fetch.
+	let bootstrapStarted = false;
+	const bootstrapOnce = async (applicationId?: Snowflake): Promise<void> => {
+		if (bootstrapStarted) {
+			return;
+		}
+
+		bootstrapStarted = true;
+
+		try {
+			const resolvedId = applicationId ?? (await client.api.oauth2.getCurrentBotApplicationInformation()).id;
+			await bootstrapGlobalCommands(botId, resolvedId, client.api.applicationCommands);
+		} catch (error) {
+			// Never fatal: a bot that can't seed `/deploy` still works for every guild that already has its
+			// commands, and taking the process down over it would turn a cosmetic gap into an outage.
+			getContext().logger.error({ err: error }, 'Failed to bootstrap global commands');
+		}
+	};
+
 	client
 		// discord.js-core's Client re-emits a rejected async listener's error as an 'error' event; with no
 		// listener for it here, Node's default EventEmitter behavior throws it as an uncaught exception and
@@ -101,7 +117,10 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 
 			if (!(await guildListExists(botId, getReplicaIndex()))) {
 				await recoverLostGuildList('no guild list to resume onto');
+				return;
 			}
+
+			await bootstrapOnce();
 		})
 		.on(GatewayDispatchEvents.InteractionCreate, async ({ data: interaction }) => {
 			// Discord's own interaction id is already a unique, stable correlation key -- no need to mint one
@@ -135,38 +154,14 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 				logger.warn('Unhandled interaction type');
 			}
 		})
-		.once(GatewayDispatchEvents.Ready, async ({ data }) => {
+		.on(GatewayDispatchEvents.Ready, async ({ data }) => {
 			getContext().logger.info('Logged in successfully');
 
 			// A fresh IDENTIFY re-announces every guild via GUILD_CREATE, so anything already under this index
 			// belongs to a previous life of it and must not survive. This is the only place the set is cleared.
 			await resetGuildList(botId, getReplicaIndex());
 
-			// `.once` makes this fire a single time per *process*, which stops being "once" as soon as a bot runs
-			// more than one replica: each would independently see zero global commands and each would bulk-overwrite.
-			// The claim is taken before the check below rather than around just the write, so two replicas can't both
-			// pass the emptiness test and race. A short expiry (rather than a permanent key) keeps this self-healing:
-			// if the replica holding the claim dies before deploying, the next restart retries instead of leaving the
-			// application with no commands at all and no way to bootstrap.
-			const bootstrapClaimed = await getContext().redis.set(`deploybootstrap:${botId}`, '1', {
-				condition: 'NX',
-				expiration: { type: 'PX', value: 5 * 60 * 1_000 },
-			});
-			if (!bootstrapClaimed) {
-				return;
-			}
-
-			const applicationId = data.application.id;
-			const existingGlobalCommands = await client.api.applicationCommands.getGlobalCommands(applicationId);
-			if (existingGlobalCommands.length === 0) {
-				const deployHandler = getCommandHandler('deploy');
-				if (deployHandler) {
-					await client.api.applicationCommands.bulkOverwriteGlobalCommands(applicationId, [deployHandler.data]);
-					getContext().logger.info('Bootstrapped deploy command as the only global command');
-				} else {
-					getContext().logger.warn('No deploy command handler found; skipping global command bootstrap');
-				}
-			}
+			await bootstrapOnce(data.application.id);
 		});
 
 	// A heartbeat, not a republish: the set is maintained per event, so this only re-arms its TTL. A key that is

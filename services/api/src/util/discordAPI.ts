@@ -40,6 +40,9 @@ export const discordAPIModmail = new API(modmailREST);
 const socialREST = createRest(true).setToken(getContext().env.SOCIAL_BOT_TOKEN);
 export const discordAPISocial = new API(socialREST);
 
+const automoderatorREST = createRest(true).setToken(getContext().env.AUTOMODERATOR_BOT_TOKEN);
+export const discordAPIAutomoderator = new API(automoderatorREST);
+
 // Webhook execution is authed by the id/token in the URL itself, no bot token needed -- still proxied, since
 // those buckets key off the webhook id rather than a token and the proxy pools every token-less caller onto
 // one accountant, which is the right shape if a bot ever starts executing webhooks too.
@@ -50,6 +53,7 @@ export const APIMapping: Record<BotId, API> = {
 	AMA: discordAPIAma,
 	MODMAIL: discordAPIModmail,
 	SOCIAL: discordAPISocial,
+	AUTOMODERATOR: discordAPIAutomoderator,
 };
 
 // Lazily built, kept for the life of the process -- a custom instance's token never changes without a

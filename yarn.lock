@@ -446,6 +446,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@chatsift/automoderator-bot@workspace:services/automoderator-bot":
+  version: 0.0.0-use.local
+  resolution: "@chatsift/automoderator-bot@workspace:services/automoderator-bot"
+  dependencies:
+    "@chatsift/backend-core": "workspace:^"
+    "@chatsift/bot-core": "workspace:^"
+    "@chatsift/core": "workspace:^"
+    "@chatsift/db": "workspace:^"
+    "@discordjs/builders": "npm:2.0.0-dev.1783513686-6e81ea771"
+    "@discordjs/core": "npm:3.0.0-dev.1783513686-6e81ea771"
+    "@discordjs/rest": "npm:3.0.0-dev.1783513686-6e81ea771"
+    "@sapphire/discord-utilities": "npm:^4.0.0"
+    "@types/node": "npm:^24.9.1"
+    prom-client: "npm:^15.1.3"
+    typescript: "npm:~6.0.3"
+    vitest: "npm:^4.1.10"
+  languageName: unknown
+  linkType: soft
+
 "@chatsift/backend-core@workspace:^, @chatsift/backend-core@workspace:packages/private/backend-core":
   version: 0.0.0-use.local
   resolution: "@chatsift/backend-core@workspace:packages/private/backend-core"

@@ -804,3 +804,23 @@ CREATE TABLE social_interactions (
 -- deferred to commit).
 CREATE UNIQUE INDEX social_interactions_guild_id_command_id_idx ON social_interactions (guild_id, command_id)
   WHERE command_id IS NOT NULL;
+
+-- ---------------------------------------------------------------------------
+-- AutoModerator (docs/roadmap/11-automoderator-port.md)
+--
+-- Additive alongside the still-live legacy deployment, which stays on `postgres-old` until P9. Every table
+-- here is prefixed `automoderator_` rather than sharing the bare names its legacy Prisma schema used --
+-- `cases`, `tasks`, `reports` are all words the other three products could plausibly want too, and this is
+-- one database rather than legacy's four.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE automoderator_guild_settings (
+  guild_id TEXT PRIMARY KEY,
+  -- Dry-run: decide and record, but suppress every Discord side effect. A **development affordance only** --
+  -- `automoderator-bot`'s `dryRun.ts` ignores this outright when IS_PRODUCTION, so a production guild can
+  -- neither be put into it nor stuck in it. That's why there's no env-var layer above this: an operator
+  -- switch that only ever reads one way in production would be a switch that lies.
+  -- Defaults to on, because the value you get by not thinking about it is the one that can't ban someone in
+  -- a real guild from a dev session.
+  dry_run  BOOLEAN NOT NULL DEFAULT true
+);

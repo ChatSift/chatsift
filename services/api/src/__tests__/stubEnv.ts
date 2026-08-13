@@ -43,6 +43,8 @@ export function stubTestEnv(): void {
 	process.env['AMA_BOT_TOKEN'] = 'abcdef';
 	process.env['MODMAIL_BOT_TOKEN'] = 'abcdef';
 	process.env['SOCIAL_BOT_TOKEN'] = 'abcdef';
+	process.env['AUTOMODERATOR_BOT_TOKEN'] = 'abcdef';
+	process.env['AUTOMODERATOR_METRICS_PORT'] = '9878';
 	process.env['DOZZLE_WEBHOOK_SECRET'] = 'so secret too';
 	process.env['DOZZLE_WEBHOOK_DISCORD_ID'] = '123456789012345678';
 	process.env['DOZZLE_WEBHOOK_DISCORD_TOKEN'] = 'abcdef';
