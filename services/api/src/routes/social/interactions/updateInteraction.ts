@@ -1,4 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
+import { isUniqueViolation } from '@chatsift/db';
 import type { SocialInteractions, SocialInteractionsId } from '@chatsift/db';
 import { RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
@@ -8,7 +9,6 @@ import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { apiForGuild } from '../../../util/discordAPI.js';
 import { getBotApplicationId } from '../../../util/discordApplication.js';
-import { isUniqueViolation } from '../../../util/postgres.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { buildInteractionCommandBody } from '../discordBodies.js';
 import { updateSocialInteractionBodySchema } from '../schemas.js';

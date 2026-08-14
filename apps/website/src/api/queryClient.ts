@@ -118,10 +118,6 @@ export const queryKeys = {
 		categories: (guildId: string) => ['api', 'modmail', guildId, 'categories'] as const,
 		panels: (guildId: string) => ['api', 'modmail', guildId, 'panels'] as const,
 		snippets: (guildId: string) => ['api', 'modmail', guildId, 'snippets'] as const,
-		// Deliberately nested *under* `snippets` rather than sitting beside it: invalidation matches by key
-		// prefix, so every existing `snippets(guildId)` invalidation already refreshes a snippet's revision
-		// history too (#324). That matters because the edit form doesn't navigate away after a save -- the
-		// history panel is still on screen and has to pick up the revision that save just created.
 		snippetUpdates: (guildId: string, snippetId: number) =>
 			['api', 'modmail', guildId, 'snippets', snippetId, 'updates'] as const,
 		blocks: (guildId: string) => ['api', 'modmail', guildId, 'blocks'] as const,
@@ -150,5 +146,15 @@ export const queryKeys = {
 	automoderator: {
 		all: (guildId: string) => ['api', 'automoderator', guildId] as const,
 		config: (guildId: string) => ['api', 'automoderator', guildId, 'config'] as const,
+		cases: {
+			list: (
+				guildId: string,
+				filters: { action?: string | undefined; includePardoned: boolean; targetId?: string | undefined },
+			) => ['api', 'automoderator', guildId, 'cases', filters] as const,
+			byId: (guildId: string, caseId: number) => ['api', 'automoderator', guildId, 'cases', caseId] as const,
+			// Prefix for invalidating every case query in a guild at once, list filters included.
+			all: (guildId: string) => ['api', 'automoderator', guildId, 'cases'] as const,
+		},
+		logChannels: (guildId: string) => ['api', 'automoderator', guildId, 'log-channels'] as const,
 	},
 } as const;

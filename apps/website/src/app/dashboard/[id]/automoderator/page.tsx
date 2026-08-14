@@ -3,10 +3,17 @@ import { Heading } from '@/components/common/Heading';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 
-// Grows one entry per phase of docs/roadmap/11-automoderator-port.md -- cases and log channels at P1, the
-// warn ladder at P2, reports at P3, and so on. Only Config exists at P0, deliberately: a hub advertising
-// sections that 404 is worse than a short one.
 const SECTIONS = [
+	{
+		segment: 'cases',
+		title: 'Cases',
+		subtitle: 'Every moderation action taken in this server, and who took it',
+	},
+	{
+		segment: 'log-channels',
+		title: 'Log Channels',
+		subtitle: 'Where moderation actions are posted',
+	},
 	{
 		segment: 'config',
 		title: 'Config',

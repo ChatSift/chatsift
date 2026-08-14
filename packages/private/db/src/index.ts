@@ -68,6 +68,10 @@ export type {
 	default as AutomoderatorGuildSettings,
 	AutomoderatorGuildSettingsGuildId,
 } from './generated/public/AutomoderatorGuildSettings.js';
+export type { default as AutomoderatorCaseAction } from './generated/public/AutomoderatorCaseAction.js';
+export type { default as AutomoderatorCases, AutomoderatorCasesId } from './generated/public/AutomoderatorCases.js';
+export type { default as AutomoderatorLogType } from './generated/public/AutomoderatorLogType.js';
+export type { default as AutomoderatorLogWebhooks } from './generated/public/AutomoderatorLogWebhooks.js';
 
 export interface CreateDbOptions {
 	/**
@@ -80,4 +84,20 @@ export interface CreateDbOptions {
 
 export function createDb({ url, options }: CreateDbOptions): Database {
 	return postgres(url, { transform: postgres.camel, ...options });
+}
+
+/**
+ * Whether an error is Postgres' 23505 (unique violation), optionally for one named constraint or index.
+ *
+ * Lives here rather than in a consumer because it is a fact about this package's client -- `postgres.PostgresError`
+ * is the only thing that can produce the shape -- and because both `services/api` and the bots need it. Naming the
+ * constraint matters when a table has more than one unique key: an unqualified check turns "that name is taken"
+ * and "that idempotency key was already used" into the same branch.
+ */
+export function isUniqueViolation(error: unknown, constraintName?: string): boolean {
+	if (!(error instanceof postgres.PostgresError)) {
+		return false;
+	}
+
+	return error.code === '23505' && (constraintName === undefined || error.constraint_name === constraintName);
 }

@@ -108,6 +108,13 @@ export { default as updateSocialInteractionRoute } from './routes/social/interac
 
 export { default as getAutomoderatorConfigRoute } from './routes/automoderator/config/getConfig.js';
 export { default as updateAutomoderatorConfigRoute } from './routes/automoderator/config/updateConfig.js';
+export { default as listAutomoderatorCasesRoute } from './routes/automoderator/cases/listCases.js';
+export { default as getAutomoderatorCaseRoute } from './routes/automoderator/cases/getCase.js';
+export { default as updateAutomoderatorCaseRoute } from './routes/automoderator/cases/updateCase.js';
+export { default as deleteAutomoderatorCaseRoute } from './routes/automoderator/cases/deleteCase.js';
+export { default as listAutomoderatorLogChannelsRoute } from './routes/automoderator/logChannels/listLogChannels.js';
+export { default as setAutomoderatorLogChannelRoute } from './routes/automoderator/logChannels/setLogChannel.js';
+export { default as deleteAutomoderatorLogChannelRoute } from './routes/automoderator/logChannels/deleteLogChannel.js';
 
 export { default as listExperimentsRoute } from './routes/experiments/listExperiments.js';
 export type { ExperimentWithOverrides } from './routes/experiments/listExperiments.js';

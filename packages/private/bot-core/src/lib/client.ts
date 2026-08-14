@@ -20,6 +20,7 @@ import { handleComponentInteraction } from './components.js';
 import DashboardCommand from './dashboardCommand.js';
 import DeployCommand, { bootstrapGlobalCommands } from './deploy.js';
 import { getReplicaIndex } from './replica.js';
+import { setSelfId } from './selfId.js';
 import { invalidateStoredSessions } from './sessions.js';
 import { onShutdown } from './shutdown.js';
 
@@ -170,6 +171,14 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 		})
 		.on(GatewayDispatchEvents.Ready, async ({ data }) => {
 			getContext().logger.info('Logged in successfully');
+
+			// Free here, and the only place it arrives without a request -- see `selfId.ts` for why a bot that
+			// only ever RESUMEs has to fall back to asking. Guarded, and deliberately so: this handler's real job
+			// is the guild-list reset and the command bootstrap below, and a recording step that can throw ahead
+			// of them would take both down with it.
+			if (data.user?.id) {
+				setSelfId(data.user.id);
+			}
 
 			// A fresh IDENTIFY re-announces every guild via GUILD_CREATE, so anything already under this index
 			// belongs to a previous life of it and must not survive. This is the only place the set is cleared.

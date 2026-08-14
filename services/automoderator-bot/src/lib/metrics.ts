@@ -60,6 +60,31 @@ export const dryRunSuppressions = new Counter({
 });
 
 /**
+ * Cases filed, by action and by what decided them. Distinct from `moderationActions` on purpose: a warn files
+ * a case and takes no Discord action, an observed manual ban files a case for an action Discord already took,
+ * and a dry-run files a case for an action that didn't happen. "How much moderation is this guild doing" and
+ * "how many Discord calls did we make" are different questions and this is the first one.
+ */
+export const casesCreated = new Counter({
+	name: 'automoderator_cases_created_total',
+	help: 'Cases filed, by action and deciding source',
+	labelNames: ['action', 'source'] as const,
+	registers: [register],
+});
+
+/**
+ * Webhook delivery health for the log channels. `result="failed"` climbing is usually a deleted log channel
+ * rather than an outage -- the dispatcher self-heals by dropping the row, so a spike here is followed by
+ * silence until someone reconfigures the channel, which is exactly the failure worth alerting on.
+ */
+export const logDispatch = new Counter({
+	name: 'automoderator_log_dispatch_total',
+	help: 'Log webhook deliveries, by log type and result',
+	labelNames: ['log_type', 'result'] as const,
+	registers: [register],
+});
+
+/**
  * `route_class` is a coarse bucket (`member`, `message`, `user`, `webhook`), never a resolved route -- a
  * per-URL label would be per-guild cardinality by another name. Written by the `ActionExecutor` when a
  * side-effecting call is rejected.

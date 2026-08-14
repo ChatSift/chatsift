@@ -36,7 +36,6 @@ vi.mock('node:fs/promises', () => ({
 const sonicBoomConstructorSpy = vi.spyOn(sonicBoom, 'default');
 
 vi.mock('sonic-boom', async () => {
-	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 	const { EventEmitter } = await vi.importActual<typeof import('node:events')>('node:events');
 
 	class MockSonicBoom extends EventEmitter {

@@ -59,3 +59,22 @@ export function socialLeaderboardChannel(guildId: string): string {
 export function automoderatorConfigChannel(guildId: string): string {
 	return `automoderator:${guildId}:config`;
 }
+
+/**
+ * The case browser's channel (P1). Separate from the config channel per the note above: a case list refetching
+ * because someone toggled dry-run is exactly the over-invalidation this naming exists to avoid.
+ *
+ * Guild-wide rather than per-case, because the list is the thing that goes stale -- a new case appears at the
+ * top of it, and an amended case changes a row in it. A watcher sitting on one case detail refetching when an
+ * unrelated case is filed is a cheap request; a case browser that silently misses new cases is a wrong screen.
+ */
+export function automoderatorCasesChannel(guildId: string): string {
+	return `automoderator:${guildId}:cases`;
+}
+
+/**
+ * Log channel configuration (P1), which the case browser doesn't care about and vice versa.
+ */
+export function automoderatorLogChannelsChannel(guildId: string): string {
+	return `automoderator:${guildId}:log-channels`;
+}

@@ -1,10 +1,10 @@
 import { getContext } from '@chatsift/backend-core';
+import { isUniqueViolation } from '@chatsift/db';
 import type { Categories, GuildSettings } from '@chatsift/db';
 import { badRequest, conflict } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
-import { isUniqueViolation } from '../../../util/postgres.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { createCategoryBodySchema } from '../schemas.js';
 
