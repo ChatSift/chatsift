@@ -32,6 +32,7 @@
 		"@sapphire/discord-utilities": "^4.0.0",
 		"bin-rw": "^0.2.0",
 		"jsonwebtoken": "^9.0.3",
+		"murmurhash": "^2.0.1",
 		"pino": "^10.3.1",
 		"pino-abstract-transport": "^3.0.0",
 		"pino-pretty": "^13.1.3",

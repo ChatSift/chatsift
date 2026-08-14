@@ -4,6 +4,7 @@ import { experimentBucket, isExperimentEnabled, loadExperiments } from '../exper
 let experimentRows: { name: string; rangeEnd: number; rangeStart: number }[] = [];
 let overrideRows: { experimentName: string; guildId: string }[] = [];
 const error = vi.fn();
+const warn = vi.fn();
 
 // Same approach as `realtimeBroadcast.test.ts`: `experiments.ts` reaches for the db through `getContext()` at
 // call time, so stubbing the context is enough. `db` is a tagged template, so the mock dispatches on the
@@ -12,7 +13,7 @@ vi.mock('../context.js', () => ({
 	getContext: () => ({
 		db: (strings: TemplateStringsArray) =>
 			strings.join('').includes('experiment_overrides') ? overrideRows : experimentRows,
-		logger: { error },
+		logger: { error, warn },
 	}),
 }));
 
@@ -20,6 +21,7 @@ beforeEach(() => {
 	experimentRows = [];
 	overrideRows = [];
 	error.mockReset();
+	warn.mockReset();
 });
 
 test('a bucket is stable, in range, and salted by the experiment name', () => {
@@ -37,10 +39,12 @@ test('a bucket is stable, in range, and salted by the experiment name', () => {
 	expect(experimentBucket('cases', guildId)).not.toBe(experimentBucket('filters', guildId));
 });
 
-test('an experiment with no row is off', async () => {
+test('an experiment with no row is off, and says so', async () => {
 	await loadExperiments();
 
 	expect(isExperimentEnabled('never-created', '1425493115053019319')).toBe(false);
+	// A typo'd gate name and a gate nobody created yet land here identically; only one is intentional.
+	expect(warn).toHaveBeenCalledOnce();
 });
 
 test('a full range is on for everyone and a collapsed one is off for everyone', async () => {

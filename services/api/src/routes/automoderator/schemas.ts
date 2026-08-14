@@ -17,8 +17,8 @@ export const updateAutomoderatorConfigBodySchema = z
 
 /**
  * Bucket space `experiments.range_start`/`range_end` are expressed in -- kept in step with
- * `@chatsift/backend-core`'s `BUCKET_COUNT` by hand, since this file has to stay browser-safe and that one
- * pulls in `node:crypto`. `[0, 10000]` is everyone; a collapsed range is nobody.
+ * `@chatsift/backend-core`'s `BUCKET_COUNT` by hand, since this file has to stay browser-safe and that module
+ * reaches `process.env` through its context. `[0, 10000]` is everyone; a collapsed range is nobody.
  */
 export const EXPERIMENT_BUCKET_COUNT = 10_000;
 

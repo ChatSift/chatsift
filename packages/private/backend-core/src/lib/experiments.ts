@@ -1,16 +1,15 @@
-import { createHash } from 'node:crypto';
 import { setInterval } from 'node:timers';
 import type { ExperimentOverrides, Experiments } from '@chatsift/db';
+import murmurhash from 'murmurhash';
 import { getContext } from './context.js';
 
 /**
- * Number of buckets a guild can hash into. `range_start`/`range_end` are expressed in these units, so a
- * range of `[0, 100)` is 1% of guilds and `[0, 10000)` is all of them.
+ * Number of buckets a guild can hash into. `range_start`/`range_end` are expressed in these units, so a range
+ * of `[0, 100)` is 1% of guilds and `[0, 10000)` is all of them.
  *
- * Basis points rather than percent because the first consumer is AutoModerator
- * (docs/roadmap/11-automoderator-port.md), where a misfiring filter bans people: on a deployment of a few
- * thousand guilds, one percent is already tens of guilds, which is too coarse a smallest-possible step for
- * the first widening past the test guild.
+ * Carried over verbatim from this repo's pre-revive `ExperimentHandler` (deleted in `9d188f0c`), along with the
+ * hash and the salt format below. That is the point: the three together decide which guilds a range selects, so
+ * changing any of them silently re-rolls every experiment against a range someone already reasoned about.
  */
 const BUCKET_COUNT = 10_000;
 
@@ -30,15 +29,17 @@ const overrideKey = (name: string, guildId: string): string => `${name}:${guildI
 /**
  * Which bucket a guild falls in for one experiment.
  *
+ * MurmurHash3, matching the pre-revive implementation and Discord's own experiment bucketing. Not a security
+ * boundary -- what it has to be is *stable*: identical across processes, replicas and restarts, or a guild
+ * flips in and out of an experiment as the bot bounces, which is worse than no gating at all. Murmur is fast,
+ * well-distributed and deterministic, which is the whole requirement.
+ *
  * Salted with the experiment's own name so each experiment selects a different slice -- hashing the guild id
  * alone would make the same guilds the guinea pigs for every rollout, which is the failure mode that makes
- * staged rollouts stop being informative. SHA-256 rather than a cheap string hash because the result has to
- * be identical across processes, replicas and restarts: a guild that flips in and out of an experiment as
- * the bot bounces is worse than no gating at all.
+ * staged rollouts stop being informative.
  */
 export function experimentBucket(name: string, guildId: string): number {
-	const digest = createHash('sha256').update(`${name}:${guildId}`).digest();
-	return digest.readUInt32BE(0) % BUCKET_COUNT;
+	return murmurhash.v3(`${name}:${guildId}`) % BUCKET_COUNT;
 }
 
 async function fetchSnapshot(): Promise<{ overrides: Set<string>; ranges: Map<string, ExperimentRange> }> {
@@ -101,6 +102,9 @@ export function isExperimentEnabled(name: string, guildId: string): boolean {
 
 	const range = ranges.get(name);
 	if (!range) {
+		// Warned rather than silently false, as the pre-revive handler did: the two ways to land here are a gate
+		// nobody has created yet and a typo'd name, and only one of those is intentional.
+		getContext().logger.warn({ guildId, experimentName: name }, 'checked an unknown experiment');
 		return false;
 	}
 
