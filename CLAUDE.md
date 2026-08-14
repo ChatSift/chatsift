@@ -44,6 +44,7 @@ M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done a
 - Follow [docs/workflow.md](docs/workflow.md) for branching/commits/verification. **The verification split matters:** an agent's job is `yarn build`, `yarn lint`, `yarn test`, `yarn format:check` green plus whatever else it can genuinely check. Runtime verification of Discord and dashboard behaviour is the user's — an agent has no Discord connection and no session, so the most it can do against a locally-running API is confirm a route is mounted and returns 401 rather than 404. Never claim a feature "works"; state what you verified and what you left for the user to exercise.
 - AutoModerator (`v2` branch) is out of scope for all work described in `docs/roadmap/` — it's a separate, already-shipped product.
 - **Never run `git commit` or any GitHub write action (creating milestones/labels/issues/PRs, etc.) on the user's behalf.** Do the analysis/content work, leave changes staged or written to disk, and hand back exact commands or a step-by-step instruction doc for the user to run themselves. Read-only `gh`/`git` inspection is fine.
+- Developers working on this project dislike "Auto Mode" on Agents. Consider if your proposed shell command will need to be approved and try to avoid it by getting your work done with what is pre-approved in .claude/*.json
 
 ## Frontend (`apps/website`)
 

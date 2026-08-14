@@ -62,6 +62,13 @@ export type {
 } from './generated/public/SocialRewards.js';
 export type { default as SocialInteractions, SocialInteractionsId } from './generated/public/SocialInteractions.js';
 
+export type { default as Experiments, ExperimentsName } from './generated/public/Experiments.js';
+export type { default as ExperimentOverrides } from './generated/public/ExperimentOverrides.js';
+export type {
+	default as AutomoderatorGuildSettings,
+	AutomoderatorGuildSettingsGuildId,
+} from './generated/public/AutomoderatorGuildSettings.js';
+
 export interface CreateDbOptions {
 	/**
 	 * Passed through to `postgres()`, merged on top of the `postgres.camel` transform default

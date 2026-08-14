@@ -48,3 +48,14 @@ export function amaPublicAnswersChannel(amaId: number | string): string {
 export function socialLeaderboardChannel(guildId: string): string {
 	return `social:${guildId}:leaderboard`;
 }
+
+/**
+ * AutoModerator's guild-wide config channel (docs/roadmap/11-automoderator-port.md).
+ *
+ * Guild-scoped and nothing finer at P0, because there is one settings row. The phases that add cases, reports
+ * and filter logs each want their own channel rather than widening this one -- a case browser refetching
+ * because someone toggled dry-run is exactly the over-invalidation the per-domain naming exists to avoid.
+ */
+export function automoderatorConfigChannel(guildId: string): string {
+	return `automoderator:${guildId}:config`;
+}

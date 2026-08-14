@@ -24,6 +24,13 @@ const NON_GUILD_SCOPED_ROUTES = new Set<string>([
 	'/v3/auth/logout',
 	'/v3/auth/me',
 	'/v3/ws/ticket',
+	// Experiment gating (docs/roadmap/11-automoderator-port.md). Deliberately global rather than guild-scoped:
+	// an experiment's range applies across every guild, so there is no `:guildId` to scope it to. Safe for a
+	// `/dashboard` session to *reach* because all three additionally require `isGlobalAdmin: true`, which such a
+	// session can satisfy only if that same user is already a global admin -- the scoped credential grants no
+	// authority here that its holder doesn't have anyway.
+	'/v3/experiments',
+	'/v3/experiments/:name',
 ]);
 
 /**

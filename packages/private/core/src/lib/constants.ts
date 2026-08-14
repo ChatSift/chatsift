@@ -1,8 +1,13 @@
 // Order is load-bearing for presentation only (the dashboard's guild nav and the homepage's bot grid both
 // map over this). 'SOCIAL' (#343) is a real BotId from its API phase onward -- what it does *not* have yet is
 // public marketing copy, which is why `apps/website`'s `marketingBots` is a partial record keyed off this and
-// the public pages render only the bots that have an entry (see that file).
-export const BOTS = ['AMA', 'MODMAIL', 'SOCIAL'] as const;
+// the public pages render only the bots that have an entry (see that file). 'AUTOMODERATOR' is in the same
+// position from the port's P0 onward (docs/roadmap/11-automoderator-port.md).
+//
+// Spelled 'AUTOMODERATOR', not 'AUTOMOD': the port makes our filter subsystem talk to *Discord's* AutoMod
+// constantly, and the two are different things. Keeping the product's name unabbreviated is what stops that
+// ambiguity from becoming permanent in log lines, metric labels and Redis keys.
+export const BOTS = ['AMA', 'MODMAIL', 'SOCIAL', 'AUTOMODERATOR'] as const;
 
 export type BotId = (typeof BOTS)[number];
 

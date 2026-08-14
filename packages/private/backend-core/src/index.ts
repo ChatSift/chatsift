@@ -11,6 +11,7 @@ export * from './lib/dashboardSession.js';
 export * from './lib/database.js';
 export * from './lib/discordRest.js';
 export * from './lib/env.js';
+export * from './lib/experiments.js';
 export * from './lib/instances.js';
 export * from './lib/logger.js';
 export * from './lib/realtimeBroadcast.js';

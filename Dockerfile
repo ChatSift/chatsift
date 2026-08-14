@@ -19,6 +19,7 @@ COPY packages/private/core/package.json ./packages/private/core/package.json
 COPY packages/private/db/package.json ./packages/private/db/package.json
 
 COPY services/ama-bot/package.json ./services/ama-bot/package.json
+COPY services/automoderator-bot/package.json ./services/automoderator-bot/package.json
 COPY services/api/package.json ./services/api/package.json
 COPY services/discord-proxy/package.json ./services/discord-proxy/package.json
 COPY services/modmail-bot/package.json ./services/modmail-bot/package.json
@@ -35,6 +36,7 @@ COPY packages/private/core ./packages/private/core
 COPY packages/private/db ./packages/private/db
 
 COPY services/ama-bot ./services/ama-bot
+COPY services/automoderator-bot ./services/automoderator-bot
 COPY services/api ./services/api
 COPY services/discord-proxy ./services/discord-proxy
 COPY services/modmail-bot ./services/modmail-bot

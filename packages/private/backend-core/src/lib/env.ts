@@ -127,6 +127,14 @@ export const envSchema = z.object({
 	// ModMail-only concept, so there's no per-instance counterpart here.
 	SOCIAL_BOT_TOKEN: z.string(),
 
+	// AutoModerator (docs/roadmap/11-automoderator-port.md). Required like every other bot token --
+	// services/api needs it from P0 onward, since the dashboard reads the guild's channels/roles through
+	// whichever bot the page is scoped to.
+	AUTOMODERATOR_BOT_TOKEN: z.string(),
+	// Port the bot binds its Prometheus `/metrics` listener on, and only in production -- see
+	// `automoderator-bot`'s `metricsServer.ts` for why collection is unconditional but exposure is not.
+	AUTOMODERATOR_METRICS_PORT: z.string().pipe(z.coerce.number()),
+
 	// Dozzle log webhook relay (issue #212) — Dozzle POSTs here with a raw-JSON embed description,
 	// we prettify it and forward to the real Discord webhook
 	DOZZLE_WEBHOOK_SECRET: z.string(),

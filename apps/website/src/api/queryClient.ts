@@ -147,4 +147,8 @@ export const queryKeys = {
 		publicLeaderboardPage: (guildId: string, offset: number) =>
 			['api', 'social', 'public', guildId, 'leaderboard', offset] as const,
 	},
+	automoderator: {
+		all: (guildId: string) => ['api', 'automoderator', guildId] as const,
+		config: (guildId: string) => ['api', 'automoderator', guildId, 'config'] as const,
+	},
 } as const;
