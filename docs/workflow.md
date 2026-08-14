@@ -96,15 +96,25 @@ an already-provisioned database** — the password comes from `POSTGRES_EXPORTER
 there rather than in `.env.private` because this role is strictly weaker than the `chatsift` owner whose password is
 already checked in beside it, and postgres is never externally reachable):
 
+Run the init script itself rather than a hand-copied version of its SQL — the `init` directory is bind-mounted, so
+the script is already inside the running container, and it's idempotent (the role is created only if absent, the
+rest re-applies harmlessly):
+
 ```sh
-./compose exec postgres psql -U chatsift -v password="$(grep -m1 '^POSTGRES_EXPORTER_PASSWORD=' .env.public | cut -d= -f2-)" \
-  -c "CREATE ROLE chatsift_exporter LOGIN" \
-  -c "ALTER ROLE chatsift_exporter WITH PASSWORD :'password'" \
-  -c "GRANT pg_monitor TO chatsift_exporter" \
-  -c "GRANT USAGE ON SCHEMA public TO chatsift_exporter" \
-  -c "ALTER ROLE chatsift_exporter SET log_min_duration_statement = -1"
+./compose exec -e POSTGRES_EXPORTER_PASSWORD="$(grep -m1 '^POSTGRES_EXPORTER_PASSWORD=' .env.public | cut -d= -f2-)" \
+  postgres bash /docker-entrypoint-initdb.d/02-monitoring-role.sh
 ./compose up -d --force-recreate postgres-exporter
 ```
+
+`-e` is needed because a container's environment is fixed when it is created, so a `postgres` container started
+before this variable existed will not have it — passing it on the `exec` avoids restarting the database just to
+pick up one variable. It is harmless once the container has been recreated for other reasons.
+
+**Do not re-spell this as a series of `psql -c` flags.** `psql` performs no `:'variable'` interpolation in `-c`
+strings — the literal `:'password'` reaches the server, `ALTER ROLE … WITH PASSWORD` fails with a syntax error, and
+because the other statements still succeed (and psql exits 0 without `ON_ERROR_STOP`) you get a role that exists,
+reads as correctly configured, and cannot authenticate. The symptom is `password authentication failed for user
+"chatsift_exporter"` in the exporter's logs while `pg_roles` looks entirely healthy.
 
 Both grants are load-bearing. `pg_monitor` is what stops other roles' query text reading as
 `<insufficient privilege>`. The `USAGE ON SCHEMA public` is easy to miss and fails differently: `pg_stat_statements`
