@@ -2,6 +2,7 @@ import type { Logger } from '@chatsift/backend-core';
 import { decrypt, getContext } from '@chatsift/backend-core';
 import type { AutomoderatorCases, AutomoderatorLogWebhooks } from '@chatsift/db';
 import type { APIMessage } from '@discordjs/core';
+import { RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { executeAction } from './actionExecutor.js';
 import { buildCaseEmbed } from './caseFormat.js';
@@ -16,9 +17,10 @@ export async function getModLogWebhook(guildId: string): Promise<AutomoderatorLo
 	return row ?? null;
 }
 
-async function forgetModLogWebhook(guildId: string): Promise<void> {
+async function forgetModLogWebhook(guildId: string, webhookId: string): Promise<void> {
 	await getContext().db`
-		DELETE FROM automoderator_log_webhooks WHERE guild_id = ${guildId} AND log_type = 'MOD'
+		DELETE FROM automoderator_log_webhooks
+		WHERE guild_id = ${guildId} AND log_type = 'MOD' AND webhook_id = ${webhookId}
 	`;
 }
 
@@ -75,19 +77,18 @@ export async function dispatchCaseLog(modCase: AutomoderatorCases, logger: Logge
 	} catch (error) {
 		logDispatch.inc({ log_type: 'MOD', result: 'failed' });
 
-		if (error instanceof DiscordAPIError && error.status === 404) {
-			// Either the webhook or the message it points at is gone. A missing *message* is recoverable -- drop
-			// the stale id and the next dispatch posts fresh -- but a missing webhook means the channel went with
-			// it, so the row goes too.
-			if (modCase.logMessageId) {
+		if (error instanceof DiscordAPIError) {
+			if (error.code === RESTJSONErrorCodes.UnknownMessage) {
 				await updateCase(modCase.id, { logMessageId: null });
 				logger.warn({ guildId: modCase.guildId, caseId: modCase.caseId }, 'mod log message vanished, cleared it');
-			} else {
-				await forgetModLogWebhook(modCase.guildId);
-				logger.warn({ guildId: modCase.guildId }, 'mod log webhook is gone, dropped it');
+				return;
 			}
 
-			return;
+			if (error.code === RESTJSONErrorCodes.UnknownWebhook) {
+				await forgetModLogWebhook(modCase.guildId, webhook.webhookId);
+				logger.warn({ guildId: modCase.guildId, webhookId: webhook.webhookId }, 'mod log webhook is gone, dropped it');
+				return;
+			}
 		}
 
 		logger.error({ err: error, guildId: modCase.guildId, caseId: modCase.caseId }, 'failed to dispatch a case log');

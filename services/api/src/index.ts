@@ -115,6 +115,7 @@ export { default as deleteAutomoderatorCaseRoute } from './routes/automoderator/
 export { default as listAutomoderatorLogChannelsRoute } from './routes/automoderator/logChannels/listLogChannels.js';
 export { default as setAutomoderatorLogChannelRoute } from './routes/automoderator/logChannels/setLogChannel.js';
 export { default as deleteAutomoderatorLogChannelRoute } from './routes/automoderator/logChannels/deleteLogChannel.js';
+export { default as automoderatorPublicHistoryRoute } from './routes/automoderator/publicHistory.js';
 
 export { default as listExperimentsRoute } from './routes/experiments/listExperiments.js';
 export type { ExperimentWithOverrides } from './routes/experiments/listExperiments.js';

@@ -104,7 +104,7 @@ export function IncludePardonedToggle() {
 			)}
 			onPress={() => setIncludePardoned(includePardoned ? null : 'true')}
 		>
-			Include pardoned
+			Include pardoned warns
 		</Button>
 	);
 }

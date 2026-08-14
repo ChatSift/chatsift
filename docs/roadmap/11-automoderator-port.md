@@ -388,6 +388,30 @@ consumers of the same logic:
   fetch is only the fallback for a process that RESUMEd without ever seeing a READY. Consumed by the hierarchy
   guard and the audit observer.
 
+**`/myhistory` and the member-facing page.** A member can read their own record without any dashboard access,
+which no part of `isAuthed` could ever grant them — they aren't guild managers. `/myhistory` mints a
+five-minute token (`backend-core`'s `automoderatorHistoryTokens.ts`, a uuid in Redis naming one user in one
+guild) and links to `/automoderator/history/<token>`, an unauthenticated page served by
+`GET /v3/automoderator/history/:token`. That route follows `ama/questions/publicAnswers.ts`: no `middleware` at
+all, because there is no session to have.
+
+Three deliberate calls there:
+
+- **The token is not consumed on read**, only expired. Five minutes is the security control and it's absolute
+  (nothing slides the TTL); burning it on first read would break refresh and the back button for no gain, since
+  anyone holding the link inside the window can read it either way.
+- **The public payload is narrower than the moderator one** — no moderator identity, no row id, no
+  `log_message_id`, and pardoned cases excluded. Who actioned someone is staff information, and this page is
+  shown to the person the case is about.
+- **The link lives in the embed description, not the footer.** Discord renders no markdown in an embed footer,
+  so a link there would be unclickable text; the footer keeps its counts summary. `/history` gets the same
+  treatment, pointing at the gated case browser filtered to that user.
+
+**Realtime.** The case browser subscribes to `automoderatorCasesChannel`, and the _bot_ publishes on it when a
+case is filed or amended. That direction is the load-bearing one: cases originate in Discord — a moderator
+running `/ban`, or the audit observer noticing a manual one — so without the bot publishing, the dashboard only
+ever learned about them on a manual reload.
+
 Also landed: the seed script deferred out of P0 (`yarn seed:automoderator --guild <id> [--reset]`), which fills a
 guild with twelve cases spanning every action, a pardoned warn, a dry-run case, an unattributed case, and a log
 webhook pointing at a channel that does not exist — the dangling-reference bug class the dashboard's selects keep

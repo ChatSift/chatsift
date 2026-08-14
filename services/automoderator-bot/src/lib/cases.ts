@@ -1,4 +1,5 @@
-import { getContext } from '@chatsift/backend-core';
+import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
+import { automoderatorCasesChannel, formatCaseUserTag } from '@chatsift/core';
 import type { AutomoderatorCaseAction, AutomoderatorCases, Database, DatabaseTransaction } from '@chatsift/db';
 import { isUniqueViolation } from '@chatsift/db';
 import type { APIUser } from '@discordjs/core';
@@ -8,9 +9,7 @@ export interface CaseActor {
 	readonly tag: string;
 }
 
-export function formatUserTag(user: APIUser): string {
-	return user.discriminator === '0' || !user.discriminator ? user.username : `${user.username}#${user.discriminator}`;
-}
+export const formatUserTag: (user: APIUser) => string = formatCaseUserTag;
 
 export function actorFromUser(user: APIUser): CaseActor {
 	return { id: user.id, tag: formatUserTag(user) };
@@ -82,6 +81,8 @@ export async function createCase(options: CreateCaseOptions): Promise<Automodera
 			INSERT INTO automoderator_cases ${db(row)}
 			RETURNING *
 		`;
+
+		await publishRealtimeInvalidate(automoderatorCasesChannel(options.guildId));
 
 		return created!;
 	} catch (error) {
@@ -163,6 +164,8 @@ export async function updateCase(id: AutomoderatorCases['id'], patch: UpdateCase
 	if (!updated) {
 		throw new Error(`Case ${id} vanished mid-update`);
 	}
+
+	await publishRealtimeInvalidate(automoderatorCasesChannel(updated.guildId));
 
 	return updated;
 }

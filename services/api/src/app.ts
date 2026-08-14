@@ -46,6 +46,7 @@ import updateAutomoderatorConfigRoute from './routes/automoderator/config/update
 import deleteAutomoderatorLogChannelRoute from './routes/automoderator/logChannels/deleteLogChannel.js';
 import listAutomoderatorLogChannelsRoute from './routes/automoderator/logChannels/listLogChannels.js';
 import setAutomoderatorLogChannelRoute from './routes/automoderator/logChannels/setLogChannel.js';
+import automoderatorPublicHistoryRoute from './routes/automoderator/publicHistory.js';
 import dozzleWebhookRoute from './routes/dozzle/webhook.js';
 import deleteExperimentRoute from './routes/experiments/deleteExperiment.js';
 import listExperimentsRoute from './routes/experiments/listExperiments.js';
@@ -239,6 +240,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listAutomoderatorLogChannelsRoute);
 	mountRoute(app, setAutomoderatorLogChannelRoute);
 	mountRoute(app, deleteAutomoderatorLogChannelRoute);
+	mountRoute(app, automoderatorPublicHistoryRoute);
 	mountRoute(app, listExperimentsRoute);
 	mountRoute(app, upsertExperimentRoute);
 	mountRoute(app, deleteExperimentRoute);

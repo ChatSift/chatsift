@@ -46,9 +46,7 @@ function OtherCases({
 
 	return (
 		<div className="flex flex-col gap-2 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
-			<p className="text-sm font-medium text-primary dark:text-primary-dark">
-				Other cases for this user ({others.length})
-			</p>
+			<p className="text-sm font-medium text-primary dark:text-primary-dark">Other cases for this user</p>
 			<div className="flex flex-col gap-1">
 				{others.slice(0, 10).map((other) => (
 					<Link
@@ -68,6 +66,13 @@ function OtherCases({
 					</Link>
 				))}
 			</div>
+
+			<Link
+				className="text-sm text-misc-accent hover:underline"
+				href={`/dashboard/${guildId}/automoderator/cases?search=${modCase.targetId}`}
+			>
+				See all cases for this user
+			</Link>
 		</div>
 	);
 }
@@ -109,20 +114,20 @@ export function CaseDetail() {
 	return (
 		<div className="flex flex-col gap-6 lg:flex-row">
 			<div className="flex flex-1 flex-col gap-6">
-				<div className="flex flex-wrap items-center gap-3">
-					<Heading
-						subtitle={`${caseUserLabel(modCase.target, modCase.targetTag)} (${modCase.targetId})`}
-						title={`Case #${modCase.caseId}`}
-					/>
-					<span
-						className={cn(
-							'rounded-full px-2.5 py-1 text-xs font-medium',
-							ACTION_PILL_CLASSES[modCase.actionType] ?? 'bg-on-tertiary text-secondary',
-						)}
-					>
-						{ACTION_LABELS[modCase.actionType] ?? modCase.actionType}
-					</span>
-				</div>
+				<Heading
+					subtitle={`${caseUserLabel(modCase.target, modCase.targetTag)} (${modCase.targetId})`}
+					title={`Case #${modCase.caseId}`}
+					trailing={
+						<span
+							className={cn(
+								'rounded-full px-2.5 py-1 text-xs font-medium',
+								ACTION_PILL_CLASSES[modCase.actionType] ?? 'bg-on-tertiary text-secondary',
+							)}
+						>
+							{ACTION_LABELS[modCase.actionType] ?? modCase.actionType}
+						</span>
+					}
+				/>
 
 				<div className="flex flex-col gap-4 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 					<TextAreaField
@@ -204,7 +209,7 @@ export function CaseDetail() {
 				title={`Delete case #${modCase.caseId}?`}
 			>
 				This removes the case from the bot&apos;s records and from this user&apos;s history. The mod log message stays
-				where it is — a log is a record of what happened.
+				where it is.
 			</ConfirmModal>
 		</div>
 	);

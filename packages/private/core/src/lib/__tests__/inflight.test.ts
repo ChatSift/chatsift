@@ -28,6 +28,22 @@ test('memoizeAsync does not remember a failure', async () => {
 	expect(fetch).toHaveBeenCalledTimes(2);
 });
 
+test('memoizeAsync does not remember a synchronous throw either', async () => {
+	let calls = 0;
+	// eslint-disable-next-line @typescript-eslint/promise-function-async
+	const memoized = memoizeAsync<string>(() => {
+		calls++;
+		if (calls === 1) {
+			throw new Error('sync');
+		}
+
+		return Promise.resolve('value');
+	});
+
+	await expect(memoized()).rejects.toThrow('sync');
+	await expect(memoized()).resolves.toBe('value');
+});
+
 test('memoizeAsync propagates a rejection to every concurrent caller', async () => {
 	const fetch = vi.fn<() => Promise<string>>().mockRejectedValue(new Error('down'));
 	const memoized = memoizeAsync(fetch);

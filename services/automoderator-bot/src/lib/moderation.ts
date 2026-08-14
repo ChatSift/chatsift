@@ -13,6 +13,15 @@ import { casesCreated } from './metrics.js';
 // 28 days
 export const MAX_MUTE_MS = 28 * 24 * 60 * 60 * 1_000;
 
+const NOTIFY_BEFORE_ACTING = new Set<AutomoderatorCaseAction>(['KICK', 'BAN', 'SOFTBAN'] as AutomoderatorCaseAction[]);
+
+export class SoftbanUnbanError extends Error {
+	public constructor(cause: unknown) {
+		super('the softban ban succeeded but the follow-up unban failed', { cause });
+		this.name = 'SoftbanUnbanError';
+	}
+}
+
 const SIDE_EFFECT: Record<AutomoderatorCaseAction, ModerationAction | null> = {
 	WARN: null,
 	MUTE: 'mute',
@@ -59,72 +68,95 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 	// Resolved once for the row. `executeAction` resolves it again for enforcement -- they agree, and the row
 	// must never claim an action the executor suppressed.
 	const dryRun = await resolveDryRun(guildId);
+	const shouldNotify = request.notifyTarget ?? true;
 
-	if (request.notifyTarget ?? true) {
+	if (shouldNotify && NOTIFY_BEFORE_ACTING.has(action)) {
 		await notifyTarget(request, logger);
 	}
 
 	const sideEffect = SIDE_EFFECT[action];
 	let suppressed = dryRun;
+	let softbanUnbanFailure: SoftbanUnbanError | null = null;
 
 	if (sideEffect) {
 		const auditReason = buildAuditReason(mod, reason);
 
-		const result = await executeAction(
-			{
-				action: sideEffect,
-				guildId,
-				source: 'command',
-				targetId: target.id,
-				...(reason ? { reason } : {}),
-				async execute() {
-					const performers: Record<AutomoderatorCaseAction, () => Promise<unknown>> = {
-						WARN: async () => {
-							throw new Error('a warn has no Discord side effect and must not reach the executor');
-						},
-						MUTE: async () =>
-							api.guilds.editMember(
-								guildId,
-								target.id,
-								{ communication_disabled_until: new Date(Date.now() + request.durationMs!).toISOString() },
-								{ reason: auditReason },
-							),
-						UNMUTE: async () =>
-							api.guilds.editMember(
-								guildId,
-								target.id,
-								{ communication_disabled_until: null },
-								{ reason: auditReason },
-							),
-						KICK: async () => api.guilds.removeMember(guildId, target.id, { reason: auditReason }),
-						BAN: async () =>
-							api.guilds.banUser(
-								guildId,
-								target.id,
-								{ delete_message_seconds: request.deleteMessageSeconds ?? 0 },
-								{ reason: auditReason },
-							),
-						// Ban-then-unban: the ban is only a vehicle for the message deletion, so the member is free
-						// to rejoin immediately. Both halves carry the same audit reason.
-						SOFTBAN: async () => {
-							await api.guilds.banUser(
-								guildId,
-								target.id,
-								{ delete_message_seconds: request.deleteMessageSeconds ?? 86_400 },
-								{ reason: auditReason },
-							);
-							await api.guilds.unbanUser(guildId, target.id, { reason: auditReason });
-						},
-						UNBAN: async () => api.guilds.unbanUser(guildId, target.id, { reason: auditReason }),
-					};
+		try {
+			const result = await executeAction(
+				{
+					action: sideEffect,
+					guildId,
+					source: 'command',
+					targetId: target.id,
+					...(reason ? { reason } : {}),
+					async execute() {
+						const performers: Record<AutomoderatorCaseAction, () => Promise<unknown>> = {
+							WARN: async () => {
+								throw new Error('a warn has no Discord side effect and must not reach the executor');
+							},
+							MUTE: async () =>
+								api.guilds.editMember(
+									guildId,
+									target.id,
+									{ communication_disabled_until: new Date(Date.now() + request.durationMs!).toISOString() },
+									{ reason: auditReason },
+								),
+							UNMUTE: async () =>
+								api.guilds.editMember(
+									guildId,
+									target.id,
+									{ communication_disabled_until: null },
+									{ reason: auditReason },
+								),
+							KICK: async () => api.guilds.removeMember(guildId, target.id, { reason: auditReason }),
+							BAN: async () =>
+								api.guilds.banUser(
+									guildId,
+									target.id,
+									{ delete_message_seconds: request.deleteMessageSeconds ?? 0 },
+									{ reason: auditReason },
+								),
+							// Ban-then-unban: the ban is only a vehicle for the message deletion, so the member is free
+							// to rejoin immediately. Both halves carry the same audit reason.
+							SOFTBAN: async () => {
+								await api.guilds.banUser(
+									guildId,
+									target.id,
+									{ delete_message_seconds: request.deleteMessageSeconds ?? 86_400 },
+									{ reason: auditReason },
+								);
 
-					await performers[action]();
+								try {
+									await api.guilds.unbanUser(guildId, target.id, { reason: auditReason });
+								} catch (error) {
+									throw new SoftbanUnbanError(error);
+								}
+							},
+							UNBAN: async () => api.guilds.unbanUser(guildId, target.id, { reason: auditReason }),
+						};
+
+						await performers[action]();
+					},
 				},
-			},
-			logger,
-		);
+				logger,
+			);
 
-		suppressed = result.suppressed;
+			suppressed = result.suppressed;
+		} catch (error) {
+			if (!(error instanceof SoftbanUnbanError)) {
+				throw error;
+			}
+
+			// The ban landed and only the lift failed, so the member really *was* actioned. Fall through and file
+			// the case, then rethrow once it's recorded -- a banned member with no case explaining it is the worst
+			// outcome available here, and it's exactly what rethrowing straight away would produce.
+			softbanUnbanFailure = error;
+			suppressed = false;
+		}
+	}
+
+	if (shouldNotify && !NOTIFY_BEFORE_ACTING.has(action)) {
+		await notifyTarget(request, logger);
 	}
 
 	const filed = await createCase({
@@ -143,6 +175,12 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 	casesCreated.inc({ action, source: 'command' });
 
 	await dispatchCaseLog(filedCase, logger);
+
+	// Rethrown only now that the case exists and its log is out, so the moderator's error message and the
+	// permanent record agree about what happened.
+	if (softbanUnbanFailure) {
+		throw softbanUnbanFailure;
+	}
 
 	return { case: filedCase, suppressed };
 }

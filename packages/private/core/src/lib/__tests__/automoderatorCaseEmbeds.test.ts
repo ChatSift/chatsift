@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import type { CaseEmbedInput } from '../automoderatorCaseEmbeds.js';
-import { buildCaseEmbed, formatCaseDuration } from '../automoderatorCaseEmbeds.js';
+import { buildCaseEmbed, formatCaseDuration, formatCaseUserTag } from '../automoderatorCaseEmbeds.js';
 
 const CREATED_AT = new Date('2026-08-14T12:00:00.000Z');
 
@@ -78,6 +78,28 @@ test('says out loud when nothing actually happened', () => {
 test('names who pardoned a case', () => {
 	const embed = buildCaseEmbed(makeCase({ actionType: 'WARN', pardonedBy: '9' }));
 	expect(embed.fields?.find((field) => field.name === 'Pardoned by')?.value).toBe('<@9>');
+});
+
+// A reason can arrive from somewhere that never saw the commands' 400-character cap -- a legacy row at P9, or
+// an audit-log reason typed straight into Discord. Over 256 the whole embed is rejected and the case silently
+// never reaches the mod log.
+test('truncates a title that would exceed Discord embed limit', () => {
+	const embed = buildCaseEmbed(makeCase({ reason: 'x'.repeat(500) }));
+
+	expect(embed.title!.length).toBeLessThanOrEqual(256);
+	expect(embed.title!.endsWith('…')).toBe(true);
+});
+
+test('leaves a title that fits alone', () => {
+	expect(buildCaseEmbed(makeCase({ reason: 'spam' })).title).toBe('Was banned for spam');
+});
+
+test('formats a user tag, dropping the post-pomelo placeholder discriminator', () => {
+	expect(formatCaseUserTag({ username: 'someone', discriminator: '0' })).toBe('someone');
+	expect(formatCaseUserTag({ username: 'someone' })).toBe('someone');
+	expect(formatCaseUserTag({ username: 'someone', discriminator: null })).toBe('someone');
+	// A legacy account that never migrated keeps its discriminator, so migrated rows read the same at P9.
+	expect(formatCaseUserTag({ username: 'someone', discriminator: '1234' })).toBe('someone#1234');
 });
 
 test('formats durations down to the largest whole unit', () => {

@@ -97,11 +97,25 @@ export default class CaseCommand implements CommandHandler {
 
 		await api.interactions.defer(interaction.id, interaction.token, { flags: MessageFlags.Ephemeral });
 
+		try {
+			await this.dispatch(interaction, interaction.guild_id, logger, reply);
+		} catch (error) {
+			logger.error({ err: error }, '/case failed');
+			await reply('That failed, and the case may not have been changed. The error has been logged.');
+		}
+	}
+
+	private async dispatch(
+		interaction: APIApplicationCommandInteraction,
+		guildId: string,
+		logger: Logger,
+		reply: (content: string) => Promise<void>,
+	): Promise<void> {
 		const options = new ChatInputInteractionOptionResolver(interaction as APIChatInputApplicationCommandInteraction);
 		const subcommand = options.getSubcommand(true);
 		const caseNumber = options.getInteger('case', true);
 
-		const modCase = await getCaseByNumber(interaction.guild_id, caseNumber);
+		const modCase = await getCaseByNumber(guildId, caseNumber);
 		if (!modCase) {
 			await reply(`There is no case #${caseNumber} in this server.`);
 			return;
@@ -130,7 +144,7 @@ export default class CaseCommand implements CommandHandler {
 					return;
 				}
 
-				const reference = await getCaseByNumber(interaction.guild_id, refId);
+				const reference = await getCaseByNumber(guildId, refId);
 				if (!reference) {
 					await reply(`There is no case #${refId} in this server.`);
 					return;

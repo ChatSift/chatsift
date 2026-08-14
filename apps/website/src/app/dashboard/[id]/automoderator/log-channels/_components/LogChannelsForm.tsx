@@ -41,7 +41,7 @@ export function LogChannelsForm() {
 		return <UserErrorHandler error={error} />;
 	}
 
-	if (isLoading || channelId === null) {
+	if (isLoading || !logChannels || channelId === null) {
 		return <Skeleton className="h-40 w-full rounded-lg" />;
 	}
 

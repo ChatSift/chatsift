@@ -65,6 +65,10 @@ export function formatCaseDuration(ms: number): string {
 	return 'a moment';
 }
 
+export function formatCaseUserTag(user: { discriminator?: string | null; username: string }): string {
+	return user.discriminator === '0' || !user.discriminator ? user.username : `${user.username}#${user.discriminator}`;
+}
+
 /**
  * Structurally satisfied by an `automoderator_cases` row, minus its branded id and the action's enum type.
  */
@@ -93,6 +97,12 @@ export interface CaseEmbedOptions {
 	 * The case `ref_id` points at, already resolved, so the embed can link to its log message.
 	 */
 	readonly reference?: { logMessageId: string | null } | null;
+}
+
+const TITLE_LIMIT = 256;
+
+function truncate(value: string, limit: number): string {
+	return value.length <= limit ? value : `${value.slice(0, limit - 1)}…`;
 }
 
 export function buildCaseEmbed(modCase: CaseEmbedInput, options: CaseEmbedOptions = {}): APIEmbed {
@@ -134,7 +144,10 @@ export function buildCaseEmbed(modCase: CaseEmbedInput, options: CaseEmbedOption
 	return {
 		color: LOG_COLORS[modCase.actionType],
 		author: { name: `${modCase.targetTag} (${modCase.targetId})` },
-		title: `Was ${ACTION_PAST_TENSE[modCase.actionType]}${modCase.reason ? ` for ${modCase.reason}` : ''}`,
+		title: truncate(
+			`Was ${ACTION_PAST_TENSE[modCase.actionType]}${modCase.reason ? ` for ${modCase.reason}` : ''}`,
+			TITLE_LIMIT,
+		),
 		footer: {
 			text: `Case ${modCase.caseId}${modCase.modTag ? ` | By ${modCase.modTag} (${modCase.modId})` : ''}`,
 		},

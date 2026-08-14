@@ -1,5 +1,6 @@
 import type {
 	InferRouteContract,
+	automoderatorPublicHistoryRoute,
 	deleteAutomoderatorCaseRoute,
 	deleteAutomoderatorLogChannelRoute,
 	getAutomoderatorCaseRoute,
@@ -27,6 +28,20 @@ export type AutomoderatorLogChannels = ListLogChannelsContract['response'];
 
 type SetLogChannelContract = InferRouteContract<typeof setAutomoderatorLogChannelRoute>;
 export type SetAutomoderatorLogChannelBody = SetLogChannelContract['body'];
+
+type PublicHistoryContract = InferRouteContract<typeof automoderatorPublicHistoryRoute>;
+export type PublicHistoryResult = PublicHistoryContract['response'];
+
+/**
+ * The unauthenticated `/myhistory` page
+ */
+export function useAutomoderatorPublicHistory(token: string) {
+	return useQuery({
+		queryKey: ['api', 'automoderator', 'public-history', token] as const,
+		queryFn: async () => apiFetch<PublicHistoryResult>('get', `/v3/automoderator/history/${token}`),
+		retry: false,
+	});
+}
 
 export interface CaseFilters {
 	action?: string | undefined;

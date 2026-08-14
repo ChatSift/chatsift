@@ -33,6 +33,9 @@ export function memoizeAsync<TValue>(fetch: () => Promise<TValue>): () => Promis
 	let cached: Promise<TValue> | null = null;
 
 	const attempt = async (): Promise<TValue> => {
+		// bit of a hack to deal with a `fetch` being sync and potentially immediately throwing
+		await Promise.resolve();
+
 		try {
 			return await fetch();
 		} catch (error) {

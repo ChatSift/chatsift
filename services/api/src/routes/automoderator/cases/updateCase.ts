@@ -1,5 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
-import { automoderatorCasesChannel } from '@chatsift/core';
+import { automoderatorCasesChannel, formatCaseUserTag } from '@chatsift/core';
 import type { AutomoderatorCases } from '@chatsift/db';
 import { badRequest, notFound } from '@hapi/boom';
 import { z } from 'zod';
@@ -75,11 +75,20 @@ export default defineRoute({
 		}
 
 		// Backfills attribution on a case nobody was credited for (an observed manual action whose moderator
-		// couldn't be resolved, or a filter hit), matching what `/case reason` does bot-side.
-		if (!existing.modId) {
+		// couldn't be resolved, or -- from P5 -- a filter hit the bot authored).
+		//
+		// Gated to the edits that actually re-author the case, mirroring the bot: `/case pardon` writes only
+		// `pardonedBy` and never touches `mod`. Who pardoned a case is a different fact from who issued it, and
+		// `pardoned_by` already records the first one -- crediting the pardoner as the acting moderator would
+		// overwrite "the filter did this" with "whoever forgave it did this".
+		const reauthors = 'reason' in data || 'refId' in data;
+
+		if (reauthors && !existing.modId) {
 			const actor = await resolveDiscordUser(discordAPIAutomoderator, actorId);
 			columns.modId = actorId;
-			columns.modTag = typeof actor === 'string' ? actorId : actor.username;
+			// The shared tag format, not a bare `.username`: that drops the discriminator on a legacy account and
+			// the mod-log footer then disagrees with every case the bot filed.
+			columns.modTag = typeof actor === 'string' ? actorId : formatCaseUserTag(actor);
 		}
 
 		const [updated] = await db<AutomoderatorCases[]>`
@@ -88,9 +97,15 @@ export default defineRoute({
 			RETURNING *
 		`;
 
-		await refreshCaseLog(updated!);
+		// Deleted between the read above and this write. Reporting it as a 404 is both true and what the client
+		// already handles; the alternative is a 500 out of the non-null assertions below.
+		if (!updated) {
+			throw notFound('case not found');
+		}
 
-		const [resolved] = await resolveCaseUsers([updated!]);
+		await refreshCaseLog(updated);
+
+		const [resolved] = await resolveCaseUsers([updated]);
 		return resolved!;
 	},
 });

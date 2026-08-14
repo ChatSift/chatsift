@@ -7,10 +7,11 @@ import type {
 	APIUser,
 } from '@discordjs/core';
 import { MessageFlags } from '@discordjs/core';
+import { DiscordAPIError } from '@discordjs/rest';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { ACTION_PAST_TENSE } from './caseFormat.js';
-import { actorFromUser } from './cases.js';
-import { applyModerationAction } from './moderation.js';
+import { actorFromUser, getCaseByNumber } from './cases.js';
+import { SoftbanUnbanError, applyModerationAction } from './moderation.js';
 import { checkActorHierarchy, checkBotHierarchy } from './permissions.js';
 
 export type ModCommandExtra = string | { deleteMessageSeconds?: number; durationMs?: number };
@@ -52,59 +53,52 @@ export async function runModCommand(
 
 	await api.interactions.defer(interaction.id, interaction.token, { flags: MessageFlags.Ephemeral });
 
-	const options = new ChatInputInteractionOptionResolver(interaction as APIChatInputApplicationCommandInteraction);
-	const targetUser = options.getUser('user', true) as APIUser;
-	const reason = options.getString('reason') ?? null;
-	const refId = options.getInteger('reference') ?? null;
+	try {
+		const options = new ChatInputInteractionOptionResolver(interaction as APIChatInputApplicationCommandInteraction);
+		const targetUser = options.getUser('user', true) as APIUser;
+		const reason = options.getString('reason') ?? null;
+		const refId = options.getInteger('reference') ?? null;
 
-	// Null when they aren't in the guild, which is how "this person isn't here" is detected -- no REST call
-	// either way, since a USER option always carries the resolved member alongside the user.
-	const targetMember = options.getMember('user') ?? null;
+		// Null when they aren't in the guild, which is how "this person isn't here" is detected -- no REST call
+		// either way, since a USER option always carries the resolved member alongside the user.
+		const targetMember = options.getMember('user') ?? null;
 
-	if (spec.requiresMember !== false && !targetMember) {
-		await reply('That user is not in this server.');
-		return;
-	}
+		if (spec.requiresMember !== false && !targetMember) {
+			await reply('That user is not in this server.');
+			return;
+		}
 
-	const guild = await api.guilds.get(interaction.guild_id);
+		const guild = await api.guilds.get(interaction.guild_id);
 
-	const actorVerdict = checkActorHierarchy({
-		actor: interaction.member,
-		guild,
-		target: targetMember,
-		targetId: targetUser.id,
-	});
+		const actorVerdict = checkActorHierarchy({
+			actor: interaction.member,
+			guild,
+			target: targetMember,
+			targetId: targetUser.id,
+		});
 
-	if (!actorVerdict.ok) {
-		await reply(actorVerdict.reason);
-		return;
-	}
+		if (!actorVerdict.ok) {
+			await reply(actorVerdict.reason);
+			return;
+		}
 
-	const botVerdict = await checkBotHierarchy(guild, targetMember);
-	if (!botVerdict.ok) {
-		await reply(botVerdict.reason);
-		return;
-	}
+		const botVerdict = await checkBotHierarchy(guild, targetMember);
+		if (!botVerdict.ok) {
+			await reply(botVerdict.reason);
+			return;
+		}
 
-	const extra = spec.extra?.(options) ?? {};
-	if (typeof extra === 'string') {
-		await reply(extra);
-		return;
-	}
+		const extra = spec.extra?.(options) ?? {};
+		if (typeof extra === 'string') {
+			await reply(extra);
+			return;
+		}
 
-	if (refId !== null) {
-		const [reference] = await getContext().db<{ caseId: number }[]>`
-			SELECT case_id FROM automoderator_cases
-			WHERE guild_id = ${interaction.guild_id} AND case_id = ${refId}
-		`;
-
-		if (!reference) {
+		if (refId !== null && !(await getCaseByNumber(interaction.guild_id, refId))) {
 			await reply(`There is no case #${refId} in this server.`);
 			return;
 		}
-	}
 
-	try {
 		const result = await applyModerationAction(
 			{
 				action: spec.action,
@@ -128,9 +122,22 @@ export async function runModCommand(
 				: `Successfully ${verb} ${targetUser.username}. ${suffix}`,
 		);
 	} catch (error) {
-		logger.error({ err: error, action: spec.action, targetId: targetUser.id }, 'a mod command failed');
-		await reply(
-			'Discord refused that. Check that I have the permission for this action and that my role is above the target.',
+		logger.error({ err: error, action: spec.action }, 'a mod command failed');
+		await reply(describeCommandFailure(error));
+	}
+}
+
+function describeCommandFailure(error: unknown): string {
+	if (error instanceof SoftbanUnbanError) {
+		return (
+			'I banned them and deleted their messages, but then failed to lift the ban — **they are still banned**. ' +
+			'Unban them manually, or run `/unban`.'
 		);
 	}
+
+	if (error instanceof DiscordAPIError) {
+		return `Discord refused that (${error.message}). Check that I have the permission for this action and that my role is above the target.`;
+	}
+
+	return 'That failed on our side, and the action may not have been carried out. The error has been logged.';
 }
