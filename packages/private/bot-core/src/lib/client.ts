@@ -62,8 +62,15 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 
 	const client = new Client({ rest, gateway });
 
+	// The heartbeat below starts ticking as soon as the client is built, which is before the shard has identified
+	// -- and there is no bound on how long that takes (identify throttling across shards, a session-start rate
+	// limit, a slow gateway). Until the first READY/RESUMED has published a slice there is no state to lose, so
+	// treating the absent key as expiry would kill the process for the crime of still starting up.
+	let publishing = false;
+
 	// Losing the guild set is unrecoverable from a resumed session without a massive amount of API requests
 	async function recoverLostGuildList(reason: string): Promise<void> {
+		publishing = false;
 		getContext().logger.error({ botId, reason }, 'lost the guild list, dropping the session to force a re-identify');
 
 		try {
@@ -125,6 +132,8 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 				return;
 			}
 
+			publishing = true;
+
 			await bootstrapOnce();
 		})
 		.on(GatewayDispatchEvents.InteractionCreate, async ({ data: interaction }) => {
@@ -165,6 +174,7 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 			// A fresh IDENTIFY re-announces every guild via GUILD_CREATE, so anything already under this index
 			// belongs to a previous life of it and must not survive. This is the only place the set is cleared.
 			await resetGuildList(botId, getReplicaIndex());
+			publishing = true;
 
 			await bootstrapOnce(data.application.id);
 		});
@@ -173,6 +183,10 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 	// already gone (a redis outage outlasting the TTL) is the same lost-state condition the resume path handles,
 	// and is recovered the same way rather than left to run empty.
 	setInterval(async () => {
+		if (!publishing) {
+			return;
+		}
+
 		try {
 			if (!(await touchGuildList(botId, getReplicaIndex()))) {
 				await recoverLostGuildList('guild list expired while running');

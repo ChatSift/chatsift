@@ -11,23 +11,27 @@ import {
 } from '../data/bots.js';
 
 const sets = new Map<string, Set<string>>();
+const strings = new Map<string, string>();
 const expiries = new Map<string, number>();
 const error = vi.fn();
 let now = 1_000_000;
 
 /**
- * Models redis expiry on the *set* keys, so a slice ageing out is a real state this fake can reach rather than
- * something only production ever sees.
+ * Models redis expiry, so a slice ageing out is a real state this fake can reach rather than something only
+ * production ever sees. Set and string keys share one keyspace here, as they do in redis.
  */
 function live(key: string): boolean {
 	const expiresAt = expiries.get(key);
 	if (expiresAt !== undefined && expiresAt <= now) {
 		sets.delete(key);
+		strings.delete(key);
 		expiries.delete(key);
 		return false;
 	}
 
-	return sets.has(key);
+	// Redis has no empty sets: a set key with no members does not exist. Modelled, because the crash loop this
+	// suite regression-tests came from exactly that -- see the zero-guild tests below.
+	return strings.has(key) || (sets.get(key)?.size ?? 0) > 0;
 }
 
 // The real client is built `.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer })`, so `sMembers` hands back
@@ -39,10 +43,19 @@ vi.mock('../context.js', () => ({
 		redis: {
 			async del(key: string) {
 				sets.delete(key);
+				strings.delete(key);
 				expiries.delete(key);
 			},
 			async exists(key: string) {
 				return live(key) ? 1 : 0;
+			},
+			async set(key: string, value: string, options?: { expiration?: { type: 'PX'; value: number } }) {
+				strings.set(key, value);
+				if (options?.expiration) {
+					expiries.set(key, now + options.expiration.value);
+				}
+
+				return 'OK';
 			},
 			async pExpire(key: string, ttl: number) {
 				if (!live(key)) {
@@ -62,9 +75,10 @@ vi.mock('../context.js', () => ({
 			async sMembers(key: string) {
 				return live(key) ? [...sets.get(key)!].map((member) => Buffer.from(member)) : [];
 			},
-			async sRem(key: string, members: string[]) {
+			async sRem(key: string, members: string[] | string) {
 				const set = sets.get(key);
-				for (const member of members) {
+				// Both call shapes are real: a single guild id, or the batch of stale replica indices.
+				for (const member of Array.isArray(members) ? members : [members]) {
 					set?.delete(member);
 				}
 			},
@@ -73,12 +87,16 @@ vi.mock('../context.js', () => ({
 }));
 
 function expireSlice(id: string, replicaIndex: number): void {
-	sets.delete(`guilds:${id}:${replicaIndex}`);
-	expiries.delete(`guilds:${id}:${replicaIndex}`);
+	for (const key of [`guilds:${id}:${replicaIndex}`, `guildslive:${id}:${replicaIndex}`]) {
+		sets.delete(key);
+		strings.delete(key);
+		expiries.delete(key);
+	}
 }
 
 beforeEach(() => {
 	sets.clear();
+	strings.clear();
 	expiries.clear();
 	error.mockReset();
 	now = 1_000_000;
@@ -93,6 +111,8 @@ test('reads back the guilds one replica added', async () => {
 });
 
 test('unions across replicas, deduplicating', async () => {
+	await resetGuildList('AMA', 0);
+	await resetGuildList('AMA', 1);
 	await addGuildToList('AMA', 0, '1');
 	await addGuildToList('AMA', 0, '2');
 	await addGuildToList('AMA', 1, '2');
@@ -102,6 +122,9 @@ test('unions across replicas, deduplicating', async () => {
 });
 
 test('keys are per bot, and a custom instance is its own key', async () => {
+	await resetGuildList('AMA', 0);
+	await resetGuildList('MODMAIL', 0);
+	await resetGuildList('MODMAIL#nascar', 0);
 	await addGuildToList('AMA', 0, '1');
 	await addGuildToList('MODMAIL', 0, '2');
 	await addGuildToList('MODMAIL#nascar', 0, '3');
@@ -116,6 +139,7 @@ test('a bot nothing has published for reads as empty', async () => {
 });
 
 test('leaving a guild removes it without touching the rest', async () => {
+	await resetGuildList('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 	await addGuildToList('AMA', 0, '2');
 
@@ -125,6 +149,8 @@ test('leaving a guild removes it without touching the rest', async () => {
 });
 
 test('a crashed replica drops out of the union once its slice expires', async () => {
+	await resetGuildList('AMA', 0);
+	await resetGuildList('AMA', 1);
 	await addGuildToList('AMA', 0, '1');
 	await addGuildToList('AMA', 1, '2');
 
@@ -138,6 +164,7 @@ test('a crashed replica drops out of the union once its slice expires', async ()
 test('the set survives a graceful shutdown so the next boot can resume onto it', async () => {
 	// The regression this whole shape exists for: a resumed session gets no GUILD_CREATE sweep, so if shutdown
 	// destroyed the state there would be nothing left to resume onto and the bot would advertise no guilds.
+	await resetGuildList('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 	await dropGuildList('AMA', 0);
 
@@ -151,6 +178,7 @@ test('the set survives a graceful shutdown so the next boot can resume onto it',
 });
 
 test('READY starts the slice over, RESUMED does not', async () => {
+	await resetGuildList('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 	await addGuildToList('AMA', 0, '2');
 
@@ -161,6 +189,7 @@ test('READY starts the slice over, RESUMED does not', async () => {
 });
 
 test('the heartbeat re-arms the TTL rather than rewriting the set', async () => {
+	await resetGuildList('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 
 	now += 50_000;
@@ -172,9 +201,52 @@ test('the heartbeat re-arms the TTL rather than rewriting the set', async () => 
 });
 
 test('the heartbeat reports a slice that expired underneath it', async () => {
+	await resetGuildList('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 	expireSlice('AMA', 0);
 
 	// `false` is what makes the caller force a re-identify instead of running on an empty guild list.
 	await expect(touchGuildList('AMA', 0)).resolves.toBe(false);
+});
+
+// The AutoModerator canary crash loop: it was in no guilds, so there was no set key for the heartbeat to
+// re-arm, every tick read that as expiry, and the bot SIGTERM'd itself roughly every ten seconds forever.
+test('a bot in no guilds stays alive indefinitely', async () => {
+	await resetGuildList('AUTOMODERATOR', 0);
+
+	for (let tick = 0; tick < 100; tick++) {
+		now += 10_000;
+		await expect(touchGuildList('AUTOMODERATOR', 0)).resolves.toBe(true);
+	}
+
+	await expect(guildListExists('AUTOMODERATOR', 0)).resolves.toBe(true);
+	await expect(readGuildList('AUTOMODERATOR')).resolves.toStrictEqual([]);
+});
+
+test('a bot in no guilds can resume onto its empty slice', async () => {
+	await resetGuildList('AUTOMODERATOR', 0);
+	await dropGuildList('AUTOMODERATOR', 0);
+
+	// Empty is a legitimate state, not lost state -- reporting `false` here is what forced the re-identify.
+	await expect(guildListExists('AUTOMODERATOR', 0)).resolves.toBe(true);
+});
+
+test('an empty slice still expires when nothing is heartbeating it', async () => {
+	await resetGuildList('AUTOMODERATOR', 0);
+
+	now += 61_000;
+
+	await expect(guildListExists('AUTOMODERATOR', 0)).resolves.toBe(false);
+	await expect(touchGuildList('AUTOMODERATOR', 0)).resolves.toBe(false);
+});
+
+test('the last guild leaving does not read as lost state', async () => {
+	await resetGuildList('AMA', 0);
+	await addGuildToList('AMA', 0, '1');
+	await removeGuildFromList('AMA', 0, '1');
+
+	// Redis drops a set the moment its last member goes, so this is the running bot's route into the same
+	// zero-guild condition a fresh app boots into.
+	await expect(touchGuildList('AMA', 0)).resolves.toBe(true);
+	await expect(readGuildList('AMA')).resolves.toStrictEqual([]);
 });
