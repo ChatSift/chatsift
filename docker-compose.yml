@@ -54,12 +54,13 @@ services:
       - ./.env.public
       - ./.env.private
     environment:
-      DATA_SOURCE_NAME: '${DATABASE_URL_PROD}?sslmode=disable'
+      DATA_SOURCE_NAME: 'postgres://chatsift_exporter:${POSTGRES_EXPORTER_PASSWORD}@postgres:5432/chatsift?sslmode=disable'
     command:
       - '--collector.stat_statements'
       - '--collector.stat_statements.include_query'
       - '--collector.stat_statements.query_length=200'
       - '--collector.stat_statements.limit=20'
+      - '--collector.stat_statements.exclude_users=chatsift_exporter'
     depends_on:
       - postgres
 

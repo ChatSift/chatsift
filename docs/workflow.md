@@ -78,6 +78,42 @@ The restart is required because `shared_preload_libraries` is a postmaster-conte
 this yourself on each already-running Postgres (local + prod) — it's not something an agent should run on your
 behalf.
 
+#### The exporter's own monitoring role
+
+`postgres-exporter` connects as `chatsift_exporter`, not as `chatsift`. That separation is what makes its scrape
+traffic filterable, and it buys two things that are impossible while it shares the application's role:
+
+- **Out of the Grafana top-slowest table** — `--collector.stat_statements.exclude_users=chatsift_exporter` in
+  `docker-compose.yml`. Its `pg_stat_user_tables`/`pg_settings` reads run every 15s and otherwise sit at the top
+  of a table whose entire purpose is surfacing queries we wrote.
+- **Out of the slow-query log** — `ALTER ROLE chatsift_exporter SET log_min_duration_statement = -1`. There is no
+  exporter-side equivalent for this one: the log is written by Postgres, so a per-role override is the only
+  lever. It is also what makes lowering `POSTGRES_SLOW_QUERY_LOG_MS` worth doing — without it, any threshold low
+  enough to catch a query drifting from 3ms to 80ms also logs the exporter forever.
+
+`build/postgres/init/02-monitoring-role.sh` creates it on a fresh volume. **Same one-time manual step as above on
+an already-provisioned database** — the password comes from `POSTGRES_EXPORTER_PASSWORD` in `.env.public` (it sits
+there rather than in `.env.private` because this role is strictly weaker than the `chatsift` owner whose password is
+already checked in beside it, and postgres is never externally reachable):
+
+```sh
+./compose exec postgres psql -U chatsift -v password="$(grep -m1 '^POSTGRES_EXPORTER_PASSWORD=' .env.public | cut -d= -f2-)" \
+  -c "CREATE ROLE chatsift_exporter LOGIN" \
+  -c "ALTER ROLE chatsift_exporter WITH PASSWORD :'password'" \
+  -c "GRANT pg_monitor TO chatsift_exporter" \
+  -c "GRANT USAGE ON SCHEMA public TO chatsift_exporter" \
+  -c "ALTER ROLE chatsift_exporter SET log_min_duration_statement = -1"
+./compose up -d --force-recreate postgres-exporter
+```
+
+Both grants are load-bearing. `pg_monitor` is what stops other roles' query text reading as
+`<insufficient privilege>`. The `USAGE ON SCHEMA public` is easy to miss and fails differently: `pg_stat_statements`
+is a view in whichever schema the extension was created in, and this database's `public` grants PUBLIC no USAGE, so
+the read dies with `permission denied for schema public` before any monitoring privilege is consulted — the
+collector then produces nothing at all. Existing rows in
+`pg_stat_statements` are still attributed to `chatsift`, so the old exporter entries linger until the view is
+reset (`SELECT pg_stat_statements_reset();`) or Postgres restarts — the filter only applies going forward.
+
 ### API request metrics (#277)
 
 Reuses the same Prometheus/Grafana infra as #270, plus one new npm dependency: `prom-client` in `services/api`. The
