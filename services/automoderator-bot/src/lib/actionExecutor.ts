@@ -7,16 +7,7 @@ import { discordErrors, dryRunSuppressions, moderationActions } from './metrics.
  * Every side effect this bot can have on Discord. A closed set, because it is also a metric label -- adding a
  * kind of action is a deliberate edit here, not something a call site can invent.
  */
-export type ModerationAction =
-	| 'ban'
-	| 'delete'
-	| 'dm'
-	| 'kick'
-	| 'mute'
-	| 'role'
-	| 'unban'
-	| 'unmute'
-	| 'webhook';
+export type ModerationAction = 'ban' | 'delete' | 'dm' | 'kick' | 'mute' | 'role' | 'unban' | 'unmute' | 'webhook';
 
 /**
  * What decided the action. Also a metric label, also closed. `command` is a moderator typing something;
@@ -117,7 +108,7 @@ export async function executeAction(request: ActionRequest, logger: Logger): Pro
 	} catch (error) {
 		// `status` is what `DiscordAPIError`/`HTTPError` both carry; anything else is a transport failure with
 		// no HTTP status of its own, which is still worth counting under a stable label.
-		const status = String((error as { status?: number }).status ?? 'unknown');
+		const status = String((error as { status?: number } | null | undefined)?.status ?? 'unknown');
 		discordErrors.inc({ status, route_class: ROUTE_CLASS[action] });
 		throw error;
 	}

@@ -69,10 +69,7 @@ test('an action is counted either way, labelled by whether it was suppressed', a
 test('the invocation override is passed through to resolution', async () => {
 	resolveDryRun.mockResolvedValue(true);
 
-	await executeAction(
-		{ action: 'mute', guildId: '9', source: 'command', previewOnly: true, execute: vi.fn() },
-		logger,
-	);
+	await executeAction({ action: 'mute', guildId: '9', source: 'command', previewOnly: true, execute: vi.fn() }, logger);
 
 	expect(resolveDryRun).toHaveBeenCalledWith('9', true);
 });
@@ -88,6 +85,21 @@ test('a rejected Discord call is rethrown, and counted as an error rather than a
 	// The point of the split: "we banned N people" must never include the ones Discord refused.
 	expect(await counterValue('automoderator_moderation_actions_total')).toBe(0);
 	expect(await counterValue('automoderator_discord_errors_total')).toBe(1);
+});
+
+test('a nullish rejection is still counted, and rethrown unchanged', async () => {
+	resolveDryRun.mockResolvedValue(false);
+
+	for (const rejection of [undefined, null]) {
+		discordErrors.reset();
+		const execute = vi.fn().mockRejectedValue(rejection);
+
+		await expect(executeAction({ action: 'delete', guildId: '1', source: 'automod', execute }, logger)).rejects.toBe(
+			rejection,
+		);
+
+		expect(await counterValue('automoderator_discord_errors_total')).toBe(1);
+	}
 });
 
 test('a transport failure with no HTTP status still lands under a stable label', async () => {
