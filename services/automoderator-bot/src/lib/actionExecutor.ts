@@ -1,7 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
 import { traceDecision } from './decisionTrace.js';
 import { resolveDryRun } from './dryRun.js';
-import { dryRunSuppressions, moderationActions } from './metrics.js';
+import { discordErrors, dryRunSuppressions, moderationActions } from './metrics.js';
 
 /**
  * Every side effect this bot can have on Discord. A closed set, because it is also a metric label -- adding a
@@ -47,6 +47,22 @@ export interface ActionRequest {
 	readonly targetId?: string;
 }
 
+/**
+ * Coarse bucket for `discordErrors`, derived from the action rather than the URL so cardinality stays bounded
+ * by this map instead of by however many guilds/members/messages get touched.
+ */
+const ROUTE_CLASS: Record<ModerationAction, string> = {
+	ban: 'member',
+	unban: 'member',
+	kick: 'member',
+	mute: 'member',
+	unmute: 'member',
+	role: 'member',
+	delete: 'message',
+	dm: 'user',
+	webhook: 'webhook',
+};
+
 export interface ActionResult {
 	/**
 	 * True when the side effect was suppressed. Callers that reply to a user branch on this to say "here's
@@ -69,8 +85,9 @@ export interface ActionResult {
  * filed, flagged `dry_run` -- see the roadmap's Dry-run section for why.
  *
  * A failed Discord call is rethrown rather than swallowed: the caller knows what a failure means for its own
- * flow (a case row to roll back, a reply to reword) and this does not. What it does own is making sure the
- * failure was counted first.
+ * flow (a case row to roll back, a reply to reword) and this does not. What it does own is counting it
+ * honestly -- a rejected call increments `discordErrors`, never `moderationActions`, so an "actions taken"
+ * panel can't quietly include actions Discord refused.
  */
 export async function executeAction(request: ActionRequest, logger: Logger): Promise<ActionResult> {
 	const { action, guildId, source, targetId, reason, decidedBy, previewOnly } = request;
@@ -86,17 +103,27 @@ export async function executeAction(request: ActionRequest, logger: Logger): Pro
 		...(decidedBy === undefined ? {} : { matched: decidedBy }),
 	});
 
-	// Labelled `dry_run` rather than skipped entirely, so intent and enforcement sit on one axis: a panel can
-	// show what the bot decided next to what it actually did.
-	moderationActions.inc({ action, source, dry_run: String(suppressed) });
-
 	if (suppressed) {
+		// Labelled `dry_run` rather than skipped entirely, so intent and enforcement sit on one axis: a panel
+		// can show what the bot decided next to what it actually did.
+		moderationActions.inc({ action, source, dry_run: 'true' });
 		dryRunSuppressions.inc({ action });
 		logger.info({ action, guildId, targetId, reason }, 'dry-run: suppressed a Discord side effect');
 		return { suppressed: true };
 	}
 
-	await request.execute();
+	try {
+		await request.execute();
+	} catch (error) {
+		// `status` is what `DiscordAPIError`/`HTTPError` both carry; anything else is a transport failure with
+		// no HTTP status of its own, which is still worth counting under a stable label.
+		const status = String((error as { status?: number }).status ?? 'unknown');
+		discordErrors.inc({ status, route_class: ROUTE_CLASS[action] });
+		throw error;
+	}
+
+	// Counted only once Discord has accepted it -- see the doc comment.
+	moderationActions.inc({ action, source, dry_run: 'false' });
 
 	return { suppressed: false };
 }

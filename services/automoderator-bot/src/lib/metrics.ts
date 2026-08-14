@@ -1,4 +1,4 @@
-import { Counter, Histogram, Registry } from 'prom-client';
+import { Counter, Registry } from 'prom-client';
 
 /**
  * Dedicated registry rather than prom-client's process-wide default, mirroring `services/api`'s
@@ -21,31 +21,12 @@ import { Counter, Histogram, Registry } from 'prom-client';
 export const register = new Registry();
 
 /**
- * The closed set of features that can be labelled. A string union rather than a bare `string` so adding an
- * unlabelled feature is a type error, not a silently new time series.
- */
-export type FeatureLabel = 'automod-intake' | 'config';
-
-export type FeatureOutcome = 'applied' | 'dry_run' | 'failed' | 'skipped';
-
-export const featureInvocations = new Counter({
-	name: 'automoderator_feature_invocations_total',
-	help: 'Feature invocations by outcome',
-	labelNames: ['feature', 'outcome'] as const,
-	registers: [register],
-});
-
-export const featureDuration = new Histogram({
-	name: 'automoderator_feature_duration_seconds',
-	help: 'How long a feature invocation took, in seconds',
-	labelNames: ['feature'] as const,
-	buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
-	registers: [register],
-});
-
-/**
  * `action` is what was done to a member or message; `source` is what decided it. Both closed sets.
  * `dry_run` is a label rather than a separate metric so a panel can show intent and enforcement on one axis.
+ *
+ * Counts actions that actually *happened*: in live mode it is incremented only once Discord has accepted the
+ * call. A rejected call lands in `automoderator_discord_errors_total` instead, so "we banned N people" never
+ * silently includes the ones Discord refused.
  */
 export const moderationActions = new Counter({
 	name: 'automoderator_moderation_actions_total',
@@ -79,8 +60,9 @@ export const dryRunSuppressions = new Counter({
 });
 
 /**
- * `route_class` is a coarse bucket (`guild`, `member`, `message`, `automod`, ...), never a resolved route --
- * a per-URL label would be per-guild cardinality by another name.
+ * `route_class` is a coarse bucket (`member`, `message`, `user`, `webhook`), never a resolved route -- a
+ * per-URL label would be per-guild cardinality by another name. Written by the `ActionExecutor` when a
+ * side-effecting call is rejected.
  */
 export const discordErrors = new Counter({
 	name: 'automoderator_discord_errors_total',

@@ -73,6 +73,7 @@ function dispatch(gateway: EventEmitter, type: string, data: unknown) {
 beforeEach(() => {
 	redisStore.clear();
 	bulkOverwrite.mockReset().mockResolvedValue([]);
+	fakeLogger.error.mockReset();
 	existingCommands.value = [];
 });
 
@@ -98,6 +99,22 @@ test('READY bootstraps without a REST lookup, since it carries the application i
 
 	expect(bulkOverwrite.mock.calls[0]![0]).toBe('/applications/app-from-ready/commands');
 	expect(get.mock.calls.map(([route]) => route)).not.toContain('/oauth2/applications/@me');
+});
+
+test('a failed bootstrap is retried by the next gateway event', async () => {
+	// A flag set before the async work would suppress the retry too, so one transient 503 on the
+	// application-id lookup would mean this process never seeds /deploy again however often it reconnects.
+	const gateway = new EventEmitter();
+	const { rest, get } = fakeRest();
+	get.mockRejectedValueOnce(new Error('503 from Discord'));
+	createBotClient({ botId: 'AMA', gateway: gateway as unknown as WebSocketManager, rest });
+
+	dispatch(gateway, 'RESUMED', null);
+	await vi.waitFor(() => expect(fakeLogger.error).toHaveBeenCalled());
+	expect(bulkOverwrite).not.toHaveBeenCalled();
+
+	dispatch(gateway, 'RESUMED', null);
+	await vi.waitFor(() => expect(bulkOverwrite).toHaveBeenCalledOnce());
 });
 
 test('a reconnect storm bootstraps at most once per process', async () => {

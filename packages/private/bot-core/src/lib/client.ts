@@ -78,22 +78,27 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 	// Runs on Ready *and* Resumed, guarded rather than `.once`, for the same reason the guild list is kept in
 	// redis: since the session store, an ordinary restart replays as RESUMED, so a Ready-only hook stops firing
 	// after the application's first boot ever. RESUMED carries no payload, hence the application-id fetch.
-	let bootstrapStarted = false;
+	// Deduplicated by the in-flight promise rather than a "started" flag. A flag set before the async work
+	// suppresses concurrent events correctly but also makes a *failure* permanent: one 503 on the
+	// application-id lookup and this process never seeds `/deploy` again, however many times it reconnects.
+	// Clearing on failure lets the next gateway event retry, while a success stays suppressed forever.
+	let bootstrap: Promise<void> | null = null;
 	const bootstrapOnce = async (applicationId?: Snowflake): Promise<void> => {
-		if (bootstrapStarted) {
-			return;
-		}
+		bootstrap ??= (async () => {
+			try {
+				const resolvedId = applicationId ?? (await client.api.oauth2.getCurrentBotApplicationInformation()).id;
+				await bootstrapGlobalCommands(botId, resolvedId, client.api.applicationCommands);
+			} catch (error) {
+				// Never fatal: a bot that can't seed `/deploy` still works for every guild that already has its
+				// commands, and taking the process down over it would turn a cosmetic gap into an outage.
+				getContext().logger.error({ err: error }, 'Failed to bootstrap global commands');
+				// Cleared here rather than left set, so the next Ready/Resumed retries instead of inheriting a
+				// permanent failure. Safe to reassign mid-flight: callers captured the promise before this ran.
+				bootstrap = null;
+			}
+		})();
 
-		bootstrapStarted = true;
-
-		try {
-			const resolvedId = applicationId ?? (await client.api.oauth2.getCurrentBotApplicationInformation()).id;
-			await bootstrapGlobalCommands(botId, resolvedId, client.api.applicationCommands);
-		} catch (error) {
-			// Never fatal: a bot that can't seed `/deploy` still works for every guild that already has its
-			// commands, and taking the process down over it would turn a cosmetic gap into an outage.
-			getContext().logger.error({ err: error }, 'Failed to bootstrap global commands');
-		}
+		await bootstrap;
 	};
 
 	client

@@ -1,6 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { executeAction } from '../actionExecutor.js';
-import { dryRunSuppressions, moderationActions, register } from '../metrics.js';
+import { discordErrors, dryRunSuppressions, moderationActions, register } from '../metrics.js';
 
 const resolveDryRun = vi.fn();
 
@@ -22,6 +22,7 @@ beforeEach(() => {
 	resolveDryRun.mockReset();
 	moderationActions.reset();
 	dryRunSuppressions.reset();
+	discordErrors.reset();
 });
 
 test('live mode runs the Discord call', async () => {
@@ -76,14 +77,28 @@ test('the invocation override is passed through to resolution', async () => {
 	expect(resolveDryRun).toHaveBeenCalledWith('9', true);
 });
 
-test('a failed Discord call is rethrown, after being counted', async () => {
+test('a rejected Discord call is rethrown, and counted as an error rather than an action', async () => {
 	resolveDryRun.mockResolvedValue(false);
-	const execute = vi.fn().mockRejectedValue(new Error('403'));
+	const execute = vi.fn().mockRejectedValue(Object.assign(new Error('Missing Permissions'), { status: 403 }));
 
 	await expect(executeAction({ action: 'ban', guildId: '1', source: 'command', execute }, logger)).rejects.toThrow(
-		'403',
+		'Missing Permissions',
 	);
 
-	// Counted before the call, so a failure is still visible as an attempted action rather than vanishing.
-	expect(await counterValue('automoderator_moderation_actions_total')).toBe(1);
+	// The point of the split: "we banned N people" must never include the ones Discord refused.
+	expect(await counterValue('automoderator_moderation_actions_total')).toBe(0);
+	expect(await counterValue('automoderator_discord_errors_total')).toBe(1);
+});
+
+test('a transport failure with no HTTP status still lands under a stable label', async () => {
+	resolveDryRun.mockResolvedValue(false);
+	const execute = vi.fn().mockRejectedValue(new Error('socket hang up'));
+
+	await expect(executeAction({ action: 'kick', guildId: '1', source: 'command', execute }, logger)).rejects.toThrow(
+		'socket hang up',
+	);
+
+	// `status: 'unknown'` rather than dropping the sample -- an outage that never reaches Discord is exactly
+	// when the counter needs to move.
+	expect(await counterValue('automoderator_discord_errors_total')).toBe(1);
 });

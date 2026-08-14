@@ -47,6 +47,24 @@ test('an experiment with no row is off, and says so', async () => {
 	expect(warn).toHaveBeenCalledOnce();
 });
 
+test('an unknown experiment warns once per name, not once per call', async () => {
+	// `isExperimentEnabled` is billed as safe to call per decision, so once a real caller lands on the
+	// per-message path an uncreated gate would otherwise warn on every single message.
+	await loadExperiments();
+
+	for (let index = 0; index < 5; index++) {
+		isExperimentEnabled('never-created', '1425493115053019319');
+	}
+
+	isExperimentEnabled('also-missing', '1425493115053019319');
+	expect(warn).toHaveBeenCalledTimes(2);
+
+	// A refresh clears the record, so a name that is *still* unknown a minute later says so again.
+	await loadExperiments();
+	isExperimentEnabled('never-created', '1425493115053019319');
+	expect(warn).toHaveBeenCalledTimes(3);
+});
+
 test('a full range is on for everyone and a collapsed one is off for everyone', async () => {
 	experimentRows = [
 		{ name: 'everyone', rangeStart: 0, rangeEnd: 10_000 },

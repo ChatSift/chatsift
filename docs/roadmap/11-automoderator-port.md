@@ -305,11 +305,13 @@ the override admin path is `GET`/`PUT`/`DELETE /v3/experiments[/:name]` — glob
 sets, no dashboard page. **P0 itself gates nothing**: there is no feature to switch off yet, and the first real gate
 is P1's.
 
-Still outstanding: `AUTOMODERATOR_BOT_TOKEN` must be added to `.env.private` before _any_ service boots — it is a
-required var read by `services/api` too, which is exactly the shape of the 2026-08-11 incident the
-`build/grafana/provisioning/alerting/rules.yml` comment records. And the spike itself has to be run:
-`/automod-spike seed <word>`, then trip it, then confirm an `automoderator decision: automod` line carrying
-`matched`.
+Verified against the test guild: `/deploy` registers all three commands, the spike round trip works (see
+[The AutoMod hybrid](#the-automod-hybrid)), the dashboard tab/hub/config page render and persist, and `/metrics`
+is correctly unbound outside production.
+
+Deployment prerequisite: `AUTOMODERATOR_BOT_TOKEN` is a required var read by `services/api` as well as the bot,
+so it must exist in `.env.private` before _any_ service boots — the shape of the 2026-08-11 incident the
+`build/grafana/provisioning/alerting/rules.yml` comment records.
 
 ---
 

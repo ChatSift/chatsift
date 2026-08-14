@@ -22,6 +22,13 @@ interface ExperimentRange {
 
 let ranges = new Map<string, ExperimentRange>();
 let overrides = new Set<string>();
+/**
+ * Unknown experiment names already warned about, so the warning below stays diagnostic rather than becoming
+ * per-message log spam -- `isExperimentEnabled` is billed as safe to call per decision, and a gate that has
+ * been shipped but not yet created is a *normal* state, not an incident. Cleared on every refresh so the
+ * warning returns if the name is still unknown a minute later.
+ */
+let warnedUnknown = new Set<string>();
 let refreshTimer: NodeJS.Timeout | null = null;
 
 const overrideKey = (name: string, guildId: string): string => `${name}:${guildId}`;
@@ -64,6 +71,7 @@ async function fetchSnapshot(): Promise<{ overrides: Set<string>; ranges: Map<st
 function applySnapshot(snapshot: { overrides: Set<string>; ranges: Map<string, ExperimentRange> }): void {
 	ranges = snapshot.ranges;
 	overrides = snapshot.overrides;
+	warnedUnknown = new Set();
 }
 
 /**
@@ -103,8 +111,13 @@ export function isExperimentEnabled(name: string, guildId: string): boolean {
 	const range = ranges.get(name);
 	if (!range) {
 		// Warned rather than silently false, as the pre-revive handler did: the two ways to land here are a gate
-		// nobody has created yet and a typo'd name, and only one of those is intentional.
-		getContext().logger.warn({ guildId, experimentName: name }, 'checked an unknown experiment');
+		// nobody has created yet and a typo'd name, and only one of those is intentional. Once per name per
+		// refresh, not once per call -- see `warnedUnknown`.
+		if (!warnedUnknown.has(name)) {
+			warnedUnknown.add(name);
+			getContext().logger.warn({ guildId, experimentName: name }, 'checked an unknown experiment');
+		}
+
 		return false;
 	}
 
