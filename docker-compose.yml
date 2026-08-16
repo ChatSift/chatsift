@@ -1,4 +1,4 @@
-name: chatsift-v3
+name: chatsift-prod
 
 services:
   # caddy:
