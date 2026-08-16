@@ -87,6 +87,10 @@ jobs:
           tags: ${{ env.IMAGE_REPO }}:${{ env.IMAGE_CHANNEL }}-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            TURBO_TEAM=${{ vars.TURBO_TEAM }}
+          secrets: |
+            turbo_token=${{ secrets.TURBO_TOKEN }}
 
       - name: Alias changed services
         run: |
