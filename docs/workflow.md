@@ -175,10 +175,13 @@ used to hide `job`/`instance`.
 
 Two deployments run on the one VPS, from one codebase:
 
-| Channel | Branch   | `COMPOSE_PROJECT_NAME` | `RESOURCE_PREFIX` | Monitoring | Host API port |
-| ------- | -------- | ---------------------- | ----------------- | ---------- | ------------- |
-| prod    | `main`   | `chatsift-prod`        | `chatsift-v3`     | yes        | 7004          |
-| canary  | `canary` | `chatsift-canary`      | `chatsift-canary` | no         | 7104          |
+| Channel | Branch   | Checkout                     | `COMPOSE_PROJECT_NAME` | `RESOURCE_PREFIX` | Monitoring | Host API port |
+| ------- | -------- | ---------------------------- | ---------------------- | ----------------- | ---------- | ------------- |
+| prod    | `main`   | `/home/deploys/repos/prod`   | `chatsift-prod`        | `chatsift-v3`     | yes        | 7004          |
+| canary  | `canary` | `/home/deploys/repos/canary` | `chatsift-canary`      | `chatsift-canary` | no         | 7104          |
+
+`RESOURCE_PREFIX` still reads `chatsift-v3` on prod, and the volumes are still named `chatsift-v3-*`, even though
+nothing else is called that any more. That is not leftover cruft — see the note below the table.
 
 **Both branches ship a byte-identical `docker-compose.yml` and `.env.public`.** Everything that differs between the
 two deployments lives in the host-local, gitignored `.env.private` (see `.env.private.example`). That is deliberate:
