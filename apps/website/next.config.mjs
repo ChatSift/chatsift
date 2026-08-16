@@ -50,8 +50,8 @@ export default {
 			{
 				source: '/invites/ama',
 				destination:
-					'https://discord.com/oauth2/authorize?client_id=1427232824854970409&permissions=274878024704&scope=applications.commands%20bot',
-				permanent: true,
+					'https://discord.com/oauth2/authorize?client_id=872022469081448489&permissions=274878024704&scope=applications.commands%20bot',
+				permanent: false,
 			},
 			{
 				source: '/invites/modmail',
