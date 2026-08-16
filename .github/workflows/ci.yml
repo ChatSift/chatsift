@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - canary
+  pull_request:
+  workflow_dispatch:
+
+env:
+  IMAGE_REPO: ghcr.io/chatsift/chatsift
+
+jobs:
+  quality:
+    name: Quality Check
+    runs-on: ubuntu-latest
+    env:
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        uses: ./actions/yarnCache
+
+      - name: Build
+        run: yarn build
+
+      - name: ESLint
+        run: yarn lint
+
+      - name: Prettier
+        run: yarn format:check
+
+      - name: Test
+        run: yarn test
+
+  build-push:
+    name: Build & push image
+    needs: quality
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      IMAGE_CHANNEL: ${{ github.ref_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Install node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Install dependencies
+        uses: ./actions/yarnCache
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_REPO }}:${{ env.IMAGE_CHANNEL }}-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Alias changed services
+        run: |
+          if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
+            echo 'manual dispatch -- aliasing every service'
+            yarn turbo run tag-docker
+          elif ! git diff --quiet HEAD~1 HEAD -- \
+              Dockerfile yarn.lock .yarnrc.yml package.json \
+              tsconfig.base.json tsconfig.json tsup.config.ts turbo.json; then
+            echo 'a root build input changed -- aliasing every service'
+            yarn turbo run tag-docker
+          else
+            yarn turbo run tag-docker --filter '...[HEAD~1...HEAD~0]'
+          fi
+
+  deploy:
+    name: Deploy
+    needs: build-push
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-${{ github.ref_name }}
+    steps:
+      - name: Deploy over SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Pinned host key rather than StrictHostKeyChecking=no -- this box runs production
+          # workloads beyond ChatSift, so an unauthenticated first connection is not acceptable.
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes \
+            "deploys@${DEPLOY_HOST}" "${{ github.ref_name }}"

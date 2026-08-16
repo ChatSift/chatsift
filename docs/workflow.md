@@ -171,6 +171,136 @@ Also as part of #277: the `postgres-overview` dashboard's "Top 20 Queries by Mea
 deployment is single-database/single-user) via the same `fieldConfig.overrides`/`custom.hidden` mechanism already
 used to hide `job`/`instance`.
 
+## Deploying
+
+Two deployments run on the one VPS, from one codebase:
+
+| Channel | Branch   | `COMPOSE_PROJECT_NAME` | `RESOURCE_PREFIX` | Monitoring | Host API port |
+| ------- | -------- | ---------------------- | ----------------- | ---------- | ------------- |
+| prod    | `main`   | `chatsift-prod`        | `chatsift-v3`     | yes        | 7004          |
+| canary  | `canary` | `chatsift-canary`      | `chatsift-canary` | no         | 7104          |
+
+**Both branches ship a byte-identical `docker-compose.yml` and `.env.public`.** Everything that differs between the
+two deployments lives in the host-local, gitignored `.env.private` (see `.env.private.example`). That is deliberate:
+the retired `prod` branch carried its own trimmed `docker-compose.yml`, which is why it had to be labelled "do not
+merge into `main`" and why it eventually drifted in code as well as config. With zero tracked divergence,
+promoting `canary` → `main` is an ordinary merge.
+
+Note `COMPOSE_PROJECT_NAME` and `RESOURCE_PREFIX` differ on prod, and must not be collapsed into one value — see
+[Encryption at rest](#encryption-at-rest-263) and the comment above `volumes:` in `docker-compose.yml`.
+
+### The pipeline
+
+`.github/workflows/ci.yml`, on a push to `main` or `canary`:
+
+1. **quality** — `yarn build`/`lint`/`format:check`/`test`.
+2. **build-push** — builds the root `Dockerfile` once and pushes `ghcr.io/chatsift/chatsift:<channel>-<sha>`, then
+   `turbo run tag-docker --filter '...[HEAD~1...HEAD~0]'` aliases it to the moving `<channel>-<service>` tags that
+   compose tracks — only for services whose own code or workspace dependencies changed. Unchanged bots keep their
+   old digest and are therefore not restarted by step 3.
+3. **deploy** — SSHes to the box and runs the deploy script below.
+
+Two things about the aliasing in step 2 are worth knowing before you trust it:
+
+- The filter selects **packages**, so a change confined to a root file that feeds every image (`Dockerfile`,
+  `yarn.lock`, `.yarnrc.yml`, root `package.json`, the shared tsconfigs, `tsup.config.ts`, `turbo.json`) would
+  otherwise select nothing, push an image, and never point an alias at it. The workflow detects that case and
+  re-aliases every service. `docker-compose.yml` is deliberately excluded — it is read from the checkout at deploy
+  time, not baked into the image, so a compose-only change needs no new image at all.
+- **`workflow_dispatch` rebuilds and re-aliases everything** on whichever branch you dispatch from. That is the
+  escape hatch when the detection above is wrong, or when you want every service on one known digest. It replaces
+  the old `deploy-manual.yml`.
+
+The GHCR package is **private**. CI authenticates with the built-in `GITHUB_TOKEN`; the VPS needs a separate
+read-only credential (`read:packages` and nothing else), applied once as the `deploys` user:
+
+```sh
+printf '%s' '<token>' | docker login ghcr.io -u '<machine-account>' --password-stdin
+```
+
+A silently-expired token turns every subsequent deploy into a pull failure, so prefer one that does not expire.
+
+### Rolling back
+
+Every build leaves an immutable `<channel>-<sha>` tag. To roll a single service back, re-point its moving alias and
+re-run the deploy:
+
+```sh
+docker buildx imagetools create -t ghcr.io/chatsift/chatsift:main-ama \
+  ghcr.io/chatsift/chatsift:main-<known-good-sha>
+```
+
+### `/home/deploys/bin/deploy` (host-side, not in this repo)
+
+It lives on the host rather than in the checkout on purpose: it must be able to deploy a commit older than any
+change to itself, and it must keep working when a bad commit is what you are backing out of.
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# The SSH key is registered with a forced command, so $SSH_ORIGINAL_COMMAND is the only thing the
+# caller controls. Validate it against a literal allowlist rather than interpolating it into a path.
+case "${SSH_ORIGINAL_COMMAND:-}" in
+  main)   BRANCH=main;   REPO=/home/deploys/repos/prod ;;
+  canary) BRANCH=canary; REPO=/home/deploys/repos/canary ;;
+  *) echo "refusing to deploy unknown channel: ${SSH_ORIGINAL_COMMAND:-<empty>}" >&2; exit 1 ;;
+esac
+
+exec 9>"/var/lock/chatsift-deploy-${BRANCH}"
+flock -n 9 || { echo "a ${BRANCH} deploy is already running" >&2; exit 1; }
+
+cd "$REPO"
+OLD="$(git rev-parse HEAD)"
+git fetch --prune origin "$BRANCH"
+git reset --hard "origin/${BRANCH}"
+NEW="$(git rev-parse HEAD)"
+
+# Migrations are deliberately NOT run here: atlas is not in the image, and applying one needs the
+# host-side IS_PRODUCTION=false + LOCAL_DATABASE_PORT dance below. A deploy that silently skipped a
+# required migration would be far worse than one that refuses to continue.
+if ! git diff --quiet "$OLD" "$NEW" -- packages/private/db/migrations/
+then
+  echo "migrations changed between ${OLD:0:8} and ${NEW:0:8} -- apply them, then re-run this deploy" >&2
+  exit 1
+fi
+
+./compose pull
+./compose up -d
+docker image prune -f
+```
+
+Register the key so it can run nothing else:
+
+```
+command="/home/deploys/bin/deploy",no-pty,no-agent-forwarding,no-port-forwarding,no-X11-forwarding ssh-ed25519 AAAA…
+```
+
+CI needs `DEPLOY_SSH_KEY`, `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS` as repository secrets. The host key is pinned;
+do not reach for `StrictHostKeyChecking=no`.
+
+### Applying a migration
+
+Still manual, and still from the host shell rather than a container — atlas is a dev dependency, not part of the
+image:
+
+```sh
+cd /home/deploys/repos/prod
+IS_PRODUCTION=false yarn db:migrate
+```
+
+`IS_PRODUCTION=false` is required and is not a mistake: with it `true`, atlas resolves `DATABASE_URL_PROD`, whose
+`postgres` hostname only exists inside the compose network. Both URLs reach the same database; the `_DEV` one just
+goes via the host-published `LOCAL_DATABASE_PORT`. Confirm that port with `./compose port postgres 5432` rather
+than trusting `.env.private`, and confirm it is the database you think it is before running anything with
+`--live`.
+
+### Renaming a compose project
+
+If `COMPOSE_PROJECT_NAME` ever changes for an existing deployment, run `./compose down` **before** pulling the
+change. Otherwise compose loses track of the running containers and the next `up -d` starts a second full set —
+including a second Postgres against the same volume.
+
 ## Custom ModMail instances (#216)
 
 Branded, single-guild ModMail deployments for approved close partners — see

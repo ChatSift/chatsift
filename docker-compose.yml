@@ -1,5 +1,3 @@
-name: chatsift-prod
-
 services:
   # caddy:
   #   build:
@@ -49,6 +47,7 @@ services:
 
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
+    profiles: ['monitoring']
     restart: unless-stopped
     env_file:
       - ./.env.public
@@ -66,6 +65,7 @@ services:
 
   dozzle:
     image: amir20/dozzle:latest
+    profiles: ['monitoring']
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -82,6 +82,7 @@ services:
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
+    profiles: ['monitoring']
     restart: unless-stopped
     privileged: true
     volumes:
@@ -96,6 +97,7 @@ services:
 
   node-exporter:
     image: prom/node-exporter:v1.8.2
+    profiles: ['monitoring']
     restart: unless-stopped
     pid: host
     volumes:
@@ -105,6 +107,7 @@ services:
 
   prometheus:
     image: prom/prometheus:v2.55.1
+    profiles: ['monitoring']
     restart: unless-stopped
     volumes:
       - ./build/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -118,6 +121,7 @@ services:
 
   grafana:
     image: grafana/grafana:11.4.0
+    profiles: ['monitoring']
     restart: unless-stopped
     env_file:
       - ./.env.public
@@ -173,7 +177,7 @@ services:
       interval: 10s
       timeout: 5s
     ports:
-      - 127.0.0.1:6379:6379
+      - 127.0.0.1:${LOCAL_REDIS_PORT}:6379
 
   # The single rate-limit accountant in front of Discord's REST API -- see
   # docs/roadmap/01-architecture.md §9. Every bot token is in use from two processes (its own `*-bot`
@@ -184,7 +188,7 @@ services:
   #
   # Deliberately not published to the host, unlike `api`/`redis`: bot tokens cross this hop.
   discord-proxy:
-    image: chatsift/chatsift-next:discord-proxy
+    image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-discord-proxy
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -201,7 +205,7 @@ services:
       - ./logs/discord-proxy:/usr/chatsift/logs/discord-proxy
 
   api:
-    image: chatsift/chatsift-next:api
+    image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-api
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -218,12 +222,12 @@ services:
         condition: service_healthy
     command: ['node', '--enable-source-maps', './services/api/dist/bin.js']
     ports:
-      - 127.0.0.1:${API_PORT}:${API_PORT}
+      - 127.0.0.1:${LOCAL_API_PORT}:${API_PORT}
     volumes:
       - ./logs/api:/usr/chatsift/logs/api
 
   ama-bot:
-    image: chatsift/chatsift-next:ama
+    image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-ama
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -244,7 +248,7 @@ services:
       - ./logs/ama-bot:/usr/chatsift/logs/ama-bot
 
   modmail-bot:
-    image: chatsift/chatsift-next:modmail
+    image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-modmail
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -262,7 +266,7 @@ services:
       - ./logs/modmail-bot:/usr/chatsift/logs/modmail-bot
 
   social-bot:
-    image: chatsift/chatsift-next:social
+    image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-social
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -285,7 +289,7 @@ services:
   # No SHARDS_PER_REPLICA yet: opting into horizontal scaling is P8, and the port holds the invariants that
   # make it configuration rather than a rewrite (see that doc's Scaling readiness section).
   automoderator-bot:
-    image: chatsift/chatsift-next:automoderator
+    image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-automoderator
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -308,7 +312,7 @@ services:
   # env files) is identical to the public `modmail-bot` service above; `MODMAIL_INSTANCE_ID` is the only
   # thing that locks this process to that one guild/token.
   # modmail-bot-<partner-slug>:
-  #   image: chatsift/chatsift-next:modmail
+  #   image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-modmail
   #   build:
   #     context: ./
   #     dockerfile: ./Dockerfile
@@ -330,7 +334,7 @@ services:
   # bot user rather than a fresh one, so their members keep the same DM correspondent -- which means
   # their old self-hosted deployment must never run again: same token, same gateway identity.
   modmail-bot-nascar:
-    image: chatsift/chatsift-next:modmail
+    image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-modmail
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -349,14 +353,14 @@ services:
 
 volumes:
   postgres-data:
-    name: 'chatsift-v3-postgres-data'
+    name: '${RESOURCE_PREFIX}-postgres-data'
   dozzle-data:
-    name: 'chatsift-v3-dozzle-data'
+    name: '${RESOURCE_PREFIX}-dozzle-data'
   prometheus-data:
-    name: 'chatsift-v3-prometheus-data'
+    name: '${RESOURCE_PREFIX}-prometheus-data'
   grafana-data:
-    name: 'chatsift-v3-grafana-data'
+    name: '${RESOURCE_PREFIX}-grafana-data'
 
 networks:
   default:
-    name: chatsift-v3
+    name: ${RESOURCE_PREFIX}

@@ -76,6 +76,37 @@ read_env() {
   printf '%s' "$value"
 }
 
+# One docker-compose.yml now serves two deployments on the same host (prod and canary), so the
+# project name and the active profiles are per-checkout state rather than something committed. Both
+# are passed as real CLI flags instead of relying on compose picking COMPOSE_* up from the merged
+# --env-file: this script has already been bitten once by compose only honouring the *first*
+# --env-file (see the comment at the top), and `-p`/`--profile` leave nothing to infer.
+#
+# Hard failure rather than a default on purpose. A canary checkout that fell back to prod's project
+# name would adopt prod's containers and start a second Postgres against prod's volume.
+PROJECT="$(read_env COMPOSE_PROJECT_NAME)"
+if [ -z "$PROJECT" ]
+then
+  echo 'COMPOSE_PROJECT_NAME must be set in .env.private (e.g. chatsift-prod, chatsift-canary)' >&2
+  exit 1
+fi
+
+# Volumes and the network are named from RESOURCE_PREFIX, deliberately *not* from the project name --
+# see the comment above `volumes:` in docker-compose.yml. Checked here so a missing value fails loudly
+# instead of interpolating to `-postgres-data` and silently provisioning an empty database.
+if [ -z "$(read_env RESOURCE_PREFIX)" ]
+then
+  echo 'RESOURCE_PREFIX must be set in .env.private (prod uses chatsift-v3 -- see docker-compose.yml)' >&2
+  exit 1
+fi
+
+PROFILE_ARGS=()
+_profiles="$(read_env COMPOSE_PROFILES | tr ',' ' ')"
+for _profile in $_profiles
+do
+  PROFILE_ARGS+=(--profile "$_profile")
+done
+
 SCALE_ARGS=()
 plan_scale() {
   local service="$1" token_key="$2" shards_per_replica_key="$3"
@@ -108,7 +139,7 @@ plan_scale() {
     # Deliberately keeps whatever is already running instead of falling back to 1: silently scaling a
     # sharded bot down to a single replica because Discord was briefly unreachable would be a far worse
     # outcome than deploying with a stale-but-correct replica count.
-    running="$(docker compose -f docker-compose.yml "${ENV_FILE_ARGS[@]}" ps -q "$service" 2>/dev/null | grep -c .)"
+    running="$(docker compose -p "$PROJECT" -f docker-compose.yml "${ENV_FILE_ARGS[@]}" ps -q "$service" 2>/dev/null | grep -c .)"
     if [ "${running:-0}" -gt 0 ]
     then
       echo "warning: could not read Discord's shard count for ${service}; holding at ${running} replica(s)" >&2
@@ -137,7 +168,9 @@ then
 fi
 
 docker compose \
+  -p "$PROJECT" \
   -f docker-compose.yml \
+  "${PROFILE_ARGS[@]}" \
   "${ENV_FILE_ARGS[@]}" \
   "$@" \
   "${SCALE_ARGS[@]}"

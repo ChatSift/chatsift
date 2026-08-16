@@ -2,9 +2,6 @@
 	"$schema": "https://turbo.build/schema.json",
 	"tasks": {
 		"build": {
-			// Next 16 moved the Turbopack persistent dev cache to .next/dev/cache, so the
-			// !.next/cache/** negation stopped covering it and every build tarred multi-GB
-			// of dev-server state into a new cache entry (408G local cache before this).
 			"dependsOn": ["^build"],
 			"outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
 		},
@@ -41,13 +38,14 @@
 		},
 		"tag-docker": {
 			"dependsOn": ["^build"],
+			"cache": false,
 			"outputs": [],
 			"inputs": [
 				"src/**/*.ts",
 				"$TURBO_ROOT$/Dockerfile",
 				"$TURBO_ROOT$/docker-compose.yml",
 				"$TURBO_ROOT$/.env.public",
-				"$TURBO_ROOT$/compose/**"
+				"$TURBO_ROOT$/compose"
 			]
 		}
 	},

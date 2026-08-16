@@ -12,7 +12,7 @@
 		"format": "prettier --write . --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
 		"format:check": "prettier --check . --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
 		"clean": "rimraf dist",
-		"tag-docker": "docker image tag chatsift/chatsift-next:latest chatsift/chatsift-next:ama"
+		"tag-docker": "docker buildx imagetools create -t $IMAGE_REPO:$IMAGE_CHANNEL-ama $IMAGE_REPO:$IMAGE_CHANNEL-$GITHUB_SHA"
 	},
 	"devDependencies": {
 		"@types/node": "^24.9.1",
