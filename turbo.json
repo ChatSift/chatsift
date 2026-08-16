@@ -40,6 +40,7 @@
 			"dependsOn": ["^build"],
 			"cache": false,
 			"outputs": [],
+			"passThroughEnv": ["IMAGE_REPO", "IMAGE_CHANNEL", "GITHUB_SHA"],
 			"inputs": [
 				"src/**/*.ts",
 				"$TURBO_ROOT$/Dockerfile",

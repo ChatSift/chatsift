@@ -250,7 +250,9 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
   *) echo "refusing to deploy unknown channel: ${SSH_ORIGINAL_COMMAND:-<empty>}" >&2; exit 1 ;;
 esac
 
-exec 9>"/var/lock/chatsift-deploy-${BRANCH}"
+# Lock in the deploys home rather than /var/lock -- that directory's ownership and mode vary by
+# distro, and this runs unprivileged.
+exec 9>"/home/deploys/.deploy-${BRANCH}.lock"
 flock -n 9 || { echo "a ${BRANCH} deploy is already running" >&2; exit 1; }
 
 cd "$REPO"

@@ -12,7 +12,7 @@
 		"format": "prettier --write . --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
 		"format:check": "prettier --check . --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
 		"clean": "rimraf dist",
-		"tag-docker": "docker buildx imagetools create -t $IMAGE_REPO:$IMAGE_CHANNEL-modmail $IMAGE_REPO:$IMAGE_CHANNEL-$GITHUB_SHA"
+		"tag-docker": "docker buildx imagetools create -t ${IMAGE_REPO}:${IMAGE_CHANNEL}-modmail ${IMAGE_REPO}:${IMAGE_CHANNEL}-${GITHUB_SHA}"
 	},
 	"devDependencies": {
 		"@types/node": "^24.9.1",

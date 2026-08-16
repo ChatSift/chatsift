@@ -10,7 +10,7 @@
 		"lint": "eslint src",
 		"lint:fix": "eslint src --fix",
 		"clean": "rimraf dist",
-		"tag-docker": "docker buildx imagetools create -t $IMAGE_REPO:$IMAGE_CHANNEL-social $IMAGE_REPO:$IMAGE_CHANNEL-$GITHUB_SHA"
+		"tag-docker": "docker buildx imagetools create -t ${IMAGE_REPO}:${IMAGE_CHANNEL}-social ${IMAGE_REPO}:${IMAGE_CHANNEL}-${GITHUB_SHA}"
 	},
 	"devDependencies": {
 		"@types/node": "^24.9.1",
