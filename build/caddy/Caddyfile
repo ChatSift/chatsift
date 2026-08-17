@@ -1,0 +1,24 @@
+{
+	acme_dns cloudflare {env.CF_API_TOKEN}
+}
+
+api.automoderator.app {
+	reverse_proxy api:{$API_PORT}
+}
+
+grafana.automoderator.app {
+	reverse_proxy grafana:3000
+}
+
+dozzle.automoderator.app {
+	reverse_proxy dozzle:8080
+}
+
+# Legacy
+interactions.automoderator.app {
+	reverse_proxy automoderator-interactions:3002
+}
+
+logs.automoderator.app {
+	reverse_proxy parseable:8000
+}

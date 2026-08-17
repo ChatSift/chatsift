@@ -106,6 +106,28 @@ jobs:
             yarn turbo run tag-docker --filter '...[HEAD~1...HEAD~0]'
           fi
 
+      - name: Check ingress
+        id: ingress
+        run: |
+          if [ "${{ github.event_name }}" = 'workflow_dispatch' ] || ! git diff --quiet HEAD~1 HEAD -- build/caddy/; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push ingress image
+        if: steps.ingress.outputs.changed == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./build/caddy
+          file: ./build/caddy/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_REPO }}:${{ env.IMAGE_CHANNEL }}-caddy
+            ${{ env.IMAGE_REPO }}:${{ env.IMAGE_CHANNEL }}-caddy-${{ github.sha }}
+          cache-from: type=gha,scope=caddy
+          cache-to: type=gha,mode=max,scope=caddy
+
   deploy:
     name: Deploy
     needs: build-push

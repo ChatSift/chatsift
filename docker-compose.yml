@@ -1,13 +1,23 @@
 services:
-  # caddy:
-  #   build:
-  #     context: ./build/caddy
-  #     dockerfile: ./Dockerfile
-  #   env_file:
-  #     - ./.env.private
-  #   ports:
-  #     - '80:80'
-  #     - '443:443'
+  caddy:
+    image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-caddy
+    build:
+      context: ./build/caddy
+      dockerfile: ./Dockerfile
+    profiles: ['ingress']
+    restart: unless-stopped
+    environment:
+      API_PORT: ${API_PORT}
+      CF_API_TOKEN: ${CF_API_TOKEN}
+    ports:
+      - '80:80'
+      - '443:443'
+    networks:
+      - default
+      - legacy
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
 
   postgres:
     image: postgres:17-alpine
@@ -77,8 +87,6 @@ services:
       #   docker run --rm amir20/dozzle generate <username> --password '<password>' \
       #     | docker run -i --rm -v chatsift-v3-dozzle-data:/data alpine sh -c 'cat > /data/users.yml'
       DOZZLE_AUTH_PROVIDER: simple
-    ports:
-      - 127.0.0.1:${LOCAL_DOZZLE_PORT}:8080
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
@@ -159,8 +167,6 @@ services:
       - ./build/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./build/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
-    ports:
-      - 127.0.0.1:${LOCAL_GRAFANA_PORT}:3000
     depends_on:
       - prometheus
 
@@ -221,8 +227,6 @@ services:
       discord-proxy:
         condition: service_healthy
     command: ['node', '--enable-source-maps', './services/api/dist/bin.js']
-    ports:
-      - 127.0.0.1:${LOCAL_API_PORT}:${API_PORT}
     volumes:
       - ./logs/api:/usr/chatsift/logs/api
 
@@ -352,6 +356,13 @@ services:
       - ./logs/modmail-bot-nascar:/usr/chatsift/logs/modmail-bot-nascar
 
 volumes:
+  caddy-data:
+    name: 'chatsift-caddy-data'
+    external: true
+  caddy-config:
+    name: 'chatsift-caddy-config'
+    external: true
+
   postgres-data:
     name: '${RESOURCE_PREFIX}-postgres-data'
   dozzle-data:
@@ -364,3 +375,6 @@ volumes:
 networks:
   default:
     name: ${RESOURCE_PREFIX}
+  legacy:
+    name: chatsift
+    external: true

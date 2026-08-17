@@ -175,10 +175,10 @@ used to hide `job`/`instance`.
 
 Two deployments run on the one VPS, from one codebase:
 
-| Channel | Branch   | Checkout                     | `COMPOSE_PROJECT_NAME` | `RESOURCE_PREFIX` | Monitoring | Host API port |
-| ------- | -------- | ---------------------------- | ---------------------- | ----------------- | ---------- | ------------- |
-| prod    | `main`   | `/home/deploys/repos/prod`   | `chatsift-prod`        | `chatsift-v3`     | yes        | 7004          |
-| canary  | `canary` | `/home/deploys/repos/canary` | `chatsift-canary`      | `chatsift-canary` | no         | 7104          |
+| Channel | Branch   | Checkout                     | `COMPOSE_PROJECT_NAME` | `RESOURCE_PREFIX` | `COMPOSE_PROFILES`   |
+| ------- | -------- | ---------------------------- | ---------------------- | ----------------- | -------------------- |
+| prod    | `main`   | `/home/deploys/repos/prod`   | `chatsift-prod`        | `chatsift-v3`     | `monitoring,ingress` |
+| canary  | `canary` | `/home/deploys/repos/canary` | `chatsift-canary`      | `chatsift-canary` | (empty)              |
 
 `RESOURCE_PREFIX` still reads `chatsift-v3` on prod, and the volumes are still named `chatsift-v3-*`, even though
 nothing else is called that any more. That is not leftover cruft — see the note below the table.
@@ -305,6 +305,51 @@ than trusting `.env.private`, and confirm it is the database you think it is bef
 If `COMPOSE_PROJECT_NAME` ever changes for an existing deployment, run `./compose down` **before** pulling the
 change. Otherwise compose loses track of the running containers and the next `up -d` starts a second full set —
 including a second Postgres against the same volume.
+
+### Ingress (#305)
+
+Caddy terminates TLS for every `*.automoderator.app` subdomain and lives in this repo as of #305 — it used to be
+its own `ChatSift/caddy` repo and its own compose project on the same box. Routes are
+[`build/caddy/Caddyfile`](../build/caddy/Caddyfile), the image is `build/caddy/Dockerfile`.
+
+| Host                             | Upstream                                 |
+| -------------------------------- | ---------------------------------------- |
+| `api.automoderator.app`          | `api:${API_PORT}`                        |
+| `grafana.automoderator.app`      | `grafana:3000`                           |
+| `dozzle.automoderator.app`       | `dozzle:8080`                            |
+| `interactions.automoderator.app` | legacy `automoderator-interactions:3002` |
+| `logs.automoderator.app`         | legacy `parseable:8000`                  |
+
+Three things about it are load-bearing:
+
+- **It is behind the `ingress` profile.** Only one deployment on the host can bind `:80`/`:443`, and that is prod.
+  Canary leaves `COMPOSE_PROFILES` empty and is therefore not publicly routed at all — it never was.
+- **It joins a second, external network, `chatsift`.** That is the _legacy_ `ChatSift/stack` project's network, and
+  it is the only way to reach `automoderator-interactions` and `parseable`, which publish to `127.0.0.1` only. The
+  cost is that `caddy` will not start if that network is gone. Both routes and the `legacy` network entry get
+  deleted together when the legacy stack is torn down at
+  [AutoModerator P9](roadmap/11-automoderator-port.md).
+- **Its volumes are `external` and un-prefixed** (`chatsift-caddy-data`, `chatsift-caddy-config`) rather than named
+  from `RESOURCE_PREFIX` like every other volume here. They are the ones the old deployment already wrote to, so
+  adopting them by name carries the ACME account and the issued certificates across unchanged. On a host that never
+  ran the old stack, `docker volume create chatsift-caddy-data` (and `-config`) once before first boot.
+
+Because Caddy is on the compose network, `api`, `grafana` and `dozzle` publish **nothing** to the host — the
+`LOCAL_API_PORT`/`LOCAL_GRAFANA_PORT`/`LOCAL_DOZZLE_PORT` knobs are gone. Only Postgres and Redis still publish,
+for the host-shell workflows above (`yarn db:migrate`, `redis-cli`). To reach the API from the host during an
+incident, go through a container already on the network:
+
+```sh
+./compose exec api wget -qO- http://127.0.0.1:7004/<route>
+```
+
+`CF_API_TOKEN` in `.env.private` is the Cloudflare token Caddy uses for the ACME DNS-01 challenge; it needs
+`Zone:DNS:Edit` on the zone and nothing else. Only the deployment running the `ingress` profile needs it set.
+
+**Changing a route** is an ordinary commit: CI rebuilds the ingress image only when `build/caddy/` itself changed
+(pushing the moving `<channel>-caddy` tag on every commit would recreate the container terminating TLS for every
+domain on every deploy), and the host-side `./compose pull && ./compose up -d` picks it up. Immutable
+`<channel>-caddy-<sha>` tags are pushed alongside for the same rollback story as the service images.
 
 ## Custom ModMail instances (#216)
 

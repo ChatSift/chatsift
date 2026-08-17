@@ -2,7 +2,7 @@
 
 **Tracking issue:** to be created — this doc is referenced from it, not the other way around. **Depends on:** nothing
 in flight. **Blocks:** the `postgres-old` teardown — AutoModerator is the last product still on the legacy stack, so
-its cutover (P9) is what finally lets the old database, its compose stack and its Caddy routing die. **Live
+its cutover (P9) is what finally lets the old database and its compose stack die. **Live
 production impact:** none until P9. Everything before that is additive: new tables, a new service, new routes, new
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
@@ -467,7 +467,9 @@ Legacy data migration + drain. Follows the Social precedent
   into `automoderator_banword_policies`, matching into the guild's native AutoMod keyword rules. A guild over the
   native limits (6 rules × 1,000 entries) needs a documented answer before the freeze window, not during it.
 - Verify with two scratch databases, offset sequences, id-independent diff.
-- Then tear down: legacy compose stack, its Caddy routing, and finally `postgres-old`.
+- Then tear down: legacy compose stack, then `postgres-old`. Its ingress is no longer separate — since #305 the
+  `interactions.`/`logs.` routes are two blocks in `build/caddy/Caddyfile`, and the `legacy` external network in
+  `docker-compose.yml` exists only to reach them. All three go in the same commit; nothing else uses that network.
 
 ## Scaling readiness
 
