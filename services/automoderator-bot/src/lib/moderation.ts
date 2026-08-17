@@ -22,6 +22,21 @@ export class SoftbanUnbanError extends Error {
 	}
 }
 
+/**
+ * The case row couldn't be written. Distinct from a generic failure because `enforced` decides what the
+ * moderator is told: "this didn't happen" and "this happened but isn't on the record" call for opposite
+ * follow-up actions, and conflating them is how a moderator bans someone twice.
+ */
+export class CaseFilingError extends Error {
+	public constructor(
+		public readonly enforced: boolean,
+		cause: unknown,
+	) {
+		super('the case row could not be written', { cause });
+		this.name = 'CaseFilingError';
+	}
+}
+
 const SIDE_EFFECT: Record<AutomoderatorCaseAction, ModerationAction | null> = {
 	WARN: null,
 	MUTE: 'mute',
@@ -159,7 +174,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 		await notifyTarget(request, logger);
 	}
 
-	const filed = await createCase({
+	const intent = {
 		action,
 		guildId,
 		target,
@@ -168,7 +183,24 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 		reason: reason ?? null,
 		refId: request.refId ?? null,
 		expiresAt: request.durationMs ? new Date(Date.now() + request.durationMs) : null,
-	});
+	};
+
+	let filed: AutomoderatorCases | null;
+
+	try {
+		filed = await createCase(intent);
+	} catch (error) {
+		const enforced = Boolean(sideEffect) && !suppressed;
+
+		logger.error(
+			{ err: error, enforced, intent: { ...intent, target: target.id, mod: mod.id } },
+			enforced
+				? 'ENFORCED BUT UNRECORDED: the Discord action landed and the case could not be filed'
+				: 'failed to file a case',
+		);
+
+		throw new CaseFilingError(enforced, error);
+	}
 
 	// Only an `idempotencyKey` can make `createCase` return null, and commands never pass one.
 	const filedCase = filed!;

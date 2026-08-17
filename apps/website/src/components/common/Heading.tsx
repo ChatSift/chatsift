@@ -13,7 +13,7 @@ const TITLE_CLASS = 'text-2xl font-medium text-primary dark:text-primary-dark';
 
 export function Heading({ title, subtitle, trailing }: HeadingProps) {
 	return (
-		<div className="g-3 flex flex-col">
+		<div className="flex flex-col">
 			{trailing ? (
 				<div className="flex flex-wrap items-center gap-3">
 					<p className={TITLE_CLASS}>{title}</p>

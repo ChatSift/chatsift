@@ -11,7 +11,7 @@ import { DiscordAPIError } from '@discordjs/rest';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { ACTION_PAST_TENSE } from './caseFormat.js';
 import { actorFromUser, getCaseByNumber } from './cases.js';
-import { SoftbanUnbanError, applyModerationAction } from './moderation.js';
+import { CaseFilingError, SoftbanUnbanError, applyModerationAction } from './moderation.js';
 import { checkActorHierarchy, checkBotHierarchy } from './permissions.js';
 
 export type ModCommandExtra = string | { deleteMessageSeconds?: number; durationMs?: number };
@@ -133,6 +133,12 @@ function describeCommandFailure(error: unknown): string {
 			'I banned them and deleted their messages, but then failed to lift the ban — **they are still banned**. ' +
 			'Unban them manually, or run `/unban`.'
 		);
+	}
+
+	if (error instanceof CaseFilingError) {
+		return error.enforced
+			? 'The action went through, but I could not record a case for it.'
+			: 'I could not record a case for that, so nothing was done. Try again in a moment.';
 	}
 
 	if (error instanceof DiscordAPIError) {
