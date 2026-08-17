@@ -28,7 +28,7 @@ function ThreadRow({ guildId, thread }: { readonly guildId: string; readonly thr
 			href={`/dashboard/${guildId}/modmail/threads/${thread.id}`}
 		>
 			<div className="flex flex-col overflow-hidden">
-				<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
+				<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">
 					{threadUserLabel(thread.user)}
 				</p>
 				<p className="text-sm text-secondary dark:text-secondary-dark">

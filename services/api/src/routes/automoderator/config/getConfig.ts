@@ -7,7 +7,7 @@ import { snowflakeSchema } from '../../../util/schemas.js';
 
 const paramsSchema = z.object({ guildId: snowflakeSchema });
 
-export type GetAutomoderatorConfigResult = Pick<AutomoderatorGuildSettings, 'dryRun' | 'guildId'>;
+export type GetAutomoderatorConfigResult = Pick<AutomoderatorGuildSettings, 'dryRun' | 'guildId' | 'reportsChannelId'>;
 
 export default defineRoute({
 	method: 'get',
@@ -24,7 +24,9 @@ export default defineRoute({
 		const { guildId } = req.params;
 
 		const [settings] = await getContext().db<GetAutomoderatorConfigResult[]>`
-			SELECT guild_id, dry_run FROM automoderator_guild_settings WHERE guild_id = ${guildId}
+			SELECT guild_id, dry_run, reports_channel_id
+			FROM automoderator_guild_settings
+			WHERE guild_id = ${guildId}
 		`;
 
 		// No row yet is the common case, and it's returned as the shape a fresh row would have rather than a
@@ -33,6 +35,7 @@ export default defineRoute({
 		const defaults: GetAutomoderatorConfigResult = {
 			guildId: guildId as AutomoderatorGuildSettings['guildId'],
 			dryRun: true,
+			reportsChannelId: null,
 		};
 
 		return settings ?? defaults;

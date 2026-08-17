@@ -86,7 +86,7 @@ export function BreadcrumbDropdown({ label, icon, href, options, isLast, highlig
 											/>
 										)}
 										{!option.reactIcon && !iconUrl && option.id && (
-											<span className="flex h-6 w-6 items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full bg-on-tertiary text-xs dark:bg-on-tertiary-dark">
+											<span className="flex h-6 w-6 items-center justify-center truncate rounded-full bg-on-tertiary text-xs dark:bg-on-tertiary-dark">
 												{getGuildAcronym(displayLabel)}
 											</span>
 										)}

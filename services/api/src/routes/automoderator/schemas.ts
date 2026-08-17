@@ -1,8 +1,13 @@
+// The preset caps live in `@chatsift/core` because three packages have to agree on them -- see their doc
+// comment there. Imported rather than re-exported: callers take them from core directly, so there is exactly
+// one import path for them.
+import { REPORT_PRESET_MAX_LENGTH } from '@chatsift/core';
 import { z } from 'zod';
 import { snowflakeSchema } from '../../util/schemas.js';
 
 /**
- * Browser-safe: only `zod`, nothing server-only. Exposed to `apps/website` via the
+ * Browser-safe: only `zod` and `@chatsift/core` (which `apps/website` already imports directly), nothing
+ * server-only. Exposed to `apps/website` via the
  * `@chatsift/api/automoderator-schemas` package export (see `package.json`), mirroring `ama/schemas.ts`,
  * `modmail/schemas.ts` and `social/schemas.ts`, so the dashboard validates against the exact rules the API
  * enforces.
@@ -12,6 +17,9 @@ export const updateAutomoderatorConfigBodySchema = z
 		// Ignored outside development -- see schema.sql and `automoderator-bot`'s `dryRun.ts`. Still writable
 		// in production so the value doesn't silently diverge between a dev database and a production one.
 		dryRun: z.boolean().optional(),
+		// Nullable rather than just optional: clearing the channel is how a guild turns reporting off, and
+		// absent-means-unchanged has no way to express that (see `updateConfig.ts`'s `'key' in body` handling).
+		reportsChannelId: snowflakeSchema.nullable().optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
@@ -43,6 +51,15 @@ export const updateCaseBodySchema = z
  */
 export const setLogChannelBodySchema = z.strictObject({
 	channelId: snowflakeSchema,
+});
+
+/**
+ * Mirrors `CREATE TYPE automoderator_report_state`. Spelled out for the same reason `caseActionSchema` is.
+ */
+export const reportStateSchema = z.enum(['OPEN', 'DISMISSED', 'ACTIONED']);
+
+export const reportPresetBodySchema = z.strictObject({
+	reason: z.string().trim().min(1).max(REPORT_PRESET_MAX_LENGTH),
 });
 
 /**

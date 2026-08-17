@@ -125,7 +125,7 @@ export function ChannelSelect({
 					<span className="flex items-center gap-2 flex-1 min-w-0">{trigger}</span>
 					<SvgChevronDown
 						className={cn(
-							'transition-transform text-secondary dark:text-secondary-dark flex-shrink-0',
+							'transition-transform text-secondary dark:text-secondary-dark shrink-0',
 							isOpen && 'rotate-180',
 						)}
 						size={16}
@@ -238,7 +238,7 @@ function ChannelItem({ channel }: ChannelItemProps) {
 	const Icon = getChannelIcon(channel.type);
 	return (
 		<div className="flex items-center gap-2 min-w-0">
-			<Icon className="flex-shrink-0 text-secondary dark:text-secondary-dark" size={16} />
+			<Icon className="shrink-0 text-secondary dark:text-secondary-dark" size={16} />
 			<span className="truncate text-sm">{channel.name}</span>
 		</div>
 	);

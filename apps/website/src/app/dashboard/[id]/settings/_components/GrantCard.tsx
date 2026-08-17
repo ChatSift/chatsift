@@ -44,17 +44,13 @@ export function GrantCard({ guildId, grant }: GrantCardProps) {
 				)}
 				<div className="flex flex-col overflow-hidden">
 					{globalName && (
-						<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
-							{globalName}
-						</p>
+						<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">{globalName}</p>
 					)}
-					<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-sm text-secondary dark:text-secondary-dark">
-						{username}
-					</p>
+					<p className="truncate text-sm text-secondary dark:text-secondary-dark">{username}</p>
 				</div>
 			</div>
 
-			<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-xs text-secondary dark:text-secondary-dark">
+			<p className="truncate text-xs text-secondary dark:text-secondary-dark">
 				Granted by {userDisplayName(createdBy)} on {formatDate(new Date(createdAt))}
 			</p>
 

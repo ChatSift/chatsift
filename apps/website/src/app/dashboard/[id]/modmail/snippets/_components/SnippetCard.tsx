@@ -46,9 +46,7 @@ export function SnippetCard({ guildId, snippet }: SnippetCardProps) {
 
 	return (
 		<div className="flex w-full flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
-			<p className="overflow-hidden overflow-ellipsis whitespace-nowrap font-mono text-lg font-semibold text-primary dark:text-primary-dark">
-				/{snippet.name}
-			</p>
+			<p className="truncate font-mono text-lg font-semibold text-primary dark:text-primary-dark">/{snippet.name}</p>
 
 			<div className="whitespace-pre-wrap text-sm text-primary dark:text-primary-dark">
 				<DiscordMarkdown content={snippet.content} forBot="MODMAIL" />

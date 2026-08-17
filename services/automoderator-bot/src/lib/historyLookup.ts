@@ -4,6 +4,7 @@ import { MessageFlags } from '@discordjs/core';
 import { buildHistoryEmbed } from './caseHistory.js';
 import { getModLogWebhook } from './caseLog.js';
 import { listCasesForTarget } from './cases.js';
+import { caseBrowserLink, publicHistoryLink } from './dashboardLinks.js';
 
 /**
  * Shared by `/history`, the History user context menu, and `/myhistory` — three entry points onto one embed.
@@ -31,16 +32,15 @@ export async function replyWithHistory(
 
 	const embed = buildHistoryEmbed(target, cases, { logChannelId: webhook?.channelId ?? null });
 
-	const frontend = getContext().FRONTEND_URL.replace(/\/$/, '');
 	let link: string;
 	let linkLabel: string;
 
 	if (options.self) {
 		const token = await mintHistoryToken({ guildId, userId: target.id });
-		link = `${frontend}/automoderator/history/${token}`;
+		link = publicHistoryLink(token);
 		linkLabel = `View your full history (link expires in ${HISTORY_TOKEN_TTL_MINUTES} minutes)`;
 	} else {
-		link = `${frontend}/dashboard/${guildId}/automoderator/cases?search=${target.id}`;
+		link = caseBrowserLink(guildId, target.id);
 		linkLabel = 'View the full history on the dashboard';
 	}
 

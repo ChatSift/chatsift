@@ -1,7 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { AutomoderatorCaseAction, AutomoderatorCases } from '@chatsift/db';
-import type { ModerationAction } from './actionExecutor.js';
+import type { ActionSource, ModerationAction } from './actionExecutor.js';
 import { executeAction } from './actionExecutor.js';
 import { ACTION_PAST_TENSE, formatDuration } from './caseFormat.js';
 import { dispatchCaseLog } from './caseLog.js';
@@ -62,6 +62,12 @@ export interface ModerationRequest {
 	readonly notifyTarget?: boolean;
 	readonly reason?: string | null;
 	readonly refId?: number | null;
+	/**
+	 * What decided this. Defaults to `command`, which every mod command is; the report card passes `report` so
+	 * "how much of our moderation comes out of the queue" is answerable off the metrics rather than by reading
+	 * case reasons.
+	 */
+	readonly source?: ActionSource;
 	readonly target: CaseActor;
 }
 
@@ -78,6 +84,7 @@ export interface ModerationResult {
  */
 export async function applyModerationAction(request: ModerationRequest, logger: Logger): Promise<ModerationResult> {
 	const { action, guildId, target, mod, reason } = request;
+	const source = request.source ?? 'command';
 	const api = getContext().service.client.api;
 
 	// Resolved once for the row. `executeAction` resolves it again for enforcement -- they agree, and the row
@@ -101,7 +108,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 				{
 					action: sideEffect,
 					guildId,
-					source: 'command',
+					source,
 					targetId: target.id,
 					...(reason ? { reason } : {}),
 					async execute() {
@@ -204,7 +211,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 
 	// Only an `idempotencyKey` can make `createCase` return null, and commands never pass one.
 	const filedCase = filed!;
-	casesCreated.inc({ action, source: 'command' });
+	casesCreated.inc({ action, source });
 
 	await dispatchCaseLog(filedCase, logger);
 
@@ -232,7 +239,7 @@ async function notifyTarget(request: ModerationRequest, logger: Logger): Promise
 			{
 				action: 'dm',
 				guildId,
-				source: 'command',
+				source: request.source ?? 'command',
 				targetId: target.id,
 				async execute() {
 					const channel = await api.users.createDM(target.id);

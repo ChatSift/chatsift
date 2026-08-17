@@ -7,11 +7,16 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0 and P1 done, P2 next
+## Status: P0, P1 and P3 done; P3b (DM reporting) next
 
-Scope is settled (36 features surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is per-feature vertical
-slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so nothing sits half-built
-across the stack.
+Scope is settled for the ported features (36 surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is
+per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
+nothing sits half-built across the stack.
+
+**Phases are no longer being done strictly in order.** P3 (reports) was taken before P2 (scheduler and ladders) on
+the owner's call, because [P3b](#p3b--dm-reporting) — a new feature, not a port — attaches to the report spine and
+was the thing worth building next. P2 is unblocked and unstarted; nothing in P3 depends on it. The one place that
+shows is the report card's action list, which offers no timed ban for the same reason `/ban` doesn't yet.
 
 P0 landed 2026-08-13 and is verified end to end against the test guild — see its section for what shipped and the
 two deviations. **The AutoMod spike passed**, so feature 01's design and P5's scope are settled on evidence rather
@@ -181,7 +186,7 @@ automoderator_filter_hits_total{filter}                       counter  filter: w
 automoderator_automod_events_total{action_type, matched}      counter  native AUTO_MODERATION_ACTION_EXECUTION intake
 automoderator_scheduler_tasks_total{type, result}             counter
 automoderator_scheduler_lag_seconds{type}                     histogram  run_at → actually ran
-automoderator_reports_total{state}                            counter  filed|dismissed|actioned
+automoderator_reports_total{state}                            counter  filed|joined|dismissed|restored|actioned
 automoderator_log_dispatch_total{log_type, result}            counter  webhook delivery health
 automoderator_discord_errors_total{status, route_class}       counter
 automoderator_dry_run_suppressions_total{action}              counter
@@ -448,6 +453,170 @@ Features **29** (report queue), **30** (filter-driven reports, hook point only).
 
 Feature 30's automod trigger lands in P5; P3 builds the entry point and proves it with a manual report.
 
+**Shipped 2026-08-17.** Build, lint, test and format:check green, the six new routes confirmed mounted (401, not
+404), the migration applied and the seed script re-run against the dev database; runtime verification against the
+test guild is still outstanding (see [Verification](#verification)).
+
+**Reporting is on or off per guild by whether a reports channel is set.** That's legacy's rule, kept deliberately:
+it means there is exactly one thing to configure to turn the feature on, no queue can accumulate somewhere nobody
+has anywhere to read it, and P3b gets the "is this guild accepting reports?" predicate it needs for free.
+
+Deviations from the table above, all deliberate:
+
+- **The reports channel is a plain channel, not an `automoderator_log_webhooks` row.** A report card carries
+  buttons, and `components` on Execute Webhook requires an application-owned webhook — which the ones
+  `services/api` creates with a bot token are not. Legacy posted these with the bot too. The cost is that the bot
+  needs Send Messages and Embed Links in the channel where a log needs only a token;
+  `automoderator_guild_settings.reports_channel_id` is where the setting lives.
+- **`origin` (`GUILD`/`DM`) landed a phase early.** It is what decides whether the card renders a jump link, and a
+  DM-origin report has a channel id staff could never open — so getting the distinction into the schema before
+  there are rows is the difference between a column and a migration. Same reasoning as `automoderator_log_type`
+  carrying all four values at P1. Nothing writes `DM` until P3b.
+- **Dedupe splits by kind rather than following legacy's single rule.** A _message_ dedupes for all time, so one
+  staff reviewed and dismissed can't be re-queued by the next person to find it; an _account-level_ report dedupes
+  only while open, because "this account, again" is a legitimate new report once the last is closed. Legacy's
+  version had no guild column at all, so one guild acknowledging a report made that account unreportable across
+  every guild the deployment served, permanently. Not carried forward.
+- **State transitions are compare-and-swap, not bare writes.** `setReportState` takes an `expected` state and
+  puts it in the `WHERE` clause; a zero-row result means somebody got there first. The action path goes further
+  and **claims the report before it punishes anybody**, rolling the claim back if the punishment fails: a card can
+  sit on screen indefinitely and a modal for five minutes, so writing the state afterwards would only decide whose
+  `case_id` survived — both targets would already have been banned. Raised by both reviewers on #360.
+- **The card's state is derived from the row every time it is rendered.** Legacy decided whether it was dismissing
+  or restoring by comparing the button's own _label_ to the string `'Dismiss'` — deriving state from the UI it had
+  just rendered, which goes wrong the moment two moderators click at once.
+- **Actioning is terminal.** Once a report has produced a case its Dismiss and Action buttons are disabled: the
+  case is the record now, and live buttons would offer a second punishment for the same report. Legacy's `noop`
+  action goes with it, since it set the state Dismiss already produces.
+- **Per-action permission gating on the card.** Legacy gated its report buttons on _nothing_. Handling a report at
+  all needs ModerateMembers; the action then needs whatever Discord's equivalent command needs (KickMembers to
+  kick, BanMembers to ban), because `setDefaultMemberPermissions` gates a command by name and cannot gate a
+  "pick a punishment" select. Without this, ModerateMembers on the card would silently grant BanMembers.
+- **The reason picker is one modal, not legacy's select-then-maybe-a-modal.** A select menu is a legal child of a
+  modal `Label`, so the presets and the free-text box live in the same interaction — which also means no pending
+  report is held in a process-local collector that a restart or a second replica would lose. Both halves are
+  joined when both are filled.
+- **No timed ban in the action list**, for the same reason `/ban` has no duration: it needs P2's scheduler, and a
+  tempban nothing lifts is a permanent ban that claims otherwise. No softban either — bulk message deletion isn't
+  what a report about one message calls for.
+- **Report cards go through `ActionExecutor`, so dry-run suppresses them**, like the mod log and for the same
+  reason: that seam is the invariant P7 audits. The row is still written and the dashboard queue still shows it.
+  The practical consequence is that **the test guild needs dry-run off to exercise P3's operator checks** — which
+  it does anyway, since all of them end in a real punishment.
+- **The card links to the dashboard**, in the embed description rather than the footer — Discord renders no
+  markdown in a footer, the same finding `/history`'s link ran into at P1. The link is passed into
+  `buildReportEmbed` rather than read from the context inside it, which is what keeps that a pure function of the
+  row and unit-testable. `dashboardLinks.ts` owns every Discord→dashboard URL this bot builds, so the trailing
+  slash `FRONTEND_URL` may or may not carry is dealt with once.
+- **The detail view renders the reported content through `DiscordMarkdown`**, the renderer the ModMail thread view
+  and the AMA/panel previews already use — a reported message is Discord message content, and staff deciding a
+  report should not be reading raw `<@1234…>`. The queue list stays plain truncated text, matching `ThreadsList`.
+- **The dashboard queue is read-only, as specced.** Handling a report means warning or banning somebody, and that
+  path already exists on the card with the hierarchy and permission checks the bot enforces; a second copy on the
+  dashboard would be a second copy of those checks.
+
+Feature 30's hook point is `fileReport` in `automoderator-bot/src/lib/reports.ts`: it takes a reporter plus an
+optional message snapshot and owns no Discord side effect, so P5's filter can call it with the bot as the reporter.
+No dead code was added for it — the seam is simply the split between `fileReport` and `syncReportCard`, mirroring
+`createCase`/`dispatchCaseLog`.
+
+The seed script grew five reports and five preset reasons: a multi-reporter open report, a dismissed one, an
+actioned one linked to a seeded case, an image-only report whose attachment url is already dead, and an
+account-level one — plus reported messages pointing at a channel that never existed, which is the
+dangling-reference class the dashboard's views keep hitting.
+
+---
+
+### P3b — DM reporting
+
+**A new feature, not a port.** Legacy had nothing like it, and it is the first thing in this product that needs the
+website as more than a config surface.
+
+The problem: someone is harassed in DMs and wants to report it to a server they share with the sender. Today the
+only evidence is a screenshot, which staff have no reason to trust. A user-installed message context menu hands us
+Discord's _own_ copy of the message in the interaction payload, which is forgery-proof by construction — and needs
+no Message Content intent, because the user explicitly invoked the command on it.
+
+| Layer     | Work                                                                                          |
+| --------- | --------------------------------------------------------------------------------------------- |
+| Schema    | none — `origin` and the snapshot columns landed with P3                                       |
+| API       | draft-token exchange, candidate-guild resolution, submission; widen `sanitizeRedirectTo`      |
+| Bot       | user-installable "Add to report draft" menu, `/submit-report`, prompt-embed setup             |
+| Dashboard | a public, OAuth-gated `/automoderator/report/<token>` page: preview, pick the server, confirm |
+
+**The flow.**
+
+1. The reporter installs AutoModerator as a **user app** (`ApplicationIntegrationType.UserInstall`), which is what
+   makes a context menu available inside a DM at all.
+2. `Add message to report draft` — contexts `PRIVATE_CHANNEL`/`BOT_DM` **only** — appends the targeted message's
+   snapshot to a Redis draft keyed to that reporter and replies ephemerally with how long they have and what to run
+   next. Each addition renews the TTL.
+3. `/submit-report` mints a token naming that draft and replies with a link to the website.
+4. The page sends them through the normal Discord OAuth flow, then shows the snapshot back to them and asks which
+   server the report is for.
+5. Confirming files an ordinary report with `origin = 'DM'` into that guild's queue — same card, same buttons, same
+   action-to-case path P3 already built.
+
+**Why the website hop is not a workaround.** It is the only fix for the thing that made this expensive in legacy
+ModMail: answering "which guilds is this user in?" from a bot means iterating the bot's own guilds, because there is
+no user→guild index. The OAuth `guilds` scope _is_ that index, and `services/api/src/routes/auth/discord.ts`
+already requests it. The candidate set is then
+`reporter's guilds ∩ bot:AUTOMODERATOR ∩ reports_channel_id IS NOT NULL` — three cheap lookups — and only the
+survivors cost one `GET /guilds/{id}/members/{target}` each to confirm the target is there too. That is 0–5 calls in
+practice, not thousands, and it goes through `services/discord-proxy` like everything else.
+
+**Decisions already taken, so they don't get re-litigated:**
+
+1. **Multi-message drafts, not one-shot.** A snapshot is forgery-proof but not context-proof: the reporter still
+   chooses _which_ message, and a baited reply reads very differently alone. Accumulating lets them include their
+   own side, and the card must say plainly that staff are seeing a reporter's selection out of a conversation they
+   cannot see.
+2. **The token is not a bearer credential.** It names a draft holding private DM content, so it is bound to the
+   Discord user who minted it and checked against the session _after_ OAuth. This is deliberately a different
+   security model from `automoderatorHistoryTokens.ts`, which _is_ a bearer token — the resemblance is the trap.
+3. **DM contexts only.** A user-installed message menu also fires in guilds the bot isn't in. Letting a message
+   captured in guild A be filed into guild B would be a cross-server surveillance tool, which is a far larger
+   product than this. In-guild reporting stays P3's separate, guild-installed menus.
+4. **The candidate list is filtered to guilds the target is also in, and the copy is deliberately vague about why a
+   server is missing** ("if they're a member, that community might not be accepting reports"). The vagueness is the
+   mitigation: it stops the picker doubling as a membership oracle, because the reporter cannot tell "not a member"
+   from "reports disabled".
+5. **We do not re-host attachments.** Discord copies an embed image it is handed into the message it posts, so the
+   card keeps the evidence alive past the original url's signature — the same mechanism P3's card already relies on
+   and the behaviour `discordAttachments.ts` documents. The exposure window is only between snapshot and
+   confirmation.
+6. **No rate limiting and no reporter blocklist.** Owner's call: guilds can deal with abusive reporters themselves,
+   and a report costs a Redis write plus a message. Revisit only if load says otherwise.
+7. **Message forwarding was considered and rejected.** Forwarding a DM into a bot DM would skip the install step
+   entirely, but forwarded-message snapshots appear not to carry the original `author`, which destroys attribution
+   — the one thing the feature exists for.
+
+**Open question, raised in review on #360 and not yet decided: where do the extra messages live?** Decision 1
+above wants multi-message drafts, but `automoderator_reports` holds exactly one snapshot — `message_id`,
+`message_content`, `message_image_url`. So P3b needs one of:
+
+- an ordered `automoderator_report_messages` child table (snapshot per message, with its own author, since a
+  draft can legitimately include the reporter's own replies), which is the shape that actually delivers decision 1;
+- or the draft collapses to one message at confirmation time, and decision 1 is scaled back to "pick the single
+  most damning message".
+
+The first is the honest reading of the feature and is a schema change P3b has to carry; the second is cheaper and
+loses the context argument that motivated multi-message drafts in the first place. **Not decided — do not start
+P3b's schema work until it is.**
+
+**Accept knowingly:** staff can never independently corroborate a DM report. Every other report type has a jump
+link; this one is trust in ChatSift's chain of custody, and the card should say so rather than let a moderator
+assume otherwise.
+
+**Operator prerequisite, in the same category as `AUTOMODERATOR_BOT_TOKEN`:** _User Install_ must be enabled for
+the application in the Discord developer portal. Nothing in this repo can do that, and the context menu will not
+appear in DMs until it is.
+
+**Setup side.** Staff create a prompt in their server — the same shape as a ModMail panel or an AMA submission
+prompt — with default copy explaining the flow and a link-type button pointing at the user-install URL. The
+reporter's realistic path is five steps (bad DM → find the prompt → install → back to the DM → menu), so that
+install link wants to be somewhere findable rather than in one channel only.
+
 ---
 
 ### P4 — Logging
@@ -590,6 +759,9 @@ The diagnosability bias that applied to Social applies harder here — this bot 
   short-circuit has been broken — actions the logs claim were taken did not happen. Zero in prod by construction.
 - `automoderator_scheduler_lag_seconds` climbing means tempbans aren't expiring — the classic "why is this user
   still banned" report.
+- `automoderator_reports_total{state="filed"}` climbing with neither `dismissed` nor `actioned` following it means
+  a guild's queue is filling up and nobody is reading it -- which is the failure mode a report queue has that a
+  mod log doesn't.
 - `automoderator_log_dispatch_total{result="failed"}` means webhooks are 404ing; legacy self-healed by deleting the
   row, so a spike here is usually a deleted log channel, not an outage.
 - Decision traces are the first thing to read for "why did/didn't the filter fire" — they carry the exemption and
@@ -606,7 +778,11 @@ Operator side, per phase, against the test guild:
 - **P1** — each mod command files a correct case; case edit rewrites the log embed in place; a ban issued through the
   Discord UI still produces a case with the right moderator attached.
 - **P2** — a tempban actually expires; a warn ladder step fires at the configured count; auto-pardon expires a warn.
-- **P3** — both report menus; dedupe across two reporters; dismiss/restore; action → modal → case.
+- **P3** — both report menus; dedupe across two reporters; dismiss/restore; action → modal → case. Needs
+  dry-run **off** for the guild: the card is a Discord side effect and goes through `ActionExecutor`.
+- **P3b** — install the user app, add two DM messages to a draft, submit, and confirm the picker lists only
+  servers you and the sender share that accept reports; then confirm the filed report's card carries no jump
+  link and its action path still produces a case.
 - **P4** — edit and delete logs carry old content; exemptions suppress; thread inheritance works.
 - **P5** — trip a native rule and confirm the policy applies; each custom filter fires and is exempted correctly;
   bypass roles bypass; `/simulate` matches live behaviour.

@@ -73,6 +73,19 @@ export const casesCreated = new Counter({
 });
 
 /**
+ * Report queue throughput (P3). `state` is the *transition* that happened, not the row's current value:
+ * `filed` counts reports opened, `joined` counts a second reporter agreeing with an existing one, and
+ * `dismissed`/`actioned` count resolutions. `filed` climbing with neither resolution following it is the
+ * failure worth watching -- it means a guild's queue is filling up and nobody is reading it.
+ */
+export const reportsTotal = new Counter({
+	name: 'automoderator_reports_total',
+	help: 'Report queue transitions, by what happened',
+	labelNames: ['state'] as const,
+	registers: [register],
+});
+
+/**
  * Webhook delivery health for the log channels. `result="failed"` climbing is usually a deleted log channel
  * rather than an outage -- the dispatcher self-heals by dropping the row, so a spike here is followed by
  * silence until someone reconfigures the channel, which is exactly the failure worth alerting on.

@@ -8,7 +8,7 @@ import { discordErrors, dryRunSuppressions, moderationActions } from './metrics.
  * kind of action is a deliberate edit here, not something a call site can invent.
  */
 export type ModerationAction =
-	'ban' | 'delete' | 'dm' | 'kick' | 'mute' | 'role' | 'softban' | 'unban' | 'unmute' | 'webhook';
+	'ban' | 'delete' | 'dm' | 'kick' | 'message' | 'mute' | 'role' | 'softban' | 'unban' | 'unmute' | 'webhook';
 
 /**
  * What decided the action. Also a metric label, also closed. `command` is a moderator typing something;
@@ -52,6 +52,10 @@ const ROUTE_CLASS: Record<ModerationAction, string> = {
 	unmute: 'member',
 	role: 'member',
 	delete: 'message',
+	// Posting or editing a message the bot owns -- the report card (P3). Distinct from `webhook` because a
+	// failure means something different: a webhook 404 is a deleted log channel, a `message` 403 is the bot
+	// lacking Send Messages in a channel it was pointed at.
+	message: 'message',
 	dm: 'user',
 	webhook: 'webhook',
 };

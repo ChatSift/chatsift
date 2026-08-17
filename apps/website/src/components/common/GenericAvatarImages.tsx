@@ -6,6 +6,15 @@ interface GenericAvatarInitialsProps {
 	readonly initials: string;
 }
 
+/**
+ * The `overflow-hidden text-ellipsis whitespace-nowrap` triple below is deliberately **not** collapsed to
+ * `truncate`, unlike every other place in this app that spells it out.
+ *
+ * `cn` is `twMerge`, and the two are not interchangeable once a caller's `className` is merged on top:
+ * `twMerge('overflow-hidden …', 'overflow-visible')` drops `overflow-hidden` so the caller wins, whereas
+ * `twMerge('truncate', 'overflow-visible')` keeps both — leaving which one applies down to stylesheet order
+ * rather than the caller's intent. Spelled out, each utility stays individually overridable.
+ */
 export function GenericAvatarInitials({ className, initials }: GenericAvatarInitialsProps) {
 	return (
 		<div

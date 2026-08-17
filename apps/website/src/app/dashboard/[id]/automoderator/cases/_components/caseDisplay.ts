@@ -1,5 +1,3 @@
-import type { AutomoderatorCaseListItem } from '@/api/routes/automoderatorCases';
-
 /**
  * Display helpers shared by the case list and the case detail, so the two can't disagree about what a case
  * looks like. Same split as the ModMail thread views' `util.ts`.
@@ -36,29 +34,3 @@ export const ACTION_PILL_CLASSES: Record<string, string> = {
 	UNMUTE: 'bg-misc-accent/10 text-misc-accent',
 	UNBAN: 'bg-misc-accent/10 text-misc-accent',
 };
-
-/**
- * What to call the account on a case.
- *
- * Prefers the *stored* tag over the resolved user: the row's `targetTag` is a snapshot taken when the action
- * happened, and a case is a historical record of who was actioned — not of who that account calls itself
- * today. The resolved user is still what supplies the avatar.
- */
-export function caseUserLabel(resolved: AutomoderatorCaseListItem['target'], storedTag: string | null): string {
-	if (storedTag) {
-		return storedTag;
-	}
-
-	if (typeof resolved === 'string') {
-		return resolved;
-	}
-
-	return resolved.global_name ?? resolved.username;
-}
-
-export function resolvedUserAvatar(user: AutomoderatorCaseListItem['target']): {
-	avatar: string | null;
-	id: string;
-} | null {
-	return typeof user === 'string' ? null : { avatar: user.avatar, id: user.id };
-}

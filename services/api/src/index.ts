@@ -116,6 +116,12 @@ export { default as listAutomoderatorLogChannelsRoute } from './routes/automoder
 export { default as setAutomoderatorLogChannelRoute } from './routes/automoderator/logChannels/setLogChannel.js';
 export { default as deleteAutomoderatorLogChannelRoute } from './routes/automoderator/logChannels/deleteLogChannel.js';
 export { default as automoderatorPublicHistoryRoute } from './routes/automoderator/publicHistory.js';
+export { default as listAutomoderatorReportsRoute } from './routes/automoderator/reports/listReports.js';
+export { default as getAutomoderatorReportRoute } from './routes/automoderator/reports/getReport.js';
+export { default as listAutomoderatorReportPresetsRoute } from './routes/automoderator/reportPresets/listPresets.js';
+export { default as createAutomoderatorReportPresetRoute } from './routes/automoderator/reportPresets/createPreset.js';
+export { default as updateAutomoderatorReportPresetRoute } from './routes/automoderator/reportPresets/updatePreset.js';
+export { default as deleteAutomoderatorReportPresetRoute } from './routes/automoderator/reportPresets/deletePreset.js';
 
 export { default as listExperimentsRoute } from './routes/experiments/listExperiments.js';
 export type { ExperimentWithOverrides } from './routes/experiments/listExperiments.js';

@@ -10,9 +10,19 @@ const SECTIONS = [
 		subtitle: 'Every moderation action taken in this server, and who took it',
 	},
 	{
+		segment: 'reports',
+		title: 'Reports',
+		subtitle: 'What members have flagged to your staff team',
+	},
+	{
 		segment: 'log-channels',
 		title: 'Log Channels',
 		subtitle: 'Where moderation actions are posted',
+	},
+	{
+		segment: 'report-settings',
+		title: 'Report Settings',
+		subtitle: 'Where reports go, and the reasons reporters can pick from',
 	},
 	{
 		segment: 'config',
