@@ -1,5 +1,6 @@
 'use client';
 
+import { AUTO_PARDON_MAX_DAYS } from '@chatsift/core';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { APIError } from '@/api/error';
@@ -8,8 +9,6 @@ import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
-
-const MAX_DAYS = 3_650;
 
 /**
  * How long a warning counts for. Lives beside the ladder rather than on the config page because it is only ever
@@ -49,8 +48,8 @@ export function AutoPardonForm() {
 		if (trimmed.length > 0) {
 			value = Number(trimmed);
 
-			if (!Number.isInteger(value) || value < 1 || value > MAX_DAYS) {
-				setActionError(`Pick a whole number of days between 1 and ${MAX_DAYS}, or leave it empty.`);
+			if (!Number.isInteger(value) || value < 1 || value > AUTO_PARDON_MAX_DAYS) {
+				setActionError(`Pick a whole number of days between 1 and ${AUTO_PARDON_MAX_DAYS}, or leave it empty.`);
 				return;
 			}
 		}

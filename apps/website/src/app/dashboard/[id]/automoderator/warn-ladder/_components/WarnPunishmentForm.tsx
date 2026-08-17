@@ -14,7 +14,6 @@ import { mapApiErrorToFieldErrors } from '@/api/formErrors';
 import type { AutomoderatorWarnPunishment, WarnPunishmentActionName } from '@/api/routes/automoderatorWarnPunishments';
 import {
 	useAutomoderatorWarnPunishments,
-	useDeleteAutomoderatorWarnPunishment,
 	useSetAutomoderatorWarnPunishment,
 } from '@/api/routes/automoderatorWarnPunishments';
 import { Button } from '@/components/common/Button';
@@ -43,9 +42,8 @@ const DURATION_HELP: Record<WarnPunishmentActionName, string> = {
 interface WarnPunishmentFormProps {
 	/**
 	 * The step being edited, or `undefined` when adding one. A step is identified by its warn count (the table's
-	 * primary key), so re-submitting an existing count moves that step rather than adding a second -- and
-	 * renumbering an existing step is a PUT against the new count followed by a DELETE of the old row, the same
-	 * shape `SocialRewardForm` uses for retargeting.
+	 * primary key), so re-submitting an existing count edits that step rather than adding a second; renumbering
+	 * sends the old count as `replaces`, which the API applies as one atomic move.
 	 */
 	readonly step?: AutomoderatorWarnPunishment | undefined;
 }
@@ -64,7 +62,6 @@ export function WarnPunishmentForm({ step }: WarnPunishmentFormProps) {
 
 	const { data: steps, error: stepsError } = useAutomoderatorWarnPunishments(guildId);
 	const setStep = useSetAutomoderatorWarnPunishment(guildId);
-	const deleteStep = useDeleteAutomoderatorWarnPunishment(guildId);
 
 	const updateField = <TField extends keyof StepFormData>(field: TField, value: StepFormData[TField]) => {
 		setForm((prev) => ({ ...prev, [field]: value }));
@@ -105,13 +102,20 @@ export function WarnPunishmentForm({ step }: WarnPunishmentFormProps) {
 
 		setSuccessMessage(null);
 
-		try {
-			await setStep.mutateAsync({ warns, actionType: form.actionType, durationSeconds: parsed.seconds });
+		const isRenumber = Boolean(step) && warns !== step?.warns;
 
-			// PUT then DELETE, like the reward form's retarget: the new row exists before the old one goes, so a
-			// failure between them leaves a duplicate step rather than no step at all.
-			if (step && warns !== step.warns) {
-				await deleteStep.mutateAsync(step.warns);
+		try {
+			// `replaces` makes a renumber one atomic write on the API side, rather than the reward form's PUT-then
+			// -DELETE -- there is no window here where the guild has both steps, and a guild on a full ladder can
+			// still reorder.
+			await setStep.mutateAsync({
+				warns,
+				actionType: form.actionType,
+				durationSeconds: parsed.seconds,
+				...(isRenumber ? { replaces: Number(step!.warns) } : {}),
+			});
+
+			if (isRenumber) {
 				router.replace(`/dashboard/${guildId}/automoderator/warn-ladder`);
 				return;
 			}
@@ -219,7 +223,7 @@ export function WarnPunishmentForm({ step }: WarnPunishmentFormProps) {
 
 			<FormActions
 				isSubmitDisabled={atLimit || steps === undefined}
-				isSubmitting={setStep.isPending || deleteStep.isPending}
+				isSubmitting={setStep.isPending}
 				onCancel={() => router.back()}
 				pendingLabel={step ? 'Saving...' : 'Adding...'}
 				submitLabel={step ? 'Save Changes' : 'Add Step'}

@@ -74,3 +74,12 @@ export const WARN_PUNISHMENT_MAX_COUNT = 25;
  * editor being handed a rung nobody's warn count will ever reach.
  */
 export const WARN_PUNISHMENT_MAX_WARNS = 100;
+
+/**
+ * The longest a warning can be configured to count for (P2, feature 23). Ten years, past which "warnings never
+ * expire" is what the guild actually means and `NULL` says it directly. Here rather than beside the API's zod
+ * schema for the same three-consumer reason as the caps above: `services/api` validates writes against it and
+ * `apps/website` renders the field against it, and a form that accepts a value the route rejects is a form that
+ * lies about what it saved.
+ */
+export const AUTO_PARDON_MAX_DAYS = 3_650;

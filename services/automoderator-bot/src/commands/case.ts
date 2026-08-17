@@ -1,6 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
+import type { CaseActionName } from '@chatsift/core';
 import type { AutomoderatorCases } from '@chatsift/db';
 import { parseRelativeTimeSafe } from '@chatsift/parse-relative-time';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
@@ -19,6 +20,7 @@ import type { CaseActor } from '../lib/cases.js';
 import { actorFromUser, deleteCase, getCaseByNumber, updateCase } from '../lib/cases.js';
 import { REASON_MAX_LENGTH } from '../lib/modCommandOptions.js';
 import { MAX_MUTE_MS, buildAuditReason } from '../lib/moderation.js';
+import { memberMayTakeAction } from '../lib/permissions.js';
 
 /**
  * Reading and amending existing cases.
@@ -170,6 +172,15 @@ export default class CaseCommand implements CommandHandler {
 			}
 
 			case 'duration': {
+				// Gated by the *case's* action, not by `/case`'s own `ModerateMembers`. This is the one subcommand
+				// with a Discord side effect, and re-timing a ban into the past makes the expiry sweep unban
+				// somebody -- so without this, ModerateMembers would silently grant BanMembers. Exactly the hole
+				// `memberMayTakeAction` was added to close on the report card, reused rather than restated.
+				if (!memberMayTakeAction(interaction.member!, modCase.actionType as unknown as CaseActionName)) {
+					await reply(`You do not have the permission Discord requires to change a ${modCase.actionType.toLowerCase()}.`);
+					return;
+				}
+
 				await this.retime(modCase, options.getString('duration', true), moderator, logger, reply);
 				break;
 			}
@@ -278,9 +289,16 @@ export default class CaseCommand implements CommandHandler {
 		const updated = await updateCase(modCase.id, { expiresAt, mod: moderator });
 		await dispatchCaseLog(updated, logger);
 
+		if (remainingMs > 0) {
+			await reply(`Case #${modCase.caseId} now expires in ${formatDuration(remainingMs)}.`);
+			return;
+		}
+
+		// A mute was already lifted above -- clearing the timeout is what a past expiry means for one. A ban is
+		// the sweep's to lift, so it really is still in force for another tick.
 		await reply(
-			remainingMs > 0
-				? `Case #${modCase.caseId} now expires in ${formatDuration(remainingMs)}.`
+			modCase.actionType === CASE_ACTION.MUTE
+				? `Case #${modCase.caseId} is now expired, and their timeout has been cleared.`
 				: `Case #${modCase.caseId} is now expired, and will be lifted shortly.`,
 		);
 	}

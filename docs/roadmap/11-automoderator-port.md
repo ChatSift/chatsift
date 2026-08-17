@@ -439,10 +439,18 @@ Features **20** (timed actions), **22** (warn ladder), **23** (auto-pardon).
 The scheduler claims with `FOR UPDATE SKIP LOCKED` from day one rather than assuming one replica — see
 [Scaling readiness](#scaling-readiness). Metrics: `scheduler_lag_seconds` is the one to alert on later.
 
-**Shipped 2026-08-17.** Build, lint, test and format:check green; the three new routes confirmed mounted, the
-migration applied, both sweeps' claim queries checked against the seeded dev database (each finds exactly the
-row planted for it, and the expiry claim uses its partial index). Runtime verification against the test guild is
-still outstanding — see [Verification](#verification).
+**Shipped 2026-08-17** (#361). Build, lint, test and format:check green; the three new routes confirmed mounted,
+the migrations applied, both sweeps' claim queries checked against the seeded dev database (each finds exactly
+the row planted for it, and the expiry claim uses its partial index). Runtime verification against the test guild
+is still outstanding — see [Verification](#verification).
+
+**One review finding was declined.** The ladder-size cap is checked inside the insert, so two concurrent creates
+for _different_ warn counts at 24 rungs can both pass it and leave a guild with 26. That is the same shape
+`createPreset.ts` has shipped with since P3, and the consequence differs: a 26th preset is silently never offered
+(the picker reads `LIMIT 25`), whereas a 26th rung works perfectly well — the bot looks a rung up by exact warn
+count, and the cap exists only to bound the editor. A per-guild advisory lock on a config write to prevent a
+cosmetic off-by-one, in a race needing two managers editing the same full ladder at the same instant, is not
+worth the mechanism.
 
 **There is no `automoderator_tasks` table.** That is the phase's one real design departure, taken on the owner's
 call to design rather than port. Legacy had a task table plus a 1:1 `timed_case_tasks` join row, and in five
@@ -472,7 +480,22 @@ Other deliberate calls:
   climbing is the signal.
 - **A tempban schedules its expiry in dry-run too.** That is the whole reason dry-run persists: a run that
   writes nothing cannot exercise the stateful half, and the reversal it eventually files is suppressed in its
-  turn.
+  turn — suppressed by the **case's own** `dry_run`, not by whatever the guild setting says when it expires.
+  That distinction matters in both directions, and review on #361 caught both: a simulated ban must not produce
+  a real unban call for somebody nobody banned, and a real ban whose unban gets suppressed has to put its claim
+  back rather than record itself as lifted while the member is still banned.
+- **`/case duration` is gated by the case's own action, not by `/case`'s.** `/case` sits at ModerateMembers, and
+  re-timing a ban into the past makes the sweep unban somebody — so without this, ModerateMembers would silently
+  grant BanMembers. The same hole `memberMayTakeAction` was written to close on the report card, and the same
+  helper closes it here. Also raised on #361.
+- **Renumbering a step is one atomic write**, via a `replaces` field on the PUT rather than the reward form's
+  PUT-then-DELETE. That shape had two problems review found: a guild on a full ladder could never reorder (the
+  insert saw a full ladder because the delete had not happened yet), and a failure between the halves left a
+  duplicate step.
+- **Both sweeps self-reschedule rather than running on `setInterval`.** Their batch sizes only bound in-flight
+  Discord work if one batch is in flight at a time; a rate-limited run outlasting its interval would otherwise
+  stack. Same shape and reasoning as `modmail-bot`'s auto-archive sweep. It costs nothing in correctness — both
+  claim atomically, so overlapping runs would take disjoint work — and buys being able to reason about load.
 - **Ladder counting includes dry-run warns only in dry-run**, so a dev session can reach a rung without ever
   pushing a real member up one.
 - **A rung matches an exact warn count**, legacy's rule — at-least would re-fire the same punishment on every

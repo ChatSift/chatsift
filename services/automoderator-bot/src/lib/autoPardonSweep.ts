@@ -1,6 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import { getSelfId } from '@chatsift/bot-core';
+import { automoderatorCasesChannel } from '@chatsift/core';
 import type { AutomoderatorCases } from '@chatsift/db';
 import { dispatchCaseLog } from './caseLog.js';
 import { schedulerTasks } from './metrics.js';
@@ -52,6 +53,15 @@ export async function sweepAutoPardons(logger: Logger): Promise<void> {
 	}
 
 	logger.info({ count: pardoned.length }, 'auto-pardoned expired warns');
+
+	// This is the one path that writes a case without going through `updateCase`, so it is also the one that
+	// has to publish for itself -- otherwise an open case browser keeps showing these as un-pardoned until some
+	// unrelated edit invalidates it. Once per guild rather than once per case: the channel is guild-wide.
+	await Promise.all(
+		[...new Set(pardoned.map((pardonedCase) => pardonedCase.guildId))].map(async (guildId) =>
+			publishRealtimeInvalidate(automoderatorCasesChannel(guildId)),
+		),
+	);
 
 	for (const pardonedCase of pardoned) {
 		try {

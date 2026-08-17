@@ -62,7 +62,7 @@ export async function sweepExpiredBans(logger: Logger): Promise<void> {
 			const caseLogger = logger.child({ guildId: banCase.guildId, caseId: banCase.caseId });
 
 			try {
-				await applyModerationAction(
+				const result = await applyModerationAction(
 					{
 						action: CASE_ACTION.UNBAN,
 						guildId: banCase.guildId,
@@ -75,9 +75,24 @@ export async function sweepExpiredBans(logger: Logger): Promise<void> {
 						source: 'scheduler',
 						// They aren't in the guild -- a DM would need a shared server we no longer have.
 						notifyTarget: false,
+						// **The case's own dry-run state, not the guild's current one.** A ban that was only ever
+						// simulated must be un-banned only in simulation, however the setting has moved since -- the
+						// alternative is a real UNBAN call for somebody nobody ever banned.
+						...(banCase.dryRun ? { previewOnly: true } : {}),
 					},
 					caseLogger,
 				);
+
+				// The mirror of the above: a *live* ban whose unban got suppressed is still in force, so the claim
+				// has to come back off or the row says it was lifted when the member is still banned -- the exact
+				// failure this feature exists to prevent. Only reachable outside production, and only by putting a
+				// guild into dry-run part way through a real tempban.
+				if (result.suppressed && !banCase.dryRun) {
+					await updateCase(banCase.id, { liftedAt: null });
+					schedulerTasks.inc({ type: 'expiry', result: 'failed' });
+					caseLogger.warn('guild is in dry-run, so an expired real ban was not lifted; will retry');
+					return;
+				}
 
 				schedulerTasks.inc({ type: 'expiry', result: 'ok' });
 			} catch (error) {

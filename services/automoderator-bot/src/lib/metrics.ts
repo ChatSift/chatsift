@@ -100,8 +100,11 @@ export const logDispatch = new Counter({
 /**
  * Scheduler throughput (P2). `type` is `automoderator_task_type` for a real task row, plus `AUTO_PARDON` for
  * the sweep -- which is not a task row at all, but is the other thing this loop does on a timer, and "did the
- * scheduler tick" is the question both answer. `result` is `ok`, `failed` (will be retried) or `dropped` (out
- * of attempts, given up on).
+ * scheduler tick" is the question both answer.
+ *
+ * `result` is only ever `ok` or `failed`, and there is deliberately no third "gave up" value: an expiry that
+ * keeps failing is retried every tick forever, because abandoning one turns a temporary ban into a permanent
+ * one. So `failed` climbing without `ok` following it is a stuck row, not a lost one.
  */
 export const schedulerTasks = new Counter({
 	name: 'automoderator_scheduler_tasks_total',

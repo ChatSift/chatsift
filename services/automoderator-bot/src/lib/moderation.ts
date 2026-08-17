@@ -82,6 +82,12 @@ export interface ModerationRequest {
 	 * Whether to DM the target before acting. Off for UNMUTE/UNBAN.
 	 */
 	readonly notifyTarget?: boolean;
+	/**
+	 * Forces dry-run on for this one action, whatever the guild currently says. Can only ever turn it *on* --
+	 * see `dryRun.ts`. Set by the expiry sweep, which reverses a case recorded long ago and has to honour the
+	 * dry-run state that case was filed under rather than today's setting.
+	 */
+	readonly previewOnly?: boolean;
 	readonly reason?: string | null;
 	readonly refId?: number | null;
 	/**
@@ -122,7 +128,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 
 	// Resolved once for the row. `executeAction` resolves it again for enforcement -- they agree, and the row
 	// must never claim an action the executor suppressed.
-	const dryRun = await resolveDryRun(guildId);
+	const dryRun = await resolveDryRun(guildId, request.previewOnly);
 	const shouldNotify = request.notifyTarget ?? true;
 
 	if (shouldNotify && NOTIFY_BEFORE_ACTING.has(action)) {
@@ -143,6 +149,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 					guildId,
 					source,
 					targetId: target.id,
+					...(request.previewOnly ? { previewOnly: true } : {}),
 					...(reason ? { reason } : {}),
 					async execute() {
 						const performers: Record<AutomoderatorCaseAction, () => Promise<unknown>> = {

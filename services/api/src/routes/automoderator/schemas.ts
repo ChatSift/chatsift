@@ -1,7 +1,12 @@
 // The preset caps live in `@chatsift/core` because three packages have to agree on them -- see their doc
 // comment there. Imported rather than re-exported: callers take them from core directly, so there is exactly
 // one import path for them.
-import { MAX_TIMEOUT_SECONDS, REPORT_PRESET_MAX_LENGTH } from '@chatsift/core';
+import {
+	AUTO_PARDON_MAX_DAYS,
+	MAX_TIMEOUT_SECONDS,
+	REPORT_PRESET_MAX_LENGTH,
+	WARN_PUNISHMENT_MAX_WARNS,
+} from '@chatsift/core';
 import { z } from 'zod';
 import { snowflakeSchema } from '../../util/schemas.js';
 
@@ -20,9 +25,8 @@ export const updateAutomoderatorConfigBodySchema = z
 		// Nullable rather than just optional: clearing the channel is how a guild turns reporting off, and
 		// absent-means-unchanged has no way to express that (see `updateConfig.ts`'s `'key' in body` handling).
 		reportsChannelId: snowflakeSchema.nullable().optional(),
-		// Days, and null is off -- the same nullable-means-off shape as the channel above. Capped at ten years
-		// because past that "warns never expire" is what the guild actually means, and null says it directly.
-		autoPardonWarnsAfter: z.number().int().min(1).max(3_650).nullable().optional(),
+		// Days, and null is off -- the same nullable-means-off shape as the channel above.
+		autoPardonWarnsAfter: z.number().int().min(1).max(AUTO_PARDON_MAX_DAYS).nullable().optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
@@ -44,6 +48,14 @@ export const warnPunishmentBodySchema = z
 	.strictObject({
 		actionType: warnPunishmentActionSchema,
 		durationSeconds: z.number().int().min(1).nullable().optional(),
+		/**
+		 * The warn count this step is being *moved from*, when the editor renumbers an existing one. Makes the
+		 * move a single atomic write rather than a PUT followed by a DELETE, which had two problems: a failure
+		 * between the halves left the guild with a duplicate step, and a guild sitting on the maximum number of
+		 * steps could not renumber at all, because the insert saw a full ladder and the delete had not happened
+		 * yet.
+		 */
+		replaces: z.number().int().min(1).max(WARN_PUNISHMENT_MAX_WARNS).optional(),
 	})
 	.superRefine((data, ctx) => {
 		const duration = data.durationSeconds ?? null;

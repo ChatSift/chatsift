@@ -843,7 +843,14 @@ CREATE TABLE automoderator_guild_settings (
   -- is the shape `threads.last_local_thread_message_id` already uses here for the same job, and it is correct
   -- across replicas rather than only within one process. Gaps are accepted -- a number reserved for a case whose
   -- Discord call then fails is simply skipped; the guarantee wanted is monotonic and unique, not gapless.
-  last_case_id INTEGER NOT NULL DEFAULT 0
+  last_case_id INTEGER NOT NULL DEFAULT 0,
+
+  -- Only the lower bound, not the API's ten-year ceiling: a ceiling is taste and lives in zod (same split the
+  -- social settings note above describes), but zero or negative is a value that *breaks* something -- zero
+  -- pardons every warning the instant it is filed, and negative pardons warnings dated in the future. That is
+  -- the bar this schema sets for a CHECK.
+  CONSTRAINT automoderator_guild_settings_auto_pardon_check
+    CHECK (auto_pardon_warns_after IS NULL OR auto_pardon_warns_after >= 1)
 );
 
 -- Legacy's `CaseAction`, uppercased to match this schema's other enums (`ama_question_state`,
