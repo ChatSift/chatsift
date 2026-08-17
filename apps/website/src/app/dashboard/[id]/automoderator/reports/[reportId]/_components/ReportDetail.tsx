@@ -185,7 +185,9 @@ export function ReportDetail() {
 
 			<div className="flex flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 				<p className="text-sm font-medium text-primary dark:text-primary-dark">
-					{reporterCountLabel(reporters.length)}
+					{reporterCountLabel(report.reporterCount)}
+					{/* The route bounds how many it resolves, so a brigaded report shows a count larger than the list. */}
+					{reporters.length < report.reporterCount ? ` — showing the first ${reporters.length}` : ''}
 				</p>
 
 				<div className="flex flex-col gap-2">

@@ -1,7 +1,13 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { AutomoderatorReports, AutomoderatorReportState } from '@chatsift/db';
-import type { APIActionRowComponent, APIEmbed, APIMessage, APIMessageTopLevelComponent } from '@discordjs/core';
+import type {
+	APIActionRowComponent,
+	APIButtonComponent,
+	APIEmbed,
+	APIMessage,
+	APIMessageTopLevelComponent,
+} from '@discordjs/core';
 import { ButtonStyle, ComponentType, RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { executeAction } from './actionExecutor.js';
@@ -51,13 +57,13 @@ const STATE_COLORS: Record<AutomoderatorReportState, number> = {
 	OPEN: 0xed_45_45,
 	DISMISSED: 0x4f_54_5c,
 	ACTIONED: 0x57_f2_87,
-} as Record<AutomoderatorReportState, number>;
+};
 
 const STATE_LABELS: Record<AutomoderatorReportState, string> = {
 	OPEN: 'Open',
 	DISMISSED: 'Dismissed',
 	ACTIONED: 'Actioned',
-} as Record<AutomoderatorReportState, string>;
+};
 
 /**
  * Discord's embed description cap is 4096, and a reported message can be 4000 characters of its own before the
@@ -145,7 +151,7 @@ export function buildReportComponents(report: AutomoderatorReports): APIMessageT
 	// live would offer a second punishment for the same report with nothing to stop it.
 	const closed = report.state === REPORT_STATE.ACTIONED;
 
-	const row: APIActionRowComponent<any> = {
+	const row: APIActionRowComponent<APIButtonComponent> = {
 		type: ComponentType.ActionRow,
 		components: [
 			// A link button rather than a handled one, so "go look at it" costs no interaction -- and it is

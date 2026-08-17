@@ -188,9 +188,21 @@ export async function fileReport(options: FileReportOptions): Promise<FileReport
 	let created: AutomoderatorReports | undefined;
 
 	try {
-		[created] = await db<AutomoderatorReports[]>`
-			INSERT INTO automoderator_reports ${db(row)} RETURNING *
-		`;
+		// One transaction, because a report with no reporters is a queue item with no reason text on it -- the card
+		// would claim one reporter (it is handed the count in memory) while the detail view showed none. The unique
+		// violation below is still caught *outside*, which works because a failed transaction has rolled back.
+		created = await db.begin(async (tx) => {
+			const [report] = await tx<AutomoderatorReports[]>`
+				INSERT INTO automoderator_reports ${tx(row)} RETURNING *
+			`;
+
+			await tx`
+				INSERT INTO automoderator_reporters (report_id, reporter_id, reporter_tag, reason)
+				VALUES (${report!.id}, ${options.reporter.id}, ${options.reporter.tag}, ${options.reason})
+			`;
+
+			return report!;
+		});
 	} catch (error) {
 		// Two people reporting the same message within the same tick both find nothing above and both insert.
 		// The unique index rejects the loser, who is then in exactly the "join the existing report" case -- so
@@ -209,11 +221,6 @@ export async function fileReport(options: FileReportOptions): Promise<FileReport
 	}
 
 	const inserted = created!;
-
-	await db`
-		INSERT INTO automoderator_reporters (report_id, reporter_id, reporter_tag, reason)
-		VALUES (${inserted.id}, ${options.reporter.id}, ${options.reporter.tag}, ${options.reason})
-	`;
 
 	reportsTotal.inc({ state: 'filed' });
 	await publishRealtimeInvalidate(automoderatorReportsChannel(inserted.guildId));

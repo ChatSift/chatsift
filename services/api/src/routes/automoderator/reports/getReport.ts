@@ -13,8 +13,18 @@ const paramsSchema = z.object({
 	reportId: z.coerce.number().int().positive(),
 });
 
+/**
+ * How many reporters the detail view resolves. `report.reporterCount` still carries the real total, so the UI can
+ * say how many are not shown -- a report gathering more than this is a brigade, and staff need the count more
+ * than they need every name.
+ */
+const REPORTERS_LIMIT = 100;
+
 export interface GetReportResult {
 	report: ReportWithUsers;
+	/**
+	 * At most {@link REPORTERS_LIMIT} of them, oldest first. Compare against `report.reporterCount` for the total.
+	 */
 	reporters: ReporterWithUser[];
 }
 
@@ -35,11 +45,24 @@ export default defineRoute({
 			throw notFound('report not found');
 		}
 
-		const reporters = await db<AutomoderatorReporters[]>`
-			SELECT * FROM automoderator_reporters WHERE report_id = ${row.id} ORDER BY created_at ASC
-		`;
+		// Bounded, and the total comes from a `count(*)` rather than from the page's length. `resolveReporters`
+		// does one user lookup per row: they share the redis cache `resolveDiscordUser` sits behind, but the
+		// *first* view of a brigaded report would still serialize that many misses through Discord's
+		// `GET /users/{id}` bucket (30 per 30s per token), stalling every other user lookup the API makes.
+		// The list route is bounded by its pagination; this one had nothing.
+		const [reporters, counted] = await Promise.all([
+			db<AutomoderatorReporters[]>`
+				SELECT * FROM automoderator_reporters
+				WHERE report_id = ${row.id}
+				ORDER BY created_at ASC
+				LIMIT ${REPORTERS_LIMIT}
+			`,
+			db<{ count: string }[]>`
+				SELECT count(*) FROM automoderator_reporters WHERE report_id = ${row.id}
+			`,
+		]);
 
-		const [report] = await resolveReportTargets([row], new Map([[row.id, reporters.length]]));
+		const [report] = await resolveReportTargets([row], new Map([[row.id, Number(counted[0]?.count ?? 0)]]));
 
 		return { report: report!, reporters: await resolveReporters(reporters) };
 	},
