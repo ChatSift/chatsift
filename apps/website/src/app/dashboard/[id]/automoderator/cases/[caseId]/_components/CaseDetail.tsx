@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ACTION_LABELS, ACTION_PILL_CLASSES, caseUserLabel } from '../../_components/caseDisplay';
+import { snapshotUserLabel } from '../../../_components/userDisplay';
+import { ACTION_LABELS, ACTION_PILL_CLASSES } from '../../_components/caseDisplay';
 import type { GetAutomoderatorCaseResult } from '@/api/routes/automoderatorCases';
 import {
 	useAutomoderatorCase,
@@ -115,7 +116,7 @@ export function CaseDetail() {
 		<div className="flex flex-col gap-6 lg:flex-row">
 			<div className="flex flex-1 flex-col gap-6">
 				<Heading
-					subtitle={`${caseUserLabel(modCase.target, modCase.targetTag)} (${modCase.targetId})`}
+					subtitle={`${snapshotUserLabel(modCase.target, modCase.targetTag)} (${modCase.targetId})`}
 					title={`Case #${modCase.caseId}`}
 					trailing={
 						<span

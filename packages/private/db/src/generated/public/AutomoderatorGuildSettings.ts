@@ -11,6 +11,8 @@ export default interface AutomoderatorGuildSettings {
   dryRun: boolean;
 
   lastCaseId: number;
+
+  reportsChannelId: string | null;
 }
 
 /** Represents the initializer for the table public.automoderator_guild_settings */
@@ -20,6 +22,8 @@ export interface AutomoderatorGuildSettingsInitializer {
   dryRun?: boolean;
 
   lastCaseId?: number;
+
+  reportsChannelId?: string | null;
 }
 
 /** Represents the mutator for the table public.automoderator_guild_settings */
@@ -29,4 +33,6 @@ export interface AutomoderatorGuildSettingsMutator {
   dryRun?: boolean;
 
   lastCaseId?: number;
+
+  reportsChannelId?: string | null;
 }

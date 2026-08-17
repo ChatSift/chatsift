@@ -6,6 +6,7 @@ export { default as DashboardCommand } from './lib/dashboardCommand.js';
 export { default as DeployCommand } from './lib/deploy.js';
 export * from './lib/gateway.js';
 export * from './lib/identifyThrottler.js';
+export * from './lib/modals.js';
 export * from './lib/ownership.js';
 export * from './lib/queue.js';
 export * from './lib/replica.js';

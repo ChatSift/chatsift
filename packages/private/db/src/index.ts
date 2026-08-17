@@ -46,9 +46,6 @@ export type {
 } from './generated/public/SocialGuildSettings.js';
 export type { default as SocialLevelUpNotificationMode } from './generated/public/SocialLevelUpNotificationMode.js';
 export type { default as SocialUsers, SocialUsersGuildId, SocialUsersUserId } from './generated/public/SocialUsers.js';
-// The branded snowflake ids these three tables key on have to be re-exported alongside the rows, unlike the
-// other composite-key tables above: `apps/website` derives its hook return types straight off the route
-// contracts, and TypeScript can't name a type whose brand isn't reachable from this entry point (#343 P4).
 export type {
 	default as SocialChannels,
 	SocialChannelsChannelId,
@@ -72,6 +69,20 @@ export type { default as AutomoderatorCaseAction } from './generated/public/Auto
 export type { default as AutomoderatorCases, AutomoderatorCasesId } from './generated/public/AutomoderatorCases.js';
 export type { default as AutomoderatorLogType } from './generated/public/AutomoderatorLogType.js';
 export type { default as AutomoderatorLogWebhooks } from './generated/public/AutomoderatorLogWebhooks.js';
+export type { default as AutomoderatorReportState } from './generated/public/AutomoderatorReportState.js';
+export type { default as AutomoderatorReportOrigin } from './generated/public/AutomoderatorReportOrigin.js';
+export type {
+	default as AutomoderatorReports,
+	AutomoderatorReportsId,
+} from './generated/public/AutomoderatorReports.js';
+export type {
+	default as AutomoderatorReporters,
+	AutomoderatorReportersReporterId,
+} from './generated/public/AutomoderatorReporters.js';
+export type {
+	default as AutomoderatorReportPresets,
+	AutomoderatorReportPresetsId,
+} from './generated/public/AutomoderatorReportPresets.js';
 
 export interface CreateDbOptions {
 	/**

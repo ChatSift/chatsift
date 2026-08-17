@@ -78,3 +78,21 @@ export function automoderatorCasesChannel(guildId: string): string {
 export function automoderatorLogChannelsChannel(guildId: string): string {
 	return `automoderator:${guildId}:log-channels`;
 }
+
+/**
+ * The report queue (P3). Published by the *bot* far more often than by the API: reports originate in Discord --
+ * a member using a context menu, or a moderator dismissing a card -- so without the bot broadcasting here the
+ * dashboard queue would only ever learn about them on a manual reload. Same direction as
+ * `automoderatorCasesChannel`, and for the same reason.
+ */
+export function automoderatorReportsChannel(guildId: string): string {
+	return `automoderator:${guildId}:reports`;
+}
+
+/**
+ * Report reason presets (P3). Its own channel rather than riding the config one: the preset editor and the
+ * enforcement toggle are different screens, and neither should refetch because the other changed.
+ */
+export function automoderatorReportPresetsChannel(guildId: string): string {
+	return `automoderator:${guildId}:report-presets`;
+}

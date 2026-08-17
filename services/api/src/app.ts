@@ -47,6 +47,12 @@ import deleteAutomoderatorLogChannelRoute from './routes/automoderator/logChanne
 import listAutomoderatorLogChannelsRoute from './routes/automoderator/logChannels/listLogChannels.js';
 import setAutomoderatorLogChannelRoute from './routes/automoderator/logChannels/setLogChannel.js';
 import automoderatorPublicHistoryRoute from './routes/automoderator/publicHistory.js';
+import createAutomoderatorReportPresetRoute from './routes/automoderator/reportPresets/createPreset.js';
+import deleteAutomoderatorReportPresetRoute from './routes/automoderator/reportPresets/deletePreset.js';
+import listAutomoderatorReportPresetsRoute from './routes/automoderator/reportPresets/listPresets.js';
+import updateAutomoderatorReportPresetRoute from './routes/automoderator/reportPresets/updatePreset.js';
+import getAutomoderatorReportRoute from './routes/automoderator/reports/getReport.js';
+import listAutomoderatorReportsRoute from './routes/automoderator/reports/listReports.js';
 import dozzleWebhookRoute from './routes/dozzle/webhook.js';
 import deleteExperimentRoute from './routes/experiments/deleteExperiment.js';
 import listExperimentsRoute from './routes/experiments/listExperiments.js';
@@ -241,6 +247,12 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, setAutomoderatorLogChannelRoute);
 	mountRoute(app, deleteAutomoderatorLogChannelRoute);
 	mountRoute(app, automoderatorPublicHistoryRoute);
+	mountRoute(app, listAutomoderatorReportsRoute);
+	mountRoute(app, getAutomoderatorReportRoute);
+	mountRoute(app, listAutomoderatorReportPresetsRoute);
+	mountRoute(app, createAutomoderatorReportPresetRoute);
+	mountRoute(app, updateAutomoderatorReportPresetRoute);
+	mountRoute(app, deleteAutomoderatorReportPresetRoute);
 	mountRoute(app, listExperimentsRoute);
 	mountRoute(app, upsertExperimentRoute);
 	mountRoute(app, deleteExperimentRoute);

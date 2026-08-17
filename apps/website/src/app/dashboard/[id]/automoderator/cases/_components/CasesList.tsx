@@ -4,8 +4,9 @@ import { automoderatorCasesChannel } from '@chatsift/core';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
+import { snapshotUserLabel } from '../../_components/userDisplay';
 import { useActionFilter, useIncludePardonedFilter } from './CaseFilters';
-import { ACTION_LABELS, ACTION_PILL_CLASSES, caseUserLabel } from './caseDisplay';
+import { ACTION_LABELS, ACTION_PILL_CLASSES } from './caseDisplay';
 import { queryKeys } from '@/api/queryClient';
 import type { AutomoderatorCaseListItem } from '@/api/routes/automoderatorCases';
 import { useAutomoderatorCases } from '@/api/routes/automoderatorCases';
@@ -26,7 +27,7 @@ function CaseRow({ guildId, modCase }: { readonly guildId: string; readonly modC
 			<div className="flex flex-col overflow-hidden">
 				<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
 					<span className="text-secondary dark:text-secondary-dark">#{modCase.caseId}</span>{' '}
-					{caseUserLabel(modCase.target, modCase.targetTag)}
+					{snapshotUserLabel(modCase.target, modCase.targetTag)}
 				</p>
 				<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-sm text-secondary dark:text-secondary-dark">
 					{modCase.reason ?? 'No reason given'} · {formatDate(new Date(modCase.createdAt))}

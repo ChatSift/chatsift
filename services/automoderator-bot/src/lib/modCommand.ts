@@ -127,7 +127,12 @@ export async function runModCommand(
 	}
 }
 
-function describeCommandFailure(error: unknown): string {
+/**
+ * Turns a failed moderation attempt into something a moderator can act on. Shared with the report card's action
+ * flow, which can fail in exactly the same four ways -- the distinction between "nothing happened" and "it
+ * happened but isn't recorded" is the whole point, and it must not be worded twice.
+ */
+export function describeCommandFailure(error: unknown): string {
 	if (error instanceof SoftbanUnbanError) {
 		return (
 			'I banned them and deleted their messages, but then failed to lift the ban — **they are still banned**. ' +

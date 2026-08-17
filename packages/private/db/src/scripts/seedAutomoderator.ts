@@ -9,8 +9,8 @@
 //
 // Flags:
 //   --guild <id>  The guild to seed. Required.
-//   --reset       Delete this guild's existing cases and log webhook first, so a re-run is a clean replace
-//                 rather than another 12 cases appended to the last run's.
+//   --reset       Delete this guild's existing cases, log webhook, reports and report reasons first, so a
+//                 re-run is a clean replace rather than another batch appended to the last run's.
 //
 // Refuses to run when IS_PRODUCTION. This writes invented moderation history against real user ids, and a
 // production guild's case list is a record people rely on.
@@ -20,6 +20,8 @@
 // hit repeatedly (a config row outliving the Discord object it references), and it only shows up when the
 // data contains one -- see the note in docs/roadmap/11-automoderator-port.md. The mod log will therefore
 // 404 on first dispatch and self-heal by dropping the row, which is itself the behaviour worth exercising.
+// The seeded reports (P3) do the same: their reported messages name a channel that never existed, so the
+// queue's jump links and the detail view render the dangling case rather than only the happy one.
 
 import process from 'node:process';
 import { createDb, type Database } from '../index.js';
@@ -165,6 +167,106 @@ const CASES: readonly SeedCase[] = [
  */
 const DANGLING_CHANNEL_ID = '130000000000000001';
 
+interface SeedReport {
+	/**
+	 * Index into {@link CASES}, for an ACTIONED report. Resolved to the case *number* that run allocated, so the
+	 * report always points at a case this script created rather than at a number that may not exist.
+	 */
+	readonly caseIndex?: number;
+	readonly daysAgo: number;
+	readonly hasImage?: boolean;
+	readonly messageId: string | null;
+	/**
+	 * `[reporterId, reporterTag, reason]`. More than one exercises the collapse: the second person to report
+	 * something is agreeing with the first, not filing a new queue item.
+	 */
+	readonly reporters: readonly [string, string, string][];
+	readonly state: 'ACTIONED' | 'DISMISSED' | 'OPEN';
+	readonly targetId: string;
+	readonly targetTag: string;
+	readonly text: string | null;
+}
+
+const REPORTER_ONE = '150000000000000001';
+const REPORTER_TWO = '150000000000000002';
+
+const REPORTS: readonly SeedReport[] = [
+	{
+		state: 'OPEN',
+		targetId: ALICE,
+		targetTag: 'alice',
+		messageId: '160000000000000001',
+		text: 'buy my thing at definitely-not-a-scam.example',
+		reporters: [
+			[REPORTER_ONE, 'reporter-one', 'Spam or advertising'],
+			[REPORTER_TWO, 'reporter-two', 'Spam or advertising — third time today'],
+		],
+		daysAgo: 0,
+	},
+	// No text at all, which is the branch that renders "the message had no text content" rather than an empty
+	// code block. The url is deliberately dead: an attachment url outlives its signature, and this is what an
+	// old report looks like on the dashboard.
+	{
+		state: 'OPEN',
+		targetId: BOB,
+		targetTag: 'bob',
+		messageId: '160000000000000002',
+		text: null,
+		hasImage: true,
+		reporters: [[REPORTER_ONE, 'reporter-one', 'Graphic imagery']],
+		daysAgo: 1,
+	},
+	{
+		state: 'DISMISSED',
+		targetId: CAROL,
+		targetTag: 'carol',
+		messageId: '160000000000000003',
+		text: 'this was fine actually',
+		reporters: [[REPORTER_TWO, 'reporter-two', 'Harassment']],
+		daysAgo: 4,
+	},
+	// Resolved into a real punishment, pointing at one of the cases seeded above -- the only way to see the
+	// report-to-case link rendered.
+	{
+		state: 'ACTIONED',
+		targetId: BOB,
+		targetTag: 'bob',
+		messageId: '160000000000000004',
+		text: 'advertising, again',
+		reporters: [
+			[REPORTER_ONE, 'reporter-one', 'Spam or advertising'],
+			[REPORTER_TWO, 'reporter-two', 'Ban evasion'],
+		],
+		// CASES[5] is the KICK against bob, which is who this report is about.
+		caseIndex: 5,
+		daysAgo: 6,
+	},
+	// About the account rather than a message. Nothing files one of these yet -- see schema.sql -- so this is
+	// the only way to exercise the card and detail view's no-jump-link branch.
+	{
+		state: 'OPEN',
+		targetId: CAROL,
+		targetTag: 'carol',
+		messageId: null,
+		text: null,
+		reporters: [[REPORTER_ONE, 'reporter-one', 'Ban evasion — this is an alt']],
+		daysAgo: 2,
+	},
+];
+
+/**
+ * A signed CDN url whose signature is long expired, so the dashboard renders the dead-image case.
+ */
+const DEAD_IMAGE_URL = 'https://cdn.discordapp.com/attachments/1/2/seeded.png?ex=0&is=0&hm=0';
+
+const REPORT_PRESETS = [
+	'Spam or advertising',
+	'Harassment or hate speech',
+	'Graphic imagery',
+	'Ban evasion',
+	'Something else',
+];
+
 function parseArgs(argv: readonly string[]): { guildId: string; reset: boolean } {
 	const guildIndex = argv.indexOf('--guild');
 	const guildId = guildIndex === -1 ? undefined : argv[guildIndex + 1];
@@ -180,6 +282,9 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 	if (reset) {
 		const deleted = await db`DELETE FROM automoderator_cases WHERE guild_id = ${guildId} RETURNING id`;
 		await db`DELETE FROM automoderator_log_webhooks WHERE guild_id = ${guildId}`;
+		// Reporters go with their reports -- `automoderator_reporters_report_id_fkey` is ON DELETE CASCADE.
+		await db`DELETE FROM automoderator_reports WHERE guild_id = ${guildId}`;
+		await db`DELETE FROM automoderator_report_presets WHERE guild_id = ${guildId}`;
 		// The counter is left where it is on purpose: case numbers are monotonic per guild and never reused,
 		// so a reset that rewound it would hand the new rows numbers the old ones already used.
 		console.log(`Reset: removed ${deleted.length} case(s) and any log webhook.`);
@@ -236,8 +341,55 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 		ON CONFLICT (guild_id, log_type) DO NOTHING
 	`;
 
+	for (const preset of REPORT_PRESETS) {
+		await db`
+			INSERT INTO automoderator_report_presets (guild_id, reason) VALUES (${guildId}, ${preset})
+			ON CONFLICT (guild_id, reason) DO NOTHING
+		`;
+	}
+
+	for (const report of REPORTS) {
+		const createdAt = new Date(now - report.daysAgo * 86_400_000);
+		const caseId = report.caseIndex === undefined ? null : numbers[report.caseIndex];
+
+		const [inserted] = await db<{ id: number }[]>`
+			INSERT INTO automoderator_reports (
+				guild_id, target_id, target_tag, origin, message_id, channel_id, message_content, message_image_url,
+				state, resolved_by, resolved_at, case_id, card_channel_id, card_message_id, created_at
+			) VALUES (
+				${guildId},
+				${report.targetId},
+				${report.targetTag},
+				'GUILD'::automoderator_report_origin,
+				${report.messageId},
+				${report.messageId ? DANGLING_CHANNEL_ID : null},
+				${report.text},
+				${report.hasImage ? DEAD_IMAGE_URL : null},
+				${report.state}::automoderator_report_state,
+				${report.state === 'OPEN' ? null : MOD_ONE},
+				${report.state === 'OPEN' ? null : createdAt},
+				${caseId ?? null},
+				${null},
+				${null},
+				${createdAt}
+			)
+			RETURNING id
+		`;
+
+		for (const [reporterId, reporterTag, reason] of report.reporters) {
+			await db`
+				INSERT INTO automoderator_reporters (report_id, reporter_id, reporter_tag, reason, created_at)
+				VALUES (${inserted!.id}, ${reporterId}, ${reporterTag}, ${reason}, ${createdAt})
+			`;
+		}
+	}
+
 	console.log(`Seeded ${CASES.length} cases (#${numbers[0]}-#${numbers.at(-1)}) for guild ${guildId}.`);
 	console.log(`Seeded a MOD log webhook pointing at a channel that does not exist (${DANGLING_CHANNEL_ID}).`);
+	console.log(`Seeded ${REPORTS.length} reports and ${REPORT_PRESETS.length} report reasons.`);
+	console.log('Seeded reports carry no card -- nothing posted one, so they exercise the dashboard queue only.');
+	console.log('Their reported messages point at the same non-existent channel, which is the dangling-reference');
+	console.log('case the detail view has to render without breaking.');
 }
 
 // Destructured rather than accessed key-by-key: `ProcessEnv` is an index signature, so
