@@ -1,5 +1,6 @@
 export * from './lib/amaEmbeds.js';
 export * from './lib/amaMerge.js';
+export * from './lib/automoderatorCaseEmbeds.js';
 export * from './lib/constants.js';
 export * from './lib/discordAttachments.js';
 export * from './lib/discordPermissions.js';

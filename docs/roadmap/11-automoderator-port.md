@@ -7,7 +7,7 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0 done, P1 next
+## Status: P0 and P1 done, P2 next
 
 Scope is settled (36 features surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is per-feature vertical
 slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so nothing sits half-built
@@ -335,6 +335,87 @@ Notes:
   real tiers here, while there's exactly one consumer.
 - Feature 27's audit-log correlation is where idempotency keys earn their place.
 - Mutes are timeouts only, four-week ceiling. No mute role, no `unmute_roles` snapshot.
+
+**Shipped 2026-08-14.** Build, lint, test and format:check green; runtime verification against the test guild is
+still outstanding (see [Verification](#verification)).
+
+The two open questions this phase carried both resolved on the owner's call:
+
+- **Permission tiers: there are none, deliberately.** Discord's own `setDefaultMemberPermissions` gates every
+  command (ModerateMembers to warn/mute, KickMembers to kick, BanMembers to ban/unban/softban), retunable by
+  server admins in Server Settings → Integrations. Auditing legacy settled it: its `UserPerms.mod` and
+  `UserPerms.admin` branches were literally the same expression, command gating was `default_member_permissions`
+  in practice, and the only thing its checker actually decided was **immunity**. That is what
+  `automoderator-bot/src/lib/permissions.ts` keeps, as a hierarchy check rather than a tier — and it earns its
+  place because a WARN makes no Discord call at all, so nothing else would stop a moderator warning an admin.
+- **No experiment gate this phase.** The safety net is `automoderator_guild_settings.dry_run` defaulting to true
+  plus the bot not being in a production guild yet. The first real gate lands with a feature that can misfire —
+  P5's filters.
+
+Deviations from the table above, all deliberate:
+
+- **`DELETE` as well as `PATCH` on a case**, matching legacy's `/case delete`.
+- **No `duration` option on `/ban`, and no `/case duration` subcommand.** Both need the scheduler. A tempban whose
+  expiry nothing lifts is a permanent ban that claims otherwise, so they land together at P2. A mute's expiry is
+  Discord's to honour, so `/mute` is unaffected.
+- **History-by-user is a `target_id` filter on the case list, not its own route.** "The browser, filtered" and
+  "this user's history" are the same query, and the case-detail sidebar's _other cases for this user_ uses it too.
+- **Feature 27 does not correlate at all.** Legacy listened for `GUILD_BAN_ADD`, then fetched the audit log and
+  hoped the newest entry matched, inside a 30-second window. `GUILD_AUDIT_LOG_ENTRY_CREATE` (added with the
+  `GuildModeration` intent) delivers the entry itself, so there is no race and no window — the entry's own id is
+  the idempotency key, and its `user_id` is the attribution legacy fetched and then threw away. Two legacy bugs
+  are therefore not carried forward: its ban/unban suppression condition was written inverted, and every observed
+  manual action was left unattributed.
+- **Webhook tokens are encrypted at rest** with `ENCRYPTION_KEY`, the same treatment `modmail_instances.token`
+  gets. Legacy stored them in plaintext.
+- **Manual _timeouts_ are not observed**, only manual bans, unbans and kicks — legacy's set. The audit entry for a
+  timeout is a `MemberUpdate` needing change-key filtering, which is worth doing but is not what feature 27 was.
+
+Three things moved to shared packages rather than being written twice, since P1 is the first phase with two
+consumers of the same logic:
+
+- `buildCaseEmbed` lives in `@chatsift/core` (beside `amaEmbeds.ts`): the bot posts the mod-log embed and the API
+  rewrites it when a case is amended from the dashboard, and those must not drift.
+- `isUniqueViolation` moved from `services/api/src/util/postgres.ts` into `@chatsift/db`, which owns the
+  `postgres` dependency the check is about. The bot needs it for the idempotency-key insert.
+- `memoizeAsync` was added to `@chatsift/core`'s `inflight.ts`. `bot-core`'s `/deploy` bootstrap and
+  `services/api`'s `discordApplication.ts` had both hand-rolled "memoize an async lookup but don't remember a
+  failure"; this became the shared version rather than a third copy. Neither existing one was converted —
+  `bootstrapOnce` is entangled with the error it swallows, and `discordApplication.ts` is a _keyed_ memo, which
+  would want a keyed variant.
+- `getSelfId`/`setSelfId` in `bot-core/src/lib/selfId.ts`. The bot's own user id is in the READY payload
+  (`data.user.id`), so `createBotClient` records it and nothing pays a `GET /users/@me` for it; the memoized
+  fetch is only the fallback for a process that RESUMEd without ever seeing a READY. Consumed by the hierarchy
+  guard and the audit observer.
+
+**`/myhistory` and the member-facing page.** A member can read their own record without any dashboard access,
+which no part of `isAuthed` could ever grant them — they aren't guild managers. `/myhistory` mints a
+five-minute token (`backend-core`'s `automoderatorHistoryTokens.ts`, a uuid in Redis naming one user in one
+guild) and links to `/automoderator/history/<token>`, an unauthenticated page served by
+`GET /v3/automoderator/history/:token`. That route follows `ama/questions/publicAnswers.ts`: no `middleware` at
+all, because there is no session to have.
+
+Three deliberate calls there:
+
+- **The token is not consumed on read**, only expired. Five minutes is the security control and it's absolute
+  (nothing slides the TTL); burning it on first read would break refresh and the back button for no gain, since
+  anyone holding the link inside the window can read it either way.
+- **The public payload is narrower than the moderator one** — no moderator identity, no row id, no
+  `log_message_id`, and pardoned cases excluded. Who actioned someone is staff information, and this page is
+  shown to the person the case is about.
+- **The link lives in the embed description, not the footer.** Discord renders no markdown in an embed footer,
+  so a link there would be unclickable text; the footer keeps its counts summary. `/history` gets the same
+  treatment, pointing at the gated case browser filtered to that user.
+
+**Realtime.** The case browser subscribes to `automoderatorCasesChannel`, and the _bot_ publishes on it when a
+case is filed or amended. That direction is the load-bearing one: cases originate in Discord — a moderator
+running `/ban`, or the audit observer noticing a manual one — so without the bot publishing, the dashboard only
+ever learned about them on a manual reload.
+
+Also landed: the seed script deferred out of P0 (`yarn seed:automoderator --guild <id> [--reset]`), which fills a
+guild with twelve cases spanning every action, a pardoned warn, a dry-run case, an unattributed case, and a log
+webhook pointing at a channel that does not exist — the dangling-reference bug class the dashboard's selects keep
+hitting.
 
 ---
 

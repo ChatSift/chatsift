@@ -30,7 +30,7 @@ const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks'
 const SOCIAL_SECTIONS = ['config', 'channels', 'roles', 'rewards', 'interactions', 'leaderboard'] as const;
 
 // One entry per phase of docs/roadmap/11-automoderator-port.md, in step with the hub page's own SECTIONS.
-const AUTOMODERATOR_SECTIONS = ['config'] as const;
+const AUTOMODERATOR_SECTIONS = ['cases', 'log-channels', 'config'] as const;
 
 const SEGMENT_LABELS: Record<string, string> = {
 	ama: 'AMA',
@@ -52,6 +52,8 @@ const SEGMENT_LABELS: Record<string, string> = {
 	interactions: 'Interactions',
 	leaderboard: 'Leaderboard',
 	automoderator: 'AutoModerator',
+	cases: 'Cases',
+	'log-channels': 'Log Channels',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {
@@ -346,6 +348,11 @@ const SEGMENT_DEFINITIONS: readonly SegmentDefinition[] = [
 		// just formats the raw id -- see #261's own doc for why.
 		pattern: ['modmail', 'threads', ':id'],
 		resolveLabel: (threadId) => `Thread #${threadId}`,
+	},
+	{
+		// Same situation as threads: a case's identity is its per-guild number, and there's no name to resolve.
+		pattern: ['automoderator', 'cases', ':id'],
+		resolveLabel: (caseId) => `Case #${caseId}`,
 	},
 ];
 

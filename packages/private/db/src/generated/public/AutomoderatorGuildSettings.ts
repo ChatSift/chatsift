@@ -9,6 +9,8 @@ export default interface AutomoderatorGuildSettings {
   guildId: AutomoderatorGuildSettingsGuildId;
 
   dryRun: boolean;
+
+  lastCaseId: number;
 }
 
 /** Represents the initializer for the table public.automoderator_guild_settings */
@@ -16,6 +18,8 @@ export interface AutomoderatorGuildSettingsInitializer {
   guildId: AutomoderatorGuildSettingsGuildId;
 
   dryRun?: boolean;
+
+  lastCaseId?: number;
 }
 
 /** Represents the mutator for the table public.automoderator_guild_settings */
@@ -23,4 +27,6 @@ export interface AutomoderatorGuildSettingsMutator {
   guildId?: AutomoderatorGuildSettingsGuildId;
 
   dryRun?: boolean;
+
+  lastCaseId?: number;
 }

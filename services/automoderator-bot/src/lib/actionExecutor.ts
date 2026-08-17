@@ -7,7 +7,8 @@ import { discordErrors, dryRunSuppressions, moderationActions } from './metrics.
  * Every side effect this bot can have on Discord. A closed set, because it is also a metric label -- adding a
  * kind of action is a deliberate edit here, not something a call site can invent.
  */
-export type ModerationAction = 'ban' | 'delete' | 'dm' | 'kick' | 'mute' | 'role' | 'unban' | 'unmute' | 'webhook';
+export type ModerationAction =
+	'ban' | 'delete' | 'dm' | 'kick' | 'mute' | 'role' | 'softban' | 'unban' | 'unmute' | 'webhook';
 
 /**
  * What decided the action. Also a metric label, also closed. `command` is a moderator typing something;
@@ -45,6 +46,7 @@ export interface ActionRequest {
 const ROUTE_CLASS: Record<ModerationAction, string> = {
 	ban: 'member',
 	unban: 'member',
+	softban: 'member',
 	kick: 'member',
 	mute: 'member',
 	unmute: 'member',

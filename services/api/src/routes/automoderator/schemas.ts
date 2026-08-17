@@ -16,6 +16,36 @@ export const updateAutomoderatorConfigBodySchema = z
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
 /**
+ * Mirrors `CREATE TYPE automoderator_case_action`. Spelled out as a zod enum rather than imported from
+ * `constants.ts` because this file has to stay browser-safe and that one imports `@chatsift/db` types --
+ * which is erased at build time, but the dashboard's case filter needs these as runtime values anyway.
+ */
+export const caseActionSchema = z.enum(['WARN', 'MUTE', 'UNMUTE', 'KICK', 'SOFTBAN', 'BAN', 'UNBAN']);
+
+/**
+ * What a case can be changed to after the fact. Everything absent from here is a fact about a moment that
+ * already happened -- rewriting a case's action or target would make its log embed a lie about what was done.
+ *
+ * `pardoned` is a boolean rather than a moderator id: who pardoned it is the caller, taken from the session,
+ * never something the client gets to assert.
+ */
+export const updateCaseBodySchema = z
+	.strictObject({
+		reason: z.string().trim().max(400).nullable().optional(),
+		refId: z.number().int().positive().nullable().optional(),
+		pardoned: z.boolean().optional(),
+	})
+	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
+
+/**
+ * Configuring a log channel. The API creates the Discord webhook itself -- a channel id is all the dashboard
+ * can meaningfully supply, and the token it produces must never reach a browser.
+ */
+export const setLogChannelBodySchema = z.strictObject({
+	channelId: snowflakeSchema,
+});
+
+/**
  * Bucket space `experiments.range_start`/`range_end` are expressed in -- kept in step with
  * `@chatsift/backend-core`'s `BUCKET_COUNT` by hand, since this file has to stay browser-safe and that module
  * reaches `process.env` through its context. `[0, 10000]` is everyone; a collapsed range is nobody.

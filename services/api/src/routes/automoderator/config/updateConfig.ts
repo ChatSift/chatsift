@@ -11,7 +11,7 @@ const bodySchema = updateAutomoderatorConfigBodySchema;
 const paramsSchema = z.object({ guildId: snowflakeSchema });
 
 export type UpdateAutomoderatorConfigBody = z.input<typeof bodySchema>;
-export type UpdateAutomoderatorConfigResult = AutomoderatorGuildSettings;
+export type UpdateAutomoderatorConfigResult = Pick<AutomoderatorGuildSettings, 'dryRun' | 'guildId'>;
 
 export default defineRoute({
 	method: 'patch',
@@ -37,10 +37,12 @@ export default defineRoute({
 		// field they agreed anyway; with two, a hard-coded insert would silently fall back to the column default
 		// for the new field while the update path set it -- a divergence that only shows up on first write.
 		// Columns absent from `data` are left to their schema defaults, which is what "not provided" means here.
-		const [settings] = await db<AutomoderatorGuildSettings[]>`
+		// Returns the same narrow shape `getConfig.ts` does -- `last_case_id` is the case-number allocator's
+		// bookkeeping and never leaves the server.
+		const [settings] = await db<UpdateAutomoderatorConfigResult[]>`
 			INSERT INTO automoderator_guild_settings ${db({ guildId, ...data }, 'guildId', ...columns)}
 			ON CONFLICT (guild_id) DO UPDATE SET ${db(data, ...columns)}
-			RETURNING *
+			RETURNING guild_id, dry_run
 		`;
 
 		// The bot reads this per action rather than caching it, so a guild put into dry-run is in dry-run for

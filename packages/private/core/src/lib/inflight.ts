@@ -9,6 +9,41 @@ export interface InflightDeduper {
 }
 
 /**
+ * Memoizes a single async lookup for the lifetime of the process, **without remembering a failure**.
+ *
+ * For a value that is genuinely constant and costs a round trip to learn -- the bot's own user id, an
+ * application id. The failure half is the part worth having in one place: caching the promise is the obvious
+ * way to write this, and it quietly means one transient 503 on the first call makes every later caller fail
+ * forever. `bot-core`'s `/deploy` bootstrap (`client.ts`) learned that the hard way and clears on failure for
+ * the same reason; it keeps its own copy because its retry is entangled with logging the failure it swallows.
+ *
+ * Unlike {@link createInflightDeduper}, a settled *success* is kept -- that's the difference between "don't
+ * duplicate concurrent work" and "only ever do this once".
+ */
+export function memoizeAsync<TValue>(fetch: () => Promise<TValue>): () => Promise<TValue> {
+	let cached: Promise<TValue> | null = null;
+
+	const attempt = async (): Promise<TValue> => {
+		// bit of a hack to deal with a `fetch` being sync and potentially immediately throwing
+		await Promise.resolve();
+
+		try {
+			return await fetch();
+		} catch (error) {
+			// Cleared before rethrowing, so the next caller retries rather than inheriting this failure. Safe to
+			// reassign mid-flight: anyone already awaiting captured the promise before this ran.
+			cached = null;
+			throw error;
+		}
+	};
+
+	return async () => {
+		cached ??= attempt();
+		return cached;
+	};
+}
+
+/**
  * Collapses concurrent work for the same key onto a single promise.
  *
  * The usual shape is a read-through cache: several callers miss at once and would each issue the same expensive

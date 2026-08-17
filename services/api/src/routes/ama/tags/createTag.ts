@@ -1,11 +1,11 @@
 import { getContext } from '@chatsift/backend-core';
 import { amaQuestionsChannel } from '@chatsift/core';
+import { isUniqueViolation } from '@chatsift/db';
 import type { AmaQuestionTags, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
-import { isUniqueViolation } from '../../../util/postgres.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 
 const bodySchema = z.strictObject({

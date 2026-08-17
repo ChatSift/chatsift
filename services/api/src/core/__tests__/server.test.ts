@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/unbound-method, no-restricted-globals, n/prefer-global/process */
+/* eslint-disable @typescript-eslint/unbound-method */
 
 import { Http2ServerResponse } from 'node:http2';
 import { Boom } from '@hapi/boom';
