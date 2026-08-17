@@ -4,9 +4,10 @@ import type { ComponentHandler } from '@chatsift/bot-core';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { MessageFlags } from '@discordjs/core';
 import { actorFromUser } from '../lib/cases.js';
+import { reportsTotal } from '../lib/metrics.js';
 import { REPORT_COMPONENT } from '../lib/reportCard.js';
 import { refreshCard, resolveCardInteraction } from '../lib/reportComponents.js';
-import { REPORT_STATE, setReportState } from '../lib/reports.js';
+import { getReport, REPORT_STATE, setReportState } from '../lib/reports.js';
 
 export default class ReportDismissComponent implements ComponentHandler<string> {
 	public readonly name = REPORT_COMPONENT.dismiss;
@@ -41,8 +42,31 @@ export default class ReportDismissComponent implements ComponentHandler<string> 
 		await api.interactions.deferMessageUpdate(interaction.id, interaction.token);
 
 		const next = report.state === REPORT_STATE.DISMISSED ? REPORT_STATE.OPEN : REPORT_STATE.DISMISSED;
-		const updated = await setReportState(report.id, { state: next, moderator: actorFromUser(member.user) });
 
+		// Compare-and-swap on the state we read, not a bare write. The guard above narrows the window; only this
+		// closes it -- otherwise a click landing just after someone else actioned the report would overwrite
+		// ACTIONED with DISMISSED while `case_id` still pointed at the case they filed.
+		const updated = await setReportState(report.id, {
+			state: next,
+			expected: report.state,
+			moderator: actorFromUser(member.user),
+		});
+
+		if (!updated) {
+			const current = await getReport(report.id);
+			await api.interactions.followUp(interaction.application_id, interaction.token, {
+				content: 'Someone else changed this report first, so nothing was done.',
+				flags: MessageFlags.Ephemeral,
+			});
+
+			if (current) {
+				await refreshCard(current, logger);
+			}
+
+			return;
+		}
+
+		reportsTotal.inc({ state: next === REPORT_STATE.DISMISSED ? 'dismissed' : 'restored' });
 		await refreshCard(updated, logger);
 	}
 }

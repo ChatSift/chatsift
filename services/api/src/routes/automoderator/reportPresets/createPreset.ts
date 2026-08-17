@@ -25,22 +25,25 @@ export default defineRoute({
 		const { guildId } = req.params;
 		const db = getContext().db;
 
-		const [existing] = await db<{ count: string }[]>`
-			SELECT count(*) FROM automoderator_report_presets WHERE guild_id = ${guildId}
-		`;
-
-		if (Number(existing?.count ?? 0) >= REPORT_PRESET_MAX_COUNT) {
-			throw badRequest(`a server can have at most ${REPORT_PRESET_MAX_COUNT} report reasons`);
-		}
-
 		try {
+			// The cap is enforced *inside* the insert rather than by a count query in front of it. Two concurrent
+			// creates both pass a separate read-then-write check and a guild ends up with 26 reasons, one of which
+			// the picker silently never offers (it reads `LIMIT 25`) -- which reads as "the dashboard saved it and
+			// the bot ignored it". `INSERT ... SELECT ... WHERE` makes the check and the write one statement.
 			const [preset] = await db<AutomoderatorReportPresets[]>`
 				INSERT INTO automoderator_report_presets (guild_id, reason)
-				VALUES (${guildId}, ${req.body.reason})
+				SELECT ${guildId}, ${req.body.reason}
+				WHERE (SELECT count(*) FROM automoderator_report_presets WHERE guild_id = ${guildId})
+					< ${REPORT_PRESET_MAX_COUNT}
 				RETURNING *
 			`;
 
-			return preset!;
+			// No row means the `WHERE` above rejected it, which can only be the cap.
+			if (!preset) {
+				throw badRequest(`a server can have at most ${REPORT_PRESET_MAX_COUNT} report reasons`);
+			}
+
+			return preset;
 		} catch (error) {
 			if (isUniqueViolation(error, 'automoderator_report_presets_guild_id_reason_key')) {
 				throw conflict('this server already has that report reason', { conflictField: 'reason' });

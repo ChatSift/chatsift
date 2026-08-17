@@ -38,12 +38,10 @@ function ReportRow({ guildId, report }: { readonly guildId: string; readonly rep
 			href={`/dashboard/${guildId}/automoderator/reports/${report.id}`}
 		>
 			<div className="flex flex-col overflow-hidden">
-				<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
+				<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">
 					{snapshotUserLabel(report.target, report.targetTag)}
 				</p>
-				<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-sm text-secondary dark:text-secondary-dark">
-					{previewLine(report)}
-				</p>
+				<p className="truncate text-sm text-secondary dark:text-secondary-dark">{previewLine(report)}</p>
 				<p className="text-sm text-secondary dark:text-secondary-dark">
 					{reporterCountLabel(report.reporterCount)} · {formatDate(new Date(report.createdAt))}
 					{report.caseId ? ` · case #${report.caseId}` : ''}

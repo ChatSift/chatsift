@@ -35,9 +35,7 @@ export function CategoryCard({ guildId, category, canMoveUp, canMoveDown, onMove
 			<div className="flex items-center justify-between gap-2">
 				<div className="flex min-w-0 flex-1 items-center gap-2">
 					{category.emoji && <Emoji className="h-7 w-7 shrink-0 text-2xl" value={category.emoji} />}
-					<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-xl font-semibold text-primary dark:text-primary-dark">
-						{category.name}
-					</p>
+					<p className="truncate text-xl font-semibold text-primary dark:text-primary-dark">{category.name}</p>
 				</div>
 
 				<div className="flex shrink-0 flex-col gap-0.5">

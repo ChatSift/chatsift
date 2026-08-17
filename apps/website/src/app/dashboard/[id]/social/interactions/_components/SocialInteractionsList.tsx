@@ -23,7 +23,7 @@ function SocialInteractionCard({ guildId, interaction }: SocialInteractionCardPr
 	return (
 		<div className="flex w-full flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<div className="flex items-start justify-between gap-2">
-				<p className="overflow-hidden overflow-ellipsis whitespace-nowrap font-mono text-lg font-semibold text-primary dark:text-primary-dark">
+				<p className="truncate font-mono text-lg font-semibold text-primary dark:text-primary-dark">
 					/{interaction.name}
 				</p>
 				{/* A null command id means no live Discord command backs this row -- the state every migrated

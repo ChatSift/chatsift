@@ -124,6 +124,16 @@ test('a long message is truncated rather than dropped or left to overflow the em
 	expect(embed.description).toContain('…');
 });
 
+test('a code fence in the reported text cannot break out of the quote block', () => {
+	// Otherwise the reported account controls markdown inside the bot's own embed, and can dress its text up as
+	// something the bot said -- a fake "verified" link being the obvious use.
+	const embed = buildReportEmbed(makeReport({ messageContent: '```\nnot bot text\n```' }), { reporterCount: 1 });
+
+	// Exactly the two fences this function opened and closed, and no more.
+	expect(embed.description!.match(/(?<!`)```(?!`)/g)).toHaveLength(2);
+	expect(embed.description).toContain('not bot text');
+});
+
 test('the dashboard link goes in the description, because a footer renders no markdown', () => {
 	const link = 'https://example.com/dashboard/1/automoderator/reports/7';
 	const embed = buildReportEmbed(makeReport(), { reporterCount: 1, dashboardLink: link });

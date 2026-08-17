@@ -27,9 +27,7 @@ function SocialRewardCard({ guildId, reward, roleInfo }: SocialRewardCardProps) 
 	return (
 		<div className="flex w-full flex-col gap-3 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Level {reward.level}</p>
-			<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-semibold text-primary dark:text-primary-dark">
-				{label}
-			</p>
+			<p className="truncate text-lg font-semibold text-primary dark:text-primary-dark">{label}</p>
 
 			<p className="text-sm text-secondary dark:text-secondary-dark">
 				{reward.clean ? 'Replaces the previous tier' : 'Kept alongside earlier rewards'}

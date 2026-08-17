@@ -167,7 +167,7 @@ export function ReportDetail() {
 				{report.resolvedAt && (
 					<Field label={report.state === 'ACTIONED' ? 'Actioned' : 'Dismissed'}>
 						{formatDate(new Date(report.resolvedAt))}
-						{report.resolvedBy ? ` by ${report.resolvedBy}` : ''}
+						{report.resolvedByUser ? ` by ${snapshotUserLabel(report.resolvedByUser, null)}` : ''}
 					</Field>
 				)}
 

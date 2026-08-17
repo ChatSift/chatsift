@@ -181,6 +181,12 @@ interface SeedReport {
 	 * something is agreeing with the first, not filing a new queue item.
 	 */
 	readonly reporters: readonly [string, string, string][];
+	/**
+	 * When it was dismissed or actioned. Separate from `daysAgo` because a resolution has to land *after* both the
+	 * report and, for an ACTIONED one, the case it produced -- a fixture where the action predates its own case
+	 * reads as a report that resolved into something which already existed.
+	 */
+	readonly resolvedDaysAgo?: number;
 	readonly state: 'ACTIONED' | 'DISMISSED' | 'OPEN';
 	readonly targetId: string;
 	readonly targetTag: string;
@@ -224,6 +230,7 @@ const REPORTS: readonly SeedReport[] = [
 		text: 'this was fine actually',
 		reporters: [[REPORTER_TWO, 'reporter-two', 'Harassment']],
 		daysAgo: 4,
+		resolvedDaysAgo: 3,
 	},
 	// Resolved into a real punishment, pointing at one of the cases seeded above -- the only way to see the
 	// report-to-case link rendered.
@@ -237,9 +244,12 @@ const REPORTS: readonly SeedReport[] = [
 			[REPORTER_ONE, 'reporter-one', 'Spam or advertising'],
 			[REPORTER_TWO, 'reporter-two', 'Ban evasion'],
 		],
-		// CASES[5] is the KICK against bob, which is who this report is about.
+		// CASES[5] is the KICK against bob, which is who this report is about. That case is seeded at 14 days ago,
+		// so this report has to be *newer* than it and its resolution newer still -- otherwise the fixture shows an
+		// action that produced a case predating the report itself.
 		caseIndex: 5,
-		daysAgo: 6,
+		daysAgo: 13,
+		resolvedDaysAgo: 12,
 	},
 	// About the account rather than a message. Nothing files one of these yet -- see schema.sql -- so this is
 	// the only way to exercise the card and detail view's no-jump-link branch.
@@ -350,6 +360,7 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 
 	for (const report of REPORTS) {
 		const createdAt = new Date(now - report.daysAgo * 86_400_000);
+		const resolvedAt = new Date(now - (report.resolvedDaysAgo ?? report.daysAgo) * 86_400_000);
 		const caseId = report.caseIndex === undefined ? null : numbers[report.caseIndex];
 
 		const [inserted] = await db<{ id: number }[]>`
@@ -367,7 +378,7 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 				${report.hasImage ? DEAD_IMAGE_URL : null},
 				${report.state}::automoderator_report_state,
 				${report.state === 'OPEN' ? null : MOD_ONE},
-				${report.state === 'OPEN' ? null : createdAt},
+				${report.state === 'OPEN' ? null : resolvedAt},
 				${caseId ?? null},
 				${null},
 				${null},

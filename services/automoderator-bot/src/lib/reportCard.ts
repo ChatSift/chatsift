@@ -71,6 +71,18 @@ function truncate(value: string, limit: number): string {
 }
 
 /**
+ * Neutralizes a code fence inside reported text.
+ *
+ * The content is whatever the reported account typed. A literal ``` in it closes the block early and the rest
+ * renders as markdown *in the bot's own embed* — which is a spoofing vector, not just a layout glitch: attacker
+ * text can be dressed up as something the bot said, a fake "verified" link being the obvious use. A zero-width
+ * space between the backticks stops the fence from closing while leaving the text readable.
+ */
+function fence(value: string): string {
+	return value.replaceAll('```', '`\u200B``');
+}
+
+/**
  * Whether staff can actually follow a link to the reported message. Keyed on `origin` rather than on the
  * channel id being present: a DM-origin report (the phase after this one) has a channel id nobody but the two
  * participants can open, so rendering a link for it would be a button that always fails.
@@ -86,7 +98,7 @@ function describeSubject(report: AutomoderatorReports): string {
 
 	const where = isLinkable(report) ? ` in <#${report.channelId}>` : '';
 	const content = report.messageContent?.trim().length
-		? `\`\`\`\n${truncate(report.messageContent, CONTENT_LIMIT)}\n\`\`\``
+		? `\`\`\`\n${fence(truncate(report.messageContent, CONTENT_LIMIT))}\n\`\`\``
 		: '*The message had no text content.*';
 
 	return `Had a message${where} reported.\n\n${content}`;
@@ -225,11 +237,16 @@ export async function syncReportCard(
 			await setReportCard(report.id, { channelId, messageId: posted.id });
 		}
 	} catch (error) {
-		if (error instanceof DiscordAPIError && error.code === RESTJSONErrorCodes.UnknownMessage) {
-			// Someone deleted the card. Forget it so the next transition posts a fresh one, rather than editing a
-			// message that no longer exists forever -- the same self-heal `dispatchCaseLog` does for its webhook.
+		// `UnknownChannel` as well as `UnknownMessage`: deleting the whole reports channel is at least as likely as
+		// deleting one card, and without it the row keeps pointing at a dead channel forever and every future
+		// transition silently fails to render. Forgetting the card makes the next one post fresh into whatever
+		// channel is configured then -- the same self-heal `dispatchCaseLog` does for its webhook.
+		if (
+			error instanceof DiscordAPIError &&
+			(error.code === RESTJSONErrorCodes.UnknownMessage || error.code === RESTJSONErrorCodes.UnknownChannel)
+		) {
 			await setReportCard(report.id, null);
-			logger.warn({ guildId: report.guildId, reportId: report.id }, 'report card was deleted, forgot it');
+			logger.warn({ guildId: report.guildId, reportId: report.id, code: error.code }, 'report card is gone, forgot it');
 			return;
 		}
 

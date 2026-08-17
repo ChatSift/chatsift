@@ -123,7 +123,9 @@ export function ReportPresetsForm() {
 			) : (
 				<div className="flex flex-col gap-3">
 					{presets.map((preset) => (
-						<PresetRow guildId={guildId} key={preset.id} preset={preset} />
+						// Keyed on the text as well as the id, so a preset another moderator edits remounts this row
+						// instead of leaving stale local text that `isDirty` would then offer to write back over theirs.
+						<PresetRow guildId={guildId} key={`${preset.id}-${preset.reason}`} preset={preset} />
 					))}
 				</div>
 			)}

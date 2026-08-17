@@ -21,9 +21,7 @@ export function PanelCard({ guildId, panel, channelName }: PanelCardProps) {
 
 	return (
 		<div className="flex h-36 w-full flex-col gap-2 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
-			<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
-				{channelLabel}
-			</p>
+			<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">{channelLabel}</p>
 			<p className="text-sm text-secondary dark:text-secondary-dark">
 				{panel.categoryIds.length} {panel.categoryIds.length === 1 ? 'category' : 'categories'}
 			</p>

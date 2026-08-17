@@ -186,7 +186,7 @@ automoderator_filter_hits_total{filter}                       counter  filter: w
 automoderator_automod_events_total{action_type, matched}      counter  native AUTO_MODERATION_ACTION_EXECUTION intake
 automoderator_scheduler_tasks_total{type, result}             counter
 automoderator_scheduler_lag_seconds{type}                     histogram  run_at → actually ran
-automoderator_reports_total{state}                            counter  filed|joined|dismissed|actioned
+automoderator_reports_total{state}                            counter  filed|joined|dismissed|restored|actioned
 automoderator_log_dispatch_total{log_type, result}            counter  webhook delivery health
 automoderator_discord_errors_total{status, route_class}       counter
 automoderator_dry_run_suppressions_total{action}              counter
@@ -477,6 +477,11 @@ Deviations from the table above, all deliberate:
   only while open, because "this account, again" is a legitimate new report once the last is closed. Legacy's
   version had no guild column at all, so one guild acknowledging a report made that account unreportable across
   every guild the deployment served, permanently. Not carried forward.
+- **State transitions are compare-and-swap, not bare writes.** `setReportState` takes an `expected` state and
+  puts it in the `WHERE` clause; a zero-row result means somebody got there first. The action path goes further
+  and **claims the report before it punishes anybody**, rolling the claim back if the punishment fails: a card can
+  sit on screen indefinitely and a modal for five minutes, so writing the state afterwards would only decide whose
+  `case_id` survived — both targets would already have been banned. Raised by both reviewers on #360.
 - **The card's state is derived from the row every time it is rendered.** Legacy decided whether it was dismissing
   or restoring by comparing the button's own _label_ to the string `'Dismiss'` — deriving state from the UI it had
   just rendered, which goes wrong the moment two moderators click at once.
@@ -585,6 +590,19 @@ practice, not thousands, and it goes through `services/discord-proxy` like every
 7. **Message forwarding was considered and rejected.** Forwarding a DM into a bot DM would skip the install step
    entirely, but forwarded-message snapshots appear not to carry the original `author`, which destroys attribution
    — the one thing the feature exists for.
+
+**Open question, raised in review on #360 and not yet decided: where do the extra messages live?** Decision 1
+above wants multi-message drafts, but `automoderator_reports` holds exactly one snapshot — `message_id`,
+`message_content`, `message_image_url`. So P3b needs one of:
+
+- an ordered `automoderator_report_messages` child table (snapshot per message, with its own author, since a
+  draft can legitimately include the reporter's own replies), which is the shape that actually delivers decision 1;
+- or the draft collapses to one message at confirmation time, and decision 1 is scaled back to "pick the single
+  most damning message".
+
+The first is the honest reading of the feature and is a schema change P3b has to carry; the second is cheaper and
+loses the context argument that motivated multi-message drafts in the first place. **Not decided — do not start
+P3b's schema work until it is.**
 
 **Accept knowingly:** staff can never independently corroborate a DM report. Every other report type has a jump
 link; this one is trust in ChatSift's chain of custody, and the card should say so rather than let a moderator

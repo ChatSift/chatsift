@@ -11,11 +11,13 @@ import type {
 	APIModalInteractionResponseCallbackData,
 	APIModalSubmitInteraction,
 } from '@discordjs/core';
-import { ComponentType, MessageFlags, TextInputStyle } from '@discordjs/core';
+import { ComponentType, MessageFlags, RESTJSONErrorCodes, TextInputStyle } from '@discordjs/core';
+import { DiscordAPIError } from '@discordjs/rest';
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
 import { ACTION_PAST_TENSE } from '../lib/caseFormat.js';
 import { actorFromUser } from '../lib/cases.js';
+import { reportsTotal } from '../lib/metrics.js';
 import { describeCommandFailure } from '../lib/modCommand.js';
 import { REASON_MAX_LENGTH } from '../lib/modCommandOptions.js';
 import { MAX_MUTE_MS, applyModerationAction } from '../lib/moderation.js';
@@ -23,7 +25,7 @@ import { checkActorHierarchy, checkBotHierarchy, memberMayTakeAction } from '../
 import type { ReportActionName } from '../lib/reportCard.js';
 import { REPORT_COMPONENT, isReportAction } from '../lib/reportCard.js';
 import { refreshCard, resolveCardInteraction } from '../lib/reportComponents.js';
-import { REPORT_STATE, setReportState } from '../lib/reports.js';
+import { REPORT_STATE, getReport, recordReportCase, setReportState } from '../lib/reports.js';
 
 const REASON_INPUT_ID = 'reason';
 const DURATION_INPUT_ID = 'duration';
@@ -211,28 +213,60 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 				return;
 			}
 
-			const result = await applyModerationAction(
-				{
-					action: action as AutomoderatorCaseAction,
-					guildId: report.guildId,
-					target: { id: report.targetId, tag: report.targetTag },
-					mod: actorFromUser(member.user),
-					source: 'report',
-					reason,
-					...(durationMs === undefined ? {} : { durationMs }),
-				},
-				logger,
-			);
-
-			// The report closes only once the punishment has landed -- an ACTIONED report pointing at a case that
-			// was never filed would be a queue entry claiming work nobody did.
-			const updated = await setReportState(report.id, {
+			// **Claimed before anybody is punished, not after.** The state read in `handle` is up to
+			// `MODAL_TIMEOUT_MS` old by now, so a second moderator could have actioned this report while this modal
+			// sat open. Writing the state afterwards would only decide whose `case_id` survives -- both targets
+			// would already have been banned. A compare-and-swap here is the mutex, and it is cheap because
+			// `applyModerationAction` is the expensive, irreversible half that follows it.
+			const claimed = await setReportState(report.id, {
 				state: REPORT_STATE.ACTIONED,
+				expected: report.state,
 				moderator: actorFromUser(member.user),
-				caseId: result.case.caseId,
 			});
 
-			await refreshCard(updated, logger);
+			if (!claimed) {
+				await reply('Someone else handled this report while that was open, so nothing was done.');
+				// Their card is stale by definition if they lost the race -- rewrite it from the row they lost to.
+				const current = await getReport(report.id);
+				if (current) {
+					await refreshCard(current, logger);
+				}
+
+				return;
+			}
+
+			let result;
+			try {
+				result = await applyModerationAction(
+					{
+						action: action as AutomoderatorCaseAction,
+						guildId: report.guildId,
+						target: { id: report.targetId, tag: report.targetTag },
+						mod: actorFromUser(member.user),
+						source: 'report',
+						reason,
+						...(durationMs === undefined ? {} : { durationMs }),
+					},
+					logger,
+				);
+			} catch (error) {
+				// The claim has to come back off, or a punishment that failed leaves a report permanently closed
+				// with nothing to show for it and no way to retry from the card.
+				await setReportState(report.id, {
+					state: report.state,
+					expected: REPORT_STATE.ACTIONED,
+					moderator: null,
+				});
+
+				throw error;
+			}
+
+			// Counted here rather than inside `setReportState`, so the metric only ever reflects reports that
+			// really did produce a punishment.
+			reportsTotal.inc({ state: 'actioned' });
+
+			const recorded = await recordReportCase(report.id, result.case.caseId);
+			await refreshCard(recorded ?? claimed, logger);
 
 			const verb = ACTION_PAST_TENSE[action as AutomoderatorCaseAction];
 			await reply(
@@ -248,13 +282,23 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 }
 
 /**
- * `null` when they aren't in the guild. A 404 here is an ordinary answer -- reports outlive memberships -- so it
- * is not worth distinguishing from a real failure, which the subsequent Discord call would surface anyway.
+ * `null` when they genuinely aren't in the guild — and **only** then. Reports outlive memberships, so a 404 is an
+ * ordinary answer here.
+ *
+ * Everything else rethrows, which matters more than it looks: `checkActorHierarchy` returns OK for a `null`
+ * target (there are no roles to compare), and a BAN doesn't require membership. So swallowing a 500 or a timeout
+ * from this call would silently *skip* the role-hierarchy comparison rather than fail it, letting a moderator ban
+ * someone ranked above them. `modCommand.ts` never has this window because a USER option carries the resolved
+ * member in the interaction payload, with no network call to fail.
  */
 async function fetchMember(guildId: string, userId: string): Promise<APIGuildMember | null> {
 	try {
 		return await getContext().service.client.api.guilds.getMember(guildId, userId);
-	} catch {
-		return null;
+	} catch (error) {
+		if (error instanceof DiscordAPIError && error.code === RESTJSONErrorCodes.UnknownMember) {
+			return null;
+		}
+
+		throw error;
 	}
 }

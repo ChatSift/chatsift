@@ -90,7 +90,12 @@ export default class ReportMessageWithReasonContextMenuCommand implements Comman
 									required: false,
 									min_values: 0,
 									max_values: 1,
-									options: presets.map((reason, index) => ({ label: reason, value: String(index) })),
+									// The reason text *is* the value, not its index in this list. A preset added, removed or
+									// renamed while the modal sits open (up to five minutes) shifts every index after it, so an
+									// index would resolve to a different reason than the reporter picked -- or fall out of range
+									// and silently drop it. `REPORT_PRESET_MAX_LENGTH` is 100 and a select value allows 100, so
+									// the text always fits, and carrying it means nothing has to be re-read on submit.
+									options: presets.map((reason) => ({ label: reason, value: reason })),
 								},
 							},
 						]
@@ -125,11 +130,10 @@ export default class ReportMessageWithReasonContextMenuCommand implements Comman
 
 		const options = new ModalInteractionOptionResolver(modal);
 		const typed = readOptionalTextInput(options, REASON_INPUT_ID);
-		const picked = hasPresets ? readOptionalSelectedString(options, PRESET_SELECT_ID) : null;
+		const preset = hasPresets ? readOptionalSelectedString(options, PRESET_SELECT_ID) : null;
 
-		const presets = picked === null ? [] : await listReportPresets(guildId);
-		const preset = picked === null ? null : (presets[Number(picked)] ?? null);
-
+		// Both halves are joined when both are filled, so a preset plus context reads as one reason rather than
+		// the free text silently winning.
 		const reason = [preset, typed].filter(Boolean).join(' — ');
 
 		if (!reason) {

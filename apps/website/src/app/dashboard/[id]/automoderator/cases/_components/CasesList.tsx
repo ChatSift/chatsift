@@ -25,11 +25,11 @@ function CaseRow({ guildId, modCase }: { readonly guildId: string; readonly modC
 			href={`/dashboard/${guildId}/automoderator/cases/${modCase.caseId}`}
 		>
 			<div className="flex flex-col overflow-hidden">
-				<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
+				<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">
 					<span className="text-secondary dark:text-secondary-dark">#{modCase.caseId}</span>{' '}
 					{snapshotUserLabel(modCase.target, modCase.targetTag)}
 				</p>
-				<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-sm text-secondary dark:text-secondary-dark">
+				<p className="truncate text-sm text-secondary dark:text-secondary-dark">
 					{modCase.reason ?? 'No reason given'} · {formatDate(new Date(modCase.createdAt))}
 					{modCase.modTag ? ` · by ${modCase.modTag}` : ''}
 				</p>

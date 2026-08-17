@@ -227,18 +227,37 @@ export interface ResolveReportOptions {
 	 * nulling it -- a partial patch, the same shape `updateCase` takes.
 	 */
 	readonly caseId?: number;
+	/**
+	 * The state the caller believes the row is still in. **Every caller should pass this**: a card can sit on
+	 * screen for as long as someone leaves it there, and a modal for up to five minutes, so the state a handler
+	 * read is a claim about the past by the time it writes.
+	 */
+	readonly expected?: AutomoderatorReportState;
 	readonly moderator: CaseActor | null;
 	readonly state: AutomoderatorReportState;
 }
 
 /**
- * Moves a report to a new state. `resolved_by`/`resolved_at` are cleared when going back to OPEN, so a restored
- * report doesn't keep claiming it was resolved by whoever restored it.
+ * Moves a report to a new state, compare-and-swap. Returns `null` when `expected` no longer holds, which callers
+ * must read as "somebody got there first" rather than as an error.
+ *
+ * The `expected` predicate is in the `WHERE` clause rather than checked beforehand on purpose: a check narrows
+ * the window, only a conditional write closes it. Without it, two moderators handling one card race to overwrite
+ * each other -- and in the action path that means two punishments for one report, with the second one's
+ * `case_id` erasing the first.
+ *
+ * `resolved_by`/`resolved_at` are cleared when going back to OPEN, so a restored report doesn't keep claiming it
+ * was resolved by whoever restored it.
+ *
+ * Deliberately does **not** touch `reportsTotal`. The action path claims the report *before* it punishes anybody
+ * (so the claim is the mutex) and rolls back if the punishment fails, so a write here is not yet evidence that
+ * anything happened -- counting it from inside would produce exactly the "actions we claim but didn't take"
+ * dishonesty `actionExecutor.ts` avoids. Callers count once they know.
  */
 export async function setReportState(
 	id: AutomoderatorReportsId | number,
 	options: ResolveReportOptions,
-): Promise<AutomoderatorReports> {
+): Promise<AutomoderatorReports | null> {
 	const isOpen = options.state === REPORT_STATE.OPEN;
 	const db = getContext().db;
 
@@ -250,15 +269,35 @@ export async function setReportState(
 	};
 
 	const [updated] = await db<AutomoderatorReports[]>`
-		UPDATE automoderator_reports SET ${db(columns)} WHERE id = ${id} RETURNING *
+		UPDATE automoderator_reports SET ${db(columns)}
+		WHERE id = ${id}
+		${options.expected === undefined ? db`` : db`AND state = ${options.expected}`}
+		RETURNING *
 	`;
 
 	if (!updated) {
-		throw new Error(`Report ${id} vanished mid-update`);
+		return null;
 	}
 
-	if (!isOpen) {
-		reportsTotal.inc({ state: options.state === REPORT_STATE.ACTIONED ? 'actioned' : 'dismissed' });
+	await publishRealtimeInvalidate(automoderatorReportsChannel(updated.guildId));
+
+	return updated;
+}
+
+/**
+ * Records the case an actioned report produced, once the punishment has actually landed. Split from the state
+ * transition because the two happen at different moments -- see `setReportState`'s note on claiming first.
+ */
+export async function recordReportCase(
+	id: AutomoderatorReportsId | number,
+	caseId: number,
+): Promise<AutomoderatorReports | null> {
+	const [updated] = await getContext().db<AutomoderatorReports[]>`
+		UPDATE automoderator_reports SET case_id = ${caseId} WHERE id = ${id} RETURNING *
+	`;
+
+	if (!updated) {
+		return null;
 	}
 
 	await publishRealtimeInvalidate(automoderatorReportsChannel(updated.guildId));

@@ -16,9 +16,7 @@ export function AMASessionCard({ data }: AMASessionCardProps) {
 			href={`/dashboard/${data.guildId}/ama/amas/${data.id}`}
 		>
 			<div className="flex flex-col gap-1">
-				<h3 className="overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
-					{data.title}
-				</h3>
+				<h3 className="truncate text-lg font-medium text-primary dark:text-primary-dark">{data.title}</h3>
 				<p className="text-sm text-secondary dark:text-secondary-dark">
 					{data.questionCount} {data.questionCount === 1 ? 'question' : 'questions'}
 				</p>

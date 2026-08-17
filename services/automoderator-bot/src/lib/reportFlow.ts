@@ -21,7 +21,10 @@ export const DEFAULT_REPORT_REASON = 'No reason provided';
  * kind of message people report.
  */
 export function firstImageUrl(message: Pick<APIMessage, 'attachments' | 'embeds'>): string | null {
-	const attachment = message.attachments.find((candidate) => candidate.content_type?.startsWith('image/') ?? true);
+	// `?? false`, not `?? true`: an attachment Discord didn't type is not assumed to be an image. Guessing wrong
+	// puts a video or a pdf url into the embed's `image`, which Discord then fails to render -- and the embed
+	// fallback below is a better answer for that message anyway.
+	const attachment = message.attachments.find((candidate) => candidate.content_type?.startsWith('image/') ?? false);
 	if (attachment) {
 		return attachment.url;
 	}

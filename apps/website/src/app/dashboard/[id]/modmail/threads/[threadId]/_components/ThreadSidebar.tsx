@@ -38,7 +38,7 @@ export function ThreadSidebar({ guildId, thread }: ThreadSidebarProps) {
 					<div className="h-12 w-12 shrink-0 rounded-full bg-on-tertiary dark:bg-on-tertiary-dark" />
 				)}
 				<div className="flex flex-col overflow-hidden">
-					<p className="overflow-hidden overflow-ellipsis whitespace-nowrap text-lg font-medium text-primary dark:text-primary-dark">
+					<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">
 						{user?.global_name ?? user?.username ?? thread.userId}
 					</p>
 					{!thread.member && (

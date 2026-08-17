@@ -50,7 +50,7 @@ export function GuildIcon({ data, hasBots, disableLink, size = 48 }: GuildIconPr
 				) : (
 					<p
 						aria-label={data.name}
-						className="flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full border-on-secondary bg-on-tertiary font-medium leading-none after:max-w-[70%] dark:border-on-secondary-dark dark:bg-on-tertiary-dark"
+						className="flex items-center justify-center truncate rounded-full border-on-secondary bg-on-tertiary font-medium leading-none after:max-w-[70%] dark:border-on-secondary-dark dark:bg-on-tertiary-dark"
 						style={{ ...dimensions, fontSize: acronymFontSize }}
 					>
 						{getGuildAcronym(data.name)}

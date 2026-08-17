@@ -109,7 +109,7 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
 							<BreadcrumbLabel {...segment} isLast={isLast} />
 						)}
 
-						{!isLast && <span className="text-secondary dark:text-secondary-dark flex-shrink-0">/</span>}
+						{!isLast && <span className="text-secondary dark:text-secondary-dark shrink-0">/</span>}
 					</div>
 				);
 			})}

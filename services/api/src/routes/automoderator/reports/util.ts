@@ -10,6 +10,12 @@ import { resolveDiscordUser } from '../../../util/users.js';
  */
 export interface ReportWithUsers extends AutomoderatorReports {
 	reporterCount: number;
+	/**
+	 * The moderator who dismissed or actioned it, resolved the same way the target and reporters are. Without
+	 * this the one account the detail view showed as a bare snowflake was the *moderator* -- every other account
+	 * on the page had a name.
+	 */
+	resolvedByUser: APIUser | Snowflake | null;
 	target: APIUser | Snowflake;
 }
 
@@ -25,7 +31,14 @@ export async function resolveReportTargets(
 	reports: readonly AutomoderatorReports[],
 	counts: ReadonlyMap<number, number>,
 ): Promise<ReportWithUsers[]> {
-	const ids = new Set(reports.map((row) => row.targetId));
+	const ids = new Set<string>();
+
+	for (const row of reports) {
+		ids.add(row.targetId);
+		if (row.resolvedBy) {
+			ids.add(row.resolvedBy);
+		}
+	}
 
 	const entries = await Promise.all(
 		[...ids].map(async (id): Promise<[string, APIUser | Snowflake]> => [
@@ -38,6 +51,7 @@ export async function resolveReportTargets(
 	return reports.map((row) => ({
 		...row,
 		target: usersById.get(row.targetId)!,
+		resolvedByUser: row.resolvedBy ? (usersById.get(row.resolvedBy) ?? row.resolvedBy) : null,
 		reporterCount: counts.get(row.id) ?? 0,
 	}));
 }

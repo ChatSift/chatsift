@@ -27,29 +27,38 @@ export default class ReportReportersComponent implements ComponentHandler<string
 
 		const reporters = await listReporters(resolved.report.id);
 
+		const overflowLine = (count: number) =>
+			// Linked rather than just named: telling someone to "see the dashboard" without saying where is the
+			// kind of message that gets written once and never followed.
+			`…and ${count} more — [see them all on the dashboard](${reportDetailLink(
+				resolved.report.guildId,
+				resolved.report.id,
+			)})`;
+
+		// The overflow line's own length is reserved up front, because it is long (it carries a full dashboard
+		// URL) and appending it *after* filling the budget is how the reply ends up over Discord's 2000-character
+		// cap — which fails the interaction outright instead of showing a truncated list.
+		const budget = CONTENT_LIMIT - overflowLine(reporters.length).length;
+
 		const lines: string[] = [];
-		let dropped = 0;
+		let used = 0;
 
 		for (const reporter of reporters) {
 			const line = `• ${reporter.reporterTag} (<@${reporter.reporterId}>): ${reporter.reason}`;
 
-			if (lines.join('\n').length + line.length + 1 > CONTENT_LIMIT) {
-				dropped += 1;
-				continue;
+			// Stops at the first line that doesn't fit rather than skipping it and carrying on, so what staff read
+			// is a prefix of the real order instead of an arbitrary subset with the long entries silently missing.
+			if (used + line.length + 1 > budget) {
+				break;
 			}
 
 			lines.push(line);
+			used += line.length + 1;
 		}
 
+		const dropped = reporters.length - lines.length;
 		if (dropped > 0) {
-			// Linked rather than just named: telling someone to "see the dashboard" without saying where is the
-			// kind of message that gets written once and never followed.
-			lines.push(
-				`…and ${dropped} more — [see them all on the dashboard](${reportDetailLink(
-					resolved.report.guildId,
-					resolved.report.id,
-				)})`,
-			);
+			lines.push(overflowLine(dropped));
 		}
 
 		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {

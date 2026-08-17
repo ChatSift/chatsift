@@ -24,6 +24,32 @@ test('a real attachment wins', () => {
 	expect(firstImageUrl(source)).toBe('https://cdn.discordapp.com/a.png');
 });
 
+test('an attachment Discord did not type is not assumed to be an image', () => {
+	// Guessing "image" for an untyped attachment puts a non-image url into the embed's `image`, which Discord then
+	// fails to render. Falling through to the embeds is the better answer.
+	const untyped = message({
+		attachments: [{ url: 'https://cdn.discordapp.com/mystery.bin' }] as ImageSource['attachments'],
+	});
+	expect(firstImageUrl(untyped)).toBeNull();
+
+	const withFallback = message({
+		attachments: [{ url: 'https://cdn.discordapp.com/mystery.bin' }] as ImageSource['attachments'],
+		embeds: [{ image: { url: 'https://example.com/embed.png' } }],
+	});
+	expect(firstImageUrl(withFallback)).toBe('https://example.com/embed.png');
+});
+
+test('a non-image attachment is skipped in favour of a later image one', () => {
+	const source = message({
+		attachments: [
+			{ url: 'https://cdn.discordapp.com/clip.mp4', content_type: 'video/mp4' },
+			{ url: 'https://cdn.discordapp.com/shot.png', content_type: 'image/png' },
+		] as ImageSource['attachments'],
+	});
+
+	expect(firstImageUrl(source)).toBe('https://cdn.discordapp.com/shot.png');
+});
+
 test('an embed image is used when the attachment array is empty', () => {
 	// The behaviour this exists for: a message whose single image Discord has claimed into an embed comes back
 	// with an **empty** top-level `attachments` array, so reading only `attachments[0]` silently drops the image
