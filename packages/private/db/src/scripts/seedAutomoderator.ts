@@ -31,6 +31,11 @@ interface SeedCase {
 	readonly daysAgo: number;
 	readonly dryRun?: boolean;
 	readonly expiresInDays?: number;
+	/**
+	 * Only meaningful alongside `expiresInDays` on a BAN. Absent leaves the case outstanding, which is what makes
+	 * it due for the expiry sweep.
+	 */
+	readonly liftedDaysAgo?: number;
 	readonly modId: string | null;
 	readonly modTag: string | null;
 	readonly pardoned?: boolean;
@@ -46,10 +51,23 @@ interface SeedCase {
 const ALICE = '110000000000000001';
 const BOB = '110000000000000002';
 const CAROL = '110000000000000003';
+const DAVE = '110000000000000004';
 const MOD_ONE = '120000000000000001';
 const MOD_TWO = '120000000000000002';
 
 const CASES: readonly SeedCase[] = [
+	// Old enough that AUTO_PARDON_DAYS below has already lapsed on it, so the auto-pardon sweep has exactly one
+	// thing to do on the bot's first run rather than needing someone to wait a month. Alice's warns below are
+	// deliberately inside the window, so the ladder still has a count to read.
+	{
+		action: 'WARN',
+		targetId: CAROL,
+		targetTag: 'carol',
+		modId: MOD_TWO,
+		modTag: 'moderator-two',
+		reason: 'Ancient warning, well past the auto-pardon window',
+		daysAgo: 400,
+	},
 	{
 		action: 'WARN',
 		targetId: ALICE,
@@ -160,7 +178,45 @@ const CASES: readonly SeedCase[] = [
 		reason: null,
 		daysAgo: 0,
 	},
+	// A temporary ban already served, so the case browser has the settled shape as well as the pending one.
+	{
+		action: 'BAN',
+		targetId: DAVE,
+		targetTag: 'dave',
+		modId: MOD_ONE,
+		modTag: 'moderator-one',
+		reason: 'Three-day cooling off',
+		daysAgo: 9,
+		expiresInDays: 3,
+		liftedDaysAgo: 6,
+	},
+	// A temporary ban that lapsed and nothing has lifted, which is exactly what the expiry sweep claims on the
+	// bot's first tick. Dave is not really banned anywhere, so Discord answers "unknown ban" -- which is the
+	// already-lifted-elsewhere branch, and still proves the sweep found and claimed the row.
+	{
+		action: 'BAN',
+		targetId: DAVE,
+		targetTag: 'dave',
+		modId: MOD_TWO,
+		modTag: 'moderator-two',
+		reason: 'Overdue temporary ban, waiting on the scheduler',
+		daysAgo: 4,
+		expiresInDays: 1,
+	},
 ];
+
+/**
+ * Two steps, so the ladder overview has both a configured rung and a gap that only records the warning.
+ */
+const WARN_PUNISHMENTS = [
+	{ warns: 3, action: 'MUTE', durationSeconds: 3_600 },
+	{ warns: 5, action: 'BAN', durationSeconds: 7 * 86_400 },
+] as const;
+
+/**
+ * Long enough that none of the seeded warns above are inside it except the deliberately ancient one.
+ */
+const AUTO_PARDON_DAYS = 90;
 
 /**
  * A channel id that does not exist, so the log config renders the dangling-reference path.
@@ -244,10 +300,11 @@ const REPORTS: readonly SeedReport[] = [
 			[REPORTER_ONE, 'reporter-one', 'Spam or advertising'],
 			[REPORTER_TWO, 'reporter-two', 'Ban evasion'],
 		],
-		// CASES[5] is the KICK against bob, which is who this report is about. That case is seeded at 14 days ago,
-		// so this report has to be *newer* than it and its resolution newer still -- otherwise the fixture shows an
-		// action that produced a case predating the report itself.
-		caseIndex: 5,
+		// The KICK against bob ("Advertising"), who this report is about. That case is seeded at 14 days ago, so
+		// this report has to be *newer* than it and its resolution newer still -- otherwise the fixture shows an
+		// action that produced a case predating the report itself. **Positional: keep it pointing at that entry
+		// if CASES is reordered.**
+		caseIndex: 6,
 		daysAgo: 13,
 		resolvedDaysAgo: 12,
 	},
@@ -295,6 +352,7 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 		// Reporters go with their reports -- `automoderator_reporters_report_id_fkey` is ON DELETE CASCADE.
 		await db`DELETE FROM automoderator_reports WHERE guild_id = ${guildId}`;
 		await db`DELETE FROM automoderator_report_presets WHERE guild_id = ${guildId}`;
+		await db`DELETE FROM automoderator_warn_punishments WHERE guild_id = ${guildId}`;
 		// The counter is left where it is on purpose: case numbers are monotonic per guild and never reused,
 		// so a reset that rewound it would hand the new rows numbers the old ones already used.
 		console.log(`Reset: removed ${deleted.length} case(s) and any log webhook.`);
@@ -324,7 +382,7 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 		await db`
 			INSERT INTO automoderator_cases (
 				guild_id, case_id, ref_id, target_id, target_tag, mod_id, mod_tag,
-				action_type, reason, expires_at, pardoned_by, dry_run, created_at
+				action_type, reason, expires_at, lifted_at, pardoned_by, dry_run, created_at
 			) VALUES (
 				${guildId},
 				${caseNumber},
@@ -336,10 +394,29 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 				${seedCase.action}::automoderator_case_action,
 				${seedCase.reason},
 				${seedCase.expiresInDays ? new Date(createdAt.getTime() + seedCase.expiresInDays * 86_400_000) : null},
+				${seedCase.liftedDaysAgo === undefined ? null : new Date(now - seedCase.liftedDaysAgo * 86_400_000)},
 				${seedCase.pardoned ? MOD_ONE : null},
 				${seedCase.dryRun ?? false},
 				${createdAt}
 			)
+		`;
+	}
+
+	// Upserted onto the settings row the case-number allocator above has already created.
+	await db`
+		UPDATE automoderator_guild_settings SET auto_pardon_warns_after = ${AUTO_PARDON_DAYS} WHERE guild_id = ${guildId}
+	`;
+
+	for (const punishment of WARN_PUNISHMENTS) {
+		await db`
+			INSERT INTO automoderator_warn_punishments (guild_id, warns, action_type, duration_seconds)
+			VALUES (
+				${guildId},
+				${punishment.warns},
+				${punishment.action}::automoderator_warn_punishment_action,
+				${punishment.durationSeconds}
+			)
+			ON CONFLICT (guild_id, warns) DO NOTHING
 		`;
 	}
 
@@ -401,6 +478,9 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 	console.log('Seeded reports carry no card -- nothing posted one, so they exercise the dashboard queue only.');
 	console.log('Their reported messages point at the same non-existent channel, which is the dangling-reference');
 	console.log('case the detail view has to render without breaking.');
+	console.log(`Seeded ${WARN_PUNISHMENTS.length} warn ladder steps and auto-pardon after ${AUTO_PARDON_DAYS} days.`);
+	console.log('One warn is deliberately 400 days old and one temporary ban is overdue, so both scheduler sweeps');
+	console.log("have something to do on the bot's next tick rather than needing anyone to wait.");
 }
 
 // Destructured rather than accessed key-by-key: `ProcessEnv` is an index signature, so

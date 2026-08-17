@@ -15,16 +15,17 @@ import { ComponentType, MessageFlags, RESTJSONErrorCodes, TextInputStyle } from 
 import { DiscordAPIError } from '@discordjs/rest';
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
-import { ACTION_PAST_TENSE } from '../lib/caseFormat.js';
 import { actorFromUser } from '../lib/cases.js';
 import { reportsTotal } from '../lib/metrics.js';
-import { describeCommandFailure } from '../lib/modCommand.js';
+import { describeCommandFailure, describeModerationResult } from '../lib/modCommand.js';
 import { REASON_MAX_LENGTH } from '../lib/modCommandOptions.js';
+import type { LadderFailureError } from '../lib/moderation.js';
 import { MAX_MUTE_MS, applyModerationAction } from '../lib/moderation.js';
 import { checkActorHierarchy, checkBotHierarchy, memberMayTakeAction } from '../lib/permissions.js';
 import type { ReportActionName } from '../lib/reportCard.js';
 import { REPORT_COMPONENT, isReportAction } from '../lib/reportCard.js';
 import { refreshCard, resolveCardInteraction } from '../lib/reportComponents.js';
+import { shouldReopenReport } from '../lib/reportFlow.js';
 import { REPORT_STATE, getReport, recordReportCase, setReportState } from '../lib/reports.js';
 
 const REASON_INPUT_ID = 'reason';
@@ -108,17 +109,21 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 			custom_id: modalId,
 			title: `${action[0]}${action.slice(1).toLowerCase()} ${report.targetTag}`.slice(0, 45),
 			components: [
-				...(action === 'MUTE'
+				...(action === 'MUTE' || action === 'BAN'
 					? [
 							{
 								type: ComponentType.Label as const,
 								label: 'Duration',
-								description: 'e.g. "30m", "2h", "7d". Discord timeouts cap out at 28 days.',
+								description:
+									action === 'MUTE'
+										? 'e.g. "30m", "2h", "7d". Discord timeouts cap out at 28 days.'
+										: 'e.g. "7d", "3mo". Leave empty for a permanent ban.',
 								component: {
 									type: ComponentType.TextInput as const,
 									custom_id: DURATION_INPUT_ID,
 									style: TextInputStyle.Short as const,
-									required: true,
+									// A mute has no open-ended form; a ban does, and empty is how you ask for it.
+									required: action === 'MUTE',
 									max_length: 32,
 								},
 							},
@@ -164,26 +169,35 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 		const reason = readOptionalTextInput(options, REASON_INPUT_ID);
 
 		let durationMs: number | undefined;
-		if (action === 'MUTE') {
+		if (action === 'MUTE' || action === 'BAN') {
+			// Empty is a permanent ban, and is the only way to ask for one here. A mute has no such reading, so an
+			// empty box there is a mistake rather than a choice.
 			const raw = readOptionalTextInput(options, DURATION_INPUT_ID);
 			const parsed = raw === null ? null : parseRelativeTimeSafe(raw);
 
-			if (!parsed?.ok) {
-				await reply(parsed ? `Couldn't parse that duration: ${parsed.message}` : 'A mute needs a duration.');
+			if (parsed === null && action === 'MUTE') {
+				await reply('A mute needs a duration.');
 				return;
 			}
 
-			if (parsed.value <= 0) {
-				await reply('That duration is in the past.');
-				return;
-			}
+			if (parsed !== null) {
+				if (!parsed.ok) {
+					await reply(`Couldn't parse that duration: ${parsed.message}`);
+					return;
+				}
 
-			if (parsed.value > MAX_MUTE_MS) {
-				await reply('Discord timeouts cap out at 28 days, so a mute cannot be longer than that.');
-				return;
-			}
+				if (parsed.value <= 0) {
+					await reply('That duration is in the past.');
+					return;
+				}
 
-			durationMs = parsed.value;
+				if (action === 'MUTE' && parsed.value > MAX_MUTE_MS) {
+					await reply('Discord timeouts cap out at 28 days, so a mute cannot be longer than that.');
+					return;
+				}
+
+				durationMs = parsed.value;
+			}
 		}
 
 		try {
@@ -250,8 +264,18 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 					logger,
 				);
 			} catch (error) {
-				// The claim has to come back off, or a punishment that failed leaves a report permanently closed
-				// with nothing to show for it and no way to retry from the card.
+				// A ladder rung failing does **not** undo the warn -- it is already filed and its log is out. The
+				// report stays terminal and points at the warn that landed; see `shouldReopenReport`.
+				if (!shouldReopenReport(error)) {
+					reportsTotal.inc({ state: 'actioned' });
+					const recorded = await recordReportCase(report.id, (error as LadderFailureError).warnCase.caseId);
+					await refreshCard(recorded ?? claimed, logger);
+					await reply(describeCommandFailure(error));
+					return;
+				}
+
+				// Every other failure really did leave the target un-punished, so the claim has to come back off:
+				// otherwise a report is permanently closed with nothing to show for it and no way to retry.
 				await setReportState(report.id, {
 					state: report.state,
 					expected: REPORT_STATE.ACTIONED,
@@ -268,12 +292,7 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 			const recorded = await recordReportCase(report.id, result.case.caseId);
 			await refreshCard(recorded ?? claimed, logger);
 
-			const verb = ACTION_PAST_TENSE[action as AutomoderatorCaseAction];
-			await reply(
-				result.suppressed
-					? `**Dry run** — would have ${verb} ${report.targetTag}. (case #${result.case.caseId})`
-					: `Successfully ${verb} ${report.targetTag}. (case #${result.case.caseId})`,
-			);
+			await reply(describeModerationResult(result, report.targetTag, action as AutomoderatorCaseAction));
 		} catch (error) {
 			logger.error({ err: error, reportId: report.id, action }, 'failed to action a report');
 			await reply(describeCommandFailure(error));

@@ -4,6 +4,7 @@ import type { AutomoderatorCases, AutomoderatorLogWebhooks } from '@chatsift/db'
 import type { APIMessage } from '@discordjs/core';
 import { RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
+import type { ActionSource } from './actionExecutor.js';
 import { executeAction } from './actionExecutor.js';
 import { buildCaseEmbed } from './caseFormat.js';
 import { updateCase } from './cases.js';
@@ -24,7 +25,11 @@ async function forgetModLogWebhook(guildId: string, webhookId: string): Promise<
 	`;
 }
 
-export async function dispatchCaseLog(modCase: AutomoderatorCases, logger: Logger): Promise<void> {
+export async function dispatchCaseLog(
+	modCase: AutomoderatorCases,
+	logger: Logger,
+	source: ActionSource = 'command',
+): Promise<void> {
 	const webhook = await getModLogWebhook(modCase.guildId);
 	if (!webhook) {
 		return;
@@ -49,7 +54,7 @@ export async function dispatchCaseLog(modCase: AutomoderatorCases, logger: Logge
 			{
 				action: 'webhook',
 				guildId: modCase.guildId,
-				source: 'command',
+				source,
 				targetId: modCase.targetId,
 				async execute() {
 					if (modCase.logMessageId) {

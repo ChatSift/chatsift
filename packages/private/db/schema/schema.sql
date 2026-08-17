@@ -829,6 +829,12 @@ CREATE TABLE automoderator_guild_settings (
   -- channel here too. The cost is that the bot needs Send Messages in the channel, where a log only needs the
   -- token.
   reports_channel_id TEXT,
+  -- Days after which an un-pardoned WARN is pardoned automatically, so a warn from two years ago stops
+  -- counting toward the ladder (P2, feature 23). NULL is off, which is what a guild that has never thought
+  -- about it gets -- warns accumulating forever is legacy's behaviour and the one that surprises nobody.
+  -- Days rather than a duration in ms, matching legacy: nobody auto-pardons on an hour boundary, and it is
+  -- the unit the setting is phrased in.
+  auto_pardon_warns_after INTEGER,
   -- High-water mark for `automoderator_cases.case_id`, bumped by an atomic
   -- `INSERT ... ON CONFLICT DO UPDATE SET last_case_id = last_case_id + 1 RETURNING` in `caseNumbers.ts`.
   -- Legacy allocated case numbers with a `findFirst(orderBy: caseId desc) + 1` read-then-write inside its
@@ -837,7 +843,14 @@ CREATE TABLE automoderator_guild_settings (
   -- is the shape `threads.last_local_thread_message_id` already uses here for the same job, and it is correct
   -- across replicas rather than only within one process. Gaps are accepted -- a number reserved for a case whose
   -- Discord call then fails is simply skipped; the guarantee wanted is monotonic and unique, not gapless.
-  last_case_id INTEGER NOT NULL DEFAULT 0
+  last_case_id INTEGER NOT NULL DEFAULT 0,
+
+  -- Only the lower bound, not the API's ten-year ceiling: a ceiling is taste and lives in zod (same split the
+  -- social settings note above describes), but zero or negative is a value that *breaks* something -- zero
+  -- pardons every warning the instant it is filed, and negative pardons warnings dated in the future. That is
+  -- the bar this schema sets for a CHECK.
+  CONSTRAINT automoderator_guild_settings_auto_pardon_check
+    CHECK (auto_pardon_warns_after IS NULL OR auto_pardon_warns_after >= 1)
 );
 
 -- Legacy's `CaseAction`, uppercased to match this schema's other enums (`ama_question_state`,
@@ -884,6 +897,15 @@ CREATE TABLE automoderator_cases (
   -- When the punishment lifts. Written for MUTE (Discord expires the timeout itself) and, from P2, for timed
   -- bans (which need the scheduler to actually lift them). Null means permanent.
   expires_at      TIMESTAMPTZ,
+  -- When a timed BAN's expiry was actually honoured (P2, feature 20). NULL alongside a non-null `expires_at` is
+  -- what makes a case *due*, so this column is the scheduler's queue -- there is no task table. See the partial
+  -- index below.
+  --
+  -- Also set when the ban is lifted early, whether by `/unban` or by a moderator using Discord's own UI (which
+  -- the audit observer notices), so a tempban somebody already reversed is never reversed a second time. That
+  -- second case is the one legacy could not handle at all: its task pointed at a case row and knew nothing
+  -- about later ones.
+  lifted_at       TIMESTAMPTZ,
   -- Set by `/case pardon`; a pardoned WARN stops counting toward the ladder and is hidden from `/history`.
   pardoned_by     TEXT,
   -- The mod-log webhook message this case rendered into, so an edit rewrites that embed in place instead of
@@ -920,6 +942,24 @@ CREATE INDEX automoderator_cases_guild_id_target_id_idx ON automoderator_cases (
 CREATE UNIQUE INDEX automoderator_cases_guild_id_idempotency_key_idx
   ON automoderator_cases (guild_id, idempotency_key)
   WHERE idempotency_key IS NOT NULL;
+
+-- The two sweeps `scheduler.ts` runs (P2), and nothing else. Both are partial and deployment-wide rather than
+-- guild-scoped, because the sweeps are: each runs one statement across every guild, so without these that is a
+-- sequential scan of every case ever filed, on a timer, forever. Both predicates are self-shrinking -- a row
+-- leaves the index the moment it is handled -- which is what keeps them a fraction of the table.
+--
+-- **This pair is the scheduler's queue.** There is deliberately no task table: legacy had one (plus a 1:1
+-- `timed_case_tasks` join row) and in five years it only ever held a single task type, whose entire payload was
+-- a case id. Folding it back into the case removes a row that has to be kept in step with the case through
+-- `/case duration`, `/case delete` and an early `/unban`, and it earns the product something a task row never
+-- could: `lifted_at` is a fact about the punishment worth reading back, not bookkeeping.
+CREATE INDEX automoderator_cases_pending_expiry_idx
+  ON automoderator_cases (expires_at)
+  WHERE action_type = 'BAN' AND expires_at IS NOT NULL AND lifted_at IS NULL;
+
+CREATE INDEX automoderator_cases_pending_auto_pardon_idx
+  ON automoderator_cases (created_at)
+  WHERE action_type = 'WARN' AND pardoned_by IS NULL;
 
 -- Which log goes where. All four values exist from the start even though P1 only ever writes MOD: the
 -- vocabulary is closed and already settled by the port doc (FILTER lands at P5, MESSAGE and USER at P4), and
@@ -1062,3 +1102,33 @@ CREATE TABLE automoderator_report_presets (
 );
 
 CREATE INDEX automoderator_report_presets_guild_id_idx ON automoderator_report_presets (guild_id, id);
+
+-- The warn ladder (P2, feature 22): reaching exactly N un-pardoned warns triggers this action. Exactly, not
+-- at-least -- legacy matched on `warns = count` and a guild configuring 3 -> mute and 5 -> ban means the fourth
+-- warn does nothing, which is the reading the editor shows.
+CREATE TYPE automoderator_warn_punishment_action AS ENUM ('MUTE', 'KICK', 'BAN');
+
+CREATE TABLE automoderator_warn_punishments (
+  guild_id         TEXT NOT NULL,
+  warns            INTEGER NOT NULL,
+  action_type      automoderator_warn_punishment_action NOT NULL,
+  -- Seconds, and NULL for a permanent ban or a rung that carries no duration (KICK). Legacy stored
+  -- milliseconds in a BIGINT; seconds in an INTEGER holds 68 years, and postgres.js hands int8 back as a
+  -- *string* because it doesn't fit a JS number -- the same reason `social_users.xp` is an INTEGER.
+  duration_seconds INTEGER,
+
+  PRIMARY KEY (guild_id, warns),
+
+  CONSTRAINT automoderator_warn_punishments_warns_check CHECK (warns >= 1),
+  -- Which actions may carry a duration, and which must. A KICK has none to serve; a MUTE is a native timeout,
+  -- which has no open-ended form -- storing one without a duration produces a rung the bot can only ignore, and
+  -- that is exactly what legacy did with it. A BAN is the only one where both readings are real: with a
+  -- duration it is a tempban the scheduler lifts, without one it is permanent.
+  CONSTRAINT automoderator_warn_punishments_duration_check CHECK (
+    CASE action_type
+      WHEN 'KICK' THEN duration_seconds IS NULL
+      WHEN 'MUTE' THEN duration_seconds >= 1
+      ELSE duration_seconds IS NULL OR duration_seconds >= 1
+    END
+  )
+);

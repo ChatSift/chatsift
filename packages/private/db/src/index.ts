@@ -83,6 +83,12 @@ export type {
 	default as AutomoderatorReportPresets,
 	AutomoderatorReportPresetsId,
 } from './generated/public/AutomoderatorReportPresets.js';
+export type { default as AutomoderatorWarnPunishmentAction } from './generated/public/AutomoderatorWarnPunishmentAction.js';
+export type {
+	default as AutomoderatorWarnPunishments,
+	AutomoderatorWarnPunishmentsGuildId,
+	AutomoderatorWarnPunishmentsWarns,
+} from './generated/public/AutomoderatorWarnPunishments.js';
 
 export interface CreateDbOptions {
 	/**

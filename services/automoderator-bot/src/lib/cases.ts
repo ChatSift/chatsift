@@ -82,6 +82,18 @@ export async function createCase(options: CreateCaseOptions): Promise<Automodera
 			RETURNING *
 		`;
 
+		if (options.action === 'UNBAN') {
+			await db`
+				UPDATE automoderator_cases SET lifted_at = now()
+				WHERE guild_id = ${options.guildId}
+					AND target_id = ${options.target.id}
+					AND action_type = 'BAN'
+					AND expires_at IS NOT NULL
+					AND lifted_at IS NULL
+					AND dry_run = ${options.dryRun}
+			`;
+		}
+
 		await publishRealtimeInvalidate(automoderatorCasesChannel(options.guildId));
 
 		return created!;
@@ -118,14 +130,19 @@ export async function listCasesForTarget(
 	`;
 }
 
-export async function countActiveWarns(guildId: string, targetId: string): Promise<number> {
-	const [row] = await getContext().db<{ count: string }[]>`
+export async function countActiveWarns(
+	guildId: string,
+	targetId: string,
+	{ includeDryRun = false }: { includeDryRun?: boolean } = {},
+): Promise<number> {
+	const db = getContext().db;
+	const [row] = await db<{ count: string }[]>`
 		SELECT count(*) FROM automoderator_cases
 		WHERE guild_id = ${guildId}
 			AND target_id = ${targetId}
 			AND action_type = 'WARN'
 			AND pardoned_by IS NULL
-			AND dry_run = false
+			${includeDryRun ? db`` : db`AND dry_run = false`}
 	`;
 
 	return Number(row?.count ?? 0);
@@ -133,6 +150,7 @@ export async function countActiveWarns(guildId: string, targetId: string): Promi
 
 export interface UpdateCasePatch {
 	readonly expiresAt?: Date | null;
+	readonly liftedAt?: Date | null;
 	readonly logMessageId?: string | null;
 	readonly mod?: CaseActor;
 	readonly pardonedBy?: string | null;
@@ -142,12 +160,16 @@ export interface UpdateCasePatch {
 
 export async function updateCase(id: AutomoderatorCases['id'], patch: UpdateCasePatch): Promise<AutomoderatorCases> {
 	const columns: Partial<
-		Pick<AutomoderatorCases, 'expiresAt' | 'logMessageId' | 'modId' | 'modTag' | 'pardonedBy' | 'reason' | 'refId'>
+		Pick<
+			AutomoderatorCases,
+			'expiresAt' | 'liftedAt' | 'logMessageId' | 'modId' | 'modTag' | 'pardonedBy' | 'reason' | 'refId'
+		>
 	> = {};
 
 	if ('reason' in patch) columns.reason = patch.reason ?? null;
 	if ('refId' in patch) columns.refId = patch.refId ?? null;
 	if ('expiresAt' in patch) columns.expiresAt = patch.expiresAt ?? null;
+	if ('liftedAt' in patch) columns.liftedAt = patch.liftedAt ?? null;
 	if ('pardonedBy' in patch) columns.pardonedBy = patch.pardonedBy ?? null;
 	if ('logMessageId' in patch) columns.logMessageId = patch.logMessageId ?? null;
 

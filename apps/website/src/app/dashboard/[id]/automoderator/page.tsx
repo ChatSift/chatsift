@@ -15,6 +15,11 @@ const SECTIONS = [
 		subtitle: 'What members have flagged to your staff team',
 	},
 	{
+		segment: 'warn-ladder',
+		title: 'Warn Ladder',
+		subtitle: 'What happens as warnings pile up, and when they stop counting',
+	},
+	{
 		segment: 'log-channels',
 		title: 'Log Channels',
 		subtitle: 'Where moderation actions are posted',

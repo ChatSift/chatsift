@@ -7,7 +7,10 @@ import { snowflakeSchema } from '../../../util/schemas.js';
 
 const paramsSchema = z.object({ guildId: snowflakeSchema });
 
-export type GetAutomoderatorConfigResult = Pick<AutomoderatorGuildSettings, 'dryRun' | 'guildId' | 'reportsChannelId'>;
+export type GetAutomoderatorConfigResult = Pick<
+	AutomoderatorGuildSettings,
+	'autoPardonWarnsAfter' | 'dryRun' | 'guildId' | 'reportsChannelId'
+>;
 
 export default defineRoute({
 	method: 'get',
@@ -24,18 +27,16 @@ export default defineRoute({
 		const { guildId } = req.params;
 
 		const [settings] = await getContext().db<GetAutomoderatorConfigResult[]>`
-			SELECT guild_id, dry_run, reports_channel_id
+			SELECT guild_id, dry_run, reports_channel_id, auto_pardon_warns_after
 			FROM automoderator_guild_settings
 			WHERE guild_id = ${guildId}
 		`;
 
-		// No row yet is the common case, and it's returned as the shape a fresh row would have rather than a
-		// 404 -- same as modmail's and social's `getConfig.ts`, so the config screen renders on first load.
-		// `dryRun: true` mirrors the column default, so the form shows what the bot would actually do.
 		const defaults: GetAutomoderatorConfigResult = {
 			guildId: guildId as AutomoderatorGuildSettings['guildId'],
 			dryRun: true,
 			reportsChannelId: null,
+			autoPardonWarnsAfter: null,
 		};
 
 		return settings ?? defaults;

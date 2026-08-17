@@ -39,6 +39,8 @@ export default interface AutomoderatorCases {
   idempotencyKey: string | null;
 
   createdAt: Date;
+
+  liftedAt: Date | null;
 }
 
 /** Represents the initializer for the table public.automoderator_cases */
@@ -74,6 +76,8 @@ export interface AutomoderatorCasesInitializer {
   idempotencyKey?: string | null;
 
   createdAt?: Date;
+
+  liftedAt?: Date | null;
 }
 
 /** Represents the mutator for the table public.automoderator_cases */
@@ -109,4 +113,6 @@ export interface AutomoderatorCasesMutator {
   idempotencyKey?: string | null;
 
   createdAt?: Date;
+
+  liftedAt?: Date | null;
 }

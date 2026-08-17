@@ -18,6 +18,7 @@ user-assets
 dist/
 out/
 .turbo/
+tsconfig.tsbuildinfo
 
 # Coverage directory used by tools like istanbul
 coverage/

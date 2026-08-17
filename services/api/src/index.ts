@@ -122,6 +122,9 @@ export { default as listAutomoderatorReportPresetsRoute } from './routes/automod
 export { default as createAutomoderatorReportPresetRoute } from './routes/automoderator/reportPresets/createPreset.js';
 export { default as updateAutomoderatorReportPresetRoute } from './routes/automoderator/reportPresets/updatePreset.js';
 export { default as deleteAutomoderatorReportPresetRoute } from './routes/automoderator/reportPresets/deletePreset.js';
+export { default as listAutomoderatorWarnPunishmentsRoute } from './routes/automoderator/warnPunishments/listWarnPunishments.js';
+export { default as setAutomoderatorWarnPunishmentRoute } from './routes/automoderator/warnPunishments/setWarnPunishment.js';
+export { default as deleteAutomoderatorWarnPunishmentRoute } from './routes/automoderator/warnPunishments/deleteWarnPunishment.js';
 
 export { default as listExperimentsRoute } from './routes/experiments/listExperiments.js';
 export type { ExperimentWithOverrides } from './routes/experiments/listExperiments.js';

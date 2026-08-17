@@ -640,6 +640,7 @@ __metadata:
     "@chatsift/api": "workspace:^"
     "@chatsift/core": "workspace:^"
     "@chatsift/discord-utils": "workspace:^"
+    "@chatsift/parse-relative-time": "workspace:^"
     "@discord/markdown-react": "npm:^0.3.1"
     "@discord/markdown-wasm": "npm:^0.2.1"
     "@radix-ui/react-avatar": "npm:^1.2.2"

@@ -1,7 +1,9 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
+import type { CaseActionName } from '@chatsift/core';
 import type { AutomoderatorCases } from '@chatsift/db';
+import { parseRelativeTimeSafe } from '@chatsift/parse-relative-time';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type {
 	APIApplicationCommandInteraction,
@@ -10,18 +12,18 @@ import type {
 } from '@discordjs/core';
 import { ApplicationIntegrationType, InteractionContextType, MessageFlags, PermissionFlagsBits } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
+import { executeAction } from '../lib/actionExecutor.js';
 import { CASE_ACTION } from '../lib/caseActions.js';
-import { buildCaseEmbed } from '../lib/caseFormat.js';
+import { buildCaseEmbed, formatDuration } from '../lib/caseFormat.js';
 import { dispatchCaseLog, getModLogWebhook } from '../lib/caseLog.js';
+import type { CaseActor } from '../lib/cases.js';
 import { actorFromUser, deleteCase, getCaseByNumber, updateCase } from '../lib/cases.js';
 import { REASON_MAX_LENGTH } from '../lib/modCommandOptions.js';
+import { MAX_MUTE_MS, buildAuditReason } from '../lib/moderation.js';
+import { memberMayTakeAction } from '../lib/permissions.js';
 
 /**
  * Reading and amending existing cases.
- *
- * Legacy's `duration` subcommand is deliberately absent: the only P1 action carrying a duration is a MUTE,
- * whose expiry Discord owns, and re-timing one is `/unmute` then `/mute`. It lands at P2 alongside timed bans,
- * where a scheduler exists to make an edited expiry mean anything.
  *
  * Every mutating subcommand re-dispatches the log so the original embed is rewritten in place rather than
  * joined by a second one — which is the whole reason `automoderator_cases.log_message_id` is stored.
@@ -62,6 +64,19 @@ export default class CaseCommand implements CommandHandler {
 					)
 					.addIntegerOptions((option) =>
 						option.setName('reference').setDescription('The case it relates to').setRequired(true).setMinValue(1),
+					),
+			(subcommand) =>
+				subcommand
+					.setName('duration')
+					.setDescription('Re-time a temporary ban or a mute')
+					.addIntegerOptions((option) =>
+						option.setName('case').setDescription('The case number').setRequired(true).setMinValue(1),
+					)
+					.addStringOptions((option) =>
+						option
+							.setName('duration')
+							.setDescription('How long from when the case was filed, e.g. "2h", "7d"')
+							.setRequired(true),
 					),
 			(subcommand) =>
 				subcommand
@@ -156,6 +171,20 @@ export default class CaseCommand implements CommandHandler {
 				break;
 			}
 
+			case 'duration': {
+				// Gated by the *case's* action, not by `/case`'s own `ModerateMembers`. This is the one subcommand
+				// with a Discord side effect, and re-timing a ban into the past makes the expiry sweep unban
+				// somebody -- so without this, ModerateMembers would silently grant BanMembers. Exactly the hole
+				// `memberMayTakeAction` was added to close on the report card, reused rather than restated.
+				if (!memberMayTakeAction(interaction.member!, modCase.actionType as unknown as CaseActionName)) {
+					await reply(`You do not have the permission Discord requires to change a ${modCase.actionType.toLowerCase()}.`);
+					return;
+				}
+
+				await this.retime(modCase, options.getString('duration', true), moderator, logger, reply);
+				break;
+			}
+
 			case 'pardon': {
 				if (modCase.actionType !== CASE_ACTION.WARN) {
 					await reply('Only warns can be pardoned.');
@@ -188,6 +217,90 @@ export default class CaseCommand implements CommandHandler {
 				break;
 			}
 		}
+	}
+
+	/**
+	 * Re-times a case, measured from when it was filed rather than from now: "make that a 7-day ban" means the
+	 * ban lasts seven days, not seven more days on top of however long they have already served.
+	 *
+	 * A BAN needs no Discord call at all — `expires_at` *is* the schedule, so writing it is the whole edit, and a
+	 * new expiry already in the past simply makes the case due on the sweep's next tick. A MUTE does, because
+	 * Discord owns that expiry.
+	 */
+	private async retime(
+		modCase: AutomoderatorCases,
+		raw: string,
+		moderator: CaseActor,
+		logger: Logger,
+		reply: (content: string) => Promise<void>,
+	): Promise<void> {
+		if (modCase.actionType !== CASE_ACTION.BAN && modCase.actionType !== CASE_ACTION.MUTE) {
+			await reply('Only bans and mutes have a duration you can change.');
+			return;
+		}
+
+		if (modCase.liftedAt) {
+			await reply(`Case #${modCase.caseId} has already been lifted.`);
+			return;
+		}
+
+		const parsed = parseRelativeTimeSafe(raw);
+		if (!parsed.ok) {
+			await reply(`Couldn't parse that duration: ${parsed.message}`);
+			return;
+		}
+
+		if (parsed.value <= 0) {
+			await reply('That duration is in the past.');
+			return;
+		}
+
+		const expiresAt = new Date(modCase.createdAt.getTime() + parsed.value);
+		const remainingMs = expiresAt.getTime() - Date.now();
+
+		if (modCase.actionType === CASE_ACTION.MUTE) {
+			if (remainingMs > MAX_MUTE_MS) {
+				await reply('Discord timeouts cap out at 28 days from now, so a mute cannot run that long.');
+				return;
+			}
+
+			const api = getContext().service.client.api;
+			await executeAction(
+				{
+					action: 'mute',
+					guildId: modCase.guildId,
+					source: 'command',
+					targetId: modCase.targetId,
+					async execute() {
+						await api.guilds.editMember(
+							modCase.guildId,
+							modCase.targetId,
+							// A new expiry that has already passed is a request to end the timeout now, which is what
+							// clearing it does. Handing Discord a past timestamp is rejected rather than treated as one.
+							{ communication_disabled_until: remainingMs > 0 ? expiresAt.toISOString() : null },
+							{ reason: buildAuditReason(moderator, `re-timed case #${modCase.caseId}`) },
+						);
+					},
+				},
+				logger,
+			);
+		}
+
+		const updated = await updateCase(modCase.id, { expiresAt, mod: moderator });
+		await dispatchCaseLog(updated, logger);
+
+		if (remainingMs > 0) {
+			await reply(`Case #${modCase.caseId} now expires in ${formatDuration(remainingMs)}.`);
+			return;
+		}
+
+		// A mute was already lifted above -- clearing the timeout is what a past expiry means for one. A ban is
+		// the sweep's to lift, so it really is still in force for another tick.
+		await reply(
+			modCase.actionType === CASE_ACTION.MUTE
+				? `Case #${modCase.caseId} is now expired, and their timeout has been cleared.`
+				: `Case #${modCase.caseId} is now expired, and will be lifted shortly.`,
+		);
 	}
 
 	private async show(interaction: APIApplicationCommandInteraction, modCase: AutomoderatorCases): Promise<void> {

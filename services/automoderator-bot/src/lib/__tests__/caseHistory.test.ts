@@ -22,6 +22,7 @@ function makeCase(action: string, overrides: Partial<AutomoderatorCases> = {}): 
 		actionType: action as unknown as AutomoderatorCaseAction,
 		reason: null,
 		expiresAt: null,
+		liftedAt: null,
 		pardonedBy: null,
 		logMessageId: null,
 		dryRun: false,

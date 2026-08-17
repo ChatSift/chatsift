@@ -96,3 +96,11 @@ export function automoderatorReportsChannel(guildId: string): string {
 export function automoderatorReportPresetsChannel(guildId: string): string {
 	return `automoderator:${guildId}:report-presets`;
 }
+
+/**
+ * The warn ladder's rungs (P2). Only the API ever publishes here -- the bot reads the ladder but never edits it,
+ * unlike cases and reports, which originate in Discord.
+ */
+export function automoderatorWarnPunishmentsChannel(guildId: string): string {
+	return `automoderator:${guildId}:warn-punishments`;
+}

@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { MAX_TIMEOUT_SECONDS } from '@chatsift/core';
 import type { AutomoderatorCaseAction, AutomoderatorCases } from '@chatsift/db';
 import type { ActionSource, ModerationAction } from './actionExecutor.js';
 import { executeAction } from './actionExecutor.js';
@@ -9,9 +10,9 @@ import type { CaseActor } from './cases.js';
 import { createCase } from './cases.js';
 import { resolveDryRun } from './dryRun.js';
 import { casesCreated } from './metrics.js';
+import { buildLadderRequest, resolveWarnLadderRung } from './warnLadder.js';
 
-// 28 days
-export const MAX_MUTE_MS = 28 * 24 * 60 * 60 * 1_000;
+export const MAX_MUTE_MS = MAX_TIMEOUT_SECONDS * 1_000;
 
 const NOTIFY_BEFORE_ACTING = new Set<AutomoderatorCaseAction>(['KICK', 'BAN', 'SOFTBAN'] as AutomoderatorCaseAction[]);
 
@@ -37,6 +38,20 @@ export class CaseFilingError extends Error {
 	}
 }
 
+/**
+ * A warn landed but the ladder rung it tripped didn't. Carries the warn so the moderator can be told both.
+ */
+export class LadderFailureError extends Error {
+	public constructor(
+		public readonly warnCase: AutomoderatorCases,
+		public readonly warns: number,
+		cause: unknown,
+	) {
+		super('the warn was filed but its automatic punishment failed', { cause });
+		this.name = 'LadderFailureError';
+	}
+}
+
 const SIDE_EFFECT: Record<AutomoderatorCaseAction, ModerationAction | null> = {
 	WARN: null,
 	MUTE: 'mute',
@@ -51,17 +66,35 @@ export interface ModerationRequest {
 	readonly action: AutomoderatorCaseAction;
 	readonly deleteMessageSeconds?: number;
 	/**
-	 * MUTE only, in milliseconds. Capped at {@link MAX_MUTE_MS} by the caller.
+	 * MUTE and BAN, in milliseconds. A MUTE is capped at {@link MAX_MUTE_MS} by the caller (Discord's own
+	 * ceiling); a BAN has none, because its expiry is ours to honour rather than Discord's -- it becomes an
+	 * `expires_at` that `expiredBanSweep.ts` later acts on.
 	 */
 	readonly durationMs?: number;
 	readonly guildId: string;
-	readonly mod: CaseActor;
+	/**
+	 * Null for anything no human authored -- the scheduler lifting a tempban is the only P2 case. A case with a
+	 * null moderator says so; one attributed to whoever issued the original ban would claim they came back and
+	 * unbanned somebody.
+	 */
+	readonly mod: CaseActor | null;
 	/**
 	 * Whether to DM the target before acting. Off for UNMUTE/UNBAN.
 	 */
 	readonly notifyTarget?: boolean;
+	/**
+	 * Forces dry-run on for this one action, whatever the guild currently says. Can only ever turn it *on* --
+	 * see `dryRun.ts`. Set by the expiry sweep, which reverses a case recorded long ago and has to honour the
+	 * dry-run state that case was filed under rather than today's setting.
+	 */
+	readonly previewOnly?: boolean;
 	readonly reason?: string | null;
 	readonly refId?: number | null;
+	/**
+	 * Skips the warn-ladder evaluation a WARN would otherwise trigger. Only the ladder itself sets this, and
+	 * only for the rung it is in the middle of applying -- see `warnLadder.ts`.
+	 */
+	readonly skipLadder?: boolean;
 	/**
 	 * What decided this. Defaults to `command`, which every mod command is; the report card passes `report` so
 	 * "how much of our moderation comes out of the queue" is answerable off the metrics rather than by reading
@@ -73,6 +106,12 @@ export interface ModerationRequest {
 
 export interface ModerationResult {
 	readonly case: AutomoderatorCases;
+	/**
+	 * The rung a WARN tripped, if it tripped one. Returned rather than merely logged so the moderator's reply
+	 * can say what else just happened to the member -- a `/warn` that silently also banned them is the surprise
+	 * an escalation ladder is most likely to produce.
+	 */
+	readonly ladder?: ModerationResult;
 	/**
 	 * Dry-runs
 	 */
@@ -89,7 +128,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 
 	// Resolved once for the row. `executeAction` resolves it again for enforcement -- they agree, and the row
 	// must never claim an action the executor suppressed.
-	const dryRun = await resolveDryRun(guildId);
+	const dryRun = await resolveDryRun(guildId, request.previewOnly);
 	const shouldNotify = request.notifyTarget ?? true;
 
 	if (shouldNotify && NOTIFY_BEFORE_ACTING.has(action)) {
@@ -110,6 +149,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 					guildId,
 					source,
 					targetId: target.id,
+					...(request.previewOnly ? { previewOnly: true } : {}),
 					...(reason ? { reason } : {}),
 					async execute() {
 						const performers: Record<AutomoderatorCaseAction, () => Promise<unknown>> = {
@@ -200,7 +240,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 		const enforced = Boolean(sideEffect) && !suppressed;
 
 		logger.error(
-			{ err: error, enforced, intent: { ...intent, target: target.id, mod: mod.id } },
+			{ err: error, enforced, intent: { ...intent, target: target.id, mod: mod?.id ?? null } },
 			enforced
 				? 'ENFORCED BUT UNRECORDED: the Discord action landed and the case could not be filed'
 				: 'failed to file a case',
@@ -213,7 +253,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 	const filedCase = filed!;
 	casesCreated.inc({ action, source });
 
-	await dispatchCaseLog(filedCase, logger);
+	await dispatchCaseLog(filedCase, logger, source);
 
 	// Rethrown only now that the case exists and its log is out, so the moderator's error message and the
 	// permanent record agree about what happened.
@@ -221,7 +261,29 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 		throw softbanUnbanFailure;
 	}
 
-	return { case: filedCase, suppressed };
+	// Last, and only once the warn is fully on the record: a rung fires with `refId` pointing at this case, and
+	// referencing a case whose log never posted would be a number staff cannot look up.
+	if (action !== 'WARN' || request.skipLadder) {
+		return { case: filedCase, suppressed };
+	}
+
+	const rung = await resolveWarnLadderRung({ warnCase: filedCase, dryRun: suppressed }, logger);
+	if (!rung) {
+		return { case: filedCase, suppressed };
+	}
+
+	try {
+		return {
+			case: filedCase,
+			suppressed,
+			ladder: await applyModerationAction(buildLadderRequest(rung, filedCase, mod), logger),
+		};
+	} catch (error) {
+		// The warn itself succeeded and is recorded. Surfaced as its own error rather than swallowed or merged
+		// into the warn's failure path, because the moderator needs to be told both halves: the warn landed, and
+		// the punishment it was supposed to trigger did not.
+		throw new LadderFailureError(filedCase, rung.warns, error);
+	}
 }
 
 async function notifyTarget(request: ModerationRequest, logger: Logger): Promise<void> {
@@ -253,7 +315,10 @@ async function notifyTarget(request: ModerationRequest, logger: Logger): Promise
 	}
 }
 
-export function buildAuditReason(mod: CaseActor, reason?: string | null): string {
-	// 512 cap for the header
-	return `${mod.tag} (${mod.id})${reason ? `: ${reason}` : ''}`.slice(0, 512);
+export function buildAuditReason(mod: CaseActor | null, reason?: string | null): string {
+	// 512 cap for the header. `AutoModerator` rather than an empty prefix when nobody authored it: the audit log
+	// is read by people who do not know this bot's internals, and a bare reason there reads as an action with no
+	// source at all.
+	const author = mod ? `${mod.tag} (${mod.id})` : 'AutoModerator';
+	return `${author}${reason ? `: ${reason}` : ''}`.slice(0, 512);
 }

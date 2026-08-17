@@ -52,3 +52,34 @@ export const RealtimeClientIdHeader = 'X-Realtime-Client-Id' as const;
 export const REPORT_PRESET_MAX_LENGTH = 100;
 
 export const REPORT_PRESET_MAX_COUNT = 25;
+
+/**
+ * Discord's own ceiling on a communication timeout, in seconds (28 days). Shared for the same three-consumer
+ * reason the preset caps above are: `automoderator-bot` caps `/mute` and the report card's mute modal against
+ * it, `services/api` rejects a warn-ladder MUTE rung longer than it, and `apps/website` says so on the field
+ * before anyone submits. A ladder rung the API accepts and the bot then silently clamps is a configuration
+ * screen that lies about what it saved.
+ */
+export const MAX_TIMEOUT_SECONDS = 28 * 24 * 60 * 60;
+
+/**
+ * How many rungs a warn ladder may hold (P2, feature 22). Ours rather than Discord's: nothing renders a rung as
+ * a select option, so the cap exists only to keep the per-warn ladder lookup and the editor bounded. Twenty-five
+ * warns is already far past the point where a guild is choosing to ban somebody.
+ */
+export const WARN_PUNISHMENT_MAX_COUNT = 25;
+
+/**
+ * The highest `warns` value a rung may sit at. Same reasoning as the count cap -- and it is what stops the
+ * editor being handed a rung nobody's warn count will ever reach.
+ */
+export const WARN_PUNISHMENT_MAX_WARNS = 100;
+
+/**
+ * The longest a warning can be configured to count for (P2, feature 23). Ten years, past which "warnings never
+ * expire" is what the guild actually means and `NULL` says it directly. Here rather than beside the API's zod
+ * schema for the same three-consumer reason as the caps above: `services/api` validates writes against it and
+ * `apps/website` renders the field against it, and a form that accepts a value the route rejects is a form that
+ * lies about what it saved.
+ */
+export const AUTO_PARDON_MAX_DAYS = 3_650;

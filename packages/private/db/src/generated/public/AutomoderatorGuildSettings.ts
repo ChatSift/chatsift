@@ -13,6 +13,8 @@ export default interface AutomoderatorGuildSettings {
   lastCaseId: number;
 
   reportsChannelId: string | null;
+
+  autoPardonWarnsAfter: number | null;
 }
 
 /** Represents the initializer for the table public.automoderator_guild_settings */
@@ -24,6 +26,8 @@ export interface AutomoderatorGuildSettingsInitializer {
   lastCaseId?: number;
 
   reportsChannelId?: string | null;
+
+  autoPardonWarnsAfter?: number | null;
 }
 
 /** Represents the mutator for the table public.automoderator_guild_settings */
@@ -35,4 +39,6 @@ export interface AutomoderatorGuildSettingsMutator {
   lastCaseId?: number;
 
   reportsChannelId?: string | null;
+
+  autoPardonWarnsAfter?: number | null;
 }

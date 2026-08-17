@@ -30,16 +30,12 @@ export const REPORT_COMPONENT = {
  * What the Action button offers. Legacy's set minus its `noop` option, which set the same
  * acknowledged-and-no-punishment state the Dismiss button already produces -- two routes to one outcome is
  * worth not porting.
- *
- * No SOFTBAN and no timed ban: a softban's whole purpose is bulk message deletion, which a report about one
- * message doesn't call for, and a ban duration needs the scheduler P2 adds. `/ban` is under the same
- * restriction for the same reason.
  */
 export const REPORT_ACTION_OPTIONS = [
 	{ action: 'WARN', label: 'Warn', description: 'Record a warning and DM them' },
 	{ action: 'MUTE', label: 'Mute', description: 'Time them out for a duration you pick' },
 	{ action: 'KICK', label: 'Kick', description: 'Remove them from the server' },
-	{ action: 'BAN', label: 'Ban', description: 'Ban them permanently' },
+	{ action: 'BAN', label: 'Ban', description: 'Ban them, permanently or for a duration you pick' },
 ] as const;
 
 export type ReportActionName = (typeof REPORT_ACTION_OPTIONS)[number]['action'];
