@@ -7,11 +7,25 @@ import type {
 	APIInteractionGuildMember,
 } from '@discordjs/core';
 import { actorFromUser } from './cases.js';
+import { LadderFailureError } from './moderation.js';
 import { syncReportCard } from './reportCard.js';
 import type { ReportedMessage } from './reports.js';
 import { REFUSAL_MESSAGES, ReportFailure, fileReport, getReportsChannelId } from './reports.js';
 
 export const DEFAULT_REPORT_REASON = 'No reason provided';
+
+/**
+ * Whether a failed action should put the report back in the queue.
+ *
+ * Almost always yes: the target was not punished, so a report left ACTIONED would be closed with nothing to show
+ * for it and no way to retry from the card. The exception is a warn whose ladder rung failed -- the warn itself
+ * is filed and logged, so reopening would let the next moderator action the same report into a *second* warn and
+ * push the target up another rung. Its own function because that is a rule worth naming and testing rather than
+ * an `instanceof` buried in a catch block.
+ */
+export function shouldReopenReport(error: unknown): boolean {
+	return !(error instanceof LadderFailureError);
+}
 
 /**
  * The reported message's first image, for the card's embed.

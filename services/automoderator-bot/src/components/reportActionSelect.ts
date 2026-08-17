@@ -19,11 +19,13 @@ import { actorFromUser } from '../lib/cases.js';
 import { reportsTotal } from '../lib/metrics.js';
 import { describeCommandFailure, describeModerationResult } from '../lib/modCommand.js';
 import { REASON_MAX_LENGTH } from '../lib/modCommandOptions.js';
+import type { LadderFailureError } from '../lib/moderation.js';
 import { MAX_MUTE_MS, applyModerationAction } from '../lib/moderation.js';
 import { checkActorHierarchy, checkBotHierarchy, memberMayTakeAction } from '../lib/permissions.js';
 import type { ReportActionName } from '../lib/reportCard.js';
 import { REPORT_COMPONENT, isReportAction } from '../lib/reportCard.js';
 import { refreshCard, resolveCardInteraction } from '../lib/reportComponents.js';
+import { shouldReopenReport } from '../lib/reportFlow.js';
 import { REPORT_STATE, getReport, recordReportCase, setReportState } from '../lib/reports.js';
 
 const REASON_INPUT_ID = 'reason';
@@ -262,8 +264,18 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 					logger,
 				);
 			} catch (error) {
-				// The claim has to come back off, or a punishment that failed leaves a report permanently closed
-				// with nothing to show for it and no way to retry from the card.
+				// A ladder rung failing does **not** undo the warn -- it is already filed and its log is out. The
+				// report stays terminal and points at the warn that landed; see `shouldReopenReport`.
+				if (!shouldReopenReport(error)) {
+					reportsTotal.inc({ state: 'actioned' });
+					const recorded = await recordReportCase(report.id, (error as LadderFailureError).warnCase.caseId);
+					await refreshCard(recorded ?? claimed, logger);
+					await reply(describeCommandFailure(error));
+					return;
+				}
+
+				// Every other failure really did leave the target un-punished, so the claim has to come back off:
+				// otherwise a report is permanently closed with nothing to show for it and no way to retry.
 				await setReportState(report.id, {
 					state: report.state,
 					expected: REPORT_STATE.ACTIONED,

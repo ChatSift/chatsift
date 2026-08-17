@@ -7,7 +7,7 @@ vi.mock('@chatsift/backend-core', () => ({
 	publishRealtimeInvalidate: async () => undefined,
 }));
 
-const { firstImageUrl, snapshotMessage } = await import('../reportFlow.js');
+const { firstImageUrl, shouldReopenReport, snapshotMessage } = await import('../reportFlow.js');
 
 type ImageSource = Pick<APIMessage, 'attachments' | 'embeds'>;
 
@@ -86,4 +86,18 @@ test('the snapshot keeps empty content as null rather than an empty string', () 
 	expect(snapshotMessage({ ...base, content: '' }).content).toBeNull();
 	expect(snapshotMessage({ ...base, content: 'rude' }).content).toBe('rude');
 	expect(snapshotMessage({ ...base, content: 'rude' })).toMatchObject({ messageId: '3', channelId: '4' });
+});
+
+// The rule that keeps a report from being actioned twice. A ladder rung failing leaves the warn filed and
+// logged, so reopening the report would let the next moderator turn it into a second warn -- and push the
+// target up another rung. Every other failure really did leave them unpunished.
+test('only a ladder failure keeps the report terminal', async () => {
+	const { LadderFailureError, CaseFilingError, SoftbanUnbanError } = await import('../moderation.js');
+	const warnCase = { caseId: 7 } as never;
+
+	expect(shouldReopenReport(new LadderFailureError(warnCase, 3, new Error('no permission')))).toBe(false);
+
+	expect(shouldReopenReport(new CaseFilingError(false, new Error('db down')))).toBe(true);
+	expect(shouldReopenReport(new SoftbanUnbanError(new Error('nope')))).toBe(true);
+	expect(shouldReopenReport(new Error('anything else'))).toBe(true);
 });

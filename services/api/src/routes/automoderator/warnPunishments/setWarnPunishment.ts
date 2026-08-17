@@ -39,6 +39,16 @@ export default defineRoute({
 		// count below, or a guild on a full ladder could never renumber a step (the insert would see a full
 		// ladder while the old row was still there).
 		return getContext().db.begin(async (db) => {
+			// Serializes every write to one guild's ladder, so the cap below is authoritative rather than
+			// approximate: without it two concurrent PUTs for *different* warn counts each snapshot the count at
+			// 24 under READ COMMITTED, both pass, and the guild lands on 26 steps. `ON CONFLICT` can't catch that,
+			// since the keys differ.
+			//
+			// Cheap here specifically because the transaction already exists for the renumber -- a guild id is a
+			// snowflake, so it fits `bigint` exactly and needs no hashing (and therefore collides with nothing).
+			// Released at commit; contention is per guild, on a config write nobody makes in a loop.
+			await db`SELECT pg_advisory_xact_lock(${guildId}::bigint)`;
+
 			if (replaces !== undefined) {
 				await db`
 					DELETE FROM automoderator_warn_punishments WHERE guild_id = ${guildId} AND warns = ${replaces}

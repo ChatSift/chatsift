@@ -444,13 +444,17 @@ the migrations applied, both sweeps' claim queries checked against the seeded de
 the row planted for it, and the expiry claim uses its partial index). Runtime verification against the test guild
 is still outstanding — see [Verification](#verification).
 
-**One review finding was declined.** The ladder-size cap is checked inside the insert, so two concurrent creates
-for _different_ warn counts at 24 rungs can both pass it and leave a guild with 26. That is the same shape
-`createPreset.ts` has shipped with since P3, and the consequence differs: a 26th preset is silently never offered
-(the picker reads `LIMIT 25`), whereas a 26th rung works perfectly well — the bot looks a rung up by exact warn
-count, and the cap exists only to bound the editor. A per-guild advisory lock on a config write to prevent a
-cosmetic off-by-one, in a race needing two managers editing the same full ladder at the same instant, is not
-worth the mechanism.
+**The ladder cap is serialized with a per-guild advisory lock.** Checked inside the insert it is only
+approximate: under READ COMMITTED two concurrent writes for _different_ warn counts each snapshot the count at
+24, both pass, and the guild lands on 26 — reproduced, and closed by `pg_advisory_xact_lock`. This was declined
+on the first review pass and taken on the second, because the fact that decided it changed: the route had since
+grown a transaction for the atomic renumber, so the lock went from "new machinery for a cosmetic off-by-one" to
+one line inside a transaction that already existed. A guild id is a snowflake, so it fits `bigint` exactly and
+needs no hashing to collide with.
+
+`createPreset.ts` still has the unserialized version of this shape from P3, where the consequence is actually
+worse — a 26th preset is silently never offered, because the picker reads `LIMIT 25`, where a 26th rung works
+fine. Worth revisiting, but it is P3's route rather than this phase's to change.
 
 **There is no `automoderator_tasks` table.** That is the phase's one real design departure, taken on the owner's
 call to design rather than port. Legacy had a task table plus a 1:1 `timed_case_tasks` join row, and in five
@@ -503,7 +507,10 @@ Other deliberate calls:
   "recorded only" rows, because that gap is the thing people get wrong and a list of independent cards hides it.
 - **A ladder failure is its own error.** `LadderFailureError` carries the warn, so the moderator is told both
   halves: the warn was recorded, and the punishment it triggered was not. Swallowing it would silently drop an
-  escalation.
+  escalation. It is also the one failure the report card must **not** roll its claim back for — the warn landed,
+  so reopening the report would let the next moderator action it into a second warn and push the target up
+  another rung. The card keeps it ACTIONED and points `case_id` at the warn that did land. Caught in review on
+  #361; the general "a failed punishment must reopen the report" rule is right for every other error.
 - **No experiment gate**, and the reason is that every part of this phase is off unless configured: a guild with
   no rungs gets nothing, a null `auto_pardon_warns_after` is off, and a ban without a duration is permanent.
   Deleting the rung is a better kill switch than a gate, since it is also the thing an operator would reach for.
