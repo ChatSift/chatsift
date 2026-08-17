@@ -9,7 +9,10 @@ RUN apk add --update \
 && apk add --no-cache ca-certificates \
 && apk add --no-cache --virtual .build-deps curl git python3 alpine-sdk
 
-COPY turbo.json package.json tsconfig.base.json tsconfig.json tsup.config.ts yarn.lock .yarnrc.yml ./
+# `.gitattributes` is not a build input, but turbo folds it into the global hash whenever it exists.
+# Without it here, every task hashes differently in the image than on the runner and the remote cache
+# never crosses over -- see turbo.json for the rest of that story.
+COPY turbo.json package.json tsconfig.base.json tsconfig.json tsup.config.ts yarn.lock .yarnrc.yml .gitattributes ./
 COPY .yarn ./.yarn
 
 COPY packages/public/discord-utils/package.json ./packages/public/discord-utils/package.json

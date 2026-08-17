@@ -3,10 +3,12 @@
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
+			"inputs": ["src/**", "package.json", "tsconfig.json", "tsup.config.ts", "$TURBO_ROOT$/tsup.config.ts"],
 			"outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
 		},
 		"lint": {
-			"dependsOn": ["^build"]
+			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/eslint.config.js", "$TURBO_ROOT$/tsconfig.eslint.json"]
 		},
 		"lint:fix": {
 			"dependsOn": ["^build"],
@@ -14,13 +16,20 @@
 		},
 		"test": {
 			"dependsOn": ["^build"],
-			"inputs": ["src/**", "vitest.config.ts", "tsconfig.json", "package.json"],
+			"inputs": ["src/**", "vitest.config.ts", "tsconfig.json", "package.json", "$TURBO_ROOT$/vitest.shared.ts"],
 			"outputs": ["coverage/**"]
 		},
 		"format": {
 			"cache": false
 		},
-		"format:check": {},
+		"format:check": {
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"$TURBO_ROOT$/.prettierrc.json",
+				"$TURBO_ROOT$/.prettierignore",
+				"$TURBO_ROOT$/.prettierignore.workspaces"
+			]
+		},
 		"clean": {
 			"cache": false
 		},
@@ -50,13 +59,5 @@
 			]
 		}
 	},
-	"globalDependencies": [
-		"eslint.config.js",
-		".prettierrc.json",
-		".prettierignore",
-		".prettierignore.workspaces",
-		"tsconfig.json",
-		"tsconfig.*.json",
-		"vitest.shared.ts"
-	]
+	"globalDependencies": ["tsconfig.json", "tsconfig.base.json"]
 }

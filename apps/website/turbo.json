@@ -2,6 +2,17 @@
 	"$schema": "https://turbo.build/schema.json",
 	"extends": ["//"],
 	"tasks": {
+		"build": {
+			"inputs": [
+				"src/**",
+				"public/**",
+				"package.json",
+				"tsconfig.json",
+				"next.config.mjs",
+				"postcss.config.js",
+				".env.development"
+			]
+		},
 		"test": {
 			"outputs": []
 		}

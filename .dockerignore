@@ -17,7 +17,6 @@
 **/tsconfig.eslint.json
 
 .commitlinrrc.json
-.gitattributes
 .gitignore
 .env.private.example
 
