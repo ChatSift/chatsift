@@ -11,7 +11,3 @@ export function snapshotUserLabel(resolved: APIUser | Snowflake, storedTag: stri
 
 	return resolved.global_name ?? resolved.username;
 }
-
-export function resolvedUserAvatar(user: APIUser | Snowflake): { avatar: string | null; id: string } | null {
-	return typeof user === 'string' ? null : { avatar: user.avatar, id: user.id };
-}

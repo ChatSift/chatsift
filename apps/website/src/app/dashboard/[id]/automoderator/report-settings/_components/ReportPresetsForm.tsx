@@ -1,7 +1,6 @@
 'use client';
 
-import { REPORT_PRESET_MAX_COUNT, REPORT_PRESET_MAX_LENGTH } from '@chatsift/api/automoderator-schemas';
-import { automoderatorReportPresetsChannel } from '@chatsift/core';
+import { automoderatorReportPresetsChannel, REPORT_PRESET_MAX_COUNT, REPORT_PRESET_MAX_LENGTH } from '@chatsift/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';

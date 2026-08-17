@@ -1,12 +1,15 @@
+import { reportStateSchema } from '@chatsift/api/automoderator-schemas';
+
 /**
  * Display helpers shared by the report queue and the report detail, so the two can't disagree about what a
  * report looks like. Same split as `caseDisplay.ts`.
  */
 
 /**
- * Mirrors `CREATE TYPE automoderator_report_state`, in the order the filter should list them.
+ * Derived from the API's own zod enum rather than hand-mirrored, so the filter can never offer a state the
+ * route would reject -- the order is the schema's, which is also the order the filter should list them in.
  */
-export const REPORT_STATES = ['OPEN', 'DISMISSED', 'ACTIONED'] as const;
+export const REPORT_STATES = reportStateSchema.options;
 
 export const STATE_LABELS: Record<string, string> = {
 	OPEN: 'Open',

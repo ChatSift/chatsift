@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { REPORT_STATES, STATE_LABELS } from './reportDisplay';
+import type { ReportStateName } from '@/api/routes/automoderatorReports';
 import { Button } from '@/components/common/Button';
 import { SvgChevronDown } from '@/components/icons/SvgChevronDown';
 import { useURLParam } from '@/hooks/useURLParam';
@@ -11,9 +12,11 @@ import { cn } from '@/utils/util';
  * Filter state lives in the URL, not React state, so a filtered view is shareable and survives back/forward --
  * the convention every list page here follows via `useURLParam`. Same shape as `CaseFilters.tsx`.
  */
-export function useStateFilter(): string | undefined {
+export function useStateFilter(): ReportStateName | undefined {
 	const [state] = useURLParam('state');
-	return state && REPORT_STATES.includes(state as (typeof REPORT_STATES)[number]) ? state : undefined;
+	// The `includes` narrowing is what makes the cast safe -- a hand-edited `?state=` in the URL is arbitrary
+	// text, and passing it through would fail the route's schema rather than just showing nothing.
+	return state && REPORT_STATES.includes(state as ReportStateName) ? (state as ReportStateName) : undefined;
 }
 
 export function StateFilter() {

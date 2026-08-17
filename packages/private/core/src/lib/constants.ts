@@ -37,3 +37,18 @@ export const RefreshTokenCookie = 'refresh_token' as const;
  * to be a value separate from the session's user id.
  */
 export const RealtimeClientIdHeader = 'X-Realtime-Client-Id' as const;
+
+/**
+ * A canned AutoModerator report reason (P3): how long one may be, and how many a guild may have.
+ *
+ * Both are Discord's limits rather than ours -- a preset is rendered as a select-menu option, whose label caps
+ * at 100 characters, and a select menu holds 25 options. They live here rather than beside the API's zod schema
+ * because **three** places have to agree: `services/api` validates writes against them, `apps/website` renders
+ * the form against them, and `automoderator-bot` reads only the first `REPORT_PRESET_MAX_COUNT` presets when it
+ * builds the reason picker. The bot has no dependency on `@chatsift/api`, so before this the bot's `LIMIT` was
+ * a bare `25` that would silently disagree the moment the cap moved -- presets saved on the dashboard that the
+ * picker never offers.
+ */
+export const REPORT_PRESET_MAX_LENGTH = 100;
+
+export const REPORT_PRESET_MAX_COUNT = 25;

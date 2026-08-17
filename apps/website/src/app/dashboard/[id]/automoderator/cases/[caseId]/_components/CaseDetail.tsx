@@ -1,10 +1,13 @@
 'use client';
 
+import { automoderatorCasesChannel } from '@chatsift/core';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { snapshotUserLabel } from '../../../_components/userDisplay';
 import { ACTION_LABELS, ACTION_PILL_CLASSES } from '../../_components/caseDisplay';
+import { queryKeys } from '@/api/queryClient';
 import type { GetAutomoderatorCaseResult } from '@/api/routes/automoderatorCases';
 import {
 	useAutomoderatorCase,
@@ -18,6 +21,7 @@ import { Heading } from '@/components/common/Heading';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextAreaField } from '@/components/common/TextAreaField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
+import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 import { cn, formatDate } from '@/utils/util';
 
 const REASON_MAX_LENGTH = 400;
@@ -82,6 +86,11 @@ export function CaseDetail() {
 	const { id: guildId, caseId: caseIdParam } = useParams<{ caseId: string; id: string }>();
 	const caseId = Number(caseIdParam);
 	const router = useRouter();
+	const queryClient = useQueryClient();
+
+	useRealtimeInvalidate(automoderatorCasesChannel(guildId), () => {
+		void queryClient.invalidateQueries({ queryKey: queryKeys.automoderator.cases.all(guildId) });
+	});
 
 	const { data, isLoading, error } = useAutomoderatorCase(guildId, caseId);
 	const updateCase = useUpdateAutomoderatorCase(guildId, caseId);

@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { REPORT_PRESET_MAX_COUNT } from '@chatsift/core';
 import type {
 	APIMessage,
 	APIMessageApplicationCommandInteraction,
@@ -106,9 +107,16 @@ export function resolveTargetMessage(interaction: APIMessageApplicationCommandIn
 	return interaction.data.resolved.messages[interaction.data.target_id]!;
 }
 
+/**
+ * The reasons the picker offers, oldest first. Bounded by the same constant the API enforces on create, so the
+ * dashboard can never accept a preset this silently declines to show.
+ */
 export async function listReportPresets(guildId: string): Promise<string[]> {
 	const rows = await getContext().db<{ reason: string }[]>`
-		SELECT reason FROM automoderator_report_presets WHERE guild_id = ${guildId} ORDER BY id ASC LIMIT 25
+		SELECT reason FROM automoderator_report_presets
+		WHERE guild_id = ${guildId}
+		ORDER BY id ASC
+		LIMIT ${REPORT_PRESET_MAX_COUNT}
 	`;
 
 	return rows.map((row) => row.reason);

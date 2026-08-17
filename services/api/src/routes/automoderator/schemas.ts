@@ -1,8 +1,13 @@
+// The preset caps live in `@chatsift/core` because three packages have to agree on them -- see their doc
+// comment there. Imported rather than re-exported: callers take them from core directly, so there is exactly
+// one import path for them.
+import { REPORT_PRESET_MAX_LENGTH } from '@chatsift/core';
 import { z } from 'zod';
 import { snowflakeSchema } from '../../util/schemas.js';
 
 /**
- * Browser-safe: only `zod`, nothing server-only. Exposed to `apps/website` via the
+ * Browser-safe: only `zod` and `@chatsift/core` (which `apps/website` already imports directly), nothing
+ * server-only. Exposed to `apps/website` via the
  * `@chatsift/api/automoderator-schemas` package export (see `package.json`), mirroring `ama/schemas.ts`,
  * `modmail/schemas.ts` and `social/schemas.ts`, so the dashboard validates against the exact rules the API
  * enforces.
@@ -52,19 +57,6 @@ export const setLogChannelBodySchema = z.strictObject({
  * Mirrors `CREATE TYPE automoderator_report_state`. Spelled out for the same reason `caseActionSchema` is.
  */
 export const reportStateSchema = z.enum(['OPEN', 'DISMISSED', 'ACTIONED']);
-
-/**
- * A canned report reason. The 100 cap is Discord's, not ours: a preset is rendered as a select-menu option
- * label, and Discord truncates those at 100 characters -- accepting more would store text a reporter can never
- * read in full.
- */
-export const REPORT_PRESET_MAX_LENGTH = 100;
-
-/**
- * Discord's select menus hold 25 options, so a 26th preset would be one the reason picker silently never
- * offers. Enforced on create rather than at render time, where it would be invisible.
- */
-export const REPORT_PRESET_MAX_COUNT = 25;
 
 export const reportPresetBodySchema = z.strictObject({
 	reason: z.string().trim().min(1).max(REPORT_PRESET_MAX_LENGTH),

@@ -1,5 +1,5 @@
 import { getContext } from '@chatsift/backend-core';
-import { automoderatorReportPresetsChannel } from '@chatsift/core';
+import { automoderatorReportPresetsChannel, REPORT_PRESET_MAX_COUNT } from '@chatsift/core';
 import type { AutomoderatorReportPresets } from '@chatsift/db';
 import { isUniqueViolation } from '@chatsift/db';
 import { badRequest, conflict } from '@hapi/boom';
@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
-import { REPORT_PRESET_MAX_COUNT, reportPresetBodySchema } from '../schemas.js';
+import { reportPresetBodySchema } from '../schemas.js';
 
 const bodySchema = reportPresetBodySchema;
 const paramsSchema = z.object({ guildId: snowflakeSchema });

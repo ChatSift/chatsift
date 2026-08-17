@@ -7,6 +7,7 @@ import type {
 	listAutomoderatorReportsRoute,
 	updateAutomoderatorReportPresetRoute,
 } from '@chatsift/api';
+import type { reportStateSchema } from '@chatsift/api/automoderator-schemas';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
@@ -30,8 +31,15 @@ export type UpdateAutomoderatorReportPresetBody = UpdatePresetContract['body'];
 type DeletePresetContract = InferRouteContract<typeof deleteAutomoderatorReportPresetRoute>;
 export type DeleteAutomoderatorReportPresetParams = DeletePresetContract['params'];
 
+/**
+ * The report states, straight off the API's own zod enum -- so a filter value the route would reject can't be
+ * constructed here in the first place. Defined in this layer because it is part of the contract surface, like
+ * the `Infer*` types above.
+ */
+export type ReportStateName = (typeof reportStateSchema.options)[number];
+
 export interface ReportFilters {
-	state?: string | undefined;
+	state?: ReportStateName | undefined;
 	targetId?: string | undefined;
 }
 
