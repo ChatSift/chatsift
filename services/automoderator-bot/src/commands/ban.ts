@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
+import { parseRelativeTimeSafe } from '@chatsift/parse-relative-time';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type { APIApplicationCommandInteraction } from '@discordjs/core';
 import { ApplicationIntegrationType, InteractionContextType, PermissionFlagsBits } from '@discordjs/core';
@@ -8,9 +9,8 @@ import { runModCommand } from '../lib/modCommand.js';
 import { MAX_DELETE_MESSAGE_DAYS, REASON_MAX_LENGTH, SECONDS_PER_DAY } from '../lib/modCommandOptions.js';
 
 /**
- * Permanent bans only at P1. Legacy's `duration` option is deliberately absent until P2 brings the scheduler:
- * a tempban whose expiry nothing lifts is a permanent ban that claims otherwise, which is worse than not
- * offering it.
+ * `duration` has no ceiling, unlike `/mute`'s: nothing here is a Discord timeout, so the expiry is ours to
+ * honour and `expiredBanSweep.ts` is what honours it.
  */
 export default class BanCommand implements CommandHandler {
 	public readonly name = 'ban';
@@ -24,6 +24,9 @@ export default class BanCommand implements CommandHandler {
 		.addUserOptions((option) => option.setName('user').setDescription('The user to ban').setRequired(true))
 		.addStringOptions((option) =>
 			option.setName('reason').setDescription('Why they are being banned').setMaxLength(REASON_MAX_LENGTH),
+		)
+		.addStringOptions((option) =>
+			option.setName('duration').setDescription('How long, e.g. "7d", "3mo". Leave empty for a permanent ban'),
 		)
 		.addIntegerOptions((option) =>
 			option
@@ -42,7 +45,23 @@ export default class BanCommand implements CommandHandler {
 			action: CASE_ACTION.BAN,
 			requiresMember: false,
 			extra(options) {
-				return { deleteMessageSeconds: (options.getInteger('days') ?? 0) * SECONDS_PER_DAY };
+				const deleteMessageSeconds = (options.getInteger('days') ?? 0) * SECONDS_PER_DAY;
+				const raw = options.getString('duration');
+
+				if (raw === null) {
+					return { deleteMessageSeconds };
+				}
+
+				const parsed = parseRelativeTimeSafe(raw);
+				if (!parsed.ok) {
+					return `Couldn't parse that duration: ${parsed.message}`;
+				}
+
+				if (parsed.value <= 0) {
+					return 'That duration is in the past.';
+				}
+
+				return { deleteMessageSeconds, durationMs: parsed.value };
 			},
 		});
 	}

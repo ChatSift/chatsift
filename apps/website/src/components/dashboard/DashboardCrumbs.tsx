@@ -30,7 +30,14 @@ const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks'
 const SOCIAL_SECTIONS = ['config', 'channels', 'roles', 'rewards', 'interactions', 'leaderboard'] as const;
 
 // One entry per phase of docs/roadmap/11-automoderator-port.md, in step with the hub page's own SECTIONS.
-const AUTOMODERATOR_SECTIONS = ['cases', 'log-channels', 'config'] as const;
+const AUTOMODERATOR_SECTIONS = [
+	'cases',
+	'reports',
+	'warn-ladder',
+	'log-channels',
+	'report-settings',
+	'config',
+] as const;
 
 const SEGMENT_LABELS: Record<string, string> = {
 	ama: 'AMA',
@@ -53,7 +60,10 @@ const SEGMENT_LABELS: Record<string, string> = {
 	leaderboard: 'Leaderboard',
 	automoderator: 'AutoModerator',
 	cases: 'Cases',
+	reports: 'Reports',
+	'warn-ladder': 'Warn Ladder',
 	'log-channels': 'Log Channels',
+	'report-settings': 'Report Settings',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {
@@ -353,6 +363,11 @@ const SEGMENT_DEFINITIONS: readonly SegmentDefinition[] = [
 		// Same situation as threads: a case's identity is its per-guild number, and there's no name to resolve.
 		pattern: ['automoderator', 'cases', ':id'],
 		resolveLabel: (caseId) => `Case #${caseId}`,
+	},
+	{
+		// A ladder step's identity is the warn count it fires at, so the segment already reads as its own label.
+		pattern: ['automoderator', 'warn-ladder', ':id'],
+		resolveLabel: (warns) => (warns === 'new' ? 'New' : `${warns} ${warns === '1' ? 'warning' : 'warnings'}`),
 	},
 ];
 

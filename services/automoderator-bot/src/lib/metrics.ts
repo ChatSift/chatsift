@@ -1,4 +1,4 @@
-import { Counter, Registry } from 'prom-client';
+import { Counter, Histogram, Registry } from 'prom-client';
 
 /**
  * Dedicated registry rather than prom-client's process-wide default, mirroring `services/api`'s
@@ -94,6 +94,35 @@ export const logDispatch = new Counter({
 	name: 'automoderator_log_dispatch_total',
 	help: 'Log webhook deliveries, by log type and result',
 	labelNames: ['log_type', 'result'] as const,
+	registers: [register],
+});
+
+/**
+ * Scheduler throughput (P2). `type` is `automoderator_task_type` for a real task row, plus `AUTO_PARDON` for
+ * the sweep -- which is not a task row at all, but is the other thing this loop does on a timer, and "did the
+ * scheduler tick" is the question both answer. `result` is `ok`, `failed` (will be retried) or `dropped` (out
+ * of attempts, given up on).
+ */
+export const schedulerTasks = new Counter({
+	name: 'automoderator_scheduler_tasks_total',
+	help: 'Scheduled work run, by type and result',
+	labelNames: ['type', 'result'] as const,
+	registers: [register],
+});
+
+/**
+ * How late a task ran: `run_at` to actually running. **Climbing means tempbans are not expiring**, which
+ * surfaces as "why is this user still banned" long before anyone thinks to look at a bot.
+ *
+ * Buckets run out to an hour because the failure worth seeing is a loop that has stopped, not a loop that is
+ * a second slow -- with the default buckets (top of 10s) a wedged scheduler and a healthy one both read as
+ * `+Inf` and the panel says nothing.
+ */
+export const schedulerLag = new Histogram({
+	name: 'automoderator_scheduler_lag_seconds',
+	help: 'Delay between a task being due and it running',
+	labelNames: ['type'] as const,
+	buckets: [1, 5, 15, 30, 60, 300, 900, 3_600],
 	registers: [register],
 });
 

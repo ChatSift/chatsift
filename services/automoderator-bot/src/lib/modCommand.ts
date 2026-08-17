@@ -11,7 +11,8 @@ import { DiscordAPIError } from '@discordjs/rest';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { ACTION_PAST_TENSE } from './caseFormat.js';
 import { actorFromUser, getCaseByNumber } from './cases.js';
-import { CaseFilingError, SoftbanUnbanError, applyModerationAction } from './moderation.js';
+import type { ModerationResult } from './moderation.js';
+import { CaseFilingError, LadderFailureError, SoftbanUnbanError, applyModerationAction } from './moderation.js';
 import { checkActorHierarchy, checkBotHierarchy } from './permissions.js';
 
 export type ModCommandExtra = string | { deleteMessageSeconds?: number; durationMs?: number };
@@ -113,14 +114,7 @@ export async function runModCommand(
 			logger,
 		);
 
-		const verb = ACTION_PAST_TENSE[spec.action];
-		const suffix = `(case #${result.case.caseId})`;
-
-		await reply(
-			result.suppressed
-				? `**Dry run** — would have ${verb} ${targetUser.username}. ${suffix}`
-				: `Successfully ${verb} ${targetUser.username}. ${suffix}`,
-		);
+		await reply(describeModerationResult(result, targetUser.username, spec.action));
 	} catch (error) {
 		logger.error({ err: error, action: spec.action }, 'a mod command failed');
 		await reply(describeCommandFailure(error));
@@ -128,11 +122,43 @@ export async function runModCommand(
 }
 
 /**
+ * What the moderator is told. Shared with the report card's action flow so the ladder sentence can't drift
+ * between the two places a warn can be issued from.
+ */
+export function describeModerationResult(
+	result: ModerationResult,
+	targetName: string,
+	action: AutomoderatorCaseAction,
+): string {
+	const verb = ACTION_PAST_TENSE[action];
+	const head = result.suppressed
+		? `**Dry run** — would have ${verb} ${targetName}. (case #${result.case.caseId})`
+		: `Successfully ${verb} ${targetName}. (case #${result.case.caseId})`;
+
+	if (!result.ladder) {
+		return head;
+	}
+
+	// Said out loud rather than left to the mod log: a `/warn` that also banned somebody is the surprise an
+	// escalation ladder is most likely to produce, and the moderator who triggered it is the one person who
+	// should never be surprised by it.
+	const ladderVerb = ACTION_PAST_TENSE[result.ladder.case.actionType as AutomoderatorCaseAction];
+	return `${head}\nThat reached a warn ladder step, so they were also ${ladderVerb}. (case #${result.ladder.case.caseId})`;
+}
+
+/**
  * Turns a failed moderation attempt into something a moderator can act on. Shared with the report card's action
- * flow, which can fail in exactly the same four ways -- the distinction between "nothing happened" and "it
+ * flow, which can fail in exactly the same ways -- the distinction between "nothing happened" and "it
  * happened but isn't recorded" is the whole point, and it must not be worded twice.
  */
 export function describeCommandFailure(error: unknown): string {
+	if (error instanceof LadderFailureError) {
+		return (
+			`The warn was recorded (case #${error.warnCase.caseId}), but it reached a warn ladder step at ` +
+			`${error.warns} warnings and that punishment failed. Apply it by hand, or check my permissions.`
+		);
+	}
+
 	if (error instanceof SoftbanUnbanError) {
 		return (
 			'I banned them and deleted their messages, but then failed to lift the ban — **they are still banned**. ' +

@@ -53,6 +53,9 @@ import listAutomoderatorReportPresetsRoute from './routes/automoderator/reportPr
 import updateAutomoderatorReportPresetRoute from './routes/automoderator/reportPresets/updatePreset.js';
 import getAutomoderatorReportRoute from './routes/automoderator/reports/getReport.js';
 import listAutomoderatorReportsRoute from './routes/automoderator/reports/listReports.js';
+import deleteAutomoderatorWarnPunishmentRoute from './routes/automoderator/warnPunishments/deleteWarnPunishment.js';
+import listAutomoderatorWarnPunishmentsRoute from './routes/automoderator/warnPunishments/listWarnPunishments.js';
+import setAutomoderatorWarnPunishmentRoute from './routes/automoderator/warnPunishments/setWarnPunishment.js';
 import dozzleWebhookRoute from './routes/dozzle/webhook.js';
 import deleteExperimentRoute from './routes/experiments/deleteExperiment.js';
 import listExperimentsRoute from './routes/experiments/listExperiments.js';
@@ -253,6 +256,9 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, createAutomoderatorReportPresetRoute);
 	mountRoute(app, updateAutomoderatorReportPresetRoute);
 	mountRoute(app, deleteAutomoderatorReportPresetRoute);
+	mountRoute(app, listAutomoderatorWarnPunishmentsRoute);
+	mountRoute(app, setAutomoderatorWarnPunishmentRoute);
+	mountRoute(app, deleteAutomoderatorWarnPunishmentRoute);
 	mountRoute(app, listExperimentsRoute);
 	mountRoute(app, upsertExperimentRoute);
 	mountRoute(app, deleteExperimentRoute);

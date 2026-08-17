@@ -1,7 +1,7 @@
 // The preset caps live in `@chatsift/core` because three packages have to agree on them -- see their doc
 // comment there. Imported rather than re-exported: callers take them from core directly, so there is exactly
 // one import path for them.
-import { REPORT_PRESET_MAX_LENGTH } from '@chatsift/core';
+import { MAX_TIMEOUT_SECONDS, REPORT_PRESET_MAX_LENGTH } from '@chatsift/core';
 import { z } from 'zod';
 import { snowflakeSchema } from '../../util/schemas.js';
 
@@ -20,8 +20,50 @@ export const updateAutomoderatorConfigBodySchema = z
 		// Nullable rather than just optional: clearing the channel is how a guild turns reporting off, and
 		// absent-means-unchanged has no way to express that (see `updateConfig.ts`'s `'key' in body` handling).
 		reportsChannelId: snowflakeSchema.nullable().optional(),
+		// Days, and null is off -- the same nullable-means-off shape as the channel above. Capped at ten years
+		// because past that "warns never expire" is what the guild actually means, and null says it directly.
+		autoPardonWarnsAfter: z.number().int().min(1).max(3_650).nullable().optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
+
+/**
+ * Mirrors `CREATE TYPE automoderator_warn_punishment_action`. Spelled out for the same reason
+ * `caseActionSchema` is.
+ */
+export const warnPunishmentActionSchema = z.enum(['MUTE', 'KICK', 'BAN']);
+
+/**
+ * A rung of the warn ladder. `warns` is the path parameter rather than a body field -- it is the row's identity,
+ * and a PUT keyed on it is what makes "set the 3-warn rung" one idempotent call instead of a create/update pair
+ * the dashboard would have to choose between.
+ *
+ * The three duration rules mirror `automoderator_warn_punishments_duration_check`, deliberately: the CHECK is
+ * the one that cannot be bypassed, and this is the one that produces a message a human can act on.
+ */
+export const warnPunishmentBodySchema = z
+	.strictObject({
+		actionType: warnPunishmentActionSchema,
+		durationSeconds: z.number().int().min(1).nullable().optional(),
+	})
+	.superRefine((data, ctx) => {
+		const duration = data.durationSeconds ?? null;
+
+		if (data.actionType === 'KICK' && duration !== null) {
+			ctx.addIssue({ code: 'custom', path: ['durationSeconds'], message: 'a kick has no duration' });
+		}
+
+		if (data.actionType === 'MUTE') {
+			if (duration === null) {
+				ctx.addIssue({ code: 'custom', path: ['durationSeconds'], message: 'a mute needs a duration' });
+			} else if (duration > MAX_TIMEOUT_SECONDS) {
+				ctx.addIssue({
+					code: 'custom',
+					path: ['durationSeconds'],
+					message: 'Discord timeouts cap out at 28 days',
+				});
+			}
+		}
+	});
 
 /**
  * Mirrors `CREATE TYPE automoderator_case_action`. Spelled out as a zod enum rather than imported from

@@ -7,7 +7,7 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0, P1 and P3 done; P3b (DM reporting) next
+## Status: P0, P1, P2 and P3 done; P3b (DM reporting) next
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -15,8 +15,8 @@ nothing sits half-built across the stack.
 
 **Phases are no longer being done strictly in order.** P3 (reports) was taken before P2 (scheduler and ladders) on
 the owner's call, because [P3b](#p3b--dm-reporting) — a new feature, not a port — attaches to the report spine and
-was the thing worth building next. P2 is unblocked and unstarted; nothing in P3 depends on it. The one place that
-shows is the report card's action list, which offers no timed ban for the same reason `/ban` doesn't yet.
+was the thing worth building next. P2 followed and closed the gap that left: `/ban --duration`, `/case duration`
+and the report card's timed ban all landed with the scheduler that makes them mean anything.
 
 P0 landed 2026-08-13 and is verified end to end against the test guild — see its section for what shipped and the
 two deviations. **The AutoMod spike passed**, so feature 01's design and P5's scope are settled on evidence rather
@@ -68,23 +68,23 @@ Four consequences of the drops, accepted knowingly:
 
 ## New-stack mapping
 
-| Legacy (`origin/v2`)                            | New                                                                                                |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 7 services + AMQP fanout                        | one `services/automoderator-bot` process                                                           |
-| `services/gateway` (custom gateway)             | `createBotGateway` from `@chatsift/bot-core`                                                       |
-| `services/discord-proxy` (shared REST cache)    | `services/discord-proxy` — rate limiting only; the route cache is dropped                          |
-| `services/interactions` (+ its own HTTP server) | `registerCommandHandlers` / `registerUnknownCommandResolver`                                       |
-| `services/automod` runner pipeline              | in-process filter pipeline, same transform → check → run → cleanup → log shape                     |
-| `services/mod-observer`                         | in-process gateway listeners                                                                       |
-| `services/logging` (AMQP consumer → webhooks)   | in-process log dispatcher, same webhook-token storage                                              |
-| `services/scheduler` (10s poll)                 | in-process scheduler, `FOR UPDATE SKIP LOCKED` claim (see [Scaling readiness](#scaling-readiness)) |
-| Prisma + `prisma/schema.prisma`                 | `packages/private/db/schema/schema.sql` + Atlas migration + kanel regen                            |
-| `tsyringe` DI container                         | `initContext`/`getContext` from `@chatsift/backend-core`                                           |
-| `cordis` brokers / bitfields / util             | `@discordjs/core`, plain TS                                                                        |
-| Cloudflare invite-lookup worker                 | `rest.get(Routes.invite(code))` on the bot's own token                                             |
-| Own banword matcher                             | Discord AutoMod keyword rules + `AUTO_MODERATION_ACTION_EXECUTION`                                 |
-| `apps`/`sigs` app-auth model                    | existing dashboard-grant + `isAuthed` machinery                                                    |
-| Separate `chatsift/dashboard`                   | `apps/website` under a new product tab                                                             |
+| Legacy (`origin/v2`)                            | New                                                                                       |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 7 services + AMQP fanout                        | one `services/automoderator-bot` process                                                  |
+| `services/gateway` (custom gateway)             | `createBotGateway` from `@chatsift/bot-core`                                              |
+| `services/discord-proxy` (shared REST cache)    | `services/discord-proxy` — rate limiting only; the route cache is dropped                 |
+| `services/interactions` (+ its own HTTP server) | `registerCommandHandlers` / `registerUnknownCommandResolver`                              |
+| `services/automod` runner pipeline              | in-process filter pipeline, same transform → check → run → cleanup → log shape            |
+| `services/mod-observer`                         | in-process gateway listeners                                                              |
+| `services/logging` (AMQP consumer → webhooks)   | in-process log dispatcher, same webhook-token storage                                     |
+| `services/scheduler` (10s poll)                 | in-process sweeps claiming off the case row itself (see [P2](#p2--scheduler-and-ladders)) |
+| Prisma + `prisma/schema.prisma`                 | `packages/private/db/schema/schema.sql` + Atlas migration + kanel regen                   |
+| `tsyringe` DI container                         | `initContext`/`getContext` from `@chatsift/backend-core`                                  |
+| `cordis` brokers / bitfields / util             | `@discordjs/core`, plain TS                                                               |
+| Cloudflare invite-lookup worker                 | `rest.get(Routes.invite(code))` on the bot's own token                                    |
+| Own banword matcher                             | Discord AutoMod keyword rules + `AUTO_MODERATION_ACTION_EXECUTION`                        |
+| `apps`/`sigs` app-auth model                    | existing dashboard-grant + `isAuthed` machinery                                           |
+| Separate `chatsift/dashboard`                   | `apps/website` under a new product tab                                                    |
 
 ### Naming — decide before P0
 
@@ -148,9 +148,10 @@ So the broker disappears with the split that created it. Redis's actual roles he
    stays correct under sharding because a guild's events only ever reach one replica. See
    [Scaling readiness](#scaling-readiness) item 4 for the narrow set that genuinely needs a Redis lock.
 
-**No queue library.** The scheduler stays a polled task table, as it was in legacy. BullMQ or similar would be a new
-dependency buying a retry/backoff/delay model the `tasks` table already implements in ~40 lines, and would put job
-state somewhere other than the database the rest of the product's state lives in.
+**No queue library.** The scheduler stays a polled table, as it was in legacy. BullMQ or similar would be a new
+dependency buying a delay/claim model this implements in about forty lines, and would put job state somewhere
+other than the database the rest of the product's state lives in. P2 went further than "no library" and dropped
+the separate task table too — the case row is the schedule; see [P2](#p2--scheduler-and-ladders).
 
 ## Cross-cutting foundations
 
@@ -428,15 +429,68 @@ hitting.
 
 Features **20** (timed actions), **22** (warn ladder), **23** (auto-pardon).
 
-| Layer     | Work                                                                                       |
-| --------- | ------------------------------------------------------------------------------------------ |
-| Schema    | `automoderator_tasks`, `automoderator_warn_punishments`, `auto_pardon_warns_after` setting |
-| API       | ladder CRUD, auto-pardon config                                                            |
-| Bot       | scheduler loop with `SKIP LOCKED` claim; tempban expiry; ladder evaluation on warn         |
-| Dashboard | ladder editor, auto-pardon setting                                                         |
+| Layer     | Work                                                                                           |
+| --------- | ---------------------------------------------------------------------------------------------- |
+| Schema    | ~~`automoderator_tasks`~~, `automoderator_warn_punishments`, `auto_pardon_warns_after` setting |
+| API       | ladder CRUD, auto-pardon config                                                                |
+| Bot       | scheduler loop with `SKIP LOCKED` claim; tempban expiry; ladder evaluation on warn             |
+| Dashboard | ladder editor, auto-pardon setting                                                             |
 
 The scheduler claims with `FOR UPDATE SKIP LOCKED` from day one rather than assuming one replica — see
 [Scaling readiness](#scaling-readiness). Metrics: `scheduler_lag_seconds` is the one to alert on later.
+
+**Shipped 2026-08-17.** Build, lint, test and format:check green; the three new routes confirmed mounted, the
+migration applied, both sweeps' claim queries checked against the seeded dev database (each finds exactly the
+row planted for it, and the expiry claim uses its partial index). Runtime verification against the test guild is
+still outstanding — see [Verification](#verification).
+
+**There is no `automoderator_tasks` table.** That is the phase's one real design departure, taken on the owner's
+call to design rather than port. Legacy had a task table plus a 1:1 `timed_case_tasks` join row, and in five
+years it only ever held one task type whose entire payload was a case id. So the case row _is_ the schedule:
+`automoderator_cases.expires_at` with a null `lifted_at` is what makes a tempban due, over a partial index that
+is exactly the sweep's access path. What that buys:
+
+- `/case duration` is one `UPDATE`, and `/case delete` needs no cascade — there is no second row to keep in
+  step with the case through either.
+- An `/unban` that beats the scheduler closes the tempban out, wherever it came from. The hook is in
+  `createCase`, so a moderator lifting a ban through **Discord's own UI** counts too, via the audit observer.
+  Legacy's task pointed at a case row and could not notice later ones at all.
+- `lifted_at` is a fact about the punishment worth reading back, where a deleted task row was bookkeeping.
+
+Both sweeps claim the same way and for the same reason — write first, act second, exactly the shape P3's report
+action uses. The expiry sweep's claim is an `UPDATE … WHERE id IN (SELECT … FOR UPDATE SKIP LOCKED)`, so
+concurrent replicas take disjoint slices instead of queueing on each other's locks, and no lock is held across a
+Discord call. Neither sweep wants an `ownsShardForGuild` filter (contrast ModMail's four): they _claim_ rather
+than read, so filtering by shard would only leave a guild's expired bans sitting there whenever the replica that
+owns it lost the race.
+
+Other deliberate calls:
+
+- **A failed expiry retries forever rather than giving up.** Legacy counted attempts and deleted the task after
+  three — which turns a temporary ban into a permanent one that claims otherwise, the exact failure this feature
+  exists to prevent. There is no `attempts` column; the claim is rolled back and `scheduler_lag_seconds`
+  climbing is the signal.
+- **A tempban schedules its expiry in dry-run too.** That is the whole reason dry-run persists: a run that
+  writes nothing cannot exercise the stateful half, and the reversal it eventually files is suppressed in its
+  turn.
+- **Ladder counting includes dry-run warns only in dry-run**, so a dev session can reach a rung without ever
+  pushing a real member up one.
+- **A rung matches an exact warn count**, legacy's rule — at-least would re-fire the same punishment on every
+  subsequent warn. The dashboard's ladder overview renders the counts _between_ rungs as collapsed
+  "recorded only" rows, because that gap is the thing people get wrong and a list of independent cards hides it.
+- **A ladder failure is its own error.** `LadderFailureError` carries the warn, so the moderator is told both
+  halves: the warn was recorded, and the punishment it triggered was not. Swallowing it would silently drop an
+  escalation.
+- **No experiment gate**, and the reason is that every part of this phase is off unless configured: a guild with
+  no rungs gets nothing, a null `auto_pardon_warns_after` is off, and a ban without a duration is permanent.
+  Deleting the rung is a better kill switch than a gate, since it is also the thing an operator would reach for.
+  The first real gate is still P5's.
+- **A mute's 28-day ceiling is enforced where rows are written**, not where they are read — `services/api` for
+  anything a human configures, and P9's migration for anything legacy hands over. A runtime clamp would be a
+  second place for the rule to live and the one that can only paper over a bad row.
+- Also landed: `/ban --duration`, `/case duration` (bans reschedule, mutes re-time the Discord timeout, both
+  measured from when the case was filed), and an optional duration on the report card's Ban modal — the three
+  things P1 and P3 deferred to this phase.
 
 ---
 
@@ -496,9 +550,10 @@ Deviations from the table above, all deliberate:
   modal `Label`, so the presets and the free-text box live in the same interaction — which also means no pending
   report is held in a process-local collector that a restart or a second replica would lose. Both halves are
   joined when both are filled.
-- **No timed ban in the action list**, for the same reason `/ban` has no duration: it needs P2's scheduler, and a
-  tempban nothing lifts is a permanent ban that claims otherwise. No softban either — bulk message deletion isn't
-  what a report about one message calls for.
+- **No timed ban in the action list**, for the same reason `/ban` had no duration: it needs P2's scheduler, and a
+  tempban nothing lifts is a permanent ban that claims otherwise. (P2 has since added it — as an optional
+  duration on the Ban modal rather than a fifth option, since a tempban is a ban with an expiry, not a different
+  punishment.) No softban either — bulk message deletion isn't what a report about one message calls for.
 - **Report cards go through `ActionExecutor`, so dry-run suppresses them**, like the mod log and for the same
   reason: that seam is the invariant P7 audits. The row is still written and the dashboard queue still shows it.
   The practical consequence is that **the test guild needs dry-run off to exercise P3's operator checks** — which
@@ -693,8 +748,8 @@ phase is now genuinely just configuration, provided the invariants below were he
 - Add `AUTOMODERATOR_SHARDS_PER_REPLICA` to `.env.public` and map it onto the service's `SHARDS_PER_REPLICA` in
   `docker-compose.yml`, following the three existing bot blocks.
 - Add a `plan_scale automoderator-bot AUTOMODERATOR_BOT_TOKEN AUTOMODERATOR_SHARDS_PER_REPLICA` line to `./compose`.
-- Audit every DB-driven timer this port adds for `ownsShardForGuild`. The scheduler does not need it (`SKIP LOCKED`
-  already claims), but anything that reads rows and then acts on Discord does.
+- Audit every DB-driven timer this port adds for `ownsShardForGuild`. Neither of P2's two sweeps needs it — they
+  claim their rows before acting — but anything that reads rows and then acts on Discord does.
 
 The bot itself needs no code change to opt in: `createBotGateway` claims a slot on every boot regardless.
 
@@ -713,6 +768,12 @@ Legacy data migration + drain. Follows the Social precedent
 - Migrate: cases (with their numbering intact), banned-word policies, allowlists, ladders, log-channel webhooks,
   settings. **Do not migrate:** self-assignable roles, mute roles, malicious URL/file lists, NSFW thresholds, mention
   config, blank-avatar and forbidden-name settings.
+- **Ladder durations change unit and gain a ceiling.** Legacy's `warn_punishments.duration` is unbounded
+  milliseconds in a `BIGINT`; the new column is seconds in an `INTEGER`. A migrated MUTE rung longer than
+  `MAX_TIMEOUT_SECONDS` has to be **clamped by the migration**, because nothing at runtime clamps it — that is
+  P2's stated invariant, and a rung Discord refuses is a rung that silently never fires. A legacy MUTE rung with
+  no duration at all can't be represented either (the CHECK forbids it) and was already inert in legacy; drop it
+  and report the count.
 - Banned words are the awkward one: legacy rows carry both matching _and_ policy. The migration splits them — policy
   into `automoderator_banword_policies`, matching into the guild's native AutoMod keyword rules. A guild over the
   native limits (6 rules × 1,000 entries) needs a documented answer before the freeze window, not during it.
@@ -733,8 +794,9 @@ than a rewrite.
    second replica could also be doing.
 2. **Everything gateway-driven is idempotent.** Redelivery after a reconnect is normal. Case creation, report filing
    and ladder increments all take an idempotency key.
-3. **The scheduler claims rather than reads.** `FOR UPDATE SKIP LOCKED` from P2, so N replicas is safe by
-   construction rather than by leader election.
+3. **The scheduler claims rather than reads.** Both sweeps write their claim before acting, from P2 — the expiry
+   one under `FOR UPDATE SKIP LOCKED`, the auto-pardon one as a compare-and-swap on `pardoned_by` — so N replicas
+   is safe by construction rather than by leader election, and neither needs `ownsShardForGuild`.
 4. **Read-modify-write paths are enumerated and lock-ready.** Ladder counting, report dedupe and case-number
    allocation are the three. Case numbers are already database-allocated.
 
@@ -757,8 +819,10 @@ The diagnosability bias that applied to Social applies harder here — this bot 
   mode most likely to be silent.
 - `automoderator_dry_run_suppressions_total` non-zero in production means `resolveDryRun`'s `IS_PRODUCTION`
   short-circuit has been broken — actions the logs claim were taken did not happen. Zero in prod by construction.
-- `automoderator_scheduler_lag_seconds` climbing means tempbans aren't expiring — the classic "why is this user
-  still banned" report.
+- `automoderator_scheduler_lag_seconds{type="expiry"}` climbing means tempbans aren't expiring — the classic "why
+  is this user still banned" report. Since P2 gives up on nothing, a stuck expiry retries every tick, so a
+  single row that can never be lifted shows here as a lag figure that keeps growing rather than as silence.
+  `automoderator_scheduler_tasks_total{result="failed"}` alongside it says how many, and the error log says why.
 - `automoderator_reports_total{state="filed"}` climbing with neither `dismissed` nor `actioned` following it means
   a guild's queue is filling up and nobody is reading it -- which is the failure mode a report queue has that a
   mod log doesn't.
@@ -777,7 +841,11 @@ Operator side, per phase, against the test guild:
 
 - **P1** — each mod command files a correct case; case edit rewrites the log embed in place; a ban issued through the
   Discord UI still produces a case with the right moderator attached.
-- **P2** — a tempban actually expires; a warn ladder step fires at the configured count; auto-pardon expires a warn.
+- **P2** — a tempban actually expires and files its UNBAN case; `/unban` on an outstanding tempban stops the
+  sweep lifting it a second time (as does an unban through Discord's own UI); `/case duration` re-times both a
+  ban and a mute; a warn ladder step fires at the configured count and the moderator's reply says so; auto-pardon
+  pardons a warn and rewrites its log embed. The seed script plants a due tempban and a 400-day-old warn so both
+  sweeps have work on the first tick rather than needing anyone to wait.
 - **P3** — both report menus; dedupe across two reporters; dismiss/restore; action → modal → case. Needs
   dry-run **off** for the guild: the card is a Discord side effect and goes through `ActionExecutor`.
 - **P3b** — install the user app, add two DM messages to a draft, submit, and confirm the picker lists only

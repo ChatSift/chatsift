@@ -19,6 +19,7 @@
 		"@chatsift/api": "workspace:^",
 		"@chatsift/core": "workspace:^",
 		"@chatsift/discord-utils": "workspace:^",
+		"@chatsift/parse-relative-time": "workspace:^",
 		"@discord/markdown-react": "^0.3.1",
 		"@discord/markdown-wasm": "^0.2.1",
 		"@radix-ui/react-avatar": "^1.2.2",
