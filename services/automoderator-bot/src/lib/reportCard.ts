@@ -36,33 +36,38 @@ export async function syncReportCard(
 	const api = getContext().service.client.api;
 	const input = reportEmbedInput(report);
 
-	// Read back rather than threaded through from the caller: every path that rewrites a card (four button
-	// handlers, the action modal) would otherwise have to remember to carry them, and forgetting would silently
-	// drop half a DM report's evidence on the next redraw. Only a DM report has either, which is why neither
-	// query runs for the guild reports this bot files itself.
-	const [contextMessages, reporterId] =
-		report.origin === 'DM'
-			? await Promise.all([listReportMessages(report.id), getOriginatingReporterId(report.id)])
-			: [[], null];
-
-	const body = {
-		embeds: buildReportEmbeds(input, {
-			...options,
-			contextMessages,
-			...(reporterId ? { reporterId } : {}),
-			dashboardLink: reportDetailLink(report.guildId, report.id),
-		}),
-		components: buildReportComponents(input),
-	};
-
-	// A card already posted is edited where it is, even if the guild has since pointed reports at a different
-	// channel -- editing it in the new channel is not a thing Discord can do.
-	const channelId = report.cardMessageId ? report.cardChannelId : await getReportsChannelId(report.guildId);
-	if (!channelId) {
-		return;
-	}
-
+	// **Everything that can fail lives inside this `try`**, including the database reads below. The catch is the
+	// whole contract of this function -- a card that failed to render is a degraded surface, never lost work --
+	// and a read left outside it would throw straight past that promise into `refreshCard`, which every button
+	// handler awaits without a guard of its own. The visible result there is a card that silently never updates
+	// plus an error filed as an unhandled listener rejection rather than as a card-sync warning.
 	try {
+		// Read back rather than threaded through from the caller: every path that rewrites a card (four button
+		// handlers, the action modal) would otherwise have to remember to carry them, and forgetting would silently
+		// drop half a DM report's evidence on the next redraw. Only a DM report has either, which is why neither
+		// query runs for the guild reports this bot files itself.
+		const [contextMessages, reporterId] =
+			report.origin === 'DM'
+				? await Promise.all([listReportMessages(report.id), getOriginatingReporterId(report.id)])
+				: [[], null];
+
+		const body = {
+			embeds: buildReportEmbeds(input, {
+				...options,
+				contextMessages,
+				...(reporterId ? { reporterId } : {}),
+				dashboardLink: reportDetailLink(report.guildId, report.id),
+			}),
+			components: buildReportComponents(input),
+		};
+
+		// A card already posted is edited where it is, even if the guild has since pointed reports at a different
+		// channel -- editing it in the new channel is not a thing Discord can do.
+		const channelId = report.cardMessageId ? report.cardChannelId : await getReportsChannelId(report.guildId);
+		if (!channelId) {
+			return;
+		}
+
 		let posted: APIMessage | undefined;
 
 		await executeAction(
