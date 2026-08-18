@@ -474,11 +474,18 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 		`;
 	}
 
+	let seededReports = 0;
+
 	for (const report of REPORTS) {
 		const createdAt = new Date(now - report.daysAgo * 86_400_000);
 		const resolvedAt = new Date(now - (report.resolvedDaysAgo ?? report.daysAgo) * 86_400_000);
 		const caseId = report.caseIndex === undefined ? null : numbers[report.caseIndex];
 
+		// `ON CONFLICT DO NOTHING` is bare rather than targeted, because two different partial unique indexes can
+		// reject one of these: `(guild_id, message_id)` for the message reports and `(guild_id, target_id)` for
+		// the account-level one. Re-running without `--reset` is a no-op for these fixed-key fixtures, the same
+		// way the warn ladder, the log webhook and the report reasons already are -- before this it aborted the
+		// whole script on a duplicate key.
 		const [inserted] = await db<{ id: number }[]>`
 			INSERT INTO automoderator_reports (
 				guild_id, target_id, target_tag, origin, message_id, channel_id, message_content, message_image_url,
@@ -500,13 +507,22 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 				${null},
 				${createdAt}
 			)
+			ON CONFLICT DO NOTHING
 			RETURNING id
 		`;
+
+		// No row means this report was already seeded, so its reporters and context messages are too. Skipping
+		// them is what keeps the re-run a no-op rather than a partial write on top of an existing row.
+		if (!inserted) {
+			continue;
+		}
+
+		seededReports++;
 
 		for (const [reporterId, reporterTag, reason] of report.reporters) {
 			await db`
 				INSERT INTO automoderator_reporters (report_id, reporter_id, reporter_tag, reason, created_at)
-				VALUES (${inserted!.id}, ${reporterId}, ${reporterTag}, ${reason}, ${createdAt})
+				VALUES (${inserted.id}, ${reporterId}, ${reporterTag}, ${reason}, ${createdAt})
 			`;
 		}
 
@@ -516,7 +532,7 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 				INSERT INTO automoderator_report_messages (
 					report_id, position, message_id, channel_id, author_id, author_tag, content, image_url
 				) VALUES (
-					${inserted!.id}, ${index + 1}, ${messageId}, ${DM_CHANNEL_ID}, ${authorId}, ${authorTag},
+					${inserted.id}, ${index + 1}, ${messageId}, ${DM_CHANNEL_ID}, ${authorId}, ${authorTag},
 					${content}, ${null}
 				)
 			`;
@@ -525,7 +541,10 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 
 	console.log(`Seeded ${CASES.length} cases (#${numbers[0]}-#${numbers.at(-1)}) for guild ${guildId}.`);
 	console.log(`Seeded a MOD log webhook pointing at a channel that does not exist (${DANGLING_CHANNEL_ID}).`);
-	console.log(`Seeded ${REPORTS.length} reports and ${REPORT_PRESETS.length} report reasons.`);
+	console.log(
+		`Seeded ${seededReports} of ${REPORTS.length} reports (the rest were already there) and ` +
+			`${REPORT_PRESETS.length} report reasons.`,
+	);
 	console.log('Seeded reports carry no card -- nothing posted one, so they exercise the dashboard queue only.');
 	console.log('Their reported messages point at the same non-existent channel, which is the dangling-reference');
 	console.log('case the detail view has to render without breaking.');
