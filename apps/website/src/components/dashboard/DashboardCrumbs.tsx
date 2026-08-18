@@ -36,6 +36,7 @@ const AUTOMODERATOR_SECTIONS = [
 	'warn-ladder',
 	'log-channels',
 	'report-settings',
+	'report-prompts',
 	'config',
 ] as const;
 
@@ -64,6 +65,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 	'warn-ladder': 'Warn Ladder',
 	'log-channels': 'Log Channels',
 	'report-settings': 'Report Settings',
+	'report-prompts': 'Report Prompts',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {
@@ -133,7 +135,7 @@ function botSwitcherOptions(currentBot: BotId, context: SegmentContext, data: Se
 
 	// Only MODMAIL can be a custom instance (#216) -- for every other case (including a guild with no custom
 	// instance at all) the static SEGMENT_LABELS/SEGMENT_ICONS fallback is already correct, so there's nothing to
-	// override and the previous behaviour (no crumb dropdown when there's nothing to switch to) stays intact.
+	// override and the previous behavior (no crumb dropdown when there's nothing to switch to) stays intact.
 	const currentBranding = resolveBotBranding(branding, currentBot);
 	if (!currentBranding.isCustomInstance) {
 		return options.length ? { options } : null;
@@ -271,7 +273,7 @@ function resolveModmailSnippetLabel(snippetId: string, data: SegmentOptionsData)
 /**
  * Segment definitions are tried in order against the full path leading up to and including the segment being
  * rendered (e.g. `['modmail', 'panels', '42']`). The first pattern that matches wins. This is the single place
- * that maps a URL shape to breadcrumb behaviour beyond the plain `SEGMENT_LABELS`/`SEGMENT_ICONS` lookups.
+ * that maps a URL shape to breadcrumb behavior beyond the plain `SEGMENT_LABELS`/`SEGMENT_ICONS` lookups.
  */
 const SEGMENT_DEFINITIONS: readonly SegmentDefinition[] = [
 	{

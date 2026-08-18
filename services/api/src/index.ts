@@ -121,6 +121,10 @@ export { default as getAutomoderatorReportRoute } from './routes/automoderator/r
 export { default as getAutomoderatorReportDraftRoute } from './routes/automoderator/reports/getReportDraft.js';
 export { default as submitAutomoderatorReportDraftRoute } from './routes/automoderator/reports/submitReportDraft.js';
 export { default as listAutomoderatorReportPresetsRoute } from './routes/automoderator/reportPresets/listPresets.js';
+export { default as createAutomoderatorReportPromptRoute } from './routes/automoderator/reportPrompts/createReportPrompt.js';
+export { default as deleteAutomoderatorReportPromptRoute } from './routes/automoderator/reportPrompts/deleteReportPrompt.js';
+export { default as listAutomoderatorReportPromptsRoute } from './routes/automoderator/reportPrompts/listReportPrompts.js';
+export { default as updateAutomoderatorReportPromptRoute } from './routes/automoderator/reportPrompts/updateReportPrompt.js';
 export { default as createAutomoderatorReportPresetRoute } from './routes/automoderator/reportPresets/createPreset.js';
 export { default as updateAutomoderatorReportPresetRoute } from './routes/automoderator/reportPresets/updatePreset.js';
 export { default as deleteAutomoderatorReportPresetRoute } from './routes/automoderator/reportPresets/deletePreset.js';

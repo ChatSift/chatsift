@@ -7,7 +7,7 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0, P1, P2 and P3 done; P3b (DM reporting) in progress -- schema + API landed, bot + dashboard next
+## Status: P0, P1, P2, P3 and P3b done; P4 (logging) next
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -626,8 +626,8 @@ no Message Content intent, because the user explicitly invoked the command on it
 | --------- | ----------------------------------------------------------------------------------------------------- | ----- |
 | Schema    | `automoderator_report_messages` (messages 2..N of a draft, with their own author)                     | done  |
 | API       | draft-token exchange, candidate-guild resolution, submission, card post; widened `sanitizeRedirectTo` | done  |
-| Bot       | user-installable "Add to report draft" menu, `/submit-report`, prompt-embed setup                     | todo  |
-| Dashboard | a public, OAuth-gated `/automoderator/report/<token>` page: preview, pick the server, confirm         | todo  |
+| Bot       | user-installable `Add to Report Draft` menu, `/submit-report`                                         | done  |
+| Dashboard | public `/automoderator/report/<token>` confirmation page; `automoderator_report_prompts` CRUD         | done  |
 
 **What landed with the schema + API pass (2026-08-18).** The report spine moved from
 `services/automoderator-bot/src/lib/reports.ts` into `@chatsift/backend-core`'s `automoderatorReports.ts`, and
@@ -658,6 +658,34 @@ target as the reporter. And the submission route **claims the draft token with a
 resolving the token without consuming it let two concurrent submissions file one draft into two different
 guilds, which `fileReport` has no reason to refuse because it dedupes per guild. The claim is released on every
 failure path so a refusal costs a retry rather than the draft.
+
+**What landed with the bot + dashboard pass.** `Add to Report Draft` and `/submit-report` are registered with
+`contexts: [PrivateChannel, BotDM]` and `integration_types: [UserInstall]`, which is what keeps the DM-only rule
+true at the payload level rather than by a runtime check -- neither appears in a guild at all.
+`services/automoderator-bot/src/lib/reportDraftFlow.ts` owns every line shown to a reporter, so the two commands
+stay thin and the copy cannot drift between them. Two refusals are answered in the bot rather than left to the
+website, because the reporter can still fix both from the DM they are standing in: a draft holding only their own
+messages, and a draft with nothing in it.
+
+The install prompt is **dashboard-managed**, not a slash command. It shipped first as `/report-prompt` storing
+nothing, on the grounds that the message was identical for every guild -- which stopped being true the moment
+the copy became editable, which is what staff actually want. It is now `automoderator_report_prompts`, shaped
+exactly like `ticket_panels` (many per guild, `channel_id`/`message_id` so an edit rewrites the message in
+place, a `prompt_json_data` snapshot) with structured-or-raw bodies like a ModMail panel and an AMA prompt.
+Every structured field is optional and defaults from `@chatsift/core`'s `REPORT_PROMPT_DEFAULT_*`, so a guild
+that names only a channel still gets the copy the feature was designed around -- and the dashboard form
+prefills from those same constants, so what staff see before saving is what actually gets posted.
+
+Two structural differences from a ticket panel are worth knowing. The button is a **link** to Discord's
+user-install URL rather than a `custom_id`, so the message is inert once posted and nothing in the bot ever
+routes an interaction back to it -- which is why this lives entirely in `services/api`. And the button is
+appended server-side even in raw mode: a prompt without the install link looks fine and leads nowhere.
+Creating one is refused outright when the guild has no reports channel, for the same reason the command was.
+
+The confirmation page gates on `useMe()` before fetching rather than firing blind, so somebody who simply hasn't
+logged in yet sees a login prompt instead of the "link expired" state. It collapses expired / already-used /
+wrong-account into one message on purpose: the API distinguishes them and a reporter can act on none of the
+differences.
 
 **`automoderator_reports_total` is bot-intake only.** DM reports are filed by `services/api`, whose registry is
 deliberately scoped to per-route HTTP metrics (#277), so they never reach `filed`/`joined` -- while their

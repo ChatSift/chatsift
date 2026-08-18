@@ -20,7 +20,7 @@ import { cn, formatDate } from '@/utils/util';
 
 function previewLine(report: AutomoderatorReportListItem): string {
 	if (!report.messageId) {
-		return 'Reported for their behaviour, not a specific message';
+		return 'Reported for their behavior, not a specific message';
 	}
 
 	const content = report.messageContent?.trim();

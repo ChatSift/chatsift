@@ -8,7 +8,7 @@ import {
 	WARN_PUNISHMENT_MAX_WARNS,
 } from '@chatsift/core';
 import { z } from 'zod';
-import { snowflakeSchema } from '../../util/schemas.js';
+import { embedColorSchema, httpUrlSchema, snowflakeSchema } from '../../util/schemas.js';
 
 /**
  * Browser-safe: only `zod` and `@chatsift/core` (which `apps/website` already imports directly), nothing
@@ -138,3 +138,51 @@ export const upsertExperimentBodySchema = z
 		message: 'rangeStart must be less than or equal to rangeEnd',
 		path: ['rangeStart'],
 	});
+
+/**
+ * The DM-reporting install prompt (P3b).
+ *
+ * Structured-or-raw, exactly like a ModMail panel and an AMA prompt: the structured form is what almost every
+ * guild wants and is fully defaulted, and `prompt_raw` is the escape hatch for the handful who want to write
+ * the message themselves. Every field on the structured object is optional because
+ * `@chatsift/core`'s `REPORT_PROMPT_DEFAULT_*` fill the gaps -- a guild that names only a channel gets the
+ * copy the feature was designed around.
+ */
+const reportPromptBase = z.strictObject({ channelId: snowflakeSchema });
+
+export const createReportPromptWithRegularContentSchema = reportPromptBase.safeExtend({
+	prompt: z.strictObject({
+		title: z.string().min(1).max(255).optional(),
+		description: z.string().min(1).max(4_000).optional(),
+		buttonLabel: z.string().min(1).max(80).optional(),
+		imageUrl: httpUrlSchema.optional(),
+		thumbnailUrl: httpUrlSchema.optional(),
+		// Omitted means the default color, not "leave whatever was there" -- the edit form always resends the
+		// full `prompt` object, same as the panel and AMA forms it mirrors.
+		color: embedColorSchema.optional(),
+	}),
+});
+
+export const createReportPromptWithRawContentSchema = reportPromptBase.safeExtend({
+	prompt_raw: z.strictObject({
+		content: z.string().optional(),
+		embeds: z.array(z.any()).optional(),
+	}),
+});
+
+export const createReportPromptBodySchema = z.union([
+	createReportPromptWithRegularContentSchema,
+	createReportPromptWithRawContentSchema,
+]);
+
+/**
+ * The channel is deliberately absent: moving a prompt means deleting it and posting a new one, because Discord
+ * cannot move a message between channels and silently posting a second one would leave the first live.
+ */
+export const updateReportPromptBodySchema = z
+	.strictObject({
+		prompt: createReportPromptWithRegularContentSchema.shape.prompt.optional(),
+		prompt_raw: createReportPromptWithRawContentSchema.shape.prompt_raw.optional(),
+	})
+	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided')
+	.refine((data) => !('prompt' in data && 'prompt_raw' in data), 'Cannot provide both prompt and prompt_raw');

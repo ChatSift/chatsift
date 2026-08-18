@@ -28,3 +28,7 @@ export function publicHistoryLink(token: string): string {
 export function reportDetailLink(guildId: string, reportId: number): string {
 	return `${frontend()}/dashboard/${guildId}/automoderator/reports/${reportId}`;
 }
+
+export function reportDraftLink(token: string): string {
+	return `${frontend()}/automoderator/report/${token}`;
+}
