@@ -38,7 +38,12 @@ export default defineRoute({
 			throw notFound('report prompt not found');
 		}
 
-		const body = buildReportPromptBody(req.body as never, await getBotApplicationId('AUTOMODERATOR', guildId));
+		// Narrowed explicitly rather than cast. The schema's inferred type is `{ prompt?, prompt_raw? }` -- both
+		// optional, with a `.refine` guaranteeing at runtime that one is present -- which is not assignable to
+		// the `{ prompt } | { prompt_raw }` union the builder takes. `as never` silenced that and would have gone
+		// on silencing it if either shape changed; this reads the same discriminator the builder does.
+		const content = req.body.prompt_raw ? { prompt_raw: req.body.prompt_raw } : { prompt: req.body.prompt ?? {} };
+		const body = buildReportPromptBody(content, await getBotApplicationId('AUTOMODERATOR', guildId));
 
 		try {
 			await apiForGuild('AUTOMODERATOR', guildId).channels.editMessage(existing.channelId, existing.messageId, body);

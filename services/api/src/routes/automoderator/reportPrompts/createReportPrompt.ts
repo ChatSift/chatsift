@@ -60,12 +60,31 @@ export default defineRoute({
 
 		// The stored copy is what the message *is*, so an edit can rebuild it without re-reading Discord -- the
 		// same reason `ticket_panels.panel_json_data` exists.
-		const [created] = await db<AutomoderatorReportPrompts[]>`
-			INSERT INTO automoderator_report_prompts (guild_id, channel_id, message_id, prompt_json_data)
-			VALUES (${guildId}, ${req.body.channelId}, ${message.id}, ${JSON.stringify(req.body)})
-			RETURNING *
-		`;
+		try {
+			const [created] = await db<AutomoderatorReportPrompts[]>`
+				INSERT INTO automoderator_report_prompts (guild_id, channel_id, message_id, prompt_json_data)
+				VALUES (${guildId}, ${req.body.channelId}, ${message.id}, ${JSON.stringify(req.body)})
+				RETURNING *
+			`;
 
-		return created!;
+			return created!;
+		} catch (error) {
+			// Discord is not in the transaction, so the message is already live by the time the insert can fail.
+			// Left alone it would be an untracked prompt the dashboard never lists and staff cannot delete, and a
+			// retry would post a second one beside it. Deleting it is the closest thing to a rollback available;
+			// if even that fails there is nothing further to try, and the log is what tells an operator to go
+			// remove it by hand. Deliberately not a durable outbox -- this window is one failed INSERT wide, and
+			// the port has no queue infrastructure by design.
+			try {
+				await api.channels.deleteMessage(req.body.channelId, message.id);
+			} catch (cleanupError) {
+				req.logger.error(
+					{ err: cleanupError, guildId, channelId: req.body.channelId, messageId: message.id },
+					'orphaned a report prompt message: the row failed to insert and the message could not be removed',
+				);
+			}
+
+			throw error;
+		}
 	},
 });

@@ -4,6 +4,7 @@ import type { APIUser, Snowflake } from '@discordjs/core';
 import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
+import { APIError } from '@/api/error';
 import { useMe } from '@/api/routes/auth';
 import type { AutomoderatorReportCandidateGuild } from '@/api/routes/automoderatorReports';
 import { useAutomoderatorReportDraft, useSubmitAutomoderatorReportDraft } from '@/api/routes/automoderatorReports';
@@ -69,11 +70,21 @@ export function ReportDraft() {
 	}
 
 	if (error || !data) {
+		// "Expired", "already submitted" and "this is not your link" deliberately collapse into one message: the
+		// API distinguishes them, a reporter can act on none of the differences, and the recovery is identical.
+		// A 5xx or a dropped connection is *not* in that set -- `retry: false` makes one transient failure final,
+		// so telling somebody to re-run `/submit-report` there would send them round a loop that cannot help.
+		const isGone = error instanceof APIError && (error.statusCode === 404 || error.statusCode === 403);
+
 		return (
 			<EmptyState
 				icon={<SvgAutoModerator height={28} width={28} />}
-				subtitle="This link has expired or was already used. Run /submit-report again in the DM to get a fresh one."
-				title="Link expired"
+				subtitle={
+					isGone
+						? 'This link has expired or was already used. Run /submit-report again in the DM to get a fresh one.'
+						: 'We could not load your report just now. Reload the page in a moment — your draft is still saved.'
+				}
+				title={isGone ? 'Link expired' : 'Something went wrong'}
 			/>
 		);
 	}
@@ -132,6 +143,7 @@ export function ReportDraft() {
 							)}
 
 							{message.imageUrl && (
+								// eslint-disable-next-line @next/next/no-img-element -- a Discord CDN url, not a bundled asset
 								<img
 									alt=""
 									className="mt-2 max-h-64 w-fit rounded-md border border-on-secondary object-contain dark:border-on-secondary-dark"
@@ -207,6 +219,9 @@ function GuildChoice({ guild, isSelected, onSelect }: GuildChoiceProps) {
 
 	return (
 		<Button
+			// Selection is otherwise conveyed by border/background alone, which a screen reader cannot see -- and
+			// the submit button stays disabled until something is picked, so "which one is chosen" matters.
+			aria-pressed={isSelected}
 			className={cn(
 				'flex items-center gap-3 rounded-lg border p-3 text-left transition-colors',
 				isSelected

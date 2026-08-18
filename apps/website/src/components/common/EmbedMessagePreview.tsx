@@ -158,6 +158,16 @@ export function EmbedMessagePreview(props: EmbedMessagePreviewProps) {
 		<div className="rounded-md border border-on-secondary bg-[#313338] p-4 dark:border-on-secondary-dark">
 			<p className="mb-2 text-xs font-medium uppercase tracking-wide text-accent/40">{props.heading}</p>
 
+			{/* Raw mode reads only `embeds[0]`, and only its title/description/color/image/thumbnail -- a payload
+			    with several embeds, or with fields/footer/author, posts fine but shows here as less than it is.
+			    Said out loud so the gap reads as a simplification rather than a rendering bug, since raw mode is
+			    exactly where somebody is most likely to hit it. */}
+			{props.mode === 'raw' && (
+				<p className="mb-2 text-xs text-accent/40">
+					Simplified: shows the first embed&apos;s title, description, color and images only.
+				</p>
+			)}
+
 			{error ? (
 				<p className="text-sm text-accent/50">{error}</p>
 			) : (
