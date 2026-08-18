@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import type { Recipe } from 'bin-rw';
+import { createRecipe, DataType } from 'bin-rw';
 import { getContext } from '../context.js';
+import { RedisStore } from './_store.js';
 import type { ReportActor, ReportContextMessage } from './automoderatorReports.js';
 
 /**
@@ -37,7 +40,6 @@ export const REPORT_DRAFT_TOKEN_TTL_MINUTES = TOKEN_TTL_MS / 60_000;
  */
 export const REPORT_DRAFT_MAX_MESSAGES = 6;
 
-const draftKey = (userId: string): string => `automoderator:reportdraft:${userId}`;
 const tokenKey = (token: string): string => `automoderator:reporttoken:${token}`;
 
 /**
@@ -65,7 +67,7 @@ export interface ReportDraft {
 /**
  * Why a message could not be added to a draft. A closed set for the same reason `ReportRefusal` is one.
  */
-export type DraftAddRefusal = 'duplicate' | 'full';
+export type DraftAddRefusal = 'different-channel' | 'duplicate' | 'full';
 
 export interface AddDraftMessageResult {
 	readonly draft: ReportDraft;
@@ -75,17 +77,49 @@ export interface AddDraftMessageResult {
 	readonly refusal: DraftAddRefusal | null;
 }
 
-export async function getReportDraft(userId: string): Promise<ReportDraft | null> {
-	const raw = await getContext().redis.get(draftKey(userId));
-	if (!raw) {
-		return null;
-	}
+/**
+ * bin-rw rather than `JSON.stringify`, matching `MeStore` and every other structured value this codebase keeps
+ * in redis -- a draft is a nested, versioned shape, which is exactly what the recipe machinery is for. The
+ * payoff that matters here is `versioned: true`: when this shape next changes, a draft written by the old code
+ * is *evicted* by `RedisStore`'s `decodeOrEvict` rather than parsed into an object whose type is a lie. Plain
+ * JSON would hand a half-populated `ReportDraftMessage` straight to the card builder.
+ *
+ * bin-rw's inferred type is wider than `ReportDraft` -- every `DataType.String` decodes as `string | null`, and
+ * a nested blueprint as `... | null` -- whereas `content`/`imageUrl` are the only genuinely nullable fields
+ * here. The cast corrects that, the same way `meRecipe` does.
+ */
+const draftRecipe = createRecipe(
+	{
+		messages: [
+			{
+				messageId: DataType.String,
+				channelId: DataType.String,
+				author: { id: DataType.String, tag: DataType.String },
+				content: DataType.String,
+				imageUrl: DataType.String,
+				timestamp: DataType.String,
+			},
+		],
+	},
+	{ versioned: true },
+) as Recipe<ReportDraft>;
 
-	return JSON.parse(raw.toString()) as ReportDraft;
+const DraftStore = new RedisStore<ReportDraft>({
+	TTL: DRAFT_TTL_MS,
+	recipe: draftRecipe,
+	makeKey: (userId: string) => `automoderator:reportdraft:${userId}`,
+	// A draft is the reporter's own working state, so somebody looking at it on the confirmation page is by
+	// definition still working on it -- sliding the window on read is the behaviour we want, unlike
+	// `data/bots.ts`'s liveness leases.
+	storeOld: false,
+});
+
+export async function getReportDraft(userId: string): Promise<ReportDraft | null> {
+	return DraftStore.get(userId);
 }
 
 export async function clearReportDraft(userId: string): Promise<void> {
-	await getContext().redis.del(draftKey(userId));
+	await DraftStore.delete(userId);
 }
 
 /**
@@ -106,15 +140,22 @@ export async function addReportDraftMessage(
 		return { draft: { messages }, refusal: 'duplicate' };
 	}
 
+	// **A draft is bound to one conversation.** Without this a reporter could take the subject message from
+	// their DM with Alice and the "context" from an unrelated DM with Bob, and Bob's private messages would be
+	// persisted onto a report about Alice and shown to a guild's staff. Nothing downstream could catch it: the
+	// target-membership check only ever sees Alice, and staff have no way to tell the two conversations apart.
+	// The reporter is the only party to a DM who can consent to it being disclosed, and they are not a party to
+	// the other one.
+	if (messages.some((candidate) => candidate.channelId !== message.channelId)) {
+		return { draft: { messages }, refusal: 'different-channel' };
+	}
+
 	if (messages.length >= REPORT_DRAFT_MAX_MESSAGES) {
 		return { draft: { messages }, refusal: 'full' };
 	}
 
 	const draft: ReportDraft = { messages: [...messages, message] };
-
-	await getContext().redis.set(draftKey(userId), JSON.stringify(draft), {
-		expiration: { type: 'PX', value: DRAFT_TTL_MS },
-	});
+	await DraftStore.set(userId, draft);
 
 	return { draft, refusal: null };
 }
@@ -131,40 +172,68 @@ export interface ReportDraftToken {
 	readonly userId: string;
 }
 
+const tokenRecipe = createRecipe({ userId: DataType.String }, { versioned: true }) as Recipe<ReportDraftToken>;
+
+const TokenStore = new RedisStore<ReportDraftToken>({
+	TTL: TOKEN_TTL_MS,
+	recipe: tokenRecipe,
+	makeKey: tokenKey,
+	// Unlike the draft, the ten minutes are an absolute budget rather than an idle timeout: reloading the
+	// confirmation page must not keep extending how long the link stays live. The draft behind it is what the
+	// reporter is still working on, and that one does slide.
+	refreshTTLOnRead: false,
+	storeOld: false,
+});
+
 /**
  * Mints a token naming the caller's current draft, and renews the draft so it cannot expire out from under the
  * link that was just handed out.
  */
 export async function mintReportDraftToken(userId: string): Promise<string> {
 	const token = randomUUID();
-	const redis = getContext().redis;
+	await TokenStore.set(token, { userId });
 
-	await Promise.all([
-		redis.set(tokenKey(token), JSON.stringify({ userId } satisfies ReportDraftToken), {
-			expiration: { type: 'PX', value: TOKEN_TTL_MS },
-		}),
-		redis.pExpire(draftKey(userId), DRAFT_TTL_MS),
-	]);
+	// Reading the draft slides its TTL (see `DraftStore`), which is exactly the renewal wanted here: the link
+	// just handed out must not point at something that expires before the reporter can open it.
+	await getReportDraft(userId);
 
 	return token;
 }
 
+/**
+ * Reads a token **without** consuming it -- the preview page needs to resolve the same token as many times as
+ * the reporter reloads it. `claimReportDraftToken` is the one that burns it.
+ */
 export async function resolveReportDraftToken(token: string): Promise<ReportDraftToken | null> {
-	const raw = await getContext().redis.get(tokenKey(token));
-	if (!raw) {
-		return null;
-	}
-
-	return JSON.parse(raw.toString()) as ReportDraftToken;
+	return TokenStore.get(token);
 }
 
 /**
- * Burns a token once its draft has been filed, so a confirmed report can't be filed twice into a second guild
- * from the same link. The draft itself is cleared separately -- see the submission route for why the two are
- * not one call.
+ * Claims a token for a submission, atomically. Returns `false` when somebody else already claimed it, which the
+ * caller must read as "this draft has already been filed" rather than as an error.
+ *
+ * `DEL` is the claim because redis executes it atomically and reports how many keys it actually removed, so of
+ * two concurrent submissions exactly one sees `1`. Reading the token and deleting it afterwards -- which is what
+ * this used to do -- left a window in which both requests resolved the same draft and filed it into *two
+ * different guilds*, since `fileReport` dedupes per guild and would happily accept both. One draft is one
+ * report; this is what enforces it.
+ *
+ * Deliberately called only *after* the session check, never before: claiming first would let anyone who guesses
+ * a token burn somebody else's link without ever proving who they are.
  */
-export async function consumeReportDraftToken(token: string): Promise<void> {
-	await getContext().redis.del(tokenKey(token));
+export async function claimReportDraftToken(token: string): Promise<boolean> {
+	// The one operation here that goes to the raw client rather than through `TokenStore`: the store's `delete`
+	// returns nothing, and the count is the entire point.
+	return (await getContext().redis.del(tokenKey(token))) === 1;
+}
+
+/**
+ * Puts a claimed token back after the write it was claimed for failed, so a transient database error costs the
+ * reporter a retry rather than their whole draft. The remaining TTL is not preserved -- a fresh window is the
+ * friendlier failure mode, and the draft it names is what actually bounds the exposure.
+ */
+export async function releaseReportDraftToken(token: string, userId: string): Promise<void> {
+	await TokenStore.set(token, { userId });
 }
 
 /**

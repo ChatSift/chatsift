@@ -1,11 +1,12 @@
 import {
 	getContext,
+	getOriginatingReporterId,
 	getReportsChannelId,
 	listReportMessages,
 	reportDetailLink,
+	reportEmbedInput,
 	setReportCard,
 } from '@chatsift/backend-core';
-import type { ReportOriginName, ReportStateName } from '@chatsift/core';
 import { buildReportComponents, buildReportEmbeds } from '@chatsift/core';
 import type { AutomoderatorReports } from '@chatsift/db';
 import { apiForGuild } from '../../../util/discordAPI.js';
@@ -31,17 +32,19 @@ export async function postReportCard(report: AutomoderatorReports, reporterCount
 		return;
 	}
 
-	const input = {
-		...report,
-		origin: report.origin as unknown as ReportOriginName,
-		state: report.state as unknown as ReportStateName,
-	};
+	const input = reportEmbedInput(report);
 
 	try {
+		const [contextMessages, reporterId] = await Promise.all([
+			listReportMessages(report.id),
+			getOriginatingReporterId(report.id),
+		]);
+
 		const posted = await apiForGuild('AUTOMODERATOR', report.guildId).channels.createMessage(channelId, {
 			embeds: buildReportEmbeds(input, {
 				reporterCount,
-				contextMessages: await listReportMessages(report.id),
+				contextMessages,
+				...(reporterId ? { reporterId } : {}),
 				dashboardLink: reportDetailLink(report.guildId, report.id),
 			}),
 			components: buildReportComponents(input),

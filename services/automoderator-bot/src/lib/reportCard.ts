@@ -1,12 +1,14 @@
 import type { Logger } from '@chatsift/backend-core';
 import {
 	getContext,
-	listReportMessages,
+	getOriginatingReporterId,
 	getReportsChannelId,
+	listReportMessages,
 	reportDetailLink,
+	reportEmbedInput,
 	setReportCard,
 } from '@chatsift/backend-core';
-import type { ReportCardOptions, ReportEmbedInput, ReportOriginName, ReportStateName } from '@chatsift/core';
+import type { ReportCardOptions } from '@chatsift/core';
 import { buildReportComponents, buildReportEmbeds } from '@chatsift/core';
 import type { AutomoderatorReports } from '@chatsift/db';
 import type { APIMessage } from '@discordjs/core';
@@ -17,23 +19,6 @@ import { executeAction } from './actionExecutor.js';
 export type { ReportCardOptions } from '@chatsift/core';
 export { REPORT_ACTION_OPTIONS, REPORT_COMPONENT, isReportAction } from '@chatsift/core';
 export type { ReportActionName } from '@chatsift/core';
-
-/**
- * Narrows a row to the structural shape `@chatsift/core`'s builders take. The two enum columns come back as
- * kanel enum types that `@chatsift/db` only re-exports the *type* of, hence the casts -- the same arrangement
- * `caseFormat.ts` needs for `actionType`.
- */
-export function reportEmbedInput(report: AutomoderatorReports): ReportEmbedInput {
-	return {
-		...report,
-		origin: report.origin as unknown as ReportOriginName,
-		state: report.state as unknown as ReportStateName,
-	};
-}
-
-export function buildReportEmbed(report: AutomoderatorReports, options: ReportCardOptions) {
-	return buildReportEmbeds(reportEmbedInput(report), options);
-}
 
 /**
  * Posts the card, or rewrites the one already posted.
@@ -53,14 +38,18 @@ export async function syncReportCard(
 
 	// Read back rather than threaded through from the caller: every path that rewrites a card (four button
 	// handlers, the action modal) would otherwise have to remember to carry them, and forgetting would silently
-	// drop half a DM report's evidence on the next redraw. Empty for a guild report, which is every report the
-	// bot itself files.
-	const contextMessages = report.origin === 'DM' ? await listReportMessages(report.id) : [];
+	// drop half a DM report's evidence on the next redraw. Only a DM report has either, which is why neither
+	// query runs for the guild reports this bot files itself.
+	const [contextMessages, reporterId] =
+		report.origin === 'DM'
+			? await Promise.all([listReportMessages(report.id), getOriginatingReporterId(report.id)])
+			: [[], null];
 
 	const body = {
 		embeds: buildReportEmbeds(input, {
 			...options,
 			contextMessages,
+			...(reporterId ? { reporterId } : {}),
 			dashboardLink: reportDetailLink(report.guildId, report.id),
 		}),
 		components: buildReportComponents(input),

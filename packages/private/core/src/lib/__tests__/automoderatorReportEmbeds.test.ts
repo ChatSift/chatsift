@@ -192,6 +192,7 @@ test('a context message written by the reporter is labelled as theirs', () => {
 	// moderator reading them as the reported account's words would draw the opposite conclusion.
 	const [, fromTarget, fromReporter] = buildReportEmbeds(makeReport({ origin: 'DM' }), {
 		reporterCount: 1,
+		reporterId: '55',
 		contextMessages: [
 			makeContext({ messageId: '90', authorId: '2', authorTag: 'target' }),
 			makeContext({ messageId: '91', authorId: '55', authorTag: 'reporter' }),
@@ -200,6 +201,29 @@ test('a context message written by the reporter is labelled as theirs', () => {
 
 	expect(fromTarget!.author?.name).toBe('target (reported account)');
 	expect(fromReporter!.author?.name).toBe('reporter (reporter)');
+});
+
+test('a third participant is never labelled as the reporter', () => {
+	// The context menu runs in `PRIVATE_CHANNEL`, which covers group DMs, so a draft can capture somebody who
+	// is neither the target nor the reporter. Calling them the reporter would tell a moderator that the person
+	// filing the report said something they never said -- which is worse than saying nothing.
+	const [, third] = buildReportEmbeds(makeReport({ origin: 'DM' }), {
+		reporterCount: 1,
+		reporterId: '55',
+		contextMessages: [makeContext({ messageId: '92', authorId: '999', authorTag: 'bystander' })],
+	});
+
+	expect(third!.author?.name).toBe('bystander (other participant)');
+});
+
+test('with no reporter id, everyone who is not the target is labelled neutrally', () => {
+	// Guessing would be worse than a neutral label: the card is what staff act on.
+	const [, unknown] = buildReportEmbeds(makeReport({ origin: 'DM' }), {
+		reporterCount: 1,
+		contextMessages: [makeContext({ messageId: '93', authorId: '55', authorTag: 'reporter' })],
+	});
+
+	expect(unknown!.author?.name).toBe('reporter (other participant)');
 });
 
 test('a guild report renders exactly one embed', () => {

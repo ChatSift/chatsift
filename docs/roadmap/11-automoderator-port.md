@@ -640,13 +640,29 @@ that keeps the card inside Discord's 6000-character embed budget. Both routes se
 and are listed in `NON_GUILD_SCOPED_ROUTES` -- a `/dashboard`-minted session belongs to one guild's moderator
 and must never redeem somebody's personal DM draft.
 
-**Two rules the pass had to settle that the design above didn't state.** The subject message is the first
-message in the draft _authored by the target_, not simply the first -- the parent row's `target_id`/`target_tag`
-describe whoever wrote the snapshot on it, so a draft opening with the reporter's own reply would otherwise
-headline the report with a message the reporter wrote. And joining an existing report _discards_ the joiner's
-context messages: letting a second reporter append to evidence staff are already reading would rewrite it under
-a card that may have been acted on, and would let anyone who can guess a reported message id splice their own
-text into someone else's report.
+**Three invariants the pass had to settle that the design above didn't state.** The subject message is the
+first message in the draft _authored by the target_, not simply the first -- the parent row's
+`target_id`/`target_tag` describe whoever wrote the snapshot on it, so a draft opening with the reporter's own
+reply would otherwise headline the report with a message the reporter wrote. Joining an existing report
+_discards_ the joiner's context messages: letting a second reporter append to evidence staff are already
+reading would rewrite it under a card that may have been acted on, and would let anyone who can guess a
+reported message id splice their own text into someone else's report. And **a draft is bound to one channel** --
+without that a reporter could take the subject from their DM with one account and the "context" from an
+unrelated DM with somebody else, and that third party's private messages would be persisted onto a report about
+the first and shown to a guild's staff, with nothing downstream able to catch it.
+
+**Two things review caught that are worth not re-learning.** A user-installed context menu runs in
+`PRIVATE_CHANNEL`, which covers **group DMs** -- so a draft can capture a participant who is neither the target
+nor the reporter, and the card takes an explicit `reporterId` rather than labelling everyone who isn't the
+target as the reporter. And the submission route **claims the draft token with an atomic `DEL` before filing**:
+resolving the token without consuming it let two concurrent submissions file one draft into two different
+guilds, which `fileReport` has no reason to refuse because it dedupes per guild. The claim is released on every
+failure path so a refusal costs a retry rather than the draft.
+
+**`automoderator_reports_total` is bot-intake only.** DM reports are filed by `services/api`, whose registry is
+deliberately scoped to per-route HTTP metrics (#277), so they never reach `filed`/`joined` -- while their
+resolutions _do_ count, because those go through the bot's card buttons. `dismissed + actioned` can therefore
+exceed `filed`. Closing that means deciding whether the API's registry should carry domain counters at all.
 
 **The flow.**
 

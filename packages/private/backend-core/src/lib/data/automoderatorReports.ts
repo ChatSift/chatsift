@@ -1,3 +1,4 @@
+import type { ReportEmbedInput, ReportOriginName, ReportStateName } from '@chatsift/core';
 import { automoderatorReportsChannel } from '@chatsift/core';
 import type {
 	AutomoderatorGuildSettings,
@@ -158,6 +159,38 @@ export async function listReportMessages(id: AutomoderatorReportsId | number): P
 	return getContext().db<AutomoderatorReportMessages[]>`
 		SELECT * FROM automoderator_report_messages WHERE report_id = ${id} ORDER BY position ASC
 	`;
+}
+
+/**
+ * The account that opened the report -- the oldest reporter, since later ones are agreeing with it rather than
+ * filing it. The card needs it to label the context messages the reporter wrote themselves, and only a DM
+ * report has any, so callers look it up only when there are.
+ */
+export async function getOriginatingReporterId(id: AutomoderatorReportsId | number): Promise<string | null> {
+	const [row] = await getContext().db<Pick<AutomoderatorReporters, 'reporterId'>[]>`
+		SELECT reporter_id FROM automoderator_reporters
+		WHERE report_id = ${id}
+		ORDER BY created_at ASC
+		LIMIT 1
+	`;
+
+	return row?.reporterId ?? null;
+}
+
+/**
+ * Narrows a row to the structural shape `@chatsift/core`'s card builders take.
+ *
+ * The two enum columns come back as kanel enum types that `@chatsift/db` only re-exports the *type* of, hence
+ * the casts -- the same arrangement `caseFormat.ts` needs for `actionType`. Here rather than at each card
+ * poster because both `services/api` and `services/automoderator-bot` post cards, and two copies of a cast is
+ * two places for the conversion to drift.
+ */
+export function reportEmbedInput(report: AutomoderatorReports): ReportEmbedInput {
+	return {
+		...report,
+		origin: report.origin as unknown as ReportOriginName,
+		state: report.state as unknown as ReportStateName,
+	};
 }
 
 async function findExisting(options: FileReportOptions): Promise<AutomoderatorReports | null> {

@@ -4,49 +4,65 @@ import type { ReportDraftMessage } from '../data/automoderatorReportDrafts.js';
 import {
 	addReportDraftMessage,
 	clearReportDraft,
-	consumeReportDraftToken,
+	claimReportDraftToken,
 	getReportDraft,
 	mintReportDraftToken,
 	REPORT_DRAFT_MAX_MESSAGES,
+	releaseReportDraftToken,
 	resolveReportDraftToken,
 	splitDraft,
 } from '../data/automoderatorReportDrafts.js';
 
-const strings = new Map<string, string>();
+// Values are Buffers because the real client is built
+// `.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer })` -- and because the draft is now stored through
+// `RedisStore`, whose bin-rw recipe encodes to binary rather than to JSON text.
+const values = new Map<string, Buffer>();
 const expiries = new Map<string, number>();
 let now = 1_000_000;
 
 function live(key: string): boolean {
 	const expiresAt = expiries.get(key);
 	if (expiresAt !== undefined && expiresAt <= now) {
-		strings.delete(key);
+		values.delete(key);
 		expiries.delete(key);
 		return false;
 	}
 
-	return strings.has(key);
+	return values.has(key);
 }
 
-// The real client is built `.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer })`, so `get` hands back a
-// Buffer rather than a string -- this fake does the same, since a reader that assumed strings would pass
-// against a naive fake and then throw in production.
 vi.mock('../context.js', () => ({
 	getContext: () => ({
+		logger: { warn: () => undefined },
 		redis: {
 			async get(key: string) {
-				return live(key) ? Buffer.from(strings.get(key)!) : null;
+				return live(key) ? values.get(key)! : null;
 			},
-			async set(key: string, value: string, options?: { expiration?: { type: 'PX'; value: number } }) {
-				strings.set(key, value);
+			async set(key: string, value: Buffer | string, options?: { expiration?: { type: 'PX'; value: number } }) {
+				values.set(key, typeof value === 'string' ? Buffer.from(value) : value);
 				if (options?.expiration) {
 					expiries.set(key, now + options.expiration.value);
 				}
 
 				return 'OK';
 			},
-			async del(key: string) {
-				strings.delete(key);
-				expiries.delete(key);
+			// Returns the number of keys actually removed, because `claimReportDraftToken` uses exactly that to
+			// decide which of two concurrent submissions owns the draft.
+			async del(keys: string[] | string) {
+				let removed = 0;
+				for (const key of Array.isArray(keys) ? keys : [keys]) {
+					if (live(key)) {
+						removed++;
+					}
+
+					values.delete(key);
+					expiries.delete(key);
+				}
+
+				return removed;
+			},
+			async exists(key: string) {
+				return live(key) ? 1 : 0;
 			},
 			async pExpire(key: string, ttl: number) {
 				if (!live(key)) {
@@ -76,7 +92,7 @@ function message(overrides: Partial<ReportDraftMessage> = {}): ReportDraftMessag
 }
 
 beforeEach(() => {
-	strings.clear();
+	values.clear();
 	expiries.clear();
 	now = 1_000_000;
 });
@@ -161,12 +177,32 @@ test('a token expires well before its draft does', async () => {
 	expect(await getReportDraft(REPORTER)).not.toBeNull();
 });
 
-test('a consumed token cannot file a second report', async () => {
+test('only one of two concurrent submissions can claim a token', async () => {
+	// The race this closes: both requests resolve the same draft and file it into two *different* guilds,
+	// which `fileReport` has no reason to refuse because it dedupes per guild. One draft is one report.
 	await addReportDraftMessage(REPORTER, message());
 	const token = await mintReportDraftToken(REPORTER);
 
-	await consumeReportDraftToken(token);
+	const [first, second] = await Promise.all([claimReportDraftToken(token), claimReportDraftToken(token)]);
+
+	expect([first, second].filter(Boolean)).toHaveLength(1);
 	expect(await resolveReportDraftToken(token)).toBeNull();
+});
+
+test('a released claim can be retried', async () => {
+	// A refusal or a transient database failure must cost the reporter a retry, not their draft.
+	await addReportDraftMessage(REPORTER, message());
+	const token = await mintReportDraftToken(REPORTER);
+
+	expect(await claimReportDraftToken(token)).toBe(true);
+	await releaseReportDraftToken(token, REPORTER);
+
+	expect(await resolveReportDraftToken(token)).toEqual({ userId: REPORTER });
+	expect(await claimReportDraftToken(token)).toBe(true);
+});
+
+test('claiming a token that was never minted fails rather than succeeding silently', async () => {
+	expect(await claimReportDraftToken('6f1c2d0e-0000-4000-8000-000000000000')).toBe(false);
 });
 
 test('clearing a draft leaves nothing for the next submission to re-file', async () => {
@@ -231,4 +267,30 @@ test('a single-message draft produces no context rows at all', () => {
 
 	expect(split!.subject.messageId).toBe('100');
 	expect(split!.contextMessages).toHaveLength(0);
+});
+
+test('a draft is bound to one conversation', async () => {
+	// Without this a reporter could take the subject from their DM with one account and the "context" from an
+	// unrelated DM with somebody else, and that third party's private messages would be persisted onto a report
+	// about the first and shown to a guild's staff. Nothing downstream can catch it.
+	await addReportDraftMessage(REPORTER, message({ messageId: '1', channelId: 'dm-with-alice' }));
+
+	const other = await addReportDraftMessage(REPORTER, message({ messageId: '2', channelId: 'dm-with-bob' }));
+
+	expect(other.refusal).toBe('different-channel');
+	expect(other.draft.messages).toHaveLength(1);
+});
+
+test('a group DM is still one conversation, so it is allowed', async () => {
+	// The context menu runs in `PRIVATE_CHANNEL`, which covers group DMs -- messages from several participants
+	// sharing one channel are a legitimate draft, and the card labels each author separately.
+	await addReportDraftMessage(REPORTER, message({ messageId: '1' }));
+
+	const third = await addReportDraftMessage(
+		REPORTER,
+		message({ messageId: '2', author: { id: '999', tag: 'third-party' } }),
+	);
+
+	expect(third.refusal).toBeNull();
+	expect(third.draft.messages).toHaveLength(2);
 });

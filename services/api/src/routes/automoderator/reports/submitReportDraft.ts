@@ -1,6 +1,12 @@
-import { clearReportDraft, consumeReportDraftToken, fileReport, ReportFailure } from '@chatsift/backend-core';
+import {
+	claimReportDraftToken,
+	clearReportDraft,
+	fileReport,
+	releaseReportDraftToken,
+	ReportFailure,
+} from '@chatsift/backend-core';
 import { automoderatorReportsChannel } from '@chatsift/core';
-import { badRequest, forbidden } from '@hapi/boom';
+import { badRequest, conflict, forbidden } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { fetchMeForSession, isAuthed } from '../../../middleware/isAuthed.js';
@@ -49,6 +55,14 @@ export default defineRoute({
 			throw forbidden('that server is not accepting this report');
 		}
 
+		// Claimed *before* the write and only *after* the checks above. Two concurrent submissions of the same
+		// token would otherwise both resolve the draft and both file it -- into two different guilds, since
+		// `fileReport` dedupes per guild and has no reason to refuse the second. One draft is one report, and
+		// this atomic `DEL` is what makes that true rather than merely likely.
+		if (!(await claimReportDraftToken(req.params.token))) {
+			throw conflict('this report has already been submitted');
+		}
+
 		let result;
 		try {
 			result = await fileReport({
@@ -66,6 +80,11 @@ export default defineRoute({
 				contextMessages: split.contextMessages,
 			});
 		} catch (error) {
+			// The claim is released on *every* failure path, so a refusal or a transient database error costs the
+			// reporter a retry rather than their draft. Nothing was written, so there is nothing to be idempotent
+			// about -- the token going back is what lets them try a different server.
+			await releaseReportDraftToken(req.params.token, me.id);
+
 			// A refusal is an ordinary outcome, not a server fault: "you already reported this" and "a moderator
 			// already reviewed it" are both things the page should say back plainly.
 			if (error instanceof ReportFailure) {
@@ -75,12 +94,9 @@ export default defineRoute({
 			throw error;
 		}
 
-		// The token burns first and the draft is cleared with it, but they are two calls rather than one because
-		// they mean different things: the token going is what stops this link filing a second report into another
-		// guild, while the draft going is what stops the *next* `/submit-report` re-filing a conversation the
-		// reporter has already dealt with. Both after the write -- a failure before this point must leave the
-		// reporter able to retry.
-		await Promise.all([consumeReportDraftToken(req.params.token), clearReportDraft(me.id)]);
+		// The draft goes only now, after the write landed: it is what stops the *next* `/submit-report` re-filing
+		// a conversation the reporter has already dealt with. The token is already gone -- it was the claim.
+		await clearReportDraft(me.id);
 
 		await postReportCard(result.report, result.reporterCount);
 

@@ -157,6 +157,22 @@ function describeSubject(report: ReportEmbedInput): string {
 	return `Had a message${where} reported.\n\n${block(report.messageContent, CONTENT_LIMIT)}`;
 }
 
+/**
+ * How a context message's author is described on the card. Deliberately exhaustive rather than
+ * target-or-reporter: a group DM has participants who are neither.
+ */
+function describeContextAuthor(
+	message: ReportContextMessageInput,
+	report: ReportEmbedInput,
+	reporterId: string | undefined,
+): string {
+	if (message.authorId === report.targetId) {
+		return 'reported account';
+	}
+
+	return message.authorId === reporterId ? 'reporter' : 'other participant';
+}
+
 export interface ReportCardOptions {
 	/**
 	 * The messages the reporter added beyond the subject one, in their chosen order. Only a DM report has any.
@@ -168,6 +184,15 @@ export interface ReportCardOptions {
 	 */
 	readonly dashboardLink?: string;
 	readonly reporterCount: number;
+	/**
+	 * The account that opened the report, used to label the context messages they wrote themselves.
+	 *
+	 * Passed explicitly rather than inferred as "whoever isn't the target". A user-installed context menu runs
+	 * in `PRIVATE_CHANNEL`, which is group DMs as well as one-to-one ones, so a draft can legitimately capture
+	 * a third participant -- and labelling them as the reporter would tell a moderator that the person filing
+	 * the report said something they never said. Absent, everyone who isn't the target is labelled neutrally.
+	 */
+	readonly reporterId?: string;
 }
 
 /**
@@ -178,7 +203,7 @@ export interface ReportCardOptions {
  * evidence readable after the original CDN signatures expire.
  */
 export function buildReportEmbeds(report: ReportEmbedInput, options: ReportCardOptions): APIEmbed[] {
-	const { contextMessages = [], dashboardLink, reporterCount } = options;
+	const { contextMessages = [], dashboardLink, reporterCount, reporterId } = options;
 	const plural = reporterCount === 1 ? 'reporter' : 'reporters';
 
 	const parts = [describeSubject(report)];
@@ -218,13 +243,9 @@ export function buildReportEmbeds(report: ReportEmbedInput, options: ReportCardO
 		...contextMessages.map((message, index): APIEmbed => ({
 			color: STATE_COLORS[report.state],
 			// Named against the target rather than left bare, so a moderator can tell at a glance which of these
-			// the reporter wrote themselves -- the whole reason context messages carry their own author.
-			author: {
-				name:
-					message.authorId === report.targetId
-						? `${message.authorTag} (reported account)`
-						: `${message.authorTag} (reporter)`,
-			},
+			// the reporter wrote themselves -- the whole reason context messages carry their own author. Three
+			// cases, not two: see `reporterId` for why a third participant must not be called the reporter.
+			author: { name: `${message.authorTag} (${describeContextAuthor(message, report, reporterId)})` },
 			description: block(message.content, CONTEXT_CONTENT_LIMIT),
 			footer: { text: `Context ${index + 1} of ${contextMessages.length}` },
 			...(message.imageUrl ? { image: { url: message.imageUrl } } : {}),
