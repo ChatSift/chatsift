@@ -8,7 +8,7 @@ export default function AutomoderatorConfigPage() {
 			<div className="flex flex-col gap-4">
 				<DashboardCrumbs />
 				<Heading
-					subtitle="Server-wide behaviour, including whether actions are actually carried out"
+					subtitle="Server-wide behavior, including whether actions are actually carried out"
 					title="AutoModerator Config"
 				/>
 			</div>

@@ -30,9 +30,14 @@ const SECTIONS = [
 		subtitle: 'Where reports go, and the reasons reporters can pick from',
 	},
 	{
+		segment: 'report-prompts',
+		title: 'Report Prompts',
+		subtitle: 'Messages telling members how to report DMs to this server',
+	},
+	{
 		segment: 'config',
 		title: 'Config',
-		subtitle: 'Server-wide behaviour, including whether actions are actually carried out',
+		subtitle: 'Server-wide behavior, including whether actions are actually carried out',
 	},
 ] as const;
 

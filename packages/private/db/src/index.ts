@@ -87,6 +87,10 @@ export type {
 	default as AutomoderatorReportPresets,
 	AutomoderatorReportPresetsId,
 } from './generated/public/AutomoderatorReportPresets.js';
+export type {
+	default as AutomoderatorReportPrompts,
+	AutomoderatorReportPromptsId,
+} from './generated/public/AutomoderatorReportPrompts.js';
 export type { default as AutomoderatorWarnPunishmentAction } from './generated/public/AutomoderatorWarnPunishmentAction.js';
 export type {
 	default as AutomoderatorWarnPunishments,

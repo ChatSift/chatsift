@@ -163,6 +163,7 @@ export const queryKeys = {
 			all: (guildId: string) => ['api', 'automoderator', guildId, 'reports'] as const,
 		},
 		reportPresets: (guildId: string) => ['api', 'automoderator', guildId, 'report-presets'] as const,
+		reportPrompts: (guildId: string) => ['api', 'automoderator', guildId, 'report-prompts'] as const,
 		warnPunishments: (guildId: string) => ['api', 'automoderator', guildId, 'warn-punishments'] as const,
 	},
 } as const;
