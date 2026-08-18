@@ -79,3 +79,27 @@ test('honors a custom fallback', () => {
 	const logger = createMockLogger();
 	expect(sanitizeRedirectTo('https://evil.com', logger, '/dashboard/safe')).toBe('/dashboard/safe');
 });
+
+test('allows the public DM-report confirmation page (#P3b)', () => {
+	// The first surface outside `/dashboard` that has to send an anonymous visitor through OAuth and land them
+	// back where they were, which is why the check became a prefix allowlist rather than one hardcoded path.
+	const logger = createMockLogger();
+	expect(sanitizeRedirectTo('/automoderator/report/6f1c2d0e-0000-4000-8000-000000000000', logger)).toBe(
+		'/automoderator/report/6f1c2d0e-0000-4000-8000-000000000000',
+	);
+	expect(logger.warn).not.toHaveBeenCalled();
+});
+
+test('a path that merely starts with an allowed prefix is still rejected', () => {
+	// `/automoderatorevil` shares five characters with the allowlist and nothing else -- the same trap
+	// `/dashboardevil` covers for the original prefix.
+	const logger = createMockLogger();
+	expect(sanitizeRedirectTo('/automoderator/reportevil', logger)).toBe('/dashboard');
+	expect(sanitizeRedirectTo('/automoderator/history/abc', logger)).toBe('/dashboard');
+});
+
+test('the report page is not a way out of the origin check', () => {
+	const logger = createMockLogger();
+	expect(sanitizeRedirectTo('https://evil.com/automoderator/report/x', logger)).toBe('/dashboard');
+	expect(sanitizeRedirectTo('//evil.com/automoderator/report/x', logger)).toBe('/dashboard');
+});

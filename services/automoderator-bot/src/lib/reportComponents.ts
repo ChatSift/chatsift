@@ -1,11 +1,10 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { countReporters, getContext, getReport } from '@chatsift/backend-core';
 import type { AutomoderatorReports } from '@chatsift/db';
 import type { APIMessageComponentInteraction, APIInteractionGuildMember } from '@discordjs/core';
 import { MessageFlags, PermissionFlagsBits } from '@discordjs/core';
 import { memberHasPermission } from './permissions.js';
 import { syncReportCard } from './reportCard.js';
-import { countReporters, getReport } from './reports.js';
 
 /**
  * A resolved, authorized card interaction. Every button on the card needs the same four things, and getting any

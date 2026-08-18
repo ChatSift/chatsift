@@ -52,7 +52,9 @@ import deleteAutomoderatorReportPresetRoute from './routes/automoderator/reportP
 import listAutomoderatorReportPresetsRoute from './routes/automoderator/reportPresets/listPresets.js';
 import updateAutomoderatorReportPresetRoute from './routes/automoderator/reportPresets/updatePreset.js';
 import getAutomoderatorReportRoute from './routes/automoderator/reports/getReport.js';
+import getAutomoderatorReportDraftRoute from './routes/automoderator/reports/getReportDraft.js';
 import listAutomoderatorReportsRoute from './routes/automoderator/reports/listReports.js';
+import submitAutomoderatorReportDraftRoute from './routes/automoderator/reports/submitReportDraft.js';
 import deleteAutomoderatorWarnPunishmentRoute from './routes/automoderator/warnPunishments/deleteWarnPunishment.js';
 import listAutomoderatorWarnPunishmentsRoute from './routes/automoderator/warnPunishments/listWarnPunishments.js';
 import setAutomoderatorWarnPunishmentRoute from './routes/automoderator/warnPunishments/setWarnPunishment.js';
@@ -252,6 +254,8 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, automoderatorPublicHistoryRoute);
 	mountRoute(app, listAutomoderatorReportsRoute);
 	mountRoute(app, getAutomoderatorReportRoute);
+	mountRoute(app, getAutomoderatorReportDraftRoute);
+	mountRoute(app, submitAutomoderatorReportDraftRoute);
 	mountRoute(app, listAutomoderatorReportPresetsRoute);
 	mountRoute(app, createAutomoderatorReportPresetRoute);
 	mountRoute(app, updateAutomoderatorReportPresetRoute);

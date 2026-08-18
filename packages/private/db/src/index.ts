@@ -76,6 +76,10 @@ export type {
 	AutomoderatorReportsId,
 } from './generated/public/AutomoderatorReports.js';
 export type {
+	default as AutomoderatorReportMessages,
+	AutomoderatorReportMessagesId,
+} from './generated/public/AutomoderatorReportMessages.js';
+export type {
 	default as AutomoderatorReporters,
 	AutomoderatorReportersReporterId,
 } from './generated/public/AutomoderatorReporters.js';

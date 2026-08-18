@@ -1,5 +1,5 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { getContext, getReport, REPORT_STATE, recordReportCase, setReportState } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import { collectModal, readOptionalTextInput } from '@chatsift/bot-core';
 import type { AutomoderatorCaseAction, AutomoderatorReports } from '@chatsift/db';
@@ -26,7 +26,6 @@ import type { ReportActionName } from '../lib/reportCard.js';
 import { REPORT_COMPONENT, isReportAction } from '../lib/reportCard.js';
 import { refreshCard, resolveCardInteraction } from '../lib/reportComponents.js';
 import { shouldReopenReport } from '../lib/reportFlow.js';
-import { REPORT_STATE, getReport, recordReportCase, setReportState } from '../lib/reports.js';
 
 const REASON_INPUT_ID = 'reason';
 const DURATION_INPUT_ID = 'duration';

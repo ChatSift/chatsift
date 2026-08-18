@@ -1,10 +1,15 @@
-import { HISTORY_TOKEN_TTL_MINUTES, getContext, mintHistoryToken } from '@chatsift/backend-core';
+import {
+	HISTORY_TOKEN_TTL_MINUTES,
+	caseBrowserLink,
+	getContext,
+	mintHistoryToken,
+	publicHistoryLink,
+} from '@chatsift/backend-core';
 import type { APIApplicationCommandInteraction, APIUser } from '@discordjs/core';
 import { MessageFlags } from '@discordjs/core';
 import { buildHistoryEmbed } from './caseHistory.js';
 import { getModLogWebhook } from './caseLog.js';
 import { listCasesForTarget } from './cases.js';
-import { caseBrowserLink, publicHistoryLink } from './dashboardLinks.js';
 
 /**
  * Shared by `/history`, the History user context menu, and `/myhistory` — three entry points onto one embed.
