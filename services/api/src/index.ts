@@ -118,6 +118,8 @@ export { default as deleteAutomoderatorLogChannelRoute } from './routes/automode
 export { default as automoderatorPublicHistoryRoute } from './routes/automoderator/publicHistory.js';
 export { default as listAutomoderatorReportsRoute } from './routes/automoderator/reports/listReports.js';
 export { default as getAutomoderatorReportRoute } from './routes/automoderator/reports/getReport.js';
+export { default as getAutomoderatorReportDraftRoute } from './routes/automoderator/reports/getReportDraft.js';
+export { default as submitAutomoderatorReportDraftRoute } from './routes/automoderator/reports/submitReportDraft.js';
 export { default as listAutomoderatorReportPresetsRoute } from './routes/automoderator/reportPresets/listPresets.js';
 export { default as createAutomoderatorReportPresetRoute } from './routes/automoderator/reportPresets/createPreset.js';
 export { default as updateAutomoderatorReportPresetRoute } from './routes/automoderator/reportPresets/updatePreset.js';

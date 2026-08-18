@@ -1,20 +1,33 @@
-import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
+import type { ReportEmbedInput, ReportOriginName, ReportStateName } from '@chatsift/core';
 import { automoderatorReportsChannel } from '@chatsift/core';
 import type {
 	AutomoderatorGuildSettings,
 	AutomoderatorReporters,
+	AutomoderatorReportMessages,
 	AutomoderatorReports,
 	AutomoderatorReportsId,
 	AutomoderatorReportState,
 } from '@chatsift/db';
 import { isUniqueViolation } from '@chatsift/db';
-import type { CaseActor } from './cases.js';
-import { reportsTotal } from './metrics.js';
+import { getContext } from '../context.js';
+import { publishRealtimeInvalidate } from '../realtimeBroadcast.js';
+
+/**
+ * The report spine, shared by `services/automoderator-bot` (the two guild context menus, P3) and
+ * `services/api` (the DM report a reporter confirms on the website, P3b). Two writers of the same tables means
+ * the dedupe lookup, the two unique-index races and the state compare-and-swap have to live somewhere neither
+ * owns -- the same reasoning that put the mod-log embed in `@chatsift/core`.
+ *
+ * Deliberately owns **no Discord side effect**: posting or rewriting the card is `reportCard.ts`'s job in the
+ * bot and `reportCard.ts`'s job in the API, exactly as `createCase` and `dispatchCaseLog` are split. It also
+ * touches no Prometheus counter -- `reportsTotal` lives in the bot's registry, and the bot increments it from
+ * the `joined` flag this returns.
+ */
 
 /**
  * Runtime values for `automoderator_report_state`, which kanel generates as a TypeScript enum that
  * `@chatsift/db` only re-exports the *type* of -- so there is nothing to compare against without this. Same
- * arrangement as `caseActions.ts`.
+ * arrangement as the bot's `caseActions.ts`.
  */
 export const REPORT_STATE = {
 	OPEN: 'OPEN' as AutomoderatorReportState,
@@ -23,8 +36,17 @@ export const REPORT_STATE = {
 } as const satisfies Record<string, AutomoderatorReportState>;
 
 /**
- * Why a report was refused. Kept as a closed set rather than bare strings so the two context menus and (later)
- * the filter hook all phrase the same refusal the same way.
+ * Structurally identical to the bot's `CaseActor`, redeclared rather than imported: a service cannot be a
+ * dependency of a package.
+ */
+export interface ReportActor {
+	readonly id: string;
+	readonly tag: string;
+}
+
+/**
+ * Why a report was refused. Kept as a closed set rather than bare strings so the two context menus, the DM
+ * submission route and (later) the filter hook all phrase the same refusal the same way.
  */
 export type ReportRefusal = 'already-reported' | 'already-reviewed' | 'reporting-disabled' | 'self';
 
@@ -47,9 +69,9 @@ export class ReportFailure extends Error {
 }
 
 /**
- * The snapshot half of a report. Taken from the interaction's `resolved.messages` payload rather than fetched:
- * a report exists precisely because the message might not survive until a moderator looks at it, and this bot
- * has no message cache until P4.
+ * The subject message -- the one that dedupes and the one the card leads with. Taken from the interaction's
+ * `resolved.messages` payload rather than fetched: a report exists precisely because the message might not
+ * survive until a moderator looks at it, and this bot has no message cache until P4.
  */
 export interface ReportedMessage {
 	readonly channelId: string;
@@ -58,15 +80,35 @@ export interface ReportedMessage {
 	readonly messageId: string;
 }
 
+/**
+ * One of the *additional* messages a DM draft carried (P3b) -- see `automoderator_report_messages`. Carries its
+ * own author because a draft can legitimately include the reporter's own replies, which the subject message
+ * never needs (there the author is the target).
+ */
+export interface ReportContextMessage extends ReportedMessage {
+	readonly author: ReportActor;
+}
+
 export interface FileReportOptions {
+	/**
+	 * Additional messages, in the order the reporter chose. Empty for every guild report; only a DM draft
+	 * fills it. Ignored entirely when this call joins an existing report rather than opening one -- see
+	 * `addReporter`.
+	 */
+	readonly contextMessages?: readonly ReportContextMessage[];
 	readonly guildId: string;
 	/**
-	 * `null` files an account-level report. Nothing does at P3 -- see schema.sql.
+	 * `null` files an account-level report -- see schema.sql.
 	 */
 	readonly message: ReportedMessage | null;
+	/**
+	 * Where the reported message was, which is a different question from where the report went. Decides
+	 * whether the card renders a jump link. Defaults to `GUILD`.
+	 */
+	readonly origin?: 'DM' | 'GUILD';
 	readonly reason: string;
-	readonly reporter: CaseActor;
-	readonly target: CaseActor;
+	readonly reporter: ReportActor;
+	readonly target: ReportActor;
 }
 
 export interface FileReportResult {
@@ -109,6 +151,48 @@ export async function countReporters(id: AutomoderatorReportsId | number): Promi
 	return Number(row?.count ?? 0);
 }
 
+/**
+ * The extra messages a DM report carried, in the reporter's chosen order. Empty for a guild report, which is
+ * why every card and view calls this unconditionally rather than branching on `origin` first.
+ */
+export async function listReportMessages(id: AutomoderatorReportsId | number): Promise<AutomoderatorReportMessages[]> {
+	return getContext().db<AutomoderatorReportMessages[]>`
+		SELECT * FROM automoderator_report_messages WHERE report_id = ${id} ORDER BY position ASC
+	`;
+}
+
+/**
+ * The account that opened the report -- the oldest reporter, since later ones are agreeing with it rather than
+ * filing it. The card needs it to label the context messages the reporter wrote themselves, and only a DM
+ * report has any, so callers look it up only when there are.
+ */
+export async function getOriginatingReporterId(id: AutomoderatorReportsId | number): Promise<string | null> {
+	const [row] = await getContext().db<Pick<AutomoderatorReporters, 'reporterId'>[]>`
+		SELECT reporter_id FROM automoderator_reporters
+		WHERE report_id = ${id}
+		ORDER BY created_at ASC
+		LIMIT 1
+	`;
+
+	return row?.reporterId ?? null;
+}
+
+/**
+ * Narrows a row to the structural shape `@chatsift/core`'s card builders take.
+ *
+ * The two enum columns come back as kanel enum types that `@chatsift/db` only re-exports the *type* of, hence
+ * the casts -- the same arrangement `caseFormat.ts` needs for `actionType`. Here rather than at each card
+ * poster because both `services/api` and `services/automoderator-bot` post cards, and two copies of a cast is
+ * two places for the conversion to drift.
+ */
+export function reportEmbedInput(report: AutomoderatorReports): ReportEmbedInput {
+	return {
+		...report,
+		origin: report.origin as unknown as ReportOriginName,
+		state: report.state as unknown as ReportStateName,
+	};
+}
+
 async function findExisting(options: FileReportOptions): Promise<AutomoderatorReports | null> {
 	const db = getContext().db;
 
@@ -130,6 +214,14 @@ async function findExisting(options: FileReportOptions): Promise<AutomoderatorRe
 	return row ?? null;
 }
 
+/**
+ * Attaches a reporter to a report that already exists.
+ *
+ * `contextMessages` is deliberately dropped here. The messages already on the report are the ones staff have
+ * been reading, and letting the second reporter append to them would rewrite the evidence under a card that
+ * may already have been acted on -- and, worse, let anyone who can guess a reported DM message id splice their
+ * own text into somebody else's report.
+ */
 async function addReporter(report: AutomoderatorReports, options: FileReportOptions): Promise<FileReportResult> {
 	if (report.state !== REPORT_STATE.OPEN) {
 		throw new ReportFailure('already-reviewed');
@@ -150,7 +242,6 @@ async function addReporter(report: AutomoderatorReports, options: FileReportOpti
 		throw error;
 	}
 
-	reportsTotal.inc({ state: 'joined' });
 	await publishRealtimeInvalidate(automoderatorReportsChannel(report.guildId));
 
 	return { report, joined: true, reporterCount: await countReporters(report.id) };
@@ -159,9 +250,10 @@ async function addReporter(report: AutomoderatorReports, options: FileReportOpti
 /**
  * Opens a report, or attaches this reporter to the one that already covers it.
  *
- * Deliberately does **not** post the card -- `syncReportCard` in `reportCard.ts` does, and the split is what
- * lets the filter hook feature 30 adds at P5 file a report without owning the card lifecycle. The card is a
- * Discord side effect and this is a database write, which is the same seam `createCase`/`dispatchCaseLog` keep.
+ * Deliberately does **not** post the card -- that is the caller's, and the split is what lets the API file a
+ * DM report and the filter hook feature 30 adds at P5 file one without either owning the card lifecycle. The
+ * card is a Discord side effect and this is a database write, which is the same seam
+ * `createCase`/`dispatchCaseLog` keep.
  */
 export async function fileReport(options: FileReportOptions): Promise<FileReportResult> {
 	if (options.reporter.id === options.target.id) {
@@ -179,11 +271,14 @@ export async function fileReport(options: FileReportOptions): Promise<FileReport
 		guildId: options.guildId,
 		targetId: options.target.id,
 		targetTag: options.target.tag,
+		origin: options.origin ?? 'GUILD',
 		messageId: options.message?.messageId ?? null,
 		channelId: options.message?.channelId ?? null,
 		messageContent: options.message?.content ?? null,
 		messageImageUrl: options.message?.imageUrl ?? null,
 	};
+
+	const contextMessages = options.contextMessages ?? [];
 
 	let created: AutomoderatorReports | undefined;
 
@@ -191,6 +286,10 @@ export async function fileReport(options: FileReportOptions): Promise<FileReport
 		// One transaction, because a report with no reporters is a queue item with no reason text on it -- the card
 		// would claim one reporter (it is handed the count in memory) while the detail view showed none. The unique
 		// violation below is still caught *outside*, which works because a failed transaction has rolled back.
+		//
+		// The context messages join that transaction for the same reason: a DM report that committed its subject
+		// message but lost the conversation around it is worse than one that never landed, because staff would read
+		// the baited half and have no way to tell anything was missing.
 		created = await db.begin(async (tx) => {
 			const [report] = await tx<AutomoderatorReports[]>`
 				INSERT INTO automoderator_reports ${tx(row)} RETURNING *
@@ -200,6 +299,24 @@ export async function fileReport(options: FileReportOptions): Promise<FileReport
 				INSERT INTO automoderator_reporters (report_id, reporter_id, reporter_tag, reason)
 				VALUES (${report!.id}, ${options.reporter.id}, ${options.reporter.tag}, ${options.reason})
 			`;
+
+			if (contextMessages.length) {
+				await tx`
+					INSERT INTO automoderator_report_messages ${tx(
+						contextMessages.map((message, index) => ({
+							reportId: report!.id,
+							// 1-based: position 0 is the parent row's own snapshot.
+							position: index + 1,
+							messageId: message.messageId,
+							channelId: message.channelId,
+							authorId: message.author.id,
+							authorTag: message.author.tag,
+							content: message.content,
+							imageUrl: message.imageUrl,
+						})),
+					)}
+				`;
+			}
 
 			return report!;
 		});
@@ -222,7 +339,6 @@ export async function fileReport(options: FileReportOptions): Promise<FileReport
 
 	const inserted = created!;
 
-	reportsTotal.inc({ state: 'filed' });
 	await publishRealtimeInvalidate(automoderatorReportsChannel(inserted.guildId));
 
 	return { report: inserted, joined: false, reporterCount: 1 };
@@ -240,7 +356,7 @@ export interface ResolveReportOptions {
 	 * read is a claim about the past by the time it writes.
 	 */
 	readonly expected?: AutomoderatorReportState;
-	readonly moderator: CaseActor | null;
+	readonly moderator: ReportActor | null;
 	readonly state: AutomoderatorReportState;
 }
 

@@ -77,6 +77,13 @@ export const casesCreated = new Counter({
  * `filed` counts reports opened, `joined` counts a second reporter agreeing with an existing one, and
  * `dismissed`/`actioned` count resolutions. `filed` climbing with neither resolution following it is the
  * failure worth watching -- it means a guild's queue is filling up and nobody is reading it.
+ *
+ * **This counter is bot-intake only.** DM reports (P3b) are filed by `services/api`, which has its own
+ * registry -- deliberately scoped to per-route HTTP metrics for #277 -- so they never reach `filed` or
+ * `joined` here. Their *resolutions* do count, because those go through this bot's card buttons like any
+ * other. So `dismissed + actioned` can legitimately exceed `filed` on a deployment with DM reporting turned
+ * on, and neither number is a total of all reports. Fixing that means putting a domain counter in the API's
+ * registry, which is a decision about that registry's scope rather than about this metric.
  */
 export const reportsTotal = new Counter({
 	name: 'automoderator_reports_total',

@@ -1,7 +1,8 @@
-import { getContext } from '@chatsift/backend-core';
+import { getContext } from './context.js';
 
 /**
- * Links from Discord into the dashboard.
+ * Links from Discord into the dashboard, shared by `services/automoderator-bot` (every embed that offers one)
+ * and `services/api` (the DM report card it posts at P3b).
  *
  * `FRONTEND_URL` comes straight off the environment and is not normalized there, so the trailing slash has to be
  * dealt with here rather than at each call site — `https://chatsift.com//dashboard/...` is a link that works

@@ -7,7 +7,7 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0, P1, P2 and P3 done; P3b (DM reporting) next
+## Status: P0, P1, P2 and P3 done; P3b (DM reporting) in progress -- schema + API landed, bot + dashboard next
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -622,12 +622,47 @@ only evidence is a screenshot, which staff have no reason to trust. A user-insta
 Discord's _own_ copy of the message in the interaction payload, which is forgery-proof by construction — and needs
 no Message Content intent, because the user explicitly invoked the command on it.
 
-| Layer     | Work                                                                                          |
-| --------- | --------------------------------------------------------------------------------------------- |
-| Schema    | none — `origin` and the snapshot columns landed with P3                                       |
-| API       | draft-token exchange, candidate-guild resolution, submission; widen `sanitizeRedirectTo`      |
-| Bot       | user-installable "Add to report draft" menu, `/submit-report`, prompt-embed setup             |
-| Dashboard | a public, OAuth-gated `/automoderator/report/<token>` page: preview, pick the server, confirm |
+| Layer     | Work                                                                                                  | State |
+| --------- | ----------------------------------------------------------------------------------------------------- | ----- |
+| Schema    | `automoderator_report_messages` (messages 2..N of a draft, with their own author)                     | done  |
+| API       | draft-token exchange, candidate-guild resolution, submission, card post; widened `sanitizeRedirectTo` | done  |
+| Bot       | user-installable "Add to report draft" menu, `/submit-report`, prompt-embed setup                     | todo  |
+| Dashboard | a public, OAuth-gated `/automoderator/report/<token>` page: preview, pick the server, confirm         | todo  |
+
+**What landed with the schema + API pass (2026-08-18).** The report spine moved from
+`services/automoderator-bot/src/lib/reports.ts` into `@chatsift/backend-core`'s `automoderatorReports.ts`, and
+the card builders from the bot's `reportCard.ts` into `@chatsift/core`'s `automoderatorReportEmbeds.ts` -- both
+because the API now files reports and posts cards too, which is the same arrangement `refreshCaseLog` already
+has with the bot's `dispatchCaseLog`. `reportsTotal` stayed in the bot and is incremented from `fileReport`'s
+`joined` flag, since `backend-core` has no Prometheus registry. Drafts live in Redis
+(`automoderatorReportDrafts.ts`): a 30-minute draft renewed on every add, a 10-minute token, a six-message cap
+that keeps the card inside Discord's 6000-character embed budget. Both routes set `allowScopedSession: false`
+and are listed in `NON_GUILD_SCOPED_ROUTES` -- a `/dashboard`-minted session belongs to one guild's moderator
+and must never redeem somebody's personal DM draft.
+
+**Three invariants the pass had to settle that the design above didn't state.** The subject message is the
+first message in the draft _authored by the target_, not simply the first -- the parent row's
+`target_id`/`target_tag` describe whoever wrote the snapshot on it, so a draft opening with the reporter's own
+reply would otherwise headline the report with a message the reporter wrote. Joining an existing report
+_discards_ the joiner's context messages: letting a second reporter append to evidence staff are already
+reading would rewrite it under a card that may have been acted on, and would let anyone who can guess a
+reported message id splice their own text into someone else's report. And **a draft is bound to one channel** --
+without that a reporter could take the subject from their DM with one account and the "context" from an
+unrelated DM with somebody else, and that third party's private messages would be persisted onto a report about
+the first and shown to a guild's staff, with nothing downstream able to catch it.
+
+**Two things review caught that are worth not re-learning.** A user-installed context menu runs in
+`PRIVATE_CHANNEL`, which covers **group DMs** -- so a draft can capture a participant who is neither the target
+nor the reporter, and the card takes an explicit `reporterId` rather than labelling everyone who isn't the
+target as the reporter. And the submission route **claims the draft token with an atomic `DEL` before filing**:
+resolving the token without consuming it let two concurrent submissions file one draft into two different
+guilds, which `fileReport` has no reason to refuse because it dedupes per guild. The claim is released on every
+failure path so a refusal costs a retry rather than the draft.
+
+**`automoderator_reports_total` is bot-intake only.** DM reports are filed by `services/api`, whose registry is
+deliberately scoped to per-route HTTP metrics (#277), so they never reach `filed`/`joined` -- while their
+resolutions _do_ count, because those go through the bot's card buttons. `dismissed + actioned` can therefore
+exceed `filed`. Closing that means deciding whether the API's registry should carry domain counters at all.
 
 **The flow.**
 
@@ -676,18 +711,17 @@ practice, not thousands, and it goes through `services/discord-proxy` like every
    entirely, but forwarded-message snapshots appear not to carry the original `author`, which destroys attribution
    — the one thing the feature exists for.
 
-**Open question, raised in review on #360 and not yet decided: where do the extra messages live?** Decision 1
-above wants multi-message drafts, but `automoderator_reports` holds exactly one snapshot — `message_id`,
-`message_content`, `message_image_url`. So P3b needs one of:
-
-- an ordered `automoderator_report_messages` child table (snapshot per message, with its own author, since a
-  draft can legitimately include the reporter's own replies), which is the shape that actually delivers decision 1;
-- or the draft collapses to one message at confirmation time, and decision 1 is scaled back to "pick the single
-  most damning message".
-
-The first is the honest reading of the feature and is a schema change P3b has to carry; the second is cheaper and
-loses the context argument that motivated multi-message drafts in the first place. **Not decided — do not start
-P3b's schema work until it is.**
+**Where the extra messages live -- decided 2026-08-18.** An additive `automoderator_report_messages` child
+table holds messages 2..N only; the parent's `message_id`/`message_content`/`message_image_url` stay the subject
+message. Chosen over moving every message into the child table because the asymmetry is real rather than an
+artifact: the subject is the message that dedupes and that the card leads with, while the rest are context the
+reporter chose and therefore need `author_id`/`author_tag` (a draft can include the reporter's own replies),
+which the parent never needs since its author is always the target. Moving message #1 down as well would also
+leave its identity in two places -- the parent keeps `message_id` either way, because
+`automoderator_reports_guild_id_message_id_idx` is load-bearing for both the "one report per message per guild,
+for all time" rule and the race resolution in `fileReport` -- and would rewrite the working P3 surface for a
+table that holds exactly one row for every guild report. Revisit only if P5's anti-spam filter hook starts
+filing genuinely multi-message reports, at which point "one primary + context" stops describing the data.
 
 **Accept knowingly:** staff can never independently corroborate a DM report. Every other report type has a jump
 link; this one is trust in ChatSift's chain of custody, and the card should say so rather than let a moderator

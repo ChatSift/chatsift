@@ -1,5 +1,5 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { getContext, getReport, REPORT_STATE, setReportState } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { MessageFlags } from '@discordjs/core';
@@ -7,7 +7,6 @@ import { actorFromUser } from '../lib/cases.js';
 import { reportsTotal } from '../lib/metrics.js';
 import { REPORT_COMPONENT } from '../lib/reportCard.js';
 import { refreshCard, resolveCardInteraction } from '../lib/reportComponents.js';
-import { getReport, REPORT_STATE, setReportState } from '../lib/reports.js';
 
 export default class ReportDismissComponent implements ComponentHandler<string> {
 	public readonly name = REPORT_COMPONENT.dismiss;

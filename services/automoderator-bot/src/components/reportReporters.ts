@@ -1,12 +1,10 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { getContext, listReporters, reportDetailLink } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { MessageFlags } from '@discordjs/core';
-import { reportDetailLink } from '../lib/dashboardLinks.js';
 import { REPORT_COMPONENT } from '../lib/reportCard.js';
 import { resolveCardInteraction } from '../lib/reportComponents.js';
-import { listReporters } from '../lib/reports.js';
 
 /**
  * Discord's message content cap. A report with a hundred reporters is rare, but one where each reporter wrote

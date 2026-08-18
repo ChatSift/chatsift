@@ -1,11 +1,10 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { countReporters, getContext, getReport } from '@chatsift/backend-core';
 import type { AutomoderatorReports } from '@chatsift/db';
 import type { APIMessageComponentInteraction, APIInteractionGuildMember } from '@discordjs/core';
 import { MessageFlags, PermissionFlagsBits } from '@discordjs/core';
 import { memberHasPermission } from './permissions.js';
 import { syncReportCard } from './reportCard.js';
-import { countReporters, getReport } from './reports.js';
 
 /**
  * A resolved, authorized card interaction. Every button on the card needs the same four things, and getting any
@@ -65,7 +64,17 @@ export async function resolveCardInteraction(
 /**
  * Rewrites the card for a report whose row has just changed. Reads the reporter count back rather than being
  * handed one, because every caller has just mutated the report and none of them knows the count.
+ *
+ * Guarded for the same reason `syncReportCard` swallows its own failures, and it has to be guarded *here*
+ * because this read happens before that function is even entered: every button handler awaits this after it has
+ * already committed the state change and acknowledged the interaction, so a throw escaping into the component
+ * handler buys nothing but a rejection logged as an unhandled listener error. A stale card is the honest
+ * degradation -- the row changed, the dashboard shows it, only the Discord copy is behind.
  */
 export async function refreshCard(report: AutomoderatorReports, logger: Logger): Promise<void> {
-	await syncReportCard(report, { reporterCount: await countReporters(report.id) }, logger);
+	try {
+		await syncReportCard(report, { reporterCount: await countReporters(report.id) }, logger);
+	} catch (error) {
+		logger.error({ err: error, guildId: report.guildId, reportId: report.id }, 'failed to refresh a report card');
+	}
 }

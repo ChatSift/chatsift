@@ -31,6 +31,12 @@ const NON_GUILD_SCOPED_ROUTES = new Set<string>([
 	// authority here that its holder doesn't have anyway.
 	'/v3/experiments',
 	'/v3/experiments/:name',
+	// DM report drafts (P3b). Global by nature rather than by omission: the whole point of the flow is that the
+	// reporter has no guild context yet -- which guild the report goes to is what the page asks them. Both set
+	// `allowScopedSession: false`, so a `/dashboard`-minted session (scoped to exactly one guild, and issued to
+	// a *moderator* of it) can never redeem somebody's personal DM draft; only a real OAuth login can, and it is
+	// then checked against the account that minted the token.
+	'/v3/automoderator/report-drafts/:token',
 ]);
 
 /**

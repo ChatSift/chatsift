@@ -229,9 +229,22 @@ interface SeedReport {
 	 * report always points at a case this script created rather than at a number that may not exist.
 	 */
 	readonly caseIndex?: number;
+	/**
+	 * `automoderator_report_messages` rows, as `[messageId, authorId, authorTag, content]`. Only a DM report
+	 * (P3b) has any -- for a guild report this stays empty, which is the shape every card and view has to
+	 * render without branching first.
+	 */
+	readonly contextMessages?: readonly [string, string, string, string][];
 	readonly daysAgo: number;
 	readonly hasImage?: boolean;
 	readonly messageId: string | null;
+	/**
+	 * Defaults to `GUILD`. A `DM` report has a channel id nobody but its two participants can open, so it is
+	 * the only way to exercise the card and detail view's "no jump link even though there is a channel"
+	 * branch.
+	 */
+	readonly origin?: 'DM' | 'GUILD';
+
 	/**
 	 * `[reporterId, reporterTag, reason]`. More than one exercises the collapse: the second person to report
 	 * something is agreeing with the first, not filing a new queue item.
@@ -319,7 +332,32 @@ const REPORTS: readonly SeedReport[] = [
 		reporters: [[REPORTER_ONE, 'reporter-one', 'Ban evasion — this is an alt']],
 		daysAgo: 2,
 	},
+	// A DM report (P3b): a multi-message draft the reporter confirmed on the website. The subject message is
+	// the target's, the context includes the reporter's own reply, and the channel id is a DM -- which is the
+	// combination the card has to render without offering a jump link and with the "staff cannot see this
+	// conversation" disclaimer.
+	{
+		state: 'OPEN',
+		origin: 'DM',
+		targetId: ALICE,
+		targetTag: 'alice',
+		messageId: '160000000000000005',
+		text: 'answer me',
+		reporters: [[REPORTER_TWO, 'reporter-two', 'Harassment in DMs']],
+		contextMessages: [
+			['160000000000000006', REPORTER_TWO, 'reporter-two', 'please stop messaging me'],
+			['160000000000000007', ALICE, 'alice', 'or what'],
+		],
+		daysAgo: 1,
+	},
 ];
+
+/**
+ * The DM channel a seeded DM report was captured in. Real in shape and unreachable in practice, which is the
+ * point: staff must never be offered a link to it, and `origin` -- not this id being absent -- is what stops
+ * one being rendered.
+ */
+const DM_CHANNEL_ID = '160000000000000099';
 
 /**
  * A signed CDN url whose signature is long expired, so the dashboard renders the dead-image case.
@@ -349,7 +387,8 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 	if (reset) {
 		const deleted = await db`DELETE FROM automoderator_cases WHERE guild_id = ${guildId} RETURNING id`;
 		await db`DELETE FROM automoderator_log_webhooks WHERE guild_id = ${guildId}`;
-		// Reporters go with their reports -- `automoderator_reporters_report_id_fkey` is ON DELETE CASCADE.
+		// Reporters and context messages go with their reports -- both child tables' foreign keys are ON DELETE
+		// CASCADE.
 		await db`DELETE FROM automoderator_reports WHERE guild_id = ${guildId}`;
 		await db`DELETE FROM automoderator_report_presets WHERE guild_id = ${guildId}`;
 		await db`DELETE FROM automoderator_warn_punishments WHERE guild_id = ${guildId}`;
@@ -435,11 +474,18 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 		`;
 	}
 
+	let seededReports = 0;
+
 	for (const report of REPORTS) {
 		const createdAt = new Date(now - report.daysAgo * 86_400_000);
 		const resolvedAt = new Date(now - (report.resolvedDaysAgo ?? report.daysAgo) * 86_400_000);
 		const caseId = report.caseIndex === undefined ? null : numbers[report.caseIndex];
 
+		// `ON CONFLICT DO NOTHING` is bare rather than targeted, because two different partial unique indexes can
+		// reject one of these: `(guild_id, message_id)` for the message reports and `(guild_id, target_id)` for
+		// the account-level one. Re-running without `--reset` is a no-op for these fixed-key fixtures, the same
+		// way the warn ladder, the log webhook and the report reasons already are -- before this it aborted the
+		// whole script on a duplicate key.
 		const [inserted] = await db<{ id: number }[]>`
 			INSERT INTO automoderator_reports (
 				guild_id, target_id, target_tag, origin, message_id, channel_id, message_content, message_image_url,
@@ -448,9 +494,9 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 				${guildId},
 				${report.targetId},
 				${report.targetTag},
-				'GUILD'::automoderator_report_origin,
+				${report.origin ?? 'GUILD'}::automoderator_report_origin,
 				${report.messageId},
-				${report.messageId ? DANGLING_CHANNEL_ID : null},
+				${report.messageId ? (report.origin === 'DM' ? DM_CHANNEL_ID : DANGLING_CHANNEL_ID) : null},
 				${report.text},
 				${report.hasImage ? DEAD_IMAGE_URL : null},
 				${report.state}::automoderator_report_state,
@@ -461,23 +507,49 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 				${null},
 				${createdAt}
 			)
+			ON CONFLICT DO NOTHING
 			RETURNING id
 		`;
+
+		// No row means this report was already seeded, so its reporters and context messages are too. Skipping
+		// them is what keeps the re-run a no-op rather than a partial write on top of an existing row.
+		if (!inserted) {
+			continue;
+		}
+
+		seededReports++;
 
 		for (const [reporterId, reporterTag, reason] of report.reporters) {
 			await db`
 				INSERT INTO automoderator_reporters (report_id, reporter_id, reporter_tag, reason, created_at)
-				VALUES (${inserted!.id}, ${reporterId}, ${reporterTag}, ${reason}, ${createdAt})
+				VALUES (${inserted.id}, ${reporterId}, ${reporterTag}, ${reason}, ${createdAt})
+			`;
+		}
+
+		// 1-based, because position 0 is the parent row's own snapshot.
+		for (const [index, [messageId, authorId, authorTag, content]] of (report.contextMessages ?? []).entries()) {
+			await db`
+				INSERT INTO automoderator_report_messages (
+					report_id, position, message_id, channel_id, author_id, author_tag, content, image_url
+				) VALUES (
+					${inserted.id}, ${index + 1}, ${messageId}, ${DM_CHANNEL_ID}, ${authorId}, ${authorTag},
+					${content}, ${null}
+				)
 			`;
 		}
 	}
 
 	console.log(`Seeded ${CASES.length} cases (#${numbers[0]}-#${numbers.at(-1)}) for guild ${guildId}.`);
 	console.log(`Seeded a MOD log webhook pointing at a channel that does not exist (${DANGLING_CHANNEL_ID}).`);
-	console.log(`Seeded ${REPORTS.length} reports and ${REPORT_PRESETS.length} report reasons.`);
+	console.log(
+		`Seeded ${seededReports} of ${REPORTS.length} reports (the rest were already there) and ` +
+			`${REPORT_PRESETS.length} report reasons.`,
+	);
 	console.log('Seeded reports carry no card -- nothing posted one, so they exercise the dashboard queue only.');
 	console.log('Their reported messages point at the same non-existent channel, which is the dangling-reference');
 	console.log('case the detail view has to render without breaking.');
+	console.log('One of them is a DM report (P3b) carrying two context messages, one written by the reporter --');
+	console.log('the only fixture where a report has anything in automoderator_report_messages.');
 	console.log(`Seeded ${WARN_PUNISHMENTS.length} warn ladder steps and auto-pardon after ${AUTO_PARDON_DAYS} days.`);
 	console.log('One warn is deliberately 400 days old and one temporary ban is overdue, so both scheduler sweeps');
 	console.log("have something to do on the bot's next tick rather than needing anyone to wait.");

@@ -1,16 +1,11 @@
-import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import type { Logger, ReportedMessage } from '@chatsift/backend-core';
+import { getContext, getReportsChannelId, fileReport, REFUSAL_MESSAGES, ReportFailure } from '@chatsift/backend-core';
 import { REPORT_PRESET_MAX_COUNT } from '@chatsift/core';
-import type {
-	APIMessage,
-	APIMessageApplicationCommandInteraction,
-	APIInteractionGuildMember,
-} from '@discordjs/core';
+import type { APIMessage, APIMessageApplicationCommandInteraction, APIInteractionGuildMember } from '@discordjs/core';
 import { actorFromUser } from './cases.js';
+import { reportsTotal } from './metrics.js';
 import { LadderFailureError } from './moderation.js';
 import { syncReportCard } from './reportCard.js';
-import type { ReportedMessage } from './reports.js';
-import { REFUSAL_MESSAGES, ReportFailure, fileReport, getReportsChannelId } from './reports.js';
 
 export const DEFAULT_REPORT_REASON = 'No reason provided';
 
@@ -96,6 +91,10 @@ export async function submitMessageReport(options: SubmitReportOptions, logger: 
 			reason: options.reason,
 			message: snapshotMessage(options.message),
 		});
+
+		// Counted here rather than inside `fileReport`: that now lives in `@chatsift/backend-core`, which is
+		// shared with `services/api` and has no Prometheus registry of its own to increment.
+		reportsTotal.inc({ state: result.joined ? 'joined' : 'filed' });
 
 		await syncReportCard(result.report, { reporterCount: result.reporterCount }, logger);
 

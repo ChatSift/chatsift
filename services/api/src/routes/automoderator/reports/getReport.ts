@@ -1,5 +1,5 @@
-import { getContext } from '@chatsift/backend-core';
-import type { AutomoderatorReporters, AutomoderatorReports } from '@chatsift/db';
+import { getContext, listReportMessages } from '@chatsift/backend-core';
+import type { AutomoderatorReportMessages, AutomoderatorReporters, AutomoderatorReports } from '@chatsift/db';
 import { notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
@@ -21,6 +21,11 @@ const paramsSchema = z.object({
 const REPORTERS_LIMIT = 100;
 
 export interface GetReportResult {
+	/**
+	 * The messages the reporter added beyond the one on the report itself, in their chosen order. Always
+	 * present and always empty for a guild report -- only a DM draft (P3b) fills it.
+	 */
+	contextMessages: AutomoderatorReportMessages[];
 	report: ReportWithUsers;
 	/**
 	 * At most {@link REPORTERS_LIMIT} of them, oldest first. Compare against `report.reporterCount` for the total.
@@ -50,7 +55,7 @@ export default defineRoute({
 		// *first* view of a brigaded report would still serialize that many misses through Discord's
 		// `GET /users/{id}` bucket (30 per 30s per token), stalling every other user lookup the API makes.
 		// The list route is bounded by its pagination; this one had nothing.
-		const [reporters, counted] = await Promise.all([
+		const [reporters, counted, contextMessages] = await Promise.all([
 			db<AutomoderatorReporters[]>`
 				SELECT * FROM automoderator_reporters
 				WHERE report_id = ${row.id}
@@ -60,10 +65,13 @@ export default defineRoute({
 			db<{ count: string }[]>`
 				SELECT count(*) FROM automoderator_reporters WHERE report_id = ${row.id}
 			`,
+			// Unbounded, unlike the reporters above: a draft is capped at `REPORT_DRAFT_MAX_MESSAGES` when it is
+			// built, so this cannot grow the way a brigaded report's reporter list can.
+			listReportMessages(row.id),
 		]);
 
 		const [report] = await resolveReportTargets([row], new Map([[row.id, Number(counted[0]?.count ?? 0)]]));
 
-		return { report: report!, reporters: await resolveReporters(reporters) };
+		return { report: report!, reporters: await resolveReporters(reporters), contextMessages };
 	},
 });
