@@ -825,6 +825,16 @@ What shipped, and where it deviates from the plan above:
   thread's parent for the thread itself before comparing, so exempting a thread by id did nothing at all. Parent
   resolution is a `GET /channels/{id}` behind a one-hour redis cache, and is skipped entirely for the
   overwhelming majority of guilds, which have no exemptions and short-circuit before touching Discord.
+- **`sortChannels` stopped being a filter.** The exemption picker lists voice, stage and media channels, and
+  none of them rendered: `@chatsift/discord-utils`'s `sortChannels` -- written for the dashboard's channel
+  picker before text-in-voice existed -- dropped every non-text type before `ChannelSelect` could consult its
+  own `allowedTypes`. It now sorts and no longer decides, so the caller's list is the only gate. **This was
+  already breaking Social**, whose per-channel XP config has listed `GuildVoice`/`GuildStageVoice` since #343
+  P4 with a comment explaining why, and silently could not offer them; Social's API never restricted the type,
+  so that picker works now with no server change. Audited against every `ChannelSelect` call site: voice
+  channels appear in exactly the two that ask for them (Social's XP config, these exemptions). The one other
+  visible change is that media channels and their posts now appear in the pickers that allow threads, exactly
+  as forum channels already did.
 - **The table is keyed `(guild_id, channel_id)`**, where legacy's `log_ignores` was keyed on `channel_id` alone.
   Channel ids are globally unique so legacy worked, but it also meant a delete request naming another guild's
   channel would have removed that guild's row.

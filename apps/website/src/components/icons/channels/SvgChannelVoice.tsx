@@ -3,6 +3,15 @@ interface SvgChannelVoiceProps {
 	readonly size?: number;
 }
 
+/**
+ * Used for both voice and stage channels, which is why it is a plain speaker rather than anything
+ * stage-specific -- the picker only ever needs "this one carries voice", and one glyph for both keeps the list
+ * readable.
+ *
+ * Deliberately built from straight segments and two circular arcs rather than traced bezier curves: every
+ * coordinate here can be reasoned about, where a hand-written bezier path cannot. Stroke width matches the
+ * visual weight of the filled glyphs beside it (`SvgChannelText`'s hash, `SvgChannelForum`'s bubble).
+ */
 export function SvgChannelVoice({ className, size = 20 }: SvgChannelVoiceProps) {
 	return (
 		<svg
@@ -13,9 +22,13 @@ export function SvgChannelVoice({ className, size = 20 }: SvgChannelVoiceProps) 
 			width={size}
 			xmlns="http://www.w3.org/2000/svg"
 		>
+			<path d="M12 4 L7 9 H3 V15 H7 L12 20 Z" fill="currentColor" />
 			<path
-				d="M11.383 3.07615C11.7573 2.92116 12.188 3.00692 12.4745 3.29338L15.181 6H17.75C18.9926 6 20 7.00736 20 8.25V15.75C20 16.9926 18.9926 18 17.75 18H15.181L12.4745 20.7066C12.188 20.9931 11.7573 21.0788 11.383 20.9239C11.0088 20.7689 10.765 20.4036 10.765 19.9985V4.00146C10.765 3.59638 11.0088 3.23114 11.383 3.07615ZM12.765 6.41446V17.5855L14.2734 16.0771C14.4609 15.8895 14.7152 15.7841 14.9805 15.7841H17.75C17.7688 15.7841 17.7841 15.7688 17.7841 15.75V8.25C17.7841 8.23117 17.7688 8.21591 17.75 8.21591H14.9805C14.7152 8.21591 14.4609 8.11055 14.2734 7.92295L12.765 6.41446ZM5.75 8.5C6.16421 8.5 6.5 8.83579 6.5 9.25V14.75C6.5 15.1642 6.16421 15.5 5.75 15.5C5.33579 15.5 5 15.1642 5 14.75V9.25C5 8.83579 5.33579 8.5 5.75 8.5ZM8.5 10.5C8.91421 10.5 9.25 10.8358 9.25 11.25V12.75C9.25 13.1642 8.91421 13.5 8.5 13.5C8.08579 13.5 7.75 13.1642 7.75 12.75V11.25C7.75 10.8358 8.08579 10.5 8.5 10.5Z"
-				fill="currentColor"
+				d="M14.5 9.5a3.5 3.5 0 0 1 0 5M17 7a7 7 0 0 1 0 10"
+				fill="none"
+				stroke="currentColor"
+				strokeLinecap="round"
+				strokeWidth="2"
 			/>
 		</svg>
 	);
