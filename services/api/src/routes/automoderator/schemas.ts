@@ -100,6 +100,21 @@ export const updateCaseBodySchema = z
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
 /**
+ * The subset of `automoderator_log_type` a guild may point at a channel today. FILTER is deliberately absent:
+ * nothing dispatches into it until P5, and a picker for a log nothing ever posts to is a setting that quietly
+ * does nothing. MOD landed at P1, MESSAGE and USER at P4.
+ *
+ * Here rather than in `constants.ts` (which holds the *full* enum mirrors) because this file is the browser-safe
+ * one -- the dashboard renders one picker per entry, so the list and the routes' path parameter come from the
+ * same place instead of a hand-copied union drifting out of step with what the API accepts.
+ */
+export const WRITABLE_LOG_TYPES = ['MOD', 'MESSAGE', 'USER'] as const;
+
+export const writableLogTypeSchema = z.enum(WRITABLE_LOG_TYPES);
+
+export type WritableLogType = z.infer<typeof writableLogTypeSchema>;
+
+/**
  * Configuring a log channel. The API creates the Discord webhook itself -- a channel id is all the dashboard
  * can meaningfully supply, and the token it produces must never reach a browser.
  */

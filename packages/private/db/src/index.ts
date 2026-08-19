@@ -91,6 +91,7 @@ export type {
 	default as AutomoderatorReportPrompts,
 	AutomoderatorReportPromptsId,
 } from './generated/public/AutomoderatorReportPrompts.js';
+export type { default as AutomoderatorLogExemptions } from './generated/public/AutomoderatorLogExemptions.js';
 export type { default as AutomoderatorWarnPunishmentAction } from './generated/public/AutomoderatorWarnPunishmentAction.js';
 export type {
 	default as AutomoderatorWarnPunishments,

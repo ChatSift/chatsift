@@ -137,6 +137,36 @@ export const schedulerLag = new Histogram({
 });
 
 /**
+ * Feature-level intake, from the taxonomy in docs/roadmap/11-automoderator-port.md -- "is feature N working in
+ * prod" answerable without reading logs. Written by the observers P4 added, which is the first code here with a
+ * meaningful `skipped` (an exempt channel, a message that was never cached) as opposed to a plain success.
+ *
+ * `applied` means the log was built and handed to the dispatcher, *not* that Discord accepted it: delivery is
+ * `automoderator_log_dispatch_total`'s job and suppression is
+ * `automoderator_dry_run_suppressions_total`'s. Splitting them is what keeps "the observer decided to log this"
+ * separable from "the webhook worked", which are different outages with different fixes.
+ */
+export const featureInvocations = new Counter({
+	name: 'automoderator_feature_invocations_total',
+	help: 'Feature entry points reached, by feature and what came of it',
+	labelNames: ['feature', 'outcome'] as const,
+	registers: [register],
+});
+
+/**
+ * Message cache hit rate (P4). **Flat-zero `hit` is how a missing `MessageContent` intent shows up** -- without
+ * it every message caches as empty text, so deletes and edits arrive, find nothing worth logging, and the
+ * message log silently does nothing at all. There is no error anywhere in that path, which is exactly why this
+ * counter exists.
+ */
+export const messageCacheLookups = new Counter({
+	name: 'automoderator_message_cache_lookups_total',
+	help: 'Message cache reads, by whether the message was still cached',
+	labelNames: ['result'] as const,
+	registers: [register],
+});
+
+/**
  * `route_class` is a coarse bucket (`member`, `message`, `user`, `webhook`), never a resolved route -- a
  * per-URL label would be per-guild cardinality by another name. Written by the `ActionExecutor` when a
  * side-effecting call is rejected.

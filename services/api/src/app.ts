@@ -46,6 +46,9 @@ import updateAutomoderatorConfigRoute from './routes/automoderator/config/update
 import deleteAutomoderatorLogChannelRoute from './routes/automoderator/logChannels/deleteLogChannel.js';
 import listAutomoderatorLogChannelsRoute from './routes/automoderator/logChannels/listLogChannels.js';
 import setAutomoderatorLogChannelRoute from './routes/automoderator/logChannels/setLogChannel.js';
+import deleteAutomoderatorLogExemptionRoute from './routes/automoderator/logExemptions/deleteLogExemption.js';
+import listAutomoderatorLogExemptionsRoute from './routes/automoderator/logExemptions/listLogExemptions.js';
+import setAutomoderatorLogExemptionRoute from './routes/automoderator/logExemptions/setLogExemption.js';
 import automoderatorPublicHistoryRoute from './routes/automoderator/publicHistory.js';
 import createAutomoderatorReportPresetRoute from './routes/automoderator/reportPresets/createPreset.js';
 import deleteAutomoderatorReportPresetRoute from './routes/automoderator/reportPresets/deletePreset.js';
@@ -255,6 +258,9 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listAutomoderatorLogChannelsRoute);
 	mountRoute(app, setAutomoderatorLogChannelRoute);
 	mountRoute(app, deleteAutomoderatorLogChannelRoute);
+	mountRoute(app, listAutomoderatorLogExemptionsRoute);
+	mountRoute(app, setAutomoderatorLogExemptionRoute);
+	mountRoute(app, deleteAutomoderatorLogExemptionRoute);
 	mountRoute(app, automoderatorPublicHistoryRoute);
 	mountRoute(app, listAutomoderatorReportsRoute);
 	mountRoute(app, getAutomoderatorReportRoute);

@@ -10,14 +10,15 @@ import { isAuthed } from '../../../middleware/isAuthed.js';
 import { assertChannelsBelongToGuild, fetchGuildChannels } from '../../../util/channels.js';
 import { discordAPIAutomoderator, discordAPIWebhook } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
-import { WRITABLE_LOG_TYPES } from '../constants.js';
-import { setLogChannelBodySchema } from '../schemas.js';
+import { setLogChannelBodySchema, writableLogTypeSchema } from '../schemas.js';
 import type { LogChannelConfig } from './listLogChannels.js';
 
 const bodySchema = setLogChannelBodySchema;
+// The enum is the whole gate on which logs are configurable -- a FILTER request 400s here rather than being
+// let through to a hand-rolled check further down. See `writableLogTypeSchema` for what is in the set and why.
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
-	logType: z.enum(['MOD']),
+	logType: writableLogTypeSchema,
 });
 
 export type SetLogChannelBody = z.infer<typeof bodySchema>;
@@ -32,6 +33,17 @@ const THREAD_TYPES = new Set<ChannelType>([
 	ChannelType.AnnouncementThread,
 ]);
 
+/**
+ * What each log's webhook is called in the channel's integration settings. Per-type rather than one shared
+ * "AutoModerator Logs" because a guild routing all three into neighbouring channels otherwise ends up with
+ * three identically-named webhooks and no way to tell which one they are about to delete by hand.
+ */
+const WEBHOOK_NAMES: Record<z.infer<typeof writableLogTypeSchema>, string> = {
+	MOD: 'AutoModerator Mod Log',
+	MESSAGE: 'AutoModerator Message Log',
+	USER: 'AutoModerator User Log',
+};
+
 export default defineRoute({
 	method: 'put',
 	path: '/v3/guilds/:guildId/automoderator/log-channels/:logType',
@@ -43,10 +55,6 @@ export default defineRoute({
 		const { channelId } = req.body;
 		const context = getContext();
 		const logTypeValue = logType as unknown as AutomoderatorLogType;
-
-		if (!WRITABLE_LOG_TYPES.includes(logTypeValue)) {
-			throw badRequest('that log type cannot be configured yet');
-		}
 
 		// A bot's REST client is shared across every guild it's in, so without this a manager could point their
 		// log at a channel in someone else's server.
@@ -78,8 +86,8 @@ export default defineRoute({
 		try {
 			webhook = await discordAPIAutomoderator.channels.createWebhook(
 				webhookChannelId,
-				{ name: 'AutoModerator Logs' },
-				{ reason: `Mod log configured by ${req.tokens!.access.sub}` },
+				{ name: WEBHOOK_NAMES[logType] },
+				{ reason: `${logType} log configured by ${req.tokens!.access.sub}` },
 			);
 		} catch (error) {
 			if (error instanceof DiscordAPIError && error.status === 403) {

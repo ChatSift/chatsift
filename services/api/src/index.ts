@@ -115,6 +115,9 @@ export { default as deleteAutomoderatorCaseRoute } from './routes/automoderator/
 export { default as listAutomoderatorLogChannelsRoute } from './routes/automoderator/logChannels/listLogChannels.js';
 export { default as setAutomoderatorLogChannelRoute } from './routes/automoderator/logChannels/setLogChannel.js';
 export { default as deleteAutomoderatorLogChannelRoute } from './routes/automoderator/logChannels/deleteLogChannel.js';
+export { default as listAutomoderatorLogExemptionsRoute } from './routes/automoderator/logExemptions/listLogExemptions.js';
+export { default as setAutomoderatorLogExemptionRoute } from './routes/automoderator/logExemptions/setLogExemption.js';
+export { default as deleteAutomoderatorLogExemptionRoute } from './routes/automoderator/logExemptions/deleteLogExemption.js';
 export { default as automoderatorPublicHistoryRoute } from './routes/automoderator/publicHistory.js';
 export { default as listAutomoderatorReportsRoute } from './routes/automoderator/reports/listReports.js';
 export { default as getAutomoderatorReportRoute } from './routes/automoderator/reports/getReport.js';

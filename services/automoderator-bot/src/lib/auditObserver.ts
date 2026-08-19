@@ -9,6 +9,7 @@ import { dispatchCaseLog } from './caseLog.js';
 import type { CaseActor } from './cases.js';
 import { createCase, formatUserTag } from './cases.js';
 import { traceDecision } from './decisionTrace.js';
+import { recordMessageDeleteAudit } from './deleteAttribution.js';
 import { casesCreated } from './metrics.js';
 
 const OBSERVED: Partial<Record<AuditLogEvent, AutomoderatorCaseAction>> = {
@@ -22,6 +23,10 @@ export function registerAuditObserver(client: Client): void {
 		const logger = getContext().logger.child({ event: 'guildAuditLogEntryCreate', guildId: data.guild_id });
 
 		try {
+			// Not a case, and deliberately handled before anything that can throw or await: it is the only
+			// signal the message log has for "a moderator deleted this" (P4), and it is cheap.
+			noteMessageDelete(data, data.guild_id);
+
 			await handleAuditLogEntry(data, data.guild_id, logger);
 		} catch (error) {
 			// A rejected listener is re-emitted as an `'error'` event by @discordjs/core, so every listener in
@@ -29,6 +34,24 @@ export function registerAuditObserver(client: Client): void {
 			logger.error({ err: error, entryId: data.id }, 'failed to observe an audit log entry');
 		}
 	});
+}
+
+/**
+ * Feeds `deleteAttribution.ts` from the entries that already arrive here. `target_id` on a MESSAGE_DELETE entry
+ * is the message's **author** and `options.channel_id` is where it happened -- which together are exactly what a
+ * `MESSAGE_DELETE` dispatch can be matched on, since that dispatch carries no author at all.
+ */
+function noteMessageDelete(entry: APIAuditLogEntry, guildId: string): void {
+	if (entry.action_type !== AuditLogEvent.MessageDelete || !entry.target_id || !entry.user_id) {
+		return;
+	}
+
+	const channelId = entry.options?.channel_id;
+	if (!channelId) {
+		return;
+	}
+
+	recordMessageDeleteAudit(guildId, channelId, entry.target_id, entry.user_id);
 }
 
 async function handleAuditLogEntry(entry: APIAuditLogEntry, guildId: string, logger: Logger): Promise<void> {

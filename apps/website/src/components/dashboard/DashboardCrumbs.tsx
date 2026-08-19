@@ -35,6 +35,7 @@ const AUTOMODERATOR_SECTIONS = [
 	'reports',
 	'warn-ladder',
 	'log-channels',
+	'log-exemptions',
 	'report-settings',
 	'report-prompts',
 	'config',
@@ -64,6 +65,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 	reports: 'Reports',
 	'warn-ladder': 'Warn Ladder',
 	'log-channels': 'Log Channels',
+	'log-exemptions': 'Log Exemptions',
 	'report-settings': 'Report Settings',
 	'report-prompts': 'Report Prompts',
 } as const;

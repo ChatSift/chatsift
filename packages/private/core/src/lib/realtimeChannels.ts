@@ -104,3 +104,13 @@ export function automoderatorReportPresetsChannel(guildId: string): string {
 export function automoderatorWarnPunishmentsChannel(guildId: string): string {
 	return `automoderator:${guildId}:warn-punishments`;
 }
+
+/**
+ * Log exemptions (P4, feature 35). Separate from `automoderatorLogChannelsChannel` even though the two sit on
+ * neighbouring screens: the exemption list is edited a row at a time and the log channels a webhook at a time,
+ * so sharing one channel would make every "add a channel to the ignore list" click refetch three webhook rows
+ * for nothing.
+ */
+export function automoderatorLogExemptionsChannel(guildId: string): string {
+	return `automoderator:${guildId}:log-exemptions`;
+}
