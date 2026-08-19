@@ -1,4 +1,5 @@
 import { getContext, RedisStore } from '@chatsift/backend-core';
+import { resolveChannelChain as resolveSharedChannelChain } from '@chatsift/bot-core';
 import { createInflightDeduper } from '@chatsift/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import type { Recipe } from 'bin-rw';
@@ -12,15 +13,11 @@ import { createRecipe, DataType } from 'bin-rw';
  * Redis rather than a process-local map so the cache survives restarts and is shared across replicas -- the
  * alternative (rebuilding topology from `GUILD_CREATE` on every boot) makes a restart cost a full re-fetch and
  * leaves each replica warming its own copy.
+ *
+ * The **channel** half of this moved to `@chatsift/bot-core`'s `channelChain.ts` when AutoModerator's log
+ * exemptions (P4, feature 35) needed the identical three-level walk; what remains here is the guild/role state,
+ * which only Social reads.
  */
-
-interface CachedChannel {
-	/**
-	 * `null` is a real, cacheable answer -- a top-level channel with no category -- and is what ends the parent
-	 * walk. It is not the same as a cache miss.
-	 */
-	parentId: string | null;
-}
 
 interface CachedGuild {
 	name: string;
@@ -38,25 +35,10 @@ interface CachedGuild {
 	rolePositions: number[];
 }
 
-// Channel topology changes rarely and a stale answer is cheap (one message tracked against the wrong category),
-// so this leans long. `RedisStore.get` slides the TTL forward on read, so an actively-used channel effectively
-// never expires -- acceptable here, unlike the user cache, because a channel's *parent* is close to immutable
-// where a username is not.
-const CHANNEL_TTL_MS = 6 * 60 * 60 * 1_000; // 6 hours
 const GUILD_TTL_MS = 60 * 60 * 1_000; // 1 hour
-// A channel the bot can't see (deleted, or permissions revoked) gets a much shorter entry, so a busy channel
-// that becomes unreadable doesn't re-hammer the REST bucket on every message, but a restored permission
-// recovers quickly.
+// A guild the bot can't see (kicked, or a Discord blip) gets a much shorter entry, so it doesn't re-hammer the
+// REST bucket on every message, but a restored install recovers quickly.
 const NEGATIVE_TTL_MS = 5 * 60 * 1_000; // 5 minutes
-
-const channelStore = new RedisStore<CachedChannel>({
-	TTL: CHANNEL_TTL_MS,
-	recipe: createRecipe({ parentId: DataType.String }, { versioned: true }) as Recipe<CachedChannel>,
-	// No bot/guild dimension: a channel id is globally unique and this service is a single deployment, unlike
-	// ModMail's per-instance caches (#216).
-	makeKey: (channelId: string) => `socialchannel:${channelId}`,
-	storeOld: false,
-});
 
 const guildStore = new RedisStore<CachedGuild>({
 	TTL: GUILD_TTL_MS,
@@ -73,7 +55,6 @@ const guildStore = new RedisStore<CachedGuild>({
 	storeOld: false,
 });
 
-const channelNegativeKey = (channelId: string) => `socialchannel:negative:${channelId}`;
 const guildNegativeKey = (guildId: string) => `socialguild:negative:${guildId}`;
 
 // Purely an in-flight guard, exactly as the user cache does it: several messages landing in the same
@@ -86,44 +67,6 @@ const inflight = createInflightDeduper();
  */
 function isMissing(error: unknown): boolean {
 	return error instanceof DiscordAPIError && (error.status === 403 || error.status === 404);
-}
-
-async function loadChannel(channelId: string): Promise<CachedChannel | null> {
-	if (await getContext().redis.exists(channelNegativeKey(channelId))) {
-		return null;
-	}
-
-	const cached = await channelStore.get(channelId);
-	if (cached) {
-		return cached;
-	}
-
-	return inflight.run(`channel:${channelId}`, async () => {
-		try {
-			const channel = await getContext().service.client.api.channels.get(channelId);
-			const entry: CachedChannel = { parentId: 'parent_id' in channel ? (channel.parent_id ?? null) : null };
-
-			await getContext().redis.del(channelNegativeKey(channelId));
-			await channelStore.set(channelId, entry);
-
-			return entry;
-		} catch (error) {
-			if (!isMissing(error)) {
-				throw error;
-			}
-
-			// Debug, not warn: the parent walk in `resolveChannelChain` routinely reaches categories nobody
-			// granted access to, and the only cost is one message tracked without its category's multiplier.
-			// Logged at all because "the multiplier isn't applying" otherwise looks identical to a bad row.
-			getContext().logger.debug({ err: error, channelId }, 'Social channel unreadable, negatively caching');
-
-			await getContext().redis.set(channelNegativeKey(channelId), '1', {
-				expiration: { type: 'PX', value: NEGATIVE_TTL_MS },
-			});
-
-			return null;
-		}
-	});
 }
 
 async function loadGuild(guildId: string): Promise<CachedGuild | null> {
@@ -181,23 +124,12 @@ async function loadGuild(guildId: string): Promise<CachedGuild | null> {
  *
  * An unresolvable channel simply ends the chain rather than failing the message -- the worst case is one message
  * tracked without its category's multiplier.
+ *
+ * A thin wrapper over `@chatsift/bot-core`'s shared walk, kept so this module stays the one place Social's
+ * leveling code asks about Discord state. The cache behind it now serves AutoModerator's log exemptions too.
  */
 export async function resolveChannelChain(channelId: string): Promise<string[]> {
-	const chain = [channelId];
-
-	const channel = await loadChannel(channelId);
-	if (!channel?.parentId) {
-		return chain;
-	}
-
-	chain.push(channel.parentId);
-
-	const parent = await loadChannel(channel.parentId);
-	if (parent?.parentId) {
-		chain.push(parent.parentId);
-	}
-
-	return chain;
+	return resolveSharedChannelChain(getContext().service.client.api, channelId);
 }
 
 /**

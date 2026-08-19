@@ -1186,3 +1186,23 @@ CREATE TABLE automoderator_warn_punishments (
     END
   )
 );
+
+-- Channels whose message and profile activity is never logged (P4, feature 35). Legacy called this
+-- `log_ignores` and keyed it on `channel_id` alone -- globally unique, so it worked, but it also meant one
+-- guild's row could in principle be deleted by a request naming another guild's. Guild-scoped here, which is
+-- what every other table in this product does and what the API's delete route can then be keyed on safely.
+--
+-- **Matched up the channel tree, not just exactly.** A message in a thread is exempt if the thread, its parent
+-- channel, or that channel's category is listed, so "stop logging this category" is one row rather than one per
+-- channel that will ever exist under it. Legacy resolved the same two levels but skipped the thread itself,
+-- which meant exempting a thread by id did nothing at all.
+--
+-- No log_type dimension: legacy applied ignores to the message log only, and that is still the only log whose
+-- events are per-channel. The mod, filter and user logs are per-guild or per-member, so a channel column would
+-- have nothing to match against.
+CREATE TABLE automoderator_log_exemptions (
+  guild_id   TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+
+  PRIMARY KEY (guild_id, channel_id)
+);

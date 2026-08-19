@@ -1,20 +1,17 @@
-import { LogChannelsForm } from './_components/LogChannelsForm';
+import { LogExemptionsForm } from './_components/LogExemptionsForm';
 import { Heading } from '@/components/common/Heading';
 import { RefreshServerDataButton } from '@/components/common/RefreshServerDataButton';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
-export default function AutomoderatorLogChannelsPage() {
+export default function AutomoderatorLogExemptionsPage() {
 	return (
 		<div className="flex flex-col gap-4">
 			<DashboardCrumbs />
 			<div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-				<Heading
-					subtitle="Where moderation actions, message edits and profile changes are posted"
-					title="Log Channels"
-				/>
+				<Heading subtitle="Channels the message log leaves alone" title="Log Exemptions" />
 				<RefreshServerDataButton for_bot="AUTOMODERATOR" />
 			</div>
-			<LogChannelsForm />
+			<LogExemptionsForm />
 		</div>
 	);
 }

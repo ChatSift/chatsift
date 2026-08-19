@@ -7,10 +7,11 @@ import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { discordAPIWebhook } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
+import { writableLogTypeSchema } from '../schemas.js';
 
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
-	logType: z.enum(['MOD']),
+	logType: writableLogTypeSchema,
 });
 
 export default defineRoute({

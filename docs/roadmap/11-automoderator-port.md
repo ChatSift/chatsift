@@ -7,7 +7,7 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0, P1, P2, P3 and P3b done; P4 (logging) next
+## Status: P0, P1, P2, P3, P3b and P4 done; P5 (filters) next
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -780,6 +780,79 @@ Features **34** (message and profile logs), **35** (log exemptions).
 The message cache is the load-bearing part — without it there is no "what did the deleted message say", which is the
 whole feature. Size and TTL it deliberately and put both in config.
 
+**Shipped 2026-08-19.**
+
+**Deployment prerequisite, and the only one that can stop the bot booting: two privileged intents.**
+`GuildMembers` and `MessageContent` must be enabled on the application in Discord's developer portal, or the
+gateway rejects the IDENTIFY outright. Legacy AutoModerator held both, so the P9 cutover inherits them — but a
+fresh dev application does not. `MessageContent` is what makes the message cache hold text at all; `GuildMembers`
+is what makes `GUILD_MEMBER_UPDATE` arrive.
+
+What shipped, and where it deviates from the plan above:
+
+- **The cache is sized in code, not in `ENV`.** `messageCache.ts` exports `MESSAGE_CACHE_TTL_MS` (24h) and
+  `MESSAGE_CACHE_MAX_PER_CHANNEL` (5,000, legacy's number), both with their reasoning written next to them. An
+  env var would be a deployment-wide knob nobody tunes per-deployment, which is the shape this codebase has
+  already rejected for dry-run. Both bounds matter and neither replaces the other: the per-channel cap is what
+  holds under a raid, the TTL is what stops a quiet server's month-old text sitting in redis.
+- **Delete attribution is a buffered gateway signal, not a per-delete REST fetch.** `auditObserver.ts` already
+  subscribes to `GUILD_AUDIT_LOG_ENTRY_CREATE`, so `deleteAttribution.ts` reads MESSAGE_DELETE entries out of
+  that stream into a 60-second in-process buffer keyed on (guild, channel, author). Legacy instead issued
+  `GET /guilds/{id}/audit-logs` per deleted message — a hundred-message purge is a hundred rate-limited
+  requests — and then compared the entry's `target_id` against the **message** id. `target_id` on a
+  MESSAGE_DELETE entry is the _author_, so that comparison never matched: legacy's "Deleted by" footer was dead
+  code for five years. The buffer is also more accurate, because Discord _aggregates_ repeated deletes by one
+  moderator on one author in one channel into a single audit entry, so a purge emits one event that has to
+  cover every message in it. A delete waits `ATTRIBUTION_GRACE_MS` (1.5s) before rendering, since the two
+  gateway events can land in either order. The buffered entry is matched but never _consumed_, which is a
+  knowing trade-off: within the window, a member deleting one of their own messages in a channel a moderator
+  just cleaned up is credited to that moderator. Nothing can tell the two apart — Discord files no audit entry
+  for a self-delete — and consuming the entry instead would abandon attribution partway through the purge it
+  exists for, since the aggregation means one entry covers the whole burst.
+- **The channel-tree walk is shared with Social.** `resolveChannelChain` moved from `social-bot`'s
+  `discordCache.ts` into `@chatsift/bot-core` — it is the same three-level lookup Social already used for
+  per-category XP multipliers, down to the redis cache and its negative entries, so P4 reuses it rather than
+  warming a second copy of the same data. Social's module keeps the export as a thin wrapper, so nothing on its
+  side changed shape.
+- **Exemptions match up the channel tree, three levels** (the channel, its parent, its parent's parent — which is
+  as deep as Discord goes: thread inside text channel inside category). One row on a category covers everything
+  under it including threads that do not exist yet. Legacy resolved the same two levels but substituted a
+  thread's parent for the thread itself before comparing, so exempting a thread by id did nothing at all. Parent
+  resolution is a `GET /channels/{id}` behind a one-hour redis cache, and is skipped entirely for the
+  overwhelming majority of guilds, which have no exemptions and short-circuit before touching Discord.
+- **The table is keyed `(guild_id, channel_id)`**, where legacy's `log_ignores` was keyed on `channel_id` alone.
+  Channel ids are globally unique so legacy worked, but it also meant a delete request naming another guild's
+  channel would have removed that guild's row.
+- **The user log covers display names too.** Legacy tracked `username` alone because `global_name` did not exist
+  yet. Post-pomelo the display name is the one people actually see and the one impersonation uses, so all three
+  (nickname, username, display name) are diffed, and several changes in one event post as several embeds in one
+  message rather than as separate posts.
+- **Profiles are cached on join and on change, and nothing else.** `GUILD_MEMBER_UPDATE` carries only the new
+  state, so a diff needs a previous one; the consequence, which legacy had too, is that **the first change after
+  a cold cache is recorded rather than logged**. Priming from message authors was considered and dropped: a
+  `MESSAGE_CREATE` member object need not carry `nick`, so it would have manufactured false "cleared their
+  nickname" entries. The cache lives in redis with a 30-day TTL, so this costs one change per member on first
+  deploy rather than on every restart.
+- **`MESSAGE_DELETE_BULK` is deliberately not logged.** Legacy did not either, and the honest rendering of a
+  hundred-message purge is not a hundred embeds. P6's `/purge` files a case, which is the record that wants
+  reading.
+- **Log posts go through `ActionExecutor`** like every other Discord side effect, so a dry-run guild decides and
+  traces the log without posting it. That is the intended reading of dry-run and it is what keeps a dev session
+  out of a real server's channels — but it does mean message logs cannot be exercised in dev without turning the
+  guild's `dry_run` off.
+- **Two metrics beyond the P4 plan**, both because the failure they catch is otherwise completely silent:
+  `automoderator_feature_invocations_total{feature,outcome}` (the taxonomy's, finally written to) and
+  `automoderator_message_cache_lookups_total{result}`. A flat-zero `hit` on the second one is what a missing
+  `MessageContent` intent looks like: every message caches with empty text, every delete finds nothing worth
+  saying, and nothing anywhere errors.
+
+`caseLog.ts` kept its own dispatcher rather than folding into the new shared `guildLog.ts`: a case _rewrites_ the
+message it already posted when it is amended, which needs `log_message_id` on the row and `wait: true` on the
+first post. Every other log is fire-and-forget, and that is all `guildLog.ts` does.
+
+No experiment gate. The message and user logs are opt-in by construction — a guild with no webhook row for the
+type gets nothing — so the kill switch a gate would add already exists, per log, in the dashboard.
+
 ---
 
 ### P5 — Filters
@@ -920,6 +993,11 @@ The diagnosability bias that applied to Social applies harder here — this bot 
   mod log doesn't.
 - `automoderator_log_dispatch_total{result="failed"}` means webhooks are 404ing; legacy self-healed by deleting the
   row, so a spike here is usually a deleted log channel, not an outage.
+- `automoderator_message_cache_lookups_total{result="hit"}` flat at zero while `miss` climbs means the message log
+  is receiving deletes and has nothing to say about any of them — almost always the `MessageContent` intent not
+  being granted on the application. Nothing errors in that state, which is the whole reason this counter exists.
+  `automoderator_feature_invocations_total{feature="message_log",outcome="skipped"}` is the same signal one level
+  up, and separates it from an exemption doing its job only when read alongside the decision traces.
 - Decision traces are the first thing to read for "why did/didn't the filter fire" — they carry the exemption and
   bypass evaluation, which outcome-only logs never did.
 
@@ -943,7 +1021,11 @@ Operator side, per phase, against the test guild:
 - **P3b** — install the user app, add two DM messages to a draft, submit, and confirm the picker lists only
   servers you and the sender share that accept reports; then confirm the filed report's card carries no jump
   link and its action path still produces a case.
-- **P4** — edit and delete logs carry old content; exemptions suppress; thread inheritance works.
+- **P4** — edit and delete logs carry old content; a moderator deleting somebody else's message is named in the
+  footer while a self-delete is not; exemptions suppress, including a category covering a thread under it; a
+  nickname change and a username change both land in the user log. Needs dry-run **off** for the guild, and both
+  privileged intents granted — `automoderator_message_cache_lookups_total` staying at zero `hit` is the tell that
+  `MessageContent` is not.
 - **P5** — trip a native rule and confirm the policy applies; each custom filter fires and is exempted correctly;
   bypass roles bypass; `/simulate` matches live behaviour.
 - **P6** — each purge filter; join-age kick; invite lookup.

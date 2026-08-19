@@ -83,3 +83,12 @@ export const WARN_PUNISHMENT_MAX_WARNS = 100;
  * lies about what it saved.
  */
 export const AUTO_PARDON_MAX_DAYS = 3_650;
+
+/**
+ * How many channels one guild may exempt from the message log (P4, feature 35). Ours, not Discord's: the bot
+ * loads the whole set on every logged edit and delete, so the cap is what keeps that a small constant-size read
+ * rather than something a guild can grow without noticing. A hundred is well past the point where exempting a
+ * category instead -- which this matches up the channel tree, so one row covers everything under it -- is the
+ * thing the guild actually wants.
+ */
+export const LOG_EXEMPTION_MAX_COUNT = 100;

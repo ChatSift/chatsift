@@ -5,7 +5,14 @@ import { SvgChannelCategory } from '../components/icons/channels/SvgChannelCateg
 import { SvgChannelForum } from '../components/icons/channels/SvgChannelForum';
 import { SvgChannelText } from '../components/icons/channels/SvgChannelText';
 import { SvgChannelThread } from '../components/icons/channels/SvgChannelThread';
+import { SvgChannelVoice } from '../components/icons/channels/SvgChannelVoice';
 
+/**
+ * The developer signal for a channel type no picker has ever been asked to list. It renders as prose rather
+ * than as a glyph on purpose -- it is meant to be impossible to miss in review. Reachable only for the types
+ * below that no `ChannelSelect` call site passes in `allowedTypes` (and that nothing is a parent of), so
+ * widening a picker's allowed types means checking this switch first.
+ */
 function Oops() {
 	return <>oops, someone forgot to make an icon for this</>;
 }
@@ -17,7 +24,7 @@ export function getChannelIcon(channelType: ChannelType): ComponentType<{ classN
 		case ChannelType.DM:
 			return Oops;
 		case ChannelType.GuildVoice:
-			return Oops;
+			return SvgChannelVoice;
 		case ChannelType.GroupDM:
 			return Oops;
 		case ChannelType.GuildCategory:
@@ -29,13 +36,15 @@ export function getChannelIcon(channelType: ChannelType): ComponentType<{ classN
 		case ChannelType.PrivateThread:
 			return SvgChannelThread;
 		case ChannelType.GuildStageVoice:
-			return Oops;
+			return SvgChannelVoice;
 		case ChannelType.GuildDirectory:
 			return Oops;
 		case ChannelType.GuildForum:
 			return SvgChannelForum;
 		case ChannelType.GuildMedia:
-			return Oops;
+			// A forum variant -- same posts-are-threads model, so the forum glyph reads correctly and no second
+			// asset is needed.
+			return SvgChannelForum;
 		default:
 			return Oops;
 	}

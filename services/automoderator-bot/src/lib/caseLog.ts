@@ -8,21 +8,16 @@ import type { ActionSource } from './actionExecutor.js';
 import { executeAction } from './actionExecutor.js';
 import { buildCaseEmbed } from './caseFormat.js';
 import { updateCase } from './cases.js';
+import { forgetLogWebhook, getLogWebhook, LOG_TYPE } from './guildLog.js';
 import { logDispatch } from './metrics.js';
 
+/**
+ * The mod log keeps its own dispatcher rather than going through `guildLog.ts`'s: a case *rewrites* the message
+ * it already posted when it is amended or pardoned, which needs the case row to carry `log_message_id` and
+ * needs `wait: true` on the first post to learn it. Every other log is fire-and-forget.
+ */
 export async function getModLogWebhook(guildId: string): Promise<AutomoderatorLogWebhooks | null> {
-	const [row] = await getContext().db<AutomoderatorLogWebhooks[]>`
-		SELECT * FROM automoderator_log_webhooks WHERE guild_id = ${guildId} AND log_type = 'MOD'
-	`;
-
-	return row ?? null;
-}
-
-async function forgetModLogWebhook(guildId: string, webhookId: string): Promise<void> {
-	await getContext().db`
-		DELETE FROM automoderator_log_webhooks
-		WHERE guild_id = ${guildId} AND log_type = 'MOD' AND webhook_id = ${webhookId}
-	`;
+	return getLogWebhook(guildId, LOG_TYPE.MOD);
 }
 
 export async function dispatchCaseLog(
@@ -90,7 +85,7 @@ export async function dispatchCaseLog(
 			}
 
 			if (error.code === RESTJSONErrorCodes.UnknownWebhook) {
-				await forgetModLogWebhook(modCase.guildId, webhook.webhookId);
+				await forgetLogWebhook(modCase.guildId, webhook.logType, webhook.webhookId);
 				logger.warn({ guildId: modCase.guildId, webhookId: webhook.webhookId }, 'mod log webhook is gone, dropped it');
 				return;
 			}

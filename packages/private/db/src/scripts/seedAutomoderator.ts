@@ -9,8 +9,8 @@
 //
 // Flags:
 //   --guild <id>  The guild to seed. Required.
-//   --reset       Delete this guild's existing cases, log webhook, reports and report reasons first, so a
-//                 re-run is a clean replace rather than another batch appended to the last run's.
+//   --reset       Delete this guild's existing cases, log webhook, log exemptions, reports and report reasons
+//                 first, so a re-run is a clean replace rather than another batch appended to the last run's.
 //
 // Refuses to run when IS_PRODUCTION. This writes invented moderation history against real user ids, and a
 // production guild's case list is a record people rely on.
@@ -223,6 +223,14 @@ const AUTO_PARDON_DAYS = 90;
  */
 const DANGLING_CHANNEL_ID = '130000000000000001';
 
+/**
+ * Log exemptions (P4, feature 35), both deliberately dangling. Two rather than one because the picker renders
+ * them as a *list* -- a single row cannot show that removing one leaves the other alone -- and because the
+ * bot's resolution walks up the channel tree, so having a second id proves the walk stops at a match rather
+ * than at the first row it reads.
+ */
+const DANGLING_EXEMPT_CHANNEL_IDS = ['130000000000000002', '130000000000000003'] as const;
+
 interface SeedReport {
 	/**
 	 * Index into {@link CASES}, for an ACTIONED report. Resolved to the case *number* that run allocated, so the
@@ -387,6 +395,7 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 	if (reset) {
 		const deleted = await db`DELETE FROM automoderator_cases WHERE guild_id = ${guildId} RETURNING id`;
 		await db`DELETE FROM automoderator_log_webhooks WHERE guild_id = ${guildId}`;
+		await db`DELETE FROM automoderator_log_exemptions WHERE guild_id = ${guildId}`;
 		// Reporters and context messages go with their reports -- both child tables' foreign keys are ON DELETE
 		// CASCADE.
 		await db`DELETE FROM automoderator_reports WHERE guild_id = ${guildId}`;
@@ -467,6 +476,13 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 		ON CONFLICT (guild_id, log_type) DO NOTHING
 	`;
 
+	for (const channelId of DANGLING_EXEMPT_CHANNEL_IDS) {
+		await db`
+			INSERT INTO automoderator_log_exemptions (guild_id, channel_id) VALUES (${guildId}, ${channelId})
+			ON CONFLICT (guild_id, channel_id) DO NOTHING
+		`;
+	}
+
 	for (const preset of REPORT_PRESETS) {
 		await db`
 			INSERT INTO automoderator_report_presets (guild_id, reason) VALUES (${guildId}, ${preset})
@@ -541,6 +557,10 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 
 	console.log(`Seeded ${CASES.length} cases (#${numbers[0]}-#${numbers.at(-1)}) for guild ${guildId}.`);
 	console.log(`Seeded a MOD log webhook pointing at a channel that does not exist (${DANGLING_CHANNEL_ID}).`);
+	console.log(
+		`Seeded ${DANGLING_EXEMPT_CHANNEL_IDS.length} log exemptions, also naming channels that do not exist, ` +
+			'so the exemption list renders its dangling-reference row and stays removable.',
+	);
 	console.log(
 		`Seeded ${seededReports} of ${REPORTS.length} reports (the rest were already there) and ` +
 			`${REPORT_PRESETS.length} report reasons.`,

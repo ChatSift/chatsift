@@ -6,9 +6,11 @@ import type {
 	getAutomoderatorCaseRoute,
 	listAutomoderatorCasesRoute,
 	listAutomoderatorLogChannelsRoute,
+	listAutomoderatorLogExemptionsRoute,
 	setAutomoderatorLogChannelRoute,
 	updateAutomoderatorCaseRoute,
 } from '@chatsift/api';
+import type { WritableLogType } from '@chatsift/api/automoderator-schemas';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
@@ -28,6 +30,9 @@ export type AutomoderatorLogChannels = ListLogChannelsContract['response'];
 
 type SetLogChannelContract = InferRouteContract<typeof setAutomoderatorLogChannelRoute>;
 export type SetAutomoderatorLogChannelBody = SetLogChannelContract['body'];
+
+type ListLogExemptionsContract = InferRouteContract<typeof listAutomoderatorLogExemptionsRoute>;
+export type AutomoderatorLogExemptions = ListLogExemptionsContract['response'];
 
 type PublicHistoryContract = InferRouteContract<typeof automoderatorPublicHistoryRoute>;
 export type PublicHistoryResult = PublicHistoryContract['response'];
@@ -111,7 +116,7 @@ export function useSetAutomoderatorLogChannel(guildId: string) {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: async ({ logType, ...body }: SetAutomoderatorLogChannelBody & { logType: 'MOD' }) =>
+		mutationFn: async ({ logType, ...body }: SetAutomoderatorLogChannelBody & { logType: WritableLogType }) =>
 			apiFetch<AutomoderatorLogChannels[number]>('put', `/v3/guilds/${guildId}/automoderator/log-channels/${logType}`, {
 				body,
 			}),
@@ -125,10 +130,47 @@ export function useDeleteAutomoderatorLogChannel(guildId: string) {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: async (logType: 'MOD') =>
+		mutationFn: async (logType: WritableLogType) =>
 			apiFetch('delete', `/v3/guilds/${guildId}/automoderator/log-channels/${logType}`),
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.automoderator.logChannels(guildId) });
+		},
+	});
+}
+
+export function useAutomoderatorLogExemptions(guildId: string) {
+	return useQuery({
+		queryKey: queryKeys.automoderator.logExemptions(guildId),
+		queryFn: async () =>
+			apiFetch<AutomoderatorLogExemptions>('get', `/v3/guilds/${guildId}/automoderator/log-exemptions`),
+	});
+}
+
+export function useSetAutomoderatorLogExemption(guildId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		// Body-less: the channel *is* the row, so the id in the path is the whole request. `PUT` rather than
+		// `POST` for the same reason -- re-adding one already exempt is a no-op, not a conflict.
+		mutationFn: async (channelId: string) =>
+			apiFetch<AutomoderatorLogExemptions[number]>(
+				'put',
+				`/v3/guilds/${guildId}/automoderator/log-exemptions/${channelId}`,
+			),
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.automoderator.logExemptions(guildId) });
+		},
+	});
+}
+
+export function useDeleteAutomoderatorLogExemption(guildId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (channelId: string) =>
+			apiFetch('delete', `/v3/guilds/${guildId}/automoderator/log-exemptions/${channelId}`),
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.automoderator.logExemptions(guildId) });
 		},
 	});
 }

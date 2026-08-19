@@ -156,6 +156,7 @@ export const queryKeys = {
 			all: (guildId: string) => ['api', 'automoderator', guildId, 'cases'] as const,
 		},
 		logChannels: (guildId: string) => ['api', 'automoderator', guildId, 'log-channels'] as const,
+		logExemptions: (guildId: string) => ['api', 'automoderator', guildId, 'log-exemptions'] as const,
 		reports: {
 			list: (guildId: string, filters: { state?: string | undefined; targetId?: string | undefined }) =>
 				['api', 'automoderator', guildId, 'reports', filters] as const,

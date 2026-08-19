@@ -22,7 +22,12 @@ const SECTIONS = [
 	{
 		segment: 'log-channels',
 		title: 'Log Channels',
-		subtitle: 'Where moderation actions are posted',
+		subtitle: 'Where moderation actions, message edits and profile changes are posted',
+	},
+	{
+		segment: 'log-exemptions',
+		title: 'Log Exemptions',
+		subtitle: 'Channels the message log leaves alone',
 	},
 	{
 		segment: 'report-settings',
