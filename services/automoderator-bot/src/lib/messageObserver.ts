@@ -7,7 +7,7 @@ import type { Client, GatewayMessageDeleteDispatchData, GatewayMessageUpdateDisp
 import { GatewayDispatchEvents } from '@discordjs/core';
 import { traceDecision } from './decisionTrace.js';
 import { ATTRIBUTION_GRACE_MS, findDeleteModerator } from './deleteAttribution.js';
-import { dispatchLog, LOG_TYPE } from './guildLog.js';
+import { dispatchLog, getLogWebhook, LOG_TYPE } from './guildLog.js';
 import type { LogActor } from './guildLogFormat.js';
 import { buildMessageDeleteEmbed, buildMessageEditEmbed } from './guildLogFormat.js';
 import { findLogExemption } from './logExemptions.js';
@@ -63,6 +63,9 @@ export function registerMessageObserver(client: Client): void {
 }
 
 async function handleMessageUpdate(data: GatewayMessageUpdateDispatchData, logger: Logger): Promise<void> {
+	// Narrows `data` for the rest of this function as well as gating the cache write -- a reduced payload is
+	// refused rather than diffed against, since diffing missing content against the cached text would post an
+	// edit whose "After" is empty. See `CacheableMessage`.
 	if (!isLoggableMessage(data)) {
 		return;
 	}
@@ -86,12 +89,20 @@ async function handleMessageUpdate(data: GatewayMessageUpdateDispatchData, logge
 		return;
 	}
 
-	const exemption = await findLogExemption(before.guildId, data.channel_id);
+	// Before the exemption query and everything after it: a guild with no message log is the default state and
+	// by far the common one, and there is nothing to decide for it. Deliberately uncounted -- a server that
+	// never asked for this feature is not "skipping" it.
+	const webhook = await getLogWebhook(data.guild_id, LOG_TYPE.MESSAGE);
+	if (!webhook) {
+		return;
+	}
+
+	const exemption = await findLogExemption(data.guild_id, data.channel_id);
 	if (exemption) {
 		traceDecision(logger, {
 			runner: FEATURE,
 			action: null,
-			guildId: before.guildId,
+			guildId: data.guild_id,
 			targetId: before.authorId,
 			exemption,
 		});
@@ -100,14 +111,13 @@ async function handleMessageUpdate(data: GatewayMessageUpdateDispatchData, logge
 	}
 
 	await dispatchLog(
+		webhook,
 		{
-			guildId: before.guildId,
-			logType: LOG_TYPE.MESSAGE,
 			source: 'observer',
 			embeds: [
 				buildMessageEditEmbed({
 					author: actorFromCached(before),
-					guildId: before.guildId,
+					guildId: data.guild_id,
 					channelId: data.channel_id,
 					messageId: data.id,
 					before: before.content,
@@ -136,6 +146,13 @@ async function handleMessageDelete(data: GatewayMessageDeleteDispatchData, logge
 	}
 
 	await dropCachedMessage(data.id);
+
+	// See the same check in `handleMessageUpdate`: this is what keeps a guild with no message log from paying
+	// for an exemption query, a 1.5s wait and a user lookup on every single deletion.
+	const webhook = await getLogWebhook(data.guild_id, LOG_TYPE.MESSAGE);
+	if (!webhook) {
+		return;
+	}
 
 	const exemption = await findLogExemption(data.guild_id, data.channel_id);
 	if (exemption) {
@@ -172,9 +189,8 @@ async function handleMessageDelete(data: GatewayMessageDeleteDispatchData, logge
 	}
 
 	await dispatchLog(
+		webhook,
 		{
-			guildId: data.guild_id,
-			logType: LOG_TYPE.MESSAGE,
 			source: 'observer',
 			embeds: [
 				buildMessageDeleteEmbed({

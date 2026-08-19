@@ -71,7 +71,9 @@ async function loadChannel(api: API, channelId: string): Promise<CachedChannel |
 			const channel = await api.channels.get(channelId);
 			const entry: CachedChannel = { parentId: 'parent_id' in channel ? (channel.parent_id ?? null) : null };
 
-			await getContext().redis.del(negativeKey(channelId));
+			// No `del` of the negative key here, unlike the user cache this is modelled on: the check at the top
+			// of this function already returned for anything negatively cached, so reaching here means there is
+			// none to clear and the extra round trip would buy nothing.
 			await channelStore.set(channelId, entry);
 
 			return entry;

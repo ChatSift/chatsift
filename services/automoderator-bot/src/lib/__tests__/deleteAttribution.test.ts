@@ -1,5 +1,10 @@
 import { beforeEach, expect, test } from 'vitest';
-import { clearDeleteAttribution, findDeleteModerator, recordMessageDeleteAudit } from '../deleteAttribution.js';
+import {
+	clearDeleteAttribution,
+	deleteAttributionSize,
+	findDeleteModerator,
+	recordMessageDeleteAudit,
+} from '../deleteAttribution.js';
 
 const GUILD = '1425493115053019310';
 const CHANNEL = '1425493115053019311';
@@ -63,10 +68,16 @@ test('a second moderator deleting from the same author replaces the attribution'
 	expect(findDeleteModerator(GUILD, CHANNEL, AUTHOR, 2_500)).toBe(otherMod);
 });
 
-test('recording prunes entries that have already expired', () => {
+test('recording evicts entries that have already expired', () => {
 	recordMessageDeleteAudit(GUILD, CHANNEL, AUTHOR, MOD, 1_000);
+	expect(deleteAttributionSize()).toBe(1);
+
 	// A wholly unrelated delete far in the future, which is what triggers the sweep.
 	recordMessageDeleteAudit(GUILD, OTHER_CHANNEL, OTHER_AUTHOR, MOD, 500_000);
 
+	// Asserted on the buffer, not through `findDeleteModerator`: that reader does its own expiry check, so it
+	// would report the entry gone whether or not it was ever evicted, and the leak this guards against is
+	// exactly one that a correct-looking read hides.
+	expect(deleteAttributionSize()).toBe(1);
 	expect(findDeleteModerator(GUILD, CHANNEL, AUTHOR, 500_000)).toBeNull();
 });

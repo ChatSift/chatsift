@@ -90,30 +90,55 @@ const channelIndexKey = (channelId: string): string => `automoderator:messages:$
  * arrive as `GatewayMessage*DispatchData`, which are *not* assignable to `APIMessage` (their `mentions` carry
  * a member object the REST shape doesn't). Naming only the fields this cache reads sidesteps that entirely and
  * documents the dependency at the same time.
+ *
+ * Every field a *reduced* payload could omit is optional here even though `discord-api-types` types them as
+ * required. Discord documents `MESSAGE_UPDATE` as carrying the whole message and in practice it does, but this
+ * is the one place where being wrong about that writes a lie into a moderation log -- an absent `content`
+ * would overwrite the cached text and post an edit whose "After" is empty. `isLoggableMessage` is the gate,
+ * and it narrows, so nothing downstream has to re-check.
  */
 export interface CacheableMessage {
-	readonly attachments: readonly unknown[];
-	readonly author: {
-		readonly avatar: string | null;
-		readonly bot?: boolean | undefined;
-		readonly discriminator: string;
-		readonly id: string;
-		readonly username: string;
-	};
+	readonly attachments?: readonly unknown[] | undefined;
+	readonly author?:
+		| {
+				readonly avatar: string | null;
+				readonly bot?: boolean | undefined;
+				readonly discriminator: string;
+				readonly id: string;
+				readonly username: string;
+		  }
+		| undefined;
 	readonly channel_id: string;
-	readonly content: string;
+	readonly content?: string | undefined;
 	readonly guild_id?: string | undefined;
 	readonly id: string;
 	readonly webhook_id?: string | undefined;
 }
 
 /**
- * Whether a message is worth caching at all. Bots and webhooks are excluded at the *write* -- legacy filtered
- * them at the read instead, which meant a webhook-heavy channel spent its whole 5,000-entry budget on messages
- * the log would then refuse to render.
+ * A payload complete enough to cache and to diff against.
  */
-export function isLoggableMessage(message: CacheableMessage): boolean {
-	return Boolean(message.guild_id) && !message.author.bot && !message.webhook_id;
+export interface LoggableMessage extends CacheableMessage {
+	readonly attachments: readonly unknown[];
+	readonly author: NonNullable<CacheableMessage['author']>;
+	readonly content: string;
+	readonly guild_id: string;
+}
+
+/**
+ * Whether a message is worth caching at all, and complete enough to. Bots and webhooks are excluded at the
+ * point of writing -- legacy filtered them at the read instead, which meant a webhook-heavy channel spent its
+ * whole 5,000-entry budget on messages the log would then refuse to render.
+ */
+export function isLoggableMessage(message: CacheableMessage): message is LoggableMessage {
+	return (
+		typeof message.guild_id === 'string' &&
+		typeof message.content === 'string' &&
+		Array.isArray(message.attachments) &&
+		message.author !== undefined &&
+		!message.author.bot &&
+		!message.webhook_id
+	);
 }
 
 export async function cacheMessage(message: CacheableMessage): Promise<void> {
@@ -128,7 +153,7 @@ export async function cacheMessage(message: CacheableMessage): Promise<void> {
 	await store.set(message.id, {
 		messageId: message.id,
 		channelId: message.channel_id,
-		guildId: message.guild_id!,
+		guildId: message.guild_id,
 		authorId: message.author.id,
 		authorTag: formatCaseUserTag(message.author),
 		authorAvatar: message.author.avatar,

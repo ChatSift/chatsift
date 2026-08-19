@@ -119,3 +119,12 @@ export function findDeleteModerator(
 export function clearDeleteAttribution(): void {
 	buffer.clear();
 }
+
+/**
+ * Test seam only. Expiry is enforced twice -- once by `prune` on write and once by `findDeleteModerator` on
+ * read -- so a test asserting through the reader passes whether or not eviction ever happens. This is the only
+ * way to tell that the buffer actually shrinks rather than growing forever behind a correct-looking read.
+ */
+export function deleteAttributionSize(): number {
+	return buffer.size;
+}

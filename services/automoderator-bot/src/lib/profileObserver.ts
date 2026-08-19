@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { withGuildUserLock } from '@chatsift/bot-core';
 import { formatCaseUserTag } from '@chatsift/core';
 import type {
 	APIEmbed,
@@ -8,7 +9,7 @@ import type {
 	GatewayGuildMemberUpdateDispatchData,
 } from '@discordjs/core';
 import { GatewayDispatchEvents } from '@discordjs/core';
-import { dispatchLog, LOG_TYPE } from './guildLog.js';
+import { dispatchLog, getLogWebhook, LOG_TYPE } from './guildLog.js';
 import type { ProfileChangeKind } from './guildLogFormat.js';
 import { buildProfileChangeEmbed } from './guildLogFormat.js';
 import type { CachedMemberProfile } from './memberCache.js';
@@ -66,7 +67,14 @@ async function handleGuildMemberAdd(data: GatewayGuildMemberAddDispatchData): Pr
 		return;
 	}
 
-	await cacheMemberProfile(data.guild_id, data.user.id, profileOf({ nick: data.nick, user: data.user }));
+	const user = data.user;
+
+	// Same lock as the update path, and for the same reason: a member who joins and immediately picks a
+	// nickname produces two writes to one key, and the second must not read the state the first is mid-way
+	// through replacing.
+	await withGuildUserLock(data.guild_id, user.id, async () =>
+		cacheMemberProfile(data.guild_id, user.id, profileOf({ nick: data.nick, user })),
+	);
 }
 
 async function handleGuildMemberUpdate(data: GatewayGuildMemberUpdateDispatchData, logger: Logger): Promise<void> {
@@ -74,39 +82,54 @@ async function handleGuildMemberUpdate(data: GatewayGuildMemberUpdateDispatchDat
 		return;
 	}
 
-	const before = await getCachedMemberProfile(data.guild_id, data.user.id);
-	const after = profileOf(data);
+	// The body below is a read-modify-write on one redis key. Two `GUILD_MEMBER_UPDATE`s for the same member
+	// arriving together -- a rename and a role change, say -- would otherwise both read the same "before" and
+	// log the same previous value twice, losing the intermediate state. Social's XP tracking takes this lock
+	// for the identical shape of bug; it is process-local, which is the right scope, since a guild's events
+	// only ever reach one replica.
+	await withGuildUserLock(data.guild_id, data.user.id, async () => {
+		const before = await getCachedMemberProfile(data.guild_id, data.user.id);
+		const after = profileOf(data);
 
-	// Written before the diff is even considered, so a change we cannot describe still leaves the next one
-	// describable. This is the whole reason a cold cache costs one change rather than all of them.
-	await cacheMemberProfile(data.guild_id, data.user.id, after);
+		// Written before the diff is even considered, so a change we cannot describe still leaves the next one
+		// describable. This is the whole reason a cold cache costs one change rather than all of them.
+		await cacheMemberProfile(data.guild_id, data.user.id, after);
 
-	if (!before) {
-		featureInvocations.inc({ feature: FEATURE, outcome: 'skipped' });
-		return;
-	}
+		if (!before) {
+			featureInvocations.inc({ feature: FEATURE, outcome: 'skipped' });
+			return;
+		}
 
-	const user = { id: data.user.id, tag: formatCaseUserTag(data.user), avatar: data.user.avatar };
+		const user = { id: data.user.id, tag: formatCaseUserTag(data.user), avatar: data.user.avatar };
 
-	const changes: [ProfileChangeKind, string | null, string | null][] = [
-		['nickname', before.nick, after.nick],
-		['username', before.username, after.username],
-		['display name', before.globalName, after.globalName],
-	];
+		const changes: [ProfileChangeKind, string | null, string | null][] = [
+			['nickname', before.nick, after.nick],
+			['username', before.username, after.username],
+			['display name', before.globalName, after.globalName],
+		];
 
-	const embeds: APIEmbed[] = changes
-		.filter(([, from, to]) => from !== to)
-		.map(([kind, from, to]) => buildProfileChangeEmbed({ user, kind, before: from, after: to }));
+		const embeds: APIEmbed[] = changes
+			.filter(([, from, to]) => from !== to)
+			.map(([kind, from, to]) => buildProfileChangeEmbed({ user, kind, before: from, after: to }));
 
-	// `GUILD_MEMBER_UPDATE` fires for role changes, timeouts, boosting and avatar changes too, none of which
-	// this log covers -- so most of them end here having only refreshed the cache.
-	if (embeds.length === 0) {
-		return;
-	}
+		// `GUILD_MEMBER_UPDATE` fires for role changes, timeouts, boosting and avatar changes too, none of which
+		// this log covers -- so most of them end here having only refreshed the cache.
+		if (embeds.length === 0) {
+			return;
+		}
 
-	// One post carrying every change, rather than one per field: renaming yourself and clearing your nickname
-	// in the same edit is one action a member took, and splitting it reads as two.
-	await dispatchLog({ guildId: data.guild_id, logType: LOG_TYPE.USER, source: 'observer', embeds }, logger);
+		// After the diff rather than before it, unlike the message log's: the cache write above has to happen
+		// for every member of every guild whether or not anyone is logging, or a guild that turns this on would
+		// start with nothing to diff against.
+		const webhook = await getLogWebhook(data.guild_id, LOG_TYPE.USER);
+		if (!webhook) {
+			return;
+		}
 
-	featureInvocations.inc({ feature: FEATURE, outcome: 'applied' });
+		// One post carrying every change, rather than one per field: renaming yourself and clearing your
+		// nickname in the same edit is one action a member took, and splitting it reads as two.
+		await dispatchLog(webhook, { source: 'observer', embeds }, logger);
+
+		featureInvocations.inc({ feature: FEATURE, outcome: 'applied' });
+	});
 }

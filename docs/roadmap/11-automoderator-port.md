@@ -7,7 +7,7 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0, P1, P2, P3, P3b and P4 done; P5 (filters) next
+## Status: P0–P3b done; P4 (logging) code-complete and unverified; P5 (filters) next
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -780,7 +780,10 @@ Features **34** (message and profile logs), **35** (log exemptions).
 The message cache is the load-bearing part — without it there is no "what did the deleted message say", which is the
 whole feature. Size and TTL it deliberately and put both in config.
 
-**Shipped 2026-08-19.**
+**Code-complete 2026-08-19, not yet exercised against the test guild.** Everything below describes what was
+built and why; nothing here has been seen working on Discord, which is the one thing an agent cannot do. The
+operator checklist in [Verification](#verification) is what closes that gap, and P4 should not be called done
+until it has been run — every earlier phase's "Shipped" line was written after that run, not before it.
 
 **Deployment prerequisite, and the only one that can stop the bot booting: two privileged intents.**
 `GuildMembers` and `MessageContent` must be enabled on the application in Discord's developer portal, or the
@@ -798,12 +801,14 @@ What shipped, and where it deviates from the plan above:
 - **Delete attribution is a buffered gateway signal, not a per-delete REST fetch.** `auditObserver.ts` already
   subscribes to `GUILD_AUDIT_LOG_ENTRY_CREATE`, so `deleteAttribution.ts` reads MESSAGE_DELETE entries out of
   that stream into a 60-second in-process buffer keyed on (guild, channel, author). Legacy instead issued
-  `GET /guilds/{id}/audit-logs` per deleted message — a hundred-message purge is a hundred rate-limited
+  `GET /guilds/{id}/audit-logs` per deleted message — a run of fifty deletions is fifty rate-limited
   requests — and then compared the entry's `target_id` against the **message** id. `target_id` on a
   MESSAGE_DELETE entry is the _author_, so that comparison never matched: legacy's "Deleted by" footer was dead
   code for five years. The buffer is also more accurate, because Discord _aggregates_ repeated deletes by one
-  moderator on one author in one channel into a single audit entry, so a purge emits one event that has to
-  cover every message in it. A delete waits `ATTRIBUTION_GRACE_MS` (1.5s) before rendering, since the two
+  moderator on one author in one channel into a single audit entry, so a run of them emits one event that has
+  to cover every message in it. To be precise about what "a run" means here: this covers a moderator deleting
+  messages one at a time, **not** Discord's own bulk delete, which arrives as `MESSAGE_DELETE_BULK` and is not
+  observed at all (see below). A delete waits `ATTRIBUTION_GRACE_MS` (1.5s) before rendering, since the two
   gateway events can land in either order. The buffered entry is matched but never _consumed_, which is a
   knowing trade-off: within the window, a member deleting one of their own messages in a channel a moderator
   just cleaned up is credited to that moderator. Nothing can tell the two apart — Discord files no audit entry
@@ -1022,10 +1027,11 @@ Operator side, per phase, against the test guild:
   servers you and the sender share that accept reports; then confirm the filed report's card carries no jump
   link and its action path still produces a case.
 - **P4** — edit and delete logs carry old content; a moderator deleting somebody else's message is named in the
-  footer while a self-delete is not; exemptions suppress, including a category covering a thread under it; a
-  nickname change and a username change both land in the user log. Needs dry-run **off** for the guild, and both
-  privileged intents granted — `automoderator_message_cache_lookups_total` staying at zero `hit` is the tell that
-  `MessageContent` is not.
+  footer while a self-delete is not; exemptions suppress, including a category covering a thread under it. Then
+  three separate profile changes, because they are three separate diffs and only one of them existed in legacy:
+  change a **nickname** only, a **username** only, and a **display name** only, and confirm each appears in the
+  user log naming the right field. Needs dry-run **off** for the guild, and both privileged intents granted —
+  `automoderator_message_cache_lookups_total` staying at zero `hit` is the tell that `MessageContent` is not.
 - **P5** — trip a native rule and confirm the policy applies; each custom filter fires and is exempted correctly;
   bypass roles bypass; `/simulate` matches live behaviour.
 - **P6** — each purge filter; join-age kick; invite lookup.

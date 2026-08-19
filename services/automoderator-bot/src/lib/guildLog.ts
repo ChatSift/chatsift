@@ -65,35 +65,35 @@ export interface DispatchLogOptions {
 	 * At most ten, which is Discord's per-execute limit. Every current call site posts one.
 	 */
 	readonly embeds: APIEmbed[];
-	readonly guildId: string;
-	readonly logType: AutomoderatorLogType;
 	readonly source: ActionSource;
 }
 
 /**
- * Posts to a guild's log for `logType`, if it has one configured. A guild with no webhook row is not an error
- * -- it is the default state, and the overwhelmingly common one.
+ * Posts to a guild's log through a webhook the caller has already resolved.
  *
- * Routed through `executeAction` like every other Discord side effect, which means a dry-run guild decides and
- * traces the log without posting it. That is the intended reading: dry-run exists so a dev session cannot touch
- * a real server, and a webhook post into someone's channel is touching it.
+ * The lookup is the caller's rather than this function's so an observer can bail on a guild that has no log of
+ * that type *before* paying for the rest of its work -- which is the overwhelmingly common case, since a log
+ * nobody configured is the default state. It also means `guildId`/`logType` come off the row instead of being
+ * passed alongside it and able to disagree with it.
  *
- * Never throws. A log that cannot be delivered must not take down the event handler that produced it -- the
- * failure is counted (`automoderator_log_dispatch_total{result="failed"}`) and logged, which is what the
- * roadmap's "watch in the logs" section reads.
+ * **Never throws**, and everything that could is inside the try for that reason -- `decrypt` included, which
+ * fails on a rotated `ENCRYPTION_KEY` and would otherwise escape a function whose whole contract is that it
+ * cannot. A log that can't be delivered must not take down the event handler that produced it; the failure is
+ * counted (`automoderator_log_dispatch_total{result="failed"}`) and logged, which is what the roadmap's "watch
+ * in the logs" section reads.
  */
-export async function dispatchLog(options: DispatchLogOptions, logger: Logger): Promise<void> {
-	const { guildId, logType, embeds, source } = options;
-
-	const webhook = await getLogWebhook(guildId, logType);
-	if (!webhook) {
-		return;
-	}
-
-	const api = getContext().service.client.api;
-	const token = decrypt(webhook.webhookToken);
+export async function dispatchLog(
+	webhook: AutomoderatorLogWebhooks,
+	options: DispatchLogOptions,
+	logger: Logger,
+): Promise<void> {
+	const { embeds, source } = options;
+	const { guildId, logType } = webhook;
 
 	try {
+		const api = getContext().service.client.api;
+		const token = decrypt(webhook.webhookToken);
+
 		await executeAction(
 			{
 				action: 'webhook',
