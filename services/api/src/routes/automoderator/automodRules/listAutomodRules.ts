@@ -1,6 +1,6 @@
 import { getContext } from '@chatsift/backend-core';
 import type { APIAutoModerationRule } from '@discordjs/core';
-import { AutoModerationActionType, AutoModerationRuleTriggerType } from '@discordjs/core';
+import { AutoModerationActionType, AutoModerationRuleTriggerType, RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
@@ -126,12 +126,19 @@ export default defineRoute({
 				rules: rules.filter((rule) => POLICYABLE_TRIGGERS.has(rule.trigger_type as number)).map(summarize),
 			};
 		} catch (error) {
-			if (error instanceof DiscordAPIError && error.status === 403) {
-				return { available: false, reason: 'missing-permission' };
-			}
+			// Branching on the JSON error *code*, not the HTTP status, because both states are 403: a bot that is
+			// not in the guild gets `MissingAccess` (50001) and one that is but lacks Manage Server gets
+			// `MissingPermissions` (50013). Discord only 404s an unknown guild id, which a dashboard listing
+			// guilds it is installed in can barely produce -- so keying on status alone told a manager whose bot
+			// had just been removed to go grant a permission.
+			if (error instanceof DiscordAPIError) {
+				if (error.code === RESTJSONErrorCodes.MissingPermissions) {
+					return { available: false, reason: 'missing-permission' };
+				}
 
-			if (error instanceof DiscordAPIError && error.status === 404) {
-				return { available: false, reason: 'missing-access' };
+				if (error.code === RESTJSONErrorCodes.MissingAccess || error.status === 404) {
+					return { available: false, reason: 'missing-access' };
+				}
 			}
 
 			getContext().logger.error({ err: error, guildId: req.params.guildId }, 'failed to read AutoMod rules');

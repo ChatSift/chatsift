@@ -160,6 +160,9 @@ export function BypassRolesForm() {
 					onPress={async () => {
 						try {
 							await setBypassRole.mutateAsync(draft);
+							// Cleared on success, not only when the picker changes: a retry that works has to take the previous
+							// failure's message off the field with it.
+							setAddError(null);
 							setDraft('');
 						} catch (caughtError) {
 							setAddError(caughtError instanceof APIError ? caughtError.message : 'Failed to add.');

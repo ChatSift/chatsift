@@ -278,7 +278,10 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 	// happened at this point and cannot be taken back, so the honest answer is the case the winner filed.
 	let filedCase = filed;
 	if (!filedCase) {
-		filedCase = await findCaseByIdempotencyKey(guildId, request.idempotencyKey!);
+		// Guarded on the key rather than asserted: `createCase` can only return null for a duplicate non-null
+		// key, but an assertion here would turn any future third reason into a confusing crash rather than the
+		// filing error this already knows how to report.
+		filedCase = request.idempotencyKey ? await findCaseByIdempotencyKey(guildId, request.idempotencyKey) : null;
 
 		if (!filedCase) {
 			throw new CaseFilingError(Boolean(sideEffect) && !suppressed, new Error('idempotent insert found no case'));
@@ -288,6 +291,13 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 			{ guildId, targetId: target.id, idempotencyKey: request.idempotencyKey },
 			'a concurrent delivery of this event filed the case first',
 		);
+
+		// Before returning, not after: this branch reports success, and a softban whose unban failed is not a
+		// success -- the member is still banned. Nothing keyed reaches here today, but a caller that starts
+		// passing a key for a SOFTBAN must not silently lose the half that needs a human.
+		if (softbanUnbanFailure) {
+			throw softbanUnbanFailure;
+		}
 
 		return { case: filedCase, suppressed };
 	}

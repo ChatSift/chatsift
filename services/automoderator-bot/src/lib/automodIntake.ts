@@ -5,6 +5,7 @@ import { formatCaseUserTag } from '@chatsift/core';
 import type { AutomoderatorBanwordPolicies, AutomoderatorCaseAction, AutomoderatorLogWebhooks } from '@chatsift/db';
 import type { Client, GatewayAutoModerationActionExecutionDispatchData } from '@discordjs/core';
 import { GatewayDispatchEvents } from '@discordjs/core';
+import { claimAutomodExecution } from './automodDedupe.js';
 import { resolveAutomodRuleName } from './automodRules.js';
 import { resolveBanwordPolicy } from './banwordPolicy.js';
 import { findBypassRole } from './bypassRoles.js';
@@ -34,24 +35,43 @@ import { syncReportCard } from './reportCard.js';
 const FEATURE = 'banwords';
 
 /**
- * Maps a policy onto the case action that carries it out. REPORT is absent because it is not one: it files a
- * report card instead of punishing, which is feature 30.
+ * The policy actions that punish somebody. REPORT is excluded because it is not one -- it files a report card
+ * instead, which is feature 30 -- and excluding it *in the type* is what makes the three maps below total:
+ * adding a sixth action to `automoderator_banword_action` becomes a compile error here rather than an
+ * `undefined` that reaches Discord.
  */
+type PunishmentAction = 'BAN' | 'KICK' | 'MUTE' | 'WARN';
+
+function isPunishment(action: string): action is PunishmentAction {
+	return action !== 'REPORT';
+}
+
 const POLICY_CASE_ACTION = {
 	WARN: 'WARN',
 	MUTE: 'MUTE',
 	KICK: 'KICK',
 	BAN: 'BAN',
-} as unknown as Record<string, AutomoderatorCaseAction>;
+} as unknown as Record<PunishmentAction, AutomoderatorCaseAction>;
 
-const SUMMARY_PAST: Record<string, string> = {
+const SUMMARY_PAST: Record<PunishmentAction, string> = {
 	WARN: 'Warned',
 	MUTE: 'Muted',
 	KICK: 'Kicked',
 	BAN: 'Banned',
 };
 
-const SUMMARY_CONDITIONAL: Record<string, string> = {
+/**
+ * A {@link FilterOutcome} plus the one thing the log does not render: whether anything actually happened.
+ *
+ * An extension rather than a field on `FilterOutcome` itself, because it is a *metrics* concern and the embed
+ * builder has no business carrying it -- the filter log says the same sentence whether a report was filed or
+ * refused, and only `featureInvocations` needs to tell those apart.
+ */
+interface PolicyOutcome extends FilterOutcome {
+	readonly enforced: boolean;
+}
+
+const SUMMARY_CONDITIONAL: Record<PunishmentAction, string> = {
 	WARN: 'Would have warned',
 	MUTE: 'Would have muted',
 	KICK: 'Would have kicked',
@@ -117,7 +137,16 @@ async function handleExecution(
 ): Promise<void> {
 	const matchedKeyword = data.matched_keyword ?? null;
 
+	// Counts every event, before the deduplication below -- this is the raw-intake counter, and its whole job
+	// is to be flat-zero when the intent or the guild's rules are missing.
 	automodEvents.inc({ action_type: String(data.action.type), matched: String(matchedKeyword !== null) });
+
+	// One trigger, not one event: a rule that blocks *and* times out dispatches two of these. Everything past
+	// this line -- the hit counter, the filter log, the report, the punishment -- must happen once per message.
+	if (!(await claimAutomodExecution(data))) {
+		return;
+	}
+
 	filterHits.inc({ filter: 'words' });
 
 	// Both cheap database reads, and between them they decide whether anything else here costs anything: a
@@ -162,7 +191,7 @@ interface OutcomeInput {
 	readonly traceBase: { guildId: string; matched?: string; runner: string; targetId: string };
 }
 
-async function decideOutcome(input: OutcomeInput, logger: Logger): Promise<FilterOutcome> {
+async function decideOutcome(input: OutcomeInput, logger: Logger): Promise<PolicyOutcome> {
 	const { data, policy, ruleName, matchedKeyword, target, traceBase } = input;
 
 	// A guild with no policy for this rule gets the log line and nothing else. Still counted as a hit above:
@@ -170,22 +199,26 @@ async function decideOutcome(input: OutcomeInput, logger: Logger): Promise<Filte
 	if (!policy) {
 		traceDecision(logger, { ...traceBase, action: null });
 		featureInvocations.inc({ feature: FEATURE, outcome: 'skipped' });
-		return { summary: 'No policy configured' };
+		return { summary: 'No policy configured', enforced: false };
 	}
 
 	const bypassRoleId = await findBypassRole(data.guild_id, target.roles);
 	if (bypassRoleId) {
 		traceDecision(logger, { ...traceBase, action: null, bypassRoleId });
 		featureInvocations.inc({ feature: FEATURE, outcome: 'skipped' });
-		return { summary: `Skipped: <@&${bypassRoleId}> bypasses filters` };
+		return { summary: `Skipped: <@&${bypassRoleId}> bypasses filters`, enforced: false };
 	}
 
-	const outcome =
-		policy.policy.actionType === 'REPORT'
-			? await runReportPolicy(data, target.actor, ruleName, matchedKeyword, logger)
-			: await runPunishmentPolicy(data, policy.policy, ruleName, target.actor, matchedKeyword, logger);
+	const action = policy.policy.actionType as string;
 
-	featureInvocations.inc({ feature: FEATURE, outcome: 'applied' });
+	const outcome = isPunishment(action)
+		? await runPunishmentPolicy(data, policy.policy, action, ruleName, target.actor, matchedKeyword, logger)
+		: await runReportPolicy(data, target.actor, ruleName, matchedKeyword, logger);
+
+	// A report the guild had nowhere to file is not an enforcement. Counting it as `applied` would show a
+	// healthy rate for a guild whose REPORT policies do nothing at all, which is the exact failure these
+	// counters exist to surface.
+	featureInvocations.inc({ feature: FEATURE, outcome: outcome.enforced ? 'applied' : 'skipped' });
 	return outcome;
 }
 
@@ -204,16 +237,17 @@ function policyReason(policy: AutomoderatorBanwordPolicies, ruleName: string, ma
 async function runPunishmentPolicy(
 	data: GatewayAutoModerationActionExecutionDispatchData,
 	policy: AutomoderatorBanwordPolicies,
+	action: PunishmentAction,
 	ruleName: string,
 	target: CaseActor,
 	matchedKeyword: string | null,
 	logger: Logger,
-): Promise<FilterOutcome> {
+): Promise<PolicyOutcome> {
 	const durationMs = policy.durationSeconds === null ? undefined : policy.durationSeconds * 1_000;
 
 	const result = await applyModerationAction(
 		{
-			action: POLICY_CASE_ACTION[policy.actionType]!,
+			action: POLICY_CASE_ACTION[action],
 			guildId: data.guild_id,
 			target,
 			// No human authored this. A case attributed to whoever wrote the rule would claim they were online
@@ -233,8 +267,9 @@ async function runPunishmentPolicy(
 	);
 
 	return {
-		summary: result.suppressed ? SUMMARY_CONDITIONAL[policy.actionType]! : SUMMARY_PAST[policy.actionType]!,
+		summary: result.suppressed ? SUMMARY_CONDITIONAL[action] : SUMMARY_PAST[action],
 		caseId: result.case.caseId,
+		enforced: true,
 	};
 }
 
@@ -253,16 +288,20 @@ async function runReportPolicy(
 	ruleName: string,
 	matchedKeyword: string | null,
 	logger: Logger,
-): Promise<FilterOutcome> {
+): Promise<PolicyOutcome> {
 	// Checked before anything is written, so nothing accumulates in a queue the guild has nowhere to read --
 	// the same guard `reportFlow.ts` puts in front of every member-filed report.
 	if (!(await getReportsChannelId(data.guild_id))) {
-		return { summary: 'Report skipped: no reports channel configured' };
+		return { summary: 'Report skipped: no reports channel configured', enforced: false };
 	}
 
 	const api = getContext().service.client.api;
+	// The id is resolved on its own and never falls back to anything: `fetchUser` is only ever an *enrichment*
+	// here, supplying a display tag. Folding the two together once let a failed lookup file a report whose
+	// reporter was the person being reported.
+	const selfId = await getSelfId(api);
 	// Not named `self`: eslint's `consistent-this` reserves that identifier for `this` aliases.
-	const botUser = await fetchUser(api, await getSelfId(api)).catch(() => null);
+	const botUser = await fetchUser(api, selfId).catch(() => null);
 
 	const reason =
 		matchedKeyword === null
@@ -273,7 +312,7 @@ async function runReportPolicy(
 		const result = await fileReport({
 			guildId: data.guild_id,
 			target,
-			reporter: { id: botUser?.id ?? target.id, tag: botUser ? formatCaseUserTag(botUser) : 'AutoModerator' },
+			reporter: { id: selfId, tag: botUser ? formatCaseUserTag(botUser) : 'AutoModerator' },
 			reason,
 			message:
 				data.message_id && data.channel_id
@@ -289,12 +328,12 @@ async function runReportPolicy(
 		reportsTotal.inc({ state: result.joined ? 'joined' : 'filed' });
 		await syncReportCard(result.report, { reporterCount: result.reporterCount }, logger);
 
-		return { summary: result.joined ? 'Added to an open report' : 'Reported to staff' };
+		return { summary: result.joined ? 'Added to an open report' : 'Reported to staff', enforced: true };
 	} catch (error) {
 		// A refusal is an ordinary outcome rather than a failure -- "this member already has an open report" is
 		// the common one, and it belongs in the filter log rather than in an error path.
 		if (error instanceof ReportFailure) {
-			return { summary: `Report skipped: ${error.message}` };
+			return { summary: `Report skipped: ${error.message}`, enforced: false };
 		}
 
 		throw error;

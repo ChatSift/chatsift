@@ -109,17 +109,25 @@ quarantine. AutoModerator supplies the response layer.
 **Mechanism.** Subscribe to `AUTO_MODERATION_ACTION_EXECUTION` (needs the `AutoModerationExecution` gateway intent).
 The payload carries `rule_id`, `matched_keyword` and `matched_content`.
 
-**Keying.** Policy rows key on `matched_keyword`, not `rule_id` — that preserves legacy's per-word flag model
-(`warn`/`mute`/`kick`/`ban`/`report` + a per-entry mute duration). Keying on the rule would coarsen policy to
-per-rule and lose the feature. `banned_words` therefore ports nearly unchanged, minus the columns that existed only
-to drive matching.
+**Keying.** Policy rows key on `(rule_id, matched_keyword)`, with a **nullable** keyword meaning "any hit on this
+rule". Keyword-level wins when both match, which preserves legacy's per-word model (`warn`/`mute`/`kick`/`ban`/
+`report` + a per-entry mute duration) while still covering the two rule kinds a keyword cannot name: a _preset_
+rule matches a word list Discord does not expose, and a _regex_ rule returns the pattern. Keying on `rule_id`
+alone would coarsen policy and lose the feature; keying on the keyword alone — which this doc specified until
+P5a — cannot express the other two at all.
+
+**One trigger, several events.** `AUTO_MODERATION_ACTION_EXECUTION` is dispatched once per _executed action_, not
+once per trigger, so a rule that blocks and times out fires two. The response layer deduplicates on
+`(guild, rule, user, message id or content hash)` with a short TTL — see `automodDedupe.ts` for why that is a
+separate mechanism from the case row's permanent idempotency key rather than a replacement for it.
 
 **What this obliges.** Three things that need saying out loud because they're new coupling:
 
 - The bot no longer controls whether a message is deleted — Discord already blocked it before the event arrives.
   Feature 30 ("report instead of delete") becomes "report, and configure that rule to alert rather than block". The
   policy survives; the suppression point moves into Discord's rule config, which means **the dashboard has to be able
-  to read and write AutoMod rules**, not just our own table.
+  to read AutoMod rules**, not just our own table. Read, not write — P5a settled that this product never writes a
+  rule, from the dashboard or from the P9 migration; see [P5](#p5--filters) for what that buys and costs.
 - A guild with no keyword rules configured gets no events, and therefore no banword enforcement. The dashboard needs
   to surface that state honestly rather than showing an empty-but-healthy filter page.
 - This was the single riskiest assumption in the plan. **P0's spike proved it** (2026-08-13): a native keyword
@@ -1021,9 +1029,10 @@ Legacy data migration + drain. Follows the Social precedent
   trap cost Social nothing only because it was caught in advance.
 - **Run the migration inside the running `api` container**, not from a host checkout — same image, so it has the
   compiled script and inherits prod `IS_PRODUCTION` / `DATABASE_URL_PROD`.
-- Migrate: cases (with their numbering intact), banned-word policies, allowlists, ladders, log-channel webhooks,
-  settings. **Do not migrate:** self-assignable roles, mute roles, malicious URL/file lists, NSFW thresholds, mention
-  config, blank-avatar and forbidden-name settings, **banned words** (see below).
+- Migrate: cases (with their numbering intact), allowlists, ladders, log-channel webhooks, settings.
+  **Do not migrate:** self-assignable roles, mute roles, malicious URL/file lists, NSFW thresholds, mention
+  config, blank-avatar and forbidden-name settings, **banned words and their policies** (see below — the policy
+  half cannot survive without the matching half it was attached to).
 - **Ladder durations change unit and gain a ceiling.** Legacy's `warn_punishments.duration` is unbounded
   milliseconds in a `BIGINT`; the new column is seconds in an `INTEGER`. A migrated MUTE rung longer than
   `MAX_TIMEOUT_SECONDS` has to be **clamped by the migration**, because nothing at runtime clamps it — that is

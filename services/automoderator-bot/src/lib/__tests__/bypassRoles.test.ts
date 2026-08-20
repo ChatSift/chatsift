@@ -1,12 +1,17 @@
 import { expect, test, vi } from 'vitest';
 
 let calls = 0;
+let lastValues: unknown[] = [];
 let bypassRows: { roleId: string }[] = [];
 
+// The interpolated values are recorded, not discarded: the guild filter is the whole reason this table is
+// keyed on the pair rather than on `role_id` alone the way legacy's was, and a regression that dropped it
+// would otherwise pass every assertion below.
 vi.mock('@chatsift/backend-core', () => ({
 	getContext: () => ({
-		async db() {
+		async db(_strings: TemplateStringsArray, ...values: unknown[]) {
 			calls += 1;
+			lastValues = values;
 			return bypassRows;
 		},
 	}),
@@ -41,4 +46,13 @@ test('a guild with no bypass roles configured exempts nobody', async () => {
 	bypassRows = [];
 
 	expect(await findBypassRole('1', ['staff'])).toBeNull();
+});
+
+test('the lookup is scoped to the guild', async () => {
+	bypassRows = [{ roleId: 'staff' }];
+	lastValues = [];
+
+	await findBypassRole('9876', ['staff']);
+
+	expect(lastValues).toContain('9876');
 });
