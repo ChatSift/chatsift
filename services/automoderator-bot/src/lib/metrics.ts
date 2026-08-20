@@ -177,3 +177,18 @@ export const discordErrors = new Counter({
 	labelNames: ['status', 'route_class'] as const,
 	registers: [register],
 });
+
+/**
+ * Filter hits, by which filter caught it (P5). `words` is a native Discord AutoMod hit arriving over
+ * `AUTO_MODERATION_ACTION_EXECUTION`; the runners P5's later phases add report their own.
+ *
+ * Counts hits, not punishments: a hit with no policy configured, and one a bypass role let off, both land here.
+ * That is the point -- "this rule is catching far more than you thought" is a question about hits, and
+ * `automoderator_moderation_actions_total` already answers the one about punishments.
+ */
+export const filterHits = new Counter({
+	name: 'automoderator_filter_hits_total',
+	help: 'Filter hits, by filter',
+	labelNames: ['filter'] as const,
+	registers: [register],
+});

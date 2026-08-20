@@ -1,4 +1,4 @@
-h1:1fJf1xidqr+7m260qFY/vPJ8O7KkXeopFsSW6QHdTqE=
+h1:c1EaWSH39tU3EYbeq50p3a5vTIouW6UfeUbIKo++MFc=
 20260716151040_baseline.sql h1:B/n9QPxT6pMJ4nSYIoFX5UaKFF98tDAHxkQ1jO5gNVA=
 20260717164748.sql h1:WWb95+b5taaoX7EyYDAG4lZaChTxQlxarniam3exKeo=
 20260723151325.sql h1:g7mbXjHZNRLTEJOBCj3FkmI5M3+KM3MgiJtITREOd7M=
@@ -43,3 +43,4 @@ h1:1fJf1xidqr+7m260qFY/vPJ8O7KkXeopFsSW6QHdTqE=
 20260818084156_add_automoderator_report_messages.sql h1:JSGUIxjq6zTku5JVTdN7FM46wkNibc1lu4awLKHtztk=
 20260818101655_add_automoderator_report_prompts.sql h1:pi5Jcmy0nKMsxPm0TYV2n7rVdljnwOxfqeQjO/glDDE=
 20260819094403_add_automoderator_log_exemptions.sql h1:A27Xn4W45Xrqz9G+WYxZ99I91ihXHVHYSs/KYWGYgAI=
+20260820082346_add_automoderator_banword_policies.sql h1:sSEASJxCOH7wj6dxY99ovZ/qUVh4GTKiUFNmtKVwjn0=

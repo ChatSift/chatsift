@@ -25,13 +25,17 @@ import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 
 /**
  * What each log is for, in the guild's words rather than the schema's. Keyed off `WRITABLE_LOG_TYPES` so a log
- * type the API starts accepting cannot be rendered without someone writing copy for it -- FILTER is missing
- * from both until P5 gives it something to post.
+ * type the API starts accepting cannot be rendered without someone writing copy for it.
  */
 const LOG_COPY: Record<WritableLogType, { description: string; label: string }> = {
 	MOD: {
 		label: 'Mod log',
 		description: 'Every case is posted here, and edits rewrite the original message rather than posting a new one.',
+	},
+	FILTER: {
+		label: 'Filter log',
+		description:
+			'Every filter hit, including the ones no policy responded to. This is where you find out a rule is catching more than you expected.',
 	},
 	MESSAGE: {
 		label: 'Message log',

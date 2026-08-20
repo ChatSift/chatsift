@@ -40,6 +40,7 @@ const THREAD_TYPES = new Set<ChannelType>([
  */
 const WEBHOOK_NAMES: Record<z.infer<typeof writableLogTypeSchema>, string> = {
 	MOD: 'AutoModerator Mod Log',
+	FILTER: 'AutoModerator Filter Log',
 	MESSAGE: 'AutoModerator Message Log',
 	USER: 'AutoModerator User Log',
 };

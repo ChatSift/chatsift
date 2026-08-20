@@ -7,7 +7,7 @@ import { executeAction } from './actionExecutor.js';
 import { ACTION_PAST_TENSE, formatDuration } from './caseFormat.js';
 import { dispatchCaseLog } from './caseLog.js';
 import type { CaseActor } from './cases.js';
-import { createCase } from './cases.js';
+import { createCase, findCaseByIdempotencyKey } from './cases.js';
 import { resolveDryRun } from './dryRun.js';
 import { casesCreated } from './metrics.js';
 import { buildLadderRequest, resolveWarnLadderRung } from './warnLadder.js';
@@ -73,6 +73,14 @@ export interface ModerationRequest {
 	readonly durationMs?: number;
 	readonly guildId: string;
 	/**
+	 * Set only by event-driven callers, whose event Discord can redeliver -- the native AutoMod intake (P5) is
+	 * the one that both acts *and* files, so it is the one that needs this. A key already present in the guild
+	 * short-circuits the whole call: no DM, no Discord action, no second case.
+	 *
+	 * Deliberately absent from commands. A moderator running `/ban` twice on purpose means it.
+	 */
+	readonly idempotencyKey?: string;
+	/**
 	 * Null for anything no human authored -- the scheduler lifting a tempban is the only P2 case. A case with a
 	 * null moderator says so; one attributed to whoever issued the original ban would claim they came back and
 	 * unbanned somebody.
@@ -128,6 +136,21 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 
 	// Resolved once for the row. `executeAction` resolves it again for enforcement -- they agree, and the row
 	// must never claim an action the executor suppressed.
+	// Before the DM and before the Discord call, which is the only position that makes this worth having: the
+	// unique index below would catch the duplicate *row*, but by then the member has already been banned twice
+	// and DM'd twice.
+	if (request.idempotencyKey) {
+		const existing = await findCaseByIdempotencyKey(guildId, request.idempotencyKey);
+		if (existing) {
+			logger.info(
+				{ guildId, targetId: target.id, idempotencyKey: request.idempotencyKey, caseId: existing.caseId },
+				'skipped a redelivered event -- this case is already on the record',
+			);
+
+			return { case: existing, suppressed: existing.dryRun };
+		}
+	}
+
 	const dryRun = await resolveDryRun(guildId, request.previewOnly);
 	const shouldNotify = request.notifyTarget ?? true;
 
@@ -230,6 +253,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 		reason: reason ?? null,
 		refId: request.refId ?? null,
 		expiresAt: request.durationMs ? new Date(Date.now() + request.durationMs) : null,
+		idempotencyKey: request.idempotencyKey ?? null,
 	};
 
 	let filed: AutomoderatorCases | null;
@@ -249,8 +273,25 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 		throw new CaseFilingError(enforced, error);
 	}
 
-	// Only an `idempotencyKey` can make `createCase` return null, and commands never pass one.
-	const filedCase = filed!;
+	// `createCase` returns null only when an `idempotencyKey` lost the race with a concurrent delivery of the
+	// same event -- the pre-flight above missed it, the index caught it. The Discord action has already
+	// happened at this point and cannot be taken back, so the honest answer is the case the winner filed.
+	let filedCase = filed;
+	if (!filedCase) {
+		filedCase = await findCaseByIdempotencyKey(guildId, request.idempotencyKey!);
+
+		if (!filedCase) {
+			throw new CaseFilingError(Boolean(sideEffect) && !suppressed, new Error('idempotent insert found no case'));
+		}
+
+		logger.warn(
+			{ guildId, targetId: target.id, idempotencyKey: request.idempotencyKey },
+			'a concurrent delivery of this event filed the case first',
+		);
+
+		return { case: filedCase, suppressed };
+	}
+
 	casesCreated.inc({ action, source });
 
 	await dispatchCaseLog(filedCase, logger, source);

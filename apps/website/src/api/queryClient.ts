@@ -166,5 +166,8 @@ export const queryKeys = {
 		reportPresets: (guildId: string) => ['api', 'automoderator', guildId, 'report-presets'] as const,
 		reportPrompts: (guildId: string) => ['api', 'automoderator', guildId, 'report-prompts'] as const,
 		warnPunishments: (guildId: string) => ['api', 'automoderator', guildId, 'warn-punishments'] as const,
+		automodRules: (guildId: string) => ['api', 'automoderator', guildId, 'automod-rules'] as const,
+		banwordPolicies: (guildId: string) => ['api', 'automoderator', guildId, 'banword-policies'] as const,
+		bypassRoles: (guildId: string) => ['api', 'automoderator', guildId, 'bypass-roles'] as const,
 	},
 } as const;

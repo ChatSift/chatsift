@@ -114,3 +114,19 @@ export function automoderatorWarnPunishmentsChannel(guildId: string): string {
 export function automoderatorLogExemptionsChannel(guildId: string): string {
 	return `automoderator:${guildId}:log-exemptions`;
 }
+
+/**
+ * Banword policies (P5, feature 01). Only the API publishes here -- the bot reads policies on every native
+ * AutoMod hit but never writes one.
+ */
+export function automoderatorBanwordPoliciesChannel(guildId: string): string {
+	return `automoderator:${guildId}:banword-policies`;
+}
+
+/**
+ * Filter bypass roles (P5, feature 10). Its own channel rather than riding the config one for the same reason
+ * every other list here has one: the bypass editor and the enforcement toggles are different screens.
+ */
+export function automoderatorBypassRolesChannel(guildId: string): string {
+	return `automoderator:${guildId}:bypass-roles`;
+}

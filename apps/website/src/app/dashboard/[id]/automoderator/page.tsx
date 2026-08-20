@@ -15,6 +15,16 @@ const SECTIONS = [
 		subtitle: 'What members have flagged to your staff team',
 	},
 	{
+		segment: 'banned-words',
+		title: 'Banned Words',
+		subtitle: "What happens when Discord's AutoMod catches somebody",
+	},
+	{
+		segment: 'bypass-roles',
+		title: 'Bypass Roles',
+		subtitle: 'Roles the filters never punish',
+	},
+	{
 		segment: 'warn-ladder',
 		title: 'Warn Ladder',
 		subtitle: 'What happens as warnings pile up, and when they stop counting',

@@ -151,3 +151,80 @@ export function buildProfileChangeEmbed(input: ProfileChangeLogInput): APIEmbed 
 		],
 	};
 }
+
+/**
+ * What the filter did about a hit, in the guild's words. A closed set because the log is a permanent record
+ * moderators read months later, and free-text outcomes drift into being unreadable.
+ */
+export interface FilterOutcome {
+	/**
+	 * The case this produced, if it produced one. Rendered as `#12` so it can be looked up.
+	 */
+	readonly caseId?: number;
+	/**
+	 * One line saying what happened -- "Banned", "No policy configured", "Skipped: bypass role".
+	 */
+	readonly summary: string;
+}
+
+export interface FilterHitLogInput {
+	readonly author: LogActor;
+	readonly channelId: string | null;
+	/**
+	 * The offending text. For a native AutoMod hit this is `matched_content` when Discord sends it, falling
+	 * back to the whole message -- the first is the substring that tripped the rule, which is what a moderator
+	 * actually wants to see.
+	 */
+	readonly content: string | null;
+	/**
+	 * The rule entry that matched, or null when Discord did not name one (a preset rule's word list, which is
+	 * not enumerable, or a trigger that carries no keyword).
+	 */
+	readonly matched: string | null;
+	readonly outcome: FilterOutcome;
+	/**
+	 * What caught it, named the way the guild configured it -- an AutoMod rule's name, falling back to its id
+	 * when the bot cannot read the rule list (see `automodRules.ts`).
+	 */
+	readonly source: string;
+}
+
+const FILTER_COLOR = 0xef_44_44;
+
+/**
+ * The filter log embed (P5, feature 33). One shape for every filter, which is the reshape feature 33 is: legacy
+ * rendered native hits nowhere and its own runners' hits in a per-runner format, so staff read two places and
+ * got no help correlating them.
+ *
+ * Posted for **every** hit, including the ones no policy responded to -- a rule quietly catching ten times what
+ * its owner expected is the thing this log exists to make visible, and it is invisible if only punishments are
+ * logged.
+ */
+export function buildFilterHitEmbed(input: FilterHitLogInput): APIEmbed {
+	const fields: NonNullable<APIEmbed['fields']> = [
+		{ name: 'Filter', value: input.source, inline: true },
+		{
+			name: 'Outcome',
+			value: input.outcome.caseId === undefined ? input.outcome.summary : `${input.outcome.summary} (case #${input.outcome.caseId})`,
+			inline: true,
+		},
+	];
+
+	if (input.matched !== null) {
+		// Inline code rather than a blockquote: this is one entry from a configured list, not a member's prose,
+		// and backticks stop a word containing markdown from reformatting the field.
+		fields.push({ name: 'Matched', value: `\`${truncate(input.matched, FIELD_VALUE_LIMIT - 2)}\`` });
+	}
+
+	fields.push({ name: 'Content', value: quoteContent(input.content ?? '', '*Not available*') });
+
+	return {
+		color: FILTER_COLOR,
+		author: authorLine(input.author),
+		description:
+			input.channelId === null
+				? 'Filter triggered'
+				: `Filter triggered in <#${input.channelId}>`,
+		fields,
+	};
+}

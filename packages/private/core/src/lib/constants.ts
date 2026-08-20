@@ -92,3 +92,27 @@ export const AUTO_PARDON_MAX_DAYS = 3_650;
  * thing the guild actually wants.
  */
 export const LOG_EXEMPTION_MAX_COUNT = 100;
+
+/**
+ * How many roles one guild may mark as bypassing every filter (P5, feature 10). Ours, not Discord's: the bot
+ * loads the whole set to decide whether to act on a filter hit, so the cap is what keeps that a small
+ * constant-size read. Twenty-five is already far past the point where the guild means "staff", which is better
+ * expressed as one role.
+ */
+export const BYPASS_ROLE_MAX_COUNT = 25;
+
+/**
+ * How many banword policies one guild may configure (P5, feature 01). Sized against what the feature is *for*:
+ * a rule-level policy covers a whole keyword list in one row, so a guild needing hundreds of these is one that
+ * should be splitting its words across native AutoMod rules instead. Bounded for the same reason as the caps
+ * above -- the bot reads a rule's policies on every native AutoMod hit, which is the hottest read this product
+ * has.
+ */
+export const BANWORD_POLICY_MAX_COUNT = 250;
+
+/**
+ * The longest a single AutoMod keyword may be, mirroring Discord's own limit on a `keyword_filter` entry. Ours
+ * only in the sense that we copy it: a policy naming a keyword longer than Discord can store is a policy that
+ * can never match, so the API rejects it rather than writing a row that does nothing.
+ */
+export const AUTOMOD_KEYWORD_MAX_LENGTH = 60;
