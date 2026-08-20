@@ -1,5 +1,10 @@
 import { expect, test } from 'vitest';
-import { buildMessageDeleteEmbed, buildMessageEditEmbed, buildProfileChangeEmbed } from '../guildLogFormat.js';
+import {
+	buildFilterHitEmbed,
+	buildMessageDeleteEmbed,
+	buildMessageEditEmbed,
+	buildProfileChangeEmbed,
+} from '../guildLogFormat.js';
 
 // A real snowflake, so the `<t:...:R>` timestamps below are derived rather than asserted against a constant
 // somebody would have to recompute if the epoch maths ever changed.
@@ -126,4 +131,47 @@ test('an avatarless actor gets an author line without an icon', () => {
 
 	expect(embed.author).toEqual({ name: 'moderator-one (120000000000000001)' });
 	expect(embed.title).toBe('Changed their display name');
+});
+
+test('a filter hit names what caught it, what matched and what came of it', () => {
+	const embed = buildFilterHitEmbed({
+		author: AUTHOR,
+		channelId: CHANNEL_ID,
+		source: 'Slurs',
+		matched: 'badword',
+		content: 'a message with badword in it',
+		outcome: { summary: 'Banned', caseId: 12 },
+	});
+
+	expect(embed.description).toBe(`Filter triggered in <#${CHANNEL_ID}>`);
+	expect(embed.fields).toEqual([
+		{ name: 'Filter', value: 'Slurs', inline: true },
+		// The case number is appended rather than being its own field: it is only ever meaningful next to the
+		// outcome that produced it.
+		{ name: 'Outcome', value: 'Banned (case #12)', inline: true },
+		{ name: 'Matched', value: '`badword`' },
+		{ name: 'Content', value: '>>> a message with badword in it' },
+	]);
+});
+
+// A hit nobody configured a response to still gets logged -- that is the whole point of feature 33, and the
+// embed has to render without a case number or a matched keyword.
+test('a filter hit with no policy and no named keyword still renders', () => {
+	const embed = buildFilterHitEmbed({
+		author: AUTHOR,
+		channelId: null,
+		source: '1425493115053019311',
+		matched: null,
+		content: null,
+		outcome: { summary: 'No policy configured' },
+	});
+
+	expect(embed.description).toBe('Filter triggered');
+	expect(embed.fields).toEqual([
+		{ name: 'Filter', value: '1425493115053019311', inline: true },
+		{ name: 'Outcome', value: 'No policy configured', inline: true },
+		// An embed field value cannot be empty, so the missing-content branch has to say something -- without
+		// it the whole log post 400s, which is the same trap the message builders have.
+		{ name: 'Content', value: '*Not available*' },
+	]);
 });

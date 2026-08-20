@@ -7,7 +7,7 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0–P3b done; P4 (logging) code-complete and unverified; P5 (filters) next
+## Status: P0–P4 done; P5 (filters) in progress, split into three PRs — the first is code-complete and unverified
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -109,17 +109,25 @@ quarantine. AutoModerator supplies the response layer.
 **Mechanism.** Subscribe to `AUTO_MODERATION_ACTION_EXECUTION` (needs the `AutoModerationExecution` gateway intent).
 The payload carries `rule_id`, `matched_keyword` and `matched_content`.
 
-**Keying.** Policy rows key on `matched_keyword`, not `rule_id` — that preserves legacy's per-word flag model
-(`warn`/`mute`/`kick`/`ban`/`report` + a per-entry mute duration). Keying on the rule would coarsen policy to
-per-rule and lose the feature. `banned_words` therefore ports nearly unchanged, minus the columns that existed only
-to drive matching.
+**Keying.** Policy rows key on `(rule_id, matched_keyword)`, with a **nullable** keyword meaning "any hit on this
+rule". Keyword-level wins when both match, which preserves legacy's per-word model (`warn`/`mute`/`kick`/`ban`/
+`report` + a per-entry mute duration) while still covering the two rule kinds a keyword cannot name: a _preset_
+rule matches a word list Discord does not expose, and a _regex_ rule returns the pattern. Keying on `rule_id`
+alone would coarsen policy and lose the feature; keying on the keyword alone — which this doc specified until
+P5a — cannot express the other two at all.
+
+**One trigger, several events.** `AUTO_MODERATION_ACTION_EXECUTION` is dispatched once per _executed action_, not
+once per trigger, so a rule that blocks and times out fires two. The response layer deduplicates on
+`(guild, rule, user, message id or content hash)` with a short TTL — see `automodDedupe.ts` for why that is a
+separate mechanism from the case row's permanent idempotency key rather than a replacement for it.
 
 **What this obliges.** Three things that need saying out loud because they're new coupling:
 
 - The bot no longer controls whether a message is deleted — Discord already blocked it before the event arrives.
   Feature 30 ("report instead of delete") becomes "report, and configure that rule to alert rather than block". The
   policy survives; the suppression point moves into Discord's rule config, which means **the dashboard has to be able
-  to read and write AutoMod rules**, not just our own table.
+  to read AutoMod rules**, not just our own table. Read, not write — P5a settled that this product never writes a
+  rule, from the dashboard or from the P9 migration; see [P5](#p5--filters) for what that buys and costs.
 - A guild with no keyword rules configured gets no events, and therefore no banword enforcement. The dashboard needs
   to surface that state honestly rather than showing an empty-but-healthy filter page.
 - This was the single riskiest assumption in the plan. **P0's spike proved it** (2026-08-13): a native keyword
@@ -872,27 +880,103 @@ type gets nothing — so the kill switch a gate would add already exists, per lo
 
 ### P5 — Filters
 
-The largest phase; consider splitting at the horizontal rule if it runs long. Features **01** (banword policy on
-native hits), **33** (unified filter log), **11** (trigger ladder + decay), **09** (exemptions), **10** (bypass
-roles), **12** (DM on trigger), then **07** (anti-spam), **02** (URL allowlist), **03** (invite allowlist).
+The largest phase, and the only one split across more than one PR. Three, each shipping a filter that works end
+to end rather than a layer that waits on the next one:
 
-| Layer     | Work                                                                                                                                                |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schema    | `automoderator_banword_policies`, `automoderator_allowed_urls`, `automoderator_allowed_invites`, exemption bitfield, `automoderator_trigger_counts` |
-| API       | policy CRUD, allowlist CRUD, ladder config, bypass roles, **AutoMod rule read/write proxy**                                                         |
-| Bot       | `AUTO_MODERATION_ACTION_EXECUTION` consumer; filter pipeline (urls, invites, antispam); ladder; `/simulate`                                         |
-| Dashboard | banword policy editor over native rules, allowlists, ladder editor, bypass roles, filter log config                                                 |
+| PR  | Features                                                                      | State                     |
+| --- | ----------------------------------------------------------------------------- | ------------------------- |
+| P5a | **01** banword policy on native hits, **33** filter log, **10** bypass roles  | code-complete, unverified |
+| P5b | **02** URL allowlist, **03** invite allowlist, **09** exemptions, `/simulate` | not started               |
+| P5c | **07** anti-spam, **11** trigger ladder + decay                               | not started               |
+
+**Feature 12 (DM on trigger) dissolved into P5a rather than being its own item.** A banword policy files a case,
+and `applyModerationAction` already DMs the target for every case that carries a punishment — so the feature is
+delivered for free wherever there is a policy, and a hit with no policy has nothing to tell anyone about that
+Discord's own block message hasn't already said. What remains of it is P5b's, where a runner deletes a message
+without filing anything.
+
+#### Owner decisions taken at P5a
+
+Recorded here for the same reason the top-level ones are — so they don't get relitigated.
+
+1. **Discord's AutoMod is read-only to us, permanently.** The API reads a guild's rules through the bot token
+   (`listAutomodRules.ts`) and never writes one — not from the dashboard, not from P9's migration. Reading still
+   costs the bot **Manage Server**, which every AutoMod endpoint requires, so the permission bump happens either
+   way and was not what the decision turned on.
+
+   What it buys: a policy can only ever name a keyword the guild actually has, because the editor offers the
+   rule's own entries rather than a text box. The failure this feature is most prone to — a policy configured
+   against a word no rule contains, which fires nothing and errors nowhere — is unrepresentable.
+
+   What it costs, knowingly: adding a banned word is a two-step job (add the keyword in Server Settings, then
+   attach a policy), and a keyword removed on Discord's side leaves an orphaned policy. Orphans are rendered as
+   orphans rather than deleted — a rule can vanish because somebody deleted it _or_ because the read momentarily
+   failed, and quietly destroying configured punishments on the strength of the second is the worse failure.
+
+2. **Policy keys on `(rule_id, keyword)` with a nullable keyword**, not on `matched_keyword` alone as this doc
+   originally specified. Null means "any hit on this rule", and keyword-level beats rule-level when both match.
+
+   The original keying is right for a keyword rule and cannot express the other two kinds Discord has: a
+   **preset** rule (Profanity / Sexual Content / Slurs) matches a word list we cannot enumerate, so there is no
+   keyword for a policy to name at all, and a **regex** rule returns the pattern, which nobody wants to attach
+   policies to one at a time. Rule-level keying alone would have coarsened policy and lost legacy's per-word
+   model; having both covers strictly more than either, and lets a guild say "this whole list warns, except that
+   one word, which bans".
+
+3. **Feature 30 survives as a `REPORT` policy action.** The port moves the suppression decision into Discord's
+   rule config (block versus alert) but keeps the report itself. The editor offers REPORT only when the rule
+   alerts rather than blocks, because a blocked message never existed and there is nothing for the card to link
+   to. The bot degrades rather than breaking if a rule is switched to blocking afterwards: it files an
+   account-level report, which the report spine already supports.
+
+4. **The trigger ladder counts URL, invite and anti-spam hits — not banword hits.** A banword policy already
+   carries its own punishment, so counting it too would stack a ladder action on top of a ban. Legacy counted
+   anti-spam alone; this widens it to the two runners that otherwise only delete and DM.
+
+#### P5a — what shipped
+
+| Layer     | Work                                                                                                       |
+| --------- | ---------------------------------------------------------------------------------------------------------- |
+| Schema    | `automoderator_banword_policies`, `automoderator_bypass_roles`                                             |
+| API       | policy CRUD, bypass-role CRUD, AutoMod rule **read**, `FILTER` becomes a writable log type                 |
+| Bot       | `AUTO_MODERATION_ACTION_EXECUTION` response layer, bypass resolution, filter log dispatch, rule-name cache |
+| Dashboard | Banned Words (rules + policies), Bypass Roles, `FILTER` in the log-channel picker                          |
+
+Two things landed alongside it that are not features:
+
+- **Idempotency keys reached `applyModerationAction`.** The automod path both punishes _and_ files, and a
+  redelivered dispatch after a gateway resume would otherwise do both twice. A pre-flight lookup covers the
+  duplicate Discord call; the partial unique index still covers the duplicate row. A _blocked_ message carries
+  no id to key on, so that case is knowingly unprotected — every alternative key would suppress a genuine repeat
+  offence.
+- **Duration parsing moved to `apps/website/src/utils/duration.ts`**, shared by the warn ladder and the policy
+  editor. The text these functions produce is fed straight back through the parser next time the form opens, so
+  two copies disagreeing by a rounding rule would silently change a saved duration.
+
+#### P5b and P5c — still to do
+
+| Layer     | Work                                                                                                              |
+| --------- | ----------------------------------------------------------------------------------------------------------------- |
+| Schema    | `automoderator_allowed_urls`, `automoderator_allowed_invites`, exemption bitfield, `automoderator_trigger_counts` |
+| API       | allowlist CRUD, exemption CRUD, ladder config, anti-spam settings                                                 |
+| Bot       | message filter pipeline (urls, invites, antispam), trigger ladder + decay, DM on trigger, `/simulate`             |
+| Dashboard | allowlists, filter exemptions, filter ladder editor, anti-spam settings                                           |
 
 Notes:
 
 - Exemption bitfield shrinks to `urls | invites | antispam`. `words` moves to native per-rule exemptions; `files` and
   `global` are gone with features 05 and 04.
 - Feature 33 renders **both** native AutoMod hits and our own runner hits into one filter log, so staff read one
-  place. That's the reshape.
+  place. That's the reshape. P5a built the embed and the dispatcher; P5b's runners write into the same one.
 - Invite resolution uses the bot's REST client, allowlisting by resolved guild ID (not code), preserving legacy's
   2021 fix against vanity URLs.
 - `tlds.txt` comes across with feature 02 and is a standing maintenance item — write that down where someone will
   see it, not just here.
+- Legacy's decay was broken in two ways worth not reproducing: it compared `new Date().getMinutes()` against
+  `updatedAt.getMinutes()` (minute-of-hour, so it fired almost at random), and its cooldown cache was inverted so
+  the first trigger row for a guild was deleted rather than decayed. It also decayed `automod_triggers` while the
+  anti-spam runner incremented `filter_triggers`, meaning the counter that actually fed punishments never decayed
+  at all. One table here, and a decay that compares timestamps.
 
 ---
 
@@ -945,18 +1029,24 @@ Legacy data migration + drain. Follows the Social precedent
   trap cost Social nothing only because it was caught in advance.
 - **Run the migration inside the running `api` container**, not from a host checkout — same image, so it has the
   compiled script and inherits prod `IS_PRODUCTION` / `DATABASE_URL_PROD`.
-- Migrate: cases (with their numbering intact), banned-word policies, allowlists, ladders, log-channel webhooks,
-  settings. **Do not migrate:** self-assignable roles, mute roles, malicious URL/file lists, NSFW thresholds, mention
-  config, blank-avatar and forbidden-name settings.
+- Migrate: cases (with their numbering intact), allowlists, ladders, log-channel webhooks, settings.
+  **Do not migrate:** self-assignable roles, mute roles, malicious URL/file lists, NSFW thresholds, mention
+  config, blank-avatar and forbidden-name settings, **banned words and their policies** (see below — the policy
+  half cannot survive without the matching half it was attached to).
 - **Ladder durations change unit and gain a ceiling.** Legacy's `warn_punishments.duration` is unbounded
   milliseconds in a `BIGINT`; the new column is seconds in an `INTEGER`. A migrated MUTE rung longer than
   `MAX_TIMEOUT_SECONDS` has to be **clamped by the migration**, because nothing at runtime clamps it — that is
   P2's stated invariant, and a rung Discord refuses is a rung that silently never fires. A legacy MUTE rung with
   no duration at all can't be represented either (the CHECK forbids it) and was already inert in legacy; drop it
   and report the count.
-- Banned words are the awkward one: legacy rows carry both matching _and_ policy. The migration splits them — policy
-  into `automoderator_banword_policies`, matching into the guild's native AutoMod keyword rules. A guild over the
-  native limits (6 rules × 1,000 entries) needs a documented answer before the freeze window, not during it.
+- **Banned words do not migrate at all**, which is an owner decision taken at P5a and a reversal of what this
+  section used to say. Legacy rows carry both matching _and_ policy; the matching half can only live in a native
+  AutoMod rule, and creating those rules would mean writing to Discord's AutoMod, which this port has settled it
+  never does (see [P5](#p5--filters)). Rather than hold one exception open for one migration, each community
+  rebuilds its keyword lists in Server Settings after cutover and attaches policies to them — the bot is changing
+  radically enough that reviewing a years-old word list is worth doing anyway. `banned_words` is therefore in the
+  **do not migrate** list above, and the guilds-over-the-native-limits question it used to raise disappears with
+  it. Say so in the cutover notice, not on the day.
 - Verify with two scratch databases, offset sequences, id-independent diff.
 - Then tear down: legacy compose stack, then `postgres-old`. Its ingress is no longer separate — since #305 the
   `interactions.`/`logs.` routes are two blocks in `build/caddy/Caddyfile`, and the `legacy` external network in

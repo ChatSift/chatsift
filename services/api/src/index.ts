@@ -134,6 +134,17 @@ export { default as deleteAutomoderatorReportPresetRoute } from './routes/automo
 export { default as listAutomoderatorWarnPunishmentsRoute } from './routes/automoderator/warnPunishments/listWarnPunishments.js';
 export { default as setAutomoderatorWarnPunishmentRoute } from './routes/automoderator/warnPunishments/setWarnPunishment.js';
 export { default as deleteAutomoderatorWarnPunishmentRoute } from './routes/automoderator/warnPunishments/deleteWarnPunishment.js';
+export { default as listAutomodRulesRoute } from './routes/automoderator/automodRules/listAutomodRules.js';
+export type {
+	AutomodRuleSummary,
+	AutomodRulesUnavailableReason,
+} from './routes/automoderator/automodRules/listAutomodRules.js';
+export { default as listBanwordPoliciesRoute } from './routes/automoderator/banwordPolicies/listBanwordPolicies.js';
+export { default as setBanwordPolicyRoute } from './routes/automoderator/banwordPolicies/setBanwordPolicy.js';
+export { default as deleteBanwordPolicyRoute } from './routes/automoderator/banwordPolicies/deleteBanwordPolicy.js';
+export { default as listBypassRolesRoute } from './routes/automoderator/bypassRoles/listBypassRoles.js';
+export { default as setBypassRoleRoute } from './routes/automoderator/bypassRoles/setBypassRole.js';
+export { default as deleteBypassRoleRoute } from './routes/automoderator/bypassRoles/deleteBypassRole.js';
 
 export { default as listExperimentsRoute } from './routes/experiments/listExperiments.js';
 export type { ExperimentWithOverrides } from './routes/experiments/listExperiments.js';

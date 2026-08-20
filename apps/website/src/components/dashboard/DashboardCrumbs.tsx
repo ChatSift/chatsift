@@ -33,6 +33,8 @@ const SOCIAL_SECTIONS = ['config', 'channels', 'roles', 'rewards', 'interactions
 const AUTOMODERATOR_SECTIONS = [
 	'cases',
 	'reports',
+	'banned-words',
+	'bypass-roles',
 	'warn-ladder',
 	'log-channels',
 	'log-exemptions',
@@ -63,6 +65,8 @@ const SEGMENT_LABELS: Record<string, string> = {
 	automoderator: 'AutoModerator',
 	cases: 'Cases',
 	reports: 'Reports',
+	'banned-words': 'Banned Words',
+	'bypass-roles': 'Bypass Roles',
 	'warn-ladder': 'Warn Ladder',
 	'log-channels': 'Log Channels',
 	'log-exemptions': 'Log Exemptions',

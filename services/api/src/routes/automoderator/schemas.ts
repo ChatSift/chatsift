@@ -3,6 +3,7 @@
 // one import path for them.
 import {
 	AUTO_PARDON_MAX_DAYS,
+	AUTOMOD_KEYWORD_MAX_LENGTH,
 	MAX_TIMEOUT_SECONDS,
 	REPORT_PRESET_MAX_LENGTH,
 	WARN_PUNISHMENT_MAX_WARNS,
@@ -100,15 +101,16 @@ export const updateCaseBodySchema = z
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
 /**
- * The subset of `automoderator_log_type` a guild may point at a channel today. FILTER is deliberately absent:
- * nothing dispatches into it until P5, and a picker for a log nothing ever posts to is a setting that quietly
- * does nothing. MOD landed at P1, MESSAGE and USER at P4.
+ * The subset of `automoderator_log_type` a guild may point at a channel today -- now all four of them. MOD
+ * landed at P1, MESSAGE and USER at P4, and FILTER at P5 with the first thing that dispatches into it. Until
+ * then it was deliberately absent, because a picker for a log nothing ever posts to is a setting that quietly
+ * does nothing.
  *
  * Here rather than in `constants.ts` (which holds the *full* enum mirrors) because this file is the browser-safe
  * one -- the dashboard renders one picker per entry, so the list and the routes' path parameter come from the
  * same place instead of a hand-copied union drifting out of step with what the API accepts.
  */
-export const WRITABLE_LOG_TYPES = ['MOD', 'MESSAGE', 'USER'] as const;
+export const WRITABLE_LOG_TYPES = ['MOD', 'FILTER', 'MESSAGE', 'USER'] as const;
 
 export const writableLogTypeSchema = z.enum(WRITABLE_LOG_TYPES);
 
@@ -201,3 +203,58 @@ export const updateReportPromptBodySchema = z
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided')
 	.refine((data) => !('prompt' in data && 'prompt_raw' in data), 'Cannot provide both prompt and prompt_raw');
+
+/**
+ * Mirrors `CREATE TYPE automoderator_banword_action`. Spelled out for the same reason `caseActionSchema` is.
+ */
+export const banwordActionSchema = z.enum(['WARN', 'MUTE', 'KICK', 'BAN', 'REPORT']);
+
+/**
+ * A banword policy: what a hit on one of the guild's native AutoMod rules should do (P5, feature 01).
+ *
+ * `keyword` is nullable because null is a *value* here -- "any hit on this rule" -- and is the only policy a
+ * preset rule (Profanity / Sexual Content / Slurs) can carry, since Discord does not expose the words in those
+ * lists. See the table's own comment in schema.sql.
+ *
+ * **Lowercased on write.** Discord's own keyword matching is case-insensitive, so `Foo` and `foo` are the same
+ * keyword as far as a match is concerned -- storing both would be two policies competing to answer one event,
+ * with the unique constraint unable to say so. Normalising here means the constraint expresses exactly the
+ * ambiguity that actually exists, and the bot's lookup lowercases `matched_keyword` to meet it.
+ *
+ * The duration rules mirror `automoderator_banword_policies_duration_check`, deliberately: the CHECK is the one
+ * that cannot be bypassed, and this is the one that produces a message a human can act on.
+ */
+export const setBanwordPolicyBodySchema = z
+	.strictObject({
+		ruleId: snowflakeSchema,
+		keyword: z
+			.string()
+			.trim()
+			.min(1)
+			.max(AUTOMOD_KEYWORD_MAX_LENGTH)
+			.transform((value) => value.toLowerCase())
+			.nullable(),
+		actionType: banwordActionSchema,
+		durationSeconds: z.number().int().min(1).nullable().optional(),
+	})
+	.superRefine((data, ctx) => {
+		const duration = data.durationSeconds ?? null;
+
+		if (data.actionType === 'MUTE') {
+			if (duration === null) {
+				ctx.addIssue({ code: 'custom', path: ['durationSeconds'], message: 'a mute needs a duration' });
+			} else if (duration > MAX_TIMEOUT_SECONDS) {
+				ctx.addIssue({
+					code: 'custom',
+					path: ['durationSeconds'],
+					message: 'Discord timeouts cap out at 28 days',
+				});
+			}
+		} else if (data.actionType !== 'BAN' && duration !== null) {
+			ctx.addIssue({
+				code: 'custom',
+				path: ['durationSeconds'],
+				message: `a ${data.actionType.toLowerCase()} has no duration`,
+			});
+		}
+	});

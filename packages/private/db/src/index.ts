@@ -98,6 +98,12 @@ export type {
 	AutomoderatorWarnPunishmentsGuildId,
 	AutomoderatorWarnPunishmentsWarns,
 } from './generated/public/AutomoderatorWarnPunishments.js';
+export type { default as AutomoderatorBypassRoles } from './generated/public/AutomoderatorBypassRoles.js';
+export type { default as AutomoderatorBanwordAction } from './generated/public/AutomoderatorBanwordAction.js';
+export type {
+	default as AutomoderatorBanwordPolicies,
+	AutomoderatorBanwordPoliciesId,
+} from './generated/public/AutomoderatorBanwordPolicies.js';
 
 export interface CreateDbOptions {
 	/**

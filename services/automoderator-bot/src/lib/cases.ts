@@ -109,6 +109,26 @@ export async function createCase(options: CreateCaseOptions): Promise<Automodera
 	}
 }
 
+/**
+ * The case a previous delivery of the same event already filed, if there was one.
+ *
+ * Read by `applyModerationAction` before it does anything, so a redelivered gateway event does not punish
+ * twice. That is a *pre-flight*, not the guarantee -- the guarantee is the partial unique index, which
+ * `createCase` catches. Both exist because they cover different halves: the index stops a duplicate *row*
+ * after the Discord call has already happened, and only this stops the duplicate Discord call.
+ */
+export async function findCaseByIdempotencyKey(
+	guildId: string,
+	idempotencyKey: string,
+): Promise<AutomoderatorCases | null> {
+	const [row] = await getContext().db<AutomoderatorCases[]>`
+		SELECT * FROM automoderator_cases
+		WHERE guild_id = ${guildId} AND idempotency_key = ${idempotencyKey}
+	`;
+
+	return row ?? null;
+}
+
 export async function getCaseByNumber(guildId: string, caseId: number): Promise<AutomoderatorCases | null> {
 	const [row] = await getContext().db<AutomoderatorCases[]>`
 		SELECT * FROM automoderator_cases WHERE guild_id = ${guildId} AND case_id = ${caseId}
