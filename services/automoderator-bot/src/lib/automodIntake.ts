@@ -35,16 +35,30 @@ import { syncReportCard } from './reportCard.js';
 const FEATURE = 'banwords';
 
 /**
- * The policy actions that punish somebody. REPORT is excluded because it is not one -- it files a report card
- * instead, which is feature 30 -- and excluding it *in the type* is what makes the three maps below total:
- * adding a sixth action to `automoderator_banword_action` becomes a compile error here rather than an
- * `undefined` that reaches Discord.
+ * Mirrors `CREATE TYPE automoderator_banword_action`. A hand-written string union rather than the generated
+ * enum, the same arrangement -- and for the same reason -- as `@chatsift/core`'s `CaseActionName`: kanel emits
+ * the enum as a real TypeScript enum and `@chatsift/db` re-exports only its *type*, so there is no runtime
+ * value to reference and a bare `'WARN'` is not assignable to it.
+ *
+ * **What that costs, said plainly, because an earlier version of this comment claimed otherwise.** Reaching the
+ * union from a row needs a cast, and a cast is a hole no type can close: if `automoderator_banword_action`
+ * gains a sixth value and nobody updates this union, the cast happily produces it and `Record<PunishmentAction,
+ * …>` never notices. The maps below are total over *this union*, which catches a typo or an omission made
+ * here -- it does not catch a migration made elsewhere. {@link classifyPolicyAction} is what catches that, at
+ * runtime, and it is why the unknown branch exists rather than being dead code.
  */
-type PunishmentAction = 'BAN' | 'KICK' | 'MUTE' | 'WARN';
+type BanwordActionName = 'BAN' | 'KICK' | 'MUTE' | 'REPORT' | 'WARN';
 
-function isPunishment(action: string): action is PunishmentAction {
-	return action !== 'REPORT';
-}
+/**
+ * The subset that punishes somebody. REPORT is the one that does not -- it files a report card instead, which
+ * is feature 30.
+ */
+type PunishmentAction = Exclude<BanwordActionName, 'REPORT'>;
+
+type ClassifiedAction =
+	| { readonly action: PunishmentAction; readonly kind: 'punishment' }
+	| { readonly kind: 'report' }
+	| { readonly kind: 'unknown' };
 
 const POLICY_CASE_ACTION = {
 	WARN: 'WARN',
@@ -52,6 +66,25 @@ const POLICY_CASE_ACTION = {
 	KICK: 'KICK',
 	BAN: 'BAN',
 } as unknown as Record<PunishmentAction, AutomoderatorCaseAction>;
+
+/**
+ * Splits a stored action into the three things this module can do with it.
+ *
+ * The `in` check is a **runtime** guard against a value the union above does not know about, which is exactly
+ * the case the type system cannot reach across the cast. Without it, an unrecognised action indexes the map to
+ * `undefined` and hands that to `applyModerationAction` as the case action -- Discord then rejects a request
+ * built around it, or worse, the case row records an action nobody configured.
+ *
+ * Exported for its tests: a branch the compiler believes is unreachable is precisely the one somebody deletes
+ * as dead code.
+ */
+export function classifyPolicyAction(action: BanwordActionName): ClassifiedAction {
+	if (action === 'REPORT') {
+		return { kind: 'report' };
+	}
+
+	return action in POLICY_CASE_ACTION ? { kind: 'punishment', action } : { kind: 'unknown' };
+}
 
 const SUMMARY_PAST: Record<PunishmentAction, string> = {
 	WARN: 'Warned',
@@ -209,11 +242,24 @@ async function decideOutcome(input: OutcomeInput, logger: Logger): Promise<Polic
 		return { summary: `Skipped: <@&${bypassRoleId}> bypasses filters`, enforced: false };
 	}
 
-	const action = policy.policy.actionType as string;
+	const classified = classifyPolicyAction(policy.policy.actionType as unknown as BanwordActionName);
 
-	const outcome = isPunishment(action)
-		? await runPunishmentPolicy(data, policy.policy, action, ruleName, target.actor, matchedKeyword, logger)
-		: await runReportPolicy(data, target.actor, ruleName, matchedKeyword, logger);
+	if (classified.kind === 'unknown') {
+		// A policy row this build does not understand -- a migration that added an action ahead of the code that
+		// handles it. Counted as `failed` rather than `skipped`, because nothing about this is a decision: the
+		// guild configured something and it did not happen.
+		logger.error(
+			{ guildId: data.guild_id, ruleId: data.rule_id, actionType: policy.policy.actionType },
+			'banword policy names an action this build does not know how to carry out',
+		);
+		featureInvocations.inc({ feature: FEATURE, outcome: 'failed' });
+		return { summary: 'Nothing done: this policy names an unrecognised action', enforced: false };
+	}
+
+	const outcome =
+		classified.kind === 'punishment'
+			? await runPunishmentPolicy(data, policy.policy, classified.action, ruleName, target.actor, matchedKeyword, logger)
+			: await runReportPolicy(data, target.actor, ruleName, matchedKeyword, logger);
 
 	// A report the guild had nowhere to file is not an enforcement. Counting it as `applied` would show a
 	// healthy rate for a guild whose REPORT policies do nothing at all, which is the exact failure these
