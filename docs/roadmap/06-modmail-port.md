@@ -2,7 +2,7 @@
 
 **Milestone target:** the freeze window opens **2026-08-24T15:00:00Z** and the migration runs at **2026-08-26T15:00:00Z** (both 18:00 EEST) — announced to guild owners, so this is now a public commitment, not an internal aim. See [Pre-cutover comms](#pre-cutover-comms-313) for who was told what. **Depends on:** nothing blocking — the M1 foundation pattern and the M4-established bot/grant-token conventions this milestone originally depended on have both already shipped and been reused (see below). **Live production impact:** yes, and unlike M4 this one includes a real historical-data migration.
 
-## Status: feature work shipped 2026-07-30; only the legacy migration + cutover remain
+## Status: freeze in effect since 2026-08-24T15:00:00Z; migration + cutover 2026-08-26T15:00:00Z
 
 M5 was redesigned 2026-07-22 (from a straight DM-based port into a ticket/private-thread system — rationale below) and, as of that redesign, fully implemented: schema, API, dashboard, and bot, plus two follow-on efforts built on top of it — the thread-history dashboard view (#261) and custom instances + DM mode (#216). None of that is a plan anymore; it's documented as current-state architecture in [01-architecture.md §6a](01-architecture.md#6a-modmail-bot-subsystem-servicesmodmail-bot-m5) (base ticket system), [§7](01-architecture.md#7-modmail-thread-history-dashboard-view-261) (thread history), and [§8](01-architecture.md#8-custom-modmail-instances-216) (custom instances/DM mode). This doc is no longer a design spec — it's scoped down to the one thing still outstanding: migrating real historical thread data out of legacy `ChatSift/ModMail` and cutting the **public** deployment over to `services/modmail-bot`.
 
@@ -129,13 +129,8 @@ Because the mod-side model didn't change, this is a close-to-1:1 mapping, not th
    - It **refuses to run while any legacy thread is still open**. Force-closing them is a deliberate runbook step (item 3 below), not something the script does silently.
    - It **refuses to run twice for the same `--source`**. Thread history is not idempotent — `threads` has no unique key to conflict on, so a second pass would duplicate every ticket. Starting over means deleting that source's migrated rows by hand first; the abort message carries the exact statement, scoped to the slug. A _different_ `--source` is deliberately allowed to proceed.
    - `mod_forum_id` is migrated as `NULL` for every guild, deliberately: the legacy value was a text channel and the new mod side needs a Forum. The script prints the list of affected guilds so it can drive follow-up comms.
-2. **Dry-run** against a copy of the production legacy `ChatSift/ModMail` database; reconcile row counts and spot-check message content/ordering per thread. `--dry-run` runs the whole migration in a transaction and rolls it back (so every FK/CHECK/unique constraint is genuinely exercised), and `--verify` is the read-only reconciler: per-table row counts, per-thread message counts, and full message-set comparison on a random sample. **Do the NASCAR pilot first** (below) — it exercises the same code path against real history at a fraction of the blast radius, and produces the first honest wall-clock number.
-3. **Cutover runbook** (mirroring [05-migration-cutover.md](05-migration-cutover.md)'s structure, but _with_ a data migration this time):
-   - Announce a maintenance window — ModMail is more synchronous/user-facing than AMA was, a message sent mid-cutover shouldn't get lost. See [Pre-cutover comms](#pre-cutover-comms-313) for the three channels this goes out on and the one date they all share.
-   - Freeze the legacy bot (stop accepting new DMs/replies — it's still DM-based right up to cutover) for the migration run.
-   - Run the migration script against a final snapshot, then `--verify`. **Record the wall-clock duration of the dry-run (item 2) and budget the maintenance window off that** — it's the only honest estimate available, since runtime is dominated by legacy row counts nobody has measured yet. The script sets `statement_timeout`/`idle_in_transaction_session_timeout` to 0 for its own transaction (it holds one transaction open across reads of the _legacy_ database, so it idles for reasons unrelated to Postgres' own speed), but that only covers server-side limits — a connection killed by something in between, or the operator's own shell timing out, still means restarting the whole run.
-   - Deploy `services/modmail-bot` as the public deployment, point the token, smoke-test (create a ticket via a panel, reply from staff, close a ticket and confirm the private thread is gone, pull up a migrated legacy thread in the dashboard thread view and confirm its history rendered correctly).
-   - Keep the legacy deployment + database warm for rollback until confidence is established.
+2. **Dry-run against a restored copy of the _public_ production database** — **still outstanding, and now the largest unknown left in this milestone.** The NASCAR pilot below is complete end to end, which is what closed #158, but it measured a two-guild partner database; the public deployment is a **2,460-guild** application (`GET /applications/@me`, 2026-08-24) whose row counts nobody has ever counted. The pilot's "~1 second" is not transferable — it is the number for 271 threads and 1,289 messages. Getting a real wall-clock figure for the public dataset is the top job of the freeze window, because it is what sizes the 2026-08-26 maintenance window.
+3. **Cutover runbook** — written up as [Public cutover runbook (#159)](#public-cutover-runbook-159) below, informed by the pilot rather than mirroring [05-migration-cutover.md](05-migration-cutover.md) (which had no data migration to sequence).
 
 ## Pre-cutover comms (#313)
 
@@ -157,7 +152,9 @@ Three separate measures, all driven off **one instant**: `2026-08-24T15:00:00Z` 
 
 (2) and (3) live in **legacy `ChatSift/ModMail`**, not in this repo — they only make sense on the bot people are using today. Branch `feat/migration-notices` there: a disposable `packages/bot/src/util/migrationNotice.ts` holding the timestamps, the status text and the embed builder, wired into `events/ready.ts` and `util/handleThreadManagement.ts`. Everything is hardcoded rather than plumbed through that repo's `struct/Env.ts` on purpose — it has a known expiry date. Merging to `main` there triggers `.github/workflows/deploy.yml`, which builds and pushes `chatsift/modmail:latest`; the prod stack then needs a pull + restart to pick it up. Deploy well ahead of the 24th, and delete both call sites after cutover (or just decommission the legacy deployment, #159).
 
-## The NASCAR pilot
+## The NASCAR pilot — complete
+
+**The pilot ran end to end and NASCAR is live on the new stack**: `--live` + `--verify`, the #216 instance row, DM mode, a chosen forum and a snippets resync are all done. Steps 0-9 below are kept as the executed record, because the public run repeats most of them at ~2,460× the guild count and every deviation matters. Two of them do **not** carry over — see [Public cutover runbook](#public-cutover-runbook-159).
 
 NASCAR self-hosts its own deployment of legacy `ChatSift/ModMail` (VPS checkout `/home/deploys/repos/nascar-modmail`) against its own Postgres. That makes it the rehearsal this milestone has been missing: a real legacy database with real history, small enough that a bad outcome is recoverable. Their new home is the **canary/main deployment** (`/home/deploys/repos/canary`); the `prod` branch runs no `modmail-bot` at all and folds into canary on 2026-08-13 ([prod-branch.md](../prod-branch.md)), so this was never a real choice. Afterwards they get a #216 custom instance in DM mode, so their users' flow matches what they have today.
 
@@ -214,6 +211,77 @@ Expect their guild in the "needs a forum" list — `mod_forum_id` migrates as `N
 - **Resync snippets.** Migrated `snippets.command_id` values belong to their _legacy_ application and 404 under the new one — press the snippets resync button ([§8](01-architecture.md#8-custom-modmail-instances-216)). Panels resync is not needed; no panels existed on legacy.
 
 **9. Keep their legacy deployment and database warm** for rollback until confidence is established, and **archive the dump offsite** — the same single dump that fed the migration, taken before the test-guild delete and the force-close, so the archive is pristine legacy state and provably identical to what was imported. Checksum it across the transfer and test-restore it once; the VPS surviving is an assumption a rollback plan shouldn't make. The file holds Discord IDs, timestamps and guild config strings — the legacy schema stores no message content — so it is personal data but not a conversation archive.
+
+## Public cutover runbook (#159)
+
+The public run is the pilot at a different scale and on a different application. Everything the pilot established still holds except two things, both consequences of **adopting the legacy application's token** rather than standing up a new identity (decided 2026-08-24, same call Social made in [10-social-port.md](10-social-port.md)'s P6):
+
+- **Snippets do not need a resync.** A snippet is a per-guild slash command owned by whichever application minted it (`services/modmail-bot/src/lib/snippets.ts` resolves `interaction.data.id` against `snippets.command_id`). NASCAR changed application, so every migrated `command_id` 404'd and the resync button was mandatory. Here the application id is unchanged, `/deploy` bulk-overwrites **global** commands only, and guild-scoped snippet commands are untouched by it — so migrated ids keep resolving. That is a claim to smoke-test, not to assume: invoke a migrated snippet in a real guild post-cutover.
+- **The guilds already on the new stack are orphaned the other way.** The same rule cuts in the opposite direction for the handful of guilds running v3 ModMail today: their panel messages and snippet commands were minted by the v3-only application `1530137759304515647`, and after the swap the adopted application can neither edit those messages nor see those commands. This is exactly the case `panels/resyncPanels.ts` and `snippets/resyncSnippets.ts` exist for (§8's "a guild swapping which application owns it"), and both are deliberately manual. Capture the affected list in Phase 1 — _before_ the migration, while `snippets` still holds only v3-authored rows — and press both dashboard buttons per guild after `/deploy`. Custom instances (#216) are unaffected; they run on their own tokens.
+- **A stale global command set blocks `/deploy` from ever appearing.** `bootstrapGlobalCommands` (`packages/private/bot-core/src/lib/deploy.ts`) seeds `/deploy` **only when the application currently has zero global commands**. The legacy application has a full set (`/reply`, `/close`, `/config`, `/snippets`, …), so booting the new bot against it without wiping them first leaves `/deploy` unregistered and every stale legacy command routing into the new bot's unknown-command resolver. Wipe them between stopping the legacy bot and starting the new one.
+
+### Phase 0 — freeze (2026-08-24T15:00:00Z, done)
+
+Branch `feat/thread-freeze` on legacy `ChatSift/ModMail`: `isThreadFreezeActive()` in `packages/bot/src/util/migrationNotice.ts` gates every path into `openThread` (user DM, `/open`, the Open context menu), so relaying into an already-open thread keeps working exactly as announced. It is a **date check, not a deploy switch** — shipping early is safe, and the presence text flips itself on the hourly refresh. The guard has no upper bound on purpose: it must not lift itself if the cutover slips, or threads opened after the migration would exist only on the legacy side, with no second pass to collect them (`--source` runs once).
+
+### Phase 1 — the 48h window (2026-08-24 → 2026-08-26)
+
+In priority order. Item 1 is the one that can move the date; everything else is preparation.
+
+1. **Dry-run the public database and record the wall clock.** Nothing about the pilot's ~1s transfers to 2,460 guilds. Dump the public legacy database, restore it onto the **v3** Postgres as a scratch database (`modmail_legacy_restore`) rather than alongside on the legacy one — the two stacks sit on separate docker networks, and this is what lets one container reach both sides. Run the script from **inside the running `api` container** (`./compose exec`), which is the only place with `packages/private/db/dist/scripts/` plus prod's `DATABASE_URL_PROD` already in the environment:
+
+   ```sh
+   ./compose exec -e LEGACY_DATABASE_URL=<restored copy> api \
+     node ./packages/private/db/dist/scripts/migrateLegacyModmail.js --source public --dry-run
+   ```
+
+   Preflight will refuse while any legacy thread is open, so force-close **in the copy** first (`UPDATE "Thread" SET "closedAt" = now(), "closedById" = '<id>' WHERE "closedAt" IS NULL`) — itself a faithful rehearsal of the real step. If the run is slow enough to threaten the announced window, that is a finding worth having 48h early rather than 5 minutes in.
+
+2. **Confirm the legacy schema hasn't drifted.** `pg_dump --schema-only` the public database and diff the nine tables against [Old schema](#old-schema-migration-source). Every query in the script uses quoted camelCase legacy column names, so drift is a hard mid-run failure. A tenth table (`_prisma_migrations`) is expected and never read.
+3. **Take baseline counts** on the restored copy, per table, and keep them — `--verify` reconciles against them afterwards.
+4. **Capture the resync list**, before the migration runs:
+
+   ```sh
+   ./compose exec -T postgres psql -U chatsift -d chatsift -At -F$'\t' -c "
+     SELECT guild_id,
+            count(*) FILTER (WHERE kind = 'panel')   AS panels,
+            count(*) FILTER (WHERE kind = 'snippet') AS snippets
+     FROM (
+       SELECT guild_id, 'panel'   AS kind FROM ticket_panels
+       UNION ALL
+       SELECT guild_id, 'snippet' AS kind FROM snippets
+     ) x
+     WHERE guild_id NOT IN (SELECT guild_id FROM modmail_instances)
+     GROUP BY guild_id ORDER BY guild_id
+   "
+   ```
+
+   Every guild it returns needs both resync buttons after the swap — see the second bullet above. After the migration this query stops being useful: `snippets` then also holds 2,460 guilds' worth of legacy rows.
+
+5. **Watch the open-thread count fall.** `SELECT count(*) FROM "Thread" WHERE "closedAt" IS NULL` is the population the force-close will hit mid-conversation on the 26th. The freeze exists to let moderators drain it; a number that isn't falling is a comms problem, not a technical one.
+6. **Pre-stage the token swap.** `MODMAIL_BOT_TOKEN` in the host's `.env.private` becomes the legacy application's token. Leave `MODMAIL_SHARDS_PER_REPLICA` unset: `GET /gateway/bot` recommends **2 shards** for this application, and an unset value means one replica claiming a single index that covers both ([12-horizontal-scaling.md](12-horizontal-scaling.md)) — no scaling decision is needed for this cutover.
+7. **Know who lands unconfigured.** `mod_forum_id` migrates as `NULL` for **every** guild, so ModMail is inert for all of them until an admin picks a Forum on the dashboard. The script prints the affected guilds; that list is the follow-up comms list, and at this scale it is the largest post-cutover support surface — the owner DMs reached 21 active owners, not 2,460 installs.
+
+### Phase 2 — migration + cutover (2026-08-26T15:00:00Z)
+
+1. **Pre-flight:** freeze confirmed still on; Phase 1's dry-run clean and its duration known; the v3 stack healthy.
+2. **Stop the legacy deployment** (`ChatSift/stack`'s `modmail` service). Nothing may write to the legacy database past this point.
+3. **Take the final dump, archive it offsite, checksum it across the transfer, and test-restore it once.** Take it _before_ the force-close, so the archive is pristine legacy state and provably identical to what gets imported. It holds Discord ids, timestamps and guild config — the legacy schema stores no message content.
+4. **Restore into the scratch database** (drop and recreate `modmail_legacy_restore`), then force-close open threads **in the copy only**. Leaving the live legacy database untouched is what keeps rollback honest.
+5. **Migrate and verify**, same invocation as the dry-run with `--live`, then `--verify`. Both scoped to `--source public`, which is what makes them independent of NASCAR's already-migrated rows.
+6. **Wipe the legacy application's global commands** — `PUT /applications/981971797480210523/commands` with `[]`. After step 2, before step 7. Skipping this is the one mistake that has no in-place fix: the new bot's bootstrap resolves successfully-but-early, so recovery is wipe-then-restart the container.
+7. **Swap the token and start the new bot:** `MODMAIL_BOT_TOKEN` → legacy application, `./compose up -d modmail-bot`.
+8. **DM `/deploy`** (admin-gated) to register the new global command set.
+9. **Run the resync sweep** over Phase 1's list: dashboard → ModMail → Panels → Resync, then Snippets → Resync, per guild. Panels are reposted under new message ids; snippet commands are recreated under the adopted application and stale ones deleted. Both routes report per-item failures rather than aborting, so re-run any guild that reports one.
+10. **Ship the `/invites/modmail` repoint** (`apps/website/next.config.mjs`, prepared): client id → `981971797480210523`, and `permanent: false`, because the 308 it served until now is cached by browsers indefinitely.
+11. **Smoke-test** on the test guild (`1530909114736050316`): create a panel, open a ticket through it, reply as staff, close it and confirm the user-side private thread is gone. Then pull a **migrated** legacy thread up in the dashboard thread view and confirm its history renders (message content shows the "not recorded" placeholder by design). Finally, invoke a **migrated snippet** — the one behaviour that is new to the public run.
+
+### Rollback
+
+- **Data:** `DELETE` scoped to `migration_source = 'public'`; the script's own re-run abort prints the exact statement. NASCAR's rows are untouched by it.
+- **Bot:** stop `modmail-bot`, put the legacy token back into `ChatSift/stack`'s `modmail` service, restart it — **and re-register legacy's global commands** (its own `packages/bot/src/deploy.ts`), which step 6 deleted. That re-registration is the real cost of the global wipe and the reason rollback is not symmetric with cutover.
+- **The freeze stays on** through any rollback unless deliberately reverted: a legacy bot accepting new threads again after a partial migration is worse than one that is merely frozen.
+- Keep the legacy deployment and its database warm until confidence is established (#159 stays open until then; decommissioning it is #159's successor work).
 
 ## Verification
 

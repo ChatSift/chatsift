@@ -54,10 +54,16 @@ export default {
 				permanent: false,
 			},
 			{
+				// #159 cutover: repointed from the v3-only application (1530137759304515647) to the legacy
+				// public ModMail application, whose token `modmail-bot` adopts at cutover -- 2460 guilds keep
+				// their existing install, and a fresh invite has to land on that same application or the new
+				// guild gets a bot nobody is running. Now `permanent: false` like `/invites/ama` above: the
+				// 308 this used to serve is cached by the browser indefinitely, which is precisely the wrong
+				// property for a link whose target just moved once and could move again.
 				source: '/invites/modmail',
 				destination:
-					'https://discord.com/oauth2/authorize?client_id=1530137759304515647&permissions=360777370624&scope=applications.commands%20bot',
-				permanent: true,
+					'https://discord.com/oauth2/authorize?client_id=981971797480210523&permissions=360777370624&scope=applications.commands%20bot',
+				permanent: false,
 			},
 			{
 				source: '/kofi',
