@@ -8,7 +8,7 @@ import {
 	guildListExists,
 	primeUserCache,
 	removeGuildFromList,
-	resetGuildList,
+	syncShardGuildList,
 	touchGuildList,
 } from '@chatsift/backend-core';
 import type { Snowflake } from '@discordjs/core';
@@ -19,7 +19,7 @@ import { handleAutocompleteInteraction, handleCommandInteraction, registerComman
 import { handleComponentInteraction } from './components.js';
 import DashboardCommand from './dashboardCommand.js';
 import DeployCommand, { bootstrapGlobalCommands } from './deploy.js';
-import { getReplicaIndex } from './replica.js';
+import { getReplicaIndex, ownsShardForGuild, shardOwnsGuild } from './replica.js';
 import { setSelfId } from './selfId.js';
 import { invalidateStoredSessions } from './sessions.js';
 import { onShutdown } from './shutdown.js';
@@ -37,8 +37,8 @@ declare module '@chatsift/backend-core' {
 
 export interface CreateBotClientOptions {
 	/**
-	 * Identifies which bot this is for the `bot:<BotId>` guild-list Redis key that the dashboard/API reads to know
-	 * which guilds the bot is in. A custom ModMail instance (#216) passes its own widened
+	 * Identifies which bot this is for the `guilds:<BotId>:<replica>` guild-list Redis keys that the dashboard/API
+	 * reads to know which guilds the bot is in. A custom ModMail instance (#216) passes its own widened
 	 * `` MODMAIL#${instanceId} `` key instead of the bare `BotId` so it doesn't overwrite the public
 	 * deployment's guild list.
 	 */
@@ -169,20 +169,29 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 				logger.warn('Unhandled interaction type');
 			}
 		})
-		.on(GatewayDispatchEvents.Ready, async ({ data }) => {
-			getContext().logger.info('Logged in successfully');
+		.on(GatewayDispatchEvents.Ready, async ({ data, shardId }) => {
+			getContext().logger.info({ shardId }, 'Logged in successfully');
 
 			// Free here, and the only place it arrives without a request -- see `selfId.ts` for why a bot that
 			// only ever RESUMEs has to fall back to asking. Guarded, and deliberately so: this handler's real job
-			// is the guild-list reset and the command bootstrap below, and a recording step that can throw ahead
+			// is the guild-list sync and the command bootstrap below, and a recording step that can throw ahead
 			// of them would take both down with it.
 			if (data.user?.id) {
 				setSelfId(data.user.id);
 			}
 
-			// A fresh IDENTIFY re-announces every guild via GUILD_CREATE, so anything already under this index
-			// belongs to a previous life of it and must not survive. This is the only place the set is cleared.
-			await resetGuildList(botId, getReplicaIndex());
+			// READY already names every guild this shard is in (as unavailable stubs), so the slice can be
+			// reconciled against it here rather than cleared and rebuilt from the GUILD_CREATE sweep that
+			// follows -- see `syncShardGuildList` for the two races clearing it opened.
+			await syncShardGuildList(
+				botId,
+				getReplicaIndex(),
+				data.guilds.map((guild) => guild.id),
+				// What this shard's READY speaks for: its own guilds, plus anything this replica has no shard for
+				// at all. Discord raising its shard count remaps every guild, and a member stranded by that would
+				// otherwise be kept alive by the heartbeat forever, since no shard here would ever claim it.
+				(guildId) => shardOwnsGuild(shardId, guildId) || !ownsShardForGuild(guildId),
+			);
 			publishing = true;
 
 			await bootstrapOnce(data.application.id);

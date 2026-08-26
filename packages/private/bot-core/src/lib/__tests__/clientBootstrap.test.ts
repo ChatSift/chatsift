@@ -24,7 +24,7 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 		// bootstrap paths can be driven in isolation. `guildListExists` must answer `true` -- a `false` sends
 		// the client into `recoverLostGuildList`, which SIGTERMs the vitest process.
 		guildListExists: vi.fn(async () => true),
-		resetGuildList: vi.fn(),
+		syncShardGuildList: vi.fn(),
 		addGuildToList: vi.fn(),
 		removeGuildFromList: vi.fn(),
 		touchGuildList: vi.fn(async () => true),
@@ -94,7 +94,7 @@ test('READY bootstraps without a REST lookup, since it carries the application i
 	const { rest, get } = fakeRest();
 	createBotClient({ botId: 'AMA', gateway: gateway as unknown as WebSocketManager, rest });
 
-	dispatch(gateway, 'READY', { application: { id: 'app-from-ready' } });
+	dispatch(gateway, 'READY', { application: { id: 'app-from-ready' }, guilds: [] });
 	await vi.waitFor(() => expect(bulkOverwrite).toHaveBeenCalledOnce());
 
 	expect(bulkOverwrite.mock.calls[0]![0]).toBe('/applications/app-from-ready/commands');
@@ -121,7 +121,7 @@ test('a reconnect storm bootstraps at most once per process', async () => {
 	const gateway = new EventEmitter();
 	createBotClient({ botId: 'AMA', gateway: gateway as unknown as WebSocketManager, rest: fakeRest().rest });
 
-	dispatch(gateway, 'READY', { application: { id: 'app-from-ready' } });
+	dispatch(gateway, 'READY', { application: { id: 'app-from-ready' }, guilds: [] });
 	await vi.waitFor(() => expect(bulkOverwrite).toHaveBeenCalledOnce());
 
 	// Every later RESUMED is a reconnect, not a fresh process -- re-running the check each time would put a

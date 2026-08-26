@@ -1,12 +1,13 @@
 import { Buffer } from 'node:buffer';
 import { beforeEach, expect, test, vi } from 'vitest';
+import type { GuildListKey } from '../data/bots.js';
 import {
 	addGuildToList,
 	dropGuildList,
 	guildListExists,
 	readGuildList,
 	removeGuildFromList,
-	resetGuildList,
+	syncShardGuildList,
 	touchGuildList,
 } from '../data/bots.js';
 
@@ -65,11 +66,16 @@ vi.mock('../context.js', () => ({
 				expiries.set(key, now + ttl);
 				return 1;
 			},
-			async sAdd(key: string, member: string) {
+			async sAdd(key: string, members: string[] | string) {
 				// An expired key must not be resurrected with its old members still in it.
 				live(key);
 				const set = sets.get(key) ?? new Set<string>();
-				set.add(member);
+				// Both call shapes are real: one guild id at a time from GUILD_CREATE, or a whole shard's READY
+				// payload in one go.
+				for (const member of Array.isArray(members) ? members : [members]) {
+					set.add(member);
+				}
+
 				sets.set(key, set);
 			},
 			async sMembers(key: string) {
@@ -85,6 +91,14 @@ vi.mock('../context.js', () => ({
 		},
 	}),
 }));
+
+/**
+ * A shard's READY, for the tests that only need a live slice to exist. `clearable` answers `true` because a
+ * single-shard bot speaks for every member of its own slice -- the multi-shard case gets its own tests below.
+ */
+async function ready(id: GuildListKey, replicaIndex: number, guildIds: string[] = []): Promise<void> {
+	await syncShardGuildList(id, replicaIndex, guildIds, () => true);
+}
 
 function expireSlice(id: string, replicaIndex: number): void {
 	for (const key of [`guilds:${id}:${replicaIndex}`, `guildslive:${id}:${replicaIndex}`]) {
@@ -103,7 +117,7 @@ beforeEach(() => {
 });
 
 test('reads back the guilds one replica added', async () => {
-	await resetGuildList('AMA', 0);
+	await ready('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 	await addGuildToList('AMA', 0, '2');
 
@@ -111,8 +125,8 @@ test('reads back the guilds one replica added', async () => {
 });
 
 test('unions across replicas, deduplicating', async () => {
-	await resetGuildList('AMA', 0);
-	await resetGuildList('AMA', 1);
+	await ready('AMA', 0);
+	await ready('AMA', 1);
 	await addGuildToList('AMA', 0, '1');
 	await addGuildToList('AMA', 0, '2');
 	await addGuildToList('AMA', 1, '2');
@@ -122,9 +136,9 @@ test('unions across replicas, deduplicating', async () => {
 });
 
 test('keys are per bot, and a custom instance is its own key', async () => {
-	await resetGuildList('AMA', 0);
-	await resetGuildList('MODMAIL', 0);
-	await resetGuildList('MODMAIL#nascar', 0);
+	await ready('AMA', 0);
+	await ready('MODMAIL', 0);
+	await ready('MODMAIL#nascar', 0);
 	await addGuildToList('AMA', 0, '1');
 	await addGuildToList('MODMAIL', 0, '2');
 	await addGuildToList('MODMAIL#nascar', 0, '3');
@@ -139,7 +153,7 @@ test('a bot nothing has published for reads as empty', async () => {
 });
 
 test('leaving a guild removes it without touching the rest', async () => {
-	await resetGuildList('AMA', 0);
+	await ready('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 	await addGuildToList('AMA', 0, '2');
 
@@ -149,8 +163,8 @@ test('leaving a guild removes it without touching the rest', async () => {
 });
 
 test('a crashed replica drops out of the union once its slice expires', async () => {
-	await resetGuildList('AMA', 0);
-	await resetGuildList('AMA', 1);
+	await ready('AMA', 0);
+	await ready('AMA', 1);
 	await addGuildToList('AMA', 0, '1');
 	await addGuildToList('AMA', 1, '2');
 
@@ -164,7 +178,7 @@ test('a crashed replica drops out of the union once its slice expires', async ()
 test('the set survives a graceful shutdown so the next boot can resume onto it', async () => {
 	// The regression this whole shape exists for: a resumed session gets no GUILD_CREATE sweep, so if shutdown
 	// destroyed the state there would be nothing left to resume onto and the bot would advertise no guilds.
-	await resetGuildList('AMA', 0);
+	await ready('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 	await dropGuildList('AMA', 0);
 
@@ -177,19 +191,45 @@ test('the set survives a graceful shutdown so the next boot can resume onto it',
 	await expect(readGuildList('AMA')).resolves.toStrictEqual(['1']);
 });
 
-test('READY starts the slice over, RESUMED does not', async () => {
-	await resetGuildList('AMA', 0);
+test('READY drops what its shard has since left', async () => {
+	await ready('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 	await addGuildToList('AMA', 0, '2');
 
-	// A fresh identify is about to re-announce everything, so stale membership must not survive into it.
-	await resetGuildList('AMA', 0);
+	// Kicked from '2' while the shard was offline: no GUILD_DELETE for it ever arrives, so READY's payload
+	// being the whole truth for this shard is the only thing that can notice.
+	await ready('AMA', 0, ['1']);
 
-	await expect(readGuildList('AMA')).resolves.toStrictEqual([]);
+	await expect(readGuildList('AMA')).resolves.toStrictEqual(['1']);
+});
+
+test('one shard identifying leaves a sibling shard on the same replica alone', async () => {
+	// The regression this whole reconcile exists for: shards share a replica's slice, and READY used to clear
+	// the lot. The second shard to identify therefore erased every guild the first had already announced, and
+	// nothing re-announces them -- they stayed missing from the dashboard until the next cold boot.
+	await ready('MODMAIL', 0);
+	await addGuildToList('MODMAIL', 0, 'shard-0-guild');
+	await addGuildToList('MODMAIL', 0, 'shard-1-guild');
+
+	await syncShardGuildList('MODMAIL', 0, ['shard-1-guild'], (guildId) => guildId.startsWith('shard-1'));
+
+	await expect(readGuildList('MODMAIL')).resolves.toStrictEqual(['shard-0-guild', 'shard-1-guild']);
+});
+
+test('READY never leaves a window for an in-flight GUILD_CREATE to be lost in', async () => {
+	// The single-shard half of the same bug: the old `del` ran before the GUILD_CREATE sweep it was clearing
+	// for, so a guild whose event landed in between was erased. Announcing the payload up front means a guild
+	// this shard is in survives however the two interleave.
+	await ready('AMA', 0);
+	await addGuildToList('AMA', 0, 'raced-in');
+
+	await ready('AMA', 0, ['raced-in', 'the-rest']);
+
+	await expect(readGuildList('AMA')).resolves.toStrictEqual(['raced-in', 'the-rest']);
 });
 
 test('the heartbeat re-arms the TTL rather than rewriting the set', async () => {
-	await resetGuildList('AMA', 0);
+	await ready('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 
 	now += 50_000;
@@ -201,7 +241,7 @@ test('the heartbeat re-arms the TTL rather than rewriting the set', async () => 
 });
 
 test('the heartbeat reports a slice that expired underneath it', async () => {
-	await resetGuildList('AMA', 0);
+	await ready('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 	expireSlice('AMA', 0);
 
@@ -212,7 +252,7 @@ test('the heartbeat reports a slice that expired underneath it', async () => {
 // The AutoModerator canary crash loop: it was in no guilds, so there was no set key for the heartbeat to
 // re-arm, every tick read that as expiry, and the bot SIGTERM'd itself roughly every ten seconds forever.
 test('a bot in no guilds stays alive indefinitely', async () => {
-	await resetGuildList('AUTOMODERATOR', 0);
+	await ready('AUTOMODERATOR', 0);
 
 	for (let tick = 0; tick < 100; tick++) {
 		now += 10_000;
@@ -224,7 +264,7 @@ test('a bot in no guilds stays alive indefinitely', async () => {
 });
 
 test('a bot in no guilds can resume onto its empty slice', async () => {
-	await resetGuildList('AUTOMODERATOR', 0);
+	await ready('AUTOMODERATOR', 0);
 	await dropGuildList('AUTOMODERATOR', 0);
 
 	// Empty is a legitimate state, not lost state -- reporting `false` here is what forced the re-identify.
@@ -232,7 +272,7 @@ test('a bot in no guilds can resume onto its empty slice', async () => {
 });
 
 test('an empty slice still expires when nothing is heartbeating it', async () => {
-	await resetGuildList('AUTOMODERATOR', 0);
+	await ready('AUTOMODERATOR', 0);
 
 	now += 61_000;
 
@@ -241,7 +281,7 @@ test('an empty slice still expires when nothing is heartbeating it', async () =>
 });
 
 test('the last guild leaving does not read as lost state', async () => {
-	await resetGuildList('AMA', 0);
+	await ready('AMA', 0);
 	await addGuildToList('AMA', 0, '1');
 	await removeGuildFromList('AMA', 0, '1');
 

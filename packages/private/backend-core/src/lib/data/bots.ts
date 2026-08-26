@@ -34,13 +34,43 @@ const liveKey = (id: GuildListKey, replicaIndex: number): string => `guildslive:
 const indexKey = (id: GuildListKey): string => `guildsreplicas:${id}`;
 
 /**
- * Starts this replica's slice from empty, and registers it as publishing.
+ * Brings this replica's slice in line with what one shard just reported at READY, and registers it as
+ * publishing.
  *
- * Called on READY -- a fresh IDENTIFY is about to re-announce every guild via `GUILD_CREATE.
+ * Reconciles rather than clears, because `Ready` fires per *shard* while the slice is keyed per *replica*: a
+ * bot running two shards on one process had the second shard's identify wipe every guild the first had already
+ * announced, and nothing ever re-announces those, so they stayed invisible to the dashboard until the next cold
+ * boot. `clearable` is what keeps a shard to its own guilds; everything else in the slice belongs to a sibling
+ * and is left for that shard's own READY.
+ *
+ * Reconciling also closes the narrower race the old wholesale `del` had even on a single-shard bot -- there is
+ * no longer a window where the slice is empty for an in-flight `GUILD_CREATE` to be lost in.
  */
-export async function resetGuildList(id: GuildListKey, replicaIndex: number): Promise<void> {
+export async function syncShardGuildList(
+	id: GuildListKey,
+	replicaIndex: number,
+	guildIds: readonly string[],
+	clearable: (guildId: string) => boolean,
+): Promise<void> {
 	const { redis } = getContext();
-	await redis.del(guildsKey(id, replicaIndex));
+	const key = guildsKey(id, replicaIndex);
+	const announced = new Set(guildIds);
+
+	// A guild left while this shard was offline produces no GUILD_DELETE it can ever see, so READY's payload is
+	// the only thing that notices it is gone.
+	const stale = (await redis.sMembers(key))
+		.map((guildId) => guildId.toString())
+		.filter((guildId) => !announced.has(guildId) && clearable(guildId));
+
+	if (stale.length > 0) {
+		await redis.sRem(key, stale);
+	}
+
+	if (announced.size > 0) {
+		await redis.sAdd(key, [...announced]);
+		await redis.pExpire(key, ENTRY_TTL_MS);
+	}
+
 	await redis.set(liveKey(id, replicaIndex), '1', { expiration: { type: 'PX', value: ENTRY_TTL_MS } });
 	await redis.sAdd(indexKey(id), String(replicaIndex));
 }

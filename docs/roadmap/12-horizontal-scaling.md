@@ -214,6 +214,25 @@ The `WebSocketManager` options were the small part. These are the things that we
 This is the same failure class #216 hit with two ModMail deployments sharing one guild-list key
 ([01-architecture.md §8](01-architecture.md#8-custom-modmail-instances-216)), and the fixes follow that precedent.
 
+### The guild-list slice is per replica, but READY is per shard
+
+A replica's slice (`guilds:<botId>:<replicaIndex>`) covers every shard that replica runs, and `Ready` fires once
+per shard. Clearing the slice on READY — which is what the original implementation did — therefore had the second
+shard to identify erase every guild the first had already announced via `GUILD_CREATE`. Nothing re-announces a
+guild after that, so those guilds simply stopped existing as far as the dashboard was concerned until the next
+cold boot, which lost a different arbitrary slice. It was found in production on public ModMail, running two
+shards on one replica: roughly the guilds delivered in the five seconds between shard 0's READY and shard 1's.
+
+`syncShardGuildList` reconciles against READY's own `guilds` payload instead — that payload is already the
+authoritative list for the shard, so the slice never has to pass through empty, and each shard only clears
+members it speaks for. That predicate also has to claim guilds this replica has _no_ shard for: Discord raising
+its shard count remaps every guild, and a member stranded by that would otherwise be kept alive by the heartbeat
+forever with no shard willing to clear it.
+
+The narrower version of the same bug was there on single-shard bots too — the `del` and the GUILD_CREATE sweep it
+was clearing for were both in flight at once, so a guild whose event landed between them was lost. Announcing the
+payload up front removes the window rather than shrinking it.
+
 ### The session store is write-behind, and has to be
 
 `@discordjs/ws` calls `retrieveSessionInfo` and `updateSessionInfo` on **every dispatch event**, to advance the

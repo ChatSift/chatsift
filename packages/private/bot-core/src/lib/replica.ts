@@ -140,6 +140,17 @@ export function guildShardId(guildId: string, shardCount: number): number {
 }
 
 /**
+ * Whether one specific shard is the one Discord routes this guild's events to.
+ *
+ * The per-shard counterpart to `ownsShardForGuild` below, which asks the same of the replica as a whole. Needed
+ * because a replica running several shards shares one guild-list slice between them, so a shard reconciling that
+ * slice at READY has to know which members are its own to speak for.
+ */
+export function shardOwnsGuild(shardId: number, guildId: string): boolean {
+	return guildShardId(guildId, totalShardCount) === shardId;
+}
+
+/**
  * Whether this replica is the one responsible for a guild.
  *
  * Great for avoiding complex atomic logic in tasks like DB sweeps that are tied to a table with a `guild_id`.
