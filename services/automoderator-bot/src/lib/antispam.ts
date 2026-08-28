@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { getContext } from '@chatsift/backend-core';
 
 /**
@@ -62,6 +63,45 @@ function decode(entry: string): BurstMessage | null {
 }
 
 /**
+ * Record, trim, refresh the TTL, count, and -- only on a burst -- clear, as **one atomic step**.
+ *
+ * Lua rather than five round trips, because the multi-replica case this whole module exists for is exactly the
+ * one five round trips get wrong. A member's messages are spread across shards by channel, so two replicas can
+ * each be holding half a burst; with the read and the clear apart, both can observe a set at or above the
+ * threshold before either `DEL` lands, and one flood becomes two delete passes, two DMs and two rungs of the
+ * ladder. `MULTI` cannot fix it -- the clear is conditional on the count, and a transaction cannot branch on a
+ * reply it has not received yet. This can, and it is ten lines.
+ *
+ * It also closes the smaller hole in the same gap: a message `ZADD`ed between the read and the clear was
+ * silently dropped from the window rather than carried into the next one.
+ *
+ * Returns the burst's members, or an empty array. An empty reply is the *only* thing a losing invocation can
+ * get, so "one burst, one response" is now a property of redis rather than a race that usually goes our way.
+ */
+const BURST_SCRIPT = `
+local now = tonumber(ARGV[1])
+local windowMs = tonumber(ARGV[2])
+local amount = tonumber(ARGV[3])
+
+redis.call('ZADD', KEYS[1], now, ARGV[4])
+-- Trimmed on write rather than filtered on read, which keeps the set bounded by the window instead of by how
+-- long the member keeps talking -- and makes the read below a plain index range.
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now - windowMs)
+-- A member who stops talking must not hold a key forever. Refreshed on every message, which is correct here and
+-- precisely the opposite of the message cache's 'refreshTTLOnRead: false' -- this TTL tracks a sliding window,
+-- that one is a retention bound on somebody's text.
+redis.call('PEXPIRE', KEYS[1], windowMs)
+
+local entries = redis.call('ZRANGE', KEYS[1], 0, -1)
+if #entries < amount then
+	return {}
+end
+
+redis.call('DEL', KEYS[1])
+return entries
+`;
+
+/**
  * Records a message and says whether it completed a burst.
  *
  * **Records first, then counts**, so the message that tips the guild's threshold is itself part of the burst
@@ -77,30 +117,26 @@ export async function recordMessage(
 	{ amount, windowSeconds }: AntispamSettings,
 ): Promise<AntispamHit | null> {
 	const { redis } = getContext();
-	const windowKey = key(guildId, author);
-	const now = Date.now();
 	const windowMs = windowSeconds * 1_000;
 
-	await redis.zAdd(windowKey, { score: now, value: encode(message) });
-	// Trimmed on write rather than filtered on read, which keeps the set bounded by the window instead of by how
-	// long the member keeps talking -- and makes the read below a plain index range.
-	await redis.zRemRangeByScore(windowKey, '-inf', now - windowMs);
-	// A member who stops talking must not hold a key forever. Refreshed on every message, which is correct here
-	// and precisely the opposite of the message cache's `refreshTTLOnRead: false` -- this TTL tracks a sliding
-	// window, that one is a retention bound on somebody's text.
-	await redis.pExpire(windowKey, windowMs);
+	const reply = await redis.eval(BURST_SCRIPT, {
+		keys: [key(guildId, author)],
+		arguments: [String(Date.now()), String(windowMs), String(amount), encode(message)],
+	});
 
-	const entries = await redis.zRange(windowKey, 0, -1);
-	if (entries.length < amount) {
+	if (!Array.isArray(reply) || reply.length === 0) {
 		return null;
 	}
 
-	await redis.del(windowKey);
-
-	// `.toString()` because the client maps blob strings to `Buffer` -- see `createRedis`. A member that no
-	// longer parses is dropped rather than failing the burst: it can only come from an older encoding, and
-	// refusing to act on a flood because one entry is unreadable is the wrong direction.
-	const messages = entries.map((entry) => decode(entry.toString())).filter((entry) => entry !== null);
+	// `eval`'s reply is untyped, and this client maps blob strings to `Buffer` (see `createRedis`), so both
+	// shapes are named rather than assumed -- a bare `String(entry)` on anything else silently yields
+	// `[object Object]` and a member that decodes to nothing.
+	//
+	// An entry that does not parse is dropped rather than failing the burst: it can only come from an older
+	// encoding, and refusing to act on a flood because one entry is unreadable is the wrong direction.
+	const messages = reply
+		.map((entry) => (Buffer.isBuffer(entry) || typeof entry === 'string' ? decode(entry.toString()) : null))
+		.filter((entry) => entry !== null);
 
 	return messages.length > 0 ? { messages } : null;
 }

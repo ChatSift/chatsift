@@ -7,7 +7,7 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0–P5 done — P5's three PRs (#365, #367, P5c) are all in; P6 (remaining utilities) is next
+## Status: P0–P4 done; P5's three PRs are all written — P5a (#365) and P5b (#367) are merged, P5c is open in #368 and unverified
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -883,11 +883,11 @@ type gets nothing — so the kill switch a gate would add already exists, per lo
 The largest phase, and the only one split across more than one PR. Three, each shipping a filter that works end
 to end rather than a layer that waits on the next one:
 
-| PR  | Features                                                                      | State                     |
-| --- | ----------------------------------------------------------------------------- | ------------------------- |
-| P5a | **01** banword policy on native hits, **33** filter log, **10** bypass roles  | shipped (#365)            |
-| P5b | **02** URL allowlist, **03** invite allowlist, **09** exemptions, `/simulate` | shipped (#367)            |
-| P5c | **07** anti-spam, **11** trigger ladder + decay                               | code-complete, unverified |
+| PR  | Features                                                                      | State                    |
+| --- | ----------------------------------------------------------------------------- | ------------------------ |
+| P5a | **01** banword policy on native hits, **33** filter log, **10** bypass roles  | shipped (#365)           |
+| P5b | **02** URL allowlist, **03** invite allowlist, **09** exemptions, `/simulate` | shipped (#367)           |
+| P5c | **07** anti-spam, **11** trigger ladder + decay                               | open in #368, unverified |
 
 **Feature 12 (DM on trigger) dissolved into P5a rather than being its own item.** A banword policy files a case,
 and `applyModerationAction` already DMs the target for every case that carries a punishment — so the feature is
@@ -1024,7 +1024,7 @@ Recorded so they don't get relitigated, same as P5a's.
    command answer "nothing, you're staff" every time. It calls `evaluateFilters` — the same function the runner
    calls, not a copy of it.
 
-#### P5c — what shipped
+#### P5c — what it delivers
 
 | Layer     | Work                                                                                                                |
 | --------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -1055,28 +1055,59 @@ what exposed it to the exemption picker.
    separate type: the first rung most guilds actually want is "warn them", and that warn then counts toward the
    _warn_ ladder — legacy's escalation path, and the one guilds expect.
 
-3. **One trigger per message, not per filter.** A message carrying both a forbidden link and a forbidden invite
-   is one thing the member did; counting it twice pushes them up the ladder at double speed for a single post.
-   Banword hits are still never counted, per P5a's decision 4, and that is structural rather than a check — the
-   ladder lives in the filter pipeline and native AutoMod hits arrive on a different path entirely.
+3. **One trigger per message, not per filter — and once per message _ever_.** A message carrying both a
+   forbidden link and a forbidden invite is one thing the member did; counting it twice pushes them up the
+   ladder at double speed for a single post. The first half is structural (one ladder call per message); the
+   second is a redis `SET NX PX` claim on the message id, and it exists because the filters deliberately re-run
+   on `MESSAGE_UPDATE`. Normally the message is deleted on its first hit so no edit can follow — but a message
+   the bot _could not_ delete, or was not allowed to in dry-run, survives, and without the claim every later
+   edit that still trips a filter is a fresh rung. A member fixing three typos on a message that still carries a
+   forbidden link should not climb three. Banword hits are still never counted, per P5a's decision 4, and that
+   too is structural: the ladder lives in the filter pipeline and native AutoMod hits arrive on a different path
+   entirely.
 
-4. **The burst carries its channels, so anti-spam does not depend on the message cache.** Legacy stored bare
+   The same claim covers a gateway redelivery, which is the other way one message reaches the pipeline twice.
+
+4. **A failed delete does not escalate.** `deleteMessages` returns `'failed'` when the bot lacks Manage Messages
+   or a bulk delete is refused, and the ladder is skipped for that outcome — banning somebody over messages
+   everyone can still read, without even the DM this path already suppresses for the same reason, is the worse
+   of the two failures. The filter log's line for that outcome names the missing permission, which is the part
+   staff can act on. Dry-run still runs the ladder: `suppressed` means the decision was made and recorded, which
+   is the whole point of the mode.
+
+5. **Nothing is written to `automoderator_trigger_counts` for a guild with no ladder.** An `EXISTS` on
+   `automoderator_trigger_punishments` inside the insert is what keeps this from being a table that only grows:
+   a guild running the filters with no rungs _and_ no decay would otherwise accumulate a permanent row per
+   offending member forever, feeding a ladder that does not exist — which is exactly what the table's own schema
+   comment claims the design avoids, and it was only true when decay was on. Configuring a ladder later starts
+   everyone from zero, which is the only honest answer: hits that were never recorded cannot be counted
+   retroactively, and legacy could not either.
+
+6. **The burst carries its channels, so anti-spam does not depend on the message cache.** Legacy stored bare
    message ids in redis and looked each one up in its cache to find the channel to delete from — which made
    anti-spam quietly dependent on a cache that can miss, and (without the `MessageContent` intent) misses
    silently. The sorted-set member here is `channelId/messageId`, so the burst is self-describing. The whole
    burst is deleted, grouped per channel, bulk where there is more than one.
 
-5. **Only a new message counts toward anti-spam; edits do not.** The content filters still re-run on edits —
+   **The window is a Lua script, not five round trips**, because the multi-replica case the sorted set exists
+   for is the one five round trips get wrong. A member's messages are spread across shards by channel, so two
+   replicas can each hold half a burst; with the read and the clear apart, both can observe a set at or above
+   the threshold before either `DEL` lands, and one flood becomes two delete passes, two DMs and two rungs.
+   `MULTI` cannot fix it — the clear is conditional on the count, and a transaction cannot branch on a reply it
+   has not received. Verified against a real redis: two invocations crossing the threshold concurrently, exactly
+   one gets the burst.
+
+7. **Only a new message counts toward anti-spam; edits do not.** The content filters still re-run on edits —
    that is the evasion they close — but feeding edits into the rate window would mute somebody for fixing three
    typos.
 
-6. **`/simulate` reports anti-spam without simulating it.** It is the one filter that decides on a rate rather
+8. **`/simulate` reports anti-spam without simulating it.** It is the one filter that decides on a rate rather
    than on content, so there is nothing about a pasted string to evaluate: running it would either record the
    simulated message into the member's real window or answer a question about how fast the moderator has been
    typing. The command says which it is doing, because "on, not simulated" and "nothing matched" are different
    answers and only one of them is true.
 
-7. **The decay is one statement with a compare-and-swap, and it catches up.** Legacy's was broken three ways,
+9. **The decay is one statement with a compare-and-swap, and it catches up.** Legacy's was broken three ways,
    none reproduced: it compared `new Date().getMinutes()` against `updatedAt.getMinutes()` (minute-of-hour, so
    it fired almost at random); its per-guild cooldown cache was inverted, so the first trigger row for a guild
    was deleted rather than decayed; and it decayed `automod_triggers` while the anti-spam runner incremented
@@ -1086,14 +1117,14 @@ what exposed it to the exemption picker.
 c.updated_at = d.updated_at` is what makes it safe on several replicas with no lease, the same job
    `pardoned_by IS NULL` does in the auto-pardon sweep.
 
-8. **A latent bug in the two existing punishment CHECKs was closed at the same time.**
-   `automoderator_warn_punishments` and `automoderator_banword_policies` both wrote their MUTE arm as
-   `duration_seconds >= 1`, which is _unknown_ for a NULL — and a CHECK passes on unknown. Both accepted
-   exactly the row their comments said they rejected. Every dashboard write goes through zod, which catches it,
-   so nothing was ever wrong in practice; **P9's migration is the write path that does not**, which is what
-   makes this worth fixing before P9 rather than after. All three constraints now spell the arm
-   `duration_seconds IS NOT NULL AND duration_seconds >= 1`. No row in the dev database violated the tightened
-   version.
+10. **A latent bug in the two existing punishment CHECKs was closed at the same time.**
+    `automoderator_warn_punishments` and `automoderator_banword_policies` both wrote their MUTE arm as
+    `duration_seconds >= 1`, which is _unknown_ for a NULL — and a CHECK passes on unknown. Both accepted
+    exactly the row their comments said they rejected. Every dashboard write goes through zod, which catches it,
+    so nothing was ever wrong in practice; **P9's migration is the write path that does not**, which is what
+    makes this worth fixing before P9 rather than after. All three constraints now spell the arm
+    `duration_seconds IS NOT NULL AND duration_seconds >= 1`. No row in the dev database violated the tightened
+    version.
 
 ---
 

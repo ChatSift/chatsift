@@ -22,6 +22,21 @@ import { applyModerationAction } from './moderation.js';
  */
 
 /**
+ * How long one message stays claimed against a second count.
+ *
+ * The window in which the *same* message can trip the filters again, which is an edit -- `filterRunner.ts` runs
+ * on `MESSAGE_UPDATE` deliberately, to catch a link edited in after posting. Normally the message is deleted on
+ * the first hit and no edit can follow, but a message the bot could not delete (or was not allowed to, in
+ * dry-run) survives, and every later edit that still trips a filter would otherwise be a fresh rung. A member
+ * fixing three typos on a message that still carries a forbidden link should not climb three.
+ *
+ * A day rather than something shorter: an edit hours later is still an edit of the same offence. Longer than
+ * that and it stops being one -- somebody dredging up a day-old message to edit a link into it is doing a new
+ * thing, and should be counted for it.
+ */
+export const TRIGGER_CLAIM_TTL_MS = 24 * 60 * 60 * 1_000;
+
+/**
  * Mirrors `CREATE TYPE automoderator_trigger_punishment_action`. A hand-written union for the same reason
  * `automodIntake.ts`'s `BanwordActionName` is one: kanel emits the enum as a real TypeScript enum and
  * `@chatsift/db` re-exports only its type, so there is no runtime value to reference.
@@ -56,8 +71,8 @@ export interface TriggerLadderResult {
 	 */
 	readonly caseId?: number;
 	/**
-	 * The member's trigger count **after** this hit, whether or not a rung matched. Always present, because "no
-	 * rung fired and they are on 4" is the answer the filter log should give.
+	 * The member's trigger count **after** this hit, whether or not a rung matched -- "no rung fired and they
+	 * are on 4" is an answer the filter log should be able to give.
 	 */
 	readonly count: number;
 	/**
@@ -67,31 +82,76 @@ export interface TriggerLadderResult {
 }
 
 /**
- * Records one filter trigger against a member and carries out the rung it lands on, if any.
+ * True the first time a message is counted, false every time after.
  *
- * **Once per message, not once per filter.** A message carrying both a forbidden link and a forbidden invite is
- * one thing the member did; counting it twice would push them up the ladder at double speed for a single post.
+ * `SET NX PX` -- one round trip, atomic, the same claim `claimAutomodExecution` makes on the native path and
+ * for the same shape of reason. What it stops is an *edit* being counted as a second offence: the filters
+ * deliberately re-run on `MESSAGE_UPDATE`, so a message that survived its first hit -- one the bot could not
+ * delete, or was not allowed to in dry-run -- would otherwise cost a rung per typo fix.
  *
- * The count is incremented even in dry-run and even when the delete failed. Dry-run has to be able to
- * demonstrate the ladder or it is not a preview of anything, and a delete Discord refused does not un-happen the
- * trigger -- the member posted the thing.
+ * **Fails open**, matching `claimAutomodExecution` and its reasoning exactly: a redis outage lets a count
+ * through twice, where failing closed would stop the ladder entirely for as long as redis is down. Between
+ * "moderation happens twice" and "moderation stops", the first is the recoverable one.
+ */
+async function claimMessage(guildId: string, messageId: string, logger: Logger): Promise<boolean> {
+	try {
+		const claimed = await getContext().redis.set(`automoderator:trigger-count:${guildId}:${messageId}`, '1', {
+			NX: true,
+			PX: TRIGGER_CLAIM_TTL_MS,
+		});
+
+		return claimed !== null;
+	} catch (error) {
+		logger.warn({ err: error, guildId, messageId }, 'could not claim a filter trigger -- it may be counted twice');
+		return true;
+	}
+}
+
+/**
+ * Records one filter trigger against a member and carries out the rung it lands on, if any. Null means nothing
+ * was counted at all -- either the guild has no ladder, or this message has already been counted.
+ *
+ * **Once per message, not once per filter, and once per message _ever_.** A message carrying both a forbidden
+ * link and a forbidden invite is one thing the member did, and so is the same message edited twice afterwards.
+ * The first is structural (one call per message); the second is `claimMessage`.
+ *
+ * **Nothing is written for a guild with no ladder configured.** The `EXISTS` in the insert is what keeps
+ * `automoderator_trigger_counts` from being a table that only grows: a guild running the filters with no rungs
+ * and no decay would otherwise accumulate a permanent row per offending member forever, to feed a ladder that
+ * does not exist. Configuring a ladder later starts everyone from zero, which is the only honest answer -- hits
+ * that were never recorded cannot be counted retroactively.
+ *
+ * The count is still incremented in dry-run, which has to be able to demonstrate the ladder or it is not a
+ * preview of anything. It is *not* incremented when the delete failed; that gate is `filterRunner.ts`'s, next
+ * to the DM it already suppresses for the same reason.
  */
 export async function applyTriggerLadder(
-	{ guildId, target }: { guildId: string; target: CaseActor },
+	{ guildId, messageId, target }: { guildId: string; messageId: string; target: CaseActor },
 	logger: Logger,
-): Promise<TriggerLadderResult> {
+): Promise<TriggerLadderResult | null> {
 	const db = getContext().db;
 
-	// Atomic, so two replicas handling two messages of the same burst cannot both read 3 and both write 4.
+	if (!(await claimMessage(guildId, messageId, logger))) {
+		traceDecision(logger, { runner: 'trigger_ladder', guildId, targetId: target.id, action: null });
+		return null;
+	}
+
+	// Atomic, so two replicas handling two messages of the same burst cannot both read 3 and both write 4. The
+	// `EXISTS` is the growth guard described above; no row back means the guild has no ladder at all.
 	const [row] = await db<Pick<AutomoderatorTriggerCounts, 'count'>[]>`
 		INSERT INTO automoderator_trigger_counts (guild_id, user_id, count)
-		VALUES (${guildId}, ${target.id}, 1)
+		SELECT ${guildId}, ${target.id}, 1
+		WHERE EXISTS (SELECT 1 FROM automoderator_trigger_punishments WHERE guild_id = ${guildId})
 		ON CONFLICT (guild_id, user_id) DO UPDATE
 			SET count = automoderator_trigger_counts.count + 1, updated_at = now()
 		RETURNING count
 	`;
 
-	const count = row!.count;
+	if (!row) {
+		return null;
+	}
+
+	const count = row.count;
 
 	const [punishment] = await db<AutomoderatorTriggerPunishments[]>`
 		SELECT * FROM automoderator_trigger_punishments WHERE guild_id = ${guildId} AND triggers = ${count}

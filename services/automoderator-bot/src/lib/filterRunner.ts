@@ -418,22 +418,33 @@ async function filterMessage(
 		featureInvocations.inc({ feature: FEATURE[verdict.kind], outcome: outcome === 'failed' ? 'failed' : 'applied' });
 	}
 
-	// After the delete, so the member is off the ladder's hook for nothing that could still be undone, and
-	// before the log, so the log can say what the escalation did in the same embed as the deletion.
-	const ladder = await applyTriggerLadder(
-		{ guildId: message.guild_id, target: { id: message.author.id, tag: formatCaseUserTag(message.author) } },
-		logger,
-	);
+	// After the delete, so the log can say what the deletion and the escalation did in one embed -- and gated on
+	// it, because a delete Discord refused leaves the offending messages sitting in the channel. Banning somebody
+	// over a message everyone can still read, without even the DM that this path suppresses for the same reason,
+	// is the worse of the two failures; the log line already says to check the bot's permissions, which is the
+	// part staff can act on. Dry-run still runs the ladder: `suppressed` means the decision was made and
+	// recorded, which is the whole point of the mode.
+	const ladder =
+		outcome === 'failed'
+			? null
+			: await applyTriggerLadder(
+					{
+						guildId: message.guild_id,
+						messageId: message.id,
+						target: { id: message.author.id, tag: formatCaseUserTag(message.author) },
+					},
+					logger,
+				);
 
 	const webhook = await getLogWebhook(message.guild_id, LOG_TYPE.FILTER);
 	if (webhook) {
-		const summary = [describeDelete(outcome, targets.length), ladder.summary].filter(Boolean).join(' • ');
+		const summary = [describeDelete(outcome, targets.length), ladder?.summary].filter(Boolean).join(' • ');
 
 		await postFilterLog(
 			webhook,
 			message,
 			evaluation.verdicts,
-			{ summary, ...(ladder.caseId === undefined ? {} : { caseId: ladder.caseId }) },
+			{ summary, ...(ladder?.caseId === undefined ? {} : { caseId: ladder.caseId }) },
 			logger,
 		);
 	}

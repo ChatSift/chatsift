@@ -5,32 +5,42 @@ import { beforeEach, expect, test, vi } from 'vitest';
  * A sorted set just faithful enough for the window: scored members, trimmed by score, read in score order.
  * Entries come back as `Buffer` because the real client maps blob strings to one -- which is exactly the detail
  * a `string`-returning fake would let `recordMessage` get wrong.
+ *
+ * `eval` runs the same five primitives in the same order as `BURST_SCRIPT`, rather than interpreting its Lua.
+ * That leaves exactly one thing these tests cannot reach -- whether the Lua parses and whether redis honours
+ * its atomicity -- and the answer to both is a real redis, which `scratch-antispam.mjs` was pointed at. What is
+ * covered here is everything the script is *for*: record-then-count ordering, the threshold comparison, the
+ * trim, the TTL refresh, the clear on a burst, and the encoding either side of it.
  */
 class FakeSortedSets {
 	public readonly sets = new Map<string, { score: number; value: string }[]>();
 
 	public readonly expiries = new Map<string, number>();
 
-	public async zAdd(key: string, member: { score: number; value: string }): Promise<void> {
-		this.sets.set(key, [...(this.sets.get(key) ?? []), member]);
-	}
+	public async eval(
+		_script: string,
+		{ keys, arguments: args }: { arguments: string[]; keys: string[] },
+	): Promise<Buffer[]> {
+		const key = keys[0]!;
+		const [now, windowMs, amount, value] = [Number(args[0]), Number(args[1]), Number(args[2]), args[3]!];
 
-	public async zRemRangeByScore(key: string, _min: string, max: number): Promise<void> {
-		this.sets.set(key, (this.sets.get(key) ?? []).filter((member) => member.score > max));
-	}
+		const window = [...(this.sets.get(key) ?? []), { score: now, value }].filter(
+			(member) => member.score > now - windowMs,
+		);
 
-	public async pExpire(key: string, ms: number): Promise<void> {
-		this.expiries.set(key, ms);
-	}
+		this.sets.set(key, window);
+		this.expiries.set(key, windowMs);
 
-	public async zRange(key: string): Promise<Buffer[]> {
-		return [...(this.sets.get(key) ?? [])]
+		const entries = [...window]
 			.sort((left, right) => left.score - right.score)
 			.map((member) => Buffer.from(member.value));
-	}
 
-	public async del(key: string): Promise<void> {
+		if (entries.length < amount) {
+			return [];
+		}
+
 		this.sets.delete(key);
+		return entries;
 	}
 }
 

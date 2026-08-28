@@ -139,6 +139,10 @@ function describe(evaluation: FilterEvaluation, channelId: string): string {
 		}
 	}
 
+	// On and un-exempt means anti-spam *could* act on this message and this command has no way to know -- which
+	// the closing line below has to account for, or it would report an unanswered question as a clean bill.
+	const antispamUnknown = evaluation.enabled.includes('ANTISPAM') && !evaluation.exemptions.has('ANTISPAM');
+
 	if (evaluation.enabled.includes('ANTISPAM')) {
 		const exemption = evaluation.exemptions.get('ANTISPAM');
 		lines.push(
@@ -151,11 +155,18 @@ function describe(evaluation: FilterEvaluation, channelId: string): string {
 	}
 
 	lines.push('');
-	lines.push(
-		evaluation.verdicts.length > 0
-			? '**The message would be deleted** and the author DMed why.'
-			: '**The message would be left alone.**',
-	);
+
+	if (evaluation.verdicts.length > 0) {
+		lines.push('**The message would be deleted** and the author DMed why.');
+	} else if (antispamUnknown) {
+		// Deliberately not "the message would be left alone": the content filters would, and that is all this
+		// command checked. Saying more than it knows is the one thing a diagnostic must not do.
+		lines.push(
+			'**The content filters would leave the message alone.** Whether anti-spam would act depends on how fast that member is posting, which this command cannot tell you.',
+		);
+	} else {
+		lines.push('**The message would be left alone.**');
+	}
 
 	return lines.join('\n');
 }
