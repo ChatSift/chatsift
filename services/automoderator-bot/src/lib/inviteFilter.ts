@@ -40,8 +40,13 @@ interface CachedInvite {
 const cache = new Map<string, CachedInvite>();
 
 /**
- * Exported for the tests, and for `/simulate` to force a fresh resolution when somebody is debugging why a
- * link did or did not trip the filter.
+ * Exported for the tests only.
+ *
+ * An earlier version of this comment offered it to `/simulate` as well, "to force a fresh resolution". That is
+ * deliberately **not** wired up, and should stay that way for two reasons: the command's whole promise is to
+ * report what the runner would do, which means reading the same cache the runner reads; and this cache is
+ * process-wide, so clearing it from one guild's command would throw away every other guild's resolutions
+ * mid-raid.
  */
 export function clearInviteCache(): void {
 	cache.clear();

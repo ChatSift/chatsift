@@ -20,31 +20,50 @@
  * a member who drops the scheme is not caught, and the invite filter below is schemeless precisely because
  * `discord.gg` needs no such hedging.
  *
- * The host is captured; the path is matched but discarded, so a domain in a query string cannot smuggle a
- * match past the allowlist.
+ * Captures the whole **authority** -- userinfo, host and port together -- and leaves the splitting to
+ * {@link normalizeHost}. Everything from the first `/`, `?` or `#` onward is outside the match, so a domain in a
+ * path or query string cannot smuggle one past the allowlist.
+ *
+ * The authority is taken whole rather than just the host because the two halves have to agree about where
+ * userinfo ends, and a capture that stops at the first `:` cannot: `https://allowed.example:pw@evil.example`
+ * would be checked against `allowed.example` while the browser goes to `evil.example`. Splitting in one place
+ * is what makes that unrepresentable.
  */
-const URL_PATTERN = /https?:\/\/(?<host>[^\s#/:?]+)/gi;
+const URL_PATTERN = /https?:\/\/(?<authority>[^\s#/?]+)/gi;
 
 /**
  * Discord invites, **scheme-optional**. `discord.gg/x`, `www.discord.com/invite/x` and the full https form all
  * match, which is what legacy did and is safe here for the reason the URL matcher is not: the literal
  * `discord.gg` / `discord.com/invite` prefix is not something anybody writes by accident.
+ *
+ * The leading `(?:^|[^\w.-])` is a left boundary, so `evildiscord.gg/x` and `notadiscord.com/invite/x` are not
+ * read as invites -- without it they resolve a code that was never a Discord invite, and delete a message on the
+ * strength of it. It **consumes** the preceding character rather than using a lookbehind: only the named group
+ * is ever read, and this file is bundled into the browser, where a lookbehind is a parse error rather than a
+ * runtime one on anything old enough to lack it.
  */
-const INVITE_PATTERN = /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg|discord(?:app)?\.com\/invite)\/(?<code>[\w-]{2,})/gi;
+const INVITE_PATTERN =
+	/(?:^|[^\w.-])(?:https?:\/\/)?(?:www\.)?(?:discord\.gg|discord(?:app)?\.com\/invite)\/(?<code>[\w-]{2,})/gi;
 
 /**
- * A host with its port, trailing dot and case stripped. Returns `null` for anything that cannot be a domain,
- * which is what keeps `https://` on its own (or a userinfo-only URL) out of the allowlist and out of a match.
+ * The host out of a URL authority: userinfo and port removed, case folded, and any trailing punctuation the
+ * match swept up discarded. Returns `null` for anything that cannot be a domain, which is what keeps `https://`
+ * on its own (or a userinfo-only URL) out of the allowlist and out of a match.
  *
  * Not a public-suffix reduction, deliberately -- see {@link findAllowedDomain}.
  */
-function normalizeHost(host: string): string | null {
-	// A `user:pass@host` URL is legal and Discord renders it as a link, so the host is what follows the last
+function normalizeHost(authority: string): string | null {
+	// A `user:pass@host` URL is legal and Discord renders it as a link, so the host is what follows the *last*
 	// `@` -- taking what precedes it would match the allowlist against a string the browser never visits.
-	const afterUserInfo = host.slice(host.lastIndexOf('@') + 1);
-	// Trailing dot is the fully-qualified spelling of the same name (`example.com.`), and a port is not part of
-	// the host at all.
-	const bare = afterUserInfo.split(':')[0]?.replace(/\.+$/, '').toLowerCase() ?? '';
+	const afterUserInfo = authority.slice(authority.lastIndexOf('@') + 1);
+	// A port is not part of the host at all.
+	const withoutPort = afterUserInfo.split(':')[0] ?? '';
+
+	// A hostname ends in an alphanumeric, so anything trailing that isn't one belongs to the sentence rather
+	// than to the link: `https://example.com,` and `(https://example.com)` are both `example.com`. Dropping only
+	// the trailing dot -- the fully-qualified spelling -- left `example.com,` as its own host, which matches no
+	// allowlist entry and so deleted a message whose link was explicitly allowed.
+	const bare = withoutPort.toLowerCase().replace(/[^\da-z]+$/, '');
 
 	return bare.length > 0 ? bare : null;
 }
@@ -60,7 +79,7 @@ export function extractLinkedHosts(content: string): string[] {
 	const seen = new Set<string>();
 
 	for (const match of content.matchAll(URL_PATTERN)) {
-		const host = normalizeHost(match.groups?.['host'] ?? '');
+		const host = normalizeHost(match.groups?.['authority'] ?? '');
 
 		if (host !== null && !seen.has(host)) {
 			seen.add(host);

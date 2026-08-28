@@ -30,6 +30,24 @@ test('extractLinkedHosts reads the host after userinfo', () => {
 	expect(extractLinkedHosts('https://good.com@evil.com/x')).toEqual(['evil.com']);
 });
 
+// The filter bypass this pattern shipped with, caught in review: the capture used to stop at the first `:`, so
+// userinfo *with a password* never reached the `@`-splitting in `normalizeHost` and the allowlisted-looking
+// half won. The browser goes to evil.com in every one of these.
+test('extractLinkedHosts is not fooled by a password in the userinfo', () => {
+	expect(extractLinkedHosts('https://youtube.com:pw@evil.com/x')).toEqual(['evil.com']);
+	expect(extractLinkedHosts('https://allowed.example:pass@blocked.example/')).toEqual(['blocked.example']);
+	expect(extractLinkedHosts('https://user:pass@evil.com:8080/x')).toEqual(['evil.com']);
+});
+
+// The mirror-image bug, found while fixing the one above: trailing punctuation used to stay glued to the host,
+// so `example.com,` matched no allowlist entry and a message whose link was explicitly allowed got deleted.
+test('extractLinkedHosts drops the punctuation around a link', () => {
+	expect(extractLinkedHosts('see https://example.com, it is great')).toEqual(['example.com']);
+	expect(extractLinkedHosts('(https://example.com)')).toEqual(['example.com']);
+	expect(extractLinkedHosts('https://example.com.')).toEqual(['example.com']);
+	expect(extractLinkedHosts('**https://example.com**')).toEqual(['example.com']);
+});
+
 test('extractLinkedHosts ignores anything past the host', () => {
 	// A domain in the path or query must not be mistaken for the destination.
 	expect(extractLinkedHosts('https://evil.com/?to=allowed.com')).toEqual(['evil.com']);
@@ -41,6 +59,17 @@ test('extractInviteCodes accepts every spelling of an invite', () => {
 	expect(extractInviteCodes('discord.gg/abc123')).toEqual(['abc123']);
 	expect(extractInviteCodes('www.discord.com/invite/abc123')).toEqual(['abc123']);
 	expect(extractInviteCodes('http://discordapp.com/invite/abc123')).toEqual(['abc123']);
+});
+
+// Without a left boundary these read as invites, spend a REST resolution on a code that was never one, and can
+// delete a message on the strength of it.
+test('extractInviteCodes does not fire inside a larger hostname', () => {
+	expect(extractInviteCodes('evildiscord.gg/xyz')).toEqual([]);
+	expect(extractInviteCodes('notadiscord.com/invite/xyz')).toEqual([]);
+	// ...while every legitimate spelling still matches, whatever precedes it.
+	expect(extractInviteCodes('join discord.gg/abc now')).toEqual(['abc']);
+	expect(extractInviteCodes('[discord.gg/abc](discord.gg/def)')).toEqual(['abc', 'def']);
+	expect(extractInviteCodes('**discord.gg/abc**')).toEqual(['abc']);
 });
 
 test('extractInviteCodes keeps case and dedupes', () => {

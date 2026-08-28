@@ -7,7 +7,7 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0–P4 done; P5 (filters) in progress, split into three PRs — the first two are done, P5c remains
+## Status: P0–P4 done; P5 (filters) in progress, split into three PRs — P5a is merged, P5b is open in #367, P5c remains
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -883,16 +883,16 @@ type gets nothing — so the kill switch a gate would add already exists, per lo
 The largest phase, and the only one split across more than one PR. Three, each shipping a filter that works end
 to end rather than a layer that waits on the next one:
 
-| PR  | Features                                                                      | State                     |
-| --- | ----------------------------------------------------------------------------- | ------------------------- |
-| P5a | **01** banword policy on native hits, **33** filter log, **10** bypass roles  | shipped (#365)            |
-| P5b | **02** URL allowlist, **03** invite allowlist, **09** exemptions, `/simulate` | code-complete, unverified |
-| P5c | **07** anti-spam, **11** trigger ladder + decay                               | not started               |
+| PR  | Features                                                                      | State                    |
+| --- | ----------------------------------------------------------------------------- | ------------------------ |
+| P5a | **01** banword policy on native hits, **33** filter log, **10** bypass roles  | shipped (#365)           |
+| P5b | **02** URL allowlist, **03** invite allowlist, **09** exemptions, `/simulate` | open in #367, unverified |
+| P5c | **07** anti-spam, **11** trigger ladder + decay                               | not started              |
 
 **Feature 12 (DM on trigger) dissolved into P5a rather than being its own item.** A banword policy files a case,
 and `applyModerationAction` already DMs the target for every case that carries a punishment — so the feature is
 delivered for free wherever there is a policy, and a hit with no policy has nothing to tell anyone about that
-Discord's own block message hasn't already said. What remained of it is P5b's, and shipped there: the URL and
+Discord's own block message hasn't already said. What remains of it is P5b's, and lands there: the URL and
 invite runners delete a message without filing anything, so without a DM it would simply vanish unexplained.
 
 #### Owner decisions taken at P5a
@@ -953,7 +953,7 @@ Two things landed alongside it that are not features:
   editor. The text these functions produce is fed straight back through the parser next time the form opens, so
   two copies disagreeing by a rounding rule would silently change a saved duration.
 
-#### P5b — what shipped
+#### P5b — what it delivers
 
 | Layer     | Work                                                                                                                   |
 | --------- | ---------------------------------------------------------------------------------------------------------------------- |

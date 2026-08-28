@@ -54,6 +54,22 @@ const FILTER_LABEL: Record<RunnerFilterKind, { readonly dm: string; readonly log
 	INVITES: { log: 'Invite filter', dm: "it contained an invite to a server that isn't allowed here" },
 };
 
+/**
+ * What actually became of the message. Three states rather than a `suppressed` boolean, because the boolean
+ * could not tell a failed delete from a successful one -- so a message the bot had lost Manage Messages on was
+ * still logged as "Message deleted" and its author still DMed that it had been removed, while it sat there in
+ * the channel. Every consumer below branches on all three.
+ */
+type DeleteOutcome = 'deleted' | 'failed' | 'suppressed';
+
+const DELETE_SUMMARY: Record<DeleteOutcome, string> = {
+	deleted: 'Message deleted',
+	suppressed: 'Would have deleted the message',
+	// Said plainly in the log staff read, because this is the one outcome they have to do something about --
+	// it is almost always a missing Manage Messages in that channel.
+	failed: 'Could not delete the message — check my permissions in that channel',
+};
+
 export interface FilterVerdict {
 	readonly kind: RunnerFilterKind;
 	/**
@@ -264,9 +280,11 @@ async function filterMessage(
 
 	// One delete for the message no matter how many filters caught it -- two runners tripping on one message is
 	// one deletion and one DM, not two of each.
-	const { suppressed } = await deleteMessage(message, evaluation.verdicts, logger);
+	const outcome = await deleteMessage(message, evaluation.verdicts, logger);
 
-	if (!suppressed) {
+	// Only when the message is actually gone. Telling somebody their message was removed while it is still
+	// sitting in the channel is worse than saying nothing, and dry-run must not DM at all.
+	if (outcome === 'deleted') {
 		await notifyAuthor(message, evaluation.verdicts, logger);
 	}
 
@@ -275,15 +293,18 @@ async function filterMessage(
 			...traceBase,
 			runner: FEATURE[verdict.kind],
 			action: 'delete',
-			dryRun: suppressed,
+			dryRun: outcome === 'suppressed',
 			matched: verdict.matched.join(', '),
 		});
-		featureInvocations.inc({ feature: FEATURE[verdict.kind], outcome: 'applied' });
+		// A delete Discord refused is a failure, not an application -- the guild configured something and it did
+		// not happen. Dry-run still counts as applied: the decision was made and recorded, which is the whole
+		// point of the mode.
+		featureInvocations.inc({ feature: FEATURE[verdict.kind], outcome: outcome === 'failed' ? 'failed' : 'applied' });
 	}
 
 	const webhook = await getLogWebhook(message.guild_id, LOG_TYPE.FILTER);
 	if (webhook) {
-		await postFilterLog(webhook, message, evaluation.verdicts, suppressed, logger);
+		await postFilterLog(webhook, message, evaluation.verdicts, outcome, logger);
 	}
 }
 
@@ -291,12 +312,12 @@ async function deleteMessage(
 	message: LoggableMessage,
 	verdicts: FilterVerdict[],
 	logger: Logger,
-): Promise<{ suppressed: boolean }> {
+): Promise<DeleteOutcome> {
 	const api = getContext().service.client.api;
 	const reason = `${verdicts.map((verdict) => FILTER_LABEL[verdict.kind].log).join(' + ')} trigger`;
 
 	try {
-		return await executeAction(
+		const { suppressed } = await executeAction(
 			{
 				action: 'delete',
 				guildId: message.guild_id,
@@ -310,12 +331,14 @@ async function deleteMessage(
 			},
 			logger,
 		);
+
+		return suppressed ? 'suppressed' : 'deleted';
 	} catch (error) {
 		// A message somebody else already deleted, or one in a channel the bot has lost Manage Messages in.
-		// Neither is worth failing the whole pipeline for: the log line below still gets posted, which is what
-		// tells staff the filter caught something it could not remove.
+		// Neither is worth failing the whole pipeline for -- the filter log still gets posted, and now it says
+		// the message could not be removed instead of claiming it was.
 		logger.warn({ err: error, messageId: message.id }, 'could not delete a filtered message');
-		return { suppressed: false };
+		return 'failed';
 	}
 }
 
@@ -356,7 +379,7 @@ async function postFilterLog(
 	webhook: AutomoderatorLogWebhooks,
 	message: LoggableMessage,
 	verdicts: FilterVerdict[],
-	suppressed: boolean,
+	outcome: DeleteOutcome,
 	logger: Logger,
 ): Promise<void> {
 	// One embed per runner rather than one per message: the fields are per-filter (which filter, what it
@@ -373,7 +396,7 @@ async function postFilterLog(
 			source: FILTER_LABEL[verdict.kind].log,
 			matched: verdict.matched.join(', '),
 			content: message.content,
-			outcome: { summary: suppressed ? 'Would have deleted the message' : 'Message deleted' },
+			outcome: { summary: DELETE_SUMMARY[outcome] },
 		}),
 	);
 
