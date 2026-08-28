@@ -144,3 +144,45 @@ export const ALLOWED_INVITE_MAX_COUNT = 100;
  * hundred is listing channels one by one when it should be listing their category.
  */
 export const FILTER_EXEMPTION_MAX_COUNT = 100;
+
+/**
+ * How many rungs a trigger ladder may hold (P5c, feature 11). Matches `WARN_PUNISHMENT_MAX_COUNT` because it is
+ * the same kind of cap on the same kind of editor -- and because a guild whose members are tripping the filters
+ * twenty-five times is past the point where another rung is the answer.
+ */
+export const TRIGGER_PUNISHMENT_MAX_COUNT = 25;
+
+/**
+ * The highest trigger count a rung may sit at. Same reasoning as `WARN_PUNISHMENT_MAX_WARNS`: it is what stops
+ * the editor being handed a rung nobody's count will ever reach.
+ */
+export const TRIGGER_PUNISHMENT_MAX_TRIGGERS = 100;
+
+/**
+ * The smallest burst anti-spam can be configured to catch (P5c, feature 07). Two messages, because one message
+ * is not a burst -- a threshold of 1 would delete every message in the server, and legacy would have let a guild
+ * set it. Mirrors the `automoderator_guild_settings_antispam_check` CHECK, which is the one that cannot be
+ * bypassed; this is the one the dashboard says out loud before anyone submits.
+ */
+export const ANTISPAM_MIN_AMOUNT = 2;
+
+/**
+ * The largest burst anti-spam can be configured to catch. Ours, not Discord's: the burst is deleted in one bulk
+ * call, and Discord's bulk-delete endpoint takes at most a hundred messages, so a higher threshold would
+ * configure a punishment the bot can only partly carry out.
+ */
+export const ANTISPAM_MAX_AMOUNT = 100;
+
+/**
+ * The longest anti-spam window, in seconds. Five minutes, past which "N messages in the window" stops being a
+ * statement about spam and becomes one about how talkative somebody is. Also bounds the redis sorted set the
+ * counter lives in, which holds one entry per message per member for exactly this long.
+ */
+export const ANTISPAM_MAX_SECONDS = 300;
+
+/**
+ * The longest a filter trigger can be configured to take to fall off a member's count (P5c, feature 11), in
+ * minutes -- thirty days, past which "triggers never expire" is what the guild actually means and `NULL` says it
+ * directly. Same shape and the same reasoning as `AUTO_PARDON_MAX_DAYS`.
+ */
+export const TRIGGER_DECAY_MAX_MINUTES = 30 * 24 * 60;

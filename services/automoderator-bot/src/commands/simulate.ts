@@ -24,6 +24,12 @@ import { evaluateFilters } from '../lib/filterRunner.js';
  *
  * It calls `evaluateFilters` -- the same function the runner calls, not a copy of it. A simulator that
  * reimplements what it simulates agrees with production exactly until somebody needs it to.
+ *
+ * **Anti-spam is reported but not simulated** (P5c). It is the one filter that decides on a rate rather than on
+ * content, so there is nothing about a pasted string to evaluate: running it would either record the simulated
+ * message into the member's real window, or answer a question about how fast the moderator has been typing.
+ * The command says which of the two it is doing rather than printing "nothing matched", which would read as a
+ * verdict.
  */
 const FILTER_NAME = {
 	URLS: 'URL filter',
@@ -105,7 +111,7 @@ function describe(evaluation: FilterEvaluation, channelId: string): string {
 	if (evaluation.enabled.length === 0) {
 		return [
 			...lines,
-			'**Nothing would happen** — neither the URL filter nor the invite filter is turned on for this server.',
+			'**Nothing would happen** — none of the message filters are turned on for this server.',
 		].join('\n');
 	}
 
@@ -131,6 +137,17 @@ function describe(evaluation: FilterEvaluation, channelId: string): string {
 		} else {
 			lines.push(`• **${name}** — ran, nothing matched.`);
 		}
+	}
+
+	if (evaluation.enabled.includes('ANTISPAM')) {
+		const exemption = evaluation.exemptions.get('ANTISPAM');
+		lines.push(
+			exemption === undefined
+				? '• **Anti-spam** — on, but not simulated: it counts how fast messages arrive, not what they say.'
+				: `• **Anti-spam** — would not run: <#${exemption}> is exempt.`,
+		);
+	} else {
+		lines.push('• **Anti-spam** — off for this server.');
 	}
 
 	lines.push('');

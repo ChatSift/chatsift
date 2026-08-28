@@ -852,12 +852,38 @@ CREATE TABLE automoderator_guild_settings (
   use_url_filters    BOOLEAN NOT NULL DEFAULT false,
   use_invite_filters BOOLEAN NOT NULL DEFAULT false,
 
+  -- Anti-spam (P5c, feature 07): more than `antispam_amount` messages from one member inside
+  -- `antispam_time` seconds is a burst. Legacy's two columns, and legacy's rule that both being set is what
+  -- turns the filter on -- there is no `use_antispam` flag beside the pair, unlike the two filters above,
+  -- because a threshold is not optional here. "Anti-spam on, no threshold" is not a configuration a guild can
+  -- mean, where "URL filter on, empty allowlist" is (it means no links at all).
+  antispam_amount    INTEGER,
+  antispam_time      INTEGER,
+
+  -- How often one filter trigger falls off a member's count (P5c, feature 11), in minutes. NULL is off, which
+  -- is what a guild that has never thought about it gets: triggers accumulate forever, which is legacy's
+  -- effective behaviour since its decay never worked. Minutes rather than seconds because it is the unit the
+  -- setting is phrased in and nobody decays on a second boundary.
+  trigger_decay_minutes INTEGER,
+
   -- Only the lower bound, not the API's ten-year ceiling: a ceiling is taste and lives in zod (same split the
   -- social settings note above describes), but zero or negative is a value that *breaks* something -- zero
   -- pardons every warning the instant it is filed, and negative pardons warnings dated in the future. That is
   -- the bar this schema sets for a CHECK.
   CONSTRAINT automoderator_guild_settings_auto_pardon_check
-    CHECK (auto_pardon_warns_after IS NULL OR auto_pardon_warns_after >= 1)
+    CHECK (auto_pardon_warns_after IS NULL OR auto_pardon_warns_after >= 1),
+
+  -- The pair is meaningless apart, so the database is where that is said rather than only in zod: one of them
+  -- set alone is a row the bot can only ignore, and it would ignore it silently.
+  CONSTRAINT automoderator_guild_settings_antispam_check CHECK (
+    (antispam_amount IS NULL) = (antispam_time IS NULL)
+    -- Two messages is the smallest thing that can be a burst; one is a message. A window has to be at least a
+    -- second because the counter's resolution is a timestamp.
+    AND (antispam_amount IS NULL OR (antispam_amount >= 2 AND antispam_time >= 1))
+  ),
+
+  CONSTRAINT automoderator_guild_settings_trigger_decay_check
+    CHECK (trigger_decay_minutes IS NULL OR trigger_decay_minutes >= 1)
 );
 
 -- Legacy's `CaseAction`, uppercased to match this schema's other enums (`ama_question_state`,
@@ -1185,10 +1211,15 @@ CREATE TABLE automoderator_warn_punishments (
   -- which has no open-ended form -- storing one without a duration produces a rung the bot can only ignore, and
   -- that is exactly what legacy did with it. A BAN is the only one where both readings are real: with a
   -- duration it is a tempban the scheduler lifts, without one it is permanent.
+  --
+  -- `IS NOT NULL AND` on the MUTE arm is load-bearing and easy to lose: `duration_seconds >= 1` is *unknown*
+  -- for a NULL, and a CHECK passes on unknown. Without it this constraint accepted exactly the row its comment
+  -- says it rejects. Every write the dashboard makes goes through zod, which catches it -- but P9's migration
+  -- does not, and that is the one write path this backstop exists for.
   CONSTRAINT automoderator_warn_punishments_duration_check CHECK (
     CASE action_type
       WHEN 'KICK' THEN duration_seconds IS NULL
-      WHEN 'MUTE' THEN duration_seconds >= 1
+      WHEN 'MUTE' THEN duration_seconds IS NOT NULL AND duration_seconds >= 1
       ELSE duration_seconds IS NULL OR duration_seconds >= 1
     END
   )
@@ -1282,9 +1313,11 @@ CREATE TABLE automoderator_banword_policies (
   -- timeout, which has no open-ended form, so one stored without a duration is a policy the bot can only
   -- ignore. WARN, KICK and REPORT have no duration to serve. A BAN reads both ways -- with one it is a tempban
   -- the scheduler lifts, without one it is permanent.
+  -- The `IS NOT NULL` on the MUTE arm is not redundant -- see the note on
+  -- `automoderator_warn_punishments_duration_check`.
   CONSTRAINT automoderator_banword_policies_duration_check CHECK (
     CASE action_type
-      WHEN 'MUTE' THEN duration_seconds >= 1
+      WHEN 'MUTE' THEN duration_seconds IS NOT NULL AND duration_seconds >= 1
       WHEN 'BAN' THEN duration_seconds IS NULL OR duration_seconds >= 1
       ELSE duration_seconds IS NULL
     END
@@ -1376,3 +1409,80 @@ CREATE TABLE automoderator_filter_exemptions (
 -- filter is always known and the channel never is -- the chain is only resolved once the set is non-empty.
 CREATE INDEX automoderator_filter_exemptions_guild_id_filter_idx
   ON automoderator_filter_exemptions (guild_id, filter);
+
+-- What a rung of the *trigger* ladder does (P5c, feature 11). Legacy's `AutomodPunishmentAction`, uppercased.
+--
+-- A fourth punishment enum rather than a reuse of `automoderator_warn_punishment_action`, which is the same
+-- three values plus WARN. The extra value is the whole point: a filter trigger is something a member can do by
+-- accident once, so the first rung people actually configure is "warn them" -- and that warn then counts
+-- toward the *warn* ladder, which is the escalation path legacy had and the one guilds expect.
+CREATE TYPE automoderator_trigger_punishment_action AS ENUM ('WARN', 'MUTE', 'KICK', 'BAN');
+
+-- The trigger ladder's rungs (P5c, feature 11): what happens once a member has tripped the runner filters this
+-- many times. Legacy's `automod_punishments`, keyed the same way.
+--
+-- Separate from `automoderator_warn_punishments` even though the shape is near-identical, because the two
+-- ladders count different things and a guild sets them independently -- warns are moderator judgement, triggers
+-- are the filters catching somebody. Merging them behind a discriminator column would mean every ladder read
+-- filtering on it for no gain.
+--
+-- **Counts URL, invite and anti-spam hits, never banword hits.** A banword policy carries its own punishment
+-- (see `automoderator_banword_policies`), so counting it here too would stack a ladder action on top of a ban
+-- for one message. Legacy counted anti-spam alone; this widens it to the two runners that otherwise only delete
+-- and DM, which is what gives them teeth.
+CREATE TABLE automoderator_trigger_punishments (
+  guild_id         TEXT NOT NULL,
+  triggers         INTEGER NOT NULL,
+  action_type      automoderator_trigger_punishment_action NOT NULL,
+  -- Seconds, and NULL for a permanent ban or a rung that carries no duration. Same unit and the same reasoning
+  -- as `automoderator_warn_punishments.duration_seconds`; legacy stored milliseconds in a BIGINT.
+  duration_seconds INTEGER,
+
+  PRIMARY KEY (guild_id, triggers),
+
+  CONSTRAINT automoderator_trigger_punishments_triggers_check CHECK (triggers >= 1),
+  -- Identical to the warn ladder's rule, with WARN joining KICK on the side that carries no duration: a warn is
+  -- a record, and there is nothing about it to expire on a timer.
+  -- The `IS NOT NULL` on the MUTE arm is not redundant -- see the note on
+  -- `automoderator_warn_punishments_duration_check`.
+  CONSTRAINT automoderator_trigger_punishments_duration_check CHECK (
+    CASE action_type
+      WHEN 'WARN' THEN duration_seconds IS NULL
+      WHEN 'KICK' THEN duration_seconds IS NULL
+      WHEN 'MUTE' THEN duration_seconds IS NOT NULL AND duration_seconds >= 1
+      ELSE duration_seconds IS NULL OR duration_seconds >= 1
+    END
+  )
+);
+
+-- How many times a member has tripped the runner filters (P5c, feature 11). Legacy's `automod_triggers`.
+--
+-- **One table, not legacy's two.** Legacy incremented `filter_triggers` from the anti-spam runner and decayed
+-- `automod_triggers` from the scheduler, so the counter that fed punishments never decayed at all and the one
+-- that decayed fed nothing. That is not a bug worth reproducing.
+--
+-- `updated_at` is what the decay compares against, and it is a real timestamp comparison. Legacy's scheduler
+-- compared `new Date().getMinutes()` against `updatedAt.getMinutes()` -- minute-of-hour against minute-of-hour,
+-- so a row updated at :58 and read at :02 produced -56 and never decayed, while one updated at :02 and read at
+-- :58 decayed on a schedule nobody configured.
+--
+-- No row means a count of zero, so a fully decayed row is deleted rather than left at 0 -- a table that only
+-- ever grows would carry a row for every member who has ever posted a link in every guild.
+CREATE TABLE automoderator_trigger_counts (
+  guild_id   TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  count      INTEGER NOT NULL,
+  -- Bumped on every increment *and* on every decay step, which is what makes the decay one decrement per
+  -- configured period rather than a burst on the tick after the period elapses.
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  PRIMARY KEY (guild_id, user_id),
+
+  CONSTRAINT automoderator_trigger_counts_count_check CHECK (count >= 1)
+);
+
+-- The decay sweep's driving read: every row old enough to have decayed, across all guilds, in one statement.
+-- Leading on `updated_at` because the sweep's predicate is a timestamp and the guild is only reached through
+-- the join to its settings -- a `(guild_id, ...)` index would be scanned in full every tick.
+CREATE INDEX automoderator_trigger_counts_updated_at_idx
+  ON automoderator_trigger_counts (updated_at);

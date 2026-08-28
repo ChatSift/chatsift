@@ -78,6 +78,9 @@ import getAutomoderatorReportRoute from './routes/automoderator/reports/getRepor
 import getAutomoderatorReportDraftRoute from './routes/automoderator/reports/getReportDraft.js';
 import listAutomoderatorReportsRoute from './routes/automoderator/reports/listReports.js';
 import submitAutomoderatorReportDraftRoute from './routes/automoderator/reports/submitReportDraft.js';
+import deleteTriggerPunishmentRoute from './routes/automoderator/triggerPunishments/deleteTriggerPunishment.js';
+import listTriggerPunishmentsRoute from './routes/automoderator/triggerPunishments/listTriggerPunishments.js';
+import setTriggerPunishmentRoute from './routes/automoderator/triggerPunishments/setTriggerPunishment.js';
 import deleteAutomoderatorWarnPunishmentRoute from './routes/automoderator/warnPunishments/deleteWarnPunishment.js';
 import listAutomoderatorWarnPunishmentsRoute from './routes/automoderator/warnPunishments/listWarnPunishments.js';
 import setAutomoderatorWarnPunishmentRoute from './routes/automoderator/warnPunishments/setWarnPunishment.js';
@@ -312,6 +315,9 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listFilterExemptionsRoute);
 	mountRoute(app, setFilterExemptionRoute);
 	mountRoute(app, deleteFilterExemptionRoute);
+	mountRoute(app, listTriggerPunishmentsRoute);
+	mountRoute(app, setTriggerPunishmentRoute);
+	mountRoute(app, deleteTriggerPunishmentRoute);
 	mountRoute(app, listExperimentsRoute);
 	mountRoute(app, upsertExperimentRoute);
 	mountRoute(app, deleteExperimentRoute);

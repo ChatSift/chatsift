@@ -44,6 +44,7 @@ const EXEMPTABLE_TYPES = [
 const FILTERS: { readonly kind: FilterKind; readonly label: string }[] = [
 	{ kind: 'URLS', label: 'URLs' },
 	{ kind: 'INVITES', label: 'Invites' },
+	{ kind: 'ANTISPAM', label: 'Anti-spam' },
 ];
 
 /**

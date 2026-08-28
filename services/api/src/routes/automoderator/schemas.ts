@@ -3,10 +3,15 @@
 // one import path for them.
 import {
 	ALLOWED_URL_MAX_LENGTH,
+	ANTISPAM_MAX_AMOUNT,
+	ANTISPAM_MAX_SECONDS,
+	ANTISPAM_MIN_AMOUNT,
 	AUTO_PARDON_MAX_DAYS,
 	AUTOMOD_KEYWORD_MAX_LENGTH,
 	MAX_TIMEOUT_SECONDS,
 	REPORT_PRESET_MAX_LENGTH,
+	TRIGGER_DECAY_MAX_MINUTES,
+	TRIGGER_PUNISHMENT_MAX_TRIGGERS,
 	WARN_PUNISHMENT_MAX_WARNS,
 } from '@chatsift/core';
 import { z } from 'zod';
@@ -34,8 +39,40 @@ export const updateAutomoderatorConfigBodySchema = z
 		// has and would be the one a guild could not express.
 		useUrlFilters: z.boolean().optional(),
 		useInviteFilters: z.boolean().optional(),
+		// Anti-spam (P5c, feature 07). Nullable-means-off, like the two settings above it, but the pair moves
+		// together -- see the `superRefine` below.
+		antispamAmount: z.number().int().min(ANTISPAM_MIN_AMOUNT).max(ANTISPAM_MAX_AMOUNT).nullable().optional(),
+		antispamTime: z.number().int().min(1).max(ANTISPAM_MAX_SECONDS).nullable().optional(),
+		// Minutes, and null is off: triggers accumulate forever, which is what a guild that has never thought
+		// about it gets.
+		triggerDecayMinutes: z.number().int().min(1).max(TRIGGER_DECAY_MAX_MINUTES).nullable().optional(),
 	})
-	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
+	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided')
+	.superRefine((data, ctx) => {
+		// The two anti-spam fields are one setting, so a PATCH has to carry both or neither. A partial write
+		// cannot be validated against what is already stored, and the half-set state it would produce is one the
+		// database rejects and the bot could only ignore -- so this is where it gets caught, with a message that
+		// says which field is missing rather than a constraint violation that names neither.
+		const hasAmount = 'antispamAmount' in data;
+		const hasTime = 'antispamTime' in data;
+
+		if (hasAmount !== hasTime) {
+			ctx.addIssue({
+				code: 'custom',
+				path: [hasAmount ? 'antispamTime' : 'antispamAmount'],
+				message: 'antispamAmount and antispamTime must be set together',
+			});
+			return;
+		}
+
+		if (hasAmount && (data.antispamAmount === null) !== (data.antispamTime === null)) {
+			ctx.addIssue({
+				code: 'custom',
+				path: ['antispamAmount'],
+				message: 'clearing anti-spam means clearing both antispamAmount and antispamTime',
+			});
+		}
+	});
 
 /**
  * Mirrors `CREATE TYPE automoderator_warn_punishment_action`. Spelled out for the same reason
@@ -266,13 +303,11 @@ export const setBanwordPolicyBodySchema = z
 	});
 
 /**
- * Mirrors `CREATE TYPE automoderator_filter_kind`, minus the value nothing writes yet.
- *
- * `ANTISPAM` exists in the database ahead of P5c and is deliberately absent here, the same split
- * `WRITABLE_LOG_TYPES` makes: offering a guild an exemption from a filter that does not run yet is a setting
- * that quietly does nothing. Widen this when the anti-spam runner lands, not before.
+ * Mirrors `CREATE TYPE automoderator_filter_kind` -- now all three of it. `ANTISPAM` sat in the database from
+ * P5b and was deliberately absent here until P5c gave it a runner, the same split `WRITABLE_LOG_TYPES` made:
+ * offering a guild an exemption from a filter that does not run yet is a setting that quietly does nothing.
  */
-export const WRITABLE_FILTER_KINDS = ['URLS', 'INVITES'] as const;
+export const WRITABLE_FILTER_KINDS = ['URLS', 'INVITES', 'ANTISPAM'] as const;
 
 export const writableFilterKindSchema = z.enum(WRITABLE_FILTER_KINDS);
 
@@ -314,3 +349,49 @@ export const allowedInviteBodySchema = z.strictObject({
 export const setFilterExemptionBodySchema = z.strictObject({
 	filters: z.array(writableFilterKindSchema).min(1).max(WRITABLE_FILTER_KINDS.length),
 });
+
+/**
+ * Mirrors `CREATE TYPE automoderator_trigger_punishment_action`. Spelled out for the same reason
+ * `caseActionSchema` is.
+ */
+export const triggerPunishmentActionSchema = z.enum(['WARN', 'MUTE', 'KICK', 'BAN']);
+
+/**
+ * A rung of the trigger ladder (P5c, feature 11): what happens once a member has tripped the runner filters
+ * this many times. `triggers` is the path parameter for the same reason `warns` is on the warn ladder -- it is
+ * the row's identity, and a PUT keyed on it makes "set the 3-trigger rung" one idempotent call.
+ *
+ * The duration rules mirror `automoderator_trigger_punishments_duration_check`, deliberately: the CHECK cannot
+ * be bypassed, and this is the one that produces a message a human can act on.
+ */
+export const triggerPunishmentBodySchema = z
+	.strictObject({
+		actionType: triggerPunishmentActionSchema,
+		durationSeconds: z.number().int().min(1).nullable().optional(),
+		/**
+		 * The trigger count this rung is being *moved from*, when the editor renumbers an existing one. Same
+		 * atomic-move contract as `warnPunishmentBodySchema.replaces`, and for the same two reasons.
+		 */
+		replaces: z.number().int().min(1).max(TRIGGER_PUNISHMENT_MAX_TRIGGERS).optional(),
+	})
+	.superRefine((data, ctx) => {
+		const duration = data.durationSeconds ?? null;
+
+		if (data.actionType === 'MUTE') {
+			if (duration === null) {
+				ctx.addIssue({ code: 'custom', path: ['durationSeconds'], message: 'a mute needs a duration' });
+			} else if (duration > MAX_TIMEOUT_SECONDS) {
+				ctx.addIssue({
+					code: 'custom',
+					path: ['durationSeconds'],
+					message: 'Discord timeouts cap out at 28 days',
+				});
+			}
+		} else if (data.actionType !== 'BAN' && duration !== null) {
+			ctx.addIssue({
+				code: 'custom',
+				path: ['durationSeconds'],
+				message: `a ${data.actionType.toLowerCase()} has no duration`,
+			});
+		}
+	});

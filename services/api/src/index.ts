@@ -154,6 +154,9 @@ export { default as deleteAllowedInviteRoute } from './routes/automoderator/allo
 export { default as listFilterExemptionsRoute } from './routes/automoderator/filterExemptions/listFilterExemptions.js';
 export { default as setFilterExemptionRoute } from './routes/automoderator/filterExemptions/setFilterExemption.js';
 export { default as deleteFilterExemptionRoute } from './routes/automoderator/filterExemptions/deleteFilterExemption.js';
+export { default as listTriggerPunishmentsRoute } from './routes/automoderator/triggerPunishments/listTriggerPunishments.js';
+export { default as setTriggerPunishmentRoute } from './routes/automoderator/triggerPunishments/setTriggerPunishment.js';
+export { default as deleteTriggerPunishmentRoute } from './routes/automoderator/triggerPunishments/deleteTriggerPunishment.js';
 
 export { default as listExperimentsRoute } from './routes/experiments/listExperiments.js';
 export type { ExperimentWithOverrides } from './routes/experiments/listExperiments.js';
