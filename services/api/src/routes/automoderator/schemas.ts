@@ -2,6 +2,7 @@
 // comment there. Imported rather than re-exported: callers take them from core directly, so there is exactly
 // one import path for them.
 import {
+	ALLOWED_URL_MAX_LENGTH,
 	AUTO_PARDON_MAX_DAYS,
 	AUTOMOD_KEYWORD_MAX_LENGTH,
 	MAX_TIMEOUT_SECONDS,
@@ -28,6 +29,11 @@ export const updateAutomoderatorConfigBodySchema = z
 		reportsChannelId: snowflakeSchema.nullable().optional(),
 		// Days, and null is off -- the same nullable-means-off shape as the channel above.
 		autoPardonWarnsAfter: z.number().int().min(1).max(AUTO_PARDON_MAX_DAYS).nullable().optional(),
+		// The two runner filters (P5b). Plain booleans rather than being inferred from whether the guild has
+		// allowlist rows: an empty allowlist means "no links at all", which is the strictest setting the feature
+		// has and would be the one a guild could not express.
+		useUrlFilters: z.boolean().optional(),
+		useInviteFilters: z.boolean().optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided');
 
@@ -258,3 +264,53 @@ export const setBanwordPolicyBodySchema = z
 			});
 		}
 	});
+
+/**
+ * Mirrors `CREATE TYPE automoderator_filter_kind`, minus the value nothing writes yet.
+ *
+ * `ANTISPAM` exists in the database ahead of P5c and is deliberately absent here, the same split
+ * `WRITABLE_LOG_TYPES` makes: offering a guild an exemption from a filter that does not run yet is a setting
+ * that quietly does nothing. Widen this when the anti-spam runner lands, not before.
+ */
+export const WRITABLE_FILTER_KINDS = ['URLS', 'INVITES'] as const;
+
+export const writableFilterKindSchema = z.enum(WRITABLE_FILTER_KINDS);
+
+export type WritableFilterKind = z.infer<typeof writableFilterKindSchema>;
+
+/**
+ * An allowlisted domain (P5b, feature 02).
+ *
+ * Deliberately not validated with a domain regex here: `normalizeAllowedDomain` in `@chatsift/core` is the one
+ * that decides what an entry means, and it is the same function the bot's matcher and the dashboard's preview
+ * use. The route runs it and rejects what comes back null, so there is exactly one definition of a valid entry
+ * rather than a zod pattern and a normaliser that can disagree.
+ */
+export const allowedUrlBodySchema = z.strictObject({
+	domain: z.string().trim().min(1).max(ALLOWED_URL_MAX_LENGTH),
+});
+
+/**
+ * An allowlisted server for the invite filter (P5b, feature 03).
+ *
+ * Takes an invite -- a full link, a bare `discord.gg/x`, or just the code -- rather than a guild id, because
+ * that is what a guild manager actually has in front of them. Copying a server id needs developer mode on and
+ * membership in the server being allowlisted; an invite link is the thing somebody pasted in the chat that
+ * started this. The route resolves it to the guild id that gets stored, so a vanity URL, a permanent invite and
+ * a one-use invite to the same server all produce the same row.
+ */
+export const allowedInviteBodySchema = z.strictObject({
+	invite: z.string().trim().min(1).max(200),
+});
+
+/**
+ * Which filters a channel is exempt from (P5b, feature 09).
+ *
+ * The **full** set for that channel, not a delta -- the route replaces whatever was there, the same
+ * declarative shape `upsertExperimentBodySchema` uses and for the same reason: a few partial edits and a
+ * client's idea of the state has drifted from the server's. Empty is rejected rather than treated as a delete,
+ * because "exempt from nothing" and "not in the list" are the same state and DELETE already says it.
+ */
+export const setFilterExemptionBodySchema = z.strictObject({
+	filters: z.array(writableFilterKindSchema).min(1).max(WRITABLE_FILTER_KINDS.length),
+});

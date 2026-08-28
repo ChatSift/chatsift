@@ -845,6 +845,13 @@ CREATE TABLE automoderator_guild_settings (
   -- Discord call then fails is simply skipped; the guarantee wanted is monotonic and unique, not gapless.
   last_case_id INTEGER NOT NULL DEFAULT 0,
 
+  -- The two runner filters P5b adds (features 02 and 03), off until a guild asks for them. Legacy carried the
+  -- same pair of flags, and they stay flags rather than being inferred from "has this guild got allowlist
+  -- rows": an empty allowlist is a coherent and strict configuration ("no links at all"), so inferring the
+  -- toggle would make the strictest setting the one a guild cannot express.
+  use_url_filters    BOOLEAN NOT NULL DEFAULT false,
+  use_invite_filters BOOLEAN NOT NULL DEFAULT false,
+
   -- Only the lower bound, not the API's ten-year ceiling: a ceiling is taste and lives in zod (same split the
   -- social settings note above describes), but zero or negative is a value that *breaks* something -- zero
   -- pardons every warning the instant it is filed, and negative pardons warnings dated in the future. That is
@@ -1289,3 +1296,83 @@ CREATE TABLE automoderator_banword_policies (
 -- per event.
 CREATE INDEX automoderator_banword_policies_guild_id_rule_id_idx
   ON automoderator_banword_policies (guild_id, rule_id);
+
+-- Domains the URL filter lets through (P5b, feature 02). One row per allowed domain, guild-scoped -- legacy's
+-- `allowed_urls` had the same key.
+--
+-- **Stored as a bare host, lowercased, and matched as a suffix.** `example.com` covers `example.com` and
+-- anything under it (`www.example.com`, `cdn.example.com`), which is what a guild allowlisting a site means.
+-- Legacy instead reduced every host it saw to its last two labels before comparing, which was wrong twice
+-- over: `example.co.uk` reduced to `co.uk`, so allowlisting the site was impossible and allowlisting the
+-- reduction opened every `.co.uk` domain there is. Suffix matching needs no public-suffix list to get that
+-- right, which is the other reason it wins -- see `automoderatorFilters.ts` in `@chatsift/core` for the
+-- matcher both the API and the bot use.
+CREATE TABLE automoderator_allowed_urls (
+  guild_id TEXT NOT NULL,
+  domain   TEXT NOT NULL,
+
+  PRIMARY KEY (guild_id, domain)
+);
+
+-- Servers the invite filter lets through (P5b, feature 03). Keyed on the **resolved guild id**, never the
+-- invite code: a guild has any number of codes and can mint more at will, and its vanity URL is a third
+-- spelling of the same destination. Legacy learned this in 2021 and fixed it the same way.
+--
+-- The consequence, which the dashboard says out loud: adding an entry costs a live invite resolution, so an
+-- expired or already-deleted code cannot be allowlisted at all. That is the honest failure -- the alternative
+-- is storing a code that resolves to nothing and silently never matching.
+-- `name` is a snapshot taken when the entry was added, and the one place this schema stores a Discord name it
+-- cannot refresh. Everywhere else -- bypass roles, log exemptions, allowed URLs -- the dashboard resolves ids
+-- against data it already loads, so a snapshot would only go stale. It cannot here: the allowlist names servers
+-- this bot is not in, so nothing can look them up afterwards, and a list of bare snowflakes is one a manager
+-- has no way to audit. Rendered as "the name when it was added" rather than as current fact.
+CREATE TABLE automoderator_allowed_invites (
+  guild_id         TEXT NOT NULL,
+  allowed_guild_id TEXT NOT NULL,
+  name             TEXT NOT NULL,
+
+  PRIMARY KEY (guild_id, allowed_guild_id)
+);
+
+-- Which filter a `automoderator_filter_exemptions` row exempts a channel from (P5b, feature 09).
+--
+-- Carries ANTISPAM before P5c writes anything to it, the same way `automoderator_log_type` carried all four
+-- values before there were logs for three of them: adding an enum value is a migration, and the API's
+-- `WRITABLE_FILTER_KINDS` is what actually gates which ones a guild can set today.
+--
+-- The value set is legacy's `FilterIgnores` bitfield minus what the port dropped: `words` is gone because
+-- Discord's own per-rule channel exemptions are the right place to stop a native match happening at all, and
+-- `files` and `global` went with dropped features 05 and 04.
+CREATE TYPE automoderator_filter_kind AS ENUM (
+  'URLS',
+  'INVITES',
+  'ANTISPAM'
+);
+
+-- Channels one of the runner filters never acts in (P5b, feature 09). Legacy stored one bitfield row per
+-- channel; this is one row per (channel, filter) pair instead. A child table rather than a bitfield column
+-- because there is no bitfield anywhere else in this schema and adding one means an encoding two services have
+-- to agree on out of band -- where an enum is greppable, readable in psql, and lets the exemption lookup be a
+-- plain `WHERE filter = ...` against an index.
+--
+-- **Matched up the channel tree**, exactly like `automoderator_log_exemptions` and using the same
+-- `resolveChannelChain` walk: exempting a category covers every channel and thread under it, now and in
+-- future. Legacy resolved two levels and dropped the message's own channel when it was a thread, so exempting
+-- a thread by id did nothing.
+--
+-- Distinct from `automoderator_bypass_roles`, which is the *who* to this table's *where*. Both skip the
+-- response and neither suppresses the filter log, so "why wasn't this deleted" is answerable from the log
+-- either way.
+CREATE TABLE automoderator_filter_exemptions (
+  guild_id   TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  filter     automoderator_filter_kind NOT NULL,
+
+  PRIMARY KEY (guild_id, channel_id, filter)
+);
+
+-- The lookup every filtered message does: one guild's exempt channels for one filter, read in full and then
+-- intersected in memory against the message's channel chain. Leading with `(guild_id, filter)` because the
+-- filter is always known and the channel never is -- the chain is only resolved once the set is non-empty.
+CREATE INDEX automoderator_filter_exemptions_guild_id_filter_idx
+  ON automoderator_filter_exemptions (guild_id, filter);

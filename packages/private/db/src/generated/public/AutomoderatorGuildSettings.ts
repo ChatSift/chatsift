@@ -15,6 +15,10 @@ export default interface AutomoderatorGuildSettings {
   reportsChannelId: string | null;
 
   autoPardonWarnsAfter: number | null;
+
+  useUrlFilters: boolean;
+
+  useInviteFilters: boolean;
 }
 
 /** Represents the initializer for the table public.automoderator_guild_settings */
@@ -28,6 +32,10 @@ export interface AutomoderatorGuildSettingsInitializer {
   reportsChannelId?: string | null;
 
   autoPardonWarnsAfter?: number | null;
+
+  useUrlFilters?: boolean;
+
+  useInviteFilters?: boolean;
 }
 
 /** Represents the mutator for the table public.automoderator_guild_settings */
@@ -41,4 +49,8 @@ export interface AutomoderatorGuildSettingsMutator {
   reportsChannelId?: string | null;
 
   autoPardonWarnsAfter?: number | null;
+
+  useUrlFilters?: boolean;
+
+  useInviteFilters?: boolean;
 }

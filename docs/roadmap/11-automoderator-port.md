@@ -7,7 +7,7 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0–P4 done; P5 (filters) in progress, split into three PRs — the first is code-complete and unverified
+## Status: P0–P4 done; P5 (filters) in progress, split into three PRs — the first two are done, P5c remains
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out — see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -885,15 +885,15 @@ to end rather than a layer that waits on the next one:
 
 | PR  | Features                                                                      | State                     |
 | --- | ----------------------------------------------------------------------------- | ------------------------- |
-| P5a | **01** banword policy on native hits, **33** filter log, **10** bypass roles  | code-complete, unverified |
-| P5b | **02** URL allowlist, **03** invite allowlist, **09** exemptions, `/simulate` | not started               |
+| P5a | **01** banword policy on native hits, **33** filter log, **10** bypass roles  | shipped (#365)            |
+| P5b | **02** URL allowlist, **03** invite allowlist, **09** exemptions, `/simulate` | code-complete, unverified |
 | P5c | **07** anti-spam, **11** trigger ladder + decay                               | not started               |
 
 **Feature 12 (DM on trigger) dissolved into P5a rather than being its own item.** A banword policy files a case,
 and `applyModerationAction` already DMs the target for every case that carries a punishment — so the feature is
 delivered for free wherever there is a policy, and a hit with no policy has nothing to tell anyone about that
-Discord's own block message hasn't already said. What remains of it is P5b's, where a runner deletes a message
-without filing anything.
+Discord's own block message hasn't already said. What remained of it is P5b's, and shipped there: the URL and
+invite runners delete a message without filing anything, so without a DM it would simply vanish unexplained.
 
 #### Owner decisions taken at P5a
 
@@ -953,25 +953,94 @@ Two things landed alongside it that are not features:
   editor. The text these functions produce is fed straight back through the parser next time the form opens, so
   two copies disagreeing by a rounding rule would silently change a saved duration.
 
-#### P5b and P5c — still to do
+#### P5b — what shipped
 
-| Layer     | Work                                                                                                              |
-| --------- | ----------------------------------------------------------------------------------------------------------------- |
-| Schema    | `automoderator_allowed_urls`, `automoderator_allowed_invites`, exemption bitfield, `automoderator_trigger_counts` |
-| API       | allowlist CRUD, exemption CRUD, ladder config, anti-spam settings                                                 |
-| Bot       | message filter pipeline (urls, invites, antispam), trigger ladder + decay, DM on trigger, `/simulate`             |
-| Dashboard | allowlists, filter exemptions, filter ladder editor, anti-spam settings                                           |
+| Layer     | Work                                                                                                                   |
+| --------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Schema    | `automoderator_allowed_urls`, `automoderator_allowed_invites`, `automoderator_filter_exemptions`, two settings toggles |
+| API       | allowlist CRUD (both), exemption CRUD, `useUrlFilters`/`useInviteFilters` on the config route                          |
+| Bot       | `filterRunner.ts` pipeline over `MESSAGE_CREATE`/`MESSAGE_UPDATE`, URL and invite runners, DM on trigger, `/simulate`  |
+| Dashboard | URL Filter, Invite Filter and Filter Exemptions pages                                                                  |
+
+Feature 33 renders **both** native AutoMod hits and our own runner hits into one filter log, so staff read one
+place. That's the reshape. P5a built the embed and the dispatcher; P5b's runners write into the same one.
+
+##### Owner decisions and deviations taken at P5b
+
+Recorded so they don't get relitigated, same as P5a's.
+
+1. **The URL matcher requires a scheme, and `tlds.txt` is dropped entirely.** This doc previously called the
+   IANA list "a standing maintenance item"; it is not coming across, and there is nothing to maintain. Legacy
+   fetched it at Docker build time (a `wget` in its Dockerfile — the file was never in the repo) and used it to
+   decide whether a _scheme-prefixed_ link's TLD was real. With the scheme required, that check buys almost
+   nothing: `https://` in front of a string is what makes it a link, whatever the TLD.
+
+   The alternative considered and rejected was schemeless matching, which is what would have justified the
+   list: it catches `evil.com` pasted without a scheme, the obvious evasion legacy missed. It also deletes "I
+   rewrote it in node.js" and "nice, thanks.lol", because `.lol` is a real TLD. The owner's call was to keep
+   legacy's behaviour — a filter that misses an evasion beats one that eats ordinary sentences, and the invite
+   filter (which _is_ schemeless, safely, because `discord.gg` is unambiguous) covers the case people actually
+   care about.
+
+2. **Allowlist matching is suffix-on-label-boundary, not legacy's last-two-labels reduction.** `example.com`
+   covers `cdn.example.com` and does not cover `notexample.com`. Legacy reduced both sides to their final two
+   labels before comparing, which broke `example.co.uk` in both directions at once: the site could not be
+   allowlisted, and allowlisting its reduction (`co.uk`) would have opened every `.co.uk` domain there is.
+   Suffix matching gets that right with no public-suffix list, which is the other reason it wins.
+
+3. **Exemptions are a `(guild, channel, filter)` child table with an enum, not the bitfield this doc
+   specified.** There is no bitfield anywhere else in this schema, and adding one means an encoding the API and
+   the bot have to agree on out of band. The enum is greppable, readable in psql, and lets the lookup be a
+   plain `WHERE filter = …` against an index. `automoderator_filter_kind` carries `ANTISPAM` already — the same
+   ahead-of-the-code shape `automoderator_log_type` used — and the API's `WRITABLE_FILTER_KINDS` is what gates
+   it out until P5c. `words` did not survive: Discord's own per-rule channel exemptions are the right place to
+   stop a native match happening at all, and `files`/`global` went with dropped features 05 and 04.
+
+   **This is the one P5b decision the owner left open rather than closed** ("simpler for now, we can maybe get
+   back to it later"). It is not a stopgap — the child table is correct and can stay indefinitely — but if it is
+   revisited, the thing that would justify a bitfield is a filter count high enough that a row per (channel,
+   filter) stops being trivial, which three kinds is nowhere near. Revisit on that evidence, not on taste.
+
+4. **Exemptions and bypass roles short-circuit _before_ the runners, and are recorded as decision traces rather
+   than filter-log lines.** This is the one place P5b's runners differ from P5a's native path, which does post a
+   "skipped, this role bypasses" line. A native hit arrives with Discord's matching already done and paid for,
+   so saying so costs nothing; here the match is ours to make, and making it purely to announce that we are
+   about to ignore it would spend an invite resolution on every staff message. `traceDecision` still answers
+   "why wasn't this deleted" — that is what it is for.
+
+5. **The invite allowlist stores a name snapshot**, the only place this schema does. Everywhere else the
+   dashboard resolves ids against guild data it already loads, so a snapshot would only go stale. It cannot
+   here: the allowlist names servers this bot is _not_ in, so nothing can look them up afterwards, and a list of
+   bare snowflakes is one a manager has no way to audit. Rendered as "the name when it was added"; re-adding the
+   server is what refreshes it. Entries are added by pasting an invite, resolved to the guild id at write time
+   through the bot's own REST client — which preserves legacy's 2021 fix against vanity URLs and drops the
+   Cloudflare worker legacy resolved through.
+
+6. **A guild's own invites are always allowed, without a row.** Legacy made every server allowlist itself,
+   which every server had to do and none expected to.
+
+7. **`/simulate` evaluates as a member holding no bypass roles**, and says so in its reply. Anyone with
+   permission to run it necessarily holds the roles that would let them off, so passing their own would make the
+   command answer "nothing, you're staff" every time. It calls `evaluateFilters` — the same function the runner
+   calls, not a copy of it.
+
+#### P5c — still to do
+
+| Layer     | Work                                     |
+| --------- | ---------------------------------------- |
+| Schema    | `automoderator_trigger_counts`           |
+| API       | ladder config, anti-spam settings        |
+| Bot       | anti-spam runner, trigger ladder + decay |
+| Dashboard | filter ladder editor, anti-spam settings |
 
 Notes:
 
-- Exemption bitfield shrinks to `urls | invites | antispam`. `words` moves to native per-rule exemptions; `files` and
-  `global` are gone with features 05 and 04.
-- Feature 33 renders **both** native AutoMod hits and our own runner hits into one filter log, so staff read one
-  place. That's the reshape. P5a built the embed and the dispatcher; P5b's runners write into the same one.
-- Invite resolution uses the bot's REST client, allowlisting by resolved guild ID (not code), preserving legacy's
-  2021 fix against vanity URLs.
-- `tlds.txt` comes across with feature 02 and is a standing maintenance item — write that down where someone will
-  see it, not just here.
+- The anti-spam runner slots into `filterRunner.ts` as a third entry in its `RUNNERS` map plus an `ANTISPAM`
+  entry in `FILTER_KIND`; the exemption enum and the dashboard's filter list already have the value reserved.
+  Widening `WRITABLE_FILTER_KINDS` in `services/api`'s `automoderator/schemas.ts` is what exposes it.
+- The trigger ladder counts URL, invite and anti-spam hits — not banword hits, which already carry their own
+  punishment (P5a's decision 4). P5b's runners deliberately file no case at all, so the ladder is what gives
+  them teeth beyond a delete and a DM.
 - Legacy's decay was broken in two ways worth not reproducing: it compared `new Date().getMinutes()` against
   `updatedAt.getMinutes()` (minute-of-hour, so it fired almost at random), and its cooldown cache was inverted so
   the first trigger row for a guild was deleted rather than decayed. It also decayed `automod_triggers` while the

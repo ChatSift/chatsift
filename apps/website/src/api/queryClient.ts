@@ -169,5 +169,8 @@ export const queryKeys = {
 		automodRules: (guildId: string) => ['api', 'automoderator', guildId, 'automod-rules'] as const,
 		banwordPolicies: (guildId: string) => ['api', 'automoderator', guildId, 'banword-policies'] as const,
 		bypassRoles: (guildId: string) => ['api', 'automoderator', guildId, 'bypass-roles'] as const,
+		allowedUrls: (guildId: string) => ['api', 'automoderator', guildId, 'allowed-urls'] as const,
+		allowedInvites: (guildId: string) => ['api', 'automoderator', guildId, 'allowed-invites'] as const,
+		filterExemptions: (guildId: string) => ['api', 'automoderator', guildId, 'filter-exemptions'] as const,
 	},
 } as const;

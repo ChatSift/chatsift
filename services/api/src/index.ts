@@ -145,6 +145,15 @@ export { default as deleteBanwordPolicyRoute } from './routes/automoderator/banw
 export { default as listBypassRolesRoute } from './routes/automoderator/bypassRoles/listBypassRoles.js';
 export { default as setBypassRoleRoute } from './routes/automoderator/bypassRoles/setBypassRole.js';
 export { default as deleteBypassRoleRoute } from './routes/automoderator/bypassRoles/deleteBypassRole.js';
+export { default as listAllowedUrlsRoute } from './routes/automoderator/allowedUrls/listAllowedUrls.js';
+export { default as createAllowedUrlRoute } from './routes/automoderator/allowedUrls/createAllowedUrl.js';
+export { default as deleteAllowedUrlRoute } from './routes/automoderator/allowedUrls/deleteAllowedUrl.js';
+export { default as listAllowedInvitesRoute } from './routes/automoderator/allowedInvites/listAllowedInvites.js';
+export { default as createAllowedInviteRoute } from './routes/automoderator/allowedInvites/createAllowedInvite.js';
+export { default as deleteAllowedInviteRoute } from './routes/automoderator/allowedInvites/deleteAllowedInvite.js';
+export { default as listFilterExemptionsRoute } from './routes/automoderator/filterExemptions/listFilterExemptions.js';
+export { default as setFilterExemptionRoute } from './routes/automoderator/filterExemptions/setFilterExemption.js';
+export { default as deleteFilterExemptionRoute } from './routes/automoderator/filterExemptions/deleteFilterExemption.js';
 
 export { default as listExperimentsRoute } from './routes/experiments/listExperiments.js';
 export type { ExperimentWithOverrides } from './routes/experiments/listExperiments.js';

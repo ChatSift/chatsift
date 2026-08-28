@@ -9,7 +9,7 @@ const paramsSchema = z.object({ guildId: snowflakeSchema });
 
 export type GetAutomoderatorConfigResult = Pick<
 	AutomoderatorGuildSettings,
-	'autoPardonWarnsAfter' | 'dryRun' | 'guildId' | 'reportsChannelId'
+	'autoPardonWarnsAfter' | 'dryRun' | 'guildId' | 'reportsChannelId' | 'useInviteFilters' | 'useUrlFilters'
 >;
 
 export default defineRoute({
@@ -27,7 +27,7 @@ export default defineRoute({
 		const { guildId } = req.params;
 
 		const [settings] = await getContext().db<GetAutomoderatorConfigResult[]>`
-			SELECT guild_id, dry_run, reports_channel_id, auto_pardon_warns_after
+			SELECT guild_id, dry_run, reports_channel_id, auto_pardon_warns_after, use_url_filters, use_invite_filters
 			FROM automoderator_guild_settings
 			WHERE guild_id = ${guildId}
 		`;
@@ -37,6 +37,8 @@ export default defineRoute({
 			dryRun: true,
 			reportsChannelId: null,
 			autoPardonWarnsAfter: null,
+			useUrlFilters: false,
+			useInviteFilters: false,
 		};
 
 		return settings ?? defaults;
