@@ -130,3 +130,28 @@ export function automoderatorBanwordPoliciesChannel(guildId: string): string {
 export function automoderatorBypassRolesChannel(guildId: string): string {
 	return `automoderator:${guildId}:bypass-roles`;
 }
+
+/**
+ * The URL filter's allowlist (P5b, feature 02). Its own channel rather than riding the config one even though
+ * the enable toggle lives on the same screen: the toggle is written once and the list a row at a time, so
+ * sharing would refetch the whole allowlist on every toggle and vice versa.
+ */
+export function automoderatorAllowedUrlsChannel(guildId: string): string {
+	return `automoderator:${guildId}:allowed-urls`;
+}
+
+/**
+ * The invite filter's allowlist (P5b, feature 03).
+ */
+export function automoderatorAllowedInvitesChannel(guildId: string): string {
+	return `automoderator:${guildId}:allowed-invites`;
+}
+
+/**
+ * Filter exemptions (P5b, feature 09). Separate from `automoderatorLogExemptionsChannel` despite the near-identical
+ * shape -- they are different screens exempting channels from different things, and one guild silencing its
+ * message log should not invalidate the other list.
+ */
+export function automoderatorFilterExemptionsChannel(guildId: string): string {
+	return `automoderator:${guildId}:filter-exemptions`;
+}

@@ -116,3 +116,31 @@ export const BANWORD_POLICY_MAX_COUNT = 250;
  * can never match, so the API rejects it rather than writing a row that does nothing.
  */
 export const AUTOMOD_KEYWORD_MAX_LENGTH = 60;
+
+/**
+ * How many domains one guild may allowlist for the URL filter (P5b, feature 02). Ours, not Discord's: the bot
+ * reads the whole set for every message that contains a link, so the cap is what keeps that a bounded read on
+ * the hottest path this filter has. A guild needing more than this is one that wants the filter off.
+ */
+export const ALLOWED_URL_MAX_COUNT = 250;
+
+/**
+ * The longest an allowlist entry may be, which is the DNS limit on a fully-qualified name. Anything longer is
+ * not a domain and could never match a host the bot extracts from a message.
+ */
+export const ALLOWED_URL_MAX_LENGTH = 253;
+
+/**
+ * How many servers one guild may allowlist for the invite filter (P5b, feature 03). Sized well below the URL
+ * cap on purpose -- an invite allowlist names partner servers, and a guild with a hundred of them is running a
+ * directory rather than a filter.
+ */
+export const ALLOWED_INVITE_MAX_COUNT = 100;
+
+/**
+ * How many channels one guild may exempt from the runner filters (P5b, feature 09), counted per channel rather
+ * than per (channel, filter) pair. Matches `LOG_EXEMPTION_MAX_COUNT` for the same reason it has that value:
+ * exemptions match up the channel tree, so one category row covers everything under it and a guild reaching a
+ * hundred is listing channels one by one when it should be listing their category.
+ */
+export const FILTER_EXEMPTION_MAX_COUNT = 100;

@@ -20,6 +20,21 @@ const SECTIONS = [
 		subtitle: "What happens when Discord's AutoMod catches somebody",
 	},
 	{
+		segment: 'url-filter',
+		title: 'URL Filter',
+		subtitle: 'Which links members are allowed to post',
+	},
+	{
+		segment: 'invite-filter',
+		title: 'Invite Filter',
+		subtitle: 'Which other servers members are allowed to link',
+	},
+	{
+		segment: 'filter-exemptions',
+		title: 'Filter Exemptions',
+		subtitle: 'Channels the URL and invite filters leave alone',
+	},
+	{
 		segment: 'bypass-roles',
 		title: 'Bypass Roles',
 		subtitle: 'Roles the filters never punish',

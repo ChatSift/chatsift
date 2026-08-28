@@ -104,6 +104,10 @@ export type {
 	default as AutomoderatorBanwordPolicies,
 	AutomoderatorBanwordPoliciesId,
 } from './generated/public/AutomoderatorBanwordPolicies.js';
+export type { default as AutomoderatorAllowedUrls } from './generated/public/AutomoderatorAllowedUrls.js';
+export type { default as AutomoderatorAllowedInvites } from './generated/public/AutomoderatorAllowedInvites.js';
+export type { default as AutomoderatorFilterKind } from './generated/public/AutomoderatorFilterKind.js';
+export type { default as AutomoderatorFilterExemptions } from './generated/public/AutomoderatorFilterExemptions.js';
 
 export interface CreateDbOptions {
 	/**

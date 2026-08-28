@@ -9,6 +9,7 @@ import { registerAuditObserver } from './lib/auditObserver.js';
 import { AUTO_PARDON_SWEEP_INTERVAL_MS, sweepAutoPardons } from './lib/autoPardonSweep.js';
 import { registerAutomodIntake } from './lib/automodIntake.js';
 import { EXPIRED_BAN_SWEEP_INTERVAL_MS, sweepExpiredBans } from './lib/expiredBanSweep.js';
+import { registerFilterRunner } from './lib/filterRunner.js';
 import { registerMessageObserver } from './lib/messageObserver.js';
 import { startMetricsServer } from './lib/metricsServer.js';
 import { registerProfileObserver } from './lib/profileObserver.js';
@@ -20,6 +21,7 @@ export async function bin(client: Client): Promise<void> {
 	await registerCommandHandlers(join(baseDir, 'commands'));
 	registerAutomodIntake(client);
 	registerAuditObserver(client);
+	registerFilterRunner(client);
 	registerMessageObserver(client);
 	registerProfileObserver(client);
 	startMetricsServer();

@@ -37,6 +37,12 @@ import discordRoute from './routes/auth/discord.js';
 import discordCallbackRoute from './routes/auth/discordCallback.js';
 import logoutRoute from './routes/auth/logout.js';
 import meRoute from './routes/auth/me.js';
+import createAllowedInviteRoute from './routes/automoderator/allowedInvites/createAllowedInvite.js';
+import deleteAllowedInviteRoute from './routes/automoderator/allowedInvites/deleteAllowedInvite.js';
+import listAllowedInvitesRoute from './routes/automoderator/allowedInvites/listAllowedInvites.js';
+import createAllowedUrlRoute from './routes/automoderator/allowedUrls/createAllowedUrl.js';
+import deleteAllowedUrlRoute from './routes/automoderator/allowedUrls/deleteAllowedUrl.js';
+import listAllowedUrlsRoute from './routes/automoderator/allowedUrls/listAllowedUrls.js';
 import listAutomodRulesRoute from './routes/automoderator/automodRules/listAutomodRules.js';
 import deleteBanwordPolicyRoute from './routes/automoderator/banwordPolicies/deleteBanwordPolicy.js';
 import listBanwordPoliciesRoute from './routes/automoderator/banwordPolicies/listBanwordPolicies.js';
@@ -50,6 +56,9 @@ import listAutomoderatorCasesRoute from './routes/automoderator/cases/listCases.
 import updateAutomoderatorCaseRoute from './routes/automoderator/cases/updateCase.js';
 import getAutomoderatorConfigRoute from './routes/automoderator/config/getConfig.js';
 import updateAutomoderatorConfigRoute from './routes/automoderator/config/updateConfig.js';
+import deleteFilterExemptionRoute from './routes/automoderator/filterExemptions/deleteFilterExemption.js';
+import listFilterExemptionsRoute from './routes/automoderator/filterExemptions/listFilterExemptions.js';
+import setFilterExemptionRoute from './routes/automoderator/filterExemptions/setFilterExemption.js';
 import deleteAutomoderatorLogChannelRoute from './routes/automoderator/logChannels/deleteLogChannel.js';
 import listAutomoderatorLogChannelsRoute from './routes/automoderator/logChannels/listLogChannels.js';
 import setAutomoderatorLogChannelRoute from './routes/automoderator/logChannels/setLogChannel.js';
@@ -291,6 +300,18 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listBypassRolesRoute);
 	mountRoute(app, setBypassRoleRoute);
 	mountRoute(app, deleteBypassRoleRoute);
+
+	mountRoute(app, listAllowedUrlsRoute);
+	mountRoute(app, createAllowedUrlRoute);
+	mountRoute(app, deleteAllowedUrlRoute);
+
+	mountRoute(app, listAllowedInvitesRoute);
+	mountRoute(app, createAllowedInviteRoute);
+	mountRoute(app, deleteAllowedInviteRoute);
+
+	mountRoute(app, listFilterExemptionsRoute);
+	mountRoute(app, setFilterExemptionRoute);
+	mountRoute(app, deleteFilterExemptionRoute);
 	mountRoute(app, listExperimentsRoute);
 	mountRoute(app, upsertExperimentRoute);
 	mountRoute(app, deleteExperimentRoute);
