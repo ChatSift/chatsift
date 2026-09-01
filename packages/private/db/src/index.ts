@@ -108,6 +108,13 @@ export type { default as AutomoderatorAllowedUrls } from './generated/public/Aut
 export type { default as AutomoderatorAllowedInvites } from './generated/public/AutomoderatorAllowedInvites.js';
 export type { default as AutomoderatorFilterKind } from './generated/public/AutomoderatorFilterKind.js';
 export type { default as AutomoderatorFilterExemptions } from './generated/public/AutomoderatorFilterExemptions.js';
+export type { default as AutomoderatorTriggerPunishmentAction } from './generated/public/AutomoderatorTriggerPunishmentAction.js';
+export type {
+	default as AutomoderatorTriggerPunishments,
+	AutomoderatorTriggerPunishmentsGuildId,
+	AutomoderatorTriggerPunishmentsTriggers,
+} from './generated/public/AutomoderatorTriggerPunishments.js';
+export type { default as AutomoderatorTriggerCounts } from './generated/public/AutomoderatorTriggerCounts.js';
 
 export interface CreateDbOptions {
 	/**

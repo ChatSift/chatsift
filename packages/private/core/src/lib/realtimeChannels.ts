@@ -155,3 +155,11 @@ export function automoderatorAllowedInvitesChannel(guildId: string): string {
 export function automoderatorFilterExemptionsChannel(guildId: string): string {
 	return `automoderator:${guildId}:filter-exemptions`;
 }
+
+/**
+ * The trigger ladder's rungs (P5c, feature 11). Its own channel rather than riding
+ * `automoderatorWarnPunishmentsChannel`: two ladders on two screens, and editing one must not refetch the other.
+ */
+export function automoderatorTriggerPunishmentsChannel(guildId: string): string {
+	return `automoderator:${guildId}:trigger-punishments`;
+}

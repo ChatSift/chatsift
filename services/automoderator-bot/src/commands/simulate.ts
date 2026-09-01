@@ -24,6 +24,12 @@ import { evaluateFilters } from '../lib/filterRunner.js';
  *
  * It calls `evaluateFilters` -- the same function the runner calls, not a copy of it. A simulator that
  * reimplements what it simulates agrees with production exactly until somebody needs it to.
+ *
+ * **Anti-spam is reported but not simulated** (P5c). It is the one filter that decides on a rate rather than on
+ * content, so there is nothing about a pasted string to evaluate: running it would either record the simulated
+ * message into the member's real window, or answer a question about how fast the moderator has been typing.
+ * The command says which of the two it is doing rather than printing "nothing matched", which would read as a
+ * verdict.
  */
 const FILTER_NAME = {
 	URLS: 'URL filter',
@@ -105,7 +111,7 @@ function describe(evaluation: FilterEvaluation, channelId: string): string {
 	if (evaluation.enabled.length === 0) {
 		return [
 			...lines,
-			'**Nothing would happen** — neither the URL filter nor the invite filter is turned on for this server.',
+			'**Nothing would happen** — none of the message filters are turned on for this server.',
 		].join('\n');
 	}
 
@@ -133,12 +139,34 @@ function describe(evaluation: FilterEvaluation, channelId: string): string {
 		}
 	}
 
+	// On and un-exempt means anti-spam *could* act on this message and this command has no way to know -- which
+	// the closing line below has to account for, or it would report an unanswered question as a clean bill.
+	const antispamUnknown = evaluation.enabled.includes('ANTISPAM') && !evaluation.exemptions.has('ANTISPAM');
+
+	if (evaluation.enabled.includes('ANTISPAM')) {
+		const exemption = evaluation.exemptions.get('ANTISPAM');
+		lines.push(
+			exemption === undefined
+				? '• **Anti-spam** — on, but not simulated: it counts how fast messages arrive, not what they say.'
+				: `• **Anti-spam** — would not run: <#${exemption}> is exempt.`,
+		);
+	} else {
+		lines.push('• **Anti-spam** — off for this server.');
+	}
+
 	lines.push('');
-	lines.push(
-		evaluation.verdicts.length > 0
-			? '**The message would be deleted** and the author DMed why.'
-			: '**The message would be left alone.**',
-	);
+
+	if (evaluation.verdicts.length > 0) {
+		lines.push('**The message would be deleted** and the author DMed why.');
+	} else if (antispamUnknown) {
+		// Deliberately not "the message would be left alone": the content filters would, and that is all this
+		// command checked. Saying more than it knows is the one thing a diagnostic must not do.
+		lines.push(
+			'**The content filters would leave the message alone.** Whether anti-spam would act depends on how fast that member is posting, which this command cannot tell you.',
+		);
+	} else {
+		lines.push('**The message would be left alone.**');
+	}
 
 	return lines.join('\n');
 }

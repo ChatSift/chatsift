@@ -13,6 +13,7 @@ import { registerFilterRunner } from './lib/filterRunner.js';
 import { registerMessageObserver } from './lib/messageObserver.js';
 import { startMetricsServer } from './lib/metricsServer.js';
 import { registerProfileObserver } from './lib/profileObserver.js';
+import { sweepTriggerDecay, TRIGGER_DECAY_SWEEP_INTERVAL_MS } from './lib/triggerDecaySweep.js';
 
 const baseDir = dirname(fileURLToPath(import.meta.url));
 
@@ -28,19 +29,20 @@ export async function bin(client: Client): Promise<void> {
 
 	scheduleSweep('expired temporary bans', EXPIRED_BAN_SWEEP_INTERVAL_MS, sweepExpiredBans);
 	scheduleSweep('auto-pardoned warns', AUTO_PARDON_SWEEP_INTERVAL_MS, sweepAutoPardons);
+	scheduleSweep('decayed filter triggers', TRIGGER_DECAY_SWEEP_INTERVAL_MS, sweepTriggerDecay);
 }
 
 /**
  * Runs a sweep on a loop, scheduling the next run only once the current one settles.
  *
  * Self-rescheduling rather than `setInterval`, which starts its next callback whether or not the last one has
- * finished. Both sweeps do Discord work bounded by a batch size, and that bound only means anything if one batch
- * is in flight at a time -- a rate-limited run outlasting its interval would otherwise stack batches on one
- * replica. It costs nothing in correctness (both claim their rows atomically, so overlapping runs would take
+ * finished. The two case sweeps do Discord work bounded by a batch size, and that bound only means anything if one
+ * batch is in flight at a time -- a rate-limited run outlasting its interval would otherwise stack batches on one
+ * replica. It costs nothing in correctness (each claims its rows atomically, so overlapping runs would take
  * disjoint work) and everything in being able to reason about how much this bot is doing at once. Same shape,
  * and the same reasoning, as `modmail-bot`'s auto-archive sweep.
  *
- * `.unref()` so neither loop keeps the process alive on its own.
+ * `.unref()` so no loop keeps the process alive on its own.
  */
 function scheduleSweep(name: string, intervalMs: number, run: (logger: Logger) => Promise<void>): void {
 	const scheduleNext = (): void => {

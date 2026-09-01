@@ -30,9 +30,14 @@ const SECTIONS = [
 		subtitle: 'Which other servers members are allowed to link',
 	},
 	{
+		segment: 'anti-spam',
+		title: 'Anti-Spam',
+		subtitle: 'How many messages, how quickly, before it counts as spam',
+	},
+	{
 		segment: 'filter-exemptions',
 		title: 'Filter Exemptions',
-		subtitle: 'Channels the URL and invite filters leave alone',
+		subtitle: 'Channels the filters leave alone',
 	},
 	{
 		segment: 'bypass-roles',
@@ -43,6 +48,11 @@ const SECTIONS = [
 		segment: 'warn-ladder',
 		title: 'Warn Ladder',
 		subtitle: 'What happens as warnings pile up, and when they stop counting',
+	},
+	{
+		segment: 'filter-ladder',
+		title: 'Filter Ladder',
+		subtitle: 'What happens as filter triggers pile up, and when they stop counting',
 	},
 	{
 		segment: 'log-channels',

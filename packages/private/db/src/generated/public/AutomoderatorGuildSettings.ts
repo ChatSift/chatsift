@@ -19,6 +19,12 @@ export default interface AutomoderatorGuildSettings {
   useUrlFilters: boolean;
 
   useInviteFilters: boolean;
+
+  antispamAmount: number | null;
+
+  antispamTime: number | null;
+
+  triggerDecayMinutes: number | null;
 }
 
 /** Represents the initializer for the table public.automoderator_guild_settings */
@@ -36,6 +42,12 @@ export interface AutomoderatorGuildSettingsInitializer {
   useUrlFilters?: boolean;
 
   useInviteFilters?: boolean;
+
+  antispamAmount?: number | null;
+
+  antispamTime?: number | null;
+
+  triggerDecayMinutes?: number | null;
 }
 
 /** Represents the mutator for the table public.automoderator_guild_settings */
@@ -53,4 +65,10 @@ export interface AutomoderatorGuildSettingsMutator {
   useUrlFilters?: boolean;
 
   useInviteFilters?: boolean;
+
+  antispamAmount?: number | null;
+
+  antispamTime?: number | null;
+
+  triggerDecayMinutes?: number | null;
 }

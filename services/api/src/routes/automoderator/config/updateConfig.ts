@@ -13,7 +13,15 @@ const paramsSchema = z.object({ guildId: snowflakeSchema });
 export type UpdateAutomoderatorConfigBody = z.input<typeof bodySchema>;
 export type UpdateAutomoderatorConfigResult = Pick<
 	AutomoderatorGuildSettings,
-	'autoPardonWarnsAfter' | 'dryRun' | 'guildId' | 'reportsChannelId' | 'useInviteFilters' | 'useUrlFilters'
+	| 'antispamAmount'
+	| 'antispamTime'
+	| 'autoPardonWarnsAfter'
+	| 'dryRun'
+	| 'guildId'
+	| 'reportsChannelId'
+	| 'triggerDecayMinutes'
+	| 'useInviteFilters'
+	| 'useUrlFilters'
 >;
 
 export default defineRoute({
@@ -45,7 +53,8 @@ export default defineRoute({
 		const [settings] = await db<UpdateAutomoderatorConfigResult[]>`
 			INSERT INTO automoderator_guild_settings ${db({ guildId, ...data }, 'guildId', ...columns)}
 			ON CONFLICT (guild_id) DO UPDATE SET ${db(data, ...columns)}
-			RETURNING guild_id, dry_run, reports_channel_id, auto_pardon_warns_after, use_url_filters, use_invite_filters
+			RETURNING guild_id, dry_run, reports_channel_id, auto_pardon_warns_after, use_url_filters, use_invite_filters,
+				antispam_amount, antispam_time, trigger_decay_minutes
 		`;
 
 		// The bot reads this per action rather than caching it, so a guild put into dry-run is in dry-run for

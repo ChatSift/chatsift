@@ -22,12 +22,11 @@ import type { AutomoderatorFilterExemptions, AutomoderatorFilterKind } from '@ch
  * Runtime values for `automoderator_filter_kind`. Same arrangement, and the same reason, as `guildLog.ts`'s
  * `LOG_TYPE`: kanel generates the enum as a real TypeScript enum but `@chatsift/db` re-exports only its type,
  * so there is no value to reference and a bare `'URLS'` is not assignable to it.
- *
- * `ANTISPAM` is absent until P5c has a runner for it -- the database carries the value, nothing here needs it.
  */
 export const FILTER_KIND = {
 	URLS: 'URLS' as AutomoderatorFilterKind,
 	INVITES: 'INVITES' as AutomoderatorFilterKind,
+	ANTISPAM: 'ANTISPAM' as AutomoderatorFilterKind,
 } as const satisfies Record<string, AutomoderatorFilterKind>;
 
 export type RunnerFilterKind = keyof typeof FILTER_KIND;
