@@ -35,7 +35,12 @@ import { sweepScheduledCloses } from './lib/scheduledCloseSweep.js';
 import { findSnippetByCommandId, recordSnippetUsage } from './lib/snippets.js';
 import { sweepThreadNukes } from './lib/threadNukeSweep.js';
 import { findOpenThreadByModThreadId, findOpenThreadByUserChannelId } from './lib/threads.js';
-import { finishTicketCreation, sendGreeting } from './lib/ticketCreation.js';
+import {
+	finishTicketCreation,
+	MOD_FORUM_ACCESS_NOTICE,
+	ModForumAccessError,
+	sendGreeting,
+} from './lib/ticketCreation.js';
 import {
 	handleInternalMessageDelete,
 	handleInternalMessageUpdate,
@@ -193,6 +198,20 @@ async function handleFirstMessage(
 			// via its own TTL once nothing keys off it anymore.
 			await PendingTicketStore.delete(message.channel_id);
 		} catch (error) {
+			// Not an error-level failure of ours: the guild pointed ModMail at a forum the bot can't post in.
+			// Logged as a warn naming the forum so it triages as a configuration problem in that one guild
+			// rather than landing in the generic ticket-creation error bucket.
+			if (error instanceof ModForumAccessError) {
+				logger.warn(
+					{ err: error.cause, guildId: pending.guildId, modForumId: error.modForumId, userId: pending.userId },
+					'Cannot open ticket threads in the configured mod forum',
+				);
+				await getContext().service.client.api.channels.createMessage(message.channel_id, {
+					content: MOD_FORUM_ACCESS_NOTICE,
+				});
+				return;
+			}
+
 			logger.error(
 				{ err: error, guildId: pending.guildId, userId: pending.userId },
 				'Failed to finish ticket creation from the first message',

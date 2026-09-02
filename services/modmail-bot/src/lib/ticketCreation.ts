@@ -3,6 +3,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { Categories, Threads } from '@chatsift/db';
 import type { APIEmbed, APIEmbedField, APIGuildMember, APIUser } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
+import { DiscordAPIError } from '@discordjs/rest';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
 import { templateDataFromMember, templateGuildName, templateString } from './templateString.js';
 import {
@@ -19,6 +20,33 @@ import {
  * back-and-forth message.
  */
 const NOT_QUITE_BLACK = 0x23272a;
+
+/**
+ * Thrown by `finishTicketCreation` when the mod forum itself is unreachable -- the bot can't see it or can't
+ * post in it. Distinct from every other ticket-creation failure because the answer is: a moderator has to fix
+ * the bot's permissions on that forum (or repoint it), and until they do, the opener re-sending their message
+ * just fails identically. Caught by all three ticket-opening paths (`index.ts#handleFirstMessage`,
+ * `lib/dmTicket.ts`, `components/dmCategorySelect.ts`) so they can say that instead of offering a retry.
+ *
+ * The dashboard now refuses to save a mod forum the bot can't post in (`services/api`'s
+ * `util/botPermissions.ts`), so reaching this means the permissions changed *after* it was configured.
+ */
+export class ModForumAccessError extends Error {
+	public constructor(
+		public readonly modForumId: string,
+		cause: unknown,
+	) {
+		super(`the bot cannot open threads in mod forum ${modForumId}`, { cause });
+		this.name = 'ModForumAccessError';
+	}
+}
+
+/**
+ * What the ticket opener is told when the above happens, shared by all three call sites so the wording is one
+ * decision rather than three. Deliberately does not suggest trying again.
+ */
+export const MOD_FORUM_ACCESS_NOTICE =
+	"❌ This server's ModMail isn't set up correctly right now — the bot can't post in the staff forum, so your ticket couldn't be opened. Please let a moderator know.";
 
 /**
  * Discord's snowflake epoch (2015-01-01T00:00:00.000Z), used to derive account-creation date.
@@ -173,17 +201,28 @@ export async function finishTicketCreation({
 	// and nothing can be inserted before it after the fact) -- that notice is gone, so the split it forced
 	// is gone with it. Linking to the dashboard from here is fine despite the `threads` row not existing
 	// yet: `reservedThreadId` is the id the INSERT below uses.
-	const modThread = await getContext().service.client.api.channels.createForumThread(modForumId, {
-		name: buildModThreadName(displayName, reservedThreadId),
-		applied_tags: category?.forumTagId ? [category.forumTagId] : undefined,
-		auto_archive_duration: MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES,
-		message: {
-			// Plain content, not an embed field — embeds never trigger a ping, and this is the one
-			// place a new ticket should actually notify the configured alert role.
-			...(alertRoleId ? { content: `<@&${alertRoleId}>` } : {}),
-			embeds: [openingEmbed],
-		},
-	});
+	let modThread;
+	try {
+		modThread = await getContext().service.client.api.channels.createForumThread(modForumId, {
+			name: buildModThreadName(displayName, reservedThreadId),
+			applied_tags: category?.forumTagId ? [category.forumTagId] : undefined,
+			auto_archive_duration: MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES,
+			message: {
+				// Plain content, not an embed field — embeds never trigger a ping, and this is the one
+				// place a new ticket should actually notify the configured alert role.
+				...(alertRoleId ? { content: `<@&${alertRoleId}>` } : {}),
+				embeds: [openingEmbed],
+			},
+		});
+	} catch (error) {
+		// Covers both 403s Discord can answer with here: `50001 Missing Access` (the forum isn't even visible
+		// to the bot) and `50013 Missing Permissions` (visible, but it can't post).
+		if (error instanceof DiscordAPIError && error.status === 403) {
+			throw new ModForumAccessError(modForumId, error);
+		}
+
+		throw error;
+	}
 
 	// If the INSERT fails outright or somehow returns no row, the forum thread above is already live on
 	// Discord's side with nothing in our DB pointing at it — clean that up rather than leaving an

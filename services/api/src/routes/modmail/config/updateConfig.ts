@@ -1,11 +1,12 @@
 import { getContext, getInstanceForGuild } from '@chatsift/backend-core';
 import type { GuildSettings } from '@chatsift/db';
 import type { APIUser, Snowflake } from '@discordjs/core';
-import { ChannelType } from '@discordjs/core';
+import { ChannelType, PermissionFlagsBits } from '@discordjs/core';
 import { badRequest, internal } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
+import { assertBotHasChannelPermissions } from '../../../util/botPermissions.js';
 import { fetchGuildChannels } from '../../../util/channels.js';
 import { assertRolesBelongToGuild } from '../../../util/roles.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
@@ -14,6 +15,21 @@ import { resolveUserBestEffort } from '../threads/util.js';
 
 const bodySchema = updateConfigBodySchema;
 const paramsSchema = z.object({ guildId: snowflakeSchema });
+
+/**
+ * What the bot needs in the mod forum for ModMail to work there at all: see it, open a post per ticket
+ * (`SendMessages` on a forum channel), and keep relaying into that post afterwards -- every relayed message
+ * being an embed (`lib/relay.ts`) makes `EmbedLinks` as load-bearing as the rest.
+ *
+ * Deliberately not the full set the bot ever uses there: `AttachFiles` (attachment relay) and `ManageThreads`
+ * (thread nuking) each only cost one feature when missing, and rejecting a save over them would block guilds
+ * that knowingly don't want those.
+ */
+const REQUIRED_MOD_FORUM_PERMISSIONS =
+	PermissionFlagsBits.ViewChannel |
+	PermissionFlagsBits.SendMessages |
+	PermissionFlagsBits.SendMessagesInThreads |
+	PermissionFlagsBits.EmbedLinks;
 
 export type UpdateModmailConfigBody = z.input<typeof bodySchema>;
 
@@ -56,6 +72,14 @@ export default defineRoute({
 			if (forumChannel.type !== ChannelType.GuildForum) {
 				throw badRequest('modForumId must point at a forum channel');
 			}
+
+			await assertBotHasChannelPermissions(
+				guildId,
+				data.modForumId,
+				'MODMAIL',
+				REQUIRED_MOD_FORUM_PERMISSIONS,
+				req.logger,
+			);
 		}
 
 		if (data.alertRoleId) {
