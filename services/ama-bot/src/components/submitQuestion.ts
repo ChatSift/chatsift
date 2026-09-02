@@ -26,10 +26,33 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 			WHERE p.prompt_message_id = ${interaction.message.id}
 		`;
 
+		if (!ama) {
+			logger.warn(
+				{ promptMessageId: interaction.message.id },
+				'submit-question clicked on a prompt with no AMA session (most likely a pre-cutover legacy prompt)',
+			);
+			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+				content:
+					"This prompt isn't linked to an active AMA — it's likely left over from before this server's AMA bot was upgraded. Ask a moderator to start a new AMA.",
+				flags: MessageFlags.Ephemeral,
+			});
+
+			return;
+		}
+
 		// The guildId check is defense-in-depth against the join above ever resolving the wrong session again
-		// (see #177) -- it should never actually diverge from the prompt message's own guild.
-		if (!ama || ama.guildId !== interaction.guild_id) {
-			throw new Error(`No AMA session found for prompt message ${interaction.message.id}`);
+		// (see #177) -- unlike the missing row above, this one should never happen, so it stays loud.
+		if (ama.guildId !== interaction.guild_id) {
+			logger.error(
+				{ promptMessageId: interaction.message.id, amaId: ama.id, sessionGuildId: ama.guildId },
+				'Prompt message resolved to an AMA session belonging to a different guild',
+			);
+			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+				content: "Something's wrong with this AMA prompt — please let a moderator know.",
+				flags: MessageFlags.Ephemeral,
+			});
+
+			return;
 		}
 
 		if (ama.ended) {
