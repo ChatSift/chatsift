@@ -31,6 +31,7 @@
 		"@sapphire/async-queue": "^1.5.5",
 		"@sapphire/discord-utilities": "^4.0.0",
 		"bin-rw": "^0.2.0",
-		"nanoid": "^6.0.0"
+		"nanoid": "^6.0.0",
+		"prom-client": "^15.1.3"
 	}
 }

@@ -7,6 +7,7 @@ import type { GatewayMessageCreateDispatchData } from '@discordjs/core';
 import { getRolePositions, resolveChannelChain } from './discordCache.js';
 import { isEligibleForXp } from './eligibility.js';
 import { broadcastLeaderboardChange } from './leaderboardBroadcast.js';
+import { levelUps, xpGrants } from './metrics.js';
 import { sendLevelUpNotification } from './notifications.js';
 import { applyRewardRoles, computeRewardRoleDiff } from './rewards.js';
 
@@ -75,6 +76,7 @@ export async function handleTrackedMessage(message: GatewayMessageCreateDispatch
 
 	const member = message.member;
 	if (!member) {
+		xpGrants.inc({ outcome: 'no_member' });
 		return;
 	}
 
@@ -102,6 +104,7 @@ async function track(
 	`;
 
 	if (!settings || !isConfigured(settings)) {
+		xpGrants.inc({ outcome: 'not_configured' });
 		return;
 	}
 
@@ -112,11 +115,13 @@ async function track(
 	`;
 
 	if (user?.ignored) {
+		xpGrants.inc({ outcome: 'user_ignored' });
 		return;
 	}
 
 	const channelConfig = await resolveChannelConfig(guildId, message.channel_id);
 	if (channelConfig?.ignored) {
+		xpGrants.inc({ outcome: 'channel_ignored' });
 		return;
 	}
 
@@ -129,6 +134,7 @@ async function track(
 	});
 
 	if (!eligible) {
+		xpGrants.inc({ outcome: 'not_eligible' });
 		return;
 	}
 
@@ -158,8 +164,13 @@ async function track(
 	`;
 
 	if (!granted) {
+		// Should be unreachable -- the upsert always returns a row. Counted rather than left silent precisely
+		// because the code already tolerates it.
+		xpGrants.inc({ outcome: 'write_failed' });
 		return;
 	}
+
+	xpGrants.inc({ outcome: 'granted' });
 
 	// Someone's rank just moved. Fired here rather than after the level/reward work below because that work
 	// is conditional -- a guild with no curve configured returns early -- while the XP change, which is the
@@ -198,6 +209,7 @@ async function track(
 	}
 
 	if (newLevel > oldLevel) {
+		levelUps.inc();
 		// One line per level-up: the rarest and most user-visible thing this bot does, and the first thing to
 		// check when someone reports levelling without their role. Deliberately not logged per grant --
 		// `createLogger` pins the level to trace with no env override, so a per-message line would be a volume

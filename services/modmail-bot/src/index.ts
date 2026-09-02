@@ -22,6 +22,7 @@ import { buildForeignEmojiRejection, fetchGuildEmojiIds, findForeignEmojiTokens 
 import { withGuildUserLock } from './lib/guildUserQueue.js';
 import { ownsGuild, resolveGuildOwnerLabel } from './lib/instance.js';
 import { buildContextNote, resolveEffectiveContent, resolveReplyReferenceId } from './lib/messageContext.js';
+import { pendingTickets, snippetUses, sweepLag, sweepRuns } from './lib/metrics.js';
 import { clearPendingTicketRecord, PendingTicketStore, type PendingTicketState } from './lib/pendingTicket.js';
 import { sweepAbandonedPendingTickets } from './lib/pendingTicketSweep.js';
 import { preventOpenThreadsFromArchiving } from './lib/preventThreadArchive.js';
@@ -144,6 +145,8 @@ async function handleFirstMessage(
 			// any pending row that already has a matching `threads` row), so it's caught and logged
 			// rather than left to propagate into the catch below and misreport an already-created
 			// ticket as a failure.
+			pendingTickets.inc({ outcome: 'completed' });
+
 			try {
 				await clearPendingTicketRecord(message.channel_id);
 			} catch (error) {
@@ -406,6 +409,7 @@ function registerSnippetCommandResolver(): void {
 
 		const thread = await findOpenThreadByModThreadId(interaction.channel.id);
 		if (!thread) {
+			snippetUses.inc({ result: 'no_thread' });
 			await editReply('Snippets can only be used inside an open ModMail ticket thread.');
 			return true;
 		}
@@ -421,6 +425,7 @@ function registerSnippetCommandResolver(): void {
 
 		const foreignEmojiTokens = findForeignEmojiTokens(snippet.content, guildEmojiIds);
 		if (foreignEmojiTokens.length > 0) {
+			snippetUses.inc({ result: 'foreign_emoji' });
 			await getContext().service.client.api.interactions.editReply(
 				interaction.application_id,
 				interaction.token,
@@ -434,6 +439,7 @@ function registerSnippetCommandResolver(): void {
 				anon,
 				content: snippet.content,
 				externalImageUrl: snippet.attachmentUrl ?? undefined,
+				kind: 'snippet',
 				logger,
 				staffMember: member,
 				staffUser: member.user,
@@ -444,6 +450,7 @@ function registerSnippetCommandResolver(): void {
 			// nothing was actually sent, so usage tracking below must not run, and the deferred reply needs
 			// an explicit failure message rather than being left to time out silently.
 			if (error instanceof UndeliverableUserError) {
+				snippetUses.inc({ result: 'undeliverable' });
 				logger.warn(
 					{ err: error, snippetId: snippet.id, threadId: thread.id },
 					'Snippet could not be delivered to the user',
@@ -454,10 +461,13 @@ function registerSnippetCommandResolver(): void {
 				return true;
 			}
 
+			snippetUses.inc({ result: 'failed' });
 			logger.error({ err: error, snippetId: snippet.id, threadId: thread.id }, 'Failed to relay a snippet reply');
 			await editReply('❌ Failed to send that snippet. Please try again or reach out for support.');
 			return true;
 		}
+
+		snippetUses.inc({ result: 'ok' });
 
 		// Best-effort — the reply below is what actually acks this interaction, and the snippet has
 		// already been relayed successfully at this point, so a usage-tracking write failure shouldn't
@@ -490,7 +500,9 @@ export async function bin(client: Client): Promise<void> {
 	setInterval(async () => {
 		try {
 			await sweepAbandonedPendingTickets(getContext().logger);
+			sweepRuns.inc({ sweep: 'pending_ticket', result: 'ok' });
 		} catch (error) {
+			sweepRuns.inc({ sweep: 'pending_ticket', result: 'failed' });
 			getContext().logger.error({ err: error }, 'Failed to sweep abandoned pending tickets');
 		}
 	}, PENDING_TICKET_SWEEP_INTERVAL_MS).unref();
@@ -498,7 +510,9 @@ export async function bin(client: Client): Promise<void> {
 	setInterval(async () => {
 		try {
 			await sweepScheduledCloses(getContext().logger);
+			sweepRuns.inc({ sweep: 'scheduled_close', result: 'ok' });
 		} catch (error) {
+			sweepRuns.inc({ sweep: 'scheduled_close', result: 'failed' });
 			getContext().logger.error({ err: error }, 'Failed to sweep scheduled ticket closes');
 		}
 	}, SCHEDULED_CLOSE_SWEEP_INTERVAL_MS).unref();
@@ -507,7 +521,9 @@ export async function bin(client: Client): Promise<void> {
 	setInterval(async () => {
 		try {
 			await sweepThreadNukes(getContext().logger);
+			sweepRuns.inc({ sweep: 'thread_nuke', result: 'ok' });
 		} catch (error) {
+			sweepRuns.inc({ sweep: 'thread_nuke', result: 'failed' });
 			getContext().logger.error({ err: error }, 'Failed to sweep scheduled thread nukes');
 		}
 	}, THREAD_NUKE_SWEEP_INTERVAL_MS).unref();
@@ -521,7 +537,9 @@ export async function bin(client: Client): Promise<void> {
 		setTimeout(async () => {
 			try {
 				await preventOpenThreadsFromArchiving(getContext().logger);
+				sweepRuns.inc({ sweep: 'prevent_archive', result: 'ok' });
 			} catch (error) {
+				sweepRuns.inc({ sweep: 'prevent_archive', result: 'failed' });
 				getContext().logger.error({ err: error }, 'Failed to sweep open threads for auto-archive prevention');
 			} finally {
 				schedulePreventThreadArchiveSweep();

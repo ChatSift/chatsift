@@ -10,8 +10,15 @@ import {
 	registerFatalErrorHandlers,
 	setServiceValue,
 } from '@chatsift/backend-core';
-import { createBotClient, createBotGateway, createBotRest, registerShutdownHandlers } from '@chatsift/bot-core';
+import {
+	createBotClient,
+	createBotGateway,
+	createBotRest,
+	registerShutdownHandlers,
+	startMetricsServer,
+} from '@chatsift/bot-core';
 import { GatewayIntentBits } from '@discordjs/core';
+import { register } from './lib/metrics.js';
 import { bin } from './index.js';
 
 const logger = createLogger('modmail-bot');
@@ -31,7 +38,7 @@ const selfInstance = getSelfInstance();
 const token = selfInstance?.token ?? ENV.MODMAIL_BOT_TOKEN;
 const botId: GuildListKey = selfInstance ? `MODMAIL#${selfInstance.id}` : 'MODMAIL';
 
-const rest = createBotRest({ token });
+const rest = createBotRest({ botId: 'MODMAIL', register, token });
 // Unlike AMA (component/modal-driven only, `Guilds` suffices), this bot relays real user message
 // content out of private threads, so it needs `GuildMessages` + the privileged `MessageContent`
 // intent (must also be toggled on for the bot application in the Discord developer portal).
@@ -52,4 +59,5 @@ const client = createBotClient({ botId, gateway, rest });
 setServiceValue('client', client);
 
 await bin(client);
+startMetricsServer({ port: ENV.MODMAIL_METRICS_PORT, register });
 await gateway.connect();

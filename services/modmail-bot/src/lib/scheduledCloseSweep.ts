@@ -3,10 +3,12 @@ import { getContext } from '@chatsift/backend-core';
 import { ownsShardForGuild } from '@chatsift/bot-core';
 import type { Threads } from '@chatsift/db';
 import { getOwnershipScope } from './instance.js';
+import { sweepLag } from './metrics.js';
 import { closeThread } from './threadClose.js';
 
 interface DueScheduledClose extends Threads {
 	anon: boolean;
+	closeAt: Date;
 	scheduledById: string;
 	silent: boolean;
 }
@@ -24,7 +26,7 @@ export async function sweepScheduledCloses(logger: Logger): Promise<void> {
 	const scope = getOwnershipScope();
 
 	const due = await getContext().db<DueScheduledClose[]>`
-		SELECT t.*, sc.scheduled_by_id, sc.silent, sc.anon
+		SELECT t.*, sc.scheduled_by_id, sc.silent, sc.anon, sc.close_at
 		FROM scheduled_thread_closes sc
 		INNER JOIN threads t ON t.id = sc.thread_id
 		WHERE sc.close_at <= now() AND t.closed_at IS NULL
@@ -37,12 +39,15 @@ export async function sweepScheduledCloses(logger: Logger): Promise<void> {
 			.map(async (row) => {
 				const rowLogger = logger.child({ guildId: row.guildId, threadId: row.id });
 
+				sweepLag.observe({ sweep: 'scheduled_close' }, Math.max(0, (Date.now() - row.closeAt.getTime()) / 1_000));
+
 				try {
 					await closeThread({
 						anon: row.anon,
 						closedById: row.scheduledById,
 						logger: rowLogger,
 						silent: row.silent,
+						source: 'scheduled',
 						thread: row,
 					});
 				} catch (error) {

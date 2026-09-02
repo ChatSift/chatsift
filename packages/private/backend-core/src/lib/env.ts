@@ -111,6 +111,7 @@ export const envSchema = z.object({
 
 	// AMA
 	AMA_BOT_TOKEN: z.string(),
+	AMA_METRICS_PORT: z.string().pipe(z.coerce.number()),
 
 	// ModMail
 	MODMAIL_BOT_TOKEN: z.string(),
@@ -119,6 +120,7 @@ export const envSchema = z.object({
 	// since it must differ per partner deployment sharing the same env files. Absent (the public
 	// deployment) means "this process is the public ModMail instance".
 	MODMAIL_INSTANCE_ID: z.string().trim().min(1).optional(),
+	MODMAIL_METRICS_PORT: z.string().pipe(z.coerce.number()),
 
 	// Social (#343). Required like every other bot token: services/api needs it from the Social port's API
 	// phase onward (it registers/deletes the per-guild interaction commands). Like every field here it's
@@ -126,13 +128,12 @@ export const envSchema = z.object({
 	// deployment missing it fails at startup, not at the first interaction write. Custom instances are a
 	// ModMail-only concept, so there's no per-instance counterpart here.
 	SOCIAL_BOT_TOKEN: z.string(),
+	SOCIAL_METRICS_PORT: z.string().pipe(z.coerce.number()),
 
 	// AutoModerator (docs/roadmap/11-automoderator-port.md). Required like every other bot token --
 	// services/api needs it from P0 onward, since the dashboard reads the guild's channels/roles through
 	// whichever bot the page is scoped to.
 	AUTOMODERATOR_BOT_TOKEN: z.string(),
-	// Port the bot binds its Prometheus `/metrics` listener on, and only in production -- see
-	// `automoderator-bot`'s `metricsServer.ts` for why collection is unconditional but exposure is not.
 	AUTOMODERATOR_METRICS_PORT: z.string().pipe(z.coerce.number()),
 
 	// Dozzle log webhook relay (issue #212) — Dozzle POSTs here with a raw-JSON embed description,

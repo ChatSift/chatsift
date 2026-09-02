@@ -3,6 +3,7 @@ import { getContext } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import type { AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction, APIMessageStringSelectInteractionData } from '@discordjs/core';
+import { sessionTransitions } from '../lib/metrics.js';
 
 export default class AmaCloseSelectComponent implements ComponentHandler {
 	public readonly name = 'ama-close-select';
@@ -38,6 +39,8 @@ export default class AmaCloseSelectComponent implements ComponentHandler {
 		await getContext().db`
 			UPDATE ama_sessions SET ended = true WHERE id = ${session.id}
 		`;
+
+		sessionTransitions.inc({ transition: 'closed', source: 'command' });
 
 		await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 			content: `Closed question submissions for **${session.title}**. Questions already submitted can still be reviewed and answered from the dashboard, and submissions can be reopened there.`,

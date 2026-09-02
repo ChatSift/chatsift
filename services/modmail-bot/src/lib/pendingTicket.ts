@@ -2,6 +2,7 @@ import { getContext, RedisStore } from '@chatsift/backend-core';
 import type { CategoriesId } from '@chatsift/db';
 import type { Recipe } from 'bin-rw';
 import { createRecipe, DataType } from 'bin-rw';
+import { pendingTickets } from './metrics.js';
 
 /**
  * How long a ticket is allowed to sit pending (private thread created, waiting on the user's first
@@ -84,6 +85,8 @@ export async function recordPendingTicket({
 		INSERT INTO pending_tickets (private_thread_id, guild_id, user_id, category_id)
 		VALUES (${privateThreadId}, ${guildId}, ${userId}, ${categoryId})
 	`;
+
+	pendingTickets.inc({ outcome: 'started' });
 }
 
 /**

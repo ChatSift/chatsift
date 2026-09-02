@@ -3,6 +3,7 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { RewardRule, RolePositions } from '@chatsift/core';
 import { resolveEarnedRewards } from '@chatsift/core';
+import { rewardRoles } from './metrics.js';
 
 export type { RewardRule } from '@chatsift/core';
 
@@ -153,6 +154,7 @@ export async function applyRewardRoles({
 	userId,
 }: ApplyRewardRolesOptions): Promise<boolean> {
 	if (diff.add.length === 0 && diff.remove.length === 0) {
+		rewardRoles.inc({ result: 'noop' });
 		return true;
 	}
 
@@ -160,6 +162,7 @@ export async function applyRewardRoles({
 		// The failure that set the bar was logged once; without this the next few minutes of skips are
 		// invisible, and each one also strips `earnedRewards` from the level-up message -- so a member gets
 		// congratulated with no mention of the role they didn't receive.
+		rewardRoles.inc({ result: 'barred' });
 		logger.debug({ guildId, userId, add: diff.add, remove: diff.remove }, 'Reward roles skipped, member is barred');
 
 		return false;
@@ -175,10 +178,12 @@ export async function applyRewardRoles({
 
 		// Only reached when the diff was non-empty, so this is per-write rather than per-message -- it's the
 		// line that answers "did they actually get the role", for both level-ups and the self-healing repair.
+		rewardRoles.inc({ result: 'applied' });
 		logger.info({ guildId, userId, add: diff.add, remove: diff.remove }, 'Applied reward roles');
 
 		return true;
 	} catch (error) {
+		rewardRoles.inc({ result: 'failed' });
 		bar(guildId, userId);
 		logger.warn(
 			{ err: error, guildId, userId, add: diff.add, remove: diff.remove },

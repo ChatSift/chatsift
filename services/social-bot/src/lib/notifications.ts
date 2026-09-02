@@ -5,6 +5,7 @@ import type { APIAllowedMentions } from '@discordjs/core';
 import { RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { getGuildName, getRoleName } from './discordCache.js';
+import { notifications } from './metrics.js';
 import { DEFAULT_LEVEL_UP_MESSAGE, templateLevelUpMessage } from './templateMessage.js';
 
 /**
@@ -95,7 +96,15 @@ export async function sendLevelUpNotification({
 		try {
 			const dm = await api.users.createDM(userId);
 			await api.channels.createMessage(dm.id, { content, allowed_mentions: NO_MENTIONS });
+			notifications.inc({ mode: 'dm', result: 'ok' });
 		} catch (error) {
+			notifications.inc({
+				mode: 'dm',
+				result:
+					error instanceof DiscordAPIError && error.code === RESTJSONErrorCodes.CannotSendMessagesToThisUser
+						? 'dms_closed'
+						: 'failed',
+			});
 			// Closed DMs are the overwhelmingly common case here and aren't worth escalating. Legacy had no
 			// fallback for DM mode either -- a user who can't be DMed simply doesn't get told.
 			logger.warn({ err: error, guildId, userId }, 'Failed to DM a level-up notification');
@@ -106,8 +115,10 @@ export async function sendLevelUpNotification({
 
 	try {
 		await api.channels.createMessage(channelId, { content, allowed_mentions: NO_MENTIONS });
+		notifications.inc({ mode: 'channel', result: 'ok' });
 		return;
 	} catch (error) {
+		notifications.inc({ mode: 'channel', result: 'failed' });
 		logger.warn(
 			{ err: error, guildId, channelId },
 			'Failed to send a level-up notification to the channel it happened in',
@@ -123,7 +134,9 @@ export async function sendLevelUpNotification({
 			content,
 			allowed_mentions: NO_MENTIONS,
 		});
+		notifications.inc({ mode: 'channel_fallback', result: 'ok' });
 	} catch (error) {
+		notifications.inc({ mode: 'channel_fallback', result: 'failed' });
 		// A fallback channel that no longer exists is a dead setting, so it clears itself here -- ported legacy
 		// behaviour that the API deliberately depends on: `updateConfig.ts` validates a *newly set* fallback but
 		// never re-checks a stored one, precisely because the bot is what notices it going away.

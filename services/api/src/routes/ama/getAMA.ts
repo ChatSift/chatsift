@@ -3,6 +3,7 @@ import type { AmaPromptData, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { internal, notFound } from '@hapi/boom';
 import { z } from 'zod';
+import { amaSessionTransitions } from '../../core/metrics.js';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import type { PossiblyMissingChannelInfo } from '../../util/channels.js';
@@ -101,6 +102,10 @@ export default defineRoute({
 		if (shouldEndNow) {
 			req.logger.warn({ guildId, amaId }, `AMA session ${amaId} in guild ${guildId} has missing critical channels`);
 			await getContext().db`UPDATE ama_sessions SET ended = true WHERE id = ${amaId}`;
+			// Counted under `dashboard` because that is the surface it happens on, but it is nobody's decision:
+			// this closes a session whose Discord channels have gone missing. Climbing means guilds are deleting
+			// channels out from under live AMAs.
+			amaSessionTransitions.inc({ transition: 'closed', source: 'dashboard' });
 		}
 
 		let promptMessageExists = false;

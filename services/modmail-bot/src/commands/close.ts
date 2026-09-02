@@ -100,7 +100,7 @@ export default class CloseCommand implements CommandHandler {
 				// `false` means the thread was already closed by the time this ran (e.g. a scheduled close
 				// firing in the same instant) — nothing left for this call to do, so say so rather than
 				// implying this command was what closed it.
-				const closed = await closeThread({ anon, closedById: staffId, logger, silent, thread });
+				const closed = await closeThread({ anon, closedById: staffId, logger, silent, source: 'command', thread });
 				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 					content: closed ? '✅ Ticket closed.' : 'This ticket was already closed.',
 				});

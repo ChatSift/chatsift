@@ -4,6 +4,7 @@ import { ownsShardForGuild } from '@chatsift/bot-core';
 import type { ScheduledThreadNukes, Threads } from '@chatsift/db';
 import { DiscordAPIError } from '@discordjs/rest';
 import { getOwnershipScope } from './instance.js';
+import { sweepLag } from './metrics.js';
 
 /**
  * Run on an interval from `index.ts`'s `bin()`. `closeThread` (`lib/threadClose.ts`) locks a ticket's
@@ -28,6 +29,8 @@ export async function sweepThreadNukes(logger: Logger): Promise<void> {
 			.filter((row) => ownsShardForGuild(row.guildId))
 			.map(async (row) => {
 				const rowLogger = logger.child({ guildId: row.guildId, threadId: row.threadId });
+
+				sweepLag.observe({ sweep: 'thread_nuke' }, Math.max(0, (Date.now() - row.nukeAt.getTime()) / 1_000));
 
 				try {
 					if (row.userChannelId) {

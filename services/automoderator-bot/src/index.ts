@@ -2,8 +2,8 @@ import { dirname, join } from 'node:path';
 import { setTimeout } from 'node:timers';
 import { fileURLToPath } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
-import { registerCommandHandlers, registerComponentHandlers } from '@chatsift/bot-core';
+import { ENV, getContext } from '@chatsift/backend-core';
+import { registerCommandHandlers, registerComponentHandlers, startMetricsServer } from '@chatsift/bot-core';
 import type { Client } from '@discordjs/core';
 import { registerAuditObserver } from './lib/auditObserver.js';
 import { AUTO_PARDON_SWEEP_INTERVAL_MS, sweepAutoPardons } from './lib/autoPardonSweep.js';
@@ -11,7 +11,7 @@ import { registerAutomodIntake } from './lib/automodIntake.js';
 import { EXPIRED_BAN_SWEEP_INTERVAL_MS, sweepExpiredBans } from './lib/expiredBanSweep.js';
 import { registerFilterRunner } from './lib/filterRunner.js';
 import { registerMessageObserver } from './lib/messageObserver.js';
-import { startMetricsServer } from './lib/metricsServer.js';
+import { register } from './lib/metrics.js';
 import { registerProfileObserver } from './lib/profileObserver.js';
 import { sweepTriggerDecay, TRIGGER_DECAY_SWEEP_INTERVAL_MS } from './lib/triggerDecaySweep.js';
 
@@ -25,7 +25,7 @@ export async function bin(client: Client): Promise<void> {
 	registerFilterRunner(client);
 	registerMessageObserver(client);
 	registerProfileObserver(client);
-	startMetricsServer();
+	startMetricsServer({ port: ENV.AUTOMODERATOR_METRICS_PORT, register });
 
 	scheduleSweep('expired temporary bans', EXPIRED_BAN_SWEEP_INTERVAL_MS, sweepExpiredBans);
 	scheduleSweep('auto-pardoned warns', AUTO_PARDON_SWEEP_INTERVAL_MS, sweepAutoPardons);

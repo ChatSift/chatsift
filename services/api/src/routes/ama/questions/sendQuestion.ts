@@ -3,6 +3,7 @@ import { amaPublicAnswersChannel, amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { badRequest, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
+import { amaModerationDecisions } from '../../../core/metrics.js';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../../util/discordAPI.js';
@@ -83,6 +84,7 @@ export default defineRoute({
 				throw conflict('this question was already sent');
 			}
 
+			amaModerationDecisions.inc({ decision: 'approve_and_send', source: 'dashboard' });
 			return sentWithoutPost;
 		}
 
@@ -112,6 +114,7 @@ export default defineRoute({
 			throw conflict('this question was already sent');
 		}
 
+		amaModerationDecisions.inc({ decision: 'approve_and_send', source: 'dashboard' });
 		return sent;
 	},
 });

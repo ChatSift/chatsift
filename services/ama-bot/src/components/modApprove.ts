@@ -7,6 +7,7 @@ import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { countExtraAskers } from '../lib/askers.js';
+import { claimRaces, moderationDecisions } from '../lib/metrics.js';
 import { claimAfterPost, postToAnswersChannel } from '../lib/queues.js';
 
 export default class ModApproveComponent implements ComponentHandler<string> {
@@ -79,9 +80,12 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 				`;
 
 				if (!claimed) {
+					claimRaces.inc({ action: 'approve' });
 					await notifyAlreadyHandled();
 					return;
 				}
+
+				moderationDecisions.inc({ decision: 'approve', source: 'bot' });
 			} else {
 				// Duplicates can have been merged into this question while it sat in the queue, and this branch
 				// posts it publicly without ever going through `buildQuestionEmbeds` -- so the count has to be
@@ -122,9 +126,12 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 					);
 
 					if (!claimed) {
+						claimRaces.inc({ action: 'approve' });
 						await notifyAlreadyHandled();
 						return;
 					}
+
+					moderationDecisions.inc({ decision: 'approve_and_send', source: 'bot' });
 				} else {
 					const [claimed] = await getContext().db<AmaQuestions[]>`
 						UPDATE ama_questions
@@ -134,9 +141,12 @@ export default class ModApproveComponent implements ComponentHandler<string> {
 					`;
 
 					if (!claimed) {
+						claimRaces.inc({ action: 'approve' });
 						await notifyAlreadyHandled();
 						return;
 					}
+
+					moderationDecisions.inc({ decision: 'approve_and_send', source: 'bot' });
 				}
 			}
 

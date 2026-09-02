@@ -9,6 +9,7 @@ import type {
 } from '@discordjs/core';
 import { ButtonStyle, ComponentType, RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
+import { sessionTransitions } from '../lib/metrics.js';
 
 export default class AmaRepostSelectComponent implements ComponentHandler {
 	public readonly name = 'ama-repost-select';
@@ -138,6 +139,8 @@ export default class AmaRepostSelectComponent implements ComponentHandler {
 				});
 				return;
 			}
+
+			sessionTransitions.inc({ transition: 'prompt_reposted', source: 'command' });
 
 			await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
 				content: `Reposted the prompt for **${session.title}**.`,

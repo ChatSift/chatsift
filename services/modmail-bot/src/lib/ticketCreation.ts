@@ -5,6 +5,7 @@ import type { APIEmbed, APIEmbedField, APIGuildMember, APIUser } from '@discordj
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
+import { ticketsOpened } from './metrics.js';
 import { templateDataFromMember, templateGuildName, templateString } from './templateString.js';
 import {
 	countPastThreadsForUser,
@@ -241,6 +242,11 @@ export async function finishTicketCreation({
 		if (!thread) {
 			throw new Error(`Failed to insert thread row for mod thread ${modThread.id}`);
 		}
+
+		// Counted here rather than at any of the four call sites, so a new way of opening a ticket can't be
+		// added without it. `origin` is `threads.origin`'s own closed set, so the counter and the column always
+		// answer the question the same way.
+		ticketsOpened.inc({ origin });
 	} catch (error) {
 		logger.error(
 			{ err: error, modThreadId: modThread.id },

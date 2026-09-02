@@ -5,6 +5,7 @@ import type { PendingTickets } from '@chatsift/db';
 import { DiscordAPIError } from '@discordjs/rest';
 import { withGuildUserLock } from './guildUserQueue.js';
 import { getOwnershipScope } from './instance.js';
+import { pendingTickets, sweepRuns } from './metrics.js';
 import { PENDING_TICKET_TTL_MS, PendingTicketStore } from './pendingTicket.js';
 
 /**
@@ -89,6 +90,8 @@ export async function sweepAbandonedPendingTickets(logger: Logger): Promise<void
 			}
 
 			await getContext().db`DELETE FROM pending_tickets WHERE private_thread_id = ${pending.privateThreadId}`;
+
+			pendingTickets.inc({ outcome: 'abandoned' });
 
 			// Best-effort — this should already have expired via its own TTL around the same time as this
 			// row's cutoff, but clearing it explicitly avoids depending on exact clock alignment between

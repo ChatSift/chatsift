@@ -4,6 +4,7 @@ import type { GuildSettings, Threads } from '@chatsift/db';
 import type { APIEmbed } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
+import { ticketsClosed } from './metrics.js';
 import { identityFooter, nicknameAuthor } from './relay.js';
 import { templateDataFromMember, templateGuildName, templateString } from './templateString.js';
 import { incrementLocalMessageId, insertThreadMessage, isRecordingEnabled } from './threads.js';
@@ -34,6 +35,11 @@ export interface CloseThreadOptions {
 	 * `silent` flag.
 	 */
 	silent: boolean;
+	/**
+	 * What decided this close, for `modmail_tickets_closed_total`. A label rather than something inferred from
+	 * `closedById`, which is the *scheduling* staffer on the sweep path and so can't tell the two apart.
+	 */
+	source: 'command' | 'scheduled';
 	thread: Threads;
 }
 
@@ -53,7 +59,14 @@ export interface CloseThreadOptions {
  * by the time this runs (e.g. a manual `/close` racing the sweep for the same scheduled ticket) — the
  * `closed_at IS NULL` guard below is what makes that race safe: only one caller ever gets a row back.
  */
-export async function closeThread({ anon, closedById, logger, silent, thread }: CloseThreadOptions): Promise<boolean> {
+export async function closeThread({
+	anon,
+	closedById,
+	logger,
+	silent,
+	source,
+	thread,
+}: CloseThreadOptions): Promise<boolean> {
 	// Cleared regardless of who's closing this — a manual `/close` on a ticket that also has a pending
 	// scheduled close must not leave that schedule around to fire a second, redundant close later.
 	await getContext().db`DELETE FROM scheduled_thread_closes WHERE thread_id = ${thread.id}`;
@@ -63,8 +76,13 @@ export async function closeThread({ anon, closedById, logger, silent, thread }: 
 	`;
 
 	if (!closed) {
+		// The race the `closed_at IS NULL` guard exists for, not an error -- counted so a guild where it happens
+		// constantly is distinguishable from one where it never does.
+		ticketsClosed.inc({ source, result: 'already_closed' });
 		return false;
 	}
+
+	ticketsClosed.inc({ source, result: 'closed' });
 
 	if (thread.userChannelId) {
 		const [guildSettings] = await getContext().db<[Pick<GuildSettings, 'farewellMessage' | 'nukeDelayMinutes'>?]>`

@@ -12,6 +12,7 @@ import type {
 import { TextInputStyle, ComponentType, MessageFlags } from '@discordjs/core';
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
+import { questionsSubmitted } from '../lib/metrics.js';
 import { CurrentlyInQueue, postToAnswersChannel, postToQueue } from '../lib/queues.js';
 
 export default class SubmitQuestionComponent implements ComponentHandler {
@@ -146,8 +147,14 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		`;
 
 		if (!question) {
+			questionsSubmitted.inc({ initial_state: state.toLowerCase(), result: 'failed' });
 			throw new Error(`Failed to insert question for AMA session ${ama.id}`);
 		}
+
+		// `initial_state` is the session's own config expressed as an outcome, so this counter doubles as
+		// "how are guilds configured" in aggregate -- a deployment with `pending_review` flat at zero has no
+		// guild running review at all, which is worth knowing before concluding the queue is broken.
+		questionsSubmitted.inc({ initial_state: state.toLowerCase(), result: 'ok' });
 
 		// Determine where to post the question based on the AMA configuration
 		const postOptions = {

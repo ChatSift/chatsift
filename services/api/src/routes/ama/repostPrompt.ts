@@ -3,6 +3,7 @@ import type { AmaPromptData, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { badData, notFound, internal } from '@hapi/boom';
 import { z } from 'zod';
+import { amaSessionTransitions } from '../../core/metrics.js';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../util/discordAPI.js';
@@ -95,6 +96,8 @@ export default defineRoute({
 			if (updateResult.count === 0) {
 				throw badData('prompt was already reposted concurrently');
 			}
+
+			amaSessionTransitions.inc({ transition: 'prompt_reposted', source: 'dashboard' });
 		} catch (error) {
 			// If we created the prompt message but failed to persist it — including the concurrent-repost case
 			// above — delete it to avoid leaving it orphaned.

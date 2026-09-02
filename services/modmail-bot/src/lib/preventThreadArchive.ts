@@ -4,6 +4,7 @@ import { ownsShardForGuild } from '@chatsift/bot-core';
 import type { Threads } from '@chatsift/db';
 import { DiscordAPIError } from '@discordjs/rest';
 import { getOwnershipScope } from './instance.js';
+import { ticketsClosed } from './metrics.js';
 
 /**
  * Discord auto-archives a thread after its configured `auto_archive_duration` of inactivity,
@@ -77,7 +78,10 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 				`;
 
 				if (closed) {
+					ticketsClosed.inc({ source: 'auto_archive', result: 'closed' });
 					rowLogger.warn('Closed a modmail ticket because its Discord channel no longer exists');
+				} else {
+					ticketsClosed.inc({ source: 'auto_archive', result: 'already_closed' });
 				}
 			}
 		}),

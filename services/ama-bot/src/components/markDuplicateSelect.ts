@@ -18,6 +18,7 @@ import type { APIEmbed, APIMessageComponentInteraction, APIMessageStringSelectIn
 import { CDNRoutes, ImageFormat, MessageFlags, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { countExtraAskers } from '../lib/askers.js';
+import { moderationDecisions } from '../lib/metrics.js';
 
 interface CurrentMessage {
 	channelId: string;
@@ -182,6 +183,8 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 				});
 				return;
 			}
+
+			moderationDecisions.inc({ decision: 'merge', source: 'bot' });
 
 			const { duplicate, extraAskerCount, original, session } = merged;
 

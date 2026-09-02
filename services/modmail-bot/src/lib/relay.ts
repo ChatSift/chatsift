@@ -12,6 +12,7 @@ import type { RelayAttachmentLike, RelayStickerLike } from './media.js';
 import { buildRelayMedia } from './media.js';
 import type { MessageLike } from './messageContext.js';
 import { resolveEffectiveContent, resolveReplyReferenceId } from './messageContext.js';
+import { relayMessages } from './metrics.js';
 import { postReferencedUserEmbeds } from './referencedUserEmbed.js';
 import { clearReplyAlertCooldown, resolveReplyAlertMentions } from './replyAlerts.js';
 import { templateGuildName } from './templateString.js';
@@ -184,7 +185,18 @@ export async function relayUserMessageToModThread({
 		...(pingMentions ? { content: pingMentions } : {}),
 	};
 
-	const posted = await getContext().service.client.api.channels.createMessage(thread.modThreadId, messageData);
+	let posted;
+	try {
+		posted = await getContext().service.client.api.channels.createMessage(thread.modThreadId, messageData);
+	} catch (error) {
+		// The user→mod half failing is the quietest outage this bot has: the user sees their own message sitting
+		// in their thread and assumes staff can read it. Counted before rethrowing so the caller's log line isn't
+		// the only trace.
+		relayMessages.inc({ kind: 'user_message', result: 'failed' });
+		throw error;
+	}
+
+	relayMessages.inc({ kind: 'user_message', result: 'ok' });
 	logger.info(
 		{ threadId: thread.id, localThreadMessageId, modThreadId: thread.modThreadId },
 		'Relayed user message to mod thread',
@@ -239,6 +251,12 @@ export interface RelayStaffReplyOptions {
 	 * command resolver passes this, and only `/reply`/`/reply-q` pass `attachments`.
 	 */
 	externalImageUrl?: string | undefined;
+	/**
+	 * Which relay this is, for `modmail_relay_messages_total`. Only the snippet resolver passes anything other
+	 * than the default -- a snippet failing where a typed reply wouldn't is a content problem, not an outage,
+	 * and the two need to be separable to tell them apart.
+	 */
+	kind?: 'reply' | 'snippet';
 	logger: Logger;
 	/**
 	 * Whether to mention the user on the relayed copy — surfaced as a `/reply` modal checkbox / `/reply-q`
@@ -265,6 +283,7 @@ export async function relayStaffReplyToUserThread({
 	attachments = [],
 	content,
 	externalImageUrl,
+	kind = 'reply',
 	logger,
 	ping = false,
 	staffMember,
@@ -334,13 +353,22 @@ export async function relayStaffReplyToUserThread({
 			error instanceof DiscordAPIError &&
 			(error.code === RESTJSONErrorCodes.CannotSendMessagesToThisUser || error.status === 404)
 		) {
+			// A normal outcome, not an error -- the user closed their DMs or left, and the staffer is told so.
+			// Kept apart from `failed` so a guild whose members block DMs never reads as an outage.
+			relayMessages.inc({ kind, result: 'undeliverable' });
 			throw new UndeliverableUserError(`Could not deliver a reply to user ${thread.userId} in thread ${thread.id}`, {
 				cause: error,
 			});
 		}
 
+		relayMessages.inc({ kind, result: 'failed' });
 		throw error;
 	}
+
+	// The point of no return -- the user has the message. Everything below is mod-side bookkeeping whose failure
+	// is deliberately not propagated, so counting `ok` here rather than at the end is what keeps this counter
+	// meaning "delivered" instead of "delivered and fully recorded".
+	relayMessages.inc({ kind, result: 'ok' });
 
 	// The user-facing copy above is the point of no return: everything from here down is mod-side
 	// bookkeeping (the log copy, the `thread_messages` row), and a failure in either must not propagate

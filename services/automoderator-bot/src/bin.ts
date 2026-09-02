@@ -10,6 +10,7 @@ import {
 } from '@chatsift/backend-core';
 import { createBotClient, createBotGateway, createBotRest, registerShutdownHandlers } from '@chatsift/bot-core';
 import { GatewayIntentBits } from '@discordjs/core';
+import { register } from './lib/metrics.js';
 import { bin } from './index.js';
 
 const logger = createLogger('automoderator-bot');
@@ -22,7 +23,7 @@ registerShutdownHandlers();
 
 await loadExperiments();
 
-const rest = createBotRest({ token: ENV.AUTOMODERATOR_BOT_TOKEN });
+const rest = createBotRest({ botId: 'AUTOMODERATOR', register, token: ENV.AUTOMODERATOR_BOT_TOKEN });
 
 const gateway = await createBotGateway({
 	botId: 'AUTOMODERATOR',

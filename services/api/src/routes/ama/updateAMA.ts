@@ -6,6 +6,7 @@ import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { badData, badRequest, internal, notFound } from '@hapi/boom';
 import { z } from 'zod';
+import { amaSessionTransitions } from '../../core/metrics.js';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { assertChannelsBelongToGuild } from '../../util/channels.js';
@@ -70,6 +71,12 @@ export default defineRoute({
 				WHERE id = ${amaId} AND guild_id = ${guildId}
 				RETURNING *
 			`;
+
+			// Only a close is a transition worth counting -- a reopen is the dashboard undoing one, and folding
+			// the two into one counter would make the series read as activity where there was a correction.
+			if (data.ended) {
+				amaSessionTransitions.inc({ transition: 'closed', source: 'dashboard' });
+			}
 
 			return updated!;
 		}

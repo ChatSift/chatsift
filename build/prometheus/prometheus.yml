@@ -24,3 +24,70 @@ scrape_configs:
       - targets: ['api:7004']
     authorization:
       credentials_file: /etc/prometheus/metrics_secret
+
+  # One job per bot rather than a shared `bots` job, so `job` answers "which bot" on its own the way
+  # `up{job="api"}` already does, and a per-bot alert needs no relabelled selector.
+  #
+  # dns_sd rather than static_configs because `./compose up` scales these with `--scale <service>=N` (see
+  # plan_scale in ./compose) -- N containers of ONE compose service, all sharing the service name as a network
+  # alias on the user-defined bridge. A static `ama-bot:7007` target would resolve to whichever replica the
+  # embedded DNS handed out for that scrape, so a single time series would flip between replicas and read as a
+  # counter reset every scrape_interval -- worse than no panel. A type-A lookup against the same name yields one
+  # target per replica instead, so scaling up or down needs no change here and no replica count is written down.
+  #
+  # docker_sd was considered and rejected: prod and canary share one Docker socket on this host, so prod's
+  # Prometheus would discover canary's containers on a different bridge and hold them as permanently-DOWN
+  # phantom targets. Scoping that needs a per-deployment `filters:`, and this file has no env-var expansion.
+  - job_name: ama-bot
+    dns_sd_configs:
+      - names: ['ama-bot']
+        type: A
+        port: 7007
+    authorization:
+      credentials_file: /etc/prometheus/metrics_secret
+
+  # Custom ModMail instances (#216) ride in this job rather than getting one each: they run the same image and
+  # emit the same metric names, so a job apiece would fragment every `sum by (...)` forever. Partners are ModMail
+  # customers like anyone else, so the fleet total is the number that matters and `sum(...)` should just give it.
+  #
+  # Separability moves to a label instead. `__meta_dns_name` is the compose service name the record came from,
+  # which for these *is* the `modmail_instances.id` slug -- the only thing distinguishing a partner container
+  # from a public replica, since both are one A record on one port.
+  #
+  # Onboarding a partner adds their `modmail-bot-<slug>` here (see docs/workflow.md); offboarding removes it.
+  - job_name: modmail-bot
+    dns_sd_configs:
+      - names:
+          - modmail-bot
+          - modmail-bot-nascar
+        type: A
+        port: 7008
+    authorization:
+      credentials_file: /etc/prometheus/metrics_secret
+    relabel_configs:
+      # Default first, then override: a `replace` whose regex doesn't match is a no-op, so the public deployment
+      # keeps `public` and `modmail-bot-<slug>` overwrites it with the slug.
+      - target_label: modmail_instance
+        replacement: public
+      - source_labels: [__meta_dns_name]
+        regex: 'modmail-bot-(.+)'
+        target_label: modmail_instance
+        replacement: '$1'
+
+  - job_name: social-bot
+    dns_sd_configs:
+      - names: ['social-bot']
+        type: A
+        port: 7009
+    authorization:
+      credentials_file: /etc/prometheus/metrics_secret
+
+  # Not scaled today (no SHARDS_PER_REPLICA in its compose service), but dns_sd anyway so opting it into scaling
+  # later is a compose change and nothing here.
+  - job_name: automoderator-bot
+    dns_sd_configs:
+      - names: ['automoderator-bot']
+        type: A
+        port: 7006
+    authorization:
+      credentials_file: /etc/prometheus/metrics_secret

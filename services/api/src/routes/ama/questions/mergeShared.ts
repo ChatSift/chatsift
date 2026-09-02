@@ -3,6 +3,7 @@ import { MERGE_SOURCE_STATES, MERGE_TARGET_STATES, resolveEmbedsForEdit } from '
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { Snowflake } from '@discordjs/core';
 import { conflict } from '@hapi/boom';
+import { amaModerationDecisions } from '../../../core/metrics.js';
 import { discordAPIAma } from '../../../util/discordAPI.js';
 import { buildQuestionEmbeds, resolveCurrentQueueMessage } from './util.js';
 
@@ -86,6 +87,11 @@ export async function mergeDuplicatesIntoOriginal(
 				discordAPIAma.channels.deleteMessage(channelId, messageId).catch(() => null),
 			),
 	);
+
+	// Counted here, after the transaction commits and before the best-effort embed refresh below -- a failed
+	// refresh still leaves a merge that really happened. Shared by `mergeQuestion.ts` and
+	// `mergeQuestionsBulk.ts`, so a bulk merge of N duplicates counts N.
+	amaModerationDecisions.inc({ decision: 'merge', source: 'dashboard' });
 
 	// Resolved off the *locked* row, never the caller's pre-transaction copy: since #328 an APPROVED
 	// target is legal, and it could have been sent (-> ASKED, with a fresh `answers_message_id`) in the

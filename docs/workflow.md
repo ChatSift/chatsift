@@ -124,7 +124,7 @@ collector then produces nothing at all. Existing rows in
 `pg_stat_statements` are still attributed to `chatsift`, so the old exporter entries linger until the view is
 reset (`SELECT pg_stat_statements_reset();`) or Postgres restarts — the filter only applies going forward.
 
-### API request metrics (#277)
+### Metrics (#277 and after)
 
 Reuses the same Prometheus/Grafana infra as #270, plus one new npm dependency: `prom-client` in `services/api`. The
 API's existing per-route timing middleware (`mountRoute` in `services/api/src/core/server.ts` — already fires for
@@ -165,6 +165,75 @@ echo -n '<your METRICS_SECRET value>' > build/prometheus/metrics_secret
 chmod 644 build/prometheus/metrics_secret
 ./compose up -d --force-recreate prometheus
 ```
+
+#### Bot feature metrics
+
+Every bot now carries a feature-level taxonomy of its own -- `automoderator-bot` first, then `ama-bot`,
+`modmail-bot` and `social-bot` -- each in that service's `src/lib/metrics.ts`, each with its own `prom-client`
+`Registry`. The goal is the one stated in
+[11-automoderator-port.md](roadmap/11-automoderator-port.md) § Observability: **"is feature N working in prod"
+should be answerable without reading logs.**
+
+Three rules hold across all of them:
+
+1. **Collection is unconditional; only exposure is gated.** Counters increment in dev too, because a mislabelled
+   or never-incremented metric that only runs in production is a bug you find in production. What
+   `ENV.IS_PRODUCTION` gates is _binding the port_ -- see `@chatsift/bot-core`'s `metricsServer.ts`, which all
+   four bots share.
+2. **Cardinality discipline, non-negotiable.** Never label by `guild_id`, `user_id`, `channel_id`, `message_id`,
+   or user content. Every label is drawn from a closed set known at compile time. This is the one mistake that
+   turns a metrics endpoint into an outage. Per-guild questions belong to a dashboard endpoint (AMA already has
+   one at `GET /v3/guilds/:guildId/ama/amas/:amaId/stats`), never here.
+3. **Only declare a counter something actually writes.** A counter no code path increments is indistinguishable
+   from a broken feature on a dashboard.
+
+`discord_requests_total{bot,method,route,status}` is shared by all four, written by a single
+`RESTEvents.Response` listener in `bot-core`'s `createBotRest`. `route` is @discordjs/rest's rate-limit _bucket_
+route, which already has every snowflake replaced by `:id`, so it is bounded by endpoint count rather than guild
+count. It counts Discord's _answers_: a connection-level failure throws before the event fires.
+
+**Two AMA counters are defined in both `ama-bot` and `services/api`**, distinguished by `source="bot"` vs
+`source="dashboard"`, because the dashboard is AMA's primary moderation surface -- a bot-only counter would read
+as "moderation stopped" for any guild that triages on the web. Grafana sums across the two jobs. Keep the label
+sets identical in both files or the sum silently splits.
+
+**Ports** (`.env.public`, container-internal, never published): api `7004`, automoderator `7006`, ama `7007`,
+modmail `7008`, social `7009`. Adding one means four files -- `env.ts` plus the three env stubs
+(`backend-core`'s `env.test.ts`, `bot-core`'s `testEnv.ts`, `services/api`'s `stubEnv.ts`) -- and missing any of
+them fails the whole test file at its import, since `envSchema.parse` runs at module load.
+
+**Scraping scaled bots.** `ama-bot`, `modmail-bot` and `social-bot` run as N containers of _one_ compose service
+(`./compose up` passes `--scale`). A static target would resolve to a different replica on each scrape, and every
+hop reads as a counter reset -- so those jobs use `dns_sd_configs` with `type: A` against the compose service
+name, which Docker's embedded DNS answers with one record per replica. `docker_sd_configs` was rejected: prod and
+canary share a Docker socket, so prod's Prometheus would discover canary's containers as permanently-DOWN phantom
+targets, and `prometheus.yml` has no env-var expansion to scope it with.
+
+To confirm DNS is behaving (read-only):
+
+```sh
+./compose exec api node -e "require('dns').resolve4('ama-bot', (e, a) => console.log(e ?? a))"
+```
+
+`count(up{job="ama-bot"})` in Grafana should then equal what `./compose ps ama-bot` shows.
+
+**Custom ModMail instances share the `modmail-bot` job**, as extra entries in its `names:` list, with a
+`modmail_instance` target label relabelled from `__meta_dns_name` (the compose service name, which for these _is_
+the `modmail_instances.id` slug). Partners are ModMail customers like anyone else, so `sum(...)` gives the fleet
+total and `sum by (modmail_instance) (...)` gives the breakdown. A job per partner would have fragmented every
+aggregate forever.
+
+**Dashboards.** `ama-overview`, `modmail-overview` and `social-overview` sit alongside `api-overview` and are
+picked up by the existing file provider -- no Grafana UI work. Each inherits the `$window` variable described
+above, **defaulting to `6h` rather than `1h`**: bot feature counters are far lower-volume than API routes, so the
+NaN trap bites harder here. They also use `increase()` rather than `rate()` ("3 tickets in 6h" is readable,
+"0.000139/sec" is not).
+
+One trap specific to these: **prom-client emits no series at all for a label combination until it is first
+incremented**, so a counter that has legitimately never fired reads as "No data" rather than `0`, and
+`sum(increase(...))` over it returns an empty vector that no `> 0` guard can rescue. Each `metrics.ts` therefore
+**zero-initialises its closed label sets at startup**. Add a new label value and you must add it there too, or
+its panel will be silently absent until the first real event.
 
 Also as part of #277: the `postgres-overview` dashboard's "Top 20 Queries by Mean Execution Time" table dropped the
 `datname`, `queryid`, and `user` columns (noise — `queryid` is redundant once `query` text is joined in, and this
@@ -410,7 +479,11 @@ Order matters — do these in sequence, not in parallel:
    under the partner's application, panels reposts every panel message. Both are needed here, since both kinds of
    object were created under the public application and Discord scopes commands/message-authorship to the
    application that created them.
-5. Verify: `/snippet` commands work and the panel button opens a ticket, both through the partner's bot presence.
+5. **Add them to Prometheus.** Append `modmail-bot-<partner-slug>` to the `names:` list of the `modmail-bot` job
+   in `build/prometheus/prometheus.yml`, then `./compose kill -s HUP prometheus` (SIGHUP re-reads the bind-mounted
+   config; no restart needed). They share the job rather than getting their own, and the `modmail_instance` target
+   label separates them — see § Metrics. Forgetting this is benign: the bot runs, you just have no metrics for it.
+6. Verify: `/snippet` commands work and the panel button opens a ticket, both through the partner's bot presence.
 
 #### Onboarding a partner who has legacy ModMail history
 
@@ -451,7 +524,10 @@ Reverse order — resync while the row (and therefore the partner's token) is st
    resumes ownership within 60s of this.
 4. **Run both Resyncs again** for the same guild, now that it resolves to the public deployment, to finish
    reconciling snippets (Snippets page) and panels (Panels page) onto it.
-5. Verify the same golden path as onboarding, this time through the public bot.
+5. **Remove them from Prometheus** — drop `modmail-bot-<partner-slug>` from the `modmail-bot` job's `names:` list
+   and `./compose kill -s HUP prometheus`. Forgetting this leaves a DNS resolution error every 30s and a
+   permanently absent target: noise, not breakage.
+6. Verify the same golden path as onboarding, this time through the public bot.
 
 ## Scaling a bot across replicas
 

@@ -9,6 +9,7 @@ import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@
 import { ButtonStyle, ComponentType } from '@discordjs/core';
 import { badGateway, badRequest, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
+import { amaModerationDecisions } from '../../../core/metrics.js';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { discordAPIAma } from '../../../util/discordAPI.js';
@@ -250,6 +251,7 @@ export default defineRoute({
 				throw conflict('this question was already handled by someone else');
 			}
 
+			amaModerationDecisions.inc({ decision: 'deny', source: 'dashboard' });
 			await markSourceMessageResolved(question, session, ButtonStyle.Danger, '❌ Denied');
 			return denied;
 		}
@@ -270,6 +272,7 @@ export default defineRoute({
 				throw conflict('this question was already handled by someone else');
 			}
 
+			amaModerationDecisions.inc({ decision: 'approve', source: 'dashboard' });
 			await markSourceMessageResolved(question, session, ButtonStyle.Success, '✅ Approved - awaiting send');
 			return approved;
 		}
@@ -290,6 +293,7 @@ export default defineRoute({
 				throw conflict('this question was already handled by someone else');
 			}
 
+			amaModerationDecisions.inc({ decision: 'approve_and_send', source: 'dashboard' });
 			await markSourceMessageResolved(question, session, ButtonStyle.Success, '✅ Approved');
 			return askedWithoutPost;
 		}
@@ -310,6 +314,7 @@ export default defineRoute({
 			throw conflict('this question was already handled by someone else');
 		}
 
+		amaModerationDecisions.inc({ decision: 'approve_and_send', source: 'dashboard' });
 		await markSourceMessageResolved(question, session, ButtonStyle.Success, '✅ Approved');
 		return asked;
 	},

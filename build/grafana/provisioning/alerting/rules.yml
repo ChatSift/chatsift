@@ -54,7 +54,11 @@ groups:
               refId: A
               # `modmail-bot` covers both the public container and every custom instance
               # (`modmail-bot-nascar`, etc.) -- the previous regex matched neither.
-              expr: changes(container_start_time_seconds{name=~".*(api|ama-bot|modmail-bot).*"}[10m])
+              #
+              # `social-bot` and `automoderator-bot` were missing until the bot-metrics work: both are services
+              # that die inside `envSchema.parse` on a missing env var exactly like the 2026-08-11 incident
+              # above, and neither would have alerted. That work also adds three more mandatory env vars.
+              expr: changes(container_start_time_seconds{name=~".*(api|ama-bot|modmail-bot|social-bot|automoderator-bot).*"}[10m])
               intervalMs: 1000
               maxDataPoints: 43200
           - refId: B

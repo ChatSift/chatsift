@@ -5,6 +5,7 @@ import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ButtonStyle, ComponentType, MessageFlags } from '@discordjs/core';
+import { claimRaces, moderationDecisions } from '../lib/metrics.js';
 
 export default class ModDenyComponent implements ComponentHandler<string> {
 	public readonly name = 'mod-deny';
@@ -52,12 +53,15 @@ export default class ModDenyComponent implements ComponentHandler<string> {
 			`;
 
 			if (!denied) {
+				claimRaces.inc({ action: 'deny' });
 				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
 					content: 'This question was already handled by another moderator.',
 					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
+
+			moderationDecisions.inc({ decision: 'deny', source: 'bot' });
 
 			await publishRealtimeInvalidate(amaQuestionsChannel(session.guildId, question.amaId));
 
