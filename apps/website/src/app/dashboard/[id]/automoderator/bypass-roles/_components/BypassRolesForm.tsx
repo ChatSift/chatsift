@@ -115,11 +115,7 @@ export function BypassRolesForm() {
 			</p>
 
 			{bypassRoles.length === 0 ? (
-				<EmptyState
-					icon={<SvgAutoModerator height={28} width={28} />}
-					subtitle="Everyone is punished the same way. Add the roles that should be recorded but left alone — moderators, bots, or anyone you trust to trip a filter on purpose."
-					title="No bypass roles"
-				/>
+				<EmptyState icon={<SvgAutoModerator height={28} width={28} />} title="No bypass roles" />
 			) : (
 				<div className="flex flex-col gap-2">
 					{bypassRoles.map((entry) => (

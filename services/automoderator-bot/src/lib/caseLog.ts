@@ -40,9 +40,10 @@ export async function dispatchCaseLog(
 
 	const embed = buildCaseEmbed(modCase, { reference: reference ?? null, logChannelId: webhook.channelId });
 	const api = getContext().service.client.api;
-	const token = decrypt(webhook.webhookToken);
 
 	try {
+		const token = decrypt(webhook.webhookToken);
+
 		let posted: APIMessage | undefined;
 
 		await executeAction(

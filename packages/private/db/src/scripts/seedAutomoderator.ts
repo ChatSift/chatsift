@@ -23,6 +23,8 @@
 // The seeded reports (P3) do the same: their reported messages name a channel that never existed, so the
 // queue's jump links and the detail view render the dangling case rather than only the happy one.
 
+import { Buffer } from 'node:buffer';
+import { createCipheriv, randomBytes } from 'node:crypto';
 import process from 'node:process';
 import { createDb, type Database } from '../index.js';
 
@@ -222,6 +224,24 @@ const AUTO_PARDON_DAYS = 90;
  * A channel id that does not exist, so the log config renders the dangling-reference path.
  */
 const DANGLING_CHANNEL_ID = '130000000000000001';
+
+/**
+ * `encrypt` from `@chatsift/backend-core`, inlined -- that package depends on this one, so importing it would
+ * be a cycle. The column holds ciphertext everywhere else, and seeding plaintext into it makes the bot's
+ * `decrypt` throw before it ever reaches Discord, which is a different failure from the 404 self-heal the
+ * seeded row exists to exercise. Kept byte-compatible with `crypt.ts`: iv || ciphertext || auth tag, base64.
+ */
+function encryptToken(data: string): string {
+	const { ENCRYPTION_KEY } = process.env;
+
+	const key = Buffer.from(ENCRYPTION_KEY!, 'base64');
+	const iv = randomBytes(12);
+
+	const cipher = createCipheriv('aes-256-gcm', key, iv);
+	const ciphertext = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
+
+	return Buffer.concat([iv, ciphertext, cipher.getAuthTag()]).toString('base64');
+}
 
 /**
  * Log exemptions (P4, feature 35), both deliberately dangling. Two rather than one because the picker renders
@@ -472,7 +492,10 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 	// the self-heal path -- point the dashboard at a real channel to get a working log.
 	await db`
 		INSERT INTO automoderator_log_webhooks (guild_id, log_type, channel_id, webhook_id, webhook_token, thread_id)
-		VALUES (${guildId}, 'MOD', ${DANGLING_CHANNEL_ID}, '140000000000000001', 'seeded-not-a-real-token', NULL)
+		VALUES (
+			${guildId}, 'MOD', ${DANGLING_CHANNEL_ID}, '140000000000000001',
+			${encryptToken('seeded-not-a-real-token')}, NULL
+		)
 		ON CONFLICT (guild_id, log_type) DO NOTHING
 	`;
 
@@ -578,7 +601,7 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 // Destructured rather than accessed key-by-key: `ProcessEnv` is an index signature, so
 // `noPropertyAccessFromIndexSignature` rejects dot access while eslint's `dot-notation` rejects bracket
 // access. Destructuring is the one form both are happy with (same note as `lib/legacySocial.ts`).
-const { IS_PRODUCTION, DATABASE_URL_DEV } = process.env;
+const { IS_PRODUCTION, DATABASE_URL_DEV, ENCRYPTION_KEY } = process.env;
 
 const { guildId, reset } = parseArgs(process.argv.slice(2));
 
@@ -592,6 +615,12 @@ if (IS_PRODUCTION && !['false', '0', 'no', 'off', 'n', 'disabled'].includes(IS_P
 
 if (!DATABASE_URL_DEV) {
 	console.error('DATABASE_URL_DEV is not set');
+	process.exit(1);
+}
+
+// The seeded webhook token goes into the same encrypted column the API writes, so the same key has to be here.
+if (!ENCRYPTION_KEY) {
+	console.error('ENCRYPTION_KEY is not set');
 	process.exit(1);
 }
 

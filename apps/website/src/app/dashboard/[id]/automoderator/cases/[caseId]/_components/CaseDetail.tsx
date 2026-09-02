@@ -141,7 +141,6 @@ export function CaseDetail() {
 
 				<div className="flex flex-col gap-4 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 					<TextAreaField
-						helper="Rewrites the reason on the mod log embed too."
 						id="case-reason"
 						label="Reason"
 						maxLength={REASON_MAX_LENGTH}
