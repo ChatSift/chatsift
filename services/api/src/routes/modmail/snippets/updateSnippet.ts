@@ -86,6 +86,12 @@ export default defineRoute({
 				// NOT NULL and the bot dispatches snippets by command id alone (`findSnippetByCommandId`), so
 				// there's no id to null out and no name-based fallback to degrade to -- and the resync card is
 				// hidden for a guild that isn't on a custom instance, so an ordinary guild couldn't reach it.
+				//
+				// Two deliberate limits: repair only runs on an edit that carries a name -- one is needed to
+				// mint a command at all, and the dashboard's form always sends all four fields -- and two
+				// concurrent renames of the same dead-command snippet can each mint one, orphaning the loser.
+				// Serialising that would mean holding a lock across a Discord call, which is exactly what the
+				// note at the top of this block exists to avoid.
 				liveName = null;
 			}
 
@@ -186,9 +192,9 @@ export default defineRoute({
 				return updated!;
 			});
 		} catch (error) {
-			// The row still points at the old, dead id, so a replacement minted above now backs nothing and
-			// would answer `/name` with bot-core's "no handler found". Fire-and-forget, exactly as
-			// `createSnippet.ts` cleans up after its own failed insert.
+			// The row still points at the old, dead id, so a replacement minted above (#369) now backs
+			// nothing and would answer `/name` with bot-core's "no handler found". Fire-and-forget, exactly
+			// as `createSnippet.ts` cleans up after its own failed insert.
 			if (deleteRecreatedCommand) {
 				const cleanup = deleteRecreatedCommand;
 				void (async () => {
