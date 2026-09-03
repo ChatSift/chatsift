@@ -201,12 +201,19 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 						return rotated;
 					} catch (error) {
 						// The same rule the reuse path below applies to `fetchMe`, applied to the one call whose failure
-						// used to cost a login outright: only discord actually rejecting the grant (`400 invalid_grant`,
-						// or a 401 on our client credentials) means the session is unrecoverable. A 5xx, a rate limit or
-						// a socket error says nothing about the token -- and `refreshDiscordAccessToken` drops its
-						// coalescing entry on any failure, so a request that never reached discord hasn't spent the
-						// refresh token either. Surfacing those as a plain 5xx leaves the session intact for the client
-						// to retry with, instead of logging out a user who did nothing wrong (#384).
+						// used to cost a login outright: `invalid_grant` -- discord rejecting *this user's* refresh
+						// token -- is the only unrecoverable case. Everything else leaves the session alone and
+						// surfaces as a plain 5xx for the client to retry: a discord 5xx, a rate limit or a socket
+						// error says nothing about the token, and `refreshDiscordAccessToken` drops its coalescing
+						// entry on any failure, so a request that never reached discord hasn't spent the refresh
+						// token either.
+						//
+						// `401 invalid_client` belongs firmly on that second branch, and deliberately so: it means
+						// *this service's* credentials were refused, which is a deployment fault. Treating it as a
+						// dead grant is precisely what #384 was -- the rotation call shipped without its
+						// `client_id`/`client_secret` (see `util/discordOAuthRefresh.ts`), every attempt came back
+						// `401`, and every session in the system was cleared a week after it was created. Do not
+						// widen this back out to a status check.
 						if (!isRejectedGrantDiscordError(error)) {
 							req.logger.warn({ err: error }, 'discord token refresh failed transiently, leaving the session intact');
 							throw error;
