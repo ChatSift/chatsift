@@ -5,6 +5,9 @@ vi.mock('@chatsift/backend-core', () => ({
 	ENV: { IS_PRODUCTION: false },
 	getContext: () => ({ service: { client: { api: {} } } }),
 	publishRealtimeInvalidate: async () => undefined,
+	// The report card resolves the target's avatar through `bot-core`, whose barrel builds a `RedisStore`
+	// subclass at module scope.
+	RedisStore: class {},
 }));
 
 const { firstImageUrl, shouldReopenReport, snapshotMessage } = await import('../reportFlow.js');

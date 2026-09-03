@@ -10,6 +10,7 @@ import { MessageFlags } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { ACTION_PAST_TENSE } from './caseFormat.js';
+import { formatCaseRef } from './caseLog.js';
 import { actorFromUser, getCaseByNumber } from './cases.js';
 import type { ModerationResult } from './moderation.js';
 import { CaseFilingError, LadderFailureError, SoftbanUnbanError, applyModerationAction } from './moderation.js';
@@ -114,10 +115,10 @@ export async function runModCommand(
 			logger,
 		);
 
-		await reply(describeModerationResult(result, targetUser.username, spec.action));
+		await reply(await describeModerationResult(result, targetUser.username, spec.action));
 	} catch (error) {
 		logger.error({ err: error, action: spec.action }, 'a mod command failed');
-		await reply(describeCommandFailure(error));
+		await reply(await describeCommandFailure(error));
 	}
 }
 
@@ -125,15 +126,18 @@ export async function runModCommand(
  * What the moderator is told. Shared with the report card's action flow so the ladder sentence can't drift
  * between the two places a warn can be issued from.
  */
-export function describeModerationResult(
+export async function describeModerationResult(
 	result: ModerationResult,
 	targetName: string,
 	action: AutomoderatorCaseAction,
-): string {
+): Promise<string> {
 	const verb = ACTION_PAST_TENSE[action];
+	// Async only for this: the case number is a link to the case's own mod-log message wherever there is one to
+	// jump to, which needs the mod log's channel looked up (#381).
+	const ref = await formatCaseRef(result.case);
 	const head = result.suppressed
-		? `**Dry run** — would have ${verb} ${targetName}. (case #${result.case.caseId})`
-		: `Successfully ${verb} ${targetName}. (case #${result.case.caseId})`;
+		? `**Dry run** — would have ${verb} ${targetName}. (case ${ref})`
+		: `Successfully ${verb} ${targetName}. (case ${ref})`;
 
 	if (!result.ladder) {
 		return head;
@@ -148,7 +152,9 @@ export function describeModerationResult(
 		? `they would also have been ${ladderVerb}`
 		: `they were also ${ladderVerb}`;
 
-	return `${head}\nThat reached a warn ladder step, so ${ladderClause}. (case #${result.ladder.case.caseId})`;
+	return `${head}\nThat reached a warn ladder step, so ${ladderClause}. (case ${await formatCaseRef(
+		result.ladder.case,
+	)})`;
 }
 
 /**
@@ -156,11 +162,11 @@ export function describeModerationResult(
  * flow, which can fail in exactly the same ways -- the distinction between "nothing happened" and "it
  * happened but isn't recorded" is the whole point, and it must not be worded twice.
  */
-export function describeCommandFailure(error: unknown): string {
+export async function describeCommandFailure(error: unknown): Promise<string> {
 	if (error instanceof LadderFailureError) {
 		return (
-			`The warn was recorded (case #${error.warnCase.caseId}), but it reached a warn ladder step at ` +
-			`${error.warns} warnings and that punishment failed. Apply it by hand, or check my permissions.`
+			`The warn was recorded (case ${await formatCaseRef(error.warnCase)}), but it reached a warn ladder ` +
+			`step at ${error.warns} warnings and that punishment failed. Apply it by hand, or check my permissions.`
 		);
 	}
 

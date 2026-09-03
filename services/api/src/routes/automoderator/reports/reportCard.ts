@@ -10,6 +10,7 @@ import {
 import { buildReportComponents, buildReportEmbeds } from '@chatsift/core';
 import type { AutomoderatorReports } from '@chatsift/db';
 import { apiForGuild } from '../../../util/discordAPI.js';
+import { resolveAvatarURL } from '../../../util/users.js';
 
 /**
  * Posts the card for a report filed from the website (P3b's DM reports).
@@ -35,16 +36,20 @@ export async function postReportCard(report: AutomoderatorReports, reporterCount
 	const input = reportEmbedInput(report);
 
 	try {
-		const [contextMessages, reporterId] = await Promise.all([
+		const api = apiForGuild('AUTOMODERATOR', report.guildId);
+
+		const [contextMessages, reporterId, targetAvatarURL] = await Promise.all([
 			listReportMessages(report.id),
 			getOriginatingReporterId(report.id),
+			resolveAvatarURL(api, report.targetId),
 		]);
 
-		const posted = await apiForGuild('AUTOMODERATOR', report.guildId).channels.createMessage(channelId, {
+		const posted = await api.channels.createMessage(channelId, {
 			embeds: buildReportEmbeds(input, {
 				reporterCount,
 				contextMessages,
 				...(reporterId ? { reporterId } : {}),
+				...(targetAvatarURL ? { targetAvatarURL } : {}),
 				dashboardLink: reportDetailLink(report.guildId, report.id),
 			}),
 			components: buildReportComponents(input),

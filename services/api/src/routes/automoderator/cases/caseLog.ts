@@ -1,10 +1,11 @@
 import { decrypt, getContext } from '@chatsift/backend-core';
 import type { CaseActionName } from '@chatsift/core';
-import { buildCaseEmbed } from '@chatsift/core';
+import { buildCaseEmbed, logJumpChannelId } from '@chatsift/core';
 import type { AutomoderatorCases, AutomoderatorLogWebhooks } from '@chatsift/db';
 import { RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
-import { discordAPIWebhook } from '../../../util/discordAPI.js';
+import { discordAPIAutomoderator, discordAPIWebhook } from '../../../util/discordAPI.js';
+import { resolveAvatarURL } from '../../../util/users.js';
 
 /**
  * Rewrites a case's existing mod-log embed after the dashboard amends it, so the log and the case can't
@@ -33,6 +34,8 @@ export async function refreshCaseLog(modCase: AutomoderatorCases): Promise<void>
 					WHERE guild_id = ${modCase.guildId} AND case_id = ${modCase.refId}
 				`;
 
+	const targetAvatarURL = await resolveAvatarURL(discordAPIAutomoderator, modCase.targetId);
+
 	try {
 		await discordAPIWebhook.webhooks.editMessage(
 			webhook.webhookId,
@@ -43,8 +46,9 @@ export async function refreshCaseLog(modCase: AutomoderatorCases): Promise<void>
 					buildCaseEmbed(
 						{ ...modCase, actionType: modCase.actionType as unknown as CaseActionName },
 						{
-							logChannelId: webhook.channelId,
+							logChannelId: logJumpChannelId(webhook),
 							reference: reference ? { logMessageId: reference.logMessageId } : null,
+							...(targetAvatarURL ? { targetAvatarURL } : {}),
 						},
 					),
 				],

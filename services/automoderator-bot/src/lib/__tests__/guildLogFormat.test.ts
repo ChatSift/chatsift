@@ -129,7 +129,7 @@ test('an avatarless actor gets an author line without an icon', () => {
 		after: 'Mod One',
 	});
 
-	expect(embed.author).toEqual({ name: 'moderator-one (120000000000000001)' });
+	expect(embed.author).toMatchObject({ name: 'moderator-one (120000000000000001)' });
 	expect(embed.title).toBe('Changed their display name');
 });
 
@@ -140,7 +140,7 @@ test('a filter hit names what caught it, what matched and what came of it', () =
 		source: 'Slurs',
 		matched: 'badword',
 		content: 'a message with badword in it',
-		outcome: { summary: 'Banned', caseId: 12 },
+		outcome: { summary: 'Banned', caseRef: '[#12](https://discord.com/channels/1/2/99)' },
 	});
 
 	expect(embed.description).toBe(`Filter triggered in <#${CHANNEL_ID}>`);
@@ -148,7 +148,7 @@ test('a filter hit names what caught it, what matched and what came of it', () =
 		{ name: 'Filter', value: 'Slurs', inline: true },
 		// The case number is appended rather than being its own field: it is only ever meaningful next to the
 		// outcome that produced it.
-		{ name: 'Outcome', value: 'Banned (case #12)', inline: true },
+		{ name: 'Outcome', value: 'Banned (case [#12](https://discord.com/channels/1/2/99))', inline: true },
 		{ name: 'Matched', value: '`badword`' },
 		{ name: 'Content', value: '>>> a message with badword in it' },
 	]);

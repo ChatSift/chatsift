@@ -9,6 +9,7 @@ import { claimAutomodExecution } from './automodDedupe.js';
 import { resolveAutomodRuleName } from './automodRules.js';
 import { resolveBanwordPolicy } from './banwordPolicy.js';
 import { findBypassRole } from './bypassRoles.js';
+import { formatCaseRef } from './caseLog.js';
 import type { CaseActor } from './cases.js';
 import { traceDecision } from './decisionTrace.js';
 import { dispatchLog, getLogWebhook, LOG_TYPE } from './guildLog.js';
@@ -314,7 +315,7 @@ async function runPunishmentPolicy(
 
 	return {
 		summary: result.suppressed ? SUMMARY_CONDITIONAL[action] : SUMMARY_PAST[action],
-		caseId: result.case.caseId,
+		caseRef: await formatCaseRef(result.case),
 		enforced: true,
 	};
 }

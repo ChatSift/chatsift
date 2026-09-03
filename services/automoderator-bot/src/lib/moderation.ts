@@ -304,7 +304,9 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 
 	casesCreated.inc({ action, source });
 
-	await dispatchCaseLog(filedCase, logger, source);
+	// Reassigned rather than discarded: a first post is what learns `log_message_id`, and the reply this
+	// function's caller is about to write hyperlinks the case number off exactly that field (#381).
+	filedCase = await dispatchCaseLog(filedCase, logger, source);
 
 	// Rethrown only now that the case exists and its log is out, so the moderator's error message and the
 	// permanent record agree about what happened.

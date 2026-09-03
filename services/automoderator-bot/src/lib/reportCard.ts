@@ -15,6 +15,7 @@ import type { APIMessage } from '@discordjs/core';
 import { RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { executeAction } from './actionExecutor.js';
+import { resolveAvatarURL } from './avatars.js';
 
 export type { ReportCardOptions } from '@chatsift/core';
 export { REPORT_ACTION_OPTIONS, REPORT_COMPONENT, isReportAction } from '@chatsift/core';
@@ -51,11 +52,14 @@ export async function syncReportCard(
 				? await Promise.all([listReportMessages(report.id), getOriginatingReporterId(report.id)])
 				: [[], null];
 
+		const targetAvatarURL = await resolveAvatarURL(api, report.targetId, logger);
+
 		const body = {
 			embeds: buildReportEmbeds(input, {
 				...options,
 				contextMessages,
 				...(reporterId ? { reporterId } : {}),
+				...(targetAvatarURL ? { targetAvatarURL } : {}),
 				dashboardLink: reportDetailLink(report.guildId, report.id),
 			}),
 			components: buildReportComponents(input),

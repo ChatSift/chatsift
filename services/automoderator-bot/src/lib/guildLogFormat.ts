@@ -1,6 +1,5 @@
-import { snowflakeTimestampSeconds } from '@chatsift/core';
+import { displayAvatarURL, snowflakeTimestampSeconds } from '@chatsift/core';
 import type { APIEmbed } from '@discordjs/core';
-import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 
 /**
  * The message and profile log embeds (P4, feature 34). Pure builders, kept out of the observers so the wording
@@ -46,11 +45,7 @@ export interface LogActor {
 }
 
 function authorLine(actor: LogActor): NonNullable<APIEmbed['author']> {
-	const iconUrl = actor.avatar
-		? `${RouteBases.cdn}${CDNRoutes.userAvatar(actor.id, actor.avatar, ImageFormat.PNG)}`
-		: undefined;
-
-	return iconUrl ? { name: `${actor.tag} (${actor.id})`, icon_url: iconUrl } : { name: `${actor.tag} (${actor.id})` };
+	return { name: `${actor.tag} (${actor.id})`, icon_url: displayAvatarURL(actor.id, actor.avatar) };
 }
 
 export interface MessageDeleteLogInput {
@@ -158,9 +153,11 @@ export function buildProfileChangeEmbed(input: ProfileChangeLogInput): APIEmbed 
  */
 export interface FilterOutcome {
 	/**
-	 * The case this produced, if it produced one. Rendered as `#12` so it can be looked up.
+	 * The case this produced, if it produced one, already rendered by `formatCaseRef` -- `#12`, hyperlinked to
+	 * its own mod-log message when there is one (#381). Formatted by the caller because that link points at the
+	 * mod log while this embed is posted to the filter log, two different webhooks.
 	 */
-	readonly caseId?: number;
+	readonly caseRef?: string;
 	/**
 	 * One line saying what happened -- "Banned", "No policy configured", "Skipped: bypass role".
 	 */
@@ -205,7 +202,10 @@ export function buildFilterHitEmbed(input: FilterHitLogInput): APIEmbed {
 		{ name: 'Filter', value: input.source, inline: true },
 		{
 			name: 'Outcome',
-			value: input.outcome.caseId === undefined ? input.outcome.summary : `${input.outcome.summary} (case #${input.outcome.caseId})`,
+			value:
+				input.outcome.caseRef === undefined
+					? input.outcome.summary
+					: `${input.outcome.summary} (case ${input.outcome.caseRef})`,
 			inline: true,
 		},
 	];

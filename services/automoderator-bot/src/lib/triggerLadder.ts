@@ -5,6 +5,7 @@ import type {
 	AutomoderatorTriggerCounts,
 	AutomoderatorTriggerPunishments,
 } from '@chatsift/db';
+import { formatCaseRef } from './caseLog.js';
 import type { CaseActor } from './cases.js';
 import { traceDecision } from './decisionTrace.js';
 import { applyModerationAction } from './moderation.js';
@@ -66,10 +67,11 @@ const SUMMARY_CONDITIONAL: Record<TriggerActionName, string> = {
 
 export interface TriggerLadderResult {
 	/**
-	 * The case the rung produced, when it produced one. Rendered into the filter log so staff read the deletion
-	 * and the punishment it escalated into as one event rather than two unconnected ones.
+	 * The case the rung produced, when it produced one, already rendered as `#12` (hyperlinked to its own
+	 * mod-log message where there is one, #381). Goes into the filter log so staff read the deletion and the
+	 * punishment it escalated into as one event rather than two unconnected ones.
 	 */
-	readonly caseId?: number;
+	readonly caseRef?: string;
 	/**
 	 * The member's trigger count **after** this hit, whether or not a rung matched -- "no rung fired and they
 	 * are on 4" is an answer the filter log should be able to give.
@@ -206,6 +208,6 @@ export async function applyTriggerLadder(
 	return {
 		count,
 		summary: result.suppressed ? SUMMARY_CONDITIONAL[action] : SUMMARY_PAST[action],
-		caseId: result.case.caseId,
+		caseRef: await formatCaseRef(result.case),
 	};
 }

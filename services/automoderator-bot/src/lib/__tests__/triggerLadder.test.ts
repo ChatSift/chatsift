@@ -36,12 +36,14 @@ vi.mock('@chatsift/backend-core', () => ({
 		},
 	}),
 	publishRealtimeInvalidate: async () => undefined,
+	// Reached through `caseLog.js`, which the ladder now uses to render its case number as a link.
+	RedisStore: class {},
 }));
 
 vi.mock('../moderation.js', () => ({
 	async applyModerationAction(request: ModerationRequest) {
 		requests.push(request);
-		return { case: { caseId: 7 }, suppressed };
+		return { case: { caseId: 7, guildId: 'guild', logMessageId: null }, suppressed };
 	},
 }));
 
@@ -107,7 +109,7 @@ test('a matching rung punishes the member and names the case it filed', async ()
 
 	const result = await trip();
 
-	expect(result).toEqual({ count: 3, summary: 'Banned', caseId: 7 });
+	expect(result).toEqual({ count: 3, summary: 'Banned', caseRef: '#7' });
 	expect(requests[0]).toMatchObject({
 		action: 'BAN',
 		guildId: 'guild',
