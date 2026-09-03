@@ -1,7 +1,12 @@
-import { NewAccessTokenHeader, RealtimeClientIdHeader, RefreshTokenCookie } from '@chatsift/core';
+import {
+	CookielessClientHeader,
+	NewAccessTokenHeader,
+	RealtimeClientIdHeader,
+	RefreshTokenCookie,
+} from '@chatsift/core';
 import type { DehydratedState } from '@tanstack/react-query';
 import type { ZodErrorTree } from './error';
-import { APIError, toZodErrorTree } from './error';
+import { APIError, SessionRefreshUnavailableError, toZodErrorTree } from './error';
 import { REALTIME_CLIENT_ID } from './realtimeClientId';
 import { clearCachedAccessToken, getCachedAccessToken, setCachedAccessToken } from './serverTokenCache';
 import { store } from './store';
@@ -122,6 +127,11 @@ async function apiFetchServer<TResponse>(method: string, path: string, options: 
 		...(options.body !== undefined && { 'Content-Type': 'application/json' }),
 		...(cachedAccessToken && { Authorization: cachedAccessToken }),
 		...(cookieHeader && { Cookie: cookieHeader }),
+		// Next refuses `cookies().set()` during a server-component render, so every `Set-Cookie` the API writes
+		// back on this path is dropped -- which the API has to know about before it spends a Discord refresh-token
+		// rotation whose result would only ever have lived in that dropped cookie (#384). See
+		// `CookielessClientHeader`; the API answers 401 rather than rotating.
+		[CookielessClientHeader]: '1',
 		...options.headers,
 	};
 
@@ -142,6 +152,15 @@ async function apiFetchServer<TResponse>(method: string, path: string, options: 
 	}
 
 	if (!response.ok) {
+		// A 401 on a request that *had* a session cookie can't be read as "logged out" here, because of the
+		// header above: a live session needing a rotation and a genuinely dead one produce the same status on
+		// this path. `SessionRefreshUnavailableError` says exactly that, and is not an `APIError` precisely so no
+		// caller can collapse it back into a definitive answer -- see its doc comment. With no cookie at all the
+		// 401 is unambiguous and falls through to the normal `APIError` below.
+		if (response.status === 401 && refreshToken) {
+			throw new SessionRefreshUnavailableError();
+		}
+
 		throw await parseError(response);
 	}
 
@@ -157,7 +176,8 @@ async function apiFetchServer<TResponse>(method: string, path: string, options: 
  * - **Client**: reads `accessTokenAtom`, sends `credentials: 'include'`, updates the atom from the
  *   access-token-refresh response header.
  *
- * Throws `APIError` on non-2xx responses.
+ * Throws `APIError` on non-2xx responses -- except a server-side 401 on a request that carried a session
+ * cookie, which is a `SessionRefreshUnavailableError` instead (see that class, and `apiFetchServer`).
  */
 export async function apiFetch<TResponse = void>(
 	method: string,
