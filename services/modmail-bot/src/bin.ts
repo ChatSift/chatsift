@@ -1,4 +1,3 @@
-import type { GuildListKey } from '@chatsift/backend-core';
 import {
 	createDatabase,
 	createLogger,
@@ -18,6 +17,7 @@ import {
 	startMetricsServer,
 } from '@chatsift/bot-core';
 import { GatewayIntentBits } from '@discordjs/core';
+import { getGuildListKey } from './lib/instance.js';
 import { register } from './lib/metrics.js';
 import { bin } from './index.js';
 
@@ -36,7 +36,7 @@ await loadInstances();
 
 const selfInstance = getSelfInstance();
 const token = selfInstance?.token ?? ENV.MODMAIL_BOT_TOKEN;
-const botId: GuildListKey = selfInstance ? `MODMAIL#${selfInstance.id}` : 'MODMAIL';
+const botId = getGuildListKey();
 
 const rest = createBotRest({ botId: 'MODMAIL', register, token });
 // Unlike AMA (component/modal-driven only, `Guilds` suffices), this bot relays real user message

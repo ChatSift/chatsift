@@ -1,10 +1,10 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
+import { getContext, readGuildList } from '@chatsift/backend-core';
 import { ownsShardForGuild } from '@chatsift/bot-core';
 import type { Threads } from '@chatsift/db';
 import { DiscordAPIError } from '@discordjs/rest';
-import { getOwnershipScope } from './instance.js';
-import { ticketsClosed } from './metrics.js';
+import { getGuildListKey, getOwnershipScope } from './instance.js';
+import { strandedOpenTickets, ticketsClosed } from './metrics.js';
 
 /**
  * Discord auto-archives a thread after its configured `auto_archive_duration` of inactivity,
@@ -32,16 +32,37 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 			AND ${scope.kind === 'only' ? getContext().db`guild_id = ${scope.guildId}` : getContext().db`guild_id != ALL(${scope.excludedGuildIds})`}
 	`;
 
+	// #370: a guild that removes the bot leaves its open tickets behind, and nothing ever closes them --
+	// Discord answers `GET /channels/{id}` for a guild the bot isn't in with **403 Missing Access**, not
+	// 404, so the terminal branch below never fires and every one of those rows costs two guaranteed-403
+	// requests on every single run, forever. Filtering against the guild set the gateway already
+	// maintains in redis costs no Discord call at all, which is what makes it worth doing here rather
+	// than reacting to the 403 after paying for it.
+	const presentGuildIds = new Set(await readGuildList(getGuildListKey()));
+
+	// An empty set with rows to sweep means the guild list is unavailable (expired underneath us, redis
+	// wiped), not that the bot is in no guilds -- and this filter fails *closed*, so acting on it would
+	// skip every ticket there is. Skipping the run outright is the same outcome, but says so.
+	if (presentGuildIds.size === 0 && openThreads.length > 0) {
+		logger.warn('No guild list to check open tickets against, skipping the auto-archive sweep this run');
+		return;
+	}
+
+	// Both filters, and the gauge, are scoped to this replica's own shard slice -- every replica sweeps the
+	// same `threads` table, so counting the stranded rows before narrowing to what this process is
+	// responsible for would have each replica report the whole fleet's number and `sum()` multiply it.
+	const owned = openThreads.filter((thread) => ownsShardForGuild(thread.guildId));
+	const present = owned.filter((thread) => presentGuildIds.has(thread.guildId));
+	strandedOpenTickets.set(owned.length - present.length);
+
 	// Flattened rather than nested loops so every channel's GET (+ maybe PATCH) fires concurrently —
 	// each pair is independent of every other, there's no shared state to serialize on the way
 	// `pendingTicketSweep.ts` has to for its per guild+user lock.
-	const checks = openThreads
-		.filter((thread) => ownsShardForGuild(thread.guildId))
-		.flatMap((thread) =>
-			[thread.modThreadId, thread.userChannelId]
-				.filter((id): id is string => id !== null)
-				.map((channelId) => ({ threadId: thread.id, guildId: thread.guildId, channelId })),
-		);
+	const checks = present.flatMap((thread) =>
+		[thread.modThreadId, thread.userChannelId]
+			.filter((id): id is string => id !== null)
+			.map((channelId) => ({ threadId: thread.id, guildId: thread.guildId, channelId })),
+	);
 
 	await Promise.all(
 		checks.map(async ({ threadId, guildId, channelId }) => {
@@ -59,6 +80,21 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 					rowLogger.info('Unarchived an open modmail thread');
 				}
 			} catch (error) {
+				if (error instanceof DiscordAPIError && error.status === 403) {
+					// Reached only for a guild the bot *is* still in (the filter above took the other case),
+					// so this is a live permissions problem someone can actually fix: the bot lost
+					// `ViewChannel` on the thread's parent, or lost `ManageThreads` on a locked one. Not
+					// terminal the way a 404 is -- the ticket stays open, because restoring the permission is
+					// all it takes for the next run to pick up exactly where this one left off. This is the
+					// failure `lib/botPermissions.ts` warns about in the mod thread at open time (#370), so by
+					// the time it shows up here the guild has already been told once.
+					rowLogger.warn(
+						{ err: error },
+						'Missing permissions to keep an open modmail thread unarchived, leaving the ticket open',
+					);
+					return;
+				}
+
 				if (!(error instanceof DiscordAPIError && error.status === 404)) {
 					rowLogger.warn({ err: error }, 'Failed to unarchive an open modmail thread');
 					return;

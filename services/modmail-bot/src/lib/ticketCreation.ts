@@ -4,6 +4,8 @@ import type { Categories, Threads } from '@chatsift/db';
 import type { APIEmbed, APIEmbedField, APIGuildMember, APIUser } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
+import type { PermissionRequirement } from './botPermissions.js';
+import { findMissingPermissions, formatMissingPermissionsNotice, MOD_FORUM_PERMISSIONS } from './botPermissions.js';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
 import { ticketsOpened } from './metrics.js';
 import { templateDataFromMember, templateGuildName, templateString } from './templateString.js';
@@ -196,6 +198,8 @@ export async function finishTicketCreation({
 		timestamp: new Date().toISOString(),
 	};
 
+	const missingPermissions = findMissingPermissions(guildId, modForumId, MOD_FORUM_PERMISSIONS, logger);
+
 	// The info embed is the thread's starter message unconditionally. It used to be displaced into a
 	// follow-up message whenever recording was on, because a "this ticket is being recorded" notice had to
 	// take the starter slot (Discord bakes whatever's passed to `message` here in as the very first post,
@@ -260,7 +264,35 @@ export async function finishTicketCreation({
 
 	logger.info({ threadId: thread.id, modThreadId: modThread.id, userChannelId }, 'Opened new modmail ticket');
 
+	await warnAboutMissingModForumPermissions(await missingPermissions, guildId, modForumId, modThread.id, logger);
+
 	return thread;
+}
+
+async function warnAboutMissingModForumPermissions(
+	missing: PermissionRequirement[] | null,
+	guildId: string,
+	modForumId: string,
+	modThreadId: string,
+	logger: Logger,
+): Promise<void> {
+	if (!missing?.length) {
+		return;
+	}
+
+	try {
+		logger.warn(
+			{ guildId, modForumId, missing: missing.map((requirement) => requirement.permission.toString()) },
+			'Opened a ticket in a mod forum the bot is missing permissions in',
+		);
+
+		await getContext().service.client.api.channels.createMessage(modThreadId, {
+			content: formatMissingPermissionsNotice(missing, modForumId),
+			allowed_mentions: { parse: [] },
+		});
+	} catch (error) {
+		logger.warn({ err: error, guildId, modForumId }, 'Failed to warn about missing mod forum permissions');
+	}
 }
 
 interface GreetingContent {

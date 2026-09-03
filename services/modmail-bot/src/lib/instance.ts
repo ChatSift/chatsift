@@ -1,3 +1,4 @@
+import type { GuildListKey } from '@chatsift/backend-core';
 import { getCustomInstanceGuildIds, getInstanceForGuild, getSelfInstance } from '@chatsift/backend-core';
 
 const PUBLIC_LABEL = 'the public ModMail bot';
@@ -43,4 +44,9 @@ export function resolveGuildOwnerLabel(guildId: string): string | null {
 	}
 
 	return getInstanceForGuild(guildId)?.label ?? PUBLIC_LABEL;
+}
+
+export function getGuildListKey(): GuildListKey {
+	const selfInstance = getSelfInstance();
+	return selfInstance ? `MODMAIL#${selfInstance.id}` : 'MODMAIL';
 }

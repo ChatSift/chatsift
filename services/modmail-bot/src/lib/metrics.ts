@@ -1,4 +1,4 @@
-import { Counter, Histogram, Registry } from 'prom-client';
+import { Counter, Gauge, Histogram, Registry } from 'prom-client';
 
 /**
  * Dedicated registry rather than prom-client's process-wide default, mirroring `automoderator-bot`'s
@@ -105,6 +105,20 @@ export const sweepRuns = new Counter({
 });
 
 /**
+ * Open tickets the anti-archive sweep skipped because the bot is no longer in their guild (#370). Not a
+ * counter: this is a level, not a rate -- the same rows are skipped on every run, so what's worth alerting on
+ * is the standing number, which only falls when someone re-adds the bot or the tickets are closed out.
+ *
+ * Before the guild-list filter existed these rows were the sweep's single largest cost: two guaranteed-403
+ * requests each, every run, forever. This is what makes that visible instead of only showing up as log noise.
+ */
+export const strandedOpenTickets = new Gauge({
+	name: 'modmail_stranded_open_tickets',
+	help: 'Open tickets whose guild the bot is no longer in, skipped by the anti-archive sweep',
+	registers: [register],
+});
+
+/**
  * How late a scheduled action ran: its due time to actually running. Only the two sweeps with a due time in the
  * database (`scheduled_thread_closes.close_at`, `scheduled_thread_nukes.nuke_at`) can report this; the pending
  * -ticket and anti-archive sweeps have no such moment and deliberately don't.
@@ -159,6 +173,10 @@ function zeroInitialise(): void {
 	for (const result of ['ok', 'no_thread', 'foreign_emoji', 'undeliverable', 'failed']) {
 		snippetUses.inc({ result }, 0);
 	}
+
+	// Unlabelled, so there is no combination to enumerate -- but it still needs a value before the first
+	// sweep run for the same "No data" reason every counter above is zero-initialised for.
+	strandedOpenTickets.set(0);
 
 	for (const sweep of ['pending_ticket', 'scheduled_close', 'thread_nuke', 'prevent_archive']) {
 		for (const result of ['ok', 'failed']) {
