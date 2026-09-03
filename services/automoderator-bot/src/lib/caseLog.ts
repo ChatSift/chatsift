@@ -8,7 +8,7 @@ import type { ActionSource } from './actionExecutor.js';
 import { executeAction } from './actionExecutor.js';
 import { buildCaseEmbed } from './caseFormat.js';
 import { updateCase } from './cases.js';
-import { forgetLogWebhook, getLogWebhook, LOG_TYPE } from './guildLog.js';
+import { forgetLogWebhook, getLogWebhook, LOG_TYPE, logAvatarUrl } from './guildLog.js';
 import { logDispatch } from './metrics.js';
 
 /**
@@ -61,6 +61,7 @@ export async function dispatchCaseLog(
 					} else {
 						posted = await api.webhooks.execute(webhook.webhookId, token, {
 							embeds: [embed],
+							avatar_url: logAvatarUrl(LOG_TYPE.MOD),
 							wait: true,
 							...(webhook.threadId ? { thread_id: webhook.threadId } : {}),
 						});

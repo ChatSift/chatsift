@@ -1,3 +1,4 @@
+import { URL } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import { decrypt, getContext } from '@chatsift/backend-core';
 import type { AutomoderatorLogType, AutomoderatorLogWebhooks } from '@chatsift/db';
@@ -29,6 +30,26 @@ export const LOG_TYPE = {
 	MESSAGE: 'MESSAGE' as AutomoderatorLogType,
 	USER: 'USER' as AutomoderatorLogType,
 } as const satisfies Record<string, AutomoderatorLogType>;
+
+/**
+ * Per-log avatars (#379), served out of `apps/website/public/assets`.
+ */
+const LOG_AVATAR_FILES: Record<AutomoderatorLogType, string> = {
+	MOD: 'mod.png',
+	FILTER: 'filter.png',
+	MESSAGE: 'message.png',
+	USER: 'user.png',
+};
+
+/**
+ * Sent as `avatar_url` on every execute rather than set once on the webhook, so redrawing an icon reaches every
+ * guild's existing log without a re-create -- the row's token and channel stay put and nothing has to be
+ * reconfigured. Edit Webhook Message takes no `avatar_url`, but it doesn't need to: the avatar a message shows
+ * is fixed by the execute that created it, so `caseLog.ts` amending a case keeps the one it posted with.
+ */
+export function logAvatarUrl(logType: AutomoderatorLogType): string {
+	return new URL(`/assets/automoderator-logs/${LOG_AVATAR_FILES[logType]}`, getContext().FRONTEND_URL).toString();
+}
 
 export async function getLogWebhook(
 	guildId: string,
@@ -102,6 +123,7 @@ export async function dispatchLog(
 				async execute() {
 					await api.webhooks.execute(webhook.webhookId, token, {
 						embeds,
+						avatar_url: logAvatarUrl(logType),
 						wait: false,
 						...(webhook.threadId ? { thread_id: webhook.threadId } : {}),
 					});
