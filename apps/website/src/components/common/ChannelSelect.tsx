@@ -27,6 +27,12 @@ interface ChannelSelectProps {
 	readonly disabledReason?: string | undefined;
 	readonly error?: string | undefined;
 	/**
+	 * Blocks the whole control, keyboard included -- for a picker that writes on select and has a write in
+	 * flight. A wrapper with `pointer-events-none` is not equivalent: it stops the mouse but leaves the trigger
+	 * focusable, so Enter can still start a second write that races the first.
+	 */
+	readonly isDisabled?: boolean | undefined;
+	/**
 	 * Whether the option list is still being fetched. Without this the component cannot tell "this id isn't
 	 * loaded yet" from "this id no longer exists", and would flash a false deletion warning on every load of a
 	 * perfectly valid config. Callers feeding it a value from saved config must pass their guild-info loading
@@ -34,6 +40,11 @@ interface ChannelSelectProps {
 	 */
 	readonly isLoading?: boolean | undefined;
 	readonly label: string;
+	/**
+	 * What the clear-the-selection option reads as. The generic default is fine where clearing just means "not
+	 * set"; a page where clearing *does* something says so instead ("Disable logging", #375).
+	 */
+	readonly noneLabel?: string;
 	onChange(channelId: string | undefined): void;
 	readonly placeholder?: string;
 	readonly required?: boolean;
@@ -55,7 +66,9 @@ export function ChannelSelect({
 	allowedTypes,
 	disabledIds,
 	disabledReason,
+	isDisabled = false,
 	isLoading = false,
+	noneLabel = 'None',
 }: ChannelSelectProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const selectRef = useRef<HTMLDivElement>(null);
@@ -119,6 +132,7 @@ export function ChannelSelect({
 						error && 'border-misc-danger focus:ring-misc-danger',
 					)}
 					id={selectedId}
+					isDisabled={isDisabled}
 					onClick={() => setIsOpen(!isOpen)}
 					type="button"
 				>
@@ -132,7 +146,7 @@ export function ChannelSelect({
 					/>
 				</Button>
 
-				{isOpen && (
+				{isOpen && !isDisabled && (
 					<div className="absolute z-50 w-full mt-1 bg-card dark:bg-card-dark border border-on-secondary dark:border-on-secondary-dark rounded-md shadow-lg">
 						<ScrollArea className="max-h-80">
 							{!required && (
@@ -144,7 +158,7 @@ export function ChannelSelect({
 									key="none"
 									onClick={handleNoneSelect}
 								>
-									<span className="text-sm text-secondary dark:text-secondary-dark">None</span>
+									<span className="text-sm text-secondary dark:text-secondary-dark">{noneLabel}</span>
 								</Button>
 							)}
 							{sortedChannels.map((channel: GuildChannelInfo) => {

@@ -17,6 +17,7 @@ import { Button } from '@/components/common/Button';
 import { EmptyState } from '@/components/common/EmptyState';
 import { RoleSelect } from '@/components/common/RoleSelect';
 import { Skeleton } from '@/components/common/Skeleton';
+import { buttonClass } from '@/components/common/buttonStyles';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
@@ -57,7 +58,7 @@ function BypassRow({
 			<div className="flex items-center gap-2">
 				{error && <span className="text-sm text-misc-danger">{error}</span>}
 				<Button
-					className="rounded-md bg-on-tertiary px-3 py-2 text-primary transition-colors hover:bg-on-secondary dark:bg-on-tertiary-dark dark:text-primary-dark dark:hover:bg-on-secondary-dark"
+					className={buttonClass('secondary', 'sm')}
 					isDisabled={deleteBypassRole.isPending}
 					onPress={async () => {
 						try {
@@ -151,7 +152,7 @@ export function BypassRolesForm() {
 				</div>
 
 				<Button
-					className="rounded-md bg-misc-accent px-3 py-2.5 text-accent transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+					className={buttonClass('primary', 'field')}
 					isDisabled={atLimit || draft === '' || setBypassRole.isPending}
 					onPress={async () => {
 						try {

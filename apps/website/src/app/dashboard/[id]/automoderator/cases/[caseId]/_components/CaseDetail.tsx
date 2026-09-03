@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { snapshotUserLabel } from '../../../_components/userDisplay';
+import { UserBadge } from '../../../_components/UserBadge';
 import { ACTION_LABELS, ACTION_PILL_CLASSES } from '../../_components/caseDisplay';
 import { queryKeys } from '@/api/queryClient';
 import type { GetAutomoderatorCaseResult } from '@/api/routes/automoderatorCases';
@@ -20,6 +20,7 @@ import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { Heading } from '@/components/common/Heading';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextAreaField } from '@/components/common/TextAreaField';
+import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 import { cn, formatDate } from '@/utils/util';
@@ -98,6 +99,11 @@ export function CaseDetail() {
 
 	const [reason, setReason] = useState<string | null>(null);
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+	// Deleting invalidates the whole case subtree, so this query refetches the case that was just removed and
+	// settles into a 404 -- which used to flash "Case not found" over the page for the frame or two before
+	// `router.push` landed (#380). Once the delete is in flight the page is on its way out, so it renders as
+	// loading and never consults `error` again.
+	const [isDeleted, setIsDeleted] = useState(false);
 
 	useEffect(() => {
 		if (data && reason === null) {
@@ -105,11 +111,11 @@ export function CaseDetail() {
 		}
 	}, [data, reason]);
 
-	if (error) {
+	if (error && !isDeleted) {
 		return <UserErrorHandler error={error} />;
 	}
 
-	if (isLoading || !data) {
+	if (isLoading || !data || isDeleted) {
 		return (
 			<div className="flex flex-col gap-4">
 				<Skeleton className="h-10 w-64 rounded-lg" />
@@ -124,20 +130,22 @@ export function CaseDetail() {
 	return (
 		<div className="flex flex-col gap-6 lg:flex-row">
 			<div className="flex flex-1 flex-col gap-6">
-				<Heading
-					subtitle={`${snapshotUserLabel(modCase.target, modCase.targetTag)} (${modCase.targetId})`}
-					title={`Case #${modCase.caseId}`}
-					trailing={
-						<span
-							className={cn(
-								'rounded-full px-2.5 py-1 text-xs font-medium',
-								ACTION_PILL_CLASSES[modCase.actionType] ?? 'bg-on-tertiary text-secondary',
-							)}
-						>
-							{ACTION_LABELS[modCase.actionType] ?? modCase.actionType}
-						</span>
-					}
-				/>
+				<div className="flex flex-col gap-3">
+					<Heading
+						title={`Case #${modCase.caseId}`}
+						trailing={
+							<span
+								className={cn(
+									'rounded-full px-2.5 py-1 text-xs font-medium',
+									ACTION_PILL_CLASSES[modCase.actionType] ?? 'bg-on-tertiary text-secondary',
+								)}
+							>
+								{ACTION_LABELS[modCase.actionType] ?? modCase.actionType}
+							</span>
+						}
+					/>
+					<UserBadge id={modCase.targetId} size="lg" storedTag={modCase.targetTag} user={modCase.target} />
+				</div>
 
 				<div className="flex flex-col gap-4 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 					<TextAreaField
@@ -151,7 +159,7 @@ export function CaseDetail() {
 
 					<div className="flex flex-wrap gap-2">
 						<Button
-							className="rounded-md bg-misc-accent px-3 py-2.5 text-accent transition-opacity hover:opacity-90"
+							className={buttonClass('primary', 'sm')}
 							isDisabled={updateCase.isPending || (reason ?? '') === (modCase.reason ?? '')}
 							onPress={async () => {
 								await updateCase.mutateAsync({ reason: reason?.trim() ? reason.trim() : null });
@@ -164,7 +172,7 @@ export function CaseDetail() {
 							warn counting toward the escalation ladder, and nothing else is counted. */}
 						{isWarn && (
 							<Button
-								className="rounded-md bg-on-tertiary px-3 py-2.5 text-primary transition-colors hover:bg-on-secondary dark:bg-on-tertiary-dark dark:text-primary-dark dark:hover:bg-on-secondary-dark"
+								className={buttonClass('secondary', 'sm')}
 								isDisabled={updateCase.isPending}
 								onPress={async () => {
 									await updateCase.mutateAsync({ pardoned: !modCase.pardonedBy });
@@ -174,10 +182,7 @@ export function CaseDetail() {
 							</Button>
 						)}
 
-						<Button
-							className="rounded-md bg-misc-danger/10 px-3 py-2.5 text-misc-danger transition-opacity hover:opacity-90"
-							onPress={() => setIsDeleteOpen(true)}
-						>
+						<Button className={buttonClass('danger', 'sm')} onPress={() => setIsDeleteOpen(true)}>
 							Delete
 						</Button>
 					</div>
@@ -186,7 +191,13 @@ export function CaseDetail() {
 
 			<div className="flex flex-col gap-4 lg:w-80 lg:shrink-0">
 				<div className="flex flex-col gap-4 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
-					<Field label="Moderator">{modCase.modTag ? `${modCase.modTag} (${modCase.modId})` : 'Not attributed'}</Field>
+					<Field label="Moderator">
+						{modCase.modId ? (
+							<UserBadge id={modCase.modId} storedTag={modCase.modTag} user={modCase.mod} />
+						) : (
+							'Not attributed'
+						)}
+					</Field>
 					<Field label="Created">{formatDate(new Date(modCase.createdAt))}</Field>
 					{modCase.expiresAt && <Field label="Expires">{formatDate(new Date(modCase.expiresAt))}</Field>}
 					{reference && (
@@ -211,7 +222,17 @@ export function CaseDetail() {
 				isDestructive
 				isOpen={isDeleteOpen}
 				onConfirm={async () => {
-					await deleteCase.mutateAsync(modCase.caseId);
+					setIsDeleted(true);
+
+					try {
+						await deleteCase.mutateAsync(modCase.caseId);
+					} catch (caughtError) {
+						// The case is still there, so put the page back rather than leaving a skeleton over it -- the
+						// modal surfaces the failure itself.
+						setIsDeleted(false);
+						throw caughtError;
+					}
+
 					router.push(`/dashboard/${guildId}/automoderator/cases`);
 				}}
 				onOpenChange={setIsDeleteOpen}

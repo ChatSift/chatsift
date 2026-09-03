@@ -5,6 +5,8 @@ import { useParams, usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 import type { AMASessionDetailed, AMASessionWithCount } from '@/api/routes/ama';
 import { useMe } from '@/api/routes/auth';
+import type { AutomodRule, BanwordPolicy } from '@/api/routes/automoderatorBanwords';
+import type { AutomoderatorReportPrompt } from '@/api/routes/automoderatorReports';
 import type { GuildChannelInfo, GuildRoleInfo } from '@/api/routes/guilds';
 import type { ModmailCategory, ModmailPanel, ModmailSnippet } from '@/api/routes/modmail';
 import type { SocialInteraction } from '@/api/routes/social';
@@ -15,6 +17,7 @@ import { SvgAMA } from '@/components/icons/SvgAMA';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { SvgModmail } from '@/components/icons/SvgModmail';
 import { SvgSocial } from '@/components/icons/SvgSocial';
+import { AUTOMODERATOR_SECTION_LABELS, AUTOMODERATOR_SECTIONS } from '@/utils/automoderatorSections';
 import type { BotBrandingSource } from '@/utils/bots';
 import { BotIcon, resolveBotBranding } from '@/utils/bots';
 import { sortGuilds } from '@/utils/util';
@@ -29,21 +32,10 @@ const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks'
 
 const SOCIAL_SECTIONS = ['config', 'channels', 'roles', 'rewards', 'interactions', 'leaderboard'] as const;
 
-// One entry per phase of docs/roadmap/11-automoderator-port.md, in step with the hub page's own SECTIONS.
-const AUTOMODERATOR_SECTIONS = [
-	'cases',
-	'reports',
-	'banned-words',
-	'bypass-roles',
-	'warn-ladder',
-	'log-channels',
-	'log-exemptions',
-	'report-settings',
-	'report-prompts',
-	'config',
-] as const;
-
 const SEGMENT_LABELS: Record<string, string> = {
+	// Derived from the hub's own grouping rather than restated, so a new AutoModerator section can't reach the
+	// breadcrumb as its raw kebab-case URL segment (#373, #376, #378).
+	...AUTOMODERATOR_SECTION_LABELS,
 	ama: 'AMA',
 	amas: 'Sessions',
 	new: 'New',
@@ -63,15 +55,6 @@ const SEGMENT_LABELS: Record<string, string> = {
 	interactions: 'Interactions',
 	leaderboard: 'Leaderboard',
 	automoderator: 'AutoModerator',
-	cases: 'Cases',
-	reports: 'Reports',
-	'banned-words': 'Banned Words',
-	'bypass-roles': 'Bypass Roles',
-	'warn-ladder': 'Warn Ladder',
-	'log-channels': 'Log Channels',
-	'log-exemptions': 'Log Exemptions',
-	'report-settings': 'Report Settings',
-	'report-prompts': 'Report Prompts',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {
@@ -87,6 +70,15 @@ interface SegmentContext {
 
 export interface SegmentOptionsData {
 	amaSessions?: AMASessionWithCount[] | undefined;
+	/**
+	 * What names the `automoderator/banned-words/[policyId]` and `automoderator/report-prompts/[promptId]`
+	 * segments. Neither row has a name of its own: a policy is identified by the AutoMod rule it hangs off (which
+	 * lives on Discord's side), and a prompt by the channel it was posted in.
+	 */
+	automodRules?: AutomodRule[] | undefined;
+	automoderatorChannels?: GuildChannelInfo[] | undefined;
+	automoderatorPolicies?: BanwordPolicy[] | undefined;
+	automoderatorReportPrompts?: AutomoderatorReportPrompt[] | undefined;
 	currentAMA?: AMASessionDetailed | undefined;
 	/**
 	 * Bots invited to the current guild, used to build the bot-switcher dropdown on the `ama`/`modmail` segment.
@@ -267,6 +259,35 @@ function resolveModmailCategoryLabel(categoryId: string, data: SegmentOptionsDat
 	return category?.name ?? categoryId;
 }
 
+/**
+ * A report prompt is a message the bot posted; the channel it sits in is the only thing that distinguishes one
+ * from another, so this resolves the same way ModMail panels do (#373).
+ */
+function resolveReportPromptLabel(promptId: string, data: SegmentOptionsData): React.ReactNode {
+	if (data.automoderatorReportPrompts === undefined || data.automoderatorChannels === undefined) {
+		return <Skeleton className="h-5 w-32 inline-flex align-middle" />;
+	}
+
+	const prompt = data.automoderatorReportPrompts.find((candidate) => candidate.id === Number(promptId));
+	const channel = prompt && data.automoderatorChannels.find((candidate) => candidate.id === prompt.channelId);
+	return channel ? `#${channel.name}` : (prompt?.channelId ?? promptId);
+}
+
+/**
+ * A banned-word policy is named by the AutoMod rule it attaches to, which lives on Discord's side rather than
+ * in our own row -- so an unresolvable id here means the rule was deleted in Server Settings, and the raw
+ * policy number is the only honest thing left to show.
+ */
+function resolveBanwordPolicyLabel(policyId: string, data: SegmentOptionsData): React.ReactNode {
+	if (data.automoderatorPolicies === undefined || data.automodRules === undefined) {
+		return <Skeleton className="h-5 w-32 inline-flex align-middle" />;
+	}
+
+	const policy = data.automoderatorPolicies.find((candidate) => candidate.id === Number(policyId));
+	const rule = policy && data.automodRules.find((candidate) => candidate.id === policy.ruleId);
+	return rule ? rule.name : `Policy #${policyId}`;
+}
+
 function resolveModmailSnippetLabel(snippetId: string, data: SegmentOptionsData): React.ReactNode {
 	if (data.modmailSnippets === undefined) {
 		return <Skeleton className="h-5 w-32 inline-flex align-middle" />;
@@ -373,9 +394,28 @@ const SEGMENT_DEFINITIONS: readonly SegmentDefinition[] = [
 		resolveLabel: (caseId) => `Case #${caseId}`,
 	},
 	{
-		// A ladder step's identity is the warn count it fires at, so the segment already reads as its own label.
+		// Same as cases: a report is identified by its number, and the account it is about can't stand in for
+		// that -- one account can be the subject of several (#382).
+		pattern: ['automoderator', 'reports', ':id'],
+		resolveLabel: (reportId) => `Report #${reportId}`,
+	},
+	{
+		// A ladder step's identity is the count it fires at, so the segment already reads as its own label.
+		// `new` never reaches here -- `matchPattern` only captures a `:id` that parses as a number.
 		pattern: ['automoderator', 'warn-ladder', ':id'],
-		resolveLabel: (warns) => (warns === 'new' ? 'New' : `${warns} ${warns === '1' ? 'warning' : 'warnings'}`),
+		resolveLabel: (warns) => `${warns} ${warns === '1' ? 'warning' : 'warnings'}`,
+	},
+	{
+		pattern: ['automoderator', 'filter-ladder', ':id'],
+		resolveLabel: (triggers) => `${triggers} ${triggers === '1' ? 'trigger' : 'triggers'}`,
+	},
+	{
+		pattern: ['automoderator', 'report-prompts', ':id'],
+		resolveLabel: resolveReportPromptLabel,
+	},
+	{
+		pattern: ['automoderator', 'banned-words', ':id'],
+		resolveLabel: resolveBanwordPolicyLabel,
 	},
 ];
 

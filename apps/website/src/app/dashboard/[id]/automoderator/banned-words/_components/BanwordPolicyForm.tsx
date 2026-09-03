@@ -9,6 +9,7 @@ import type { AutomodRule, BanwordActionName, BanwordPolicy } from '@/api/routes
 import { useAutomodRules, useBanwordPolicies, useSetBanwordPolicy } from '@/api/routes/automoderatorBanwords';
 import { Button } from '@/components/common/Button';
 import { FormActions } from '@/components/common/FormActions';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
@@ -33,45 +34,6 @@ const POLICY_FIELDS = ['ruleId', 'keyword', 'actionType', 'duration'] as const;
  * convenience on top of it.
  */
 const KEYWORD_RENDER_LIMIT = 60;
-
-function SegmentedButtons<TValue extends string>({
-	labelledBy,
-	onChange,
-	options,
-	value,
-}: {
-	readonly labelledBy: string;
-	onChange(next: TValue): void;
-	readonly options: readonly { disabled?: boolean; label: string; value: TValue }[];
-	readonly value: TValue;
-}) {
-	return (
-		<div
-			aria-labelledby={labelledBy}
-			className="inline-flex flex-wrap gap-1 rounded-md border border-on-secondary bg-on-tertiary p-1 dark:border-on-secondary-dark dark:bg-on-tertiary-dark"
-			role="group"
-		>
-			{options.map((option) => (
-				<Button
-					aria-pressed={value === option.value}
-					className={cn(
-						'rounded px-4 py-1.5 text-sm font-medium transition-colors',
-						value === option.value
-							? 'bg-misc-accent text-accent shadow-sm'
-							: 'text-secondary hover:bg-on-secondary/50 dark:text-secondary-dark dark:hover:bg-on-secondary-dark/50',
-						option.disabled && 'cursor-not-allowed opacity-50',
-					)}
-					isDisabled={option.disabled ?? false}
-					key={option.value}
-					onPress={() => onChange(option.value)}
-					type="button"
-				>
-					{option.label}
-				</Button>
-			))}
-		</div>
-	);
-}
 
 /**
  * A single keyword out of the rule's list, filtered rather than scrolled.
@@ -323,7 +285,7 @@ export function BanwordPolicyForm({ policy }: BanwordPolicyFormProps) {
 							{selectedRule?.name ?? `Deleted rule (${form.ruleId})`}
 						</p>
 					) : (
-						<SegmentedButtons
+						<SegmentedControl
 							labelledBy="banword-rule"
 							onChange={(next) => {
 								updateField('ruleId', next);
@@ -342,7 +304,7 @@ export function BanwordPolicyForm({ policy }: BanwordPolicyFormProps) {
 						<span className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark" id="banword-scope">
 							Applies to
 						</span>
-						<SegmentedButtons
+						<SegmentedControl
 							labelledBy="banword-scope"
 							onChange={(next) => updateField('scope', next)}
 							options={[
@@ -380,7 +342,7 @@ export function BanwordPolicyForm({ policy }: BanwordPolicyFormProps) {
 					<span className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark" id="banword-action">
 						Punishment
 					</span>
-					<SegmentedButtons
+					<SegmentedControl
 						labelledBy="banword-action"
 						onChange={(next) => updateField('actionType', next)}
 						options={BANWORD_ACTIONS.map((action) => ({

@@ -18,6 +18,7 @@ import { ChannelSelect } from '@/components/common/ChannelSelect';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextAreaField } from '@/components/common/TextAreaField';
 import { TextField } from '@/components/common/TextField';
+import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { cn } from '@/utils/util';
 
@@ -418,12 +419,7 @@ export function SocialConfigForm() {
 				)}
 			</div>
 
-			<Button
-				className="px-3 py-2.5 bg-misc-accent text-accent rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
-				isDisabled={isGuildInfoLoading}
-				onPress={handleSave}
-				type="button"
-			>
+			<Button className={buttonClass('primary')} isDisabled={isGuildInfoLoading} onPress={handleSave} type="button">
 				Save Changes
 			</Button>
 		</div>

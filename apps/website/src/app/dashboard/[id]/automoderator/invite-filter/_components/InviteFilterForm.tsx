@@ -21,6 +21,7 @@ import { Button } from '@/components/common/Button';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
+import { buttonClass } from '@/components/common/buttonStyles';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
@@ -103,37 +104,36 @@ export function InviteFilterForm() {
 					</div>
 				)}
 
-				<div className="flex flex-col gap-2 border-t border-on-secondary pt-4 dark:border-on-secondary-dark sm:flex-row sm:items-end">
-					<div className="flex-1">
-						<TextField
-							error={addError ?? undefined}
-							helper="An invite link or code — discord.gg/example, or just example."
-							id="automoderator-allowed-invite-new"
-							label="Allow a server by invite"
-							maxLength={200}
-							onChange={(value) => {
-								setDraft(value);
-								setAddError(null);
-							}}
-							placeholder="discord.gg/example"
-							value={draft}
-						/>
-					</div>
-
-					<Button
-						className="rounded-md bg-misc-accent px-3 py-2.5 text-accent transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-						isDisabled={atLimit || draft.trim() === '' || createAllowed.isPending}
-						onPress={async () => {
-							try {
-								await createAllowed.mutateAsync({ invite: draft });
-								setDraft('');
-							} catch (caughtError) {
-								setAddError(caughtError instanceof APIError ? caughtError.message : 'Failed to add.');
-							}
+				<div className="border-t border-on-secondary pt-4 dark:border-on-secondary-dark">
+					<TextField
+						error={addError ?? undefined}
+						helper="An invite link or code — discord.gg/example, or just example."
+						id="automoderator-allowed-invite-new"
+						label="Allow a server by invite"
+						maxLength={200}
+						onChange={(value) => {
+							setDraft(value);
+							setAddError(null);
 						}}
-					>
-						{createAllowed.isPending ? 'Checking...' : 'Add'}
-					</Button>
+						placeholder="discord.gg/example"
+						trailing={
+							<Button
+								className={buttonClass('primary', 'field')}
+								isDisabled={atLimit || draft.trim() === '' || createAllowed.isPending}
+								onPress={async () => {
+									try {
+										await createAllowed.mutateAsync({ invite: draft });
+										setDraft('');
+									} catch (caughtError) {
+										setAddError(caughtError instanceof APIError ? caughtError.message : 'Failed to add.');
+									}
+								}}
+							>
+								{createAllowed.isPending ? 'Checking...' : 'Add'}
+							</Button>
+						}
+						value={draft}
+					/>
 				</div>
 
 				{atLimit && (
@@ -174,7 +174,7 @@ function AllowedRow({
 			<div className="flex items-center gap-2">
 				{error && <span className="text-sm text-misc-danger">{error}</span>}
 				<Button
-					className="rounded-md bg-on-tertiary px-3 py-2 text-primary transition-colors hover:bg-on-secondary dark:bg-on-tertiary-dark dark:text-primary-dark dark:hover:bg-on-secondary-dark"
+					className={buttonClass('secondary', 'sm')}
 					isDisabled={isPending}
 					onPress={async () => {
 						try {

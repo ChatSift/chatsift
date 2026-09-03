@@ -17,7 +17,6 @@ import {
 } from '@/api/routes/automoderatorCases';
 import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
-import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
@@ -48,6 +47,12 @@ const LOG_COPY: Record<WritableLogType, { description: string; label: string }> 
 	},
 };
 
+/**
+ * One log type's channel picker. Saves on select rather than behind a Save button, and picking "Disable
+ * logging" is how the log is turned off (#375) -- the pair of buttons this replaced meant a two-step choose-
+ * then-confirm for a single-value setting, and "Stop logging" was a button that only existed once a channel was
+ * already set. Same immediate-write convention as `FilterToggle` and the allowlist rows on the filter pages.
+ */
 function LogChannelRow({
 	channels,
 	configured,
@@ -66,63 +71,54 @@ function LogChannelRow({
 
 	// Seeded from the server value at mount only. The parent keys this row on that same value, so a change made
 	// in another tab remounts the row rather than leaving stale local state -- which is what lets this be a
-	// plain initializer instead of an effect a background refetch could fire at the wrong moment.
+	// plain initializer instead of an effect a background refetch could fire at the wrong moment. Held locally
+	// at all so the picker shows the new channel the moment it's clicked, not once the write comes back.
 	const [channelId, setChannelId] = useState(configured?.channelId ?? '');
 	const [error, setError] = useState<string | null>(null);
 
-	const isDirty = channelId !== (configured?.channelId ?? '');
+	const isPending = setLogChannel.isPending || deleteLogChannel.isPending;
 	const { label, description } = LOG_COPY[logType];
+
+	const save = async (nextChannelId: string) => {
+		const previous = channelId;
+		setChannelId(nextChannelId);
+		setError(null);
+
+		try {
+			await (nextChannelId
+				? setLogChannel.mutateAsync({ logType, channelId: nextChannelId })
+				: deleteLogChannel.mutateAsync(logType));
+		} catch (caughtError) {
+			// Put the picker back to what is actually stored: an immediate-write control that keeps showing the
+			// rejected choice reads as saved.
+			setChannelId(previous);
+			setError(caughtError instanceof APIError ? caughtError.message : 'Failed to save.');
+		}
+	};
 
 	return (
 		<div className="flex flex-col gap-3 rounded-lg border border-on-secondary p-4 dark:border-on-secondary-dark">
+			{/* Genuinely disabled, not just `pointer-events-none` on a wrapper: a second pick mid-write would race
+				the first (two PUTs, no ordering guarantee), and a wrapper leaves the trigger focusable so Enter
+				still starts one. */}
 			<ChannelSelect
 				allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement, ...threadTypes]}
 				channels={channels}
 				error={error ?? undefined}
+				isDisabled={isPending}
 				isLoading={isChannelsLoading}
 				label={label}
+				noneLabel="Disable logging"
 				onChange={(value) => {
-					setChannelId(value ?? '');
-					setError(null);
+					void save(value ?? '');
 				}}
 				selectedId={`automoderator-${logType.toLowerCase()}-log-channel`}
 				value={channelId}
 			/>
 
-			<p className="text-sm text-secondary dark:text-secondary-dark">{description}</p>
-
-			<div className="flex flex-wrap gap-2">
-				<Button
-					className="rounded-md bg-misc-accent px-3 py-2.5 text-accent transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-					isDisabled={!isDirty || !channelId || setLogChannel.isPending}
-					onPress={async () => {
-						try {
-							await setLogChannel.mutateAsync({ logType, channelId });
-						} catch (caughtError) {
-							setError(caughtError instanceof APIError ? caughtError.message : 'Failed to save.');
-						}
-					}}
-				>
-					{setLogChannel.isPending ? 'Saving...' : 'Save'}
-				</Button>
-
-				{configured && (
-					<Button
-						className="rounded-md bg-on-tertiary px-3 py-2.5 text-primary transition-colors hover:bg-on-secondary dark:bg-on-tertiary-dark dark:text-primary-dark dark:hover:bg-on-secondary-dark"
-						isDisabled={deleteLogChannel.isPending}
-						onPress={async () => {
-							try {
-								await deleteLogChannel.mutateAsync(logType);
-								setChannelId('');
-							} catch (caughtError) {
-								setError(caughtError instanceof APIError ? caughtError.message : 'Failed to remove.');
-							}
-						}}
-					>
-						{deleteLogChannel.isPending ? 'Removing...' : 'Stop logging'}
-					</Button>
-				)}
-			</div>
+			<p className="text-sm text-secondary dark:text-secondary-dark">
+				{isPending ? 'Saving...' : channelId ? description : `Off. ${description}`}
+			</p>
 		</div>
 	);
 }
@@ -155,7 +151,7 @@ export function LogChannelsForm() {
 		<div className="flex flex-col gap-4 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<p className="text-sm text-secondary dark:text-secondary-dark">
 				Each log posts through its own webhook, so the bot needs Manage Webhooks in whichever channel you pick. A thread
-				works too — the webhook is created on its parent channel.
+				works too — the webhook is created on its parent channel. Picking a channel saves straight away.
 			</p>
 
 			{WRITABLE_LOG_TYPES.map((logType) => {

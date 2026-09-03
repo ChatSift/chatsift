@@ -16,6 +16,7 @@ import { Button } from '@/components/common/Button';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
+import { buttonClass } from '@/components/common/buttonStyles';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
@@ -30,50 +31,49 @@ function PresetRow({ guildId, preset }: { readonly guildId: string; readonly pre
 	const isDirty = reason.trim() !== preset.reason && reason.trim().length > 0;
 
 	return (
-		<div className="flex flex-col gap-2 rounded-lg border border-on-secondary p-3 dark:border-on-secondary-dark sm:flex-row sm:items-end">
-			<div className="flex-1">
-				<TextField
-					error={error ?? undefined}
-					id={`report-preset-${preset.id}`}
-					label="Reason"
-					maxLength={REPORT_PRESET_MAX_LENGTH}
-					onChange={(value) => {
-						setReason(value);
-						setError(null);
-					}}
-					value={reason}
-				/>
-			</div>
+		<div className="rounded-lg border border-on-secondary p-3 dark:border-on-secondary-dark">
+			<TextField
+				error={error ?? undefined}
+				id={`report-preset-${preset.id}`}
+				label="Reason"
+				maxLength={REPORT_PRESET_MAX_LENGTH}
+				onChange={(value) => {
+					setReason(value);
+					setError(null);
+				}}
+				trailing={
+					<>
+						<Button
+							className={buttonClass('primary', 'field')}
+							isDisabled={!isDirty || updatePreset.isPending}
+							onPress={async () => {
+								try {
+									await updatePreset.mutateAsync({ presetId: preset.id, reason: reason.trim() });
+								} catch (caughtError) {
+									setError(caughtError instanceof APIError ? caughtError.message : 'Failed to save.');
+								}
+							}}
+						>
+							Save
+						</Button>
 
-			<div className="flex gap-2">
-				<Button
-					className="rounded-md bg-misc-accent px-3 py-2.5 text-accent transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-					isDisabled={!isDirty || updatePreset.isPending}
-					onPress={async () => {
-						try {
-							await updatePreset.mutateAsync({ presetId: preset.id, reason: reason.trim() });
-						} catch (caughtError) {
-							setError(caughtError instanceof APIError ? caughtError.message : 'Failed to save.');
-						}
-					}}
-				>
-					Save
-				</Button>
-
-				<Button
-					className="rounded-md bg-on-tertiary px-3 py-2.5 text-primary transition-colors hover:bg-on-secondary dark:bg-on-tertiary-dark dark:text-primary-dark dark:hover:bg-on-secondary-dark"
-					isDisabled={deletePreset.isPending}
-					onPress={async () => {
-						try {
-							await deletePreset.mutateAsync(preset.id);
-						} catch (caughtError) {
-							setError(caughtError instanceof APIError ? caughtError.message : 'Failed to remove.');
-						}
-					}}
-				>
-					Remove
-				</Button>
-			</div>
+						<Button
+							className={buttonClass('secondary', 'field')}
+							isDisabled={deletePreset.isPending}
+							onPress={async () => {
+								try {
+									await deletePreset.mutateAsync(preset.id);
+								} catch (caughtError) {
+									setError(caughtError instanceof APIError ? caughtError.message : 'Failed to remove.');
+								}
+							}}
+						>
+							Remove
+						</Button>
+					</>
+				}
+				value={reason}
+			/>
 		</div>
 	);
 }
@@ -129,38 +129,37 @@ export function ReportPresetsForm() {
 				</div>
 			)}
 
-			<div className="flex flex-col gap-2 border-t border-on-secondary pt-4 dark:border-on-secondary-dark sm:flex-row sm:items-end">
-				<div className="flex-1">
-					<TextField
-						disabled={atLimit}
-						error={createError ?? undefined}
-						helper={atLimit ? `You already have ${REPORT_PRESET_MAX_COUNT} reasons.` : undefined}
-						id="report-preset-new"
-						label="Add a reason"
-						maxLength={REPORT_PRESET_MAX_LENGTH}
-						onChange={(value) => {
-							setDraft(value);
-							setCreateError(null);
-						}}
-						placeholder="Spam or advertising"
-						value={draft}
-					/>
-				</div>
-
-				<Button
-					className="rounded-md bg-misc-accent px-3 py-2.5 text-accent transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-					isDisabled={atLimit || draft.trim().length === 0 || createPreset.isPending}
-					onPress={async () => {
-						try {
-							await createPreset.mutateAsync({ reason: draft.trim() });
-							setDraft('');
-						} catch (caughtError) {
-							setCreateError(caughtError instanceof APIError ? caughtError.message : 'Failed to add.');
-						}
+			<div className="border-t border-on-secondary pt-4 dark:border-on-secondary-dark">
+				<TextField
+					disabled={atLimit}
+					error={createError ?? undefined}
+					helper={atLimit ? `You already have ${REPORT_PRESET_MAX_COUNT} reasons.` : undefined}
+					id="report-preset-new"
+					label="Add a reason"
+					maxLength={REPORT_PRESET_MAX_LENGTH}
+					onChange={(value) => {
+						setDraft(value);
+						setCreateError(null);
 					}}
-				>
-					Add
-				</Button>
+					placeholder="Spam or advertising"
+					trailing={
+						<Button
+							className={buttonClass('primary', 'field')}
+							isDisabled={atLimit || draft.trim().length === 0 || createPreset.isPending}
+							onPress={async () => {
+								try {
+									await createPreset.mutateAsync({ reason: draft.trim() });
+									setDraft('');
+								} catch (caughtError) {
+									setCreateError(caughtError instanceof APIError ? caughtError.message : 'Failed to add.');
+								}
+							}}
+						>
+							Add
+						</Button>
+					}
+					value={draft}
+				/>
 			</div>
 		</div>
 	);

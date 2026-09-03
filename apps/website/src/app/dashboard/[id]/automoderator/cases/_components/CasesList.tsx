@@ -11,6 +11,7 @@ import { queryKeys } from '@/api/queryClient';
 import type { AutomoderatorCaseListItem } from '@/api/routes/automoderatorCases';
 import { useAutomoderatorCases } from '@/api/routes/automoderatorCases';
 import { Button } from '@/components/common/Button';
+import { DiscordUserAvatar } from '@/components/common/DiscordUserAvatar';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
@@ -24,15 +25,22 @@ function CaseRow({ guildId, modCase }: { readonly guildId: string; readonly modC
 			className="flex flex-col gap-2 rounded-lg border border-on-secondary bg-card p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-card-dark dark:hover:bg-on-tertiary-dark sm:flex-row sm:items-center sm:justify-between"
 			href={`/dashboard/${guildId}/automoderator/cases/${modCase.caseId}`}
 		>
-			<div className="flex flex-col overflow-hidden">
-				<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">
-					<span className="text-secondary dark:text-secondary-dark">#{modCase.caseId}</span>{' '}
-					{snapshotUserLabel(modCase.target, modCase.targetTag)}
-				</p>
-				<p className="truncate text-sm text-secondary dark:text-secondary-dark">
-					{modCase.reason ?? 'No reason given'} · {formatDate(new Date(modCase.createdAt))}
-					{modCase.modTag ? ` · by ${modCase.modTag}` : ''}
-				</p>
+			<div className="flex min-w-0 items-center gap-3">
+				<DiscordUserAvatar
+					className="h-10 w-10 shrink-0 rounded-full"
+					initials={snapshotUserLabel(modCase.target, modCase.targetTag).slice(0, 2)}
+					user={modCase.target}
+				/>
+				<div className="flex min-w-0 flex-col overflow-hidden">
+					<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">
+						<span className="text-secondary dark:text-secondary-dark">#{modCase.caseId}</span>{' '}
+						{snapshotUserLabel(modCase.target, modCase.targetTag)}
+					</p>
+					<p className="truncate text-sm text-secondary dark:text-secondary-dark">
+						{modCase.reason ?? 'No reason given'} · {formatDate(new Date(modCase.createdAt))}
+						{modCase.modTag ? ` · by ${modCase.modTag}` : ''}
+					</p>
+				</div>
 			</div>
 
 			<div className="flex shrink-0 items-center gap-2">

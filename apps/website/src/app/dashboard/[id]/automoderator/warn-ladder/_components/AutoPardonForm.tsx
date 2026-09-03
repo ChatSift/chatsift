@@ -8,6 +8,7 @@ import { useAutomoderatorConfig, useUpdateAutomoderatorConfig } from '@/api/rout
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
+import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 /**
@@ -92,7 +93,7 @@ export function AutoPardonForm() {
 
 			<div className="flex flex-wrap gap-2">
 				<Button
-					className="rounded-md bg-misc-accent px-3 py-2.5 text-accent transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+					className={buttonClass('primary', 'sm')}
 					isDisabled={!isDirty || updateConfig.isPending}
 					onPress={async () => save(days)}
 				>

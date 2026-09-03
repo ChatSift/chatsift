@@ -9,6 +9,7 @@ import { useGuildInfo } from '@/api/routes/guilds';
 import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { Skeleton } from '@/components/common/Skeleton';
+import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 /**
@@ -80,7 +81,7 @@ export function ReportsChannelForm() {
 
 			<div className="flex flex-wrap gap-2">
 				<Button
-					className="rounded-md bg-misc-accent px-3 py-2.5 text-accent transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+					className={buttonClass('primary', 'sm')}
 					isDisabled={!isDirty || !channelId || updateConfig.isPending}
 					onPress={async () => save(channelId)}
 				>
@@ -89,7 +90,7 @@ export function ReportsChannelForm() {
 
 				{configured.length > 0 && (
 					<Button
-						className="rounded-md bg-on-tertiary px-3 py-2.5 text-primary transition-colors hover:bg-on-secondary dark:bg-on-tertiary-dark dark:text-primary-dark dark:hover:bg-on-secondary-dark"
+						className={buttonClass('secondary', 'sm')}
 						isDisabled={updateConfig.isPending}
 						onPress={async () => save('')}
 					>
