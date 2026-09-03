@@ -193,6 +193,11 @@ export interface ReportCardOptions {
 	 * the report said something they never said. Absent, everyone who isn't the target is labelled neutrally.
 	 */
 	readonly reporterId?: string;
+	/**
+	 * The reported account's avatar, already resolved to a url by the caller (#377). Passed in for the same
+	 * reason as `CaseEmbedOptions.targetAvatarURL`: the report row stores a tag snapshot, never an avatar.
+	 */
+	readonly targetAvatarURL?: string;
 }
 
 /**
@@ -227,7 +232,10 @@ export function buildReportEmbeds(report: ReportEmbedInput, options: ReportCardO
 
 	const subject: APIEmbed = {
 		color: STATE_COLORS[report.state],
-		author: { name: `${report.targetTag} (${report.targetId})` },
+		author: {
+			name: `${report.targetTag} (${report.targetId})`,
+			...(options.targetAvatarURL ? { icon_url: options.targetAvatarURL } : {}),
+		},
 		description: parts.join('\n\n'),
 		footer: {
 			text: `Report ${report.id} | ${reporterCount} ${plural} | ${STATE_LABELS[report.state]}`,

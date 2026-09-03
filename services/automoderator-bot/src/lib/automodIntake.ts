@@ -1,7 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
 import { fileReport, getContext, getReportsChannelId, ReportFailure } from '@chatsift/backend-core';
 import { fetchUser, getSelfId } from '@chatsift/bot-core';
-import { formatCaseUserTag } from '@chatsift/core';
+import { formatCaseNumber, formatCaseUserTag } from '@chatsift/core';
 import type { AutomoderatorBanwordPolicies, AutomoderatorCaseAction, AutomoderatorLogWebhooks } from '@chatsift/db';
 import type { Client, GatewayAutoModerationActionExecutionDispatchData } from '@discordjs/core';
 import { GatewayDispatchEvents } from '@discordjs/core';
@@ -314,7 +314,11 @@ async function runPunishmentPolicy(
 
 	return {
 		summary: result.suppressed ? SUMMARY_CONDITIONAL[action] : SUMMARY_PAST[action],
-		caseId: result.case.caseId,
+		caseRef: formatCaseNumber(result.case.caseId, {
+			guildId: data.guild_id,
+			logChannelId: result.logChannelId,
+			logMessageId: result.case.logMessageId,
+		}),
 		enforced: true,
 	};
 }

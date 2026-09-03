@@ -444,7 +444,7 @@ async function filterMessage(
 			webhook,
 			message,
 			evaluation.verdicts,
-			{ summary, ...(ladder?.caseId === undefined ? {} : { caseId: ladder.caseId }) },
+			{ summary, ...(ladder?.caseRef === undefined ? {} : { caseRef: ladder.caseRef }) },
 			logger,
 		);
 	}

@@ -2,6 +2,7 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
 import type { CaseActionName } from '@chatsift/core';
+import { formatCaseNumber, logJumpChannelId } from '@chatsift/core';
 import type { AutomoderatorCases } from '@chatsift/db';
 import { parseRelativeTimeSafe } from '@chatsift/parse-relative-time';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
@@ -13,14 +14,29 @@ import type {
 import { ApplicationIntegrationType, InteractionContextType, MessageFlags, PermissionFlagsBits } from '@discordjs/core';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { executeAction } from '../lib/actionExecutor.js';
+import { resolveAvatarURL } from '../lib/avatars.js';
 import { CASE_ACTION } from '../lib/caseActions.js';
 import { buildCaseEmbed, formatDuration } from '../lib/caseFormat.js';
-import { dispatchCaseLog, getModLogWebhook } from '../lib/caseLog.js';
+import type { CaseLogResult } from '../lib/caseLog.js';
+import { dispatchCaseLog, formatCaseRef, getModLogWebhook } from '../lib/caseLog.js';
 import type { CaseActor } from '../lib/cases.js';
 import { actorFromUser, deleteCase, getCaseByNumber, updateCase } from '../lib/cases.js';
 import { REASON_MAX_LENGTH } from '../lib/modCommandOptions.js';
 import { MAX_MUTE_MS, buildAuditReason } from '../lib/moderation.js';
 import { memberMayTakeAction } from '../lib/permissions.js';
+
+/**
+ * The case number a mutating subcommand replies with, hyperlinked through the mod-log channel the dispatch it
+ * just ran already resolved (#381) -- rather than through `formatCaseRef`, which would re-read the same
+ * `automoderator_log_webhooks` row.
+ */
+function refFrom({ case: modCase, jumpChannelId }: CaseLogResult): string {
+	return formatCaseNumber(modCase.caseId, {
+		guildId: modCase.guildId,
+		logChannelId: jumpChannelId,
+		logMessageId: modCase.logMessageId,
+	});
+}
 
 /**
  * Reading and amending existing cases.
@@ -140,14 +156,14 @@ export default class CaseCommand implements CommandHandler {
 
 		switch (subcommand) {
 			case 'show': {
-				await this.show(interaction, modCase);
+				await this.show(interaction, modCase, logger);
 				break;
 			}
 
 			case 'reason': {
 				const updated = await updateCase(modCase.id, { reason: options.getString('reason', true), mod: moderator });
-				await dispatchCaseLog(updated, logger);
-				await reply(`Updated the reason on case #${caseNumber}.`);
+				const logged = await dispatchCaseLog(updated, logger);
+				await reply(`Updated the reason on case ${refFrom(logged)}.`);
 				break;
 			}
 
@@ -166,8 +182,17 @@ export default class CaseCommand implements CommandHandler {
 				}
 
 				const updated = await updateCase(modCase.id, { refId, mod: moderator });
-				await dispatchCaseLog(updated, logger);
-				await reply(`Case #${caseNumber} now references #${refId}.`);
+				const logged = await dispatchCaseLog(updated, logger);
+
+				// Both numbers link through the one channel the dispatch just resolved -- the referenced case is in
+				// the same guild, so it is the same mod log.
+				await reply(
+					`Case ${refFrom(logged)} now references ${formatCaseNumber(reference.caseId, {
+						guildId,
+						logChannelId: logged.jumpChannelId,
+						logMessageId: reference.logMessageId,
+					})}.`,
+				);
 				break;
 			}
 
@@ -192,22 +217,24 @@ export default class CaseCommand implements CommandHandler {
 				}
 
 				if (modCase.pardonedBy) {
-					await reply(`Case #${caseNumber} is already pardoned.`);
+					await reply(`Case ${await formatCaseRef(modCase)} is already pardoned.`);
 					return;
 				}
 
 				const updated = await updateCase(modCase.id, { pardonedBy: moderator.id });
-				await dispatchCaseLog(updated, logger);
-				await reply(`Pardoned case #${caseNumber}.`);
+				const logged = await dispatchCaseLog(updated, logger);
+				await reply(`Pardoned case ${refFrom(logged)}.`);
 				break;
 			}
 
 			case 'delete': {
+				// The reference is resolved *before* the row goes, and it still links: the log message is left
+				// standing on purpose, so a deleted case is the one place a moderator most wants the jump link.
+				const ref = await formatCaseRef(modCase);
 				await deleteCase(modCase.id);
+
 				await reply(
-					`Deleted case #${caseNumber}.${
-						modCase.logMessageId ? ' Its log message is still in the mod log as a record.' : ''
-					}`,
+					`Deleted case ${ref}.${modCase.logMessageId ? ' Its log message is still in the mod log as a record.' : ''}`,
 				);
 				break;
 			}
@@ -240,7 +267,7 @@ export default class CaseCommand implements CommandHandler {
 		}
 
 		if (modCase.liftedAt) {
-			await reply(`Case #${modCase.caseId} has already been lifted.`);
+			await reply(`Case ${await formatCaseRef(modCase)} has already been lifted.`);
 			return;
 		}
 
@@ -287,10 +314,11 @@ export default class CaseCommand implements CommandHandler {
 		}
 
 		const updated = await updateCase(modCase.id, { expiresAt, mod: moderator });
-		await dispatchCaseLog(updated, logger);
+		const logged = await dispatchCaseLog(updated, logger);
+		const ref = refFrom(logged);
 
 		if (remainingMs > 0) {
-			await reply(`Case #${modCase.caseId} now expires in ${formatDuration(remainingMs)}.`);
+			await reply(`Case ${ref} now expires in ${formatDuration(remainingMs)}.`);
 			return;
 		}
 
@@ -298,17 +326,29 @@ export default class CaseCommand implements CommandHandler {
 		// the sweep's to lift, so it really is still in force for another tick.
 		await reply(
 			modCase.actionType === CASE_ACTION.MUTE
-				? `Case #${modCase.caseId} is now expired, and their timeout has been cleared.`
-				: `Case #${modCase.caseId} is now expired, and will be lifted shortly.`,
+				? `Case ${ref} is now expired, and their timeout has been cleared.`
+				: `Case ${ref} is now expired, and will be lifted shortly.`,
 		);
 	}
 
-	private async show(interaction: APIApplicationCommandInteraction, modCase: AutomoderatorCases): Promise<void> {
+	private async show(
+		interaction: APIApplicationCommandInteraction,
+		modCase: AutomoderatorCases,
+		logger: Logger,
+	): Promise<void> {
+		const api = getContext().service.client.api;
 		const webhook = await getModLogWebhook(modCase.guildId);
 		const reference = modCase.refId === null ? null : await getCaseByNumber(modCase.guildId, modCase.refId);
+		const targetAvatarURL = await resolveAvatarURL(api, modCase.targetId, logger);
 
-		await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
-			embeds: [buildCaseEmbed(modCase, { reference, logChannelId: webhook?.channelId ?? null })],
+		await api.interactions.editReply(interaction.application_id, interaction.token, {
+			embeds: [
+				buildCaseEmbed(modCase, {
+					reference,
+					logChannelId: logJumpChannelId(webhook),
+					...(targetAvatarURL ? { targetAvatarURL } : {}),
+				}),
+			],
 		});
 	}
 }

@@ -229,3 +229,15 @@ test('with no reporter id, everyone who is not the target is labelled neutrally'
 test('a guild report renders exactly one embed', () => {
 	expect(buildReportEmbeds(makeReport(), { reporterCount: 1 })).toHaveLength(1);
 });
+
+// #377. The report row carries a tag snapshot and no avatar, so the icon is the caller's to resolve, and the
+// card has to read fine without one -- an account Discord cannot resolve is exactly the kind that gets reported.
+test('draws the reported account avatar on the subject embed, and copes without one', () => {
+	const card = subject(makeReport(), {
+		reporterCount: 1,
+		targetAvatarURL: 'https://cdn.discordapp.com/avatars/2/hash.png',
+	});
+
+	expect(card.author).toEqual({ name: 'target (2)', icon_url: 'https://cdn.discordapp.com/avatars/2/hash.png' });
+	expect(subject(makeReport(), { reporterCount: 1 }).author).toEqual({ name: 'target (2)' });
+});

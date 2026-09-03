@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { formatCaseNumber } from '@chatsift/core';
 import type { AutomoderatorCaseAction } from '@chatsift/db';
 import type {
 	APIApplicationCommandInteraction,
@@ -121,6 +122,14 @@ export async function runModCommand(
 	}
 }
 
+function caseRef(result: ModerationResult): string {
+	return formatCaseNumber(result.case.caseId, {
+		guildId: result.case.guildId,
+		logChannelId: result.logChannelId,
+		logMessageId: result.case.logMessageId,
+	});
+}
+
 /**
  * What the moderator is told. Shared with the report card's action flow so the ladder sentence can't drift
  * between the two places a warn can be issued from.
@@ -131,9 +140,12 @@ export function describeModerationResult(
 	action: AutomoderatorCaseAction,
 ): string {
 	const verb = ACTION_PAST_TENSE[action];
+	// A link to the case's own mod-log message wherever there is one to jump to (#381). Stays a pure function:
+	// `applyModerationAction` already resolved the channel while posting that log, and carries it back.
+	const ref = caseRef(result);
 	const head = result.suppressed
-		? `**Dry run** — would have ${verb} ${targetName}. (case #${result.case.caseId})`
-		: `Successfully ${verb} ${targetName}. (case #${result.case.caseId})`;
+		? `**Dry run** — would have ${verb} ${targetName}. (case ${ref})`
+		: `Successfully ${verb} ${targetName}. (case ${ref})`;
 
 	if (!result.ladder) {
 		return head;
@@ -148,7 +160,7 @@ export function describeModerationResult(
 		? `they would also have been ${ladderVerb}`
 		: `they were also ${ladderVerb}`;
 
-	return `${head}\nThat reached a warn ladder step, so ${ladderClause}. (case #${result.ladder.case.caseId})`;
+	return `${head}\nThat reached a warn ladder step, so ${ladderClause}. (case ${caseRef(result.ladder)})`;
 }
 
 /**
@@ -158,9 +170,15 @@ export function describeModerationResult(
  */
 export function describeCommandFailure(error: unknown): string {
 	if (error instanceof LadderFailureError) {
+		const ref = formatCaseNumber(error.warnCase.caseId, {
+			guildId: error.warnCase.guildId,
+			logChannelId: error.logChannelId,
+			logMessageId: error.warnCase.logMessageId,
+		});
+
 		return (
-			`The warn was recorded (case #${error.warnCase.caseId}), but it reached a warn ladder step at ` +
-			`${error.warns} warnings and that punishment failed. Apply it by hand, or check my permissions.`
+			`The warn was recorded (case ${ref}), but it reached a warn ladder step at ${error.warns} warnings ` +
+			'and that punishment failed. Apply it by hand, or check my permissions.'
 		);
 	}
 

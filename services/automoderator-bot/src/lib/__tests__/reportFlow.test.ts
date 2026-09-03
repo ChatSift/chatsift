@@ -5,6 +5,9 @@ vi.mock('@chatsift/backend-core', () => ({
 	ENV: { IS_PRODUCTION: false },
 	getContext: () => ({ service: { client: { api: {} } } }),
 	publishRealtimeInvalidate: async () => undefined,
+	// The report card resolves the target's avatar through `bot-core`, whose barrel builds a `RedisStore`
+	// subclass at module scope.
+	RedisStore: class {},
 }));
 
 const { firstImageUrl, shouldReopenReport, snapshotMessage } = await import('../reportFlow.js');
@@ -95,7 +98,7 @@ test('only a ladder failure keeps the report terminal', async () => {
 	const { LadderFailureError, CaseFilingError, SoftbanUnbanError } = await import('../moderation.js');
 	const warnCase = { caseId: 7 } as never;
 
-	expect(shouldReopenReport(new LadderFailureError(warnCase, 3, new Error('no permission')))).toBe(false);
+	expect(shouldReopenReport(new LadderFailureError(warnCase, null, 3, new Error('no permission')))).toBe(false);
 
 	expect(shouldReopenReport(new CaseFilingError(false, new Error('db down')))).toBe(true);
 	expect(shouldReopenReport(new SoftbanUnbanError(new Error('nope')))).toBe(true);

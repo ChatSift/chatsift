@@ -70,6 +70,50 @@ export function formatCaseUserTag(user: { discriminator?: string | null; usernam
 }
 
 /**
+ * Where a case's own mod-log message is, as far as a jump link is concerned.
+ *
+ * `logChannelId` is the channel the *message is in*, which for a mod log pointed at a thread is the thread
+ * rather than `automoderator_log_webhooks.channel_id` -- that column holds the thread's *parent*, because a
+ * webhook belongs to the parent and reaches the thread through `?thread_id=`. Resolving the two is
+ * {@link logJumpChannelId}.
+ */
+export interface CaseLogLocation {
+	readonly guildId: string;
+	readonly logChannelId?: string | null | undefined;
+	readonly logMessageId?: string | null | undefined;
+}
+
+/**
+ * Turns an `automoderator_log_webhooks` row into the channel a jump link to its messages has to name.
+ *
+ * The other half of the rule {@link CaseLogLocation} states: `channel_id` holds the thread's *parent* whenever
+ * the log is pointed at a thread, so a link built from that column resolves to nothing for those guilds. Here
+ * rather than in either service because both of them build these links -- the bot for its replies and logs, the
+ * API when it rewrites a case embed the dashboard amended.
+ */
+export function logJumpChannelId(
+	webhook: { channelId: string; threadId: string | null } | null | undefined,
+): string | null {
+	return webhook ? (webhook.threadId ?? webhook.channelId) : null;
+}
+
+/**
+ * `#12`, hyperlinked to the case's own mod-log message wherever there is one to jump to (#381).
+ *
+ * A case number a moderator reads is nearly always a case they are about to go and look at, and every surface
+ * that names one -- a command reply, `/history`, the filter log, another case's Reference field -- is somewhere
+ * other than the mod log itself. Falls back to the bare number rather than to nothing: a guild with no mod log
+ * configured still has case numbers, they are just not clickable.
+ */
+export function formatCaseNumber(caseId: number, location?: CaseLogLocation | null): string {
+	if (!location?.logChannelId || !location.logMessageId) {
+		return `#${caseId}`;
+	}
+
+	return `[#${caseId}](https://discord.com/channels/${location.guildId}/${location.logChannelId}/${location.logMessageId})`;
+}
+
+/**
  * Structurally satisfied by an `automoderator_cases` row, minus its branded id and the action's enum type.
  */
 export interface CaseEmbedInput {
@@ -97,6 +141,14 @@ export interface CaseEmbedOptions {
 	 * The case `ref_id` points at, already resolved, so the embed can link to its log message.
 	 */
 	readonly reference?: { logMessageId: string | null } | null;
+	/**
+	 * The target's avatar, already resolved to a url by the caller (#377). Passed in rather than derived from
+	 * the case row, which stores no avatar: both producers hold a Discord user by the time they build this, and
+	 * neither an avatar hash nor a snapshot of one belongs in a table whose whole point is to outlive the
+	 * account. Absent leaves the author line without an icon, which is what a user Discord could not resolve
+	 * gets.
+	 */
+	readonly targetAvatarURL?: string;
 }
 
 const TITLE_LIMIT = 256;
@@ -109,15 +161,17 @@ export function buildCaseEmbed(modCase: CaseEmbedInput, options: CaseEmbedOption
 	const fields: NonNullable<APIEmbed['fields']> = [];
 
 	if (modCase.refId !== null) {
-		const { reference, logChannelId } = options;
 		// Deep-links to the referenced case's own log message when there is one, so a moderator reading a
 		// history can jump between related cases instead of searching for a number.
-		const link =
-			reference?.logMessageId && logChannelId
-				? `[#${modCase.refId}](https://discord.com/channels/${modCase.guildId}/${logChannelId}/${reference.logMessageId})`
-				: `#${modCase.refId}`;
-
-		fields.push({ name: 'Reference', value: link, inline: true });
+		fields.push({
+			name: 'Reference',
+			value: formatCaseNumber(modCase.refId, {
+				guildId: modCase.guildId,
+				logChannelId: options.logChannelId,
+				logMessageId: options.reference?.logMessageId,
+			}),
+			inline: true,
+		});
 	}
 
 	if (modCase.expiresAt) {
@@ -143,7 +197,10 @@ export function buildCaseEmbed(modCase: CaseEmbedInput, options: CaseEmbedOption
 
 	return {
 		color: LOG_COLORS[modCase.actionType],
-		author: { name: `${modCase.targetTag} (${modCase.targetId})` },
+		author: {
+			name: `${modCase.targetTag} (${modCase.targetId})`,
+			...(options.targetAvatarURL ? { icon_url: options.targetAvatarURL } : {}),
+		},
 		title: truncate(
 			`Was ${ACTION_PAST_TENSE[modCase.actionType]}${modCase.reason ? ` for ${modCase.reason}` : ''}`,
 			TITLE_LIMIT,

@@ -6,6 +6,7 @@ export * from './lib/automoderatorReportEmbeds.js';
 export * from './lib/automoderatorReportPrompt.js';
 export * from './lib/constants.js';
 export * from './lib/discordAttachments.js';
+export * from './lib/discordCdn.js';
 export * from './lib/discordPermissions.js';
 export * from './lib/inflight.js';
 export * from './lib/promiseAllObject.js';

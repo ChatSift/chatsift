@@ -75,3 +75,18 @@ test('truncates a long history and says how many are left', () => {
 
 	expect(embed.description).toContain('…and 5 more.');
 });
+
+// #377: `/history`, `/myhistory` and the History context menu all hand over a resolved Discord user, so the
+// avatar costs nothing -- including for the clean-history embed, which is the one most people ever see.
+test('draws the user avatar on the author line, clean history included', () => {
+	const withAvatar = { ...USER, avatar: 'hash' } as APIUser;
+
+	expect(buildHistoryEmbed(withAvatar, []).author).toEqual({
+		name: 'target (2)',
+		icon_url: 'https://cdn.discordapp.com/avatars/2/hash.png',
+	});
+
+	expect(buildHistoryEmbed(withAvatar, [makeCase('BAN')]).author?.icon_url).toBe(
+		'https://cdn.discordapp.com/avatars/2/hash.png',
+	);
+});

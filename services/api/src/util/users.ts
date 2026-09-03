@@ -1,4 +1,5 @@
-import { fetchUserCached } from '@chatsift/backend-core';
+import { fetchUserCached, getContext } from '@chatsift/backend-core';
+import { displayAvatarURL } from '@chatsift/core';
 import type { API, APIUser, Snowflake } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
 import { isNotFoundDiscordError } from './discordErrors.js';
@@ -30,6 +31,24 @@ export async function resolveDiscordUserOrNull(api: API, userId: Snowflake): Pro
 			throw error;
 		}
 	});
+}
+
+/**
+ * The avatar to draw on an embed this service builds from a database row -- a case log it is rewriting, a
+ * report card it is posting (#377). Neither table stores an avatar, so the account has to be resolved.
+ *
+ * Best-effort by construction, exactly like `services/automoderator-bot`'s twin: the lookup is cache-first, and
+ * nothing about it may cost the guild the message it decorates. A rate limit, a dead token or an account
+ * Discord no longer knows about all come back `undefined`, which renders an author line with no icon.
+ */
+export async function resolveAvatarURL(api: API, userId: Snowflake): Promise<string | undefined> {
+	try {
+		const user = await resolveDiscordUserOrNull(api, userId);
+		return user ? displayAvatarURL(user.id, user.avatar) : undefined;
+	} catch (error) {
+		getContext().logger.warn({ err: error, userId }, 'could not resolve an avatar for an embed');
+		return undefined;
+	}
 }
 
 /**

@@ -1,3 +1,4 @@
+import { displayAvatarURL, formatCaseNumber } from '@chatsift/core';
 import type { AutomoderatorCaseAction, AutomoderatorCases } from '@chatsift/db';
 import type { APIEmbed, APIUser } from '@discordjs/core';
 
@@ -50,11 +51,14 @@ export function buildHistoryEmbed(
 	options: HistoryEmbedOptions = {},
 ): APIEmbed {
 	const active = cases.filter((entry) => entry.pardonedBy === null);
+	// The one embed here that is built straight from a Discord payload rather than from a row, so the avatar
+	// (#377) costs nothing -- `/history`, `/myhistory` and the History context menu all hand over a resolved user.
+	const author = { name: `${user.username} (${user.id})`, icon_url: displayAvatarURL(user.id, user.avatar) };
 
 	if (active.length === 0) {
 		return {
 			color: SEVERITY_COLORS.clean,
-			author: { name: `${user.username} (${user.id})` },
+			author,
 			description: 'This user has not been punished before.',
 		};
 	}
@@ -62,10 +66,11 @@ export function buildHistoryEmbed(
 	const listed = active.slice(0, MAX_LISTED).map((entry) => {
 		const timestamp = Math.floor(entry.createdAt.getTime() / 1_000);
 		const reason = entry.reason ? ` — ${entry.reason}` : '';
-		const number =
-			entry.logMessageId && options.logChannelId
-				? `[#${entry.caseId}](https://discord.com/channels/${entry.guildId}/${options.logChannelId}/${entry.logMessageId})`
-				: `#${entry.caseId}`;
+		const number = formatCaseNumber(entry.caseId, {
+			guildId: entry.guildId,
+			logChannelId: options.logChannelId,
+			logMessageId: entry.logMessageId,
+		});
 
 		return `• <t:${timestamp}:D> \`${entry.actionType.toLowerCase()}\` ${number}${reason}`;
 	});
@@ -75,7 +80,7 @@ export function buildHistoryEmbed(
 
 	return {
 		color: severityColor(active),
-		author: { name: `${user.username} (${user.id})` },
+		author,
 		description,
 		footer: { text: summarize(active) },
 	};

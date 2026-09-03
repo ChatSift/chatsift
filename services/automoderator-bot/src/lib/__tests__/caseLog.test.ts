@@ -12,12 +12,17 @@ let webhookRows: unknown[] = [];
 vi.mock('@chatsift/backend-core', () => ({
 	ENV: { IS_PRODUCTION: false },
 	decrypt: (data: string) => decrypt(data) as string,
+	// `bot-core`'s `fetchUser` -- which `avatars.ts` uses to put the target's face on the embed -- reaches for
+	// this. A null user is the "Discord doesn't know them" answer, which renders no icon and nothing else.
+	fetchUserCached: async () => null,
 	getContext: () => ({
 		FRONTEND_URL: 'https://example.com',
 		db: () => webhookRows,
 		service: { client: { api: { webhooks: { execute, editMessage } } } },
 	}),
 	publishRealtimeInvalidate: vi.fn(),
+	// `bot-core`'s barrel builds a `RedisStore` subclass at module scope, and `avatars.ts` reaches through it.
+	RedisStore: class {},
 }));
 
 // The embed's contents are `guildLogFormat.test.ts`'s subject; here it only has to exist.
@@ -53,7 +58,9 @@ test('an undecryptable webhook token does not escape', async () => {
 		throw new Error('Unsupported state or unable to authenticate data');
 	});
 
-	await expect(dispatchCaseLog(CASE, logger)).resolves.toBeUndefined();
+	// The unchanged row back, because nothing was posted and so no `log_message_id` was learned -- alongside the
+	// jump channel, which the webhook row already gave up before the token was ever touched.
+	await expect(dispatchCaseLog(CASE, logger)).resolves.toEqual({ case: CASE, jumpChannelId: '2' });
 
 	expect(execute).not.toHaveBeenCalled();
 	expect(logger.error).toHaveBeenCalled();
@@ -62,7 +69,7 @@ test('an undecryptable webhook token does not escape', async () => {
 test('a guild with no mod log never reaches the token at all', async () => {
 	webhookRows = [];
 
-	await expect(dispatchCaseLog(CASE, logger)).resolves.toBeUndefined();
+	await expect(dispatchCaseLog(CASE, logger)).resolves.toEqual({ case: CASE, jumpChannelId: null });
 
 	expect(decrypt).not.toHaveBeenCalled();
 });

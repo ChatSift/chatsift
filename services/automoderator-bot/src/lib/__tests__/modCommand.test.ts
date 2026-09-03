@@ -14,10 +14,17 @@ vi.mock('@chatsift/backend-core', () => ({
 
 const { describeModerationResult } = await import('../modCommand.js');
 
-function result(caseId: number, action: string, suppressed: boolean): ModerationResult {
+function result(
+	caseId: number,
+	action: string,
+	suppressed: boolean,
+	logChannelId: string | null = null,
+	logMessageId: string | null = null,
+): ModerationResult {
 	return {
-		case: { caseId, actionType: action } as unknown as AutomoderatorCases,
+		case: { caseId, actionType: action, guildId: '1', logMessageId } as unknown as AutomoderatorCases,
 		suppressed,
+		logChannelId,
 	};
 }
 
@@ -49,4 +56,26 @@ test('a suppressed ladder step is reported in the conditional', () => {
 	expect(describeModerationResult(withLadder, 'target', 'WARN' as AutomoderatorCaseAction)).toBe(
 		'**Dry run** — would have warned target. (case #7)\nThat reached a warn ladder step, so they would also have been banned. (case #8)',
 	);
+});
+
+// #381: the number in an ephemeral reply is the case the moderator is about to go and look up, so it links to
+// the case's own mod-log message whenever the case has one. Both halves are read off the result rather than
+// looked up here -- `applyModerationAction` resolved the channel while posting that very log.
+test('links each case number to its own mod-log message', () => {
+	const withLadder = {
+		...result(7, 'WARN', false, '2', '99'),
+		ladder: result(8, 'BAN', false, '2', '100'),
+	};
+
+	expect(describeModerationResult(withLadder, 'target', 'WARN' as AutomoderatorCaseAction)).toBe(
+		'Successfully warned target. (case [#7](https://discord.com/channels/1/2/99))\n' +
+			'That reached a warn ladder step, so they were also banned. (case [#8](https://discord.com/channels/1/2/100))',
+	);
+});
+
+// A guild with no mod log still has case numbers -- they are just not clickable.
+test('falls back to a bare number when the case never reached a log', () => {
+	expect(
+		describeModerationResult(result(7, 'WARN', false, '2', null), 'target', 'WARN' as AutomoderatorCaseAction),
+	).toBe('Successfully warned target. (case #7)');
 });

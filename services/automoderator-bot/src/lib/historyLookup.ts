@@ -5,6 +5,7 @@ import {
 	mintHistoryToken,
 	publicHistoryLink,
 } from '@chatsift/backend-core';
+import { logJumpChannelId } from '@chatsift/core';
 import type { APIApplicationCommandInteraction, APIUser } from '@discordjs/core';
 import { MessageFlags } from '@discordjs/core';
 import { buildHistoryEmbed } from './caseHistory.js';
@@ -35,7 +36,7 @@ export async function replyWithHistory(
 
 	const [cases, webhook] = await Promise.all([listCasesForTarget(guildId, target.id), getModLogWebhook(guildId)]);
 
-	const embed = buildHistoryEmbed(target, cases, { logChannelId: webhook?.channelId ?? null });
+	const embed = buildHistoryEmbed(target, cases, { logChannelId: logJumpChannelId(webhook) });
 
 	let link: string;
 	let linkLabel: string;
