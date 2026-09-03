@@ -114,6 +114,7 @@ test('an expired url is healed from the source message, matched by filename', as
 		attachments: [
 			{ filename: 'screenshot.png', size: 250, content_type: 'image/webp', url: 'https://cdn.example/fresh.webp' },
 		],
+		embeds: [],
 	});
 
 	await expect(resolveMessageAttachments(GUILD, MOD_THREAD, MESSAGE, [expired])).resolves.toStrictEqual([
@@ -141,6 +142,7 @@ test('one expired attachment refreshes the whole set in a single call', async ()
 			{ filename: 'fresh.png', size: 1, content_type: 'image/png', url: 'https://cdn.example/fresh.png' },
 			{ filename: 'stale.png', size: 2, content_type: 'image/png', url: 'https://cdn.example/stale.png' },
 		],
+		embeds: [],
 	});
 
 	const result = await resolveMessageAttachments(GUILD, MOD_THREAD, MESSAGE, [fresh, expired]);
@@ -155,10 +157,86 @@ test('one expired attachment refreshes the whole set in a single call', async ()
 // The frontend renders this as "no longer exists on Discord" rather than trying (and failing) to load the url.
 test('an attachment missing from the refetched message is marked unavailable', async () => {
 	const expired = recorded({ url: `https://cdn.discordapp.com/attachments/1/2/screenshot.png?ex=${hexSeconds(NOW)}` });
-	fakeGetMessage.mockResolvedValue({ attachments: [] });
+	fakeGetMessage.mockResolvedValue({ attachments: [], embeds: [] });
 
 	await expect(resolveMessageAttachments(GUILD, MOD_THREAD, MESSAGE, [expired])).resolves.toStrictEqual([
 		{ ...expired, available: false },
+	]);
+});
+
+// #371: a lone relayed image is claimed into the embed's `image` slot, and Discord then reports an empty
+// top-level `attachments` array for it -- so filename-matching against `attachments` alone healed nothing
+// and silently struck out an attachment that was still sitting in the mod thread.
+test('an embed-claimed image is healed off the embed, not the empty attachment list', async () => {
+	const expired = recorded({ url: `https://cdn.discordapp.com/attachments/1/2/screenshot.png?ex=${hexSeconds(NOW)}` });
+	fakeGetMessage.mockResolvedValue({
+		attachments: [],
+		embeds: [
+			{
+				image: { url: 'https://cdn.discordapp.com/attachments/1/2/screenshot.png?ex=deadbeef&is=1&hm=2' },
+			},
+		],
+	});
+
+	await expect(resolveMessageAttachments(GUILD, MOD_THREAD, MESSAGE, [expired])).resolves.toStrictEqual([
+		{
+			available: true,
+			// Neither size nor content type is on an embed image, so the recorded ones stand.
+			contentType: 'image/png',
+			filename: 'screenshot.png',
+			size: 100,
+			url: 'https://cdn.discordapp.com/attachments/1/2/screenshot.png?ex=deadbeef&is=1&hm=2',
+		},
+	]);
+});
+
+// Discord percent-encodes the filename in the url, so the match has to happen on the decoded form.
+test('an embed-claimed image with a percent-encoded filename still matches', async () => {
+	const expired = recorded({
+		filename: 'my screen shot.png',
+		url: `https://cdn.discordapp.com/attachments/1/2/my%20screen%20shot.png?ex=${hexSeconds(NOW)}`,
+	});
+	const fresh = 'https://cdn.discordapp.com/attachments/1/2/my%20screen%20shot.png?ex=deadbeef';
+	fakeGetMessage.mockResolvedValue({ attachments: [], embeds: [{ image: { url: fresh } }] });
+
+	await expect(resolveMessageAttachments(GUILD, MOD_THREAD, MESSAGE, [expired])).resolves.toMatchObject([
+		{ available: true, url: fresh },
+	]);
+});
+
+// A snippet's fixed image (or any other external one) isn't a recorded attachment at all -- it must never
+// be mistaken for one and used to mark a genuinely-gone file as available.
+test('a non-attachment embed image is ignored', async () => {
+	const expired = recorded({ url: `https://cdn.discordapp.com/attachments/1/2/screenshot.png?ex=${hexSeconds(NOW)}` });
+	fakeGetMessage.mockResolvedValue({
+		attachments: [],
+		embeds: [{ image: { url: 'https://example.com/screenshot.png' } }],
+	});
+
+	await expect(resolveMessageAttachments(GUILD, MOD_THREAD, MESSAGE, [expired])).resolves.toStrictEqual([
+		{ ...expired, available: false },
+	]);
+});
+
+// The top-level attachment list is the better source when it does carry the file -- it refreshes size and
+// content type too, which an embed image can't.
+test('a real attachment entry wins over an embed image of the same name', async () => {
+	const expired = recorded({ url: `https://cdn.discordapp.com/attachments/1/2/screenshot.png?ex=${hexSeconds(NOW)}` });
+	fakeGetMessage.mockResolvedValue({
+		attachments: [
+			{ filename: 'screenshot.png', size: 250, content_type: 'image/webp', url: 'https://cdn.example/fresh.webp' },
+		],
+		embeds: [{ image: { url: 'https://cdn.discordapp.com/attachments/1/2/screenshot.png?ex=deadbeef' } }],
+	});
+
+	await expect(resolveMessageAttachments(GUILD, MOD_THREAD, MESSAGE, [expired])).resolves.toStrictEqual([
+		{
+			available: true,
+			contentType: 'image/webp',
+			filename: 'screenshot.png',
+			size: 250,
+			url: 'https://cdn.example/fresh.webp',
+		},
 	]);
 });
 

@@ -1,6 +1,6 @@
 import type { APIEmbed } from 'discord-api-types/v10';
 import { expect, test } from 'vitest';
-import { resolveEditedImage, resolveEmbedsForEdit } from '../discordAttachments.js';
+import { discordAttachmentFilename, resolveEditedImage, resolveEmbedsForEdit } from '../discordAttachments.js';
 
 /**
  * Regression cover for a real Discord platform behavior rather than for our own logic: resending an
@@ -12,6 +12,16 @@ import { resolveEditedImage, resolveEmbedsForEdit } from '../discordAttachments.
 
 const CDN = 'https://cdn.discordapp.com/attachments/1425493115053019319/1425493115053019320/screenshot.png';
 const MEDIA = 'https://media.discordapp.net/attachments/1425493115053019319/1425493115053019320/screenshot.png';
+
+// `services/api`'s attachment healing (#371) keys off the filename alone and has to be able to tell a
+// recorded attachment's url apart from an arbitrary external one, so the `undefined` half is contractual.
+test('the filename is extracted from an attachment url and only from one', () => {
+	expect(discordAttachmentFilename(`${CDN}?ex=68b1&is=68b0&hm=deadbeef`)).toBe('screenshot.png');
+	expect(discordAttachmentFilename(MEDIA)).toBe('screenshot.png');
+	expect(discordAttachmentFilename('https://cdn.discordapp.com/attachments/1/2/my%20shot.png')).toBe('my shot.png');
+	expect(discordAttachmentFilename('https://example.com/screenshot.png')).toBeUndefined();
+	expect(discordAttachmentFilename('not a url')).toBeUndefined();
+});
 
 test('both Discord CDN hosts get rewritten to an attachment token', () => {
 	expect(resolveEditedImage({ url: CDN })).toStrictEqual({ url: 'attachment://screenshot.png' });
