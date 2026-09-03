@@ -192,6 +192,20 @@ Three rules hold across all of them:
 route, which already has every snowflake replaced by `:id`, so it is bounded by endpoint count rather than guild
 count. It counts Discord's _answers_: a connection-level failure throws before the event fires.
 
+`discord_guilds{bot}` is the other shared name, written by `bot-core`'s `createBotClient`. It is a gauge of **one
+replica's own shard slice**, refreshed by a single `SCARD` on the ten-second heartbeat that already re-arms the
+guild list's TTL, so `sum by (job) (discord_guilds)` is the fleet total -- slices are disjoint by shard ownership
+(see [12-horizontal-scaling.md](roadmap/12-horizontal-scaling.md)), so replicas never double-count each other. It
+departs from the rules above twice, deliberately:
+
+- **It is not zero-initialised.** Every counter here is, because one that never fired reads as "No data" rather
+  than `0`. A replica that has not identified yet is in an _unknown_ number of guilds, not zero, and seeding `0`
+  would make every rolling restart dip the fleet total for as long as an identify takes. READY always arrives, so
+  the series always appears -- including as a real `0` for a bot in no guilds.
+- **The `bot` label carries the bare `BotId`,** so a custom ModMail instance's `MODMAIL#<slug>` guild-list key
+  still reports as `MODMAIL`. Prometheus already separates those with the `modmail_instance` target label below;
+  letting the slug into the metric too would split one bot into two names on top of that.
+
 **Two AMA counters are defined in both `ama-bot` and `services/api`**, distinguished by `source="bot"` vs
 `source="dashboard"`, because the dashboard is AMA's primary moderation surface -- a bot-only counter would read
 as "moderation stopped" for any guild that triages on the web. Grafana sums across the two jobs. Keep the label
@@ -228,6 +242,11 @@ picked up by the existing file provider -- no Grafana UI work. Each inherits the
 above, **defaulting to `6h` rather than `1h`**: bot feature counters are far lower-volume than API routes, so the
 NaN trap bites harder here. They also use `increase()` rather than `rate()` ("3 tickets in 6h" is readable,
 "0.000139/sec" is not).
+
+`guilds-overview` is the one dashboard that spans every bot rather than covering one: a chart per bot off the
+single `discord_guilds` name, which is what the shared name buys. Its `$window` is not a rate window (there is no
+counter on it) -- it only sets what the "Net change" panel compares today against, so it defaults to `24h` and
+goes out to `30d`.
 
 One trap specific to these: **prom-client emits no series at all for a label combination until it is first
 incremented**, so a counter that has legitimately never fired reads as "No data" rather than `0`, and

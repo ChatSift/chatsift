@@ -55,7 +55,7 @@ const gateway = await createBotGateway({
 		GatewayIntentBits.DirectMessages,
 	rest,
 });
-const client = createBotClient({ botId, gateway, rest });
+const client = createBotClient({ botId, gateway, register, rest });
 setServiceValue('client', client);
 
 await bin(client);

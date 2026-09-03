@@ -35,7 +35,7 @@ const gateway = await createBotGateway({
 	rest,
 });
 
-const client = createBotClient({ botId: 'SOCIAL', gateway, rest });
+const client = createBotClient({ botId: 'SOCIAL', gateway, register, rest });
 setServiceValue('client', client);
 
 await bin(client);

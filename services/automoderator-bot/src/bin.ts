@@ -42,7 +42,7 @@ const gateway = await createBotGateway({
 	rest,
 });
 
-const client = createBotClient({ botId: 'AUTOMODERATOR', gateway, rest });
+const client = createBotClient({ botId: 'AUTOMODERATOR', gateway, register, rest });
 setServiceValue('client', client);
 
 await bin(client);

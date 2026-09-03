@@ -3,6 +3,7 @@ import { setInterval } from 'node:timers';
 import type { GuildListKey } from '@chatsift/backend-core';
 import {
 	addGuildToList,
+	countGuildList,
 	dropGuildList,
 	getContext,
 	guildListExists,
@@ -15,6 +16,7 @@ import type { Snowflake } from '@discordjs/core';
 import { InteractionType, Client, GatewayDispatchEvents } from '@discordjs/core';
 import type { REST } from '@discordjs/rest';
 import type { WebSocketManager } from '@discordjs/ws';
+import { Gauge, type Registry } from 'prom-client';
 import { handleAutocompleteInteraction, handleCommandInteraction, registerCommandHandler } from './commands.js';
 import { handleComponentInteraction } from './components.js';
 import DashboardCommand from './dashboardCommand.js';
@@ -44,6 +46,11 @@ export interface CreateBotClientOptions {
 	 */
 	readonly botId: GuildListKey;
 	readonly gateway: WebSocketManager;
+	/**
+	 * The bot's own `prom-client` registry, if it has one. Optional for the same reason `createBotRest`'s is:
+	 * the client has to stand up without it in tests. Omitting it drops `discord_guilds`, nothing else.
+	 */
+	readonly register?: Registry;
 	readonly rest: REST;
 }
 
@@ -57,11 +64,52 @@ export interface CreateBotClientOptions {
  * the app starts — everything else should reach Discord via `getContext().service.client`, never by importing this
  * file.
  */
-export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions): Client {
+export function createBotClient({ botId, gateway, register, rest }: CreateBotClientOptions): Client {
 	registerCommandHandler(new DeployCommand());
 	registerCommandHandler(new DashboardCommand());
 
 	const client = new Client({ rest, gateway });
+
+	/**
+	 * How many guilds *this replica* is receiving gateway events for, so `sum by (job) (discord_guilds)` is the
+	 * bot's fleet total -- slices are disjoint by shard ownership, so replicas never double-count each other.
+	 *
+	 * Shared, unprefixed name across all four bots rather than an `ama_guilds`/`modmail_guilds` set, exactly like
+	 * `discord_requests_total` in `rest.ts`: Prometheus's own `job` label already says which bot a series belongs
+	 * to, and one name is what lets a single panel compare them.
+	 *
+	 * **Deliberately not zero-initialised.** Every other metric in this stack is (see the note in each bot's
+	 * `metrics.ts`), because a counter that never fires reads as "No data" rather than `0`. Here the opposite is
+	 * true: a replica that has not identified yet is in an unknown number of guilds, not zero, and seeding `0`
+	 * would make every rolling restart dip the fleet total. READY always fires, so the series always appears.
+	 */
+	const guildCount = register
+		? new Gauge({
+				name: 'discord_guilds',
+				help: 'Guilds this replica is receiving gateway events for',
+				labelNames: ['bot'] as const,
+				registers: [register],
+			})
+		: null;
+
+	// A custom ModMail instance's `MODMAIL#<slug>` key would split its series away from the public deployment's,
+	// and Prometheus already separates the two with a `modmail_instance` target label it relabels from DNS. So
+	// this carries the bare `BotId`, matching what `createBotRest` labels `discord_requests_total` with.
+	const bot = botId.split('#')[0]!;
+
+	async function publishGuildCount(): Promise<void> {
+		if (!guildCount) {
+			return;
+		}
+
+		try {
+			guildCount.set({ bot }, await countGuildList(botId, getReplicaIndex()));
+		} catch (error) {
+			// A gauge that misses an update leaves a gap in a chart; letting it throw would take down whichever
+			// caller it interrupted -- READY's command bootstrap, or the heartbeat's expiry detection.
+			getContext().logger.warn({ err: error, botId }, 'Failed to publish the guild count');
+		}
+	}
 
 	// The heartbeat below starts ticking as soon as the client is built, which is before the shard has identified
 	// -- and there is no bound on how long that takes (identify throttling across shards, a session-start rate
@@ -194,6 +242,11 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 			);
 			publishing = true;
 
+			// Published here rather than left to the heartbeat below so a bot whose first scrape lands inside the
+			// first ten seconds of its life reports the guilds it already has, not an absent series. READY names
+			// every guild this shard is in, so the count is complete the moment the sync above returns.
+			await publishGuildCount();
+
 			await bootstrapOnce(data.application.id);
 		});
 
@@ -208,10 +261,16 @@ export function createBotClient({ botId, gateway, rest }: CreateBotClientOptions
 		try {
 			if (!(await touchGuildList(botId, getReplicaIndex()))) {
 				await recoverLostGuildList('guild list expired while running');
+				return;
 			}
 		} catch (error) {
 			getContext().logger.error({ err: error }, 'Failed to refresh the guild list TTL');
+			return;
 		}
+
+		// One `SCARD` on the tick that already talks to redis, rather than a write on every GUILD_CREATE -- a cold
+		// boot delivers one of those per guild, and the gauge only has to be fresher than the 15s scrape interval.
+		await publishGuildCount();
 	}, 10_000).unref();
 
 	// Without this the slice lingers for its TTL after a deliberate restart, so the dashboard keeps crediting this

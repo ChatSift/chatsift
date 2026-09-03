@@ -115,6 +115,16 @@ export async function touchGuildList(id: GuildListKey, replicaIndex: number): Pr
 }
 
 /**
+ * How many guilds this replica's own slice holds -- one `SCARD`, not a `SMEMBERS` this has to count in the
+ * process. Deliberately *not* the union `readGuildList` builds: that is a question about the whole deployment,
+ * and this is what feeds `discord_guilds` (see `bot-core`'s `client.ts`), which every replica publishes for
+ * itself so Prometheus can sum them. Slices are disjoint by shard ownership, so that sum is the fleet total.
+ */
+export async function countGuildList(id: GuildListKey, replicaIndex: number): Promise<number> {
+	return getContext().redis.sCard(guildsKey(id, replicaIndex));
+}
+
+/**
  * Every guild this bot is in, unioned across replicas.
  */
 export async function readGuildList(id: GuildListKey): Promise<string[]> {
