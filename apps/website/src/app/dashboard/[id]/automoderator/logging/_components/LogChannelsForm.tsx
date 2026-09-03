@@ -21,7 +21,6 @@ import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
 import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
-import { cn } from '@/utils/util';
 
 /**
  * What each log is for, in the guild's words rather than the schema's. Keyed off `WRITABLE_LOG_TYPES` so a log
@@ -99,23 +98,23 @@ function LogChannelRow({
 
 	return (
 		<div className="flex flex-col gap-3 rounded-lg border border-on-secondary p-4 dark:border-on-secondary-dark">
-			{/* `ChannelSelect` has no disabled state of its own, and a second pick mid-write would race the first
-				(two PUTs, no ordering guarantee) -- so the whole control stops responding while one is in flight. */}
-			<div className={cn(isPending && 'pointer-events-none opacity-60')}>
-				<ChannelSelect
-					allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement, ...threadTypes]}
-					channels={channels}
-					error={error ?? undefined}
-					isLoading={isChannelsLoading}
-					label={label}
-					noneLabel="Disable logging"
-					onChange={(value) => {
-						void save(value ?? '');
-					}}
-					selectedId={`automoderator-${logType.toLowerCase()}-log-channel`}
-					value={channelId}
-				/>
-			</div>
+			{/* Genuinely disabled, not just `pointer-events-none` on a wrapper: a second pick mid-write would race
+				the first (two PUTs, no ordering guarantee), and a wrapper leaves the trigger focusable so Enter
+				still starts one. */}
+			<ChannelSelect
+				allowedTypes={[ChannelType.GuildText, ChannelType.GuildAnnouncement, ...threadTypes]}
+				channels={channels}
+				error={error ?? undefined}
+				isDisabled={isPending}
+				isLoading={isChannelsLoading}
+				label={label}
+				noneLabel="Disable logging"
+				onChange={(value) => {
+					void save(value ?? '');
+				}}
+				selectedId={`automoderator-${logType.toLowerCase()}-log-channel`}
+				value={channelId}
+			/>
 
 			<p className="text-sm text-secondary dark:text-secondary-dark">
 				{isPending ? 'Saving...' : channelId ? description : `Off. ${description}`}

@@ -45,7 +45,17 @@ export function TextAreaField({
 				rows={rows}
 				value={value}
 			/>
-			{helper && <div id={helperId}>{helper}</div>}
+			{helper &&
+				// A plain string gets the standard helper styling; every other caller passes an already-styled node
+				// (a live preview, a hint with a link) and keeps full control. Without this a bare string rendered at
+				// body size in the primary text colour, flush against the input -- louder than the label above it.
+				(typeof helper === 'string' ? (
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark" id={helperId}>
+						{helper}
+					</p>
+				) : (
+					<div id={helperId}>{helper}</div>
+				))}
 			{error && (
 				<p className="mt-1 text-sm text-misc-danger" id={errorId}>
 					{error}

@@ -172,7 +172,7 @@ export function LogExemptionsForm() {
 				</div>
 
 				<Button
-					className={buttonClass('primary', 'sm')}
+					className={buttonClass('primary', 'field')}
 					isDisabled={atLimit || draft === '' || setExemption.isPending}
 					onPress={async () => {
 						try {

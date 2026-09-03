@@ -25,6 +25,9 @@ interface UserBadgeProps {
  */
 export function UserBadge({ user, storedTag, id, size = 'sm' }: UserBadgeProps) {
 	const label = snapshotUserLabel(user ?? id, storedTag);
+	// A deleted account with no stored snapshot has nothing to be called *but* its id, and `snapshotUserLabel`
+	// falls back to exactly that -- so without this the same snowflake renders twice, stacked.
+	const hasName = label !== id;
 
 	return (
 		<div className="flex min-w-0 items-center gap-2">
@@ -35,7 +38,7 @@ export function UserBadge({ user, storedTag, id, size = 'sm' }: UserBadgeProps) 
 			/>
 			<div className="flex min-w-0 flex-col">
 				<span className={cn('truncate text-primary dark:text-primary-dark', size === 'lg' && 'text-lg')}>{label}</span>
-				<span className="truncate text-xs text-secondary dark:text-secondary-dark">{id}</span>
+				{hasName && <span className="truncate text-xs text-secondary dark:text-secondary-dark">{id}</span>}
 			</div>
 		</div>
 	);

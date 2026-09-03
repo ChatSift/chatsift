@@ -104,37 +104,36 @@ export function InviteFilterForm() {
 					</div>
 				)}
 
-				<div className="flex flex-col gap-2 border-t border-on-secondary pt-4 dark:border-on-secondary-dark sm:flex-row sm:items-end">
-					<div className="flex-1">
-						<TextField
-							error={addError ?? undefined}
-							helper="An invite link or code — discord.gg/example, or just example."
-							id="automoderator-allowed-invite-new"
-							label="Allow a server by invite"
-							maxLength={200}
-							onChange={(value) => {
-								setDraft(value);
-								setAddError(null);
-							}}
-							placeholder="discord.gg/example"
-							value={draft}
-						/>
-					</div>
-
-					<Button
-						className={buttonClass('primary', 'sm')}
-						isDisabled={atLimit || draft.trim() === '' || createAllowed.isPending}
-						onPress={async () => {
-							try {
-								await createAllowed.mutateAsync({ invite: draft });
-								setDraft('');
-							} catch (caughtError) {
-								setAddError(caughtError instanceof APIError ? caughtError.message : 'Failed to add.');
-							}
+				<div className="border-t border-on-secondary pt-4 dark:border-on-secondary-dark">
+					<TextField
+						error={addError ?? undefined}
+						helper="An invite link or code — discord.gg/example, or just example."
+						id="automoderator-allowed-invite-new"
+						label="Allow a server by invite"
+						maxLength={200}
+						onChange={(value) => {
+							setDraft(value);
+							setAddError(null);
 						}}
-					>
-						{createAllowed.isPending ? 'Checking...' : 'Add'}
-					</Button>
+						placeholder="discord.gg/example"
+						trailing={
+							<Button
+								className={buttonClass('primary', 'field')}
+								isDisabled={atLimit || draft.trim() === '' || createAllowed.isPending}
+								onPress={async () => {
+									try {
+										await createAllowed.mutateAsync({ invite: draft });
+										setDraft('');
+									} catch (caughtError) {
+										setAddError(caughtError instanceof APIError ? caughtError.message : 'Failed to add.');
+									}
+								}}
+							>
+								{createAllowed.isPending ? 'Checking...' : 'Add'}
+							</Button>
+						}
+						value={draft}
+					/>
 				</div>
 
 				{atLimit && (

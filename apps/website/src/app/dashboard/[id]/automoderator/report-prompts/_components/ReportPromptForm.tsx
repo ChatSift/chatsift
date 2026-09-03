@@ -24,6 +24,7 @@ import { ColorField, hexToColor, validateColorInput } from '@/components/common/
 import { EmbedMessagePreview } from '@/components/common/EmbedMessagePreview';
 import { FormActions } from '@/components/common/FormActions';
 import { RawJsonField } from '@/components/common/RawJsonField';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextAreaField } from '@/components/common/TextAreaField';
 import { TextField } from '@/components/common/TextField';
@@ -105,6 +106,11 @@ interface ReportPromptFormProps {
 	 */
 	readonly existing?: AutomoderatorReportPrompt;
 }
+
+const MODE_OPTIONS = [
+	{ value: 'normal', label: 'Guided' },
+	{ value: 'raw', label: 'Raw JSON' },
+] as const satisfies readonly { label: string; value: 'normal' | 'raw' }[];
 
 export function ReportPromptForm({ existing }: ReportPromptFormProps) {
 	const router = useRouter();
@@ -261,22 +267,7 @@ export function ReportPromptForm({ existing }: ReportPromptFormProps) {
 				/>
 			)}
 
-			<div className="flex gap-2">
-				{(['normal', 'raw'] as const).map((option) => (
-					<button
-						className={
-							mode === option
-								? 'rounded-md bg-misc-accent px-3 py-1.5 text-sm text-accent'
-								: 'rounded-md bg-on-tertiary px-3 py-1.5 text-sm text-primary dark:bg-on-tertiary-dark dark:text-primary-dark'
-						}
-						key={option}
-						onClick={() => setMode(option)}
-						type="button"
-					>
-						{option === 'normal' ? 'Guided' : 'Raw JSON'}
-					</button>
-				))}
-			</div>
+			<SegmentedControl label="Prompt mode" onChange={(next) => setMode(next)} options={MODE_OPTIONS} value={mode} />
 
 			<div className="grid gap-6 lg:grid-cols-2">
 				{mode === 'normal' ? (

@@ -14,6 +14,13 @@ interface TextFieldProps {
 	onBlur?(): void;
 	onChange(value: string): void;
 	readonly placeholder?: string;
+	/**
+	 * A control sharing the input's row -- in practice the Add button beside the box it reads from. It belongs
+	 * inside the field rather than beside it so `label` stays above the pair and `helper`/`error` stay below
+	 * both; a button aligned against the outside of the field drifts down the moment either appears. Size it
+	 * with `buttonClass(..., 'field')`, which matches the input's box exactly.
+	 */
+	readonly trailing?: React.ReactNode;
 	readonly type?: 'datetime-local' | 'number' | 'text' | 'url';
 	readonly value: string;
 }
@@ -36,6 +43,7 @@ export function TextField({
 	min,
 	max,
 	disabled = false,
+	trailing,
 }: TextFieldProps) {
 	const errorId = `${id}-error`;
 	const helperId = `${id}-helper`;
@@ -46,22 +54,35 @@ export function TextField({
 			<label className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark" htmlFor={id}>
 				{label}
 			</label>
-			<input
-				aria-describedby={describedBy}
-				aria-invalid={error ? true : undefined}
-				className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent disabled:cursor-not-allowed disabled:opacity-50 dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
-				disabled={disabled}
-				id={id}
-				max={max}
-				maxLength={maxLength}
-				min={min}
-				onBlur={onBlur}
-				onChange={(e) => onChange(e.target.value)}
-				placeholder={placeholder}
-				type={type}
-				value={value}
-			/>
-			{helper && <div id={helperId}>{helper}</div>}
+			<div className="flex items-start gap-2">
+				<input
+					aria-describedby={describedBy}
+					aria-invalid={error ? true : undefined}
+					className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-primary focus:border-misc-accent focus:outline-none focus:ring-2 focus:ring-misc-accent disabled:cursor-not-allowed disabled:opacity-50 dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+					disabled={disabled}
+					id={id}
+					max={max}
+					maxLength={maxLength}
+					min={min}
+					onBlur={onBlur}
+					onChange={(e) => onChange(e.target.value)}
+					placeholder={placeholder}
+					type={type}
+					value={value}
+				/>
+				{trailing}
+			</div>
+			{helper &&
+				// A plain string gets the standard helper styling; every other caller passes an already-styled node
+				// (a live preview, a hint with a link) and keeps full control. Without this a bare string rendered at
+				// body size in the primary text colour, flush against the input -- louder than the label above it.
+				(typeof helper === 'string' ? (
+					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark" id={helperId}>
+						{helper}
+					</p>
+				) : (
+					<div id={helperId}>{helper}</div>
+				))}
 			{error && (
 				<p className="mt-1 text-sm text-misc-danger" id={errorId}>
 					{error}

@@ -2,11 +2,11 @@
 
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
+import { SettingCard } from './SettingCard';
 import { APIError } from '@/api/error';
 import { useAutomoderatorConfig, useUpdateAutomoderatorConfig } from '@/api/routes/automoderator';
-import { Button } from '@/components/common/Button';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Skeleton } from '@/components/common/Skeleton';
-import { cn } from '@/utils/util';
 
 const CHOICES = [
 	{ value: false, label: 'Act for real' },
@@ -33,58 +33,31 @@ export function EnforcementCard() {
 	const error = saveError ?? (loadError && !config ? 'Could not load this setting.' : null);
 
 	return (
-		<div className="flex flex-col gap-2 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
-			<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-				<h3 className="text-sm font-medium text-primary dark:text-primary-dark">Enforcement</h3>
+		<SettingCard
+			control={
+				config ? (
+					<SegmentedControl
+						isDisabled={updateConfig.isPending}
+						label="Enforcement mode"
+						onChange={async (dryRun) => {
+							setSaveError(null);
 
-				{config ? (
-					<div
-						aria-label="Enforcement mode"
-						className="inline-flex gap-1 rounded-md border border-on-secondary bg-on-tertiary p-1 dark:border-on-secondary-dark dark:bg-on-tertiary-dark"
-						role="group"
-					>
-						{CHOICES.map((choice) => (
-							<Button
-								aria-pressed={config.dryRun === choice.value}
-								className={cn(
-									'rounded px-4 py-1.5 text-sm font-medium transition-colors',
-									config.dryRun === choice.value
-										? 'bg-misc-accent text-accent shadow-sm'
-										: 'text-secondary hover:bg-on-secondary/50 dark:text-secondary-dark dark:hover:bg-on-secondary-dark/50',
-								)}
-								isDisabled={updateConfig.isPending}
-								key={String(choice.value)}
-								onPress={async () => {
-									if (config.dryRun === choice.value) {
-										return;
-									}
-
-									setSaveError(null);
-
-									try {
-										await updateConfig.mutateAsync({ dryRun: choice.value });
-									} catch (caughtError) {
-										setSaveError(caughtError instanceof APIError ? caughtError.message : 'Failed to save.');
-									}
-								}}
-								type="button"
-							>
-								{choice.label}
-							</Button>
-						))}
-					</div>
+							try {
+								await updateConfig.mutateAsync({ dryRun });
+							} catch (caughtError) {
+								setSaveError(caughtError instanceof APIError ? caughtError.message : 'Failed to save.');
+							}
+						}}
+						options={CHOICES}
+						value={config.dryRun}
+					/>
 				) : (
 					!loadError && <Skeleton className="h-9 w-48 rounded-md" />
-				)}
-			</div>
-
-			<p className="text-sm text-secondary dark:text-secondary-dark">
-				Simulating means AutoModerator works out what it would do and records it, but never actually bans, kicks, times
-				anyone out, or deletes anything — so a server set to simulate still builds a history you can read back. This
-				only applies to a development deployment; in production AutoModerator always acts for real.
-			</p>
-
-			{error && <p className="text-sm text-misc-danger">{error}</p>}
-		</div>
+				)
+			}
+			description="Simulating means AutoModerator works out what it would do and records it, but never actually bans, kicks, times anyone out, or deletes anything — so a server set to simulate still builds a history you can read back. This only applies to a development deployment; in production AutoModerator always acts for real."
+			error={error}
+			title="Enforcement"
+		/>
 	);
 }

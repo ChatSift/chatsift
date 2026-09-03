@@ -83,7 +83,7 @@ export function FilterExemptionsForm() {
 	return (
 		<div className="flex flex-col gap-4 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<p className="text-sm text-secondary dark:text-secondary-dark">
-				The URL and invite filters never act in these channels. Exempting a category covers everything inside it,
+				The filters ticked below never act in these channels. Exempting a category covers everything inside it,
 				including threads, so one row is usually enough. This does not affect Discord&apos;s own AutoMod — a banned word
 				is still caught here, because that match happens on Discord&apos;s side and is exempted per rule in Server
 				Settings.
@@ -129,7 +129,7 @@ export function FilterExemptionsForm() {
 				</div>
 
 				<Button
-					className={buttonClass('primary', 'sm')}
+					className={buttonClass('primary', 'field')}
 					isDisabled={atLimit || draft === '' || setExemption.isPending}
 					onPress={async () => {
 						try {

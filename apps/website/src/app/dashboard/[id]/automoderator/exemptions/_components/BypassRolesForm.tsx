@@ -152,7 +152,7 @@ export function BypassRolesForm() {
 				</div>
 
 				<Button
-					className={buttonClass('primary', 'sm')}
+					className={buttonClass('primary', 'field')}
 					isDisabled={atLimit || draft === '' || setBypassRole.isPending}
 					onPress={async () => {
 						try {

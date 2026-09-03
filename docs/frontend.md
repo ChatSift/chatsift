@@ -83,7 +83,8 @@ Import as `@/components/common/X`.
 - **Primitives** — `Button`, `Heading`, `Skeleton`, `EmptyState`, `ScrollArea`, `Tooltip`, `Avatar`,
   `GenericAvatar`, `GuildIcon`, `Logo`, `Emoji`
 - **Form fields** — `TextField`, `TextAreaField`, `RawJsonField`, `SnowflakeInput`, `EmojiInput`, `SearchBar`,
-  `ChannelSelect`, `RoleSelect`, `ForumTagSelect`, `FormActions` (the submit+cancel pair), `TemplatePlaceholdersHint`
+  `ChannelSelect`, `RoleSelect`, `ForumTagSelect`, `SegmentedControl` (pick one of a few — every mode switch and
+  on/off toggle), `FormActions` (the submit+cancel pair), `TemplatePlaceholdersHint`
 - **Overlays / feedback** — `ConfirmModal`, `ErrorBanner`
 - **Navigation / infra** — `Breadcrumb`, `BreadcrumbDropdown`, `NavGate`, `Providers`, `RefreshServerDataButton`,
   `DiscordMarkdown`
@@ -113,12 +114,24 @@ import { buttonClass } from '@/components/common/buttonStyles';
 <Button className={buttonClass('secondary', 'sm')} /> // a row's action, an Add next to a picker
 ```
 
-Three variants (`primary`, `secondary`, `danger`) and two sizes. **`md` (the default) is a page's single
-submit**; **`sm` is everything that lives inside something else** — a row's Remove, the Add beside a picker, a
-detail page's action bar. Reaching for `md` inside a card is what made AutoModerator's pages read as visibly
-heavier than the rest of the dashboard (#374).
+Three variants (`primary`, `secondary`, `danger`) and three sizes:
 
-For a form's submit/cancel pair, don't restyle two Buttons — use `FormActions`.
+- **`md`** (the default) — a page's single submit. Reaching for it inside a card is what made AutoModerator's
+  pages read as visibly heavier than the rest of the dashboard (#374).
+- **`field`** — a button on the same row as an input. Matches `TextField`'s box exactly; anything else leaves it
+  visibly shorter than the control it sits beside.
+- **`sm`** — an action inside a row of text: a listed item's Remove, a detail page's action bar.
+
+For a button paired with a `TextField`, pass it as that field's **`trailing`** prop rather than putting the two
+in a flex row: inside the field, `label` stays above the pair and `helper`/`error` stay below both, so the button
+can't drift down the moment either appears.
+
+For a form's submit/cancel pair, don't restyle two Buttons — use `FormActions`. For pick-one-of-a-few (a mode
+switch, an on/off toggle), use `SegmentedControl` — never a raw `<button>`, which has no `cursor: pointer` and so
+doesn't read as clickable.
+
+`TextField`/`TextAreaField`'s **`helper` takes a plain string** and styles it; pass a node only when you need
+something a sentence can't do (a live preview, a hint with a link), and style that node yourself.
 
 Related: `components/marketing/LinkButton.tsx` **does** have a real `variant` API (`'ghost' | 'primary'`, plus
 `href`/`external`). It's an anchor, for static/marketing links that must work without JS — not a substitute for

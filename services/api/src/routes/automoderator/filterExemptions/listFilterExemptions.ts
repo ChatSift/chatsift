@@ -40,8 +40,8 @@ export default defineRoute({
 			// `.toString()` because kanel brands primary-key columns.
 			const channelId = row.channelId.toString();
 			const filters = grouped.get(channelId) ?? [];
-			// `ANTISPAM` rows cannot exist yet -- nothing writes one -- but the cast is what would carry one
-			// through untouched rather than dropping it silently if P5c lands the runner before this widens.
+			// The cast is what carries every kind through untouched rather than dropping one silently; `ANTISPAM`
+			// became writable with P5c's runner, so all three of `WRITABLE_FILTER_KINDS` reach this now.
 			filters.push(row.filter as unknown as WritableFilterKind);
 			grouped.set(channelId, filters);
 		}
