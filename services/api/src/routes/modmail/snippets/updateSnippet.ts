@@ -1,6 +1,7 @@
 import { getContext } from '@chatsift/backend-core';
 import { isUniqueViolation } from '@chatsift/db';
 import type { Snippets, SnippetsId } from '@chatsift/db';
+import { RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { badData, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
@@ -9,6 +10,7 @@ import { isAuthed } from '../../../middleware/isAuthed.js';
 import { apiForGuild } from '../../../util/discordAPI.js';
 import { getBotApplicationId } from '../../../util/discordApplication.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
+import { buildSnippetCommandBody } from '../discordBodies.js';
 import { updateSnippetBodySchema } from '../schemas.js';
 
 const bodySchema = updateSnippetBodySchema;
@@ -60,23 +62,61 @@ export default defineRoute({
 		// against `existing.name` would then see no change and skip the rename on every future edit, even ones
 		// that don't touch the name, permanently baking in the drift. Reading Discord's actual current name
 		// instead means *any* edit reconciles the two, not just one that happens to type a new name.
+		let commandId = existing.commandId;
+		// Set only when a replacement command was minted below, so the transaction's failure path can delete it
+		// again -- see the catch at the bottom.
+		let deleteRecreatedCommand: (() => Promise<void>) | null = null;
+
 		if (data.name !== undefined) {
 			const applicationId = await getBotApplicationId('MODMAIL', guildId);
 			const api = apiForGuild('MODMAIL', guildId);
-			const liveCommand = await api.applicationCommands.getGuildCommand(applicationId, guildId, existing.commandId);
 
-			if (liveCommand.name !== data.name) {
-				try {
+			let liveName: string | null;
+			try {
+				liveName = (await api.applicationCommands.getGuildCommand(applicationId, guildId, existing.commandId)).name;
+			} catch (error) {
+				if (!(error instanceof DiscordAPIError && error.code === RESTJSONErrorCodes.UnknownApplicationCommand)) {
+					throw error;
+				}
+
+				// #369: the stored id resolves under no application that currently owns this guild -- the command
+				// was deleted out of band, or the guild moved on/off a custom instance. This used to escape as a
+				// 500 and left the snippet permanently uneditable. Re-registering inline rather than deferring to
+				// `resyncSnippets.ts` (the way social's `updateInteraction.ts` does): `snippets.command_id` is
+				// NOT NULL and the bot dispatches snippets by command id alone (`findSnippetByCommandId`), so
+				// there's no id to null out and no name-based fallback to degrade to -- and the resync card is
+				// hidden for a guild that isn't on a custom instance, so an ordinary guild couldn't reach it.
+				//
+				// Two deliberate limits: repair only runs on an edit that carries a name -- one is needed to
+				// mint a command at all, and the dashboard's form always sends all four fields -- and two
+				// concurrent renames of the same dead-command snippet can each mint one, orphaning the loser.
+				// Serialising that would mean holding a lock across a Discord call, which is exactly what the
+				// note at the top of this block exists to avoid.
+				liveName = null;
+			}
+
+			try {
+				if (liveName === null) {
+					const command = await api.applicationCommands.createGuildCommand(
+						applicationId,
+						guildId,
+						buildSnippetCommandBody(data.name),
+					);
+
+					commandId = command.id;
+					deleteRecreatedCommand = async () =>
+						api.applicationCommands.deleteGuildCommand(applicationId, guildId, command.id);
+				} else if (liveName !== data.name) {
 					await api.applicationCommands.editGuildCommand(applicationId, guildId, existing.commandId, {
 						name: data.name,
 					});
-				} catch (error) {
-					if (error instanceof DiscordAPIError && error.status === 400) {
-						throw badData('not a valid Discord command name');
-					}
-
-					throw error;
 				}
+			} catch (error) {
+				if (error instanceof DiscordAPIError && error.status === 400) {
+					throw badData('not a valid Discord command name');
+				}
+
+				throw error;
 			}
 		}
 
@@ -139,6 +179,7 @@ export default defineRoute({
 				const [updated] = await sql<Snippets[]>`
 					UPDATE snippets
 					SET
+						command_id = ${commandId},
 						name = ${name},
 						content = ${content},
 						attachment_url = ${attachmentUrl},
@@ -151,6 +192,20 @@ export default defineRoute({
 				return updated!;
 			});
 		} catch (error) {
+			// The row still points at the old, dead id, so a replacement minted above (#369) now backs
+			// nothing and would answer `/name` with bot-core's "no handler found". Fire-and-forget, exactly
+			// as `createSnippet.ts` cleans up after its own failed insert.
+			if (deleteRecreatedCommand) {
+				const cleanup = deleteRecreatedCommand;
+				void (async () => {
+					try {
+						await cleanup();
+					} catch (cleanupError) {
+						req.logger.error({ err: cleanupError }, 'failed to clean up orphaned snippet command');
+					}
+				})();
+			}
+
 			if (isUniqueViolation(error, 'snippets_guild_id_name_key')) {
 				throw conflict('a snippet with this name already exists');
 			}
