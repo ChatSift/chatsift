@@ -8,6 +8,7 @@ import {
 	revokeDashboardSession,
 } from '@chatsift/backend-core';
 import type { Logger } from '@chatsift/backend-core';
+import { CookielessClientHeader } from '@chatsift/core';
 import type { AmaSessions } from '@chatsift/db';
 import { forbidden, internal, unauthorized } from '@hapi/boom';
 import { parseCookie } from 'cookie';
@@ -16,7 +17,7 @@ import type { Response } from 'polka';
 import { IS_AUTHED_MARKER, IS_GUILD_MANAGER_MARKER } from '../core/isAuthedMarker.js';
 import { defineMiddleware } from '../core/route.js';
 import type { TypedMiddleware } from '../core/route.js';
-import { isUnauthorizedDiscordError } from '../util/discordErrors.js';
+import { isRejectedGrantDiscordError, isUnauthorizedDiscordError } from '../util/discordErrors.js';
 import type { RefreshedOAuthData } from '../util/discordOAuthRefresh.js';
 import { refreshDiscordAccessToken } from '../util/discordOAuthRefresh.js';
 import type { Me, MeGuild } from '../util/me.js';
@@ -171,18 +172,54 @@ export function isAuthed(options: IsAuthedOptions): TypedMiddleware<object>[] {
 
 	const middleware: TypedMiddleware<object>[] = [
 		defineMiddleware(async (req, res, next) => {
+			// See `CookielessClientHeader`'s doc comment: this caller forwards the session's cookies but drops
+			// every cookie written back, which makes a discord refresh-token rotation performed on its behalf a
+			// silent session-killer rather than a renewal. Read once here, acted on in `rotate` below -- it's the
+			// only thing in this middleware that can't be redone by a later request.
+			const isCookielessClient = req.headers[CookielessClientHeader.toLowerCase()] !== undefined;
+
 			async function refreshOAuth(refreshToken: Extract<RefreshTokenData, { kind: 'oauth' }>): Promise<void> {
 				// Redeems the refresh token for a new pair. Resolves to `null` once it has already responded --
 				// a refresh token discord won't accept is the one case here that genuinely can't be recovered from
 				// without the user logging in again.
 				async function rotate(): Promise<RefreshedOAuthData | null> {
+					if (isCookielessClient) {
+						req.logger.info('declining to rotate a discord refresh token for a client that cannot store cookies');
+						// Deliberately only the access token, never `noopRefreshToken`: nothing here says the session is
+						// dead, only that *this* caller can't be the one to renew it. The access token is nooped so the
+						// caller drops its cached copy of the expired one (`apps/website`'s `serverTokenCache`); the
+						// refresh cookie is left exactly as it is for the browser to renew through directly.
+						noopAccessToken(res);
+						await next(fallthrough ? undefined : unauthorized('session refresh requires a cookie-capable client'));
+						return null;
+					}
+
 					req.logger.info('refreshing discord access token');
 					try {
 						const rotated = await refreshDiscordAccessToken(refreshToken.discordRefreshToken, req.logger);
 						req.logger.info('request successfully refreshed token');
 						return rotated;
 					} catch (error) {
-						req.logger.warn({ err: error }, 'error refreshing discord access token, invalidating login');
+						// The same rule the reuse path below applies to `fetchMe`, applied to the one call whose failure
+						// used to cost a login outright: `invalid_grant` -- discord rejecting *this user's* refresh
+						// token -- is the only unrecoverable case. Everything else leaves the session alone and
+						// surfaces as a plain 5xx for the client to retry: a discord 5xx, a rate limit or a socket
+						// error says nothing about the token, and `refreshDiscordAccessToken` drops its coalescing
+						// entry on any failure, so a request that never reached discord hasn't spent the refresh
+						// token either.
+						//
+						// `401 invalid_client` belongs firmly on that second branch, and deliberately so: it means
+						// *this service's* credentials were refused, which is a deployment fault. Treating it as a
+						// dead grant is precisely what #384 was -- the rotation call shipped without its
+						// `client_id`/`client_secret` (see `util/discordOAuthRefresh.ts`), every attempt came back
+						// `401`, and every session in the system was cleared a week after it was created. Do not
+						// widen this back out to a status check.
+						if (!isRejectedGrantDiscordError(error)) {
+							req.logger.warn({ err: error }, 'discord token refresh failed transiently, leaving the session intact');
+							throw error;
+						}
+
+						req.logger.warn({ err: error }, 'discord rejected the refresh token, invalidating login');
 						noopAccessToken(res);
 						noopRefreshToken(res);
 						await next(fallthrough ? undefined : unauthorized('invalidated refresh token'));

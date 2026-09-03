@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { clearTimeout, setTimeout } from 'node:timers';
+import { getContext } from '@chatsift/backend-core';
 import type { Logger } from '@chatsift/backend-core';
 import type { RESTPostOAuth2AccessTokenResult } from '@discordjs/core';
 import { discordAPIOAuth } from './discordAPI.js';
@@ -71,6 +72,15 @@ export async function refreshDiscordAccessToken(
 	const promise = (async () => {
 		try {
 			const rotated = await discordAPIOAuth.oauth2.refreshToken({
+				// Discord authenticates the *application* on every token-endpoint grant, and `refreshToken` sends
+				// `auth: false` -- so without these two in the form body the request carries no client identity at
+				// all and comes back `401 invalid_client`, no matter how good the user's refresh token is. That is
+				// exactly what shipped: `discord-api-types` types these as `{both} | {neither}`, so omitting them
+				// typechecks, and every rotation this service ever attempted failed for that reason (#384). The
+				// authorization-code exchange (`routes/auth/discordCallback.ts`) and the revocation on logout have
+				// always passed them; only this call didn't.
+				client_id: getContext().env.OAUTH_DISCORD_CLIENT_ID,
+				client_secret: getContext().env.OAUTH_DISCORD_CLIENT_SECRET,
 				grant_type: 'refresh_token',
 				refresh_token: discordRefreshToken,
 			});

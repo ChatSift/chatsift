@@ -10,6 +10,7 @@ import {
 	initContext,
 	NewAccessTokenHeader,
 } from '@chatsift/backend-core';
+import { CookielessClientHeader } from '@chatsift/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import jwt from 'jsonwebtoken';
 import type { Request, Response } from 'polka';
@@ -283,6 +284,20 @@ const makeMockedRequest = (data: any) => ({ logger: getContext().logger, ...data
 const makeDiscordError = (status: number, message: string) =>
 	new DiscordAPIError({ code: 0, message }, 0, status, 'GET', 'https://discord.com', {});
 const unauthorizedDiscordError = () => makeDiscordError(401, '401: Unauthorized');
+// What discord's *token* endpoint answers a spent/revoked refresh token with -- the one failure that genuinely
+// means the login is unrecoverable, as opposed to discord simply being unavailable.
+// A token-endpoint response is an OAuth error body (`{ error, error_description? }`), not a regular discord
+// API error -- `@discordjs/rest` puts the `error` string in `code` and leaves `message` as "No Description"
+// when there's no `error_description`. Built in that exact shape here, because telling `invalid_grant` from
+// `invalid_client` is the whole point of `isRejectedGrantDiscordError`.
+const makeOAuthError = (code: string, status: number) =>
+	new DiscordAPIError({ error: code }, code, status, 'POST', 'https://discord.com/api/v10/oauth2/token', {});
+const rejectedGrantDiscordError = () => makeOAuthError('invalid_grant', 400);
+// Node lowercases incoming header names, so that's the shape `isAuthed` reads this one in.
+const cookielessHeaders = (extra: Record<string, string>) => ({
+	[CookielessClientHeader.toLowerCase()]: '1',
+	...extra,
+});
 // Comfortably past `refresh`'s ~7 minute buffer, so it reuses the stored access token instead of rotating it.
 const stillValidCookie = () => `refresh_token=${makeRefreshJWT({ accessTokenExpiresInMs: 1_000 * 60 * 60 })}`;
 const MockedResponse = Http2ServerResponse as unknown as new () => Response;
@@ -527,6 +542,18 @@ describe('no fallthrough', () => {
 			);
 
 			expect(next).toHaveBeenCalledWith();
+			// Discord authenticates the application on every token-endpoint grant, and `refreshToken` sends no
+			// `Authorization` header -- so these two have to be in the form body or the request comes back
+			// `401 invalid_client` regardless of how good the refresh token is. They were missing for the entire
+			// life of this auth system, which is what #384 turned out to be; `discord-api-types` types them as
+			// "both or neither", so nothing but this assertion catches their absence.
+			expect(refreshTokenMock).toHaveBeenCalledWith(
+				expect.objectContaining({
+					client_id: expect.any(String),
+					client_secret: expect.any(String),
+					grant_type: 'refresh_token',
+				}),
+			);
 			expect(res.setHeader).toHaveBeenCalledTimes(2);
 			// Refresh cookie first, access token second: discord invalidates the old refresh token the instant the
 			// rotation succeeds, so the new one is committed to the response before anything that can still throw
@@ -538,7 +565,7 @@ describe('no fallthrough', () => {
 		test("good refresh token but user's discord refresh did not work", async () => {
 			const res = new MockedResponse();
 			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
-			refreshTokenMock.mockRejectedValue(new Error('lol, lmao even'));
+			refreshTokenMock.mockRejectedValue(rejectedGrantDiscordError());
 
 			await middleware(
 				makeMockedRequest({
@@ -556,6 +583,85 @@ describe('no fallthrough', () => {
 			expect(res.setHeader).toHaveBeenCalledTimes(2);
 			expect(res.setHeader).toHaveBeenNthCalledWith(1, NewAccessTokenHeader, 'noop');
 			expect(res.setHeader).toHaveBeenNthCalledWith(2, 'Set-Cookie', expect.stringContaining('refresh_token=noop'));
+		});
+
+		// The reuse path has always distinguished "discord rejected this credential" from "discord was having a
+		// bad minute"; the rotation didn't, so a 5xx, a rate limit or a socket error on the one request that
+		// happened to need a refresh spent a real logout on a session that was never actually dead (#384).
+		test.each([
+			['a discord 5xx', () => makeDiscordError(503, '503: Service Unavailable')],
+			['a rate limit', () => makeDiscordError(429, '429: Too Many Requests')],
+			// Not a `DiscordAPIError` at all -- what a socket error or an aborted request surfaces as.
+			['a network error', () => new Error('socket hang up')],
+			// The one that actually shipped: this service's own client credentials being rejected. Every rotation
+			// attempted between the auth rewrite and #384 came back exactly like this, and every one of them was
+			// read as the *user's* login being dead -- so every session died a week after it was created.
+			['rejected client credentials', () => makeOAuthError('invalid_client', 401)],
+		])('does not invalidate the login over %s during a rotation', async (_label, makeError) => {
+			const res = new MockedResponse();
+			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+			refreshTokenMock.mockRejectedValue(makeError());
+
+			await expect(
+				middleware(
+					makeMockedRequest({
+						headers: {
+							authorization: makeAccessJWT({ expiresIn: 0 }),
+							cookie: `refresh_token=${makeRefreshJWT()}`,
+						},
+					}),
+					res,
+					next,
+				),
+			).rejects.toThrow();
+
+			// The whole point: the session survives for the next request to retry with, rather than the user
+			// being bounced to discord's OAuth screen over a transient failure.
+			expect(res.setHeader).not.toHaveBeenCalledWith('Set-Cookie', expect.stringContaining('refresh_token=noop'));
+			expect(next).not.toHaveBeenCalledWith(makeExpectedBoom(401, 'invalidated refresh token'));
+		});
+
+		// `apps/website`'s SSR fetch forwards the browser's cookies but drops every cookie written back (Next
+		// won't let a server-component render set one). A rotation performed for it is therefore a silent
+		// session-killer: discord invalidates the old refresh token immediately, and the new pair only ever
+		// existed in the cookie that caller is about to throw away (#384).
+		describe('cookieless client', () => {
+			test('refuses to rotate, and leaves the session intact for the browser to renew', async () => {
+				const res = new MockedResponse();
+				await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+				await middleware(
+					makeMockedRequest({
+						headers: cookielessHeaders({
+							authorization: makeAccessJWT({ expiresIn: 0 }),
+							cookie: `refresh_token=${makeRefreshJWT()}`,
+						}),
+					}),
+					res,
+					next,
+				);
+
+				expect(refreshTokenMock).not.toHaveBeenCalled();
+				expect(next).toHaveBeenCalledWith(makeExpectedBoom(401, 'cookie-capable client'));
+				// Only the access token is nooped (so the caller drops its cached copy of the expired one) -- the
+				// refresh cookie is deliberately untouched, since nothing here says the session is dead.
+				expect(res.setHeader).toHaveBeenCalledWith(NewAccessTokenHeader, 'noop');
+				expect(res.setHeader).not.toHaveBeenCalledWith('Set-Cookie', expect.stringContaining('refresh_token=noop'));
+			});
+
+			test('still serves a request that needs no rotation at all', async () => {
+				const res = new MockedResponse();
+				await attachHttpUtils()({} as unknown as Request, res, vi.fn());
+
+				getCurrentUserMock.mockResolvedValue({ id: USER_ID });
+				getGuildsMock.mockResolvedValue([]);
+
+				await middleware(makeMockedRequest({ headers: cookielessHeaders({ cookie: stillValidCookie() }) }), res, next);
+
+				expect(refreshTokenMock).not.toHaveBeenCalled();
+				expect(next).toHaveBeenCalledWith();
+				expect(res.setHeader).toHaveBeenCalledWith(NewAccessTokenHeader, expect.any(String));
+			});
 		});
 	});
 
@@ -592,7 +698,7 @@ describe('no fallthrough', () => {
 			await attachHttpUtils()({} as unknown as Request, res, vi.fn());
 
 			getCurrentUserMock.mockRejectedValue(unauthorizedDiscordError());
-			refreshTokenMock.mockRejectedValue(new Error('invalid_grant'));
+			refreshTokenMock.mockRejectedValue(rejectedGrantDiscordError());
 
 			await middleware(makeMockedRequest({ headers: { cookie: stillValidCookie() } }), res, next);
 

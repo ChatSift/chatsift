@@ -39,6 +39,21 @@ export const RefreshTokenCookie = 'refresh_token' as const;
 export const RealtimeClientIdHeader = 'X-Realtime-Client-Id' as const;
 
 /**
+ * Marks a caller that physically cannot persist a `Set-Cookie` -- today that's `apps/website`'s SSR/RSC fetch
+ * path (`apiFetchServer`), which forwards the browser's cookies to the API but has nowhere to put the response's:
+ * Next refuses `cookies().set()` during a server-component render, so every cookie the API writes back on that
+ * path is dropped on the floor.
+ *
+ * Almost everything the session layer writes is idempotent enough for that not to matter -- a re-signed refresh
+ * JWT wrapping the same Discord credentials is no loss. The one thing that is *not* is a Discord refresh-token
+ * rotation: Discord invalidates the old token the instant the new pair is issued, so a rotation performed for a
+ * caller that then drops the cookie leaves the browser holding a spent credential and a session that hard-logs-out
+ * the next time it's used (#384). `services/api`'s `middleware/isAuthed.ts` reads this header to refuse exactly
+ * that, and nothing else.
+ */
+export const CookielessClientHeader = 'X-Cookieless-Client' as const;
+
+/**
  * A canned AutoModerator report reason (P3): how long one may be, and how many a guild may have.
  *
  * Both are Discord's limits rather than ours -- a preset is rendered as a select-menu option, whose label caps

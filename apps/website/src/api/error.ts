@@ -28,6 +28,25 @@ export function toZodErrorTree(source: {
 	};
 }
 
+/**
+ * Raised by the SSR/RSC fetch path (`apiFetchServer`) when the API 401s a request that carried a session cookie.
+ *
+ * That 401 is genuinely inconclusive there, and the distinction matters: the server forwards the browser's
+ * cookies but can't store the ones written back, so the API refuses to renew a session through it (see
+ * `CookielessClientHeader`) -- meaning "your session expired" and "your session is fine, it just needs a
+ * renewal only the browser can persist" arrive as the exact same status. Deliberately *not* an `APIError`, so
+ * nothing downstream can mistake it for a definitive "logged out": `me.queryFn`'s 401 handling would otherwise
+ * hand `prefetch` a `null` user, the layout would dehydrate that, and `NavGateProvider` would bounce a live
+ * session to Discord's OAuth screen on arrival (#384). Thrown instead, `prefetch` drops the query and the
+ * browser -- which *can* store cookies -- resolves the real answer on mount.
+ */
+export class SessionRefreshUnavailableError extends Error {
+	public constructor() {
+		super('the session could not be resolved server-side');
+		this.name = 'SessionRefreshUnavailableError';
+	}
+}
+
 export class APIError extends Error {
 	/**
 	 * Machine-readable field indicator a route can attach to a domain error (e.g. a 409 conflict) via
