@@ -13,6 +13,7 @@ vi.mock('@chatsift/backend-core', () => ({
 	ENV: { IS_PRODUCTION: false },
 	decrypt: (data: string) => decrypt(data) as string,
 	getContext: () => ({
+		FRONTEND_URL: 'https://example.com',
 		db: () => webhookRows,
 		service: { client: { api: { webhooks: { execute, editMessage } } } },
 	}),
