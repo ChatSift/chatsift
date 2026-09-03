@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import type { GuildListKey } from '../data/bots.js';
 import {
 	addGuildToList,
+	countGuildList,
 	dropGuildList,
 	guildListExists,
 	readGuildList,
@@ -77,6 +78,9 @@ vi.mock('../context.js', () => ({
 				}
 
 				sets.set(key, set);
+			},
+			async sCard(key: string) {
+				return live(key) ? sets.get(key)!.size : 0;
 			},
 			async sMembers(key: string) {
 				return live(key) ? [...sets.get(key)!].map((member) => Buffer.from(member)) : [];
@@ -289,4 +293,22 @@ test('the last guild leaving does not read as lost state', async () => {
 	// zero-guild condition a fresh app boots into.
 	await expect(touchGuildList('AMA', 0)).resolves.toBe(true);
 	await expect(readGuildList('AMA')).resolves.toStrictEqual([]);
+});
+
+test("counts one replica's own slice, never the union", async () => {
+	// `discord_guilds` is published per replica and summed by Prometheus, so a count that reached across
+	// replicas would multiply the fleet total by the replica count.
+	await ready('AMA', 0, ['1', '2']);
+	await ready('AMA', 1, ['3']);
+
+	await expect(countGuildList('AMA', 0)).resolves.toBe(2);
+	await expect(countGuildList('AMA', 1)).resolves.toBe(1);
+});
+
+test('a replica in no guilds counts zero rather than failing', async () => {
+	// Redis has no empty sets, so a bot that has joined nothing has no slice key at all -- the same absence the
+	// separate liveness marker exists to disambiguate. `SCARD` of a missing key is 0, which here is the truth.
+	await ready('AMA', 0);
+
+	await expect(countGuildList('AMA', 0)).resolves.toBe(0);
 });

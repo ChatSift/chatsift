@@ -3,6 +3,7 @@ import { setImmediate } from 'node:timers';
 import type { REST } from '@discordjs/rest';
 import { WebSocketShardEvents } from '@discordjs/ws';
 import type { WebSocketManager } from '@discordjs/ws';
+import { Registry } from 'prom-client';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { stubBackendCoreEnv } from './testEnv.js';
 
@@ -25,6 +26,7 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 		// the client into `recoverLostGuildList`, which SIGTERMs the vitest process.
 		guildListExists: vi.fn(async () => true),
 		syncShardGuildList: vi.fn(),
+		countGuildList: vi.fn(async () => 3),
 		addGuildToList: vi.fn(),
 		removeGuildFromList: vi.fn(),
 		touchGuildList: vi.fn(async () => true),
@@ -133,4 +135,47 @@ test('a reconnect storm bootstraps at most once per process', async () => {
 	});
 
 	expect(bulkOverwrite).toHaveBeenCalledOnce();
+});
+
+test("READY publishes the replica's guild count, labelled with the bare bot id", async () => {
+	// A custom ModMail instance passes `MODMAIL#<slug>` as its guild-list key; the label has to stay `MODMAIL`
+	// or its guilds sum as a bot of their own, separately from the public deployment Prometheus already splits
+	// out with a `modmail_instance` target label.
+	const gateway = new EventEmitter();
+	const register = new Registry();
+	createBotClient({
+		botId: 'MODMAIL#nascar',
+		gateway: gateway as unknown as WebSocketManager,
+		register,
+		rest: fakeRest().rest,
+	});
+
+	dispatch(gateway, 'READY', { application: { id: 'app-from-ready' }, guilds: [] });
+
+	await vi.waitFor(async () =>
+		expect(await register.getSingleMetricAsString('discord_guilds')).toContain('discord_guilds{bot="MODMAIL"} 3'),
+	);
+});
+
+test('RESUMED publishes it too, since that is the path an ordinary restart comes back through', async () => {
+	// Caught in review on #391. A restart replays as RESUMED on a brand new process, so leaving this to the
+	// ten-second heartbeat left the *common* case with no series for a whole scrape interval -- exactly the gap
+	// the READY publish exists to close, on the path that runs far more often.
+	const gateway = new EventEmitter();
+	const register = new Registry();
+	createBotClient({ botId: 'AMA', gateway: gateway as unknown as WebSocketManager, register, rest: fakeRest().rest });
+
+	dispatch(gateway, 'RESUMED', null);
+
+	await vi.waitFor(async () =>
+		expect(await register.getSingleMetricAsString('discord_guilds')).toContain('discord_guilds{bot="AMA"} 3'),
+	);
+});
+
+test('no registry means no gauge, and the client still stands up', async () => {
+	const gateway = new EventEmitter();
+	createBotClient({ botId: 'AMA', gateway: gateway as unknown as WebSocketManager, rest: fakeRest().rest });
+
+	dispatch(gateway, 'READY', { application: { id: 'app-from-ready' }, guilds: [] });
+	await vi.waitFor(() => expect(bulkOverwrite).toHaveBeenCalledOnce());
 });

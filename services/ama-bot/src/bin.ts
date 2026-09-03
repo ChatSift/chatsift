@@ -33,7 +33,7 @@ const gateway = await createBotGateway({
 	intents: GatewayIntentBits.Guilds,
 	rest,
 });
-setServiceValue('client', createBotClient({ botId: 'AMA', gateway, rest }));
+setServiceValue('client', createBotClient({ botId: 'AMA', gateway, register, rest }));
 
 await bin();
 startMetricsServer({ port: ENV.AMA_METRICS_PORT, register });
