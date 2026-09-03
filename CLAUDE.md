@@ -46,6 +46,8 @@ M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done a
 - Parallel agents run in `git worktree`s under `.claude/worktrees/`, bootstrapped automatically by a `SessionStart` hook. A worktree shares the host's one Postgres/Redis/compose project with every other checkout, so `./compose` refuses to run there and `db:*` targets a per-worktree database — see [docs/workflow.md](docs/workflow.md#parallel-work-with-git-worktrees) before touching shared infra from one.
 - **Never run `git commit` or any GitHub write action (creating milestones/labels/issues/PRs, etc.) on the user's behalf.** Do the analysis/content work, leave changes staged or written to disk, and hand back exact commands or a step-by-step instruction doc for the user to run themselves. Read-only `gh`/`git` inspection is fine.
 - Developers working on this project dislike "Auto Mode" on Agents. Consider if your proposed shell command will need to be approved and try to avoid it by getting your work done with what is pre-approved in .claude/*.json
+- You'll use Git worktrees whenever you are asked explicitly. Do not prefix the branch name with worktree-. Use a relevant
+  branch name analog to semantic commits (like `refactor/bot-core-sharding`)
 
 ## Frontend (`apps/website`)
 
