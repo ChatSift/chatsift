@@ -1,8 +1,9 @@
 import { URL } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { discordAttachmentFilename } from '@chatsift/core';
 import type { Categories, Threads, ThreadsId } from '@chatsift/db';
-import type { APIGuildMember, APIUser, Snowflake } from '@discordjs/core';
+import type { APIEmbed, APIGuildMember, APIUser, Snowflake } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { apiForGuild } from '../../../util/discordAPI.js';
 import { resolveDiscordUser } from '../../../util/users.js';
@@ -146,10 +147,10 @@ export interface RecordedAttachmentJson {
 
 export interface ResolvedThreadMessageAttachment extends RecordedAttachmentJson {
 	/**
-	 * `false` when the attachment's url had expired and re-fetching the source message either came back
-	 * without a matching attachment or 404'd outright -- the frontend renders this as "attachment no
-	 * longer exists on Discord" instead of trying to load `url` (which is left at its last-known,
-	 * possibly-stale value purely for debugging, not for the frontend to actually use).
+	 * `false` when the attachment's url had expired and re-fetching the source message came back with
+	 * neither a matching attachment nor a matching embed image, or 404'd outright -- the frontend renders
+	 * this as "attachment no longer exists on Discord" instead of trying to load `url` (which is left at
+	 * its last-known, possibly-stale value purely for debugging, not for the frontend to actually use).
 	 */
 	available: boolean;
 }
@@ -180,6 +181,36 @@ function isAttachmentUrlExpired(url: string): boolean {
 }
 
 /**
+ * Indexes a refetched message's embed images by attachment filename.
+ *
+ * Load-bearing for the single-image case, by far the most common one: `services/modmail-bot`'s
+ * `lib/media.ts#buildRelayMedia` claims a lone image into the relay embed's `image` slot instead of
+ * letting it ride as a gallery entry, and Discord then reports an empty top-level `attachments` array for
+ * that message (verified live, #261). Matching only against `attachments` therefore found nothing and
+ * flagged a perfectly intact attachment `available: false` (#371) -- the recorded url came off the embed
+ * in the first place (`relay.ts#buildRecordedAttachments`), so healing it has to as well.
+ *
+ * Anything that isn't a Discord CDN attachment url -- a snippet's fixed `externalImageUrl`, an arbitrary
+ * external image -- yields no filename and is skipped, so it can never stand in for a recorded attachment.
+ */
+function embedImageUrlsByFilename(embeds: APIEmbed[]): Map<string, string> {
+	const byFilename = new Map<string, string>();
+	for (const embed of embeds) {
+		const url = embed.image?.url;
+		if (url === undefined) {
+			continue;
+		}
+
+		const filename = discordAttachmentFilename(url);
+		if (filename !== undefined && !byFilename.has(filename)) {
+			byFilename.set(filename, url);
+		}
+	}
+
+	return byFilename;
+}
+
+/**
  * Refreshes recorded attachment urls on read instead of accepting permanent staleness or re-hosting the
  * files ourselves -- the mod-forum message these were re-uploaded onto is never deleted (#261's core
  * storage decision), so a signed-url expiry can always be healed by re-fetching that same message and
@@ -203,11 +234,17 @@ export async function resolveMessageAttachments(
 	try {
 		const message = await apiForGuild('MODMAIL', guildId).channels.getMessage(modThreadId, guildMessageId);
 		const byFilename = new Map(message.attachments.map((attachment) => [attachment.filename, attachment]));
+		const embedImages = embedImageUrlsByFilename(message.embeds);
 
 		return attachments.map((attachment): ResolvedThreadMessageAttachment => {
 			const fresh = byFilename.get(attachment.filename);
 			if (!fresh) {
-				return { ...attachment, available: false };
+				// Only the url is recoverable from an embed -- content type and size aren't on it, so the
+				// recorded ones stand, exactly as they did when this attachment was first written.
+				const embedImageUrl = embedImages.get(attachment.filename);
+				return embedImageUrl === undefined
+					? { ...attachment, available: false }
+					: { ...attachment, available: true, url: embedImageUrl };
 			}
 
 			return {
