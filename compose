@@ -1,5 +1,12 @@
 #!/bin/bash
 
+if [ "$(git rev-parse --absolute-git-dir 2>/dev/null)" != "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" ] && [ -z "${CHATSIFT_ALLOW_WORKTREE_COMPOSE:-}" ]
+then
+  echo 'refusing to run from a linked git worktree: this would drive the main checkout stack.' >&2
+  echo 'Run it from the main checkout, or set CHATSIFT_ALLOW_WORKTREE_COMPOSE=1 to override.' >&2
+  exit 1
+fi
+
 # Passed to `docker compose` natively so file contents are parsed as plain KEY=value pairs,
 # never executed as shell (unlike `source`/`export $(... | xargs)`, both of which let a value
 # containing $(...) or backticks run arbitrary commands).

@@ -3,6 +3,7 @@
 .idea
 .vscode
 .husky
+.claude
 
 **/node_modules
 **/types
@@ -19,6 +20,7 @@
 .commitlinrrc.json
 .gitignore
 .env.private.example
+.env.worktree
 
 LICENSE
 **/README.md

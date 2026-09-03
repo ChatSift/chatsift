@@ -240,6 +240,53 @@ Also as part of #277: the `postgres-overview` dashboard's "Top 20 Queries by Mea
 deployment is single-database/single-user) via the same `fieldConfig.overrides`/`custom.hidden` mechanism already
 used to hide `job`/`instance`.
 
+## Parallel work with git worktrees
+
+Several agents can work at once, each in its own `git worktree` under `.claude/worktrees/` (gitignored). A worktree
+starts with only _tracked_ files, so on its own it cannot build — `.env.private`, `build/prometheus/metrics_secret`,
+`.yarn/cache` and `.turbo/cache` are all gitignored. `scripts/worktree-bootstrap.sh` symlinks all four back to the
+main checkout: the two secrets so a rotation is never stale in a forgotten copy, the two caches because they are
+~2.5G that must not be duplicated per worktree (turbo's cache is content-addressed and path-independent, so a build
+in one worktree warms every other). A `SessionStart` hook in `.claude/settings.json` runs it automatically; it is
+idempotent and a no-op in the main checkout.
+
+`node_modules` is deliberately **not** shared. Yarn's node-modules linker resolves workspace packages
+(`@chatsift/db`, `@chatsift/core`, …) through symlinks in the root `node_modules`, so sharing that tree would make a
+worktree build against the _main checkout's_ sources — precisely the cross-talk worktrees exist to prevent. Each
+worktree runs its own `yarn install`, which the shared yarn cache reduces to a local copy rather than a download.
+
+Creating one by hand (Claude Code's own worktree support does the equivalent):
+
+```bash
+git worktree add .claude/worktrees/<name> -b <branch>
+cd .claude/worktrees/<name> && ./scripts/worktree-bootstrap.sh && yarn install
+```
+
+### What is shared, and what a worktree must not touch
+
+The host has exactly one dev stack — one Postgres, one Redis, one compose project — and every worktree sees it
+through the symlinked `.env.private`. Two guards keep a worktree from mutating it out from under the main checkout:
+
+- **`./compose` refuses to run from a worktree.** `COMPOSE_PROJECT_NAME` is shared, so `./compose down -v` or a
+  rebuild started in a worktree would act on the containers and volumes the main checkout is using. Set
+  `CHATSIFT_ALLOW_WORKTREE_COMPOSE=1` to override, only when that is genuinely what you want.
+- **Each worktree gets its own database.** Bootstrap writes a gitignored `.env.worktree` pointing `DATABASE_URL_DEV`
+  at `chatsift_wt_<slug>`, and every root `dev:*`/`db:*`/`migrate:*`/`seed:*` script now loads it ahead of
+  `.env.private`/`.env.public` (dotenv-cli's first `-e` wins, and a missing file is skipped silently, so the main
+  checkout is unaffected). Without it, `yarn db:migrate` on a feature branch would apply that branch's migrations to
+  the single database every other checkout reads.
+
+  The database is not created for you — `yarn db:migrate` failing loudly beats silently writing somewhere shared:
+
+  ```bash
+  docker exec -i <compose-project>-postgres-1 createdb -U chatsift chatsift_wt_<slug>
+  yarn db:migrate
+  ```
+
+Redis, the dev ports (`3000`, `7004`–`7009`) and the Discord bot tokens stay shared and unguarded. Two dev servers or
+two bots running at once will collide — but per the [verification standard](#verification-standard) that is the
+operator's lane, and an agent's job in a worktree (`yarn build`, `lint`, `test`) touches none of them.
+
 ## Deploying
 
 Two deployments run on the one VPS, from one codebase:

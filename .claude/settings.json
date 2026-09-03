@@ -20,7 +20,22 @@
 			"Bash(yarn eslint *)",
 			"Bash(yarn db:diff *)",
 			"Bash(yarn db:migrate *)",
-			"Bash(yarn db:gen)"
+			"Bash(yarn db:gen)",
+			"Bash(./scripts/worktree-bootstrap.sh)"
+		]
+	},
+	"hooks": {
+		"SessionStart": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash \"$(git rev-parse --show-toplevel)/scripts/worktree-bootstrap.sh\" 2>&1 || true",
+						"timeout": 15,
+						"statusMessage": "Bootstrapping worktree..."
+					}
+				]
+			}
 		]
 	}
 }
