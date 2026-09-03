@@ -36,14 +36,12 @@ vi.mock('@chatsift/backend-core', () => ({
 		},
 	}),
 	publishRealtimeInvalidate: async () => undefined,
-	// Reached through `caseLog.js`, which the ladder now uses to render its case number as a link.
-	RedisStore: class {},
 }));
 
 vi.mock('../moderation.js', () => ({
 	async applyModerationAction(request: ModerationRequest) {
 		requests.push(request);
-		return { case: { caseId: 7, guildId: 'guild', logMessageId: null }, suppressed };
+		return { case: { caseId: 7, guildId: 'guild', logMessageId: null }, suppressed, logChannelId: null };
 	},
 }));
 

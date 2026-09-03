@@ -44,6 +44,12 @@ export class CaseFilingError extends Error {
 export class LadderFailureError extends Error {
 	public constructor(
 		public readonly warnCase: AutomoderatorCases,
+		/**
+		 * Where a jump link to the warn's own log message points, so the message telling a moderator the warn was
+		 * still recorded can link them straight at it (#381). Carried on the error because the dispatch that
+		 * resolved it is long unwound by the time anything formats this.
+		 */
+		public readonly logChannelId: string | null,
 		public readonly warns: number,
 		cause: unknown,
 	) {
@@ -121,6 +127,14 @@ export interface ModerationResult {
 	 */
 	readonly ladder?: ModerationResult;
 	/**
+	 * Where a jump link to this case's log message points, or null when the guild has no mod log (#381).
+	 *
+	 * Carried on the result rather than looked up by whoever renders the case number: the dispatch below has
+	 * already read that row, and every consumer -- the command reply, the report card's, the filter log --
+	 * would otherwise re-query it once per case number it prints.
+	 */
+	readonly logChannelId: string | null;
+	/**
 	 * Dry-runs
 	 */
 	readonly suppressed: boolean;
@@ -147,7 +161,9 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 				'skipped a redelivered event -- this case is already on the record',
 			);
 
-			return { case: existing, suppressed: existing.dryRun };
+			// Nothing was dispatched, so there is no webhook row in hand -- and this is the observer's path, where
+			// no case number is rendered back to anybody. See the same reasoning at the post-insert race below.
+			return { case: existing, suppressed: existing.dryRun, logChannelId: null };
 		}
 	}
 
@@ -299,14 +315,18 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 			throw softbanUnbanFailure;
 		}
 
-		return { case: filedCase, suppressed };
+		// No dispatch on this branch -- the delivery that won filed *and* logged the case -- so there is no
+		// webhook row in hand and nothing worth a query for it: this path is the audit observer's, and nothing
+		// there renders a case number back to anyone.
+		return { case: filedCase, suppressed, logChannelId: null };
 	}
 
 	casesCreated.inc({ action, source });
 
 	// Reassigned rather than discarded: a first post is what learns `log_message_id`, and the reply this
 	// function's caller is about to write hyperlinks the case number off exactly that field (#381).
-	filedCase = await dispatchCaseLog(filedCase, logger, source);
+	const dispatched = await dispatchCaseLog(filedCase, logger, source);
+	filedCase = dispatched.case;
 
 	// Rethrown only now that the case exists and its log is out, so the moderator's error message and the
 	// permanent record agree about what happened.
@@ -317,25 +337,26 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 	// Last, and only once the warn is fully on the record: a rung fires with `refId` pointing at this case, and
 	// referencing a case whose log never posted would be a number staff cannot look up.
 	if (action !== 'WARN' || request.skipLadder) {
-		return { case: filedCase, suppressed };
+		return { case: filedCase, suppressed, logChannelId: dispatched.jumpChannelId };
 	}
 
 	const rung = await resolveWarnLadderRung({ warnCase: filedCase, dryRun: suppressed }, logger);
 	if (!rung) {
-		return { case: filedCase, suppressed };
+		return { case: filedCase, suppressed, logChannelId: dispatched.jumpChannelId };
 	}
 
 	try {
 		return {
 			case: filedCase,
 			suppressed,
+			logChannelId: dispatched.jumpChannelId,
 			ladder: await applyModerationAction(buildLadderRequest(rung, filedCase, mod), logger),
 		};
 	} catch (error) {
 		// The warn itself succeeded and is recorded. Surfaced as its own error rather than swallowed or merged
 		// into the warn's failure path, because the moderator needs to be told both halves: the warn landed, and
 		// the punishment it was supposed to trigger did not.
-		throw new LadderFailureError(filedCase, rung.warns, error);
+		throw new LadderFailureError(filedCase, dispatched.jumpChannelId, rung.warns, error);
 	}
 }
 

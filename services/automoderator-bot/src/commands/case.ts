@@ -2,7 +2,7 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
 import type { CaseActionName } from '@chatsift/core';
-import { logJumpChannelId } from '@chatsift/core';
+import { formatCaseNumber, logJumpChannelId } from '@chatsift/core';
 import type { AutomoderatorCases } from '@chatsift/db';
 import { parseRelativeTimeSafe } from '@chatsift/parse-relative-time';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
@@ -17,12 +17,26 @@ import { executeAction } from '../lib/actionExecutor.js';
 import { resolveAvatarURL } from '../lib/avatars.js';
 import { CASE_ACTION } from '../lib/caseActions.js';
 import { buildCaseEmbed, formatDuration } from '../lib/caseFormat.js';
+import type { CaseLogResult } from '../lib/caseLog.js';
 import { dispatchCaseLog, formatCaseRef, getModLogWebhook } from '../lib/caseLog.js';
 import type { CaseActor } from '../lib/cases.js';
 import { actorFromUser, deleteCase, getCaseByNumber, updateCase } from '../lib/cases.js';
 import { REASON_MAX_LENGTH } from '../lib/modCommandOptions.js';
 import { MAX_MUTE_MS, buildAuditReason } from '../lib/moderation.js';
 import { memberMayTakeAction } from '../lib/permissions.js';
+
+/**
+ * The case number a mutating subcommand replies with, hyperlinked through the mod-log channel the dispatch it
+ * just ran already resolved (#381) -- rather than through `formatCaseRef`, which would re-read the same
+ * `automoderator_log_webhooks` row.
+ */
+function refFrom({ case: modCase, jumpChannelId }: CaseLogResult): string {
+	return formatCaseNumber(modCase.caseId, {
+		guildId: modCase.guildId,
+		logChannelId: jumpChannelId,
+		logMessageId: modCase.logMessageId,
+	});
+}
 
 /**
  * Reading and amending existing cases.
@@ -149,7 +163,7 @@ export default class CaseCommand implements CommandHandler {
 			case 'reason': {
 				const updated = await updateCase(modCase.id, { reason: options.getString('reason', true), mod: moderator });
 				const logged = await dispatchCaseLog(updated, logger);
-				await reply(`Updated the reason on case ${await formatCaseRef(logged)}.`);
+				await reply(`Updated the reason on case ${refFrom(logged)}.`);
 				break;
 			}
 
@@ -170,8 +184,14 @@ export default class CaseCommand implements CommandHandler {
 				const updated = await updateCase(modCase.id, { refId, mod: moderator });
 				const logged = await dispatchCaseLog(updated, logger);
 
+				// Both numbers link through the one channel the dispatch just resolved -- the referenced case is in
+				// the same guild, so it is the same mod log.
 				await reply(
-					`Case ${await formatCaseRef(logged)} now references ${await formatCaseRef(reference)}.`,
+					`Case ${refFrom(logged)} now references ${formatCaseNumber(reference.caseId, {
+						guildId,
+						logChannelId: logged.jumpChannelId,
+						logMessageId: reference.logMessageId,
+					})}.`,
 				);
 				break;
 			}
@@ -203,7 +223,7 @@ export default class CaseCommand implements CommandHandler {
 
 				const updated = await updateCase(modCase.id, { pardonedBy: moderator.id });
 				const logged = await dispatchCaseLog(updated, logger);
-				await reply(`Pardoned case ${await formatCaseRef(logged)}.`);
+				await reply(`Pardoned case ${refFrom(logged)}.`);
 				break;
 			}
 
@@ -295,7 +315,7 @@ export default class CaseCommand implements CommandHandler {
 
 		const updated = await updateCase(modCase.id, { expiresAt, mod: moderator });
 		const logged = await dispatchCaseLog(updated, logger);
-		const ref = await formatCaseRef(logged);
+		const ref = refFrom(logged);
 
 		if (remainingMs > 0) {
 			await reply(`Case ${ref} now expires in ${formatDuration(remainingMs)}.`);

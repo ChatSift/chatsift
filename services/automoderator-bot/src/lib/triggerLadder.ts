@@ -1,11 +1,11 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { formatCaseNumber } from '@chatsift/core';
 import type {
 	AutomoderatorCaseAction,
 	AutomoderatorTriggerCounts,
 	AutomoderatorTriggerPunishments,
 } from '@chatsift/db';
-import { formatCaseRef } from './caseLog.js';
 import type { CaseActor } from './cases.js';
 import { traceDecision } from './decisionTrace.js';
 import { applyModerationAction } from './moderation.js';
@@ -208,6 +208,10 @@ export async function applyTriggerLadder(
 	return {
 		count,
 		summary: result.suppressed ? SUMMARY_CONDITIONAL[action] : SUMMARY_PAST[action],
-		caseRef: await formatCaseRef(result.case),
+		caseRef: formatCaseNumber(result.case.caseId, {
+			guildId,
+			logChannelId: result.logChannelId,
+			logMessageId: result.case.logMessageId,
+		}),
 	};
 }

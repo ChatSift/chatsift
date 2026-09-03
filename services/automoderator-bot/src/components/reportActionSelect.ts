@@ -269,7 +269,7 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 					reportsTotal.inc({ state: 'actioned' });
 					const recorded = await recordReportCase(report.id, (error as LadderFailureError).warnCase.caseId);
 					await refreshCard(recorded ?? claimed, logger);
-					await reply(await describeCommandFailure(error));
+					await reply(describeCommandFailure(error));
 					return;
 				}
 
@@ -291,10 +291,10 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 			const recorded = await recordReportCase(report.id, result.case.caseId);
 			await refreshCard(recorded ?? claimed, logger);
 
-			await reply(await describeModerationResult(result, report.targetTag, action as AutomoderatorCaseAction));
+			await reply(describeModerationResult(result, report.targetTag, action as AutomoderatorCaseAction));
 		} catch (error) {
 			logger.error({ err: error, reportId: report.id, action }, 'failed to action a report');
-			await reply(await describeCommandFailure(error));
+			await reply(describeCommandFailure(error));
 		}
 	}
 }

@@ -57,8 +57,9 @@ test('an undecryptable webhook token does not escape', async () => {
 		throw new Error('Unsupported state or unable to authenticate data');
 	});
 
-	// The unchanged row back, because nothing was posted and so no `log_message_id` was learned.
-	await expect(dispatchCaseLog(CASE, logger)).resolves.toBe(CASE);
+	// The unchanged row back, because nothing was posted and so no `log_message_id` was learned -- alongside the
+	// jump channel, which the webhook row already gave up before the token was ever touched.
+	await expect(dispatchCaseLog(CASE, logger)).resolves.toEqual({ case: CASE, jumpChannelId: '2' });
 
 	expect(execute).not.toHaveBeenCalled();
 	expect(logger.error).toHaveBeenCalled();
@@ -67,7 +68,7 @@ test('an undecryptable webhook token does not escape', async () => {
 test('a guild with no mod log never reaches the token at all', async () => {
 	webhookRows = [];
 
-	await expect(dispatchCaseLog(CASE, logger)).resolves.toBe(CASE);
+	await expect(dispatchCaseLog(CASE, logger)).resolves.toEqual({ case: CASE, jumpChannelId: null });
 
 	expect(decrypt).not.toHaveBeenCalled();
 });
