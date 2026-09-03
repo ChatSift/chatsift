@@ -200,8 +200,9 @@ departs from the rules above twice, deliberately:
 
 - **It is not zero-initialised.** Every counter here is, because one that never fired reads as "No data" rather
   than `0`. A replica that has not identified yet is in an _unknown_ number of guilds, not zero, and seeding `0`
-  would make every rolling restart dip the fleet total for as long as an identify takes. READY always arrives, so
-  the series always appears -- including as a real `0` for a bot in no guilds.
+  would make every rolling restart dip the fleet total for as long as an identify takes. Both READY _and_ RESUMED
+  publish it the moment the slice is live -- a routine restart replays as RESUMED, not READY, on a registry that
+  is empty again -- so the series always appears, including as a real `0` for a bot in no guilds.
 - **The `bot` label carries the bare `BotId`,** so a custom ModMail instance's `MODMAIL#<slug>` guild-list key
   still reports as `MODMAIL`. Prometheus already separates those with the `modmail_instance` target label below;
   letting the slug into the metric too would split one bot into two names on top of that.

@@ -157,6 +157,21 @@ test("READY publishes the replica's guild count, labelled with the bare bot id",
 	);
 });
 
+test('RESUMED publishes it too, since that is the path an ordinary restart comes back through', async () => {
+	// Caught in review on #391. A restart replays as RESUMED on a brand new process, so leaving this to the
+	// ten-second heartbeat left the *common* case with no series for a whole scrape interval -- exactly the gap
+	// the READY publish exists to close, on the path that runs far more often.
+	const gateway = new EventEmitter();
+	const register = new Registry();
+	createBotClient({ botId: 'AMA', gateway: gateway as unknown as WebSocketManager, register, rest: fakeRest().rest });
+
+	dispatch(gateway, 'RESUMED', null);
+
+	await vi.waitFor(async () =>
+		expect(await register.getSingleMetricAsString('discord_guilds')).toContain('discord_guilds{bot="AMA"} 3'),
+	);
+});
+
 test('no registry means no gauge, and the client still stands up', async () => {
 	const gateway = new EventEmitter();
 	createBotClient({ botId: 'AMA', gateway: gateway as unknown as WebSocketManager, rest: fakeRest().rest });

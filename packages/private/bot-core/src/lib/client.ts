@@ -97,6 +97,12 @@ export function createBotClient({ botId, gateway, register, rest }: CreateBotCli
 	// this carries the bare `BotId`, matching what `createBotRest` labels `discord_requests_total` with.
 	const bot = botId.split('#')[0]!;
 
+	/**
+	 * Reads this replica's slice and publishes it. Called once each from READY and RESUMED -- whichever of the two
+	 * this boot came back through -- and then on every heartbeat. **Never throws:** a gauge that misses an update
+	 * leaves a gap in a chart, while a rejection here would take down whichever caller it interrupted, which is
+	 * either the command bootstrap or the heartbeat's expiry detection.
+	 */
 	async function publishGuildCount(): Promise<void> {
 		if (!guildCount) {
 			return;
@@ -105,8 +111,6 @@ export function createBotClient({ botId, gateway, register, rest }: CreateBotCli
 		try {
 			guildCount.set({ bot }, await countGuildList(botId, getReplicaIndex()));
 		} catch (error) {
-			// A gauge that misses an update leaves a gap in a chart; letting it throw would take down whichever
-			// caller it interrupted -- READY's command bootstrap, or the heartbeat's expiry detection.
 			getContext().logger.warn({ err: error, botId }, 'Failed to publish the guild count');
 		}
 	}
@@ -182,6 +186,12 @@ export function createBotClient({ botId, gateway, register, rest }: CreateBotCli
 			}
 
 			publishing = true;
+
+			// Published on this path too, and it matters more here than on READY: since the session store an
+			// ordinary restart replays as RESUMED, so this -- not READY -- is what a routine redeploy comes back
+			// through, on a registry that is empty again because the process is new. The slice survived (the
+			// check above just said so), so the count is available immediately rather than a heartbeat later.
+			await publishGuildCount();
 
 			await bootstrapOnce();
 		})
