@@ -1,16 +1,17 @@
 import { EditReportPromptFormLoader } from './_components/EditReportPromptForm';
-import { Heading } from '@/components/common/Heading';
 import { RefreshServerDataButton } from '@/components/common/RefreshServerDataButton';
-import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
+import { AutomoderatorReportPromptCrumbs } from '@/components/dashboard/AutomoderatorReportPromptCrumbs';
+import { PageHeader } from '@/components/dashboard/PageHeader';
 
 export default function EditAutomoderatorReportPromptPage() {
 	return (
-		<div className="flex flex-col [&>*:not(:first-of-type)]:mt-8 [&>*]:first-of-type:mb-4">
-			<DashboardCrumbs />
-			<div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-				<Heading subtitle="Rewrite a prompt already posted in your server" title="Edit Report Prompt" />
-				<RefreshServerDataButton for_bot="AUTOMODERATOR" />
-			</div>
+		<div className="space-y-8">
+			<PageHeader
+				action={<RefreshServerDataButton for_bot="AUTOMODERATOR" />}
+				crumbs={<AutomoderatorReportPromptCrumbs />}
+				subtitle="Rewrite a prompt already posted in your server"
+				title="Edit Report Prompt"
+			/>
 			<EditReportPromptFormLoader />
 		</div>
 	);

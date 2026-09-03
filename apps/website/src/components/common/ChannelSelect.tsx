@@ -34,6 +34,11 @@ interface ChannelSelectProps {
 	 */
 	readonly isLoading?: boolean | undefined;
 	readonly label: string;
+	/**
+	 * What the clear-the-selection option reads as. The generic default is fine where clearing just means "not
+	 * set"; a page where clearing *does* something says so instead ("Disable logging", #375).
+	 */
+	readonly noneLabel?: string;
 	onChange(channelId: string | undefined): void;
 	readonly placeholder?: string;
 	readonly required?: boolean;
@@ -56,6 +61,7 @@ export function ChannelSelect({
 	disabledIds,
 	disabledReason,
 	isLoading = false,
+	noneLabel = 'None',
 }: ChannelSelectProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const selectRef = useRef<HTMLDivElement>(null);
@@ -144,7 +150,7 @@ export function ChannelSelect({
 									key="none"
 									onClick={handleNoneSelect}
 								>
-									<span className="text-sm text-secondary dark:text-secondary-dark">None</span>
+									<span className="text-sm text-secondary dark:text-secondary-dark">{noneLabel}</span>
 								</Button>
 							)}
 							{sortedChannels.map((channel: GuildChannelInfo) => {

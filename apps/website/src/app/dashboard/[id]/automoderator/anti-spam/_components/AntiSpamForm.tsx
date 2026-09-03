@@ -16,6 +16,7 @@ import { useAutomoderatorConfig, useUpdateAutomoderatorConfig } from '@/api/rout
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
+import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 
@@ -165,7 +166,7 @@ export function AntiSpamForm() {
 
 				<div className="flex flex-wrap gap-2">
 					<Button
-						className="rounded-md bg-misc-accent px-3 py-2.5 text-accent transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+						className={buttonClass('primary', 'sm')}
 						isDisabled={!isDirty || updateConfig.isPending}
 						onPress={save}
 					>
@@ -181,18 +182,11 @@ export function AntiSpamForm() {
 					<Link className="text-misc-accent hover:underline" href={`/dashboard/${guildId}/automoderator/filter-ladder`}>
 						filter ladder
 					</Link>
-					, which counts anti-spam, URL and invite hits together. Roles on{' '}
-					<Link className="text-misc-accent hover:underline" href={`/dashboard/${guildId}/automoderator/bypass-roles`}>
-						Bypass Roles
+					, which counts anti-spam, URL and invite hits together. Channels and roles listed under{' '}
+					<Link className="text-misc-accent hover:underline" href={`/dashboard/${guildId}/automoderator/exemptions`}>
+						Exemptions
 					</Link>{' '}
-					are never caught, and channels on{' '}
-					<Link
-						className="text-misc-accent hover:underline"
-						href={`/dashboard/${guildId}/automoderator/filter-exemptions`}
-					>
-						Filter Exemptions
-					</Link>{' '}
-					can be left alone.
+					are left alone.
 				</p>
 			</div>
 		</div>

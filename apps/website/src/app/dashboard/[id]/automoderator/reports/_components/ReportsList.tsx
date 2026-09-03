@@ -11,6 +11,7 @@ import { queryKeys } from '@/api/queryClient';
 import type { AutomoderatorReportListItem } from '@/api/routes/automoderatorReports';
 import { useAutomoderatorReports } from '@/api/routes/automoderatorReports';
 import { Button } from '@/components/common/Button';
+import { DiscordUserAvatar } from '@/components/common/DiscordUserAvatar';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
@@ -37,15 +38,22 @@ function ReportRow({ guildId, report }: { readonly guildId: string; readonly rep
 			className="flex flex-col gap-2 rounded-lg border border-on-secondary bg-card p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-card-dark dark:hover:bg-on-tertiary-dark sm:flex-row sm:items-center sm:justify-between"
 			href={`/dashboard/${guildId}/automoderator/reports/${report.id}`}
 		>
-			<div className="flex flex-col overflow-hidden">
-				<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">
-					{snapshotUserLabel(report.target, report.targetTag)}
-				</p>
-				<p className="truncate text-sm text-secondary dark:text-secondary-dark">{previewLine(report)}</p>
-				<p className="text-sm text-secondary dark:text-secondary-dark">
-					{reporterCountLabel(report.reporterCount)} · {formatDate(new Date(report.createdAt))}
-					{report.caseId ? ` · case #${report.caseId}` : ''}
-				</p>
+			<div className="flex min-w-0 items-center gap-3">
+				<DiscordUserAvatar
+					className="h-10 w-10 shrink-0 rounded-full"
+					initials={snapshotUserLabel(report.target, report.targetTag).slice(0, 2)}
+					user={report.target}
+				/>
+				<div className="flex min-w-0 flex-col overflow-hidden">
+					<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">
+						{snapshotUserLabel(report.target, report.targetTag)}
+					</p>
+					<p className="truncate text-sm text-secondary dark:text-secondary-dark">{previewLine(report)}</p>
+					<p className="text-sm text-secondary dark:text-secondary-dark">
+						{reporterCountLabel(report.reporterCount)} · {formatDate(new Date(report.createdAt))}
+						{report.caseId ? ` · case #${report.caseId}` : ''}
+					</p>
+				</div>
 			</div>
 
 			<div className="flex shrink-0 items-center gap-2">

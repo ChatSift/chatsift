@@ -70,6 +70,26 @@ export default {
 				destination: 'https://ko-fi.com/chatsift',
 				permanent: true,
 			},
+			// The AutoModerator dashboard's sections were regrouped and four of them merged into two pages. These
+			// keep bookmarks and any link already handed to a server's staff working. `permanent: false` on
+			// purpose -- a 308 is cached by the browser forever, and the sections these point at are still being
+			// rearranged.
+			...['log-channels', 'log-exemptions'].map((section) => ({
+				source: `/dashboard/:guildId/automoderator/${section}`,
+				destination: '/dashboard/:guildId/automoderator/logging',
+				permanent: false,
+			})),
+			...['filter-exemptions', 'bypass-roles'].map((section) => ({
+				source: `/dashboard/:guildId/automoderator/${section}`,
+				destination: '/dashboard/:guildId/automoderator/exemptions',
+				permanent: false,
+			})),
+			{
+				// Enforcement is the only thing this page ever held, and it sits on the hub now.
+				source: '/dashboard/:guildId/automoderator/config',
+				destination: '/dashboard/:guildId/automoderator',
+				permanent: false,
+			},
 		];
 	},
 };

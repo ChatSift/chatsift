@@ -1,12 +1,10 @@
 import { EditTriggerPunishmentFormLoader } from '../_components/TriggerPunishmentForm';
-import { Heading } from '@/components/common/Heading';
-import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
+import { PageHeader } from '@/components/dashboard/PageHeader';
 
 export default function EditTriggerPunishmentPage() {
 	return (
-		<div className="flex flex-col [&>*:not(:first-of-type)]:mt-8 [&>*]:first-of-type:mb-4">
-			<DashboardCrumbs />
-			<Heading subtitle="Edit a filter ladder step" title="Edit Step" />
+		<div className="space-y-8">
+			<PageHeader subtitle="Edit a filter ladder step" title="Edit Step" />
 			<EditTriggerPunishmentFormLoader />
 		</div>
 	);

@@ -1,22 +1,20 @@
 import { ActionFilter, IncludePardonedToggle } from './_components/CaseFilters';
 import { CasesList } from './_components/CasesList';
-import { Heading } from '@/components/common/Heading';
 import { SearchBar } from '@/components/common/SearchBar';
-import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
+import { PageHeader } from '@/components/dashboard/PageHeader';
 
 export default function AutomoderatorCasesPage() {
 	return (
-		<>
-			<div className="flex flex-col [&>*:not(:first-of-type)]:mt-8 [&>*]:first-of-type:mb-4">
-				<DashboardCrumbs />
-				<Heading subtitle="Every moderation action taken in this server" title="Cases" />
+		<div className="space-y-8">
+			<PageHeader subtitle="Every moderation action taken in this server" title="Cases" />
+
+			<div className="space-y-4">
 				<SearchBar placeholder="Filter by user id...">
 					<ActionFilter />
 					<IncludePardonedToggle />
 				</SearchBar>
+				<CasesList />
 			</div>
-
-			<CasesList />
-		</>
+		</div>
 	);
 }

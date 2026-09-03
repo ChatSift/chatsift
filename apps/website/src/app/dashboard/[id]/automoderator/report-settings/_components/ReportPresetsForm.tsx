@@ -16,6 +16,7 @@ import { Button } from '@/components/common/Button';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { TextField } from '@/components/common/TextField';
+import { buttonClass } from '@/components/common/buttonStyles';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
@@ -47,7 +48,7 @@ function PresetRow({ guildId, preset }: { readonly guildId: string; readonly pre
 
 			<div className="flex gap-2">
 				<Button
-					className="rounded-md bg-misc-accent px-3 py-2.5 text-accent transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+					className={buttonClass('primary', 'sm')}
 					isDisabled={!isDirty || updatePreset.isPending}
 					onPress={async () => {
 						try {
@@ -61,7 +62,7 @@ function PresetRow({ guildId, preset }: { readonly guildId: string; readonly pre
 				</Button>
 
 				<Button
-					className="rounded-md bg-on-tertiary px-3 py-2.5 text-primary transition-colors hover:bg-on-secondary dark:bg-on-tertiary-dark dark:text-primary-dark dark:hover:bg-on-secondary-dark"
+					className={buttonClass('secondary', 'sm')}
 					isDisabled={deletePreset.isPending}
 					onPress={async () => {
 						try {
@@ -148,7 +149,7 @@ export function ReportPresetsForm() {
 				</div>
 
 				<Button
-					className="rounded-md bg-misc-accent px-3 py-2.5 text-accent transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+					className={buttonClass('primary', 'sm')}
 					isDisabled={atLimit || draft.trim().length === 0 || createPreset.isPending}
 					onPress={async () => {
 						try {

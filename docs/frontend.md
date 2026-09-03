@@ -103,16 +103,20 @@ directly. It exists to do two things you'd otherwise have to repeat at every cal
   their own field-level errors still catch internally.
 
 **It has no `variant` or `size` prop.** It takes `react-aria-components`' `ButtonProps` verbatim and merges your
-`className` over its base styles. Styling is per call site, so match the existing recipes rather than inventing
-colours — [`components/common/FormActions.tsx`](../apps/website/src/components/common/FormActions.tsx) is the
-canonical pair:
+`className` over its base styles. Don't invent colours — take the class string from
+[`components/common/buttonStyles.ts`](../apps/website/src/components/common/buttonStyles.ts):
 
 ```tsx
-// primary
-className = 'px-3 py-2.5 bg-misc-accent text-accent rounded-md hover:opacity-90 transition-opacity ...';
-// secondary
-className = 'px-3 py-2.5 bg-on-tertiary dark:bg-on-tertiary-dark text-primary dark:text-primary-dark ...';
+import { buttonClass } from '@/components/common/buttonStyles';
+
+<Button className={buttonClass('primary')} />        // page-level submit
+<Button className={buttonClass('secondary', 'sm')} /> // a row's action, an Add next to a picker
 ```
+
+Three variants (`primary`, `secondary`, `danger`) and two sizes. **`md` (the default) is a page's single
+submit**; **`sm` is everything that lives inside something else** — a row's Remove, the Add beside a picker, a
+detail page's action bar. Reaching for `md` inside a card is what made AutoModerator's pages read as visibly
+heavier than the rest of the dashboard (#374).
 
 For a form's submit/cancel pair, don't restyle two Buttons — use `FormActions`.
 

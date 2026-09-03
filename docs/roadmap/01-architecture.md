@@ -640,3 +640,48 @@ dependency stays in place even when the proxy is switched off — the container 
 The proxy itself never calls `initContext`: it touches neither postgres nor redis, so a database outage can't
 take Discord connectivity down with it, and it can come up before either is reachable — which matters, since
 everything else now waits on its healthcheck.
+
+## 12. AutoModerator dashboard information architecture
+
+The AutoModerator port ([11-automoderator-port.md](11-automoderator-port.md)) shipped one hub card per phase, which
+left fifteen flat, equally-weighted sections — three to five times what any other bot has, plus a top-level
+`config` page holding a single development-only toggle. Regrouped and consolidated, with the shape below.
+
+**`apps/website/src/utils/automoderatorSections.ts` is the single source.** The hub page renders its groups, and
+`DashboardCrumbs` derives both its section-switch dropdown and its `SEGMENT_LABELS` entries from the same export.
+Adding a section to one and forgetting the other is what produced #373/#376/#378 — a breadcrumb rendering the raw
+kebab-case URL segment (`url-filter`, `filter-ladder`) because only the hub knew the section existed.
+
+Groups, in setup order: **Moderation** (Cases, Reports) → **Filters** (Banned Words, URL Filter, Invite Filter,
+Anti-Spam, Exemptions) → **Escalation** (Warn Ladder, Filter Ladder) → **Logging & reporting** (Logging, Report
+Settings, Report Prompts). Enforcement (`dryRun`) sits under an "Advanced" heading on the hub itself.
+
+**Four pages became two.** `log-channels` + `log-exemptions` → `logging`; `filter-exemptions` + `bypass-roles` →
+`exemptions`. Each pair answered one question about two things (where logs go and what's left out of them; which
+channels the filters skip and which roles they never punish), and splitting them across the hub made you find both.
+The old URLs, plus `config`, redirect in `apps/website/next.config.mjs` — `permanent: false`, since a 308 is cached
+by the browser indefinitely and these sections are still moving. **API paths were not touched**: the routes are
+still `/v3/guilds/:guildId/automoderator/{log-channels,log-exemptions,filter-exemptions,bypass-roles,config}`.
+
+**One page shell.** `components/dashboard/PageHeader.tsx` is the crumbs-plus-title block, wrapped in `space-y-8`.
+AutoModerator's pages had drifted into two spellings of it — `flex flex-col gap-4` on some, an arbitrary-variant
+`[&>*:not(:first-of-type)]:mt-8` on others — so the gap between the heading and the first card was 16px on one
+page and 48px on the next (#378). ModMail and Social still spell theirs out inline; adopt `PageHeader` there when
+you next touch one.
+
+**Single-value settings write on select.** Each log channel is one `ChannelSelect` that saves the moment it
+changes, with `noneLabel="Disable logging"` as the off switch (#375) — no Save button, no separate "Stop logging"
+that only existed once a channel was already set. That matches `FilterToggle` and the filter pages' allowlist
+rows; the guard is that the picker goes inert while a write is in flight, since two PUTs have no ordering
+guarantee, and a rejected write reverts the local value rather than leaving the failed choice on screen.
+
+**Detail views name accounts, not ids.** `_components/UserBadge.tsx` (avatar + label + id) is what case and report
+pages render for a target, a moderator and each reporter (#372, #382). The label prefers the guild's stored
+`*_tag` snapshot over the live account — a case should read as the person the moderator acted on, not whoever
+holds that name now — and the id stays visible because the subject of an old ban has usually left, which makes it
+the only handle a ban appeal can still be cross-checked against.
+
+**Deleting a case navigates before it re-renders.** `useDeleteAutomoderatorCase` invalidates the whole case
+subtree, so the detail query refetches the row that was just removed and settles into a 404. `CaseDetail` holds an
+`isDeleted` flag that suppresses the error branch for the frame or two before `router.push` lands (#380); any
+future detail page with a delete action needs the same.
