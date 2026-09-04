@@ -96,7 +96,7 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 		try {
 			modal = await collectModal(modalId, MODAL_TIMEOUT_MS);
 		} catch {
-			// Routine -- see the same guard in `reportMessageWithReason.ts`. No follow-up here: the moderator
+			// Routine -- see the same guard in `reportMessage.ts`. No follow-up here: the moderator
 			// abandoning a punishment modal needs no confirmation that nothing happened.
 			return;
 		}

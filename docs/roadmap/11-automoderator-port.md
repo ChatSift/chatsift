@@ -513,12 +513,12 @@ Other deliberate calls:
 
 Features **29** (report queue), **30** (filter-driven reports, hook point only).
 
-| Layer     | Work                                                                                                   |
-| --------- | ------------------------------------------------------------------------------------------------------ |
-| Schema    | `automoderator_reports`, `automoderator_reporters`, `automoderator_report_presets`                     |
-| API       | preset CRUD; report list/detail for the dashboard                                                      |
-| Bot       | both context menus, report card with dismiss/restore/view-reporters/action, action → modal → real case |
-| Dashboard | preset config; read-only report queue view                                                             |
+| Layer     | Work                                                                                                    |
+| --------- | ------------------------------------------------------------------------------------------------------- |
+| Schema    | `automoderator_reports`, `automoderator_reporters`, `automoderator_report_presets`                      |
+| API       | preset CRUD; report list/detail for the dashboard                                                       |
+| Bot       | report context menu, report card with dismiss/restore/view-reporters/action, action → modal → real case |
+| Dashboard | preset config; read-only report queue view                                                              |
 
 Feature 30's automod trigger lands in P5; P3 builds the entry point and proves it with a manual report.
 
@@ -571,6 +571,11 @@ Deviations from the table above, all deliberate:
   modal `Label`, so the presets and the free-text box live in the same interaction -- which also means no pending
   report is held in a process-local collector that a restart or a second replica would lose. Both halves are
   joined when both are filled.
+- **One report menu, not legacy's pair** (removed after P5, on the owner's call -- #394). P3 shipped a one-click
+  `Report Message` beside `Report Message with Reason`, on the theory that forcing a reason picker in front of the
+  fast path is how a report queue ends up empty. What the pair produced instead was two near-identical entries in
+  a right-click menu and reports reading "No reason provided", which staff have to reconstruct from the message
+  alone. The picker kept the name `Report Message` and is now the only way a member reports a message in a guild.
 - **No timed ban in the action list**, for the same reason `/ban` had no duration: it needs P2's scheduler, and a
   tempban nothing lifts is a permanent ban that claims otherwise. (P2 has since added it -- as an optional
   duration on the Ban modal rather than a fifth option, since a tempban is a ban with an expiry, not a different
@@ -719,7 +724,7 @@ practice, not thousands, and it goes through `services/discord-proxy` like every
    security model from `automoderatorHistoryTokens.ts`, which _is_ a bearer token -- the resemblance is the trap.
 3. **DM contexts only.** A user-installed message menu also fires in guilds the bot isn't in. Letting a message
    captured in guild A be filed into guild B would be a cross-server surveillance tool, which is a far larger
-   product than this. In-guild reporting stays P3's separate, guild-installed menus.
+   product than this. In-guild reporting stays P3's separate, guild-installed menu.
 4. **The candidate list is filtered to guilds the target is also in, and the copy is deliberately vague about why a
    server is missing** ("if they're a member, that community might not be accepting reports"). The vagueness is the
    mitigation: it stops the picker doubling as a membership oracle, because the reporter cannot tell "not a member"
@@ -1292,7 +1297,7 @@ Operator side, per phase, against the test guild:
   ban and a mute; a warn ladder step fires at the configured count and the moderator's reply says so; auto-pardon
   pardons a warn and rewrites its log embed. The seed script plants a due tempban and a 400-day-old warn so both
   sweeps have work on the first tick rather than needing anyone to wait.
-- **P3** -- both report menus; dedupe across two reporters; dismiss/restore; action → modal → case.
+- **P3** -- the report menu; dedupe across two reporters; dismiss/restore; action → modal → case.
 - **P3b** -- install the user app, add two DM messages to a draft, submit, and confirm the picker lists only
   servers you and the sender share that accept reports; then confirm the filed report's card carries no jump
   link and its action path still produces a case.

@@ -7,8 +7,6 @@ import { reportsTotal } from './metrics.js';
 import { LadderFailureError, SoftbanUnbanError } from './moderation.js';
 import { syncReportCard } from './reportCard.js';
 
-export const DEFAULT_REPORT_REASON = 'No reason provided';
-
 /**
  * Whether a failed action should put the report back in the queue.
  *
@@ -105,8 +103,8 @@ export async function submitMessageReport(options: SubmitReportOptions, logger: 
 		await syncReportCard(result.report, { reporterCount: result.reporterCount }, logger);
 
 		return result.joined
-			? 'Thanks — staff were already looking at this, and your report has been added to it.'
-			: 'Thanks — this has been flagged to the staff team.';
+			? 'Thanks! Staff were already looking at this, and your report has been added to it.'
+			: 'Thanks! This has been flagged to the staff team.';
 	} catch (error) {
 		if (error instanceof ReportFailure) {
 			return error.message;

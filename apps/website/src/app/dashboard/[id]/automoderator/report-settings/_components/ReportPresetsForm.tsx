@@ -79,7 +79,7 @@ function PresetRow({ guildId, preset }: { readonly guildId: string; readonly pre
 }
 
 /**
- * The reasons the "Report Message with Reason" menu offers. Editing one only changes what future reporters see:
+ * The reasons the "Report Message" menu offers. Editing one only changes what future reporters see:
  * the chosen text is copied onto the report when it's filed, so nothing already in the queue is rewritten.
  */
 export function ReportPresetsForm() {
