@@ -34,8 +34,12 @@ vi.mock('@chatsift/backend-core', async (importActual) => {
 	};
 });
 
-const { handleComponentInteraction, registerComponentHandler, registerComponentHandlers } =
-	await import('../components.js');
+const {
+	handleComponentInteraction,
+	registerComponentHandler,
+	registerComponentHandlers,
+	registerUnknownComponentResolver,
+} = await import('../components.js');
 const { setGuildOwnershipFilter } = await import('../ownership.js');
 
 const logger = fakeLogger as unknown as Logger;
@@ -46,8 +50,10 @@ beforeEach(() => {
 
 afterEach(() => {
 	// See commands.test.ts's matching afterEach -- there's no unregister API, so tests reset the
-	// module-level filter back to "no foreign owner anywhere" themselves.
+	// module-level filter back to "no foreign owner anywhere" themselves. Same for the unknown-component
+	// resolver: a leftover one that claims everything would silence a later test's "no handler found".
 	setGuildOwnershipFilter(() => null);
+	registerUnknownComponentResolver(async () => false);
 });
 
 function makeInteraction(customId: string, guildId?: string): APIMessageComponentInteraction {
@@ -98,6 +104,37 @@ describe('handleComponentInteraction', () => {
 
 		await expect(handleComponentInteraction(interaction, logger)).resolves.toBeUndefined();
 		expect(fakeLogger.warn).toHaveBeenCalled();
+	});
+
+	test('falls through to the unknown-component resolver, and stays quiet when it claims the interaction', async () => {
+		const resolver = vi.fn().mockResolvedValue(true);
+		registerUnknownComponentResolver(resolver);
+
+		const interaction = makeInteraction('roles-manage-simple|1234567890');
+		await handleComponentInteraction(interaction, logger);
+
+		expect(resolver).toHaveBeenCalledWith(interaction, logger);
+		expect(fakeLogger.warn).not.toHaveBeenCalled();
+	});
+
+	test('still warns when the unknown-component resolver declines', async () => {
+		registerUnknownComponentResolver(vi.fn().mockResolvedValue(false));
+
+		await handleComponentInteraction(makeInteraction('unit-test-comp-still-unknown'), logger);
+
+		expect(fakeLogger.warn).toHaveBeenCalled();
+	});
+
+	test('never consults the resolver when a registered handler matches', async () => {
+		const resolver = vi.fn().mockResolvedValue(true);
+		const handle = vi.fn();
+		registerUnknownComponentResolver(resolver);
+		registerComponentHandler({ name: 'unit-test-comp-not-shadowed', stateStore: null, handle } as any);
+
+		await handleComponentInteraction(makeInteraction('unit-test-comp-not-shadowed:row-1'), logger);
+
+		expect(handle).toHaveBeenCalled();
+		expect(resolver).not.toHaveBeenCalled();
 	});
 
 	test('warns and does not call handle when a stateStore is required but stateId is missing', async () => {

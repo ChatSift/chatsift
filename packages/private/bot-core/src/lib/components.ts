@@ -25,6 +25,29 @@ export function registerComponentHandler(handler: ComponentHandler<any>): void {
 }
 
 /**
+ * Returns `true` if it fully handled the interaction (including replying to it), `false` to fall through to
+ * the usual "no handler found" warning.
+ */
+export type UnknownComponentResolver = (
+	interaction: APIMessageComponentInteraction,
+	logger: Logger,
+) => Promise<boolean>;
+
+let unknownComponentResolver: UnknownComponentResolver | undefined;
+
+/**
+ * Escape hatch for custom_ids that can't be statically registered, mirroring `registerUnknownCommandResolver`
+ * in commands.ts. The case it exists for is components this codebase never minted: legacy AutoModerator's
+ * self-assignable role prompts (#385), whose `roles-manage-simple|<roleId>` ids embed a snowflake and don't
+ * use the `name:state` shape this dispatcher splits on, so no static name can match them.
+ * `handleComponentInteraction` consults it only when the `components` map has no match, so it can never
+ * shadow a real handler. At most one resolver is supported.
+ */
+export function registerUnknownComponentResolver(resolver: UnknownComponentResolver): void {
+	unknownComponentResolver = resolver;
+}
+
+/**
  * Globs `${componentsDir}/**\/*.js`, dynamically imports each module, and registers every valid default-exported
  * `ComponentHandler` constructor. Callers pass their own service-local components directory, since this package
  * has no `components/` of its own.
@@ -66,6 +89,10 @@ export async function handleComponentInteraction(
 
 	const handler = components.get(componentName);
 	if (!handler) {
+		if (unknownComponentResolver && (await unknownComponentResolver(interaction, logger))) {
+			return;
+		}
+
 		logger.warn({ componentName }, 'No handler found for component interaction');
 		return;
 	}

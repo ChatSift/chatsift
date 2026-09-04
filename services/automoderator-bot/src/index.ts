@@ -3,13 +3,19 @@ import { setTimeout } from 'node:timers';
 import { fileURLToPath } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
 import { ENV, getContext } from '@chatsift/backend-core';
-import { registerCommandHandlers, registerComponentHandlers, startMetricsServer } from '@chatsift/bot-core';
+import {
+	registerCommandHandlers,
+	registerComponentHandlers,
+	registerUnknownComponentResolver,
+	startMetricsServer,
+} from '@chatsift/bot-core';
 import type { Client } from '@discordjs/core';
 import { registerAuditObserver } from './lib/auditObserver.js';
 import { AUTO_PARDON_SWEEP_INTERVAL_MS, sweepAutoPardons } from './lib/autoPardonSweep.js';
 import { registerAutomodIntake } from './lib/automodIntake.js';
 import { EXPIRED_BAN_SWEEP_INTERVAL_MS, sweepExpiredBans } from './lib/expiredBanSweep.js';
 import { registerFilterRunner } from './lib/filterRunner.js';
+import { resolveLegacyRolePrompt } from './lib/legacyRolePrompts.js';
 import { registerMessageObserver } from './lib/messageObserver.js';
 import { register } from './lib/metrics.js';
 import { registerProfileObserver } from './lib/profileObserver.js';
@@ -19,6 +25,7 @@ const baseDir = dirname(fileURLToPath(import.meta.url));
 
 export async function bin(client: Client): Promise<void> {
 	await registerComponentHandlers(join(baseDir, 'components'));
+	registerUnknownComponentResolver(resolveLegacyRolePrompt);
 	await registerCommandHandlers(join(baseDir, 'commands'));
 	registerAutomodIntake(client);
 	registerAuditObserver(client);
