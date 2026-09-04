@@ -26,12 +26,11 @@ type SegmentedControlProps<TValue> = SegmentedControlLabelling & {
 /**
  * A pick-one-of-a-few control: a bordered strip of pills with the current one filled.
  *
- * This markup had been copy-pasted six times (AMA's `PromptModeToggle`, ModMail's `PanelModeToggle`,
- * AutoModerator's `FilterToggle`, its enforcement toggle and its banword-policy switches) and had already
- * drifted -- the report-prompt form's Guided/Raw JSON switch was two loose filled pills built on a raw
- * `<button>`, which is both a different shape from every other mode switch and, because a bare `<button>` has no
- * `cursor: pointer`, one that didn't look clickable. Callers own their pending and error state; this only
- * renders and reports the choice.
+ * This markup had been copy-pasted five times (AMA's `PromptModeToggle`, ModMail's `PanelModeToggle`,
+ * AutoModerator's `FilterToggle` and its banword-policy switches) and had already drifted -- the report-prompt
+ * form's Guided/Raw JSON switch was two loose filled pills built on a raw `<button>`, which is both a different
+ * shape from every other mode switch and, because a bare `<button>` has no `cursor: pointer`, one that didn't
+ * look clickable. Callers own their pending and error state; this only renders and reports the choice.
  */
 export function SegmentedControl<TValue extends boolean | number | string>({
 	label,

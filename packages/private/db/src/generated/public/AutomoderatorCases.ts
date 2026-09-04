@@ -34,8 +34,6 @@ export default interface AutomoderatorCases {
 
   logMessageId: string | null;
 
-  dryRun: boolean;
-
   idempotencyKey: string | null;
 
   createdAt: Date;
@@ -71,8 +69,6 @@ export interface AutomoderatorCasesInitializer {
 
   logMessageId?: string | null;
 
-  dryRun?: boolean;
-
   idempotencyKey?: string | null;
 
   createdAt?: Date;
@@ -107,8 +103,6 @@ export interface AutomoderatorCasesMutator {
   pardonedBy?: string | null;
 
   logMessageId?: string | null;
-
-  dryRun?: boolean;
 
   idempotencyKey?: string | null;
 

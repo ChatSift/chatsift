@@ -5,7 +5,6 @@ let count = 1;
 let hasLadder = true;
 let rung: { actionType: string; durationSeconds: number | null } | null = null;
 let requests: ModerationRequest[] = [];
-let suppressed = false;
 let claimed: string | null = '1';
 let claimError: Error | null = null;
 let claimedKeys: string[] = [];
@@ -41,7 +40,7 @@ vi.mock('@chatsift/backend-core', () => ({
 vi.mock('../moderation.js', () => ({
 	async applyModerationAction(request: ModerationRequest) {
 		requests.push(request);
-		return { case: { caseId: 7, guildId: 'guild', logMessageId: null }, suppressed, logChannelId: null };
+		return { case: { caseId: 7, guildId: 'guild', logMessageId: null }, logChannelId: null };
 	},
 }));
 
@@ -66,7 +65,6 @@ beforeEach(() => {
 	hasLadder = true;
 	rung = null;
 	requests = [];
-	suppressed = false;
 	claimed = '1';
 	claimError = null;
 	claimedKeys = [];
@@ -138,16 +136,6 @@ test('the reason reads naturally at one trigger', async () => {
 	expect(requests[0]!.reason).toBe('Automatic punishment for tripping the filters 1 time');
 });
 
-// Dry-run has to be able to demonstrate the ladder, so the case is still filed and the count still moves -- the
-// summary is what says nothing actually happened.
-test('a suppressed action says what it would have done', async () => {
-	count = 3;
-	rung = { actionType: 'MUTE', durationSeconds: 60 };
-	suppressed = true;
-
-	expect((await trip())?.summary).toBe('Would have muted');
-});
-
 // A migration that adds an action ahead of the code that handles it. Without the guard this indexes the action
 // map to `undefined` and hands that to `applyModerationAction` as the case action.
 test('an action this build does not understand punishes nobody', async () => {
@@ -161,8 +149,7 @@ test('an action this build does not understand punishes nobody', async () => {
 });
 
 // The filters re-run on `MESSAGE_UPDATE` deliberately, to catch a link edited in after posting. A message that
-// survived its first hit -- one the bot could not delete, or was not allowed to in dry-run -- would otherwise
-// cost a rung per typo fix.
+// survived its first hit -- one the bot could not delete -- would otherwise cost a rung per typo fix.
 test('a message already counted is never counted again', async () => {
 	count = 3;
 	rung = { actionType: 'BAN', durationSeconds: null };

@@ -120,7 +120,6 @@ export interface CaseEmbedInput {
 	readonly actionType: CaseActionName;
 	readonly caseId: number;
 	readonly createdAt: Date;
-	readonly dryRun: boolean;
 	readonly expiresAt: Date | null;
 	readonly guildId: string;
 	readonly modId: string | null;
@@ -187,12 +186,6 @@ export function buildCaseEmbed(modCase: CaseEmbedInput, options: CaseEmbedOption
 
 	if (modCase.pardonedBy) {
 		fields.push({ name: 'Pardoned by', value: `<@${modCase.pardonedBy}>`, inline: true });
-	}
-
-	// Says out loud that nothing actually happened. Only ever reachable outside production, but a log line
-	// claiming a ban that was suppressed is precisely the confusion dry-run exists to avoid causing.
-	if (modCase.dryRun) {
-		fields.push({ name: 'Dry run', value: 'No Discord action was taken.', inline: false });
 	}
 
 	return {

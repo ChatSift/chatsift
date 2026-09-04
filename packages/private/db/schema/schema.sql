@@ -816,13 +816,6 @@ CREATE UNIQUE INDEX social_interactions_guild_id_command_id_idx ON social_intera
 
 CREATE TABLE automoderator_guild_settings (
   guild_id     TEXT PRIMARY KEY,
-  -- Dry-run: decide and record, but suppress every Discord side effect. A **development affordance only** --
-  -- `automoderator-bot`'s `dryRun.ts` ignores this outright when IS_PRODUCTION, so a production guild can
-  -- neither be put into it nor stuck in it. That's why there's no env-var layer above this: an operator
-  -- switch that only ever reads one way in production would be a switch that lies.
-  -- Defaults to on, because the value you get by not thinking about it is the one that can't ban someone in
-  -- a real guild from a dev session.
-  dry_run      BOOLEAN NOT NULL DEFAULT true,
   -- Where report cards are posted (P3). A plain channel rather than a `automoderator_log_webhooks` row,
   -- unlike every actual log: a report card carries buttons, and `components` on Execute Webhook needs an
   -- application-owned webhook, which the ones the API creates with a bot token are not. Legacy used a plain
@@ -944,11 +937,6 @@ CREATE TABLE automoderator_cases (
   -- The mod-log webhook message this case rendered into, so an edit rewrites that embed in place instead of
   -- posting a second one. Null until the log lands, and permanently null for a guild with no mod log configured.
   log_message_id  TEXT,
-  -- The case was decided but its Discord side effect was suppressed. Only ever true outside production
-  -- (`dryRun.ts` short-circuits), and the reason dry-run still writes rows at all: the ladders P2 adds are
-  -- stateful, so a dry run that persisted nothing could not exercise the part most likely to be wrong. Ladder
-  -- counting ignores these in live mode so a dev session can't push a real user up a rung.
-  dry_run         BOOLEAN NOT NULL DEFAULT false,
   -- Dedupe key for cases this bot files in response to an event rather than a command. Gateway redelivery
   -- after a reconnect is normal, and the audit-log correlation feature 27 does is exactly the shape that
   -- double-fires, so the observer derives a stable key from the audit entry and lets the unique index below

@@ -186,10 +186,10 @@ wanted — deliberately **not** part of any phase here, per the owner's call.
 reading logs.
 
 ```
-automoderator_feature_invocations_total{feature, outcome}     counter  outcome: applied|skipped|dry_run|failed
+automoderator_feature_invocations_total{feature, outcome}     counter  outcome: applied|skipped|failed
 automoderator_feature_duration_seconds{feature}               histogram
-automoderator_moderation_actions_total{action, source, dry_run} counter action: warn|mute|kick|ban|unban|delete
-                                                                        source: command|automod|ladder|report|scheduler|observer
+automoderator_moderation_actions_total{action, source}        counter  action: warn|mute|kick|ban|unban|delete
+                                                                       source: command|automod|ladder|report|scheduler|observer
 automoderator_cases_created_total{action, source}             counter
 automoderator_filter_hits_total{filter}                       counter  filter: words|urls|invites|antispam
 automoderator_automod_events_total{action_type, matched}      counter  native AUTO_MODERATION_ACTION_EXECUTION intake
@@ -198,7 +198,6 @@ automoderator_scheduler_lag_seconds{type}                     histogram  run_at 
 automoderator_reports_total{state}                            counter  filed|joined|dismissed|restored|actioned
 automoderator_log_dispatch_total{log_type, result}            counter  webhook delivery health
 automoderator_discord_errors_total{status, route_class}       counter
-automoderator_dry_run_suppressions_total{action}              counter
 ```
 
 **Cardinality discipline, non-negotiable:** never label by `guild_id`, `user_id`, `channel_id`, `message_id` or
@@ -206,41 +205,20 @@ matched content. Every label above is drawn from a closed set known at compile t
 metrics module already states about route patterns versus resolved URLs, and it's the one mistake that turns a
 metrics endpoint into an outage.
 
-### Dry-run
+### The action seam
 
 Every side-effecting Discord call — ban, kick, timeout, role change, message delete, DM, webhook post — goes through
-a single `ActionExecutor` seam. **Nothing else calls REST for a side effect.** That single chokepoint is what makes
-dry-run one flag rather than a hundred conditionals, and it's cheap only if it's established in P0, before there are
-call sites to retrofit.
+a single `ActionExecutor` seam. **Nothing else calls REST for a side effect.** That single chokepoint is the one
+place that can guarantee every action is counted and traced, and it's cheap only if it's established in P0, before
+there are call sites to retrofit.
 
-**Modes:**
-
-- `live` — normal.
-- `dry-run` — Discord side effects suppressed; **database writes still happen**, with cases marked `dry_run = true`.
-  The bot replies with exactly what it would have done: target, action, duration, reason, and which rule or ladder
-  step decided it.
-
-Persisting in dry-run is the non-obvious call, and it's deliberate: escalation ladders (11, 22) are stateful, so a
-dry-run that persists nothing can't exercise the thing most likely to be wrong. The `dry_run` flag keeps those rows
-filterable, and **ladder counting ignores them in `live` mode** so a dev session can't push a real user up a rung.
-
-**Dry-run is a development affordance, not an operational mode.** `resolveDryRun` short-circuits to `live` whenever
-`IS_PRODUCTION`, before consulting anything else — so a production guild can neither be put into dry-run nor left
-stuck in it. Outside production the precedence is guild → invocation:
-
-- **Guild** — `automoderator_guild_settings.dry_run`, `NOT NULL DEFAULT true`. A guild nobody has configured is in
-  dry-run, because that's the reading that can't ban someone in a real guild from a dev session.
-- **Invocation** — a command explicitly asking to preview what it would do. Can only ever turn dry-run _on_, so
-  nothing reachable from inside an interaction escapes the guild's setting.
-
-There is deliberately **no deployment-wide env var**. It would only ever read one way in production, which makes it a
-switch that lies — and "why did nothing happen" traced back to a stale env var is a worse failure than not having the
-knob. The consequence to accept: there is no way to put production as a whole into observe-only mode. Per-feature
-experiment gating (below) is the production kill switch, and it's the better-shaped one, since it can be flipped for
-a single guild without a deploy.
-
-`automoderator_dry_run_suppressions_total` should therefore be flat at zero in production by construction, not by
-convention — a non-zero value there means `resolveDryRun`'s short-circuit has been broken.
+**There is deliberately no observe-only mode.** P0 shipped one — a per-guild `dry_run` flag that suppressed every
+Discord side effect while still filing the case it would have filed — and it was removed once the port was
+feature-complete. It was a development affordance by construction (`resolveDryRun` short-circuited to live whenever
+`IS_PRODUCTION`, so production could neither enter it nor be stuck in it), and paying for it in the schema, the API,
+the dashboard, the case embed, and a `suppressed` branch on every reply the punishment path writes was more than a
+dev-only knob is worth. Per-feature experiment gating (below) is the production kill switch, and it's the
+better-shaped one, since it can be flipped for a single guild without a deploy.
 
 ### Feature gating
 
@@ -257,7 +235,7 @@ phase rather than skipping it silently.
 
 ### Dev and test affordances
 
-Beyond dry-run, in rough order of how much time each saves:
+In rough order of how much time each saves:
 
 1. **`/simulate <message>`** — push a synthetic message through the whole filter pipeline and get back which runners
    fired, which entries matched, which exemptions applied, and what would have happened. Tunes filters without
@@ -362,9 +340,9 @@ The two open questions this phase carried both resolved on the owner's call:
   in practice, and the only thing its checker actually decided was **immunity**. That is what
   `automoderator-bot/src/lib/permissions.ts` keeps, as a hierarchy check rather than a tier — and it earns its
   place because a WARN makes no Discord call at all, so nothing else would stop a moderator warning an admin.
-- **No experiment gate this phase.** The safety net is `automoderator_guild_settings.dry_run` defaulting to true
-  plus the bot not being in a production guild yet. The first real gate lands with a feature that can misfire —
-  P5's filters.
+- **No experiment gate this phase.** The safety net was `automoderator_guild_settings.dry_run` defaulting to true
+  (since removed — see "The action seam") plus the bot not being in a production guild yet. The first real gate
+  lands with a feature that can misfire — P5's filters.
 
 Deviations from the table above, all deliberate:
 
@@ -427,7 +405,7 @@ running `/ban`, or the audit observer noticing a manual one — so without the b
 ever learned about them on a manual reload.
 
 Also landed: the seed script deferred out of P0 (`yarn seed:automoderator --guild <id> [--reset]`), which fills a
-guild with twelve cases spanning every action, a pardoned warn, a dry-run case, an unattributed case, and a log
+guild with twelve cases spanning every action, a pardoned warn, an unattributed case, and a log
 webhook pointing at a channel that does not exist — the dangling-reference bug class the dashboard's selects keep
 hitting.
 
@@ -490,12 +468,6 @@ Other deliberate calls:
   three — which turns a temporary ban into a permanent one that claims otherwise, the exact failure this feature
   exists to prevent. There is no `attempts` column; the claim is rolled back and `scheduler_lag_seconds`
   climbing is the signal.
-- **A tempban schedules its expiry in dry-run too.** That is the whole reason dry-run persists: a run that
-  writes nothing cannot exercise the stateful half, and the reversal it eventually files is suppressed in its
-  turn — suppressed by the **case's own** `dry_run`, not by whatever the guild setting says when it expires.
-  That distinction matters in both directions, and review on #361 caught both: a simulated ban must not produce
-  a real unban call for somebody nobody banned, and a real ban whose unban gets suppressed has to put its claim
-  back rather than record itself as lifted while the member is still banned.
 - **`/case duration` is gated by the case's own action, not by `/case`'s.** `/case` sits at ModerateMembers, and
   re-timing a ban into the past makes the sweep unban somebody — so without this, ModerateMembers would silently
   grant BanMembers. The same hole `memberMayTakeAction` was written to close on the report card, and the same
@@ -508,8 +480,6 @@ Other deliberate calls:
   Discord work if one batch is in flight at a time; a rate-limited run outlasting its interval would otherwise
   stack. Same shape and reasoning as `modmail-bot`'s auto-archive sweep. It costs nothing in correctness — both
   claim atomically, so overlapping runs would take disjoint work — and buys being able to reason about load.
-- **Ladder counting includes dry-run warns only in dry-run**, so a dev session can reach a rung without ever
-  pushing a real member up one.
 - **A rung matches an exact warn count**, legacy's rule — at-least would re-fire the same punishment on every
   subsequent warn. The dashboard's ladder overview renders the counts _between_ rungs as collapsed
   "recorded only" rows, because that gap is the thing people get wrong and a list of independent cards hides it.
@@ -604,10 +574,8 @@ Deviations from the table above, all deliberate:
   the one action whose failure mode had to be thought about again: a softban whose ban lands and whose unban
   does not leaves the target banned with a case filed, so the report stays closed rather than returning to the
   queue for the next moderator to ban somebody who already is.
-- **Report cards go through `ActionExecutor`, so dry-run suppresses them**, like the mod log and for the same
-  reason: that seam is the invariant P7 audits. The row is still written and the dashboard queue still shows it.
-  The practical consequence is that **the test guild needs dry-run off to exercise P3's operator checks** — which
-  it does anyway, since all of them end in a real punishment.
+- **Report cards go through `ActionExecutor`**, like the mod log and for the same reason: that seam is the
+  invariant P7 audits.
 - **The card links to the dashboard**, in the embed description rather than the footer — Discord renders no
   markdown in a footer, the same finding `/history`'s link ran into at P1. The link is passed into
   `buildReportEmbed` rather than read from the context inside it, which is what keeps that a pure function of the
@@ -815,8 +783,8 @@ What shipped, and where it deviates from the plan above:
 
 - **The cache is sized in code, not in `ENV`.** `messageCache.ts` exports `MESSAGE_CACHE_TTL_MS` (24h) and
   `MESSAGE_CACHE_MAX_PER_CHANNEL` (5,000, legacy's number), both with their reasoning written next to them. An
-  env var would be a deployment-wide knob nobody tunes per-deployment, which is the shape this codebase has
-  already rejected for dry-run. Both bounds matter and neither replaces the other: the per-channel cap is what
+  env var would be a deployment-wide knob nobody tunes per-deployment, which is a shape this codebase keeps
+  rejecting. Both bounds matter and neither replaces the other: the per-channel cap is what
   holds under a raid, the TTL is what stops a quiet server's month-old text sitting in redis.
 - **Delete attribution is a buffered gateway signal, not a per-delete REST fetch.** `auditObserver.ts` already
   subscribes to `GUILD_AUDIT_LOG_ENTRY_CREATE`, so `deleteAttribution.ts` reads MESSAGE_DELETE entries out of
@@ -871,10 +839,8 @@ What shipped, and where it deviates from the plan above:
 - **`MESSAGE_DELETE_BULK` is deliberately not logged.** Legacy did not either, and the honest rendering of a
   hundred-message purge is not a hundred embeds. P6's `/purge` files a case, which is the record that wants
   reading.
-- **Log posts go through `ActionExecutor`** like every other Discord side effect, so a dry-run guild decides and
-  traces the log without posting it. That is the intended reading of dry-run and it is what keeps a dev session
-  out of a real server's channels — but it does mean message logs cannot be exercised in dev without turning the
-  guild's `dry_run` off.
+- **Log posts go through `ActionExecutor`** like every other Discord side effect, so a log post is counted and
+  traced on the same axis as the ban that produced it.
 - **Two metrics beyond the P4 plan**, both because the failure they catch is otherwise completely silent:
   `automoderator_feature_invocations_total{feature,outcome}` (the taxonomy's, finally written to) and
   `automoderator_message_cache_lookups_total{result}`. A flat-zero `hit` on the second one is what a missing
@@ -1083,8 +1049,8 @@ what exposed it to the exemption picker.
    ladder at double speed for a single post. The first half is structural (one ladder call per message); the
    second is a redis `SET NX PX` claim on the message id, and it exists because the filters deliberately re-run
    on `MESSAGE_UPDATE`. Normally the message is deleted on its first hit so no edit can follow — but a message
-   the bot _could not_ delete, or was not allowed to in dry-run, survives, and without the claim every later
-   edit that still trips a filter is a fresh rung. A member fixing three typos on a message that still carries a
+   the bot _could not_ delete survives, and without the claim every later edit that still trips a filter is a
+   fresh rung. A member fixing three typos on a message that still carries a
    forbidden link should not climb three. Banword hits are still never counted, per P5a's decision 4, and that
    too is structural: the ladder lives in the filter pipeline and native AutoMod hits arrive on a different path
    entirely.
@@ -1095,8 +1061,7 @@ what exposed it to the exemption picker.
    or a bulk delete is refused, and the ladder is skipped for that outcome — banning somebody over messages
    everyone can still read, without even the DM this path already suppresses for the same reason, is the worse
    of the two failures. The filter log's line for that outcome names the missing permission, which is the part
-   staff can act on. Dry-run still runs the ladder: `suppressed` means the decision was made and recorded, which
-   is the whole point of the mode.
+   staff can act on.
 
 5. **Nothing is written to `automoderator_trigger_counts` for a guild with no ladder.** An `EXISTS` on
    `automoderator_trigger_punishments` inside the insert is what keeps this from being a table that only grows:
@@ -1288,8 +1253,6 @@ The diagnosability bias that applied to Social applies harder here — this bot 
 - `automoderator_automod_events_total` flat at zero for a guild that has banword policies configured means the
   hybrid is broken for that guild: either no native rules exist, or the intent isn't granted. This is the failure
   mode most likely to be silent.
-- `automoderator_dry_run_suppressions_total` non-zero in production means `resolveDryRun`'s `IS_PRODUCTION`
-  short-circuit has been broken — actions the logs claim were taken did not happen. Zero in prod by construction.
 - `automoderator_scheduler_lag_seconds{type="expiry"}` climbing means tempbans aren't expiring — the classic "why
   is this user still banned" report. Since P2 gives up on nothing, a stuck expiry retries every tick, so a
   single row that can never be lifted shows here as a lag figure that keeps growing rather than as silence.
@@ -1322,8 +1285,7 @@ Operator side, per phase, against the test guild:
   ban and a mute; a warn ladder step fires at the configured count and the moderator's reply says so; auto-pardon
   pardons a warn and rewrites its log embed. The seed script plants a due tempban and a 400-day-old warn so both
   sweeps have work on the first tick rather than needing anyone to wait.
-- **P3** — both report menus; dedupe across two reporters; dismiss/restore; action → modal → case. Needs
-  dry-run **off** for the guild: the card is a Discord side effect and goes through `ActionExecutor`.
+- **P3** — both report menus; dedupe across two reporters; dismiss/restore; action → modal → case.
 - **P3b** — install the user app, add two DM messages to a draft, submit, and confirm the picker lists only
   servers you and the sender share that accept reports; then confirm the filed report's card carries no jump
   link and its action path still produces a case.
@@ -1331,12 +1293,12 @@ Operator side, per phase, against the test guild:
   footer while a self-delete is not; exemptions suppress, including a category covering a thread under it. Then
   three separate profile changes, because they are three separate diffs and only one of them existed in legacy:
   change a **nickname** only, a **username** only, and a **display name** only, and confirm each appears in the
-  user log naming the right field. Needs dry-run **off** for the guild, and both privileged intents granted —
+  user log naming the right field. Needs both privileged intents granted —
   `automoderator_message_cache_lookups_total` staying at zero `hit` is the tell that `MessageContent` is not.
 - **P5** — trip a native rule and confirm the policy applies; each custom filter fires and is exempted correctly;
   bypass roles bypass; `/simulate` matches live behaviour.
 - **P6** — each purge filter; join-age kick; invite lookup.
 - **P9** — the full migration reconciliation, then a real guild's cases visible and correct on the new stack.
 
-Dry-run is the safety net for all of this: exercise each destructive path in dry-run first and read the "would have"
-output before letting it run live.
+Every one of these ends in a real Discord action, so run them in a throwaway test guild — there is no observe-only
+mode to rehearse them behind.

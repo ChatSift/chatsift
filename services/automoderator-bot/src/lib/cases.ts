@@ -35,7 +35,6 @@ export async function allocateCaseNumber(
 
 export interface CreateCaseOptions {
 	readonly action: AutomoderatorCaseAction;
-	readonly dryRun: boolean;
 	readonly expiresAt?: Date | null;
 	readonly guildId: string;
 	/**
@@ -72,7 +71,6 @@ export async function createCase(options: CreateCaseOptions): Promise<Automodera
 		actionType: options.action,
 		reason: options.reason ?? null,
 		expiresAt: options.expiresAt ?? null,
-		dryRun: options.dryRun,
 		idempotencyKey: options.idempotencyKey ?? null,
 	};
 
@@ -90,7 +88,6 @@ export async function createCase(options: CreateCaseOptions): Promise<Automodera
 					AND action_type = 'BAN'
 					AND expires_at IS NOT NULL
 					AND lifted_at IS NULL
-					AND dry_run = ${options.dryRun}
 			`;
 		}
 
@@ -150,19 +147,13 @@ export async function listCasesForTarget(
 	`;
 }
 
-export async function countActiveWarns(
-	guildId: string,
-	targetId: string,
-	{ includeDryRun = false }: { includeDryRun?: boolean } = {},
-): Promise<number> {
-	const db = getContext().db;
-	const [row] = await db<{ count: string }[]>`
+export async function countActiveWarns(guildId: string, targetId: string): Promise<number> {
+	const [row] = await getContext().db<{ count: string }[]>`
 		SELECT count(*) FROM automoderator_cases
 		WHERE guild_id = ${guildId}
 			AND target_id = ${targetId}
 			AND action_type = 'WARN'
 			AND pardoned_by IS NULL
-			${includeDryRun ? db`` : db`AND dry_run = false`}
 	`;
 
 	return Number(row?.count ?? 0);

@@ -27,10 +27,10 @@ export interface WarnLadderRung {
  * log has to be able to tell apart.
  */
 export async function resolveWarnLadderRung(
-	{ dryRun, warnCase }: { dryRun: boolean; warnCase: AutomoderatorCases },
+	warnCase: AutomoderatorCases,
 	logger: Logger,
 ): Promise<WarnLadderRung | null> {
-	const warns = await countActiveWarns(warnCase.guildId, warnCase.targetId, { includeDryRun: dryRun });
+	const warns = await countActiveWarns(warnCase.guildId, warnCase.targetId);
 
 	const [punishment] = await getContext().db<AutomoderatorWarnPunishments[]>`
 		SELECT * FROM automoderator_warn_punishments
@@ -43,7 +43,7 @@ export async function resolveWarnLadderRung(
 		guildId: warnCase.guildId,
 		targetId: warnCase.targetId,
 		ladderCount: warns,
-		...(punishment ? { matched: `${warns} warns`, dryRun } : {}),
+		...(punishment ? { matched: `${warns} warns` } : {}),
 	});
 
 	return punishment ? { punishment, warns } : null;

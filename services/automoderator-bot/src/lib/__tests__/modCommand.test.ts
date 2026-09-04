@@ -17,44 +17,26 @@ const { describeModerationResult } = await import('../modCommand.js');
 function result(
 	caseId: number,
 	action: string,
-	suppressed: boolean,
 	logChannelId: string | null = null,
 	logMessageId: string | null = null,
 ): ModerationResult {
 	return {
 		case: { caseId, actionType: action, guildId: '1', logMessageId } as unknown as AutomoderatorCases,
-		suppressed,
 		logChannelId,
 	};
 }
 
 test('a plain action names the case it filed', () => {
-	expect(describeModerationResult(result(7, 'WARN', false), 'target', 'WARN' as AutomoderatorCaseAction)).toBe(
+	expect(describeModerationResult(result(7, 'WARN'), 'target', 'WARN' as AutomoderatorCaseAction)).toBe(
 		'Successfully warned target. (case #7)',
 	);
 });
 
-test('a suppressed action says it did not happen', () => {
-	expect(describeModerationResult(result(7, 'WARN', true), 'target', 'WARN' as AutomoderatorCaseAction)).toBe(
-		'**Dry run** — would have warned target. (case #7)',
-	);
-});
-
 test('a tripped ladder step is spelled out rather than left to the mod log', () => {
-	const withLadder = { ...result(7, 'WARN', false), ladder: result(8, 'BAN', false) };
+	const withLadder = { ...result(7, 'WARN'), ladder: result(8, 'BAN') };
 
 	expect(describeModerationResult(withLadder, 'target', 'WARN' as AutomoderatorCaseAction)).toBe(
 		'Successfully warned target. (case #7)\nThat reached a warn ladder step, so they were also banned. (case #8)',
-	);
-});
-
-// Both halves of one message have to agree about whether anything happened -- the ladder's own suppression is
-// what decides its tense, not the warn's.
-test('a suppressed ladder step is reported in the conditional', () => {
-	const withLadder = { ...result(7, 'WARN', true), ladder: result(8, 'BAN', true) };
-
-	expect(describeModerationResult(withLadder, 'target', 'WARN' as AutomoderatorCaseAction)).toBe(
-		'**Dry run** — would have warned target. (case #7)\nThat reached a warn ladder step, so they would also have been banned. (case #8)',
 	);
 });
 
@@ -63,8 +45,8 @@ test('a suppressed ladder step is reported in the conditional', () => {
 // looked up here -- `applyModerationAction` resolved the channel while posting that very log.
 test('links each case number to its own mod-log message', () => {
 	const withLadder = {
-		...result(7, 'WARN', false, '2', '99'),
-		ladder: result(8, 'BAN', false, '2', '100'),
+		...result(7, 'WARN', '2', '99'),
+		ladder: result(8, 'BAN', '2', '100'),
 	};
 
 	expect(describeModerationResult(withLadder, 'target', 'WARN' as AutomoderatorCaseAction)).toBe(
@@ -76,6 +58,6 @@ test('links each case number to its own mod-log message', () => {
 // A guild with no mod log still has case numbers -- they are just not clickable.
 test('falls back to a bare number when the case never reached a log', () => {
 	expect(
-		describeModerationResult(result(7, 'WARN', false, '2', null), 'target', 'WARN' as AutomoderatorCaseAction),
+		describeModerationResult(result(7, 'WARN', '2', null), 'target', 'WARN' as AutomoderatorCaseAction),
 	).toBe('Successfully warned target. (case #7)');
 });

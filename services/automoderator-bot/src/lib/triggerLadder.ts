@@ -27,9 +27,9 @@ import { applyModerationAction } from './moderation.js';
  *
  * The window in which the *same* message can trip the filters again, which is an edit -- `filterRunner.ts` runs
  * on `MESSAGE_UPDATE` deliberately, to catch a link edited in after posting. Normally the message is deleted on
- * the first hit and no edit can follow, but a message the bot could not delete (or was not allowed to, in
- * dry-run) survives, and every later edit that still trips a filter would otherwise be a fresh rung. A member
- * fixing three typos on a message that still carries a forbidden link should not climb three.
+ * the first hit and no edit can follow, but a message the bot could not delete survives, and every later edit
+ * that still trips a filter would otherwise be a fresh rung. A member fixing three typos on a message that
+ * still carries a forbidden link should not climb three.
  *
  * A day rather than something shorter: an edit hours later is still an edit of the same offence. Longer than
  * that and it stops being one -- somebody dredging up a day-old message to edit a link into it is doing a new
@@ -58,13 +58,6 @@ const SUMMARY_PAST: Record<TriggerActionName, string> = {
 	BAN: 'Banned',
 };
 
-const SUMMARY_CONDITIONAL: Record<TriggerActionName, string> = {
-	WARN: 'Would have warned',
-	MUTE: 'Would have muted',
-	KICK: 'Would have kicked',
-	BAN: 'Would have banned',
-};
-
 export interface TriggerLadderResult {
 	/**
 	 * The case the rung produced, when it produced one, already rendered as `#12` (hyperlinked to its own
@@ -89,7 +82,7 @@ export interface TriggerLadderResult {
  * `SET NX PX` -- one round trip, atomic, the same claim `claimAutomodExecution` makes on the native path and
  * for the same shape of reason. What it stops is an *edit* being counted as a second offence: the filters
  * deliberately re-run on `MESSAGE_UPDATE`, so a message that survived its first hit -- one the bot could not
- * delete, or was not allowed to in dry-run -- would otherwise cost a rung per typo fix.
+ * delete -- would otherwise cost a rung per typo fix.
  *
  * **Fails open**, matching `claimAutomodExecution` and its reasoning exactly: a redis outage lets a count
  * through twice, where failing closed would stop the ladder entirely for as long as redis is down. Between
@@ -123,9 +116,8 @@ async function claimMessage(guildId: string, messageId: string, logger: Logger):
  * does not exist. Configuring a ladder later starts everyone from zero, which is the only honest answer -- hits
  * that were never recorded cannot be counted retroactively.
  *
- * The count is still incremented in dry-run, which has to be able to demonstrate the ladder or it is not a
- * preview of anything. It is *not* incremented when the delete failed; that gate is `filterRunner.ts`'s, next
- * to the DM it already suppresses for the same reason.
+ * The count is *not* incremented when the delete failed; that gate is `filterRunner.ts`'s, next to the DM it
+ * already suppresses for the same reason.
  */
 export async function applyTriggerLadder(
 	{ guildId, messageId, target }: { guildId: string; messageId: string; target: CaseActor },
@@ -201,13 +193,12 @@ export async function applyTriggerLadder(
 	traceDecision(logger, {
 		...traceBase,
 		action,
-		dryRun: result.suppressed,
 		matched: `${count} triggers`,
 	});
 
 	return {
 		count,
-		summary: result.suppressed ? SUMMARY_CONDITIONAL[action] : SUMMARY_PAST[action],
+		summary: SUMMARY_PAST[action],
 		caseRef: formatCaseNumber(result.case.caseId, {
 			guildId,
 			logChannelId: result.logChannelId,

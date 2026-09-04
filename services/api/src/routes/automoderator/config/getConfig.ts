@@ -12,7 +12,6 @@ export type GetAutomoderatorConfigResult = Pick<
 	| 'antispamAmount'
 	| 'antispamTime'
 	| 'autoPardonWarnsAfter'
-	| 'dryRun'
 	| 'guildId'
 	| 'reportsChannelId'
 	| 'triggerDecayMinutes'
@@ -35,7 +34,7 @@ export default defineRoute({
 		const { guildId } = req.params;
 
 		const [settings] = await getContext().db<GetAutomoderatorConfigResult[]>`
-			SELECT guild_id, dry_run, reports_channel_id, auto_pardon_warns_after, use_url_filters, use_invite_filters,
+			SELECT guild_id, reports_channel_id, auto_pardon_warns_after, use_url_filters, use_invite_filters,
 				antispam_amount, antispam_time, trigger_decay_minutes
 			FROM automoderator_guild_settings
 			WHERE guild_id = ${guildId}
@@ -43,7 +42,6 @@ export default defineRoute({
 
 		const defaults: GetAutomoderatorConfigResult = {
 			guildId: guildId as AutomoderatorGuildSettings['guildId'],
-			dryRun: true,
 			reportsChannelId: null,
 			autoPardonWarnsAfter: null,
 			useUrlFilters: false,

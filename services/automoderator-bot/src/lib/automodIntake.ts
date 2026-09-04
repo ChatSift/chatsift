@@ -105,13 +105,6 @@ interface PolicyOutcome extends FilterOutcome {
 	readonly enforced: boolean;
 }
 
-const SUMMARY_CONDITIONAL: Record<PunishmentAction, string> = {
-	WARN: 'Would have warned',
-	MUTE: 'Would have muted',
-	KICK: 'Would have kicked',
-	BAN: 'Would have banned',
-};
-
 /**
  * The member behind the event, which the payload does not carry.
  *
@@ -324,7 +317,7 @@ async function runPunishmentPolicy(
 	);
 
 	return {
-		summary: result.suppressed ? SUMMARY_CONDITIONAL[action] : SUMMARY_PAST[action],
+		summary: SUMMARY_PAST[action],
 		caseRef: formatCaseNumber(result.case.caseId, {
 			guildId: data.guild_id,
 			logChannelId: result.logChannelId,

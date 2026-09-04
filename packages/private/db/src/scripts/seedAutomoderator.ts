@@ -31,7 +31,6 @@ import { createDb, type Database } from '../index.js';
 interface SeedCase {
 	readonly action: string;
 	readonly daysAgo: number;
-	readonly dryRun?: boolean;
 	readonly expiresInDays?: number;
 	/**
 	 * Only meaningful alongside `expiresInDays` on a BAN. Absent leaves the case outstanding, which is what makes
@@ -159,18 +158,6 @@ const CASES: readonly SeedCase[] = [
 	// Unattributed, as an observed manual action whose moderator could not be resolved. Exercises the
 	// dashboard's "Not attributed" branch and the backfill that a `/case reason` edit performs.
 	{ action: 'BAN', targetId: BOB, targetTag: 'bob', modId: null, modTag: null, reason: null, daysAgo: 2 },
-	// A dry-run case: recorded, but nothing happened on Discord. Only reachable outside production, which is
-	// exactly where this script runs.
-	{
-		action: 'BAN',
-		targetId: ALICE,
-		targetTag: 'alice',
-		modId: MOD_TWO,
-		modTag: 'moderator-two',
-		reason: 'What a ban would look like',
-		daysAgo: 1,
-		dryRun: true,
-	},
 	{
 		action: 'WARN',
 		targetId: BOB,
@@ -450,7 +437,7 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 		await db`
 			INSERT INTO automoderator_cases (
 				guild_id, case_id, ref_id, target_id, target_tag, mod_id, mod_tag,
-				action_type, reason, expires_at, lifted_at, pardoned_by, dry_run, created_at
+				action_type, reason, expires_at, lifted_at, pardoned_by, created_at
 			) VALUES (
 				${guildId},
 				${caseNumber},
@@ -464,7 +451,6 @@ async function seed(db: Database, guildId: string, reset: boolean): Promise<void
 				${seedCase.expiresInDays ? new Date(createdAt.getTime() + seedCase.expiresInDays * 86_400_000) : null},
 				${seedCase.liftedDaysAgo === undefined ? null : new Date(now - seedCase.liftedDaysAgo * 86_400_000)},
 				${seedCase.pardoned ? MOD_ONE : null},
-				${seedCase.dryRun ?? false},
 				${createdAt}
 			)
 		`;

@@ -66,12 +66,12 @@ const FILTER_LABEL: Record<RunnerFilterKind, { readonly dm: string; readonly log
 };
 
 /**
- * What actually became of the message. Three states rather than a `suppressed` boolean, because the boolean
- * could not tell a failed delete from a successful one -- so a message the bot had lost Manage Messages on was
- * still logged as "Message deleted" and its author still DMed that it had been removed, while it sat there in
- * the channel. Every consumer below branches on all three.
+ * What actually became of the message. Named states rather than a bare boolean, because a delete Discord
+ * refused has to read differently everywhere below -- a message the bot had lost Manage Messages on must not be
+ * logged as "Message deleted", nor its author DMed that it had been removed, while it sits there in the
+ * channel.
  */
-type DeleteOutcome = 'deleted' | 'failed' | 'suppressed';
+type DeleteOutcome = 'deleted' | 'failed';
 
 /**
  * Count-aware because anti-spam removes a whole burst, not one message -- a log line saying "Message deleted"
@@ -83,8 +83,6 @@ function describeDelete(outcome: DeleteOutcome, count: number): string {
 	switch (outcome) {
 		case 'deleted':
 			return count === 1 ? 'Message deleted' : `${count} messages deleted`;
-		case 'suppressed':
-			return `Would have deleted ${noun}`;
 		// Said plainly in the log staff read, because this is the one outcome they have to do something about --
 		// it is almost always a missing Manage Messages in that channel.
 		case 'failed':
@@ -441,7 +439,7 @@ async function filterMessage(
 	const outcome = await deleteMessages(message, targets, evaluation.verdicts, logger);
 
 	// Only when the messages are actually gone. Telling somebody their message was removed while it is still
-	// sitting in the channel is worse than saying nothing, and dry-run must not DM at all.
+	// sitting in the channel is worse than saying nothing.
 	if (outcome === 'deleted') {
 		await notifyAuthor(message, evaluation.verdicts, logger);
 	}
@@ -451,12 +449,10 @@ async function filterMessage(
 			...traceBase,
 			runner: FEATURE[verdict.kind],
 			action: 'delete',
-			dryRun: outcome === 'suppressed',
 			matched: verdict.matched.join(', '),
 		});
 		// A delete Discord refused is a failure, not an application -- the guild configured something and it did
-		// not happen. Dry-run still counts as applied: the decision was made and recorded, which is the whole
-		// point of the mode.
+		// not happen.
 		featureInvocations.inc({ feature: FEATURE[verdict.kind], outcome: outcome === 'failed' ? 'failed' : 'applied' });
 	}
 
@@ -464,8 +460,7 @@ async function filterMessage(
 	// it, because a delete Discord refused leaves the offending messages sitting in the channel. Banning somebody
 	// over a message everyone can still read, without even the DM that this path suppresses for the same reason,
 	// is the worse of the two failures; the log line already says to check the bot's permissions, which is the
-	// part staff can act on. Dry-run still runs the ladder: `suppressed` means the decision was made and
-	// recorded, which is the whole point of the mode.
+	// part staff can act on.
 	let ladder: TriggerLadderResult | null = null;
 	let ladderFailed = false;
 
@@ -557,13 +552,12 @@ async function deleteMessages(
 	}
 
 	try {
-		const { suppressed } = await executeAction(
+		await executeAction(
 			{
 				action: 'delete',
 				guildId: message.guild_id,
 				source: 'automod',
 				targetId: message.author.id,
-				reason,
 				decidedBy: verdicts.map((verdict) => verdict.matched.join(', ')).join(' | '),
 				async execute() {
 					await Promise.all(
@@ -587,7 +581,7 @@ async function deleteMessages(
 			logger,
 		);
 
-		return suppressed ? 'suppressed' : 'deleted';
+		return 'deleted';
 	} catch (error) {
 		// A message somebody else already deleted, one in a channel the bot has lost Manage Messages in, or a
 		// burst that reached back past Discord's two-week bulk-delete limit. None is worth failing the whole

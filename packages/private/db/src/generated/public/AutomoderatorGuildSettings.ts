@@ -8,8 +8,6 @@ export type AutomoderatorGuildSettingsGuildId = string & { __brand: 'public.auto
 export default interface AutomoderatorGuildSettings {
   guildId: AutomoderatorGuildSettingsGuildId;
 
-  dryRun: boolean;
-
   lastCaseId: number;
 
   reportsChannelId: string | null;
@@ -31,8 +29,6 @@ export default interface AutomoderatorGuildSettings {
 export interface AutomoderatorGuildSettingsInitializer {
   guildId: AutomoderatorGuildSettingsGuildId;
 
-  dryRun?: boolean;
-
   lastCaseId?: number;
 
   reportsChannelId?: string | null;
@@ -53,8 +49,6 @@ export interface AutomoderatorGuildSettingsInitializer {
 /** Represents the mutator for the table public.automoderator_guild_settings */
 export interface AutomoderatorGuildSettingsMutator {
   guildId?: AutomoderatorGuildSettingsGuildId;
-
-  dryRun?: boolean;
 
   lastCaseId?: number;
 

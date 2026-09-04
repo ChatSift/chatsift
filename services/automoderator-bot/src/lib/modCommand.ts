@@ -143,9 +143,7 @@ export function describeModerationResult(
 	// A link to the case's own mod-log message wherever there is one to jump to (#381). Stays a pure function:
 	// `applyModerationAction` already resolved the channel while posting that log, and carries it back.
 	const ref = caseRef(result);
-	const head = result.suppressed
-		? `**Dry run** — would have ${verb} ${targetName}. (case ${ref})`
-		: `Successfully ${verb} ${targetName}. (case ${ref})`;
+	const head = `Successfully ${verb} ${targetName}. (case ${ref})`;
 
 	if (!result.ladder) {
 		return head;
@@ -153,14 +151,10 @@ export function describeModerationResult(
 
 	// Said out loud rather than left to the mod log: a `/warn` that also banned somebody is the surprise an
 	// escalation ladder is most likely to produce, and the moderator who triggered it is the one person who
-	// should never be surprised by it. Keyed off the *ladder's* own suppression rather than the warn's, so the
-	// two halves of one message can't disagree about whether anything happened.
+	// should never be surprised by it.
 	const ladderVerb = ACTION_PAST_TENSE[result.ladder.case.actionType as AutomoderatorCaseAction];
-	const ladderClause = result.ladder.suppressed
-		? `they would also have been ${ladderVerb}`
-		: `they were also ${ladderVerb}`;
 
-	return `${head}\nThat reached a warn ladder step, so ${ladderClause}. (case ${caseRef(result.ladder)})`;
+	return `${head}\nThat reached a warn ladder step, so they were also ${ladderVerb}. (case ${caseRef(result.ladder)})`;
 }
 
 /**

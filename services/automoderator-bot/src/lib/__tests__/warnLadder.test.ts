@@ -3,7 +3,7 @@ import { expect, test, vi } from 'vitest';
 import { buildLadderRequest } from '../warnLadder.js';
 
 // `buildLadderRequest` is pure, but its module reaches `cases.js` for the warn count, which pulls in the real
-// `ENV` -- parsed at import time and unhappy without a full environment. Same stub as `dryRun.test.ts`.
+// `ENV` -- parsed at import time and unhappy without a full environment.
 vi.mock('@chatsift/backend-core', () => ({
 	ENV: { IS_PRODUCTION: false },
 	getContext: () => ({ db: () => [] }),

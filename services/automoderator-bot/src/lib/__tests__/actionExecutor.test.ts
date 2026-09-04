@@ -1,14 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { executeAction } from '../actionExecutor.js';
-import { discordErrors, dryRunSuppressions, moderationActions, register } from '../metrics.js';
-
-const resolveDryRun = vi.fn();
-
-// `dryRun.ts` reads ENV and the database; what's under test here is the seam's own behaviour given an answer,
-// so it's stubbed rather than exercised. Its own resolution order is tested in `dryRun.test.ts`.
-vi.mock('../dryRun.js', () => ({
-	resolveDryRun: async (...args: unknown[]) => resolveDryRun(...args),
-}));
+import { discordErrors, moderationActions, register } from '../metrics.js';
 
 const logger = { info: vi.fn(), error: vi.fn() } as never;
 
@@ -19,63 +11,21 @@ async function counterValue(name: string): Promise<number> {
 }
 
 beforeEach(() => {
-	resolveDryRun.mockReset();
 	moderationActions.reset();
-	dryRunSuppressions.reset();
 	discordErrors.reset();
 });
 
-test('live mode runs the Discord call', async () => {
-	resolveDryRun.mockResolvedValue(false);
+test('the Discord call runs, and is counted once it has landed', async () => {
 	const execute = vi.fn().mockResolvedValue(undefined);
 
-	const result = await executeAction(
-		{ action: 'ban', guildId: '1', source: 'command', targetId: '2', execute },
-		logger,
-	);
+	await executeAction({ action: 'ban', guildId: '1', source: 'command', targetId: '2', execute }, logger);
 
+	// The entire contract of the seam: `execute` is the only thing that talks to Discord.
 	expect(execute).toHaveBeenCalledOnce();
-	expect(result.suppressed).toBe(false);
-	expect(await counterValue('automoderator_dry_run_suppressions_total')).toBe(0);
-});
-
-test('dry-run never runs the Discord call', async () => {
-	resolveDryRun.mockResolvedValue(true);
-	const execute = vi.fn().mockResolvedValue(undefined);
-
-	const result = await executeAction(
-		{ action: 'ban', guildId: '1', source: 'command', targetId: '2', execute },
-		logger,
-	);
-
-	// The entire contract of the seam: `execute` is the only thing that talks to Discord, and in dry-run it is
-	// not called at all -- not called-and-ignored, not called with a flag.
-	expect(execute).not.toHaveBeenCalled();
-	expect(result.suppressed).toBe(true);
-	expect(await counterValue('automoderator_dry_run_suppressions_total')).toBe(1);
-});
-
-test('an action is counted either way, labelled by whether it was suppressed', async () => {
-	resolveDryRun.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-	const execute = vi.fn().mockResolvedValue(undefined);
-
-	await executeAction({ action: 'kick', guildId: '1', source: 'ladder', execute }, logger);
-	await executeAction({ action: 'kick', guildId: '1', source: 'ladder', execute }, logger);
-
-	// Intent and enforcement on one axis -- two decisions, one of which happened.
-	expect(await counterValue('automoderator_moderation_actions_total')).toBe(2);
-});
-
-test('the invocation override is passed through to resolution', async () => {
-	resolveDryRun.mockResolvedValue(true);
-
-	await executeAction({ action: 'mute', guildId: '9', source: 'command', previewOnly: true, execute: vi.fn() }, logger);
-
-	expect(resolveDryRun).toHaveBeenCalledWith('9', true);
+	expect(await counterValue('automoderator_moderation_actions_total')).toBe(1);
 });
 
 test('a rejected Discord call is rethrown, and counted as an error rather than an action', async () => {
-	resolveDryRun.mockResolvedValue(false);
 	const execute = vi.fn().mockRejectedValue(Object.assign(new Error('Missing Permissions'), { status: 403 }));
 
 	await expect(executeAction({ action: 'ban', guildId: '1', source: 'command', execute }, logger)).rejects.toThrow(
@@ -88,8 +38,6 @@ test('a rejected Discord call is rethrown, and counted as an error rather than a
 });
 
 test('a nullish rejection is still counted, and rethrown unchanged', async () => {
-	resolveDryRun.mockResolvedValue(false);
-
 	for (const rejection of [undefined, null]) {
 		discordErrors.reset();
 		const execute = vi.fn().mockRejectedValue(rejection);
@@ -103,7 +51,6 @@ test('a nullish rejection is still counted, and rethrown unchanged', async () =>
 });
 
 test('a transport failure with no HTTP status still lands under a stable label', async () => {
-	resolveDryRun.mockResolvedValue(false);
 	const execute = vi.fn().mockRejectedValue(new Error('socket hang up'));
 
 	await expect(executeAction({ action: 'kick', guildId: '1', source: 'command', execute }, logger)).rejects.toThrow(

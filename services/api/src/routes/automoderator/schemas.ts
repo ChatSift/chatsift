@@ -26,9 +26,6 @@ import { embedColorSchema, httpUrlSchema, snowflakeSchema } from '../../util/sch
  */
 export const updateAutomoderatorConfigBodySchema = z
 	.strictObject({
-		// Ignored outside development -- see schema.sql and `automoderator-bot`'s `dryRun.ts`. Still writable
-		// in production so the value doesn't silently diverge between a dev database and a production one.
-		dryRun: z.boolean().optional(),
 		// Nullable rather than just optional: clearing the channel is how a guild turns reporting off, and
 		// absent-means-unchanged has no way to express that (see `updateConfig.ts`'s `'key' in body` handling).
 		reportsChannelId: snowflakeSchema.nullable().optional(),

@@ -1,7 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { traceDecision } from './decisionTrace.js';
-import { resolveDryRun } from './dryRun.js';
-import { discordErrors, dryRunSuppressions, moderationActions } from './metrics.js';
+import { discordErrors, moderationActions } from './metrics.js';
 
 /**
  * Every side effect this bot can have on Discord. A closed set, because it is also a metric label -- adding a
@@ -24,17 +23,11 @@ export interface ActionRequest {
 	 */
 	readonly decidedBy?: string;
 	/**
-	 * Runs the actual Discord call. **Only ever invoked in live mode** -- that is the entire contract, and the
-	 * reason nothing else in this service is allowed to call REST for a side effect.
+	 * Runs the actual Discord call -- the reason nothing else in this service is allowed to call REST for a side
+	 * effect.
 	 */
 	execute(): Promise<void>;
 	readonly guildId: string;
-	/**
-	 * Forces dry-run on for this one invocation (a command previewing what it would do). Cannot force it
-	 * back off -- see `dryRun.ts`.
-	 */
-	readonly previewOnly?: boolean;
-	readonly reason?: string;
 	readonly source: ActionSource;
 	readonly targetId?: string;
 }
@@ -60,54 +53,30 @@ const ROUTE_CLASS: Record<ModerationAction, string> = {
 	webhook: 'webhook',
 };
 
-export interface ActionResult {
-	/**
-	 * True when the side effect was suppressed. Callers that reply to a user branch on this to say "here's
-	 * what I would have done" instead of "done".
-	 */
-	readonly suppressed: boolean;
-}
-
 /**
  * The one seam every side-effecting Discord call goes through -- ban, kick, timeout, role change, message
  * delete, DM, webhook post. **Nothing else in this service may call REST for a side effect.**
  *
- * That rule is what makes dry-run one flag rather than a hundred conditionals, and it is why this exists in P0
- * with the phases that need it still unwritten: retrofitting a chokepoint onto call sites that already exist
- * is the expensive version of this. It is also the single place that can guarantee every action is counted
- * and traced, which is the other half of the port's diagnosability bias (P7 re-audits every call site against
- * exactly this).
- *
- * Database writes are deliberately *not* routed through here. A dry run still persists the case it would have
- * filed, flagged `dry_run` -- see the roadmap's Dry-run section for why.
+ * That rule is what makes this the single place that can guarantee every action is counted and traced, which is
+ * the port's diagnosability bias (P7 re-audits every call site against exactly this), and it is why it exists
+ * in P0 with the phases that need it still unwritten: retrofitting a chokepoint onto call sites that already
+ * exist is the expensive version of this.
  *
  * A failed Discord call is rethrown rather than swallowed: the caller knows what a failure means for its own
  * flow (a case row to roll back, a reply to reword) and this does not. What it does own is counting it
  * honestly -- a rejected call increments `discordErrors`, never `moderationActions`, so an "actions taken"
  * panel can't quietly include actions Discord refused.
  */
-export async function executeAction(request: ActionRequest, logger: Logger): Promise<ActionResult> {
-	const { action, guildId, source, targetId, reason, decidedBy, previewOnly } = request;
-
-	const suppressed = await resolveDryRun(guildId, previewOnly);
+export async function executeAction(request: ActionRequest, logger: Logger): Promise<void> {
+	const { action, guildId, source, targetId, decidedBy } = request;
 
 	traceDecision(logger, {
 		runner: source,
 		action,
 		guildId,
-		dryRun: suppressed,
 		...(targetId === undefined ? {} : { targetId }),
 		...(decidedBy === undefined ? {} : { matched: decidedBy }),
 	});
-
-	if (suppressed) {
-		// Labelled `dry_run` rather than skipped entirely, so intent and enforcement sit on one axis: a panel
-		// can show what the bot decided next to what it actually did.
-		moderationActions.inc({ action, source, dry_run: 'true' });
-		dryRunSuppressions.inc({ action });
-		logger.info({ action, guildId, targetId, reason }, 'dry-run: suppressed a Discord side effect');
-		return { suppressed: true };
-	}
 
 	try {
 		await request.execute();
@@ -120,7 +89,5 @@ export async function executeAction(request: ActionRequest, logger: Logger): Pro
 	}
 
 	// Counted only once Discord has accepted it -- see the doc comment.
-	moderationActions.inc({ action, source, dry_run: 'false' });
-
-	return { suppressed: false };
+	moderationActions.inc({ action, source });
 }

@@ -54,7 +54,7 @@ export function socialLeaderboardChannel(guildId: string): string {
  *
  * Guild-scoped and nothing finer at P0, because there is one settings row. The phases that add cases, reports
  * and filter logs each want their own channel rather than widening this one -- a case browser refetching
- * because someone toggled dry-run is exactly the over-invalidation the per-domain naming exists to avoid.
+ * because someone toggled a filter is exactly the over-invalidation the per-domain naming exists to avoid.
  */
 export function automoderatorConfigChannel(guildId: string): string {
 	return `automoderator:${guildId}:config`;
@@ -62,7 +62,7 @@ export function automoderatorConfigChannel(guildId: string): string {
 
 /**
  * The case browser's channel (P1). Separate from the config channel per the note above: a case list refetching
- * because someone toggled dry-run is exactly the over-invalidation this naming exists to avoid.
+ * because someone toggled a filter is exactly the over-invalidation this naming exists to avoid.
  *
  * Guild-wide rather than per-case, because the list is the thing that goes stale -- a new case appears at the
  * top of it, and an amended case changes a row in it. A watcher sitting on one case detail refetching when an

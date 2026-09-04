@@ -21,10 +21,6 @@ export interface DecisionTrace {
 	 */
 	bypassRoleId?: string;
 	/**
-	 * Whether the action was suppressed by dry-run. Present whenever `action` is non-null.
-	 */
-	dryRun?: boolean;
-	/**
 	 * The exemption that stopped this, if one did.
 	 */
 	exemption?: string;

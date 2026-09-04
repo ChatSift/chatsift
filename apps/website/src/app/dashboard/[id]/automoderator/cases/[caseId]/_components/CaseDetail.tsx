@@ -211,7 +211,6 @@ export function CaseDetail() {
 						</Field>
 					)}
 					{modCase.pardonedBy && <Field label="Pardoned by">{modCase.pardonedBy}</Field>}
-					{modCase.dryRun && <Field label="Dry run">This case was recorded, but no Discord action was taken.</Field>}
 				</div>
 
 				<OtherCases guildId={guildId} modCase={modCase} />

@@ -80,7 +80,6 @@ async function handleAuditLogEntry(entry: APIAuditLogEntry, guildId: string, log
 		guildId,
 		target,
 		mod,
-		dryRun: false,
 		reason: entry.reason ?? null,
 		idempotencyKey: `audit:${entry.id}`,
 	});
@@ -95,7 +94,6 @@ async function handleAuditLogEntry(entry: APIAuditLogEntry, guildId: string, log
 		action: action.toLowerCase(),
 		guildId,
 		targetId: target.id,
-		dryRun: false,
 	});
 
 	casesCreated.inc({ action, source: 'observer' });

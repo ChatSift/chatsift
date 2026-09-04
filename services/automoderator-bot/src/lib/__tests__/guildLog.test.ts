@@ -18,12 +18,9 @@ vi.mock('@chatsift/backend-core', () => ({
 }));
 
 // The action seam is `actionExecutor.test.ts`'s subject; here it only has to let the call through, so that what
-// this file asserts is the payload `dispatchLog` builds rather than dry-run resolution.
+// this file asserts is the payload `dispatchLog` builds rather than the seam's own bookkeeping.
 vi.mock('../actionExecutor.js', () => ({
-	executeAction: async (request: { execute(): Promise<void> }) => {
-		await request.execute();
-		return { suppressed: false };
-	},
+	executeAction: async (request: { execute(): Promise<void> }) => request.execute(),
 }));
 
 const logger = { error: vi.fn(), warn: vi.fn() } as unknown as Logger;

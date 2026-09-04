@@ -15,7 +15,6 @@ function makeCase(overrides: Partial<CaseEmbedInput> = {}): CaseEmbedInput {
 		actionType: 'BAN',
 		caseId: 42,
 		createdAt: CREATED_AT,
-		dryRun: false,
 		expiresAt: null,
 		guildId: '1',
 		modId: '3',
@@ -74,11 +73,6 @@ test('renders a duration relative to when the case was filed', () => {
 
 	expect(embed.fields?.[0]?.name).toBe('Duration');
 	expect(embed.fields?.[0]?.value).toContain('2 days');
-});
-
-test('says out loud when nothing actually happened', () => {
-	const embed = buildCaseEmbed(makeCase({ dryRun: true }));
-	expect(embed.fields?.some((field) => field.name === 'Dry run')).toBe(true);
 });
 
 test('names who pardoned a case', () => {

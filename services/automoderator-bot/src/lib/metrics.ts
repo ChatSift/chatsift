@@ -22,16 +22,15 @@ export const register = new Registry();
 
 /**
  * `action` is what was done to a member or message; `source` is what decided it. Both closed sets.
- * `dry_run` is a label rather than a separate metric so a panel can show intent and enforcement on one axis.
  *
- * Counts actions that actually *happened*: in live mode it is incremented only once Discord has accepted the
- * call. A rejected call lands in `automoderator_discord_errors_total` instead, so "we banned N people" never
- * silently includes the ones Discord refused.
+ * Counts actions that actually *happened*: it is incremented only once Discord has accepted the call. A
+ * rejected call lands in `automoderator_discord_errors_total` instead, so "we banned N people" never silently
+ * includes the ones Discord refused.
  */
 export const moderationActions = new Counter({
 	name: 'automoderator_moderation_actions_total',
-	help: 'Moderation actions taken, by action, deciding source, and whether they were suppressed',
-	labelNames: ['action', 'source', 'dry_run'] as const,
+	help: 'Moderation actions taken, by action and deciding source',
+	labelNames: ['action', 'source'] as const,
 	registers: [register],
 });
 
@@ -49,21 +48,10 @@ export const automodEvents = new Counter({
 });
 
 /**
- * Should always be zero in production. Non-zero there means a guild -- or the deployment -- has dry-run on
- * when it shouldn't, and the actions it names did not actually happen.
- */
-export const dryRunSuppressions = new Counter({
-	name: 'automoderator_dry_run_suppressions_total',
-	help: 'Side effects suppressed because dry-run was in effect',
-	labelNames: ['action'] as const,
-	registers: [register],
-});
-
-/**
  * Cases filed, by action and by what decided them. Distinct from `moderationActions` on purpose: a warn files
- * a case and takes no Discord action, an observed manual ban files a case for an action Discord already took,
- * and a dry-run files a case for an action that didn't happen. "How much moderation is this guild doing" and
- * "how many Discord calls did we make" are different questions and this is the first one.
+ * a case and takes no Discord action, and an observed manual ban files a case for an action Discord already
+ * took. "How much moderation is this guild doing" and "how many Discord calls did we make" are different
+ * questions and this is the first one.
  */
 export const casesCreated = new Counter({
 	name: 'automoderator_cases_created_total',
@@ -142,8 +130,7 @@ export const schedulerLag = new Histogram({
  * meaningful `skipped` (an exempt channel, a message that was never cached) as opposed to a plain success.
  *
  * `applied` means the log was built and handed to the dispatcher, *not* that Discord accepted it: delivery is
- * `automoderator_log_dispatch_total`'s job and suppression is
- * `automoderator_dry_run_suppressions_total`'s. Splitting them is what keeps "the observer decided to log this"
+ * `automoderator_log_dispatch_total`'s job. Splitting them is what keeps "the observer decided to log this"
  * separable from "the webhook worked", which are different outages with different fixes.
  */
 export const featureInvocations = new Counter({

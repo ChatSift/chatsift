@@ -44,11 +44,6 @@ function CaseRow({ guildId, modCase }: { readonly guildId: string; readonly modC
 			</div>
 
 			<div className="flex shrink-0 items-center gap-2">
-				{modCase.dryRun && (
-					<span className="rounded-full bg-on-tertiary px-2.5 py-1 text-xs font-medium text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark">
-						Dry run
-					</span>
-				)}
 				{modCase.pardonedBy && (
 					<span className="rounded-full bg-on-tertiary px-2.5 py-1 text-xs font-medium text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark">
 						Pardoned

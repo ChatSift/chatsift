@@ -654,7 +654,7 @@ kebab-case URL segment (`url-filter`, `filter-ladder`) because only the hub knew
 
 Groups, in setup order: **Moderation** (Cases, Reports) → **Filters** (Banned Words, URL Filter, Invite Filter,
 Anti-Spam, Exemptions) → **Escalation** (Warn Ladder, Filter Ladder) → **Logging & reporting** (Logging, Report
-Settings, Report Prompts). Enforcement (`dryRun`) sits under an "Advanced" heading on the hub itself.
+Settings, Report Prompts). The "Advanced" heading that carried the enforcement toggle went with dry-run.
 
 **Four pages became two.** `log-channels` + `log-exemptions` → `logging`; `filter-exemptions` + `bypass-roles` →
 `exemptions`. Each pair answered one question about two things (where logs go and what's left out of them; which

@@ -25,7 +25,6 @@ function makeCase(action: string, overrides: Partial<AutomoderatorCases> = {}): 
 		liftedAt: null,
 		pardonedBy: null,
 		logMessageId: null,
-		dryRun: false,
 		idempotencyKey: null,
 		createdAt: new Date('2026-08-14T12:00:00.000Z'),
 		...overrides,

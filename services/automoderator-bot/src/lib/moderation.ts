@@ -8,7 +8,6 @@ import { ACTION_PAST_TENSE, formatDuration } from './caseFormat.js';
 import { dispatchCaseLog } from './caseLog.js';
 import type { CaseActor } from './cases.js';
 import { createCase, findCaseByIdempotencyKey } from './cases.js';
-import { resolveDryRun } from './dryRun.js';
 import { casesCreated } from './metrics.js';
 import { buildLadderRequest, resolveWarnLadderRung } from './warnLadder.js';
 
@@ -96,12 +95,6 @@ export interface ModerationRequest {
 	 * Whether to DM the target before acting. Off for UNMUTE/UNBAN.
 	 */
 	readonly notifyTarget?: boolean;
-	/**
-	 * Forces dry-run on for this one action, whatever the guild currently says. Can only ever turn it *on* --
-	 * see `dryRun.ts`. Set by the expiry sweep, which reverses a case recorded long ago and has to honour the
-	 * dry-run state that case was filed under rather than today's setting.
-	 */
-	readonly previewOnly?: boolean;
 	readonly reason?: string | null;
 	readonly refId?: number | null;
 	/**
@@ -134,10 +127,6 @@ export interface ModerationResult {
 	 * would otherwise re-query it once per case number it prints.
 	 */
 	readonly logChannelId: string | null;
-	/**
-	 * Dry-runs
-	 */
-	readonly suppressed: boolean;
 }
 
 /**
@@ -148,8 +137,6 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 	const source = request.source ?? 'command';
 	const api = getContext().service.client.api;
 
-	// Resolved once for the row. `executeAction` resolves it again for enforcement -- they agree, and the row
-	// must never claim an action the executor suppressed.
 	// Before the DM and before the Discord call, which is the only position that makes this worth having: the
 	// unique index below would catch the duplicate *row*, but by then the member has already been banned twice
 	// and DM'd twice.
@@ -163,11 +150,10 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 
 			// Nothing was dispatched, so there is no webhook row in hand -- and this is the observer's path, where
 			// no case number is rendered back to anybody. See the same reasoning at the post-insert race below.
-			return { case: existing, suppressed: existing.dryRun, logChannelId: null };
+			return { case: existing, logChannelId: null };
 		}
 	}
 
-	const dryRun = await resolveDryRun(guildId, request.previewOnly);
 	const shouldNotify = request.notifyTarget ?? true;
 
 	if (shouldNotify && NOTIFY_BEFORE_ACTING.has(action)) {
@@ -175,21 +161,18 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 	}
 
 	const sideEffect = SIDE_EFFECT[action];
-	let suppressed = dryRun;
 	let softbanUnbanFailure: SoftbanUnbanError | null = null;
 
 	if (sideEffect) {
 		const auditReason = buildAuditReason(mod, reason);
 
 		try {
-			const result = await executeAction(
+			await executeAction(
 				{
 					action: sideEffect,
 					guildId,
 					source,
 					targetId: target.id,
-					...(request.previewOnly ? { previewOnly: true } : {}),
-					...(reason ? { reason } : {}),
 					async execute() {
 						const performers: Record<AutomoderatorCaseAction, () => Promise<unknown>> = {
 							WARN: async () => {
@@ -241,8 +224,6 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 				},
 				logger,
 			);
-
-			suppressed = result.suppressed;
 		} catch (error) {
 			if (!(error instanceof SoftbanUnbanError)) {
 				throw error;
@@ -252,7 +233,6 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 			// the case, then rethrow once it's recorded -- a banned member with no case explaining it is the worst
 			// outcome available here, and it's exactly what rethrowing straight away would produce.
 			softbanUnbanFailure = error;
-			suppressed = false;
 		}
 	}
 
@@ -265,7 +245,6 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 		guildId,
 		target,
 		mod,
-		dryRun: suppressed,
 		reason: reason ?? null,
 		refId: request.refId ?? null,
 		expiresAt: request.durationMs ? new Date(Date.now() + request.durationMs) : null,
@@ -277,7 +256,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 	try {
 		filed = await createCase(intent);
 	} catch (error) {
-		const enforced = Boolean(sideEffect) && !suppressed;
+		const enforced = Boolean(sideEffect);
 
 		logger.error(
 			{ err: error, enforced, intent: { ...intent, target: target.id, mod: mod?.id ?? null } },
@@ -300,7 +279,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 		filedCase = request.idempotencyKey ? await findCaseByIdempotencyKey(guildId, request.idempotencyKey) : null;
 
 		if (!filedCase) {
-			throw new CaseFilingError(Boolean(sideEffect) && !suppressed, new Error('idempotent insert found no case'));
+			throw new CaseFilingError(Boolean(sideEffect), new Error('idempotent insert found no case'));
 		}
 
 		logger.warn(
@@ -318,7 +297,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 		// No dispatch on this branch -- the delivery that won filed *and* logged the case -- so there is no
 		// webhook row in hand and nothing worth a query for it: this path is the audit observer's, and nothing
 		// there renders a case number back to anyone.
-		return { case: filedCase, suppressed, logChannelId: null };
+		return { case: filedCase, logChannelId: null };
 	}
 
 	casesCreated.inc({ action, source });
@@ -337,18 +316,17 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 	// Last, and only once the warn is fully on the record: a rung fires with `refId` pointing at this case, and
 	// referencing a case whose log never posted would be a number staff cannot look up.
 	if (action !== 'WARN' || request.skipLadder) {
-		return { case: filedCase, suppressed, logChannelId: dispatched.jumpChannelId };
+		return { case: filedCase, logChannelId: dispatched.jumpChannelId };
 	}
 
-	const rung = await resolveWarnLadderRung({ warnCase: filedCase, dryRun: suppressed }, logger);
+	const rung = await resolveWarnLadderRung(filedCase, logger);
 	if (!rung) {
-		return { case: filedCase, suppressed, logChannelId: dispatched.jumpChannelId };
+		return { case: filedCase, logChannelId: dispatched.jumpChannelId };
 	}
 
 	try {
 		return {
 			case: filedCase,
-			suppressed,
 			logChannelId: dispatched.jumpChannelId,
 			ladder: await applyModerationAction(buildLadderRequest(rung, filedCase, mod), logger),
 		};

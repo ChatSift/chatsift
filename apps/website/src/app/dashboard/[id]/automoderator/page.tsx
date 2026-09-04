@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { EnforcementCard } from './_components/EnforcementCard';
 import { PageSection } from './_components/PageSection';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
@@ -34,10 +33,6 @@ export default async function AutomoderatorPage({ params }: PageProps<'/dashboar
 					</div>
 				</PageSection>
 			))}
-
-			<PageSection title="Advanced">
-				<EnforcementCard />
-			</PageSection>
 		</div>
 	);
 }
