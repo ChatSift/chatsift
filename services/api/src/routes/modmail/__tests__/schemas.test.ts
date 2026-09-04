@@ -130,8 +130,9 @@ test('a panel takes either rendered content or raw content', () => {
 	expect(createPanelBodySchema.safeParse({ channelId: CHANNEL, categoryIds: [1] }).success).toBe(false);
 });
 
-// The dashboard used to be able to submit an empty title with no description, which posted an embed carrying
-// nothing at all -- Discord answered `embeds[0].description[BASE_TYPE_REQUIRED]` and the form saw a 500.
+// The dashboard used to be able to submit an empty title with no description (#397), which posted an embed
+// carrying nothing at all -- Discord answered `embeds[0].description[BASE_TYPE_REQUIRED]` and the form saw a 500.
+// Whitespace counts as empty here: Discord would take `"   "` and render a panel that looks blank.
 test('a panel needs at least one of a title and a description, neither of them empty', () => {
 	expect(panelWithContent({ title: 'Support' })).toBe(true);
 	expect(panelWithContent({ description: 'Click below' })).toBe(true);
@@ -139,10 +140,27 @@ test('a panel needs at least one of a title and a description, neither of them e
 	expect(panelWithContent({})).toBe(false);
 	expect(panelWithContent({ title: '' })).toBe(false);
 	expect(panelWithContent({ title: '', description: '' })).toBe(false);
+	expect(panelWithContent({ title: '   ' })).toBe(false);
+	expect(panelWithContent({ title: '   ', description: '\n\t ' })).toBe(false);
 });
 
-// The edit form resends the whole `panel` object, so the same rule has to hold on the update schema -- and
-// there it's reachable for a panel that was created with an empty title back when that was accepted.
+test('a panel keeps the trimmed text, not what was typed around it', () => {
+	const result = createPanelBodySchema.safeParse({
+		channelId: CHANNEL,
+		categoryIds: [1],
+		panel: { title: '  Support  ', description: ' Click below\n' },
+	});
+
+	if (!result.success || !('panel' in result.data)) {
+		expect.fail('expected the regular-content branch of the union to match');
+	}
+
+	expect(result.data.panel.title).toBe('Support');
+	expect(result.data.panel.description).toBe('Click below');
+});
+
+// The edit form resends the whole `panel` object, so the same rule has to hold on the update schema (#397) --
+// and there it's reachable for a panel that was created with an empty title back when that was accepted.
 test('a panel update is held to the same title-or-description rule', () => {
 	const result = updatePanelBodySchema.safeParse({ panel: { title: '' } });
 

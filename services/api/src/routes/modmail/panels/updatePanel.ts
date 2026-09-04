@@ -82,7 +82,11 @@ export default defineRoute({
 				});
 			} catch (error) {
 				if (error instanceof DiscordAPIError && error.status === 400) {
-					// See `createPanel.ts`'s matching branch.
+					// See `createPanel.ts`'s matching branch (#397).
+					if (!data.panel_raw) {
+						req.logger.warn({ err: error, panelId }, 'Discord rejected a structured panel message');
+					}
+
 					throw data.panel_raw
 						? badData('invalid panel_raw data')
 						: badRequest(`Discord rejected this panel message: ${error.message}`);

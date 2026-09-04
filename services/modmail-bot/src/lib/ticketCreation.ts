@@ -222,8 +222,8 @@ export async function finishTicketCreation({
 		});
 	} catch (error) {
 		// Covers both 403s Discord can answer with here -- `50001 Missing Access` (the forum isn't even visible
-		// to the bot) and `50013 Missing Permissions` (visible, but it can't post) -- plus `10003 Unknown Channel`,
-		// which is what a forum that has since been *deleted* answers with. `guild_settings.mod_forum_id` outlives
+		// to the bot) and `50013 Missing Permissions` (visible, but it can't post) -- plus `10003 Unknown Channel`
+		// (#397), which is what a forum that has since been *deleted* answers with. `guild_settings.mod_forum_id` outlives
 		// the channel it points at (nothing clears it when the channel goes away), so that last one is a perfectly
 		// ordinary state for a guild to be in, and it means the same thing to the opener as the other two: only a
 		// moderator can fix it. Left as a raw error it instead logged at error level on every single message the

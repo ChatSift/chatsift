@@ -113,8 +113,8 @@ const panelBase = z.strictObject({
 });
 
 /**
- * The structured panel embed. Both text fields are optional but neither may be empty, and at least one of them
- * has to be there: Discord refuses an embed carrying no content of its own (a panel submitted with an empty
+ * The structured panel embed (#397). Both text fields are optional but neither may be empty, and at least one of
+ * them has to be there: Discord refuses an embed carrying no content of its own (a panel submitted with an empty
  * title and no description came back as `embeds[0].description[BASE_TYPE_REQUIRED]`, which reached the
  * dashboard as a 500), so the rule is enforced here -- once, for the create form, the edit form and the API --
  * rather than left to Discord to answer with. Same shape `automoderator/schemas.ts`'s report prompt already
@@ -122,8 +122,10 @@ const panelBase = z.strictObject({
  */
 const panelContentSchema = z
 	.strictObject({
-		title: z.string().min(1).max(255).optional(),
-		description: z.string().min(1).max(4_000).optional(),
+		// Trimmed before the length checks, so whitespace is not a way past them: `"   "` would satisfy Discord
+		// (it's a non-empty string) and post a panel that looks blank to everyone reading it.
+		title: z.string().trim().min(1).max(255).optional(),
+		description: z.string().trim().min(1).max(4_000).optional(),
 		buttonLabel: z.string().min(1).max(80).default('Create Ticket'),
 		// Rendered as the embed's `image.url` directly (`createPanel.ts`/`updatePanel.ts`), same as a
 		// snippet's `attachmentUrl` -- see `isHttpUrl`'s doc comment above. The edit form always resends
