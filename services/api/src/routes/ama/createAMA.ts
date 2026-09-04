@@ -107,13 +107,15 @@ export default defineRoute({
 					INSERT INTO ama_sessions (
 						guild_id, title, answers_channel_id, prompt_channel_id,
 						queue_id, allowed_question_uploads, ended, scheduled_close_at,
-						review_enabled, prepared_answers_enabled, share_token, guest_ids
+						review_enabled, prepared_answers_enabled, share_token, guest_ids,
+						max_questions_per_user
 					)
 					VALUES (
 						${guildId}, ${data.title}, ${data.answersChannelId}, ${data.promptChannelId},
 						${data.queueId}, ${data.allowedQuestionUploads}, false,
 						${data.scheduledCloseAt ?? null},
-						${data.reviewEnabled}, ${data.preparedAnswersEnabled}, ${shareToken}, ${sql.array(data.guestIds)}
+						${data.reviewEnabled}, ${data.preparedAnswersEnabled}, ${shareToken}, ${sql.array(data.guestIds)},
+						${data.maxQuestionsPerUser}
 					)
 					RETURNING *
 				`;

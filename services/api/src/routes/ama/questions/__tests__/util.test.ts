@@ -38,6 +38,7 @@ function session(overrides: Partial<AmaSessions> = {}): AmaSessions {
 		reviewEnabled: true,
 		shareToken: 'token',
 		guestIds: [],
+		maxQuestionsPerUser: null,
 		...overrides,
 	};
 }

@@ -3,7 +3,7 @@ import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import { collectModal } from '@chatsift/bot-core';
 import { amaQuestionsChannel } from '@chatsift/core';
-import type { AmaQuestions, AmaSessions } from '@chatsift/db';
+import type { AmaQuestions, AmaSessions, Database, DatabaseTransaction } from '@chatsift/db';
 import type {
 	APIModalSubmitInteraction,
 	APIMessageComponentInteraction,
@@ -14,6 +14,16 @@ import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
 import { questionsSubmitted } from '../lib/metrics.js';
 import { CurrentlyInQueue, postToAnswersChannel, postToQueue } from '../lib/queues.js';
+
+function initialStateFor(ama: AmaSessions) {
+	return ama.reviewEnabled ? 'PENDING_REVIEW' : ama.preparedAnswersEnabled ? 'APPROVED' : 'ASKED';
+}
+
+function capReachedMessage(limit: number): string {
+	return limit === 1
+		? 'You have already submitted a question to this AMA, and only one per person is allowed.'
+		: `You have already submitted the maximum of ${limit} questions to this AMA.`;
+}
 
 export default class SubmitQuestionComponent implements ComponentHandler {
 	public readonly name = 'submit-question';
@@ -34,7 +44,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 			);
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 				content:
-					"This prompt isn't linked to an active AMA — it's likely left over from before this server's AMA bot was upgraded. Ask a moderator to start a new AMA.",
+					"This prompt isn't linked to an active AMA - it's likely left over from before this server's AMA bot was upgraded. Ask a moderator to start a new AMA.",
 				flags: MessageFlags.Ephemeral,
 			});
 
@@ -49,7 +59,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				'Prompt message resolved to an AMA session belonging to a different guild',
 			);
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-				content: "Something's wrong with this AMA prompt — please let a moderator know.",
+				content: "Something's wrong with this AMA prompt - please let a moderator know.",
 				flags: MessageFlags.Ephemeral,
 			});
 
@@ -63,6 +73,19 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 			});
 
 			return;
+		}
+
+		if (ama.maxQuestionsPerUser !== null) {
+			const asked = await this.countOwnQuestions(ama, interaction.member!.user.id);
+			if (asked >= ama.maxQuestionsPerUser) {
+				questionsSubmitted.inc({ initial_state: initialStateFor(ama).toLowerCase(), result: 'capped' });
+				await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+					content: capReachedMessage(ama.maxQuestionsPerUser),
+					flags: MessageFlags.Ephemeral,
+				});
+
+				return;
+			}
 		}
 
 		const id = nanoid();
@@ -125,6 +148,65 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		await this.handleModalCollected(modalInteraction as APIModalSubmitGuildInteraction, ama, logger);
 	}
 
+	private async countOwnQuestions(ama: AmaSessions, userId: string): Promise<number> {
+		const [row] = await getContext().db<[{ count: number }]>`
+			SELECT COUNT(*)::int AS count FROM ama_questions
+			WHERE ama_id = ${ama.id} AND author_id = ${userId}
+		`;
+
+		return row?.count ?? 0;
+	}
+
+	/**
+	 * Writes the question, refusing it (no row back) when the author is already at the session's
+	 * `maxQuestionsPerUser` (#396).
+	 *
+	 * The cap is a `WHERE` on the insert itself rather than a separate count-then-insert pair, but that
+	 * alone is *not* enough to make it hold: under READ COMMITTED the correlated `COUNT(*)` reads the
+	 * snapshot taken when the statement began, so a concurrent submission committing in between stays
+	 * invisible and both attempts pass the gate. Measured, not theorised -- two genuinely simultaneous
+	 * submissions overshot a cap of 1 on every run. Hence the advisory lock, taken as its own statement so
+	 * the insert that follows gets a fresh snapshot including whatever the previous holder committed.
+	 *
+	 * Only capped sessions pay for the transaction and the lock; an uncapped AMA (the default, and every
+	 * AMA predating #396) keeps the plain single-statement insert. `hashtext` is what turns the author's
+	 * snowflake into the lock's second int4 key -- two different users colliding on it would only serialise
+	 * two writes that were never in conflict, which costs nothing and changes no outcome.
+	 */
+	private async insertQuestion(
+		ama: AmaSessions,
+		authorId: string,
+		content: string,
+		state: ReturnType<typeof initialStateFor>,
+	): Promise<AmaQuestions | undefined> {
+		const insert = async (sql: Database | DatabaseTransaction) => {
+			const [question] = await sql<AmaQuestions[]>`
+				INSERT INTO ama_questions (ama_id, author_id, content, state)
+				SELECT ${ama.id}, ${authorId}, ${content}, ${state}
+				${
+					ama.maxQuestionsPerUser === null
+						? sql``
+						: sql`WHERE (
+							SELECT COUNT(*) FROM ama_questions WHERE ama_id = ${ama.id} AND author_id = ${authorId}
+						) < ${ama.maxQuestionsPerUser}`
+				}
+				RETURNING *
+			`;
+
+			return question;
+		};
+
+		if (ama.maxQuestionsPerUser === null) {
+			return insert(getContext().db);
+		}
+
+		return getContext().db.begin(async (sql) => {
+			await sql`SELECT pg_advisory_xact_lock(${ama.id}, hashtext(${authorId}))`;
+
+			return insert(sql);
+		});
+	}
+
 	private async handleModalCollected(interaction: APIModalSubmitGuildInteraction, ama: AmaSessions, logger: Logger) {
 		await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, {
 			flags: MessageFlags.Ephemeral,
@@ -137,16 +219,22 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		// the conditional push above) -- calling `getAttachments` when it's absent throws.
 		const attachments = ama.allowedQuestionUploads > 0 ? options.getAttachments('file-upload') : null;
 
-		// Review's stage existence is keyed off `reviewEnabled`, not queue-channel truthiness -- it can be
-		// dashboard-only (no Discord channel configured for it), see #293 follow-up / schema.sql.
-		const state = ama.reviewEnabled ? 'PENDING_REVIEW' : ama.preparedAnswersEnabled ? 'APPROVED' : 'ASKED';
-		const [question] = await getContext().db<AmaQuestions[]>`
-			INSERT INTO ama_questions (ama_id, author_id, content, state)
-			VALUES (${ama.id}, ${interaction.member.user.id}, ${questionText}, ${state})
-			RETURNING *
-		`;
+		const state = initialStateFor(ama);
+		const question = await this.insertQuestion(ama, interaction.member.user.id, questionText, state);
 
 		if (!question) {
+			// The cap's WHERE is the only thing that can make that statement match zero rows, so an uncapped
+			// AMA landing here is the genuinely-impossible write the throw covers, not somebody's cap (#396).
+			if (ama.maxQuestionsPerUser !== null) {
+				questionsSubmitted.inc({ initial_state: state.toLowerCase(), result: 'capped' });
+				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
+					content: capReachedMessage(ama.maxQuestionsPerUser),
+					flags: MessageFlags.Ephemeral,
+				});
+
+				return;
+			}
+
 			questionsSubmitted.inc({ initial_state: state.toLowerCase(), result: 'failed' });
 			throw new Error(`Failed to insert question for AMA session ${ama.id}`);
 		}
