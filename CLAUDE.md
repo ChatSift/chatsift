@@ -48,8 +48,9 @@ M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done a
 - Developers working on this project dislike "Auto Mode" on Agents. Consider if your proposed shell command will need to be approved and try to avoid it by getting your work done with what is pre-approved in .claude/*.json
 - You'll use Git worktrees whenever you are asked explicitly. Do not prefix the branch name with worktree-. Use a relevant
   branch name analog to semantic commits (like `refactor/bot-core-sharding`)\
-- Do not use "—" or characters a human would not use. If you find old instances as you work on a particular file, fix it,
+- Do not use `—` or characters a human would not use. If you find old instances as you work on a particular file, fix it,
   even if irrelevant for the current task.
+- Do not use `’`
 
 ## Frontend (`apps/website`)
 

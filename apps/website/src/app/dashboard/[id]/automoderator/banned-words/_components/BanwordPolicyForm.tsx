@@ -106,7 +106,7 @@ function KeywordPicker({
 
 			{matches.length > shown.length && (
 				<p className="text-sm text-secondary dark:text-secondary-dark">
-					Showing {shown.length} of {matches.length} matches — narrow the filter to find the rest.
+					Showing {shown.length} of {matches.length} matches; narrow the filter to find the rest.
 				</p>
 			)}
 		</div>
@@ -208,7 +208,7 @@ export function BanwordPolicyForm({ policy }: BanwordPolicyFormProps) {
 		}
 
 		if (scope === 'keyword' && form.keyword.trim().length === 0) {
-			setErrors({ keyword: 'Pick one of this rule’s keywords.' });
+			setErrors({ keyword: "Pick one of this rule's keywords." });
 			return;
 		}
 
@@ -316,7 +316,7 @@ export function BanwordPolicyForm({ policy }: BanwordPolicyFormProps) {
 						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
 							{keywordScopeAvailable
 								? 'A keyword policy wins over a whole-rule one, so you can set the rule to warn and single out the words that should ban.'
-								: 'Discord doesn’t expose the words behind this rule, so it can only take a whole-rule policy.'}
+								: "Discord doesn't expose the words behind this rule, so it can only take a whole-rule policy."}
 						</p>
 					</div>
 				)}
@@ -355,7 +355,7 @@ export function BanwordPolicyForm({ policy }: BanwordPolicyFormProps) {
 					{errors.actionType && <p className="mt-1 text-sm text-misc-danger">{errors.actionType}</p>}
 					{reportBlocked && (
 						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-							Report isn&apos;t available because this rule blocks the message — there would be nothing for the report
+							Report isn&apos;t available because this rule blocks the message, so there would be nothing for the report
 							card to link to. Switch the rule to alert in Server Settings → AutoMod to use it.
 						</p>
 					)}

@@ -33,7 +33,7 @@ export const DURATION_RULE: Record<BanwordActionName, DurationRule> = {
 };
 
 export const DURATION_HELP: Record<BanwordActionName, string> = {
-	WARN: 'Warnings have no duration — but they do feed the warn ladder, which does.',
+	WARN: 'Warnings have no duration, but they do feed the warn ladder, which does.',
 	MUTE: 'How long the timeout lasts, e.g. "30m", "2h", "7d". Discord timeouts cap out at 28 days.',
 	KICK: 'Kicks have no duration.',
 	BAN: 'How long the ban lasts, e.g. "7d", "3mo". Leave empty to ban permanently.',

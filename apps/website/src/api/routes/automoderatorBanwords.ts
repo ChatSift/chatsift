@@ -28,8 +28,9 @@ export type BanwordActionName = (typeof banwordActionSchema.options)[number];
  * Answers with a discriminated `available` rather than failing, because "the bot doesn't hold Manage Server"
  * and "the guild has no rules" are ordinary states with different fixes -- see the route's own comment.
  *
- * `staleTime: 0` (the default) on purpose: this is configuration a manager may have changed in Discord's own
- * UI seconds ago, in another tab, which is exactly the workflow the read-only design forces on them.
+ * Left on the client's default 60s `staleTime` with `RefreshRulesButton` as the escape hatch, because this is
+ * configuration a manager may have changed in Discord's own UI seconds ago, in another tab -- which is exactly
+ * the workflow the read-only design forces on them.
  */
 export function useAutomodRules(guildId: string) {
 	return useQuery({

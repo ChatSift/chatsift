@@ -73,8 +73,8 @@ function PolicyRow({ guildId, policy }: { readonly guildId: string; readonly pol
 				onOpenChange={setIsConfirmOpen}
 				title="Remove this policy?"
 			>
-				Discord keeps blocking the message either way — this only stops AutoModerator responding to it. Cases this
-				policy already produced stay exactly as they are.
+				Discord keeps blocking the message either way; this only stops AutoModerator responding to it. Cases this policy
+				already produced stay exactly as they are.
 			</ConfirmModal>
 		</div>
 	);
@@ -228,8 +228,8 @@ export function BannedWordsList() {
 				icon={<SvgAutoModerator height={28} width={28} />}
 				subtitle={
 					rules.reason === 'missing-permission'
-						? 'Reading a server’s AutoMod rules needs the Manage Server permission, which AutoModerator doesn’t currently have here. Grant it and reload — nothing else about this feature needs it, and AutoModerator never edits your rules.'
-						: 'AutoModerator can’t see this server right now. If it was just removed, re-invite it and reload.'
+						? "Reading a server's AutoMod rules needs the Manage Server permission, which AutoModerator doesn't currently have here. Grant it and hit Refresh Rules. Nothing else about this feature needs it, and AutoModerator never edits your rules."
+						: "AutoModerator can't see this server right now. If it was just removed, re-invite it and hit Refresh Rules."
 				}
 				title="Can't read this server's AutoMod rules"
 			/>
