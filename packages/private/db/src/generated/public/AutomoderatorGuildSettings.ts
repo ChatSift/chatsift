@@ -23,6 +23,8 @@ export default interface AutomoderatorGuildSettings {
   antispamTime: number | null;
 
   triggerDecayMinutes: number | null;
+
+  minJoinAgeSeconds: number | null;
 }
 
 /** Represents the initializer for the table public.automoderator_guild_settings */
@@ -44,6 +46,8 @@ export interface AutomoderatorGuildSettingsInitializer {
   antispamTime?: number | null;
 
   triggerDecayMinutes?: number | null;
+
+  minJoinAgeSeconds?: number | null;
 }
 
 /** Represents the mutator for the table public.automoderator_guild_settings */
@@ -65,4 +69,6 @@ export interface AutomoderatorGuildSettingsMutator {
   antispamTime?: number | null;
 
   triggerDecayMinutes?: number | null;
+
+  minJoinAgeSeconds?: number | null;
 }

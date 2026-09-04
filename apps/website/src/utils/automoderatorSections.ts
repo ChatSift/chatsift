@@ -52,6 +52,11 @@ export const AUTOMODERATOR_SECTION_GROUPS = [
 				title: 'Exemptions',
 				subtitle: 'Channels the filters skip, and roles they never punish',
 			},
+			{
+				segment: 'join-gate',
+				title: 'Join Gate',
+				subtitle: 'How old an account has to be before it can join',
+			},
 		],
 	},
 	{

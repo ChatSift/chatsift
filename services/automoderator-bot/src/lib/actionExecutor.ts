@@ -12,9 +12,11 @@ export type ModerationAction =
 /**
  * What decided the action. Also a metric label, also closed. `command` is a moderator typing something;
  * `automod` is a native Discord AutoMod hit; `ladder` is an escalation rung; `scheduler` is a timed action
- * expiring; `observer` is us noticing a manual action taken through Discord's own UI.
+ * expiring; `observer` is us noticing a manual action taken through Discord's own UI; `gate` is the join gate
+ * turning an account away at the door (P6, feature 13), which is the one source that decides on who somebody is
+ * rather than on anything they did.
  */
-export type ActionSource = 'automod' | 'command' | 'ladder' | 'observer' | 'report' | 'scheduler';
+export type ActionSource = 'automod' | 'command' | 'gate' | 'ladder' | 'observer' | 'report' | 'scheduler';
 
 export interface ActionRequest {
 	readonly action: ModerationAction;

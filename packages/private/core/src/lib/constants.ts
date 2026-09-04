@@ -201,3 +201,10 @@ export const ANTISPAM_MAX_SECONDS = 300;
  * directly. Same shape and the same reasoning as `AUTO_PARDON_MAX_DAYS`.
  */
 export const TRIGGER_DECAY_MAX_MINUTES = 30 * 24 * 60;
+
+/**
+ * The oldest an account can be required to be before the join gate (P6, feature 13) lets it in, in seconds.
+ * A year, past which a gate stops being a raid measure and becomes a membership policy Discord's own
+ * verification levels express better. Legacy had no ceiling at all, in a column measured in milliseconds.
+ */
+export const MIN_JOIN_AGE_MAX_SECONDS = 365 * 24 * 60 * 60;

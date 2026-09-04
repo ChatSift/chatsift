@@ -859,6 +859,15 @@ CREATE TABLE automoderator_guild_settings (
   -- setting is phrased in and nobody decays on a second boundary.
   trigger_decay_minutes INTEGER,
 
+  -- The join gate (P6, feature 13): an account younger than this is removed the moment it joins. NULL is off,
+  -- which is what every guild that has never thought about it gets.
+  --
+  -- Seconds, where legacy stored unbounded milliseconds in a BIGINT. It is the unit every other duration in
+  -- this product already uses (`automoderator_warn_punishments.duration_seconds`), and it is what lets the
+  -- dashboard take "12h" or "7d" through the same parser the ladder editors use rather than asking for a
+  -- number of days nobody wanting twelve hours can express.
+  min_join_age_seconds INTEGER,
+
   -- Only the lower bound, not the API's ten-year ceiling: a ceiling is taste and lives in zod (same split the
   -- social settings note above describes), but zero or negative is a value that *breaks* something -- zero
   -- pardons every warning the instant it is filed, and negative pardons warnings dated in the future. That is
@@ -876,7 +885,12 @@ CREATE TABLE automoderator_guild_settings (
   ),
 
   CONSTRAINT automoderator_guild_settings_trigger_decay_check
-    CHECK (trigger_decay_minutes IS NULL OR trigger_decay_minutes >= 1)
+    CHECK (trigger_decay_minutes IS NULL OR trigger_decay_minutes >= 1),
+
+  -- Zero would turn the gate on and let everybody through, which reads as a configured gate and behaves as no
+  -- gate at all; negative would turn away accounts created in the future, which is every account.
+  CONSTRAINT automoderator_guild_settings_min_join_age_check
+    CHECK (min_join_age_seconds IS NULL OR min_join_age_seconds >= 1)
 );
 
 -- Legacy's `CaseAction`, uppercased to match this schema's other enums (`ama_question_state`,

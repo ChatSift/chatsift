@@ -15,6 +15,7 @@ import { AUTO_PARDON_SWEEP_INTERVAL_MS, sweepAutoPardons } from './lib/autoPardo
 import { registerAutomodIntake } from './lib/automodIntake.js';
 import { EXPIRED_BAN_SWEEP_INTERVAL_MS, sweepExpiredBans } from './lib/expiredBanSweep.js';
 import { registerFilterRunner } from './lib/filterRunner.js';
+import { registerJoinGate } from './lib/joinGate.js';
 import { resolveLegacyRolePrompt } from './lib/legacyRolePrompts.js';
 import { registerMessageObserver } from './lib/messageObserver.js';
 import { register } from './lib/metrics.js';
@@ -30,6 +31,7 @@ export async function bin(client: Client): Promise<void> {
 	registerAutomodIntake(client);
 	registerAuditObserver(client);
 	registerFilterRunner(client);
+	registerJoinGate(client);
 	registerMessageObserver(client);
 	registerProfileObserver(client);
 	startMetricsServer({ port: ENV.AUTOMODERATOR_METRICS_PORT, register });
