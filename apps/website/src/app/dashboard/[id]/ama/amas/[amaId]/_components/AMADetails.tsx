@@ -52,6 +52,8 @@ interface ConfigFormData {
 	// goes to the API (#316).
 	answersToDiscord: boolean;
 	guestIds: string[];
+	// Empty means uncapped (#396) -- the API takes `null` for that, see `handleSaveConfig`.
+	maxQuestionsPerUser: string;
 	preparedAnswersEnabled: boolean;
 	queueId: string;
 	reviewEnabled: boolean;
@@ -67,6 +69,7 @@ const CONFIG_FIELDS = [
 	'queueId',
 	'guestIds',
 	'allowedQuestionUploads',
+	'maxQuestionsPerUser',
 	'scheduledCloseAt',
 ] as const satisfies (keyof ConfigFormData)[];
 
@@ -261,6 +264,7 @@ export function AMADetails() {
 			reviewEnabled: ama.reviewEnabled,
 			preparedAnswersEnabled: ama.preparedAnswersEnabled,
 			allowedQuestionUploads: String(ama.allowedQuestionUploads),
+			maxQuestionsPerUser: ama.maxQuestionsPerUser === null ? '' : String(ama.maxQuestionsPerUser),
 			scheduledCloseAt,
 			guestIds: ama.guestIds,
 		});
@@ -316,6 +320,11 @@ export function AMADetails() {
 			// See `uploadsDisabled` -- forced to 0 rather than submitting a value typed before the toggles
 			// that invalidated it were flipped.
 			allowedQuestionUploads: uploadsDisabled ? 0 : parseIntegerInput(configForm.allowedQuestionUploads),
+			// Blank clears the cap, which the API spells `null` -- `parseIntegerInput` would hand it `NaN`
+			// instead, and that is a validation error rather than an absent limit.
+			maxQuestionsPerUser: configForm.maxQuestionsPerUser.trim()
+				? parseIntegerInput(configForm.maxQuestionsPerUser)
+				: null,
 			guestIds: [...new Set(configForm.guestIds.map((id) => id.trim()).filter(Boolean))],
 			// Omitted entirely (not sent as `undefined`) when untouched -- see `initialScheduledCloseAt`'s
 			// comment for why resending an unchanged value isn't safe to do unconditionally.
@@ -777,6 +786,37 @@ export function AMADetails() {
 								<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Allowed Uploads</p>
 								<p className="text-lg text-primary dark:text-primary-dark">
 									{ama.allowedQuestionUploads} {ama.allowedQuestionUploads === 1 ? 'file' : 'files'} per question
+								</p>
+							</div>
+						)}
+
+						{editing ? (
+							<TextField
+								error={configErrors.maxQuestionsPerUser}
+								helper={
+									<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+										Blank for no limit. Only applies to questions submitted from now on - lowering it never removes ones
+										already in.
+									</p>
+								}
+								id="edit-max-questions-per-user"
+								label="Max Questions Per User"
+								max={100}
+								min={1}
+								onChange={(value) => updateConfigField('maxQuestionsPerUser', value)}
+								placeholder="No limit"
+								type="number"
+								value={configForm.maxQuestionsPerUser}
+							/>
+						) : (
+							<div>
+								<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">
+									Max Questions Per User
+								</p>
+								<p className="text-lg text-primary dark:text-primary-dark">
+									{ama.maxQuestionsPerUser === null
+										? 'No limit'
+										: `${ama.maxQuestionsPerUser} ${ama.maxQuestionsPerUser === 1 ? 'question' : 'questions'}`}
 								</p>
 							</div>
 						)}

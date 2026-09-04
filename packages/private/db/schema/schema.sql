@@ -93,9 +93,18 @@ CREATE TABLE ama_sessions (
   -- dashboard's answer editor. Empty by default, in which case the picker falls back to its original
   -- free-text/default-to-self behavior and there are no non-manager dashboard users for this AMA.
   guest_ids                TEXT[] NOT NULL DEFAULT '{}',
+  -- How many questions one user may submit to this AMA (#396). NULL (the default) means no cap, so
+  -- existing sessions and anyone who never touches the field keep the old unlimited behavior. Counts
+  -- every `ama_questions` row the user authored here regardless of state -- a denial deliberately does
+  -- not hand the slot back, otherwise the cap would do nothing against exactly the repeat-submitter it
+  -- exists for. A merge does free one, since merging deletes the merged-from row outright. Enforced by
+  -- services/ama-bot at submit time (the same soft-business-rule-next-to-a-Discord-call shape as
+  -- modmail's `max_concurrent_threads`), not by a DB constraint.
+  max_questions_per_user   INTEGER,
   created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  CONSTRAINT ama_sessions_review_enabled_check CHECK (review_enabled OR queue_id IS NULL)
+  CONSTRAINT ama_sessions_review_enabled_check CHECK (review_enabled OR queue_id IS NULL),
+  CONSTRAINT ama_sessions_max_questions_per_user_check CHECK (max_questions_per_user IS NULL OR max_questions_per_user >= 1)
 );
 
 CREATE TABLE ama_prompt_data (

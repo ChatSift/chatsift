@@ -15,6 +15,16 @@ import { nanoid } from 'nanoid';
 import { questionsSubmitted } from '../lib/metrics.js';
 import { CurrentlyInQueue, postToAnswersChannel, postToQueue } from '../lib/queues.js';
 
+function initialStateFor(ama: AmaSessions) {
+	return ama.reviewEnabled ? 'PENDING_REVIEW' : ama.preparedAnswersEnabled ? 'APPROVED' : 'ASKED';
+}
+
+function capReachedMessage(limit: number): string {
+	return limit === 1
+		? 'You have already submitted a question to this AMA, and only one per person is allowed.'
+		: `You have already submitted the maximum of ${limit} questions to this AMA.`;
+}
+
 export default class SubmitQuestionComponent implements ComponentHandler {
 	public readonly name = 'submit-question';
 
@@ -34,7 +44,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 			);
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
 				content:
-					"This prompt isn't linked to an active AMA — it's likely left over from before this server's AMA bot was upgraded. Ask a moderator to start a new AMA.",
+					"This prompt isn't linked to an active AMA - it's likely left over from before this server's AMA bot was upgraded. Ask a moderator to start a new AMA.",
 				flags: MessageFlags.Ephemeral,
 			});
 
@@ -49,7 +59,7 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 				'Prompt message resolved to an AMA session belonging to a different guild',
 			);
 			await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
-				content: "Something's wrong with this AMA prompt — please let a moderator know.",
+				content: "Something's wrong with this AMA prompt - please let a moderator know.",
 				flags: MessageFlags.Ephemeral,
 			});
 
@@ -63,6 +73,19 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 			});
 
 			return;
+		}
+
+		if (ama.maxQuestionsPerUser !== null) {
+			const asked = await this.countOwnQuestions(ama, interaction.member!.user.id);
+			if (asked >= ama.maxQuestionsPerUser) {
+				questionsSubmitted.inc({ initial_state: initialStateFor(ama).toLowerCase(), result: 'capped' });
+				await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+					content: capReachedMessage(ama.maxQuestionsPerUser),
+					flags: MessageFlags.Ephemeral,
+				});
+
+				return;
+			}
 		}
 
 		const id = nanoid();
@@ -125,6 +148,15 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		await this.handleModalCollected(modalInteraction as APIModalSubmitGuildInteraction, ama, logger);
 	}
 
+	private async countOwnQuestions(ama: AmaSessions, userId: string): Promise<number> {
+		const [row] = await getContext().db<[{ count: number }]>`
+			SELECT COUNT(*)::int AS count FROM ama_questions
+			WHERE ama_id = ${ama.id} AND author_id = ${userId}
+		`;
+
+		return row?.count ?? 0;
+	}
+
 	private async handleModalCollected(interaction: APIModalSubmitGuildInteraction, ama: AmaSessions, logger: Logger) {
 		await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, {
 			flags: MessageFlags.Ephemeral,
@@ -137,16 +169,35 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		// the conditional push above) -- calling `getAttachments` when it's absent throws.
 		const attachments = ama.allowedQuestionUploads > 0 ? options.getAttachments('file-upload') : null;
 
-		// Review's stage existence is keyed off `reviewEnabled`, not queue-channel truthiness -- it can be
-		// dashboard-only (no Discord channel configured for it), see #293 follow-up / schema.sql.
-		const state = ama.reviewEnabled ? 'PENDING_REVIEW' : ama.preparedAnswersEnabled ? 'APPROVED' : 'ASKED';
-		const [question] = await getContext().db<AmaQuestions[]>`
+		const state = initialStateFor(ama);
+		const authorId = interaction.member.user.id;
+		const db = getContext().db;
+		const [question] = await db<AmaQuestions[]>`
 			INSERT INTO ama_questions (ama_id, author_id, content, state)
-			VALUES (${ama.id}, ${interaction.member.user.id}, ${questionText}, ${state})
+			SELECT ${ama.id}, ${authorId}, ${questionText}, ${state}
+			${
+				ama.maxQuestionsPerUser === null
+					? db``
+					: db`WHERE (
+						SELECT COUNT(*) FROM ama_questions WHERE ama_id = ${ama.id} AND author_id = ${authorId}
+					) < ${ama.maxQuestionsPerUser}`
+			}
 			RETURNING *
 		`;
 
 		if (!question) {
+			// That WHERE is the only thing that can make this statement match zero rows, so an uncapped AMA
+			// landing here is the genuinely-impossible write the throw covers, not somebody's cap.
+			if (ama.maxQuestionsPerUser !== null) {
+				questionsSubmitted.inc({ initial_state: state.toLowerCase(), result: 'capped' });
+				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
+					content: capReachedMessage(ama.maxQuestionsPerUser),
+					flags: MessageFlags.Ephemeral,
+				});
+
+				return;
+			}
+
 			questionsSubmitted.inc({ initial_state: state.toLowerCase(), result: 'failed' });
 			throw new Error(`Failed to insert question for AMA session ${ama.id}`);
 		}

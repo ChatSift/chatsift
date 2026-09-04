@@ -33,6 +33,8 @@ export default interface AmaSessions {
   shareToken: string;
 
   guestIds: string[];
+
+  maxQuestionsPerUser: number | null;
 }
 
 /** Represents the initializer for the table public.ama_sessions */
@@ -64,6 +66,8 @@ export interface AmaSessionsInitializer {
   shareToken: string;
 
   guestIds?: string[];
+
+  maxQuestionsPerUser?: number | null;
 }
 
 /** Represents the mutator for the table public.ama_sessions */
@@ -95,4 +99,6 @@ export interface AmaSessionsMutator {
   shareToken?: string;
 
   guestIds?: string[];
+
+  maxQuestionsPerUser?: number | null;
 }

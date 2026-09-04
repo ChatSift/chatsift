@@ -36,6 +36,10 @@ const createAMABase = z.strictObject({
 	// Decouples approving a question from posting it (#293 follow-up) -- see schema.sql's comment on
 	// `ama_sessions.prepared_answers_enabled`.
 	preparedAnswersEnabled: z.boolean().optional().default(false),
+	// Per-user submission cap (#396). Null means uncapped, which is what every AMA created before this
+	// existed stays at. Counts every question the author has in the session, denied ones included -- see
+	// schema.sql's comment on the column.
+	maxQuestionsPerUser: z.number().int().min(1).max(100).nullable().optional().default(null),
 	// Known guest user ids (#293 follow-up, scope widened for guest dashboard access) -- grants scoped
 	// dashboard access to this AMA (approve/deny/merge/prepare+send answers/tag) regardless of general
 	// guild-manage status, and backs the "answered by" picker in the dashboard's answer editor. Editable
@@ -109,6 +113,7 @@ export const updateAMAConfigSchema = z
 		answersChannelId: snowflakeSchema.nullable().optional(),
 		queueId: snowflakeSchema.nullable().optional(),
 		allowedQuestionUploads: z.number().int().min(0).max(10).optional(),
+		maxQuestionsPerUser: z.number().int().min(1).max(100).nullable().optional(),
 		scheduledCloseAt: createAMABase.shape.scheduledCloseAt,
 		reviewEnabled: z.boolean().optional(),
 		preparedAnswersEnabled: z.boolean().optional(),

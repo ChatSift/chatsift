@@ -25,10 +25,13 @@ export const register = new Registry();
  * So this counter also reports *how guilds are configured*, in aggregate, without a per-guild label: a
  * deployment where `pending_review` is flat at zero has no guild running review, which is worth knowing before
  * concluding the queue is broken.
+ *
+ * `result="capped"` is an attempt refused by the session's `max_questions_per_user` (#396) -- correct behaviour
+ * being counted, not an error, and the only read on whether a guild's cap is actually biting.
  */
 export const questionsSubmitted = new Counter({
 	name: 'ama_questions_submitted_total',
-	help: 'Questions submitted, by the state they were filed in and whether the write succeeded',
+	help: 'Question submissions, by the state they were filed in and how the attempt ended',
 	labelNames: ['initial_state', 'result'] as const,
 	registers: [register],
 });
@@ -81,7 +84,7 @@ export const claimRaces = new Counter({
  */
 function zeroInitialise(): void {
 	for (const initialState of ['pending_review', 'approved', 'asked']) {
-		for (const result of ['ok', 'failed']) {
+		for (const result of ['ok', 'failed', 'capped']) {
 			questionsSubmitted.inc({ initial_state: initialState, result }, 0);
 		}
 	}

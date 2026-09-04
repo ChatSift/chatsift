@@ -39,6 +39,8 @@ interface FormData {
 	description: string;
 	guestIds: string[];
 	imageURL: string;
+	// Empty means uncapped (#396) -- the API takes `null` for that, see `buildBody`.
+	maxQuestionsPerUser: string;
 	plainText: string;
 	preparedAnswersEnabled: boolean;
 	promptChannelId: string;
@@ -59,6 +61,7 @@ const TOP_LEVEL_FIELDS = [
 	'queueId',
 	'guestIds',
 	'allowedQuestionUploads',
+	'maxQuestionsPerUser',
 	'scheduledCloseAt',
 ] as const satisfies (keyof FormData)[];
 
@@ -117,6 +120,7 @@ export function CreateAMAForm() {
 		promptChannelId: '',
 		queueId: '',
 		allowedQuestionUploads: '0',
+		maxQuestionsPerUser: '',
 		description: '',
 		plainText: '',
 		imageURL: '',
@@ -210,6 +214,9 @@ export function CreateAMAForm() {
 			// Forced to 0 when there'd be no Discord message to hang attachments off -- the input is disabled
 			// in that state, but a value typed before the toggles flipped would otherwise still be submitted.
 			allowedQuestionUploads: uploadsDisabled ? 0 : parseIntegerInput(formData.allowedQuestionUploads),
+			// Blank is the "no cap" case, which the API spells `null` -- `parseIntegerInput` would hand it
+			// `NaN` instead, and that is a validation error rather than an absent limit.
+			maxQuestionsPerUser: formData.maxQuestionsPerUser.trim() ? parseIntegerInput(formData.maxQuestionsPerUser) : null,
 			scheduledCloseAt: datetimeLocalValueToISOString(formData.scheduledCloseAt),
 			guestIds: [...new Set(formData.guestIds.map((id) => id.trim()).filter(Boolean))],
 		};
@@ -296,6 +303,7 @@ export function CreateAMAForm() {
 					['queueId', error.fieldError('queueId')],
 					['guestIds', error.fieldError('guestIds')],
 					['allowedQuestionUploads', error.fieldError('allowedQuestionUploads')],
+					['maxQuestionsPerUser', error.fieldError('maxQuestionsPerUser')],
 					['scheduledCloseAt', error.fieldError('scheduledCloseAt')],
 					['description', error.fieldError(promptField, 'description')],
 					['plainText', error.fieldError(promptField, 'plainText')],
@@ -535,6 +543,23 @@ export function CreateAMAForm() {
 					placeholder="0"
 					type="number"
 					value={uploadsDisabled ? '0' : formData.allowedQuestionUploads}
+				/>
+				<TextField
+					error={errors.maxQuestionsPerUser}
+					helper={
+						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+							Optional - leave blank for no limit. Denied questions still count against it; a question merged into
+							another does not.
+						</p>
+					}
+					id="maxQuestionsPerUser"
+					label="Max Questions Per User (optional)"
+					max={100}
+					min={1}
+					onChange={(value) => updateFormData('maxQuestionsPerUser', value)}
+					placeholder="No limit"
+					type="number"
+					value={formData.maxQuestionsPerUser}
 				/>
 				<TextField
 					error={errors.scheduledCloseAt}
