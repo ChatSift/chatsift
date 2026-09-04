@@ -11,6 +11,8 @@ import { findBypassRole } from './bypassRoles.js';
 import { traceDecision } from './decisionTrace.js';
 import type { RunnerFilterKind } from './filterExemptions.js';
 import { findFilterExemptions } from './filterExemptions.js';
+import type { FilterImmunity } from './filterImmunity.js';
+import { findFilterImmunity } from './filterImmunity.js';
 import { dispatchLog, getLogWebhook, LOG_TYPE } from './guildLog.js';
 import type { FilterOutcome } from './guildLogFormat.js';
 import { buildFilterHitEmbed } from './guildLogFormat.js';
@@ -18,6 +20,7 @@ import { runInviteFilter } from './inviteFilter.js';
 import type { CacheableMessage, LoggableMessage } from './messageCache.js';
 import { isLoggableMessage } from './messageCache.js';
 import { featureInvocations, filterHits } from './metrics.js';
+import type { TriggerLadderResult } from './triggerLadder.js';
 import { applyTriggerLadder } from './triggerLadder.js';
 import { runUrlFilter } from './urlFilter.js';
 
@@ -85,7 +88,7 @@ function describeDelete(outcome: DeleteOutcome, count: number): string {
 		// Said plainly in the log staff read, because this is the one outcome they have to do something about --
 		// it is almost always a missing Manage Messages in that channel.
 		case 'failed':
-			return `Could not delete ${noun} — check my permissions in that channel`;
+			return `Could not delete ${noun}: check my permissions in that channel`;
 	}
 }
 
@@ -124,15 +127,24 @@ export interface FilterEvaluation {
 	 * the category. A filter present here did not run.
 	 */
 	readonly exemptions: Map<RunnerFilterKind, string>;
+	/**
+	 * The status that stopped every runner, if one did: the owner, or a member holding Administrator or Manage
+	 * Messages. Reported separately from `bypassRoleId` because it is *status* rather than configuration --
+	 * "why wasn't this deleted" has a different answer and a different fix in each case.
+	 */
+	readonly immunity: FilterImmunity | null;
 	readonly verdicts: FilterVerdict[];
 }
 
 /**
- * The message being evaluated. Null for `/simulate`, which has text but no message -- see `RUNNERS.ANTISPAM`
- * for the one runner that cares.
+ * Where the message being evaluated lives. Null for `/simulate`, which has text but no message, and null for a
+ * `MESSAGE_UPDATE` -- see `RUNNERS.ANTISPAM` for the one runner that cares, and `filterMessage` for why an edit
+ * deliberately withholds it.
+ *
+ * The *author* is not part of this: they are known on every path this runs on, including the edits that carry
+ * no message identity, and the permission gates need them there.
  */
 export interface FilterMessageIdentity {
-	readonly authorId: string;
 	readonly channelId: string;
 	readonly messageId: string;
 }
@@ -143,6 +155,7 @@ type FilterSettings = Pick<
 >;
 
 interface RunnerInput {
+	readonly authorId: string | null;
 	readonly content: string;
 	readonly guildId: string;
 	readonly message: FilterMessageIdentity | null;
@@ -171,15 +184,15 @@ const RUNNERS: Record<RunnerFilterKind, (input: RunnerInput) => Promise<RunnerHi
 	 * rather than reporting "nothing matched": recording a hypothetical message would corrupt the real window,
 	 * and reporting the moderator's own recent message rate answers a question nobody asked.
 	 */
-	async ANTISPAM({ guildId, message, settings }) {
+	async ANTISPAM({ authorId, guildId, message, settings }) {
 		const antispam = resolveAntispamSettings(settings);
-		if (!antispam || !message) {
+		if (!antispam || !message || !authorId) {
 			return null;
 		}
 
 		const hit = await recordMessage(
 			guildId,
-			message.authorId,
+			authorId,
 			{ channelId: message.channelId, messageId: message.messageId },
 			antispam,
 		);
@@ -194,6 +207,11 @@ const RUNNERS: Record<RunnerFilterKind, (input: RunnerInput) => Promise<RunnerHi
 };
 
 export interface FilterEvaluationInput {
+	/**
+	 * Who posted it. Null only for `/simulate`, which has no author to check permissions for -- and says so in
+	 * its reply rather than reporting a moderator as immune.
+	 */
+	readonly authorId: string | null;
 	readonly channelId: string;
 	readonly content: string;
 	readonly guildId: string;
@@ -253,15 +271,33 @@ export async function evaluateFilters(input: FilterEvaluationInput): Promise<Fil
 		enabled.push('ANTISPAM');
 	}
 
-	const empty: FilterEvaluation = { enabled, bypassRoleId: null, exemptions: new Map(), verdicts: [] };
+	const empty: FilterEvaluation = {
+		enabled,
+		bypassRoleId: null,
+		immunity: null,
+		exemptions: new Map(),
+		verdicts: [],
+	};
+
 	if (enabled.length === 0) {
 		return empty;
+	}
+
+	// Resolved once for both permission gates below.
+	const roleIds = await input.resolveRoleIds();
+
+	// Above the guild's configuration entirely: the owner and staff are never filtered, whatever the bypass
+	// roles say. See `filterImmunity.ts` -- the owner half is not a policy choice, because every punishment the
+	// ladder could reach for is one Discord refuses to carry out against them.
+	const immunity = input.authorId === null ? null : await findFilterImmunity(guildId, input.authorId, roleIds);
+	if (immunity) {
+		return { ...empty, immunity };
 	}
 
 	// Before the exemption read and before any runner: a bypass role stops all of them at once, so paying for
 	// the per-filter work first would be paying for an answer already known. It also keeps a staff member's
 	// messages out of the anti-spam window entirely, rather than accumulating a burst that can never trip.
-	const bypassRoleId = await findBypassRole(guildId, await input.resolveRoleIds());
+	const bypassRoleId = await findBypassRole(guildId, roleIds);
 	if (bypassRoleId) {
 		return { ...empty, bypassRoleId };
 	}
@@ -272,6 +308,7 @@ export async function evaluateFilters(input: FilterEvaluationInput): Promise<Fil
 	const runnerInput: RunnerInput = {
 		guildId,
 		content,
+		authorId: input.authorId,
 		message: input.message ?? null,
 		settings: settings!,
 	};
@@ -284,7 +321,7 @@ export async function evaluateFilters(input: FilterEvaluationInput): Promise<Fil
 		.filter((result): result is { hit: RunnerHit; kind: RunnerFilterKind } => result.hit !== null)
 		.map(({ kind, hit }) => ({ kind, matched: hit.matched, ...(hit.messages ? { messages: hit.messages } : {}) }));
 
-	return { enabled, bypassRoleId: null, exemptions, verdicts };
+	return { enabled, bypassRoleId: null, immunity: null, exemptions, verdicts };
 }
 
 export function registerFilterRunner(client: Client): void {
@@ -355,12 +392,11 @@ async function filterMessage(
 		guildId: message.guild_id,
 		channelId: message.channel_id,
 		content: message.content,
+		authorId: message.author.id,
 		// **Only a new message counts toward anti-spam.** An edit is not another message, and feeding edits into
 		// the window would let somebody be muted for fixing three typos -- while the content filters still have
 		// to re-run on edits, which is the evasion they close.
-		...(isNewMessage
-			? { message: { authorId: message.author.id, channelId: message.channel_id, messageId: message.id } }
-			: {}),
+		...(isNewMessage ? { message: { channelId: message.channel_id, messageId: message.id } } : {}),
 		async resolveRoleIds() {
 			return resolveAuthorRoles(message, payloadRoles, logger);
 		},
@@ -371,6 +407,12 @@ async function filterMessage(
 	// Deliberately uncounted: a guild that has never turned a filter on is not "skipping" one, and counting it
 	// would bury the outcomes that mean something under every message the bot has ever seen.
 	if (evaluation.enabled.length === 0) {
+		return;
+	}
+
+	if (evaluation.immunity) {
+		traceDecision(logger, { ...traceBase, runner: 'filters', action: null, immunity: evaluation.immunity });
+		featureInvocations.inc({ feature: 'filters', outcome: 'skipped' });
 		return;
 	}
 
@@ -424,21 +466,43 @@ async function filterMessage(
 	// is the worse of the two failures; the log line already says to check the bot's permissions, which is the
 	// part staff can act on. Dry-run still runs the ladder: `suppressed` means the decision was made and
 	// recorded, which is the whole point of the mode.
-	const ladder =
-		outcome === 'failed'
-			? null
-			: await applyTriggerLadder(
-					{
-						guildId: message.guild_id,
-						messageId: message.id,
-						target: { id: message.author.id, tag: formatCaseUserTag(message.author) },
-					},
-					logger,
-				);
+	let ladder: TriggerLadderResult | null = null;
+	let ladderFailed = false;
+
+	if (outcome !== 'failed') {
+		try {
+			ladder = await applyTriggerLadder(
+				{
+					guildId: message.guild_id,
+					messageId: message.id,
+					target: { id: message.author.id, tag: formatCaseUserTag(message.author) },
+				},
+				logger,
+			);
+		} catch (error) {
+			// A rung Discord refused -- a target above the bot in the role hierarchy is the case that survives now
+			// that `filterImmunity.ts` covers the owner. Caught here rather than left to propagate because
+			// everything above already happened: without this, the messages were deleted and the member DMed, and
+			// then the throw unwound past the filter log, so staff got no record of any of it.
+			ladderFailed = true;
+			logger.warn(
+				{ err: error, targetId: message.author.id },
+				'could not carry out the trigger ladder punishment',
+			);
+		}
+	}
 
 	const webhook = await getLogWebhook(message.guild_id, LOG_TYPE.FILTER);
 	if (webhook) {
-		const summary = [describeDelete(outcome, targets.length), ladder?.summary].filter(Boolean).join(' • ');
+		const summary = [
+			describeDelete(outcome, targets.length),
+			ladder?.summary,
+			// Said in the log rather than only in ours, for the same reason a failed delete is: it is a
+			// configuration problem staff have to fix, and it is invisible to them otherwise.
+			ladderFailed ? 'Could not carry out the escalation: check my role position' : null,
+		]
+			.filter(Boolean)
+			.join(' • ');
 
 		await postFilterLog(
 			webhook,

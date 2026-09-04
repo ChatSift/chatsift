@@ -109,10 +109,16 @@ export function BypassRolesForm() {
 	return (
 		<div className="flex flex-col gap-4 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<p className="text-sm text-secondary dark:text-secondary-dark">
-				Members holding these roles still trip the filters and still show up in the filter log — they just don't get
+				Members holding these roles still trip the filters and still show up in the filter log: they just don't get
 				punished for it. This is not the same as Discord's own exempt roles on a rule, which stop the match happening at
 				all, so nothing is logged either. Use Discord's when you don't want the noise, and these when you want the
 				record.
+			</p>
+
+			<p className="text-sm text-secondary dark:text-secondary-dark">
+				You do not need to list your staff here. The server owner, anyone with Administrator, and anyone with Manage
+				Messages are never filtered at all. Bypass roles are for everyone else, like a trusted or partnered role that
+				holds no moderation permissions.
 			</p>
 
 			{bypassRoles.length === 0 ? (

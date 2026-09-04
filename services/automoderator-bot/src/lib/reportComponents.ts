@@ -1,5 +1,5 @@
 import type { Logger } from '@chatsift/backend-core';
-import { countReporters, getContext, getReport } from '@chatsift/backend-core';
+import { countReporters, getContext, getReport, REPORT_STATE } from '@chatsift/backend-core';
 import type { AutomoderatorReports } from '@chatsift/db';
 import type { APIMessageComponentInteraction, APIInteractionGuildMember } from '@discordjs/core';
 import { MessageFlags, PermissionFlagsBits } from '@discordjs/core';
@@ -59,6 +59,28 @@ export async function resolveCardInteraction(
 	}
 
 	return { report, member: interaction.member };
+}
+
+/**
+ * Why this report cannot be actioned, or `null` when it can.
+ *
+ * The Action button is rendered disabled for anything but an open report, and that is not enough on its own: a
+ * card nobody has clicked since the state changed still carries a live one. Both the button and the select
+ * behind it check this, so the moderator is told before they pick a punishment rather than after.
+ *
+ * A dismissed report is refused rather than silently reopened. Dismissing is the decision that this needs no
+ * punishment, and walking it back should be a deliberate click that leaves its own mark on the row.
+ */
+export function describeUnactionable(report: AutomoderatorReports): string | null {
+	if (report.state === REPORT_STATE.ACTIONED) {
+		return 'This report has already been actioned.';
+	}
+
+	if (report.state === REPORT_STATE.DISMISSED) {
+		return 'This report was dismissed. Reopen it first if you want to action it.';
+	}
+
+	return null;
 }
 
 /**

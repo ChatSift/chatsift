@@ -72,19 +72,26 @@ export function UrlFilterForm() {
 	return (
 		<div className="flex flex-col gap-4">
 			<FilterToggle
-				description="When on, any message containing a link to a domain that isn't allowed below is deleted, and the member is told why in a DM. Only links with a full https:// or http:// prefix are matched — that's what keeps ordinary sentences from being treated as links."
+				description="When on, any message containing a link to a domain that isn't allowed below is deleted, and the member is told why in a DM. Only links with a full https:// or http:// prefix are matched."
 				isEnabled={config.useUrlFilters}
 				label="URL filter"
 				onChange={async (useUrlFilters) => updateConfig.mutateAsync({ useUrlFilters })}
 			/>
 
+			{config.useUrlFilters && !config.useInviteFilters && (
+				<p className="text-sm text-misc-warning dark:text-misc-warning-dark">
+					Invite links are left to the invite filter, which is currently off, so invites to other servers are not being
+					deleted. Turn it on from the Invite Filter page if you want them covered.
+				</p>
+			)}
+
 			<div className="flex flex-col gap-4 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 				<div>
 					<h3 className="text-sm font-medium text-primary dark:text-primary-dark">Allowed domains</h3>
 					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-						Allowing a domain also allows everything under it — <code>example.com</code> covers{' '}
+						Allowing a domain also allows everything under it: <code>example.com</code> covers{' '}
 						<code>www.example.com</code> and <code>cdn.example.com</code>. Invites to Discord servers are handled
-						separately by the invite filter.
+						separately by the invite filter, and are never deleted by this one.
 					</p>
 				</div>
 
@@ -93,7 +100,7 @@ export function UrlFilterForm() {
 						icon={<SvgAutoModerator height={28} width={28} />}
 						subtitle={
 							config.useUrlFilters
-								? 'Every link posted in this server is currently deleted. If that is what you want, leave this empty — otherwise add the sites your members are meant to be able to share.'
+								? 'Every link posted in this server is currently deleted, apart from Discord invites, which the invite filter handles. If that is what you want, leave this empty. Otherwise, add the sites your members are meant to be able to share.'
 								: 'Add the sites your members are meant to be able to share before turning the filter on.'
 						}
 						title="No allowed domains"
@@ -116,7 +123,7 @@ export function UrlFilterForm() {
 						error={addError ?? undefined}
 						helper={
 							normalized === null
-								? 'A domain, or a link to one — example.com, or https://example.com/page.'
+								? 'A domain, or a link to one: example.com, or https://example.com/page.'
 								: `Will be saved as ${normalized}`
 						}
 						id="automoderator-allowed-url-new"

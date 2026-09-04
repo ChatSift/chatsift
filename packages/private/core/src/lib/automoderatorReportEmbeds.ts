@@ -48,6 +48,7 @@ export const REPORT_ACTION_OPTIONS = [
 	{ action: 'WARN', label: 'Warn', description: 'Record a warning and DM them' },
 	{ action: 'MUTE', label: 'Mute', description: 'Time them out for a duration you pick' },
 	{ action: 'KICK', label: 'Kick', description: 'Remove them from the server' },
+	{ action: 'SOFTBAN', label: 'Softban', description: 'Ban and immediately unban, clearing their recent messages' },
 	{ action: 'BAN', label: 'Ban', description: 'Ban them, permanently or for a duration you pick' },
 ] as const;
 
@@ -286,7 +287,9 @@ export function buildReportComponents(report: ReportEmbedInput): APIMessageTopLe
 			{
 				type: ComponentType.Button as const,
 				style: dismissed ? ButtonStyle.Danger : ButtonStyle.Success,
-				label: dismissed ? 'Restore' : 'Dismiss',
+				// "Reopen", not legacy's "Restore": what comes back is the report's place in the queue, and
+				// "restore" reads like it is undoing something that happened to the *member*.
+				label: dismissed ? 'Reopen' : 'Dismiss',
 				custom_id: `${REPORT_COMPONENT.dismiss}:${report.id}`,
 				disabled: closed,
 			},
@@ -301,7 +304,10 @@ export function buildReportComponents(report: ReportEmbedInput): APIMessageTopLe
 				style: ButtonStyle.Danger as const,
 				label: 'Action',
 				custom_id: `${REPORT_COMPONENT.action}:${report.id}`,
-				disabled: closed,
+				// Only an *open* report can be actioned. Dismissing is a decision that this needs no punishment, so
+				// offering one next to it asks the moderator to contradict themselves in one click -- reopening is
+				// the honest way back, and it leaves a state change on the record.
+				disabled: closed || dismissed,
 			},
 		],
 	};

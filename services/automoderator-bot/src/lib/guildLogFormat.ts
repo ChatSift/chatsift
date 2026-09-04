@@ -89,7 +89,13 @@ export function buildMessageDeleteEmbed(input: MessageDeleteLogInput): APIEmbed 
 	}
 
 	if (input.moderator) {
-		embed.footer = { text: `Deleted by ${input.moderator.tag} (${input.moderator.id})` };
+		// The same avatar treatment every other actor named on a log embed gets since #392. `messageObserver.ts`
+		// has already resolved this account for the tag, so the icon costs nothing, and `displayAvatarURL` falls
+		// back to the default avatar for the one it could not resolve.
+		embed.footer = {
+			text: `Deleted by ${input.moderator.tag} (${input.moderator.id})`,
+			icon_url: displayAvatarURL(input.moderator.id, input.moderator.avatar),
+		};
 	}
 
 	return embed;

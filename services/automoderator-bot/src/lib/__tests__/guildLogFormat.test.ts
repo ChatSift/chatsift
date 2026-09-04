@@ -75,6 +75,9 @@ test('an attributed delete names who did it', () => {
 	});
 
 	expect(embed.footer?.text).toBe('Deleted by moderator-one (120000000000000001)');
+	// The deleter is named nowhere else on the embed, so the footer is the only place their avatar can go. Null
+	// here, so this is the default-avatar fallback rather than an uploaded one.
+	expect(embed.footer?.icon_url).toBe('https://cdn.discordapp.com/embed/avatars/0.png');
 });
 
 test('over-long content is truncated inside the field limit, quote prefix included', () => {

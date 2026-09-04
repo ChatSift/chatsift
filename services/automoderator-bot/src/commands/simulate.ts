@@ -88,9 +88,10 @@ export default class SimulateCommand implements CommandHandler {
 			guildId: interaction.guild_id,
 			channelId,
 			content,
-			// Evaluated as a member holding no bypass roles, deliberately -- see `FilterEvaluationInput`. Anyone
-			// with permission to run this necessarily holds the roles that would let them off, so passing their
-			// own would make the command answer "nothing, you're staff" every single time.
+			// Evaluated as a member holding no bypass roles and no staff permissions, deliberately -- see
+			// `FilterEvaluationInput`. Anyone with permission to run this necessarily holds both, so passing
+			// their own would make the command answer "nothing, you're staff" every single time.
+			authorId: null,
 			async resolveRoleIds() {
 				return [];
 			},
@@ -106,12 +107,15 @@ export default class SimulateCommand implements CommandHandler {
 }
 
 function describe(evaluation: FilterEvaluation, channelId: string): string {
-	const lines: string[] = [`Simulated in <#${channelId}>, as a member with no bypass roles.`, ''];
+	const lines: string[] = [
+		`Simulated in <#${channelId}>, as an ordinary member: no bypass roles, and none of the permissions that keep the owner and staff out of the filters.`,
+		'',
+	];
 
 	if (evaluation.enabled.length === 0) {
 		return [
 			...lines,
-			'**Nothing would happen** — none of the message filters are turned on for this server.',
+			'**Nothing would happen**: none of the message filters are turned on for this server.',
 		].join('\n');
 	}
 
@@ -119,7 +123,7 @@ function describe(evaluation: FilterEvaluation, channelId: string): string {
 		const name = FILTER_NAME[kind];
 
 		if (!evaluation.enabled.includes(kind)) {
-			lines.push(`• **${name}** — off for this server.`);
+			lines.push(`• **${name}**: off for this server.`);
 			continue;
 		}
 
@@ -127,15 +131,15 @@ function describe(evaluation: FilterEvaluation, channelId: string): string {
 		if (exemption !== undefined) {
 			// Names the channel that granted it rather than saying "exempt": the exemption is usually on the
 			// category, and "which row do I delete to change this" is the next question.
-			lines.push(`• **${name}** — did not run: <#${exemption}> is exempt.`);
+			lines.push(`• **${name}**: did not run, <#${exemption}> is exempt.`);
 			continue;
 		}
 
 		const verdict = evaluation.verdicts.find((entry) => entry.kind === kind);
 		if (verdict) {
-			lines.push(`• **${name}** — would trigger on: ${verdict.matched.map((value) => `\`${value}\``).join(', ')}`);
+			lines.push(`• **${name}**: would trigger on ${verdict.matched.map((value) => `\`${value}\``).join(', ')}`);
 		} else {
-			lines.push(`• **${name}** — ran, nothing matched.`);
+			lines.push(`• **${name}**: ran, nothing matched.`);
 		}
 	}
 
@@ -147,11 +151,11 @@ function describe(evaluation: FilterEvaluation, channelId: string): string {
 		const exemption = evaluation.exemptions.get('ANTISPAM');
 		lines.push(
 			exemption === undefined
-				? '• **Anti-spam** — on, but not simulated: it counts how fast messages arrive, not what they say.'
-				: `• **Anti-spam** — would not run: <#${exemption}> is exempt.`,
+				? '• **Anti-spam**: on, but not simulated. It counts how fast messages arrive, not what they say.'
+				: `• **Anti-spam**: would not run, <#${exemption}> is exempt.`,
 		);
 	} else {
-		lines.push('• **Anti-spam** — off for this server.');
+		lines.push('• **Anti-spam**: off for this server.');
 	}
 
 	lines.push('');

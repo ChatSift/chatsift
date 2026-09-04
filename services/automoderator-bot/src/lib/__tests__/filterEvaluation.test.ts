@@ -10,6 +10,8 @@ interface Settings {
 let settings: Settings | undefined;
 let bypassRoleId: string | null = null;
 let bypassCalls = 0;
+let immunity: string | null = null;
+let immunityCalls = 0;
 let exemptions = new Map<string, string>();
 let exemptionCalls = 0;
 let ran: string[] = [];
@@ -36,6 +38,13 @@ vi.mock('@chatsift/backend-core', () => ({
 		logger: { child: () => ({ info() {}, warn() {}, error() {} }) },
 		service: { client: { api: {} } },
 	}),
+}));
+
+vi.mock('../filterImmunity.js', () => ({
+	async findFilterImmunity() {
+		immunityCalls += 1;
+		return immunity;
+	},
 }));
 
 vi.mock('../bypassRoles.js', () => ({
@@ -83,6 +92,7 @@ const INPUT = {
 	guildId: '1',
 	channelId: 'channel',
 	content: 'https://evil.com discord.gg/abc',
+	authorId: 'author',
 	async resolveRoleIds() {
 		return [];
 	},
@@ -93,13 +103,15 @@ const INPUT = {
  */
 const WITH_MESSAGE = {
 	...INPUT,
-	message: { authorId: 'author', channelId: 'channel', messageId: 'message' },
+	message: { channelId: 'channel', messageId: 'message' },
 };
 
 beforeEach(() => {
 	settings = { useUrlFilters: true, useInviteFilters: true, antispamAmount: null, antispamTime: null };
 	bypassRoleId = null;
 	bypassCalls = 0;
+	immunity = null;
+	immunityCalls = 0;
 	exemptions = new Map();
 	exemptionCalls = 0;
 	ran = [];
@@ -137,6 +149,30 @@ test('only the enabled filters run', async () => {
 	expect(evaluation.enabled).toEqual(['URLS']);
 	expect(ran).toEqual(['URLS']);
 	expect(evaluation.verdicts).toEqual([{ kind: 'URLS', matched: ['evil.com'] }]);
+});
+
+// Staff and the owner are never filtered, whatever the guild configured -- and the owner half is not a
+// preference: every punishment the ladder could reach for is one Discord refuses against them.
+test('an immune member short-circuits before the bypass read and the runners', async () => {
+	immunity = 'OWNER';
+
+	const evaluation = await evaluateFilters(WITH_MESSAGE);
+
+	expect(evaluation.immunity).toBe('OWNER');
+	expect(evaluation.verdicts).toEqual([]);
+	expect(bypassCalls).toBe(0);
+	expect(exemptionCalls).toBe(0);
+	// Including anti-spam: an immune member must not accumulate a burst that could never trip.
+	expect(ran).toEqual([]);
+});
+
+// `/simulate` has text but no author, and reporting the moderator who ran it as immune would make the command
+// answer "nothing would happen, you're staff" every time.
+test('no author means no immunity check at all', async () => {
+	await evaluateFilters({ ...INPUT, authorId: null });
+
+	expect(immunityCalls).toBe(0);
+	expect(ran).toEqual(expect.arrayContaining(['URLS', 'INVITES']));
 });
 
 // A bypass role stops every runner at once, so the exemption read and the invite resolutions behind it are

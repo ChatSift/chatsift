@@ -580,6 +580,12 @@ Deviations from the table above, all deliberate:
 - **Actioning is terminal.** Once a report has produced a case its Dismiss and Action buttons are disabled: the
   case is the record now, and live buttons would offer a second punishment for the same report. Legacy's `noop`
   action goes with it, since it set the state Dismiss already produces.
+- **A dismissed report cannot be actioned either** (added after P5, on the owner's call). Dismissing is the
+  decision that a report needs no punishment, so offering one beside it asks the moderator to contradict
+  themselves in a single click. The way back is the same button, relabelled **Reopen** rather than legacy's
+  "Restore": what comes back is the report's place in the queue, and reopening leaves its own mark on the row.
+  Both the button and the select behind it re-check the state, because a card nobody has clicked since the
+  state changed still carries live buttons.
 - **Per-action permission gating on the card.** Legacy gated its report buttons on _nothing_. Handling a report at
   all needs ModerateMembers; the action then needs whatever Discord's equivalent command needs (KickMembers to
   kick, BanMembers to ban), because `setDefaultMemberPermissions` gates a command by name and cannot gate a
@@ -591,7 +597,13 @@ Deviations from the table above, all deliberate:
 - **No timed ban in the action list**, for the same reason `/ban` had no duration: it needs P2's scheduler, and a
   tempban nothing lifts is a permanent ban that claims otherwise. (P2 has since added it — as an optional
   duration on the Ban modal rather than a fifth option, since a tempban is a ban with an expiry, not a different
-  punishment.) No softban either — bulk message deletion isn't what a report about one message calls for.
+  punishment.) **Softban was ruled out at P3 and added after P5**, on the owner's call: the original reasoning
+  was that bulk message deletion is not what a report about one message calls for, which is true of the report
+  and not of the account behind it. A report is very often the first staff hear of somebody who has been posting
+  the same thing in five channels, and softban is the one action that clears it. It takes no duration, and it is
+  the one action whose failure mode had to be thought about again: a softban whose ban lands and whose unban
+  does not leaves the target banned with a case filed, so the report stays closed rather than returning to the
+  queue for the next moderator to ban somebody who already is.
 - **Report cards go through `ActionExecutor`, so dry-run suppresses them**, like the mod log and for the same
   reason: that seam is the invariant P7 audits. The row is still written and the dashboard queue still shows it.
   The practical consequence is that **the test guild needs dry-run off to exercise P3's operator checks** — which
@@ -1019,7 +1031,18 @@ Recorded so they don't get relitigated, same as P5a's.
 6. **A guild's own invites are always allowed, without a row.** Legacy made every server allowlist itself,
    which every server had to do and none expected to.
 
-7. **`/simulate` evaluates as a member holding no bypass roles**, and says so in its reply. Anyone with
+7. **The URL filter never judges an invite link.** Added after P5b shipped, on the owner's call. Any
+   scheme-required matcher reads `https://discord.gg/x` as a link to `discord.gg`, so with both filters on the
+   URL filter deleted the invites the invite filter had just allowed: a partner server's, and the guild's own,
+   which decision 6 above allows without a row precisely because nobody thinks to allowlist themselves. The
+   dashboard already told guilds invites were the invite filter's business; the code did not. `extractLinkedHosts`
+   now skips whatever the invite matcher claims, per match rather than per host, so an ordinary
+   `discord.com/channels/...` link is still an ordinary link. The accepted cost, weighed against always deferring
+   only when the invite filter is on: a guild running the URL filter alone stops catching invites entirely, and
+   turning the invite filter on is what covers them. The coupling that the conditional version would have
+   introduced, where one filter's toggle quietly changes another's behaviour, was judged worse than the hole.
+
+8. **`/simulate` evaluates as a member holding no bypass roles**, and says so in its reply. Anyone with
    permission to run it necessarily holds the roles that would let them off, so passing their own would make the
    command answer "nothing, you're staff" every time. It calls `evaluateFilters` — the same function the runner
    calls, not a copy of it.
@@ -1125,6 +1148,36 @@ c.updated_at = d.updated_at` is what makes it safe on several replicas with no l
     makes this worth fixing before P9 rather than after. All three constraints now spell the arm
     `duration_seconds IS NOT NULL AND duration_seconds >= 1`. No row in the dev database violated the tightened
     version.
+
+#### Filter immunity, added after P5
+
+The owner of a live guild was flagged by anti-spam. Nothing was wrong with anti-spam: bypass roles were the
+only exemption the pipeline had, so staff and the owner were ordinary members to it. Two things followed from
+that, and only the first is a preference.
+
+**Discord refuses every punishment against a guild owner.** A trigger ladder rung on one is a guaranteed
+failure, and the failure was not contained: `applyModerationAction` threw, the throw unwound past the filter
+log dispatch, and the result was a member whose messages had been deleted and who had been DMed about it, with
+no record of any of it anywhere staff could see. `permissions.ts` had encoded "You cannot action the server
+owner" since P1, but only for the commands.
+
+**The owner, Administrator, and Manage Messages are now immune to every filter**, on the owner's call, above
+the guild's own configuration. Bypass roles keep the job they are good at: naming somebody who is not staff and
+should still be left alone. The decisions inside that:
+
+1. **Guild-level permissions, no channel overwrites.** Resolving overwrites means a channel read (and a
+   thread's parent) on the path that runs for every message, to catch the moderator whose Manage Messages comes
+   from an overwrite rather than a role. That moderator can be given a bypass role.
+2. **One cached `GET /guilds/{id}` per guild**, five minutes, process-local, exactly the shape
+   `automodRules.ts` uses. A failure is cached for one minute and **fails open**, matching the bypass check: a
+   guild that cannot be read must not silently exempt everybody.
+3. **The native AutoMod path gets the same gate.** Discord has already blocked the message by then, so what is
+   skipped there is the punishment, which for an owner is one Discord would refuse anyway.
+4. **A ladder rung that Discord refuses no longer eats the filter log.** The remaining case is a target above
+   the bot in the role hierarchy; the log now says the escalation could not be carried out, next to the line
+   that already says so for a delete.
+5. **`/simulate` still evaluates as an ordinary member**, and its reply says it: an author with the permission
+   to run it necessarily holds the ones that would exempt them.
 
 ---
 

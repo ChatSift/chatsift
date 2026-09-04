@@ -54,6 +54,28 @@ test('extractLinkedHosts ignores anything past the host', () => {
 	expect(extractLinkedHosts('https://evil.com/allowed.com')).toEqual(['evil.com']);
 });
 
+// The two filters split the work, and this is the seam: an invite is the invite filter's to judge, so the URL
+// filter must not delete one that filter had just allowed -- this server's own included, which it allows
+// without a row.
+test('extractLinkedHosts leaves invites to the invite filter', () => {
+	expect(extractLinkedHosts('https://discord.gg/abc')).toEqual([]);
+	expect(extractLinkedHosts('join discord.gg/abc')).toEqual([]);
+	expect(extractLinkedHosts('https://discord.com/invite/abc')).toEqual([]);
+	expect(extractLinkedHosts('https://www.discord.com/invite/abc')).toEqual([]);
+	expect(extractLinkedHosts('[join us](https://discord.gg/abc)')).toEqual([]);
+});
+
+// Skipped per match, not per host: only the invite itself belongs to the other filter.
+test('extractLinkedHosts still reads discord links that are not invites', () => {
+	expect(extractLinkedHosts('https://discord.com/channels/1/2')).toEqual(['discord.com']);
+	expect(extractLinkedHosts('https://discord.com/invite/abc https://discord.com/channels/1/2')).toEqual([
+		'discord.com',
+	]);
+	// Not an invite to the matcher above, so it stays this filter's business.
+	expect(extractLinkedHosts('https://evildiscord.gg/xyz')).toEqual(['evildiscord.gg']);
+	expect(extractLinkedHosts('https://evil.com and discord.gg/abc')).toEqual(['evil.com']);
+});
+
 test('extractInviteCodes accepts every spelling of an invite', () => {
 	expect(extractInviteCodes('https://discord.gg/abc123')).toEqual(['abc123']);
 	expect(extractInviteCodes('discord.gg/abc123')).toEqual(['abc123']);

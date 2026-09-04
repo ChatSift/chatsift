@@ -69,16 +69,40 @@ function normalizeHost(authority: string): string | null {
 }
 
 /**
+ * The `[start, end)` span of every invite in `content`, so {@link extractLinkedHosts} can leave them alone.
+ */
+function findInviteSpans(content: string): { readonly end: number; readonly start: number }[] {
+	return [...content.matchAll(INVITE_PATTERN)].map((match) => ({
+		start: match.index,
+		end: match.index + match[0]!.length,
+	}));
+}
+
+/**
  * Every distinct host linked to in a message, in the order they first appear.
  *
  * Order is preserved rather than sorted because the filter log names what it matched and a moderator reading
  * it is looking at the message alongside it.
+ *
+ * **Invites are skipped**, and are the invite filter's alone to judge. `https://discord.gg/x` is a link to
+ * `discord.gg` like any other to the matcher above, so a guild running both filters deleted the invites the
+ * invite filter had just allowed: its partners', and its own, which that filter allows without a row precisely
+ * because nobody thinks to allowlist themselves. The skip is per match rather than per host, so an ordinary
+ * `https://discord.com/channels/...` in the same message is still a link to `discord.com`.
+ *
+ * The accepted cost is that the URL filter alone no longer covers invites at all; turning the invite filter on
+ * is what covers them, which is the point of it being a separate filter.
  */
 export function extractLinkedHosts(content: string): string[] {
 	const hosts: string[] = [];
 	const seen = new Set<string>();
+	const invites = findInviteSpans(content);
 
 	for (const match of content.matchAll(URL_PATTERN)) {
+		if (invites.some((span) => match.index >= span.start && match.index < span.end)) {
+			continue;
+		}
+
 		const host = normalizeHost(match.groups?.['authority'] ?? '');
 
 		if (host !== null && !seen.has(host)) {

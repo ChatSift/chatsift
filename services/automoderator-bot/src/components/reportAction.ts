@@ -4,7 +4,7 @@ import type { ComponentHandler } from '@chatsift/bot-core';
 import type { APIMessageComponentInteraction } from '@discordjs/core';
 import { ComponentType, MessageFlags } from '@discordjs/core';
 import { REPORT_ACTION_OPTIONS, REPORT_COMPONENT } from '../lib/reportCard.js';
-import { resolveCardInteraction } from '../lib/reportComponents.js';
+import { describeUnactionable, refreshCard, resolveCardInteraction } from '../lib/reportComponents.js';
 
 export default class ReportActionComponent implements ComponentHandler<string> {
 	public readonly name = REPORT_COMPONENT.action;
@@ -17,7 +17,22 @@ export default class ReportActionComponent implements ComponentHandler<string> {
 			return;
 		}
 
-		await getContext().service.client.api.interactions.reply(interaction.id, interaction.token, {
+		const api = getContext().service.client.api;
+
+		const blocked = describeUnactionable(resolved.report);
+		if (blocked) {
+			await api.interactions.reply(interaction.id, interaction.token, {
+				content: blocked,
+				flags: MessageFlags.Ephemeral,
+			});
+
+			// Rewritten anyway, so the stale card the click came from picks up its disabled buttons -- the same
+			// self-heal `reportDismiss.ts` does for an already-actioned report.
+			await refreshCard(resolved.report, logger);
+			return;
+		}
+
+		await api.interactions.reply(interaction.id, interaction.token, {
 			content: `What should happen to **${resolved.report.targetTag}**?`,
 			flags: MessageFlags.Ephemeral,
 			components: [

@@ -56,7 +56,7 @@ test('an open message report offers a jump link and both handled buttons', () =>
 
 	expect(byLabel(makeReport(), 'Dismiss')?.disabled).toBeFalsy();
 	expect(byLabel(makeReport(), 'Action')?.disabled).toBeFalsy();
-	expect(byLabel(makeReport(), 'Restore')).toBeUndefined();
+	expect(byLabel(makeReport(), 'Reopen')).toBeUndefined();
 });
 
 test('an account-level report has no jump link at all', () => {
@@ -87,14 +87,17 @@ test('a DM report says on the card that staff cannot see the conversation', () =
 	expect(subject(makeReport(), { reporterCount: 1 }).description).not.toContain('staff cannot see');
 });
 
-test('a dismissed report offers Restore instead of Dismiss', () => {
+test('a dismissed report offers Reopen instead of Dismiss, and cannot be actioned', () => {
 	// The direction is read off the row, never off the label the last render happened to write -- which is the
 	// bug this replaces.
 	const dismissed = makeReport({ state: 'DISMISSED' });
 
 	expect(byLabel(dismissed, 'Dismiss')).toBeUndefined();
-	expect(byLabel(dismissed, 'Restore')?.style).toBe(ButtonStyle.Danger);
-	expect(byLabel(dismissed, 'Action')?.disabled).toBeFalsy();
+	expect(byLabel(dismissed, 'Reopen')?.style).toBe(ButtonStyle.Danger);
+	// Dismissing says this needs no punishment. Offering one right beside that decision asks the moderator to
+	// contradict themselves in a single click; reopening is the way back, and it leaves a mark on the row.
+	expect(byLabel(dismissed, 'Action')?.disabled).toBe(true);
+	expect(byLabel(dismissed, 'View reporters')?.disabled).toBeFalsy();
 });
 
 test('an actioned report is closed for good', () => {

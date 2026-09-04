@@ -25,6 +25,13 @@ test('a message with no links never reaches the database', async () => {
 	expect(queries).toBe(0);
 });
 
+// The invite filter's business, not this one's -- and cheap enough to prove: an invite-only message must not
+// even pay for the allowlist read.
+test('a message whose only link is an invite never reaches the database', async () => {
+	expect(await runUrlFilter('1', 'join https://discord.gg/abc')).toBeNull();
+	expect(queries).toBe(0);
+});
+
 test('a link to an unallowed domain is forbidden', async () => {
 	expect(await runUrlFilter('1', 'look at https://evil.com/x')).toEqual({ forbidden: ['evil.com'] });
 });

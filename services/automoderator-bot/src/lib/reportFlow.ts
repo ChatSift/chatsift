@@ -4,7 +4,7 @@ import { REPORT_PRESET_MAX_COUNT } from '@chatsift/core';
 import type { APIMessage, APIMessageApplicationCommandInteraction, APIInteractionGuildMember } from '@discordjs/core';
 import { actorFromUser } from './cases.js';
 import { reportsTotal } from './metrics.js';
-import { LadderFailureError } from './moderation.js';
+import { LadderFailureError, SoftbanUnbanError } from './moderation.js';
 import { syncReportCard } from './reportCard.js';
 
 export const DEFAULT_REPORT_REASON = 'No reason provided';
@@ -13,13 +13,19 @@ export const DEFAULT_REPORT_REASON = 'No reason provided';
  * Whether a failed action should put the report back in the queue.
  *
  * Almost always yes: the target was not punished, so a report left ACTIONED would be closed with nothing to show
- * for it and no way to retry from the card. The exception is a warn whose ladder rung failed -- the warn itself
- * is filed and logged, so reopening would let the next moderator action the same report into a *second* warn and
- * push the target up another rung. Its own function because that is a rule worth naming and testing rather than
- * an `instanceof` buried in a catch block.
+ * for it and no way to retry from the card. Two exceptions, and both are failures that still left the target
+ * punished and a case on the record:
+ *
+ * - a warn whose ladder rung failed -- the warn itself is filed and logged, so reopening would let the next
+ *   moderator action the same report into a *second* warn and push the target up another rung;
+ * - a softban whose ban landed and whose unban did not -- the target is banned, and reopening would put a
+ *   report about somebody already banned back in front of the next moderator to ban again.
+ *
+ * Its own function because that is a rule worth naming and testing rather than an `instanceof` buried in a
+ * catch block.
  */
 export function shouldReopenReport(error: unknown): boolean {
-	return !(error instanceof LadderFailureError);
+	return !(error instanceof LadderFailureError) && !(error instanceof SoftbanUnbanError);
 }
 
 /**

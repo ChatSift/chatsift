@@ -19,12 +19,11 @@ import { actorFromUser } from '../lib/cases.js';
 import { reportsTotal } from '../lib/metrics.js';
 import { describeCommandFailure, describeModerationResult } from '../lib/modCommand.js';
 import { REASON_MAX_LENGTH } from '../lib/modCommandOptions.js';
-import type { LadderFailureError } from '../lib/moderation.js';
-import { MAX_MUTE_MS, applyModerationAction } from '../lib/moderation.js';
+import { LadderFailureError, MAX_MUTE_MS, applyModerationAction } from '../lib/moderation.js';
 import { checkActorHierarchy, checkBotHierarchy, memberMayTakeAction } from '../lib/permissions.js';
 import type { ReportActionName } from '../lib/reportCard.js';
 import { REPORT_COMPONENT, isReportAction } from '../lib/reportCard.js';
-import { refreshCard, resolveCardInteraction } from '../lib/reportComponents.js';
+import { describeUnactionable, refreshCard, resolveCardInteraction } from '../lib/reportComponents.js';
 import { shouldReopenReport } from '../lib/reportFlow.js';
 
 const REASON_INPUT_ID = 'reason';
@@ -36,6 +35,9 @@ const REQUIRES_MEMBER: Record<ReportActionName, boolean> = {
 	WARN: true,
 	MUTE: true,
 	KICK: true,
+	// A softban is a ban, and Discord takes one against somebody who has already left -- which is exactly when
+	// staff reach for it, since the point is clearing the messages they left behind.
+	SOFTBAN: false,
 	BAN: false,
 };
 
@@ -68,9 +70,12 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 			return;
 		}
 
-		if (report.state === REPORT_STATE.ACTIONED) {
+		// Re-checked here as well as on the button: this select sits in an ephemeral message that outlives the
+		// click that opened it, so the report can have been dismissed or actioned by somebody else in between.
+		const blocked = describeUnactionable(report);
+		if (blocked) {
 			await api.interactions.reply(interaction.id, interaction.token, {
-				content: 'Someone has already actioned this report.',
+				content: blocked,
 				flags: MessageFlags.Ephemeral,
 			});
 			return;
@@ -263,12 +268,16 @@ export default class ReportActionSelectComponent implements ComponentHandler<str
 					logger,
 				);
 			} catch (error) {
-				// A ladder rung failing does **not** undo the warn -- it is already filed and its log is out. The
-				// report stays terminal and points at the warn that landed; see `shouldReopenReport`.
+				// A ladder rung failing does **not** undo the warn, and a softban's failed *unban* does not undo the
+				// ban -- both left the target punished and a case filed, so the report stays terminal. See
+				// `shouldReopenReport`.
 				if (!shouldReopenReport(error)) {
 					reportsTotal.inc({ state: 'actioned' });
-					const recorded = await recordReportCase(report.id, (error as LadderFailureError).warnCase.caseId);
-					await refreshCard(recorded ?? claimed, logger);
+					// Only the ladder failure carries the case it filed. A softban that could not lift its own ban
+					// throws before anything hands the case back, so that report closes with no case linked rather
+					// than linked to the wrong one -- the case itself is in the mod log and the case list either way.
+					const filed = error instanceof LadderFailureError ? await recordReportCase(report.id, error.warnCase.caseId) : null;
+					await refreshCard(filed ?? claimed, logger);
 					await reply(describeCommandFailure(error));
 					return;
 				}

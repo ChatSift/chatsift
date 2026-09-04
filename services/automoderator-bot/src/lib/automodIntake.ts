@@ -11,6 +11,7 @@ import { resolveBanwordPolicy } from './banwordPolicy.js';
 import { findBypassRole } from './bypassRoles.js';
 import type { CaseActor } from './cases.js';
 import { traceDecision } from './decisionTrace.js';
+import { findFilterImmunity, IMMUNITY_SUMMARY } from './filterImmunity.js';
 import { dispatchLog, getLogWebhook, LOG_TYPE } from './guildLog.js';
 import type { FilterOutcome } from './guildLogFormat.js';
 import { buildFilterHitEmbed } from './guildLogFormat.js';
@@ -233,6 +234,16 @@ async function decideOutcome(input: OutcomeInput, logger: Logger): Promise<Polic
 		traceDecision(logger, { ...traceBase, action: null });
 		featureInvocations.inc({ feature: FEATURE, outcome: 'skipped' });
 		return { summary: 'No policy configured', enforced: false };
+	}
+
+	// The same gate the runner filters apply, and it belongs here too: Discord has already blocked the message
+	// by the time we see this, so what is skipped is the *punishment* -- which for an owner is one Discord would
+	// refuse anyway. Above the bypass read because it answers the same question without a configured row.
+	const immunity = await findFilterImmunity(data.guild_id, data.user_id, target.roles);
+	if (immunity) {
+		traceDecision(logger, { ...traceBase, action: null, immunity });
+		featureInvocations.inc({ feature: FEATURE, outcome: 'skipped' });
+		return { summary: IMMUNITY_SUMMARY[immunity], enforced: false };
 	}
 
 	const bypassRoleId = await findBypassRole(data.guild_id, target.roles);

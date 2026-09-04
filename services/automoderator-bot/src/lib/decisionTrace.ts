@@ -34,6 +34,12 @@ export interface DecisionTrace {
 	gate?: { enabled: boolean; name: string };
 	guildId: string;
 	/**
+	 * The status that stopped this: the target is the guild owner, or holds Administrator or Manage Messages.
+	 * Distinct from `bypassRoleId`, which is configuration rather than status -- and the distinction is the
+	 * whole answer to "why wasn't this deleted", since only one of the two can be changed by editing a list.
+	 */
+	immunity?: string;
+	/**
 	 * Ladder position at the time of the decision, once ladders exist (P2/P5).
 	 */
 	ladderCount?: number;

@@ -93,14 +93,15 @@ test('the snapshot keeps empty content as null rather than an empty string', () 
 
 // The rule that keeps a report from being actioned twice. A ladder rung failing leaves the warn filed and
 // logged, so reopening the report would let the next moderator turn it into a second warn -- and push the
-// target up another rung. Every other failure really did leave them unpunished.
-test('only a ladder failure keeps the report terminal', async () => {
+// target up another rung. A softban whose unban failed is the same shape: the ban landed, so the report is
+// about somebody who is already banned. Every other failure really did leave them unpunished.
+test('a failure that still punished the target keeps the report terminal', async () => {
 	const { LadderFailureError, CaseFilingError, SoftbanUnbanError } = await import('../moderation.js');
 	const warnCase = { caseId: 7 } as never;
 
 	expect(shouldReopenReport(new LadderFailureError(warnCase, null, 3, new Error('no permission')))).toBe(false);
+	expect(shouldReopenReport(new SoftbanUnbanError(new Error('nope')))).toBe(false);
 
 	expect(shouldReopenReport(new CaseFilingError(false, new Error('db down')))).toBe(true);
-	expect(shouldReopenReport(new SoftbanUnbanError(new Error('nope')))).toBe(true);
 	expect(shouldReopenReport(new Error('anything else'))).toBe(true);
 });
