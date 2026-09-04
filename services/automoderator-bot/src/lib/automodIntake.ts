@@ -323,7 +323,10 @@ async function runPunishmentPolicy(
 			logChannelId: result.logChannelId,
 			logMessageId: result.case.logMessageId,
 		}),
-		enforced: true,
+		// Not `true`: the idempotency key above means a dispatch redelivered after a resume punishes nobody a
+		// second time, and counting that as an enforcement would add bans that never happened to the rate on
+		// every reconnect. Same reasoning as `joinGate.ts`, which is where this was first noticed.
+		enforced: !result.deduplicated,
 	};
 }
 

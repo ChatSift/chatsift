@@ -80,7 +80,7 @@ export default class LookupInviteCommand implements CommandHandler {
 		// A group-DM invite resolves fine and has no guild behind it, which is a real answer rather than a
 		// failure -- and one worth stating, because it means the link is not an advertisement for a server.
 		if (!hasGuild(invite)) {
-			await reply('That invite does not lead to a server — it is a group DM invite.');
+			await reply('That invite does not lead to a server; it is a group DM invite.');
 			return;
 		}
 

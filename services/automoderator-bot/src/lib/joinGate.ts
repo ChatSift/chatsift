@@ -76,7 +76,7 @@ async function handleGuildMemberAdd(data: GatewayGuildMemberAddDispatchData, log
 		return;
 	}
 
-	await applyModerationAction(
+	const result = await applyModerationAction(
 		{
 			action: CASE_ACTION.KICK,
 			guildId: data.guild_id,
@@ -98,5 +98,7 @@ async function handleGuildMemberAdd(data: GatewayGuildMemberAddDispatchData, log
 		logger,
 	);
 
-	featureInvocations.inc({ feature: FEATURE, outcome: 'applied' });
+	// A `GUILD_MEMBER_ADD` replayed after a shard resume finds its case already filed and kicks nobody, so
+	// counting it as `applied` would add a kick that never happened to the count on every reconnect.
+	featureInvocations.inc({ feature: FEATURE, outcome: result.deduplicated ? 'skipped' : 'applied' });
 }

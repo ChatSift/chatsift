@@ -120,13 +120,13 @@ export function JoinGateForm() {
 			<div className="flex flex-col gap-2 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 				<h3 className="text-sm font-medium text-primary dark:text-primary-dark">What happens at the door</h3>
 				<p className="text-sm text-secondary dark:text-secondary-dark">
-					Too-new accounts are kicked, not banned — they can come back once their account is old enough. Each one files
-					a kick case, so{' '}
+					Too-new accounts are kicked, not banned, so they can come back once their account is old enough. Each one
+					files a kick case, so{' '}
 					<Link className="text-misc-accent hover:underline" href={`/dashboard/${guildId}/automoderator/cases`}>
 						Cases
 					</Link>{' '}
 					answers &quot;why did that member vanish&quot;. Bots added by your staff are never checked, and nothing here
-					is affected by bypass roles or exemptions — an account being turned away at the door has no roles yet.
+					is affected by bypass roles or exemptions: an account being turned away at the door has no roles yet.
 				</p>
 			</div>
 		</div>

@@ -16,6 +16,7 @@ import {
 	MessageFlags,
 	PermissionFlagsBits,
 } from '@discordjs/core';
+import { DiscordAPIError } from '@discordjs/rest';
 import { ChatInputInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { executeAction } from '../lib/actionExecutor.js';
 import type { CaseActor } from '../lib/cases.js';
@@ -148,7 +149,7 @@ export default class PurgeCommand implements CommandHandler {
 			end === null &&
 			media === null
 		) {
-			await reply('Tell me what to delete — an `amount`, a `user`, `bots`, `includes`, a message range, or `media`.');
+			await reply('Tell me what to delete: an `amount`, a `user`, `bots`, `includes`, a message range, or `media`.');
 			return;
 		}
 
@@ -156,6 +157,15 @@ export default class PurgeCommand implements CommandHandler {
 		// gap is a moderator naming a *different* channel -- one they may not hold Manage Messages in, or may
 		// not be able to see at all. The resolved channel carries their computed permissions for it, so closing
 		// that gap costs no requests.
+		//
+		// The *invoking* channel deliberately gets no equivalent check, and a reviewer reading this as a hole
+		// should read it as a decision instead: a guild that hands `/purge` to a role through Discord's command
+		// overrides has authorized exactly that, the same way it can hand `/ban` to a role holding no Ban
+		// Members -- which is the usual way a server gives junior staff bot-mediated powers without native ones.
+		// Re-checking the native permission here would break that on `/purge` alone while `/ban` still allows
+		// it. See `permissions.ts`, which records why the report card is the one place in this bot that does
+		// re-check: there the action is chosen *after* the interaction was authorized, so the command name
+		// gates nothing.
 		if (channel && !PermissionsBitField.any(BigInt(channel.permissions), PermissionFlagsBits.ManageMessages)) {
 			await reply(`You do not have permission to manage messages in <#${channel.id}>.`);
 			return;
@@ -191,19 +201,22 @@ export default class PurgeCommand implements CommandHandler {
 			const { targets, scanned } = await collect(api, channelId, criteria, amount);
 
 			if (targets.length === 0) {
+				// "the ${scanned} I checked" rather than "the last ${scanned}": with `end` given the walk starts
+				// there rather than at the newest message, so "the last N" would name a stretch of the channel that
+				// was never read.
 				await reply(
-					`Nothing in the last ${scanned} message${scanned === 1 ? '' : 's'} of <#${channelId}> matched. Discord only lets me delete messages from the past two weeks.`,
+					`Nothing matched in the ${scanned} message${scanned === 1 ? '' : 's'} I checked in <#${channelId}>. Discord only lets me delete messages from the past two weeks.`,
 				);
 				return;
 			}
 
-			const deleted = await purge(
+			const outcome = await purge(
 				api,
 				{ guildId: interaction.guild_id, channelId, moderator: actorFromUser(interaction.member.user) },
 				targets,
 				logger,
 			);
-			await reply(describeOutcome(deleted, targets.length, scanned, channelId));
+			await reply(describeOutcome(outcome, targets.length, scanned, channelId));
 		} catch (error) {
 			logger.error({ err: error, guildId: interaction.guild_id, channelId }, 'a purge failed');
 			await reply(
@@ -255,6 +268,15 @@ async function collect(
 	return { targets, scanned };
 }
 
+interface PurgeOutcome {
+	readonly deleted: number;
+	/**
+	 * Whether the channel refused us outright, which is the difference between "I cannot do this" and "some of
+	 * those messages were already gone" -- two failures that call for opposite follow-up from a moderator.
+	 */
+	readonly permissionDenied: boolean;
+}
+
 /**
  * Deletes the selection in bulk-delete-sized batches, returning how many actually went.
  *
@@ -267,7 +289,7 @@ async function purge(
 	target: { channelId: string; guildId: string; moderator: CaseActor },
 	targets: readonly string[],
 	logger: Logger,
-): Promise<number> {
+): Promise<PurgeOutcome> {
 	const { channelId, guildId, moderator } = target;
 	const reason = buildAuditReason(moderator, 'purge');
 	let deleted = 0;
@@ -297,32 +319,47 @@ async function purge(
 
 			deleted += chunk.length;
 		} catch (error) {
-			// Stopped rather than continued: every failure worth having here is about the channel or the bot's
-			// permissions in it, and the next batch would fail for the same reason. The count already collected is
-			// still reported, so a partial purge is visible rather than being reported as a total failure.
-			logger.warn({ err: error, channelId, deleted }, 'a purge batch failed, stopping');
-			break;
+			// **Only a 403 stops the purge.** That one is the channel refusing us, so every remaining batch fails
+			// identically and continuing would be a hundred requests to be told no a hundred times.
+			//
+			// Everything else is usually one id out of a hundred: Discord rejects a bulk delete *whole* when a
+			// single message in it has already gone, which is exactly what a second moderator cleaning up the
+			// same channel produces. Breaking there would let one stale id abort a purge that could still finish.
+			if (error instanceof DiscordAPIError && error.status === 403) {
+				logger.warn({ err: error, channelId, deleted }, 'a purge was refused, stopping');
+				return { deleted, permissionDenied: true };
+			}
+
+			logger.warn({ err: error, channelId, deleted }, 'a purge batch failed, skipping it');
 		}
 	}
 
-	return deleted;
+	return { deleted, permissionDenied: false };
 }
 
-function describeOutcome(deleted: number, selected: number, scanned: number, channelId: string): string {
+function describeOutcome(outcome: PurgeOutcome, selected: number, scanned: number, channelId: string): string {
+	const { deleted, permissionDenied } = outcome;
+
 	if (deleted === 0) {
-		return `I could not delete anything in <#${channelId}>. Check that I have Manage Messages there.`;
+		return permissionDenied
+			? `I could not delete anything in <#${channelId}>. Check that I have Manage Messages there.`
+			: `I could not delete anything in <#${channelId}>. Everything I found had already been removed by the time I got to it.`;
 	}
 
 	const head = `Deleted ${deleted} message${deleted === 1 ? '' : 's'} in <#${channelId}>.`;
 
 	if (deleted < selected) {
-		return `${head} ${selected - deleted} more matched but could not be deleted — check my permissions in that channel.`;
+		const missed = selected - deleted;
+
+		return permissionDenied
+			? `${head} ${missed} more matched but I was refused. Check my permissions in that channel.`
+			: `${head} ${missed} more matched but were gone before I got to them.`;
 	}
 
 	// Only worth saying when the scan is what stopped it: otherwise the channel simply had nothing else to give,
 	// and "I only looked at 40 messages" reads as a limitation rather than as the end of the channel.
 	if (scanned >= PURGE_MAX_SCAN) {
-		return `${head} That is as far back as one purge looks (${PURGE_MAX_SCAN} messages) — run it again to keep going.`;
+		return `${head} That is as far back as one purge looks (${PURGE_MAX_SCAN} messages). Run it again to keep going.`;
 	}
 
 	return head;

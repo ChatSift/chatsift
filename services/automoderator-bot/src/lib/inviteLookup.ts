@@ -20,10 +20,10 @@ const COLOR = 0x58_65_f2;
  */
 const VERIFICATION_LEVELS: Record<GuildVerificationLevel, string> = {
 	[GuildVerificationLevel.None]: 'None',
-	[GuildVerificationLevel.Low]: 'Low — verified email',
-	[GuildVerificationLevel.Medium]: 'Medium — registered for 5 minutes',
-	[GuildVerificationLevel.High]: 'High — member for 10 minutes',
-	[GuildVerificationLevel.VeryHigh]: 'Highest — verified phone',
+	[GuildVerificationLevel.Low]: 'Low (verified email)',
+	[GuildVerificationLevel.Medium]: 'Medium (registered for 5 minutes)',
+	[GuildVerificationLevel.High]: 'High (member for 10 minutes)',
+	[GuildVerificationLevel.VeryHigh]: 'Highest (verified phone)',
 };
 
 /**
