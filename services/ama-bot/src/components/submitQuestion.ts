@@ -3,7 +3,7 @@ import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
 import { collectModal } from '@chatsift/bot-core';
 import { amaQuestionsChannel } from '@chatsift/core';
-import type { AmaQuestions, AmaSessions } from '@chatsift/db';
+import type { AmaQuestions, AmaSessions, Database, DatabaseTransaction } from '@chatsift/db';
 import type {
 	APIModalSubmitInteraction,
 	APIMessageComponentInteraction,
@@ -157,6 +157,56 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		return row?.count ?? 0;
 	}
 
+	/**
+	 * Writes the question, refusing it (no row back) when the author is already at the session's
+	 * `maxQuestionsPerUser` (#396).
+	 *
+	 * The cap is a `WHERE` on the insert itself rather than a separate count-then-insert pair, but that
+	 * alone is *not* enough to make it hold: under READ COMMITTED the correlated `COUNT(*)` reads the
+	 * snapshot taken when the statement began, so a concurrent submission committing in between stays
+	 * invisible and both attempts pass the gate. Measured, not theorised -- two genuinely simultaneous
+	 * submissions overshot a cap of 1 on every run. Hence the advisory lock, taken as its own statement so
+	 * the insert that follows gets a fresh snapshot including whatever the previous holder committed.
+	 *
+	 * Only capped sessions pay for the transaction and the lock; an uncapped AMA (the default, and every
+	 * AMA predating #396) keeps the plain single-statement insert. `hashtext` is what turns the author's
+	 * snowflake into the lock's second int4 key -- two different users colliding on it would only serialise
+	 * two writes that were never in conflict, which costs nothing and changes no outcome.
+	 */
+	private async insertQuestion(
+		ama: AmaSessions,
+		authorId: string,
+		content: string,
+		state: ReturnType<typeof initialStateFor>,
+	): Promise<AmaQuestions | undefined> {
+		const insert = async (sql: Database | DatabaseTransaction) => {
+			const [question] = await sql<AmaQuestions[]>`
+				INSERT INTO ama_questions (ama_id, author_id, content, state)
+				SELECT ${ama.id}, ${authorId}, ${content}, ${state}
+				${
+					ama.maxQuestionsPerUser === null
+						? sql``
+						: sql`WHERE (
+							SELECT COUNT(*) FROM ama_questions WHERE ama_id = ${ama.id} AND author_id = ${authorId}
+						) < ${ama.maxQuestionsPerUser}`
+				}
+				RETURNING *
+			`;
+
+			return question;
+		};
+
+		if (ama.maxQuestionsPerUser === null) {
+			return insert(getContext().db);
+		}
+
+		return getContext().db.begin(async (sql) => {
+			await sql`SELECT pg_advisory_xact_lock(${ama.id}, hashtext(${authorId}))`;
+
+			return insert(sql);
+		});
+	}
+
 	private async handleModalCollected(interaction: APIModalSubmitGuildInteraction, ama: AmaSessions, logger: Logger) {
 		await getContext().service.client.api.interactions.defer(interaction.id, interaction.token, {
 			flags: MessageFlags.Ephemeral,
@@ -170,24 +220,11 @@ export default class SubmitQuestionComponent implements ComponentHandler {
 		const attachments = ama.allowedQuestionUploads > 0 ? options.getAttachments('file-upload') : null;
 
 		const state = initialStateFor(ama);
-		const authorId = interaction.member.user.id;
-		const db = getContext().db;
-		const [question] = await db<AmaQuestions[]>`
-			INSERT INTO ama_questions (ama_id, author_id, content, state)
-			SELECT ${ama.id}, ${authorId}, ${questionText}, ${state}
-			${
-				ama.maxQuestionsPerUser === null
-					? db``
-					: db`WHERE (
-						SELECT COUNT(*) FROM ama_questions WHERE ama_id = ${ama.id} AND author_id = ${authorId}
-					) < ${ama.maxQuestionsPerUser}`
-			}
-			RETURNING *
-		`;
+		const question = await this.insertQuestion(ama, interaction.member.user.id, questionText, state);
 
 		if (!question) {
-			// That WHERE is the only thing that can make this statement match zero rows, so an uncapped AMA
-			// landing here is the genuinely-impossible write the throw covers, not somebody's cap.
+			// The cap's WHERE is the only thing that can make that statement match zero rows, so an uncapped
+			// AMA landing here is the genuinely-impossible write the throw covers, not somebody's cap (#396).
 			if (ama.maxQuestionsPerUser !== null) {
 				questionsSubmitted.inc({ initial_state: state.toLowerCase(), result: 'capped' });
 				await getContext().service.client.api.interactions.editReply(interaction.application_id, interaction.token, {
