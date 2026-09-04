@@ -25,6 +25,9 @@ const snippetWithUrl = (attachmentUrl: string) =>
 
 const categoryIds = (count: number) => Array.from({ length: count }, (_, index) => index + 1);
 
+const panelWithContent = (panel: Record<string, string>) =>
+	createPanelBodySchema.safeParse({ channelId: CHANNEL, categoryIds: [1], panel }).success;
+
 test('a category emoji accepts Discord custom-emoji shorthand', () => {
 	expect(createCategoryBodySchema.safeParse({ name: 'Support', emoji: `<:wave:${CHANNEL}>` }).success).toBe(true);
 	expect(createCategoryBodySchema.safeParse({ name: 'Support', emoji: `<a:dance:${CHANNEL}>` }).success).toBe(true);
@@ -125,6 +128,46 @@ test('a panel takes either rendered content or raw content', () => {
 
 	// Neither branch of the union matches a body carrying no panel content at all.
 	expect(createPanelBodySchema.safeParse({ channelId: CHANNEL, categoryIds: [1] }).success).toBe(false);
+});
+
+// The dashboard used to be able to submit an empty title with no description (#397), which posted an embed
+// carrying nothing at all -- Discord answered `embeds[0].description[BASE_TYPE_REQUIRED]` and the form saw a 500.
+// Whitespace counts as empty here: Discord would take `"   "` and render a panel that looks blank.
+test('a panel needs at least one of a title and a description, neither of them empty', () => {
+	expect(panelWithContent({ title: 'Support' })).toBe(true);
+	expect(panelWithContent({ description: 'Click below' })).toBe(true);
+
+	expect(panelWithContent({})).toBe(false);
+	expect(panelWithContent({ title: '' })).toBe(false);
+	expect(panelWithContent({ title: '', description: '' })).toBe(false);
+	expect(panelWithContent({ title: '   ' })).toBe(false);
+	expect(panelWithContent({ title: '   ', description: '\n\t ' })).toBe(false);
+});
+
+test('a panel keeps the trimmed text, not what was typed around it', () => {
+	const result = createPanelBodySchema.safeParse({
+		channelId: CHANNEL,
+		categoryIds: [1],
+		panel: { title: '  Support  ', description: ' Click below\n' },
+	});
+
+	if (!result.success || !('panel' in result.data)) {
+		expect.fail('expected the regular-content branch of the union to match');
+	}
+
+	expect(result.data.panel.title).toBe('Support');
+	expect(result.data.panel.description).toBe('Click below');
+});
+
+// The edit form resends the whole `panel` object, so the same rule has to hold on the update schema (#397) --
+// and there it's reachable for a panel that was created with an empty title back when that was accepted.
+test('a panel update is held to the same title-or-description rule', () => {
+	const result = updatePanelBodySchema.safeParse({ panel: { title: '' } });
+
+	expect(result.success).toBe(false);
+	expect(result.error?.issues.map((issue) => issue.path.join('.'))).toContain('panel.title');
+
+	expect(updatePanelBodySchema.safeParse({ panel: { description: 'Click below' } }).success).toBe(true);
 });
 
 test('a panel update cannot carry both panel shapes at once', () => {

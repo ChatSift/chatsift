@@ -72,8 +72,19 @@ export default defineRoute({
 					components: buildPanelComponents('panel' in data ? data.panel.buttonLabel : undefined),
 				});
 			} catch (error) {
-				if (error instanceof DiscordAPIError && error.status === 400 && 'panel_raw' in data) {
-					throw badData('invalid panel_raw data');
+				if (error instanceof DiscordAPIError && error.status === 400) {
+					// Structured panels are validated well enough by `createPanelBodySchema` that this shouldn't be
+					// reachable (#397), but whatever Discord refuses about a message it was handed is the caller's
+					// data problem either way -- answering with its complaint beats a 500 the dashboard can't act
+					// on. Logged on the structured branch specifically because reaching it means the schema and
+					// Discord disagree about what a valid panel is, which is ours to fix, not the caller's.
+					if (!('panel_raw' in data)) {
+						req.logger.warn({ err: error }, 'Discord rejected a structured panel message');
+					}
+
+					throw 'panel_raw' in data
+						? badData('invalid panel_raw data')
+						: badRequest(`Discord rejected this panel message: ${error.message}`);
 				}
 
 				if (

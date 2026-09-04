@@ -81,8 +81,15 @@ export default defineRoute({
 					components: buildPanelComponents(data.panel?.buttonLabel),
 				});
 			} catch (error) {
-				if (error instanceof DiscordAPIError && error.status === 400 && data.panel_raw) {
-					throw badData('invalid panel_raw data');
+				if (error instanceof DiscordAPIError && error.status === 400) {
+					// See `createPanel.ts`'s matching branch (#397).
+					if (!data.panel_raw) {
+						req.logger.warn({ err: error, panelId }, 'Discord rejected a structured panel message');
+					}
+
+					throw data.panel_raw
+						? badData('invalid panel_raw data')
+						: badRequest(`Discord rejected this panel message: ${error.message}`);
 				}
 
 				if (error instanceof DiscordAPIError && error.status === 404) {
