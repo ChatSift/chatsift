@@ -125,7 +125,9 @@ export function CreatePanelForm() {
 		return {
 			...base,
 			panel: {
-				title: formData.title,
+				// Empty means "no title", not an empty title -- the schema refuses an empty string, and an
+				// embed with neither a title nor a description is what Discord rejects outright.
+				title: formData.title || undefined,
 				description: formData.description || undefined,
 				buttonLabel: formData.buttonLabel || undefined,
 				attachmentUrl: formData.attachmentUrl || undefined,

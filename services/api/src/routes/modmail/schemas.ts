@@ -112,10 +112,18 @@ const panelBase = z.strictObject({
 	categoryIds: z.array(z.number().int().positive()).min(1).max(25),
 });
 
-export const createPanelWithRegularContentSchema = panelBase.safeExtend({
-	panel: z.strictObject({
-		title: z.string().max(255),
-		description: z.string().max(4_000).optional(),
+/**
+ * The structured panel embed. Both text fields are optional but neither may be empty, and at least one of them
+ * has to be there: Discord refuses an embed carrying no content of its own (a panel submitted with an empty
+ * title and no description came back as `embeds[0].description[BASE_TYPE_REQUIRED]`, which reached the
+ * dashboard as a 500), so the rule is enforced here -- once, for the create form, the edit form and the API --
+ * rather than left to Discord to answer with. Same shape `automoderator/schemas.ts`'s report prompt already
+ * uses.
+ */
+const panelContentSchema = z
+	.strictObject({
+		title: z.string().min(1).max(255).optional(),
+		description: z.string().min(1).max(4_000).optional(),
 		buttonLabel: z.string().min(1).max(80).default('Create Ticket'),
 		// Rendered as the embed's `image.url` directly (`createPanel.ts`/`updatePanel.ts`), same as a
 		// snippet's `attachmentUrl` -- see `isHttpUrl`'s doc comment above. The edit form always resends
@@ -128,7 +136,16 @@ export const createPanelWithRegularContentSchema = panelBase.safeExtend({
 		// Omitted means `DEFAULT_EMBED_COLOR` (see `createPanel.ts`), not "leave whatever was there" --
 		// consistent with every other field on this object, which the edit form always resends in full.
 		color: embedColorSchema.optional(),
-	}),
+	})
+	// Blamed on `title` so the dashboard renders it under the first of the two fields it's about, rather than
+	// as a form-level error with no field to point at (`PanelEmbedFields`).
+	.refine((panel) => Boolean(panel.title ?? panel.description), {
+		message: 'A panel needs a title, a description, or both',
+		path: ['title'],
+	});
+
+export const createPanelWithRegularContentSchema = panelBase.safeExtend({
+	panel: panelContentSchema,
 });
 
 export const createPanelWithRawContentSchema = panelBase.safeExtend({
@@ -143,7 +160,7 @@ export const createPanelBodySchema = z.union([createPanelWithRegularContentSchem
 export const updatePanelBodySchema = z
 	.strictObject({
 		categoryIds: z.array(z.number().int().positive()).min(1).max(25).optional(),
-		panel: createPanelWithRegularContentSchema.shape.panel.optional(),
+		panel: panelContentSchema.optional(),
 		panel_raw: createPanelWithRawContentSchema.shape.panel_raw.optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided')

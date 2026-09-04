@@ -2,7 +2,7 @@ import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { Categories, Threads } from '@chatsift/db';
 import type { APIEmbed, APIEmbedField, APIGuildMember, APIUser } from '@discordjs/core';
-import { CDNRoutes, ImageFormat, RouteBases } from '@discordjs/core';
+import { CDNRoutes, ImageFormat, RESTJSONErrorCodes, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import type { PermissionRequirement } from './botPermissions.js';
 import { findMissingPermissions, formatMissingPermissionsNotice, MOD_FORUM_PERMISSIONS } from './botPermissions.js';
@@ -25,11 +25,12 @@ import {
 const NOT_QUITE_BLACK = 0x23272a;
 
 /**
- * Thrown by `finishTicketCreation` when the mod forum itself is unreachable -- the bot can't see it or can't
- * post in it. Distinct from every other ticket-creation failure because the answer is: a moderator has to fix
- * the bot's permissions on that forum (or repoint it), and until they do, the opener re-sending their message
- * just fails identically. Caught by all three ticket-opening paths (`index.ts#handleFirstMessage`,
- * `lib/dmTicket.ts`, `components/dmCategorySelect.ts`) so they can say that instead of offering a retry.
+ * Thrown by `finishTicketCreation` when the mod forum itself is unreachable -- the bot can't see it, can't post
+ * in it, or it isn't there at all any more. Distinct from every other ticket-creation failure because the answer
+ * is: a moderator has to fix the bot's permissions on that forum (or repoint it), and until they do, the opener
+ * re-sending their message just fails identically. Caught by all three ticket-opening paths
+ * (`index.ts#handleFirstMessage`, `lib/dmTicket.ts`, `components/dmCategorySelect.ts`) so they can say that
+ * instead of offering a retry.
  *
  * The dashboard now refuses to save a mod forum the bot can't post in (`services/api`'s
  * `util/botPermissions.ts`), so reaching this means the permissions changed *after* it was configured.
@@ -49,7 +50,7 @@ export class ModForumAccessError extends Error {
  * decision rather than three. Deliberately does not suggest trying again.
  */
 export const MOD_FORUM_ACCESS_NOTICE =
-	"❌ This server's ModMail isn't set up correctly right now — the bot can't post in the staff forum, so your ticket couldn't be opened. Please let a moderator know.";
+	"❌ This server's ModMail isn't set up correctly right now — the bot can't reach the staff forum, so your ticket couldn't be opened. Please let a moderator know.";
 
 /**
  * Discord's snowflake epoch (2015-01-01T00:00:00.000Z), used to derive account-creation date.
@@ -220,9 +221,17 @@ export async function finishTicketCreation({
 			},
 		});
 	} catch (error) {
-		// Covers both 403s Discord can answer with here: `50001 Missing Access` (the forum isn't even visible
-		// to the bot) and `50013 Missing Permissions` (visible, but it can't post).
-		if (error instanceof DiscordAPIError && error.status === 403) {
+		// Covers both 403s Discord can answer with here -- `50001 Missing Access` (the forum isn't even visible
+		// to the bot) and `50013 Missing Permissions` (visible, but it can't post) -- plus `10003 Unknown Channel`,
+		// which is what a forum that has since been *deleted* answers with. `guild_settings.mod_forum_id` outlives
+		// the channel it points at (nothing clears it when the channel goes away), so that last one is a perfectly
+		// ordinary state for a guild to be in, and it means the same thing to the opener as the other two: only a
+		// moderator can fix it. Left as a raw error it instead logged at error level on every single message the
+		// user sent and told them to try again, which could never work.
+		if (
+			error instanceof DiscordAPIError &&
+			(error.status === 403 || error.code === RESTJSONErrorCodes.UnknownChannel)
+		) {
 			throw new ModForumAccessError(modForumId, error);
 		}
 

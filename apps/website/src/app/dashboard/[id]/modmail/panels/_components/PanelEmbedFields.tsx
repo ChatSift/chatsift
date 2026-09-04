@@ -48,7 +48,7 @@ export function PanelEmbedFields({
 			<TextField
 				error={errors.title}
 				id="panel-title"
-				label="Title"
+				label="Title (optional if a description is set)"
 				maxLength={255}
 				onChange={onTitleChange}
 				placeholder="Need help?"
