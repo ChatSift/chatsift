@@ -114,6 +114,16 @@ export interface ModerationRequest {
 export interface ModerationResult {
 	readonly case: AutomoderatorCases;
 	/**
+	 * Set when this call did nothing because the same `idempotencyKey` had already been recorded -- a
+	 * redelivered gateway event, or a concurrent delivery of one. The case handed back is the one the first
+	 * delivery filed.
+	 *
+	 * Callers that count *what they did* rather than what happened have to tell the two apart: without this,
+	 * every shard resume inflates an event-driven caller's "applied" counter with kicks and bans that never
+	 * happened a second time.
+	 */
+	readonly deduplicated?: true;
+	/**
 	 * The rung a WARN tripped, if it tripped one. Returned rather than merely logged so the moderator's reply
 	 * can say what else just happened to the member -- a `/warn` that silently also banned them is the surprise
 	 * an escalation ladder is most likely to produce.
@@ -150,7 +160,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 
 			// Nothing was dispatched, so there is no webhook row in hand -- and this is the observer's path, where
 			// no case number is rendered back to anybody. See the same reasoning at the post-insert race below.
-			return { case: existing, logChannelId: null };
+			return { case: existing, logChannelId: null, deduplicated: true };
 		}
 	}
 
@@ -297,7 +307,7 @@ export async function applyModerationAction(request: ModerationRequest, logger: 
 		// No dispatch on this branch -- the delivery that won filed *and* logged the case -- so there is no
 		// webhook row in hand and nothing worth a query for it: this path is the audit observer's, and nothing
 		// there renders a case number back to anyone.
-		return { case: filedCase, logChannelId: null };
+		return { case: filedCase, logChannelId: null, deduplicated: true };
 	}
 
 	casesCreated.inc({ action, source });

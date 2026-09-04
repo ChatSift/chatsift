@@ -7,7 +7,12 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0–P4 done; P5's three PRs are all written — P5a (#365) and P5b (#367) are merged, P5c is open in #368 and unverified
+## Status: P0–P6 done; only P7 (hardening), P8 (scaling opt-in) and P9 (migration and cutover) are left
+
+P5's three PRs are all merged (#365, #367, #368), and a run of polish landed on top of them -- the dashboard
+coherence pass (#383), log webhook avatars (#393), case-embed avatars and hyperlinked case numbers (#392), the
+removal of the dry-run flag, and the legacy self-assignable-role notice (#385). P6 is code-complete and awaiting
+its operator pass; nothing in it has been exercised against Discord yet.
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out -- see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -873,11 +878,11 @@ type gets nothing -- so the kill switch a gate would add already exists, per log
 The largest phase, and the only one split across more than one PR. Three, each shipping a filter that works end
 to end rather than a layer that waits on the next one:
 
-| PR  | Features                                                                      | State                    |
-| --- | ----------------------------------------------------------------------------- | ------------------------ |
-| P5a | **01** banword policy on native hits, **33** filter log, **10** bypass roles  | shipped (#365)           |
-| P5b | **02** URL allowlist, **03** invite allowlist, **09** exemptions, `/simulate` | shipped (#367)           |
-| P5c | **07** anti-spam, **11** trigger ladder + decay                               | open in #368, unverified |
+| PR  | Features                                                                      | State          |
+| --- | ----------------------------------------------------------------------------- | -------------- |
+| P5a | **01** banword policy on native hits, **33** filter log, **10** bypass roles  | shipped (#365) |
+| P5b | **02** URL allowlist, **03** invite allowlist, **09** exemptions, `/simulate` | shipped (#367) |
+| P5c | **07** anti-spam, **11** trigger ladder + decay                               | shipped (#368) |
 
 **Feature 12 (DM on trigger) dissolved into P5a rather than being its own item.** A banword policy files a case,
 and `applyModerationAction` already DMs the target for every case that carries a punishment -- so the feature is
@@ -1160,17 +1165,78 @@ should still be left alone. The decisions inside that:
 
 ### P6 — Remaining utilities
 
-Features **24** (filtered purge), **13** (minimum account age), **26** (invite lookup).
+Features **24** (filtered purge), **13** (minimum account age), **26** (invite lookup). The last phase that adds
+a feature -- everything after it is hardening, configuration and the cutover.
 
-| Layer     | Work                                                       |
-| --------- | ---------------------------------------------------------- |
-| Schema    | `min_join_age` setting                                     |
-| API       | join-age config                                            |
-| Bot       | `/purge` with all filters; join-age kick; `/lookup-invite` |
-| Dashboard | join-age setting                                           |
+| Layer     | Work                                                                                     |
+| --------- | ---------------------------------------------------------------------------------------- |
+| Schema    | `min_join_age_seconds` on `automoderator_guild_settings`, with its lower-bound CHECK     |
+| API       | that column on `GET`/`PATCH .../automoderator/config`, capped at a year in zod           |
+| Bot       | `/purge` with every legacy filter; the join gate on `GUILD_MEMBER_ADD`; `/lookup-invite` |
+| Dashboard | a **Join Gate** section under Filters                                                    |
 
-Decide whether the join-age kick files a case. Legacy kicked silently, which makes "why did that member vanish"
-unanswerable -- recommend it does.
+#### Decisions taken at P6
+
+1. **The join-age kick files a case**, which is the question this section left open, answered the way it
+   recommended. Legacy kicked silently, so "why did that member vanish" had no answer anywhere; a KICK case with
+   a null moderator says what happened and what decided it. The cost is real and accepted: a raid against a
+   gated guild files a case per turned-away account and posts a mod-log embed for each.
+
+2. **`gate` is a new `ActionSource`.** The join gate decides on _who somebody is_ rather than on anything they
+   did, which none of the six existing sources describe -- `automod` is a native AutoMod hit and `observer` is a
+   manual action noticed after the fact. Adding a value to that closed set is a deliberate edit rather than a
+   call-site invention, which is what `actionExecutor.ts` says it should be.
+
+3. **No DM to the kicked account.** The one time this feature matters is a raid, and a DM is a second REST call
+   per join against accounts that overwhelmingly have DMs closed. Legacy sent none either.
+
+4. **Seconds, not legacy's milliseconds and not days.** It is the unit every other duration in this product
+   stores, and it lets the dashboard take `12h` or `7d` through `parseDurationInput` -- the same parser the
+   ladder editors use -- rather than a days-only box that cannot express the twelve-hour gate a guild under a
+   raid actually wants. `min_join_age_seconds` is nullable-means-off like every setting beside it, with the
+   lower bound in the CHECK and the one-year ceiling in zod, which is the split the rest of this schema uses.
+
+5. **The gate is above bypass roles and exemptions**, without a decision needing to be made: an account being
+   turned away at the door has no roles yet. Bots are skipped, as in legacy -- a bot is added by somebody
+   holding Manage Server, so its account age says nothing.
+
+6. **`/purge` reads the channel over REST, not the message cache.** Legacy filtered its redis cache plus the
+   last hundred messages; that cannot work here, because P4's cache deliberately holds no bot or webhook
+   messages (`isLoggableMessage`), so `bots:true` -- the filter people reach for most -- would have matched
+   nothing at all. The channel is also the only source that is right about what has been edited or deleted
+   since.
+
+7. **A scan budget separate from the delete cap.** `amount` (≤ 500, legacy's number) is how many messages may be
+   deleted; `PURGE_MAX_SCAN` (1,000) is how many may be read looking for them. Without the second,
+   `/purge user:@somebody` in a channel where they last spoke a year ago pages backwards through the whole
+   channel. The reply says when the scan is what stopped it, so "run it again" is visibly the answer rather than
+   a guess.
+
+8. **`start` and `end` no longer have to be given together.** Legacy rejected either alone; each is
+   independently a coherent bound, and allowing them separately is less code than the pairing rule was. `end`
+   is also where the walk _starts_ rather than a filter thrown at pages, so a range that closed an hour ago does
+   not spend the scan budget getting there.
+
+9. **The media filter matches on attachment filenames, and it is a bug fix.** Legacy tested
+   `attachment.url.endsWith('.png')`, which stopped matching the day Discord started signing CDN links -- every
+   attachment URL now carries `?ex=…&is=…&hm=…`, so for years the media filter had been matching nothing but
+   extensions typed into the message body. `includes` also matches case-insensitively now, which is the other
+   half of the same complaint.
+
+10. **`/purge` does no permission checking of its own, in any channel.** Discord's command gate --
+    `default_member_permissions` plus whatever the guild has overridden on top of it -- is the authorization,
+    exactly as it is for `/ban`, and a guild that hands the command to a role has authorized what that role does
+    with it. A revision during review re-checked Manage Messages for the `channel:` option, on the grounds that
+    the gate is evaluated in the invoking channel only; it was removed on the owner's call (#395), native checks
+    being enough. The one place in this bot that re-checks a native permission is the report card, and
+    `permissions.ts` records why: there the action is chosen _after_ the interaction was authorized, so the
+    command name gates nothing.
+
+11. **`/lookup-invite` resolves through the bot's own REST client**, and the Cloudflare worker legacy called
+    (`invite-lookup.chatsift.workers.dev`, live, sourceless, unreferenced) is not replaced by anything. The
+    guild-preview call legacy made alongside it is gone too: `with_counts` on the invite fetch answers the
+    member-count question in the request already being made. Verification levels are named rather than printed
+    as the raw enum number legacy showed.
 
 ---
 
@@ -1309,7 +1375,9 @@ Operator side, per phase, against the test guild:
   `automoderator_message_cache_lookups_total` staying at zero `hit` is the tell that `MessageContent` is not.
 - **P5** -- trip a native rule and confirm the policy applies; each custom filter fires and is exempted correctly;
   bypass roles bypass; `/simulate` matches live behaviour.
-- **P6** -- each purge filter; join-age kick; invite lookup.
+- **P6** -- each purge filter, including `media` against a real upload (the filename fix is the one that cannot
+  be tested any other way) and `channel:` naming a different channel; a join-age kick that files a case and posts
+  its mod-log embed; `/lookup-invite` against a live invite, an expired one, and a group DM.
 - **P9** -- the full migration reconciliation, then a real guild's cases visible and correct on the new stack.
 
 Every one of these ends in a real Discord action, so run them in a throwaway test guild -- there is no observe-only

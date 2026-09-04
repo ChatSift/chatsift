@@ -13,6 +13,7 @@ export type GetAutomoderatorConfigResult = Pick<
 	| 'antispamTime'
 	| 'autoPardonWarnsAfter'
 	| 'guildId'
+	| 'minJoinAgeSeconds'
 	| 'reportsChannelId'
 	| 'triggerDecayMinutes'
 	| 'useInviteFilters'
@@ -35,7 +36,7 @@ export default defineRoute({
 
 		const [settings] = await getContext().db<GetAutomoderatorConfigResult[]>`
 			SELECT guild_id, reports_channel_id, auto_pardon_warns_after, use_url_filters, use_invite_filters,
-				antispam_amount, antispam_time, trigger_decay_minutes
+				antispam_amount, antispam_time, trigger_decay_minutes, min_join_age_seconds
 			FROM automoderator_guild_settings
 			WHERE guild_id = ${guildId}
 		`;
@@ -49,6 +50,7 @@ export default defineRoute({
 			antispamAmount: null,
 			antispamTime: null,
 			triggerDecayMinutes: null,
+			minJoinAgeSeconds: null,
 		};
 
 		return settings ?? defaults;

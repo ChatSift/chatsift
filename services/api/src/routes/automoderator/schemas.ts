@@ -9,6 +9,7 @@ import {
 	AUTO_PARDON_MAX_DAYS,
 	AUTOMOD_KEYWORD_MAX_LENGTH,
 	MAX_TIMEOUT_SECONDS,
+	MIN_JOIN_AGE_MAX_SECONDS,
 	REPORT_PRESET_MAX_LENGTH,
 	TRIGGER_DECAY_MAX_MINUTES,
 	TRIGGER_PUNISHMENT_MAX_TRIGGERS,
@@ -43,6 +44,8 @@ export const updateAutomoderatorConfigBodySchema = z
 		// Minutes, and null is off: triggers accumulate forever, which is what a guild that has never thought
 		// about it gets.
 		triggerDecayMinutes: z.number().int().min(1).max(TRIGGER_DECAY_MAX_MINUTES).nullable().optional(),
+		// The join gate (P6, feature 13), in seconds. Nullable-means-off like everything above it.
+		minJoinAgeSeconds: z.number().int().min(1).max(MIN_JOIN_AGE_MAX_SECONDS).nullable().optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, 'At least one field must be provided')
 	.superRefine((data, ctx) => {

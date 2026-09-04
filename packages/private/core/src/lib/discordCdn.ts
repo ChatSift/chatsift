@@ -45,3 +45,17 @@ function defaultUserAvatarURL(userId: string): string {
 export function displayAvatarURL(userId: string, avatar: string | null | undefined): string {
 	return userAvatarURL(userId, avatar) ?? defaultUserAvatarURL(userId);
 }
+
+/**
+ * A guild's icon, or `null` when it has none.
+ */
+export function guildIconURL(guildId: string, icon: string | null | undefined): string | null {
+	return icon ? `${RouteBases.cdn}${CDNRoutes.guildIcon(guildId, icon, ImageFormat.PNG)}` : null;
+}
+
+/**
+ * A guild's banner at a size worth putting in an embed, or `null` when it has none.
+ */
+export function guildBannerURL(guildId: string, banner: string | null | undefined): string | null {
+	return banner ? `${RouteBases.cdn}${CDNRoutes.guildBanner(guildId, banner, ImageFormat.PNG)}?size=1024` : null;
+}

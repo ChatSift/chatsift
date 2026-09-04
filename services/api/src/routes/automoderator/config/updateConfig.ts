@@ -17,6 +17,7 @@ export type UpdateAutomoderatorConfigResult = Pick<
 	| 'antispamTime'
 	| 'autoPardonWarnsAfter'
 	| 'guildId'
+	| 'minJoinAgeSeconds'
 	| 'reportsChannelId'
 	| 'triggerDecayMinutes'
 	| 'useInviteFilters'
@@ -53,7 +54,7 @@ export default defineRoute({
 			INSERT INTO automoderator_guild_settings ${db({ guildId, ...data }, 'guildId', ...columns)}
 			ON CONFLICT (guild_id) DO UPDATE SET ${db(data, ...columns)}
 			RETURNING guild_id, reports_channel_id, auto_pardon_warns_after, use_url_filters, use_invite_filters,
-				antispam_amount, antispam_time, trigger_decay_minutes
+				antispam_amount, antispam_time, trigger_decay_minutes, min_join_age_seconds
 		`;
 
 		return settings!;
