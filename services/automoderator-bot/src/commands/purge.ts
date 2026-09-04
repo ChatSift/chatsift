@@ -1,7 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
 import type { CommandHandler } from '@chatsift/bot-core';
-import { PermissionsBitField } from '@chatsift/core';
 import { ChatInputCommandBuilder } from '@discordjs/builders';
 import type {
 	APIApplicationCommandInteraction,
@@ -153,24 +152,6 @@ export default class PurgeCommand implements CommandHandler {
 			return;
 		}
 
-		// Discord evaluates a command's `default_member_permissions` in the channel it was run in, so the only
-		// gap is a moderator naming a *different* channel -- one they may not hold Manage Messages in, or may
-		// not be able to see at all. The resolved channel carries their computed permissions for it, so closing
-		// that gap costs no requests.
-		//
-		// The *invoking* channel deliberately gets no equivalent check, and a reviewer reading this as a hole
-		// should read it as a decision instead: a guild that hands `/purge` to a role through Discord's command
-		// overrides has authorized exactly that, the same way it can hand `/ban` to a role holding no Ban
-		// Members -- which is the usual way a server gives junior staff bot-mediated powers without native ones.
-		// Re-checking the native permission here would break that on `/purge` alone while `/ban` still allows
-		// it. See `permissions.ts`, which records why the report card is the one place in this bot that does
-		// re-check: there the action is chosen *after* the interaction was authorized, so the command name
-		// gates nothing.
-		if (channel && !PermissionsBitField.any(BigInt(channel.permissions), PermissionFlagsBits.ManageMessages)) {
-			await reply(`You do not have permission to manage messages in <#${channel.id}>.`);
-			return;
-		}
-
 		for (const [name, value] of [
 			['start', start],
 			['end', end],
@@ -186,6 +167,8 @@ export default class PurgeCommand implements CommandHandler {
 			return;
 		}
 
+		// No permission check of our own, on `channel:` or on the channel this was run in: Discord's command gate
+		// is the authorization, here as for `/ban` (#395). `permissions.ts` records the one place that re-checks.
 		const channelId = channel?.id ?? interaction.channel.id;
 		const amount = amountOption ?? DEFAULT_AMOUNT;
 		const criteria: PurgeCriteria = {
@@ -280,9 +263,9 @@ interface PurgeOutcome {
 /**
  * Deletes the selection in bulk-delete-sized batches, returning how many actually went.
  *
- * One `executeAction` per batch rather than one around the whole purge, which is the shape `filterRunner.ts`
- * uses: a purge is many independent calls, and wrapping them together would report a hundred deleted messages
- * as one action and lose the count entirely if the last batch failed.
+ * One `executeAction` per Discord call rather than one around the whole purge, which is the shape
+ * `filterRunner.ts` uses: a purge is many independent calls, and wrapping them together would report a hundred
+ * deleted messages as one action and lose the count entirely if the last batch failed.
  */
 async function purge(
 	api: API,
@@ -296,45 +279,92 @@ async function purge(
 
 	for (const chunk of chunkForBulkDelete(targets)) {
 		try {
-			await executeAction(
-				{
-					action: 'delete',
-					guildId,
-					source: 'command',
-					targetId: moderator.id,
-					async execute() {
-						// Bulk delete refuses a single-message body, and a purge lands on exactly one message often
-						// enough (a narrow `includes`, a quiet channel) for this to be the common path rather than an
-						// edge case.
-						if (chunk.length === 1) {
-							await api.channels.deleteMessage(channelId, chunk[0]!, { reason });
-							return;
-						}
-
-						await api.channels.bulkDeleteMessages(channelId, chunk, { reason });
-					},
-				},
-				logger,
-			);
-
-			deleted += chunk.length;
+			deleted += await deleteBatch(api, { channelId, guildId, moderatorId: moderator.id }, chunk, reason, logger);
 		} catch (error) {
-			// **Only a 403 stops the purge.** That one is the channel refusing us, so every remaining batch fails
-			// identically and continuing would be a hundred requests to be told no a hundred times.
-			//
-			// Everything else is usually one id out of a hundred: Discord rejects a bulk delete *whole* when a
-			// single message in it has already gone, which is exactly what a second moderator cleaning up the
-			// same channel produces. Breaking there would let one stale id abort a purge that could still finish.
-			if (error instanceof DiscordAPIError && error.status === 403) {
-				logger.warn({ err: error, channelId, deleted }, 'a purge was refused, stopping');
-				return { deleted, permissionDenied: true };
-			}
-
-			logger.warn({ err: error, channelId, deleted }, 'a purge batch failed, skipping it');
+			// **Only a 403 gets this far, and it is the one thing that stops the purge.** It is the channel
+			// refusing us, so every remaining batch fails identically and continuing would be a hundred requests
+			// to be told no a hundred times. `deleteBatch` swallows everything else.
+			logger.warn({ err: error, channelId, deleted }, 'a purge was refused, stopping');
+			return { deleted, permissionDenied: true };
 		}
 	}
 
 	return { deleted, permissionDenied: false };
+}
+
+/**
+ * How many times a rejected batch may be halved. Three, which is two bounds at once: one bad id in a hundred
+ * costs about a dozen messages instead of the whole batch, and a *systemic* rejection costs fifteen requests
+ * instead of the two hundred and fifty-five that splitting all the way down to single messages would spend
+ * against Discord's per-channel delete bucket.
+ */
+const MAX_SPLIT_DEPTH = 3;
+
+/**
+ * Deletes one batch, halving it and retrying when Discord rejects the batch whole.
+ *
+ * **Discord fails a bulk delete entirely over one bad id** -- a message another moderator (or a filter) removed
+ * in the seconds since it was selected, or one that aged past the two-week line in between. Treating that as
+ * "this batch is lost" costs the other ninety-nine messages in it and reports them as already gone, so one
+ * stale id would quietly halve a purge.
+ *
+ * Only a `400` is split, because that is the shape that rejection takes; a `403` is rethrown for the caller to
+ * stop on, and anything else (an unknown channel, a 5xx) is about the request rather than its contents, so no
+ * smaller batch of the same ids would fare better.
+ */
+async function deleteBatch(
+	api: API,
+	target: { channelId: string; guildId: string; moderatorId: string },
+	ids: readonly string[],
+	reason: string,
+	logger: Logger,
+	depth = 0,
+): Promise<number> {
+	const { channelId, guildId, moderatorId } = target;
+
+	try {
+		await executeAction(
+			{
+				action: 'delete',
+				guildId,
+				source: 'command',
+				targetId: moderatorId,
+				async execute() {
+					// Bulk delete refuses a single-message body, and a purge lands on exactly one message often
+					// enough (a narrow `includes`, a quiet channel, the leaf of a halving) for this to be a normal
+					// path rather than an edge case.
+					if (ids.length === 1) {
+						await api.channels.deleteMessage(channelId, ids[0]!, { reason });
+						return;
+					}
+
+					await api.channels.bulkDeleteMessages(channelId, [...ids], { reason });
+				},
+			},
+			logger,
+		);
+
+		return ids.length;
+	} catch (error) {
+		if (error instanceof DiscordAPIError && error.status === 403) {
+			throw error;
+		}
+
+		const splittable =
+			ids.length > 1 && depth < MAX_SPLIT_DEPTH && error instanceof DiscordAPIError && error.status === 400;
+
+		if (!splittable) {
+			logger.warn({ err: error, channelId, count: ids.length }, 'a purge batch failed, skipping it');
+			return 0;
+		}
+
+		const middle = Math.ceil(ids.length / 2);
+
+		return (
+			(await deleteBatch(api, target, ids.slice(0, middle), reason, logger, depth + 1)) +
+			(await deleteBatch(api, target, ids.slice(middle), reason, logger, depth + 1))
+		);
+	}
 }
 
 function describeOutcome(outcome: PurgeOutcome, selected: number, scanned: number, channelId: string): string {

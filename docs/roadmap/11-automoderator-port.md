@@ -1223,10 +1223,14 @@ a feature -- everything after it is hardening, configuration and the cutover.
    extensions typed into the message body. `includes` also matches case-insensitively now, which is the other
    half of the same complaint.
 
-10. **A moderator naming a different channel is checked against that channel.** Discord evaluates a command's
-    `default_member_permissions` in the channel it was run in, so `channel:` was a way to purge somewhere the
-    invoker holds nothing -- including a channel they cannot see. The resolved channel option carries their
-    computed permissions for it, so closing that costs no requests.
+10. **`/purge` does no permission checking of its own, in any channel.** Discord's command gate --
+    `default_member_permissions` plus whatever the guild has overridden on top of it -- is the authorization,
+    exactly as it is for `/ban`, and a guild that hands the command to a role has authorized what that role does
+    with it. A revision during review re-checked Manage Messages for the `channel:` option, on the grounds that
+    the gate is evaluated in the invoking channel only; it was removed on the owner's call (#395), native checks
+    being enough. The one place in this bot that re-checks a native permission is the report card, and
+    `permissions.ts` records why: there the action is chosen _after_ the interaction was authorized, so the
+    command name gates nothing.
 
 11. **`/lookup-invite` resolves through the bot's own REST client**, and the Cloudflare worker legacy called
     (`invite-lookup.chatsift.workers.dev`, live, sourceless, unreferenced) is not replaced by anything. The
@@ -1372,8 +1376,8 @@ Operator side, per phase, against the test guild:
 - **P5** -- trip a native rule and confirm the policy applies; each custom filter fires and is exempted correctly;
   bypass roles bypass; `/simulate` matches live behaviour.
 - **P6** -- each purge filter, including `media` against a real upload (the filename fix is the one that cannot
-  be tested any other way) and `channel:` naming somewhere the invoker cannot see; a join-age kick that files a
-  case and posts its mod-log embed; `/lookup-invite` against a live invite, an expired one, and a group DM.
+  be tested any other way) and `channel:` naming a different channel; a join-age kick that files a case and posts
+  its mod-log embed; `/lookup-invite` against a live invite, an expired one, and a group DM.
 - **P9** -- the full migration reconciliation, then a real guild's cases visible and correct on the new stack.
 
 Every one of these ends in a real Discord action, so run them in a throwaway test guild -- there is no observe-only
