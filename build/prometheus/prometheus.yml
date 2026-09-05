@@ -82,8 +82,9 @@ scrape_configs:
     authorization:
       credentials_file: /etc/prometheus/metrics_secret
 
-  # Not scaled today (no SHARDS_PER_REPLICA in its compose service), but dns_sd anyway so opting it into scaling
-  # later is a compose change and nothing here.
+  # Scaling is opt-in per bot and off until AUTOMODERATOR_SHARDS_PER_REPLICA is set (P8) -- dns_sd from the
+  # start meant flipping it needed no change here. This job's targets also carry `automoderator_shards_owned`,
+  # which is per replica by construction: `sum(...)` of it is the cluster's shard coverage.
   - job_name: automoderator-bot
     dns_sd_configs:
       - names: ['automoderator-bot']

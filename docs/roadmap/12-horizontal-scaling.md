@@ -1,7 +1,8 @@
 # Horizontal scaling for bots (`@chatsift/bot-core`)
 
 **Depends on:** nothing. **Unblocks:** [11-automoderator-port.md](11-automoderator-port.md) P8, which was written
-against a mechanism that did not exist yet. **Live production impact:** scaling is off by default — no bot runs
+against a mechanism that did not exist yet and landed 2026-09-05 as pure configuration -- `automoderator-bot` is
+the first bot to opt in. **Live production impact:** scaling is off by default — no bot runs
 more than one replica until a `<BOT>_SHARDS_PER_REPLICA` value is set. It is _not_ a no-op change, though: every
 bot now stores gateway sessions in redis, claims a replica slot at boot, throttles identifies through redis, and
 handles `SIGTERM`. That shared path is deliberate (see below) and is what needs watching on the deploy that ships
@@ -275,9 +276,12 @@ exit with its sockets open instead leaves Discord holding a resumable session. T
   because it needs the docker socket inside a container, a new per-bot service and reconciliation logic, to
   automate an event (Discord's recommendation crossing a 2,500-guild boundary) that fires a few times a year and
   forces a full re-identify anyway.
-- **Metrics.** Only `services/api` has a Prometheus registry; bots have none. Diagnosability here is log-based,
-  which matches the repo's existing bias. Add gauges (`shards_owned`, `replica_index`) when bots gain a registry —
-  AutoModerator's P0 observability work owns that.
+- **Metrics, for bots that have no registry.** Diagnosability here is log-based, which matches the repo's
+  existing bias. `automoderator-bot` is the exception and always was: P0 gave it a registry, so when it opted
+  into scaling ([11-automoderator-port.md](11-automoderator-port.md#p8--horizontal-scaling-opt-in), P8) it took
+  the `shards_owned` and `replica_index` gauges this entry used to defer, reading them from
+  `getOwnedShardCount()` and `getReplicaIndex()`. They live in that bot's registry rather than here because there
+  is nowhere shared to put them. Any other bot that gains a registry should copy those two before anything else.
 
 ## What to watch in the logs
 

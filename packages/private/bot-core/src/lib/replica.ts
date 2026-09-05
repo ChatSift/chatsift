@@ -132,6 +132,18 @@ export function getReplicaIndex(): number {
 }
 
 /**
+ * How many gateway shards this process ended up running.
+ *
+ * Zero before a slot is claimed. Worth exporting because it is the one number that says whether a replica is at
+ * its target or covering for missing peers -- `SHARDS_PER_REPLICA` is the steady-state target, not a cap, so a
+ * replica holding two indices runs twice it. The boot log carries it too; this is for bots with a metrics
+ * registry, which currently means `automoderator-bot`.
+ */
+export function getOwnedShardCount(): number {
+	return ownedShardIds.size;
+}
+
+/**
  * Which shard Discord routes a guild's events to. The formula is Discord's own
  * (`(guild_id >> 22) % num_shards`), so this is a local computation, not a guess.
  */

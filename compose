@@ -172,6 +172,7 @@ then
   # one shard and one replica.
   plan_scale modmail-bot MODMAIL_BOT_TOKEN MODMAIL_SHARDS_PER_REPLICA
   plan_scale social-bot SOCIAL_BOT_TOKEN SOCIAL_SHARDS_PER_REPLICA
+  plan_scale automoderator-bot AUTOMODERATOR_BOT_TOKEN AUTOMODERATOR_SHARDS_PER_REPLICA
 fi
 
 docker compose \

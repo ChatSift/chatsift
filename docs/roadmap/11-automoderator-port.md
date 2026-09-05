@@ -7,7 +7,7 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0–P7 done on the agent side; P8 (scaling opt-in) and P9 (migration and cutover) are left
+## Status: P0–P8 done on the agent side; P9 (migration and cutover) is all that is left
 
 P5's three PRs are all merged (#365, #367, #368), and a run of polish landed on top of them -- the dashboard
 coherence pass (#383), log webhook avatars (#393), case-embed avatars and hyperlinked case numbers (#392), the
@@ -19,6 +19,11 @@ Its two operator halves are still open: the metric review against real traffic, 
 checklist under [Verification](#verification), none of which has been exercised against Discord since P4. It
 also leaves one sizing decision open, [message cache load sizing](#open-message-cache-load-sizing), which is a
 product call rather than a defect.
+
+**P8 turned out to be what it was written to be: configuration.** The scaling-readiness invariants held, the audit
+found no timer needing an `ownsShardForGuild` filter, and no bot code changed to opt in. The one thing it added
+beyond wiring is the pair of replica gauges the scaling doc had parked on "when bots gain a registry" -- see
+[P8](#p8--horizontal-scaling-opt-in).
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out -- see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -215,7 +220,16 @@ automoderator_scheduler_lag_seconds{type}                     histogram  run_at 
 automoderator_reports_total{state}                            counter  filed|joined|dismissed|restored|actioned
 automoderator_log_dispatch_total{log_type, result}            counter  webhook delivery health
 automoderator_discord_errors_total{status, route_class}       counter
+automoderator_replica_index                                   gauge    which replica slot this process claimed
+automoderator_shards_owned                                    gauge    gateway shards this replica runs
 ```
+
+The two gauges are P8's, and they are the only metrics here that are _about the process rather than the product_.
+They exist because Prometheus scrapes this job through `dns_sd`, so it already holds one target per replica:
+`sum(automoderator_shards_owned)` is the cluster's shard coverage, and any single target reading above
+`AUTOMODERATOR_SHARDS_PER_REPLICA` is a replica covering for a missing peer. Both are read at scrape time rather
+than set at boot -- the replica slot is claimed inside `createBotGateway`, before a service's `bin()` runs, so a
+`set()` at module load would record zero forever.
 
 `automoderator_feature_duration_seconds{feature}` was in this list and **was dropped at P7**: no phase ever
 wrote to it, and the question it would answer -- how long a feature takes -- is not one this bot has. Every
@@ -1339,16 +1353,62 @@ Three options, in increasing order of how much they change:
 
 ### P8 — Horizontal scaling opt-in
 
-**No longer blocked** -- the mechanism shipped, see [12-horizontal-scaling.md](12-horizontal-scaling.md). This
-phase is now genuinely just configuration, provided the invariants below were held from P0:
+**Done 2026-09-05, and it was what it was written to be: configuration.** The mechanism shipped separately (see
+[12-horizontal-scaling.md](12-horizontal-scaling.md)); this phase wired AutoModerator into it and audited that the
+[scaling-readiness](#scaling-readiness) invariants had actually held.
 
-- Add `AUTOMODERATOR_SHARDS_PER_REPLICA` to `.env.public` and map it onto the service's `SHARDS_PER_REPLICA` in
-  `docker-compose.yml`, following the three existing bot blocks.
-- Add a `plan_scale automoderator-bot AUTOMODERATOR_BOT_TOKEN AUTOMODERATOR_SHARDS_PER_REPLICA` line to `./compose`.
-- Audit every DB-driven timer this port adds for `ownsShardForGuild`. Neither of P2's two sweeps needs it -- they
-  claim their rows before acting -- but anything that reads rows and then acts on Discord does.
+#### What shipped
 
-The bot itself needs no code change to opt in: `createBotGateway` claims a slot on every boot regardless.
+- `AUTOMODERATOR_SHARDS_PER_REPLICA` in `.env.public`, mapped onto the service's generic `SHARDS_PER_REPLICA` in
+  `docker-compose.yml`, following the three existing bot blocks. **Empty, which is the off position** -- one
+  replica running every shard, exactly the topology before this phase. Nothing about production changes until
+  somebody sets a number.
+- `plan_scale automoderator-bot AUTOMODERATOR_BOT_TOKEN AUTOMODERATOR_SHARDS_PER_REPLICA` in `./compose`, so
+  `./compose up` sizes the service from Discord's own `/gateway/bot` recommendation.
+- `automoderator_replica_index` and `automoderator_shards_owned` gauges, in their own
+  `lib/replicaMetrics.ts` registered from `index.ts` rather than in `metrics.ts` -- they are the only metrics
+  needing `bot-core`, and `metrics.ts` is imported by almost every file here, so putting the import there would
+  make `bot-core` a transitive dependency of all of them. These are the gauges
+  [12-horizontal-scaling.md](12-horizontal-scaling.md) deferred to "when bots gain a registry"; AutoModerator is
+  the first bot with one and the first to opt in, so the condition that deferred them no longer holds. See the
+  [taxonomy](#observability) for what they answer that the boot log cannot.
+- Prometheus needed **no change**: the job was already `dns_sd`, which is one target per replica, precisely so
+  that flipping this would be a compose change and nothing else. Only its comment moved on.
+
+`bot-core` gained one accessor, `getOwnedShardCount()`, for the gauge to read. No behavioural code in
+`automoderator-bot` changed to opt in -- `createBotGateway` claims a slot on every boot regardless, which is the
+property that made this phase configuration.
+
+#### The audit, and the one thing it corrected
+
+Every DB-driven timer this port adds was checked for whether it needs an `ownsShardForGuild` filter. The rule is
+that reading rows and then acting on Discord needs one; claiming rows first does not.
+
+**None of them needs it.** This section said "P2's two sweeps" and there are three -- P5c's `sweepTriggerDecay`
+arrived after it was written -- but it had held the invariant on its own, as a compare-and-swap on
+`(count, updated_at)` that makes a second replica's stale snapshot skip the row rather than decay it twice. It
+also does no Discord work at all, so it was never in the category that needs a filter.
+
+The rest of the surface came out clean for reasons worth writing down, because "we checked" is not a finding:
+
+- **The process-local caches are all guild- or code-keyed read caches** (`automodRules`, `filterImmunity`,
+  `inviteFilter`, `deleteAttribution`'s buffer). N replicas each holding their own copy costs requests, not
+  correctness -- and the delete-attribution buffer correlates two _guild-scoped_ gateway events, which a guild's
+  one owning replica receives both of.
+- **The read-modify-write paths named in [scaling readiness](#scaling-readiness) item 4 are already atomic**, and
+  were before this phase, because `services/api` shares the code: report filing resolves its race on a unique
+  index, report state transitions are `AND state = ${expected}`, and trigger-ladder counting is
+  `ON CONFLICT ... DO UPDATE`. Anti-spam windows are a redis Lua script; automod dedupe is a redis key.
+- **DM reporting (P3b) is single-replica by construction.** DMs always arrive on shard 0, so the draft flow and
+  every interaction that follows it land in one process. The card it posts into a guild is a REST call, which
+  needs no shard.
+
+#### Left to the operator
+
+Setting the number. It is a sizing decision, not a correctness one, and
+[12-horizontal-scaling.md](12-horizontal-scaling.md#sizing-a-container) has the rule: `SHARDS_PER_REPLICA` is a
+steady-state target rather than a cap, so a container should be sized for **twice** it if a single replica loss
+should be absorbed without degrading. Nothing else in this port is waiting on it.
 
 ---
 
@@ -1397,9 +1457,11 @@ than a rewrite.
    second replica could also be doing.
 2. **Everything gateway-driven is idempotent.** Redelivery after a reconnect is normal. Case creation, report filing
    and ladder increments all take an idempotency key.
-3. **The scheduler claims rather than reads.** Both sweeps write their claim before acting, from P2 -- the expiry
-   one under `FOR UPDATE SKIP LOCKED`, the auto-pardon one as a compare-and-swap on `pardoned_by` -- so N replicas
-   is safe by construction rather than by leader election, and neither needs `ownsShardForGuild`.
+3. **Every sweep claims rather than reads.** All three write their claim before acting -- the expiry one under
+   `FOR UPDATE SKIP LOCKED`, the auto-pardon one as a compare-and-swap on `pardoned_by`, and P5c's trigger decay
+   as a compare-and-swap on `(count, updated_at)` -- so N replicas is safe by construction rather than by leader
+   election, and none needs `ownsShardForGuild`. This item said "both sweeps" until P8's audit; the third arrived
+   with P5c and had held the invariant on its own.
 4. **Read-modify-write paths are enumerated and lock-ready.** Ladder counting, report dedupe and case-number
    allocation are the three. Case numbers are already database-allocated.
 

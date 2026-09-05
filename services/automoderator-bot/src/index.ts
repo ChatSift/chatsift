@@ -20,6 +20,7 @@ import { resolveLegacyRolePrompt } from './lib/legacyRolePrompts.js';
 import { registerMessageObserver } from './lib/messageObserver.js';
 import { register } from './lib/metrics.js';
 import { registerProfileObserver } from './lib/profileObserver.js';
+import { registerReplicaMetrics } from './lib/replicaMetrics.js';
 import { sweepTriggerDecay, TRIGGER_DECAY_SWEEP_INTERVAL_MS } from './lib/triggerDecaySweep.js';
 
 const baseDir = dirname(fileURLToPath(import.meta.url));
@@ -34,6 +35,7 @@ export async function bin(client: Client): Promise<void> {
 	registerJoinGate(client);
 	registerMessageObserver(client);
 	registerProfileObserver(client);
+	registerReplicaMetrics();
 	startMetricsServer({ port: ENV.AUTOMODERATOR_METRICS_PORT, register });
 
 	scheduleSweep('expired temporary bans', EXPIRED_BAN_SWEEP_INTERVAL_MS, sweepExpiredBans);

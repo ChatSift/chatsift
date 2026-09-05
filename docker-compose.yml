@@ -290,8 +290,6 @@ services:
   # docs/roadmap/11-automoderator-port.md. Additive until P9 -- legacy AutoModerator keeps running from
   # ChatSift/stack against postgres-old the whole time this one is being built, so the two coexist and this
   # service must not be pointed at the legacy application's token before that cutover.
-  # No SHARDS_PER_REPLICA yet: opting into horizontal scaling is P8, and the port holds the invariants that
-  # make it configuration rather than a rewrite (see that doc's Scaling readiness section).
   automoderator-bot:
     image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-automoderator
     build:
@@ -304,6 +302,8 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+    environment:
+      SHARDS_PER_REPLICA: ${AUTOMODERATOR_SHARDS_PER_REPLICA:-}
     command: ['node', '--enable-source-maps', './services/automoderator-bot/dist/bin.js']
     volumes:
       - ./logs/automoderator-bot:/usr/chatsift/logs/automoderator-bot
