@@ -68,6 +68,18 @@ const ROUTE_CLASS: Record<ModerationAction, string> = {
  * flow (a case row to roll back, a reply to reword) and this does not. What it does own is counting it
  * honestly -- a rejected call increments `discordErrors`, never `moderationActions`, so an "actions taken"
  * panel can't quietly include actions Discord refused.
+ *
+ * **Two things are outside it on purpose**, written down here because P7's audit had to re-derive both:
+ *
+ * - **Interaction responses.** `api.interactions.reply`/`defer`/`editReply`/`followUp`/`createModal` are the
+ *   acknowledgement channel for a moderator's own command, not something done *to* anybody -- they are
+ *   addressed to the person who just pressed the button, expire with the token, and are almost all ephemeral.
+ *   Routing them through here would drown `moderationActions` in replies and answer no question anyone asks.
+ *   `message` is for a message the bot posts into a channel on its own account, which is the report card.
+ * - **`services/api`.** It writes some of the same Discord objects from the dashboard (the report card, the
+ *   mod-log embed on a case edit, report prompts, the log webhooks), in a different process with a different
+ *   registry. That is a limit on what these counters mean rather than a call site to fix -- see the note on
+ *   `moderationActions` in `metrics.ts`. Inside *this* service the rule is absolute.
  */
 export async function executeAction(request: ActionRequest, logger: Logger): Promise<void> {
 	const { action, guildId, source, targetId, decidedBy } = request;

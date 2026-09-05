@@ -26,6 +26,13 @@ export const register = new Registry();
  * Counts actions that actually *happened*: it is incremented only once Discord has accepted the call. A
  * rejected call lands in `automoderator_discord_errors_total` instead, so "we banned N people" never silently
  * includes the ones Discord refused.
+ *
+ * **Bot-process only**, for the same reason `automoderator_reports_total` is bot-intake only: `services/api`
+ * writes some of the same Discord objects from the dashboard -- the report card (`reports/reportCard.ts`), the
+ * mod-log embed when a case is edited (`cases/caseLog.ts`), report prompts, and the log webhooks themselves --
+ * and it has its own registry. So `action="message"` and `action="webhook"` are undercounts of everything this
+ * product posts, not totals. Closing that means a domain counter in the API's registry, which is a decision
+ * about that registry's scope (deliberately per-route for #277) rather than about this metric.
  */
 export const moderationActions = new Counter({
 	name: 'automoderator_moderation_actions_total',
@@ -62,9 +69,10 @@ export const casesCreated = new Counter({
 
 /**
  * Report queue throughput (P3). `state` is the *transition* that happened, not the row's current value:
- * `filed` counts reports opened, `joined` counts a second reporter agreeing with an existing one, and
- * `dismissed`/`actioned` count resolutions. `filed` climbing with neither resolution following it is the
- * failure worth watching -- it means a guild's queue is filling up and nobody is reading it.
+ * `filed` counts reports opened, `joined` counts a second reporter agreeing with an existing one,
+ * `dismissed`/`actioned` count resolutions, and `restored` counts a dismissal being taken back. `filed`
+ * climbing with neither resolution following it is the failure worth watching -- it means a guild's queue is
+ * filling up and nobody is reading it.
  *
  * **This counter is bot-intake only.** DM reports (P3b) are filed by `services/api`, which has its own
  * registry -- deliberately scoped to per-route HTTP metrics for #277 -- so they never reach `filed` or
@@ -93,9 +101,9 @@ export const logDispatch = new Counter({
 });
 
 /**
- * Scheduler throughput (P2). `type` is `automoderator_task_type` for a real task row, plus `AUTO_PARDON` for
- * the sweep -- which is not a task row at all, but is the other thing this loop does on a timer, and "did the
- * scheduler tick" is the question both answer.
+ * Scheduler throughput (P2). There is no task table to draw `type` from -- P2 settled on the case row *being*
+ * the schedule -- so the three values are the three sweeps that run on the timer: `expiry` (lifting a due
+ * tempban), `auto_pardon` and `trigger_decay`. "Did the scheduler tick" is the question all three answer.
  *
  * `result` is only ever `ok` or `failed`, and there is deliberately no third "gave up" value: an expiry that
  * keeps failing is retried every tick forever, because abandoning one turns a temporary ban into a permanent
@@ -141,10 +149,18 @@ export const featureInvocations = new Counter({
 });
 
 /**
- * Message cache hit rate (P4). **Flat-zero `hit` is how a missing `MessageContent` intent shows up** -- without
- * it every message caches as empty text, so deletes and edits arrive, find nothing worth logging, and the
- * message log silently does nothing at all. There is no error anywhere in that path, which is exactly why this
- * counter exists.
+ * Message cache hit rate (P4): whether a delete or edit arrived with the original still in redis to describe.
+ *
+ * **This is retention pressure, not intent health** -- corrected at P7, where the claim it used to carry (that
+ * flat-zero `hit` is how a missing `MessageContent` intent shows up) turned out to be unreachable twice over.
+ * `MessageContent` is in the IDENTIFY (`bin.ts`), so an application without it is refused the gateway and the
+ * bot never boots at all; and even granting the intent were somehow absent, Discord sends `content: ""` rather
+ * than omitting it, `isLoggableMessage` accepts an empty string, and every lookup would be a *hit* on an empty
+ * message. Nothing about a `hit`/`miss` split can see that failure.
+ *
+ * What a climbing `miss` rate does mean is that deletes are reaching further back than the cache keeps: past
+ * `MESSAGE_CACHE_TTL_MS`, or past `MESSAGE_CACHE_MAX_PER_CHANNEL` in a channel busy enough to have evicted its
+ * own recent history. Both are sizing questions, and both are answered by those two constants.
  */
 export const messageCacheLookups = new Counter({
 	name: 'automoderator_message_cache_lookups_total',
@@ -156,7 +172,8 @@ export const messageCacheLookups = new Counter({
 /**
  * `route_class` is a coarse bucket (`member`, `message`, `user`, `webhook`), never a resolved route -- a
  * per-URL label would be per-guild cardinality by another name. Written by the `ActionExecutor` when a
- * side-effecting call is rejected.
+ * side-effecting call is rejected, and therefore covering only this process -- a dashboard-initiated write that
+ * Discord refuses is invisible here. See `automoderator_moderation_actions_total` for the same split.
  */
 export const discordErrors = new Counter({
 	name: 'automoderator_discord_errors_total',

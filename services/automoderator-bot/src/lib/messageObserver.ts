@@ -18,9 +18,10 @@ import { featureInvocations } from './metrics.js';
 /**
  * The message log (P4, feature 34): edits and deletes, with what the message used to say.
  *
- * Everything here depends on the `GuildMessages` and `MessageContent` intents. Without the second one every
- * message caches with empty text and the log renders nothing while looking perfectly healthy -- see
- * `automoderator_message_cache_lookups_total` in `metrics.ts`, which is the only thing that says so.
+ * Everything here depends on the `GuildMessages` and `MessageContent` intents, both of which are in the
+ * IDENTIFY -- an application missing either is refused the gateway outright, so this cannot be running against
+ * empty message text. See `bin.ts`, and the corrected reading of
+ * `automoderator_message_cache_lookups_total` in `metrics.ts`.
  */
 const FEATURE = 'message_log';
 
@@ -139,8 +140,9 @@ async function handleMessageDelete(data: GatewayMessageDeleteDispatchData, logge
 	const message = await getCachedMessage(data.id);
 	if (!message) {
 		// Nothing to say. A delete of something never cached (posted before the bot joined, past the retention
-		// window, or by a bot) is genuinely unloggable rather than an error -- but a *sustained* run of these is
-		// how a missing `MessageContent` intent presents, which is what the cache-lookup counter is for.
+		// window, or by a bot) is genuinely unloggable rather than an error -- but a *sustained* run of these
+		// says the cache is not keeping messages long enough to cover how far back people delete, which is the
+		// sizing question `automoderator_message_cache_lookups_total` exists to raise.
 		featureInvocations.inc({ feature: FEATURE, outcome: 'skipped' });
 		return;
 	}

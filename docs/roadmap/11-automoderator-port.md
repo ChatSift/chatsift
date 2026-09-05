@@ -7,12 +7,18 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0–P6 done; only P7 (hardening), P8 (scaling opt-in) and P9 (migration and cutover) are left
+## Status: P0–P7 done on the agent side; P8 (scaling opt-in) and P9 (migration and cutover) are left
 
 P5's three PRs are all merged (#365, #367, #368), and a run of polish landed on top of them -- the dashboard
 coherence pass (#383), log webhook avatars (#393), case-embed avatars and hyperlinked case numbers (#392), the
-removal of the dry-run flag, and the legacy self-assignable-role notice (#385). P6 is code-complete and awaiting
-its operator pass; nothing in it has been exercised against Discord yet.
+removal of the dry-run flag, and the legacy self-assignable-role notice (#385). P6 merged as #395.
+
+**P7's audit is done and found no defect in the instrumentation** -- the action seam holds, the decision traces
+cover what they should, and the four things it corrected were all documentation that had drifted from the code.
+Its two operator halves are still open: the metric review against real traffic, and the per-phase runtime
+checklist under [Verification](#verification), none of which has been exercised against Discord since P4. It
+also leaves one sizing decision open, [message cache load sizing](#open-message-cache-load-sizing), which is a
+product call rather than a defect.
 
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out -- see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
@@ -199,7 +205,6 @@ reading logs.
 
 ```
 automoderator_feature_invocations_total{feature, outcome}     counter  outcome: applied|skipped|failed
-automoderator_feature_duration_seconds{feature}               histogram
 automoderator_moderation_actions_total{action, source}        counter  action: warn|mute|kick|ban|unban|delete
                                                                        source: command|automod|ladder|report|scheduler|observer
 automoderator_cases_created_total{action, source}             counter
@@ -211,6 +216,10 @@ automoderator_reports_total{state}                            counter  filed|joi
 automoderator_log_dispatch_total{log_type, result}            counter  webhook delivery health
 automoderator_discord_errors_total{status, route_class}       counter
 ```
+
+`automoderator_feature_duration_seconds{feature}` was in this list and **was dropped at P7**: no phase ever
+wrote to it, and the question it would answer -- how long a feature takes -- is not one this bot has. Every
+feature's latency is a Discord round trip plus a query, both of which are already visible where they happen.
 
 **Cardinality discipline, non-negotiable:** never label by `guild_id`, `user_id`, `channel_id`, `message_id` or
 matched content. Every label above is drawn from a closed set known at compile time. This is the same rule the API's
@@ -1246,6 +1255,86 @@ No new features. Backfill: unit-test coverage on the pure logic (ladder arithmet
 filtering, keyword→policy mapping), decision-trace review, metric review against a real week of dev traffic, load
 sanity on the message cache, and a pass over every `ActionExecutor` call site confirming nothing bypasses it.
 
+**The seam holds.** Every mutating REST call in `services/automoderator-bot` is lexically inside an
+`executeAction` `execute()` -- the six punishment performers and the softban's two halves in `moderation.ts`,
+both delete paths in `filterRunner.ts` and `purge.ts`, the re-time in `case.ts`, both DM paths, the report card,
+and all three webhook writers. Nothing else mutates. Two things sit outside it deliberately and are now written
+down at the seam itself rather than left to be re-derived: interaction responses (the acknowledgement channel
+for a moderator's own command, not something done to anybody), and `services/api`, which writes some of the
+same Discord objects from the dashboard in a different process with a different registry. The second is a limit
+on what `automoderator_moderation_actions_total` and `automoderator_discord_errors_total` mean -- both are now
+documented as bot-process-only, the way `automoderator_reports_total` already documented its own split.
+
+**Four metric corrections**, all documentation rather than instrumentation -- the counters themselves were
+right:
+
+- `automoderator_message_cache_lookups_total` did **not** detect a missing `MessageContent` intent, which is
+  what `metrics.ts`, `messageObserver.ts` and this document all claimed it did. It cannot: the intent is in the
+  IDENTIFY, so the bot never boots without it, and Discord sends `content: ""` rather than omitting it, so every
+  lookup would be a hit on an empty message. It measures retention pressure. See the corrected bullet under
+  [What to watch in the logs](#what-to-watch-in-the-logs).
+- `automoderator_reports_total` writes a fifth state, `restored`, that its own documentation did not list.
+- `automoderator_scheduler_tasks_total` described `type` as drawn from `automoderator_task_type`. There is no
+  such enum -- P2 settled on the case row _being_ the schedule -- and the three real values are the three
+  sweeps: `expiry`, `auto_pardon`, `trigger_decay`.
+- `automoderator_feature_duration_seconds` was in the target taxonomy and was never built. Dropped rather than
+  left as an unwritten counter.
+
+**Decision traces cover every short-circuit that a human asks about.** The four in `automodIntake.ts`, the
+immunity/bypass/exemption trio in `filterRunner.ts`, both message-log exemptions, the two in `triggerLadder.ts`,
+and one per action at the seam. The paths that deliberately trace nothing are the ones where a trace would be
+per-message noise for a guild that configured nothing: a filter set with no runners enabled, an edit that
+changed no content, a member old enough for the join gate.
+
+**Tests added** for the three pure modules the backfill list reached that had none: `messageCache.ts` (the
+loggability gate, the recipe round trip, index accounting and the per-channel eviction), `logExemptions.ts` (the
+one exemption resolver with no test), and `automodDedupe.ts` (the fan-out collapse, the content-hash fallback,
+and the fail-open). Ladder arithmetic, purge filtering, filter exemptions and keyword→policy mapping already had
+theirs.
+
+**Left for the operator**, because neither can be answered from a checkout: the metric review against a real
+week of dev traffic, and the per-phase runtime checklist under [Verification](#verification) -- P6 in particular
+merged as #395 with nothing yet exercised against Discord.
+
+#### Open: message cache load sizing
+
+The one finding P7 could not close on its own, because the fix is a product decision rather than a defect.
+
+`cacheMessage` runs on **every `MESSAGE_CREATE` in every guild**, whether or not that guild has a `MESSAGE` log
+configured, and `evaluateFilters` issues **one `automoderator_guild_settings` query per message** before it can
+discover the guild has no filters enabled. So the steady-state cost of a guild that has configured nothing at
+all is five sequential redis round trips and one Postgres query per message.
+
+Measured, not estimated: a cached message encodes to 165 bytes empty and 215 bytes at 50 characters of content;
+with the 41-byte key and redis's own per-key overhead that is roughly **350-400 bytes per message**, plus the
+channel index entry. A million messages a day across the deployment is therefore around 400MB resident, and the
+`MESSAGE_CACHE_MAX_PER_CHANNEL` bound is per channel -- 5,000 messages is about 2MB, so the aggregate bound is
+whatever the active channel count happens to be.
+
+**Redis has no `maxmemory` and no eviction policy** (`docker-compose.yml` runs it `--save '' --appendonly no`,
+justified by a comment that nothing in the stack treats it as a source of truth). That was true before this
+cache existed. It is now the largest and least bounded consumer in a redis shared with every other bot.
+
+**Setting an eviction policy is not the fix**, and this is the part worth not getting wrong: `volatile-lru`
+evicts keys with a TTL, and the keys with TTLs include `bot-core`'s replica leases, the identify-throttler
+claims and the per-replica guild lists. Evicting a lease lets two replicas claim one shard index; evicting a
+guild list hides a bot from the dashboard (see the P8 invariants and the guild-list failure mode). `allkeys-*`
+is worse. The bound has to come from the cache, not from redis.
+
+Three options, in increasing order of how much they change:
+
+1. **Cap it and watch it.** Leave the behaviour, add a `maxmemory` to redis with `noeviction` so the failure is
+   loud rather than an OOM that takes the host's other containers with it, and size the TTL from the observed
+   `miss` rate.
+2. **Cache only for guilds that log.** Gate `cacheMessage` on the guild having a `MESSAGE` log webhook, which
+   collapses the footprint to the guilds actually using the feature. Needs a cached answer to "does this guild
+   log", since `getLogWebhook` is an uncached query and asking it per message would be worse than the write it
+   saves. Costs one thing: a guild that turns the message log on gets no history for messages posted before it
+   did.
+3. **Cache guild configuration generally.** The same short-TTL, stale-while-revalidate read in front of
+   `automoderator_guild_settings` as well, which is the query on the genuinely hottest path. Removes a Postgres
+   round trip per message for every guild rather than just the redis writes for some of them.
+
 ---
 
 ### P8 — Horizontal scaling opt-in
@@ -1340,11 +1429,15 @@ The diagnosability bias that applied to Social applies harder here -- this bot b
   mod log doesn't.
 - `automoderator_log_dispatch_total{result="failed"}` means webhooks are 404ing; legacy self-healed by deleting the
   row, so a spike here is usually a deleted log channel, not an outage.
-- `automoderator_message_cache_lookups_total{result="hit"}` flat at zero while `miss` climbs means the message log
-  is receiving deletes and has nothing to say about any of them -- almost always the `MessageContent` intent not
-  being granted on the application. Nothing errors in that state, which is the whole reason this counter exists.
-  `automoderator_feature_invocations_total{feature="message_log",outcome="skipped"}` is the same signal one level
-  up, and separates it from an exemption doing its job only when read alongside the decision traces.
+- `automoderator_message_cache_lookups_total{result="miss"}` climbing means the message log is receiving deletes
+  it has nothing to say about, because the original aged out before anyone got to it -- a retention question,
+  answered by `MESSAGE_CACHE_TTL_MS` and `MESSAGE_CACHE_MAX_PER_CHANNEL`.
+  **This bullet used to read it as the tell for a missing `MessageContent` intent; P7 established that it is
+  not**, and cannot be: the intent is in the IDENTIFY, so an application without it never gets a gateway session
+  at all, and even then Discord sends `content: ""` rather than omitting it, so every lookup would be a hit on an
+  empty message. `automoderator_feature_invocations_total{feature="message_log",outcome="skipped"}` is the same
+  signal one level up, and separates it from an exemption doing its job only when read alongside the decision
+  traces.
 - Decision traces are the first thing to read for "why did/didn't the filter fire" -- they carry the exemption and
   bypass evaluation, which outcome-only logs never did.
 
