@@ -332,23 +332,57 @@ Note `COMPOSE_PROJECT_NAME` and `RESOURCE_PREFIX` differ on prod, and must not b
 
 `.github/workflows/ci.yml`, on a push to `main` or `canary`:
 
-1. **quality** — `yarn build`/`lint`/`format:check`/`test`.
-2. **build-push** — builds the root `Dockerfile` once and pushes `ghcr.io/chatsift/chatsift:<channel>-<sha>`, then
-   `turbo run tag-docker --filter '...[HEAD~1...HEAD~0]'` aliases it to the moving `<channel>-<service>` tags that
-   compose tracks — only for services whose own code or workspace dependencies changed. Unchanged bots keep their
+1. **quality** -- `yarn build`/`lint`/`format:check`/`test`.
+2. **build-push** -- builds the root `Dockerfile` once and pushes `ghcr.io/chatsift/chatsift:<channel>-<sha>`, then
+   `turbo run tag-docker --filter '...[<base>...HEAD]'` aliases it to the moving `<channel>-<service>` tags that
+   compose tracks -- only for services whose own code or workspace dependencies changed. Unchanged bots keep their
    old digest and are therefore not restarted by step 3.
-3. **deploy** — SSHes to the box and runs the deploy script below.
+3. **deploy** -- SSHes to the box and runs the deploy script below. It runs on every push, including ones that
+   skipped the image build, because `docker-compose.yml`, `.env.public` and `build/` are read from the host
+   checkout rather than baked into an image.
 
-Two things about the aliasing in step 2 are worth knowing before you trust it:
+Three things about the aliasing in step 2 are worth knowing before you trust it:
 
-- The filter selects **packages**, so a change confined to a root file that feeds every image (`Dockerfile`,
-  `yarn.lock`, `.yarnrc.yml`, root `package.json`, the shared tsconfigs, `tsup.config.ts`, `turbo.json`) would
-  otherwise select nothing, push an image, and never point an alias at it. The workflow detects that case and
-  re-aliases every service. `docker-compose.yml` is deliberately excluded — it is read from the checkout at deploy
-  time, not baked into the image, so a compose-only change needs no new image at all.
+- The filter selects **packages**, so a change confined to a root file that feeds every image would otherwise
+  select nothing, push an image, and never point an alias at it. The workflow detects that case and re-aliases
+  every service. That list of root files is the `ROOT_IMAGE_INPUTS` job env var, shared with the skip gate below
+  so the two can never disagree. `docker-compose.yml` is deliberately excluded -- it is read from the checkout at
+  deploy time, not baked into the image, so a compose-only change needs no new image at all.
 - **`workflow_dispatch` rebuilds and re-aliases everything** on whichever branch you dispatch from. That is the
   escape hatch when the detection above is wrong, or when you want every service on one known digest. It replaces
   the old `deploy-manual.yml`.
+- **The range is the whole push, not its tip commit.** Both the skip gate and the alias filter diff
+  `github.event.before..HEAD`, which is why `build-push` checks out with `fetch-depth: 0` (the repo is ~12MB, so
+  full history costs a second). Diffing `HEAD~1..HEAD` instead would let a multi-commit push whose last commit is
+  docs-only skip a build the earlier commits needed, while `deploy` still ran against the stale digest. When the
+  range cannot be resolved -- a manual dispatch, a branch's first push, a force-pushed base that no longer exists
+  -- everything is rebuilt and re-aliased, so the failure mode is a wasted build rather than a missed one.
+
+#### Why build-push has no Docker layer cache (#387)
+
+Step 2 skips itself entirely when the pushed range touches nothing under `packages/`, `services/` or
+`ROOT_IMAGE_INPUTS` -- `apps/website` is not in the image at all (the `Dockerfile` never copies `apps/`; the
+dashboard deploys off-repo), and docs, Grafana/Prometheus provisioning and compose config are read from the host
+checkout. That was 15 of the 60 pushes to `main` before the gate landed, each paying ~2 minutes to rebuild and
+push a byte-identical image. `build/caddy/` is gated separately, since the ingress image is independent.
+
+It also passes no `cache-from`/`cache-to` to `docker/build-push-action`, which is deliberate and worth not
+"fixing" back:
+
+- Measured on real runs, `cache-to: type=gha,mode=max` cost **50s on a warm build and 82s on a cold one** -- more
+  than half the step -- while the only layers `cache-from` ever restored were `WORKDIR` and the `apk add` line,
+  worth ~11s.
+- It was also **10.25 GB of the repo's 10 GB Actions cache budget** (549 entries, 96% `buildkit-blob-*`). Over the
+  limit, GitHub evicts least-recently-used entries, so the export was steadily evicting the very layers it existed
+  to serve -- which is why `COPY .yarn` and `yarn workspaces focus` re-ran on every build even when their inputs
+  were byte-identical to the previous one.
+- Nothing expensive is left uncached anyway: `turbo run build` inside the image is a remote-cache hit (~2.5s, see
+  the `.gitattributes` note in the `Dockerfile`), and the install is ~10s because `COPY .yarn ./.yarn` brings in
+  the Yarn download cache that the job's own `Install dependencies` step just restored. **Do not add `.yarn/cache`
+  to `.dockerignore`** -- that link is what makes the in-image install offline.
+
+The ingress image keeps its cache: `xcaddy build` compiles Caddy from source, and that step only runs on the rare
+commit touching `build/caddy/`.
 
 The GHCR package is **private**. CI authenticates with the built-in `GITHUB_TOKEN`; the VPS needs a separate
 read-only credential (`read:packages` and nothing else), applied once as the `deploys` user:

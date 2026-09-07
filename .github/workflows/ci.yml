@@ -54,21 +54,60 @@ jobs:
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       IMAGE_CHANNEL: ${{ github.ref_name }}
+      ROOT_IMAGE_INPUTS: >-
+        .dockerignore .gitattributes .yarn .yarnrc.yml Dockerfile package.json tsconfig.base.json
+        tsconfig.json tsup.config.ts turbo.json yarn.lock
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          # Full history: the range below spans the whole push, and turbo's `[base...HEAD]` filter
+          # needs a merge base.
+          fetch-depth: 0
+
+      - name: Detect what needs rebuilding
+        id: changed
+        env:
+          BASE: ${{ github.event.before }}
+        run: |
+          # An unresolvable range -- manual dispatch, a branch's first push, a force-pushed base that
+          # is gone -- rebuilds everything, so the failure mode is a wasted build, never a missed one.
+          if [ "${{ github.event_name }}" != 'push' ] || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo 'no resolvable push range -- rebuilding everything'
+            echo 'base=' >> "$GITHUB_OUTPUT"
+            echo 'app=true' >> "$GITHUB_OUTPUT"
+            echo 'ingress=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+
+          # ROOT_IMAGE_INPUTS is a space-separated pathspec list, so it stays unquoted here.
+          if git diff --quiet "$BASE" HEAD -- packages services $ROOT_IMAGE_INPUTS; then
+            echo 'nothing that lands in the image changed -- skipping the build'
+            echo 'app=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'app=true' >> "$GITHUB_OUTPUT"
+          fi
+
+          if git diff --quiet "$BASE" HEAD -- build/caddy; then
+            echo 'ingress=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ingress=true' >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install node.js
+        if: steps.changed.outputs.app == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
       - name: Set up Docker Buildx
+        if: steps.changed.outputs.app == 'true' || steps.changed.outputs.ingress == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
+        if: steps.changed.outputs.app == 'true' || steps.changed.outputs.ingress == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -76,47 +115,39 @@ jobs:
           password: ${{ github.token }}
 
       - name: Install dependencies
+        if: steps.changed.outputs.app == 'true'
         uses: ./actions/yarnCache
 
       - name: Build and push
+        if: steps.changed.outputs.app == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: true
           tags: ${{ env.IMAGE_REPO }}:${{ env.IMAGE_CHANNEL }}-${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           build-args: |
             TURBO_TEAM=${{ vars.TURBO_TEAM }}
           secrets: |
             turbo_token=${{ secrets.TURBO_TOKEN }}
 
       - name: Alias changed services
+        if: steps.changed.outputs.app == 'true'
+        env:
+          BASE: ${{ steps.changed.outputs.base }}
         run: |
-          if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
-            echo 'manual dispatch -- aliasing every service'
+          if [ -z "$BASE" ]; then
+            echo 'no resolvable push range -- aliasing every service'
             yarn turbo run tag-docker
-          elif ! git diff --quiet HEAD~1 HEAD -- \
-              Dockerfile yarn.lock .yarnrc.yml package.json \
-              tsconfig.base.json tsconfig.json tsup.config.ts turbo.json; then
+          elif ! git diff --quiet "$BASE" HEAD -- $ROOT_IMAGE_INPUTS; then
             echo 'a root build input changed -- aliasing every service'
             yarn turbo run tag-docker
           else
-            yarn turbo run tag-docker --filter '...[HEAD~1...HEAD~0]'
-          fi
-
-      - name: Check ingress
-        id: ingress
-        run: |
-          if [ "${{ github.event_name }}" = 'workflow_dispatch' ] || ! git diff --quiet HEAD~1 HEAD -- build/caddy/; then
-            echo 'changed=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            yarn turbo run tag-docker --filter "...[${BASE}...HEAD]"
           fi
 
       - name: Build and push ingress image
-        if: steps.ingress.outputs.changed == 'true'
+        if: steps.changed.outputs.ingress == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./build/caddy
