@@ -17,11 +17,13 @@ export { default as repostPromptRoute } from './routes/ama/repostPrompt.js';
 export { default as updateAMARoute } from './routes/ama/updateAMA.js';
 
 export { default as listAMAQuestionsRoute } from './routes/ama/questions/listQuestions.js';
+export { default as createAMAQuestionRoute } from './routes/ama/questions/createQuestion.js';
 export { default as getAMAQuestionRoute } from './routes/ama/questions/getQuestion.js';
 export { default as updateAMAQuestionRoute } from './routes/ama/questions/updateQuestion.js';
 export { default as sendAMAQuestionRoute } from './routes/ama/questions/sendQuestion.js';
 export { default as mergeAMAQuestionRoute } from './routes/ama/questions/mergeQuestion.js';
 export { default as mergeAMAQuestionsBulkRoute } from './routes/ama/questions/mergeQuestionsBulk.js';
+export { default as setAMAQuestionsAnonymousBulkRoute } from './routes/ama/questions/setQuestionsAnonymousBulk.js';
 export { default as publicAMAAnswersRoute } from './routes/ama/questions/publicAnswers.js';
 export { default as publicAMAWsTicketRoute } from './routes/ama/questions/publicWsTicket.js';
 

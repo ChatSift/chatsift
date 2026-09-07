@@ -119,6 +119,42 @@ test('the raw user id footer is opt-in and needs a resolved user', () => {
 	expect(getBaseEmbeds({ ...base, includeUserId: true })[0]!.footer).toBeUndefined();
 });
 
+// #366's whole point: an anonymous question says *nothing* about who asked, rather than saying "Anonymous".
+// Both halves matter -- the author line is the obvious one, and the id footer is the one that would quietly
+// leak a snowflake if only the first were handled.
+test('an anonymous question carries no author line and no id footer', () => {
+	const embeds = getBaseEmbeds({
+		anonymous: true,
+		attachments: [],
+		content: 'why?',
+		guildId: GUILD,
+		includeUserId: true,
+		member: member({ nick: 'Nick', avatar: 'guildhash', user: user({ avatar: 'globalhash' }) }),
+		user: user({ avatar: 'globalhash', global_name: 'Global' }),
+	});
+
+	expect(embeds[0]!.author).toBeUndefined();
+	expect(embeds[0]!.footer).toBeUndefined();
+	expect(embeds[0]!.description).toBe('why?');
+});
+
+// Everything that isn't the author survives: the question is still the question, and the merged-asker count
+// was already a bare number with no names in it (#326).
+test('an anonymous question keeps its content, asker count and images', () => {
+	const embeds = getBaseEmbeds({
+		anonymous: true,
+		attachments: attachments(2),
+		content: 'why?',
+		extraAskerCount: 3,
+		guildId: GUILD,
+		user: user(),
+	});
+
+	expect(embeds[0]!.fields).toStrictEqual([{ name: 'Also asked by', value: '3 other people', inline: false }]);
+	expect(embeds[0]!.image).toStrictEqual({ url: 'https://cdn.example/0.png' });
+	expect(embeds[1]!.image).toStrictEqual({ url: 'https://cdn.example/1.png' });
+});
+
 test('the footer carries the avatar when there is one', () => {
 	const embeds = getBaseEmbeds({
 		attachments: [],

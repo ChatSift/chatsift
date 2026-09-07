@@ -1,6 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
-import { createButtonActionRow, getBaseEmbeds } from '@chatsift/core';
+import { getContext, isExperimentEnabled } from '@chatsift/backend-core';
+import { AMA_QOL_EXPERIMENT, createButtonActionRow, getBaseEmbeds } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
 	APIAttachment,
@@ -46,6 +46,23 @@ export async function claimAfterPost<TRow>(
 		await runCleanup();
 		throw error;
 	}
+}
+
+/**
+ * The queue message's anonymity toggle (#366). Its label carries the current state rather than naming an
+ * action ("Anonymize") -- the queue embed shows the real author either way, so the button is the only place
+ * a reviewer can see whether this question will be published with an author line or without one.
+ *
+ * Shared by `postToQueue` below and `components/toggleAnonymous.ts`, which swaps this exact button in place
+ * on the live message after flipping the flag, so the two can't drift on label or style.
+ */
+export function anonymousToggleButton(question: Pick<AmaQuestions, 'anonymous' | 'id'>): APIButtonComponent {
+	return {
+		type: ComponentType.Button,
+		style: question.anonymous ? ButtonStyle.Primary : ButtonStyle.Secondary,
+		label: question.anonymous ? 'Anonymous: On' : 'Anonymous: Off',
+		custom_id: `toggle-anonymous:${question.id}`,
+	};
 }
 
 interface PostToQueueOptions {
@@ -110,6 +127,11 @@ export async function postToQueue({
 			label: 'Mark Duplicate',
 			custom_id: `mark-duplicate:${question.id}`,
 		},
+		// Gated behind `ama-qol` (#366). Questions posted while the gate is off keep a three-button row for the
+		// life of that message -- a queue message's components are only rewritten when someone acts on it, so
+		// turning the gate on mid-AMA reaches new submissions rather than retrofitting the backlog. Nothing is
+		// lost: the dashboard's own toggle covers everything already in the queue.
+		...(isExperimentEnabled(AMA_QOL_EXPERIMENT, session.guildId) ? [anonymousToggleButton(question)] : []),
 	];
 
 	const messageData: RESTPostAPIChannelMessageJSONBody = {
@@ -163,6 +185,9 @@ export async function postToAnswersChannel({
 	}
 
 	const embeds = getBaseEmbeds({
+		// The one surface the flag applies to (#366) -- `postToQueue` above deliberately ignores it, since the
+		// people reviewing a question need to know whose it is.
+		anonymous: question.anonymous,
 		attachments,
 		content,
 		extraAskerCount,

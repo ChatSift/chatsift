@@ -89,7 +89,7 @@ function zeroInitialise(): void {
 		}
 	}
 
-	for (const decision of ['approve', 'approve_and_send', 'deny', 'merge']) {
+	for (const decision of ['anonymize', 'approve', 'approve_and_send', 'deny', 'merge']) {
 		moderationDecisions.inc({ decision, source: 'bot' }, 0);
 	}
 

@@ -3,6 +3,7 @@ import { performance } from 'node:perf_hooks';
 import type { BotId, Instance, Logger } from '@chatsift/backend-core';
 import {
 	BOTS,
+	enabledExperimentsFor,
 	getAllInstances,
 	getContext,
 	getInstanceForGuild,
@@ -39,6 +40,17 @@ export type MeGuild = Pick<RESTAPIPartialCurrentUserGuild, 'icon' | 'id' | 'name
 	customInstanceIconUrl: string | null;
 	customInstanceId: string | null;
 	customInstanceLabel: string | null;
+	/**
+	 * Experiment gates currently on for this guild (`enabledExperimentsFor`), so the dashboard can hide a
+	 * control rather than render one the API answers 403 to. Reported here rather than on
+	 * `GET /v3/guilds/:guildId` because that route is hard manager-only and an AMA guest never fetches it (see
+	 * `useGuildInfo`) -- guests act on the queue, so they need the same answer managers get.
+	 *
+	 * Advisory only. The API is the enforcement point for every gated write, and this list rides the 5-minute
+	 * `Me` cache on top of the experiments snapshot's own 60s refresh, so it lags a gate change by longer than
+	 * the enforcement does. Erring towards a briefly-hidden control is the right side of that to be on.
+	 */
+	experiments: string[];
 	meCanManage: boolean;
 };
 
@@ -73,6 +85,7 @@ const meRecipe = createRecipe(
 				meCanManage: DataType.Bool,
 				bots: [stringLiteral<BotId>()],
 				amaGuestSessionIds: [DataType.I32],
+				experiments: [DataType.String],
 				customInstanceId: DataType.String,
 				customInstanceLabel: DataType.String,
 				customInstanceIconUrl: DataType.String,
@@ -256,6 +269,7 @@ async function fetchMeUncached(discordAccessToken: string, tokenHash: string, lo
 				owner,
 			bots: BOTS.filter((bot) => (bot === 'MODMAIL' ? modmailGuildIds.has(id) : guildsByBot[bot]?.includes(id))),
 			amaGuestSessionIds: guestSessionsByGuild.get(id) ?? [],
+			experiments: enabledExperimentsFor(id),
 			customInstanceId: instance?.id ?? null,
 			customInstanceLabel: instance?.label ?? null,
 			customInstanceIconUrl: branding?.iconUrl ?? null,
@@ -281,6 +295,7 @@ async function fetchMeUncached(discordAccessToken: string, tokenHash: string, lo
 					meCanManage: false,
 					bots: ['AMA'],
 					amaGuestSessionIds: guestSessionsByGuild.get(guildId) ?? [],
+					experiments: enabledExperimentsFor(guildId),
 					customInstanceId: null,
 					customInstanceLabel: null,
 					customInstanceIconUrl: null,
@@ -461,6 +476,7 @@ async function fetchMeForScopedSessionUncached(
 		// Irrelevant for a scoped single-guild session -- that flow is never routed through AMA-guest-specific
 		// dashboard gating.
 		amaGuestSessionIds: [],
+		experiments: enabledExperimentsFor(guild.id),
 		customInstanceId: instance?.id ?? null,
 		customInstanceLabel: instance?.label ?? null,
 		customInstanceIconUrl: branding?.iconUrl ?? null,

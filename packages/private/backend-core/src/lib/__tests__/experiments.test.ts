@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { experimentBucket, isExperimentEnabled, loadExperiments } from '../experiments.js';
+import { enabledExperimentsFor, experimentBucket, isExperimentEnabled, loadExperiments } from '../experiments.js';
 
 let experimentRows: { name: string; rangeEnd: number; rangeStart: number }[] = [];
 let overrideRows: { experimentName: string; guildId: string }[] = [];
@@ -97,4 +97,68 @@ test('an override is honoured even for an experiment with no row at all', async 
 	await loadExperiments();
 
 	expect(isExperimentEnabled('orphaned', guildId)).toBe(true);
+});
+
+test('enabledExperimentsFor lists exactly the gates on for that guild, sorted', async () => {
+	const guildId = '1425493115053019319';
+	const otherGuildId = '1530909114736050316';
+	experimentRows = [
+		{ name: 'zulu', rangeStart: 0, rangeEnd: 10_000 },
+		{ name: 'alpha', rangeStart: 0, rangeEnd: 10_000 },
+		{ name: 'nobody', rangeStart: 0, rangeEnd: 0 },
+	];
+	overrideRows = [{ experimentName: 'nobody', guildId }];
+	await loadExperiments();
+
+	// Sorted rather than in row order so the list is stable across refreshes -- it rides a cached `/me`
+	// payload, and a reordering would look like a change to anything diffing it.
+	expect(enabledExperimentsFor(guildId)).toStrictEqual(['alpha', 'nobody', 'zulu']);
+	expect(enabledExperimentsFor(otherGuildId)).toStrictEqual(['alpha', 'zulu']);
+});
+
+// The override-only case `isExperimentEnabled` already handles has to be reachable here too -- the candidate
+// set is built from the range rows, so a name that only exists as an override would drop out of the list
+// while still reading as enabled, which is exactly the kind of disagreement between the two that would hide
+// a gate from the dashboard while the API honoured it.
+test('enabledExperimentsFor includes an override-only experiment', async () => {
+	const guildId = '1425493115053019319';
+	overrideRows = [{ experimentName: 'orphaned', guildId }];
+	await loadExperiments();
+
+	expect(enabledExperimentsFor(guildId)).toStrictEqual(['orphaned']);
+	expect(enabledExperimentsFor('1530909114736050316')).toStrictEqual([]);
+});
+
+// Listing candidates must not trip the unknown-experiment warning: every name it checks came out of the
+// snapshot, so warning about any of them would be pure noise on a path that runs per guild per `/me`.
+//
+// The guild that is *not* the override's target is the case that matters, and the one an earlier version of
+// this test missed: an override-only name is in the candidate set for every call, but only the target guild
+// short-circuits on the override, so every other guild used to fall through to the unknown-experiment branch.
+// `me.ts` runs this once per guild in the user's list, so that was a line per uninvolved guild.
+test('enabledExperimentsFor does not warn, for the override target or anyone else', async () => {
+	experimentRows = [{ name: 'alpha', rangeStart: 0, rangeEnd: 10_000 }];
+	overrideRows = [{ experimentName: 'orphaned', guildId: '1425493115053019319' }];
+	await loadExperiments();
+
+	enabledExperimentsFor('1425493115053019319');
+	enabledExperimentsFor('1530909114736050316');
+
+	expect(warn).not.toHaveBeenCalled();
+});
+
+// The flip side of the split: taking the warning out of `enabledExperimentsFor`'s path must not take it out of
+// the one place it earns its keep -- a gate the code checks by name that nobody has created.
+test('isExperimentEnabled still warns for a genuinely unknown experiment', async () => {
+	experimentRows = [{ name: 'alpha', rangeStart: 0, rangeEnd: 10_000 }];
+	overrideRows = [{ experimentName: 'orphaned', guildId: '1425493115053019319' }];
+	await loadExperiments();
+
+	expect(isExperimentEnabled('never-created', '1530909114736050316')).toBe(false);
+	expect(warn).toHaveBeenCalledTimes(1);
+
+	// An override for this exact guild counts as the gate existing, range row or not -- that path returns true
+	// and must stay silent.
+	expect(isExperimentEnabled('orphaned', '1425493115053019319')).toBe(true);
+	expect(warn).toHaveBeenCalledTimes(1);
 });

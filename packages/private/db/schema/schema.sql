@@ -153,6 +153,13 @@ CREATE TABLE ama_questions (
   -- displayed "asked at" to today. Nullable: non-'ASKED' rows never have one, and rows predating this
   -- column were backfilled from `updated_at` (the best approximation available).
   asked_at                 TIMESTAMPTZ,
+  -- Publish this question without saying who asked it (#366). Strips the author line (name, avatar and
+  -- the id footer) off the answers-channel embed and drops the author from the public answers page
+  -- entirely -- deliberately nothing in its place, not an "Anonymous" placeholder. Mod-facing surfaces
+  -- (the review queue embed, the dashboard, the CSV export) always keep the real author: this is about
+  -- what the audience sees, not about hiding a submitter from the people moderating them. Flipping it on
+  -- an already-'ASKED' question re-renders the live message the same way #327's answer edit does.
+  anonymous                BOOLEAN NOT NULL DEFAULT false,
   created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
 

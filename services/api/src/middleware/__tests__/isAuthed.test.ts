@@ -269,6 +269,7 @@ const makeScopedMe = (overrides: Partial<Me['guilds'][number]> = {}): Me => ({
 			meCanManage: true,
 			bots: ['AMA'],
 			amaGuestSessionIds: [],
+			experiments: [],
 			customInstanceId: null,
 			customInstanceLabel: null,
 			customInstanceIconUrl: null,

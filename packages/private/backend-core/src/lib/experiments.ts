@@ -23,6 +23,13 @@ interface ExperimentRange {
 let ranges = new Map<string, ExperimentRange>();
 let overrides = new Set<string>();
 /**
+ * Just the experiment *names* that have at least one override, so `enabledExperimentsFor` can enumerate
+ * candidates. Kept alongside `overrides` rather than derived from it: the lookup set is keyed by
+ * `name:guildId` and splitting those back apart would depend on names never containing a `:`, which is true
+ * today only because `upsertExperiment.ts` happens to validate the name that way.
+ */
+let overrideNames = new Set<string>();
+/**
  * Unknown experiment names already warned about, so the warning below stays diagnostic rather than becoming
  * per-message log spam -- `isExperimentEnabled` is billed as safe to call per decision, and a gate that has
  * been shipped but not yet created is a *normal* state, not an incident. Cleared on every refresh so the
@@ -49,7 +56,13 @@ export function experimentBucket(name: string, guildId: string): number {
 	return murmurhash.v3(`${name}:${guildId}`) % BUCKET_COUNT;
 }
 
-async function fetchSnapshot(): Promise<{ overrides: Set<string>; ranges: Map<string, ExperimentRange> }> {
+interface ExperimentSnapshot {
+	overrideNames: Set<string>;
+	overrides: Set<string>;
+	ranges: Map<string, ExperimentRange>;
+}
+
+async function fetchSnapshot(): Promise<ExperimentSnapshot> {
 	const db = getContext().db;
 
 	// Both tables read wholesale rather than queried per lookup: they're tiny by design (an experiment per
@@ -65,12 +78,14 @@ async function fetchSnapshot(): Promise<{ overrides: Set<string>; ranges: Map<st
 			experimentRows.map((row) => [row.name as string, { rangeStart: row.rangeStart, rangeEnd: row.rangeEnd }]),
 		),
 		overrides: new Set(overrideRows.map((row) => overrideKey(row.experimentName as string, row.guildId))),
+		overrideNames: new Set(overrideRows.map((row) => row.experimentName as string)),
 	};
 }
 
-function applySnapshot(snapshot: { overrides: Set<string>; ranges: Map<string, ExperimentRange> }): void {
+function applySnapshot(snapshot: ExperimentSnapshot): void {
 	ranges = snapshot.ranges;
 	overrides = snapshot.overrides;
+	overrideNames = snapshot.overrideNames;
 	warnedUnknown = new Set();
 }
 
@@ -95,6 +110,30 @@ export async function loadExperiments(): Promise<void> {
 }
 
 /**
+ * The gate decision itself, with no diagnostics attached. Split out from `isExperimentEnabled` so
+ * `enabledExperimentsFor` can ask the same question without the unknown-experiment warning below: it asks about
+ * every name in the snapshot for every guild, and a name that only exists as an override is unknown for every
+ * guild *except* the one it targets -- which would turn that warning from "somebody checked a gate that doesn't
+ * exist" into one line per uninvolved guild.
+ */
+function evaluate(name: string, guildId: string): boolean {
+	if (overrides.has(overrideKey(name, guildId))) {
+		return true;
+	}
+
+	const range = ranges.get(name);
+	if (!range) {
+		return false;
+	}
+
+	// Half-open, so `range_start == range_end` is empty and `[0, BUCKET_COUNT)` is everyone -- an operator
+	// switching a feature off by collapsing the range doesn't have to reason about whether the boundary
+	// guild is still in it.
+	const bucket = experimentBucket(name, guildId);
+	return bucket >= range.rangeStart && bucket < range.rangeEnd;
+}
+
+/**
  * Whether `name` is on for `guildId`. Pure, synchronous and safe to call per decision -- it reads the
  * snapshot `loadExperiments` maintains, never the database.
  *
@@ -104,26 +143,31 @@ export async function loadExperiments(): Promise<void> {
  * everywhere on deploy". `loadExperiments` never having been called reads the same way.
  */
 export function isExperimentEnabled(name: string, guildId: string): boolean {
-	if (overrides.has(overrideKey(name, guildId))) {
-		return true;
+	// Warned rather than silently false, as the pre-revive handler did: the two ways to land here are a gate
+	// nobody has created yet and a typo'd name, and only one of those is intentional. Once per name per
+	// refresh, not once per call -- see `warnedUnknown`. An override for this exact guild counts as the gate
+	// existing, so it never warns even with no range row backing it.
+	if (!overrides.has(overrideKey(name, guildId)) && !ranges.has(name) && !warnedUnknown.has(name)) {
+		warnedUnknown.add(name);
+		getContext().logger.warn({ guildId, experimentName: name }, 'checked an unknown experiment');
 	}
 
-	const range = ranges.get(name);
-	if (!range) {
-		// Warned rather than silently false, as the pre-revive handler did: the two ways to land here are a gate
-		// nobody has created yet and a typo'd name, and only one of those is intentional. Once per name per
-		// refresh, not once per call -- see `warnedUnknown`.
-		if (!warnedUnknown.has(name)) {
-			warnedUnknown.add(name);
-			getContext().logger.warn({ guildId, experimentName: name }, 'checked an unknown experiment');
-		}
+	return evaluate(name, guildId);
+}
 
-		return false;
-	}
-
-	// Half-open, so `range_start == range_end` is empty and `[0, BUCKET_COUNT)` is everyone -- an operator
-	// switching a feature off by collapsing the range doesn't have to reason about whether the boundary
-	// guild is still in it.
-	const bucket = experimentBucket(name, guildId);
-	return bucket >= range.rangeStart && bucket < range.rangeEnd;
+/**
+ * Every experiment currently on for `guildId`, sorted. Same snapshot and same rules as
+ * `isExperimentEnabled` -- this is that check run across every gate that exists, not a second source of truth.
+ *
+ * Exists so a client can be told what it may offer instead of discovering it by having a write refused: the
+ * dashboard hides a gated control rather than rendering a button the API answers 403 to. The API is still the
+ * enforcement point; this only decides what gets drawn.
+ *
+ * Names with neither a range row nor an override never appear, so a gate nobody has created reads as an empty
+ * list. Goes through `evaluate` rather than `isExperimentEnabled` so enumerating candidates stays silent -- see
+ * that function's comment; `me.ts` runs this once per guild in the user's list, so a warning here multiplies.
+ */
+export function enabledExperimentsFor(guildId: string): string[] {
+	const candidates = new Set([...ranges.keys(), ...overrideNames]);
+	return [...candidates].filter((name) => evaluate(name, guildId)).sort((left, right) => left.localeCompare(right));
 }

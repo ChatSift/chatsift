@@ -46,6 +46,15 @@ export interface QuestionImageSource {
 }
 
 interface GetBaseEmbedsOptions {
+	/**
+	 * Renders the question with nothing at all identifying who asked it (#366) -- no author line, no
+	 * avatar, and no id footer either. Deliberately not an "Anonymous" placeholder: the request was for
+	 * the embed to say nothing about the author, not to announce that it's withholding one.
+	 *
+	 * Only ever set for the answers channel. The review queue always shows the real author regardless of
+	 * the flag -- the people moderating a question need to know whose it is.
+	 */
+	anonymous?: boolean | undefined;
 	attachments: QuestionImageSource[];
 	content: string;
 	/**
@@ -86,14 +95,15 @@ function resolveAvatarURL(
 }
 
 /**
- * Builds the question embed(s) posted to the queue and the answers channel: author name+avatar line,
- * optional footer with the raw user ID for the queue where a reviewer needs to act on it, blurple
- * accent. Merged-duplicate askers show up as a bare count (#326) -- who they are stays a dashboard-only
+ * Builds the question embed(s) posted to the queue and the answers channel: author name+avatar line
+ * (unless `anonymous`, #366), optional footer with the raw user ID for the queue where a reviewer needs
+ * to act on it, blurple accent. Merged-duplicate askers show up as a bare count (#326) -- who they are stays a dashboard-only
  * detail (see `ama_question_askers`), since resolving every merged asker's name would cost a Discord
  * user lookup each on a path that re-renders on every merge. Multiple attachments render as a Discord
  * image gallery via the shared-`url` grouping trick (see `GALLERY_ANCHOR_URL` above).
  */
 export function getBaseEmbeds({
+	anonymous = false,
 	attachments,
 	content,
 	extraAskerCount = 0,
@@ -104,15 +114,20 @@ export function getBaseEmbeds({
 	user,
 }: GetBaseEmbedsOptions): APIEmbed[] {
 	const authorName = member?.nick ?? user?.global_name ?? user?.username ?? 'Unknown User';
-	const avatarURL = resolveAvatarURL(guildId, member, user);
+	const avatarURL = anonymous ? undefined : resolveAvatarURL(guildId, member, user);
 
 	const mainEmbed: APIEmbed = {
 		color: BLURPLE,
 		description: content,
-		author: avatarURL ? { name: authorName, icon_url: avatarURL } : { name: authorName },
 	};
 
-	if (includeUserId && user) {
+	// Left off entirely rather than set to a placeholder -- an embed with no `author` renders as just the
+	// question text, which is exactly what an anonymous question should look like.
+	if (!anonymous) {
+		mainEmbed.author = avatarURL ? { name: authorName, icon_url: avatarURL } : { name: authorName };
+	}
+
+	if (includeUserId && user && !anonymous) {
 		mainEmbed.footer = avatarURL
 			? { text: `${user.username} (${user.id})`, icon_url: avatarURL }
 			: { text: `${user.username} (${user.id})` };

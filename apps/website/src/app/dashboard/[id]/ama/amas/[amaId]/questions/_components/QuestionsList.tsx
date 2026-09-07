@@ -1,7 +1,8 @@
 'use client';
 
-import { amaQuestionsChannel, MERGE_SOURCE_STATES } from '@chatsift/core';
+import { AMA_QOL_EXPERIMENT, amaQuestionsChannel, MERGE_SOURCE_STATES } from '@chatsift/core';
 import { useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AuthorAvatar } from './AuthorAvatar';
@@ -12,10 +13,12 @@ import { useTagFilter } from './QuestionTagFilter';
 import { DEFAULT_STATE_CHIP_CLASS, STATE_CHIP_CLASSES, STATE_LABELS } from './questionState';
 import { userLabel } from './userLabel';
 import type { AMAQuestionListItem } from '@/api/routes/ama';
-import { invalidateAMAQuestions, useAMAQuestions } from '@/api/routes/ama';
+import { invalidateAMAQuestions, useAMAQuestions, useSetAMAQuestionsAnonymousBulk } from '@/api/routes/ama';
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
+import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
+import { useExperiment } from '@/hooks/useExperiment';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 import { useURLParam } from '@/hooks/useURLParam';
 
@@ -34,6 +37,7 @@ function useAuthorFilter(): string | undefined {
 
 interface QuestionRowProps {
 	readonly isExpanded: boolean;
+	readonly isQolEnabled: boolean;
 	readonly isSelected: boolean;
 	onToggle(): void;
 	onToggleSelect(): void;
@@ -41,7 +45,15 @@ interface QuestionRowProps {
 	readonly selectMode: boolean;
 }
 
-function QuestionRow({ isExpanded, isSelected, onToggle, onToggleSelect, question, selectMode }: QuestionRowProps) {
+function QuestionRow({
+	isExpanded,
+	isQolEnabled,
+	isSelected,
+	onToggle,
+	onToggleSelect,
+	question,
+	selectMode,
+}: QuestionRowProps) {
 	const [, setAuthorParam] = useURLParam('author');
 	const [, setTagParam] = useURLParam('tag');
 	const [, setTabParam] = useURLParam('tab');
@@ -53,15 +65,20 @@ function QuestionRow({ isExpanded, isSelected, onToggle, onToggleSelect, questio
 		DENIED: 'denied',
 	};
 
-	const canSelect = MERGE_SOURCE_STATES.has(question.state);
+	const canSelect = isQolEnabled || MERGE_SOURCE_STATES.has(question.state);
 
 	return (
 		<div className="rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<div className="flex w-full flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 				<div className="flex min-w-0 flex-1 items-start gap-3">
+					{/* Selectable in every state once #366's gate is on: the selection then drives the anonymity actions
+					as well as merging, and those apply to a question at any point in its life (merging is the
+					narrower of the two, so its own precondition is checked on the merge action instead). With the
+					gate off, merging is all the selection can do, so it goes back to only offering the rows that
+					can actually be merged away. */}
 					{selectMode && (
 						<input
-							aria-label={`Select question #${question.id} for merging`}
+							aria-label={`Select question #${question.id}`}
 							checked={isSelected}
 							className="mt-1.5 h-4 w-4 shrink-0 rounded border-on-secondary disabled:opacity-30 dark:border-on-secondary-dark"
 							disabled={!canSelect}
@@ -104,6 +121,16 @@ function QuestionRow({ isExpanded, isSelected, onToggle, onToggleSelect, questio
 							{tag.name}
 						</Button>
 					))}
+					{question.anonymous && isQolEnabled && (
+						// Not clickable like the chips around it -- there's no "anonymous" filter to jump into, and this
+						// is here so a moderator can tell at a glance which rows publish without an author (#366).
+						<span
+							className="rounded-full bg-on-tertiary px-2.5 py-1 text-xs font-medium text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark"
+							title="Published with no author on it"
+						>
+							Anonymous
+						</span>
+					)}
 					<Button
 						className={`h-auto rounded-full px-2.5 py-1 text-xs font-medium hover:opacity-80 ${STATE_CHIP_CLASSES[question.state] ?? DEFAULT_STATE_CHIP_CLASS}`}
 						onPress={() => setTabParam(stateToTab[question.state] ?? null)}
@@ -139,6 +166,13 @@ export function QuestionsList() {
 	const [selectMode, setSelectMode] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<number[]>([]);
 	const [showBulkMerge, setShowBulkMerge] = useState(false);
+	// Only ever set on a *partial* success: the request went through but some already-posted message couldn't be
+	// rewritten (#366). An outright failure never reaches this -- `Button` surfaces a rejected `onPress` itself.
+	const [bulkNotice, setBulkNotice] = useState<string | null>(null);
+	const setQuestionsAnonymous = useSetAMAQuestionsAnonymousBulk(guildId, amaId);
+	// #366's controls are gated. With it off the list is exactly what it was before: select-to-merge only, no
+	// umbrella-question entry point, no anonymity chip.
+	const isQolEnabled = useExperiment(guildId, AMA_QOL_EXPERIMENT);
 
 	const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useAMAQuestions(guildId, amaId, {
 		states,
@@ -153,6 +187,27 @@ export function QuestionsList() {
 		setSelectMode(false);
 		setSelectedIds([]);
 		setShowBulkMerge(false);
+	};
+
+	// Merging is the narrower of the two bulk actions: every question merged *away* is deleted, which
+	// `MERGE_SOURCE_STATES` limits to PENDING_REVIEW. Anonymity has no such restriction, so the selection itself
+	// stays open and this only hides the merge action when the batch can't go through it (#366).
+	const selectedQuestions = questions.filter((question) => selectedIds.includes(question.id));
+	const canBulkMerge =
+		selectedQuestions.length === selectedIds.length &&
+		selectedQuestions.every((question) => MERGE_SOURCE_STATES.has(question.state));
+
+	const runBulkAnonymous = async (anonymous: boolean) => {
+		setBulkNotice(null);
+		const result = await setQuestionsAnonymous.mutateAsync({ anonymous, questionIds: selectedIds });
+		exitSelectMode();
+
+		if (result.failedToRefresh.length > 0) {
+			setBulkNotice(
+				`Saved, but the answers-channel message for #${result.failedToRefresh.join(', #')} couldn't be rewritten. ` +
+					'Open the question and use its own toggle to retry.',
+			);
+		}
 	};
 
 	// A selection is only ever meaningful against the result set it was made from -- switching states/tag/
@@ -180,31 +235,63 @@ export function QuestionsList() {
 					onPress={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
 					type="button"
 				>
-					{selectMode ? 'Cancel Selection' : 'Select Duplicates'}
+					{selectMode ? 'Cancel Selection' : isQolEnabled ? 'Select Questions' : 'Select Duplicates'}
 				</Button>
+				{!selectMode && isQolEnabled && (
+					<Link
+						className={buttonClass('secondary', 'sm')}
+						href={`/dashboard/${guildId}/ama/amas/${amaId}/questions/new`}
+					>
+						New umbrella question
+					</Link>
+				)}
 				{selectMode && selectedIds.length > 0 && (
 					<>
 						<span className="text-sm text-secondary dark:text-secondary-dark">{selectedIds.length} selected</span>
-						<Button
-							className="h-9 bg-misc-accent px-3 text-sm text-accent hover:opacity-90"
-							onPress={() => {
-								// Collapse the expanded row first if it's one of the selected duplicates -- its
-								// own `useAMAQuestion` query would otherwise race the merge's cache invalidation
-								// against a question id that's about to be deleted (same issue `QuestionDetailPanel`
-								// guards against for the single-question merge flow).
-								if (expandedId !== null && selectedIds.includes(expandedId)) {
-									setExpandedId(null);
-								}
+						{canBulkMerge && (
+							<Button
+								className="h-9 bg-misc-accent px-3 text-sm text-accent hover:opacity-90"
+								onPress={() => {
+									// Collapse the expanded row first if it's one of the selected duplicates -- its
+									// own `useAMAQuestion` query would otherwise race the merge's cache invalidation
+									// against a question id that's about to be deleted (same issue `QuestionDetailPanel`
+									// guards against for the single-question merge flow).
+									if (expandedId !== null && selectedIds.includes(expandedId)) {
+										setExpandedId(null);
+									}
 
-								setShowBulkMerge(true);
-							}}
-							type="button"
-						>
-							Merge Selected as Duplicates
-						</Button>
+									setShowBulkMerge(true);
+								}}
+								type="button"
+							>
+								Merge Selected as Duplicates
+							</Button>
+						)}
+						{isQolEnabled && (
+							<>
+								<Button
+									className="h-9 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
+									isDisabled={setQuestionsAnonymous.isPending}
+									onPress={async () => runBulkAnonymous(true)}
+									type="button"
+								>
+									Hide authors
+								</Button>
+								<Button
+									className="h-9 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
+									isDisabled={setQuestionsAnonymous.isPending}
+									onPress={async () => runBulkAnonymous(false)}
+									type="button"
+								>
+									Show authors
+								</Button>
+							</>
+						)}
 					</>
 				)}
 			</div>
+
+			{bulkNotice && <p className="text-sm text-misc-warning">{bulkNotice}</p>}
 
 			{showBulkMerge && selectedIds.length > 0 && (
 				<BulkMergePicker onClose={() => setShowBulkMerge(false)} onMerged={exitSelectMode} questionIds={selectedIds} />
@@ -237,6 +324,7 @@ export function QuestionsList() {
 					{questions.map((question) => (
 						<QuestionRow
 							isExpanded={expandedId === question.id}
+							isQolEnabled={isQolEnabled}
 							isSelected={selectedIds.includes(question.id)}
 							key={question.id}
 							onToggle={() => setExpandedId(expandedId === question.id ? null : question.id)}

@@ -1,5 +1,6 @@
-import { getContext } from '@chatsift/backend-core';
+import { getContext, isExperimentEnabled } from '@chatsift/backend-core';
 import {
+	AMA_QOL_EXPERIMENT,
 	amaPublicAnswersChannel,
 	amaQuestionsChannel,
 	resolveEmbedsForEdit,
@@ -7,7 +8,7 @@ import {
 } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
-import { badGateway, badRequest, conflict, notFound } from '@hapi/boom';
+import { badGateway, badRequest, conflict, forbidden, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { amaModerationDecisions } from '../../../core/metrics.js';
 import { defineRoute } from '../../../core/route.js';
@@ -33,7 +34,14 @@ const tagsModeSchema = z.strictObject({
 	tagIds: z.array(z.number().int().positive()),
 });
 
-const bodySchema = z.union([stateModeSchema, answerModeSchema, tagsModeSchema]);
+// #366: publish (or stop publishing) this question without saying who asked it. Its own mode rather than a
+// field on `answerModeSchema` -- it's about the question, not the answer, and unlike those fields it's
+// settable in every state the dashboard shows a question in, including PENDING_REVIEW.
+const anonymousModeSchema = z.strictObject({
+	anonymous: z.boolean(),
+});
+
+const bodySchema = z.union([stateModeSchema, answerModeSchema, tagsModeSchema, anonymousModeSchema]);
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
 	amaId: z.coerce
@@ -136,6 +144,62 @@ export default defineRoute({
 
 				return question;
 			});
+		}
+
+		if ('anonymous' in data) {
+			// Only this branch is gated behind `ama-qol` (#366) -- the state/answer/tag modes are long-standing
+			// behavior and must keep working for every guild. See `createQuestion.ts` for why it answers 403.
+			if (!isExperimentEnabled(AMA_QOL_EXPERIMENT, guildId)) {
+				throw forbidden('this feature is not enabled for this server');
+			}
+
+			// Only the answers-channel message ever changes: the queue embed shows the real author whatever the
+			// flag says (#366), so a question that hasn't been published yet has nothing to re-render. Where
+			// there *is* a live public message, the Discord edit is the change -- run first, and on failure save
+			// nothing, exactly like the already-'ASKED' answer edit below.
+			const currentMessage = resolveCurrentQueueMessage(question, session);
+			if (currentMessage?.kind === 'answers') {
+				try {
+					// The row as it's about to be written -- the embed has to render the incoming flag, not the
+					// stored one. `liveQuestion` stays the stored row for the same reason the answer branch keeps
+					// it: recovering the question's images reads the message as it exists right now.
+					const projected: AmaQuestions = { ...question, anonymous: data.anonymous };
+					const embeds = await buildQuestionEmbeds(guildId, projected, session, {
+						kind: currentMessage.kind,
+						liveQuestion: question,
+					});
+					await discordAPIAma.channels.editMessage(currentMessage.channelId, currentMessage.messageId, {
+						embeds: resolveEmbedsForEdit(embeds),
+					});
+				} catch (error) {
+					// A deleted message is the one tolerable failure -- there's nothing left to diverge from.
+					if (!isNotFoundDiscordError(error)) {
+						throw badGateway('failed to update the posted Discord message; no changes were saved');
+					}
+				}
+			}
+
+			const [updated] = await db<AmaQuestions[]>`
+				UPDATE ama_questions SET anonymous = ${data.anonymous}, updated_at = now()
+				WHERE id = ${questionId}
+				RETURNING *
+			`;
+
+			// Same concurrent-merge race the answer branch guards against below: the question can be deleted
+			// between the read above and this write.
+			if (!updated) {
+				throw notFound('question not found');
+			}
+
+			// Only a real transition counts, matching the bot's own toggle and the bulk route -- re-sending the
+			// value a question already has (the dashboard's switch is idempotent) isn't a decision anyone made.
+			// Both directions are `anonymize`: what's being recorded is that a moderator set who the question
+			// publishes as, not which way they set it.
+			if (question.anonymous !== data.anonymous) {
+				amaModerationDecisions.inc({ decision: 'anonymize', source: 'dashboard' });
+			}
+
+			return updated;
 		}
 
 		if (!('state' in data)) {

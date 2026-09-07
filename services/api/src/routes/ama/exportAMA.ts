@@ -55,12 +55,20 @@ export default defineRoute({
 
 		type ExportQuestionRow = Pick<
 			AmaQuestions,
-			'answerContent' | 'answeredById' | 'authorId' | 'content' | 'createdAt' | 'id' | 'state' | 'updatedAt'
+			| 'anonymous'
+			| 'answerContent'
+			| 'answeredById'
+			| 'authorId'
+			| 'content'
+			| 'createdAt'
+			| 'id'
+			| 'state'
+			| 'updatedAt'
 		>;
 
 		const [questions, tagsByQuestion, askersByQuestion] = await Promise.all([
 			db<ExportQuestionRow[]>`
-				SELECT id, author_id, state, content, answer_content, answered_by_id, created_at, updated_at
+				SELECT id, author_id, state, content, answer_content, answered_by_id, anonymous, created_at, updated_at
 				FROM ama_questions
 				WHERE ama_id = ${amaId}
 				ORDER BY created_at ASC
@@ -86,7 +94,7 @@ export default defineRoute({
 		const askersByQuestionId = new Map(askersByQuestion.map((row) => [row.questionId, row.authorIds]));
 
 		const rows = [
-			'author_id,state,content,created_at,updated_at,answer_content,answered_by_id,tags,askers',
+			'author_id,state,content,created_at,updated_at,answer_content,answered_by_id,anonymous,tags,askers',
 			...questions.map((question) =>
 				[
 					question.authorId,
@@ -96,6 +104,10 @@ export default defineRoute({
 					question.updatedAt.toISOString(),
 					question.answerContent ? csvField(question.answerContent) : '',
 					question.answeredById ?? '',
+					// The export keeps the real `author_id` for an anonymous question (#366) -- this is the mod-facing
+					// record of who asked what, not the published view -- so the flag has to be a column of its own or
+					// there'd be nothing distinguishing the two.
+					String(question.anonymous),
 					// Tag names are freeform user-authored text (up to 50 chars, see `createTag.ts`) unlike
 					// `askers` (always `;`-joined snowflakes) -- they need the same escaping/injection guard as
 					// `content`/`answer_content` above, or a tag containing a comma/quote breaks the row shape.

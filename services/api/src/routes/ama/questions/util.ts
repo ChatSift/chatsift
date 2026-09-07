@@ -173,8 +173,9 @@ interface BuildQuestionEmbedsOptions {
 
 /**
  * Builds the embed(s) for a question on either message surface: the question embed (with its
- * merged-duplicate asker count, #326) plus, on the answers channel only, the second answer embed when
- * one was prepared ahead of time. Shared by every path that publishes a question to `ASKED`
+ * merged-duplicate asker count, #326, and minus everything identifying its author when it's marked
+ * anonymous, #366) plus, on the answers channel only, the second answer embed when one was prepared
+ * ahead of time. Shared by every path that publishes a question to `ASKED`
  * (`sendQuestion.ts`'s explicit dashboard Send action, and `updateQuestion.ts`'s direct-approve branch
  * for AMAs with no prepared-answers stage) so none of them can drift and forget to include a prepared
  * answer that was set before the direct approve happened -- and by `mergeShared.ts`, which since #328
@@ -191,16 +192,22 @@ export async function buildQuestionEmbeds(
 	{ kind = 'answers', liveQuestion = question }: BuildQuestionEmbedsOptions = {},
 ): Promise<APIEmbed[]> {
 	const includeAnswer = kind === 'answers' && Boolean(question.answerContent);
+	// Gated on the surface as well as the flag (#366): the review queue shows the real author whatever the
+	// question says, so an anonymous question rendered for the queue is rendered normally. With it on there's
+	// nothing to resolve either -- the two user lookups below are what the author line is built from, so
+	// they're skipped rather than fetched and discarded.
+	const anonymous = kind === 'answers' && question.anonymous;
 	const [attachments, user, member, extraAskerCount] = await Promise.all([
 		// `liveQuestion`, not `question` -- this reads the *existing* message back, so it has to be told
 		// what that message currently looks like. See the option's own doc comment.
 		resolveQuestionAttachments(liveQuestion, session),
-		resolveAmaUser(guildId, question.authorId),
-		resolveAmaMember(guildId, question.authorId),
+		anonymous ? undefined : resolveAmaUser(guildId, question.authorId),
+		anonymous ? undefined : resolveAmaMember(guildId, question.authorId),
 		countExtraAskers(getContext().db, question),
 	]);
 
 	const embeds = getBaseEmbeds({
+		anonymous,
 		attachments,
 		content: question.content,
 		extraAskerCount,

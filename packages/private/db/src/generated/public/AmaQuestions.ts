@@ -36,6 +36,8 @@ export default interface AmaQuestions {
   answeredAt: Date | null;
 
   askedAt: Date | null;
+
+  anonymous: boolean;
 }
 
 /** Represents the initializer for the table public.ama_questions */
@@ -67,6 +69,8 @@ export interface AmaQuestionsInitializer {
   answeredAt?: Date | null;
 
   askedAt?: Date | null;
+
+  anonymous?: boolean;
 }
 
 /** Represents the mutator for the table public.ama_questions */
@@ -98,4 +102,6 @@ export interface AmaQuestionsMutator {
   answeredAt?: Date | null;
 
   askedAt?: Date | null;
+
+  anonymous?: boolean;
 }
