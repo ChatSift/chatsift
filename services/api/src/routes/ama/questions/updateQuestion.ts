@@ -184,6 +184,14 @@ export default defineRoute({
 				throw notFound('question not found');
 			}
 
+			// Only a real transition counts, matching the bot's own toggle and the bulk route -- re-sending the
+			// value a question already has (the dashboard's switch is idempotent) isn't a decision anyone made.
+			// Both directions are `anonymize`: what's being recorded is that a moderator set who the question
+			// publishes as, not which way they set it.
+			if (question.anonymous !== data.anonymous) {
+				amaModerationDecisions.inc({ decision: 'anonymize', source: 'dashboard' });
+			}
+
 			return updated;
 		}
 

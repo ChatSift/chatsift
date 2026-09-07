@@ -94,16 +94,20 @@ export default defineRoute({
 			RETURNING *
 		`;
 
-		amaModerationDecisions.inc({ decision: 'anonymize', source: 'dashboard' }, questions.length);
+		// The rows that actually moved -- a selection routinely includes questions already in the requested state,
+		// and counting those would inflate the metric with no-ops and make this path disagree with the bot's own
+		// toggle, which only counts a real flip. Both directions count as `anonymize`, same as the bot: the
+		// decision being recorded is "a moderator set who this question publishes as", not which way it went.
+		const changed = existing.filter((question) => question.anonymous !== anonymous);
+		amaModerationDecisions.inc({ decision: 'anonymize', source: 'dashboard' }, changed.length);
 
-		// Only the rows that actually moved, and only the ones with a live public message: re-rendering a
-		// question already in the requested state would spend a Discord round trip to produce the identical
-		// embed, and the queue surface shows the real author whatever the flag says.
-		const needsRefresh = existing.filter((question) => question.anonymous !== anonymous);
+		// Only the changed rows, and only the ones with a live public message: re-rendering a question already in
+		// the requested state would spend a Discord round trip to produce the identical embed, and the queue
+		// surface shows the real author whatever the flag says.
 		const failedToRefresh: number[] = [];
 
 		await Promise.all(
-			needsRefresh.map(async (question) => {
+			changed.map(async (question) => {
 				const currentMessage = resolveCurrentQueueMessage(question, session);
 				if (currentMessage?.kind !== 'answers') {
 					return;

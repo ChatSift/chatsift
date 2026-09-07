@@ -34,16 +34,12 @@ export function CreateQuestionForm() {
 	const handleSubmit = async (event: React.FormEvent) => {
 		event.preventDefault();
 
-		const trimmed = content.trim();
-		if (!trimmed) {
-			setError('Write the question first.');
-			return;
-		}
-
 		setError(null);
 
 		try {
-			await createQuestion.mutateAsync({ content: trimmed, anonymous });
+			// No empty-content guard: `FormActions` is disabled on a blank textarea, and a form whose only field is
+			// a textarea has no implicit submission, so there is no way to reach this with nothing typed.
+			await createQuestion.mutateAsync({ content: content.trim(), anonymous });
 			router.replace(questionsHref);
 		} catch (submitError) {
 			setError(submitError instanceof APIError ? submitError.message : 'Something went wrong. Please try again.');
