@@ -14,11 +14,15 @@ dozzle.automoderator.app {
 	reverse_proxy dozzle:8080
 }
 
-# Frontend error reporting (#386). Unlike every other host here this one is hit by *browsers* rather
-# than by us -- the dashboard runs on Vercel and posts Sentry-protocol envelopes to it. If envelope
-# POSTs ever come back 400/411, add `request_buffers` here: GlitchTip wants a proxy that buffers the
-# request body and handles chunked Transfer-Encoding.
 errors.automoderator.app {
+	# The DSN is public by design, so this route accepts unauthenticated POSTs from anyone -- and every one of
+	# them writes into the Postgres the product itself runs on. The client-side event budget in
+	# `src/api/report.ts` bounds our own pages, not an attacker. This caps the per-request half of that;
+	# GlitchTip's retention caps the total. A real rate limit needs the caddy-ratelimit plugin (an xcaddy
+	# build in build/caddy/Dockerfile), which is the follow-up if this route ever actually gets abused.
+	request_body {
+		max_size 1MB
+	}
 	reverse_proxy glitchtip:8000
 }
 

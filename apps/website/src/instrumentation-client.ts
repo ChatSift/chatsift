@@ -38,7 +38,7 @@ if (dsn && !isAutomatedClient()) {
 		// An allowlist rather than a blocklist, and that asymmetry is the point: every byte of our JS is served
 		// from this origin, so one entry excludes browser extensions, injected translation and analytics
 		// scripts, and whatever else ships next year. A `denyUrls` list is an endless game of whack-a-mole.
-		allowUrls: [/automoderator\.app/],
+		allowUrls: [/^https:\/\/(?:[\w-]+\.)*automoderator\.app\//],
 		// `allowUrls` matches on frame URL, so anything arriving with no usable frame slips past it. These are
 		// the extension schemes that do exactly that.
 		denyUrls: [/^chrome-extension:\/\//, /^moz-extension:\/\//, /^safari(?:-web)?-extension:\/\//],

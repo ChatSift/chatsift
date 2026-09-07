@@ -42,6 +42,7 @@ const nextConfig = {
 	// Verified locally against 16.2.10: with a token, `.next/static` ends up with zero `.map` files and zero
 	// `sourceMappingURL` comments; without one, `sourcemaps.disable` below suppresses generation, so it is
 	// also zero. Browser maps are never published either way.
+
 	// `utils/og.tsx` reads the Author `.ttf`s off disk at request time to brand the social cards (#295).
 	// Next's file tracer only follows static imports, so without this the fonts are left out of the
 	// serverless bundle and every card silently renders in the fallback font.
@@ -105,6 +106,17 @@ export default withSentryConfig(nextConfig, {
 	authToken: process.env.SENTRY_AUTH_TOKEN,
 	// We self-host precisely so this data stays ours; do not phone build metrics home to a vendor.
 	telemetry: false,
+	// Upload failures are non-fatal by default, and the maps are deleted regardless of whether the upload
+	// landed -- so without this a broken upload ships a release that silently cannot be symbolicated, and the
+	// only evidence is a line in a build log nobody reads. That is precisely the failure #386 exists to
+	// prevent, so make it loud: a failed upload fails the build.
+	//
+	// The trade is that a production deploy now depends on GlitchTip being reachable. Escape hatch when it is
+	// down and something has to ship: clear `SENTRY_AUTH_TOKEN` in the Vercel project and redeploy, which
+	// drops to the no-upload path rather than blocking the release.
+	errorHandler: (error) => {
+		throw error;
+	},
 	sourcemaps: {
 		// Without a token there is nowhere to upload to, so skip the whole mechanism: no maps are generated
 		// and none are published. This is the *first* condition `maybeEnableTurbopackSourcemaps` checks, so

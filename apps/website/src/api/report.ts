@@ -8,10 +8,16 @@ import { APIError, SessionRefreshUnavailableError } from './error';
 export type ReportSource = 'boundary' | 'button' | 'global-boundary' | 'mutation' | 'prefetch' | 'query' | 'ws';
 
 /**
- * Ceiling on events one page load may send. This is the most important control in the file: GlitchTip
- * documents no ingestion quota or per-project throttle, `services/api` has no rate limiting anywhere, and the
- * instance writes into the *product* Postgres -- so without a client-side bound, one render loop in one open
- * tab is an unbounded writer against the database the dashboard itself depends on.
+ * Ceiling on capture *attempts* per page load -- not on delivered events, which is a weaker guarantee than it
+ * first reads. `ignoreErrors` and `dedupeIntegration` both run inside `captureException`, after the counter has
+ * already been spent, so an offline tab storming `Failed to fetch` through `QueryCache.onError`, or the
+ * deliberate double-report from `MutationCache` plus `Button`, burns budget on events that are then dropped.
+ * That is fine for what this is for: bounding the writer, not rationing a quota.
+ *
+ * It is the most important control in the file. GlitchTip documents no ingestion quota or per-project throttle,
+ * `services/api` has no rate limiting anywhere, and the instance writes into the *product* Postgres -- so
+ * without a client-side bound, one render loop in one open tab is an unbounded writer against the database the
+ * dashboard itself depends on.
  *
  * Browser-only. On the server this module lives for the lifetime of the Vercel function rather than for a page
  * view, so a module-scoped counter there would permanently silence a warm instance rather than bound a burst.

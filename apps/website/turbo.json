@@ -12,8 +12,7 @@
 				"postcss.config.js",
 				".env.development"
 			],
-			"env": ["NEXT_PUBLIC_GLITCHTIP_DSN"],
-			"passThroughEnv": ["SENTRY_AUTH_TOKEN"]
+			"env": ["NEXT_PUBLIC_GLITCHTIP_DSN", "SENTRY_AUTH_TOKEN"]
 		},
 		"test": {
 			"outputs": []

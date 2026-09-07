@@ -44,6 +44,10 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
 	END
 	$$;
 
+	-- Asserted every run rather than only at CREATE: these are the defaults for a new role, but the
+	-- existing-volume path in docs/workflow.md can run against a role that already exists, and this is
+	-- the only place that would notice it had been granted something extra.
+	ALTER ROLE glitchtip WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 	ALTER ROLE glitchtip WITH PASSWORD :'password';
 	ALTER ROLE glitchtip SET log_min_duration_statement = -1;
 EOSQL

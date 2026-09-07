@@ -110,7 +110,13 @@ Measured against 16.2.10 rather than assumed, since the interaction is not docum
 So maps are generated only where they can be uploaded, and are gone from the deployed output either way. One
 consequence worth knowing: **deletion runs even when the upload fails** — an unreachable host still produced a
 zero-exit build with the maps deleted. That fails in the safe direction (symbolication is lost, source is not
-disclosed), but it means a broken upload is invisible from outside and the build log is the only evidence.
+disclosed), but on its own it makes a broken upload invisible from outside, shipping a release nobody can
+symbolicate and defeating the point of the change.
+
+An `errorHandler` that rethrows closes that: a failed upload fails the build, so a green production build is
+itself the evidence that the maps landed, rather than a warning in a log someone has to remember to read. The
+trade is a deploy-time dependency on GlitchTip being reachable — deliberately accepted, with clearing
+`SENTRY_AUTH_TOKEN` in Vercel as the documented escape hatch when something has to ship during an outage.
 
 ### Deliberately rejected
 

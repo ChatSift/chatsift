@@ -45,5 +45,17 @@ export const onRequestError: Instrumentation.onRequestError = (error, request, c
 		return;
 	}
 
-	Sentry.captureRequestError(error, request, context);
+	// `captureRequestError` attaches Next's own routing context but **not** the digest -- it sets a `nextjs`
+	// context and a transaction name, nothing more. So the tag has to be set here, on a surrounding scope, or
+	// the join this whole file depends on does not exist: the boundary event would carry a `digest` tag and
+	// this one would carry nothing to match it against.
+	const digest: unknown = (error as { digest?: unknown } | null | undefined)?.digest;
+
+	Sentry.withScope((scope) => {
+		if (typeof digest === 'string') {
+			scope.setTag('digest', digest);
+		}
+
+		Sentry.captureRequestError(error, request, context);
+	});
 };

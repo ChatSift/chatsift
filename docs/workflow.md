@@ -286,7 +286,7 @@ so the two can never drift — and pass the password on the `exec`, since the sc
 environment and `docker exec` does not inherit the compose service's env:
 
 ```bash
-./compose exec -e GLITCHTIP_DB_PASSWORD="$(grep '^GLITCHTIP_DB_PASSWORD=' .env.public | cut -d= -f2)" \
+./compose exec -e GLITCHTIP_DB_PASSWORD="$(grep '^GLITCHTIP_DB_PASSWORD=' .env.public | cut -d= -f2-)" \
   postgres bash /docker-entrypoint-initdb.d/03-glitchtip.sh
 ```
 
@@ -299,6 +299,17 @@ Then:
 3. In the UI, create the organization and project. **Both slugs must match `next.config.mjs`'s `org` and
    `project`** (`chatsift` / `website`) or uploads 404 with nothing else to go on.
 4. Copy the project DSN, and mint an org auth token for source-map upload.
+5. **Create the project's error-rate alert**, which is the half of the alerting split GlitchTip owns and the
+   only thing that tells you the dashboard is broken. In the project's Alerts, add a rule with a quantity and
+   timespan threshold (start around 10 events in 5 minutes and tune once a week of real traffic exists), and
+   add a **Discord webhook** recipient. Reuse the existing alerts webhook or make a dedicated one.
+
+   Verify it end to end rather than assuming: trigger the threshold on purpose (the throwaway
+   `?__error_test=1` style route, or simply a bad deploy on a preview pointed at the project) and confirm a
+   message lands in Discord. An alert rule that was never fired once is indistinguishable from a missing one.
+
+Grafana covers the other half — `glitchtip-absent` and `container-crashlooping` in `rules.yml` fire when
+GlitchTip itself is gone, which its own alerting cannot do.
 
 #### Vercel environment
 
@@ -311,33 +322,46 @@ only** — previews then get no DSN, the SDK no-ops, and preview errors never po
 | `SENTRY_AUTH_TOKEN`         | Gates `productionBrowserSourceMaps` **and** authenticates the upload   |
 
 `SENTRY_AUTH_TOKEN` keeps the Sentry name even though the vendor is GlitchTip: the bundler plugin and
-`glitchtip-cli` both default to it. Both are declared in `apps/website/turbo.json` (`env` for the DSN, whose
-value belongs in the cache key; `passThroughEnv` for the token, whose value must never be hashed) — Turbo 2
-runs strict env mode and would otherwise drop them silently.
+`glitchtip-cli` both default to it.
+
+Both are declared in `apps/website/turbo.json` under **`env`**, not `passThroughEnv` — Turbo 2 runs strict env
+mode and would otherwise drop them from the task silently. The token belongs in `env` despite being a secret,
+and that is deliberate: `passThroughEnv` values do **not** contribute to the cache key, so a build produced
+without the token would share a key with one produced with it. Since remote caching is enabled
+(`TURBO_TOKEN`/`TURBO_TEAM` in `ci.yml`), that means a tokenless CI artifact could be replayed for a build that
+was supposed to upload, and the maps would silently never reach GlitchTip. Turbo hashes the value rather than
+storing it, so the trade is a hash of a high-entropy token in cache metadata against a wrong-artifact replay.
 
 #### Verifying a source-map change
 
-**Deletion runs even when the upload fails.** Verified locally against an unreachable host: the build still
-exits 0, and the maps are gone regardless. That is the right way round — a broken upload costs symbolication
-rather than leaking source — but it means a silently broken upload looks identical to a working one from the
-outside, and **the build log is the only place it shows**. Hence the order below:
+**Deletion runs even when the upload fails** — verified against an unreachable host, where the maps were gone
+regardless. Left alone that is a silent trap: a broken upload would look identical to a working one from the
+outside while shipping a release nobody can symbolicate. The `errorHandler` in `next.config.mjs` closes it by
+rethrowing, so **a failed upload fails the build**, and a green production build is itself the evidence that
+the maps landed. The cost is that a deploy now depends on GlitchTip being reachable; if it is down and
+something must ship, clear `SENTRY_AUTH_TOKEN` in Vercel and redeploy.
 
-1. Deploy with the token set. The build log's Turbopack after-compile step must **not** warn that files were
-   "deleted without having been uploaded" — treat that warning as a build failure.
+So, after a deploy with the token set:
+
+1. Confirm the build succeeded — with `errorHandler` in place that already means the upload landed.
 2. Trigger a real production error and confirm the stack shows `.tsx` frames.
 3. Only then confirm `/_next/static/chunks/<hash>.js.map` 404s.
 
-The local equivalent, which needs no GlitchTip and no Vercel — a dummy token is enough, since generation and
-deletion both happen regardless of whether the upload lands:
+There is no longer a dummy-token local shortcut: an unreachable host now fails the build by design (that is
+`sentry-cli releases new` exiting 1, not a misconfiguration). To check the _output_ shape without uploading
+anywhere, build with no token at all — `sourcemaps.disable` then suppresses generation, so the deployed shape
+is the same zero-maps result by a different route:
 
 ```bash
-SENTRY_AUTH_TOKEN=dummy yarn turbo run build --filter=@chatsift/website --force
-find apps/website/.next/static -name '*.map' | wc -l          # expect 0
+yarn turbo run build --filter=@chatsift/website --force
+find apps/website/.next/static -name '*.map' | wc -l           # expect 0
 grep -rl 'sourceMappingURL' apps/website/.next/static | wc -l  # expect 0
 ```
 
-Note a turbo **cache hit** replays the build and skips the upload entirely. Harmless — the restored output
-already had its maps deleted — but it explains an upload-free build log.
+Note a turbo **cache hit** replays the build and skips the upload entirely, which explains an upload-free build
+log. It is safe only because `SENTRY_AUTH_TOKEN` is in `env` rather than `passThroughEnv`, so a build that
+could upload never shares a cache key with one that could not — see the note under the env table above before
+changing that.
 
 If step 2 fails because GlitchTip rejects the plugin's artifact bundles, the fallback is
 `sourcemaps.disable: true` plus an explicit `glitchtip-cli sourcemaps inject` / `upload` post-build step; it
