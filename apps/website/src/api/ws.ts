@@ -6,6 +6,7 @@ import type {
 } from '@chatsift/api';
 import { apiFetch } from './fetch';
 import { REALTIME_CLIENT_ID } from './realtimeClientId';
+import { reportError } from './report';
 
 type GetWsTicketContract = InferRouteContract<typeof getWsTicketRoute>;
 type GetWsTicketResult = GetWsTicketContract['response'];
@@ -35,6 +36,14 @@ type InvalidateListener = () => void;
 const RECONNECT_BASE_DELAY_MS = 1_000;
 const RECONNECT_MAX_DELAY_MS = 30_000;
 
+/**
+ * How many consecutive failures before a connection problem is worth reporting (#386). Reconnects retry
+ * forever with backoff, so reporting each one would turn a single API outage into hundreds of events per open
+ * tab -- and there is no server-side quota to absorb that. By this many attempts the backoff has spent roughly
+ * half a minute, which is well past anything transient.
+ */
+const RECONNECT_ATTEMPTS_BEFORE_REPORT = 5;
+
 function wsURL(): string {
 	const url = new URL('/v3/ws', process.env['NEXT_PUBLIC_API_URL']);
 	url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -56,6 +65,22 @@ export class RealtimeClient {
 	private readonly channels = new Map<string, Set<InvalidateListener>>();
 
 	private connecting = false;
+
+	/**
+	 * One connect-failure event per outage, not per attempt. Cleared again once a socket opens.
+	 */
+	private reportedConnectFailure = false;
+
+	/**
+	 * One malformed-frame event per client. Whatever is producing them will keep producing them.
+	 */
+	private reportedMalformedFrame = false;
+
+	/**
+	 * Cause of the most recent failed connect, when there was one to catch. A socket that fails to open
+	 * produces no error object at all, so this stays undefined on that path.
+	 */
+	private lastConnectError: unknown;
 
 	private reconnectAttempt = 0;
 
@@ -121,6 +146,11 @@ export class RealtimeClient {
 
 				socket.addEventListener('open', () => {
 					this.reconnectAttempt = 0;
+					// Arms the next outage to report. Without this a client that reconnects successfully would
+					// stay silent for the rest of its life, however many later outages it rode out. The stale
+					// cause goes with it, so a later failure of a different kind is not misattributed.
+					this.reportedConnectFailure = false;
+					this.lastConnectError = undefined;
 
 					// Same race as above, one await later: the handshake is its own window for the last
 					// consumer to go away.
@@ -172,7 +202,13 @@ export class RealtimeClient {
 				});
 
 				this.socket = socket;
-			} catch {
+			} catch (error) {
+				// Only reaches here for a failed ticket mint (or a malformed URL). A socket that fails to
+				// *connect* never throws -- `new WebSocket()` returns synchronously in CONNECTING and reports
+				// failure asynchronously through `error`/`close` -- so the reporting itself lives in
+				// `scheduleReconnect`, the one funnel both paths share. This just records the cause, since the
+				// close path has no error object of its own.
+				this.lastConnectError = error;
 				this.scheduleReconnect();
 			} finally {
 				this.connecting = false;
@@ -210,7 +246,14 @@ export class RealtimeClient {
 		let message: ServerMessage;
 		try {
 			message = JSON.parse(data) as ServerMessage;
-		} catch {
+		} catch (error) {
+			// A frame that isn't JSON means the server is emitting something broken, which no amount of
+			// reconnecting fixes -- so it is worth exactly one event, and worth not swallowing entirely.
+			if (!this.reportedMalformedFrame) {
+				this.reportedMalformedFrame = true;
+				reportError(error, { source: 'ws' });
+			}
+
 			return;
 		}
 
@@ -232,6 +275,18 @@ export class RealtimeClient {
 
 		const delay = Math.min(RECONNECT_BASE_DELAY_MS * 2 ** this.reconnectAttempt, RECONNECT_MAX_DELAY_MS);
 		this.reconnectAttempt += 1;
+
+		// Reported from here rather than from `connect`'s catch because this is the only point both failure
+		// paths pass through: a ticket mint that threw, and a socket that never opened (which throws nothing --
+		// it surfaces asynchronously as `close`). Counting after the increment above means the Nth failure
+		// reports on the Nth attempt rather than the one after it.
+		if (!this.reportedConnectFailure && this.reconnectAttempt >= RECONNECT_ATTEMPTS_BEFORE_REPORT) {
+			this.reportedConnectFailure = true;
+			reportError(
+				this.lastConnectError ?? new Error(`realtime socket failed to connect after ${this.reconnectAttempt} attempts`),
+				{ source: 'ws' },
+			);
+		}
 
 		this.reconnectTimer = setTimeout(() => {
 			this.reconnectTimer = null;

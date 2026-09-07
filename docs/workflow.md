@@ -260,6 +260,122 @@ Also as part of #277: the `postgres-overview` dashboard's "Top 20 Queries by Mea
 deployment is single-database/single-user) via the same `fieldConfig.overrides`/`custom.hidden` mechanism already
 used to hide `job`/`instance`.
 
+### Frontend error reporting (#386)
+
+`apps/website` reports errors to a self-hosted **GlitchTip** at `errors.automoderator.app` — one container on
+the `monitoring` profile, sharing the Postgres instance. Rationale and the rejected alternatives are in
+[ADR 0003](adr/0003-frontend-error-reporting.md); this is the operational half.
+
+**Why `VALKEY_URL` is an empty string.** GlitchTip falls back to Postgres for its task queue and cache when it
+has no Valkey. That is deliberate and must not be "tidied up" into `redis://redis:6379`: the shared Redis runs
+with no `maxmemory` and holds `bot-core`'s replica leases, the per-replica guild lists and the message cache.
+Adding a Celery broker to it is how a lease gets evicted and two replicas claim the same shard index.
+
+**Why the role is excluded twice.** `glitchtip` gets the same two exclusions `chatsift_exporter` does, for the
+same reason and via the same levers — `--collector.stat_statements.exclude_users` in `docker-compose.yml` and
+`log_min_duration_statement = -1` in `build/postgres/init/03-glitchtip.sh`. `pg_stat_statements` is
+cluster-wide with a fixed `max=5000` and `POSTGRES_SLOW_QUERY_LOG_MS` is deliberately 5ms, so Django's
+statement churn would otherwise both crowd application queries out of that budget and bury them in the log.
+The #270 tooling degrades quietly rather than loudly if this is missed.
+
+#### One-time host steps
+
+`docker-entrypoint-initdb.d` only runs against a **fresh** data directory, so on the existing prod/dev volume
+the role and database must be created by hand. Run the mounted script itself rather than transcribing its SQL,
+so the two can never drift — and pass the password on the `exec`, since the script reads it from the
+environment and `docker exec` does not inherit the compose service's env:
+
+```bash
+./compose exec -e GLITCHTIP_DB_PASSWORD="$(grep '^GLITCHTIP_DB_PASSWORD=' .env.public | cut -d= -f2-)" \
+  postgres bash /docker-entrypoint-initdb.d/03-glitchtip.sh
+```
+
+Then:
+
+1. Add an `errors` A record for the host, and let Caddy issue the certificate.
+2. `./compose up -d glitchtip`, then create the single account:
+   `./compose exec glitchtip ./manage.py createsuperuser`. `ENABLE_USER_REGISTRATION` is `False` because the
+   host is public — note this defaults to `True` upstream, so it is off only because we set it.
+3. In the UI, create the organization and project. **Both slugs must match `next.config.mjs`'s `org` and
+   `project`** (`chatsift` / `website`) or uploads 404 with nothing else to go on.
+4. Copy the project DSN, and mint an org auth token for source-map upload.
+5. **Create the project's error-rate alert**, which is the half of the alerting split GlitchTip owns and the
+   only thing that tells you the dashboard is broken. In the project's Alerts, add a rule with a quantity and
+   timespan threshold (start around 10 events in 5 minutes and tune once a week of real traffic exists), and
+   add a **Discord webhook** recipient. Reuse the existing alerts webhook or make a dedicated one.
+
+   Verify it end to end rather than assuming: trigger the threshold on purpose (the throwaway
+   `?__error_test=1` style route, or simply a bad deploy on a preview pointed at the project) and confirm a
+   message lands in Discord. An alert rule that was never fired once is indistinguishable from a missing one.
+
+Grafana covers the other half — `glitchtip-absent` and `container-crashlooping` in `rules.yml` fire when
+GlitchTip itself is gone, which its own alerting cannot do.
+
+#### Vercel environment
+
+The dashboard is not deployed from this repo, so both of these are set in the Vercel project, **Production
+only** — previews then get no DSN, the SDK no-ops, and preview errors never pollute production fingerprints.
+
+| Variable                    | Purpose                                                                |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `NEXT_PUBLIC_GLITCHTIP_DSN` | Inlined into the client bundle; absent means the SDK never initialises |
+| `SENTRY_AUTH_TOKEN`         | Gates `productionBrowserSourceMaps` **and** authenticates the upload   |
+
+`SENTRY_AUTH_TOKEN` keeps the Sentry name even though the vendor is GlitchTip: the bundler plugin and
+`glitchtip-cli` both default to it.
+
+Both are declared in `apps/website/turbo.json` under **`env`**, not `passThroughEnv` — Turbo 2 runs strict env
+mode and would otherwise drop them from the task silently. The token belongs in `env` despite being a secret,
+and that is deliberate: `passThroughEnv` values do **not** contribute to the cache key, so a build produced
+without the token would share a key with one produced with it. Since remote caching is enabled
+(`TURBO_TOKEN`/`TURBO_TEAM` in `ci.yml`), that means a tokenless CI artifact could be replayed for a build that
+was supposed to upload, and the maps would silently never reach GlitchTip. Turbo hashes the value rather than
+storing it, so the trade is a hash of a high-entropy token in cache metadata against a wrong-artifact replay.
+
+#### Verifying a source-map change
+
+**Deletion runs even when the upload fails** — verified against an unreachable host, where the maps were gone
+regardless. Left alone that is a silent trap: a broken upload would look identical to a working one from the
+outside while shipping a release nobody can symbolicate. The `errorHandler` in `next.config.mjs` closes it by
+rethrowing, so **a failed upload fails the build**, and a green production build is itself the evidence that
+the maps landed. The cost is that a deploy now depends on GlitchTip being reachable; if it is down and
+something must ship, clear `SENTRY_AUTH_TOKEN` in Vercel and redeploy.
+
+So, after a deploy with the token set:
+
+1. Confirm the build succeeded — with `errorHandler` in place that already means the upload landed.
+2. Trigger a real production error and confirm the stack shows `.tsx` frames.
+3. Only then confirm `/_next/static/chunks/<hash>.js.map` 404s.
+
+There is no longer a dummy-token local shortcut: an unreachable host now fails the build by design (that is
+`sentry-cli releases new` exiting 1, not a misconfiguration). To check the _output_ shape without uploading
+anywhere, build with no token at all — `sourcemaps.disable` then suppresses generation, so the deployed shape
+is the same zero-maps result by a different route:
+
+```bash
+yarn turbo run build --filter=@chatsift/website --force
+find apps/website/.next/static -name '*.map' | wc -l           # expect 0
+grep -rl 'sourceMappingURL' apps/website/.next/static | wc -l  # expect 0
+```
+
+Note a turbo **cache hit** replays the build and skips the upload entirely, which explains an upload-free build
+log. It is safe only because `SENTRY_AUTH_TOKEN` is in `env` rather than `passThroughEnv`, so a build that
+could upload never shares a cache key with one that could not — see the note under the env table above before
+changing that.
+
+If step 2 fails because GlitchTip rejects the plugin's artifact bundles, the fallback is
+`sourcemaps.disable: true` plus an explicit `glitchtip-cli sourcemaps inject` / `upload` post-build step; it
+reads the same `SENTRY_*` names, which is why they were chosen.
+
+#### Alerting
+
+Split on purpose. **GlitchTip's own project alerts** cover error rate (a quantity/timespan rule with a Discord
+webhook recipient) — the semantics the deleted `elevated-error-log-rate` rule had, run by the system that
+actually holds the data. **Grafana** covers GlitchTip being gone (`glitchtip-absent` in `rules.yml`), because
+a crashed instance reports nothing and looks identical to a quiet week; `container-crashlooping` covers it
+too. Frontend error alerting deliberately does not go through Grafana, which cannot see Vercel-side errors at
+all.
+
 ## Parallel work with git worktrees
 
 Several agents can work at once, each in its own `git worktree` under `.claude/worktrees/` (gitignored). A worktree

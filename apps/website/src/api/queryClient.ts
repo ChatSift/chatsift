@@ -1,6 +1,7 @@
-import { isServer, QueryCache, QueryClient } from '@tanstack/react-query';
+import { isServer, MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import { APIError } from './error';
 import { pushErrorBanner } from './errorBanner';
+import { reportError } from './report';
 
 /**
  * Hoisted out of `queryKeys` below purely so the `QueryCache` `onError` in `makeQueryClient` can reference it
@@ -13,6 +14,11 @@ export function makeQueryClient(): QueryClient {
 	return new QueryClient({
 		queryCache: new QueryCache({
 			onError: (error, query) => {
+				// Before the branching below, so it covers every query failure exactly once (#386). Routine 4xx --
+				// the 401 path immediately below especially -- are dropped inside `shouldReport`, not here; the
+				// policy deliberately lives in one place rather than being spread across call sites.
+				reportError(error, { source: 'query', queryKey: query.queryKey });
+
 				if (error instanceof APIError) {
 					console.error('Query error:', { statusCode: error.statusCode, error: error.error, message: error.message });
 
@@ -43,6 +49,17 @@ export function makeQueryClient(): QueryClient {
 				if (query.state.data !== undefined) {
 					pushErrorBanner(error instanceof APIError ? error.message : 'Something went wrong. Please try again.');
 				}
+			},
+		}),
+		// The app's first `MutationCache`, and deliberately reporting-only: no banner, no toast, no UX change
+		// at all. `Button`'s catch and each form's own field-level errors already own the user-facing half, and
+		// adding a second surface here would double up on every form that already handles its own failure.
+		//
+		// It exists because coverage was otherwise a function of how a mutation happened to be triggered --
+		// `Button` is a safety net, not a guarantee, so a mutation fired from anywhere else reported nothing.
+		mutationCache: new MutationCache({
+			onError: (error) => {
+				reportError(error, { source: 'mutation' });
 			},
 		}),
 		defaultOptions: {

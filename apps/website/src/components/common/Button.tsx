@@ -5,6 +5,7 @@ import type { ButtonProps } from 'react-aria-components';
 import { Button as AriaButton } from 'react-aria-components';
 import { APIError } from '@/api/error';
 import { pushErrorBanner } from '@/api/errorBanner';
+import { reportError } from '@/api/report';
 import { cn } from '@/utils/util';
 
 export function Button(props: ButtonProps) {
@@ -32,6 +33,10 @@ export function Button(props: ButtonProps) {
 						// mutation error propagate uncaught — otherwise that'd be a silent failure plus an
 						// unhandled promise rejection.
 						console.error('Unhandled onPress error:', error);
+						// Still worth reporting despite `queryClient`'s `MutationCache` now covering mutations: this
+						// catches any `onPress` that throws, mutation or not. When both do fire for the same
+						// rejection it is the same object twice in a row, which `dedupeIntegration` collapses.
+						reportError(error, { source: 'button' });
 						pushErrorBanner(error instanceof APIError ? error.message : 'Something went wrong. Please try again.');
 					} finally {
 						setIsLoading(false);
