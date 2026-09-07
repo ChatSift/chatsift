@@ -21,8 +21,8 @@ Next.js 15 App Router, React 19, TypeScript strict, Tailwind v4. Path alias `@/*
   over type aliases**, **alphabetically sorted JSX props**, `readonly` props on interfaces, tabs, single quotes.
   Prop interfaces are named `XProps` and declared directly above the component. Method-style props
   (`onChange(value: string): void`) are non-readonly; data props are `readonly`.
-- `next.config.mjs` defines `redirects()` for `/github`, `/support`, `/invites/ama`, `/invites/modmail`, `/kofi` —
-  link to those internal paths, not the external URLs.
+- `next.config.mjs` defines `redirects()` for `/github`, `/support`, `/invites/ama`, `/invites/modmail`,
+  `/invites/automoderator`, `/kofi` -- link to those internal paths, not the external URLs.
 - `images.remotePatterns` only allows `cdn.discordapp.com/icons/**` and `/app-icons/**`. Any other remote image host
   needs a config change.
 
