@@ -47,6 +47,37 @@ export function registerFatalErrorHandlers(logger: Logger): void {
 	});
 }
 
+const CENSOR = '[REDACTED]';
+
+/**
+ * Fields whose entire value is a secret. Everything else routed through `censorLogField` only carries one
+ * inside a larger, still-useful string, and is rewritten in place instead.
+ */
+const WHOLLY_SECRET_FIELDS = new Set(['client_secret', 'refresh_token']);
+
+/**
+ * `/webhooks/:id/:token`, `/webhooks/:id/:token/messages/:id` and `/interactions/:id/:token/callback`, in
+ * absolute-URL or bare-path form. The token runs to the next `/`, `?` or `#`.
+ */
+const ROUTE_TOKEN = /\/(?<kind>webhooks|interactions)\/(?<id>\d{17,20})\/[^/?#]+/gu;
+
+/**
+ * `@discordjs/rest` derives a webhook's major parameter as `<id>/<token>` (see `generateRouteData`) -- the
+ * same secret again, with no `/webhooks` prefix left to anchor on.
+ */
+const MAJOR_PARAMETER_TOKEN = /^(?<id>\d{17,20})\/[^/?#]+$/u;
+
+function censorLogField(value: unknown, path: string[]): unknown {
+	if (WHOLLY_SECRET_FIELDS.has(path.at(-1) ?? '')) {
+		return CENSOR;
+	}
+
+	// Anything else is a route: keep the ids that make it worth logging, drop the credential.
+	return typeof value === 'string'
+		? value.replaceAll(ROUTE_TOKEN, `/$<kind>/$<id>/${CENSOR}`).replace(MAJOR_PARAMETER_TOKEN, `$<id>/${CENSOR}`)
+		: value;
+}
+
 /**
  * Split out from `createLogger` so tests can construct a pino instance against a plain in-memory stream (no
  * worker-thread transport) while still exercising the exact same options -- the `redact` config in particular.
@@ -66,12 +97,27 @@ export function createLoggerOptions(name: string): LoggerOptions {
 			// dozzle parses log level from this exact string.
 			level: (label) => ({ level: label }),
 		},
-		// `@discordjs/rest` errors carry the literal request body (including OAuth `client_secret`/`refresh_token`)
-		// on `.requestBody.json` -- redact those specific fields wherever an error ends up logged, regardless of
-		// whether it's nested under an explicit `err` key or passed as pino's bare first argument.
+		// Two classes of secret reach the logger through `@discordjs/rest` payloads, and neither is obvious at
+		// the call site -- so both are censored here rather than at each `logger.*` call.
+		//
+		// 1. Errors carry the literal request body (including OAuth `client_secret`/`refresh_token`) on
+		//    `.requestBody.json`, whether nested under an explicit `err` key or passed as pino's bare first
+		//    argument.
+		// 2. Webhook execution and interaction callbacks are authenticated by a token in the URL *path*, so any
+		//    field holding a route is a bearer credential: `url`/`majorParameter` on the rate limit payload the
+		//    `RESTEvents.RateLimited` handlers log verbatim, the same two on the errors `rejectOnRateLimit` makes
+		//    `services/discord-proxy` throw, and that service's own `fullRoute`.
 		redact: {
-			paths: ['err.requestBody.json.client_secret', 'err.requestBody.json.refresh_token'],
-			censor: '[REDACTED]',
+			paths: [
+				'err.requestBody.json.client_secret',
+				'err.requestBody.json.refresh_token',
+				'url',
+				'majorParameter',
+				'fullRoute',
+				'err.url',
+				'err.majorParameter',
+			],
+			censor: censorLogField,
 		},
 	};
 }
