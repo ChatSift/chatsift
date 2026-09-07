@@ -276,6 +276,17 @@ need a deploy -- which matters more here than in any other product, because a mi
 P0 builds the read helper and the override admin path. If a phase's feature has no sensible gate, say so in that
 phase rather than skipping it silently.
 
+The operator surface is `/admin` in `apps/website`, global-admin only and gated by `NavGateCheck`'s
+`checkForGlobalAdmin`: it lists every experiment with its range as a share of guilds, edits the range and the
+override set, deletes a retired gate, and checks one guild id against all of them. This is the write side of
+the story the Update above tells from the read side -- `useExperiment`/`MeGuild.experiments` tell one guild
+what is on for it, and this is where the range that decides that gets set.
+
+The bucketing and the gating rule itself live in `@chatsift/core` (`experimentBucket`, `resolveExperiment`)
+precisely so that the checker predicting a decision and `isExperimentEnabled` making it cannot drift apart;
+`backend-core`'s `evaluate` is the snapshot lookup feeding that same rule. Note the refresh lag `/admin` cannot
+show: bots re-read the tables every 60 seconds, so a change lands there before it lands in a bot.
+
 ### Dev and test affordances
 
 In rough order of how much time each saves:

@@ -26,6 +26,7 @@
 	},
 	"dependencies": {
 		"@sapphire/bitfield": "^1.2.4",
-		"discord-api-types": "^0.38.50"
+		"discord-api-types": "^0.38.50",
+		"murmurhash": "^2.0.1"
 	}
 }

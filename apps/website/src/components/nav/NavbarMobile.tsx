@@ -4,6 +4,7 @@ import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { AdminNavLink } from './AdminNavLink';
 import { navbarItems } from './navbarItems';
 import { Button } from '@/components/common/Button';
 import { Logo } from '@/components/common/Logo';
@@ -44,6 +45,12 @@ export function NavbarMobile() {
 							</a>
 						</NavigationMenu.Item>
 					))}
+					<NavigationMenu.Item className="mb-3">
+						<AdminNavLink
+							className="block cursor-pointer rounded-md bg-on-tertiary px-4 py-3 text-primary dark:bg-on-tertiary-dark dark:text-primary-dark"
+							onNavigate={() => setMobileNavOpen(false)}
+						/>
+					</NavigationMenu.Item>
 				</div>
 
 				<NavigationMenu.Item className="py-4" key="login">

@@ -1,4 +1,5 @@
 import * as NavigationMenu from '@radix-ui/react-navigation-menu';
+import { AdminNavLink } from './AdminNavLink';
 import { navbarItems } from './navbarItems';
 import { Logo } from '@/components/common/Logo';
 import { UserDesktop } from '@/components/user/UserDesktop';
@@ -23,6 +24,9 @@ export function NavbarDesktop() {
 								</a>
 							</NavigationMenu.Item>
 						))}
+						<NavigationMenu.Item className="flex items-center [&>*]:mr-6">
+							<AdminNavLink className="text-lg font-medium text-secondary hover:text-primary dark:text-secondary-dark dark:hover:text-primary-dark" />
+						</NavigationMenu.Item>
 					</NavigationMenu.List>
 				</NavigationMenu.Root>
 			</div>

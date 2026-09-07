@@ -8,6 +8,7 @@ import {
 	ANTISPAM_MIN_AMOUNT,
 	AUTO_PARDON_MAX_DAYS,
 	AUTOMOD_KEYWORD_MAX_LENGTH,
+	EXPERIMENT_BUCKET_COUNT,
 	MAX_TIMEOUT_SECONDS,
 	MIN_JOIN_AGE_MAX_SECONDS,
 	REPORT_PRESET_MAX_LENGTH,
@@ -175,13 +176,6 @@ export const reportStateSchema = z.enum(['OPEN', 'DISMISSED', 'ACTIONED']);
 export const reportPresetBodySchema = z.strictObject({
 	reason: z.string().trim().min(1).max(REPORT_PRESET_MAX_LENGTH),
 });
-
-/**
- * Bucket space `experiments.range_start`/`range_end` are expressed in -- kept in step with
- * `@chatsift/backend-core`'s `BUCKET_COUNT` by hand, since this file has to stay browser-safe and that module
- * reaches `process.env` through its context. `[0, 10000]` is everyone; a collapsed range is nobody.
- */
-export const EXPERIMENT_BUCKET_COUNT = 10_000;
 
 export const upsertExperimentBodySchema = z
 	.strictObject({

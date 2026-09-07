@@ -88,6 +88,9 @@ export const queryKeys = {
 	guilds: {
 		info: (guildId: string, forBot: string) => ['api', 'guilds', guildId, 'info', forBot] as const,
 	},
+	experiments: {
+		all: ['api', 'experiments'] as const,
+	},
 	grants: {
 		all: (guildId: string) => ['api', 'grants', guildId] as const,
 	},

@@ -1,24 +1,10 @@
 import { setInterval } from 'node:timers';
+import type { ExperimentDecision, ExperimentRange } from '@chatsift/core';
+import { resolveExperiment } from '@chatsift/core';
 import type { ExperimentOverrides, Experiments } from '@chatsift/db';
-import murmurhash from 'murmurhash';
 import { getContext } from './context.js';
 
-/**
- * Number of buckets a guild can hash into. `range_start`/`range_end` are expressed in these units, so a range
- * of `[0, 100)` is 1% of guilds and `[0, 10000)` is all of them.
- *
- * Carried over verbatim from this repo's pre-revive `ExperimentHandler` (deleted in `9d188f0c`), along with the
- * hash and the salt format below. That is the point: the three together decide which guilds a range selects, so
- * changing any of them silently re-rolls every experiment against a range someone already reasoned about.
- */
-const BUCKET_COUNT = 10_000;
-
 const REFRESH_INTERVAL_MS = 60_000;
-
-interface ExperimentRange {
-	readonly rangeEnd: number;
-	readonly rangeStart: number;
-}
 
 let ranges = new Map<string, ExperimentRange>();
 let overrides = new Set<string>();
@@ -39,22 +25,6 @@ let warnedUnknown = new Set<string>();
 let refreshTimer: NodeJS.Timeout | null = null;
 
 const overrideKey = (name: string, guildId: string): string => `${name}:${guildId}`;
-
-/**
- * Which bucket a guild falls in for one experiment.
- *
- * MurmurHash3, matching the pre-revive implementation and Discord's own experiment bucketing. Not a security
- * boundary -- what it has to be is *stable*: identical across processes, replicas and restarts, or a guild
- * flips in and out of an experiment as the bot bounces, which is worse than no gating at all. Murmur is fast,
- * well-distributed and deterministic, which is the whole requirement.
- *
- * Salted with the experiment's own name so each experiment selects a different slice -- hashing the guild id
- * alone would make the same guilds the guinea pigs for every rollout, which is the failure mode that makes
- * staged rollouts stop being informative.
- */
-export function experimentBucket(name: string, guildId: string): number {
-	return murmurhash.v3(`${name}:${guildId}`) % BUCKET_COUNT;
-}
 
 interface ExperimentSnapshot {
 	overrideNames: Set<string>;
@@ -115,22 +85,14 @@ export async function loadExperiments(): Promise<void> {
  * every name in the snapshot for every guild, and a name that only exists as an override is unknown for every
  * guild *except* the one it targets -- which would turn that warning from "somebody checked a gate that doesn't
  * exist" into one line per uninvolved guild.
+ *
+ * This is only the snapshot lookup; the rule it feeds is `@chatsift/core`'s `resolveExperiment`, shared with
+ * the dashboard's `/admin` guild checker so that a checker predicting a decision and this deciding it cannot
+ * drift apart. It returns the whole decision rather than a boolean so `isExperimentEnabled` can tell "off
+ * because out of range" from "off because no such gate" without re-deriving it.
  */
-function evaluate(name: string, guildId: string): boolean {
-	if (overrides.has(overrideKey(name, guildId))) {
-		return true;
-	}
-
-	const range = ranges.get(name);
-	if (!range) {
-		return false;
-	}
-
-	// Half-open, so `range_start == range_end` is empty and `[0, BUCKET_COUNT)` is everyone -- an operator
-	// switching a feature off by collapsing the range doesn't have to reason about whether the boundary
-	// guild is still in it.
-	const bucket = experimentBucket(name, guildId);
-	return bucket >= range.rangeStart && bucket < range.rangeEnd;
+function evaluate(name: string, guildId: string): ExperimentDecision {
+	return resolveExperiment(name, guildId, ranges.get(name) ?? null, overrides.has(overrideKey(name, guildId)));
 }
 
 /**
@@ -143,16 +105,19 @@ function evaluate(name: string, guildId: string): boolean {
  * everywhere on deploy". `loadExperiments` never having been called reads the same way.
  */
 export function isExperimentEnabled(name: string, guildId: string): boolean {
+	const decision = evaluate(name, guildId);
+
 	// Warned rather than silently false, as the pre-revive handler did: the two ways to land here are a gate
 	// nobody has created yet and a typo'd name, and only one of those is intentional. Once per name per
 	// refresh, not once per call -- see `warnedUnknown`. An override for this exact guild counts as the gate
-	// existing, so it never warns even with no range row backing it.
-	if (!overrides.has(overrideKey(name, guildId)) && !ranges.has(name) && !warnedUnknown.has(name)) {
+	// existing, so it never warns even with no range row backing it: `resolveExperiment` resolves that to
+	// `override`, never `unknown`.
+	if (decision.reason === 'unknown' && !warnedUnknown.has(name)) {
 		warnedUnknown.add(name);
 		getContext().logger.warn({ guildId, experimentName: name }, 'checked an unknown experiment');
 	}
 
-	return evaluate(name, guildId);
+	return decision.enabled;
 }
 
 /**
@@ -169,5 +134,7 @@ export function isExperimentEnabled(name: string, guildId: string): boolean {
  */
 export function enabledExperimentsFor(guildId: string): string[] {
 	const candidates = new Set([...ranges.keys(), ...overrideNames]);
-	return [...candidates].filter((name) => evaluate(name, guildId)).sort((left, right) => left.localeCompare(right));
+	return [...candidates]
+		.filter((name) => evaluate(name, guildId).enabled)
+		.sort((left, right) => left.localeCompare(right));
 }

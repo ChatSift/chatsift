@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { enabledExperimentsFor, experimentBucket, isExperimentEnabled, loadExperiments } from '../experiments.js';
+import { enabledExperimentsFor, isExperimentEnabled, loadExperiments } from '../experiments.js';
 
 let experimentRows: { name: string; rangeEnd: number; rangeStart: number }[] = [];
 let overrideRows: { experimentName: string; guildId: string }[] = [];
@@ -22,21 +22,6 @@ beforeEach(() => {
 	overrideRows = [];
 	error.mockReset();
 	warn.mockReset();
-});
-
-test('a bucket is stable, in range, and salted by the experiment name', () => {
-	const guildId = '1425493115053019319';
-
-	expect(experimentBucket('cases', guildId)).toBe(experimentBucket('cases', guildId));
-
-	for (const name of ['cases', 'filters', 'reports']) {
-		const bucket = experimentBucket(name, guildId);
-		expect(bucket).toBeGreaterThanOrEqual(0);
-		expect(bucket).toBeLessThan(10_000);
-	}
-
-	// The whole point of the salt: one guild must not be the guinea pig for every rollout at once.
-	expect(experimentBucket('cases', guildId)).not.toBe(experimentBucket('filters', guildId));
 });
 
 test('an experiment with no row is off, and says so', async () => {

@@ -9,6 +9,7 @@ export * from './lib/discordAttachments.js';
 export * from './lib/discordCdn.js';
 export * from './lib/discordPermissions.js';
 export * from './lib/experimentNames.js';
+export * from './lib/experiments.js';
 export * from './lib/inflight.js';
 export * from './lib/promiseAllObject.js';
 export * from './lib/realtimeChannels.js';

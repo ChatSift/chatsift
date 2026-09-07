@@ -15,9 +15,10 @@ export interface ExperimentWithOverrides {
 export type ListExperimentsResult = ExperimentWithOverrides[];
 
 /**
- * Operator-facing, global-admin only, and deliberately without a dashboard page (see
- * docs/roadmap/11-automoderator-port.md's Feature gating section) -- an experiment is a per-guild kill switch
- * an operator reaches for without a deploy, not something a guild manager configures.
+ * Operator-facing and global-admin only: an experiment is a per-guild kill switch an operator reaches for
+ * without a deploy, not something a guild manager configures. That is why it is backed by `/admin` rather than
+ * anything under `/dashboard/[id]` -- the dashboard's own gates are all guild-scoped, and a range applies
+ * across every guild at once.
  */
 export default defineRoute({
 	method: 'get',
