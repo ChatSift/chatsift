@@ -112,7 +112,13 @@ export async function closeThread({
 				);
 			} catch (error) {
 				if (!(error instanceof DiscordAPIError && error.status === 404)) {
-					logger.warn({ err: error, threadId: thread.id }, 'Failed to lock the user private thread on close');
+					// A 403 here is the first sighting of the same missing `ManageThreads` the nuke sweep trips over
+					// later (`lib/threadNukeSweep.ts`), so it carries the channel id for the same reason that one does:
+					// the permission lives on the private thread's parent, the panel's channel.
+					logger.warn(
+						{ err: error, threadId: thread.id, channelId: thread.userChannelId },
+						'Failed to lock the user private thread on close',
+					);
 				}
 			}
 

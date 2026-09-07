@@ -136,6 +136,22 @@ export const sweepLag = new Histogram({
 });
 
 /**
+ * Nukes the sweep couldn't run because the bot lacks `ManageThreads` in the panel channel the ticket's private
+ * thread hangs off, and pushed an hour out instead (`lib/threadNukeSweep.ts`). Deliberately a counter and not a
+ * gauge, unlike `strandedOpenTickets`: the backoff turns a standing level into a slow, regular pulse, so the
+ * rate *is* the number of rows stuck -- roughly one per hour each, for as long as nobody fixes the permission.
+ *
+ * Worth its own series because nothing else distinguishes it: a deferral leaves `sweepRuns{result="ok"}` and
+ * the row itself untouched, and before the backoff existed it read only as a wall of 403s on the Discord-API
+ * panel with no indication of what was asking for them.
+ */
+export const threadNukeDeferrals = new Counter({
+	name: 'modmail_thread_nuke_deferrals_total',
+	help: 'Scheduled thread nukes deferred because the bot is missing permissions to delete the thread',
+	registers: [register],
+});
+
+/**
  * prom-client emits no series at all for a label combination until it is first incremented, so a counter that
  * has legitimately never fired reads as **"No data"** on a dashboard rather than `0` -- and `sum(increase(...))`
  * over it returns an empty vector no `> 0` guard can rescue. That makes "this should be zero" unassertable,
@@ -177,6 +193,7 @@ function zeroInitialise(): void {
 	// Unlabelled, so there is no combination to enumerate -- but it still needs a value before the first
 	// sweep run for the same "No data" reason every counter above is zero-initialised for.
 	strandedOpenTickets.set(0);
+	threadNukeDeferrals.inc(0);
 
 	for (const sweep of ['pending_ticket', 'scheduled_close', 'thread_nuke', 'prevent_archive']) {
 		for (const result of ['ok', 'failed']) {

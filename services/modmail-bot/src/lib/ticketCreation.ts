@@ -4,8 +4,13 @@ import type { Categories, Threads } from '@chatsift/db';
 import type { APIEmbed, APIEmbedField, APIGuildMember, APIUser } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RESTJSONErrorCodes, RouteBases } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
-import type { PermissionRequirement } from './botPermissions.js';
-import { findMissingPermissions, formatMissingPermissionsNotice, MOD_FORUM_PERMISSIONS } from './botPermissions.js';
+import type { ChannelRequirements, MissingChannelPermissions } from './botPermissions.js';
+import {
+	findMissingPermissions,
+	formatMissingPermissionsNotice,
+	MOD_FORUM_PERMISSIONS,
+	PANEL_CHANNEL_PERMISSIONS,
+} from './botPermissions.js';
 import { getAnonReplyLabelTemplate, getGuildInfo } from './guild.js';
 import { ticketsOpened } from './metrics.js';
 import { templateDataFromMember, templateGuildName, templateString } from './templateString.js';
@@ -199,7 +204,7 @@ export async function finishTicketCreation({
 		timestamp: new Date().toISOString(),
 	};
 
-	const missingPermissions = findMissingPermissions(guildId, modForumId, MOD_FORUM_PERMISSIONS, logger);
+	const missingPermissions = findMissingTicketPermissions({ guildId, logger, modForumId, origin, userChannelId });
 
 	// The info embed is the thread's starter message unconditionally. It used to be displaced into a
 	// follow-up message whenever recording was on, because a "this ticket is being recorded" notice had to
@@ -273,34 +278,82 @@ export async function finishTicketCreation({
 
 	logger.info({ threadId: thread.id, modThreadId: modThread.id, userChannelId }, 'Opened new modmail ticket');
 
-	await warnAboutMissingModForumPermissions(await missingPermissions, guildId, modForumId, modThread.id, logger);
+	await warnAboutMissingPermissions(await missingPermissions, guildId, modThread.id, logger);
 
 	return thread;
 }
 
-async function warnAboutMissingModForumPermissions(
-	missing: PermissionRequirement[] | null,
+interface FindMissingTicketPermissionsOptions {
+	guildId: string;
+	logger: Logger;
+	modForumId: string;
+	origin: Threads['origin'];
+	userChannelId: string;
+}
+
+/**
+ * The two channels a ticket actually lives in: the mod forum, and (panel tickets only) the channel the user's
+ * private thread hangs off. The second one has to be resolved rather than passed in -- a thread's own
+ * `permission_overwrites` are always empty, since it inherits its parent's, so `parent_id` is the only thing
+ * that can answer whether the bot may lock or delete this thread later on (#370's notice covered the forum
+ * alone, which is why a guild missing `ManageThreads` on the panel channel found out from nothing at all).
+ *
+ * A DM-origin ticket (#216, P4) has no such parent: `userChannelId` is the opener's DM channel, which has no
+ * guild permissions to compute and no thread to manage, so only the forum is checked.
+ */
+async function findMissingTicketPermissions({
+	guildId,
+	logger,
+	modForumId,
+	origin,
+	userChannelId,
+}: FindMissingTicketPermissionsOptions): Promise<MissingChannelPermissions[] | null> {
+	const checks: ChannelRequirements[] = [{ channelId: modForumId, requirements: MOD_FORUM_PERMISSIONS }];
+
+	if (origin === 'panel') {
+		try {
+			const privateThread = await getContext().service.client.api.channels.get(userChannelId);
+			if ('parent_id' in privateThread && privateThread.parent_id) {
+				checks.push({ channelId: privateThread.parent_id, requirements: PANEL_CHANNEL_PERMISSIONS });
+			}
+		} catch (error) {
+			// Only costs this half of the check: the forum below is still worth reporting on its own, and the
+			// ticket itself is already open and working regardless -- this is advisory, start to finish.
+			logger.warn({ err: error, guildId, userChannelId }, 'Failed to resolve the panel channel for a ticket');
+		}
+	}
+
+	return findMissingPermissions(guildId, checks, logger);
+}
+
+async function warnAboutMissingPermissions(
+	results: MissingChannelPermissions[] | null,
 	guildId: string,
-	modForumId: string,
 	modThreadId: string,
 	logger: Logger,
 ): Promise<void> {
-	if (!missing?.length) {
+	if (!results?.length) {
 		return;
 	}
 
 	try {
 		logger.warn(
-			{ guildId, modForumId, missing: missing.map((requirement) => requirement.permission.toString()) },
-			'Opened a ticket in a mod forum the bot is missing permissions in',
+			{
+				guildId,
+				missing: results.map((result) => ({
+					channelId: result.channelId,
+					permissions: result.missing.map((requirement) => requirement.permission.toString()),
+				})),
+			},
+			'Opened a ticket in a guild the bot is missing permissions in',
 		);
 
 		await getContext().service.client.api.channels.createMessage(modThreadId, {
-			content: formatMissingPermissionsNotice(missing, modForumId),
+			content: formatMissingPermissionsNotice(results),
 			allowed_mentions: { parse: [] },
 		});
 	} catch (error) {
-		logger.warn({ err: error, guildId, modForumId }, 'Failed to warn about missing mod forum permissions');
+		logger.warn({ err: error, guildId }, 'Failed to warn about missing ticket permissions');
 	}
 }
 
