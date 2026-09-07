@@ -1,6 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext } from '@chatsift/backend-core';
-import { createButtonActionRow, getBaseEmbeds } from '@chatsift/core';
+import { getContext, isExperimentEnabled } from '@chatsift/backend-core';
+import { AMA_QOL_EXPERIMENT, createButtonActionRow, getBaseEmbeds } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type {
 	APIAttachment,
@@ -127,7 +127,11 @@ export async function postToQueue({
 			label: 'Mark Duplicate',
 			custom_id: `mark-duplicate:${question.id}`,
 		},
-		anonymousToggleButton(question),
+		// Gated behind `ama-qol` (#366). Questions posted while the gate is off keep a three-button row for the
+		// life of that message -- a queue message's components are only rewritten when someone acts on it, so
+		// turning the gate on mid-AMA reaches new submissions rather than retrofitting the backlog. Nothing is
+		// lost: the dashboard's own toggle covers everything already in the queue.
+		...(isExperimentEnabled(AMA_QOL_EXPERIMENT, session.guildId) ? [anonymousToggleButton(question)] : []),
 	];
 
 	const messageData: RESTPostAPIChannelMessageJSONBody = {

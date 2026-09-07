@@ -258,8 +258,16 @@ better-shaped one, since it can be flipped for a single guild without a deploy.
 ### Feature gating
 
 The `experiments` / `experiment_overrides` tables already exist in `schema/schema.sql` -- `name` + `range_start` /
-`range_end` for a guild-hash bucket rollout, plus per-guild overrides. They have generated kanel types and **no
-runtime consumers**: dormant infrastructure, not a new dependency.
+`range_end` for a guild-hash bucket rollout, plus per-guild overrides. They have generated kanel types and, at the
+time this was written, **no runtime consumers**: dormant infrastructure, not a new dependency.
+
+> **Update:** P0 built the read helper (`@chatsift/backend-core`'s `experiments.ts`) and the global-admin CRUD at
+> `/v3/experiments`, but no AutoModerator phase ended up gating a feature with it -- `isExperimentEnabled` had only
+> its own tests as callers. The first real consumer is **AMA's #366** (`ama-qol`), which is also where the
+> conventions live now: gate names in `@chatsift/core`'s `experimentNames.ts`, `enabledExperimentsFor` reporting a
+> guild's enabled set through `MeGuild.experiments` so the dashboard can hide a control instead of rendering one
+> that 403s, and gates covering _write_ paths only, never rendering. See
+> [01-architecture.md §5](01-architecture.md#5-data-model-reference-6-models).
 
 Reviving them is exactly what per-feature phasing wants. Each feature ships behind a named experiment, enabled for
 the test guild by override, then widened by range. It also gives an operator a per-guild kill switch that doesn't

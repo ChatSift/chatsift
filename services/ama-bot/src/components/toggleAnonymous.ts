@@ -1,7 +1,7 @@
 import type { Logger } from '@chatsift/backend-core';
-import { getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
+import { getContext, isExperimentEnabled, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { ComponentHandler } from '@chatsift/bot-core';
-import { amaQuestionsChannel } from '@chatsift/core';
+import { AMA_QOL_EXPERIMENT, amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions } from '@chatsift/db';
 import type { APIMessageComponentInteraction, APIMessageTopLevelComponent } from '@discordjs/core';
 import { ComponentType, MessageFlags } from '@discordjs/core';
@@ -76,6 +76,17 @@ export default class ToggleAnonymousComponent implements ComponentHandler<string
 
 			if (!session) {
 				throw new Error(`No AMA session found for id ${question.amaId}`);
+			}
+
+			// Re-checked rather than trusted from when the button was drawn (#366): a message can sit in the queue
+			// for days, and an operator collapsing the gate's range is a kill switch that has to reach a button
+			// already on screen, not just the ones drawn after it.
+			if (!isExperimentEnabled(AMA_QOL_EXPERIMENT, session.guildId)) {
+				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
+					content: 'This feature is no longer enabled for this server.',
+					flags: MessageFlags.Ephemeral,
+				});
+				return;
 			}
 
 			// Guarded in the UPDATE itself rather than off the row read above, so two moderators clicking at the

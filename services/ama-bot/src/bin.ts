@@ -4,6 +4,7 @@ import {
 	createRedis,
 	ENV,
 	initContext,
+	loadExperiments,
 	registerFatalErrorHandlers,
 	setServiceValue,
 } from '@chatsift/backend-core';
@@ -25,6 +26,10 @@ const db = createDatabase();
 const redis = await createRedis(logger);
 initContext({ db, logger, redis });
 registerShutdownHandlers();
+
+// Feature gates -- `postToQueue` decides whether to draw the anonymity toggle off this snapshot, and
+// `toggleAnonymous.ts` re-checks it before writing (#366).
+await loadExperiments();
 
 const rest = createBotRest({ botId: 'AMA', register, token: ENV.AMA_BOT_TOKEN });
 const gateway = await createBotGateway({

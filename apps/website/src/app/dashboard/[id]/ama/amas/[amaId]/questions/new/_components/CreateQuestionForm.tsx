@@ -1,12 +1,16 @@
 'use client';
 
+import { AMA_QOL_EXPERIMENT } from '@chatsift/core';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { FaLock } from 'react-icons/fa';
 import { APIError } from '@/api/error';
 import { useCreateAMAQuestion } from '@/api/routes/ama';
+import { EmptyState } from '@/components/common/EmptyState';
 import { FormActions } from '@/components/common/FormActions';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { TextAreaField } from '@/components/common/TextAreaField';
+import { useExperiment } from '@/hooks/useExperiment';
 
 const MAX_CONTENT_LENGTH = 4_000;
 
@@ -28,6 +32,7 @@ export function CreateQuestionForm() {
 	// exactly the name the request was about keeping off the answers channel.
 	const [anonymous, setAnonymous] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const isQolEnabled = useExperiment(guildId, AMA_QOL_EXPERIMENT);
 
 	const questionsHref = `/dashboard/${guildId}/ama/amas/${amaId}/questions`;
 
@@ -45,6 +50,19 @@ export function CreateQuestionForm() {
 			setError(submitError instanceof APIError ? submitError.message : 'Something went wrong. Please try again.');
 		}
 	};
+
+	// Nothing links here with the gate off, but the route is still reachable by typing the URL (or from a stale
+	// tab open from before it was switched off) -- rendering a form whose submit the API is going to refuse
+	// would be worse than saying so.
+	if (!isQolEnabled) {
+		return (
+			<EmptyState
+				icon={<FaLock className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
+				subtitle="Umbrella questions aren't enabled for this server."
+				title="Not available"
+			/>
+		);
+	}
 
 	return (
 		<form className="mt-8 space-y-6" onSubmit={handleSubmit}>

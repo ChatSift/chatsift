@@ -23,6 +23,13 @@ interface ExperimentRange {
 let ranges = new Map<string, ExperimentRange>();
 let overrides = new Set<string>();
 /**
+ * Just the experiment *names* that have at least one override, so `enabledExperimentsFor` can enumerate
+ * candidates. Kept alongside `overrides` rather than derived from it: the lookup set is keyed by
+ * `name:guildId` and splitting those back apart would depend on names never containing a `:`, which is true
+ * today only because `upsertExperiment.ts` happens to validate the name that way.
+ */
+let overrideNames = new Set<string>();
+/**
  * Unknown experiment names already warned about, so the warning below stays diagnostic rather than becoming
  * per-message log spam -- `isExperimentEnabled` is billed as safe to call per decision, and a gate that has
  * been shipped but not yet created is a *normal* state, not an incident. Cleared on every refresh so the
@@ -49,7 +56,13 @@ export function experimentBucket(name: string, guildId: string): number {
 	return murmurhash.v3(`${name}:${guildId}`) % BUCKET_COUNT;
 }
 
-async function fetchSnapshot(): Promise<{ overrides: Set<string>; ranges: Map<string, ExperimentRange> }> {
+interface ExperimentSnapshot {
+	overrideNames: Set<string>;
+	overrides: Set<string>;
+	ranges: Map<string, ExperimentRange>;
+}
+
+async function fetchSnapshot(): Promise<ExperimentSnapshot> {
 	const db = getContext().db;
 
 	// Both tables read wholesale rather than queried per lookup: they're tiny by design (an experiment per
@@ -65,12 +78,14 @@ async function fetchSnapshot(): Promise<{ overrides: Set<string>; ranges: Map<st
 			experimentRows.map((row) => [row.name as string, { rangeStart: row.rangeStart, rangeEnd: row.rangeEnd }]),
 		),
 		overrides: new Set(overrideRows.map((row) => overrideKey(row.experimentName as string, row.guildId))),
+		overrideNames: new Set(overrideRows.map((row) => row.experimentName as string)),
 	};
 }
 
-function applySnapshot(snapshot: { overrides: Set<string>; ranges: Map<string, ExperimentRange> }): void {
+function applySnapshot(snapshot: ExperimentSnapshot): void {
 	ranges = snapshot.ranges;
 	overrides = snapshot.overrides;
+	overrideNames = snapshot.overrideNames;
 	warnedUnknown = new Set();
 }
 
@@ -126,4 +141,22 @@ export function isExperimentEnabled(name: string, guildId: string): boolean {
 	// guild is still in it.
 	const bucket = experimentBucket(name, guildId);
 	return bucket >= range.rangeStart && bucket < range.rangeEnd;
+}
+
+/**
+ * Every experiment currently on for `guildId`, sorted. Same snapshot and same rules as
+ * `isExperimentEnabled` -- this is that check run across every gate that exists, not a second source of truth.
+ *
+ * Exists so a client can be told what it may offer instead of discovering it by having a write refused: the
+ * dashboard hides a gated control rather than rendering a button the API answers 403 to. The API is still the
+ * enforcement point; this only decides what gets drawn.
+ *
+ * Names with neither a range row nor an override never appear, so a gate nobody has created reads as an empty
+ * list rather than as an unknown-experiment warning per guild.
+ */
+export function enabledExperimentsFor(guildId: string): string[] {
+	const candidates = new Set([...ranges.keys(), ...overrideNames]);
+	return [...candidates]
+		.filter((name) => isExperimentEnabled(name, guildId))
+		.sort((left, right) => left.localeCompare(right));
 }

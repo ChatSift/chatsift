@@ -1,5 +1,6 @@
-import { getContext } from '@chatsift/backend-core';
+import { getContext, isExperimentEnabled } from '@chatsift/backend-core';
 import {
+	AMA_QOL_EXPERIMENT,
 	amaPublicAnswersChannel,
 	amaQuestionsChannel,
 	resolveEmbedsForEdit,
@@ -7,7 +8,7 @@ import {
 } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
-import { badGateway, badRequest, conflict, notFound } from '@hapi/boom';
+import { badGateway, badRequest, conflict, forbidden, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { amaModerationDecisions } from '../../../core/metrics.js';
 import { defineRoute } from '../../../core/route.js';
@@ -146,6 +147,12 @@ export default defineRoute({
 		}
 
 		if ('anonymous' in data) {
+			// Only this branch is gated behind `ama-qol` (#366) -- the state/answer/tag modes are long-standing
+			// behavior and must keep working for every guild. See `createQuestion.ts` for why it answers 403.
+			if (!isExperimentEnabled(AMA_QOL_EXPERIMENT, guildId)) {
+				throw forbidden('this feature is not enabled for this server');
+			}
+
 			// Only the answers-channel message ever changes: the queue embed shows the real author whatever the
 			// flag says (#366), so a question that hasn't been published yet has nothing to re-render. Where
 			// there *is* a live public message, the Discord edit is the change -- run first, and on failure save

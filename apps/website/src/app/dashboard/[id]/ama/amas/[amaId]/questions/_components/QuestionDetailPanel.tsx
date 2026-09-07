@@ -1,6 +1,6 @@
 'use client';
 
-import { MERGE_SOURCE_STATES } from '@chatsift/core';
+import { AMA_QOL_EXPERIMENT, MERGE_SOURCE_STATES } from '@chatsift/core';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FaCheck } from 'react-icons/fa';
@@ -15,6 +15,7 @@ import { Button } from '@/components/common/Button';
 import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Skeleton } from '@/components/common/Skeleton';
+import { useExperiment } from '@/hooks/useExperiment';
 import { cn, formatDate } from '@/utils/util';
 
 interface QuestionDetailPanelProps {
@@ -34,6 +35,7 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 	const { data: ama } = useAMA(guildId, amaId);
 	const updateQuestion = useUpdateAMAQuestion(guildId, amaId, questionId);
 	const sendQuestion = useSendAMAQuestion(guildId, amaId, questionId);
+	const isQolEnabled = useExperiment(guildId, AMA_QOL_EXPERIMENT);
 
 	const [answerContent, setAnswerContent] = useState('');
 	const [answerImageUrl, setAnswerImageUrl] = useState('');
@@ -171,31 +173,33 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 				)}
 			</div>
 
-			<div>
-				<span
-					className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-					id={`anonymous-label-${question.id}`}
-				>
-					Author, where this gets published
-				</span>
-				<SegmentedControl
-					isDisabled={updateQuestion.isPending}
-					labelledBy={`anonymous-label-${question.id}`}
-					onChange={async (anonymous) => runAction(async () => updateQuestion.mutateAsync({ anonymous }))}
-					options={[
-						{ label: 'Shown', value: false },
-						{ label: 'Hidden', value: true },
-					]}
-					value={question.anonymous}
-				/>
-				<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">
-					{/* Spelled out because the two surfaces behave differently on purpose (#366) and the difference is
-					not guessable from a two-option switch. */}
-					Hidden publishes the question with no author on it at all - no name, no avatar. The review queue and this
-					dashboard always show who asked either way.
-					{isSent ? ' Changing this rewrites what has already been posted.' : ''}
-				</p>
-			</div>
+			{isQolEnabled && (
+				<div>
+					<span
+						className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+						id={`anonymous-label-${question.id}`}
+					>
+						Author, where this gets published
+					</span>
+					<SegmentedControl
+						isDisabled={updateQuestion.isPending}
+						labelledBy={`anonymous-label-${question.id}`}
+						onChange={async (anonymous) => runAction(async () => updateQuestion.mutateAsync({ anonymous }))}
+						options={[
+							{ label: 'Shown', value: false },
+							{ label: 'Hidden', value: true },
+						]}
+						value={question.anonymous}
+					/>
+					<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">
+						{/* Spelled out because the two surfaces behave differently on purpose (#366) and the difference is
+						not guessable from a two-option switch. */}
+						Hidden publishes the question with no author on it at all - no name, no avatar. The review queue and this
+						dashboard always show who asked either way.
+						{isSent ? ' Changing this rewrites what has already been posted.' : ''}
+					</p>
+				</div>
+			)}
 
 			<div>
 				<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Tags</p>
