@@ -105,7 +105,8 @@ export function createLoggerOptions(name: string): LoggerOptions {
 		// payload the `RESTEvents.RateLimited` handlers log verbatim, the errors `rejectOnRateLimit` makes
 		// `services/discord-proxy` throw, and that service's own error path. The `*.` variants cover one level
 		// of nesting (`err.url` on a thrown `DiscordAPIError`/`RateLimitError`, or a payload logged under a
-		// key of its own); fast-redact supports no deeper wildcard, so anything further down is a known gap.
+		// key of its own). `@pinojs/redact` -- pino 10's redaction engine -- resolves `*.` against exactly one
+		// level despite a README that claims "any level", so anything deeper is a known gap.
 		//
 		// `requestBody.json.*` is a guard rather than a live path: `@discordjs/core` sends OAuth bodies as
 		// `URLSearchParams`, which serializes to `{}` and takes the secrets with it, so those three only
