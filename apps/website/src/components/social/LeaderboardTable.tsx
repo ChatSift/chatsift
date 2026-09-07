@@ -45,7 +45,9 @@ function RewardBadge({ reward }: { readonly reward: NonNullable<SocialLeaderboar
 
 	return (
 		<span
-			className="inline-flex max-w-36 shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs"
+			// #354: never `shrink-0`. On a phone the name column is narrower than the badge's own text, and a badge
+			// that refuses to give up its width spills out of the row and lands on top of the XP figure.
+			className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs sm:max-w-36"
 			// Tinted rather than filled: a role colour is arbitrary, and a solid fill of one would be unreadable
 			// against half the palette in one theme or the other.
 			style={{ backgroundColor: `${color}1f`, borderColor: `${color}59`, color }}
@@ -83,8 +85,10 @@ function LeaderboardRow({ curve, entry }: LeaderboardRowProps) {
 			/>
 
 			<div className="min-w-0 flex-1">
-				<div className="flex min-w-0 items-center gap-2">
-					<p className="truncate font-medium text-primary dark:text-primary-dark">{entry.displayName}</p>
+				{/* #354: the name and the reward badge only share a line once there's room for both -- below `sm` the
+				    badge gets its own, where it has the full column to truncate against instead of ~80px of it. */}
+				<div className="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
+					<p className="max-w-full truncate font-medium text-primary dark:text-primary-dark">{entry.displayName}</p>
 					{entry.reward && <RewardBadge reward={entry.reward} />}
 				</div>
 				{curve && entry.level !== null && (

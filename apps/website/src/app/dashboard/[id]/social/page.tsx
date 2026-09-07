@@ -53,7 +53,7 @@ export default async function SocialPage({ params }: PageProps<'/dashboard/[id]/
 						key={segment}
 						prefetch
 					>
-						<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-on-tertiary dark:bg-on-tertiary-dark">
+						<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-on-tertiary dark:bg-on-tertiary-dark">
 							<SvgSocial height={28} width={28} />
 						</div>
 						<div className="flex flex-col">
