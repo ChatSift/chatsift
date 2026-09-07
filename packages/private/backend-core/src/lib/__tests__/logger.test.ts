@@ -1,5 +1,6 @@
 import type { Buffer } from 'node:buffer';
 import { Writable } from 'node:stream';
+import { URLSearchParams } from 'node:url';
 import { pino } from 'pino';
 import { expect, test, vi } from 'vitest';
 import { createLoggerOptions } from '../logger.js';
@@ -10,8 +11,9 @@ import { createLoggerOptions } from '../logger.js';
 vi.mock('../env.js', () => ({ ENV: { IS_PRODUCTION: false } }));
 
 /**
- * Mirrors the shape `@discordjs/rest` actually throws: `DiscordAPIError`/`HTTPError` carry the literal request
- * body (including OAuth `client_secret`/`refresh_token`) on `.requestBody.json`.
+ * A body shape `@discordjs/core` does *not* currently produce -- it sends OAuth bodies as `URLSearchParams`
+ * (see the test below), which serializes to `{}`. `DiscordAPIError`/`HTTPError` assign that straight to
+ * `.requestBody.json`, so these two tests are the canary for that ever becoming a plain object again.
  */
 class FakeDiscordRestError extends Error {
 	public requestBody: { json: Record<string, unknown> };
@@ -64,8 +66,9 @@ test("redacts refresh_token when the error is passed as pino's bare first argume
 });
 
 // The exact payload `@discordjs/rest` emits on `RESTEvents.RateLimited` for a webhook execution -- both
-// `url` and `majorParameter` embed the webhook token, which is the credential for that webhook.
-const WEBHOOK_TOKEN = 'KZ5qeLObBjWHlpq5UGEcI0JNhYveaX7-mcz2Nk2oFLPD8FTxsUc8blJHUkEwgAhT_l3U';
+// `url` and `majorParameter` embed the webhook token, which is the credential for that webhook. The value
+// below is synthetic, at a real token's 68-character length.
+const WEBHOOK_TOKEN = 'NOT-A-REAL-WEBHOOK-TOKEN-0000000000000000000000000000000000000000000';
 const RATE_LIMIT_INFO = {
 	global: false,
 	hash: '3d2712a9e4fe17cc9d3fed4a8e672e5f',
@@ -129,4 +132,52 @@ test('leaves a url carrying no route token alone', () => {
 
 	expect(output()).toContain(url);
 	expect(output()).not.toContain('[REDACTED]');
+});
+
+test('the real OAuth error body carries no secret to redact in the first place', () => {
+	const { logger, output } = createCapturingLogger();
+	// `@discordjs/core`'s `oauth2.tokenExchange`/`refreshToken` send `makeURLSearchParams(body)` with
+	// `passThroughBody`, and `DiscordAPIError` does `requestBody = { files, json: bodyData.body }` -- so
+	// `json` is a `URLSearchParams`, which has no own enumerable properties and serializes to `{}`.
+	const error = Object.assign(new Error('oauth boom'), {
+		requestBody: {
+			json: new URLSearchParams({
+				client_id: 'some-client-id',
+				client_secret: 'SUPER_SECRET_CLIENT_SECRET',
+				code: 'SUPER_SECRET_AUTH_CODE',
+				grant_type: 'authorization_code',
+			}),
+		},
+	});
+
+	logger.error({ err: error }, 'error exchanging discord oauth code');
+
+	expect(output()).not.toContain('SUPER_SECRET_CLIENT_SECRET');
+	expect(output()).not.toContain('SUPER_SECRET_AUTH_CODE');
+	expect(output()).toContain('"json":{}');
+});
+
+test('redacts the authorization code, should a plain-object body ever reach the logger', () => {
+	const { logger, output } = createCapturingLogger();
+	const error = new FakeDiscordRestError({
+		client_id: 'some-client-id',
+		code: 'SUPER_SECRET_AUTH_CODE',
+		grant_type: 'authorization_code',
+	});
+
+	logger.error({ err: error }, 'error exchanging discord oauth code');
+
+	expect(output()).not.toContain('SUPER_SECRET_AUTH_CODE');
+	expect(output()).toContain('[REDACTED]');
+});
+
+test('redacts a rate limit payload logged one level down, not just at the top level', () => {
+	const { logger, output } = createCapturingLogger();
+
+	// `*.url`/`*.majorParameter` exist for this: a call site that nests the payload under a key of its own
+	// rather than spreading it, which the enumerated top-level paths alone would miss.
+	logger.warn({ rateLimitInfo: RATE_LIMIT_INFO }, 'Hit a Discord REST rate limit');
+
+	expect(output()).not.toContain(WEBHOOK_TOKEN);
+	expect(output()).toContain('https://discord.com/api/v10/webhooks/1529194815022174348/[REDACTED]');
 });

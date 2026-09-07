@@ -53,7 +53,7 @@ const CENSOR = '[REDACTED]';
  * Fields whose entire value is a secret. Everything else routed through `censorLogField` only carries one
  * inside a larger, still-useful string, and is rewritten in place instead.
  */
-const WHOLLY_SECRET_FIELDS = new Set(['client_secret', 'refresh_token']);
+const WHOLLY_SECRET_FIELDS = new Set(['client_secret', 'refresh_token', 'code']);
 
 /**
  * `/webhooks/:id/:token`, `/webhooks/:id/:token/messages/:id` and `/interactions/:id/:token/callback`, in
@@ -97,25 +97,30 @@ export function createLoggerOptions(name: string): LoggerOptions {
 			// dozzle parses log level from this exact string.
 			level: (label) => ({ level: label }),
 		},
-		// Two classes of secret reach the logger through `@discordjs/rest` payloads, and neither is obvious at
-		// the call site -- so both are censored here rather than at each `logger.*` call.
+		// Secrets that reach the logger inside `@discordjs/rest` payloads, censored here rather than at each
+		// `logger.*` call, since neither is obvious at the call site.
 		//
-		// 1. Errors carry the literal request body (including OAuth `client_secret`/`refresh_token`) on
-		//    `.requestBody.json`, whether nested under an explicit `err` key or passed as pino's bare first
-		//    argument.
-		// 2. Webhook execution and interaction callbacks are authenticated by a token in the URL *path*, so any
-		//    field holding a route is a bearer credential: `url`/`majorParameter` on the rate limit payload the
-		//    `RESTEvents.RateLimited` handlers log verbatim, the same two on the errors `rejectOnRateLimit` makes
-		//    `services/discord-proxy` throw, and that service's own `fullRoute`.
+		// Webhook execution and interaction callbacks are authenticated by a token in the URL *path*, so
+		// `url`/`majorParameter`/`fullRoute` are bearer credentials wherever they turn up: the rate limit
+		// payload the `RESTEvents.RateLimited` handlers log verbatim, the errors `rejectOnRateLimit` makes
+		// `services/discord-proxy` throw, and that service's own error path. The `*.` variants cover one level
+		// of nesting (`err.url` on a thrown `DiscordAPIError`/`RateLimitError`, or a payload logged under a
+		// key of its own); fast-redact supports no deeper wildcard, so anything further down is a known gap.
+		//
+		// `requestBody.json.*` is a guard rather than a live path: `@discordjs/core` sends OAuth bodies as
+		// `URLSearchParams`, which serializes to `{}` and takes the secrets with it, so those three only
+		// matter if that ever becomes a plain object again.
 		redact: {
 			paths: [
 				'err.requestBody.json.client_secret',
 				'err.requestBody.json.refresh_token',
+				'err.requestBody.json.code',
 				'url',
 				'majorParameter',
 				'fullRoute',
-				'err.url',
-				'err.majorParameter',
+				'*.url',
+				'*.majorParameter',
+				'*.fullRoute',
 			],
 			censor: censorLogField,
 		},
