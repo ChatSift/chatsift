@@ -15,14 +15,11 @@ dozzle.automoderator.app {
 }
 
 errors.automoderator.app {
-	# The DSN is public by design, so this route accepts unauthenticated POSTs from anyone -- and every one of
-	# them writes into the Postgres the product itself runs on. The client-side event budget in
-	# `src/api/report.ts` bounds our own pages, not an attacker. This caps the per-request half of that;
-	# GlitchTip's retention caps the total. A real rate limit needs the caddy-ratelimit plugin (an xcaddy
-	# build in build/caddy/Dockerfile), which is the follow-up if this route ever actually gets abused.
+	# anti-abuse
 	request_body {
 		max_size 1MB
 	}
+
 	reverse_proxy glitchtip:8000
 }
 
