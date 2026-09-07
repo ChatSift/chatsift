@@ -61,27 +61,36 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          # Full history: the range below spans the whole push, and turbo's `[base...HEAD]` filter
+          # needs a merge base.
+          fetch-depth: 0
 
       - name: Detect what needs rebuilding
         id: changed
+        env:
+          BASE: ${{ github.event.before }}
         run: |
-          if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
-            echo 'manual dispatch -- rebuilding everything'
+          # An unresolvable range -- manual dispatch, a branch's first push, a force-pushed base that
+          # is gone -- rebuilds everything, so the failure mode is a wasted build, never a missed one.
+          if [ "${{ github.event_name }}" != 'push' ] || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo 'no resolvable push range -- rebuilding everything'
+            echo 'base=' >> "$GITHUB_OUTPUT"
             echo 'app=true' >> "$GITHUB_OUTPUT"
             echo 'ingress=true' >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+
           # ROOT_IMAGE_INPUTS is a space-separated pathspec list, so it stays unquoted here.
-          if git diff --quiet HEAD~1 HEAD -- packages services $ROOT_IMAGE_INPUTS; then
+          if git diff --quiet "$BASE" HEAD -- packages services $ROOT_IMAGE_INPUTS; then
             echo 'nothing that lands in the image changed -- skipping the build'
             echo 'app=false' >> "$GITHUB_OUTPUT"
           else
             echo 'app=true' >> "$GITHUB_OUTPUT"
           fi
 
-          if git diff --quiet HEAD~1 HEAD -- build/caddy; then
+          if git diff --quiet "$BASE" HEAD -- build/caddy; then
             echo 'ingress=false' >> "$GITHUB_OUTPUT"
           else
             echo 'ingress=true' >> "$GITHUB_OUTPUT"
@@ -124,15 +133,17 @@ jobs:
 
       - name: Alias changed services
         if: steps.changed.outputs.app == 'true'
+        env:
+          BASE: ${{ steps.changed.outputs.base }}
         run: |
-          if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
-            echo 'manual dispatch -- aliasing every service'
+          if [ -z "$BASE" ]; then
+            echo 'no resolvable push range -- aliasing every service'
             yarn turbo run tag-docker
-          elif ! git diff --quiet HEAD~1 HEAD -- $ROOT_IMAGE_INPUTS; then
+          elif ! git diff --quiet "$BASE" HEAD -- $ROOT_IMAGE_INPUTS; then
             echo 'a root build input changed -- aliasing every service'
             yarn turbo run tag-docker
           else
-            yarn turbo run tag-docker --filter '...[HEAD~1...HEAD~0]'
+            yarn turbo run tag-docker --filter "...[${BASE}...HEAD]"
           fi
 
       - name: Build and push ingress image
