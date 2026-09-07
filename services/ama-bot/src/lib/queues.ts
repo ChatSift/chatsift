@@ -48,6 +48,23 @@ export async function claimAfterPost<TRow>(
 	}
 }
 
+/**
+ * The queue message's anonymity toggle (#366). Its label carries the current state rather than naming an
+ * action ("Anonymize") -- the queue embed shows the real author either way, so the button is the only place
+ * a reviewer can see whether this question will be published with an author line or without one.
+ *
+ * Shared by `postToQueue` below and `components/toggleAnonymous.ts`, which swaps this exact button in place
+ * on the live message after flipping the flag, so the two can't drift on label or style.
+ */
+export function anonymousToggleButton(question: Pick<AmaQuestions, 'anonymous' | 'id'>): APIButtonComponent {
+	return {
+		type: ComponentType.Button,
+		style: question.anonymous ? ButtonStyle.Primary : ButtonStyle.Secondary,
+		label: question.anonymous ? 'Anonymous: On' : 'Anonymous: Off',
+		custom_id: `toggle-anonymous:${question.id}`,
+	};
+}
+
 interface PostToQueueOptions {
 	attachments: APIAttachment[];
 	content: string;
@@ -110,6 +127,7 @@ export async function postToQueue({
 			label: 'Mark Duplicate',
 			custom_id: `mark-duplicate:${question.id}`,
 		},
+		anonymousToggleButton(question),
 	];
 
 	const messageData: RESTPostAPIChannelMessageJSONBody = {
@@ -163,6 +181,9 @@ export async function postToAnswersChannel({
 	}
 
 	const embeds = getBaseEmbeds({
+		// The one surface the flag applies to (#366) -- `postToQueue` above deliberately ignores it, since the
+		// people reviewing a question need to know whose it is.
+		anonymous: question.anonymous,
 		attachments,
 		content,
 		extraAskerCount,

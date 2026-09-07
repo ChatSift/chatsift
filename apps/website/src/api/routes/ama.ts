@@ -1,5 +1,6 @@
 import type {
 	InferRouteContract,
+	createAMAQuestionRoute,
 	createAMARoute,
 	createAMATagRoute,
 	getAMAQuestionRoute,
@@ -13,6 +14,7 @@ import type {
 	publicAMAAnswersRoute,
 	repostPromptRoute,
 	sendAMAQuestionRoute,
+	setAMAQuestionsAnonymousBulkRoute,
 	updateAMAQuestionRoute,
 	updateAMARoute,
 } from '@chatsift/api';
@@ -56,6 +58,13 @@ export type MergeAMAQuestionBody = MergeAMAQuestionContract['body'];
 type MergeAMAQuestionsBulkContract = InferRouteContract<typeof mergeAMAQuestionsBulkRoute>;
 export type MergeAMAQuestionsBulkBody = MergeAMAQuestionsBulkContract['body'];
 
+type CreateAMAQuestionContract = InferRouteContract<typeof createAMAQuestionRoute>;
+export type CreateAMAQuestionBody = CreateAMAQuestionContract['body'];
+
+type SetAMAQuestionsAnonymousBulkContract = InferRouteContract<typeof setAMAQuestionsAnonymousBulkRoute>;
+export type SetAMAQuestionsAnonymousBulkBody = SetAMAQuestionsAnonymousBulkContract['body'];
+export type SetAMAQuestionsAnonymousBulkResult = SetAMAQuestionsAnonymousBulkContract['response'];
+
 type ListAMATagsContract = InferRouteContract<typeof listAMATagsRoute>;
 export type AMATag = ListAMATagsContract['response'][number];
 
@@ -67,7 +76,9 @@ export type CreateAMATagResult = CreateAMATagContract['response'];
 
 type PublicAMAAnswersContract = InferRouteContract<typeof publicAMAAnswersRoute>;
 export type PublicAMAAnswersResult = PublicAMAAnswersContract['response'];
-export type PublicUserInfo = PublicAMAAnswersResult['questions'][number]['author'];
+// `NonNullable` because a question marked anonymous (#366) carries no author at all -- the badge component
+// this type backs is only rendered for the ones that do.
+export type PublicUserInfo = NonNullable<PublicAMAAnswersResult['questions'][number]['author']>;
 
 export function useAMAs(guildId: string, includeEnded: boolean) {
 	return useQuery({
@@ -248,6 +259,39 @@ export function useMergeAMAQuestion(guildId: string, amaId: string, questionId: 
 			apiFetch<AMAQuestionDetail>('post', `/v3/guilds/${guildId}/ama/amas/${amaId}/questions/${questionId}/merge`, {
 				body,
 			}),
+		async onSuccess() {
+			await invalidateAMAQuestions(queryClient, guildId, amaId);
+		},
+	});
+}
+
+/**
+ * Creates an "umbrella question" (#366) -- one staff wrote themselves, for real duplicates to be merged into.
+ * It arrives `APPROVED`, so the list's own state filters shift under it; `invalidateAMAQuestions` covers that
+ * the same way every other question mutation here does.
+ */
+export function useCreateAMAQuestion(guildId: string, amaId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (body: CreateAMAQuestionBody) =>
+			apiFetch<AMAQuestionDetail>('post', `/v3/guilds/${guildId}/ama/amas/${amaId}/questions`, { body }),
+		async onSuccess() {
+			await invalidateAMAQuestions(queryClient, guildId, amaId);
+		},
+	});
+}
+
+export function useSetAMAQuestionsAnonymousBulk(guildId: string, amaId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (body: SetAMAQuestionsAnonymousBulkBody) =>
+			apiFetch<SetAMAQuestionsAnonymousBulkResult>(
+				'post',
+				`/v3/guilds/${guildId}/ama/amas/${amaId}/questions/anonymous-bulk`,
+				{ body },
+			),
 		async onSuccess() {
 			await invalidateAMAQuestions(queryClient, guildId, amaId);
 		},

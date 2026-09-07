@@ -19,6 +19,7 @@ import exportAMARoute from './routes/ama/exportAMA.js';
 import getAMARoute from './routes/ama/getAMA.js';
 import getAMAStatsRoute from './routes/ama/getAMAStats.js';
 import getAMAsRoute from './routes/ama/getAMAs.js';
+import createAMAQuestionRoute from './routes/ama/questions/createQuestion.js';
 import getAMAQuestionRoute from './routes/ama/questions/getQuestion.js';
 import listAMAQuestionsRoute from './routes/ama/questions/listQuestions.js';
 import mergeAMAQuestionRoute from './routes/ama/questions/mergeQuestion.js';
@@ -26,6 +27,7 @@ import mergeAMAQuestionsBulkRoute from './routes/ama/questions/mergeQuestionsBul
 import publicAMAAnswersRoute from './routes/ama/questions/publicAnswers.js';
 import publicAMAWsTicketRoute from './routes/ama/questions/publicWsTicket.js';
 import sendAMAQuestionRoute from './routes/ama/questions/sendQuestion.js';
+import setAMAQuestionsAnonymousBulkRoute from './routes/ama/questions/setQuestionsAnonymousBulk.js';
 import updateAMAQuestionRoute from './routes/ama/questions/updateQuestion.js';
 import repostPromptRoute from './routes/ama/repostPrompt.js';
 import createAMATagRoute from './routes/ama/tags/createTag.js';
@@ -210,6 +212,8 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, sendAMAQuestionRoute);
 	mountRoute(app, mergeAMAQuestionRoute);
 	mountRoute(app, mergeAMAQuestionsBulkRoute);
+	mountRoute(app, createAMAQuestionRoute);
+	mountRoute(app, setAMAQuestionsAnonymousBulkRoute);
 	mountRoute(app, publicAMAAnswersRoute);
 	mountRoute(app, publicAMAWsTicketRoute);
 	mountRoute(app, listAMATagsRoute);

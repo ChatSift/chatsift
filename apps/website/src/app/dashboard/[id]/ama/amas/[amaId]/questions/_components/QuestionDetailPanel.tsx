@@ -13,6 +13,7 @@ import { APIError } from '@/api/error';
 import { useAMA, useAMAQuestion, useSendAMAQuestion, useUpdateAMAQuestion } from '@/api/routes/ama';
 import { Button } from '@/components/common/Button';
 import { ConfirmModal } from '@/components/common/ConfirmModal';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Skeleton } from '@/components/common/Skeleton';
 import { cn, formatDate } from '@/utils/util';
 
@@ -168,6 +169,32 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 						</div>
 					</div>
 				)}
+			</div>
+
+			<div>
+				<span
+					className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
+					id={`anonymous-label-${question.id}`}
+				>
+					Author, where this gets published
+				</span>
+				<SegmentedControl
+					isDisabled={updateQuestion.isPending}
+					labelledBy={`anonymous-label-${question.id}`}
+					onChange={async (anonymous) => runAction(async () => updateQuestion.mutateAsync({ anonymous }))}
+					options={[
+						{ label: 'Shown', value: false },
+						{ label: 'Hidden', value: true },
+					]}
+					value={question.anonymous}
+				/>
+				<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">
+					{/* Spelled out because the two surfaces behave differently on purpose (#366) and the difference is
+					not guessable from a two-option switch. */}
+					Hidden publishes the question with no author on it at all - no name, no avatar. The review queue and this
+					dashboard always show who asked either way.
+					{isSent ? ' Changing this rewrites what has already been posted.' : ''}
+				</p>
 			</div>
 
 			<div>

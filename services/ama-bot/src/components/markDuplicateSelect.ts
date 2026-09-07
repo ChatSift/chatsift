@@ -223,18 +223,24 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 			const currentMessage = resolveCurrentMessage(original, session);
 			if (currentMessage) {
 				try {
+					// Only the answers surface honours the flag (#366) -- `includeUserId` is `true` for exactly the
+					// queue, which always shows the real author. With it on there's no author line to build, so the
+					// two lookups that feed it are skipped rather than fetched and discarded.
+					const anonymous = !currentMessage.includeUserId && original.anonymous;
 					const [attachments, user] = await Promise.all([
 						fetchQuestionImages(original, session),
-						fetchUser(getContext().service.client.api, original.authorId).catch(() => null),
+						anonymous ? null : fetchUser(getContext().service.client.api, original.authorId).catch(() => null),
 					]);
-					const member = session.guildId
-						? await getContext()
-								.service.client.api.guilds.getMember(session.guildId, original.authorId)
-								.catch(() => undefined)
-						: undefined;
+					const member =
+						session.guildId && !anonymous
+							? await getContext()
+									.service.client.api.guilds.getMember(session.guildId, original.authorId)
+									.catch(() => undefined)
+							: undefined;
 
 					const hasAnswer = original.state === 'ASKED' && Boolean(original.answerContent);
 					const embeds: APIEmbed[] = getBaseEmbeds({
+						anonymous,
 						attachments,
 						content: original.content,
 						extraAskerCount,

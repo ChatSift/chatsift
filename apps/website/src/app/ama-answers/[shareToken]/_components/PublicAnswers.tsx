@@ -84,7 +84,9 @@ export function PublicAnswers() {
 							className="rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark"
 							key={question.id}
 						>
-							<PublicUserBadge user={question.author} />
+							{/* Absent for a question marked anonymous (#366) -- deliberately nothing in its place, matching
+							what the answers channel shows. */}
+							{question.author && <PublicUserBadge user={question.author} />}
 							<p className="mt-2 whitespace-pre-wrap text-primary dark:text-primary-dark">{question.content}</p>
 							<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">
 								{formatDate(new Date(question.askedAt))}

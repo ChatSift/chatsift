@@ -18,7 +18,11 @@ export interface PublicAnsweredQuestion {
 	answerImageUrl: string | null;
 	answeredBy: PublicUserInfo | null;
 	askedAt: Date;
-	author: PublicUserInfo;
+	/**
+	 * `null` for a question marked anonymous (#366) -- the page renders nothing in its place, deliberately not
+	 * an "Anonymous" placeholder, matching what the answers-channel embed does.
+	 */
+	author: PublicUserInfo | null;
 	content: string;
 	id: number;
 }
@@ -45,6 +49,8 @@ export interface PublicAnswersResult {
  * case), a question's answer is only ever given live on stream/voice and never typed anywhere, so this
  * page would otherwise be a wall of questions with no answers next to them. A question with nothing
  * recorded here has nothing useful for this page to show.
+ *
+ * A question marked anonymous (#366) still appears -- it's the *author* that's withheld, not the question.
  */
 export default defineRoute({
 	method: 'get',
@@ -74,7 +80,13 @@ export default defineRoute({
 		// easily share an author or an answerer (or the same user can be both across different questions).
 		const userIds = new Set<string>();
 		for (const question of questions) {
-			userIds.add(question.authorId);
+			// An anonymous question's author is never rendered, so resolving them would be a Discord lookup whose
+			// only result is thrown away -- and one this page has no business making about someone it's been told
+			// to leave out (#366).
+			if (!question.anonymous) {
+				userIds.add(question.authorId);
+			}
+
 			if (question.answeredById) {
 				userIds.add(question.answeredById);
 			}
@@ -101,7 +113,7 @@ export default defineRoute({
 				// rows the migration's backfill left null (there shouldn't be any -- it filled every 'ASKED'
 				// row, which is all this route selects -- but the column is nullable, so it has to narrow).
 				askedAt: question.askedAt ?? question.updatedAt,
-				author: toPublicUserInfo(resolvedById.get(question.authorId)!),
+				author: question.anonymous ? null : toPublicUserInfo(resolvedById.get(question.authorId)!),
 				content: question.content,
 				id: question.id,
 			};

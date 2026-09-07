@@ -64,7 +64,7 @@ export const amaSessionTransitions = new Counter({
  * legitimately never fired reads as "No data" on a dashboard rather than `0`. See the fuller note in
  * `services/modmail-bot/src/lib/metrics.ts`.
  */
-for (const decision of ['approve', 'approve_and_send', 'deny', 'merge']) {
+for (const decision of ['anonymize', 'approve', 'approve_and_send', 'deny', 'merge']) {
 	amaModerationDecisions.inc({ decision, source: 'dashboard' }, 0);
 }
 
