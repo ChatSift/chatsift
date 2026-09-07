@@ -72,7 +72,7 @@ route paths, and this stack self-hosts everything else it can.
 
 **Self-hosted GlitchTip**, reached through the stock `@sentry/nextjs` SDK pointed at our own `sentryUrl`.
 
-- One container (`glitchtip/glitchtip:6.2.6`, `SERVER_ROLE`/`GLITCHTIP_EMBED_WORKER` embedding the worker),
+- One container (`glitchtip/glitchtip:6.2.6`, `SERVER_ROLE: all_in_one` — web, worker and migrations),
   behind Caddy at `errors.automoderator.app`, on the `monitoring` profile.
 - **Shares the existing Postgres** via a `glitchtip` role and database (`build/postgres/init/03-glitchtip.sh`)
   rather than running its own instance — one volume to back up and upgrade.

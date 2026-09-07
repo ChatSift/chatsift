@@ -15,8 +15,9 @@ dozzle.automoderator.app {
 }
 
 errors.automoderator.app {
-	# anti-abuse
-	request_body {
+	# anti-abuse, ingest paths only -- the ones the public DSN lets anyone POST to unauthenticated.
+	@ingest path_regexp ^/api/[0-9]+/(envelope|store|security)/
+	request_body @ingest {
 		max_size 1MB
 	}
 

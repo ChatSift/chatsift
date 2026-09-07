@@ -192,15 +192,30 @@ services:
       # `maxmemory` and holds bot-core's replica leases, the per-replica guild lists and the message
       # cache; adding a Celery broker to it is how a lease gets evicted and two replicas end up claiming
       # the same shard index. Do not "tidy this up" by pointing it at redis://redis:6379.
+      #
+      # The catch, on a fresh install: Django's cache backend becomes the database, and that needs a
+      # `django_cache` table which `migrate` does NOT create -- `manage.py createcachetable` does. Nothing
+      # reads the cache until something does, so the install looks complete and then 500s on the first
+      # login (allauth rate-limits there). See docs/workflow.md.
       VALKEY_URL: ''
-      # Runs the worker inside the web process -- one container instead of two, which is the right trade
-      # at this volume (a single dashboard and a handful of admins).
-      GLITCHTIP_EMBED_WORKER: 'True'
+      # Runs migrations, the web server and the worker in one container -- the right trade at this volume
+      # (a single dashboard and a handful of admins), and the role the upstream sample compose ships.
+      #
+      # It is also what applies migrations at boot, and leaving it unset does NOT fall back to something
+      # sensible: the container comes up as a plain web role, serves perfectly happily, and never
+      # migrates. The first `createsuperuser` then runs against a schema that does not exist, and the
+      # only hint is a "you have N unapplied migration(s)" warning printed by an unrelated command. That
+      # is exactly how the #386 cutover went, and it would have recurred silently on every version bump.
+      SERVER_ROLE: all_in_one
       # Django defaults to 20. `postgres-connections-near-limit` already watches the shared instance, and
       # a new tenant should not quietly take a fifth of max_connections.
       DATABASE_POOL_MAX_SIZE: 5
       SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
       GLITCHTIP_DOMAIN: https://errors.automoderator.app
+      # Not derived from GLITCHTIP_DOMAIN above -- GlitchTip warns on every boot that this defaults to the
+      # wildcard, which on an internet-facing host means Django will answer to any Host header. That is
+      # what makes a poisoned absolute URL (a password reset link, a cached asset path) possible.
+      ALLOWED_HOSTS: errors.automoderator.app
       DEFAULT_FROM_EMAIL: noreply@automoderator.app
       EMAIL_URL: ${GLITCHTIP_EMAIL_URL:-consolemail://}
       # It sits on a public host, so nobody outside gets to sign up or create orgs. Registration defaults

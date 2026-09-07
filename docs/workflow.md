@@ -296,9 +296,40 @@ Then:
 2. `./compose up -d glitchtip`, then create the single account:
    `./compose exec glitchtip ./manage.py createsuperuser`. `ENABLE_USER_REGISTRATION` is `False` because the
    host is public — note this defaults to `True` upstream, so it is off only because we set it.
+
+   **If that warns about unapplied migrations, stop and run `./compose exec glitchtip ./manage.py migrate`
+   first** — creating a superuser against a schema that does not exist gets you a half-made account. Seeing
+   that warning at all means `SERVER_ROLE: all_in_one` has gone missing from the service: it is what applies
+   migrations at boot, and without it the container comes up as a plain web role that serves happily and
+   never migrates. It cost us exactly that on the #386 cutover.
+
+   **Then create the cache table**, which `migrate` does not:
+
+   ```sh
+   ./compose exec glitchtip ./manage.py createcachetable
+   ```
+
+   This is the second half of the `VALKEY_URL: ''` decision. With no Valkey, Django's cache backend is the
+   database, and that backend needs a `django_cache` table created by its own management command. Nothing
+   touches the cache until something does — allauth's login rate limiter is first, so the symptom is a 500 on
+   `/_allauth/browser/v1/auth/login` reading `relation "django_cache" does not exist`, long after the install
+   looked finished. Idempotent, so re-running it is free.
+
 3. In the UI, create the organization and project. **Both slugs must match `next.config.mjs`'s `org` and
    `project`** (`chatsift` / `website`) or uploads 404 with nothing else to go on.
-4. Copy the project DSN, and mint an org auth token for source-map upload.
+4. Copy the project **DSN** from the project's Settings — `https://<key>@errors.automoderator.app/<id>`.
+   Check the host: it is rendered from `GLITCHTIP_DOMAIN`, so a `localhost` or container-name host there
+   means that variable did not take and the browser would post events nowhere.
+
+   Then mint the upload token at **Profile → Auth Tokens** (`/profile/auth-tokens`). Note these are
+   **user-scoped, not organization-scoped** — GlitchTip differs from Sentry here. Scopes: `project:releases`
+   (the one that matters — the plugin runs `sentry-cli releases new <sha>`), plus `project:read`, `org:read`
+   and `event:read`. Shown once.
+
+   That makes the single admin account a production build dependency: with `ENABLE_USER_REGISTRATION` off
+   there is only one, and deleting it or rotating its token without updating Vercel fails the next
+   production deploy via `errorHandler`.
+
 5. **Create the project's error-rate alert**, which is the half of the alerting split GlitchTip owns and the
    only thing that tells you the dashboard is broken. In the project's Alerts, add a rule with a quantity and
    timespan threshold (start around 10 events in 5 minutes and tune once a week of real traffic exists), and
