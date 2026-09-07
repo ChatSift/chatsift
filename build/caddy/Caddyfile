@@ -14,6 +14,14 @@ dozzle.automoderator.app {
 	reverse_proxy dozzle:8080
 }
 
+# Frontend error reporting (#386). Unlike every other host here this one is hit by *browsers* rather
+# than by us -- the dashboard runs on Vercel and posts Sentry-protocol envelopes to it. If envelope
+# POSTs ever come back 400/411, add `request_buffers` here: GlitchTip wants a proxy that buffers the
+# request body and handles chunked Transfer-Encoding.
+errors.automoderator.app {
+	reverse_proxy glitchtip:8000
+}
+
 # Legacy
 interactions.automoderator.app {
 	reverse_proxy automoderator-interactions:3002

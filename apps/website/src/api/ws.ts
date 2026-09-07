@@ -6,6 +6,7 @@ import type {
 } from '@chatsift/api';
 import { apiFetch } from './fetch';
 import { REALTIME_CLIENT_ID } from './realtimeClientId';
+import { reportError } from './report';
 
 type GetWsTicketContract = InferRouteContract<typeof getWsTicketRoute>;
 type GetWsTicketResult = GetWsTicketContract['response'];
@@ -35,6 +36,14 @@ type InvalidateListener = () => void;
 const RECONNECT_BASE_DELAY_MS = 1_000;
 const RECONNECT_MAX_DELAY_MS = 30_000;
 
+/**
+ * How many consecutive failures before a connection problem is worth reporting (#386). Reconnects retry
+ * forever with backoff, so reporting each one would turn a single API outage into hundreds of events per open
+ * tab -- and there is no server-side quota to absorb that. By this many attempts the backoff has spent roughly
+ * half a minute, which is well past anything transient.
+ */
+const RECONNECT_ATTEMPTS_BEFORE_REPORT = 5;
+
 function wsURL(): string {
 	const url = new URL('/v3/ws', process.env['NEXT_PUBLIC_API_URL']);
 	url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -56,6 +65,16 @@ export class RealtimeClient {
 	private readonly channels = new Map<string, Set<InvalidateListener>>();
 
 	private connecting = false;
+
+	/**
+	 * One connect-failure event per outage, not per attempt. Cleared again once a socket opens.
+	 */
+	private reportedConnectFailure = false;
+
+	/**
+	 * One malformed-frame event per client. Whatever is producing them will keep producing them.
+	 */
+	private reportedMalformedFrame = false;
 
 	private reconnectAttempt = 0;
 
@@ -121,6 +140,9 @@ export class RealtimeClient {
 
 				socket.addEventListener('open', () => {
 					this.reconnectAttempt = 0;
+					// Arms the next outage to report. Without this a client that reconnects successfully would
+					// stay silent for the rest of its life, however many later outages it rode out.
+					this.reportedConnectFailure = false;
 
 					// Same race as above, one await later: the handshake is its own window for the last
 					// consumer to go away.
@@ -172,7 +194,13 @@ export class RealtimeClient {
 				});
 
 				this.socket = socket;
-			} catch {
+			} catch (error) {
+				// Threshold-gated rather than reported per failure -- see RECONNECT_ATTEMPTS_BEFORE_REPORT.
+				if (!this.reportedConnectFailure && this.reconnectAttempt >= RECONNECT_ATTEMPTS_BEFORE_REPORT) {
+					this.reportedConnectFailure = true;
+					reportError(error, { source: 'ws' });
+				}
+
 				this.scheduleReconnect();
 			} finally {
 				this.connecting = false;
@@ -210,7 +238,14 @@ export class RealtimeClient {
 		let message: ServerMessage;
 		try {
 			message = JSON.parse(data) as ServerMessage;
-		} catch {
+		} catch (error) {
+			// A frame that isn't JSON means the server is emitting something broken, which no amount of
+			// reconnecting fixes -- so it is worth exactly one event, and worth not swallowing entirely.
+			if (!this.reportedMalformedFrame) {
+				this.reportedMalformedFrame = true;
+				reportError(error, { source: 'ws' });
+			}
+
 			return;
 		}
 

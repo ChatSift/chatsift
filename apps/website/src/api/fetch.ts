@@ -8,6 +8,7 @@ import type { DehydratedState } from '@tanstack/react-query';
 import type { ZodErrorTree } from './error';
 import { APIError, SessionRefreshUnavailableError, toZodErrorTree } from './error';
 import { REALTIME_CLIENT_ID } from './realtimeClientId';
+import { reportError } from './report';
 import { clearCachedAccessToken, getCachedAccessToken, setCachedAccessToken } from './serverTokenCache';
 import { store } from './store';
 import { accessTokenAtom } from './token';
@@ -240,6 +241,11 @@ export async function prefetch(
 			// default, so simply swallowing the rejection here is enough: this query is left out of the dehydrated
 			// state, and the client transparently falls back to fetching (and error-handling) it itself on mount.
 			console.error('prefetch failed', { queryKey: queryKey(), error });
+			// The swallow above is correct and stays. What was wrong is that it was also *silent*: this wraps the
+			// root layout's `me` query, so every SSR session-resolution failure in production was a line in a
+			// Vercel function log nobody reads (#386). `SessionRefreshUnavailableError` lands here constantly by
+			// design (#384) and is dropped inside `shouldReport`, not here.
+			reportError(error, { source: 'prefetch', queryKey: queryKey() });
 		}
 	});
 	await Promise.all(calls);

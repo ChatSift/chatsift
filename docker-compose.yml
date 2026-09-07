@@ -69,7 +69,7 @@ services:
       - '--collector.stat_statements.include_query'
       - '--collector.stat_statements.query_length=200'
       - '--collector.stat_statements.limit=20'
-      - '--collector.stat_statements.exclude_users=chatsift_exporter'
+      - '--collector.stat_statements.exclude_users=chatsift_exporter,glitchtip'
     depends_on:
       - postgres
 
@@ -169,6 +169,57 @@ services:
       - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
+
+  # Frontend error reporting (#386). GlitchTip speaks the Sentry protocol, so `apps/website` uses the
+  # stock `@sentry/nextjs` SDK while the events -- and crucially the uploaded source maps -- stay on our
+  # own host. That is the whole point of it: holding the maps privately is what lets
+  # `productionBrowserSourceMaps` come out of next.config.mjs without every production stack trace going
+  # minified. See docs/adr/0003-frontend-error-reporting.md.
+  #
+  # The dashboard deploys to Vercel, not here, so this is the one service in this file whose clients are
+  # entirely outside the compose network -- hence a public Caddy route rather than an internal-only port.
+  glitchtip:
+    image: glitchtip/glitchtip:6.2.6
+    profiles: ['monitoring']
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    environment:
+      DATABASE_URL: postgres://glitchtip:${GLITCHTIP_DB_PASSWORD}@postgres:5432/glitchtip
+      # A load-bearing empty string, NOT an omission. Blank means "use Postgres for the task queue and
+      # cache as well", which is what keeps this off the shared `redis` service. That Redis runs with no
+      # `maxmemory` and holds bot-core's replica leases, the per-replica guild lists and the message
+      # cache; adding a Celery broker to it is how a lease gets evicted and two replicas end up claiming
+      # the same shard index. Do not "tidy this up" by pointing it at redis://redis:6379.
+      VALKEY_URL: ''
+      # Runs the worker inside the web process -- one container instead of two, which is the right trade
+      # at this volume (a single dashboard and a handful of admins).
+      GLITCHTIP_EMBED_WORKER: 'True'
+      # Django defaults to 20. `postgres-connections-near-limit` already watches the shared instance, and
+      # a new tenant should not quietly take a fifth of max_connections.
+      DATABASE_POOL_MAX_SIZE: 5
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      GLITCHTIP_DOMAIN: https://errors.automoderator.app
+      DEFAULT_FROM_EMAIL: noreply@automoderator.app
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL:-consolemail://}
+      # It sits on a public host, so nobody outside gets to sign up or create orgs. Registration defaults
+      # to True upstream, so it has to be turned off explicitly rather than simply left unset.
+      ENABLE_USER_REGISTRATION: 'False'
+      ENABLE_ORGANIZATION_CREATION: 'False'
+      # OTLP log ingestion. Loki and Promtail were deliberately removed (1ef4c014, 6e56307d) and the
+      # Loki-backed alert retired in rules.yml -- do not reintroduce a log store through a side door.
+      GLITCHTIP_ENABLE_LOGS: 'False'
+      # Grafana already owns uptime alerting, this container included (see rules.yml).
+      GLITCHTIP_ENABLE_UPTIME: 'False'
+      # Events land in the *product* Postgres, so retention is a disk-pressure decision rather than a
+      # preference. Starts below the upstream default of 90.
+      GLITCHTIP_RETENTION_DAYS: ${GLITCHTIP_RETENTION_DAYS:-30}
+    volumes:
+      - glitchtip-uploads:/code/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   redis:
     image: redis:6-alpine
@@ -371,6 +422,8 @@ volumes:
     name: '${RESOURCE_PREFIX}-prometheus-data'
   grafana-data:
     name: '${RESOURCE_PREFIX}-grafana-data'
+  glitchtip-uploads:
+    name: '${RESOURCE_PREFIX}-glitchtip-uploads'
 
 networks:
   default:
