@@ -131,12 +131,34 @@ test('enabledExperimentsFor includes an override-only experiment', async () => {
 
 // Listing candidates must not trip the unknown-experiment warning: every name it checks came out of the
 // snapshot, so warning about any of them would be pure noise on a path that runs per guild per `/me`.
-test('enabledExperimentsFor does not warn', async () => {
+//
+// The guild that is *not* the override's target is the case that matters, and the one an earlier version of
+// this test missed: an override-only name is in the candidate set for every call, but only the target guild
+// short-circuits on the override, so every other guild used to fall through to the unknown-experiment branch.
+// `me.ts` runs this once per guild in the user's list, so that was a line per uninvolved guild.
+test('enabledExperimentsFor does not warn, for the override target or anyone else', async () => {
 	experimentRows = [{ name: 'alpha', rangeStart: 0, rangeEnd: 10_000 }];
 	overrideRows = [{ experimentName: 'orphaned', guildId: '1425493115053019319' }];
 	await loadExperiments();
 
 	enabledExperimentsFor('1425493115053019319');
+	enabledExperimentsFor('1530909114736050316');
 
 	expect(warn).not.toHaveBeenCalled();
+});
+
+// The flip side of the split: taking the warning out of `enabledExperimentsFor`'s path must not take it out of
+// the one place it earns its keep -- a gate the code checks by name that nobody has created.
+test('isExperimentEnabled still warns for a genuinely unknown experiment', async () => {
+	experimentRows = [{ name: 'alpha', rangeStart: 0, rangeEnd: 10_000 }];
+	overrideRows = [{ experimentName: 'orphaned', guildId: '1425493115053019319' }];
+	await loadExperiments();
+
+	expect(isExperimentEnabled('never-created', '1530909114736050316')).toBe(false);
+	expect(warn).toHaveBeenCalledTimes(1);
+
+	// An override for this exact guild counts as the gate existing, range row or not -- that path returns true
+	// and must stay silent.
+	expect(isExperimentEnabled('orphaned', '1425493115053019319')).toBe(true);
+	expect(warn).toHaveBeenCalledTimes(1);
 });

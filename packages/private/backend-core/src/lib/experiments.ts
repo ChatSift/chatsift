@@ -110,29 +110,19 @@ export async function loadExperiments(): Promise<void> {
 }
 
 /**
- * Whether `name` is on for `guildId`. Pure, synchronous and safe to call per decision -- it reads the
- * snapshot `loadExperiments` maintains, never the database.
- *
- * **An experiment with no row is off.** A feature shipped behind a gate is therefore inert until someone
- * deliberately creates it, which is the correct default for a product that takes moderation actions: the
- * failure mode of forgetting to create the row is "the feature does nothing", not "the feature is live
- * everywhere on deploy". `loadExperiments` never having been called reads the same way.
+ * The gate decision itself, with no diagnostics attached. Split out from `isExperimentEnabled` so
+ * `enabledExperimentsFor` can ask the same question without the unknown-experiment warning below: it asks about
+ * every name in the snapshot for every guild, and a name that only exists as an override is unknown for every
+ * guild *except* the one it targets -- which would turn that warning from "somebody checked a gate that doesn't
+ * exist" into one line per uninvolved guild.
  */
-export function isExperimentEnabled(name: string, guildId: string): boolean {
+function evaluate(name: string, guildId: string): boolean {
 	if (overrides.has(overrideKey(name, guildId))) {
 		return true;
 	}
 
 	const range = ranges.get(name);
 	if (!range) {
-		// Warned rather than silently false, as the pre-revive handler did: the two ways to land here are a gate
-		// nobody has created yet and a typo'd name, and only one of those is intentional. Once per name per
-		// refresh, not once per call -- see `warnedUnknown`.
-		if (!warnedUnknown.has(name)) {
-			warnedUnknown.add(name);
-			getContext().logger.warn({ guildId, experimentName: name }, 'checked an unknown experiment');
-		}
-
 		return false;
 	}
 
@@ -144,6 +134,28 @@ export function isExperimentEnabled(name: string, guildId: string): boolean {
 }
 
 /**
+ * Whether `name` is on for `guildId`. Pure, synchronous and safe to call per decision -- it reads the
+ * snapshot `loadExperiments` maintains, never the database.
+ *
+ * **An experiment with no row is off.** A feature shipped behind a gate is therefore inert until someone
+ * deliberately creates it, which is the correct default for a product that takes moderation actions: the
+ * failure mode of forgetting to create the row is "the feature does nothing", not "the feature is live
+ * everywhere on deploy". `loadExperiments` never having been called reads the same way.
+ */
+export function isExperimentEnabled(name: string, guildId: string): boolean {
+	// Warned rather than silently false, as the pre-revive handler did: the two ways to land here are a gate
+	// nobody has created yet and a typo'd name, and only one of those is intentional. Once per name per
+	// refresh, not once per call -- see `warnedUnknown`. An override for this exact guild counts as the gate
+	// existing, so it never warns even with no range row backing it.
+	if (!overrides.has(overrideKey(name, guildId)) && !ranges.has(name) && !warnedUnknown.has(name)) {
+		warnedUnknown.add(name);
+		getContext().logger.warn({ guildId, experimentName: name }, 'checked an unknown experiment');
+	}
+
+	return evaluate(name, guildId);
+}
+
+/**
  * Every experiment currently on for `guildId`, sorted. Same snapshot and same rules as
  * `isExperimentEnabled` -- this is that check run across every gate that exists, not a second source of truth.
  *
@@ -152,11 +164,10 @@ export function isExperimentEnabled(name: string, guildId: string): boolean {
  * enforcement point; this only decides what gets drawn.
  *
  * Names with neither a range row nor an override never appear, so a gate nobody has created reads as an empty
- * list rather than as an unknown-experiment warning per guild.
+ * list. Goes through `evaluate` rather than `isExperimentEnabled` so enumerating candidates stays silent -- see
+ * that function's comment; `me.ts` runs this once per guild in the user's list, so a warning here multiplies.
  */
 export function enabledExperimentsFor(guildId: string): string[] {
 	const candidates = new Set([...ranges.keys(), ...overrideNames]);
-	return [...candidates]
-		.filter((name) => isExperimentEnabled(name, guildId))
-		.sort((left, right) => left.localeCompare(right));
+	return [...candidates].filter((name) => evaluate(name, guildId)).sort((left, right) => left.localeCompare(right));
 }
