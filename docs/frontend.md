@@ -80,18 +80,32 @@ anything reusable lives under `src/components/`.
 ### `@chatsift/web-core/components/` -- the shared library
 
 Import as `@chatsift/web-core/components/X`. This is `packages/private/web-core`, extracted so a second Next
-app can reuse it. A component belongs here if it needs nothing from the dashboard's session or guild data;
-the ones that do stayed in `apps/website/src/components/common/` and are still imported as
-`@/components/common/X`. Both lists are below.
+app can reuse it. The split rule: a component lives in the package if it needs nothing from the dashboard's
+session or guild data. The ones that do stayed in `apps/website/src/components/common/` and are still imported
+as `@/components/common/X`.
+
+**In the package** -- `@chatsift/web-core/components/X`:
 
 - **Primitives** -- `Button`, `Heading`, `Skeleton`, `EmptyState`, `ScrollArea`, `Tooltip`, `Avatar`,
-  `GenericAvatar`, `GuildIcon`, `Logo`, `Emoji`
-- **Form fields** -- `TextField`, `TextAreaField`, `RawJsonField`, `SnowflakeInput`, `EmojiInput`, `SearchBar`,
-  `ChannelSelect`, `RoleSelect`, `ForumTagSelect`, `SegmentedControl` (pick one of a few -- every mode switch and
-  on/off toggle), `FormActions` (the submit+cancel pair), `TemplatePlaceholdersHint`
+  `GenericAvatar`, `GenericAvatarImages`, `DiscordUserAvatar`, `Emoji`
+- **Form fields** -- `TextField`, `TextAreaField`, `RawJsonField`, `SnowflakeInput`, `ColorField`, `SearchBar`,
+  `SegmentedControl` (pick one of a few -- every mode switch and on/off toggle), `FormActions` (the
+  submit+cancel pair)
 - **Overlays / feedback** -- `ConfirmModal`, `ErrorBanner`
-- **Navigation / infra** -- `Breadcrumb`, `BreadcrumbDropdown`, `NavGate`, `Providers`, `RefreshServerDataButton`,
-  `DiscordMarkdown`
+- **Styling helper** -- `buttonStyles` (see below), and `@chatsift/web-core/utils/cn`
+
+**Still app-local** -- `@/components/common/X`, because each one reaches into the dashboard's own API routes,
+hooks or branding:
+
+- **Guild pickers** -- `ChannelSelect`, `RoleSelect`, `ForumTagSelect`, `EmojiInput` (all typed against
+  `@/api/routes/guilds`)
+- **Navigation / session** -- `Breadcrumb`, `BreadcrumbDropdown`, `GuildIcon`, `NavGate`, `Providers`,
+  `RefreshServerDataButton`, `Logo`
+- **Discord rendering** -- `DiscordMarkdown`, `EmbedMessagePreview`, `TemplatePlaceholdersHint`
+
+`Providers` in particular cannot move: it calls `getBrowserQueryClient()` internally and can't take the client
+as a prop, because `app/layout.tsx` is a Server Component and a `QueryClient` is not serialisable across that
+boundary. Each app writes its own.
 
 Other directories: `components/dashboard/` (breadcrumb wiring, `ResyncCard`, `ScopedSessionBanner`),
 `components/nav/`, `components/footer/`, `components/user/`, `components/marketing/`, and `components/icons/`.

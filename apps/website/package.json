@@ -7,7 +7,7 @@
 	"scripts": {
 		"build": "node ../../scripts/sync-web-core-assets.mjs website && next build",
 		"dev": "node ../../scripts/sync-web-core-assets.mjs website && next dev",
-		"start": "next start",
+		"start": "node ../../scripts/sync-web-core-assets.mjs website && next start",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"lint": "eslint src",
