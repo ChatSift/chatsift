@@ -1,17 +1,17 @@
 'use client';
 
 import { BOTS } from '@chatsift/core';
+import { Heading } from '@chatsift/web-core/components/Heading';
+import { cn } from '@chatsift/web-core/utils/cn';
 import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
 import type { PropsWithChildren } from 'react';
 import { FaWrench } from 'react-icons/fa';
 import { useMe } from '@/api/routes/auth';
-import { Heading } from '@/components/common/Heading';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 import type { MarketedBotId } from '@/data/marketingBots';
 import { MARKETED_BOTS } from '@/data/marketingBots';
 import { BotIcon, resolveBotBranding } from '@/utils/bots';
-import { cn } from '@/utils/util';
 
 interface SectionCardProps extends PropsWithChildren {
 	readonly className?: string;

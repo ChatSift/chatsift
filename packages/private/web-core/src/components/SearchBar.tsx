@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useDebounceCallback } from 'usehooks-ts';
-import { Button } from '@/components/common/Button';
+import { Button } from './Button';
 
 const DEBOUNCE_TIME = 300;
 

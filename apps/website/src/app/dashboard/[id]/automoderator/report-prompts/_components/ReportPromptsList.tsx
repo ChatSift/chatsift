@@ -1,12 +1,12 @@
 'use client';
 
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams } from 'next/navigation';
 import { CreateReportPromptCard } from './CreateReportPromptCard';
 import { ReportPromptCard } from './ReportPromptCard';
 import { useAutomoderatorConfig } from '@/api/routes/automoderator';
 import { useAutomoderatorReportPrompts } from '@/api/routes/automoderatorReports';
 import { useGuildInfo } from '@/api/routes/guilds';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 export function ReportPromptsList() {

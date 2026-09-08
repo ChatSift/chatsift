@@ -1,20 +1,20 @@
 'use client';
 
 import { BANWORD_POLICY_MAX_COUNT } from '@chatsift/core';
+import { mapApiErrorToFieldErrors } from '@chatsift/web-core/api/formErrors';
+import { Button } from '@chatsift/web-core/components/Button';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { SegmentedControl } from '@chatsift/web-core/components/SegmentedControl';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextField } from '@chatsift/web-core/components/TextField';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ACTION_LABELS, BANWORD_ACTIONS, DURATION_HELP, DURATION_RULE, parsePolicyDuration } from './policyDisplay';
-import { mapApiErrorToFieldErrors } from '@/api/formErrors';
 import type { AutomodRule, BanwordActionName, BanwordPolicy } from '@/api/routes/automoderatorBanwords';
 import { useAutomodRules, useBanwordPolicies, useSetBanwordPolicy } from '@/api/routes/automoderatorBanwords';
-import { Button } from '@/components/common/Button';
-import { FormActions } from '@/components/common/FormActions';
-import { SegmentedControl } from '@/components/common/SegmentedControl';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { formatDurationInput } from '@/utils/duration';
-import { cn } from '@/utils/util';
 
 interface PolicyFormData {
 	actionType: BanwordActionName;

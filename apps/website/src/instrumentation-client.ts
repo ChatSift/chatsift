@@ -1,5 +1,5 @@
+import { shouldReport } from '@chatsift/web-core/api/report';
 import * as Sentry from '@sentry/nextjs';
-import { shouldReport } from '@/api/report';
 import { isSocialCrawler } from '@/utils/crawlers';
 
 /**

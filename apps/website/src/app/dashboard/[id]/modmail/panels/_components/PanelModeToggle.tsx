@@ -1,4 +1,4 @@
-import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { SegmentedControl } from '@chatsift/web-core/components/SegmentedControl';
 
 type PanelMode = 'normal' | 'raw';
 

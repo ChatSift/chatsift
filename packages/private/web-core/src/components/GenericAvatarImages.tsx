@@ -1,5 +1,5 @@
+import { cn } from '../utils/cn';
 import { AvatarFallback, AvatarImage } from './Avatar';
-import { cn } from '@/utils/util';
 
 interface GenericAvatarInitialsProps {
 	readonly className?: string;

@@ -1,7 +1,7 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/common/Button';
 import { URLS } from '@/utils/urls';
 
 interface LoginButtonProps {

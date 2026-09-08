@@ -1,10 +1,10 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
 import { useState } from 'react';
 import type { ModmailBlock } from '@/api/routes/modmail';
 import { useDeleteModmailBlock } from '@/api/routes/modmail';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { UserAvatar } from '@/components/user/UserAvatar';
 import { formatDate } from '@/utils/util';
 

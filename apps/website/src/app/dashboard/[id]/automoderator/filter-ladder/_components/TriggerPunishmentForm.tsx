@@ -1,6 +1,12 @@
 'use client';
 
 import { TRIGGER_PUNISHMENT_MAX_COUNT, TRIGGER_PUNISHMENT_MAX_TRIGGERS } from '@chatsift/core';
+import { mapApiErrorToFieldErrors } from '@chatsift/web-core/api/formErrors';
+import { Button } from '@chatsift/web-core/components/Button';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextField } from '@chatsift/web-core/components/TextField';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
@@ -10,7 +16,6 @@ import {
 	parseDurationInput,
 	TRIGGER_PUNISHMENT_ACTIONS,
 } from './triggerLadderDisplay';
-import { mapApiErrorToFieldErrors } from '@/api/formErrors';
 import type {
 	AutomoderatorTriggerPunishment,
 	TriggerPunishmentActionName,
@@ -19,12 +24,7 @@ import {
 	useAutomoderatorTriggerPunishments,
 	useSetAutomoderatorTriggerPunishment,
 } from '@/api/routes/automoderatorTriggerPunishments';
-import { Button } from '@/components/common/Button';
-import { FormActions } from '@/components/common/FormActions';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
-import { cn } from '@/utils/util';
 
 interface StepFormData {
 	actionType: TriggerPunishmentActionName;

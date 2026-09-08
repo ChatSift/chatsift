@@ -1,6 +1,10 @@
 'use client';
 
 import { automoderatorReportsChannel } from '@chatsift/core';
+import { Button } from '@chatsift/web-core/components/Button';
+import { Heading } from '@chatsift/web-core/components/Heading';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useQueryClient } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -11,12 +15,9 @@ import { snapshotUserLabel } from '../../../_components/userDisplay';
 import { reporterCountLabel, STATE_LABELS, STATE_PILL_CLASSES } from '../../_components/reportDisplay';
 import { queryKeys } from '@/api/queryClient';
 import { useAutomoderatorReport } from '@/api/routes/automoderatorReports';
-import { Button } from '@/components/common/Button';
-import { Heading } from '@/components/common/Heading';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
-import { cn, formatDate } from '@/utils/util';
+import { formatDate } from '@/utils/util';
 
 // `ssr: false` is load-bearing -- see `DiscordMarkdown.tsx`'s own doc comment on why its wasm parser can't
 // be evaluated server-side at all under Next's bundler.

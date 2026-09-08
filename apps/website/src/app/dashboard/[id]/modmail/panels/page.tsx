@@ -1,7 +1,7 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { DmModeBanner } from './_components/DmModeBanner';
 import { PanelsList } from './_components/PanelsList';
 import { ResyncPanelsCard } from './_components/ResyncPanelsCard';
-import { Heading } from '@/components/common/Heading';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
 export default function ModmailPanelsPage() {

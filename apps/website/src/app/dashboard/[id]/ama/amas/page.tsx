@@ -1,8 +1,8 @@
+import { SearchBar } from '@chatsift/web-core/components/SearchBar';
 import { AMASessionsHeading } from './_components/AMASessionsHeading';
 import { AMASessionsList } from './_components/AMASessionsList';
 import { OpenOnlyToggle } from './_components/OpenOnlyToggle';
 import { SortMenu } from './_components/SortMenu';
-import { SearchBar } from '@/components/common/SearchBar';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
 export default function AMAMangementPage() {

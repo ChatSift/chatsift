@@ -1,17 +1,17 @@
 'use client';
 
 import { upsertSocialChannelBodySchema } from '@chatsift/api/social-schemas';
+import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@chatsift/web-core/api/formErrors';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextField } from '@chatsift/web-core/components/TextField';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@/api/formErrors';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { SocialChannel, UpsertSocialChannelBody } from '@/api/routes/social';
 import { useDeleteSocialChannel, useSocialChannels, useUpsertSocialChannel } from '@/api/routes/social';
 import { ChannelSelect } from '@/components/common/ChannelSelect';
-import { FormActions } from '@/components/common/FormActions';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 /**

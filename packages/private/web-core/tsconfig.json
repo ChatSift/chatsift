@@ -1,0 +1,17 @@
+{
+	"extends": "../../../tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["DOM", "DOM.Iterable", "ES2022"],
+		"jsx": "preserve",
+		// Nothing consumes a build of this package -- `apps/*` import its source through `exports` and
+		// compile it themselves via `transpilePackages`, which is what keeps each file's own `'use client'`
+		// boundary intact. `build` is a typecheck, so there is nothing to emit.
+		"noEmit": true,
+		// TS 6 no longer auto-includes every `@types` package it can find; `serverTokenCache.ts` needs
+		// node's timer types explicitly. Same note as packages/private/db.
+		"types": ["node"],
+		"noUncheckedSideEffectImports": false
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules"]
+}

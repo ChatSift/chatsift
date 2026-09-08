@@ -1,15 +1,15 @@
 'use client';
 
+import { APIError } from '@chatsift/web-core/api/error';
+import { Button } from '@chatsift/web-core/components/Button';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { APIError } from '@/api/error';
 import { useAutomoderatorConfig, useUpdateAutomoderatorConfig } from '@/api/routes/automoderator';
 import { useGuildInfo } from '@/api/routes/guilds';
-import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
-import { Skeleton } from '@/components/common/Skeleton';
-import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 /**

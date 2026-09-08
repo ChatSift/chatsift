@@ -1,7 +1,7 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { SocialInertBanner } from '../_components/SocialInertBanner';
 import { RewardLadder } from './_components/RewardLadder';
 import { SocialRewardsList } from './_components/SocialRewardsList';
-import { Heading } from '@/components/common/Heading';
 import { RefreshServerDataButton } from '@/components/common/RefreshServerDataButton';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 

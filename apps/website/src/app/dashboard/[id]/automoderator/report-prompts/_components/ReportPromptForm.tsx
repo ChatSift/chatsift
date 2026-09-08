@@ -9,10 +9,17 @@ import {
 	REPORT_PROMPT_DEFAULT_DESCRIPTION,
 	REPORT_PROMPT_DEFAULT_TITLE,
 } from '@chatsift/core';
+import { APIError } from '@chatsift/web-core/api/error';
+import { ColorField, hexToColor, validateColorInput } from '@chatsift/web-core/components/ColorField';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { RawJsonField } from '@chatsift/web-core/components/RawJsonField';
+import { SegmentedControl } from '@chatsift/web-core/components/SegmentedControl';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
+import { TextField } from '@chatsift/web-core/components/TextField';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { APIError } from '@/api/error';
 import type { AutomoderatorReportPrompt, CreateAutomoderatorReportPromptBody } from '@/api/routes/automoderatorReports';
 import {
 	useCreateAutomoderatorReportPrompt,
@@ -20,14 +27,7 @@ import {
 } from '@/api/routes/automoderatorReports';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
-import { ColorField, hexToColor, validateColorInput } from '@/components/common/ColorField';
 import { EmbedMessagePreview } from '@/components/common/EmbedMessagePreview';
-import { FormActions } from '@/components/common/FormActions';
-import { RawJsonField } from '@/components/common/RawJsonField';
-import { SegmentedControl } from '@/components/common/SegmentedControl';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextAreaField } from '@/components/common/TextAreaField';
-import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 /**

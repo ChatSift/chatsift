@@ -1,10 +1,10 @@
 'use client';
 
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams } from 'next/navigation';
 import { ReportPromptForm } from '../../_components/ReportPromptForm';
 import { useAutomoderatorReportPrompts } from '@/api/routes/automoderatorReports';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 

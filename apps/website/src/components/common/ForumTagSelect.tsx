@@ -1,15 +1,15 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { Emoji } from '@chatsift/web-core/components/Emoji';
+import { ScrollArea } from '@chatsift/web-core/components/ScrollArea';
+import { Tooltip } from '@chatsift/web-core/components/Tooltip';
+import { cn } from '@chatsift/web-core/utils/cn';
 import type { APIGuildForumTag } from 'discord-api-types/v10';
 import type { ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import { SvgChevronDown } from '../icons/SvgChevronDown';
-import { Button } from './Button';
-import { Emoji } from './Emoji';
-import { ScrollArea } from './ScrollArea';
-import { Tooltip } from './Tooltip';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { cn } from '@/utils/util';
 
 /**
  * A forum tag's emoji is either a custom guild emoji (`emoji_id` set, `emoji_name` is that emoji's name) or a

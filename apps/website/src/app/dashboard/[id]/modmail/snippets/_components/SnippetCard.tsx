@@ -1,13 +1,13 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useState } from 'react';
 import type { ModmailSnippet } from '@/api/routes/modmail';
 import { useDeleteModmailSnippet } from '@/api/routes/modmail';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
-import { Skeleton } from '@/components/common/Skeleton';
 import { formatDate } from '@/utils/util';
 
 // `ssr: false` is load-bearing -- see `DiscordMarkdown.tsx`'s own doc comment on why its wasm parser can't

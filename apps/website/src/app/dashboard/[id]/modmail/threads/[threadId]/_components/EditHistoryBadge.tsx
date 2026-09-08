@@ -1,10 +1,10 @@
 'use client';
 
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import { useModmailMessageEdits } from '@/api/routes/modmailThreads';
-import { Skeleton } from '@/components/common/Skeleton';
 import { formatDate } from '@/utils/util';
 
 interface EditHistoryBadgeProps {

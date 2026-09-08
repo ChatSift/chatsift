@@ -1,6 +1,6 @@
+import { cn } from '@chatsift/web-core/utils/cn';
 import Link from 'next/link';
 import { SvgLinkExternal } from '@/components/icons/SvgLinkExternal';
-import { cn } from '@/utils/util';
 
 interface LinkButtonProps {
 	readonly children: React.ReactNode;

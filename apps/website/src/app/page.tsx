@@ -1,4 +1,4 @@
-import { Heading } from '@/components/common/Heading';
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { BotCard } from '@/components/marketing/BotCard';
 import { LinkButton } from '@/components/marketing/LinkButton';
 import { MARKETED_BOTS, marketingBots } from '@/data/marketingBots';

@@ -1,6 +1,10 @@
 'use client';
 
 import { updateSnippetBodySchema } from '@chatsift/api/modmail-schemas';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
+import { TextField } from '@chatsift/web-core/components/TextField';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { SnippetFormData, SnippetFormErrors } from '../../_components/snippetForm';
@@ -9,10 +13,6 @@ import { SnippetNamePreviewHelper } from '../../_components/snippetFormHelpers';
 import { SnippetRevisionHistory } from './SnippetRevisionHistory';
 import type { ModmailSnippet, ModmailSnippetRevision, UpdateModmailSnippetBody } from '@/api/routes/modmail';
 import { useModmailSnippets, useUpdateModmailSnippet } from '@/api/routes/modmail';
-import { FormActions } from '@/components/common/FormActions';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextAreaField } from '@/components/common/TextAreaField';
-import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { normalizeSnippetName } from '@/utils/snippetName';
 

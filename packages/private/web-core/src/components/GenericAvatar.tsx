@@ -1,7 +1,7 @@
+import { cn } from '../utils/cn';
 import { Avatar } from './Avatar';
 import { GenericAvatarImage, GenericAvatarInitials } from './GenericAvatarImages';
 import { Skeleton } from './Skeleton';
-import { cn } from '@/utils/util';
 
 interface GenericAvatarProps {
 	readonly assetURL: string | undefined;

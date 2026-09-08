@@ -1,14 +1,14 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useParams } from 'next/navigation';
 import { useRef, useState } from 'react';
 import type { AMATag } from '@/api/routes/ama';
 import { useAMATags, useCreateAMATag, useDeleteAMATag } from '@/api/routes/ama';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { SvgTrash } from '@/components/icons/SvgTrash';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { cn } from '@/utils/util';
 
 interface TagPickerProps {
 	readonly assignedTagIds: number[];

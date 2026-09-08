@@ -1,12 +1,12 @@
 'use client';
 
+import { cn } from '@chatsift/web-core/utils/cn';
 import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { FaWrench } from 'react-icons/fa';
 import { GuildIcon } from '@/components/common/GuildIcon';
 import { useGuildAccess } from '@/hooks/useGuildAccess';
 import { BotIcon, resolveBotBranding } from '@/utils/bots';
-import { cn } from '@/utils/util';
 
 interface NavItem {
 	readonly exact?: boolean;

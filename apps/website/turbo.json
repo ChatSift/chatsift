@@ -9,6 +9,7 @@
 				"package.json",
 				"tsconfig.json",
 				"next.config.mjs",
+				"$TURBO_ROOT$/scripts/sync-web-core-assets.mjs",
 				"postcss.config.js",
 				".env.development"
 			],

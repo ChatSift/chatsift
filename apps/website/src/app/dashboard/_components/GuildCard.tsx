@@ -1,11 +1,11 @@
+import { Tooltip } from '@chatsift/web-core/components/Tooltip';
+import { cn } from '@chatsift/web-core/utils/cn';
 import Link from 'next/link';
 import { Link as AriaLink } from 'react-aria-components';
 import type { MeGuild } from '@/api/routes/auth';
 import { GuildIcon } from '@/components/common/GuildIcon';
-import { Tooltip } from '@/components/common/Tooltip';
 import { MARKETED_BOTS } from '@/data/marketingBots';
 import { BotIcon, Bots, resolveBotBranding } from '@/utils/bots';
-import { cn } from '@/utils/util';
 
 interface GuildCardProps {
 	readonly data: MeGuild;

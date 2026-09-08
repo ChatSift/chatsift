@@ -1,18 +1,18 @@
 'use client';
 
+import { APIError } from '@chatsift/web-core/api/error';
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { GenericAvatar } from '@chatsift/web-core/components/GenericAvatar';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { FaExclamationCircle } from 'react-icons/fa';
-import { APIError } from '@/api/error';
 import { queryKeys } from '@/api/queryClient';
 import {
 	publicSocialLeaderboardWsTicketPath,
 	SOCIAL_LEADERBOARD_PAGE_SIZE,
 	usePublicSocialLeaderboard,
 } from '@/api/routes/social';
-import { EmptyState } from '@/components/common/EmptyState';
-import { GenericAvatar } from '@/components/common/GenericAvatar';
 import { LeaderboardPager, LeaderboardTable, LeaderboardTableSkeleton } from '@/components/social/LeaderboardTable';
 import { usePublicRealtimeClient } from '@/hooks/usePublicRealtimeClient';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';

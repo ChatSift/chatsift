@@ -1,6 +1,13 @@
 'use client';
 
 import { automoderatorCasesChannel } from '@chatsift/core';
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
+import { Heading } from '@chatsift/web-core/components/Heading';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
+import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -15,15 +22,9 @@ import {
 	useDeleteAutomoderatorCase,
 	useUpdateAutomoderatorCase,
 } from '@/api/routes/automoderatorCases';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
-import { Heading } from '@/components/common/Heading';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextAreaField } from '@/components/common/TextAreaField';
-import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
-import { cn, formatDate } from '@/utils/util';
+import { formatDate } from '@/utils/util';
 
 const REASON_MAX_LENGTH = 400;
 

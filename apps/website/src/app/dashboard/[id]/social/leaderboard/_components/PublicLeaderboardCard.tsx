@@ -1,11 +1,11 @@
 'use client';
 
+import { APIError } from '@chatsift/web-core/api/error';
+import { Button } from '@chatsift/web-core/components/Button';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { APIError } from '@/api/error';
 import { useSocialConfig, useUpdateSocialConfig } from '@/api/routes/social';
-import { Button } from '@/components/common/Button';
-import { Skeleton } from '@/components/common/Skeleton';
 
 /**
  * Publishes the guild's leaderboard at `/leaderboard/<guildId>`, readable with no account at all.

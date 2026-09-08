@@ -1,5 +1,5 @@
+import { apiFetch } from '@chatsift/web-core/api/fetch';
 import { cache } from 'react';
-import { apiFetch } from '@/api/fetch';
 import type { PublicAMAAnswersResult } from '@/api/routes/ama';
 import { publicAMAAnswersPath } from '@/api/routes/ama';
 

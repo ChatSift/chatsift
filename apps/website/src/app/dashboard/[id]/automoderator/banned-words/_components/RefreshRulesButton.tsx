@@ -1,9 +1,9 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { queryKeys } from '@/api/queryClient';
-import { Button } from '@/components/common/Button';
 import { SvgRefresh } from '@/components/icons/SvgRefresh';
 
 /**

@@ -2,8 +2,8 @@
 
 import type { ReactNode } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
-import { Button } from '@/components/common/Button';
-import { cn } from '@/utils/util';
+import { cn } from '../utils/cn';
+import { Button } from './Button';
 
 interface ConfirmModalProps {
 	readonly children?: ReactNode;

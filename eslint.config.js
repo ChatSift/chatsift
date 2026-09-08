@@ -13,6 +13,14 @@ import tseslint from 'typescript-eslint';
 
 const commonFiles = '{js,mjs,cjs,ts,mts,cts,jsx,tsx}';
 
+/**
+ * Every workspace that compiles React. `packages/private/web-core` is a package rather than an app, so the
+ * bare `apps/**` glob the four frontend rulesets below used to carry silently skipped it -- leaving the shared
+ * component library with no react-hooks rules, no a11y rules, and no `react-compiler/react-compiler`, which is
+ * an error in this config rather than a warning.
+ */
+const frontendFiles = [`apps/**/*${commonFiles}`, `packages/private/web-core/**/*${commonFiles}`];
+
 const commonRuleset = merge(...common, { files: [`**/*${commonFiles}`] });
 
 const nodeRuleset = merge(...node, { files: [`**/*${commonFiles}`] });
@@ -62,7 +70,7 @@ const typeScriptRuleset = merge(...typescript, {
 });
 
 const reactRuleset = merge(...react, {
-	files: [`apps/**/*${commonFiles}`],
+	files: frontendFiles,
 	plugins: {
 		'react-compiler': reactCompiler,
 	},
@@ -76,11 +84,11 @@ const reactRuleset = merge(...react, {
 	},
 });
 
-const jsxa11yRuleset = merge(...jsxa11y, { files: [`apps/**/*${commonFiles}`] });
+const jsxa11yRuleset = merge(...jsxa11y, { files: frontendFiles });
 
-const nextRuleset = merge(...next, { files: [`apps/**/*${commonFiles}`] });
+const nextRuleset = merge(...next, { files: frontendFiles });
 
-const edgeRuleset = merge(...edge, { files: [`apps/**/*${commonFiles}`] });
+const edgeRuleset = merge(...edge, { files: frontendFiles });
 
 const prettierRuleset = merge(...prettier, { files: [`**/*${commonFiles}`] });
 

@@ -1,6 +1,10 @@
 'use client';
 
 import { AMA_QOL_EXPERIMENT, amaQuestionsChannel, MERGE_SOURCE_STATES } from '@chatsift/core';
+import { Button } from '@chatsift/web-core/components/Button';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { Tooltip } from '@chatsift/web-core/components/Tooltip';
+import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -16,10 +20,6 @@ import { DEFAULT_STATE_CHIP_CLASS, STATE_CHIP_CLASSES, STATE_LABELS } from './qu
 import { userLabel } from './userLabel';
 import type { AMAQuestionListItem } from '@/api/routes/ama';
 import { invalidateAMAQuestions, useAMAQuestions, useSetAMAQuestionsAnonymousBulk } from '@/api/routes/ama';
-import { Button } from '@/components/common/Button';
-import { Skeleton } from '@/components/common/Skeleton';
-import { Tooltip } from '@/components/common/Tooltip';
-import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useExperiment } from '@/hooks/useExperiment';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';

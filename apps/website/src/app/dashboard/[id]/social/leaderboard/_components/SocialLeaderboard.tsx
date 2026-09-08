@@ -1,13 +1,13 @@
 'use client';
 
 import { socialLeaderboardChannel } from '@chatsift/core';
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { FaTrophy } from 'react-icons/fa';
 import { queryKeys } from '@/api/queryClient';
 import { SOCIAL_LEADERBOARD_PAGE_SIZE, useSocialLeaderboard } from '@/api/routes/social';
-import { EmptyState } from '@/components/common/EmptyState';
 import { LeaderboardPager, LeaderboardTable, LeaderboardTableSkeleton } from '@/components/social/LeaderboardTable';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';

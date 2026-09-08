@@ -1,13 +1,13 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import type { SocialInteraction } from '@/api/routes/social';
 import { useDeleteSocialInteraction, useSocialInteractions } from '@/api/routes/social';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
-import { Skeleton } from '@/components/common/Skeleton';
 import { SvgPlus } from '@/components/icons/SvgPlus';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 

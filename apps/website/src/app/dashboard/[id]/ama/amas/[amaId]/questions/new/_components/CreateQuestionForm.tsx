@@ -1,15 +1,15 @@
 'use client';
 
 import { AMA_QOL_EXPERIMENT } from '@chatsift/core';
+import { APIError } from '@chatsift/web-core/api/error';
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { SegmentedControl } from '@chatsift/web-core/components/SegmentedControl';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { FaLock } from 'react-icons/fa';
-import { APIError } from '@/api/error';
 import { useCreateAMAQuestion } from '@/api/routes/ama';
-import { EmptyState } from '@/components/common/EmptyState';
-import { FormActions } from '@/components/common/FormActions';
-import { SegmentedControl } from '@/components/common/SegmentedControl';
-import { TextAreaField } from '@/components/common/TextAreaField';
 import { useExperiment } from '@/hooks/useExperiment';
 
 const MAX_CONTENT_LENGTH = 4_000;

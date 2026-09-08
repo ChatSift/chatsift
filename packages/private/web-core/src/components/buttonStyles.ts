@@ -1,4 +1,4 @@
-import { cn } from '@/utils/util';
+import { cn } from '../utils/cn';
 
 export type ButtonVariant = 'danger' | 'primary' | 'secondary';
 

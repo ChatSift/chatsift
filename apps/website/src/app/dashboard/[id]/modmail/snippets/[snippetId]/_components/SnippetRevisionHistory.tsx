@@ -1,12 +1,12 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams } from 'next/navigation';
 import { FaHistory } from 'react-icons/fa';
 import type { ModmailSnippetRevision } from '@/api/routes/modmail';
 import { useModmailSnippetRevisions } from '@/api/routes/modmail';
-import { Button } from '@/components/common/Button';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { formatDate } from '@/utils/util';
 

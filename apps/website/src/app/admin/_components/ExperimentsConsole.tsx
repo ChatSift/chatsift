@@ -1,16 +1,16 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { Heading } from '@chatsift/web-core/components/Heading';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import { useState } from 'react';
 import { FaFlask } from 'react-icons/fa';
 import { ExperimentCard } from './ExperimentCard';
 import { ExperimentForm } from './ExperimentForm';
 import { GuildChecker } from './GuildChecker';
 import { useExperiments } from '@/api/routes/experiments';
-import { Button } from '@/components/common/Button';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Heading } from '@/components/common/Heading';
-import { Skeleton } from '@/components/common/Skeleton';
-import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 export function ExperimentsConsole() {

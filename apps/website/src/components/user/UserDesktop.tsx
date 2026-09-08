@@ -1,11 +1,11 @@
 'use client';
 
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { LoginButton } from './LoginButton';
 import { LogoutButton } from './LogoutButton';
 import { UserAvatarMe } from './UserAvatarMe';
 import { UserErrorHandler } from './UserErrorHandler';
 import { useMe } from '@/api/routes/auth';
-import { Skeleton } from '@/components/common/Skeleton';
 
 export function UserDesktop() {
 	const { data: user, error, isLoading } = useMe();

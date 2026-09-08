@@ -1,15 +1,15 @@
 'use client';
 
 import { sortChannels } from '@chatsift/discord-utils';
+import { Button } from '@chatsift/web-core/components/Button';
+import { ScrollArea } from '@chatsift/web-core/components/ScrollArea';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { ChannelType } from 'discord-api-types/v10';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SvgChevronDown } from '../icons/SvgChevronDown';
-import { Button } from './Button';
-import { ScrollArea } from './ScrollArea';
 import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { getChannelIcon } from '@/utils/channels';
-import { cn } from '@/utils/util';
 
 interface ChannelSelectProps {
 	readonly allowedTypes: ChannelType[];

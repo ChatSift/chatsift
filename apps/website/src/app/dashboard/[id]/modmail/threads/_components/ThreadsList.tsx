@@ -1,13 +1,13 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { Emoji } from '@chatsift/web-core/components/Emoji';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useCategoryFilter } from './CategoryFilter';
 import type { ModmailThreadListItem } from '@/api/routes/modmailThreads';
 import { useModmailThreads } from '@/api/routes/modmailThreads';
-import { Button } from '@/components/common/Button';
-import { Emoji } from '@/components/common/Emoji';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { formatDate } from '@/utils/util';
 

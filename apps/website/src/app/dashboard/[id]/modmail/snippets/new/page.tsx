@@ -1,5 +1,5 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { CreateSnippetForm } from './_components/CreateSnippetForm';
-import { Heading } from '@/components/common/Heading';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
 export default function NewModmailSnippetPage() {

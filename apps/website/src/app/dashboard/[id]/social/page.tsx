@@ -1,6 +1,6 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import Link from 'next/link';
 import { SocialInertBanner } from './_components/SocialInertBanner';
-import { Heading } from '@/components/common/Heading';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 import { SvgSocial } from '@/components/icons/SvgSocial';
 

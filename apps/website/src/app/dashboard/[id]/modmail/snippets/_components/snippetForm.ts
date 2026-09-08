@@ -1,4 +1,4 @@
-import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@/api/formErrors';
+import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@chatsift/web-core/api/formErrors';
 
 export interface SnippetFormData {
 	attachmentFilename: string;

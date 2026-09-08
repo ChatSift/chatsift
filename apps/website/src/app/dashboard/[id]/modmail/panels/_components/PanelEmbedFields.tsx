@@ -1,6 +1,6 @@
-import { ColorField } from '@/components/common/ColorField';
-import { TextAreaField } from '@/components/common/TextAreaField';
-import { TextField } from '@/components/common/TextField';
+import { ColorField } from '@chatsift/web-core/components/ColorField';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
+import { TextField } from '@chatsift/web-core/components/TextField';
 
 interface PanelEmbedFieldsProps {
 	readonly attachmentUrl: string;

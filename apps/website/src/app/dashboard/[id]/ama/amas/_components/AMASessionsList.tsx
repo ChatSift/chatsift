@@ -1,5 +1,7 @@
 'use client';
 
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import { FaComments, FaSearch } from 'react-icons/fa';
@@ -9,8 +11,6 @@ import type { SortOption } from './SortMenu';
 import { useSortOption } from './SortMenu';
 import type { AMASessionWithCount } from '@/api/routes/ama';
 import { useAMAs } from '@/api/routes/ama';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useGuildAccess } from '@/hooks/useGuildAccess';
 

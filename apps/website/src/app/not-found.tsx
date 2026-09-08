@@ -1,7 +1,7 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/common/Button';
 import { LinkButton } from '@/components/marketing/LinkButton';
 
 export default function NotFound() {

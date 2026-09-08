@@ -16,8 +16,8 @@ import type {
 	updateModmailPanelRoute,
 	updateModmailSnippetRoute,
 } from '@chatsift/api';
+import { apiFetch } from '@chatsift/web-core/api/fetch';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
 import { useGuildInfo } from './guilds';
 

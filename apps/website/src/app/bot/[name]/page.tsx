@@ -1,7 +1,7 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Heading } from '@/components/common/Heading';
 import { FeatureGrid } from '@/components/marketing/FeatureGrid';
 import { LinkButton } from '@/components/marketing/LinkButton';
 import { ScreenshotGallery } from '@/components/marketing/ScreenshotGallery';

@@ -1,22 +1,23 @@
 'use client';
 
+import { APIError } from '@chatsift/web-core/api/error';
+import { Button } from '@chatsift/web-core/components/Button';
+import { DiscordUserAvatar } from '@chatsift/web-core/components/DiscordUserAvatar';
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { Heading } from '@chatsift/web-core/components/Heading';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
+import { cn } from '@chatsift/web-core/utils/cn';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { APIError } from '@/api/error';
 import { useMe } from '@/api/routes/auth';
 import type { AutomoderatorReportCandidateGuild } from '@/api/routes/automoderatorReports';
 import { useAutomoderatorReportDraft, useSubmitAutomoderatorReportDraft } from '@/api/routes/automoderatorReports';
-import { Button } from '@/components/common/Button';
-import { DiscordUserAvatar } from '@/components/common/DiscordUserAvatar';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Heading } from '@/components/common/Heading';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextAreaField } from '@/components/common/TextAreaField';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { URLS } from '@/utils/urls';
-import { cn, formatDate } from '@/utils/util';
+import { formatDate } from '@/utils/util';
 
 // `ssr: false` is load-bearing, not a perf nicety -- see `DiscordMarkdown.tsx`'s own doc comment on why its
 // wasm parser cannot be evaluated server-side at all under Next's bundler.

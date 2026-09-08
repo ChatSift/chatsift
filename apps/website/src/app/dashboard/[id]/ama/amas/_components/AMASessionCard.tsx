@@ -1,6 +1,6 @@
+import { cn } from '@chatsift/web-core/utils/cn';
 import Link from 'next/link';
 import type { AMASessionWithCount } from '@/api/routes/ama';
-import { cn } from '@/utils/util';
 
 interface AMASessionCardProps {
 	readonly data: AMASessionWithCount;

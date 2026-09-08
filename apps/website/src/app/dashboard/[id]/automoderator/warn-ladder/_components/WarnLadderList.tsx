@@ -1,6 +1,9 @@
 'use client';
 
 import { automoderatorWarnPunishmentsChannel, WARN_PUNISHMENT_MAX_COUNT } from '@chatsift/core';
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -12,9 +15,6 @@ import {
 	useAutomoderatorWarnPunishments,
 	useDeleteAutomoderatorWarnPunishment,
 } from '@/api/routes/automoderatorWarnPunishments';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
-import { Skeleton } from '@/components/common/Skeleton';
 import { SvgPlus } from '@/components/icons/SvgPlus';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';

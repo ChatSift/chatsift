@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@/components/common/Button';
+import { Button } from '@chatsift/web-core/components/Button';
 import { useURLParam } from '@/hooks/useURLParam';
 
 export function IncludeClosedToggle() {

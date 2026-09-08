@@ -1,10 +1,10 @@
 'use client';
 
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams } from 'next/navigation';
 import { AddCategoryCard } from './AddCategoryCard';
 import { CategoryCard } from './CategoryCard';
 import { useModmailCategories, useReorderModmailCategories } from '@/api/routes/modmail';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 export function CategoriesList() {

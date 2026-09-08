@@ -1,6 +1,6 @@
+import { GenericAvatar } from '@chatsift/web-core/components/GenericAvatar';
 import type { DefaultUserAvatarAssets, APIUser } from 'discord-api-types/v10';
 import { CDNRoutes, ImageFormat, RouteBases } from 'discord-api-types/v10';
-import { GenericAvatar } from '../common/GenericAvatar';
 
 interface UserAvatarProps {
 	readonly className: string;

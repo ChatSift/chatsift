@@ -2,12 +2,13 @@
 
 import type { RolePositions } from '@chatsift/core';
 import { resolveEarnedRewards } from '@chatsift/core';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useParams } from 'next/navigation';
 import type { GuildRoleInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { SocialReward } from '@/api/routes/social';
 import { useSocialRewards } from '@/api/routes/social';
-import { cn, roleColor } from '@/utils/util';
+import { roleColor } from '@/utils/util';
 
 /**
  * Every role a member at `level` ends up holding, as a set -- the tier plus the stacking rewards, which is what

@@ -1,11 +1,11 @@
 'use client';
 
+import { store } from '@chatsift/web-core/api/store';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { notFound, useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { PropsWithChildren } from 'react';
 import { createContext, useContext, useEffect, useMemo } from 'react';
-import { Skeleton } from './Skeleton';
 import { useMe } from '@/api/routes/auth';
-import { store } from '@/api/store';
 import { lastExplicitLogoutAtAtom } from '@/api/token';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { resolveGuildAccess } from '@/hooks/useGuildAccess';

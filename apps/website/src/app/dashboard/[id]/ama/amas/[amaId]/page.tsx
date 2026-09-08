@@ -1,5 +1,5 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { AMADetails } from './_components/AMADetails';
-import { Heading } from '@/components/common/Heading';
 import { RefreshServerDataButton } from '@/components/common/RefreshServerDataButton';
 import { AMADashboardCrumbs } from '@/components/dashboard/AMADashboardCrumbs';
 

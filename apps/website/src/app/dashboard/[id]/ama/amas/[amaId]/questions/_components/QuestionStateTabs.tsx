@@ -1,8 +1,8 @@
 'use client';
 
-import { Button } from '@/components/common/Button';
+import { Button } from '@chatsift/web-core/components/Button';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useURLParam } from '@/hooks/useURLParam';
-import { cn } from '@/utils/util';
 
 /**
  * Mods and guests now review the same single queue, so there's just one "Pending Review" tab. "Guest

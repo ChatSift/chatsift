@@ -5,6 +5,13 @@ import {
 	createAMAWithRegularPromptSchema,
 	hasDiscordMessageSurface,
 } from '@chatsift/api/ama-schemas';
+import { APIError } from '@chatsift/web-core/api/error';
+import { Button } from '@chatsift/web-core/components/Button';
+import { hexToColor, validateColorInput } from '@chatsift/web-core/components/ColorField';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { RawJsonField } from '@chatsift/web-core/components/RawJsonField';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextField } from '@chatsift/web-core/components/TextField';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -12,17 +19,10 @@ import { NormalPromptFields } from '../../_components/NormalPromptFields';
 import type { PromptMode } from '../../_components/PromptModeToggle';
 import { PromptModeToggle } from '../../_components/PromptModeToggle';
 import { PromptPreview } from '../../_components/PromptPreview';
-import { APIError } from '@/api/error';
 import type { CreateAMABody } from '@/api/routes/ama';
 import { useCreateAMA } from '@/api/routes/ama';
 import { useGuildInfo } from '@/api/routes/guilds';
-import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
-import { hexToColor, validateColorInput } from '@/components/common/ColorField';
-import { FormActions } from '@/components/common/FormActions';
-import { RawJsonField } from '@/components/common/RawJsonField';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { datetimeLocalValueToISOString, parseIntegerInput } from '@/utils/util';
 

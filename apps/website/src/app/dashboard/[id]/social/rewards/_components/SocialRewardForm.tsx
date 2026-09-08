@@ -1,17 +1,17 @@
 'use client';
 
 import { upsertSocialRewardBodySchema } from '@chatsift/api/social-schemas';
+import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@chatsift/web-core/api/formErrors';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
+import { TextField } from '@chatsift/web-core/components/TextField';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@/api/formErrors';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { SocialReward, UpsertSocialRewardBody } from '@/api/routes/social';
 import { useDeleteSocialReward, useSocialRewards, useUpsertSocialReward } from '@/api/routes/social';
-import { FormActions } from '@/components/common/FormActions';
 import { RoleSelect } from '@/components/common/RoleSelect';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextAreaField } from '@/components/common/TextAreaField';
-import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 interface RewardFormData {

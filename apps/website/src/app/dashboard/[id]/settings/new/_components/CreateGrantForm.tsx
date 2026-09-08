@@ -1,11 +1,11 @@
 'use client';
 
+import { APIError } from '@chatsift/web-core/api/error';
+import { Button } from '@chatsift/web-core/components/Button';
+import { SnowflakeInput } from '@chatsift/web-core/components/SnowflakeInput';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { APIError } from '@/api/error';
 import { useCreateGrant } from '@/api/routes/guilds';
-import { Button } from '@/components/common/Button';
-import { SnowflakeInput } from '@/components/common/SnowflakeInput';
 
 export function CreateGrantForm() {
 	const router = useRouter();

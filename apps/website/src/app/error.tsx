@@ -1,10 +1,10 @@
 'use client';
 
+import { reportError } from '@chatsift/web-core/api/report';
+import { Button } from '@chatsift/web-core/components/Button';
+import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import { useEffect } from 'react';
 import { FaExclamationTriangle } from 'react-icons/fa';
-import { reportError } from '@/api/report';
-import { Button } from '@/components/common/Button';
-import { buttonClass } from '@/components/common/buttonStyles';
 import { LinkButton } from '@/components/marketing/LinkButton';
 
 /**

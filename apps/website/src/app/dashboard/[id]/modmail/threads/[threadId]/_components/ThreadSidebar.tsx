@@ -1,11 +1,11 @@
 'use client';
 
+import { Emoji } from '@chatsift/web-core/components/Emoji';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import Link from 'next/link';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { useModForumTags } from '@/api/routes/modmail';
 import type { ModmailThreadDetail } from '@/api/routes/modmailThreads';
-import { Emoji } from '@/components/common/Emoji';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserAvatar } from '@/components/user/UserAvatar';
 import { formatDate } from '@/utils/util';
 

@@ -1,7 +1,7 @@
 'use client';
 
+import { reportError } from '@chatsift/web-core/api/report';
 import { useEffect } from 'react';
-import { reportError } from '@/api/report';
 
 import '@/styles/globals.css';
 

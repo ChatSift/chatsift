@@ -1,11 +1,11 @@
 'use client';
 
 import type { BotId } from '@chatsift/core';
+import { Button } from '@chatsift/web-core/components/Button';
+import { DEFAULT_EMBED_COLOR_HEX, hexToColor } from '@chatsift/web-core/components/ColorField';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
-import { Button } from '@/components/common/Button';
-import { DEFAULT_EMBED_COLOR_HEX, hexToColor } from '@/components/common/ColorField';
-import { Skeleton } from '@/components/common/Skeleton';
 
 // `ssr: false` is load-bearing -- see `DiscordMarkdown.tsx`'s own doc comment on why its wasm parser can't
 // be evaluated server-side at all under Next's bundler.

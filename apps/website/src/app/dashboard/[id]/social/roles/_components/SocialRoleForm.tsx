@@ -1,16 +1,16 @@
 'use client';
 
 import { upsertSocialRoleBodySchema } from '@chatsift/api/social-schemas';
+import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@chatsift/web-core/api/formErrors';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextField } from '@chatsift/web-core/components/TextField';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@/api/formErrors';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { SocialRole, UpsertSocialRoleBody } from '@/api/routes/social';
 import { useDeleteSocialRole, useSocialRoles, useUpsertSocialRole } from '@/api/routes/social';
-import { FormActions } from '@/components/common/FormActions';
 import { RoleSelect } from '@/components/common/RoleSelect';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 interface RoleFormData {

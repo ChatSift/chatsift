@@ -1,69 +1,14 @@
-@import url('author.css');
+@import '@chatsift/web-core/styles/author.css';
 @import 'tailwindcss' source(none);
 @import 'tw-animate-css';
+/* Bare-string imports, never `@import url(...)`. Only the bare form is inlined by Tailwind, and the theme
+   file has to be inlined for its `@theme` and `@source` to exist at all. Behind `url()` Tailwind never sees
+   them: every `--color-*` token silently vanishes AND Tailwind's default palette comes back, so `bg-card`
+   stops working while `bg-black` starts. No error either way. */
+@import '@chatsift/web-core/styles/theme.css';
 
 @source '../components/**/*.{js,ts,jsx,tsx,mdx}';
 @source '../app/**/*.{js,ts,jsx,tsx,mdx}';
-
-@custom-variant dark (&:where(.dark, .dark *));
-
-@theme {
-	--color-*: initial;
-
-	--color-base: #f1f2f5;
-	--color-base-dark: #151519;
-
-	--color-primary: #1d274e;
-	--color-primary-dark: #f6f6fb;
-
-	--color-secondary: rgba(29, 39, 78, 0.75);
-	--color-secondary-dark: #f6f6fbb2;
-
-	--color-accent: #ffffff;
-
-	--color-disabled: #1e284f80;
-	--color-disabled-dark: #f5f5fc66;
-
-	--color-on-primary: #1e284f40;
-	--color-on-primary-dark: #f4f4fd33;
-
-	--color-on-secondary: rgba(29, 39, 78, 0.15);
-	--color-on-secondary-dark: #f4f4fd1a;
-
-	--color-on-tertiary: #1e284f0d;
-	--color-on-tertiary-dark: #f4f4fd0d;
-
-	--color-misc-accent: #2f8fee;
-	--color-misc-danger: #ff5052;
-
-	/* Warning (ModMail internal/staff-only messages, "heads up" banners) and system (automated ModMail
-	   messages). Both carry a `-dark` pair like the core colors above -- these are used as small text on
-	   the card background, where one shade can't stay legible in both themes.
-	   The light values are deliberately darker than the mid-tone they replace: each is used as small text
-	   *on top of* its own 5-10% tint, which lifts the background and eats the contrast. At amber-600 /
-	   sky-600 that lands around 2.9:1 and 4.1:1 -- both under WCAG AA. These clear 4.5:1 against the
-	   tinted surface over `--color-base` (the worst case), not just against plain white. */
-	--color-misc-warning: #92400e;
-	--color-misc-warning-dark: #fbbf24;
-
-	--color-misc-system: #0369a1;
-	--color-misc-system-dark: #38bdf8;
-
-	--color-card: #ffffff;
-	--color-card-dark: #1c1c21;
-
-	/* Scrim behind a modal. Needed as a token because `--color-*: initial` above drops Tailwind's default
-	   palette, so `bg-black/60` and friends compile to nothing at all. Deliberately the same in both
-	   themes -- it dims whatever is behind it rather than tinting toward the theme. */
-	--color-overlay: #00000099;
-}
-
-body {
-	font-family: Author-Variable, sans-serif;
-	font-feature-settings:
-		'pnum' on,
-		'lnum' on;
-}
 
 .hide-for-mobile-override {
 	& > *:nth-child(1) {
