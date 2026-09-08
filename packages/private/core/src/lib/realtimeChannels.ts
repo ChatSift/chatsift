@@ -163,3 +163,24 @@ export function automoderatorFilterExemptionsChannel(guildId: string): string {
 export function automoderatorTriggerPunishmentsChannel(guildId: string): string {
 	return `automoderator:${guildId}:trigger-punishments`;
 }
+
+/**
+ * Appeals' guild-wide config channel (#232, docs/roadmap/09-appeals.md).
+ *
+ * Guild-scoped and nothing finer at P1, because there is one settings row and one questionnaire, and the two
+ * are edited on the same screen. The phases that add the appeal queue want their own channel rather than
+ * widening this one -- a queue refetching because somebody changed the cooldown is exactly the
+ * over-invalidation the per-domain naming exists to avoid.
+ */
+export function appealsConfigChannel(guildId: string): string {
+	return `appeals:${guildId}:config`;
+}
+
+/**
+ * The manually-unappealable user list (P1, decision 8). Its own channel rather than riding the config one for
+ * the same reason every other list here has one: the list is edited a row at a time while the settings are
+ * written once, so sharing would refetch the whole list on every save and vice versa.
+ */
+export function appealsUnappealableUsersChannel(guildId: string): string {
+	return `appeals:${guildId}:unappealable-users`;
+}

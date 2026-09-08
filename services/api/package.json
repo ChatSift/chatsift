@@ -23,6 +23,10 @@
 		"./automoderator-schemas": {
 			"types": "./dist/routes/automoderator/schemas.d.ts",
 			"default": "./dist/routes/automoderator/schemas.js"
+		},
+		"./appeals-schemas": {
+			"types": "./dist/routes/appeals/schemas.d.ts",
+			"default": "./dist/routes/appeals/schemas.js"
 		}
 	},
 	"types": "./dist/index.d.ts",

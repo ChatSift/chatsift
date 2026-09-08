@@ -34,6 +34,11 @@ import createAMATagRoute from './routes/ama/tags/createTag.js';
 import deleteAMATagRoute from './routes/ama/tags/deleteTag.js';
 import listAMATagsRoute from './routes/ama/tags/listTags.js';
 import updateAMARoute from './routes/ama/updateAMA.js';
+import getAppealsConfigRoute from './routes/appeals/config/getConfig.js';
+import updateAppealsConfigRoute from './routes/appeals/config/updateConfig.js';
+import createUnappealableUserRoute from './routes/appeals/unappealableUsers/createUnappealableUser.js';
+import deleteUnappealableUserRoute from './routes/appeals/unappealableUsers/deleteUnappealableUser.js';
+import listUnappealableUsersRoute from './routes/appeals/unappealableUsers/listUnappealableUsers.js';
 import dashboardLinkRoute from './routes/auth/dashboardLink.js';
 import discordRoute from './routes/auth/discord.js';
 import discordCallbackRoute from './routes/auth/discordCallback.js';
@@ -322,6 +327,12 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listTriggerPunishmentsRoute);
 	mountRoute(app, setTriggerPunishmentRoute);
 	mountRoute(app, deleteTriggerPunishmentRoute);
+	mountRoute(app, getAppealsConfigRoute);
+	mountRoute(app, updateAppealsConfigRoute);
+	mountRoute(app, listUnappealableUsersRoute);
+	mountRoute(app, createUnappealableUserRoute);
+	mountRoute(app, deleteUnappealableUserRoute);
+
 	mountRoute(app, listExperimentsRoute);
 	mountRoute(app, upsertExperimentRoute);
 	mountRoute(app, deleteExperimentRoute);

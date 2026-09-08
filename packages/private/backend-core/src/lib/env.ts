@@ -136,6 +136,26 @@ export const envSchema = z.object({
 	AUTOMODERATOR_BOT_TOKEN: z.string(),
 	AUTOMODERATOR_METRICS_PORT: z.string().pipe(z.coerce.number()),
 
+	// Appeals (#232, docs/roadmap/09-appeals.md). No metrics port and no shards-per-replica counterpart: the
+	// Appeals bot has no process of its own. It exists as an application id, an interactions endpoint and a bot
+	// token `services/api` holds, so every var below is read by that one service.
+	APPEALS_BOT_TOKEN: z.string(),
+	// Ed25519 verify key for the interactions endpoint (P4), exactly as Discord's application page prints it:
+	// 32 bytes, hex. Shape-checked here rather than at first use because the failure otherwise surfaces deep
+	// inside `createPublicKey` on the first interaction Discord sends, which is also the moment Discord decides
+	// the endpoint is broken and refuses to save it.
+	APPEALS_PUBLIC_KEY: z.string().regex(/^[\da-f]{64}$/i, 'must be 32 bytes of hex'),
+	// A *second* OAuth application, not a second set of credentials for the dashboard's one -- `unban.app` is a
+	// different eTLD+1 with its own cookie and its own consent screen, so a banned user is never asked to
+	// authorize something branded for a product they have no relationship with (decision 3).
+	APPEALS_OAUTH_CLIENT_ID: z.string().regex(SnowflakeRegex),
+	APPEALS_OAUTH_CLIENT_SECRET: z.string(),
+	// `unban.app`. Separate from `ROOT_DOMAIN` because `cookieWithDomain` pins the dashboard's cookies to that
+	// one, and the two sessions must be structurally unable to reach each other.
+	APPEALS_ROOT_DOMAIN: z.string(),
+	APPEALS_FRONTEND_URL_DEV: z.url(),
+	APPEALS_FRONTEND_URL_PROD: z.url(),
+
 	// Dozzle log webhook relay (issue #212) — Dozzle POSTs here with a raw-JSON embed description,
 	// we prettify it and forward to the real Discord webhook
 	DOZZLE_WEBHOOK_SECRET: z.string(),

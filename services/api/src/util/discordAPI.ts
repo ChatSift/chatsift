@@ -43,6 +43,12 @@ export const discordAPISocial = new API(socialREST);
 const automoderatorREST = createRest(true).setToken(getContext().env.AUTOMODERATOR_BOT_TOKEN);
 export const discordAPIAutomoderator = new API(automoderatorREST);
 
+// Proxied like every other bot token even though no second process shares it today (#232): the proxy's one
+// global budget is the thing worth being inside, since an Appeals ban probe running alongside a dashboard
+// page load is competing with AMA, ModMail, Social and AutoModerator for it either way.
+const appealsREST = createRest(true).setToken(getContext().env.APPEALS_BOT_TOKEN);
+export const discordAPIAppeals = new API(appealsREST);
+
 // Webhook execution is authed by the id/token in the URL itself, no bot token needed -- still proxied, since
 // those buckets key off the webhook id rather than a token and the proxy pools every token-less caller onto
 // one accountant, which is the right shape if a bot ever starts executing webhooks too.
@@ -54,6 +60,7 @@ export const APIMapping: Record<BotId, API> = {
 	MODMAIL: discordAPIModmail,
 	SOCIAL: discordAPISocial,
 	AUTOMODERATOR: discordAPIAutomoderator,
+	APPEALS: discordAPIAppeals,
 };
 
 // Lazily built, kept for the life of the process -- a custom instance's token never changes without a
@@ -89,8 +96,9 @@ export interface ResolvedGuildAPI {
 
 /**
  * Resolves which `API` client (i.e. bot token) owns a given `(botId, guildId)` pair. Only `MODMAIL` can ever
- * resolve to a custom instance -- `AMA` (and any other future bot) always uses its single public token,
- * since custom instances are a ModMail-only concept (see docs/roadmap/01-architecture.md §8).
+ * resolve to a custom instance -- `AMA`, `APPEALS` (and any other future bot) always use their single public
+ * token, since custom instances are a ModMail-only concept (see docs/roadmap/01-architecture.md §8), and
+ * decision 11 of #232 keeps Appeals out of them deliberately rather than by omission.
  */
 export function resolveGuildAPI(botId: BotId, guildId: Snowflake): ResolvedGuildAPI {
 	if (botId === 'MODMAIL') {

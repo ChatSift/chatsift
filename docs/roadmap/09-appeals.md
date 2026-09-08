@@ -6,7 +6,7 @@ M4's AMA cutover ([05-migration-cutover.md](05-migration-cutover.md)) and M5's M
 impact:** none until P3, and additive thereafter: new tables, a new Discord application, a new site. No existing product's
 behavior changes at any point, and there is no data migration.
 
-## Status: P0 in progress. Refreshed 2026-09-08 against the current repo
+## Status: P0 and P1 shipped 2026-09-08. P2 is next
 
 This document was written 2026-07-31 and last amended 2026-08-03, then sat unstarted for a month while the AutoModerator
 port, horizontal scaling (#355), the grants refactor (#310), the Discord REST proxy and the Caddy absorption (#305) all
@@ -15,7 +15,10 @@ rewritten rather than patched: §2 (guild presence) described a Redis shape that
 §4 was costed against direct-to-Discord calls, and decision 16's central premise had been overturned by AutoModerator
 shipping its own ban DM. Where a superseded version is still useful as rationale it is struck through rather than deleted.
 
-P0 aside, nothing below is implemented. `09-` is the next free roadmap slot; 02/03/04 (M1-M3), 07 (#261) and 08 (#216) were all
+P0 (`packages/private/web-core`, shipped as #404) and P1 (the Appeals bot's identity, guild presence, schema and config
+API) are in. Nothing from P2 onward is implemented, and no appellant-facing surface exists yet: the Appeals bot is
+reachable as a token and a set of tables, and nothing posts, DMs or accepts an appeal. `09-` is the next free roadmap
+slot; 02/03/04 (M1-M3), 07 (#261) and 08 (#216) were all
 consumed and deleted once their work shipped. This doc follows the same lifecycle: when the phases land, it gets **deleted**
 and its durable shape is condensed into a new `## 13. Appeals (#232)` section of
 [01-architecture.md](01-architecture.md), with the operator runbook (registering the interactions endpoint, onboarding a
@@ -394,7 +397,7 @@ looks like a rename: Atlas renders renames as `DROP COLUMN` + `ADD COLUMN`, whic
 Each phase is one PR, each independently mergeable. P0-P2 ship no user-visible Appeals product at all; the first thing an
 appellant can actually use arrives in P3, and the first thing a moderator can act on arrives in P4+P5 together.
 
-### P0 -- Extract `packages/private/web-core`
+### P0 -- Extract `packages/private/web-core` (shipped 2026-09-08, #404)
 
 New `packages/private/web-core` (`@chatsift/web-core`). Zero behavior change by construction: large diff, no new surface.
 
@@ -431,7 +434,7 @@ _Verify:_ `turbo run build lint test` green; run `apps/website` locally and clic
 and ModMail sections, confirming forms submit, error banners still fire on a forced background-refetch failure, and light/dark
 theming and the custom font are unchanged; diff the built page output if anything looks subtly off.
 
-### P1 -- Appeals bot identity, guild presence, schema, config API
+### P1 -- Appeals bot identity, guild presence, schema, config API (shipped 2026-09-08)
 
 - `packages/private/core/src/lib/constants.ts`: `'APPEALS'` added to `BOTS`.
 - `packages/private/backend-core/src/lib/env.ts`: the six `APPEALS_*` vars from §3; `.env.private.example` updated.
@@ -451,6 +454,32 @@ _Verify:_ boot `services/api` with the new env and confirm `bot:APPEALS` populat
 tracks the bot being kicked from a test guild; confirm `/v3/auth/me` starts reporting `APPEALS` in `bots` for that guild with
 no `me2:` key bump; probe a known-banned and a known-not-banned user against a test guild and confirm both return `200` and
 the right answer; confirm the direction of `before`/`after` empirically here rather than trusting the docs.
+
+**What landed differently from the plan above, and why.** Four things:
+
+- **Nothing drops the guild-list slice on shutdown.** The plan called for `dropGuildList('APPEALS', 0)` alongside the poll.
+  That is wrong here, and the reason is the synthetic index this design depends on: every API replica publishes the whole
+  deployment into index `0`, which makes `syncShardGuildList` idempotent across replicas but makes `dropGuildList`
+  destructive -- one replica exiting would yank the slice out from under every sibling still serving traffic, and Appeals
+  would vanish from every dashboard until somebody's next 30-second tick. The 60-second TTL is the correct reaper, and by
+  the time it matters the process answering dashboard requests is gone anyway. `util/appealsPresence.ts` carries this
+  reasoning at the constant.
+- **`apps/website/src/utils/bots.tsx` came forward from P2.** It is `satisfies Record<BotId, ...>`, so widening `BOTS`
+  does not compile until the entry lands -- the same compile-order constraint §2 already names for `APIMapping`. The
+  dashboard consequence is that a guild with the Appeals bot installed gets a nav tab pointing at a route P2 has not
+  built yet; harmless while the bot is in no production guild, and the first thing P2 closes.
+- **The questionnaire is seeded on the first config save**, from `DEFAULT_APPEAL_QUESTIONS` in `@chatsift/core`, rather
+  than left empty until P7. Same end state, one fewer migration: every guild has real `appeal_questions` rows from day
+  one, so P7 is plain CRUD over them instead of having to invent history for guilds configured before it shipped. The
+  seed keys off the questionnaire being empty rather than the settings row being new, which makes it idempotent and
+  self-healing.
+- **The env split is three vars public, three private.** `APPEALS_ROOT_DOMAIN`, `APPEALS_OAUTH_CLIENT_ID` and
+  `APPEALS_FRONTEND_URL_{DEV,PROD}` are in `.env.public` for the same reason the dashboard's client id is (it appears in
+  every authorize URL); only the token, the Ed25519 public key and the OAuth secret are private.
+
+**Operational note for the deploy.** Every `APPEALS_*` var is required, matching every other bot token, and
+`backend-core`'s `env.ts` parses eagerly at import -- so `services/api` **and every bot** refuse to boot until the host's
+`.env.private` carries them. Add them before pulling this.
 
 ### P2 -- Dashboard: Appeals config section
 

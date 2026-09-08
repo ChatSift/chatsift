@@ -52,4 +52,11 @@ export function stubTestEnv(): void {
 	process.env['DOZZLE_WEBHOOK_DISCORD_ID'] = '123456789012345678';
 	process.env['DOZZLE_WEBHOOK_DISCORD_TOKEN'] = 'abcdef';
 	process.env['METRICS_SECRET'] = 'so secret three';
+	process.env['APPEALS_BOT_TOKEN'] = 'abcdef';
+	process.env['APPEALS_PUBLIC_KEY'] = '0'.repeat(64);
+	process.env['APPEALS_OAUTH_CLIENT_ID'] = '123456789012345678';
+	process.env['APPEALS_OAUTH_CLIENT_SECRET'] = 'so secret four';
+	process.env['APPEALS_ROOT_DOMAIN'] = 'appeals.example.com';
+	process.env['APPEALS_FRONTEND_URL_DEV'] = 'http://localhost:3001';
+	process.env['APPEALS_FRONTEND_URL_PROD'] = 'https://appeals.example.com';
 }

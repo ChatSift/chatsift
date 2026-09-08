@@ -7,7 +7,12 @@
 // Spelled 'AUTOMODERATOR', not 'AUTOMOD': the port makes our filter subsystem talk to *Discord's* AutoMod
 // constantly, and the two are different things. Keeping the product's name unabbreviated is what stops that
 // ambiguity from becoming permanent in log lines, metric labels and Redis keys.
-export const BOTS = ['AMA', 'MODMAIL', 'SOCIAL', 'AUTOMODERATOR'] as const;
+//
+// 'APPEALS' (#232, docs/roadmap/09-appeals.md P1) is the first entry here with no gateway process behind it at
+// all -- it is an application id, an interactions endpoint and a bot token `services/api` holds. Its guild list
+// is published by a poll rather than by GUILD_CREATE/GUILD_DELETE (`services/api/src/util/appealsPresence.ts`),
+// which is what keeps `me.ts` and the dashboard needing no special case for it.
+export const BOTS = ['AMA', 'MODMAIL', 'SOCIAL', 'AUTOMODERATOR', 'APPEALS'] as const;
 
 export type BotId = (typeof BOTS)[number];
 
@@ -208,3 +213,47 @@ export const TRIGGER_DECAY_MAX_MINUTES = 30 * 24 * 60;
  * verification levels express better. Legacy had no ceiling at all, in a column measured in milliseconds.
  */
 export const MIN_JOIN_AGE_MAX_SECONDS = 365 * 24 * 60 * 60;
+
+/**
+ * The default appeal questionnaire (#232, P1). A guild's `appeal_questions` rows are seeded from this the
+ * first time it saves an Appeals config, so every guild has real, editable rows from day one and P7's
+ * questionnaire editor is plain CRUD over them rather than a migration that invents history.
+ *
+ * Here rather than beside the API's insert because three surfaces render the same prompts: `unban.app`'s
+ * form, the mod-channel embed's field names, and the dashboard's read-only preview of the set.
+ */
+export const DEFAULT_APPEAL_QUESTIONS = [
+	{ prompt: 'Why were you banned?', required: true },
+	{ prompt: 'Why do you believe the ban should be lifted?', required: true },
+	{ prompt: 'What will you do differently if you are let back in?', required: true },
+	{ prompt: 'Anything else the moderators should know?', required: false },
+] as const satisfies readonly { prompt: string; required: boolean }[];
+
+/**
+ * How many questions one guild's appeal form may hold, and how long a prompt and an answer may be.
+ *
+ * All three are Discord's limits rather than ours, because decision 13 says an appeal is **one** embed: an
+ * answer becomes an embed field value (1024), its prompt becomes that field's name (256), and the whole embed
+ * caps at 6000 characters -- so five questions at full length (5 * 1280 = 6400) is already the point where the
+ * header fields have nowhere left to go. A sixth question would render an appeal the bot cannot post.
+ */
+export const APPEAL_QUESTION_MAX_COUNT = 5;
+
+export const APPEAL_QUESTION_PROMPT_MAX_LENGTH = 256;
+
+export const APPEAL_ANSWER_MAX_LENGTH = 1_024;
+
+/**
+ * The longest a guild may make its re-appeal cooldown, in days. A year, past which "you may not appeal again"
+ * is what the guild actually means and the manual unappealable list says it directly. `0` is a real value --
+ * it means an appellant may resubmit as soon as a decision lands, which is what a guild running a fast triage
+ * queue wants.
+ */
+export const APPEAL_COOLDOWN_MAX_DAYS = 365;
+
+/**
+ * The hard ceiling a guild may put on appeals per (user, punishment), independent of the cooldown. Ours: this
+ * exists to stop one appellant re-filing forever, and a guild that wants more than ten attempts on record is
+ * expressing a cooldown, not a ceiling. `NULL` (no ceiling) stays the default.
+ */
+export const APPEAL_MAX_APPEALS_CEILING = 10;

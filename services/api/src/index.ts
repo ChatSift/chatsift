@@ -108,6 +108,15 @@ export { default as listSocialInteractionsRoute } from './routes/social/interact
 export { default as resyncSocialInteractionsRoute } from './routes/social/interactions/resyncInteractions.js';
 export { default as updateSocialInteractionRoute } from './routes/social/interactions/updateInteraction.js';
 
+export { default as getAppealsConfigRoute } from './routes/appeals/config/getConfig.js';
+export type { GetAppealsConfigResult } from './routes/appeals/config/getConfig.js';
+export { default as updateAppealsConfigRoute } from './routes/appeals/config/updateConfig.js';
+
+export { default as listUnappealableUsersRoute } from './routes/appeals/unappealableUsers/listUnappealableUsers.js';
+export type { UnappealableUserWithUser } from './routes/appeals/unappealableUsers/listUnappealableUsers.js';
+export { default as createUnappealableUserRoute } from './routes/appeals/unappealableUsers/createUnappealableUser.js';
+export { default as deleteUnappealableUserRoute } from './routes/appeals/unappealableUsers/deleteUnappealableUser.js';
+
 export { default as getAutomoderatorConfigRoute } from './routes/automoderator/config/getConfig.js';
 export { default as updateAutomoderatorConfigRoute } from './routes/automoderator/config/updateConfig.js';
 export { default as listAutomoderatorCasesRoute } from './routes/automoderator/cases/listCases.js';
