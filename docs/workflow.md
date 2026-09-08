@@ -238,11 +238,19 @@ the `modmail_instances.id` slug). Partners are ModMail customers like anyone els
 total and `sum by (modmail_instance) (...)` gives the breakdown. A job per partner would have fragmented every
 aggregate forever.
 
-**Dashboards.** `ama-overview`, `modmail-overview` and `social-overview` sit alongside `api-overview` and are
-picked up by the existing file provider -- no Grafana UI work. Each inherits the `$window` variable described
+**Dashboards.** `ama-overview`, `modmail-overview`, `social-overview` and `automoderator-overview` sit alongside
+`api-overview` and are picked up by the existing file provider -- no Grafana UI work. Each inherits the `$window` variable described
 above, **defaulting to `6h` rather than `1h`**: bot feature counters are far lower-volume than API routes, so the
 NaN trap bites harder here. They also use `increase()` rather than `rate()` ("3 tickets in 6h" is readable,
 "0.000139/sec" is not).
+
+`automoderator-overview` is the widest of the four, because AutoModerator is the widest product: rows for
+moderation (cases filed versus Discord calls actually made -- deliberately two questions, since a WARN files a case
+and makes no call while an observed manual ban makes none and files one), filters and native AutoMod intake,
+the report queue, the scheduler, log webhooks and the message cache, then the Discord API. It is also the only bot
+dashboard with a **Replicas** row: `automoderator_shards_owned` and `automoderator_replica_index` are per-process
+by construction (`dns_sd` holds one target per container), so `sum(automoderator_shards_owned)` is the cluster's
+shard coverage and a replica reading above `AUTOMODERATOR_SHARDS_PER_REPLICA` is covering for a missing peer.
 
 `guilds-overview` is the one dashboard that spans every bot rather than covering one: a chart per bot off the
 single `discord_guilds` name, which is what the shared name buys. Its `$window` is not a rate window (there is no

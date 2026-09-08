@@ -203,7 +203,19 @@ same code path is worth more than the microseconds.
 **Endpoint.** A minimal HTTP listener on the bot serving `/metrics`, guarded by the same Bearer-token
 `requireMetricsSecret` approach the API uses (`METRICS_SECRET`, read by Prometheus from
 `build/prometheus/metrics_secret`). Adding the scrape job is six lines in `build/prometheus/prometheus.yml` when
-wanted -- deliberately **not** part of any phase here, per the owner's call.
+wanted -- deliberately **not** part of any phase here, per the owner's call. Both have since landed: the
+`automoderator-bot` job is in `prometheus.yml`, and `build/grafana/dashboards/automoderator-overview.json` reads
+the taxonomy below the way the other three bots' dashboards read theirs (see
+[docs/workflow.md](../workflow.md#bot-feature-metrics)).
+
+**Every closed label set below is zero-initialised at startup** (`zeroInitialise()` at the foot of `metrics.ts`).
+prom-client emits no series at all for a combination that has never been incremented, so a counter that has
+legitimately never fired reads as "No data" rather than `0`, and `sum(increase(...))` over it returns an empty
+vector no `> 0` guard can rescue -- which would make "this should be zero" unassertable, the exact claim these
+metrics exist to support. The two `{action, source}` counters enumerate a map per source rather than a cross
+product: `gate` only ever kicks, `scheduler` only ever lifts an expired ban, `observer` never acts at all, and a
+pair that cannot occur is a series that can never be non-zero. Adding a label value means adding it there too,
+or its panel is silently absent until the first real event.
 
 **Metric taxonomy.** Feature-level, which is the point -- "is feature N working in prod" should be answerable without
 reading logs.

@@ -196,3 +196,119 @@ export const filterHits = new Counter({
 	labelNames: ['filter'] as const,
 	registers: [register],
 });
+
+/**
+ * prom-client emits no series at all for a label combination until it is first incremented, so a counter that
+ * has legitimately never fired reads as **"No data"** on a dashboard rather than `0` -- and `sum(increase(...))`
+ * over it returns an empty vector no `> 0` guard can rescue. That makes "this should be zero" unassertable,
+ * which is exactly the claim these metrics exist to support. See the fuller note in `modmail-bot`'s
+ * `lib/metrics.ts`.
+ *
+ * Only combinations that can actually occur are listed: a series that can never be non-zero is noise, not a
+ * baseline. For the two `{action, source}` counters that means a map per source rather than a cross product --
+ * `gate` only ever kicks, `scheduler` only ever lifts an expired ban, and `observer` never acts at all.
+ */
+const CASE_ACTIONS_BY_SOURCE: Record<string, readonly string[]> = {
+	command: ['WARN', 'MUTE', 'UNMUTE', 'KICK', 'SOFTBAN', 'BAN', 'UNBAN'],
+	automod: ['WARN', 'MUTE', 'KICK', 'BAN'],
+	gate: ['KICK'],
+	ladder: ['WARN', 'MUTE', 'KICK', 'BAN'],
+	// The audit observer records what a human did in Discord's own UI, and only these three leave an entry it
+	// watches for.
+	observer: ['BAN', 'UNBAN', 'KICK'],
+	report: ['WARN', 'MUTE', 'KICK', 'SOFTBAN', 'BAN'],
+	scheduler: ['UNBAN'],
+};
+
+/**
+ * `role` is absent on purpose: `ROUTE_CLASS` in `actionExecutor.ts` knows about it, but nothing executes one
+ * yet. `dm` is absent from `gate` and `scheduler` because both pass `notifyTarget: false` -- a raid is the one
+ * time the gate matters and a second REST call per join is what it exists to avoid, and an expired ban's target
+ * is not in the guild to be DMed.
+ */
+const MODERATION_ACTIONS_BY_SOURCE: Record<string, readonly string[]> = {
+	command: ['ban', 'unban', 'softban', 'kick', 'mute', 'unmute', 'delete', 'dm', 'webhook'],
+	automod: ['ban', 'kick', 'mute', 'delete', 'dm', 'webhook'],
+	gate: ['kick', 'webhook'],
+	ladder: ['ban', 'kick', 'mute', 'dm', 'webhook'],
+	observer: ['webhook'],
+	report: ['ban', 'softban', 'kick', 'mute', 'dm', 'message', 'webhook'],
+	scheduler: ['unban', 'webhook'],
+};
+
+/**
+ * Every feature entry point, and the outcomes each can actually report. `filters` is the runner-level gate and
+ * never reaches `applied` -- a hit is attributed to the individual runner that caught it -- and
+ * `legacy_role_prompt` has nothing to skip, it either answers a click or throws.
+ */
+const FEATURE_OUTCOMES: Record<string, readonly string[]> = {
+	antispam: ['applied', 'skipped', 'failed'],
+	banwords: ['applied', 'skipped', 'failed'],
+	filters: ['skipped', 'failed'],
+	invite_filter: ['applied', 'skipped', 'failed'],
+	join_gate: ['applied', 'skipped', 'failed'],
+	legacy_role_prompt: ['applied', 'failed'],
+	message_log: ['applied', 'skipped', 'failed'],
+	profile_log: ['applied', 'skipped', 'failed'],
+	url_filter: ['applied', 'skipped', 'failed'],
+};
+
+function zeroInitialise(): void {
+	for (const [source, actions] of Object.entries(CASE_ACTIONS_BY_SOURCE)) {
+		for (const action of actions) {
+			casesCreated.inc({ action, source }, 0);
+		}
+	}
+
+	for (const [source, actions] of Object.entries(MODERATION_ACTIONS_BY_SOURCE)) {
+		for (const action of actions) {
+			moderationActions.inc({ action, source }, 0);
+		}
+	}
+
+	for (const [feature, outcomes] of Object.entries(FEATURE_OUTCOMES)) {
+		for (const outcome of outcomes) {
+			featureInvocations.inc({ feature, outcome }, 0);
+		}
+	}
+
+	// Discord's `AutoModerationActionType`: 1 block, 2 alert, 3 timeout, 4 block member interaction. All four
+	// dispatch an execution event, and this counter's whole job is to read zero rather than absent when none
+	// arrives -- that is what tells "no guild has native keyword rules" apart from "the intent is missing".
+	for (const actionType of ['1', '2', '3', '4']) {
+		for (const matched of ['true', 'false']) {
+			automodEvents.inc({ action_type: actionType, matched }, 0);
+		}
+	}
+
+	for (const filter of ['words', 'urls', 'invites', 'antispam']) {
+		filterHits.inc({ filter }, 0);
+	}
+
+	for (const logType of ['MOD', 'FILTER', 'MESSAGE', 'USER']) {
+		for (const result of ['ok', 'failed']) {
+			logDispatch.inc({ log_type: logType, result }, 0);
+		}
+	}
+
+	for (const type of ['expiry', 'auto_pardon', 'trigger_decay']) {
+		for (const result of ['ok', 'failed']) {
+			schedulerTasks.inc({ type, result }, 0);
+		}
+	}
+
+	for (const state of ['filed', 'joined', 'dismissed', 'actioned', 'restored']) {
+		reportsTotal.inc({ state }, 0);
+	}
+
+	for (const result of ['hit', 'miss']) {
+		messageCacheLookups.inc({ result }, 0);
+	}
+
+	// `automoderator_discord_errors_total` and `automoderator_scheduler_lag_seconds` are deliberately absent.
+	// The first is labelled by HTTP status, which is not a closed set anyone should be enumerating; the second
+	// is a histogram whose panel already carries an `and on (type) (count > 0)` guard, so an unobserved type
+	// drops out rather than rendering NaN.
+}
+
+zeroInitialise();
