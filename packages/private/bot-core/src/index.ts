@@ -1,4 +1,5 @@
 export * from './lib/channelChain.js';
+export * from './lib/channels.js';
 export * from './lib/client.js';
 export * from './lib/collector.js';
 export * from './lib/commands.js';

@@ -1,30 +1,49 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext, readGuildList } from '@chatsift/backend-core';
-import { ownsShardForGuild } from '@chatsift/bot-core';
+import type { ChannelLookup } from '@chatsift/bot-core';
+import { fetchChannel, ownsShardForGuild, primeChannelCache } from '@chatsift/bot-core';
 import type { Threads } from '@chatsift/db';
-import { DiscordAPIError } from '@discordjs/rest';
 import { getGuildListKey, getOwnershipScope } from './instance.js';
 import { strandedOpenTickets, ticketsClosed } from './metrics.js';
+
+/**
+ * How stale `bot-core`'s channel cache may be before this sweep refreshes an entry.
+ *
+ * Longer than the sweep's own interval on purpose -- that is the entire point. `THREAD_UPDATE` priming
+ * (`bot-core`'s `client.ts`) is what normally keeps `archived` current, so this is only the backstop for the
+ * case where Discord's inactivity timer flips a thread without dispatching one. Discord's shortest
+ * `auto_archive_duration` is an hour, so a quarter of that is a proportionate worst case for how long an open
+ * ticket could sit archived before anyone notices, and it costs one request per channel per fifteen minutes
+ * instead of one per five -- spread out by the cache's own jitter rather than issued in a single burst.
+ */
+const CHANNEL_MAX_AGE_MS = 15 * 60 * 1_000;
 
 /**
  * Discord auto-archives a thread after its configured `auto_archive_duration` of inactivity,
  * regardless of whether a modmail ticket built on top of it is still open — a conversation that goes
  * quiet on both sides for long enough (mods haven't replied, user hasn't messaged back yet) can trip
  * that timer well before anyone actually closes the ticket. Run on an interval from `index.ts`'s
- * `bin()`: re-fetch every open ticket's two Discord threads (mod-forum + private) and unarchive any
+ * `bin()`: read every open ticket's two Discord threads (mod-forum + private) and unarchive any
  * that got caught by it, so an open ticket never silently stops accepting replies out from under the
  * people using it. Also doubles as
  * this sweep's only opportunity to notice a channel that isn't merely archived but gone outright
- * (deleted out-of-band) — see the 404 branch below — since nothing else in the bot currently re-checks
+ * (deleted out-of-band) — see the terminal branch below — since nothing else in the bot currently re-checks
  * an open ticket's channels on any kind of interval.
+ *
+ * Those reads go through `bot-core`'s shared channel cache rather than straight to Discord. This sweep is
+ * what made that cache necessary: it fans out over every open ticket at once, so at a few dozen tickets one
+ * run outruns the 50-requests-per-second budget `services/discord-proxy` accounts for, and the tail of the
+ * batch comes back 429 every five minutes for as long as those tickets stay open. Cached, the common run
+ * costs no Discord requests at all -- `THREAD_UPDATE` is what says `archived` changed, and `GUILD_CREATE`
+ * warms the whole set on boot.
  */
 export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<void> {
-	// See docs/roadmap/01-architecture.md §8 -- unarchiving (or closing, in the 404 branch
+	// See docs/roadmap/01-architecture.md §8 -- unarchiving (or closing, in the terminal branch
 	// below) a thread in a guild this deployment doesn't own would race whichever deployment does.
 	const scope = getOwnershipScope();
 
 	// `origin != 'dm'` -- a DM-origin ticket's `user_channel_id` is a plain DM channel, never a Discord
-	// thread, so `channels.get` on it below would never find `thread_metadata` to unarchive in the
+	// thread, so the lookup below would never find `thread_metadata` to unarchive in the
 	// first place. Filtered out here rather than discovered per-row from the Discord response, since
 	// `origin` is already known without an API call (#216, P4).
 	const openThreads = await getContext().db<Threads[]>`
@@ -55,9 +74,10 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 	const present = owned.filter((thread) => presentGuildIds.has(thread.guildId));
 	strandedOpenTickets.set(owned.length - present.length);
 
-	// Flattened rather than nested loops so every channel's GET (+ maybe PATCH) fires concurrently —
+	// Flattened rather than nested loops so every channel's lookup (+ maybe PATCH) fires concurrently —
 	// each pair is independent of every other, there's no shared state to serialize on the way
-	// `pendingTicketSweep.ts` has to for its per guild+user lock.
+	// `pendingTicketSweep.ts` has to for its per guild+user lock. Safe to fan out this wide only because
+	// the lookups are cache reads; see this module's doc comment for what it cost when they weren't.
 	const checks = present.flatMap((thread) =>
 		[thread.modThreadId, thread.userChannelId]
 			.filter((id): id is string => id !== null)
@@ -67,58 +87,71 @@ export async function preventOpenThreadsFromArchiving(logger: Logger): Promise<v
 	await Promise.all(
 		checks.map(async ({ threadId, guildId, channelId }) => {
 			const rowLogger = logger.child({ guildId, threadId, channelId });
+			const { api } = getContext().service.client;
 
+			let lookup: ChannelLookup;
 			try {
-				const channel = await getContext().service.client.api.channels.get(channelId);
-				if ('thread_metadata' in channel && channel.thread_metadata?.archived) {
-					await getContext().service.client.api.channels.edit(
-						channelId,
-						{ archived: false },
-						{ reason: 'Keeping an open modmail ticket thread from auto-archiving' },
+				lookup = await fetchChannel(api, channelId, { maxAge: CHANNEL_MAX_AGE_MS });
+			} catch (error) {
+				rowLogger.warn({ err: error }, 'Failed to look up an open modmail thread');
+				return;
+			}
+
+			if (lookup.state === 'forbidden') {
+				// Reached only for a guild the bot *is* still in (the filter above took the other case), so this
+				// is a live permissions problem someone can actually fix: the bot lost `ViewChannel` on the
+				// thread's parent, or lost `ManageThreads` on a locked one. Not terminal the way a 404 is -- the
+				// ticket stays open, because restoring the permission is all it takes for the next run to pick up
+				// exactly where this one left off. This is the failure `lib/botPermissions.ts` warns about in the
+				// mod thread at open time (#370), so by the time it shows up here the guild has already been told
+				// once.
+				rowLogger.warn('Missing permissions to keep an open modmail thread unarchived, leaving the ticket open');
+				return;
+			}
+
+			if (lookup.state === 'ok') {
+				if (!lookup.channel.archived) {
+					return;
+				}
+
+				try {
+					// Primed from the `PATCH` response rather than left to expire: a cached `archived: true` that
+					// is already stale would otherwise be acted on again on the next run, and `PATCH /channels`
+					// shares a far tighter bucket than the `GET` this sweep used to spend.
+					primeChannelCache(
+						await api.channels.edit(
+							channelId,
+							{ archived: false },
+							{ reason: 'Keeping an open modmail ticket thread from auto-archiving' },
+						),
 					);
 
 					rowLogger.info('Unarchived an open modmail thread');
-				}
-			} catch (error) {
-				if (error instanceof DiscordAPIError && error.status === 403) {
-					// Reached only for a guild the bot *is* still in (the filter above took the other case),
-					// so this is a live permissions problem someone can actually fix: the bot lost
-					// `ViewChannel` on the thread's parent, or lost `ManageThreads` on a locked one. Not
-					// terminal the way a 404 is -- the ticket stays open, because restoring the permission is
-					// all it takes for the next run to pick up exactly where this one left off. This is the
-					// failure `lib/botPermissions.ts` warns about in the mod thread at open time (#370), so by
-					// the time it shows up here the guild has already been told once.
-					rowLogger.warn(
-						{ err: error },
-						'Missing permissions to keep an open modmail thread unarchived, leaving the ticket open',
-					);
-					return;
-				}
-
-				if (!(error instanceof DiscordAPIError && error.status === 404)) {
+				} catch (error) {
 					rowLogger.warn({ err: error }, 'Failed to unarchive an open modmail thread');
-					return;
 				}
 
-				// The channel is gone for good (deleted out-of-band — neither side of a ticket is ever
-				// deleted by this bot outside of an explicit close). Leaving `closed_at` null here would
-				// keep this ticket counted against the user's `countActiveTicketsForUser` limit
-				// (`lib/threads.ts`) forever, with no way for them to ever open a replacement — closing it
-				// is the only way to make that count accurate again. `closedById` stays null: it's a
-				// nullable column and there's no staff member to attribute this to, since nothing in the
-				// bot's own control flow did this. Gated on `closed_at IS NULL` so the mod-forum and
-				// private-thread checks for the same ticket (which can both 404 in the same sweep) don't
-				// race each other into logging this twice.
-				const [closed] = await getContext().db<Threads[]>`
-					UPDATE threads SET closed_at = now() WHERE id = ${threadId} AND closed_at IS NULL RETURNING *
-				`;
+				return;
+			}
 
-				if (closed) {
-					ticketsClosed.inc({ source: 'auto_archive', result: 'closed' });
-					rowLogger.warn('Closed a modmail ticket because its Discord channel no longer exists');
-				} else {
-					ticketsClosed.inc({ source: 'auto_archive', result: 'already_closed' });
-				}
+			// The channel is gone for good (deleted out-of-band — neither side of a ticket is ever
+			// deleted by this bot outside of an explicit close). Leaving `closed_at` null here would
+			// keep this ticket counted against the user's `countActiveTicketsForUser` limit
+			// (`lib/threads.ts`) forever, with no way for them to ever open a replacement — closing it
+			// is the only way to make that count accurate again. `closedById` stays null: it's a
+			// nullable column and there's no staff member to attribute this to, since nothing in the
+			// bot's own control flow did this. Gated on `closed_at IS NULL` so the mod-forum and
+			// private-thread checks for the same ticket (which can both 404 in the same sweep) don't
+			// race each other into logging this twice.
+			const [closed] = await getContext().db<Threads[]>`
+				UPDATE threads SET closed_at = now() WHERE id = ${threadId} AND closed_at IS NULL RETURNING *
+			`;
+
+			if (closed) {
+				ticketsClosed.inc({ source: 'auto_archive', result: 'closed' });
+				rowLogger.warn('Closed a modmail ticket because its Discord channel no longer exists');
+			} else {
+				ticketsClosed.inc({ source: 'auto_archive', result: 'already_closed' });
 			}
 		}),
 	);

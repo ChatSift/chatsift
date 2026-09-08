@@ -1,5 +1,6 @@
 import type { Logger } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { fetchChannel } from '@chatsift/bot-core';
 import type { Categories, Threads } from '@chatsift/db';
 import type { APIEmbed, APIEmbedField, APIGuildMember, APIUser } from '@discordjs/core';
 import { CDNRoutes, ImageFormat, RESTJSONErrorCodes, RouteBases } from '@discordjs/core';
@@ -312,9 +313,11 @@ async function findMissingTicketPermissions({
 
 	if (origin === 'panel') {
 		try {
-			const privateThread = await getContext().service.client.api.channels.get(userChannelId);
-			if ('parent_id' in privateThread && privateThread.parent_id) {
-				checks.push({ channelId: privateThread.parent_id, requirements: PANEL_CHANNEL_PERMISSIONS });
+			// Through `bot-core`'s channel cache: `THREAD_CREATE` for the thread this ticket just opened has
+			// almost certainly already primed it, so the parent is usually resolved without a request at all.
+			const { channel: privateThread } = await fetchChannel(getContext().service.client.api, userChannelId);
+			if (privateThread?.parentId) {
+				checks.push({ channelId: privateThread.parentId, requirements: PANEL_CHANNEL_PERMISSIONS });
 			}
 		} catch (error) {
 			// Only costs this half of the check: the forum below is still worth reporting on its own, and the

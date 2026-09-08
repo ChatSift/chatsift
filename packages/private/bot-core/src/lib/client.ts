@@ -17,6 +17,7 @@ import { InteractionType, Client, GatewayDispatchEvents } from '@discordjs/core'
 import type { REST } from '@discordjs/rest';
 import type { WebSocketManager } from '@discordjs/ws';
 import { Gauge, type Registry } from 'prom-client';
+import { forgetChannel, primeChannelCache } from './channels.js';
 import { handleAutocompleteInteraction, handleCommandInteraction, registerCommandHandler } from './commands.js';
 import { handleComponentInteraction } from './components.js';
 import DashboardCommand from './dashboardCommand.js';
@@ -170,7 +171,34 @@ export function createBotClient({ botId, gateway, register, rest }: CreateBotCli
 			getContext().logger.error({ err: error }, 'Unhandled error in Discord client event listener');
 		})
 		.on(GatewayDispatchEvents.GuildCreate, async ({ data: guild }) => {
+			// GUILD_CREATE names every *active* thread the bot is a member of, which for ModMail is every open
+			// ticket's pair of threads. Priming from it is what keeps a cold start cheap: the auto-archive sweep
+			// five minutes later reads them all out of redis instead of issuing a `GET /channels/{id}` per open
+			// ticket in one burst, which is the spike this cache exists to remove. Unavailable-guild payloads
+			// carry no channel state at all, hence the guard.
+			if ('threads' in guild) {
+				for (const thread of guild.threads) {
+					primeChannelCache(thread);
+				}
+			}
+
 			await addGuildToList(botId, getReplicaIndex(), guild.id);
+		})
+		// The rest of the channel cache's write side. THREAD_UPDATE is the load-bearing one -- it is what says a
+		// thread's `archived` flag changed, so a reader that would otherwise have to poll for that can trust the
+		// cache instead. The others keep `parentId` honest for `channelChain.ts` (a channel moved between
+		// categories) and stop a deleted channel answering from its last known state.
+		.on(GatewayDispatchEvents.ChannelCreate, ({ data: channel }) => primeChannelCache(channel))
+		.on(GatewayDispatchEvents.ChannelUpdate, ({ data: channel }) => primeChannelCache(channel))
+		.on(GatewayDispatchEvents.ChannelDelete, ({ data: channel }) => forgetChannel(channel.id))
+		.on(GatewayDispatchEvents.ThreadCreate, ({ data: thread }) => primeChannelCache(thread))
+		.on(GatewayDispatchEvents.ThreadUpdate, ({ data: thread }) => primeChannelCache(thread))
+		.on(GatewayDispatchEvents.ThreadDelete, ({ data: thread }) => forgetChannel(thread.id))
+		// eslint-disable-next-line n/no-sync -- Discord's event name, not a synchronous call
+		.on(GatewayDispatchEvents.ThreadListSync, ({ data }) => {
+			for (const thread of data.threads) {
+				primeChannelCache(thread);
+			}
 		})
 		.on(GatewayDispatchEvents.GuildDelete, async ({ data: guild }) => {
 			if (!guild.unavailable) {
