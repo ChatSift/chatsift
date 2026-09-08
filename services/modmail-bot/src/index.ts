@@ -257,6 +257,14 @@ function registerMessageRelay(client: Client): void {
 		try {
 			const thread = await findOpenThreadByUserChannelId(message.channel_id);
 			if (thread) {
+				if (message.author.id !== thread.userId) {
+					logger.debug(
+						{ threadId: thread.id, authorId: message.author.id },
+						'Ignoring a non-opener message in a ticket channel',
+					);
+					return;
+				}
+
 				const effective = resolveEffectiveContent(message);
 				await relayUserMessageToModThread({
 					attachments: effective.attachments,
@@ -286,6 +294,15 @@ function registerMessageRelay(client: Client): void {
 
 			const pending = await PendingTicketStore.get(message.channel_id);
 			if (pending) {
+				// Same reasoning as the open-ticket branch above, and it matters more here: the opener hasn't
+				// spoken yet, so a staff message taken as the first one would open the ticket around the *mod* --
+				// `finishTicketCreation` reads `user`/`member` straight off this message for the whole info embed
+				// while `createdById` still names the real opener.
+				if (message.author.id !== pending.userId) {
+					logger.debug({ authorId: message.author.id }, 'Ignoring a non-opener message in a pending ticket thread');
+					return;
+				}
+
 				// `handleFirstMessage` deletes this itself, and only once it actually succeeds — deleting
 				// it eagerly here would strand the user with a dead thread on any failure inside it (see
 				// the comments in `handleFirstMessage`).

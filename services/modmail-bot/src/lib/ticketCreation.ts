@@ -79,6 +79,52 @@ function discordDate(date: Date): string {
 }
 
 /**
+ * Discord's per-field-value cap. Reached in practice: a member carrying 60+ roles in a large guild
+ * pushes the mention list well past it, and the entire `createForumThread` call 400s with
+ * `BASE_TYPE_MAX_LENGTH` -- so the ticket never opens at all because of one cosmetic field.
+ */
+const FIELD_VALUE_LIMIT = 1_024;
+
+function roleOverflowTail(count: number): string {
+	return ` and ${count} more`;
+}
+
+/**
+ * The roles field, capped to fit. The overflow tail's own length is reserved before each mention is
+ * committed to (same shape as `automoderator-bot`'s reporter list) because appending it *after* filling the
+ * budget is exactly how the cap gets blown. Roles keep the order Discord sent them, so what staff read is a
+ * prefix of the real list rather than an arbitrary subset with the long ids silently missing.
+ */
+export function formatRoleList(roleIds: readonly string[]): string {
+	if (!roleIds.length) {
+		return 'none';
+	}
+
+	const mentions = roleIds.map((roleId) => `<@&${roleId}>`);
+	const full = mentions.join(', ');
+	if (full.length <= FIELD_VALUE_LIMIT) {
+		return full;
+	}
+
+	const shown: string[] = [];
+	let used = 0;
+
+	for (const [index, mention] of mentions.entries()) {
+		const separator = shown.length ? ', '.length : 0;
+		// Budgeted against dropping every mention from this one on -- the tail can only get shorter as more
+		// fit, so this never over-trims by more than a digit's worth.
+		if (used + separator + mention.length + roleOverflowTail(mentions.length - index).length > FIELD_VALUE_LIMIT) {
+			break;
+		}
+
+		shown.push(mention);
+		used += separator + mention.length;
+	}
+
+	return `${shown.join(', ')}${roleOverflowTail(mentions.length - shown.length)}`;
+}
+
+/**
  * Leaves room for the ` - Thread #N` suffix inside Discord's 100-character forum-thread-name cap, so a
  * long display name truncates instead of pushing the ticket number out of the title entirely -- the
  * number is the part staff search by, so it's the part that must survive.
@@ -148,7 +194,7 @@ export async function finishTicketCreation({
 			: undefined;
 
 	const pastTicketCount = await countPastThreadsForUser(guildId, user.id);
-	const roles = member?.roles.length ? member.roles.map((roleId) => `<@&${roleId}>`).join(', ') : 'none';
+	const roles = formatRoleList(member?.roles ?? []);
 	const recording = await isRecordingEnabled(guildId);
 
 	// Reserved *before* the forum thread even exists so the ticket number can be baked into its name from
