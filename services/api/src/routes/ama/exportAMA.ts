@@ -63,12 +63,13 @@ export default defineRoute({
 			| 'createdAt'
 			| 'id'
 			| 'state'
+			| 'umbrella'
 			| 'updatedAt'
 		>;
 
 		const [questions, tagsByQuestion, askersByQuestion] = await Promise.all([
 			db<ExportQuestionRow[]>`
-				SELECT id, author_id, state, content, answer_content, answered_by_id, anonymous, created_at, updated_at
+				SELECT id, author_id, state, content, answer_content, answered_by_id, anonymous, umbrella, created_at, updated_at
 				FROM ama_questions
 				WHERE ama_id = ${amaId}
 				ORDER BY created_at ASC
@@ -94,7 +95,7 @@ export default defineRoute({
 		const askersByQuestionId = new Map(askersByQuestion.map((row) => [row.questionId, row.authorIds]));
 
 		const rows = [
-			'author_id,state,content,created_at,updated_at,answer_content,answered_by_id,anonymous,tags,askers',
+			'author_id,state,content,created_at,updated_at,answer_content,answered_by_id,anonymous,umbrella,tags,askers',
 			...questions.map((question) =>
 				[
 					question.authorId,
@@ -108,6 +109,10 @@ export default defineRoute({
 					// record of who asked what, not the published view -- so the flag has to be a column of its own or
 					// there'd be nothing distinguishing the two.
 					String(question.anonymous),
+					// Its own column for the same reason: an umbrella question is stored anonymous too, so without
+					// this the record can't tell "someone asked this and didn't want their name on it" apart from
+					// "a moderator wrote this for duplicates to be merged under" (#366).
+					String(question.umbrella),
 					// Tag names are freeform user-authored text (up to 50 chars, see `createTag.ts`) unlike
 					// `askers` (always `;`-joined snowflakes) -- they need the same escaping/injection guard as
 					// `content`/`answer_content` above, or a tag containing a comma/quote breaks the row shape.

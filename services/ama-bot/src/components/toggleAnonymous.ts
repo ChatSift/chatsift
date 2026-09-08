@@ -89,6 +89,18 @@ export default class ToggleAnonymousComponent implements ComponentHandler<string
 				return;
 			}
 
+			// Unreachable as things stand -- an umbrella question is created straight to 'APPROVED' with no queue
+			// message, so this button is never drawn on one. Guarded anyway because the failure would be silent:
+			// the UPDATE would succeed while every render kept hiding the author regardless (#366), leaving a row
+			// that disagrees with what everyone can actually see.
+			if (question.umbrella) {
+				await getContext().service.client.api.interactions.followUp(interaction.application_id, interaction.token, {
+					content: 'This is an umbrella question - it is never published with an author.',
+					flags: MessageFlags.Ephemeral,
+				});
+				return;
+			}
+
 			// Guarded in the UPDATE itself rather than off the row read above, so two moderators clicking at the
 			// same moment can't both flip from the same stale value -- and so an approve landing in between is
 			// refused here instead of silently writing to a question that's since gone public.

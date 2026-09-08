@@ -11,7 +11,9 @@ const bodySchema = z.strictObject({
 	// #366: an umbrella question is written by staff, so it skips the submit modal's own 15-character floor
 	// (that exists to stop "hi" reaching the queue) but keeps the same 4,000-character ceiling.
 	content: z.string().trim().min(1).max(4_000),
-	anonymous: z.boolean().optional(),
+	// Whether the published question carries its merged-asker tally ("Asked by N people"). No `anonymous`
+	// alongside it: an umbrella question never publishes an author, so there was nothing to choose between.
+	showAskerCount: z.boolean().optional(),
 });
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
@@ -27,8 +29,8 @@ export type CreateQuestionResult = AmaQuestions;
 
 /**
  * Creates an "umbrella question" (#366): one staff writes themselves, worded the way they want it answered,
- * that the real duplicates then get merged into so the tally ("Also asked by -- N other people", #326) lands
- * on wording nobody has to apologise for. Every other question in the system arrives through the bot's submit
+ * that the real duplicates then get merged into so the tally ("Asked by -- N people", #326) lands on wording
+ * nobody has to apologise for. Every other question in the system arrives through the bot's submit
  * modal; this is the only way to author one directly.
  *
  * It lands as `APPROVED` regardless of the session's review/prepared-answer settings. `PENDING_REVIEW` would
@@ -39,8 +41,14 @@ export type CreateQuestionResult = AmaQuestions;
  * host is ready -- the same path a prepared answer takes.
  *
  * `author_id` is the dashboard user creating it. That's who actually wrote it, and it keeps every author
- * lookup downstream working unchanged; `anonymous` is what stops their name reaching the answers channel,
- * which is why the create form offers it right here rather than as a second step.
+ * lookup downstream working unchanged -- but they didn't *ask* it, so the audience never sees them: the row
+ * is created `umbrella`, which forces the same author-less rendering `anonymous` does and additionally makes
+ * the merged-asker tally count the merges alone rather than "N other people" than an author nobody can see.
+ * `anonymous` is set to match rather than left false, so the many read paths that only know about that flag
+ * (the CSV export, the dashboard's own chips) stay correct without each having to learn about umbrella.
+ *
+ * The one choice the form offers is `show_asker_count`: the tally is the only thing a published umbrella
+ * question can say about who asked it, so hiding it publishes the question and nothing else.
  */
 export default defineRoute({
 	method: 'post',
@@ -59,7 +67,7 @@ export default defineRoute({
 	realtimeChannel: (req) => amaQuestionsChannel(req.params.guildId, req.params.amaId),
 	async handler(req): Promise<CreateQuestionResult> {
 		const { guildId, amaId } = req.params;
-		const { anonymous = false, content } = req.body;
+		const { content, showAskerCount = true } = req.body;
 		const db = getContext().db;
 
 		// Gated behind `ama-qol` (#366). Checked before the session lookup so a guild without the gate gets the
@@ -82,8 +90,8 @@ export default defineRoute({
 		}
 
 		const [question] = await db<AmaQuestions[]>`
-			INSERT INTO ama_questions (ama_id, author_id, state, content, anonymous)
-			VALUES (${amaId}, ${req.tokens.access.sub}, 'APPROVED', ${content}, ${anonymous})
+			INSERT INTO ama_questions (ama_id, author_id, state, content, anonymous, umbrella, show_asker_count)
+			VALUES (${amaId}, ${req.tokens.access.sub}, 'APPROVED', ${content}, true, true, ${showAskerCount})
 			RETURNING *
 		`;
 

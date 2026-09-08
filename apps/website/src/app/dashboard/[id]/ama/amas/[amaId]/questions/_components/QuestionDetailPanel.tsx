@@ -2,8 +2,9 @@
 
 import { AMA_QOL_EXPERIMENT, MERGE_SOURCE_STATES } from '@chatsift/core';
 import { useParams } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { FaCheck } from 'react-icons/fa';
+import { FaCheck, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { AuthorAvatar } from './AuthorAvatar';
 import { MergeDuplicatePicker } from './MergeDuplicatePicker';
 import { TagPicker } from './TagPicker';
@@ -13,10 +14,46 @@ import { APIError } from '@/api/error';
 import { useAMA, useAMAQuestion, useSendAMAQuestion, useUpdateAMAQuestion } from '@/api/routes/ama';
 import { Button } from '@/components/common/Button';
 import { ConfirmModal } from '@/components/common/ConfirmModal';
-import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Skeleton } from '@/components/common/Skeleton';
+import { Tooltip } from '@/components/common/Tooltip';
 import { useExperiment } from '@/hooks/useExperiment';
 import { cn, formatDate } from '@/utils/util';
+
+interface PublishToggleProps {
+	readonly isDisabled: boolean;
+	/**
+	 * Whether the thing this controls is currently part of what gets published -- the eye is "shown", the
+	 * struck-through eye is "withheld", the same way round for both the author and the merge count.
+	 */
+	readonly isOn: boolean;
+	readonly label: string;
+	onChange(next: boolean): Promise<void>;
+	readonly tooltip: ReactNode;
+}
+
+/**
+ * An icon-sized switch for one thing a question does or doesn't publish, sat next to the thing itself
+ * (#366 PM feedback). This replaced a labelled two-option control with a paragraph under it: the questions
+ * list is read at a glance and screenshotted, and a control most hosts touch on a handful of rows out of
+ * hundreds was taking a block of that space on every one of them. The explanation moved into the tooltip
+ * rather than being dropped -- the two surfaces behaving differently on purpose is not guessable from an
+ * icon, so it still has to be somewhere.
+ */
+function PublishToggle({ isDisabled, isOn, label, onChange, tooltip }: PublishToggleProps) {
+	return (
+		<Tooltip content={tooltip}>
+			<Button
+				aria-label={label}
+				aria-pressed={isOn}
+				className="h-auto shrink-0 rounded-full px-1.5 py-1.5 text-sm text-secondary dark:text-secondary-dark"
+				isDisabled={isDisabled}
+				onPress={async () => onChange(!isOn)}
+			>
+				{isOn ? <FaEye className="h-4 w-4" /> : <FaEyeSlash className="h-4 w-4" />}
+			</Button>
+		</Tooltip>
+	);
+}
 
 interface QuestionDetailPanelProps {
 	onMerged(): void;
@@ -134,14 +171,57 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 			</div>
 
 			<div>
-				<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Asked by</p>
+				{/* "Written by" for an umbrella question (#366): its author typed the wording, they didn't ask it,
+				and the difference is the whole reason nothing published names them. */}
+				<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">
+					{question.umbrella ? 'Written by' : 'Asked by'}
+				</p>
 				<div className="flex items-center gap-2">
 					<AuthorAvatar user={question.author} />
 					<div>
 						<p className="text-lg text-primary dark:text-primary-dark">{userLabel(question.author)}</p>
 						<p className="text-xs text-secondary dark:text-secondary-dark">{question.authorId}</p>
 					</div>
+					{isQolEnabled && !question.umbrella && (
+						<PublishToggle
+							isDisabled={updateQuestion.isPending}
+							isOn={!question.anonymous}
+							label={question.anonymous ? 'Publish with the author shown' : 'Publish with no author'}
+							onChange={async (next) => runAction(async () => updateQuestion.mutateAsync({ anonymous: !next }))}
+							tooltip={
+								<>
+									{question.anonymous
+										? 'Published with no author on it at all - no name, no avatar. Click to show the author.'
+										: 'Published with the author shown. Click to publish it with no author at all - no name, no avatar.'}{' '}
+									The review queue and this dashboard always show who asked either way.
+									{isSent ? ' Changing this rewrites what has already been posted.' : ''}
+								</>
+							}
+						/>
+					)}
 				</div>
+				{isQolEnabled && question.umbrella && (
+					// Umbrella questions publish no author, so the merged-asker tally is the only thing one of them
+					// can say about who asked -- this is the switch the create form offers, kept reachable afterwards
+					// because the merges it counts all arrive after the question was written.
+					<div className="mt-2 flex items-center gap-2">
+						<p className="text-xs text-secondary dark:text-secondary-dark">Merge count</p>
+						<PublishToggle
+							isDisabled={updateQuestion.isPending}
+							isOn={question.showAskerCount}
+							label={question.showAskerCount ? 'Publish without the merge count' : 'Publish the merge count'}
+							onChange={async (next) => runAction(async () => updateQuestion.mutateAsync({ showAskerCount: next }))}
+							tooltip={
+								<>
+									{question.showAskerCount
+										? 'Publishes as "Asked by X people", counting the questions merged under this one. Click to publish the question on its own.'
+										: 'Published with no count on it - just the question. Click to publish it as "Asked by X people".'}
+									{isSent ? ' Changing this rewrites what has already been posted.' : ''}
+								</>
+							}
+						/>
+					</div>
+				)}
 				{question.extraAskers.length > 0 && (
 					<div className="mt-2">
 						<p className="text-xs text-secondary dark:text-secondary-dark">
@@ -172,34 +252,6 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 					</div>
 				)}
 			</div>
-
-			{isQolEnabled && (
-				<div>
-					<span
-						className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-						id={`anonymous-label-${question.id}`}
-					>
-						Author, where this gets published
-					</span>
-					<SegmentedControl
-						isDisabled={updateQuestion.isPending}
-						labelledBy={`anonymous-label-${question.id}`}
-						onChange={async (anonymous) => runAction(async () => updateQuestion.mutateAsync({ anonymous }))}
-						options={[
-							{ label: 'Shown', value: false },
-							{ label: 'Hidden', value: true },
-						]}
-						value={question.anonymous}
-					/>
-					<p className="mt-1 text-xs text-secondary dark:text-secondary-dark">
-						{/* Spelled out because the two surfaces behave differently on purpose (#366) and the difference is
-						not guessable from a two-option switch. */}
-						Hidden publishes the question with no author on it at all - no name, no avatar. The review queue and this
-						dashboard always show who asked either way.
-						{isSent ? ' Changing this rewrites what has already been posted.' : ''}
-					</p>
-				</div>
-			)}
 
 			<div>
 				<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Tags</p>

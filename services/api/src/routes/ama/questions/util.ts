@@ -196,7 +196,11 @@ export async function buildQuestionEmbeds(
 	// question says, so an anonymous question rendered for the queue is rendered normally. With it on there's
 	// nothing to resolve either -- the two user lookups below are what the author line is built from, so
 	// they're skipped rather than fetched and discarded.
-	const anonymous = kind === 'answers' && question.anonymous;
+	//
+	// `umbrella` forces it rather than being trusted to agree with the stored `anonymous` (which
+	// `createQuestion.ts` does set): the author of one of these is the moderator who typed it, and nothing
+	// -- a stale row, a bulk update, a future write path -- gets to put their name in front of the audience.
+	const anonymous = kind === 'answers' && (question.anonymous || question.umbrella);
 	const [attachments, user, member, extraAskerCount] = await Promise.all([
 		// `liveQuestion`, not `question` -- this reads the *existing* message back, so it has to be told
 		// what that message currently looks like. See the option's own doc comment.
@@ -215,6 +219,8 @@ export async function buildQuestionEmbeds(
 		// Mirrors postToQueue's own `includeUserId: true` -- the only surface that ever shows it.
 		includeUserId: kind === 'queue',
 		member,
+		showAskerCount: question.showAskerCount,
+		umbrella: question.umbrella,
 		user: typeof user === 'string' ? undefined : user,
 		// Leaves room for the answer embed appended below when there's one to append, so a question
 		// with the max attachments doesn't blow past Discord's 10-embed cap once the answer is added.

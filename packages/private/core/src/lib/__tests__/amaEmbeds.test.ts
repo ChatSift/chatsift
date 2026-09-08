@@ -139,7 +139,9 @@ test('an anonymous question carries no author line and no id footer', () => {
 });
 
 // Everything that isn't the author survives: the question is still the question, and the merged-asker count
-// was already a bare number with no names in it (#326).
+// was already a bare number with no names in it (#326). The count reads as a flat head count here rather than
+// "3 other people" -- with no author line there's nobody for the reader to count from, and the author asked it
+// too, so they're in the total (#366 PM feedback).
 test('an anonymous question keeps its content, asker count and images', () => {
 	const embeds = getBaseEmbeds({
 		anonymous: true,
@@ -150,9 +152,58 @@ test('an anonymous question keeps its content, asker count and images', () => {
 		user: user(),
 	});
 
-	expect(embeds[0]!.fields).toStrictEqual([{ name: 'Also asked by', value: '3 other people', inline: false }]);
+	expect(embeds[0]!.fields).toStrictEqual([{ name: 'Asked by', value: '4 people', inline: false }]);
 	expect(embeds[0]!.image).toStrictEqual({ url: 'https://cdn.example/0.png' });
 	expect(embeds[1]!.image).toStrictEqual({ url: 'https://cdn.example/1.png' });
+});
+
+// The umbrella case is the one where the author is *not* one of the askers -- they wrote the wording, the
+// merges are the people who actually asked -- so the count is the merges alone, one less than the anonymous
+// question above from the same three merges (#366 PM feedback).
+test('an umbrella question counts only the merges', () => {
+	const base = { anonymous: true, attachments: [], content: 'why?', guildId: GUILD, umbrella: true, user: user() };
+
+	expect(getBaseEmbeds({ ...base, extraAskerCount: 3 })[0]!.fields).toStrictEqual([
+		{ name: 'Asked by', value: '3 people', inline: false },
+	]);
+	expect(getBaseEmbeds({ ...base, extraAskerCount: 1 })[0]!.fields).toStrictEqual([
+		{ name: 'Asked by', value: '1 person', inline: false },
+	]);
+	// Nothing has been merged in yet, so there's no tally to publish -- and the author it would otherwise
+	// count is exactly the one this question never names.
+	expect(getBaseEmbeds({ ...base, extraAskerCount: 0 })[0]!.fields).toBeUndefined();
+});
+
+// The queue renders an umbrella question with its author (the moderator who wrote it), and the count still
+// has to exclude them -- the wording is keyed off whether the visible author asked, not off `anonymous`.
+test('an umbrella question on the queue names its author but still counts only the merges', () => {
+	const embeds = getBaseEmbeds({
+		attachments: [],
+		content: 'why?',
+		extraAskerCount: 2,
+		guildId: GUILD,
+		umbrella: true,
+		user: user(),
+	});
+
+	expect(embeds[0]!.author).toStrictEqual({ name: 'didinele' });
+	expect(embeds[0]!.fields).toStrictEqual([{ name: 'Asked by', value: '2 people', inline: false }]);
+});
+
+test('showAskerCount: false drops the tally entirely', () => {
+	const embeds = getBaseEmbeds({
+		anonymous: true,
+		attachments: [],
+		content: 'why?',
+		extraAskerCount: 3,
+		guildId: GUILD,
+		showAskerCount: false,
+		umbrella: true,
+		user: user(),
+	});
+
+	expect(embeds[0]!.fields).toBeUndefined();
+	expect(embeds[0]!.description).toBe('why?');
 });
 
 test('the footer carries the avatar when there is one', () => {

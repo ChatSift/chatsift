@@ -17,7 +17,7 @@ export { CurrentlyInQueue, withResolvedActionRow } from '@chatsift/core';
  * Posts a queue message, then runs `claim` (an atomic UPDATE guarded by a WHERE clause) to take ownership
  * of the underlying row. If `claim` throws, or resolves with no row (lost a claim race to another
  * moderator/guest, or the caller-side checks are stale), the just-posted message is cleaned up so we don't
- * leave a stray duplicate behind — in both cases before the caller decides how to report the outcome.
+ * leave a stray duplicate behind -- in both cases before the caller decides how to report the outcome.
  */
 export async function claimAfterPost<TRow>(
 	claim: () => Promise<TRow[]>,
@@ -104,6 +104,8 @@ export async function postToQueue({
 		extraAskerCount,
 		guildId: session.guildId,
 		member,
+		showAskerCount: question.showAskerCount,
+		umbrella: question.umbrella,
 		user,
 		includeUserId: true, // Include user ID in the queue
 	});
@@ -186,13 +188,16 @@ export async function postToAnswersChannel({
 
 	const embeds = getBaseEmbeds({
 		// The one surface the flag applies to (#366) -- `postToQueue` above deliberately ignores it, since the
-		// people reviewing a question need to know whose it is.
-		anonymous: question.anonymous,
+		// people reviewing a question need to know whose it is. `umbrella` forces it for the same reason
+		// `services/api`'s `buildQuestionEmbeds` does: that author wrote the question, they didn't ask it.
+		anonymous: question.anonymous || question.umbrella,
 		attachments,
 		content,
 		extraAskerCount,
 		guildId: session.guildId,
 		member,
+		showAskerCount: question.showAskerCount,
+		umbrella: question.umbrella,
 		user,
 		includeUserId: false, // Don't include user ID in answers channel
 	});

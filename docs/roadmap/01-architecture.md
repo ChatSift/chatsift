@@ -2,24 +2,24 @@
 
 See [00-overview.md](00-overview.md) for product context. This doc is the technical map of `main`. The "why" for the two big changes below (API contract, DB stack) is expanded in [ADR 0001](../adr/0001-api-contract-pattern.md) and [ADR 0002](../adr/0002-db-stack.md).
 
-> **Status:** both changes described below shipped in M1 (2026-07-17) and are the actual current state of the code, not a future target — the "Current"/"Target" labels on the two subsections are kept because the ADRs' before/after framing is still useful context for _why_ the target shape looks the way it does. If you're only here to understand what the code does today, read the "Target" subsections; the "Current (being replaced)" ones are historical.
+> **Status:** both changes described below shipped in M1 (2026-07-17) and are the actual current state of the code, not a future target - the "Current"/"Target" labels on the two subsections are kept because the ADRs' before/after framing is still useful context for _why_ the target shape looks the way it does. If you're only here to understand what the code does today, read the "Target" subsections; the "Current (being replaced)" ones are historical.
 
 ## Monorepo layout (kept as-is)
 
 Yarn 4 (Berry) workspaces + Turborepo. ESM throughout.
 
-- `apps/website` (`@chatsift/website`) — Next.js 15 App Router dashboard/frontend.
-- `services/api` (`@chatsift/api`) — HTTP API, polka.
-- `services/ama-bot` (`@chatsift/ama-bot`) — AMA gateway Discord bot (`@discordjs/core`/`ws`, Components V2).
-- `packages/private/core` (`@chatsift/core`) — framework-agnostic shared types/constants (DB entity types, `NewAccessTokenHeader`, permissions helpers).
-- `packages/private/backend-core` (`@chatsift/backend-core`) — backend runtime foundation: `getContext()`/`initContext()` (db, logger, redis, env), Redis-backed data stores.
-- `packages/private/bot-core` (`@chatsift/bot-core`) — shared Discord gateway bot framework (client bootstrap, command/component dispatch, the `/deploy` command); extracted from `services/ama-bot` (#217) so `services/modmail-bot` doesn't duplicate it. See §6 below.
-- `packages/public/*` — publishable utilities (`discord-utils`, `parse-relative-time`, `pino-rotate-file`).
-- `prisma/` — currently the Prisma schema + migrations (being replaced, see below).
+- `apps/website` (`@chatsift/website`) - Next.js 15 App Router dashboard/frontend.
+- `services/api` (`@chatsift/api`) - HTTP API, polka.
+- `services/ama-bot` (`@chatsift/ama-bot`) - AMA gateway Discord bot (`@discordjs/core`/`ws`, Components V2).
+- `packages/private/core` (`@chatsift/core`) - framework-agnostic shared types/constants (DB entity types, `NewAccessTokenHeader`, permissions helpers).
+- `packages/private/backend-core` (`@chatsift/backend-core`) - backend runtime foundation: `getContext()`/`initContext()` (db, logger, redis, env), Redis-backed data stores.
+- `packages/private/bot-core` (`@chatsift/bot-core`) - shared Discord gateway bot framework (client bootstrap, command/component dispatch, the `/deploy` command); extracted from `services/ama-bot` (#217) so `services/modmail-bot` doesn't duplicate it. See §6 below.
+- `packages/public/*` - publishable utilities (`discord-utils`, `parse-relative-time`, `pino-rotate-file`).
+- `prisma/` - currently the Prisma schema + migrations (being replaced, see below).
 
 None of this top-level shape changes. What changes is (1) how `services/api` defines routes and how `apps/website` consumes them, and (2) how the database schema/migrations/types are produced, replacing `prisma/` with a new `packages/db`.
 
-## 1. API contract — current vs. target
+## 1. API contract - current vs. target
 
 ### Current (`main`, being replaced)
 
@@ -55,11 +55,11 @@ On the frontend, `apps/website/src/data/common.ts` hand-maintains a **second, pa
 const data = (await fetcher()) as Promise<InferAPIRouteResult<Options['path'], 'GET'> | null>;
 ```
 
-So the result and body/query types are asserted, not verified. You pay full maintenance cost — every new endpoint touches the route file, `routes.ts`, `_types/index.ts`, `common.ts`, `client.tsx`, and often `server.ts` — for safety that's mostly illusory. Full detail and more excerpts in [ADR 0001](../adr/0001-api-contract-pattern.md).
+So the result and body/query types are asserted, not verified. You pay full maintenance cost - every new endpoint touches the route file, `routes.ts`, `_types/index.ts`, `common.ts`, `client.tsx`, and often `server.ts` - for safety that's mostly illusory. Full detail and more excerpts in [ADR 0001](../adr/0001-api-contract-pattern.md).
 
 ### Target (SimplyChords pattern)
 
-A **functional** `defineRoute` factory (`services/api/src/core/route.ts` in the target layout) that lets TypeScript infer the contract from the handler's actual return type — no phantom fields, no reflection over value exports:
+A **functional** `defineRoute` factory (`services/api/src/core/route.ts` in the target layout) that lets TypeScript infer the contract from the handler's actual return type - no phantom fields, no reflection over value exports:
 
 ```ts
 export const getAMAsRoute = defineRoute({
@@ -93,7 +93,7 @@ export type InferRouteContract<TRoute> =
 		: never;
 ```
 
-`services/api/src/index.ts` becomes **type-only for the frontend** — it re-exports route objects and their zod schemas so the frontend can `import type` them (zero API runtime code ships to the browser) and reuse the exact same zod schema for client-side form validation:
+`services/api/src/index.ts` becomes **type-only for the frontend** - it re-exports route objects and their zod schemas so the frontend can `import type` them (zero API runtime code ships to the browser) and reuse the exact same zod schema for client-side form validation:
 
 ```ts
 // This file is NOT the runtime entry point (that's bin.ts). It exists to give the
@@ -103,7 +103,7 @@ export { getAMAsSchema, getAMAsRoute } from './routes/ama/getAMAs.js';
 // ...one line per route
 ```
 
-On the frontend, `apps/website/src/api/routes/ama.ts` derives everything from the route object — no hand-mirrored path/param registry:
+On the frontend, `apps/website/src/api/routes/ama.ts` derives everything from the route object - no hand-mirrored path/param registry:
 
 ```ts
 import type { InferRouteContract, getAMAsRoute } from '@chatsift/api';
@@ -119,14 +119,14 @@ export function useAMAs(guildId: string, query: GetAMAsContract['query']) {
 }
 ```
 
-If a handler's return shape changes, `apps/website` fails to typecheck — for real, no cast. Full detail (mount pipeline, typed middleware context, `apiFetch`/`queryClient`/`error`/`token` frontend layer) in [ADR 0001](../adr/0001-api-contract-pattern.md).
+If a handler's return shape changes, `apps/website` fails to typecheck - for real, no cast. Full detail (mount pipeline, typed middleware context, `apiFetch`/`queryClient`/`error`/`token` frontend layer) in [ADR 0001](../adr/0001-api-contract-pattern.md).
 
-## 2. Database — current vs. target
+## 2. Database - current vs. target
 
 ### Current (`main`, being replaced)
 
-- **Schema:** `prisma/schema.prisma` — 6 models: `Experiment`, `ExperimentOverride`, `DashboardGrant`, `AMASession`, `AMAPromptData`, `AMAQuestion` (+ `AMAQuestionState` enum).
-- **Migrations:** `prisma migrate` — forward-only in practice; down migrations require a manual `migrate diff` + `db execute`, not first-class.
+- **Schema:** `prisma/schema.prisma` - 6 models: `Experiment`, `ExperimentOverride`, `DashboardGrant`, `AMASession`, `AMAPromptData`, `AMAQuestion` (+ `AMAQuestionState` enum).
+- **Migrations:** `prisma migrate` - forward-only in practice; down migrations require a manual `migrate diff` + `db execute`, not first-class.
 - **Types:** the `prisma-kysely` generator outputs Kysely-compatible types to `packages/private/core/src/types/entities.ts`.
 - **Runtime queries:** Kysely query builder, e.g. (`services/api/src/routes/ama/getAMAs.ts`):
   ```ts
@@ -145,19 +145,19 @@ This works, but ties schema authoring to Prisma's DSL, doesn't give first-class 
 New package `packages/db` (mirrors SimplyChords' `@simplychords/db`):
 
 - **Schema:** a declarative schema (SQL or Atlas HCL) describing the same tables, owned by `packages/db`.
-- **Migrations:** [Atlas](https://atlasgo.io) (`ariga/atlas`) — `atlas migrate diff` auto-generates a versioned migration by diffing the declarative schema against migration history; `atlas migrate apply` applies it; `atlas migrate down` reverts. 50+ built-in safety analyzers catch destructive changes (dropped columns, table rewrites, etc.) in CI via `atlas migrate lint`.
+- **Migrations:** [Atlas](https://atlasgo.io) (`ariga/atlas`) - `atlas migrate diff` auto-generates a versioned migration by diffing the declarative schema against migration history; `atlas migrate apply` applies it; `atlas migrate down` reverts. 50+ built-in safety analyzers catch destructive changes (dropped columns, table rewrites, etc.) in CI via `atlas migrate lint`.
 - **Types:** [kanel](https://kristiandupont.github.io/kanel/) introspects the live database and generates matching TypeScript row types into `packages/db/src/generated/`.
-- **Runtime queries:** [`porsager/postgres`](https://github.com/porsager/postgres) (the `postgres` npm package, commonly nicknamed "postgres.js") — raw SQL tagged templates with generic row typing:
+- **Runtime queries:** [`porsager/postgres`](https://github.com/porsager/postgres) (the `postgres` npm package, commonly nicknamed "postgres.js") - raw SQL tagged templates with generic row typing:
   ```ts
   const sessions = await container.db<AMASessionRow[]>`
     SELECT * FROM ama_sessions WHERE guild_id = ${guildId} ORDER BY id DESC
   `;
   ```
-  `container.db` is a `postgres()` client instance held on `getContext()` (this repo keeps `getContext()`; SimplyChords' DI-container-via-module-augmentation is not required — see [ADR 0002](../adr/0002-db-stack.md) for why).
+  `container.db` is a `postgres()` client instance held on `getContext()` (this repo keeps `getContext()`; SimplyChords' DI-container-via-module-augmentation is not required - see [ADR 0002](../adr/0002-db-stack.md) for why).
 
 Full comparison against alternatives (Drizzle, Prisma 7 TypedSQL, pgTyped) and the reasoning for this exact combination is in [ADR 0002](../adr/0002-db-stack.md).
 
-**Naming convention: snake_case columns + `postgres.camel` transform** (`packages/db/schema/schema.sql`, `createDb()`), not quoted camelCase identifiers. Decided in M1 over keeping Prisma's quoted-camelCase style, because: (a) it matches the reference architecture (SimplyChords) this stack is modeled on; (b) quoted camelCase identifiers are a footgun in raw SQL — an accidental unquoted reference silently lowercases and resolves to a different (or missing) column; (c) kanel's generated row types and `postgres.camel` compose cleanly — the DB stays conventional snake_case, JS-facing code stays camelCase. For kanel-specific setup gotchas (config file extension, property-name casing, a transitive peer-dep crash), see [workflow.md](../workflow.md#database).
+**Naming convention: snake_case columns + `postgres.camel` transform** (`packages/db/schema/schema.sql`, `createDb()`), not quoted camelCase identifiers. Decided in M1 over keeping Prisma's quoted-camelCase style, because: (a) it matches the reference architecture (SimplyChords) this stack is modeled on; (b) quoted camelCase identifiers are a footgun in raw SQL - an accidental unquoted reference silently lowercases and resolves to a different (or missing) column; (c) kanel's generated row types and `postgres.camel` compose cleanly - the DB stays conventional snake_case, JS-facing code stays camelCase. For kanel-specific setup gotchas (config file extension, property-name casing, a transitive peer-dep crash), see [workflow.md](../workflow.md#database).
 
 ## 3. What's explicitly kept unchanged
 
@@ -167,42 +167,42 @@ Full comparison against alternatives (Drizzle, Prisma 7 TypedSQL, pgTyped) and t
 - **Frontend data-fetching library:** TanStack Query v5 (only the hooks around it change, not the library).
 - **Frontend framework:** Next.js App Router, React 18/19, React Compiler.
 - **Frontend state/UI:** Jotai, Tailwind, react-aria-components, Radix.
-- **Auth scheme** (see below) — unchanged in mechanism, just re-typed onto the new contract pattern.
-- **`ama-bot` gateway/component architecture:** `@discordjs/core`/`ws`, the `ComponentHandler` glob-loader, the queue state machine shape (`lib/queues.ts`) — extended, not replaced. The loader/client/dispatch primitives now live in `@chatsift/bot-core` (see §6 below).
+- **Auth scheme** (see below) - unchanged in mechanism, just re-typed onto the new contract pattern.
+- **`ama-bot` gateway/component architecture:** `@discordjs/core`/`ws`, the `ComponentHandler` glob-loader, the queue state machine shape (`lib/queues.ts`) - extended, not replaced. The loader/client/dispatch primitives now live in `@chatsift/bot-core` (see §6 below).
 
 ## 4. Auth flow (unchanged mechanism, reference)
 
-JWT-based, split across cookie + header — already close to the SimplyChords shape, so no redesign needed:
+JWT-based, split across cookie + header - already close to the SimplyChords shape, so no redesign needed:
 
-1. `GET /v3/auth/discord` — sets a signed `state` cookie, redirects to Discord OAuth (scopes: identify, email, guilds, guilds.members.read).
-2. `GET /v3/auth/discord/callback` — validates state, exchanges code, calls `fetchMe`, issues tokens.
-3. **Refresh token** — JWT, 30-day, httpOnly `refresh_token` cookie, contains Discord access/refresh tokens.
-4. **Access token** — JWT, 5-minute, delivered via the `X-Update-Access-Token` response header (never a cookie), contains `grants.adminGuilds`.
+1. `GET /v3/auth/discord` - sets a signed `state` cookie, redirects to Discord OAuth (scopes: identify, email, guilds, guilds.members.read).
+2. `GET /v3/auth/discord/callback` - validates state, exchanges code, calls `fetchMe`, issues tokens.
+3. **Refresh token** - JWT, 30-day, httpOnly `refresh_token` cookie, contains Discord access/refresh tokens.
+4. **Access token** - JWT, 5-minute, delivered via the `X-Update-Access-Token` response header (never a cookie), contains `grants.adminGuilds`.
 5. `isAuthed({ fallthrough, isGlobalAdmin, isGuildManager })` middleware verifies the refresh cookie, reads the access token from `Authorization`, auto-refreshes if <7 min remain, and gates on global-admin or guild-manager membership.
 6. Frontend: `apps/website/src/proxy.ts` redirects `/dashboard/*` to the API login URL if no `refresh_token` cookie; the client fetcher stores the rotating access token in memory (Jotai atom in the target layout, `useState` today) and re-reads `X-Update-Access-Token` on every response.
 
-Under the target contract pattern, `isAuthed` becomes a typed `defineMiddleware` that attaches `req.identity`/`req.tokens` onto the handler's `req` type — same runtime behavior, real typing.
+Under the target contract pattern, `isAuthed` becomes a typed `defineMiddleware` that attaches `req.identity`/`req.tokens` onto the handler's `req` type - same runtime behavior, real typing.
 
 ### 4a. `/dashboard` command auth (guild-scoped session, no OAuth) (#194)
 
 Replaces an earlier one-time, single-capability grant-token design (see git history if you need it). A `/dashboard`
-command — identical on every bot, registered automatically by `createBotClient`
-(`packages/private/bot-core/src/lib/dashboardCommand.ts`) — mints a link that exchanges for a normal session scoped
+command - identical on every bot, registered automatically by `createBotClient`
+(`packages/private/bot-core/src/lib/dashboardCommand.ts`) - mints a link that exchanges for a normal session scoped
 to one guild, rather than a token authorizing one specific action. Past the exchange there is a single auth code
 path: a scoped session flows through exactly the same `isAuthed` logic as a real OAuth session.
 
 - **`/dashboard open`**: mints a short-lived (~2 min), best-effort-single-use (see the claim-durability note below)
   `DashboardLinkTokenData` JWT (`{ kind: 'dashboard-link', sub, guildId, jti, iat }`,
   `packages/private/backend-core/src/lib/dashboardSession.ts`) and replies ephemerally with a spoilered link to
-  `GET {API_URL}/v3/auth/dashboard?token=...` — the link points at the API, not the dashboard, so the token is
+  `GET {API_URL}/v3/auth/dashboard?token=...` - the link points at the API, not the dashboard, so the token is
   only ever in the URL for that one initial request; the exchange consumes it and 302s to a clean
   `/dashboard/:guildId` URL with nothing in it, unlike the token itself ending up in the dashboard's own address
   bar for the whole visit the way the old grant tokens did. The reply text warns that the link expires in 2
   minutes and is meant to be used once, the session it grants lasts 30 minutes with full guild-manager access to
-  that one guild, and — if the user is already logged in normally in that browser — opening it will replace their
+  that one guild, and - if the user is already logged in normally in that browser - opening it will replace their
   session. `/dashboard revoke` ends every live scoped session for the caller in that guild
   (`revokeDashboardSessionsFor`).
-- **Exchange** (`services/api/src/routes/auth/dashboardLink.ts`, no `isAuthed` — there's no session yet):
+- **Exchange** (`services/api/src/routes/auth/dashboardLink.ts`, no `isAuthed` - there's no session yet):
   verifies + atomically claims the link token (`claimDashboardLinkToken`, `SET ... NX`, same one-time-use pattern
   the old grant tokens used), re-verifies `ManageGuild` at click time (permissions can have changed since the link
   was minted), starts a session record in Redis (`startDashboardSession`, 30-minute TTL), mints a scoped
@@ -210,45 +210,45 @@ path: a scoped session flows through exactly the same `isAuthed` logic as a real
   unconditionally overwritten.
 
   The single-use claim is best-effort, not durable, the same tradeoff as everything else Redis backs here (see the
-  in-memory-Redis bullet below) — a restart within the token's own ~2-minute lifetime clears the claim record and
+  in-memory-Redis bullet below) - a restart within the token's own ~2-minute lifetime clears the claim record and
   makes a previously-used link exchangeable again for whatever remains of that window. Accepted rather than
   persisted: the replay is bounded to ~2 minutes, requires Redis to restart in that exact window, and grants
   nothing beyond what the token's own embedded `sub` already had (the guild owner's/manager's own time-boxed
-  access) — durably persisting single-use claim markers only to close a window this narrow wasn't worth breaking
+  access) - durably persisting single-use claim markers only to close a window this narrow wasn't worth breaking
   the "Redis is disposable" property everything else here relies on.
 
 - **Token shape** (`services/api/src/util/tokens.ts`): `AccessTokenData`/`RefreshTokenData` are now discriminated
-  unions on `kind: 'oauth' | 'scoped'`. A `ScopedAccessTokenData` sets `grants.adminGuilds = [guildId]` — exactly
+  unions on `kind: 'oauth' | 'scoped'`. A `ScopedAccessTokenData` sets `grants.adminGuilds = [guildId]` - exactly
   the field `isGuildManager`/`isGuildManagerToken` already read for an OAuth session's admin claim, so no new
   authorization branch was needed there. A `ScopedRefreshTokenData` carries `absoluteExpiresAt`; every rotation
   (`createScopedRefreshToken`) clamps its own `expiresIn` to whatever remains until that timestamp, which is what
   makes the 30-minute cap absolute rather than sliding.
 - **Cross-cutting guard rails** (`middleware/isAuthed.ts`): the global-admin `ADMINS` bypass (both in
-  `isGuildManagerToken` and the `isGuildManager` middleware) only applies to `kind: 'oauth'` — otherwise a global
+  `isGuildManagerToken` and the `isGuildManager` middleware) only applies to `kind: 'oauth'` - otherwise a global
   admin's own link would work as an any-guild credential. The `isGlobalAdmin` middleware denies `kind: 'scoped'`
   outright, regardless of `ADMINS` membership. A per-route `allowScopedSession: false` option (set on
-  `createGrant`/`deleteGrant`) blocks a scoped session even on its own matching guild — otherwise a leaked link
+  `createGrant`/`deleteGrant`) blocks a scoped session even on its own matching guild - otherwise a leaked link
   could mint itself _permanent_ dashboard access before its own window elapses. Rotation (`refreshScoped`)
   re-verifies the session hasn't been revoked and re-resolves `ManageGuild` from Discord on every cycle (bypassing
-  the identity cache — see below — so this is a real re-check, not a replay of the first answer).
+  the identity cache - see below - so this is a real re-check, not a replay of the first answer).
 - **Identity resolution** (`services/api/src/util/me.ts`'s `fetchMeForScopedSession`): no Discord OAuth token to
   call `/users/@me` with, so it resolves the acting user + guild via whichever installed bot(s) actually have that
-  guild (same `GuildList` union `fetchMe` uses) — this is what makes a link minted by one bot also unlock every
+  guild (same `GuildList` union `fetchMe` uses) - this is what makes a link minted by one bot also unlock every
   other bot's config in that guild. `meCanManage` uses the identical rule `fetchMe` applies to a real session
   (owner, `ManageGuild`/`Administrator`, or a `dashboard_grants` row), just computed from bot REST instead of the
   user's own OAuth token. Cached 5 minutes (`ScopedMeStore`), with a `force` bypass used by both the exchange route
   and every refresh cycle.
 - **Boot-time route guard** (`services/api/src/core/server.ts`): every route mounted with `isAuthed`-derived
   middleware (tagged via `IS_AUTHED_MARKER`) must either contain a `:guildId` path param or be explicitly listed in
-  `NON_GUILD_SCOPED_ROUTES` — a scoped session is allowed by default on every `isAuthed` route (unlike the old
+  `NON_GUILD_SCOPED_ROUTES` - a scoped session is allowed by default on every `isAuthed` route (unlike the old
   grant tokens' per-route opt-in), so a route reachable outside a single guild needs an explicit decision at boot,
-  not silence. Having `:guildId` in the path isn't accepted as proof on its own, either — the guard also requires
+  not silence. Having `:guildId` in the path isn't accepted as proof on its own, either - the guard also requires
   `isGuildManager: true`/`'or-ama-guest'` (tagged via `IS_GUILD_MANAGER_MARKER`) actually be enforced for it, since
   a `:guildId` param a route never checks the caller against is exactly the shape of hole a scoped session's
   authorization boundary depends on not existing. The one route that legitimately skips it
   (`routes/ama/getAMAs.ts`, which calls `isGuildManagerToken` itself to filter rather than reject) is listed in a
   parallel `MANUALLY_GUILD_VERIFIED_ROUTES` set instead.
-- **Frontend**: a scoped session is a normal cookie session with exactly one guild in `me.guilds` — `NavGate`,
+- **Frontend**: a scoped session is a normal cookie session with exactly one guild in `me.guilds` - `NavGate`,
   `GuildNav`, `DashboardCrumbs`, snippet/block edit controls, and logout all work completely unchanged. The only
   scoped-session-aware frontend code is additive: `MeResponse.sessionKind`/`scopedExpiresAt`
   (`services/api/src/routes/auth/me.ts`) drive a persistent banner
@@ -259,208 +259,213 @@ path: a scoped session flows through exactly the same `isAuthed` logic as a real
 
 Reproduced from the old `prisma/schema.prisma` into the Atlas schema (`packages/db/schema/schema.sql`) in M1, field semantics unchanged:
 
-- `Experiment` / `ExperimentOverride` — feature-flag rollout ranges + per-guild overrides.
-- `DashboardGrant` — grants a `userId` dashboard-management access to a `guildId`.
-- `AMASession` — one AMA: `guildId`, `title`, channel routing (`queueId?`, `answersChannelId?`, `promptChannelId`), `reviewEnabled`, `preparedAnswersEnabled`, `shareToken`, `guestIds`, `allowedQuestionUploads`, `maxQuestionsPerUser`, `ended`. **`answersChannelId` is nullable (#316)** — null means the AMA publishes nowhere on Discord and the public answers page is the only surface an answer reaches. Every path that would post/edit/delete an answers-channel message skips the Discord call; the question still transitions to `ASKED` with an `asked_at`, just without an `answersMessageId`. This reverses the earlier "publishing cannot be dash-only" call; `promptChannelId` stays non-null, since the prompt message's "Submit a question" button is the only way a question can arrive at all. Two consequences worth knowing: switching an existing AMA to public-page-only leaves already-posted messages in place but **frozen** (a message is addressed as `(channel, message)`, so with the channel cleared there is nothing left to edit — see `resolveCurrentQueueMessage`), and `allowedQuestionUploads` must be `0` when neither `answersChannelId` nor `queueId` is set, because attachments are never persisted on the row and are always read back off a live Discord message (`questions/util.ts`'s `resolveQuestionAttachments`). That last rule lives in one shared predicate, `hasDiscordMessageSurface` in `services/api`'s `routes/ama/schemas.ts` — enforced by `createAMA`'s zod refine, re-checked against merged values in `updateAMA.ts` (a partial PATCH can't be validated in zod alone), and reused by the dashboard to disable its uploads field rather than re-deriving the condition. `ended` is a misnomer kept for the column name's sake: it only gates **new question submissions** (#299), and it's a two-way flag — everything else (triage, answering, config edits, export) keeps working on a closed session, and submissions can be reopened from the dashboard. UI-side it's surfaced as Open/Closed, never "ended". `maxQuestionsPerUser` (#396) is nullable and null means uncapped, which is where every pre-existing AMA sits; it counts **every** `ama_questions` row the author has in the session regardless of state, so a denial deliberately does not hand the slot back (otherwise the cap would do nothing against the repeat-submitter it exists for), while a merge does free one, since merging deletes the merged-from row outright. Lowering it never removes questions already submitted -- it only gates new ones. Mod review and guest review used to be two sequential stages, each with its own Discord queue channel (plus a separate read-only `flaggedQueueId` side-branch) — both are gone: guests now review the same single queue as mods, via scoped dashboard access instead of a dedicated Discord channel, and flagging (a dead-end with no forward path) was removed outright.
-- `AMAPromptData` — the posted prompt message for a session (`promptMessageId` unique, `promptJSONData` for reposting). 1:1 with `AMASession`.
-- `AMAQuestion` — a submitted question: `authorId`, `content`, `state` (`AMAQuestionState`: `PENDING_REVIEW | APPROVED | DENIED | ASKED`), `queueMessageId`/`answersMessageId`, prepared-answer fields (`answerContent`/`answerImageUrl`/`answeredById`/`answeredAt`), `anonymous`.
-- **`anonymous` (#366)** — publishes a question without saying who asked it. The split is by _audience_, not by row: the answers-channel embed drops its author line, avatar and id footer entirely, and the public answers page returns `author: null`, while the review queue embed, the dashboard list/detail and the CSV export always keep the real author — the point is what the server sees, not hiding a submitter from the people moderating them. Deliberately renders **nothing** in the author's place rather than an "Anonymous" placeholder (owner's call). `getBaseEmbeds` takes it as an option and every caller derives it from the surface it is rendering for (`kind === 'answers' && question.anonymous`), so a queue re-render can't accidentally honour it. Settable three ways: the dashboard question detail panel's Shown/Hidden switch (`updateQuestion.ts`'s `anonymous` mode), a bulk action over the question list's selection (`setQuestionsAnonymousBulk.ts`), and an `Anonymous: On/Off` toggle button on the queue message (`services/ama-bot`'s `toggleAnonymous.ts`). Flipping it on an already-`ASKED` question rewrites the live message the same way #327's answer edit does — and with the same strictness on the single-question route: the Discord edit runs first and a failure saves nothing. The bulk route is the one exception, because refusing a batch of 100 over one unreachable message leaves no way to apply the other 99; it commits first and hands back `failedToRefresh` for the dashboard to name.
-- **Umbrella questions (#366)** — `POST .../questions` (`createQuestion.ts`) is the only way to author a question that did not arrive through the bot's submit modal. Staff write the wording they want to answer, real duplicates get merged into it, and the "Also asked by — N other people" tally lands on their phrasing instead of whichever submission happened to be picked as the original. It is created `APPROVED` with no `queueMessageId`, whatever the session's review/prepared-answer settings say: `PENDING_REVIEW` would ask staff to review their own question (and there is no queue message for the Discord buttons to sit on), `ASKED` would publish it before anything could be merged in, and `APPROVED` is already a `MERGE_TARGET_STATE` that the dashboard's existing Send action publishes. `authorId` is the dashboard user who wrote it — which is why the create form defaults `anonymous` to on.
-- **Both are gated behind the `ama-qol` experiment (#366)** — the first feature in the repo to actually use the `experiments` machinery P0 of the AutoModerator port built (see [11-automoderator-port.md](11-automoderator-port.md#feature-gating)). The name lives in `@chatsift/core`'s `experimentNames.ts` so all three layers check the same string. The gate covers **write paths and the UI that reaches them, never rendering**: `createQuestion.ts`, `setQuestionsAnonymousBulk.ts` and `updateQuestion.ts`'s `anonymous` mode answer 403 when it's off, `postToQueue` omits the toggle button, `toggleAnonymous.ts` re-checks before writing (so collapsing the range reaches a button already on screen), and the dashboard hides its controls — but a question already published without an author keeps rendering that way regardless, because switching a kill switch off must not retroactively name someone. `services/api` and `services/ama-bot` both call `loadExperiments()` at boot for this; before #366 only `services/automoderator-bot` did.
-- **How the dashboard learns the gate state**: `enabledExperimentsFor(guildId)` on each `MeGuild`, i.e. `/v3/auth/me`, read through the `useExperiment` hook. Deliberately _not_ `GET /v3/guilds/:guildId`, the obvious home for a per-guild flag: that route is hard manager-only and `useGuildInfo` skips it entirely for an AMA guest, who would then see every gated AMA control hidden no matter the gate — and guests act on the queue. `me.guilds` reaches them because the API synthesizes an entry for a guest who isn't a Discord member at all. The cost is staleness: the list rides the 5-minute `Me` cache on top of the snapshot's own 60s refresh, so the UI lags a gate change by longer than enforcement does. It errs towards hiding an available control, which is the harmless direction, and adding the field to the cache's bin-rw recipe is safe because `RedisStore`'s `decodeOrEvict` evicts a stale entry on schema mismatch rather than throwing.
-- `AMAQuestionAsker` — duplicate-merge record: merging question A into B deletes A and adds a row on B recording A's `authorId` and its original `content` (snapshotted at merge time, for the dashboard's merged-duplicate display — never backfilled for rows merged before this column existed). The live Discord embed shows a bare count of these ("Also asked by — N other people", #326) and re-renders it in place on every merge; who they are stays dashboard-only, since resolving each name would cost a Discord user lookup on a path that runs on every merge. B's own `authorId` can appear in here (someone asking twice, both merged together), so anything counting "other people" filters it out — `countExtraAskers` in `services/api`'s `questions/util.ts` and `services/ama-bot`'s `lib/askers.ts`, and the `(+N)` badge's join in `listQuestions.ts`.
-- **Which states a merge is legal between** lives in `@chatsift/core`'s `amaMerge.ts` (`MERGE_SOURCE_STATES` / `MERGE_TARGET_STATES`) — core rather than `services/api`'s browser-safe `ama-schemas` module because `services/ama-bot` needs it too and doesn't depend on `@chatsift/api`. The two sides have different bars (#328): merging a question _away_ deletes it, so only `PENDING_REVIEW` qualifies, while _absorbing_ an asker is non-destructive and stays legal through `APPROVED` and `ASKED` (`DENIED` is excluded either way). An `ASKED` target means the merge edits an already-public answers-channel message, which is why the dashboard pickers and the bot's select menu both label each candidate's state.
+- `Experiment` / `ExperimentOverride` - feature-flag rollout ranges + per-guild overrides.
+- `DashboardGrant` - grants a `userId` dashboard-management access to a `guildId`.
+- `AMASession` - one AMA: `guildId`, `title`, channel routing (`queueId?`, `answersChannelId?`, `promptChannelId`), `reviewEnabled`, `preparedAnswersEnabled`, `shareToken`, `guestIds`, `allowedQuestionUploads`, `maxQuestionsPerUser`, `ended`. **`answersChannelId` is nullable (#316)** - null means the AMA publishes nowhere on Discord and the public answers page is the only surface an answer reaches. Every path that would post/edit/delete an answers-channel message skips the Discord call; the question still transitions to `ASKED` with an `asked_at`, just without an `answersMessageId`. This reverses the earlier "publishing cannot be dash-only" call; `promptChannelId` stays non-null, since the prompt message's "Submit a question" button is the only way a question can arrive at all. Two consequences worth knowing: switching an existing AMA to public-page-only leaves already-posted messages in place but **frozen** (a message is addressed as `(channel, message)`, so with the channel cleared there is nothing left to edit - see `resolveCurrentQueueMessage`), and `allowedQuestionUploads` must be `0` when neither `answersChannelId` nor `queueId` is set, because attachments are never persisted on the row and are always read back off a live Discord message (`questions/util.ts`'s `resolveQuestionAttachments`). That last rule lives in one shared predicate, `hasDiscordMessageSurface` in `services/api`'s `routes/ama/schemas.ts` - enforced by `createAMA`'s zod refine, re-checked against merged values in `updateAMA.ts` (a partial PATCH can't be validated in zod alone), and reused by the dashboard to disable its uploads field rather than re-deriving the condition. `ended` is a misnomer kept for the column name's sake: it only gates **new question submissions** (#299), and it's a two-way flag - everything else (triage, answering, config edits, export) keeps working on a closed session, and submissions can be reopened from the dashboard. UI-side it's surfaced as Open/Closed, never "ended". `maxQuestionsPerUser` (#396) is nullable and null means uncapped, which is where every pre-existing AMA sits; it counts **every** `ama_questions` row the author has in the session regardless of state, so a denial deliberately does not hand the slot back (otherwise the cap would do nothing against the repeat-submitter it exists for), while a merge does free one, since merging deletes the merged-from row outright. Lowering it never removes questions already submitted -- it only gates new ones. Mod review and guest review used to be two sequential stages, each with its own Discord queue channel (plus a separate read-only `flaggedQueueId` side-branch) - both are gone: guests now review the same single queue as mods, via scoped dashboard access instead of a dedicated Discord channel, and flagging (a dead-end with no forward path) was removed outright.
+- `AMAPromptData` - the posted prompt message for a session (`promptMessageId` unique, `promptJSONData` for reposting). 1:1 with `AMASession`.
+- `AMAQuestion` - a submitted question: `authorId`, `content`, `state` (`AMAQuestionState`: `PENDING_REVIEW | APPROVED | DENIED | ASKED`), `queueMessageId`/`answersMessageId`, prepared-answer fields (`answerContent`/`answerImageUrl`/`answeredById`/`answeredAt`), `anonymous`.
+- **`anonymous` (#366)** - publishes a question without saying who asked it. The split is by _audience_, not by row: the answers-channel embed drops its author line, avatar and id footer entirely, and the public answers page returns `author: null`, while the review queue embed, the dashboard list/detail and the CSV export always keep the real author - the point is what the server sees, not hiding a submitter from the people moderating them. Deliberately renders **nothing** in the author's place rather than an "Anonymous" placeholder (owner's call). `getBaseEmbeds` takes it as an option and every caller derives it from the surface it is rendering for (`kind === 'answers' && question.anonymous`), so a queue re-render can't accidentally honour it. Settable three ways: an eye/eye-slash toggle next to the author in the dashboard question detail panel (`updateQuestion.ts`'s `anonymous` mode), a bulk action over the question list's selection (`setQuestionsAnonymousBulk.ts`), and an `Anonymous: On/Off` toggle button on the queue message (`services/ama-bot`'s `toggleAnonymous.ts`). The detail-panel control was a labelled Shown/Hidden switch with a paragraph under it until the PM pass on the experiment: the questions list is read at a glance and screenshotted, and a control that most hosts touch on a handful of rows was taking a block of vertical space on every one of them. The explanation moved into the toggle's tooltip rather than being dropped, since the by-audience split is not guessable from an icon. In the list the row's `Anonymous` chip became the same eye-slash icon plus a tooltip. Flipping it on an already-`ASKED` question rewrites the live message the same way #327's answer edit does - and with the same strictness on the single-question route: the Discord edit runs first and a failure saves nothing. The bulk route is the one exception, because refusing a batch of 100 over one unreachable message leaves no way to apply the other 99; it commits first and hands back `failedToRefresh` for the dashboard to name.
+- **Umbrella questions (#366)** - `POST .../questions` (`createQuestion.ts`) is the only way to author a question that did not arrive through the bot's submit modal. Staff write the wording they want to answer, real duplicates get merged into it, and the asker tally lands on their phrasing instead of whichever submission happened to be picked as the original. It is created `APPROVED` with no `queueMessageId`, whatever the session's review/prepared-answer settings say: `PENDING_REVIEW` would ask staff to review their own question (and there is no queue message for the Discord buttons to sit on), `ASKED` would publish it before anything could be merged in, and `APPROVED` is already a `MERGE_TARGET_STATE` that the dashboard's existing Send action publishes. `authorId` is the dashboard user who wrote it, and the row carries `umbrella` alongside `anonymous` (both true at creation).
+
+  The two flags are not redundant. `anonymous` hides an author who _did_ ask; `umbrella` marks one who did not, so it also decides the tally's arithmetic: an umbrella question's askers are exactly the merges, while a plain anonymous question's are the merges plus the author nobody can see. Every rendering path treats `umbrella` as forcing the author-less rendering rather than trusting the stored `anonymous` to agree, and `updateQuestion.ts` refuses `anonymous` on an umbrella row outright (a stored "show the author" that every render overrides is the state that eventually reads as a bug). `setQuestionsAnonymousBulk.ts` skips them instead of refusing the batch, and `toggleAnonymous.ts` refuses - unreachable in practice, since an umbrella question has no queue message for the button to sit on.
+
+  The create form has no author control at all, on the PM's call that "umbrella questions do not have authors". What it offers instead is `show_asker_count`: whether the published question carries its `Asked by - N people` line or just the question. It stays editable afterwards from the detail panel (the merges it counts all arrive after the question is written), through `updateQuestion.ts`'s own `showAskerCount` mode, which re-renders a live answers-channel message with the same Discord-first strictness the `anonymous` mode uses. Mod-facing surfaces label these rows `Written by` rather than `Asked by`, and the CSV export carries `umbrella` as its own column - without it the record can't tell "someone asked this and didn't want their name on it" apart from "a moderator wrote this for duplicates to be merged under".
+
+- **Both are gated behind the `ama-qol` experiment (#366)** - the first feature in the repo to actually use the `experiments` machinery P0 of the AutoModerator port built (see [11-automoderator-port.md](11-automoderator-port.md#feature-gating)). The name lives in `@chatsift/core`'s `experimentNames.ts` so all three layers check the same string. The gate covers **write paths and the UI that reaches them, never rendering**: `createQuestion.ts`, `setQuestionsAnonymousBulk.ts` and `updateQuestion.ts`'s `anonymous`/`showAskerCount` modes answer 403 when it's off, `postToQueue` omits the toggle button, `toggleAnonymous.ts` re-checks before writing (so collapsing the range reaches a button already on screen), and the dashboard hides its controls - but a question already published without an author keeps rendering that way regardless, because switching a kill switch off must not retroactively name someone. `services/api` and `services/ama-bot` both call `loadExperiments()` at boot for this; before #366 only `services/automoderator-bot` did.
+- **How the dashboard learns the gate state**: `enabledExperimentsFor(guildId)` on each `MeGuild`, i.e. `/v3/auth/me`, read through the `useExperiment` hook. Deliberately _not_ `GET /v3/guilds/:guildId`, the obvious home for a per-guild flag: that route is hard manager-only and `useGuildInfo` skips it entirely for an AMA guest, who would then see every gated AMA control hidden no matter the gate - and guests act on the queue. `me.guilds` reaches them because the API synthesizes an entry for a guest who isn't a Discord member at all. The cost is staleness: the list rides the 5-minute `Me` cache on top of the snapshot's own 60s refresh, so the UI lags a gate change by longer than enforcement does. It errs towards hiding an available control, which is the harmless direction, and adding the field to the cache's bin-rw recipe is safe because `RedisStore`'s `decodeOrEvict` evicts a stale entry on schema mismatch rather than throwing.
+- `AMAQuestionAsker` - duplicate-merge record: merging question A into B deletes A and adds a row on B recording A's `authorId` and its original `content` (snapshotted at merge time, for the dashboard's merged-duplicate display - never backfilled for rows merged before this column existed). The live Discord embed shows a bare count of these ("Also asked by - N other people", #326) and re-renders it in place on every merge; who they are stays dashboard-only, since resolving each name would cost a Discord user lookup on a path that runs on every merge. B's own `authorId` can appear in here (someone asking twice, both merged together), so anything counting "other people" filters it out - `countExtraAskers` in `services/api`'s `questions/util.ts` and `services/ama-bot`'s `lib/askers.ts`, and the `(+N)` badge's join in `listQuestions.ts`.
+- **Which states a merge is legal between** lives in `@chatsift/core`'s `amaMerge.ts` (`MERGE_SOURCE_STATES` / `MERGE_TARGET_STATES`) - core rather than `services/api`'s browser-safe `ama-schemas` module because `services/ama-bot` needs it too and doesn't depend on `@chatsift/api`. The two sides have different bars (#328): merging a question _away_ deletes it, so only `PENDING_REVIEW` qualifies, while _absorbing_ an asker is non-destructive and stays legal through `APPROVED` and `ASKED` (`DENIED` is excluded either way). An `ASKED` target means the merge edits an already-public answers-channel message, which is why the dashboard pickers and the bot's select menu both label each candidate's state.
 
 ## 6. Bot framework (`@chatsift/bot-core`) + AMA bot subsystem (`services/ama-bot`)
 
-A gateway bot (`@discordjs/ws` `WebSocketManager` + `@discordjs/core` `Client`, `Guilds` intent), not an interactions-webhook bot. Landed across M1/M3 as `services/ama-bot`'s own `lib/*`; extracted into the shared `packages/private/bot-core` package in #217 (2026-07-24) so `services/modmail-bot` (M5) can reuse it instead of duplicating it, with `ama-bot` migrated onto the extracted package as its first consumer. `ama-bot`'s runtime behavior is unchanged by the extraction — only where the code lives moved.
+A gateway bot (`@discordjs/ws` `WebSocketManager` + `@discordjs/core` `Client`, `Guilds` intent), not an interactions-webhook bot. Landed across M1/M3 as `services/ama-bot`'s own `lib/*`; extracted into the shared `packages/private/bot-core` package in #217 (2026-07-24) so `services/modmail-bot` (M5) can reuse it instead of duplicating it, with `ama-bot` migrated onto the extracted package as its first consumer. `ama-bot`'s runtime behavior is unchanged by the extraction - only where the code lives moved.
 
-**`@chatsift/bot-core`** (`packages/private/bot-core/src/lib/`) — bot-generic, parameterized by the caller:
+**`@chatsift/bot-core`** (`packages/private/bot-core/src/lib/`) - bot-generic, parameterized by the caller:
 
-- `rest.ts`, `gateway.ts` — `createBotRest({ token })` / `createBotGateway({ token, intents, rest })` factories (shard-event logging included); no longer read a bot token off `getContext().env` internally, so every export in this package is safe to import statically regardless of `initContext()` ordering.
-- `commands.ts` — `CommandHandler` (`{ name, data, handle, handleAutocomplete? }`), `registerCommandHandler()` (direct registration) and `registerCommandHandlers(commandsDir)` (globs `${commandsDir}/**/*.js`, dynamically imports, registers), plus the `ApplicationCommand`/`ApplicationCommandAutocomplete` dispatch functions. Option parsing still uses `@sapphire/discord-utilities`'s resolvers (no in-repo resolver code).
-- `components.ts` — `ComponentHandler<State>` (`{ name, stateStore, handle() }`), `registerComponentHandler()`/`registerComponentHandlers(componentsDir)`, and `MessageComponent` dispatch; `custom_id` format is `name:stateId` with optional Redis-backed state via the handler's `stateStore`.
-- `collector.ts` — `collectModal(id, waitFor)`, a one-off modal-submit awaiter for the button→modal flows the dispatcher doesn't route (modals aren't dispatched through `components.ts`).
-- `deploy.ts` — the shared `/deploy` command (admin-gated via `env.ADMINS`, bulk-overwrites **global** commands from every registered handler's `data` — deliberately global-only, no per-guild registration). `createBotClient` registers it automatically, so no service discovers or wires it up itself.
-- `client.ts` — `createBotClient({ botId, gateway, rest })` builds the `@discordjs/core` `Client` and owns: interaction routing (dispatches to the three functions above with a per-interaction child logger), guild-set tracking with a periodic `GuildList.set(botId, ...)` Redis sync (`bot:<BotId>` key, so the API knows which guilds each bot is in), the fresh-app bootstrap that seeds `/deploy` as the only global command, and registering the shared `/deploy` command itself. Declares `ContextService.client` via `declare module '@chatsift/backend-core'`.
+- `rest.ts`, `gateway.ts` - `createBotRest({ token })` / `createBotGateway({ token, intents, rest })` factories (shard-event logging included); no longer read a bot token off `getContext().env` internally, so every export in this package is safe to import statically regardless of `initContext()` ordering.
+- `commands.ts` - `CommandHandler` (`{ name, data, handle, handleAutocomplete? }`), `registerCommandHandler()` (direct registration) and `registerCommandHandlers(commandsDir)` (globs `${commandsDir}/**/*.js`, dynamically imports, registers), plus the `ApplicationCommand`/`ApplicationCommandAutocomplete` dispatch functions. Option parsing still uses `@sapphire/discord-utilities`'s resolvers (no in-repo resolver code).
+- `components.ts` - `ComponentHandler<State>` (`{ name, stateStore, handle() }`), `registerComponentHandler()`/`registerComponentHandlers(componentsDir)`, and `MessageComponent` dispatch; `custom_id` format is `name:stateId` with optional Redis-backed state via the handler's `stateStore`.
+- `collector.ts` - `collectModal(id, waitFor)`, a one-off modal-submit awaiter for the button→modal flows the dispatcher doesn't route (modals aren't dispatched through `components.ts`).
+- `deploy.ts` - the shared `/deploy` command (admin-gated via `env.ADMINS`, bulk-overwrites **global** commands from every registered handler's `data` - deliberately global-only, no per-guild registration). `createBotClient` registers it automatically, so no service discovers or wires it up itself.
+- `client.ts` - `createBotClient({ botId, gateway, rest })` builds the `@discordjs/core` `Client` and owns: interaction routing (dispatches to the three functions above with a per-interaction child logger), guild-set tracking with a periodic `GuildList.set(botId, ...)` Redis sync (`bot:<BotId>` key, so the API knows which guilds each bot is in), the fresh-app bootstrap that seeds `/deploy` as the only global command, and registering the shared `/deploy` command itself. Declares `ContextService.client` via `declare module '@chatsift/backend-core'`.
 
-**`services/ama-bot`** — everything AMA-specific, built on top of `@chatsift/bot-core`:
+**`services/ama-bot`** - everything AMA-specific, built on top of `@chatsift/bot-core`:
 
-- `bin.ts` — process entry: `initContext()`, then `createBotRest`/`createBotGateway`/`createBotClient` with `botId: 'AMA'` and `env.AMA_BOT_TOKEN`, `setServiceValue('client', ...)`, then registers its own `commands`/`components` dirs and connects.
-- `commands/ama.ts` — the `/ama` command set: `close` (ephemeral select menu of sessions still accepting questions, flips `ended` via a direct DB write), `repost-prompt` (select menu, replays the stored `AMAPromptData.promptJSONData` verbatim via the bot's own REST client — intentionally not the same client instance `services/api`'s `repostPrompt` route uses, see the file for why). Creating a new AMA is reached via `/dashboard` (§4a above) rather than a bot subcommand — the create form needs channel pickers and other dashboard-only UI a slash command can't offer. `/ama stats` was deliberately not built (would've duplicated Cluster-4 query logic); still open if anyone wants to pick it up.
-- `lib/queues.ts` — the core domain logic:
-  - `enum CurrentlyInQueue { queue, answers }` — a state machine: **queue → answers channel**. Mods act on the queue in Discord; anyone in `session.guestIds` acts on the same queue via the dashboard instead (see `services/api`'s `'or-ama-guest'` auth path in §4a's neighborhood). Flagging and the separate guest-queue stage that used to exist here were both removed (#293 follow-up simplification).
-  - `postToQueue` / `postToAnswersChannel` — builder functions: author name+avatar line, blurple `0x7289da`, footer with `username (id)` on the queue (where a reviewer needs the raw ID to act), no footer on the answers channel. `postToAnswersChannel` is the only one of the two that honours `anonymous` (#366); the queue always shows the real author, and its button row carries the toggle for it. `postToAnswersChannel` resolves `null` rather than throwing when the session has no `answersChannelId` (#316) — unlike `postToQueue`'s missing-channel `throw`, "no channel" here is a supported configuration every caller branches on, not a bug. Classic embeds, not Components V2 — Components V2 was trialed and rejected in favor of matching `ChatSift/AMA`'s existing embed layout. `getBaseEmbeds` also adds gallery-grouping (same-`url` trick) for >1 attachment, and an "Also asked by" field carrying the merged-duplicate asker count when there is one (see §5's `AMAQuestionAsker`).
-- `components/submitQuestion.ts` — user clicks "Submit a question" on the prompt message → modal (text + optional uploads, gated by `allowedQuestionUploads`) → inserts `AMAQuestion` → routes into the queue or straight to answers per `reviewEnabled`/`preparedAnswersEnabled`. The straight-to-answers branch tolerates a null `answersChannelId` (#316): it still sets `asked_at` (the question did go out — to the public page) but leaves `answers_message_id` null, the same "the stage exists, it just has no Discord message" shape as a dash-only review stage. Rejects submission once `ended` (i.e. once submissions are closed) — the only place that flag is enforced. `maxQuestionsPerUser` is enforced here too, twice: a count before the modal opens (so nobody types out a question only to be told they had no slot left) and then the write itself, an `INSERT ... SELECT` whose conditional `WHERE` counts in the same statement that inserts. That statement alone does **not** make the cap hold -- under READ COMMITTED the correlated `COUNT(*)` reads the snapshot taken when the statement began, so a concurrent submission committing in between is invisible to it and both attempts pass the gate (measured: two genuinely simultaneous submissions overshot a cap of 1 on every run). What makes it hold is a `pg_advisory_xact_lock(ama_id, hashtext(author_id))` taken as its own statement first, so the insert that follows gets a fresh snapshot including whatever the previous holder committed. Only capped sessions pay for that transaction and lock; an uncapped AMA keeps the plain single-statement insert. A refused attempt is counted as `ama_questions_submitted_total{result="capped"}`.
-- `components/modApprove.ts` / `modDeny.ts` — parse question ID from `custom_id`, advance/deny the row (`WHERE state = 'PENDING_REVIEW'`), disable buttons on the source message.
-- `components/markDuplicate.ts` / `markDuplicateSelect.ts` — duplicate-merge entry point, available on the queue. `markDuplicateSelect`'s re-render of the merge target honours `anonymous` on the answers surface, so a merge can't quietly restore an author line the flag had removed.
-- `components/toggleAnonymous.ts` — the queue's `Anonymous: On/Off` button (#366). Guarded to `PENDING_REVIEW`/`APPROVED` (nothing published in either), since re-rendering a live answers-channel message is `services/api`'s job; in practice the button is gone by then anyway, because approving or denying replaces the whole action row with a single disabled button. It swaps _its own_ button in place rather than rebuilding the row, for the same reason.
-- **No answer surface on the bot** — answers are written from the dashboard only. `ChatSift/AMA` never posted "the answer" via the bot either: a mod right-clicks the answers-channel message → "Add Answer" context-menu command → modal → appends a second embed onto the live Discord message, and neither `ChatSift/AMA` nor `main` ever persisted answer text in the DB (only a message-ID pointer). That "Add Answer" flow was never ported (tracked as #200, open, not scheduled), so `ama_questions.answer_content` is written exclusively by `services/api`'s `updateQuestion.ts` answer branch.
-- **Answers are editable, before _and_ after send (#327).** The dashboard's `QuestionDetailPanel` shows the answer editor for `APPROVED` (prepare + **Save Answer**, or **Send** to publish in one step) and for `ASKED` (**Save changes**, behind a `ConfirmModal`); `PENDING_REVIEW`/`DENIED` get no editor. Editing an `ASKED` question re-renders the message that's already live rather than reposting: `resolveCurrentQueueMessage` → `buildQuestionEmbeds` → `resolveEmbedsForEdit` → `editMessage`, the same composition `mergeShared.ts` uses. It runs **before** the DB write and, unlike merge's cosmetic refresh, is not best-effort — anything other than a 404 (message already deleted) throws `badGateway` and nothing is saved, so the dashboard and the public answers page can never claim something the answers channel doesn't. This reverses the 2026-07-19 "out of scope, manual Discord edit is sufficient" decision; #327 revisited it.
+- `bin.ts` - process entry: `initContext()`, then `createBotRest`/`createBotGateway`/`createBotClient` with `botId: 'AMA'` and `env.AMA_BOT_TOKEN`, `setServiceValue('client', ...)`, then registers its own `commands`/`components` dirs and connects.
+- `commands/ama.ts` - the `/ama` command set: `close` (ephemeral select menu of sessions still accepting questions, flips `ended` via a direct DB write), `repost-prompt` (select menu, replays the stored `AMAPromptData.promptJSONData` verbatim via the bot's own REST client - intentionally not the same client instance `services/api`'s `repostPrompt` route uses, see the file for why). Creating a new AMA is reached via `/dashboard` (§4a above) rather than a bot subcommand - the create form needs channel pickers and other dashboard-only UI a slash command can't offer. `/ama stats` was deliberately not built (would've duplicated Cluster-4 query logic); still open if anyone wants to pick it up.
+- `lib/queues.ts` - the core domain logic:
+  - `enum CurrentlyInQueue { queue, answers }` - a state machine: **queue → answers channel**. Mods act on the queue in Discord; anyone in `session.guestIds` acts on the same queue via the dashboard instead (see `services/api`'s `'or-ama-guest'` auth path in §4a's neighborhood). Flagging and the separate guest-queue stage that used to exist here were both removed (#293 follow-up simplification).
+  - `postToQueue` / `postToAnswersChannel` - builder functions: author name+avatar line, blurple `0x7289da`, footer with `username (id)` on the queue (where a reviewer needs the raw ID to act), no footer on the answers channel. `postToAnswersChannel` is the only one of the two that honours `anonymous` (#366); the queue always shows the real author, and its button row carries the toggle for it. `postToAnswersChannel` resolves `null` rather than throwing when the session has no `answersChannelId` (#316) - unlike `postToQueue`'s missing-channel `throw`, "no channel" here is a supported configuration every caller branches on, not a bug. Classic embeds, not Components V2 - Components V2 was trialed and rejected in favor of matching `ChatSift/AMA`'s existing embed layout. `getBaseEmbeds` also adds gallery-grouping (same-`url` trick) for >1 attachment, and a merged-duplicate asker count when there is one (see §5's `AMAQuestionAsker`) - worded `Also asked by - N other people` next to a visible author, and `Asked by - N people` when there isn't one to be "other" than.
+- `components/submitQuestion.ts` - user clicks "Submit a question" on the prompt message → modal (text + optional uploads, gated by `allowedQuestionUploads`) → inserts `AMAQuestion` → routes into the queue or straight to answers per `reviewEnabled`/`preparedAnswersEnabled`. The straight-to-answers branch tolerates a null `answersChannelId` (#316): it still sets `asked_at` (the question did go out - to the public page) but leaves `answers_message_id` null, the same "the stage exists, it just has no Discord message" shape as a dash-only review stage. Rejects submission once `ended` (i.e. once submissions are closed) - the only place that flag is enforced. `maxQuestionsPerUser` is enforced here too, twice: a count before the modal opens (so nobody types out a question only to be told they had no slot left) and then the write itself, an `INSERT ... SELECT` whose conditional `WHERE` counts in the same statement that inserts. That statement alone does **not** make the cap hold -- under READ COMMITTED the correlated `COUNT(*)` reads the snapshot taken when the statement began, so a concurrent submission committing in between is invisible to it and both attempts pass the gate (measured: two genuinely simultaneous submissions overshot a cap of 1 on every run). What makes it hold is a `pg_advisory_xact_lock(ama_id, hashtext(author_id))` taken as its own statement first, so the insert that follows gets a fresh snapshot including whatever the previous holder committed. Only capped sessions pay for that transaction and lock; an uncapped AMA keeps the plain single-statement insert. A refused attempt is counted as `ama_questions_submitted_total{result="capped"}`.
+- `components/modApprove.ts` / `modDeny.ts` - parse question ID from `custom_id`, advance/deny the row (`WHERE state = 'PENDING_REVIEW'`), disable buttons on the source message.
+- `components/markDuplicate.ts` / `markDuplicateSelect.ts` - duplicate-merge entry point, available on the queue. `markDuplicateSelect`'s re-render of the merge target honours `anonymous` on the answers surface, so a merge can't quietly restore an author line the flag had removed.
+- `components/toggleAnonymous.ts` - the queue's `Anonymous: On/Off` button (#366). Guarded to `PENDING_REVIEW`/`APPROVED` (nothing published in either), since re-rendering a live answers-channel message is `services/api`'s job; in practice the button is gone by then anyway, because approving or denying replaces the whole action row with a single disabled button. It swaps _its own_ button in place rather than rebuilding the row, for the same reason.
+- **No answer surface on the bot** - answers are written from the dashboard only. `ChatSift/AMA` never posted "the answer" via the bot either: a mod right-clicks the answers-channel message → "Add Answer" context-menu command → modal → appends a second embed onto the live Discord message, and neither `ChatSift/AMA` nor `main` ever persisted answer text in the DB (only a message-ID pointer). That "Add Answer" flow was never ported (tracked as #200, open, not scheduled), so `ama_questions.answer_content` is written exclusively by `services/api`'s `updateQuestion.ts` answer branch.
+- **Answers are editable, before _and_ after send (#327).** The dashboard's `QuestionDetailPanel` shows the answer editor for `APPROVED` (prepare + **Save Answer**, or **Send** to publish in one step) and for `ASKED` (**Save changes**, behind a `ConfirmModal`); `PENDING_REVIEW`/`DENIED` get no editor. Editing an `ASKED` question re-renders the message that's already live rather than reposting: `resolveCurrentQueueMessage` → `buildQuestionEmbeds` → `resolveEmbedsForEdit` → `editMessage`, the same composition `mergeShared.ts` uses. It runs **before** the DB write and, unlike merge's cosmetic refresh, is not best-effort - anything other than a 404 (message already deleted) throws `badGateway` and nothing is saved, so the dashboard and the public answers page can never claim something the answers channel doesn't. This reverses the 2026-07-19 "out of scope, manual Discord edit is sufficient" decision; #327 revisited it.
 - **`ama_questions.asked_at`** records the transition to `'ASKED'` (written by `sendQuestion.ts`, `updateQuestion.ts`'s direct-approve branch, and the bot's `modApprove.ts`/`submitQuestion.ts`). It exists because the public answers page read `updated_at` as its "asked at", which stopped being correct the moment a sent answer became editable. Backfilled from `updated_at`.
 - **Stats/export** live on `services/api`, not the bot: `GET /v3/guilds/:guildId/ama/amas/:amaId/stats` (question counts by `AMAQuestionState`) and `GET /v3/guilds/:guildId/ama/amas/:amaId/export` (CSV, RFC 4180 escaping + a leading-`'` guard against CSV/formula injection). Surfaced in the dashboard's AMA detail view.
 
 ## 6a. ModMail bot subsystem (`services/modmail-bot`) (M5, #152)
 
-> **Status:** the ticket-system rebuild described here shipped and is the actual current state of the code — this is not a forward-looking design. [06-modmail-port.md](06-modmail-port.md) is now scoped down to the one piece of M5 that's still outstanding: the real data migration + cutover from `ChatSift/ModMail`. §7 (thread-history view) and §8 (custom instances, DM mode) below are both built on top of the base system documented here.
+> **Status:** the ticket-system rebuild described here shipped and is the actual current state of the code - this is not a forward-looking design. [06-modmail-port.md](06-modmail-port.md) is now scoped down to the one piece of M5 that's still outstanding: the real data migration + cutover from `ChatSift/ModMail`. §7 (thread-history view) and §8 (custom instances, DM mode) below are both built on top of the base system documented here.
 
-Built on `@chatsift/bot-core` (§6 above), same shape as `services/ama-bot`: `bin.ts` boots with `botId: 'MODMAIL'` and `env.MODMAIL_BOT_TOKEN` (or a custom instance's decrypted token, see §8), registers its own `commands`/`components` dirs, and additionally runs four interval sweeps from `index.ts`'s `bin()` (pending-ticket abandonment, scheduled close, scheduled nuke, anti-archive — all below).
+Built on `@chatsift/bot-core` (§6 above), same shape as `services/ama-bot`: `bin.ts` boots with `botId: 'MODMAIL'` and `env.MODMAIL_BOT_TOKEN` (or a custom instance's decrypted token, see §8), registers its own `commands`/`components` dirs, and additionally runs four interval sweeps from `index.ts`'s `bin()` (pending-ticket abandonment, scheduled close, scheduled nuke, anti-archive - all below).
 
-**Schema** (`packages/private/db/schema/schema.sql`) — reproduces the 9 carried-forward models from `ChatSift/ModMail`'s Prisma schema (`GuildSettings`, `Snippet`+`SnippetUpdates`, `Thread`, `ThreadMessage`, `ScheduledThreadClose`, `Block`, `ThreadOpenAlert`, `ThreadReplyAlert`) close to 1:1, plus what the ticket-system redesign added:
+**Schema** (`packages/private/db/schema/schema.sql`) - reproduces the 9 carried-forward models from `ChatSift/ModMail`'s Prisma schema (`GuildSettings`, `Snippet`+`SnippetUpdates`, `Thread`, `ThreadMessage`, `ScheduledThreadClose`, `Block`, `ThreadOpenAlert`, `ThreadReplyAlert`) close to 1:1, plus what the ticket-system redesign added:
 
-- `guild_settings` — `mod_forum_id` (single mod-side forum; routing is tag-based, not one-forum-per-category — an owner decision, #152), `default_greeting_message`/`farewell_message`/`alert_role_id`/`anon_reply_label` (supports a `{{guildName}}` placeholder), `max_concurrent_threads` (default 1, guild-wide cap), `nuke_delay_minutes` (nullable — `NULL` means never auto-delete a closed ticket's private thread), `greeting_before_opener` (default false — the greeting posts after the opener message is relayed, not before), plus the `record_thread_content*`/`dm_mode` columns documented in §7/§8.
-- `categories` — `name`/`emoji`/`description`/`greeting_message?` (falls back to the guild default)/`forum_tag_id?`/`sort_order`/`max_concurrent_threads?` (per-category override, must be `<= ` the guild's own limit, re-clamped defensively at read time in case the guild limit was lowered after the fact). One category per forum tag per guild (partial unique index).
-- `ticket_panels` (`channel_id`, `message_id`, `panel_json_data` — raw-JSON authoring, mirroring `AMAPromptData.promptJSONData`'s precedent) + `ticket_panel_categories` join — a panel is scoped to a chosen subset of the guild's categories; a panel with zero _or one_ attached categories skips the category prompt entirely (one option is no choice — the single category is applied straight through).
-- `threads` — `mod_thread_id` (the mod-forum post, renamed from the old Prisma model's `channel_id` since a ticket now has two Discord-channel concepts) and `user_channel_id` (nullable — a private thread for the M5 panel flow, or a DM channel id for DM mode, §8; `NULL` for migrated legacy rows), `category_id` (nullable), `origin` (`'panel' | 'dm'`, check-constrained).
-- `pending_tickets` — durable record of a ticket between "private thread created" and "mod-forum thread exists," polled by `pendingTicketSweep.ts` to delete an abandoned setup (user never sent an opening message) and counted alongside real `threads` rows by the concurrency checks below so a burst of clicks can't blow past the limit before any of them resolve. Mirrored by an in-process `PendingTicketStore` (Redis, same TTL) used for routing incoming gateway events, not as the durable source of truth.
-- `thread_messages`/`thread_message_content`(+`_edits`) — see §7, which added the content-recording sidecar on top of the base `thread_messages` row every relayed message and reply already gets.
-- `scheduled_thread_closes` (`/close schedule`) and `scheduled_thread_nukes` (post-close deletion, gated on `nuke_delay_minutes` being set) — both polled by their own 1-minute sweeps.
-- `blocks`, `thread_open_alerts`, `thread_reply_alerts`, `snippets`+`snippet_updates` — carried forward close to 1:1 from `ChatSift/ModMail`'s schema.
+- `guild_settings` - `mod_forum_id` (single mod-side forum; routing is tag-based, not one-forum-per-category - an owner decision, #152), `default_greeting_message`/`farewell_message`/`alert_role_id`/`anon_reply_label` (supports a `{{guildName}}` placeholder), `max_concurrent_threads` (default 1, guild-wide cap), `nuke_delay_minutes` (nullable - `NULL` means never auto-delete a closed ticket's private thread), `greeting_before_opener` (default false - the greeting posts after the opener message is relayed, not before), plus the `record_thread_content*`/`dm_mode` columns documented in §7/§8.
+- `categories` - `name`/`emoji`/`description`/`greeting_message?` (falls back to the guild default)/`forum_tag_id?`/`sort_order`/`max_concurrent_threads?` (per-category override, must be `<= ` the guild's own limit, re-clamped defensively at read time in case the guild limit was lowered after the fact). One category per forum tag per guild (partial unique index).
+- `ticket_panels` (`channel_id`, `message_id`, `panel_json_data` - raw-JSON authoring, mirroring `AMAPromptData.promptJSONData`'s precedent) + `ticket_panel_categories` join - a panel is scoped to a chosen subset of the guild's categories; a panel with zero _or one_ attached categories skips the category prompt entirely (one option is no choice - the single category is applied straight through).
+- `threads` - `mod_thread_id` (the mod-forum post, renamed from the old Prisma model's `channel_id` since a ticket now has two Discord-channel concepts) and `user_channel_id` (nullable - a private thread for the M5 panel flow, or a DM channel id for DM mode, §8; `NULL` for migrated legacy rows), `category_id` (nullable), `origin` (`'panel' | 'dm'`, check-constrained).
+- `pending_tickets` - durable record of a ticket between "private thread created" and "mod-forum thread exists," polled by `pendingTicketSweep.ts` to delete an abandoned setup (user never sent an opening message) and counted alongside real `threads` rows by the concurrency checks below so a burst of clicks can't blow past the limit before any of them resolve. Mirrored by an in-process `PendingTicketStore` (Redis, same TTL) used for routing incoming gateway events, not as the durable source of truth.
+- `thread_messages`/`thread_message_content`(+`_edits`) - see §7, which added the content-recording sidecar on top of the base `thread_messages` row every relayed message and reply already gets.
+- `scheduled_thread_closes` (`/close schedule`) and `scheduled_thread_nukes` (post-close deletion, gated on `nuke_delay_minutes` being set) - both polled by their own 1-minute sweeps.
+- `blocks`, `thread_open_alerts`, `thread_reply_alerts`, `snippets`+`snippet_updates` - carried forward close to 1:1 from `ChatSift/ModMail`'s schema.
 
-**API** (`services/api/src/routes/modmail/`): `config/` (get/update — the guild-settings fields above), `categories/` (CRUD), `panels/` (CRUD, incl. raw-JSON mode), `snippets/` (CRUD — `createSnippet`/`updateSnippet` mint/rename the per-guild Discord slash command directly, see below), `blocks/` (create/list/delete), `threads/` (§7), plus `snippets/resyncSnippets.ts` and `panels/resyncPanels.ts` (§8). All of these (config, snippets, blocks) are also reachable from a `/dashboard` link the same way AMA creation is — see §4a above; there's no longer a separate ModMail-specific linking command per page.
+**API** (`services/api/src/routes/modmail/`): `config/` (get/update - the guild-settings fields above), `categories/` (CRUD), `panels/` (CRUD, incl. raw-JSON mode), `snippets/` (CRUD - `createSnippet`/`updateSnippet` mint/rename the per-guild Discord slash command directly, see below), `blocks/` (create/list/delete), `threads/` (§7), plus `snippets/resyncSnippets.ts` and `panels/resyncPanels.ts` (§8). All of these (config, snippets, blocks) are also reachable from a `/dashboard` link the same way AMA creation is - see §4a above; there's no longer a separate ModMail-specific linking command per page.
 
 **Dashboard** (`apps/website/src/app/dashboard/[id]/modmail/`): `config/`, `categories/` (+ `[categoryId]`/`new`), `panels/` (+ `[panelId]`/`new`, embed editor with a raw-JSON toggle mirroring `CreateAMAForm`'s, live preview, a `DmModeBanner` when the guild is in DM mode since panels go inert there), `snippets/` (+ `[snippetId]`/`new`), `blocks/`, `threads/` (§7).
 
-**Create flow** (`components/createTicket.ts`, `components/categorySelect.ts`, `lib/panelTicket.ts`, `lib/ticketCreation.ts`): a panel's "Create Ticket" button click → deferred ephemeral reply → block check (`lib/blocks.ts`) → concurrency check (`lib/threads.ts`'s `countActiveTicketsForUser`, counting both open `threads` and in-flight `pending_tickets`) → if the panel has **two or more** categories, an ephemeral category select (`buildCategorySelectOptions`, `lib/categorySelectOptions.ts`) with no thread created yet; with one or none, straight to thread creation (the lone category, if any, applied without asking). Either way the tail is the same shared `createPanelTicket` (`lib/panelTicket.ts`, which also owns the per-category concurrency check): a private thread is created in the panel's channel, a `pending_tickets` row + Redis `PendingTicketStore` entry recorded, and the user told (ephemerally) to describe their issue there. The user's first message in that thread (`index.ts`'s `handleFirstMessage`, gated behind a per-guild+user lock, `lib/guildUserQueue.ts`) calls `finishTicketCreation` (`lib/ticketCreation.ts`): opens the mod-forum thread (tagged per category, if any), inserts the `threads` row, relays the opening message, and posts the category's (or guild-default) greeting — before or after the opener per `greeting_before_opener`. A ticket that never gets this far (thread created, no opening message sent) is deleted by `pendingTicketSweep.ts` after `PENDING_TICKET_TTL_MS` (30 minutes).
+**Create flow** (`components/createTicket.ts`, `components/categorySelect.ts`, `lib/panelTicket.ts`, `lib/ticketCreation.ts`): a panel's "Create Ticket" button click → deferred ephemeral reply → block check (`lib/blocks.ts`) → concurrency check (`lib/threads.ts`'s `countActiveTicketsForUser`, counting both open `threads` and in-flight `pending_tickets`) → if the panel has **two or more** categories, an ephemeral category select (`buildCategorySelectOptions`, `lib/categorySelectOptions.ts`) with no thread created yet; with one or none, straight to thread creation (the lone category, if any, applied without asking). Either way the tail is the same shared `createPanelTicket` (`lib/panelTicket.ts`, which also owns the per-category concurrency check): a private thread is created in the panel's channel, a `pending_tickets` row + Redis `PendingTicketStore` entry recorded, and the user told (ephemerally) to describe their issue there. The user's first message in that thread (`index.ts`'s `handleFirstMessage`, gated behind a per-guild+user lock, `lib/guildUserQueue.ts`) calls `finishTicketCreation` (`lib/ticketCreation.ts`): opens the mod-forum thread (tagged per category, if any), inserts the `threads` row, relays the opening message, and posts the category's (or guild-default) greeting - before or after the opener per `greeting_before_opener`. A ticket that never gets this far (thread created, no opening message sent) is deleted by `pendingTicketSweep.ts` after `PENDING_TICKET_TTL_MS` (30 minutes).
 
-**Relay, both directions** (`lib/relay.ts`): user message in the private thread/DM → `relayUserMessageToModThread` (green accent, nickname-or-nothing author, media re-uploaded rather than linked — `lib/media.ts` — so attachments/stickers survive after the source is gone); staff reply → `relayStaffReplyToUserThread` (blurple, `Reply ID: N` footer mod-side only, `anon` support that resolves a templated `{{guildName}} Team`-style label instead of the replying staffer's identity). Both directions record into `thread_message_content` when recording is enabled (§7). `/reply`, `/reply-q` (quick, no modal), and a message context-menu "Reply"/"Reply Anonymously" pair (`replyContextMenu.ts`, single-process de-dupe guard against a double-click race) all funnel into the same relay function; `/edit`/`/delete` (`lib/replyModeration.ts`) act on a prior reply by its `Reply ID: N`.
+**Relay, both directions** (`lib/relay.ts`): user message in the private thread/DM → `relayUserMessageToModThread` (green accent, nickname-or-nothing author, media re-uploaded rather than linked - `lib/media.ts` - so attachments/stickers survive after the source is gone); staff reply → `relayStaffReplyToUserThread` (blurple, `Reply ID: N` footer mod-side only, `anon` support that resolves a templated `{{guildName}} Team`-style label instead of the replying staffer's identity). Both directions record into `thread_message_content` when recording is enabled (§7). `/reply`, `/reply-q` (quick, no modal), and a message context-menu "Reply"/"Reply Anonymously" pair (`replyContextMenu.ts`, single-process de-dupe guard against a double-click race) all funnel into the same relay function; `/edit`/`/delete` (`lib/replyModeration.ts`) act on a prior reply by its `Reply ID: N`.
 
-**Mention/user-ID auto-embed (#215, anti "ID swapping")** — `lib/referencedUserEmbed.ts`: scans a user's own relayed message for a Discord mention or a bare 17–20 digit snowflake, resolves each (capped at 3) against the guild, and posts a compact profile card (avatar, account-created-at, join date or "not currently a member") as a native reply to the relayed message, for every id that resolves to a real account — deliberately unconditional. **Diverges from the original design** (which called for suppressing the card when both the referenced user and the message author are staff): the schema notes explicitly rejected adding a staff-role concept (#152), and since this only ever runs on the ticket opener's own messages (staff replies are command-driven, never relayed through this path), there's no "staff flagging staff" case to suppress in the first place — every resolved id gets a card.
+**Mention/user-ID auto-embed (#215, anti "ID swapping")** - `lib/referencedUserEmbed.ts`: scans a user's own relayed message for a Discord mention or a bare 17–20 digit snowflake, resolves each (capped at 3) against the guild, and posts a compact profile card (avatar, account-created-at, join date or "not currently a member") as a native reply to the relayed message, for every id that resolves to a real account - deliberately unconditional. **Diverges from the original design** (which called for suppressing the card when both the referenced user and the message author are staff): the schema notes explicitly rejected adding a staff-role concept (#152), and since this only ever runs on the ticket opener's own messages (staff replies are command-driven, never relayed through this path), there's no "staff flagging staff" case to suppress in the first place - every resolved id gets a card.
 
-**Snippets** (`lib/snippets.ts`): each snippet is minted as its own per-guild Discord slash command by `services/api` on create — there's no static `CommandHandler` for these, so `index.ts`'s `registerUnknownCommandResolver` looks one up by `interaction.data.id` (`findSnippetByCommandId`) instead of dispatching through `@chatsift/bot-core`'s static command map. Supports an attachment (`snippets.attachment_url`/`attachment_filename`). Creating one happens from the dashboard (reached via `/dashboard`, §4a above), not a bot command — needs live slash-command-name normalization a modal flow doesn't have.
+**Snippets** (`lib/snippets.ts`): each snippet is minted as its own per-guild Discord slash command by `services/api` on create - there's no static `CommandHandler` for these, so `index.ts`'s `registerUnknownCommandResolver` looks one up by `interaction.data.id` (`findSnippetByCommandId`) instead of dispatching through `@chatsift/bot-core`'s static command map. Supports an attachment (`snippets.attachment_url`/`attachment_filename`). Creating one happens from the dashboard (reached via `/dashboard`, §4a above), not a bot command - needs live slash-command-name normalization a modal flow doesn't have.
 
-**Snippet revision history (#324)** — `snippet_updates` had been written since M5 and read by nothing; it now backs a history panel on the dashboard's snippet edit page (`GET /v3/guilds/:guildId/modmail/snippets/:snippetId/updates`, `getSnippetUpdates.ts`). Two things about its shape are worth knowing before touching it:
+**Snippet revision history (#324)** - `snippet_updates` had been written since M5 and read by nothing; it now backs a history panel on the dashboard's snippet edit page (`GET /v3/guilds/:guildId/modmail/snippets/:snippetId/updates`, `getSnippetUpdates.ts`). Two things about its shape are worth knowing before touching it:
 
-- **Rows are full snapshots, not diffs.** Each row holds the complete prior state of every editable field, and _which_ fields a revision changed is derived at read time by diffing consecutive snapshots (the next-newer revision's, or the live `snippets` row for the newest). A stored `changed_fields` column would be one more thing that can disagree with the snapshots beside it, and "store only what changed" is ambiguous on the two nullable attachment columns, where NULL would mean both "was unset" and "untouched by this edit". The write side (`updateSnippet.ts`) archives on a change to _any_ field — before #324 it only archived content, so renames and attachment swaps left no trace at all.
-- **`old_name IS NULL` means "legacy row"**, not "had no name" (`snippets.name` is NOT NULL). It marks a row written before the widening — including everything `migrateLegacyModmail.ts` backfills — where only content was ever captured. Those render content-only and restore content-only rather than showing a fabricated name/attachment diff. Don't backfill it: a pre-#324 rename genuinely wasn't recorded anywhere, so any value put there would be a guess.
+- **Rows are full snapshots, not diffs.** Each row holds the complete prior state of every editable field, and _which_ fields a revision changed is derived at read time by diffing consecutive snapshots (the next-newer revision's, or the live `snippets` row for the newest). A stored `changed_fields` column would be one more thing that can disagree with the snapshots beside it, and "store only what changed" is ambiguous on the two nullable attachment columns, where NULL would mean both "was unset" and "untouched by this edit". The write side (`updateSnippet.ts`) archives on a change to _any_ field - before #324 it only archived content, so renames and attachment swaps left no trace at all.
+- **`old_name IS NULL` means "legacy row"**, not "had no name" (`snippets.name` is NOT NULL). It marks a row written before the widening - including everything `migrateLegacyModmail.ts` backfills - where only content was ever captured. Those render content-only and restore content-only rather than showing a fabricated name/attachment diff. Don't backfill it: a pre-#324 rename genuinely wasn't recorded anywhere, so any value put there would be a guess.
 
 The panel's Restore action only re-seeds the edit form; applying it still goes through the normal `PATCH`, which is what keeps a restore archiving the state it overwrites, renaming the Discord command, and hitting the duplicate-name check.
 
 **Blocks** (`lib/blocks.ts`, `commands/block.ts`/`unblock.ts`/`blockList.ts`): dashboard- and command-managed; optional expiry (`expires_at`, relative-duration parsed via `@chatsift/parse-relative-time`). Checked as a fast pre-check before the category prompt is even shown, then re-checked authoritatively in `categorySelect.ts` immediately before a private thread is actually created.
 
-**Close** (`commands/close.ts`, `lib/threadClose.ts`): `/close now [silent] [anon]`, `/close schedule <duration> [silent] [anon]` (writes `scheduled_thread_closes`, picked up by `scheduledCloseSweep.ts` every minute — race-safe against a manual close via `closed_at IS NULL`), `/close cancel`. Closing posts a farewell (red accent), locks the private thread (deliberately left unarchived, not deleted, so `preventThreadArchive.ts` doesn't fight it) and, if `nuke_delay_minutes` is set, schedules its actual deletion (`scheduled_thread_nukes`, polled by `threadNukeSweep.ts` every minute). The mod-forum thread is never deleted — it's the durable staff-side record.
+**Close** (`commands/close.ts`, `lib/threadClose.ts`): `/close now [silent] [anon]`, `/close schedule <duration> [silent] [anon]` (writes `scheduled_thread_closes`, picked up by `scheduledCloseSweep.ts` every minute - race-safe against a manual close via `closed_at IS NULL`), `/close cancel`. Closing posts a farewell (red accent), locks the private thread (deliberately left unarchived, not deleted, so `preventThreadArchive.ts` doesn't fight it) and, if `nuke_delay_minutes` is set, schedules its actual deletion (`scheduled_thread_nukes`, polled by `threadNukeSweep.ts` every minute). The mod-forum thread is never deleted - it's the durable staff-side record.
 
-**Other sweeps** (`index.ts`'s `bin()`, all guild-ownership-scoped per §8's `ownsGuild`/scope helpers): `preventOpenThreadsFromArchiving` (every 5 min — re-fetches both of an open ticket's Discord threads and unarchives any Discord's own inactivity timer caught; also the only place that notices a channel deleted out-of-band). `/alert` (`commands/alert.ts`) toggles a per-user ping (`thread_reply_alerts`) on new user messages in a ticket, debounced to at most one ping per 5-minute cooldown window per ticket (`lib/replyAlerts.ts`) — `ChatSift/ModMail`'s `/alert` pinged on every single relayed message instead, which turned a burst of short messages into a repeat ping per subscriber.
+**Other sweeps** (`index.ts`'s `bin()`, all guild-ownership-scoped per §8's `ownsGuild`/scope helpers): `preventOpenThreadsFromArchiving` (every 5 min - re-fetches both of an open ticket's Discord threads and unarchives any Discord's own inactivity timer caught; also the only place that notices a channel deleted out-of-band). `/alert` (`commands/alert.ts`) toggles a per-user ping (`thread_reply_alerts`) on new user messages in a ticket, debounced to at most one ping per 5-minute cooldown window per ticket (`lib/replyAlerts.ts`) - `ChatSift/ModMail`'s `/alert` pinged on every single relayed message instead, which turned a burst of short messages into a repeat ping per subscriber.
 
-**Emoji forwarding** (`lib/emojis.ts`): a relayed message referencing a custom emoji the receiving guild can't render (not one of its own) gets rejected with a clear error instead of silently posting broken `<:name:id>` text — checked on every relayed user message and staff reply via a guild-emoji-id cache longer-TTL than the API's own `guildDataCache.ts` uses, since this runs far more often.
+**Emoji forwarding** (`lib/emojis.ts`): a relayed message referencing a custom emoji the receiving guild can't render (not one of its own) gets rejected with a clear error instead of silently posting broken `<:name:id>` text - checked on every relayed user message and staff reply via a guild-emoji-id cache longer-TTL than the API's own `guildDataCache.ts` uses, since this runs far more often.
 
 ## 7. ModMail thread-history dashboard view (#261)
 
-Shipped 2026-07-28 across three phases (DB+API+bot writer, then a frontend scaffold, then full Discord-like rendering), on top of M5's ticket/`threads` model ([06-modmail-port.md](06-modmail-port.md)). Not itself a numbered milestone — tracked as its own GitHub issue since M5 left it optional. This section is the durable shape that resulted; the phase-by-phase planning narrative, the bugs found during manual testing, and the open questions live in git history (the doc this section replaced, `07-modmail-thread-history.md`), not here.
+Shipped 2026-07-28 across three phases (DB+API+bot writer, then a frontend scaffold, then full Discord-like rendering), on top of M5's ticket/`threads` model ([06-modmail-port.md](06-modmail-port.md)). Not itself a numbered milestone - tracked as its own GitHub issue since M5 left it optional. This section is the durable shape that resulted; the phase-by-phase planning narrative, the bugs found during manual testing, and the open questions live in git history (the doc this section replaced, `07-modmail-thread-history.md`), not here.
 
-**What it is:** a consent-gated (opt-in per guild) full transcript of every ModMail ticket — user messages, staff replies, mod-to-mod chatter posted directly in the mod-forum thread, and the bot's own greeting/farewell — recorded into Postgres as it's relayed, browsable on the dashboard with Discord-accurate rendering, edit history, and virtualized scrolling.
+**What it is:** a consent-gated (opt-in per guild) full transcript of every ModMail ticket - user messages, staff replies, mod-to-mod chatter posted directly in the mod-forum thread, and the bot's own greeting/farewell - recorded into Postgres as it's relayed, browsable on the dashboard with Discord-accurate rendering, edit history, and virtualized scrolling.
 
 **Schema** (`packages/private/db/schema/schema.sql`):
 
-- `guild_settings.record_thread_content` (default `false`) + `record_thread_content_enabled_by`/`_enabled_at` — the consent toggle and its audit trail; only (re-)stamped on the false→true transition, left as-is across a later disable.
-- `thread_message_content` — 1:1 sidecar to `thread_messages` (same PK-is-FK shape as `scheduled_thread_closes`/`scheduled_thread_nukes`), holding `content`, `replied_to_thread_message_id`, `is_forwarded`, `attachments`/`stickers` (JSONB). A message with no row here predates recording (or recording was never enabled) and renders as a "not recorded" placeholder — not backfilled, not guessed.
-- `thread_message_content_edits` — one row per prior version, written on each edit instead of overwriting in place (mirrors `snippet_updates`'s archive-then-overwrite pattern).
-- `thread_messages` gained `is_internal` (mod-to-mod chatter posted directly in the mod-forum thread, never crosses to the user's side), `is_system` (the bot's own greeting/farewell — no real sender to attribute to `user_id`/`staff_id`), and `deleted_at` (display-only marker for a user-deleted message; the row and its content are never touched, see Decisions below). `user_message_id` is nullable to accommodate `is_internal` rows, which have no user-side counterpart.
+- `guild_settings.record_thread_content` (default `false`) + `record_thread_content_enabled_by`/`_enabled_at` - the consent toggle and its audit trail; only (re-)stamped on the false→true transition, left as-is across a later disable.
+- `thread_message_content` - 1:1 sidecar to `thread_messages` (same PK-is-FK shape as `scheduled_thread_closes`/`scheduled_thread_nukes`), holding `content`, `replied_to_thread_message_id`, `is_forwarded`, `attachments`/`stickers` (JSONB). A message with no row here predates recording (or recording was never enabled) and renders as a "not recorded" placeholder - not backfilled, not guessed.
+- `thread_message_content_edits` - one row per prior version, written on each edit instead of overwriting in place (mirrors `snippet_updates`'s archive-then-overwrite pattern).
+- `thread_messages` gained `is_internal` (mod-to-mod chatter posted directly in the mod-forum thread, never crosses to the user's side), `is_system` (the bot's own greeting/farewell - no real sender to attribute to `user_id`/`staff_id`), and `deleted_at` (display-only marker for a user-deleted message; the row and its content are never touched, see Decisions below). `user_message_id` is nullable to accommodate `is_internal` rows, which have no user-side counterpart.
 
 **Bot writer** (`services/modmail-bot/src/lib`): `insertThreadMessage` (`lib/threads.ts`) takes an optional content payload and, when present, wraps the `thread_messages` insert and the `thread_message_content` insert in one transaction; JSONB columns are bound via `sql.json(...)`, not `${JSON.stringify(x)}::jsonb` (the latter double-encodes under postgres.js). `lib/relay.ts`'s two relay functions and `lib/ticketCreation.ts`/`lib/threadClose.ts`'s greeting/farewell posts all populate it when `isRecordingEnabled(guildId)`. Attachment URLs recorded are the **re-uploaded** ones off the posted message's own REST response, not the original (possibly ephemeral) source. A plain message posted directly in the mod-forum thread is captured by its own `MessageCreate` listener (`index.ts`) matched against `modThreadId` instead of `userThreadId`; `/edit`/`/delete` (staff-reply commands) and a mod editing/deleting their own plain message both keep the recorded copy in sync via dedicated `MessageUpdate`/`MessageDelete` handling (`lib/userMessageLifecycle.ts`).
 
-**API** (`services/api/src/routes/modmail/threads/`): `listThreads`/`getThread`, both cursor-paginated (`createPaginationQuerySchema`, `services/api/src/util/schemas.ts` — the repo's first pagination pattern). `getThread` pages messages bidirectionally (`direction: before/after` over `local_thread_message_id`), defaulting to the _latest_ messages first. Shared enrichment (`routes/modmail/threads/util.ts`): resolved `APIUser`s, guild member + role names, applied forum tags, past-ticket count, sibling threads for the same user, and — for recorded rows — `resolveMessageAttachments`, which lazily heals an expired Discord CDN URL (`ex` query param) by re-fetching the still-live mod-forum message and re-matching by filename, without persisting the refresh back (a GET route stays side-effect-free; it just re-expires and heals again next time). The match runs against the refetched message's top-level `attachments` **and** its embeds' `image` URLs (#371) — a lone relayed image is claimed into the relay embed's image slot by `lib/media.ts`, and Discord then reports an empty `attachments` array for that message, so an `attachments`-only match silently struck out the single-image case (the common one) as "no longer exists on Discord" once its URL aged out.
+**API** (`services/api/src/routes/modmail/threads/`): `listThreads`/`getThread`, both cursor-paginated (`createPaginationQuerySchema`, `services/api/src/util/schemas.ts` - the repo's first pagination pattern). `getThread` pages messages bidirectionally (`direction: before/after` over `local_thread_message_id`), defaulting to the _latest_ messages first. Shared enrichment (`routes/modmail/threads/util.ts`): resolved `APIUser`s, guild member + role names, applied forum tags, past-ticket count, sibling threads for the same user, and - for recorded rows - `resolveMessageAttachments`, which lazily heals an expired Discord CDN URL (`ex` query param) by re-fetching the still-live mod-forum message and re-matching by filename, without persisting the refresh back (a GET route stays side-effect-free; it just re-expires and heals again next time). The match runs against the refetched message's top-level `attachments` **and** its embeds' `image` URLs (#371) - a lone relayed image is claimed into the relay embed's image slot by `lib/media.ts`, and Discord then reports an empty `attachments` array for that message, so an `attachments`-only match silently struck out the single-image case (the common one) as "no longer exists on Discord" once its URL aged out.
 
-**Frontend** (`apps/website/src/app/dashboard/[id]/modmail/threads/`): list + two-pane detail view, `useModmailThreads`/`useModmailThread` (`api/routes/modmailThreads.ts`) as bidirectional `useInfiniteQuery`s. Rendering is `@discord/markdown-react` + `@discord/markdown-wasm` (mentions, emoji, timestamps, standard markdown) — the wasm parser breaks under Next's server bundle, so `DiscordMarkdown.tsx` is loaded via `next/dynamic(..., { ssr: false })` at every call site rather than imported directly. `ThreadMessageList.tsx` uses `@tanstack/react-virtual` with a manual scroll-anchor restore (capture `scrollHeight` before a `fetchPreviousPage`, restore the delta after — the virtualizer has no built-in notion of "this batch was prepended"). Internal mod-chatter renders visually distinct (dashed amber box, explicit "not seen by the user" label) and collapses as a block for runs of 2+; `is_system` rows get a distinct blue/sky box. An "edited" badge opens prior versions via a dedicated `getMessageEdits` route rather than inlining full history into `getThread`'s response; a "deleted" badge marks a user-deleted message whose content is still fully readable.
+**Frontend** (`apps/website/src/app/dashboard/[id]/modmail/threads/`): list + two-pane detail view, `useModmailThreads`/`useModmailThread` (`api/routes/modmailThreads.ts`) as bidirectional `useInfiniteQuery`s. Rendering is `@discord/markdown-react` + `@discord/markdown-wasm` (mentions, emoji, timestamps, standard markdown) - the wasm parser breaks under Next's server bundle, so `DiscordMarkdown.tsx` is loaded via `next/dynamic(..., { ssr: false })` at every call site rather than imported directly. `ThreadMessageList.tsx` uses `@tanstack/react-virtual` with a manual scroll-anchor restore (capture `scrollHeight` before a `fetchPreviousPage`, restore the delta after - the virtualizer has no built-in notion of "this batch was prepended"). Internal mod-chatter renders visually distinct (dashed amber box, explicit "not seen by the user" label) and collapses as a block for runs of 2+; `is_system` rows get a distinct blue/sky box. An "edited" badge opens prior versions via a dedicated `getMessageEdits` route rather than inlining full history into `getThread`'s response; a "deleted" badge marks a user-deleted message whose content is still fully readable.
 
 **Decisions worth remembering before touching this again:**
 
-- **Deleted messages survive.** A user deleting their own message only sets `deleted_at` for display — the row and its `thread_message_content` are untouched, consistent with "the mod-forum thread is the durable record." **Internal mod-chatter is the deliberate exception**: a mod deleting their own plain message in the mod-forum thread is a true `DELETE` (cascades to its `thread_message_content`; anything that had replied to it survives with `replied_to_thread_message_id` set `NULL`) — internal notes were never part of the user-facing exchange the durable-record principle protects, so there's nothing to preserve a trace of.
-- **Embeds are not recorded at all** (no `embeds` column anywhere) — an explicit, owner-approved gap, not an oversight. If a ticket ever needs one relayed with an embed captured, this needs new schema.
+- **Deleted messages survive.** A user deleting their own message only sets `deleted_at` for display - the row and its `thread_message_content` are untouched, consistent with "the mod-forum thread is the durable record." **Internal mod-chatter is the deliberate exception**: a mod deleting their own plain message in the mod-forum thread is a true `DELETE` (cascades to its `thread_message_content`; anything that had replied to it survives with `replied_to_thread_message_id` set `NULL`) - internal notes were never part of the user-facing exchange the durable-record principle protects, so there's nothing to preserve a trace of.
+- **Embeds are not recorded at all** (no `embeds` column anywhere) - an explicit, owner-approved gap, not an oversight. If a ticket ever needs one relayed with an embed captured, this needs new schema.
 - **No retention/purge window.** "Recorded forever once opted in" is the accepted current behavior; a `nukeDelayMinutes`-style retention sweep for recorded content would be a follow-up, not something already half-built.
-- **Roles/forum tags render live**, fetched at request time — not a point-in-time snapshot of what they were when the ticket was active.
+- **Roles/forum tags render live**, fetched at request time - not a point-in-time snapshot of what they were when the ticket was active.
 
 ## 8. Custom ModMail instances (#216)
 
-Shipped 2026-07-30 across six phases, on top of M5's ticket model (§7 above). Branded, single-guild ModMail deployments for approved close partners: each is a separate Discord application, locked to one guild, run as its own `docker-compose.yml` service, sharing the main stack's Postgres/Redis/API. Optionally runs in **DM mode** (users DM the bot to open a ticket, matching pre-M5 production ModMail behavior, instead of clicking a panel button). Not itself a numbered milestone — tracked as its own GitHub issue, same as #261. This section is the durable shape; the phase-by-phase planning narrative, the owner's decision log, and the bugs found during manual testing live in git history (`docs/roadmap/08-modmail-custom-instances.md`, removed once the feature shipped), not here. The operational runbook for onboarding/offboarding a partner lives in [workflow.md](../workflow.md#custom-modmail-instances-216), not here.
+Shipped 2026-07-30 across six phases, on top of M5's ticket model (§7 above). Branded, single-guild ModMail deployments for approved close partners: each is a separate Discord application, locked to one guild, run as its own `docker-compose.yml` service, sharing the main stack's Postgres/Redis/API. Optionally runs in **DM mode** (users DM the bot to open a ticket, matching pre-M5 production ModMail behavior, instead of clicking a panel button). Not itself a numbered milestone - tracked as its own GitHub issue, same as #261. This section is the durable shape; the phase-by-phase planning narrative, the owner's decision log, and the bugs found during manual testing live in git history (`docs/roadmap/08-modmail-custom-instances.md`, removed once the feature shipped), not here. The operational runbook for onboarding/offboarding a partner lives in [workflow.md](../workflow.md#custom-modmail-instances-216), not here.
 
 **The ownership rule**, applied identically in `services/modmail-bot` and `services/api`:
 
 > If a guild has a `modmail_instances` row, that instance owns the guild. Otherwise the public instance owns it.
 
-`modmail_instances.guild_id` is `UNIQUE`, so "one owner per guild" is a database invariant, not a convention. The rule holds regardless of whether the public bot is also still present in the guild — deliberately, since admins leaving both bots in a guild after an onboarding is the one scenario the whole design defends against (doubling the relay or the recording would be the failure mode otherwise).
+`modmail_instances.guild_id` is `UNIQUE`, so "one owner per guild" is a database invariant, not a convention. The rule holds regardless of whether the public bot is also still present in the guild - deliberately, since admins leaving both bots in a guild after an onboarding is the one scenario the whole design defends against (doubling the relay or the recording would be the failure mode otherwise).
 
-**Registry** (`packages/private/db/schema/schema.sql`'s `modmail_instances`: `id` (slug, matches the deployment's `MODMAIL_INSTANCE_ID`), `guild_id` (unique), `token` (bot token, AES-256-GCM-encrypted at rest with `ENCRYPTION_KEY` — `packages/private/backend-core`'s `encrypt`/`decrypt`, `lib/crypt.ts`), `label`. No API/dashboard CRUD exists for this table by design — a row holds a live bot credential, so it's inserted by hand (see the workflow.md runbook). `packages/private/backend-core/src/lib/instances.ts` loads it into an in-memory snapshot at boot and refreshes it every 60s (`loadInstances`/`getInstanceForGuild`/`getCustomInstanceGuildIds`/`getAllInstances`/`getSelfInstance` — the last resolved from `ENV.MODMAIL_INSTANCE_ID`, bot processes only, `null` for the API and for the public deployment) so the hot path (`apiForGuild`, called on effectively every outbound ModMail Discord call) never does a per-call DB round trip. The refresh interval is what lets onboarding a partner not require restarting the public bot — within 60s it stops acting on that guild on its own.
+**Registry** (`packages/private/db/schema/schema.sql`'s `modmail_instances`: `id` (slug, matches the deployment's `MODMAIL_INSTANCE_ID`), `guild_id` (unique), `token` (bot token, AES-256-GCM-encrypted at rest with `ENCRYPTION_KEY` - `packages/private/backend-core`'s `encrypt`/`decrypt`, `lib/crypt.ts`), `label`. No API/dashboard CRUD exists for this table by design - a row holds a live bot credential, so it's inserted by hand (see the workflow.md runbook). `packages/private/backend-core/src/lib/instances.ts` loads it into an in-memory snapshot at boot and refreshes it every 60s (`loadInstances`/`getInstanceForGuild`/`getCustomInstanceGuildIds`/`getAllInstances`/`getSelfInstance` - the last resolved from `ENV.MODMAIL_INSTANCE_ID`, bot processes only, `null` for the API and for the public deployment) so the hot path (`apiForGuild`, called on effectively every outbound ModMail Discord call) never does a per-call DB round trip. The refresh interval is what lets onboarding a partner not require restarting the public bot - within 60s it stops acting on that guild on its own.
 
 **What actually needed to change to support a second deployment** (both correctness-critical, not cosmetic):
 
-- **`services/api`'s Discord calls were hardcoded to the public token.** `util/discordAPI.ts`'s `resolveGuildAPI(botId, guildId)`/`apiForGuild(botId, guildId)` resolve which token owns a `(botId, guildId)` pair — only `MODMAIL` can ever resolve to a custom instance, since custom instances are a ModMail-only concept; `AMA` always uses its single public token. Every panel/snippet/block/thread-history route, plus `channels.ts`/`roles.ts`/`emojis.ts`/`guildDataCache.ts`'s cache partitioning and `discordApplication.ts`'s per-application-id memoization, key off this instead of a single shared client, so a partner's guild (which may have only their own bot present) doesn't 403 against the wrong token.
-- **The bot's sweeps queried globally with no guild filter.** `sweepAbandonedPendingTickets`/`sweepScheduledCloses`/`sweepThreadNukes`/`preventOpenThreadsFromArchiving` (`services/modmail-bot/src/lib/`) and the raw gateway message listeners (`MESSAGE_CREATE`/`UPDATE`/`DELETE`, which both bots receive if both are present in a guild) all scope now via `services/modmail-bot/src/lib/instance.ts`'s `ownsGuild(guildId)`/SQL scope fragment — two deployments polling the same shared tables would otherwise double-close tickets, double-delete private threads, or race to unarchive the same channel. Component/slash-command interactions did **not** need the same gating: they're Discord-application-scoped already (a button posted by one application is only ever dispatched to that application's gateway), so `packages/private/bot-core`'s `setGuildOwnershipFilter`/`resolveForeignOwnerLabel` (`lib/ownership.ts`) exist for defense-in-depth and correct UX on leftovers after a swap (answers "this server is served by `<label>`"), not to prevent doubling.
+- **`services/api`'s Discord calls were hardcoded to the public token.** `util/discordAPI.ts`'s `resolveGuildAPI(botId, guildId)`/`apiForGuild(botId, guildId)` resolve which token owns a `(botId, guildId)` pair - only `MODMAIL` can ever resolve to a custom instance, since custom instances are a ModMail-only concept; `AMA` always uses its single public token. Every panel/snippet/block/thread-history route, plus `channels.ts`/`roles.ts`/`emojis.ts`/`guildDataCache.ts`'s cache partitioning and `discordApplication.ts`'s per-application-id memoization, key off this instead of a single shared client, so a partner's guild (which may have only their own bot present) doesn't 403 against the wrong token.
+- **The bot's sweeps queried globally with no guild filter.** `sweepAbandonedPendingTickets`/`sweepScheduledCloses`/`sweepThreadNukes`/`preventOpenThreadsFromArchiving` (`services/modmail-bot/src/lib/`) and the raw gateway message listeners (`MESSAGE_CREATE`/`UPDATE`/`DELETE`, which both bots receive if both are present in a guild) all scope now via `services/modmail-bot/src/lib/instance.ts`'s `ownsGuild(guildId)`/SQL scope fragment - two deployments polling the same shared tables would otherwise double-close tickets, double-delete private threads, or race to unarchive the same channel. Component/slash-command interactions did **not** need the same gating: they're Discord-application-scoped already (a button posted by one application is only ever dispatched to that application's gateway), so `packages/private/bot-core`'s `setGuildOwnershipFilter`/`resolveForeignOwnerLabel` (`lib/ownership.ts`) exist for defense-in-depth and correct UX on leftovers after a swap (answers "this server is served by `<label>`"), not to prevent doubling.
 
-**Redis guild lists**: `GuildList` (`backend-core/src/lib/data/bots.ts`) keys on `bot:<BotId>`, widened to `` BotId | `${BotId}#${string}` `` — a custom deployment publishes to `bot:MODMAIL#<instanceId>` instead of the shared `bot:MODMAIL` key (two deployments overwriting the same key every 10s would flap between disjoint guild sets). `services/api/src/util/me.ts`'s `fetchMe` unions the public list with every instance's own list when deciding whether a guild has ModMail installed, and adds `customInstanceId`/`customInstanceLabel`/`customInstanceIconUrl` to `MeGuild` (branding: `label` is just the registry row, the icon comes from `applications.getCurrent()` on the instance's own token, aggressively cached — 24h in-process TTL, background refresh, redis fallback for a cold process — since `/me` is already a slow, high-traffic path). `apps/website/src/utils/bots.tsx`'s `resolveBotBranding(guild, bot)` is what the dashboard actually renders through — falls through to the static `Bots[bot]` entry whenever `customInstanceId` is `null`, so a normal guild's render path is untouched.
+**Redis guild lists**: `GuildList` (`backend-core/src/lib/data/bots.ts`) keys on `bot:<BotId>`, widened to `` BotId | `${BotId}#${string}` `` - a custom deployment publishes to `bot:MODMAIL#<instanceId>` instead of the shared `bot:MODMAIL` key (two deployments overwriting the same key every 10s would flap between disjoint guild sets). `services/api/src/util/me.ts`'s `fetchMe` unions the public list with every instance's own list when deciding whether a guild has ModMail installed, and adds `customInstanceId`/`customInstanceLabel`/`customInstanceIconUrl` to `MeGuild` (branding: `label` is just the registry row, the icon comes from `applications.getCurrent()` on the instance's own token, aggressively cached - 24h in-process TTL, background refresh, redis fallback for a cold process - since `/me` is already a slow, high-traffic path). `apps/website/src/utils/bots.tsx`'s `resolveBotBranding(guild, bot)` is what the dashboard actually renders through - falls through to the static `Bots[bot]` entry whenever `customInstanceId` is `null`, so a normal guild's render path is untouched.
 
-**DM mode** — two columns, no new tables: `guild_settings.dm_mode` (bool, only meaningful for a guild with a `modmail_instances` row; the public deployment never reads it, and the API rejects setting it `true` otherwise) and `threads.origin` (`'panel' | 'dm'`, check-constrained; the column was added with a plain `DEFAULT 'panel'` and **no backfill** — there were no pre-M5 rows in this database to backfill at the time, since partner guilds had no prior history. Legacy `ChatSift/ModMail` rows get `'dm'` written by #157's migration script when they eventually land, historically accurate since they're all closed). `threads.user_channel_id` (renamed from `user_thread_id` when DM mode landed — the old name was already misleading once a DM channel could live there too) holds either a real private-thread id or the opener's DM channel id depending on `origin`; a DM channel id is stable per `(user, bot application)`, so the existing relay/edit/delete-sync code needs **zero changes** to work for both origins — the cost is that anything which locks/archives/deletes `user_channel_id` (`threadClose.ts`'s close-time lock+nuke scheduling, `preventThreadArchive.ts`, `threadNukeSweep.ts`) must branch on `origin` first. The opener flow (`services/modmail-bot/src/lib/dmTicket.ts`): a DM with no open thread is an opener → membership/block checks → a category prompt if the guild has two or more (DM-mode's category list is just `categories` ordered by `sort_order`; panels/`ticket_panel_categories` are dead config in DM mode; one category is applied straight through with no prompt, same as the panel flow) → on pick, `finishTicketCreation` with `origin: 'dm'`, opener relayed, greeting always **after** (ignoring `greeting_before_opener`). An already-open ticket of either origin redirects instead of opening a second one (`findOpenThreadsForUser`), which is also what caps DM-mode concurrency at 1 with no dedicated enforcement code — `max_concurrent_threads` is simply never consulted by the DM path. A blocked user DMing repeatedly is rate-limited via an atomic Redis claim before the member-fetch, not just before the reply.
+**DM mode** - two columns, no new tables: `guild_settings.dm_mode` (bool, only meaningful for a guild with a `modmail_instances` row; the public deployment never reads it, and the API rejects setting it `true` otherwise) and `threads.origin` (`'panel' | 'dm'`, check-constrained; the column was added with a plain `DEFAULT 'panel'` and **no backfill** - there were no pre-M5 rows in this database to backfill at the time, since partner guilds had no prior history. Legacy `ChatSift/ModMail` rows get `'dm'` written by #157's migration script when they eventually land, historically accurate since they're all closed). `threads.user_channel_id` (renamed from `user_thread_id` when DM mode landed - the old name was already misleading once a DM channel could live there too) holds either a real private-thread id or the opener's DM channel id depending on `origin`; a DM channel id is stable per `(user, bot application)`, so the existing relay/edit/delete-sync code needs **zero changes** to work for both origins - the cost is that anything which locks/archives/deletes `user_channel_id` (`threadClose.ts`'s close-time lock+nuke scheduling, `preventThreadArchive.ts`, `threadNukeSweep.ts`) must branch on `origin` first. The opener flow (`services/modmail-bot/src/lib/dmTicket.ts`): a DM with no open thread is an opener → membership/block checks → a category prompt if the guild has two or more (DM-mode's category list is just `categories` ordered by `sort_order`; panels/`ticket_panel_categories` are dead config in DM mode; one category is applied straight through with no prompt, same as the panel flow) → on pick, `finishTicketCreation` with `origin: 'dm'`, opener relayed, greeting always **after** (ignoring `greeting_before_opener`). An already-open ticket of either origin redirects instead of opening a second one (`findOpenThreadsForUser`), which is also what caps DM-mode concurrency at 1 with no dedicated enforcement code - `max_concurrent_threads` is simply never consulted by the DM path. A blocked user DMing repeatedly is rate-limited via an atomic Redis claim before the member-fetch, not just before the reply.
 
-**Resync** — reconciles snippet commands and panel messages against whichever application _currently_ owns a guild, needed because Discord scopes both to the creating application: a swap orphans a snippet's guild command and a panel's message-authorship alike. Originally one endpoint doing both; **split in two by #331** into `POST /v3/guilds/:guildId/modmail/snippets/resync` (`routes/modmail/snippets/resyncSnippets.ts`) and `POST /v3/guilds/:guildId/modmail/panels/resync` (`routes/modmail/panels/resyncPanels.ts`), because the two halves are independently repairable and the combined button lived on the Snippets page, where the panel half had no business being — each now has its own card on its own dashboard page (shared chrome in `apps/website/src/components/dashboard/ResyncCard.tsx`, thin per-surface wrappers under each page's `_components/`). Deliberately manual dashboard buttons (shown for custom-instance guilds and global admins), not automatic on every registry refresh — ownership can flap (a row edited twice in quick succession, a bad deploy rolled back), and reposting every panel on every refresh tick would be wasteful and could repost panels that never needed it. The detection trick needs no memory of which application _used to_ own the guild: a stale snippet command 404s (`UnknownApplicationCommand`) when looked up under the current owner, since command ids are application-scoped; a stale panel message fails to edit (`CannotEditMessageAuthoredByAnotherUser`, or `UnknownMessage` if it's gone) under the current owner, since only the authoring application can edit it. A command under the current application not backing any live snippet is deleted as an orphan — that stale-command sweep lives in the _snippets_ route rather than anywhere else, since what makes it safe is the set of live command ids the snippet pass just built. A repost reads the button's label back off the still-live message first (`panel_json_data` never stored it), falling back to a default if the message is gone entirely. Both routes build their Discord payloads through `routes/modmail/discordBodies.ts` (`buildSnippetCommandBody`/`buildPanelComponents`), shared with `createSnippet`/`createPanel`/`updatePanel` — a resync that reissued a command with a different option set, or reposted a panel with a different `custom_id`, would quietly break the thing it was meant to repair.
+**Resync** - reconciles snippet commands and panel messages against whichever application _currently_ owns a guild, needed because Discord scopes both to the creating application: a swap orphans a snippet's guild command and a panel's message-authorship alike. Originally one endpoint doing both; **split in two by #331** into `POST /v3/guilds/:guildId/modmail/snippets/resync` (`routes/modmail/snippets/resyncSnippets.ts`) and `POST /v3/guilds/:guildId/modmail/panels/resync` (`routes/modmail/panels/resyncPanels.ts`), because the two halves are independently repairable and the combined button lived on the Snippets page, where the panel half had no business being - each now has its own card on its own dashboard page (shared chrome in `apps/website/src/components/dashboard/ResyncCard.tsx`, thin per-surface wrappers under each page's `_components/`). Deliberately manual dashboard buttons (shown for custom-instance guilds and global admins), not automatic on every registry refresh - ownership can flap (a row edited twice in quick succession, a bad deploy rolled back), and reposting every panel on every refresh tick would be wasteful and could repost panels that never needed it. The detection trick needs no memory of which application _used to_ own the guild: a stale snippet command 404s (`UnknownApplicationCommand`) when looked up under the current owner, since command ids are application-scoped; a stale panel message fails to edit (`CannotEditMessageAuthoredByAnotherUser`, or `UnknownMessage` if it's gone) under the current owner, since only the authoring application can edit it. A command under the current application not backing any live snippet is deleted as an orphan - that stale-command sweep lives in the _snippets_ route rather than anywhere else, since what makes it safe is the set of live command ids the snippet pass just built. A repost reads the button's label back off the still-live message first (`panel_json_data` never stored it), falling back to a default if the message is gone entirely. Both routes build their Discord payloads through `routes/modmail/discordBodies.ts` (`buildSnippetCommandBody`/`buildPanelComponents`), shared with `createSnippet`/`createPanel`/`updatePanel` - a resync that reissued a command with a different option set, or reposted a panel with a different `custom_id`, would quietly break the thing it was meant to repair.
 
-**A real asymmetry between onboarding and offboarding**, worth remembering before "simplifying" this back into one button: resync always targets whichever application the registry says _currently_ owns the guild. Onboarding only ever needs one round (the row already points at the new partner by the time it runs). **Offboarding needs two** — once before deleting the `modmail_instances` row (so the partner's application can still clean up what it can reach), and once after (now that the guild resolves back to public, to actually recreate/repost onto it). Since #331 a "round" means pressing both buttons, so offboarding is four presses. See the workflow.md runbook for the full ordered sequence.
+**A real asymmetry between onboarding and offboarding**, worth remembering before "simplifying" this back into one button: resync always targets whichever application the registry says _currently_ owns the guild. Onboarding only ever needs one round (the row already points at the new partner by the time it runs). **Offboarding needs two** - once before deleting the `modmail_instances` row (so the partner's application can still clean up what it can reach), and once after (now that the guild resolves back to public, to actually recreate/repost onto it). Since #331 a "round" means pressing both buttons, so offboarding is four presses. See the workflow.md runbook for the full ordered sequence.
 
 ## 9. Terms, Privacy Policy & Discord compliance (#263)
 
 A compliance pass against Discord's Developer Terms of Service/Developer Policy, prompted by the fact that neither
 a Terms of Service nor a Privacy Policy existed anywhere on `automoderator.app` before this. Scoped down from a
-broader audit to the items the owner confirmed were real gaps — see #263 for the full audit (data
+broader audit to the items the owner confirmed were real gaps - see #263 for the full audit (data
 inventory, retention posture, everything considered and explicitly _not_ actioned, and why).
 
 **What shipped:**
 
 - **`/terms` and `/privacy` pages** (`apps/website/src/app/terms/`, `.../privacy/`), linked from `Footer.tsx`.
-  Plain static content pages, `LegalSection` (`components/marketing/LegalSection.tsx`) is the only shared piece —
+  Plain static content pages, `LegalSection` (`components/marketing/LegalSection.tsx`) is the only shared piece -
   a heading + body wrapper so the pages read as plain semantic HTML instead of hand-styling every paragraph/list.
   Privacy Policy content reflects actual current behavior, not aspirational policy: data is retained indefinitely
-  while a server has the bot configured (no purge timer — the dashboard's historical views, e.g. past AMA
+  while a server has the bot configured (no purge timer - the dashboard's historical views, e.g. past AMA
   sessions and ModMail thread history §7, are an intentional ongoing record staff rely on, not a queue to be
   drained), and deletion/access requests are handled manually by reaching out on the support server rather than a
   self-service flow.
-- **Dropped the unused `email` OAuth scope** (`services/api/src/routes/auth/discord.ts`'s `DISCORD_AUTH_SCOPES`) —
+- **Dropped the unused `email` OAuth scope** (`services/api/src/routes/auth/discord.ts`'s `DISCORD_AUTH_SCOPES`) -
   it was requested but never read anywhere in `services/api` or `apps/website`; data minimization, not a feature
   change. `identify`/`guilds`/`guilds.members.read` are unaffected. Existing sessions issued under the old scope
   set keep working; only new logins get the narrower grant.
 - **Discord OAuth tokens are now encrypted, not just signed, inside session JWTs** (`services/api/src/util/tokens.ts`,
   `middleware/isAuthed.ts`): `discordAccessToken`/`discordRefreshToken` are wrapped with the same
   `encrypt`/`decrypt` (`packages/private/backend-core/src/lib/crypt.ts`, AES-256-GCM) already used for
-  `modmail_instances.token`, applied only at the sign/verify boundary — every downstream reader (`me.ts`,
+  `modmail_instances.token`, applied only at the sign/verify boundary - every downstream reader (`me.ts`,
   `logout.ts`, the guild-manager check, the refresh flow) still sees plaintext and needed no changes. Closes a real
   gap: a JWT is only base64-encoded, not encrypted, by default, so the raw Discord credentials were previously
   readable from a leaked `refresh_token` cookie or `X-Update-Access-Token` header value without needing to break
   the signature. Sessions issued before this change carry those fields as plaintext, which fails GCM auth-tag
-  verification on decrypt — `isAuthed.ts` catches that specific failure and rethrows it as a `JsonWebTokenError`,
+  verification on decrypt - `isAuthed.ts` catches that specific failure and rethrows it as a `JsonWebTokenError`,
   routing it into the same "malformed, force a clean re-login" branch already used for tampered tokens, instead of
   an uncaught 500 on every pre-existing session's first request after deploy.
 - **The post-OAuth scope check is a named two-set match, not a strict equality against one set**
   (`services/api/src/routes/auth/discordCallback.ts`): dropping the `email` scope above surfaced that Discord can
   skip the consent screen and return a standing authorization's previously-granted scopes as-is, rather than
-  trimming to what a given request asked for — an account that had already authorized under the old scope set kept
+  trimming to what a given request asked for - an account that had already authorized under the old scope set kept
   getting `email` back and tripped the equality check with a 403. Fixed as an explicit `DISCORD_AUTH_SCOPES` OR
   `DISCORD_AUTH_SCOPES ∪ {email}` match (both via `setEquals`), not a general "extra scopes are fine" subset
-  check — deliberately, so scope-tampering via a crafted authorize URL is still rejected for anything outside
+  check - deliberately, so scope-tampering via a crafted authorize URL is still rejected for anything outside
   these two known-good sets. (The actual defense against that tampering is the `state` cookie's random nonce,
-  checked earlier in the same handler — a crafted authorize link can't produce a `state` that validates without
+  checked earlier in the same handler - a crafted authorize link can't produce a `state` that validates without
   going through this route's own hardcoded scope list in the first place, so the scope check itself was always
   defense-in-depth, not the primary control.)
-- **Redis runs fully in-memory** (`docker-compose.yml`'s `redis` service: `--save '' --appendonly no`) — nothing
+- **Redis runs fully in-memory** (`docker-compose.yml`'s `redis` service: `--save '' --appendonly no`) - nothing
   in the stack treats it as a source of truth (`GuildList`/instance snapshots republish on an interval,
   `PendingTicketStore` mirrors the durable `pending_tickets` table, dashboard-link-token claims are best-effort), so there
   was no reason for it to write RDB/AOF snapshots to disk at all. Removes it from the at-rest-encryption scope
   entirely instead of needing the same treatment as Postgres, and drops the fsync/bgsave overhead as a side effect.
-- **Improved the 404 page** (`apps/website/src/app/not-found.tsx`) — was a single line of text plus a client-only
+- **Improved the 404 page** (`apps/website/src/app/not-found.tsx`) - was a single line of text plus a client-only
   "Go back" button; now also offers a plain `Link`-based "Return home" (works even before the client bundle
   hydrates) alongside the existing back button. Surfaced a gap in the shared `Button` component while at it:
   `common/Button.tsx` never set `cursor-pointer` (Tailwind v4's preflight resets buttons to `cursor: default`),
-  so every interactive `Button` usage needed it added per call site — fixed at the source instead, in `Button.tsx`
+  so every interactive `Button` usage needed it added per call site - fixed at the source instead, in `Button.tsx`
   itself, ahead of `disabled:cursor-not-allowed` so the disabled state still overrides correctly.
 - **Postgres at-rest disk encryption is live on the production host**, via native ext4 directory encryption
-  (`fscrypt`) on `_data`, not a separate LUKS volume — full runbook (as actually run, including two `fscrypt` CLI
+  (`fscrypt`) on `_data`, not a separate LUKS volume - full runbook (as actually run, including two `fscrypt` CLI
   corrections found live: `encrypt` takes `--key=FILE` not `--key-file=FILE`, and `unlock` doesn't accept
   `--source` at all) is in [workflow.md](../workflow.md#encryption-at-rest-263). Done 2026-08-05: happy-path reboot
   tested for real (unlock unit runs before `docker.service` via a hard `Requires=`/`After=` dependency, not just
   `Before=` ordering, which doesn't block startup on failure); the failure-path half (deliberately breaking the
   unlock to confirm Docker refuses to start) was knowingly skipped since the host also carries other live
-  production workloads unrelated to ChatSift — an operator judgment call, not an oversight, and worth doing for
-  real on any future host this runs on. Redis needed no equivalent treatment (see above) — it's the only other
+  production workloads unrelated to ChatSift - an operator judgment call, not an oversight, and worth doing for
+  real on any future host this runs on. Redis needed no equivalent treatment (see above) - it's the only other
   service holding non-application-level-encrypted data at rest.
 
-**Explicitly considered and not actioned** (owner calls, not oversights — don't re-litigate without new
+**Explicitly considered and not actioned** (owner calls, not oversights - don't re-litigate without new
 information):
 
 - **No retention/purge window for AMA questions or ModMail transcripts.** The dashboard surfaces full history for
@@ -468,15 +473,15 @@ information):
   remains true. Would need revisiting only if a feature that depends on that history goes away.
 - **No self-service data-deletion flow.** The support-server-contact path in the Privacy Policy is the actual
   process, not a placeholder for a future build.
-- **No cleanup when a bot leaves a guild or a user's data becomes orphaned.** Standard bot behavior — data has to
+- **No cleanup when a bot leaves a guild or a user's data becomes orphaned.** Standard bot behavior - data has to
   survive a re-invite for settings to still be there, same as every other Discord bot.
 - **No custom-ModMail-instance Terms addendum.** Considered because partner deployments (§8 above) share
   ChatSift's Postgres/Redis, but ChatSift owns the Discord application on every instance (including branded
-  ones) — there's no separate data controller relationship to document.
+  ones) - there's no separate data controller relationship to document.
 
 ## 10. Realtime WS gateway (#297/#298, #323)
 
-A cache-invalidation bus, not an event log. The server never pushes data — only a bare
+A cache-invalidation bus, not an event log. The server never pushes data - only a bare
 `{ type: 'invalidate', channel }` telling a subscribed browser that something behind a query key changed, at
 which point the client refetches over normal HTTP. There's no replay or ordering guarantee for signals missed
 while disconnected, so `apps/website/src/api/ws.ts` fires every still-subscribed channel's listeners once on
@@ -486,38 +491,38 @@ reconnect rather than trying to catch up.
 polka already listens on, handling the `/v3/ws` upgrade path only. Fan-out goes through Redis pub/sub
 (`REALTIME_INVALIDATE_CHANNEL`, `packages/private/backend-core/src/lib/realtimeBroadcast.ts`) rather than a
 local `WsHub` reference, so a publisher doesn't have to be in the process a given browser socket is connected
-to — which is also how `services/ama-bot`'s Discord interaction handlers, which never touch the API process,
+to - which is also how `services/ama-bot`'s Discord interaction handlers, which never touch the API process,
 publish at all. Signals are tagged with the originating browser tab's `clientId` so the tab whose own mutation
 caused the change doesn't get told to refetch what it already invalidated.
 
 **Publishing.** `defineRoute`'s `realtimeChannel` hook (`services/api/src/core/route.ts`) computes the
 channel(s) from the request; `mountRoute` broadcasts after the handler resolves 2xx, so a handler with several
-early-return branches doesn't need a publish call in each. It may return an array — an AMA answer, for
+early-return branches doesn't need a publish call in each. It may return an array - an AMA answer, for
 instance, lands on both the dashboard's channel and the public page's. Bot-side handlers call
 `publishRealtimeInvalidate` directly. Either way, several channels go over as one batched call: the wire still
 carries one message per channel (the subscriber dispatches on a single `channel`), but node-redis pipelines
-them into a single round trip instead of `n` sequential ones — worth caring about because publishing happens
+them into a single round trip instead of `n` sequential ones - worth caring about because publishing happens
 after the mutation has committed, on the request's critical path.
 
 **Channels** are built in `packages/private/core/src/lib/realtimeChannels.ts` so both sides agree on the exact
 string, same "one source of truth" reasoning as the route contracts.
 
 **Authorization** (`services/api/src/ws/authorizeChannel.ts`) happens per `subscribe` frame against claims
-baked into a short-lived (60s) JWT ticket, minted over normal HTTP before the socket opens — a browser
+baked into a short-lived (60s) JWT ticket, minted over normal HTTP before the socket opens - a browser
 `WebSocket` handshake can't carry the session's `Authorization` header. Two independent paths:
 
 1. **Guild-wide grant.** A guild-scoped channel is `<domain>:<guildId>:<...>`; a manager of that guild (or a
    global admin) gets everything under it, no per-domain rule needed. The **three-segment minimum is
-   load-bearing**, not a parse guard — see below.
+   load-bearing**, not a parse guard - see below.
 2. **Exact-match allowlist** (`WsTicketData.channels`), for access that isn't a guild-manager grant:
    - **AMA guests** (#323). Guest access lives in `ama_sessions.guest_ids` and is deliberately independent of
      `meCanManage` (a guest-only guild is synthesized with `meCanManage: false`, see `util/me.ts`), so it never
      reaches `grants.adminGuilds` and path 1 can't see it. `routes/ws/getTicket.ts` resolves the guest's
-     sessions at mint time and lists their concrete channels — the WS mirror of `isAuthed`'s `'or-ama-guest'`
+     sessions at mint time and lists their concrete channels - the WS mirror of `isAuthed`'s `'or-ama-guest'`
      path. A `/dashboard`-scoped session's lookup is confined to its own guild, matching how its `adminGuilds`
      already behaves.
-   - **The public answers page** (`/ama-answers/[shareToken]`). Unauthenticated — knowing the share token _is_
-     the authorization — so `routes/ama/questions/publicWsTicket.ts` trades a valid token for a ticket carrying
+   - **The public answers page** (`/ama-answers/[shareToken]`). Unauthenticated - knowing the share token _is_
+     the authorization - so `routes/ama/questions/publicWsTicket.ts` trades a valid token for a ticket carrying
      nothing but the one `amaPublicAnswersChannel` it resolves to. The frontend uses a separate
      `RealtimeClient` for it (`usePublicRealtimeClient`), since the session-backed singleton mints from a
      session this page normally doesn't have.
@@ -526,10 +531,10 @@ baked into a short-lived (60s) JWT ticket, minted over normal HTTP before the so
      `routes/social/leaderboard/publicWsTicket.ts` mints a ticket carrying `socialLeaderboardChannel(guildId)`
      and an **empty `adminGuilds`**. That emptiness is load-bearing here in a way it isn't for AMA: this
      channel _is_ guild-shaped, so a ticket claiming the guild would walk path 1 into every other Social
-     channel under it. It's the one channel both audiences share — the dashboard reaches the identical string
-     through path 1 — which is why there's no public twin of it to keep in sync.
+     channel under it. It's the one channel both audiences share - the dashboard reaches the identical string
+     through path 1 - which is why there's no public twin of it to keep in sync.
 
-`amaPublicAnswersChannel` is `ama-public:<amaId>` — deliberately **guildless**, breaking the format above. That
+`amaPublicAnswersChannel` is `ama-public:<amaId>` - deliberately **guildless**, breaking the format above. That
 page hides every raw Discord id it can, so handing an anonymous browser a guild snowflake would undo that for
 nothing. The consequence is that it's reachable only via path 2, never inherited by whoever manages the guild;
 path 1's segment-count check is what enforces that, rather than trusting snowflakes and small serial ama ids to
@@ -538,17 +543,17 @@ never collide.
 The leaderboard page deliberately does **not** follow that pattern, because its URL is the guild id: there is
 one leaderboard per guild, so an unguessable identifier would only have made the page unlisted (whoever the
 link is given to can forward it regardless) in exchange for a second identifier to store, rotate, and keep a
-guildless channel in step with. Member ids still never appear in its payload — the guild id is the address,
+guildless channel in step with. Member ids still never appear in its payload - the guild id is the address,
 the members are the content.
 
-Ticket claims are resolved once at mint time, so they're as stale as `adminGuilds` already was — bounded by the
+Ticket claims are resolved once at mint time, so they're as stale as `adminGuilds` already was - bounded by the
 60s TTL plus the client re-minting on every (re)connect.
 
 ## 11. Discord REST proxy (`services/discord-proxy`)
 
 Every bot token in this stack is used from **two** processes: that bot's own `services/*-bot`, and
 `services/api` (the dashboard fetches channels/roles/members, resyncs commands, executes webhooks). Discord
-scopes rate limits to the token, but `@discordjs/rest` keeps bucket state in memory per `REST` instance — so
+scopes rate limits to the token, but `@discordjs/rest` keeps bucket state in memory per `REST` instance - so
 each token had two independent accountants, each of which only ever saw a fraction of what that token
 actually sent. Both under-count, and Discord is the one that notices.
 
@@ -557,12 +562,12 @@ in exactly one place. Clients keep their own `REST`; they just point its `api` o
 
 ### One process, not one per bot
 
-The token count isn't 3 — it's 3 public bots plus one per custom ModMail instance (§8), and those are added
+The token count isn't 3 - it's 3 public bots plus one per custom ModMail instance (§8), and those are added
 by partner onboarding, from a DB row, at runtime. A proxy-per-token topology would mean a new container, a
 new compose block, and a URL for `api` to discover on every onboarding.
 
 Instead the proxy partitions by the inbound `Authorization` header, keeping **one `REST` instance per bot
-token** (`lib/rests.ts`). That's what upstream's `apps/proxy-container` doesn't do — it builds a single
+token** (`lib/rests.ts`). That's what upstream's `apps/proxy-container` doesn't do - it builds a single
 `REST` and hands everything to it with `auth: false`, which tracks `globalRemaining` per instance and keys
 handlers on `${bucketHash}:${majorParameter}`, so N tokens would share one 50/s allowance and collide on
 identical hashes. Hence its README telling you not to point multiple bots at one container. One instance per
@@ -570,11 +575,11 @@ token restores both, and makes the token count a runtime detail rather than a de
 
 ### Why not depend on `@discordjs/proxy`
 
-Not because it couldn't be composed — `proxyRequests(rest)` returns a handler bound to one `REST`, so a
+Not because it couldn't be composed - `proxyRequests(rest)` returns a handler bound to one `REST`, so a
 `Map<token, RequestHandler>` would have worked fine. The blocker is version pinning: `@discordjs/proxy@latest`
 wants `@discordjs/rest@^2.4.0` and its `dev` tag pins an _exact_ dev build of rest that differs from this
 repo's. Two copies of `@discordjs/rest` in one tree is fatal here specifically, because `populateErrorResponse`
-dispatches on `instanceof DiscordAPIError / HTTPError / RateLimitError` — across copies those are different
+dispatches on `instanceof DiscordAPIError / HTTPError / RateLimitError` - across copies those are different
 constructor identities, so every Discord error would fall through to "unknown" and 500. Adopting it means a
 monorepo-wide bump of rest/core/ws/builders to match.
 
@@ -585,7 +590,7 @@ Two things deliberately do **not** get their own instance:
 
 - **`Bearer` requests** pool onto a single shared instance. Those tokens are per end user, so keying on them
   would grow the map by one entry per dashboard visitor, forever. `services/api` keeps its OAuth client
-  pointed straight at Discord for the same reason (`util/discordAPI.ts`) — it's the only process making
+  pointed straight at Discord for the same reason (`util/discordAPI.ts`) - it's the only process making
   those calls, so there was never a second accountant to reconcile with.
 - **Requests with no `Authorization`** (interaction callbacks, webhook execution) pool there too, correctly:
   Discord buckets those by the id/token in the URL, which `REST` already derives as the major parameter.
@@ -596,7 +601,7 @@ The proxy's `REST` instances run with `rejectOnRateLimit: () => true, retries: 0
 the caller as a 429 rather than being absorbed here as latency.
 
 This is what keeps retry policy in the caller's hands. `@discordjs/rest` retries 429s transparently by
-default, and per-request `rejectOnRateLimit` lets an individual call site opt out — a user-facing ModMail
+default, and per-request `rejectOnRateLimit` lets an individual call site opt out - a user-facing ModMail
 relay can give up where a background sweep would wait. If the proxy queued instead, the client would never
 see a 429, its `onRateLimit` would never fire, and that lever would be dead code stack-wide. It also means we
 never hold a socket open waiting out someone else's bucket.
@@ -605,11 +610,11 @@ Two consequences worth knowing:
 
 - **`X-RateLimit-Global` and `X-RateLimit-Scope` are re-emitted on our 429s** (`lib/responses.ts`), because
   the client rebuilds its `RateLimitData` from exactly those two headers. `@discordjs/proxy` drops them,
-  which makes every rate limit seen through it look non-global and user-scoped — reported upstream. The
+  which makes every rate limit seen through it look non-global and user-scoped - reported upstream. The
   accounting headers (`limit`/`remaining`/`reset`/`bucket`) _are_ stripped, on the 2xx path, so clients can't
   rebuild bucket state from a partial view of the token's traffic.
 - **The Cloudflare ban counter has to be read here.** `@discordjs/rest` increments its invalid-request count
-  on any 401/403/429, so clients now count the proxy's synthesized 429s — which never left the network.
+  on any 401/403/429, so clients now count the proxy's synthesized 429s - which never left the network.
   Only this process knows what actually reached Discord, so `invalidRequestWarningInterval` is set on its
   instances and the warning is logged with the application id it belongs to.
 
@@ -619,20 +624,20 @@ together into another refusal; at two processes per token the herd is small, but
 ### Deliberately not a cache
 
 The old stack's proxy (`origin/v2`) cached GETs by route. That is not carried over. The app layer above it
-already caches the same data far better — `services/api`'s `guildDataCache.ts` and `services/social-bot`'s
+already caches the same data far better - `services/api`'s `guildDataCache.ts` and `services/social-bot`'s
 `discordCache.ts` are redis-backed rather than process-local, with invalidation, negative caching, and
 crucially keyed per `(botId, guildId, instance)`. A URL-keyed cache down here would serve one bot's view of a
 guild to another, re-deriving that partition from scratch to avoid it. The proxy stays a pure accountant.
 
 ### Configuration and the kill switch
 
-`DISCORD_PROXY_URL_DEV`/`_PROD` are **optional on both sides**. Unset (or blank — docker-compose's `env_file`
+`DISCORD_PROXY_URL_DEV`/`_PROD` are **optional on both sides**. Unset (or blank - docker-compose's `env_file`
 turns `FOO=` into an empty string) means every client talks to `discord.com` directly, exactly as it did
 before this service existed.
 
 That's the local-dev default, so `yarn dev:api` doesn't need a second process running alongside it, and it's
 the production kill switch: blank `DISCORD_PROXY_URL_PROD`, redeploy, and the whole stack reverts with no
-code change. The value must end in `/api` — `REST` appends `/v{version}{route}` to it, so it's the same
+code change. The value must end in `/api` - `REST` appends `/v{version}{route}` to it, so it's the same
 shape as the `https://discord.com/api` it replaces.
 
 Note the rollout unit is the entire stack, not one bot: `services/api` holds every token, so pointing it at
@@ -640,21 +645,21 @@ the proxy points all of them at once.
 
 Every client service `depends_on` the proxy's healthcheck (`GET /health`), because `REST` clients are built
 at import time and a base URL that isn't listening yet would have the process flap on startup. That
-dependency stays in place even when the proxy is switched off — the container just sits idle.
+dependency stays in place even when the proxy is switched off - the container just sits idle.
 
 The proxy itself never calls `initContext`: it touches neither postgres nor redis, so a database outage can't
-take Discord connectivity down with it, and it can come up before either is reachable — which matters, since
+take Discord connectivity down with it, and it can come up before either is reachable - which matters, since
 everything else now waits on its healthcheck.
 
 ## 12. AutoModerator dashboard information architecture
 
 The AutoModerator port ([11-automoderator-port.md](11-automoderator-port.md)) shipped one hub card per phase, which
-left fifteen flat, equally-weighted sections — three to five times what any other bot has, plus a top-level
+left fifteen flat, equally-weighted sections - three to five times what any other bot has, plus a top-level
 `config` page holding a single development-only toggle. Regrouped and consolidated, with the shape below.
 
 **`apps/website/src/utils/automoderatorSections.ts` is the single source.** The hub page renders its groups, and
 `DashboardCrumbs` derives both its section-switch dropdown and its `SEGMENT_LABELS` entries from the same export.
-Adding a section to one and forgetting the other is what produced #373/#376/#378 — a breadcrumb rendering the raw
+Adding a section to one and forgetting the other is what produced #373/#376/#378 - a breadcrumb rendering the raw
 kebab-case URL segment (`url-filter`, `filter-ladder`) because only the hub knew the section existed.
 
 Groups, in setup order: **Moderation** (Cases, Reports) → **Filters** (Banned Words, URL Filter, Invite Filter,
@@ -664,26 +669,26 @@ Settings, Report Prompts). The "Advanced" heading that carried the enforcement t
 **Four pages became two.** `log-channels` + `log-exemptions` → `logging`; `filter-exemptions` + `bypass-roles` →
 `exemptions`. Each pair answered one question about two things (where logs go and what's left out of them; which
 channels the filters skip and which roles they never punish), and splitting them across the hub made you find both.
-The old URLs, plus `config`, redirect in `apps/website/next.config.mjs` — `permanent: false`, since a 308 is cached
+The old URLs, plus `config`, redirect in `apps/website/next.config.mjs` - `permanent: false`, since a 308 is cached
 by the browser indefinitely and these sections are still moving. **API paths were not touched**: the routes are
 still `/v3/guilds/:guildId/automoderator/{log-channels,log-exemptions,filter-exemptions,bypass-roles,config}`.
 
 **One page shell.** `components/dashboard/PageHeader.tsx` is the crumbs-plus-title block, wrapped in `space-y-8`.
-AutoModerator's pages had drifted into two spellings of it — `flex flex-col gap-4` on some, an arbitrary-variant
-`[&>*:not(:first-of-type)]:mt-8` on others — so the gap between the heading and the first card was 16px on one
+AutoModerator's pages had drifted into two spellings of it - `flex flex-col gap-4` on some, an arbitrary-variant
+`[&>*:not(:first-of-type)]:mt-8` on others - so the gap between the heading and the first card was 16px on one
 page and 48px on the next (#378). ModMail and Social still spell theirs out inline; adopt `PageHeader` there when
 you next touch one.
 
 **Single-value settings write on select.** Each log channel is one `ChannelSelect` that saves the moment it
-changes, with `noneLabel="Disable logging"` as the off switch (#375) — no Save button, no separate "Stop logging"
+changes, with `noneLabel="Disable logging"` as the off switch (#375) - no Save button, no separate "Stop logging"
 that only existed once a channel was already set. That matches `FilterToggle` and the filter pages' allowlist
 rows; the guard is that the picker goes inert while a write is in flight, since two PUTs have no ordering
 guarantee, and a rejected write reverts the local value rather than leaving the failed choice on screen.
 
 **Detail views name accounts, not ids.** `_components/UserBadge.tsx` (avatar + label + id) is what case and report
 pages render for a target, a moderator and each reporter (#372, #382). The label prefers the guild's stored
-`*_tag` snapshot over the live account — a case should read as the person the moderator acted on, not whoever
-holds that name now — and the id stays visible because the subject of an old ban has usually left, which makes it
+`*_tag` snapshot over the live account - a case should read as the person the moderator acted on, not whoever
+holds that name now - and the id stays visible because the subject of an old ban has usually left, which makes it
 the only handle a ban appeal can still be cross-checked against.
 
 **Deleting a case navigates before it re-renders.** `useDeleteAutomoderatorCase` invalidates the whole case

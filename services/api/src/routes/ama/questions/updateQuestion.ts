@@ -41,7 +41,22 @@ const anonymousModeSchema = z.strictObject({
 	anonymous: z.boolean(),
 });
 
-const bodySchema = z.union([stateModeSchema, answerModeSchema, tagsModeSchema, anonymousModeSchema]);
+// #366 PM feedback: whether an umbrella question publishes its merged-asker tally ("Asked by N people") or
+// just the question. Its own mode alongside `anonymousModeSchema` rather than a second key on it -- the two
+// are mutually exclusive by row (an umbrella question has no author to hide, and only an umbrella question
+// has a tally to suppress), so a shape that let both arrive together would have to reject half of what it
+// accepts.
+const askerCountModeSchema = z.strictObject({
+	showAskerCount: z.boolean(),
+});
+
+const bodySchema = z.union([
+	stateModeSchema,
+	answerModeSchema,
+	tagsModeSchema,
+	anonymousModeSchema,
+	askerCountModeSchema,
+]);
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
 	amaId: z.coerce
@@ -146,11 +161,25 @@ export default defineRoute({
 			});
 		}
 
-		if ('anonymous' in data) {
-			// Only this branch is gated behind `ama-qol` (#366) -- the state/answer/tag modes are long-standing
-			// behavior and must keep working for every guild. See `createQuestion.ts` for why it answers 403.
+		if ('anonymous' in data || 'showAskerCount' in data) {
+			// Only these branches are gated behind `ama-qol` (#366) -- the state/answer/tag modes are
+			// long-standing behavior and must keep working for every guild. See `createQuestion.ts` for why it
+			// answers 403.
 			if (!isExperimentEnabled(AMA_QOL_EXPERIMENT, guildId)) {
 				throw forbidden('this feature is not enabled for this server');
+			}
+
+			// The two flags are refused on the rows they don't describe rather than silently ignored there. An
+			// umbrella question has no author to publish (see `createQuestion.ts`) -- accepting `anonymous: false`
+			// on one would write a row saying "show the author" that every render then overrides, which is the
+			// state that eventually gets read as a bug. And a plain question's tally is the entire point of
+			// having merged duplicates into it, so nothing offers to hide it.
+			if ('anonymous' in data && question.umbrella) {
+				throw badRequest('an umbrella question is never published with an author');
+			}
+
+			if ('showAskerCount' in data && !question.umbrella) {
+				throw badRequest('only an umbrella question can hide its asker count');
 			}
 
 			// Only the answers-channel message ever changes: the queue embed shows the real author whatever the
@@ -163,7 +192,7 @@ export default defineRoute({
 					// The row as it's about to be written -- the embed has to render the incoming flag, not the
 					// stored one. `liveQuestion` stays the stored row for the same reason the answer branch keeps
 					// it: recovering the question's images reads the message as it exists right now.
-					const projected: AmaQuestions = { ...question, anonymous: data.anonymous };
+					const projected: AmaQuestions = { ...question, ...data };
 					const embeds = await buildQuestionEmbeds(guildId, projected, session, {
 						kind: currentMessage.kind,
 						liveQuestion: question,
@@ -179,11 +208,21 @@ export default defineRoute({
 				}
 			}
 
-			const [updated] = await db<AmaQuestions[]>`
-				UPDATE ama_questions SET anonymous = ${data.anonymous}, updated_at = now()
-				WHERE id = ${questionId}
-				RETURNING *
-			`;
+			// Written as two statements rather than one setting both columns off the projection above: the read
+			// this branch validated against is not held under a lock, so echoing back the flag nobody touched
+			// would let this request clobber a concurrent change to it.
+			const [updated] =
+				'anonymous' in data
+					? await db<AmaQuestions[]>`
+							UPDATE ama_questions SET anonymous = ${data.anonymous}, updated_at = now()
+							WHERE id = ${questionId}
+							RETURNING *
+						`
+					: await db<AmaQuestions[]>`
+							UPDATE ama_questions SET show_asker_count = ${data.showAskerCount}, updated_at = now()
+							WHERE id = ${questionId}
+							RETURNING *
+						`;
 
 			// Same concurrent-merge race the answer branch guards against below: the question can be deleted
 			// between the read above and this write.
@@ -194,8 +233,9 @@ export default defineRoute({
 			// Only a real transition counts, matching the bot's own toggle and the bulk route -- re-sending the
 			// value a question already has (the dashboard's switch is idempotent) isn't a decision anyone made.
 			// Both directions are `anonymize`: what's being recorded is that a moderator set who the question
-			// publishes as, not which way they set it.
-			if (question.anonymous !== data.anonymous) {
+			// publishes as, not which way they set it. The asker-count toggle records nothing -- it changes what
+			// a question says about itself, not a moderation decision about who asked it.
+			if ('anonymous' in data && question.anonymous !== data.anonymous) {
 				amaModerationDecisions.inc({ decision: 'anonymize', source: 'dashboard' });
 			}
 

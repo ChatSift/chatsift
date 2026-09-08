@@ -19,8 +19,8 @@ export interface PublicAnsweredQuestion {
 	answeredBy: PublicUserInfo | null;
 	askedAt: Date;
 	/**
-	 * `null` for a question marked anonymous (#366) -- the page renders nothing in its place, deliberately not
-	 * an "Anonymous" placeholder, matching what the answers-channel embed does.
+	 * `null` for a question marked anonymous, and for an umbrella one (#366) -- the page renders nothing in its
+	 * place, deliberately not an "Anonymous" placeholder, matching what the answers-channel embed does.
 	 */
 	author: PublicUserInfo | null;
 	content: string;
@@ -50,7 +50,10 @@ export interface PublicAnswersResult {
  * page would otherwise be a wall of questions with no answers next to them. A question with nothing
  * recorded here has nothing useful for this page to show.
  *
- * A question marked anonymous (#366) still appears -- it's the *author* that's withheld, not the question.
+ * A question marked anonymous (#366) still appears -- it's the *author* that's withheld, not the question. Same
+ * for an umbrella question, whose author never asked it. Neither carries the merged-asker tally the Discord
+ * embed shows: this page has never displayed one for any question, and adding it for these two alone would
+ * mean a per-question count query on an unauthenticated route.
  */
 export default defineRoute({
 	method: 'get',
@@ -82,8 +85,9 @@ export default defineRoute({
 		for (const question of questions) {
 			// An anonymous question's author is never rendered, so resolving them would be a Discord lookup whose
 			// only result is thrown away -- and one this page has no business making about someone it's been told
-			// to leave out (#366).
-			if (!question.anonymous) {
+			// to leave out (#366). Umbrella questions are the same case for a different reason: their author is
+			// the moderator who worded the question, not someone who asked it.
+			if (!question.anonymous && !question.umbrella) {
 				userIds.add(question.authorId);
 			}
 
@@ -113,7 +117,7 @@ export default defineRoute({
 				// rows the migration's backfill left null (there shouldn't be any -- it filled every 'ASKED'
 				// row, which is all this route selects -- but the column is nullable, so it has to narrow).
 				askedAt: question.askedAt ?? question.updatedAt,
-				author: question.anonymous ? null : toPublicUserInfo(resolvedById.get(question.authorId)!),
+				author: question.anonymous || question.umbrella ? null : toPublicUserInfo(resolvedById.get(question.authorId)!),
 				content: question.content,
 				id: question.id,
 			};

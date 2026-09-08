@@ -38,6 +38,10 @@ export default interface AmaQuestions {
   askedAt: Date | null;
 
   anonymous: boolean;
+
+  umbrella: boolean;
+
+  showAskerCount: boolean;
 }
 
 /** Represents the initializer for the table public.ama_questions */
@@ -71,6 +75,10 @@ export interface AmaQuestionsInitializer {
   askedAt?: Date | null;
 
   anonymous?: boolean;
+
+  umbrella?: boolean;
+
+  showAskerCount?: boolean;
 }
 
 /** Represents the mutator for the table public.ama_questions */
@@ -104,4 +112,8 @@ export interface AmaQuestionsMutator {
   askedAt?: Date | null;
 
   anonymous?: boolean;
+
+  umbrella?: boolean;
+
+  showAskerCount?: boolean;
 }

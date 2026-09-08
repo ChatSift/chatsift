@@ -5,6 +5,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Focusable } from 'react-aria-components';
+import { FaEyeSlash } from 'react-icons/fa';
 import { AuthorAvatar } from './AuthorAvatar';
 import { BulkMergePicker } from './BulkMergePicker';
 import { QuestionDetailPanel } from './QuestionDetailPanel';
@@ -16,6 +18,7 @@ import type { AMAQuestionListItem } from '@/api/routes/ama';
 import { invalidateAMAQuestions, useAMAQuestions, useSetAMAQuestionsAnonymousBulk } from '@/api/routes/ama';
 import { Button } from '@/components/common/Button';
 import { Skeleton } from '@/components/common/Skeleton';
+import { Tooltip } from '@/components/common/Tooltip';
 import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useExperiment } from '@/hooks/useExperiment';
@@ -121,15 +124,32 @@ function QuestionRow({
 							{tag.name}
 						</Button>
 					))}
-					{question.anonymous && isQolEnabled && (
+					{isQolEnabled && (question.anonymous || question.umbrella) && (
 						// Not clickable like the chips around it -- there's no "anonymous" filter to jump into, and this
-						// is here so a moderator can tell at a glance which rows publish without an author (#366).
-						<span
-							className="rounded-full bg-on-tertiary px-2.5 py-1 text-xs font-medium text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark"
-							title="Published with no author on it"
+						// is here so a moderator can tell at a glance which rows publish without an author (#366). An
+						// icon rather than the word it used to spell out (#366 PM feedback): it sits on a row that
+						// already carries an avatar, a name, the tags and the state, and this is the one of those a
+						// moderator is least often reading. `Focusable` because a tooltip nobody can reach with a
+						// keyboard is not an explanation.
+						<Tooltip
+							content={
+								question.umbrella
+									? `Umbrella question - published with no author, ${question.showAskerCount ? 'as "Asked by X people"' : 'and with no merge count'}.`
+									: 'Published with no author on it.'
+							}
 						>
-							Anonymous
-						</span>
+							<Focusable>
+								<span
+									aria-label={
+										question.umbrella ? 'Umbrella question, published with no author' : 'Published with no author'
+									}
+									className="rounded-full bg-on-tertiary p-1.5 text-secondary dark:bg-on-tertiary-dark dark:text-secondary-dark"
+									role="img"
+								>
+									<FaEyeSlash className="h-3.5 w-3.5" />
+								</span>
+							</Focusable>
+						</Tooltip>
 					)}
 					<Button
 						className={`h-auto rounded-full px-2.5 py-1 text-xs font-medium hover:opacity-80 ${STATE_CHIP_CLASSES[question.state] ?? DEFAULT_STATE_CHIP_CLASS}`}

@@ -93,9 +93,18 @@ export default defineRoute({
 			throw notFound('one or more selected questions were not found in this AMA');
 		}
 
+		// Umbrella questions sit this out rather than being rejected with the rest of the batch (#366 PM
+		// feedback): they are never published with an author whatever this flag says, so "Hide authors" already
+		// describes them and "Show authors" is something the single-question route refuses outright. Failing a
+		// 100-row selection because one umbrella question was caught in it would be the same trade the route's
+		// whole design rejects -- see its doc comment. They stay in `existing` so the not-found check above
+		// still covers them.
+		const targets = existing.filter((question) => !question.umbrella);
+		const targetIds = targets.map((question) => question.id);
+
 		const questions = await db<AmaQuestions[]>`
 			UPDATE ama_questions SET anonymous = ${anonymous}, updated_at = now()
-			WHERE id = ANY(${ids}) AND ama_id = ${amaId}
+			WHERE id = ANY(${targetIds}) AND ama_id = ${amaId}
 			RETURNING *
 		`;
 
@@ -103,7 +112,7 @@ export default defineRoute({
 		// and counting those would inflate the metric with no-ops and make this path disagree with the bot's own
 		// toggle, which only counts a real flip. Both directions count as `anonymize`, same as the bot: the
 		// decision being recorded is "a moderator set who this question publishes as", not which way it went.
-		const changed = existing.filter((question) => question.anonymous !== anonymous);
+		const changed = targets.filter((question) => question.anonymous !== anonymous);
 		amaModerationDecisions.inc({ decision: 'anonymize', source: 'dashboard' }, changed.length);
 
 		// Only the changed rows, and only the ones with a live public message: re-rendering a question already in

@@ -17,7 +17,8 @@ const MAX_CONTENT_LENGTH = 4_000;
 /**
  * Writes an "umbrella question" (#366): the host phrases the question the way they want to answer it, then
  * merges the real submissions into it from the list, so the published wording is theirs while the tally still
- * credits everyone who asked.
+ * credits everyone who asked. Nothing published names the moderator who typed it, which is why this form has
+ * no author control at all -- only whether the tally itself shows.
  *
  * It's created `APPROVED` rather than posted, so nothing reaches the answers channel until the existing Send
  * action runs -- see `createQuestion.ts` for why that state and not another.
@@ -28,9 +29,11 @@ export function CreateQuestionForm() {
 	const createQuestion = useCreateAMAQuestion(guildId, amaId);
 
 	const [content, setContent] = useState('');
-	// Defaults to hidden: an umbrella question's author is whichever moderator happened to type it, which is
-	// exactly the name the request was about keeping off the answers channel.
-	const [anonymous, setAnonymous] = useState(true);
+	// The author isn't a choice here at all: an umbrella question's author is whichever moderator happened to
+	// type it, so nothing published ever names them (`createQuestion.ts` stores the row anonymous). What is a
+	// choice is the merged-asker tally, which is the only thing one of these can say about who asked -- shown
+	// by default, since a host writing an umbrella question is usually doing it to credit a crowd.
+	const [showAskerCount, setShowAskerCount] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const isQolEnabled = useExperiment(guildId, AMA_QOL_EXPERIMENT);
 
@@ -44,7 +47,7 @@ export function CreateQuestionForm() {
 		try {
 			// No empty-content guard: `FormActions` is disabled on a blank textarea, and a form whose only field is
 			// a textarea has no implicit submission, so there is no way to reach this with nothing typed.
-			await createQuestion.mutateAsync({ content: content.trim(), anonymous });
+			await createQuestion.mutateAsync({ content: content.trim(), showAskerCount });
 			router.replace(questionsHref);
 		} catch (submitError) {
 			setError(submitError instanceof APIError ? submitError.message : 'Something went wrong. Please try again.');
@@ -82,22 +85,22 @@ export function CreateQuestionForm() {
 			<div>
 				<span
 					className="mb-1 block text-sm font-medium text-secondary dark:text-secondary-dark"
-					id="umbrella-question-anonymous-label"
+					id="umbrella-question-asker-count-label"
 				>
-					Author, where this gets published
+					Merge count
 				</span>
 				<SegmentedControl
-					labelledBy="umbrella-question-anonymous-label"
-					onChange={(next) => setAnonymous(next)}
+					labelledBy="umbrella-question-asker-count-label"
+					onChange={(next) => setShowAskerCount(next)}
 					options={[
-						{ label: 'Shown', value: false },
-						{ label: 'Hidden', value: true },
+						{ label: 'Show', value: true },
+						{ label: 'Hide', value: false },
 					]}
-					value={anonymous}
+					value={showAskerCount}
 				/>
 				<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-					Shown credits you - the question is recorded as yours either way, this only controls whether the answers
-					channel and the public page say so.
+					Umbrella questions do not have authors, instead saying &quot;Asked by X people&quot; based on the number of
+					merged questions under the umbrella. Hiding will only show the question.
 				</p>
 			</div>
 

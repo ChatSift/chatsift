@@ -16,7 +16,7 @@ export const BLURPLE = 0x7289da;
 
 /**
  * Discord groups embeds on the same message into an image gallery when they share an identical
- * `url` field. Used to render more than one attachment per question — ChatSift/AMA never had this
+ * `url` field. Used to render more than one attachment per question -- ChatSift/AMA never had this
  * problem since it only ever supported a single `imageUrl`, but main's `allowedQuestionUploads`
  * can be greater than 1.
  */
@@ -71,6 +71,17 @@ interface GetBaseEmbedsOptions {
 	 * appending `getAnswerEmbed`'s result onto a question that already has the max attachments.
 	 */
 	reserveEmbedSlots?: number | undefined;
+	/**
+	 * Whether the merged-asker line renders at all. Only an umbrella question's own toggle ever turns it
+	 * off (`ama_questions.show_asker_count`) -- everywhere else the count is the point of having merged.
+	 */
+	showAskerCount?: boolean | undefined;
+	/**
+	 * This question was written by staff for duplicates to be merged under (#366) rather than asked by
+	 * its author. Only affects the merged-asker line: its author isn't one of the askers, so the count is
+	 * the merges alone and reads "Asked by" rather than "Also asked by ... other people".
+	 */
+	umbrella?: boolean | undefined;
 	user?: APIUser | undefined;
 }
 
@@ -111,6 +122,8 @@ export function getBaseEmbeds({
 	includeUserId = false,
 	member,
 	reserveEmbedSlots = 0,
+	showAskerCount = true,
+	umbrella = false,
 	user,
 }: GetBaseEmbedsOptions): APIEmbed[] {
 	const authorName = member?.nick ?? user?.global_name ?? user?.username ?? 'Unknown User';
@@ -137,11 +150,25 @@ export function getBaseEmbeds({
 	// question silently loses the field. A field costs no embed slot, so this never affects the gallery
 	// splitting or `reserveEmbedSlots` maths further down. Phrased as people rather than merges: the
 	// underlying rows are unique per `(question_id, author_id)`, so the same person asking twice counts once.
-	if (extraAskerCount > 0) {
+	//
+	// Still gated on there being a *merge*, not on the head count below being non-zero: without one there's
+	// no tally to report, and an anonymous question would otherwise announce "Asked by 1 person" about
+	// itself on every single render.
+	if (showAskerCount && extraAskerCount > 0) {
+		// "Also asked by ... other people" only makes sense next to a visible person it's "other" than
+		// (#366): drop the author line and there's nobody for the reader to count from, and an umbrella
+		// question's author never asked it in the first place. Both cases switch to a flat head count --
+		// which for the anonymous case includes the author the reader can't see, and for the umbrella case
+		// doesn't, since they only wrote the wording.
+		const authorIsAnAsker = !anonymous && !umbrella;
+		// The author counts towards the head count exactly when they asked but aren't shown.
+		const askerCount = anonymous && !umbrella ? extraAskerCount + 1 : extraAskerCount;
+		const plural = askerCount === 1 ? 'person' : 'people';
+
 		mainEmbed.fields = [
 			{
-				name: 'Also asked by',
-				value: extraAskerCount === 1 ? '1 other person' : `${extraAskerCount} other people`,
+				name: authorIsAnAsker ? 'Also asked by' : 'Asked by',
+				value: authorIsAnAsker ? `${askerCount} other ${plural}` : `${askerCount} ${plural}`,
 				inline: false,
 			},
 		];

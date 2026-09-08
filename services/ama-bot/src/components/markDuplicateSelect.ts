@@ -226,7 +226,7 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 					// Only the answers surface honours the flag (#366) -- `includeUserId` is `true` for exactly the
 					// queue, which always shows the real author. With it on there's no author line to build, so the
 					// two lookups that feed it are skipped rather than fetched and discarded.
-					const anonymous = !currentMessage.includeUserId && original.anonymous;
+					const anonymous = !currentMessage.includeUserId && (original.anonymous || original.umbrella);
 					const [attachments, user] = await Promise.all([
 						fetchQuestionImages(original, session),
 						anonymous ? null : fetchUser(getContext().service.client.api, original.authorId).catch(() => null),
@@ -248,6 +248,8 @@ export default class MarkDuplicateSelectComponent implements ComponentHandler<st
 						includeUserId: currentMessage.includeUserId,
 						member,
 						reserveEmbedSlots: hasAnswer ? 1 : 0,
+						showAskerCount: original.showAskerCount,
+						umbrella: original.umbrella,
 						user: user ?? undefined,
 					});
 

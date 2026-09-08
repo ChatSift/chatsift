@@ -65,6 +65,8 @@ function question(state: StateLiteral, overrides: Partial<AmaQuestions> = {}): A
 		answeredAt: null,
 		askedAt: null,
 		anonymous: false,
+		umbrella: false,
+		showAskerCount: true,
 		...overrides,
 	};
 }
