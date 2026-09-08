@@ -18,8 +18,8 @@ import type {
 	updateAMAQuestionRoute,
 	updateAMARoute,
 } from '@chatsift/api';
+import { apiFetch, apiFetchBlob } from '@chatsift/web-core/api/fetch';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, apiFetchBlob } from '../fetch';
 import { queryKeys } from '../queryClient';
 
 export type { PossiblyMissingChannelInfo } from '@chatsift/api';

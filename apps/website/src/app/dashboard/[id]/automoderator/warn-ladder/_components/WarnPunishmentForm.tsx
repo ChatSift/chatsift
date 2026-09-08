@@ -1,6 +1,12 @@
 'use client';
 
 import { WARN_PUNISHMENT_MAX_COUNT, WARN_PUNISHMENT_MAX_WARNS } from '@chatsift/core';
+import { mapApiErrorToFieldErrors } from '@chatsift/web-core/api/formErrors';
+import { Button } from '@chatsift/web-core/components/Button';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextField } from '@chatsift/web-core/components/TextField';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
@@ -10,18 +16,12 @@ import {
 	parseDurationInput,
 	WARN_PUNISHMENT_ACTIONS,
 } from './ladderDisplay';
-import { mapApiErrorToFieldErrors } from '@/api/formErrors';
 import type { AutomoderatorWarnPunishment, WarnPunishmentActionName } from '@/api/routes/automoderatorWarnPunishments';
 import {
 	useAutomoderatorWarnPunishments,
 	useSetAutomoderatorWarnPunishment,
 } from '@/api/routes/automoderatorWarnPunishments';
-import { Button } from '@/components/common/Button';
-import { FormActions } from '@/components/common/FormActions';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
-import { cn } from '@/utils/util';
 
 interface StepFormData {
 	actionType: WarnPunishmentActionName;

@@ -1,8 +1,8 @@
+import { prefetch } from '@chatsift/web-core/api/fetch';
 import { HydrationBoundary } from '@tanstack/react-query';
 import type { Metadata } from 'next';
 import { PublicAnswers } from './_components/PublicAnswers';
 import { getPublicAnswers, getPublicAnswersOrNull } from './_lib/publicAnswers';
-import { prefetch } from '@/api/fetch';
 import { queryKeys } from '@/api/queryClient';
 import { SITE_NAME, socialMetadata } from '@/utils/site';
 

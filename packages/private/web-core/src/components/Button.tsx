@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import type { ButtonProps } from 'react-aria-components';
 import { Button as AriaButton } from 'react-aria-components';
-import { APIError } from '@/api/error';
-import { pushErrorBanner } from '@/api/errorBanner';
-import { reportError } from '@/api/report';
-import { cn } from '@/utils/util';
+import { APIError } from '../api/error';
+import { pushErrorBanner } from '../api/errorBanner';
+import { reportError } from '../api/report';
+import { cn } from '../utils/cn';
 
 export function Button(props: ButtonProps) {
 	const { className, ...rest } = props;

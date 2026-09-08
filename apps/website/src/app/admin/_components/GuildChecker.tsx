@@ -2,9 +2,9 @@
 
 import type { ExperimentDecision } from '@chatsift/core';
 import { resolveExperiment } from '@chatsift/core';
+import { SnowflakeInput } from '@chatsift/web-core/components/SnowflakeInput';
 import { useMemo, useState } from 'react';
 import type { ExperimentList } from '@/api/routes/experiments';
-import { SnowflakeInput } from '@/components/common/SnowflakeInput';
 
 interface GuildCheckerProps {
 	readonly experiments: ExperimentList;

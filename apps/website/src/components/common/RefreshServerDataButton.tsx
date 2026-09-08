@@ -1,9 +1,9 @@
 'use client';
 
 import type { BotId } from '@chatsift/core';
+import { Button } from '@chatsift/web-core/components/Button';
 import { useParams } from 'next/navigation';
 import { useRefreshGuildInfo } from '@/api/routes/guilds';
-import { Button } from '@/components/common/Button';
 import { SvgRefresh } from '@/components/icons/SvgRefresh';
 
 interface RefreshServerDataButtonProps {

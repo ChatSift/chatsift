@@ -1,6 +1,6 @@
+import { SearchBar } from '@chatsift/web-core/components/SearchBar';
 import { StateFilter } from './_components/ReportFilters';
 import { ReportsList } from './_components/ReportsList';
-import { SearchBar } from '@/components/common/SearchBar';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 
 export default function AutomoderatorReportsPage() {

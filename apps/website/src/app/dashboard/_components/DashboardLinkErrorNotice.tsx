@@ -1,8 +1,8 @@
 'use client';
 
+import { pushErrorBanner } from '@chatsift/web-core/api/errorBanner';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import { pushErrorBanner } from '@/api/errorBanner';
 
 const MESSAGES = {
 	expired: 'That /dashboard link expired (links only last 2 minutes) - run /dashboard again for a new one.',

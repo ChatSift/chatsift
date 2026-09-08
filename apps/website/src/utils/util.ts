@@ -1,8 +1,4 @@
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import type { MeGuild } from '@/api/routes/auth';
-
-export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 /**
  * Most-configured servers first, then alphabetically.
@@ -69,7 +65,7 @@ export const discordSnowflakeToDate = (snowflake: string): Date =>
 
 /**
  * Unlike `Number.parseInt`, doesn't silently truncate trailing garbage ("5.7" -> 5, "5abc" -> 5) or coerce
- * non-plain-integer syntax ("1e1" -> 10) — only a string of plain (optionally signed) digits parses, everything
+ * non-plain-integer syntax ("1e1" -> 10) -- only a string of plain (optionally signed) digits parses, everything
  * else (blank, decimals, scientific notation, malformed) is `NaN`, so it reaches the zod schema's `.int()`/range
  * checks and fails there instead of silently becoming a value the user never typed.
  */

@@ -72,3 +72,8 @@ temp/
 .changeset/pre.json
 
 next-env.d.ts
+
+# Synced from packages/private/web-core/assets/fonts by scripts/sync-web-core-assets.mjs on every build and
+# dev run. The package owns the bytes because it owns the @font-face rules that name them; Next serves
+# public/ per app, so each app needs its own copy.
+apps/*/public/assets/fonts/

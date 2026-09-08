@@ -1,5 +1,7 @@
 'use client';
 
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { cn } from '@chatsift/web-core/utils/cn';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import dynamic from 'next/dynamic';
 import { FaLock, FaRobot, FaTrash } from 'react-icons/fa';
@@ -7,9 +9,8 @@ import { EditHistoryBadge } from './EditHistoryBadge';
 import { MessageAuthorHeader } from './MessageAuthorHeader';
 import { messageAuthorId, resolveAuthorLabel, stickerImageUrl } from './threadMessageUtils';
 import type { ModmailThreadMessage } from '@/api/routes/modmailThreads';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserAvatar } from '@/components/user/UserAvatar';
-import { cn, discordSnowflakeToDate, formatDate } from '@/utils/util';
+import { discordSnowflakeToDate, formatDate } from '@/utils/util';
 
 // `ssr: false` is load-bearing, not just a perf nicety -- see `DiscordMarkdown.tsx`'s own doc comment on
 // why its wasm parser can't be evaluated server-side at all under Next's bundler.

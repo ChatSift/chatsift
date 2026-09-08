@@ -1,6 +1,12 @@
 'use client';
 
 import { AMA_QOL_EXPERIMENT, MERGE_SOURCE_STATES } from '@chatsift/core';
+import { APIError } from '@chatsift/web-core/api/error';
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { Tooltip } from '@chatsift/web-core/components/Tooltip';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
@@ -10,14 +16,9 @@ import { MergeDuplicatePicker } from './MergeDuplicatePicker';
 import { TagPicker } from './TagPicker';
 import { answerEditorHint, saveConfirmCopy } from './answerEditorCopy';
 import { userLabel } from './userLabel';
-import { APIError } from '@/api/error';
 import { useAMA, useAMAQuestion, useSendAMAQuestion, useUpdateAMAQuestion } from '@/api/routes/ama';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
-import { Skeleton } from '@/components/common/Skeleton';
-import { Tooltip } from '@/components/common/Tooltip';
 import { useExperiment } from '@/hooks/useExperiment';
-import { cn, formatDate } from '@/utils/util';
+import { formatDate } from '@/utils/util';
 
 interface PublishToggleProps {
 	readonly isDisabled: boolean;

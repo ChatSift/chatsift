@@ -2,6 +2,13 @@
 
 import { hasDiscordMessageSurface, updateAMAConfigSchema } from '@chatsift/api/ama-schemas';
 import { amaQuestionsChannel, DEFAULT_EMBED_COLOR } from '@chatsift/core';
+import { APIError } from '@chatsift/web-core/api/error';
+import { Button } from '@chatsift/web-core/components/Button';
+import { colorToHex, hexToColor, validateColorInput } from '@chatsift/web-core/components/ColorField';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
+import { RawJsonField } from '@chatsift/web-core/components/RawJsonField';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextField } from '@chatsift/web-core/components/TextField';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChannelType } from 'discord-api-types/v10';
 import Link from 'next/link';
@@ -15,7 +22,6 @@ import { AuthorAvatar } from '../questions/_components/AuthorAvatar';
 import { userLabel } from '../questions/_components/userLabel';
 import { StatChip } from './StatChip';
 import { QUESTION_STATE_TILES, valenceClass } from './questionStateTiles';
-import { APIError } from '@/api/error';
 import type { AMAStats, PossiblyMissingChannelInfo, UpdateAMABody } from '@/api/routes/ama';
 import {
 	invalidateAMAQuestions,
@@ -27,13 +33,7 @@ import {
 } from '@/api/routes/ama';
 import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
-import { Button } from '@/components/common/Button';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
-import { colorToHex, hexToColor, validateColorInput } from '@/components/common/ColorField';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
-import { RawJsonField } from '@/components/common/RawJsonField';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useGuildAccess } from '@/hooks/useGuildAccess';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';

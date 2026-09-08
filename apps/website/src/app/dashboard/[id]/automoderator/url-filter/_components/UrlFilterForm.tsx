@@ -7,11 +7,16 @@ import {
 	automoderatorConfigChannel,
 	normalizeAllowedDomain,
 } from '@chatsift/core';
+import { APIError } from '@chatsift/web-core/api/error';
+import { Button } from '@chatsift/web-core/components/Button';
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextField } from '@chatsift/web-core/components/TextField';
+import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { FilterToggle } from '../../_components/FilterToggle';
-import { APIError } from '@/api/error';
 import { queryKeys } from '@/api/queryClient';
 import { useAutomoderatorConfig, useUpdateAutomoderatorConfig } from '@/api/routes/automoderator';
 import {
@@ -19,11 +24,6 @@ import {
 	useCreateAutomoderatorAllowedUrl,
 	useDeleteAutomoderatorAllowedUrl,
 } from '@/api/routes/automoderatorFilters';
-import { Button } from '@/components/common/Button';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextField } from '@/components/common/TextField';
-import { buttonClass } from '@/components/common/buttonStyles';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';

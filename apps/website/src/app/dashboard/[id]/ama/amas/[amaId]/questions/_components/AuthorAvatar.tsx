@@ -1,6 +1,6 @@
+import { DiscordUserAvatar } from '@chatsift/web-core/components/DiscordUserAvatar';
 import type { APIUser, Snowflake } from 'discord-api-types/v10';
 import { userLabel } from './userLabel';
-import { DiscordUserAvatar } from '@/components/common/DiscordUserAvatar';
 
 interface AuthorAvatarProps {
 	readonly className?: string;

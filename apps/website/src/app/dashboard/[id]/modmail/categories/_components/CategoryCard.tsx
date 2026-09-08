@@ -1,12 +1,12 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
+import { Emoji } from '@chatsift/web-core/components/Emoji';
 import Link from 'next/link';
 import { useState } from 'react';
 import type { ModmailCategory } from '@/api/routes/modmail';
 import { useDeleteModmailCategory, useModForumTags, useModmailConfig, useModmailPanels } from '@/api/routes/modmail';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
-import { Emoji } from '@/components/common/Emoji';
 import { tagEmojiValue } from '@/components/common/ForumTagSelect';
 import { SvgChevronDown } from '@/components/icons/SvgChevronDown';
 

@@ -26,3 +26,10 @@ LICENSE
 **/README.md
 
 .DS_Store
+
+# `packages/private/web-core` is a React package consumed only by `apps/*`, which this image never builds.
+# Without this line `COPY packages ./packages` would bring it in, turbo would find it as a workspace, and
+# `yarn turbo run build` would typecheck it against a node_modules where React was never installed -- the
+# manifests copied above deliberately omit it. Same category as `apps/website`, which is in yarn.lock but
+# has never been copied into this image either.
+packages/private/web-core

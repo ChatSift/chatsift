@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useLayoutEffect, useMemo, useRef } from 'react';
@@ -7,7 +8,6 @@ import { InternalChatterGroup } from './InternalChatterGroup';
 import { ThreadMessage } from './ThreadMessage';
 import { buildRenderItems } from './threadMessageUtils';
 import type { ModmailThreadMessage } from '@/api/routes/modmailThreads';
-import { Button } from '@/components/common/Button';
 
 interface ThreadMessageListProps {
 	fetchNextPage(): void;

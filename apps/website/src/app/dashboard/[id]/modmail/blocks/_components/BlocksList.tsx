@@ -1,9 +1,9 @@
 'use client';
 
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams } from 'next/navigation';
 import { BlockCard } from './BlockCard';
 import { useModmailBlocks } from '@/api/routes/modmail';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 export function BlocksList() {

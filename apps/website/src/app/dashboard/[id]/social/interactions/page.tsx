@@ -1,6 +1,6 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { ResyncInteractionsCard } from './_components/ResyncInteractionsCard';
 import { SocialInteractionsList } from './_components/SocialInteractionsList';
-import { Heading } from '@/components/common/Heading';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
 export default function SocialInteractionsPage() {

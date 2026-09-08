@@ -1,5 +1,5 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { EditSnippetFormLoader } from './_components/EditSnippetForm';
-import { Heading } from '@/components/common/Heading';
 import { ModmailSnippetCrumbs } from '@/components/dashboard/ModmailSnippetCrumbs';
 
 export default function EditModmailSnippetPage() {

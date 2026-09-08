@@ -1,5 +1,5 @@
+import { apiFetch } from '@chatsift/web-core/api/fetch';
 import { cache } from 'react';
-import { apiFetch } from '@/api/fetch';
 import type { PublicSocialLeaderboardResult } from '@/api/routes/social';
 import { publicSocialLeaderboardPath, SOCIAL_LEADERBOARD_PAGE_SIZE } from '@/api/routes/social';
 

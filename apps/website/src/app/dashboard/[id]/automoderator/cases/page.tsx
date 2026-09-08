@@ -1,6 +1,6 @@
+import { SearchBar } from '@chatsift/web-core/components/SearchBar';
 import { ActionFilter, IncludePardonedToggle } from './_components/CaseFilters';
 import { CasesList } from './_components/CasesList';
-import { SearchBar } from '@/components/common/SearchBar';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 
 export default function AutomoderatorCasesPage() {

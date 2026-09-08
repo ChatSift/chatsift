@@ -1,6 +1,6 @@
+import { shouldReport } from '@chatsift/web-core/api/report';
 import * as Sentry from '@sentry/nextjs';
 import type { Instrumentation } from 'next';
-import { shouldReport } from '@/api/report';
 
 /**
  * Server-side error reporting (#386) for the Vercel runtimes.

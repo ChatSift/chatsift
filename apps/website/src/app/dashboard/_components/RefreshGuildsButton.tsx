@@ -1,7 +1,7 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
 import { useRefreshMe } from '@/api/routes/auth';
-import { Button } from '@/components/common/Button';
 import { SvgRefresh } from '@/components/icons/SvgRefresh';
 
 export function RefreshGuildsButton() {

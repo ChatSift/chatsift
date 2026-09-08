@@ -1,6 +1,7 @@
 'use client';
 
 import type { BotId } from '@chatsift/core';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams, usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 import type { AMASessionDetailed, AMASessionWithCount } from '@/api/routes/ama';
@@ -12,7 +13,6 @@ import type { ModmailCategory, ModmailPanel, ModmailSnippet } from '@/api/routes
 import type { SocialInteraction } from '@/api/routes/social';
 import type { BreadcrumbOption } from '@/components/common/Breadcrumb';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
-import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAMA } from '@/components/icons/SvgAMA';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { SvgModmail } from '@/components/icons/SvgModmail';

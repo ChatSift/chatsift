@@ -1,7 +1,7 @@
+import { DiscordUserAvatar } from '@chatsift/web-core/components/DiscordUserAvatar';
+import { cn } from '@chatsift/web-core/utils/cn';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { snapshotUserLabel } from './userDisplay';
-import { DiscordUserAvatar } from '@/components/common/DiscordUserAvatar';
-import { cn } from '@/utils/util';
 
 interface UserBadgeProps {
 	/**

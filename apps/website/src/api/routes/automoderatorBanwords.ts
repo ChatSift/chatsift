@@ -5,8 +5,8 @@ import type {
 	setBanwordPolicyRoute,
 } from '@chatsift/api';
 import type { banwordActionSchema } from '@chatsift/api/automoderator-schemas';
+import { apiFetch } from '@chatsift/web-core/api/fetch';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
 
 type RulesContract = InferRouteContract<typeof listAutomodRulesRoute>;

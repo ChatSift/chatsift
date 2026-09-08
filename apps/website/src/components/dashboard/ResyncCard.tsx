@@ -1,11 +1,11 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { FaExclamationTriangle } from 'react-icons/fa';
 import { useMe } from '@/api/routes/auth';
 import type { ResyncFailure } from '@/api/routes/modmail';
-import { Button } from '@/components/common/Button';
 
 export interface ResyncOutcome {
 	failures: ResyncFailure[];

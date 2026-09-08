@@ -1,11 +1,12 @@
 'use client';
 
 import { calculateTotalRequiredXp } from '@chatsift/core';
+import { Button } from '@chatsift/web-core/components/Button';
+import { GenericAvatar } from '@chatsift/web-core/components/GenericAvatar';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { cn } from '@chatsift/web-core/utils/cn';
 import type { SocialLeaderboardEntry, SocialLeaderboardPage } from '@/api/routes/social';
-import { Button } from '@/components/common/Button';
-import { GenericAvatar } from '@/components/common/GenericAvatar';
-import { Skeleton } from '@/components/common/Skeleton';
-import { cn, roleColor } from '@/utils/util';
+import { roleColor } from '@/utils/util';
 
 const numberFormat = new Intl.NumberFormat('en-US');
 

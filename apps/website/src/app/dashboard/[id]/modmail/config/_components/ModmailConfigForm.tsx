@@ -1,23 +1,23 @@
 'use client';
 
 import { updateConfigBodySchema } from '@chatsift/api/modmail-schemas';
+import { APIError } from '@chatsift/web-core/api/error';
+import { Button } from '@chatsift/web-core/components/Button';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
+import { TextField } from '@chatsift/web-core/components/TextField';
+import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FaExclamationTriangle } from 'react-icons/fa';
-import { APIError } from '@/api/error';
 import { useMe } from '@/api/routes/auth';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { ModmailConfig, UpdateModmailConfigBody } from '@/api/routes/modmail';
 import { useModmailConfig, useUpdateModmailConfig } from '@/api/routes/modmail';
-import { Button } from '@/components/common/Button';
 import { ChannelSelect } from '@/components/common/ChannelSelect';
 import { RoleSelect } from '@/components/common/RoleSelect';
-import { Skeleton } from '@/components/common/Skeleton';
 import { TemplatePlaceholdersHint } from '@/components/common/TemplatePlaceholdersHint';
-import { TextAreaField } from '@/components/common/TextAreaField';
-import { TextField } from '@/components/common/TextField';
-import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { formatDate } from '@/utils/util';
 

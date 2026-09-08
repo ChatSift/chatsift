@@ -2,25 +2,25 @@
 
 import { LEVEL_UP_NOTIFICATION_MODES, updateSocialConfigBodySchema } from '@chatsift/api/social-schemas';
 import { DEFAULT_LEVEL_UP_MESSAGE } from '@chatsift/core';
+import { APIError } from '@chatsift/web-core/api/error';
+import { mapIssuesToFieldErrors } from '@chatsift/web-core/api/formErrors';
+import { Button } from '@chatsift/web-core/components/Button';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
+import { TextField } from '@chatsift/web-core/components/TextField';
+import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { SOCIAL_CONFIG_DEFAULTS, isTrackingConfigured } from '../../_components/socialConfig';
 import { EligibilityExample } from './EligibilityExample';
 import { XpCurvePreview } from './XpCurvePreview';
-import { APIError } from '@/api/error';
-import { mapIssuesToFieldErrors } from '@/api/formErrors';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { UpdateSocialConfigBody } from '@/api/routes/social';
 import { useSocialConfig, useUpdateSocialConfig } from '@/api/routes/social';
-import { Button } from '@/components/common/Button';
 import { ChannelSelect } from '@/components/common/ChannelSelect';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextAreaField } from '@/components/common/TextAreaField';
-import { TextField } from '@/components/common/TextField';
-import { buttonClass } from '@/components/common/buttonStyles';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
-import { cn } from '@/utils/util';
 
 type LevelUpNotificationMode = (typeof LEVEL_UP_NOTIFICATION_MODES)[number];
 

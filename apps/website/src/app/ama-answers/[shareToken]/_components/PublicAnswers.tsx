@@ -1,14 +1,14 @@
 'use client';
 
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { GenericAvatar } from '@chatsift/web-core/components/GenericAvatar';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { FaExclamationCircle } from 'react-icons/fa';
 import { queryKeys } from '@/api/queryClient';
 import type { PublicUserInfo } from '@/api/routes/ama';
 import { publicAMAWsTicketPath, usePublicAMAAnswers } from '@/api/routes/ama';
-import { EmptyState } from '@/components/common/EmptyState';
-import { GenericAvatar } from '@/components/common/GenericAvatar';
-import { Skeleton } from '@/components/common/Skeleton';
 import { usePublicRealtimeClient } from '@/hooks/usePublicRealtimeClient';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 import { formatDate } from '@/utils/util';

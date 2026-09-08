@@ -1,5 +1,5 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import type { Metadata } from 'next';
-import { Heading } from '@/components/common/Heading';
 import { LegalSection } from '@/components/marketing/LegalSection';
 import { socialMetadata } from '@/utils/site';
 

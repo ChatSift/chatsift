@@ -1,11 +1,11 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
 import Link from 'next/link';
 import { useState } from 'react';
 import type { ModmailPanel } from '@/api/routes/modmail';
 import { useDeleteModmailPanel } from '@/api/routes/modmail';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
 
 interface PanelCardProps {
 	readonly channelName: string | undefined;

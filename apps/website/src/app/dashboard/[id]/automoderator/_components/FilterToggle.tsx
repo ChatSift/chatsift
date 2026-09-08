@@ -1,9 +1,9 @@
 'use client';
 
+import { APIError } from '@chatsift/web-core/api/error';
+import { SegmentedControl } from '@chatsift/web-core/components/SegmentedControl';
 import { useState } from 'react';
 import { SettingCard } from './SettingCard';
-import { APIError } from '@/api/error';
-import { SegmentedControl } from '@/components/common/SegmentedControl';
 
 const CHOICES = [
 	{ value: true, label: 'On' },

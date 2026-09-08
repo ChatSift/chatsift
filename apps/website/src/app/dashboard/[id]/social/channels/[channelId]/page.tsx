@@ -1,5 +1,5 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { EditSocialChannelFormLoader } from '../_components/SocialChannelForm';
-import { Heading } from '@/components/common/Heading';
 import { RefreshServerDataButton } from '@/components/common/RefreshServerDataButton';
 import { SocialGuildCrumbs } from '@/components/dashboard/SocialGuildCrumbs';
 

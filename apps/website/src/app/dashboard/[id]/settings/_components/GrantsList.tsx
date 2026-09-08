@@ -1,10 +1,10 @@
 'use client';
 
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams } from 'next/navigation';
 import { AddGrantCard } from './AddGrantCard';
 import { GrantCard } from './GrantCard';
 import { useGrants } from '@/api/routes/guilds';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 export function GrantsList() {

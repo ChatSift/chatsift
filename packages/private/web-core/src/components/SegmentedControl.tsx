@@ -1,7 +1,7 @@
 'use client';
 
+import { cn } from '../utils/cn';
 import { Button } from './Button';
-import { cn } from '@/utils/util';
 
 export interface SegmentedControlOption<TValue> {
 	readonly disabled?: boolean;

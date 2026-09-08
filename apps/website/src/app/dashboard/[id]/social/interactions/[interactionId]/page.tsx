@@ -1,5 +1,5 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { EditSocialInteractionFormLoader } from '../_components/SocialInteractionForm';
-import { Heading } from '@/components/common/Heading';
 import { SocialInteractionCrumbs } from '@/components/dashboard/SocialInteractionCrumbs';
 
 export default function EditSocialInteractionPage() {

@@ -1,11 +1,11 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
 import type { APIUser, Snowflake } from '@discordjs/core';
 import { useState } from 'react';
 import type { Grant } from '@/api/routes/guilds';
 import { useDeleteGrant } from '@/api/routes/guilds';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { UserAvatar } from '@/components/user/UserAvatar';
 import { formatDate } from '@/utils/util';
 

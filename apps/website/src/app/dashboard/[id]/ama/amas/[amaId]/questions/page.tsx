@@ -1,9 +1,9 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
+import { SearchBar } from '@chatsift/web-core/components/SearchBar';
 import { QuestionStateTabs } from './_components/QuestionStateTabs';
 import { QuestionTagFilter } from './_components/QuestionTagFilter';
 import { QuestionsList } from './_components/QuestionsList';
-import { Heading } from '@/components/common/Heading';
 import { RefreshServerDataButton } from '@/components/common/RefreshServerDataButton';
-import { SearchBar } from '@/components/common/SearchBar';
 import { AMADashboardCrumbs } from '@/components/dashboard/AMADashboardCrumbs';
 
 export default function AMAQuestionsPage() {

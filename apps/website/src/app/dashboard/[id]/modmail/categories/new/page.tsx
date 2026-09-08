@@ -1,5 +1,5 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { CreateCategoryForm } from './_components/CreateCategoryForm';
-import { Heading } from '@/components/common/Heading';
 import { RefreshServerDataButton } from '@/components/common/RefreshServerDataButton';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 

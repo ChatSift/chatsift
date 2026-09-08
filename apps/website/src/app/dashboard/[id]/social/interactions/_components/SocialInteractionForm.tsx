@@ -1,17 +1,17 @@
 'use client';
 
 import { createSocialInteractionBodySchema, updateSocialInteractionBodySchema } from '@chatsift/api/social-schemas';
+import { ColorField, validateColorInput } from '@chatsift/web-core/components/ColorField';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
+import { TextField } from '@chatsift/web-core/components/TextField';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { InteractionFormData, InteractionFormErrors } from './interactionForm';
 import { mapInteractionApiError, mapInteractionIssues, normalizeInteractionName } from './interactionForm';
 import type { CreateSocialInteractionBody, SocialInteraction, UpdateSocialInteractionBody } from '@/api/routes/social';
 import { useCreateSocialInteraction, useSocialInteractions, useUpdateSocialInteraction } from '@/api/routes/social';
-import { ColorField, validateColorInput } from '@/components/common/ColorField';
-import { FormActions } from '@/components/common/FormActions';
-import { Skeleton } from '@/components/common/Skeleton';
-import { TextAreaField } from '@/components/common/TextAreaField';
-import { TextField } from '@/components/common/TextField';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 const EMPTY_FORM: InteractionFormData = {

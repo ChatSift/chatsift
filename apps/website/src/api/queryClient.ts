@@ -1,95 +1,43 @@
-import { isServer, MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
-import { APIError } from './error';
-import { pushErrorBanner } from './errorBanner';
-import { reportError } from './report';
+import { makeQueryClient } from '@chatsift/web-core/api/queryClient';
+import { isServer, type QueryClient } from '@tanstack/react-query';
 
 /**
- * Hoisted out of `queryKeys` below purely so the `QueryCache` `onError` in `makeQueryClient` can reference it
+ * Hoisted out of `queryKeys` below purely so `getBrowserQueryClient`'s `onUnauthorized` can reference it
  * without reading a `const` declared further down the file. `queryKeys.auth.me` is still how this is spelled
  * everywhere else -- it's the same tuple, not a second source of truth.
  */
 const meQueryKey = ['api', 'auth', 'me'] as const;
 
-export function makeQueryClient(): QueryClient {
-	return new QueryClient({
-		queryCache: new QueryCache({
-			onError: (error, query) => {
-				// Before the branching below, so it covers every query failure exactly once (#386). Routine 4xx --
-				// the 401 path immediately below especially -- are dropped inside `shouldReport`, not here; the
-				// policy deliberately lives in one place rather than being spread across call sites.
-				reportError(error, { source: 'query', queryKey: query.queryKey });
-
-				if (error instanceof APIError) {
-					console.error('Query error:', { statusCode: error.statusCode, error: error.error, message: error.message });
-
-					// A 401 on *any* query means the session itself is gone (every 401 the API raises comes out of
-					// `isAuthed`, which clears the cookies on its way), not just that one request failing. Nothing
-					// else notices on its own, though: `me.queryFn` deliberately resolves a 401 to `null` instead of
-					// throwing, so the `me` entry keeps serving its cached, logged-in user — the navbar stays signed
-					// in while every page-level query renders `UserErrorHandler`'s inline "Log in" button underneath
-					// it, and `NavGateProvider`'s redirect never fires because it gates on `user === null`. Writing
-					// that `null` here is what hands the expiry back to `NavGateProvider`. No banner either way: a
-					// redirect to Discord OAuth is about to happen.
-					if (error.statusCode === 401) {
-						// The `me` query is excluded (it can't 401 anyway, per above) so this can never recurse, and
-						// skipped on the server, where each SSR pass gets a throwaway client that nothing observes.
-						if (!isServer && query.queryKey[1] !== 'auth') {
-							getBrowserQueryClient().setQueryData(meQueryKey, null);
-						}
-
-						return;
-					}
-				} else {
-					console.error('Network error:', error);
-				}
-
-				// Only bother the user for a *background* refetch failure (stale data is still on screen, and they'd
-				// otherwise have no idea the refresh silently failed). A first-load failure (no cached data yet) is
-				// already surfaced in-place by whichever component renders `UserErrorHandler` for that query's `error`.
-				if (query.state.data !== undefined) {
-					pushErrorBanner(error instanceof APIError ? error.message : 'Something went wrong. Please try again.');
-				}
-			},
-		}),
-		// The app's first `MutationCache`, and deliberately reporting-only: no banner, no toast, no UX change
-		// at all. `Button`'s catch and each form's own field-level errors already own the user-facing half, and
-		// adding a second surface here would double up on every form that already handles its own failure.
-		//
-		// It exists because coverage was otherwise a function of how a mutation happened to be triggered --
-		// `Button` is a safety net, not a guarantee, so a mutation fired from anywhere else reported nothing.
-		mutationCache: new MutationCache({
-			onError: (error) => {
-				reportError(error, { source: 'mutation' });
-			},
-		}),
-		defaultOptions: {
-			queries: {
-				staleTime: 60 * 1_000,
-				refetchOnWindowFocus: false,
-				retry: (failureCount, error) => {
-					if (error instanceof APIError && error.isClientError()) return false;
-					return failureCount < 2;
-				},
-			},
-			mutations: {
-				retry: false,
-			},
-		},
-	});
-}
-
 let _browserQueryClient: QueryClient | undefined;
 
 /**
- * For use in "use client" Providers — returns a singleton on the browser, and a fresh instance on each SSR
+ * For use in "use client" Providers -- returns a singleton on the browser, and a fresh instance on each SSR
  * pass (to avoid cross-request state sharing).
  */
 export function getBrowserQueryClient(): QueryClient {
 	if (isServer) {
-		return makeQueryClient();
+		return makeClient();
 	}
 
-	return (_browserQueryClient ??= makeQueryClient());
+	return (_browserQueryClient ??= makeClient());
+}
+
+function makeClient(): QueryClient {
+	return makeQueryClient({
+		onUnauthorized: (query) => {
+			// `me.queryFn` deliberately resolves a 401 to `null` instead of throwing, so without this the `me`
+			// entry keeps serving its cached, logged-in user -- the navbar stays signed in while every page-level
+			// query renders `UserErrorHandler`'s inline "Log in" button underneath it, and `NavGateProvider`'s
+			// redirect never fires because it gates on `user === null`. Writing that `null` here is what hands the
+			// expiry back to `NavGateProvider`.
+			//
+			// The `me` query is excluded (it can't 401 anyway, per above) so this can never recurse, and skipped on
+			// the server, where each SSR pass gets a throwaway client that nothing observes.
+			if (!isServer && query.queryKey[1] !== 'auth') {
+				getBrowserQueryClient().setQueryData(meQueryKey, null);
+			}
+		},
+	});
 }
 
 /**

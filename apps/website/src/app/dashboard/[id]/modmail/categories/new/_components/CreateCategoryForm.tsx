@@ -1,6 +1,9 @@
 'use client';
 
 import { createCategoryBodySchema } from '@chatsift/api/modmail-schemas';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
+import { TextField } from '@chatsift/web-core/components/TextField';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { CategoryFormData, CategoryFormErrors } from '../../_components/categoryForm';
@@ -15,10 +18,7 @@ import {
 	useModmailConfig,
 } from '@/api/routes/modmail';
 import { EmojiInput } from '@/components/common/EmojiInput';
-import { FormActions } from '@/components/common/FormActions';
 import { ForumTagSelect } from '@/components/common/ForumTagSelect';
-import { TextAreaField } from '@/components/common/TextAreaField';
-import { TextField } from '@/components/common/TextField';
 
 const EMPTY_FORM: CategoryFormData = {
 	name: '',

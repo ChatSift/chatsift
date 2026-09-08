@@ -1,6 +1,6 @@
+import { APIError } from '@chatsift/web-core/api/error';
 import { FaExclamationTriangle } from 'react-icons/fa';
 import { LoginButton } from './LoginButton';
-import { APIError } from '@/api/error';
 
 /**
  * The app-wide first-load error state for any query: no cached data exists yet, so there's nothing to keep

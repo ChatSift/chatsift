@@ -1,11 +1,11 @@
+import { prefetch } from '@chatsift/web-core/api/fetch';
+import { ScrollArea } from '@chatsift/web-core/components/ScrollArea';
 import { HydrationBoundary } from '@tanstack/react-query';
 import type { Metadata, Viewport } from 'next';
 import type { PropsWithChildren } from 'react';
 import { Suspense } from 'react';
-import { prefetch } from '@/api/fetch';
 import { me } from '@/api/routes/auth';
 import { Providers } from '@/components/common/Providers';
-import { ScrollArea } from '@/components/common/ScrollArea';
 import { Footer } from '@/components/footer/Footer';
 import { Navbar } from '@/components/nav/Navbar';
 import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from '@/utils/site';

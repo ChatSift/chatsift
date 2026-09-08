@@ -6,8 +6,8 @@ the backend; this covers the dashboard.
 The short version, if you read nothing else:
 
 1. **Tailwind's default palette is disabled.** `bg-black`, `text-white`, `text-red-500` compile to nothing.
-2. **Use `@/components/common/Button`**, never a raw `<button>`.
-3. **Search `src/components/common/` before building anything** — the component probably exists.
+2. **Use `@chatsift/web-core/components/Button`**, never a raw `<button>`.
+3. **Search `@chatsift/web-core/components/` and `src/components/common/` before building anything** -- the component probably exists.
 
 ## Stack
 
@@ -15,7 +15,7 @@ Next.js 15 App Router, React 19, TypeScript strict, Tailwind v4. Path alias `@/*
 
 - **React Compiler is on** (`next.config.mjs`, `reactCompiler: true`), and `react-compiler/react-compiler` is an
   ESLint **error**, not a warning. Don't hand-write `useMemo`/`useCallback` to work around something the compiler
-  already handles, and don't write code that violates the rules of React — it won't lint.
+  already handles, and don't write code that violates the rules of React -- it won't lint.
 - `typescript.ignoreBuildErrors` is `false`. A type error fails the build.
 - Lint config is `eslint-config-neon` (root `eslint.config.js`). Enforced style worth knowing up front: **interfaces
   over type aliases**, **alphabetically sorted JSX props**, `readonly` props on interfaces, tabs, single quotes.
@@ -28,11 +28,11 @@ Next.js 15 App Router, React 19, TypeScript strict, Tailwind v4. Path alias `@/*
 
 ## Theme and colour tokens
 
-**Read [`apps/website/src/styles/globals.css`](../apps/website/src/styles/globals.css) before picking any colour
-class.** It is the entire theme — this is Tailwind v4 CSS-first config and **there is no `tailwind.config.*` file
+**Read [`packages/private/web-core/src/styles/theme.css`](../packages/private/web-core/src/styles/theme.css)
+before picking any colour class.** It is the entire theme, shared by every app in `apps/` -- this is Tailwind v4 CSS-first config and **there is no `tailwind.config.*` file
 anywhere in the repo**.
 
-Line 11 is the part that trips agents up:
+This is the part that trips agents up:
 
 ```css
 @theme {
@@ -42,21 +42,21 @@ Line 11 is the part that trips agents up:
 ```
 
 That kills Tailwind's **entire** default palette. `bg-black`, `text-white`, `text-gray-500`, `border-red-400`,
-`bg-white/60` and every other stock colour utility compile to **nothing at all** — no error, no warning, no style.
+`bg-white/60` and every other stock colour utility compile to **nothing at all** -- no error, no warning, no style.
 The class lands in the DOM and does nothing. Only the tokens below exist:
 
-| Category              | Tokens                                                                                        |
-| --------------------- | --------------------------------------------------------------------------------------------- |
-| Surfaces              | `base`, `card`, `accent` (white, no dark pair), `overlay` (modal scrim, theme-independent)    |
-| Text                  | `primary`, `secondary`, `disabled`                                                            |
-| Layered fills/borders | `on-primary`, `on-secondary`, `on-tertiary`                                                   |
-| Semantic              | `misc-accent` (blue — primary CTA + focus ring), `misc-danger`, `misc-warning`, `misc-system` |
+| Category              | Tokens                                                                                         |
+| --------------------- | ---------------------------------------------------------------------------------------------- |
+| Surfaces              | `base`, `card`, `accent` (white, no dark pair), `overlay` (modal scrim, theme-independent)     |
+| Text                  | `primary`, `secondary`, `disabled`                                                             |
+| Layered fills/borders | `on-primary`, `on-secondary`, `on-tertiary`                                                    |
+| Semantic              | `misc-accent` (blue -- primary CTA + focus ring), `misc-danger`, `misc-warning`, `misc-system` |
 
 Every one of these except `accent` and `overlay` has an explicit `-dark` sibling (`--color-card-dark`,
 `--color-misc-warning-dark`, …).
 
 **Dark mode is manual.** It's class-based (`@custom-variant dark (&:where(.dark, .dark *))`, driven by next-themes
-with `attribute="class"`), and the `-dark` tokens do **not** apply automatically — you write both halves yourself:
+with `attribute="class"`), and the `-dark` tokens do **not** apply automatically -- you write both halves yourself:
 
 ```tsx
 <div className="bg-card dark:bg-card-dark text-primary dark:text-primary-dark">
@@ -64,11 +64,12 @@ with `attribute="class"`), and the `-dark` tokens do **not** apply automatically
 
 Forgetting the `dark:` half is silent: the component just renders the light colour in dark mode.
 
-Two more things in `globals.css` worth knowing:
+Two more things worth knowing:
 
-- `@source` only scans `../components/**` and `../app/**`. A component in a **new** source directory outside those
-  two is invisible to Tailwind and none of its classes will be generated.
-- `tw-animate-css` is imported — that's where `data-[entering]:animate-in`, `fade-in`, `zoom-in-95` etc. come from
+- `@source` declarations are split. `theme.css` declares the package's own `../components/**`; each app's
+  `globals.css` declares its `../components/**` and `../app/**`. A component in a **new** source directory
+  outside those is invisible to Tailwind and none of its classes will be generated -- silently.
+- `tw-animate-css` is imported -- that's where `data-[entering]:animate-in`, `fade-in`, `zoom-in-95` etc. come from
   (see `ConfirmModal.tsx`).
 
 ## Components
@@ -76,17 +77,20 @@ Two more things in `globals.css` worth knowing:
 Search before you build. Route-local components live in `_components/` folders colocated under `src/app/...`;
 anything reusable lives under `src/components/`.
 
-### `src/components/common/` — the shared library
+### `@chatsift/web-core/components/` -- the shared library
 
-Import as `@/components/common/X`.
+Import as `@chatsift/web-core/components/X`. This is `packages/private/web-core`, extracted so a second Next
+app can reuse it. A component belongs here if it needs nothing from the dashboard's session or guild data;
+the ones that do stayed in `apps/website/src/components/common/` and are still imported as
+`@/components/common/X`. Both lists are below.
 
-- **Primitives** — `Button`, `Heading`, `Skeleton`, `EmptyState`, `ScrollArea`, `Tooltip`, `Avatar`,
+- **Primitives** -- `Button`, `Heading`, `Skeleton`, `EmptyState`, `ScrollArea`, `Tooltip`, `Avatar`,
   `GenericAvatar`, `GuildIcon`, `Logo`, `Emoji`
-- **Form fields** — `TextField`, `TextAreaField`, `RawJsonField`, `SnowflakeInput`, `EmojiInput`, `SearchBar`,
-  `ChannelSelect`, `RoleSelect`, `ForumTagSelect`, `SegmentedControl` (pick one of a few — every mode switch and
+- **Form fields** -- `TextField`, `TextAreaField`, `RawJsonField`, `SnowflakeInput`, `EmojiInput`, `SearchBar`,
+  `ChannelSelect`, `RoleSelect`, `ForumTagSelect`, `SegmentedControl` (pick one of a few -- every mode switch and
   on/off toggle), `FormActions` (the submit+cancel pair), `TemplatePlaceholdersHint`
-- **Overlays / feedback** — `ConfirmModal`, `ErrorBanner`
-- **Navigation / infra** — `Breadcrumb`, `BreadcrumbDropdown`, `NavGate`, `Providers`, `RefreshServerDataButton`,
+- **Overlays / feedback** -- `ConfirmModal`, `ErrorBanner`
+- **Navigation / infra** -- `Breadcrumb`, `BreadcrumbDropdown`, `NavGate`, `Providers`, `RefreshServerDataButton`,
   `DiscordMarkdown`
 
 Other directories: `components/dashboard/` (breadcrumb wiring, `ResyncCard`, `ScopedSessionBanner`),
@@ -94,21 +98,21 @@ Other directories: `components/dashboard/` (breadcrumb wiring, `ResyncCard`, `Sc
 
 ### `Button`
 
-Always `@/components/common/Button` — not a raw `<button>`, and not `react-aria-components`' `Button` imported
+Always `@chatsift/web-core/components/Button` -- not a raw `<button>`, and not `react-aria-components`' `Button` imported
 directly. It exists to do two things you'd otherwise have to repeat at every call site:
 
 - **Automatic pending state.** It awaits an async `onPress` and disables itself for the duration. Write
   `onPress={async () => mutateAsync(...)}` and skip the manual `isPending` bookkeeping.
 - **Error-banner safety net.** An uncaught error out of `onPress` gets logged and surfaced as a banner instead of
-  becoming a silent failure plus an unhandled rejection. It's a fallback, not the primary path — forms that render
+  becoming a silent failure plus an unhandled rejection. It's a fallback, not the primary path -- forms that render
   their own field-level errors still catch internally.
 
 **It has no `variant` or `size` prop.** It takes `react-aria-components`' `ButtonProps` verbatim and merges your
-`className` over its base styles. Don't invent colours — take the class string from
-[`components/common/buttonStyles.ts`](../apps/website/src/components/common/buttonStyles.ts):
+`className` over its base styles. Don't invent colours -- take the class string from
+[`buttonStyles.ts`](../packages/private/web-core/src/components/buttonStyles.ts):
 
 ```tsx
-import { buttonClass } from '@/components/common/buttonStyles';
+import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 
 <Button className={buttonClass('primary')} />        // page-level submit
 <Button className={buttonClass('secondary', 'sm')} /> // a row's action, an Add next to a picker
@@ -116,25 +120,25 @@ import { buttonClass } from '@/components/common/buttonStyles';
 
 Three variants (`primary`, `secondary`, `danger`) and three sizes:
 
-- **`md`** (the default) — a page's single submit. Reaching for it inside a card is what made AutoModerator's
+- **`md`** (the default) -- a page's single submit. Reaching for it inside a card is what made AutoModerator's
   pages read as visibly heavier than the rest of the dashboard (#374).
-- **`field`** — a button on the same row as an input. Matches `TextField`'s box exactly; anything else leaves it
+- **`field`** -- a button on the same row as an input. Matches `TextField`'s box exactly; anything else leaves it
   visibly shorter than the control it sits beside.
-- **`sm`** — an action inside a row of text: a listed item's Remove, a detail page's action bar.
+- **`sm`** -- an action inside a row of text: a listed item's Remove, a detail page's action bar.
 
 For a button paired with a `TextField`, pass it as that field's **`trailing`** prop rather than putting the two
 in a flex row: inside the field, `label` stays above the pair and `helper`/`error` stay below both, so the button
 can't drift down the moment either appears.
 
-For a form's submit/cancel pair, don't restyle two Buttons — use `FormActions`. For pick-one-of-a-few (a mode
-switch, an on/off toggle), use `SegmentedControl` — never a raw `<button>`, which has no `cursor: pointer` and so
+For a form's submit/cancel pair, don't restyle two Buttons -- use `FormActions`. For pick-one-of-a-few (a mode
+switch, an on/off toggle), use `SegmentedControl` -- never a raw `<button>`, which has no `cursor: pointer` and so
 doesn't read as clickable.
 
 `TextField`/`TextAreaField`'s **`helper` takes a plain string** and styles it; pass a node only when you need
 something a sentence can't do (a live preview, a hint with a link), and style that node yourself.
 
 Related: `components/marketing/LinkButton.tsx` **does** have a real `variant` API (`'ghost' | 'primary'`, plus
-`href`/`external`). It's an anchor, for static/marketing links that must work without JS — not a substitute for
+`href`/`external`). It's an anchor, for static/marketing links that must work without JS -- not a substitute for
 `Button` in interactive dashboard UI.
 
 Destructive or irreversible actions go through `ConfirmModal` (role `alertdialog`), not a bare button.
@@ -143,7 +147,7 @@ Destructive or irreversible actions go through `ConfirmModal` (role `alertdialog
 
 Interactive components are built on `react-aria-components` (Button, Dialog/Modal/ModalOverlay, Tooltip, Popover,
 Link) plus a few Radix packages (avatar, dropdown-menu, navigation-menu, scroll-area). Reach for those rather than
-hand-rolling keyboard/focus handling — and note `jsx-a11y` is part of the lint config, so a raw `<div onClick>` will
+hand-rolling keyboard/focus handling -- and note `jsx-a11y` is part of the lint config, so a raw `<div onClick>` will
 be caught.
 
 ### Icons
@@ -167,7 +171,7 @@ import { createSnippetBodySchema } from '@chatsift/api/modmail-schemas';
 const parsed = createSnippetBodySchema.safeParse(values);
 ```
 
-Then map failures to fields with the helpers in `src/api/formErrors.ts` — `mapIssuesToFieldErrors(issues, fields)`
+Then map failures to fields with the helpers in `src/api/formErrors.ts` -- `mapIssuesToFieldErrors(issues, fields)`
 for local validation, `mapApiErrorToFieldErrors(error, { fields, fallbackField, entityName, failureVerb })` for a
 rejected request. The error type itself (`APIError`, `fieldError()`, `conflictField`, `validationErrors`) is in
 `src/api/error.ts`; the app-wide banner queue is `src/api/errorBanner.ts`.
@@ -175,19 +179,19 @@ rejected request. The error type itself (`APIError`, `fieldError()`, `conflictFi
 ## Data fetching
 
 TanStack Query v5, **one hook per endpoint**, all under `src/api/routes/` (`ama.ts`, `auth.ts`, `guilds.ts`,
-`modmail.ts`, `modmailThreads.ts`). Components call `useX()` / `useCreateX()` — they never call `apiFetch` directly.
+`modmail.ts`, `modmailThreads.ts`). Components call `useX()` / `useCreateX()` -- they never call `apiFetch` directly.
 
 - **Types come from the API contract**, never hand-written: `InferRouteContract<typeof someRoute>` off a route object
   imported from `@chatsift/api`. If a handler's response shape changes, the frontend stops typechecking.
-- **Always use the hierarchical `queryKeys` helpers** in `src/api/queryClient.ts`. Never inline a key array —
+- **Always use the hierarchical `queryKeys` helpers** in `src/api/queryClient.ts`. Never inline a key array --
   invalidation depends on the hierarchy.
 - Transport is `src/api/fetch.ts` (`apiFetch`, `apiFetchBlob`, `prefetch`), which handles access-token refresh and
   cookies.
 - Client defaults (`src/api/queryClient.ts`): 60s `staleTime`, no refetch-on-focus, no retry on 4xx, mutations never
   retry, a global 401 clears `me`, and the error banner only fires for background refetch failures.
-- **SSR**: a server component calls `prefetch(...)` and wraps children in `<HydrationBoundary>` — see
+- **SSR**: a server component calls `prefetch(...)` and wraps children in `<HydrationBoundary>` -- see
   `src/app/layout.tsx` and `src/app/ama-answers/[shareToken]/page.tsx`.
-- **Realtime**: `src/api/ws.ts` plus `src/hooks/useRealtimeInvalidate.ts` — subscribe to a channel, invalidate the
+- **Realtime**: `src/api/ws.ts` plus `src/hooks/useRealtimeInvalidate.ts` -- subscribe to a channel, invalidate the
   matching query keys.
 
 Global client state that isn't server data is jotai, with an explicit shared store in `src/api/store.ts`. Providers
@@ -195,7 +199,7 @@ are composed in `components/common/Providers.tsx` (QueryClientProvider → Jotai
 
 ## Utilities
 
-`src/utils/util.ts` holds `cn` (`twMerge(clsx(...))` — use it for any conditional/merged `className`) alongside
+`src/utils/util.ts` holds `cn` (`twMerge(clsx(...))` -- use it for any conditional/merged `className`) alongside
 `sortGuilds`, `getGuildAcronym`, `formatDate`, `dateToDatetimeLocalValue` / `datetimeLocalValueToISOString`,
 `discordSnowflakeToDate`, and `parseIntegerInput`. Check there before writing a formatting or parsing helper.
 
@@ -206,11 +210,11 @@ Also: `src/hooks/` (`useGuildAccess`, `useURLParam`, `useClickOutside`, `isMount
 ## Gotcha: `DiscordMarkdown`
 
 `@discord/markdown-wasm` breaks under Next's server bundle, so `DiscordMarkdown.tsx` must be pulled in via
-`next/dynamic(..., { ssr: false })` **at every call site** — don't "clean this up" into a plain import.
+`next/dynamic(..., { ssr: false })` **at every call site** -- don't "clean this up" into a plain import.
 
 ## Verification
 
-There is no runtime verification an agent can do here — no browser, no session cookie. `yarn build` and `yarn lint`
+There is no runtime verification an agent can do here -- no browser, no session cookie. `yarn build` and `yarn lint`
 are the whole agent-side gate (a Tailwind class that compiles to nothing passes both, which is exactly why the
 palette rule above matters). Dashboard behaviour is the user's half; see
 [workflow.md § Verification standard](workflow.md#verification-standard).

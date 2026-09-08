@@ -1,5 +1,5 @@
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
 import Image from 'next/image';
-import { EmptyState } from '@/components/common/EmptyState';
 import { SvgChatSift } from '@/components/icons/SvgChatSift';
 import type { MarketingScreenshot } from '@/data/marketingBots';
 

@@ -1,12 +1,13 @@
 'use client';
 
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { Heading } from '@chatsift/web-core/components/Heading';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useParams } from 'next/navigation';
 import { useAutomoderatorPublicHistory } from '@/api/routes/automoderatorCases';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Heading } from '@/components/common/Heading';
-import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
-import { cn, formatDate } from '@/utils/util';
+import { formatDate } from '@/utils/util';
 
 const ACTION_LABELS: Record<string, string> = {
 	WARN: 'Warning',

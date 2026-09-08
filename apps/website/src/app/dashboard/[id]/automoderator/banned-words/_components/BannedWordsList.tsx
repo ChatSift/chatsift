@@ -1,6 +1,10 @@
 'use client';
 
 import { automoderatorBanwordPoliciesChannel, BANWORD_POLICY_MAX_COUNT } from '@chatsift/core';
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -9,10 +13,6 @@ import { ACTION_LABELS, describePolicy } from './policyDisplay';
 import { queryKeys } from '@/api/queryClient';
 import type { AutomodRule, BanwordActionName, BanwordPolicy } from '@/api/routes/automoderatorBanwords';
 import { useAutomodRules, useBanwordPolicies, useDeleteBanwordPolicy } from '@/api/routes/automoderatorBanwords';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { SvgPlus } from '@/components/icons/SvgPlus';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';

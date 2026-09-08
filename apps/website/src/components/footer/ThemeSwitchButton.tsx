@@ -1,8 +1,8 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useTheme } from 'next-themes';
-import { Button } from '@/components/common/Button';
-import { Skeleton } from '@/components/common/Skeleton';
 import { SvgDarkTheme } from '@/components/icons/SvgDarkTheme';
 import { SvgLightTheme } from '@/components/icons/SvgLightTheme';
 import { useIsMounted } from '@/hooks/isMounted';

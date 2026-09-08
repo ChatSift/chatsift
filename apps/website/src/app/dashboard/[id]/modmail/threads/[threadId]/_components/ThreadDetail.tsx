@@ -1,11 +1,11 @@
 'use client';
 
+import { Heading } from '@chatsift/web-core/components/Heading';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams } from 'next/navigation';
 import { ThreadMessageList } from './ThreadMessageList';
 import { ThreadSidebar } from './ThreadSidebar';
 import { useModmailThread } from '@/api/routes/modmailThreads';
-import { Heading } from '@/components/common/Heading';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 export function ThreadDetail() {

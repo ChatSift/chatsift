@@ -1,6 +1,11 @@
 'use client';
 
 import { createPanelWithRawContentSchema, createPanelWithRegularContentSchema } from '@chatsift/api/modmail-schemas';
+import { APIError } from '@chatsift/web-core/api/error';
+import { hexToColor, validateColorInput } from '@chatsift/web-core/components/ColorField';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { RawJsonField } from '@chatsift/web-core/components/RawJsonField';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -8,15 +13,10 @@ import { CategoryCheckboxList } from '../../_components/CategoryCheckboxList';
 import { PanelEmbedFields } from '../../_components/PanelEmbedFields';
 import { PanelModeToggle } from '../../_components/PanelModeToggle';
 import { PanelPreview } from '../../_components/PanelPreview';
-import { APIError } from '@/api/error';
 import { useGuildInfo } from '@/api/routes/guilds';
 import type { CreateModmailPanelBody } from '@/api/routes/modmail';
 import { useCreateModmailPanel } from '@/api/routes/modmail';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
-import { hexToColor, validateColorInput } from '@/components/common/ColorField';
-import { FormActions } from '@/components/common/FormActions';
-import { RawJsonField } from '@/components/common/RawJsonField';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 interface FormData {

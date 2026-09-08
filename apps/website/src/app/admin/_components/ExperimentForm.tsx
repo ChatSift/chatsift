@@ -2,16 +2,16 @@
 
 import { upsertExperimentBodySchema } from '@chatsift/api/automoderator-schemas';
 import { EXPERIMENT_BUCKET_COUNT } from '@chatsift/core';
+import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@chatsift/web-core/api/formErrors';
+import { Button } from '@chatsift/web-core/components/Button';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { SnowflakeInput } from '@chatsift/web-core/components/SnowflakeInput';
+import { TextField } from '@chatsift/web-core/components/TextField';
+import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import { useState } from 'react';
 import { rangeSharePercent } from './experimentRange';
-import { mapApiErrorToFieldErrors, mapIssuesToFieldErrors } from '@/api/formErrors';
-import type { Experiment } from '@/api/routes/experiments';
 import { useUpsertExperiment } from '@/api/routes/experiments';
-import { Button } from '@/components/common/Button';
-import { FormActions } from '@/components/common/FormActions';
-import { SnowflakeInput } from '@/components/common/SnowflakeInput';
-import { TextField } from '@/components/common/TextField';
-import { buttonClass } from '@/components/common/buttonStyles';
+import type { Experiment } from '@/api/routes/experiments';
 
 /**
  * Mirrors `upsertExperiment.ts`'s params schema. Not importable -- that one is a route-local zod object rather

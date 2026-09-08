@@ -8,8 +8,8 @@ import type {
 	setFilterExemptionRoute,
 } from '@chatsift/api';
 import type { writableFilterKindSchema } from '@chatsift/api/automoderator-schemas';
+import { apiFetch } from '@chatsift/web-core/api/fetch';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
 
 type ListUrlsContract = InferRouteContract<typeof listAllowedUrlsRoute>;

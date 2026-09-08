@@ -1,6 +1,11 @@
 'use client';
 
 import { automoderatorCasesChannel } from '@chatsift/core';
+import { Button } from '@chatsift/web-core/components/Button';
+import { DiscordUserAvatar } from '@chatsift/web-core/components/DiscordUserAvatar';
+import { EmptyState } from '@chatsift/web-core/components/EmptyState';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -10,14 +15,10 @@ import { ACTION_LABELS, ACTION_PILL_CLASSES } from './caseDisplay';
 import { queryKeys } from '@/api/queryClient';
 import type { AutomoderatorCaseListItem } from '@/api/routes/automoderatorCases';
 import { useAutomoderatorCases } from '@/api/routes/automoderatorCases';
-import { Button } from '@/components/common/Button';
-import { DiscordUserAvatar } from '@/components/common/DiscordUserAvatar';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Skeleton } from '@/components/common/Skeleton';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
-import { cn, formatDate } from '@/utils/util';
+import { formatDate } from '@/utils/util';
 
 function CaseRow({ guildId, modCase }: { readonly guildId: string; readonly modCase: AutomoderatorCaseListItem }) {
 	return (

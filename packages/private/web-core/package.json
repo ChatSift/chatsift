@@ -1,0 +1,60 @@
+{
+	"$schema": "https://json.schemastore.org/package.json",
+	"name": "@chatsift/web-core",
+	"version": "0.1.0",
+	"description": "Shared frontend substrate (theme, component library, API client) for every app in apps/",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./api/*": "./src/api/*.ts",
+		"./components/buttonStyles": "./src/components/buttonStyles.ts",
+		"./components/*": "./src/components/*.tsx",
+		"./utils/cn": "./src/utils/cn.ts",
+		"./styles/*": {
+			"style": "./src/styles/*",
+			"default": "./src/styles/*"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"lint": "eslint src",
+		"lint:fix": "eslint src --fix",
+		"format": "prettier --write . --ignore-path ../../../.gitignore --ignore-path ../../../.prettierignore",
+		"format:check": "prettier --check . --ignore-path ../../../.gitignore --ignore-path ../../../.prettierignore",
+		"clean": "rimraf dist"
+	},
+	"peerDependencies": {
+		"@sentry/nextjs": "^10.73.0",
+		"@tanstack/react-query": "^5.101.2",
+		"jotai": "^2.20.2",
+		"next": "^16.2.10",
+		"react": "^19.2.7",
+		"react-dom": "^19.2.7"
+	},
+	"dependencies": {
+		"@chatsift/core": "workspace:^",
+		"@radix-ui/react-avatar": "^1.2.2",
+		"@radix-ui/react-scroll-area": "^1.2.14",
+		"clsx": "^2.1.1",
+		"discord-api-types": "^0.38.50",
+		"react-aria-components": "^1.19.0",
+		"react-icons": "^5.7.0",
+		"tailwind-merge": "^3.6.0",
+		"usehooks-ts": "^3.1.1"
+	},
+	"devDependencies": {
+		"@sentry/nextjs": "^10.73.0",
+		"@tanstack/react-query": "^5.101.2",
+		"@types/node": "^24.9.1",
+		"@types/react": "^19.2.17",
+		"@types/react-dom": "^19.2.3",
+		"jotai": "^2.20.2",
+		"next": "^16.2.10",
+		"react": "^19.2.7",
+		"react-dom": "^19.2.7",
+		"typescript": "~6.0.3",
+		"vitest": "^4.1.10"
+	}
+}

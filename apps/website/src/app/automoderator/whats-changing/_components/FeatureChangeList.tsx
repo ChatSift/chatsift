@@ -1,6 +1,6 @@
+import { cn } from '@chatsift/web-core/utils/cn';
 import type { FeatureChangeGroup } from './featureChanges';
 import { OUTCOME_LABELS, OUTCOME_PILL_CLASSES } from './featureChanges';
-import { cn } from '@/utils/util';
 
 /**
  * One group of features as a single card of rows rather than a card each: thirty-seven separate cards is a

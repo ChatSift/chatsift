@@ -1,7 +1,7 @@
 'use client';
 
 import { DEFAULT_EMBED_COLOR } from '@chatsift/core';
-import { Button } from '@/components/common/Button';
+import { Button } from './Button';
 
 /**
  * `#rrggbb`, the only format `<input type="color">` ever reads or writes -- it silently ignores anything

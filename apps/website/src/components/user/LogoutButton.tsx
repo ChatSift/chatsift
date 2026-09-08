@@ -1,7 +1,7 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
 import { useRouter } from 'next/navigation';
-import { Button } from '../common/Button';
 import { useLogout } from '@/api/routes/auth';
 
 interface LogoutButtonProps {

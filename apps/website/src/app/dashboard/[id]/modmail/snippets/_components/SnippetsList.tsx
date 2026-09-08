@@ -1,10 +1,10 @@
 'use client';
 
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams } from 'next/navigation';
 import { AddSnippetCard } from './AddSnippetCard';
 import { SnippetCard } from './SnippetCard';
 import { useModmailSnippets } from '@/api/routes/modmail';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 export function SnippetsList() {

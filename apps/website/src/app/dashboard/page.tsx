@@ -1,9 +1,9 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
+import { SearchBar } from '@chatsift/web-core/components/SearchBar';
 import type { Metadata } from 'next';
 import { DashboardLinkErrorNotice } from './_components/DashboardLinkErrorNotice';
 import { GuildList } from './_components/GuildList';
 import { RefreshGuildsButton } from './_components/RefreshGuildsButton';
-import { Heading } from '@/components/common/Heading';
-import { SearchBar } from '@/components/common/SearchBar';
 
 export const metadata: Metadata = {
 	title: 'Dashboard',

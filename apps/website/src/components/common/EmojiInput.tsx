@@ -1,12 +1,12 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { Emoji } from '@chatsift/web-core/components/Emoji';
+import { ScrollArea } from '@chatsift/web-core/components/ScrollArea';
+import { cn } from '@chatsift/web-core/utils/cn';
 import { useRef, useState } from 'react';
-import { Button } from './Button';
-import { Emoji } from './Emoji';
-import { ScrollArea } from './ScrollArea';
 import type { GuildEmojiInfo } from '@/api/routes/guilds';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { cn } from '@/utils/util';
 
 interface EmojiInputProps {
 	readonly emojis: GuildEmojiInfo[];

@@ -1,3 +1,4 @@
+import { cn } from '@chatsift/web-core/utils/cn';
 import {
 	countByOutcome,
 	FEATURE_OUTCOMES,
@@ -5,7 +6,6 @@ import {
 	OUTCOME_LABELS,
 	OUTCOME_PILL_CLASSES,
 } from './featureChanges';
-import { cn } from '@/utils/util';
 
 export function OutcomeLegend() {
 	return (

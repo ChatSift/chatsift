@@ -1,6 +1,7 @@
 'use client';
 
 import type { BotId } from '@chatsift/core';
+import { cn } from '@chatsift/web-core/utils/cn';
 import type {
 	BoldProps,
 	CodeBlockProps,
@@ -29,7 +30,7 @@ import type { APIUser, Snowflake } from '@discordjs/core';
 import { useParams } from 'next/navigation';
 import { createContext, useContext, useMemo, useState } from 'react';
 import { useGuildInfo } from '@/api/routes/guilds';
-import { cn, formatDate } from '@/utils/util';
+import { formatDate } from '@/utils/util';
 
 function participantLabel(entry: APIUser | Snowflake | undefined, fallbackId: string): string {
 	if (!entry) {

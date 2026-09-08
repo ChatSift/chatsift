@@ -1,6 +1,6 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import type { ReactNode } from 'react';
 import { DashboardCrumbs } from './DashboardCrumbs';
-import { Heading } from '@/components/common/Heading';
 
 interface PageHeaderProps {
 	/**

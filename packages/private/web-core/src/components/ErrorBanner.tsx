@@ -3,8 +3,8 @@
 import { useAtomValue } from 'jotai';
 import { useEffect } from 'react';
 import { FaExclamationTriangle, FaTimes } from 'react-icons/fa';
-import { dismissErrorBanner, errorBannerMessagesAtom } from '@/api/errorBanner';
-import { Button } from '@/components/common/Button';
+import { dismissErrorBanner, errorBannerMessagesAtom } from '../api/errorBanner';
+import { Button } from './Button';
 
 const AUTO_DISMISS_MS = 8_000;
 

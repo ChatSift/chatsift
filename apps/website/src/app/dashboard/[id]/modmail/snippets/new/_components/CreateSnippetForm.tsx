@@ -1,6 +1,9 @@
 'use client';
 
 import { createSnippetBodySchema } from '@chatsift/api/modmail-schemas';
+import { FormActions } from '@chatsift/web-core/components/FormActions';
+import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
+import { TextField } from '@chatsift/web-core/components/TextField';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { SnippetFormData, SnippetFormErrors } from '../../_components/snippetForm';
@@ -8,9 +11,6 @@ import { mapSnippetApiError, mapSnippetIssues } from '../../_components/snippetF
 import { SnippetNamePreviewHelper } from '../../_components/snippetFormHelpers';
 import type { CreateModmailSnippetBody } from '@/api/routes/modmail';
 import { useCreateModmailSnippet } from '@/api/routes/modmail';
-import { FormActions } from '@/components/common/FormActions';
-import { TextAreaField } from '@/components/common/TextAreaField';
-import { TextField } from '@/components/common/TextField';
 import { normalizeSnippetName } from '@/utils/snippetName';
 
 const EMPTY_FORM: SnippetFormData = { name: '', content: '', attachmentUrl: '', attachmentFilename: '' };

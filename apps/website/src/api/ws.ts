@@ -4,9 +4,9 @@ import type {
 	publicAMAWsTicketRoute,
 	publicSocialLeaderboardWsTicketRoute,
 } from '@chatsift/api';
-import { apiFetch } from './fetch';
-import { REALTIME_CLIENT_ID } from './realtimeClientId';
-import { reportError } from './report';
+import { apiFetch } from '@chatsift/web-core/api/fetch';
+import { REALTIME_CLIENT_ID } from '@chatsift/web-core/api/realtimeClientId';
+import { reportError } from '@chatsift/web-core/api/report';
 
 type GetWsTicketContract = InferRouteContract<typeof getWsTicketRoute>;
 type GetWsTicketResult = GetWsTicketContract['response'];

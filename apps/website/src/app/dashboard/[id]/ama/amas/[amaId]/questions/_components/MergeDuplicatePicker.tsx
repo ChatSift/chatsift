@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useDebounceValue } from 'usehooks-ts';
@@ -7,7 +8,6 @@ import { AuthorAvatar } from './AuthorAvatar';
 import { DEFAULT_STATE_CHIP_CLASS, MERGE_TARGET_STATES_PARAM, STATE_CHIP_CLASSES, STATE_LABELS } from './questionState';
 import { userLabel } from './userLabel';
 import { useAMAQuestions, useMergeAMAQuestion } from '@/api/routes/ama';
-import { Button } from '@/components/common/Button';
 
 const DEBOUNCE_TIME = 300;
 const RECENT_QUESTIONS_LIMIT = 5;

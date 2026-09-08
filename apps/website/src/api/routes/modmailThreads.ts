@@ -4,8 +4,8 @@ import type {
 	InferRouteContract,
 	listModmailThreadsRoute,
 } from '@chatsift/api';
+import { apiFetch } from '@chatsift/web-core/api/fetch';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
 
 type ListModmailThreadsContract = InferRouteContract<typeof listModmailThreadsRoute>;

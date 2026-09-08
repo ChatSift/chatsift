@@ -3,11 +3,12 @@
 import type { WritableLogType } from '@chatsift/api/automoderator-schemas';
 import { WRITABLE_LOG_TYPES } from '@chatsift/api/automoderator-schemas';
 import { automoderatorLogChannelsChannel } from '@chatsift/core';
+import { APIError } from '@chatsift/web-core/api/error';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChannelType } from 'discord-api-types/v10';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { APIError } from '@/api/error';
 import { queryKeys } from '@/api/queryClient';
 import type { AutomoderatorLogChannels } from '@/api/routes/automoderatorCases';
 import {
@@ -18,7 +19,6 @@ import {
 import type { GuildChannelInfo } from '@/api/routes/guilds';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { ChannelSelect, threadTypes } from '@/components/common/ChannelSelect';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 

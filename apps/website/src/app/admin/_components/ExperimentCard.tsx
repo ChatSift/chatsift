@@ -1,14 +1,14 @@
 'use client';
 
 import { EXPERIMENT_BUCKET_COUNT } from '@chatsift/core';
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
+import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import { useState } from 'react';
 import { ExperimentForm } from './ExperimentForm';
 import { rangeSharePercent } from './experimentRange';
 import type { Experiment } from '@/api/routes/experiments';
 import { useDeleteExperiment } from '@/api/routes/experiments';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
-import { buttonClass } from '@/components/common/buttonStyles';
 import { formatDate } from '@/utils/util';
 
 interface ExperimentCardProps {

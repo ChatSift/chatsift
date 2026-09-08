@@ -1,10 +1,10 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { FaExclamationTriangle } from 'react-icons/fa';
 import { FeatureChangeList } from './_components/FeatureChangeList';
 import { OutcomeLegend } from './_components/OutcomeLegend';
 import { FEATURE_CHANGE_GROUPS } from './_components/featureChanges';
-import { Heading } from '@/components/common/Heading';
 import { socialMetadata } from '@/utils/site';
 
 export const metadata: Metadata = socialMetadata({

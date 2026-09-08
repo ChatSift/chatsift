@@ -15,8 +15,8 @@ import type {
 	upsertSocialRewardRoute,
 	upsertSocialRoleRoute,
 } from '@chatsift/api';
+import { apiFetch } from '@chatsift/web-core/api/fetch';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../fetch';
 import { queryKeys } from '../queryClient';
 
 type GetSocialConfigContract = InferRouteContract<typeof getSocialConfigRoute>;

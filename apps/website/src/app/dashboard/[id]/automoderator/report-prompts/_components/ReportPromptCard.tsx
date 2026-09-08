@@ -1,11 +1,11 @@
 'use client';
 
+import { Button } from '@chatsift/web-core/components/Button';
+import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
 import Link from 'next/link';
 import { useState } from 'react';
 import type { AutomoderatorReportPrompt } from '@/api/routes/automoderatorReports';
 import { useDeleteAutomoderatorReportPrompt } from '@/api/routes/automoderatorReports';
-import { Button } from '@/components/common/Button';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
 
 interface ReportPromptCardProps {
 	readonly channelName: string | undefined;

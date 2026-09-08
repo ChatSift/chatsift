@@ -1,6 +1,6 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { ResyncSnippetsCard } from './_components/ResyncSnippetsCard';
 import { SnippetsList } from './_components/SnippetsList';
-import { Heading } from '@/components/common/Heading';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
 export default function ModmailSnippetsPage() {

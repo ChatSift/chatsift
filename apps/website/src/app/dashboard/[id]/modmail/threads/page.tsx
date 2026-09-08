@@ -1,8 +1,8 @@
+import { Heading } from '@chatsift/web-core/components/Heading';
+import { SearchBar } from '@chatsift/web-core/components/SearchBar';
 import { CategoryFilter } from './_components/CategoryFilter';
 import { IncludeClosedToggle } from './_components/IncludeClosedToggle';
 import { ThreadsList } from './_components/ThreadsList';
-import { Heading } from '@/components/common/Heading';
-import { SearchBar } from '@/components/common/SearchBar';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 
 export default function ModmailThreadsPage() {

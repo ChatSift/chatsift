@@ -1,8 +1,8 @@
 'use client';
 
+import { Emoji } from '@chatsift/web-core/components/Emoji';
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useModmailCategories } from '@/api/routes/modmail';
-import { Emoji } from '@/components/common/Emoji';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 interface CategoryCheckboxListProps {

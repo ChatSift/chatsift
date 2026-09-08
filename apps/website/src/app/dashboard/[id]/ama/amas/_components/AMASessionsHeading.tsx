@@ -1,7 +1,7 @@
 'use client';
 
+import { Heading } from '@chatsift/web-core/components/Heading';
 import { useParams } from 'next/navigation';
-import { Heading } from '@/components/common/Heading';
 import { useGuildAccess } from '@/hooks/useGuildAccess';
 
 /**

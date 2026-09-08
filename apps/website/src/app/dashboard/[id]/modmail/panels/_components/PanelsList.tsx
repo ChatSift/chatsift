@@ -1,11 +1,11 @@
 'use client';
 
+import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams } from 'next/navigation';
 import { CreatePanelCard } from './CreatePanelCard';
 import { PanelCard } from './PanelCard';
 import { useGuildInfo } from '@/api/routes/guilds';
 import { useModmailPanels } from '@/api/routes/modmail';
-import { Skeleton } from '@/components/common/Skeleton';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 
 export function PanelsList() {
