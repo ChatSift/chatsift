@@ -89,11 +89,19 @@ export default defineRoute({
 				throw badRequest('modChannelId is required when configuring Appeals for the first time');
 			}
 
-			const [settings] = await tx<AppealsSettings[]>`
-				INSERT INTO appeals_settings ${tx({ guildId, ...data }, 'guildId', ...columns)}
-				ON CONFLICT (guild_id) DO UPDATE SET ${tx(data, ...columns)}
-				RETURNING *
-			`;
+			// An empty body is a PATCH that changes nothing, which is a legitimate no-op rather than an error --
+			// but it cannot go through the upsert, because `tx(data)` with no columns renders an empty
+			// `ON CONFLICT DO UPDATE SET` and postgres rejects that as a syntax error. Reading the row back keeps
+			// the response shape identical, and the guard above has already rejected the only case where no row
+			// exists to read. The questionnaire seeding below still runs, so an empty PATCH stays the way to
+			// repair a guild whose questions went missing.
+			const [settings] = columns.length
+				? await tx<AppealsSettings[]>`
+						INSERT INTO appeals_settings ${tx({ guildId, ...data }, 'guildId', ...columns)}
+						ON CONFLICT (guild_id) DO UPDATE SET ${tx(data, ...columns)}
+						RETURNING *
+					`
+				: await tx<AppealsSettings[]>`SELECT * FROM appeals_settings WHERE guild_id = ${guildId}`;
 
 			// Seeded on the questionnaire being empty rather than on the settings row being new, so a guild that
 			// somehow ends up with no questions (a hand-run DELETE, a half-applied P7 edit later) gets the default

@@ -1519,8 +1519,9 @@ CREATE INDEX automoderator_trigger_counts_updated_at_idx
   ON automoderator_trigger_counts (updated_at);
 
 -- Appeals (#232, docs/roadmap/09-appeals.md). Ban (and later timeout) appeals, filed on `unban.app` and
--- decided from either Discord or the dashboard. Nothing here is written by a gateway process -- the Appeals
--- bot is an application id, an interactions endpoint and a bot token `services/api` holds.
+-- decided from either Discord or the dashboard. `services/api` owns every table here except
+-- `appeal_ban_checks`, whose rows `services/appeals-bot` also refreshes from GUILD_BAN_ADD/REMOVE -- see that
+-- table's own comment for why it may only ever UPDATE them, never INSERT.
 
 -- Per-guild Appeals configuration. A row here means the guild has finished setup; the Appeals bot merely
 -- being present (the `bot:APPEALS` guild list, published by `services/api/src/util/appealsPresence.ts`) is

@@ -2,16 +2,12 @@
 // map over this). 'SOCIAL' (#343) is a real BotId from its API phase onward -- what it does *not* have yet is
 // public marketing copy, which is why `apps/website`'s `marketingBots` is a partial record keyed off this and
 // the public pages render only the bots that have an entry (see that file). 'AUTOMODERATOR' is in the same
-// position from the port's P0 onward (docs/roadmap/11-automoderator-port.md).
+// position from the port's P0 onward (docs/roadmap/11-automoderator-port.md), and 'APPEALS' from P1 onward
+// (#232, docs/roadmap/09-appeals.md).
 //
 // Spelled 'AUTOMODERATOR', not 'AUTOMOD': the port makes our filter subsystem talk to *Discord's* AutoMod
 // constantly, and the two are different things. Keeping the product's name unabbreviated is what stops that
 // ambiguity from becoming permanent in log lines, metric labels and Redis keys.
-//
-// 'APPEALS' (#232, docs/roadmap/09-appeals.md P1) is the first entry here with no gateway process behind it at
-// all -- it is an application id, an interactions endpoint and a bot token `services/api` holds. Its guild list
-// is published by a poll rather than by GUILD_CREATE/GUILD_DELETE (`services/api/src/util/appealsPresence.ts`),
-// which is what keeps `me.ts` and the dashboard needing no special case for it.
 export const BOTS = ['AMA', 'MODMAIL', 'SOCIAL', 'AUTOMODERATOR', 'APPEALS'] as const;
 
 export type BotId = (typeof BOTS)[number];

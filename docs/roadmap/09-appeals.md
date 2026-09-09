@@ -462,23 +462,27 @@ theming and the custom font are unchanged; diff the built page output if anythin
 ### P1 -- Appeals bot identity, guild presence, schema, config API (shipped 2026-09-08, reworked onto a gateway 2026-09-09)
 
 - `packages/private/core/src/lib/constants.ts`: `'APPEALS'` added to `BOTS`.
-- `packages/private/backend-core/src/lib/env.ts`: the six `APPEALS_*` vars from §3; `.env.private.example` updated.
+- `packages/private/backend-core/src/lib/env.ts`: the seven `APPEALS_*` vars from §3; `.env.public` and
+  `.env.private.example` updated.
 - `services/api/src/util/discordAPI.ts`: an `APPEALS` entry in `APIMapping`. Appeals never resolves to a custom instance --
   that stays a ModMail-only concept, same as `AMA`. This is not optional bookkeeping: `APIMapping` is a `Record<BotId, API>`,
   so it does not compile until this entry exists, and it must land in the same commit as the `BOTS` widening.
-- `services/api/src/util/appealsPresence.ts` (new): the `GET /users/@me/guilds` poll, calling
-  `syncShardGuildList('APPEALS', 0, guildIds, () => true)` on a **30-second** `.unref()`'d interval (see §2 for why 60 is
-  wrong) with `dropGuildList('APPEALS', 0)` on shutdown, started from `services/api/src/bin.ts` next to `loadExperiments()`.
+- `services/appeals-bot` (new): the gateway process, on `bot-core` like every other bot -- `Guilds |
+GuildModeration` intents, no commands of its own, and `lib/banEvents.ts` keeping `appeal_ban_checks` fresh. It publishes
+  the guild list through the ordinary `GUILD_CREATE`/`GUILD_DELETE` path, so nothing in `services/api` does presence work.
+  Wired into `Dockerfile`, `docker-compose.yml`, `build/prometheus/prometheus.yml` (port 7010) and a `dev:appeals-bot`
+  script, exactly as the other four bots are.
 - `packages/private/db`: every table from the data model above, one Atlas migration, kanel regen, types exported.
 - `services/api/src/routes/appeals/config/{getConfig,updateConfig}.ts` + the manual unappealable-user CRUD; registered in
   `app.ts` and re-exported from `services/api/src/index.ts`.
 - `services/api/src/util/appealsBans.ts` (new): the `limit=1&after` probe, the negative `BAN_MEMBERS` cache, and the
   `appeal_ban_checks` read/write helpers.
 
-_Verify:_ boot `services/api` with the new env and confirm `bot:APPEALS` populates in Redis within one poll interval and
-tracks the bot being kicked from a test guild; confirm `/v3/auth/me` starts reporting `APPEALS` in `bots` for that guild with
-no `me2:` key bump; probe a known-banned and a known-not-banned user against a test guild and confirm both return `200` and
-the right answer; confirm the direction of `before`/`after` empirically here rather than trusting the docs.
+_Verify:_ boot `services/appeals-bot` against the new application and confirm `bot:APPEALS` populates in Redis at READY and
+tracks the bot being kicked from a test guild; confirm `/v3/auth/me` starts reporting `APPEALS` in `bots` for that guild;
+ban and unban a test account and confirm `appeals_ban_events_total` moves, which is the only proof the `GuildModeration`
+intent is actually delivering; probe a known-banned and a known-not-banned user against a test guild and confirm both
+return `200` and the right answer; confirm the direction of `before`/`after` empirically here rather than trusting the docs.
 
 **What landed differently from the plan above, and why.** Four things:
 

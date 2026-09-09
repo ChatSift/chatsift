@@ -41,13 +41,12 @@ export function registerBanEvents(client: Client): void {
 			const logger = getContext().logger.child({ event, guildId: data.guild_id, userId: data.user.id });
 
 			try {
-				const updated = await prime(data.guild_id, data.user.id, banned);
-				// A miss is the common case and not a failure -- it just means nobody has ever probed this user
-				// against this guild, so there is no cached answer to keep fresh.
-				banEvents.inc({ kind, outcome: 'primed' });
-				if (updated > 0) {
-					logger.info('refreshed a cached ban check from the gateway');
-				}
+				// `uncached` is the common case and not a failure -- nobody has ever probed this user against this
+				// guild, so there is no cached answer to keep fresh. Split from `refreshed` because the two answer
+				// different questions: the pair climbing at all proves the GuildModeration intent is delivering,
+				// while `refreshed` alone is the only evidence the priming does any work.
+				const refreshed = await prime(data.guild_id, data.user.id, banned);
+				banEvents.inc({ kind, outcome: refreshed > 0 ? 'refreshed' : 'uncached' });
 			} catch (error) {
 				banEvents.inc({ kind, outcome: 'failed' });
 				logger.error({ err: error }, 'failed to prime a cached ban check');

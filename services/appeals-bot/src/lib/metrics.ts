@@ -18,10 +18,14 @@ export const register = new Registry();
 /**
  * Ban-list events observed, and what came of the `appeal_ban_checks` write they prime.
  *
- * `kind` is `add` or `remove`; `outcome` is `primed` or `failed`. Deliberately thin, because this counter's job
- * is to answer one diagnostic question: is the `GuildModeration` intent actually delivering? A flat zero here
- * on a bot that is demonstrably in guilds means the intent is off, which is otherwise completely silent -- the
- * bot connects, reports guilds, and simply never sees a ban.
+ * `kind` is `add` or `remove`; `outcome` is `refreshed` (a cached probe result existed and was updated),
+ * `uncached` (nobody had probed that user in that guild, so there was nothing to update) or `failed`.
+ *
+ * The question it primarily answers is whether the `GuildModeration` intent is actually delivering: a flat zero
+ * across every outcome, on a bot that is demonstrably in guilds, means the intent is off -- otherwise completely
+ * silent, since the bot connects, reports its guilds, and simply never sees a ban. Splitting `refreshed` from
+ * `uncached` additionally says whether the priming is doing any work, which `uncached` dominating would mean it
+ * is not.
  */
 export const banEvents = new Counter({
 	name: 'appeals_ban_events_total',
