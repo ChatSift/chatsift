@@ -1524,7 +1524,7 @@ CREATE INDEX automoderator_trigger_counts_updated_at_idx
 -- table's own comment for why it may only ever UPDATE them, never INSERT.
 
 -- Per-guild Appeals configuration. A row here means the guild has finished setup; the Appeals bot merely
--- being present (the `bot:APPEALS` guild list, published by `services/api/src/util/appealsPresence.ts`) is
+-- being present (the `bot:APPEALS` guild list, published by `services/appeals-bot`'s gateway connection) is
 -- what the dashboard's setup CTA keys off instead. The two are genuinely different states and the CTA has to
 -- render for exactly one of them, which is why presence is not derived from this table.
 CREATE TABLE appeals_settings (
