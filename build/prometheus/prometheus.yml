@@ -82,6 +82,17 @@ scrape_configs:
     authorization:
       credentials_file: /etc/prometheus/metrics_secret
 
+  # Appeals (#232). Publishes `discord_guilds` like every other bot, which answers "how many servers is Appeals
+  # installed in". That is NOT the same series as "how many servers accept appeals" -- the latter is a row count
+  # in `appeals_settings` and belongs to postgres-exporter, not here. Do not put them on one panel.
+  - job_name: appeals-bot
+    dns_sd_configs:
+      - names: ['appeals-bot']
+        type: A
+        port: 7010
+    authorization:
+      credentials_file: /etc/prometheus/metrics_secret
+
   # Scaling is opt-in per bot and off until AUTOMODERATOR_SHARDS_PER_REPLICA is set (P8) -- dns_sd from the
   # start meant flipping it needed no change here. This job's targets also carry `automoderator_shards_owned`,
   # which is per replica by construction: `sum(...)` of it is the cluster's shard coverage.

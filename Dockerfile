@@ -24,6 +24,7 @@ COPY packages/private/core/package.json ./packages/private/core/package.json
 COPY packages/private/db/package.json ./packages/private/db/package.json
 
 COPY services/ama-bot/package.json ./services/ama-bot/package.json
+COPY services/appeals-bot/package.json ./services/appeals-bot/package.json
 COPY services/automoderator-bot/package.json ./services/automoderator-bot/package.json
 COPY services/api/package.json ./services/api/package.json
 COPY services/discord-proxy/package.json ./services/discord-proxy/package.json

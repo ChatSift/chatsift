@@ -6,7 +6,7 @@ M4's AMA cutover ([05-migration-cutover.md](05-migration-cutover.md)) and M5's M
 impact:** none until P3, and additive thereafter: new tables, a new Discord application, a new site. No existing product's
 behavior changes at any point, and there is no data migration.
 
-## Status: P0 and P1 shipped 2026-09-08. P2 is next
+## Status: P0 and P1 shipped. P2 is next
 
 This document was written 2026-07-31 and last amended 2026-08-03, then sat unstarted for a month while the AutoModerator
 port, horizontal scaling (#355), the grants refactor (#310), the Discord REST proxy and the Caddy absorption (#305) all
@@ -46,9 +46,22 @@ what 1-11 originally said -- where they do, the superseded version is left visib
 1. **Both mod surfaces ship together.** #232 was torn between "manage appeals on the dashboard via grant tokens" and "the
    dashboard is read-only, actions happen via in-Discord buttons". Neither -- both, from the start, converging on one shared
    `applyAppealDecision()` transition rather than two parallel implementations that drift.
-2. **The Appeals bot is HTTP-only and lives inside `services/api`.** No new service, no new container. It has no gateway
+2. ~~**The Appeals bot is HTTP-only and lives inside `services/api`.** No new service, no new container. It has no gateway
    connection, no commands in user-facing guilds, and exists on Discord's side purely as an application id, an interactions
-   endpoint, and a bot token used for REST.
+   endpoint, and a bot token used for REST.~~
+   **Superseded 2026-09-09: Appeals gets a gateway connection and its own service, `services/appeals-bot`.** What survives
+   is "no commands in user-facing guilds" -- that part was never about transport. What broke is the rest: an HTTP-only bot
+   has no guild list, and §2's answer to that was a poll of `GET /users/@me/guilds` whose cost is O(guilds) every 30
+   seconds, forever, spent against the proxy's one global budget, to re-derive data that changes a few times a day. That is
+   the same unbounded-fan-out failure mode §4 spends a page designing out, just on a timer instead of a request.
+   A gateway connection with `Guilds | GuildModeration` -- both non-privileged, so no intent approval is ever needed -- gives
+   the guild list for free and correctly, through the `bot-core` client every other bot already uses, and adds ban-list
+   events on top. The cost is one more container, which is what the original decision was trying to avoid; that trade reads
+   very differently now that avoiding it costs a permanent poll.
+   **This is a simplification, not just a swap.** With interactions arriving over the gateway, the whole of §1 evaporates:
+   no Ed25519 verification, no raw-body middleware pair, no API-local component dispatcher duplicating `bot-core`'s, and no
+   3-second interaction deadline running inside the process that serves the dashboard. `APPEALS_PUBLIC_KEY` is gone with it.
+   P4 becomes an ordinary `bot-core` component handler like every other bot has.
 3. **`unban.app` is its own Next app under its own Discord application.** OAuth goes through the Appeals application, not
    ChatSift's, so a banned user is never asked to authorize something branded for a product they have no relationship with.
 4. **`packages/private/web-core` gets extracted first**, before a second Next app exists to duplicate into.
@@ -112,7 +125,12 @@ it, carrying Approve / Deny / Deny silently / Ask for more info. Whichever surfa
 one transition that writes the row, unbans (and optionally re-adds) on approval, and -- unless the denial is silent -- DMs the
 appellant.
 
-### 1. HTTP interactions, with no prior art in this repo
+### 1. ~~HTTP interactions, with no prior art in this repo~~ -- no longer applies
+
+**Superseded by decision 2 as amended: Appeals has a gateway, so its interactions arrive the same way every other bot's
+do and none of the machinery below is built.** Kept only as the record of what an HTTP-only Appeals would have cost, since
+that cost is half the argument for the reversal. If a future session ever needs an Ed25519-verified endpoint in this repo
+for something else, this is still an accurate account of the four things to get right.
 
 Every interaction in this repo today arrives over the gateway. There is no Ed25519 verification anywhere, no interactions
 endpoint, and no dependency that provides either. Four things to get right:
@@ -138,7 +156,7 @@ the API process -- bot-core is gateway-shaped by construction. Instead, a small 
 conventions: `custom_id` as `name:stateId`, and `RedisStore`-backed state for anything that doesn't fit in the id. That is a
 few dozen lines of deliberate duplication, against making a package transport-agnostic for exactly one consumer.
 
-### 2. `bot:APPEALS` presence without a gateway
+### 2. ~~`bot:APPEALS` presence without a gateway~~ -- resolved by giving it a gateway
 
 This is the one thing that does not work for free once you drop the gateway, and it is load-bearing: without it the dashboard
 never renders an Appeals badge or section for any guild, so the feature is invisible.
@@ -148,10 +166,16 @@ The guild list (`packages/private/backend-core/src/lib/data/bots.ts`) is fed ent
 publish for `APPEALS`, and `fetchMe`'s `BOTS.filter(...)` (`services/api/src/util/me.ts`) would report Appeals as installed
 nowhere.
 
-**Resolution: poll `GET /users/@me/guilds` with the Appeals bot token** from a `.unref()`'d interval in `services/api`
-(paginated via `after`, `limit=200`). Bots may call this endpoint; it is authoritative for both additions and removals; it
-needs no new Redis shape; and `fetchMe` then picks Appeals up with no special-casing at all, unlike the `MODMAIL#<instance>`
-union #216 had to add.
+~~**Resolution: poll `GET /users/@me/guilds` with the Appeals bot token** from a `.unref()`'d interval in `services/api`
+(paginated via `after`, `limit=200`).~~
+**Superseded 2026-09-09.** The poll was built, ran green, and was then removed the same week -- it is the reason decision 2
+was reopened. Its problem was never that it broke; it was the shape. O(guilds) Discord calls every 30 seconds, forever,
+whether or not a single guild moved, spent against the budget shared with every other bot, to re-derive something the
+gateway publishes for free. The cadence could not be relaxed either: `syncShardGuildList` arms each slice with a hardcoded
+60-second TTL, so 30 seconds was a floor, not a choice.
+`services/appeals-bot` now publishes the list through `bot-core`'s ordinary `GUILD_CREATE`/`GUILD_DELETE`/`READY` path, and
+`fetchMe` picks Appeals up with no special-casing at all -- which is what the paragraph below was always really claiming,
+and it is true for free once the events exist.
 
 **Note the shape this writes into, because #355 changed it after this document was first written.** There is no longer a
 `GuildList` store with a `.set()`. The list is now published _per replica_ across three key families -- `guilds:<id>:<idx>`,
@@ -184,8 +208,9 @@ the poll, `readGuildList` reaps the slice, and the dashboard flickers Appeals in
 `ROOT_DOMAIN` (`automoderator.app`), a different eTLD+1, and the OAuth application is a single global pair
 (`OAUTH_DISCORD_CLIENT_ID`/`_SECRET`) hardcoded by `services/api/src/routes/auth/discord.ts`. What that costs:
 
-- New env in `packages/private/backend-core/src/lib/env.ts`: `APPEALS_BOT_TOKEN`, `APPEALS_PUBLIC_KEY`,
+- New env in `packages/private/backend-core/src/lib/env.ts`: `APPEALS_BOT_TOKEN`, `APPEALS_METRICS_PORT`,
   `APPEALS_OAUTH_CLIENT_ID`, `APPEALS_OAUTH_CLIENT_SECRET`, `APPEALS_ROOT_DOMAIN`, `APPEALS_FRONTEND_URL_{DEV,PROD}`.
+  (`APPEALS_PUBLIC_KEY` was here until the gateway reversal; there is no interactions endpoint to verify signatures for.)
 - A parallel `/v3/appeals/auth/discord` + `/v3/appeals/auth/discord/callback` pair. Scopes start at `identify` alone --
   deliberately minimal for a site whose users have no reason to trust it -- and gain `guilds` only when P9 needs it.
 - A distinct cookie name (`appeals_refresh_token`) **and** a `kind` discriminator in the JWT payload, so an appeals session
@@ -434,7 +459,7 @@ _Verify:_ `turbo run build lint test` green; run `apps/website` locally and clic
 and ModMail sections, confirming forms submit, error banners still fire on a forced background-refetch failure, and light/dark
 theming and the custom font are unchanged; diff the built page output if anything looks subtly off.
 
-### P1 -- Appeals bot identity, guild presence, schema, config API (shipped 2026-09-08)
+### P1 -- Appeals bot identity, guild presence, schema, config API (shipped 2026-09-08, reworked onto a gateway 2026-09-09)
 
 - `packages/private/core/src/lib/constants.ts`: `'APPEALS'` added to `BOTS`.
 - `packages/private/backend-core/src/lib/env.ts`: the six `APPEALS_*` vars from §3; `.env.private.example` updated.
@@ -457,13 +482,13 @@ the right answer; confirm the direction of `before`/`after` empirically here rat
 
 **What landed differently from the plan above, and why.** Four things:
 
-- **Nothing drops the guild-list slice on shutdown.** The plan called for `dropGuildList('APPEALS', 0)` alongside the poll.
-  That is wrong here, and the reason is the synthetic index this design depends on: every API replica publishes the whole
-  deployment into index `0`, which makes `syncShardGuildList` idempotent across replicas but makes `dropGuildList`
-  destructive -- one replica exiting would yank the slice out from under every sibling still serving traffic, and Appeals
-  would vanish from every dashboard until somebody's next 30-second tick. The 60-second TTL is the correct reaper, and by
-  the time it matters the process answering dashboard requests is gone anyway. `util/appealsPresence.ts` carries this
-  reasoning at the constant.
+- **The guild-list poll is gone; `services/appeals-bot` replaced it.** P1 first shipped the poll §2 originally specified,
+  then removed it two days later -- see decision 2 and §2 for the full reversal. `util/appealsPresence.ts` no longer
+  exists; presence comes from `bot-core`'s gateway client like every other bot's. (The poll had a second problem worth
+  recording, since it is what made the reversal obvious: `dropGuildList('APPEALS', 0)` could not be implemented at all,
+  because every API replica published into the same synthetic index, so one replica exiting would have yanked the slice
+  out from under every sibling. A presence mechanism whose shutdown path is unimplementable is a mechanism fighting its
+  own substrate.)
 - **`apps/website/src/utils/bots.tsx` came forward from P2.** It is `satisfies Record<BotId, ...>`, so widening `BOTS`
   does not compile until the entry lands -- the same compile-order constraint §2 already names for `APIMapping`. The
   dashboard consequence is that a guild with the Appeals bot installed gets a nav tab pointing at a route P2 has not
@@ -473,9 +498,25 @@ the right answer; confirm the direction of `before`/`after` empirically here rat
   one, so P7 is plain CRUD over them instead of having to invent history for guilds configured before it shipped. The
   seed keys off the questionnaire being empty rather than the settings row being new, which makes it idempotent and
   self-healing.
-- **The env split is three vars public, three private.** `APPEALS_ROOT_DOMAIN`, `APPEALS_OAUTH_CLIENT_ID` and
-  `APPEALS_FRONTEND_URL_{DEV,PROD}` are in `.env.public` for the same reason the dashboard's client id is (it appears in
-  every authorize URL); only the token, the Ed25519 public key and the OAuth secret are private.
+- **The env split is four vars public, two private.** `APPEALS_ROOT_DOMAIN`, `APPEALS_OAUTH_CLIENT_ID`,
+  `APPEALS_FRONTEND_URL_{DEV,PROD}` and `APPEALS_METRICS_PORT`/`APPEALS_SHARDS_PER_REPLICA` are in `.env.public` for the
+  same reason the dashboard's client id is; only the bot token and the OAuth secret are private.
+- **Ban-list events prime `appeal_ban_checks`, and are restricted to `UPDATE`.** `services/appeals-bot/src/lib/banEvents.ts`
+  never inserts a row. That one restriction is what keeps the table the cache-of-probes-we-ran its schema comment
+  describes, instead of quietly becoming the gateway-mirrored ban index §4 rejects -- inserting would mean a row for every
+  ban in every installed guild, forever, mostly for people who never appeal, and it would _still_ be incomplete, since a
+  ban predating the bot's arrival produces no event. An incomplete table that reads as authoritative is worse than none.
+  The probe stays the authority; this only keeps answers we already have fresh. `GUILD_BAN_ADD` also carries no reason, so
+  a primed row clears `ban_reason` rather than keeping a previous ban's -- P8 matching on a stale reason would be a
+  correctness bug, and the probe re-fills it at submit.
+
+**Metrics, and the counting trap it hides.** `appeals-bot` publishes `discord_guilds` for free like every other bot, which
+answers _how many servers is Appeals installed in_. That is **not** the same question as _how many servers accept
+appeals_ -- a guild can have the bot and no `appeals_settings` row, which is exactly the state the setup CTA exists for.
+Do not put them on one panel, and do not derive the second from a gauge exported by `services/api`: every API replica
+would export the same DB-derived number and `sum()` would silently return N times the truth, unlike `discord_guilds`,
+which is safe to sum only because replica slices are disjoint. A row count belongs in postgres-exporter, which is already
+in the stack and exports once regardless of replica count.
 
 **Operational note for the deploy.** Every `APPEALS_*` var is required, matching every other bot token, and
 `backend-core`'s `env.ts` parses eagerly at import -- so `services/api` **and every bot** refuse to boot until the host's

@@ -26,13 +26,5 @@ await loadInstances();
 await loadExperiments();
 
 // Make sure to import anything else AFTER initializing the context
-
-// The Appeals bot has no gateway process, so nothing would ever publish a `bot:APPEALS` guild list on its own
-// (#232, docs/roadmap/09-appeals.md §2) -- this poll is what makes the dashboard able to see it at all.
-// Dynamically imported for the same reason `app.js` below is: it reaches `util/discordAPI.js`, which reads bot
-// tokens off the context at module-load time.
-const { startAppealsPresence } = await import('./util/appealsPresence.js');
-await startAppealsPresence();
-
 const { startServer } = await import('./app.js');
 await startServer();
