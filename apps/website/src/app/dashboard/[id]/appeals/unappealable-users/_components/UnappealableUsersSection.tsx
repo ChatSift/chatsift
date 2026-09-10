@@ -93,11 +93,6 @@ export function UnappealableUsersSection() {
 	return (
 		<div className="space-y-6">
 			<div className="flex flex-col gap-4 rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
-				<p className="text-sm text-secondary dark:text-secondary-dark">
-					Anybody listed here is refused when they try to file, however long ago they were banned. The reason is for
-					your own team - the appellant is only told they cannot appeal, never why.
-				</p>
-
 				<SnowflakeInput
 					error={errors.userId}
 					id="appeals-unappealable-user-id"
@@ -113,9 +108,7 @@ export function UnappealableUsersSection() {
 				<TextField
 					error={errors.reason}
 					helper={
-						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-							Optional, and only ever shown to your moderators.
-						</p>
+						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">Optional, only shown to moderators.</p>
 					}
 					id="appeals-unappealable-reason"
 					label="Reason"
@@ -145,7 +138,7 @@ export function UnappealableUsersSection() {
 				)}
 			</div>
 
-			{isLoading ? (
+			{isLoading || !users ? (
 				<div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
 					<Skeleton className="h-40 w-full rounded-lg" />
 					<Skeleton className="h-40 w-full rounded-lg" />
