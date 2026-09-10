@@ -116,6 +116,26 @@ export type {
 } from './generated/public/AutomoderatorTriggerPunishments.js';
 export type { default as AutomoderatorTriggerCounts } from './generated/public/AutomoderatorTriggerCounts.js';
 
+export type { default as AppealsSettings, AppealsSettingsGuildId } from './generated/public/AppealsSettings.js';
+export type { default as AppealQuestions, AppealQuestionsId } from './generated/public/AppealQuestions.js';
+export type { default as AppealKind } from './generated/public/AppealKind.js';
+export type { default as AppealStatus } from './generated/public/AppealStatus.js';
+export type { default as Appeals, AppealsId } from './generated/public/Appeals.js';
+export type { default as AppealAnswers, AppealAnswersId } from './generated/public/AppealAnswers.js';
+export type { default as AppealEventKind } from './generated/public/AppealEventKind.js';
+export type { default as AppealEvents, AppealEventsId } from './generated/public/AppealEvents.js';
+export type { default as AppealBanChecks } from './generated/public/AppealBanChecks.js';
+export type {
+	default as UnappealableUsers,
+	UnappealableUsersGuildId,
+	UnappealableUsersUserId,
+} from './generated/public/UnappealableUsers.js';
+export type {
+	default as UnappealablePatterns,
+	UnappealablePatternsId,
+} from './generated/public/UnappealablePatterns.js';
+export type { default as AppealUserState } from './generated/public/AppealUserState.js';
+
 export interface CreateDbOptions {
 	/**
 	 * Passed through to `postgres()`, merged on top of the `postgres.camel` transform default

@@ -1,6 +1,7 @@
 import type { BotId } from '@chatsift/core';
 import Image from 'next/image';
 import { SvgAMA } from '@/components/icons/SvgAMA';
+import { SvgAppeals } from '@/components/icons/SvgAppeals';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { SvgModmail } from '@/components/icons/SvgModmail';
 import { SvgSocial } from '@/components/icons/SvgSocial';
@@ -9,11 +10,16 @@ import { SvgSocial } from '@/components/icons/SvgSocial';
 // is the *dashboard's* branding, and a guild the bot is actually in gets a nav tab from it (`GuildNav.tsx`)
 // regardless of whether the product has been announced. `data/marketingBots.ts` is the public-facing half,
 // and that one is deliberately partial.
+//
+// This is `satisfies Record<BotId, ...>`, so an entry here is not optional bookkeeping -- widening `BOTS`
+// does not compile until it lands. That is why APPEALS (#232) arrived with P1's backend rather than with P2's
+// dashboard section, which is where the rest of its frontend lives.
 export const Bots = {
 	AMA: { Icon: SvgAMA, label: 'AMA' },
 	MODMAIL: { Icon: SvgModmail, label: 'ModMail' },
 	SOCIAL: { Icon: SvgSocial, label: 'Social' },
 	AUTOMODERATOR: { Icon: SvgAutoModerator, label: 'AutoModerator' },
+	APPEALS: { Icon: SvgAppeals, label: 'Appeals' },
 } as const satisfies Record<BotId, { Icon: React.ComponentType<{ height?: number; width?: number }>; label: string }>;
 
 export interface BotBrandingSource {

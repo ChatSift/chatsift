@@ -353,6 +353,27 @@ services:
     volumes:
       - ./logs/social-bot:/usr/chatsift/logs/social-bot
 
+  # docs/roadmap/09-appeals.md. The thinnest bot here: no commands, and it posts nothing until an appeal is
+  # filed. It holds a gateway connection for exactly two things HTTP cannot give it -- a correct guild list,
+  # and ban-list events (#232, decision 2 as superseded).
+  appeals-bot:
+    image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-appeals
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    depends_on:
+      discord-proxy:
+        condition: service_healthy
+    environment:
+      SHARDS_PER_REPLICA: ${APPEALS_SHARDS_PER_REPLICA:-}
+    command: ['node', '--enable-source-maps', './services/appeals-bot/dist/bin.js']
+    volumes:
+      - ./logs/appeals-bot:/usr/chatsift/logs/appeals-bot
+
   # docs/roadmap/11-automoderator-port.md. Additive until P9 -- legacy AutoModerator keeps running from
   # ChatSift/stack against postgres-old the whole time this one is being built, so the two coexist and this
   # service must not be pointed at the legacy application's token before that cutover.

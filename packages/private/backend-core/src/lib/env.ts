@@ -136,6 +136,22 @@ export const envSchema = z.object({
 	AUTOMODERATOR_BOT_TOKEN: z.string(),
 	AUTOMODERATOR_METRICS_PORT: z.string().pipe(z.coerce.number()),
 
+	// Appeals (#232, docs/roadmap/09-appeals.md). Required like every other bot token -- `services/api` needs it
+	// for the ban probe and the config screen's channel/permission reads, and `services/appeals-bot` runs the
+	// gateway connection that publishes the guild list.
+	APPEALS_BOT_TOKEN: z.string(),
+	APPEALS_METRICS_PORT: z.string().pipe(z.coerce.number()),
+	// A *second* OAuth application, not a second set of credentials for the dashboard's one -- `unban.app` is a
+	// different eTLD+1 with its own cookie and its own consent screen, so a banned user is never asked to
+	// authorize something branded for a product they have no relationship with (decision 3).
+	APPEALS_OAUTH_CLIENT_ID: z.string().regex(SnowflakeRegex),
+	APPEALS_OAUTH_CLIENT_SECRET: z.string(),
+	// `unban.app`. Separate from `ROOT_DOMAIN` because `cookieWithDomain` pins the dashboard's cookies to that
+	// one, and the two sessions must be structurally unable to reach each other.
+	APPEALS_ROOT_DOMAIN: z.string(),
+	APPEALS_FRONTEND_URL_DEV: z.url(),
+	APPEALS_FRONTEND_URL_PROD: z.url(),
+
 	// Dozzle log webhook relay (issue #212) — Dozzle POSTs here with a raw-JSON embed description,
 	// we prettify it and forward to the real Discord webhook
 	DOZZLE_WEBHOOK_SECRET: z.string(),
