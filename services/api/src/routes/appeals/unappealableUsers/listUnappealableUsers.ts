@@ -12,6 +12,12 @@ const paramsSchema = z.object({ guildId: snowflakeSchema });
 
 export interface UnappealableUserWithUser {
 	createdAt: Date;
+	/**
+	 * The moderator who added the entry, resolved the same way the subject is. The raw `createdById` stays
+	 * alongside it because it is the handle that keeps working when the account is gone -- the resolution is
+	 * only there so the dashboard's audit line reads as a person rather than a snowflake.
+	 */
+	createdBy: APIUser | Snowflake;
 	createdById: string;
 	reason: string | null;
 	user: APIUser | Snowflake;
@@ -43,12 +49,14 @@ export default defineRoute({
 		// long list doesn't spend one Discord request per row.
 		const api = apiForGuild('APPEALS', guildId);
 		return Promise.all(
-			rows.map(async ({ userId, reason, createdById, createdAt }): Promise<UnappealableUserWithUser> => ({
-				user: await resolveDiscordUser(api, userId),
-				reason,
-				createdById,
-				createdAt,
-			})),
+			rows.map(async ({ userId, reason, createdById, createdAt }): Promise<UnappealableUserWithUser> => {
+				const [user, createdBy] = await Promise.all([
+					resolveDiscordUser(api, userId),
+					resolveDiscordUser(api, createdById),
+				]);
+
+				return { user, createdBy, reason, createdById, createdAt };
+			}),
 		);
 	},
 });

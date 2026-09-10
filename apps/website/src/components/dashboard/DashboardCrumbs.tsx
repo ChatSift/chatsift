@@ -14,9 +14,11 @@ import type { SocialInteraction } from '@/api/routes/social';
 import type { BreadcrumbOption } from '@/components/common/Breadcrumb';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { SvgAMA } from '@/components/icons/SvgAMA';
+import { SvgAppeals } from '@/components/icons/SvgAppeals';
 import { SvgAutoModerator } from '@/components/icons/SvgAutoModerator';
 import { SvgModmail } from '@/components/icons/SvgModmail';
 import { SvgSocial } from '@/components/icons/SvgSocial';
+import { APPEALS_SECTION_LABELS, APPEALS_SECTIONS } from '@/utils/appealsSections';
 import { AUTOMODERATOR_SECTION_LABELS, AUTOMODERATOR_SECTIONS } from '@/utils/automoderatorSections';
 import type { BotBrandingSource } from '@/utils/bots';
 import { BotIcon, resolveBotBranding } from '@/utils/bots';
@@ -34,8 +36,10 @@ const SOCIAL_SECTIONS = ['config', 'channels', 'roles', 'rewards', 'interactions
 
 const SEGMENT_LABELS: Record<string, string> = {
 	// Derived from the hub's own grouping rather than restated, so a new AutoModerator section can't reach the
-	// breadcrumb as its raw kebab-case URL segment (#373, #376, #378).
+	// breadcrumb as its raw kebab-case URL segment (#373, #376, #378). Appeals is listed the same way for the
+	// same reason.
 	...AUTOMODERATOR_SECTION_LABELS,
+	...APPEALS_SECTION_LABELS,
 	ama: 'AMA',
 	amas: 'Sessions',
 	new: 'New',
@@ -55,6 +59,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 	interactions: 'Interactions',
 	leaderboard: 'Leaderboard',
 	automoderator: 'AutoModerator',
+	appeals: 'Appeals',
 } as const;
 
 const SEGMENT_ICONS: Record<string, React.ReactNode> = {
@@ -62,6 +67,7 @@ const SEGMENT_ICONS: Record<string, React.ReactNode> = {
 	modmail: <SvgModmail height={20} width={20} />,
 	social: <SvgSocial height={20} width={20} />,
 	automoderator: <SvgAutoModerator height={20} width={20} />,
+	appeals: <SvgAppeals height={20} width={20} />,
 } as const;
 
 interface SegmentContext {
@@ -162,6 +168,17 @@ function automoderatorSectionOptions(currentSection: string, context: SegmentCon
 		(section) => ({
 			label: SEGMENT_LABELS[section] ?? section,
 			href: `/dashboard/${context.guildId}/automoderator/${section}`,
+		}),
+	);
+
+	return { options };
+}
+
+function appealsSectionOptions(currentSection: string, context: SegmentContext): SegmentOptions {
+	const options: BreadcrumbOption[] = APPEALS_SECTIONS.filter((section) => section !== currentSection).map(
+		(section) => ({
+			label: SEGMENT_LABELS[section] ?? section,
+			href: `/dashboard/${context.guildId}/appeals/${section}`,
 		}),
 	);
 
@@ -321,6 +338,14 @@ const SEGMENT_DEFINITIONS: readonly SegmentDefinition[] = [
 		pattern: ['automoderator'],
 		resolveOptions: (_id, context, data) => botSwitcherOptions('AUTOMODERATOR', context, data),
 	},
+	{
+		pattern: ['appeals'],
+		resolveOptions: (_id, context, data) => botSwitcherOptions('APPEALS', context, data),
+	},
+	...APPEALS_SECTIONS.map((section): SegmentDefinition => ({
+		pattern: ['appeals', section],
+		resolveOptions: (_id, context) => appealsSectionOptions(section, context),
+	})),
 	...AUTOMODERATOR_SECTIONS.map((section): SegmentDefinition => ({
 		pattern: ['automoderator', section],
 		resolveOptions: (_id, context) => automoderatorSectionOptions(section, context),
