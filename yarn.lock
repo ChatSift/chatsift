@@ -641,6 +641,7 @@ __metadata:
     "@types/react-dom": "npm:^19.2.3"
     babel-plugin-react-compiler: "npm:^1.0.0"
     clsx: "npm:^2.1.1"
+    discord-api-types: "npm:^0.38.50"
     eslint: "npm:^9.39.5"
     jotai: "npm:^2.20.2"
     next: "npm:^16.2.10"
@@ -856,6 +857,7 @@ __metadata:
   dependencies:
     "@chatsift/core": "workspace:^"
     "@radix-ui/react-avatar": "npm:^1.2.2"
+    "@radix-ui/react-navigation-menu": "npm:^1.2.18"
     "@radix-ui/react-scroll-area": "npm:^1.2.14"
     "@sentry/nextjs": "npm:^10.73.0"
     "@tanstack/react-query": "npm:^5.101.2"
@@ -866,6 +868,7 @@ __metadata:
     discord-api-types: "npm:^0.38.50"
     jotai: "npm:^2.20.2"
     next: "npm:^16.2.10"
+    next-themes: "npm:^0.4.6"
     react: "npm:^19.2.7"
     react-aria-components: "npm:^1.19.0"
     react-dom: "npm:^19.2.7"
@@ -879,6 +882,7 @@ __metadata:
     "@tanstack/react-query": ^5.101.2
     jotai: ^2.20.2
     next: ^16.2.10
+    next-themes: ^0.4.6
     react: ^19.2.7
     react-dom: ^19.2.7
   languageName: unknown

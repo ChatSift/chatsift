@@ -28,6 +28,13 @@ const nextConfig = {
 			},
 		],
 	},
+	// `@chatsift/web-core`'s `utils/og.tsx` reads the Author `.ttf`s off disk at request time to brand the
+	// social card. Next's file tracer only follows static imports, so without this the fonts are left out of
+	// the serverless bundle and every card silently renders in the fallback font. Same entry the dashboard
+	// carries; the files themselves are synced in by `sync-web-core-assets.mjs`.
+	outputFileTracingIncludes: {
+		'/**/opengraph-image': ['./public/assets/fonts/Author-Regular.ttf', './public/assets/fonts/Author-Semibold.ttf'],
+	},
 	typescript: {
 		ignoreBuildErrors: false,
 	},

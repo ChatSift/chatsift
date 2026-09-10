@@ -1,17 +1,12 @@
 import { getContext } from '@chatsift/backend-core';
-import { badRequest, forbidden } from '@hapi/boom';
-import { parseCookie } from 'cookie';
+import { forbidden } from '@hapi/boom';
 import z from 'zod';
 import { defineRoute } from '../../../core/route.js';
-import {
-	appealsCookieWithDomain,
-	createAppealsAccessToken,
-	createAppealsRefreshToken,
-} from '../../../util/appealsTokens.js';
+import { createAppealsAccessToken, createAppealsRefreshToken } from '../../../util/appealsTokens.js';
 import { recordAppellantGrant } from '../../../util/appealsUserState.js';
 import { discordAPIOAuth } from '../../../util/discordAPI.js';
-import { StateCookie } from '../../../util/stateCookie.js';
-import { APPEALS_AUTH_SCOPES, APPEALS_STATE_COOKIE, APPEALS_STATE_MAX_AGE_MS } from './discord.js';
+import { consumeOAuthState } from '../../../util/oauthState.js';
+import { APPEALS_AUTH_SCOPES, APPEALS_STATE_COOKIE } from './discord.js';
 
 const querySchema = z.strictObject({
 	code: z.string(),
@@ -30,28 +25,7 @@ export default defineRoute({
 	// for its own unrelated reason, would make that re-grant impossible.
 	async handler(req, res) {
 		const { code, state: stateQuery } = req.query;
-
-		const parsedCookies = parseCookie(req.headers.cookie ?? '');
-		if (stateQuery !== parsedCookies[APPEALS_STATE_COOKIE]) {
-			throw badRequest('bad state');
-		}
-
-		const state = StateCookie.from(stateQuery);
-		res.cookie(
-			APPEALS_STATE_COOKIE,
-			'noop',
-			appealsCookieWithDomain({
-				httpOnly: true,
-				expires: new Date(0),
-				path: '/',
-				secure: getContext().env.IS_PRODUCTION,
-				sameSite: 'lax',
-			}),
-		);
-
-		if (Date.now() - state.createdAt.getTime() > APPEALS_STATE_MAX_AGE_MS) {
-			throw badRequest('state expired');
-		}
+		const state = consumeOAuthState(req, res, APPEALS_STATE_COOKIE, stateQuery);
 
 		const result = await discordAPIOAuth.oauth2.tokenExchange({
 			client_id: getContext().env.APPEALS_OAUTH_CLIENT_ID,

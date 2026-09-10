@@ -5,10 +5,16 @@ import z from 'zod';
 import { defineRoute } from '../../core/route.js';
 import { isAuthed } from '../../middleware/isAuthed.js';
 import { cookieWithDomain } from '../../util/constants.js';
+import { issueOAuthState } from '../../util/oauthState.js';
 import { sanitizeRedirectTo } from '../../util/redirectTo.js';
-import { StateCookie } from '../../util/stateCookie.js';
 
 export const DISCORD_AUTH_SCOPES = new Set(['identify', 'guilds', 'guilds.members.read'] as const);
+
+/**
+ * The dashboard's `state` cookie. Handed to `issueOAuthState`/`consumeOAuthState`, which own the handshake
+ * itself -- this pair is the only part of it that is per-flow.
+ */
+export const DASHBOARD_STATE_COOKIE = { name: 'state', withDomain: cookieWithDomain };
 
 const querySchema = z.strictObject({
 	redirect_to: z.string().optional(),
@@ -32,18 +38,7 @@ export default defineRoute({
 			return;
 		}
 
-		const state = new StateCookie(`${getContext().FRONTEND_URL}${redirectPath}`).toCookie();
-		res.cookie(
-			'state',
-			state,
-			cookieWithDomain({
-				httpOnly: true,
-				path: '/',
-				sameSite: 'lax',
-				secure: getContext().env.IS_PRODUCTION,
-				maxAge: 10 * 60 * 1_000,
-			}),
-		);
+		const state = issueOAuthState(res, DASHBOARD_STATE_COOKIE, `${getContext().FRONTEND_URL}${redirectPath}`);
 
 		const params = {
 			client_id: getContext().env.OAUTH_DISCORD_CLIENT_ID,

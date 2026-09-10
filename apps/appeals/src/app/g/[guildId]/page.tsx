@@ -4,11 +4,12 @@ import { Heading } from '@chatsift/web-core/components/Heading';
 import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import { use } from 'react';
-import { loginHref, useAppealsGuild, useMe } from '@/api/routes/appeals';
+import { useAppealsGuild, useMe } from '@/api/routes/appeals';
 import { AppealForm } from '@/components/AppealForm';
 import { AppealStatusBadge } from '@/components/AppealStatusBadge';
 import { BlockedNotice } from '@/components/BlockedNotice';
 import { GuildBadge } from '@/components/GuildBadge';
+import { SignInPrompt } from '@/components/SignInPrompt';
 
 export default function GuildAppealPage({ params }: { readonly params: Promise<{ guildId: string }> }) {
 	const { guildId } = use(params);
@@ -22,15 +23,11 @@ export default function GuildAppealPage({ params }: { readonly params: Promise<{
 
 	if (!user) {
 		return (
-			<>
-				<Heading
-					subtitle="Sign in with the Discord account that was banned. We use it to confirm the ban and to send you the decision."
-					title="Appeal a ban"
-				/>
-				<a className={buttonClass('primary')} href={loginHref(`/g/${guildId}`)}>
-					Sign in with Discord
-				</a>
-			</>
+			<SignInPrompt
+				redirectTo={`/g/${guildId}`}
+				subtitle="Sign in with the Discord account that was banned, so the server knows the appeal is really from you."
+				title="Appeal a Discord ban"
+			/>
 		);
 	}
 

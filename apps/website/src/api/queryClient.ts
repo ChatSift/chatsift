@@ -1,44 +1,17 @@
-import { makeQueryClient } from '@chatsift/web-core/api/queryClient';
-import { isServer, type QueryClient } from '@tanstack/react-query';
+import { createBrowserQueryClientAccessor } from '@chatsift/web-core/api/browserQueryClient';
 
 /**
- * Hoisted out of `queryKeys` below purely so `getBrowserQueryClient`'s `onUnauthorized` can reference it
- * without reading a `const` declared further down the file. `queryKeys.auth.me` is still how this is spelled
- * everywhere else -- it's the same tuple, not a second source of truth.
+ * Hoisted out of `queryKeys` below purely so the accessor can be built from it without reading a `const`
+ * declared further down the file. `queryKeys.auth.me` is still how this is spelled everywhere else -- it's the
+ * same tuple, not a second source of truth.
  */
 const meQueryKey = ['api', 'auth', 'me'] as const;
 
-let _browserQueryClient: QueryClient | undefined;
-
 /**
- * For use in "use client" Providers -- returns a singleton on the browser, and a fresh instance on each SSR
- * pass (to avoid cross-request state sharing).
+ * Writing `null` into the `me` entry on a 401 is what hands a session expiry back to `NavGateProvider`, whose
+ * redirect gates on `user === null` -- see `createBrowserQueryClientAccessor` for the rest of the reasoning.
  */
-export function getBrowserQueryClient(): QueryClient {
-	if (isServer) {
-		return makeClient();
-	}
-
-	return (_browserQueryClient ??= makeClient());
-}
-
-function makeClient(): QueryClient {
-	return makeQueryClient({
-		onUnauthorized: (query) => {
-			// `me.queryFn` deliberately resolves a 401 to `null` instead of throwing, so without this the `me`
-			// entry keeps serving its cached, logged-in user -- the navbar stays signed in while every page-level
-			// query renders `UserErrorHandler`'s inline "Log in" button underneath it, and `NavGateProvider`'s
-			// redirect never fires because it gates on `user === null`. Writing that `null` here is what hands the
-			// expiry back to `NavGateProvider`.
-			//
-			// The `me` query is excluded (it can't 401 anyway, per above) so this can never recurse, and skipped on
-			// the server, where each SSR pass gets a throwaway client that nothing observes.
-			if (!isServer && query.queryKey[1] !== 'auth') {
-				getBrowserQueryClient().setQueryData(meQueryKey, null);
-			}
-		},
-	});
-}
+export const getBrowserQueryClient = createBrowserQueryClientAccessor(meQueryKey);
 
 /**
  * Hierarchical query keys.

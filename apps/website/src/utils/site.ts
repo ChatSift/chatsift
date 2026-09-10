@@ -1,3 +1,4 @@
+import { OG_CONTENT_TYPE, OG_SIZE } from '@chatsift/web-core/utils/ogConstants';
 import type { Metadata } from 'next';
 
 export const SITE_NAME = 'ChatSift';
@@ -37,15 +38,6 @@ export function siteUrl(): string {
 	const vercelUrl = process.env['VERCEL_PROJECT_PRODUCTION_URL'];
 	return vercelUrl ? `https://${vercelUrl}` : 'http://localhost:3000';
 }
-
-/**
- * The size every unfurler expects for a `summary_large_image`-style card. Lives here rather than next to
- * `renderOgCard` so that `utils/site.ts` stays dependency-free -- `utils/og.tsx` pulls in `next/og` and
- * `node:fs`, which nothing importing these constants should have to carry.
- */
-export const OG_SIZE = { width: 1_200, height: 630 } as const;
-
-export const OG_CONTENT_TYPE = 'image/png';
 
 /**
  * URL of the site-wide card rendered by `app/opengraph-image.tsx`.
@@ -110,3 +102,10 @@ export function socialMetadata({ description, hasOwnImage, path, title }: Social
 		},
 	};
 }
+
+/**
+ * Re-exported rather than re-declared: `@chatsift/web-core` owns these now that both apps render the same card
+ * through the same renderer. They live in their own module there, away from `utils/og.tsx`, so importing them
+ * costs nothing of `next/og`.
+ */
+export { OG_CONTENT_TYPE, OG_SIZE } from '@chatsift/web-core/utils/ogConstants';

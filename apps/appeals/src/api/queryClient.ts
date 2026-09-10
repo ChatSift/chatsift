@@ -1,39 +1,13 @@
-import { makeQueryClient } from '@chatsift/web-core/api/queryClient';
-import { isServer, type QueryClient } from '@tanstack/react-query';
+import { createBrowserQueryClientAccessor } from '@chatsift/web-core/api/browserQueryClient';
 
 /**
- * Hoisted out of `queryKeys` below so `makeClient`'s `onUnauthorized` can reference it without reading a
- * `const` declared further down the file. `queryKeys.me` is how this is spelled everywhere else.
+ * Hoisted out of `queryKeys` below so the accessor can be built from it without reading a `const` declared
+ * further down the file. `queryKeys.me` is how this is spelled everywhere else -- same tuple, not a second
+ * source of truth.
  */
 const meQueryKey = ['api', 'me'] as const;
 
-let _browserQueryClient: QueryClient | undefined;
-
-/**
- * For use in "use client" Providers -- a singleton on the browser, a fresh instance on each SSR pass, so
- * nothing is shared across requests.
- */
-export function getBrowserQueryClient(): QueryClient {
-	if (isServer) {
-		return makeClient();
-	}
-
-	return (_browserQueryClient ??= makeClient());
-}
-
-function makeClient(): QueryClient {
-	return makeQueryClient({
-		onUnauthorized: (query) => {
-			// Same reasoning as the dashboard's version: `me.queryFn` resolves a 401 to `null` rather than
-			// throwing, so without this the header would go on rendering a signed-in appellant while every page
-			// under it showed a login prompt. Writing `null` here is what makes the whole app agree the session
-			// is gone. `me` itself is excluded so this can never recurse.
-			if (!isServer && query.queryKey[1] !== 'me') {
-				getBrowserQueryClient().setQueryData(meQueryKey, null);
-			}
-		},
-	});
-}
+export const getBrowserQueryClient = createBrowserQueryClientAccessor(meQueryKey);
 
 export const queryKeys = {
 	all: ['api'] as const,

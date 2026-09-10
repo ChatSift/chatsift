@@ -1,5 +1,5 @@
+import { renderOgCard } from '@chatsift/web-core/utils/og';
 import { MARKETED_BOTS, marketingBots, resolveBot } from '@/data/marketingBots';
-import { renderOgCard } from '@/utils/og';
 import { SITE_DESCRIPTION, SITE_NAME } from '@/utils/site';
 
 export { OG_CONTENT_TYPE as contentType, OG_SIZE as size } from '@/utils/site';
@@ -23,11 +23,16 @@ export default async function Image({ params }: { readonly params: Promise<{ nam
 	// `notFound()` isn't available to an image route, and throwing would surface as a broken image in the
 	// embed -- fall back to the generic card, matching what the page's own metadata does for a bad slug.
 	if (!bot) {
-		return renderOgCard({ title: SITE_NAME, subtitle: SITE_DESCRIPTION });
+		return renderOgCard({
+			siteName: SITE_NAME,
+			title: SITE_NAME,
+			subtitle: SITE_DESCRIPTION,
+		});
 	}
 
 	const marketing = marketingBots[bot];
 	return renderOgCard({
+		siteName: SITE_NAME,
 		eyebrow: SITE_NAME,
 		title: marketing.pageTitle,
 		subtitle: marketing.cardDescription,

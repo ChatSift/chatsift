@@ -40,6 +40,9 @@ export function AppealForm({ guildId, questions, appealsRemaining }: AppealFormP
 
 		setError(null);
 		try {
+			// Every question is sent, including optional ones left blank, which arrive as empty strings. That is
+			// load-bearing rather than lazy: the API writes those rows too (see `submitAppeal.ts`), so the
+			// mod-side embed renders the guild's whole form and "they declined to answer this" stays visible.
 			await submit.mutateAsync({
 				answers: questions.map((question) => ({
 					questionId: question.id,

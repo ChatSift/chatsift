@@ -1,4 +1,4 @@
-import { renderOgCard } from '@/utils/og';
+import { renderOgCard } from '@chatsift/web-core/utils/og';
 import { SITE_BOTS_BLURB, SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE } from '@/utils/site';
 
 // Next reads `size`/`contentType` off this module to emit the `og:image:width`/`height`/`type` tags
@@ -20,6 +20,7 @@ export default async function Image() {
 	// `SITE_BOTS_BLURB` rather than `SITE_DESCRIPTION` as the subtitle: the latter restates the tagline, which
 	// is already the headline right above it.
 	return renderOgCard({
+		siteName: SITE_NAME,
 		title: SITE_TAGLINE,
 		subtitle: SITE_BOTS_BLURB,
 	});

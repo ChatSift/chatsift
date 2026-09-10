@@ -5,8 +5,8 @@ import z from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAppealsAuthed } from '../../../middleware/isAppealsAuthed.js';
 import { appealsCookieWithDomain } from '../../../util/appealsTokens.js';
+import { issueOAuthState } from '../../../util/oauthState.js';
 import { sanitizeAppealsRedirectTo } from '../../../util/redirectTo.js';
-import { StateCookie } from '../../../util/stateCookie.js';
 
 /**
  * What `unban.app` asks a banned user to hand over, and why each one is here -- this consent screen is shown to
@@ -37,11 +37,9 @@ const querySchema = z.strictObject({
  * `unban.app`'s state cookie. A different name from the dashboard's `state` so that a login started on one site
  * cannot consume the other's -- the cookies are already domain-separated, but the two flows differ in which
  * OAuth application they redeem against, and a crossed state would be a confusing failure rather than a loud
- * one.
+ * one. The handshake around it is `util/oauthState.ts`, shared with the dashboard.
  */
-export const APPEALS_STATE_COOKIE = 'appeals_state';
-
-export const APPEALS_STATE_MAX_AGE_MS = 10 * 60 * 1_000;
+export const APPEALS_STATE_COOKIE = { name: 'appeals_state', withDomain: appealsCookieWithDomain };
 
 export default defineRoute({
 	method: 'get',
@@ -59,18 +57,7 @@ export default defineRoute({
 			return;
 		}
 
-		const state = new StateCookie(`${getContext().APPEALS_FRONTEND_URL}${redirectPath}`).toCookie();
-		res.cookie(
-			APPEALS_STATE_COOKIE,
-			state,
-			appealsCookieWithDomain({
-				httpOnly: true,
-				path: '/',
-				sameSite: 'lax',
-				secure: getContext().env.IS_PRODUCTION,
-				maxAge: APPEALS_STATE_MAX_AGE_MS,
-			}),
-		);
+		const state = issueOAuthState(res, APPEALS_STATE_COOKIE, `${getContext().APPEALS_FRONTEND_URL}${redirectPath}`);
 
 		// `integration_type=1` is the load-bearing parameter, not a detail: it is what makes this a *user*
 		// install, and therefore what turns `applications.commands` into DM permission. Drop it and the whole

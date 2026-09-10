@@ -706,8 +706,11 @@ per-host `.env.private` rather than in `.env.public` alongside the dashboard's.
    -- `http://localhost:7004/...` for dev, `https://api.automoderator.app/...` for prod. Discord rejects the
    authorize request outright if it does not match, byte for byte.
 2. Fill in `APPEALS_OAUTH_CLIENT_ID` and `APPEALS_OAUTH_CLIENT_SECRET` in `.env.private`.
-3. For prod only: a Vercel project for `apps/appeals` with `NEXT_PUBLIC_API_URL=https://api.automoderator.app`,
-   pointed at `unban.app`.
+3. For prod only: a Vercel project for `apps/appeals` pointed at `unban.app`, with
+   `NEXT_PUBLIC_API_URL=https://api.automoderator.app` and `NEXT_PUBLIC_WEBSITE_URL=https://automoderator.app`.
+   The second is what the shared footer and the header's Support link hang off -- `unban.app` has no `/terms`,
+   `/privacy`, `/github` or `/support` route of its own. It falls back to production if unset, so a missing var
+   is a silent no-op in prod and a wrong link locally, rather than a broken build.
 
 **The consent screen is worth reading once, and it is the thing to check if decisions stop being deliverable.**
 The authorize URL sends `integration_type=1` (a _user_ install), which is what turns `applications.commands` into

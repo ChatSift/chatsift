@@ -73,7 +73,8 @@ temp/
 
 next-env.d.ts
 
-# Synced from packages/private/web-core/assets/fonts by scripts/sync-web-core-assets.mjs on every build and
-# dev run. The package owns the bytes because it owns the @font-face rules that name them; Next serves
-# public/ per app, so each app needs its own copy.
+# Synced from packages/private/web-core/assets by scripts/sync-web-core-assets.mjs on every build and dev run.
+# The package owns the bytes -- the @font-face rules that name the fonts live there, and so does the mark;
+# Next serves public/ per app, so each app needs its own copy.
 apps/*/public/assets/fonts/
+apps/*/public/assets/favicon.ico

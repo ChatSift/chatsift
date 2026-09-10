@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
-import { OG_SIZE, SITE_NAME } from './site';
+import { OG_SIZE } from './ogConstants';
 
-// Literal copies of the `@theme` tokens in `styles/globals.css` -- Satori resolves neither CSS custom
+// Literal copies of the `@theme` tokens in `styles/theme.css` -- Satori resolves neither CSS custom
 // properties nor Tailwind classes, so the card can't reference the real tokens. Update both together.
 const COLOR_BASE = '#f1f2f5';
 const COLOR_PRIMARY = '#1d274e';
@@ -66,19 +66,24 @@ function truncate(text: string, max: number): string {
 
 export interface OgCardOptions {
 	/**
-	 * Small tinted label above the title, naming the surface this card is for (e.g. `AMA`). Omitted on the
+	 * Small tinted label above the title, naming the surface this card is for (e.g. `AMA`). Omitted on a
 	 * site-wide card, where the wordmark already says everything.
 	 */
-	readonly eyebrow?: string;
+	readonly eyebrow?: string | undefined;
+	/**
+	 * The wordmark beside the mark -- `ChatSift` on the dashboard, `unban.app` on the appeals site. The mark
+	 * itself never changes: both are ChatSift, and an unfurled link should look it.
+	 */
+	readonly siteName: string;
 	readonly subtitle: string;
 	readonly title: string;
 }
 
 /**
- * The one card layout every `opengraph-image` route in the app renders, so a ChatSift link unfurls the same
- * way regardless of which page it points at.
+ * The one card layout every `opengraph-image` route in every app renders, so a ChatSift link unfurls the same
+ * way regardless of which site or which page it points at.
  */
-export async function renderOgCard({ eyebrow, subtitle, title }: OgCardOptions): Promise<ImageResponse> {
+export async function renderOgCard({ eyebrow, siteName, subtitle, title }: OgCardOptions): Promise<ImageResponse> {
 	const fonts = await loadFonts();
 
 	return new ImageResponse(
@@ -97,7 +102,7 @@ export async function renderOgCard({ eyebrow, subtitle, title }: OgCardOptions):
 			<div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
 				{/* eslint-disable-next-line @next/next/no-img-element -- Satori JSX, not the DOM: `next/image` has no meaning here. */}
 				<img alt="" height={96} src={LOGO_DATA_URI} width={96} />
-				<span style={{ fontSize: 52, fontWeight: 600, color: COLOR_PRIMARY }}>{SITE_NAME}</span>
+				<span style={{ fontSize: 52, fontWeight: 600, color: COLOR_PRIMARY }}>{siteName}</span>
 			</div>
 
 			<div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

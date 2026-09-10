@@ -121,6 +121,15 @@ test('the appeals variant does not treat its "/" entry as a prefix', () => {
 	expect(logger.warn).toHaveBeenCalledTimes(2);
 });
 
+test('the appeals variant carries a query string back through login', () => {
+	// How the invite entry point survives a logged-out arrival: `/<inviteCode>` is off the allowlist by design,
+	// so the invite page sends login to `/?invite=<code>` and `InviteHandoff` forwards it on the other side.
+	// Regressing this silently strands every appellant who follows an `unban.app/<code>` link without a session.
+	const logger = createMockLogger();
+	expect(sanitizeAppealsRedirectTo('/?invite=tgZ2pSgXXv', logger)).toBe('/?invite=tgZ2pSgXXv');
+	expect(logger.warn).not.toHaveBeenCalled();
+});
+
 test('the two frontends cannot redirect into one another', () => {
 	// The whole point of the second entry point: an appeals login bounced onto the dashboard's origin (or the
 	// reverse) would hand a session cookie's return trip to the wrong site.

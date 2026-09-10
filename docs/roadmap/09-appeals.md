@@ -271,6 +271,16 @@ someone relies on it, and a single blip of downtime means it can never be truste
 the fan-out untenable in the first place. Showing the user their own guild list doesn't help either; by construction, the
 guild they want is not in it.
 
+**What _is_ offered, and why it is not that** (added 2026-09-10): `unban.app` shows an appellant the servers **they have
+checked here** and are still banned in -- `readKnownBans`, rendered by `KnownBansList` on both the landing page and
+`/appeals`. Every row exists because that appellant personally opened that guild on this site, so the list is bounded by
+their own behaviour rather than by how many guilds use Appeals, and it costs nothing to build. It is re-established before
+being shown: a row the gateway touched inside `KNOWN_BAN_TRUSTED_FOR_MS` is trusted, anything older is re-probed (capped at
+`KNOWN_BAN_LIMIT`), a definite "not banned" drops the entry, and "cannot tell" keeps it. Guilds with an appeal already open
+are excluded before the re-probe, so nothing is spent re-confirming a ban nobody is about to act on. The copy says "servers
+you have checked" and states outright that it is not every server they are banned in -- which is the whole difference, and
+the thing to preserve if this is ever touched.
+
 One reduction to build in from the start: cache "this guild's bot lacks `BAN_MEMBERS`" negatively per guild, so a
 misconfigured guild costs one `403` in total rather than one per appellant forever.
 
@@ -442,7 +452,15 @@ so the codemod stays mechanical.
 back into `apps/website`, **and** it is not specific to the dashboard's session/guild domain. 22 of the 36 common components
 move; the 14 that stay would each drag in `@chatsift/api`, `@/api/routes/*`, `@/hooks/*` or ChatSift branding, for surface
 `unban.app` will never have. `api/` moves 8, splits `token.ts` and `queryClient.ts`, and leaves `ws.ts` and `routes/`
-behind. The payoff is a frontend package with no icons, no hooks and **no `@chatsift/api`** in its graph.
+behind. The payoff is a frontend package with **no `@chatsift/api`** in its graph.
+
+**Amended 2026-09-10.** This sentence also claimed "no icons, no hooks", which stopped being true the moment `unban.app`
+needed the ChatSift footer: five brand icons, `useIsMounted`, `ThemeSwitchButton`, `Footer` and `SiteLogo` moved in
+alongside the rest, and `apps/website/src/components/{footer,common/Logo}` are gone. The rule that actually held up is the
+one at the top of this paragraph -- a file moves iff it compiles inside the package and is not specific to the dashboard's
+session/guild domain -- and site chrome passes it. Keeping `@chatsift/api` out is the constraint worth defending; an icon
+count never was. The navbar is the counter-example that still holds: it is built on `UserDesktop`/`AdminNavLink`/`useMe`,
+so `apps/appeals` mirrors its _shape_ in its own `SiteHeader` rather than sharing a component.
 
 **Two things fail silently here and both need explicit checks.** A lost `'use client'`, and a Tailwind `@source` miss. On
 the latter: `globals.css` uses `@import 'tailwindcss' source(none)`, so package components are not scanned unless something

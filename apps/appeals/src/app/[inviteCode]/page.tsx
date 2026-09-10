@@ -6,7 +6,8 @@ import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { use, useEffect } from 'react';
-import { loginHref, useMe, useResolveInvite } from '@/api/routes/appeals';
+import { useMe, useResolveInvite } from '@/api/routes/appeals';
+import { SignInPrompt } from '@/components/SignInPrompt';
 
 /**
  * Decision 12's second entry point: swap `discord.gg` for `unban.app` in an invite the appellant already has.
@@ -39,15 +40,13 @@ export default function InvitePage({ params }: { readonly params: Promise<{ invi
 
 	if (!user) {
 		return (
-			<>
-				<Heading
-					subtitle="Sign in with the Discord account that was banned, and we will take you to that server's appeal form."
-					title="Appeal a ban"
-				/>
-				<a className={buttonClass('primary')} href={loginHref(`/${inviteCode}`)}>
-					Sign in with Discord
-				</a>
-			</>
+			<SignInPrompt
+				// Not `/${inviteCode}`: this route is off the redirect allowlist by design, so the sanitizer would
+				// drop it and land them on the landing page with the invite lost. `InviteHandoff` picks this up.
+				redirectTo={`/?invite=${encodeURIComponent(inviteCode)}`}
+				subtitle="Sign in with the Discord account that was banned, and we will take you straight to that server's appeal form."
+				title="Appeal a Discord ban"
+			/>
 		);
 	}
 

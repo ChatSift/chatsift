@@ -123,6 +123,9 @@ export async function evaluateAppealEligibility(
 		return { ...base, probe, cooldownUntil: null, blocked: 'UNAPPEALABLE' };
 	}
 
+	// Ahead of the cooldown deliberately, for the case where both apply: somebody at their ceiling is done, and
+	// telling them to come back in 27 days would be a straightforwardly false promise -- they would still be at
+	// their ceiling when they did.
 	if (settings.maxAppeals !== null && appealsUsed >= settings.maxAppeals) {
 		return { ...base, probe, cooldownUntil: null, blocked: 'MAX_APPEALS' };
 	}

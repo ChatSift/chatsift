@@ -1,51 +1,25 @@
-'use client';
+import { NavbarDesktop } from '@chatsift/web-core/components/nav/NavbarDesktop';
+import type { NavbarItem } from '@chatsift/web-core/components/nav/NavbarDesktop';
+import { NavbarMobile } from '@chatsift/web-core/components/nav/NavbarMobile';
+import { NavbarShell } from '@chatsift/web-core/components/nav/NavbarShell';
+import { AppealsUserDesktop } from './user/AppealsUserDesktop';
+import { AppealsUserMobile } from './user/AppealsUserMobile';
+import { SITE_URL } from '@/utils/site';
 
-import { Button } from '@chatsift/web-core/components/Button';
-import { GenericAvatar } from '@chatsift/web-core/components/GenericAvatar';
-import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { loginHref, useLogout, useMe } from '@/api/routes/appeals';
+/**
+ * The same navbar the dashboard wears, from the same components -- `NavbarShell`/`NavbarDesktop`/`NavbarMobile`
+ * in `@chatsift/web-core`. What differs is only what cannot be shared: the wordmark, the links, and the account
+ * slot, which is typed against this app's session rather than the dashboard's.
+ */
+const items = [
+	{ name: 'Your appeals', href: '/appeals' },
+	{ name: 'Support', href: `${SITE_URL}/support` },
+] as const satisfies readonly NavbarItem[];
 
 export function SiteHeader() {
-	const { data: user, isPending } = useMe();
-	const logout = useLogout();
-	const pathname = usePathname();
-
 	return (
-		<header className="border-b border-on-secondary dark:border-on-secondary-dark">
-			<nav className="mx-auto flex w-[clamp(320px,90vw,880px)] items-center justify-between gap-4 py-4">
-				<Link className="text-lg font-medium text-primary dark:text-primary-dark" href="/">
-					unban.app
-				</Link>
-
-				{isPending ? null : user ? (
-					<div className="flex items-center gap-3">
-						<Link className="text-sm text-secondary hover:underline dark:text-secondary-dark" href="/appeals">
-							Your appeals
-						</Link>
-						<div className="flex items-center gap-2">
-							<GenericAvatar
-								assetURL={user.avatarUrl ?? undefined}
-								className="h-6 w-6"
-								disableLink
-								initials={user.displayName.slice(0, 2).toUpperCase()}
-								isLoading={false}
-							/>
-							<span className="text-sm text-primary dark:text-primary-dark">{user.displayName}</span>
-						</div>
-						<Button className={buttonClass('secondary', 'sm')} onPress={async () => logout.mutateAsync()}>
-							Sign out
-						</Button>
-					</div>
-				) : (
-					// A full navigation, not a fetch -- the OAuth handshake ends in a redirect back here, and the
-					// current path is what it returns to (re-validated server-side, see `loginHref`).
-					<a className={buttonClass('primary', 'sm')} href={loginHref(pathname)}>
-						Sign in with Discord
-					</a>
-				)}
-			</nav>
-		</header>
+		<NavbarShell mobile={<NavbarMobile account={<AppealsUserMobile />} items={items} label="unban.app" />}>
+			<NavbarDesktop account={<AppealsUserDesktop />} items={items} label="unban.app" />
+		</NavbarShell>
 	);
 }
