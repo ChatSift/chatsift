@@ -13,6 +13,7 @@ import { SITE_URL } from '@/utils/site';
  */
 const items = [
 	{ name: 'Your appeals', href: '/appeals' },
+	{ name: 'ChatSift', href: SITE_URL },
 	{ name: 'Support', href: `${SITE_URL}/support` },
 ] as const satisfies readonly NavbarItem[];
 

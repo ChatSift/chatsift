@@ -13,6 +13,7 @@ import { loginHref, useMe, useMyAppeals } from '@/api/routes/appeals';
 import { InviteHandoff } from '@/components/InviteHandoff';
 import { KnownBansList } from '@/components/KnownBansList';
 import { parseTarget } from '@/utils/parseTarget';
+import { SITE_URL } from '@/utils/site';
 
 /**
  * What actually happens, in the order it happens. Three steps because there are three, and naming them is what
@@ -63,6 +64,19 @@ export default function LandingPage() {
 		</Suspense>
 	);
 
+	// Nothing else on this site sells anything -- an appellant is here under duress. Some of the people who
+	// land on it moderate a server themselves, though, and this page is the only one they ever see, so the one
+	// pitch it makes points at the dashboard on the main site (#232).
+	const setupCta = (
+		<p className="text-center text-secondary dark:text-secondary-dark">
+			Moderate a server of your own?{' '}
+			<a className="text-misc-accent hover:underline" href={`${SITE_URL}/dashboard`}>
+				Set it up for your community
+			</a>
+			.
+		</p>
+	);
+
 	if (isPending) {
 		return (
 			<>
@@ -108,6 +122,8 @@ export default function LandingPage() {
 					</Link>
 					.
 				</p>
+
+				{setupCta}
 			</>
 		);
 	}
@@ -148,6 +164,8 @@ export default function LandingPage() {
 					</div>
 				))}
 			</section>
+
+			{setupCta}
 		</>
 	);
 }
