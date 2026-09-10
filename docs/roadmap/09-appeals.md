@@ -6,7 +6,7 @@ M4's AMA cutover ([05-migration-cutover.md](05-migration-cutover.md)) and M5's M
 impact:** none until P3, and additive thereafter: new tables, a new Discord application, a new site. No existing product's
 behavior changes at any point, and there is no data migration.
 
-## Status: P0 and P1 shipped. P2 is next
+## Status: P0-P2 shipped. P3 is next
 
 This document was written 2026-07-31 and last amended 2026-08-03, then sat unstarted for a month while the AutoModerator
 port, horizontal scaling (#355), the grants refactor (#310), the Discord REST proxy and the Caddy absorption (#305) all
@@ -15,9 +15,10 @@ rewritten rather than patched: §2 (guild presence) described a Redis shape that
 §4 was costed against direct-to-Discord calls, and decision 16's central premise had been overturned by AutoModerator
 shipping its own ban DM. Where a superseded version is still useful as rationale it is struck through rather than deleted.
 
-P0 (`packages/private/web-core`, shipped as #404) and P1 (the Appeals bot's identity, guild presence, schema and config
-API) are in. Nothing from P2 onward is implemented, and no appellant-facing surface exists yet: the Appeals bot is
-reachable as a token and a set of tables, and nothing posts, DMs or accepts an appeal. `09-` is the next free roadmap
+P0 (`packages/private/web-core`, shipped as #404), P1 (the Appeals bot's identity, guild presence, schema and config
+API) and P2 (the dashboard's Appeals section) are in. Nothing from P3 onward is implemented, and no appellant-facing
+surface exists yet: the Appeals bot is reachable as a token, a set of tables and a config screen, and nothing posts,
+DMs or accepts an appeal. `09-` is the next free roadmap
 slot; 02/03/04 (M1-M3), 07 (#261) and 08 (#216) were all
 consumed and deleted once their work shipped. This doc follows the same lifecycle: when the phases land, it gets **deleted**
 and its durable shape is condensed into a new `## 13. Appeals (#232)` section of
@@ -526,7 +527,7 @@ in the stack and exports once regardless of replica count.
 `backend-core`'s `env.ts` parses eagerly at import -- so `services/api` **and every bot** refuse to boot until the host's
 `.env.private` carries them. Add them before pulling this.
 
-### P2 -- Dashboard: Appeals config section
+### P2 -- Dashboard: Appeals config section (shipped 2026-09-10)
 
 - `apps/website/src/app/dashboard/[id]/appeals/{page.tsx,config/page.tsx}` + `_components/`, following the ModMail config
   section's shape exactly (server page = crumbs + heading + `RefreshServerDataButton`, one client form beneath it).
@@ -537,6 +538,26 @@ in the stack and exports once regardless of replica count.
 
 _Verify:_ with the bot in a test guild but no `appeals_settings` row, the dashboard shows the setup CTA and not the section;
 after saving a config the section appears, survives a reload, and rejects a mod channel in another guild.
+
+**What landed differently from the plan above, and why.** Four things:
+
+- **The unappealable list is its own route, not part of the config page.** The plan's file list named two pages; a
+  guild-scoped list edited a row at a time next to a settings form is two screens everywhere else in this dashboard
+  (ModMail's blocks, AutoModerator's allowlists), and it already has its own realtime channel
+  (`appealsUnappealableUsersChannel`) precisely so the two don't invalidate each other. So there is a third page, and
+  `utils/appealsSections.ts` -- the same single-source arrangement `automoderatorSections.ts` uses, so the hub and the
+  breadcrumb's section dropdown can't drift.
+- **The hub is a client component, unlike every other bot's.** It is the one hub whose entire content the settings row
+  decides: `settings === null` renders the setup CTA and _nothing else_, because offering "Unappealable Users" for a
+  server that accepts no appeals is offering an exception to a rule that isn't running. It subscribes to
+  `appealsConfigChannel` for the same reason -- a setup finished in another tab has to drop the CTA.
+- **`allow_timeout_appeals` is deliberately not on the form.** The column exists and the API accepts it, but nothing
+  can appeal a timeout until P9, so a toggle for it would be a setting that visibly does nothing. It gets its control
+  when it gets its feature -- which is also why the omission is not a stopgap: P9 adds both together.
+- **`listUnappealableUsers.ts` now resolves `created_by_id` as well.** P1 returned the moderator as a raw snowflake,
+  which is the one thing an audit line cannot be. It goes through the same cached `resolveDiscordUser` the subject
+  already used, and the raw `createdById` stays alongside it because that is the handle that keeps working once the
+  account is gone.
 
 ### P3 -- `apps/appeals` / `unban.app`
 

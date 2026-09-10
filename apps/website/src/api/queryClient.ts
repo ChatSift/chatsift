@@ -142,4 +142,12 @@ export const queryKeys = {
 		filterExemptions: (guildId: string) => ['api', 'automoderator', guildId, 'filter-exemptions'] as const,
 		triggerPunishments: (guildId: string) => ['api', 'automoderator', guildId, 'trigger-punishments'] as const,
 	},
+	appeals: {
+		all: (guildId: string) => ['api', 'appeals', guildId] as const,
+		// One entry for the settings row *and* the questionnaire, because `GET .../appeals/config` returns both
+		// and they are edited on the same screen -- the same reasoning `appealsConfigChannel` gives for not
+		// splitting the realtime channel.
+		config: (guildId: string) => ['api', 'appeals', guildId, 'config'] as const,
+		unappealableUsers: (guildId: string) => ['api', 'appeals', guildId, 'unappealable-users'] as const,
+	},
 } as const;
