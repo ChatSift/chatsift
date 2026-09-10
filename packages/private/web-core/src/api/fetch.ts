@@ -1,4 +1,5 @@
 import {
+	AppealsRefreshTokenCookie,
 	CookielessClientHeader,
 	NewAccessTokenHeader,
 	RealtimeClientIdHeader,
@@ -16,6 +17,12 @@ import { accessTokenAtom } from './token';
 function getBaseURL(): string {
 	return process.env['NEXT_PUBLIC_API_URL']!;
 }
+
+/**
+ * The session cookies any app on this substrate can be carrying -- the dashboard's and `unban.app`'s (#232 P3).
+ * Order is irrelevant: they live on different eTLD+1s, so at most one is ever present.
+ */
+const SESSION_COOKIES = [RefreshTokenCookie, AppealsRefreshTokenCookie];
 
 export interface FetchOptions {
 	body?: unknown;
@@ -116,7 +123,12 @@ async function apiFetchServer<TResponse>(method: string, path: string, options: 
 	const { cookies } = await import('next/headers');
 	const cookieStore = await cookies();
 
-	const refreshToken = cookieStore.get(RefreshTokenCookie)?.value;
+	// Whichever session cookie this app's visitor actually carries. Read as a list rather than configured per
+	// app because it needs no configuration to be correct: the two cookies are pinned to different eTLD+1s
+	// (`ROOT_DOMAIN` vs `APPEALS_ROOT_DOMAIN`), so a browser only ever presents one of them, and the cache below
+	// is keyed on the token's own value rather than on which cookie carried it. Every cookie is forwarded either
+	// way -- the name only decides what to cache under and how to read a 401 (see below).
+	const refreshToken = SESSION_COOKIES.map((name) => cookieStore.get(name)?.value).find(Boolean) ?? null;
 	const cachedAccessToken = refreshToken ? getCachedAccessToken(refreshToken) : null;
 
 	const cookieHeader = cookieStore

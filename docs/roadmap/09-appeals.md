@@ -6,7 +6,7 @@ M4's AMA cutover ([05-migration-cutover.md](05-migration-cutover.md)) and M5's M
 impact:** none until P3, and additive thereafter: new tables, a new Discord application, a new site. No existing product's
 behavior changes at any point, and there is no data migration.
 
-## Status: P0-P2 shipped. P3 is next
+## Status: P0-P3 shipped. P3b is next
 
 This document was written 2026-07-31 and last amended 2026-08-03, then sat unstarted for a month while the AutoModerator
 port, horizontal scaling (#355), the grants refactor (#310), the Discord REST proxy and the Caddy absorption (#305) all
@@ -16,9 +16,10 @@ rewritten rather than patched: §2 (guild presence) described a Redis shape that
 shipping its own ban DM. Where a superseded version is still useful as rationale it is struck through rather than deleted.
 
 P0 (`packages/private/web-core`, shipped as #404), P1 (the Appeals bot's identity, guild presence, schema and config
-API) and P2 (the dashboard's Appeals section) are in. Nothing from P3 onward is implemented, and no appellant-facing
-surface exists yet: the Appeals bot is reachable as a token, a set of tables and a config screen, and nothing posts,
-DMs or accepts an appeal. `09-` is the next free roadmap
+API), P2 (the dashboard's Appeals section) and P3 (`apps/appeals`/`unban.app`, the appellant session and the four
+appellant-facing routes) are in. An appellant can now sign in, reach a guild by deep link or by invite, and file an
+appeal. Nothing yet _acts_ on one: no mod-channel post, no decision path, no DM. That is P4 and P5, which decision 1
+says ship together. `09-` is the next free roadmap
 slot; 02/03/04 (M1-M3), 07 (#261) and 08 (#216) were all
 consumed and deleted once their work shipped. This doc follows the same lifecycle: when the phases land, it gets **deleted**
 and its durable shape is condensed into a new `## 13. Appeals (#232)` section of
@@ -194,7 +195,8 @@ the poll, `readGuildList` reaps the slice, and the dashboard flickers Appeals in
   Ed25519-verified endpoint, can add a guild the moment the bot is invited instead of waiting out the poll interval. There is
   no reliable matching "removed" event, so the poll remains the reconciler either way. Nice-to-have, no earlier than P6.
 - **Rejected: deriving presence from an `appeals_settings` row.** It cannot distinguish "installed but not yet configured"
-  from "not installed" -- which is precisely the state the dashboard's setup CTA has to render.
+  from "not installed", and the dashboard needs the first of those to render an Appeals section at all -- a guild that has
+  the bot but has never opened the config screen still has one.
 - **Cache-key bumping is no longer a thing to worry about.** An earlier draft called it a free win that adding `'APPEALS'` to
   `BOTS` needs no `me2:` bump. That is now moot rather than merely true: the key is `me:<sha256 of token>` (plus
   `me:scoped:<...>`), and manual version bumps were replaced wholesale by `{ versioned: true }` on the recipe, which evicts
@@ -269,16 +271,48 @@ someone relies on it, and a single blip of downtime means it can never be truste
 the fan-out untenable in the first place. Showing the user their own guild list doesn't help either; by construction, the
 guild they want is not in it.
 
+**What _is_ offered, and why it is not that** (added 2026-09-10): `unban.app` shows an appellant the servers it knows they
+are currently banned in -- `readKnownBans`, rendered by `KnownBansList` on both the landing page and `/appeals`. Rows come
+from a probe that appellant caused or from a ban the gateway observed in a configured guild (see the supersede note above),
+so the list is a suggestion and never a complete answer. It is re-established before
+being shown: a row the gateway touched inside `KNOWN_BAN_TRUSTED_FOR_MS` is trusted, anything older is re-probed (capped at
+`KNOWN_BAN_LIMIT`), a definite "not banned" drops the entry, and "cannot tell" keeps it. Guilds with an appeal already open
+are excluded before the re-probe, so nothing is spent re-confirming a ban nobody is about to act on. The copy says "servers
+you have checked" and states outright that it is not every server they are banned in -- which is the whole difference, and
+the thing to preserve if this is ever touched.
+
 One reduction to build in from the start: cache "this guild's bot lacks `BAN_MEMBERS`" negatively per guild, so a
 misconfigured guild costs one `403` in total rather than one per appellant forever.
 
 `appeal_ban_checks` survives the removal of the fan-out as a plain cache of probe results -- it gives a returning appellant
 their previously-checked servers without re-probing, and it is where P8 reads the ban reason from.
 
-**Rejected: a gateway-mirrored ban table.** Beyond needing the gateway process decision 2 rules out, any downtime forces a
+~~**Rejected: a gateway-mirrored ban table.** Beyond needing the gateway process decision 2 rules out, any downtime forces a
 full paginated `GET /guilds/{id}/bans` re-sync across every guild -- strictly worse than the thing it replaces, and worse in
 exactly the moment you can least afford it. This is the same failure mode that makes the current production ModMail slow to
-respond to a DM, roughly tripled.
+respond to a DM, roughly tripled.~~
+
+**Superseded 2026-09-10 -- `GUILD_BAN_ADD` now inserts.** Owner's call, and the rejection above was answering a question
+nobody was asking. It argued against a table you would have to _re-sync_ -- i.e. one treated as complete, where a gap is a
+bug to be repaired. Nothing treats `appeal_ban_checks` that way: `readKnownBans` re-probes every row before showing it, and
+`evaluateAppealEligibility` probes again at submit, so the probe is still the only authority and downtime costs a missing
+suggestion rather than a wrong answer. There is no re-sync because there is nothing to reconcile against.
+
+What it buys is the entire first-run experience. Previously an appellant had to already know which server banned them and
+paste an invite before anything appeared at all -- for a product whose users arrive confused and hostile, that is a
+significant ask. Now they sign in and their bans are listed. Two bounds keep this from drifting back into the thing above:
+
+- **Only guilds with an `appeals_settings` row** are recorded. Listing a server whose appeal page answers `NOT_CONFIGURED`
+  is worse than not listing it, and this also keeps growth proportional to the ban rate of _configured_ guilds rather than
+  of every guild the bot sits in. An already-tracked `(user, guild)` pair is still refreshed unconditionally, so a guild
+  that unconfigures does not leave stale rows behind.
+- **`GUILD_BAN_REMOVE` stays `UPDATE`-only.** A row asserting "not banned" about somebody who has never used the site is
+  storage with nothing on the other end of it.
+
+The table is still permanently incomplete -- bans predating the bot's arrival in a guild, bans during downtime, and every
+guild that does not use Appeals are absent -- and the appellant-facing copy says so outright rather than letting somebody
+read a short list as "you are not banned anywhere else". **That copy is the load-bearing part now.** Worth noting for later:
+rows now accumulate for people who may never sign in, so this eventually wants a retention sweep; none exists yet.
 
 **P9's asymmetry:** none of this applies to timeouts. A timed-out user is still a member, so OAuth `guilds` plus a single
 `GET /guilds/{id}/members/{userId}` (reading `communication_disabled_until`) answers the question with no discovery problem.
@@ -342,7 +376,7 @@ and indexes, and inline `--` comments carrying the semantics.
 
 ```sql
 -- Per-guild Appeals configuration (#232). A row here means the guild has finished setup; the Appeals
--- bot merely being present (bot:APPEALS) is what the dashboard's setup CTA keys off instead.
+-- bot merely being present (bot:APPEALS) is what the dashboard renders its Appeals section off instead.
 CREATE TABLE appeals_settings (
   guild_id              TEXT PRIMARY KEY,
   -- Where appeals are posted. A text channel gets one embed per appeal with a thread created on it
@@ -440,7 +474,15 @@ so the codemod stays mechanical.
 back into `apps/website`, **and** it is not specific to the dashboard's session/guild domain. 22 of the 36 common components
 move; the 14 that stay would each drag in `@chatsift/api`, `@/api/routes/*`, `@/hooks/*` or ChatSift branding, for surface
 `unban.app` will never have. `api/` moves 8, splits `token.ts` and `queryClient.ts`, and leaves `ws.ts` and `routes/`
-behind. The payoff is a frontend package with no icons, no hooks and **no `@chatsift/api`** in its graph.
+behind. The payoff is a frontend package with **no `@chatsift/api`** in its graph.
+
+**Amended 2026-09-10.** This sentence also claimed "no icons, no hooks", which stopped being true the moment `unban.app`
+needed the ChatSift footer: five brand icons, `useIsMounted`, `ThemeSwitchButton`, `Footer` and `SiteLogo` moved in
+alongside the rest, and `apps/website/src/components/{footer,common/Logo}` are gone. The rule that actually held up is the
+one at the top of this paragraph -- a file moves iff it compiles inside the package and is not specific to the dashboard's
+session/guild domain -- and site chrome passes it. Keeping `@chatsift/api` out is the constraint worth defending; an icon
+count never was. The navbar is the counter-example that still holds: it is built on `UserDesktop`/`AdminNavLink`/`useMe`,
+so `apps/appeals` mirrors its _shape_ in its own `SiteHeader` rather than sharing a component.
 
 **Two things fail silently here and both need explicit checks.** A lost `'use client'`, and a Tailwind `@source` miss. On
 the latter: `globals.css` uses `@import 'tailwindcss' source(none)`, so package components are not scanned unless something
@@ -517,7 +559,8 @@ return `200` and the right answer; confirm the direction of `before`/`after` emp
 
 **Metrics, and the counting trap it hides.** `appeals-bot` publishes `discord_guilds` for free like every other bot, which
 answers _how many servers is Appeals installed in_. That is **not** the same question as _how many servers accept
-appeals_ -- a guild can have the bot and no `appeals_settings` row, which is exactly the state the setup CTA exists for.
+appeals_ -- a guild can have the bot and no `appeals_settings` row, which is exactly what a guild looks like before
+anybody has picked a mod channel.
 Do not put them on one panel, and do not derive the second from a gauge exported by `services/api`: every API replica
 would export the same DB-derived number and `sum()` would silently return N times the truth, unlike `discord_guilds`,
 which is safe to sum only because replica slices are disjoint. A row count belongs in postgres-exporter, which is already
@@ -536,8 +579,9 @@ in the stack and exports once regardless of replica count.
 - `queryKeys.appeals.*` in `api/queryClient.ts`; hooks in `api/routes/appeals.ts` deriving types via `InferRouteContract`.
 - The question set is the built-in default and is displayed read-only. P7 makes it editable.
 
-_Verify:_ with the bot in a test guild but no `appeals_settings` row, the dashboard shows the setup CTA and not the section;
-after saving a config the section appears, survives a reload, and rejects a mod channel in another guild.
+_Verify:_ with the bot in a test guild but no `appeals_settings` row, the Appeals section renders and its config screen
+shows the column defaults with an empty mod channel; saving requires a channel, survives a reload, and rejects a mod
+channel in another guild.
 
 **What landed differently from the plan above, and why.** Four things:
 
@@ -547,10 +591,9 @@ after saving a config the section appears, survives a reload, and rejects a mod 
   (`appealsUnappealableUsersChannel`) precisely so the two don't invalidate each other. So there is a third page, and
   `utils/appealsSections.ts` -- the same single-source arrangement `automoderatorSections.ts` uses, so the hub and the
   breadcrumb's section dropdown can't drift.
-- **The hub is a client component, unlike every other bot's.** It is the one hub whose entire content the settings row
-  decides: `settings === null` renders the setup CTA and _nothing else_, because offering "Unappealable Users" for a
-  server that accepts no appeals is offering an exception to a rule that isn't running. It subscribes to
-  `appealsConfigChannel` for the same reason -- a setup finished in another tab has to drop the CTA.
+- ~~**The hub is a client component, unlike every other bot's.**~~ **Reverted 2026-09-10, see the note below.** It
+  originally rendered a setup CTA instead of the section list while `settings === null`, on the reasoning that offering
+  "Unappealable Users" for a server that accepts no appeals is offering an exception to a rule that isn't running.
 - **`allow_timeout_appeals` is deliberately not on the form.** The column exists and the API accepts it, but nothing
   can appeal a timeout until P9, so a toggle for it would be a setting that visibly does nothing. It gets its control
   when it gets its feature -- which is also why the omission is not a stopgap: P9 adds both together.
@@ -559,7 +602,29 @@ after saving a config the section appears, survives a reload, and rejects a mod 
   already used, and the raw `createdById` stays alongside it because that is the handle that keeps working once the
   account is gone.
 
-### P3 -- `apps/appeals` / `unban.app`
+**The setup CTA was removed on 2026-09-10, and the idea behind it was shelved rather than dropped.** Owner's call, once
+P3 made the feature real enough to click through: a screen reading "Appeals isn't set up yet" is disconnected from how
+every other bot's section behaves, and Appeals is not special enough to earn its own shape. So:
+
+- The hub is an ordinary server component listing `APPEALS_SECTION_LIST`, exactly like ModMail's and
+  AutoModerator's -- including for a guild that has never configured anything.
+- `appeals/config/getConfig.ts` answers an unconfigured guild with the shape a fresh row would have
+  (`AppealsConfigSettings`, `modChannelId: null`) rather than `settings: null`, mirroring
+  `modmail/config/getConfig.ts`. Nothing on the dashboard branches on being configured any more, and the form's
+  "Set Up Appeals" button is just "Save Changes".
+- **What did _not_ change, and must not:** a row in `appeals_settings` still means "this guild accepts appeals", and
+  that is what `evaluateAppealEligibility` reads to answer `NOT_CONFIGURED` on `unban.app`. The defaulted shape above
+  is the dashboard's view of the config, not an answer to that question -- `modChannelId` being `NOT NULL` is what
+  keeps the two in step, since a row cannot exist without one. Do not re-derive "accepts appeals" from the config
+  response on the frontend, and do not make the column nullable to tidy the type.
+
+**The shelved idea, worth picking up for every bot at once.** What the CTA was reaching for is a guided
+walk-through of a bot's must-dos before it works -- invite it, grant the permissions it needs, pick the one channel
+it cannot run without. That is a real gap and it is not Appeals-specific: AMA, ModMail, Social and AutoModerator all
+have some version of "configured enough to actually do anything" that the dashboard currently never states. Doing it
+once, generically, is worth more than four bespoke CTAs. Not scheduled; no issue filed yet.
+
+### P3 -- `apps/appeals` / `unban.app` (shipped 2026-09-10)
 
 - `apps/appeals`: new Next app on `@chatsift/web-core`. Covered by the existing `apps/*` workspace glob, the generic turbo
   `build` task, and the eslint `apps/**` globs -- no root config changes beyond its own `package.json`/`next.config.mjs`/
@@ -586,6 +651,50 @@ consent screen shows both "Create commands" and "Send you direct messages" for t
 behind §6; reach a guild both by deep link and by pasting an invite, including an invite for a guild that doesn't use Appeals
 and an expired one; submit an appeal end to end for a real banned test account; confirm submit is refused for a user who is
 not actually banned, for an unappealable user, and inside the cooldown window.
+
+**P3 deviations from the above, and the decisions taken while building it.** All of these read as omissions or as
+things to "finish" if you follow the file list literally.
+
+- **The appeals session carries no Discord credential at all.** `util/appealsTokens.ts` mints a pair that is
+  `{ kind, refresh, sub }` and nothing else -- no embedded access token, therefore no rotation, no coalescing,
+  and no `invalid_grant` handling, so none of `isAuthed`'s machinery (or #384's `invalid_client` trap) has a
+  counterpart here. It can be that small because an appeals session grants no authority beyond this user's own
+  appeals, and `sub` was established once by an authorization code Discord itself validated. The appellant's
+  refresh token still gets stored, encrypted, in `appeal_user_state` -- but as _a credential for a later
+  action_ (decision 14's re-add, weeks out), deliberately in a different place from the session. Do not
+  "restore" a Discord token to the JWT.
+- **`isAppealsAuthed` is a separate middleware, not a `kind` check inside `isAuthed`** -- §3 called for this and
+  it is worth restating, because the shortcut is one line. The two share no code path: `isAuthed` only reads
+  `refresh_token`, this only reads `appeals_refresh_token`, and neither writes the property the other reads
+  (`req.tokens` vs `req.appellant`). `assertGuildScopedRouteGuard` therefore never fires for an appeals route,
+  and `NON_GUILD_SCOPED_ROUTES` stays untouched. Both crossings are covered in
+  `middleware/__tests__/isAppealsAuthed.test.ts`, in both directions.
+- **`appearsOpenToAppellant` exists alongside `isAppealOpen`, and every appellant-facing refusal uses the
+  first.** This is the non-obvious half of decision 6. A silent denial is closed and is _not_ covered by
+  `appeals_open_per_user_idx`, so without this the appellant could file again -- and the cooldown check would
+  then tell them, in so many words, that a decision had been made. Refusing with the same "you already have an
+  appeal under review" is what keeps a silent denial silent past the moment it is made. It derives from
+  `toPublicAppeal`'s own mapping rather than restating it, so the two cannot drift.
+- **One eligibility ladder, `util/appealsEligibility.ts`, shared by `checkGuild` and `submitAppeal`.** The
+  order of its checks is load-bearing and commented as such: settings, then their own open appeal, then the
+  probe, then unappealable/ceiling/cooldown. Reordering it either spends a Discord call on a guild we do not
+  serve or tells a passer-by something about a guild's unappealable list.
+- **Submit is `POST /v3/appeals/guilds/:guildId/appeals`, and answers are addressed by question id**, not by
+  position. P7 editing a questionnaire between the form rendering and the appellant pressing submit would
+  otherwise silently re-point every answer at whatever question now sits at that index -- and write the wrong
+  `prompt_snapshot` for the life of the appeal.
+- **The app is client-rendered throughout; there is no `prefetch()` anywhere in it.** `web-core`'s
+  `apiFetchServer` now reads whichever of the two session cookies is present rather than `RefreshTokenCookie`
+  by name, so the SSR path is correct for either app if one is ever added -- it needs no configuration because
+  the cookies are pinned to different eTLD+1s and a browser only ever carries one.
+- **`unban.app` has no GlitchTip project yet, so `app/error.tsx` does not call `reportError`.** The dependency
+  is declared (the module graph reaches it through `web-core`'s query client, where it no-ops uninitialized),
+  but wiring `withSentryConfig` before the project exists would only look like coverage. Creating the project
+  and adding the DSN is an operator follow-up, not a code one.
+- **Not done here, and owed before this is reachable in production:** a Vercel project for `apps/appeals`
+  pointed at `unban.app`, the Appeals application's redirect URI registered as
+  `<API_URL>/v3/appeals/auth/discord/callback`, and `APPEALS_OAUTH_CLIENT_ID`/`_SECRET` filled in per host.
+  Nothing in the repo can do any of those.
 
 ### P3b -- The appeal link rides AutoModerator's ban DM
 

@@ -1523,10 +1523,13 @@ CREATE INDEX automoderator_trigger_counts_updated_at_idx
 -- `appeal_ban_checks`, whose rows `services/appeals-bot` also refreshes from GUILD_BAN_ADD/REMOVE -- see that
 -- table's own comment for why it may only ever UPDATE them, never INSERT.
 
--- Per-guild Appeals configuration. A row here means the guild has finished setup; the Appeals bot merely
--- being present (the `bot:APPEALS` guild list, published by `services/appeals-bot`'s gateway connection) is
--- what the dashboard's setup CTA keys off instead. The two are genuinely different states and the CTA has to
--- render for exactly one of them, which is why presence is not derived from this table.
+-- Per-guild Appeals configuration. **A row here means the guild accepts appeals**, and that is what
+-- `evaluateAppealEligibility` asks before anything else -- a guild with no row answers `NOT_CONFIGURED` on
+-- `unban.app` and costs no Discord call. Distinct from the Appeals bot merely being present (the `bot:APPEALS`
+-- guild list, published by `services/appeals-bot`'s gateway connection), which is what the dashboard renders
+-- its Appeals section off; the two are genuinely different states, which is why presence is not derived from
+-- this table. The dashboard itself does not branch on the row existing -- its config screen is an ordinary
+-- form that answers an unconfigured guild with column defaults (`appeals/config/getConfig.ts`).
 CREATE TABLE appeals_settings (
   guild_id              TEXT PRIMARY KEY,
   -- Where appeals are posted. A text channel gets one embed per appeal with a thread created on it
@@ -1678,13 +1681,17 @@ CREATE TABLE appeal_events (
 -- One appeal's trail, oldest first -- the only way this table is ever read.
 CREATE INDEX appeal_events_appeal_id_id_idx ON appeal_events (appeal_id, id);
 
--- Cache of per-guild probe results, so a returning appellant sees the servers they already checked without
--- re-probing. Deliberately allowed to go stale: the probe re-establishes truth when they open a guild and
--- again at submit, and correctness only has to hold at submit time.
+-- What we believe about a (user, guild) ban, from two sources: a probe we ran, and `GUILD_BAN_ADD` observed by
+-- `services/appeals-bot` in a guild that accepts appeals. Deliberately allowed to go stale -- the probe
+-- re-establishes truth when the appellant opens a guild and again at submit, and correctness only has to hold
+-- at submit time.
 --
--- **NOT a ban index.** See docs/roadmap/09-appeals.md §4 on why there is no such thing here and why building
--- one -- by fanning out at login or by mirroring bans off the gateway -- is the failure mode this design
--- exists to avoid.
+-- **Still not an authority, and never complete.** Bans issued before the bot joined a guild, or while it was
+-- down, produce no event and no row; guilds that never configured Appeals are not recorded at all. Reading
+-- this table as "every server X is banned in" is the mistake docs/roadmap/09-appeals.md §4 exists to prevent --
+-- what it is safe for is *suggesting* servers to an appellant, which is why `readKnownBans` re-probes every row
+-- it is about to show. The gateway feeding it (superseding an earlier UPDATE-only rule, 2026-09-10) makes the
+-- hint good enough to be worth showing on sign-in; it does not make it the truth.
 CREATE TABLE appeal_ban_checks (
   user_id    TEXT NOT NULL,
   guild_id   TEXT NOT NULL,

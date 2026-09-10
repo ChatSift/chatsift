@@ -17,14 +17,14 @@ Full doc set:
 - [docs/roadmap/11-automoderator-port.md](docs/roadmap/11-automoderator-port.md) -- AutoModerator rebuilt as a monolith on the v3 stack (planned). Supersedes the "AutoModerator is out of scope" framing below and in 00-overview.
 - [docs/roadmap/12-horizontal-scaling.md](docs/roadmap/12-horizontal-scaling.md) -- how bots run as N replicas (implemented, off by default). Read before touching `bot-core`'s gateway/session/replica code or adding a DB-driven timer to a bot.
 - [docs/workflow.md](docs/workflow.md) -- branching, commits, local dev, verification standard.
-- [docs/frontend.md](docs/frontend.md) -- `apps/website` conventions: theme tokens, component library, forms, data fetching. Read before writing UI code.
+- [docs/frontend.md](docs/frontend.md) -- `apps/website` and `apps/appeals` conventions: theme tokens, component library, forms, data fetching. Read before writing UI code.
 
 M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done and their per-milestone spec docs have been removed; durable architecture knowledge from them lives in 01-architecture.md and workflow.md now. Git history has the specs if you need the original planning detail. The ModMail dashboard thread-history view (#261) shipped the same way -- its spec doc is gone, durable shape now lives in [01-architecture.md §7](docs/roadmap/01-architecture.md#7-modmail-thread-history-dashboard-view-261). Custom ModMail instances (#216, branded single-guild deployments + DM front door) shipped the same way too -- durable shape is [01-architecture.md §8](docs/roadmap/01-architecture.md#8-custom-modmail-instances-216), the operational runbook is in [docs/workflow.md](docs/workflow.md#custom-modmail-instances-216).
 
 ## Quick facts
 
 - Yarn 4 (Berry) workspaces + Turborepo monorepo, ESM, TypeScript strict.
-- `apps/website` -- Next.js App Router dashboard. `services/api` -- polka HTTP API. `services/ama-bot`/`services/modmail-bot` -- gateway Discord bots. `packages/private/{core,backend-core,bot-core}` -- shared code, plus `packages/private/web-core` (`@chatsift/web-core`), the shared frontend substrate every `apps/*` builds on.
+- `apps/website` -- Next.js App Router dashboard. `apps/appeals` -- `unban.app`, the appellant-facing Next app (#232 P3). `services/api` -- polka HTTP API. `services/ama-bot`/`services/modmail-bot` -- gateway Discord bots. `packages/private/{core,backend-core,bot-core}` -- shared code, plus `packages/private/web-core` (`@chatsift/web-core`), the shared frontend substrate every `apps/*` builds on.
 - **This repo is being actively refactored** -- M1 (foundation refactor) landed 2026-07-17, so the ADRs' "current/being replaced" framing is historical, not the present state; [01-architecture.md](docs/roadmap/01-architecture.md) has the actual current shape. Check the actual code first regardless -- docs describe intent and rationale, not necessarily the exact present-moment state if work has progressed since a doc was last updated.
 - Commands: `yarn build`, `yarn lint`, `yarn test`, `yarn format:check` -- all four are per-package turbo tasks, so repeat runs are cache hits. Commit messages are commitlint-enforced (angular config) -- see [docs/workflow.md](docs/workflow.md).
 - Reference architecture for the API contract + DB patterns: `/Users/didinele/Documents/Work/didinele/SimplyChords` (private repo, local path only -- not fetchable by URL).
@@ -52,9 +52,11 @@ M1–M3 (foundation refactor, dashboard polish, AMA feature-complete) are done a
   even if irrelevant for the current task.
 - Do not use `’`
 
-## Frontend (`apps/website`)
+## Frontend (`apps/website`, `apps/appeals`)
 
-Full conventions in [docs/frontend.md](docs/frontend.md) -- read it before writing UI code. The three rules that fail _silently_ if ignored:
+Full conventions in [docs/frontend.md](docs/frontend.md) -- read it before writing UI code. Both apps build on
+`@chatsift/web-core` and share every rule below; what is dashboard-specific (its session, guild context, realtime,
+and the 14 components that stayed in the app) is called out there. The three rules that fail _silently_ if ignored:
 
 1. **Tailwind's default palette does not exist.** `packages/private/web-core/src/styles/theme.css` sets `--color-*: initial`, so `bg-black`, `text-white`, `text-red-500`, `bg-white/60` compile to **nothing** -- no error, no style, the class just does nothing. Only the tokens in that `@theme` block work (`base`, `card`, `accent`, `overlay`, `primary`, `secondary`, `disabled`, `on-primary`/`on-secondary`/`on-tertiary`, `misc-accent`/`misc-danger`/`misc-warning`/`misc-system`). Read that file before picking any colour class, and spell out dark mode manually (`bg-card dark:bg-card-dark`) -- the `-dark` tokens do not apply automatically. There is no `tailwind.config.*` file; that CSS file is the whole theme, and it is shared by every app -- each app's own `globals.css` only imports it (with a **bare-string** `@import`, never `@import url(...)`, which silently drops the whole theme and hands back Tailwind's default palette).
 2. **Always use `@chatsift/web-core/components/Button`** -- not a raw `<button>`, not `react-aria-components`' `Button` directly. It wraps `onPress` with automatic pending state and an error-banner safety net. It has no `variant` prop; take its class string from `@chatsift/web-core/components/buttonStyles` (`buttonClass('primary' | 'secondary' | 'danger', 'md' | 'field' | 'sm')` -- `md` only for a page's single submit, `field` for a button on an input's row, `sm` for anything inside a card or row), use `FormActions` for any form's submit/cancel pair, and `SegmentedControl` for any mode switch or on/off toggle.

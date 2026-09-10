@@ -1,9 +1,9 @@
 import type { Logger } from '@chatsift/backend-core';
 import { expect, test, vi } from 'vitest';
-import { sanitizeRedirectTo } from '../redirectTo.js';
+import { sanitizeAppealsRedirectTo, sanitizeRedirectTo } from '../redirectTo.js';
 
 vi.mock('@chatsift/backend-core', () => ({
-	getContext: () => ({ FRONTEND_URL: 'https://example.com' }),
+	getContext: () => ({ FRONTEND_URL: 'https://example.com', APPEALS_FRONTEND_URL: 'https://unban.example' }),
 }));
 
 function createMockLogger(): Logger {
@@ -102,4 +102,38 @@ test('the report page is not a way out of the origin check', () => {
 	const logger = createMockLogger();
 	expect(sanitizeRedirectTo('https://evil.com/automoderator/report/x', logger)).toBe('/dashboard');
 	expect(sanitizeRedirectTo('//evil.com/automoderator/report/x', logger)).toBe('/dashboard');
+});
+
+test("the appeals variant accepts unban.app's own three surfaces", () => {
+	const logger = createMockLogger();
+	expect(sanitizeAppealsRedirectTo('/', logger)).toBe('/');
+	expect(sanitizeAppealsRedirectTo('/g/1234567890', logger)).toBe('/g/1234567890');
+	expect(sanitizeAppealsRedirectTo('/appeals', logger)).toBe('/appeals');
+	expect(logger.warn).not.toHaveBeenCalled();
+});
+
+test('the appeals variant does not treat its "/" entry as a prefix', () => {
+	// `'/'` is a prefix of every path, so a prefix check that included it would silently accept the whole site --
+	// including `/<inviteCode>`, the one route deliberately left off the allowlist.
+	const logger = createMockLogger();
+	expect(sanitizeAppealsRedirectTo('/some-invite-code', logger)).toBe('/');
+	expect(sanitizeAppealsRedirectTo('/anything/at/all', logger)).toBe('/');
+	expect(logger.warn).toHaveBeenCalledTimes(2);
+});
+
+test('the appeals variant carries a query string back through login', () => {
+	// How the invite entry point survives a logged-out arrival: `/<inviteCode>` is off the allowlist by design,
+	// so the invite page sends login to `/?invite=<code>` and `InviteHandoff` forwards it on the other side.
+	// Regressing this silently strands every appellant who follows an `unban.app/<code>` link without a session.
+	const logger = createMockLogger();
+	expect(sanitizeAppealsRedirectTo('/?invite=tgZ2pSgXXv', logger)).toBe('/?invite=tgZ2pSgXXv');
+	expect(logger.warn).not.toHaveBeenCalled();
+});
+
+test('the two frontends cannot redirect into one another', () => {
+	// The whole point of the second entry point: an appeals login bounced onto the dashboard's origin (or the
+	// reverse) would hand a session cookie's return trip to the wrong site.
+	const logger = createMockLogger();
+	expect(sanitizeAppealsRedirectTo('https://example.com/dashboard', logger)).toBe('/');
+	expect(sanitizeRedirectTo('https://unban.example/g/123', logger)).toBe('/dashboard');
 });

@@ -1,0 +1,22 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"extends": ["//"],
+	"tasks": {
+		"build": {
+			"inputs": [
+				"src/**",
+				"public/**",
+				"package.json",
+				"tsconfig.json",
+				"next.config.mjs",
+				"$TURBO_ROOT$/scripts/sync-web-core-assets.mjs",
+				"postcss.config.js",
+				".env.development"
+			],
+			"env": ["NEXT_PUBLIC_WEBSITE_URL"]
+		},
+		"test": {
+			"outputs": []
+		}
+	}
+}

@@ -1,4 +1,9 @@
-import { APPEAL_COOLDOWN_MAX_DAYS, APPEAL_MAX_APPEALS_CEILING } from '@chatsift/core';
+import {
+	APPEAL_ANSWER_MAX_LENGTH,
+	APPEAL_COOLDOWN_MAX_DAYS,
+	APPEAL_MAX_APPEALS_CEILING,
+	APPEAL_QUESTION_MAX_COUNT,
+} from '@chatsift/core';
 import { z } from 'zod';
 import { snowflakeSchema } from '../../util/schemas.js';
 
@@ -31,4 +36,24 @@ export const createUnappealableUserBodySchema = z.strictObject({
 
 export const deleteUnappealableUserBodySchema = z.strictObject({
 	userId: snowflakeSchema,
+});
+
+/**
+ * An appeal as `unban.app` submits it (P3). Answers are addressed by question id rather than by position: a
+ * guild editing its questionnaire (P7) between the form rendering and the appellant pressing submit would
+ * otherwise silently re-point every answer at whatever question now sits at that index, and the
+ * `prompt_snapshot` written alongside would record the wrong prompt for the rest of the appeal's life.
+ *
+ * Empty answers are accepted here and rejected in the route instead, where the guild's `required` flags are
+ * known -- an optional question left blank is a legitimate submission, and zod cannot tell the two apart.
+ */
+export const submitAppealBodySchema = z.strictObject({
+	answers: z
+		.array(
+			z.strictObject({
+				questionId: z.number().int().positive(),
+				answer: z.string().trim().max(APPEAL_ANSWER_MAX_LENGTH),
+			}),
+		)
+		.max(APPEAL_QUESTION_MAX_COUNT),
 });

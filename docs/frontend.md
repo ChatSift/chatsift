@@ -3,6 +3,14 @@
 Everything an agent needs before writing UI code. [roadmap/01-architecture.md](roadmap/01-architecture.md) covers
 the backend; this covers the dashboard.
 
+**There is a second app now.** `apps/appeals` (`unban.app`, #232 P3) is built on the same `@chatsift/web-core`
+substrate and everything below about the theme, the component library and the lint rules applies to it unchanged.
+What does _not_ carry over is anything dashboard-specific: it has no session of the kind described here (its own
+lives behind `isAppealsAuthed`, in a differently-named cookie on a different eTLD+1), no guild context, no
+realtime WS, and none of the 14 components that stayed in `apps/website/src/components/common/`. It is also
+client-rendered throughout -- no `prefetch()`, no server components that fetch. When something reads as "the
+dashboard does X", check whether X is a property of the substrate or of the dashboard before copying it across.
+
 The short version, if you read nothing else:
 
 1. **Tailwind's default palette is disabled.** `bg-black`, `text-white`, `text-red-500` compile to nothing.
@@ -22,7 +30,13 @@ Next.js 15 App Router, React 19, TypeScript strict, Tailwind v4. Path alias `@/*
   Prop interfaces are named `XProps` and declared directly above the component. Method-style props
   (`onChange(value: string): void`) are non-readonly; data props are `readonly`.
 - `next.config.mjs` defines `redirects()` for `/github`, `/support`, `/invites/ama`, `/invites/modmail`,
-  `/invites/automoderator`, `/kofi` -- link to those internal paths, not the external URLs.
+  `/invites/automoderator`, `/kofi` -- link to those internal paths, not the external URLs. `apps/appeals` has
+  no such routes and reaches them through `SITE_URL` instead.
+- **Static brand assets are synced, not committed per app.** `scripts/sync-web-core-assets.mjs` copies the
+  Author fonts and `favicon.ico` out of `packages/private/web-core/assets/` into each app's `public/assets/` on
+  every `build`, `dev` and `start`; both destinations are gitignored. Add a shared asset there, not to an app.
+  The favicon lands at `/assets/favicon.ico` and is wired through `metadata.icons`, **not** as a root
+  `public/favicon.ico` -- Next's file convention for that would take precedence over the metadata.
 - `images.remotePatterns` only allows `cdn.discordapp.com/icons/**` and `/app-icons/**`. Any other remote image host
   needs a config change.
 
@@ -88,6 +102,17 @@ as `@/components/common/X`.
 
 - **Primitives** -- `Button`, `Heading`, `Skeleton`, `EmptyState`, `ScrollArea`, `Tooltip`, `Avatar`,
   `GenericAvatar`, `GenericAvatarImages`, `DiscordUserAvatar`, `Emoji`
+- **Site chrome** -- `Footer` (pass `siteUrl` from an app that isn't served from `automoderator.app`: its links
+  are all routes there, and it is what turns the copyright line into the way back to the main site),
+  `ThemeSwitchButton`, `SiteLogo` (the ChatSift mark plus a `label`, so `unban.app` names itself while keeping
+  the mark), and `nav/{NavbarShell,NavbarDesktop,NavbarMobile,LoginButton}` -- see the navbar note below
+- **Social cards** -- `utils/og`'s `renderOgCard` draws the one card layout both sites unfurl with, taking a
+  `siteName` for the wordmark. `utils/ogConstants` holds `OG_SIZE`/`OG_CONTENT_TYPE` in a module of their own,
+  deliberately: `utils/og` pulls in `next/og` and `node:fs`, and an app's `utils/site.ts` -- which every page's
+  metadata imports -- should not carry either just to know how big a card is.
+- **Brand icons** -- `@chatsift/web-core/components/icons/{SvgChatSift,SvgDiscord,SvgGitHub,SvgDarkTheme,SvgLightTheme}`.
+  Everything else under `apps/website/src/components/icons/` is dashboard-specific and stays there.
+- **Hooks** -- `@chatsift/web-core/hooks/useIsMounted`. The only one; the rest are the dashboard's.
 - **Form fields** -- `TextField`, `TextAreaField`, `RawJsonField`, `SnowflakeInput`, `ColorField`, `SearchBar`,
   `SegmentedControl` (pick one of a few -- every mode switch and on/off toggle), `FormActions` (the
   submit+cancel pair)
@@ -100,8 +125,34 @@ hooks or branding:
 - **Guild pickers** -- `ChannelSelect`, `RoleSelect`, `ForumTagSelect`, `EmojiInput` (all typed against
   `@/api/routes/guilds`)
 - **Navigation / session** -- `Breadcrumb`, `BreadcrumbDropdown`, `GuildIcon`, `NavGate`, `Providers`,
-  `RefreshServerDataButton`, `Logo`
+  `RefreshServerDataButton`
 - **Discord rendering** -- `DiscordMarkdown`, `EmbedMessagePreview`, `TemplatePlaceholdersHint`
+
+**The navbar is shared too**, and is worth understanding before touching either app's header.
+`@chatsift/web-core/components/nav/` owns `NavbarShell` (the sticky, full-bleed `<header>`), `NavbarDesktop`,
+`NavbarMobile` (the hamburger sheet) and `LoginButton`. Each app composes them:
+
+```tsx
+<NavbarShell mobile={<NavbarMobile account={<UserMobile />} items={items} label="ChatSift" />}>
+	<NavbarDesktop account={<UserDesktop />} extraItems={<AdminNavLink />} items={items} label="ChatSift" />
+</NavbarShell>
+```
+
+Only three things are per-app: the wordmark `label`, the `items`, and the `account` slot -- the last because each
+app has its own session and its own `useMe`, which is exactly the part that could not be shared. Two rules fall
+out of that:
+
+- **Take link styling from the navbar, not from a copy.** `NAV_LINK_CLASS` (desktop) and `MOBILE_NAV_LINK_CLASS`
+  (mobile) are exported for links that have to be their own client component to decide whether to render at all
+  -- `AdminNavLink` is the one that does.
+- **The mobile sheet closes through `useCloseNavbarMobile()`, not a prop.** Anything in `account`/`extraItems`
+  that navigates or signs out calls it; it is a no-op in the desktop navbar, so one component works in both. The
+  slots are plain `ReactNode`s on purpose -- render props there meant defining a component inside `Navbar`'s
+  render, which React reconciles as a new type every time.
+
+`LoginButton` is deliberately the bare `Button` rather than `buttonClass('primary')`: in a navbar the account
+slot is not the page's primary action. A page that wants signing in to _be_ the primary action says so on the
+page (`apps/appeals`'s `SignInPrompt`).
 
 `Providers` in particular cannot move: it calls `getBrowserQueryClient()` internally and can't take the client
 as a prop, because `app/layout.tsx` is a Server Component and a `QueryClient` is not serialisable across that

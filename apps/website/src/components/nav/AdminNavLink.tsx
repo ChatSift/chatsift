@@ -1,14 +1,15 @@
 'use client';
 
+import { NAV_LINK_CLASS } from '@chatsift/web-core/components/nav/NavbarDesktop';
+import { MOBILE_NAV_LINK_CLASS, useCloseNavbarMobile } from '@chatsift/web-core/components/nav/NavbarMobile';
 import { useMe } from '@/api/routes/auth';
 
 interface AdminNavLinkProps {
 	/**
-	 * The surrounding navbar's own link styling -- desktop and mobile style theirs differently, and this
-	 * renders inside both.
+	 * Which navbar this is rendering in -- the two style their links differently, and this renders in both.
+	 * The classes come from the navbar components themselves so the two can never drift apart.
 	 */
-	readonly className: string;
-	onNavigate?(): void;
+	readonly mobile?: boolean;
 }
 
 /**
@@ -18,15 +19,17 @@ interface AdminNavLinkProps {
  * Hiding it from non-admins is discoverability, not access control -- `/admin` bounces them and all three
  * `/v3/experiments` routes require `isGlobalAdmin` regardless.
  */
-export function AdminNavLink({ className, onNavigate }: AdminNavLinkProps) {
+export function AdminNavLink({ mobile = false }: AdminNavLinkProps) {
 	const { data: user } = useMe();
+	// A no-op in the desktop navbar, which has no sheet to put away -- see `useCloseNavbarMobile`.
+	const closeNavbarMobile = useCloseNavbarMobile();
 
 	if (!user?.isGlobalAdmin) {
 		return null;
 	}
 
 	return (
-		<a className={className} href="/admin" onClick={onNavigate}>
+		<a className={mobile ? MOBILE_NAV_LINK_CLASS : NAV_LINK_CLASS} href="/admin" onClick={closeNavbarMobile}>
 			Admin
 		</a>
 	);

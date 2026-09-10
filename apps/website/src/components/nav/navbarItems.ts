@@ -1,7 +1,4 @@
-interface NavbarItem {
-	readonly href: string;
-	readonly name: string;
-}
+import type { NavbarItem } from '@chatsift/web-core/components/nav/NavbarDesktop';
 
 export const navbarItems = [
 	{

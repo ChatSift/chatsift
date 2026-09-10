@@ -34,8 +34,16 @@ import createAMATagRoute from './routes/ama/tags/createTag.js';
 import deleteAMATagRoute from './routes/ama/tags/deleteTag.js';
 import listAMATagsRoute from './routes/ama/tags/listTags.js';
 import updateAMARoute from './routes/ama/updateAMA.js';
+import appealsDiscordRoute from './routes/appeals/auth/discord.js';
+import appealsDiscordCallbackRoute from './routes/appeals/auth/discordCallback.js';
+import appealsLogoutRoute from './routes/appeals/auth/logout.js';
+import appealsMeRoute from './routes/appeals/auth/me.js';
 import getAppealsConfigRoute from './routes/appeals/config/getConfig.js';
 import updateAppealsConfigRoute from './routes/appeals/config/updateConfig.js';
+import checkAppealsGuildRoute from './routes/appeals/public/checkGuild.js';
+import listMyAppealsRoute from './routes/appeals/public/listMyAppeals.js';
+import resolveAppealsInviteRoute from './routes/appeals/public/resolveInvite.js';
+import submitAppealRoute from './routes/appeals/public/submitAppeal.js';
 import createUnappealableUserRoute from './routes/appeals/unappealableUsers/createUnappealableUser.js';
 import deleteUnappealableUserRoute from './routes/appeals/unappealableUsers/deleteUnappealableUser.js';
 import listUnappealableUsersRoute from './routes/appeals/unappealableUsers/listUnappealableUsers.js';
@@ -332,6 +340,17 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listUnappealableUsersRoute);
 	mountRoute(app, createUnappealableUserRoute);
 	mountRoute(app, deleteUnappealableUserRoute);
+
+	// `unban.app` (#232 P3). Every route below is guarded by `isAppealsAuthed`, never `isAuthed` -- the two
+	// session kinds share no middleware, so neither can reach the other's routes (see `isAppealsAuthed.ts`).
+	mountRoute(app, appealsDiscordRoute);
+	mountRoute(app, appealsDiscordCallbackRoute);
+	mountRoute(app, appealsMeRoute);
+	mountRoute(app, appealsLogoutRoute);
+	mountRoute(app, resolveAppealsInviteRoute);
+	mountRoute(app, listMyAppealsRoute);
+	mountRoute(app, checkAppealsGuildRoute);
+	mountRoute(app, submitAppealRoute);
 
 	mountRoute(app, listExperimentsRoute);
 	mountRoute(app, upsertExperimentRoute);

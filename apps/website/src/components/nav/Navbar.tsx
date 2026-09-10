@@ -1,13 +1,24 @@
-import { NavbarDesktop } from './NavbarDesktop';
-import { NavbarMobile } from './NavbarMobile';
+import { NavbarDesktop } from '@chatsift/web-core/components/nav/NavbarDesktop';
+import { NavbarMobile } from '@chatsift/web-core/components/nav/NavbarMobile';
+import { NavbarShell } from '@chatsift/web-core/components/nav/NavbarShell';
+import { AdminNavLink } from './AdminNavLink';
+import { navbarItems } from './navbarItems';
+import { UserDesktop } from '@/components/user/UserDesktop';
+import { UserMobile } from '@/components/user/UserMobile';
 
 export function Navbar() {
 	return (
-		<header className="sticky top-0 z-50 flex h-16 w-full flex-col bg-base dark:bg-base-dark lg:h-auto lg:border-b-2 lg:border-solid lg:dark:border-on-secondary-dark lg:border-on-secondary lg:py-4 lg:pl-6 lg:pr-8">
-			<NavbarDesktop />
-			<div id="mobile-override-container">
-				<NavbarMobile />
-			</div>
-		</header>
+		<NavbarShell
+			mobile={
+				<NavbarMobile
+					account={<UserMobile />}
+					extraItems={<AdminNavLink mobile />}
+					items={navbarItems}
+					label="ChatSift"
+				/>
+			}
+		>
+			<NavbarDesktop account={<UserDesktop />} extraItems={<AdminNavLink />} items={navbarItems} label="ChatSift" />
+		</NavbarShell>
 	);
 }

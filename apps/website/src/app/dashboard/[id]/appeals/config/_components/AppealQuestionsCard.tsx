@@ -12,8 +12,8 @@ interface AppealQuestionsCardProps {
  *
  * Rendered from `DEFAULT_APPEAL_QUESTIONS` while the list is empty, which is exactly as long as the guild has
  * no settings row -- the API seeds real rows on the first save (see `updateConfig.ts`). Showing the defaults
- * rather than an empty card is what makes the setup screen say what saving will produce, and both paths render
- * the same questions because both read the same constant.
+ * rather than an empty card is what lets the card say what saving will produce, and both paths render the same
+ * questions because both read the same constant.
  */
 export function AppealQuestionsCard({ questions }: AppealQuestionsCardProps) {
 	const isSeeded = questions.length > 0;

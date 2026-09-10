@@ -104,11 +104,82 @@ export async function probeGuildBan(
 }
 
 /**
- * Every guild this appellant has already been probed against, newest check first. A hint for their landing
- * page, never an authority -- see this module's `probeGuildBan` and §4 on why there is no ban index here.
+ * How many known bans the appellant's own surfaces will show, and therefore the hard ceiling on how many probes
+ * one page load can cost.
+ *
+ * Ten is generous rather than tuned: this list is a convenience for somebody returning to a server they already
+ * looked at, and a person tracking more than ten simultaneous bans is not the case to size it for. The ceiling
+ * exists because the row count is otherwise a function of how many guilds this user has poked at, which is
+ * theirs to grow without limit -- and an unbounded `Promise.all` against the proxy is the one failure mode §4
+ * spends a page designing out.
  */
-export async function readBanChecks(userId: Snowflake): Promise<AppealBanChecks[]> {
-	return getContext().db<AppealBanChecks[]>`
-		SELECT * FROM appeal_ban_checks WHERE user_id = ${userId} ORDER BY checked_at DESC
+const KNOWN_BAN_LIMIT = 10;
+
+/**
+ * How long a cached ban check is taken at its word before it is re-probed.
+ *
+ * `services/appeals-bot` writes these rows straight off `GUILD_BAN_ADD`/`GUILD_BAN_REMOVE`, so while the bot is
+ * up and in the guild a row is created or corrected within seconds of anything changing -- which is why a recent
+ * row can be trusted at all. What that does *not* survive is downtime: events missed while the bot was down are never
+ * replayed, and an old `checked_at` cannot be told apart from "nothing has happened since". Six hours is the
+ * window where a missed unban heals the same day while a returning appellant usually pays nothing.
+ */
+const KNOWN_BAN_TRUSTED_FOR_MS = 6 * 60 * 60 * 1_000;
+
+/**
+ * The servers this appellant has checked here and is **still banned in**, newest check first.
+ *
+ * Read §4 before changing this, because the distinction it rests on is easy to lose. Rows come from two places
+ * -- a probe this appellant caused, and a `GUILD_BAN_ADD` the gateway saw in a guild that accepts appeals -- and
+ * neither makes the table complete. Bans predating the bot's arrival in a guild, bans during downtime, and every
+ * guild that does not use Appeals are all absent, permanently. So this suggests servers; it does not answer
+ * "which servers am I banned in?", and the copy on top of it says as much.
+ *
+ * What it *does* do beyond the raw cache is re-establish the answer before showing it. A row the gateway
+ * touched recently is trusted; anything older is re-probed, and a probe that comes back "not banned" drops the
+ * entry (and heals the row on its way through `probeGuildBan`). A probe that cannot tell -- a guild whose bot
+ * lost `BAN_MEMBERS`, or one inside the negative-cache window -- keeps the entry, since there is no better
+ * information available and the guild page re-establishes it on arrival anyway.
+ *
+ * @param userId - The signed-in appellant.
+ * @param exclude - Guilds the caller already has an appeal open in. Filtered out *before* the re-probe, so a
+ * server that is already being appealed never costs a Discord call to re-confirm.
+ * @param logger - Passed through to `probeGuildBan` for its back-off warnings.
+ */
+export async function readKnownBans(
+	userId: Snowflake,
+	exclude: ReadonlySet<Snowflake>,
+	logger: Logger,
+): Promise<AppealBanChecks[]> {
+	// Bounded in SQL as well as below, so a prolific appellant cannot turn this into an unbounded read. The
+	// limit has to allow for `exclude` because the filter runs after the query: without the offset, an appellant
+	// whose most recent checks all already have appeals would come back with nothing left to show.
+	const cached = await getContext().db<AppealBanChecks[]>`
+		SELECT * FROM appeal_ban_checks
+		WHERE user_id = ${userId} AND banned = true
+		ORDER BY checked_at DESC
+		LIMIT ${KNOWN_BAN_LIMIT + exclude.size}
 	`;
+
+	const candidates = cached.filter((row) => !exclude.has(row.guildId)).slice(0, KNOWN_BAN_LIMIT);
+	const trustedAfter = Date.now() - KNOWN_BAN_TRUSTED_FOR_MS;
+
+	// Bounded by `KNOWN_BAN_LIMIT` above, and in the common case empty: the gateway keeps these rows fresh, so
+	// most page loads re-probe nothing at all.
+	const verified = await Promise.all(
+		candidates.map(async (row) => {
+			if (row.checkedAt.getTime() > trustedAfter) {
+				return row;
+			}
+
+			const probe = await probeGuildBan(row.guildId, userId, logger);
+			if (!probe) {
+				return row;
+			}
+
+			return probe.banned ? { ...row, banReason: probe.banReason, checkedAt: new Date() } : null;
+		}),
+	);
+
+	return verified.filter((row): row is AppealBanChecks => row !== null);
 }
