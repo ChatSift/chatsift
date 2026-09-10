@@ -3,6 +3,14 @@
 Everything an agent needs before writing UI code. [roadmap/01-architecture.md](roadmap/01-architecture.md) covers
 the backend; this covers the dashboard.
 
+**There is a second app now.** `apps/appeals` (`unban.app`, #232 P3) is built on the same `@chatsift/web-core`
+substrate and everything below about the theme, the component library and the lint rules applies to it unchanged.
+What does _not_ carry over is anything dashboard-specific: it has no session of the kind described here (its own
+lives behind `isAppealsAuthed`, in a differently-named cookie on a different eTLD+1), no guild context, no
+realtime WS, and none of the 14 components that stayed in `apps/website/src/components/common/`. It is also
+client-rendered throughout -- no `prefetch()`, no server components that fetch. When something reads as "the
+dashboard does X", check whether X is a property of the substrate or of the dashboard before copying it across.
+
 The short version, if you read nothing else:
 
 1. **Tailwind's default palette is disabled.** `bg-black`, `text-white`, `text-red-500` compile to nothing.

@@ -1523,10 +1523,13 @@ CREATE INDEX automoderator_trigger_counts_updated_at_idx
 -- `appeal_ban_checks`, whose rows `services/appeals-bot` also refreshes from GUILD_BAN_ADD/REMOVE -- see that
 -- table's own comment for why it may only ever UPDATE them, never INSERT.
 
--- Per-guild Appeals configuration. A row here means the guild has finished setup; the Appeals bot merely
--- being present (the `bot:APPEALS` guild list, published by `services/appeals-bot`'s gateway connection) is
--- what the dashboard's setup CTA keys off instead. The two are genuinely different states and the CTA has to
--- render for exactly one of them, which is why presence is not derived from this table.
+-- Per-guild Appeals configuration. **A row here means the guild accepts appeals**, and that is what
+-- `evaluateAppealEligibility` asks before anything else -- a guild with no row answers `NOT_CONFIGURED` on
+-- `unban.app` and costs no Discord call. Distinct from the Appeals bot merely being present (the `bot:APPEALS`
+-- guild list, published by `services/appeals-bot`'s gateway connection), which is what the dashboard renders
+-- its Appeals section off; the two are genuinely different states, which is why presence is not derived from
+-- this table. The dashboard itself does not branch on the row existing -- its config screen is an ordinary
+-- form that answers an unconfigured guild with column defaults (`appeals/config/getConfig.ts`).
 CREATE TABLE appeals_settings (
   guild_id              TEXT PRIMARY KEY,
   -- Where appeals are posted. A text channel gets one embed per appeal with a thread created on it

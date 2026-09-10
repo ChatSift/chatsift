@@ -458,7 +458,7 @@ through the symlinked `.env.private`. Two guards keep a worktree from mutating i
   yarn db:migrate
   ```
 
-Redis, the dev ports (`3000`, `7004`–`7009`) and the Discord bot tokens stay shared and unguarded. Two dev servers or
+Redis, the dev ports (`3000`, `3001`, `7004`–`7010`) and the Discord bot tokens stay shared and unguarded. Two dev servers or
 two bots running at once will collide — but per the [verification standard](#verification-standard) that is the
 operator's lane, and an agent's job in a worktree (`yarn build`, `lint`, `test`) touches none of them.
 
@@ -675,6 +675,46 @@ incident, go through a container already on the network:
 (pushing the moving `<channel>-caddy` tag on every commit would recreate the container terminating TLS for every
 domain on every deploy), and the host-side `./compose pull && ./compose up -d` picks it up. Immutable
 `<channel>-caddy-<sha>` tags are pushed alongside for the same rollback story as the service images.
+
+## `unban.app` (#232 P3)
+
+The appellant-facing app is `apps/appeals`, and it is the second Next app on the `@chatsift/web-core` substrate. It
+is a **separate Discord application and a separate eTLD+1** from the dashboard on purpose (decision 3): a banned
+user is never asked to authorize something branded for a product they have no relationship with.
+
+### Running it locally
+
+```sh
+yarn workspace @chatsift/appeals dev   # http://localhost:3001, matching APPEALS_FRONTEND_URL_DEV
+```
+
+It needs `yarn dev:api` running alongside it, and nothing else -- no bot, no gateway. The Appeals bot only
+matters once a guild is being configured or an appeal is being posted; the appellant-facing routes reach Discord
+through the API's own Appeals REST client.
+
+The two sessions are meant to be mutually unreachable, and that is worth exercising rather than trusting: sign in
+on `localhost:3001`, confirm `localhost:3000`'s dashboard session is untouched, and confirm each app's cookie is
+rejected by the other's routes. `services/api/src/middleware/__tests__/isAppealsAuthed.test.ts` covers both
+crossings at the unit level; the browser half is the operator's.
+
+### One-time setup per environment
+
+Dev and prod run two _different_ Appeals applications, which is why `APPEALS_OAUTH_CLIENT_ID` lives in the
+per-host `.env.private` rather than in `.env.public` alongside the dashboard's.
+
+1. On the Appeals application's OAuth2 page, add a redirect URI of `<API_URL>/v3/appeals/auth/discord/callback`
+   -- `http://localhost:7004/...` for dev, `https://api.automoderator.app/...` for prod. Discord rejects the
+   authorize request outright if it does not match, byte for byte.
+2. Fill in `APPEALS_OAUTH_CLIENT_ID` and `APPEALS_OAUTH_CLIENT_SECRET` in `.env.private`.
+3. For prod only: a Vercel project for `apps/appeals` with `NEXT_PUBLIC_API_URL=https://api.automoderator.app`,
+   pointed at `unban.app`.
+
+**The consent screen is worth reading once, and it is the thing to check if decisions stop being deliverable.**
+The authorize URL sends `integration_type=1` (a _user_ install), which is what turns `applications.commands` into
+permission to DM the appellant with no shared guild -- the only mechanism there is, since no OAuth scope grants
+DM permission (§6 of the roadmap doc). A correct screen shows "Send you direct messages" as its own line. If it
+does not, the flow still completes and the failure surfaces weeks later, as an approved appeal nobody can be
+told about.
 
 ## Custom ModMail instances (#216)
 

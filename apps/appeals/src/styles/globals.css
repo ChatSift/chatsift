@@ -1,0 +1,11 @@
+@import '@chatsift/web-core/styles/author.css';
+@import 'tailwindcss' source(none);
+@import 'tw-animate-css';
+/* Bare-string imports, never `@import url(...)`. Only the bare form is inlined by Tailwind, and the theme
+   file has to be inlined for its `@theme` and `@source` to exist at all. Behind `url()` Tailwind never sees
+   them: every `--color-*` token silently vanishes AND Tailwind's default palette comes back, so `bg-card`
+   stops working while `bg-black` starts. No error either way. */
+@import '@chatsift/web-core/styles/theme.css';
+
+@source '../components/**/*.{js,ts,jsx,tsx,mdx}';
+@source '../app/**/*.{js,ts,jsx,tsx,mdx}';

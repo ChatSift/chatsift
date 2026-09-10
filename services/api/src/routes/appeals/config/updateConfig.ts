@@ -124,7 +124,11 @@ export default defineRoute({
 				`;
 			}
 
-			return { settings: settings!, questions };
+			// `createdAt` stripped so this answers the exact shape `getConfig` does -- the dashboard writes this
+			// response straight into that query's cache, and a field present on one path but not the other is a
+			// difference somebody would eventually have to explain.
+			const { createdAt: _createdAt, ...rest } = settings!;
+			return { settings: rest, questions };
 		});
 	},
 });

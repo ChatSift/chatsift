@@ -117,6 +117,22 @@ export type { UnappealableUserWithUser } from './routes/appeals/unappealableUser
 export { default as createUnappealableUserRoute } from './routes/appeals/unappealableUsers/createUnappealableUser.js';
 export { default as deleteUnappealableUserRoute } from './routes/appeals/unappealableUsers/deleteUnappealableUser.js';
 
+// `unban.app`'s own contract (#232 P3). Consumed by `apps/appeals` exactly as `apps/website` consumes the
+// dashboard's, so the appellant-facing types are inferred from the routes rather than restated.
+export { default as appealsMeRoute } from './routes/appeals/auth/me.js';
+export type { AppealsMeResponse } from './routes/appeals/auth/me.js';
+export { default as resolveAppealsInviteRoute } from './routes/appeals/public/resolveInvite.js';
+export type { ResolveInviteResult } from './routes/appeals/public/resolveInvite.js';
+export { default as checkAppealsGuildRoute } from './routes/appeals/public/checkGuild.js';
+export type { AppealFormQuestion, CheckGuildResult } from './routes/appeals/public/checkGuild.js';
+export { default as submitAppealRoute } from './routes/appeals/public/submitAppeal.js';
+export type { SubmitAppealBody } from './routes/appeals/public/submitAppeal.js';
+export { default as listMyAppealsRoute } from './routes/appeals/public/listMyAppeals.js';
+export type { ListMyAppealsResult, MyAppeal } from './routes/appeals/public/listMyAppeals.js';
+export type { AppealBlockReason } from './util/appealsEligibility.js';
+export type { PublicAppeal, PublicAppealAnswer, PublicAppealStatus } from './util/appealsPublic.js';
+export type { GuildSummary } from './util/guildSummary.js';
+
 export { default as getAutomoderatorConfigRoute } from './routes/automoderator/config/getConfig.js';
 export { default as updateAutomoderatorConfigRoute } from './routes/automoderator/config/updateConfig.js';
 export { default as listAutomoderatorCasesRoute } from './routes/automoderator/cases/listCases.js';

@@ -80,16 +80,17 @@ export function AppealsConfigForm() {
 	const updateConfig = useUpdateAppealsConfig(guildId);
 
 	// Seeded once, for the same reason ModMail's config form seeds once: a background refetch after save must
-	// not clobber whatever is currently being typed. An unconfigured guild seeds from the column defaults in
-	// `appeals_settings`, so the form shows what a first save would actually write.
+	// not clobber whatever is currently being typed. `settings` is never `null` -- the API answers an
+	// unconfigured guild with the shape a fresh row would have (see `getConfig.ts`), so the form shows what a
+	// first save would actually write and needs no unconfigured branch of its own.
 	useEffect(() => {
 		if (config && form === null) {
 			setForm({
-				modChannelId: config.settings?.modChannelId ?? '',
-				cooldownDays: String(config.settings?.cooldownDays ?? 30),
-				limitAppeals: (config.settings?.maxAppeals ?? null) !== null,
-				maxAppeals: config.settings?.maxAppeals === undefined ? '3' : String(config.settings.maxAppeals ?? 3),
-				autoRejoin: config.settings?.autoRejoin ?? false,
+				modChannelId: config.settings.modChannelId ?? '',
+				cooldownDays: String(config.settings.cooldownDays),
+				limitAppeals: config.settings.maxAppeals !== null,
+				maxAppeals: String(config.settings.maxAppeals ?? 3),
+				autoRejoin: config.settings.autoRejoin,
 			});
 		}
 	}, [config, form]);
@@ -121,9 +122,10 @@ export function AppealsConfigForm() {
 	const channels = guildInfo?.channels ?? [];
 
 	const handleSave = async () => {
-		// The one field with no defaultable value, and the API says so too on a guild's first save. Checked here
-		// rather than left to zod because the schema has it `.optional()` -- absent means "unchanged", which is
-		// correct for every save after the first and wrong for the first.
+		// The one field with no defaultable value: `mod_channel_id` is `NOT NULL`, so there is no row to write
+		// without it, and the API refuses a first save that omits it. Checked here rather than left to zod
+		// because the schema has it `.optional()` -- absent means "unchanged", which is correct for every save
+		// after the first and wrong for the first.
 		if (!form.modChannelId) {
 			setErrors({ modChannelId: 'Pick a channel where appeals should be posted.' });
 			return;
@@ -156,7 +158,7 @@ export function AppealsConfigForm() {
 		try {
 			await updateConfig.mutateAsync(result.data as UpdateAppealsConfigBody);
 			setErrors({});
-			setSuccessMessage(config.settings ? 'Configuration updated.' : 'Appeals is now set up for this server.');
+			setSuccessMessage('Configuration updated.');
 		} catch (caughtError) {
 			setActionError(
 				caughtError instanceof APIError ? caughtError.message : 'Failed to update config. Please try again.',
@@ -281,7 +283,7 @@ export function AppealsConfigForm() {
 			<AppealQuestionsCard questions={config.questions} />
 
 			<Button className={buttonClass('primary')} isDisabled={isGuildInfoLoading} onPress={handleSave} type="button">
-				{config.settings ? 'Save Changes' : 'Set Up Appeals'}
+				Save Changes
 			</Button>
 		</div>
 	);

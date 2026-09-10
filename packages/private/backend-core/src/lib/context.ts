@@ -13,6 +13,11 @@ export interface ContextService {}
 
 export interface Context {
 	API_URL: string;
+	/**
+	 * `unban.app` (#232). Resolved the same way `FRONTEND_URL` is, and kept beside it rather than read from
+	 * `env` at each call site so the `IS_PRODUCTION` branch exists once for both frontends.
+	 */
+	APPEALS_FRONTEND_URL: string;
 	BCRYPT_SALT_ROUNDS: number;
 	/**
 	 * Base URL every `REST` client in this process should talk to, or `null` to talk to Discord directly.
@@ -41,6 +46,7 @@ export function initContext(given: Pick<Context, 'db' | 'logger' | 'redis'>): vo
 
 	context = {
 		API_URL: ENV.IS_PRODUCTION ? ENV.API_URL_PROD : ENV.API_URL_DEV,
+		APPEALS_FRONTEND_URL: ENV.IS_PRODUCTION ? ENV.APPEALS_FRONTEND_URL_PROD : ENV.APPEALS_FRONTEND_URL_DEV,
 		BCRYPT_SALT_ROUNDS: 14,
 		DISCORD_PROXY_URL: (ENV.IS_PRODUCTION ? ENV.DISCORD_PROXY_URL_PROD : ENV.DISCORD_PROXY_URL_DEV) ?? null,
 		FRONTEND_URL: ENV.IS_PRODUCTION ? ENV.FRONTEND_URL_PROD : ENV.FRONTEND_URL_DEV,

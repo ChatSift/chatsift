@@ -32,6 +32,15 @@ export const NewAccessTokenHeader = 'X-Update-Access-Token' as const;
 export const RefreshTokenCookie = 'refresh_token' as const;
 
 /**
+ * `unban.app`'s session cookie (#232 P3). A distinct *name* on top of the distinct cookie domain
+ * (`APPEALS_ROOT_DOMAIN`) and the `kind: 'appeals'` discriminator inside the JWT, so an appellant session and a
+ * dashboard session are unable to be mistaken for one another at three independent layers rather than one --
+ * see `services/api/src/middleware/isAppealsAuthed.ts`, which is a separate middleware from `isAuthed` for the
+ * same reason.
+ */
+export const AppealsRefreshTokenCookie = 'appeals_refresh_token' as const;
+
+/**
  * Carries the WS gateway's per-tab `realtimeClientId` (`apps/website/src/api/realtimeClientId.ts`) on an HTTP
  * mutation request, so `services/api/src/core/server.ts`'s `realtimeChannel` broadcast hook can tag the
  * resulting invalidate signal with which browser tab caused it -- see that file's doc comment for why this has
