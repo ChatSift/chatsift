@@ -165,6 +165,15 @@ export function automoderatorTriggerPunishmentsChannel(guildId: string): string 
 }
 
 /**
+ * The punishment DM notices (#232 P3b). Its own channel rather than `automoderatorConfigChannel`'s: the
+ * notices live in their own table on their own screen, and a guild editing its ban notice should not refetch
+ * every filter toggle in the process.
+ */
+export function automoderatorPunishmentNoticesChannel(guildId: string): string {
+	return `automoderator:${guildId}:punishment-notices`;
+}
+
+/**
  * Appeals' guild-wide config channel (#232, docs/roadmap/09-appeals.md).
  *
  * Guild-scoped and nothing finer at P1, because there is one settings row and one questionnaire, and the two

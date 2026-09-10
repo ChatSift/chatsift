@@ -220,6 +220,16 @@ export const TRIGGER_DECAY_MAX_MINUTES = 30 * 24 * 60;
 export const MIN_JOIN_AGE_MAX_SECONDS = 365 * 24 * 60 * 60;
 
 /**
+ * How long one punishment notice (#232 P3b) may be -- the text a guild appends to the DM the bot sends when it
+ * warns, mutes, kicks, softbans or bans somebody.
+ *
+ * A thousand characters against Discord's 2000-character message: the notice shares that message with the line
+ * naming the action and the guild, and with a reason that is itself capped at 400. Anything longer is a rules
+ * page, and a rules page belongs behind the link the notice carries rather than inside a DM.
+ */
+export const PUNISHMENT_NOTICE_MAX_LENGTH = 1_000;
+
+/**
  * The default appeal questionnaire (#232, P1). A guild's `appeal_questions` rows are seeded from this the
  * first time it saves an Appeals config, so every guild has real, editable rows from day one and P7's
  * questionnaire editor is plain CRUD over them rather than a migration that invents history.

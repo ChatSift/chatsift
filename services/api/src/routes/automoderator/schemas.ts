@@ -11,6 +11,7 @@ import {
 	EXPERIMENT_BUCKET_COUNT,
 	MAX_TIMEOUT_SECONDS,
 	MIN_JOIN_AGE_MAX_SECONDS,
+	PUNISHMENT_NOTICE_MAX_LENGTH,
 	REPORT_PRESET_MAX_LENGTH,
 	TRIGGER_DECAY_MAX_MINUTES,
 	TRIGGER_PUNISHMENT_MAX_TRIGGERS,
@@ -389,3 +390,36 @@ export const triggerPunishmentBodySchema = z
 			});
 		}
 	});
+
+/**
+ * Mirrors `CREATE TYPE automoderator_notice_scope`. Spelled out for the same reason `caseActionSchema` is, and
+ * `DEFAULT` is a member rather than the array's absence: it is the notice every action falls back to, so it is
+ * edited in the same list as the five that override it.
+ */
+export const punishmentNoticeScopeSchema = z.enum(['DEFAULT', 'WARN', 'MUTE', 'KICK', 'SOFTBAN', 'BAN']);
+
+export type PunishmentNoticeScope = z.infer<typeof punishmentNoticeScopeSchema>;
+
+/**
+ * Every punishment notice a guild has (#232 P3b), as one declarative set -- the route replaces the table's
+ * rows for that guild with exactly this list, the same shape `setFilterExemptionBodySchema` uses.
+ *
+ * Declarative rather than one route per scope because the editor is a single screen with six boxes on it and
+ * one Save: a per-scope API would turn one save into six writes, some of which are deletes, with no way to
+ * make the set land atomically. Clearing a box is that scope simply being absent from the array; there is no
+ * empty-string state to store, which is what the table's CHECK also says.
+ */
+export const setPunishmentNoticesBodySchema = z.strictObject({
+	notices: z
+		.array(
+			z.strictObject({
+				scope: punishmentNoticeScopeSchema,
+				content: z.string().trim().min(1).max(PUNISHMENT_NOTICE_MAX_LENGTH),
+			}),
+		)
+		.max(punishmentNoticeScopeSchema.options.length)
+		.refine(
+			(notices) => new Set(notices.map((notice) => notice.scope)).size === notices.length,
+			'each scope may appear at most once',
+		),
+});

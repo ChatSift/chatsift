@@ -3,6 +3,7 @@ import type { AppealQuestions, AppealsSettings } from '@chatsift/db';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
+import { buildAppealLink } from '../../../util/appealLink.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 
 const paramsSchema = z.object({ guildId: snowflakeSchema });
@@ -20,6 +21,16 @@ export interface AppealsConfigSettings extends Omit<AppealsSettings, 'createdAt'
 }
 
 export interface GetAppealsConfigResult {
+	/**
+	 * `unban.app/g/<guildId>`, or `null` while the guild has no `appeals_settings` row (#232 P3b) -- which is
+	 * the same condition `modChannelId` being null describes, and deliberately answered separately anyway: a
+	 * frontend deriving the link from that field would be re-deriving "does this guild accept appeals" on the
+	 * client, which is the one thing `modChannelId`'s own doc comment says not to do.
+	 *
+	 * Null rather than the link-anyway, because this is the string a guild is invited to publish, and the page
+	 * it points at answers "not accepting appeals" until the row exists.
+	 */
+	appealLink: string | null;
 	/**
 	 * The questionnaire, in display order. Seeded from `DEFAULT_APPEAL_QUESTIONS` on the guild's first save, so
 	 * this is empty for exactly as long as `modChannelId` is `null`. Read-only on the dashboard until P7 ships
@@ -67,6 +78,6 @@ export default defineRoute({
 			allowTimeoutAppeals: false,
 		};
 
-		return { settings: resolved, questions };
+		return { settings: resolved, questions, appealLink: settings[0] ? buildAppealLink(guildId) : null };
 	},
 });

@@ -6,6 +6,7 @@ import { badRequest, internal } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
+import { buildAppealLink } from '../../../util/appealLink.js';
 import { assertBotHasChannelPermissions } from '../../../util/botPermissions.js';
 import { fetchGuildChannels } from '../../../util/channels.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
@@ -128,7 +129,9 @@ export default defineRoute({
 			// response straight into that query's cache, and a field present on one path but not the other is a
 			// difference somebody would eventually have to explain.
 			const { createdAt: _createdAt, ...rest } = settings!;
-			return { settings: rest, questions };
+			// Unconditionally non-null here where `getConfig` has to check: a save that reaches this line wrote
+			// the row, so the guild accepts appeals from this moment on.
+			return { settings: rest, questions, appealLink: buildAppealLink(guildId) };
 		});
 	},
 });

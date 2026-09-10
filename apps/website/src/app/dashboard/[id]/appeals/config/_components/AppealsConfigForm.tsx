@@ -9,6 +9,7 @@ import { TextField } from '@chatsift/web-core/components/TextField';
 import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChannelType } from 'discord-api-types/v10';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AppealQuestionsCard } from './AppealQuestionsCard';
@@ -16,6 +17,7 @@ import { queryKeys } from '@/api/queryClient';
 import type { UpdateAppealsConfigBody } from '@/api/routes/appeals';
 import { useAppealsConfig, useUpdateAppealsConfig } from '@/api/routes/appeals';
 import { useGuildInfo } from '@/api/routes/guilds';
+import { AppealLinkCopy } from '@/components/common/AppealLinkCopy';
 import { ChannelSelect } from '@/components/common/ChannelSelect';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
@@ -279,6 +281,26 @@ export function AppealsConfigForm() {
 					</p>
 				</div>
 			</div>
+
+			{config.appealLink && (
+				<div className="space-y-3 rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
+					<div>
+						<h2 className="text-xl font-medium text-primary dark:text-primary-dark">Your appeal link</h2>
+						<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
+							Where a banned member goes to appeal. Put it wherever they will still see it once they are banned - a ban
+							DM, your rules channel, your server description. AutoModerator can add it to every ban DM for you from{' '}
+							<Link
+								className="text-misc-accent hover:underline"
+								href={`/dashboard/${guildId}/automoderator/punishment-notices`}
+							>
+								Punishment Notices
+							</Link>
+							.
+						</p>
+					</div>
+					<AppealLinkCopy link={config.appealLink} />
+				</div>
+			)}
 
 			<AppealQuestionsCard questions={config.questions} />
 

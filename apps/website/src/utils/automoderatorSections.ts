@@ -22,6 +22,11 @@ export const AUTOMODERATOR_SECTION_GROUPS = [
 				title: 'Reports',
 				subtitle: 'What members have flagged to your staff team',
 			},
+			{
+				segment: 'punishment-notices',
+				title: 'Punishment Notices',
+				subtitle: 'What the bot tells somebody when it punishes them, and where they can appeal',
+			},
 		],
 	},
 	{

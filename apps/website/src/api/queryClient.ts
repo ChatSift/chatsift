@@ -114,6 +114,7 @@ export const queryKeys = {
 		allowedInvites: (guildId: string) => ['api', 'automoderator', guildId, 'allowed-invites'] as const,
 		filterExemptions: (guildId: string) => ['api', 'automoderator', guildId, 'filter-exemptions'] as const,
 		triggerPunishments: (guildId: string) => ['api', 'automoderator', guildId, 'trigger-punishments'] as const,
+		punishmentNotices: (guildId: string) => ['api', 'automoderator', guildId, 'punishment-notices'] as const,
 	},
 	appeals: {
 		all: (guildId: string) => ['api', 'appeals', guildId] as const,

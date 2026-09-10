@@ -67,6 +67,8 @@ export type {
 } from './generated/public/AutomoderatorGuildSettings.js';
 export type { default as AutomoderatorCaseAction } from './generated/public/AutomoderatorCaseAction.js';
 export type { default as AutomoderatorCases, AutomoderatorCasesId } from './generated/public/AutomoderatorCases.js';
+export type { default as AutomoderatorNoticeScope } from './generated/public/AutomoderatorNoticeScope.js';
+export type { default as AutomoderatorPunishmentNotices } from './generated/public/AutomoderatorPunishmentNotices.js';
 export type { default as AutomoderatorLogType } from './generated/public/AutomoderatorLogType.js';
 export type { default as AutomoderatorLogWebhooks } from './generated/public/AutomoderatorLogWebhooks.js';
 export type { default as AutomoderatorReportState } from './generated/public/AutomoderatorReportState.js';
