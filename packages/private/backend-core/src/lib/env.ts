@@ -151,6 +151,13 @@ export const envSchema = z.object({
 	APPEALS_ROOT_DOMAIN: z.string(),
 	APPEALS_FRONTEND_URL_DEV: z.url(),
 	APPEALS_FRONTEND_URL_PROD: z.url(),
+	// The API's *own* hostname when it is serving `unban.app`, which in production is not `API_URL` (#232 P3).
+	// It has to sit under `APPEALS_ROOT_DOMAIN`: every appeals cookie is written with `Domain=unban.app`, and a
+	// browser discards a `Set-Cookie` whose `Domain` does not domain-match the host that sent it (RFC 6265
+	// 5.3.6). Served from `api.automoderator.app` those cookies were dropped on the floor, which made the OAuth
+	// callback answer `400 bad state` every time, and would have killed the session right behind it.
+	APPEALS_API_URL_DEV: z.url(),
+	APPEALS_API_URL_PROD: z.url(),
 
 	// Dozzle log webhook relay (issue #212) — Dozzle POSTs here with a raw-JSON embed description,
 	// we prettify it and forward to the real Discord webhook

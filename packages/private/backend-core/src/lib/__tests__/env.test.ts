@@ -41,6 +41,8 @@ process.env['APPEALS_OAUTH_CLIENT_SECRET'] = 'so secret four';
 process.env['APPEALS_ROOT_DOMAIN'] = 'appeals.example.com';
 process.env['APPEALS_FRONTEND_URL_DEV'] = 'http://localhost:3001';
 process.env['APPEALS_FRONTEND_URL_PROD'] = 'https://appeals.example.com';
+process.env['APPEALS_API_URL_DEV'] = 'http://localhost:7004';
+process.env['APPEALS_API_URL_PROD'] = 'https://api.appeals.example.com';
 
 const { envSchema } = await import('../env.js');
 

@@ -212,8 +212,17 @@ the poll, `readGuildList` reaps the slice, and the dashboard flickers Appeals in
 (`OAUTH_DISCORD_CLIENT_ID`/`_SECRET`) hardcoded by `services/api/src/routes/auth/discord.ts`. What that costs:
 
 - New env in `packages/private/backend-core/src/lib/env.ts`: `APPEALS_BOT_TOKEN`, `APPEALS_METRICS_PORT`,
-  `APPEALS_OAUTH_CLIENT_ID`, `APPEALS_OAUTH_CLIENT_SECRET`, `APPEALS_ROOT_DOMAIN`, `APPEALS_FRONTEND_URL_{DEV,PROD}`.
+  `APPEALS_OAUTH_CLIENT_ID`, `APPEALS_OAUTH_CLIENT_SECRET`, `APPEALS_ROOT_DOMAIN`, `APPEALS_FRONTEND_URL_{DEV,PROD}`,
+  `APPEALS_API_URL_{DEV,PROD}`.
   (`APPEALS_PUBLIC_KEY` was here until the gateway reversal; there is no interactions endpoint to verify signatures for.)
+- **The API has to answer on a hostname under `unban.app` too** -- `api.unban.app`, added to `build/caddy/Caddyfile` as a
+  second site block in front of the same container. This was missed until the flow was first exercised in production, where
+  it failed as a flat `400 bad state` on every login: a `Set-Cookie` naming `Domain=unban.app` is discarded outright by the
+  browser when the response came from `api.automoderator.app` (RFC 6265 5.3.6), so the `appeals_state` cookie was never
+  stored and the callback had nothing to compare against. Local dev never showed it, because `IS_PRODUCTION` is false there
+  and `appealsCookieWithDomain` leaves `domain` unset. Pinning the cookie to `unban.app` is the correct half of this and
+  cannot be relaxed -- `apiFetchServer` reads the session cookie off the _`unban.app`_ request during SSR, so a cookie
+  scoped anywhere else would render every page logged-out -- which makes the API hostname the half that had to move.
 - A parallel `/v3/appeals/auth/discord` + `/v3/appeals/auth/discord/callback` pair. Scopes start at `identify` alone --
   deliberately minimal for a site whose users have no reason to trust it -- and gain `guilds` only when P9 needs it.
 - A distinct cookie name (`appeals_refresh_token`) **and** a `kind` discriminator in the JWT payload, so an appeals session
@@ -693,8 +702,9 @@ things to "finish" if you follow the file list literally.
   and adding the DSN is an operator follow-up, not a code one.
 - **Not done here, and owed before this is reachable in production:** a Vercel project for `apps/appeals`
   pointed at `unban.app`, the Appeals application's redirect URI registered as
-  `<API_URL>/v3/appeals/auth/discord/callback`, and `APPEALS_OAUTH_CLIENT_ID`/`_SECRET` filled in per host.
-  Nothing in the repo can do any of those.
+  `<APPEALS_API_URL>/v3/appeals/auth/discord/callback`, and `APPEALS_OAUTH_CLIENT_ID`/`_SECRET` filled in per host.
+  Nothing in the repo can do any of those. `<APPEALS_API_URL>` and not `<API_URL>`: the two were the same value when this
+  was written, which is exactly the assumption that produced the `400 bad state` outage -- see decision 3.
 
 ### P3b -- The appeal link rides AutoModerator's ban DM
 

@@ -32,7 +32,7 @@ export default defineRoute({
 			client_secret: getContext().env.APPEALS_OAUTH_CLIENT_SECRET,
 			grant_type: 'authorization_code',
 			code,
-			redirect_uri: `${getContext().API_URL}/v3/appeals/auth/discord/callback`,
+			redirect_uri: `${getContext().APPEALS_API_URL}/v3/appeals/auth/discord/callback`,
 		});
 
 		const returnedScopes = new Set(result.scope.split(' '));

@@ -1,3 +1,4 @@
+import { URL } from 'node:url';
 import type { Database } from '@chatsift/db';
 import type { Logger } from 'pino';
 import { ENV } from './env.js';
@@ -13,6 +14,12 @@ export interface ContextService {}
 
 export interface Context {
 	API_URL: string;
+	/**
+	 * The API's own base URL when it is acting for `unban.app` (#232 P3) -- `api.unban.app` in production, and
+	 * the same `localhost` origin as `API_URL` in dev. Distinct from `API_URL` because every appeals cookie is
+	 * pinned to `APPEALS_ROOT_DOMAIN`, and a cookie can only be set by a host under the domain it names.
+	 */
+	APPEALS_API_URL: string;
 	/**
 	 * `unban.app` (#232). Resolved the same way `FRONTEND_URL` is, and kept beside it rather than read from
 	 * `env` at each call site so the `IS_PRODUCTION` branch exists once for both frontends.
@@ -39,13 +46,46 @@ export interface Context {
 
 let context: Context | null = null;
 
+/**
+ * Fails the boot when an API base URL is served from a host that cannot write the cookies pinned to its own
+ * `*_ROOT_DOMAIN`. A browser silently discards a `Set-Cookie` whose `Domain` does not cover the host that sent
+ * it (RFC 6265 5.3.6), so getting this pair wrong does not break loudly -- it breaks as a login that always
+ * answers `400 bad state`, which is precisely how `unban.app` shipped: `APPEALS_ROOT_DOMAIN=unban.app` against
+ * an API on `api.automoderator.app`. Cheap to assert, invisible otherwise.
+ *
+ * Production only: `cookieWithDomain`/`appealsCookieWithDomain` both leave `domain` unset when `IS_PRODUCTION`
+ * is false, which is why dev runs happily with `localhost:7004` against these same two domains.
+ */
+function assertCookieDomainReachable(label: string, apiURL: string, rootDomain: string): void {
+	if (!ENV.IS_PRODUCTION) {
+		return;
+	}
+
+	const { hostname } = new URL(apiURL);
+	if (hostname !== rootDomain && !hostname.endsWith(`.${rootDomain}`)) {
+		throw new Error(
+			`${label}: the API is served from ${hostname}, which is not under ${rootDomain} -- every cookie pinned ` +
+				`to that domain would be discarded by the browser, so no session could ever be established. Give the ` +
+				`API a hostname under ${rootDomain} (see build/caddy/Caddyfile) rather than relaxing the cookie.`,
+		);
+	}
+}
+
 export function initContext(given: Pick<Context, 'db' | 'logger' | 'redis'>): void {
 	if (context !== null) {
 		throw new Error('Context has already been initialized');
 	}
 
+	assertCookieDomainReachable('API_URL_PROD/ROOT_DOMAIN', ENV.API_URL_PROD, ENV.ROOT_DOMAIN);
+	assertCookieDomainReachable(
+		'APPEALS_API_URL_PROD/APPEALS_ROOT_DOMAIN',
+		ENV.APPEALS_API_URL_PROD,
+		ENV.APPEALS_ROOT_DOMAIN,
+	);
+
 	context = {
 		API_URL: ENV.IS_PRODUCTION ? ENV.API_URL_PROD : ENV.API_URL_DEV,
+		APPEALS_API_URL: ENV.IS_PRODUCTION ? ENV.APPEALS_API_URL_PROD : ENV.APPEALS_API_URL_DEV,
 		APPEALS_FRONTEND_URL: ENV.IS_PRODUCTION ? ENV.APPEALS_FRONTEND_URL_PROD : ENV.APPEALS_FRONTEND_URL_DEV,
 		BCRYPT_SALT_ROUNDS: 14,
 		DISCORD_PROXY_URL: (ENV.IS_PRODUCTION ? ENV.DISCORD_PROXY_URL_PROD : ENV.DISCORD_PROXY_URL_DEV) ?? null,

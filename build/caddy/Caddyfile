@@ -6,6 +6,10 @@ api.automoderator.app {
 	reverse_proxy api:{$API_PORT}
 }
 
+api.unban.app {
+	reverse_proxy api:{$API_PORT}
+}
+
 grafana.automoderator.app {
 	reverse_proxy grafana:3000
 }

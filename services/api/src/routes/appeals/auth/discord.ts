@@ -66,7 +66,7 @@ export default defineRoute({
 		const params = {
 			client_id: getContext().env.APPEALS_OAUTH_CLIENT_ID,
 			integration_type: String(ApplicationIntegrationType.UserInstall),
-			redirect_uri: `${getContext().API_URL}/v3/appeals/auth/discord/callback`,
+			redirect_uri: `${getContext().APPEALS_API_URL}/v3/appeals/auth/discord/callback`,
 			response_type: 'code',
 			scope: [...APPEALS_AUTH_SCOPES].join(' '),
 			state,
