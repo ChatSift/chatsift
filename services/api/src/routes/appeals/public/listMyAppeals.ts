@@ -19,13 +19,13 @@ export interface MyAppeal extends PublicAppeal {
 export interface ListMyAppealsResult {
 	appeals: MyAppeal[];
 	/**
-	 * Servers this appellant has checked here and is still banned in, with no appeal filed yet -- their way back
-	 * to a guild they looked at on a previous visit without having to find the link again.
+	 * Servers that accept appeals where this appellant is still banned and has not filed yet -- what the landing
+	 * page offers them on sign-in, so the common case needs no invite pasted at all.
 	 *
 	 * **Not "which servers am I banned in?"** (#232 §4), which this product does not answer and could not answer
-	 * honestly. Every entry exists because this appellant personally opened that guild here; nothing primes
-	 * `appeal_ban_checks`. Re-established before it is returned -- see `readKnownBans` for what that costs and
-	 * when it is skipped.
+	 * honestly: it covers bans the Appeals bot actually saw happen, or that a probe found, in guilds that use
+	 * Appeals. Re-established before it is returned -- see `readKnownBans` for what that costs and when it is
+	 * skipped.
 	 */
 	knownBans: GuildSummary[];
 }

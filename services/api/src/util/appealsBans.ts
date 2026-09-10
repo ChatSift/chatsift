@@ -118,9 +118,9 @@ const KNOWN_BAN_LIMIT = 10;
 /**
  * How long a cached ban check is taken at its word before it is re-probed.
  *
- * `services/appeals-bot` updates these rows straight off `GUILD_BAN_ADD`/`GUILD_BAN_REMOVE`, so while the bot is
- * up and in the guild a row is corrected within seconds of anything changing -- which is why a recent row can be
- * trusted at all. What that does *not* survive is downtime: events missed while the bot was down are never
+ * `services/appeals-bot` writes these rows straight off `GUILD_BAN_ADD`/`GUILD_BAN_REMOVE`, so while the bot is
+ * up and in the guild a row is created or corrected within seconds of anything changing -- which is why a recent
+ * row can be trusted at all. What that does *not* survive is downtime: events missed while the bot was down are never
  * replayed, and an old `checked_at` cannot be told apart from "nothing has happened since". Six hours is the
  * window where a missed unban heals the same day while a returning appellant usually pays nothing.
  */
@@ -129,11 +129,11 @@ const KNOWN_BAN_TRUSTED_FOR_MS = 6 * 60 * 60 * 1_000;
 /**
  * The servers this appellant has checked here and is **still banned in**, newest check first.
  *
- * Read §4 before changing this, because the distinction it rests on is easy to lose: this is emphatically not
- * "which servers am I banned in?", which the product does not answer and cannot answer honestly. Every row here
- * exists because this appellant personally opened that guild on `unban.app` at some point -- nothing primes the
- * table, and `banEvents.ts` may only ever `UPDATE` rows, never `INSERT` them. Widening this into a real ban
- * index is the failure mode the whole ban-discovery design exists to avoid.
+ * Read §4 before changing this, because the distinction it rests on is easy to lose. Rows come from two places
+ * -- a probe this appellant caused, and a `GUILD_BAN_ADD` the gateway saw in a guild that accepts appeals -- and
+ * neither makes the table complete. Bans predating the bot's arrival in a guild, bans during downtime, and every
+ * guild that does not use Appeals are all absent, permanently. So this suggests servers; it does not answer
+ * "which servers am I banned in?", and the copy on top of it says as much.
  *
  * What it *does* do beyond the raw cache is re-establish the answer before showing it. A row the gateway
  * touched recently is trusted; anything older is re-probed, and a probe that comes back "not banned" drops the

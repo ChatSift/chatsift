@@ -271,10 +271,10 @@ someone relies on it, and a single blip of downtime means it can never be truste
 the fan-out untenable in the first place. Showing the user their own guild list doesn't help either; by construction, the
 guild they want is not in it.
 
-**What _is_ offered, and why it is not that** (added 2026-09-10): `unban.app` shows an appellant the servers **they have
-checked here** and are still banned in -- `readKnownBans`, rendered by `KnownBansList` on both the landing page and
-`/appeals`. Every row exists because that appellant personally opened that guild on this site, so the list is bounded by
-their own behaviour rather than by how many guilds use Appeals, and it costs nothing to build. It is re-established before
+**What _is_ offered, and why it is not that** (added 2026-09-10): `unban.app` shows an appellant the servers it knows they
+are currently banned in -- `readKnownBans`, rendered by `KnownBansList` on both the landing page and `/appeals`. Rows come
+from a probe that appellant caused or from a ban the gateway observed in a configured guild (see the supersede note above),
+so the list is a suggestion and never a complete answer. It is re-established before
 being shown: a row the gateway touched inside `KNOWN_BAN_TRUSTED_FOR_MS` is trusted, anything older is re-probed (capped at
 `KNOWN_BAN_LIMIT`), a definite "not banned" drops the entry, and "cannot tell" keeps it. Guilds with an appeal already open
 are excluded before the re-probe, so nothing is spent re-confirming a ban nobody is about to act on. The copy says "servers
@@ -287,10 +287,32 @@ misconfigured guild costs one `403` in total rather than one per appellant forev
 `appeal_ban_checks` survives the removal of the fan-out as a plain cache of probe results -- it gives a returning appellant
 their previously-checked servers without re-probing, and it is where P8 reads the ban reason from.
 
-**Rejected: a gateway-mirrored ban table.** Beyond needing the gateway process decision 2 rules out, any downtime forces a
+~~**Rejected: a gateway-mirrored ban table.** Beyond needing the gateway process decision 2 rules out, any downtime forces a
 full paginated `GET /guilds/{id}/bans` re-sync across every guild -- strictly worse than the thing it replaces, and worse in
 exactly the moment you can least afford it. This is the same failure mode that makes the current production ModMail slow to
-respond to a DM, roughly tripled.
+respond to a DM, roughly tripled.~~
+
+**Superseded 2026-09-10 -- `GUILD_BAN_ADD` now inserts.** Owner's call, and the rejection above was answering a question
+nobody was asking. It argued against a table you would have to _re-sync_ -- i.e. one treated as complete, where a gap is a
+bug to be repaired. Nothing treats `appeal_ban_checks` that way: `readKnownBans` re-probes every row before showing it, and
+`evaluateAppealEligibility` probes again at submit, so the probe is still the only authority and downtime costs a missing
+suggestion rather than a wrong answer. There is no re-sync because there is nothing to reconcile against.
+
+What it buys is the entire first-run experience. Previously an appellant had to already know which server banned them and
+paste an invite before anything appeared at all -- for a product whose users arrive confused and hostile, that is a
+significant ask. Now they sign in and their bans are listed. Two bounds keep this from drifting back into the thing above:
+
+- **Only guilds with an `appeals_settings` row** are recorded. Listing a server whose appeal page answers `NOT_CONFIGURED`
+  is worse than not listing it, and this also keeps growth proportional to the ban rate of _configured_ guilds rather than
+  of every guild the bot sits in. An already-tracked `(user, guild)` pair is still refreshed unconditionally, so a guild
+  that unconfigures does not leave stale rows behind.
+- **`GUILD_BAN_REMOVE` stays `UPDATE`-only.** A row asserting "not banned" about somebody who has never used the site is
+  storage with nothing on the other end of it.
+
+The table is still permanently incomplete -- bans predating the bot's arrival in a guild, bans during downtime, and every
+guild that does not use Appeals are absent -- and the appellant-facing copy says so outright rather than letting somebody
+read a short list as "you are not banned anywhere else". **That copy is the load-bearing part now.** Worth noting for later:
+rows now accumulate for people who may never sign in, so this eventually wants a retention sweep; none exists yet.
 
 **P9's asymmetry:** none of this applies to timeouts. A timed-out user is still a member, so OAuth `guilds` plus a single
 `GET /guilds/{id}/members/{userId}` (reading `communication_disabled_until`) answers the question with no discovery problem.

@@ -4,26 +4,56 @@ import { GatewayDispatchEvents } from '@discordjs/core';
 import { banEvents } from './metrics.js';
 
 /**
- * Keeps `appeal_ban_checks` fresh from the gateway (#232).
+ * Records a ban in `appeal_ban_checks` (#232).
  *
- * **This updates rows; it never inserts them.** That single restriction is what keeps the table the thing its
- * schema comment says it is -- a cache of probes we actually performed -- rather than the gateway-mirrored ban
- * index docs/roadmap/09-appeals.md §4 rejects. Inserting here would mean a row for every ban in every guild
- * Appeals is installed in, forever, overwhelmingly for people who will never appeal; and it would still be
- * incomplete, since bans issued before the bot joined produce no event. An incomplete table that looks
- * authoritative is worse than no table.
+ * **This inserts, as of 2026-09-10.** It used to be `UPDATE`-only, on the reasoning that a table fed by the
+ * gateway would become the partial ban mirror docs/roadmap/09-appeals.md §4 rejects. The owner reversed that,
+ * and the reversal is right: what §4 actually rejects is treating such a table as *authoritative*, and nothing
+ * does. `readKnownBans` re-probes before showing a row, and `evaluateAppealEligibility` probes again at submit.
+ * The probe is still the only authority; this is the hint getting good enough to be worth having.
  *
- * So the probe stays the authority and this is pure cache maintenance: an appellant who checked a guild and was
- * since unbanned by hand sees that without spending another probe, and later phases get a hook for closing an
- * open appeal whose ban was lifted underneath it.
+ * What it buys is the whole first-run experience. Before, an appellant had to already know which server banned
+ * them and paste an invite to it before anything appeared; now they sign in and their bans are simply listed.
+ *
+ * Two bounds keep it from being the thing §4 warned about:
+ *
+ * - **Only guilds that actually accept appeals.** No `appeals_settings` row, no insert -- otherwise the list
+ *   would offer servers where opening the entry answers `NOT_CONFIGURED`, which is worse than not listing them.
+ *   An existing row is still refreshed either way, so a guild that configures Appeals, gets probed, then
+ *   unconfigures does not silently go stale.
+ * - **Bans only.** `GUILD_BAN_REMOVE` stays `UPDATE`-only: a row saying "not banned" about somebody who has
+ *   never used the site is pure storage with nothing on the other end of it.
+ *
+ * Still incomplete by construction, and that is fine as long as nothing pretends otherwise: bans issued before
+ * the bot joined a guild, or while it was down, produce no event and no row. The appellant-facing copy says so.
  */
-async function prime(guildId: string, userId: string, banned: boolean): Promise<number> {
-	// `ban_reason` is cleared rather than preserved on a ban. GUILD_BAN_ADD carries `{ guild_id, user }` and no
-	// reason, so the honest value here is "unknown" -- keeping a previous ban's reason would hand P8's pattern
-	// matching a string describing a punishment that is no longer the one being appealed.
-	const rows = await getContext().db`
+async function record(guildId: string, userId: string, banned: boolean): Promise<number> {
+	const db = getContext().db;
+
+	// `ban_reason` is NULL rather than preserved. GUILD_BAN_ADD carries `{ guild_id, user }` and no reason, so
+	// "unknown" is the honest value -- and P8's pattern matching reads the reason the *probe* returns at submit
+	// time, not this one, so nothing downstream is weakened by leaving it empty until a probe fills it in.
+	if (banned) {
+		const rows = await db`
+			INSERT INTO appeal_ban_checks (user_id, guild_id, banned, ban_reason)
+			SELECT ${userId}, ${guildId}, true, NULL
+			-- The first arm is the new behaviour: a ban in a guild that accepts appeals is worth recording for
+			-- anyone. The second preserves the old one exactly -- a pair we already track stays fresh even if that
+			-- guild has since dropped its config, because a stale row is worse than either alternative.
+			WHERE EXISTS (SELECT 1 FROM appeals_settings WHERE guild_id = ${guildId})
+				OR EXISTS (SELECT 1 FROM appeal_ban_checks WHERE user_id = ${userId} AND guild_id = ${guildId})
+			ON CONFLICT (user_id, guild_id) DO UPDATE SET
+				banned = true,
+				ban_reason = NULL,
+				checked_at = now()
+		`;
+
+		return rows.count;
+	}
+
+	const rows = await db`
 		UPDATE appeal_ban_checks
-		SET banned = ${banned}, ban_reason = NULL, checked_at = now()
+		SET banned = false, ban_reason = NULL, checked_at = now()
 		WHERE user_id = ${userId} AND guild_id = ${guildId}
 	`;
 
@@ -41,15 +71,16 @@ export function registerBanEvents(client: Client): void {
 			const logger = getContext().logger.child({ event, guildId: data.guild_id, userId: data.user.id });
 
 			try {
-				// `uncached` is the common case and not a failure -- nobody has ever probed this user against this
-				// guild, so there is no cached answer to keep fresh. Split from `refreshed` because the two answer
-				// different questions: the pair climbing at all proves the GuildModeration intent is delivering,
-				// while `refreshed` alone is the only evidence the priming does any work.
-				const refreshed = await prime(data.guild_id, data.user.id, banned);
-				banEvents.inc({ kind, outcome: refreshed > 0 ? 'refreshed' : 'uncached' });
+				// `recorded` means a row now reflects this event; `uncached` means there was nothing to write. The
+				// two answer different questions, and which one is normal depends on the event: an `add` in a
+				// configured guild always records, so `add`/`uncached` climbing means bans are arriving from guilds
+				// that never finished setup. A `remove` for somebody nobody ever tracked is `uncached` and expected.
+				// Either pair climbing at all is what proves the `GuildModeration` intent is delivering.
+				const written = await record(data.guild_id, data.user.id, banned);
+				banEvents.inc({ kind, outcome: written > 0 ? 'recorded' : 'uncached' });
 			} catch (error) {
 				banEvents.inc({ kind, outcome: 'failed' });
-				logger.error({ err: error }, 'failed to prime a cached ban check');
+				logger.error({ err: error }, 'failed to record a ban-list event');
 			}
 		});
 	}
