@@ -94,6 +94,11 @@ const nextConfig = {
 				permanent: false,
 			},
 			{
+				source: '/invites/appeals',
+				destination: `https://discord.com/oauth2/authorize?client_id=1546885274682925076&permissions=309237730309&scope=applications.commands%20bot`,
+				permanent: false,
+			},
+			{
 				source: '/kofi',
 				destination: 'https://ko-fi.com/chatsift',
 				permanent: true,

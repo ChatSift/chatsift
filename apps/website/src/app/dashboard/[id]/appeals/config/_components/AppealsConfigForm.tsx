@@ -97,6 +97,11 @@ export function AppealsConfigForm() {
 	const updateField = <TField extends keyof ConfigFormData>(field: TField, value: ConfigFormData[TField]) => {
 		setForm((prev) => (prev ? { ...prev, [field]: value } : prev));
 		setErrors((prev) => ({ ...prev, [field]: undefined }));
+		// The success banner claims the form matches what is saved, which the edit just made false -- so it goes
+		// the moment anything changes. `actionError` deliberately stays: the usual reason somebody edits a field
+		// right after a failed save is that the banner told them which field was wrong, and clearing it on the
+		// first keystroke takes the instruction away mid-fix. It clears on the next save attempt instead.
+		setSuccessMessage(null);
 	};
 
 	if (error && config === undefined) {

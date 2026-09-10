@@ -51,10 +51,6 @@ export function AppealsSectionList() {
 			<div className="flex w-full flex-col items-center gap-3 rounded-lg border border-dashed border-on-secondary bg-card p-8 text-center dark:border-on-secondary-dark dark:bg-card-dark">
 				<SvgAppeals height={32} width={32} />
 				<p className="text-lg font-medium text-primary dark:text-primary-dark">Appeals isn&apos;t set up yet</p>
-				<p className="max-w-prose text-sm text-secondary dark:text-secondary-dark">
-					Pick the channel your moderators should review appeals in, and this server starts accepting them. Everything
-					else has a sensible default you can change later.
-				</p>
 				<Link
 					className="text-sm font-medium text-misc-accent underline"
 					href={`/dashboard/${guildId}/appeals/config`}

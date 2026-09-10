@@ -16,9 +16,19 @@ interface AppealQuestionsCardProps {
  * the same questions because both read the same constant.
  */
 export function AppealQuestionsCard({ questions }: AppealQuestionsCardProps) {
-	const displayed: readonly { prompt: string; required: boolean }[] =
-		questions.length > 0 ? questions : DEFAULT_APPEAL_QUESTIONS;
 	const isSeeded = questions.length > 0;
+
+	// Each entry carries its own React key rather than being keyed on the prompt text. Prompts are unique in
+	// `DEFAULT_APPEAL_QUESTIONS` because they were written that way, but P7 lets a guild type its own, and two
+	// identical prompts are a perfectly reasonable thing to end up with -- keying on the text would collide.
+	// The seeded rows already have a stable id, so this uses it and P7 inherits correct keys for free.
+	const displayed: readonly { key: string; prompt: string; required: boolean }[] = isSeeded
+		? questions.map((question) => ({ key: String(question.id), prompt: question.prompt, required: question.required }))
+		: DEFAULT_APPEAL_QUESTIONS.map((question, index) => ({
+				key: `default-${index}`,
+				prompt: question.prompt,
+				required: question.required,
+			}));
 
 	return (
 		<div className="space-y-3 rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
@@ -35,7 +45,7 @@ export function AppealQuestionsCard({ questions }: AppealQuestionsCardProps) {
 				{displayed.map((question, index) => (
 					<li
 						className="flex items-start gap-3 rounded-md border border-on-secondary p-3 dark:border-on-secondary-dark"
-						key={question.prompt}
+						key={question.key}
 					>
 						<span className="text-sm text-secondary tabular-nums dark:text-secondary-dark">{index + 1}.</span>
 						<span className="flex-1 text-sm text-primary dark:text-primary-dark">{question.prompt}</span>
