@@ -6,6 +6,13 @@ import { createRecipe, DataType } from 'bin-rw';
 import { createCachedGuildFetcher } from './guildDataCache.js';
 
 export interface GuildSummary {
+	/**
+	 * Discord's `approximate_member_count`, which the `with_counts` query param below asks for -- `null` only
+	 * if Discord answers without it. Just `/admin`'s custom-instance lead list (#216) reads it, to size a
+	 * server at a glance, but every caller pays for it: this cache entry is shared, so one fetched without
+	 * counts would otherwise answer a reader that needs them.
+	 */
+	approximateMemberCount: number | null;
 	iconUrl: string | null;
 	id: string;
 	name: string;
@@ -18,13 +25,14 @@ export interface GuildSummary {
 }
 
 async function fetchGuildSummaryRaw(guildId: string, api: API): Promise<GuildSummary> {
-	const guild = await api.guilds.get(guildId);
+	const guild = await api.guilds.get(guildId, { with_counts: true });
 
 	return {
 		id: guild.id,
 		name: guild.name,
 		iconUrl: guild.icon ? `${RouteBases.cdn}${CDNRoutes.guildIcon(guild.id, guild.icon, ImageFormat.PNG)}` : null,
 		vanityUrlCode: guild.vanity_url_code ?? null,
+		approximateMemberCount: guild.approximate_member_count ?? null,
 	};
 }
 
@@ -34,7 +42,13 @@ const summaryFetcher = createCachedGuildFetcher(
 	// always present on a guild Discord answered for at all. The cast corrects that, same as `roles.ts`.
 	createRecipe(
 		{
-			items: { id: DataType.String, name: DataType.String, iconUrl: DataType.String, vanityUrlCode: DataType.String },
+			items: {
+				id: DataType.String,
+				name: DataType.String,
+				iconUrl: DataType.String,
+				vanityUrlCode: DataType.String,
+				approximateMemberCount: DataType.U32,
+			},
 		},
 		{ versioned: true },
 	) as Recipe<{ items: GuildSummary }>,

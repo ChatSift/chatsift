@@ -10,6 +10,11 @@ export interface ModmailInstanceInterestGuild {
 	iconUrl: string | null;
 	id: string;
 	/**
+	 * Approximate member count, `null` whenever the bot can no longer see the guild -- there is no snapshot in
+	 * the row to fall back on the way `name` has one, and a made-up size would be worse than none.
+	 */
+	memberCount: number | null;
+	/**
 	 * The guild's name right now, falling back to the click-time snapshot in the row when the bot can no
 	 * longer see the guild -- which is also when `iconUrl`/`vanityUrlCode` come back `null`, so a stale name
 	 * always arrives alongside a visibly empty card rather than passing itself off as current.
@@ -63,6 +68,7 @@ export default defineRoute({
 						name: summary?.name ?? row.guildName,
 						iconUrl: summary?.iconUrl ?? null,
 						vanityUrlCode: summary?.vanityUrlCode ?? null,
+						memberCount: summary?.approximateMemberCount ?? null,
 					},
 					createdAt: row.createdAt,
 				};

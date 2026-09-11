@@ -65,6 +65,14 @@ export function InstanceInterestList() {
 								<div className="flex min-w-0 flex-col">
 									<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">{lead.guild.name}</p>
 									<p className="truncate font-mono text-sm text-secondary dark:text-secondary-dark">{lead.guild.id}</p>
+									{/* The whole reason to look at this list is deciding whether a lead is worth a custom
+										deployment, and size is the first thing that answers that. Absent for a guild the bot
+										can no longer see, which is the same case that leaves the card without an icon. */}
+									{lead.guild.memberCount !== null && (
+										<p className="text-sm text-secondary dark:text-secondary-dark">
+											{lead.guild.memberCount.toLocaleString()} members
+										</p>
+									)}
 									{lead.guild.vanityUrlCode && (
 										<a
 											className="truncate text-sm text-misc-accent underline underline-offset-2"
