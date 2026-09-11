@@ -3,8 +3,8 @@
 import { Button } from '@chatsift/web-core/components/Button';
 import { Tooltip } from '@chatsift/web-core/components/Tooltip';
 import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
+import { useCopyToClipboard } from '@chatsift/web-core/hooks/useCopyToClipboard';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
 
 interface AppealLinkCopyProps {
 	/**
@@ -25,13 +25,7 @@ interface AppealLinkCopyProps {
  * find their way to `unban.app` (#232 P3b).
  */
 export function AppealLinkCopy({ link, children }: AppealLinkCopyProps) {
-	const [copied, setCopied] = useState(false);
-
-	const handleCopy = async () => {
-		await navigator.clipboard.writeText(link);
-		setCopied(true);
-		setTimeout(() => setCopied(false), 2_000);
-	};
+	const { copied, copy } = useCopyToClipboard();
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">
@@ -39,7 +33,7 @@ export function AppealLinkCopy({ link, children }: AppealLinkCopyProps) {
 				{link}
 			</code>
 			<Tooltip content="Whoever opens this signs in with Discord, answers your appeal questions, and lands in the channel your moderators review appeals in.">
-				<Button className={buttonClass('secondary', 'sm')} onPress={handleCopy} type="button">
+				<Button className={buttonClass('secondary', 'sm')} onPress={async () => copy(link)} type="button">
 					Copy link
 				</Button>
 			</Tooltip>

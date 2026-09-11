@@ -2,6 +2,7 @@
 
 import { Button } from '@chatsift/web-core/components/Button';
 import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
+import { useCopyToClipboard } from '@chatsift/web-core/hooks/useCopyToClipboard';
 import Link from 'next/link';
 import { useState } from 'react';
 import type { AutomoderatorReportPrompt } from '@/api/routes/automoderatorReports';
@@ -15,7 +16,7 @@ interface ReportPromptCardProps {
 
 export function ReportPromptCard({ guildId, prompt, channelName }: ReportPromptCardProps) {
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-	const [linkCopied, setLinkCopied] = useState(false);
+	const { copied: linkCopied, copy } = useCopyToClipboard();
 	const deletePrompt = useDeleteAutomoderatorReportPrompt(guildId);
 
 	const channelLabel = `#${channelName ?? prompt.channelId}`;
@@ -28,13 +29,7 @@ export function ReportPromptCard({ guildId, prompt, channelName }: ReportPromptC
 				    where anyone managing a server is working. */}
 				<Button
 					className="h-fit p-0 text-sm text-misc-accent underline hover:bg-transparent"
-					onPress={async () => {
-						await navigator.clipboard.writeText(
-							`https://discord.com/channels/${guildId}/${prompt.channelId}/${prompt.messageId}`,
-						);
-						setLinkCopied(true);
-						setTimeout(() => setLinkCopied(false), 2_000);
-					}}
+					onPress={async () => copy(`https://discord.com/channels/${guildId}/${prompt.channelId}/${prompt.messageId}`)}
 				>
 					Copy message link
 				</Button>
