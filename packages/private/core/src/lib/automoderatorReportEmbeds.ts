@@ -90,8 +90,10 @@ const CONTENT_LIMIT = 1_500;
 const CONTEXT_CONTENT_LIMIT = 500;
 
 function block(content: string | null, limit: number): string {
+	// Fenced before it is truncated: `fence()` grows what it is given, so bounding the input leaves the result
+	// up to a third over `limit` for backtick-heavy text. See the same note on `appealEmbeds.ts`'s `block`.
 	return content?.trim().length
-		? `\`\`\`\n${fence(truncate(content, limit))}\n\`\`\``
+		? `\`\`\`\n${truncate(fence(content), limit)}\n\`\`\``
 		: '*The message had no text content.*';
 }
 

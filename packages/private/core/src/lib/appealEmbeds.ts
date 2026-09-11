@@ -78,7 +78,8 @@ const BAN_REASON_LIMIT = 512;
 /**
  * An answer arrives already capped at `APPEAL_ANSWER_MAX_LENGTH` (1024), which is exactly Discord's cap for
  * the embed field value it becomes -- and the code fence around it costs 8 characters more. Trimming by that
- * difference is what stops a maximum-length answer from 400ing the whole message.
+ * difference is what stops a maximum-length answer from 400ing the whole message. It bounds the *fenced*
+ * string: see `block`.
  */
 const ANSWER_LIMIT = APPEAL_ANSWER_MAX_LENGTH - 8;
 
@@ -133,9 +134,16 @@ export interface AppealCardOptions {
  * Wrapped in a code block, like a reported message and for the same reason: an appeal answer is prose typed by
  * somebody with every motive to dress their text up as the bot's. Markdown inside it renders in *our* embed
  * otherwise, and a fake "verified by staff" line is a one-sentence exploit.
+ *
+ * **Fenced before it is truncated, not after.** `fence()` grows what it is given -- every ``` gains a
+ * zero-width space -- so bounding the input bounds the wrong number: a full-length answer made of backticks
+ * comes out a third longer than its limit and Discord rejects the whole message. Truncating the fenced string
+ * cannot reintroduce a fence either, since no substring of a string without ``` contains one.
  */
 function block(content: string, limit: number): string {
-	return content.trim().length ? `\`\`\`\n${fence(truncate(content, limit))}\n\`\`\`` : '*They left this blank.*';
+	const trimmed = content.trim();
+
+	return trimmed.length ? `\`\`\`\n${truncate(fence(trimmed), limit)}\n\`\`\`` : '*They left this blank.*';
 }
 
 function describeDecision(appeal: AppealEmbedInput): string | null {

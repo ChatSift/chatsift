@@ -84,7 +84,14 @@ export async function runAppealDecision(options: RunAppealDecisionOptions, logge
 			'failed to carry out an appeal decision',
 		);
 
-		return 'I could not lift that ban, so the appeal has been left open. Check that I still have Ban Members here, then try again.';
+		// Keyed to the decision rather than assuming an unban. Only an approval passes `perform`, so only an
+		// approval can reach this at all today -- but P6 gives denials a DM, and the first person to reach for
+		// `perform` to send it would otherwise ship "check that I have Ban Members" as the failure text for a
+		// denial. (P6 should *not* do that, for the reason on `perform` itself: a DM that could not be delivered
+		// must not un-deny an appeal.)
+		return decision === 'approved'
+			? 'I could not lift that ban, so the appeal has been left open. Check that I still have Ban Members here, then try again.'
+			: 'Something went wrong recording that decision, so the appeal has been left open. Please try again.';
 	}
 
 	appealDecisions.inc({ decision, outcome: 'applied' });

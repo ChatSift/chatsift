@@ -23,6 +23,16 @@ export interface ResolvedAppealInteraction {
  */
 const CARD_PERMISSION = PermissionFlagsBits.BanMembers;
 
+/**
+ * Re-exported as a predicate rather than the raw bitfield, so the one place that re-checks it (the deny modal,
+ * five minutes after the click) cannot drift from the one that checks it first.
+ */
+export function mayDecideAppeals(member: APIInteractionGuildMember): boolean {
+	return memberHasPermission(member, CARD_PERMISSION);
+}
+
+export const MISSING_PERMISSION_MESSAGE = 'You need the Ban Members permission to decide appeals.';
+
 export async function resolveAppealInteraction(
 	interaction: APIMessageComponentInteraction,
 	appealId: string | undefined,
@@ -55,8 +65,8 @@ export async function resolveAppealInteraction(
 		return null;
 	}
 
-	if (!memberHasPermission(interaction.member, CARD_PERMISSION)) {
-		await reply('You need the Ban Members permission to decide appeals.');
+	if (!mayDecideAppeals(interaction.member)) {
+		await reply(MISSING_PERMISSION_MESSAGE);
 		return null;
 	}
 

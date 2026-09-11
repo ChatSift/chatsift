@@ -18,9 +18,14 @@ export function truncate(value: string, limit: number): string {
  *
  * The content is whatever the user typed. A literal triple-backtick in it closes the block early and the rest
  * renders as markdown *in the bot's own embed* -- which is a spoofing vector, not just a layout glitch:
- * attacker text can be dressed up as something the bot said, a fake "verified" link being the obvious use. A
- * zero-width space between the backticks stops the fence from closing while leaving the text readable.
+ * attacker text can be dressed up as something the bot said, a fake "verified" link being the obvious use.
+ * Zero-width spaces between the backticks stop the fence from closing while leaving the text readable.
+ *
+ * **Whole runs, not exact triples.** This replaced ``` with `<zws>`` until 2026-09-11, which leaves a seam:
+ * four backticks neutralize to `<zws>``` and six to `<zws>```<zws>``, both of which contain a working fence
+ * again -- so the escape was defeated by holding the key down. Splitting the entire run guarantees no two
+ * backticks are left adjacent, which is the property that actually matters.
  */
 export function fence(value: string): string {
-	return value.replaceAll('```', '`​``');
+	return value.replaceAll(/`{3,}/g, (run) => [...run].join('\u200B'));
 }

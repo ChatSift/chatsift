@@ -6,7 +6,13 @@ import type { APIMessageComponentInteraction, APIModalInteractionResponseCallbac
 import { ComponentType, MessageFlags, TextInputStyle } from '@discordjs/core';
 import { ModalInteractionOptionResolver } from '@sapphire/discord-utilities';
 import { nanoid } from 'nanoid';
-import { describeUndecidable, refreshAppealCard, resolveAppealInteraction } from './appealComponents.js';
+import {
+	describeUndecidable,
+	mayDecideAppeals,
+	MISSING_PERMISSION_MESSAGE,
+	refreshAppealCard,
+	resolveAppealInteraction,
+} from './appealComponents.js';
 import { runAppealDecision } from './appealDecisions.js';
 
 const REASON_INPUT_ID = 'reason';
@@ -59,6 +65,17 @@ export async function handleAppealDenial(
 
 	await api.interactions.defer(modal.id, modal.token, { flags: MessageFlags.Ephemeral });
 
+	// Re-checked against the member Discord sends with the *submission*, not the one captured at the click.
+	// This modal may have been open for `MODAL_TIMEOUT_MS`, and the submission payload carries freshly computed
+	// permissions, so the re-check costs nothing and is the difference between "they could decide appeals when
+	// they opened the box" and "they can now". Absent means the submission did not come from a guild, which the
+	// card cannot produce.
+	const submitter = modal.member;
+	if (!submitter || !mayDecideAppeals(submitter)) {
+		await api.interactions.editReply(modal.application_id, modal.token, { content: MISSING_PERMISSION_MESSAGE });
+		return;
+	}
+
 	const reason = readOptionalTextInput(new ModalInteractionOptionResolver(modal), REASON_INPUT_ID);
 
 	// Deliberately no re-read of the appeal here, even though this modal may have sat open for five minutes:
@@ -68,7 +85,7 @@ export async function handleAppealDenial(
 		{
 			appeal: resolved.appeal,
 			decision: silent ? 'denied_silent' : 'denied',
-			member: resolved.member,
+			member: submitter,
 			reason,
 		},
 		logger,

@@ -907,6 +907,18 @@ Phase-specific notes on top of that:
 - **A decision is a claim, then a Discord call, then an audit row, in that order.** `applyAppealDecision` owns the
   ordering and the rollback; anything that decides an appeal without going through it can leave the appellant unbanned
   against a row that says denied, or approved against a ban that is still in place.
+- **That ordering covers a failed unban, not a dead process**, and the gap is deliberate. If `appeals-bot` is killed in the
+  window between the claim committing and the unban returning, the appeal reads `APPROVED` with the ban still in place and
+  nothing retries it. Closing that properly means a transactional outbox -- commit the decision, the event and a
+  pending-effect row together, then drive Discord from a worker with retries -- which is a second durability mechanism this
+  stack has nowhere else. Raised by review on #410 and **declined**: `services/automoderator-bot`'s report actions have
+  carried the identical window since P3, the exposure is a few hundred milliseconds per decision, and the failure is visible
+  (the appellant is still banned) rather than silent. Revisit if Appeals ever grows an automated decider, where nobody is
+  watching.
+- **P6 must not deliver its DM through `perform`.** That callback's contract is that throwing un-does the decision, which is
+  right for an unban and wrong for a notification: an appellant with DMs closed would un-deny their own appeal by being
+  unreachable. The DM belongs after the transition returns, best-effort, the way `notifyTarget()` already works in
+  AutoModerator.
 - **`unban.app` is a public form for hostile users by construction.** Rate limits, cooldowns, and `max_appeals` are the
   product's spam defense, and ban evasion via alt accounts is not solvable here -- Appeals sees only the account in front of
   it.

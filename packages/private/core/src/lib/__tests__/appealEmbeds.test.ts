@@ -172,6 +172,19 @@ test('a maximum-length answer still fits the embed field value cap', () => {
 	expect(embed.fields![0]!.value.length).toBeLessThanOrEqual(APPEAL_ANSWER_MAX_LENGTH);
 });
 
+test('a maximum-length answer made of code fences still fits, and still cannot close the block', () => {
+	// The all-`x` case above cannot catch this: neutralizing a fence *grows* the string, so an answer at the cap
+	// that is nothing but backticks comes out a third longer than its limit. `unban.app` is a public form for
+	// hostile users by construction, and the whole message 400s if this is wrong.
+	const embed = buildAppealEmbed(makeAppeal(), {
+		answers: [makeAnswer({ answer: '```'.repeat(Math.ceil(APPEAL_ANSWER_MAX_LENGTH / 3)) })],
+	});
+
+	const value = embed.fields![0]!.value;
+	expect(value.length).toBeLessThanOrEqual(APPEAL_ANSWER_MAX_LENGTH);
+	expect(value.slice(4, -4)).not.toContain('```');
+});
+
 test('a ban with no recorded reason says so instead of rendering an empty block', () => {
 	const embed = buildAppealEmbed(makeAppeal({ reasonSnapshot: null }), { answers: [] });
 
