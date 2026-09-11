@@ -17,6 +17,12 @@ import { fileURLToPath } from 'node:url';
 // depend on that ordering is what would turn a fresh-checkout deploy into a silent 404 for every @font-face
 // src, and a missing src falls back down the stack rather than erroring.
 //
+// The copies are also declared as `build` outputs in the root `turbo.json`, and excluded from each app's
+// `inputs` there. Without that, a turbo cache hit skips this script while restoring a `.next` whose
+// `.nft.json` traces `public/assets/fonts/Author-Regular.ttf` -- which on a fresh clone (every Vercel deploy)
+// was never written, so the deploy dies on `ENOENT ... lstat`. The exclusion keeps the hash from depending on
+// whether the copies happen to be present.
+//
 // If anyone ever sets `output: 'standalone'` in an app's next.config.mjs, re-check this: standalone does not
 // copy `public/` into the output, so the deploy step would have to carry the synced fonts itself.
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');

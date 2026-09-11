@@ -6,6 +6,8 @@
 			"inputs": [
 				"src/**",
 				"public/**",
+				"!public/assets/fonts/**",
+				"!public/assets/favicon.ico",
 				"package.json",
 				"tsconfig.json",
 				"next.config.mjs",

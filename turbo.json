@@ -4,7 +4,14 @@
 		"build": {
 			"dependsOn": ["^build"],
 			"inputs": ["src/**", "package.json", "tsconfig.json", "tsup.config.ts", "$TURBO_ROOT$/tsup.config.ts"],
-			"outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
+			"outputs": [
+				"dist/**",
+				".next/**",
+				"!.next/cache/**",
+				"!.next/dev/**",
+				"public/assets/fonts/**",
+				"public/assets/favicon.ico"
+			]
 		},
 		"lint": {
 			"dependsOn": ["^build"],
