@@ -121,6 +121,10 @@ export type {
 	AutomoderatorTriggerPunishmentsTriggers,
 } from './generated/public/AutomoderatorTriggerPunishments.js';
 export type { default as AutomoderatorTriggerCounts } from './generated/public/AutomoderatorTriggerCounts.js';
+export type {
+	default as AutomoderatorLegacyBanwords,
+	AutomoderatorLegacyBanwordsGuildId,
+} from './generated/public/AutomoderatorLegacyBanwords.js';
 
 export type { default as AppealsSettings, AppealsSettingsGuildId } from './generated/public/AppealsSettings.js';
 export type { default as AppealQuestions, AppealQuestionsId } from './generated/public/AppealQuestions.js';
@@ -170,3 +174,8 @@ export function isUniqueViolation(error: unknown, constraintName?: string): bool
 
 	return error.code === '23505' && (constraintName === undefined || error.constraint_name === constraintName);
 }
+
+// AES-256-GCM over an explicitly-passed key. Re-exported from the package root because both
+// `@chatsift/backend-core`'s context-reading `encrypt`/`decrypt` and this package's own migration scripts need
+// the same wire format -- see `lib/crypt.ts` for why it lives at this layer.
+export { encryptWithKey, decryptWithKey } from './lib/crypt.js';

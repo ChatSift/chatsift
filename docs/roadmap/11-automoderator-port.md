@@ -7,7 +7,13 @@ production impact:** none until P9. Everything before that is additive: new tabl
 dashboard pages. Legacy AutoModerator (`origin/v2`, deployed from `ChatSift/stack`) keeps running untouched the whole
 time.
 
-## Status: P0–P8 done on the agent side; P9 (migration and cutover) is all that is left
+## Status: P0–P8 done, P9's migration written and rehearsed; the cutover is the owner's to run
+
+**Cutover is announced for 2026-09-22 16:00.** The migration script, its mapping, the preflight and the
+`--verify` reconciler all exist and have been exercised against scratch databases -- including proving
+`--verify` goes red on corrupted rows and that a second `--live` run is a no-op. What is left is entirely
+operational: a dry run against a restored copy of the real dump, then the day itself. See
+[P9](#p9--migration-and-cutover).
 
 P5's three PRs are all merged (#365, #367, #368), and a run of polish landed on top of them -- the dashboard
 coherence pass (#383), log webhook avatars (#393), case-embed avatars and hyperlinked case numbers (#392), the
@@ -1435,36 +1441,121 @@ should be absorbed without degrading. Nothing else in this port is waiting on it
 
 ### P9 — Migration and cutover
 
-Legacy data migration + drain. Follows the Social precedent
-([10-social-port.md](10-social-port.md) while it still exists, then `01-architecture.md`):
+**Status: the migration is written and rehearsed; the cutover itself is the owner's to run.** Target date
+**2026-09-22 16:00**, announced 2026-09-11. `packages/private/db/src/scripts/migrateLegacyAutomoderator.ts`
+(`yarn migrate:legacy-automoderator`) and its mapping in `lib/legacyAutomoderator.ts` follow the Social
+precedent: `--dry-run` / `--live` / `--verify`, one transaction, preflight before anything is written.
 
-- **Reuse the legacy application's token** so no guild has to re-invite -- and clear its existing global commands with
-  a bulk `PUT []` first, or `bot-core`'s Ready-time `/deploy` bootstrap never fires and no commands register. This
-  trap cost Social nothing only because it was caught in advance.
-- **Run the migration inside the running `api` container**, not from a host checkout -- same image, so it has the
-  compiled script and inherits prod `IS_PRODUCTION` / `DATABASE_URL_PROD`.
-- Migrate: cases (with their numbering intact), allowlists, ladders, log-channel webhooks, settings.
-  **Do not migrate:** self-assignable roles, mute roles, malicious URL/file lists, NSFW thresholds, mention
-  config, blank-avatar and forbidden-name settings, **banned words and their policies** (see below -- the policy
-  half cannot survive without the matching half it was attached to).
-- **Ladder durations change unit and gain a ceiling.** Legacy's `warn_punishments.duration` is unbounded
-  milliseconds in a `BIGINT`; the new column is seconds in an `INTEGER`. A migrated MUTE rung longer than
-  `MAX_TIMEOUT_SECONDS` has to be **clamped by the migration**, because nothing at runtime clamps it -- that is
-  P2's stated invariant, and a rung Discord refuses is a rung that silently never fires. A legacy MUTE rung with
-  no duration at all can't be represented either (the CHECK forbids it) and was already inert in legacy; drop it
-  and report the count.
-- **Banned words do not migrate at all**, which is an owner decision taken at P5a and a reversal of what this
-  section used to say. Legacy rows carry both matching _and_ policy; the matching half can only live in a native
-  AutoMod rule, and creating those rules would mean writing to Discord's AutoMod, which this port has settled it
-  never does (see [P5](#p5--filters)). Rather than hold one exception open for one migration, each community
-  rebuilds its keyword lists in Server Settings after cutover and attaches policies to them -- the bot is changing
-  radically enough that reviewing a years-old word list is worth doing anyway. `banned_words` is therefore in the
-  **do not migrate** list above, and the guilds-over-the-native-limits question it used to raise disappears with
-  it. Say so in the cutover notice, not on the day.
-- Verify with two scratch databases, offset sequences, id-independent diff.
-- Then tear down: legacy compose stack, then `postgres-old`. Its ingress is no longer separate -- since #305 the
-  `interactions.`/`logs.` routes are two blocks in `build/caddy/Caddyfile`, and the `legacy` external network in
-  `docker-compose.yml` exists only to reach them. All three go in the same commit; nothing else uses that network.
+Two operational rules carried over unchanged, both of which cost Social nothing only because they were caught
+in advance:
+
+- **Reuse the legacy application's token** so no guild has to re-invite -- and clear its existing global
+  commands with a bulk `PUT []` first, or `bot-core`'s Ready-time `/deploy` bootstrap never fires and no
+  commands register (`client.ts` only bootstraps when the application has zero global commands).
+- **Run the migration inside the running `api` container**, not from a host checkout -- same image, so it has
+  the compiled script and inherits prod `IS_PRODUCTION`/`DATABASE_URL_PROD`/`ENCRYPTION_KEY`/
+  `AUTOMODERATOR_BOT_TOKEN`.
+
+#### What moves, and what does not
+
+Migrated: cases (numbering intact), guild settings, both ladders, log-channel webhooks, bypass roles, log and
+filter exemptions, URL and invite allowlists, report presets.
+
+Not migrated, each for a reason rather than for lack of time:
+
+- **Banned words**, the owner decision taken at P5a. A legacy row carries both the matching and the policy,
+  the matching half can only live in a native AutoMod rule, and this port never writes to Discord's AutoMod.
+  Each community rebuilds its keyword lists in Server Settings and attaches policies to them. What is new
+  since that decision: the words are **archived** into `automoderator_legacy_banwords` and rendered read-only
+  on the dashboard's Banned Words page, because after `postgres-old` is torn down nothing else has them and
+  "rebuild your list" is only a fair ask if the list can still be read. The archive is deliberately temporary
+  -- `LEGACY_BANWORD_ARCHIVE_UNTIL` in `@chatsift/core` is the date it goes, and dropping it takes the table,
+  the route and the card together.
+- **Reports and reporters** -- structurally impossible, not a choice. Legacy's `reports` table has no guild
+  column at all (the bug `automoderator_reports.guild_id` exists to fix), and a message id does not name a
+  guild, so there is nothing to migrate them into. Open legacy queues end at cutover; preflight counts them.
+- **Filter trigger counts.** Legacy's `filter_triggers` fed the trigger ladder and never decayed -- its
+  scheduler decayed `automod_triggers`, a different table, which it also deleted on every tick. A migrated
+  tally would therefore be a years-old cumulative number driving a ladder that now escalates on it, so a
+  member's first post-cutover trigger could land on the top rung. Everyone starts at zero.
+- Self-assignable roles, mute roles, malicious URL/file lists, NSFW thresholds, mention config, blank-avatar
+  and forbidden-name settings, `apps`/`sigs`/`users`, `unmute_roles` and the `tasks` table -- dropped
+  features, or machinery the new stack replaced outright.
+
+#### The four decisions worth knowing before the day
+
+1. **`lifted_at` is derived, and getting it wrong is the worst thing this script could do.** The expiry sweep
+   claims exactly `action_type = 'BAN' AND expires_at <= now() AND lifted_at IS NULL`, so migrating historic
+   tempbans un-lifted would unban, on cutover day, every person AutoModerator has ever temporarily banned --
+   including everyone re-banned since. The rule is: a pending `timed_case_tasks` row means legacy still owed
+   the unban, so `lifted_at` stays NULL and the new sweep delivers it; no task and an expiry in the past means
+   legacy already lifted it, so `lifted_at` is set to the expiry; no task and an expiry in the future stays
+   NULL, because P2's own rule is that giving up on an unban produces a permanent ban claiming to be
+   temporary. Preflight counts the overdue-with-pending-task rows, because those become real unbans within a
+   minute of the bot starting.
+2. **Warns past their guild's auto-pardon threshold are pardoned by the migration.** Legacy's auto-pardon
+   never fired at all -- its scheduler read a per-guild cache with `get()`, compared the miss against
+   `== null`, and `continue`d on the first case of every guild, forever. So guilds that configured it have a
+   backlog the new sweep would work through at a hundred per ten minutes, rewriting a years-old mod-log embed
+   for each. Doing it in the migration leaves the sweep nothing to find: no webhook-edit storm, no ancient log
+   messages mutating in front of moderators on day one. The embeds keep legacy's wording; `/history` and the
+   dashboard show the truth immediately.
+3. **Case-number collisions go the other way than you would guess.** Canary has been open since before the
+   cutover, so guilds that tried AutoModerator on the new stack already have cases numbered from 1 -- the same
+   numbers legacy is about to migrate. The migration shifts the **new-stack** cases above the migrated ones
+   rather than renumbering legacy history: legacy numbers are years of records quoted in mod-log embeds and
+   moderator conversation, the canary rows are days-old testing. `ref_id` and `automoderator_reports.case_id`
+   shift with them, since both name a guild-scoped `case_id`. The cost, which the run reports: a shifted
+   case's already-posted embed still prints its old number.
+4. **Every guild with cases gets a settings row**, whether or not legacy had one, because
+   `allocateCaseNumber` upserts `last_case_id` starting at 1 -- a guild whose cases migrated without one would
+   hand its next case the number 1 and fail on the unique constraint. `syncCaseCeilings` reconciles the
+   high-water mark against the table at the end of the run, and `--verify` asserts `last_case_id >= MAX(case_id)`
+   per guild. That is the one check whose failure is a live outage rather than a gap in history.
+
+Legacy's racy allocator (a `findFirst(orderBy desc) + 1` with no unique constraint, and a TODO admitting it)
+means a guild can hold two cases at the same number. Rather than let `ON CONFLICT DO NOTHING` swallow the
+second, each later duplicate is renumbered above its guild's high-water mark and preflight reports the count.
+
+Values the target would take but the dashboard would then refuse to save again -- an anti-spam threshold of 1,
+a 99999-day auto-pardon, a MUTE ladder rung longer than `MAX_TIMEOUT_SECONDS` -- are clamped, and every clamp
+is printed as an adjustment at the end of the run. A MUTE rung with no duration at all cannot be represented
+(a timeout has no open-ended form, and the CHECK forbids it); it was already inert in legacy, so it is dropped
+and counted.
+
+#### Verification done, and what it proved
+
+Rehearsed with the two-scratch-database method against a hand-written reconstruction of legacy's final schema
+(taken from `origin/v2`'s `prisma/migrations/`, not its `schema.prisma` -- two tables were renamed by a later
+hand-written migration and three columns are physically camelCase). Seeded to cover every branch: guilds with
+and without settings rows, all seven case actions, pending and absent tasks, an outstanding role mute, a
+duplicate case number, warns either side of the pardon threshold, unrepresentable ladder rungs, the filter
+bitfield including a value that decodes to nothing, uppercase and malformed domains, and a canary-tester guild
+already holding cases on the target.
+
+- Every mapping branch fired and produced the expected rows; webhook tokens decrypt back to their legacy
+  plaintext through `@chatsift/db`'s `decryptWithKey`.
+- **`--verify` was proven able to go red.** Eight separate corruptions -- a deleted case, a rewritten reason,
+  an altered ladder duration, a dropped bypass role, a webhook repointed at another channel, one lost row of a
+  bitfield fan-out, rewritten archive flags, and a `last_case_id` fallen behind -- each exited 1 and named the
+  row. Restoring them returned it to 0. Two _false_ failures found on a correct run were fixed rather than
+  footnoted: a verifier that prints FAIL when nothing is wrong is one an operator learns to ignore.
+- **A second `--live` run is a genuine no-op** (19 read, 0 inserted, numbering untouched, verify still green).
+  This needed work: the case shift is the one non-idempotent operation in the migration, and unguarded it
+  would move the already-migrated rows again on every run. It now only fires when none of a guild's target
+  cases match a legacy `(case_id, created_at)` pair and at least one sits inside the range legacy is about to
+  reuse.
+
+What remains is entirely the owner's: a `--dry-run` against a restored copy of the real dump (which is also
+the only honest estimate of how long the freeze needs to be), then the cutover itself.
+
+#### Teardown
+
+After the cutover settles: the legacy compose stack, then `postgres-old`. Its ingress is no longer separate --
+since #305 the `interactions.`/`logs.` routes are two blocks in `build/caddy/Caddyfile`, and the `legacy`
+external network in `docker-compose.yml` exists only to reach them. All three go in the same commit; nothing
+else uses that network. Separately, around **2026-12-22**, drop `automoderator_legacy_banwords` along with its
+route and dashboard card.
 
 ## Scaling readiness
 

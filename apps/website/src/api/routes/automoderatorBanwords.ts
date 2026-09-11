@@ -2,6 +2,7 @@ import type {
 	InferRouteContract,
 	listAutomodRulesRoute,
 	listBanwordPoliciesRoute,
+	listLegacyBanwordsRoute,
 	setBanwordPolicyRoute,
 } from '@chatsift/api';
 import type { banwordActionSchema } from '@chatsift/api/automoderator-schemas';
@@ -12,6 +13,10 @@ import { queryKeys } from '../queryClient';
 type RulesContract = InferRouteContract<typeof listAutomodRulesRoute>;
 export type AutomodRulesResult = RulesContract['response'];
 export type AutomodRule = Extract<AutomodRulesResult, { available: true }>['rules'][number];
+
+type LegacyContract = InferRouteContract<typeof listLegacyBanwordsRoute>;
+export type LegacyBanwords = LegacyContract['response'];
+export type LegacyBanword = LegacyBanwords[number];
 
 type ListContract = InferRouteContract<typeof listBanwordPoliciesRoute>;
 export type BanwordPolicies = ListContract['response'];
@@ -67,5 +72,20 @@ export function useDeleteBanwordPolicy(guildId: string) {
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.automoderator.banwordPolicies(guildId) });
 		},
+	});
+}
+
+/**
+ * The guild's pre-migration banned-word list (#11 P9), which is read-only, frozen, and goes away three
+ * months after cutover -- see `LEGACY_BANWORD_ARCHIVE_UNTIL`.
+ *
+ * `staleTime: Infinity` because nothing can ever write this table: the migration filled it once and no route
+ * mutates it. Refetching it on every focus would be asking the same question of an immutable answer.
+ */
+export function useLegacyBanwords(guildId: string) {
+	return useQuery({
+		queryKey: queryKeys.automoderator.legacyBanwords(guildId),
+		queryFn: async () => apiFetch<LegacyBanwords>('get', `/v3/guilds/${guildId}/automoderator/legacy-banwords`),
+		staleTime: Number.POSITIVE_INFINITY,
 	});
 }

@@ -24,16 +24,9 @@
 
 import process from 'node:process';
 import { createDb, type Database } from '../index.js';
-import type { Executor, Stats } from './lib/legacySocial.js';
-import {
-	RollbackSignal,
-	collectLegacyGuildIds,
-	copyAll,
-	findConstraintViolations,
-	printStats,
-	resolveLegacyUrl,
-	resolveTargetUrl,
-} from './lib/legacySocial.js';
+import { collectLegacyGuildIds, copyAll, findConstraintViolations } from './lib/legacySocial.js';
+import type { Executor, Stats } from './lib/migrationCommon.js';
+import { RollbackSignal, printStats, resolveLegacyUrl, resolveTargetUrl } from './lib/migrationCommon.js';
 
 // How many `social_users` rows `--verify` compares field-by-field. Every guild's row count and XP sum is
 // reconciled regardless (one aggregate query per side); this is the deeper per-row comparison on top, and
@@ -546,7 +539,7 @@ function resolveArgs(): { mode: Mode; source: string } {
 
 const { mode, source } = resolveArgs();
 
-const legacy = createDb({ url: resolveLegacyUrl() });
+const legacy = createDb({ url: resolveLegacyUrl('ChatSift/Social') });
 const target = createDb({ url: resolveTargetUrl() });
 
 /**

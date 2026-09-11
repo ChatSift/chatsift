@@ -1410,8 +1410,38 @@ CREATE TABLE automoderator_banword_policies (
 CREATE INDEX automoderator_banword_policies_guild_id_rule_id_idx
   ON automoderator_banword_policies (guild_id, rule_id);
 
--- Domains the URL filter lets through (P5b, feature 02). One row per allowed domain, guild-scoped -- legacy's
--- `allowed_urls` had the same key.
+-- **A read-only archive of legacy's `banned_words`, and the one deliberately temporary table in this schema.**
+--
+-- Banned words do not migrate (P9, decided at P5a): legacy rows carry both the matching *and* the policy, the
+-- matching half can only live in a native AutoMod rule, and this port never writes to Discord's AutoMod. So each
+-- guild rebuilds its keyword lists in Server Settings after cutover. That is a defensible ask only if they can
+-- still *see* what their list used to be -- and after P9 tears down `postgres-old`, this table is the only place
+-- that survives. Written once by `migrateLegacyAutomoderator.ts` and never again; nothing in the stack updates,
+-- inserts into or deletes from it.
+--
+-- **Drop it around 2026-12-22**, three months after cutover, with `DROP TABLE automoderator_legacy_banwords;`
+-- plus the route and dashboard card that read it. `LEGACY_BANWORD_ARCHIVE_UNTIL` in `@chatsift/core` is the date
+-- the dashboard shows and the single place it is written down; the retention is a whole-table fact, which is why
+-- it is a constant rather than a per-row `archived_at` nothing would ever read.
+CREATE TABLE automoderator_legacy_banwords (
+  guild_id         TEXT NOT NULL,
+  word             TEXT NOT NULL,
+  -- Legacy's `BanwordFlags` bitfield, decoded to its member names at migration time (`word`, `warn`, `mute`,
+  -- `ban`, `report`, `name`, `kick`). Decoded rather than stored raw because the bitfield's encoding lives in a
+  -- deleted `@automoderator/broker-types` file on the `v2` branch -- keeping the integer would mean the
+  -- dashboard had to carry a copy of a defunct package's bit order forever to render three words.
+  --
+  -- `name` is the one members can read and *not* act on: it marked a word as also filtering usernames, which is
+  -- dropped feature 15 and has no equivalent anywhere. Kept in the archive precisely so a guild rebuilding its
+  -- list is told that entry cannot come back rather than quietly losing it.
+  flags            TEXT[] NOT NULL,
+  -- Seconds, converted from legacy's unbounded milliseconds in a BIGINT, and NULL where legacy stored none.
+  -- Not clamped to `MAX_TIMEOUT_SECONDS` the way a migrated ladder rung is: nothing acts on this, so the honest
+  -- thing to show is what the guild had configured.
+  duration_seconds INTEGER,
+
+  PRIMARY KEY (guild_id, word)
+);
 --
 -- **Stored as a bare host, lowercased, and matched as a suffix.** `example.com` covers `example.com` and
 -- anything under it (`www.example.com`, `cdn.example.com`), which is what a guild allowlisting a site means.

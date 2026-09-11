@@ -173,6 +173,7 @@ export type {
 	AutomodRulesUnavailableReason,
 } from './routes/automoderator/automodRules/listAutomodRules.js';
 export { default as listBanwordPoliciesRoute } from './routes/automoderator/banwordPolicies/listBanwordPolicies.js';
+export { default as listLegacyBanwordsRoute } from './routes/automoderator/legacyBanwords/listLegacyBanwords.js';
 export { default as setBanwordPolicyRoute } from './routes/automoderator/banwordPolicies/setBanwordPolicy.js';
 export { default as deleteBanwordPolicyRoute } from './routes/automoderator/banwordPolicies/deleteBanwordPolicy.js';
 export { default as listBypassRolesRoute } from './routes/automoderator/bypassRoles/listBypassRoles.js';

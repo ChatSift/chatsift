@@ -43,18 +43,15 @@
 
 import process from 'node:process';
 import { createDb, type Database } from '../index.js';
-import type { Executor, Stats } from './lib/legacySocial.js';
+import { copyAll, copyGuildSettings, copyUsers, findConstraintViolations } from './lib/legacySocial.js';
+import type { Executor, Stats } from './lib/migrationCommon.js';
 import {
 	RollbackSignal,
 	SNOWFLAKE_PATTERN,
-	copyAll,
-	copyGuildSettings,
-	copyUsers,
-	findConstraintViolations,
 	printStats,
 	resolveLegacyUrl,
 	resolveTargetUrl,
-} from './lib/legacySocial.js';
+} from './lib/migrationCommon.js';
 
 // Every table the copy writes, so the wipe and the copy can never drift apart on which tables they cover.
 // `--xp-only` narrows the copy but deliberately NOT the wipe: leaving a previous full run's rewards behind
@@ -122,7 +119,7 @@ function resolveArgs(): Args {
 
 const { from, to, live, xpOnly } = resolveArgs();
 
-const legacy = createDb({ url: resolveLegacyUrl() });
+const legacy = createDb({ url: resolveLegacyUrl('ChatSift/Social') });
 const target = createDb({ url: resolveTargetUrl() });
 
 /**

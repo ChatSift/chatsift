@@ -74,6 +74,7 @@ import updateAutomoderatorConfigRoute from './routes/automoderator/config/update
 import deleteFilterExemptionRoute from './routes/automoderator/filterExemptions/deleteFilterExemption.js';
 import listFilterExemptionsRoute from './routes/automoderator/filterExemptions/listFilterExemptions.js';
 import setFilterExemptionRoute from './routes/automoderator/filterExemptions/setFilterExemption.js';
+import listLegacyBanwordsRoute from './routes/automoderator/legacyBanwords/listLegacyBanwords.js';
 import deleteAutomoderatorLogChannelRoute from './routes/automoderator/logChannels/deleteLogChannel.js';
 import listAutomoderatorLogChannelsRoute from './routes/automoderator/logChannels/listLogChannels.js';
 import setAutomoderatorLogChannelRoute from './routes/automoderator/logChannels/setLogChannel.js';
@@ -323,6 +324,7 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, deleteAutomoderatorWarnPunishmentRoute);
 	mountRoute(app, listAutomodRulesRoute);
 	mountRoute(app, listBanwordPoliciesRoute);
+	mountRoute(app, listLegacyBanwordsRoute);
 	mountRoute(app, setBanwordPolicyRoute);
 	mountRoute(app, deleteBanwordPolicyRoute);
 	mountRoute(app, listBypassRolesRoute);

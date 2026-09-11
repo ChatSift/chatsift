@@ -9,6 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
+import { LegacyBanwordsCard } from './LegacyBanwordsCard';
 import { ACTION_LABELS, describePolicy } from './policyDisplay';
 import { queryKeys } from '@/api/queryClient';
 import type { AutomodRule, BanwordActionName, BanwordPolicy } from '@/api/routes/automoderatorBanwords';
@@ -223,16 +224,21 @@ export function BannedWordsList() {
 	}
 
 	if (!rules.available) {
+		// The archive still renders here: it is read out of our own database, so a server whose rules we
+		// currently cannot see can still be handed back the list it is being asked to rebuild.
 		return (
-			<EmptyState
-				icon={<SvgAutoModerator height={28} width={28} />}
-				subtitle={
-					rules.reason === 'missing-permission'
-						? "Reading a server's AutoMod rules needs the Manage Server permission, which AutoModerator doesn't currently have here. Grant it and hit Refresh Rules. Nothing else about this feature needs it, and AutoModerator never edits your rules."
-						: "AutoModerator can't see this server right now. If it was just removed, re-invite it and hit Refresh Rules."
-				}
-				title="Can't read this server's AutoMod rules"
-			/>
+			<div className="flex flex-col gap-4">
+				<EmptyState
+					icon={<SvgAutoModerator height={28} width={28} />}
+					subtitle={
+						rules.reason === 'missing-permission'
+							? "Reading a server's AutoMod rules needs the Manage Server permission, which AutoModerator doesn't currently have here. Grant it and hit Refresh Rules. Nothing else about this feature needs it, and AutoModerator never edits your rules."
+							: "AutoModerator can't see this server right now. If it was just removed, re-invite it and hit Refresh Rules."
+					}
+					title="Can't read this server's AutoMod rules"
+				/>
+				<LegacyBanwordsCard />
+			</div>
 		);
 	}
 
@@ -248,6 +254,7 @@ export function BannedWordsList() {
 					title="This server has no AutoMod rules"
 				/>
 				<OrphanedPolicies guildId={guildId} policies={orphaned} />
+				<LegacyBanwordsCard />
 			</div>
 		);
 	}
@@ -272,6 +279,7 @@ export function BannedWordsList() {
 			))}
 
 			<OrphanedPolicies guildId={guildId} policies={orphaned} />
+			<LegacyBanwordsCard />
 		</div>
 	);
 }

@@ -213,6 +213,19 @@ export const ANTISPAM_MAX_SECONDS = 300;
 export const TRIGGER_DECAY_MAX_MINUTES = 30 * 24 * 60;
 
 /**
+ * When the read-only archive of legacy's banned words goes away (#11 P9).
+ *
+ * Banned words do not migrate -- each guild rebuilds its keyword lists in Server Settings after cutover -- so
+ * `automoderator_legacy_banwords` keeps a copy of what the list used to be for three months, because after P9
+ * tears down `postgres-old` nothing else has it. The dashboard renders this date on the archive card so nobody
+ * discovers the deadline by the data being gone.
+ *
+ * An ISO date rather than a duration from an unrecorded cutover: the retention is a single calendar fact about
+ * one table, and the thing that actually ends it is the operator running the `DROP TABLE` in the P9 runbook.
+ */
+export const LEGACY_BANWORD_ARCHIVE_UNTIL = '2026-12-22';
+
+/**
  * The oldest an account can be required to be before the join gate (P6, feature 13) lets it in, in seconds.
  * A year, past which a gate stops being a raid measure and becomes a membership policy Discord's own
  * verification levels express better. Legacy had no ceiling at all, in a column measured in milliseconds.

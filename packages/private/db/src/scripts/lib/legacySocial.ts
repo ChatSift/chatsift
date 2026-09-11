@@ -9,33 +9,9 @@
 // legacy-to-new column mapping is identical, and a second copy of it is a second thing to keep in sync with
 // schema.sql, so it lives here once and both entrypoints call it.
 
-import process from 'node:process';
 import type postgres from 'postgres';
 import type { Database } from '../../index.js';
-
-/**
- * The common supertype of the top-level client (`Database`) and a `sql.begin` transaction handle --
- * everything below only ever queries and builds fragments, so it accepts either rather than forcing every
- * helper to know which one it was handed.
- */
-export type Executor = postgres.ISql;
-
-// Big enough that the round-trip count stays trivial, small enough that a single INSERT's parameter list
-// stays well clear of Postgres' 65535-parameter ceiling (the widest table here binds 10 columns per row).
-// `social_users` is the only table with unknown magnitude -- nobody has counted it -- so it is the one this
-// actually matters for.
-export const BATCH_SIZE = 1_000;
-
-/**
- * Thrown to unwind out of `sql.begin` once a `--dry-run` has finished, so postgres.js issues a ROLLBACK
- * instead of a COMMIT. Caught and swallowed by the caller -- it is not a failure.
- */
-export class RollbackSignal extends Error {
-	public constructor() {
-		super('dry run complete, rolling back');
-		this.name = 'RollbackSignal';
-	}
-}
+import { BATCH_SIZE, chunk, statFor, type Executor, type Stats, type TableStat } from './migrationCommon.js';
 
 /**
  * Legacy row shapes, from `ChatSift/Social`'s `prisma/schema.prisma`. Every query below aliases the legacy
@@ -95,27 +71,6 @@ export interface LegacySocialInteraction {
 	name: string;
 	plainContent: string | null;
 	uses: number;
-}
-
-export interface TableStat {
-	inserted: number;
-	read: number;
-	skipped: number;
-}
-
-export type Stats = Record<string, TableStat>;
-
-export function statFor(read: number, inserted: number): TableStat {
-	return { read, inserted, skipped: read - inserted };
-}
-
-export function chunk<TItem>(items: readonly TItem[], size: number): TItem[][] {
-	const out: TItem[][] = [];
-	for (let index = 0; index < items.length; index += size) {
-		out.push(items.slice(index, index + size));
-	}
-
-	return out;
 }
 
 /**
@@ -544,69 +499,3 @@ export async function findConstraintViolations(legacy: Database, options: CopyOp
 
 	return problems;
 }
-
-export function printStats(stats: Stats): void {
-	console.log('\nTable                       read  inserted  skipped');
-	for (const [table, stat] of Object.entries(stats)) {
-		console.log(
-			`  ${table.padEnd(26)}${String(stat.read).padStart(4)}${String(stat.inserted).padStart(10)}${String(stat.skipped).padStart(9)}`,
-		);
-	}
-}
-
-// Destructured rather than accessed key-by-key: `ProcessEnv` is an index signature, so
-// `noPropertyAccessFromIndexSignature` rejects dot access while eslint's `dot-notation` rejects bracket
-// access. Destructuring is the one form both are happy with.
-const { IS_PRODUCTION, DATABASE_URL_DEV, DATABASE_URL_PROD, LEGACY_DATABASE_URL } = process.env;
-
-// The exact sets `zod`'s `stringbool()` uses, which is what parses IS_PRODUCTION in
-// `@chatsift/backend-core`'s shared env schema. Duplicated rather than imported because these scripts
-// deliberately don't pull in backend-core (that schema is a top-level `.parse(process.env)` evaluated on
-// import by every service, so adding LEGACY_DATABASE_URL to it would break all of them for the sake of a
-// script none of them run) -- but it has to agree with it *exactly*: a script picking a different database
-// than the rest of the stack, while `--live` commits real inserts, is the worst way for it to be wrong.
-const TRUTHY = new Set(['true', '1', 'yes', 'on', 'y', 'enabled']);
-const FALSY = new Set(['false', '0', 'no', 'off', 'n', 'disabled']);
-
-export function resolveTargetUrl(): string {
-	// `envSchema` declares IS_PRODUCTION as `.default(false)`, so unset means dev -- but an unrecognized
-	// value is an error there, not a silent falsy. Match that: quietly treating `IS_PRODUCTION=maybe` as dev
-	// would point a `--live` run at DATABASE_URL_DEV while the rest of the stack ran on prod config.
-	const raw = (IS_PRODUCTION ?? 'false').toLowerCase();
-	if (!TRUTHY.has(raw) && !FALSY.has(raw)) {
-		console.error(
-			`IS_PRODUCTION is set to ${JSON.stringify(IS_PRODUCTION)}, which is not a recognized boolean — expected one ` +
-				`of ${[...TRUTHY, ...FALSY].join(', ')}. Refusing to guess which database to target.`,
-		);
-		process.exit(1);
-	}
-
-	const isProduction = TRUTHY.has(raw);
-	const url = isProduction ? DATABASE_URL_PROD : DATABASE_URL_DEV;
-
-	if (!url) {
-		console.error(`${isProduction ? 'DATABASE_URL_PROD' : 'DATABASE_URL_DEV'} is not set`);
-		process.exit(1);
-	}
-
-	return url;
-}
-
-export function resolveLegacyUrl(): string {
-	if (!LEGACY_DATABASE_URL) {
-		console.error(
-			'LEGACY_DATABASE_URL is required — point it at a restored copy of the ChatSift/Social database, never the ' +
-				'live one (these scripts hold one transaction open across reads of the legacy side)',
-		);
-		process.exit(1);
-	}
-
-	return LEGACY_DATABASE_URL;
-}
-
-/**
- * Snowflake shape, used to validate the `--from`/`--to` guild ids the sandbox copy takes. Deliberately not
- * a range check -- anything that is a run of digits is a plausible id, and the script's real safety comes
- * from `--dry-run` showing exactly what it would delete and write.
- */
-export const SNOWFLAKE_PATTERN = /^\d{17,20}$/u;

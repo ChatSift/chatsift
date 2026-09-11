@@ -1,22 +1,14 @@
-import { Buffer } from 'node:buffer';
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { decryptWithKey, encryptWithKey } from '@chatsift/db';
 import { getContext } from './context.js';
-
-// GCM's recommended nonce size -- using 16 (like a CBC/CTR IV) works but wastes bytes and is slightly slower.
-const IV_LENGTH = 12;
-const AUTH_TAG_LENGTH = 16;
 
 /**
  * Returns a base64-encoded string containing the IV, auth tag, and the encrypted given `data`.
+ *
+ * The cipher itself lives in `@chatsift/db` so the one-off migration scripts there can write the same format
+ * without a context to read `ENCRYPTION_KEY` from; this pair is the ambient-key form every service uses.
  */
 export function encrypt(data: string): string {
-	const key = Buffer.from(getContext().env.ENCRYPTION_KEY, 'base64');
-	const iv = randomBytes(IV_LENGTH);
-
-	const cipher = createCipheriv('aes-256-gcm', key, iv);
-	const ciphertext = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
-
-	return Buffer.concat([iv, ciphertext, cipher.getAuthTag()]).toString('base64');
+	return encryptWithKey(getContext().env.ENCRYPTION_KEY, data);
 }
 
 /**
@@ -24,15 +16,5 @@ export function encrypt(data: string): string {
  * tampered with (GCM is authenticated, unlike the CTR mode this used to run in).
  */
 export function decrypt(data: string): string {
-	const buffer = Buffer.from(data, 'base64');
-
-	const key = Buffer.from(getContext().env.ENCRYPTION_KEY, 'base64');
-	const iv = buffer.subarray(0, IV_LENGTH);
-	const authTag = buffer.subarray(buffer.length - AUTH_TAG_LENGTH);
-	const ciphertext = buffer.subarray(IV_LENGTH, buffer.length - AUTH_TAG_LENGTH);
-
-	const decipher = createDecipheriv('aes-256-gcm', key, iv);
-	decipher.setAuthTag(authTag);
-
-	return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+	return decryptWithKey(getContext().env.ENCRYPTION_KEY, data);
 }
