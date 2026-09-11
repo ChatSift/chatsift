@@ -71,6 +71,19 @@ export async function appendPunishmentNotice(
 		return body;
 	}
 
-	const withNotice = `${body}\n\n${notice}`;
-	return withNotice.length > MESSAGE_LIMIT ? withNotice.slice(0, MESSAGE_LIMIT) : withNotice;
+	const withNotice = `${body}\n${notice}`;
+	if (withNotice.length <= MESSAGE_LIMIT) {
+		return withNotice;
+	}
+
+	// Dropped whole rather than sliced to fit. A cut lands on a UTF-16 code unit, so it can halve an emoji or
+	// end a DM mid-URL (`appeal at https://unba`) -- a broken link in the one message that most needs a working
+	// one. Unreachable through any supported path (a 400-character reason and a 1000-character notice leave
+	// hundreds to spare), so this is the shape of the failure that matters, not its frequency.
+	logger.warn(
+		{ guildId, action, length: withNotice.length },
+		'the punishment notice would overflow a Discord message -- sending the DM without it',
+	);
+
+	return body;
 }

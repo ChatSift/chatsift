@@ -90,12 +90,18 @@ export async function dispatchCaseLog(
 				`;
 
 	const api = getContext().service.client.api;
-	const targetAvatarURL = await resolveAvatarURL(api, modCase.targetId, logger);
+	// In parallel: two cache reads in the common case, and a case log is not worth two serial round trips when
+	// one of them misses.
+	const [targetAvatarURL, modAvatarURL] = await Promise.all([
+		resolveAvatarURL(api, modCase.targetId, logger),
+		modCase.modId ? resolveAvatarURL(api, modCase.modId, logger) : undefined,
+	]);
 
 	const embed = buildCaseEmbed(modCase, {
 		reference: reference ?? null,
 		logChannelId: jumpChannelId,
 		...(targetAvatarURL ? { targetAvatarURL } : {}),
+		...(modAvatarURL ? { modAvatarURL } : {}),
 	});
 
 	try {

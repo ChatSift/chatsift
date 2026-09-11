@@ -42,6 +42,21 @@ type NoticeDraft = Record<PunishmentNoticeScope, string>;
 
 const EMPTY_DRAFT: NoticeDraft = { DEFAULT: '', WARN: '', MUTE: '', KICK: '', SOFTBAN: '', BAN: '' };
 
+const SCOPE_KEYS = Object.keys(EMPTY_DRAFT) as PunishmentNoticeScope[];
+
+function draftFromNotices(notices: readonly { content: string; scope: PunishmentNoticeScope }[]): NoticeDraft {
+	const seeded = { ...EMPTY_DRAFT };
+	for (const notice of notices) {
+		seeded[notice.scope] = notice.content;
+	}
+
+	return seeded;
+}
+
+function sameDraft(left: NoticeDraft, right: NoticeDraft): boolean {
+	return SCOPE_KEYS.every((scope) => left[scope] === right[scope]);
+}
+
 /**
  * Per-guild text appended to the DM the bot sends when it punishes somebody (#232 P3b).
  *
@@ -63,19 +78,23 @@ export function PunishmentNoticesForm() {
 	const [draft, setDraft] = useState<NoticeDraft | null>(null);
 	const [errors, setErrors] = useState<Partial<NoticeDraft>>({});
 	const [actionError, setActionError] = useState<string | null>(null);
+	const [touched, setTouched] = useState(false);
 
-	// Seeded once, then left alone: a background refetch must not clobber an unsaved edit. Same shape as every
-	// other AutoModerator form here.
+	// Seeded on first load *and* re-seeded by any later refetch the guild's realtime channel triggers -- but
+	// only while nothing has been typed. Every other config form here seeds once and stops, which is the right
+	// trade when a save is a PATCH of one field; this one PUTs the whole set, so a form left sitting on a
+	// snapshot another manager has since replaced would offer a Save that silently reverts their work. Editing
+	// pins the draft exactly as before: a background refetch still must not clobber what is being typed.
 	useEffect(() => {
-		if (data && draft === null) {
-			const seeded = { ...EMPTY_DRAFT };
-			for (const notice of data.notices) {
-				seeded[notice.scope] = notice.content;
-			}
-
-			setDraft(seeded);
+		if (!data || touched) {
+			return;
 		}
-	}, [data, draft]);
+
+		const seeded = draftFromNotices(data.notices);
+		// Returning the previous reference when nothing changed is what keeps this from re-rendering on every
+		// refetch that answered with the same notices.
+		setDraft((previous) => (previous && sameDraft(previous, seeded) ? previous : seeded));
+	}, [data, touched]);
 
 	if (error && data === undefined) {
 		return <UserErrorHandler error={error} />;
@@ -85,20 +104,13 @@ export function PunishmentNoticesForm() {
 		return <Skeleton className="h-96 w-full rounded-lg" />;
 	}
 
-	// Pulled out of `data` so the closures below narrow it: `data.appealLink` inside a callback is only ever
-	// `string | null` to TypeScript, and asserting it away is how a null slips into the DM as "null".
 	const { appealLink } = data;
 
-	const stored = { ...EMPTY_DRAFT };
-	for (const notice of data.notices) {
-		stored[notice.scope] = notice.content;
-	}
-
-	const isDirty = Object.keys(EMPTY_DRAFT).some(
-		(key) => draft[key as PunishmentNoticeScope].trim() !== stored[key as PunishmentNoticeScope].trim(),
-	);
+	const stored = draftFromNotices(data.notices);
+	const isDirty = SCOPE_KEYS.some((scope) => draft[scope].trim() !== stored[scope].trim());
 
 	const updateField = (scope: PunishmentNoticeScope, value: string) => {
+		setTouched(true);
 		setDraft((previous) => (previous ? { ...previous, [scope]: value } : previous));
 		setErrors((previous) => ({ ...previous, [scope]: undefined }));
 		setActionError(null);
@@ -136,6 +148,9 @@ export function PunishmentNoticesForm() {
 
 		try {
 			await setNotices.mutateAsync(parsed.data as SetAutomoderatorPunishmentNoticesBody);
+			// What was typed is now what is stored, so the form goes back to following the server -- otherwise
+			// one edit would pin it to this snapshot for the rest of the session.
+			setTouched(false);
 		} catch (caughtError) {
 			setActionError(caughtError instanceof APIError ? caughtError.message : 'Failed to save. Please try again.');
 		}
@@ -149,10 +164,20 @@ export function PunishmentNoticesForm() {
 			return;
 		}
 
-		updateField(
-			'BAN',
-			current ? `${current}\n\nYou can appeal this ban at ${link}` : `You can appeal this ban at ${link}`,
-		);
+		const sentence = `You can appeal this ban at ${link}`;
+		const proposed = current ? `${current}\n\n${sentence}` : sentence;
+
+		// The textarea's own `maxLength` does not apply to a write from code, so without this the button can
+		// build a draft only the save rejects -- an error about a limit, pointing at text the user did not type.
+		if (proposed.length > PUNISHMENT_NOTICE_MAX_LENGTH) {
+			setErrors((previous) => ({
+				...previous,
+				BAN: `Adding the link would take this over ${PUNISHMENT_NOTICE_MAX_LENGTH} characters. Shorten the notice first.`,
+			}));
+			return;
+		}
+
+		updateField('BAN', proposed);
 	};
 
 	return (
@@ -189,11 +214,26 @@ export function PunishmentNoticesForm() {
 				<div>
 					<h3 className="text-sm font-medium text-primary dark:text-primary-dark">Per-action notices</h3>
 					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
-						A notice here <strong>replaces</strong> the general one for that action rather than being added to it, so a
-						ban can carry appeal instructions without every warning carrying them too. Leave one empty to use the
-						general notice.
+						A notice here <strong>replaces</strong> the general one for that action rather than being added to it. Leave
+						one empty to use the general notice.
 					</p>
 				</div>
+
+				{appealLink ? (
+					<div className="flex flex-col gap-2 rounded-md border border-on-secondary p-3 dark:border-on-secondary-dark">
+						<p className="text-sm text-secondary dark:text-secondary-dark">This server accepts appeals.</p>
+						<AppealLinkCopy link={appealLink} />
+					</div>
+				) : (
+					<div className="flex flex-col gap-2 rounded-md border border-on-secondary p-3 dark:border-on-secondary-dark">
+						<p className="text-sm text-secondary dark:text-secondary-dark">
+							This server does not take appeals yet. Set Appeals up and every ban DM can carry an appeals link.
+						</p>
+						<Link className="text-sm text-misc-accent hover:underline" href={`/dashboard/${guildId}/appeals/config`}>
+							Set up Appeals
+						</Link>
+					</div>
+				)}
 
 				{OVERRIDE_SCOPES.map((scope) => (
 					<div className="flex flex-col gap-2" key={scope}>
@@ -207,39 +247,6 @@ export function PunishmentNoticesForm() {
 							rows={2}
 							value={draft[scope]}
 						/>
-
-						{scope === 'BAN' &&
-							(appealLink ? (
-								<div className="flex flex-col gap-2 rounded-md border border-on-secondary p-3 dark:border-on-secondary-dark">
-									<p className="text-sm text-secondary dark:text-secondary-dark">
-										This server accepts ban appeals. A ban DM is the only place most people will ever see that, so put
-										the link in it.
-									</p>
-									<AppealLinkCopy link={appealLink}>
-										<Button
-											className={buttonClass('primary', 'sm')}
-											onPress={() => addAppealLink(appealLink)}
-											type="button"
-										>
-											Add to this notice
-										</Button>
-									</AppealLinkCopy>
-								</div>
-							) : (
-								<div className="flex flex-col gap-2 rounded-md border border-on-secondary p-3 dark:border-on-secondary-dark">
-									<p className="text-sm text-secondary dark:text-secondary-dark">
-										This server does not take appeals yet. Set Appeals up and every ban DM can carry a link where the
-										person can make their case, answering your questions, in a channel your moderators already read -
-										instead of them finding a staff member to DM, or not bothering.
-									</p>
-									<Link
-										className="text-sm text-misc-accent hover:underline"
-										href={`/dashboard/${guildId}/appeals/config`}
-									>
-										Set up Appeals
-									</Link>
-								</div>
-							))}
 					</div>
 				))}
 			</div>

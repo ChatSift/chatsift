@@ -123,6 +123,18 @@ test('puts the resolved target avatar on the author line, and copes without one'
 	expect(buildCaseEmbed(makeCase()).author).toEqual({ name: 'target (2)' });
 });
 
+// The same contract on the footer: a case nobody authored has no `mod_id` to resolve, so the caller passes
+// nothing and the footer text stands on its own.
+test('puts the resolved moderator avatar on the footer, and copes without one', () => {
+	const withAvatar = buildCaseEmbed(makeCase(), { modAvatarURL: 'https://cdn.discordapp.com/avatars/3/hash.png' });
+	expect(withAvatar.footer).toEqual({
+		text: 'Case 42 | By mod (3)',
+		icon_url: 'https://cdn.discordapp.com/avatars/3/hash.png',
+	});
+
+	expect(buildCaseEmbed(makeCase()).footer).toEqual({ text: 'Case 42 | By mod (3)' });
+});
+
 // #381. The bare number is the fallback for every surface, not an error state: a guild with no mod log still
 // has case numbers, they are just not clickable.
 test('formats a case number, hyperlinked only when there is a message to jump to', () => {

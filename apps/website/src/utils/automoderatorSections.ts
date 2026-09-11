@@ -25,7 +25,7 @@ export const AUTOMODERATOR_SECTION_GROUPS = [
 			{
 				segment: 'punishment-notices',
 				title: 'Punishment Notices',
-				subtitle: 'What the bot tells somebody when it punishes them, and where they can appeal',
+				subtitle: 'Text the bot appends at the end of punishment reasons',
 			},
 		],
 	},
