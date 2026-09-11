@@ -170,7 +170,19 @@ per numbered thing: "Case by number", "Report by number" and "Thread by number" 
 by title (fetched on first open, open ones first; Backspace on an empty box comes back). Cases, reports and
 threads get no such page because there are too many to list. A session title typed at the top level still
 matches. Its Recent group is what `DashboardCrumbs` writes to localStorage once a trail's labels have all
-resolved. Section lists live in `utils/{automoderator,appeals,modmail,social}Sections.ts`
+resolved.
+
+**The guild tab row is a menu too.** `app/dashboard/[id]/_components/GuildNav.tsx` builds the tabs on Radix
+`NavigationMenu`: each bot tab is a link to the bot's hub _and_ the trigger for a panel of its sections
+(hover opens it from `lg` up; a tap on a phone just follows the link, so the hub's cards are the menu there;
+keyboard users get the hub the same way). Panels are title-only and read `utils/botSections.ts`, with
+AutoModerator keeping its hub's grouping. The open tab paints `bg-on-secondary`, a shade darker than the
+active tab's `bg-on-tertiary`, because hover and active already look the same. Two mechanics worth knowing
+before touching it: the tabs scroll horizontally, so the panel hangs off Radix's `Viewport` outside the
+scrolling box, a zero-size anchor placed by measuring the tab as it opens (not by Radix's measured
+`--radix-navigation-menu-viewport-*` variables, which arrive a frame late and made the panel flash at the
+previous position); and the value is controlled for the same reason, with a reset on pathname change so a
+navigation always lands with the menu closed. Section lists live in `utils/{automoderator,appeals,modmail,social}Sections.ts`
 -- the hubs and the breadcrumb read those directly, the palette reads them through `utils/botSections.ts` -- so
 a section added to one of those files reaches all three. `cmdk` is the dependency it brought in: fuzzy
 scoring, grouping, arrow-key selection and the dialog's ARIA, on the same Radix Dialog the stack already uses.
