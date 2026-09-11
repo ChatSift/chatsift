@@ -15,8 +15,11 @@ interface UserBadgeProps {
 }
 
 /**
- * An account as a case, report or reporter refers to it: avatar, the name we can produce for it, and the id
- * underneath (#372, #382).
+ * An account as a case, report, reporter or appellant refers to it: avatar, the name we can produce for it, and
+ * the id underneath (#372, #382).
+ *
+ * App-level rather than one bot's, because it is not one bot's: it started under `automoderator/_components`
+ * and moved here when the appeals queue needed the same badge (#232 P5). Nothing in it is bot-specific.
  *
  * The id stays visible rather than being folded into a tooltip -- a case's subject has usually left by the time
  * anyone reads it back, which makes the id the only handle that still works for a ban appeal or a cross-check.

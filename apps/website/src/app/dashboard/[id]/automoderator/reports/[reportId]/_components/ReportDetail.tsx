@@ -11,11 +11,11 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { UserBadge } from '../../../_components/UserBadge';
-import { snapshotUserLabel } from '../../../_components/userDisplay';
 import { reporterCountLabel, STATE_LABELS, STATE_PILL_CLASSES } from '../../_components/reportDisplay';
 import { queryKeys } from '@/api/queryClient';
 import { useAutomoderatorReport } from '@/api/routes/automoderatorReports';
+import { UserBadge } from '@/components/dashboard/UserBadge';
+import { snapshotUserLabel } from '@/components/dashboard/userDisplay';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 import { formatDate } from '@/utils/util';
@@ -150,7 +150,7 @@ export function ReportDetail() {
 						// see". The account itself is no longer repeated here; the heading above carries it now.
 						<p className="text-secondary dark:text-secondary-dark">
 							This report is about the account rather than a specific message. Bios, pronouns and display-name history
-							are not available to the bot — open the profile in Discord to check those yourself.
+							are not available to the bot, so open the profile in Discord to check those yourself.
 						</p>
 					)}
 				</Field>
@@ -180,7 +180,7 @@ export function ReportDetail() {
 				<p className="text-sm font-medium text-primary dark:text-primary-dark">
 					{reporterCountLabel(report.reporterCount)}
 					{/* The route bounds how many it resolves, so a brigaded report shows a count larger than the list. */}
-					{reporters.length < report.reporterCount ? ` — showing the first ${reporters.length}` : ''}
+					{reporters.length < report.reporterCount ? `, showing the first ${reporters.length}` : ''}
 				</p>
 
 				<div className="flex flex-col gap-3">

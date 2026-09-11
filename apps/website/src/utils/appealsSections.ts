@@ -4,9 +4,16 @@
  * gives: a section added to the hub and forgotten in the breadcrumb reaches the URL bar as its raw kebab-case
  * segment.
  *
- * Flat rather than grouped: two sections need no grouping, and P5's appeals queue makes three.
+ * Flat rather than grouped: three sections need no grouping.
  */
 export const APPEALS_SECTION_LIST = [
+	{
+		// First, and deliberately: this is the section somebody opens Appeals to use, while the other two are set
+		// once and left alone.
+		segment: 'queue',
+		title: 'Queue',
+		subtitle: 'Every appeal filed in this server, and the decision on it',
+	},
 	{
 		segment: 'config',
 		title: 'Config',

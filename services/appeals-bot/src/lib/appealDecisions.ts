@@ -67,7 +67,7 @@ export async function runAppealDecision(options: RunAppealDecisionOptions, logge
 	});
 
 	if (!result.ok) {
-		appealDecisions.inc({ decision, outcome: result.reason });
+		appealDecisions.inc({ decision, outcome: result.reason, source: 'card' });
 
 		if (result.reason === 'raced') {
 			// Their card is stale by definition if they lost the race, so redraw it from the row they lost to.
@@ -94,7 +94,7 @@ export async function runAppealDecision(options: RunAppealDecisionOptions, logge
 			: 'Something went wrong recording that decision, so the appeal has been left open. Please try again.';
 	}
 
-	appealDecisions.inc({ decision, outcome: 'applied' });
+	appealDecisions.inc({ decision, outcome: 'applied', source: 'card' });
 	await refreshAppealCard(result.appeal, logger);
 
 	switch (decision) {

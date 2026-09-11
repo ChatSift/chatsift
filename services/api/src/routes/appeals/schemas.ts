@@ -1,6 +1,7 @@
 import {
 	APPEAL_ANSWER_MAX_LENGTH,
 	APPEAL_COOLDOWN_MAX_DAYS,
+	APPEAL_DECISION_REASON_MAX_LENGTH,
 	APPEAL_MAX_APPEALS_CEILING,
 	APPEAL_QUESTION_MAX_COUNT,
 } from '@chatsift/core';
@@ -57,3 +58,40 @@ export const submitAppealBodySchema = z.strictObject({
 		)
 		.max(APPEAL_QUESTION_MAX_COUNT),
 });
+
+/**
+ * The queue's status filter. Mirrors `appeal_status` exactly, in the order the queue lists it -- derived from
+ * the schema on the dashboard side (as `reportStateSchema` is) so a filter value the route would reject cannot
+ * be constructed there in the first place.
+ *
+ * Mod-facing, unlike everything in `appealsPublic.ts`: a silent denial is a `DENIED` row here and says so, and
+ * that is the whole point of the second surface. `PENDING` here means genuinely pending.
+ */
+export const appealStatusSchema = z.enum(['PENDING', 'APPROVED', 'DENIED', 'WITHDRAWN', 'MOOT']);
+
+/**
+ * The dashboard's half of the three buttons (#232 P5).
+ *
+ * One discriminator rather than `status` + `silent`: those two can be combined into states the database then
+ * refuses (`appeals_silent_check`), and there is no reason to let a client construct one. The values are the
+ * bot's own `AppealButtonDecision` names, so the two surfaces label the same act the same way.
+ */
+export const decideAppealBodySchema = z
+	.strictObject({
+		decision: z.enum(['approve', 'deny', 'deny_silent']),
+		reason: z.string().trim().max(APPEAL_DECISION_REASON_MAX_LENGTH).nullable().optional(),
+	})
+	// The same rule the bot's denial modal enforces with `required: !silent`. An ordinary denial's reason is the
+	// entire message the appellant is given, and a denial with no reason is the thing every appeal system is
+	// criticised for; a silent denial has no reader waiting on it, so blank there is a legitimate "no comment".
+	.refine((data) => data.decision !== 'deny' || Boolean(data.reason?.length), {
+		message: 'A denial the appellant can see has to say why',
+		path: ['reason'],
+	})
+	// Refused rather than ignored. The card has no reason box on Approve at all, so accepting one here would put
+	// text in front of an appellant (P6 DMs a non-silent decision's reason) that only one of the two surfaces can
+	// ever produce -- which is the drift decision 1 exists to prevent.
+	.refine((data) => data.decision !== 'approve' || !data.reason, {
+		message: 'An approval carries no reason, matching the card in Discord',
+		path: ['reason'],
+	});

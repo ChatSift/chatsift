@@ -25,11 +25,16 @@ export const register = new Registry();
  * first, an ordinary outcome rather than an error) or `failed` (the claim was given back, which today means an
  * unban Discord refused -- the one alert-worthy value here, since every one of those is an appeal a moderator
  * believes they approved).
+ *
+ * `source` is `card` for the three buttons and `system` for the moot close a ban lifted elsewhere triggers
+ * (P4b). **`services/api` defines this same metric with the same labels** and passes `dashboard` (#232 P5), so
+ * a Grafana panel summing across both jobs sees the real total -- keep the two label sets identical, because a
+ * divergence doesn't error, it splits the sum into two half-populated series.
  */
 export const appealDecisions = new Counter({
 	name: 'appeals_decisions_total',
-	help: 'Appeal decisions, by decision and what came of it',
-	labelNames: ['decision', 'outcome'] as const,
+	help: 'Appeal decisions, by decision, what came of it, and which surface made it',
+	labelNames: ['decision', 'outcome', 'source'] as const,
 	registers: [register],
 });
 

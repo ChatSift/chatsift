@@ -130,5 +130,13 @@ export const queryKeys = {
 		// splitting the realtime channel.
 		config: (guildId: string) => ['api', 'appeals', guildId, 'config'] as const,
 		unappealableUsers: (guildId: string) => ['api', 'appeals', guildId, 'unappealable-users'] as const,
+		queue: {
+			list: (guildId: string, filters: { status?: string | undefined; userId?: string | undefined }) =>
+				['api', 'appeals', guildId, 'queue', filters] as const,
+			byId: (guildId: string, appealId: number) => ['api', 'appeals', guildId, 'queue', appealId] as const,
+			// The prefix of both above, which is what every decision invalidates: `applyAppealDecision` publishes
+			// one `appealsQueueChannel` signal and has no idea which list page or detail view is open.
+			all: (guildId: string) => ['api', 'appeals', guildId, 'queue'] as const,
+		},
 	},
 } as const;

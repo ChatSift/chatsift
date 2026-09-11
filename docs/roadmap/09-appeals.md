@@ -6,7 +6,7 @@ M4's AMA cutover ([05-migration-cutover.md](05-migration-cutover.md)) and M5's M
 impact:** none until P3, and additive thereafter: new tables, a new Discord application, a new site. No existing product's
 behavior changes at any point, and there is no data migration.
 
-## Status: P0-P4b shipped. P5 is next
+## Status: P0-P5 shipped. P6 is next
 
 This document was written 2026-07-31 and last amended 2026-08-03, then sat unstarted for a month while the AutoModerator
 port, horizontal scaling (#355), the grants refactor (#310), the Discord REST proxy and the Caddy absorption (#305) all
@@ -17,13 +17,13 @@ shipping its own ban DM. Where a superseded version is still useful as rationale
 
 P0 (`packages/private/web-core`, shipped as #404), P1 (the Appeals bot's identity, guild presence, schema and config
 API), P2 (the dashboard's Appeals section), P3 (`apps/appeals`/`unban.app`, the appellant session and the four
-appellant-facing routes), P3b (punishment notices, and the appeal link inside them) and P4 (the mod-channel card and the
-shared decision path) are in. An appellant can sign in, reach a guild by deep link or by invite, and file an appeal -- a
-guild running AutoModerator can put the link to that in the DM its bans already send -- and moderators can approve or deny
-it from Discord, with an approval lifting the real ban. A ban lifted by any other route closes the appeal on its own
-(P4b). What is still missing is the second mod surface and the delivery:
-P5's dashboard queue, which decision 1 says ships alongside P4 before any of this is announced, and P6's DM, without which
-an ordinary denial is a decision the appellant can only find by looking. `09-` is the next free roadmap
+appellant-facing routes), P3b (punishment notices, and the appeal link inside them), P4 (the mod-channel card and the
+shared decision path) and P5 (the dashboard queue) are in. An appellant can sign in, reach a guild by deep link or by
+invite, and file an appeal -- a guild running AutoModerator can put the link to that in the DM its bans already send --
+and moderators can approve or deny it from **either** mod surface, with an approval lifting the real ban and each surface
+rewriting the other. A ban lifted by any other route closes the appeal on its own (P4b). **Decision 1 is therefore
+satisfied and the feature is announceable.** What is still missing is the delivery: P6's DM, without which an ordinary
+denial is a decision the appellant can only find by looking. `09-` is the next free roadmap
 slot; 02/03/04 (M1-M3), 07 (#261) and 08 (#216) were all
 consumed and deleted once their work shipped. This doc follows the same lifecycle: when the phases land, it gets **deleted**
 and its durable shape is condensed into a new `## 13. Appeals (#232)` section of
@@ -777,10 +777,10 @@ seen it, and there was no path for an answer to come back. The `NEEDS_MORE_INFO`
 recreated). Nothing had ever written any of the three. Do not add the button back without designing the appellant's half
 first.
 
-**The card's "View in dashboard" button points at a page P5 has to build**: `appealDetailLink` (in
+**The card's "View in dashboard" button points at a page P5 built**: `appealDetailLink` (in
 `dashboardLinks.ts`) resolves to `/dashboard/<guild>/appeals/queue/<id>`, nested under the list rather than
-sitting as a catch-all beside `appeals/config` and `appeals/unappealable-users`. Until P5 lands that link 404s
--- which is the one place P4 depends on P5, and decision 1 has them shipping together anyway.
+sitting as a catch-all beside `appeals/config` and `appeals/unappealable-users`. That was the one place P4
+depended on P5, and decision 1 had them shipping together anyway.
 
 _Verify:_ `build`/`lint`/`test`/`format:check` green. Runtime is the owner's: file an appeal against a text-channel mod
 channel and a forum one, approve it and confirm the unban lands, deny one and confirm the card rewrites in place rather than
@@ -820,22 +820,52 @@ anybody adds.
 _Verify:_ `build`/`lint`/`test`/`format:check` green. Runtime is the owner's: file an appeal, unban the account
 by hand, and confirm the card rewrites itself to closed and the appellant can file again after a future ban.
 
-### P5 -- Dashboard: appeals queue, actioning, history
+### P5 -- Dashboard: appeals queue, actioning, history (shipped 2026-09-11)
 
-- `apps/website/src/app/dashboard/[id]/appeals/` gains the queue (filter by status), a detail view with the full
-  `appeal_events` trail, and the same three actions.
-- `services/api/src/routes/appeals/mod/*`, all calling `applyAppealDecision()` from `@chatsift/backend-core` -- no second
-  implementation of the transition, and `perform` is where the API passes its own unban.
-- The API side of the card gains a `syncAppealCard` next to P4's `postAppealCard`, so a decision taken on the dashboard
-  rewrites the Discord embed. `appeals.mod_channel_id` is already where the message is, so that edit needs no guessing
-  about forums and threads.
-- `appealsQueueChannel(guildId)` exists and is already published to by both the submit path and every decision, so the
-  queue is live from the first render.
-- **P4 and P5 together are decision 1.** Neither ships to users alone; the feature is announced when both are merged.
+What shipped, against the bullet list this section used to carry:
 
-_Verify:_ take the same appeal through each terminal state from the dashboard and confirm the Discord embed updates to match,
-and the reverse; confirm exactly one embed exists per appeal after a round trip through both surfaces; confirm two moderators
-acting concurrently produce one decision and a clear "already decided" response for the loser.
+- **`services/api/src/routes/appeals/mod/{listAppeals,getAppeal,decideAppeal,util}.ts`** -- the queue
+  (`GET .../appeals/queue`, cursor-paginated, filterable by status and by user id), the detail
+  (`GET .../appeals/queue/:appealId`, answers plus the whole `appeal_events` trail with its actors resolved) and
+  the one action (`POST .../appeals/queue/:appealId/decision`). The transition is `applyAppealDecision()` exactly
+  as P4 uses it, `perform` carrying the API's own unban -- there is no second implementation, which is decision 1.
+- **`syncAppealCard` in `services/api/src/util/appealCard.ts`**, next to P4's `postAppealCard` and sharing a
+  `buildCardBody` with it, so a decision taken on the dashboard rewrites the Discord embed and a decided card
+  cannot end up missing something the fresh one had. Same `UnknownMessage`/`UnknownChannel` self-heal the bot
+  does. Never throws: the decision is already committed, so a stale card next to a correct database is the
+  honest degradation.
+- **`apps/website/.../appeals/queue/{page.tsx,[appealId]/page.tsx}`** plus `_components/`: the list with its
+  status filter and user-id search, and the detail with the ban-reason snapshot, the questionnaire, the trail and
+  `AppealDecision` -- one `SegmentedControl` for the three decisions, a reason box on the two denials, and a
+  `ConfirmModal` before any of them lands. Both subscribe to `appealsQueueChannel`, which was already published
+  to by the submit path and every decision, so the queue was live from its first render.
+- `appeals_decisions_total` gained a **`source`** label and a `services/api` half (`dashboard`); the bot now
+  passes `card` for its buttons and `system` for P4b's moot close. Without that the alert on `outcome="failed"`
+  -- every one of which is an appeal a moderator believes they approved -- would have had a blind spot for any
+  guild that triages on the web, which is the same reasoning `core/metrics.ts` already records for AMA.
+
+**Four calls worth keeping:**
+
+- **The decision route is gated on Manage Guild, not the card's Ban Members.** Deliberate: Manage Guild is what
+  lets somebody configure Appeals, and grant themselves Ban Members, in the first place -- a stricter gate here
+  would be a speed bump rather than a boundary. What the two surfaces must agree on is the _decision_, and they do.
+- **The body is one `decision` discriminator (`approve`/`deny`/`deny_silent`), not `status` + `silent`.** Those
+  two can be combined into states `appeals_silent_check` then refuses, and there is no reason to let a client
+  construct one. **An approval carries no reason and the route refuses one**: the card has no reason box on
+  Approve, and P6 DMs a non-silent decision's reason, so accepting one would put text in front of an appellant
+  that only one of the two surfaces could ever produce. Both rules, and the schema mirroring `appeal_status`
+  exactly, are covered by `routes/appeals/__tests__/schemas.test.ts`.
+- **The decision route declares no `realtimeChannel`.** `applyAppealDecision` publishes to `appealsQueueChannel`
+  itself, because the bot's buttons need that broadcast too; declaring one here would double every invalidate.
+- **`UserBadge`/`userDisplay` moved to `apps/website/src/components/dashboard/`** out of
+  `automoderator/_components/`. Nothing in them was ever AutoModerator's, and an appeals page reaching into
+  another bot's `_components` is the alternative.
+
+_Verify:_ `build`/`lint`/`test`/`format:check` green. Runtime is the owner's: take the same appeal through each
+terminal state from the dashboard and confirm the Discord embed updates to match, and the reverse; confirm exactly
+one embed exists per appeal after a round trip through both surfaces; confirm two moderators acting concurrently
+produce one decision and a clear "already decided" response for the loser; and confirm the card's "View in
+dashboard" button now lands on the detail page rather than 404ing.
 
 ### P6 -- Decision delivery (DM), and re-adding on approval
 
