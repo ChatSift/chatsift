@@ -55,6 +55,50 @@ services:
       interval: 10s
       timeout: 5s
 
+  # Nightly logical backups of the whole cluster to S3 (see build/pg-backup/backup.sh for why restic,
+  # and docs/workflow.md for the restore runbook). Profile-gated so only prod takes them -- a canary or
+  # dev checkout that started this would write its own throwaway data into the production repository.
+  #
+  # The `depends_on` below only orders startup. It is not what keeps backups correct at 03:00 -- a
+  # Postgres that is down then surfaces as a failed run on stderr, retried a few times, rather than as a
+  # container that quietly gave up.
+  pg-backup:
+    image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-pg-backup
+    build:
+      context: ./build/pg-backup
+      dockerfile: ./Dockerfile
+    profiles: ['backup']
+    restart: unless-stopped
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    environment:
+      # The S3 credentials are spelled BACKUP_* in .env.private and only mapped onto the names the AWS
+      # SDKs look for here. Both files are loaded by every service in this file, so an unprefixed
+      # AWS_ACCESS_KEY_ID would put working bucket credentials into the environment of every bot that
+      # processes untrusted Discord input, where any library that happens to construct an AWS client
+      # would pick them up ambiently. The prefixed copies are still there; nothing can use them by
+      # accident.
+      AWS_ACCESS_KEY_ID: ${BACKUP_AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_AWS_SECRET_ACCESS_KEY}
+      # Optional -- restic resolves the bucket's region on its own when this is blank.
+      AWS_DEFAULT_REGION: ${BACKUP_AWS_REGION:-}
+      RESTIC_REPOSITORY: 's3:${BACKUP_S3_ENDPOINT}/${BACKUP_S3_BUCKET}/${BACKUP_S3_PREFIX}'
+      RESTIC_PASSWORD: ${BACKUP_RESTIC_PASSWORD}
+      # Onto the volume, not the container's $HOME: restic re-reads the repository index on every prune,
+      # and a cache thrown away on each redeploy would re-download it from S3 every time.
+      RESTIC_CACHE_DIR: /var/lib/pg-backup/cache
+      # Same source of truth as the `postgres` service above, which spells its own credentials inline
+      # the same way. `chatsift` is the cluster superuser, which pg_dumpall --globals-only requires.
+      PGHOST: postgres
+      PGUSER: chatsift
+      PGPASSWORD: admin
+    volumes:
+      - pg-backup-state:/var/lib/pg-backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
     profiles: ['monitoring']
@@ -467,6 +511,10 @@ volumes:
     name: '${RESOURCE_PREFIX}-grafana-data'
   glitchtip-uploads:
     name: '${RESOURCE_PREFIX}-glitchtip-uploads'
+  # restic's cache plus the scratch directory the dumps are written to before being stored. Holds no
+  # backup of its own -- losing it costs one slow run, not any data.
+  pg-backup-state:
+    name: '${RESOURCE_PREFIX}-pg-backup-state'
 
 networks:
   default:

@@ -466,10 +466,10 @@ operator's lane, and an agent's job in a worktree (`yarn build`, `lint`, `test`)
 
 Two deployments run on the one VPS, from one codebase:
 
-| Channel | Branch   | Checkout                     | `COMPOSE_PROJECT_NAME` | `RESOURCE_PREFIX` | `COMPOSE_PROFILES`   |
-| ------- | -------- | ---------------------------- | ---------------------- | ----------------- | -------------------- |
-| prod    | `main`   | `/home/deploys/repos/prod`   | `chatsift-prod`        | `chatsift-v3`     | `monitoring,ingress` |
-| canary  | `canary` | `/home/deploys/repos/canary` | `chatsift-canary`      | `chatsift-canary` | (empty)              |
+| Channel | Branch   | Checkout                     | `COMPOSE_PROJECT_NAME` | `RESOURCE_PREFIX` | `COMPOSE_PROFILES`          |
+| ------- | -------- | ---------------------------- | ---------------------- | ----------------- | --------------------------- |
+| prod    | `main`   | `/home/deploys/repos/prod`   | `chatsift-prod`        | `chatsift-v3`     | `monitoring,ingress,backup` |
+| canary  | `canary` | `/home/deploys/repos/canary` | `chatsift-canary`      | `chatsift-canary` | (empty)                     |
 
 `RESOURCE_PREFIX` still reads `chatsift-v3` on prod, and the volumes are still named `chatsift-v3-*`, even though
 nothing else is called that any more. That is not leftover cruft — see the note below the table.
@@ -1053,6 +1053,119 @@ on Hetzner's side (the actual scenario "encryption at rest" targets). It does no
 compromise of the host itself — the key has to be available for Postgres to restart unattended, so a root-level
 attacker on a running box can read the unlocked data either way, same as any at-rest scheme for an
 always-on service.
+
+## Database backups
+
+Nightly logical backups of the whole Postgres cluster into a [restic](https://restic.net) repository on S3, taken
+by the `pg-backup` service. It is gated behind the `backup` compose profile, so **only prod takes them** -- a dev or
+canary checkout that enabled it would write its throwaway data into the production repository.
+
+### What replaced what, and why
+
+The old `ChatSift/stack` deployment ran `kartoza/pg-backup:12.4` and **never deleted a single backup**. Its
+`REMOVE_BEFORE: 30` is implemented as `find ${MYBASEDIR}/* -type f -mmin +N -delete` over the container's own
+scratch directory; with `STORAGE_BACKEND=S3` the dumps are pushed to the bucket and that `find` sweeps a directory
+the bucket knows nothing about. Thirty-day retention was therefore a manual chore against the S3 console for as
+long as it ran. Upstream did eventually grow a real `run_s3_retention`, long after the version pinned there.
+
+That image could not have been lifted across regardless: its `pg_dump` is v12, and pg_dump refuses outright to dump
+a server newer than itself, so it cannot read the 17 cluster at all. Hence `build/pg-backup/` -- a `postgres:17-alpine`
+base (the same floating tag as the server, so the two can never drift apart again) plus restic, and
+`build/pg-backup/backup.sh`, which is short enough to read in one sitting.
+
+restic rather than dumps-as-objects plus a hand-written pruner, because the pruner is the part that broke last
+time: `restic forget --keep-daily` is tested upstream code that will not empty a repository, `restic check` verifies
+the backups without a restore, and the dumps compress ~50x in the repository.
+
+### Layout and configuration
+
+The repository lives at `s3://chatsift/new` -- `BACKUP_S3_PREFIX` in `.env.public`. The `new/` prefix exists because
+the bucket is shared with the retiring `ChatSift/stack` deployment, whose own backups sit at the bucket root. Once
+that stack is gone the prefix can be collapsed, but note it names the repository itself: moving it is
+`aws s3 mv --recursive` plus the env change, not something to do casually.
+
+Everything else is in `.env.public` (schedule hour, `--keep-daily`/`--keep-last`, bucket and endpoint) except the
+three secrets in `.env.private`: `BACKUP_AWS_ACCESS_KEY_ID`, `BACKUP_AWS_SECRET_ACCESS_KEY` and
+`BACKUP_RESTIC_PASSWORD`. They are spelled `BACKUP_*` rather than `AWS_*` because both env files are loaded into
+every container in the stack; `docker-compose.yml` maps them onto the real names for this one service, so no bot
+that processes untrusted Discord input ends up holding ambient bucket credentials.
+
+> **`BACKUP_RESTIC_PASSWORD` belongs in the password manager before the first `./compose up`, not after.** restic
+> has no unencrypted mode, so the backups are encrypted whether or not you wanted that, and without this password
+> every one of them is permanently unreadable no matter who holds the S3 credentials. Same class of secret as
+> `ENCRYPTION_KEY` and the fscrypt key above.
+
+Two things the design deliberately does not do:
+
+- **There is no Prometheus metric and no Grafana rule behind this.** Failures go to stderr and reach you through
+  the Dozzle relay like any other container's errors. The gap that leaves is a container that never starts at all,
+  which produces no stderr either -- `./compose ps` and the `last-success` marker below are what answer that.
+- **The S3 credentials can delete objects**, because `restic prune` needs to. A host compromise therefore reaches
+  the backups. Scoping the IAM policy to `s3:{Put,Get,List,Delete}Object` on `chatsift/new/*` limits the blast
+  radius to this prefix, and bucket versioning plus a noncurrent-version lifecycle rule would close it properly.
+  Neither is set up today. **Do not put an expiration lifecycle rule on `new/` itself** -- it would delete pack
+  files the repository still references and corrupt every snapshot in it.
+
+### Operating it
+
+```sh
+./compose logs pg-backup --tail 50          # what the last run did
+./compose exec pg-backup cat /var/lib/pg-backup/last-success   # unix ts of the last good run
+./compose exec pg-backup restic snapshots   # what is actually in the bucket
+./compose exec pg-backup restic stats --mode raw-data
+```
+
+To force a run outside the window, clear the marker and restart -- the container backs up on startup whenever the
+last success is more than 24h old:
+
+```sh
+./compose exec pg-backup rm -f /var/lib/pg-backup/last-success
+./compose restart pg-backup
+```
+
+If a container was killed mid-run the repository keeps a lock; the next run clears stale locks itself, and
+`restic unlock` does it by hand.
+
+### Restoring
+
+The dumps are stored as ordinary `pg_dump --format=custom` archives, so recovery needs restic, `pg_restore`, and
+the password -- nothing from this repo. Off a dead host, that is any machine with the restic binary:
+
+```sh
+export RESTIC_REPOSITORY='s3:s3.amazonaws.com/chatsift/new'
+export RESTIC_PASSWORD='...'          # from the password manager
+export AWS_ACCESS_KEY_ID='...' AWS_SECRET_ACCESS_KEY='...'
+
+restic snapshots                       # pick one; `latest` is the newest
+restic restore latest --target /tmp/restore
+ls /tmp/restore/var/lib/pg-backup/work # globals.sql, chatsift.dump, glitchtip.dump, postgres.dump
+```
+
+Then, against a **fresh** cluster, roles first (every object in the dumps is owned by one of them):
+
+```sh
+psql --username=chatsift --dbname=postgres --file=/tmp/restore/var/lib/pg-backup/work/globals.sql
+createdb --username=chatsift chatsift
+pg_restore --username=chatsift --dbname=chatsift /tmp/restore/var/lib/pg-backup/work/chatsift.dump
+```
+
+A single file can also be streamed straight out without materializing the whole snapshot, which is the fast path
+when you only want the product database:
+
+```sh
+restic dump latest /var/lib/pg-backup/work/chatsift.dump | pg_restore --dbname=chatsift
+```
+
+### The drill
+
+**A backup nobody has restored is not a backup.** Worth doing once a quarter, and after any Postgres major version
+bump:
+
+1. `restic check --read-data` -- re-downloads and verifies every pack rather than just the metadata the nightly run
+   checks. This costs S3 egress, which is why it is not automatic.
+2. Restore the latest snapshot into a scratch database (`createdb restore_drill`, `pg_restore --dbname=restore_drill`)
+   and sanity-check a couple of row counts against production.
+3. Drop the scratch database.
 
 ## Verification standard
 
