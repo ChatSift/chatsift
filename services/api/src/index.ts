@@ -79,6 +79,12 @@ export { default as createModmailBlockRoute } from './routes/modmail/blocks/crea
 export { default as deleteModmailBlockRoute } from './routes/modmail/blocks/deleteBlock.js';
 export { default as listModmailBlocksRoute } from './routes/modmail/blocks/listBlocks.js';
 
+export { default as getModmailInstanceInterestRoute } from './routes/modmail/instanceInterest/getInstanceInterest.js';
+export type { ModmailInstanceInterestEntry } from './routes/modmail/instanceInterest/getInstanceInterest.js';
+export { default as registerModmailInstanceInterestRoute } from './routes/modmail/instanceInterest/registerInstanceInterest.js';
+export { default as listModmailInstanceInterestRoute } from './routes/modmail/instanceInterest/listInstanceInterest.js';
+export type { ModmailInstanceInterestLead } from './routes/modmail/instanceInterest/listInstanceInterest.js';
+
 export { default as getModmailThreadRoute } from './routes/modmail/threads/getThread.js';
 export { default as getModmailThreadMessageEditsRoute } from './routes/modmail/threads/getMessageEdits.js';
 export { default as listModmailThreadsRoute } from './routes/modmail/threads/listThreads.js';

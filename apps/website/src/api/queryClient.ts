@@ -62,6 +62,12 @@ export const queryKeys = {
 		snippetUpdates: (guildId: string, snippetId: number) =>
 			['api', 'modmail', guildId, 'snippets', snippetId, 'updates'] as const,
 		blocks: (guildId: string) => ['api', 'modmail', guildId, 'blocks'] as const,
+		instanceInterest: (guildId: string) => ['api', 'modmail', guildId, 'instance-interest'] as const,
+		/**
+		 * The operator's custom-instance lead list (#216), which spans every guild -- deliberately outside the
+		 * `guildId` keyspace above, since no single guild's invalidation should touch it.
+		 */
+		instanceInterestLeads: ['api', 'modmail', 'instance-interest', 'leads'] as const,
 		threads: {
 			all: (guildId: string) => ['api', 'modmail', guildId, 'threads'] as const,
 			list: (guildId: string, includeClosed: boolean, q: string, categoryId: number | undefined) =>

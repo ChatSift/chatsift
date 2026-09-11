@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ExperimentsConsole } from './_components/ExperimentsConsole';
+import { InstanceInterestList } from './_components/InstanceInterestList';
 import { NavGateCheck } from '@/components/common/NavGate';
 
 export const metadata: Metadata = {
@@ -9,7 +10,10 @@ export const metadata: Metadata = {
 export default function AdminPage() {
 	return (
 		<NavGateCheck checkForGlobalAdmin>
-			<ExperimentsConsole />
+			<div className="flex flex-col gap-10">
+				<ExperimentsConsole />
+				<InstanceInterestList />
+			</div>
 		</NavGateCheck>
 	);
 }

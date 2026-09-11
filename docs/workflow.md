@@ -727,6 +727,10 @@ by design: there is no dashboard/API provisioning flow, since a `modmail_instanc
 holds a live bot token. The steps below are things only an operator with direct Postgres/compose access runs —
 not something an agent should do on your behalf.
 
+**Where leads come from:** every ModMail dashboard offers its managers a one-way "we're interested" button, and
+`/admin` lists every guild that has pressed it — who pressed, which server, and when. That list is the only
+automated part of this; everything below is still manual.
+
 ### Onboarding a partner
 
 Order matters — do these in sequence, not in parallel:

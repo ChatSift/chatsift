@@ -4,7 +4,9 @@ import type {
 	createModmailPanelRoute,
 	createModmailSnippetRoute,
 	getModmailConfigRoute,
+	getModmailInstanceInterestRoute,
 	getModmailSnippetUpdatesRoute,
+	listModmailInstanceInterestRoute,
 	listModmailBlocksRoute,
 	listModmailCategoriesRoute,
 	listModmailPanelsRoute,
@@ -323,5 +325,45 @@ export function useResyncModmailPanels(guildId: string) {
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.modmail.panels(guildId) });
 		},
+	});
+}
+
+type GetModmailInstanceInterestContract = InferRouteContract<typeof getModmailInstanceInterestRoute>;
+export type ModmailInstanceInterest = GetModmailInstanceInterestContract['response'];
+
+type ListModmailInstanceInterestContract = InferRouteContract<typeof listModmailInstanceInterestRoute>;
+export type ModmailInstanceInterestLead = ListModmailInstanceInterestContract['response'][number];
+
+/**
+ * Whether this guild has already registered interest in a custom instance (#216), for the upsell card on the
+ * ModMail root page. Registering is one-way, so this is what the card reads to stop offering the button.
+ */
+export function useModmailInstanceInterest(guildId: string) {
+	return useQuery({
+		queryKey: queryKeys.modmail.instanceInterest(guildId),
+		queryFn: async () => apiFetch<ModmailInstanceInterest>('get', `/v3/guilds/${guildId}/modmail/instance-interest`),
+	});
+}
+
+export function useRegisterModmailInstanceInterest(guildId: string) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async () =>
+			apiFetch<ModmailInstanceInterest>('post', `/v3/guilds/${guildId}/modmail/instance-interest`, { body: {} }),
+		onSuccess(data) {
+			queryClient.setQueryData(queryKeys.modmail.instanceInterest(guildId), data);
+		},
+	});
+}
+
+/**
+ * Every guild that has registered interest, for `/admin`. Global-admin only server-side -- the page gates on
+ * `me.isGlobalAdmin` before mounting, so a 403 here is never the normal path.
+ */
+export function useModmailInstanceInterestLeads() {
+	return useQuery({
+		queryKey: queryKeys.modmail.instanceInterestLeads,
+		queryFn: async () => apiFetch<ModmailInstanceInterestLead[]>('get', '/v3/modmail/instance-interest'),
 	});
 }

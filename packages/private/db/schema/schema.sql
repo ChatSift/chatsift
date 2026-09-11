@@ -285,6 +285,22 @@ CREATE TABLE modmail_instances (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Guilds that raised their hand for a custom instance (above) from the ModMail dashboard. A sales lead list,
+-- not configuration: nothing at runtime reads it, and there is deliberately no delete path anywhere -- the
+-- dashboard says as much before the click, since registering interest by accident costs a conversation while
+-- retracting it by accident costs a partner.
+CREATE TABLE modmail_instance_interest (
+  -- Per guild, not per user: an instance is a per-guild arrangement (`modmail_instances.guild_id` is UNIQUE),
+  -- so a second manager clicking after the first has nothing new to say. The first one is who gets recorded.
+  guild_id   TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  -- The guild's name as the dashboard saw it at click time. The user half is resolved live instead, since
+  -- `GET /users/{id}` is a global lookup that keeps working forever -- a guild name can only be read through a
+  -- bot that is still in the guild, and a lead outlives the bot being there.
+  guild_name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE guild_settings (
   guild_id                 TEXT PRIMARY KEY,
   mod_forum_id             TEXT,

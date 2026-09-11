@@ -37,6 +37,10 @@ const NON_GUILD_SCOPED_ROUTES = new Set<string>([
 	// a *moderator* of it) can never redeem somebody's personal DM draft; only a real OAuth login can, and it is
 	// then checked against the account that minted the token.
 	'/v3/automoderator/report-drafts/:token',
+	// The custom-instance lead list (#216). Global by nature: it exists to show an operator guilds they have
+	// no relationship with yet, so there is no `:guildId` to scope it to. Safe for a `/dashboard` session to
+	// reach for the same reason the experiment routes above are -- it also requires `isGlobalAdmin: true`.
+	'/v3/modmail/instance-interest',
 ]);
 
 /**
