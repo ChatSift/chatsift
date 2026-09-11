@@ -34,7 +34,10 @@ export async function refreshCaseLog(modCase: AutomoderatorCases): Promise<void>
 					WHERE guild_id = ${modCase.guildId} AND case_id = ${modCase.refId}
 				`;
 
-	const targetAvatarURL = await resolveAvatarURL(discordAPIAutomoderator, modCase.targetId);
+	const [targetAvatarURL, modAvatarURL] = await Promise.all([
+		resolveAvatarURL(discordAPIAutomoderator, modCase.targetId),
+		modCase.modId ? resolveAvatarURL(discordAPIAutomoderator, modCase.modId) : undefined,
+	]);
 
 	try {
 		await discordAPIWebhook.webhooks.editMessage(
@@ -49,6 +52,7 @@ export async function refreshCaseLog(modCase: AutomoderatorCases): Promise<void>
 							logChannelId: logJumpChannelId(webhook),
 							reference: reference ? { logMessageId: reference.logMessageId } : null,
 							...(targetAvatarURL ? { targetAvatarURL } : {}),
+							...(modAvatarURL ? { modAvatarURL } : {}),
 						},
 					),
 				],

@@ -6,7 +6,7 @@ M4's AMA cutover ([05-migration-cutover.md](05-migration-cutover.md)) and M5's M
 impact:** none until P3, and additive thereafter: new tables, a new Discord application, a new site. No existing product's
 behavior changes at any point, and there is no data migration.
 
-## Status: P0-P3 shipped. P3b is next
+## Status: P0-P3b shipped. P4 is next
 
 This document was written 2026-07-31 and last amended 2026-08-03, then sat unstarted for a month while the AutoModerator
 port, horizontal scaling (#355), the grants refactor (#310), the Discord REST proxy and the Caddy absorption (#305) all
@@ -16,10 +16,11 @@ rewritten rather than patched: §2 (guild presence) described a Redis shape that
 shipping its own ban DM. Where a superseded version is still useful as rationale it is struck through rather than deleted.
 
 P0 (`packages/private/web-core`, shipped as #404), P1 (the Appeals bot's identity, guild presence, schema and config
-API), P2 (the dashboard's Appeals section) and P3 (`apps/appeals`/`unban.app`, the appellant session and the four
-appellant-facing routes) are in. An appellant can now sign in, reach a guild by deep link or by invite, and file an
-appeal. Nothing yet _acts_ on one: no mod-channel post, no decision path, no DM. That is P4 and P5, which decision 1
-says ship together. `09-` is the next free roadmap
+API), P2 (the dashboard's Appeals section), P3 (`apps/appeals`/`unban.app`, the appellant session and the four
+appellant-facing routes) and P3b (punishment notices, and the appeal link inside them) are in. An appellant can now sign
+in, reach a guild by deep link or by invite, and file an appeal -- and a guild running AutoModerator can put the link to
+that in the DM its bans already send. Nothing yet _acts_ on an appeal: no mod-channel post, no decision path, no DM. That
+is P4 and P5, which decision 1 says ship together. `09-` is the next free roadmap
 slot; 02/03/04 (M1-M3), 07 (#261) and 08 (#216) were all
 consumed and deleted once their work shipped. This doc follows the same lifecycle: when the phases land, it gets **deleted**
 and its durable shape is condensed into a new `## 13. Appeals (#232)` section of
@@ -114,6 +115,10 @@ what 1-11 originally said -- where they do, the superseded version is left visib
     So the appeal link goes in that DM, behind a per-guild setting, as **P1b** below. This is not a nicety: it is the only
     moment an appellant is guaranteed to be reachable, and the whole product is structurally dependent on it. The
     copy-paste-into-your-own-template path stays for guilds not moderated by AutoModerator, which is most of them.
+    **Amended 2026-09-10 by what P3b actually shipped:** the link goes in that DM, but it is not appended behind a per-guild
+    _toggle_ -- it is pasted into a per-guild punishment _notice_, one click away in the editor. The half of the original
+    decision that survives is the one that mattered: ChatSift sends the ban DM, and that DM is where the link lives. See
+    P3b's deviations for why an automatic append and an editable notice cannot coexist.
 
 ## Architecture
 
@@ -706,27 +711,55 @@ things to "finish" if you follow the file list literally.
   Nothing in the repo can do any of those. `<APPEALS_API_URL>` and not `<API_URL>`: the two were the same value when this
   was written, which is exactly the assumption that produced the `400 bad state` outage -- see decision 3.
 
-### P3b -- The appeal link rides AutoModerator's ban DM
+### P3b -- Punishment notices, and the appeal link inside them (shipped 2026-09-10)
 
-Decision 16 as superseded. The smallest phase in the document and, for guilds ChatSift moderates, the one that decides
-whether anybody ever reaches the product.
+Decision 16 as superseded, and then superseded again while building it: the link does not ride the ban DM
+automatically, it rides a **punishment notice** the guild writes, and the dashboard makes pasting the link into
+one a single click. The reason is in the deviations below.
 
-- `services/automoderator-bot/src/lib/moderation.ts`: `notifyTarget()` appends the guild's appeal link to the DM it already
-  sends. It has `guildId`, the guild name and the reason in hand; the only new input is the link.
-- Gated per guild, and off unless the guild has an `appeals_settings` row -- a link into a guild that has not configured
-  Appeals is worse than no link.
-- The lookup must not turn a best-effort DM into a hard dependency. `notifyTarget` swallows its own failures by design
-  (logged at `info`, never thrown), and the appeal-link read has to behave the same way: if it fails, send the DM without
-  the link rather than losing the DM.
-- The dashboard's Appeals config section surfaces the same link for copy-paste, for guilds not on AutoModerator.
+- `automoderator_punishment_notices (guild_id, scope, content)` plus `automoderator_notice_scope`
+  (`DEFAULT | WARN | MUTE | KICK | SOFTBAN | BAN`): free text a guild appends to the DM the bot already sends
+  when it punishes somebody. `DEFAULT` is the notice every action falls back to; a row for an action replaces
+  it.
+- `services/automoderator-bot/src/lib/punishmentNotice.ts`: one query for both candidate rows, appended by
+  `notifyTarget()`. Best-effort in exactly the way `notifyTarget` is -- a lookup that fails sends the DM
+  without the notice rather than losing the DM, and the composed message is clamped to Discord's 2000.
+- `services/api/src/routes/automoderator/punishmentNotices/*`: `GET` and a declarative `PUT` that replaces the
+  guild's whole set inside one transaction. Both answer `appealLink` alongside the notices --
+  `unban.app/g/<guildId>` when the guild has an `appeals_settings` row, `null` when it does not.
+- `apps/website/.../automoderator/punishment-notices`: the general box plus one per action that DMs. Under the
+  ban box, the two Appeals states: a copy-and-insert affordance with a tooltip when the guild takes appeals,
+  and an upsell pointing at `appeals/config` when it does not.
+- The Appeals config section surfaces the same link (`AppealLinkCopy`), for guilds not on AutoModerator.
 
-**Why P3b and not P1b.** The link has to point at something. `unban.app/g/<guildId>` only resolves once P3 ships, so
-shipping this earlier means DMing a dead link to people who are, by construction, already having a bad day. This is the
-earliest correct slot, not the earliest possible one.
+_Verify:_ write a general notice and confirm it lands on a warn DM and a ban DM; override the ban and confirm
+the general one is replaced rather than appended to; clear a box and confirm the row is gone; ban a test
+account in a guild with Appeals configured and confirm the DM carries a link that opens the right guild's
+appeal form, before the ban lands rather than after; point the bot at a database where the notices table errors
+and confirm the DM still arrives.
 
-_Verify:_ ban a test account in a guild with Appeals configured and confirm the DM arrives with a working link, before the
-ban lands rather than after; ban in a guild with no `appeals_settings` row and confirm the DM is unchanged; confirm a
-deliberately broken link lookup still delivers the DM.
+**P3b deviations from the above.**
+
+- **The link does not append itself.** The plan had `notifyTarget()` looking up `appeals_settings` and adding
+  the link to every ban DM in a guild that takes appeals. What shipped is a notice the guild writes, with the
+  link one click away in the editor. Automatic-and-editable cannot both be true: a guild that pastes the link
+  into its own notice would have got it twice, and the only ways out are a suppression toggle nobody asked for
+  or an editor that silently rewrites what was typed. This also answers the phase's own worry about linking
+  into a guild that has not configured Appeals -- an unconfigured guild is offered no link to paste.
+- **The notice is general, not ban-only, and per-action.** Wider than #232 needs on purpose: "what does the bot
+  say when it punishes somebody" is an AutoModerator gap of its own (legacy had no answer either), and the
+  appeal link is the first thing a guild wants to put there rather than the only one.
+- **A per-action notice replaces the general one; it does not stack with it.** Alternatives, not layers, so a
+  ban notice carrying appeal instructions does not have to restate the general text -- and the editor can say
+  what an empty box does in four words ("uses the general notice").
+- **`automoderator_notice_scope` is its own enum rather than `automoderator_case_action`.** The value set
+  differs in both directions: it needs `DEFAULT`, which is not an action, and it must not offer UNMUTE or UNBAN,
+  neither of which ever DMs (every call site passes `notifyTarget: false`). Do not "unify" the two.
+- **`appealLink` is answered by the API, not built by the dashboard.** The origin is the API's
+  `APPEALS_FRONTEND_URL`; a `NEXT_PUBLIC_` copy in the dashboard's environment would be a second place to get
+  the domain wrong, which is what decision 3 is a monument to. `null` doubles as "this guild does not accept
+  appeals" -- the `appeals_settings` row, the same predicate `evaluateAppealEligibility` uses, and not
+  something to re-derive from `modChannelId` on the client.
 
 ### P4 -- Interactions endpoint, mod notifications, the shared decision path
 

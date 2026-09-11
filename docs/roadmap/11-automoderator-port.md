@@ -25,6 +25,12 @@ found no timer needing an `ownsShardForGuild` filter, and no bot code changed to
 beyond wiring is the pair of replica gauges the scaling doc had parked on "when bots gain a registry" -- see
 [P8](#p8--horizontal-scaling-opt-in).
 
+**One AutoModerator surface landed from outside this document.** Punishment notices -- the per-guild text
+`notifyTarget()` appends to the DM it sends when the bot warns, mutes, kicks, softbans or bans somebody, general
+plus one override per action -- shipped 2026-09-10 as Appeals P3b, because the appeal link is the first thing a
+guild wants to put there. The table, the route and the dashboard section are described in
+[09-appeals.md](09-appeals.md) under P3b; nothing about them is a port, and legacy had no equivalent.
+
 Scope is settled for the ported features (36 surveyed, 26 in, 10 out -- see [Scope](#scope)). Phasing below is
 per-feature vertical slices, not layer-by-layer: each phase carries its own schema, API, bot and dashboard work so
 nothing sits half-built across the stack.

@@ -3,6 +3,7 @@
 import { APIError } from '@chatsift/web-core/api/error';
 import { Button } from '@chatsift/web-core/components/Button';
 import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { useCopyToClipboard } from '@chatsift/web-core/hooks/useCopyToClipboard';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useSocialConfig, useUpdateSocialConfig } from '@/api/routes/social';
@@ -22,7 +23,7 @@ export function PublicLeaderboardCard() {
 	const updateConfig = useUpdateSocialConfig(guildId);
 
 	const [actionError, setActionError] = useState<string | null>(null);
-	const [linkCopied, setLinkCopied] = useState(false);
+	const { copied: linkCopied, copy } = useCopyToClipboard();
 
 	if (isLoading || !config) {
 		return <Skeleton className="h-40 w-full rounded-lg" />;
@@ -43,12 +44,6 @@ export function PublicLeaderboardCard() {
 				error instanceof APIError ? error.message : 'Failed to change the public leaderboard. Please try again.',
 			);
 		}
-	};
-
-	const handleCopy = async () => {
-		await navigator.clipboard.writeText(url);
-		setLinkCopied(true);
-		setTimeout(() => setLinkCopied(false), 2_000);
 	};
 
 	return (
@@ -87,7 +82,7 @@ export function PublicLeaderboardCard() {
 					</code>
 					<Button
 						className="shrink-0 rounded-md bg-misc-accent px-4 py-2 text-sm font-medium text-accent hover:opacity-90"
-						onPress={handleCopy}
+						onPress={async () => copy(url)}
 						type="button"
 					>
 						Copy link

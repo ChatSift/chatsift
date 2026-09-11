@@ -4,6 +4,7 @@ import { automoderatorReportsChannel } from '@chatsift/core';
 import { Button } from '@chatsift/web-core/components/Button';
 import { Heading } from '@chatsift/web-core/components/Heading';
 import { Skeleton } from '@chatsift/web-core/components/Skeleton';
+import { useCopyToClipboard } from '@chatsift/web-core/hooks/useCopyToClipboard';
 import { cn } from '@chatsift/web-core/utils/cn';
 import { useQueryClient } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
@@ -49,7 +50,7 @@ function Field({ label, children }: { readonly children: React.ReactNode; readon
 export function ReportDetail() {
 	const { id: guildId, reportId: reportIdParam } = useParams<{ id: string; reportId: string }>();
 	const reportId = Number(reportIdParam);
-	const [linkCopied, setLinkCopied] = useState(false);
+	const { copied: linkCopied, copy } = useCopyToClipboard();
 	const queryClient = useQueryClient();
 
 	useRealtimeInvalidate(automoderatorReportsChannel(guildId), () => {
@@ -134,11 +135,7 @@ export function ReportDetail() {
 								<Button
 									className="w-fit text-sm text-misc-accent hover:underline"
 									onPress={async () => {
-										await navigator.clipboard.writeText(
-											`https://discord.com/channels/${guildId}/${report.channelId}/${report.messageId}`,
-										);
-										setLinkCopied(true);
-										setTimeout(() => setLinkCopied(false), 2_000);
+										await copy(`https://discord.com/channels/${guildId}/${report.channelId}/${report.messageId}`);
 									}}
 								>
 									{linkCopied ? 'Copied' : 'Copy Discord message link'}

@@ -62,8 +62,14 @@ export async function runModCommand(
 		const refId = options.getInteger('reference') ?? null;
 
 		// Null when they aren't in the guild, which is how "this person isn't here" is detected -- no REST call
-		// either way, since a USER option always carries the resolved member alongside the user.
-		const targetMember = options.getMember('user') ?? null;
+		// either way, since a USER option carries the resolved member alongside the user whenever there is one.
+		//
+		// Read off `resolved` rather than through `options.getMember`, which indexes `resolved.members`
+		// unguarded: Discord omits that map *entirely* when none of the resolved users is a member, so the
+		// helper throws rather than returning null for exactly the case this line exists to detect. `/unban`
+		// hits it every single time, by definition.
+		const targetMember =
+			(interaction as APIChatInputApplicationCommandInteraction).data.resolved?.members?.[targetUser.id] ?? null;
 
 		if (spec.requiresMember !== false && !targetMember) {
 			await reply('That user is not in this server.');

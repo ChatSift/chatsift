@@ -339,7 +339,10 @@ export default class CaseCommand implements CommandHandler {
 		const api = getContext().service.client.api;
 		const webhook = await getModLogWebhook(modCase.guildId);
 		const reference = modCase.refId === null ? null : await getCaseByNumber(modCase.guildId, modCase.refId);
-		const targetAvatarURL = await resolveAvatarURL(api, modCase.targetId, logger);
+		const [targetAvatarURL, modAvatarURL] = await Promise.all([
+			resolveAvatarURL(api, modCase.targetId, logger),
+			modCase.modId ? resolveAvatarURL(api, modCase.modId, logger) : undefined,
+		]);
 
 		await api.interactions.editReply(interaction.application_id, interaction.token, {
 			embeds: [
@@ -347,6 +350,7 @@ export default class CaseCommand implements CommandHandler {
 					reference,
 					logChannelId: logJumpChannelId(webhook),
 					...(targetAvatarURL ? { targetAvatarURL } : {}),
+					...(modAvatarURL ? { modAvatarURL } : {}),
 				}),
 			],
 		});

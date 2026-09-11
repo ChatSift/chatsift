@@ -4,7 +4,7 @@ import { defineRoute } from '../../../core/route.js';
 import { isAppealsAuthed } from '../../../middleware/isAppealsAuthed.js';
 import { readKnownBans } from '../../../util/appealsBans.js';
 import type { PublicAppeal } from '../../../util/appealsPublic.js';
-import { toPublicAppeal } from '../../../util/appealsPublic.js';
+import { appearsOpenToAppellant, toPublicAppeal } from '../../../util/appealsPublic.js';
 import type { GuildSummary } from '../../../util/guildSummary.js';
 import { fetchGuildSummary } from '../../../util/guildSummary.js';
 
@@ -19,8 +19,10 @@ export interface MyAppeal extends PublicAppeal {
 export interface ListMyAppealsResult {
 	appeals: MyAppeal[];
 	/**
-	 * Servers that accept appeals where this appellant is still banned and has not filed yet -- what the landing
-	 * page offers them on sign-in, so the common case needs no invite pasted at all.
+	 * Servers that accept appeals where this appellant is still banned and has no appeal open -- what the
+	 * landing page offers them on sign-in, so the common case needs no invite pasted at all. A guild whose
+	 * appeal has been decided comes back here, because filing again is a thing the cooldown decides and not
+	 * this list.
 	 *
 	 * **Not "which servers am I banned in?"** (#232 §4), which this product does not answer and could not answer
 	 * honestly: it covers bans the Appeals bot actually saw happen, or that a probe found, in guilds that use
@@ -43,10 +45,17 @@ export default defineRoute({
 		// a page fast is the wrong trade, since the missing rows would be indistinguishable from rows that never
 		// existed. If this ever gets slow the answer is pagination, not a silent `LIMIT`.
 		const rows = await db<Appeals[]>`SELECT * FROM appeals WHERE user_id = ${sub} ORDER BY id DESC`;
-		// Derived before the known-ban read rather than after, so a guild that already has an appeal is dropped
-		// from that list *before* it can cost a Discord call to re-confirm a ban nobody is going to act on.
-		const appealGuildIds = new Set(rows.map((row) => row.guildId));
-		const knownBans = await readKnownBans(sub, appealGuildIds, req.logger);
+		// Derived before the known-ban read rather than after, so a guild that already has an open appeal is
+		// dropped from that list *before* it can cost a Discord call to re-confirm a ban nobody is going to act
+		// on.
+		//
+		// Only the **open** ones, and through `appearsOpenToAppellant` rather than a status check: a guild whose
+		// appeal was decided and whose cooldown has lapsed is one the appellant may file in again, so hiding it
+		// would put them back to pasting an invite -- the exact first-run gap `appeal_ban_checks` being primed
+		// from the gateway exists to close. Silent denials keep excluding their guild, which is the whole reason
+		// the predicate is that one and not `isAppealOpen` (decision 6).
+		const openAppealGuildIds = new Set(rows.filter((row) => appearsOpenToAppellant(row)).map((row) => row.guildId));
+		const knownBans = await readKnownBans(sub, openAppealGuildIds, req.logger);
 
 		const answersByAppeal = new Map<number, AppealAnswers[]>();
 		if (rows.length) {
@@ -70,7 +79,7 @@ export default defineRoute({
 		// appellant with a handful of entries costs Discord nothing on a reload.
 		const summaries = new Map(
 			await Promise.all(
-				[...appealGuildIds, ...knownBans.map((check) => check.guildId)].map(
+				[...new Set(rows.map((row) => row.guildId)), ...knownBans.map((check) => check.guildId)].map(
 					async (guildId) => [guildId, await fetchGuildSummary(guildId, 'APPEALS')] as const,
 				),
 			),

@@ -922,6 +922,39 @@ CREATE TABLE automoderator_guild_settings (
     CHECK (min_join_age_seconds IS NULL OR min_join_age_seconds >= 1)
 );
 
+-- What the bot appends to the DM somebody gets when they are punished (#232 P3b), so a server can say "you can
+-- appeal at <link>", "read the rules at #rules", or nothing at all. `DEFAULT` is the notice every action falls
+-- back to; a row for a specific action *replaces* it rather than adding to it, so a guild that wants appeal
+-- instructions on bans only never has to blank the general one first.
+--
+-- Its own enum rather than `automoderator_case_action` because the value set differs in both directions: it
+-- needs a `DEFAULT` member that is not an action, and it must not offer UNMUTE or UNBAN, neither of which ever
+-- DMs (every call site passes `notifyTarget: false`). Offering those two would be offering a guild an
+-- afternoon's writing that nothing would ever send.
+CREATE TYPE automoderator_notice_scope AS ENUM (
+  'DEFAULT',
+  'WARN',
+  'MUTE',
+  'KICK',
+  'SOFTBAN',
+  'BAN'
+);
+
+CREATE TABLE automoderator_punishment_notices (
+  guild_id TEXT NOT NULL,
+  scope    automoderator_notice_scope NOT NULL,
+  content  TEXT NOT NULL,
+
+  PRIMARY KEY (guild_id, scope),
+
+  -- Turning a notice off deletes the row rather than storing an empty string, so blank `content` is a row
+  -- whose only effect is a trailing empty line on somebody's worst day. The length ceiling is here rather than
+  -- only in zod (where the tighter, taste-shaped `PUNISHMENT_NOTICE_MAX_LENGTH` lives) because past a
+  -- 2000-character DM the notice is not merely long -- it is unsendable, which is the bar this schema sets.
+  CONSTRAINT automoderator_punishment_notices_content_check
+    CHECK (btrim(content) <> '' AND length(content) <= 2000)
+);
+
 -- Legacy's `CaseAction`, uppercased to match this schema's other enums (`ama_question_state`,
 -- `social_level_up_notification_mode`) -- the same deviation Social recorded, so the P9 migration uppercases.
 --

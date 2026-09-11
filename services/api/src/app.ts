@@ -81,6 +81,8 @@ import deleteAutomoderatorLogExemptionRoute from './routes/automoderator/logExem
 import listAutomoderatorLogExemptionsRoute from './routes/automoderator/logExemptions/listLogExemptions.js';
 import setAutomoderatorLogExemptionRoute from './routes/automoderator/logExemptions/setLogExemption.js';
 import automoderatorPublicHistoryRoute from './routes/automoderator/publicHistory.js';
+import getPunishmentNoticesRoute from './routes/automoderator/punishmentNotices/getPunishmentNotices.js';
+import setPunishmentNoticesRoute from './routes/automoderator/punishmentNotices/setPunishmentNotices.js';
 import createAutomoderatorReportPresetRoute from './routes/automoderator/reportPresets/createPreset.js';
 import deleteAutomoderatorReportPresetRoute from './routes/automoderator/reportPresets/deletePreset.js';
 import listAutomoderatorReportPresetsRoute from './routes/automoderator/reportPresets/listPresets.js';
@@ -335,6 +337,8 @@ export async function startServer(): Promise<void> {
 	mountRoute(app, listTriggerPunishmentsRoute);
 	mountRoute(app, setTriggerPunishmentRoute);
 	mountRoute(app, deleteTriggerPunishmentRoute);
+	mountRoute(app, getPunishmentNoticesRoute);
+	mountRoute(app, setPunishmentNoticesRoute);
 	mountRoute(app, getAppealsConfigRoute);
 	mountRoute(app, updateAppealsConfigRoute);
 	mountRoute(app, listUnappealableUsersRoute);

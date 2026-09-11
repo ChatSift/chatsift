@@ -9,6 +9,7 @@ import { dispatchCaseLog } from './caseLog.js';
 import type { CaseActor } from './cases.js';
 import { createCase, findCaseByIdempotencyKey } from './cases.js';
 import { casesCreated } from './metrics.js';
+import { appendPunishmentNotice } from './punishmentNotice.js';
 import { buildLadderRequest, resolveWarnLadderRung } from './warnLadder.js';
 
 export const MAX_MUTE_MS = MAX_TIMEOUT_SECONDS * 1_000;
@@ -355,9 +356,13 @@ async function notifyTarget(request: ModerationRequest, logger: Logger): Promise
 	try {
 		const guild = await api.guilds.get(guildId);
 		const forDuration = durationMs ? ` for ${formatDuration(durationMs)}` : '';
-		const content = `You have been ${ACTION_PAST_TENSE[action]} in **${guild.name}**${forDuration}.${
+		const body = `You have been ${ACTION_PAST_TENSE[action]} in **${guild.name}**${forDuration}.${
 			reason ? `\n\nReason: ${reason}` : ''
 		}`;
+
+		// Whatever the guild wants said after the facts (#232 P3b) -- an appeal link, a rules link, nothing.
+		// Inside the same `try` as everything else here, and best-effort in its own right: see the function.
+		const content = await appendPunishmentNotice(body, guildId, action, logger);
 
 		await executeAction(
 			{

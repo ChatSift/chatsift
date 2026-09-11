@@ -137,6 +137,12 @@ export interface CaseEmbedOptions {
 	 */
 	readonly logChannelId?: string | null;
 	/**
+	 * The moderator's avatar, resolved by the caller exactly as `targetAvatarURL` is and for the same reasons.
+	 * Absent -- including for every case no human authored, which has no `mod_id` to resolve -- leaves the
+	 * footer text without an icon, which is what the footer looked like before.
+	 */
+	readonly modAvatarURL?: string;
+	/**
 	 * The case `ref_id` points at, already resolved, so the embed can link to its log message.
 	 */
 	readonly reference?: { logMessageId: string | null } | null;
@@ -200,6 +206,7 @@ export function buildCaseEmbed(modCase: CaseEmbedInput, options: CaseEmbedOption
 		),
 		footer: {
 			text: `Case ${modCase.caseId}${modCase.modTag ? ` | By ${modCase.modTag} (${modCase.modId})` : ''}`,
+			...(options.modAvatarURL ? { icon_url: options.modAvatarURL } : {}),
 		},
 		timestamp: modCase.createdAt.toISOString(),
 		...(fields.length > 0 ? { fields } : {}),

@@ -184,6 +184,8 @@ export { default as deleteFilterExemptionRoute } from './routes/automoderator/fi
 export { default as listTriggerPunishmentsRoute } from './routes/automoderator/triggerPunishments/listTriggerPunishments.js';
 export { default as setTriggerPunishmentRoute } from './routes/automoderator/triggerPunishments/setTriggerPunishment.js';
 export { default as deleteTriggerPunishmentRoute } from './routes/automoderator/triggerPunishments/deleteTriggerPunishment.js';
+export { default as getPunishmentNoticesRoute } from './routes/automoderator/punishmentNotices/getPunishmentNotices.js';
+export { default as setPunishmentNoticesRoute } from './routes/automoderator/punishmentNotices/setPunishmentNotices.js';
 
 export { default as listExperimentsRoute } from './routes/experiments/listExperiments.js';
 export type { ExperimentWithOverrides } from './routes/experiments/listExperiments.js';
