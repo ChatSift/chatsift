@@ -1,6 +1,6 @@
 'use client';
 
-import { AMA_QOL_EXPERIMENT, MERGE_SOURCE_STATES } from '@chatsift/core';
+import { MERGE_SOURCE_STATES } from '@chatsift/core';
 import { APIError } from '@chatsift/web-core/api/error';
 import { Button } from '@chatsift/web-core/components/Button';
 import { ConfirmModal } from '@chatsift/web-core/components/ConfirmModal';
@@ -14,10 +14,9 @@ import { FaCheck, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { AuthorAvatar } from './AuthorAvatar';
 import { MergeDuplicatePicker } from './MergeDuplicatePicker';
 import { TagPicker } from './TagPicker';
-import { answerEditorHint, saveConfirmCopy } from './answerEditorCopy';
+import { answerEditorHint, saveConfirmCopy, umbrellaEditConfirmCopy } from './questionEditorCopy';
 import { userLabel } from './userLabel';
 import { useAMA, useAMAQuestion, useSendAMAQuestion, useUpdateAMAQuestion } from '@/api/routes/ama';
-import { useExperiment } from '@/hooks/useExperiment';
 import { formatDate } from '@/utils/util';
 
 interface PublishToggleProps {
@@ -73,7 +72,6 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 	const { data: ama } = useAMA(guildId, amaId);
 	const updateQuestion = useUpdateAMAQuestion(guildId, amaId, questionId);
 	const sendQuestion = useSendAMAQuestion(guildId, amaId, questionId);
-	const isQolEnabled = useExperiment(guildId, AMA_QOL_EXPERIMENT);
 
 	const [answerContent, setAnswerContent] = useState('');
 	const [answerImageUrl, setAnswerImageUrl] = useState('');
@@ -83,6 +81,11 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 	const [error, setError] = useState<string | null>(null);
 	const [showMerge, setShowMerge] = useState(false);
 	const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+	// Seeded when Edit is pressed rather than from the effect below, unlike the answer fields: that effect runs
+	// on every refetch (a realtime invalidate is enough), which would throw away whatever was half-typed.
+	const [isEditingContent, setIsEditingContent] = useState(false);
+	const [contentDraft, setContentDraft] = useState('');
+	const [showContentConfirm, setShowContentConfirm] = useState(false);
 
 	useEffect(() => {
 		if (question) {
@@ -129,6 +132,13 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 	// so it hangs off this. Reads the *stored* answer, not the textarea -- what's live now, not what's about
 	// to be saved.
 	const hasPublishedAnswer = isSent && Boolean(question.answerContent);
+	// Whether the question's *wording* is out where someone could already have read it -- what decides whether
+	// rewording it needs confirming. Deliberately not `hasPublishedAnswer`: the question embed goes up the
+	// moment the question is sent, answer or no. The one 'ASKED' case with nothing visible anywhere is a
+	// public-page-only AMA with no answer yet, which that page filters out (`publicAnswers.ts` requires
+	// `answer_content IS NOT NULL`). An unresolved `postsToDiscord` counts as published: confirming a change
+	// nobody can see costs a click, skipping the confirm on one people have read costs more.
+	const isContentPublished = isSent && (postsToDiscord !== false || hasPublishedAnswer);
 	// Resolved server-side (see `getQuestion.ts`'s `answeredBy`). This used to look the id up in
 	// `ama.guests`, which meant it could only ever name a guest -- anyone else, including the "Default
 	// (you)" moderator that every sent answer records by default, fell through to a bare snowflake with no
@@ -156,6 +166,13 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 			...(answeredById === (question.answeredById ?? '') ? {} : { answeredById: answeredById || null }),
 		});
 
+	// Trimmed to match the route's own `z.string().trim()`. Closes the editor only once the write lands -- a
+	// refused edit (the API saves nothing it couldn't push to Discord) leaves the draft in place to retry.
+	const saveContent = async () => {
+		await updateQuestion.mutateAsync({ content: contentDraft.trim() });
+		setIsEditingContent(false);
+	};
+
 	const handleSendAnswer = async () =>
 		runAction(async () => {
 			await saveAnswer();
@@ -167,8 +184,57 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 			{error && <p className="text-sm text-misc-danger">{error}</p>}
 
 			<div>
-				<p className="mb-1 text-sm font-medium text-secondary dark:text-secondary-dark">Question</p>
-				<p className="whitespace-pre-wrap wrap-break-word text-primary dark:text-primary-dark">{question.content}</p>
+				<div className="mb-1 flex flex-wrap items-center gap-2">
+					<p className="text-sm font-medium text-secondary dark:text-secondary-dark">Question</p>
+					{/* Only an umbrella question is staff's own wording to change (#366 follow-up). A submitted
+					question's content is what its asker typed, and `updateQuestion.ts` refuses to rewrite one --
+					publishing someone else's words under their name is not an edit, it's a forgery. */}
+					{question.umbrella && !isEditingContent && (
+						<Button
+							className="h-auto rounded-full px-2 py-0.5 text-xs text-secondary hover:text-misc-accent dark:text-secondary-dark"
+							isDisabled={updateQuestion.isPending}
+							onPress={() => {
+								setContentDraft(question.content);
+								setIsEditingContent(true);
+							}}
+							type="button"
+						>
+							Edit
+						</Button>
+					)}
+				</div>
+				{isEditingContent ? (
+					<div className="space-y-2">
+						<textarea
+							aria-label="Question"
+							className="w-full rounded-md border border-on-secondary bg-card px-3 py-2 text-sm text-primary focus:border-misc-accent focus:outline-none disabled:opacity-50 dark:border-on-secondary-dark dark:bg-card-dark dark:text-primary-dark"
+							maxLength={4_000}
+							onChange={(event) => setContentDraft(event.target.value)}
+							rows={4}
+							value={contentDraft}
+						/>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								className="h-9 bg-misc-accent px-3 text-sm text-accent hover:opacity-90"
+								isDisabled={updateQuestion.isPending || !contentDraft.trim()}
+								onPress={async () => (isContentPublished ? setShowContentConfirm(true) : runAction(saveContent))}
+								type="button"
+							>
+								Save question
+							</Button>
+							<Button
+								className="h-9 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
+								isDisabled={updateQuestion.isPending}
+								onPress={() => setIsEditingContent(false)}
+								type="button"
+							>
+								Cancel
+							</Button>
+						</div>
+					</div>
+				) : (
+					<p className="whitespace-pre-wrap wrap-break-word text-primary dark:text-primary-dark">{question.content}</p>
+				)}
 			</div>
 
 			<div>
@@ -183,7 +249,7 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 						<p className="text-lg text-primary dark:text-primary-dark">{userLabel(question.author)}</p>
 						<p className="text-xs text-secondary dark:text-secondary-dark">{question.authorId}</p>
 					</div>
-					{isQolEnabled && !question.umbrella && (
+					{!question.umbrella && (
 						<PublishToggle
 							isDisabled={updateQuestion.isPending}
 							isOn={!question.anonymous}
@@ -201,7 +267,7 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 						/>
 					)}
 				</div>
-				{isQolEnabled && question.umbrella && (
+				{question.umbrella && (
 					// Umbrella questions publish no author, so the merged-asker tally is the only thing one of them
 					// can say about who asked -- this is the switch the create form offers, kept reachable afterwards
 					// because the merges it counts all arrive after the question was written.
@@ -399,6 +465,19 @@ export function QuestionDetailPanel({ onMerged, questionId }: QuestionDetailPane
 				title={saveConfirmCopy(postsToDiscord).title}
 			>
 				<p>{saveConfirmCopy(postsToDiscord).body}</p>
+			</ConfirmModal>
+
+			{/* Mounted out here for the same reason the answer confirm above is: it has to outlive anything that
+			could unmount the editor subtree mid-action. Raw `onConfirm` too, so a refused edit keeps the dialog
+			up with `Button`'s error banner rather than closing onto a message it was covering. */}
+			<ConfirmModal
+				confirmLabel="Save question"
+				isOpen={showContentConfirm}
+				onConfirm={saveContent}
+				onOpenChange={setShowContentConfirm}
+				title={umbrellaEditConfirmCopy(postsToDiscord).title}
+			>
+				<p>{umbrellaEditConfirmCopy(postsToDiscord).body}</p>
 			</ConfirmModal>
 
 			<div className="flex flex-wrap gap-2">

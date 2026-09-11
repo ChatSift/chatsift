@@ -1,6 +1,5 @@
-import { getContext, isExperimentEnabled } from '@chatsift/backend-core';
+import { getContext } from '@chatsift/backend-core';
 import {
-	AMA_QOL_EXPERIMENT,
 	amaPublicAnswersChannel,
 	amaQuestionsChannel,
 	resolveEmbedsForEdit,
@@ -8,7 +7,7 @@ import {
 } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
 import { ButtonStyle, ComponentType } from '@discordjs/core';
-import { badGateway, badRequest, conflict, forbidden, notFound } from '@hapi/boom';
+import { badGateway, badRequest, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { amaModerationDecisions } from '../../../core/metrics.js';
 import { defineRoute } from '../../../core/route.js';
@@ -50,12 +49,22 @@ const askerCountModeSchema = z.strictObject({
 	showAskerCount: z.boolean(),
 });
 
+// #366 follow-up: reword a question after it was written. Restricted to umbrella questions in the handler --
+// staff wrote that wording themselves, so it is theirs to change, whereas a submitted question's content is
+// what its asker actually typed and rewriting it would publish someone else's words under their name.
+const contentModeSchema = z.strictObject({
+	// Same bounds as `createQuestion.ts`: staff-authored, so no 15-character floor from the submit modal, and
+	// the same 4,000-character ceiling.
+	content: z.string().trim().min(1).max(4_000),
+});
+
 const bodySchema = z.union([
 	stateModeSchema,
 	answerModeSchema,
 	tagsModeSchema,
 	anonymousModeSchema,
 	askerCountModeSchema,
+	contentModeSchema,
 ]);
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
@@ -162,13 +171,6 @@ export default defineRoute({
 		}
 
 		if ('anonymous' in data || 'showAskerCount' in data) {
-			// Only these branches are gated behind `ama-qol` (#366) -- the state/answer/tag modes are
-			// long-standing behavior and must keep working for every guild. See `createQuestion.ts` for why it
-			// answers 403.
-			if (!isExperimentEnabled(AMA_QOL_EXPERIMENT, guildId)) {
-				throw forbidden('this feature is not enabled for this server');
-			}
-
 			// The two flags are refused on the rows they don't describe rather than silently ignored there. An
 			// umbrella question has no author to publish (see `createQuestion.ts`) -- accepting `anonymous: false`
 			// on one would write a row saying "show the author" that every render then overrides, which is the
@@ -239,6 +241,56 @@ export default defineRoute({
 				amaModerationDecisions.inc({ decision: 'anonymize', source: 'dashboard' });
 			}
 
+			return updated;
+		}
+
+		if ('content' in data) {
+			// See `contentModeSchema`: a submitted question's wording belongs to whoever typed it into the modal.
+			if (!question.umbrella) {
+				throw badRequest('only an umbrella question can be reworded');
+			}
+
+			// Whichever surface is live gets re-rendered, unlike the anonymity modes above, which only ever
+			// change what the *answers* message shows -- both surfaces render the content. In practice an
+			// umbrella question only ever reaches the answers channel (`createQuestion.ts` gives it no queue
+			// message at all), but keying off the resolved surface rather than assuming that keeps this honest
+			// if one ever gains one. Discord-first with the same strictness as #327's answer edit: on anything
+			// but a deleted message, save nothing rather than let the dashboard claim wording Discord doesn't
+			// show.
+			const currentMessage = resolveCurrentQueueMessage(question, session);
+			if (currentMessage) {
+				try {
+					// The row as it's about to be written, with `liveQuestion` left as the stored one -- same split
+					// as every other edit branch here, and for the same reason (recovering the question's images
+					// reads the message as it exists right now).
+					const projected: AmaQuestions = { ...question, content: data.content };
+					const embeds = await buildQuestionEmbeds(guildId, projected, session, {
+						kind: currentMessage.kind,
+						liveQuestion: question,
+					});
+					await discordAPIAma.channels.editMessage(currentMessage.channelId, currentMessage.messageId, {
+						embeds: resolveEmbedsForEdit(embeds),
+					});
+				} catch (error) {
+					if (!isNotFoundDiscordError(error)) {
+						throw badGateway('failed to update the posted Discord message; no changes were saved');
+					}
+				}
+			}
+
+			const [updated] = await db<AmaQuestions[]>`
+				UPDATE ama_questions SET content = ${data.content}, updated_at = now()
+				WHERE id = ${questionId}
+				RETURNING *
+			`;
+
+			// Same concurrent-deletion race the branches around this one guard against.
+			if (!updated) {
+				throw notFound('question not found');
+			}
+
+			// No `amaModerationDecisions` entry: rewording a question staff wrote themselves is authoring, not a
+			// decision about someone else's submission. Same reasoning as the asker-count toggle above.
 			return updated;
 		}
 

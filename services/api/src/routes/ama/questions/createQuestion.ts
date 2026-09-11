@@ -1,7 +1,7 @@
-import { getContext, isExperimentEnabled } from '@chatsift/backend-core';
-import { AMA_QOL_EXPERIMENT, amaQuestionsChannel } from '@chatsift/core';
+import { getContext } from '@chatsift/backend-core';
+import { amaQuestionsChannel } from '@chatsift/core';
 import type { AmaQuestions, AmaSessions, AmaSessionsId } from '@chatsift/db';
-import { forbidden, notFound } from '@hapi/boom';
+import { notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
@@ -69,14 +69,6 @@ export default defineRoute({
 		const { guildId, amaId } = req.params;
 		const { content, showAskerCount = true } = req.body;
 		const db = getContext().db;
-
-		// Gated behind `ama-qol` (#366). Checked before the session lookup so a guild without the gate gets the
-		// same answer whether or not the AMA exists -- and 403 rather than 404, since the dashboard already knows
-		// from `MeGuild.experiments` that it shouldn't have offered this, making a "route doesn't exist" reply
-		// actively misleading to debug.
-		if (!isExperimentEnabled(AMA_QOL_EXPERIMENT, guildId)) {
-			throw forbidden('this feature is not enabled for this server');
-		}
 
 		// No `ended` guard, matching the bot's own approve path: ending an AMA stops new *submissions* (#299)
 		// and leaves everything already in the queue reviewable and answerable. An umbrella question is part of

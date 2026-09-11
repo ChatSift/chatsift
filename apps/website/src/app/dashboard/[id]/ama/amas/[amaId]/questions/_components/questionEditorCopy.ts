@@ -2,14 +2,14 @@
  * What the answer editor says above the textarea for a question that's already 'ASKED'. Two independent
  * facts decide it, and conflating them is what made this wrong twice:
  *
- * - **`hasPublishedAnswer`** — whether an *answer* has actually gone out. Not the same as the question
+ * - **`hasPublishedAnswer`** -- whether an *answer* has actually gone out. Not the same as the question
  *   being 'ASKED': with review and prepared answers both off, `submitQuestion.ts` routes a question
  *   straight to 'ASKED' the moment it's submitted, so the ordinary setup produces plenty of 'ASKED'
  *   questions nobody has answered. Until one exists, the answers-channel message carries only the
  *   question embed and the public answers page doesn't list it at all (it filters on
  *   `answer_content IS NOT NULL`, see `publicAnswers.ts`) -- so nothing can be described as "already"
  *   anything, and the save needs no confirmation.
- * - **`postsToDiscord`** — whether this AMA has an answers channel (#316). A public-page-only one has no
+ * - **`postsToDiscord`** -- whether this AMA has an answers channel (#316). A public-page-only one has no
  *   Discord message to mention. `undefined` while the AMA is still being fetched, which returns `null`
  *   (render nothing) rather than picking a side: every string below makes a definite claim about where
  *   the answer lives, so a guess flashes something false for one render.
@@ -24,8 +24,8 @@ export function answerEditorHint(hasPublishedAnswer: boolean, postsToDiscord: bo
 
 	if (hasPublishedAnswer) {
 		return postsToDiscord
-			? "Already sent — saving edits the answer on the message that's live in the answers channel, and on the public answers page."
-			: "Already published — saving updates the answer on the public answers page. This AMA doesn't post answers to Discord.";
+			? "Already sent -- saving edits the answer on the message that's live in the answers channel, and on the public answers page."
+			: "Already published -- saving updates the answer on the public answers page. This AMA doesn't post answers to Discord.";
 	}
 
 	return postsToDiscord
@@ -59,5 +59,32 @@ export function saveConfirmCopy(postsToDiscord: boolean | undefined): { body: st
 		: {
 				title: 'Edit a published answer?',
 				body: 'This answer has already been published to the public answers page. Saving updates it there - anyone who already read it will see the new text.',
+			};
+}
+
+/**
+ * The confirm dialog shown before rewording an umbrella question that is already out (#366 follow-up). Only
+ * the wording changes, so unlike {@link saveConfirmCopy} there is no "first save" case to describe -- the
+ * caller only opens this when something is actually published.
+ *
+ * `postsToDiscord` is the only variable, and `undefined` (the AMA still loading) gets wording that holds
+ * either way rather than a guess, same as `saveConfirmCopy`: the dialog cannot decline to render.
+ */
+export function umbrellaEditConfirmCopy(postsToDiscord: boolean | undefined): { body: string; title: string } {
+	if (postsToDiscord === undefined) {
+		return {
+			title: 'Edit a published question?',
+			body: "This question has already gone out. Saving updates the wording everywhere it's currently visible - anyone who already read it will see the new wording.",
+		};
+	}
+
+	return postsToDiscord
+		? {
+				title: 'Edit a posted question?',
+				body: 'This question has already gone out. Saving rewrites the existing message in the answers channel, and the public answers page if it is listed there - anyone who already read it will see the new wording.',
+			}
+		: {
+				title: 'Edit a published question?',
+				body: 'This question has already been published to the public answers page. Saving updates the wording there - anyone who already read it will see the new wording.',
 			};
 }

@@ -287,10 +287,11 @@ time this was written, **no runtime consumers**: dormant infrastructure, not a n
 
 > **Update:** P0 built the read helper (`@chatsift/backend-core`'s `experiments.ts`) and the global-admin CRUD at
 > `/v3/experiments`, but no AutoModerator phase ended up gating a feature with it -- `isExperimentEnabled` had only
-> its own tests as callers. The first real consumer is **AMA's #366** (`ama-qol`), which is also where the
-> conventions live now: gate names in `@chatsift/core`'s `experimentNames.ts`, `enabledExperimentsFor` reporting a
-> guild's enabled set through `MeGuild.experiments` so the dashboard can hide a control instead of rendering one
-> that 403s, and gates covering _write_ paths only, never rendering. See
+> its own tests as callers. The first real consumer was **AMA's #366** (`ama-qol`), which rolled out to 100% and had
+> its gate stripped, so `isExperimentEnabled` is back to having no call sites. The conventions #366 established are
+> what survives: a gate's name belongs in a shared `@chatsift/core` constant so every layer checks the same string,
+> `enabledExperimentsFor` reports a guild's enabled set through `MeGuild.experiments` so the dashboard can hide a
+> control instead of rendering one that 403s, and gates cover _write_ paths only, never rendering. See
 > [01-architecture.md §5](01-architecture.md#5-data-model-reference-6-models).
 
 Reviving them is exactly what per-feature phasing wants. Each feature ships behind a named experiment, enabled for

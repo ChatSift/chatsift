@@ -1,7 +1,7 @@
-import { getContext, isExperimentEnabled } from '@chatsift/backend-core';
-import { AMA_QOL_EXPERIMENT, amaPublicAnswersChannel, amaQuestionsChannel, resolveEmbedsForEdit } from '@chatsift/core';
+import { getContext } from '@chatsift/backend-core';
+import { amaPublicAnswersChannel, amaQuestionsChannel, resolveEmbedsForEdit } from '@chatsift/core';
 import type { AmaQuestions, AmaQuestionsId, AmaSessions, AmaSessionsId } from '@chatsift/db';
-import { forbidden, notFound } from '@hapi/boom';
+import { notFound } from '@hapi/boom';
 import { z } from 'zod';
 import { amaModerationDecisions } from '../../../core/metrics.js';
 import { defineRoute } from '../../../core/route.js';
@@ -70,11 +70,6 @@ export default defineRoute({
 		const { guildId, amaId } = req.params;
 		const { anonymous, questionIds } = req.body;
 		const db = getContext().db;
-
-		// See `createQuestion.ts` for why the gate is checked here and answers 403.
-		if (!isExperimentEnabled(AMA_QOL_EXPERIMENT, guildId)) {
-			throw forbidden('this feature is not enabled for this server');
-		}
 
 		const [session] = await db<AmaSessions[]>`
 			SELECT * FROM ama_sessions WHERE guild_id = ${guildId} AND id = ${amaId}

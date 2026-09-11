@@ -1,16 +1,12 @@
 'use client';
 
-import { AMA_QOL_EXPERIMENT } from '@chatsift/core';
 import { APIError } from '@chatsift/web-core/api/error';
-import { EmptyState } from '@chatsift/web-core/components/EmptyState';
 import { FormActions } from '@chatsift/web-core/components/FormActions';
 import { SegmentedControl } from '@chatsift/web-core/components/SegmentedControl';
 import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { FaLock } from 'react-icons/fa';
 import { useCreateAMAQuestion } from '@/api/routes/ama';
-import { useExperiment } from '@/hooks/useExperiment';
 
 const MAX_CONTENT_LENGTH = 4_000;
 
@@ -35,7 +31,6 @@ export function CreateQuestionForm() {
 	// by default, since a host writing an umbrella question is usually doing it to credit a crowd.
 	const [showAskerCount, setShowAskerCount] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const isQolEnabled = useExperiment(guildId, AMA_QOL_EXPERIMENT);
 
 	const questionsHref = `/dashboard/${guildId}/ama/amas/${amaId}/questions`;
 
@@ -53,19 +48,6 @@ export function CreateQuestionForm() {
 			setError(submitError instanceof APIError ? submitError.message : 'Something went wrong. Please try again.');
 		}
 	};
-
-	// Nothing links here with the gate off, but the route is still reachable by typing the URL (or from a stale
-	// tab open from before it was switched off) -- rendering a form whose submit the API is going to refuse
-	// would be worse than saying so.
-	if (!isQolEnabled) {
-		return (
-			<EmptyState
-				icon={<FaLock className="h-8 w-8 text-secondary dark:text-secondary-dark" />}
-				subtitle="Umbrella questions aren't enabled for this server."
-				title="Not available"
-			/>
-		);
-	}
 
 	return (
 		<form className="mt-8 space-y-6" onSubmit={handleSubmit}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { AMA_QOL_EXPERIMENT, amaQuestionsChannel, MERGE_SOURCE_STATES } from '@chatsift/core';
+import { amaQuestionsChannel, MERGE_SOURCE_STATES } from '@chatsift/core';
 import { Button } from '@chatsift/web-core/components/Button';
 import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { Tooltip } from '@chatsift/web-core/components/Tooltip';
@@ -21,7 +21,6 @@ import { userLabel } from './userLabel';
 import type { AMAQuestionListItem } from '@/api/routes/ama';
 import { invalidateAMAQuestions, useAMAQuestions, useSetAMAQuestionsAnonymousBulk } from '@/api/routes/ama';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
-import { useExperiment } from '@/hooks/useExperiment';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 import { useURLParam } from '@/hooks/useURLParam';
 
@@ -40,7 +39,6 @@ function useAuthorFilter(): string | undefined {
 
 interface QuestionRowProps {
 	readonly isExpanded: boolean;
-	readonly isQolEnabled: boolean;
 	readonly isSelected: boolean;
 	onToggle(): void;
 	onToggleSelect(): void;
@@ -48,15 +46,7 @@ interface QuestionRowProps {
 	readonly selectMode: boolean;
 }
 
-function QuestionRow({
-	isExpanded,
-	isQolEnabled,
-	isSelected,
-	onToggle,
-	onToggleSelect,
-	question,
-	selectMode,
-}: QuestionRowProps) {
+function QuestionRow({ isExpanded, isSelected, onToggle, onToggleSelect, question, selectMode }: QuestionRowProps) {
 	const [, setAuthorParam] = useURLParam('author');
 	const [, setTagParam] = useURLParam('tag');
 	const [, setTabParam] = useURLParam('tab');
@@ -68,25 +58,19 @@ function QuestionRow({
 		DENIED: 'denied',
 	};
 
-	const canSelect = isQolEnabled || MERGE_SOURCE_STATES.has(question.state);
-
 	return (
 		<div className="rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
 			<div className="flex w-full flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 				<div className="flex min-w-0 flex-1 items-start gap-3">
-					{/* Selectable in every state once #366's gate is on: the selection then drives the anonymity actions
-					as well as merging, and those apply to a question at any point in its life (merging is the
-					narrower of the two, so its own precondition is checked on the merge action instead). With the
-					gate off, merging is all the selection can do, so it goes back to only offering the rows that
-					can actually be merged away. */}
+					{/* Selectable in every state (#366): the selection drives the anonymity actions as well as
+					merging, and those apply to a question at any point in its life. Merging is the narrower of the
+					two, so its own precondition is checked on the merge action instead. */}
 					{selectMode && (
 						<input
 							aria-label={`Select question #${question.id}`}
 							checked={isSelected}
-							className="mt-1.5 h-4 w-4 shrink-0 rounded border-on-secondary disabled:opacity-30 dark:border-on-secondary-dark"
-							disabled={!canSelect}
+							className="mt-1.5 h-4 w-4 shrink-0 rounded border-on-secondary dark:border-on-secondary-dark"
 							onChange={onToggleSelect}
-							title={canSelect ? undefined : `Questions in state ${question.state} can't be merged`}
 							type="checkbox"
 						/>
 					)}
@@ -124,7 +108,7 @@ function QuestionRow({
 							{tag.name}
 						</Button>
 					))}
-					{isQolEnabled && (question.anonymous || question.umbrella) && (
+					{(question.anonymous || question.umbrella) && (
 						// Not clickable like the chips around it -- there's no "anonymous" filter to jump into, and this
 						// is here so a moderator can tell at a glance which rows publish without an author (#366). An
 						// icon rather than the word it used to spell out (#366 PM feedback): it sits on a row that
@@ -190,9 +174,6 @@ export function QuestionsList() {
 	// rewritten (#366). An outright failure never reaches this -- `Button` surfaces a rejected `onPress` itself.
 	const [bulkNotice, setBulkNotice] = useState<string | null>(null);
 	const setQuestionsAnonymous = useSetAMAQuestionsAnonymousBulk(guildId, amaId);
-	// #366's controls are gated. With it off the list is exactly what it was before: select-to-merge only, no
-	// umbrella-question entry point, no anonymity chip.
-	const isQolEnabled = useExperiment(guildId, AMA_QOL_EXPERIMENT);
 
 	const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useAMAQuestions(guildId, amaId, {
 		states,
@@ -255,9 +236,9 @@ export function QuestionsList() {
 					onPress={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
 					type="button"
 				>
-					{selectMode ? 'Cancel Selection' : isQolEnabled ? 'Select Questions' : 'Select Duplicates'}
+					{selectMode ? 'Cancel Selection' : 'Select Questions'}
 				</Button>
-				{!selectMode && isQolEnabled && (
+				{!selectMode && (
 					<Link
 						className={buttonClass('secondary', 'sm')}
 						href={`/dashboard/${guildId}/ama/amas/${amaId}/questions/new`}
@@ -287,26 +268,22 @@ export function QuestionsList() {
 								Merge Selected as Duplicates
 							</Button>
 						)}
-						{isQolEnabled && (
-							<>
-								<Button
-									className="h-9 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
-									isDisabled={setQuestionsAnonymous.isPending}
-									onPress={async () => runBulkAnonymous(true)}
-									type="button"
-								>
-									Hide authors
-								</Button>
-								<Button
-									className="h-9 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
-									isDisabled={setQuestionsAnonymous.isPending}
-									onPress={async () => runBulkAnonymous(false)}
-									type="button"
-								>
-									Show authors
-								</Button>
-							</>
-						)}
+						<Button
+							className="h-9 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
+							isDisabled={setQuestionsAnonymous.isPending}
+							onPress={async () => runBulkAnonymous(true)}
+							type="button"
+						>
+							Hide authors
+						</Button>
+						<Button
+							className="h-9 border border-on-secondary px-3 text-sm dark:border-on-secondary-dark"
+							isDisabled={setQuestionsAnonymous.isPending}
+							onPress={async () => runBulkAnonymous(false)}
+							type="button"
+						>
+							Show authors
+						</Button>
 					</>
 				)}
 			</div>
@@ -344,7 +321,6 @@ export function QuestionsList() {
 					{questions.map((question) => (
 						<QuestionRow
 							isExpanded={expandedId === question.id}
-							isQolEnabled={isQolEnabled}
 							isSelected={selectedIds.includes(question.id)}
 							key={question.id}
 							onToggle={() => setExpandedId(expandedId === question.id ? null : question.id)}

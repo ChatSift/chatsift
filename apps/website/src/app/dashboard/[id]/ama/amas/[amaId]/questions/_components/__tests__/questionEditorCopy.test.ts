@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { answerEditorHint, saveConfirmCopy } from '../answerEditorCopy.js';
+import { answerEditorHint, saveConfirmCopy, umbrellaEditConfirmCopy } from '../questionEditorCopy.js';
 
 // The two no-answer-yet rows are the ones that were shipped wrong: both are reachable from the ordinary
 // "review off, prepared answers off" setup, where a question is 'ASKED' from the moment it's submitted.
@@ -62,4 +62,29 @@ test('the save confirmation stays true about an unresolved AMA', () => {
 	expect(body).not.toContain('Discord');
 	expect(body).toContain('anyone who already read it');
 	expect(title).toBe('Edit a published answer?');
+});
+
+// The question embed goes up the moment a question is sent, so the confirm is about the wording, never about
+// an answer -- it must not promise an answers channel to an AMA that has none.
+test('the umbrella reword confirmation names the answers channel only when there is one', () => {
+	expect(umbrellaEditConfirmCopy(true).body).toContain('answers channel');
+	expect(umbrellaEditConfirmCopy(false).body).not.toContain('answers channel');
+});
+
+test('the umbrella reword confirmation stays true about an unresolved AMA', () => {
+	const { body, title } = umbrellaEditConfirmCopy(undefined);
+
+	expect(body).not.toContain('answers channel');
+	expect(body).not.toContain('Discord');
+	expect(body).toContain('anyone who already read it');
+	expect(title).toBe('Edit a published question?');
+});
+
+// Every branch is about the wording, not the answer: an umbrella question is routinely sent with no answer
+// prepared, and calling that "the answer" would describe something that does not exist.
+test('the umbrella reword confirmation never talks about the answer', () => {
+	for (const postsToDiscord of [true, false, undefined]) {
+		expect(umbrellaEditConfirmCopy(postsToDiscord).body).not.toContain('answer.');
+		expect(umbrellaEditConfirmCopy(postsToDiscord).body).toContain('wording');
+	}
 });

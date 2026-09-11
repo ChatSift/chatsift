@@ -103,6 +103,13 @@ function evaluate(name: string, guildId: string): ExperimentDecision {
  * deliberately creates it, which is the correct default for a product that takes moderation actions: the
  * failure mode of forgetting to create the row is "the feature does nothing", not "the feature is live
  * everywhere on deploy". `loadExperiments` never having been called reads the same way.
+ *
+ * `name` is a bare string here, but a gate is only useful when every layer agrees on it -- the API refusing
+ * the write, the bot hiding the button and the dashboard hiding the control all have to check the same one,
+ * and a typo in any of them fails closed and reads as "the feature just isn't on". So a gate's name belongs in
+ * a shared constant in `@chatsift/core` (browser-safe, so the dashboard can filter `MeGuild.experiments` with
+ * the same string), not as a literal at each call site. `ama-qol` (#366) was the last gate to do this and has
+ * since graduated to 100%; the next one should bring that constant back.
  */
 export function isExperimentEnabled(name: string, guildId: string): boolean {
 	const decision = evaluate(name, guildId);
