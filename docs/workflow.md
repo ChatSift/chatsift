@@ -1149,6 +1149,20 @@ createdb --username=chatsift chatsift
 pg_restore --username=chatsift --dbname=chatsift /tmp/restore/var/lib/pg-backup/work/chatsift.dump
 ```
 
+**Restore as `chatsift`, into a cluster this repo's `postgres` service provisioned** -- not as `postgres` into a
+plain one, which is the tempting improvisation when you are rebuilding a host in a hurry. `globals.sql` ends with
+
+```sql
+GRANT pg_monitor TO chatsift_exporter WITH INHERIT TRUE GRANTED BY chatsift;
+```
+
+and Postgres 16+ tracks a role grant's grantor strictly: `GRANTED BY chatsift` fails for any other role, superuser
+or not. Restoring as `postgres` therefore leaves `chatsift_exporter` without `pg_monitor`, and the only sign is one
+`permission denied to grant privileges as role "chatsift"` line in a wall of psql output. The cluster comes up
+looking fine and the #270 query dashboard quietly shows `<insufficient privilege>` instead of query text (see
+`build/postgres/init/02-monitoring-role.sh`). Restoring as `chatsift` reports a harmless
+`role "chatsift" already exists` instead, and the grant lands. Verified in the 2026-09-11 drill, both ways.
+
 A single file can also be streamed straight out without materializing the whole snapshot, which is the fast path
 when you only want the product database:
 
