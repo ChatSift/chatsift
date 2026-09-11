@@ -36,12 +36,7 @@ import { sweepScheduledCloses } from './lib/scheduledCloseSweep.js';
 import { findSnippetByCommandId, recordSnippetUsage } from './lib/snippets.js';
 import { sweepThreadNukes } from './lib/threadNukeSweep.js';
 import { findOpenThreadByModThreadId, findOpenThreadByUserChannelId } from './lib/threads.js';
-import {
-	finishTicketCreation,
-	MOD_FORUM_ACCESS_NOTICE,
-	ModForumAccessError,
-	sendGreeting,
-} from './lib/ticketCreation.js';
+import { finishTicketCreation, ModForumConfigError, sendGreeting } from './lib/ticketCreation.js';
 import {
 	handleInternalMessageDelete,
 	handleInternalMessageUpdate,
@@ -50,14 +45,14 @@ import {
 } from './lib/userMessageLifecycle.js';
 
 /**
- * How often `sweepAbandonedPendingTickets` runs — short enough that an abandoned thread doesn't sit
+ * How often `sweepAbandonedPendingTickets` runs -- short enough that an abandoned thread doesn't sit
  * around much past its actual timeout, long enough to not be pointlessly hammering the DB (the table
  * is expected to stay small: only tickets currently mid-setup have a row at all).
  */
 const PENDING_TICKET_SWEEP_INTERVAL_MS = 5 * 60 * 1_000;
 
 /**
- * How often `sweepScheduledCloses` runs — `/close schedule`'s delay is minute-granularity, so this
+ * How often `sweepScheduledCloses` runs -- `/close schedule`'s delay is minute-granularity, so this
  * needs to be short enough that a scheduled close doesn't fire noticeably late relative to what was
  * promised, while `scheduled_thread_closes` is expected to stay small (only tickets someone actually
  * scheduled a close for have a row at all).
@@ -65,14 +60,14 @@ const PENDING_TICKET_SWEEP_INTERVAL_MS = 5 * 60 * 1_000;
 const SCHEDULED_CLOSE_SWEEP_INTERVAL_MS = 60 * 1_000;
 
 /**
- * How often `sweepThreadNukes` runs — same minute-granularity reasoning as the scheduled-close sweep
+ * How often `sweepThreadNukes` runs -- same minute-granularity reasoning as the scheduled-close sweep
  * above (`guild_settings.nuke_delay_minutes` is also minutes), and `scheduled_thread_nukes` is
  * similarly expected to stay small.
  */
 const THREAD_NUKE_SWEEP_INTERVAL_MS = 60 * 1_000;
 
 /**
- * How often `preventOpenThreadsFromArchiving` runs — short enough that an open ticket's thread
+ * How often `preventOpenThreadsFromArchiving` runs -- short enough that an open ticket's thread
  * doesn't stay archived long after Discord's own inactivity timer trips it, long enough to not
  * re-fetch every open ticket's threads more often than needed.
  */
@@ -82,7 +77,7 @@ const baseDir = dirname(fileURLToPath(import.meta.url));
 
 /**
  * A private thread exists (`createTicket.ts` for a zero-category panel, `categorySelect.ts` once a
- * category's been picked) but nothing has been sent to staff yet — this is the user's first message,
+ * category's been picked) but nothing has been sent to staff yet -- this is the user's first message,
  * finishing the ticket outright. The category (if any) is already resolved by this point, so unlike
  * the old thread-first flow this never needs to prompt for one here.
  */
@@ -108,7 +103,7 @@ async function handleFirstMessage(
 			return;
 		}
 
-		// Re-fetched against the DB rather than trusting `pending.categoryId` alone — it was resolved
+		// Re-fetched against the DB rather than trusting `pending.categoryId` alone -- it was resolved
 		// back when the private thread was created, and the category could've been deleted in the gap
 		// before the user's first message arrived. Either way (never had one, or it's since gone), the
 		// outcome is the same: finish the ticket as uncategorized.
@@ -136,7 +131,7 @@ async function handleFirstMessage(
 			});
 
 			// A real `threads` row now exists for this ticket, so the durable pending record needs to
-			// go *now* — not deferred until after the relay/greeting below, which would leave both the
+			// go *now* -- not deferred until after the relay/greeting below, which would leave both the
 			// `threads` row and the `pending_tickets` row counting the same ticket simultaneously
 			// against `countActiveTicketsForUser` (lib/threads.ts) for however long the relay/greeting
 			// take, or indefinitely if either of them fails. Best-effort: a failure here shouldn't
@@ -192,25 +187,25 @@ async function handleFirstMessage(
 				await greetUser();
 			}
 
-			// Only cleared here, on success — this is the routing index a *retry* (the user just
+			// Only cleared here, on success -- this is the routing index a *retry* (the user just
 			// sending another message) would need to re-enter this same function after a failure below,
 			// but by this point `pending_tickets` is already gone and a real `threads` row exists, so a
 			// retry message actually routes through the normal open-thread relay path instead
 			// (`registerMessageRelay`'s `findOpenThreadByUserChannelId` check runs before this store is
-			// even consulted). Left in place on failure mostly as a harmless leftover — it just expires
+			// even consulted). Left in place on failure mostly as a harmless leftover -- it just expires
 			// via its own TTL once nothing keys off it anymore.
 			await PendingTicketStore.delete(message.channel_id);
 		} catch (error) {
-			// Not an error-level failure of ours: the guild pointed ModMail at a forum the bot can't post in.
-			// Logged as a warn naming the forum so it triages as a configuration problem in that one guild
-			// rather than landing in the generic ticket-creation error bucket.
-			if (error instanceof ModForumAccessError) {
+			// Not an error-level failure of ours: the guild's own forum configuration is what rejected the
+			// thread. Logged as a warn naming the forum so it triages as a configuration problem in that one
+			// guild rather than landing in the generic ticket-creation error bucket.
+			if (error instanceof ModForumConfigError) {
 				logger.warn(
 					{ err: error.cause, guildId: pending.guildId, modForumId: error.modForumId, userId: pending.userId },
-					'Cannot open ticket threads in the configured mod forum',
+					error.logMessage,
 				);
 				await getContext().service.client.api.channels.createMessage(message.channel_id, {
-					content: MOD_FORUM_ACCESS_NOTICE,
+					content: error.notice,
 				});
 				return;
 			}
@@ -228,7 +223,7 @@ async function handleFirstMessage(
 }
 
 /**
- * bot-core's `Client` only dispatches interactions (see `@chatsift/bot-core`'s `client.ts`) — AMA never
+ * bot-core's `Client` only dispatches interactions (see `@chatsift/bot-core`'s `client.ts`) -- AMA never
  * needed raw messages. ModMail's user → mod relay direction is message-driven (a user just types in
  * their private thread), so this service attaches its own `MessageCreate` listener directly instead of
  * extending the shared framework for a need only this bot has.
@@ -303,7 +298,7 @@ function registerMessageRelay(client: Client): void {
 					return;
 				}
 
-				// `handleFirstMessage` deletes this itself, and only once it actually succeeds — deleting
+				// `handleFirstMessage` deletes this itself, and only once it actually succeeds -- deleting
 				// it eagerly here would strand the user with a dead thread on any failure inside it (see
 				// the comments in `handleFirstMessage`).
 				await handleFirstMessage(message, pending, logger);
@@ -387,7 +382,7 @@ function registerMessageLifecycleRelay(client: Client): void {
 /**
  * Snippets are minted as their own per-guild slash command directly against Discord by the API
  * (`services/api/src/routes/modmail/snippets/createSnippet.ts`), so they never go through
- * `registerCommandHandlers`' static `commands/` directory — this is the fallback `@chatsift/bot-core`
+ * `registerCommandHandlers`' static `commands/` directory -- this is the fallback `@chatsift/bot-core`
  * calls when a command interaction's name doesn't match any statically-registered handler (see
  * `registerUnknownCommandResolver`). Returns `false` (not a snippet, or not usable here) to fall
  * through to bot-core's normal "no handler found" error for anything that isn't actually one of ours.
@@ -408,7 +403,7 @@ function registerSnippetCommandResolver(): void {
 			return false;
 		}
 
-		// Deferred immediately once this is confirmed to actually be a snippet invocation (not before —
+		// Deferred immediately once this is confirmed to actually be a snippet invocation (not before --
 		// the two `return false`s above have to fall through to bot-core's own "no handler found" reply
 		// untouched, not double-ack an interaction this resolver ends up not handling). Everything past
 		// this point is a thread lookup plus the relay's DB/Discord-API work (including a possible media
@@ -463,7 +458,7 @@ function registerSnippetCommandResolver(): void {
 				thread,
 			});
 		} catch (error) {
-			// Mirrors `commands/reply.ts`'s own try/catch around the same relay call — a failed relay means
+			// Mirrors `commands/reply.ts`'s own try/catch around the same relay call -- a failed relay means
 			// nothing was actually sent, so usage tracking below must not run, and the deferred reply needs
 			// an explicit failure message rather than being left to time out silently.
 			if (error instanceof UndeliverableUserError) {
@@ -486,7 +481,7 @@ function registerSnippetCommandResolver(): void {
 
 		snippetUses.inc({ result: 'ok' });
 
-		// Best-effort — the reply below is what actually acks this interaction, and the snippet has
+		// Best-effort -- the reply below is what actually acks this interaction, and the snippet has
 		// already been relayed successfully at this point, so a usage-tracking write failure shouldn't
 		// turn into a user-facing "something went wrong" for an action that in fact succeeded.
 		try {
@@ -512,7 +507,7 @@ export async function bin(client: Client): Promise<void> {
 	registerMessageLifecycleRelay(client);
 	registerSnippetCommandResolver();
 
-	// `.unref()` so this interval never keeps the process alive on its own — matches bot-core's
+	// `.unref()` so this interval never keeps the process alive on its own -- matches bot-core's
 	// client.ts guild-list-sync interval, the only other recurring background loop in the codebase.
 	setInterval(async () => {
 		try {
@@ -546,7 +541,7 @@ export async function bin(client: Client): Promise<void> {
 	}, THREAD_NUKE_SWEEP_INTERVAL_MS).unref();
 
 	// Self-rescheduling rather than `setInterval` (unlike the sweep above) since its per-run cost scales
-	// with how many tickets are open rather than a small bounded table — a guild with enough concurrent
+	// with how many tickets are open rather than a small bounded table -- a guild with enough concurrent
 	// tickets could in principle take long enough for one run to still be going when the next tick would
 	// otherwise fire, queuing duplicate GET/PATCH pairs for the same channels. Only scheduling the next
 	// run once the current one settles rules that out by construction.

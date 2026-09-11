@@ -14,7 +14,7 @@ import { buildContextNote, resolveEffectiveContent, resolveReplyReferenceId } fr
 import { PENDING_TICKET_TTL_MS } from './pendingTicket.js';
 import { relayUserMessageToModThread } from './relay.js';
 import { findOpenThreadsForUser } from './threads.js';
-import { finishTicketCreation, MOD_FORUM_ACCESS_NOTICE, ModForumAccessError, sendGreeting } from './ticketCreation.js';
+import { finishTicketCreation, ModForumConfigError, sendGreeting } from './ticketCreation.js';
 
 /**
  * No panel/state to encode -- DM mode offers a guild's whole category list (decision 7), not a
@@ -370,14 +370,11 @@ export async function handleDmMessage(message: GatewayMessageCreateDispatchData,
 					userChannelId: dmChannelId,
 				});
 			} catch (error) {
-				// See `index.ts#handleFirstMessage`'s matching branch -- a mod forum the bot can't post in is a
-				// guild configuration problem, and re-sending the DM would fail identically.
-				if (error instanceof ModForumAccessError) {
-					logger.warn(
-						{ err: error.cause, guildId, modForumId: error.modForumId, userId },
-						'Cannot open ticket threads in the configured mod forum',
-					);
-					await sendDm(dmChannelId, MOD_FORUM_ACCESS_NOTICE);
+				// See `index.ts#handleFirstMessage`'s matching branch -- a mod forum that rejects the bot's threads
+				// is a guild configuration problem, and re-sending the DM would fail identically.
+				if (error instanceof ModForumConfigError) {
+					logger.warn({ err: error.cause, guildId, modForumId: error.modForumId, userId }, error.logMessage);
+					await sendDm(dmChannelId, error.notice);
 					return;
 				}
 

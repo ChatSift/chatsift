@@ -12,7 +12,7 @@ import { findActiveBlock } from '../lib/blocks.js';
 import { DmPendingOpenerStore, fetchDmCategories, finishDmTicket, sendDm } from '../lib/dmTicket.js';
 import { withGuildUserLock } from '../lib/guildUserQueue.js';
 import { countOpenDmThreadsForUser } from '../lib/threads.js';
-import { MOD_FORUM_ACCESS_NOTICE, ModForumAccessError } from '../lib/ticketCreation.js';
+import { ModForumConfigError } from '../lib/ticketCreation.js';
 
 /**
  * The other half of `lib/dmTicket.ts`'s opener flow -- fires once a user picks a category from the
@@ -177,14 +177,14 @@ export default class DmCategorySelectComponent implements ComponentHandler {
 					userChannelId: dmChannelId,
 				});
 			} catch (error) {
-				// See `index.ts#handleFirstMessage`'s matching branch -- a mod forum the bot can't post in is a
-				// guild configuration problem, and picking a category again would fail identically.
-				if (error instanceof ModForumAccessError) {
+				// See `index.ts#handleFirstMessage`'s matching branch -- a mod forum that rejects the bot's threads
+				// is a guild configuration problem, and picking a category again would fail identically.
+				if (error instanceof ModForumConfigError) {
 					logger.warn(
 						{ err: error.cause, categoryId, guildId, modForumId: error.modForumId, userId },
-						'Cannot open ticket threads in the configured mod forum',
+						error.logMessage,
 					);
-					await bail(MOD_FORUM_ACCESS_NOTICE);
+					await bail(error.notice);
 					return;
 				}
 

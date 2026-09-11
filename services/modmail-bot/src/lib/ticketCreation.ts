@@ -31,32 +31,84 @@ import {
 const NOT_QUITE_BLACK = 0x23272a;
 
 /**
- * Thrown by `finishTicketCreation` when the mod forum itself is unreachable -- the bot can't see it, can't post
- * in it, or it isn't there at all any more. Distinct from every other ticket-creation failure because the answer
- * is: a moderator has to fix the bot's permissions on that forum (or repoint it), and until they do, the opener
- * re-sending their message just fails identically. Caught by all three ticket-opening paths
- * (`index.ts#handleFirstMessage`, `lib/dmTicket.ts`, `components/dmCategorySelect.ts`) so they can say that
- * instead of offering a retry.
+ * Thrown by `finishTicketCreation` when opening the forum thread failed for a reason that is this *guild's
+ * configuration*, not a bug and not a transient Discord failure. Distinct from every other ticket-creation
+ * failure because the answer is always the same: a moderator has to change something on Discord's side, and
+ * until they do, the opener re-sending their message just fails identically. Caught by all three ticket-opening
+ * paths (`index.ts#handleFirstMessage`, `lib/dmTicket.ts`, `components/dmCategorySelect.ts`), which all do the
+ * same two things with it, so both halves of the wording live on the error itself rather than being repeated
+ * (and drifting) three times.
+ */
+export abstract class ModForumConfigError extends Error {
+	/**
+	 * What the ticket opener is told. Vague about the cause on purpose -- a stranger opening a ticket can only
+	 * report this, not diagnose it -- and deliberately does not suggest trying again.
+	 */
+	public abstract readonly notice: string;
+
+	/**
+	 * What the call sites log their warn under, so the cases triage apart without reading `err`.
+	 */
+	public abstract readonly logMessage: string;
+
+	public constructor(
+		public readonly modForumId: string,
+		message: string,
+		cause: unknown,
+	) {
+		super(message, { cause });
+	}
+}
+
+/**
+ * The mod forum is unreachable: the bot can't see it, can't post in it, or it isn't there at all any more.
  *
  * The dashboard now refuses to save a mod forum the bot can't post in (`services/api`'s
  * `util/botPermissions.ts`), so reaching this means the permissions changed *after* it was configured.
  */
-export class ModForumAccessError extends Error {
-	public constructor(
-		public readonly modForumId: string,
-		cause: unknown,
-	) {
-		super(`the bot cannot open threads in mod forum ${modForumId}`, { cause });
+export class ModForumAccessError extends ModForumConfigError {
+	public readonly notice =
+		"❌ This server's ModMail isn't set up correctly right now: the bot can't reach the staff forum, so your ticket couldn't be opened. Please let a moderator know.";
+
+	public readonly logMessage = 'Cannot open ticket threads in the configured mod forum';
+
+	public constructor(modForumId: string, cause: unknown) {
+		super(modForumId, `the bot cannot open threads in mod forum ${modForumId}`, cause);
 		this.name = 'ModForumAccessError';
 	}
 }
 
 /**
- * What the ticket opener is told when the above happens, shared by all three call sites so the wording is one
- * decision rather than three. Deliberately does not suggest trying again.
+ * The mod forum has Discord's "require tag" flag on and this ticket had no tag to apply -- it's either
+ * uncategorized, or its category has no `forum_tag_id` mapped. Discord rejects the whole thread creation with
+ * `40067` in that case, which used to surface as a generic "something went wrong, try sending your message
+ * again" to the opener: hopeless advice, since every subsequent message hits the exact same wall.
+ *
+ * Not something the bot can paper over -- applying some arbitrary available tag would quietly mis-route the
+ * ticket, and the guild's own routing is exactly what the flag is there to enforce. The fix is a moderator's:
+ * turn off "require tag" on the forum, or map every ModMail category to a forum tag (and give the guild a
+ * default category, since an uncategorized ticket can never carry one).
  */
-export const MOD_FORUM_ACCESS_NOTICE =
-	"❌ This server's ModMail isn't set up correctly right now — the bot can't reach the staff forum, so your ticket couldn't be opened. Please let a moderator know.";
+export class ModForumTagRequiredError extends ModForumConfigError {
+	public readonly notice =
+		"❌ This server's ModMail isn't set up correctly right now: its staff forum is rejecting new tickets, so yours couldn't be opened. Please let a moderator know.";
+
+	public readonly logMessage =
+		'Mod forum requires a tag, but this ticket had none to apply -- map every category to a forum tag or turn the requirement off';
+
+	public constructor(
+		modForumId: string,
+		public readonly categoryId: number | null,
+		cause: unknown,
+	) {
+		super(
+			modForumId,
+			`mod forum ${modForumId} requires a tag and category ${categoryId ?? '(none)'} has none mapped`,
+			cause,
+		);
+		this.name = 'ModForumTagRequiredError';
+	}
+}
 
 /**
  * Discord's snowflake epoch (2015-01-01T00:00:00.000Z), used to derive account-creation date.
@@ -137,7 +189,7 @@ function buildModThreadName(displayName: string, threadId: number): string {
 /**
  * `finishTicketCreation` only ever runs from `index.ts`'s message-driven path (the `user`-less
  * `APIGuildMemberNoUser` the gateway attaches to `MESSAGE_CREATE`), never directly from an
- * interaction — narrowed to just the fields actually read here so that satisfies it.
+ * interaction -- narrowed to just the fields actually read here so that satisfies it.
  */
 type MemberLike = Pick<APIGuildMember, 'avatar' | 'joined_at' | 'nick' | 'roles'>;
 
@@ -171,7 +223,7 @@ export interface FinishTicketCreationOptions {
  * job left: open the mod-forum thread (tagged per category, if configured), insert the `threads` row,
  * and post the category's greeting (falling back to the guild default) back into the user's channel.
  * The opening embed's field set (account age, join date, past tickets, roles) intentionally skips a
- * full guild-roles fetch just to sort the roles by position — not worth the extra API call for a
+ * full guild-roles fetch just to sort the roles by position -- not worth the extra API call for a
  * cosmetic ordering.
  */
 export async function finishTicketCreation({
@@ -266,32 +318,38 @@ export async function finishTicketCreation({
 			applied_tags: category?.forumTagId ? [category.forumTagId] : undefined,
 			auto_archive_duration: MAX_THREAD_AUTO_ARCHIVE_DURATION_MINUTES,
 			message: {
-				// Plain content, not an embed field — embeds never trigger a ping, and this is the one
+				// Plain content, not an embed field -- embeds never trigger a ping, and this is the one
 				// place a new ticket should actually notify the configured alert role.
 				...(alertRoleId ? { content: `<@&${alertRoleId}>` } : {}),
 				embeds: [openingEmbed],
 			},
 		});
 	} catch (error) {
-		// Covers both 403s Discord can answer with here -- `50001 Missing Access` (the forum isn't even visible
-		// to the bot) and `50013 Missing Permissions` (visible, but it can't post) -- plus `10003 Unknown Channel`
-		// (#397), which is what a forum that has since been *deleted* answers with. `guild_settings.mod_forum_id` outlives
-		// the channel it points at (nothing clears it when the channel goes away), so that last one is a perfectly
-		// ordinary state for a guild to be in, and it means the same thing to the opener as the other two: only a
-		// moderator can fix it. Left as a raw error it instead logged at error level on every single message the
-		// user sent and told them to try again, which could never work.
-		if (
-			error instanceof DiscordAPIError &&
-			(error.status === 403 || error.code === RESTJSONErrorCodes.UnknownChannel)
-		) {
-			throw new ModForumAccessError(modForumId, error);
+		if (error instanceof DiscordAPIError) {
+			// Covers both 403s Discord can answer with here -- `50001 Missing Access` (the forum isn't even visible
+			// to the bot) and `50013 Missing Permissions` (visible, but it can't post) -- plus `10003 Unknown Channel`
+			// (#397), which is what a forum that has since been *deleted* answers with. `guild_settings.mod_forum_id` outlives
+			// the channel it points at (nothing clears it when the channel goes away), so that last one is a perfectly
+			// ordinary state for a guild to be in, and it means the same thing to the opener as the other two: only a
+			// moderator can fix it. Left as a raw error it instead logged at error level on every single message the
+			// user sent and told them to try again, which could never work.
+			if (error.status === 403 || error.code === RESTJSONErrorCodes.UnknownChannel) {
+				throw new ModForumAccessError(modForumId, error);
+			}
+
+			// Same shape of problem, different knob: the forum has "require tag" on and `applied_tags` above came out
+			// empty because the ticket is uncategorized or its category has no forum tag mapped. See
+			// `ModForumTagRequiredError` for why the bot doesn't just pick a tag.
+			if (error.code === RESTJSONErrorCodes.TagRequiredToCreateAForumPostInThisChannel) {
+				throw new ModForumTagRequiredError(modForumId, category?.id ?? null, error);
+			}
 		}
 
 		throw error;
 	}
 
 	// If the INSERT fails outright or somehow returns no row, the forum thread above is already live on
-	// Discord's side with nothing in our DB pointing at it — clean that up rather than leaving an
+	// Discord's side with nothing in our DB pointing at it -- clean that up rather than leaving an
 	// orphaned thread a mod would see but that no `/reply` command could ever resolve back to a ticket.
 	let thread: Threads | undefined;
 	try {
@@ -412,7 +470,7 @@ interface GreetingContent {
 }
 
 /**
- * Shared by `sendEarlyGreeting` and `sendGreeting` — the embed and its resolved text don't depend on
+ * Shared by `sendEarlyGreeting` and `sendGreeting` -- the embed and its resolved text don't depend on
  * when or where it ends up posted, only the destination(s) and recording do.
  */
 async function buildGreetingContent({
@@ -437,7 +495,7 @@ async function buildGreetingContent({
 	const label = templateGuildName(labelTemplate, guild.name);
 
 	// Same divergence from ChatSift/ModMail as anon replies (lib/relay.ts): the "\{guildName\} Team" identity
-	// lives in the footer, not the author slot — an author line here would just duplicate it.
+	// lives in the footer, not the author slot -- an author line here would just duplicate it.
 	const resolvedContent = templateString(greeting, templateDataFromMember(guild.name, member, user));
 	return {
 		embed: {
@@ -460,13 +518,13 @@ export interface SendEarlyGreetingOptions {
 
 /**
  * `guild_settings.greetingBeforeOpener`'s "before" only has anything to reorder against on the mod
- * side (`sendGreeting` below) — on the user's own channel, the opener *is* the message that triggers
+ * side (`sendGreeting` below) -- on the user's own channel, the opener *is* the message that triggers
  * ticket creation, so it already exists there before the bot can react at all; no ordering of calls at
  * finish time can land a bot reply ahead of the message that caused the bot to run. The only way to
  * actually greet the user before their own opener is to post here, at private-thread-creation time
  * (`createTicket.ts`/`categorySelect.ts`), before they've said anything. Returns the posted message's
- * id — threaded through `PendingTicketState.greetingUserMessageId` so `sendGreeting` can skip
- * re-posting to the user and reuse this id for recording once a real `threads` row exists — or `null`
+ * id -- threaded through `PendingTicketState.greetingUserMessageId` so `sendGreeting` can skip
+ * re-posting to the user and reuse this id for recording once a real `threads` row exists -- or `null`
  * if no greeting is configured for this category/guild.
  */
 export async function sendEarlyGreeting({
@@ -493,7 +551,7 @@ export interface SendGreetingOptions {
 	defaultGreetingMessage: string | null;
 	/**
 	 * Set when `sendEarlyGreeting` already posted the user-facing copy (`greetingBeforeOpener`, before
-	 * the opener arrived) — skips re-posting to `userChannelId` and reuses this id for recording instead.
+	 * the opener arrived) -- skips re-posting to `userChannelId` and reuses this id for recording instead.
 	 */
 	earlyUserMessageId?: string | undefined;
 	guildId: string;
@@ -505,11 +563,11 @@ export interface SendGreetingOptions {
 }
 
 /**
- * Deliberately not part of `finishTicketCreation` — `index.ts`'s `handleFirstMessage` relays the
+ * Deliberately not part of `finishTicketCreation` -- `index.ts`'s `handleFirstMessage` relays the
  * user's own first message to the mod thread itself right after creating it, and needs to sequence
  * this against that relay call depending on `guild_settings.greetingBeforeOpener` (default `false`:
  * greeting lands *after* the relay, so the mod-side thread reads opening info embed, then the user's
- * actual message, then the bot's greeting reply to it — set `true` to flip that order). Posting the
+ * actual message, then the bot's greeting reply to it -- set `true` to flip that order). Posting the
  * greeting from inside `finishTicketCreation` would hardcode one order with no way for the caller to
  * flip it.
  */
@@ -529,7 +587,7 @@ export async function sendGreeting({
 		return;
 	}
 
-	// Posted into both threads — mods should see the automated greeting land in the mod-forum
+	// Posted into both threads -- mods should see the automated greeting land in the mod-forum
 	// thread too, the same way a staff-sent reply's log copy does, instead of it only being
 	// visible from the user's side. `earlyUserMessageId` set means `sendEarlyGreeting` already put the
 	// user-facing copy out, so only the mod-thread copy needs posting here.
