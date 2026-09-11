@@ -5,6 +5,7 @@ import type {
 	APIMessageTopLevelComponent,
 } from 'discord-api-types/v10';
 import { ButtonStyle, ComponentType } from 'discord-api-types/v10';
+import { fence, truncate } from './discordText.js';
 
 /**
  * The report card, shared by `services/automoderator-bot` (which posts it for the two guild context menus and
@@ -87,22 +88,6 @@ const CONTENT_LIMIT = 1_500;
  * a *message* at 6000 characters across every embed on it. 1500 + 5 x 500 leaves comfortable headroom.
  */
 const CONTEXT_CONTENT_LIMIT = 500;
-
-function truncate(value: string, limit: number): string {
-	return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
-}
-
-/**
- * Neutralizes a code fence inside reported text.
- *
- * The content is whatever the reported account typed. A literal triple-backtick in it closes the block early and the rest
- * renders as markdown *in the bot's own embed* — which is a spoofing vector, not just a layout glitch: attacker
- * text can be dressed up as something the bot said, a fake "verified" link being the obvious use. A zero-width
- * space between the backticks stops the fence from closing while leaving the text readable.
- */
-function fence(value: string): string {
-	return value.replaceAll('```', '`\u200B``');
-}
 
 function block(content: string | null, limit: number): string {
 	return content?.trim().length

@@ -4,11 +4,10 @@
 /** Represents the enum public.appeal_event_kind */
 enum AppealEventKind {
   SUBMITTED = 'SUBMITTED',
-  INFO_REQUESTED = 'INFO_REQUESTED',
-  INFO_PROVIDED = 'INFO_PROVIDED',
   APPROVED = 'APPROVED',
   DENIED = 'DENIED',
   WITHDRAWN = 'WITHDRAWN',
+  MOOT = 'MOOT',
   NOTE = 'NOTE',
 };
 

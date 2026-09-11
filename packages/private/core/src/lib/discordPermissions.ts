@@ -1,6 +1,6 @@
 import type { ValueResolvable } from '@sapphire/bitfield';
 import { BitField } from '@sapphire/bitfield';
-import type { APIOverwrite, APIRole, Snowflake } from 'discord-api-types/v10';
+import type { APIInteractionGuildMember, APIOverwrite, APIRole, Snowflake } from 'discord-api-types/v10';
 import { OverwriteType, PermissionFlagsBits } from 'discord-api-types/v10';
 
 export const PermissionsBitField = new BitField(PermissionFlagsBits);
@@ -69,6 +69,18 @@ export function computeChannelPermissions({
 	}
 
 	return permissions;
+}
+
+/**
+ * Whether an interaction's member holds `permission`. `member.permissions` is the *computed* bitfield Discord
+ * resolves for the invoking channel and hands to us in the payload, so this needs no role fetch and already
+ * accounts for Administrator and channel overwrites.
+ *
+ * Here rather than in a bot because two of them gate a card's buttons on it now -- AutoModerator's report card
+ * and Appeals' (#232 P4).
+ */
+export function memberHasPermission(member: APIInteractionGuildMember, permission: bigint): boolean {
+	return PermissionsBitField.any(BigInt(member.permissions), permission);
 }
 
 export function permissionNames(permissions: bigint): string[] {

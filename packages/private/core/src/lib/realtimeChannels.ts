@@ -186,6 +186,18 @@ export function appealsConfigChannel(guildId: string): string {
 }
 
 /**
+ * The appeal queue and every appeal on it (P4/P5). Written to from both mod surfaces -- a decision taken on
+ * the Discord card has to reach a dashboard queue somebody else is looking at, which is the whole reason
+ * decision 1 has the two converge on one transition.
+ *
+ * Guild-scoped rather than per-appeal: the queue is the screen, a detail view is a row on it, and an appeal
+ * being decided changes both.
+ */
+export function appealsQueueChannel(guildId: string): string {
+	return `appeals:${guildId}:queue`;
+}
+
+/**
  * The manually-unappealable user list (P1, decision 8). Its own channel rather than riding the config one for
  * the same reason every other list here has one: the list is edited a row at a time while the settings are
  * written once, so sharing would refetch the whole list on every save and vice versa.

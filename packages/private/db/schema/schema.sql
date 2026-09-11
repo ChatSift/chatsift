@@ -1658,10 +1658,19 @@ CREATE INDEX appeal_questions_guild_id_position_idx ON appeal_questions (guild_i
 
 CREATE TYPE appeal_kind AS ENUM ('BAN', 'TIMEOUT');
 
--- 'NEEDS_MORE_INFO' is still an open appeal, not a decision: the moderator asked a follow-up question and the
--- appellant can still answer it. 'WITHDRAWN' is the appellant's own action, which is why it is the one
--- terminal state with no `decided_by_id`.
-CREATE TYPE appeal_status AS ENUM ('PENDING', 'NEEDS_MORE_INFO', 'APPROVED', 'DENIED', 'WITHDRAWN');
+-- 'WITHDRAWN' (the appellant's own action) and 'MOOT' are the two terminal states with no `decided_by_id`,
+-- because neither is a decision anybody made.
+--
+-- 'MOOT' is what an appeal becomes when the ban it is about is lifted somewhere else -- by hand, by
+-- AutoModerator's expired-ban sweep, by another bot. `services/appeals-bot` closes it off GUILD_BAN_REMOVE.
+-- Without it the appeal sits 'PENDING' forever, and that is worse than untidy: `evaluateAppealEligibility`
+-- refuses a new appeal on an open one *before* it probes the ban, so a stale row would lock that user out of
+-- appealing in that guild again, for a future ban they have not received yet.
+--
+-- There is deliberately no "the moderator asked a follow-up question" state. It was in the original P4 plan
+-- and was cut with the button that produced it: `appeal_events` is never served to the appellant, so the
+-- question had nowhere to be read and the answer had nowhere to come from.
+CREATE TYPE appeal_status AS ENUM ('PENDING', 'APPROVED', 'DENIED', 'WITHDRAWN', 'MOOT');
 
 -- One appeal. `status` is the internal truth: appellant-facing responses go through a serializer that maps
 -- (status = 'DENIED' AND silent) back to 'PENDING' and must never expose decided_at/decided_by_id/
@@ -1679,7 +1688,14 @@ CREATE TABLE appeals (
   -- when Discord had no reason recorded, which is the common case for a ban issued from the client UI.
   reason_snapshot TEXT,
   -- The single embed (decision 13) and the thread/forum post it lives on, so both can be edited in place
-  -- rather than re-posted. NULL between the row being written and the mod-channel post succeeding.
+  -- rather than re-posted. All three are NULL between the row being written and the mod-channel post
+  -- succeeding.
+  --
+  -- `mod_channel_id` is where the *message* is, which is not always where the appeal was posted: a forum post's
+  -- starter message lives in the post itself, so this holds the thread there and `appeals_settings.mod_channel_id`
+  -- holds the forum. Stored rather than re-derived at edit time, so a guild that repoints its mod channel while
+  -- appeals are open does not orphan every card it already has.
+  mod_channel_id  TEXT,
   mod_message_id  TEXT,
   mod_thread_id   TEXT,
   decided_at      TIMESTAMPTZ,
@@ -1697,10 +1713,11 @@ CREATE TABLE appeals (
   CONSTRAINT appeals_decision_check CHECK (
     CASE status
       WHEN 'PENDING' THEN decided_at IS NULL AND decided_by_id IS NULL AND decision_reason IS NULL
-      WHEN 'NEEDS_MORE_INFO' THEN decided_at IS NULL AND decided_by_id IS NULL AND decision_reason IS NULL
       WHEN 'APPROVED' THEN decided_at IS NOT NULL AND decided_by_id IS NOT NULL
       WHEN 'DENIED' THEN decided_at IS NOT NULL AND decided_by_id IS NOT NULL
       WHEN 'WITHDRAWN' THEN decided_at IS NOT NULL AND decided_by_id IS NULL
+      -- Same shape as a withdrawal: it happened at a moment, and nobody decided it.
+      WHEN 'MOOT' THEN decided_at IS NOT NULL AND decided_by_id IS NULL
       ELSE false
     END
   )
@@ -1711,7 +1728,7 @@ CREATE TABLE appeals (
 -- unlikely -- `unban.app` is a public form for hostile users by construction.
 CREATE UNIQUE INDEX appeals_open_per_user_idx
   ON appeals (guild_id, user_id, kind)
-  WHERE status IN ('PENDING', 'NEEDS_MORE_INFO');
+  WHERE status = 'PENDING';
 
 -- The moderator queue and history (P5), newest first, optionally filtered by status.
 CREATE INDEX appeals_guild_id_status_id_idx ON appeals (guild_id, status, id DESC);
@@ -1731,28 +1748,28 @@ CREATE TABLE appeal_answers (
   CONSTRAINT appeal_answers_appeal_id_position_key UNIQUE (appeal_id, position)
 );
 
--- What produced an `appeal_events` row. 'INFO_REQUESTED'/'INFO_PROVIDED' are the two halves of the
--- ask-for-more-info exchange; 'NOTE' is a moderator writing something down that the appellant never sees.
+-- What produced an `appeal_events` row. 'NOTE' is a moderator writing something down that the appellant never
+-- sees; 'MOOT' is the system closing an appeal whose ban was lifted elsewhere, and is the one kind with no
+-- actor at all.
 CREATE TYPE appeal_event_kind AS ENUM (
   'SUBMITTED',
-  'INFO_REQUESTED',
-  'INFO_PROVIDED',
   'APPROVED',
   'DENIED',
   'WITHDRAWN',
+  'MOOT',
   'NOTE'
 );
 
--- Audit trail plus the ask-for-more-info exchange. **NEVER served to the appellant** -- not filtered for them,
--- not partially exposed: no appellant-facing route reads this table at all.
+-- The audit trail. **NEVER served to the appellant** -- not filtered for them, not partially exposed: no
+-- appellant-facing route reads this table at all.
 CREATE TABLE appeal_events (
   id         INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
   appeal_id  INTEGER NOT NULL REFERENCES appeals (id) ON DELETE CASCADE,
   kind       appeal_event_kind NOT NULL,
-  -- The moderator who did this, or the appellant for 'SUBMITTED'/'INFO_PROVIDED'/'WITHDRAWN'. NULL for
-  -- anything the system did on nobody's behalf.
+  -- The moderator who did this, or the appellant for 'SUBMITTED'/'WITHDRAWN'. NULL for anything the system
+  -- did on nobody's behalf, which today is 'MOOT'.
   actor_id   TEXT,
-  -- The denial reason, the follow-up question, the answer to it, the note. NULL for events that carry none.
+  -- The denial reason, or the note. NULL for events that carry neither.
   body       TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

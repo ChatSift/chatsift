@@ -272,6 +272,15 @@ export const APPEAL_QUESTION_PROMPT_MAX_LENGTH = 256;
 export const APPEAL_ANSWER_MAX_LENGTH = 1_024;
 
 /**
+ * The longest a denial reason (or a silent denial's mod-only note) may be, in characters.
+ *
+ * Ours rather than Discord's: it renders inside the appeal card's description alongside the ban reason, and on
+ * an ordinary denial it is also what P6 puts in the DM the appellant receives. A reason that needs more than
+ * this is a conversation, and the appeal thread is where that goes.
+ */
+export const APPEAL_DECISION_REASON_MAX_LENGTH = 500;
+
+/**
  * The longest a guild may make its re-appeal cooldown, in days. A year, past which "you may not appeal again"
  * is what the guild actually means and the manual unappealable list says it directly. `0` is a real value --
  * it means an appellant may resubmit as soon as a decision lands, which is what a guild running a fast triage

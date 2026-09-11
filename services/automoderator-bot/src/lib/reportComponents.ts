@@ -1,9 +1,9 @@
 import type { Logger } from '@chatsift/backend-core';
 import { countReporters, getContext, getReport, REPORT_STATE } from '@chatsift/backend-core';
+import { memberHasPermission } from '@chatsift/core';
 import type { AutomoderatorReports } from '@chatsift/db';
 import type { APIMessageComponentInteraction, APIInteractionGuildMember } from '@discordjs/core';
 import { MessageFlags, PermissionFlagsBits } from '@discordjs/core';
-import { memberHasPermission } from './permissions.js';
 import { syncReportCard } from './reportCard.js';
 
 /**
