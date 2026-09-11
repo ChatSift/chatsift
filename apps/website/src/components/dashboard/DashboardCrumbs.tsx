@@ -3,7 +3,7 @@
 import type { BotId } from '@chatsift/core';
 import { Skeleton } from '@chatsift/web-core/components/Skeleton';
 import { useParams, usePathname } from 'next/navigation';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { AMASessionDetailed, AMASessionWithCount } from '@/api/routes/ama';
 import { useMe } from '@/api/routes/auth';
 import type { AutomodRule, BanwordPolicy } from '@/api/routes/automoderatorBanwords';
@@ -20,8 +20,12 @@ import { SvgModmail } from '@/components/icons/SvgModmail';
 import { SvgSocial } from '@/components/icons/SvgSocial';
 import { APPEALS_SECTION_LABELS, APPEALS_SECTIONS } from '@/utils/appealsSections';
 import { AUTOMODERATOR_SECTION_LABELS, AUTOMODERATOR_SECTIONS } from '@/utils/automoderatorSections';
+import { botFromSegment } from '@/utils/botSections';
 import type { BotBrandingSource } from '@/utils/bots';
 import { BotIcon, resolveBotBranding } from '@/utils/bots';
+import { MODMAIL_SECTION_LABELS, MODMAIL_SECTIONS } from '@/utils/modmailSections';
+import { recordRecentPage } from '@/utils/recentPages';
+import { SOCIAL_SECTION_LABELS, SOCIAL_SECTIONS } from '@/utils/socialSections';
 import { sortGuilds } from '@/utils/util';
 
 const NO_CUSTOM_INSTANCE: BotBrandingSource = {
@@ -30,34 +34,20 @@ const NO_CUSTOM_INSTANCE: BotBrandingSource = {
 	customInstanceLabel: null,
 };
 
-const MODMAIL_SECTIONS = ['config', 'categories', 'panels', 'snippets', 'blocks', 'threads'] as const;
-
-const SOCIAL_SECTIONS = ['config', 'channels', 'roles', 'rewards', 'interactions', 'leaderboard'] as const;
-
 const SEGMENT_LABELS: Record<string, string> = {
-	// Derived from the hub's own grouping rather than restated, so a new AutoModerator section can't reach the
-	// breadcrumb as its raw kebab-case URL segment (#373, #376, #378). Appeals is listed the same way for the
-	// same reason.
+	// Derived from each hub's own list rather than restated, so a new section can't reach the breadcrumb as
+	// its raw kebab-case URL segment (#373, #376, #378 were all that gap).
 	...AUTOMODERATOR_SECTION_LABELS,
 	...APPEALS_SECTION_LABELS,
+	...MODMAIL_SECTION_LABELS,
+	...SOCIAL_SECTION_LABELS,
 	ama: 'AMA',
 	amas: 'Sessions',
 	new: 'New',
 	modmail: 'ModMail',
-	config: 'Config',
-	categories: 'Categories',
-	panels: 'Panels',
-	snippets: 'Snippets',
-	blocks: 'Blocks',
-	threads: 'Threads',
 	settings: 'Settings',
 	questions: 'Questions',
 	social: 'Social',
-	channels: 'Channels',
-	roles: 'Roles',
-	rewards: 'Rewards',
-	interactions: 'Interactions',
-	leaderboard: 'Leaderboard',
 	automoderator: 'AutoModerator',
 	appeals: 'Appeals',
 } as const;
@@ -567,6 +557,36 @@ export function DashboardCrumbs({ segmentOptionsData }: DashboardCrumbsProps = {
 
 		return result;
 	}, [params.id, pathname, effectiveSegmentOptionsData]);
+
+	// Feeds the jump-to palette's Recent group. Recorded only once every label in the trail is a string --
+	// a segment still showing a skeleton has nothing worth remembering yet, and this re-runs when it resolves.
+	// Create forms are skipped: `new` is somewhere you pass through, not somewhere you go back to.
+	useEffect(() => {
+		if (!guild || !pathname || segments.length === 0 || pathname.endsWith('/new')) {
+			return;
+		}
+
+		// A loop rather than `map` + `every`: a segment's label is a `ReactNode`, which in React 19 includes
+		// `Promise`, and that is enough for the promise lint rules to rewrite a `map` callback as `async`.
+		const labels: string[] = [];
+		for (const segment of segments) {
+			if (typeof segment.label !== 'string') {
+				return;
+			}
+
+			labels.push(segment.label);
+		}
+
+		const [, , botSegment] = pathname.split('/').filter(Boolean);
+		recordRecentPage({
+			bot: botFromSegment(botSegment ?? ''),
+			guildId: guild.id,
+			guildName: guild.name,
+			href: pathname,
+			label: labels.at(-1)!,
+			path: labels.slice(0, -1).join(' / '),
+		});
+	}, [guild, pathname, segments]);
 
 	if (!params.id) {
 		throw new Error('id param not found, should not be rendering this component');

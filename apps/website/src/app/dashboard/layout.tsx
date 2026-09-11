@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { PropsWithChildren } from 'react';
 import { Suspense } from 'react';
 import { NavGateProvider } from '@/components/common/NavGate';
+import { CommandPaletteProvider } from '@/components/dashboard/CommandPalette';
 import { socialMetadata } from '@/utils/site';
 
 /**
@@ -19,9 +20,14 @@ export default function DashboardLayout({ children }: PropsWithChildren) {
 	// `NavGateProvider` itself calls `useSearchParams()`. Next requires a Suspense boundary around that for
 	// static prerendering to succeed, even though every dashboard route also independently forces dynamic
 	// rendering via `cookies()` -- Next still attempts a static shell first and fails the build without this.
+	//
+	// The palette sits inside the gate so `me` is always loaded by the time it can open, and above `[id]` so
+	// its shortcut also works from the server list.
 	return (
 		<Suspense fallback={null}>
-			<NavGateProvider>{children}</NavGateProvider>
+			<NavGateProvider>
+				<CommandPaletteProvider>{children}</CommandPaletteProvider>
+			</NavGateProvider>
 		</Suspense>
 	);
 }

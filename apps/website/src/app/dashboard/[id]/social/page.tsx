@@ -3,39 +3,7 @@ import Link from 'next/link';
 import { SocialInertBanner } from './_components/SocialInertBanner';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 import { SvgSocial } from '@/components/icons/SvgSocial';
-
-const SECTIONS = [
-	{
-		segment: 'config',
-		title: 'Config',
-		subtitle: 'XP gain, the level curve, and level-up notifications',
-	},
-	{
-		segment: 'channels',
-		title: 'Channels',
-		subtitle: 'Channels that grant no XP, or grant it faster',
-	},
-	{
-		segment: 'roles',
-		title: 'Roles',
-		subtitle: 'Roles that multiply the XP their holders earn',
-	},
-	{
-		segment: 'rewards',
-		title: 'Rewards',
-		subtitle: 'Roles handed out when members reach a level',
-	},
-	{
-		segment: 'interactions',
-		title: 'Interactions',
-		subtitle: 'Custom slash commands like /hug anyone can use',
-	},
-	{
-		segment: 'leaderboard',
-		title: 'Leaderboard',
-		subtitle: "Leaderboard for your community's most active members, and the public page for it",
-	},
-] as const;
+import { SOCIAL_SECTION_LIST } from '@/utils/socialSections';
 
 export default async function SocialPage({ params }: PageProps<'/dashboard/[id]/social'>) {
 	const { id } = await params;
@@ -46,7 +14,7 @@ export default async function SocialPage({ params }: PageProps<'/dashboard/[id]/
 				<DashboardCrumbs />
 				<Heading subtitle="Configure Social for your server" title="Social Settings" />
 				<SocialInertBanner />
-				{SECTIONS.map(({ segment, title, subtitle }) => (
+				{SOCIAL_SECTION_LIST.map(({ segment, title, subtitle }) => (
 					<Link
 						className="flex items-center gap-4 rounded-lg border-[1px] border-on-secondary bg-card p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-card-dark dark:hover:bg-on-tertiary-dark"
 						href={`/dashboard/${id}/social/${segment}`}

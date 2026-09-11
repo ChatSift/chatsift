@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { FaWrench } from 'react-icons/fa';
 import { GuildIcon } from '@/components/common/GuildIcon';
+import { CommandPaletteTrigger } from '@/components/dashboard/CommandPalette';
 import { useGuildAccess } from '@/hooks/useGuildAccess';
 import { BotIcon, resolveBotBranding } from '@/utils/bots';
 
@@ -75,19 +76,26 @@ export function GuildNav() {
 			];
 
 	return (
-		<nav className="flex items-center gap-2 overflow-x-auto border-b border-on-secondary pb-3 dark:border-on-secondary-dark">
-			<GuildIcon data={guild} disableLink hasBots size={36} />
+		<nav className="flex items-center gap-2 border-b border-on-secondary pb-3 dark:border-on-secondary-dark">
+			{/* The tabs scroll on their own so the palette trigger stays put at the row's right edge: with every
+			    bot installed the tabs already overrun the 912px column on desktop, and a trigger inside the
+			    scrolling half would be the first thing pushed out of view. */}
+			<div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+				<GuildIcon data={guild} disableLink hasBots size={36} />
 
-			{items.map((item) => {
-				const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+				{items.map((item) => {
+					const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
-				return (
-					<Link className={navLinkClassName(isActive)} href={item.href} key={item.href} prefetch>
-						{item.icon}
-						{item.label}
-					</Link>
-				);
-			})}
+					return (
+						<Link className={navLinkClassName(isActive)} href={item.href} key={item.href} prefetch>
+							{item.icon}
+							{item.label}
+						</Link>
+					);
+				})}
+			</div>
+
+			<CommandPaletteTrigger />
 		</nav>
 	);
 }

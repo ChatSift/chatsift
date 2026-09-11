@@ -2,39 +2,7 @@ import { Heading } from '@chatsift/web-core/components/Heading';
 import Link from 'next/link';
 import { DashboardCrumbs } from '@/components/dashboard/DashboardCrumbs';
 import { SvgModmail } from '@/components/icons/SvgModmail';
-
-const SECTIONS = [
-	{
-		segment: 'config',
-		title: 'Config',
-		subtitle: 'Mod forum, greeting/farewell messages, and alert role',
-	},
-	{
-		segment: 'categories',
-		title: 'Categories',
-		subtitle: 'Categories users pick when opening a ticket',
-	},
-	{
-		segment: 'panels',
-		title: 'Panels',
-		subtitle: 'Ticket-creation panels posted in your server',
-	},
-	{
-		segment: 'snippets',
-		title: 'Snippets',
-		subtitle: 'Quick canned responses staff can use in a ticket',
-	},
-	{
-		segment: 'blocks',
-		title: 'Blocks',
-		subtitle: 'Users blocked from opening new tickets',
-	},
-	{
-		segment: 'threads',
-		title: 'Threads',
-		subtitle: 'Browse past and open threads',
-	},
-] as const;
+import { MODMAIL_SECTION_LIST } from '@/utils/modmailSections';
 
 export default async function ModmailPage({ params }: PageProps<'/dashboard/[id]/modmail'>) {
 	const { id } = await params;
@@ -44,7 +12,7 @@ export default async function ModmailPage({ params }: PageProps<'/dashboard/[id]
 			<div className="flex flex-col gap-4">
 				<DashboardCrumbs />
 				<Heading subtitle="Configure ModMail for your server" title="ModMail Settings" />
-				{SECTIONS.map(({ segment, title, subtitle }) => (
+				{MODMAIL_SECTION_LIST.map(({ segment, title, subtitle }) => (
 					<Link
 						className="flex items-center gap-4 rounded-lg border-[1px] border-on-secondary bg-card p-4 hover:bg-on-tertiary dark:border-on-secondary-dark dark:bg-card-dark dark:hover:bg-on-tertiary-dark"
 						href={`/dashboard/${id}/modmail/${segment}`}

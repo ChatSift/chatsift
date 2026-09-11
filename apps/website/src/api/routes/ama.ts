@@ -80,13 +80,18 @@ export type PublicAMAAnswersResult = PublicAMAAnswersContract['response'];
 // this type backs is only rendered for the ones that do.
 export type PublicUserInfo = NonNullable<PublicAMAAnswersResult['questions'][number]['author']>;
 
-export function useAMAs(guildId: string, includeEnded: boolean) {
+/**
+ * `enabled` is for a caller that only sometimes wants the list -- the jump-to palette fetches it the first
+ * time it opens rather than on every dashboard page load.
+ */
+export function useAMAs(guildId: string, includeEnded: boolean, { enabled = true }: { enabled?: boolean } = {}) {
 	return useQuery({
 		queryKey: queryKeys.ama.list(guildId, includeEnded),
 		queryFn: async () =>
 			apiFetch<AMASessionWithCount[]>('get', `/v3/guilds/${guildId}/ama/amas`, {
 				query: { include_ended: includeEnded },
 			}),
+		enabled,
 	});
 }
 

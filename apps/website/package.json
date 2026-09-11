@@ -33,6 +33,7 @@
 		"@tanstack/react-virtual": "^3.14.8",
 		"babel-plugin-react-compiler": "^1.0.0",
 		"clsx": "^2.1.1",
+		"cmdk": "^1.1.1",
 		"cookie": "^2.0.1",
 		"jotai": "^2.20.2",
 		"luxon": "^3.7.2",

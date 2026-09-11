@@ -158,8 +158,22 @@ page (`apps/appeals`'s `SignInPrompt`).
 as a prop, because `app/layout.tsx` is a Server Component and a `QueryClient` is not serialisable across that
 boundary. Each app writes its own.
 
-Other directories: `components/dashboard/` (breadcrumb wiring, `ResyncCard`, `ScopedSessionBanner`),
-`components/nav/`, `components/footer/`, `components/user/`, `components/marketing/`, and `components/icons/`.
+Other directories: `components/dashboard/` (breadcrumb wiring, `CommandPalette`, `ResyncCard`,
+`ScopedSessionBanner`), `components/nav/`, `components/footer/`, `components/user/`, `components/marketing/`, and
+`components/icons/`.
+
+**Jump to (Cmd/Ctrl+K)** is `components/dashboard/CommandPalette.tsx`: `app/dashboard/layout.tsx` mounts its
+provider inside `NavGateProvider` (so `me` is loaded whenever it can open) and `GuildNav` renders its trigger.
+It offers the current server's bots and their sections, the other servers, and a "Go to" group with one row
+per numbered thing: "Case by number", "Report by number" and "Thread by number" type their word for you (a bare
+`42` also lists all three; `case 42` narrows to one), and "AMA by name" opens a nested page listing the sessions
+by title (fetched on first open, open ones first; Backspace on an empty box comes back). Cases, reports and
+threads get no such page because there are too many to list. A session title typed at the top level still
+matches. Its Recent group is what `DashboardCrumbs` writes to localStorage once a trail's labels have all
+resolved. Section lists live in `utils/{automoderator,appeals,modmail,social}Sections.ts`
+-- the hubs and the breadcrumb read those directly, the palette reads them through `utils/botSections.ts` -- so
+a section added to one of those files reaches all three. `cmdk` is the dependency it brought in: fuzzy
+scoring, grouping, arrow-key selection and the dialog's ARIA, on the same Radix Dialog the stack already uses.
 
 ### `Button`
 
