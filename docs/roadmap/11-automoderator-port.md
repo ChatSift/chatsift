@@ -315,9 +315,8 @@ In rough order of how much time each saves:
 2. **Decision traces.** Every automod decision emits one structured log line carrying the full reason chain: runner,
    matched entry, exemption checked, bypass evaluated, ladder position, action taken or suppressed. Legacy logged
    outcomes; the gap was always _why_ something didn't fire.
-3. **Seeded guild fixtures.** One script that fills a guild's config -- banwords, allowlists, ladders, log channels --
-   so a fresh dev database is usable immediately. Seed it with some deliberately dangling channel/role IDs: that's
-   the bug class the dashboard selects have hit repeatedly.
+3. ~~**Seeded guild fixtures.**~~ Built in P1, removed once the dev database had real data of its own: fixtures
+   naming ids that belong to nobody are only worth their upkeep while there is nothing else to look at.
 4. **Injected clock.** The scheduler, ladder decay and auto-pardon are all time-driven; a `now()` provider makes
    them unit-testable without sleeping.
 5. **Idempotency keys on case creation.** Gateway redelivery after a reconnect is normal, and legacy's 30-second
@@ -346,7 +345,7 @@ No user-facing features. Everything here is what P1+ builds on.
 | Dashboard | product tab + guild shell page, empty config form wired to the one route                                            |
 
 Plus the cross-cutting foundations: `ActionExecutor` seam, metrics registry + gated `/metrics` listener, experiment
-read helper, decision-trace logger, seed script.
+read helper, decision-trace logger.
 
 **And the AutoMod spike.** Register a keyword rule via the API, trip it, confirm `AUTO_MODERATION_ACTION_EXECUTION`
 arrives with usable `matched_keyword`, and confirm the bot can read and write the guild's rules. If this doesn't
@@ -356,12 +355,8 @@ Infra edits that come with a new service, following Social's precedent: `AUTOMOD
 `backend-core`'s `env.ts`, `'AUTOMODERATOR'` added to `BOTS` in `@chatsift/core`, `Dockerfile`, `docker-compose.yml`,
 dev scripts.
 
-**Shipped 2026-08-13.** Two deviations from the table above, both deliberate:
-
-- **`PATCH` as well as `GET` on the config route.** "One route proving the contract" and "a config form" are
-  incompatible if the form can't save.
-- **No seed script.** At P0 there is one boolean to seed, so it lands at P1 with cases and log channels instead.
-  The dangling-channel/role-id seeding it exists for has nothing to point at yet.
+**Shipped 2026-08-13.** One deliberate deviation from the table above: **`PATCH` as well as `GET` on the config
+route** -- "one route proving the contract" and "a config form" are incompatible if the form can't save.
 
 The experiment read helper is `@chatsift/backend-core`'s `experiments.ts` (snapshot + 60s refresh, modelled on
 `instances.ts`; buckets are basis points, salted per experiment name so each rollout picks a different slice), and
@@ -476,11 +471,6 @@ case is filed or amended. That direction is the load-bearing one: cases originat
 running `/ban`, or the audit observer noticing a manual one -- so without the bot publishing, the dashboard only
 ever learned about them on a manual reload.
 
-Also landed: the seed script deferred out of P0 (`yarn seed:automoderator --guild <id> [--reset]`), which fills a
-guild with twelve cases spanning every action, a pardoned warn, an unattributed case, and a log
-webhook pointing at a channel that does not exist -- the dangling-reference bug class the dashboard's selects keep
-hitting.
-
 ---
 
 ### P2 — Scheduler and ladders
@@ -498,9 +488,9 @@ The scheduler claims with `FOR UPDATE SKIP LOCKED` from day one rather than assu
 [Scaling readiness](#scaling-readiness). Metrics: `scheduler_lag_seconds` is the one to alert on later.
 
 **Shipped 2026-08-17** (#361). Build, lint, test and format:check green; the three new routes confirmed mounted,
-the migrations applied, both sweeps' claim queries checked against the seeded dev database (each finds exactly
-the row planted for it, and the expiry claim uses its partial index). Runtime verification against the test guild
-is still outstanding -- see [Verification](#verification).
+the migrations applied, both sweeps' claim queries checked against the dev database (each finds exactly the rows
+due for it, and the expiry claim uses its partial index). Runtime verification against the test guild is still
+outstanding -- see [Verification](#verification).
 
 **The ladder cap is serialized with a per-guild advisory lock.** Checked inside the insert it is only
 approximate: under READ COMMITTED two concurrent writes for _different_ warn counts each snapshot the count at
@@ -587,9 +577,8 @@ Features **29** (report queue), **30** (filter-driven reports, hook point only).
 
 Feature 30's automod trigger lands in P5; P3 builds the entry point and proves it with a manual report.
 
-**Shipped 2026-08-17.** Build, lint, test and format:check green, the six new routes confirmed mounted (401, not
-404), the migration applied and the seed script re-run against the dev database; runtime verification against the
-test guild is still outstanding (see [Verification](#verification)).
+**Shipped 2026-08-17.** Build, lint, test and format:check green, the six new routes confirmed mounted (401, not 404) and the migration applied; runtime verification against the test guild is still outstanding (see
+[Verification](#verification)).
 
 **Reporting is on or off per guild by whether a reports channel is set.** That's legacy's rule, kept deliberately:
 it means there is exactly one thing to configure to turn the feature on, no queue can accumulate somewhere nobody
@@ -669,11 +658,6 @@ Feature 30's hook point is `fileReport` in `automoderator-bot/src/lib/reports.ts
 optional message snapshot and owns no Discord side effect, so P5's filter can call it with the bot as the reporter.
 No dead code was added for it -- the seam is simply the split between `fileReport` and `syncReportCard`, mirroring
 `createCase`/`dispatchCaseLog`.
-
-The seed script grew five reports and five preset reasons: a multi-reporter open report, a dismissed one, an
-actioned one linked to a seeded case, an image-only report whose attachment url is already dead, and an
-account-level one -- plus reported messages pointing at a channel that never existed, which is the
-dangling-reference class the dashboard's views keep hitting.
 
 ---
 
@@ -1553,8 +1537,7 @@ Operator side, per phase, against the test guild:
 - **P2** -- a tempban actually expires and files its UNBAN case; `/unban` on an outstanding tempban stops the
   sweep lifting it a second time (as does an unban through Discord's own UI); `/case duration` re-times both a
   ban and a mute; a warn ladder step fires at the configured count and the moderator's reply says so; auto-pardon
-  pardons a warn and rewrites its log embed. The seed script plants a due tempban and a 400-day-old warn so both
-  sweeps have work on the first tick rather than needing anyone to wait.
+  pardons a warn and rewrites its log embed.
 - **P3** -- the report menu; dedupe across two reporters; dismiss/restore; action → modal → case.
 - **P3b** -- install the user app, add two DM messages to a draft, submit, and confirm the picker lists only
   servers you and the sender share that accept reports; then confirm the filed report's card carries no jump

@@ -446,7 +446,7 @@ through the symlinked `.env.private`. Two guards keep a worktree from mutating i
   rebuild started in a worktree would act on the containers and volumes the main checkout is using. Set
   `CHATSIFT_ALLOW_WORKTREE_COMPOSE=1` to override, only when that is genuinely what you want.
 - **Each worktree gets its own database.** Bootstrap writes a gitignored `.env.worktree` pointing `DATABASE_URL_DEV`
-  at `chatsift_wt_<slug>`, and every root `dev:*`/`db:*`/`migrate:*`/`seed:*` script now loads it ahead of
+  at `chatsift_wt_<slug>`, and every root `dev:*`/`db:*`/`migrate:*` script now loads it ahead of
   `.env.private`/`.env.public` (dotenv-cli's first `-e` wins, and a missing file is skipped silently, so the main
   checkout is unaffected). Without it, `yarn db:migrate` on a feature branch would apply that branch's migrations to
   the single database every other checkout reads.
