@@ -7,7 +7,7 @@ export default function AppealsQueuePage() {
 	return (
 		<div className="space-y-8">
 			<PageHeader
-				subtitle="Every appeal filed against this server. The same three decisions are on the card in your mod channel, and either surface updates the other."
+				subtitle="Every appeal filed against this server. Decide them here or from the message Appeals posts in your mod channel -- either one updates the other."
 				title="Appeals"
 			/>
 

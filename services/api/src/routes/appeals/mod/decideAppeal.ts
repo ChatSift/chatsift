@@ -15,7 +15,7 @@ import { snowflakeSchema } from '../../../util/schemas.js';
 import { resolveDiscordUser } from '../../../util/users.js';
 import { decideAppealBodySchema } from '../schemas.js';
 import type { AppealWithUsers } from './util.js';
-import { resolveAppealUsers } from './util.js';
+import { attachAppealUsers, resolveAppealUsers } from './util.js';
 
 const paramsSchema = z.object({
 	guildId: snowflakeSchema,
@@ -76,14 +76,9 @@ export default defineRoute({
 		}
 
 		// Taken from the session, never the body -- a client must not be able to attribute a decision to someone
-		// else. The tag is resolved rather than stored: `appeals` has no moderator snapshot column, and this one
-		// is only ever read back into the audit-log reason on the unban below.
-		const actorId = req.tokens!.access.sub;
-		const resolved = await resolveDiscordUser(discordAPIAppeals, actorId);
-		const moderator: AppealActor = {
-			id: actorId,
-			tag: typeof resolved === 'string' ? actorId : formatCaseUserTag(resolved),
-		};
+		// else. The tag is resolved rather than stored: `appeals` has no moderator snapshot column, and it is only
+		// ever read back into the audit-log reason on the unban below.
+		const moderator = await resolveModerator(req.tokens!.access.sub);
 
 		const result = await applyAppealDecision({
 			appealId: existing.id,
@@ -128,10 +123,49 @@ export default defineRoute({
 		// is the honest degradation, and `syncAppealCard` does not throw.
 		await syncAppealCard(result.appeal);
 
-		const [appeal] = await resolveAppealUsers([result.appeal]);
-		return appeal!;
+		return describeDecided(result.appeal);
 	},
 });
+
+/**
+ * Who to credit the unban to in Discord's audit log.
+ *
+ * Best-effort by construction, like `resolveAppellant` on the card: `resolveDiscordUser` only swallows a 404,
+ * so a rate limit or a 5xx while looking up the moderator's *own* account would otherwise fail a decision that
+ * has nothing else wrong with it. The tag feeds one audit-log reason string and nothing else -- the decision is
+ * attributed by `decided_by_id`, straight off the session -- so falling back to the id is a worse audit line,
+ * not a wrong one.
+ *
+ * Worth guarding rather than trusting the cache to be warm: `/users/@me` is deliberately not routed through
+ * `fetchUserCached` (see `util/users.ts`), so a moderator's first decision is a genuine miss.
+ */
+async function resolveModerator(actorId: string): Promise<AppealActor> {
+	try {
+		const resolved = await resolveDiscordUser(discordAPIAppeals, actorId);
+		return { id: actorId, tag: typeof resolved === 'string' ? actorId : formatCaseUserTag(resolved) };
+	} catch (error) {
+		getContext().logger.warn({ err: error, actorId }, 'could not resolve the moderator deciding an appeal');
+		return { id: actorId, tag: actorId };
+	}
+}
+
+/**
+ * The decided row for the response, with its accounts resolved if Discord is willing.
+ *
+ * Soft for the same reason everything else past the claim is: by the time this runs the decision is committed
+ * and the unban has happened, so a user lookup that fails must degrade to bare ids rather than answer a landed
+ * decision with a 500 -- which the client would then retry into a `raced` 409 blaming somebody else. The
+ * dashboard invalidates and refetches the queue on success anyway, so this body is a courtesy.
+ */
+async function describeDecided(appeal: Appeals): Promise<AppealWithUsers> {
+	try {
+		const [resolved] = await resolveAppealUsers([appeal]);
+		return resolved!;
+	} catch (error) {
+		getContext().logger.warn({ err: error, appealId: appeal.id }, 'could not resolve the accounts on a decided appeal');
+		return attachAppealUsers([appeal], new Map())[0]!;
+	}
+}
 
 /**
  * Lifts the ban an approval was about, the same way the card's Approve button does.

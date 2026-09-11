@@ -58,7 +58,19 @@ export async function syncAppealCard(appeal: Appeals, logger: Logger): Promise<v
 			error instanceof DiscordAPIError &&
 			(error.code === RESTJSONErrorCodes.UnknownMessage || error.code === RESTJSONErrorCodes.UnknownChannel)
 		) {
-			await setAppealModMessage(appeal.id, null);
+			// Its own `try`, for the reason `services/api`'s twin spells out: this runs on the way *out* of a
+			// failure, after the decision has committed, so a database hiccup here would break the "never throws"
+			// contract above and report a landed decision as a failed one.
+			try {
+				await setAppealModMessage(appeal.id, null);
+			} catch (cleanupError) {
+				logger.warn(
+					{ err: cleanupError, guildId: appeal.guildId, appealId: appeal.id },
+					'could not forget a missing appeal card',
+				);
+				return;
+			}
+
 			logger.warn({ guildId: appeal.guildId, appealId: appeal.id, code: error.code }, 'appeal card is gone, forgot it');
 			return;
 		}

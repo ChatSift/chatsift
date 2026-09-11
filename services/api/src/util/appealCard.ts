@@ -114,7 +114,20 @@ export async function syncAppealCard(appeal: Appeals): Promise<void> {
 			error instanceof DiscordAPIError &&
 			(error.code === RESTJSONErrorCodes.UnknownMessage || error.code === RESTJSONErrorCodes.UnknownChannel)
 		) {
-			await setAppealModMessage(appeal.id, null);
+			// Its own `try`, because this runs on the way *out* of a failure and the decision that called it is
+			// already committed. A database hiccup here would otherwise break the "never throws" contract above and
+			// hand a moderator an error for a decision that landed -- and their retry would then answer "somebody
+			// else decided this first", which is a lie about what happened.
+			try {
+				await setAppealModMessage(appeal.id, null);
+			} catch (cleanupError) {
+				context.logger.warn(
+					{ err: cleanupError, guildId: appeal.guildId, appealId: appeal.id },
+					'could not forget a missing appeal card',
+				);
+				return;
+			}
+
 			context.logger.warn(
 				{ guildId: appeal.guildId, appealId: appeal.id, code: error.code },
 				'appeal card is gone, forgot it',

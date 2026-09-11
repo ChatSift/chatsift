@@ -63,7 +63,9 @@ export function AppealDecision({ guildId, appealId }: { readonly appealId: numbe
 
 	return (
 		<div className="flex flex-col gap-4 rounded-lg border border-on-secondary bg-card p-4 dark:border-on-secondary-dark dark:bg-card-dark">
-			<div className="flex flex-col gap-2">
+			{/* `items-start` is load-bearing: a `flex-col` stretches its children across the cross axis, so the
+			    control's own `inline-flex` counts for nothing and the strip spans the whole card. */}
+			<div className="flex flex-col items-start gap-2">
 				<span className="text-sm font-medium text-primary dark:text-primary-dark" id="appeal-decision-label">
 					Decide this appeal
 				</span>
@@ -81,7 +83,7 @@ export function AppealDecision({ guildId, appealId }: { readonly appealId: numbe
 
 			{decision === 'approve' ? (
 				<p className="text-sm text-secondary dark:text-secondary-dark">
-					Approving lifts the ban. Appeals carries no reason on an approval, matching the card in Discord.
+					Approving lifts their ban in this server straight away. There is nothing to write for an approval.
 				</p>
 			) : (
 				<TextAreaField
@@ -99,13 +101,17 @@ export function AppealDecision({ guildId, appealId }: { readonly appealId: numbe
 				/>
 			)}
 
-			<Button
-				className={buttonClass(decision === 'approve' ? 'primary' : 'danger', 'sm')}
-				isDisabled={needsReason}
-				onPress={() => setIsConfirmOpen(true)}
-			>
-				{copy.confirmLabel}
-			</Button>
+			{/* In its own row, the way `CaseDetail` puts its actions in one: a bare `Button` under a `flex-col`
+			    stretches edge to edge and reads as a banner rather than as something to press. */}
+			<div className="flex flex-wrap gap-2">
+				<Button
+					className={buttonClass(decision === 'approve' ? 'primary' : 'danger', 'sm')}
+					isDisabled={needsReason}
+					onPress={() => setIsConfirmOpen(true)}
+				>
+					{copy.confirmLabel}
+				</Button>
+			</div>
 
 			<ConfirmModal
 				confirmLabel={copy.confirmLabel}

@@ -4,7 +4,7 @@ import type { AppealKind, AppealQuestions, Appeals, AppealsSettings, Unappealabl
 import type { Snowflake } from '@discordjs/core';
 import type { AppealBanProbe } from './appealsBans.js';
 import { probeGuildBan } from './appealsBans.js';
-import { appearsOpenToAppellant } from './appealsPublic.js';
+import { appealsForCurrentPunishment, appearsOpenToAppellant } from './appealsPublic.js';
 
 /**
  * The only punishment kind the product serves today. A named constant rather than an inline `'BAN'` at each
@@ -28,8 +28,13 @@ export type AppealBlockReason =
 
 export interface AppealEligibility {
 	/**
-	 * How many appeals this appellant has already filed here, against `settings.maxAppeals`. Shown even when
-	 * nothing is blocking, so somebody on their last attempt knows it before they write it.
+	 * How many appeals this appellant has filed **against the ban they are under now**, against
+	 * `settings.maxAppeals`. Shown even when nothing is blocking, so somebody on their last attempt knows it
+	 * before they write it.
+	 *
+	 * Not their whole history here: an earlier ban that was lifted took its appeals with it
+	 * (`appealsForCurrentPunishment`), which is what the ceiling was always specified to mean and what the
+	 * appellant is told it means.
 	 */
 	appealsUsed: number;
 	blocked: AppealBlockReason | null;
@@ -38,8 +43,12 @@ export interface AppealEligibility {
 	 */
 	cooldownUntil: Date | null;
 	/**
-	 * The appellant's most recent appeal here, or `null`. **Internal shape** -- callers must run it through
+	 * The appeal this page is about, or `null`. **Internal shape** -- callers must run it through
 	 * `toPublicAppeal` before it reaches a response.
+	 *
+	 * Their most recent appeal against the ban they are under now. Where they are *not* banned it falls back to
+	 * the appeal that ended their last one, because for somebody checking back after an approval that is the
+	 * whole story -- but a fresh ban is never captioned with it.
 	 */
 	latestAppeal: Appeals | null;
 	probe: AppealBanProbe | null;
@@ -64,6 +73,11 @@ export interface AppealEligibility {
  *    somebody actually banned, so running it here is also what stops a passer-by learning anything about a
  *    guild's unappealable list.
  * 4. **Unappealable, ceiling, cooldown** -- cheap reads, in increasing order of how much they reveal.
+ *
+ * Everything from step 2 down is scoped to **the punishment they are under now**, not to their whole history in
+ * the guild -- see `appealsForCurrentPunishment`. An account that appealed, was approved, and was banned again
+ * is on its first appeal against the new ban, and both the ceiling and the cooldown have to agree with the copy
+ * the appellant is shown, which says "the same ban".
  */
 export async function evaluateAppealEligibility(
 	guildId: Snowflake,
@@ -99,35 +113,56 @@ export async function evaluateAppealEligibility(
 		`,
 	]);
 
-	const latestAppeal = appeals[0] ?? null;
-	const appealsUsed = appeals.length;
-	const base = { settings, questions, latestAppeal, appealsUsed };
+	// Only the appeals about the ban they are under now. Everything older belongs to a punishment that was
+	// already lifted, and counting it is what made a re-banned account arrive to find its attempts spent and a
+	// cooldown running against a ban that no longer exists.
+	const currentAppeals = appealsForCurrentPunishment(appeals);
+	const currentAppeal = currentAppeals[0] ?? null;
+	const appealsUsed = currentAppeals.length;
 
-	if (latestAppeal && appearsOpenToAppellant(latestAppeal)) {
-		return { ...base, probe: null, cooldownUntil: null, blocked: 'ALREADY_OPEN' };
+	// The appeal that ended their *previous* ban, if there is one. Shown only where we know they are not banned
+	// now -- for somebody checking back after an approval it is the entire story, and captioning a fresh ban
+	// with it is the bug this scoping exists to fix.
+	const endedLastBan = appeals[currentAppeals.length] ?? null;
+
+	const base = { settings, questions, appealsUsed };
+
+	if (currentAppeal && appearsOpenToAppellant(currentAppeal)) {
+		return { ...base, latestAppeal: currentAppeal, probe: null, cooldownUntil: null, blocked: 'ALREADY_OPEN' };
 	}
 
 	const probe = await probeGuildBan(guildId, userId, logger);
 	if (!probe) {
-		return { ...base, probe: null, cooldownUntil: null, blocked: 'PROBE_UNAVAILABLE' };
+		// Whether this is a new ban is exactly what the probe would have told us, so this falls back to showing
+		// the most recent appeal either way. No form renders behind this block, so nothing acts on it.
+		return {
+			...base,
+			latestAppeal: currentAppeal ?? endedLastBan,
+			probe: null,
+			cooldownUntil: null,
+			blocked: 'PROBE_UNAVAILABLE',
+		};
 	}
 
 	if (!probe.banned) {
-		return { ...base, probe, cooldownUntil: null, blocked: 'NOT_BANNED' };
+		return { ...base, latestAppeal: currentAppeal ?? endedLastBan, probe, cooldownUntil: null, blocked: 'NOT_BANNED' };
 	}
+
+	// Past here they are banned, so `currentAppeal` is the only appeal that can be about it.
+	const latestAppeal = currentAppeal;
 
 	const [unappealable] = await db<Pick<UnappealableUsers, 'userId'>[]>`
 		SELECT user_id FROM unappealable_users WHERE guild_id = ${guildId} AND user_id = ${userId}
 	`;
 	if (unappealable) {
-		return { ...base, probe, cooldownUntil: null, blocked: 'UNAPPEALABLE' };
+		return { ...base, latestAppeal, probe, cooldownUntil: null, blocked: 'UNAPPEALABLE' };
 	}
 
 	// Ahead of the cooldown deliberately, for the case where both apply: somebody at their ceiling is done, and
 	// telling them to come back in 27 days would be a straightforwardly false promise -- they would still be at
 	// their ceiling when they did.
 	if (settings.maxAppeals !== null && appealsUsed >= settings.maxAppeals) {
-		return { ...base, probe, cooldownUntil: null, blocked: 'MAX_APPEALS' };
+		return { ...base, latestAppeal, probe, cooldownUntil: null, blocked: 'MAX_APPEALS' };
 	}
 
 	// Measured from the most recent *decision*, not the most recent submission: an appeal a guild sat on for a
@@ -138,9 +173,9 @@ export async function evaluateAppealEligibility(
 	if (decidedAt && settings.cooldownDays > 0) {
 		const cooldownUntil = new Date(decidedAt.getTime() + settings.cooldownDays * 24 * 60 * 60 * 1_000);
 		if (cooldownUntil.getTime() > Date.now()) {
-			return { ...base, probe, cooldownUntil, blocked: 'COOLDOWN' };
+			return { ...base, latestAppeal, probe, cooldownUntil, blocked: 'COOLDOWN' };
 		}
 	}
 
-	return { ...base, probe, cooldownUntil: null, blocked: null };
+	return { ...base, latestAppeal, probe, cooldownUntil: null, blocked: null };
 }

@@ -6,7 +6,7 @@ M4's AMA cutover ([05-migration-cutover.md](05-migration-cutover.md)) and M5's M
 impact:** none until P3, and additive thereafter: new tables, a new Discord application, a new site. No existing product's
 behavior changes at any point, and there is no data migration.
 
-## Status: P0-P5 shipped. P6 is next
+## Status: P0-P5b shipped. P6 is next
 
 This document was written 2026-07-31 and last amended 2026-08-03, then sat unstarted for a month while the AutoModerator
 port, horizontal scaling (#355), the grants refactor (#310), the Discord REST proxy and the Caddy absorption (#305) all
@@ -839,6 +839,16 @@ What shipped, against the bullet list this section used to carry:
   `AppealDecision` -- one `SegmentedControl` for the three decisions, a reason box on the two denials, and a
   `ConfirmModal` before any of them lands. Both subscribe to `appealsQueueChannel`, which was already published
   to by the submit path and every decision, so the queue was live from its first render.
+- **The detail page is the `CaseDetail` shape**, not a single stacked column: `lg:flex-row` with the subject,
+  the questionnaire, the decision and the trail in the main column and a `lg:w-80` sidebar of short `Field`s
+  (Filed, Closed, Decided by, the Discord message link) plus an `OtherAppeals` block mirroring `OtherCases`.
+  A first pass got this wrong in three ways the owner caught on sight, and all three are the same mistake --
+  building the page from scratch instead of from the section next door:
+  **(a)** it stacked one column, which looked nothing like any other detail page; **(b)** it rendered accounts
+  three different ways on one screen (a `UserBadge` for the appellant, a bare `snapshotUserLabel()` for the
+  decider, another for each event actor), so the same rule produced `char.lyy` with an id under it in one place
+  and a naked `Char` in another; and **(c)** it labelled the Discord jump link "Copy link to the card in
+  Discord", where _card_ is a word out of this document that no moderator has ever seen.
 - `appeals_decisions_total` gained a **`source`** label and a `services/api` half (`dashboard`); the bot now
   passes `card` for its buttons and `system` for P4b's moot close. Without that the alert on `outcome="failed"`
   -- every one of which is an appeal a moderator believes they approved -- would have had a blind spot for any
@@ -857,15 +867,72 @@ What shipped, against the bullet list this section used to carry:
   exactly, are covered by `routes/appeals/__tests__/schemas.test.ts`.
 - **The decision route declares no `realtimeChannel`.** `applyAppealDecision` publishes to `appealsQueueChannel`
   itself, because the bot's buttons need that broadcast too; declaring one here would double every invalidate.
+- **Nothing after the claim may fail the request**, and PR review found three places that could. The unban is
+  committed and terminal by then, so an error there tells a moderator their decision failed when it landed --
+  and their retry answers `409 somebody else decided this first`, blaming a person who does not exist. All
+  three were the same shape, a lookup or a write whose failure nobody had costed: resolving the _moderator's
+  own_ account for the audit-log reason (`resolveDiscordUser` only swallows a 404, and `/users/@me` is
+  deliberately outside `fetchUserCached`, so a moderator's first decision is a real cache miss); resolving the
+  accounts for the response body; and `setAppealModMessage(id, null)` in `syncAppealCard`'s own error path,
+  which sat outside its `try` and so could break the "never throws" contract its doc comment states. The bot's
+  twin `syncAppealCard` had that third one identically and was fixed with it.
 - **`UserBadge`/`userDisplay` moved to `apps/website/src/components/dashboard/`** out of
   `automoderator/_components/`. Nothing in them was ever AutoModerator's, and an appeals page reaching into
   another bot's `_components` is the alternative.
+- **Every account on these pages has its avatar beside it**, and there is exactly one way to render one: a
+  `UserBadge` (avatar, name, id) wherever there is room, and an avatar-plus-name header in the trail, shaped
+  like #261's `MessageAuthorHeader`. A `MOOT` event is drawn as the bot (`FaRobot` on `misc-system`) rather than
+  as a blank, so no row ever reads as an actor we failed to resolve. `Decided by` on a withdrawal and on a moot
+  close say _which_ nobody it was, for the same reason.
 
 _Verify:_ `build`/`lint`/`test`/`format:check` green. Runtime is the owner's: take the same appeal through each
 terminal state from the dashboard and confirm the Discord embed updates to match, and the reverse; confirm exactly
 one embed exists per appeal after a round trip through both surfaces; confirm two moderators acting concurrently
 produce one decision and a clear "already decided" response for the loser; and confirm the card's "View in
-dashboard" button now lands on the detail page rather than 404ing.
+dashboard" button now lands on the detail page rather than 404ing. Worth a look on a phone too -- the two-column
+detail collapses at `lg`.
+
+### P5b -- A re-banned appellant starts clean (shipped 2026-09-11)
+
+Found by the owner while exercising P5: an account that appealed, **was approved, and was then banned again**
+opened `unban.app` to find its previous appeal captioned "Your appeal -- Approved", its attempts already spent,
+and "You cannot appeal again yet ... try again on October 11" counting down from a decision about a ban that no
+longer existed.
+
+The cause is that `appeals` has no column naming the ban an appeal is about, so the ladder scoped everything to
+`(guild_id, user_id, kind)` -- the appellant's whole history in that guild, forever. There is nothing to key on
+either: Discord's ban object carries no id and no timestamp, and the audit log needs a permission Appeals does
+not ask for.
+
+What there is instead is a **boundary**. An appeal that ended with the ban being _lifted_ -- `APPROVED` (the
+unban the approval performed) or `MOOT` (P4b's ban lifted elsewhere) -- cannot be about a ban the account is
+under afterwards. So `appealsForCurrentPunishment` (in `util/appealsPublic.ts`, beside the other appeal
+predicates and unit-tested with them) takes the history newest-first and returns everything above the most
+recent such appeal. `evaluateAppealEligibility` scopes `appealsUsed`, the cooldown and `latestAppeal` to that
+slice, and since `submitAppeal` shares the ladder the fix holds at write time too.
+
+Two details worth keeping:
+
+- **`DENIED` and `WITHDRAWN` are not boundaries.** The ban stands after both, so the cooldown they start
+  belongs to it -- and without that, withdraw-and-resubmit would be a way around the cooldown entirely.
+- **Where the appellant is not banned, `latestAppeal` still falls back to the appeal that ended their last
+  ban.** For somebody checking back after an approval that is the whole story, and dropping it would have
+  traded this bug for a blank page. Only a _current_ ban is never captioned with an old appeal's verdict.
+
+This also makes the copy true: `BlockedNotice`'s `MAX_APPEALS` has always said "this server limits how many
+times **the same ban** can be appealed", and the ceiling was specified per (user, punishment) in the data model
+from the start. This is the part that was missing, not a change of rule.
+
+**Known gap, not closed here:** denied, then unbanned _by hand_, then banned again. No `APPROVED`/`MOOT` row
+exists, so the old cooldown still applies to the new ban. Closing it needs a durable "this ban was lifted at T"
+fact, and there is nowhere to put one -- `appeal_ban_checks.checked_at` is overwritten by every probe, and
+P4b's `GUILD_BAN_REMOVE` handler only ever touches a `PENDING` appeal (deliberately: it must not overwrite a
+silent denial). That is a schema decision, and an owner call.
+
+_Verify:_ `build`/`lint`/`test`/`format:check` green, with the boundary covered by six cases in
+`util/__tests__/appealsPublic.test.ts`. Runtime is the owner's: re-ban an account whose appeal was approved and
+confirm `unban.app` offers a fresh form with no old appeal above it, then confirm an account denied and still
+banned is _unchanged_ -- it must keep both its cooldown and its spent attempts.
 
 ### P6 -- Decision delivery (DM), and re-adding on approval
 

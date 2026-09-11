@@ -57,7 +57,11 @@ function AppealRow({ guildId, appeal }: { readonly appeal: AppealListItem; reado
 					user={appeal.appellant}
 				/>
 				<div className="flex min-w-0 flex-col overflow-hidden">
-					<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">{label}</p>
+					{/* Numbered like a case row, because the number is what the detail page, the Discord card's footer
+					    and any conversation about this appeal all use to name it. */}
+					<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">
+						<span className="text-secondary dark:text-secondary-dark">#{appeal.id}</span> {label}
+					</p>
 					<p className="truncate text-sm text-secondary dark:text-secondary-dark">{previewLine(appeal)}</p>
 					<p className="text-sm text-secondary dark:text-secondary-dark">{metaLine(appeal)}</p>
 				</div>
