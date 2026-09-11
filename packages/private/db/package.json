@@ -21,7 +21,8 @@
 		"db:gen": "kanel",
 		"db:migrate": "atlas migrate apply --env local",
 		"db:migrate:down": "atlas migrate down --env local",
-		"db:diff": "atlas migrate diff --env local"
+		"db:diff": "atlas migrate diff --env local",
+		"db:hash": "atlas migrate hash --env local"
 	},
 	"devDependencies": {
 		"@electric-sql/pglite": "^0.5.4",

@@ -1,4 +1,5 @@
 import type { APIEmbed } from 'discord-api-types/v10';
+import { truncate } from './discordText.js';
 
 /**
  * The mod-log embed, shared by `services/automoderator-bot` (which posts it) and `services/api` (which
@@ -157,10 +158,6 @@ export interface CaseEmbedOptions {
 }
 
 const TITLE_LIMIT = 256;
-
-function truncate(value: string, limit: number): string {
-	return value.length <= limit ? value : `${value.slice(0, limit - 1)}…`;
-}
 
 export function buildCaseEmbed(modCase: CaseEmbedInput, options: CaseEmbedOptions = {}): APIEmbed {
 	const fields: NonNullable<APIEmbed['fields']> = [];

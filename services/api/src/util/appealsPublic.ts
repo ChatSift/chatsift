@@ -64,7 +64,7 @@ export function toPublicAppeal(appeal: Appeals, answers: PublicAppealAnswer[] = 
  * `appeals_open_per_user_idx` slot that makes a double submit impossible at the database level.
  */
 export function isAppealOpen(appeal: Pick<Appeals, 'status'>): boolean {
-	return appeal.status === 'PENDING' || appeal.status === 'NEEDS_MORE_INFO';
+	return appeal.status === 'PENDING';
 }
 
 /**
@@ -80,6 +80,5 @@ export function isAppealOpen(appeal: Pick<Appeals, 'status'>): boolean {
  * Derived from {@link toPublicAppeal}'s own mapping rather than restating it, so the two cannot drift.
  */
 export function appearsOpenToAppellant(appeal: Appeals): boolean {
-	const { status } = toPublicAppeal(appeal);
-	return status === 'PENDING' || status === 'NEEDS_MORE_INFO';
+	return toPublicAppeal(appeal).status === 'PENDING';
 }

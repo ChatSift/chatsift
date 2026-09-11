@@ -1,5 +1,6 @@
 export * from './lib/amaEmbeds.js';
 export * from './lib/amaMerge.js';
+export * from './lib/appealEmbeds.js';
 export * from './lib/automoderatorCaseEmbeds.js';
 export * from './lib/automoderatorFilters.js';
 export * from './lib/automoderatorReportEmbeds.js';
@@ -8,6 +9,7 @@ export * from './lib/constants.js';
 export * from './lib/discordAttachments.js';
 export * from './lib/discordCdn.js';
 export * from './lib/discordPermissions.js';
+export * from './lib/discordText.js';
 export * from './lib/experimentNames.js';
 export * from './lib/experiments.js';
 export * from './lib/inflight.js';

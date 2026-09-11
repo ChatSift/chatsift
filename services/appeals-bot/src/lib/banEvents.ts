@@ -1,7 +1,16 @@
-import { getContext } from '@chatsift/backend-core';
+import type { Logger } from '@chatsift/backend-core';
+import { APPEAL_STATUS, applyAppealDecision, getContext, getOpenAppeal } from '@chatsift/backend-core';
+import type { AppealKind } from '@chatsift/db';
 import type { Client } from '@discordjs/core';
 import { GatewayDispatchEvents } from '@discordjs/core';
-import { banEvents } from './metrics.js';
+import { refreshAppealCard } from './appealComponents.js';
+import { appealDecisions, banEvents } from './metrics.js';
+
+/**
+ * The cast every kanel enum needs -- `@chatsift/db` re-exports the type only. `services/api` has the same
+ * constant in `appealsEligibility.ts`; a service cannot import from another service.
+ */
+const APPEAL_KIND_BAN = 'BAN' as AppealKind;
 
 /**
  * Records a ban in `appeal_ban_checks` (#232).
@@ -60,6 +69,46 @@ async function record(guildId: string, userId: string, banned: boolean): Promise
 	return rows.count;
 }
 
+/**
+ * Closes an open appeal whose ban has just been lifted by somebody other than the appeal itself (#232 P4b).
+ *
+ * Without this the appeal sits `PENDING` forever, and the damage is not cosmetic: `evaluateAppealEligibility`
+ * refuses a new appeal on an open one **before** it probes the ban, so the stale row locks that user out of
+ * appealing in this guild again -- including for some future ban they have not received yet -- and eats one of
+ * their `max_appeals` attempts on the way.
+ *
+ * **This never fires for our own approvals**, and that is a property of P4's ordering rather than a check here:
+ * `applyAppealDecision` commits the claim *before* calling Discord, so by the time the gateway echoes the unban
+ * back the appeal is already `APPROVED` and `getOpenAppeal` finds nothing. Moving the claim after the unban
+ * would silently turn every approval into a race between the two.
+ */
+async function closeMootAppeal(guildId: string, userId: string, logger: Logger): Promise<void> {
+	const appeal = await getOpenAppeal(guildId, userId, APPEAL_KIND_BAN);
+	if (!appeal) {
+		return;
+	}
+
+	const result = await applyAppealDecision({
+		appealId: appeal.id,
+		status: APPEAL_STATUS.MOOT,
+		// Nobody decided it, which is what the appellant is shown and what `appeals_decision_check` enforces for
+		// this status.
+		moderator: null,
+	});
+
+	if (!result.ok) {
+		// `raced` here means a moderator decided it in the window between the unban and this handler. Their
+		// decision stands; there is nothing left to close.
+		appealDecisions.inc({ decision: 'moot', outcome: result.reason });
+		return;
+	}
+
+	appealDecisions.inc({ decision: 'moot', outcome: 'applied' });
+	logger.info({ appealId: appeal.id }, 'closed an appeal as moot, its ban was lifted elsewhere');
+
+	await refreshAppealCard(result.appeal, logger);
+}
+
 export function registerBanEvents(client: Client): void {
 	for (const [event, kind, banned] of [
 		[GatewayDispatchEvents.GuildBanAdd, 'add', true],
@@ -81,6 +130,17 @@ export function registerBanEvents(client: Client): void {
 			} catch (error) {
 				banEvents.inc({ kind, outcome: 'failed' });
 				logger.error({ err: error }, 'failed to record a ban-list event');
+			}
+
+			if (!banned) {
+				// Its own try/catch, and after the cache write rather than instead of it: the two are unrelated jobs
+				// that happen to share an event, and failing to close an appeal must not cost the probe cache its
+				// refresh.
+				try {
+					await closeMootAppeal(data.guild_id, data.user.id, logger);
+				} catch (error) {
+					logger.error({ err: error }, 'failed to close an appeal whose ban was lifted elsewhere');
+				}
 			}
 		});
 	}

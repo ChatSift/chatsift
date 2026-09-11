@@ -1,9 +1,10 @@
-import { getContext } from '@chatsift/backend-core';
+import { appealsQueueChannel, getContext, publishRealtimeInvalidate } from '@chatsift/backend-core';
 import type { AppealAnswers, Appeals } from '@chatsift/db';
 import { badRequest, conflict } from '@hapi/boom';
 import { z } from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { isAppealsAuthed } from '../../../middleware/isAppealsAuthed.js';
+import { postAppealCard } from '../../../util/appealCard.js';
 import type { AppealBlockReason } from '../../../util/appealsEligibility.js';
 import { APPEAL_KIND_BAN, evaluateAppealEligibility } from '../../../util/appealsEligibility.js';
 import type { PublicAppeal } from '../../../util/appealsPublic.js';
@@ -73,8 +74,10 @@ export default defineRoute({
 			throw badRequest('please answer every required question');
 		}
 
+		let filed: { appeal: Appeals; rows: AppealAnswers[] };
+
 		try {
-			return await db.begin(async (tx) => {
+			filed = await db.begin(async (tx) => {
 				const [appeal] = await tx<Appeals[]>`
 					INSERT INTO appeals (guild_id, user_id, kind, reason_snapshot)
 					VALUES (${guildId}, ${sub}, 'BAN', ${eligibility.probe?.banReason ?? null})
@@ -84,8 +87,9 @@ export default defineRoute({
 				// Unanswered optional questions are still written, with their prompt and an empty answer, so the
 				// mod-side embed renders the guild's whole form rather than silently omitting the questions
 				// nobody filled in -- "they declined to answer this" is information a moderator wants.
-				await tx<AppealAnswers[]>`
+				const rows = await tx<AppealAnswers[]>`
 					INSERT INTO appeal_answers ${tx(answers.map((answer) => ({ appealId: appeal!.id, ...answer })))}
+					RETURNING *
 				`;
 
 				await tx`
@@ -93,7 +97,7 @@ export default defineRoute({
 					VALUES (${appeal!.id}, 'SUBMITTED', ${sub})
 				`;
 
-				return toPublicAppeal(appeal!, answers);
+				return { appeal: appeal!, rows };
 			});
 		} catch (error) {
 			// `appeals_open_per_user_idx`. The eligibility check above already refuses a second open appeal, so
@@ -106,5 +110,13 @@ export default defineRoute({
 
 			throw error;
 		}
+
+		// Both after the commit, and in this order. The card is a Discord side effect that must not be able to
+		// roll the appeal back (#232 P4 -- it is best-effort by construction and swallows its own failures), and
+		// the queue invalidate is what puts the appeal in front of a moderator who has P5's dashboard open.
+		await postAppealCard(filed.appeal, filed.rows);
+		await publishRealtimeInvalidate(appealsQueueChannel(guildId));
+
+		return toPublicAppeal(filed.appeal, answers);
 	},
 });

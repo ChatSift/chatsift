@@ -5,7 +5,7 @@ import { appearsOpenToAppellant, isAppealOpen, toPublicAppeal } from '../appeals
 // kanel exports the generated enums as types only, so every literal here needs the repo's usual cast -- done
 // once through these two helpers rather than at forty call sites.
 const status = (value: string): AppealStatus => value as AppealStatus;
-const STATUSES = ['PENDING', 'NEEDS_MORE_INFO', 'APPROVED', 'DENIED', 'WITHDRAWN'] as const;
+const STATUSES = ['PENDING', 'APPROVED', 'DENIED', 'WITHDRAWN'] as const;
 
 function makeAppeal(overrides: Partial<Appeals> = {}): Appeals {
 	return {
@@ -16,6 +16,7 @@ function makeAppeal(overrides: Partial<Appeals> = {}): Appeals {
 		status: status('PENDING'),
 		silent: false,
 		reasonSnapshot: 'ban evasion',
+		modChannelId: '110',
 		modMessageId: '111',
 		modThreadId: '222',
 		decidedAt: null,
@@ -51,7 +52,7 @@ test('an ordinary denial reads as denied', () => {
 });
 
 test('every other status passes through unchanged', () => {
-	for (const value of ['PENDING', 'NEEDS_MORE_INFO', 'APPROVED', 'WITHDRAWN'] as const) {
+	for (const value of ['PENDING', 'APPROVED', 'WITHDRAWN'] as const) {
 		const decided = value === 'APPROVED' || value === 'WITHDRAWN';
 		const appeal = makeAppeal({
 			status: status(value),
@@ -66,7 +67,16 @@ test('every other status passes through unchanged', () => {
 test('no decision detail is emitted, for any status', () => {
 	// The rule is "never", not "not for silent denials" -- a `decidedAt` on an appeal reading pending would give
 	// a silent denial away on its own, and a denial reason is written for other moderators.
-	const forbidden = ['decidedAt', 'decidedById', 'decisionReason', 'silent', 'modMessageId', 'modThreadId', 'userId'];
+	const forbidden = [
+		'decidedAt',
+		'decidedById',
+		'decisionReason',
+		'silent',
+		'modChannelId',
+		'modMessageId',
+		'modThreadId',
+		'userId',
+	];
 
 	for (const value of STATUSES) {
 		for (const silent of [true, false]) {
@@ -122,7 +132,7 @@ test('a silent denial is closed to moderators but still open to the appellant', 
 });
 
 test('the two predicates agree on every other status', () => {
-	for (const value of ['PENDING', 'NEEDS_MORE_INFO', 'APPROVED', 'WITHDRAWN'] as const) {
+	for (const value of ['PENDING', 'APPROVED', 'WITHDRAWN'] as const) {
 		const appeal = makeAppeal({ status: status(value), silent: false });
 		expect(appearsOpenToAppellant(appeal)).toBe(isAppealOpen(appeal));
 	}

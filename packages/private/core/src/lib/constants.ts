@@ -261,15 +261,28 @@ export const DEFAULT_APPEAL_QUESTIONS = [
  * How many questions one guild's appeal form may hold, and how long a prompt and an answer may be.
  *
  * All three are Discord's limits rather than ours, because decision 13 says an appeal is **one** embed: an
- * answer becomes an embed field value (1024), its prompt becomes that field's name (256), and the whole embed
- * caps at 6000 characters -- so five questions at full length (5 * 1280 = 6400) is already the point where the
- * header fields have nowhere left to go. A sixth question would render an appeal the bot cannot post.
+ * answer becomes an embed field value (1024) and its prompt becomes that field's name (256).
+ *
+ * **The count is not what keeps the embed postable**, though an earlier version of this comment claimed it
+ * was: five questions at full length are 5 * 1280 = 6400 against a 6000-character *message*, so the arithmetic
+ * never worked. `buildAppealEmbed` budgets the whole embed and trims answers to fit; this is a product cap on
+ * how long a form a guild may ask somebody to fill in, and a sixth question would be answered by the trimming
+ * rather than by a failure.
  */
 export const APPEAL_QUESTION_MAX_COUNT = 5;
 
 export const APPEAL_QUESTION_PROMPT_MAX_LENGTH = 256;
 
 export const APPEAL_ANSWER_MAX_LENGTH = 1_024;
+
+/**
+ * The longest a denial reason (or a silent denial's mod-only note) may be, in characters.
+ *
+ * Ours rather than Discord's: it renders inside the appeal card's description alongside the ban reason, and on
+ * an ordinary denial it is also what P6 puts in the DM the appellant receives. A reason that needs more than
+ * this is a conversation, and the appeal thread is where that goes.
+ */
+export const APPEAL_DECISION_REASON_MAX_LENGTH = 500;
 
 /**
  * The longest a guild may make its re-appeal cooldown, in days. A year, past which "you may not appeal again"

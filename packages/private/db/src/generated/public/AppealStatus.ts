@@ -4,10 +4,10 @@
 /** Represents the enum public.appeal_status */
 enum AppealStatus {
   PENDING = 'PENDING',
-  NEEDS_MORE_INFO = 'NEEDS_MORE_INFO',
   APPROVED = 'APPROVED',
   DENIED = 'DENIED',
   WITHDRAWN = 'WITHDRAWN',
+  MOOT = 'MOOT',
 };
 
 export default AppealStatus;

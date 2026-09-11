@@ -6,7 +6,7 @@ M4's AMA cutover ([05-migration-cutover.md](05-migration-cutover.md)) and M5's M
 impact:** none until P3, and additive thereafter: new tables, a new Discord application, a new site. No existing product's
 behavior changes at any point, and there is no data migration.
 
-## Status: P0-P3b shipped. P4 is next
+## Status: P0-P4b shipped. P5 is next
 
 This document was written 2026-07-31 and last amended 2026-08-03, then sat unstarted for a month while the AutoModerator
 port, horizontal scaling (#355), the grants refactor (#310), the Discord REST proxy and the Caddy absorption (#305) all
@@ -17,15 +17,18 @@ shipping its own ban DM. Where a superseded version is still useful as rationale
 
 P0 (`packages/private/web-core`, shipped as #404), P1 (the Appeals bot's identity, guild presence, schema and config
 API), P2 (the dashboard's Appeals section), P3 (`apps/appeals`/`unban.app`, the appellant session and the four
-appellant-facing routes) and P3b (punishment notices, and the appeal link inside them) are in. An appellant can now sign
-in, reach a guild by deep link or by invite, and file an appeal -- and a guild running AutoModerator can put the link to
-that in the DM its bans already send. Nothing yet _acts_ on an appeal: no mod-channel post, no decision path, no DM. That
-is P4 and P5, which decision 1 says ship together. `09-` is the next free roadmap
+appellant-facing routes), P3b (punishment notices, and the appeal link inside them) and P4 (the mod-channel card and the
+shared decision path) are in. An appellant can sign in, reach a guild by deep link or by invite, and file an appeal -- a
+guild running AutoModerator can put the link to that in the DM its bans already send -- and moderators can approve or deny
+it from Discord, with an approval lifting the real ban. A ban lifted by any other route closes the appeal on its own
+(P4b). What is still missing is the second mod surface and the delivery:
+P5's dashboard queue, which decision 1 says ships alongside P4 before any of this is announced, and P6's DM, without which
+an ordinary denial is a decision the appellant can only find by looking. `09-` is the next free roadmap
 slot; 02/03/04 (M1-M3), 07 (#261) and 08 (#216) were all
 consumed and deleted once their work shipped. This doc follows the same lifecycle: when the phases land, it gets **deleted**
 and its durable shape is condensed into a new `## 13. Appeals (#232)` section of
-[01-architecture.md](01-architecture.md), with the operator runbook (registering the interactions endpoint, onboarding a
-guild) going to [workflow.md](../workflow.md) -- the same split §8 uses today.
+[01-architecture.md](01-architecture.md), with the operator runbook (onboarding a guild) going to
+[workflow.md](../workflow.md) -- the same split §8 uses today.
 
 ## Goal
 
@@ -128,40 +131,19 @@ A guild's mods enable Appeals from the dashboard and pick a mod channel. A banne
 `unban.app/g/<guildId>` from the guild's own ban message, or by swapping `discord.gg` for `unban.app` in an invite they
 already have -- logs in through the Appeals application, and the API confirms the ban with a single Discord call. They answer
 the guild's questions and submit. The API writes the appeal, then posts one embed into the mod channel and opens a thread on
-it, carrying Approve / Deny / Deny silently / Ask for more info. Whichever surface the decision comes from, it funnels into
-one transition that writes the row, unbans (and optionally re-adds) on approval, and -- unless the denial is silent -- DMs the
-appellant.
+it, carrying Approve / Deny / Deny silently. Whichever surface the decision comes from, it funnels into one transition that
+writes the row, unbans (and optionally re-adds) on approval, and -- unless the denial is silent -- DMs the appellant.
 
-### 1. ~~HTTP interactions, with no prior art in this repo~~ -- no longer applies
+### 1. Interactions -- there is no endpoint, and there is not going to be one
 
-**Superseded by decision 2 as amended: Appeals has a gateway, so its interactions arrive the same way every other bot's
-do and none of the machinery below is built.** Kept only as the record of what an HTTP-only Appeals would have cost, since
-that cost is half the argument for the reversal. If a future session ever needs an Ed25519-verified endpoint in this repo
-for something else, this is still an accurate account of the four things to get right.
+**Deleted 2026-09-11, when P4 was built.** This section used to carry a full design for an Ed25519-verified
+interactions endpoint in `services/api`, kept "as the record of what HTTP-only would have cost" after decision 2 was
+reversed. It is gone: Appeals has a gateway, its interactions arrive through `@chatsift/bot-core`'s registry exactly like
+every other bot's, and a page of instructions for building the thing we deliberately did not build is a page somebody
+eventually follows.
 
-Every interaction in this repo today arrives over the gateway. There is no Ed25519 verification anywhere, no interactions
-endpoint, and no dependency that provides either. Four things to get right:
-
-**Verify against the raw bytes.** `jsonParser(true)` (`services/api/src/middleware/jsonParser.ts`) already exposes
-`req.rawBody`, which is exactly what signature verification needs. But `mountRoute` (`services/api/src/core/server.ts`) only
-inserts `jsonParser()` -- no-arg, so no `rawBody` -- and only when the route declares `schema.body`. So the interactions route
-declares **no** body schema and carries its own middleware pair instead: a `defineMiddleware` wrapper around
-`jsonParser(true)`, then `verifyDiscordSignature()`. `services/api/src/middleware/requireWebhookSecret.ts` is the closest
-existing shape to model the latter on (an unauthenticated-by-session POST gated by a header check).
-
-**No new dependency.** Node's `crypto.verify` does Ed25519 natively. The raw 32-byte public key Discord gives you is not
-directly loadable -- prefix it with the standard SPKI DER header (`302a300506032b6570032100`) and hand the result to
-`createPublicKey({ format: 'der', type: 'spki' })`. Worth knowing up front rather than discovering it mid-phase.
-
-**Answer `PING` (type 1), and answer everything within 3 seconds.** Reply with a deferred callback type in the HTTP response
-body itself, then do the real work and finish via REST follow-ups on the interaction token. Any decision path that touches
-Postgres and Discord will not fit in the synchronous window.
-
-**Do not refactor `@chatsift/bot-core` for this.** `handleComponentInteraction`
-(`packages/private/bot-core/src/lib/components.ts`) replies through `getContext().service.client.api`, which does not exist in
-the API process -- bot-core is gateway-shaped by construction. Instead, a small API-local dispatcher that _copies_ its two good
-conventions: `custom_id` as `name:stateId`, and `RedisStore`-backed state for anything that doesn't fit in the id. That is a
-few dozen lines of deliberate duplication, against making a package transport-agnostic for exactly one consumer.
+What is worth keeping is the one line: **no interactions endpoint, no signature verification, no `APPEALS_PUBLIC_KEY`, no
+API-local component dispatcher.** `services/appeals-bot/src/components/` is where an appeal button is handled.
 
 ### 2. ~~`bot:APPEALS` presence without a gateway~~ -- resolved by giving it a gateway
 
@@ -196,9 +178,9 @@ has no shards, so one slice is the whole deployment, and a second API replica po
 the poll, `readGuildList` reaps the slice, and the dashboard flickers Appeals in and out for every guild. No change to
 `bots.ts` is needed. `loadExperiments()` in `services/api/src/bin.ts` is the second precedent for the `.unref()`'d interval.
 
-- **Optional accelerant, not a mechanism:** Discord's `APPLICATION_AUTHORIZED` webhook event, delivered to the same
-  Ed25519-verified endpoint, can add a guild the moment the bot is invited instead of waiting out the poll interval. There is
-  no reliable matching "removed" event, so the poll remains the reconciler either way. Nice-to-have, no earlier than P6.
+- **Dropped with the poll: the `APPLICATION_AUTHORIZED` accelerant.** An earlier draft suggested Discord's webhook event
+  as a way to add a guild the moment the bot is invited rather than waiting out the poll interval. There is no poll left to
+  accelerate, and the event would need exactly the HTTP endpoint §1 says is not being built.
 - **Rejected: deriving presence from an `appeals_settings` row.** It cannot distinguish "installed but not yet configured"
   from "not installed", and the dashboard needs the first of those to render an Appeals section at all -- a guild that has
   the bot but has never opened the config screen still has one.
@@ -422,12 +404,14 @@ CREATE TABLE appeals (
   user_id         TEXT NOT NULL,
   kind            TEXT NOT NULL,  -- 'ban' | 'timeout' (P9)
   status          TEXT NOT NULL DEFAULT 'pending',
-  -- 'pending' | 'needs_more_info' | 'approved' | 'denied' | 'withdrawn'
+  -- 'pending' | 'approved' | 'denied' | 'withdrawn' | 'moot' (P4b: the ban was lifted elsewhere)
   silent          BOOLEAN NOT NULL DEFAULT false,
   -- The ban reason as it read when the appeal was filed, for the record and for P8's matching.
   reason_snapshot TEXT,
-  -- The single embed (decision 13) and the thread/forum post it lives on, so both can be edited in
-  -- place rather than re-posted.
+  -- The single embed (decision 13), where it is, and the thread/forum post it lives on, so both can
+  -- be edited in place rather than re-posted. `mod_channel_id` is where the *message* is, which for a
+  -- forum post is the post itself.
+  mod_channel_id  TEXT,
   mod_message_id  TEXT,
   mod_thread_id   TEXT,
   decided_at      TIMESTAMPTZ,
@@ -439,7 +423,7 @@ CREATE TABLE appeals (
 -- Answers, each carrying a snapshot of the prompt it answered (decision 7).
 CREATE TABLE appeal_answers (... prompt_snapshot TEXT NOT NULL ...);
 
--- Audit trail plus the ask-for-more-info exchange. NEVER served to the appellant.
+-- The audit trail. NEVER served to the appellant.
 CREATE TABLE appeal_events (...);
 
 -- Cache of per-guild probe results, so a returning appellant sees the servers they already checked
@@ -761,28 +745,92 @@ and confirm the DM still arrives.
   appeals" -- the `appeals_settings` row, the same predicate `evaluateAppealEligibility` uses, and not
   something to re-derive from `modChannelId` on the client.
 
-### P4 -- Interactions endpoint, mod notifications, the shared decision path
+### P4 -- The mod-channel card, the three buttons, the shared decision path (shipped 2026-09-11)
 
-- `services/api/src/middleware/verifyDiscordSignature.ts` (new) + the `jsonParser(true)` wrapper from §1.
-- `services/api/src/routes/appeals/interactions.ts` (new): `PING`, then dispatch to an API-local component/modal registry
-  reusing the `name:stateId` convention.
-- `services/api/src/util/appealsDecision.ts` (new): `applyAppealDecision()` -- the single transition. Validates the current
-  status, writes `appeals` + an `appeal_events` row, performs the unban on approval, sets `silent`, and hands off delivery.
-- The mod-channel post: **exactly one** embed (decision 13) with Approve / Deny / Deny silently / Ask for more info, plus an
-  immediately-created thread on it (or a forum post, if `mod_channel_id` is a forum) -- `mod_message_id`/`mod_thread_id` are
-  stored so both are edited in place, never re-posted. Denial reason and follow-up question via modals. After a decision the
-  same embed is re-rendered with a clear silent-denial label.
+What shipped, against a bullet list that still described the HTTP-interactions version of this phase:
 
-_Verify:_ register the interactions endpoint against a locally-tunnelled API and confirm Discord's own save-time `PING`
-validation passes and that a tampered signature is rejected; run each button through to completion including the 3-second
-deadline on a cold path; approve an appeal and confirm the real unban lands; deny silently and confirm the appellant's
-`unban.app` view still reads "under review" while the mod embed reads denied.
+- **`packages/private/core/src/lib/appealEmbeds.ts`** -- the card. One embed (decision 13), the guild's whole
+  questionnaire as fields, and three buttons whose custom-id prefixes live here rather than in the bot, because the API is
+  what posts them. Answers are code-fenced through the same `fence()` neutralizer a reported message gets: an appeal answer
+  is prose typed by somebody with every motive to dress their text up as the bot's. `truncate`/`fence` moved to a new
+  `discordText.ts` in the same package, which removed the second copy of `truncate` that was already there.
+- **`packages/private/backend-core/src/lib/data/appeals.ts`** -- the spine, shared with P5 exactly as
+  `automoderatorReports.ts` is shared with the API. `applyAppealDecision()` is the one transition: compare-and-swap out of
+  `PENDING` (**the claim is the mutex**, not a check beforehand), then the injected side effect, then the `appeal_events`
+  row. The side effect is a `perform` callback rather than something each surface does around the call, because the
+  ordering is the part that matters -- a throw gives the claim back and the appeal stays open, so an approval whose unban
+  Discord refused can never sit there telling P6 to DM somebody that they may come back.
+- **`services/api/src/util/appealCard.ts`** -- posts the card when an appeal is filed, after the transaction commits, and
+  never throws: the appellant has already been told their appeal went through, because it did. Forum channel gets one post
+  per appeal; a text channel gets one message with a thread opened on it immediately.
+- **`services/appeals-bot/src/components/{appealApprove,appealDeny,appealDenySilent}.ts`** plus `lib/appealCard.ts`,
+  `lib/appealComponents.ts`, `lib/appealDecisions.ts`, `lib/appealDenyFlow.ts`. Ordinary `bot-core` component handlers.
+  Gated on **Ban Members**, because approving performs a real unban and a moderator who could not lift the ban by hand
+  should not be able to lift it through a button.
+- `appeals_decisions_total{decision,outcome}` in the bot's registry. `outcome="failed"` is the alert-worthy value: every one
+  of those is an appeal a moderator believes they approved.
+
+**Three buttons, not four. "Ask for more info" is cancelled, not deferred** (owner's call, 2026-09-11). The follow-up
+question would have lived in `appeal_events`, which no appellant-facing route reads -- so the appellant could never have
+seen it, and there was no path for an answer to come back. The `NEEDS_MORE_INFO` status and the `INFO_REQUESTED` /
+`INFO_PROVIDED` event kinds went with it, in a hand-written migration (postgres cannot drop an enum value, so both types are
+recreated). Nothing had ever written any of the three. Do not add the button back without designing the appellant's half
+first.
+
+**The card's "View in dashboard" button points at a page P5 has to build**: `appealDetailLink` (in
+`dashboardLinks.ts`) resolves to `/dashboard/<guild>/appeals/queue/<id>`, nested under the list rather than
+sitting as a catch-all beside `appeals/config` and `appeals/unappealable-users`. Until P5 lands that link 404s
+-- which is the one place P4 depends on P5, and decision 1 has them shipping together anyway.
+
+_Verify:_ `build`/`lint`/`test`/`format:check` green. Runtime is the owner's: file an appeal against a text-channel mod
+channel and a forum one, approve it and confirm the unban lands, deny one and confirm the card rewrites in place rather than
+posting a second embed, deny one silently and confirm `unban.app` still reads "under review", and have two moderators click
+opposite buttons on one card to see the loser told somebody else got there first.
+
+### P4b -- A ban lifted elsewhere closes the appeal (shipped 2026-09-11)
+
+Raised by the owner the day P4 landed: an appellant unbanned by some path other than the appeal -- by hand, by
+AutoModerator's expired-ban sweep, by another bot entirely -- left the appeal `PENDING` forever.
+
+The limbo is the mild half. `evaluateAppealEligibility` refuses a new appeal on an open one **before** it probes
+the ban, so the stale row locks that user out of appealing in that guild ever again, including for a future ban
+they have not received yet, and eats one of their `max_appeals` attempts on the way.
+
+- **`appeal_status` gains `MOOT`**, and `appeal_event_kind` with it. Terminal, `decided_at` set,
+  `decided_by_id` NULL -- the same shape as a withdrawal, because neither is a decision anybody made.
+  `GUILD_BAN_REMOVE` carries no actor and attributing one would need the audit log, so the card says the ban was
+  lifted elsewhere and names nobody.
+- **`services/appeals-bot/src/lib/banEvents.ts` closes it**, reusing `applyAppealDecision` with `moderator:
+null`. The handler already existed for the probe cache; the two jobs share an event and nothing else, so they
+  get separate `try`s.
+- **It can never catch our own approvals**, and that falls out of P4's ordering rather than a check: the claim
+  commits before the unban call, so by the time the gateway echoes the unban back the appeal is already
+  `APPROVED` and `getOpenAppeal` finds nothing. Moving the claim after the unban would turn every approval into
+  a race with this handler.
+- **`getOpenAppeal` is scoped to `PENDING`, not to `appearsOpenToAppellant`.** A silent denial looks open to the
+  appellant and is terminal; closing one as moot would overwrite a decision a moderator deliberately made.
+- The appellant sees "No longer banned", styled neutrally rather than like an approval -- nobody approved it,
+  and saying otherwise claims a decision that was never taken.
+
+**Two migration files, not one.** Postgres refuses to reference a freshly added enum value from the same
+transaction (`unsafe use of new value "MOOT"`, 55P04) and Atlas runs one transaction per file, so the `ADD
+VALUE`s and the `appeals_decision_check` arm that uses them are split. Worth knowing before the next enum value
+anybody adds.
+
+_Verify:_ `build`/`lint`/`test`/`format:check` green. Runtime is the owner's: file an appeal, unban the account
+by hand, and confirm the card rewrites itself to closed and the appellant can file again after a future ban.
 
 ### P5 -- Dashboard: appeals queue, actioning, history
 
 - `apps/website/src/app/dashboard/[id]/appeals/` gains the queue (filter by status), a detail view with the full
-  `appeal_events` trail, and the same four actions.
-- `services/api/src/routes/appeals/mod/*`, all calling `applyAppealDecision()` -- no second implementation of the transition.
+  `appeal_events` trail, and the same three actions.
+- `services/api/src/routes/appeals/mod/*`, all calling `applyAppealDecision()` from `@chatsift/backend-core` -- no second
+  implementation of the transition, and `perform` is where the API passes its own unban.
+- The API side of the card gains a `syncAppealCard` next to P4's `postAppealCard`, so a decision taken on the dashboard
+  rewrites the Discord embed. `appeals.mod_channel_id` is already where the message is, so that edit needs no guessing
+  about forums and threads.
+- `appealsQueueChannel(guildId)` exists and is already published to by both the submit path and every decision, so the
+  queue is live from the first render.
 - **P4 and P5 together are decision 1.** Neither ships to users alone; the feature is announced when both are merged.
 
 _Verify:_ take the same appeal through each terminal state from the dashboard and confirm the Discord embed updates to match,
@@ -796,7 +844,6 @@ acting concurrently produce one decision and a clear "already decided" response 
 - Approval re-add (decision 14): `guilds.join` with the appellant's stored refresh token, gated on `appeals_settings
 .auto_rejoin`, falling back to an invite in the DM when either side hasn't opted in or the add fails.
 - The `auto_rejoin` toggle in the dashboard config section, and its appellant-side counterpart on `unban.app`.
-- Optionally, `APPLICATION_AUTHORIZED` on the existing interactions endpoint as a presence accelerant (§2).
 
 _Verify:_ approve an appeal with DMs open (i.e. the appellant authorized the Appeals user install) and confirm the DM
 arrives, then with DMs closed and confirm both surfaces warned beforehand; confirm a silent denial sends nothing at all;
@@ -836,8 +883,8 @@ Phase-specific notes on top of that:
   real test is `apps/website` behaving identically, so click through it rather than trusting the typecheck.
 - **P1** needs a genuinely separate Discord application -- creating one is part of the phase, not a prerequisite someone else
   provides.
-- **P3/P4** need the API reachable from Discord (a tunnel) for the interactions endpoint, and two browser profiles to keep
-  the two sessions honestly separate.
+- **P3** needs two browser profiles to keep the two sessions honestly separate. **P4** needs no tunnel -- its interactions
+  come over the gateway, so a locally-run `appeals-bot` answers buttons in a real test guild with no inbound network at all.
 - **Silent denials** need explicit verification from the appellant's side, not just the moderator's, in P4 and again in P6.
 
 ## Risks and known sharp edges
@@ -845,8 +892,8 @@ Phase-specific notes on top of that:
 - **Storing appellants' OAuth refresh tokens** is a new class of secret in this system, held for weeks, belonging to users with
   every reason to be hostile to the guilds involved. Encrypted at rest, never exposed to a guild's moderators, and worth
   deleting once an appeal reaches a terminal state and the re-add window has passed.
-- **Poll staleness.** A guild that just added the bot won't appear until the next poll. The existing "Refresh server data"
-  button is the user-facing answer; make sure it forces the Appeals path too.
+- ~~**Poll staleness.**~~ Gone with the poll: the guild list is `GUILD_CREATE`/`GUILD_DELETE`/`READY` off Appeals' own
+  gateway, the same path every other bot uses, so a guild that just added the bot is there immediately.
 - **Nothing in the product can force the appeal link in front of a banned user _in a guild ChatSift does not moderate_**
   (decision 16, as superseded). For guilds on AutoModerator, P1b closes this: the ban DM is ours and carries the link. For
   every other guild the original risk stands unchanged -- Appeals depends on them pasting a link into their own ban-reason
@@ -857,8 +904,21 @@ Phase-specific notes on top of that:
 - **Leaking a silent denial is a one-line mistake with no default test coverage.** One serializer, tested.
 - **Two sessions, two applications.** The `kind` discriminator and distinct cookie names are what stop a confused-deputy
   problem here; neither is optional.
-- **The 3-second interaction deadline runs inside the shared API process**, alongside dashboard traffic. Defer first, work
-  second, always.
+- **A decision is a claim, then a Discord call, then an audit row, in that order.** `applyAppealDecision` owns the
+  ordering and the rollback; anything that decides an appeal without going through it can leave the appellant unbanned
+  against a row that says denied, or approved against a ban that is still in place.
+- **That ordering covers a failed unban, not a dead process**, and the gap is deliberate. If `appeals-bot` is killed in the
+  window between the claim committing and the unban returning, the appeal reads `APPROVED` with the ban still in place and
+  nothing retries it. Closing that properly means a transactional outbox -- commit the decision, the event and a
+  pending-effect row together, then drive Discord from a worker with retries -- which is a second durability mechanism this
+  stack has nowhere else. Raised by review on #410 and **declined**: `services/automoderator-bot`'s report actions have
+  carried the identical window since P3, the exposure is a few hundred milliseconds per decision, and the failure is visible
+  (the appellant is still banned) rather than silent. Revisit if Appeals ever grows an automated decider, where nobody is
+  watching.
+- **P6 must not deliver its DM through `perform`.** That callback's contract is that throwing un-does the decision, which is
+  right for an unban and wrong for a notification: an appellant with DMs closed would un-deny their own appeal by being
+  unreachable. The DM belongs after the transition returns, best-effort, the way `notifyTarget()` already works in
+  AutoModerator.
 - **`unban.app` is a public form for hostile users by construction.** Rate limits, cooldowns, and `max_appeals` are the
   product's spam defense, and ban evasion via alt accounts is not solvable here -- Appeals sees only the account in front of
   it.
@@ -877,7 +937,8 @@ Phase-specific notes on top of that:
 2. **A silent denial that reads as "under review" forever also blocks re-appealing**, since an open appeal normally prevents
    a new submission -- which makes silent denial permanent in practice, not merely quiet. Recommendation: once the cooldown
    lapses, the public view flips to a neutral "no response -- you may appeal again" and a resubmission is allowed, with the
-   prior silent denial plainly visible to moderators. Owner's call; does not block anything before P4.
+   prior silent denial plainly visible to moderators. Owner's call, and **live as of P4** -- a silent denial can be taken
+   today, so this is now a question about behaviour in production rather than about an unbuilt path.
 3. Whether `appeal_ban_checks` should ever be pruned. TTL-less is the decision, but a user who appeals once and never returns
    leaves rows behind indefinitely. Probably fine; revisit if the table gets large.
 4. Whether `unban.app/<inviteCode>` should accept vanity URLs and custom invite domains, or only raw `discord.gg` codes.

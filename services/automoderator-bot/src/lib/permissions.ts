@@ -1,7 +1,7 @@
 import { getContext } from '@chatsift/backend-core';
 import { getSelfId } from '@chatsift/bot-core';
 import type { CaseActionName } from '@chatsift/core';
-import { PermissionsBitField } from '@chatsift/core';
+import { memberHasPermission } from '@chatsift/core';
 import type { APIGuild, APIGuildMember, APIInteractionGuildMember, Snowflake } from '@discordjs/core';
 import { PermissionFlagsBits } from '@discordjs/core';
 
@@ -86,15 +86,6 @@ const REQUIRED_PERMISSION: Record<CaseActionName, bigint> = {
 	BAN: PermissionFlagsBits.BanMembers,
 	UNBAN: PermissionFlagsBits.BanMembers,
 };
-
-/**
- * Whether an interaction's member holds `permission`. `member.permissions` is the *computed* bitfield Discord
- * resolves for the invoking channel and hands to us in the payload, so this needs no role fetch and already
- * accounts for Administrator and channel overwrites.
- */
-export function memberHasPermission(member: APIInteractionGuildMember, permission: bigint): boolean {
-	return PermissionsBitField.any(BigInt(member.permissions), permission);
-}
 
 /**
  * Whether an interaction's member may take `action` on the card, by the same rule Discord would apply to the

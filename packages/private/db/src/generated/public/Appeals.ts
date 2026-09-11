@@ -34,6 +34,8 @@ export default interface Appeals {
   decisionReason: string | null;
 
   createdAt: Date;
+
+  modChannelId: string | null;
 }
 
 /** Represents the initializer for the table public.appeals */
@@ -63,6 +65,8 @@ export interface AppealsInitializer {
   decisionReason?: string | null;
 
   createdAt?: Date;
+
+  modChannelId?: string | null;
 }
 
 /** Represents the mutator for the table public.appeals */
@@ -92,4 +96,6 @@ export interface AppealsMutator {
   decisionReason?: string | null;
 
   createdAt?: Date;
+
+  modChannelId?: string | null;
 }

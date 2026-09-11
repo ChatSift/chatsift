@@ -16,6 +16,24 @@ import { Counter, Registry } from 'prom-client';
 export const register = new Registry();
 
 /**
+ * Decisions taken on the card (#232 P4).
+ *
+ * `decision` is `approved`, `denied`, `denied_silent` or `moot` -- the silent kind is its own value rather than
+ * a flag, because "how much of this is invisible to appellants" is the question worth being able to ask of a
+ * product that deliberately lies to some of them, and `moot` is the only one no human took (P4b: the ban was
+ * lifted somewhere else and the appeal closed itself). `outcome` is `applied`, `raced` (somebody else decided
+ * first, an ordinary outcome rather than an error) or `failed` (the claim was given back, which today means an
+ * unban Discord refused -- the one alert-worthy value here, since every one of those is an appeal a moderator
+ * believes they approved).
+ */
+export const appealDecisions = new Counter({
+	name: 'appeals_decisions_total',
+	help: 'Appeal decisions, by decision and what came of it',
+	labelNames: ['decision', 'outcome'] as const,
+	registers: [register],
+});
+
+/**
  * Ban-list events observed, and what came of the `appeal_ban_checks` write they prime.
  *
  * `kind` is `add` or `remove`; `outcome` is `refreshed` (a cached probe result existed and was updated),
