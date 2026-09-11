@@ -415,6 +415,12 @@ const SEGMENT_DEFINITIONS: readonly SegmentDefinition[] = [
 		resolveLabel: (reportId) => `Report #${reportId}`,
 	},
 	{
+		// Same again: an appellant can have appealed more than once in the same server, so only the number
+		// identifies one of them.
+		pattern: ['appeals', 'queue', ':id'],
+		resolveLabel: (appealId) => `Appeal #${appealId}`,
+	},
+	{
 		// A ladder step's identity is the count it fires at, so the segment already reads as its own label.
 		// `new` never reaches here -- `matchPattern` only captures a `:id` that parses as a number.
 		pattern: ['automoderator', 'warn-ladder', ':id'],

@@ -12,7 +12,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { UserBadge } from '../../../_components/UserBadge';
 import { ACTION_LABELS, ACTION_PILL_CLASSES } from '../../_components/caseDisplay';
 import { queryKeys } from '@/api/queryClient';
 import type { GetAutomoderatorCaseResult } from '@/api/routes/automoderatorCases';
@@ -22,6 +21,7 @@ import {
 	useDeleteAutomoderatorCase,
 	useUpdateAutomoderatorCase,
 } from '@/api/routes/automoderatorCases';
+import { UserBadge } from '@/components/dashboard/UserBadge';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { useRealtimeInvalidate } from '@/hooks/useRealtimeInvalidate';
 import { formatDate } from '@/utils/util';

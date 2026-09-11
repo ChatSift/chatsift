@@ -118,6 +118,16 @@ export { default as getAppealsConfigRoute } from './routes/appeals/config/getCon
 export type { GetAppealsConfigResult } from './routes/appeals/config/getConfig.js';
 export { default as updateAppealsConfigRoute } from './routes/appeals/config/updateConfig.js';
 
+// The dashboard's appeals queue (#232 P5). Mod-facing, unlike the `unban.app` contract further down: every
+// shape here carries the decision columns `util/appealsPublic.ts` exists to keep off the appellant's surface.
+export { default as listAppealsRoute } from './routes/appeals/mod/listAppeals.js';
+export type { ListAppealsResult } from './routes/appeals/mod/listAppeals.js';
+export { default as getAppealRoute } from './routes/appeals/mod/getAppeal.js';
+export type { AppealEventWithActor, GetAppealResult } from './routes/appeals/mod/getAppeal.js';
+export { default as decideAppealRoute } from './routes/appeals/mod/decideAppeal.js';
+export type { DecideAppealBody, DecideAppealResult } from './routes/appeals/mod/decideAppeal.js';
+export type { AppealWithUsers } from './routes/appeals/mod/util.js';
+
 export { default as listUnappealableUsersRoute } from './routes/appeals/unappealableUsers/listUnappealableUsers.js';
 export type { UnappealableUserWithUser } from './routes/appeals/unappealableUsers/listUnappealableUsers.js';
 export { default as createUnappealableUserRoute } from './routes/appeals/unappealableUsers/createUnappealableUser.js';

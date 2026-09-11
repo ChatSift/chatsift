@@ -1,13 +1,17 @@
 import type {
 	InferRouteContract,
 	createUnappealableUserRoute,
+	decideAppealRoute,
 	deleteUnappealableUserRoute,
+	getAppealRoute,
 	getAppealsConfigRoute,
+	listAppealsRoute,
 	listUnappealableUsersRoute,
 	updateAppealsConfigRoute,
 } from '@chatsift/api';
+import type { appealStatusSchema } from '@chatsift/api/appeals-schemas';
 import { apiFetch } from '@chatsift/web-core/api/fetch';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../queryClient';
 
 type GetAppealsConfigContract = InferRouteContract<typeof getAppealsConfigRoute>;
@@ -25,6 +29,19 @@ export type CreateUnappealableUserBody = CreateUnappealableUserContract['body'];
 
 type DeleteUnappealableUserContract = InferRouteContract<typeof deleteUnappealableUserRoute>;
 export type DeleteUnappealableUserBody = DeleteUnappealableUserContract['body'];
+
+type ListAppealsContract = InferRouteContract<typeof listAppealsRoute>;
+export type ListAppealsResult = ListAppealsContract['response'];
+export type AppealListItem = ListAppealsResult['appeals'][number];
+
+type GetAppealContract = InferRouteContract<typeof getAppealRoute>;
+export type GetAppealResult = GetAppealContract['response'];
+export type AppealEvent = GetAppealResult['events'][number];
+export type AppealAnswer = GetAppealResult['answers'][number];
+
+type DecideAppealContract = InferRouteContract<typeof decideAppealRoute>;
+export type DecideAppealBody = DecideAppealContract['body'];
+export type DecideAppealResult = DecideAppealContract['response'];
 
 /**
  * `settings` is `null` until the guild finishes setup -- the row's existence is the signal, not a defaulted
@@ -85,6 +102,56 @@ export function useDeleteUnappealableUser(guildId: string) {
 			apiFetch('delete', `/v3/guilds/${guildId}/appeals/unappealable-users`, { body: { userId } }),
 		async onSuccess() {
 			await queryClient.invalidateQueries({ queryKey: queryKeys.appeals.unappealableUsers(guildId) });
+		},
+	});
+}
+
+/**
+ * The appeal statuses, straight off the API's own zod enum -- so a filter value the route would reject can't be
+ * constructed here in the first place. Same arrangement as `ReportStateName`.
+ */
+export type AppealStatusName = (typeof appealStatusSchema.options)[number];
+
+export interface AppealFilters {
+	status?: AppealStatusName | undefined;
+	userId?: string | undefined;
+}
+
+export function useAppeals(guildId: string, filters: AppealFilters) {
+	return useInfiniteQuery({
+		queryKey: queryKeys.appeals.queue.list(guildId, filters),
+		queryFn: async ({ pageParam }) =>
+			apiFetch<ListAppealsResult>('get', `/v3/guilds/${guildId}/appeals/queue`, {
+				query: { cursor: pageParam, status: filters.status, user_id: filters.userId },
+			}),
+		initialPageParam: undefined as number | undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+	});
+}
+
+export function useAppeal(guildId: string, appealId: number) {
+	return useQuery({
+		queryKey: queryKeys.appeals.queue.byId(guildId, appealId),
+		queryFn: async () => apiFetch<GetAppealResult>('get', `/v3/guilds/${guildId}/appeals/queue/${appealId}`),
+	});
+}
+
+/**
+ * The dashboard's half of the three buttons on the card (#232 P5).
+ *
+ * Invalidates the whole queue subtree rather than patching the row in: the decision changes the guild's pending
+ * count and this appeal's `appeal_events` trail as well as the row itself, and the response carries only the
+ * row. Every other viewer gets the same refetch through `appealsQueueChannel`, which `applyAppealDecision`
+ * publishes to for both surfaces.
+ */
+export function useDecideAppeal(guildId: string, appealId: number) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (body: DecideAppealBody) =>
+			apiFetch<DecideAppealResult>('post', `/v3/guilds/${guildId}/appeals/queue/${appealId}/decision`, { body }),
+		async onSuccess() {
+			await queryClient.invalidateQueries({ queryKey: queryKeys.appeals.queue.all(guildId) });
 		},
 	});
 }

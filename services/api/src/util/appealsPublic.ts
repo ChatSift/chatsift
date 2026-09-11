@@ -82,3 +82,39 @@ export function isAppealOpen(appeal: Pick<Appeals, 'status'>): boolean {
 export function appearsOpenToAppellant(appeal: Appeals): boolean {
 	return toPublicAppeal(appeal).status === 'PENDING';
 }
+
+/**
+ * Whether this appeal ended with the ban it was about being **lifted** -- so the punishment it belongs to is
+ * over, whatever happens to that account later.
+ *
+ * Exactly two statuses qualify, and both mean the same thing on Discord's side: `APPROVED` is the unban the
+ * approval performed, and `MOOT` is a ban lifted by some other route while the appeal sat open (P4b). A
+ * `DENIED` appeal leaves the ban standing and a `WITHDRAWN` one never touched it, so neither ends anything --
+ * which is what keeps a cooldown attached to the ban that earned it, and withdraw-and-resubmit from being a way
+ * around one.
+ */
+export function endedThePunishment(appeal: Pick<Appeals, 'status'>): boolean {
+	return appeal.status === 'APPROVED' || appeal.status === 'MOOT';
+}
+
+/**
+ * The appeals that belong to the punishment an appellant is under **now**, given their whole history in one
+ * guild, newest first.
+ *
+ * `appeals` has no column naming the ban an appeal is about -- Discord's ban object carries no id and no
+ * timestamp, and the audit log would need a permission Appeals does not ask for. What it does have is
+ * {@link endedThePunishment}: an appeal that ended with the ban being lifted is a boundary, because a ban the
+ * account is under *after* that one cannot be the one that appeal was about. Everything newer than the most
+ * recent such appeal is this punishment's history; everything at or before it belongs to a ban that is over.
+ *
+ * Without this, an account that appealed, was approved, and was then banned again arrived back on `unban.app`
+ * to find its previous appeal captioned as the current one, `appeals_used` already spent, and a cooldown
+ * counting down from a decision about a ban that no longer existed -- while the copy on both blocks promises
+ * "the same ban". The ceiling was always specified per (user, punishment); this is the part that was missing.
+ */
+export function appealsForCurrentPunishment<TAppeal extends Pick<Appeals, 'status'>>(
+	newestFirst: readonly TAppeal[],
+): TAppeal[] {
+	const boundary = newestFirst.findIndex((appeal) => endedThePunishment(appeal));
+	return boundary === -1 ? [...newestFirst] : newestFirst.slice(0, boundary);
+}

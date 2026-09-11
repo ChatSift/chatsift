@@ -99,11 +99,11 @@ async function closeMootAppeal(guildId: string, userId: string, logger: Logger):
 	if (!result.ok) {
 		// `raced` here means a moderator decided it in the window between the unban and this handler. Their
 		// decision stands; there is nothing left to close.
-		appealDecisions.inc({ decision: 'moot', outcome: result.reason });
+		appealDecisions.inc({ decision: 'moot', outcome: result.reason, source: 'system' });
 		return;
 	}
 
-	appealDecisions.inc({ decision: 'moot', outcome: 'applied' });
+	appealDecisions.inc({ decision: 'moot', outcome: 'applied', source: 'system' });
 	logger.info({ appealId: appeal.id }, 'closed an appeal as moot, its ban was lifted elsewhere');
 
 	await refreshAppealCard(result.appeal, logger);

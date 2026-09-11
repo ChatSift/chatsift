@@ -21,6 +21,11 @@ export interface AppealFormQuestion {
 }
 
 export interface CheckGuildResult {
+	/**
+	 * Against the ban they are under now, not their whole history in this guild -- see
+	 * `appealsForCurrentPunishment`. An earlier ban that was lifted took its appeals with it, which is what
+	 * `BlockedNotice`'s "the same ban" copy has always promised.
+	 */
 	appealsUsed: number;
 	/**
 	 * `null` when nothing is stopping them -- which is the only state that renders the form.
@@ -36,8 +41,12 @@ export interface CheckGuildResult {
 	 */
 	guild: GuildSummary | null;
 	/**
-	 * Their most recent appeal here, through the §5 serializer. Present regardless of `blocked`, because the
-	 * commonest reason to open this page at all is to check on one.
+	 * The appeal this page is about, through the §5 serializer: their most recent one against the ban they are
+	 * under now, or -- where they are not banned -- the one that ended their last ban. Present regardless of
+	 * `blocked`, because the commonest reason to open this page at all is to check on one.
+	 *
+	 * Never an appeal about a ban that has since been lifted while they sit under a new one. That combination
+	 * rendered as "Your appeal: Approved" over a form for a ban nobody had appealed yet.
 	 */
 	latestAppeal: PublicAppeal | null;
 	maxAppeals: number | null;

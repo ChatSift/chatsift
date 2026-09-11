@@ -71,3 +71,29 @@ for (const decision of ['anonymize', 'approve', 'approve_and_send', 'deny', 'mer
 for (const transition of ['closed', 'prompt_reposted']) {
 	amaSessionTransitions.inc({ transition, source: 'dashboard' }, 0);
 }
+
+/**
+ * The dashboard half of `appeals_decisions_total` (#232 P5). **Label set must stay identical to
+ * `services/appeals-bot`'s `lib/metrics.ts`** -- a divergence doesn't error, it silently splits the sum into
+ * two half-populated series, same as the AMA counters above.
+ *
+ * Worth having rather than leaving to the bot, for the reason `outcome` exists at all: `failed` means the claim
+ * was given back because Discord refused the unban, and every one of those is an appeal a moderator believes
+ * they approved. That failure is reachable from this surface too, and a counter that only watches the card
+ * would report "no failures" for a guild that triages on the web.
+ *
+ * `source` is always `dashboard` here; the bot passes `card` for its three buttons and `system` for the moot
+ * close a lifted ban triggers (P4b).
+ */
+export const appealDecisions = new Counter({
+	name: 'appeals_decisions_total',
+	help: 'Appeal decisions, by decision, what came of it, and which surface made it',
+	labelNames: ['decision', 'outcome', 'source'] as const,
+	registers: [register],
+});
+
+for (const decision of ['approved', 'denied', 'denied_silent']) {
+	for (const outcome of ['applied', 'failed', 'raced']) {
+		appealDecisions.inc({ decision, outcome, source: 'dashboard' }, 0);
+	}
+}

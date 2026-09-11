@@ -1,6 +1,12 @@
 import type { AppealKind, Appeals, AppealStatus } from '@chatsift/db';
 import { expect, test } from 'vitest';
-import { appearsOpenToAppellant, isAppealOpen, toPublicAppeal } from '../appealsPublic.js';
+import {
+	appealsForCurrentPunishment,
+	appearsOpenToAppellant,
+	endedThePunishment,
+	isAppealOpen,
+	toPublicAppeal,
+} from '../appealsPublic.js';
 
 // kanel exports the generated enums as types only, so every literal here needs the repo's usual cast -- done
 // once through these two helpers rather than at forty call sites.
@@ -144,4 +150,59 @@ test('the two predicates agree on every other status', () => {
 		decidedById: '555',
 	});
 	expect(appearsOpenToAppellant(openDenial)).toBe(isAppealOpen(openDenial));
+});
+
+/**
+ * The punishment boundary. An appellant who was approved and then banned again used to arrive on `unban.app`
+ * to find their previous appeal captioned as the current one, their attempts already spent, and a cooldown
+ * counting down from a decision about a ban that no longer existed.
+ */
+
+// Newest first, which is the order `evaluateAppealEligibility` reads them in and the order this function
+// documents taking.
+function history(...statuses: string[]) {
+	return statuses.map((value, index) =>
+		makeAppeal({ id: (statuses.length - index) as Appeals['id'], status: status(value) }),
+	);
+}
+
+test('only an appeal that got the ban lifted ends a punishment', () => {
+	expect(endedThePunishment({ status: status('APPROVED') })).toBe(true);
+	// The ban was lifted by some other route while this one sat open (P4b) -- gone either way.
+	expect(endedThePunishment({ status: status('MOOT') })).toBe(true);
+
+	// The ban stands after both of these, so the cooldown they start belongs to it.
+	expect(endedThePunishment({ status: status('DENIED') })).toBe(false);
+	expect(endedThePunishment({ status: status('WITHDRAWN') })).toBe(false);
+	expect(endedThePunishment({ status: status('PENDING') })).toBe(false);
+});
+
+test('an approval and everything older is a punishment that is over', () => {
+	// The reported bug: approved, unbanned, banned again. Nothing here is about the new ban, so they start clean.
+	expect(appealsForCurrentPunishment(history('APPROVED', 'DENIED'))).toStrictEqual([]);
+});
+
+test('appeals filed since that approval are the ones that count', () => {
+	const current = appealsForCurrentPunishment(history('DENIED', 'DENIED', 'APPROVED', 'DENIED'));
+
+	expect(current).toHaveLength(2);
+	// Two denials against the ban they are under now; the approval and everything under it dropped out.
+	expect(current.every((appeal) => appeal.status === 'DENIED')).toBe(true);
+});
+
+test('a history with no approval is all one punishment', () => {
+	expect(appealsForCurrentPunishment(history('DENIED', 'WITHDRAWN'))).toHaveLength(2);
+	expect(appealsForCurrentPunishment([])).toStrictEqual([]);
+});
+
+test('a withdrawal does not end a punishment, so it cannot reset the cooldown', () => {
+	// Otherwise withdraw-and-resubmit would be a way around the cooldown entirely.
+	expect(appealsForCurrentPunishment(history('WITHDRAWN', 'DENIED'))).toHaveLength(2);
+});
+
+test('only the most recent lift is the boundary', () => {
+	// Banned, approved, banned, approved, banned again: only the newest approval bounds the current punishment,
+	// and the older one is not reachable past it.
+	expect(appealsForCurrentPunishment(history('APPROVED', 'DENIED', 'APPROVED'))).toStrictEqual([]);
+	expect(appealsForCurrentPunishment(history('PENDING', 'APPROVED', 'DENIED', 'APPROVED'))).toHaveLength(1);
 });
