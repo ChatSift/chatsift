@@ -3,7 +3,29 @@ import { ButtonStyle, ComponentType } from 'discord-api-types/v10';
 import { expect, test } from 'vitest';
 import type { AppealAnswerInput, AppealEmbedInput } from '../appealEmbeds.js';
 import { buildAppealComponents, buildAppealEmbed, buildAppealThreadName } from '../appealEmbeds.js';
-import { APPEAL_ANSWER_MAX_LENGTH } from '../constants.js';
+import {
+	APPEAL_ANSWER_MAX_LENGTH,
+	APPEAL_QUESTION_MAX_COUNT,
+	APPEAL_QUESTION_PROMPT_MAX_LENGTH,
+} from '../constants.js';
+
+/**
+ * Discord's cap on a whole message, summed across every embed on it. Restated here rather than exported from
+ * the module under test, so a change to the constant cannot quietly move the bar this asserts against.
+ */
+const DISCORD_EMBED_TOTAL = 6_000;
+
+/**
+ * Everything Discord counts toward that total. `timestamp`, `color` and the icon url are free.
+ */
+function embedSize(embed: ReturnType<typeof buildAppealEmbed>): number {
+	return (
+		(embed.description?.length ?? 0) +
+		(embed.author?.name.length ?? 0) +
+		(embed.footer?.text.length ?? 0) +
+		(embed.fields ?? []).reduce((total, field) => total + field.name.length + field.value.length, 0)
+	);
+}
 
 function makeAppeal(overrides: Partial<AppealEmbedInput> = {}): AppealEmbedInput {
 	return {
@@ -195,4 +217,67 @@ test('the thread name stays inside the 100 character cap', () => {
 	expect(buildAppealThreadName(makeAppeal(), 'a'.repeat(200))).toHaveLength(100);
 	expect(buildAppealThreadName(makeAppeal(), 'appellant')).toBe('Appeal 12 - appellant');
 	expect(buildAppealThreadName(makeAppeal())).toBe('Appeal 12 - 2');
+});
+
+test('the worst card anybody can file still fits inside one message', () => {
+	// Every input at its cap at once: a full questionnaire, maximum prompts, maximum answers, a maximum ban
+	// reason, and the longest decision block there is (a silent denial carries the warning *and* a reason).
+	// Per-field caps say nothing about this -- five maxed fields alone are 5 * (256 + 1024) = 6400 -- and the
+	// failure is silent, because both card writers swallow their errors so an appeal never fails over its card.
+	const embed = buildAppealEmbed(
+		makeAppeal({
+			status: 'DENIED',
+			silent: true,
+			reasonSnapshot: 'r'.repeat(2_000),
+			decidedAt: new Date('2026-09-12T00:00:00.000Z'),
+			decidedById: '555555555555555555',
+			decisionReason: 'd'.repeat(2_000),
+		}),
+		{
+			appellantTag: 'a'.repeat(32),
+			answers: Array.from({ length: APPEAL_QUESTION_MAX_COUNT }, (_, position) => ({
+				position,
+				promptSnapshot: 'p'.repeat(APPEAL_QUESTION_PROMPT_MAX_LENGTH),
+				answer: '`'.repeat(APPEAL_ANSWER_MAX_LENGTH),
+			})),
+		},
+	);
+
+	expect(embed.fields).toHaveLength(APPEAL_QUESTION_MAX_COUNT);
+	expect(embedSize(embed)).toBeLessThanOrEqual(DISCORD_EMBED_TOTAL);
+});
+
+test('a decided card still fits once the decision block grows the description', () => {
+	// The redraw, not the post, is where this bites: a card that fitted while pending gains the decision block
+	// on the way to DENIED, so the fields have to be budgeted against a description that has since grown.
+	const answers = Array.from({ length: APPEAL_QUESTION_MAX_COUNT }, (_, position) => ({
+		position,
+		promptSnapshot: 'p'.repeat(APPEAL_QUESTION_PROMPT_MAX_LENGTH),
+		answer: 'a'.repeat(APPEAL_ANSWER_MAX_LENGTH),
+	}));
+
+	const pending = buildAppealEmbed(makeAppeal({ reasonSnapshot: 'r'.repeat(2_000) }), { answers });
+	const decided = buildAppealEmbed(
+		makeAppeal({
+			status: 'DENIED',
+			reasonSnapshot: 'r'.repeat(2_000),
+			decidedAt: new Date('2026-09-12T00:00:00.000Z'),
+			decidedById: '555555555555555555',
+			decisionReason: 'd'.repeat(2_000),
+		}),
+		{ answers },
+	);
+
+	expect(embedSize(pending)).toBeLessThanOrEqual(DISCORD_EMBED_TOTAL);
+	expect(embedSize(decided)).toBeLessThanOrEqual(DISCORD_EMBED_TOTAL);
+});
+
+test('an ordinary card is not trimmed by the budget', () => {
+	// The budget must only bite at the extreme: a real appeal shows its answers in full.
+	const answer = 'I was banned for arguing in #general and I have read the rules since.';
+	const embed = buildAppealEmbed(makeAppeal(), {
+		answers: [makeAnswer({ answer })],
+	});
+
+	expect(embed.fields![0]!.value).toContain(answer);
 });

@@ -261,9 +261,13 @@ export const DEFAULT_APPEAL_QUESTIONS = [
  * How many questions one guild's appeal form may hold, and how long a prompt and an answer may be.
  *
  * All three are Discord's limits rather than ours, because decision 13 says an appeal is **one** embed: an
- * answer becomes an embed field value (1024), its prompt becomes that field's name (256), and the whole embed
- * caps at 6000 characters -- so five questions at full length (5 * 1280 = 6400) is already the point where the
- * header fields have nowhere left to go. A sixth question would render an appeal the bot cannot post.
+ * answer becomes an embed field value (1024) and its prompt becomes that field's name (256).
+ *
+ * **The count is not what keeps the embed postable**, though an earlier version of this comment claimed it
+ * was: five questions at full length are 5 * 1280 = 6400 against a 6000-character *message*, so the arithmetic
+ * never worked. `buildAppealEmbed` budgets the whole embed and trims answers to fit; this is a product cap on
+ * how long a form a guild may ask somebody to fill in, and a sixth question would be answered by the trimming
+ * rather than by a failure.
  */
 export const APPEAL_QUESTION_MAX_COUNT = 5;
 

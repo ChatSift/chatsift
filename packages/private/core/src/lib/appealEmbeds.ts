@@ -2,6 +2,7 @@ import type {
 	APIActionRowComponent,
 	APIButtonComponent,
 	APIEmbed,
+	APIEmbedField,
 	APIMessageTopLevelComponent,
 } from 'discord-api-types/v10';
 import { ButtonStyle, ComponentType } from 'discord-api-types/v10';
@@ -76,12 +77,35 @@ const STATUS_LABELS: Record<AppealStatusName, string> = {
 const BAN_REASON_LIMIT = 512;
 
 /**
+ * What ```` ```\n ```` and ```` \n``` ```` cost around a block.
+ */
+const FENCE_OVERHEAD = 8;
+
+/**
  * An answer arrives already capped at `APPEAL_ANSWER_MAX_LENGTH` (1024), which is exactly Discord's cap for
  * the embed field value it becomes -- and the code fence around it costs 8 characters more. Trimming by that
  * difference is what stops a maximum-length answer from 400ing the whole message. It bounds the *fenced*
  * string: see `block`.
  */
-const ANSWER_LIMIT = APPEAL_ANSWER_MAX_LENGTH - 8;
+const ANSWER_LIMIT = APPEAL_ANSWER_MAX_LENGTH - FENCE_OVERHEAD;
+
+/**
+ * Discord caps a whole **message** at 6000 characters summed across every embed on it -- description, field
+ * names, field values, author name and footer text all count, and the per-field caps say nothing about the
+ * total. Five maximum fields alone are `5 * (256 + 1024) = 6400`, so the per-field limits above are not a
+ * bound on anything by themselves.
+ *
+ * This matters more here than the arithmetic suggests, because the failure is silent by design: both card
+ * writers swallow their errors (an appeal must never fail to file over its card), so an embed that goes over
+ * simply never posts and the appeal waits in a queue no moderator can see.
+ */
+const EMBED_TOTAL_LIMIT = 6_000;
+
+/**
+ * Headroom against the parts that are not counted here and against Discord counting something we do not --
+ * a decided card is rebuilt from scratch, so this only has to hold at each render rather than across them.
+ */
+const EMBED_TOTAL_MARGIN = 100;
 
 /**
  * The appeal itself, as the card reads it.
@@ -185,6 +209,28 @@ function describeDecision(appeal: AppealEmbedInput): string | null {
 	return parts.join('\n');
 }
 
+/**
+ * The questionnaire, trimmed to whatever the rest of the embed left behind.
+ *
+ * Prompts are kept whole and the answers absorb the trimming: a prompt is what makes an answer legible, and
+ * `APPEAL_QUESTION_PROMPT_MAX_LENGTH` already bounds it. The remaining budget is split evenly rather than
+ * greedily -- when this bites at all, every field is long (that is why it bit), so a fair split and an optimal
+ * one differ only cosmetically, and the full text is on the dashboard either way.
+ */
+function buildAnswerFields(answers: readonly AppealAnswerInput[], spent: number): APIEmbedField[] {
+	const ordered = [...answers].sort((left, right) => left.position - right.position);
+	const names = ordered.map((answer) => truncate(answer.promptSnapshot, APPEAL_QUESTION_PROMPT_MAX_LENGTH));
+
+	const available =
+		EMBED_TOTAL_LIMIT - EMBED_TOTAL_MARGIN - spent - names.reduce((total, name) => total + name.length, 0);
+	const share = ordered.length ? Math.floor(available / ordered.length) : 0;
+
+	return ordered.map((answer, index) => ({
+		name: names[index]!,
+		value: block(answer.answer, Math.min(ANSWER_LIMIT, share - FENCE_OVERHEAD)),
+	}));
+}
+
 export function buildAppealEmbed(appeal: AppealEmbedInput, options: AppealCardOptions): APIEmbed {
 	const banReason = appeal.reasonSnapshot?.trim().length
 		? block(appeal.reasonSnapshot, BAN_REASON_LIMIT)
@@ -200,22 +246,21 @@ export function buildAppealEmbed(appeal: AppealEmbedInput, options: AppealCardOp
 		parts.push(decision);
 	}
 
+	const description = parts.join('\n\n');
+	const author = options.appellantTag ? `${options.appellantTag} (${appeal.userId})` : appeal.userId;
+	const footer = `Appeal ${appeal.id} | ${STATUS_LABELS[appeal.status]}`;
+
 	return {
 		color: STATUS_COLORS[appeal.status],
 		author: {
-			name: options.appellantTag ? `${options.appellantTag} (${appeal.userId})` : appeal.userId,
+			name: author,
 			...(options.appellantAvatarURL ? { icon_url: options.appellantAvatarURL } : {}),
 		},
-		description: parts.join('\n\n'),
-		// Capped at five by `APPEAL_QUESTION_MAX_COUNT`, which exists precisely so the whole questionnaire fits
-		// one embed -- see its comment for the arithmetic.
-		fields: [...options.answers]
-			.sort((left, right) => left.position - right.position)
-			.map((answer) => ({
-				name: truncate(answer.promptSnapshot, APPEAL_QUESTION_PROMPT_MAX_LENGTH),
-				value: block(answer.answer, ANSWER_LIMIT),
-			})),
-		footer: { text: `Appeal ${appeal.id} | ${STATUS_LABELS[appeal.status]}` },
+		description,
+		// Built last and against what the rest of the embed has already spent, because the decision block grows
+		// the description: a card that fitted while pending must still fit once it carries a denial reason.
+		fields: buildAnswerFields(options.answers, description.length + author.length + footer.length),
+		footer: { text: footer },
 		timestamp: appeal.createdAt.toISOString(),
 	};
 }
