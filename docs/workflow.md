@@ -600,10 +600,16 @@ fi
 docker image prune -f
 ```
 
-Note `./compose up` injects `--wait --wait-timeout 300` of its own (#294), so this blocks until every container
-with a healthcheck reports healthy and a deploy that comes up broken exits non-zero here rather than reporting
-green. That lives in `./compose` rather than in this script precisely because this script is versioned nowhere.
-`CHATSIFT_NO_WAIT=1` skips it, for restarting one service mid-incident without blocking on the rest.
+Note `./compose up -d` injects `--wait --wait-timeout 300` of its own (#294), so this blocks until every
+container with a healthcheck reports healthy and a deploy that comes up broken exits non-zero here rather than
+reporting green. That lives in `./compose` rather than in this script precisely because this script is versioned
+nowhere. Three things narrow it: it only fires for a **detached** `up` (`--wait` implies `--detach`, so an
+attached `./compose up` would stop streaming logs), it stands aside if you pass `--wait`/`--wait-timeout`
+yourself, and `CHATSIFT_NO_WAIT=1` skips it for restarting one service mid-incident without blocking on the rest.
+
+The 300s is coupled to the bots' `start_period` and to Discord's identify throttle (one shard per 5s per bucket).
+A large enough shard fleet can push the last replica's first heartbeat past it and fail an otherwise-healthy
+deploy, so raise it alongside `<BOT>_SHARDS_PER_REPLICA` rather than on its own.
 
 Register the key so it can run nothing else:
 

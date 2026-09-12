@@ -179,8 +179,8 @@ WAIT_ARGS=()
 if [ "$1" = 'up' ] && [ -z "${CHATSIFT_NO_WAIT:-}" ]
 then
   case " $* " in
-    *' --wait '*|*' --wait-timeout '*) ;;
-    *) WAIT_ARGS+=(--wait --wait-timeout 300) ;;
+    *' --wait '*|*' --wait-timeout '*|*' --wait-timeout='*) ;;
+    *' -d '*|*' --detach '*) WAIT_ARGS+=(--wait --wait-timeout 300) ;;
   esac
 fi
 

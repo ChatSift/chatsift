@@ -32,6 +32,7 @@ function registerHeartbeatMetrics(botId: GuildListKey, shardIds: number[], regis
 		labelNames: ['bot', 'shard'] as const,
 		registers: [register],
 		collect() {
+			this.reset();
 			for (const shardId of shardIds) {
 				const heartbeat = getShardHeartbeat(shardId);
 				if (heartbeat) {
@@ -47,6 +48,7 @@ function registerHeartbeatMetrics(botId: GuildListKey, shardIds: number[], regis
 		labelNames: ['bot', 'shard'] as const,
 		registers: [register],
 		collect() {
+			this.reset();
 			const now = Date.now();
 			for (const shardId of shardIds) {
 				const heartbeat = getShardHeartbeat(shardId);

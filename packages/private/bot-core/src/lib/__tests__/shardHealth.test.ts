@@ -3,7 +3,7 @@ import { stubBackendCoreEnv } from './testEnv.js';
 
 stubBackendCoreEnv();
 
-const { forgetShardHeartbeat, getShardHealth, recordShardHeartbeat, setOwnedShards } =
+const { forgetShardHeartbeat, getShardHeartbeat, getShardHealth, recordShardHeartbeat, setOwnedShards } =
 	await import('../shardHealth.js');
 
 afterEach(() => {
@@ -61,4 +61,37 @@ test('closing a shard drops its ACK immediately rather than letting it age out',
 	forgetShardHeartbeat(0);
 
 	expect(getShardHealth().state).toBe('stalled');
+});
+
+test('a shard that stops reporting leaves no stale series behind', async () => {
+	const { Gauge, Registry } = await import('prom-client');
+	const register = new Registry();
+
+	setOwnedShards([0, 1]);
+	recordShardHeartbeat(0, { ackAt: Date.now(), latencyMs: 10 });
+	recordShardHeartbeat(1, { ackAt: Date.now(), latencyMs: 20 });
+
+	new Gauge({
+		name: 'test_shard_last_ack_seconds',
+		help: 'test',
+		labelNames: ['shard'] as const,
+		registers: [register],
+		collect() {
+			this.reset();
+			for (const shardId of [0, 1]) {
+				const heartbeat = getShardHeartbeat(shardId);
+				if (heartbeat) {
+					this.set({ shard: String(shardId) }, (Date.now() - heartbeat.ackAt) / 1_000);
+				}
+			}
+		},
+	});
+
+	expect(await register.metrics()).toContain('shard="1"');
+
+	forgetShardHeartbeat(1);
+
+	const after = await register.metrics();
+	expect(after).toContain('shard="0"');
+	expect(after).not.toContain('shard="1"');
 });
