@@ -116,7 +116,9 @@ services:
       - '--dir'
       - 'file://packages/private/db/migrations'
       - '--url'
-      - '${DATABASE_URL_PROD}?sslmode=disable'
+      - '${DATABASE_URL_PROD}'
+    environment:
+      PGSSLMODE: disable
     depends_on:
       postgres:
         condition: service_healthy

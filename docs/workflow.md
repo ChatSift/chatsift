@@ -644,7 +644,11 @@ depends_on:
 ```
 
 So `./compose up -d` cannot start code against an unmigrated schema, and a migration that fails takes the deploy
-down with it rather than letting the containers start anyway. Most deploys are a no-op -- atlas reads its own
+down with it rather than letting the containers start anyway. Confirm the box's compose is recent before
+relying on it (`docker compose version`): `./compose up -d` injects `--wait`, which waits on _every_ service in
+the up set including this one, and older versions counted any exited container as a `--wait` failure regardless
+of `service_completed_successfully`. The symptom would be a deploy reporting failure the moment `migrate`
+finishes while the stack is actually up and healthy. Verified working on v2.32.4. Most deploys are a no-op -- atlas reads its own
 `atlas_schema_revisions` table and prints `No migration files to execute`.
 
 Three consequences worth having read before you write one:

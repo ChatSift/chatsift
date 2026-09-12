@@ -59,8 +59,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          added="$(git diff --name-only --diff-filter=A "$BASE" HEAD -- packages/private/db/migrations/ \
-            | grep -c '\.sql$' || true)"
+          files="$(git diff --name-only --diff-filter=A "$BASE" HEAD -- packages/private/db/migrations/)"
+          added="$(printf '%s\n' "$files" | grep -c '\.sql$' || true)"
           if [ "${added:-0}" -eq 0 ]; then
             echo 'no migrations added by this PR'
             exit 0
