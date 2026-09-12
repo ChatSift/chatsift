@@ -59,8 +59,8 @@ export interface ShardHealth {
  * Whether this process is doing the job it claimed a slot to do.
  *
  * Reads the owned set rather than the recorded beats, so a shard that has never completed one is stalled rather
- * than invisible. Docker's `start_period` covers the boot window, which is why there is no separate "starting"
- * state here -- a bot that has claimed its slot but not yet identified is not serving.
+ * than invisible -- a bot that has claimed its slot but not yet identified is not serving. A process whose claim
+ * has not resolved at all is `starting`, not `spare`; see `ownership` above for why that distinction is a 503.
  */
 export function getShardHealth(): ShardHealth {
 	if (ownership === 'starting') {
