@@ -1620,9 +1620,10 @@ CREATE TABLE appeals_settings (
   cooldown_days         INTEGER NOT NULL DEFAULT 30,
   -- Hard ceiling on appeals per (user, punishment), independent of the cooldown. NULL = no ceiling.
   max_appeals           INTEGER,
-  -- Guild half of decision 14's two-sided opt-in: approving an appeal re-adds the user via guilds.join
-  -- instead of just unbanning them. The appellant's half is `appeal_user_state.granted_guilds_join`; without
-  -- both, approval DMs an invite instead.
+  -- Guild side of decision 14's three-sided opt-in: approving an appeal re-adds the user via guilds.join
+  -- instead of just unbanning them. The other two are `appeals.rejoin_consent` (this person, about this
+  -- server) and `appeal_user_state.granted_guilds_join` (their account's OAuth grant, which is the only one of
+  -- the three that is a capability rather than a preference). Without all three, approval DMs an invite.
   auto_rejoin           BOOLEAN NOT NULL DEFAULT false,
   -- P9. Kept here rather than in a second settings table so the whole product stays one row per guild.
   allow_timeout_appeals BOOLEAN NOT NULL DEFAULT false,
@@ -1852,7 +1853,9 @@ CREATE TABLE appeal_user_state (
   -- is one a moderator should know about while they can still act differently.
   dm_reachable        BOOLEAN,
   dm_checked_at       TIMESTAMPTZ,
-  -- The appellant's half of decision 14's two-sided opt-in.
+  -- The account side of decision 14's three-sided opt-in, and the only one of the three that is a capability
+  -- rather than a preference: granted once to `unban.app`, it says nothing about which of the servers they are
+  -- banned from they want back into, which is what `appeals.rejoin_consent` is asked per appeal for.
   granted_guilds_join BOOLEAN NOT NULL DEFAULT false,
   -- Encrypted with backend-core's `encrypt()`/`decrypt()` (lib/crypt.ts), the same helper #216 uses for
   -- instance bot tokens. Stored at all only because the re-add on approval happens days or weeks after the

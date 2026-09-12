@@ -1036,7 +1036,23 @@ What landed:
   from `deliverAppealDecision` itself, for the reason `applyAppealDecision` publishes its own.
 
 The fifth, "tell the appellant to re-tick consent after signing in", was already answered by moving the prompt
-off the form. `appeals-bot`'s `metrics.ts` also gained the zero-initialisation every other bot's has -- without
+off the form.
+
+**The re-review raised the migration file**, which adds `'DELIVERY'` to `appeal_event_kind` _and_ the
+`rejoin_consent` column, where P4b split its enum addition into a file of its own. That split was forced rather
+than stylistic: P4b's next statement _referenced_ the new value in a CHECK, and postgres refuses that inside
+the transaction that added it (55P04). Nothing references `'DELIVERY'` here, so there is no hazard to split
+around -- and it applied clean (PG 17.10, revision `20260912060201` recorded with no error). It keeps the name
+it has: the file is applied, and atlas seals an applied migration by checksum, so renaming it or even adding a
+comment to it desyncs `atlas.sum` from the revision recorded in the database. That is the right trade against a
+naming nit.
+
+The re-review's other two points needed no change. The dead-token window in `returnThem` -- the refresh
+succeeding and the `recordAppellantRefreshToken` write then failing -- is unavoidable given that Discord spends
+the token the moment it answers, and the current order is still strictly the better one: the reverse loses the
+token whenever _either_ the write or the add fails. It degrades to the invite. And `granted_guilds_join`'s
+schema comment calling decision 14 "two-sided" was flagged as pre-existing, but this phase is what made it
+wrong; it and `auto_rejoin`'s now describe all three sides. `appeals-bot`'s `metrics.ts` also gained the zero-initialisation every other bot's has -- without
 it the half of `appeals_decisions_total` that `services/api` does pre-populate read as two different metrics in
 one Grafana sum, which is the exact failure P5 wrote the label-parity note about. Its `banEvents` doc named an
 `outcome` (`refreshed`) the code has never emitted; the code says `recorded`.
