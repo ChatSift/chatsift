@@ -39,12 +39,8 @@ const token = selfInstance?.token ?? ENV.MODMAIL_BOT_TOKEN;
 const botId = getGuildListKey();
 
 const rest = createBotRest({ botId: 'MODMAIL', register, token });
-// Unlike AMA (component/modal-driven only, `Guilds` suffices), this bot relays real user message
-// content out of private threads, so it needs `GuildMessages` + the privileged `MessageContent`
-// intent (must also be toggled on for the bot application in the Discord developer portal).
-// `DirectMessages` is added ahead of when it's actually needed -- P4's DM-mode opener flow (see the
-// roadmap doc above) -- since it's harmless for a deployment nobody DMs and toggling it later would
-// mean every deployment needs a resync of its gateway session either way.
+startMetricsServer({ port: ENV.MODMAIL_METRICS_PORT, register });
+
 const gateway = await createBotGateway({
 	botId,
 	token,
@@ -53,11 +49,11 @@ const gateway = await createBotGateway({
 		GatewayIntentBits.GuildMessages |
 		GatewayIntentBits.MessageContent |
 		GatewayIntentBits.DirectMessages,
+	register,
 	rest,
 });
 const client = createBotClient({ botId, gateway, register, rest });
 setServiceValue('client', client);
 
 await bin(client);
-startMetricsServer({ port: ENV.MODMAIL_METRICS_PORT, register });
 await gateway.connect();

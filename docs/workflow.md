@@ -600,6 +600,17 @@ fi
 docker image prune -f
 ```
 
+Note `./compose up -d` injects `--wait --wait-timeout 300` of its own (#294), so this blocks until every
+container with a healthcheck reports healthy and a deploy that comes up broken exits non-zero here rather than
+reporting green. That lives in `./compose` rather than in this script precisely because this script is versioned
+nowhere. Three things narrow it: it only fires for a **detached** `up` (`--wait` implies `--detach`, so an
+attached `./compose up` would stop streaming logs), it stands aside if you pass `--wait`/`--wait-timeout`
+yourself, and `CHATSIFT_NO_WAIT=1` skips it for restarting one service mid-incident without blocking on the rest.
+
+The 300s is coupled to the bots' `start_period` and to Discord's identify throttle (one shard per 5s per bucket).
+A large enough shard fleet can push the last replica's first heartbeat past it and fail an otherwise-healthy
+deploy, so raise it alongside `<BOT>_SHARDS_PER_REPLICA` rather than on its own.
+
 Register the key so it can run nothing else:
 
 ```
@@ -609,21 +620,49 @@ command="/home/deploys/bin/deploy",no-pty,no-agent-forwarding,no-port-forwarding
 CI needs `DEPLOY_SSH_KEY`, `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS` as repository secrets. The host key is pinned;
 do not reach for `StrictHostKeyChecking=no`.
 
+### What "healthy" means
+
+Every app container has a healthcheck as of #294. `api` answers `/health` on `${API_PORT}`; each bot answers it
+on its own metrics port (7006-7010), unauthenticated, alongside the bearer-gated `/metrics`.
+
+A bot's verdict comes from the gateway heartbeat, not from the process being alive:
+
+| `state`    | HTTP | Meaning                                                                        |
+| ---------- | ---- | ------------------------------------------------------------------------------ |
+| `healthy`  | 200  | Every shard this replica owns ACKed a heartbeat within 135s (~3 missed beats). |
+| `spare`    | 200  | Parked waiting for a replica index. Healthy: waiting is the job.               |
+| `starting` | 503  | The replica claim has not resolved, so it does not yet know which it is.       |
+| `stalled`  | 503  | An owned shard has not ACKed in 135s, or has never ACKed at all.               |
+
+`start_period` is 180s for bots, because a shard has no heartbeat to report until it has identified and identify
+is throttled fleet-wide. It is a grace period for _failures_ only -- docker promotes a container to healthy on its
+first passing check even inside it, which is why `starting` is a 503 rather than an optimistic 200. Docker does **not** restart an unhealthy container -- only Swarm does -- so a healthcheck
+here buys `depends_on` gating, the `--wait` deploy gate above, and a legible `docker compose ps`, not self-healing.
+
+The history behind the verdict is in Grafana's **Gateway Health** dashboard
+(`build/grafana/dashboards/gateway-overview.json`), off `discord_shard_heartbeat_latency_seconds` and
+`discord_shard_last_ack_seconds`.
+
 ### Applying a migration
 
-Still manual, and still from the host shell rather than a container — atlas is a dev dependency, not part of the
+Still manual, and still from the host shell rather than a container -- atlas is a dev dependency, not part of the
 image:
 
 ```sh
 cd /home/deploys/repos/prod
-IS_PRODUCTION=false yarn db:migrate
+yarn db:migrate
 ```
 
-`IS_PRODUCTION=false` is required and is not a mistake: with it `true`, atlas resolves `DATABASE_URL_PROD`, whose
-`postgres` hostname only exists inside the compose network. Both URLs reach the same database; the `_DEV` one just
-goes via the host-published `LOCAL_DATABASE_PORT`. Confirm that port with `./compose port postgres 5432` rather
-than trusting `.env.private`, and confirm it is the database you think it is before running anything with
-`--live`.
+`IS_PRODUCTION` is absent here on purpose, and putting it back does nothing: `atlas.hcl` resolves its URL from
+`getenv("DATABASE_URL_DEV")` unconditionally. The `IS_PRODUCTION ? _PROD : _DEV` switch lives in Node
+(`createDatabase`, and `migrationCommon.ts` for the `migrate:legacy-*` scripts), and atlas goes through none of
+it. That is fine on the host because `DATABASE_URL_DEV` reaches the same database as `_PROD` -- it just goes via
+the host-published `LOCAL_DATABASE_PORT` instead of the `postgres` hostname, which only exists inside the compose
+network. Confirm that port with `./compose port postgres 5432` rather than trusting `.env.private`, and confirm
+it is the database you think it is before running anything with `--live`.
+
+The `migrate:legacy-*` scripts are the opposite case: those are Node, they do branch on `IS_PRODUCTION`, and their
+runbooks mean it.
 
 ### Renaming a compose project
 

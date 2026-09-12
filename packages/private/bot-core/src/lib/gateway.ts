@@ -4,16 +4,60 @@ import type { GatewayIntentBits, RESTGetAPIGatewayBotResult } from '@discordjs/c
 import { Routes } from '@discordjs/core';
 import type { REST } from '@discordjs/rest';
 import { CompressionMethod, WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
+import { Gauge, type Registry } from 'prom-client';
 import { createRedisIdentifyThrottler } from './identifyThrottler.js';
 import { claimReplicaSlot } from './replica.js';
 import { retrieveSessionInfo, startSessionStore, updateSessionInfo } from './sessions.js';
+import { forgetShardHeartbeat, getShardHeartbeat, recordShardHeartbeat } from './shardHealth.js';
 import { onShutdown } from './shutdown.js';
 
 export interface CreateBotGatewayOptions {
 	readonly botId: GuildListKey;
 	readonly intents: GatewayIntentBits;
+	/**
+	 * Optional for the same reason `createBotRest`'s is: the gateway has to stand up without one in tests.
+	 * Omitting it drops the two heartbeat gauges, nothing else.
+	 */
+	readonly register?: Registry;
 	readonly rest: REST;
 	readonly token: string;
+}
+
+function registerHeartbeatMetrics(botId: GuildListKey, shardIds: number[], register: Registry): void {
+	const bot = botId.split('#')[0]!;
+
+	new Gauge({
+		name: 'discord_shard_heartbeat_latency_seconds',
+		help: 'Round trip of the last completed gateway heartbeat, by shard',
+		labelNames: ['bot', 'shard'] as const,
+		registers: [register],
+		collect() {
+			this.reset();
+			for (const shardId of shardIds) {
+				const heartbeat = getShardHeartbeat(shardId);
+				if (heartbeat) {
+					this.set({ bot, shard: String(shardId) }, heartbeat.latencyMs / 1_000);
+				}
+			}
+		},
+	});
+
+	new Gauge({
+		name: 'discord_shard_last_ack_seconds',
+		help: 'Seconds since the last completed gateway heartbeat, by shard',
+		labelNames: ['bot', 'shard'] as const,
+		registers: [register],
+		collect() {
+			this.reset();
+			const now = Date.now();
+			for (const shardId of shardIds) {
+				const heartbeat = getShardHeartbeat(shardId);
+				if (heartbeat) {
+					this.set({ bot, shard: String(shardId) }, (now - heartbeat.ackAt) / 1_000);
+				}
+			}
+		},
+	});
 }
 
 /**
@@ -28,6 +72,7 @@ export interface CreateBotGatewayOptions {
 export async function createBotGateway({
 	botId,
 	intents,
+	register,
 	rest,
 	token,
 }: CreateBotGatewayOptions): Promise<WebSocketManager> {
@@ -60,10 +105,17 @@ export async function createBotGateway({
 			),
 	});
 
+	if (register) {
+		registerHeartbeatMetrics(botId, shardIds, register);
+	}
+
 	gateway
-		.on(WebSocketShardEvents.Closed, (code, shardId) => getContext().logger.info({ shardId, code }, 'Shard CLOSED'))
-		.on(WebSocketShardEvents.HeartbeatComplete, ({ ackAt, heartbeatAt, latency }, shardId) =>
-			getContext().logger.debug({ shardId, ackAt, heartbeatAt, latency }, 'Shard HEARTBEAT'),
+		.on(WebSocketShardEvents.Closed, (code, shardId) => {
+			forgetShardHeartbeat(shardId);
+			getContext().logger.info({ shardId, code }, 'Shard CLOSED');
+		})
+		.on(WebSocketShardEvents.HeartbeatComplete, ({ ackAt, latency }, shardId) =>
+			recordShardHeartbeat(shardId, { ackAt, latencyMs: latency }),
 		)
 		.on(WebSocketShardEvents.Error, (error, shardId) => getContext().logger.error({ shardId, error }, 'Shard ERROR'))
 		.on(WebSocketShardEvents.Debug, (message, shardId) => getContext().logger.debug({ shardId }, message))

@@ -57,3 +57,35 @@ test('404s any path that is not /metrics, before checking the token', async () =
 
 	expect(res.writeHead).toHaveBeenCalledWith(404);
 });
+
+// Must precede anything that resolves ownership. Docker promotes a container to healthy on its first passing
+// check even inside `start_period`, so an unresolved claim answering 200 would end `up --wait` too early.
+test('answers /health with 503 before the replica claim resolves', async () => {
+	const res = await call('/health');
+
+	expect(res.writeHead).toHaveBeenCalledWith(503, { 'content-type': 'application/json' });
+	expect(res.end).toHaveBeenCalledWith(expect.stringContaining('"state":"starting"'));
+});
+
+test('serves /health with no credential at all', async () => {
+	const { markAwaitingReplicaIndex } = await import('../shardHealth.js');
+	markAwaitingReplicaIndex();
+
+	const res = await call('/health');
+
+	expect(res.writeHead).toHaveBeenCalledWith(200, { 'content-type': 'application/json' });
+	expect(res.end).toHaveBeenCalledWith(expect.stringContaining('"state":"spare"'));
+});
+
+test('answers /health with 503 once an owned shard has stalled', async () => {
+	const { setOwnedShards } = await import('../shardHealth.js');
+	setOwnedShards([0]);
+
+	try {
+		const res = await call('/health');
+
+		expect(res.writeHead).toHaveBeenCalledWith(503, { 'content-type': 'application/json' });
+	} finally {
+		setOwnedShards([]);
+	}
+});

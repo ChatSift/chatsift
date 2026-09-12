@@ -8,7 +8,13 @@ import {
 	registerFatalErrorHandlers,
 	setServiceValue,
 } from '@chatsift/backend-core';
-import { createBotClient, createBotGateway, createBotRest, registerShutdownHandlers } from '@chatsift/bot-core';
+import {
+	createBotClient,
+	createBotGateway,
+	createBotRest,
+	registerShutdownHandlers,
+	startMetricsServer,
+} from '@chatsift/bot-core';
 import { GatewayIntentBits } from '@discordjs/core';
 import { register } from './lib/metrics.js';
 import { bin } from './index.js';
@@ -24,6 +30,7 @@ registerShutdownHandlers();
 await loadExperiments();
 
 const rest = createBotRest({ botId: 'AUTOMODERATOR', register, token: ENV.AUTOMODERATOR_BOT_TOKEN });
+startMetricsServer({ port: ENV.AUTOMODERATOR_METRICS_PORT, register });
 
 const gateway = await createBotGateway({
 	botId: 'AUTOMODERATOR',
@@ -39,6 +46,7 @@ const gateway = await createBotGateway({
 		GatewayIntentBits.MessageContent |
 		GatewayIntentBits.AutoModerationExecution |
 		GatewayIntentBits.GuildModeration,
+	register,
 	rest,
 });
 

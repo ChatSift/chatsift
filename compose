@@ -163,6 +163,17 @@ plan_scale() {
   SCALE_ARGS+=(--scale "${service}=${replicas}")
 }
 
+if [ "$1" != 'up' ]
+then
+  case " $* " in
+    *' up '*)
+      echo 'put `up` first: ./compose up [args]. Global flags before it would skip replica sizing and the' >&2
+      echo 'healthcheck gate; profiles are read from COMPOSE_PROFILES in .env.private.' >&2
+      exit 1
+      ;;
+  esac
+fi
+
 # Only for `up`. Every other subcommand (logs, stop, ps, exec, ...) must not silently restructure the
 # deployment, and `--scale` isn't meaningful for them anyway.
 if [ "$1" = 'up' ]
@@ -175,10 +186,20 @@ then
   plan_scale automoderator-bot AUTOMODERATOR_BOT_TOKEN AUTOMODERATOR_SHARDS_PER_REPLICA
 fi
 
+WAIT_ARGS=()
+if [ "$1" = 'up' ] && [ -z "${CHATSIFT_NO_WAIT:-}" ]
+then
+  case " $* " in
+    *' --wait '*|*' --wait-timeout '*|*' --wait-timeout='*) ;;
+    *' -d '*|*' --detach '*) WAIT_ARGS+=(--wait --wait-timeout 300) ;;
+  esac
+fi
+
 docker compose \
   -p "$PROJECT" \
   -f docker-compose.yml \
   "${PROFILE_ARGS[@]}" \
   "${ENV_FILE_ARGS[@]}" \
   "$@" \
-  "${SCALE_ARGS[@]}"
+  "${SCALE_ARGS[@]}" \
+  "${WAIT_ARGS[@]}"

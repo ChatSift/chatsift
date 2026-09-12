@@ -16,5 +16,6 @@ export * from './lib/replica.js';
 export * from './lib/rest.js';
 export * from './lib/selfId.js';
 export * from './lib/sessions.js';
+export * from './lib/shardHealth.js';
 export * from './lib/shutdown.js';
 export * from './lib/users.js';
