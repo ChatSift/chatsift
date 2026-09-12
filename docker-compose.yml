@@ -100,6 +100,27 @@ services:
       postgres:
         condition: service_healthy
 
+  migrate:
+    image: ghcr.io/chatsift/chatsift:${IMAGE_CHANNEL:-main}-migrate
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    restart: 'no'
+    env_file:
+      - ./.env.public
+      - ./.env.private
+    command:
+      - atlas
+      - migrate
+      - apply
+      - '--dir'
+      - 'file://packages/private/db/migrations'
+      - '--url'
+      - '${DATABASE_URL_PROD}?sslmode=disable'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
     profiles: ['monitoring']
@@ -347,6 +368,8 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -373,6 +396,8 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -404,6 +429,8 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -432,6 +459,8 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -463,6 +492,8 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -494,6 +525,8 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -531,6 +564,8 @@ services:
   #   depends_on:
   #     discord-proxy:
   #       condition: service_healthy
+  #     migrate:
+  #       condition: service_completed_successfully
   #     postgres:
   #       condition: service_healthy
   #     redis:
@@ -563,6 +598,8 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:

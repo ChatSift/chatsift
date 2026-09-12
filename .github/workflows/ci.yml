@@ -42,6 +42,48 @@ jobs:
       - name: Test
         run: yarn test
 
+  migrations:
+    name: Lint migrations
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Lint migrations added by this PR
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          ATLAS_IMAGE: arigaio/atlas:1.3.3-community-alpine
+        run: |
+          set -euo pipefail
+
+          added="$(git diff --name-only --diff-filter=A "$BASE" HEAD -- packages/private/db/migrations/ \
+            | grep -c '\.sql$' || true)"
+          if [ "${added:-0}" -eq 0 ]; then
+            echo 'no migrations added by this PR'
+            exit 0
+          fi
+          echo "linting the ${added} migration(s) this PR adds"
+
+          # atlas needs an empty database to replay the directory into. Spun by hand rather than as a job
+          # service container so the atlas container can reach it by name on a network we control.
+          docker network create atlas-lint
+          docker run -d --rm --name atlas-lint-db --network atlas-lint \
+            -e POSTGRES_USER=atlas -e POSTGRES_PASSWORD=atlas -e POSTGRES_DB=atlasdev postgres:17-alpine
+          for _ in $(seq 1 30); do
+            docker exec atlas-lint-db pg_isready -U atlas >/dev/null 2>&1 && break
+            sleep 1
+          done
+
+          docker run --rm --network atlas-lint \
+            -v "$PWD/packages/private/db/migrations:/migrations:ro" \
+            "$ATLAS_IMAGE" migrate lint \
+            --dir 'file:///migrations' \
+            --dev-url 'postgres://atlas:atlas@atlas-lint-db:5432/atlasdev?sslmode=disable&search_path=public' \
+            --latest "$added"
+
   build-push:
     name: Build & push image
     needs: quality

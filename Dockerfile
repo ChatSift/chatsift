@@ -53,6 +53,8 @@ WORKDIR /usr/chatsift
 
 RUN apk add --no-cache ca-certificates
 
+COPY --from=arigaio/atlas:1.3.3-community-alpine /bin/atlas /usr/local/bin/atlas
+
 COPY --from=builder /usr/chatsift/package.json ./package.json
 COPY --from=builder /usr/chatsift/node_modules ./node_modules
 COPY --from=builder /usr/chatsift/packages ./packages
