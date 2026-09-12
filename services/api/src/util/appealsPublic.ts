@@ -23,6 +23,15 @@ export interface PublicAppeal {
 	guildId: string;
 	id: number;
 	kind: AppealKind;
+	/**
+	 * Whether they ticked the box asking to be put straight back into this server if it is approved (#232 P6).
+	 *
+	 * Their own answer handed back to them, which is why it is safe to serve here when nothing else about the
+	 * decision is: `unban.app` needs it to notice the one state it has to prompt about -- consent given by
+	 * somebody whose account cannot actually be added to servers, which they can still fix while the appeal is
+	 * open.
+	 */
+	rejoinConsent: boolean;
 	status: PublicAppealStatus;
 }
 
@@ -54,6 +63,7 @@ export function toPublicAppeal(appeal: Appeals, answers: PublicAppealAnswer[] = 
 		// The cast is the repo-wide shape for kanel's generated enums, which are exported as types only
 		// (`packages/private/db/src/index.ts`) -- there is no `AppealStatus.PENDING` value to reach for.
 		status: appeal.status === 'DENIED' && appeal.silent ? ('PENDING' as PublicAppealStatus) : appeal.status,
+		rejoinConsent: appeal.rejoinConsent,
 		createdAt: appeal.createdAt,
 		answers,
 	};

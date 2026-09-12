@@ -46,6 +46,8 @@ export const APPEAL_EVENT = {
 	WITHDRAWN: 'WITHDRAWN' as AppealEventKind,
 	MOOT: 'MOOT' as AppealEventKind,
 	NOTE: 'NOTE' as AppealEventKind,
+	// Not a decision and not something a person did: P6 writing down what became of one (`appealDelivery.ts`).
+	DELIVERY: 'DELIVERY' as AppealEventKind,
 } as const satisfies Record<string, AppealEventKind>;
 
 /**

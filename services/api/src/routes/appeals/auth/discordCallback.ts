@@ -1,9 +1,8 @@
-import { getContext } from '@chatsift/backend-core';
+import { getContext, recordAppellantGrant } from '@chatsift/backend-core';
 import { forbidden } from '@hapi/boom';
 import z from 'zod';
 import { defineRoute } from '../../../core/route.js';
 import { createAppealsAccessToken, createAppealsRefreshToken } from '../../../util/appealsTokens.js';
-import { recordAppellantGrant } from '../../../util/appealsUserState.js';
 import { discordAPIOAuth } from '../../../util/discordAPI.js';
 import { consumeOAuthState } from '../../../util/oauthState.js';
 import { APPEALS_AUTH_SCOPES, APPEALS_STATE_COOKIE } from './discord.js';
@@ -58,6 +57,10 @@ export default defineRoute({
 
 		await recordAppellantGrant(user.id, {
 			grantedGuildsJoin: returnedScopes.has('guilds.join'),
+			// The scope that carries DM permission in a user-install context (§6), and the only thing a login can
+			// establish about reachability: without it there is no path to this person at all, which
+			// `recordAppellantGrant` writes down as a known-unreachable rather than as an untried unknown.
+			grantedUserInstall: returnedScopes.has('applications.commands'),
 			refreshToken: result.refresh_token,
 		});
 

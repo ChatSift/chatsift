@@ -5,6 +5,7 @@ import {
 	getAppealsSettings,
 	getContext,
 	listAppealAnswers,
+	readAppealUserState,
 	setAppealModMessage,
 } from '@chatsift/backend-core';
 import { buildAppealComponents, buildAppealEmbed, buildAppealThreadName, displayAvatarURL } from '@chatsift/core';
@@ -38,8 +39,12 @@ export async function postAppealCard(appeal: Appeals, answers: readonly AppealAn
 		}
 
 		const api = apiForGuild('APPEALS', appeal.guildId);
-		const appellant = await resolveAppellant(api, appeal.userId);
-		const body = buildCardBody(appeal, answers, appellant);
+		const [appellant, dmReachable] = await Promise.all([
+			resolveAppellant(api, appeal.userId),
+			resolveDmReachable(appeal.userId),
+		]);
+
+		const body = buildCardBody(appeal, answers, appellant, dmReachable);
 
 		const name = buildAppealThreadName(appealEmbedInput(appeal), appellant.appellantTag);
 
@@ -100,12 +105,17 @@ export async function syncAppealCard(appeal: Appeals): Promise<void> {
 	try {
 		// Read back here rather than passed in by the route: the decision path has no reason to have loaded them,
 		// and forgetting would silently redraw the card with no answers on it.
-		const [answers, appellant] = await Promise.all([
+		const [answers, appellant, dmReachable] = await Promise.all([
 			listAppealAnswers(appeal.id),
 			resolveAppellant(api, appeal.userId),
+			resolveDmReachable(appeal.userId),
 		]);
 
-		await api.channels.editMessage(appeal.modChannelId, appeal.modMessageId, buildCardBody(appeal, answers, appellant));
+		await api.channels.editMessage(
+			appeal.modChannelId,
+			appeal.modMessageId,
+			buildCardBody(appeal, answers, appellant, dmReachable),
+		);
 	} catch (error) {
 		// `UnknownChannel` as well as `UnknownMessage`: deleting the whole mod channel is at least as likely as
 		// deleting one card, and without this the row keeps pointing at a dead id forever. Forgetting the card is
@@ -150,13 +160,36 @@ interface ResolvedAppellant {
  * than from the message being replaced, for the reason `syncReportCard` spells out: reading state back off the
  * UI you just rendered goes wrong the moment two moderators act at once.
  */
-function buildCardBody(appeal: Appeals, answers: readonly AppealAnswers[], appellant: ResolvedAppellant) {
+function buildCardBody(
+	appeal: Appeals,
+	answers: readonly AppealAnswers[],
+	appellant: ResolvedAppellant,
+	dmReachable: boolean | null,
+) {
 	const input = appealEmbedInput(appeal);
 
 	return {
-		embeds: [buildAppealEmbed(input, { answers: appealAnswerInputs(answers), ...appellant })],
+		embeds: [buildAppealEmbed(input, { answers: appealAnswerInputs(answers), dmReachable, ...appellant })],
 		components: buildAppealComponents(input, { dashboardLink: appealDetailLink(appeal.guildId, appeal.id) }),
 	};
+}
+
+/**
+ * The one mod-facing bit of `appeal_user_state` (#232 P6), read at render time rather than passed in so a
+ * redraw after a delivery picks up what that delivery proved.
+ *
+ * Guarded like `resolveAppellant` below, and for the stronger version of the same reason: this is a warning
+ * line on a card, and an unguarded rejection inside the `Promise.all` above would take the whole card with it
+ * -- no post and no `setAppealModMessage` on the way in, no edit on a redraw. An appeal nobody can see, lost to
+ * a database hiccup over a decoration, is a far worse failure than a missing sentence.
+ */
+async function resolveDmReachable(userId: string): Promise<boolean | null> {
+	try {
+		return (await readAppealUserState(userId))?.dmReachable ?? null;
+	} catch (error) {
+		getContext().logger.warn({ err: error, userId }, 'could not read an appellant delivery state for a card');
+		return null;
+	}
 }
 
 /**

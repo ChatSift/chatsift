@@ -9,6 +9,7 @@ enum AppealEventKind {
   WITHDRAWN = 'WITHDRAWN',
   MOOT = 'MOOT',
   NOTE = 'NOTE',
+  DELIVERY = 'DELIVERY',
 };
 
 export default AppealEventKind;

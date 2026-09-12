@@ -21,6 +21,7 @@ function makeAppeal(overrides: Partial<Appeals> = {}): Appeals {
 		kind: 'BAN' as AppealKind,
 		status: status('PENDING'),
 		silent: false,
+		rejoinConsent: false,
 		reasonSnapshot: 'ban evasion',
 		modChannelId: '110',
 		modMessageId: '111',
@@ -102,17 +103,27 @@ test('no decision detail is emitted, for any status', () => {
 	}
 });
 
-test('the public shape is exactly the six fields it declares', () => {
+test('the public shape is exactly the seven fields it declares', () => {
 	// Pinned rather than merely checked for leaks: a column added to `appeals` must not be able to arrive here
 	// by accident, which is why the serializer builds its result field by field rather than spreading the row.
+	// `rejoinConsent` was added on purpose at P6 -- it is the appellant's own answer handed back to them, and
+	// this list is where that purpose has to be stated.
 	expect(Object.keys(toPublicAppeal(makeAppeal())).sort((a, b) => a.localeCompare(b))).toStrictEqual([
 		'answers',
 		'createdAt',
 		'guildId',
 		'id',
 		'kind',
+		'rejoinConsent',
 		'status',
 	]);
+});
+
+test('the appellant is told what they consented to, whatever was decided', () => {
+	// Their own input, so unlike everything else about a decided appeal it is theirs to read back -- including
+	// on a silent denial, where the page still reads "under review" and every affordance on it has to agree.
+	expect(toPublicAppeal(makeAppeal({ rejoinConsent: true })).rejoinConsent).toBe(true);
+	expect(toPublicAppeal(makeAppeal()).rejoinConsent).toBe(false);
 });
 
 test('answers carry the prompt they were given, and default to empty', () => {

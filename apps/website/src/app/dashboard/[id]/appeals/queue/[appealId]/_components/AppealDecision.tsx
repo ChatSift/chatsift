@@ -83,7 +83,7 @@ export function AppealDecision({ guildId, appealId }: { readonly appealId: numbe
 
 			{decision === 'approve' ? (
 				<p className="text-sm text-secondary dark:text-secondary-dark">
-					Approving lifts their ban in this server straight away. There is nothing to write for an approval.
+					Approving lifts their ban in this server straight away.
 				</p>
 			) : (
 				<TextAreaField

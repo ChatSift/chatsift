@@ -37,6 +37,19 @@ const EVENT_VERBS: Record<string, string> = {
 	NOTE: 'left a note',
 };
 
+/**
+ * `DELIVERY` (#232 P6) is the one kind whose sentence depends on what happened rather than on the kind alone --
+ * a DM that landed, one Discord refused, an approval that put somebody back in the server. The API writes that
+ * sentence into the event's body, so here it reads as the verb rather than as a quote underneath one.
+ */
+function eventSentence(event: AppealEvent): { quote: string | null; verb: string } {
+	if (event.kind === 'DELIVERY') {
+		return { verb: event.body ?? 'delivered the decision', quote: null };
+	}
+
+	return { verb: EVENT_VERBS[event.kind] ?? event.kind, quote: event.body };
+}
+
 function Field({ label, children }: { readonly children: React.ReactNode; readonly label: string }) {
 	return (
 		<div className="flex flex-col gap-1">
@@ -74,10 +87,12 @@ function Quoted({ children }: { readonly children: string }) {
  * the sidebar.
  */
 function EventRow({ event }: { readonly event: AppealEvent }) {
-	// `MOOT` is the only event nobody takes: the bot noticed the ban was gone. Rendered as the bot rather than
-	// as an anonymous blank, so the trail never reads as "somebody we could not identify did this".
+	// `MOOT` and `DELIVERY` are the events nobody takes: the bot noticing the ban was gone, and the decision
+	// being handed to the appellant. Rendered as the bot rather than as an anonymous blank, so the trail never
+	// reads as "somebody we could not identify did this".
 	const isSystem = event.actor === null;
 	const label = event.actor ? snapshotUserLabel(event.actor, null) : 'Appeals';
+	const { verb, quote } = eventSentence(event);
 
 	return (
 		<div className="flex gap-3">
@@ -91,11 +106,10 @@ function EventRow({ event }: { readonly event: AppealEvent }) {
 
 			<div className="flex min-w-0 flex-col gap-1">
 				<p className="text-sm text-secondary dark:text-secondary-dark">
-					<span className="font-medium text-primary dark:text-primary-dark">{label}</span>{' '}
-					{EVENT_VERBS[event.kind] ?? event.kind}
+					<span className="font-medium text-primary dark:text-primary-dark">{label}</span> {verb}
 				</p>
 				<p className="text-xs text-secondary dark:text-secondary-dark">{formatDate(new Date(event.createdAt))}</p>
-				{event.body && <Quoted>{event.body}</Quoted>}
+				{quote && <Quoted>{quote}</Quoted>}
 			</div>
 		</div>
 	);
@@ -256,6 +270,18 @@ export function AppealDetail() {
 			<div className="flex flex-col gap-4 lg:w-80 lg:shrink-0">
 				<Card>
 					<Field label="Filed">{formatDate(new Date(appeal.createdAt))}</Field>
+
+					{/* What Approve will actually do, stated before it is pressed (#232 P6). Only the yes is worth a
+					    row: an appellant who did not tick the box is the ordinary case, and a sidebar line on every
+					    appeal saying nothing will happen is a line nobody reads. It says "asked to be" rather than
+					    "will be" because the guild's own Appeals setting is the other half of it. */}
+					{appeal.rejoinConsent && (
+						<Field label="Rejoining">
+							<span className="text-secondary dark:text-secondary-dark">
+								They asked to be added back automatically if this is approved.
+							</span>
+						</Field>
+					)}
 
 					{appeal.decidedAt && <Field label="Closed">{formatDate(new Date(appeal.decidedAt))}</Field>}
 

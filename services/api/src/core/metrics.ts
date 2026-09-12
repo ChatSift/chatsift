@@ -97,3 +97,31 @@ for (const decision of ['approved', 'denied', 'denied_silent']) {
 		appealDecisions.inc({ decision, outcome, source: 'dashboard' }, 0);
 	}
 }
+
+/**
+ * The dashboard half of `appeals_deliveries_total` (#232 P6). **Label set must stay identical to
+ * `services/appeals-bot`'s `lib/metrics.ts`**, same as the counter above.
+ *
+ * `kind` is `dm` or `rejoin`, because they fail for unrelated reasons and a single outcome label would hide
+ * that: a DM is refused by the *appellant's* privacy settings, and a re-add by a permission the *guild* never
+ * granted. `outcome` is `sent`/`blocked`/`failed`/`skipped` for a DM (`skipped` being a silent denial, which is
+ * the feature working) and `added`/`invited`/`none` for a rejoin.
+ *
+ * The one worth alerting on is `kind="dm", outcome="failed"`: `blocked` is an appellant with their DMs shut,
+ * which nothing we deploy can fix, but `failed` is our side and every one of those is a decision somebody was
+ * owed and did not get.
+ */
+export const appealDeliveries = new Counter({
+	name: 'appeals_deliveries_total',
+	help: 'What became of an appeal decision after it was made, by what was attempted and how it went',
+	labelNames: ['kind', 'outcome', 'source'] as const,
+	registers: [register],
+});
+
+for (const outcome of ['sent', 'blocked', 'failed', 'skipped']) {
+	appealDeliveries.inc({ kind: 'dm', outcome, source: 'dashboard' }, 0);
+}
+
+for (const outcome of ['added', 'invited', 'none']) {
+	appealDeliveries.inc({ kind: 'rejoin', outcome, source: 'dashboard' }, 0);
+}

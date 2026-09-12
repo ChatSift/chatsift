@@ -198,7 +198,9 @@ export function buildCaseEmbed(modCase: CaseEmbedInput, options: CaseEmbedOption
 			...(options.targetAvatarURL ? { icon_url: options.targetAvatarURL } : {}),
 		},
 		title: truncate(
-			`Was ${ACTION_PAST_TENSE[modCase.actionType]}${modCase.reason ? ` for ${modCase.reason}` : ''}`,
+			`Was ${ACTION_PAST_TENSE[modCase.actionType]}${
+				modCase.reason ? ` with the following reason: ${modCase.reason}` : ''
+			}`,
 			TITLE_LIMIT,
 		),
 		footer: {

@@ -5,6 +5,7 @@ import {
 	appealEmbedInput,
 	getContext,
 	listAppealAnswers,
+	readAppealUserState,
 	setAppealModMessage,
 } from '@chatsift/backend-core';
 import { fetchUser } from '@chatsift/bot-core';
@@ -39,15 +40,16 @@ export async function syncAppealCard(appeal: Appeals, logger: Logger): Promise<v
 
 		// Read back rather than threaded through from the caller: all three button handlers would otherwise have
 		// to carry them, and forgetting would silently redraw the card with no answers on it.
-		const [answers, appellant] = await Promise.all([
+		const [answers, appellant, dmReachable] = await Promise.all([
 			listAppealAnswers(appeal.id),
 			resolveAppellant(api, appeal.userId, logger),
+			resolveDmReachable(appeal.userId, logger),
 		]);
 
 		const input = appealEmbedInput(appeal);
 
 		await api.channels.editMessage(appeal.modChannelId, appeal.modMessageId, {
-			embeds: [buildAppealEmbed(input, { answers: appealAnswerInputs(answers), ...appellant })],
+			embeds: [buildAppealEmbed(input, { answers: appealAnswerInputs(answers), dmReachable, ...appellant })],
 			components: buildAppealComponents(input, { dashboardLink: appealDetailLink(appeal.guildId, appeal.id) }),
 		});
 	} catch (error) {
@@ -76,6 +78,23 @@ export async function syncAppealCard(appeal: Appeals, logger: Logger): Promise<v
 		}
 
 		logger.error({ err: error, guildId: appeal.guildId, appealId: appeal.id }, 'failed to sync an appeal card');
+	}
+}
+
+/**
+ * The one mod-facing bit of `appeal_user_state` (#232 P6), read at render time rather than passed in so a
+ * redraw after a delivery picks up what that delivery proved.
+ *
+ * Guarded like `resolveAppellant` below, and for the stronger version of the same reason: this is a warning
+ * line on a card, and an unguarded rejection inside the `Promise.all` above would cost the whole redraw --
+ * leaving a decided appeal showing its three live buttons. A missing sentence is the cheaper failure.
+ */
+async function resolveDmReachable(userId: string, logger: Logger): Promise<boolean | null> {
+	try {
+		return (await readAppealUserState(userId))?.dmReachable ?? null;
+	} catch (error) {
+		logger.warn({ err: error, userId }, 'could not read an appellant delivery state for a card');
+		return null;
 	}
 }
 

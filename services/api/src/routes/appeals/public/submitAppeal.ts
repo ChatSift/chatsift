@@ -79,8 +79,8 @@ export default defineRoute({
 		try {
 			filed = await db.begin(async (tx) => {
 				const [appeal] = await tx<Appeals[]>`
-					INSERT INTO appeals (guild_id, user_id, kind, reason_snapshot)
-					VALUES (${guildId}, ${sub}, 'BAN', ${eligibility.probe?.banReason ?? null})
+					INSERT INTO appeals (guild_id, user_id, kind, reason_snapshot, rejoin_consent)
+					VALUES (${guildId}, ${sub}, 'BAN', ${eligibility.probe?.banReason ?? null}, ${req.body.rejoinConsent})
 					RETURNING *
 				`;
 

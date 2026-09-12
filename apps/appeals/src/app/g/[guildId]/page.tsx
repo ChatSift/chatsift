@@ -8,7 +8,9 @@ import { useAppealsGuild, useMe } from '@/api/routes/appeals';
 import { AppealForm } from '@/components/AppealForm';
 import { AppealStatusBadge } from '@/components/AppealStatusBadge';
 import { BlockedNotice } from '@/components/BlockedNotice';
+import { DeliveryNotice } from '@/components/DeliveryNotice';
 import { GuildBadge } from '@/components/GuildBadge';
+import { RejoinGrantPrompt } from '@/components/RejoinGrantPrompt';
 import { SignInPrompt } from '@/components/SignInPrompt';
 
 export default function GuildAppealPage({ params }: { readonly params: Promise<{ guildId: string }> }) {
@@ -46,9 +48,19 @@ export default function GuildAppealPage({ params }: { readonly params: Promise<{
 
 	const appealsRemaining = data.maxAppeals === null ? null : Math.max(0, data.maxAppeals - data.appealsUsed);
 
+	// Only while it is open, and only when they actually asked for it. `status` here is the public one, so a
+	// silent denial still counts as open -- which is right: their page reads "under review", and every
+	// affordance on it has to keep reading that way (decision 6).
+	const needsRejoinGrant =
+		data.latestAppeal?.status === 'PENDING' && data.latestAppeal.rejoinConsent && !user.canRejoin;
+
 	return (
 		<>
 			<GuildBadge guild={data.guild} unknownLabel="This server" />
+
+			{/* Above everything, and regardless of whether they can file right now: it is as relevant to an appeal
+			    already under review as it is to one they are about to write. */}
+			{user.dmReachable === false && <DeliveryNotice />}
 
 			{data.latestAppeal && (
 				<div className="flex flex-col gap-3 rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
@@ -70,10 +82,17 @@ export default function GuildAppealPage({ params }: { readonly params: Promise<{
 				</div>
 			)}
 
+			{needsRejoinGrant && <RejoinGrantPrompt guildId={guildId} />}
+
 			{data.blocked ? (
 				<BlockedNotice cooldownUntil={data.cooldownUntil} reason={data.blocked} />
 			) : (
-				<AppealForm appealsRemaining={appealsRemaining} guildId={guildId} questions={data.questions} />
+				<AppealForm
+					appealsRemaining={appealsRemaining}
+					canRejoin={user.canRejoin}
+					guildId={guildId}
+					questions={data.questions}
+				/>
 			)}
 		</>
 	);
