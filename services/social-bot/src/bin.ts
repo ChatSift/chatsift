@@ -28,10 +28,13 @@ registerShutdownHandlers();
 
 const rest = createBotRest({ botId: 'SOCIAL', register, token: ENV.SOCIAL_BOT_TOKEN });
 
+startMetricsServer({ port: ENV.SOCIAL_METRICS_PORT, register });
+
 const gateway = await createBotGateway({
 	botId: 'SOCIAL',
 	token: ENV.SOCIAL_BOT_TOKEN,
 	intents: GatewayIntentBits.Guilds | GatewayIntentBits.GuildMessages,
+	register,
 	rest,
 });
 
@@ -39,5 +42,4 @@ const client = createBotClient({ botId: 'SOCIAL', gateway, register, rest });
 setServiceValue('client', client);
 
 await bin(client);
-startMetricsServer({ port: ENV.SOCIAL_METRICS_PORT, register });
 await gateway.connect();

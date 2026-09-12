@@ -154,7 +154,11 @@ This is only affordable because restarts RESUME. See below.
 ### Handing an index back
 
 A replica that finds every index claimed idles as a **hot spare**, advertising itself in a redis sorted set
-(`shardspares:<botId>`, scored by when it last checked in). That advertisement is what lets the cluster recover
+(`shardspares:<botId>`, scored by when it last checked in). It parks inside `claimReplicaSlot`, which never
+returns, so nothing sequenced after `createBotGateway` ever runs on it -- which is why `startMetricsServer` is
+called _before_ the gateway in every bot's `bin.ts` (#294). Without that a spare bound no port at all: a
+permanently-DOWN Prometheus target, and an unhealthy container once healthchecks existed. It answers `/health`
+with `spare`, and that is a 200. That advertisement is what lets the cluster recover
 its balance, and it exists because without it recovery simply never happened:
 
 > Four replicas, `C` dies. `B` is elected, restarts, and comes back holding indices 1 _and_ 2 — correct, and

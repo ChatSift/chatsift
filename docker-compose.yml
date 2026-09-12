@@ -54,6 +54,7 @@ services:
       test: ['CMD-SHELL', 'pg_isready -U chatsift']
       interval: 10s
       timeout: 5s
+      start_period: 60s
 
   # Nightly logical backups of the whole cluster to S3 (see build/pg-backup/backup.sh for why restic,
   # and docs/workflow.md for the restore runbook). Profile-gated so only prod takes them -- a canary or
@@ -115,7 +116,8 @@ services:
       - '--collector.stat_statements.limit=20'
       - '--collector.stat_statements.exclude_users=chatsift_exporter,glitchtip'
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   dozzle:
     image: amir20/dozzle:latest
@@ -316,6 +318,7 @@ services:
       context: ./
       dockerfile: ./Dockerfile
     restart: unless-stopped
+    stop_grace_period: 15s
     env_file:
       - ./.env.public
       - ./.env.private
@@ -333,6 +336,7 @@ services:
       context: ./
       dockerfile: ./Dockerfile
     restart: unless-stopped
+    stop_grace_period: 15s
     env_file:
       - ./.env.public
       - ./.env.private
@@ -343,7 +347,16 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     command: ['node', '--enable-source-maps', './services/api/dist/bin.js']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:${API_PORT}/health']
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
     volumes:
       - ./logs/api:/usr/chatsift/logs/api
 
@@ -353,11 +366,16 @@ services:
       context: ./
       dockerfile: ./Dockerfile
     restart: unless-stopped
+    stop_grace_period: 15s
     env_file:
       - ./.env.public
       - ./.env.private
     depends_on:
       discord-proxy:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     # Maps the per-bot value from the env files onto the generic name bot-core reads, so `./compose` can
     # size this service's replica count from it while the container itself stays bot-agnostic. Unset means
@@ -365,6 +383,11 @@ services:
     environment:
       SHARDS_PER_REPLICA: ${AMA_SHARDS_PER_REPLICA:-}
     command: ['node', '--enable-source-maps', './services/ama-bot/dist/bin.js']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:${AMA_METRICS_PORT}/health']
+      interval: 10s
+      timeout: 5s
+      start_period: 180s
     volumes:
       - ./logs/ama-bot:/usr/chatsift/logs/ama-bot
 
@@ -374,15 +397,25 @@ services:
       context: ./
       dockerfile: ./Dockerfile
     restart: unless-stopped
+    stop_grace_period: 15s
     env_file:
       - ./.env.public
       - ./.env.private
     depends_on:
       discord-proxy:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       SHARDS_PER_REPLICA: ${MODMAIL_SHARDS_PER_REPLICA:-}
     command: ['node', '--enable-source-maps', './services/modmail-bot/dist/bin.js']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:${MODMAIL_METRICS_PORT}/health']
+      interval: 10s
+      timeout: 5s
+      start_period: 180s
     volumes:
       - ./logs/modmail-bot:/usr/chatsift/logs/modmail-bot
 
@@ -392,15 +425,25 @@ services:
       context: ./
       dockerfile: ./Dockerfile
     restart: unless-stopped
+    stop_grace_period: 15s
     env_file:
       - ./.env.public
       - ./.env.private
     depends_on:
       discord-proxy:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       SHARDS_PER_REPLICA: ${SOCIAL_SHARDS_PER_REPLICA:-}
     command: ['node', '--enable-source-maps', './services/social-bot/dist/bin.js']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:${SOCIAL_METRICS_PORT}/health']
+      interval: 10s
+      timeout: 5s
+      start_period: 180s
     volumes:
       - ./logs/social-bot:/usr/chatsift/logs/social-bot
 
@@ -413,15 +456,25 @@ services:
       context: ./
       dockerfile: ./Dockerfile
     restart: unless-stopped
+    stop_grace_period: 15s
     env_file:
       - ./.env.public
       - ./.env.private
     depends_on:
       discord-proxy:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       SHARDS_PER_REPLICA: ${APPEALS_SHARDS_PER_REPLICA:-}
     command: ['node', '--enable-source-maps', './services/appeals-bot/dist/bin.js']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:${APPEALS_METRICS_PORT}/health']
+      interval: 10s
+      timeout: 5s
+      start_period: 180s
     volumes:
       - ./logs/appeals-bot:/usr/chatsift/logs/appeals-bot
 
@@ -434,15 +487,25 @@ services:
       context: ./
       dockerfile: ./Dockerfile
     restart: unless-stopped
+    stop_grace_period: 15s
     env_file:
       - ./.env.public
       - ./.env.private
     depends_on:
       discord-proxy:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       SHARDS_PER_REPLICA: ${AUTOMODERATOR_SHARDS_PER_REPLICA:-}
     command: ['node', '--enable-source-maps', './services/automoderator-bot/dist/bin.js']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:${AUTOMODERATOR_METRICS_PORT}/health']
+      interval: 10s
+      timeout: 5s
+      start_period: 180s
     volumes:
       - ./logs/automoderator-bot:/usr/chatsift/logs/automoderator-bot
 
@@ -459,6 +522,7 @@ services:
   #     context: ./
   #     dockerfile: ./Dockerfile
   #   restart: unless-stopped
+  #   stop_grace_period: 15s
   #   env_file:
   #     - ./.env.public
   #     - ./.env.private
@@ -467,7 +531,16 @@ services:
   #   depends_on:
   #     discord-proxy:
   #       condition: service_healthy
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
   #   command: ['node', '--enable-source-maps', './services/modmail-bot/dist/bin.js']
+  #   healthcheck:
+  #     test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:${MODMAIL_METRICS_PORT}/health']
+  #     interval: 10s
+  #     timeout: 5s
+  #     start_period: 180s
   #   volumes:
   #     - ./logs/modmail-bot-<partner-slug>:/usr/chatsift/logs/modmail-bot-<partner-slug>
 
@@ -481,6 +554,7 @@ services:
       context: ./
       dockerfile: ./Dockerfile
     restart: unless-stopped
+    stop_grace_period: 15s
     env_file:
       - ./.env.public
       - ./.env.private
@@ -489,7 +563,16 @@ services:
     depends_on:
       discord-proxy:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     command: ['node', '--enable-source-maps', './services/modmail-bot/dist/bin.js']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:${MODMAIL_METRICS_PORT}/health']
+      interval: 10s
+      timeout: 5s
+      start_period: 180s
     volumes:
       - ./logs/modmail-bot-nascar:/usr/chatsift/logs/modmail-bot-nascar
 

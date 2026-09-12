@@ -57,3 +57,23 @@ test('404s any path that is not /metrics, before checking the token', async () =
 
 	expect(res.writeHead).toHaveBeenCalledWith(404);
 });
+
+test('serves /health with no credential at all', async () => {
+	const res = await call('/health');
+
+	expect(res.writeHead).toHaveBeenCalledWith(200, { 'content-type': 'application/json' });
+	expect(res.end).toHaveBeenCalledWith(expect.stringContaining('"state":"spare"'));
+});
+
+test('answers /health with 503 once an owned shard has stalled', async () => {
+	const { setOwnedShards } = await import('../shardHealth.js');
+	setOwnedShards([0]);
+
+	try {
+		const res = await call('/health');
+
+		expect(res.writeHead).toHaveBeenCalledWith(503, { 'content-type': 'application/json' });
+	} finally {
+		setOwnedShards([]);
+	}
+});

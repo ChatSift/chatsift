@@ -2,12 +2,11 @@ import { dirname, join } from 'node:path';
 import { setTimeout } from 'node:timers';
 import { fileURLToPath } from 'node:url';
 import type { Logger } from '@chatsift/backend-core';
-import { ENV, getContext } from '@chatsift/backend-core';
+import { getContext } from '@chatsift/backend-core';
 import {
 	registerCommandHandlers,
 	registerComponentHandlers,
 	registerUnknownComponentResolver,
-	startMetricsServer,
 } from '@chatsift/bot-core';
 import type { Client } from '@discordjs/core';
 import { registerAuditObserver } from './lib/auditObserver.js';
@@ -36,7 +35,6 @@ export async function bin(client: Client): Promise<void> {
 	registerMessageObserver(client);
 	registerProfileObserver(client);
 	registerReplicaMetrics();
-	startMetricsServer({ port: ENV.AUTOMODERATOR_METRICS_PORT, register });
 
 	scheduleSweep('expired temporary bans', EXPIRED_BAN_SWEEP_INTERVAL_MS, sweepExpiredBans);
 	scheduleSweep('auto-pardoned warns', AUTO_PARDON_SWEEP_INTERVAL_MS, sweepAutoPardons);
