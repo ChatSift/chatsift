@@ -581,19 +581,8 @@ exec 9>"/home/deploys/.deploy-${BRANCH}.lock"
 flock -n 9 || { echo "a ${BRANCH} deploy is already running" >&2; exit 1; }
 
 cd "$REPO"
-OLD="$(git rev-parse HEAD)"
 git fetch --prune origin "$BRANCH"
 git reset --hard "origin/${BRANCH}"
-NEW="$(git rev-parse HEAD)"
-
-# Migrations are deliberately NOT run here: atlas is not in the image, and applying one needs the
-# host-side IS_PRODUCTION=false + LOCAL_DATABASE_PORT dance below. A deploy that silently skipped a
-# required migration would be far worse than one that refuses to continue.
-if ! git diff --quiet "$OLD" "$NEW" -- packages/private/db/migrations/
-then
-  echo "migrations changed between ${OLD:0:8} and ${NEW:0:8} -- apply them, then re-run this deploy" >&2
-  exit 1
-fi
 
 ./compose pull
 ./compose up -d
@@ -645,24 +634,51 @@ The history behind the verdict is in Grafana's **Gateway Health** dashboard
 
 ### Applying a migration
 
-Still manual, and still from the host shell rather than a container -- atlas is a dev dependency, not part of the
-image:
+Automatic, as of #294. The `migrate` service runs `atlas migrate apply` out of the deployed image against the
+migration directory baked into it, and every service that touches the database is gated on it finishing:
 
-```sh
-cd /home/deploys/repos/prod
-yarn db:migrate
+```yaml
+depends_on:
+  migrate:
+    condition: service_completed_successfully
 ```
 
-`IS_PRODUCTION` is absent here on purpose, and putting it back does nothing: `atlas.hcl` resolves its URL from
-`getenv("DATABASE_URL_DEV")` unconditionally. The `IS_PRODUCTION ? _PROD : _DEV` switch lives in Node
-(`createDatabase`, and `migrationCommon.ts` for the `migrate:legacy-*` scripts), and atlas goes through none of
-it. That is fine on the host because `DATABASE_URL_DEV` reaches the same database as `_PROD` -- it just goes via
-the host-published `LOCAL_DATABASE_PORT` instead of the `postgres` hostname, which only exists inside the compose
-network. Confirm that port with `./compose port postgres 5432` rather than trusting `.env.private`, and confirm
-it is the database you think it is before running anything with `--live`.
+So `./compose up -d` cannot start code against an unmigrated schema, and a migration that fails takes the deploy
+down with it rather than letting the containers start anyway. Confirm the box's compose is recent before
+relying on it (`docker compose version`): `./compose up -d` injects `--wait`, which waits on _every_ service in
+the up set including this one, and older versions counted any exited container as a `--wait` failure regardless
+of `service_completed_successfully`. The symptom would be a deploy reporting failure the moment `migrate`
+finishes while the stack is actually up and healthy. Verified working on v2.32.4. Most deploys are a no-op -- atlas reads its own
+`atlas_schema_revisions` table and prints `No migration files to execute`.
 
-The `migrate:legacy-*` scripts are the opposite case: those are Node, they do branch on `IS_PRODUCTION`, and their
-runbooks mean it.
+Three consequences worth having read before you write one:
+
+- **Nobody approves it any more.** The gate moved to review time: CI's `migrations` job lints what a PR adds and
+  fails on a destructive change (`DS103` and friends). That job is the only thing now standing between a
+  `DROP COLUMN` and production.
+- **`migrate` runs while the old containers are still up**, so for a few seconds the running code is a version
+  behind the schema. That is inherent to applying migrations at deploy time, and the rule it implies is expand
+  and contract: add nullable, backfill, switch the code, drop in a _later_ deploy. A migration that is destructive
+  in the same deploy as the code change will break the old containers during the swap.
+- **Rolling an image back does not roll a migration back.** Re-pointing an alias undoes code, not schema.
+  `atlas migrate down` stays manual and stays an incident.
+
+To apply one by hand anyway -- a backfill you want to watch, or recovering from a failed `migrate` -- go through
+the container so it is the same atlas and the same directory the deploy would use:
+
+```sh
+./compose run --rm migrate
+```
+
+The host-shell `yarn db:migrate` still works from the checkout and still targets the same database (`atlas.hcl`
+resolves `DATABASE_URL_DEV`, which reaches postgres through the host-published `LOCAL_DATABASE_PORT` rather than
+the in-network `postgres` hostname). It needs `node_modules` and a host atlas install, neither of which the box
+needs for anything else any more.
+
+`IS_PRODUCTION` does nothing for either path: `atlas.hcl` resolves `getenv("DATABASE_URL_DEV")` unconditionally,
+and the `IS_PRODUCTION ? _PROD : _DEV` switch lives in Node (`createDatabase`, and `migrationCommon.ts`). The
+`migrate:legacy-*` scripts are the opposite case -- those are Node, they do branch on it, and their runbooks mean
+it.
 
 ### Renaming a compose project
 

@@ -22,7 +22,8 @@
 		"db:migrate": "atlas migrate apply --env local",
 		"db:migrate:down": "atlas migrate down --env local",
 		"db:diff": "atlas migrate diff --env local",
-		"db:hash": "atlas migrate hash --env local"
+		"db:hash": "atlas migrate hash --env local",
+		"tag-docker": "docker buildx imagetools create -t ${IMAGE_REPO}:${IMAGE_CHANNEL}-migrate ${IMAGE_REPO}:${IMAGE_CHANNEL}-${GITHUB_SHA}"
 	},
 	"devDependencies": {
 		"@electric-sql/pglite": "^0.5.4",

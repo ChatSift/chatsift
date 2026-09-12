@@ -53,6 +53,12 @@ const NON_GUILD_SCOPED_ROUTES = new Set<string>([
  */
 const MANUALLY_GUILD_VERIFIED_ROUTES = new Set<string>(['/v3/guilds/:guildId/ama/amas']);
 
+const PROBE_ROUTES = new Set(['/health', '/metrics']);
+
+function isProbeRequest(req: { method: string; path: string }): boolean {
+	return req.method === 'GET' && PROBE_ROUTES.has(req.path);
+}
+
 function assertGuildScopedRouteGuard(
 	route: Pick<RouteDefinition<any, any, any, any, any, any>, 'method' | 'path'>,
 	usesIsAuthed: boolean,
@@ -111,7 +117,7 @@ export function mountRoute<
 
 	const middlewares: Middleware[] = [
 		async (req, res, next) => {
-			const isMetricsRequest = req.path === '/metrics' && req.method === 'GET';
+			const isProbe = isProbeRequest(req);
 
 			const timeout = setTimeout(() => {
 				req.logger.warn({ method: req.method, path: req.path }, 'request is probably hanging');
@@ -125,8 +131,8 @@ export function mountRoute<
 					durationMs / 1_000,
 				);
 
-				const isMetricsSuccess = isMetricsRequest && res.statusCode >= 200 && res.statusCode < 300;
-				if (!isMetricsSuccess) {
+				const isQuietProbe = isProbe && res.statusCode >= 200 && res.statusCode < 300;
+				if (!isQuietProbe) {
 					req.logger.info(
 						{ method: req.method, path: req.path, status: res.statusCode, duration: durationMs },
 						'request complete',
@@ -136,7 +142,7 @@ export function mountRoute<
 				clearTimeout(timeout);
 			});
 
-			if (!isMetricsRequest) {
+			if (!isProbe) {
 				req.logger.info({ method: req.method, path: req.path }, 'incoming request');
 			}
 
@@ -192,16 +198,16 @@ export function mountRoute<
 	middlewares.push(async (reqUncast, res, next) => {
 		// Cast is safe: body/query/params have been validated and coerced by Zod above, middleware has run
 		const req = reqUncast as unknown as MiddlewareContext<TMiddlewares> & TypedRequest<TBody, TQuery, TParams>;
-		const isMetricsRequest = req.path === '/metrics' && req.method === 'GET';
+		const isProbe = isProbeRequest(req);
 
 		try {
-			if (!isMetricsRequest) {
+			if (!isProbe) {
 				req.logger.info({ method: req.method, path: req.path }, 'passing to route handler from middleware');
 			}
 
 			const result = await route.handler(req, res);
 
-			if (!isMetricsRequest) {
+			if (!isProbe) {
 				req.logger.info({ method: req.method, path: req.path }, 'route handler complete');
 			}
 
