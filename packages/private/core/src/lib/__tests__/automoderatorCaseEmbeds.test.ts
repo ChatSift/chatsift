@@ -32,7 +32,7 @@ test('renders the target, action and moderator', () => {
 	const embed = buildCaseEmbed(makeCase());
 
 	expect(embed.author?.name).toBe('target (2)');
-	expect(embed.title).toBe('Was banned for spam');
+	expect(embed.title).toBe('Was banned with the following reason: spam');
 	expect(embed.footer?.text).toBe('Case 42 | By mod (3)');
 });
 
@@ -91,7 +91,7 @@ test('truncates a title that would exceed Discord embed limit', () => {
 });
 
 test('leaves a title that fits alone', () => {
-	expect(buildCaseEmbed(makeCase({ reason: 'spam' })).title).toBe('Was banned for spam');
+	expect(buildCaseEmbed(makeCase({ reason: 'spam' })).title).toBe('Was banned with the following reason: spam');
 });
 
 test('formats a user tag, dropping the post-pomelo placeholder discriminator', () => {
