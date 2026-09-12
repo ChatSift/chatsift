@@ -53,7 +53,7 @@ const CENSOR = '[REDACTED]';
  * Fields whose entire value is a secret. Everything else routed through `censorLogField` only carries one
  * inside a larger, still-useful string, and is rewritten in place instead.
  */
-const WHOLLY_SECRET_FIELDS = new Set(['client_secret', 'refresh_token', 'code']);
+const WHOLLY_SECRET_FIELDS = new Set(['client_secret', 'refresh_token', 'code', 'access_token']);
 
 /**
  * `/webhooks/:id/:token`, `/webhooks/:id/:token/messages/:id` and `/interactions/:id/:token/callback`, in
@@ -108,11 +108,14 @@ export function createLoggerOptions(name: string): LoggerOptions {
 		// key of its own). `@pinojs/redact` -- pino 10's redaction engine -- resolves `*.` against exactly one
 		// level despite a README that claims "any level", so anything deeper is a known gap.
 		//
-		// `requestBody.json.*` is a guard rather than a live path: `@discordjs/core` sends OAuth bodies as
-		// `URLSearchParams`, which serializes to `{}` and takes the secrets with it, so those three only
-		// matter if that ever becomes a plain object again.
+		// `requestBody.json.access_token` is a **live** path, unlike the three OAuth fields beneath it:
+		// `guilds.join` (#232 P6's re-add) is `PUT /guilds/:id/members/:id` with a plain JSON body carrying an
+		// appellant's access token, and a rejection there logs the whole `DiscordAPIError`. The other three stay
+		// guards -- `@discordjs/core` sends OAuth bodies as `URLSearchParams`, which serializes to `{}` and takes
+		// the secrets with it, so they only matter if that ever becomes a plain object again.
 		redact: {
 			paths: [
+				'err.requestBody.json.access_token',
 				'err.requestBody.json.client_secret',
 				'err.requestBody.json.refresh_token',
 				'err.requestBody.json.code',

@@ -7,7 +7,7 @@ import { Button } from '@chatsift/web-core/components/Button';
 import { TextAreaField } from '@chatsift/web-core/components/TextAreaField';
 import { buttonClass } from '@chatsift/web-core/components/buttonStyles';
 import { useState } from 'react';
-import { loginHref, useSubmitAppeal } from '@/api/routes/appeals';
+import { useSubmitAppeal } from '@/api/routes/appeals';
 
 interface AppealFormProps {
 	/**
@@ -109,13 +109,14 @@ export function AppealForm({ guildId, questions, appealsRemaining, canRejoin }: 
 					Optional, and only some servers use it. Leave it unticked and an accepted appeal simply lifts the ban -- you
 					will be sent an invite instead, and can rejoin whenever you like.
 				</p>
+				{/* Deliberately not a "sign in again" link, which is what this was first written as: that is a round
+				    trip to Discord that lands them back on an empty form, so taking the advice would have cost them
+				    everything they had typed to reach it. The consent is recorded either way, and `RejoinGrantPrompt`
+				    offers the grant once the appeal is filed and there is nothing left to lose. */}
 				{rejoinConsent && !canRejoin && (
-					<p className="mt-1 text-sm text-misc-warning">
-						You did not give us permission to add you to servers when you signed in, so this cannot happen yet.{' '}
-						<a className="underline" href={loginHref(`/g/${guildId}`)}>
-							Sign in again
-						</a>{' '}
-						to grant it -- any time before a decision is made will do.
+					<p className="mt-1 text-sm text-misc-warning dark:text-misc-warning-dark">
+						You did not give us permission to add you to servers when you signed in, so this cannot happen yet. Tick it
+						anyway -- we will ask you for that permission here once your appeal is in.
 					</p>
 				)}
 			</div>

@@ -964,6 +964,16 @@ separate account-level toggle, because the question is per server and per punish
 Existing rows default `false`, which is the right default for a consent nobody was asked for: appeals filed
 before this shipped fall back to the invite.
 
+**The grant is offered after submitting, never on the form.** An appellant who ticks the box with an account
+that declined `guilds.join` needs to re-authorize, and the first version of this put a "sign in again" link
+next to the box -- which is a round trip to Discord that lands them back on an empty form, so taking the advice
+cost them everything they had typed to reach it, and ignoring it meant the advice was never repeated. The form
+now only says the consent is recorded and that the permission will be asked for; `RejoinGrantPrompt` on the
+guild page offers it once the appeal exists, where clicking costs nothing. That is why `PublicAppeal` carries
+`rejoinConsent` -- the appellant's own answer handed back to them, and the only way `unban.app` can tell this
+particular prompt is owed. Its "exactly the N fields" guard test was updated deliberately, which is what that
+test is for.
+
 What landed:
 
 - **`appeal_user_state.dm_reachable` is written from attempts, never from probes.** There is no probe: opening a
@@ -1004,6 +1014,32 @@ What landed:
 - The dashboard's `auto_rejoin` toggle already existed (P2); its copy now describes all three sides, and the
   appeal detail's sidebar says when an appellant asked to be added back, so Approve's effect is stated before
   it is pressed.
+
+**PR #414 review caught five things**, four of them real:
+
+- **`guilds.join` made `err.requestBody.json` a live redaction path.** `logger.ts` already redacted
+  `client_secret`/`refresh_token`/`code` there, with a comment saying it was only a guard because
+  `@discordjs/core` sends OAuth bodies as `URLSearchParams`. `guilds.addMember` does not -- it sends a plain
+  JSON body carrying the appellant's access token, and the re-add's failure branch is _ordinary_ (Appeals often
+  lacks Create Invite), so it is logged routinely. `access_token` is now a redacted field, with a test.
+- **The `appeal_user_state` lookup could cost the whole card.** Dropped straight into the `Promise.all` next to
+  `resolveAppellant`, an unguarded rejection meant no card posted and no `setAppealModMessage` -- an appeal
+  nobody can see, lost over a decoration. It fails open now, like every other lookup in those two files.
+- **The OAuth refresh had no deadline.** It is the one Discord call here that does not go through
+  `@discordjs/rest`; a stall held up the `DELIVERY` event, the card redraw and the moderator's HTTP response.
+  Bounded, and an abort lands on the invite fallback.
+- **`DeliveryNotice` promised something decision 6 forbids** -- "whatever is decided shows up here", on a page
+  that reads "under review" forever after a silent denial. It now points them away from waiting on a DM without
+  promising the page will change.
+- **The delivery published no realtime invalidate**, so a second moderator watching the same appeal refetched
+  on the _decision_ signal and saw a decided appeal with no trail row and no "they were not told". Published
+  from `deliverAppealDecision` itself, for the reason `applyAppealDecision` publishes its own.
+
+The fifth, "tell the appellant to re-tick consent after signing in", was already answered by moving the prompt
+off the form. `appeals-bot`'s `metrics.ts` also gained the zero-initialisation every other bot's has -- without
+it the half of `appeals_decisions_total` that `services/api` does pre-populate read as two different metrics in
+one Grafana sum, which is the exact failure P5 wrote the label-parity note about. Its `banEvents` doc named an
+`outcome` (`refreshed`) the code has never emitted; the code says `recorded`.
 
 The two Discord halves are twins (`services/api/src/util/appealDelivery.ts`,
 `services/appeals-bot/src/lib/appealDelivery.ts`), the same arrangement `syncAppealCard` already has, and for

@@ -41,12 +41,12 @@ export const appealDecisions = new Counter({
 /**
  * Ban-list events observed, and what came of the `appeal_ban_checks` write they prime.
  *
- * `kind` is `add` or `remove`; `outcome` is `refreshed` (a cached probe result existed and was updated),
+ * `kind` is `add` or `remove`; `outcome` is `recorded` (a cached probe result existed and was updated),
  * `uncached` (nobody had probed that user in that guild, so there was nothing to update) or `failed`.
  *
  * The question it primarily answers is whether the `GuildModeration` intent is actually delivering: a flat zero
  * across every outcome, on a bot that is demonstrably in guilds, means the intent is off -- otherwise completely
- * silent, since the bot connects, reports its guilds, and simply never sees a ban. Splitting `refreshed` from
+ * silent, since the bot connects, reports its guilds, and simply never sees a ban. Splitting `recorded` from
  * `uncached` additionally says whether the priming is doing any work, which `uncached` dominating would mean it
  * is not.
  */
@@ -79,3 +79,33 @@ export const appealDeliveries = new Counter({
 	labelNames: ['kind', 'outcome', 'source'] as const,
 	registers: [register],
 });
+
+// Every closed label combination, at zero, so a panel reads "none yet" rather than "no data" -- and so an
+// alert on `outcome="failed"` has a series to fire against before the first failure ever happens. Every other
+// bot's `metrics.ts` does this; `appeals-bot` never did, which also left the `appeals_decisions_total` half
+// that `services/api` *does* pre-populate looking like two different metrics in one Grafana sum.
+for (const decision of ['approved', 'denied', 'denied_silent']) {
+	for (const outcome of ['applied', 'failed', 'raced']) {
+		appealDecisions.inc({ decision, outcome, source: 'card' }, 0);
+	}
+}
+
+// `moot` is the only decision no human takes, and the only one `system` ever carries -- it passes no `perform`,
+// so `failed` is unreachable for it.
+for (const outcome of ['applied', 'raced']) {
+	appealDecisions.inc({ decision: 'moot', outcome, source: 'system' }, 0);
+}
+
+for (const kind of ['add', 'remove']) {
+	for (const outcome of ['recorded', 'uncached', 'failed']) {
+		banEvents.inc({ kind, outcome }, 0);
+	}
+}
+
+for (const outcome of ['sent', 'blocked', 'failed', 'skipped']) {
+	appealDeliveries.inc({ kind: 'dm', outcome, source: 'card' }, 0);
+}
+
+for (const outcome of ['added', 'invited', 'none']) {
+	appealDeliveries.inc({ kind: 'rejoin', outcome, source: 'card' }, 0);
+}

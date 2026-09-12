@@ -1,9 +1,10 @@
 import { URLSearchParams } from 'node:url';
 import type { AppealRejoinOutcome } from '@chatsift/core';
-import { buildAppealDecisionMessage } from '@chatsift/core';
+import { appealsQueueChannel, buildAppealDecisionMessage } from '@chatsift/core';
 import type { Appeals } from '@chatsift/db';
 import { getContext } from '../context.js';
 import type { Logger } from '../logger.js';
+import { publishRealtimeInvalidate } from '../realtimeBroadcast.js';
 import {
 	dropSpentRejoinCredential,
 	readAppealUserState,
@@ -151,6 +152,19 @@ export async function deliverAppealDecision(options: DeliverAppealDecisionOption
 
 		await safely(async () => dropSpentRejoinCredential(appeal.userId), undefined, logger, 'credential cleanup');
 
+		// A second broadcast, and not a redundant one: `applyAppealDecision` published the *decision*, which
+		// commits before any of this runs. A moderator watching the same appeal refetched on that signal and got
+		// a decided appeal with no `DELIVERY` row on its trail and no "they were not told" on its card -- the two
+		// things a second moderator most needs to see, arriving only on their next manual reload. Published here
+		// rather than in each surface for the reason `applyAppealDecision` publishes its own: neither should have
+		// to remember, and the bot's buttons need it as much as the dashboard does.
+		await safely(
+			async () => publishRealtimeInvalidate(appealsQueueChannel(appeal.guildId)),
+			undefined,
+			logger,
+			'delivery invalidate',
+		);
+
 		return result;
 	} catch (error) {
 		// Belt and braces over the per-step guards below: this function is awaited from inside two already-
@@ -261,6 +275,18 @@ async function safely<TValue>(
 	}
 }
 
+/**
+ * How long the OAuth refresh may take before the approval gives up and falls back to an invite.
+ *
+ * `fetch` has no deadline of its own, and this is the one Discord call in the delivery path that does not go
+ * through `@discordjs/rest` (which brings its own). Everything downstream of it is already committed -- the
+ * decision, and an approval's unban -- so a stall here does not risk correctness; what it holds up is the
+ * `DELIVERY` event, the credential cleanup, the card redraw, and, on the dashboard, the moderator's HTTP
+ * response. Ten seconds is generous for a token exchange and short enough that nobody watches a spinner over
+ * it.
+ */
+const REFRESH_TIMEOUT_MS = 10_000;
+
 export interface RefreshedAppellantToken {
 	readonly accessToken: string;
 	readonly refreshToken: string;
@@ -291,6 +317,9 @@ export async function refreshAppellantAccessToken(refreshToken: string): Promise
 			grant_type: 'refresh_token',
 			refresh_token: refreshToken,
 		}),
+		// An abort throws, which `returnThem`'s catch already treats as a refusal -- so a Discord that stalls
+		// lands on the invite fallback rather than on a request nobody ever answers.
+		signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
 	});
 
 	if (!response.ok) {

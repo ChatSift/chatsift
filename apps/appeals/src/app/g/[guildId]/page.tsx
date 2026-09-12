@@ -10,6 +10,7 @@ import { AppealStatusBadge } from '@/components/AppealStatusBadge';
 import { BlockedNotice } from '@/components/BlockedNotice';
 import { DeliveryNotice } from '@/components/DeliveryNotice';
 import { GuildBadge } from '@/components/GuildBadge';
+import { RejoinGrantPrompt } from '@/components/RejoinGrantPrompt';
 import { SignInPrompt } from '@/components/SignInPrompt';
 
 export default function GuildAppealPage({ params }: { readonly params: Promise<{ guildId: string }> }) {
@@ -47,6 +48,12 @@ export default function GuildAppealPage({ params }: { readonly params: Promise<{
 
 	const appealsRemaining = data.maxAppeals === null ? null : Math.max(0, data.maxAppeals - data.appealsUsed);
 
+	// Only while it is open, and only when they actually asked for it. `status` here is the public one, so a
+	// silent denial still counts as open -- which is right: their page reads "under review", and every
+	// affordance on it has to keep reading that way (decision 6).
+	const needsRejoinGrant =
+		data.latestAppeal?.status === 'PENDING' && data.latestAppeal.rejoinConsent && !user.canRejoin;
+
 	return (
 		<>
 			<GuildBadge guild={data.guild} unknownLabel="This server" />
@@ -74,6 +81,8 @@ export default function GuildAppealPage({ params }: { readonly params: Promise<{
 					))}
 				</div>
 			)}
+
+			{needsRejoinGrant && <RejoinGrantPrompt guildId={guildId} />}
 
 			{data.blocked ? (
 				<BlockedNotice cooldownUntil={data.cooldownUntil} reason={data.blocked} />

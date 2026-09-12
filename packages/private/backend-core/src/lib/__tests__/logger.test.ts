@@ -11,9 +11,11 @@ import { createLoggerOptions } from '../logger.js';
 vi.mock('../env.js', () => ({ ENV: { IS_PRODUCTION: false } }));
 
 /**
- * A body shape `@discordjs/core` does *not* currently produce -- it sends OAuth bodies as `URLSearchParams`
- * (see the test below), which serializes to `{}`. `DiscordAPIError`/`HTTPError` assign that straight to
- * `.requestBody.json`, so these two tests are the canary for that ever becoming a plain object again.
+ * A body shape `@discordjs/core` produces for real on exactly one route -- `PUT /guilds/:id/members/:id`,
+ * #232 P6's re-add, whose JSON body carries an appellant's OAuth access token. For the OAuth *token* routes it
+ * sends `URLSearchParams` instead (see the test below), which serializes to `{}`;
+ * `DiscordAPIError`/`HTTPError` assign whichever it was straight to `.requestBody.json`, so the
+ * `client_secret`/`refresh_token` tests are the canary for that ever becoming a plain object again.
  */
 class FakeDiscordRestError extends Error {
 	public requestBody: { json: Record<string, unknown> };
@@ -63,6 +65,20 @@ test("redacts refresh_token when the error is passed as pino's bare first argume
 
 	expect(output()).not.toContain('SUPER_SECRET_REFRESH_TOKEN');
 	expect(output()).toContain('[REDACTED]');
+});
+
+test('redacts the access_token a rejected guilds.join sends', () => {
+	const { logger, output } = createCapturingLogger();
+	// What `guilds.addMember` actually puts on the wire (#232 P6). Unlike the two above this is a live path:
+	// the re-add's failure branch is ordinary (Appeals often lacks Create Invite), so it is logged routinely.
+	const error = new FakeDiscordRestError({ access_token: 'SUPER_SECRET_ACCESS_TOKEN' });
+
+	logger.info({ err: error, guildId: '1', appealId: 2 }, 'could not add an approved appellant back');
+
+	expect(output()).not.toContain('SUPER_SECRET_ACCESS_TOKEN');
+	expect(output()).toContain('[REDACTED]');
+	// The context around it is the whole point of logging this at all, so redaction must not eat it.
+	expect(output()).toContain('guildId');
 });
 
 // The exact payload `@discordjs/rest` emits on `RESTEvents.RateLimited` for a webhook execution -- both
