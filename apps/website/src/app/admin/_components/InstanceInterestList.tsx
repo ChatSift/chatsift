@@ -11,6 +11,18 @@ import { useModmailInstanceInterestLeads } from '@/api/routes/modmail';
 import { UserErrorHandler } from '@/components/user/UserErrorHandler';
 import { formatDate, getGuildAcronym } from '@/utils/util';
 
+/**
+ * Marks a lead whose guild ModMail can no longer read (`botPresent: false`). Without it the card is three
+ * silent nulls -- no icon, no size, no invite -- which reads as a server that simply has none of those.
+ */
+function GoneBadge() {
+	return (
+		<span className="shrink-0 rounded-full border border-misc-warning px-2 py-0.5 text-xs font-medium text-misc-warning">
+			Bot removed
+		</span>
+	);
+}
+
 function userLabel(user: APIUser | Snowflake): string {
 	if (typeof user === 'string') {
 		return user;
@@ -63,14 +75,26 @@ export function InstanceInterestList() {
 									isLoading={false}
 								/>
 								<div className="flex min-w-0 flex-col">
-									<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">{lead.guild.name}</p>
+									<div className="flex min-w-0 items-center gap-2">
+										<p className="truncate text-lg font-medium text-primary dark:text-primary-dark">
+											{lead.guild.name}
+										</p>
+										{!lead.guild.botPresent && <GoneBadge />}
+									</div>
 									<p className="truncate font-mono text-sm text-secondary dark:text-secondary-dark">{lead.guild.id}</p>
 									{/* The whole reason to look at this list is deciding whether a lead is worth a custom
-										deployment, and size is the first thing that answers that. Absent for a guild the bot
-										can no longer see, which is the same case that leaves the card without an icon. */}
-									{lead.guild.memberCount !== null && (
+										deployment, and size is the first thing that answers that. A guild ModMail can no longer
+										read has no size to show at all, so that case says so outright instead of leaving a card
+										that silently drops its icon, its size and its invite. */}
+									{lead.guild.botPresent ? (
+										lead.guild.memberCount !== null && (
+											<p className="text-sm text-secondary dark:text-secondary-dark">
+												{lead.guild.memberCount.toLocaleString()} members
+											</p>
+										)
+									) : (
 										<p className="text-sm text-secondary dark:text-secondary-dark">
-											{lead.guild.memberCount.toLocaleString()} members
+											ModMail was removed, or the server is gone. Name is from when they asked.
 										</p>
 									)}
 									{lead.guild.vanityUrlCode && (

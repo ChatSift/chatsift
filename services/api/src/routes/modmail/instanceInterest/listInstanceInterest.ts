@@ -7,6 +7,14 @@ import { fetchGuildSummary } from '../../../util/guildSummary.js';
 import { resolveUserBestEffort } from '../threads/util.js';
 
 export interface ModmailInstanceInterestGuild {
+	/**
+	 * Whether ModMail can still see this guild at all. `false` means Discord answered the lookup with a
+	 * 403/404 -- the bot was removed, or the guild is gone -- and it is the *only* honest reading of the three
+	 * nulls below, which the dashboard would otherwise have to guess at: a server with no icon, no vanity URL
+	 * and no members looks identical to one nobody can read. A dead lead is worth as much to the operator as a
+	 * live one, so it is labelled rather than dropped.
+	 */
+	botPresent: boolean;
 	iconUrl: string | null;
 	id: string;
 	/**
@@ -16,8 +24,8 @@ export interface ModmailInstanceInterestGuild {
 	memberCount: number | null;
 	/**
 	 * The guild's name right now, falling back to the click-time snapshot in the row when the bot can no
-	 * longer see the guild -- which is also when `iconUrl`/`vanityUrlCode` come back `null`, so a stale name
-	 * always arrives alongside a visibly empty card rather than passing itself off as current.
+	 * longer see the guild -- i.e. whenever `botPresent` is `false`, which is what the dashboard labels the
+	 * name with rather than passing a stale one off as current.
 	 */
 	name: string;
 	vanityUrlCode: string | null;
@@ -66,6 +74,7 @@ export default defineRoute({
 					guild: {
 						id: row.guildId as string,
 						name: summary?.name ?? row.guildName,
+						botPresent: summary !== null,
 						iconUrl: summary?.iconUrl ?? null,
 						vanityUrlCode: summary?.vanityUrlCode ?? null,
 						memberCount: summary?.approximateMemberCount ?? null,
