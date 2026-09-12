@@ -627,14 +627,16 @@ on its own metrics port (7006-7010), unauthenticated, alongside the bearer-gated
 
 A bot's verdict comes from the gateway heartbeat, not from the process being alive:
 
-| `state`   | HTTP | Meaning                                                                            |
-| --------- | ---- | ---------------------------------------------------------------------------------- |
-| `healthy` | 200  | Every shard this replica owns ACKed a heartbeat within 135s (~3 missed beats).     |
-| `spare`   | 200  | It owns no shards -- parked waiting for a replica index. Healthy: that is its job. |
-| `stalled` | 503  | An owned shard has not ACKed in 135s, or has never ACKed at all.                   |
+| `state`    | HTTP | Meaning                                                                        |
+| ---------- | ---- | ------------------------------------------------------------------------------ |
+| `healthy`  | 200  | Every shard this replica owns ACKed a heartbeat within 135s (~3 missed beats). |
+| `spare`    | 200  | Parked waiting for a replica index. Healthy: waiting is the job.               |
+| `starting` | 503  | The replica claim has not resolved, so it does not yet know which it is.       |
+| `stalled`  | 503  | An owned shard has not ACKed in 135s, or has never ACKed at all.               |
 
 `start_period` is 180s for bots, because a shard has no heartbeat to report until it has identified and identify
-is throttled fleet-wide. Docker does **not** restart an unhealthy container -- only Swarm does -- so a healthcheck
+is throttled fleet-wide. It is a grace period for _failures_ only -- docker promotes a container to healthy on its
+first passing check even inside it, which is why `starting` is a 503 rather than an optimistic 200. Docker does **not** restart an unhealthy container -- only Swarm does -- so a healthcheck
 here buys `depends_on` gating, the `--wait` deploy gate above, and a legible `docker compose ps`, not self-healing.
 
 The history behind the verdict is in Grafana's **Gateway Health** dashboard

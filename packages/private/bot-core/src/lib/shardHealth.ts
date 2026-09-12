@@ -10,10 +10,23 @@ export interface ShardHeartbeat {
 
 const heartbeats = new Map<number, ShardHeartbeat>();
 
-let ownedShardIds: ReadonlySet<number> = new Set();
+/**
+ * Maintained by `replica.ts` as the claim progresses. `starting` is not the same as owning nothing: until the
+ * claim resolves this process cannot say whether it is a spare or about to run shards, and answering 200 in that
+ * window would let `up --wait` return before ownership is settled (PR #415 review).
+ */
+let ownership: ReadonlySet<number> | 'spare' | 'starting' = 'starting';
+
+/**
+ * Parked waiting for a replica index. A 200: waiting *is* the job, and an overlapping deploy depends on the
+ * container that is doing it staying healthy.
+ */
+export function markAwaitingReplicaIndex(): void {
+	ownership = 'spare';
+}
 
 export function setOwnedShards(shardIds: Iterable<number>): void {
-	ownedShardIds = new Set(shardIds);
+	ownership = new Set(shardIds);
 }
 
 export function recordShardHeartbeat(shardId: number, heartbeat: ShardHeartbeat): void {
@@ -33,9 +46,9 @@ export function getShardHeartbeat(shardId: number): ShardHeartbeat | undefined {
 }
 
 /**
- * `spare` is a healthy state, not a degraded one
+ * `spare` is a healthy state, not a degraded one. `starting` is not.
  */
-export type ShardHealthState = 'healthy' | 'spare' | 'stalled';
+export type ShardHealthState = 'healthy' | 'spare' | 'stalled' | 'starting';
 
 export interface ShardHealth {
 	readonly shards: { ackAgoMs: number | null; latencyMs: number | null; shardId: number }[];
@@ -50,12 +63,18 @@ export interface ShardHealth {
  * state here -- a bot that has claimed its slot but not yet identified is not serving.
  */
 export function getShardHealth(): ShardHealth {
-	if (ownedShardIds.size === 0) {
+	if (ownership === 'starting') {
+		return { state: 'starting', shards: [] };
+	}
+
+	// A claimed index always covers at least one shard, so a resolved-but-empty set only shows up in tests --
+	// it means the same thing as an explicit spare either way.
+	if (ownership === 'spare' || ownership.size === 0) {
 		return { state: 'spare', shards: [] };
 	}
 
 	const now = Date.now();
-	const shards = [...ownedShardIds]
+	const shards = [...ownership]
 		.sort((left, right) => left - right)
 		.map((shardId) => {
 			const heartbeat = heartbeats.get(shardId);

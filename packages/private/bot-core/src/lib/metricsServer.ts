@@ -24,7 +24,8 @@ export function createMetricsHandler(register: Registry): MetricsHandler {
 	return async (req, res) => {
 		if (req.url === '/health') {
 			const health = getShardHealth();
-			res.writeHead(health.state === 'stalled' ? 503 : 200, { 'content-type': 'application/json' });
+			const serving = health.state === 'healthy' || health.state === 'spare';
+			res.writeHead(serving ? 200 : 503, { 'content-type': 'application/json' });
 			res.end(JSON.stringify(health));
 			return;
 		}

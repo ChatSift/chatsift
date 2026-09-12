@@ -8,7 +8,7 @@ import { Gauge, type Registry } from 'prom-client';
 import { createRedisIdentifyThrottler } from './identifyThrottler.js';
 import { claimReplicaSlot } from './replica.js';
 import { retrieveSessionInfo, startSessionStore, updateSessionInfo } from './sessions.js';
-import { forgetShardHeartbeat, getShardHeartbeat, recordShardHeartbeat, setOwnedShards } from './shardHealth.js';
+import { forgetShardHeartbeat, getShardHeartbeat, recordShardHeartbeat } from './shardHealth.js';
 import { onShutdown } from './shutdown.js';
 
 export interface CreateBotGatewayOptions {
@@ -88,9 +88,6 @@ export async function createBotGateway({
 		shardCount,
 		shardsPerReplica: ENV.SHARDS_PER_REPLICA ?? shardCount,
 	});
-
-	// Past this point `/health` stops answering `spare` and starts holding these shards to the heartbeat.
-	setOwnedShards(shardIds);
 
 	const gateway = new WebSocketManager({
 		token,

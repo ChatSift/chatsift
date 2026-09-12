@@ -4,6 +4,7 @@ import { setInterval } from 'node:timers';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { GuildListKey } from '@chatsift/backend-core';
 import { getContext } from '@chatsift/backend-core';
+import { markAwaitingReplicaIndex, setOwnedShards } from './shardHealth.js';
 import { onShutdown } from './shutdown.js';
 
 /**
@@ -252,6 +253,7 @@ export async function claimReplicaSlot({
 		// Every index is accounted for, so this replica is surplus to the shard count. Now we idle -- but
 		// advertised, not silently: a peer covering two indices watches for this and hands one back.
 		logger.warn({ botId, totalIndices, shardCount, shardsPerReplica }, 'no free replica index, idling as a hot spare');
+		markAwaitingReplicaIndex();
 
 		// Registered here rather than after a slot is claimed: a spare `SIGTERM`ed mid-idle would otherwise leave
 		// its advertisement to expire, and a covering peer could restart to hand off to a replica already gone.
@@ -295,6 +297,7 @@ export async function claimReplicaSlot({
 	replicaIndex = primary;
 	const shardIds = shardIdsForIndices(heldIndices, shardCount, shardsPerReplica);
 	ownedShardIds = new Set(shardIds);
+	setOwnedShards(shardIds);
 	totalShardCount = shardCount;
 
 	logger.info(

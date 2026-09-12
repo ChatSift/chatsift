@@ -3,18 +3,31 @@ import { stubBackendCoreEnv } from './testEnv.js';
 
 stubBackendCoreEnv();
 
-const { forgetShardHeartbeat, getShardHeartbeat, getShardHealth, recordShardHeartbeat, setOwnedShards } =
-	await import('../shardHealth.js');
+const {
+	forgetShardHeartbeat,
+	getShardHeartbeat,
+	getShardHealth,
+	markAwaitingReplicaIndex,
+	recordShardHeartbeat,
+	setOwnedShards,
+} = await import('../shardHealth.js');
 
 afterEach(() => {
 	vi.useRealTimers();
-	setOwnedShards([]);
+	markAwaitingReplicaIndex();
 	for (const shardId of [0, 1, 2]) {
 		forgetShardHeartbeat(shardId);
 	}
 });
 
-test('a replica holding no shards is a healthy spare, not a stalled bot', () => {
+// Must stay first: `starting` is the module's initial state and nothing puts it back.
+test('a process whose claim has not resolved yet is starting, not spare', () => {
+	expect(getShardHealth()).toStrictEqual({ state: 'starting', shards: [] });
+});
+
+test('a replica parked waiting for an index is a healthy spare', () => {
+	markAwaitingReplicaIndex();
+
 	expect(getShardHealth()).toStrictEqual({ state: 'spare', shards: [] });
 });
 
