@@ -2,12 +2,25 @@
 	acme_dns cloudflare {env.CF_API_TOKEN}
 }
 
+(api_backend) {
+	reverse_proxy {
+		dynamic a {
+			name api
+			port {$API_PORT}
+			refresh 5s
+		}
+		lb_policy round_robin
+		lb_try_duration 5s
+		fail_duration 10s
+	}
+}
+
 api.automoderator.app {
-	reverse_proxy api:{$API_PORT}
+	import api_backend
 }
 
 api.unban.app {
-	reverse_proxy api:{$API_PORT}
+	import api_backend
 }
 
 grafana.automoderator.app {

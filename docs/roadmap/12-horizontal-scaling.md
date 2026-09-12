@@ -154,7 +154,10 @@ This is only affordable because restarts RESUME. See below.
 ### Handing an index back
 
 A replica that finds every index claimed idles as a **hot spare**, advertising itself in a redis sorted set
-(`shardspares:<botId>`, scored by when it last checked in). It parks inside `claimReplicaSlot`, which never
+(`shardspares:<botId>`, scored by when it last checked in). That is also what a rolling deploy leans on
+(`./compose roll`, #294): the replacement container parks as a spare with its redis connection, database pool and
+experiment snapshot already warm, and claims the index the moment the outgoing container's graceful shutdown
+releases it. It parks inside `claimReplicaSlot`, which never
 returns, so nothing sequenced after `createBotGateway` ever runs on it -- which is why `startMetricsServer` is
 called _before_ the gateway in every bot's `bin.ts` (#294). Without that a spare bound no port at all: a
 permanently-DOWN Prometheus target, and an unhealthy container once healthchecks existed. It answers `/health`

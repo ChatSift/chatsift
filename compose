@@ -163,6 +163,110 @@ plan_scale() {
   SCALE_ARGS+=(--scale "${service}=${replicas}")
 }
 
+ROLLABLE='api ama-bot modmail-bot modmail-bot-nascar social-bot appeals-bot automoderator-bot'
+
+compose_do() {
+  docker compose -p "$PROJECT" -f docker-compose.yml "${PROFILE_ARGS[@]}" "${ENV_FILE_ARGS[@]}" "$@"
+}
+
+running_names() {
+  compose_do ps --format '{{.Name}}' --filter status=running "$1" 2>/dev/null | sort
+}
+
+roll_service() {
+  local service="$1" old_names='' seen='' count=0 old new status
+
+  while read -r name
+  do
+    [ -n "$name" ] || continue
+    old_names="${old_names}${name} "
+    count=$(( count + 1 ))
+  done < <(running_names "$service")
+
+  if [ "$count" -eq 0 ]
+  then
+    echo "${service}: nothing running, starting it normally"
+    compose_do up -d "$service"
+    return 0
+  fi
+
+  seen=" ${old_names}"
+  echo "${service}: rolling ${count} container(s)"
+
+  for old in $old_names
+  do
+    if ! compose_do up -d --no-recreate --scale "${service}=$(( count + 1 ))" "$service"
+    then
+      echo "${service}: failed to add a replacement container" >&2
+      return 1
+    fi
+
+    new=''
+    while read -r name
+    do
+      case "$seen" in
+        *" $name "*) ;;
+        *) new="$name" ;;
+      esac
+    done < <(running_names "$service")
+
+    if [ -z "$new" ]
+    then
+      echo "${service}: no new container appeared" >&2
+      return 1
+    fi
+
+    seen="${seen}${new} "
+
+    status=''
+    for _ in $(seq 1 "${ROLL_HEALTH_TIMEOUT:-180}")
+    do
+      status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$new" 2>/dev/null || echo gone)"
+      case "$status" in
+        healthy|none) break ;;
+      esac
+      sleep 1
+    done
+
+    case "$status" in
+      healthy|none) ;;
+      *)
+        echo "${service}: ${new} never became healthy (${status}); rolling back this step" >&2
+        echo "--- last 50 log lines from ${new} ---" >&2
+        docker logs --tail 50 "$new" >&2 2>&1 || true
+        echo "--- end ${new} ---" >&2
+        docker stop "$new" >/dev/null 2>&1 || true
+        docker rm "$new" >/dev/null 2>&1 || true
+        echo "${service}: ${old} left running; no containers were retired" >&2
+        return 1
+        ;;
+    esac
+
+    echo "  ${new} ready (${status}); retiring ${old}"
+    docker stop "$old" >/dev/null || true
+    docker rm "$old" >/dev/null || true
+  done
+}
+
+if [ "$1" = 'roll' ]
+then
+  shift
+  services="${*:-$ROLLABLE}"
+  failed=''
+  for _service in $services
+  do
+    roll_service "$_service" || failed="${failed}${_service} "
+  done
+
+  if [ -n "$failed" ]
+  then
+    echo "roll failed for: ${failed}" >&2
+    exit 1
+  fi
+
+  exit 0
+fi
+
 if [ "$1" != 'up' ]
 then
   case " $* " in
