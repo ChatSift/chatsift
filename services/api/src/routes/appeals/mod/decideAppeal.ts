@@ -1,15 +1,16 @@
-import type { AppealActor } from '@chatsift/backend-core';
-import { APPEAL_STATUS, applyAppealDecision, getContext } from '@chatsift/backend-core';
+import type { AppealActor, AppealDeliveryResult } from '@chatsift/backend-core';
+import { APPEAL_STATUS, applyAppealDecision, deliverAppealDecision, getContext } from '@chatsift/backend-core';
 import { formatCaseUserTag } from '@chatsift/core';
 import type { AppealStatus, Appeals } from '@chatsift/db';
 import { RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { badGateway, conflict, notFound } from '@hapi/boom';
 import { z } from 'zod';
-import { appealDecisions } from '../../../core/metrics.js';
+import { appealDecisions, appealDeliveries } from '../../../core/metrics.js';
 import { defineRoute } from '../../../core/route.js';
 import { isAuthed } from '../../../middleware/isAuthed.js';
 import { syncAppealCard } from '../../../util/appealCard.js';
+import { apiAppealDelivery } from '../../../util/appealDelivery.js';
 import { apiForGuild, discordAPIAppeals } from '../../../util/discordAPI.js';
 import { snowflakeSchema } from '../../../util/schemas.js';
 import { resolveDiscordUser } from '../../../util/users.js';
@@ -86,9 +87,9 @@ export default defineRoute({
 			silent: decision === 'deny_silent',
 			moderator,
 			reason: reason ?? null,
-			// Only an approval touches Discord, exactly as on the card. A denial writes a row and redraws a card,
-			// and P6 is what turns the non-silent kind into a DM -- a DM that could not be delivered must not
-			// un-deny an appeal, so it will not be reaching for `perform` either.
+			// Only an approval touches Discord *from inside the claim*, exactly as on the card. P6's DM and re-add
+			// happen after it commits and deliberately never reach `perform`: a DM Discord refused must not
+			// un-deny an appeal, and an unban that already landed cannot be taken back by a failed delivery.
 			...(decision === 'approve'
 				? {
 						async perform(claimed: Appeals) {
@@ -119,6 +120,18 @@ export default defineRoute({
 
 		appealDecisions.inc({ decision: METRIC_DECISION[decision], outcome: 'applied', source: 'dashboard' });
 
+		// Delivered *before* the card is redrawn, not after: the card renders `appeal_user_state.dm_reachable`,
+		// and the delivery is what writes it. The other order leaves a card claiming a decision reached somebody
+		// it bounced off, until the next thing happens to redraw it -- which for a decided appeal is never.
+		// Like everything else past the claim, it cannot fail the request (see `deliverAppealDecision`).
+		const delivery = await deliverAppealDecision({
+			appeal: result.appeal,
+			discord: apiAppealDelivery(),
+			logger: context.logger,
+		});
+
+		countDelivery(delivery);
+
 		// After the decision is committed, and never allowed to fail it: a stale card next to a correct database
 		// is the honest degradation, and `syncAppealCard` does not throw.
 		await syncAppealCard(result.appeal);
@@ -126,6 +139,16 @@ export default defineRoute({
 		return describeDecided(result.appeal);
 	},
 });
+
+/**
+ * Split from the decision counter deliberately, and labelled per attempt: a denial that was decided and a
+ * denial that reached the person it was about are two different successes, and `appeals_decisions_total` only
+ * ever knew about the first.
+ */
+function countDelivery(delivery: AppealDeliveryResult): void {
+	appealDeliveries.inc({ kind: 'dm', outcome: delivery.dm, source: 'dashboard' });
+	appealDeliveries.inc({ kind: 'rejoin', outcome: delivery.rejoin, source: 'dashboard' });
+}
 
 /**
  * Who to credit the unban to in Discord's audit log.

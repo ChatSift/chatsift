@@ -57,6 +57,16 @@ export const submitAppealBodySchema = z.strictObject({
 			}),
 		)
 		.max(APPEAL_QUESTION_MAX_COUNT),
+	/**
+	 * Decision 14's third side (#232 P6): the box on the appeal form saying they are willing to be put straight
+	 * back into *this* server if it is approved.
+	 *
+	 * Defaulted to `false` rather than required, and the default is the safe direction -- a client that omits it
+	 * gets an appellant who consented to nothing, which costs them an automatic re-add and nothing else. Asked
+	 * per appeal rather than read off the OAuth grant because the grant is a capability given once to
+	 * `unban.app`, not a standing instruction about every server somebody is banned from.
+	 */
+	rejoinConsent: z.boolean().default(false),
 });
 
 /**

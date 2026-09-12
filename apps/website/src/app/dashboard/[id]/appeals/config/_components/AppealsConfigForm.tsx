@@ -276,8 +276,9 @@ export function AppealsConfigForm() {
 					</label>
 					<p className="mt-1 text-sm text-secondary dark:text-secondary-dark">
 						Off by default. When on, approving an appeal unbans the person and adds them back to the server in one step,
-						rather than unbanning them and DMing an invite. It needs their permission too, granted when they log in to
-						appeal - whoever did not grant it gets the invite instead.
+						rather than unbanning them and DMing them an invite. It needs their permission too: they have to allow it
+						when they sign in, and tick a box on the appeal itself saying they want it. Anyone who does neither gets the
+						invite instead, and either way an approval always lifts the ban.
 					</p>
 				</div>
 			</div>

@@ -1684,6 +1684,13 @@ CREATE TABLE appeals (
   status          appeal_status NOT NULL DEFAULT 'PENDING',
   -- Decision 6: terminal and closed for moderators, indefinitely invisible to the appellant.
   silent          BOOLEAN NOT NULL DEFAULT false,
+  -- Decision 14's third side, and the only one the appellant states about *this ban*: the box they tick on the
+  -- appeal form. The guild half is `appeals_settings.auto_rejoin` and the account half is
+  -- `appeal_user_state.granted_guilds_join`; an approval only puts somebody back in a server when all three
+  -- agree. Kept per appeal rather than folded into the account half because the OAuth grant is given once, to
+  -- `unban.app`, and says nothing about which of the servers they are banned from they want to be returned to.
+  -- `false` on every row filed before P6, which is the right default for a consent nobody was asked for.
+  rejoin_consent  BOOLEAN NOT NULL DEFAULT false,
   -- The ban reason as it read when the appeal was filed, for the record and for P8's pattern matching. NULL
   -- when Discord had no reason recorded, which is the common case for a ban issued from the client UI.
   reason_snapshot TEXT,
@@ -1749,15 +1756,20 @@ CREATE TABLE appeal_answers (
 );
 
 -- What produced an `appeal_events` row. 'NOTE' is a moderator writing something down that the appellant never
--- sees; 'MOOT' is the system closing an appeal whose ban was lifted elsewhere, and is the one kind with no
--- actor at all.
+-- sees; 'MOOT' is the system closing an appeal whose ban was lifted elsewhere, and 'DELIVERY' is P6 reporting
+-- what became of the decision -- the two kinds with no actor at all.
+--
+-- 'DELIVERY' is here rather than left to `appeal_user_state.dm_reachable` because that column is one row per
+-- person, overwritten by every later attempt: it answers "can we reach them", never "was *this* decision
+-- delivered". A moderator asking the second question months later is asking about one appeal.
 CREATE TYPE appeal_event_kind AS ENUM (
   'SUBMITTED',
   'APPROVED',
   'DENIED',
   'WITHDRAWN',
   'MOOT',
-  'NOTE'
+  'NOTE',
+  'DELIVERY'
 );
 
 -- The audit trail. **NEVER served to the appellant** -- not filtered for them, not partially exposed: no
@@ -1767,9 +1779,10 @@ CREATE TABLE appeal_events (
   appeal_id  INTEGER NOT NULL REFERENCES appeals (id) ON DELETE CASCADE,
   kind       appeal_event_kind NOT NULL,
   -- The moderator who did this, or the appellant for 'SUBMITTED'/'WITHDRAWN'. NULL for anything the system
-  -- did on nobody's behalf, which today is 'MOOT'.
+  -- did on nobody's behalf, which today is 'MOOT' and 'DELIVERY'.
   actor_id   TEXT,
-  -- The denial reason, or the note. NULL for events that carry neither.
+  -- The denial reason, the note, or -- on a 'DELIVERY' row -- the sentence describing what reached the
+  -- appellant. NULL for events that carry none of the three.
   body       TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -6,7 +6,7 @@ M4's AMA cutover ([05-migration-cutover.md](05-migration-cutover.md)) and M5's M
 impact:** none until P3, and additive thereafter: new tables, a new Discord application, a new site. No existing product's
 behavior changes at any point, and there is no data migration.
 
-## Status: P0-P5b shipped. P6 is next
+## Status: P0-P6 shipped. P7 is next
 
 This document was written 2026-07-31 and last amended 2026-08-03, then sat unstarted for a month while the AutoModerator
 port, horizontal scaling (#355), the grants refactor (#310), the Discord REST proxy and the Caddy absorption (#305) all
@@ -22,8 +22,10 @@ shared decision path) and P5 (the dashboard queue) are in. An appellant can sign
 invite, and file an appeal -- a guild running AutoModerator can put the link to that in the DM its bans already send --
 and moderators can approve or deny it from **either** mod surface, with an approval lifting the real ban and each surface
 rewriting the other. A ban lifted by any other route closes the appeal on its own (P4b). **Decision 1 is therefore
-satisfied and the feature is announceable.** What is still missing is the delivery: P6's DM, without which an ordinary
-denial is a decision the appellant can only find by looking. `09-` is the next free roadmap
+satisfied and the feature is announceable.** P6 closed the last gap in the loop: an ordinary decision is now DMed to the
+appellant, and an approval can put them straight back in the server when the guild, the account and the appeal all agree.
+What is left is entirely additive -- a configurable questionnaire (P7), ban-reason matching (P8) and timeouts (P9).
+`09-` is the next free roadmap
 slot; 02/03/04 (M1-M3), 07 (#261) and 08 (#216) were all
 consumed and deleted once their work shipped. This doc follows the same lifecycle: when the phases land, it gets **deleted**
 and its durable shape is condensed into a new `## 13. Appeals (#232)` section of
@@ -361,8 +363,13 @@ made, that it probably cannot be delivered.
 requiring `CREATE_INSTANT_INVITE` on the Appeals bot there, gated on the guild having enabled it. Two consequences worth
 naming: it needs the appellant's OAuth credentials to still be valid at decision time, which is days or weeks after they
 submitted, so their refresh token has to be stored -- encrypted at rest with `encrypt`/`decrypt` from `@chatsift/backend-core`
-(`lib/crypt.ts`), the same helper #216 uses for instance bot tokens. And when either side hasn't opted in, or the re-add
+(`lib/crypt.ts`), the same helper #216 uses for instance bot tokens. And when any side hasn't opted in, or the re-add
 fails, approval falls back to DMing an invite.
+
+**Amended at P6 (2026-09-12): there are three sides, not two.** The guild's `auto_rejoin`, the account's OAuth grant, and
+`appeals.rejoin_consent` -- a box on the appeal form, ticked per appeal. The grant is a capability given once to
+`unban.app` and is not a standing instruction about every server somebody is banned from, and a guild cannot consent on
+an appellant's behalf; the box is the only one of the three that is this person agreeing about _this_ server.
 
 ## Data model
 
@@ -406,6 +413,10 @@ CREATE TABLE appeals (
   status          TEXT NOT NULL DEFAULT 'pending',
   -- 'pending' | 'approved' | 'denied' | 'withdrawn' | 'moot' (P4b: the ban was lifted elsewhere)
   silent          BOOLEAN NOT NULL DEFAULT false,
+  -- P6, decision 14's third side: the box they ticked on the form, agreeing to be put back in *this* server
+  -- if it is approved. The guild half is appeals_settings.auto_rejoin and the account half is
+  -- appeal_user_state.granted_guilds_join; all three have to agree or the approval DMs an invite instead.
+  rejoin_consent  BOOLEAN NOT NULL DEFAULT false,
   -- The ban reason as it read when the appeal was filed, for the record and for P8's matching.
   reason_snapshot TEXT,
   -- The single embed (decision 13), where it is, and the thread/forum post it lives on, so both can
@@ -934,18 +945,78 @@ _Verify:_ `build`/`lint`/`test`/`format:check` green, with the boundary covered 
 confirm `unban.app` offers a fresh form with no old appeal above it, then confirm an account denied and still
 banned is _unchanged_ -- it must keep both its cooldown and its spent attempts.
 
-### P6 -- Decision delivery (DM), and re-adding on approval
+### P6 -- Decision delivery (DM), and re-adding on approval (shipped 2026-09-12)
 
-- Delivery on decision via the user-install DM (§6, confirmed 2026-08-03), skipped entirely when `silent`; not-notifiable
-  warnings on both `unban.app` and the mod embed; reachability persisted to `appeal_user_state`.
-- Approval re-add (decision 14): `guilds.join` with the appellant's stored refresh token, gated on `appeals_settings
-.auto_rejoin`, falling back to an invite in the DM when either side hasn't opted in or the add fails.
-- The `auto_rejoin` toggle in the dashboard config section, and its appellant-side counterpart on `unban.app`.
+The decision now reaches the person it is about. Both mod surfaces deliver, converging on one
+`deliverAppealDecision()` in `@chatsift/backend-core` exactly as they already converge on one
+`applyAppealDecision()` -- and for the same reason (decision 1): a denial that reads differently depending on
+which button a moderator happened to be near is the drift that decision exists to prevent.
 
-_Verify:_ approve an appeal with DMs open (i.e. the appellant authorized the Appeals user install) and confirm the DM
-arrives, then with DMs closed and confirm both surfaces warned beforehand; confirm a silent denial sends nothing at all;
-confirm the re-add works, and that it degrades to an invite when the guild has `auto_rejoin` off, when the appellant never
-granted `guilds.join`, and when their refresh token has been revoked.
+**Consent is three-sided, not two.** The original plan had the guild's `appeals_settings.auto_rejoin` and the
+appellant's OAuth `guilds.join` grant. A third side was added on the owner's call (2026-09-12): **a box on the
+appeal form itself**, `appeals.rejoin_consent`, reading _"If the moderators of this server choose to, I consent
+to being automatically re-added to the server if my appeal is accepted."_ The OAuth grant is a capability given
+once to `unban.app` and says nothing about which of the servers somebody is banned from they actually want to
+be returned to; the guild's toggle is the guild's preference and cannot consent on anybody's behalf. All three
+have to agree, and **the box is the appellant-side counterpart** P6 originally left unspecified -- there is no
+separate account-level toggle, because the question is per server and per punishment.
+
+Existing rows default `false`, which is the right default for a consent nobody was asked for: appeals filed
+before this shipped fall back to the invite.
+
+What landed:
+
+- **`appeal_user_state.dm_reachable` is written from attempts, never from probes.** There is no probe: opening a
+  DM channel succeeds whether or not a message would be accepted. The one thing a _login_ establishes is an
+  authorization that declined the user install, which has no DM path at all and is recorded as a known `false`
+  (`recordAppellantGrant`); granting the install puts it back to `NULL` -- including over an earlier `false`,
+  because a bounce weeks ago says nothing about whether they have since reopened their DMs. A `failed` send is
+  deliberately **not** written: a timeout is a fact about a request, not about an account.
+- **One bit of that table is ever mod-facing**, and it is on the card: `dmReachable === false` renders "Heads
+  up: ... may never reach them" while pending and "**They were not told.**" once decided. Silent denials are
+  exempt at both ends -- nothing was ever going to be sent, and "they were not told" on a card that already
+  says "do not contact them about this" is an invitation to go and fix it.
+- **Delivery runs before the card is redrawn**, on both surfaces. The card renders `dm_reachable` and the
+  delivery is what writes it; the other order leaves a card claiming a decision landed when it bounced, until
+  something redraws it -- which for a decided appeal is never.
+- **`appeal_events` gained a `DELIVERY` kind**, actor NULL, body carrying the sentence
+  (`describeAppealDelivery`). `dm_reachable` is one row per person overwritten by every later attempt, so it
+  can answer "can we reach them" and never "was _this_ decision delivered", which is what a moderator looking
+  at an old appeal is asking. It renders on the dashboard's trail as the verb rather than as a quote beneath
+  one, since the sentence depends on the outcome rather than on the kind.
+- **The re-add rotates the token before it spends it.** Discord invalidates a refresh token the moment it is
+  redeemed, so an `addMember` that throws with the rotation unsaved leaves the account holding a dead
+  credential and every later approval silently falling back to an invite. The refreshed scope is re-checked too
+  -- somebody can re-authorize and trim `guilds.join` on the way through, and the row records what they agreed
+  to _last_ time.
+- **The credential is dropped once no `PENDING` appeal of theirs can spend it** (`dropSpentRejoinCredential`),
+  which closes the risk-list item about holding a live grant for weeks. `granted_guilds_join` survives it: that
+  is the record of what they agreed to, not the means. `/auth/me` therefore exposes a derived `canRejoin`
+  (grant **and** token) rather than the raw flag, so the form never offers a re-add nothing could perform.
+- **The invite fallback is single-use and a week long** (`APPEAL_REJOIN_INVITE_MAX_AGE_SECONDS`), minted against
+  the rules channel, then the system channel, then up to five text channels. `CREATE_INSTANT_INVITE` is not a
+  permission the Appeals setup asks for, so failing to mint one is ordinary -- and when it fails, the outcome is
+  downgraded from `invited` to `none` **before** the copy is built, so neither the DM nor the moderator's line
+  promises a link nobody has.
+- **`appeals_deliveries_total{kind,outcome,source}`** in both registries, split by `kind` because a DM is
+  refused by the _appellant's_ privacy settings and a re-add by a permission the _guild_ never granted. The
+  alert-worthy series is `kind="dm", outcome="failed"` -- `blocked` is nothing we deploy can fix.
+- The dashboard's `auto_rejoin` toggle already existed (P2); its copy now describes all three sides, and the
+  appeal detail's sidebar says when an appellant asked to be added back, so Approve's effect is stated before
+  it is pressed.
+
+The two Discord halves are twins (`services/api/src/util/appealDelivery.ts`,
+`services/appeals-bot/src/lib/appealDelivery.ts`), the same arrangement `syncAppealCard` already has, and for
+the same reason: `backend-core` has no `@discordjs/rest` dependency. The one Discord call that carries no bot
+token -- the OAuth refresh -- lives in `backend-core` as a plain form POST instead, going direct for the same
+reason `discordAPIOAuth` does.
+
+_Verify:_ `build`/`lint`/`test`/`format:check` green, with the DM copy, the card's reachability line, the
+delivery sentence and the consent default covered by unit tests. Runtime is the owner's: approve an appeal with
+the box ticked and `auto_rejoin` on, and confirm the account is back in the server with no invite in the DM;
+approve one with the box unticked and confirm the DM carries a single-use invite instead; deny one and confirm
+the reason arrives quoted; deny one silently and confirm **nothing at all** is sent; then revoke the
+authorization from Discord's settings and confirm an approval degrades to the invite rather than failing.
 
 ### P7 -- Configurable questionnaire
 
@@ -987,8 +1058,9 @@ Phase-specific notes on top of that:
 ## Risks and known sharp edges
 
 - **Storing appellants' OAuth refresh tokens** is a new class of secret in this system, held for weeks, belonging to users with
-  every reason to be hostile to the guilds involved. Encrypted at rest, never exposed to a guild's moderators, and worth
-  deleting once an appeal reaches a terminal state and the re-add window has passed.
+  every reason to be hostile to the guilds involved. Encrypted at rest, never exposed to a guild's moderators, and -- since
+  P6 -- deleted the moment no `PENDING` appeal of theirs can still spend one, which is the only state that can. Filing
+  another appeal means signing in again, which re-records it before the form renders.
 - ~~**Poll staleness.**~~ Gone with the poll: the guild list is `GUILD_CREATE`/`GUILD_DELETE`/`READY` off Appeals' own
   gateway, the same path every other bot uses, so a guild that just added the bot is there immediately.
 - **Nothing in the product can force the appeal link in front of a banned user _in a guild ChatSift does not moderate_**

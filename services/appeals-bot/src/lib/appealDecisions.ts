@@ -1,12 +1,20 @@
-import type { AppealActor, Logger } from '@chatsift/backend-core';
-import { APPEAL_STATUS, applyAppealDecision, getAppeal, getContext } from '@chatsift/backend-core';
+import type { AppealActor, AppealDeliveryResult, Logger } from '@chatsift/backend-core';
+import {
+	APPEAL_STATUS,
+	applyAppealDecision,
+	deliverAppealDecision,
+	describeAppealDelivery,
+	getAppeal,
+	getContext,
+} from '@chatsift/backend-core';
 import { formatCaseUserTag } from '@chatsift/core';
 import type { AppealStatus, Appeals } from '@chatsift/db';
 import type { APIInteractionGuildMember, APIUser } from '@discordjs/core';
 import { RESTJSONErrorCodes } from '@discordjs/core';
 import { DiscordAPIError } from '@discordjs/rest';
 import { refreshAppealCard } from './appealComponents.js';
-import { appealDecisions } from './metrics.js';
+import { botAppealDelivery } from './appealDelivery.js';
+import { appealDecisions, appealDeliveries } from './metrics.js';
 
 export function actorFromUser(user: APIUser): AppealActor {
 	return { id: user.id, tag: formatCaseUserTag(user) };
@@ -55,8 +63,9 @@ export async function runAppealDecision(options: RunAppealDecisionOptions, logge
 		silent: decision === 'denied_silent',
 		moderator,
 		reason,
-		// Only an approval touches Discord. A denial writes a row and redraws a card, and P6 is what turns the
-		// non-silent kind into a DM -- there is nothing to undo if it fails, which is why `perform` is absent.
+		// Only an approval touches Discord *from inside the claim*. P6's DM and re-add happen after it commits and
+		// deliberately never reach `perform`: a DM Discord refused must not un-deny an appeal, and an unban that
+		// already landed cannot be taken back by a failed delivery.
 		...(decision === 'approved'
 			? {
 					async perform(claimed: Appeals) {
@@ -85,26 +94,41 @@ export async function runAppealDecision(options: RunAppealDecisionOptions, logge
 		);
 
 		// Keyed to the decision rather than assuming an unban. Only an approval passes `perform`, so only an
-		// approval can reach this at all today -- but P6 gives denials a DM, and the first person to reach for
-		// `perform` to send it would otherwise ship "check that I have Ban Members" as the failure text for a
-		// denial. (P6 should *not* do that, for the reason on `perform` itself: a DM that could not be delivered
-		// must not un-deny an appeal.)
+		// approval can reach this today -- but the branch stays, because the first person to put something else
+		// behind `perform` would otherwise ship "check that I have Ban Members" as the failure text for a denial.
 		return decision === 'approved'
 			? 'I could not lift that ban, so the appeal has been left open. Check that I still have Ban Members here, then try again.'
 			: 'Something went wrong recording that decision, so the appeal has been left open. Please try again.';
 	}
 
 	appealDecisions.inc({ decision, outcome: 'applied', source: 'card' });
+
+	// Delivered *before* the card is redrawn, not after: the card renders `appeal_user_state.dm_reachable`, and
+	// the delivery is what writes it. The other order leaves a card claiming a decision reached somebody it
+	// bounced off, until the next thing happens to redraw it -- which for a decided appeal is never.
+	const delivery = await deliverAppealDecision({ appeal: result.appeal, discord: botAppealDelivery(logger), logger });
+	countDelivery(delivery);
+
 	await refreshAppealCard(result.appeal, logger);
 
 	switch (decision) {
 		case 'approved':
-			return `Approved. <@${appeal.userId}> has been unbanned.`;
+			return `Approved. <@${appeal.userId}> has been unbanned. ${describeAppealDelivery(delivery)}`;
 		case 'denied':
-			return 'Denied. They will see the decision on their appeal page.';
+			return `Denied. ${describeAppealDelivery(delivery)}`;
 		case 'denied_silent':
 			return 'Denied silently. Their page still reads "under review", and it always will -- do not contact them about it.';
 	}
+}
+
+/**
+ * Split from the decision counter deliberately, and labelled per attempt: a denial that was decided and a
+ * denial that reached the person it was about are two different successes, and `appeals_decisions_total` only
+ * ever knew about the first.
+ */
+function countDelivery(delivery: AppealDeliveryResult): void {
+	appealDeliveries.inc({ kind: 'dm', outcome: delivery.dm, source: 'card' });
+	appealDeliveries.inc({ kind: 'rejoin', outcome: delivery.rejoin, source: 'card' });
 }
 
 /**

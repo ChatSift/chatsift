@@ -8,6 +8,7 @@ import { useAppealsGuild, useMe } from '@/api/routes/appeals';
 import { AppealForm } from '@/components/AppealForm';
 import { AppealStatusBadge } from '@/components/AppealStatusBadge';
 import { BlockedNotice } from '@/components/BlockedNotice';
+import { DeliveryNotice } from '@/components/DeliveryNotice';
 import { GuildBadge } from '@/components/GuildBadge';
 import { SignInPrompt } from '@/components/SignInPrompt';
 
@@ -50,6 +51,10 @@ export default function GuildAppealPage({ params }: { readonly params: Promise<{
 		<>
 			<GuildBadge guild={data.guild} unknownLabel="This server" />
 
+			{/* Above everything, and regardless of whether they can file right now: it is as relevant to an appeal
+			    already under review as it is to one they are about to write. */}
+			{user.dmReachable === false && <DeliveryNotice />}
+
 			{data.latestAppeal && (
 				<div className="flex flex-col gap-3 rounded-lg border border-on-secondary bg-card p-6 dark:border-on-secondary-dark dark:bg-card-dark">
 					<div className="flex flex-wrap items-center justify-between gap-3">
@@ -73,7 +78,12 @@ export default function GuildAppealPage({ params }: { readonly params: Promise<{
 			{data.blocked ? (
 				<BlockedNotice cooldownUntil={data.cooldownUntil} reason={data.blocked} />
 			) : (
-				<AppealForm appealsRemaining={appealsRemaining} guildId={guildId} questions={data.questions} />
+				<AppealForm
+					appealsRemaining={appealsRemaining}
+					canRejoin={user.canRejoin}
+					guildId={guildId}
+					questions={data.questions}
+				/>
 			)}
 		</>
 	);

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { appealStatusSchema, decideAppealBodySchema } from '../schemas.js';
+import { appealStatusSchema, decideAppealBodySchema, submitAppealBodySchema } from '../schemas.js';
 
 /**
  * The two rules on a dashboard decision that are not visible from the shape of the object (#232 P5). Both
@@ -51,4 +51,19 @@ test('the queue filter offers exactly the statuses a row can hold, in display or
 	// filter cannot name is an appeal nobody can find. Asserted in order, not as a set, because the dashboard
 	// lists the filter in exactly this order (`APPEAL_STATUSES`) and open work belongs at the top.
 	expect(appealStatusSchema.options).toEqual(['PENDING', 'APPROVED', 'DENIED', 'WITHDRAWN', 'MOOT']);
+});
+
+test('an appeal that says nothing about rejoining consents to nothing', () => {
+	// The default is the whole point (#232 P6): a submission that omits the box -- an older client, a scripted
+	// post, a browser that failed to send it -- must land as a refusal to be re-added, never as agreement.
+	const parsed = submitAppealBodySchema.parse({ answers: [] });
+
+	expect(parsed.rejoinConsent).toBe(false);
+	expect(submitAppealBodySchema.parse({ answers: [], rejoinConsent: true }).rejoinConsent).toBe(true);
+});
+
+test('rejoin consent is a boolean and nothing else', () => {
+	// `strictObject` plus a real boolean, so a truthy string cannot consent on somebody's behalf.
+	expect(submitAppealBodySchema.safeParse({ answers: [], rejoinConsent: 'yes' }).success).toBe(false);
+	expect(submitAppealBodySchema.safeParse({ answers: [], rejoinConsent: 1 }).success).toBe(false);
 });

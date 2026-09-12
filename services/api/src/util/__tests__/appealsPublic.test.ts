@@ -21,6 +21,7 @@ function makeAppeal(overrides: Partial<Appeals> = {}): Appeals {
 		kind: 'BAN' as AppealKind,
 		status: status('PENDING'),
 		silent: false,
+		rejoinConsent: false,
 		reasonSnapshot: 'ban evasion',
 		modChannelId: '110',
 		modMessageId: '111',

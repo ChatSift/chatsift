@@ -152,6 +152,16 @@ export interface AppealCardOptions {
 	 * simply drops the button.
 	 */
 	readonly dashboardLink?: string;
+	/**
+	 * `appeal_user_state.dm_reachable` (#232 P6): whether Discord has actually delivered a DM to this account.
+	 * `null`/absent is "never attempted", which is the state every first-time appellant is in and says nothing
+	 * either way.
+	 *
+	 * **The only thing about the appellant's account that ever reaches a guild's moderators**, and it is
+	 * deliberately one bit: whether a decision can be expected to land. Nothing else in that table is mod-facing
+	 * -- not the OAuth grant, not the token, not when any of it was written.
+	 */
+	readonly dmReachable?: boolean | null;
 }
 
 /**
@@ -210,6 +220,28 @@ function describeDecision(appeal: AppealEmbedInput): string | null {
 }
 
 /**
+ * The warning P6 owes a moderator: this decision probably will not reach the person it is about.
+ *
+ * Worded from *when* it is read rather than from the flag alone. Before a decision it is a heads-up that can
+ * still change what somebody does -- a denial nobody ever sees is a different act from one they read. After
+ * one, the same flag is a fact: the delivery ran immediately before the card was redrawn, so a `false` here on
+ * a decided appeal is this decision having failed to land, not an old bounce.
+ *
+ * Silent denials are exempt at both ends. Nothing was ever going to be sent, so a line about delivery would be
+ * describing a message that does not exist -- and on a card that already carries "do not contact them about
+ * this", a stray "they were not told" is an invitation to go and fix it.
+ */
+function describeReachability(appeal: AppealEmbedInput, dmReachable?: boolean | null): string | null {
+	if (dmReachable !== false || appeal.silent || appeal.status === 'WITHDRAWN' || appeal.status === 'MOOT') {
+		return null;
+	}
+
+	return appeal.status === 'PENDING'
+		? '**Heads up:** Discord will probably not let me DM this person, so whatever you decide here may never reach them.'
+		: '**They were not told.** Discord would not deliver the DM, so this decision has not reached them.';
+}
+
+/**
  * The questionnaire, trimmed to whatever the rest of the embed left behind.
  *
  * Prompts are kept whole and the answers absorb the trimming: a prompt is what makes an answer legible, and
@@ -244,6 +276,11 @@ export function buildAppealEmbed(appeal: AppealEmbedInput, options: AppealCardOp
 	const decision = describeDecision(appeal);
 	if (decision) {
 		parts.push(decision);
+	}
+
+	const delivery = describeReachability(appeal, options.dmReachable);
+	if (delivery) {
+		parts.push(delivery);
 	}
 
 	const description = parts.join('\n\n');

@@ -298,3 +298,14 @@ export const APPEAL_COOLDOWN_MAX_DAYS = 365;
  * expressing a cooldown, not a ceiling. `NULL` (no ceiling) stays the default.
  */
 export const APPEAL_MAX_APPEALS_CEILING = 10;
+
+/**
+ * The invite an approved appeal DMs when it could not add the appellant back itself (#232 P6).
+ *
+ * Single-use and a week long, and the DM copy says so. Both mod surfaces mint one of these, so the shape has to
+ * live somewhere neither owns -- a link that outlived its sentence, or that a denied appellant could be handed
+ * by the person who got one, is a hole in a wall a guild put up on purpose.
+ */
+export const APPEAL_REJOIN_INVITE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+
+export const APPEAL_REJOIN_INVITE_MAX_USES = 1;

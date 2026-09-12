@@ -281,3 +281,51 @@ test('an ordinary card is not trimmed by the budget', () => {
 
 	expect(embed.fields![0]!.value).toContain(answer);
 });
+
+test('a pending appeal warns when the appellant cannot be reached', () => {
+	const embed = buildAppealEmbed(makeAppeal(), { answers: [], dmReachable: false });
+
+	expect(embed.description).toContain('Heads up:');
+	expect(embed.description).toContain('may never reach them');
+});
+
+test('a decided appeal reports the decision as undelivered rather than warning about it', () => {
+	const embed = buildAppealEmbed(
+		makeAppeal({
+			status: 'DENIED',
+			decidedAt: new Date('2026-09-12T00:00:00.000Z'),
+			decidedById: '3',
+			decisionReason: 'no',
+		}),
+		{ answers: [], dmReachable: false },
+	);
+
+	expect(embed.description).toContain('**They were not told.**');
+	expect(embed.description).not.toContain('Heads up:');
+});
+
+test('a silent denial never mentions delivery, however unreachable they are', () => {
+	const embed = buildAppealEmbed(
+		makeAppeal({
+			status: 'DENIED',
+			silent: true,
+			decidedAt: new Date('2026-09-12T00:00:00.000Z'),
+			decidedById: '3',
+		}),
+		{ answers: [], dmReachable: false },
+	);
+
+	expect(embed.description).not.toContain('not told');
+	expect(embed.description).toContain('**Silently.**');
+});
+
+test('an unknown or good reachability adds nothing at all', () => {
+	for (const dmReachable of [null, true] as const) {
+		const embed = buildAppealEmbed(makeAppeal(), { answers: [], dmReachable });
+		expect(embed.description).not.toContain('Heads up:');
+	}
+
+	// Omitted entirely, which is what every card built before P6 passed and what a caller with nothing to say
+	// should keep passing.
+	expect(buildAppealEmbed(makeAppeal(), { answers: [] }).description).not.toContain('Heads up:');
+});

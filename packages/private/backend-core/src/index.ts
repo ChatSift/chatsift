@@ -2,7 +2,9 @@ export * from '@chatsift/core';
 
 export type * from './lib/data/_entity.js';
 export * from './lib/data/_store.js';
+export * from './lib/data/appealDelivery.js';
 export * from './lib/data/appeals.js';
+export * from './lib/data/appealUserState.js';
 export * from './lib/data/automoderatorHistoryTokens.js';
 export * from './lib/data/automoderatorReportDrafts.js';
 export * from './lib/data/automoderatorReports.js';

@@ -36,6 +36,8 @@ export default interface Appeals {
   createdAt: Date;
 
   modChannelId: string | null;
+
+  rejoinConsent: boolean;
 }
 
 /** Represents the initializer for the table public.appeals */
@@ -67,6 +69,8 @@ export interface AppealsInitializer {
   createdAt?: Date;
 
   modChannelId?: string | null;
+
+  rejoinConsent?: boolean;
 }
 
 /** Represents the mutator for the table public.appeals */
@@ -98,4 +102,6 @@ export interface AppealsMutator {
   createdAt?: Date;
 
   modChannelId?: string | null;
+
+  rejoinConsent?: boolean;
 }

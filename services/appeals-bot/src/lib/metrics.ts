@@ -56,3 +56,26 @@ export const banEvents = new Counter({
 	labelNames: ['kind', 'outcome'] as const,
 	registers: [register],
 });
+
+/**
+ * What became of a decision once it was made (#232 P6): the DM the appellant is owed, and the re-add decision
+ * 14 can perform on an approval.
+ *
+ * `kind` is `dm` or `rejoin`, because they fail for unrelated reasons and a single outcome label would hide
+ * that: a DM is refused by the *appellant's* privacy settings, and a re-add by a permission the *guild* never
+ * granted. `outcome` is `sent`/`blocked`/`failed`/`skipped` for a DM (`skipped` being a silent denial, which is
+ * the feature working) and `added`/`invited`/`none` for a rejoin.
+ *
+ * The one worth alerting on is `kind="dm", outcome="failed"`: `blocked` is an appellant with their DMs shut,
+ * which nothing we deploy can fix, but `failed` is our side and every one of those is a decision somebody was
+ * owed and did not get.
+ *
+ * **`services/api` defines this same metric with the same labels** and passes `dashboard` -- keep the two label
+ * sets identical, for the reason spelled out on `appealDecisions` above.
+ */
+export const appealDeliveries = new Counter({
+	name: 'appeals_deliveries_total',
+	help: 'What became of an appeal decision after it was made, by what was attempted and how it went',
+	labelNames: ['kind', 'outcome', 'source'] as const,
+	registers: [register],
+});
