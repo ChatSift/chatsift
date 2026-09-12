@@ -558,41 +558,17 @@ docker buildx imagetools create -t ghcr.io/chatsift/chatsift:main-ama \
   ghcr.io/chatsift/chatsift:main-<known-good-sha>
 ```
 
-### `/home/deploys/bin/deploy` (host-side, not in this repo)
+### `/home/deploys/bin/deploy`
 
-It lives on the host rather than in the checkout on purpose: it must be able to deploy a commit older than any
-change to itself, and it must keep working when a bad commit is what you are backing out of.
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-# The SSH key is registered with a forced command, so $SSH_ORIGINAL_COMMAND is the only thing the
-# caller controls. Validate it against a literal allowlist rather than interpolating it into a path.
-case "${SSH_ORIGINAL_COMMAND:-}" in
-  main)   BRANCH=main;   REPO=/home/deploys/repos/prod ;;
-  canary) BRANCH=canary; REPO=/home/deploys/repos/canary ;;
-  *) echo "refusing to deploy unknown channel: ${SSH_ORIGINAL_COMMAND:-<empty>}" >&2; exit 1 ;;
-esac
-
-# Lock in the deploys home rather than /var/lock -- that directory's ownership and mode vary by
-# distro, and this runs unprivileged.
-exec 9>"/home/deploys/.deploy-${BRANCH}.lock"
-flock -n 9 || { echo "a ${BRANCH} deploy is already running" >&2; exit 1; }
-
-cd "$REPO"
-git fetch --prune origin "$BRANCH"
-git reset --hard "origin/${BRANCH}"
-
-./compose pull
-./compose up -d
-docker image prune -f
-```
+[`scripts/deploy.sh`](../scripts/deploy.sh) is the source of truth; the host copy at `/home/deploys/bin/deploy`
+is maintained by copy-paste. It lives on the host rather than being run from the checkout on purpose: it must be
+able to deploy a commit older than any change to itself, and keep working when a bad commit is what you are
+backing out of. **Editing it here does not deploy it** -- copy the file to the box afterwards.
 
 Note `./compose up -d` injects `--wait --wait-timeout 300` of its own (#294), so this blocks until every
 container with a healthcheck reports healthy and a deploy that comes up broken exits non-zero here rather than
-reporting green. That lives in `./compose` rather than in this script precisely because this script is versioned
-nowhere. Three things narrow it: it only fires for a **detached** `up` (`--wait` implies `--detach`, so an
+reporting green. That lives in `./compose` rather than in this script so it applies to a host copy nobody has
+got round to updating, and to every `./compose up -d` typed by hand. Three things narrow it: it only fires for a **detached** `up` (`--wait` implies `--detach`, so an
 attached `./compose up` would stop streaming logs), it stands aside if you pass `--wait`/`--wait-timeout`
 yourself, and `CHATSIFT_NO_WAIT=1` skips it for restarting one service mid-incident without blocking on the rest.
 
@@ -608,6 +584,45 @@ command="/home/deploys/bin/deploy",no-pty,no-agent-forwarding,no-port-forwarding
 
 CI needs `DEPLOY_SSH_KEY`, `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS` as repository secrets. The host key is pinned;
 do not reach for `StrictHostKeyChecking=no`.
+
+### Rolling a deploy (#294)
+
+`./compose roll` replaces the containers of the api and every bot **one at a time**: it adds a replica on the new
+image, waits for it to pass its healthcheck, then stops one old container, and repeats until none of the original
+containers are left. A plain `up -d` recreates every replica of a service at once, which is a real gap -- measured
+against a backend with an 8s startup, a plain `up -d` dropped 6 requests where a roll dropped none.
+
+It is deliberately a separate verb rather than folded into `up`:
+
+```sh
+./compose pull
+./compose roll      # api + bots, one container at a time
+./compose up -d     # converges postgres, redis, the proxy, ingress and monitoring
+```
+
+`roll` takes service names (`./compose roll api ama-bot`) and defaults to the `ROLLABLE` list in the script.
+Each step is scoped to one service so `depends_on` still applies -- which is what keeps the `migrate` gate in
+front of the first new container of the deploy.
+
+If a replacement never becomes healthy, that step prints the new container's last 50 log lines, removes it,
+leaves its old container running, and exits non-zero -- which aborts the deploy before `up -d`.
+`ROLL_HEALTH_TIMEOUT` (default 180s) bounds the wait.
+
+**A roll is not transactional.** Steps that already completed are not undone, so a failure partway through a
+multi-replica service leaves it running a mix of old and new containers, and the roll says so
+(`N of M container(s) were already replaced and are NOT rolled back`). Only a failure on the very first step
+leaves the service exactly as it was. Re-running `./compose roll` after fixing the cause rolls whatever is still
+on the old image.
+
+Two things it relies on:
+
+- **Caddy re-resolving the api's replicas.** `build/caddy/Caddyfile` uses a `dynamic a` upstream with
+  `lb_try_duration`, so a dial to a container that just went away is retried against the surviving one. A plain
+  `reverse_proxy api:PORT` resolves once per dial and has no idea one of the two is going away.
+- **Graceful stops.** Old containers go via `docker stop`, not `rm -f`. For a bot that shutdown is what releases
+  its replica lease and flushes its gateway session, which is what lets the replacement -- parked as a hot spare
+  the whole time -- take over within one `HOT_SPARE_POLL_MS` (10s) and RESUME rather than re-IDENTIFY. A bot swap
+  is therefore short rather than zero: the expensive part of boot is paid before the cutover instead of during it.
 
 ### What "healthy" means
 

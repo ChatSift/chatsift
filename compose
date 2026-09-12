@@ -163,6 +163,156 @@ plan_scale() {
   SCALE_ARGS+=(--scale "${service}=${replicas}")
 }
 
+ROLLABLE='api ama-bot modmail-bot modmail-bot-nascar social-bot appeals-bot automoderator-bot'
+
+compose_do() {
+  docker compose -p "$PROJECT" -f docker-compose.yml "${PROFILE_ARGS[@]}" "${ENV_FILE_ARGS[@]}" "$@"
+}
+
+running_ids() {
+  compose_do ps -q "$1"
+}
+
+container_name() {
+  docker inspect -f '{{.Name}}' "$1" 2>/dev/null | sed 's|^/||' || echo "$1"
+}
+
+roll_service() {
+  local service="$1" old_ids='' seen='' count=0 rolled=0 old new status name
+
+  if ! old_ids="$(running_ids "$service")"
+  then
+    echo "${service}: could not list containers" >&2
+    return 1
+  fi
+
+  old_ids="$(echo $old_ids)"
+  for _ in $old_ids
+  do
+    count=$(( count + 1 ))
+  done
+
+  if [ "$count" -eq 0 ]
+  then
+    echo "${service}: nothing running, starting it normally"
+    compose_do up -d "$service"
+    return 0
+  fi
+
+  seen=" ${old_ids} "
+  echo "${service}: rolling ${count} container(s)"
+
+  for old in $old_ids
+  do
+    if ! compose_do up -d --no-recreate --scale "${service}=$(( count + 1 ))" "$service"
+    then
+      echo "${service}: failed to add a replacement container" >&2
+      roll_partial_note "$service" "$rolled" "$count"
+      return 1
+    fi
+
+    new=''
+    for id in $(running_ids "$service")
+    do
+      case "$seen" in
+        *" $id "*) ;;
+        *) new="$id" ;;
+      esac
+    done
+
+    if [ -z "$new" ]
+    then
+      echo "${service}: no new container appeared" >&2
+      roll_partial_note "$service" "$rolled" "$count"
+      return 1
+    fi
+
+    seen="${seen}${new} "
+    name="$(container_name "$new")"
+
+    status=''
+    for _ in $(seq 1 "${ROLL_HEALTH_TIMEOUT:-180}")
+    do
+      status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$new" 2>/dev/null || echo gone)"
+      case "$status" in
+        # `gone` means it crashed and was removed -- no point waiting out the timeout for a container that
+        # no longer exists.
+        healthy|none|gone) break ;;
+      esac
+      sleep 1
+    done
+
+    case "$status" in
+      healthy|none) ;;
+      *)
+        echo "${service}: ${name} never became healthy (${status})" >&2
+        echo "--- last 50 log lines from ${name} ---" >&2
+        docker logs --tail 50 "$new" >&2 2>&1 || true
+        echo "--- end ${name} ---" >&2
+
+        if [ "$status" != gone ]
+        then
+          docker stop "$new" >/dev/null 2>&1 || docker kill "$new" >/dev/null 2>&1 || true
+          if ! docker rm -f "$new" >/dev/null 2>&1
+          then
+            echo "${service}: FAILED to remove ${name} -- it is still on the network and may take traffic." >&2
+            echo "${service}: remove it by hand: docker rm -f ${new}" >&2
+          fi
+        fi
+
+        roll_partial_note "$service" "$rolled" "$count"
+        return 1
+        ;;
+    esac
+
+    echo "  ${name} ready (${status}); retiring $(container_name "$old")"
+
+    if ! docker stop "$old" >/dev/null 2>&1
+    then
+      echo "${service}: failed to stop $(container_name "$old"); it and ${name} are both running" >&2
+      return 1
+    fi
+
+    if ! docker rm "$old" >/dev/null 2>&1
+    then
+      echo "${service}: stopped but could not remove $(container_name "$old")" >&2
+      return 1
+    fi
+
+    rolled=$(( rolled + 1 ))
+  done
+}
+
+roll_partial_note() {
+  local service="$1" rolled="$2" count="$3"
+
+  if [ "$rolled" -gt 0 ]
+  then
+    echo "${service}: ${rolled} of ${count} container(s) were already replaced and are NOT rolled back" >&2
+  else
+    echo "${service}: no containers were retired; it is as it was before the roll" >&2
+  fi
+}
+
+if [ "$1" = 'roll' ]
+then
+  shift
+  services="${*:-$ROLLABLE}"
+  failed=''
+  for _service in $services
+  do
+    roll_service "$_service" || failed="${failed}${_service} "
+  done
+
+  if [ -n "$failed" ]
+  then
+    echo "roll failed for: ${failed}" >&2
+    exit 1
+  fi
+
+  exit 0
+fi
+
 if [ "$1" != 'up' ]
 then
   case " $* " in
