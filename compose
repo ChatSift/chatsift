@@ -169,19 +169,28 @@ compose_do() {
   docker compose -p "$PROJECT" -f docker-compose.yml "${PROFILE_ARGS[@]}" "${ENV_FILE_ARGS[@]}" "$@"
 }
 
-running_names() {
-  compose_do ps --format '{{.Name}}' --filter status=running "$1" 2>/dev/null | sort
+running_ids() {
+  compose_do ps -q "$1"
+}
+
+container_name() {
+  docker inspect -f '{{.Name}}' "$1" 2>/dev/null | sed 's|^/||' || echo "$1"
 }
 
 roll_service() {
-  local service="$1" old_names='' seen='' count=0 old new status
+  local service="$1" old_ids='' seen='' count=0 rolled=0 old new status name
 
-  while read -r name
+  if ! old_ids="$(running_ids "$service")"
+  then
+    echo "${service}: could not list containers" >&2
+    return 1
+  fi
+
+  old_ids="$(echo $old_ids)"
+  for _ in $old_ids
   do
-    [ -n "$name" ] || continue
-    old_names="${old_names}${name} "
     count=$(( count + 1 ))
-  done < <(running_names "$service")
+  done
 
   if [ "$count" -eq 0 ]
   then
@@ -190,40 +199,45 @@ roll_service() {
     return 0
   fi
 
-  seen=" ${old_names}"
+  seen=" ${old_ids} "
   echo "${service}: rolling ${count} container(s)"
 
-  for old in $old_names
+  for old in $old_ids
   do
     if ! compose_do up -d --no-recreate --scale "${service}=$(( count + 1 ))" "$service"
     then
       echo "${service}: failed to add a replacement container" >&2
+      roll_partial_note "$service" "$rolled" "$count"
       return 1
     fi
 
     new=''
-    while read -r name
+    for id in $(running_ids "$service")
     do
       case "$seen" in
-        *" $name "*) ;;
-        *) new="$name" ;;
+        *" $id "*) ;;
+        *) new="$id" ;;
       esac
-    done < <(running_names "$service")
+    done
 
     if [ -z "$new" ]
     then
       echo "${service}: no new container appeared" >&2
+      roll_partial_note "$service" "$rolled" "$count"
       return 1
     fi
 
     seen="${seen}${new} "
+    name="$(container_name "$new")"
 
     status=''
     for _ in $(seq 1 "${ROLL_HEALTH_TIMEOUT:-180}")
     do
       status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$new" 2>/dev/null || echo gone)"
       case "$status" in
-        healthy|none) break ;;
+        # `gone` means it crashed and was removed -- no point waiting out the timeout for a container that
+        # no longer exists.
+        healthy|none|gone) break ;;
       esac
       sleep 1
     done
@@ -231,21 +245,53 @@ roll_service() {
     case "$status" in
       healthy|none) ;;
       *)
-        echo "${service}: ${new} never became healthy (${status}); rolling back this step" >&2
-        echo "--- last 50 log lines from ${new} ---" >&2
+        echo "${service}: ${name} never became healthy (${status})" >&2
+        echo "--- last 50 log lines from ${name} ---" >&2
         docker logs --tail 50 "$new" >&2 2>&1 || true
-        echo "--- end ${new} ---" >&2
-        docker stop "$new" >/dev/null 2>&1 || true
-        docker rm "$new" >/dev/null 2>&1 || true
-        echo "${service}: ${old} left running; no containers were retired" >&2
+        echo "--- end ${name} ---" >&2
+
+        if [ "$status" != gone ]
+        then
+          docker stop "$new" >/dev/null 2>&1 || docker kill "$new" >/dev/null 2>&1 || true
+          if ! docker rm -f "$new" >/dev/null 2>&1
+          then
+            echo "${service}: FAILED to remove ${name} -- it is still on the network and may take traffic." >&2
+            echo "${service}: remove it by hand: docker rm -f ${new}" >&2
+          fi
+        fi
+
+        roll_partial_note "$service" "$rolled" "$count"
         return 1
         ;;
     esac
 
-    echo "  ${new} ready (${status}); retiring ${old}"
-    docker stop "$old" >/dev/null || true
-    docker rm "$old" >/dev/null || true
+    echo "  ${name} ready (${status}); retiring $(container_name "$old")"
+
+    if ! docker stop "$old" >/dev/null 2>&1
+    then
+      echo "${service}: failed to stop $(container_name "$old"); it and ${name} are both running" >&2
+      return 1
+    fi
+
+    if ! docker rm "$old" >/dev/null 2>&1
+    then
+      echo "${service}: stopped but could not remove $(container_name "$old")" >&2
+      return 1
+    fi
+
+    rolled=$(( rolled + 1 ))
   done
+}
+
+roll_partial_note() {
+  local service="$1" rolled="$2" count="$3"
+
+  if [ "$rolled" -gt 0 ]
+  then
+    echo "${service}: ${rolled} of ${count} container(s) were already replaced and are NOT rolled back" >&2
+  else
+    echo "${service}: no containers were retired; it is as it was before the roll" >&2
+  fi
 }
 
 if [ "$1" = 'roll' ]

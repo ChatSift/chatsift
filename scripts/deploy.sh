@@ -23,7 +23,7 @@ git reset --hard "origin/${BRANCH}"
 ./compose pull
 
 # Replaces the api's and each bot's containers one at a time
-# `set -e` aborts the deploy if a replacement never becomes healthy, leaving every old container running.
+# `set -e` aborts the deploy if a replacement never becomes healthy. Not transactional: completed steps stay.
 ./compose roll
 
 # Converges everything `roll` does not touch -- postgres, redis, the proxy, ingress, monitoring -- and is a

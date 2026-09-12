@@ -605,8 +605,14 @@ Each step is scoped to one service so `depends_on` still applies -- which is wha
 front of the first new container of the deploy.
 
 If a replacement never becomes healthy, that step prints the new container's last 50 log lines, removes it,
-leaves every old container running, and exits non-zero. The service is then exactly as it was before the roll.
+leaves its old container running, and exits non-zero -- which aborts the deploy before `up -d`.
 `ROLL_HEALTH_TIMEOUT` (default 180s) bounds the wait.
+
+**A roll is not transactional.** Steps that already completed are not undone, so a failure partway through a
+multi-replica service leaves it running a mix of old and new containers, and the roll says so
+(`N of M container(s) were already replaced and are NOT rolled back`). Only a failure on the very first step
+leaves the service exactly as it was. Re-running `./compose roll` after fixing the cause rolls whatever is still
+on the old image.
 
 Two things it relies on:
 
