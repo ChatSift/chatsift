@@ -178,7 +178,7 @@ container_name() {
 }
 
 roll_service() {
-  local service="$1" old_ids='' seen='' count=0 rolled=0 old new status name
+  local service="$1" old_ids='' seen='' count=0 rolled=0 old new status name settled url body
 
   if ! old_ids="$(running_ids "$service")"
   then
@@ -280,6 +280,53 @@ roll_service() {
     fi
 
     rolled=$(( rolled + 1 ))
+
+    url="$(docker inspect -f '{{json .Config.Healthcheck.Test}}' "$new" 2>/dev/null | grep -o 'http://[^ "]*' | head -1)"
+
+    if [ -n "$url" ]
+    then
+      settled=''
+      for _ in $(seq 1 "${ROLL_SETTLE_TIMEOUT:-180}")
+      do
+        if ! docker inspect -f '{{.State.Running}}' "$new" 2>/dev/null | grep -q true
+        then
+          settled=gone
+          break
+        fi
+
+        body="$(docker exec "$new" wget -q -O - "$url" 2>/dev/null)"
+        case "$body" in
+          # bot-core's shard payload, and the one state worth waiting for.
+          *'"state":"healthy"'*) settled=serving ;;
+          # `spare`, `starting` or `stalled` -- the claim has not landed, or it has and the shard is not
+          # beating yet. Keep waiting; this is the window the old container used to be covering.
+          *'"state":'*) settled='' ;;
+          # A 200 with no shard ownership in it (the API). Nothing to settle.
+          *'{'*) settled=serving ;;
+          # Unreachable: mid-restart, or not answering yet.
+          *) settled='' ;;
+        esac
+
+        if [ "$settled" = serving ]
+        then
+          break
+        fi
+
+        sleep 1
+      done
+
+      if [ "$settled" = serving ]
+      then
+        echo "  ${name} serving"
+      else
+        echo "${service}: ${name} took over but never started serving (${settled:-still 503})" >&2
+        echo "--- last 50 log lines from ${name} ---" >&2
+        docker logs --tail 50 "$new" >&2 2>&1 || true
+        echo "--- end ${name} ---" >&2
+        roll_partial_note "$service" "$rolled" "$count"
+        return 1
+      fi
+    fi
   done
 }
 

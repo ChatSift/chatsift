@@ -415,6 +415,7 @@ services:
       interval: 10s
       timeout: 5s
       start_period: 180s
+      retries: 15
     volumes:
       - ./logs/ama-bot:/usr/chatsift/logs/ama-bot
 
@@ -445,6 +446,7 @@ services:
       interval: 10s
       timeout: 5s
       start_period: 180s
+      retries: 15
     volumes:
       - ./logs/modmail-bot:/usr/chatsift/logs/modmail-bot
 
@@ -475,6 +477,7 @@ services:
       interval: 10s
       timeout: 5s
       start_period: 180s
+      retries: 15
     volumes:
       - ./logs/social-bot:/usr/chatsift/logs/social-bot
 
@@ -508,6 +511,7 @@ services:
       interval: 10s
       timeout: 5s
       start_period: 180s
+      retries: 15
     volumes:
       - ./logs/appeals-bot:/usr/chatsift/logs/appeals-bot
 
@@ -541,6 +545,7 @@ services:
       interval: 10s
       timeout: 5s
       start_period: 180s
+      retries: 15
     volumes:
       - ./logs/automoderator-bot:/usr/chatsift/logs/automoderator-bot
 
@@ -578,6 +583,7 @@ services:
   #     interval: 10s
   #     timeout: 5s
   #     start_period: 180s
+  #     retries: 15
   #   volumes:
   #     - ./logs/modmail-bot-<partner-slug>:/usr/chatsift/logs/modmail-bot-<partner-slug>
 
@@ -612,6 +618,7 @@ services:
       interval: 10s
       timeout: 5s
       start_period: 180s
+      retries: 15
     volumes:
       - ./logs/modmail-bot-nascar:/usr/chatsift/logs/modmail-bot-nascar
 
